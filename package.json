@@ -2,6 +2,14 @@
   "name": "frirss",
   "private": true,
   "version": "1.0.0",
+  "description": "A self-hosted, customizable web frontend for FreshRSS.",
+  "license": "MIT",
+  "author": "Fripix",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Fripix/frirss.git"
+  },
+  "homepage": "https://github.com/Fripix/frirss#readme",
   "type": "module",
   "scripts": {
     "dev": "tsx watch server/index.ts & vite",
