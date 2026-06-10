@@ -40,13 +40,13 @@ body {
    brand green (like the mobile layout), so the clock / Wi-Fi / battery sit on
    a clean green band instead of colliding with the header and toolbars.
    Narrow screens (<1024px) handle this via their own rules. */
-@media (display-mode: standalone) and (min-width: 1024px) {
-  /* Push the top bars below the status bar (proven to work). */
-  .sidebar-header      { padding-top: calc(1.25rem  + env(safe-area-inset-top)); }
-  .article-list-header { padding-top: env(safe-area-inset-top); }
-  .reading-toolbar     { padding-top: calc(0.375rem + env(safe-area-inset-top)); }
+@media (display-mode: standalone) {
+  /* Push the top bars below the status bar (desktop layout only). */
+  :where([data-layout="desktop"]) .sidebar-header      { padding-top: calc(1.25rem  + env(safe-area-inset-top)); }
+  :where([data-layout="desktop"]) .article-list-header { padding-top: env(safe-area-inset-top); }
+  :where([data-layout="desktop"]) .reading-toolbar     { padding-top: calc(0.375rem + env(safe-area-inset-top)); }
   /* Paint the whole status-bar strip green, full width, above the bars. */
-  body::before {
+  :where([data-layout="desktop"]) body::before {
     content: '';
     position: fixed;
     top: 0;
@@ -534,82 +534,63 @@ html {
   to   { opacity: 1; }
 }
 
-/* ── Reading toolbar — responsive sizing (mobile + tablet) ───────── */
-@media (max-width: 1023px) {
-  .reading-toolbar {
-    justify-content: space-around;
-    gap: 0 !important;
-    padding: 8px 4px;
-  }
-  .reading-toolbar .toolbar-sep,
-  .reading-toolbar .toolbar-spacer {
-    display: none;
-  }
-  .reading-toolbar svg {
-    width: clamp(18px, 4.5vw, 22px);
-    height: clamp(18px, 4.5vw, 22px);
-  }
-  .reading-toolbar > button,
-  .reading-toolbar > a,
-  .reading-toolbar .action-btn {
-    min-height: clamp(38px, 10vw, 48px);
-    min-width: clamp(38px, 10vw, 48px);
-    max-width: 56px;
-    max-height: 48px;
-    padding: clamp(6px, 2vw, 12px);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+/* ── Reading toolbar — responsive sizing (mobile + tablet layout) ──── */
+:where([data-layout="mobile"], [data-layout="tablet"]) .reading-toolbar {
+  justify-content: space-around;
+  gap: 0 !important;
+  padding: 8px 4px;
+}
+:where([data-layout="mobile"], [data-layout="tablet"]) .reading-toolbar .toolbar-sep,
+:where([data-layout="mobile"], [data-layout="tablet"]) .reading-toolbar .toolbar-spacer {
+  display: none;
+}
+:where([data-layout="mobile"], [data-layout="tablet"]) .reading-toolbar svg {
+  width: clamp(18px, 4.5vw, 22px);
+  height: clamp(18px, 4.5vw, 22px);
+}
+:where([data-layout="mobile"], [data-layout="tablet"]) .reading-toolbar > button,
+:where([data-layout="mobile"], [data-layout="tablet"]) .reading-toolbar > a,
+:where([data-layout="mobile"], [data-layout="tablet"]) .reading-toolbar .action-btn {
+  min-height: clamp(38px, 10vw, 48px);
+  min-width: clamp(38px, 10vw, 48px);
+  max-width: 56px;
+  max-height: 48px;
+  padding: clamp(6px, 2vw, 12px);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* ── Mobile-specific styles ──────────────────────────────────────── */
-@media (max-width: 767px) {
-  /* Disable hover effects on touch (avoids sticky hover) */
-  .article-row:hover {
-    transform: none;
-  }
-  .sidebar-feed-item:not(.sidebar-feed-active):hover {
-    transform: none;
-    background: transparent;
-  }
-  .action-btn:hover {
-    transform: none;
-    background: transparent !important;
-  }
-
-  /* Larger touch targets */
-  .action-btn {
-    min-height: 36px;
-    min-width: 36px;
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-
-  /* Hide action button labels on small screens — icons only */
-  .action-btn > span {
-    display: none;
-  }
-
-  /* Safe areas (iPhone notch / home indicator) */
-  .sidebar-header {
-    padding-top: max(20px, env(safe-area-inset-top));
-  }
-  .reading-pane {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
+/* ── Mobile layout — touch targets, icon-only buttons, safe areas ─── */
+:where([data-layout="mobile"]) .article-row:hover { transform: none; }
+:where([data-layout="mobile"]) .sidebar-feed-item:not(.sidebar-feed-active):hover {
+  transform: none;
+  background: transparent;
+}
+:where([data-layout="mobile"]) .action-btn:hover {
+  transform: none;
+  background: transparent !important;
+}
+/* Larger touch targets, icon-only buttons */
+:where([data-layout="mobile"]) .action-btn {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+:where([data-layout="mobile"]) .action-btn > span { display: none; }
+/* Safe areas (notch / home indicator) */
+:where([data-layout="mobile"]) .sidebar-header {
+  padding-top: max(20px, env(safe-area-inset-top));
+}
+:where([data-layout="mobile"]) .reading-pane {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* ── Tablet tweaks ───────────────────────────────────────────────── */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .article-row:hover {
-    transform: none;
-  }
-  .action-btn:hover {
-    transform: none;
-  }
-}
+/* ── Tablet layout — disable sticky hover ─────────────────────────── */
+:where([data-layout="tablet"]) .article-row:hover { transform: none; }
+:where([data-layout="tablet"]) .action-btn:hover { transform: none; }
 
 /* ── Mobile: avoid iOS focus-zoom (inputs must be ≥16px) ─────────── */
 @media (max-width: 768px) {
@@ -630,4 +611,11 @@ html {
   .article-row button {
     min-height: 0;
   }
+}
+
+/* ── Desktop/mobile layout toggle — only on touch tablets ─────────── */
+/* Hidden on phones (one sensible layout) and on pointer-fine desktops. */
+.layout-toggle { display: none; }
+@media (pointer: coarse) and (min-width: 768px) {
+  .layout-toggle { display: flex; }
 }

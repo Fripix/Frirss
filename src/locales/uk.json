@@ -37,7 +37,9 @@
     "collapse": "Згорнути",
     "expand": "Розгорнути",
     "manageLabels": "Керувати мітками",
-    "github": "FriRSS на GitHub"
+    "github": "FriRSS на GitHub",
+    "layoutDesktop": "Десктопний вигляд",
+    "layoutMobile": "Мобільний вигляд"
   },
   "addFeed": {
     "title": "Додати RSS-стрічку",

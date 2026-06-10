@@ -66,9 +66,14 @@ export interface UiState {
   appTitle: string;
   appLogo: string | null;
   logoMode: 'small' | 'large';
+  // Force the layout regardless of screen width ('auto' = follow width).
+  // Local to each device — never synced (a tablet can be mobile while the
+  // desktop stays desktop).
+  layoutMode: 'auto' | 'desktop' | 'mobile';
   setAppTitle: (title: string) => void;
   setAppLogo: (dataUrl: string | null) => void;
   setLogoMode: (mode: 'small' | 'large') => void;
+  setLayoutMode: (mode: 'auto' | 'desktop' | 'mobile') => void;
   shortcuts: Shortcuts;
   setShortcut: (action: string, key: string) => void;
   resetShortcuts: () => void;
@@ -224,6 +229,10 @@ export const useUiStore = create<UiState>()((set, get) => ({
   // 'large' = the logo replaces the title (historical behaviour);
   // 'small' = a compact logo sits next to the title + server name.
   logoMode: (localStorage.getItem('frirss_logoMode') === 'small' ? 'small' : 'large'),
+  layoutMode: ((): 'auto' | 'desktop' | 'mobile' => {
+    const v = localStorage.getItem('frirss_layoutMode');
+    return v === 'desktop' || v === 'mobile' ? v : 'auto';
+  })(),
   setAppTitle: (title) => {
     const val = title.trim() || 'FriRSS';
     localStorage.setItem('frirss_appTitle', val);
@@ -240,6 +249,10 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setLogoMode: (mode) => {
     localStorage.setItem('frirss_logoMode', mode);
     set({ logoMode: mode });
+  },
+  setLayoutMode: (mode) => {
+    localStorage.setItem('frirss_layoutMode', mode);
+    set({ layoutMode: mode });
   },
 
   // Keyboard shortcuts (configurable)

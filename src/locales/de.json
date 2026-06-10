@@ -37,7 +37,9 @@
     "collapse": "Einklappen",
     "expand": "Ausklappen",
     "manageLabels": "Labels verwalten",
-    "github": "FriRSS auf GitHub"
+    "github": "FriRSS auf GitHub",
+    "layoutDesktop": "Desktop-Layout",
+    "layoutMobile": "Mobiles Layout"
   },
   "addFeed": {
     "title": "RSS-Feed hinzufügen",

@@ -37,7 +37,9 @@
     "collapse": "Recolher",
     "expand": "Expandir",
     "manageLabels": "Gerir etiquetas",
-    "github": "FriRSS no GitHub"
+    "github": "FriRSS no GitHub",
+    "layoutDesktop": "Disposição desktop",
+    "layoutMobile": "Disposição móvel"
   },
   "addFeed": {
     "title": "Adicionar um feed RSS",

@@ -37,7 +37,9 @@
     "collapse": "Zwiń",
     "expand": "Rozwiń",
     "manageLabels": "Zarządzaj etykietami",
-    "github": "FriRSS na GitHub"
+    "github": "FriRSS na GitHub",
+    "layoutDesktop": "Układ desktopowy",
+    "layoutMobile": "Układ mobilny"
   },
   "addFeed": {
     "title": "Dodaj kanał RSS",

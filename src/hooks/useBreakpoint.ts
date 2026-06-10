@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useUiStore } from '../stores/uiStore';
 
 export type Breakpoint = 'mobile' | 'tablet' | 'desktop';
 
@@ -9,7 +10,8 @@ function getBreakpoint(): Breakpoint {
   return 'desktop';
 }
 
-export function useBreakpoint(): Breakpoint {
+/** Width-derived breakpoint, ignoring any manual layout override. */
+export function useRawBreakpoint(): Breakpoint {
   const [bp, setBp] = useState<Breakpoint>(getBreakpoint);
 
   useEffect(() => {
@@ -26,4 +28,17 @@ export function useBreakpoint(): Breakpoint {
   }, []);
 
   return bp;
+}
+
+/**
+ * Effective breakpoint that drives the layout. Follows the screen width unless
+ * the user forced a layout (uiStore.layoutMode) — used on tablets to pick
+ * between the desktop experience and the mobile (gesture-first) experience.
+ */
+export function useBreakpoint(): Breakpoint {
+  const raw = useRawBreakpoint();
+  const layoutMode = useUiStore((s) => s.layoutMode);
+  if (layoutMode === 'desktop') return 'desktop';
+  if (layoutMode === 'mobile') return 'mobile';
+  return raw;
 }

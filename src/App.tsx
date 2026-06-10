@@ -50,6 +50,13 @@ export default function App() {
   const isDesktop = breakpoint === 'desktop';
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Expose the effective layout to CSS (responsive rules key off this instead
+  // of raw width, so a forced layout styles correctly). On <html> so portals
+  // rendered to <body> are covered too.
+  useEffect(() => {
+    document.documentElement.dataset.layout = breakpoint;
+  }, [breakpoint]);
+
   useKeyboardNav();
 
   const [sidebarWidth, setSidebarWidth] = useState(
