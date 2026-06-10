@@ -41,9 +41,21 @@ body {
    a clean green band instead of colliding with the header and toolbars.
    Narrow screens (<1024px) handle this via their own rules. */
 @media (display-mode: standalone) and (min-width: 1024px) {
-  .app-shell {
-    padding-top: env(safe-area-inset-top);
+  /* Push the top bars below the status bar (proven to work). */
+  .sidebar-header      { padding-top: calc(1.25rem  + env(safe-area-inset-top)); }
+  .article-list-header { padding-top: env(safe-area-inset-top); }
+  .reading-toolbar     { padding-top: calc(0.375rem + env(safe-area-inset-top)); }
+  /* Paint the whole status-bar strip green, full width, above the bars. */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top);
     background: var(--sidebar-header-bg);
+    z-index: 60;
+    pointer-events: none;
   }
 }
 
