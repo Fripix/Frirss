@@ -3,6 +3,7 @@
   <h1>FriRSS</h1>
   <p><em>Your FriRSS, your rules.</em></p>
   <p>A self-hosted, customizable web frontend for <a href="https://freshrss.org">FreshRSS</a>.</p>
+  <p><strong>🇫🇷&nbsp; 🇬🇧&nbsp; 🇩🇪&nbsp; 🇪🇸&nbsp; 🇮🇹&nbsp; 🇵🇹&nbsp; 🇳🇱&nbsp; 🇵🇱&nbsp; 🇺🇦</strong></p>
   <p>
     <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green" /></a>
     <a href="https://github.com/Fripix/frirss/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fripix/frirss/actions/workflows/ci.yml/badge.svg" /></a>
@@ -27,14 +28,30 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 
 ## Features
 
-- **Three-pane reader** on desktop, and an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
+### Reading
+- Three-pane reader on desktop; an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
 - **Full-text extraction** (Readability) when a feed only ships a summary, cached so re-reads are instant.
-- **Organize freely**: favorites, read-later, nestable colored labels with per-label counts, and drag-and-drop ordering of feeds and categories.
-- **Themes**: full control over colors and fonts, with import/export and saved themes. Set your own app name and logo.
+- Favorites, read-later, mark read/unread, filters (all / unread / favorites), search and infinite scroll.
+
+### Make it yours
+Almost everything is yours to tweak:
+- **Themes** — full control over every color and font; **create, save, export and import** your own themes.
+- **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
+- **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
+- **Layout** — resizable columns, density and spacing options, date separators, and toggles for the source label and top bar.
+- **Labels & sub-labels** — a nestable tagging system: create, rename, color, drag-and-drop to organize, group under parents, with per-label article counts.
+- **Branding** — set your own app name and logo.
+- **9 languages** — FR · EN · DE · ES · IT · PT · NL · PL · UK.
+
+### Accounts, SSO & multi-server
 - **Multi-user** with admin/user roles — each person keeps their own feeds and settings.
-- **Single sign-on** via OIDC (tested with [Authentik](https://goauthentik.io)): existing accounts are linked by email, and passkeys work through your provider.
-- **Multi-server**: connect several FreshRSS instances and switch between them.
-- **Built to self-host**: optional Redis cache with background pre-fetch, FreshRSS tokens encrypted at rest, an anti-SSRF proxy, a single Docker image, and a UI in 9 languages.
+- **Single sign-on** via OIDC (tested with [Authentik](https://goauthentik.io)); existing accounts are linked by email, and passkeys work through your provider.
+- **Multi-server** — connect several FreshRSS instances and switch between them.
+
+### Self-hosting
+- Optional **Redis cache** (stale-while-revalidate) and a background pre-fetch worker for instant loads.
+- FreshRSS tokens **encrypted at rest**; same-origin proxy (no CORS) with an anti-SSRF guard.
+- Ships as a single **Docker** image (nginx + Node) with SQLite storage.
 
 ## Installation
 
@@ -48,6 +65,8 @@ docker run -d --name frirss \
   -e TZ=Europe/Zurich \
   ghcr.io/fripix/frirss:latest
 ```
+
+(`$PWD` is your current directory, so the database is stored in a `frirss-data` folder right where you run the command — back it up and you back up everything.)
 
 Open `http://localhost:8080`, create the first account (it becomes admin), then connect your FreshRSS server: its URL, your FreshRSS username, and the API password (set in *FreshRSS → Settings → Profile*).
 
