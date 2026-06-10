@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Guard rail: fail the build if any personal infra reference (private
+      # domain / internal IP range) ever sneaks into a tracked file.
+      - name: Leak guard
+        run: |
+          if git grep -nI -e 'fri[h]ub' -e '10\.[3]\.0\.[0-9]' -- . ':(exclude).github/workflows/*' ':(exclude)package-lock.json'; then
+            echo "::error::Personal infra reference found above — scrub it before committing."
+            exit 1
+          fi
+          echo "Leak guard: clean"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build image
+        run: docker build -t frirss:ci .
+
+      - name: Run container
+        run: docker run -d --name frirss -p 8080:80 frirss:ci
+
+      - name: Smoke-test /api/health
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8080/api/health | grep -q '"status":"ok"'; then
+              echo "healthy"; exit 0
+            fi
+            sleep 2
+          done
+          echo "health check failed"; docker logs frirss; exit 1
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f frirss || true

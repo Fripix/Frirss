@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    /* Langage / cible */
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+
+    /* Résolution (bundler = Vite) */
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
+
+    /* Migration progressive : .js et .ts cohabitent.
+       checkJs=false → seuls les fichiers .ts/.tsx sont type-checkés. */
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    /* Rigueur (s'applique uniquement aux fichiers convertis) */
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src", "vite.config.js"]
+}

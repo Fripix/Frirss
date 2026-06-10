@@ -1,0 +1,16 @@
+node_modules
+dist
+data/
+backups/
+.DS_Store
+*.local
+
+# Compiled server (tsc output)
+server-dist/
+
+# Personal/infra docs — kept locally, never published
+INFRA.md
+CLAUDE.md
+
+# Claude Code local tooling
+.claude/

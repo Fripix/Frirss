@@ -1,0 +1,50 @@
+name: Security audit
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # every Monday 06:00 UTC
+  workflow_dispatch: {}     # allow manual runs from the Actions tab
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - package-lock.json
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      # Gate on what actually ships: the production image runs `npm prune
+      # --omit=dev`, so only prod deps reach users. Dev-only tooling advisories
+      # (vite/vitest/esbuild dev-server, etc.) are reported below but don't fail.
+      - name: Production dependency vulnerabilities (high/critical → fail)
+        run: |
+          set -o pipefail   # keep npm audit's exit code through the pipe
+          echo "## npm audit — production deps (what ships)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm audit --omit=dev --audit-level=high 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Full tree incl. dev tooling (report only, never fails)
+        if: always()
+        run: |
+          echo "## npm audit — full tree (incl. dev, informational)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm audit 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Outdated dependencies (report only, never fails)
+        if: always()
+        run: |
+          echo "## npm outdated" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm outdated 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

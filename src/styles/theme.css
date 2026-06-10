@@ -1,0 +1,52 @@
+:root {
+  /* Sidebar */
+  --sidebar-bg: #201f1b;
+  --sidebar-header-bg: linear-gradient(135deg, #4cd4a1 0%, #38b888 100%);
+  --sidebar-text: #6d6f6c;
+  --sidebar-text-active: #e0e0dc;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-active: rgba(255, 255, 255, 0.08);
+  --sidebar-category-text: #555753;
+  --sidebar-divider: rgba(255, 255, 255, 0.06);
+
+  /* Accent */
+  --accent: #4cd4a1;
+  --accent-dark: #38b888;
+  --accent-glow: rgba(76, 212, 161, 0.12);
+
+  /* Content panels (white/light) */
+  --panel-bg: #ffffff;
+  --panel-border: #e8e8ec;
+  --panel-header-bg: #fafafa;
+
+  /* Article list */
+  --list-hover: #e9f8f2;
+  --list-active: #f0f0f5;
+  --list-selected: #def7ee;
+  --list-source: #4cd4a1;
+  --list-title: #2c2d35;
+  --list-title-read: #8b8d9a;
+  --list-summary: #8b8d9a;
+  --list-time: #b0b2c0;
+  --list-unread-bar: #4cd4a1;
+
+  /* Reading pane */
+  --reading-title: #2c2d35;
+  --reading-text: #4a4b58;
+  --reading-meta: #8b8d9a;
+  --reading-link: #4cd4a1;
+
+  /* General */
+  --star-color: #f5c542;
+  --readlater-color: #8b5cf6;
+  --star-inactive: #d0d1da;
+  --badge-bg: rgba(76, 212, 161, 0.12);
+  --badge-text: #4cd4a1;
+
+  --radius: 8px;
+  --radius-sm: 5px;
+
+  /* Resizable */
+  --resize-handle: #e0e0e5;
+  --resize-handle-hover: #4cd4a1;
+}

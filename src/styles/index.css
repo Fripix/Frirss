@@ -1,0 +1,608 @@
+@import './theme.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--panel-bg);
+  color: var(--reading-text);
+  /* Dynamic viewport height: never taller than the *visible* area on iOS
+     Safari (avoids the body scrolling behind the dynamic toolbar). */
+  min-height: 100dvh;
+  /* Kill horizontal jitter and the elastic rubber-band / pull-to-refresh
+     that makes the mobile layout feel like it "moves everywhere". */
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+/* App shell height: dynamic viewport in the browser (so it tracks Safari's
+   collapsing toolbar), but plain 100vh when installed as a PWA — in iOS
+   standalone, dvh is computed a bit short and leaves a white band at the
+   bottom, whereas 100vh = the full screen (no browser chrome). */
+.app-shell { height: 100dvh; }
+@media (display-mode: standalone) {
+  .app-shell { height: 100vh; }
+  body { min-height: 100vh; }
+}
+
+/* ── Scrollbars — slim pill, expands on hover, accent while dragging ─ */
+/* Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%; /* no font resize on rotate */
+}
+
+/* WebKit / Blink — base: slim, discreet */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar);
+  /* Transparent border + padding-box clip = thin pill floating off the edge.
+     Thicker border ⇒ thinner visible pill (~3px at rest). */
+  border: 3.5px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  min-height: 40px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-hover);
+  background-clip: padding-box;
+}
+
+/* Grabbing the thumb tints it with the theme accent — subtle branded feel */
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--accent);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Main scroll panes (article list + reading pane).
+   Standard props (Chrome 121+, Firefox) — not inherited, so set per element. */
+.nice-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Legacy WebKit (Safari, old Chrome): thumb grows on hover */
+.nice-scroll:hover::-webkit-scrollbar-thumb {
+  border-width: 2px;            /* ~6px pill — expands when the pane is hovered */
+  background-color: var(--scrollbar-hover);
+  background-clip: padding-box;
+}
+
+.nice-scroll:hover::-webkit-scrollbar-thumb:active {
+  background-color: var(--accent);
+  background-clip: padding-box;
+}
+
+/* Sidebar scrollbar — same slim pill, tuned for the dark sidebar */
+.sidebar-scroll {
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Mobile sidebar (drawer): larger tap targets, spacing, safe areas ─ */
+.sidebar-mobile .sidebar-header {
+  padding-top: max(1.25rem, env(safe-area-inset-top));
+}
+/* Every row in the nav gets a comfortable, finger-friendly height */
+.sidebar-mobile nav button {
+  min-height: 44px;
+}
+/* Slightly larger feed / filter labels on mobile (relative bump, still
+   scales with the user's configured sidebar font size). */
+.sidebar-mobile nav {
+  font-size: 1.05em;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Bottom action bar (theme / settings) — bigger targets + safe area */
+.sidebar-mobile .sidebar-bottom button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.sidebar-mobile .sidebar-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.16);
+  border: 3.5px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  border-width: 2px;
+  background-color: rgba(255, 255, 255, 0.30);
+  background-clip: padding-box;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Hide scrollbar (e.g. horizontal server switcher) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Server switcher — segmented control (modern, discreet) ───────── */
+.server-track {
+  background: var(--topbar-track);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.server-seg {
+  transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.server-seg-active {
+  background: var(--topbar-seg-active);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.server-seg:not(.server-seg-active):hover {
+  color: var(--topbar-text-active) !important;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.server-seg-add {
+  color: var(--topbar-text);
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.server-seg-add:hover {
+  color: var(--topbar-text-active);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Resizable handle */
+.resize-handle {
+  width: 1px;
+  cursor: col-resize;
+  background: var(--panel-border);
+  transition: background-color 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+/* Wider invisible hit area so the thin divider stays easy to grab */
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  inset: 0 -3px;
+}
+
+.resize-handle:hover,
+.resize-handle.active {
+  background: var(--resize-handle-hover);
+  box-shadow: 0 0 0 1px var(--resize-handle-hover);
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Sidebar feed items — hover animation */
+.sidebar-feed-item {
+  position: relative;
+  transition: background 0.25s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.25s ease;
+  border-radius: 6px;
+  margin: 1px 0;
+}
+
+.sidebar-feed-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.sidebar-feed-item:not(.sidebar-feed-active):hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--sidebar-text-active) !important;
+  transform: translateX(4px);
+}
+
+.sidebar-feed-item:not(.sidebar-feed-active):hover::before {
+  opacity: 1;
+  background: linear-gradient(90deg, var(--accent) 0%, transparent 3px);
+}
+
+.sidebar-feed-active {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.sidebar-feed-edit-btn {
+  opacity: 0;
+  animation: fadeSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sidebar-feed-edit-btn:hover {
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+/* Article content styles */
+.article-content a {
+  color: var(--reading-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--accent-glow);
+}
+
+.article-content a:hover {
+  text-decoration-color: var(--reading-link);
+}
+
+.article-content p {
+  margin-bottom: 1em;
+}
+
+.article-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  margin: 1em 0;
+
+}
+
+/* Loading skeleton for the article body (shown while an auto-extract feed
+   fetches the full text, so the article appears once — no RSS→extract swap). */
+.reading-skeleton { animation: rs-pulse 1.4s ease-in-out infinite; }
+.reading-skeleton .rs-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  background: var(--list-active);
+  margin: 0.2em 0 1.2em;
+}
+.reading-skeleton .rs-line {
+  height: 0.85em;
+  border-radius: 4px;
+  background: var(--list-active);
+  margin-bottom: 0.75em;
+}
+@keyframes rs-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+.article-content blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1em;
+  margin: 1em 0;
+  color: var(--reading-meta);
+}
+
+.article-content pre,
+.article-content code {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 0.85em;
+}
+
+.article-content pre {
+  background: var(--code-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 1em;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.article-content code {
+  background: var(--code-bg);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+}
+
+.article-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.article-content h1,
+.article-content h2,
+.article-content h3,
+.article-content h4 {
+  color: var(--reading-title);
+  font-weight: 600;
+  margin: 1.5em 0 0.5em;
+}
+
+.article-content ul,
+.article-content ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.article-content li {
+  margin-bottom: 0.3em;
+}
+
+.article-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.article-content th,
+.article-content td {
+  border: 1px solid var(--panel-border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.article-content th {
+  background: var(--code-bg);
+  font-weight: 600;
+}
+
+/* Preferences: highlight overlay animations */
+@keyframes highlight-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes highlight-glow {
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(59, 130, 246, 0.45), inset 0 0 12px rgba(59, 130, 246, 0.05); }
+  50% { box-shadow: 0 0 24px 6px rgba(59, 130, 246, 0.7), inset 0 0 30px rgba(59, 130, 246, 0.1); }
+}
+
+/* ── Action buttons — toolbar micro-interactions ───────────────────── */
+.action-btn {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+}
+
+.action-btn:hover {
+  background: color-mix(in srgb, var(--reading-meta) 8%, transparent) !important;
+  color: var(--list-title) !important;
+  transform: translateY(-1px);
+}
+
+.action-btn:active {
+  transform: scale(0.95) translateY(0);
+  transition-duration: 80ms;
+}
+
+/* ── Article appear animation ─────────────────────────────────────── */
+.article-enter {
+  animation: articleFadeIn 0.25s ease both;
+}
+
+@keyframes articleFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Reading progress bar ─────────────────────────────────────────── */
+.reading-progress {
+  height: 3px;
+  background: var(--accent);
+  transition: width 80ms linear;
+  z-index: 20;
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* ── Safe-area bar (iPhone notch / Dynamic Island) ────────────────── */
+.safe-area-top {
+  height: env(safe-area-inset-top, 0px);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark, #38b888) 100%);
+  flex-shrink: 0;
+}
+
+/* Bottom home-indicator zone — same green as the top, so the area below the
+   bars is never a bare white band. */
+.safe-area-bottom {
+  height: env(safe-area-inset-bottom, 0px);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark, #38b888) 100%);
+  flex-shrink: 0;
+}
+
+/* ── Reading pane — prevent horizontal scrollbar ──────────────────── */
+.reading-pane .overflow-y-auto {
+  overflow-x: hidden;
+}
+
+/* ── Skeleton loading ─────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--list-hover) 25%,
+    color-mix(in srgb, var(--list-hover) 60%, var(--panel-bg)) 50%,
+    var(--list-hover) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes skeletonShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Article list selection transition ────────────────────────────── */
+.article-row {
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.article-row:hover {
+  transform: translateX(2px);
+}
+
+.article-row-active {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ── Bottom sheet / modal animations ─────────────────────────────── */
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Reading toolbar — responsive sizing (mobile + tablet) ───────── */
+@media (max-width: 1023px) {
+  .reading-toolbar {
+    justify-content: space-around;
+    gap: 0 !important;
+    padding: 8px 4px;
+  }
+  .reading-toolbar .toolbar-sep,
+  .reading-toolbar .toolbar-spacer {
+    display: none;
+  }
+  .reading-toolbar svg {
+    width: clamp(18px, 4.5vw, 22px);
+    height: clamp(18px, 4.5vw, 22px);
+  }
+  .reading-toolbar > button,
+  .reading-toolbar > a,
+  .reading-toolbar .action-btn {
+    min-height: clamp(38px, 10vw, 48px);
+    min-width: clamp(38px, 10vw, 48px);
+    max-width: 56px;
+    max-height: 48px;
+    padding: clamp(6px, 2vw, 12px);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ── Mobile-specific styles ──────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Disable hover effects on touch (avoids sticky hover) */
+  .article-row:hover {
+    transform: none;
+  }
+  .sidebar-feed-item:not(.sidebar-feed-active):hover {
+    transform: none;
+    background: transparent;
+  }
+  .action-btn:hover {
+    transform: none;
+    background: transparent !important;
+  }
+
+  /* Larger touch targets */
+  .action-btn {
+    min-height: 36px;
+    min-width: 36px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Hide action button labels on small screens — icons only */
+  .action-btn > span {
+    display: none;
+  }
+
+  /* Safe areas (iPhone notch / home indicator) */
+  .sidebar-header {
+    padding-top: max(20px, env(safe-area-inset-top));
+  }
+  .reading-pane {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ── Tablet tweaks ───────────────────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .article-row:hover {
+    transform: none;
+  }
+  .action-btn:hover {
+    transform: none;
+  }
+}
+
+/* ── Mobile: avoid iOS focus-zoom (inputs must be ≥16px) ─────────── */
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* ── Touch devices: comfortable tap targets for buttons ──────────── */
+/* Article rows are <div>; their inline action buttons stay compact to
+   preserve the dense list layout. */
+@media (pointer: coarse) {
+  button {
+    min-height: 40px;
+  }
+  .article-row button {
+    min-height: 0;
+  }
+}

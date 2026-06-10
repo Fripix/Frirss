@@ -1,0 +1,49 @@
+name: Publish image
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Compute image tags: always :latest + :sha-xxxxxxx; on a git tag
+      # vX.Y.Z, also push :X.Y.Z and :X.Y (immutable release tags).
+      - name: Compute image tags
+        id: tags
+        run: |
+          IMAGE=ghcr.io/fripix/frirss
+          TAGS="$IMAGE:latest,$IMAGE:sha-${GITHUB_SHA::7}"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF#refs/tags/v}"
+            TAGS="$TAGS,$IMAGE:$VER,$IMAGE:${VER%.*}"
+          fi
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          echo "Tags: $TAGS"
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

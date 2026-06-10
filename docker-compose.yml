@@ -1,0 +1,26 @@
+# FriRSS — runs the prebuilt image from GHCR.
+# Contributors: comment out `image:` and uncomment `build: .` to build from source.
+#
+# Prepare the data folder once:  mkdir -p frirss-data
+
+services:
+  frirss:
+    image: ghcr.io/fripix/frirss:latest
+    # build: .
+    container_name: frirss
+    ports:
+      - "8080:80"               # host:container — change the host port as needed
+    environment:
+      - NODE_ENV=production
+      - FRIRSS_DATA_DIR=/app/data
+      - TZ=Europe/Zurich
+      # Public base URL — set this behind a reverse proxy (also fixes OIDC redirect URIs)
+      # - FRIRSS_BASE_URL=https://frirss.example.com
+      # Optional Redis cache (instant loads via stale-while-revalidate)
+      # - REDIS_URL=redis://redis:6379
+      # - CACHE_SYNC_INTERVAL=15
+      # Reach FreshRSS directly over the internal network instead of its public URL
+      # - PROXY_REWRITES=https://rss.example.com=http://freshrss:80
+    volumes:
+      - ./frirss-data:/app/data  # SQLite DB persisted here
+    restart: unless-stopped
