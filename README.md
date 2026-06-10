@@ -3,7 +3,17 @@
   <h1>FriRSS</h1>
   <p><em>Your FriRSS, your rules.</em></p>
   <p>A self-hosted, customizable web frontend for <a href="https://freshrss.org">FreshRSS</a>.</p>
-  <p><strong>🇫🇷&nbsp; 🇬🇧&nbsp; 🇩🇪&nbsp; 🇪🇸&nbsp; 🇮🇹&nbsp; 🇵🇹&nbsp; 🇳🇱&nbsp; 🇵🇱&nbsp; 🇺🇦</strong></p>
+  <p>
+    <img src="https://flagcdn.com/24x18/fr.png" alt="Français" />&nbsp;
+    <img src="https://flagcdn.com/24x18/gb.png" alt="English" />&nbsp;
+    <img src="https://flagcdn.com/24x18/de.png" alt="Deutsch" />&nbsp;
+    <img src="https://flagcdn.com/24x18/es.png" alt="Español" />&nbsp;
+    <img src="https://flagcdn.com/24x18/it.png" alt="Italiano" />&nbsp;
+    <img src="https://flagcdn.com/24x18/pt.png" alt="Português" />&nbsp;
+    <img src="https://flagcdn.com/24x18/nl.png" alt="Nederlands" />&nbsp;
+    <img src="https://flagcdn.com/24x18/pl.png" alt="Polski" />&nbsp;
+    <img src="https://flagcdn.com/24x18/ua.png" alt="Українська" />
+  </p>
   <p>
     <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green" /></a>
     <a href="https://github.com/Fripix/frirss/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fripix/frirss/actions/workflows/ci.yml/badge.svg" /></a>
