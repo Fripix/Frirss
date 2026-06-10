@@ -19,8 +19,6 @@
   <img src="docs/screenshots/tablet.png" alt="FriRSS on a tablet" height="400" />
 </div>
 
-<sub><i>Screenshots are placeholders — drop your own into `docs/screenshots/`.</i></sub>
-
 ## About
 
 [FreshRSS](https://freshrss.org) has an excellent engine: solid, self-hosted, great at fetching and storing feeds. Its built-in interface just wasn't for me, and none of the alternatives fit what I wanted — so I built my own. FriRSS sits on top of FreshRSS through its Google Reader API and replaces only the interface.
