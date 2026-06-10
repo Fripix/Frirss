@@ -35,14 +35,16 @@ body {
 }
 
 /* Installed PWA on a wide screen (e.g. iPad in the desktop 3-pane layout):
-   the iOS status bar (black-translucent) overlaps the top of the content, so
-   the clock / Wi-Fi / battery collide with the header and toolbars. Push the
-   three top bars below the status bar — each fills the inset strip with its
-   own background. Narrow screens (<1024px) handle this via their own rules. */
+   the iOS status bar (black-translucent) overlaps the top of the content.
+   Reserve the top safe-area on the whole shell and paint that strip in the
+   brand green (like the mobile layout), so the clock / Wi-Fi / battery sit on
+   a clean green band instead of colliding with the header and toolbars.
+   Narrow screens (<1024px) handle this via their own rules. */
 @media (display-mode: standalone) and (min-width: 1024px) {
-  .sidebar-header      { padding-top: calc(1.25rem  + env(safe-area-inset-top)); }
-  .article-list-header { padding-top: env(safe-area-inset-top); }
-  .reading-toolbar     { padding-top: calc(0.375rem + env(safe-area-inset-top)); }
+  .app-shell {
+    padding-top: env(safe-area-inset-top);
+    background: var(--sidebar-header-bg);
+  }
 }
 
 /* ── Scrollbars — slim pill, expands on hover, accent while dragging ─ */
