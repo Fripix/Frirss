@@ -514,6 +514,13 @@ export default function Sidebar() {
         })}
       </nav>
 
+      {/* App version */}
+      <div className="px-3 pb-1 flex-shrink-0 text-center select-none">
+        <span className="text-[10px]" style={{ color: 'var(--sidebar-text)', opacity: 0.45 }}>
+          v{__APP_VERSION__}
+        </span>
+      </div>
+
       {/* Footer */}
       <div
         className="sidebar-bottom p-3 flex-shrink-0 flex items-center gap-1"
