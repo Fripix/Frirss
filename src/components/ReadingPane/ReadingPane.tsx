@@ -144,6 +144,36 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }
   }, [selectedArticle?.id, selectedArticle?.sourceId, feedSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Background prefetch: extract the next few articles ahead of time so moving
+  // to them is instant. Only for auto-extract feeds (others already have their
+  // body in memory). Sequential + delayed so it doesn't compete with the
+  // current article; reuses the bounded LRU cache, so memory stays capped.
+  useEffect(() => {
+    const cur = selectedArticle;
+    if (!cur?.id) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const { articles } = useFeedStore.getState();
+      const fs = useUiStore.getState().feedSettings;
+      const idx = articles.findIndex((a) => a.id === cur.id);
+      if (idx < 0) return;
+      const upcoming = articles
+        .slice(idx + 1, idx + 6) // N+1 … N+5
+        .filter((a) => a.url && fs[a.sourceId]?.autoExtract && !extractCacheGet(a.id));
+      if (upcoming.length === 0) return;
+      const { extractFullContent } = await import('../../utils/extractContent');
+      for (const a of upcoming) {
+        if (cancelled) break;
+        if (extractCacheGet(a.id)) continue;
+        try {
+          const result = await extractFullContent(a.url!);
+          if (!cancelled) extractCacheSet(a.id, result);
+        } catch { /* ignore prefetch failures */ }
+      }
+    }, 1000); // let the current article load first
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [selectedArticle?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Reading progress tracking
   useEffect(() => {
     const container = scrollContainerRef.current;
