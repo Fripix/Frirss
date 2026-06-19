@@ -6,6 +6,7 @@ import { useThemeStore } from './stores/themeStore';
 import { useUiStore } from './stores/uiStore';
 import { useKeyboardNav } from './hooks/useKeyboardNav';
 import { useBreakpoint } from './hooks/useBreakpoint';
+import { hydrateExtractCache } from './lib/extractCache';
 import { hydratePrefs, stopSync } from './lib/prefsSync';
 import Login from './components/Login/Login';
 import LoginTransition from './components/Login/LoginTransition';
@@ -56,6 +57,12 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.layout = breakpoint;
   }, [breakpoint]);
+
+  // Persistent extract cache: evict content older than the retention window
+  // and warm the in-memory tier from IndexedDB so reads are instant.
+  useEffect(() => {
+    hydrateExtractCache();
+  }, []);
 
   useKeyboardNav();
 

@@ -8,6 +8,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
+import { peekExtract, getExtract, putExtract } from '../../lib/extractCache';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
 // Reserve vertical space for images that declare width/height, via
@@ -39,24 +40,6 @@ function reserveImgAspect(html: string): string {
     }
     return tag.replace(/<img\b/i, `<img style="${decl}"`);
   });
-}
-
-// In-memory cache of extracted ("full content") articles, keyed by article id.
-// Returning to an already-extracted article (e.g. swiping back) shows it
-// instantly instead of re-fetching + re-parsing. Bounded (LRU-ish), session-
-// only — a few extracted HTML bodies ≈ a few MB of browser memory at most.
-const EXTRACT_CACHE_MAX = 40;
-const extractCache = new Map<string, ExtractedContent>();
-function extractCacheGet(id: string): ExtractedContent | undefined {
-  return extractCache.get(id);
-}
-function extractCacheSet(id: string, content: ExtractedContent): void {
-  extractCache.delete(id);
-  extractCache.set(id, content);
-  if (extractCache.size > EXTRACT_CACHE_MAX) {
-    const oldest = extractCache.keys().next().value;
-    if (oldest !== undefined) extractCache.delete(oldest);
-  }
 }
 
 interface SwipeTouch {
@@ -103,7 +86,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   useEffect(() => {
     const id = selectedArticle?.id;
     if (!id || id === lastExtractedId.current) return;
-    const cached = extractCacheGet(id);
+    const cached = peekExtract(id);
     if (cached) {
       lastExtractedId.current = id;
       setExtractedContent(cached);
@@ -159,15 +142,17 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (idx < 0) return;
       const upcoming = articles
         .slice(idx + 1, idx + 6) // N+1 … N+5
-        .filter((a) => a.url && fs[a.sourceId]?.autoExtract && !extractCacheGet(a.id));
+        .filter((a) => a.url && fs[a.sourceId]?.autoExtract && !peekExtract(a.id));
       if (upcoming.length === 0) return;
       const { extractFullContent } = await import('../../utils/extractContent');
       for (const a of upcoming) {
         if (cancelled) break;
-        if (extractCacheGet(a.id)) continue;
+        if (peekExtract(a.id)) continue;
+        // Already persisted? promote it into memory and skip the network.
+        if (await getExtract(a.id)) continue;
         try {
           const result = await extractFullContent(a.url!);
-          if (!cancelled) extractCacheSet(a.id, result);
+          if (!cancelled) await putExtract(a.id, result);
         } catch { /* ignore prefetch failures */ }
       }
     }, 1000); // let the current article load first
@@ -412,7 +397,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             // If the incoming article is already cached, show it straight away
             // (instant, no preview hold); otherwise clear so we don't render the
             // OLD extracted body for a frame (wrong article / reading time).
-            const cached = t.adj ? extractCacheGet(t.adj.id) : undefined;
+            const cached = t.adj ? peekExtract(t.adj.id) : undefined;
             if (cached && t.adj) {
               lastExtractedId.current = t.adj.id;
               setExtractedContent(cached);
@@ -531,25 +516,38 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   const handleExtract = useCallback(async () => {
     if (!selectedArticle?.url || extracting) return;
-    // Cache hit → show instantly, no fetch/parse (e.g. swiping back).
-    const cached = extractCacheGet(selectedArticle.id);
-    if (cached) {
-      lastExtractedId.current = selectedArticle.id;
+    const id = selectedArticle.id;
+    const stillCurrent = () => useFeedStore.getState().selectedArticle?.id === id;
+    // 1) Memory hit → instant (e.g. swiping back, prefetched).
+    const inMem = peekExtract(id);
+    if (inMem) {
+      lastExtractedId.current = id;
       setExtractError(null);
-      setExtractedContent(cached);
+      setExtractedContent(inMem);
       return;
     }
-    setExtracting(true);
     setExtractError(null);
+    // 2) Persistent store (IndexedDB) → near-instant, no network (survives
+    //    reloads, works offline once cached).
+    const fromDb = await getExtract(id);
+    if (fromDb) {
+      if (!stillCurrent()) return;
+      lastExtractedId.current = id;
+      setExtractedContent(fromDb);
+      return;
+    }
+    // 3) Live fetch + parse, then persist (memory + IndexedDB).
+    setExtracting(true);
     try {
       // Dynamic import keeps Readability + DOMPurify out of the main bundle.
       const { extractFullContent } = await import('../../utils/extractContent');
       const result = await extractFullContent(selectedArticle.url);
-      lastExtractedId.current = selectedArticle.id;
-      extractCacheSet(selectedArticle.id, result);
+      await putExtract(id, result);
+      if (!stillCurrent()) return;
+      lastExtractedId.current = id;
       setExtractedContent(result);
     } catch {
-      setExtractError(t('readingPane.extractError'));
+      if (stillCurrent()) setExtractError(t('readingPane.extractError'));
     } finally {
       setExtracting(false);
     }
