@@ -101,6 +101,29 @@ function memClear(): void {
   memCache.clear();
 }
 
+// Background-extract the auto-extract articles of a freshly loaded view so the
+// WHOLE page is available offline (not only the ones the user opened).
+// Sequential + delayed (doesn't compete with rendering), skips already-cached,
+// writes through to the persistent cache. A token cancels stale runs when the
+// user switches views, to avoid piling up dozens of parallel fetches.
+let warmToken = 0;
+async function warmExtracts(articles: Article[]): Promise<void> {
+  const token = ++warmToken;
+  const fs = useUiStore.getState().feedSettings;
+  const targets = articles.filter((a) => a.url && fs[a.sourceId]?.autoExtract);
+  if (!targets.length) return;
+  await new Promise((r) => setTimeout(r, 2000)); // let the view settle first
+  if (token !== warmToken) return;
+  const { extractFullContent } = await import('../utils/extractContent');
+  for (const a of targets) {
+    if (token !== warmToken) return; // a newer view started warming
+    if (peekExtract(a.id) || (await getExtract(a.id))) continue;
+    try {
+      await putExtract(a.id, await extractFullContent(a.url!));
+    } catch { /* ignore */ }
+  }
+}
+
 export interface FeedState {
   subscriptions: Subscription[];
   unreadCounts: Record<string, number>;
@@ -359,6 +382,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const articles = result.items.map(normalizeArticle);
       memSet(key, { articles, continuation: result.continuation });
       listPut(key, articles, result.continuation).catch(() => {}); // persist for offline
+      warmExtracts(articles); // background: extract the whole page for offline
       set((state) => {
         const newErrors = { ...state.feedErrors };
         if (selectedFeed) delete newErrors[selectedFeed.id];
@@ -394,9 +418,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
       set((state) => {
         const articles = [...state.articles, ...result.items.map(normalizeArticle)];
-        memSet(viewKey(selectedFeed, filter), { articles, continuation: result.continuation });
+        const key = viewKey(selectedFeed, filter);
+        memSet(key, { articles, continuation: result.continuation });
+        listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
         return { articles, continuation: result.continuation, loadingMore: false };
       });
+      warmExtracts(get().articles); // background: extract newly loaded pages for offline
     } catch {
       set({ loadingMore: false });
     }
