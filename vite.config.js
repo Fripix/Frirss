@@ -90,6 +90,24 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/cors-proxy\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Cache article images for offline reading (CacheFirst). Workbox has no
+        // byte cap, so ~550 MB is approximated via maxEntries (~275 KB avg);
+        // purgeOnQuotaError frees space if the device storage limit is hit.
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'frirss-images',
+              expiration: {
+                maxEntries: 2000,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: { statuses: [0, 200] }, // 0 = opaque cross-origin
+            },
+          },
+        ],
       },
     }),
   ],

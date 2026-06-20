@@ -144,6 +144,10 @@ export default function App() {
     if (isAuthenticated) {
       loadSubscriptions();
       loadArticles();
+      // Warm the offline cache (favorites + read-later) in the background,
+      // a few seconds after the initial load so it doesn't compete for bandwidth.
+      const t = setTimeout(() => useFeedStore.getState().warmOfflineCache(), 4000);
+      return () => clearTimeout(t);
     }
   }, [isAuthenticated, loadSubscriptions, loadArticles]);
 

@@ -22,6 +22,8 @@ import {
 } from '../api/feeds';
 import { useAuthStore } from './authStore';
 import { useUiStore } from './uiStore';
+import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
+import { listGet, listPut, listEvictOlderThan, subsGet, subsPut } from '../lib/offlineStore';
 import type {
   Article,
   Subscription,
@@ -119,6 +121,7 @@ export interface FeedState {
 
   setFilter: (filter: Filter) => void;
   loadLabelCounts: () => Promise<void>;
+  warmOfflineCache: () => Promise<void>;
   selectFeed: (feed: Subscription | null) => void;
   selectView: (feed: Subscription | null, filter?: Filter) => void;
   selectArticle: (article: Article | null) => void;
@@ -255,11 +258,25 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         unreadCounts: countMap,
         categoryIds: catIds,
       });
+      subsPut(normalizedSubs).catch(() => {}); // persist for offline
       // Auto-load user labels now that we know categories
       get().loadLabels();
       // Load starred & read-later counts in background
       get().loadSpecialCounts();
-    } catch { /* ignore */ }
+    } catch {
+      // Offline fallback: persisted subscriptions so the sidebar still works.
+      const persisted = await subsGet();
+      if (persisted && persisted.length) {
+        const catIds: string[] = [];
+        persisted.forEach((sub) => {
+          sub.categories?.forEach((c) => {
+            if (c.id && !catIds.includes(c.id)) catIds.push(c.id);
+          });
+        });
+        set({ subscriptions: persisted, categoryIds: catIds });
+        get().loadLabels();
+      }
+    }
   },
 
   loadSpecialCounts: async () => {
@@ -273,6 +290,43 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         starredCount: starred?.items.length ?? 0,
         readLaterCount: readLater?.items.length ?? 0,
       });
+    } catch { /* ignore */ }
+  },
+
+  // Offline warming: persist the favorites + read-later lists and pre-extract
+  // their content (pinned → never auto-evicted) so they're fully readable
+  // offline. Also evicts cached lists older than the 30-day retention window.
+  warmOfflineCache: async () => {
+    listEvictOlderThan(Date.now() - 30 * 24 * 60 * 60 * 1000).catch(() => {});
+    try {
+      const [starred, readLater] = await Promise.all([
+        getStarredItems(100).catch(() => null),
+        getStreamContents(READ_LATER_LABEL, 100, null).catch(() => null),
+      ]);
+      const pinned: Article[] = [];
+      if (starred?.items?.length) {
+        const arts = starred.items.map(normalizeArticle);
+        await listPut(viewKey(null, 'starred'), arts, starred.continuation);
+        pinned.push(...arts);
+      }
+      if (readLater?.items?.length) {
+        const arts = readLater.items.map(normalizeArticle);
+        await listPut(viewKey(null, 'readlater'), arts, readLater.continuation);
+        pinned.push(...arts);
+      }
+      // Extract + pin each (sequential, skip already cached) for offline reading.
+      const { extractFullContent } = await import('../utils/extractContent');
+      for (const a of pinned) {
+        if (!a.url) continue;
+        if (peekExtract(a.id) || (await getExtract(a.id))) {
+          pinExtract(a.id).catch(() => {});
+          continue;
+        }
+        try {
+          const content = await extractFullContent(a.url);
+          await putExtract(a.id, content, { pinned: true });
+        } catch { /* ignore */ }
+      }
     } catch { /* ignore */ }
   },
 
@@ -304,14 +358,22 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!result) { set({ loading: false }); return; }
       const articles = result.items.map(normalizeArticle);
       memSet(key, { articles, continuation: result.continuation });
+      listPut(key, articles, result.continuation).catch(() => {}); // persist for offline
       set((state) => {
         const newErrors = { ...state.feedErrors };
         if (selectedFeed) delete newErrors[selectedFeed.id];
         return { articles, continuation: result.continuation, loading: false, feedErrors: newErrors };
       });
     } catch (err) {
-      console.error('[FriRSS] loadArticles error:', err);
       if (!sameView()) return;
+      // Offline fallback: serve the persisted list so reading still works.
+      const persisted = await listGet(key);
+      if (persisted && sameView()) {
+        memSet(key, { articles: persisted.articles, continuation: persisted.continuation });
+        set({ articles: persisted.articles, continuation: persisted.continuation, loading: false });
+        return;
+      }
+      console.error('[FriRSS] loadArticles error:', err);
       set((state) => ({
         loading: false,
         feedErrors: selectedFeed
