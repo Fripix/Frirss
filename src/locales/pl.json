@@ -295,6 +295,13 @@
       "keyEscape": "Esc",
       "keyEnter": "Enter",
       "keyDelete": "Del"
+    },
+    "offline": {
+      "title": "Offline",
+      "hint": "Pobiera ostatnie 30 dni wszystkich kanałów (tekst + obrazy) do czytania offline. Zużywa dane — najlepiej Wi-Fi.",
+      "button": "Przygotuj offline (30 dni)",
+      "preparing": "Przygotowywanie…",
+      "done": "Offline gotowe"
     }
   },
   "login": {

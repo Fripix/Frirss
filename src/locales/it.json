@@ -295,6 +295,13 @@
       "keyEscape": "Esc",
       "keyEnter": "Invio",
       "keyDelete": "Canc"
+    },
+    "offline": {
+      "title": "Offline",
+      "hint": "Scarica gli ultimi 30 giorni di tutti i feed (testo + immagini) per la lettura offline. Consuma dati — meglio il Wi-Fi.",
+      "button": "Prepara offline (30 giorni)",
+      "preparing": "Preparazione…",
+      "done": "Offline pronto"
     }
   },
   "login": {

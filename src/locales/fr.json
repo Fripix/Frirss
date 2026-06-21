@@ -295,6 +295,13 @@
       "keyEscape": "Échap",
       "keyEnter": "Entrée",
       "keyDelete": "Suppr"
+    },
+    "offline": {
+      "title": "Hors-ligne",
+      "hint": "Télécharge les 30 derniers jours de tous les flux (textes + images) pour la lecture hors-ligne. Consomme du réseau — préfère le Wi-Fi.",
+      "button": "Préparer le hors-ligne (30 j)",
+      "preparing": "Préparation…",
+      "done": "Hors-ligne prêt"
     }
   },
   "login": {

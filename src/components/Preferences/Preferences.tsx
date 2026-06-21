@@ -2323,6 +2323,8 @@ function BrandingTab() {
   const setAppTitle = useUiStore((s) => s.setAppTitle);
   const setAppLogo = useUiStore((s) => s.setAppLogo);
   const setLogoMode = useUiStore((s) => s.setLogoMode);
+  const offlinePrep = useFeedStore((s) => s.offlinePrep);
+  const prepareOffline = useFeedStore((s) => s.prepareOffline);
   const [titleDraft, setTitleDraft] = useState(appTitle);
   // URL draft for logo — initialised from the current logo if it's a URL (not a data URI)
   const [logoUrlDraft, setLogoUrlDraft] = useState(
@@ -2601,6 +2603,34 @@ function BrandingTab() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Offline */}
+      <div>
+        <h3
+          className="text-[11px] font-bold uppercase tracking-widest mb-2"
+          style={{ color: 'var(--list-summary)' }}
+        >
+          {t('preferences.offline.title')}
+        </h3>
+        <p className="text-xs mb-3" style={{ color: 'var(--list-summary)' }}>
+          {t('preferences.offline.hint')}
+        </p>
+        <button
+          onClick={() => prepareOffline()}
+          disabled={offlinePrep?.running}
+          className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+          style={{ background: 'var(--accent)', color: '#fff' }}
+        >
+          {offlinePrep?.running
+            ? `${t('preferences.offline.preparing')} ${offlinePrep.done}/${offlinePrep.total || '…'}`
+            : t('preferences.offline.button')}
+        </button>
+        {offlinePrep && !offlinePrep.running && offlinePrep.phase === 'done' && (
+          <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.offline.done')} ({offlinePrep.total})
+          </p>
+        )}
       </div>
     </div>
   );

@@ -295,6 +295,13 @@
       "keyEscape": "Esc",
       "keyEnter": "Enter",
       "keyDelete": "Del"
+    },
+    "offline": {
+      "title": "Offline",
+      "hint": "Download de laatste 30 dagen van alle feeds (tekst + afbeeldingen) voor offline lezen. Gebruikt data — liefst wifi.",
+      "button": "Offline voorbereiden (30 dagen)",
+      "preparing": "Voorbereiden…",
+      "done": "Offline klaar"
     }
   },
   "login": {

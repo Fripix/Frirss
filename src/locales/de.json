@@ -295,6 +295,13 @@
       "keyEscape": "Esc",
       "keyEnter": "Eingabe",
       "keyDelete": "Entf"
+    },
+    "offline": {
+      "title": "Offline",
+      "hint": "Lädt die letzten 30 Tage aller Feeds (Text + Bilder) zum Offline-Lesen. Verbraucht Daten — am besten WLAN.",
+      "button": "Offline vorbereiten (30 Tage)",
+      "preparing": "Wird vorbereitet…",
+      "done": "Offline bereit"
     }
   },
   "login": {

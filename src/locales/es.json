@@ -295,6 +295,13 @@
       "keyEscape": "Esc",
       "keyEnter": "Intro",
       "keyDelete": "Supr"
+    },
+    "offline": {
+      "title": "Sin conexión",
+      "hint": "Descarga los últimos 30 días de todos los feeds (texto + imágenes) para leer sin conexión. Usa datos — mejor con Wi-Fi.",
+      "button": "Preparar sin conexión (30 días)",
+      "preparing": "Preparando…",
+      "done": "Listo sin conexión"
     }
   },
   "login": {

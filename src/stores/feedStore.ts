@@ -124,6 +124,25 @@ async function warmExtracts(articles: Article[]): Promise<void> {
   }
 }
 
+// Fetch an article's images (no-cors) so the service worker caches them for
+// offline viewing (CacheFirst). Bounded per article; the SW enforces the
+// global ~550 MB cap. Best-effort.
+async function prefetchImages(html: string): Promise<void> {
+  if (typeof DOMParser === 'undefined') return;
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const srcs = Array.from(doc.querySelectorAll('img'))
+      .map((img) => img.getAttribute('src'))
+      .filter((s): s is string => !!s && s.startsWith('http'))
+      .slice(0, 6);
+    for (const src of srcs) {
+      try {
+        await fetch(src, { mode: 'no-cors', cache: 'force-cache' });
+      } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+}
+
 export interface FeedState {
   subscriptions: Subscription[];
   unreadCounts: Record<string, number>;
@@ -142,9 +161,11 @@ export interface FeedState {
   readLaterCount: number;
   feedErrors: Record<string, number>;
 
+  offlinePrep: { running: boolean; phase: 'lists' | 'articles' | 'done'; done: number; total: number } | null;
   setFilter: (filter: Filter) => void;
   loadLabelCounts: () => Promise<void>;
   warmOfflineCache: () => Promise<void>;
+  prepareOffline: () => Promise<void>;
   selectFeed: (feed: Subscription | null) => void;
   selectView: (feed: Subscription | null, filter?: Filter) => void;
   selectArticle: (article: Article | null) => void;
@@ -189,6 +210,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   categoryIds: [],
   starredCount: 0,
   readLaterCount: 0,
+  offlinePrep: null,
   feedErrors: {}, // { [feedId]: timestamp } — tracks feeds that errored on load
 
   setFilter: (filter) => {
@@ -351,6 +373,60 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         } catch { /* ignore */ }
       }
     } catch { /* ignore */ }
+  },
+
+  // Full offline preparation (manual, user-triggered): sweep every feed for the
+  // last 30 days — persist their lists, extract + cache content, and prefetch
+  // images into the service-worker cache (capped ~550 MB). Heavy and network-
+  // intensive, hence on-demand. Progress is exposed via `offlinePrep`.
+  prepareOffline: async () => {
+    if (get().offlinePrep?.running) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    set({ offlinePrep: { running: true, phase: 'lists', done: 0, total: 0 } });
+    const subs = get().subscriptions;
+    const collected: Article[] = [];
+    // Phase 1 — gather recent articles per feed + persist their lists.
+    for (const feed of subs) {
+      try {
+        let cont: string | null = null;
+        let pages = 0;
+        const feedArts: Article[] = [];
+        do {
+          const res = await getStreamContents(feed.id, PAGE_SIZE, cont, null, {});
+          if (!res) break;
+          const arts = res.items.map(normalizeArticle);
+          feedArts.push(...arts);
+          cont = res.continuation;
+          pages++;
+          if ((arts[arts.length - 1]?.published ?? 0) < cutoff) break; // past 30 days
+        } while (cont && pages < 8);
+        const recent = feedArts.filter((a) => a.published >= cutoff);
+        if (recent.length) {
+          await listPut(viewKey(feed, 'all'), recent.slice(0, PAGE_SIZE), null);
+          collected.push(...recent);
+        }
+      } catch { /* skip this feed */ }
+    }
+    // Phase 2 — extract + cache + prefetch images.
+    set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: collected.length } });
+    const { extractFullContent } = await import('../utils/extractContent');
+    let done = 0;
+    for (const a of collected) {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
+      if (a.url && !(peekExtract(a.id) || (await getExtract(a.id)))) {
+        try {
+          const content = await extractFullContent(a.url);
+          await putExtract(a.id, content);
+          await prefetchImages(content.content);
+        } catch { /* ignore */ }
+      }
+      done++;
+      if (done % 5 === 0 || done === collected.length) {
+        set({ offlinePrep: { running: true, phase: 'articles', done, total: collected.length } });
+      }
+    }
+    set({ offlinePrep: { running: false, phase: 'done', done, total: collected.length } });
   },
 
   loadArticles: async () => {
