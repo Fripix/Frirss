@@ -613,6 +613,10 @@ html {
   }
 }
 
+/* ── Preferences tab bar — scrollable, no visible scrollbar ───────── */
+.prefs-tabs { scrollbar-width: none; -ms-overflow-style: none; }
+.prefs-tabs::-webkit-scrollbar { display: none; }
+
 /* ── Desktop/mobile layout toggle — only on touch tablets ─────────── */
 /* Hidden on phones (one sensible layout) and on pointer-fine desktops. */
 .layout-toggle { display: none; }

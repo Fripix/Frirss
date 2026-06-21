@@ -345,9 +345,9 @@ export default function Preferences() {
           </div>
         </div>
 
-        {/* Tabs — single compact, centered row (no wrapping, no horizontal scroll) */}
+        {/* Tabs — single row, horizontally scrollable when it overflows (mobile) */}
         <div
-          className="px-3 py-2 flex flex-nowrap justify-center gap-0.5 flex-shrink-0"
+          className="prefs-tabs px-3 py-2 flex flex-nowrap gap-0.5 flex-shrink-0 overflow-x-auto"
           style={{ borderBottom: '1px solid var(--panel-border)' }}
         >
           {tabs.map((t) => (
