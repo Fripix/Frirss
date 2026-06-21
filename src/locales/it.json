@@ -142,7 +142,8 @@
       "labels": "Etichette",
       "themes": "Temi",
       "shortcuts": "Scorciatoie",
-      "admin": "Admin"
+      "admin": "Admin",
+      "offline": "Offline"
     },
     "branding": {
       "language": "Lingua",
@@ -301,7 +302,9 @@
       "hint": "Scarica gli ultimi 30 giorni di tutti i feed (testo + immagini) per la lettura offline. Consuma dati — meglio il Wi-Fi.",
       "button": "Prepara offline (30 giorni)",
       "preparing": "Preparazione…",
-      "done": "Offline pronto"
+      "done": "Offline pronto",
+      "auto": "Aggiorna all'apertura",
+      "autoHint": "Aggiorna la cache offline in background a ogni apertura (online, max 1×/ora). Incrementale."
     }
   },
   "login": {

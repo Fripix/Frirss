@@ -142,7 +142,8 @@
       "labels": "Etiquetas",
       "themes": "Temas",
       "shortcuts": "Atalhos",
-      "admin": "Admin"
+      "admin": "Admin",
+      "offline": "Offline"
     },
     "branding": {
       "language": "Idioma",
@@ -301,7 +302,9 @@
       "hint": "Descarrega os últimos 30 dias de todos os feeds (texto + imagens) para leitura offline. Usa dados — prefira Wi-Fi.",
       "button": "Preparar offline (30 dias)",
       "preparing": "A preparar…",
-      "done": "Offline pronto"
+      "done": "Offline pronto",
+      "auto": "Atualizar ao abrir a app",
+      "autoHint": "Atualiza a cache offline em segundo plano a cada abertura (online, máx. 1×/h). Incremental."
     }
   },
   "login": {

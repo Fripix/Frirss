@@ -213,7 +213,7 @@ export default function Preferences() {
   }
 
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
-  const baseTabIds = ['branding', 'colors', 'fonts', 'labels', 'themes', 'shortcuts'];
+  const baseTabIds = ['branding', 'colors', 'fonts', 'labels', 'themes', 'shortcuts', 'offline'];
   const tabIds = isAdmin ? ['admin', ...baseTabIds] : baseTabIds;
   const tabs = tabIds.map((id) => ({ id, label: t(`preferences.tabs.${id}`) }));
 
@@ -432,6 +432,7 @@ export default function Preferences() {
           )}
 
           {tab === 'labels' && <LabelsColorTab resetLabelColors={resetLabelColors} />}
+          {tab === 'offline' && <OfflineTab />}
 
           {tab === 'shortcuts' && <ShortcutsTab />}
 
@@ -2323,8 +2324,6 @@ function BrandingTab() {
   const setAppTitle = useUiStore((s) => s.setAppTitle);
   const setAppLogo = useUiStore((s) => s.setAppLogo);
   const setLogoMode = useUiStore((s) => s.setLogoMode);
-  const offlinePrep = useFeedStore((s) => s.offlinePrep);
-  const prepareOffline = useFeedStore((s) => s.prepareOffline);
   const [titleDraft, setTitleDraft] = useState(appTitle);
   // URL draft for logo — initialised from the current logo if it's a URL (not a data URI)
   const [logoUrlDraft, setLogoUrlDraft] = useState(
@@ -2605,7 +2604,18 @@ function BrandingTab() {
         </div>
       </div>
 
-      {/* Offline */}
+    </div>
+  );
+}
+
+function OfflineTab() {
+  const { t } = useTranslation();
+  const offlinePrep = useFeedStore((s) => s.offlinePrep);
+  const prepareOffline = useFeedStore((s) => s.prepareOffline);
+  const autoOffline = useUiStore((s) => s.autoOffline);
+  const setAutoOffline = useUiStore((s) => s.setAutoOffline);
+  return (
+    <div className="space-y-6">
       <div>
         <h3
           className="text-[11px] font-bold uppercase tracking-widest mb-2"
@@ -2632,6 +2642,20 @@ function BrandingTab() {
           </p>
         )}
       </div>
+
+      {/* Auto-update toggle */}
+      <label className="flex items-start justify-between gap-4 cursor-pointer select-none">
+        <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+          {t('preferences.offline.auto')}
+          <span className="block text-[11px] opacity-70 mt-0.5">{t('preferences.offline.autoHint')}</span>
+        </span>
+        <input
+          type="checkbox"
+          checked={autoOffline}
+          onChange={() => setAutoOffline(!autoOffline)}
+          className="accent-[var(--accent)] w-3.5 h-3.5 flex-shrink-0 mt-0.5"
+        />
+      </label>
     </div>
   );
 }

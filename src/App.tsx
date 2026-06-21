@@ -141,14 +141,23 @@ export default function App() {
   }, [setBackendAuth]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadSubscriptions();
-      loadArticles();
-      // Warm the offline cache (favorites + read-later) in the background,
-      // a few seconds after the initial load so it doesn't compete for bandwidth.
-      const t = setTimeout(() => useFeedStore.getState().warmOfflineCache(), 4000);
-      return () => clearTimeout(t);
+    if (!isAuthenticated) return;
+    loadSubscriptions();
+    loadArticles();
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    // Warm the offline cache (favorites + read-later) in the background,
+    // a few seconds after the initial load so it doesn't compete for bandwidth.
+    timers.push(setTimeout(() => useFeedStore.getState().warmOfflineCache(), 4000));
+    // Opt-in full offline refresh on open: online only, throttled to once/hour,
+    // and incremental (skips already-cached articles).
+    if (useUiStore.getState().autoOffline && (typeof navigator === 'undefined' || navigator.onLine)) {
+      const last = Number(localStorage.getItem('frirss_lastOfflinePrep') || 0);
+      if (Date.now() - last > 60 * 60 * 1000) {
+        localStorage.setItem('frirss_lastOfflinePrep', String(Date.now()));
+        timers.push(setTimeout(() => useFeedStore.getState().prepareOffline(), 8000));
+      }
     }
+    return () => timers.forEach(clearTimeout);
   }, [isAuthenticated, loadSubscriptions, loadArticles]);
 
   // ── Hydrate logical preferences from the backend (per-user sync) ──

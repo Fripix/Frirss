@@ -142,7 +142,8 @@
       "labels": "Etykiety",
       "themes": "Motywy",
       "shortcuts": "Skróty",
-      "admin": "Admin"
+      "admin": "Admin",
+      "offline": "Offline"
     },
     "branding": {
       "language": "Język",
@@ -301,7 +302,9 @@
       "hint": "Pobiera ostatnie 30 dni wszystkich kanałów (tekst + obrazy) do czytania offline. Zużywa dane — najlepiej Wi-Fi.",
       "button": "Przygotuj offline (30 dni)",
       "preparing": "Przygotowywanie…",
-      "done": "Offline gotowe"
+      "done": "Offline gotowe",
+      "auto": "Aktualizuj przy otwarciu",
+      "autoHint": "Odświeża pamięć offline w tle przy każdym otwarciu (online, maks. 1×/godz). Przyrostowo."
     }
   },
   "login": {

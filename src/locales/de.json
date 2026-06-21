@@ -142,7 +142,8 @@
       "labels": "Labels",
       "themes": "Themes",
       "shortcuts": "Tastenkürzel",
-      "admin": "Admin"
+      "admin": "Admin",
+      "offline": "Offline"
     },
     "branding": {
       "language": "Sprache",
@@ -301,7 +302,9 @@
       "hint": "Lädt die letzten 30 Tage aller Feeds (Text + Bilder) zum Offline-Lesen. Verbraucht Daten — am besten WLAN.",
       "button": "Offline vorbereiten (30 Tage)",
       "preparing": "Wird vorbereitet…",
-      "done": "Offline bereit"
+      "done": "Offline bereit",
+      "auto": "Beim Öffnen automatisch aktualisieren",
+      "autoHint": "Aktualisiert den Offline-Cache im Hintergrund bei jedem Öffnen (online, max. 1×/Std). Inkrementell."
     }
   },
   "login": {

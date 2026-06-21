@@ -142,7 +142,8 @@
       "labels": "Labels",
       "themes": "Thema's",
       "shortcuts": "Sneltoetsen",
-      "admin": "Admin"
+      "admin": "Admin",
+      "offline": "Offline"
     },
     "branding": {
       "language": "Taal",
@@ -301,7 +302,9 @@
       "hint": "Download de laatste 30 dagen van alle feeds (tekst + afbeeldingen) voor offline lezen. Gebruikt data — liefst wifi.",
       "button": "Offline voorbereiden (30 dagen)",
       "preparing": "Voorbereiden…",
-      "done": "Offline klaar"
+      "done": "Offline klaar",
+      "auto": "Bijwerken bij openen",
+      "autoHint": "Vernieuwt de offline cache op de achtergrond bij elke opening (online, max 1×/uur). Incrementeel."
     }
   },
   "login": {

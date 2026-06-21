@@ -52,6 +52,9 @@ export interface UiState {
   setLabelSortAlpha: (v: boolean) => void;
   showLabelCounts: boolean;
   setShowLabelCounts: (v: boolean) => void;
+  // Auto-refresh the offline cache on app open (local per-device, never synced).
+  autoOffline: boolean;
+  setAutoOffline: (v: boolean) => void;
   showDateSeparators: boolean;
   toggleDateSeparators: () => void;
   showSourceInFeed: boolean;
@@ -169,6 +172,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setShowLabelCounts: (v) => {
     localStorage.setItem('frirss_showLabelCounts', JSON.stringify(v));
     set({ showLabelCounts: v });
+  },
+  // Auto-refresh the offline cache on app open (local, throttled in App).
+  autoOffline: loadJson('frirss_autoOffline', false),
+  setAutoOffline: (v) => {
+    localStorage.setItem('frirss_autoOffline', JSON.stringify(v));
+    set({ autoOffline: v });
   },
 
   // Show date separators in article list (Aujourd'hui, Hier, …)

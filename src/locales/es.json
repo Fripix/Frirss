@@ -142,7 +142,8 @@
       "labels": "Etiquetas",
       "themes": "Temas",
       "shortcuts": "Atajos",
-      "admin": "Admin"
+      "admin": "Admin",
+      "offline": "Sin conexión"
     },
     "branding": {
       "language": "Idioma",
@@ -301,7 +302,9 @@
       "hint": "Descarga los últimos 30 días de todos los feeds (texto + imágenes) para leer sin conexión. Usa datos — mejor con Wi-Fi.",
       "button": "Preparar sin conexión (30 días)",
       "preparing": "Preparando…",
-      "done": "Listo sin conexión"
+      "done": "Listo sin conexión",
+      "auto": "Actualizar al abrir la app",
+      "autoHint": "Actualiza la caché sin conexión en segundo plano al abrir (en línea, máx. 1×/h). Incremental."
     }
   },
   "login": {
