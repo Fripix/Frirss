@@ -72,3 +72,29 @@ export async function hydrateExtractCache(): Promise<void> {
 export function pinExtract(id: string): Promise<void> {
   return dbSetPinned(id, true);
 }
+
+const REVALIDATE_AFTER_MS = 12 * 60 * 60 * 1000; // 12h
+
+/**
+ * Stale-while-revalidate: if the cached extraction is older than the window
+ * (and we're online), re-extract in the background and silently refresh the
+ * cache — so the *next* open shows the updated article. The current view is
+ * not swapped (avoids a jarring reflow while reading). Best-effort.
+ */
+export async function revalidateIfStale(id: string, url: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  const rec = await dbGet(id);
+  if (rec && Date.now() - rec.cachedAt < REVALIDATE_AFTER_MS) return; // fresh enough
+  try {
+    const { extractFullContent } = await import('../utils/extractContent');
+    const fresh = await extractFullContent(url);
+    if (!rec || fresh.content !== rec.content) {
+      memSet(id, fresh);
+      await putExtract(id, fresh); // preserves the pinned flag
+    } else {
+      await dbPut({ ...rec, cachedAt: Date.now() }); // unchanged → just bump freshness
+    }
+  } catch {
+    /* ignore */
+  }
+}

@@ -8,7 +8,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
-import { peekExtract, getExtract, putExtract } from '../../lib/extractCache';
+import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
 // Reserve vertical space for images that declare width/height, via
@@ -524,6 +524,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       lastExtractedId.current = id;
       setExtractError(null);
       setExtractedContent(inMem);
+      revalidateIfStale(id, selectedArticle.url).catch(() => {}); // SWR refresh
       return;
     }
     setExtractError(null);
@@ -534,6 +535,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (!stillCurrent()) return;
       lastExtractedId.current = id;
       setExtractedContent(fromDb);
+      revalidateIfStale(id, selectedArticle.url).catch(() => {}); // SWR refresh
       return;
     }
     // 3) Live fetch + parse, then persist (memory + IndexedDB).
