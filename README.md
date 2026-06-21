@@ -41,6 +41,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 ### Reading
 - Three-pane reader on desktop; an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
 - **Full-text extraction** (Readability) when a feed only ships a summary, cached so re-reads are instant.
+- **Offline reading** (installable PWA): articles — text and images — stay readable without a connection. Favorites and read-later are kept offline automatically, plus a one-tap *Prepare offline* sweep (last 30 days, all feeds) and optional auto-refresh on open.
 - Favorites, read-later, mark read/unread, filters (all / unread / favorites), search and infinite scroll.
 
 ### Make it yours
@@ -48,7 +49,7 @@ Almost everything is yours to tweak:
 - **Themes** — full control over every color and font; **create, save, export and import** your own themes.
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
-- **Layout** — resizable columns, density and spacing options, date separators, and toggles for the source label and top bar.
+- **Layout** — resizable columns, density and spacing options, date separators, toggles for the source label and top bar, and a desktop/mobile layout switch on tablets.
 - **Labels & sub-labels** — a nestable tagging system: create, rename, color, drag-and-drop to organize, group under parents, with per-label article counts.
 - **Branding** — set your own app name and logo.
 - **9 languages** — FR · EN · DE · ES · IT · PT · NL · PL · UK.
