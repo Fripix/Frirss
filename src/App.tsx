@@ -17,6 +17,7 @@ import ReadingPane from './components/ReadingPane/ReadingPane';
 import ResizeHandle from './components/ResizeHandle';
 import ServerSwitcher from './components/ServerSwitcher/ServerSwitcher';
 import ShortcutBar from './components/ShortcutBar';
+import OfflineBanner from './components/OfflineBanner';
 import MobileDrawer from './components/MobileDrawer';
 import MobileStack from './components/MobileStack';
 
@@ -307,6 +308,7 @@ export default function App() {
           </Suspense>
         )}
         {transitionLayer}
+      <OfflineBanner />
       </>
     );
   }
@@ -352,6 +354,7 @@ export default function App() {
           </Suspense>
         )}
         {transitionLayer}
+      <OfflineBanner />
       </>
     );
   }
@@ -421,6 +424,7 @@ export default function App() {
           </Suspense>
         )}
       {transitionLayer}
+      <OfflineBanner />
     </>
   );
 }

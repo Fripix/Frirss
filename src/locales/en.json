@@ -447,5 +447,9 @@
     "compact": "Compact",
     "standard": "Standard",
     "preview": "Preview"
+  },
+  "connection": {
+    "offline": "Offline — reading from cache",
+    "backOnline": "Back online"
   }
 }

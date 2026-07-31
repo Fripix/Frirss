@@ -447,5 +447,9 @@
     "compact": "Compacto",
     "standard": "Estándar",
     "preview": "Vista previa"
+  },
+  "connection": {
+    "offline": "Sin conexión — lectura desde la caché",
+    "backOnline": "De nuevo en línea"
   }
 }

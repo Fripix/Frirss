@@ -447,5 +447,9 @@
     "compact": "Compact",
     "standard": "Standaard",
     "preview": "Voorbeeld"
+  },
+  "connection": {
+    "offline": "Offline — lezen uit cache",
+    "backOnline": "Weer online"
   }
 }

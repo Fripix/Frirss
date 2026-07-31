@@ -623,3 +623,41 @@ html {
 @media (pointer: coarse) and (min-width: 768px) {
   .layout-toggle { display: flex; }
 }
+
+/* ── Offline / back-online banner — thin, pinned to the top ───────── */
+/* Sits above the safe-area strip (z-index 60); informational, click-through. */
+.offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top, 0px) + 5px) 12px 5px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--topbar-bg, #201f1b);
+  color: var(--sidebar-text-active, #e0e0dc);
+  border-bottom: 1px solid var(--sidebar-divider, rgba(255, 255, 255, 0.06));
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  animation: offline-slide-in 0.25s ease;
+}
+.offline-banner-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--star-color, #f5c542); /* amber = offline */
+}
+.offline-banner[data-state="online"] .offline-banner-dot {
+  background: var(--accent, #4cd4a1); /* green = back online */
+}
+@keyframes offline-slide-in {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}

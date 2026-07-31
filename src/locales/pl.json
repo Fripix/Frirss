@@ -447,5 +447,9 @@
     "compact": "Kompaktowy",
     "standard": "Standardowy",
     "preview": "Podgląd"
+  },
+  "connection": {
+    "offline": "Offline — czytanie z pamięci podręcznej",
+    "backOnline": "Znów online"
   }
 }
