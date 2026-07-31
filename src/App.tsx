@@ -8,6 +8,7 @@ import { useKeyboardNav } from './hooks/useKeyboardNav';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { hydrateExtractCache } from './lib/extractCache';
 import { hydratePrefs, stopSync } from './lib/prefsSync';
+import { saveLastView, loadLastView } from './lib/lastView';
 import Login from './components/Login/Login';
 import LoginTransition from './components/Login/LoginTransition';
 import Sidebar from './components/Sidebar/Sidebar';
@@ -140,10 +141,21 @@ export default function App() {
     }
   }, [setBackendAuth]);
 
+  // Set once we restore a saved view on startup, so the unread-only
+  // reconcile below doesn't override the resumed feed/filter.
+  const restoredViewRef = useRef(false);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     loadSubscriptions();
-    loadArticles();
+    // Resume the last view (feed/label + filter) for this server, if any.
+    const saved = loadLastView(useAuthStore.getState().activeServerId);
+    if (saved) {
+      restoredViewRef.current = true;
+      useFeedStore.getState().selectView(saved.feed, saved.filter);
+    } else {
+      loadArticles();
+    }
     const timers: ReturnType<typeof setTimeout>[] = [];
     // Warm the offline cache (favorites + read-later) in the background,
     // a few seconds after the initial load so it doesn't compete for bandwidth.
@@ -168,6 +180,7 @@ export default function App() {
         // Once per-user prefs land, honour "unread only" on the initial view —
         // but only while still on the untouched landing view (don't override a
         // feed/favorites/read-later the user already opened during the fetch).
+        if (restoredViewRef.current) return; // a saved view already won
         const fs = useFeedStore.getState();
         const desired = useUiStore.getState().unreadOnlyByFeed[''] ? 'unread' : 'all';
         if (!fs.selectedFeed && !fs.selectedArticle &&
@@ -179,6 +192,19 @@ export default function App() {
       stopSync();
     }
   }, [backendToken]);
+
+  // ── Persist the current view (feed/label + filter) for resume-on-open ──
+  // Device-local, keyed by active server. The open article is not tracked.
+  useEffect(() => {
+    return useFeedStore.subscribe((s, p) => {
+      if (s.selectedFeed !== p.selectedFeed || s.filter !== p.filter) {
+        saveLastView(useAuthStore.getState().activeServerId, {
+          feed: s.selectedFeed,
+          filter: s.filter,
+        });
+      }
+    });
+  }, []);
 
   // ── Reload everything when the active FreshRSS server changes ──
   const prevServerRef = useRef(activeServerId);
