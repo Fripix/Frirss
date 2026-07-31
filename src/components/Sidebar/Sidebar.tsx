@@ -64,7 +64,8 @@ export default function Sidebar() {
   const setFontSize = useThemeStore((s) => s.setFontSize);
   const sidebarFontSize = parseInt(theme.fontSizes['sidebar-feed']) || 13;
 
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const collapsedCategories = useUiStore((s) => s.collapsedCategories);
+  const toggleCategoryCollapsed = useUiStore((s) => s.toggleCategoryCollapsed);
   const [refreshing, setRefreshing] = useState(false);
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [addFeedOpen, setAddFeedOpen] = useState(false);
@@ -121,7 +122,7 @@ export default function Sidebar() {
   }, [unreadCounts, subscriptions]);
 
   function toggleCategory(catId: string) {
-    setCollapsedCategories((prev) => ({ ...prev, [catId]: !prev[catId] }));
+    toggleCategoryCollapsed(catId);
   }
 
   async function handleRefresh() {
@@ -432,7 +433,7 @@ export default function Sidebar() {
             <LabelSection
               labels={labels}
               selectedFeed={selectedFeed}
-              selectLabel={(label) => selectView(label, 'all')}
+              selectLabel={(label) => selectView(label)}
               onArticleDrop={(article, labelId) => {
                 if (!article.labels?.includes(labelId)) {
                   toggleArticleLabel(article, labelId);
@@ -496,7 +497,7 @@ export default function Sidebar() {
                     unreadCount={unreadCounts[feed.id] || 0}
                     showFavicons={showFavicons}
                     organizeMode={organizeMode}
-                    onSelect={() => selectView(feed, 'all')}
+                    onSelect={() => selectView(feed)}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       setContextMenu({ feed, x: e.clientX, y: e.clientY });
@@ -1061,8 +1062,10 @@ interface LabelSectionProps {
 
 function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop }: LabelSectionProps) {
   const { t } = useTranslation();
-  const [collapsed, setCollapsed] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const collapsed = useUiStore((s) => s.labelsCollapsed);
+  const setCollapsed = useUiStore((s) => s.setLabelsCollapsed);
+  const collapsedGroups = useUiStore((s) => s.collapsedLabelGroups);
+  const toggleLabelGroup = useUiStore((s) => s.toggleLabelGroup);
   const labelColors = useThemeStore((s) => s.labelColors);
   const openPreferences = useThemeStore((s) => s.openPreferences);
   const labelOrder = useUiStore((s) => s.labelOrder);
@@ -1095,7 +1098,7 @@ function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop }: Labe
   );
 
   function toggleGroup(name: string) {
-    setCollapsedGroups((prev) => ({ ...prev, [name]: !prev[name] }));
+    toggleLabelGroup(name);
   }
 
   // Separate standalone labels from groups for rendering

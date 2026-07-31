@@ -25,6 +25,7 @@ vi.mock('../api/feeds', () => ({
 }));
 
 import { useFeedStore } from './feedStore';
+import { useUiStore } from './uiStore';
 import * as api from '../api/feeds';
 
 const READING_LIST = 'user/-/state/com.google/reading-list';
@@ -68,5 +69,46 @@ describe('feedStore.selectArticle', () => {
     expect(api.markAsRead).not.toHaveBeenCalled();
     expect(useFeedStore.getState().selectedArticle!.read).toBe(true);
     expect(useFeedStore.getState().unreadCounts['feed/1']).toBe(3);
+  });
+});
+
+describe('feedStore — unreadOnly default filter', () => {
+  const feed = { id: 'feed/1', title: 'Feed' } as unknown as Parameters<
+    ReturnType<typeof useFeedStore.getState>['selectView']
+  >[0];
+
+  beforeEach(() => {
+    localStorage.clear();
+    // Prevent network: stub the loader triggered by selectView / setFilter.
+    useFeedStore.setState({ loadArticles: vi.fn() as never, selectedFeed: null });
+    useUiStore.setState({ unreadOnly: false });
+  });
+
+  it('opening a feed defaults to "all" when unreadOnly is off', () => {
+    useUiStore.getState().setUnreadOnly(false);
+    useFeedStore.getState().selectView(feed);
+    expect(useFeedStore.getState().filter).toBe('all');
+  });
+
+  it('opening a feed defaults to "unread" when unreadOnly is on', () => {
+    useUiStore.getState().setUnreadOnly(true);
+    useFeedStore.getState().selectView(feed);
+    expect(useFeedStore.getState().filter).toBe('unread');
+  });
+
+  it('an explicit filter still wins over the default', () => {
+    useUiStore.getState().setUnreadOnly(true);
+    useFeedStore.getState().selectView(feed, 'starred');
+    expect(useFeedStore.getState().filter).toBe('starred');
+  });
+
+  it('setUnreadFilter persists the preference and applies the filter', () => {
+    useFeedStore.getState().setUnreadFilter(true);
+    expect(useUiStore.getState().unreadOnly).toBe(true);
+    expect(useFeedStore.getState().filter).toBe('unread');
+
+    useFeedStore.getState().setUnreadFilter(false);
+    expect(useUiStore.getState().unreadOnly).toBe(false);
+    expect(useFeedStore.getState().filter).toBe('all');
   });
 });

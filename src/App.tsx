@@ -164,7 +164,17 @@ export default function App() {
   // Runs as soon as we have a backend session; tears down on logout.
   useEffect(() => {
     if (backendToken) {
-      hydratePrefs();
+      hydratePrefs().then(() => {
+        // Once per-user prefs land, honour "unread only" on the initial view —
+        // but only while still on the untouched landing view (don't override a
+        // feed/favorites/read-later the user already opened during the fetch).
+        const fs = useFeedStore.getState();
+        const desired = useUiStore.getState().unreadOnly ? 'unread' : 'all';
+        if (!fs.selectedFeed && !fs.selectedArticle &&
+            (fs.filter === 'all' || fs.filter === 'unread') && fs.filter !== desired) {
+          fs.selectView(null, desired);
+        }
+      });
     } else {
       stopSync();
     }

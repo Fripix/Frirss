@@ -52,6 +52,18 @@ export interface UiState {
   setLabelSortAlpha: (v: boolean) => void;
   showLabelCounts: boolean;
   setShowLabelCounts: (v: boolean) => void;
+  // Collapse state persisted per-user (synced): whole ÉTIQUETTES section,
+  // individual label groups, and feed categories.
+  labelsCollapsed: boolean;
+  setLabelsCollapsed: (v: boolean) => void;
+  collapsedLabelGroups: Record<string, boolean>;
+  toggleLabelGroup: (name: string) => void;
+  collapsedCategories: Record<string, boolean>;
+  toggleCategoryCollapsed: (catId: string) => void;
+  // Default to the "unread only" filter when opening a feed/label and on
+  // startup (synced per-user). Set by the article-list unread toggle.
+  unreadOnly: boolean;
+  setUnreadOnly: (v: boolean) => void;
   // Auto-refresh the offline cache on app open (local per-device, never synced).
   autoOffline: boolean;
   setAutoOffline: (v: boolean) => void;
@@ -172,6 +184,38 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setShowLabelCounts: (v) => {
     localStorage.setItem('frirss_showLabelCounts', JSON.stringify(v));
     set({ showLabelCounts: v });
+  },
+
+  // Whole ÉTIQUETTES section collapsed?
+  labelsCollapsed: loadJson('frirss_labelsCollapsed', false),
+  setLabelsCollapsed: (v) => {
+    localStorage.setItem('frirss_labelsCollapsed', JSON.stringify(v));
+    set({ labelsCollapsed: v });
+  },
+  // Per-label-group collapse: { [groupName]: true }
+  collapsedLabelGroups: loadJson('frirss_collapsedLabelGroups', {} as Record<string, boolean>),
+  toggleLabelGroup: (name) => {
+    set((state) => {
+      const next = { ...state.collapsedLabelGroups, [name]: !state.collapsedLabelGroups[name] };
+      localStorage.setItem('frirss_collapsedLabelGroups', JSON.stringify(next));
+      return { collapsedLabelGroups: next };
+    });
+  },
+  // Per-feed-category collapse: { [catId]: true }
+  collapsedCategories: loadJson('frirss_collapsedCategories', {} as Record<string, boolean>),
+  toggleCategoryCollapsed: (catId) => {
+    set((state) => {
+      const next = { ...state.collapsedCategories, [catId]: !state.collapsedCategories[catId] };
+      localStorage.setItem('frirss_collapsedCategories', JSON.stringify(next));
+      return { collapsedCategories: next };
+    });
+  },
+
+  // Prefer the "unread only" filter by default.
+  unreadOnly: loadJson('frirss_unreadOnly', false),
+  setUnreadOnly: (v) => {
+    localStorage.setItem('frirss_unreadOnly', JSON.stringify(v));
+    set({ unreadOnly: v });
   },
   // Auto-refresh the offline cache on app open (local, throttled in App).
   autoOffline: loadJson('frirss_autoOffline', false),
@@ -317,6 +361,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showFavicons', 'topbarVisible', 'categoryOrder', 'feedOrder',
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
+      'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnly',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -336,6 +381,7 @@ export const UI_SYNC_KEYS = [
   'categoryOrder', 'feedOrder', 'labelOrder', 'labelSortAlpha', 'showLabelCounts',
   'showDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
+  'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnly',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

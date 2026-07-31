@@ -248,7 +248,7 @@ export default function ArticleList() {
             <div className="flex-1 flex items-center">
               <ToolbarBtn flex1 iconOnly icon={<SearchIcon />} label={t('articleList.search')} onClick={() => setSearchOpen(true)} />
               <ToolbarBtn flex1 iconOnly icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
-                onClick={() => useFeedStore.getState().setFilter(filter === 'unread' ? 'all' : 'unread')} />
+                onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
               <ToolbarBtn flex1 iconOnly icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               <ToolbarBtn flex1 iconOnly icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
@@ -307,7 +307,7 @@ export default function ArticleList() {
             <div className="flex items-center gap-0.5 flex-shrink-0">
               <ToolbarBtn icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
-                onClick={() => useFeedStore.getState().setFilter(filter === 'unread' ? 'all' : 'unread')} />
+                onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               <ToolbarSep />
@@ -369,7 +369,7 @@ export default function ArticleList() {
               <ToolbarBtn icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
               <ToolbarSep />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
-                onClick={() => useFeedStore.getState().setFilter(filter === 'unread' ? 'all' : 'unread')} />
+                onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               <ToolbarSep />

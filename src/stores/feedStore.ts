@@ -163,6 +163,7 @@ export interface FeedState {
 
   offlinePrep: { running: boolean; phase: 'lists' | 'articles' | 'done'; done: number; total: number } | null;
   setFilter: (filter: Filter) => void;
+  setUnreadFilter: (on: boolean) => void;
   loadLabelCounts: () => Promise<void>;
   warmOfflineCache: () => Promise<void>;
   prepareOffline: () => Promise<void>;
@@ -201,7 +202,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   continuation: null,
   selectedFeed: null,
   selectedArticle: null,
-  filter: 'all',
+  // Honour the persisted "unread only" preference on startup.
+  filter: useUiStore.getState().unreadOnly ? 'unread' : 'all',
   loading: false,
   loadingMore: false,
   searchQuery: '',
@@ -219,15 +221,24 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     get().loadArticles();
   },
 
+  // Toggle the "unread only" reading mode: persist the preference (synced,
+  // so it survives reloads and follows the account) then apply the filter.
+  setUnreadFilter: (on) => {
+    useUiStore.getState().setUnreadOnly(on);
+    get().setFilter(on ? 'unread' : 'all');
+  },
+
   selectFeed: (feed) => {
     const c = memGet(viewKey(feed, get().filter));
     set({ selectedFeed: feed, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
   },
 
-  // Combined action: set feed + filter in one go, single loadArticles call
+  // Combined action: set feed + filter in one go, single loadArticles call.
+  // When no filter is given (feed/label navigation), fall back to the user's
+  // persisted "unread only" preference instead of always showing everything.
   selectView: (feed, filter) => {
-    const f = filter || 'all';
+    const f = filter ?? (useUiStore.getState().unreadOnly ? 'unread' : 'all');
     const c = memGet(viewKey(feed ?? null, f));
     set({ selectedFeed: feed ?? null, filter: f, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();

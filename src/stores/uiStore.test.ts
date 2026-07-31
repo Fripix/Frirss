@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useUiStore } from './uiStore';
+import { useUiStore, UI_SYNC_KEYS } from './uiStore';
 
 describe('uiStore', () => {
   beforeEach(() => localStorage.clear());
@@ -32,5 +32,56 @@ describe('uiStore', () => {
     const before = useUiStore.getState().viewMode;
     useUiStore.getState().applyServerPrefs(null);
     expect(useUiStore.getState().viewMode).toBe(before);
+  });
+
+  it('setUnreadOnly persists to state and localStorage', () => {
+    useUiStore.getState().setUnreadOnly(true);
+    expect(useUiStore.getState().unreadOnly).toBe(true);
+    expect(localStorage.getItem('frirss_unreadOnly')).toBe('true');
+    useUiStore.getState().setUnreadOnly(false);
+    expect(useUiStore.getState().unreadOnly).toBe(false);
+    expect(localStorage.getItem('frirss_unreadOnly')).toBe('false');
+  });
+
+  it('setLabelsCollapsed persists the labels section state', () => {
+    useUiStore.getState().setLabelsCollapsed(true);
+    expect(useUiStore.getState().labelsCollapsed).toBe(true);
+    expect(localStorage.getItem('frirss_labelsCollapsed')).toBe('true');
+  });
+
+  it('toggleCategoryCollapsed flips a single category and persists', () => {
+    useUiStore.setState({ collapsedCategories: {} });
+    useUiStore.getState().toggleCategoryCollapsed('cat/A');
+    expect(useUiStore.getState().collapsedCategories['cat/A']).toBe(true);
+    useUiStore.getState().toggleCategoryCollapsed('cat/A');
+    expect(useUiStore.getState().collapsedCategories['cat/A']).toBe(false);
+    expect(JSON.parse(localStorage.getItem('frirss_collapsedCategories')!)['cat/A']).toBe(false);
+  });
+
+  it('toggleLabelGroup flips a single group and persists', () => {
+    useUiStore.setState({ collapsedLabelGroups: {} });
+    useUiStore.getState().toggleLabelGroup('News');
+    expect(useUiStore.getState().collapsedLabelGroups['News']).toBe(true);
+    expect(JSON.parse(localStorage.getItem('frirss_collapsedLabelGroups')!)['News']).toBe(true);
+  });
+
+  it('applyServerPrefs applies the new collapse + unreadOnly prefs', () => {
+    useUiStore.getState().applyServerPrefs({
+      unreadOnly: true,
+      labelsCollapsed: true,
+      collapsedCategories: { 'cat/A': true },
+      collapsedLabelGroups: { News: true },
+    });
+    const s = useUiStore.getState();
+    expect(s.unreadOnly).toBe(true);
+    expect(s.labelsCollapsed).toBe(true);
+    expect(s.collapsedCategories['cat/A']).toBe(true);
+    expect(s.collapsedLabelGroups['News']).toBe(true);
+  });
+
+  it('syncs the new prefs across devices (present in UI_SYNC_KEYS)', () => {
+    for (const k of ['unreadOnly', 'labelsCollapsed', 'collapsedCategories', 'collapsedLabelGroups']) {
+      expect(UI_SYNC_KEYS).toContain(k);
+    }
   });
 });
