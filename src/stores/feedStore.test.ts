@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Article } from '../types';
+import type { Article, Subscription } from '../types';
 
 // Mock the FreshRSS API layer so the store never hits the network.
 vi.mock('../api/feeds', () => ({
@@ -115,5 +115,39 @@ describe('feedStore — per-feed unread default filter', () => {
     useFeedStore.getState().setUnreadFilter(false);
     expect(useUiStore.getState().unreadOnlyByFeed['feed/B']).toBe(false);
     expect(useUiStore.getState().unreadOnlyByFeed['feed/A']).toBe(true);
+  });
+});
+
+describe('feedStore.silentRefresh — keep the article being read (unread filter)', () => {
+  const feed = { id: 'feed/1', title: 'F' } as unknown as Subscription;
+  const A = { id: 'a', read: true, sourceId: 'feed/1', title: 'A', published: 1000 } as Article;
+  const B = { id: 'b', read: false, sourceId: 'feed/1', title: 'B', published: 2000 } as Article;
+
+  beforeEach(() => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([]);
+    vi.mocked(api.getStarredItems).mockResolvedValue({ items: [], continuation: null } as never);
+    // The fresh unread stream for the feed excludes the now-read A → only B.
+    vi.mocked(api.getStreamContents).mockImplementation((streamId: string) =>
+      Promise.resolve(
+        (streamId === 'feed/1'
+          ? { items: [{ id: 'b', categories: [] }], continuation: null }
+          : { items: [], continuation: null }) as never
+      )
+    );
+  });
+
+  it('re-inserts the selected (now-read) article so it does not vanish', async () => {
+    useFeedStore.setState({ selectedFeed: feed, filter: 'unread', articles: [A, B], selectedArticle: A });
+    await useFeedStore.getState().silentRefresh();
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['a', 'b']);
+    expect(s.articles.find((a) => a.id === 'a')!.read).toBe(true);
+    expect(s.selectedArticle!.id).toBe('a');
+  });
+
+  it('drops the read article once it is no longer the one being read', async () => {
+    useFeedStore.setState({ selectedFeed: feed, filter: 'unread', articles: [A, B], selectedArticle: B });
+    await useFeedStore.getState().silentRefresh();
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['b']);
   });
 });

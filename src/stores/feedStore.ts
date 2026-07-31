@@ -915,8 +915,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         const updatedSelected = selectedId
           ? newArticles.find((a) => a.id === selectedId) || state.selectedArticle
           : null;
+
+        // Don't let the article you're currently reading vanish from under you:
+        // in unread-only mode a background refresh drops it (it's now read), so
+        // re-insert it at its previous spot. It falls away on the next refresh
+        // once you've moved to another article.
+        let articles = newArticles;
+        if (updatedSelected && !newArticles.some((a) => a.id === updatedSelected.id)) {
+          const prevIdx = state.articles.findIndex((a) => a.id === updatedSelected.id);
+          const insertAt = prevIdx >= 0 ? Math.min(prevIdx, newArticles.length) : 0;
+          articles = [...newArticles];
+          articles.splice(insertAt, 0, { ...updatedSelected, read: true });
+        }
+
         return {
-          articles: newArticles,
+          articles,
           continuation: result.continuation,
           selectedArticle: updatedSelected,
         };
