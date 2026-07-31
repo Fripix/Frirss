@@ -9,6 +9,7 @@ import client from '../../api/client';
 import AddFeedDialog from './AddFeedDialog';
 import type { Article, Subscription, Tag } from '../../types';
 import { groupLabels } from '../../utils/labels';
+import { getFavicon, setFavicon, blobToDataUrl } from '../../lib/faviconCache';
 
 const SIDEBAR_FONT_MIN = 11;
 const SIDEBAR_FONT_MAX = 18;
@@ -968,9 +969,6 @@ function CategoryBadge({ count }: { count: number }) {
   );
 }
 
-// Cache for favicon blob URLs (persists across re-renders)
-const faviconCache = new Map<string, string>();
-
 interface LabelSectionProps {
   labels: Tag[];
   selectedFeed: Subscription | null;
@@ -1323,7 +1321,9 @@ function LetterAvatar({ title }: { title?: string }) {
 }
 
 function FeedFavicon({ iconUrl, title }: { iconUrl?: string; title?: string }) {
-  const [src, setSrc] = useState<string | null>(() => (iconUrl ? faviconCache.get(iconUrl) : null) || null);
+  // Seed synchronously from the persistent cache → the icon paints on the
+  // first frame after a reload, with no flash and no re-fetch.
+  const [src, setSrc] = useState<string | null>(() => getFavicon(iconUrl));
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -1332,36 +1332,39 @@ function FeedFavicon({ iconUrl, title }: { iconUrl?: string; title?: string }) {
       return;
     }
 
-    // Already cached as blob URL
-    if (faviconCache.has(iconUrl)) {
-      setSrc(faviconCache.get(iconUrl)!);
+    // Already resolved (this session or a previous one).
+    const cached = getFavicon(iconUrl);
+    if (cached) {
+      setSrc(cached);
       setFailed(false);
       return;
     }
 
     let cancelled = false;
 
-    // Strategy 1: Fetch through the authenticated client (handles CORS proxy + auth)
+    // Strategy 1: fetch through the authenticated client (proxy + auth), then
+    // persist as a data URL so it survives reloads.
     client
       .get<Blob>(iconUrl, { responseType: 'blob' })
-      .then((response) => {
-        if (cancelled) return;
+      .then(async (response) => {
         // Check that we got an image (not an HTML error page)
         if (response.data.type && response.data.type.startsWith('image')) {
-          const blobUrl = URL.createObjectURL(response.data);
-          faviconCache.set(iconUrl, blobUrl);
-          setSrc(blobUrl);
+          const dataUrl = await blobToDataUrl(response.data);
+          if (cancelled) return;
+          setFavicon(iconUrl, dataUrl);
+          setSrc(dataUrl);
         } else {
           throw new Error('Not an image');
         }
       })
       .catch(() => {
         if (cancelled) return;
-        // Strategy 2: Try loading the image directly (works if server allows unauthenticated access)
+        // Strategy 2: load the image directly (works if the server allows
+        // unauthenticated access); the plain URL is cacheable as-is.
         const img = new Image();
         img.onload = () => {
           if (cancelled) return;
-          faviconCache.set(iconUrl, iconUrl);
+          setFavicon(iconUrl, iconUrl);
           setSrc(iconUrl);
         };
         img.onerror = () => {
