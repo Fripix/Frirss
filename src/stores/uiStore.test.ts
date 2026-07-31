@@ -34,13 +34,17 @@ describe('uiStore', () => {
     expect(useUiStore.getState().viewMode).toBe(before);
   });
 
-  it('setUnreadOnly persists to state and localStorage', () => {
-    useUiStore.getState().setUnreadOnly(true);
-    expect(useUiStore.getState().unreadOnly).toBe(true);
-    expect(localStorage.getItem('frirss_unreadOnly')).toBe('true');
-    useUiStore.getState().setUnreadOnly(false);
-    expect(useUiStore.getState().unreadOnly).toBe(false);
-    expect(localStorage.getItem('frirss_unreadOnly')).toBe('false');
+  it('setFeedUnreadOnly stores the preference per feed, independently', () => {
+    useUiStore.setState({ unreadOnlyByFeed: {} });
+    useUiStore.getState().setFeedUnreadOnly('feed/A', true);
+    expect(useUiStore.getState().unreadOnlyByFeed['feed/A']).toBe(true);
+    // A second feed is unaffected.
+    expect(useUiStore.getState().unreadOnlyByFeed['feed/B']).toBeUndefined();
+    useUiStore.getState().setFeedUnreadOnly('feed/B', true);
+    useUiStore.getState().setFeedUnreadOnly('feed/A', false);
+    expect(useUiStore.getState().unreadOnlyByFeed['feed/A']).toBe(false);
+    expect(useUiStore.getState().unreadOnlyByFeed['feed/B']).toBe(true);
+    expect(JSON.parse(localStorage.getItem('frirss_unreadOnlyByFeed')!)['feed/B']).toBe(true);
   });
 
   it('setLabelsCollapsed persists the labels section state', () => {
@@ -65,22 +69,22 @@ describe('uiStore', () => {
     expect(JSON.parse(localStorage.getItem('frirss_collapsedLabelGroups')!)['News']).toBe(true);
   });
 
-  it('applyServerPrefs applies the new collapse + unreadOnly prefs', () => {
+  it('applyServerPrefs applies the new collapse + per-feed unread prefs', () => {
     useUiStore.getState().applyServerPrefs({
-      unreadOnly: true,
+      unreadOnlyByFeed: { 'feed/A': true },
       labelsCollapsed: true,
       collapsedCategories: { 'cat/A': true },
       collapsedLabelGroups: { News: true },
     });
     const s = useUiStore.getState();
-    expect(s.unreadOnly).toBe(true);
+    expect(s.unreadOnlyByFeed['feed/A']).toBe(true);
     expect(s.labelsCollapsed).toBe(true);
     expect(s.collapsedCategories['cat/A']).toBe(true);
     expect(s.collapsedLabelGroups['News']).toBe(true);
   });
 
   it('syncs the new prefs across devices (present in UI_SYNC_KEYS)', () => {
-    for (const k of ['unreadOnly', 'labelsCollapsed', 'collapsedCategories', 'collapsedLabelGroups']) {
+    for (const k of ['unreadOnlyByFeed', 'labelsCollapsed', 'collapsedCategories', 'collapsedLabelGroups']) {
       expect(UI_SYNC_KEYS).toContain(k);
     }
   });

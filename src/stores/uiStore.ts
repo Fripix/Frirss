@@ -60,10 +60,10 @@ export interface UiState {
   toggleLabelGroup: (name: string) => void;
   collapsedCategories: Record<string, boolean>;
   toggleCategoryCollapsed: (catId: string) => void;
-  // Default to the "unread only" filter when opening a feed/label and on
-  // startup (synced per-user). Set by the article-list unread toggle.
-  unreadOnly: boolean;
-  setUnreadOnly: (v: boolean) => void;
+  // "Unread only" filter preference, kept independently per feed/label
+  // (keyed by feed id; '' = the "all feeds" landing view). Synced per-user.
+  unreadOnlyByFeed: Record<string, boolean>;
+  setFeedUnreadOnly: (feedKey: string, on: boolean) => void;
   // Auto-refresh the offline cache on app open (local per-device, never synced).
   autoOffline: boolean;
   setAutoOffline: (v: boolean) => void;
@@ -211,11 +211,14 @@ export const useUiStore = create<UiState>()((set, get) => ({
     });
   },
 
-  // Prefer the "unread only" filter by default.
-  unreadOnly: loadJson('frirss_unreadOnly', false),
-  setUnreadOnly: (v) => {
-    localStorage.setItem('frirss_unreadOnly', JSON.stringify(v));
-    set({ unreadOnly: v });
+  // Per-feed "unread only" preference: { [feedId]: true }
+  unreadOnlyByFeed: loadJson('frirss_unreadOnlyByFeed', {} as Record<string, boolean>),
+  setFeedUnreadOnly: (feedKey, on) => {
+    set((state) => {
+      const next = { ...state.unreadOnlyByFeed, [feedKey]: on };
+      localStorage.setItem('frirss_unreadOnlyByFeed', JSON.stringify(next));
+      return { unreadOnlyByFeed: next };
+    });
   },
   // Auto-refresh the offline cache on app open (local, throttled in App).
   autoOffline: loadJson('frirss_autoOffline', false),
@@ -361,7 +364,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showFavicons', 'topbarVisible', 'categoryOrder', 'feedOrder',
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
-      'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnly',
+      'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -381,7 +384,7 @@ export const UI_SYNC_KEYS = [
   'categoryOrder', 'feedOrder', 'labelOrder', 'labelSortAlpha', 'showLabelCounts',
   'showDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
-  'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnly',
+  'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

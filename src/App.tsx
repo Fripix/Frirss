@@ -169,7 +169,7 @@ export default function App() {
         // but only while still on the untouched landing view (don't override a
         // feed/favorites/read-later the user already opened during the fetch).
         const fs = useFeedStore.getState();
-        const desired = useUiStore.getState().unreadOnly ? 'unread' : 'all';
+        const desired = useUiStore.getState().unreadOnlyByFeed[''] ? 'unread' : 'all';
         if (!fs.selectedFeed && !fs.selectedArticle &&
             (fs.filter === 'all' || fs.filter === 'unread') && fs.filter !== desired) {
           fs.selectView(null, desired);

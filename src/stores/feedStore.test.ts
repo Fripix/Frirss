@@ -72,43 +72,48 @@ describe('feedStore.selectArticle', () => {
   });
 });
 
-describe('feedStore — unreadOnly default filter', () => {
-  const feed = { id: 'feed/1', title: 'Feed' } as unknown as Parameters<
-    ReturnType<typeof useFeedStore.getState>['selectView']
-  >[0];
+describe('feedStore — per-feed unread default filter', () => {
+  type FeedArg = Parameters<ReturnType<typeof useFeedStore.getState>['selectView']>[0];
+  const feedA = { id: 'feed/A', title: 'A' } as unknown as FeedArg;
+  const feedB = { id: 'feed/B', title: 'B' } as unknown as FeedArg;
 
   beforeEach(() => {
     localStorage.clear();
     // Prevent network: stub the loader triggered by selectView / setFilter.
     useFeedStore.setState({ loadArticles: vi.fn() as never, selectedFeed: null });
-    useUiStore.setState({ unreadOnly: false });
+    useUiStore.setState({ unreadOnlyByFeed: {} });
   });
 
-  it('opening a feed defaults to "all" when unreadOnly is off', () => {
-    useUiStore.getState().setUnreadOnly(false);
-    useFeedStore.getState().selectView(feed);
+  it('opening a feed with no stored preference defaults to "all"', () => {
+    useFeedStore.getState().selectView(feedA);
     expect(useFeedStore.getState().filter).toBe('all');
   });
 
-  it('opening a feed defaults to "unread" when unreadOnly is on', () => {
-    useUiStore.getState().setUnreadOnly(true);
-    useFeedStore.getState().selectView(feed);
+  it('remembers "unread only" per feed, independently of other feeds', () => {
+    useUiStore.getState().setFeedUnreadOnly('feed/A', true);
+    useFeedStore.getState().selectView(feedA);
     expect(useFeedStore.getState().filter).toBe('unread');
+    // Feed B was never toggled → stays "all".
+    useFeedStore.getState().selectView(feedB);
+    expect(useFeedStore.getState().filter).toBe('all');
   });
 
-  it('an explicit filter still wins over the default', () => {
-    useUiStore.getState().setUnreadOnly(true);
-    useFeedStore.getState().selectView(feed, 'starred');
+  it('an explicit filter still wins over the stored default', () => {
+    useUiStore.getState().setFeedUnreadOnly('feed/A', true);
+    useFeedStore.getState().selectView(feedA, 'starred');
     expect(useFeedStore.getState().filter).toBe('starred');
   });
 
-  it('setUnreadFilter persists the preference and applies the filter', () => {
+  it('setUnreadFilter stores the preference for the current feed only', () => {
+    useFeedStore.setState({ selectedFeed: feedA as never });
     useFeedStore.getState().setUnreadFilter(true);
-    expect(useUiStore.getState().unreadOnly).toBe(true);
+    expect(useUiStore.getState().unreadOnlyByFeed['feed/A']).toBe(true);
     expect(useFeedStore.getState().filter).toBe('unread');
 
+    // Switch to feed B and turn it off there — feed A keeps its preference.
+    useFeedStore.setState({ selectedFeed: feedB as never });
     useFeedStore.getState().setUnreadFilter(false);
-    expect(useUiStore.getState().unreadOnly).toBe(false);
-    expect(useFeedStore.getState().filter).toBe('all');
+    expect(useUiStore.getState().unreadOnlyByFeed['feed/B']).toBe(false);
+    expect(useUiStore.getState().unreadOnlyByFeed['feed/A']).toBe(true);
   });
 });

@@ -202,8 +202,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   continuation: null,
   selectedFeed: null,
   selectedArticle: null,
-  // Honour the persisted "unread only" preference on startup.
-  filter: useUiStore.getState().unreadOnly ? 'unread' : 'all',
+  // Honour the persisted per-feed "unread only" preference for the startup
+  // (landing / "all feeds") view.
+  filter: useUiStore.getState().unreadOnlyByFeed[''] ? 'unread' : 'all',
   loading: false,
   loadingMore: false,
   searchQuery: '',
@@ -221,10 +222,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     get().loadArticles();
   },
 
-  // Toggle the "unread only" reading mode: persist the preference (synced,
-  // so it survives reloads and follows the account) then apply the filter.
+  // Toggle the "unread only" reading mode for the CURRENT feed/label only:
+  // persist the per-feed preference (synced, survives reloads) then apply it.
   setUnreadFilter: (on) => {
-    useUiStore.getState().setUnreadOnly(on);
+    const key = get().selectedFeed?.id ?? '';
+    useUiStore.getState().setFeedUnreadOnly(key, on);
     get().setFilter(on ? 'unread' : 'all');
   },
 
@@ -235,10 +237,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   // Combined action: set feed + filter in one go, single loadArticles call.
-  // When no filter is given (feed/label navigation), fall back to the user's
-  // persisted "unread only" preference instead of always showing everything.
+  // When no filter is given (feed/label navigation), fall back to that feed's
+  // own persisted "unread only" preference instead of always showing everything.
   selectView: (feed, filter) => {
-    const f = filter ?? (useUiStore.getState().unreadOnly ? 'unread' : 'all');
+    const f = filter ?? (useUiStore.getState().unreadOnlyByFeed[feed?.id ?? ''] ? 'unread' : 'all');
     const c = memGet(viewKey(feed ?? null, f));
     set({ selectedFeed: feed ?? null, filter: f, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
