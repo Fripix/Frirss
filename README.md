@@ -50,10 +50,10 @@ Almost everything is yours to tweak:
 - **Themes** — full control over every color and font; **create, save, export and import** your own themes.
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
-- **Layout** — resizable columns, density and spacing options, date separators, toggles for the source label and top bar, and a desktop/mobile layout switch on tablets. Collapsed sidebar sections (labels and categories) are remembered.
+- **Layout** — resizable columns, density and spacing options, date separators, toggles for the source label and top bar, and a desktop/mobile layout switch on tablets. Collapsed sidebar sections (labels and categories) are remembered, and feeds with no unread can be hidden to declutter large lists.
 - **Labels & sub-labels** — a nestable tagging system: create, rename, color, drag-and-drop to organize, group under parents, with per-label article counts.
 - **Branding** — set your own app name and logo.
-- **9 languages** — FR · EN · DE · ES · IT · PT · NL · PL · UK.
+- **9 languages** — FR · EN · DE · ES · IT · PT · NL · PL · UK; the interface follows your browser language on first run.
 
 ### Accounts, SSO & multi-server
 - **Multi-user** with admin/user roles — each person keeps their own feeds and settings.
@@ -63,7 +63,7 @@ Almost everything is yours to tweak:
 ### Self-hosting
 - Optional **Redis cache** (stale-while-revalidate) and a background pre-fetch worker for instant loads.
 - FreshRSS tokens **encrypted at rest**; same-origin proxy (no CORS) with an anti-SSRF guard.
-- Ships as a single **Docker** image (nginx + Node) with SQLite storage.
+- Ships as a single **Docker** image (nginx + Node) with SQLite storage, built for **amd64 and arm64** (Raspberry Pi, 64-bit OS).
 
 ## Installation
 

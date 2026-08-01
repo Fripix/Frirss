@@ -75,7 +75,7 @@ app.get('/api/health', (req, res) => {
   } catch { /* db unreachable */ }
   res.status(dbOk ? 200 : 503).json({
     status: dbOk ? 'ok' : 'degraded',
-    version: '1.2.0',
+    version: '1.3.0',
     db: dbOk ? 'up' : 'down',
     uptime: Math.floor((Date.now() - startedAt) / 1000),
   });
