@@ -39,7 +39,9 @@
     "manageLabels": "Labels beheren",
     "github": "FriRSS op GitHub",
     "layoutDesktop": "Desktopindeling",
-    "layoutMobile": "Mobiele indeling"
+    "layoutMobile": "Mobiele indeling",
+    "hideReadFeeds": "Gelezen feeds verbergen",
+    "showReadFeeds": "Alle feeds tonen"
   },
   "addFeed": {
     "title": "Een RSS-feed toevoegen",

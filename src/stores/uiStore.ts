@@ -52,6 +52,9 @@ export interface UiState {
   setLabelSortAlpha: (v: boolean) => void;
   showLabelCounts: boolean;
   setShowLabelCounts: (v: boolean) => void;
+  // Hide feeds (and now-empty categories) that have no unread articles.
+  hideReadFeeds: boolean;
+  toggleHideReadFeeds: () => void;
   // Collapse state persisted per-user (synced): whole ÉTIQUETTES section,
   // individual label groups, and feed categories.
   labelsCollapsed: boolean;
@@ -184,6 +187,16 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setShowLabelCounts: (v) => {
     localStorage.setItem('frirss_showLabelCounts', JSON.stringify(v));
     set({ showLabelCounts: v });
+  },
+
+  // Show only feeds with unread articles (declutters large feed lists).
+  hideReadFeeds: loadJson('frirss_hideReadFeeds', false),
+  toggleHideReadFeeds: () => {
+    set((state) => {
+      const next = !state.hideReadFeeds;
+      localStorage.setItem('frirss_hideReadFeeds', JSON.stringify(next));
+      return { hideReadFeeds: next };
+    });
   },
 
   // Whole ÉTIQUETTES section collapsed?
@@ -364,7 +377,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showFavicons', 'topbarVisible', 'categoryOrder', 'feedOrder',
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
-      'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed',
+      'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -384,7 +397,7 @@ export const UI_SYNC_KEYS = [
   'categoryOrder', 'feedOrder', 'labelOrder', 'labelSortAlpha', 'showLabelCounts',
   'showDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
-  'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed',
+  'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

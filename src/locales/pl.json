@@ -39,7 +39,9 @@
     "manageLabels": "Zarządzaj etykietami",
     "github": "FriRSS na GitHub",
     "layoutDesktop": "Układ desktopowy",
-    "layoutMobile": "Układ mobilny"
+    "layoutMobile": "Układ mobilny",
+    "hideReadFeeds": "Ukryj przeczytane kanały",
+    "showReadFeeds": "Pokaż wszystkie kanały"
   },
   "addFeed": {
     "title": "Dodaj kanał RSS",

@@ -39,7 +39,9 @@
     "manageLabels": "Gérer les étiquettes",
     "github": "FriRSS sur GitHub",
     "layoutDesktop": "Disposition bureau",
-    "layoutMobile": "Disposition mobile"
+    "layoutMobile": "Disposition mobile",
+    "hideReadFeeds": "Masquer les flux lus",
+    "showReadFeeds": "Afficher tous les flux"
   },
   "addFeed": {
     "title": "Ajouter un flux RSS",

@@ -84,8 +84,17 @@ describe('uiStore', () => {
   });
 
   it('syncs the new prefs across devices (present in UI_SYNC_KEYS)', () => {
-    for (const k of ['unreadOnlyByFeed', 'labelsCollapsed', 'collapsedCategories', 'collapsedLabelGroups']) {
+    for (const k of ['unreadOnlyByFeed', 'labelsCollapsed', 'collapsedCategories', 'collapsedLabelGroups', 'hideReadFeeds']) {
       expect(UI_SYNC_KEYS).toContain(k);
     }
+  });
+
+  it('toggleHideReadFeeds flips and persists the preference', () => {
+    useUiStore.setState({ hideReadFeeds: false });
+    useUiStore.getState().toggleHideReadFeeds();
+    expect(useUiStore.getState().hideReadFeeds).toBe(true);
+    expect(localStorage.getItem('frirss_hideReadFeeds')).toBe('true');
+    useUiStore.getState().toggleHideReadFeeds();
+    expect(useUiStore.getState().hideReadFeeds).toBe(false);
   });
 });

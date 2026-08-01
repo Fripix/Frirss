@@ -39,7 +39,9 @@
     "manageLabels": "Керувати мітками",
     "github": "FriRSS на GitHub",
     "layoutDesktop": "Десктопний вигляд",
-    "layoutMobile": "Мобільний вигляд"
+    "layoutMobile": "Мобільний вигляд",
+    "hideReadFeeds": "Приховати прочитані канали",
+    "showReadFeeds": "Показати всі канали"
   },
   "addFeed": {
     "title": "Додати RSS-стрічку",
