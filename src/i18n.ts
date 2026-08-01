@@ -20,9 +20,29 @@ const loaders: Record<string, () => Promise<LocaleModule>> = {
 
 export const SUPPORTED_LANGUAGES = ['fr', ...Object.keys(loaders)];
 
+/**
+ * Pick the language to start in: the user's saved choice, else the browser's
+ * language (matched on its primary subtag, e.g. `en-US` → `en`), else English.
+ * Used both to init i18next and to preload the right bundle before first paint.
+ */
+export function resolveInitialLanguage(): string {
+  const stored = localStorage.getItem('frirss_language');
+  if (stored && SUPPORTED_LANGUAGES.includes(stored)) return stored;
+  const candidates =
+    typeof navigator !== 'undefined'
+      ? [navigator.language, ...(navigator.languages || [])]
+      : [];
+  for (const c of candidates) {
+    if (!c) continue;
+    const primary = c.toLowerCase().split('-')[0];
+    if (SUPPORTED_LANGUAGES.includes(primary)) return primary;
+  }
+  return 'en';
+}
+
 i18n.use(initReactI18next).init({
   resources: { fr: { translation: fr } },
-  lng: localStorage.getItem('frirss_language') || 'fr',
+  lng: resolveInitialLanguage(),
   fallbackLng: 'fr',
   interpolation: {
     escapeValue: false, // React already escapes
