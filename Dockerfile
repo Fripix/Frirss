@@ -20,7 +20,7 @@ FROM node:24-alpine
 WORKDIR /app
 
 # nginx (static + /api proxy + cors-proxy) and the runtime lib for better-sqlite3
-RUN apk add --no-cache nginx libstdc++
+RUN apk add --no-cache nginx libstdc++ tzdata
 
 ENV NODE_ENV=production
 ENV FRIRSS_DATA_DIR=/app/data
