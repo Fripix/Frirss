@@ -27,31 +27,14 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ── Middleware ───────────────────────────────────────────────────────
-// Security headers. A Content-Security-Policy is set as defence-in-depth on
-// top of the DOMPurify sanitisation of article HTML: scripts may only come
-// from our own origin (the bundle has no inline <script>), so an injected
-// inline script wouldn't run. `style-src` must allow inline styles — the theme
-// system and ~hundreds of React `style={{…}}` render as inline styles — and
-// `img-src` stays permissive so article images from any site still load.
+// Security headers for the API responses. NOTE: in the shipped image nginx
+// serves the HTML/static assets directly (only /api is proxied here), so the
+// browser-facing security headers for the *document* — CSP, X-Frame-Options,
+// nosniff, Referrer-Policy — are set in nginx.conf. CSP is left off here to
+// avoid a second, divergent policy on /api. The remaining helmet headers still
+// harden the API (and a direct-to-Express deployment without nginx).
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'blob:', 'https:', 'http:'],
-      fontSrc: ["'self'", 'data:'],
-      mediaSrc: ["'self'", 'data:', 'blob:', 'https:', 'http:'],
-      connectSrc: ["'self'"],
-      frameSrc: ["'self'", 'https:'],
-      objectSrc: ["'none'"],
-      baseUri: ["'self'"],
-      formAction: ["'self'"],
-      frameAncestors: ["'none'"],
-      // Don't force-upgrade http article images to https (they'd 404).
-      upgradeInsecureRequests: null,
-    },
-  },
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
 }));
 
