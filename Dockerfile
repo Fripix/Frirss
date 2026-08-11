@@ -23,6 +23,13 @@ WORKDIR /app
 # lib for better-sqlite3
 RUN apk add --no-cache nginx libstdc++ tzdata
 
+# The runtime only ever runs `node` (see docker-entrypoint.sh) — never npm. Drop
+# the base image's bundled npm/npx/corepack: they ship their own dependencies
+# (tar, brace-expansion, ip-address, undici, …) whose CVEs would be flagged even
+# though nothing here executes them.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+
 ENV NODE_ENV=production
 ENV FRIRSS_DATA_DIR=/app/data
 
