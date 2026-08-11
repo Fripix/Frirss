@@ -15,33 +15,19 @@
     <img src="https://flagcdn.com/24x18/ua.png" alt="Українська" />
   </p>
 <p>
-  <a href="https://github.com/Fripix/Frirss/releases">
-    <img alt="Latest release" src="https://img.shields.io/github/v/release/Fripix/Frirss?label=release" />
-  </a>&nbsp;
-  <a href="https://github.com/Fripix/Frirss/stargazers">
-    <img alt="GitHub stars" src="https://img.shields.io/github/stars/Fripix/Frirss?style=flat&label=stars&color=yellow" />
-  </a>&nbsp;
-  <a href="https://github.com/Fripix/frirss/actions/workflows/ci.yml">
-    <img alt="CI" src="https://github.com/Fripix/frirss/actions/workflows/ci.yml/badge.svg" />
-  </a>&nbsp;
-  <a href="https://github.com/Fripix/Frirss/security">
-    <img alt="Security" src="https://img.shields.io/badge/security-monitored-brightgreen" />
-  </a>&nbsp;
-  <a href="LICENSE">
-    <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green" />
-  </a>
+  <a href="https://github.com/Fripix/Frirss/releases"><img src="https://img.shields.io/github/v/release/Fripix/Frirss?label=release&style=flat-square" alt="Release" /></a>
+  <a href="https://github.com/Fripix/Frirss/stargazers"><img src="https://img.shields.io/github/stars/Fripix/Frirss?label=stars&style=flat-square&color=gold" alt="Stars" /></a>
+  <a href="https://github.com/Fripix/Frirss/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/ci.yml?branch=main&label=CI&style=flat-square" alt="CI" /></a>
+  <a href="https://github.com/Fripix/Frirss/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/security.yml?branch=main&label=security&style=flat-square" alt="Security" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Fripix/Frirss?style=flat-square" alt="License" /></a>
 </p>
 
 <p>
-  <a href="https://github.com/Fripix/frirss/pkgs/container/frirss">
-    <img alt="Docker image" src="https://img.shields.io/badge/ghcr.io-frirss-2496ed" />
-  </a>&nbsp;
-  <a href="https://hub.docker.com/r/fripix/frirss">
-    <img alt="Docker pulls" src="https://img.shields.io/docker/pulls/fripix/frirss?label=Docker%20pulls&logo=docker" />
-  </a>&nbsp;
-  <img alt="Platforms" src="https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey" />&nbsp;
-  <img alt="PWA" src="https://img.shields.io/badge/PWA-installable-8A2BE2" />&nbsp;
-  <img alt="Languages" src="https://img.shields.io/badge/languages-9-orange" />
+  <a href="https://hub.docker.com/r/fripix/frirss"><img src="https://img.shields.io/docker/pulls/fripix/frirss?label=Docker%20pulls&logo=docker&style=flat-square" alt="Docker pulls" /></a>
+  <a href="https://github.com/Fripix/Frirss/pkgs/container/frirss"><img src="https://img.shields.io/badge/GHCR-frirss-2496ED?logo=github&style=flat-square" alt="GHCR" /></a>
+  <img src="https://img.shields.io/badge/arch-amd64%20%7C%20arm64-555555?style=flat-square" alt="amd64 and arm64" />
+  <img src="https://img.shields.io/badge/PWA-installable-8A2BE2?style=flat-square" alt="PWA" />
+  <img src="https://img.shields.io/badge/languages-9-orange?style=flat-square" alt="9 languages" />
 </p>
 </div>
 
