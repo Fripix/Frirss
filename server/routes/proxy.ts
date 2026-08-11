@@ -2,6 +2,7 @@ import { Router } from 'express';
 import express from 'express';
 import type { Response as ExpressResponse } from 'express';
 import { Readable } from 'stream';
+import dns from 'dns';
 import db from '../db.js';
 import { decrypt } from '../crypto.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -69,28 +70,69 @@ for (const [from, to] of REWRITES) {
   .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
   .forEach((h) => ALLOWED_INTERNAL.add(h));
 
-function isInternalHost(host: string): boolean {
-  const h = host.toLowerCase();
-  if (h === 'localhost' || h.endsWith('.localhost') || h === '::1' || h === '0.0.0.0') return true;
-  if (!h.includes('.') && !h.includes(':')) return true; // bare name (Docker service)
-  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (m) {
-    const a = +m[1], b = +m[2];
-    if (a === 0 || a === 10 || a === 127) return true;
-    if (a === 169 && b === 254) return true;            // link-local + cloud metadata
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
+// True if an IP *literal* is loopback / private / link-local / ULA — i.e. must
+// not be reachable from a user-supplied target. Covers IPv4, IPv6 and
+// IPv4-mapped IPv6 (::ffff:a.b.c.d).
+export function isPrivateIp(ip: string): boolean {
+  const s = ip.toLowerCase().replace(/^\[|\]$/g, '');
+  const v4 = s.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b, c, d] = v4.slice(1).map(Number);
+    if ([a, b, c, d].some((n) => n > 255)) return true;   // malformed → unsafe
+    return a === 0 || a === 10 || a === 127                // this-net, private, loopback
+      || (a === 169 && b === 254)                          // link-local + cloud metadata (169.254.169.254)
+      || (a === 172 && b >= 16 && b <= 31)                 // private
+      || (a === 192 && b === 168)                          // private
+      || (a === 100 && b >= 64 && b <= 127);               // CGNAT
   }
-  if (h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80:')) return true; // IPv6 ULA/link-local
+  if (s === '::1' || s === '::') return true;              // loopback / unspecified
+  if (s.startsWith('fc') || s.startsWith('fd')) return true; // unique local
+  if (s.startsWith('fe80') || s.startsWith('fe9') || s.startsWith('fea') || s.startsWith('feb')) return true; // link-local
+  const mapped = s.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (mapped) return isPrivateIp(mapped[1]);
   return false;
 }
 
-// true → the target is allowed to be fetched
-function targetAllowed(rawTarget: string): boolean {
+// A host literal that is internal WITHOUT needing DNS: localhost, a bare name
+// (Docker service, or a non-dotted form like a decimal IP), or a private IP.
+export function isInternalHostLiteral(host: string): boolean {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === 'localhost' || h.endsWith('.localhost')) return true;
+  if (!h.includes('.') && !h.includes(':')) return true;  // bare name / decimal-encoded IP
+  return isPrivateIp(h);
+}
+
+// Fast, synchronous literal check for the request handler (obvious internal
+// targets → immediate 403). The authoritative resolve-based check runs in
+// fetchUpstream, on every request AND every redirect hop.
+export function targetAllowedLiteral(rawTarget: string): boolean {
   let host: string;
   try { host = new URL(rawTarget).hostname; } catch { return false; }
-  if (!isInternalHost(host)) return true;               // public → ok
-  return ALLOWED_INTERNAL.has(host.toLowerCase());       // internal → only if trusted
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+  if (ALLOWED_INTERNAL.has(h)) return true;               // explicitly trusted
+  return !isInternalHostLiteral(host);
+}
+
+export class BlockedTargetError extends Error {}
+
+// Throws BlockedTargetError if `rawUrl` must not be fetched. Trusted internal
+// hosts (PROXY_REWRITES / PROXY_INTERNAL_HOSTS) pass. Otherwise the host is
+// rejected if it is an internal literal, OR if it RESOLVES to a private IP —
+// which defeats `10.x.x.x.nip.io` and DNS records aimed at the internal
+// network (a string-only check missed those).
+async function assertTargetSafe(rawUrl: string): Promise<void> {
+  let host: string;
+  try { host = new URL(rawUrl).hostname; } catch { throw new BlockedTargetError('bad-url'); }
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+  if (ALLOWED_INTERNAL.has(h)) return;                    // explicitly trusted
+  if (isInternalHostLiteral(host)) throw new BlockedTargetError(host);
+  let addrs: dns.LookupAddress[];
+  try {
+    addrs = await dns.promises.lookup(host, { all: true });
+  } catch {
+    throw new BlockedTargetError(host);                   // unresolvable → block
+  }
+  if (addrs.some((a) => isPrivateIp(a.address))) throw new BlockedTargetError(host);
 }
 
 // A greader READ endpoint whose response is worth caching (article lists,
@@ -112,20 +154,53 @@ interface FetchUpstreamOpts {
  * fallback to the original (public) URL if the internal target is unreachable.
  * Reused by the background sync worker. Returns the fetch Response or throws.
  */
+const MAX_REDIRECTS = 5;
+
 export async function fetchUpstream(rawTarget: string, { method = 'GET', headers = {}, body }: FetchUpstreamOpts = {}): Promise<Response> {
   const target = rewriteTarget(rawTarget);
-  async function attempt(url: string): Promise<Response> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    try {
-      return await fetch(url, { method, headers, body: body as BodyInit | undefined, redirect: 'follow', signal: controller.signal });
-    } finally {
-      clearTimeout(timer);
+
+  // Follow redirects manually so we can re-run the SSRF check on every hop
+  // (a public page must not be able to bounce us into the internal network).
+  async function attempt(startUrl: string): Promise<Response> {
+    let url = startUrl;
+    let curMethod = method;
+    let curHeaders = { ...headers };
+    let curBody = body;
+    let startHost = new URL(url).host;
+
+    for (let hop = 0; ; hop++) {
+      await assertTargetSafe(url);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      let resp: Response;
+      try {
+        resp = await fetch(url, { method: curMethod, headers: curHeaders, body: curBody as BodyInit | undefined, redirect: 'manual', signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+
+      const loc = resp.status >= 300 && resp.status < 400 ? resp.headers.get('location') : null;
+      if (!loc || hop >= MAX_REDIRECTS) return resp;
+
+      const next = new URL(loc, url);
+      // Don't leak the FreshRSS token to a different origin on redirect.
+      if (next.host !== startHost) {
+        delete curHeaders.Authorization;
+        startHost = next.host;
+      }
+      // Per fetch semantics: 303 (and 301/302 on a non-GET) → GET without body.
+      if (resp.status === 303 || ((resp.status === 301 || resp.status === 302) && curMethod !== 'GET' && curMethod !== 'HEAD')) {
+        curMethod = 'GET';
+        curBody = undefined;
+      }
+      url = next.toString();
     }
   }
+
   try {
     return await attempt(target);
   } catch (err) {
+    if (err instanceof BlockedTargetError) throw err;     // never fall back a blocked target
     const e = err as { name?: string; cause?: { code?: string }; message?: string };
     if (target !== rawTarget && e.name !== 'AbortError') {
       console.warn('Proxy rewrite unreachable (%s), falling back to public:', e.cause?.code || e.message, target);
@@ -140,8 +215,9 @@ router.all('/', async (req, res) => {
   if (!rawTarget || !/^https?:\/\//i.test(rawTarget)) {
     return res.status(400).json({ error: 'Invalid or missing X-Proxy-Target' });
   }
-  // SSRF guard: block internal/private targets unless explicitly trusted.
-  if (!targetAllowed(rawTarget)) {
+  // SSRF guard (fast literal pre-check; the resolve-based check runs in
+  // fetchUpstream, on the real target and every redirect hop).
+  if (!targetAllowedLiteral(rawTarget)) {
     return res.status(403).json({ error: 'Target host not allowed' });
   }
 
@@ -217,6 +293,9 @@ router.all('/', async (req, res) => {
 });
 
 function finishError(res: ExpressResponse, err: unknown, target: string) {
+  if (err instanceof BlockedTargetError) {
+    return res.status(403).json({ error: 'Target host not allowed' });
+  }
   const e = err as { name?: string; cause?: { code?: string }; message?: string };
   if (e.name === 'AbortError') {
     return res.status(504).json({ error: 'Upstream timeout' });
