@@ -3,6 +3,7 @@
   <h1>FriRSS</h1>
   <p><em>Your FriRSS, your rules.</em></p>
   <p>A self-hosted, customizable web frontend for <a href="https://freshrss.org">FreshRSS</a>.</p>
+
   <p>
     <img src="https://flagcdn.com/24x18/fr.png" alt="Français" />&nbsp;
     <img src="https://flagcdn.com/24x18/gb.png" alt="English" />&nbsp;
@@ -14,26 +15,39 @@
     <img src="https://flagcdn.com/24x18/pl.png" alt="Polski" />&nbsp;
     <img src="https://flagcdn.com/24x18/ua.png" alt="Українська" />
   </p>
-<p>
-  <a href="https://github.com/Fripix/Frirss/releases"><img src="https://img.shields.io/github/v/release/Fripix/Frirss?label=release&style=flat-square" alt="Release" /></a>
-  <a href="https://github.com/Fripix/Frirss/stargazers"><img src="https://img.shields.io/github/stars/Fripix/Frirss?label=stars&style=flat-square&color=gold" alt="Stars" /></a>
-  <a href="https://github.com/Fripix/Frirss/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/ci.yml?branch=main&label=CI&style=flat-square" alt="CI" /></a>
-  <a href="https://github.com/Fripix/Frirss/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/security.yml?branch=main&label=security&style=flat-square" alt="Security" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Fripix/Frirss?style=flat-square" alt="License" /></a>
+
+  <p>
+    <a href="https://github.com/Fripix/Frirss/releases"><img src="https://img.shields.io/github/v/release/Fripix/Frirss?label=release&style=flat-square" alt="Release" /></a>
+    <a href="https://github.com/Fripix/Frirss/stargazers"><img src="https://img.shields.io/github/stars/Fripix/Frirss?label=stars&style=flat-square&color=gold" alt="Stars" /></a>
+    <a href="https://github.com/Fripix/Frirss/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/ci.yml?branch=main&label=CI&style=flat-square" alt="CI" /></a>
+    <a href="https://github.com/Fripix/Frirss/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/security.yml?branch=main&label=security&style=flat-square" alt="Security" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/Fripix/Frirss?style=flat-square" alt="License" /></a>
+  </p>
+
+  <p>
+    <a href="https://hub.docker.com/r/fripix/frirss"><img src="https://img.shields.io/docker/pulls/fripix/frirss?label=Docker%20pulls&logo=docker&style=flat-square" alt="Docker pulls" /></a>
+    <a href="https://github.com/Fripix/Frirss/pkgs/container/frirss"><img src="https://img.shields.io/badge/GHCR-frirss-2496ED?logo=github&style=flat-square" alt="GHCR" /></a>
+    <img src="https://img.shields.io/badge/arch-amd64%20%7C%20arm64-555555?style=flat-square" alt="amd64 and arm64" />
+    <img src="https://img.shields.io/badge/PWA-installable-8A2BE2?style=flat-square" alt="PWA" />
+    <img src="https://img.shields.io/badge/languages-9-orange?style=flat-square" alt="9 languages" />
+  </p>
+</div>
+
+<p align="center">
+  <a href="#about">About</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#security">Security</a> ·
+  <a href="#feedback--contributing">Feedback & Contributing</a>
 </p>
 
-<p>
-  <a href="https://hub.docker.com/r/fripix/frirss"><img src="https://img.shields.io/docker/pulls/fripix/frirss?label=Docker%20pulls&logo=docker&style=flat-square" alt="Docker pulls" /></a>
-  <a href="https://github.com/Fripix/Frirss/pkgs/container/frirss"><img src="https://img.shields.io/badge/GHCR-frirss-2496ED?logo=github&style=flat-square" alt="GHCR" /></a>
-  <img src="https://img.shields.io/badge/arch-amd64%20%7C%20arm64-555555?style=flat-square" alt="amd64 and arm64" />
-  <img src="https://img.shields.io/badge/PWA-installable-8A2BE2?style=flat-square" alt="PWA" />
-  <img src="https://img.shields.io/badge/languages-9-orange?style=flat-square" alt="9 languages" />
-</p>
-</div>
+## Preview
 
 <div align="center">
   <img src="docs/screenshots/desktop.png" alt="FriRSS on desktop" width="92%" />
 </div>
+
 <div align="center">
   <img src="docs/screenshots/mobile-pwa.png" alt="FriRSS as a PWA on a phone" height="400" />
   &nbsp;&nbsp;
@@ -42,7 +56,9 @@
 
 ## About
 
-[FreshRSS](https://freshrss.org) has an excellent engine: solid, self-hosted, great at fetching and storing feeds. Its built-in interface just wasn't for me, and none of the alternatives fit what I wanted — so I built my own. FriRSS sits on top of FreshRSS through its Google Reader API and replaces only the interface.
+[FreshRSS](https://freshrss.org) has an excellent engine: solid, self-hosted, great at fetching and storing feeds. Its built-in interface just wasn't for me, and none of the alternatives fit what I wanted — so I built my own.
+
+FriRSS sits on top of FreshRSS through its Google Reader API and replaces only the interface.
 
 A note in the interest of honesty: this is a personal project and I'm not a developer. FriRSS was built largely by "vibe coding" — describing what I wanted to an AI assistant and iterating. Use it in that spirit.
 
@@ -57,6 +73,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 
 ### Make it yours
 Almost everything is yours to tweak:
+
 - **Themes** — full control over every color and font; **create, save, export and import** your own themes.
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
@@ -79,6 +96,10 @@ Almost everything is yours to tweak:
 
 FriRSS is a frontend for FreshRSS, so you need a running FreshRSS instance with the Google Reader API enabled (*Settings → Authentication → Allow API access*).
 
+### Docker
+
+Using GHCR:
+
 ```bash
 mkdir -p frirss-data
 docker run -d --name frirss \
@@ -88,11 +109,24 @@ docker run -d --name frirss \
   ghcr.io/fripix/frirss:latest
 ```
 
+Or using Docker Hub:
+
+```bash
+mkdir -p frirss-data
+docker run -d --name frirss \
+  -p 8080:80 \
+  -v "$PWD/frirss-data:/app/data" \
+  -e TZ=Europe/Zurich \
+  fripix/frirss:latest
+```
+
 (`$PWD` is your current directory, so the database is stored in a `frirss-data` folder right where you run the command — back it up and you back up everything.)
 
 Open `http://localhost:8080`, create the first account (it becomes admin), then connect your FreshRSS server: its URL, your FreshRSS username, and the API password (set in *FreshRSS → Settings → Profile*).
 
-Prefer Compose? A ready-to-edit [`docker-compose.yml`](docker-compose.yml) is included. The first launch generates the JWT secret and the token-encryption key and stores them in the SQLite database, so backing up the data volume backs up everything.
+Prefer Compose? A ready-to-edit [`docker-compose.yml`](docker-compose.yml) is included.
+
+The first launch generates the JWT secret and the token-encryption key and stores them in the SQLite database, so backing up the data volume backs up everything.
 
 ## Configuration
 
@@ -109,6 +143,22 @@ Prefer Compose? A ready-to-edit [`docker-compose.yml`](docker-compose.yml) is in
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
 Single sign-on is configured at runtime in *Preferences → Admin → SSO* (issuer, client ID, client secret).
+
+## Security
+
+Security checks are run regularly and can also be launched manually.
+
+If you discover a security issue, please follow the instructions in [`SECURITY.md`](SECURITY.md) instead of opening a public issue.
+
+You can also follow the current security workflow in [GitHub Actions](https://github.com/Fripix/Frirss/actions/workflows/security.yml).
+
+## Feedback & Contributing
+
+FriRSS is a personal project, but feedback, ideas and contributions are welcome.
+
+- Found a bug? [Open an issue](https://github.com/Fripix/Frirss/issues)
+- Have an idea or question? [Start a discussion](https://github.com/Fripix/Frirss/discussions)
+- Want to contribute code? Pull requests are welcome.
 
 ## License
 
