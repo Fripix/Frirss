@@ -32,13 +32,13 @@ describe('isPrivateIp', () => {
 describe('isInternalHostLiteral', () => {
   it('flags localhost, bare names and private IP literals', () => {
     for (const h of ['localhost', 'app.localhost', 'freshrss', 'redis',
-                     '10.3.0.22', '127.0.0.1', '[::1]']) {
+                     '10.0.0.5', '127.0.0.1', '[::1]']) {
       expect(isInternalHostLiteral(h), h).toBe(true);
     }
   });
 
   it('does not flag public hostnames (resolve-check catches DNS tricks later)', () => {
-    for (const h of ['example.com', 'rss.frihub.ch', '10.3.0.22.nip.io', '8.8.8.8']) {
+    for (const h of ['example.com', 'rss.example.com', '10.0.0.5.nip.io', '8.8.8.8']) {
       expect(isInternalHostLiteral(h), h).toBe(false);
     }
   });
@@ -46,14 +46,14 @@ describe('isInternalHostLiteral', () => {
 
 describe('targetAllowedLiteral', () => {
   it('blocks obvious internal targets at the door', () => {
-    for (const u of ['http://localhost/', 'http://10.3.0.22:6379/',
+    for (const u of ['http://localhost/', 'http://10.0.0.5:6379/',
                      'http://freshrss/', 'http://[::1]/']) {
       expect(targetAllowedLiteral(u), u).toBe(false);
     }
   });
 
   it('lets public targets through the literal gate (resolve-check runs at fetch)', () => {
-    for (const u of ['https://example.com/a', 'https://10.3.0.22.nip.io/']) {
+    for (const u of ['https://example.com/a', 'https://10.0.0.5.nip.io/']) {
       expect(targetAllowedLiteral(u), u).toBe(true);
     }
   });
