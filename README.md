@@ -15,9 +15,33 @@
     <img src="https://flagcdn.com/24x18/ua.png" alt="Українська" />
   </p>
   <p>
-    <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green" /></a>
-    <a href="https://github.com/Fripix/frirss/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Fripix/frirss/actions/workflows/ci.yml/badge.svg" /></a>
-    <a href="https://github.com/Fripix/frirss/pkgs/container/frirss"><img alt="Docker image" src="https://img.shields.io/badge/ghcr.io-frirss-2496ed" /></a>
+    <a href="https://github.com/Fripix/Frirss/releases">
+      <img alt="Latest release" src="https://img.shields.io/github/v/release/Fripix/Frirss?label=release" />
+    </a>
+    <a href="https://github.com/Fripix/Frirss/stargazers">
+      <img alt="GitHub stars" src="https://img.shields.io/github/stars/Fripix/Frirss?style=flat&label=stars" />
+    </a>
+    <a href="https://github.com/Fripix/frirss/actions/workflows/ci.yml">
+      <img alt="CI" src="https://github.com/Fripix/frirss/actions/workflows/ci.yml/badge.svg" />
+    </a>
+    <a href="https://github.com/Fripix/Frirss/security">
+      <img alt="Security" src="https://img.shields.io/badge/security-monitored-success" />
+    </a>
+    <a href="LICENSE">
+      <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green" />
+    </a>
+  </p>
+
+  <p>
+    <a href="https://github.com/Fripix/frirss/pkgs/container/frirss">
+      <img alt="Docker image" src="https://img.shields.io/badge/ghcr.io-frirss-2496ed" />
+    </a>
+    <a href="https://hub.docker.com/r/fripix/frirss">
+      <img alt="Docker pulls" src="https://img.shields.io/docker/pulls/fripix/frirss?label=Docker%20pulls&logo=docker" />
+    </a>
+    <img alt="Platforms" src="https://img.shields.io/badge/platform-amd64%20%7C%20arm64-blue" />
+    <img alt="PWA" src="https://img.shields.io/badge/PWA-installable-blue" />
+    <img alt="Languages" src="https://img.shields.io/badge/languages-9-blue" />
   </p>
 </div>
 
