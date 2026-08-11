@@ -97,6 +97,25 @@ function memSet(key: string, data: CachedView): void {
     if (oldest !== undefined) memCache.delete(oldest);
   }
 }
+// Reflect a read/unread change in EVERY cached view, so coming back to any of
+// them (from the memory cache) shows the current state instead of the stale
+// list captured at load time.
+function memMarkRead(articleId: string, read: boolean): void {
+  for (const [key, view] of memCache) {
+    let changed = false;
+    const articles = view.articles.map((a) => {
+      if (a.id === articleId && a.read !== read) { changed = true; return { ...a, read }; }
+      return a;
+    });
+    if (changed) memCache.set(key, { ...view, articles });
+  }
+}
+// Re-persist the current view's list to the offline store after an optimistic
+// read change, so an offline return to it reflects the latest state.
+function persistCurrentView(get: () => FeedState): void {
+  const s = get();
+  listPut(viewKey(s.selectedFeed, s.filter), s.articles, s.continuation).catch(() => {});
+}
 function memClear(): void {
   memCache.clear();
 }
@@ -259,6 +278,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       ),
       unreadCounts: updateCount(state.unreadCounts, article, -1),
     }));
+    memMarkRead(article.id, true);
+    persistCurrentView(get);
     // Fire-and-forget; revert if the server call fails.
     markAsRead(article.id).catch(() => {
       set((state) => ({
@@ -271,6 +292,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             : state.selectedArticle,
         unreadCounts: updateCount(state.unreadCounts, article, 1),
       }));
+      memMarkRead(article.id, false);
+      persistCurrentView(get);
     });
   },
 
@@ -475,7 +498,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       set((state) => {
         const newErrors = { ...state.feedErrors };
         if (selectedFeed) delete newErrors[selectedFeed.id];
-        return { articles, continuation: result.continuation, loading: false, feedErrors: newErrors };
+        // Reconcile the sidebar count: a specific feed that's fully loaded (no
+        // more pages) with every article read has 0 unread — trust that over a
+        // lagging server count that would otherwise show a phantom "1 unread".
+        let unreadCounts = state.unreadCounts;
+        if (selectedFeed && result.continuation == null && articles.every((a) => a.read)
+            && (unreadCounts[selectedFeed.id] || 0) !== 0) {
+          unreadCounts = { ...unreadCounts, [selectedFeed.id]: 0 };
+        }
+        return { articles, continuation: result.continuation, loading: false, feedErrors: newErrors, unreadCounts };
       });
     } catch (err) {
       if (!sameView()) return;
@@ -531,6 +562,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           : state.selectedArticle,
       unreadCounts: updateCount(state.unreadCounts, article, newRead ? -1 : 1),
     }));
+    memMarkRead(article.id, newRead);
+    persistCurrentView(get);
     try {
       if (newRead) {
         await markAsRead(article.id);
@@ -549,6 +582,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             : state.selectedArticle,
         unreadCounts: updateCount(state.unreadCounts, article, newRead ? 1 : -1),
       }));
+      memMarkRead(article.id, !newRead);
+      persistCurrentView(get);
     }
   },
 
