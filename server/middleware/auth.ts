@@ -17,7 +17,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = header.slice(7);
 
   try {
-    const payload = jwt.verify(token, getJwtSecret()) as { userId: number };
+    const payload = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] }) as { userId: number };
 
     // Check session still exists in DB
     const session = db.prepare('SELECT * FROM sessions WHERE token = ?').get(token) as { expires_at: string } | undefined;

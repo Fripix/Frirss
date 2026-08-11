@@ -304,7 +304,7 @@ router.get('/oidc/callback', async (req, res) => {
     // Verify state
     let decoded: { t?: string; redirectUri?: string };
     try {
-      decoded = jwt.verify(state, getJwtSecret()) as { t?: string; redirectUri?: string };
+      decoded = jwt.verify(state, getJwtSecret(), { algorithms: ['HS256'] }) as { t?: string; redirectUri?: string };
     } catch {
       return res.redirect('/#oidc_error=invalid_state');
     }
