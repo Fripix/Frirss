@@ -34,6 +34,10 @@
 </p>
 </div>
 
+<a href="https://buymeacoffee.com/TON_PSEUDO">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="50" alt="Buy Me a Coffee">
+</a>
+
 <p align="center">
   <a href="#about">About</a> ·
   <a href="#features">Features</a> ·
