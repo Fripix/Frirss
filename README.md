@@ -35,7 +35,7 @@
 </div>
 
 <p align="center">
-  <a href="https://buymeacoffee.com/TON_PSEUDO">
+  <a href="https://buymeacoffee.com/fripix">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
          alt="Buy Me a Coffee"
          height="36">
