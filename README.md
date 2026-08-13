@@ -35,6 +35,14 @@
 </div>
 
 <p align="center">
+  <a href="https://buymeacoffee.com/fripix">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+         alt="Buy Me a Coffee"
+         height="36">
+  </a>
+</p>
+
+<p align="center">
   <a href="#about">About</a> ·
   <a href="#features">Features</a> ·
   <a href="#installation">Installation</a> ·
