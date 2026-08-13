@@ -116,6 +116,27 @@ function persistCurrentView(get: () => FeedState): void {
   const s = get();
   listPut(viewKey(s.selectedFeed, s.filter), s.articles, s.continuation).catch(() => {});
 }
+
+// Feeds we just confirmed as fully read (0 unread), kept for a short grace
+// window: FreshRSS's own unread-count is eventually consistent, so without this
+// the 60s server-count poll (or a subscription refresh) would briefly re-show a
+// phantom "1 unread" before it catches up. feedId → expiry timestamp.
+const zeroUnreadFloor = new Map<string, number>();
+const ZERO_FLOOR_MS = 30_000;
+function setZeroFloor(feedId: string, on: boolean): void {
+  if (on) zeroUnreadFloor.set(feedId, Date.now() + ZERO_FLOOR_MS);
+  else zeroUnreadFloor.delete(feedId);
+}
+// Force still-in-window feeds to 0 (server count is lagging) and drop expired
+// entries. Applied wherever server unread counts overwrite the local ones.
+function applyZeroFloor(counts: Record<string, number>): Record<string, number> {
+  const now = Date.now();
+  for (const [feedId, until] of zeroUnreadFloor) {
+    if (until <= now) zeroUnreadFloor.delete(feedId);
+    else counts[feedId] = 0;
+  }
+  return counts;
+}
 function memClear(): void {
   memCache.clear();
 }
@@ -336,7 +357,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       });
       set({
         subscriptions: normalizedSubs,
-        unreadCounts: countMap,
+        unreadCounts: applyZeroFloor(countMap),
         categoryIds: catIds,
       });
       subsPut(normalizedSubs).catch(() => {}); // persist for offline
@@ -502,9 +523,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // more pages) with every article read has 0 unread — trust that over a
         // lagging server count that would otherwise show a phantom "1 unread".
         let unreadCounts = state.unreadCounts;
-        if (selectedFeed && result.continuation == null && articles.every((a) => a.read)
-            && (unreadCounts[selectedFeed.id] || 0) !== 0) {
-          unreadCounts = { ...unreadCounts, [selectedFeed.id]: 0 };
+        if (selectedFeed && result.continuation == null) {
+          if (articles.every((a) => a.read)) {
+            setZeroFloor(selectedFeed.id, true); // hold it at 0 through the server-count lag
+            if ((unreadCounts[selectedFeed.id] || 0) !== 0) {
+              unreadCounts = { ...unreadCounts, [selectedFeed.id]: 0 };
+            }
+          } else {
+            setZeroFloor(selectedFeed.id, false); // fully loaded but some unread → drop the floor
+          }
         }
         return { articles, continuation: result.continuation, loading: false, feedErrors: newErrors, unreadCounts };
       });
@@ -928,7 +955,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const counts = await getUnreadCounts();
       const countMap: Record<string, number> = {};
       counts.forEach((c) => { countMap[c.id] = c.count; });
-      set({ unreadCounts: countMap });
+      set({ unreadCounts: applyZeroFloor(countMap) });
       // Also refresh starred & read-later counts
       get().loadSpecialCounts();
     } catch { /* ignore */ }
