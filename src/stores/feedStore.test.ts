@@ -24,7 +24,7 @@ vi.mock('../api/feeds', () => ({
   clearWriteToken: vi.fn(),
 }));
 
-import { useFeedStore } from './feedStore';
+import { useFeedStore, pickPrefetchFeeds } from './feedStore';
 import { useUiStore } from './uiStore';
 import * as api from '../api/feeds';
 
@@ -149,5 +149,19 @@ describe('feedStore.silentRefresh — keep the article being read (unread filter
     useFeedStore.setState({ selectedFeed: feed, filter: 'unread', articles: [A, B], selectedArticle: B });
     await useFeedStore.getState().silentRefresh();
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['b']);
+  });
+});
+
+describe('pickPrefetchFeeds', () => {
+  const feed = (id: string) => ({ id } as unknown as Subscription);
+  it('keeps only unread feeds, most-unread first', () => {
+    const subs = [feed('a'), feed('b'), feed('c'), feed('d')];
+    const counts = { a: 0, b: 5, c: 2, d: 0 };
+    expect(pickPrefetchFeeds(subs, counts, 10).map((f) => f.id)).toEqual(['b', 'c']);
+  });
+  it('honours the cap', () => {
+    const subs = Array.from({ length: 5 }, (_, i) => feed(`f${i}`));
+    const counts = Object.fromEntries(subs.map((f, i) => [f.id, i + 1]));
+    expect(pickPrefetchFeeds(subs, counts, 2)).toHaveLength(2);
   });
 });

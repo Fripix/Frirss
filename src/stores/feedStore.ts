@@ -83,7 +83,7 @@ interface CachedView {
   articles: Article[];
   continuation: string | null;
 }
-const MEM_CACHE_MAX = 25;
+const MEM_CACHE_MAX = 60; // room for prefetched feed views alongside active ones
 const memCache = new Map<string, CachedView>();
 const viewKey = (feed: Subscription | null, filter: Filter) => `${feed?.id || ''}:${filter}`;
 function memGet(key: string): CachedView | undefined {
@@ -164,6 +164,32 @@ async function warmExtracts(articles: Article[]): Promise<void> {
   }
 }
 
+// ── First-page prefetch ─────────────────────────────────────────────
+// Warm a feed's default view into the memory cache so opening it is instant.
+// Bounded (only unread feeds, capped) so it stays cheap even with 500+ feeds.
+const PREFETCH_CAP = 40;
+const prefetchInFlight = new Set<string>();
+let warmListsToken = 0;
+
+// Which feeds to prefetch: those with unread, most-unread first, capped.
+// Exported for testing.
+export function pickPrefetchFeeds(
+  subs: Subscription[],
+  counts: Record<string, number>,
+  cap = PREFETCH_CAP,
+): Subscription[] {
+  return subs
+    .filter((f) => (counts[f.id] || 0) > 0)
+    .sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0))
+    .slice(0, cap);
+}
+
+// Skip background prefetch on data-saver / very slow connections (PWA/mobile).
+function connectionTooSlow(): boolean {
+  const c = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  return !!c && (c.saveData === true || c.effectiveType === 'slow-2g' || c.effectiveType === '2g');
+}
+
 // Fetch an article's images (no-cors) so the service worker caches them for
 // offline viewing (CacheFirst). Bounded per article; the SW enforces the
 // global ~550 MB cap. Best-effort.
@@ -207,6 +233,8 @@ export interface FeedState {
   loadLabelCounts: () => Promise<void>;
   warmOfflineCache: () => Promise<void>;
   prepareOffline: () => Promise<void>;
+  prefetchView: (feed: Subscription) => Promise<void>;
+  warmFeedLists: () => Promise<void>;
   selectFeed: (feed: Subscription | null) => void;
   selectView: (feed: Subscription | null, filter?: Filter) => void;
   selectArticle: (article: Article | null) => void;
@@ -393,6 +421,46 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         readLaterCount: readLater?.items.length ?? 0,
       });
     } catch { /* ignore */ }
+  },
+
+  // Warm one feed's default view (first page) into the memory cache, so opening
+  // it is instant. Skips already-cached / in-flight keys; discarded if the
+  // server switches. Used both by the background sweep and on hover/touch.
+  prefetchView: async (feed) => {
+    if (!feed?.id) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    const filter: Filter = useUiStore.getState().unreadOnlyByFeed[feed.id] ? 'unread' : 'all';
+    const key = viewKey(feed, filter);
+    if (memGet(key) || prefetchInFlight.has(key)) return;
+    prefetchInFlight.add(key);
+    const serverId = useAuthStore.getState().activeServerId;
+    try {
+      const result = await fetchArticleStream(filter, feed, PAGE_SIZE, null);
+      if (result && useAuthStore.getState().activeServerId === serverId && !memGet(key)) {
+        memSet(key, { articles: result.items.map(normalizeArticle), continuation: result.continuation });
+      }
+    } catch { /* best-effort */ } finally {
+      prefetchInFlight.delete(key);
+    }
+  },
+
+  // Background sweep: after the initial load, prefetch the first page of the
+  // unread feeds (capped, throttled, connection-gated) so clicking any of them
+  // is instant. Cheap by construction — bounded work, cancellable on switch.
+  warmFeedLists: async () => {
+    if (typeof navigator !== 'undefined' && (navigator.onLine === false || connectionTooSlow())) return;
+    const token = ++warmListsToken;
+    const feeds = pickPrefetchFeeds(get().subscriptions, get().unreadCounts);
+    if (!feeds.length) return;
+    let i = 0;
+    const worker = async () => {
+      while (i < feeds.length) {
+        if (token !== warmListsToken) return; // superseded (new sweep / server switch)
+        await get().prefetchView(feeds[i++]);
+        await new Promise((r) => setTimeout(r, 150)); // gentle pacing
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]); // 3 in parallel
   },
 
   // Offline warming: persist the favorites + read-later lists and pre-extract
@@ -1009,6 +1077,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // The CSRF write-token is per-server; drop the cached one so the next
     // write fetches a fresh token for the newly-active FreshRSS instance.
     clearWriteToken();
+    warmListsToken++; // cancel any in-flight prefetch sweep for the old server
     memClear(); // memory cache is per-server (feed ids/global keys differ)
     set({
       subscriptions: [],

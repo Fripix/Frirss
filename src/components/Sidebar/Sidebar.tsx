@@ -808,16 +808,21 @@ function FeedItem({ feed, isSelected, unreadCount, showFavicons, organizeMode, o
   const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const feedErrors = useFeedStore((s) => s.feedErrors);
   const hasError = !!feedErrors[feed.id];
+
+  // Prefetch this feed's first page so opening it is instant (dedup'd in-store).
+  const prefetch = () => { useFeedStore.getState().prefetchView(feed); };
 
   return (
     <button
       ref={btnRef}
       onClick={organizeMode ? undefined : onSelect}
+      onPointerDown={organizeMode ? undefined : prefetch}
       onContextMenu={organizeMode ? undefined : onContextMenu}
-      onMouseEnter={organizeMode ? undefined : () => setHovered(true)}
-      onMouseLeave={organizeMode ? undefined : () => setHovered(false)}
+      onMouseEnter={organizeMode ? undefined : () => { setHovered(true); hoverTimer.current = setTimeout(prefetch, 120); }}
+      onMouseLeave={organizeMode ? undefined : () => { setHovered(false); if (hoverTimer.current) clearTimeout(hoverTimer.current); }}
       draggable={organizeMode}
       onDragStart={organizeMode ? onDragStart : undefined}
       onDragOver={organizeMode ? onDragOver : undefined}

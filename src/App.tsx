@@ -161,6 +161,8 @@ export default function App() {
     // Warm the offline cache (favorites + read-later) in the background,
     // a few seconds after the initial load so it doesn't compete for bandwidth.
     timers.push(setTimeout(() => useFeedStore.getState().warmOfflineCache(), 4000));
+    // Prefetch the first page of the unread feeds so opening them is instant.
+    timers.push(setTimeout(() => useFeedStore.getState().warmFeedLists(), 3000));
     // Opt-in full offline refresh on open: online only, throttled to once/hour,
     // and incremental (skips already-cached articles).
     if (useUiStore.getState().autoOffline && (typeof navigator === 'undefined' || navigator.onLine)) {
