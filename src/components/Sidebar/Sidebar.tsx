@@ -10,6 +10,7 @@ import AddFeedDialog from './AddFeedDialog';
 import type { Article, Subscription, Tag } from '../../types';
 import { groupLabels } from '../../utils/labels';
 import { getFavicon, setFavicon, blobToDataUrl } from '../../lib/faviconCache';
+import { resolveVersionLabel } from '../../lib/version';
 
 const SIDEBAR_FONT_MIN = 11;
 const SIDEBAR_FONT_MAX = 18;
@@ -568,10 +569,18 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* App version */}
+      {/* App version. Dev/test builds show a beta label (e.g. "v1.3.4b3") in the
+          accent colour so it's clear which test build is running. */}
       <div className="px-3 pb-1 flex-shrink-0 text-center select-none">
-        <span className="text-[10px]" style={{ color: 'var(--sidebar-text)', opacity: 0.45 }}>
-          v{__APP_VERSION__}
+        <span
+          className="text-[10px]"
+          style={
+            __APP_DEV_VERSION__
+              ? { color: 'var(--accent)', opacity: 0.85 }
+              : { color: 'var(--sidebar-text)', opacity: 0.45 }
+          }
+        >
+          {resolveVersionLabel(__APP_DEV_VERSION__, __APP_VERSION__)}
         </span>
       </div>
 

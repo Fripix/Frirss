@@ -9,6 +9,10 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY . .
+# Optional dev/test build label (e.g. "v1.3.4b3"), injected into the frontend
+# via Vite. Empty for production images. Passed as a build-arg by publish.yml.
+ARG FRIRSS_DEV_VERSION=""
+ENV FRIRSS_DEV_VERSION=$FRIRSS_DEV_VERSION
 # Builds the frontend (Vite → dist/) AND compiles the TypeScript server
 # (tsc → server-dist/, runnable Node ESM).
 RUN npm run build
