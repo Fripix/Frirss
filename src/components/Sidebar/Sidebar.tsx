@@ -32,6 +32,7 @@ export default function Sidebar() {
     selectedFeed,
     filter,
     selectView,
+    selectCategory,
     refresh,
     labels,
     toggleStar,
@@ -495,35 +496,51 @@ export default function Sidebar() {
               onDragOver={organizeMode ? handleCatDragOver : undefined}
               onDrop={organizeMode ? (e) => handleCatDrop(e, cat.id) : undefined}
             >
-              <button
-                onClick={() => toggleCategory(cat.id)}
-                className={`w-full flex items-center gap-2 px-4 py-1.5 text-[11px] font-bold tracking-widest uppercase transition-colors hover:bg-white/5 ${
-                  organizeMode ? 'cursor-grab active:cursor-grabbing' : ''
-                }`}
-                data-theme="sidebar-category-text"
-                style={{ color: 'var(--sidebar-category-text)', fontSize: 'var(--fs-sidebar-category)' }}
+              <div
+                className={`w-full flex items-center gap-2 px-4 py-1.5 text-[11px] font-bold tracking-widest uppercase transition-colors ${
+                  organizeMode ? 'cursor-grab active:cursor-grabbing' : 'hover:bg-white/5'
+                } ${selectedFeed?.id === cat.id ? 'sidebar-feed-active' : ''}`}
+                data-theme={selectedFeed?.id === cat.id ? 'sidebar-text-active' : 'sidebar-category-text'}
+                style={{
+                  color: selectedFeed?.id === cat.id ? 'var(--sidebar-text-active)' : 'var(--sidebar-category-text)',
+                  fontSize: 'var(--fs-sidebar-category)',
+                }}
               >
                 {organizeMode && (
                   <svg className="w-3 h-3 flex-shrink-0 opacity-50" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-12a2 2 0 10.001 4.001A2 2 0 0013 2zm0 6a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z" />
                   </svg>
                 )}
-                <svg
-                  className={`w-3 h-3 transition-transform flex-shrink-0 ${collapsedCategories[cat.id] ? '' : 'rotate-90'}`}
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+                {/* Chevron: dedicated collapse/expand toggle. */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleCategory(cat.id); }}
+                  className="flex-shrink-0 -my-1 py-1 hover:opacity-70 transition-opacity"
+                  aria-label={collapsedCategories[cat.id] ? t('sidebar.expandCategory') : t('sidebar.collapseCategory')}
+                  aria-expanded={!collapsedCategories[cat.id]}
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span className="truncate flex-1 text-left">{cat.label}</span>
+                  <svg
+                    className={`w-3 h-3 transition-transform ${collapsedCategories[cat.id] ? '' : 'rotate-90'}`}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+                {/* Name: opens the aggregated "all articles in this category" view. */}
+                <button
+                  onClick={organizeMode ? undefined : () => selectCategory({ id: cat.id, label: cat.label })}
+                  className="truncate flex-1 text-left uppercase tracking-widest"
+                >
+                  {cat.label}
+                </button>
                 {catUnread > 0 && (
                   <CategoryBadge count={catUnread} />
                 )}
-              </button>
+              </div>
               {!collapsedCategories[cat.id] &&
                 cat.feeds.map((feed) => (
                   <FeedItem

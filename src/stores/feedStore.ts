@@ -27,6 +27,7 @@ import { listGet, listPut, listEvictOlderThan, subsGet, subsPut } from '../lib/o
 import type {
   Article,
   Subscription,
+  FeedCategory,
   Tag,
   Filter,
   GReaderItem,
@@ -86,6 +87,13 @@ interface CachedView {
 const MEM_CACHE_MAX = 60; // room for prefetched feed views alongside active ones
 const memCache = new Map<string, CachedView>();
 const viewKey = (feed: Subscription | null, filter: Filter) => `${feed?.id || ''}:${filter}`;
+
+// A category is opened as its Google Reader label stream (user/-/label/Name).
+// When such a stream is the selected "feed", the view aggregates every feed in
+// the category — so the article list should behave like the multi-source
+// "all feeds" view (show per-article source), not a single feed.
+export const isCategoryStreamId = (id?: string | null): boolean =>
+  !!id && id.startsWith('user/-/label/');
 function memGet(key: string): CachedView | undefined {
   return memCache.get(key);
 }
@@ -241,6 +249,7 @@ export interface FeedState {
   warmFeedLists: () => Promise<void>;
   selectFeed: (feed: Subscription | null) => void;
   selectView: (feed: Subscription | null, filter?: Filter) => void;
+  selectCategory: (cat: FeedCategory) => void;
   selectArticle: (article: Article | null) => void;
   loadSubscriptions: () => Promise<void>;
   loadSpecialCounts: () => Promise<void>;
@@ -317,6 +326,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const c = memGet(viewKey(feed ?? null, f));
     set({ selectedFeed: feed ?? null, filter: f, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
+  },
+
+  // Open a whole category: its Google Reader label stream aggregates every feed
+  // in the category server-side. Modelled as a synthetic "feed" (id = the label
+  // stream, title = the category name) so the existing view machinery — paging,
+  // caching, unread filter, "mark all read" — works unchanged.
+  selectCategory: (cat) => {
+    get().selectView({ id: cat.id, title: cat.label ?? cat.id } as Subscription);
   },
 
   selectArticle: (article) => {

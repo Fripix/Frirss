@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { useFeedStore, READ_LATER_LABEL } from '../../stores/feedStore';
+import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
@@ -58,8 +58,10 @@ export default function ArticleList() {
   const isMobile = breakpoint === 'mobile';
   const is2Panel = panelLayout === '2' || !isDesktop;
 
-  // Determine if source name should be shown
-  const isInFeed = !!selectedFeed;
+  // Determine if source name should be shown. A category view aggregates many
+  // feeds, so it behaves like the multi-source "all feeds" view, not a single
+  // feed (where the source would be redundant).
+  const isInFeed = !!selectedFeed && !isCategoryStreamId(selectedFeed.id);
   const showSource = isInFeed ? showSourceInFeed : showSourceInAll;
 
   const listRef = useRef<HTMLDivElement>(null);

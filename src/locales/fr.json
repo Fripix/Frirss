@@ -33,6 +33,8 @@
     "delete": "Supprimer",
     "deleteFeedConfirm": "Supprimer {{name}} ?",
     "uncategorized": "Sans catégorie",
+    "expandCategory": "Déplier la catégorie",
+    "collapseCategory": "Replier la catégorie",
     "loadError": "Erreur de chargement",
     "collapse": "Replier",
     "expand": "Déplier",

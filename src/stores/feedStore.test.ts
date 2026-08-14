@@ -34,7 +34,7 @@ vi.mock('../lib/offlineStore', () => ({
   subsPut: vi.fn(() => Promise.resolve()),
 }));
 
-import { useFeedStore, pickPrefetchFeeds } from './feedStore';
+import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId } from './feedStore';
 import { useUiStore } from './uiStore';
 import * as api from '../api/feeds';
 import * as offline from '../lib/offlineStore';
@@ -216,5 +216,27 @@ describe('feedStore.loadSubscriptions — offline-first paint + syncing flag', (
     vi.mocked(api.getSubscriptionList).mockRejectedValueOnce(new Error('offline'));
     await useFeedStore.getState().loadSubscriptions();
     expect(useFeedStore.getState().syncing).toBe(false);
+  });
+});
+
+describe('isCategoryStreamId', () => {
+  it('detects category label streams, not feeds or empty ids', () => {
+    expect(isCategoryStreamId('user/-/label/News')).toBe(true);
+    expect(isCategoryStreamId('feed/https://example.com/rss')).toBe(false);
+    expect(isCategoryStreamId(undefined)).toBe(false);
+    expect(isCategoryStreamId(null)).toBe(false);
+  });
+});
+
+describe('feedStore.selectCategory', () => {
+  it('opens a category as a label-stream feed (id = stream, title = name)', () => {
+    const original = useFeedStore.getState().selectView;
+    const selectViewSpy = vi.fn();
+    useFeedStore.setState({ selectView: selectViewSpy as never });
+
+    useFeedStore.getState().selectCategory({ id: 'user/-/label/News', label: 'News' });
+
+    expect(selectViewSpy).toHaveBeenCalledWith({ id: 'user/-/label/News', title: 'News' });
+    useFeedStore.setState({ selectView: original });
   });
 });
