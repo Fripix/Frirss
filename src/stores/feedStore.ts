@@ -226,6 +226,10 @@ export interface FeedState {
   starredCount: number;
   readLaterCount: number;
   feedErrors: Record<string, number>;
+  // True while the initial subscriptions load is in flight — drives the thin
+  // top progress bar so the user sees the app is revalidating (esp. after a
+  // service-worker update reload, when every in-memory cache is cold).
+  syncing: boolean;
 
   offlinePrep: { running: boolean; phase: 'lists' | 'articles' | 'done'; done: number; total: number } | null;
   setFilter: (filter: Filter) => void;
@@ -282,6 +286,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   starredCount: 0,
   readLaterCount: 0,
   offlinePrep: null,
+  syncing: false,
   feedErrors: {}, // { [feedId]: timestamp } — tracks feeds that errored on load
 
   setFilter: (filter) => {
@@ -347,6 +352,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   loadSubscriptions: async () => {
+    // Instant paint from the offline snapshot (structure only; counts arrive
+    // with the live load) so the sidebar isn't blank while FreshRSS responds —
+    // stale-while-revalidate. Guarded so it never clobbers already-loaded data.
+    if (get().subscriptions.length === 0) {
+      subsGet()
+        .then((snap) => {
+          if (snap?.length && get().subscriptions.length === 0) {
+            set({ subscriptions: snap });
+          }
+        })
+        .catch(() => {});
+    }
+    set({ syncing: true });
     try {
       const [subs, counts] = await Promise.all([
         getSubscriptionList(),
@@ -406,6 +424,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         set({ subscriptions: persisted, categoryIds: catIds });
         get().loadLabels();
       }
+    } finally {
+      set({ syncing: false });
     }
   },
 

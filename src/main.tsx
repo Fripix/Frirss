@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { loadLanguage, resolveInitialLanguage } from './i18n';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
+import TopProgressBar from './components/TopProgressBar';
+import UpdatePrompt from './components/UpdatePrompt';
 import './styles/index.css';
 
 function render() {
@@ -11,6 +13,9 @@ function render() {
       <ErrorBoundary>
         <App />
       </ErrorBoundary>
+      {/* Fixed-position, layout-agnostic chrome mounted once above the app. */}
+      <TopProgressBar />
+      <UpdatePrompt />
     </StrictMode>
   );
 }

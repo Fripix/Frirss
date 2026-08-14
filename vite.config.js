@@ -67,7 +67,14 @@ export default defineConfig({
     react(),
     corsProxyPlugin(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (not 'autoUpdate') so a new version surfaces via the React
+      // hook: the app shows a brief "Updating…" overlay, then reloads itself.
+      // registerType is 'prompt' but the reload is still automatic (see
+      // UpdatePrompt.tsx) — the overlay just replaces the silent refresh.
+      registerType: 'prompt',
+      // The useRegisterSW() hook (UpdatePrompt.tsx) owns registration; disable
+      // the auto-injected registration to avoid registering the SW twice.
+      injectRegister: false,
       // Disabled in dev so it never interferes with HMR / the cors-proxy
       devOptions: { enabled: false },
       includeAssets: ['logo_frirss.png', 'pwa-icon.png'],

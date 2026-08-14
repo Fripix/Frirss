@@ -453,5 +453,8 @@
   "connection": {
     "offline": "Hors ligne — lecture hors connexion",
     "backOnline": "De retour en ligne"
+  },
+  "update": {
+    "updating": "Mise à jour…"
   }
 }

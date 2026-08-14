@@ -24,9 +24,20 @@ vi.mock('../api/feeds', () => ({
   clearWriteToken: vi.fn(),
 }));
 
+// Mock the offline (IndexedDB) layer — unavailable in jsdom anyway. Defaults
+// mirror its graceful-degrade behaviour (reads → undefined, writes → no-op).
+vi.mock('../lib/offlineStore', () => ({
+  listGet: vi.fn(() => Promise.resolve(undefined)),
+  listPut: vi.fn(() => Promise.resolve()),
+  listEvictOlderThan: vi.fn(() => Promise.resolve()),
+  subsGet: vi.fn(() => Promise.resolve(undefined)),
+  subsPut: vi.fn(() => Promise.resolve()),
+}));
+
 import { useFeedStore, pickPrefetchFeeds } from './feedStore';
 import { useUiStore } from './uiStore';
 import * as api from '../api/feeds';
+import * as offline from '../lib/offlineStore';
 
 const READING_LIST = 'user/-/state/com.google/reading-list';
 const baseArticle = { id: 'a1', read: false, sourceId: 'feed/1' } as Article;
@@ -163,5 +174,47 @@ describe('pickPrefetchFeeds', () => {
     const subs = Array.from({ length: 5 }, (_, i) => feed(`f${i}`));
     const counts = Object.fromEntries(subs.map((f, i) => [f.id, i + 1]));
     expect(pickPrefetchFeeds(subs, counts, 2)).toHaveLength(2);
+  });
+});
+
+describe('feedStore.loadSubscriptions — offline-first paint + syncing flag', () => {
+  beforeEach(() => {
+    useFeedStore.setState({ subscriptions: [], categoryIds: [], syncing: false });
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([]);
+    vi.mocked(api.getTagList).mockResolvedValue([] as never);
+    vi.mocked(api.getStarredItems).mockResolvedValue({ items: [], continuation: null } as never);
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+  });
+
+  it('paints the persisted subscriptions snapshot before the live request resolves', async () => {
+    const snapshot = [{ id: 'feed/1', title: 'Cached Feed' }] as unknown as Subscription[];
+    vi.mocked(offline.subsGet).mockResolvedValueOnce(snapshot);
+    // Live subscription request stays pending → only the snapshot can paint.
+    let release!: (v: unknown) => void;
+    vi.mocked(api.getSubscriptionList).mockReturnValueOnce(
+      new Promise((r) => { release = r; }) as never
+    );
+
+    const p = useFeedStore.getState().loadSubscriptions();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(useFeedStore.getState().subscriptions).toEqual(snapshot);
+
+    release([]); // let loadSubscriptions finish
+    await p;
+  });
+
+  it('marks syncing true while the live load runs and false once it settles', async () => {
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([] as never);
+    const p = useFeedStore.getState().loadSubscriptions();
+    expect(useFeedStore.getState().syncing).toBe(true);
+    await p;
+    expect(useFeedStore.getState().syncing).toBe(false);
+  });
+
+  it('clears syncing even when the live load fails', async () => {
+    vi.mocked(api.getSubscriptionList).mockRejectedValueOnce(new Error('offline'));
+    await useFeedStore.getState().loadSubscriptions();
+    expect(useFeedStore.getState().syncing).toBe(false);
   });
 });

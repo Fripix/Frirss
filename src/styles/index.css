@@ -661,3 +661,73 @@ html {
   from { transform: translateY(-100%); opacity: 0; }
   to   { transform: translateY(0);     opacity: 1; }
 }
+
+/* ── Thin top progress bar (indeterminate) — shown while the app revalidates
+   the subscriptions/counts, e.g. on a cold start right after an update. ── */
+.top-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 60;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+.top-progress::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--accent, #4cd4a1), transparent);
+  animation: top-progress-slide 1.1s ease-in-out infinite;
+}
+@keyframes top-progress-slide {
+  from { left: -40%; }
+  to   { left: 100%; }
+}
+
+/* ── Service-worker update overlay: brief "updating…" curtain shown just
+   before the automatic reload to the new version. ── */
+.update-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: color-mix(in srgb, var(--bg-primary, #201f1b) 88%, transparent);
+  backdrop-filter: blur(4px);
+  animation: fadeSlideIn 0.2s ease both;
+}
+.update-overlay-label {
+  color: var(--text-secondary, #b9b4a7);
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+.update-overlay-bar {
+  position: relative;
+  width: min(220px, 60vw);
+  height: 3px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent, #4cd4a1) 20%, transparent);
+}
+.update-overlay-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 40%;
+  border-radius: 3px;
+  background: var(--accent, #4cd4a1);
+  animation: top-progress-slide 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .top-progress::before,
+  .update-overlay-bar::before { animation-duration: 2.2s; }
+}
