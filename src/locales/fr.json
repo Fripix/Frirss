@@ -140,6 +140,7 @@
     "confirm": "Confirmer ?",
     "resetAllTooltip": "Réinitialiser toutes les préférences (couleurs, tailles, raccourcis…)",
     "tabs": {
+      "general": "Général",
       "branding": "Apparence",
       "colors": "Couleurs",
       "fonts": "Tailles",
@@ -148,6 +149,11 @@
       "shortcuts": "Raccourcis",
       "admin": "Admin",
       "offline": "Hors-ligne"
+    },
+    "general": {
+      "title": "Général",
+      "confirmMarkAllRead": "Confirmer avant de tout marquer comme lu",
+      "confirmMarkAllReadHint": "Désactivé, « Tout marquer comme lu » agit en un seul clic, sans confirmation."
     },
     "branding": {
       "language": "Langue",

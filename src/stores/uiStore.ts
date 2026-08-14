@@ -55,6 +55,10 @@ export interface UiState {
   // Hide feeds (and now-empty categories) that have no unread articles.
   hideReadFeeds: boolean;
   toggleHideReadFeeds: () => void;
+  // Require a second click on "Mark all as read" (guards accidental clicks).
+  // Synced per-user. Off → mark immediately.
+  confirmMarkAllRead: boolean;
+  setConfirmMarkAllRead: (v: boolean) => void;
   // Collapse state persisted per-user (synced): whole ÉTIQUETTES section,
   // individual label groups, and feed categories.
   labelsCollapsed: boolean;
@@ -197,6 +201,13 @@ export const useUiStore = create<UiState>()((set, get) => ({
       localStorage.setItem('frirss_hideReadFeeds', JSON.stringify(next));
       return { hideReadFeeds: next };
     });
+  },
+
+  // Confirm before "Mark all as read" (default on — guards accidental clicks).
+  confirmMarkAllRead: loadJson('frirss_confirmMarkAllRead', true),
+  setConfirmMarkAllRead: (v) => {
+    localStorage.setItem('frirss_confirmMarkAllRead', JSON.stringify(v));
+    set({ confirmMarkAllRead: v });
   },
 
   // Whole ÉTIQUETTES section collapsed?
@@ -378,6 +389,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
+      'confirmMarkAllRead',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -398,6 +410,7 @@ export const UI_SYNC_KEYS = [
   'showDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
+  'confirmMarkAllRead',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

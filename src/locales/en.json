@@ -140,6 +140,7 @@
     "confirm": "Confirm?",
     "resetAllTooltip": "Reset all preferences (colors, sizes, shortcuts…)",
     "tabs": {
+      "general": "General",
       "branding": "Appearance",
       "colors": "Colors",
       "fonts": "Sizes",
@@ -148,6 +149,11 @@
       "shortcuts": "Shortcuts",
       "admin": "Admin",
       "offline": "Offline"
+    },
+    "general": {
+      "title": "General",
+      "confirmMarkAllRead": "Confirm before marking all as read",
+      "confirmMarkAllReadHint": "When off, \"Mark all as read\" acts in a single click, with no confirmation."
     },
     "branding": {
       "language": "Language",

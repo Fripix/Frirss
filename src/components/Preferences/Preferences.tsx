@@ -213,7 +213,7 @@ export default function Preferences() {
   }
 
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
-  const baseTabIds = ['branding', 'colors', 'fonts', 'labels', 'themes', 'shortcuts', 'offline'];
+  const baseTabIds = ['general', 'branding', 'colors', 'fonts', 'labels', 'themes', 'shortcuts', 'offline'];
   const tabIds = isAdmin ? ['admin', ...baseTabIds] : baseTabIds;
   const tabs = tabIds.map((id) => ({ id, label: t(`preferences.tabs.${id}`) }));
 
@@ -371,6 +371,7 @@ export default function Preferences() {
         {/* Content — w-0/min-w-full keeps it from driving the panel width
             (the tab bar does), so wide content wraps instead of widening the panel. */}
         <div className="flex-1 overflow-y-auto px-5 py-4 w-0 min-w-full">
+          {tab === 'general' && <GeneralTab />}
           {tab === 'branding' && <BrandingTab />}
 
           {tab === 'colors' && (
@@ -2604,6 +2605,39 @@ function BrandingTab() {
         </div>
       </div>
 
+    </div>
+  );
+}
+
+function GeneralTab() {
+  const { t } = useTranslation();
+  const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
+  const setConfirmMarkAllRead = useUiStore((s) => s.setConfirmMarkAllRead);
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3
+          className="text-[11px] font-bold uppercase tracking-widest mb-2"
+          style={{ color: 'var(--list-summary)' }}
+        >
+          {t('preferences.general.title')}
+        </h3>
+        {/* Confirm before "Mark all as read" */}
+        <label className="flex items-start justify-between gap-4 cursor-pointer select-none">
+          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.general.confirmMarkAllRead')}
+            <span className="block text-[11px] opacity-70 mt-0.5">
+              {t('preferences.general.confirmMarkAllReadHint')}
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={confirmMarkAllRead}
+            onChange={() => setConfirmMarkAllRead(!confirmMarkAllRead)}
+            className="accent-[var(--accent)] w-3.5 h-3.5 flex-shrink-0 mt-0.5"
+          />
+        </label>
+      </div>
     </div>
   );
 }

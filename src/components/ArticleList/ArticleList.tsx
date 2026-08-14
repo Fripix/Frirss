@@ -5,6 +5,7 @@ import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
+import { markAllReadAction } from '../../lib/markAllRead';
 import ViewModeSwitcher from './ViewModeSwitcher';
 import SwipeableArticleRow from './SwipeableArticleRow';
 import type { Article, Filter } from '../../types';
@@ -51,6 +52,7 @@ export default function ArticleList() {
   const toggleShowSourceInAll = useUiStore((s) => s.toggleShowSourceInAll);
   const showDateSeparators = useUiStore((s) => s.showDateSeparators);
   const toggleDateSeparators = useUiStore((s) => s.toggleDateSeparators);
+  const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
   const topbarVisible = useUiStore((s) => s.topbarVisible);
   const toggleTopbar = useUiStore((s) => s.toggleTopbar);
   const breakpoint = useBreakpoint();
@@ -200,7 +202,7 @@ export default function ArticleList() {
   }
 
   function handleMarkAllRead() {
-    if (!markAllConfirm) {
+    if (markAllReadAction(confirmMarkAllRead, markAllConfirm) === 'ask') {
       setMarkAllConfirm(true);
       setTimeout(() => setMarkAllConfirm(false), 3000);
       return;
