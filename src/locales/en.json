@@ -356,7 +356,8 @@
     "addServer": "Connect",
     "addingServer": "Connecting…",
     "errorServer": "Failed to connect to FreshRSS server.",
-    "skip": "Skip"
+    "skip": "Skip",
+    "localLogin": "Local login"
   },
   "admin": {
     "title": "Administration",
@@ -413,7 +414,11 @@
     "you": "(you)",
     "provider": "Provider",
     "local": "Local",
-    "oidc": "SSO"
+    "oidc": "SSO",
+    "authMode": "Authentication mode",
+    "authModeLocalSso": "Local + SSO",
+    "authModeSsoOnly": "SSO only",
+    "authModeHint": "In SSO-only mode, the local login form is hidden. It stays reachable via ?local=1 (the “Local login” link)."
   },
   "servers": {
     "label": "Servers",

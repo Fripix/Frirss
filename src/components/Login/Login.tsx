@@ -13,6 +13,7 @@ import {
 } from '../../api/backend';
 import { login as freshrssLogin } from '../../api/auth';
 import MatrixRain from './MatrixRain';
+import { shouldHideLocalLogin } from '../../lib/shouldHideLocalLogin';
 import type { AuthStatus } from '../../types';
 
 // ═════════════════════════════════════════════════════════════════════
@@ -80,6 +81,11 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(oidcError ? t('login.errorSso') : '');
   const [loading, setLoading] = useState(false);
+  // Escape hatch: ?local=1 (or the "Local login" link) forces the local form to
+  // show even in SSO-only mode, so an admin is never locked out if SSO breaks.
+  const [forceLocal, setForceLocal] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('local')
+  );
 
   // Fetch auth status on mount
   useEffect(() => {
@@ -141,6 +147,13 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
   const isRegister = mode === 'register';
   const canRegister = status?.registrationEnabled || !status?.hasUsers;
   const isFirstUser = status && !status.hasUsers;
+  // SSO-only mode: hide the local form (with lockout guards in the helper).
+  const hideLocal = shouldHideLocalLogin({
+    oidcEnabled: !!oidc?.enabled,
+    ssoOnly: !!oidc?.ssoOnly,
+    hasUsers: !!status?.hasUsers,
+    forceLocal,
+  });
 
   return (
     <LoginShell>
@@ -174,6 +187,8 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
             WebkitBackdropFilter: 'blur(10px)',
           }}
         >
+          {!hideLocal && (
+          <>
           <InputField
             id="username"
             label={t('login.username')}
@@ -239,10 +254,13 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
               ? (isRegister ? t('login.registering') : t('login.connecting'))
               : (isRegister ? t('login.register') : t('login.login'))}
           </button>
+          </>
+          )}
 
           {/* SSO / OIDC */}
           {oidc?.enabled && (
             <>
+              {!hideLocal && (
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.12)' }} />
                 <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--sidebar-category-text)' }}>
@@ -250,6 +268,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
                 </span>
                 <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.12)' }} />
               </div>
+              )}
               <button
                 type="button"
                 onClick={startOidcLogin}
@@ -261,8 +280,22 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
             </>
           )}
 
+          {/* SSO-only: discreet escape hatch to reveal the local form */}
+          {hideLocal && (
+            <div className="text-center text-xs pt-1" style={{ color: 'var(--sidebar-text)' }}>
+              <button
+                type="button"
+                className="underline hover:brightness-125"
+                style={{ color: 'var(--sidebar-category-text)' }}
+                onClick={() => setForceLocal(true)}
+              >
+                {t('login.localLogin')}
+              </button>
+            </div>
+          )}
+
           {/* Toggle login ↔ register */}
-          {!isFirstUser && (
+          {!hideLocal && !isFirstUser && (
             <div className="text-center text-xs pt-1" style={{ color: 'var(--sidebar-text)' }}>
               {isRegister ? (
                 <>

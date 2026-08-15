@@ -72,6 +72,8 @@ export async function changePassword(currentPassword: string, newPassword: strin
 export interface OidcConfig {
   enabled: boolean;
   buttonLabel?: string;
+  // SSO-only mode: hide the local username/password form (only when enabled).
+  ssoOnly?: boolean;
 }
 
 export async function getOidcConfig(): Promise<OidcConfig> {

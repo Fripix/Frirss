@@ -41,6 +41,7 @@ export interface OidcServerConfig {
   clientId: string;
   clientSecret: string;
   buttonLabel: string;
+  ssoOnly: boolean;
 }
 
 export function getOidcConfig(): OidcServerConfig {
@@ -50,6 +51,7 @@ export function getOidcConfig(): OidcServerConfig {
     clientId: getSetting('oidc_client_id') || '',
     clientSecret: getSetting('oidc_client_secret') || '',
     buttonLabel: getSetting('oidc_button_label') || 'SSO',
+    ssoOnly: getSetting('oidc_sso_only') === 'true',
   };
 }
 

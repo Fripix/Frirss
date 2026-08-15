@@ -354,7 +354,8 @@
     "addServer": "Conectar",
     "addingServer": "Conectando…",
     "errorServer": "No se pudo conectar al servidor FreshRSS.",
-    "skip": "Omitir"
+    "skip": "Omitir",
+    "localLogin": "Acceso local"
   },
   "admin": {
     "title": "Administración",
@@ -411,7 +412,11 @@
     "you": "(usted)",
     "provider": "Proveedor",
     "local": "Local",
-    "oidc": "SSO"
+    "oidc": "SSO",
+    "authMode": "Modo de autenticación",
+    "authModeLocalSso": "Local + SSO",
+    "authModeSsoOnly": "Solo SSO",
+    "authModeHint": "En modo Solo SSO, el formulario de acceso local se oculta. Sigue estando accesible con ?local=1 (enlace «Acceso local»)."
   },
   "servers": {
     "label": "Servidores",

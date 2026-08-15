@@ -173,6 +173,7 @@ router.get('/settings', (req, res) => {
     settings: {
       registrationEnabled: getSetting('registration_enabled') === 'true',
       oidcEnabled: getSetting('oidc_enabled') === 'true',
+      ssoOnly: getSetting('oidc_sso_only') === 'true',
       oidcIssuer: getSetting('oidc_issuer') || '',
       oidcClientId: getSetting('oidc_client_id') || '',
       // Don't expose oidc_client_secret
@@ -186,10 +187,13 @@ router.get('/settings', (req, res) => {
 const LOGIN_ANIMATIONS = ['none', 'portal', 'scanline'];
 
 router.put('/settings', (req, res) => {
-  const { registrationEnabled, oidcEnabled, oidcIssuer, oidcClientId, oidcClientSecret, oidcButtonLabel, loginAnimation } = req.body;
+  const { registrationEnabled, oidcEnabled, ssoOnly, oidcIssuer, oidcClientId, oidcClientSecret, oidcButtonLabel, loginAnimation } = req.body;
 
   if (registrationEnabled !== undefined) {
     setSetting('registration_enabled', registrationEnabled ? 'true' : 'false');
+  }
+  if (ssoOnly !== undefined) {
+    setSetting('oidc_sso_only', ssoOnly ? 'true' : 'false');
   }
   if (loginAnimation !== undefined) {
     if (!LOGIN_ANIMATIONS.includes(loginAnimation)) {

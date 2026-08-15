@@ -354,7 +354,8 @@
     "addServer": "Підключити",
     "addingServer": "З'єднання…",
     "errorServer": "Не вдалося підключитися до сервера FreshRSS.",
-    "skip": "Пропустити"
+    "skip": "Пропустити",
+    "localLogin": "Локальний вхід"
   },
   "admin": {
     "title": "Адміністрування",
@@ -411,7 +412,11 @@
     "you": "(ви)",
     "provider": "Постачальник",
     "local": "Локальний",
-    "oidc": "SSO"
+    "oidc": "SSO",
+    "authMode": "Режим автентифікації",
+    "authModeLocalSso": "Local + SSO",
+    "authModeSsoOnly": "Лише SSO",
+    "authModeHint": "У режимі «Лише SSO» локальна форма входу прихована. Вона лишається доступною через ?local=1 (посилання «Локальний вхід»)."
   },
   "servers": {
     "label": "Сервери",

@@ -237,6 +237,9 @@ router.get('/oidc/config', (req, res) => {
   res.json({
     enabled: cfg.enabled,
     buttonLabel: cfg.buttonLabel,
+    // Only advertise SSO-only when SSO is actually enabled — otherwise the login
+    // screen would hide the local form with no way in (lockout guard).
+    ssoOnly: cfg.enabled && cfg.ssoOnly,
   });
 });
 

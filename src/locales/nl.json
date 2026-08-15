@@ -354,7 +354,8 @@
     "addServer": "Verbinden",
     "addingServer": "Verbinden…",
     "errorServer": "Verbinden met de FreshRSS-server is mislukt.",
-    "skip": "Overslaan"
+    "skip": "Overslaan",
+    "localLogin": "Lokaal inloggen"
   },
   "admin": {
     "title": "Beheer",
@@ -411,7 +412,11 @@
     "you": "(u)",
     "provider": "Provider",
     "local": "Lokaal",
-    "oidc": "SSO"
+    "oidc": "SSO",
+    "authMode": "Authenticatiemodus",
+    "authModeLocalSso": "Local + SSO",
+    "authModeSsoOnly": "Alleen SSO",
+    "authModeHint": "In de modus Alleen SSO wordt het lokale inlogformulier verborgen. Het blijft bereikbaar via ?local=1 (link ‘Lokaal inloggen’)."
   },
   "servers": {
     "label": "Servers",

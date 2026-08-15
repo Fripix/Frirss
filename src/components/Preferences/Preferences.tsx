@@ -20,6 +20,7 @@ interface AdminSettings {
   registrationEnabled?: boolean;
   loginAnimation?: string;
   oidcEnabled?: boolean;
+  ssoOnly?: boolean;
   oidcIssuer?: string;
   oidcClientId?: string;
   oidcButtonLabel?: string;
@@ -795,6 +796,11 @@ function AdminTab() {
     setSettings((s) => ({ ...s, oidcEnabled: next }));
   }
 
+  async function setSsoOnly(next: boolean) {
+    await updateAdminSettings({ ssoOnly: next });
+    setSettings((s) => ({ ...s, ssoOnly: next }));
+  }
+
   async function saveOidc() {
     const payload = { ...oidcForm };
     if (!payload.oidcClientSecret) delete payload.oidcClientSecret;
@@ -1164,6 +1170,38 @@ function AdminTab() {
             >
               {saved ? t('admin.saved') : t('admin.save')}
             </button>
+
+            {/* Authentication mode: Local + SSO vs SSO only */}
+            <div className="pt-3 mt-1" style={{ borderTop: '1px solid var(--panel-border)' }}>
+              <label className="text-[10px] font-medium mb-1.5 block" style={{ color: 'var(--list-summary)' }}>
+                {t('admin.authMode')}
+              </label>
+              <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: 'var(--list-title)' }}>
+                  <input
+                    type="radio"
+                    name="authMode"
+                    checked={!settings.ssoOnly}
+                    onChange={() => setSsoOnly(false)}
+                    className="accent-[var(--accent)]"
+                  />
+                  {t('admin.authModeLocalSso')}
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: 'var(--list-title)' }}>
+                  <input
+                    type="radio"
+                    name="authMode"
+                    checked={!!settings.ssoOnly}
+                    onChange={() => setSsoOnly(true)}
+                    className="accent-[var(--accent)]"
+                  />
+                  {t('admin.authModeSsoOnly')}
+                </label>
+              </div>
+              <p className="text-[11px] opacity-70 mt-1.5" style={{ color: 'var(--list-summary)' }}>
+                {t('admin.authModeHint')}
+              </p>
+            </div>
           </div>
         )}
       </div>
