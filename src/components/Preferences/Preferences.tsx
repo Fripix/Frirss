@@ -1233,27 +1233,33 @@ function AdminTab() {
               <label className="text-[10px] font-medium block" style={{ color: 'var(--list-summary)' }}>
                 {t('admin.authMode')}
               </label>
-              <div className="flex flex-col gap-1">
+              {/* Segmented control — plain buttons, so a single click always
+                  registers (unlike a native radio nested in a label). */}
+              <div
+                className="flex gap-1 p-0.5 rounded-lg"
+                role="radiogroup"
+                style={{ background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' }}
+              >
                 {[
                   { only: false, label: t('admin.authModeLocalSso') },
                   { only: true, label: t('admin.authModeSsoOnly') },
                 ].map((opt) => {
                   const selected = !!settings.ssoOnly === opt.only;
                   return (
-                    <label
+                    <button
                       key={String(opt.only)}
-                      className="flex items-center gap-2.5 cursor-pointer text-sm px-3 py-2 rounded-md transition-colors hover:bg-black/5"
-                      style={{ color: 'var(--list-title)', background: selected ? 'var(--accent-glow)' : 'transparent' }}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setSsoOnly(opt.only)}
+                      className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                      style={{
+                        background: selected ? 'var(--accent)' : 'transparent',
+                        color: selected ? '#fff' : 'var(--list-title)',
+                      }}
                     >
-                      <input
-                        type="radio"
-                        name="authMode"
-                        checked={selected}
-                        onChange={() => setSsoOnly(opt.only)}
-                        className="accent-[var(--accent)] w-4 h-4"
-                      />
                       {opt.label}
-                    </label>
+                    </button>
                   );
                 })}
               </div>
