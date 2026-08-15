@@ -415,7 +415,7 @@
     "authMode": "Modo de autenticação",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Apenas SSO",
-    "authModeHint": "No modo Apenas SSO, o formulário de início de sessão local fica oculto para os utilizadores. Os administradores acedem-lhe através do URL de emergência ?local=1 ou /local-login."
+    "authModeHint": "No modo Apenas SSO, o formulário de início de sessão local fica oculto para os utilizadores. Os administradores acedem-lhe através do URL de emergência ?local=1."
   },
   "servers": {
     "label": "Servidores",

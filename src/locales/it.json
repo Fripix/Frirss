@@ -415,7 +415,7 @@
     "authMode": "Modalità di autenticazione",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Solo SSO",
-    "authModeHint": "In modalità Solo SSO, il modulo di accesso locale è nascosto agli utenti. Gli amministratori vi accedono tramite l’URL di emergenza ?local=1 o /local-login."
+    "authModeHint": "In modalità Solo SSO, il modulo di accesso locale è nascosto agli utenti. Gli amministratori vi accedono tramite l’URL di emergenza ?local=1."
   },
   "servers": {
     "label": "Server",

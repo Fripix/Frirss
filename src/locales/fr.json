@@ -417,7 +417,7 @@
     "authMode": "Mode d’authentification",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "SSO uniquement",
-    "authModeHint": "En mode SSO uniquement, le formulaire de connexion locale est masqué pour les utilisateurs. Les admins y accèdent via l’URL de secours ?local=1 ou /local-login."
+    "authModeHint": "En mode SSO uniquement, le formulaire de connexion locale est masqué pour les utilisateurs. Les admins y accèdent via l’URL de secours ?local=1."
   },
   "servers": {
     "label": "Serveurs",

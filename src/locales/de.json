@@ -415,7 +415,7 @@
     "authMode": "Authentifizierungsmodus",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Nur SSO",
-    "authModeHint": "Im Nur-SSO-Modus wird das lokale Anmeldeformular für Benutzer ausgeblendet. Admins erreichen es über die Notfall-URL ?local=1 oder /local-login."
+    "authModeHint": "Im Nur-SSO-Modus wird das lokale Anmeldeformular für Benutzer ausgeblendet. Admins erreichen es über die Notfall-URL ?local=1."
   },
   "servers": {
     "label": "Server",

@@ -14,7 +14,9 @@ export function shouldHideLocalLogin({ oidcEnabled, ssoOnly, hasUsers, forceLoca
 }
 
 // Break-glass fallback URL: the local login form is reachable — without any
-// visible link — via ?local=1 or the /local-login path.
-export function isLocalFallbackUrl(loc: { search: string; pathname: string }): boolean {
-  return new URLSearchParams(loc.search).has('local') || loc.pathname === '/local-login';
+// visible link — via a single fixed query, ?local=1. Kept simple and memorable
+// on purpose (an emergency entry point must be reliably reachable, and hiding
+// the form is not a security boundary — local accounts still need a password).
+export function isLocalFallbackUrl(loc: { search: string }): boolean {
+  return new URLSearchParams(loc.search).has('local');
 }

@@ -3,17 +3,13 @@ import { shouldHideLocalLogin, isLocalFallbackUrl } from './shouldHideLocalLogin
 
 describe('isLocalFallbackUrl (break-glass)', () => {
   it('matches the ?local=1 query', () => {
-    expect(isLocalFallbackUrl({ search: '?local=1', pathname: '/' })).toBe(true);
-    expect(isLocalFallbackUrl({ search: '?local', pathname: '/' })).toBe(true);
+    expect(isLocalFallbackUrl({ search: '?local=1' })).toBe(true);
+    expect(isLocalFallbackUrl({ search: '?local' })).toBe(true);
   });
 
-  it('matches the /local-login path', () => {
-    expect(isLocalFallbackUrl({ search: '', pathname: '/local-login' })).toBe(true);
-  });
-
-  it('does not match a normal URL', () => {
-    expect(isLocalFallbackUrl({ search: '', pathname: '/' })).toBe(false);
-    expect(isLocalFallbackUrl({ search: '?foo=1', pathname: '/reader' })).toBe(false);
+  it('does not match without the local query (single fixed break-glass)', () => {
+    expect(isLocalFallbackUrl({ search: '' })).toBe(false);
+    expect(isLocalFallbackUrl({ search: '?foo=1' })).toBe(false);
   });
 });
 

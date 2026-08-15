@@ -415,7 +415,7 @@
     "authMode": "Tryb uwierzytelniania",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Tylko SSO",
-    "authModeHint": "W trybie Tylko SSO lokalny formularz logowania jest ukryty przed użytkownikami. Administratorzy docierają do niego przez awaryjny adres ?local=1 lub /local-login."
+    "authModeHint": "W trybie Tylko SSO lokalny formularz logowania jest ukryty przed użytkownikami. Administratorzy docierają do niego przez awaryjny adres ?local=1."
   },
   "servers": {
     "label": "Serwery",

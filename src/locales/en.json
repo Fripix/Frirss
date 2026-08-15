@@ -417,7 +417,7 @@
     "authMode": "Authentication mode",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "SSO only",
-    "authModeHint": "In SSO-only mode, the local login form is hidden from users. Admins reach it via the fallback URL ?local=1 or /local-login."
+    "authModeHint": "In SSO-only mode, the local login form is hidden from users. Admins reach it via the fallback URL ?local=1."
   },
   "servers": {
     "label": "Servers",
