@@ -13,7 +13,7 @@ import {
 } from '../../api/backend';
 import { login as freshrssLogin } from '../../api/auth';
 import MatrixRain from './MatrixRain';
-import { shouldHideLocalLogin } from '../../lib/shouldHideLocalLogin';
+import { shouldHideLocalLogin, isLocalFallbackUrl } from '../../lib/shouldHideLocalLogin';
 import type { AuthStatus } from '../../types';
 
 // ═════════════════════════════════════════════════════════════════════
@@ -81,11 +81,10 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(oidcError ? t('login.errorSso') : '');
   const [loading, setLoading] = useState(false);
-  // Escape hatch: ?local=1 (or the "Local login" link) forces the local form to
-  // show even in SSO-only mode, so an admin is never locked out if SSO breaks.
-  const [forceLocal, setForceLocal] = useState(
-    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('local')
-  );
+  // Break-glass fallback: reach the local login form via ?local=1 or the
+  // /local-login URL (no visible link — admins use the URL directly), so an
+  // admin is never locked out if the identity provider is down or misconfigured.
+  const forceLocal = typeof window !== 'undefined' && isLocalFallbackUrl(window.location);
 
   // Fetch auth status on mount
   useEffect(() => {
@@ -278,20 +277,6 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
                 {t('login.ssoLogin', { provider: oidc.buttonLabel })}
               </button>
             </>
-          )}
-
-          {/* SSO-only: discreet escape hatch to reveal the local form */}
-          {hideLocal && (
-            <div className="text-center text-xs pt-1" style={{ color: 'var(--sidebar-text)' }}>
-              <button
-                type="button"
-                className="underline hover:brightness-125"
-                style={{ color: 'var(--sidebar-category-text)' }}
-                onClick={() => setForceLocal(true)}
-              >
-                {t('login.localLogin')}
-              </button>
-            </div>
           )}
 
           {/* Toggle login ↔ register */}

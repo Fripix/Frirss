@@ -354,8 +354,7 @@
     "addServer": "Conectar",
     "addingServer": "Conectando…",
     "errorServer": "No se pudo conectar al servidor FreshRSS.",
-    "skip": "Omitir",
-    "localLogin": "Acceso local"
+    "skip": "Omitir"
   },
   "admin": {
     "title": "Administración",
@@ -416,7 +415,7 @@
     "authMode": "Modo de autenticación",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Solo SSO",
-    "authModeHint": "En modo Solo SSO, el formulario de acceso local se oculta. Sigue estando accesible con ?local=1 (enlace «Acceso local»)."
+    "authModeHint": "En modo Solo SSO, el formulario de acceso local se oculta a los usuarios. Los administradores acceden mediante la URL de emergencia ?local=1 o /local-login."
   },
   "servers": {
     "label": "Servidores",

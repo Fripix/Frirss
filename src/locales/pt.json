@@ -354,8 +354,7 @@
     "addServer": "Ligar",
     "addingServer": "A ligar…",
     "errorServer": "Falha ao ligar ao servidor FreshRSS.",
-    "skip": "Ignorar",
-    "localLogin": "Início de sessão local"
+    "skip": "Ignorar"
   },
   "admin": {
     "title": "Administração",
@@ -416,7 +415,7 @@
     "authMode": "Modo de autenticação",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Apenas SSO",
-    "authModeHint": "No modo Apenas SSO, o formulário de início de sessão local fica oculto. Continua acessível via ?local=1 (link «Início de sessão local»)."
+    "authModeHint": "No modo Apenas SSO, o formulário de início de sessão local fica oculto para os utilizadores. Os administradores acedem-lhe através do URL de emergência ?local=1 ou /local-login."
   },
   "servers": {
     "label": "Servidores",

@@ -354,8 +354,7 @@
     "addServer": "Verbinden",
     "addingServer": "Verbindung…",
     "errorServer": "Verbindung zum FreshRSS-Server fehlgeschlagen.",
-    "skip": "Überspringen",
-    "localLogin": "Lokale Anmeldung"
+    "skip": "Überspringen"
   },
   "admin": {
     "title": "Verwaltung",
@@ -416,7 +415,7 @@
     "authMode": "Authentifizierungsmodus",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Nur SSO",
-    "authModeHint": "Im Nur-SSO-Modus wird das lokale Anmeldeformular ausgeblendet. Es bleibt über ?local=1 erreichbar (Link „Lokale Anmeldung“)."
+    "authModeHint": "Im Nur-SSO-Modus wird das lokale Anmeldeformular für Benutzer ausgeblendet. Admins erreichen es über die Notfall-URL ?local=1 oder /local-login."
   },
   "servers": {
     "label": "Server",

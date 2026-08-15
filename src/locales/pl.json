@@ -354,8 +354,7 @@
     "addServer": "Połącz",
     "addingServer": "Łączenie…",
     "errorServer": "Nie udało się połączyć z serwerem FreshRSS.",
-    "skip": "Pomiń",
-    "localLogin": "Logowanie lokalne"
+    "skip": "Pomiń"
   },
   "admin": {
     "title": "Administracja",
@@ -416,7 +415,7 @@
     "authMode": "Tryb uwierzytelniania",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Tylko SSO",
-    "authModeHint": "W trybie Tylko SSO lokalny formularz logowania jest ukryty. Pozostaje dostępny przez ?local=1 (link „Logowanie lokalne”)."
+    "authModeHint": "W trybie Tylko SSO lokalny formularz logowania jest ukryty przed użytkownikami. Administratorzy docierają do niego przez awaryjny adres ?local=1 lub /local-login."
   },
   "servers": {
     "label": "Serwery",

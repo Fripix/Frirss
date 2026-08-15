@@ -12,3 +12,9 @@ interface LoginModeInput {
 export function shouldHideLocalLogin({ oidcEnabled, ssoOnly, hasUsers, forceLocal }: LoginModeInput): boolean {
   return oidcEnabled && ssoOnly && hasUsers && !forceLocal;
 }
+
+// Break-glass fallback URL: the local login form is reachable — without any
+// visible link — via ?local=1 or the /local-login path.
+export function isLocalFallbackUrl(loc: { search: string; pathname: string }): boolean {
+  return new URLSearchParams(loc.search).has('local') || loc.pathname === '/local-login';
+}
