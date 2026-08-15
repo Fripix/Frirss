@@ -5,6 +5,7 @@ import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore, shortcutActions } from '../../stores/uiStore';
 import { useFeedStore } from '../../stores/feedStore';
 import { useAuthStore } from '../../stores/authStore';
+import ToggleSwitch from '../ToggleSwitch';
 import {
   getAdminUsers, createAdminUser, updateAdminUser, deleteAdminUser,
   setAdminUserPassword, getAdminSettings, updateAdminSettings,
@@ -1586,35 +1587,28 @@ function LabelsColorTab({ resetLabelColors }: { resetLabelColors: () => void }) 
         <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.labels.description')}
         </p>
-        <label className="flex items-center gap-2 cursor-pointer select-none flex-shrink-0">
-          <input
-            type="checkbox"
-            checked={labelSortAlpha}
-            onChange={() => setLabelSortAlpha(!labelSortAlpha)}
-            className="accent-[var(--accent)] w-3.5 h-3.5"
-          />
+        <div className="flex items-center gap-2 select-none flex-shrink-0">
+          <ToggleSwitch checked={labelSortAlpha} onChange={setLabelSortAlpha} ariaLabel="A→Z" />
           <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--list-summary)' }}>
             A→Z
           </span>
-        </label>
+        </div>
       </div>
 
       {/* Show article count per label */}
-      <label className="flex items-center justify-between cursor-pointer select-none">
+      <div className="flex items-center justify-between select-none">
         <span className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.labels.showCounts')}
         </span>
-        <input
-          type="checkbox"
+        <ToggleSwitch
           checked={showLabelCounts}
-          onChange={() => {
-            const next = !showLabelCounts;
+          onChange={(next) => {
             setShowLabelCounts(next);
             if (next) loadLabelCounts();
           }}
-          className="accent-[var(--accent)] w-3.5 h-3.5 flex-shrink-0"
+          ariaLabel={t('preferences.labels.showCounts')}
         />
-      </label>
+      </div>
 
       {/* Standalone labels — always rendered to prevent layout shift during drag */}
       <div>
@@ -2623,20 +2617,21 @@ function GeneralTab() {
           {t('preferences.general.title')}
         </h3>
         {/* Confirm before "Mark all as read" */}
-        <label className="flex items-start justify-between gap-4 cursor-pointer select-none">
+        <div className="flex items-start justify-between gap-4 select-none">
           <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.general.confirmMarkAllRead')}
             <span className="block text-[11px] opacity-70 mt-0.5">
               {t('preferences.general.confirmMarkAllReadHint')}
             </span>
           </span>
-          <input
-            type="checkbox"
-            checked={confirmMarkAllRead}
-            onChange={() => setConfirmMarkAllRead(!confirmMarkAllRead)}
-            className="accent-[var(--accent)] w-3.5 h-3.5 flex-shrink-0 mt-0.5"
-          />
-        </label>
+          <span className="mt-0.5">
+            <ToggleSwitch
+              checked={confirmMarkAllRead}
+              onChange={setConfirmMarkAllRead}
+              ariaLabel={t('preferences.general.confirmMarkAllRead')}
+            />
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -2678,18 +2673,15 @@ function OfflineTab() {
       </div>
 
       {/* Auto-update toggle */}
-      <label className="flex items-start justify-between gap-4 cursor-pointer select-none">
+      <div className="flex items-start justify-between gap-4 select-none">
         <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.offline.auto')}
           <span className="block text-[11px] opacity-70 mt-0.5">{t('preferences.offline.autoHint')}</span>
         </span>
-        <input
-          type="checkbox"
-          checked={autoOffline}
-          onChange={() => setAutoOffline(!autoOffline)}
-          className="accent-[var(--accent)] w-3.5 h-3.5 flex-shrink-0 mt-0.5"
-        />
-      </label>
+        <span className="mt-0.5">
+          <ToggleSwitch checked={autoOffline} onChange={setAutoOffline} ariaLabel={t('preferences.offline.auto')} />
+        </span>
+      </div>
     </div>
   );
 }

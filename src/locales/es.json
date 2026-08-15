@@ -138,6 +138,7 @@
     "confirm": "¿Confirmar?",
     "resetAllTooltip": "Restablecer todas las preferencias (colores, tamaños, atajos…)",
     "tabs": {
+      "general": "General",
       "branding": "Apariencia",
       "colors": "Colores",
       "fonts": "Tamaños",
@@ -146,6 +147,11 @@
       "shortcuts": "Atajos",
       "admin": "Admin",
       "offline": "Sin conexión"
+    },
+    "general": {
+      "title": "General",
+      "confirmMarkAllRead": "Confirmar antes de marcar todo como leído",
+      "confirmMarkAllReadHint": "Si está desactivado, «Marcar todo como leído» actúa con un solo clic, sin confirmación."
     },
     "branding": {
       "language": "Idioma",

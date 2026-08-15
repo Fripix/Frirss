@@ -138,6 +138,7 @@
     "confirm": "Potwierdzić?",
     "resetAllTooltip": "Zresetuj wszystkie preferencje (kolory, rozmiary, skróty…)",
     "tabs": {
+      "general": "Ogólne",
       "branding": "Wygląd",
       "colors": "Kolory",
       "fonts": "Rozmiary",
@@ -146,6 +147,11 @@
       "shortcuts": "Skróty",
       "admin": "Admin",
       "offline": "Offline"
+    },
+    "general": {
+      "title": "Ogólne",
+      "confirmMarkAllRead": "Potwierdź przed oznaczeniem wszystkiego jako przeczytane",
+      "confirmMarkAllReadHint": "Gdy wyłączone, „Oznacz wszystko jako przeczytane“ działa jednym kliknięciem, bez potwierdzenia."
     },
     "branding": {
       "language": "Język",

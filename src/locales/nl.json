@@ -138,6 +138,7 @@
     "confirm": "Bevestigen?",
     "resetAllTooltip": "Alle voorkeuren herstellen (kleuren, groottes, sneltoetsen…)",
     "tabs": {
+      "general": "Algemeen",
       "branding": "Uiterlijk",
       "colors": "Kleuren",
       "fonts": "Groottes",
@@ -146,6 +147,11 @@
       "shortcuts": "Sneltoetsen",
       "admin": "Admin",
       "offline": "Offline"
+    },
+    "general": {
+      "title": "Algemeen",
+      "confirmMarkAllRead": "Bevestigen voordat alles als gelezen wordt gemarkeerd",
+      "confirmMarkAllReadHint": "Wanneer uit werkt ‘Alles als gelezen markeren’ met één klik, zonder bevestiging."
     },
     "branding": {
       "language": "Taal",

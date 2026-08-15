@@ -138,6 +138,7 @@
     "confirm": "Bestätigen?",
     "resetAllTooltip": "Alle Einstellungen zurücksetzen (Farben, Größen, Tastenkürzel…)",
     "tabs": {
+      "general": "Allgemein",
       "branding": "Aussehen",
       "colors": "Farben",
       "fonts": "Größen",
@@ -146,6 +147,11 @@
       "shortcuts": "Tastenkürzel",
       "admin": "Admin",
       "offline": "Offline"
+    },
+    "general": {
+      "title": "Allgemein",
+      "confirmMarkAllRead": "Vor „Alles als gelesen markieren“ bestätigen",
+      "confirmMarkAllReadHint": "Wenn deaktiviert, wirkt „Alles als gelesen markieren“ mit einem Klick, ohne Bestätigung."
     },
     "branding": {
       "language": "Sprache",

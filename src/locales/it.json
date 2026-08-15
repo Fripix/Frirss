@@ -138,6 +138,7 @@
     "confirm": "Confermare?",
     "resetAllTooltip": "Reimposta tutte le preferenze (colori, dimensioni, scorciatoie…)",
     "tabs": {
+      "general": "Generale",
       "branding": "Aspetto",
       "colors": "Colori",
       "fonts": "Dimensioni",
@@ -146,6 +147,11 @@
       "shortcuts": "Scorciatoie",
       "admin": "Admin",
       "offline": "Offline"
+    },
+    "general": {
+      "title": "Generale",
+      "confirmMarkAllRead": "Conferma prima di segnare tutto come letto",
+      "confirmMarkAllReadHint": "Se disattivato, «Segna tutto come letto» agisce con un solo clic, senza conferma."
     },
     "branding": {
       "language": "Lingua",
