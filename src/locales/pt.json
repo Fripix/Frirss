@@ -415,7 +415,12 @@
     "authMode": "Modo de autenticação",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Apenas SSO",
-    "authModeHint": "No modo Apenas SSO, o formulário de início de sessão local fica oculto para os utilizadores. Os administradores acedem-lhe através do URL de emergência ?local=1."
+    "authModeHint": "No modo Apenas SSO, o formulário de início de sessão local fica oculto para os utilizadores. Os administradores acedem-lhe através do URL de emergência ?local=1.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "redirectUri": "URI de redirecionamento (adicione ao seu IdP)",
+    "redirectUriHint": "Adicione este URL aos «Redirect URIs» do seu fornecedor (Authentik, Authelia, Keycloak…).",
+    "breakGlassUrl": "URL de emergência (início de sessão local)"
   },
   "servers": {
     "label": "Servidores",

@@ -21,6 +21,7 @@ interface AdminSettings {
   loginAnimation?: string;
   oidcEnabled?: boolean;
   ssoOnly?: boolean;
+  redirectUri?: string;
   oidcIssuer?: string;
   oidcClientId?: string;
   oidcButtonLabel?: string;
@@ -617,6 +618,45 @@ function AdminInput({ type = 'text', placeholder, value, onChange }: AdminInputP
   );
 }
 
+/* ── Read-only value with a copy button (callback URL, break-glass URL…) ── */
+function CopyField({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  return (
+    <div>
+      <label className="text-[10px] font-medium mb-0.5 block" style={{ color: 'var(--list-summary)' }}>
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          readOnly
+          value={value}
+          onFocus={(e) => e.target.select()}
+          className="flex-1 min-w-0 px-3 py-1.5 text-xs rounded-md font-mono"
+          style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)', background: 'var(--panel-header-bg)' }}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard?.writeText(value).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }).catch(() => {});
+          }}
+          className="px-2.5 py-1.5 text-xs font-medium rounded-md flex-shrink-0 transition-colors"
+          style={{ background: copied ? 'var(--accent)' : 'var(--panel-border)', color: copied ? '#fff' : 'var(--list-title)' }}
+        >
+          {copied ? `✓ ${t('admin.copied')}` : t('admin.copy')}
+        </button>
+      </div>
+      {hint && (
+        <p className="text-[11px] opacity-70 mt-1" style={{ color: 'var(--list-summary)' }}>{hint}</p>
+      )}
+    </div>
+  );
+}
+
 /* ── Admin Tab ─────────────────────────────────────────────────────── */
 function AdminTab() {
   const { t } = useTranslation();
@@ -1139,6 +1179,13 @@ function AdminTab() {
         {/* OIDC fields */}
         {settings.oidcEnabled && (
           <div className="space-y-2 mt-2">
+            {settings.redirectUri && (
+              <CopyField
+                label={t('admin.redirectUri')}
+                value={settings.redirectUri}
+                hint={t('admin.redirectUriHint')}
+              />
+            )}
             {[
               { key: 'oidcIssuer', label: t('admin.oidcIssuer'), placeholder: 'https://auth.example.com/application/o/frirss/' },
               { key: 'oidcClientId', label: t('admin.oidcClientId') },
@@ -1163,44 +1210,60 @@ function AdminTab() {
                 />
               </div>
             ))}
-            <button
-              onClick={saveOidc}
-              className="px-3 py-1.5 text-xs font-medium rounded-md text-white"
-              style={{ background: saved ? 'var(--accent-dark)' : 'var(--accent)' }}
-            >
-              {saved ? t('admin.saved') : t('admin.save')}
-            </button>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={saveOidc}
+                className="px-3 py-1.5 text-xs font-medium rounded-md text-white"
+                style={{ background: 'var(--accent)' }}
+              >
+                {t('admin.save')}
+              </button>
+              {saved && (
+                <span
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+                >
+                  ✓ {t('admin.saved')}
+                </span>
+              )}
+            </div>
 
             {/* Authentication mode: Local + SSO vs SSO only */}
-            <div className="pt-3 mt-1" style={{ borderTop: '1px solid var(--panel-border)' }}>
-              <label className="text-[10px] font-medium mb-1.5 block" style={{ color: 'var(--list-summary)' }}>
+            <div className="pt-3 mt-1 space-y-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
+              <label className="text-[10px] font-medium block" style={{ color: 'var(--list-summary)' }}>
                 {t('admin.authMode')}
               </label>
-              <div className="flex flex-col gap-1.5">
-                <label className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: 'var(--list-title)' }}>
-                  <input
-                    type="radio"
-                    name="authMode"
-                    checked={!settings.ssoOnly}
-                    onChange={() => setSsoOnly(false)}
-                    className="accent-[var(--accent)]"
-                  />
-                  {t('admin.authModeLocalSso')}
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: 'var(--list-title)' }}>
-                  <input
-                    type="radio"
-                    name="authMode"
-                    checked={!!settings.ssoOnly}
-                    onChange={() => setSsoOnly(true)}
-                    className="accent-[var(--accent)]"
-                  />
-                  {t('admin.authModeSsoOnly')}
-                </label>
+              <div className="flex flex-col gap-1">
+                {[
+                  { only: false, label: t('admin.authModeLocalSso') },
+                  { only: true, label: t('admin.authModeSsoOnly') },
+                ].map((opt) => {
+                  const selected = !!settings.ssoOnly === opt.only;
+                  return (
+                    <label
+                      key={String(opt.only)}
+                      className="flex items-center gap-2.5 cursor-pointer text-sm px-3 py-2 rounded-md transition-colors hover:bg-black/5"
+                      style={{ color: 'var(--list-title)', background: selected ? 'var(--accent-glow)' : 'transparent' }}
+                    >
+                      <input
+                        type="radio"
+                        name="authMode"
+                        checked={selected}
+                        onChange={() => setSsoOnly(opt.only)}
+                        className="accent-[var(--accent)] w-4 h-4"
+                      />
+                      {opt.label}
+                    </label>
+                  );
+                })}
               </div>
-              <p className="text-[11px] opacity-70 mt-1.5" style={{ color: 'var(--list-summary)' }}>
+              <p className="text-[11px] opacity-70" style={{ color: 'var(--list-summary)' }}>
                 {t('admin.authModeHint')}
               </p>
+              <CopyField
+                label={t('admin.breakGlassUrl')}
+                value={`${window.location.origin}/?local=1`}
+              />
             </div>
           </div>
         )}

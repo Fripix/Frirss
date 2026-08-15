@@ -415,7 +415,12 @@
     "authMode": "Authentifizierungsmodus",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Nur SSO",
-    "authModeHint": "Im Nur-SSO-Modus wird das lokale Anmeldeformular für Benutzer ausgeblendet. Admins erreichen es über die Notfall-URL ?local=1."
+    "authModeHint": "Im Nur-SSO-Modus wird das lokale Anmeldeformular für Benutzer ausgeblendet. Admins erreichen es über die Notfall-URL ?local=1.",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "redirectUri": "Redirect-URI (im IdP hinterlegen)",
+    "redirectUriHint": "Fügen Sie diese URL zu den „Redirect URIs“ Ihres Providers hinzu (Authentik, Authelia, Keycloak…).",
+    "breakGlassUrl": "Notfall-URL (lokale Anmeldung)"
   },
   "servers": {
     "label": "Server",

@@ -415,7 +415,12 @@
     "authMode": "Authenticatiemodus",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Alleen SSO",
-    "authModeHint": "In de modus Alleen SSO wordt het lokale inlogformulier verborgen voor gebruikers. Beheerders bereiken het via de nood-URL ?local=1."
+    "authModeHint": "In de modus Alleen SSO wordt het lokale inlogformulier verborgen voor gebruikers. Beheerders bereiken het via de nood-URL ?local=1.",
+    "copy": "Kopiëren",
+    "copied": "Gekopieerd",
+    "redirectUri": "Redirect-URI (voeg toe aan je IdP)",
+    "redirectUriHint": "Voeg deze URL toe aan de ‘Redirect URIs’ van je provider (Authentik, Authelia, Keycloak…).",
+    "breakGlassUrl": "Nood-URL (lokaal inloggen)"
   },
   "servers": {
     "label": "Servers",

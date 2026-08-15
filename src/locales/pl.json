@@ -415,7 +415,12 @@
     "authMode": "Tryb uwierzytelniania",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Tylko SSO",
-    "authModeHint": "W trybie Tylko SSO lokalny formularz logowania jest ukryty przed użytkownikami. Administratorzy docierają do niego przez awaryjny adres ?local=1."
+    "authModeHint": "W trybie Tylko SSO lokalny formularz logowania jest ukryty przed użytkownikami. Administratorzy docierają do niego przez awaryjny adres ?local=1.",
+    "copy": "Kopiuj",
+    "copied": "Skopiowano",
+    "redirectUri": "Adres przekierowania (dodaj w swoim IdP)",
+    "redirectUriHint": "Dodaj ten adres do „Redirect URIs” swojego dostawcy (Authentik, Authelia, Keycloak…).",
+    "breakGlassUrl": "Awaryjny adres URL (logowanie lokalne)"
   },
   "servers": {
     "label": "Serwery",

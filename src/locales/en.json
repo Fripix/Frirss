@@ -417,7 +417,12 @@
     "authMode": "Authentication mode",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "SSO only",
-    "authModeHint": "In SSO-only mode, the local login form is hidden from users. Admins reach it via the fallback URL ?local=1."
+    "authModeHint": "In SSO-only mode, the local login form is hidden from users. Admins reach it via the fallback URL ?local=1.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "redirectUri": "Redirect URI (add it to your IdP)",
+    "redirectUriHint": "Add this URL to your provider’s “Redirect URIs” (Authentik, Authelia, Keycloak…).",
+    "breakGlassUrl": "Fallback URL (local login)"
   },
   "servers": {
     "label": "Servers",

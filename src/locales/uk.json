@@ -415,7 +415,12 @@
     "authMode": "Режим автентифікації",
     "authModeLocalSso": "Local + SSO",
     "authModeSsoOnly": "Лише SSO",
-    "authModeHint": "У режимі «Лише SSO» локальна форма входу прихована від користувачів. Адміністратори відкривають її через аварійний URL ?local=1."
+    "authModeHint": "У режимі «Лише SSO» локальна форма входу прихована від користувачів. Адміністратори відкривають її через аварійний URL ?local=1.",
+    "copy": "Копіювати",
+    "copied": "Скопійовано",
+    "redirectUri": "URI перенаправлення (додайте у ваш IdP)",
+    "redirectUriHint": "Додайте цей URL до «Redirect URIs» вашого провайдера (Authentik, Authelia, Keycloak…).",
+    "breakGlassUrl": "Аварійний URL (локальний вхід)"
   },
   "servers": {
     "label": "Сервери",

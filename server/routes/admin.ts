@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import db, { getSetting, setSetting } from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
-import { clearDiscoveryCache } from '../oidc.js';
+import { clearDiscoveryCache, getRedirectUri } from '../oidc.js';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -174,6 +174,8 @@ router.get('/settings', (req, res) => {
       registrationEnabled: getSetting('registration_enabled') === 'true',
       oidcEnabled: getSetting('oidc_enabled') === 'true',
       ssoOnly: getSetting('oidc_sso_only') === 'true',
+      // The OIDC callback URL the admin must whitelist in their IdP (Authentik…).
+      redirectUri: getRedirectUri(req),
       oidcIssuer: getSetting('oidc_issuer') || '',
       oidcClientId: getSetting('oidc_client_id') || '',
       // Don't expose oidc_client_secret
