@@ -105,6 +105,18 @@ function memSet(key: string, data: CachedView): void {
     if (oldest !== undefined) memCache.delete(oldest);
   }
 }
+// A recent article URL for a feed, from any cached view — used to resolve a
+// feed's real website when its htmlUrl is unusable (see feedSiteUrl / "Open
+// site"). Feeds with unread items are prefetched at startup, so this is usually
+// populated by the time the user opens a feed's menu.
+export function getSampleArticleUrl(feedId: string): string | undefined {
+  for (const view of memCache.values()) {
+    for (const a of view.articles) {
+      if (a.sourceId === feedId && a.url) return a.url;
+    }
+  }
+  return undefined;
+}
 // Reflect a read/unread change in EVERY cached view, so coming back to any of
 // them (from the memory cache) shows the current state instead of the stale
 // list captured at load time.
