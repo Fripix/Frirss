@@ -468,5 +468,12 @@
   "connection": {
     "offline": "Offline — czytanie z pamięci podręcznej",
     "backOnline": "Znów online"
+  },
+  "refresh": {
+    "newArticles_one": "{{count}} nowy artykuł",
+    "newArticles_other": "{{count}} nowych artykułów",
+    "newArticles_few": "{{count}} nowe artykuły",
+    "newArticles_many": "{{count}} nowych artykułów",
+    "upToDate": "Wszystko aktualne"
   }
 }

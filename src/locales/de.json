@@ -468,5 +468,10 @@
   "connection": {
     "offline": "Offline — Lesen aus dem Cache",
     "backOnline": "Wieder online"
+  },
+  "refresh": {
+    "newArticles_one": "{{count}} neuer Artikel",
+    "newArticles_other": "{{count}} neue Artikel",
+    "upToDate": "Aktuell"
   }
 }

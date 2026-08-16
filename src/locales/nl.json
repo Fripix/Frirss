@@ -468,5 +468,10 @@
   "connection": {
     "offline": "Offline — lezen uit cache",
     "backOnline": "Weer online"
+  },
+  "refresh": {
+    "newArticles_one": "{{count}} nieuw artikel",
+    "newArticles_other": "{{count}} nieuwe artikelen",
+    "upToDate": "Bijgewerkt"
   }
 }

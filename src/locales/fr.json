@@ -473,5 +473,10 @@
   },
   "update": {
     "updating": "Mise à jour…"
+  },
+  "refresh": {
+    "newArticles_one": "{{count}} nouvel article",
+    "newArticles_other": "{{count}} nouveaux articles",
+    "upToDate": "À jour"
   }
 }

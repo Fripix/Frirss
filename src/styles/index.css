@@ -662,6 +662,45 @@ html {
   to   { transform: translateY(0);     opacity: 1; }
 }
 
+/* ── "X new articles" banner after a manual refresh (auto-fades) ── */
+.refresh-banner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 72;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent, #4cd4a1);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: refresh-banner-in 0.25s ease, refresh-banner-out 0.4s ease 3.6s forwards;
+}
+@keyframes refresh-banner-in {
+  from { transform: translate(-50%, -12px); opacity: 0; }
+  to   { transform: translate(-50%, 0);     opacity: 1; }
+}
+@keyframes refresh-banner-out {
+  to { opacity: 0; transform: translate(-50%, -8px); }
+}
+
+/* Sidebar feed row pulse — marks feeds that just received new articles. */
+.feed-new-pulse {
+  animation: feed-new-pulse 0.9s ease-in-out 3;
+}
+@keyframes feed-new-pulse {
+  0%, 100% { box-shadow: inset 3px 0 0 transparent; }
+  50%      { box-shadow: inset 3px 0 0 var(--accent, #4cd4a1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .refresh-banner { animation: refresh-banner-in 0.25s ease; }
+  .feed-new-pulse { animation: none; box-shadow: inset 3px 0 0 var(--accent, #4cd4a1); }
+}
+
 /* ── Thin top progress bar (indeterminate) — shown while the app revalidates
    the subscriptions/counts, e.g. on a cold start right after an update. ── */
 .top-progress {

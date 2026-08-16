@@ -24,6 +24,7 @@ import { useAuthStore } from './authStore';
 import { useUiStore } from './uiStore';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut } from '../lib/offlineStore';
+import { computeRefreshDelta } from '../lib/refreshDelta';
 import type {
   Article,
   Subscription,
@@ -286,6 +287,11 @@ export interface FeedState {
   silentRefresh: () => Promise<void>;
   refresh: () => Promise<void>;
   resetAndReload: () => void;
+  // Feedback after a manual refresh: how many new articles arrived and where.
+  // Drives the "X new articles" banner + the per-feed pulse; cleared after a
+  // few seconds by the banner.
+  refreshResult: { totalNew: number; newByFeed: Record<string, number>; at: number } | null;
+  clearRefreshResult: () => void;
 }
 
 export const useFeedStore = create<FeedState>()((set, get) => ({
@@ -300,6 +306,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   filter: useUiStore.getState().unreadOnlyByFeed[''] ? 'unread' : 'all',
   loading: false,
   loadingMore: false,
+  refreshResult: null,
   searchQuery: '',
   labels: [],
   labelCounts: {},
@@ -1117,9 +1124,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   refresh: async () => {
+    // Snapshot per-feed unread counts before the reload, so we can report how
+    // many new articles arrived and in which feeds (see RefreshBanner + pulse).
+    const before = { ...get().unreadCounts };
     await get().loadSubscriptions();
     await get().loadArticles();
+    const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);
+    set({ refreshResult: { totalNew, newByFeed, at: Date.now() } });
   },
+
+  clearRefreshResult: () => set({ refreshResult: null }),
 
   // Full reset + reload — used when switching the active FreshRSS server
   resetAndReload: () => {

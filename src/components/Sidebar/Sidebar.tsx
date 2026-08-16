@@ -838,6 +838,8 @@ function FeedItem({ feed, isSelected, unreadCount, showFavicons, organizeMode, o
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const feedErrors = useFeedStore((s) => s.feedErrors);
   const hasError = !!feedErrors[feed.id];
+  // Pulse this row when the last manual refresh brought new articles to it.
+  const gotNew = useFeedStore((s) => (s.refreshResult?.newByFeed[feed.id] ?? 0) > 0);
 
   // Prefetch this feed's first page so opening it is instant (dedup'd in-store).
   const prefetch = () => { useFeedStore.getState().prefetchView(feed); };
@@ -860,7 +862,7 @@ function FeedItem({ feed, isSelected, unreadCount, showFavicons, organizeMode, o
           : isSelected
             ? 'sidebar-feed-active'
             : ''
-      }`}
+      } ${gotNew ? 'feed-new-pulse' : ''}`}
       data-theme={isSelected ? 'sidebar-text-active' : 'sidebar-text'}
       style={{
         color: isSelected ? 'var(--sidebar-text-active)' : 'var(--sidebar-text)',

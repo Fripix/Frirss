@@ -468,5 +468,12 @@
   "connection": {
     "offline": "Офлайн — читання з кешу",
     "backOnline": "Знову онлайн"
+  },
+  "refresh": {
+    "newArticles_one": "{{count}} нова стаття",
+    "newArticles_other": "{{count}} нових статей",
+    "newArticles_few": "{{count}} нові статті",
+    "newArticles_many": "{{count}} нових статей",
+    "upToDate": "Все актуально"
   }
 }

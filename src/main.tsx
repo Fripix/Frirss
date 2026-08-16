@@ -5,6 +5,7 @@ import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import TopProgressBar from './components/TopProgressBar';
 import UpdatePrompt from './components/UpdatePrompt';
+import RefreshBanner from './components/RefreshBanner';
 import './styles/index.css';
 
 function render() {
@@ -16,6 +17,7 @@ function render() {
       {/* Fixed-position, layout-agnostic chrome mounted once above the app. */}
       <TopProgressBar />
       <UpdatePrompt />
+      <RefreshBanner />
     </StrictMode>
   );
 }
