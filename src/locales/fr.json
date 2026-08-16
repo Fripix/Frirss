@@ -133,7 +133,9 @@
     "labels": "Étiquettes",
     "addLabel": "Ajouter une étiquette",
     "newLabel": "Nouvelle étiquette…",
-    "newLabelPlaceholder": "Nom de l'étiquette"
+    "newLabelPlaceholder": "Nom de l'étiquette",
+    "focusEnter": "Mode Focus (plein écran)",
+    "focusExit": "Quitter le mode Focus"
   },
   "preferences": {
     "title": "Préférences",

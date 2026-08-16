@@ -13,6 +13,14 @@ export function useKeyboardNav(): void {
       const tag = target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
 
+      // Escape leaves Reading Focus mode (only when active — otherwise let other
+      // handlers, e.g. search / preferences, deal with Escape).
+      if (e.key === 'Escape' && useUiStore.getState().readingFocus) {
+        e.preventDefault();
+        useUiStore.getState().setReadingFocus(false);
+        return;
+      }
+
       const key = e.key;
       const store = useFeedStore.getState();
 

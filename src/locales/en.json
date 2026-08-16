@@ -133,7 +133,9 @@
     "labels": "Tags",
     "addLabel": "Add a tag",
     "newLabel": "New tag…",
-    "newLabelPlaceholder": "Tag name"
+    "newLabelPlaceholder": "Tag name",
+    "focusEnter": "Focus mode (full width)",
+    "focusExit": "Exit focus mode"
   },
   "preferences": {
     "title": "Preferences",

@@ -131,7 +131,9 @@
     "labels": "Etiquetas",
     "addLabel": "Añadir una etiqueta",
     "newLabel": "Nueva etiqueta…",
-    "newLabelPlaceholder": "Nombre de la etiqueta"
+    "newLabelPlaceholder": "Nombre de la etiqueta",
+    "focusEnter": "Modo Enfoque (pantalla completa)",
+    "focusExit": "Salir del modo Enfoque"
   },
   "preferences": {
     "title": "Preferencias",

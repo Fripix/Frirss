@@ -9,6 +9,7 @@ import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
+import { isFocusToggleTarget } from '../../lib/readingFocus';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
 // Reserve vertical space for images that declare width/height, via
@@ -63,6 +64,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const getLabelColor = useThemeStore((s) => s.getLabelColor);
   const setFontSize = useThemeStore((s) => s.setFontSize);
   const feedSettings = useUiStore((s) => s.feedSettings);
+  const readingFocus = useUiStore((s) => s.readingFocus);
+  const toggleReadingFocus = useUiStore((s) => s.toggleReadingFocus);
   const mobileReadingFontSize = useUiStore((s) => s.mobileReadingFontSize);
   const setMobileReadingFontSize = useUiStore((s) => s.setMobileReadingFontSize);
   const bodySize = parseInt(theme.fontSizes['reading-body']) || 14;
@@ -632,7 +635,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     .replace(/<img(?!\s+loading=)/gi, (m) => ++_imgIdx <= 2 ? m : '<img loading="lazy"');
 
   return (
-    <div className="reading-pane h-full flex flex-col relative" style={{ background: 'var(--panel-bg)' }}>
+    <div
+      className="reading-pane h-full flex flex-col relative"
+      style={{ background: 'var(--panel-bg)' }}
+      onDoubleClick={(e) => { if (isFocusToggleTarget(e.target as Element)) toggleReadingFocus(); }}
+    >
       {/* Mobile: no top toolbar — actions live in the bottom bar. Just a thin
           progress line at the very top. */}
       {isMobileOrTablet && readProgress > 0 && (
@@ -775,6 +782,23 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
         {/* Spacer */}
         <div className="toolbar-spacer flex-1 min-w-0" />
+
+        {/* Reading Focus toggle (hide sidebar + list) */}
+        <button
+          onClick={toggleReadingFocus}
+          className="p-1.5 rounded-lg transition-colors hover:bg-black/5 flex-shrink-0"
+          style={{ color: readingFocus ? 'var(--accent)' : 'var(--list-summary)' }}
+          title={readingFocus ? t('readingPane.focusExit') : t('readingPane.focusEnter')}
+          aria-pressed={readingFocus}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            {readingFocus ? (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15" />
+            )}
+          </svg>
+        </button>
 
         {/* Font size — inline A-/A+ (desktop only) */}
         <div className="flex items-center gap-0.5 flex-shrink-0">

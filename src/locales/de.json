@@ -131,7 +131,9 @@
     "labels": "Labels",
     "addLabel": "Label hinzufügen",
     "newLabel": "Neues Label…",
-    "newLabelPlaceholder": "Label-Name"
+    "newLabelPlaceholder": "Label-Name",
+    "focusEnter": "Fokusmodus (Vollbild)",
+    "focusExit": "Fokusmodus verlassen"
   },
   "preferences": {
     "title": "Einstellungen",

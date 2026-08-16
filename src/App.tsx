@@ -44,6 +44,7 @@ export default function App() {
   const preferencesOpen = useThemeStore((s) => s.preferencesOpen);
   const panelLayout = useUiStore((s) => s.panelLayout);
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
+  const readingFocus = useUiStore((s) => s.readingFocus);
   const setSidebarVisible = useUiStore((s) => s.setSidebarVisible);
   const topbarVisible = useUiStore((s) => s.topbarVisible);
 
@@ -325,21 +326,23 @@ export default function App() {
           <div className="safe-area-top" />
           {topbarVisible && <ServerSwitcher />}
           <div className="flex-1 flex overflow-hidden min-h-0">
-            <section
-              className="flex-shrink-0 overflow-hidden"
-              style={{
-                width: selectedArticle ? '38%' : '100%',
-                minWidth: selectedArticle ? '260px' : undefined,
-                maxWidth: selectedArticle ? '380px' : undefined,
-                borderRight: selectedArticle ? '1px solid var(--panel-border)' : undefined,
-                transition: 'width 0.15s ease',
-              }}
-            >
-              <ArticleList />
-            </section>
-            {selectedArticle && (
+            {!readingFocus && (
+              <section
+                className="flex-shrink-0 overflow-hidden"
+                style={{
+                  width: selectedArticle ? '38%' : '100%',
+                  minWidth: selectedArticle ? '260px' : undefined,
+                  maxWidth: selectedArticle ? '380px' : undefined,
+                  borderRight: selectedArticle ? '1px solid var(--panel-border)' : undefined,
+                  transition: 'width 0.15s ease',
+                }}
+              >
+                <ArticleList />
+              </section>
+            )}
+            {(selectedArticle || readingFocus) && (
               <main className="flex-1 overflow-hidden" style={{ minWidth: 0 }}>
-                <ReadingPane showBack />
+                <ReadingPane showBack={!readingFocus} />
               </main>
             )}
           </div>
@@ -365,8 +368,9 @@ export default function App() {
   // DESKTOP — 3-column (or 2-column) classic layout, unchanged
   // ═══════════════════════════════════════════════════════════════════
   const is2Panel = panelLayout === '2';
-  const showReadingPane = !is2Panel || selectedArticle;
-  const showArticleList = !is2Panel || !selectedArticle;
+  // Reading Focus: reading pane fills the width, sidebar + list hidden.
+  const showReadingPane = readingFocus || !is2Panel || selectedArticle;
+  const showArticleList = !readingFocus && (!is2Panel || !selectedArticle);
 
   return (
     <>
@@ -374,7 +378,7 @@ export default function App() {
         {topbarVisible && <ServerSwitcher />}
         <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Sidebar — full height, no shortcut bar */}
-        {sidebarVisible && (
+        {sidebarVisible && !readingFocus && (
           <>
             <aside
               className="flex-shrink-0 overflow-hidden"

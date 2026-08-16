@@ -131,7 +131,9 @@
     "labels": "Labels",
     "addLabel": "Een label toevoegen",
     "newLabel": "Nieuw label…",
-    "newLabelPlaceholder": "Labelnaam"
+    "newLabelPlaceholder": "Labelnaam",
+    "focusEnter": "Focusmodus (volledig scherm)",
+    "focusExit": "Focusmodus verlaten"
   },
   "preferences": {
     "title": "Voorkeuren",

@@ -131,7 +131,9 @@
     "labels": "Мітки",
     "addLabel": "Додати мітку",
     "newLabel": "Нова мітка…",
-    "newLabelPlaceholder": "Назва мітки"
+    "newLabelPlaceholder": "Назва мітки",
+    "focusEnter": "Режим фокусування (на весь екран)",
+    "focusExit": "Вийти з режиму фокусування"
   },
   "preferences": {
     "title": "Налаштування",

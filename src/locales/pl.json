@@ -131,7 +131,9 @@
     "labels": "Etykiety",
     "addLabel": "Dodaj etykietę",
     "newLabel": "Nowa etykieta…",
-    "newLabelPlaceholder": "Nazwa etykiety"
+    "newLabelPlaceholder": "Nazwa etykiety",
+    "focusEnter": "Tryb skupienia (pełny ekran)",
+    "focusExit": "Wyjdź z trybu skupienia"
   },
   "preferences": {
     "title": "Preferencje",

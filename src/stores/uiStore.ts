@@ -38,6 +38,11 @@ export interface UiState {
   sidebarVisible: boolean;
   toggleSidebar: () => void;
   setSidebarVisible: (v: boolean) => void;
+  // Reading Focus mode: hide the sidebar + article list, reading pane fills the
+  // viewport. Ephemeral (per-session), toggled by button / double-click / Esc.
+  readingFocus: boolean;
+  setReadingFocus: (v: boolean) => void;
+  toggleReadingFocus: () => void;
   topbarVisible: boolean;
   toggleTopbar: () => void;
   organizeMode: boolean;
@@ -142,6 +147,11 @@ export const useUiStore = create<UiState>()((set, get) => ({
     localStorage.setItem('frirss_sidebarVisible', JSON.stringify(v));
     set({ sidebarVisible: v });
   },
+
+  // Reading Focus mode (ephemeral — always starts off on a fresh load).
+  readingFocus: false,
+  setReadingFocus: (v) => set({ readingFocus: v }),
+  toggleReadingFocus: () => set((s) => ({ readingFocus: !s.readingFocus })),
 
   // Server switcher topbar visibility
   topbarVisible: loadJson('frirss_topbarVisible', true),
