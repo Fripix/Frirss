@@ -84,7 +84,8 @@
     "hideTopbar": "Hide servers bar",
     "listOnly": "List only (click to read)",
     "listAndReading": "List + reading side by side",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "searchIn": "Search in {{scope}}"
   },
   "articleRow": {
     "markRead": "Mark as read",

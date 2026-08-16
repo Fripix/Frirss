@@ -212,6 +212,16 @@ export default function ArticleList() {
   }
 
   const feedName = selectedFeed ? selectedFeed.title : t('articleList.allFeeds');
+  // The view a search is scoped to — shown in the search placeholder.
+  const searchScope = selectedFeed
+    ? selectedFeed.title
+    : filter === 'readlater'
+      ? t('sidebar.readLater')
+      : filter === 'starred'
+        ? t('sidebar.starred')
+        : filter === 'unread'
+          ? t('sidebar.unread')
+          : t('articleList.allFeeds');
   // No "— Favoris/Non lus" suffix: the active filter is already shown by the
   // highlighted toolbar button. "À lire plus tard" keeps its name (no toolbar
   // toggle for it). Otherwise just the feed name / "Tous les flux".
@@ -404,7 +414,7 @@ export default function ArticleList() {
                 type="text"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                placeholder={t('articleList.searchPlaceholder')}
+                placeholder={t('articleList.searchIn', { scope: searchScope })}
                 className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border outline-none transition-colors"
                 style={{
                   borderColor: 'var(--panel-border)',

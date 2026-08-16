@@ -82,7 +82,8 @@
     "hideTopbar": "Nascondi la barra dei server",
     "listOnly": "Solo elenco (clic per leggere)",
     "listAndReading": "Elenco + lettura affiancati",
-    "loading": "Caricamento…"
+    "loading": "Caricamento…",
+    "searchIn": "Cerca in {{scope}}"
   },
   "articleRow": {
     "markRead": "Segna come letto",

@@ -82,7 +82,8 @@
     "hideTopbar": "Serverleiste ausblenden",
     "listOnly": "Nur Liste (Klick zum Lesen)",
     "listAndReading": "Liste + Lesen nebeneinander",
-    "loading": "Wird geladen…"
+    "loading": "Wird geladen…",
+    "searchIn": "In {{scope}} suchen"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",

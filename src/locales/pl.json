@@ -82,7 +82,8 @@
     "hideTopbar": "Ukryj pasek serwerów",
     "listOnly": "Tylko lista (kliknij, aby czytać)",
     "listAndReading": "Lista + czytanie obok siebie",
-    "loading": "Ładowanie…"
+    "loading": "Ładowanie…",
+    "searchIn": "Szukaj w {{scope}}"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",

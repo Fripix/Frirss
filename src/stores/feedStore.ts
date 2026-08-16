@@ -95,6 +95,19 @@ const viewKey = (feed: Subscription | null, filter: Filter) => `${feed?.id || ''
 // "all feeds" view (show per-article source), not a single feed.
 export const isCategoryStreamId = (id?: string | null): boolean =>
   !!id && id.startsWith('user/-/label/');
+
+const STARRED_STREAM = 'user/-/state/com.google/starred';
+const READING_LIST_STREAM = 'user/-/state/com.google/reading-list';
+
+// The Google Reader stream a search should be scoped to, matching the current
+// view: the selected feed/category, else the active filter's stream, else the
+// whole reading-list (the "all feeds" view — search everywhere).
+export function resolveSearchStreamId(selectedFeed: Subscription | null, filter: Filter): string {
+  if (filter === 'readlater') return READ_LATER_LABEL;
+  if (filter === 'starred' && !selectedFeed) return STARRED_STREAM;
+  if (selectedFeed) return selectedFeed.id;
+  return READING_LIST_STREAM;
+}
 function memGet(key: string): CachedView | undefined {
   return memCache.get(key);
 }
@@ -788,7 +801,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     }
     set({ searchQuery: query, loading: true });
     try {
-      const result = await searchItems(query, 40);
+      // Scope the search to the current view (feed / category / read-later /
+      // starred), not always the whole reading-list.
+      const { selectedFeed, filter } = get();
+      const result = await searchItems(query, 40, null, resolveSearchStreamId(selectedFeed, filter));
       set({
         articles: result.items.map(normalizeArticle),
         continuation: result.continuation,

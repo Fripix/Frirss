@@ -82,7 +82,8 @@
     "hideTopbar": "Ocultar a barra de servidores",
     "listOnly": "Apenas lista (clique para ler)",
     "listAndReading": "Lista + leitura lado a lado",
-    "loading": "A carregar…"
+    "loading": "A carregar…",
+    "searchIn": "Pesquisar em {{scope}}"
   },
   "articleRow": {
     "markRead": "Marcar como lido",

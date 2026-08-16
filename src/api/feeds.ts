@@ -167,12 +167,13 @@ export async function markAllAsRead(streamId: string, timestampUsec: string | nu
 export async function searchItems(
   query: string,
   count = 40,
-  continuation: string | null = null
+  continuation: string | null = null,
+  streamId = 'user/-/state/com.google/reading-list'
 ): Promise<GReaderStream> {
   const params: Record<string, string | number> = { output: 'json', n: count, q: query };
   if (continuation) params.c = continuation;
   const { data } = await client.get<{ items?: GReaderItem[]; continuation?: string | null }>(
-    `${BASE}/stream/contents/user/-/state/com.google/reading-list`,
+    `${BASE}/stream/contents/${buildStreamPath(streamId)}`,
     { params }
   );
   return {

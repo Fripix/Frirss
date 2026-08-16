@@ -34,7 +34,7 @@ vi.mock('../lib/offlineStore', () => ({
   subsPut: vi.fn(() => Promise.resolve()),
 }));
 
-import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId } from './feedStore';
+import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId } from './feedStore';
 import { useUiStore } from './uiStore';
 import * as api from '../api/feeds';
 import * as offline from '../lib/offlineStore';
@@ -225,6 +225,24 @@ describe('isCategoryStreamId', () => {
     expect(isCategoryStreamId('feed/https://example.com/rss')).toBe(false);
     expect(isCategoryStreamId(undefined)).toBe(false);
     expect(isCategoryStreamId(null)).toBe(false);
+  });
+});
+
+describe('resolveSearchStreamId', () => {
+  const feed = { id: 'feed/https://ex.com/rss', title: 'Ex' } as unknown as Subscription;
+  it('scopes to the selected feed/category', () => {
+    expect(resolveSearchStreamId(feed, 'all')).toBe('feed/https://ex.com/rss');
+    expect(resolveSearchStreamId(feed, 'unread')).toBe('feed/https://ex.com/rss');
+  });
+  it('scopes to read-later when that filter is active', () => {
+    expect(resolveSearchStreamId(null, 'readlater')).toBe('user/-/label/À lire plus tard');
+  });
+  it('scopes to starred (global) when that filter is active', () => {
+    expect(resolveSearchStreamId(null, 'starred')).toBe('user/-/state/com.google/starred');
+  });
+  it('defaults to the whole reading-list on the all-feeds view', () => {
+    expect(resolveSearchStreamId(null, 'all')).toBe('user/-/state/com.google/reading-list');
+    expect(resolveSearchStreamId(null, 'unread')).toBe('user/-/state/com.google/reading-list');
   });
 });
 
