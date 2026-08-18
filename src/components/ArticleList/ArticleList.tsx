@@ -10,6 +10,7 @@ import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
 import SwipeableArticleRow from './SwipeableArticleRow';
 import { StarButton, ReadLaterButton, MarkReadButton } from './ArticleActions';
+import ArticleCard from './ArticleCard';
 import type { Article, Filter } from '../../types';
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
@@ -523,48 +524,74 @@ export default function ArticleList() {
                   {group.label}
                 </div>
               )}
-              {group.articles.map((article) => {
-                const row = (
-                  <ArticleRow
-                    article={article}
-                    viewMode={viewMode}
-                    showSource={showSource}
-                    active={selectedArticle?.id === article.id}
-                    onSelect={() => selectArticle(article)}
-                    onToggleStar={(e) => {
-                      e.stopPropagation();
-                      toggleStar(article);
-                    }}
-                    onToggleRead={(e) => {
-                      e.stopPropagation();
-                      toggleRead(article);
-                    }}
-                    onToggleReadLater={(e) => {
-                      e.stopPropagation();
-                      toggleReadLater(article);
-                    }}
-                  />
-                );
-
-                if (!isDesktop) {
-                  const isReadLater = article.labels?.includes(READ_LATER_LABEL);
-                  return (
-                    <SwipeableArticleRow
+              {viewMode === 'grid' ? (
+                <div className="article-grid">
+                  {group.articles.map((article) => (
+                    <ArticleCard
                       key={article.id}
-                      onSwipeLeft={() => toggleRead(article)}
-                      onSwipeRight={() => toggleReadLater(article)}
-                      swipeLeftLabel={article.read ? t('swipe.unread') : t('swipe.read')}
-                      swipeLeftColor={article.read ? '#3b82f6' : '#10b981'}
-                      swipeRightLabel={isReadLater ? t('swipe.removeReadLater') : t('swipe.readLater')}
-                      swipeRightColor="var(--readlater-color)"
-                    >
-                      {row}
-                    </SwipeableArticleRow>
+                      article={article}
+                      showSource={showSource}
+                      active={selectedArticle?.id === article.id}
+                      onSelect={() => selectArticle(article)}
+                      onToggleStar={(e) => {
+                        e.stopPropagation();
+                        toggleStar(article);
+                      }}
+                      onToggleRead={(e) => {
+                        e.stopPropagation();
+                        toggleRead(article);
+                      }}
+                      onToggleReadLater={(e) => {
+                        e.stopPropagation();
+                        toggleReadLater(article);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                group.articles.map((article) => {
+                  const row = (
+                    <ArticleRow
+                      article={article}
+                      viewMode={viewMode}
+                      showSource={showSource}
+                      active={selectedArticle?.id === article.id}
+                      onSelect={() => selectArticle(article)}
+                      onToggleStar={(e) => {
+                        e.stopPropagation();
+                        toggleStar(article);
+                      }}
+                      onToggleRead={(e) => {
+                        e.stopPropagation();
+                        toggleRead(article);
+                      }}
+                      onToggleReadLater={(e) => {
+                        e.stopPropagation();
+                        toggleReadLater(article);
+                      }}
+                    />
                   );
-                }
 
-                return <div key={article.id}>{row}</div>;
-              })}
+                  if (!isDesktop) {
+                    const isReadLater = article.labels?.includes(READ_LATER_LABEL);
+                    return (
+                      <SwipeableArticleRow
+                        key={article.id}
+                        onSwipeLeft={() => toggleRead(article)}
+                        onSwipeRight={() => toggleReadLater(article)}
+                        swipeLeftLabel={article.read ? t('swipe.unread') : t('swipe.read')}
+                        swipeLeftColor={article.read ? '#3b82f6' : '#10b981'}
+                        swipeRightLabel={isReadLater ? t('swipe.removeReadLater') : t('swipe.readLater')}
+                        swipeRightColor="var(--readlater-color)"
+                      >
+                        {row}
+                      </SwipeableArticleRow>
+                    );
+                  }
+
+                  return <div key={article.id}>{row}</div>;
+                })
+              )}
             </div>
           ))
         )}
