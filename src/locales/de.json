@@ -307,7 +307,9 @@
       "keySpace": "Leertaste",
       "keyEscape": "Esc",
       "keyEnter": "Eingabe",
-      "keyDelete": "Entf"
+      "keyDelete": "Entf",
+      "escBackToGrid": "Zurück zum Raster",
+      "escExitFocus": "Fokusmodus verlassen"
     },
     "offline": {
       "title": "Offline",

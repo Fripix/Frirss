@@ -309,7 +309,9 @@
       "keySpace": "Espace",
       "keyEscape": "Échap",
       "keyEnter": "Entrée",
-      "keyDelete": "Suppr"
+      "keyDelete": "Suppr",
+      "escBackToGrid": "Retour à la grille",
+      "escExitFocus": "Quitter le mode Focus"
     },
     "offline": {
       "title": "Hors-ligne",

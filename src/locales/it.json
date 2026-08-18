@@ -307,7 +307,9 @@
       "keySpace": "Spazio",
       "keyEscape": "Esc",
       "keyEnter": "Invio",
-      "keyDelete": "Canc"
+      "keyDelete": "Canc",
+      "escBackToGrid": "Torna alla griglia",
+      "escExitFocus": "Esci dalla modalità Focus"
     },
     "offline": {
       "title": "Offline",

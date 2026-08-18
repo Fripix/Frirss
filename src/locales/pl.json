@@ -307,7 +307,9 @@
       "keySpace": "Spacja",
       "keyEscape": "Esc",
       "keyEnter": "Enter",
-      "keyDelete": "Del"
+      "keyDelete": "Del",
+      "escBackToGrid": "Powrót do siatki",
+      "escExitFocus": "Wyjdź z trybu skupienia"
     },
     "offline": {
       "title": "Offline",

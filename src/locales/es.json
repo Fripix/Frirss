@@ -307,7 +307,9 @@
       "keySpace": "Espacio",
       "keyEscape": "Esc",
       "keyEnter": "Intro",
-      "keyDelete": "Supr"
+      "keyDelete": "Supr",
+      "escBackToGrid": "Volver a la cuadrícula",
+      "escExitFocus": "Salir del modo Enfoque"
     },
     "offline": {
       "title": "Sin conexión",

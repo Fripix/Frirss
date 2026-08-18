@@ -23,6 +23,8 @@ function formatKey(key: string): string {
 export default function ShortcutBar() {
   const { t } = useTranslation();
   const shortcuts = useUiStore((s) => s.shortcuts);
+  const readingFocus = useUiStore((s) => s.readingFocus);
+  const panelLayout = useUiStore((s) => s.panelLayout);
   const selectedArticle = useFeedStore((s) => s.selectedArticle);
   const breakpoint = useBreakpoint();
 
@@ -31,6 +33,14 @@ export default function ShortcutBar() {
 
   const context = selectedArticle ? 'reading' : 'list';
   const actions = shortcutGroups[context] || shortcutGroups.list;
+
+  // Escape isn't a configurable shortcut; surface it contextually so users know
+  // it exits Focus mode / returns from an open card to the grid.
+  const escLabel = readingFocus
+    ? t('preferences.shortcuts.escExitFocus')
+    : panelLayout === 'grid' && selectedArticle
+      ? t('preferences.shortcuts.escBackToGrid')
+      : null;
 
   return (
     <div
@@ -58,6 +68,24 @@ export default function ShortcutBar() {
           </span>
         </div>
       ))}
+      {escLabel && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <kbd
+            className="inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 text-[9px] font-mono font-medium rounded"
+            style={{
+              background: 'var(--panel-bg)',
+              border: '1px solid var(--panel-border)',
+              color: 'var(--list-title)',
+              boxShadow: '0 1px 0 var(--panel-border)',
+            }}
+          >
+            {formatKey('Escape')}
+          </kbd>
+          <span className="text-[9px]" style={{ color: 'var(--list-summary)' }}>
+            {escLabel}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

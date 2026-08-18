@@ -309,7 +309,9 @@
       "keySpace": "Space",
       "keyEscape": "Esc",
       "keyEnter": "Enter",
-      "keyDelete": "Del"
+      "keyDelete": "Del",
+      "escBackToGrid": "Back to grid",
+      "escExitFocus": "Exit focus mode"
     },
     "offline": {
       "title": "Offline",

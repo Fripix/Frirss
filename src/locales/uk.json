@@ -307,7 +307,9 @@
       "keySpace": "Пробіл",
       "keyEscape": "Esc",
       "keyEnter": "Enter",
-      "keyDelete": "Del"
+      "keyDelete": "Del",
+      "escBackToGrid": "Назад до сітки",
+      "escExitFocus": "Вийти з режиму фокус"
     },
     "offline": {
       "title": "Офлайн",
