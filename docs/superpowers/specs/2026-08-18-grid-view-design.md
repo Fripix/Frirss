@@ -1,7 +1,16 @@
 # Vue grille — design
 
 **Date** : 2026-08-18
-**Statut** : approuvé (brainstorming) — en attente relecture spec
+**Statut** : implémenté
+
+> **Correction post-implémentation.** La grille est un **mode de disposition**
+> (`panelLayout='grid'`), 3e bouton du groupe *Liste seule / Liste + lecture
+> côte à côte* — **pas** un 4e mode de densité du switcher Aperçu/Standard/Compact
+> (ce switcher est masqué quand la grille est active). `panelLayout` est
+> local à l'appareil (non synchronisé). Les **séparateurs de date sont désactivés
+> par défaut** dans la grille (réglage propre `gridDateSeparators`, synchronisé) :
+> par défaut une galerie continue, activables pour un regroupement par date. Le
+> nombre de colonnes suit la largeur de la fenêtre (CSS `auto-fill`).
 
 ## Objectif
 
