@@ -665,27 +665,51 @@ html {
 /* ── "X new articles" banner after a manual refresh (auto-fades) ── */
 .refresh-banner {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 72;
-  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--accent, #4cd4a1);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(135deg, var(--accent, #4cd4a1) 0%, var(--accent-dark, #38b888) 100%);
   color: #fff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32),
+              0 0 0 4px color-mix(in srgb, var(--accent, #4cd4a1) 22%, transparent);
   pointer-events: none;
   white-space: nowrap;
-  animation: refresh-banner-in 0.25s ease, refresh-banner-out 0.4s ease 3.6s forwards;
+  animation: refresh-banner-in 0.42s cubic-bezier(0.18, 1.25, 0.4, 1),
+             refresh-banner-out 0.45s ease 4.55s forwards;
+}
+.refresh-banner__icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+/* one-shot ring that flares out from the banner on entrance to catch the eye */
+.refresh-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--accent, #4cd4a1);
+  animation: refresh-banner-flare 0.7s ease-out 0.1s forwards;
 }
 @keyframes refresh-banner-in {
-  from { transform: translate(-50%, -12px); opacity: 0; }
-  to   { transform: translate(-50%, 0);     opacity: 1; }
+  from { transform: translate(-50%, -18px) scale(0.9); opacity: 0; }
+  to   { transform: translate(-50%, 0)      scale(1);   opacity: 1; }
 }
 @keyframes refresh-banner-out {
-  to { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 0; transform: translate(-50%, -10px); }
+}
+@keyframes refresh-banner-flare {
+  from { transform: scale(1);    opacity: 0.55; }
+  to   { transform: scale(1.28); opacity: 0; }
 }
 
 /* Sidebar feed row pulse — marks feeds that just received new articles. */
@@ -697,7 +721,8 @@ html {
   50%      { box-shadow: inset 3px 0 0 var(--accent, #4cd4a1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .refresh-banner { animation: refresh-banner-in 0.25s ease; }
+  .refresh-banner { animation: refresh-banner-in 0.25s ease, refresh-banner-out 0.45s ease 4.55s forwards; }
+  .refresh-banner::after { animation: none; display: none; }
   .feed-new-pulse { animation: none; box-shadow: inset 3px 0 0 var(--accent, #4cd4a1); }
 }
 
