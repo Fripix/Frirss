@@ -326,7 +326,21 @@
       "preparing": "Preparando…",
       "done": "Listo sin conexión",
       "auto": "Actualizar al abrir la app",
-      "autoHint": "Actualiza la caché sin conexión en segundo plano al abrir (en línea, máx. 1×/h). Incremental."
+      "autoHint": "Actualiza la caché sin conexión en segundo plano al abrir (en línea, máx. 1×/h). Incremental.",
+      "imagesTitle": "Imágenes sin conexión",
+      "imagesHint": "Cantidad de imágenes conservadas para la lectura sin conexión. Los tamaños son aproximados.",
+      "imagesNone": "Sin imágenes",
+      "imagesLight": "Ligero",
+      "imagesStandard": "Estándar",
+      "imagesMax": "Máximo",
+      "imagesCustom": "Personalizado",
+      "imagesLightHint": "solo miniaturas",
+      "imagesUsage": "Espacio usado: ~{{used}}",
+      "imagesQuota": "su navegador permite ~{{quota}} en este dispositivo",
+      "imagesOverQuota": "Este ajuste supera lo que permite el dispositivo: el navegador purgará automáticamente.",
+      "imagesClear": "Vaciar las imágenes",
+      "imagesCleared": "Imágenes eliminadas",
+      "imagesMb": "MB"
     }
   },
   "login": {

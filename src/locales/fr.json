@@ -328,7 +328,21 @@
       "preparing": "Préparation…",
       "done": "Hors-ligne prêt",
       "auto": "Mettre à jour automatiquement à l'ouverture",
-      "autoHint": "Rafraîchit le cache hors-ligne en arrière-plan à chaque ouverture (en ligne, max 1×/h). Incrémental."
+      "autoHint": "Rafraîchit le cache hors-ligne en arrière-plan à chaque ouverture (en ligne, max 1×/h). Incrémental.",
+      "imagesTitle": "Images hors ligne",
+      "imagesHint": "Quantité d’images conservées pour la lecture hors ligne. Les tailles sont approximatives.",
+      "imagesNone": "Aucune image",
+      "imagesLight": "Léger",
+      "imagesStandard": "Standard",
+      "imagesMax": "Maximum",
+      "imagesCustom": "Personnalisé",
+      "imagesLightHint": "vignettes seules",
+      "imagesUsage": "Espace utilisé : ~{{used}}",
+      "imagesQuota": "votre navigateur autorise ~{{quota}} sur cet appareil",
+      "imagesOverQuota": "Ce réglage dépasse ce que cet appareil autorise — le navigateur purgera automatiquement.",
+      "imagesClear": "Vider les images",
+      "imagesCleared": "Images supprimées",
+      "imagesMb": "Mo"
     }
   },
   "login": {

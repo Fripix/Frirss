@@ -326,7 +326,21 @@
       "preparing": "Preparazione…",
       "done": "Offline pronto",
       "auto": "Aggiorna all'apertura",
-      "autoHint": "Aggiorna la cache offline in background a ogni apertura (online, max 1×/ora). Incrementale."
+      "autoHint": "Aggiorna la cache offline in background a ogni apertura (online, max 1×/ora). Incrementale.",
+      "imagesTitle": "Immagini offline",
+      "imagesHint": "Quantità di immagini conservate per la lettura offline. Le dimensioni sono approssimative.",
+      "imagesNone": "Nessuna immagine",
+      "imagesLight": "Leggero",
+      "imagesStandard": "Standard",
+      "imagesMax": "Massimo",
+      "imagesCustom": "Personalizzato",
+      "imagesLightHint": "solo miniature",
+      "imagesUsage": "Spazio usato: ~{{used}}",
+      "imagesQuota": "il browser consente ~{{quota}} su questo dispositivo",
+      "imagesOverQuota": "Questa impostazione supera il limite del dispositivo: il browser eliminerà automaticamente.",
+      "imagesClear": "Svuota le immagini",
+      "imagesCleared": "Immagini rimosse",
+      "imagesMb": "MB"
     }
   },
   "login": {

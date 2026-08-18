@@ -326,7 +326,21 @@
       "preparing": "Wird vorbereitet…",
       "done": "Offline bereit",
       "auto": "Beim Öffnen automatisch aktualisieren",
-      "autoHint": "Aktualisiert den Offline-Cache im Hintergrund bei jedem Öffnen (online, max. 1×/Std). Inkrementell."
+      "autoHint": "Aktualisiert den Offline-Cache im Hintergrund bei jedem Öffnen (online, max. 1×/Std). Inkrementell.",
+      "imagesTitle": "Offline-Bilder",
+      "imagesHint": "Wie viele Bilder für die Offline-Lektüre behalten werden. Größen sind Näherungswerte.",
+      "imagesNone": "Keine Bilder",
+      "imagesLight": "Sparsam",
+      "imagesStandard": "Standard",
+      "imagesMax": "Maximum",
+      "imagesCustom": "Benutzerdefiniert",
+      "imagesLightHint": "nur Vorschaubilder",
+      "imagesUsage": "Belegter Speicher: ~{{used}}",
+      "imagesQuota": "Ihr Browser erlaubt ~{{quota}} auf diesem Gerät",
+      "imagesOverQuota": "Diese Einstellung überschreitet das Gerätelimit — der Browser räumt automatisch auf.",
+      "imagesClear": "Bilder leeren",
+      "imagesCleared": "Bilder entfernt",
+      "imagesMb": "MB"
     }
   },
   "login": {

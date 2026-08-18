@@ -326,7 +326,21 @@
       "preparing": "Przygotowywanie…",
       "done": "Offline gotowe",
       "auto": "Aktualizuj przy otwarciu",
-      "autoHint": "Odświeża pamięć offline w tle przy każdym otwarciu (online, maks. 1×/godz). Przyrostowo."
+      "autoHint": "Odświeża pamięć offline w tle przy każdym otwarciu (online, maks. 1×/godz). Przyrostowo.",
+      "imagesTitle": "Obrazy offline",
+      "imagesHint": "Ile obrazów zachowywanych do czytania offline. Rozmiary są przybliżone.",
+      "imagesNone": "Bez obrazów",
+      "imagesLight": "Lekki",
+      "imagesStandard": "Standardowy",
+      "imagesMax": "Maksymalny",
+      "imagesCustom": "Własny",
+      "imagesLightHint": "tylko miniatury",
+      "imagesUsage": "Zajęte miejsce: ~{{used}}",
+      "imagesQuota": "przeglądarka pozwala na ~{{quota}} na tym urządzeniu",
+      "imagesOverQuota": "To ustawienie przekracza limit urządzenia — przeglądarka automatycznie wyczyści dane.",
+      "imagesClear": "Wyczyść obrazy",
+      "imagesCleared": "Obrazy usunięte",
+      "imagesMb": "MB"
     }
   },
   "login": {

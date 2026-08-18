@@ -326,7 +326,21 @@
       "preparing": "A preparar…",
       "done": "Offline pronto",
       "auto": "Atualizar ao abrir a app",
-      "autoHint": "Atualiza a cache offline em segundo plano a cada abertura (online, máx. 1×/h). Incremental."
+      "autoHint": "Atualiza a cache offline em segundo plano a cada abertura (online, máx. 1×/h). Incremental.",
+      "imagesTitle": "Imagens offline",
+      "imagesHint": "Quantidade de imagens guardadas para leitura offline. Os tamanhos são aproximados.",
+      "imagesNone": "Sem imagens",
+      "imagesLight": "Leve",
+      "imagesStandard": "Padrão",
+      "imagesMax": "Máximo",
+      "imagesCustom": "Personalizado",
+      "imagesLightHint": "apenas miniaturas",
+      "imagesUsage": "Espaço usado: ~{{used}}",
+      "imagesQuota": "o seu navegador permite ~{{quota}} neste dispositivo",
+      "imagesOverQuota": "Esta definição excede o que o dispositivo permite — o navegador irá purgar automaticamente.",
+      "imagesClear": "Esvaziar as imagens",
+      "imagesCleared": "Imagens removidas",
+      "imagesMb": "MB"
     }
   },
   "login": {
