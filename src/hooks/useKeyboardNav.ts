@@ -21,6 +21,15 @@ export function useKeyboardNav(): void {
         return;
       }
 
+      // In grid mode, Escape closes the reader overlay and returns to the grid.
+      if (e.key === 'Escape'
+          && useUiStore.getState().viewMode === 'grid'
+          && useFeedStore.getState().selectedArticle) {
+        e.preventDefault();
+        useFeedStore.getState().selectArticle(null);
+        return;
+      }
+
       const key = e.key;
       const store = useFeedStore.getState();
 
