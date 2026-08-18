@@ -100,9 +100,9 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/cors-proxy\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        // Cache article images for offline reading (CacheFirst). Workbox has no
-        // byte cap, so ~550 MB is approximated via maxEntries (~275 KB avg);
-        // purgeOnQuotaError frees space if the device storage limit is hit.
+        // Cache article images for offline reading (CacheFirst). Sizes are not
+        // readable for opaque cross-origin responses, so maxEntries is only a
+        // backstop; the user-facing budget lives in the app preferences.
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'image',
@@ -110,7 +110,9 @@ export default defineConfig({
             options: {
               cacheName: 'frirss-images',
               expiration: {
-                maxEntries: 2000,
+                // Backstop only — the real budget is enforced in the app from
+                // storage estimates (opaque images have no readable size).
+                maxEntries: 6000,
                 maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
                 purgeOnQuotaError: true,
               },
