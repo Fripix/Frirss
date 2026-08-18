@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { OfflineImagePreset } from '../lib/offlineImages';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -85,6 +86,12 @@ export interface UiState {
   // Auto-refresh the offline cache on app open (local per-device, never synced).
   autoOffline: boolean;
   setAutoOffline: (v: boolean) => void;
+  // How much offline image data to keep (per user, synced). 'none' disables
+  // image prefetch entirely; 'custom' uses offlineImageCustomMb.
+  offlineImagePreset: OfflineImagePreset;
+  setOfflineImagePreset: (p: OfflineImagePreset) => void;
+  offlineImageCustomMb: number;
+  setOfflineImageCustomMb: (mb: number) => void;
   showDateSeparators: boolean;
   toggleDateSeparators: () => void;
   // Group grid cards by date. Independent of showDateSeparators (which drives
@@ -273,6 +280,17 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ autoOffline: v });
   },
 
+  offlineImagePreset: loadJson<OfflineImagePreset>('frirss_offlineImagePreset', 'standard'),
+  setOfflineImagePreset: (p) => {
+    localStorage.setItem('frirss_offlineImagePreset', JSON.stringify(p));
+    set({ offlineImagePreset: p });
+  },
+  offlineImageCustomMb: loadJson('frirss_offlineImageCustomMb', 500),
+  setOfflineImageCustomMb: (mb) => {
+    localStorage.setItem('frirss_offlineImageCustomMb', JSON.stringify(mb));
+    set({ offlineImageCustomMb: mb });
+  },
+
   // Show date separators in article list (Aujourd'hui, Hier, …)
   showDateSeparators: loadJson('frirss_showDateSeparators', true),
   toggleDateSeparators: () => {
@@ -435,7 +453,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-      'confirmMarkAllRead',
+      'confirmMarkAllRead', 'offlineImagePreset', 'offlineImageCustomMb',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -456,7 +474,7 @@ export const UI_SYNC_KEYS = [
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-  'confirmMarkAllRead',
+  'confirmMarkAllRead', 'offlineImagePreset', 'offlineImageCustomMb',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files
