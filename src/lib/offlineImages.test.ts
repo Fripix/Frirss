@@ -80,6 +80,20 @@ describe('imageBudget', () => {
   it('clamps an absurdly large edited value', () => {
     expect(imageBudget('standard', { standard: 99999 }, quota).bytes).toBe(20480 * MB);
   });
+
+  // A browser that stored a preset we have since removed ('custom') must not
+  // take the app down — it falls back to the standard budget.
+  it('survives a preset persisted by an older version', () => {
+    const stale = 'custom' as unknown as Parameters<typeof imageBudget>[0];
+    expect(() => imageBudget(stale, {}, quota)).not.toThrow();
+    expect(imageBudget(stale, {}, quota)).toEqual({ bytes: 4100 * MB, perArticle: 6 });
+  });
+
+  it('survives an unknown preset in defaultPresetMb', () => {
+    const stale = 'custom' as unknown as Parameters<typeof defaultPresetMb>[0];
+    expect(() => defaultPresetMb(stale, quota)).not.toThrow();
+    expect(defaultPresetMb(stale, quota)).toBe(4100);
+  });
 });
 
 describe('OFFLINE_IMAGE_PRESETS', () => {

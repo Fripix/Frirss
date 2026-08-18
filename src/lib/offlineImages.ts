@@ -33,12 +33,20 @@ const SHAPE: Record<OfflineImageSized, { share: number; minMb: number; maxMb: nu
 const roundTo50 = (mb: number): number => Math.round(mb / 50) * 50;
 
 /**
+ * Guard against sizes persisted by an older version (localStorage outlives the
+ * code — 'custom' existed once and would otherwise crash the whole tab).
+ */
+function shapeOf(preset: OfflineImageSized) {
+  return SHAPE[preset] ?? SHAPE.standard;
+}
+
+/**
  * Suggested size for a preset on this device, in Mo. Derived from the quota the
  * browser reports so the presets mean something on a phone as well as on a
  * desktop; falls back to fixed values when the quota is unknown.
  */
 export function defaultPresetMb(preset: OfflineImageSized, quotaBytes: number): number {
-  const s = SHAPE[preset];
+  const s = shapeOf(preset);
   if (!quotaBytes || quotaBytes <= 0) return s.fallbackMb;
   const raw = (quotaBytes * s.share) / MB;
   return Math.min(s.maxMb, Math.max(s.minMb, roundTo50(raw)));
@@ -54,7 +62,7 @@ export function imageBudget(
   quotaBytes: number,
 ): ImageBudget {
   if (preset === 'none') return { bytes: 0, perArticle: 0 };
-  const s = SHAPE[preset];
+  const s = shapeOf(preset);
   const edited = sizes[preset];
   const mb = edited
     ? Math.min(EDIT_MAX_MB, Math.max(EDIT_MIN_MB, Math.round(edited)))

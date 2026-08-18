@@ -97,4 +97,17 @@ describe('uiStore', () => {
     useUiStore.getState().toggleHideReadFeeds();
     expect(useUiStore.getState().hideReadFeeds).toBe(false);
   });
+
+  // A device still on an older version can sync a preset we have removed;
+  // taking it as-is used to crash the offline preferences tab.
+  it('applyServerPrefs normalises a retired image preset', () => {
+    useUiStore.getState().applyServerPrefs({ offlineImagePreset: 'custom' });
+    expect(useUiStore.getState().offlineImagePreset).toBe('standard');
+    expect(localStorage.getItem('frirss_offlineImagePreset')).toBe('"standard"');
+  });
+
+  it('applyServerPrefs keeps a valid image preset', () => {
+    useUiStore.getState().applyServerPrefs({ offlineImagePreset: 'max' });
+    expect(useUiStore.getState().offlineImagePreset).toBe('max');
+  });
 });

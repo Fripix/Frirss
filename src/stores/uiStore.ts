@@ -10,6 +10,11 @@ function loadJson<T>(key: string, fallback: T): T {
   }
 }
 
+/** Any preset value we no longer ship falls back to 'standard'. */
+function normalizeImagePreset(v: unknown): OfflineImagePreset {
+  return v === 'none' || v === 'light' || v === 'standard' || v === 'max' ? v : 'standard';
+}
+
 export type Shortcuts = Record<string, string>;
 
 const defaultShortcuts: Shortcuts = {
@@ -285,7 +290,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ autoOffline: v });
   },
 
-  offlineImagePreset: loadJson<OfflineImagePreset>('frirss_offlineImagePreset', 'standard'),
+  // Normalised on load: localStorage outlives the code, and an older version
+  // stored presets ('custom') that no longer exist.
+  offlineImagePreset: normalizeImagePreset(loadJson('frirss_offlineImagePreset', 'standard')),
   setOfflineImagePreset: (p) => {
     localStorage.setItem('frirss_offlineImagePreset', JSON.stringify(p));
     set({ offlineImagePreset: p });
@@ -472,8 +479,11 @@ export const useUiStore = create<UiState>()((set, get) => ({
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
-        localStorage.setItem(`frirss_${k}`, JSON.stringify(prefs[k]));
-        next[k] = prefs[k];
+        // A preset synced from a device still on an older version can name a
+        // preset we dropped — normalise it here too, not just on load.
+        const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k]) : prefs[k];
+        localStorage.setItem(`frirss_${k}`, JSON.stringify(value));
+        next[k] = value;
       }
     }
 
