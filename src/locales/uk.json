@@ -83,7 +83,8 @@
     "listOnly": "Лише список (натисніть, щоб читати)",
     "listAndReading": "Список + читання поруч",
     "loading": "Завантаження…",
-    "searchIn": "Пошук у {{scope}}"
+    "searchIn": "Пошук у {{scope}}",
+    "gridLayout": "Сітка"
   },
   "articleRow": {
     "markRead": "Позначити прочитаним",
@@ -466,8 +467,7 @@
   "viewMode": {
     "compact": "Компактний",
     "standard": "Стандартний",
-    "preview": "Перегляд",
-    "grid": "Сітка"
+    "preview": "Перегляд"
   },
   "connection": {
     "offline": "Офлайн — читання з кешу",

@@ -55,19 +55,41 @@ export default function ArticleList() {
   const toggleShowSourceInAll = useUiStore((s) => s.toggleShowSourceInAll);
   const showDateSeparators = useUiStore((s) => s.showDateSeparators);
   const toggleDateSeparators = useUiStore((s) => s.toggleDateSeparators);
+  const gridDateSeparators = useUiStore((s) => s.gridDateSeparators);
+  const toggleGridDateSeparators = useUiStore((s) => s.toggleGridDateSeparators);
   const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
   const topbarVisible = useUiStore((s) => s.topbarVisible);
   const toggleTopbar = useUiStore((s) => s.toggleTopbar);
   const breakpoint = useBreakpoint();
   const isDesktop = breakpoint === 'desktop';
   const isMobile = breakpoint === 'mobile';
-  const is2Panel = panelLayout === '2' || !isDesktop;
+  // Grid is a full-width layout: like 2-panel, the list body spans the whole
+  // width and the reading pane replaces it on selection.
+  const gridLayout = panelLayout === 'grid';
+  const is2Panel = panelLayout === '2' || gridLayout || !isDesktop;
+  // Date grouping: the grid has its own (off-by-default) toggle; the list views
+  // use the shared one.
+  const dateSepActive = gridLayout ? gridDateSeparators : showDateSeparators;
+  const toggleDateSep = gridLayout ? toggleGridDateSeparators : toggleDateSeparators;
 
   // Determine if source name should be shown. A category view aggregates many
   // feeds, so it behaves like the multi-source "all feeds" view, not a single
   // feed (where the source would be redundant).
   const isInFeed = !!selectedFeed && !isCategoryStreamId(selectedFeed.id);
   const showSource = isInFeed ? showSourceInFeed : showSourceInAll;
+
+  const renderCard = (article: Article) => (
+    <ArticleCard
+      key={article.id}
+      article={article}
+      showSource={showSource}
+      active={selectedArticle?.id === article.id}
+      onSelect={() => selectArticle(article)}
+      onToggleStar={(e) => { e.stopPropagation(); toggleStar(article); }}
+      onToggleRead={(e) => { e.stopPropagation(); toggleRead(article); }}
+      onToggleReadLater={(e) => { e.stopPropagation(); toggleReadLater(article); }}
+    />
+  );
 
   const listRef = useRef<HTMLDivElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -283,17 +305,19 @@ export default function ArticleList() {
                 >
                   <SheetRow icon={<SourceGlyph />} label={t('articleList.feedSource')} active={showSource}
                     onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll} />
-                  <SheetRow icon={<DateGlyph />} label={t('articleList.dateSeparators')} active={showDateSeparators}
-                    onClick={toggleDateSeparators} />
+                  <SheetRow icon={<DateGlyph />} label={t('articleList.dateSeparators')} active={dateSepActive}
+                    onClick={toggleDateSep} />
                   <SheetRow icon={<TopbarGlyph on={topbarVisible} />} label={t('articleList.serverBar')} active={topbarVisible}
                     onClick={toggleTopbar} />
 
                   <SheetDivider />
 
-                  <div className="px-3 py-2 flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-medium" style={{ color: 'var(--list-title)' }}>{t('articleList.displayMode')}</span>
-                    <ViewModeSwitcher />
-                  </div>
+                  {!gridLayout && (
+                    <div className="px-3 py-2 flex items-center justify-between gap-2">
+                      <span className="text-[13px] font-medium" style={{ color: 'var(--list-title)' }}>{t('articleList.displayMode')}</span>
+                      <ViewModeSwitcher />
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -340,9 +364,9 @@ export default function ArticleList() {
                 onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll}
                 tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
               />
-              <DateSepToggle active={showDateSeparators} onClick={toggleDateSeparators} />
+              <DateSepToggle active={dateSepActive} onClick={toggleDateSep} />
               <TopbarToggle />
-              <ViewModeSwitcher />
+              {!gridLayout && <ViewModeSwitcher />}
               {isDesktop && <LayoutToggle />}
             </div>
           </div>
@@ -509,10 +533,15 @@ export default function ArticleList() {
           </div>
         ) : articles.length === 0 ? (
           <EmptyState filter={filter} searchQuery={searchQuery} />
+        ) : gridLayout && !gridDateSeparators ? (
+          /* Grid, default: one continuous gallery, no date bands. */
+          <div className="article-grid">
+            {articles.map(renderCard)}
+          </div>
         ) : (
           groups.map((group, groupIdx) => (
             <div key={`${group.label}-${groupIdx}`}>
-              {showDateSeparators && (
+              {dateSepActive && (
                 <div
                   className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest sticky top-0 z-10"
                   style={{
@@ -524,29 +553,9 @@ export default function ArticleList() {
                   {group.label}
                 </div>
               )}
-              {viewMode === 'grid' ? (
+              {gridLayout ? (
                 <div className="article-grid">
-                  {group.articles.map((article) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      showSource={showSource}
-                      active={selectedArticle?.id === article.id}
-                      onSelect={() => selectArticle(article)}
-                      onToggleStar={(e) => {
-                        e.stopPropagation();
-                        toggleStar(article);
-                      }}
-                      onToggleRead={(e) => {
-                        e.stopPropagation();
-                        toggleRead(article);
-                      }}
-                      onToggleReadLater={(e) => {
-                        e.stopPropagation();
-                        toggleReadLater(article);
-                      }}
-                    />
-                  ))}
+                  {group.articles.map(renderCard)}
                 </div>
               ) : (
                 group.articles.map((article) => {
@@ -1089,6 +1098,20 @@ function LayoutToggle() {
           <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
           <line x1="11" y1="4.5" x2="11" y2="19.5" />
           <path strokeLinecap="round" d="M6 9h3M6 12h3M14 9h4M14 11.5h4M14 14h2.5" />
+        </svg>
+      </button>
+      <button
+        onClick={() => setPanelLayout('grid')}
+        title={t('articleList.gridLayout')}
+        className={`p-1 rounded transition-all ${
+          panelLayout === 'grid'
+            ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'
+            : 'text-[var(--list-summary)] hover:text-[var(--list-title)]'
+        }`}
+      >
+        {/* Grid icon — full-width card gallery */}
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5zm-10 10h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5z" />
         </svg>
       </button>
     </div>

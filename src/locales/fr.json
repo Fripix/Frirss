@@ -85,7 +85,8 @@
     "listOnly": "Liste seule (clic pour lire)",
     "listAndReading": "Liste + lecture côte à côte",
     "loading": "Chargement…",
-    "searchIn": "Rechercher dans {{scope}}"
+    "searchIn": "Rechercher dans {{scope}}",
+    "gridLayout": "Grille"
   },
   "articleRow": {
     "markRead": "Marquer lu",
@@ -468,8 +469,7 @@
   "viewMode": {
     "compact": "Compact",
     "standard": "Standard",
-    "preview": "Aperçu",
-    "grid": "Grille"
+    "preview": "Aperçu"
   },
   "connection": {
     "offline": "Hors ligne — lecture hors connexion",

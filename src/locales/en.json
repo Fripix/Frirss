@@ -85,7 +85,8 @@
     "listOnly": "List only (click to read)",
     "listAndReading": "List + reading side by side",
     "loading": "Loading…",
-    "searchIn": "Search in {{scope}}"
+    "searchIn": "Search in {{scope}}",
+    "gridLayout": "Grid"
   },
   "articleRow": {
     "markRead": "Mark as read",
@@ -468,8 +469,7 @@
   "viewMode": {
     "compact": "Compact",
     "standard": "Standard",
-    "preview": "Preview",
-    "grid": "Grid"
+    "preview": "Preview"
   },
   "connection": {
     "offline": "Offline — reading from cache",

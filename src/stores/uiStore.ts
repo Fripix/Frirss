@@ -81,6 +81,10 @@ export interface UiState {
   setAutoOffline: (v: boolean) => void;
   showDateSeparators: boolean;
   toggleDateSeparators: () => void;
+  // Group grid cards by date. Independent of showDateSeparators (which drives
+  // the list views) and OFF by default — the grid is a continuous gallery.
+  gridDateSeparators: boolean;
+  toggleGridDateSeparators: () => void;
   showSourceInFeed: boolean;
   showSourceInAll: boolean;
   toggleShowSourceInFeed: () => void;
@@ -271,6 +275,16 @@ export const useUiStore = create<UiState>()((set, get) => ({
     });
   },
 
+  // Grid-only date grouping — off by default (continuous gallery).
+  gridDateSeparators: loadJson('frirss_gridDateSeparators', false),
+  toggleGridDateSeparators: () => {
+    set((state) => {
+      const next = !state.gridDateSeparators;
+      localStorage.setItem('frirss_gridDateSeparators', JSON.stringify(next));
+      return { gridDateSeparators: next };
+    });
+  },
+
   // Show source name in article list
   showSourceInFeed: loadJson('frirss_showSourceInFeed', true),     // inside a specific feed
   showSourceInAll: loadJson('frirss_showSourceInAll', true),       // in "Tous les flux"
@@ -396,7 +410,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
     // JSON keys — state field name matches the localStorage suffix
     const jsonKeys = [
       'showFavicons', 'topbarVisible', 'categoryOrder', 'feedOrder',
-      'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators',
+      'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
       'confirmMarkAllRead',
@@ -417,7 +431,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
 export const UI_SYNC_KEYS = [
   'viewMode', 'showFavicons', 'topbarVisible',
   'categoryOrder', 'feedOrder', 'labelOrder', 'labelSortAlpha', 'showLabelCounts',
-  'showDateSeparators', 'showSourceInFeed', 'showSourceInAll',
+  'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
   'confirmMarkAllRead',

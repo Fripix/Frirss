@@ -83,7 +83,8 @@
     "listOnly": "Alleen lijst (klik om te lezen)",
     "listAndReading": "Lijst + lezen naast elkaar",
     "loading": "Laden…",
-    "searchIn": "Zoeken in {{scope}}"
+    "searchIn": "Zoeken in {{scope}}",
+    "gridLayout": "Raster"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",
@@ -466,8 +467,7 @@
   "viewMode": {
     "compact": "Compact",
     "standard": "Standaard",
-    "preview": "Voorbeeld",
-    "grid": "Raster"
+    "preview": "Voorbeeld"
   },
   "connection": {
     "offline": "Offline — lezen uit cache",

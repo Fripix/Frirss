@@ -83,7 +83,8 @@
     "listOnly": "Nur Liste (Klick zum Lesen)",
     "listAndReading": "Liste + Lesen nebeneinander",
     "loading": "Wird geladen…",
-    "searchIn": "In {{scope}} suchen"
+    "searchIn": "In {{scope}} suchen",
+    "gridLayout": "Raster"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",
@@ -466,8 +467,7 @@
   "viewMode": {
     "compact": "Kompakt",
     "standard": "Standard",
-    "preview": "Vorschau",
-    "grid": "Raster"
+    "preview": "Vorschau"
   },
   "connection": {
     "offline": "Offline — Lesen aus dem Cache",
