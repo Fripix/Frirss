@@ -468,7 +468,8 @@
   "viewMode": {
     "compact": "Compact",
     "standard": "Standard",
-    "preview": "Aperçu"
+    "preview": "Aperçu",
+    "grid": "Grille"
   },
   "connection": {
     "offline": "Hors ligne — lecture hors connexion",

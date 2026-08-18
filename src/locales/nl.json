@@ -466,7 +466,8 @@
   "viewMode": {
     "compact": "Compact",
     "standard": "Standaard",
-    "preview": "Voorbeeld"
+    "preview": "Voorbeeld",
+    "grid": "Raster"
   },
   "connection": {
     "offline": "Offline — lezen uit cache",

@@ -466,7 +466,8 @@
   "viewMode": {
     "compact": "Kompaktowy",
     "standard": "Standardowy",
-    "preview": "Podgląd"
+    "preview": "Podgląd",
+    "grid": "Siatka"
   },
   "connection": {
     "offline": "Offline — czytanie z pamięci podręcznej",

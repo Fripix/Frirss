@@ -468,7 +468,8 @@
   "viewMode": {
     "compact": "Compact",
     "standard": "Standard",
-    "preview": "Preview"
+    "preview": "Preview",
+    "grid": "Grid"
   },
   "connection": {
     "offline": "Offline — reading from cache",

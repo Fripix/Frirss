@@ -466,7 +466,8 @@
   "viewMode": {
     "compact": "Компактний",
     "standard": "Стандартний",
-    "preview": "Перегляд"
+    "preview": "Перегляд",
+    "grid": "Сітка"
   },
   "connection": {
     "offline": "Офлайн — читання з кешу",
