@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction } from '../../lib/markAllRead';
+import { extractImageFromContent } from '../../lib/articleThumbnail';
+import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
 import SwipeableArticleRow from './SwipeableArticleRow';
 import type { Article, Filter } from '../../types';
@@ -795,23 +796,6 @@ function EmptyState({ filter, searchQuery }: { filter: Filter; searchQuery: stri
 }
 
 /* ── Article row ─────────────────────────────────────────────────── */
-
-function extractImageFromContent(html: string): string | null {
-  if (!html) return null;
-  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return match ? match[1] : null;
-}
-
-function timeAgo(timestamp: number, t: TFunction): string {
-  const diff = Date.now() - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return t('time.now');
-  if (minutes < 60) return t('time.minutes', { count: minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t('time.hours', { count: hours });
-  const days = Math.floor(hours / 24);
-  return t('time.days', { count: days });
-}
 
 interface ArticleRowProps {
   article: Article;
