@@ -25,6 +25,8 @@ import { useUiStore } from './uiStore';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
+import { collectImageUrls, imageBudget, prioritizeForOffline } from '../lib/offlineImages';
+import { getStorageEstimate } from '../lib/storageEstimate';
 import type {
   Article,
   Subscription,
@@ -224,23 +226,30 @@ function connectionTooSlow(): boolean {
   return !!c && (c.saveData === true || c.effectiveType === 'slow-2g' || c.effectiveType === '2g');
 }
 
-// Fetch an article's images (no-cors) so the service worker caches them for
-// offline viewing (CacheFirst). Bounded per article; the SW enforces the
-// global ~550 MB cap. Best-effort.
-async function prefetchImages(html: string): Promise<void> {
-  if (typeof DOMParser === 'undefined') return;
-  try {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const srcs = Array.from(doc.querySelectorAll('img'))
-      .map((img) => img.getAttribute('src'))
-      .filter((s): s is string => !!s && s.startsWith('http'))
-      .slice(0, 6);
-    for (const src of srcs) {
-      try {
-        await fetch(src, { mode: 'no-cors', cache: 'force-cache' });
-      } catch { /* ignore */ }
-    }
-  } catch { /* ignore */ }
+// Fetch images so the service worker caches them for offline viewing
+// (CacheFirst). Cross-origin images are opaque: we cannot read their size, so
+// the caller enforces the budget from storage estimates. Best-effort.
+async function fetchImages(urls: string[]): Promise<void> {
+  const BATCH = 4;
+  for (let i = 0; i < urls.length; i += BATCH) {
+    await Promise.all(
+      urls.slice(i, i + BATCH).map((src) =>
+        fetch(src, { mode: 'no-cors', cache: 'force-cache' }).catch(() => undefined),
+      ),
+    );
+  }
+}
+
+/**
+ * Image URLs worth caching for one article: the RSS thumbnail first (it is what
+ * the list and the grid render), then body images from the extracted content.
+ */
+function articleImageUrls(rssHtml: string, extractedHtml: string | null, perArticle: number): string[] {
+  if (perArticle <= 0) return [];
+  const thumb = collectImageUrls(rssHtml, 1);
+  if (perArticle === 1) return thumb;
+  const body = collectImageUrls(extractedHtml || rssHtml, perArticle);
+  return Array.from(new Set([...thumb, ...body])).slice(0, perArticle);
 }
 
 export interface FeedState {
@@ -602,25 +611,51 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         }
       } catch { /* skip this feed */ }
     }
-    // Phase 2 — extract + cache + prefetch images.
-    set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: collected.length } });
+    // Phase 2 — extract, cache, and prefetch images.
+    // Images are prefetched whether or not the extract was already cached (the
+    // two used to be coupled, which silently skipped images), in priority order,
+    // and stop as soon as the storage budget is reached.
+    const ui = useUiStore.getState();
+    const budget = imageBudget(ui.offlineImagePreset, ui.offlineImageCustomMb);
+    const ordered = prioritizeForOffline(collected, READ_LATER_LABEL);
+    const baseline = (await getStorageEstimate())?.usage ?? 0;
+    let budgetReached = budget.bytes <= 0;
+
+    set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });
     const { extractFullContent } = await import('../utils/extractContent');
     let done = 0;
-    for (const a of collected) {
+    for (const a of ordered) {
       if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
-      if (a.url && !(peekExtract(a.id) || (await getExtract(a.id)))) {
-        try {
-          const content = await extractFullContent(a.url);
-          await putExtract(a.id, content);
-          await prefetchImages(content.content);
-        } catch { /* ignore */ }
+
+      let extracted: string | null = peekExtract(a.id)?.content ?? null;
+      if (a.url && !extracted) {
+        const stored = await getExtract(a.id);
+        extracted = stored?.content ?? null;
+        if (!extracted) {
+          try {
+            const content = await extractFullContent(a.url);
+            await putExtract(a.id, content);
+            extracted = content.content;
+          } catch { /* keep the RSS content */ }
+        }
       }
+
+      if (!budgetReached) {
+        await fetchImages(articleImageUrls(a.content, extracted, budget.perArticle));
+        // Re-check every few articles — estimates are coarse, so polling often
+        // costs more than it buys.
+        if (done % 10 === 9) {
+          const usage = (await getStorageEstimate())?.usage ?? 0;
+          if (usage - baseline >= budget.bytes) budgetReached = true;
+        }
+      }
+
       done++;
-      if (done % 5 === 0 || done === collected.length) {
-        set({ offlinePrep: { running: true, phase: 'articles', done, total: collected.length } });
+      if (done % 5 === 0 || done === ordered.length) {
+        set({ offlinePrep: { running: true, phase: 'articles', done, total: ordered.length } });
       }
     }
-    set({ offlinePrep: { running: false, phase: 'done', done, total: collected.length } });
+    set({ offlinePrep: { running: false, phase: 'done', done, total: ordered.length } });
   },
 
   loadArticles: async () => {
