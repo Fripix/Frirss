@@ -1072,12 +1072,19 @@ function SourceToggle({ active, onClick, tooltip }: SourceToggleProps) {
 function LayoutToggle({ overridden }: { overridden?: boolean }) {
   const { t } = useTranslation();
   const { panelLayout, setPanelLayout } = useUiStore();
+
+  // These buttons set the GLOBAL default; say so on every button (a tooltip on
+  // the group alone would never show, the buttons cover it). When the current
+  // feed overrides it, add why the view may not follow the click.
+  const tip = (name: string) =>
+    `${name} — ${t('articleList.layoutScopeAll')}` +
+    (overridden ? ` · ${t('articleList.layoutOverridden')}` : '');
+
   return (
     <div
       data-theme="list-active"
       className="relative flex items-center gap-0.5 rounded-md p-0.5"
       style={{ background: 'var(--list-active)' }}
-      title={overridden ? t('articleList.layoutOverridden') : undefined}
     >
       {/* This feed overrides the global layout — the buttons below still set
           the global default, so flag the discrepancy. */}
@@ -1089,7 +1096,7 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
       )}
       <button
         onClick={() => setPanelLayout('2')}
-        title={t('articleList.listOnly')}
+        title={tip(t('articleList.listOnly'))}
         className={`p-1 rounded transition-all ${
           panelLayout === '2'
             ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'
@@ -1104,7 +1111,7 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
       </button>
       <button
         onClick={() => setPanelLayout('3')}
-        title={t('articleList.listAndReading')}
+        title={tip(t('articleList.listAndReading'))}
         className={`p-1 rounded transition-all ${
           panelLayout === '3'
             ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'
@@ -1120,7 +1127,7 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
       </button>
       <button
         onClick={() => setPanelLayout('grid')}
-        title={t('articleList.gridLayout')}
+        title={tip(t('articleList.gridLayout'))}
         className={`p-1 rounded transition-all ${
           panelLayout === 'grid'
             ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'

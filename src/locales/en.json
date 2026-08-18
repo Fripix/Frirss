@@ -44,8 +44,8 @@
     "layoutMobile": "Mobile layout",
     "hideReadFeeds": "Hide read feeds",
     "showReadFeeds": "Show all feeds",
-    "feedLayout": "Layout",
-    "feedLayoutDefault": "Default"
+    "feedLayoutDefault": "Default",
+    "feedLayoutThisFeed": "Layout for this feed"
   },
   "addFeed": {
     "title": "Add an RSS feed",
@@ -89,7 +89,8 @@
     "loading": "Loading…",
     "searchIn": "Search in {{scope}}",
     "gridLayout": "Grid",
-    "layoutOverridden": "This feed uses its own layout (right-click the feed to change it)"
+    "layoutOverridden": "This feed has its own layout (right-click the feed)",
+    "layoutScopeAll": "all feeds"
   },
   "articleRow": {
     "markRead": "Mark as read",

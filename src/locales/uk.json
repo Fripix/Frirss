@@ -42,8 +42,8 @@
     "layoutMobile": "Мобільний вигляд",
     "hideReadFeeds": "Приховати прочитані канали",
     "showReadFeeds": "Показати всі канали",
-    "feedLayout": "Розташування",
-    "feedLayoutDefault": "За умовчанням"
+    "feedLayoutDefault": "За умовчанням",
+    "feedLayoutThisFeed": "Розташування цього каналу"
   },
   "addFeed": {
     "title": "Додати RSS-стрічку",
@@ -87,7 +87,8 @@
     "loading": "Завантаження…",
     "searchIn": "Пошук у {{scope}}",
     "gridLayout": "Сітка",
-    "layoutOverridden": "Цей канал має власне розташування (правий клік на каналі, щоб змінити)"
+    "layoutOverridden": "Цей канал має власне розташування (правий клік на каналі)",
+    "layoutScopeAll": "усі канали"
   },
   "articleRow": {
     "markRead": "Позначити прочитаним",

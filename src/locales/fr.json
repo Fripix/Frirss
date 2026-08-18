@@ -44,8 +44,8 @@
     "layoutMobile": "Disposition mobile",
     "hideReadFeeds": "Masquer les flux lus",
     "showReadFeeds": "Afficher tous les flux",
-    "feedLayout": "Disposition",
-    "feedLayoutDefault": "Par défaut"
+    "feedLayoutDefault": "Par défaut",
+    "feedLayoutThisFeed": "Disposition de ce flux"
   },
   "addFeed": {
     "title": "Ajouter un flux RSS",
@@ -89,7 +89,8 @@
     "loading": "Chargement…",
     "searchIn": "Rechercher dans {{scope}}",
     "gridLayout": "Grille",
-    "layoutOverridden": "Ce flux utilise sa propre disposition (clic droit sur le flux pour la changer)"
+    "layoutOverridden": "Ce flux a sa propre disposition (clic droit sur le flux)",
+    "layoutScopeAll": "tous les flux"
   },
   "articleRow": {
     "markRead": "Marquer lu",

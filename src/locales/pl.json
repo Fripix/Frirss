@@ -42,8 +42,8 @@
     "layoutMobile": "Układ mobilny",
     "hideReadFeeds": "Ukryj przeczytane kanały",
     "showReadFeeds": "Pokaż wszystkie kanały",
-    "feedLayout": "Układ",
-    "feedLayoutDefault": "Domyślny"
+    "feedLayoutDefault": "Domyślny",
+    "feedLayoutThisFeed": "Układ tego kanału"
   },
   "addFeed": {
     "title": "Dodaj kanał RSS",
@@ -87,7 +87,8 @@
     "loading": "Ładowanie…",
     "searchIn": "Szukaj w {{scope}}",
     "gridLayout": "Siatka",
-    "layoutOverridden": "Ten kanał ma własny układ (kliknij prawym przyciskiem, aby zmienić)"
+    "layoutOverridden": "Ten kanał ma własny układ (kliknij go prawym przyciskiem)",
+    "layoutScopeAll": "wszystkie kanały"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",

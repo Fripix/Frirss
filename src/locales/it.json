@@ -42,8 +42,8 @@
     "layoutMobile": "Layout mobile",
     "hideReadFeeds": "Nascondi i feed letti",
     "showReadFeeds": "Mostra tutti i feed",
-    "feedLayout": "Disposizione",
-    "feedLayoutDefault": "Predefinita"
+    "feedLayoutDefault": "Predefinita",
+    "feedLayoutThisFeed": "Disposizione di questo flusso"
   },
   "addFeed": {
     "title": "Aggiungi un feed RSS",
@@ -87,7 +87,8 @@
     "loading": "Caricamento…",
     "searchIn": "Cerca in {{scope}}",
     "gridLayout": "Griglia",
-    "layoutOverridden": "Questo flusso usa la propria disposizione (clic destro sul flusso per cambiarla)"
+    "layoutOverridden": "Questo flusso ha la propria disposizione (clic destro sul flusso)",
+    "layoutScopeAll": "tutti i flussi"
   },
   "articleRow": {
     "markRead": "Segna come letto",

@@ -42,8 +42,8 @@
     "layoutMobile": "Mobiele indeling",
     "hideReadFeeds": "Gelezen feeds verbergen",
     "showReadFeeds": "Alle feeds tonen",
-    "feedLayout": "Indeling",
-    "feedLayoutDefault": "Standaard"
+    "feedLayoutDefault": "Standaard",
+    "feedLayoutThisFeed": "Indeling voor deze feed"
   },
   "addFeed": {
     "title": "Een RSS-feed toevoegen",
@@ -87,7 +87,8 @@
     "loading": "Laden…",
     "searchIn": "Zoeken in {{scope}}",
     "gridLayout": "Raster",
-    "layoutOverridden": "Deze feed gebruikt een eigen indeling (rechtsklik op de feed om te wijzigen)"
+    "layoutOverridden": "Deze feed heeft een eigen indeling (rechtsklik op de feed)",
+    "layoutScopeAll": "alle feeds"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",

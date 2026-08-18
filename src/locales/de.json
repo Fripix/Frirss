@@ -42,8 +42,8 @@
     "layoutMobile": "Mobiles Layout",
     "hideReadFeeds": "Gelesene Feeds ausblenden",
     "showReadFeeds": "Alle Feeds anzeigen",
-    "feedLayout": "Ansicht",
-    "feedLayoutDefault": "Standard"
+    "feedLayoutDefault": "Standard",
+    "feedLayoutThisFeed": "Ansicht für diesen Feed"
   },
   "addFeed": {
     "title": "RSS-Feed hinzufügen",
@@ -87,7 +87,8 @@
     "loading": "Wird geladen…",
     "searchIn": "In {{scope}} suchen",
     "gridLayout": "Raster",
-    "layoutOverridden": "Dieser Feed nutzt eine eigene Ansicht (Rechtsklick auf den Feed zum Ändern)"
+    "layoutOverridden": "Dieser Feed hat eine eigene Ansicht (Rechtsklick auf den Feed)",
+    "layoutScopeAll": "alle Feeds"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",
