@@ -6,7 +6,10 @@ import { useUiStore, shortcutActions } from '../../stores/uiStore';
 import { useFeedStore } from '../../stores/feedStore';
 import { useAuthStore } from '../../stores/authStore';
 import ToggleSwitch from '../ToggleSwitch';
-import { imageBudget, type OfflineImagePreset } from '../../lib/offlineImages';
+import {
+  imageBudget, defaultPresetMb, OFFLINE_IMAGE_PRESETS,
+  type OfflineImageSized,
+} from '../../lib/offlineImages';
 import { getStorageEstimate, formatBytes, clearImageCache } from '../../lib/storageEstimate';
 import {
   getAdminUsers, createAdminUser, updateAdminUser, deleteAdminUser,
@@ -2785,24 +2788,26 @@ function OfflineTab() {
   const setAutoOffline = useUiStore((s) => s.setAutoOffline);
   const offlineImagePreset = useUiStore((s) => s.offlineImagePreset);
   const setOfflineImagePreset = useUiStore((s) => s.setOfflineImagePreset);
-  const offlineImageCustomMb = useUiStore((s) => s.offlineImageCustomMb);
-  const setOfflineImageCustomMb = useUiStore((s) => s.setOfflineImageCustomMb);
+  const offlineImageSizes = useUiStore((s) => s.offlineImageSizes);
+  const setOfflineImageSize = useUiStore((s) => s.setOfflineImageSize);
+  const resetOfflineImageSizes = useUiStore((s) => s.resetOfflineImageSizes);
   const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null);
   const [cleared, setCleared] = useState(false);
 
   const refreshEstimate = useCallback(() => { getStorageEstimate().then(setEstimate); }, []);
   useEffect(() => { refreshEstimate(); }, [refreshEstimate]);
 
-  const budget = imageBudget(offlineImagePreset, offlineImageCustomMb);
-  const overQuota = !!estimate && estimate.quota > 0 && budget.bytes > estimate.quota;
+  const quota = estimate?.quota ?? 0;
+  const imagesOff = offlineImagePreset === 'none';
+  const budget = imageBudget(offlineImagePreset, offlineImageSizes, quota);
+  const overQuota = !imagesOff && quota > 0 && budget.bytes > quota;
+  const edited = Object.keys(offlineImageSizes).length > 0;
 
-  const presets: { id: OfflineImagePreset; label: string; note?: string }[] = [
-    { id: 'none', label: t('preferences.offline.imagesNone') },
-    { id: 'light', label: t('preferences.offline.imagesLight'), note: t('preferences.offline.imagesLightHint') },
-    { id: 'standard', label: t('preferences.offline.imagesStandard') },
-    { id: 'max', label: t('preferences.offline.imagesMax') },
-    { id: 'custom', label: t('preferences.offline.imagesCustom') },
-  ];
+  const presetLabels: Record<OfflineImageSized, string> = {
+    light: t('preferences.offline.imagesLight'),
+    standard: t('preferences.offline.imagesStandard'),
+    max: t('preferences.offline.imagesMax'),
+  };
 
   return (
     <div className="space-y-6">
@@ -2853,43 +2858,66 @@ function OfflineTab() {
           {t('preferences.offline.imagesHint')}
         </p>
 
-        <div className="flex flex-wrap gap-1.5">
-          {presets.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setOfflineImagePreset(p.id)}
-              className="px-3 py-1.5 text-xs rounded-lg transition-all text-left"
-              style={{
-                border: `1px solid ${offlineImagePreset === p.id ? 'var(--accent)' : 'var(--panel-border)'}`,
-                background: offlineImagePreset === p.id ? 'var(--accent-glow)' : 'var(--panel-header-bg)',
-                color: offlineImagePreset === p.id ? 'var(--accent)' : 'var(--list-title)',
-              }}
-              aria-pressed={offlineImagePreset === p.id}
-            >
-              {p.label}
-              {p.id !== 'none' && p.id !== 'custom' && (
-                <span className="opacity-60"> · ~{formatBytes(imageBudget(p.id, offlineImageCustomMb).bytes)}</span>
-              )}
-              {p.note && <span className="block text-[10px] opacity-60">{p.note}</span>}
-            </button>
-          ))}
+        {/* Off switch — greys the sizes out rather than hiding them. */}
+        <div className="flex items-center justify-between gap-4 select-none">
+          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.offline.imagesDownload')}
+          </span>
+          <ToggleSwitch
+            checked={!imagesOff}
+            onChange={(on) => setOfflineImagePreset(on ? 'standard' : 'none')}
+            ariaLabel={t('preferences.offline.imagesDownload')}
+          />
         </div>
 
-        {offlineImagePreset === 'custom' && (
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--list-summary)' }}>
-            <input
-              type="number"
-              min={50}
-              max={5000}
-              step={50}
-              value={offlineImageCustomMb}
-              onChange={(e) => setOfflineImageCustomMb(Number(e.target.value))}
-              className="w-24 px-2 py-1 rounded-md text-xs"
-              style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)', color: 'var(--list-title)' }}
-            />
-            {t('preferences.offline.imagesMb')}
-          </label>
-        )}
+        <div
+          className="space-y-1 transition-opacity"
+          style={{ opacity: imagesOff ? 0.45 : 1, pointerEvents: imagesOff ? 'none' : undefined }}
+          aria-disabled={imagesOff}
+        >
+          {OFFLINE_IMAGE_PRESETS.map((id) => {
+            const active = offlineImagePreset === id;
+            const suggested = defaultPresetMb(id, quota);
+            return (
+              <div
+                key={id}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                style={{
+                  border: `1px solid ${active ? 'var(--accent)' : 'transparent'}`,
+                  background: active ? 'var(--accent-glow)' : undefined,
+                }}
+              >
+                <button
+                  onClick={() => setOfflineImagePreset(id)}
+                  disabled={imagesOff}
+                  className="flex-1 text-left text-xs"
+                  style={{ color: active ? 'var(--accent)' : 'var(--list-title)' }}
+                  aria-pressed={active}
+                >
+                  {presetLabels[id]}
+                  {id === 'light' && (
+                    <span className="block text-[10px] opacity-60">{t('preferences.offline.imagesLightHint')}</span>
+                  )}
+                </button>
+                <input
+                  type="number"
+                  min={50}
+                  max={20480}
+                  step={50}
+                  disabled={imagesOff}
+                  value={offlineImageSizes[id] ?? suggested}
+                  onChange={(e) => setOfflineImageSize(id, Number(e.target.value))}
+                  className="w-24 px-2 py-1 rounded-md text-xs text-right"
+                  style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)', color: 'var(--list-title)' }}
+                  aria-label={presetLabels[id]}
+                />
+                <span className="text-[11px] w-6" style={{ color: 'var(--list-summary)' }}>
+                  {t('preferences.offline.imagesMb')}
+                </span>
+              </div>
+            );
+          })}
+        </div>
 
         {estimate && (
           <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
@@ -2904,13 +2932,24 @@ function OfflineTab() {
           </p>
         )}
 
-        <button
-          onClick={async () => { await clearImageCache(); setCleared(true); refreshEstimate(); }}
-          className="px-3 py-1.5 text-xs rounded-lg transition-colors"
-          style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
-        >
-          {cleared ? t('preferences.offline.imagesCleared') : t('preferences.offline.imagesClear')}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={async () => { await clearImageCache(); setCleared(true); refreshEstimate(); }}
+            className="px-3 py-1.5 text-xs rounded-lg transition-colors"
+            style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
+          >
+            {cleared ? t('preferences.offline.imagesCleared') : t('preferences.offline.imagesClear')}
+          </button>
+          {edited && (
+            <button
+              onClick={resetOfflineImageSizes}
+              className="px-3 py-1.5 text-xs rounded-lg transition-colors"
+              style={{ border: '1px solid var(--panel-border)', color: 'var(--accent)' }}
+            >
+              {t('preferences.offline.imagesResetSizes')}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

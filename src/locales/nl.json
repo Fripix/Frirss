@@ -328,19 +328,19 @@
       "auto": "Bijwerken bij openen",
       "autoHint": "Vernieuwt de offline cache op de achtergrond bij elke opening (online, max 1×/uur). Incrementeel.",
       "imagesTitle": "Offline afbeeldingen",
-      "imagesHint": "Hoeveel afbeeldingen bewaard blijven voor offline lezen. Groottes zijn bij benadering.",
-      "imagesNone": "Geen afbeeldingen",
+      "imagesHint": "Hoeveel bewaard blijft voor offline lezen. Waarden zijn vooraf ingevuld op basis van uw apparaat en aanpasbaar. Groottes bij benadering.",
       "imagesLight": "Licht",
       "imagesStandard": "Standaard",
       "imagesMax": "Maximum",
-      "imagesCustom": "Aangepast",
       "imagesLightHint": "alleen miniaturen",
       "imagesUsage": "Gebruikte ruimte: ~{{used}}",
       "imagesQuota": "uw browser staat ~{{quota}} toe op dit apparaat",
       "imagesOverQuota": "Deze instelling overschrijdt wat dit apparaat toestaat — de browser ruimt automatisch op.",
       "imagesClear": "Afbeeldingen wissen",
       "imagesCleared": "Afbeeldingen verwijderd",
-      "imagesMb": "MB"
+      "imagesMb": "MB",
+      "imagesDownload": "Afbeeldingen downloaden",
+      "imagesResetSizes": "Aanbevolen waarden"
     }
   },
   "login": {

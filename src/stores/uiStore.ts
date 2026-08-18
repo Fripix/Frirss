@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { OfflineImagePreset } from '../lib/offlineImages';
+import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -86,12 +86,17 @@ export interface UiState {
   // Auto-refresh the offline cache on app open (local per-device, never synced).
   autoOffline: boolean;
   setAutoOffline: (v: boolean) => void;
-  // How much offline image data to keep (per user, synced). 'none' disables
-  // image prefetch entirely; 'custom' uses offlineImageCustomMb.
+  // Which offline image budget is active (synced — a comfort preference).
+  // 'none' disables image prefetch entirely.
   offlineImagePreset: OfflineImagePreset;
   setOfflineImagePreset: (p: OfflineImagePreset) => void;
-  offlineImageCustomMb: number;
-  setOfflineImageCustomMb: (mb: number) => void;
+  // Edited preset sizes in Mo. Device-local, never synced: they are absolute
+  // megabytes weighed against a quota that differs on every device — pushing a
+  // desktop's 8 Go onto a phone would be wrong. An absent entry follows the
+  // quota-derived suggestion.
+  offlineImageSizes: OfflineImageSizes;
+  setOfflineImageSize: (preset: OfflineImageSized, mb: number) => void;
+  resetOfflineImageSizes: () => void;
   showDateSeparators: boolean;
   toggleDateSeparators: () => void;
   // Group grid cards by date. Independent of showDateSeparators (which drives
@@ -285,10 +290,20 @@ export const useUiStore = create<UiState>()((set, get) => ({
     localStorage.setItem('frirss_offlineImagePreset', JSON.stringify(p));
     set({ offlineImagePreset: p });
   },
-  offlineImageCustomMb: loadJson('frirss_offlineImageCustomMb', 500),
-  setOfflineImageCustomMb: (mb) => {
-    localStorage.setItem('frirss_offlineImageCustomMb', JSON.stringify(mb));
-    set({ offlineImageCustomMb: mb });
+  offlineImageSizes: loadJson('frirss_offlineImageSizes', {} as OfflineImageSizes),
+  setOfflineImageSize: (preset, mb) => {
+    set((state) => {
+      const next = { ...state.offlineImageSizes };
+      // A cleared/zero field means "follow the suggestion" — drop the entry.
+      if (mb > 0) next[preset] = Math.round(mb);
+      else delete next[preset];
+      localStorage.setItem('frirss_offlineImageSizes', JSON.stringify(next));
+      return { offlineImageSizes: next };
+    });
+  },
+  resetOfflineImageSizes: () => {
+    localStorage.setItem('frirss_offlineImageSizes', JSON.stringify({}));
+    set({ offlineImageSizes: {} });
   },
 
   // Show date separators in article list (Aujourd'hui, Hier, …)
@@ -453,7 +468,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-      'confirmMarkAllRead', 'offlineImagePreset', 'offlineImageCustomMb',
+      'confirmMarkAllRead', 'offlineImagePreset',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -474,7 +489,7 @@ export const UI_SYNC_KEYS = [
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-  'confirmMarkAllRead', 'offlineImagePreset', 'offlineImageCustomMb',
+  'confirmMarkAllRead', 'offlineImagePreset',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

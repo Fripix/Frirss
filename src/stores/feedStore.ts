@@ -616,9 +616,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // two used to be coupled, which silently skipped images), in priority order,
     // and stop as soon as the storage budget is reached.
     const ui = useUiStore.getState();
-    const budget = imageBudget(ui.offlineImagePreset, ui.offlineImageCustomMb);
+    const estimate = await getStorageEstimate();
+    const budget = imageBudget(ui.offlineImagePreset, ui.offlineImageSizes, estimate?.quota ?? 0);
     const ordered = prioritizeForOffline(collected, READ_LATER_LABEL);
-    const baseline = (await getStorageEstimate())?.usage ?? 0;
+    const baseline = estimate?.usage ?? 0;
     let budgetReached = budget.bytes <= 0;
 
     set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });

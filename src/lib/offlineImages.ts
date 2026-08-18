@@ -1,11 +1,15 @@
 import type { Article } from '../types';
 
 const MB = 1024 * 1024;
-const CUSTOM_MIN_MB = 50;
-const CUSTOM_MAX_MB = 5000;
 
-/** How much offline image data to keep, and how many images per article. */
-export type OfflineImagePreset = 'none' | 'light' | 'standard' | 'max' | 'custom';
+/** Sizeable presets, in display order. 'none' is the off switch, not a size. */
+export const OFFLINE_IMAGE_PRESETS = ['light', 'standard', 'max'] as const;
+
+export type OfflineImageSized = (typeof OFFLINE_IMAGE_PRESETS)[number];
+export type OfflineImagePreset = 'none' | OfflineImageSized;
+
+/** User edits, in Mo, keyed by preset. Absent = follow the device-derived default. */
+export type OfflineImageSizes = Partial<Record<OfflineImageSized, number>>;
 
 export interface ImageBudget {
   /** Approximate byte budget — enforced against navigator.storage estimates. */
@@ -14,23 +18,48 @@ export interface ImageBudget {
   perArticle: number;
 }
 
-export function imageBudget(preset: OfflineImagePreset, customMb: number): ImageBudget {
-  switch (preset) {
-    case 'none':
-      return { bytes: 0, perArticle: 0 };
-    case 'light':
-      return { bytes: 200 * MB, perArticle: 1 };
-    case 'max':
-      // A round 1 Go (1024 Mo) so the UI renders "~1,0 Go", not "~1000 Mo".
-      return { bytes: 1024 * MB, perArticle: 10 };
-    case 'custom': {
-      const mb = Math.min(CUSTOM_MAX_MB, Math.max(CUSTOM_MIN_MB, Math.round(customMb) || 0));
-      return { bytes: mb * MB, perArticle: 6 };
-    }
-    case 'standard':
-    default:
-      return { bytes: 500 * MB, perArticle: 6 };
-  }
+/** An edited value is still kept within something the browser can hold. */
+const EDIT_MIN_MB = 50;
+const EDIT_MAX_MB = 20480;
+
+// Share of the device quota each preset targets, with floor/ceiling so a tiny
+// or enormous quota still yields a sensible number.
+const SHAPE: Record<OfflineImageSized, { share: number; minMb: number; maxMb: number; fallbackMb: number; perArticle: number }> = {
+  light:    { share: 0.10, minMb: 100, maxMb: 2048,  fallbackMb: 200,  perArticle: 1 },
+  standard: { share: 0.25, minMb: 250, maxMb: 5120,  fallbackMb: 500,  perArticle: 6 },
+  max:      { share: 0.50, minMb: 500, maxMb: 10240, fallbackMb: 1024, perArticle: 10 },
+};
+
+const roundTo50 = (mb: number): number => Math.round(mb / 50) * 50;
+
+/**
+ * Suggested size for a preset on this device, in Mo. Derived from the quota the
+ * browser reports so the presets mean something on a phone as well as on a
+ * desktop; falls back to fixed values when the quota is unknown.
+ */
+export function defaultPresetMb(preset: OfflineImageSized, quotaBytes: number): number {
+  const s = SHAPE[preset];
+  if (!quotaBytes || quotaBytes <= 0) return s.fallbackMb;
+  const raw = (quotaBytes * s.share) / MB;
+  return Math.min(s.maxMb, Math.max(s.minMb, roundTo50(raw)));
+}
+
+/**
+ * Budget in effect: the user's edited size for this preset when there is one,
+ * otherwise the device-derived suggestion.
+ */
+export function imageBudget(
+  preset: OfflineImagePreset,
+  sizes: OfflineImageSizes,
+  quotaBytes: number,
+): ImageBudget {
+  if (preset === 'none') return { bytes: 0, perArticle: 0 };
+  const s = SHAPE[preset];
+  const edited = sizes[preset];
+  const mb = edited
+    ? Math.min(EDIT_MAX_MB, Math.max(EDIT_MIN_MB, Math.round(edited)))
+    : defaultPresetMb(preset, quotaBytes);
+  return { bytes: mb * MB, perArticle: s.perArticle };
 }
 
 /**

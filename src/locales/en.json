@@ -330,19 +330,19 @@
       "auto": "Auto-update on app open",
       "autoHint": "Refreshes the offline cache in the background on each open (online, max once/hour). Incremental.",
       "imagesTitle": "Offline images",
-      "imagesHint": "How many images are kept for offline reading. Sizes are approximate.",
-      "imagesNone": "No images",
+      "imagesHint": "How much is kept for offline reading. Values are pre-filled from your device and editable. Sizes are approximate.",
       "imagesLight": "Light",
       "imagesStandard": "Standard",
       "imagesMax": "Maximum",
-      "imagesCustom": "Custom",
       "imagesLightHint": "thumbnails only",
       "imagesUsage": "Space used: ~{{used}}",
       "imagesQuota": "your browser allows ~{{quota}} on this device",
       "imagesOverQuota": "This setting exceeds what this device allows — the browser will purge automatically.",
       "imagesClear": "Empty the images",
       "imagesCleared": "Images removed",
-      "imagesMb": "MB"
+      "imagesMb": "MB",
+      "imagesDownload": "Download images",
+      "imagesResetSizes": "Recommended values"
     }
   },
   "login": {

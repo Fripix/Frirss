@@ -1,28 +1,90 @@
 import { describe, it, expect } from 'vitest';
-import { imageBudget, collectImageUrls, prioritizeForOffline } from './offlineImages';
+import {
+  imageBudget, defaultPresetMb, collectImageUrls, prioritizeForOffline,
+  OFFLINE_IMAGE_PRESETS,
+} from './offlineImages';
 import type { Article } from '../types';
 
 const MB = 1024 * 1024;
+const GB = 1024 * MB;
+
+describe('defaultPresetMb', () => {
+  it('derives roughly 10/25/50% of the device quota', () => {
+    const quota = 16 * GB;
+    expect(defaultPresetMb('light', quota)).toBe(1650);
+    expect(defaultPresetMb('standard', quota)).toBe(4100);
+    expect(defaultPresetMb('max', quota)).toBe(8200);
+  });
+
+  it('rounds to a tidy 50 Mo step', () => {
+    expect(defaultPresetMb('standard', 16 * GB) % 50).toBe(0);
+    expect(defaultPresetMb('light', 3 * GB) % 50).toBe(0);
+  });
+
+  it('scales down on a small device', () => {
+    const quota = 1.5 * GB;
+    expect(defaultPresetMb('light', quota)).toBe(150);
+    expect(defaultPresetMb('standard', quota)).toBe(400);
+    expect(defaultPresetMb('max', quota)).toBe(750);
+  });
+
+  it('falls back to fixed values when the quota is unknown', () => {
+    expect(defaultPresetMb('light', 0)).toBe(200);
+    expect(defaultPresetMb('standard', 0)).toBe(500);
+    expect(defaultPresetMb('max', 0)).toBe(1024);
+  });
+
+  it('keeps a floor on a tiny quota', () => {
+    expect(defaultPresetMb('light', 100 * MB)).toBe(100);
+  });
+
+  it('keeps a ceiling on a huge quota', () => {
+    const quota = 500 * GB;
+    expect(defaultPresetMb('light', quota)).toBe(2048);
+    expect(defaultPresetMb('standard', quota)).toBe(5120);
+    expect(defaultPresetMb('max', quota)).toBe(10240);
+  });
+});
 
 describe('imageBudget', () => {
+  const quota = 16 * GB;
+
   it('downloads nothing when disabled', () => {
-    expect(imageBudget('none', 500)).toEqual({ bytes: 0, perArticle: 0 });
+    expect(imageBudget('none', {}, quota)).toEqual({ bytes: 0, perArticle: 0 });
   });
-  it('keeps only the thumbnail on the light preset', () => {
-    expect(imageBudget('light', 500)).toEqual({ bytes: 200 * MB, perArticle: 1 });
+
+  it('uses the quota-derived default when untouched', () => {
+    expect(imageBudget('standard', {}, quota)).toEqual({ bytes: 4100 * MB, perArticle: 6 });
   });
-  it('allows body images on standard', () => {
-    expect(imageBudget('standard', 500)).toEqual({ bytes: 500 * MB, perArticle: 6 });
+
+  it('prefers an edited value over the default', () => {
+    expect(imageBudget('standard', { standard: 250 }, quota)).toEqual({ bytes: 250 * MB, perArticle: 6 });
   });
-  it('allows more on max, at a round 1 Go so it reads as "1 Go"', () => {
-    expect(imageBudget('max', 500)).toEqual({ bytes: 1024 * MB, perArticle: 10 });
+
+  it('only applies the edit to its own preset', () => {
+    expect(imageBudget('light', { standard: 250 }, quota).bytes).toBe(1650 * MB);
   });
-  it('honours a custom size', () => {
-    expect(imageBudget('custom', 250)).toEqual({ bytes: 250 * MB, perArticle: 6 });
+
+  it('keeps thumbnails only on the light preset', () => {
+    expect(imageBudget('light', {}, quota).perArticle).toBe(1);
   });
-  it('clamps a nonsensical custom size', () => {
-    expect(imageBudget('custom', 0).bytes).toBe(50 * MB);
-    expect(imageBudget('custom', 99999).bytes).toBe(5000 * MB);
+
+  it('allows more images on max', () => {
+    expect(imageBudget('max', {}, quota).perArticle).toBe(10);
+  });
+
+  it('falls back to the suggestion when the field is cleared', () => {
+    expect(imageBudget('standard', { standard: 0 }, quota).bytes).toBe(4100 * MB);
+  });
+
+  it('clamps an absurdly large edited value', () => {
+    expect(imageBudget('standard', { standard: 99999 }, quota).bytes).toBe(20480 * MB);
+  });
+});
+
+describe('OFFLINE_IMAGE_PRESETS', () => {
+  it('lists the three sizeable presets in order', () => {
+    expect(OFFLINE_IMAGE_PRESETS).toEqual(['light', 'standard', 'max']);
   });
 });
 
