@@ -14,8 +14,8 @@ describe('imageBudget', () => {
   it('allows body images on standard', () => {
     expect(imageBudget('standard', 500)).toEqual({ bytes: 500 * MB, perArticle: 6 });
   });
-  it('allows more on max', () => {
-    expect(imageBudget('max', 500)).toEqual({ bytes: 1000 * MB, perArticle: 10 });
+  it('allows more on max, at a round 1 Go so it reads as "1 Go"', () => {
+    expect(imageBudget('max', 500)).toEqual({ bytes: 1024 * MB, perArticle: 10 });
   });
   it('honours a custom size', () => {
     expect(imageBudget('custom', 250)).toEqual({ bytes: 250 * MB, perArticle: 6 });

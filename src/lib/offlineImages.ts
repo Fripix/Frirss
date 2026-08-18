@@ -21,7 +21,8 @@ export function imageBudget(preset: OfflineImagePreset, customMb: number): Image
     case 'light':
       return { bytes: 200 * MB, perArticle: 1 };
     case 'max':
-      return { bytes: 1000 * MB, perArticle: 10 };
+      // A round 1 Go (1024 Mo) so the UI renders "~1,0 Go", not "~1000 Mo".
+      return { bytes: 1024 * MB, perArticle: 10 };
     case 'custom': {
       const mb = Math.min(CUSTOM_MAX_MB, Math.max(CUSTOM_MIN_MB, Math.round(customMb) || 0));
       return { bytes: mb * MB, perArticle: 6 };
