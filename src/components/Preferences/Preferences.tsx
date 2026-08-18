@@ -1484,6 +1484,37 @@ function ShortcutsTab() {
           </div>
         ))}
       </div>
+
+      {/* Built-in gestures / keys — not remappable, listed for discoverability. */}
+      <div className="pt-2 space-y-1">
+        <h3
+          className="text-[11px] font-bold uppercase tracking-widest pb-1"
+          style={{ color: 'var(--list-summary)' }}
+        >
+          {t('preferences.shortcuts.builtInTitle')}
+        </h3>
+        {[
+          { keyLabel: formatKey('Escape'), label: t('preferences.shortcuts.escExitFocus') },
+          { keyLabel: formatKey('Escape'), label: t('preferences.shortcuts.escBackToGrid') },
+          { keyLabel: t('preferences.shortcuts.keyDoubleClick'), label: t('preferences.shortcuts.doubleClickFocus') },
+        ].map(({ keyLabel, label }) => (
+          <div key={label} className="flex items-center justify-between py-1.5 px-2 rounded-md">
+            <span className="text-xs" style={{ color: 'var(--reading-text)' }}>
+              {label}
+            </span>
+            <span
+              className="min-w-[60px] text-center text-xs font-mono px-3 py-1 rounded-md"
+              style={{
+                border: '1px solid var(--panel-border)',
+                color: 'var(--list-summary)',
+                background: 'var(--panel-header-bg)',
+              }}
+            >
+              {keyLabel}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

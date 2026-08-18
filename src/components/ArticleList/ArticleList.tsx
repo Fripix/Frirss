@@ -5,6 +5,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction } from '../../lib/markAllRead';
+import { effectiveLayout } from '../../lib/effectiveLayout';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
@@ -53,6 +54,7 @@ export default function ArticleList() {
   const showSourceInAll = useUiStore((s) => s.showSourceInAll);
   const toggleShowSourceInFeed = useUiStore((s) => s.toggleShowSourceInFeed);
   const toggleShowSourceInAll = useUiStore((s) => s.toggleShowSourceInAll);
+  const feedSettings = useUiStore((s) => s.feedSettings);
   const showDateSeparators = useUiStore((s) => s.showDateSeparators);
   const toggleDateSeparators = useUiStore((s) => s.toggleDateSeparators);
   const gridDateSeparators = useUiStore((s) => s.gridDateSeparators);
@@ -63,10 +65,13 @@ export default function ArticleList() {
   const breakpoint = useBreakpoint();
   const isDesktop = breakpoint === 'desktop';
   const isMobile = breakpoint === 'mobile';
+  // A feed can override the global layout (set from its sidebar context menu).
+  const layout = effectiveLayout(panelLayout, feedSettings, selectedFeed?.id);
+  const feedLayoutOverride = !!(selectedFeed && feedSettings[selectedFeed.id]?.layout);
   // Grid is a full-width layout: like 2-panel, the list body spans the whole
   // width and the reading pane replaces it on selection.
-  const gridLayout = panelLayout === 'grid';
-  const is2Panel = panelLayout === '2' || gridLayout || !isDesktop;
+  const gridLayout = layout === 'grid';
+  const is2Panel = layout === '2' || gridLayout || !isDesktop;
   // Date grouping: the grid has its own (off-by-default) toggle; the list views
   // use the shared one.
   const dateSepActive = gridLayout ? gridDateSeparators : showDateSeparators;
@@ -367,7 +372,7 @@ export default function ArticleList() {
               <DateSepToggle active={dateSepActive} onClick={toggleDateSep} />
               <TopbarToggle />
               {!gridLayout && <ViewModeSwitcher />}
-              {isDesktop && <LayoutToggle />}
+              {isDesktop && <LayoutToggle overridden={feedLayoutOverride} />}
             </div>
           </div>
         ) : (
@@ -402,7 +407,7 @@ export default function ArticleList() {
                 <DateSepToggle active={showDateSeparators} onClick={toggleDateSeparators} />
                 <TopbarToggle />
                 <ViewModeSwitcher />
-                <LayoutToggle />
+                <LayoutToggle overridden={feedLayoutOverride} />
               </div>
             </div>
 
@@ -1064,11 +1069,24 @@ function SourceToggle({ active, onClick, tooltip }: SourceToggleProps) {
   );
 }
 
-function LayoutToggle() {
+function LayoutToggle({ overridden }: { overridden?: boolean }) {
   const { t } = useTranslation();
   const { panelLayout, setPanelLayout } = useUiStore();
   return (
-    <div data-theme="list-active" className="flex items-center gap-0.5 rounded-md p-0.5" style={{ background: 'var(--list-active)' }}>
+    <div
+      data-theme="list-active"
+      className="relative flex items-center gap-0.5 rounded-md p-0.5"
+      style={{ background: 'var(--list-active)' }}
+      title={overridden ? t('articleList.layoutOverridden') : undefined}
+    >
+      {/* This feed overrides the global layout — the buttons below still set
+          the global default, so flag the discrepancy. */}
+      {overridden && (
+        <span
+          className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full pointer-events-none"
+          style={{ background: 'var(--accent)' }}
+        />
+      )}
       <button
         onClick={() => setPanelLayout('2')}
         title={t('articleList.listOnly')}

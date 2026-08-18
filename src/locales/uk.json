@@ -41,7 +41,9 @@
     "layoutDesktop": "Десктопний вигляд",
     "layoutMobile": "Мобільний вигляд",
     "hideReadFeeds": "Приховати прочитані канали",
-    "showReadFeeds": "Показати всі канали"
+    "showReadFeeds": "Показати всі канали",
+    "feedLayout": "Розташування",
+    "feedLayoutDefault": "За умовчанням"
   },
   "addFeed": {
     "title": "Додати RSS-стрічку",
@@ -84,7 +86,8 @@
     "listAndReading": "Список + читання поруч",
     "loading": "Завантаження…",
     "searchIn": "Пошук у {{scope}}",
-    "gridLayout": "Сітка"
+    "gridLayout": "Сітка",
+    "layoutOverridden": "Цей канал має власне розташування (правий клік на каналі, щоб змінити)"
   },
   "articleRow": {
     "markRead": "Позначити прочитаним",
@@ -134,7 +137,8 @@
     "newLabel": "Нова мітка…",
     "newLabelPlaceholder": "Назва мітки",
     "focusEnter": "Режим фокусування (на весь екран)",
-    "focusExit": "Вийти з режиму фокусування"
+    "focusExit": "Вийти з режиму фокусування",
+    "focusHint": "подвійний клік на статті, Esc для виходу"
   },
   "preferences": {
     "title": "Налаштування",
@@ -309,7 +313,10 @@
       "keyEnter": "Enter",
       "keyDelete": "Del",
       "escBackToGrid": "Назад до сітки",
-      "escExitFocus": "Вийти з режиму фокус"
+      "escExitFocus": "Вийти з режиму фокус",
+      "builtInTitle": "Вбудовані клавіші та жести",
+      "keyDoubleClick": "Подвійний клік",
+      "doubleClickFocus": "Режим фокус (на весь екран) у статті"
     },
     "offline": {
       "title": "Офлайн",

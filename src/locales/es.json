@@ -41,7 +41,9 @@
     "layoutDesktop": "Diseño de escritorio",
     "layoutMobile": "Diseño móvil",
     "hideReadFeeds": "Ocultar feeds leídos",
-    "showReadFeeds": "Mostrar todos los feeds"
+    "showReadFeeds": "Mostrar todos los feeds",
+    "feedLayout": "Disposición",
+    "feedLayoutDefault": "Por defecto"
   },
   "addFeed": {
     "title": "Añadir una fuente RSS",
@@ -84,7 +86,8 @@
     "listAndReading": "Lista + lectura en paralelo",
     "loading": "Cargando…",
     "searchIn": "Buscar en {{scope}}",
-    "gridLayout": "Cuadrícula"
+    "gridLayout": "Cuadrícula",
+    "layoutOverridden": "Este flujo usa su propia disposición (clic derecho en el flujo para cambiarla)"
   },
   "articleRow": {
     "markRead": "Marcar como leído",
@@ -134,7 +137,8 @@
     "newLabel": "Nueva etiqueta…",
     "newLabelPlaceholder": "Nombre de la etiqueta",
     "focusEnter": "Modo Enfoque (pantalla completa)",
-    "focusExit": "Salir del modo Enfoque"
+    "focusExit": "Salir del modo Enfoque",
+    "focusHint": "doble clic en el artículo, Esc para salir"
   },
   "preferences": {
     "title": "Preferencias",
@@ -309,7 +313,10 @@
       "keyEnter": "Intro",
       "keyDelete": "Supr",
       "escBackToGrid": "Volver a la cuadrícula",
-      "escExitFocus": "Salir del modo Enfoque"
+      "escExitFocus": "Salir del modo Enfoque",
+      "builtInTitle": "Teclas y gestos integrados",
+      "keyDoubleClick": "Doble clic",
+      "doubleClickFocus": "Modo Enfoque (pantalla completa) en el artículo"
     },
     "offline": {
       "title": "Sin conexión",

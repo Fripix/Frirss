@@ -41,7 +41,9 @@
     "layoutDesktop": "Desktopindeling",
     "layoutMobile": "Mobiele indeling",
     "hideReadFeeds": "Gelezen feeds verbergen",
-    "showReadFeeds": "Alle feeds tonen"
+    "showReadFeeds": "Alle feeds tonen",
+    "feedLayout": "Indeling",
+    "feedLayoutDefault": "Standaard"
   },
   "addFeed": {
     "title": "Een RSS-feed toevoegen",
@@ -84,7 +86,8 @@
     "listAndReading": "Lijst + lezen naast elkaar",
     "loading": "Laden…",
     "searchIn": "Zoeken in {{scope}}",
-    "gridLayout": "Raster"
+    "gridLayout": "Raster",
+    "layoutOverridden": "Deze feed gebruikt een eigen indeling (rechtsklik op de feed om te wijzigen)"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",
@@ -134,7 +137,8 @@
     "newLabel": "Nieuw label…",
     "newLabelPlaceholder": "Labelnaam",
     "focusEnter": "Focusmodus (volledig scherm)",
-    "focusExit": "Focusmodus verlaten"
+    "focusExit": "Focusmodus verlaten",
+    "focusHint": "dubbelklik op het artikel, Esc om te verlaten"
   },
   "preferences": {
     "title": "Voorkeuren",
@@ -309,7 +313,10 @@
       "keyEnter": "Enter",
       "keyDelete": "Del",
       "escBackToGrid": "Terug naar raster",
-      "escExitFocus": "Focusmodus verlaten"
+      "escExitFocus": "Focusmodus verlaten",
+      "builtInTitle": "Ingebouwde toetsen en gebaren",
+      "keyDoubleClick": "Dubbelklik",
+      "doubleClickFocus": "Focusmodus (volledig scherm) op het artikel"
     },
     "offline": {
       "title": "Offline",

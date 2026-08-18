@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useFeedStore } from '../stores/feedStore';
 import { useUiStore } from '../stores/uiStore';
+import { effectiveLayout } from '../lib/effectiveLayout';
 
 export function useKeyboardNav(): void {
   const shortcuts = useUiStore((s) => s.shortcuts);
@@ -22,8 +23,10 @@ export function useKeyboardNav(): void {
       }
 
       // In grid layout, Escape closes the reader overlay and returns to the grid.
+      const ui = useUiStore.getState();
+      const layout = effectiveLayout(ui.panelLayout, ui.feedSettings, useFeedStore.getState().selectedFeed?.id);
       if (e.key === 'Escape'
-          && useUiStore.getState().panelLayout === 'grid'
+          && layout === 'grid'
           && useFeedStore.getState().selectedArticle) {
         e.preventDefault();
         useFeedStore.getState().selectArticle(null);

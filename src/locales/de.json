@@ -41,7 +41,9 @@
     "layoutDesktop": "Desktop-Layout",
     "layoutMobile": "Mobiles Layout",
     "hideReadFeeds": "Gelesene Feeds ausblenden",
-    "showReadFeeds": "Alle Feeds anzeigen"
+    "showReadFeeds": "Alle Feeds anzeigen",
+    "feedLayout": "Ansicht",
+    "feedLayoutDefault": "Standard"
   },
   "addFeed": {
     "title": "RSS-Feed hinzufügen",
@@ -84,7 +86,8 @@
     "listAndReading": "Liste + Lesen nebeneinander",
     "loading": "Wird geladen…",
     "searchIn": "In {{scope}} suchen",
-    "gridLayout": "Raster"
+    "gridLayout": "Raster",
+    "layoutOverridden": "Dieser Feed nutzt eine eigene Ansicht (Rechtsklick auf den Feed zum Ändern)"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",
@@ -134,7 +137,8 @@
     "newLabel": "Neues Label…",
     "newLabelPlaceholder": "Label-Name",
     "focusEnter": "Fokusmodus (Vollbild)",
-    "focusExit": "Fokusmodus verlassen"
+    "focusExit": "Fokusmodus verlassen",
+    "focusHint": "Doppelklick auf den Artikel, Esc zum Verlassen"
   },
   "preferences": {
     "title": "Einstellungen",
@@ -309,7 +313,10 @@
       "keyEnter": "Eingabe",
       "keyDelete": "Entf",
       "escBackToGrid": "Zurück zum Raster",
-      "escExitFocus": "Fokusmodus verlassen"
+      "escExitFocus": "Fokusmodus verlassen",
+      "builtInTitle": "Integrierte Tasten & Gesten",
+      "keyDoubleClick": "Doppelklick",
+      "doubleClickFocus": "Fokusmodus (Vollbild) im Artikel"
     },
     "offline": {
       "title": "Offline",

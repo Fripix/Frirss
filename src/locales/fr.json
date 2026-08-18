@@ -43,7 +43,9 @@
     "layoutDesktop": "Disposition bureau",
     "layoutMobile": "Disposition mobile",
     "hideReadFeeds": "Masquer les flux lus",
-    "showReadFeeds": "Afficher tous les flux"
+    "showReadFeeds": "Afficher tous les flux",
+    "feedLayout": "Disposition",
+    "feedLayoutDefault": "Par défaut"
   },
   "addFeed": {
     "title": "Ajouter un flux RSS",
@@ -86,7 +88,8 @@
     "listAndReading": "Liste + lecture côte à côte",
     "loading": "Chargement…",
     "searchIn": "Rechercher dans {{scope}}",
-    "gridLayout": "Grille"
+    "gridLayout": "Grille",
+    "layoutOverridden": "Ce flux utilise sa propre disposition (clic droit sur le flux pour la changer)"
   },
   "articleRow": {
     "markRead": "Marquer lu",
@@ -136,7 +139,8 @@
     "newLabel": "Nouvelle étiquette…",
     "newLabelPlaceholder": "Nom de l'étiquette",
     "focusEnter": "Mode Focus (plein écran)",
-    "focusExit": "Quitter le mode Focus"
+    "focusExit": "Quitter le mode Focus",
+    "focusHint": "double-clic sur l’article, Échap pour sortir"
   },
   "preferences": {
     "title": "Préférences",
@@ -311,7 +315,10 @@
       "keyEnter": "Entrée",
       "keyDelete": "Suppr",
       "escBackToGrid": "Retour à la grille",
-      "escExitFocus": "Quitter le mode Focus"
+      "escExitFocus": "Quitter le mode Focus",
+      "builtInTitle": "Gestes et touches intégrés",
+      "keyDoubleClick": "Double-clic",
+      "doubleClickFocus": "Mode Focus (plein écran) sur l’article"
     },
     "offline": {
       "title": "Hors-ligne",

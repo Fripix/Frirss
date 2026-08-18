@@ -788,7 +788,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           onClick={toggleReadingFocus}
           className="p-1.5 rounded-lg transition-colors hover:bg-black/5 flex-shrink-0"
           style={{ color: readingFocus ? 'var(--accent)' : 'var(--list-summary)' }}
-          title={readingFocus ? t('readingPane.focusExit') : t('readingPane.focusEnter')}
+          title={`${readingFocus ? t('readingPane.focusExit') : t('readingPane.focusEnter')} — ${t('readingPane.focusHint')}`}
           aria-pressed={readingFocus}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>

@@ -41,7 +41,9 @@
     "layoutDesktop": "Disposição desktop",
     "layoutMobile": "Disposição móvel",
     "hideReadFeeds": "Ocultar feeds lidos",
-    "showReadFeeds": "Mostrar todos os feeds"
+    "showReadFeeds": "Mostrar todos os feeds",
+    "feedLayout": "Disposição",
+    "feedLayoutDefault": "Predefinição"
   },
   "addFeed": {
     "title": "Adicionar um feed RSS",
@@ -84,7 +86,8 @@
     "listAndReading": "Lista + leitura lado a lado",
     "loading": "A carregar…",
     "searchIn": "Pesquisar em {{scope}}",
-    "gridLayout": "Grelha"
+    "gridLayout": "Grelha",
+    "layoutOverridden": "Este fluxo usa a sua própria disposição (clique direito no fluxo para alterar)"
   },
   "articleRow": {
     "markRead": "Marcar como lido",
@@ -134,7 +137,8 @@
     "newLabel": "Nova etiqueta…",
     "newLabelPlaceholder": "Nome da etiqueta",
     "focusEnter": "Modo Foco (ecrã inteiro)",
-    "focusExit": "Sair do modo Foco"
+    "focusExit": "Sair do modo Foco",
+    "focusHint": "duplo clique no artigo, Esc para sair"
   },
   "preferences": {
     "title": "Preferências",
@@ -309,7 +313,10 @@
       "keyEnter": "Enter",
       "keyDelete": "Del",
       "escBackToGrid": "Voltar à grelha",
-      "escExitFocus": "Sair do modo Focus"
+      "escExitFocus": "Sair do modo Focus",
+      "builtInTitle": "Teclas e gestos integrados",
+      "keyDoubleClick": "Duplo clique",
+      "doubleClickFocus": "Modo Focus (ecrã inteiro) no artigo"
     },
     "offline": {
       "title": "Offline",

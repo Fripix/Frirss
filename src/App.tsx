@@ -18,6 +18,7 @@ import ResizeHandle from './components/ResizeHandle';
 import ServerSwitcher from './components/ServerSwitcher/ServerSwitcher';
 import ShortcutBar from './components/ShortcutBar';
 import OfflineBanner from './components/OfflineBanner';
+import { effectiveLayout } from './lib/effectiveLayout';
 import MobileDrawer from './components/MobileDrawer';
 import MobileStack from './components/MobileStack';
 
@@ -43,6 +44,7 @@ export default function App() {
   const filter = useFeedStore((s) => s.filter);
   const preferencesOpen = useThemeStore((s) => s.preferencesOpen);
   const panelLayout = useUiStore((s) => s.panelLayout);
+  const feedSettings = useUiStore((s) => s.feedSettings);
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
   const readingFocus = useUiStore((s) => s.readingFocus);
   const setSidebarVisible = useUiStore((s) => s.setSidebarVisible);
@@ -367,11 +369,13 @@ export default function App() {
   // ═══════════════════════════════════════════════════════════════════
   // DESKTOP — 3-column (or 2-column) classic layout, unchanged
   // ═══════════════════════════════════════════════════════════════════
-  const gridMode = panelLayout === 'grid';
+  // A feed can override the global layout (set from its sidebar context menu).
+  const layout = effectiveLayout(panelLayout, feedSettings, selectedFeedId);
+  const gridMode = layout === 'grid';
   // Grid layout uses the 2-panel path: the card grid spans full width, and the
   // reading pane replaces it on selection (the card opens a full-screen reader
   // overlay with a back button / Escape to return to the grid).
-  const is2Panel = panelLayout === '2' || gridMode;
+  const is2Panel = layout === '2' || gridMode;
   // Reading Focus: reading pane fills the width, sidebar + list hidden.
   const showReadingPane = readingFocus || !is2Panel || selectedArticle;
   const showArticleList = !readingFocus && (!is2Panel || !selectedArticle);

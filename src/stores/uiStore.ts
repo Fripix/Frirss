@@ -26,6 +26,12 @@ const defaultShortcuts: Shortcuts = {
 
 export interface FeedSetting {
   autoExtract?: boolean;
+  /**
+   * Per-feed panel layout override ('2' | '3' | 'grid'). Empty/absent means the
+   * feed follows the global panelLayout. Synced — "this feed reads better as a
+   * grid" is a property of the feed, true on every device.
+   */
+  layout?: string;
 }
 
 export interface UiState {
@@ -94,6 +100,8 @@ export interface UiState {
   feedSettings: Record<string, FeedSetting>;
   setFeedAutoExtract: (feedId: string, value: boolean) => void;
   getFeedAutoExtract: (feedId: string) => boolean;
+  /** Set (or clear, with '') this feed's layout override. */
+  setFeedLayout: (feedId: string, layout: string) => void;
   appTitle: string;
   appLogo: string | null;
   logoMode: 'small' | 'large';
@@ -325,6 +333,20 @@ export const useUiStore = create<UiState>()((set, get) => ({
   getFeedAutoExtract: (feedId) => {
     const { feedSettings } = get();
     return feedSettings[feedId]?.autoExtract || false;
+  },
+  setFeedLayout: (feedId, layout) => {
+    set((state) => {
+      const entry = { ...state.feedSettings[feedId] };
+      if (layout) entry.layout = layout;
+      else delete entry.layout;
+
+      const next = { ...state.feedSettings, [feedId]: entry };
+      // Drop the entry entirely once it carries no settings at all.
+      if (Object.keys(entry).length === 0) delete next[feedId];
+
+      localStorage.setItem('frirss_feedSettings', JSON.stringify(next));
+      return { feedSettings: next };
+    });
   },
 
   // App branding — custom title & logo

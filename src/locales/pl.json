@@ -41,7 +41,9 @@
     "layoutDesktop": "Układ desktopowy",
     "layoutMobile": "Układ mobilny",
     "hideReadFeeds": "Ukryj przeczytane kanały",
-    "showReadFeeds": "Pokaż wszystkie kanały"
+    "showReadFeeds": "Pokaż wszystkie kanały",
+    "feedLayout": "Układ",
+    "feedLayoutDefault": "Domyślny"
   },
   "addFeed": {
     "title": "Dodaj kanał RSS",
@@ -84,7 +86,8 @@
     "listAndReading": "Lista + czytanie obok siebie",
     "loading": "Ładowanie…",
     "searchIn": "Szukaj w {{scope}}",
-    "gridLayout": "Siatka"
+    "gridLayout": "Siatka",
+    "layoutOverridden": "Ten kanał ma własny układ (kliknij prawym przyciskiem, aby zmienić)"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",
@@ -134,7 +137,8 @@
     "newLabel": "Nowa etykieta…",
     "newLabelPlaceholder": "Nazwa etykiety",
     "focusEnter": "Tryb skupienia (pełny ekran)",
-    "focusExit": "Wyjdź z trybu skupienia"
+    "focusExit": "Wyjdź z trybu skupienia",
+    "focusHint": "podwójne kliknięcie artykułu, Esc aby wyjść"
   },
   "preferences": {
     "title": "Preferencje",
@@ -309,7 +313,10 @@
       "keyEnter": "Enter",
       "keyDelete": "Del",
       "escBackToGrid": "Powrót do siatki",
-      "escExitFocus": "Wyjdź z trybu skupienia"
+      "escExitFocus": "Wyjdź z trybu skupienia",
+      "builtInTitle": "Wbudowane klawisze i gesty",
+      "keyDoubleClick": "Podwójne kliknięcie",
+      "doubleClickFocus": "Tryb skupienia (pełny ekran) na artykule"
     },
     "offline": {
       "title": "Offline",

@@ -654,7 +654,9 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
   const menuRef = useRef<HTMLDivElement>(null);
   const feedSettings = useUiStore((s) => s.feedSettings);
   const setFeedAutoExtract = useUiStore((s) => s.setFeedAutoExtract);
+  const setFeedLayout = useUiStore((s) => s.setFeedLayout);
   const isAutoExtract = feedSettings[feed.id]?.autoExtract || false;
+  const feedLayout = feedSettings[feed.id]?.layout || '';
 
   // Close on outside click
   useEffect(() => {
@@ -782,6 +784,43 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
           onClose();
         }}
       />
+
+      {/* Per-feed layout override — falls back to the global layout when empty */}
+      <div className="h-px mx-2 my-1" style={{ background: 'var(--panel-border)' }} />
+      <div
+        className="px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-widest"
+        style={{ color: 'var(--list-time)' }}
+      >
+        {t('sidebar.feedLayout')}
+      </div>
+      {[
+        { id: '', label: t('sidebar.feedLayoutDefault') },
+        { id: '2', label: t('articleList.listOnly') },
+        { id: '3', label: t('articleList.listAndReading') },
+        { id: 'grid', label: t('articleList.gridLayout') },
+      ].map((opt) => (
+        <ContextMenuItem
+          key={opt.id || 'default'}
+          icon={
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              style={{ opacity: feedLayout === opt.id ? 1 : 0 }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          }
+          label={opt.label}
+          onClick={() => {
+            setFeedLayout(feed.id, opt.id);
+            onClose();
+          }}
+        />
+      ))}
+
       <div className="h-px mx-2 my-1" style={{ background: 'var(--panel-border)' }} />
       <ContextMenuItem
         icon={
