@@ -45,6 +45,7 @@ export default function App() {
   const panelLayout = useUiStore((s) => s.panelLayout);
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
   const readingFocus = useUiStore((s) => s.readingFocus);
+  const viewMode = useUiStore((s) => s.viewMode);
   const setSidebarVisible = useUiStore((s) => s.setSidebarVisible);
   const topbarVisible = useUiStore((s) => s.topbarVisible);
 
@@ -367,7 +368,11 @@ export default function App() {
   // ═══════════════════════════════════════════════════════════════════
   // DESKTOP — 3-column (or 2-column) classic layout, unchanged
   // ═══════════════════════════════════════════════════════════════════
-  const is2Panel = panelLayout === '2';
+  const gridMode = viewMode === 'grid';
+  // Grid mode uses the 2-panel path: the card grid spans full width, and the
+  // reading pane replaces it on selection (the card opens a full-screen reader
+  // overlay with a back button / Escape to return to the grid).
+  const is2Panel = panelLayout === '2' || gridMode;
   // Reading Focus: reading pane fills the width, sidebar + list hidden.
   const showReadingPane = readingFocus || !is2Panel || selectedArticle;
   const showArticleList = !readingFocus && (!is2Panel || !selectedArticle);
