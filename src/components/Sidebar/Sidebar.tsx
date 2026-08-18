@@ -647,6 +647,69 @@ interface FeedContextMenuProps {
   onClose: () => void;
 }
 
+/**
+ * Per-feed layout picker — same segmented look (and icons) as the toolbar's
+ * layout toggle, so the two read as the same control. '' = follow the global
+ * layout.
+ */
+function FeedLayoutPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
+  const options = [
+    {
+      id: '',
+      title: t('sidebar.feedLayoutDefault'),
+      // Reset arrow — "go back to the global setting"
+      path: 'M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3',
+      single: true,
+    },
+    { id: '2', title: t('articleList.listOnly') },
+    { id: '3', title: t('articleList.listAndReading') },
+    { id: 'grid', title: t('articleList.gridLayout') },
+  ];
+
+  return (
+    <div
+      data-theme="list-active"
+      className="flex items-center gap-0.5 rounded-md p-0.5 flex-shrink-0"
+      style={{ background: 'var(--list-active)' }}
+    >
+      {options.map((opt) => (
+        <button
+          key={opt.id || 'default'}
+          onClick={() => onChange(opt.id)}
+          title={opt.title}
+          aria-label={opt.title}
+          aria-pressed={value === opt.id}
+          className={`p-1 rounded transition-all ${
+            value === opt.id
+              ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'
+              : 'text-[var(--list-summary)] hover:text-[var(--list-title)]'
+          }`}
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            {opt.single ? (
+              <path strokeLinecap="round" strokeLinejoin="round" d={opt.path} />
+            ) : opt.id === '2' ? (
+              <>
+                <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+                <path strokeLinecap="round" d="M7 9h10M7 12h10M7 15h6" />
+              </>
+            ) : opt.id === '3' ? (
+              <>
+                <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+                <line x1="11" y1="4.5" x2="11" y2="19.5" />
+                <path strokeLinecap="round" d="M6 9h3M6 12h3M14 9h4M14 11.5h4M14 14h2.5" />
+              </>
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5zm-10 10h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5z" />
+            )}
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContextMenuProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'rename' | 'confirmDelete' | null>(null);
@@ -672,7 +735,7 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
     position: 'fixed', left: x, top: y, zIndex: 100,
     background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
     borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-    minWidth: '180px', overflow: 'hidden',
+    minWidth: '236px', overflow: 'hidden',
   };
 
   if (mode === 'rename') {
@@ -787,39 +850,18 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
 
       {/* Per-feed layout override — falls back to the global layout when empty */}
       <div className="h-px mx-2 my-1" style={{ background: 'var(--panel-border)' }} />
-      <div
-        className="px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-widest"
-        style={{ color: 'var(--list-time)' }}
-      >
-        {t('sidebar.feedLayout')}
-      </div>
-      {[
-        { id: '', label: t('sidebar.feedLayoutDefault') },
-        { id: '2', label: t('articleList.listOnly') },
-        { id: '3', label: t('articleList.listAndReading') },
-        { id: 'grid', label: t('articleList.gridLayout') },
-      ].map((opt) => (
-        <ContextMenuItem
-          key={opt.id || 'default'}
-          icon={
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              style={{ opacity: feedLayout === opt.id ? 1 : 0 }}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          }
-          label={opt.label}
-          onClick={() => {
-            setFeedLayout(feed.id, opt.id);
+      <div className="px-3 py-2 flex items-center justify-between gap-2">
+        <span className="text-[13px] font-medium" style={{ color: 'var(--list-title)' }}>
+          {t('sidebar.feedLayout')}
+        </span>
+        <FeedLayoutPicker
+          value={feedLayout}
+          onChange={(v) => {
+            setFeedLayout(feed.id, v);
             onClose();
           }}
         />
-      ))}
+      </div>
 
       <div className="h-px mx-2 my-1" style={{ background: 'var(--panel-border)' }} />
       <ContextMenuItem
