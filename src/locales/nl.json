@@ -525,6 +525,8 @@
   "saved": {
     "fileInto": "Opslaan in",
     "newCategory": "Nieuwe categorie",
-    "noCategory": "Nog geen categorie"
+    "noCategory": "Nog geen categorie",
+    "manage": "Categorieën beheren",
+    "createHint": "Houd de ster of de klok van een artikel ingedrukt om een categorie te maken."
   }
 }

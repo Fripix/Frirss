@@ -11,6 +11,8 @@ import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
 import { extractYouTubeId, injectVideoFacades, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
+import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
+import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
 // Reserve vertical space for images that declare width/height, via
@@ -67,6 +69,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const feedSettings = useUiStore((s) => s.feedSettings);
   const readingFocus = useUiStore((s) => s.readingFocus);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
+  // Which saved-category picker is open (null = none).
+  const [filing, setFiling] = useState<string | null>(null);
   const toggleReadingFocus = useUiStore((s) => s.toggleReadingFocus);
   const mobileReadingFontSize = useUiStore((s) => s.mobileReadingFontSize);
   const setMobileReadingFontSize = useUiStore((s) => s.setMobileReadingFontSize);
@@ -763,6 +767,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           activeColor="var(--star-color)"
           highlight
           onClick={() => toggleStar(article)}
+          onFile={() => setFiling(STARRED_PREFIX)}
         />
 
         {/* Read Later */}
@@ -777,7 +782,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           activeColor="var(--readlater-color)"
           highlight
           onClick={() => toggleReadLater(article)}
+          onFile={() => setFiling(READ_LATER_PREFIX)}
         />
+
+        {filing && (
+          <div className="relative">
+            <SavedCategoryPicker prefix={filing} article={article} onClose={() => setFiling(null)} />
+          </div>
+        )}
 
         <ToolbarSeparator />
 
@@ -1245,9 +1257,28 @@ interface ActionBtnProps {
   activeColor: string;
   highlight?: boolean;
   onClick: () => void;
+  /** Long press / right-click opens the category picker for this prefix. */
+  onFile?: () => void;
 }
 
-function ActionBtn({ icon, label, active, activeColor, highlight, onClick }: ActionBtnProps) {
+function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFile }: ActionBtnProps) {
+  // Same gesture as in the list: hold (finger or mouse) to file it away.
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const held = useRef(false);
+  const startHold = () => {
+    if (!onFile) return;
+    held.current = false;
+    holdTimer.current = setTimeout(() => { held.current = true; onFile(); }, 500);
+  };
+  const cancelHold = () => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; } };
+  const holdProps = onFile
+    ? {
+        onTouchStart: startHold, onTouchEnd: cancelHold, onTouchMove: cancelHold,
+        onMouseDown: startHold, onMouseUp: cancelHold, onMouseLeave: cancelHold,
+        onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); onFile(); },
+      }
+    : {};
+  const handleClick = () => { if (held.current) { held.current = false; return; } onClick(); };
   // `highlight` buttons (favourite / read-later) carry their identity color:
   //  - inactive → outline pill (colored text + thin colored border) = "off"
   //  - active   → SOLID filled pill with dark text = unmistakably "on"
@@ -1276,7 +1307,8 @@ function ActionBtn({ icon, label, active, activeColor, highlight, onClick }: Act
   }
   return (
     <button
-      onClick={onClick}
+      {...holdProps}
+      onClick={handleClick}
       className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
       style={style}
       title={label}

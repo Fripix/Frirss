@@ -525,6 +525,8 @@
   "saved": {
     "fileInto": "Ranger dans",
     "newCategory": "Nouvelle catégorie",
-    "noCategory": "Aucune catégorie pour l’instant"
+    "noCategory": "Aucune catégorie pour l’instant",
+    "manage": "Gérer les catégories",
+    "createHint": "Pour créer une catégorie, maintenez l’étoile ou l’horloge d’un article."
   }
 }

@@ -525,6 +525,8 @@
   "saved": {
     "fileInto": "Ablegen in",
     "newCategory": "Neue Kategorie",
-    "noCategory": "Noch keine Kategorie"
+    "noCategory": "Noch keine Kategorie",
+    "manage": "Kategorien verwalten",
+    "createHint": "Zum Anlegen einer Kategorie den Stern oder die Uhr eines Artikels gedrückt halten."
   }
 }

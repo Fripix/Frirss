@@ -525,6 +525,8 @@
   "saved": {
     "fileInto": "File into",
     "newCategory": "New category",
-    "noCategory": "No category yet"
+    "noCategory": "No category yet",
+    "manage": "Manage categories",
+    "createHint": "To create a category, hold the star or the clock on an article."
   }
 }

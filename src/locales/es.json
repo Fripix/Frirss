@@ -525,6 +525,8 @@
   "saved": {
     "fileInto": "Guardar en",
     "newCategory": "Nueva categoría",
-    "noCategory": "Aún no hay categorías"
+    "noCategory": "Aún no hay categorías",
+    "manage": "Gestionar las categorías",
+    "createHint": "Para crear una categoría, mantenga pulsada la estrella o el reloj de un artículo."
   }
 }

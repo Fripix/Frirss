@@ -535,6 +535,8 @@
   "saved": {
     "fileInto": "Zapisz w",
     "newCategory": "Nowa kategoria",
-    "noCategory": "Brak kategorii"
+    "noCategory": "Brak kategorii",
+    "manage": "Zarządzaj kategoriami",
+    "createHint": "Aby utworzyć kategorię, przytrzymaj gwiazdkę lub zegar przy artykule."
   }
 }

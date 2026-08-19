@@ -5,41 +5,42 @@ import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import type { Article } from '../../types';
 
 /**
- * Opens the category picker. A right-click / long press works, but the visible
- * chevron below is what makes the feature discoverable at all: a gesture with
- * no affordance is a feature nobody finds.
+ * A long press — with a finger or with the mouse — opens the category picker,
+ * while a plain click keeps its instant behaviour. Right-click does the same,
+ * for whoever reaches for it. Discovery happens in the sidebar, where the
+ * categories live: no affordance is added to these dense rows.
  */
 function useFileGesture(enabled: boolean) {
   const [picking, setPicking] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const start = () => { if (enabled) timer.current = setTimeout(() => setPicking(true), 500); };
+  const fired = useRef(false);
+
+  const start = () => {
+    if (!enabled) return;
+    fired.current = false;
+    timer.current = setTimeout(() => { fired.current = true; setPicking(true); }, 500);
+  };
   const cancel = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
+
   const handlers = enabled
     ? {
         onTouchStart: start,
         onTouchEnd: cancel,
         onTouchMove: cancel,
+        onMouseDown: start,
+        onMouseUp: cancel,
+        onMouseLeave: cancel,
         onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); setPicking(true); },
       }
     : {};
-  return { picking, setPicking, handlers };
-}
 
-/** Small visible caret that opens the category picker. */
-function FileCaret({ onOpen, label }: { onOpen: () => void; label: string }) {
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onOpen(); }}
-      title={label}
-      aria-label={label}
-      className="px-0.5 -ml-1 rounded hover:bg-black/5 transition-colors"
-      style={{ color: 'var(--list-summary)' }}
-    >
-      <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-      </svg>
-    </button>
-  );
+  /** Swallow the click that ends a long press, so it does not also toggle. */
+  const guardClick = (onClick: (e: ReactMouseEvent) => void) => (e: ReactMouseEvent) => {
+    if (fired.current) { fired.current = false; e.preventDefault(); e.stopPropagation(); return; }
+    onClick(e);
+  };
+
+  return { picking, setPicking, handlers, guardClick };
 }
 
 interface StarButtonProps {
@@ -51,12 +52,12 @@ interface StarButtonProps {
 
 export function StarButton({ starred, onClick, article }: StarButtonProps) {
   const { t } = useTranslation();
-  const { picking, setPicking, handlers } = useFileGesture(!!article);
+  const { picking, setPicking, handlers, guardClick } = useFileGesture(!!article);
   return (
     <span className="relative inline-flex">
     <button
       {...handlers}
-      onClick={onClick}
+      onClick={guardClick(onClick)}
       data-theme="star-color"
       className="p-1 rounded-full transition-colors hover:bg-black/5"
       style={{ color: starred ? 'var(--star-color)' : 'var(--star-inactive)' }}
@@ -76,7 +77,6 @@ export function StarButton({ starred, onClick, article }: StarButtonProps) {
         />
       </svg>
     </button>
-    {article && <FileCaret onOpen={() => setPicking(true)} label={t('saved.fileInto')} />}
     {picking && article && (
       <SavedCategoryPicker prefix={STARRED_PREFIX} article={article} onClose={() => setPicking(false)} />
     )}
@@ -93,12 +93,12 @@ interface ReadLaterButtonProps {
 
 export function ReadLaterButton({ active, onClick, article }: ReadLaterButtonProps) {
   const { t } = useTranslation();
-  const { picking, setPicking, handlers } = useFileGesture(!!article);
+  const { picking, setPicking, handlers, guardClick } = useFileGesture(!!article);
   return (
     <span className="relative inline-flex">
     <button
       {...handlers}
-      onClick={onClick}
+      onClick={guardClick(onClick)}
       data-theme="readlater-color"
       className="p-1 rounded-full transition-colors hover:bg-black/5"
       style={{ color: active ? 'var(--readlater-color)' : 'var(--star-inactive)' }}
@@ -114,7 +114,6 @@ export function ReadLaterButton({ active, onClick, article }: ReadLaterButtonPro
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     </button>
-    {article && <FileCaret onOpen={() => setPicking(true)} label={t('saved.fileInto')} />}
     {picking && article && (
       <SavedCategoryPicker prefix={READ_LATER_PREFIX} article={article} onClose={() => setPicking(false)} />
     )}

@@ -78,6 +78,8 @@ export default function Sidebar() {
   const toggleCategoryCollapsed = useUiStore((s) => s.toggleCategoryCollapsed);
   const savedCollapsed = useUiStore((s) => s.savedCollapsed);
   const toggleSavedCollapsed = useUiStore((s) => s.toggleSavedCollapsed);
+  // Right-click on Favoris / À lire plus tard manages their categories.
+  const [savedMenu, setSavedMenu] = useState<{ prefix: string; x: number; y: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [addFeedOpen, setAddFeedOpen] = useState(false);
@@ -453,6 +455,7 @@ export default function Sidebar() {
           onArticleDrop={(article) => {
             if (!article.starred) toggleStar(article);
           }}
+          onContextMenu={(e) => { e.preventDefault(); setSavedMenu({ prefix: STARRED_PREFIX, x: e.clientX, y: e.clientY }); }}
           onToggleCollapse={() => toggleSavedCollapsed(STARRED_PREFIX)}
           collapsed={!!savedCollapsed[STARRED_PREFIX]}
           hasChildren={savedCategories(labels, STARRED_PREFIX).length > 0}
@@ -472,11 +475,20 @@ export default function Sidebar() {
           onArticleDrop={(article) => {
             if (!article.labels?.includes(READ_LATER_LABEL)) toggleReadLater(article);
           }}
+          onContextMenu={(e) => { e.preventDefault(); setSavedMenu({ prefix: READ_LATER_PREFIX, x: e.clientX, y: e.clientY }); }}
           onToggleCollapse={() => toggleSavedCollapsed(READ_LATER_PREFIX)}
           collapsed={!!savedCollapsed[READ_LATER_PREFIX]}
           hasChildren={savedCategories(labels, READ_LATER_PREFIX).length > 0}
         />
         <SavedCategoryList prefix={READ_LATER_PREFIX} />
+        {savedMenu && (
+          <SavedCategoriesMenu
+            prefix={savedMenu.prefix}
+            x={savedMenu.x}
+            y={savedMenu.y}
+            onClose={() => setSavedMenu(null)}
+          />
+        )}
 
         {/* User labels section */}
         {labels.length > 0 && (
@@ -1063,6 +1075,71 @@ function SavedCategoryList({ prefix }: { prefix: string }) {
   );
 }
 
+/** Create / delete the categories of a prefix, from the sidebar context menu. */
+function SavedCategoriesMenu({ prefix, x, y, onClose }: { prefix: string; x: number; y: number; onClose: () => void }) {
+  const { t } = useTranslation();
+  const labels = useFeedStore((s) => s.labels);
+  const deleteLabel = useFeedStore((s) => s.deleteLabel);
+  const loadLabels = useFeedStore((s) => s.loadLabels);
+  const ref = useRef<HTMLDivElement>(null);
+  const cats = savedCategories(labels, prefix);
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'fixed', left: x, top: y, zIndex: 100,
+        background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
+        borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+        minWidth: '220px', overflow: 'hidden',
+      }}
+      className="py-1"
+    >
+      <div className="px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--list-time)' }}>
+        {t('saved.manage')}
+      </div>
+
+      {cats.map((cat) => (
+        <div key={cat.id} className="flex items-center gap-1 px-3 py-1.5 text-xs" style={{ color: 'var(--list-title)' }}>
+          <span className="flex-1 truncate">{cat.name}</span>
+          <button
+            onClick={async () => { await deleteLabel(cat.id); loadLabels(); }}
+            title={t('sidebar.deleteLabel')}
+            className="p-1 rounded hover:bg-black/5"
+            style={{ color: 'var(--list-summary)' }}
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      ))}
+
+      {!cats.length && (
+        <div className="px-3 py-1.5 text-[11px]" style={{ color: 'var(--list-summary)' }}>
+          {t('saved.noCategory')}
+        </div>
+      )}
+
+      <div className="h-px mx-2 my-1" style={{ background: 'var(--panel-border)' }} />
+      {/* An empty label cannot exist server-side: a category comes into being
+          when a first article is filed into it. Say so rather than offering a
+          "create" that would silently do nothing. */}
+      <div className="px-3 py-1.5 text-[11px] leading-snug" style={{ color: 'var(--list-summary)' }}>
+        {t('saved.createHint')}
+      </div>
+    </div>
+  );
+}
+
 interface FilterItemProps {
   icon: ReactNode;
   label: string;
@@ -1072,13 +1149,15 @@ interface FilterItemProps {
   badgeColor?: string;
   onClick: () => void;
   onArticleDrop?: (article: Article) => void;
+  /** Right-click handler — used to manage the saved categories. */
+  onContextMenu?: (e: ReactMouseEvent) => void;
   /** Optional chevron to reveal the saved categories underneath. */
   onToggleCollapse?: () => void;
   collapsed?: boolean;
   hasChildren?: boolean;
 }
 
-function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, onArticleDrop, onToggleCollapse, collapsed, hasChildren }: FilterItemProps) {
+function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, onArticleDrop, onContextMenu, onToggleCollapse, collapsed, hasChildren }: FilterItemProps) {
   const { t } = useTranslation();
   const [dragOver, setDragOver] = useState(false);
 
@@ -1117,6 +1196,7 @@ function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, on
     >
       <button
         onClick={onClick}
+        onContextMenu={onContextMenu}
         className={`flex-1 min-w-0 flex items-center gap-3 px-4 py-2 transition-all ${
           dragOver ? 'drop-highlight' : active ? 'bg-white/10' : 'hover:bg-white/5'
         }`}
