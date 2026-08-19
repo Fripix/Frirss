@@ -83,6 +83,9 @@ export interface UiState {
   // individual label groups, and feed categories.
   labelsCollapsed: boolean;
   setLabelsCollapsed: (v: boolean) => void;
+  /** Collapsed state of the category lists under Favoris / À lire plus tard. */
+  savedCollapsed: Record<string, boolean>;
+  toggleSavedCollapsed: (prefix: string) => void;
   collapsedLabelGroups: Record<string, boolean>;
   toggleLabelGroup: (name: string) => void;
   collapsedCategories: Record<string, boolean>;
@@ -263,6 +266,15 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setLabelsCollapsed: (v) => {
     localStorage.setItem('frirss_labelsCollapsed', JSON.stringify(v));
     set({ labelsCollapsed: v });
+  },
+
+  savedCollapsed: loadJson('frirss_savedCollapsed', {} as Record<string, boolean>),
+  toggleSavedCollapsed: (prefix) => {
+    set((state) => {
+      const next = { ...state.savedCollapsed, [prefix]: !state.savedCollapsed[prefix] };
+      localStorage.setItem('frirss_savedCollapsed', JSON.stringify(next));
+      return { savedCollapsed: next };
+    });
   },
   // Per-label-group collapse: { [groupName]: true }
   collapsedLabelGroups: loadJson('frirss_collapsedLabelGroups', {} as Record<string, boolean>),
@@ -483,7 +495,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showFavicons', 'topbarVisible', 'categoryOrder', 'feedOrder',
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
-      'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
+      'labelsCollapsed', 'savedCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
       'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos',
     ];
     for (const k of jsonKeys) {
@@ -507,7 +519,7 @@ export const UI_SYNC_KEYS = [
   'categoryOrder', 'feedOrder', 'labelOrder', 'labelSortAlpha', 'showLabelCounts',
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
-  'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
+  'labelsCollapsed', 'savedCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
   'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos',
 ];
 
