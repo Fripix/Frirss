@@ -27,6 +27,7 @@ import { listGet, listPut, listEvictOlderThan, subsGet, subsPut } from '../lib/o
 import { computeRefreshDelta } from '../lib/refreshDelta';
 import { collectImageUrls, imageBudget, prioritizeForOffline } from '../lib/offlineImages';
 import { getStorageEstimate } from '../lib/storageEstimate';
+import { cacheImages } from '../lib/imageCache';
 import type {
   Article,
   Subscription,
@@ -224,20 +225,6 @@ export function pickPrefetchFeeds(
 function connectionTooSlow(): boolean {
   const c = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
   return !!c && (c.saveData === true || c.effectiveType === 'slow-2g' || c.effectiveType === '2g');
-}
-
-// Fetch images so the service worker caches them for offline viewing
-// (CacheFirst). Cross-origin images are opaque: we cannot read their size, so
-// the caller enforces the budget from storage estimates. Best-effort.
-async function fetchImages(urls: string[]): Promise<void> {
-  const BATCH = 4;
-  for (let i = 0; i < urls.length; i += BATCH) {
-    await Promise.all(
-      urls.slice(i, i + BATCH).map((src) =>
-        fetch(src, { mode: 'no-cors', cache: 'force-cache' }).catch(() => undefined),
-      ),
-    );
-  }
 }
 
 /**
@@ -642,7 +629,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       }
 
       if (!budgetReached) {
-        await fetchImages(articleImageUrls(a.content, extracted, budget.perArticle));
+        await cacheImages(articleImageUrls(a.content, extracted, budget.perArticle));
         // Re-check every few articles — estimates are coarse, so polling often
         // costs more than it buys.
         if (done % 10 === 9) {
