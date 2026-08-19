@@ -63,6 +63,15 @@ export default function App() {
     document.documentElement.dataset.layout = breakpoint;
   }, [breakpoint]);
 
+  // Replay what was done offline: on startup (a session may have been closed
+  // with actions pending) and whenever the network comes back.
+  useEffect(() => {
+    const replay = () => { useFeedStore.getState().replayQueue(); };
+    replay();
+    window.addEventListener('online', replay);
+    return () => window.removeEventListener('online', replay);
+  }, []);
+
   // Persistent extract cache: evict content older than the retention window
   // and warm the in-memory tier from IndexedDB so reads are instant.
   useEffect(() => {
