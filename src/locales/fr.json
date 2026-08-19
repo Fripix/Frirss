@@ -347,7 +347,9 @@
       "imagesCleared": "Images supprimées",
       "imagesMb": "Mo",
       "imagesDownload": "Télécharger les images",
-      "imagesResetSizes": "Valeurs recommandées"
+      "imagesResetSizes": "Valeurs recommandées",
+      "imagesCached_one": "{{count}} image en cache",
+      "imagesCached_other": "{{count}} images en cache"
     }
   },
   "login": {

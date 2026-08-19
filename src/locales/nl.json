@@ -345,7 +345,9 @@
       "imagesCleared": "Afbeeldingen verwijderd",
       "imagesMb": "MB",
       "imagesDownload": "Afbeeldingen downloaden",
-      "imagesResetSizes": "Aanbevolen waarden"
+      "imagesResetSizes": "Aanbevolen waarden",
+      "imagesCached_one": "{{count}} afbeelding in cache",
+      "imagesCached_other": "{{count}} afbeeldingen in cache"
     }
   },
   "login": {

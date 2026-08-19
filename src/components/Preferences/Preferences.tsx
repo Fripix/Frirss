@@ -11,6 +11,7 @@ import {
   type OfflineImageSized,
 } from '../../lib/offlineImages';
 import { getStorageEstimate, formatBytes, clearImageCache } from '../../lib/storageEstimate';
+import { countCachedImages } from '../../lib/imageCache';
 import {
   getAdminUsers, createAdminUser, updateAdminUser, deleteAdminUser,
   setAdminUserPassword, getAdminSettings, updateAdminSettings,
@@ -2811,9 +2812,13 @@ function OfflineTab() {
   const setOfflineImageSize = useUiStore((s) => s.setOfflineImageSize);
   const resetOfflineImageSizes = useUiStore((s) => s.resetOfflineImageSizes);
   const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null);
+  const [imageCount, setImageCount] = useState<number | null>(null);
   const [cleared, setCleared] = useState(false);
 
-  const refreshEstimate = useCallback(() => { getStorageEstimate().then(setEstimate); }, []);
+  const refreshEstimate = useCallback(() => {
+    getStorageEstimate().then(setEstimate);
+    countCachedImages().then(setImageCount);
+  }, []);
   useEffect(() => { refreshEstimate(); }, [refreshEstimate]);
 
   const quota = estimate?.quota ?? 0;
@@ -2942,6 +2947,14 @@ function OfflineTab() {
           <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.imagesUsage', { used: formatBytes(estimate.usage) })}
             {estimate.quota > 0 && ` · ${t('preferences.offline.imagesQuota', { quota: formatBytes(estimate.quota) })}`}
+          </p>
+        )}
+
+        {/* The cache is otherwise invisible — this number is what tells apart
+            "nothing was stored" from "stored but not served". */}
+        {imageCount !== null && (
+          <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.offline.imagesCached', { count: imageCount })}
           </p>
         )}
 

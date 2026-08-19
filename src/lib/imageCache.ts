@@ -5,6 +5,25 @@ interface CacheImagesDeps {
   openCache: () => Promise<Cache>;
 }
 
+/**
+ * How many images are actually stored. Surfaced in the preferences: the cache
+ * is otherwise invisible, and this number is what distinguishes "nothing was
+ * ever stored" from "stored but not served".
+ */
+export async function countCachedImages(openCache?: () => Promise<Cache>): Promise<number> {
+  try {
+    const open = openCache
+      ?? (() => {
+        if (typeof caches === 'undefined') return Promise.reject(new Error('no CacheStorage'));
+        return caches.open(IMAGE_CACHE_NAME);
+      });
+    const cache = await open();
+    return (await cache.keys()).length;
+  } catch {
+    return 0;
+  }
+}
+
 const BATCH = 4;
 
 /**

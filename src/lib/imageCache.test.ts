@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { cacheImages } from './imageCache';
+import { cacheImages, countCachedImages } from './imageCache';
 
 /** Minimal stand-in for the Cache API, recording what gets stored. */
 function fakeCache(preloaded: string[] = []) {
@@ -71,5 +71,17 @@ describe('cacheImages', () => {
     const openCache = vi.fn();
     expect(await cacheImages([], { fetchFn: okFetch as never, openCache: openCache as never })).toBe(0);
     expect(openCache).not.toHaveBeenCalled();
+  });
+});
+
+describe('countCachedImages', () => {
+  it('reports how many images are stored', async () => {
+    const cache = fakeCache(['https://a/1.jpg', 'https://a/2.jpg']);
+    const withKeys = { ...cache, keys: async () => [...cache.store.keys()] };
+    expect(await countCachedImages(async () => withKeys as never)).toBe(2);
+  });
+
+  it('reports 0 when the cache is unavailable', async () => {
+    expect(await countCachedImages(async () => { throw new Error('none'); })).toBe(0);
   });
 });

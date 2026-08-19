@@ -345,7 +345,11 @@
       "imagesCleared": "Obrazy usunięte",
       "imagesMb": "MB",
       "imagesDownload": "Pobieraj obrazy",
-      "imagesResetSizes": "Wartości zalecane"
+      "imagesResetSizes": "Wartości zalecane",
+      "imagesCached_one": "{{count}} obraz w pamięci",
+      "imagesCached_other": "{{count}} obrazów w pamięci",
+      "imagesCached_few": "{{count}} obrazy w pamięci",
+      "imagesCached_many": "{{count}} obrazów w pamięci"
     }
   },
   "login": {
