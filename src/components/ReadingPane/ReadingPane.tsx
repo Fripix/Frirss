@@ -70,7 +70,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const readingFocus = useUiStore((s) => s.readingFocus);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
   // Which saved-category picker is open (null = none).
-  const [filing, setFiling] = useState<string | null>(null);
+  const [filing, setFiling] = useState<{ prefix: string; x: number; y: number } | null>(null);
   const toggleReadingFocus = useUiStore((s) => s.toggleReadingFocus);
   const mobileReadingFontSize = useUiStore((s) => s.mobileReadingFontSize);
   const setMobileReadingFontSize = useUiStore((s) => s.setMobileReadingFontSize);
@@ -767,7 +767,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           activeColor="var(--star-color)"
           highlight
           onClick={() => toggleStar(article)}
-          onFile={() => setFiling(STARRED_PREFIX)}
+          onFile={(a) => setFiling({ prefix: STARRED_PREFIX, ...a })}
         />
 
         {/* Read Later */}
@@ -782,14 +782,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           activeColor="var(--readlater-color)"
           highlight
           onClick={() => toggleReadLater(article)}
-          onFile={() => setFiling(READ_LATER_PREFIX)}
+          onFile={(a) => setFiling({ prefix: READ_LATER_PREFIX, ...a })}
         />
-
-        {filing && (
-          <div className="relative">
-            <SavedCategoryPicker prefix={filing} article={article} onClose={() => setFiling(null)} />
-          </div>
-        )}
 
         <ToolbarSeparator />
 
@@ -1224,6 +1218,16 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           )}
         </div>
       )}
+
+      {/* Category picker — portalled, so the toolbar never clips it */}
+      {filing && (
+        <SavedCategoryPicker
+          prefix={filing.prefix}
+          article={article}
+          anchor={{ x: filing.x, y: filing.y }}
+          onClose={() => setFiling(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1258,24 +1262,29 @@ interface ActionBtnProps {
   highlight?: boolean;
   onClick: () => void;
   /** Long press / right-click opens the category picker for this prefix. */
-  onFile?: () => void;
+  onFile?: (anchor: { x: number; y: number }) => void;
 }
 
 function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFile }: ActionBtnProps) {
   // Same gesture as in the list: hold (finger or mouse) to file it away.
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const anchorOf = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    return r ? { x: r.left + r.width / 2, y: r.bottom } : { x: 0, y: 0 };
+  };
   const startHold = () => {
     if (!onFile) return;
     held.current = false;
-    holdTimer.current = setTimeout(() => { held.current = true; onFile(); }, 500);
+    holdTimer.current = setTimeout(() => { held.current = true; onFile(anchorOf()); }, 500);
   };
   const cancelHold = () => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; } };
   const holdProps = onFile
     ? {
         onTouchStart: startHold, onTouchEnd: cancelHold, onTouchMove: cancelHold,
         onMouseDown: startHold, onMouseUp: cancelHold, onMouseLeave: cancelHold,
-        onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); onFile(); },
+        onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); onFile(anchorOf()); },
       }
     : {};
   const handleClick = () => { if (held.current) { held.current = false; return; } onClick(); };
@@ -1307,6 +1316,7 @@ function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFil
   }
   return (
     <button
+      ref={btnRef}
       {...holdProps}
       onClick={handleClick}
       className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"

@@ -12,13 +12,25 @@ import type { Article } from '../../types';
  */
 function useFileGesture(enabled: boolean) {
   const [picking, setPicking] = useState(false);
+  const [anchor, setAnchor] = useState({ x: 0, y: 0 });
+  const btn = useRef<HTMLElement | null>(null);
+  /** Anchor under the button that was held, in viewport coordinates. */
+  const anchorFrom = (el: HTMLElement | null) => {
+    const r = el?.getBoundingClientRect();
+    if (r) setAnchor({ x: r.left + r.width / 2, y: r.bottom });
+  };
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fired = useRef(false);
 
-  const start = () => {
+  const start = (e: { currentTarget: EventTarget & HTMLElement }) => {
     if (!enabled) return;
+    btn.current = e.currentTarget;
     fired.current = false;
-    timer.current = setTimeout(() => { fired.current = true; setPicking(true); }, 500);
+    timer.current = setTimeout(() => {
+      fired.current = true;
+      anchorFrom(btn.current);
+      setPicking(true);
+    }, 500);
   };
   const cancel = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
 
@@ -30,7 +42,11 @@ function useFileGesture(enabled: boolean) {
         onMouseDown: start,
         onMouseUp: cancel,
         onMouseLeave: cancel,
-        onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); setPicking(true); },
+        onContextMenu: (e: ReactMouseEvent<HTMLElement>) => {
+          e.preventDefault();
+          anchorFrom(e.currentTarget);
+          setPicking(true);
+        },
       }
     : {};
 
@@ -40,7 +56,7 @@ function useFileGesture(enabled: boolean) {
     onClick(e);
   };
 
-  return { picking, setPicking, handlers, guardClick };
+  return { picking, setPicking, handlers, guardClick, anchor };
 }
 
 interface StarButtonProps {
@@ -52,7 +68,7 @@ interface StarButtonProps {
 
 export function StarButton({ starred, onClick, article }: StarButtonProps) {
   const { t } = useTranslation();
-  const { picking, setPicking, handlers, guardClick } = useFileGesture(!!article);
+  const { picking, setPicking, handlers, guardClick, anchor } = useFileGesture(!!article);
   return (
     <span className="relative inline-flex">
     <button
@@ -78,7 +94,7 @@ export function StarButton({ starred, onClick, article }: StarButtonProps) {
       </svg>
     </button>
     {picking && article && (
-      <SavedCategoryPicker prefix={STARRED_PREFIX} article={article} onClose={() => setPicking(false)} />
+      <SavedCategoryPicker prefix={STARRED_PREFIX} article={article} anchor={anchor} onClose={() => setPicking(false)} />
     )}
     </span>
   );
@@ -93,7 +109,7 @@ interface ReadLaterButtonProps {
 
 export function ReadLaterButton({ active, onClick, article }: ReadLaterButtonProps) {
   const { t } = useTranslation();
-  const { picking, setPicking, handlers, guardClick } = useFileGesture(!!article);
+  const { picking, setPicking, handlers, guardClick, anchor } = useFileGesture(!!article);
   return (
     <span className="relative inline-flex">
     <button
@@ -115,7 +131,7 @@ export function ReadLaterButton({ active, onClick, article }: ReadLaterButtonPro
       </svg>
     </button>
     {picking && article && (
-      <SavedCategoryPicker prefix={READ_LATER_PREFIX} article={article} onClose={() => setPicking(false)} />
+      <SavedCategoryPicker prefix={READ_LATER_PREFIX} article={article} anchor={anchor} onClose={() => setPicking(false)} />
     )}
     </span>
   );
