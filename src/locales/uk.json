@@ -512,7 +512,15 @@
   },
   "connection": {
     "offline": "Офлайн — читання з кешу",
-    "backOnline": "Знову онлайн"
+    "backOnline": "Знову онлайн",
+    "pending_one": "1 дія очікує",
+    "pending_other": "{{count}} дій очікує",
+    "syncFailed_one": "Не вдалося синхронізувати 1 дію",
+    "syncFailed_other": "Не вдалося синхронізувати {{count}} дій",
+    "pending_few": "{{count}} дій очікує",
+    "pending_many": "{{count}} дій очікує",
+    "syncFailed_few": "Не вдалося синхронізувати {{count}} дій",
+    "syncFailed_many": "Не вдалося синхронізувати {{count}} дій"
   },
   "refresh": {
     "newArticles_one": "{{count}} нова стаття",

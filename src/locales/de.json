@@ -508,7 +508,11 @@
   },
   "connection": {
     "offline": "Offline — Lesen aus dem Cache",
-    "backOnline": "Wieder online"
+    "backOnline": "Wieder online",
+    "pending_one": "1 Aktion ausstehend",
+    "pending_other": "{{count}} Aktionen ausstehend",
+    "syncFailed_one": "1 Aktion konnte nicht synchronisiert werden",
+    "syncFailed_other": "{{count}} Aktionen konnten nicht synchronisiert werden"
   },
   "refresh": {
     "newArticles_one": "{{count}} neuer Artikel",

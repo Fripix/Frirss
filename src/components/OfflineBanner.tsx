@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useFeedStore } from '../stores/feedStore';
 
 /**
  * Thin banner pinned to the top of the screen.
@@ -12,6 +13,9 @@ export default function OfflineBanner() {
   const online = useOnlineStatus();
   const { t } = useTranslation();
   const [showBackOnline, setShowBackOnline] = useState(false);
+  // Pending / given-up actions made offline, so the user knows nothing is lost.
+  const pending = useFeedStore((s) => s.pendingActions);
+  const failed = useFeedStore((s) => s.failedActions);
   const wasOffline = useRef(!online);
 
   useEffect(() => {
@@ -29,7 +33,7 @@ export default function OfflineBanner() {
     }
   }, [online]);
 
-  if (online && !showBackOnline) return null;
+  if (online && !showBackOnline && !failed) return null;
 
   return (
     <div
@@ -39,7 +43,13 @@ export default function OfflineBanner() {
       aria-live="polite"
     >
       <span className="offline-banner-dot" />
-      {online ? t('connection.backOnline') : t('connection.offline')}
+      {online
+        ? (failed
+            ? t('connection.syncFailed', { count: failed })
+            : t('connection.backOnline'))
+        : (pending
+            ? `${t('connection.offline')} — ${t('connection.pending', { count: pending })}`
+            : t('connection.offline'))}
     </div>
   );
 }

@@ -512,7 +512,15 @@
   },
   "connection": {
     "offline": "Offline — czytanie z pamięci podręcznej",
-    "backOnline": "Znów online"
+    "backOnline": "Znów online",
+    "pending_one": "1 akcja oczekuje",
+    "pending_other": "{{count}} akcji oczekuje",
+    "syncFailed_one": "Nie udało się zsynchronizować 1 akcji",
+    "syncFailed_other": "Nie udało się zsynchronizować {{count}} akcji",
+    "pending_few": "{{count}} akcji oczekuje",
+    "pending_many": "{{count}} akcji oczekuje",
+    "syncFailed_few": "Nie udało się zsynchronizować {{count}} akcji",
+    "syncFailed_many": "Nie udało się zsynchronizować {{count}} akcji"
   },
   "refresh": {
     "newArticles_one": "{{count}} nowy artykuł",

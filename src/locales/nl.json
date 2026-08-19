@@ -508,7 +508,11 @@
   },
   "connection": {
     "offline": "Offline — lezen uit cache",
-    "backOnline": "Weer online"
+    "backOnline": "Weer online",
+    "pending_one": "1 actie in wachtrij",
+    "pending_other": "{{count}} acties in wachtrij",
+    "syncFailed_one": "1 actie kon niet worden gesynchroniseerd",
+    "syncFailed_other": "{{count}} acties konden niet worden gesynchroniseerd"
   },
   "refresh": {
     "newArticles_one": "{{count}} nieuw artikel",

@@ -508,7 +508,11 @@
   },
   "connection": {
     "offline": "Offline — reading from cache",
-    "backOnline": "Back online"
+    "backOnline": "Back online",
+    "pending_one": "1 action pending",
+    "pending_other": "{{count}} actions pending",
+    "syncFailed_one": "1 action could not be synced",
+    "syncFailed_other": "{{count}} actions could not be synced"
   },
   "update": {
     "updating": "Updating…"

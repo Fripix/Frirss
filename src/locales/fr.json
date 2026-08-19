@@ -508,7 +508,11 @@
   },
   "connection": {
     "offline": "Hors ligne — lecture hors connexion",
-    "backOnline": "De retour en ligne"
+    "backOnline": "De retour en ligne",
+    "pending_one": "1 action en attente",
+    "pending_other": "{{count}} actions en attente",
+    "syncFailed_one": "1 action n’a pas pu être synchronisée",
+    "syncFailed_other": "{{count}} actions n’ont pas pu être synchronisées"
   },
   "update": {
     "updating": "Mise à jour…"
