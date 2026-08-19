@@ -675,7 +675,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     const frame = document.createElement('iframe');
     frame.className = 'yt-facade__frame';
     frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?${params}`;
-    frame.allow = 'accelerometer; encrypted-media; picture-in-picture; fullscreen';
+    // `autoplay` must be delegated here: for a cross-origin iframe the feature
+    // is off by default, so autoplay=1 in the URL alone leaves the player
+    // paused and costs the user a second click. (iOS still blocks autoplay with
+    // sound at OS level — nothing to do about that.)
+    frame.allow = 'autoplay; accelerometer; encrypted-media; picture-in-picture; fullscreen';
     frame.referrerPolicy = 'strict-origin-when-cross-origin';
     frame.allowFullscreen = true;
     facade.replaceChildren(frame);
