@@ -1,18 +1,48 @@
 import { IMAGE_CACHE_NAME } from './storageEstimate';
+import client from '../api/client';
+
+/** A fetched image: a storable response plus its real size in bytes. */
+export interface FetchedImage {
+  response: Response;
+  bytes: number;
+}
 
 interface CacheImagesDeps {
-  fetchFn: typeof fetch;
+  fetchImage: (url: string) => Promise<FetchedImage>;
   openCache: () => Promise<Cache>;
 }
 
 export interface CacheImagesResult {
   stored: number;
+  /** Real bytes stored — readable because the proxy response is same-origin. */
+  bytes: number;
   /** First failure encountered, kept so a silent 0 can be diagnosed. */
   error?: string;
 }
 
 const describe = (e: unknown): string =>
   e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+
+const BATCH = 4;
+
+/**
+ * Fetch an image through the backend proxy, exactly like feed favicons.
+ *
+ * A direct cross-origin fetch cannot work here: the CSP sends
+ * `connect-src 'self'`, so every such request is blocked by the browser —
+ * which is why prefetching silently stored nothing at all. Going through the
+ * same-origin proxy also makes the response non-opaque, so its size is
+ * readable (cross-origin responses are opaque and padded by browsers).
+ */
+async function fetchViaProxy(url: string): Promise<FetchedImage> {
+  const { data } = await client.get<Blob>(url, { responseType: 'blob' });
+  return {
+    response: new Response(data, {
+      headers: { 'Content-Type': data.type || 'application/octet-stream' },
+    }),
+    bytes: data.size,
+  };
+}
 
 /**
  * How many images are actually stored. Surfaced in the preferences: the cache
@@ -33,34 +63,28 @@ export async function countCachedImages(openCache?: () => Promise<Cache>): Promi
   }
 }
 
-const BATCH = 4;
-
 /**
  * Store images in the service worker's image cache for offline reading.
  *
  * Fetching alone is NOT enough: the Workbox runtime route matches on
  * `request.destination === 'image'`, which only holds for <img> element loads —
  * a programmatic fetch has an empty destination and never reaches that route.
- * Prefetched images therefore never landed in the cache, and only images the
- * user had actually scrolled past survived offline.
+ * So we write to the very cache the route reads from, keyed by the ORIGINAL
+ * image URL: when an <img> later asks for it offline, CacheFirst finds our
+ * entry and serves it, even though the bytes came through the proxy.
  *
- * So we write to the very cache the route reads from: when an <img> later asks
- * for the same URL offline, CacheFirst finds our entry and serves it.
+ * Note these direct writes bypass Workbox's expiration bookkeeping, so pruning
+ * relies on the app-side budget, purgeOnQuotaError and "empty the images".
  *
- * Cross-origin images come back opaque (status 0, unreadable size) — the Cache
- * API stores them fine. Note these direct writes bypass Workbox's expiration
- * bookkeeping, so pruning relies on the app-side budget, purgeOnQuotaError and
- * the user's "empty the images" action.
- *
- * Returns how many images were newly stored. Best-effort throughout.
+ * Best-effort throughout; one bad image never stops the sweep.
  */
 export async function cacheImages(
   urls: string[],
   deps: Partial<CacheImagesDeps> = {},
 ): Promise<CacheImagesResult> {
-  if (!urls.length) return { stored: 0 };
+  if (!urls.length) return { stored: 0, bytes: 0 };
 
-  const fetchFn = deps.fetchFn ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
+  const fetchImage = deps.fetchImage ?? fetchViaProxy;
   const openCache = deps.openCache
     ?? (() => {
       if (typeof caches === 'undefined') return Promise.reject(new Error('no CacheStorage'));
@@ -71,10 +95,11 @@ export async function cacheImages(
   try {
     cache = await openCache();
   } catch (e) {
-    return { stored: 0, error: `open: ${describe(e)}` };
+    return { stored: 0, bytes: 0, error: `open: ${describe(e)}` };
   }
 
   let stored = 0;
+  let bytes = 0;
   let error: string | undefined;
   // Keep the first failure: swallowing every error is what made a
   // 0-images-stored sweep impossible to diagnose.
@@ -83,22 +108,23 @@ export async function cacheImages(
   for (let i = 0; i < urls.length; i += BATCH) {
     await Promise.all(
       urls.slice(i, i + BATCH).map(async (url) => {
-        let res: Response;
+        let img: FetchedImage;
         try {
           if (await cache.match(url)) return; // already offline-ready
-          res = (await fetchFn(url, { mode: 'no-cors', cache: 'force-cache' })) as Response;
+          img = await fetchImage(url);
         } catch (e) {
           note('fetch', e);
           return;
         }
         try {
-          await cache.put(url, res);
+          await cache.put(url, img.response);
           stored++;
+          bytes += img.bytes;
         } catch (e) {
           note('put', e);
         }
       }),
     );
   }
-  return { stored, error };
+  return { stored, bytes, error };
 }

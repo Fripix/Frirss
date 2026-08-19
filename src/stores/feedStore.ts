@@ -615,13 +615,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // two used to be coupled, which silently skipped images), in priority order,
     // and stop as soon as the storage budget is reached.
     const ui = useUiStore.getState();
-    const estimate = await getStorageEstimate();
-    const budget = imageBudget(ui.offlineImagePreset, ui.offlineImageSizes, estimate?.quota ?? 0);
+    const budget = imageBudget(ui.offlineImagePreset, ui.offlineImageSizes, (await getStorageEstimate())?.quota ?? 0);
     const ordered = prioritizeForOffline(collected, READ_LATER_LABEL);
-    const baseline = estimate?.usage ?? 0;
     let budgetReached = budget.bytes <= 0;
     let imagesFound = 0;
     let imagesStored = 0;
+    let imagesBytes = 0;
     let imagesError: string | undefined;
 
     set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });
@@ -648,13 +647,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         imagesFound += urls.length;
         const res = await cacheImages(urls);
         imagesStored += res.stored;
+        imagesBytes += res.bytes;
         imagesError ??= res.error;
-        // Re-check every few articles — estimates are coarse, so polling often
-        // costs more than it buys.
-        if (done % 10 === 9) {
-          const usage = (await getStorageEstimate())?.usage ?? 0;
-          if (usage - baseline >= budget.bytes) budgetReached = true;
-        }
+        // Count the bytes we actually stored. The previous guard watched the
+        // browser's storage estimate, which pads opaque entries so wildly that
+        // it was unusable; proxied responses give us the real size.
+        if (imagesBytes >= budget.bytes) budgetReached = true;
       }
 
       done++;
