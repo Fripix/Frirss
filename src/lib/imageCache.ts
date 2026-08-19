@@ -5,6 +5,15 @@ interface CacheImagesDeps {
   openCache: () => Promise<Cache>;
 }
 
+export interface CacheImagesResult {
+  stored: number;
+  /** First failure encountered, kept so a silent 0 can be diagnosed. */
+  error?: string;
+}
+
+const describe = (e: unknown): string =>
+  e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+
 /**
  * How many images are actually stored. Surfaced in the preferences: the cache
  * is otherwise invisible, and this number is what distinguishes "nothing was
@@ -48,8 +57,8 @@ const BATCH = 4;
 export async function cacheImages(
   urls: string[],
   deps: Partial<CacheImagesDeps> = {},
-): Promise<number> {
-  if (!urls.length) return 0;
+): Promise<CacheImagesResult> {
+  if (!urls.length) return { stored: 0 };
 
   const fetchFn = deps.fetchFn ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
   const openCache = deps.openCache
@@ -61,22 +70,35 @@ export async function cacheImages(
   let cache: Cache;
   try {
     cache = await openCache();
-  } catch {
-    return 0;
+  } catch (e) {
+    return { stored: 0, error: `open: ${describe(e)}` };
   }
 
   let stored = 0;
+  let error: string | undefined;
+  // Keep the first failure: swallowing every error is what made a
+  // 0-images-stored sweep impossible to diagnose.
+  const note = (stage: string, e: unknown) => { error ??= `${stage}: ${describe(e)}`; };
+
   for (let i = 0; i < urls.length; i += BATCH) {
     await Promise.all(
       urls.slice(i, i + BATCH).map(async (url) => {
+        let res: Response;
         try {
           if (await cache.match(url)) return; // already offline-ready
-          const res = await fetchFn(url, { mode: 'no-cors', cache: 'force-cache' });
-          await cache.put(url, res as Response);
+          res = (await fetchFn(url, { mode: 'no-cors', cache: 'force-cache' })) as Response;
+        } catch (e) {
+          note('fetch', e);
+          return;
+        }
+        try {
+          await cache.put(url, res);
           stored++;
-        } catch { /* one bad image must not stop the sweep */ }
+        } catch (e) {
+          note('put', e);
+        }
       }),
     );
   }
-  return stored;
+  return { stored, error };
 }

@@ -271,6 +271,8 @@ export interface FeedState {
     imagesStored?: number;
     /** True when the budget guard cut image caching short. */
     budgetStopped?: boolean;
+    /** First error met while caching images — a silent 0 is undiagnosable. */
+    imagesError?: string;
   } | null;
   setFilter: (filter: Filter) => void;
   setUnreadFilter: (on: boolean) => void;
@@ -620,6 +622,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     let budgetReached = budget.bytes <= 0;
     let imagesFound = 0;
     let imagesStored = 0;
+    let imagesError: string | undefined;
 
     set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });
     const { extractFullContent } = await import('../utils/extractContent');
@@ -643,7 +646,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!budgetReached) {
         const urls = articleImageUrls(a.content, extracted, budget.perArticle);
         imagesFound += urls.length;
-        imagesStored += await cacheImages(urls);
+        const res = await cacheImages(urls);
+        imagesStored += res.stored;
+        imagesError ??= res.error;
         // Re-check every few articles — estimates are coarse, so polling often
         // costs more than it buys.
         if (done % 10 === 9) {
@@ -660,7 +665,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     set({
       offlinePrep: {
         running: false, phase: 'done', done, total: ordered.length,
-        imagesFound, imagesStored, budgetStopped: budgetReached && budget.bytes > 0,
+        imagesFound, imagesStored, budgetStopped: budgetReached && budget.bytes > 0, imagesError,
       },
     });
   },

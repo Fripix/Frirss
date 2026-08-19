@@ -2867,6 +2867,11 @@ function OfflineTab() {
                 {offlinePrep.budgetStopped && ` · ${t('preferences.offline.imagesBudgetStopped')}`}
               </span>
             )}
+            {offlinePrep.imagesError && (
+              <span className="block break-words" style={{ color: 'var(--accent)' }}>
+                {offlinePrep.imagesError}
+              </span>
+            )}
           </p>
         )}
       </div>

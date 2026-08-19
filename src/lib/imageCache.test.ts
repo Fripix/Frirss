@@ -17,7 +17,7 @@ describe('cacheImages', () => {
   it('stores every image in the cache, not just fetches it', async () => {
     const cache = fakeCache();
     const fetchFn = vi.fn(async () => ({ type: 'opaque' }));
-    const stored = await cacheImages(['https://a/1.jpg', 'https://a/2.jpg'], {
+    const { stored } = await cacheImages(['https://a/1.jpg', 'https://a/2.jpg'], {
       fetchFn: fetchFn as never,
       openCache: async () => cache as never,
     });
@@ -36,7 +36,7 @@ describe('cacheImages', () => {
   it('skips images already in the cache', async () => {
     const cache = fakeCache(['https://a/1.jpg']);
     const fetchFn = vi.fn(async () => ({ type: 'opaque' }));
-    const stored = await cacheImages(['https://a/1.jpg', 'https://a/2.jpg'], {
+    const { stored } = await cacheImages(['https://a/1.jpg', 'https://a/2.jpg'], {
       fetchFn: fetchFn as never,
       openCache: async () => cache as never,
     });
@@ -51,7 +51,7 @@ describe('cacheImages', () => {
       if (url.includes('bad')) throw new Error('network');
       return { type: 'opaque' };
     });
-    const stored = await cacheImages(['https://a/bad.jpg', 'https://a/good.jpg'], {
+    const { stored } = await cacheImages(['https://a/bad.jpg', 'https://a/good.jpg'], {
       fetchFn: fetchFn as never,
       openCache: async () => cache as never,
     });
@@ -59,17 +59,40 @@ describe('cacheImages', () => {
     expect([...cache.store.keys()]).toEqual(['https://a/good.jpg']);
   });
 
-  it('returns 0 when the cache cannot be opened', async () => {
-    const stored = await cacheImages(['https://a/1.jpg'], {
+  it('returns 0 when the cache cannot be opened, and says why', async () => {
+    const { stored, error } = await cacheImages(['https://a/1.jpg'], {
       fetchFn: okFetch as never,
       openCache: async () => { throw new Error('no CacheStorage'); },
     });
     expect(stored).toBe(0);
+    expect(error).toContain('open');
+  });
+
+  it('reports why storing failed instead of swallowing it', async () => {
+    const cache = fakeCache();
+    const rejecting = { ...cache, put: async () => { throw new TypeError('opaque not allowed'); } };
+    const { stored, error } = await cacheImages(['https://a/1.jpg'], {
+      fetchFn: (async () => ({ type: 'opaque' })) as never,
+      openCache: async () => rejecting as never,
+    });
+    expect(stored).toBe(0);
+    expect(error).toContain('put');
+    expect(error).toContain('opaque not allowed');
+  });
+
+  it('reports a fetch failure distinctly from a put failure', async () => {
+    const cache = fakeCache();
+    const { error } = await cacheImages(['https://a/1.jpg'], {
+      fetchFn: (async () => { throw new TypeError('Load failed'); }) as never,
+      openCache: async () => cache as never,
+    });
+    expect(error).toContain('fetch');
+    expect(error).toContain('Load failed');
   });
 
   it('does nothing for an empty list', async () => {
     const openCache = vi.fn();
-    expect(await cacheImages([], { fetchFn: okFetch as never, openCache: openCache as never })).toBe(0);
+    expect((await cacheImages([], { fetchFn: okFetch as never, openCache: openCache as never })).stored).toBe(0);
     expect(openCache).not.toHaveBeenCalled();
   });
 });
