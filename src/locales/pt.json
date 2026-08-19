@@ -521,5 +521,10 @@
   },
   "update": {
     "updating": "A atualizar…"
+  },
+  "saved": {
+    "fileInto": "Arquivar em",
+    "newCategory": "Nova categoria",
+    "noCategory": "Ainda sem categorias"
   }
 }

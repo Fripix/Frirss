@@ -521,5 +521,10 @@
     "newArticles_one": "{{count}} new article",
     "newArticles_other": "{{count}} new articles",
     "upToDate": "Up to date"
+  },
+  "saved": {
+    "fileInto": "File into",
+    "newCategory": "New category",
+    "noCategory": "No category yet"
   }
 }

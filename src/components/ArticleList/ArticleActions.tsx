@@ -1,15 +1,43 @@
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import { useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import SavedCategoryPicker from './SavedCategoryPicker';
+import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
+import type { Article } from '../../types';
+
+/**
+ * Long press (touch) or right-click (desktop) opens the category picker, while
+ * a plain click keeps its instant behaviour — filing must never slow saving.
+ */
+function useFileGesture(enabled: boolean) {
+  const [picking, setPicking] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const start = () => { if (enabled) timer.current = setTimeout(() => setPicking(true), 500); };
+  const cancel = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
+  const handlers = enabled
+    ? {
+        onTouchStart: start,
+        onTouchEnd: cancel,
+        onTouchMove: cancel,
+        onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); setPicking(true); },
+      }
+    : {};
+  return { picking, setPicking, handlers };
+}
 
 interface StarButtonProps {
   starred: boolean;
   onClick: (e: ReactMouseEvent) => void;
+  /** Enables the file-into-a-category gesture. */
+  article?: Article;
 }
 
-export function StarButton({ starred, onClick }: StarButtonProps) {
+export function StarButton({ starred, onClick, article }: StarButtonProps) {
   const { t } = useTranslation();
+  const { picking, setPicking, handlers } = useFileGesture(!!article);
   return (
+    <span className="relative inline-flex">
     <button
+      {...handlers}
       onClick={onClick}
       data-theme="star-color"
       className="p-1 rounded-full transition-colors hover:bg-black/5"
@@ -30,18 +58,27 @@ export function StarButton({ starred, onClick }: StarButtonProps) {
         />
       </svg>
     </button>
+    {picking && article && (
+      <SavedCategoryPicker prefix={STARRED_PREFIX} article={article} onClose={() => setPicking(false)} />
+    )}
+    </span>
   );
 }
 
 interface ReadLaterButtonProps {
   active?: boolean;
   onClick: (e: ReactMouseEvent) => void;
+  /** Enables the file-into-a-category gesture. */
+  article?: Article;
 }
 
-export function ReadLaterButton({ active, onClick }: ReadLaterButtonProps) {
+export function ReadLaterButton({ active, onClick, article }: ReadLaterButtonProps) {
   const { t } = useTranslation();
+  const { picking, setPicking, handlers } = useFileGesture(!!article);
   return (
+    <span className="relative inline-flex">
     <button
+      {...handlers}
       onClick={onClick}
       data-theme="readlater-color"
       className="p-1 rounded-full transition-colors hover:bg-black/5"
@@ -58,6 +95,10 @@ export function ReadLaterButton({ active, onClick }: ReadLaterButtonProps) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     </button>
+    {picking && article && (
+      <SavedCategoryPicker prefix={READ_LATER_PREFIX} article={article} onClose={() => setPicking(false)} />
+    )}
+    </span>
   );
 }
 

@@ -68,8 +68,8 @@ export default function ArticleCard({
       </div>
 
       <div className="article-card__actions" onClick={(e) => e.stopPropagation()}>
-        <StarButton starred={article.starred} onClick={onToggleStar} />
-        <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} />
+        <StarButton starred={article.starred} onClick={onToggleStar} article={article} />
+        <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} article={article} />
         <MarkReadButton read={article.read} onClick={onToggleRead} />
       </div>
     </div>

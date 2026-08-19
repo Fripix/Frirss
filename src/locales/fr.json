@@ -521,5 +521,10 @@
     "newArticles_one": "{{count}} nouvel article",
     "newArticles_other": "{{count}} nouveaux articles",
     "upToDate": "À jour"
+  },
+  "saved": {
+    "fileInto": "Ranger dans",
+    "newCategory": "Nouvelle catégorie",
+    "noCategory": "Aucune catégorie pour l’instant"
   }
 }

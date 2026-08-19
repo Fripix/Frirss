@@ -531,5 +531,10 @@
   },
   "update": {
     "updating": "Оновлення…"
+  },
+  "saved": {
+    "fileInto": "Зберегти в",
+    "newCategory": "Нова категорія",
+    "noCategory": "Поки немає категорій"
   }
 }

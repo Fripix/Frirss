@@ -914,8 +914,8 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
         <span className="text-[10px] flex-shrink-0" data-theme="list-time" style={{ color: 'var(--list-time)' }}>
           {timeAgo(article.published, t)}
         </span>
-        <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} />
-        <StarButton starred={article.starred} onClick={onToggleStar} />
+        <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} article={article} />
+        <StarButton starred={article.starred} onClick={onToggleStar} article={article} />
       </div>
     );
   }
@@ -976,8 +976,8 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
       </div>
 
       <div className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5">
-        <StarButton starred={article.starred} onClick={onToggleStar} />
-        <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} />
+        <StarButton starred={article.starred} onClick={onToggleStar} article={article} />
+        <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} article={article} />
         <MarkReadButton read={article.read} onClick={onToggleRead} />
       </div>
     </div>

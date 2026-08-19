@@ -521,5 +521,10 @@
   },
   "update": {
     "updating": "Bijwerken…"
+  },
+  "saved": {
+    "fileInto": "Opslaan in",
+    "newCategory": "Nieuwe categorie",
+    "noCategory": "Nog geen categorie"
   }
 }
