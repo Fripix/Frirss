@@ -5,8 +5,9 @@ import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import type { Article } from '../../types';
 
 /**
- * Long press (touch) or right-click (desktop) opens the category picker, while
- * a plain click keeps its instant behaviour — filing must never slow saving.
+ * Opens the category picker. A right-click / long press works, but the visible
+ * chevron below is what makes the feature discoverable at all: a gesture with
+ * no affordance is a feature nobody finds.
  */
 function useFileGesture(enabled: boolean) {
   const [picking, setPicking] = useState(false);
@@ -22,6 +23,23 @@ function useFileGesture(enabled: boolean) {
       }
     : {};
   return { picking, setPicking, handlers };
+}
+
+/** Small visible caret that opens the category picker. */
+function FileCaret({ onOpen, label }: { onOpen: () => void; label: string }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onOpen(); }}
+      title={label}
+      aria-label={label}
+      className="px-0.5 -ml-1 rounded hover:bg-black/5 transition-colors"
+      style={{ color: 'var(--list-summary)' }}
+    >
+      <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+  );
 }
 
 interface StarButtonProps {
@@ -58,6 +76,7 @@ export function StarButton({ starred, onClick, article }: StarButtonProps) {
         />
       </svg>
     </button>
+    {article && <FileCaret onOpen={() => setPicking(true)} label={t('saved.fileInto')} />}
     {picking && article && (
       <SavedCategoryPicker prefix={STARRED_PREFIX} article={article} onClose={() => setPicking(false)} />
     )}
@@ -95,6 +114,7 @@ export function ReadLaterButton({ active, onClick, article }: ReadLaterButtonPro
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     </button>
+    {article && <FileCaret onOpen={() => setPicking(true)} label={t('saved.fileInto')} />}
     {picking && article && (
       <SavedCategoryPicker prefix={READ_LATER_PREFIX} article={article} onClose={() => setPicking(false)} />
     )}
