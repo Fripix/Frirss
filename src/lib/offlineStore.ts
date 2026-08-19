@@ -3,11 +3,13 @@
 // Separate IndexedDB database from the extract cache (no migration coupling).
 // Every method degrades gracefully (no-op / undefined) if IndexedDB is absent.
 import type { Article, Subscription } from '../types';
+import type { QueuedAction } from './actionQueue';
 
 const DB_NAME = 'frirss-offline';
-const VERSION = 1;
+const VERSION = 2;
 const LISTS = 'lists';
 const SUBS = 'subs';
+const ACTIONS = 'actions';
 
 export interface ListRecord {
   key: string; // viewKey (feedId + filter)
@@ -33,6 +35,10 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(SUBS)) {
         db.createObjectStore(SUBS, { keyPath: 'key' });
+      }
+      // Additive migration: the guards leave the existing stores untouched.
+      if (!db.objectStoreNames.contains(ACTIONS)) {
+        db.createObjectStore(ACTIONS, { keyPath: 'key' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -117,4 +123,34 @@ export async function subsPut(subscriptions: Subscription[]): Promise<void> {
   } catch {
     /* ignore */
   }
+}
+
+/** Actions made offline, waiting to be replayed. Empty when unavailable. */
+export async function queueGet(): Promise<QueuedAction[]> {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const req = tx(db, ACTIONS, 'readonly').getAll();
+      req.onsuccess = () => resolve((req.result as QueuedAction[]) ?? []);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Replace the whole queue (it is small — merging keeps it that way). */
+export async function queuePut(actions: QueuedAction[]): Promise<void> {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const store = tx(db, ACTIONS, 'readwrite');
+      const clear = store.clear();
+      clear.onsuccess = () => {
+        for (const a of actions) store.put(a);
+        resolve();
+      };
+      clear.onerror = () => reject(clear.error);
+    });
+  } catch { /* storage unavailable — the in-memory queue still serves */ }
 }
