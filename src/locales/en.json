@@ -349,7 +349,9 @@
       "imagesDownload": "Download images",
       "imagesResetSizes": "Recommended values",
       "imagesCached_one": "{{count}} image cached",
-      "imagesCached_other": "{{count}} images cached"
+      "imagesCached_other": "{{count}} images cached",
+      "imagesReport": "{{found}} images found, {{stored}} stored",
+      "imagesBudgetStopped": "stopped by the budget"
     }
   },
   "login": {

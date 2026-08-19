@@ -261,7 +261,17 @@ export interface FeedState {
   // service-worker update reload, when every in-memory cache is cold).
   syncing: boolean;
 
-  offlinePrep: { running: boolean; phase: 'lists' | 'articles' | 'done'; done: number; total: number } | null;
+  offlinePrep: {
+    running: boolean;
+    phase: 'lists' | 'articles' | 'done';
+    done: number;
+    total: number;
+    /** Image URLs the sweep found, and how many it actually stored. */
+    imagesFound?: number;
+    imagesStored?: number;
+    /** True when the budget guard cut image caching short. */
+    budgetStopped?: boolean;
+  } | null;
   setFilter: (filter: Filter) => void;
   setUnreadFilter: (on: boolean) => void;
   loadLabelCounts: () => Promise<void>;
@@ -608,6 +618,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const ordered = prioritizeForOffline(collected, READ_LATER_LABEL);
     const baseline = estimate?.usage ?? 0;
     let budgetReached = budget.bytes <= 0;
+    let imagesFound = 0;
+    let imagesStored = 0;
 
     set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });
     const { extractFullContent } = await import('../utils/extractContent');
@@ -629,7 +641,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       }
 
       if (!budgetReached) {
-        await cacheImages(articleImageUrls(a.content, extracted, budget.perArticle));
+        const urls = articleImageUrls(a.content, extracted, budget.perArticle);
+        imagesFound += urls.length;
+        imagesStored += await cacheImages(urls);
         // Re-check every few articles — estimates are coarse, so polling often
         // costs more than it buys.
         if (done % 10 === 9) {
@@ -640,10 +654,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
       done++;
       if (done % 5 === 0 || done === ordered.length) {
-        set({ offlinePrep: { running: true, phase: 'articles', done, total: ordered.length } });
+        set({ offlinePrep: { running: true, phase: 'articles', done, total: ordered.length, imagesFound, imagesStored } });
       }
     }
-    set({ offlinePrep: { running: false, phase: 'done', done, total: ordered.length } });
+    set({
+      offlinePrep: {
+        running: false, phase: 'done', done, total: ordered.length,
+        imagesFound, imagesStored, budgetStopped: budgetReached && budget.bytes > 0,
+      },
+    });
   },
 
   loadArticles: async () => {

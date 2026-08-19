@@ -2858,6 +2858,15 @@ function OfflineTab() {
         {offlinePrep && !offlinePrep.running && offlinePrep.phase === 'done' && (
           <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.done')} ({offlinePrep.total})
+            {offlinePrep.imagesFound !== undefined && (
+              <span className="block">
+                {t('preferences.offline.imagesReport', {
+                  found: offlinePrep.imagesFound,
+                  stored: offlinePrep.imagesStored ?? 0,
+                })}
+                {offlinePrep.budgetStopped && ` · ${t('preferences.offline.imagesBudgetStopped')}`}
+              </span>
+            )}
           </p>
         )}
       </div>

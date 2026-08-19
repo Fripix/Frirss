@@ -349,7 +349,9 @@
       "imagesCached_one": "{{count}} obraz w pamięci",
       "imagesCached_other": "{{count}} obrazów w pamięci",
       "imagesCached_few": "{{count}} obrazy w pamięci",
-      "imagesCached_many": "{{count}} obrazów w pamięci"
+      "imagesCached_many": "{{count}} obrazów w pamięci",
+      "imagesReport": "znaleziono {{found}} obrazów, zapisano {{stored}}",
+      "imagesBudgetStopped": "zatrzymane przez limit"
     }
   },
   "login": {

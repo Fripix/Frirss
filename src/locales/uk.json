@@ -349,7 +349,9 @@
       "imagesCached_one": "{{count}} зображення в кеші",
       "imagesCached_other": "{{count}} зображень у кеші",
       "imagesCached_few": "{{count}} зображення в кеші",
-      "imagesCached_many": "{{count}} зображень у кеші"
+      "imagesCached_many": "{{count}} зображень у кеші",
+      "imagesReport": "знайдено {{found}} зображень, збережено {{stored}}",
+      "imagesBudgetStopped": "зупинено бюджетом"
     }
   },
   "login": {

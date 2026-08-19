@@ -347,7 +347,9 @@
       "imagesDownload": "Scaricare le immagini",
       "imagesResetSizes": "Valori consigliati",
       "imagesCached_one": "{{count}} immagine in cache",
-      "imagesCached_other": "{{count}} immagini in cache"
+      "imagesCached_other": "{{count}} immagini in cache",
+      "imagesReport": "{{found}} immagini trovate, {{stored}} salvate",
+      "imagesBudgetStopped": "interrotto dal budget"
     }
   },
   "login": {

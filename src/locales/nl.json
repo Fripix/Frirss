@@ -347,7 +347,9 @@
       "imagesDownload": "Afbeeldingen downloaden",
       "imagesResetSizes": "Aanbevolen waarden",
       "imagesCached_one": "{{count}} afbeelding in cache",
-      "imagesCached_other": "{{count}} afbeeldingen in cache"
+      "imagesCached_other": "{{count}} afbeeldingen in cache",
+      "imagesReport": "{{found}} afbeeldingen gevonden, {{stored}} opgeslagen",
+      "imagesBudgetStopped": "gestopt door het budget"
     }
   },
   "login": {
