@@ -10,6 +10,7 @@ import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
+import { extractYouTubeId, injectVideoFacades, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
 // Reserve vertical space for images that declare width/height, via
@@ -65,6 +66,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const setFontSize = useThemeStore((s) => s.setFontSize);
   const feedSettings = useUiStore((s) => s.feedSettings);
   const readingFocus = useUiStore((s) => s.readingFocus);
+  const inlineVideos = useUiStore((s) => s.inlineVideos);
   const toggleReadingFocus = useUiStore((s) => s.toggleReadingFocus);
   const mobileReadingFontSize = useUiStore((s) => s.mobileReadingFontSize);
   const setMobileReadingFontSize = useUiStore((s) => s.setMobileReadingFontSize);
@@ -631,8 +633,53 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // Lazy-load images — skip first 2 (hero images must load instantly for swipe transitions)
   let _imgIdx = 0;
   // Sanitize first (strips scripts/handlers from untrusted feed HTML), then add lazy-loading.
-  const finalContent = reserveImgAspect(sanitizeHtml(displayContent || ''))
+  // Facades must be injected BEFORE sanitising: DOMPurify deletes <iframe>
+  // outright, which is why embedded videos are invisible without this.
+  const withVideos = inlineVideos
+    ? injectVideoFacades(displayContent || '')
+    : { html: displayContent || '', ids: [] as string[] };
+  const finalContent = reserveImgAspect(sanitizeHtml(withVideos.html))
     .replace(/<img(?!\s+loading=)/gi, (m) => ++_imgIdx <= 2 ? m : '<img loading="lazy"');
+
+  // A YouTube-feed article IS the video: show it first, unless the body already
+  // carries the same one (which the injection above turned into a facade).
+  const articleVideo = inlineVideos ? extractYouTubeId(selectedArticle?.url || '') : null;
+  const headVideo = articleVideo && !withVideos.ids.includes(articleVideo.id) ? articleVideo : null;
+  const headFacadeHtml = headVideo
+    ? facadeMarkup(headVideo, youtubeThumbnail(headVideo.id), t('readingPane.videoPlay'))
+    : '';
+
+  // One listener for every facade (head + inline): swap in the real player.
+  // The iframe is built through the DOM API, so the sanitizer never sees it.
+  const handleVideoClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    const facade = (e.target as Element).closest?.('.yt-facade') as HTMLElement | null;
+    if (!facade) return;
+    const id = facade.getAttribute('data-yt-id');
+    if (!id) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      if (!facade.querySelector('.yt-facade__offline')) {
+        const note = document.createElement('div');
+        note.className = 'yt-facade__offline';
+        note.textContent = t('readingPane.videoOffline');
+        facade.appendChild(note);
+      }
+      return;
+    }
+
+    const start = facade.getAttribute('data-yt-start');
+    const params = new URLSearchParams({ autoplay: '1' });
+    if (start) params.set('start', start);
+    const frame = document.createElement('iframe');
+    frame.className = 'yt-facade__frame';
+    frame.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?${params}`;
+    frame.allow = 'accelerometer; encrypted-media; picture-in-picture; fullscreen';
+    frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.allowFullscreen = true;
+    facade.replaceChildren(frame);
+  };
 
   return (
     <div
@@ -1029,6 +1076,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           )}
 
           {/* Body — skeleton while auto-extract loads, else the article */}
+          {/* Video first for a YouTube-feed article — the video IS the article */}
+          {headFacadeHtml && (
+            <div
+              className="article-content"
+              onClick={handleVideoClick}
+              dangerouslySetInnerHTML={{ __html: headFacadeHtml }}
+            />
+          )}
+
           {awaitingExtract ? (
             <div dangerouslySetInnerHTML={{ __html: SKELETON_HTML }} />
           ) : (
@@ -1036,6 +1092,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               className="article-content leading-relaxed"
               data-theme="reading-text"
               style={{ color: 'var(--reading-text)', fontSize: 'var(--fs-reading-body)' }}
+              onClick={handleVideoClick}
               dangerouslySetInnerHTML={{ __html: finalContent }}
             />
           )}
