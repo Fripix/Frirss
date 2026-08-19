@@ -46,18 +46,18 @@ const escapeAttr = (s: string): string => s.replace(/"/g, '&quot;');
  * Click-to-load placeholder. Built only from tags DOMPurify keeps, so it
  * survives sanitisation — unlike the <iframe> it replaces, which is deleted
  * silently (that is why embedded videos are invisible without this).
+ *
+ * The play button is deliberately empty: the `html` profile also strips <svg>,
+ * and widening the sanitizer for untrusted feed content would be a bad trade
+ * for an icon. The button is drawn entirely in CSS; `aria-label` carries the
+ * meaning for assistive technology.
  */
 export function facadeMarkup(ref: YouTubeRef, thumbnail: string, playLabel: string): string {
   const start = ref.start ? ` data-yt-start="${ref.start}"` : '';
   return (
     `<div class="yt-facade" data-yt-id="${escapeAttr(ref.id)}"${start}>` +
       `<img class="yt-facade__thumb" src="${escapeAttr(thumbnail)}" alt="" loading="lazy">` +
-      `<button type="button" class="yt-facade__play" aria-label="${escapeAttr(playLabel)}">` +
-        '<svg viewBox="0 0 68 48" aria-hidden="true" focusable="false">' +
-          '<path class="yt-facade__bg" d="M66.5 7.7a8 8 0 0 0-5.6-5.7C56 .7 34 .7 34 .7s-22 0-26.9 1.3a8 8 0 0 0-5.6 5.7A83 83 0 0 0 .5 24a83 83 0 0 0 1 16.3 8 8 0 0 0 5.6 5.7C12 47.3 34 47.3 34 47.3s22 0 26.9-1.3a8 8 0 0 0 5.6-5.7A83 83 0 0 0 67.5 24a83 83 0 0 0-1-16.3z"/>' +
-          '<path class="yt-facade__arrow" d="M45 24 27 14v20z"/>' +
-        '</svg>' +
-      '</button>' +
+      `<button type="button" class="yt-facade__play" aria-label="${escapeAttr(playLabel)}"></button>` +
     '</div>'
   );
 }
