@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../../stores/feedStore';
-import { savedCategories, categoryLabelId } from '../../lib/savedCategories';
+import { savedCategories } from '../../lib/savedCategories';
+import { useUiStore } from '../../stores/uiStore';
 import type { Article } from '../../types';
 
 interface Props {
@@ -19,8 +19,8 @@ export default function SavedCategoryPicker({ prefix, article, onClose }: Props)
   const { t } = useTranslation();
   const labels = useFeedStore((s) => s.labels);
   const toggleArticleLabel = useFeedStore((s) => s.toggleArticleLabel);
-  const [name, setName] = useState('');
-  const cats = savedCategories(labels, prefix);
+  const names = useUiStore((s) => s.savedCategoryNames[prefix]);
+  const cats = savedCategories(labels, prefix, names);
 
   const file = (labelId: string) => {
     toggleArticleLabel(article, labelId);
@@ -64,32 +64,6 @@ export default function SavedCategoryPicker({ prefix, article, onClose }: Props)
           </div>
         )}
 
-        <div className="h-px mx-2 my-1" style={{ background: 'var(--panel-border)' }} />
-        <form
-          className="px-2 pb-1 flex gap-1"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!name.trim()) return;
-            file(categoryLabelId(prefix, name));
-          }}
-        >
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('saved.newCategory')}
-            className="flex-1 min-w-0 px-2 py-1 rounded text-xs"
-            style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)', color: 'var(--list-title)' }}
-          />
-          <button
-            type="submit"
-            disabled={!name.trim()}
-            className="px-2 py-1 rounded text-xs disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: '#fff' }}
-          >
-            +
-          </button>
-        </form>
       </div>
     </>
   );

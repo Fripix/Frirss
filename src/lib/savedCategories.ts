@@ -14,13 +14,29 @@ export interface SavedCategory {
 
 const BASE = 'user/-/label/';
 
-/** Categories filed under a prefix, named without it, sorted. */
-export function savedCategories(labels: Tag[], prefix: string): SavedCategory[] {
+/**
+ * Categories of a prefix: those already on the server (labels) merged with the
+ * ones the user just created locally.
+ *
+ * The Google Reader model has no empty label — a label exists only once applied
+ * to an article. Keeping the names in synced preferences lets a category exist
+ * the moment it is created and be materialised on the server when the first
+ * article lands in it, instead of forcing the user to file something first.
+ */
+export function savedCategories(labels: Tag[], prefix: string, localNames: string[] = []): SavedCategory[] {
   const head = `${BASE}${prefix}/`;
-  return labels
-    .filter((t) => t.id.startsWith(head) && t.id.length > head.length)
-    .map((t) => ({ id: t.id, name: t.id.slice(head.length) }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const byName = new Map<string, SavedCategory>();
+  for (const t of labels) {
+    if (t.id.startsWith(head) && t.id.length > head.length) {
+      const name = t.id.slice(head.length);
+      byName.set(name, { id: t.id, name });
+    }
+  }
+  for (const raw of localNames) {
+    const name = raw.trim();
+    if (name && !byName.has(name)) byName.set(name, { id: categoryLabelId(prefix, name), name });
+  }
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** Label id for a category. Slashes are stripped: one level only. */

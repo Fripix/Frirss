@@ -63,3 +63,26 @@ describe('isSavedCategory', () => {
     expect(isSavedCategory('user/-/label/Autre')).toBe(false);
   });
 });
+
+describe('savedCategories with locally created names', () => {
+  it('shows a category created locally before any article is filed', () => {
+    const cats = savedCategories([], READ_LATER_PREFIX, ['Veille']);
+    expect(cats.map((c) => c.name)).toEqual(['Veille']);
+    expect(cats[0].id).toBe(`user/-/label/${READ_LATER_PREFIX}/Veille`);
+  });
+
+  it('does not duplicate a category that exists on both sides', () => {
+    const server = [{ id: `user/-/label/${READ_LATER_PREFIX}/Veille` } as Tag];
+    expect(savedCategories(server, READ_LATER_PREFIX, ['Veille'])).toHaveLength(1);
+  });
+
+  it('merges and sorts both sources', () => {
+    const server = [{ id: `user/-/label/${READ_LATER_PREFIX}/Zoo` } as Tag];
+    expect(savedCategories(server, READ_LATER_PREFIX, ['Alpha']).map((c) => c.name))
+      .toEqual(['Alpha', 'Zoo']);
+  });
+
+  it('ignores blank local names', () => {
+    expect(savedCategories([], READ_LATER_PREFIX, ['  ', ''])).toEqual([]);
+  });
+});

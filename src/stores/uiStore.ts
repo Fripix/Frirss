@@ -86,6 +86,14 @@ export interface UiState {
   /** Collapsed state of the category lists under Favoris / À lire plus tard. */
   savedCollapsed: Record<string, boolean>;
   toggleSavedCollapsed: (prefix: string) => void;
+  /**
+   * Category names created by the user, per prefix. Synced. The server has no
+   * empty label, so this is what lets a category exist before anything is filed
+   * into it; it is materialised as a real label on the first article.
+   */
+  savedCategoryNames: Record<string, string[]>;
+  addSavedCategory: (prefix: string, name: string) => void;
+  removeSavedCategory: (prefix: string, name: string) => void;
   collapsedLabelGroups: Record<string, boolean>;
   toggleLabelGroup: (name: string) => void;
   collapsedCategories: Record<string, boolean>;
@@ -266,6 +274,29 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setLabelsCollapsed: (v) => {
     localStorage.setItem('frirss_labelsCollapsed', JSON.stringify(v));
     set({ labelsCollapsed: v });
+  },
+
+  savedCategoryNames: loadJson('frirss_savedCategoryNames', {} as Record<string, string[]>),
+  addSavedCategory: (prefix, name) => {
+    const clean = name.trim().replace(/\//g, ' ');
+    if (!clean) return;
+    set((state) => {
+      const list = state.savedCategoryNames[prefix] ?? [];
+      if (list.includes(clean)) return {};
+      const next = { ...state.savedCategoryNames, [prefix]: [...list, clean] };
+      localStorage.setItem('frirss_savedCategoryNames', JSON.stringify(next));
+      return { savedCategoryNames: next };
+    });
+  },
+  removeSavedCategory: (prefix, name) => {
+    set((state) => {
+      const next = {
+        ...state.savedCategoryNames,
+        [prefix]: (state.savedCategoryNames[prefix] ?? []).filter((n) => n !== name),
+      };
+      localStorage.setItem('frirss_savedCategoryNames', JSON.stringify(next));
+      return { savedCategoryNames: next };
+    });
   },
 
   savedCollapsed: loadJson('frirss_savedCollapsed', {} as Record<string, boolean>),
@@ -495,7 +526,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showFavicons', 'topbarVisible', 'categoryOrder', 'feedOrder',
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
-      'labelsCollapsed', 'savedCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
+      'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
       'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos',
     ];
     for (const k of jsonKeys) {
@@ -519,7 +550,7 @@ export const UI_SYNC_KEYS = [
   'categoryOrder', 'feedOrder', 'labelOrder', 'labelSortAlpha', 'showLabelCounts',
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
-  'labelsCollapsed', 'savedCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
+  'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
   'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos',
 ];
 

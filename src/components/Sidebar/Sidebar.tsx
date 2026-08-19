@@ -78,8 +78,6 @@ export default function Sidebar() {
   const toggleCategoryCollapsed = useUiStore((s) => s.toggleCategoryCollapsed);
   const savedCollapsed = useUiStore((s) => s.savedCollapsed);
   const toggleSavedCollapsed = useUiStore((s) => s.toggleSavedCollapsed);
-  // Right-click on Favoris / À lire plus tard manages their categories.
-  const [savedMenu, setSavedMenu] = useState<{ prefix: string; x: number; y: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [addFeedOpen, setAddFeedOpen] = useState(false);
@@ -455,10 +453,9 @@ export default function Sidebar() {
           onArticleDrop={(article) => {
             if (!article.starred) toggleStar(article);
           }}
-          onContextMenu={(e) => { e.preventDefault(); setSavedMenu({ prefix: STARRED_PREFIX, x: e.clientX, y: e.clientY }); }}
           onToggleCollapse={() => toggleSavedCollapsed(STARRED_PREFIX)}
           collapsed={!!savedCollapsed[STARRED_PREFIX]}
-          hasChildren={savedCategories(labels, STARRED_PREFIX).length > 0}
+          hasChildren
         />
         <SavedCategoryList prefix={STARRED_PREFIX} />
         <FilterItem
@@ -475,20 +472,11 @@ export default function Sidebar() {
           onArticleDrop={(article) => {
             if (!article.labels?.includes(READ_LATER_LABEL)) toggleReadLater(article);
           }}
-          onContextMenu={(e) => { e.preventDefault(); setSavedMenu({ prefix: READ_LATER_PREFIX, x: e.clientX, y: e.clientY }); }}
           onToggleCollapse={() => toggleSavedCollapsed(READ_LATER_PREFIX)}
           collapsed={!!savedCollapsed[READ_LATER_PREFIX]}
-          hasChildren={savedCategories(labels, READ_LATER_PREFIX).length > 0}
+          hasChildren
         />
         <SavedCategoryList prefix={READ_LATER_PREFIX} />
-        {savedMenu && (
-          <SavedCategoriesMenu
-            prefix={savedMenu.prefix}
-            x={savedMenu.x}
-            y={savedMenu.y}
-            onClose={() => setSavedMenu(null)}
-          />
-        )}
 
         {/* User labels section */}
         {labels.length > 0 && (
@@ -1046,96 +1034,92 @@ function FeedItem({ feed, isSelected, unreadCount, showFavicons, organizeMode, o
  * making drag-to-file work with no extra machinery.
  */
 function SavedCategoryList({ prefix }: { prefix: string }) {
+  const { t } = useTranslation();
   const labels = useFeedStore((s) => s.labels);
   const selectedFeed = useFeedStore((s) => s.selectedFeed);
   const selectView = useFeedStore((s) => s.selectView);
   const toggleArticleLabel = useFeedStore((s) => s.toggleArticleLabel);
+  const deleteLabel = useFeedStore((s) => s.deleteLabel);
   const collapsed = useUiStore((s) => s.savedCollapsed[prefix]);
-  const cats = useMemo(() => savedCategories(labels, prefix), [labels, prefix]);
+  const names = useUiStore((s) => s.savedCategoryNames[prefix]);
+  const addSavedCategory = useUiStore((s) => s.addSavedCategory);
+  const removeSavedCategory = useUiStore((s) => s.removeSavedCategory);
 
-  if (collapsed || !cats.length) return null;
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const cats = useMemo(() => savedCategories(labels, prefix, names), [labels, prefix, names]);
+
+  if (collapsed) return null;
+
   return (
     <div className="ml-5">
       {cats.map((cat) => (
-        <FilterItem
-          key={cat.id}
-          icon={
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
-            </svg>
-          }
-          label={cat.name}
-          active={selectedFeed?.id === cat.id}
-          onClick={() => selectView({ id: cat.id, title: cat.name } as Subscription)}
-          // Dropping an article files it here — FilterItem already handles it.
-          onArticleDrop={(article) => { toggleArticleLabel(article, cat.id); }}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** Create / delete the categories of a prefix, from the sidebar context menu. */
-function SavedCategoriesMenu({ prefix, x, y, onClose }: { prefix: string; x: number; y: number; onClose: () => void }) {
-  const { t } = useTranslation();
-  const labels = useFeedStore((s) => s.labels);
-  const deleteLabel = useFeedStore((s) => s.deleteLabel);
-  const loadLabels = useFeedStore((s) => s.loadLabels);
-  const ref = useRef<HTMLDivElement>(null);
-  const cats = savedCategories(labels, prefix);
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [onClose]);
-
-  return (
-    <div
-      ref={ref}
-      style={{
-        position: 'fixed', left: x, top: y, zIndex: 100,
-        background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
-        borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-        minWidth: '220px', overflow: 'hidden',
-      }}
-      className="py-1"
-    >
-      <div className="px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--list-time)' }}>
-        {t('saved.manage')}
-      </div>
-
-      {cats.map((cat) => (
-        <div key={cat.id} className="flex items-center gap-1 px-3 py-1.5 text-xs" style={{ color: 'var(--list-title)' }}>
-          <span className="flex-1 truncate">{cat.name}</span>
+        <div key={cat.id} className="group relative flex items-center">
+          <div className="flex-1 min-w-0">
+            <FilterItem
+              icon={
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                </svg>
+              }
+              label={cat.name}
+              active={selectedFeed?.id === cat.id}
+              onClick={() => selectView({ id: cat.id, title: cat.name } as Subscription)}
+              // Dropping an article files it here — FilterItem already handles it.
+              onArticleDrop={(article) => { toggleArticleLabel(article, cat.id); }}
+            />
+          </div>
           <button
-            onClick={async () => { await deleteLabel(cat.id); loadLabels(); }}
-            title={t('sidebar.deleteLabel')}
-            className="p-1 rounded hover:bg-black/5"
-            style={{ color: 'var(--list-summary)' }}
+            onClick={() => {
+              removeSavedCategory(prefix, cat.name);
+              // Only labels the server knows about need deleting there.
+              if (labels.some((l) => l.id === cat.id)) deleteLabel(cat.id);
+            }}
+            title={t('saved.deleteCategory')}
+            className="absolute right-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded hover:bg-white/10"
+            style={{ color: 'var(--sidebar-text)' }}
+            aria-label={t('saved.deleteCategory')}
           >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
       ))}
 
-      {!cats.length && (
-        <div className="px-3 py-1.5 text-[11px]" style={{ color: 'var(--list-summary)' }}>
-          {t('saved.noCategory')}
-        </div>
+      {/* Creating a category is possible right here — no article needed first. */}
+      {adding ? (
+        <form
+          className="px-4 py-1.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            addSavedCategory(prefix, name);
+            setName('');
+            setAdding(false);
+          }}
+        >
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => { if (!name.trim()) setAdding(false); }}
+            placeholder={t('saved.newCategory')}
+            className="w-full px-2 py-1 rounded text-[13px]"
+            style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--sidebar-text-active)', border: 'none', outline: 'none' }}
+          />
+        </form>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="w-full flex items-center gap-3 px-4 py-1.5 opacity-60 hover:opacity-100 transition-opacity"
+          style={{ color: 'var(--sidebar-text)', fontSize: 'var(--fs-sidebar-feed)' }}
+        >
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <span className="text-left">{t('saved.newCategory')}</span>
+        </button>
       )}
-
-      <div className="h-px mx-2 my-1" style={{ background: 'var(--panel-border)' }} />
-      {/* An empty label cannot exist server-side: a category comes into being
-          when a first article is filed into it. Say so rather than offering a
-          "create" that would silently do nothing. */}
-      <div className="px-3 py-1.5 text-[11px] leading-snug" style={{ color: 'var(--list-summary)' }}>
-        {t('saved.createHint')}
-      </div>
     </div>
   );
 }

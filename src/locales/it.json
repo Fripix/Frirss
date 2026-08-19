@@ -525,8 +525,7 @@
   "saved": {
     "fileInto": "Archivia in",
     "newCategory": "Nuova categoria",
-    "noCategory": "Nessuna categoria per ora",
-    "manage": "Gestisci le categorie",
-    "createHint": "Per creare una categoria, tieni premuta la stella o l’orologio di un articolo."
+    "noCategory": "Nessuna categoria — creane una nella barra laterale",
+    "deleteCategory": "Elimina la categoria"
   }
 }
