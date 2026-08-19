@@ -76,6 +76,9 @@ export interface UiState {
   // Synced per-user. Off → mark immediately.
   confirmMarkAllRead: boolean;
   setConfirmMarkAllRead: (v: boolean) => void;
+  // Show a click-to-load player for YouTube videos. Off → a plain link.
+  inlineVideos: boolean;
+  setInlineVideos: (v: boolean) => void;
   // Collapse state persisted per-user (synced): whole ÉTIQUETTES section,
   // individual label groups, and feed categories.
   labelsCollapsed: boolean;
@@ -247,6 +250,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setConfirmMarkAllRead: (v) => {
     localStorage.setItem('frirss_confirmMarkAllRead', JSON.stringify(v));
     set({ confirmMarkAllRead: v });
+  },
+
+  inlineVideos: loadJson('frirss_inlineVideos', true),
+  setInlineVideos: (v) => {
+    localStorage.setItem('frirss_inlineVideos', JSON.stringify(v));
+    set({ inlineVideos: v });
   },
 
   // Whole ÉTIQUETTES section collapsed?
@@ -475,7 +484,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-      'confirmMarkAllRead', 'offlineImagePreset',
+      'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -499,7 +508,7 @@ export const UI_SYNC_KEYS = [
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-  'confirmMarkAllRead', 'offlineImagePreset',
+  'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

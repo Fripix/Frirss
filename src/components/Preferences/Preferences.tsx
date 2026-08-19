@@ -2750,6 +2750,8 @@ function GeneralTab() {
   const { t } = useTranslation();
   const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
   const setConfirmMarkAllRead = useUiStore((s) => s.setConfirmMarkAllRead);
+  const inlineVideos = useUiStore((s) => s.inlineVideos);
+  const setInlineVideos = useUiStore((s) => s.setInlineVideos);
   return (
     <div className="space-y-6">
       <div>
@@ -2772,6 +2774,23 @@ function GeneralTab() {
               checked={confirmMarkAllRead}
               onChange={setConfirmMarkAllRead}
               ariaLabel={t('preferences.general.confirmMarkAllRead')}
+            />
+          </span>
+        </div>
+
+        {/* Play YouTube videos in the article (click-to-load facade) */}
+        <div className="flex items-start justify-between gap-4 select-none mt-4">
+          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.general.inlineVideos')}
+            <span className="block text-[11px] opacity-70 mt-0.5">
+              {t('preferences.general.inlineVideosHint')}
+            </span>
+          </span>
+          <span className="mt-0.5">
+            <ToggleSwitch
+              checked={inlineVideos}
+              onChange={setInlineVideos}
+              ariaLabel={t('preferences.general.inlineVideos')}
             />
           </span>
         </div>

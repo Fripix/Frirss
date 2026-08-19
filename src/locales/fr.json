@@ -141,7 +141,10 @@
     "newLabelPlaceholder": "Nom de l'étiquette",
     "focusEnter": "Mode Focus (plein écran)",
     "focusExit": "Quitter le mode Focus",
-    "focusHint": "double-clic sur l’article, Échap pour sortir"
+    "focusHint": "double-clic sur l’article, Échap pour sortir",
+    "videoPlay": "Lire la vidéo",
+    "videoOpen": "Ouvrir sur YouTube",
+    "videoOffline": "Vidéo indisponible hors ligne"
   },
   "preferences": {
     "title": "Préférences",
@@ -162,7 +165,9 @@
     "general": {
       "title": "Général",
       "confirmMarkAllRead": "Confirmer avant de tout marquer comme lu",
-      "confirmMarkAllReadHint": "Désactivé, « Tout marquer comme lu » agit en un seul clic, sans confirmation."
+      "confirmMarkAllReadHint": "Désactivé, « Tout marquer comme lu » agit en un seul clic, sans confirmation.",
+      "inlineVideos": "Lire les vidéos dans l’article",
+      "inlineVideosHint": "Affiche la miniature ; la vidéo n’est chargée qu’au clic. Désactivé, un lien vers YouTube s’affiche."
     },
     "branding": {
       "language": "Langue",

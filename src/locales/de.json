@@ -139,7 +139,10 @@
     "newLabelPlaceholder": "Label-Name",
     "focusEnter": "Fokusmodus (Vollbild)",
     "focusExit": "Fokusmodus verlassen",
-    "focusHint": "Doppelklick auf den Artikel, Esc zum Verlassen"
+    "focusHint": "Doppelklick auf den Artikel, Esc zum Verlassen",
+    "videoPlay": "Video abspielen",
+    "videoOpen": "Auf YouTube öffnen",
+    "videoOffline": "Video offline nicht verfügbar"
   },
   "preferences": {
     "title": "Einstellungen",
@@ -160,7 +163,9 @@
     "general": {
       "title": "Allgemein",
       "confirmMarkAllRead": "Vor „Alles als gelesen markieren“ bestätigen",
-      "confirmMarkAllReadHint": "Wenn deaktiviert, wirkt „Alles als gelesen markieren“ mit einem Klick, ohne Bestätigung."
+      "confirmMarkAllReadHint": "Wenn deaktiviert, wirkt „Alles als gelesen markieren“ mit einem Klick, ohne Bestätigung.",
+      "inlineVideos": "Videos im Artikel abspielen",
+      "inlineVideosHint": "Zeigt das Vorschaubild; das Video lädt erst beim Klick. Aus: stattdessen ein Link zu YouTube."
     },
     "branding": {
       "language": "Sprache",

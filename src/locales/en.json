@@ -141,7 +141,10 @@
     "newLabelPlaceholder": "Tag name",
     "focusEnter": "Focus mode (full width)",
     "focusExit": "Exit focus mode",
-    "focusHint": "double-click the article, Esc to exit"
+    "focusHint": "double-click the article, Esc to exit",
+    "videoPlay": "Play video",
+    "videoOpen": "Open on YouTube",
+    "videoOffline": "Video unavailable offline"
   },
   "preferences": {
     "title": "Preferences",
@@ -162,7 +165,9 @@
     "general": {
       "title": "General",
       "confirmMarkAllRead": "Confirm before marking all as read",
-      "confirmMarkAllReadHint": "When off, \"Mark all as read\" acts in a single click, with no confirmation."
+      "confirmMarkAllReadHint": "When off, \"Mark all as read\" acts in a single click, with no confirmation.",
+      "inlineVideos": "Play videos in the article",
+      "inlineVideosHint": "Shows the thumbnail; the video loads only on click. Off, a link to YouTube is shown instead."
     },
     "branding": {
       "language": "Language",
