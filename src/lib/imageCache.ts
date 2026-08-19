@@ -16,7 +16,10 @@ export interface CacheImagesResult {
   stored: number;
   /** Real bytes stored — readable because the proxy response is same-origin. */
   bytes: number;
-  /** First failure encountered, kept so a silent 0 can be diagnosed. */
+  /** Images that could not be stored. A minority always fails: some hosts
+   *  refuse hotlinked requests, others are momentarily unreachable. */
+  failed: number;
+  /** First failure encountered, kept so a total failure can be diagnosed. */
   error?: string;
 }
 
@@ -35,7 +38,12 @@ const BATCH = 4;
  * readable (cross-origin responses are opaque and padded by browsers).
  */
 async function fetchViaProxy(url: string): Promise<FetchedImage> {
-  const { data } = await client.get<Blob>(url, { responseType: 'blob' });
+  // X-Proxy-Image tells the backend to add a Referer matching the image's own
+  // site, which is what hotlink-protected CDNs check before answering 403.
+  const { data } = await client.get<Blob>(url, {
+    responseType: 'blob',
+    headers: { 'X-Proxy-Image': '1' },
+  });
   return {
     response: new Response(data, {
       headers: { 'Content-Type': data.type || 'application/octet-stream' },
@@ -82,7 +90,7 @@ export async function cacheImages(
   urls: string[],
   deps: Partial<CacheImagesDeps> = {},
 ): Promise<CacheImagesResult> {
-  if (!urls.length) return { stored: 0, bytes: 0 };
+  if (!urls.length) return { stored: 0, bytes: 0, failed: 0 };
 
   const fetchImage = deps.fetchImage ?? fetchViaProxy;
   const openCache = deps.openCache
@@ -95,15 +103,16 @@ export async function cacheImages(
   try {
     cache = await openCache();
   } catch (e) {
-    return { stored: 0, bytes: 0, error: `open: ${describe(e)}` };
+    return { stored: 0, bytes: 0, failed: urls.length, error: `open: ${describe(e)}` };
   }
 
   let stored = 0;
   let bytes = 0;
+  let failed = 0;
   let error: string | undefined;
   // Keep the first failure: swallowing every error is what made a
   // 0-images-stored sweep impossible to diagnose.
-  const note = (stage: string, e: unknown) => { error ??= `${stage}: ${describe(e)}`; };
+  const note = (stage: string, e: unknown) => { failed++; error ??= `${stage}: ${describe(e)}`; };
 
   for (let i = 0; i < urls.length; i += BATCH) {
     await Promise.all(
@@ -126,5 +135,5 @@ export async function cacheImages(
       }),
     );
   }
-  return { stored, bytes, error };
+  return { stored, bytes, failed, error };
 }

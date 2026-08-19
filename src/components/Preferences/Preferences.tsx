@@ -2867,7 +2867,14 @@ function OfflineTab() {
                 {offlinePrep.budgetStopped && ` · ${t('preferences.offline.imagesBudgetStopped')}`}
               </span>
             )}
-            {offlinePrep.imagesError && (
+            {!!offlinePrep.imagesFailed && (
+              <span className="block opacity-80">
+                {t('preferences.offline.imagesFailed', { count: offlinePrep.imagesFailed })}
+              </span>
+            )}
+            {/* The raw error only matters when nothing at all got through —
+                otherwise it reads as a breakdown when 80% actually succeeded. */}
+            {offlinePrep.imagesError && !offlinePrep.imagesStored && (
               <span className="block break-words" style={{ color: 'var(--accent)' }}>
                 {offlinePrep.imagesError}
               </span>

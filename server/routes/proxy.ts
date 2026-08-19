@@ -244,6 +244,18 @@ router.all('/', async (req, res) => {
   }
   const accept = req.header('x-proxy-accept');
   if (accept) headers.Accept = accept;
+  // Offline image prefetch: many CDNs refuse a bare server-side request
+  // (hotlink protection answers 403 unless the Referer looks like the image's
+  // own site). The Referer is derived from the target itself, never taken from
+  // the client, so this cannot be used to forge an arbitrary one.
+  if (req.header('x-proxy-image')) {
+    try {
+      const origin = new URL(rawTarget).origin;
+      headers.Referer = `${origin}/`;
+      headers['User-Agent'] =
+        'Mozilla/5.0 (compatible; FriRSS offline prefetch; +https://github.com/Fripix/frirss)';
+    } catch { /* target already validated above; ignore */ }
+  }
   const ct = req.header('content-type');
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD' && req.body && req.body.length;
   if (hasBody && ct) headers['Content-Type'] = ct;

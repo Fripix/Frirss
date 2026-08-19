@@ -349,7 +349,9 @@
       "imagesCached_one": "{{count}} immagine in cache",
       "imagesCached_other": "{{count}} immagini in cache",
       "imagesReport": "{{found}} immagini trovate, {{stored}} salvate",
-      "imagesBudgetStopped": "interrotto dal budget"
+      "imagesBudgetStopped": "interrotto dal budget",
+      "imagesFailed_one": "{{count}} immagine non è stata recuperata — è normale: alcuni siti rifiutano le immagini richieste da un altro server.",
+      "imagesFailed_other": "{{count}} immagini non sono state recuperate — è normale: alcuni siti rifiutano le immagini richieste da un altro server."
     }
   },
   "login": {

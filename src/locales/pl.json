@@ -351,7 +351,11 @@
       "imagesCached_few": "{{count}} obrazy w pamięci",
       "imagesCached_many": "{{count}} obrazów w pamięci",
       "imagesReport": "znaleziono {{found}} obrazów, zapisano {{stored}}",
-      "imagesBudgetStopped": "zatrzymane przez limit"
+      "imagesBudgetStopped": "zatrzymane przez limit",
+      "imagesFailed_one": "Nie udało się pobrać {{count}} obrazu — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
+      "imagesFailed_other": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
+      "imagesFailed_few": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
+      "imagesFailed_many": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera."
     }
   },
   "login": {

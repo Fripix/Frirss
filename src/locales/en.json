@@ -351,7 +351,9 @@
       "imagesCached_one": "{{count}} image cached",
       "imagesCached_other": "{{count}} images cached",
       "imagesReport": "{{found}} images found, {{stored}} stored",
-      "imagesBudgetStopped": "stopped by the budget"
+      "imagesBudgetStopped": "stopped by the budget",
+      "imagesFailed_one": "{{count}} image could not be fetched — this is common: some sites refuse images requested from another server.",
+      "imagesFailed_other": "{{count}} images could not be fetched — this is common: some sites refuse images requested from another server."
     }
   },
   "login": {

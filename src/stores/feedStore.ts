@@ -271,6 +271,8 @@ export interface FeedState {
     imagesStored?: number;
     /** True when the budget guard cut image caching short. */
     budgetStopped?: boolean;
+    /** Images that could not be fetched — a minority always fails. */
+    imagesFailed?: number;
     /** First error met while caching images — a silent 0 is undiagnosable. */
     imagesError?: string;
   } | null;
@@ -621,6 +623,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     let imagesFound = 0;
     let imagesStored = 0;
     let imagesBytes = 0;
+    let imagesFailed = 0;
     let imagesError: string | undefined;
 
     set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });
@@ -648,6 +651,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         const res = await cacheImages(urls);
         imagesStored += res.stored;
         imagesBytes += res.bytes;
+        imagesFailed += res.failed;
         imagesError ??= res.error;
         // Count the bytes we actually stored. The previous guard watched the
         // browser's storage estimate, which pads opaque entries so wildly that
@@ -663,7 +667,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     set({
       offlinePrep: {
         running: false, phase: 'done', done, total: ordered.length,
-        imagesFound, imagesStored, budgetStopped: budgetReached && budget.bytes > 0, imagesError,
+        imagesFound, imagesStored, imagesFailed,
+        budgetStopped: budgetReached && budget.bytes > 0, imagesError,
       },
     });
   },

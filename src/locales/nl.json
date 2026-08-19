@@ -349,7 +349,9 @@
       "imagesCached_one": "{{count}} afbeelding in cache",
       "imagesCached_other": "{{count}} afbeeldingen in cache",
       "imagesReport": "{{found}} afbeeldingen gevonden, {{stored}} opgeslagen",
-      "imagesBudgetStopped": "gestopt door het budget"
+      "imagesBudgetStopped": "gestopt door het budget",
+      "imagesFailed_one": "{{count}} afbeelding kon niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd.",
+      "imagesFailed_other": "{{count}} afbeeldingen konden niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd."
     }
   },
   "login": {

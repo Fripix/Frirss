@@ -93,6 +93,20 @@ describe('cacheImages', () => {
     expect(error).toContain('opaque not allowed');
   });
 
+  it('counts the images that failed, since a minority always does', async () => {
+    const cache = fakeCache();
+    const fetchImage = async (url: string) => {
+      if (url.includes('bad')) throw new Error('403');
+      return { response: {} as never, bytes: 10 };
+    };
+    const { stored, failed } = await cacheImages(
+      ['https://a/bad1.jpg', 'https://a/bad2.jpg', 'https://a/good.jpg'],
+      { fetchImage, openCache: async () => cache as never },
+    );
+    expect(stored).toBe(1);
+    expect(failed).toBe(2);
+  });
+
   it('reports a fetch failure distinctly from a put failure', async () => {
     const cache = fakeCache();
     const { error } = await cacheImages(['https://a/1.jpg'], {
@@ -106,7 +120,7 @@ describe('cacheImages', () => {
   it('does nothing for an empty list', async () => {
     const openCache = vi.fn();
     const res = await cacheImages([], { fetchImage: image(), openCache: openCache as never });
-    expect(res).toEqual({ stored: 0, bytes: 0 });
+    expect(res).toEqual({ stored: 0, bytes: 0, failed: 0 });
     expect(openCache).not.toHaveBeenCalled();
   });
 });
