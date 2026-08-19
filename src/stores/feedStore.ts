@@ -23,8 +23,12 @@ import {
 import { useAuthStore } from './authStore';
 import { useUiStore } from './uiStore';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
-import { listGet, listPut, listEvictOlderThan, subsGet, subsPut } from '../lib/offlineStore';
+import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
+import {
+  actionKey, mergeAction, isNetworkFailure, shouldRetry,
+  type QueuedAction, type QueuedActionType,
+} from '../lib/actionQueue';
 import { collectImageUrls, imageBudget, prioritizeForOffline } from '../lib/offlineImages';
 import { getStorageEstimate } from '../lib/storageEstimate';
 import { cacheImages } from '../lib/imageCache';
@@ -315,6 +319,40 @@ export interface FeedState {
   // few seconds by the banner.
   refreshResult: { totalNew: number; newByFeed: Record<string, number>; at: number } | null;
   clearRefreshResult: () => void;
+  /** Actions made offline, waiting for the network. */
+  pendingActions: number;
+  /** Actions given up on after repeated failures, since the last replay. */
+  failedActions: number;
+  replayQueue: () => Promise<void>;
+}
+
+// The queue lives in IndexedDB; this mirror avoids a read on every toggle.
+let actionQueue: QueuedAction[] = [];
+let queueLoaded = false;
+
+async function loadQueue(): Promise<QueuedAction[]> {
+  if (!queueLoaded) { actionQueue = await queueGet(); queueLoaded = true; }
+  return actionQueue;
+}
+
+/**
+ * Remember an action that failed for lack of network, so it can be replayed.
+ * Business refusals never come here — see isNetworkFailure.
+ */
+async function enqueueAction(
+  set: (partial: Partial<FeedState>) => void,
+  articleId: string,
+  type: QueuedActionType,
+  value: boolean,
+  labelId?: string,
+): Promise<void> {
+  await loadQueue();
+  actionQueue = mergeAction(actionQueue, {
+    key: actionKey(articleId, type, labelId),
+    articleId, type, value, labelId, at: Date.now(), attempts: 0,
+  });
+  await queuePut(actionQueue);
+  set({ pendingActions: actionQueue.length });
 }
 
 export const useFeedStore = create<FeedState>()((set, get) => ({
@@ -330,6 +368,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   loading: false,
   loadingMore: false,
   refreshResult: null,
+  pendingActions: 0,
+  failedActions: 0,
   searchQuery: '',
   labels: [],
   labelCounts: {},
@@ -784,7 +824,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       } else {
         await markAsUnread(article.id);
       }
-    } catch {
+    } catch (err) {
+      // No network: keep the optimistic state and replay it later. Only a
+      // server refusal is rolled back.
+      if (isNetworkFailure(err)) {
+        await enqueueAction(set, article.id, 'read', newRead);
+        return;
+      }
       // Rollback on failure
       set((state) => ({
         articles: state.articles.map((a) =>
@@ -828,7 +874,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       } else {
         await removeStarred(article.id);
       }
-    } catch {
+    } catch (err) {
+      // No network: keep the optimistic state and replay it later. Only a
+      // server refusal is rolled back.
+      if (isNetworkFailure(err)) {
+        await enqueueAction(set, article.id, 'star', newStarred);
+        return;
+      }
       // Rollback on failure
       set((state) => ({
         articles: state.articles.map((a) =>
@@ -966,7 +1018,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     });
     try {
       await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
-    } catch {
+    } catch (err) {
+      // No network: keep the optimistic state and replay it later. Only a
+      // server refusal is rolled back.
+      if (isNetworkFailure(err)) {
+        await enqueueAction(set, article.id, 'readLater', !hasLabel);
+        return;
+      }
       // Rollback on failure
       set((state) => {
         const update = (a: Article): Article => {
@@ -1006,6 +1064,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // Refresh labels list in case a new label was created
       get().loadLabels();
     } catch (err) {
+      // No network: keep the optimistic state and replay it later. Only a
+      // server refusal is rolled back.
+      if (isNetworkFailure(err)) {
+        await enqueueAction(set, article.id, 'label', !hasLabel, labelId);
+        return;
+      }
       console.error('[FriRSS] toggleArticleLabel failed:', err);
       // Rollback
       const rollbackLabels = (a: Article): Article => {
@@ -1197,6 +1261,37 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     await get().loadArticles();
     const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);
     set({ refreshResult: { totalNew, newByFeed, at: Date.now() } });
+  },
+
+  replayQueue: async () => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    const queue = await loadQueue();
+    if (!queue.length) return;
+
+    const remaining: QueuedAction[] = [];
+    let failed = 0;
+    for (const action of queue) {
+      try {
+        if (action.type === 'read') {
+          await (action.value ? markAsRead(action.articleId) : markAsUnread(action.articleId));
+        } else if (action.type === 'star') {
+          await (action.value ? markAsStarred(action.articleId) : removeStarred(action.articleId));
+        } else if (action.type === 'readLater') {
+          await setArticleLabel(action.articleId, READ_LATER_LABEL, action.value);
+        } else if (action.type === 'label' && action.labelId) {
+          await setArticleLabel(action.articleId, action.labelId, action.value);
+        }
+      } catch (err) {
+        const attempts = action.attempts + 1;
+        // A refusal will never succeed; only keep what is worth retrying.
+        if (isNetworkFailure(err) && shouldRetry(attempts)) remaining.push({ ...action, attempts });
+        else failed++;
+      }
+    }
+
+    actionQueue = remaining;
+    await queuePut(remaining);
+    set({ pendingActions: remaining.length, failedActions: failed });
   },
 
   clearRefreshResult: () => set({ refreshResult: null }),
