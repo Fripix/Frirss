@@ -434,7 +434,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     memMarkRead(article.id, true);
     persistCurrentView(get);
     // Fire-and-forget; revert if the server call fails.
-    markAsRead(article.id).catch(() => {
+    // NOTE: reading an article goes through here, NOT through toggleRead —
+    // this is the path that must survive being offline.
+    markAsRead(article.id).catch((err) => {
+      // No network: keep it read and replay later. Only a refusal is reverted.
+      if (isNetworkFailure(err)) {
+        enqueueAction(set, article.id, 'read', true);
+        return;
+      }
       set((state) => ({
         articles: state.articles.map((a) =>
           a.id === article.id ? { ...a, read: false } : a

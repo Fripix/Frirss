@@ -32,6 +32,8 @@ vi.mock('../lib/offlineStore', () => ({
   listEvictOlderThan: vi.fn(() => Promise.resolve()),
   subsGet: vi.fn(() => Promise.resolve(undefined)),
   subsPut: vi.fn(() => Promise.resolve()),
+  queueGet: vi.fn(() => Promise.resolve([])),
+  queuePut: vi.fn(() => Promise.resolve()),
 }));
 
 import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId } from './feedStore';
@@ -45,6 +47,8 @@ const baseArticle = { id: 'a1', read: false, sourceId: 'feed/1' } as Article;
 beforeEach(() => {
   vi.clearAllMocks();
   useFeedStore.setState({
+    pendingActions: 0,
+    failedActions: 0,
     articles: [{ ...baseArticle }],
     selectedArticle: null,
     unreadCounts: { 'feed/1': 3, [READING_LIST]: 5 },
@@ -62,17 +66,32 @@ describe('feedStore.selectArticle', () => {
     expect(api.markAsRead).toHaveBeenCalledWith('a1');
   });
 
-  it('reverts the optimistic update when the server call fails', async () => {
-    vi.mocked(api.markAsRead).mockRejectedValueOnce(new Error('network'));
+  // Reading an article goes through selectArticle, NOT toggleRead — this is
+  // the path that has to survive being offline.
+  it('keeps the article read and queues it when there is no network', async () => {
+    vi.mocked(api.markAsRead).mockRejectedValueOnce(new Error('Network Error'));
     useFeedStore.getState().selectArticle({ ...baseArticle });
-    // optimistic state first
     expect(useFeedStore.getState().articles[0].read).toBe(true);
-    // let the rejected promise settle
+    await new Promise((r) => setTimeout(r, 0));
+    const s = useFeedStore.getState();
+    // Still read: the action is remembered, not undone.
+    expect(s.articles[0].read).toBe(true);
+    expect(s.unreadCounts['feed/1']).toBe(2);
+    expect(s.pendingActions).toBe(1);
+    expect(offline.queuePut).toHaveBeenCalled();
+  });
+
+  it('reverts the optimistic update when the server refuses', async () => {
+    // A 4xx is a real refusal — replaying it later would never succeed.
+    vi.mocked(api.markAsRead).mockRejectedValueOnce({ response: { status: 403 } });
+    useFeedStore.getState().selectArticle({ ...baseArticle });
+    expect(useFeedStore.getState().articles[0].read).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     const s = useFeedStore.getState();
     expect(s.articles[0].read).toBe(false);
     expect(s.unreadCounts['feed/1']).toBe(3);
     expect(s.unreadCounts[READING_LIST]).toBe(5);
+    expect(s.pendingActions).toBe(0);
   });
 
   it('does not call the API for an already-read article', () => {
