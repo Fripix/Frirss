@@ -10,7 +10,8 @@ import { sanitizeHtml } from '../utils/sanitizeHtml';
  * play button). Anything added to the facade must keep these green.
  */
 describe('facade survives sanitisation', () => {
-  const clean = sanitizeHtml(facadeMarkup({ id: 'dQw4w9WgXcQ', start: 42 }, 'https://x/t.jpg', 'Lire'));
+  const L = { play: 'Lire', open: 'Ouvrir sur YouTube' };
+  const clean = sanitizeHtml(facadeMarkup({ id: 'dQw4w9WgXcQ', start: 42 }, 'https://x/t.jpg', L));
 
   it('keeps the container and its video id', () => {
     expect(clean).toContain('class="yt-facade"');
@@ -31,6 +32,12 @@ describe('facade survives sanitisation', () => {
     expect(clean).toContain('aria-label="Lire"');
   });
 
+  it('keeps the escape hatch to YouTube', () => {
+    expect(clean).toContain('class="yt-facade__link"');
+    expect(clean).toContain('href="https://www.youtube.com/watch?v=dQw4w9WgXcQ&amp;t=42s"');
+    expect(clean).toContain('Ouvrir sur YouTube');
+  });
+
   it('uses no element the sanitizer would drop', () => {
     // Round-tripping must not lose anything.
     expect(sanitizeHtml(clean)).toBe(clean);
@@ -45,7 +52,7 @@ describe('embedded videos survive the pipeline', () => {
     expect(sanitizeHtml(blog)).not.toContain('iframe');
     expect(sanitizeHtml(blog)).not.toContain('dQw4w9WgXcQ');
 
-    const fixed = sanitizeHtml(injectVideoFacades(blog).html);
+    const fixed = sanitizeHtml(injectVideoFacades(blog, { play: 'Lire', open: 'Ouvrir sur YouTube' }).html);
     expect(fixed).toContain('data-yt-id="dQw4w9WgXcQ"');
     expect(fixed).toContain('Intro');
     expect(fixed).toContain('Suite');

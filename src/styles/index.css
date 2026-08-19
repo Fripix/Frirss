@@ -884,12 +884,24 @@ html {
 }
 
 /* ── YouTube facade: thumbnail + play button, the iframe loads only on click ── */
+.yt-facade-wrap { margin: 14px 0; }
+/* Always-present way out: some owners disable embedding, and that failure
+   happens inside a cross-origin frame we cannot inspect. */
+.yt-facade__link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--list-summary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--panel-border);
+}
+.yt-facade__link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
 .yt-facade {
   position: relative;
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
-  margin: 14px 0;
   border-radius: var(--radius, 8px);
   overflow: hidden;
   background: var(--list-hover);

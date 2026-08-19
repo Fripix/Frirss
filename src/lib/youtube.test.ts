@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { extractYouTubeId, youtubeThumbnail, injectVideoFacades } from './youtube';
+import { extractYouTubeId, youtubeThumbnail, youtubeWatchUrl, injectVideoFacades } from './youtube';
+
+const L = { play: 'Lire', open: 'Ouvrir sur YouTube' };
 
 describe('extractYouTubeId', () => {
   it('reads the watch form', () => {
@@ -49,7 +51,7 @@ describe('youtubeThumbnail', () => {
 
 describe('injectVideoFacades', () => {
   it('replaces a YouTube iframe with facade markup', () => {
-    const { html, ids } = injectVideoFacades('<p>a</p><iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>');
+    const { html, ids } = injectVideoFacades('<p>a</p><iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>', L);
     expect(ids).toEqual(['dQw4w9WgXcQ']);
     expect(html).toContain('data-yt-id="dQw4w9WgXcQ"');
     expect(html).not.toContain('<iframe');
@@ -57,38 +59,62 @@ describe('injectVideoFacades', () => {
   });
 
   it('replaces a standalone YouTube link', () => {
-    const { html, ids } = injectVideoFacades('<p><a href="https://youtu.be/dQw4w9WgXcQ">Voir</a></p>');
+    const { html, ids } = injectVideoFacades('<p><a href="https://youtu.be/dQw4w9WgXcQ">Voir</a></p>', L);
     expect(ids).toEqual(['dQw4w9WgXcQ']);
     expect(html).toContain('data-yt-id="dQw4w9WgXcQ"');
   });
 
   it('carries the start time into the facade', () => {
-    const { html } = injectVideoFacades('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ?start=42"></iframe>');
+    const { html } = injectVideoFacades('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ?start=42"></iframe>', L);
     expect(html).toContain('data-yt-start="42"');
   });
 
   it('leaves non-YouTube iframes untouched', () => {
     const src = '<iframe src="https://player.vimeo.com/video/1"></iframe>';
-    expect(injectVideoFacades(src).html).toBe(src);
+    expect(injectVideoFacades(src, L).html).toBe(src);
   });
 
   it('leaves ordinary links untouched', () => {
     const src = '<p><a href="https://example.com/article">lire</a></p>';
-    expect(injectVideoFacades(src).html).toBe(src);
+    expect(injectVideoFacades(src, L).html).toBe(src);
   });
 
   it('reports each video once even when repeated', () => {
     const { ids } = injectVideoFacades(
       '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe><a href="https://youtu.be/dQw4w9WgXcQ">x</a>',
+      L,
     );
     expect(ids).toEqual(['dQw4w9WgXcQ']);
   });
 
   it('returns the html untouched when there is no video', () => {
-    expect(injectVideoFacades('<p>rien</p>')).toEqual({ html: '<p>rien</p>', ids: [] });
+    expect(injectVideoFacades('<p>rien</p>', L)).toEqual({ html: '<p>rien</p>', ids: [] });
   });
 
   it('handles empty input', () => {
-    expect(injectVideoFacades('')).toEqual({ html: '', ids: [] });
+    expect(injectVideoFacades('', L)).toEqual({ html: '', ids: [] });
+  });
+
+  it('always offers a way out to YouTube', () => {
+    // Some owners disable embedding; the failure happens inside a cross-origin
+    // frame we cannot inspect, so the link must always be there.
+    const { html } = injectVideoFacades('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ?start=42"></iframe>', L);
+    expect(html).toContain('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s');
+    expect(html).toContain('Ouvrir sur YouTube');
+  });
+
+  it('uses the labels it is given, never a hard-coded language', () => {
+    const { html } = injectVideoFacades('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>', L);
+    expect(html).toContain('aria-label="Lire"');
+    expect(html).not.toContain('>Play<');
+  });
+});
+
+describe('youtubeWatchUrl', () => {
+  it('builds a plain watch url', () => {
+    expect(youtubeWatchUrl({ id: 'dQw4w9WgXcQ' })).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  });
+  it('keeps the start time', () => {
+    expect(youtubeWatchUrl({ id: 'dQw4w9WgXcQ', start: 42 })).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s');
   });
 });

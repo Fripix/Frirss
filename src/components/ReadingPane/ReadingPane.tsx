@@ -635,8 +635,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // Sanitize first (strips scripts/handlers from untrusted feed HTML), then add lazy-loading.
   // Facades must be injected BEFORE sanitising: DOMPurify deletes <iframe>
   // outright, which is why embedded videos are invisible without this.
+  const videoLabels = { play: t('readingPane.videoPlay'), open: t('readingPane.videoOpen') };
   const withVideos = inlineVideos
-    ? injectVideoFacades(displayContent || '')
+    ? injectVideoFacades(displayContent || '', videoLabels)
     : { html: displayContent || '', ids: [] as string[] };
   const finalContent = reserveImgAspect(sanitizeHtml(withVideos.html))
     .replace(/<img(?!\s+loading=)/gi, (m) => ++_imgIdx <= 2 ? m : '<img loading="lazy"');
@@ -646,7 +647,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const articleVideo = inlineVideos ? extractYouTubeId(selectedArticle?.url || '') : null;
   const headVideo = articleVideo && !withVideos.ids.includes(articleVideo.id) ? articleVideo : null;
   const headFacadeHtml = headVideo
-    ? facadeMarkup(headVideo, youtubeThumbnail(headVideo.id), t('readingPane.videoPlay'))
+    ? facadeMarkup(headVideo, youtubeThumbnail(headVideo.id), videoLabels)
     : '';
 
   // One listener for every facade (head + inline): swap in the real player.

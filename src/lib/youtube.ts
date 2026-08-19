@@ -40,6 +40,18 @@ export function youtubeThumbnail(id: string): string {
   return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 }
 
+/** Canonical watch URL, keeping the start time when there is one. */
+export function youtubeWatchUrl(ref: YouTubeRef): string {
+  const t = ref.start ? `&t=${ref.start}s` : '';
+  return `https://www.youtube.com/watch?v=${ref.id}${t}`;
+}
+
+/** Labels the facade needs, so the markup is never hard-coded in English. */
+export interface FacadeLabels {
+  play: string;
+  open: string;
+}
+
 const escapeAttr = (s: string): string => s.replace(/"/g, '&quot;');
 
 /**
@@ -52,12 +64,19 @@ const escapeAttr = (s: string): string => s.replace(/"/g, '&quot;');
  * for an icon. The button is drawn entirely in CSS; `aria-label` carries the
  * meaning for assistive technology.
  */
-export function facadeMarkup(ref: YouTubeRef, thumbnail: string, playLabel: string): string {
+export function facadeMarkup(ref: YouTubeRef, thumbnail: string, labels: FacadeLabels): string {
   const start = ref.start ? ` data-yt-start="${ref.start}"` : '';
   return (
-    `<div class="yt-facade" data-yt-id="${escapeAttr(ref.id)}"${start}>` +
-      `<img class="yt-facade__thumb" src="${escapeAttr(thumbnail)}" alt="" loading="lazy">` +
-      `<button type="button" class="yt-facade__play" aria-label="${escapeAttr(playLabel)}"></button>` +
+    '<div class="yt-facade-wrap">' +
+      `<div class="yt-facade" data-yt-id="${escapeAttr(ref.id)}"${start}>` +
+        `<img class="yt-facade__thumb" src="${escapeAttr(thumbnail)}" alt="" loading="lazy">` +
+        `<button type="button" class="yt-facade__play" aria-label="${escapeAttr(labels.play)}"></button>` +
+      '</div>' +
+      // Always-present way out: some owners disable embedding entirely, and the
+      // failure happens inside a cross-origin frame we cannot inspect.
+      `<a class="yt-facade__link" href="${escapeAttr(youtubeWatchUrl(ref))}" target="_blank">` +
+        `${escapeAttr(labels.open)}` +
+      '</a>' +
     '</div>'
   );
 }
@@ -70,7 +89,7 @@ const LINK_RE = /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>.*?<\/a>/gi;
  * Must run BEFORE sanitizeHtml — afterwards the iframes no longer exist.
  * Returns the ids found so the caller can avoid showing the same video twice.
  */
-export function injectVideoFacades(html: string): { html: string; ids: string[] } {
+export function injectVideoFacades(html: string, labels: FacadeLabels): { html: string; ids: string[] } {
   if (!html) return { html: '', ids: [] };
   const ids: string[] = [];
 
@@ -78,7 +97,7 @@ export function injectVideoFacades(html: string): { html: string; ids: string[] 
     const ref = extractYouTubeId(url);
     if (!ref) return whole;
     if (!ids.includes(ref.id)) ids.push(ref.id);
-    return facadeMarkup(ref, youtubeThumbnail(ref.id), 'Play');
+    return facadeMarkup(ref, youtubeThumbnail(ref.id), labels);
   };
 
   let out = html.replace(IFRAME_RE, (whole, a, b) => toFacade(whole, a || b || ''));
