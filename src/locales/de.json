@@ -43,7 +43,9 @@
     "hideReadFeeds": "Gelesene Feeds ausblenden",
     "showReadFeeds": "Alle Feeds anzeigen",
     "feedLayoutDefault": "Standard",
-    "feedLayoutThisFeed": "Ansicht für diesen Feed"
+    "feedLayoutThisFeed": "Ansicht für diesen Feed",
+    "expandCategory": "Kategorie ausklappen",
+    "collapseCategory": "Kategorie einklappen"
   },
   "addFeed": {
     "title": "RSS-Feed hinzufügen",
@@ -512,5 +514,8 @@
     "newArticles_one": "{{count}} neuer Artikel",
     "newArticles_other": "{{count}} neue Artikel",
     "upToDate": "Aktuell"
+  },
+  "update": {
+    "updating": "Aktualisierung…"
   }
 }

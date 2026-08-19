@@ -43,7 +43,9 @@
     "hideReadFeeds": "Gelezen feeds verbergen",
     "showReadFeeds": "Alle feeds tonen",
     "feedLayoutDefault": "Standaard",
-    "feedLayoutThisFeed": "Indeling voor deze feed"
+    "feedLayoutThisFeed": "Indeling voor deze feed",
+    "expandCategory": "Categorie uitklappen",
+    "collapseCategory": "Categorie inklappen"
   },
   "addFeed": {
     "title": "Een RSS-feed toevoegen",
@@ -512,5 +514,8 @@
     "newArticles_one": "{{count}} nieuw artikel",
     "newArticles_other": "{{count}} nieuwe artikelen",
     "upToDate": "Bijgewerkt"
+  },
+  "update": {
+    "updating": "Bijwerken…"
   }
 }

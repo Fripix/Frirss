@@ -43,7 +43,9 @@
     "hideReadFeeds": "Ukryj przeczytane kanały",
     "showReadFeeds": "Pokaż wszystkie kanały",
     "feedLayoutDefault": "Domyślny",
-    "feedLayoutThisFeed": "Układ tego kanału"
+    "feedLayoutThisFeed": "Układ tego kanału",
+    "expandCategory": "Rozwiń kategorię",
+    "collapseCategory": "Zwiń kategorię"
   },
   "addFeed": {
     "title": "Dodaj kanał RSS",
@@ -518,5 +520,8 @@
     "newArticles_few": "{{count}} nowe artykuły",
     "newArticles_many": "{{count}} nowych artykułów",
     "upToDate": "Wszystko aktualne"
+  },
+  "update": {
+    "updating": "Aktualizacja…"
   }
 }

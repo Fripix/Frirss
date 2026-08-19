@@ -43,7 +43,9 @@
     "hideReadFeeds": "Приховати прочитані канали",
     "showReadFeeds": "Показати всі канали",
     "feedLayoutDefault": "За умовчанням",
-    "feedLayoutThisFeed": "Розташування цього каналу"
+    "feedLayoutThisFeed": "Розташування цього каналу",
+    "expandCategory": "Розгорнути категорію",
+    "collapseCategory": "Згорнути категорію"
   },
   "addFeed": {
     "title": "Додати RSS-стрічку",
@@ -518,5 +520,8 @@
     "newArticles_few": "{{count}} нові статті",
     "newArticles_many": "{{count}} нових статей",
     "upToDate": "Все актуально"
+  },
+  "update": {
+    "updating": "Оновлення…"
   }
 }
