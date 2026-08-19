@@ -4,6 +4,7 @@ import type { Article } from '../../types';
 import { READ_LATER_LABEL } from '../../stores/feedStore';
 import { extractImageFromContent, sourceInitial } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
+import { extractYouTubeId } from '../../lib/youtube';
 import { StarButton, ReadLaterButton, MarkReadButton } from './ArticleActions';
 
 interface ArticleCardProps {
@@ -22,6 +23,7 @@ export default function ArticleCard({
   const { t } = useTranslation();
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = extractImageFromContent(article.content);
+  const isVideo = !!extractYouTubeId(article.url || '');
 
   return (
     <div
@@ -49,6 +51,11 @@ export default function ArticleCard({
           </div>
         )}
         {!article.read && <span className="article-card__unread" aria-hidden="true" />}
+        {isVideo && (
+          <span className="article-card__play" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+          </span>
+        )}
       </div>
 
       <div className="article-card__body">
