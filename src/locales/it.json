@@ -528,6 +528,7 @@
     "fileInto": "Archivia in",
     "newCategory": "Nuova categoria",
     "noCategory": "Nessuna categoria — creane una nella barra laterale",
-    "deleteCategory": "Elimina la categoria"
+    "deleteCategory": "Elimina la categoria",
+    "holdHint": "tieni premuto per archiviare"
   }
 }

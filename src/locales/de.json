@@ -528,6 +528,7 @@
     "fileInto": "Ablegen in",
     "newCategory": "Neue Kategorie",
     "noCategory": "Keine Kategorie — in der Seitenleiste anlegen",
-    "deleteCategory": "Kategorie löschen"
+    "deleteCategory": "Kategorie löschen",
+    "holdHint": "halten zum Einsortieren"
   }
 }

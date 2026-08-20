@@ -77,7 +77,10 @@ export function StarButton({ starred, onClick, article }: StarButtonProps) {
       data-theme="star-color"
       className="p-1 rounded-full transition-colors hover:bg-black/5"
       style={{ color: starred ? 'var(--star-color)' : 'var(--star-inactive)' }}
-      title={starred ? t('articleRow.removeStar') : t('articleRow.addStar')}
+      title={
+        (starred ? t('articleRow.removeStar') : t('articleRow.addStar'))
+        + (article ? ` — ${t('saved.holdHint')}` : '')
+      }
     >
       <svg
         className="w-3.5 h-3.5"
@@ -118,7 +121,10 @@ export function ReadLaterButton({ active, onClick, article }: ReadLaterButtonPro
       data-theme="readlater-color"
       className="p-1 rounded-full transition-colors hover:bg-black/5"
       style={{ color: active ? 'var(--readlater-color)' : 'var(--star-inactive)' }}
-      title={active ? t('articleRow.removeReadLater') : t('articleRow.addReadLater')}
+      title={
+        (active ? t('articleRow.removeReadLater') : t('articleRow.addReadLater'))
+        + (article ? ` — ${t('saved.holdHint')}` : '')
+      }
     >
       <svg
         className="w-3.5 h-3.5"

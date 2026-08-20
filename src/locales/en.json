@@ -528,6 +528,7 @@
     "fileInto": "File into",
     "newCategory": "New category",
     "noCategory": "No category — create one in the sidebar",
-    "deleteCategory": "Delete category"
+    "deleteCategory": "Delete category",
+    "holdHint": "hold to file"
   }
 }

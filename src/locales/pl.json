@@ -538,6 +538,7 @@
     "fileInto": "Zapisz w",
     "newCategory": "Nowa kategoria",
     "noCategory": "Brak kategorii — utwórz ją na pasku bocznym",
-    "deleteCategory": "Usuń kategorię"
+    "deleteCategory": "Usuń kategorię",
+    "holdHint": "przytrzymaj, aby zapisać"
   }
 }

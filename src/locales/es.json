@@ -528,6 +528,7 @@
     "fileInto": "Guardar en",
     "newCategory": "Nueva categoría",
     "noCategory": "Sin categorías — cree una en la barra lateral",
-    "deleteCategory": "Eliminar la categoría"
+    "deleteCategory": "Eliminar la categoría",
+    "holdHint": "mantener para guardar"
   }
 }

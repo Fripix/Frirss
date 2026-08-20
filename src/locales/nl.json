@@ -528,6 +528,7 @@
     "fileInto": "Opslaan in",
     "newCategory": "Nieuwe categorie",
     "noCategory": "Geen categorie — maak er een in de zijbalk",
-    "deleteCategory": "Categorie verwijderen"
+    "deleteCategory": "Categorie verwijderen",
+    "holdHint": "houd vast om op te slaan"
   }
 }

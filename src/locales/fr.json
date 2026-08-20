@@ -528,6 +528,7 @@
     "fileInto": "Ranger dans",
     "newCategory": "Nouvelle catégorie",
     "noCategory": "Aucune catégorie — créez-en une dans la barre latérale",
-    "deleteCategory": "Supprimer la catégorie"
+    "deleteCategory": "Supprimer la catégorie",
+    "holdHint": "maintenir pour ranger"
   }
 }

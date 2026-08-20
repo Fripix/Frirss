@@ -1266,6 +1266,7 @@ interface ActionBtnProps {
 }
 
 function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFile }: ActionBtnProps) {
+  const { t } = useTranslation();
   // Same gesture as in the list: hold (finger or mouse) to file it away.
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
@@ -1321,7 +1322,7 @@ function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFil
       onClick={handleClick}
       className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
       style={style}
-      title={label}
+      title={onFile ? `${label} — ${t('saved.holdHint')}` : label}
     >
       {icon}
       <span>{label}</span>
