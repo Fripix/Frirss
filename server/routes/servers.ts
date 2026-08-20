@@ -12,6 +12,7 @@ interface ServerRow {
   url: string;
   freshrss_user: string;
   freshrss_token: string | null;
+  refresh_token: string | null;
   is_default: number;
   created_at: string;
 }
@@ -22,13 +23,17 @@ router.use(requireAuth);
 // ── GET /api/servers ────────────────────────────────────────────────
 router.get('/', (req, res) => {
   const rows = db.prepare(`
-    SELECT id, name, url, freshrss_user, freshrss_token, is_default, created_at
+    SELECT id, name, url, freshrss_user, freshrss_token, refresh_token, is_default, created_at
     FROM servers WHERE user_id = ? ORDER BY is_default DESC, created_at ASC
   `).all(req.user.id) as ServerRow[];
 
-  // The FreshRSS token never leaves the backend — expose only its presence.
-  // It's injected server-side by the proxy (see routes/proxy.js).
-  const servers = rows.map(({ freshrss_token, ...s }) => ({ ...s, has_token: !!freshrss_token }));
+  // Neither token ever leaves the backend — expose only their presence.
+  // freshrss_token is injected server-side by the proxy (see routes/proxy.js).
+  const servers = rows.map(({ freshrss_token, refresh_token, ...s }) => ({
+    ...s,
+    has_token: !!freshrss_token,
+    has_refresh_token: !!refresh_token,
+  }));
 
   res.json({ servers });
 });
@@ -76,7 +81,7 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { name, url, freshrssUser, freshrssToken } = req.body;
+    const { name, url, freshrssUser, freshrssToken, refreshToken } = req.body;
 
     // Check ownership
     const server = db.prepare('SELECT * FROM servers WHERE id = ? AND user_id = ?').get(id, req.user.id) as ServerRow | undefined;
@@ -87,13 +92,14 @@ router.put('/:id', (req, res) => {
     const normalizedUrl = url ? url.replace(/\/+$/, '') : server.url;
 
     db.prepare(`
-      UPDATE servers SET name = ?, url = ?, freshrss_user = ?, freshrss_token = ?
+      UPDATE servers SET name = ?, url = ?, freshrss_user = ?, freshrss_token = ?, refresh_token = ?
       WHERE id = ? AND user_id = ?
     `).run(
       name ?? server.name,
       normalizedUrl,
       freshrssUser ?? server.freshrss_user,
       freshrssToken !== undefined ? encrypt(freshrssToken) : server.freshrss_token,
+      refreshToken !== undefined ? encrypt(refreshToken) : server.refresh_token,
       id,
       req.user.id
     );

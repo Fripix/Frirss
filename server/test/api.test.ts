@@ -130,6 +130,36 @@ describe('servers', () => {
     expect(list.body.servers[0].freshrss_token).toBeUndefined();
     expect(list.body.servers[0].has_token).toBe(true);
   });
+
+  it('stores the refresh (master) token encrypted, exposes only its presence, clears on empty string', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'RefreshTest', url: 'https://rss2.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    expect(add.status).toBe(201);
+    const id = add.body.server.id;
+
+    const put = await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-456' });
+    expect(put.status).toBe(200);
+    expect(put.body.server.refresh_token).toBeUndefined();
+
+    const list = await request(app).get('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`);
+    const row = list.body.servers.find((s: { id: number }) => s.id === id);
+    expect(row.refresh_token).toBeUndefined();
+    expect(row.has_refresh_token).toBe(true);
+
+    const clear = await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: '' });
+    expect(clear.status).toBe(200);
+
+    const list2 = await request(app).get('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`);
+    const row2 = list2.body.servers.find((s: { id: number }) => s.id === id);
+    expect(row2.has_refresh_token).toBe(false);
+  });
 });
 
 describe('proxy', () => {

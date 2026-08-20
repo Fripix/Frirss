@@ -81,6 +81,11 @@ if (!columnExists('users', 'email')) {
 if (!columnExists('users', 'last_active_at')) {
   db.exec(`ALTER TABLE users ADD COLUMN last_active_at TEXT`);
 }
+// Master authentication token of the FreshRSS user, used to trigger a real
+// feed refresh (c=feed&a=actualize). Encrypted at rest like freshrss_token.
+if (!columnExists('servers', 'refresh_token')) {
+  db.exec(`ALTER TABLE servers ADD COLUMN refresh_token TEXT`);
+}
 
 // ── Default global settings ─────────────────────────────────────────
 const initSetting = db.prepare(`
