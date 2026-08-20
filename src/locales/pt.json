@@ -324,7 +324,9 @@
       "escExitFocus": "Sair do modo Focus",
       "builtInTitle": "Teclas e gestos integrados",
       "keyDoubleClick": "Duplo clique",
-      "doubleClickFocus": "Modo Focus (ecrã inteiro) no artigo"
+      "doubleClickFocus": "Modo Focus (ecrã inteiro) no artigo",
+      "keyHold": "Manter premido",
+      "holdToFile": "Arquivar o artigo numa categoria (Favorito / Ler mais tarde)"
     },
     "offline": {
       "title": "Offline",

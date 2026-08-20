@@ -324,7 +324,9 @@
       "escExitFocus": "Focusmodus verlaten",
       "builtInTitle": "Ingebouwde toetsen en gebaren",
       "keyDoubleClick": "Dubbelklik",
-      "doubleClickFocus": "Focusmodus (volledig scherm) op het artikel"
+      "doubleClickFocus": "Focusmodus (volledig scherm) op het artikel",
+      "keyHold": "Ingedrukt houden",
+      "holdToFile": "Artikel in een categorie opslaan (Favoriet / Later lezen)"
     },
     "offline": {
       "title": "Offline",

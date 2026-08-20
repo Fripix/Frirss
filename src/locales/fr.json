@@ -324,7 +324,9 @@
       "escExitFocus": "Quitter le mode Focus",
       "builtInTitle": "Gestes et touches intégrés",
       "keyDoubleClick": "Double-clic",
-      "doubleClickFocus": "Mode Focus (plein écran) sur l’article"
+      "doubleClickFocus": "Mode Focus (plein écran) sur l’article",
+      "keyHold": "Clic prolongé",
+      "holdToFile": "Ranger l’article dans une catégorie (Favori / À lire plus tard)"
     },
     "offline": {
       "title": "Hors-ligne",

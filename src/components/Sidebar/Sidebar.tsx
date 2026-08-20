@@ -78,6 +78,10 @@ export default function Sidebar() {
   const toggleCategoryCollapsed = useUiStore((s) => s.toggleCategoryCollapsed);
   const savedCollapsed = useUiStore((s) => s.savedCollapsed);
   const toggleSavedCollapsed = useUiStore((s) => s.toggleSavedCollapsed);
+  const setSavedCollapsed = useUiStore((s) => s.setSavedCollapsed);
+  // Right-click on Favoris / À lire plus tard starts a new category there.
+  const [addingIn, setAddingIn] = useState<string | null>(null);
+  const startAdding = (prefix: string) => { setSavedCollapsed(prefix, false); setAddingIn(prefix); };
   const [refreshing, setRefreshing] = useState(false);
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [addFeedOpen, setAddFeedOpen] = useState(false);
@@ -453,11 +457,12 @@ export default function Sidebar() {
           onArticleDrop={(article) => {
             if (!article.starred) toggleStar(article);
           }}
+          onContextMenu={(e) => { e.preventDefault(); startAdding(STARRED_PREFIX); }}
           onToggleCollapse={() => toggleSavedCollapsed(STARRED_PREFIX)}
           collapsed={!!savedCollapsed[STARRED_PREFIX]}
           hasChildren
         />
-        <SavedCategoryList prefix={STARRED_PREFIX} />
+        <SavedCategoryList prefix={STARRED_PREFIX} adding={addingIn === STARRED_PREFIX} onAddingDone={() => setAddingIn(null)} />
         <FilterItem
           icon={
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -472,11 +477,12 @@ export default function Sidebar() {
           onArticleDrop={(article) => {
             if (!article.labels?.includes(READ_LATER_LABEL)) toggleReadLater(article);
           }}
+          onContextMenu={(e) => { e.preventDefault(); startAdding(READ_LATER_PREFIX); }}
           onToggleCollapse={() => toggleSavedCollapsed(READ_LATER_PREFIX)}
           collapsed={!!savedCollapsed[READ_LATER_PREFIX]}
           hasChildren
         />
-        <SavedCategoryList prefix={READ_LATER_PREFIX} />
+        <SavedCategoryList prefix={READ_LATER_PREFIX} adding={addingIn === READ_LATER_PREFIX} onAddingDone={() => setAddingIn(null)} />
 
         {/* User labels section */}
         {labels.length > 0 && (
@@ -1033,7 +1039,7 @@ function FeedItem({ feed, isSelected, unreadCount, showFavicons, organizeMode, o
  * so each row is a plain FilterItem — which already accepts an article drop,
  * making drag-to-file work with no extra machinery.
  */
-function SavedCategoryList({ prefix }: { prefix: string }) {
+function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }: { prefix: string; adding?: boolean; onAddingDone?: () => void }) {
   const { t } = useTranslation();
   const labels = useFeedStore((s) => s.labels);
   const selectedFeed = useFeedStore((s) => s.selectedFeed);
@@ -1045,8 +1051,10 @@ function SavedCategoryList({ prefix }: { prefix: string }) {
   const addSavedCategory = useUiStore((s) => s.addSavedCategory);
   const removeSavedCategory = useUiStore((s) => s.removeSavedCategory);
 
-  const [adding, setAdding] = useState(false);
+  const [selfAdding, setSelfAdding] = useState(false);
   const [name, setName] = useState('');
+  const adding = selfAdding || !!forcedAdding;
+  const stopAdding = () => { setSelfAdding(false); onAddingDone?.(); };
   const cats = useMemo(() => savedCategories(labels, prefix, names), [labels, prefix, names]);
 
   if (collapsed) return null;
@@ -1095,14 +1103,14 @@ function SavedCategoryList({ prefix }: { prefix: string }) {
             e.preventDefault();
             addSavedCategory(prefix, name);
             setName('');
-            setAdding(false);
+            stopAdding();
           }}
         >
           <input
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onBlur={() => { if (!name.trim()) setAdding(false); }}
+            onBlur={() => { if (!name.trim()) stopAdding(); }}
             placeholder={t('saved.newCategory')}
             className="w-full px-2 py-1 rounded text-[13px]"
             style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--sidebar-text-active)', border: 'none', outline: 'none' }}
@@ -1110,7 +1118,7 @@ function SavedCategoryList({ prefix }: { prefix: string }) {
         </form>
       ) : (
         <button
-          onClick={() => setAdding(true)}
+          onClick={() => setSelfAdding(true)}
           className="w-full flex items-center gap-3 px-4 py-1.5 opacity-60 hover:opacity-100 transition-opacity"
           style={{ color: 'var(--sidebar-text)', fontSize: 'var(--fs-sidebar-feed)' }}
         >
@@ -1173,7 +1181,7 @@ function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, on
 
   return (
     <div
-      className="relative flex items-center"
+      className="group/row relative flex items-center"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -1203,18 +1211,21 @@ function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, on
         {!dragOver && (count ?? 0) > 0 && <UnreadBadge count={count ?? 0} />}
         {!dragOver && !count && (badge ?? 0) > 0 && <SpecialBadge count={badge ?? 0} color={badgeColor} />}
       </button>
-      {/* Chevron: reveals the saved categories, like the feed-category headers. */}
+      {/* Chevron sits in the left padding, absolutely positioned: putting it in
+          the flow (either side) would shift the icon or the unread count. */}
       {hasChildren && onToggleCollapse && !dragOver && (
         <button
           onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
-          className="flex-shrink-0 px-2 py-2 hover:opacity-70 transition-opacity"
+          className={`absolute left-0 top-0 bottom-0 w-4 flex items-center justify-center transition-opacity ${
+            collapsed ? 'opacity-0 group-hover/row:opacity-70 focus:opacity-100' : 'opacity-70'
+          }`}
           style={{ color: 'var(--sidebar-text)' }}
           aria-label={collapsed ? t('sidebar.expandCategory') : t('sidebar.collapseCategory')}
           aria-expanded={!collapsed}
         >
           <svg
-            className={`w-3 h-3 transition-transform ${collapsed ? '' : 'rotate-90'}`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+            className={`w-2.5 h-2.5 transition-transform ${collapsed ? '' : 'rotate-90'}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>

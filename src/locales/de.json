@@ -324,7 +324,9 @@
       "escExitFocus": "Fokusmodus verlassen",
       "builtInTitle": "Integrierte Tasten & Gesten",
       "keyDoubleClick": "Doppelklick",
-      "doubleClickFocus": "Fokusmodus (Vollbild) im Artikel"
+      "doubleClickFocus": "Fokusmodus (Vollbild) im Artikel",
+      "keyHold": "Gedrückt halten",
+      "holdToFile": "Artikel in eine Kategorie einsortieren (Favorit / Später lesen)"
     },
     "offline": {
       "title": "Offline",

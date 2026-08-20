@@ -86,6 +86,7 @@ export interface UiState {
   /** Collapsed state of the category lists under Favoris / À lire plus tard. */
   savedCollapsed: Record<string, boolean>;
   toggleSavedCollapsed: (prefix: string) => void;
+  setSavedCollapsed: (prefix: string, v: boolean) => void;
   /**
    * Category names created by the user, per prefix. Synced. The server has no
    * empty label, so this is what lets a category exist before anything is filed
@@ -300,6 +301,13 @@ export const useUiStore = create<UiState>()((set, get) => ({
   },
 
   savedCollapsed: loadJson('frirss_savedCollapsed', {} as Record<string, boolean>),
+  setSavedCollapsed: (prefix, v) => {
+    set((state) => {
+      const next = { ...state.savedCollapsed, [prefix]: v };
+      localStorage.setItem('frirss_savedCollapsed', JSON.stringify(next));
+      return { savedCollapsed: next };
+    });
+  },
   toggleSavedCollapsed: (prefix) => {
     set((state) => {
       const next = { ...state.savedCollapsed, [prefix]: !state.savedCollapsed[prefix] };

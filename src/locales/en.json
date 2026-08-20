@@ -324,7 +324,9 @@
       "escExitFocus": "Exit focus mode",
       "builtInTitle": "Built-in keys & gestures",
       "keyDoubleClick": "Double-click",
-      "doubleClickFocus": "Focus mode (full screen) on the article"
+      "doubleClickFocus": "Focus mode (full screen) on the article",
+      "keyHold": "Press and hold",
+      "holdToFile": "File the article into a category (Star / Read later)"
     },
     "offline": {
       "title": "Offline",

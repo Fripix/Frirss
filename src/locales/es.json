@@ -324,7 +324,9 @@
       "escExitFocus": "Salir del modo Enfoque",
       "builtInTitle": "Teclas y gestos integrados",
       "keyDoubleClick": "Doble clic",
-      "doubleClickFocus": "Modo Enfoque (pantalla completa) en el artículo"
+      "doubleClickFocus": "Modo Enfoque (pantalla completa) en el artículo",
+      "keyHold": "Mantener pulsado",
+      "holdToFile": "Guardar el artículo en una categoría (Favorito / Leer más tarde)"
     },
     "offline": {
       "title": "Sin conexión",

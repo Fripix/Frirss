@@ -324,7 +324,9 @@
       "escExitFocus": "Wyjdź z trybu skupienia",
       "builtInTitle": "Wbudowane klawisze i gesty",
       "keyDoubleClick": "Podwójne kliknięcie",
-      "doubleClickFocus": "Tryb skupienia (pełny ekran) na artykule"
+      "doubleClickFocus": "Tryb skupienia (pełny ekran) na artykule",
+      "keyHold": "Przytrzymanie",
+      "holdToFile": "Zapisz artykuł w kategorii (Ulubione / Do przeczytania)"
     },
     "offline": {
       "title": "Offline",

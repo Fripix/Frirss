@@ -1503,6 +1503,7 @@ function ShortcutsTab() {
           { keyLabel: formatKey('Escape'), label: t('preferences.shortcuts.escExitFocus') },
           { keyLabel: formatKey('Escape'), label: t('preferences.shortcuts.escBackToGrid') },
           { keyLabel: t('preferences.shortcuts.keyDoubleClick'), label: t('preferences.shortcuts.doubleClickFocus') },
+          { keyLabel: t('preferences.shortcuts.keyHold'), label: t('preferences.shortcuts.holdToFile') },
         ].map(({ keyLabel, label }) => (
           <div key={label} className="flex items-center justify-between py-1.5 px-2 rounded-md">
             <span className="text-xs" style={{ color: 'var(--reading-text)' }}>
