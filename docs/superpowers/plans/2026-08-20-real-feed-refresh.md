@@ -969,10 +969,43 @@ git commit -m "i18n: add the feed refresh strings"
 
 **Files:**
 - Modify: `src/components/RefreshBanner.tsx`
+- Modify: `src/stores/uiStore.ts` (état + `jsonKeys` vers la ligne 533, `UI_SYNC_KEYS` vers la ligne 557)
+- Modify: `src/styles/index.css` (après `.refresh-banner__icon`, vers la ligne 688)
 
 **Interfaces:**
 - Consumes: `refreshPhase`, `refreshResult`, `hasRefreshToken` du store ; `openPreferences(tab)` de `themeStore`.
-- Produces: rien.
+- Produces: `UiState.refreshHintDismissed: boolean` et `dismissRefreshHint(): void`.
+
+- [ ] **Step 0 : Persister le rejet de l'invitation**
+
+Dans `src/stores/uiStore.ts`, ajouter à l'interface `UiState` :
+
+```ts
+  /** The "enable feed refreshing" hint is offered once, then never again. */
+  refreshHintDismissed: boolean;
+  dismissRefreshHint: () => void;
+```
+
+À l'état initial, à côté des autres `loadJson` :
+
+```ts
+  refreshHintDismissed: loadJson('frirss_refreshHintDismissed', false),
+```
+
+L'action, à côté des autres :
+
+```ts
+  dismissRefreshHint: () => {
+    localStorage.setItem('frirss_refreshHintDismissed', JSON.stringify(true));
+    set({ refreshHintDismissed: true });
+  },
+```
+
+Puis ajouter `'refreshHintDismissed'` **aux deux listes** : `jsonKeys` (vers la
+ligne 533) et `UI_SYNC_KEYS` (vers la ligne 557). Les deux sont nécessaires :
+la première applique la préférence reçue du serveur, la seconde la fait remonter.
+N'en oublier aucune — le symptôme serait une invitation qui revient sur l'autre
+appareil.
 
 - [ ] **Step 1 : Réécrire le composant**
 
@@ -983,6 +1016,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../stores/feedStore';
 import { useThemeStore } from '../stores/themeStore';
+import { useUiStore } from '../stores/uiStore';
 
 const SHOW_MS = 5000;
 
@@ -998,8 +1032,12 @@ export default function RefreshBanner() {
   const hasRefreshToken = useFeedStore((s) => s.hasRefreshToken);
   const clearRefreshResult = useFeedStore((s) => s.clearRefreshResult);
   const openPreferences = useThemeStore((s) => s.openPreferences);
+  const refreshHintDismissed = useUiStore((s) => s.refreshHintDismissed);
+  const dismissRefreshHint = useUiStore((s) => s.dismissRefreshHint);
 
   const running = refreshPhase === 'running';
+  // Offered once: no token, nothing in flight, and not already waved away.
+  const showHint = !hasRefreshToken && !running && !refreshHintDismissed;
 
   useEffect(() => {
     if (!refreshResult || running) return;   // don't dismiss a refresh in progress
@@ -1043,14 +1081,24 @@ export default function RefreshBanner() {
         )}
       </svg>
       <span>{label}</span>
-      {!hasRefreshToken && !running && (
-        <button
-          type="button"
-          className="refresh-banner__action"
-          onClick={() => openPreferences('refresh')}
-        >
-          {t('refresh.enable')}
-        </button>
+      {showHint && (
+        <>
+          <button
+            type="button"
+            className="refresh-banner__action"
+            onClick={() => openPreferences('refresh')}
+          >
+            {t('refresh.enable')}
+          </button>
+          <button
+            type="button"
+            className="refresh-banner__action"
+            aria-label={t('app.close')}
+            onClick={dismissRefreshHint}
+          >
+            ×
+          </button>
+        </>
       )}
     </div>
   );
@@ -1110,11 +1158,13 @@ Attendu : PASS.
 
 ```bash
 git grep -nI --untracked -e 'fri[h]ub' -e '10\.[3]\.0\.[0-9]' -- . ':(exclude).github/workflows/*' ':(exclude)package-lock.json'
-git add src/components/RefreshBanner.tsx src/styles
-git commit -m "feat(refresh): show refresh progress and offer to enable it"
+git add src/components/RefreshBanner.tsx src/stores/uiStore.ts src/styles/index.css
+git commit -m "feat(refresh): show refresh progress and offer to enable it once"
 ```
 
-> **L'invitation ponctuelle ne se souvient pas encore de sa fermeture.** Le bandeau disparaît après 5 s et ne réapparaît qu'au prochain rafraîchissement manuel : c'est déjà discret. Ne pas ajouter de persistance sans que le besoin soit constaté — YAGNI.
+> **L'invitation est bien ponctuelle** : une fois fermée, elle ne revient plus.
+> C'est ce que la spec annonce (« Mémorisé dans les préférences utilisateur pour
+> ne pas revenir ») — arbitrage confirmé le 2026-08-21.
 
 ---
 
