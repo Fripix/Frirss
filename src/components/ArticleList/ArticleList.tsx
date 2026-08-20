@@ -209,13 +209,12 @@ export default function ArticleList() {
     }
   }, [searchOpen]);
 
-  // Handle data-search-input for keyboard shortcut
+  // Keyboard shortcut asks for the search: open it — the effect above then
+  // focuses the input once it exists.
   useEffect(() => {
-    const handler = () => {
-      setSearchOpen(true);
-    };
-    const el = document.querySelector('[data-search-input]');
-    if (el) el.addEventListener('focus', handler);
+    const open = () => setSearchOpen(true);
+    window.addEventListener('frirss:open-search', open);
+    return () => window.removeEventListener('frirss:open-search', open);
   }, []);
 
   function handleSearch(e: FormEvent) {

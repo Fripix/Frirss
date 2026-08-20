@@ -45,6 +45,18 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   logoutBackend: () => {
+    // Invalidate the session server-side first: clearing localStorage alone
+    // left the JWT valid until expiry, so a captured token kept working after
+    // a logout. Called directly (the API module imports this store) with the
+    // token captured before it is dropped; fire-and-forget, the local state is
+    // cleared either way.
+    const token = get().backendToken;
+    if (token) {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => { /* offline or already expired — nothing to do */ });
+    }
     // Drop the cached per-server CSRF write-token on logout
     clearWriteToken();
     localStorage.removeItem('frirss_backendToken');

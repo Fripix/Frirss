@@ -105,7 +105,7 @@ if (!encKey) {
 // ── Expired-session cleanup ─────────────────────────────────────────
 // Purge stale sessions on startup, then hourly, so the table doesn't grow
 // unbounded with rows that are already past their expiry.
-export function purgeExpiredSessions(): number {
+function purgeExpiredSessions(): number {
   return db.prepare(`DELETE FROM sessions WHERE expires_at < datetime('now')`).run().changes;
 }
 

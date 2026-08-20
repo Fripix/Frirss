@@ -114,7 +114,7 @@ export function clearWriteToken(): void {
   writeToken = null;
 }
 
-export async function editTag(
+async function editTag(
   itemIds: string | string[],
   addTag: string | null = null,
   removeTag: string | null = null
@@ -145,7 +145,7 @@ export function removeStarred(itemIds: string | string[]): Promise<void> {
   return editTag(itemIds, null, 'user/-/state/com.google/starred');
 }
 
-export async function getToken(): Promise<string> {
+async function getToken(): Promise<string> {
   const { data } = await client.get<string>(`${BASE}/token`);
   // Token comes with trailing newline — strip it
   return typeof data === 'string' ? data.trim() : data;

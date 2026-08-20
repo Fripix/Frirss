@@ -7,8 +7,8 @@ import { createHash } from 'crypto';
 
 const REDIS_URL = process.env.REDIS_URL || '';
 export const cacheEnabled = !!REDIS_URL;
-export const TTL_SECONDS = parseInt(process.env.CACHE_TTL || '86400', 10);
-export const MAX_PER_FEED = parseInt(process.env.CACHE_ARTICLES_PER_FEED || '50', 10);
+const TTL_SECONDS = parseInt(process.env.CACHE_TTL || '86400', 10);
+const MAX_PER_FEED = parseInt(process.env.CACHE_ARTICLES_PER_FEED || '50', 10);
 
 let client: Redis | null = null;
 if (cacheEnabled) {
@@ -59,6 +59,3 @@ export function trimStreamJson(jsonString: string, max = MAX_PER_FEED): string {
   }
 }
 
-export async function closeCache(): Promise<void> {
-  if (client) { try { await client.quit(); } catch { /* ignore */ } }
-}

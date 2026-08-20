@@ -18,7 +18,7 @@ const loaders: Record<string, () => Promise<LocaleModule>> = {
   uk: () => import('./locales/uk.json'),
 };
 
-export const SUPPORTED_LANGUAGES = ['fr', ...Object.keys(loaders)];
+const SUPPORTED_LANGUAGES = ['fr', ...Object.keys(loaders)];
 
 /**
  * Pick the language to start in: the user's saved choice, else the browser's

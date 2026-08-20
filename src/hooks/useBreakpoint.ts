@@ -11,7 +11,7 @@ function getBreakpoint(): Breakpoint {
 }
 
 /** Width-derived breakpoint, ignoring any manual layout override. */
-export function useRawBreakpoint(): Breakpoint {
+function useRawBreakpoint(): Breakpoint {
   const [bp, setBp] = useState<Breakpoint>(getBreakpoint);
 
   useEffect(() => {

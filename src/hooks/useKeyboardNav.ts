@@ -79,9 +79,9 @@ export function useKeyboardNav(): void {
         }
       } else if (key === shortcuts.search) {
         e.preventDefault();
-        // Focus the search input
-        const searchInput = document.querySelector<HTMLElement>('[data-search-input]');
-        if (searchInput) searchInput.focus();
+        // Ask the list to open its search. Focusing the input directly could
+        // never work: it is only rendered once the search is already open.
+        window.dispatchEvent(new CustomEvent('frirss:open-search'));
       }
     }
 

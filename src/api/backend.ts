@@ -54,19 +54,12 @@ export async function loginUser(username: string, password: string): Promise<Aut
   return data;
 }
 
-export async function logoutUser(): Promise<void> {
-  await backend.post('/auth/logout');
-}
 
 export async function getMe(): Promise<User> {
   const { data } = await backend.get<{ user: User }>('/auth/me');
   return data.user;
 }
 
-export async function changePassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean }> {
-  const { data } = await backend.post<{ ok: boolean }>('/auth/change-password', { currentPassword, newPassword });
-  return data;
-}
 
 // ── SSO / OIDC ──────────────────────────────────────────────────────
 export interface OidcConfig {
@@ -123,13 +116,7 @@ export async function savePreferences(prefs: Record<string, unknown>): Promise<v
   await backend.put('/preferences', prefs);
 }
 
-export async function savePreference(key: string, value: unknown): Promise<void> {
-  await backend.put(`/preferences/${key}`, { value });
-}
 
-export async function resetPreferences(): Promise<void> {
-  await backend.delete('/preferences');
-}
 
 // ── Admin ───────────────────────────────────────────────────────────
 export async function getAdminUsers(): Promise<User[]> {

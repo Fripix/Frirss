@@ -113,7 +113,7 @@ export function targetAllowedLiteral(rawTarget: string): boolean {
   return !isInternalHostLiteral(host);
 }
 
-export class BlockedTargetError extends Error {}
+class BlockedTargetError extends Error {}
 
 // Throws BlockedTargetError if `rawUrl` must not be fetched. Trusted internal
 // hosts (PROXY_REWRITES / PROXY_INTERNAL_HOSTS) pass. Otherwise the host is
@@ -137,7 +137,7 @@ async function assertTargetSafe(rawUrl: string): Promise<void> {
 
 // A greader READ endpoint whose response is worth caching (article lists,
 // subscription list, unread counts, tag list). Excludes the CSRF write token.
-export function isCacheableRead(method: string, target: string): boolean {
+function isCacheableRead(method: string, target: string): boolean {
   return method === 'GET'
     && target.includes('/reader/api/0/')
     && !target.includes('/reader/api/0/token');
