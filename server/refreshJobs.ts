@@ -52,7 +52,7 @@ export function startJob(
   const timer = setTimeout(() => ac.abort(), REFRESH_TIMEOUT_MS);
   timer.unref?.();
 
-  run(ac.signal).then(
+  Promise.resolve().then(() => run(ac.signal)).then(
     () => { job.status = 'done'; },
     (err) => { job.status = 'failed'; job.error = sanitizeError(err, secrets); },
   ).finally(() => {

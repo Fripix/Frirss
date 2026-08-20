@@ -43,6 +43,7 @@ describe('startJob', () => {
     const slow = async () => { calls++; await new Promise((r) => setTimeout(r, 20)); };
     const first = startJob(1, 7, slow);
     const second = startJob(1, 7, slow);
+    await tick();
     expect(calls).toBe(1);
     expect(second).toBe(first);
   });
@@ -52,6 +53,7 @@ describe('startJob', () => {
     startJob(1, 7, async () => { calls++; });
     await tick();
     startJob(1, 7, async () => { calls++; });
+    await tick();
     expect(calls).toBe(2);
   });
 
@@ -59,5 +61,13 @@ describe('startJob', () => {
     startJob(1, 7, async () => { await new Promise((r) => setTimeout(r, 20)); });
     expect(getJob(2, 7)).toBeUndefined();
     expect(getJob(1, 8)).toBeUndefined();
+  });
+
+  it('marks the job failed when run throws synchronously', async () => {
+    startJob(1, 7, (() => { throw new Error('sync boom'); }) as unknown as (s: AbortSignal) => Promise<void>);
+    expect(getJob(1, 7)?.status).toBe('running');
+    await tick();
+    expect(getJob(1, 7)?.status).toBe('failed');
+    expect(getJob(1, 7)?.error).toContain('sync boom');
   });
 });
