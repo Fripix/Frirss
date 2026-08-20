@@ -63,8 +63,8 @@ export default function ArticleCard({
           {showSource && <span className="article-card__source">{article.source}</span>}
           <span className="article-card__time">{timeAgo(article.published, t)}</span>
         </div>
-        <h3 className="article-card__title">{article.title}</h3>
-        <p className="article-card__summary">{article.summary}</p>
+        <h3 className="article-card__title" dir="auto">{article.title}</h3>
+        <p className="article-card__summary" dir="auto">{article.summary}</p>
       </div>
 
       <div className="article-card__actions" onClick={(e) => e.stopPropagation()}>

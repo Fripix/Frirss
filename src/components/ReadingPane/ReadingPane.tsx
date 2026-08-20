@@ -644,7 +644,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     ? injectVideoFacades(displayContent || '', videoLabels)
     : { html: displayContent || '', ids: [] as string[] };
   const finalContent = reserveImgAspect(sanitizeHtml(withVideos.html))
-    .replace(/<img(?!\s+loading=)/gi, (m) => ++_imgIdx <= 2 ? m : '<img loading="lazy"');
+    .replace(/<img(?!\s+loading=)/gi, (m) => ++_imgIdx <= 2 ? m : '<img loading="lazy"')
+    // Per-block direction: an Arabic or Hebrew paragraph reads right-to-left
+    // even inside an otherwise left-to-right article. Applied after sanitising,
+    // like the lazy-loading above.
+    .replace(/<(p|h[1-6]|li|blockquote|figcaption)(?![^>]*\bdir=)/gi, '<$1 dir="auto"');
 
   // A YouTube-feed article IS the video: show it first, unless the body already
   // carries the same one (which the injection above turned into a facade).
@@ -992,6 +996,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               title={t('readingPane.openOriginal')}
             >
               <h1
+                dir="auto"
                 className="font-bold leading-tight"
                 data-theme="reading-title"
                 style={{ color: 'var(--reading-title)', fontSize: 'var(--fs-reading-title)' }}
@@ -1001,6 +1006,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </a>
           ) : (
             <h1
+              dir="auto"
               className="font-bold leading-tight mb-4"
               data-theme="reading-title"
               style={{ color: 'var(--reading-title)', fontSize: 'var(--fs-reading-title)' }}
@@ -1100,6 +1106,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             <div dangerouslySetInnerHTML={{ __html: SKELETON_HTML }} />
           ) : (
             <div
+              dir="auto"
               className="article-content leading-relaxed"
               data-theme="reading-text"
               style={{ color: 'var(--reading-text)', fontSize: 'var(--fs-reading-body)' }}

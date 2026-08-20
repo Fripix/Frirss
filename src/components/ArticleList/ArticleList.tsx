@@ -905,6 +905,7 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
           </span>
         )}
         <span
+          dir="auto"
           className={`truncate flex-1 ${article.read ? 'font-normal' : 'font-medium'}`}
           data-theme={article.read ? 'list-title-read' : 'list-title'}
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
@@ -961,6 +962,7 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
         </div>
 
         <h3
+          dir="auto"
           className={`leading-snug mb-1 ${article.read ? 'font-normal' : 'font-semibold'}`}
           data-theme={article.read ? 'list-title-read' : 'list-title'}
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
@@ -969,7 +971,7 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
         </h3>
 
         {viewMode !== 'compact' && (
-          <p className="line-clamp-2 leading-relaxed" data-theme="list-summary" style={{ color: 'var(--list-summary)', fontSize: 'var(--fs-list-summary)' }}>
+          <p dir="auto" className="line-clamp-2 leading-relaxed" data-theme="list-summary" style={{ color: 'var(--list-summary)', fontSize: 'var(--fs-list-summary)' }}>
             {article.summary}
           </p>
         )}
