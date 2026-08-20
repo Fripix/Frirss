@@ -77,7 +77,7 @@
     "feedSource": "Feed-Name",
     "dateSeparators": "Datumstrenner",
     "serverBar": "Serverleiste",
-    "displayMode": "Layout",
+    "displayMode": "Darstellung",
     "sourceToggleFeed": "Feed-Name (pro Feed)",
     "sourceToggleAll": "Feed-Name (alle Feeds)",
     "showDateSep": "Datumstrenner anzeigen",
@@ -157,7 +157,7 @@
       "colors": "Farben",
       "fonts": "Größen",
       "labels": "Labels",
-      "themes": "Themes",
+      "themes": "Designs",
       "shortcuts": "Tastenkürzel",
       "admin": "Admin",
       "offline": "Offline"
