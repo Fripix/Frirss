@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import request from 'supertest';
 import app from '../index.js';
 import { encrypt, decrypt } from '../crypto.js';
@@ -159,6 +159,144 @@ describe('servers', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     const row2 = list2.body.servers.find((s: { id: number }) => s.id === id);
     expect(row2.has_refresh_token).toBe(false);
+  });
+});
+
+describe('servers actualize', () => {
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('404s for a server that does not exist', async () => {
+    const res = await request(app).post('/api/servers/999999/actualize')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('404s the status route for a server that does not exist', async () => {
+    const res = await request(app).get('/api/servers/999999/actualize')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects a refresh when the server has no master token', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'NoRefresh', url: 'https://rss3.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+
+    const res = await request(app).post(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('no_refresh_token');
+  });
+
+  it('reports no job before any refresh has been started', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Idle', url: 'https://rss4.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+
+    const res = await request(app).get(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.job).toBe(null);
+  });
+
+  it('starts a real refresh, keeping credentials out of the URL, and the job settles to done', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Refreshable', url: 'https://rss5.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await request(app).post(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(202);
+    expect(res.body.job.status).toBe('running');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [calledUrl, calledInit] = fetchMock.mock.calls[0];
+    expect(calledUrl).toBe('https://rss5.example.com/i/?c=feed&a=actualize');
+    expect(calledInit.method).toBe('POST');
+    expect(calledInit.redirect).toBe('manual');
+    expect(calledInit.body.get('token')).toBe('master-tok-789');
+    expect(calledInit.body.get('maxFeeds')).toBe('1000');
+
+    await tick();
+    const status = await request(app).get(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(status.body.job.status).toBe('done');
+  });
+
+  it('rejects a junk client-supplied maxFeeds and falls back to the default', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'JunkMaxFeeds', url: 'https://rss6.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    for (const junk of ['not-a-number', -5, 2.5]) {
+      fetchMock.mockClear();
+      await request(app).post(`/api/servers/${id}/actualize`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ maxFeeds: junk });
+      await tick();
+      const [, calledInit] = fetchMock.mock.calls[0];
+      expect(calledInit.body.get('maxFeeds')).toBe('1000');
+    }
+  });
+
+  it('honours a valid client-supplied maxFeeds', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'ValidMaxFeeds', url: 'https://rss7.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await request(app).post(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ maxFeeds: 5 });
+    const [, calledInit] = fetchMock.mock.calls[0];
+    expect(calledInit.body.get('maxFeeds')).toBe('5');
+  });
+
+  it('records a failed refresh without leaking the master token', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Failing', url: 'https://rss8.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-secret' });
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+
+    await request(app).post(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    await tick();
+
+    const status = await request(app).get(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(status.body.job.status).toBe('failed');
+    expect(status.body.job.error).not.toContain('master-tok-secret');
   });
 });
 

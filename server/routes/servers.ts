@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import db from '../db.js';
-import { encrypt } from '../crypto.js';
+import { encrypt, decrypt } from '../crypto.js';
+import { buildActualizeRequest } from '../actualizeRequest.js';
+import { startJob, getJob } from '../refreshJobs.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -148,6 +150,55 @@ router.put('/:id/default', (req, res) => {
   db.prepare('UPDATE servers SET is_default = 1 WHERE id = ?').run(id);
 
   res.json({ ok: true });
+});
+
+// ── POST /api/servers/:id/actualize ─────────────────────────────────
+// Triggers a REAL feed refresh on FreshRSS and returns immediately. The
+// request is fired but not awaited: refreshing hundreds of feeds takes
+// minutes, and any proxy in between would time out the client long before
+// FreshRSS is done — while FreshRSS keeps working regardless.
+router.post('/:id/actualize', (req, res) => {
+  const { id } = req.params;
+  const server = db.prepare('SELECT * FROM servers WHERE id = ? AND user_id = ?')
+    .get(id, req.user.id) as ServerRow | undefined;
+  if (!server) return res.status(404).json({ error: 'Server not found' });
+
+  const token = decrypt(server.refresh_token);
+  if (!token) return res.status(409).json({ error: 'no_refresh_token' });
+
+  const maxFeeds = Number.isInteger(req.body?.maxFeeds) && req.body.maxFeeds >= 1
+    ? req.body.maxFeeds as number
+    : undefined;
+
+  const { url, body } = buildActualizeRequest({
+    serverUrl: server.url,
+    freshrssUser: server.freshrss_user,
+    token,
+    maxFeeds,
+  });
+
+  const job = startJob(req.user.id, server.id, async (signal) => {
+    const r = await fetch(url, {
+      method: 'POST',
+      body,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      redirect: 'manual',   // a redirect would replay this as a GET, exposing the body
+      signal,
+    });
+    if (!r.ok) throw new Error(`FreshRSS answered ${r.status}`);
+  }, [token]);
+
+  res.status(202).json({ job });
+});
+
+// ── GET /api/servers/:id/actualize ──────────────────────────────────
+router.get('/:id/actualize', (req, res) => {
+  const { id } = req.params;
+  const server = db.prepare('SELECT id FROM servers WHERE id = ? AND user_id = ?')
+    .get(id, req.user.id) as { id: number } | undefined;
+  if (!server) return res.status(404).json({ error: 'Server not found' });
+
+  res.json({ job: getJob(req.user.id, server.id) ?? null });
 });
 
 export default router;
