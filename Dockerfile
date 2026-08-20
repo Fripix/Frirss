@@ -43,6 +43,10 @@ COPY --from=builder /app/dist ./dist
 # Compiled server (TypeScript → JS) from the builder
 COPY --from=builder /app/server-dist ./server-dist
 COPY package.json ./
+# Operator scripts (backup, password reset). Without these the recovery tools
+# documented in the README simply are not in the image — `node
+# scripts/backup-db.js` failed with MODULE_NOT_FOUND.
+COPY scripts ./scripts
 
 # nginx config
 COPY nginx.conf /etc/nginx/http.d/default.conf
