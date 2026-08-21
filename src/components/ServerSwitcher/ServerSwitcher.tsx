@@ -56,6 +56,7 @@ export default function ServerSwitcher() {
   function handleSwitch(server: DisplayServer) {
     if (String(server.id) === String(activeServerId)) return;
     switchServer(server);
+    useFeedStore.getState().setHasRefreshToken(!!server.has_refresh_token);
   }
 
   async function handleAdded(server: ServerConnection) {

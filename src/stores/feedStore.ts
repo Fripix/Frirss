@@ -1272,6 +1272,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   setHasRefreshToken: (v: boolean) => set({ hasRefreshToken: v }),
 
   refresh: async () => {
+    if (get().refreshPhase === 'running') return;
+    set({ refreshPhase: 'idle' });
+
     // Snapshot per-feed unread counts before the reload, so we can report how
     // many new articles arrived and in which feeds (see RefreshBanner + pulse).
     const before = { ...get().unreadCounts };
