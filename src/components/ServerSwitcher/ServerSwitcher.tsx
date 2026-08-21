@@ -61,9 +61,15 @@ export default function ServerSwitcher() {
 
   async function handleAdded(server: ServerConnection) {
     setAddOpen(false);
-    await reload();
+    const reloadedServers = await reload();
     // Switch straight to the newly added server
     switchServer(server);
+    // Set the refresh token flag based on the newly added server's actual state
+    // from the reloaded list, not the parameter (which may be stale)
+    const addedServerFromList = reloadedServers.find(
+      (s) => String(s.id) === String(server.id)
+    );
+    useFeedStore.getState().setHasRefreshToken(!!addedServerFromList?.has_refresh_token);
   }
 
   async function handleSetDefault(server: ServerConnection) {
