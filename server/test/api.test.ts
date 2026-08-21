@@ -7,12 +7,18 @@ import { cacheEnabled, cacheGet, trimStreamJson } from '../cache.js';
 // The actualize route now goes through fetchUpstream, which resolves the
 // target host before allowing the request (SSRF guard). The fictional
 // rssN.example.com test hosts below don't actually resolve, so stub DNS to
-// answer with a public address for any host.
+// answer with a public address for any host — EXCEPT the bare sentinel host
+// `example.com`, which resolves to a private address. That lets the SSRF
+// tests below exercise the real resolve-based guard (not just the literal
+// pre-check) without weakening this mock for every other test in the file:
+// no other test in this file targets `example.com` itself (only subdomains
+// like `rss.example.com`).
 vi.mock('dns', () => {
-  const lookup = vi.fn((_host: string, _opts: unknown, cb?: (err: null, addr: string, family: number) => void) => {
-    if (typeof cb === 'function') cb(null, '93.184.216.34', 4);
+  const addrFor = (host: string) => (host === 'example.com' ? '10.0.0.1' : '93.184.216.34');
+  const lookup = vi.fn((host: string, _opts: unknown, cb?: (err: null, addr: string, family: number) => void) => {
+    if (typeof cb === 'function') cb(null, addrFor(host), 4);
   });
-  const promises = { lookup: vi.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]) };
+  const promises = { lookup: vi.fn((host: string) => Promise.resolve([{ address: addrFor(host), family: 4 }])) };
   return { default: { lookup, promises }, lookup, promises };
 });
 
@@ -359,6 +365,102 @@ describe('servers actualize', () => {
     expect(status.body.job.status).toBe('failed');
     expect(status.body.job.error).not.toContain('master-tok-secret');
     expect(status.body.job.error).toContain('«redacted»');
+  });
+
+  it('does not follow a redirect from the actualize upstream, and fails the job', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'RedirectCheck', url: 'https://rss11.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+
+    // A body-reading spy: if the redirect were chased, fetchUpstream would
+    // return the *second* hop's response instead of this one, so this spy
+    // being called at all would already prove the redirect wasn't refused
+    // as-is. Also asserted directly: the route never inspects the body of a
+    // non-ok response, redirect or otherwise.
+    const readBody = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 302,
+      headers: { get: (h: string) => (h.toLowerCase() === 'location' ? 'https://evil.example.com/steal' : null) },
+      text: readBody,
+      json: readBody,
+      arrayBuffer: readBody,
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await request(app).post(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    await tick();
+
+    // A single call, to the original host only — a chased redirect would add
+    // a second call to evil.example.com.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://rss11.example.com/i/?c=feed&a=actualize');
+    expect(readBody).not.toHaveBeenCalled();
+
+    const status = await request(app).get(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(status.body.job.status).toBe('failed');
+  });
+
+  it('refuses an internal/private server.url, never reaching the upstream', async () => {
+    // `example.com` is the sentinel the DNS mock above resolves to a private
+    // address (10.0.0.1) — everything else in this file resolves publicly.
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'InternalTarget', url: 'https://example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await request(app).post(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    await tick();
+
+    // The SSRF guard must reject before any outgoing request is made.
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const status = await request(app).get(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(status.body.job.status).toBe('failed');
+  });
+
+  it('honours a lowered FRIRSS_REFRESH_MAX_FEEDS ceiling, not the compiled-in default', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'EnvMaxFeeds', url: 'https://rss12.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const prevEnv = process.env.FRIRSS_REFRESH_MAX_FEEDS;
+    process.env.FRIRSS_REFRESH_MAX_FEEDS = '50';
+    try {
+      await request(app).post(`/api/servers/${id}/actualize`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ maxFeeds: 50000 });
+    } finally {
+      if (prevEnv === undefined) delete process.env.FRIRSS_REFRESH_MAX_FEEDS;
+      else process.env.FRIRSS_REFRESH_MAX_FEEDS = prevEnv;
+    }
+
+    const [, calledInit] = fetchMock.mock.calls[0];
+    const params = new URLSearchParams(calledInit.body as string);
+    // Clamped to the operator's lowered ceiling (50), not the compiled-in
+    // default (1000) that the un-set-env test above already covers.
+    expect(params.get('maxFeeds')).toBe('50');
   });
 });
 
