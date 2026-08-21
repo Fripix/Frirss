@@ -147,6 +147,18 @@ interface FetchUpstreamOpts {
   method?: string;
   headers?: Record<string, string>;
   body?: Buffer | string;
+  /** Aborts the request (and any redirect hop still in flight) when triggered. */
+  signal?: AbortSignal;
+  /** Per-hop timeout override. Defaults to TIMEOUT_MS when omitted. */
+  timeoutMs?: number;
+  /**
+   * When false, a 3xx response is returned as-is instead of being chased.
+   * Defaults to true (existing behaviour). Sensitive non-GET calls that carry
+   * credentials in the body should pass false: chasing a redirect can
+   * downgrade the request to a bodyless GET (see the 301/302/303 handling
+   * below), silently dropping those credentials from the retried request.
+   */
+  followRedirects?: boolean;
 }
 
 /**
@@ -156,7 +168,10 @@ interface FetchUpstreamOpts {
  */
 const MAX_REDIRECTS = 5;
 
-export async function fetchUpstream(rawTarget: string, { method = 'GET', headers = {}, body }: FetchUpstreamOpts = {}): Promise<Response> {
+export async function fetchUpstream(
+  rawTarget: string,
+  { method = 'GET', headers = {}, body, signal, timeoutMs, followRedirects = true }: FetchUpstreamOpts = {}
+): Promise<Response> {
   const target = rewriteTarget(rawTarget);
 
   // Follow redirects manually so we can re-run the SSRF check on every hop
@@ -171,16 +186,24 @@ export async function fetchUpstream(rawTarget: string, { method = 'GET', headers
     for (let hop = 0; ; hop++) {
       await assertTargetSafe(url);
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), timeoutMs ?? TIMEOUT_MS);
+      // Combine the caller's signal into this hop's controller so a caller
+      // abort (or the caller's own timeout) cancels the in-flight request too.
+      const onCallerAbort = () => controller.abort(signal!.reason);
+      if (signal) {
+        if (signal.aborted) controller.abort(signal.reason);
+        else signal.addEventListener('abort', onCallerAbort);
+      }
       let resp: Response;
       try {
         resp = await fetch(url, { method: curMethod, headers: curHeaders, body: curBody as BodyInit | undefined, redirect: 'manual', signal: controller.signal });
       } finally {
         clearTimeout(timer);
+        if (signal) signal.removeEventListener('abort', onCallerAbort);
       }
 
       const loc = resp.status >= 300 && resp.status < 400 ? resp.headers.get('location') : null;
-      if (!loc || hop >= MAX_REDIRECTS) return resp;
+      if (!loc || hop >= MAX_REDIRECTS || !followRedirects) return resp;
 
       const next = new URL(loc, url);
       // Don't leak the FreshRSS token to a different origin on redirect.

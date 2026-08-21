@@ -4,6 +4,18 @@ import app from '../index.js';
 import { encrypt, decrypt } from '../crypto.js';
 import { cacheEnabled, cacheGet, trimStreamJson } from '../cache.js';
 
+// The actualize route now goes through fetchUpstream, which resolves the
+// target host before allowing the request (SSRF guard). The fictional
+// rssN.example.com test hosts below don't actually resolve, so stub DNS to
+// answer with a public address for any host.
+vi.mock('dns', () => {
+  const lookup = vi.fn((_host: string, _opts: unknown, cb?: (err: null, addr: string, family: number) => void) => {
+    if (typeof cb === 'function') cb(null, '93.184.216.34', 4);
+  });
+  const promises = { lookup: vi.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]) };
+  return { default: { lookup, promises }, lookup, promises };
+});
+
 let adminToken: string;
 let secondUserId: number;
 
@@ -227,13 +239,55 @@ describe('servers actualize', () => {
     expect(calledUrl).toBe('https://rss5.example.com/i/?c=feed&a=actualize');
     expect(calledInit.method).toBe('POST');
     expect(calledInit.redirect).toBe('manual');
-    expect(calledInit.body.get('token')).toBe('master-tok-789');
-    expect(calledInit.body.get('maxFeeds')).toBe('1000');
+    const params = new URLSearchParams(calledInit.body as string);
+    expect(params.get('token')).toBe('master-tok-789');
+    expect(params.get('maxFeeds')).toBe('1000');
 
     await tick();
     const status = await request(app).get(`/api/servers/${id}/actualize`)
       .set('Authorization', `Bearer ${adminToken}`);
     expect(status.body.job.status).toBe('done');
+  });
+
+  it('forwards an AbortSignal to the outgoing request', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'SignalCheck', url: 'https://rss9.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await request(app).post(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    const [, calledInit] = fetchMock.mock.calls[0];
+    expect(calledInit.signal).toBeInstanceOf(AbortSignal);
+    expect(calledInit.signal.aborted).toBe(false);
+  });
+
+  it('clamps a client-supplied maxFeeds above the ceiling', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'HugeMaxFeeds', url: 'https://rss10.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await request(app).post(`/api/servers/${id}/actualize`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ maxFeeds: 50000 });
+
+    const [, calledInit] = fetchMock.mock.calls[0];
+    const params = new URLSearchParams(calledInit.body as string);
+    expect(params.get('maxFeeds')).toBe('1000');
   });
 
   it('rejects a junk client-supplied maxFeeds and falls back to the default', async () => {
@@ -255,7 +309,8 @@ describe('servers actualize', () => {
         .send({ maxFeeds: junk });
       await tick();
       const [, calledInit] = fetchMock.mock.calls[0];
-      expect(calledInit.body.get('maxFeeds')).toBe('1000');
+      const params = new URLSearchParams(calledInit.body as string);
+      expect(params.get('maxFeeds')).toBe('1000');
     }
   });
 
@@ -275,7 +330,8 @@ describe('servers actualize', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ maxFeeds: 5 });
     const [, calledInit] = fetchMock.mock.calls[0];
-    expect(calledInit.body.get('maxFeeds')).toBe('5');
+    const params = new URLSearchParams(calledInit.body as string);
+    expect(params.get('maxFeeds')).toBe('5');
   });
 
   it('records a failed refresh without leaking the master token', async () => {
@@ -287,7 +343,12 @@ describe('servers actualize', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ refreshToken: 'master-tok-secret' });
 
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    // The failure must carry the secret in its message for this test to prove
+    // anything about redaction — an error that never contained the token
+    // (e.g. a bare status-code message) would pass even with no redaction at all.
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(
+      new Error('connect ECONNREFUSED while POSTing token=master-tok-secret to upstream')
+    ));
 
     await request(app).post(`/api/servers/${id}/actualize`)
       .set('Authorization', `Bearer ${adminToken}`);
@@ -297,6 +358,7 @@ describe('servers actualize', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     expect(status.body.job.status).toBe('failed');
     expect(status.body.job.error).not.toContain('master-tok-secret');
+    expect(status.body.job.error).toContain('«redacted»');
   });
 });
 

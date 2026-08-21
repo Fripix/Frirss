@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral } from './proxy.js';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral, fetchUpstream } from './proxy.js';
+
+// fetchUpstream resolves its target host before allowing the request (SSRF
+// guard) — stub DNS so example.com-style test targets resolve to a public
+// address without depending on real network/DNS.
+vi.mock('dns', () => {
+  const promises = { lookup: vi.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]) };
+  return { default: { promises }, promises };
+});
 
 describe('isPrivateIp', () => {
   it('flags IPv4 loopback / private / link-local / CGNAT', () => {
@@ -60,5 +68,73 @@ describe('targetAllowedLiteral', () => {
 
   it('rejects malformed targets', () => {
     expect(targetAllowedLiteral('not a url')).toBe(false);
+  });
+});
+
+describe('fetchUpstream', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('combines a caller AbortSignal into the outgoing request', async () => {
+    let capturedInit: RequestInit | undefined;
+    let resolveFetch: ((r: unknown) => void) | undefined;
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      capturedInit = init;
+      return new Promise((resolve) => { resolveFetch = resolve; });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const callerController = new AbortController();
+    const promise = fetchUpstream('https://example.com/x', { signal: callerController.signal });
+
+    // Let the (mocked) async DNS lookup resolve so fetch() gets called.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((capturedInit!.signal as AbortSignal).aborted).toBe(false);
+
+    callerController.abort();
+    // The per-hop controller's signal — the one actually handed to fetch() —
+    // must reflect the caller's abort. A regression that stopped forwarding
+    // the caller signal would leave this false.
+    expect((capturedInit!.signal as AbortSignal).aborted).toBe(true);
+
+    resolveFetch!({ ok: true, status: 200, headers: new Headers() });
+    await promise;
+  });
+
+  it('does not chase a redirect when followRedirects is false', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 302,
+      headers: new Headers({ location: 'https://example.com/other' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const resp = await fetchUpstream('https://example.com/x', {
+      method: 'POST',
+      body: 'a=1',
+      followRedirects: false,
+    });
+
+    // Returned as the raw 3xx response instead of being followed as a
+    // bodyless GET — the caller (which put credentials in the body) sees
+    // resp.ok === false and can correctly treat this as a failure, instead
+    // of the redirect target silently answering 200 to an unauthenticated GET.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(resp.status).toBe(302);
+    expect(resp.ok).toBe(false);
+  });
+
+  it('still chases a redirect by default (existing behaviour preserved)', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 302, headers: new Headers({ location: 'https://example.com/final' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, headers: new Headers() });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const resp = await fetchUpstream('https://example.com/start');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(resp.status).toBe(200);
   });
 });

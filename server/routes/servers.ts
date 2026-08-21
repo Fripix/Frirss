@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { encrypt, decrypt } from '../crypto.js';
-import { buildActualizeRequest } from '../actualizeRequest.js';
-import { startJob, getJob } from '../refreshJobs.js';
+import { buildActualizeRequest, DEFAULT_MAX_FEEDS } from '../actualizeRequest.js';
+import { startJob, getJob, REFRESH_TIMEOUT_MS } from '../refreshJobs.js';
 import { requireAuth } from '../middleware/auth.js';
+import { fetchUpstream } from './proxy.js';
 
 const router = Router();
 
@@ -167,7 +168,7 @@ router.post('/:id/actualize', (req, res) => {
   if (!token) return res.status(409).json({ error: 'no_refresh_token' });
 
   const maxFeeds = Number.isInteger(req.body?.maxFeeds) && req.body.maxFeeds >= 1
-    ? req.body.maxFeeds as number
+    ? Math.min(req.body.maxFeeds as number, DEFAULT_MAX_FEEDS)
     : undefined;
 
   const { url, body } = buildActualizeRequest({
@@ -178,12 +179,18 @@ router.post('/:id/actualize', (req, res) => {
   });
 
   const job = startJob(req.user.id, server.id, async (signal) => {
-    const r = await fetch(url, {
+    // Routed through fetchUpstream (not a bare fetch) so this outgoing call
+    // gets the same SSRF guard — on the initial target AND every redirect hop
+    // — as every other FreshRSS call this app makes, plus PROXY_REWRITES.
+    // followRedirects is off: a chased redirect would replay this as a GET
+    // and drop the body, silently discarding the credentials it carries.
+    const r = await fetchUpstream(url, {
       method: 'POST',
-      body,
+      body: body.toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      redirect: 'manual',   // a redirect would replay this as a GET, exposing the body
       signal,
+      timeoutMs: REFRESH_TIMEOUT_MS,
+      followRedirects: false,
     });
     if (!r.ok) throw new Error(`FreshRSS answered ${r.status}`);
   }, [token]);
