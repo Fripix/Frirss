@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAuthStore } from './stores/authStore';
-import { getMe, getAuthStatus } from './api/backend';
+import { getMe, getAuthStatus, getServers } from './api/backend';
 import { useFeedStore } from './stores/feedStore';
 import { useThemeStore } from './stores/themeStore';
 import { useUiStore } from './stores/uiStore';
@@ -233,6 +233,27 @@ export default function App() {
       resetAndReload();
     }
   }, [activeServerId, isAuthenticated, resetAndReload]);
+
+  // ── Can the active server do a REAL feed refresh? ────────────────
+  // Resolved here rather than in ServerSwitcher: that component renders only
+  // while the topbar is shown, and the topbar is a one-click user preference.
+  // With it hidden, nothing ever set the flag — Refresh silently fell back to
+  // a read-only sync and the banner offered to "enable feed refreshing" to
+  // someone who had configured it long ago. ServerSwitcher, RefreshTab and
+  // AddServerDialog keep writing it; they are updates, this is the source.
+  // A failed lookup leaves the flag untouched: not knowing is not "no token".
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    getServers()
+      .then((servers) => {
+        if (cancelled) return;
+        const active = servers.find((s) => String(s.id) === String(activeServerId));
+        useFeedStore.getState().setHasRefreshToken(!!active?.has_refresh_token);
+      })
+      .catch(() => { /* keep whatever we already know */ });
+    return () => { cancelled = true; };
+  }, [isAuthenticated, activeServerId]);
 
   // ── Background sync: periodic polling + visibility-based refresh ──
   useEffect(() => {
