@@ -691,6 +691,29 @@ html {
   width: 18px;
   height: 18px;
 }
+/* A real refresh runs for minutes; the default rule fades the banner out at
+   4.55s, which would hide it mid-refresh. Keep it up until the job resolves. */
+.refresh-banner--running {
+  animation: refresh-banner-in 0.42s cubic-bezier(0.18, 1.25, 0.4, 1);
+}
+.refresh-banner__icon--spin {
+  animation: spin 1s linear infinite;
+}
+/* .refresh-banner sets pointer-events: none so it never blocks the list;
+   the action link is the one part that has to stay clickable. */
+.refresh-banner__action {
+  pointer-events: auto;
+  margin-left: 8px;
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 0.85em;
+  font-weight: 600;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 /* one-shot ring that flares out from the banner on entrance to catch the eye */
 .refresh-banner::after {
   content: '';
@@ -724,6 +747,11 @@ html {
   .refresh-banner { animation: refresh-banner-in 0.25s ease, refresh-banner-out 0.45s ease 4.55s forwards; }
   .refresh-banner::after { animation: none; display: none; }
   .feed-new-pulse { animation: none; box-shadow: inset 3px 0 0 var(--accent, #4cd4a1); }
+  /* The rule above still applies to a running banner (equal specificity, same
+     element) and would fade it out at 4.55s regardless of motion preference.
+     Cancel that here — a refresh in flight must stay up under reduced motion too. */
+  .refresh-banner--running { animation: none; }
+  .refresh-banner__icon--spin { animation: none; }
 }
 
 /* ── Thin top progress bar (indeterminate) — shown while the app revalidates

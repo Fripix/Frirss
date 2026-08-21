@@ -148,6 +148,9 @@ export interface UiState {
   shortcuts: Shortcuts;
   setShortcut: (action: string, key: string) => void;
   resetShortcuts: () => void;
+  /** The "enable feed refreshing" hint is offered once, then never again. */
+  refreshHintDismissed: boolean;
+  dismissRefreshHint: () => void;
   applyServerPrefs: (prefs: Record<string, unknown> | null | undefined) => void;
 }
 
@@ -495,6 +498,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ shortcuts: { ...defaultShortcuts } });
   },
 
+  refreshHintDismissed: loadJson('frirss_refreshHintDismissed', false),
+  dismissRefreshHint: () => {
+    localStorage.setItem('frirss_refreshHintDismissed', JSON.stringify(true));
+    set({ refreshHintDismissed: true });
+  },
+
   // ── Server-side sync ───────────────────────────────────────────
   // Apply preferences hydrated from the backend (per-user, not browser-bound).
   // Mirrors each value to localStorage in the format the store expects:
@@ -535,7 +544,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-      'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos',
+      'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -559,7 +568,7 @@ export const UI_SYNC_KEYS = [
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-  'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos',
+  'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files
