@@ -630,7 +630,7 @@ export default function Sidebar() {
           </svg>
         </a>
         <button
-          onClick={() => useThemeStore.getState().openPreferences('branding')}
+          onClick={() => useThemeStore.getState().openPreferences('appearance')}
           className="p-1.5 rounded-md transition-colors hover:bg-white/10"
           style={{ color: 'var(--sidebar-text-active)' }}
           title={t('sidebar.preferences')}

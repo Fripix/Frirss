@@ -160,14 +160,14 @@ export default function Preferences() {
   } = useThemeStore();
   const preferencesOpenId = useThemeStore((s) => s.preferencesOpenId);
 
-  const [tab, setTab] = useState<string>(preferencesTab || 'branding');
+  const [tab, setTab] = useState<string>(preferencesTab || 'general');
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [highlightRects, setHighlightRects] = useState<HighlightRect[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Reset tab every time preferences are opened (preferencesOpenId changes each open)
   useEffect(() => {
-    setTab(preferencesTab || 'branding');
+    setTab(preferencesTab || 'general');
   }, [preferencesTab, preferencesOpenId]);
 
   // A11y: move focus into the dialog when it opens (keyboard / screen readers)
@@ -223,9 +223,8 @@ export default function Preferences() {
   }
 
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
-  const baseTabIds = ['general', 'refresh', 'branding', 'colors', 'fonts', 'labels', 'themes', 'shortcuts', 'offline'];
-  const tabIds = isAdmin ? ['admin', ...baseTabIds] : baseTabIds;
-  const tabs = tabIds.map((id) => ({ id, label: t(`preferences.tabs.${id}`) }));
+  const SECTIONS = ['general', 'appearance', 'labels', 'feeds', 'offline'] as const;
+  const sections = SECTIONS.map((id) => ({ id, label: t(`preferences.sections.${id}`) }));
 
   return (
     <div
@@ -294,10 +293,11 @@ export default function Preferences() {
         style={{
           background: 'var(--panel-bg)',
           borderLeft: '1px solid var(--panel-border)',
-          // Hug the tab bar's natural width (the content area is neutralized via
-          // w-0/min-w-full so it can't widen the panel), with a floor and viewport cap.
-          width: 'fit-content',
-          minWidth: 'min(92vw, 460px)',
+          // Largeur décidée, pas subie : elle ne dépend plus du nombre de
+          // sections. L'ancien `fit-content` faisait épouser au panneau la
+          // largeur de sa barre d'onglets, si bien que chaque onglet ajouté
+          // l'élargissait.
+          width: 'min(92vw, 680px)',
           maxWidth: '92vw',
         }}
       >
@@ -355,247 +355,259 @@ export default function Preferences() {
           </div>
         </div>
 
-        {/* Tabs — single row, horizontally scrollable when it overflows (mobile) */}
-        <div
-          className="prefs-tabs px-3 py-2 flex flex-nowrap gap-0.5 flex-shrink-0 overflow-x-auto"
-          style={{ borderBottom: '1px solid var(--panel-border)' }}
-        >
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              aria-current={tab === t.id ? 'page' : undefined}
-              className={`px-2.5 py-1.5 text-[11px] font-medium rounded-md transition-colors whitespace-nowrap flex-shrink-0 ${
-                tab === t.id ? 'text-white' : 'hover:bg-black/5'
-              }`}
-              style={{
-                background: tab === t.id ? 'var(--accent)' : 'transparent',
-                color: tab === t.id ? '#ffffff' : 'var(--list-summary)',
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Content — w-0/min-w-full keeps it from driving the panel width
-            (the tab bar does), so wide content wraps instead of widening the panel. */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 w-0 min-w-full">
-          {tab === 'general' && <GeneralTab />}
-          {tab === 'refresh' && <RefreshTab />}
-          {tab === 'branding' && <BrandingTab />}
-
-          {tab === 'colors' && (
-            <div className="space-y-5">
-              {COLOR_SECTIONS.map((section) => (
-                <div key={section.titleKey}>
-                  <h3
-                    className="text-[11px] font-bold uppercase tracking-widest mb-2"
-                    style={{ color: 'var(--list-summary)' }}
-                  >
-                    {t(`preferences.colorSections.${section.titleKey}`)}
-                  </h3>
-                  <div className="space-y-0.5">
-                    {section.keys.map((key) => (
-                      <ColorRow
-                        key={key}
-                        label={t(`preferences.colorKeys.${key}`)}
-                        value={theme.colors[key]}
-                        onChange={(v) => setColor(key, v)}
-                        colorKey={key}
-                        onHighlight={setHighlightKey}
-                        isModified={isColorModified(key)}
-                        onReset={() => resetColor(key)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <TabResetButton label={t('preferences.colors.resetColors')} onReset={resetColors} />
-            </div>
-          )}
-
-          {tab === 'fonts' && (
-            <div className="space-y-5">
-              {FONT_SECTIONS.map((section) => (
-                <div key={section.titleKey}>
-                  <h3
-                    className="text-[11px] font-bold uppercase tracking-widest mb-2"
-                    style={{ color: 'var(--list-summary)' }}
-                  >
-                    {t(`preferences.fontSections.${section.titleKey}`)}
-                  </h3>
-                  <div className="space-y-2">
-                    {section.keys.map(({ key, min, max }) => (
-                      <FontRow
-                        key={key}
-                        label={t(`preferences.fontKeys.${key}`)}
-                        value={theme.fontSizes[key]}
-                        min={min}
-                        max={max}
-                        onChange={(v) => setFontSize(key, v)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <TabResetButton label={t('preferences.fonts.resetFonts')} onReset={resetFontSizes} />
-            </div>
-          )}
-
-          {tab === 'labels' && <LabelsColorTab resetLabelColors={resetLabelColors} />}
-          {tab === 'offline' && <OfflineTab />}
-
-          {tab === 'shortcuts' && <ShortcutsTab />}
-
-          {tab === 'themes' && (
-            <div className="space-y-5">
-              {/* Save current */}
-              <div>
-                <h3
-                  className="text-[11px] font-bold uppercase tracking-widest mb-2"
-                  style={{ color: 'var(--list-summary)' }}
+        <div className="flex-1 flex min-h-0">
+          <nav
+            className="w-[178px] flex-shrink-0 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5"
+            style={{ borderRight: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}
+            aria-label={t('preferences.title')}
+          >
+            {sections.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setTab(s.id)}
+                aria-current={tab === s.id ? 'page' : undefined}
+                className="text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors"
+                style={{
+                  background: tab === s.id ? 'var(--accent)' : 'transparent',
+                  color: tab === s.id ? '#ffffff' : 'var(--list-title)',
+                  fontWeight: tab === s.id ? 600 : 400,
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+            {isAdmin && (
+              <>
+                <div className="h-px mx-2 mt-2.5 mb-0.5" style={{ background: 'var(--panel-border)' }} />
+                <button
+                  onClick={() => setTab('admin')}
+                  aria-current={tab === 'admin' ? 'page' : undefined}
+                  className="text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors"
+                  style={{
+                    background: tab === 'admin' ? 'var(--accent)' : 'transparent',
+                    color: tab === 'admin' ? '#ffffff' : 'var(--list-title)',
+                    fontWeight: tab === 'admin' ? 600 : 400,
+                  }}
                 >
-                  {t('preferences.themes.saveTitle')}
-                </h3>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={theme.name}
-                    onChange={(e) => setThemeName(e.target.value)}
-                    placeholder={t('preferences.themes.themeName')}
-                    className="flex-1 px-3 py-1.5 text-sm rounded-md"
-                    style={{
-                      border: '1px solid var(--panel-border)',
-                      color: 'var(--list-title)',
-                      background: 'var(--panel-header-bg)',
-                    }}
-                  />
-                  <button
-                    onClick={saveCurrentTheme}
-                    className="px-3 py-1.5 text-xs font-medium rounded-md text-white"
-                    style={{ background: 'var(--accent)' }}
-                  >
-                    {t('preferences.themes.save')}
-                  </button>
-                </div>
+                  {t('preferences.sections.admin')}
+                </button>
+              </>
+            )}
+          </nav>
+          <div className="flex-1 overflow-y-auto px-5 py-4 min-w-0">
+          {tab === 'general' && (<><GeneralTab /><ShortcutsTab /></>)}
+
+          {tab === 'appearance' && (
+            <>
+              <BrandingTab />
+
+              <div className="space-y-5">
+                {COLOR_SECTIONS.map((section) => (
+                  <div key={section.titleKey}>
+                    <h3
+                      className="text-[11px] font-bold uppercase tracking-widest mb-2"
+                      style={{ color: 'var(--list-summary)' }}
+                    >
+                      {t(`preferences.colorSections.${section.titleKey}`)}
+                    </h3>
+                    <div className="space-y-0.5">
+                      {section.keys.map((key) => (
+                        <ColorRow
+                          key={key}
+                          label={t(`preferences.colorKeys.${key}`)}
+                          value={theme.colors[key]}
+                          onChange={(v) => setColor(key, v)}
+                          colorKey={key}
+                          onHighlight={setHighlightKey}
+                          isModified={isColorModified(key)}
+                          onReset={() => resetColor(key)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <TabResetButton label={t('preferences.colors.resetColors')} onReset={resetColors} />
               </div>
 
-              {/* Saved themes list */}
-              {savedThemes.length > 0 && (
+              <div className="space-y-5">
+                {FONT_SECTIONS.map((section) => (
+                  <div key={section.titleKey}>
+                    <h3
+                      className="text-[11px] font-bold uppercase tracking-widest mb-2"
+                      style={{ color: 'var(--list-summary)' }}
+                    >
+                      {t(`preferences.fontSections.${section.titleKey}`)}
+                    </h3>
+                    <div className="space-y-2">
+                      {section.keys.map(({ key, min, max }) => (
+                        <FontRow
+                          key={key}
+                          label={t(`preferences.fontKeys.${key}`)}
+                          value={theme.fontSizes[key]}
+                          min={min}
+                          max={max}
+                          onChange={(v) => setFontSize(key, v)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <TabResetButton label={t('preferences.fonts.resetFonts')} onReset={resetFontSizes} />
+              </div>
+
+              <div className="space-y-5">
+                {/* Save current */}
                 <div>
                   <h3
                     className="text-[11px] font-bold uppercase tracking-widest mb-2"
                     style={{ color: 'var(--list-summary)' }}
                   >
-                    {t('preferences.themes.savedThemes', { count: savedThemes.length })}
+                    {t('preferences.themes.saveTitle')}
                   </h3>
-                  <div className="space-y-1">
-                    {savedThemes.map((st) => {
-                      const isDefault = st.name === 'FriRSS Default';
-                      const isActive = st.name === theme.name;
-                      return (
-                        <div
-                          key={st.name}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md"
-                          style={{
-                            background: isActive ? 'var(--accent-glow)' : 'var(--panel-header-bg)',
-                            border: isActive ? '1px solid var(--accent)' : '1px solid transparent',
-                          }}
-                        >
-                          {/* Color preview dots */}
-                          <div className="flex gap-0.5 flex-shrink-0">
-                            <div className="w-3 h-3 rounded-full" style={{ background: st.colors?.['sidebar-bg'] || '#201f1b' }} />
-                            <div className="w-3 h-3 rounded-full" style={{ background: st.colors?.accent || '#4cd4a1' }} />
-                            <div className="w-3 h-3 rounded-full" style={{ background: st.colors?.['panel-bg'] || '#ffffff' }} />
-                          </div>
-                          <span
-                            className="flex-1 text-sm truncate"
-                            style={{ color: 'var(--list-title)' }}
-                          >
-                            {st.name}
-                          </span>
-                          {!isActive && (
-                            <button
-                              onClick={() => loadSavedTheme(st.name)}
-                              className="text-[10px] font-medium px-2 py-0.5 rounded"
-                              style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}
-                            >
-                              {t('preferences.themes.load')}
-                            </button>
-                          )}
-                          {isActive && (
-                            <span className="text-[10px] font-medium px-2 py-0.5 rounded" style={{ color: 'var(--accent)' }}>
-                              {t('preferences.themes.active')}
-                            </span>
-                          )}
-                          {!isDefault && (
-                            <button
-                              onClick={() => deleteSavedTheme(st.name)}
-                              className="text-[10px] px-2 py-0.5 rounded hover:bg-red-50"
-                              style={{ color: 'var(--danger)' }}
-                            >
-                              {t('preferences.themes.deleteShort')}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={theme.name}
+                      onChange={(e) => setThemeName(e.target.value)}
+                      placeholder={t('preferences.themes.themeName')}
+                      className="flex-1 px-3 py-1.5 text-sm rounded-md"
+                      style={{
+                        border: '1px solid var(--panel-border)',
+                        color: 'var(--list-title)',
+                        background: 'var(--panel-header-bg)',
+                      }}
+                    />
+                    <button
+                      onClick={saveCurrentTheme}
+                      className="px-3 py-1.5 text-xs font-medium rounded-md text-white"
+                      style={{ background: 'var(--accent)' }}
+                    >
+                      {t('preferences.themes.save')}
+                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* Import / Export */}
-              <div>
-                <h3
-                  className="text-[11px] font-bold uppercase tracking-widest mb-2"
-                  style={{ color: 'var(--list-summary)' }}
-                >
-                  {t('preferences.themes.share')}
-                </h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={exportTheme}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5"
-                    style={{
-                      border: '1px solid var(--panel-border)',
-                      color: 'var(--list-title)',
-                    }}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                    </svg>
-                    {t('preferences.themes.export')}
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5"
-                    style={{
-                      border: '1px solid var(--panel-border)',
-                      color: 'var(--list-title)',
-                    }}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3" />
-                    </svg>
-                    {t('preferences.themes.import')}
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".css,.json"
-                    onChange={handleImport}
-                    className="hidden"
-                  />
-                </div>
-                {importError && (
-                  <p className="text-red-400 text-xs mt-1">{importError}</p>
+                {/* Saved themes list */}
+                {savedThemes.length > 0 && (
+                  <div>
+                    <h3
+                      className="text-[11px] font-bold uppercase tracking-widest mb-2"
+                      style={{ color: 'var(--list-summary)' }}
+                    >
+                      {t('preferences.themes.savedThemes', { count: savedThemes.length })}
+                    </h3>
+                    <div className="space-y-1">
+                      {savedThemes.map((st) => {
+                        const isDefault = st.name === 'FriRSS Default';
+                        const isActive = st.name === theme.name;
+                        return (
+                          <div
+                            key={st.name}
+                            className="flex items-center gap-2 px-3 py-2 rounded-md"
+                            style={{
+                              background: isActive ? 'var(--accent-glow)' : 'var(--panel-header-bg)',
+                              border: isActive ? '1px solid var(--accent)' : '1px solid transparent',
+                            }}
+                          >
+                            {/* Color preview dots */}
+                            <div className="flex gap-0.5 flex-shrink-0">
+                              <div className="w-3 h-3 rounded-full" style={{ background: st.colors?.['sidebar-bg'] || '#201f1b' }} />
+                              <div className="w-3 h-3 rounded-full" style={{ background: st.colors?.accent || '#4cd4a1' }} />
+                              <div className="w-3 h-3 rounded-full" style={{ background: st.colors?.['panel-bg'] || '#ffffff' }} />
+                            </div>
+                            <span
+                              className="flex-1 text-sm truncate"
+                              style={{ color: 'var(--list-title)' }}
+                            >
+                              {st.name}
+                            </span>
+                            {!isActive && (
+                              <button
+                                onClick={() => loadSavedTheme(st.name)}
+                                className="text-[10px] font-medium px-2 py-0.5 rounded"
+                                style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}
+                              >
+                                {t('preferences.themes.load')}
+                              </button>
+                            )}
+                            {isActive && (
+                              <span className="text-[10px] font-medium px-2 py-0.5 rounded" style={{ color: 'var(--accent)' }}>
+                                {t('preferences.themes.active')}
+                              </span>
+                            )}
+                            {!isDefault && (
+                              <button
+                                onClick={() => deleteSavedTheme(st.name)}
+                                className="text-[10px] px-2 py-0.5 rounded hover:bg-red-50"
+                                style={{ color: 'var(--danger)' }}
+                              >
+                                {t('preferences.themes.deleteShort')}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
+
+                {/* Import / Export */}
+                <div>
+                  <h3
+                    className="text-[11px] font-bold uppercase tracking-widest mb-2"
+                    style={{ color: 'var(--list-summary)' }}
+                  >
+                    {t('preferences.themes.share')}
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={exportTheme}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5"
+                      style={{
+                        border: '1px solid var(--panel-border)',
+                        color: 'var(--list-title)',
+                      }}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
+                      {t('preferences.themes.export')}
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5"
+                      style={{
+                        border: '1px solid var(--panel-border)',
+                        color: 'var(--list-title)',
+                      }}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3" />
+                      </svg>
+                      {t('preferences.themes.import')}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".css,.json"
+                      onChange={handleImport}
+                      className="hidden"
+                    />
+                  </div>
+                  {importError && (
+                    <p className="text-red-400 text-xs mt-1">{importError}</p>
+                  )}
+                </div>
               </div>
-            </div>
+            </>
           )}
 
+          {tab === 'labels' && <LabelsColorTab resetLabelColors={resetLabelColors} />}
+          {tab === 'feeds' && <RefreshTab />}
+          {tab === 'offline' && <OfflineTab />}
+
           {tab === 'admin' && isAdmin && <AdminTab />}
+          </div>
         </div>
       </div>
     </div>

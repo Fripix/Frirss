@@ -72,7 +72,7 @@ export default function RefreshBanner() {
           <button
             type="button"
             className="refresh-banner__action"
-            onClick={() => openPreferences('refresh')}
+            onClick={() => openPreferences('feeds')}
           >
             {t('refresh.enable')}
           </button>

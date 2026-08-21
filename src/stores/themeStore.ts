@@ -414,7 +414,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
     savedThemes: initialSaved,
     labelColors: loadLabelColors(),
     preferencesOpen: false,
-    preferencesTab: null, // null = default ('branding'), or force a specific tab on open
+    preferencesTab: null, // null = default ('general'), or force a specific tab on open
     preferencesOpenId: 0,  // increments each open — forces useEffect to re-fire
 
     openPreferences: (tab = null) => set((s) => ({ preferencesOpen: true, preferencesTab: tab, preferencesOpenId: s.preferencesOpenId + 1 })),
