@@ -1331,8 +1331,18 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!stillActive()) return;
       // Counters AND list: silentRefresh does both, which is what actually
       // makes new articles appear as they land (and it already handles not
-      // yanking the article being read out from under the reader).
-      await get().silentRefresh();
+      // yanking the article being read out from under the reader). But
+      // silentRefresh always fetches page 1 and replaces `articles` wholesale
+      // — fine once, corrosive every 3s for up to 10 minutes if the user has
+      // paged deeper via loadMore(): their scroll position keeps getting
+      // yanked back to a 50-item list. Only run it while they're still on
+      // page 1; otherwise just keep the counters (and thus the pulse/banner)
+      // live and leave their list alone.
+      if (get().articles.length <= PAGE_SIZE) {
+        await get().silentRefresh();
+      } else {
+        await get().syncCounts();
+      }
       if (!stillActive()) return;
       const status = await getActualizeStatus(Number(serverId)).catch(() => null);
       if (!stillActive()) return;

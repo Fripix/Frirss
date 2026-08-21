@@ -279,6 +279,7 @@ describe('feedStore.refresh — routing between the read-only sync and the real 
   const origLoadSubscriptions = useFeedStore.getState().loadSubscriptions;
   const origLoadArticles = useFeedStore.getState().loadArticles;
   const origSilentRefresh = useFeedStore.getState().silentRefresh;
+  const origSyncCounts = useFeedStore.getState().syncCounts;
   const origActiveServerId = useAuthStore.getState().activeServerId;
 
   let loadSubscriptions: ReturnType<typeof vi.fn>;
@@ -311,6 +312,7 @@ describe('feedStore.refresh — routing between the read-only sync and the real 
       loadSubscriptions: origLoadSubscriptions,
       loadArticles: origLoadArticles,
       silentRefresh: origSilentRefresh,
+      syncCounts: origSyncCounts,
     });
     useAuthStore.setState({ activeServerId: origActiveServerId });
     vi.useRealTimers();
@@ -379,6 +381,30 @@ describe('feedStore.refresh — routing between the read-only sync and the real 
     expect(loadSubscriptions).toHaveBeenCalledTimes(1);
     expect(loadArticles).toHaveBeenCalledTimes(1);
     expect(useFeedStore.getState().refreshPhase).toBe('done');
+  });
+
+  it('a poll tick falls back to syncCounts (not silentRefresh) once the user has paged past page 1, leaving their list alone', async () => {
+    const pagedArticles = Array.from({ length: 51 }, (_, i) => ({ ...baseArticle, id: `a${i}` }));
+    const syncCounts = vi.fn(() => Promise.resolve());
+    useFeedStore.setState({
+      hasRefreshToken: true,
+      articles: pagedArticles as never,
+      syncCounts: syncCounts as never,
+    });
+    vi.mocked(backendApi.startActualize).mockResolvedValueOnce({ status: 'running', startedAt: Date.now() });
+    vi.mocked(backendApi.getActualizeStatus).mockResolvedValueOnce({ status: 'done', startedAt: Date.now() });
+
+    vi.useFakeTimers();
+    const p = useFeedStore.getState().refresh();
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    await p;
+
+    // The mid-loop tick must not call the page-1-replacing silentRefresh...
+    expect(silentRefresh).not.toHaveBeenCalled();
+    // ...but counters (and thus the pulse/banner) must still stay live.
+    expect(syncCounts).toHaveBeenCalledTimes(1);
+    // And the user's paged-deeper list must be left untouched.
+    expect(useFeedStore.getState().articles).toHaveLength(51);
   });
 });
 
