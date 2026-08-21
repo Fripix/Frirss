@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Article, Subscription } from '../types';
 
 // Mock the FreshRSS API layer so the store never hits the network.
@@ -36,10 +36,20 @@ vi.mock('../lib/offlineStore', () => ({
   queuePut: vi.fn(() => Promise.resolve()),
 }));
 
+// The real-refresh backend calls (POST/GET .../actualize) — refresh()'s
+// routing logic is exercised without a network.
+vi.mock('../api/backend', () => ({
+  startActualize: vi.fn(),
+  getActualizeStatus: vi.fn(),
+}));
+
 import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId } from './feedStore';
 import { useUiStore } from './uiStore';
+import { useAuthStore } from './authStore';
 import * as api from '../api/feeds';
 import * as offline from '../lib/offlineStore';
+import * as backendApi from '../api/backend';
+import { POLL_INTERVAL_MS } from '../lib/refreshPolling';
 
 const READING_LIST = 'user/-/state/com.google/reading-list';
 const baseArticle = { id: 'a1', read: false, sourceId: 'feed/1' } as Article;
@@ -262,6 +272,113 @@ describe('resolveSearchStreamId', () => {
   it('defaults to the whole reading-list on the all-feeds view', () => {
     expect(resolveSearchStreamId(null, 'all')).toBe('user/-/state/com.google/reading-list');
     expect(resolveSearchStreamId(null, 'unread')).toBe('user/-/state/com.google/reading-list');
+  });
+});
+
+describe('feedStore.refresh — routing between the read-only sync and the real (server-side) refresh', () => {
+  const origLoadSubscriptions = useFeedStore.getState().loadSubscriptions;
+  const origLoadArticles = useFeedStore.getState().loadArticles;
+  const origSilentRefresh = useFeedStore.getState().silentRefresh;
+  const origActiveServerId = useAuthStore.getState().activeServerId;
+
+  let loadSubscriptions: ReturnType<typeof vi.fn>;
+  let loadArticles: ReturnType<typeof vi.fn>;
+  let silentRefresh: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // refresh() delegates the actual list/subscription reload to these — stub
+    // them so this describe block pins refresh()'s *routing* (which branch it
+    // takes, and what it does to hasRefreshToken/refreshPhase), not the
+    // network plumbing behind loadSubscriptions/loadArticles, which already
+    // has its own coverage above.
+    loadSubscriptions = vi.fn(() => Promise.resolve());
+    loadArticles = vi.fn(() => Promise.resolve());
+    silentRefresh = vi.fn(() => Promise.resolve());
+    useFeedStore.setState({
+      loadSubscriptions: loadSubscriptions as never,
+      loadArticles: loadArticles as never,
+      silentRefresh: silentRefresh as never,
+      refreshPhase: 'idle',
+      hasRefreshToken: false,
+      refreshResult: null,
+      unreadCounts: {},
+    });
+    useAuthStore.setState({ activeServerId: '1' });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({
+      loadSubscriptions: origLoadSubscriptions,
+      loadArticles: origLoadArticles,
+      silentRefresh: origSilentRefresh,
+    });
+    useAuthStore.setState({ activeServerId: origActiveServerId });
+    vi.useRealTimers();
+  });
+
+  it('no refresh token: unchanged read-only sync, never starts a real job, phase stays idle', async () => {
+    useFeedStore.setState({ hasRefreshToken: false });
+
+    await useFeedStore.getState().refresh();
+
+    expect(backendApi.startActualize).not.toHaveBeenCalled();
+    expect(loadSubscriptions).toHaveBeenCalledTimes(1);
+    expect(loadArticles).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().refreshPhase).toBe('idle');
+  });
+
+  it('a 409 (no master token) falls back to a read-only sync AND clears hasRefreshToken', async () => {
+    useFeedStore.setState({ hasRefreshToken: true });
+    vi.mocked(backendApi.startActualize).mockResolvedValueOnce(null);
+
+    await useFeedStore.getState().refresh();
+
+    expect(backendApi.startActualize).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().hasRefreshToken).toBe(false);
+    expect(loadSubscriptions).toHaveBeenCalledTimes(1);
+    expect(loadArticles).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().refreshPhase).toBe('idle');
+  });
+
+  it('a non-409 failure falls back for this attempt but does NOT clear hasRefreshToken', async () => {
+    useFeedStore.setState({ hasRefreshToken: true });
+    vi.mocked(backendApi.startActualize).mockRejectedValueOnce(new Error('Network Error'));
+
+    await useFeedStore.getState().refresh();
+
+    expect(useFeedStore.getState().hasRefreshToken).toBe(true);
+    expect(loadSubscriptions).toHaveBeenCalledTimes(1);
+    expect(loadArticles).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-entrancy guard: a second call while a refresh is running returns without starting a new loop', async () => {
+    useFeedStore.setState({ refreshPhase: 'running', hasRefreshToken: true });
+
+    await useFeedStore.getState().refresh();
+
+    expect(backendApi.startActualize).not.toHaveBeenCalled();
+    expect(loadSubscriptions).not.toHaveBeenCalled();
+    expect(loadArticles).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().refreshPhase).toBe('running');
+  });
+
+  it('polls until the job reaches a terminal phase, then does the final load', async () => {
+    useFeedStore.setState({ hasRefreshToken: true });
+    vi.mocked(backendApi.startActualize).mockResolvedValueOnce({ status: 'running', startedAt: Date.now() });
+    vi.mocked(backendApi.getActualizeStatus).mockResolvedValueOnce({ status: 'done', startedAt: Date.now() });
+
+    vi.useFakeTimers();
+    const p = useFeedStore.getState().refresh();
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    await p;
+
+    expect(silentRefresh).toHaveBeenCalledTimes(1);
+    expect(backendApi.getActualizeStatus).toHaveBeenCalledTimes(1);
+    // The final load, after the loop exits — not the read-only-sync path
+    // (which would have run before ever calling startActualize).
+    expect(loadSubscriptions).toHaveBeenCalledTimes(1);
+    expect(loadArticles).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().refreshPhase).toBe('done');
   });
 });
 
