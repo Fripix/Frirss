@@ -33,7 +33,7 @@ import { collectImageUrls, imageBudget, prioritizeForOffline } from '../lib/offl
 import { getStorageEstimate } from '../lib/storageEstimate';
 import { cacheImages } from '../lib/imageCache';
 import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
-import { startActualize, getActualizeStatus } from '../api/backend';
+import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import type {
   Article,
   Subscription,
@@ -1291,11 +1291,23 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       return;
     }
 
-    const job = await startActualize(Number(serverId)).catch(() => null);
+    // startActualize returns null for a 409 and ONLY for a 409. A 500, an
+    // expired JWT or a dropped connection must not be read as "no token
+    // configured": clearing the flag there would silently disable the feature
+    // for the rest of the session and put the "enable refreshing" hint in front
+    // of someone who configured it long ago.
+    let job: ActualizeJob | null = null;
+    let noToken = false;
+    try {
+      job = await startActualize(Number(serverId));
+      noToken = job === null;
+    } catch {
+      job = null; // transient failure — this attempt degrades, the flag stands
+    }
+
     if (!job) {
-      // No token after all (409) or the call failed — fall back to a plain sync
-      // rather than leaving the user with nothing.
-      set({ hasRefreshToken: false });
+      if (noToken) set({ hasRefreshToken: false });
+      // Fall back to a plain sync rather than leaving the user with nothing.
       await get().loadSubscriptions();
       await get().loadArticles();
       const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);
@@ -1306,12 +1318,24 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const startedAt = Date.now();
     set({ refreshPhase: 'running' });
 
+    // A refresh belongs to the server it was started on. If the user switches
+    // servers mid-flight, `before` (old server) and the live counters (new
+    // server) describe different worlds, so any delta computed from them is
+    // fiction. Abandon instead: resetAndReload() owns the state from then on.
+    const stillActive = () =>
+      String(useAuthStore.getState().activeServerId) === String(serverId);
+
     let phase: RefreshPhase = 'running';
     while (phase === 'running') {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-      // Counters first: this is what makes articles appear as they arrive.
-      await get().syncCounts();
+      if (!stillActive()) return;
+      // Counters AND list: silentRefresh does both, which is what actually
+      // makes new articles appear as they land (and it already handles not
+      // yanking the article being read out from under the reader).
+      await get().silentRefresh();
+      if (!stillActive()) return;
       const status = await getActualizeStatus(Number(serverId)).catch(() => null);
+      if (!stillActive()) return;
       phase = nextPhase(status?.status, startedAt, Date.now());
       set({
         refreshPhase: phase,
@@ -1325,6 +1349,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // Final load once the job resolved, so the visible list matches the counters.
     await get().loadSubscriptions();
     await get().loadArticles();
+    if (!stillActive()) return;
     const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);
     set({ refreshResult: { totalNew, newByFeed, at: Date.now() }, refreshPhase: phase });
   },
@@ -1386,6 +1411,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       starredCount: 0,
       readLaterCount: 0,
       feedErrors: {},
+      // A refresh in flight belongs to the server we are leaving; its loop
+      // abandons itself. Clear its state here so the banner doesn't stay
+      // pinned on the new server and the re-entrancy guard doesn't wedge the
+      // Refresh button shut.
+      refreshPhase: 'idle',
+      refreshResult: null,
     });
     get().loadSubscriptions();
     get().loadArticles();
