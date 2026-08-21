@@ -6,12 +6,14 @@ import {
   loginUser,
   registerUser,
   addServer as apiAddServer,
+  updateServer,
   getServers,
   getOidcConfig,
   startOidcLogin,
   type OidcConfig,
 } from '../../api/backend';
 import { login as freshrssLogin } from '../../api/auth';
+import { useFeedStore } from '../../stores/feedStore';
 import MatrixRain from './MatrixRain';
 import { shouldHideLocalLogin, isLocalFallbackUrl } from '../../lib/shouldHideLocalLogin';
 import type { AuthStatus } from '../../types';
@@ -320,6 +322,7 @@ function ServerStep() {
   const [freshrssUser, setFreshrssUser] = useState('');
   const [freshrssPassword, setFreshrssPassword] = useState('');
   const [serverName, setServerName] = useState('');
+  const [refreshToken, setRefreshToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkingExisting, setCheckingExisting] = useState(true);
@@ -361,6 +364,24 @@ function ServerStep() {
         freshrssUser,
         freshrssToken,
       });
+
+      // Master token is optional and saved separately: POST /api/servers
+      // deliberately doesn't accept it (see updateServer call below). The
+      // server itself is already created and usable at this point, so a
+      // failed save here must not abort the flow — but it also must not be
+      // reported as configured. If it fails, hasRefreshToken simply stays
+      // false (its real, backend-confirmed value); the user can retry from
+      // Preferences > Refresh.
+      if (refreshToken) {
+        try {
+          await updateServer(server.id, { refreshToken });
+          useFeedStore.getState().setHasRefreshToken(true);
+        } catch {
+          // Not fatal: the server connection itself succeeded. Swallow so
+          // the user isn't stuck re-submitting a server that already
+          // exists (a retry here would 409).
+        }
+      }
 
       // 3. Set as active (token now lives only in the backend DB)
       setFreshrssAuth(server.id, normalizedUrl);
@@ -457,6 +478,48 @@ function ServerStep() {
             value={serverName}
             onChange={setServerName}
           />
+
+          {/* Master token: optional, so it stays collapsed and out of the
+              way of the three required fields above. But collapsed doesn't
+              mean hidden from the warning — the field and its scope warning
+              only appear together, so nobody can type the secret without
+              seeing what it grants first. Same pattern as AddServerDialog
+              and the Preferences > Refresh tab, restyled for this screen's
+              dark-glass surface. */}
+          <details className="pt-1">
+            <summary
+              className="cursor-pointer text-xs font-medium select-none"
+              style={{ color: 'var(--sidebar-text)' }}
+            >
+              {t('preferences.tabs.refresh')}
+            </summary>
+            <div className="mt-2 space-y-2">
+              <input
+                type="password"
+                value={refreshToken}
+                autoComplete="new-password"
+                placeholder={t('preferences.refresh.tokenLabel')}
+                onChange={(e) => setRefreshToken(e.target.value)}
+                className="w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
+              />
+              <p className="text-[11px]" style={{ color: 'var(--sidebar-category-text)' }}>
+                {t('preferences.refresh.tokenHelp')}
+              </p>
+              <div
+                className="px-3 py-2 rounded-lg text-xs flex items-start gap-2"
+                style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
+              >
+                <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                <span>{t('preferences.refresh.scopeWarning')}</span>
+              </div>
+            </div>
+          </details>
 
           {error && (
             <p className="text-red-400 text-xs text-center bg-red-400/10 rounded-lg py-2 px-3">{error}</p>
