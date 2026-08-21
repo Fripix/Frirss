@@ -365,7 +365,7 @@
     "refresh": {
       "tokenLabel": "Główny token uwierzytelniający",
       "tokenHelp": "Utwórz go w FreshRSS, na stronie Profil, w polu „Główny token uwierzytelniający\". Puste pole wyłącza funkcję.",
-      "scopeWarning": "Ten token daje też dostęp bez hasła do wszystkich Twoich artykułów i listy subskrypcji. Jest przechowywany w postaci zaszyfrowanej i nigdy nie opuszcza serwera.",
+      "scopeWarning": "Ten token daje też dostęp bez hasła do wszystkich Twoich artykułów i listy subskrypcji. FreshRSS przyjmuje to wywołanie wyłącznie jako GET, więc token pojawia się w logach dostępu Twojego serwera FreshRSS. Zmień go, jeśli te logi są dostępne dla innych.",
       "test": "Testuj",
       "testOk": "Token działa.",
       "testFail": "Token został odrzucony.",

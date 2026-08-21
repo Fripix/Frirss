@@ -361,7 +361,7 @@
     "refresh": {
       "tokenLabel": "Jeton d'identification maître",
       "tokenHelp": "À créer dans FreshRSS, page Profil, champ « Jeton d'identification maître ». Laisser vide pour désactiver.",
-      "scopeWarning": "Ce jeton permet aussi de lire tous vos articles et d'exporter votre liste d'abonnements sans mot de passe. Il est stocké chiffré et ne quitte jamais le serveur.",
+      "scopeWarning": "Ce jeton permet aussi de lire tous vos articles et d'exporter votre liste d'abonnements sans mot de passe. FreshRSS n'accepte cet appel qu'en GET : le jeton apparaît donc dans les journaux d'accès de votre serveur FreshRSS. Changez-le si ces journaux sont exposés.",
       "test": "Tester",
       "testOk": "Le jeton fonctionne.",
       "testFail": "Le jeton a été refusé.",

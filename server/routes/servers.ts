@@ -179,7 +179,7 @@ router.post('/:id/actualize', (req, res) => {
     ? Math.min(req.body.maxFeeds as number, refreshMaxFeeds())
     : undefined;
 
-  const { url, body } = buildActualizeRequest({
+  const { url, method } = buildActualizeRequest({
     serverUrl: server.url,
     freshrssUser: server.freshrss_user,
     token,
@@ -189,13 +189,12 @@ router.post('/:id/actualize', (req, res) => {
   const job = startJob(req.user.id, server.id, async (signal) => {
     // Routed through fetchUpstream (not a bare fetch) so this outgoing call
     // gets the same SSRF guard — on the initial target AND every redirect hop
-    // — as every other FreshRSS call this app makes, plus PROXY_REWRITES.
-    // followRedirects is off: a chased redirect would replay this as a GET
-    // and drop the body, silently discarding the credentials it carries.
+    // — as every other FreshRSS call this app makes, plus PROXY_REWRITES
+    // (which also keeps the URL, token included, off any public reverse proxy).
+    // followRedirects stays off: FreshRSS answers a rejected call with a 302 to
+    // its login page, and chasing that would turn a failure into a fake 200.
     const r = await fetchUpstream(url, {
-      method: 'POST',
-      body: body.toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      method,
       signal,
       timeoutMs: REFRESH_TIMEOUT_MS,
       followRedirects: false,

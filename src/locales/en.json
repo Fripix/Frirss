@@ -361,7 +361,7 @@
     "refresh": {
       "tokenLabel": "Master authentication token",
       "tokenHelp": "Create it in FreshRSS, Profile page, \"Master authentication token\" field. Leave empty to disable.",
-      "scopeWarning": "This token also grants password-free access to all your articles and to your subscription list. It is stored encrypted and never leaves the server.",
+      "scopeWarning": "This token also grants password-free access to all your articles and to your subscription list. FreshRSS only accepts this call as a GET, so the token appears in your FreshRSS server's access logs. Rotate it if those logs are exposed.",
       "test": "Test",
       "testOk": "The token works.",
       "testFail": "The token was rejected.",

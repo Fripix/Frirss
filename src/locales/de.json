@@ -361,7 +361,7 @@
     "refresh": {
       "tokenLabel": "Master-Authentifizierungs-Token",
       "tokenHelp": "In FreshRSS unter Profil im Feld „Master-Authentifizierungs-Token\" anlegen. Leer lassen zum Deaktivieren.",
-      "scopeWarning": "Dieses Token erlaubt außerdem den passwortfreien Zugriff auf alle Ihre Artikel und Ihre Abonnementliste. Es wird verschlüsselt gespeichert und verlässt den Server nie.",
+      "scopeWarning": "Dieses Token erlaubt außerdem den passwortfreien Zugriff auf alle Ihre Artikel und Ihre Abonnementliste. FreshRSS akzeptiert diesen Aufruf nur als GET, daher erscheint das Token in den Zugriffsprotokollen Ihres FreshRSS-Servers. Wechseln Sie es, wenn diese Protokolle zugänglich sind.",
       "test": "Testen",
       "testOk": "Das Token funktioniert.",
       "testFail": "Das Token wurde abgelehnt.",

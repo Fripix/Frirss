@@ -361,7 +361,7 @@
     "refresh": {
       "tokenLabel": "Token de autenticação principal",
       "tokenHelp": "Crie-o no FreshRSS, página Perfil, campo «Token de autenticação principal». Deixe vazio para desativar.",
-      "scopeWarning": "Este token também permite ler todos os seus artigos e exportar a sua lista de subscrições sem palavra-passe. É guardado cifrado e nunca sai do servidor.",
+      "scopeWarning": "Este token também permite ler todos os seus artigos e exportar a sua lista de subscrições sem palavra-passe. O FreshRSS só aceita esta chamada como GET, pelo que o token aparece nos registos de acesso do seu servidor FreshRSS. Substitua-o se esses registos estiverem expostos.",
       "test": "Testar",
       "testOk": "O token funciona.",
       "testFail": "O token foi recusado.",

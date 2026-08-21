@@ -4,34 +4,42 @@ import { buildActualizeRequest, refreshMaxFeeds, DEFAULT_MAX_FEEDS } from './act
 const OPTS = { serverUrl: 'https://example.com', freshrssUser: 'alice', token: 's3cr3t-token' };
 
 describe('buildActualizeRequest', () => {
-  it('puts only the controller and action in the URL', () => {
-    const { url } = buildActualizeRequest(OPTS);
-    expect(url).toBe('https://example.com/i/?c=feed&a=actualize');
+  it('is a GET — the only method FreshRSS accepts for this action', () => {
+    expect(buildActualizeRequest(OPTS).method).toBe('GET');
   });
 
-  it('never leaks the token or the user into the URL', () => {
+  it('carries controller, action, credentials and options in the query string', () => {
     const { url } = buildActualizeRequest(OPTS);
-    expect(url).not.toContain('s3cr3t-token');
-    expect(url).not.toContain('alice');
-    expect(url).not.toContain('token');
+    const q = new URL(url).searchParams;
+    expect(new URL(url).pathname).toBe('/i/');
+    expect(q.get('c')).toBe('feed');
+    expect(q.get('a')).toBe('actualize');
+    expect(q.get('user')).toBe('alice');
+    expect(q.get('token')).toBe('s3cr3t-token');
+    expect(q.get('maxFeeds')).toBe(String(DEFAULT_MAX_FEEDS));
+    expect(q.get('ajax')).toBe('1');
   });
 
-  it('carries credentials and options in the POST body', () => {
-    const { body } = buildActualizeRequest(OPTS);
-    expect(body.get('user')).toBe('alice');
-    expect(body.get('token')).toBe('s3cr3t-token');
-    expect(body.get('ajax')).toBe('1');
-    expect(body.get('maxFeeds')).toBe(String(DEFAULT_MAX_FEEDS));
+  it('URL-encodes credentials that contain reserved characters', () => {
+    const { url } = buildActualizeRequest({
+      ...OPTS,
+      freshrssUser: 'a b&c',
+      token: 'tok/en+with=chars&more',
+    });
+    expect(url).not.toContain('tok/en+with=chars&more');
+    const q = new URL(url).searchParams;
+    expect(q.get('user')).toBe('a b&c');
+    expect(q.get('token')).toBe('tok/en+with=chars&more');
   });
 
   it('normalises a trailing slash on the server URL', () => {
     const { url } = buildActualizeRequest({ ...OPTS, serverUrl: 'https://example.com///' });
-    expect(url).toBe('https://example.com/i/?c=feed&a=actualize');
+    expect(url.startsWith('https://example.com/i/?')).toBe(true);
   });
 
   it('honours an explicit maxFeeds', () => {
-    const { body } = buildActualizeRequest({ ...OPTS, maxFeeds: 1 });
-    expect(body.get('maxFeeds')).toBe('1');
+    const { url } = buildActualizeRequest({ ...OPTS, maxFeeds: 1 });
+    expect(new URL(url).searchParams.get('maxFeeds')).toBe('1');
   });
 });
 

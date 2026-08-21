@@ -223,7 +223,7 @@ describe('servers actualize', () => {
     expect(res.body.job).toBe(null);
   });
 
-  it('starts a real refresh, keeping credentials out of the URL, and the job settles to done', async () => {
+  it('starts a real refresh as a GET carrying the credentials, and the job settles to done', async () => {
     const add = await request(app).post('/api/servers')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Refreshable', url: 'https://rss5.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
@@ -242,12 +242,20 @@ describe('servers actualize', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [calledUrl, calledInit] = fetchMock.mock.calls[0];
-    expect(calledUrl).toBe('https://rss5.example.com/i/?c=feed&a=actualize');
-    expect(calledInit.method).toBe('POST');
+    // GET with the credentials in the query string is the ONLY form FreshRSS
+    // accepts: its global CSRF gate (app/FreshRSS.php::initAuth) 302s every
+    // POST for this action. See server/actualizeRequest.ts.
+    expect(calledInit.method).toBe('GET');
+    expect(calledInit.body).toBeUndefined();
     expect(calledInit.redirect).toBe('manual');
-    const params = new URLSearchParams(calledInit.body as string);
-    expect(params.get('token')).toBe('master-tok-789');
-    expect(params.get('maxFeeds')).toBe('1000');
+    const called = new URL(calledUrl as string);
+    expect(called.origin + called.pathname).toBe('https://rss5.example.com/i/');
+    expect(called.searchParams.get('c')).toBe('feed');
+    expect(called.searchParams.get('a')).toBe('actualize');
+    expect(called.searchParams.get('user')).toBe('admin');
+    expect(called.searchParams.get('token')).toBe('master-tok-789');
+    expect(called.searchParams.get('ajax')).toBe('1');
+    expect(called.searchParams.get('maxFeeds')).toBe('1000');
 
     await tick();
     const status = await request(app).get(`/api/servers/${id}/actualize`)
@@ -291,8 +299,8 @@ describe('servers actualize', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ maxFeeds: 50000 });
 
-    const [, calledInit] = fetchMock.mock.calls[0];
-    const params = new URLSearchParams(calledInit.body as string);
+    const [calledUrl] = fetchMock.mock.calls[0];
+    const params = new URL(calledUrl as string).searchParams;
     expect(params.get('maxFeeds')).toBe('1000');
   });
 
@@ -314,8 +322,8 @@ describe('servers actualize', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ maxFeeds: junk });
       await tick();
-      const [, calledInit] = fetchMock.mock.calls[0];
-      const params = new URLSearchParams(calledInit.body as string);
+      const [calledUrl] = fetchMock.mock.calls[0];
+      const params = new URL(calledUrl as string).searchParams;
       expect(params.get('maxFeeds')).toBe('1000');
     }
   });
@@ -335,8 +343,8 @@ describe('servers actualize', () => {
     await request(app).post(`/api/servers/${id}/actualize`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ maxFeeds: 5 });
-    const [, calledInit] = fetchMock.mock.calls[0];
-    const params = new URLSearchParams(calledInit.body as string);
+    const [calledUrl] = fetchMock.mock.calls[0];
+    const params = new URL(calledUrl as string).searchParams;
     expect(params.get('maxFeeds')).toBe('5');
   });
 
@@ -399,7 +407,7 @@ describe('servers actualize', () => {
     // A single call, to the original host only — a chased redirect would add
     // a second call to evil.example.com.
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe('https://rss11.example.com/i/?c=feed&a=actualize');
+    expect(fetchMock.mock.calls[0][0]).toMatch(/^https:\/\/rss11\.example\.com\/i\/\?c=feed&a=actualize&/);
     expect(readBody).not.toHaveBeenCalled();
 
     const status = await request(app).get(`/api/servers/${id}/actualize`)
@@ -456,8 +464,8 @@ describe('servers actualize', () => {
       else process.env.FRIRSS_REFRESH_MAX_FEEDS = prevEnv;
     }
 
-    const [, calledInit] = fetchMock.mock.calls[0];
-    const params = new URLSearchParams(calledInit.body as string);
+    const [calledUrl] = fetchMock.mock.calls[0];
+    const params = new URL(calledUrl as string).searchParams;
     // Clamped to the operator's lowered ceiling (50), not the compiled-in
     // default (1000) that the un-set-env test above already covers.
     expect(params.get('maxFeeds')).toBe('50');

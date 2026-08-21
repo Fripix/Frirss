@@ -77,31 +77,66 @@ FriRSS stocke **déjà** `servers.freshrss_token`, le jeton greader, qui donne
 lecture **et** écriture. Le jeton maître est strictement moins puissant. Il
 n'élargit pas le rayon de souffle d'une compromission de la base FriRSS.
 
-### Le risque qui, lui, était réel — et sa neutralisation
+### Le risque réel : le jeton en query string — non neutralisable
 
-La documentation de FreshRSS présente le jeton en **query string**. Il
-atterrirait alors en clair dans les journaux d'accès de tout serveur web ou
-reverse proxy traversé, à **chaque** relève. Les journaux ont un lectorat plus
-large que la base : rotation, sauvegardes, outils d'analyse. Ce transport était
-le seul point où le jeton maître fuitait plus facilement que le jeton greader.
+> **Correction du 2026-08-21.** La version initiale de cette section affirmait
+> que le POST évitait la query string. C'était **faux** et cela cassait la
+> fonctionnalité : FreshRSS rejetait 100 % des relèves. Ce qui suit est mesuré.
 
-**Il n'est pas obligatoire.** Vérifié dans le code de FreshRSS :
+La documentation de FreshRSS présente le jeton en **query string**. Il atterrit
+alors en clair dans les journaux d'accès de tout serveur web ou reverse proxy
+traversé, à **chaque** relève. Les journaux ont un lectorat plus large que la
+base : rotation, sauvegardes, outils d'analyse. C'est le point où le jeton maître
+fuite plus facilement que le jeton greader.
 
-- `lib/Minz/FrontController.php` fusionne `$_POST` dans les paramètres de requête
-- `Minz_Request::tokenIsOk()` lit ces paramètres sans distinguer leur origine
-- `feedController` ne fait **aucun** contrôle CSRF
+**Ce transport est obligatoire.** L'analyse initiale avait cherché « csrf » dans
+`feedController.php` et n'y avait rien trouvé — mais le contrôle n'est pas dans
+le contrôleur. Il est dans **`app/FreshRSS.php::initAuth()`**, qui applique une
+vérification CSRF **globale à toutes les requêtes POST**, avec une liste
+d'exceptions étroite. L'exception `feed/actualize` ne vaut que si
+`allow_anonymous_refresh` est activé — ce qui n'est pas le cas par défaut. Le
+contrôle s'exécute **avant** tout contrôleur.
 
-Donc : **`user`, `token`, `maxFeeds` et `ajax` voyagent dans le corps d'un POST**,
-seuls `c=feed&a=actualize` restent dans l'URL. Rien de sensible n'est journalisé,
-et l'exposition du jeton maître redevient comparable à celle du jeton greader.
+Mesuré contre FreshRSS 1.29.1, jeton valide :
+
+| Requête | Réponse |
+|---------|---------|
+| `GET`, identifiants en query string | **200** |
+| `POST`, identifiants en query string | **302** (`403 [CSRF]` puis redirection) |
+| `POST`, identifiants dans le corps | **302** (idem) |
+
+**C'est la méthode qui décide, pas l'emplacement des identifiants.** Et il n'y a
+pas de troisième voie : `isCsrfOk()` compare à un jeton lié à une session, or
+FriRSS n'a aucune session FreshRSS — il s'authentifie par jeton, pas par mot de
+passe.
+
+Décision : **passer en GET et documenter honnêtement la conséquence.** Le jeton
+maître apparaît dans les journaux d'accès du serveur FreshRSS. C'est le
+fonctionnement de cet endpoint, pas un défaut de FriRSS.
+
+Atténuations :
+
+- **`PROXY_REWRITES`**, quand il est configuré, envoie la requête directement à
+  FreshRSS par le réseau interne : aucun reverse proxy public ne voit l'URL, et
+  seuls les journaux de FreshRSS lui-même contiennent le jeton.
+- Le champ de saisie du jeton **avertit l'utilisateur avant** qu'il ne colle le
+  secret (clé i18n `preferences.refresh.scopeWarning`, dans les 9 locales), en
+  nommant l'exposition dans les journaux et en conseillant la rotation si ces
+  journaux sont accessibles.
+- Le jeton maître reste strictement moins puissant que le jeton greader déjà
+  stocké : lecture seule, pas d'écriture ni de connexion.
 
 **Règles non négociables** :
 
-1. POST uniquement. Jamais de GET, même en repli.
-2. Aucun suivi de redirection — une redirection rejouerait la requête et pourrait
-   réexposer les paramètres.
-3. Le jeton ne quitte jamais le backend : ni vers le navigateur, ni dans une URL,
-   ni dans un journal applicatif.
+1. GET uniquement — seule méthode acceptée par FreshRSS pour cette action.
+   Le type de retour de `buildActualizeRequest()` épingle `method: 'GET'`.
+2. Aucun suivi de redirection : un rejet de FreshRSS se présente comme une 302
+   vers la page de connexion ; la suivre transformerait un échec en faux succès.
+3. Le jeton ne quitte jamais le backend : ni vers le navigateur, ni dans un
+   journal applicatif. Comme il voyage désormais dans l'URL, **toute trace
+   journalisant une URL doit être expurgée** — `redactUrl()` dans
+   `server/routes/proxy.ts` remplace la valeur de `token` avant écriture, et
+   `sanitizeError()` nettoie les messages d'erreur au point d'appel.
 
 ## Architecture
 
@@ -110,8 +145,8 @@ et l'exposition du jeton maître redevient comparable à celle du jeton greader.
 `POST /api/servers/:id/actualize` et `GET /api/servers/:id/actualize`.
 
 Une route dédiée plutôt que le proxy générique : le proxy prend sa cible du
-client (`X-Proxy-Target`), or l'URL et le corps doivent ici être construits
-**entièrement côté serveur** à partir du jeton chiffré en base.
+client (`X-Proxy-Target`), or l'URL doit ici être construite **entièrement côté
+serveur** à partir du jeton chiffré en base.
 
 Comportement du POST :
 
@@ -119,7 +154,7 @@ Comportement du POST :
    Absent → `409` avec un code exploitable par le client (`no_refresh_token`).
 2. Un job est déjà en vol pour ce couple `(userId, serverId)` → renvoie l'état
    du job existant, **sans en lancer un second**.
-3. Sinon, déclenche la requête POST vers FreshRSS **sans l'attendre**, marque le
+3. Sinon, déclenche la requête GET vers FreshRSS **sans l'attendre**, marque le
    job `running`, et répond immédiatement.
 
 `maxFeeds` vaut **1000** par défaut pour une relève déclenchée par le bouton : le
@@ -199,9 +234,10 @@ TDD, logique pure extraite conformément aux conventions du dépôt.
 
 Tests de sécurité explicites :
 
-- le jeton n'apparaît dans **aucune URL** construite (pas seulement dans aucune
-  réponse) ;
-- la requête sortante est un POST et ne suit aucune redirection ;
+- la requête sortante est un **GET** et ne suit **aucune** redirection ;
+- l'URL construite porte bien `c`, `a`, `user`, `token`, `maxFeeds` et `ajax`,
+  correctement encodés (le jeton *doit* y être : c'est la seule forme acceptée) ;
+- `redactUrl()` expurge la valeur de `token` de toute URL journalisée ;
 - aucune réponse d'API ne contient la valeur du jeton.
 
 Chaînes UI ajoutées aux **9 locales**.
@@ -223,5 +259,8 @@ depuis FriRSS, articles apparaissant progressivement sans rechargement manuel.
 Contrôle négatif : jeton retiré, le bouton doit retrouver exactement son
 comportement actuel.
 
-Contrôle de fuite : après une relève, les journaux d'accès du serveur placé
-devant FreshRSS ne doivent contenir **aucune** occurrence du jeton.
+Contrôle de fuite : après une relève, les journaux **applicatifs de FriRSS** ne
+doivent contenir aucune occurrence du jeton. Les journaux d'accès de FreshRSS,
+eux, en contiendront une par relève — c'est attendu et documenté ci-dessus. Avec
+`PROXY_REWRITES` configuré, aucun proxy public intermédiaire ne doit en voir
+passer.

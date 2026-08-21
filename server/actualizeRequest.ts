@@ -1,11 +1,25 @@
 // Builds the request that triggers a REAL feed refresh on FreshRSS.
 //
-// FreshRSS documents this as a GET with the token in the query string, which
-// would write the secret into every access log it crosses. It does not have to
-// be: FrontController merges $_POST into the request params, tokenIsOk() reads
-// them without caring about the origin, and feedController has no CSRF check.
-// So credentials travel in the body — only the controller and action stay in
-// the URL. Never switch this back to GET.
+// It is a GET, with the master token in the query string, because that is the
+// only form FreshRSS accepts. Measured against FreshRSS 1.29.1 with a valid
+// token: GET with credentials in the query string → 200; POST with the same
+// credentials in the query string → 302; POST with them in the body → 302.
+// The method is what decides, not where the credentials sit.
+//
+// The cause is `app/FreshRSS.php::initAuth()`, which applies a global CSRF
+// check to EVERY POST with a narrow allow-list; the feed/actualize exemption
+// only applies when `allow_anonymous_refresh` is enabled, which it is not by
+// default. A rejected POST answers 403 [CSRF] and redirects. There is no third
+// option: `isCsrfOk()` compares against a session-bound token, and FriRSS has
+// no FreshRSS session — it authenticates by token, not by password.
+//
+// Consequence, accepted knowingly: the token lands in the access logs of the
+// FreshRSS server and of anything in front of it. That is how the endpoint is
+// designed, and the UI warns the user before they paste the secret. Mitigation
+// for operators: PROXY_REWRITES sends this request straight to FreshRSS over
+// the internal network, so no public reverse proxy ever sees it. Inside FriRSS,
+// the token must still never reach the browser or an application log — see
+// redactUrl() in routes/proxy.ts and sanitizeError() at the call site.
 
 export const DEFAULT_MAX_FEEDS = 1000;
 
@@ -19,7 +33,8 @@ export function refreshMaxFeeds(env: NodeJS.ProcessEnv = process.env): number {
 
 export interface ActualizeRequest {
   url: string;
-  body: URLSearchParams;
+  /** Pinned in the type: anything else is rejected by FreshRSS's CSRF gate. */
+  method: 'GET';
 }
 
 export function buildActualizeRequest(opts: {
@@ -29,11 +44,13 @@ export function buildActualizeRequest(opts: {
   maxFeeds?: number;
 }): ActualizeRequest {
   const base = opts.serverUrl.replace(/\/+$/, '');
-  const body = new URLSearchParams({
+  const params = new URLSearchParams({
+    c: 'feed',
+    a: 'actualize',
     user: opts.freshrssUser,
     token: opts.token,
     maxFeeds: String(opts.maxFeeds ?? refreshMaxFeeds()),
     ajax: '1',
   });
-  return { url: `${base}/i/?c=feed&a=actualize`, body };
+  return { url: `${base}/i/?${params.toString()}`, method: 'GET' };
 }

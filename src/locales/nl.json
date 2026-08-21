@@ -361,7 +361,7 @@
     "refresh": {
       "tokenLabel": "Hoofdauthenticatietoken",
       "tokenHelp": "Maak het aan in FreshRSS, pagina Profiel, veld \"Hoofdauthenticatietoken\". Laat leeg om uit te schakelen.",
-      "scopeWarning": "Dit token geeft ook zonder wachtwoord toegang tot al je artikelen en je abonnementenlijst. Het wordt versleuteld opgeslagen en verlaat de server nooit.",
+      "scopeWarning": "Dit token geeft ook zonder wachtwoord toegang tot al je artikelen en je abonnementenlijst. FreshRSS accepteert deze aanroep alleen als GET, dus het token verschijnt in de toegangslogs van je FreshRSS-server. Vervang het als die logs toegankelijk zijn.",
       "test": "Testen",
       "testOk": "Het token werkt.",
       "testFail": "Het token is geweigerd.",
