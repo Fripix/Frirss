@@ -17,6 +17,7 @@ import {
   setAdminUserPassword, getAdminSettings, updateAdminSettings,
 } from '../../api/backend';
 import type { User, Tag } from '../../types';
+import RefreshTab from './RefreshTab';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -222,7 +223,7 @@ export default function Preferences() {
   }
 
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
-  const baseTabIds = ['general', 'branding', 'colors', 'fonts', 'labels', 'themes', 'shortcuts', 'offline'];
+  const baseTabIds = ['general', 'refresh', 'branding', 'colors', 'fonts', 'labels', 'themes', 'shortcuts', 'offline'];
   const tabIds = isAdmin ? ['admin', ...baseTabIds] : baseTabIds;
   const tabs = tabIds.map((id) => ({ id, label: t(`preferences.tabs.${id}`) }));
 
@@ -381,6 +382,7 @@ export default function Preferences() {
             (the tab bar does), so wide content wraps instead of widening the panel. */}
         <div className="flex-1 overflow-y-auto px-5 py-4 w-0 min-w-full">
           {tab === 'general' && <GeneralTab />}
+          {tab === 'refresh' && <RefreshTab />}
           {tab === 'branding' && <BrandingTab />}
 
           {tab === 'colors' && (
