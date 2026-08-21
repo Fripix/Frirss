@@ -106,6 +106,32 @@ export async function setDefaultServer(id: number): Promise<void> {
   await backend.put(`/servers/${id}/default`);
 }
 
+export interface ActualizeJob {
+  status: 'running' | 'done' | 'failed';
+  startedAt: number;
+  finishedAt?: number;
+  error?: string;
+}
+
+/** Trigger a real feed refresh. Returns null when no master token is configured. */
+export async function startActualize(id: number, maxFeeds?: number): Promise<ActualizeJob | null> {
+  try {
+    const { data } = await backend.post<{ job: ActualizeJob }>(
+      `/servers/${id}/actualize`,
+      maxFeeds === undefined ? {} : { maxFeeds },
+    );
+    return data.job;
+  } catch (err) {
+    if ((err as { response?: { status?: number } }).response?.status === 409) return null;
+    throw err;
+  }
+}
+
+export async function getActualizeStatus(id: number): Promise<ActualizeJob | null> {
+  const { data } = await backend.get<{ job: ActualizeJob | null }>(`/servers/${id}/actualize`);
+  return data.job;
+}
+
 // ── Preferences ─────────────────────────────────────────────────────
 export async function getPreferences(): Promise<Record<string, unknown>> {
   const { data } = await backend.get<{ preferences: Record<string, unknown> }>('/preferences');

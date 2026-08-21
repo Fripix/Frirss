@@ -111,6 +111,7 @@ export interface ServerConnection {
   freshrss_user: string;
   is_default?: number | boolean;
   has_token?: boolean;
+  has_refresh_token?: boolean;
 }
 
 export interface AuthStatus {
