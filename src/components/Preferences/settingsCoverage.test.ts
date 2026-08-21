@@ -13,8 +13,29 @@ import path from 'path';
  *
  * `preferences.tabs.*` est volontairement hors relevé : la refonte restructure
  * les libellés de navigation, dix onglets devenant six sections.
+ *
+ * Vérification des traductions et pluriels i18next : une clé appelée avec un
+ * argument `count` (ex. `t('preferences.offline.imagesCached', { count })`)
+ * n'est jamais stockée telle quelle dans les locales — i18next v26 la résout
+ * via ses formes suffixées (`_zero`, `_one`, `_two`, `_few`, `_many`,
+ * `_other`). Le test considère donc une clé du relevé présente dans une
+ * locale si la clé exacte OU au moins une de ces formes suffixées y résout
+ * une chaîne. Ne pas ajouter de clé "nue" en doublon des formes `_one`/
+ * `_other` pour faire passer ce test : ces clés nues seraient inatteignables
+ * à l'exécution (cf. review du 21/08/2026 : 18 clés mortes ajoutées puis
+ * retirées pour cette raison).
  */
 const DIR = path.join(process.cwd(), 'src/components/Preferences');
+const PLURAL_SUFFIXES = ['', '_zero', '_one', '_two', '_few', '_many', '_other'];
+
+/** Vrai si `key` ou une de ses formes pluriel suffixées résout une chaîne dans `json`. */
+function resolvesInLocale(json: unknown, key: string): boolean {
+  return PLURAL_SUFFIXES.some((suffix) => {
+    let d: unknown = json;
+    for (const part of `${key}${suffix}`.split('.')) d = (d as Record<string, unknown>)?.[part];
+    return typeof d === 'string';
+  });
+}
 
 function referencedKeys(): Set<string> {
   const fr = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'src/locales/fr.json'), 'utf8'));
@@ -24,7 +45,11 @@ function referencedKeys(): Set<string> {
     .join('\n');
 
   const keys = new Set<string>();
-  for (const m of src.matchAll(/t\(\s*'((?:preferences|admin)\.[a-zA-Z0-9_.]+)'/g)) keys.add(m[1]);
+  // Clé statique : simple quotes, double quotes ou backticks. Le backreference \1
+  // impose la même sorte de guillemet en ouverture/fermeture, et comme le
+  // caractère `$` n'appartient pas à la classe de la clé, un backtick avec
+  // interpolation (`${`) ne matche jamais ici — il tombe dans la regex suivante.
+  for (const m of src.matchAll(/t\(\s*(['"`])((?:preferences|admin)\.[a-zA-Z0-9_.]+)\1/g)) keys.add(m[2]);
   for (const m of src.matchAll(/t\(\s*`((?:preferences|admin)\.[a-zA-Z0-9_.]+)\.\$\{/g)) {
     let d: unknown = fr;
     for (const part of m[1].split('.')) d = (d as Record<string, unknown>)?.[part];
@@ -50,7 +75,7 @@ describe('couverture des réglages du panneau Préférences', () => {
     expect(missing, `réglages perdus par la refonte :\n${missing.join('\n')}`).toEqual([]);
   });
 
-  it('chaque réglage du relevé existe dans les 9 locales', () => {
+  it('chaque réglage du relevé existe dans les 9 locales (formes pluriel comprises)', () => {
     const locales = ['fr', 'en', 'de', 'es', 'it', 'nl', 'pl', 'pt', 'uk'];
     const missing: string[] = [];
     for (const loc of locales) {
@@ -58,11 +83,12 @@ describe('couverture des réglages du panneau Préférences', () => {
         fs.readFileSync(path.join(process.cwd(), `src/locales/${loc}.json`), 'utf8'),
       );
       for (const key of baseline) {
-        let d: unknown = json;
-        for (const part of key.split('.')) d = (d as Record<string, unknown>)?.[part];
-        if (typeof d !== 'string') missing.push(`${loc}: ${key}`);
+        if (!resolvesInLocale(json, key)) missing.push(`${loc}: ${key}`);
       }
     }
-    expect(missing, `traductions manquantes :\n${missing.slice(0, 20).join('\n')}`).toEqual([]);
+    expect(
+      missing,
+      `traductions manquantes (clé nue et toutes formes pluriel absentes) :\n${missing.slice(0, 20).join('\n')}`,
+    ).toEqual([]);
   });
 });

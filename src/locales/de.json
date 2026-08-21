@@ -356,9 +356,7 @@
       "imagesReport": "{{found}} Bilder gefunden, {{stored}} gespeichert",
       "imagesBudgetStopped": "durch das Budget gestoppt",
       "imagesFailed_one": "{{count}} Bild konnte nicht geladen werden — das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab.",
-      "imagesFailed_other": "{{count}} Bilder konnten nicht geladen werden — das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab.",
-      "imagesCached": "{{count}} Bilder zwischengespeichert",
-      "imagesFailed": "{{count}} Bilder konnten nicht abgerufen werden"
+      "imagesFailed_other": "{{count}} Bilder konnten nicht geladen werden — das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab."
     },
     "refresh": {
       "tokenLabel": "Master-Authentifizierungs-Token",

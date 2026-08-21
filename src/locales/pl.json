@@ -360,9 +360,7 @@
       "imagesFailed_one": "Nie udało się pobrać {{count}} obrazu — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
       "imagesFailed_other": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
       "imagesFailed_few": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
-      "imagesFailed_many": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
-      "imagesCached": "{{count}} obrazów w pamięci podręcznej",
-      "imagesFailed": "{{count}} obrazów nie udało się pobrać"
+      "imagesFailed_many": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera."
     },
     "refresh": {
       "tokenLabel": "Główny token uwierzytelniający",

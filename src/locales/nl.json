@@ -356,9 +356,7 @@
       "imagesReport": "{{found}} afbeeldingen gevonden, {{stored}} opgeslagen",
       "imagesBudgetStopped": "gestopt door het budget",
       "imagesFailed_one": "{{count}} afbeelding kon niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd.",
-      "imagesFailed_other": "{{count}} afbeeldingen konden niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd.",
-      "imagesCached": "{{count}} afbeeldingen in cache",
-      "imagesFailed": "{{count}} afbeeldingen konden niet worden opgehaald"
+      "imagesFailed_other": "{{count}} afbeeldingen konden niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd."
     },
     "refresh": {
       "tokenLabel": "Hoofdauthenticatietoken",

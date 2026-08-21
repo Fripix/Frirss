@@ -356,9 +356,7 @@
       "imagesReport": "{{found}} imágenes encontradas, {{stored}} guardadas",
       "imagesBudgetStopped": "detenido por el presupuesto",
       "imagesFailed_one": "No se pudo recuperar {{count}} imagen — es habitual: algunos sitios rechazan las imágenes solicitadas desde otro servidor.",
-      "imagesFailed_other": "No se pudieron recuperar {{count}} imágenes — es habitual: algunos sitios rechazan las imágenes solicitadas desde otro servidor.",
-      "imagesCached": "{{count}} imágenes en caché",
-      "imagesFailed": "{{count}} imágenes no se pudieron recuperar"
+      "imagesFailed_other": "No se pudieron recuperar {{count}} imágenes — es habitual: algunos sitios rechazan las imágenes solicitadas desde otro servidor."
     },
     "refresh": {
       "tokenLabel": "Token de autenticación maestro",

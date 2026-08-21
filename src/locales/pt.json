@@ -356,9 +356,7 @@
       "imagesReport": "{{found}} imagens encontradas, {{stored}} guardadas",
       "imagesBudgetStopped": "interrompido pelo orçamento",
       "imagesFailed_one": "Não foi possível obter {{count}} imagem — é comum: alguns sites recusam imagens pedidas a partir de outro servidor.",
-      "imagesFailed_other": "Não foi possível obter {{count}} imagens — é comum: alguns sites recusam imagens pedidas a partir de outro servidor.",
-      "imagesCached": "{{count}} imagens em cache",
-      "imagesFailed": "{{count}} imagens falharam em recuperar"
+      "imagesFailed_other": "Não foi possível obter {{count}} imagens — é comum: alguns sites recusam imagens pedidas a partir de outro servidor."
     },
     "refresh": {
       "tokenLabel": "Token de autenticação principal",
