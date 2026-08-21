@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getServers, updateServer, startActualize, getActualizeStatus } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
@@ -17,9 +17,18 @@ export default function RefreshTab() {
   const setHasRefreshToken = useFeedStore((s) => s.setHasRefreshToken);
 
   const [token, setToken] = useState('');
+  // The field is empty but shows a bullet placeholder when a token is stored,
+  // which reads as pre-filled. Save posts whatever the field holds, and the
+  // backend treats '' as an explicit clear — so an untouched Save used to
+  // delete a working token. Only an actual edit arms the button. Emptying the
+  // field IS an edit, so deliberately clearing the token still works.
+  const [edited, setEdited] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [saving, setSaving] = useState(false);
   const [test, setTest] = useState<TestState>('idle');
+  // runTest polls for up to 30s; Preferences can be closed long before that.
+  const unmounted = useRef(false);
+  useEffect(() => () => { unmounted.current = true; }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +43,7 @@ export default function RefreshTab() {
   }, [activeServerId]);
 
   async function save() {
-    if (activeServerId == null) return;
+    if (activeServerId == null || !edited) return;
     setSaving(true);
     setTest('idle');
     try {
@@ -42,6 +51,7 @@ export default function RefreshTab() {
       setConfigured(token !== '');
       setHasRefreshToken(token !== '');
       setToken('');
+      setEdited(false);
     } catch {
       // Save failed (network error, 500, ...): leave `configured` and the
       // typed token untouched so the button doesn't lie about having saved,
@@ -70,7 +80,9 @@ export default function RefreshTab() {
       // refresh resolves fast, and an unbounded loop has no place here.
       for (let i = 0; i < 30; i++) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (unmounted.current) return;
         const status = await getActualizeStatus(Number(activeServerId), 'test');
+        if (unmounted.current) return;
         if (status?.status === 'done') {
           setTest('ok');
           return;
@@ -82,7 +94,7 @@ export default function RefreshTab() {
       }
       setTest('fail');
     } catch {
-      setTest('fail');
+      if (!unmounted.current) setTest('fail');
     }
   }
 
@@ -96,7 +108,7 @@ export default function RefreshTab() {
           type="password"
           autoComplete="new-password"
           value={token}
-          onChange={(e) => setToken(e.target.value)}
+          onChange={(e) => { setToken(e.target.value); setEdited(true); }}
           placeholder={configured ? '••••••••' : ''}
           className="w-full px-3 py-1.5 text-sm rounded-md"
           style={{
@@ -127,7 +139,7 @@ export default function RefreshTab() {
         <button
           type="button"
           onClick={save}
-          disabled={saving || activeServerId == null}
+          disabled={saving || !edited || activeServerId == null}
           className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
           style={{ background: 'var(--accent)', color: '#fff' }}
         >
