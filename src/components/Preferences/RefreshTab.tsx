@@ -160,18 +160,35 @@ export default function RefreshTab() {
           // stored one until Save, so verifying-before-committing was
           // impossible.
           disabled={(!configured && token === '') || saving || test === 'testing'}
-          className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5 disabled:opacity-50"
+          aria-busy={test === 'testing'}
+          className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5 disabled:opacity-50 inline-flex items-center gap-1.5"
           style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
         >
+          {/* The check round-trips to FreshRSS, so it is never instant. Borrow
+              the sidebar refresh button's spinner rather than inventing a
+              second vocabulary for "working" — and no extra label, which would
+              mean nine more translations for what the icon already says. */}
+          {test === 'testing' && (
+            <svg
+              className="w-3 h-3 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          )}
           {t('preferences.refresh.test')}
         </button>
         {test === 'ok' && (
-          <span className="text-[11px]" style={{ color: 'var(--accent)' }}>
+          <span className="text-[11px]" role="status" style={{ color: 'var(--accent)' }}>
             {t('preferences.refresh.testOk')}
           </span>
         )}
         {test === 'fail' && (
-          <span className="text-[11px]" style={{ color: 'var(--danger)' }}>
+          <span className="text-[11px]" role="status" style={{ color: 'var(--danger)' }}>
             {t('preferences.refresh.testFail')}
           </span>
         )}
