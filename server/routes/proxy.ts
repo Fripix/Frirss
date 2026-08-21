@@ -43,6 +43,27 @@ const REWRITES: [string, string][] = (process.env.PROXY_REWRITES || '')
   })
   .filter((p): p is [string, string] => p !== null);
 
+// Strip credential-bearing query parameters before a URL reaches a log.
+// The FreshRSS feed-refresh call (see ../actualizeRequest.ts) must be a GET
+// carrying the master token in its query string — FreshRSS rejects every other
+// form — so any log line printing a target URL would otherwise write that
+// secret to disk. The rest of the URL is kept: a redacted log is still useful,
+// a silenced one is not.
+const SECRET_PARAMS = new Set(['token']);
+
+export function redactUrl(url: string): string {
+  let u: URL;
+  try { u = new URL(url); } catch { return url; }   // not a URL → nothing to parse
+  let touched = false;
+  for (const key of [...u.searchParams.keys()]) {
+    if (SECRET_PARAMS.has(key.toLowerCase())) {
+      u.searchParams.set(key, 'REDACTED');
+      touched = true;
+    }
+  }
+  return touched ? u.toString() : url;
+}
+
 function rewriteTarget(url: string): string {
   for (const [from, to] of REWRITES) {
     if (url.startsWith(from)) return to + url.slice(from.length);
@@ -226,7 +247,7 @@ export async function fetchUpstream(
     if (err instanceof BlockedTargetError) throw err;     // never fall back a blocked target
     const e = err as { name?: string; cause?: { code?: string }; message?: string };
     if (target !== rawTarget && e.name !== 'AbortError') {
-      console.warn('Proxy rewrite unreachable (%s), falling back to public:', e.cause?.code || e.message, target);
+      console.warn('Proxy rewrite unreachable (%s), falling back to public:', e.cause?.code || e.message, redactUrl(target));
       return await attempt(rawTarget);
     }
     throw err;
@@ -335,7 +356,7 @@ function finishError(res: ExpressResponse, err: unknown, target: string) {
   if (e.name === 'AbortError') {
     return res.status(504).json({ error: 'Upstream timeout' });
   }
-  console.error('Proxy error:', e.cause?.code || e.message, '→', target);
+  console.error('Proxy error:', e.cause?.code || e.message, '→', redactUrl(target));
   res.status(502).json({ error: 'Upstream request failed' });
 }
 

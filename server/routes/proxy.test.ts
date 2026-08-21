@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral, fetchUpstream } from './proxy.js';
+import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral, fetchUpstream, redactUrl } from './proxy.js';
 
 // fetchUpstream resolves its target host before allowing the request (SSRF
 // guard) — stub DNS so example.com-style test targets resolve to a public
@@ -117,10 +117,11 @@ describe('fetchUpstream', () => {
       followRedirects: false,
     });
 
-    // Returned as the raw 3xx response instead of being followed as a
-    // bodyless GET — the caller (which put credentials in the body) sees
-    // resp.ok === false and can correctly treat this as a failure, instead
-    // of the redirect target silently answering 200 to an unauthenticated GET.
+    // Returned as the raw 3xx response instead of being followed — the caller
+    // sees resp.ok === false and can correctly treat this as a failure,
+    // instead of the redirect target silently answering 200 to a request that
+    // lost its credentials on the way. This is exactly how the FreshRSS CSRF
+    // rejection (302 to the login page) surfaces honestly.
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(resp.status).toBe(302);
     expect(resp.ok).toBe(false);
@@ -136,5 +137,64 @@ describe('fetchUpstream', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(resp.status).toBe(200);
+  });
+});
+
+// The FreshRSS feed-refresh call must be a GET with the master token in the
+// query string (FreshRSS rejects the POST form — see actualizeRequest.ts), so
+// any log statement that prints a URL is now a credential-leak vector.
+describe('redactUrl', () => {
+  it('replaces the value of a token query parameter', () => {
+    const out = redactUrl('https://example.com/i/?c=feed&a=actualize&user=alice&token=s3cr3t-token');
+    expect(out).not.toContain('s3cr3t-token');
+    expect(out).toContain('token=REDACTED');
+    // Everything else stays readable — the log must still be useful.
+    expect(out).toContain('c=feed');
+    expect(out).toContain('a=actualize');
+  });
+
+  it('redacts regardless of parameter case or position', () => {
+    for (const u of ['https://example.com/i/?token=s3cr3t',
+                     'https://example.com/i/?TOKEN=s3cr3t&a=x',
+                     'https://example.com/i/?a=x&Token=s3cr3t&b=y']) {
+      expect(redactUrl(u), u).not.toContain('s3cr3t');
+    }
+  });
+
+  it('leaves URLs without a token untouched, and never throws on junk', () => {
+    expect(redactUrl('https://example.com/x?a=1')).toBe('https://example.com/x?a=1');
+    expect(redactUrl('not a url at all')).toBe('not a url at all');
+  });
+});
+
+describe('fetchUpstream logging', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    delete process.env.PROXY_REWRITES;
+  });
+
+  it('never writes a token into the rewrite-fallback warning', async () => {
+    vi.resetModules();
+    process.env.PROXY_REWRITES = 'https://rss.example.com=http://freshrss:80';
+    const { fetchUpstream: fetchU } = await import('./proxy.js');
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('connect ECONNREFUSED'),
+        { cause: { code: 'ECONNREFUSED' } }))
+      .mockResolvedValueOnce({ ok: true, status: 200, headers: new Headers() });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const resp = await fetchU(
+      'https://rss.example.com/i/?c=feed&a=actualize&user=alice&token=s3cr3t-token'
+    );
+
+    expect(resp.status).toBe(200);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const logged = warn.mock.calls[0].join(' ');
+    expect(logged).not.toContain('s3cr3t-token');
+    expect(logged).toContain('token=REDACTED');
   });
 });
