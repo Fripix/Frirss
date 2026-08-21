@@ -366,6 +366,27 @@
       "testOk": "Le jeton fonctionne.",
       "testFail": "Le jeton a été refusé.",
       "save": "Enregistrer"
+    },
+    "sections": {
+      "general": "Général",
+      "appearance": "Apparence",
+      "labels": "Étiquettes",
+      "feeds": "Flux",
+      "offline": "Hors-ligne",
+      "admin": "Administration"
+    },
+    "appearance": {
+      "theme": "Thème",
+      "colors": "Couleurs",
+      "sizes": "Tailles",
+      "identity": "Identité",
+      "previewHint": "Survolez ou touchez une couleur : sa zone est cerclée dans l'aperçu.",
+      "previewReal": "Cerclé ici, et encadré sur l'élément réel.",
+      "previewPreviewOnly": "Trop d'éléments concernés pour l'encadrer dans l'interface. L'aperçu la montre.",
+      "previewNeither": "Ni l'aperçu ni l'interface ne peuvent la désigner. Le réglage fonctionne."
+    },
+    "nav": {
+      "back": "Sections"
     }
   },
   "login": {

@@ -366,6 +366,27 @@
       "testOk": "The token works.",
       "testFail": "The token was rejected.",
       "save": "Save"
+    },
+    "sections": {
+      "general": "General",
+      "appearance": "Appearance",
+      "labels": "Labels",
+      "feeds": "Feeds",
+      "offline": "Offline",
+      "admin": "Administration"
+    },
+    "appearance": {
+      "theme": "Theme",
+      "colors": "Colours",
+      "sizes": "Sizes",
+      "identity": "Identity",
+      "previewHint": "Hover or tap a colour: its area is ringed in the preview.",
+      "previewReal": "Ringed here, and outlined on the real element.",
+      "previewPreviewOnly": "Too many elements to outline in the interface. The preview shows it.",
+      "previewNeither": "Neither the preview nor the interface can point at it. The setting still works."
+    },
+    "nav": {
+      "back": "Sections"
     }
   },
   "login": {

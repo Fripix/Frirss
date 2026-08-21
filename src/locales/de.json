@@ -366,6 +366,27 @@
       "testOk": "Das Token funktioniert.",
       "testFail": "Das Token wurde abgelehnt.",
       "save": "Speichern"
+    },
+    "sections": {
+      "general": "Allgemein",
+      "appearance": "Erscheinungsbild",
+      "labels": "Etiketten",
+      "feeds": "Feeds",
+      "offline": "Offline",
+      "admin": "Verwaltung"
+    },
+    "appearance": {
+      "theme": "Design",
+      "colors": "Farben",
+      "sizes": "Größen",
+      "identity": "Identität",
+      "previewHint": "Farbe überfahren oder antippen: Ihr Bereich wird in der Vorschau umrandet.",
+      "previewReal": "Hier umrandet und am echten Element hervorgehoben.",
+      "previewPreviewOnly": "Zu viele Elemente für eine Hervorhebung in der Oberfläche. Die Vorschau zeigt sie.",
+      "previewNeither": "Weder Vorschau noch Oberfläche können darauf zeigen. Die Einstellung wirkt trotzdem."
+    },
+    "nav": {
+      "back": "Bereiche"
     }
   },
   "login": {

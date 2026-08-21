@@ -366,6 +366,27 @@
       "testOk": "Il token funziona.",
       "testFail": "Il token è stato rifiutato.",
       "save": "Salva"
+    },
+    "sections": {
+      "general": "Generale",
+      "appearance": "Aspetto",
+      "labels": "Etichette",
+      "feeds": "Flussi",
+      "offline": "Offline",
+      "admin": "Amministrazione"
+    },
+    "appearance": {
+      "theme": "Tema",
+      "colors": "Colori",
+      "sizes": "Dimensioni",
+      "identity": "Identità",
+      "previewHint": "Passa sopra o tocca un colore: la sua zona viene cerchiata nell'anteprima.",
+      "previewReal": "Cerchiato qui e evidenziato sull'elemento reale.",
+      "previewPreviewOnly": "Troppi elementi per evidenziarlo nell'interfaccia. L'anteprima lo mostra.",
+      "previewNeither": "Né l'anteprima né l'interfaccia possono indicarlo. L'impostazione funziona comunque."
+    },
+    "nav": {
+      "back": "Sezioni"
     }
   },
   "login": {

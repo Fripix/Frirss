@@ -366,6 +366,27 @@
       "testOk": "Het token werkt.",
       "testFail": "Het token is geweigerd.",
       "save": "Opslaan"
+    },
+    "sections": {
+      "general": "Algemeen",
+      "appearance": "Weergave",
+      "labels": "Labels",
+      "feeds": "Feeds",
+      "offline": "Offline",
+      "admin": "Beheer"
+    },
+    "appearance": {
+      "theme": "Thema",
+      "colors": "Kleuren",
+      "sizes": "Groottes",
+      "identity": "Identiteit",
+      "previewHint": "Beweeg over of tik op een kleur: het gebied wordt omcirkeld in het voorbeeld.",
+      "previewReal": "Hier omcirkeld en gemarkeerd op het echte element.",
+      "previewPreviewOnly": "Te veel elementen om in de interface te markeren. Het voorbeeld toont het wel.",
+      "previewNeither": "Noch het voorbeeld noch de interface kan het aanwijzen. De instelling werkt gewoon."
+    },
+    "nav": {
+      "back": "Secties"
     }
   },
   "login": {

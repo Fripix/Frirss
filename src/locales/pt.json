@@ -366,6 +366,27 @@
       "testOk": "O token funciona.",
       "testFail": "O token foi recusado.",
       "save": "Guardar"
+    },
+    "sections": {
+      "general": "Geral",
+      "appearance": "Aparência",
+      "labels": "Etiquetas",
+      "feeds": "Fontes",
+      "offline": "Offline",
+      "admin": "Administração"
+    },
+    "appearance": {
+      "theme": "Tema",
+      "colors": "Cores",
+      "sizes": "Tamanhos",
+      "identity": "Identidade",
+      "previewHint": "Passe o cursor ou toque numa cor: a zona é destacada na pré-visualização.",
+      "previewReal": "Destacado aqui e contornado no elemento real.",
+      "previewPreviewOnly": "Demasiados elementos para contornar na interface. A pré-visualização mostra-a.",
+      "previewNeither": "Nem a pré-visualização nem a interface a conseguem apontar. A definição funciona à mesma."
+    },
+    "nav": {
+      "back": "Secções"
     }
   },
   "login": {

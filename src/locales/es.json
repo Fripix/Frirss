@@ -366,6 +366,27 @@
       "testOk": "El token funciona.",
       "testFail": "El token fue rechazado.",
       "save": "Guardar"
+    },
+    "sections": {
+      "general": "General",
+      "appearance": "Apariencia",
+      "labels": "Etiquetas",
+      "feeds": "Fuentes",
+      "offline": "Sin conexión",
+      "admin": "Administración"
+    },
+    "appearance": {
+      "theme": "Tema",
+      "colors": "Colores",
+      "sizes": "Tamaños",
+      "identity": "Identidad",
+      "previewHint": "Pasa el cursor o toca un color: su zona se resalta en la vista previa.",
+      "previewReal": "Resaltado aquí y marcado en el elemento real.",
+      "previewPreviewOnly": "Demasiados elementos para marcarlo en la interfaz. La vista previa sí lo muestra.",
+      "previewNeither": "Ni la vista previa ni la interfaz pueden señalarlo. El ajuste funciona igualmente."
+    },
+    "nav": {
+      "back": "Secciones"
     }
   },
   "login": {

@@ -370,6 +370,27 @@
       "testOk": "Token działa.",
       "testFail": "Token został odrzucony.",
       "save": "Zapisz"
+    },
+    "sections": {
+      "general": "Ogólne",
+      "appearance": "Wygląd",
+      "labels": "Etykiety",
+      "feeds": "Kanały",
+      "offline": "Offline",
+      "admin": "Administracja"
+    },
+    "appearance": {
+      "theme": "Motyw",
+      "colors": "Kolory",
+      "sizes": "Rozmiary",
+      "identity": "Tożsamość",
+      "previewHint": "Najedź lub dotknij koloru: jego obszar zostanie obwiedziony w podglądzie.",
+      "previewReal": "Obwiedzione tutaj i wyróżnione na rzeczywistym elemencie.",
+      "previewPreviewOnly": "Zbyt wiele elementów, by wyróżnić je w interfejsie. Podgląd je pokazuje.",
+      "previewNeither": "Ani podgląd, ani interfejs nie mogą go wskazać. Ustawienie i tak działa."
+    },
+    "nav": {
+      "back": "Sekcje"
     }
   },
   "login": {
