@@ -68,8 +68,78 @@ sections : ajouter une section ne coûte plus un pixel.
 - Largeur du panneau : **680 px** (navigation 178, contenu le reste).
 - Plancher et plafond conservés : `minWidth: min(92vw, 460px)`, `maxWidth: 92vw`.
 - `width: 'fit-content'` **disparaît**. C'est le cœur du correctif.
-- Sous 768 px, la navigation repasse au-dessus du contenu et le panneau occupe
-  la largeur disponible.
+
+Le comportement mobile fait l'objet de la section suivante : ce n'est pas un
+simple repli de la mise en page.
+
+## iPhone et PWA — une section à part, pas une adaptation
+
+`Preferences.tsx` **ne contient aujourd'hui aucune gestion du mobile** : aucun
+appel à `useBreakpoint()`, aucune classe conditionnelle, alors que `Sidebar`,
+`ArticleList`, `ReadingPane` et `ServerSwitcher` l'utilisent tous. Le panneau est
+de forme desktop même sur iPhone. La refonte doit adopter `useBreakpoint()`
+comme ses voisins.
+
+L'app est installable (`display: 'standalone'` dans `vite.config.js`), donc le
+panneau s'affiche plein écran, sans chrome de navigateur.
+
+### Le survol n'existe pas au doigt — conséquence majeure
+
+`ColorRow` déclenche la mise en évidence sur `onMouseEnter` / `onMouseLeave`.
+Sur iPhone ces événements ne se produisent pas : **l'encadrement des couleurs n'a
+jamais fonctionné sur mobile**, et le couplage avec l'aperçu hériterait du même
+défaut si on se contentait de le brancher sur le survol.
+
+**Modèle tactile retenu : la sélection remplace le survol.** Toucher une ligne
+de couleur la sélectionne ; sa zone reste cerclée et nommée dans l'aperçu
+jusqu'à ce qu'une autre soit touchée. Au pointeur fin, le survol continue de
+fonctionner comme aujourd'hui — les deux modes coexistent, pilotés par
+`(hover: hover)` plutôt que par la largeur d'écran.
+
+Corollaire : sur iPhone le panneau couvre tout l'écran, donc l'encadrement de
+l'élément *réel* n'a de toute façon rien à montrer. **L'aperçu y est le seul
+retour possible.** Ce qui était un complément sur desktop devient le mécanisme
+principal sur mobile.
+
+### Navigation en profondeur plutôt qu'en colonnes
+
+À 375 pt de large, une navigation de 178 px plus le contenu ne tient pas. La
+navigation latérale est donc remplacée, sur mobile, par un **enchaînement à deux
+niveaux** : liste des six sections, puis contenu de la section avec un retour.
+C'est le geste attendu sur iOS, et cela évite de comprimer deux colonnes.
+
+Ce choix a un effet secondaire bienvenu : le défaut de largeur d'origine ne peut
+pas réapparaître par ce chemin, puisqu'aucune rangée d'onglets ne subsiste.
+
+### Contraintes d'appareil
+
+- **Zones sûres** : l'en-tête doit dégager l'encoche ou la Dynamic Island, le bas
+  doit dégager l'indicateur d'accueil. Le dépôt possède déjà l'idiome
+  (`env(safe-area-inset-*)` dans `src/styles/index.css`) — le réutiliser, ne pas
+  en inventer un autre.
+- **Hauteur** : réutiliser la règle déjà écrite et commentée dans
+  `index.css` — `100dvh` en navigateur, `100vh` sous
+  `@media (display-mode: standalone)`, parce que `dvh` est calculé un peu court
+  en standalone iOS et laisse une bande blanche. Ne pas la réécrire.
+- **Cibles tactiles** : minimum 44 pt. Les lignes de couleur de la maquette font
+  ~30 px et le sélecteur natif 24 px — insuffisant. Les lignes s'agrandissent au
+  toucher.
+- **Champ hexadécimal** : désactiver correction et capitalisation automatiques,
+  et déclarer un `inputMode` adapté, sinon iOS transforme la saisie.
+
+### À vérifier sur appareil, pas à supposer
+
+Ces points ne peuvent pas être tranchés depuis un poste de travail et doivent
+être contrôlés sur un iPhone réel, en PWA installée :
+
+1. Le rendu de `<input type="color">` en standalone iOS — s'il se révèle
+   inutilisable, le champ hexadécimal devient le chemin principal sur mobile.
+2. Le comportement du clavier lors de la saisie hexadécimale : le champ doit
+   rester visible, non masqué par le clavier.
+3. L'absence de défilement parasite du panneau sous le doigt
+   (`overscroll-behavior` est déjà posé globalement).
+4. L'aperçu à 375 pt : les zones doivent rester distinguables à cette largeur,
+   faute de quoi la sélection tactile ne désignera rien de lisible.
 
 ## L'aperçu en direct, et son couplage avec l'existant
 
@@ -209,5 +279,12 @@ dans les 9 locales, parité vérifiée. Les libellés d'onglets retirés
 5. Contrôle du couplage : survoler une couleur encadre l'élément réel **et**
    cercle la zone dans l'aperçu ; une des six couleurs non représentables affiche
    la mention correspondante.
-6. Contrôle mobile : sous 768 px, navigation au-dessus, aucun débordement
-   horizontal.
+6. Contrôle mobile **sur iPhone réel, en PWA installée** — pas au simulateur de
+   largeur du navigateur :
+   - navigation à deux niveaux, retour fonctionnel ;
+   - en-tête sous l'encoche, bas dégagé de l'indicateur d'accueil ;
+   - aucune bande blanche en pied d'écran (règle `display-mode: standalone`) ;
+   - **toucher une couleur la sélectionne** et cercle sa zone dans l'aperçu — le
+     mécanisme qui n'a jamais fonctionné au doigt ;
+   - cibles tactiles d'au moins 44 pt ;
+   - les quatre points de la liste « à vérifier sur appareil ».
