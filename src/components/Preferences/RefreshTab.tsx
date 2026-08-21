@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getServers, updateServer, startActualize } from '../../api/backend';
+import { getServers, updateServer, startActualize, getActualizeStatus } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { useFeedStore } from '../../stores/feedStore';
 
@@ -42,6 +42,11 @@ export default function RefreshTab() {
       setConfigured(token !== '');
       setHasRefreshToken(token !== '');
       setToken('');
+    } catch {
+      // Save failed (network error, 500, ...): leave `configured` and the
+      // typed token untouched so the button doesn't lie about having saved,
+      // and reuse the existing test-fail copy instead of adding a new key.
+      setTest('fail');
     } finally {
       setSaving(false);
     }
@@ -53,7 +58,27 @@ export default function RefreshTab() {
     try {
       // maxFeeds=1: proves the token is accepted without starting a full sweep.
       const job = await startActualize(Number(activeServerId), 1);
-      setTest(job ? 'ok' : 'fail');
+      if (!job) {
+        setTest('fail');
+        return;
+      }
+      // The POST only confirms a token is stored; the actual FreshRSS call
+      // happens afterwards in a fire-and-forget job. Poll for the real
+      // outcome instead of trusting the 202. Bounded to ~30s: a single-feed
+      // refresh resolves fast, and an unbounded loop has no place here.
+      for (let i = 0; i < 30; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const status = await getActualizeStatus(Number(activeServerId));
+        if (status?.status === 'done') {
+          setTest('ok');
+          return;
+        }
+        if (status?.status === 'failed') {
+          setTest('fail');
+          return;
+        }
+      }
+      setTest('fail');
     } catch {
       setTest('fail');
     }
