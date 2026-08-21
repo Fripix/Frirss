@@ -57,7 +57,9 @@ export default function RefreshTab() {
     setTest('testing');
     try {
       // maxFeeds=1: proves the token is accepted without starting a full sweep.
-      const job = await startActualize(Number(activeServerId), 1);
+      // kind 'test': its own job slot, so a sweep already in flight can't be
+      // handed back here and time out as "token rejected".
+      const job = await startActualize(Number(activeServerId), 'test', 1);
       if (!job) {
         setTest('fail');
         return;
@@ -68,7 +70,7 @@ export default function RefreshTab() {
       // refresh resolves fast, and an unbounded loop has no place here.
       for (let i = 0; i < 30; i++) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        const status = await getActualizeStatus(Number(activeServerId));
+        const status = await getActualizeStatus(Number(activeServerId), 'test');
         if (status?.status === 'done') {
           setTest('ok');
           return;

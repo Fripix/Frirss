@@ -113,12 +113,26 @@ export interface ActualizeJob {
   error?: string;
 }
 
-/** Trigger a real feed refresh. Returns null when no master token is configured. */
-export async function startActualize(id: number, maxFeeds?: number): Promise<ActualizeJob | null> {
+/**
+ * A full sweep and the preferences "Test" are tracked as separate jobs by the
+ * backend, so neither can be folded into the other and misreported.
+ */
+export type RefreshKind = 'refresh' | 'test';
+
+/**
+ * Trigger a real feed refresh. Returns null ONLY on 409 (no master token
+ * configured); every other failure throws, so a transient error is never
+ * mistaken for a missing token.
+ */
+export async function startActualize(
+  id: number,
+  kind: RefreshKind = 'refresh',
+  maxFeeds?: number,
+): Promise<ActualizeJob | null> {
   try {
     const { data } = await backend.post<{ job: ActualizeJob }>(
       `/servers/${id}/actualize`,
-      maxFeeds === undefined ? {} : { maxFeeds },
+      maxFeeds === undefined ? { kind } : { kind, maxFeeds },
     );
     return data.job;
   } catch (err) {
@@ -127,8 +141,14 @@ export async function startActualize(id: number, maxFeeds?: number): Promise<Act
   }
 }
 
-export async function getActualizeStatus(id: number): Promise<ActualizeJob | null> {
-  const { data } = await backend.get<{ job: ActualizeJob | null }>(`/servers/${id}/actualize`);
+export async function getActualizeStatus(
+  id: number,
+  kind: RefreshKind = 'refresh',
+): Promise<ActualizeJob | null> {
+  const { data } = await backend.get<{ job: ActualizeJob | null }>(
+    `/servers/${id}/actualize`,
+    { params: { kind } },
+  );
   return data.job;
 }
 

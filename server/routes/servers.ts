@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { encrypt, decrypt } from '../crypto.js';
-import { buildActualizeRequest, DEFAULT_MAX_FEEDS } from '../actualizeRequest.js';
-import { startJob, getJob, REFRESH_TIMEOUT_MS } from '../refreshJobs.js';
+import { buildActualizeRequest, refreshMaxFeeds } from '../actualizeRequest.js';
+import { startJob, getJob, isRefreshKind, REFRESH_TIMEOUT_MS } from '../refreshJobs.js';
 import { requireAuth } from '../middleware/auth.js';
 import { fetchUpstream } from './proxy.js';
 
@@ -164,11 +164,19 @@ router.post('/:id/actualize', (req, res) => {
     .get(id, req.user.id) as ServerRow | undefined;
   if (!server) return res.status(404).json({ error: 'Server not found' });
 
+  // The kind reaches an in-memory registry key, so only the two known values
+  // are accepted — never whatever the client happens to send.
+  const kind = req.body?.kind ?? 'refresh';
+  if (!isRefreshKind(kind)) return res.status(400).json({ error: 'invalid_kind' });
+
   const token = decrypt(server.refresh_token);
   if (!token) return res.status(409).json({ error: 'no_refresh_token' });
 
+  // Clamp to the operator's ceiling, not to the compiled-in default: an admin
+  // who lowered FRIRSS_REFRESH_MAX_FEEDS to spread a first sweep must not be
+  // overridden by a client asking for more.
   const maxFeeds = Number.isInteger(req.body?.maxFeeds) && req.body.maxFeeds >= 1
-    ? Math.min(req.body.maxFeeds as number, DEFAULT_MAX_FEEDS)
+    ? Math.min(req.body.maxFeeds as number, refreshMaxFeeds())
     : undefined;
 
   const { url, body } = buildActualizeRequest({
@@ -193,7 +201,7 @@ router.post('/:id/actualize', (req, res) => {
       followRedirects: false,
     });
     if (!r.ok) throw new Error(`FreshRSS answered ${r.status}`);
-  }, [token]);
+  }, [token], kind);
 
   res.status(202).json({ job });
 });
@@ -205,7 +213,10 @@ router.get('/:id/actualize', (req, res) => {
     .get(id, req.user.id) as { id: number } | undefined;
   if (!server) return res.status(404).json({ error: 'Server not found' });
 
-  res.json({ job: getJob(req.user.id, server.id) ?? null });
+  const kind = req.query.kind ?? 'refresh';
+  if (!isRefreshKind(kind)) return res.status(400).json({ error: 'invalid_kind' });
+
+  res.json({ job: getJob(req.user.id, server.id, kind) ?? null });
 });
 
 export default router;
