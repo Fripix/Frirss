@@ -160,7 +160,8 @@
       "themes": "Thèmes",
       "shortcuts": "Raccourcis",
       "admin": "Admin",
-      "offline": "Hors-ligne"
+      "offline": "Hors-ligne",
+      "refresh": "Relève"
     },
     "general": {
       "title": "Général",
@@ -356,6 +357,15 @@
       "imagesBudgetStopped": "arrêté par le budget",
       "imagesFailed_one": "{{count}} image n’a pas pu être récupérée — c’est courant : certains sites refusent les images demandées depuis un autre serveur.",
       "imagesFailed_other": "{{count}} images n’ont pas pu être récupérées — c’est courant : certains sites refusent les images demandées depuis un autre serveur."
+    },
+    "refresh": {
+      "tokenLabel": "Jeton d'identification maître",
+      "tokenHelp": "À créer dans FreshRSS, page Profil, champ « Jeton d'identification maître ». Laisser vide pour désactiver.",
+      "scopeWarning": "Ce jeton permet aussi de lire tous vos articles et d'exporter votre liste d'abonnements sans mot de passe. Il est stocké chiffré et ne quitte jamais le serveur.",
+      "test": "Tester",
+      "testOk": "Le jeton fonctionne.",
+      "testFail": "Le jeton a été refusé.",
+      "save": "Enregistrer"
     }
   },
   "login": {
@@ -522,7 +532,11 @@
   "refresh": {
     "newArticles_one": "{{count}} nouvel article",
     "newArticles_other": "{{count}} nouveaux articles",
-    "upToDate": "À jour"
+    "upToDate": "À jour",
+    "inProgress": "Relève en cours…",
+    "failed": "La relève a échoué",
+    "incomplete": "Relève inachevée",
+    "enable": "Activer la relève des flux"
   },
   "saved": {
     "fileInto": "Ranger dans",

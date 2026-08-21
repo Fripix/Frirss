@@ -160,7 +160,8 @@
       "themes": "Designs",
       "shortcuts": "Tastenkürzel",
       "admin": "Admin",
-      "offline": "Offline"
+      "offline": "Offline",
+      "refresh": "Abruf"
     },
     "general": {
       "title": "Allgemein",
@@ -356,6 +357,15 @@
       "imagesBudgetStopped": "durch das Budget gestoppt",
       "imagesFailed_one": "{{count}} Bild konnte nicht geladen werden — das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab.",
       "imagesFailed_other": "{{count}} Bilder konnten nicht geladen werden — das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab."
+    },
+    "refresh": {
+      "tokenLabel": "Master-Authentifizierungs-Token",
+      "tokenHelp": "In FreshRSS unter Profil im Feld „Master-Authentifizierungs-Token\" anlegen. Leer lassen zum Deaktivieren.",
+      "scopeWarning": "Dieses Token erlaubt außerdem den passwortfreien Zugriff auf alle Ihre Artikel und Ihre Abonnementliste. Es wird verschlüsselt gespeichert und verlässt den Server nie.",
+      "test": "Testen",
+      "testOk": "Das Token funktioniert.",
+      "testFail": "Das Token wurde abgelehnt.",
+      "save": "Speichern"
     }
   },
   "login": {
@@ -519,7 +529,11 @@
   "refresh": {
     "newArticles_one": "{{count}} neuer Artikel",
     "newArticles_other": "{{count}} neue Artikel",
-    "upToDate": "Aktuell"
+    "upToDate": "Aktuell",
+    "inProgress": "Feeds werden abgerufen…",
+    "failed": "Abruf fehlgeschlagen",
+    "incomplete": "Abruf unvollständig",
+    "enable": "Feed-Abruf aktivieren"
   },
   "update": {
     "updating": "Aktualisierung…"

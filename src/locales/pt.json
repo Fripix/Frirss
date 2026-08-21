@@ -160,7 +160,8 @@
       "themes": "Temas",
       "shortcuts": "Atalhos",
       "admin": "Admin",
-      "offline": "Offline"
+      "offline": "Offline",
+      "refresh": "Atualização"
     },
     "general": {
       "title": "Geral",
@@ -356,6 +357,15 @@
       "imagesBudgetStopped": "interrompido pelo orçamento",
       "imagesFailed_one": "Não foi possível obter {{count}} imagem — é comum: alguns sites recusam imagens pedidas a partir de outro servidor.",
       "imagesFailed_other": "Não foi possível obter {{count}} imagens — é comum: alguns sites recusam imagens pedidas a partir de outro servidor."
+    },
+    "refresh": {
+      "tokenLabel": "Token de autenticação principal",
+      "tokenHelp": "Crie-o no FreshRSS, página Perfil, campo «Token de autenticação principal». Deixe vazio para desativar.",
+      "scopeWarning": "Este token também permite ler todos os seus artigos e exportar a sua lista de subscrições sem palavra-passe. É guardado cifrado e nunca sai do servidor.",
+      "test": "Testar",
+      "testOk": "O token funciona.",
+      "testFail": "O token foi recusado.",
+      "save": "Guardar"
     }
   },
   "login": {
@@ -519,7 +529,11 @@
   "refresh": {
     "newArticles_one": "{{count}} novo artigo",
     "newArticles_other": "{{count}} novos artigos",
-    "upToDate": "Atualizado"
+    "upToDate": "Atualizado",
+    "inProgress": "A atualizar as fontes…",
+    "failed": "A atualização falhou",
+    "incomplete": "Atualização incompleta",
+    "enable": "Ativar a atualização das fontes"
   },
   "update": {
     "updating": "A atualizar…"

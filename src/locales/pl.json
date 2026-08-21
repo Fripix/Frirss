@@ -160,7 +160,8 @@
       "themes": "Motywy",
       "shortcuts": "Skróty",
       "admin": "Admin",
-      "offline": "Offline"
+      "offline": "Offline",
+      "refresh": "Odświeżanie"
     },
     "general": {
       "title": "Ogólne",
@@ -360,6 +361,15 @@
       "imagesFailed_other": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
       "imagesFailed_few": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
       "imagesFailed_many": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera."
+    },
+    "refresh": {
+      "tokenLabel": "Główny token uwierzytelniający",
+      "tokenHelp": "Utwórz go w FreshRSS, na stronie Profil, w polu „Główny token uwierzytelniający\". Puste pole wyłącza funkcję.",
+      "scopeWarning": "Ten token daje też dostęp bez hasła do wszystkich Twoich artykułów i listy subskrypcji. Jest przechowywany w postaci zaszyfrowanej i nigdy nie opuszcza serwera.",
+      "test": "Testuj",
+      "testOk": "Token działa.",
+      "testFail": "Token został odrzucony.",
+      "save": "Zapisz"
     }
   },
   "login": {
@@ -529,7 +539,11 @@
     "newArticles_other": "{{count}} nowych artykułów",
     "newArticles_few": "{{count}} nowe artykuły",
     "newArticles_many": "{{count}} nowych artykułów",
-    "upToDate": "Wszystko aktualne"
+    "upToDate": "Wszystko aktualne",
+    "inProgress": "Odświeżanie kanałów…",
+    "failed": "Odświeżanie nie powiodło się",
+    "incomplete": "Odświeżanie niedokończone",
+    "enable": "Włącz odświeżanie kanałów"
   },
   "update": {
     "updating": "Aktualizacja…"

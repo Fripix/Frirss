@@ -160,7 +160,8 @@
       "themes": "Temi",
       "shortcuts": "Scorciatoie",
       "admin": "Admin",
-      "offline": "Offline"
+      "offline": "Offline",
+      "refresh": "Aggiornamento"
     },
     "general": {
       "title": "Generale",
@@ -356,6 +357,15 @@
       "imagesBudgetStopped": "interrotto dal budget",
       "imagesFailed_one": "{{count}} immagine non è stata recuperata — è normale: alcuni siti rifiutano le immagini richieste da un altro server.",
       "imagesFailed_other": "{{count}} immagini non sono state recuperate — è normale: alcuni siti rifiutano le immagini richieste da un altro server."
+    },
+    "refresh": {
+      "tokenLabel": "Token di autenticazione principale",
+      "tokenHelp": "Crealo in FreshRSS, pagina Profilo, campo «Token di autenticazione principale». Lascia vuoto per disattivarlo.",
+      "scopeWarning": "Questo token consente anche di leggere tutti i tuoi articoli e di esportare l'elenco delle sottoscrizioni senza password. È memorizzato cifrato e non lascia mai il server.",
+      "test": "Prova",
+      "testOk": "Il token funziona.",
+      "testFail": "Il token è stato rifiutato.",
+      "save": "Salva"
     }
   },
   "login": {
@@ -519,7 +529,11 @@
   "refresh": {
     "newArticles_one": "{{count}} nuovo articolo",
     "newArticles_other": "{{count}} nuovi articoli",
-    "upToDate": "Aggiornato"
+    "upToDate": "Aggiornato",
+    "inProgress": "Aggiornamento dei feed…",
+    "failed": "Aggiornamento non riuscito",
+    "incomplete": "Aggiornamento incompleto",
+    "enable": "Attiva l'aggiornamento dei feed"
   },
   "update": {
     "updating": "Aggiornamento…"

@@ -160,7 +160,8 @@
       "themes": "Thema's",
       "shortcuts": "Sneltoetsen",
       "admin": "Admin",
-      "offline": "Offline"
+      "offline": "Offline",
+      "refresh": "Ophalen"
     },
     "general": {
       "title": "Algemeen",
@@ -356,6 +357,15 @@
       "imagesBudgetStopped": "gestopt door het budget",
       "imagesFailed_one": "{{count}} afbeelding kon niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd.",
       "imagesFailed_other": "{{count}} afbeeldingen konden niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd."
+    },
+    "refresh": {
+      "tokenLabel": "Hoofdauthenticatietoken",
+      "tokenHelp": "Maak het aan in FreshRSS, pagina Profiel, veld \"Hoofdauthenticatietoken\". Laat leeg om uit te schakelen.",
+      "scopeWarning": "Dit token geeft ook zonder wachtwoord toegang tot al je artikelen en je abonnementenlijst. Het wordt versleuteld opgeslagen en verlaat de server nooit.",
+      "test": "Testen",
+      "testOk": "Het token werkt.",
+      "testFail": "Het token is geweigerd.",
+      "save": "Opslaan"
     }
   },
   "login": {
@@ -519,7 +529,11 @@
   "refresh": {
     "newArticles_one": "{{count}} nieuw artikel",
     "newArticles_other": "{{count}} nieuwe artikelen",
-    "upToDate": "Bijgewerkt"
+    "upToDate": "Bijgewerkt",
+    "inProgress": "Feeds worden opgehaald…",
+    "failed": "Het ophalen is mislukt",
+    "incomplete": "Ophalen onvoltooid",
+    "enable": "Feeds ophalen inschakelen"
   },
   "update": {
     "updating": "Bijwerken…"

@@ -160,7 +160,8 @@
       "themes": "Themes",
       "shortcuts": "Shortcuts",
       "admin": "Admin",
-      "offline": "Offline"
+      "offline": "Offline",
+      "refresh": "Refresh"
     },
     "general": {
       "title": "General",
@@ -356,6 +357,15 @@
       "imagesBudgetStopped": "stopped by the budget",
       "imagesFailed_one": "{{count}} image could not be fetched — this is common: some sites refuse images requested from another server.",
       "imagesFailed_other": "{{count}} images could not be fetched — this is common: some sites refuse images requested from another server."
+    },
+    "refresh": {
+      "tokenLabel": "Master authentication token",
+      "tokenHelp": "Create it in FreshRSS, Profile page, \"Master authentication token\" field. Leave empty to disable.",
+      "scopeWarning": "This token also grants password-free access to all your articles and to your subscription list. It is stored encrypted and never leaves the server.",
+      "test": "Test",
+      "testOk": "The token works.",
+      "testFail": "The token was rejected.",
+      "save": "Save"
     }
   },
   "login": {
@@ -522,7 +532,11 @@
   "refresh": {
     "newArticles_one": "{{count}} new article",
     "newArticles_other": "{{count}} new articles",
-    "upToDate": "Up to date"
+    "upToDate": "Up to date",
+    "inProgress": "Refreshing feeds…",
+    "failed": "The refresh failed",
+    "incomplete": "Refresh unfinished",
+    "enable": "Enable feed refreshing"
   },
   "saved": {
     "fileInto": "File into",
