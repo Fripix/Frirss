@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
+import { useFeedStore } from '../../stores/feedStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import {
   getServers,
@@ -38,6 +39,8 @@ export default function ServerSwitcher() {
     try {
       const list = await getServers();
       setServers(list);
+      const active = list.find((s) => String(s.id) === String(useAuthStore.getState().activeServerId));
+      useFeedStore.getState().setHasRefreshToken(!!active?.has_refresh_token);
       return list;
     } catch {
       return servers;

@@ -32,6 +32,8 @@ import {
 import { collectImageUrls, imageBudget, prioritizeForOffline } from '../lib/offlineImages';
 import { getStorageEstimate } from '../lib/storageEstimate';
 import { cacheImages } from '../lib/imageCache';
+import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
+import { startActualize, getActualizeStatus } from '../api/backend';
 import type {
   Article,
   Subscription,
@@ -319,6 +321,11 @@ export interface FeedState {
   // few seconds by the banner.
   refreshResult: { totalNew: number; newByFeed: Record<string, number>; at: number } | null;
   clearRefreshResult: () => void;
+  /** Phase of a real (server-side) feed refresh; 'idle' when none is running. */
+  refreshPhase: RefreshPhase;
+  /** Whether the active server has a master token configured. */
+  hasRefreshToken: boolean;
+  setHasRefreshToken: (v: boolean) => void;
   /** Actions made offline, waiting for the network. */
   pendingActions: number;
   /** Actions given up on after repeated failures, since the last replay. */
@@ -368,6 +375,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   loading: false,
   loadingMore: false,
   refreshResult: null,
+  refreshPhase: 'idle',
+  hasRefreshToken: false,
   pendingActions: 0,
   failedActions: 0,
   searchQuery: '',
@@ -1260,14 +1269,61 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     } catch { /* ignore */ }
   },
 
+  setHasRefreshToken: (v: boolean) => set({ hasRefreshToken: v }),
+
   refresh: async () => {
     // Snapshot per-feed unread counts before the reload, so we can report how
     // many new articles arrived and in which feeds (see RefreshBanner + pulse).
     const before = { ...get().unreadCounts };
+
+    const serverId = useAuthStore.getState().activeServerId;
+    const wantsReal = shouldTriggerRealRefresh(get().hasRefreshToken, serverId);
+
+    if (!wantsReal) {
+      // Read-only sync: exactly the pre-existing behaviour.
+      await get().loadSubscriptions();
+      await get().loadArticles();
+      const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);
+      set({ refreshResult: { totalNew, newByFeed, at: Date.now() } });
+      return;
+    }
+
+    const job = await startActualize(Number(serverId)).catch(() => null);
+    if (!job) {
+      // No token after all (409) or the call failed — fall back to a plain sync
+      // rather than leaving the user with nothing.
+      set({ hasRefreshToken: false });
+      await get().loadSubscriptions();
+      await get().loadArticles();
+      const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);
+      set({ refreshResult: { totalNew, newByFeed, at: Date.now() } });
+      return;
+    }
+
+    const startedAt = Date.now();
+    set({ refreshPhase: 'running' });
+
+    let phase: RefreshPhase = 'running';
+    while (phase === 'running') {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      // Counters first: this is what makes articles appear as they arrive.
+      await get().syncCounts();
+      const status = await getActualizeStatus(Number(serverId)).catch(() => null);
+      phase = nextPhase(status?.status, startedAt, Date.now());
+      set({
+        refreshPhase: phase,
+        refreshResult: {
+          ...computeRefreshDelta(before, get().unreadCounts),
+          at: Date.now(),
+        },
+      });
+    }
+
+    // Final load once the job resolved, so the visible list matches the counters.
     await get().loadSubscriptions();
     await get().loadArticles();
     const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);
-    set({ refreshResult: { totalNew, newByFeed, at: Date.now() } });
+    set({ refreshResult: { totalNew, newByFeed, at: Date.now() }, refreshPhase: phase });
   },
 
   replayQueue: async () => {
