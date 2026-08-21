@@ -66,10 +66,16 @@ export default function RefreshTab() {
     if (activeServerId == null) return;
     setTest('testing');
     try {
+      // Test the value currently in the field, not the stored token: a user
+      // who pastes a freshly-rotated token and hits Test before Save must not
+      // get a rejection about the token they're replacing. An edited field
+      // left empty means "clear on Save" — for Test that falls back to the
+      // stored token rather than sending an empty one.
+      const testToken = edited && token !== '' ? token : undefined;
       // maxFeeds=1: proves the token is accepted without starting a full sweep.
       // kind 'test': its own job slot, so a sweep already in flight can't be
       // handed back here and time out as "token rejected".
-      const job = await startActualize(Number(activeServerId), 'test', 1);
+      const job = await startActualize(Number(activeServerId), 'test', 1, testToken);
       if (!job) {
         setTest('fail');
         return;
@@ -148,7 +154,12 @@ export default function RefreshTab() {
         <button
           type="button"
           onClick={runTest}
-          disabled={!configured || saving || test === 'testing'}
+          // Enabled when there's a token to test — stored, or currently
+          // typed in the field. Gating on `configured` alone trapped a user
+          // who pasted a replacement token: Test stayed bound to the old
+          // stored one until Save, so verifying-before-committing was
+          // impossible.
+          disabled={(!configured && token === '') || saving || test === 'testing'}
           className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5 disabled:opacity-50"
           style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
         >

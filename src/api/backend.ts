@@ -123,17 +123,23 @@ export type RefreshKind = 'refresh' | 'test';
  * Trigger a real feed refresh. Returns null ONLY on 409 (no master token
  * configured); every other failure throws, so a transient error is never
  * mistaken for a missing token.
+ *
+ * `token`, when given, is a one-shot value tested in place of the server's
+ * stored token — the backend honours it only for kind 'test' and never
+ * persists it. It lets Preferences' "Test" button verify a token that was
+ * just typed but not yet saved.
  */
 export async function startActualize(
   id: number,
   kind: RefreshKind = 'refresh',
   maxFeeds?: number,
+  token?: string,
 ): Promise<ActualizeJob | null> {
   try {
-    const { data } = await backend.post<{ job: ActualizeJob }>(
-      `/servers/${id}/actualize`,
-      maxFeeds === undefined ? { kind } : { kind, maxFeeds },
-    );
+    const body: Record<string, unknown> = { kind };
+    if (maxFeeds !== undefined) body.maxFeeds = maxFeeds;
+    if (token !== undefined) body.token = token;
+    const { data } = await backend.post<{ job: ActualizeJob }>(`/servers/${id}/actualize`, body);
     return data.job;
   } catch (err) {
     if ((err as { response?: { status?: number } }).response?.status === 409) return null;

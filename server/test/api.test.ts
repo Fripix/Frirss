@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import request from 'supertest';
 import app from '../index.js';
+import db from '../db.js';
 import { encrypt, decrypt } from '../crypto.js';
 import { cacheEnabled, cacheGet, trimStreamJson } from '../cache.js';
+import { redactUrl } from '../routes/proxy.js';
 
 // The actualize route now goes through fetchUpstream, which resolves the
 // target host before allowing the request (SSRF guard). The fictional
@@ -469,6 +471,136 @@ describe('servers actualize', () => {
     // Clamped to the operator's lowered ceiling (50), not the compiled-in
     // default (1000) that the un-set-env test above already covers.
     expect(params.get('maxFeeds')).toBe('50');
+  });
+
+  describe('one-shot test token', () => {
+    it('uses a supplied token for kind=test instead of the stored one, and never persists it', async () => {
+      const add = await request(app).post('/api/servers')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'OneShotTest', url: 'https://rss13.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+      const id = add.body.server.id;
+      await request(app).put(`/api/servers/${id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ refreshToken: 'stored-master-tok' });
+
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const res = await request(app).post(`/api/servers/${id}/actualize`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ kind: 'test', maxFeeds: 1, token: 'freshly-typed-tok' });
+      expect(res.status).toBe(202);
+
+      const [calledUrl] = fetchMock.mock.calls[0];
+      const params = new URL(calledUrl as string).searchParams;
+      // The typed token reached the outgoing request, not the stored one.
+      expect(params.get('token')).toBe('freshly-typed-tok');
+      await tick();
+
+      // Re-read the row directly: the stored token must be exactly what it
+      // was before this call, never overwritten by the one-shot value.
+      const row = db.prepare('SELECT refresh_token FROM servers WHERE id = ?').get(id) as { refresh_token: string };
+      expect(decrypt(row.refresh_token)).toBe('stored-master-tok');
+    });
+
+    it('lets a supplied test token succeed even when no token is stored at all', async () => {
+      const add = await request(app).post('/api/servers')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'OneShotNoStored', url: 'https://rss14.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+      const id = add.body.server.id;
+      // No PUT with refreshToken: this server has no stored master token.
+
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const res = await request(app).post(`/api/servers/${id}/actualize`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ kind: 'test', maxFeeds: 1, token: 'unsaved-tok' });
+      // Would be 409 (no_refresh_token) without the one-shot-token fallback.
+      expect(res.status).toBe(202);
+
+      const [calledUrl] = fetchMock.mock.calls[0];
+      const params = new URL(calledUrl as string).searchParams;
+      expect(params.get('token')).toBe('unsaved-tok');
+    });
+
+    it('ignores a supplied token for kind=refresh and uses the stored one', async () => {
+      const add = await request(app).post('/api/servers')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'OneShotIgnoredOnRefresh', url: 'https://rss15.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+      const id = add.body.server.id;
+      await request(app).put(`/api/servers/${id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ refreshToken: 'stored-master-tok-2' });
+
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const res = await request(app).post(`/api/servers/${id}/actualize`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ kind: 'refresh', token: 'should-be-ignored' });
+      expect(res.status).toBe(202);
+
+      const [calledUrl] = fetchMock.mock.calls[0];
+      const params = new URL(calledUrl as string).searchParams;
+      expect(params.get('token')).toBe('stored-master-tok-2');
+    });
+
+    it('rejects an empty or oversized test token instead of forwarding it', async () => {
+      const add = await request(app).post('/api/servers')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'OneShotInvalid', url: 'https://rss16.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+      const id = add.body.server.id;
+      await request(app).put(`/api/servers/${id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ refreshToken: 'stored-master-tok-3' });
+
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const empty = await request(app).post(`/api/servers/${id}/actualize`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ kind: 'test', token: '' });
+      expect(empty.status).toBe(400);
+      expect(empty.body.error).toBe('invalid_token');
+
+      const oversized = await request(app).post(`/api/servers/${id}/actualize`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ kind: 'test', token: 'x'.repeat(2000) });
+      expect(oversized.status).toBe(400);
+      expect(oversized.body.error).toBe('invalid_token');
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('never leaks a supplied test token into a failed job error', async () => {
+      const add = await request(app).post('/api/servers')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: 'OneShotFailRedact', url: 'https://rss17.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+      const id = add.body.server.id;
+
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(
+        new Error('connect ECONNREFUSED while GETting token=one-shot-secret to upstream')
+      ));
+
+      await request(app).post(`/api/servers/${id}/actualize`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ kind: 'test', token: 'one-shot-secret' });
+      await tick();
+
+      const status = await request(app).get(`/api/servers/${id}/actualize`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .query({ kind: 'test' });
+      expect(status.body.job.status).toBe('failed');
+      expect(status.body.job.error).not.toContain('one-shot-secret');
+      expect(status.body.job.error).toContain('«redacted»');
+    });
+
+    it('redacts a supplied test token from a logged URL just like the stored one', () => {
+      const url = redactUrl('https://rss.example.com/i/?c=feed&a=actualize&user=alice&token=one-shot-secret&maxFeeds=1&ajax=1');
+      expect(url).not.toContain('one-shot-secret');
+      expect(url).toContain('token=REDACTED');
+    });
   });
 });
 

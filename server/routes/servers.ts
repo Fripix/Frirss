@@ -8,6 +8,12 @@ import { fetchUpstream } from './proxy.js';
 
 const router = Router();
 
+// FreshRSS's master token is a free-text field with no generator and no
+// documented format — but it is still a token, not a document. This just
+// keeps an obviously-wrong client payload from being handed straight to the
+// outgoing request.
+const MAX_TEST_TOKEN_LENGTH = 1024;
+
 interface ServerRow {
   id: number;
   user_id: number;
@@ -169,8 +175,26 @@ router.post('/:id/actualize', (req, res) => {
   const kind = req.body?.kind ?? 'refresh';
   if (!isRefreshKind(kind)) return res.status(400).json({ error: 'invalid_kind' });
 
-  const token = decrypt(server.refresh_token);
-  if (!token) return res.status(409).json({ error: 'no_refresh_token' });
+  // Preferences' "Test" button can supply a one-shot token: the value
+  // currently typed in the field, which may not be saved yet. Without this,
+  // Test could only ever exercise the STORED token, so a user who pastes a
+  // freshly-rotated token and hits Test before Save gets a rejection about
+  // the token they're in the middle of replacing. Honoured ONLY for 'test' —
+  // a real refresh always uses the stored token, no exceptions, even though
+  // a client can only ever target their own server. Never persisted, never
+  // logged: it lives only for the lifetime of this request/job.
+  let token: string;
+  if (kind === 'test' && req.body?.token !== undefined) {
+    const supplied = req.body.token;
+    if (typeof supplied !== 'string' || supplied.length === 0 || supplied.length > MAX_TEST_TOKEN_LENGTH) {
+      return res.status(400).json({ error: 'invalid_token' });
+    }
+    token = supplied;
+  } else {
+    const stored = decrypt(server.refresh_token);
+    if (!stored) return res.status(409).json({ error: 'no_refresh_token' });
+    token = stored;
+  }
 
   // Clamp to the operator's ceiling, not to the compiled-in default: an admin
   // who lowered FRIRSS_REFRESH_MAX_FEEDS to spread a first sweep must not be
