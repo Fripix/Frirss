@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -12,6 +12,34 @@ import AppearanceTab from './AppearanceTab';
 import { COLOR_HIGHLIGHT_MAP } from './colorHighlight';
 
 interface HighlightRect { top: number; left: number; width: number; height: number }
+
+/**
+ * Builds a CSS mask that covers the full viewport except the given rects —
+ * a spotlight. Base layer covers everything; each rect layer is subtracted
+ * from it via `mask-composite: exclude` (standard) / `-webkit-mask-composite:
+ * xor` (Safari's older syntax, same result for non-overlapping rects). This
+ * keeps the dim overlay off both the panel and the highlighted element,
+ * instead of just cutting the panel out of it.
+ */
+function spotlightMask(rects: HighlightRect[]): CSSProperties {
+  const images = ['linear-gradient(#fff, #fff)', ...rects.map(() => 'linear-gradient(#fff, #fff)')];
+  const sizes = ['100% 100%', ...rects.map((r) => `${r.width}px ${r.height}px`)];
+  const positions = ['0 0', ...rects.map((r) => `${r.left}px ${r.top}px`)];
+  const composite = ['add', ...rects.map(() => 'exclude')];
+  const webkitComposite = ['source-over', ...rects.map(() => 'xor')];
+  return {
+    maskImage: images.join(', '),
+    maskSize: sizes.join(', '),
+    maskPosition: positions.join(', '),
+    maskRepeat: 'no-repeat',
+    maskComposite: composite.join(', '),
+    WebkitMaskImage: images.join(', '),
+    WebkitMaskSize: sizes.join(', '),
+    WebkitMaskPosition: positions.join(', '),
+    WebkitMaskRepeat: 'no-repeat',
+    WebkitMaskComposite: webkitComposite.join(', '),
+  };
+}
 
 export default function Preferences() {
   const {
@@ -95,11 +123,17 @@ export default function Preferences() {
         if (e.key === 'Escape') closePreferences();
       }}
     >
-      {/* Dim overlay — darkens everything except highlighted areas */}
+      {/* Dim overlay — a spotlight: darkens everything except the panel
+          (which sits above it via z-index) and the highlighted rects (cut
+          out of the dim via a CSS mask), so neither is darkened. */}
       {highlightRects.length > 0 && (
         <div
           className="fixed inset-0 pointer-events-none z-[48]"
-          style={{ background: 'rgba(0, 0, 0, 0.15)', transition: 'opacity 0.2s' }}
+          style={{
+            background: 'rgba(0, 0, 0, 0.15)',
+            transition: 'opacity 0.2s',
+            ...spotlightMask(highlightRects),
+          }}
         />
       )}
       {/* Highlight overlays for color keys */}
@@ -143,7 +177,7 @@ export default function Preferences() {
         aria-modal="true"
         aria-label={t('preferences.title')}
         tabIndex={-1}
-        className="h-full shadow-2xl flex flex-col overflow-hidden outline-none"
+        className="relative z-[51] h-full shadow-2xl flex flex-col overflow-hidden outline-none"
         style={{
           background: 'var(--panel-bg)',
           borderLeft: '1px solid var(--panel-border)',
