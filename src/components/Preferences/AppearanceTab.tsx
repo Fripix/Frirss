@@ -394,25 +394,27 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
         )}
       </label>
       <div className="flex items-center gap-1 flex-shrink-0">
-        {/* Remise à zéro — visible dès que la couleur est modifiée, sur tous
-            les appareils : un utilisateur qui ne survole jamais (doigt) ou ne
-            s'attarde pas (souris) doit quand même la voir. Discrète (opacité
-            réduite) plutôt que cachée, pour rester une action secondaire. */}
-        {isModified && (
-          <button
-            /* La ligne entière épingle la couleur : sans cette coupure, une
-               remise à zéro épinglerait aussi, au moment où l'on vient de jeter
-               la valeur. */
-            onClick={(e) => { e.stopPropagation(); onReset?.(); }}
-            className="p-0.5 rounded transition-all opacity-60 hover:opacity-100 hover:bg-black/5"
-            style={{ color: 'var(--list-summary)' }}
-            title={t('preferences.colors.resetTooltip')}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-            </svg>
-          </button>
-        )}
+        {/* Remise à zéro — toujours rendue, sur tous les appareils, pour que
+            l'affordance soit repérable même sur un thème encore intact (36
+            lignes sans un seul indice, sinon). Désactivée et très effacée
+            tant que la couleur n'a pas bougé, pleine opacité dès qu'elle
+            diffère — l'état visuel ne ment jamais sur ce qu'un clic ferait. */}
+        <button
+          /* La ligne entière épingle la couleur : sans cette coupure, une
+             remise à zéro épinglerait aussi, au moment où l'on vient de jeter
+             la valeur. */
+          onClick={(e) => { e.stopPropagation(); onReset?.(); }}
+          disabled={!isModified}
+          className={`p-0.5 rounded transition-all ${
+            isModified ? 'opacity-60 hover:opacity-100 hover:bg-black/5' : 'opacity-20 cursor-default'
+          }`}
+          style={{ color: 'var(--list-summary)' }}
+          title={t('preferences.colors.resetTooltip')}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+          </svg>
+        </button>
         <div className="relative">
           <input
             type="color"
