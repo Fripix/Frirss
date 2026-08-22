@@ -11,7 +11,7 @@ type TestState = 'idle' | 'testing' | 'ok' | 'fail';
  * write-only from here: the backend never sends its value back, only whether
  * one is set (`has_refresh_token`).
  */
-export default function RefreshTab() {
+export default function FeedsTab() {
   const { t } = useTranslation();
   const activeServerId = useAuthStore((s) => s.activeServerId);
   const setHasRefreshToken = useFeedStore((s) => s.setHasRefreshToken);

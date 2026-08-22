@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
-import RefreshTab from './RefreshTab';
+import FeedsTab from './FeedsTab';
 import AdminTab from './AdminTab';
 import OfflineTab from './OfflineTab';
 import LabelsTab from './LabelsTab';
@@ -248,7 +248,7 @@ export default function Preferences() {
 
           {tab === 'appearance' && <AppearanceTab onHighlight={setHighlightKey} />}
           {tab === 'labels' && <LabelsTab resetLabelColors={resetLabelColors} />}
-          {tab === 'feeds' && <RefreshTab />}
+          {tab === 'feeds' && <FeedsTab />}
           {tab === 'offline' && <OfflineTab />}
 
           {tab === 'admin' && isAdmin && <AdminTab />}
