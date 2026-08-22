@@ -4,8 +4,8 @@ import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { TabResetButton } from './TabResetButton';
-import ThemePreview, { PREVIEW_ZONES } from './ThemePreview';
-import { hasRealHighlight } from './colorHighlight';
+import ThemePreview from './ThemePreview';
+import { hasRealHighlight, PREVIEW_ZONES } from './colorHighlight';
 
 type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
 

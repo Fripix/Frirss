@@ -1,34 +1,14 @@
 import { useTranslation } from 'react-i18next';
+import { PREVIEW_ZONES } from './colorHighlight';
 
 /**
  * Miniature de FriRSS, recomposée en direct par les variables CSS du thème.
  *
- * Elle complète l'encadrement de l'élément réel (COLOR_HIGHLIGHT_MAP dans la
- * coque) sans le remplacer : celui-ci répond à « où », celle-ci à « de quoi ça
- * aura l'air ». Elle couvre notamment `accent` et `accent-dark`, que
- * l'encadrement réel ne sait pas montrer (trop d'éléments concernés).
- *
- * Règle de conception : ne rien éteindre autour de la zone visée. Une version
- * qui assombrissait le reste a été jugée illisible — on perd le contexte au
- * moment où on en a besoin. Un anneau et une étiquette suffisent.
+ * Elle complète l'encadrement de l'élément réel (COLOR_HIGHLIGHT_MAP dans
+ * colorHighlight.ts, lu par la coque) sans le remplacer : celui-ci répond à
+ * « où », celle-ci à « de quoi ça aura l'air ». Les zones qu'elle sait
+ * désigner sont listées dans `PREVIEW_ZONES`, à côté de cette carte.
  */
-export const PREVIEW_ZONES: Record<string, string> = {
-  'sidebar-bg': 'sidebar-bg',
-  'sidebar-header-from': 'sidebar-header',
-  'sidebar-header-to': 'sidebar-header',
-  'sidebar-text': 'sidebar-text',
-  'sidebar-text-active': 'sidebar-text-active',
-  accent: 'accent',
-  'accent-dark': 'sidebar-header',
-  'panel-bg': 'panel-bg',
-  'list-selected': 'list-selected',
-  'list-source': 'list-source',
-  'list-title': 'list-title',
-  'list-summary': 'list-summary',
-  'reading-title': 'reading-title',
-  'reading-text': 'reading-text',
-};
-
 export default function ThemePreview({ focusedKey }: { focusedKey: string | null }) {
   const { t } = useTranslation();
   const zone = focusedKey ? PREVIEW_ZONES[focusedKey] : undefined;

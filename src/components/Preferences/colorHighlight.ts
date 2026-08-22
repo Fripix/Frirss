@@ -44,3 +44,31 @@ export const COLOR_HIGHLIGHT_MAP: Record<string, string | null> = {
 export function hasRealHighlight(key: string): boolean {
   return COLOR_HIGHLIGHT_MAP[key] != null;
 }
+
+/**
+ * Zones de la miniature `ThemePreview` — le pendant de `COLOR_HIGHLIGHT_MAP`
+ * pour l'aperçu plutôt que pour l'interface réelle : celle-ci répond à « où »,
+ * celle-là à « de quoi ça aura l'air ». Elle couvre notamment `accent` et
+ * `accent-dark`, que l'encadrement réel ne sait pas montrer (trop d'éléments
+ * concernés).
+ *
+ * Règle de conception : ne rien éteindre autour de la zone visée. Une version
+ * qui assombrissait le reste a été jugée illisible — on perd le contexte au
+ * moment où on en a besoin. Un anneau et une étiquette suffisent.
+ */
+export const PREVIEW_ZONES: Record<string, string> = {
+  'sidebar-bg': 'sidebar-bg',
+  'sidebar-header-from': 'sidebar-header',
+  'sidebar-header-to': 'sidebar-header',
+  'sidebar-text': 'sidebar-text',
+  'sidebar-text-active': 'sidebar-text-active',
+  accent: 'accent',
+  'accent-dark': 'sidebar-header',
+  'panel-bg': 'panel-bg',
+  'list-selected': 'list-selected',
+  'list-source': 'list-source',
+  'list-title': 'list-title',
+  'list-summary': 'list-summary',
+  'reading-title': 'reading-title',
+  'reading-text': 'reading-text',
+};
