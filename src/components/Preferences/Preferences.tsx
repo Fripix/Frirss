@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import FeedsTab from './FeedsTab';
 import AdminTab from './AdminTab';
 import OfflineTab from './OfflineTab';
@@ -24,14 +25,18 @@ export default function Preferences() {
   } = useThemeStore();
   const preferencesOpenId = useThemeStore((s) => s.preferencesOpenId);
 
+  const isMobile = useBreakpoint() === 'mobile';
   const [tab, setTab] = useState<string>(preferencesTab || 'general');
+  const [showNav, setShowNav] = useState(true);
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [highlightRects, setHighlightRects] = useState<HighlightRect[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Reset tab every time preferences are opened (preferencesOpenId changes each open)
+  // Reset tab (and the mobile drill-down) every time preferences are opened
+  // (preferencesOpenId changes each open)
   useEffect(() => {
     setTab(preferencesTab || 'general');
+    setShowNav(true);
   }, [preferencesTab, preferencesOpenId]);
 
   // A11y: move focus into the dialog when it opens (keyboard / screen readers)
@@ -146,13 +151,13 @@ export default function Preferences() {
           // sections. L'ancien `fit-content` faisait épouser au panneau la
           // largeur de sa barre d'onglets, si bien que chaque onglet ajouté
           // l'élargissait.
-          width: 'min(92vw, 680px)',
-          maxWidth: '92vw',
+          width: isMobile ? '100vw' : 'min(92vw, 680px)',
+          maxWidth: '100vw',
         }}
       >
         {/* Header */}
         <div
-          className="px-5 py-3 flex items-center justify-between flex-shrink-0"
+          className="prefs-panel-head px-5 py-3 flex items-center justify-between flex-shrink-0"
           style={{ borderBottom: '1px solid var(--panel-border)' }}
         >
           <div className="flex items-center gap-3">
@@ -204,18 +209,19 @@ export default function Preferences() {
           </div>
         </div>
 
-        <div className="flex-1 flex min-h-0">
+        <div className="prefs-panel-body flex-1 flex min-h-0">
           <nav
-            className="w-[178px] flex-shrink-0 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5"
-            style={{ borderRight: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}
+            hidden={isMobile && !showNav}
+            className={`${isMobile ? 'w-full' : 'w-[178px]'} flex-shrink-0 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5`}
+            style={{ borderRight: isMobile ? undefined : '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}
             aria-label={t('preferences.title')}
           >
             {sections.map((s) => (
               <button
                 key={s.id}
-                onClick={() => setTab(s.id)}
+                onClick={() => { setTab(s.id); if (isMobile) setShowNav(false); }}
                 aria-current={tab === s.id ? 'page' : undefined}
-                className="text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors"
+                className="flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors max-md:min-h-[44px]"
                 style={{
                   background: tab === s.id ? 'var(--accent)' : 'transparent',
                   color: tab === s.id ? '#ffffff' : 'var(--list-title)',
@@ -229,9 +235,9 @@ export default function Preferences() {
               <>
                 <div className="h-px mx-2 mt-2.5 mb-0.5" style={{ background: 'var(--panel-border)' }} />
                 <button
-                  onClick={() => setTab('admin')}
+                  onClick={() => { setTab('admin'); if (isMobile) setShowNav(false); }}
                   aria-current={tab === 'admin' ? 'page' : undefined}
-                  className="text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors"
+                  className="flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors max-md:min-h-[44px]"
                   style={{
                     background: tab === 'admin' ? 'var(--accent)' : 'transparent',
                     color: tab === 'admin' ? '#ffffff' : 'var(--list-title)',
@@ -243,7 +249,19 @@ export default function Preferences() {
               </>
             )}
           </nav>
-          <div className="flex-1 overflow-y-auto px-5 py-4 min-w-0">
+          <div hidden={isMobile && showNav} className="flex-1 overflow-y-auto px-5 py-4 min-w-0">
+            {isMobile && (
+              <button
+                onClick={() => setShowNav(true)}
+                className="flex items-center gap-1.5 mb-3 text-xs min-h-[44px]"
+                style={{ color: 'var(--list-summary)' }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                {t('preferences.nav.back')}
+              </button>
+            )}
           {tab === 'general' && <GeneralTab />}
 
           {tab === 'appearance' && <AppearanceTab onHighlight={setHighlightKey} />}

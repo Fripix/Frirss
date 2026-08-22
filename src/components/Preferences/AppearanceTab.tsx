@@ -356,7 +356,7 @@ function ColorRow({ label, value, onChange, colorKey, onHighlight, isModified, o
 
   return (
     <div
-      className="group flex items-center gap-2 py-1 px-1.5 -mx-1.5 rounded-md transition-colors hover:bg-black/[.03]"
+      className="group flex items-center gap-2 py-1 px-1.5 -mx-1.5 rounded-md transition-colors hover:bg-black/[.03] max-md:min-h-[44px]"
       style={{ background: pinned ? 'var(--accent-glow)' : undefined }}
       onMouseEnter={() => { onFocus(colorKey); onHighlight?.(colorKey); }}
       onMouseLeave={() => { onFocus(null); onHighlight?.(null); }}
@@ -387,7 +387,7 @@ function ColorRow({ label, value, onChange, colorKey, onHighlight, isModified, o
             type="color"
             value={value?.startsWith('#') ? value : '#000000'}
             onChange={handlePickerChange}
-            className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+            className="w-6 h-6 max-md:w-[44px] max-md:h-[44px] rounded cursor-pointer border-0 p-0"
             style={{ background: 'none' }}
           />
         </div>

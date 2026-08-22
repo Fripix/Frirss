@@ -988,3 +988,18 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .preview-zone { transition: none; }
 }
+
+/* Le panneau couvre tout l'écran sur téléphone : il doit dégager l'encoche en
+   haut et l'indicateur d'accueil en bas. Le dépôt possède déjà cet idiome pour
+   la barre latérale et l'en-tête de liste — on le réutilise. */
+@media (max-width: 767px) {
+  .prefs-panel-head { padding-top: max(0.75rem, env(safe-area-inset-top)); }
+  .prefs-panel-body { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* The mobile drill-down toggles the nav / content panes via the `hidden`
+   attribute, but both panes also carry a Tailwind `flex`/`flex-1` display
+   utility. Preflight's `[hidden]` rule sits earlier in the cascade than the
+   utilities layer, so `.flex` would otherwise win and keep a "hidden" pane
+   visible. Raise specificity here rather than hiding this globally. */
+.prefs-panel-body > [hidden] { display: none; }

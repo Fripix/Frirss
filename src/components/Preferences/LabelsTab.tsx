@@ -640,7 +640,7 @@ function LabelRow({
 
       {/* Row content */}
       <div
-        className={`flex items-center gap-1.5 py-1.5 px-2 rounded-md group transition-all ${
+        className={`flex items-center gap-1.5 py-1.5 px-2 rounded-md group transition-all max-md:min-h-[44px] ${
           isDragging ? 'opacity-30 scale-95' : isDropOnto ? 'ring-2' : 'hover:bg-black/[.03]'
         }`}
         style={isDropOnto ? ({
@@ -875,7 +875,7 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
           {/* Hex input + native picker */}
           <div className="flex items-center gap-2">
             <div
-              className="w-7 h-7 rounded-md border flex-shrink-0 relative overflow-hidden cursor-pointer"
+              className="w-7 h-7 max-md:w-[44px] max-md:h-[44px] rounded-md border flex-shrink-0 relative overflow-hidden cursor-pointer"
               style={{
                 background: color || effectiveColor || '#4cd4a1',
                 borderColor: 'rgba(0,0,0,0.1)',
