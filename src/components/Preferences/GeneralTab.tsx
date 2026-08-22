@@ -204,12 +204,15 @@ export default function GeneralTab() {
             { keyLabel: t('preferences.shortcuts.keyDoubleClick'), label: t('preferences.shortcuts.doubleClickFocus') },
             { keyLabel: t('preferences.shortcuts.keyHold'), label: t('preferences.shortcuts.holdToFile') },
           ].map(({ keyLabel, label }) => (
-            <div key={label} className="flex items-center justify-between py-1.5 px-2 rounded-md">
-              <span className="text-xs" style={{ color: 'var(--reading-text)' }}>
+            // items-start (not center): the label can wrap to two lines in
+            // several locales, and centering would leave the badge sitting
+            // off to the side instead of level with the first line.
+            <div key={label} className="flex items-start justify-between gap-3 py-1.5 px-2 rounded-md">
+              <span className="text-xs flex-1 min-w-0 leading-relaxed" style={{ color: 'var(--reading-text)' }}>
                 {label}
               </span>
               <span
-                className="min-w-[60px] text-center text-xs font-mono px-3 py-1 rounded-md"
+                className="flex-shrink-0 whitespace-nowrap text-center text-xs font-mono px-3 py-1 rounded-md"
                 style={{
                   border: '1px solid var(--panel-border)',
                   color: 'var(--list-summary)',
