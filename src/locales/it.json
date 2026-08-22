@@ -372,7 +372,11 @@
       "previewHint": "Passa sopra o tocca un colore: la sua zona viene cerchiata nell'anteprima.",
       "previewReal": "Evidenziato sull'elemento reale, dietro il pannello.",
       "previewPreviewOnly": "Troppi elementi per evidenziarlo nell'interfaccia. L'anteprima lo mostra.",
-      "previewNeither": "Né l'anteprima né l'interfaccia possono indicarlo. L'impostazione funziona comunque."
+      "previewNeither": "Né l'anteprima né l'interfaccia possono indicarlo. L'impostazione funziona comunque.",
+      "previewSource": "Feed di esempio",
+      "previewTitle": "Titolo di esempio dell'articolo",
+      "previewSummary": "Questa riga di riepilogo mostra l'effetto delle modifiche alle dimensioni.",
+      "previewBody": "Il corpo del testo segue il cursore della dimensione di lettura."
     },
     "nav": {
       "back": "Sezioni"

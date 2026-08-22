@@ -372,7 +372,11 @@
       "previewHint": "Hover or tap a colour: its area is ringed in the preview.",
       "previewReal": "Outlined on the real element, behind the panel.",
       "previewPreviewOnly": "Too many elements to outline in the interface. The preview shows it.",
-      "previewNeither": "Neither the preview nor the interface can point at it. The setting still works."
+      "previewNeither": "Neither the preview nor the interface can point at it. The setting still works.",
+      "previewSource": "Sample feed",
+      "previewTitle": "Sample article title",
+      "previewSummary": "This summary line shows how size changes affect it.",
+      "previewBody": "Body text follows the reading size slider."
     },
     "nav": {
       "back": "Sections"

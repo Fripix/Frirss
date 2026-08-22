@@ -372,7 +372,11 @@
       "previewHint": "Pasa el cursor o toca un color: su zona se resalta en la vista previa.",
       "previewReal": "Marcado en el elemento real, detrás del panel.",
       "previewPreviewOnly": "Demasiados elementos para marcarlo en la interfaz. La vista previa sí lo muestra.",
-      "previewNeither": "Ni la vista previa ni la interfaz pueden señalarlo. El ajuste funciona igualmente."
+      "previewNeither": "Ni la vista previa ni la interfaz pueden señalarlo. El ajuste funciona igualmente.",
+      "previewSource": "Feed de ejemplo",
+      "previewTitle": "Título de artículo de ejemplo",
+      "previewSummary": "Esta línea de resumen muestra el efecto de los cambios de tamaño.",
+      "previewBody": "El cuerpo del texto sigue el control deslizante de tamaño de lectura."
     },
     "nav": {
       "back": "Secciones"

@@ -372,7 +372,11 @@
       "previewHint": "Passe o cursor ou toque numa cor: a zona é destacada na pré-visualização.",
       "previewReal": "Contornado no elemento real, atrás do painel.",
       "previewPreviewOnly": "Demasiados elementos para contornar na interface. A pré-visualização mostra-a.",
-      "previewNeither": "Nem a pré-visualização nem a interface a conseguem apontar. A definição funciona à mesma."
+      "previewNeither": "Nem a pré-visualização nem a interface a conseguem apontar. A definição funciona à mesma.",
+      "previewSource": "Feed de exemplo",
+      "previewTitle": "Título de artigo de exemplo",
+      "previewSummary": "Esta linha de resumo mostra o efeito das alterações de tamanho.",
+      "previewBody": "O corpo do texto segue o cursor de tamanho de leitura."
     },
     "nav": {
       "back": "Secções"

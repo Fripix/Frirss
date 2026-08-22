@@ -372,7 +372,11 @@
       "previewHint": "Farbe überfahren oder antippen: Ihr Bereich wird in der Vorschau umrandet.",
       "previewReal": "Am echten Element hinter dem Panel hervorgehoben.",
       "previewPreviewOnly": "Zu viele Elemente für eine Hervorhebung in der Oberfläche. Die Vorschau zeigt sie.",
-      "previewNeither": "Weder Vorschau noch Oberfläche können darauf zeigen. Die Einstellung wirkt trotzdem."
+      "previewNeither": "Weder Vorschau noch Oberfläche können darauf zeigen. Die Einstellung wirkt trotzdem.",
+      "previewSource": "Beispiel-Feed",
+      "previewTitle": "Beispiel-Artikeltitel",
+      "previewSummary": "Diese Zusammenfassungszeile zeigt die Wirkung von Größenänderungen.",
+      "previewBody": "Der Fließtext folgt dem Schieberegler für die Lesegröße."
     },
     "nav": {
       "back": "Bereiche"

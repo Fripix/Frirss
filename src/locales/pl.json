@@ -376,7 +376,11 @@
       "previewHint": "Najedź lub dotknij koloru: jego obszar zostanie obwiedziony w podglądzie.",
       "previewReal": "Wyróżnione na rzeczywistym elemencie, za panelem.",
       "previewPreviewOnly": "Zbyt wiele elementów, by wyróżnić je w interfejsie. Podgląd je pokazuje.",
-      "previewNeither": "Ani podgląd, ani interfejs nie mogą go wskazać. Ustawienie i tak działa."
+      "previewNeither": "Ani podgląd, ani interfejs nie mogą go wskazać. Ustawienie i tak działa.",
+      "previewSource": "Przykładowy kanał",
+      "previewTitle": "Przykładowy tytuł artykułu",
+      "previewSummary": "Ten wiersz podsumowania pokazuje wpływ zmian rozmiaru.",
+      "previewBody": "Treść tekstu podąża za suwakiem rozmiaru czytania."
     },
     "nav": {
       "back": "Sekcje"

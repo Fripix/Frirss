@@ -372,7 +372,11 @@
       "previewHint": "Beweeg over of tik op een kleur: het gebied wordt omcirkeld in het voorbeeld.",
       "previewReal": "Gemarkeerd op het echte element, achter het paneel.",
       "previewPreviewOnly": "Te veel elementen om in de interface te markeren. Het voorbeeld toont het wel.",
-      "previewNeither": "Noch het voorbeeld noch de interface kan het aanwijzen. De instelling werkt gewoon."
+      "previewNeither": "Noch het voorbeeld noch de interface kan het aanwijzen. De instelling werkt gewoon.",
+      "previewSource": "Voorbeeldfeed",
+      "previewTitle": "Voorbeeldtitel van artikel",
+      "previewSummary": "Deze samenvattingsregel toont het effect van formaatwijzigingen.",
+      "previewBody": "De hoofdtekst volgt de schuifregelaar voor leesgrootte."
     },
     "nav": {
       "back": "Secties"
