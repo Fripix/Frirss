@@ -603,12 +603,18 @@ html {
 
 /* ── Touch devices: comfortable tap targets for buttons ──────────── */
 /* Article rows are <div>; their inline action buttons stay compact to
-   preserve the dense list layout. */
+   preserve the dense list layout. The label colour grid is exempted for a
+   different reason: it's 8 fixed columns in a 220px popover, so stretching
+   each swatch to 40px would overflow the grid rather than just look odd —
+   there isn't room to keep 8 columns and grow them at once. Left square at
+   20px, next to the always-visible 44px custom-colour swatch for anyone who
+   needs a bigger target. */
 @media (pointer: coarse) {
   button {
     min-height: 40px;
   }
-  .article-row button {
+  .article-row button,
+  .label-swatch-grid button {
     min-height: 0;
   }
 }

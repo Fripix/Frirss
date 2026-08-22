@@ -856,7 +856,7 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
           }}
         >
           {/* Swatches grid */}
-          <div className="grid grid-cols-8 gap-1 mb-3">
+          <div className="label-swatch-grid grid grid-cols-8 gap-1 mb-3">
             {LABEL_SWATCHES.map((sw) => (
               <button
                 key={sw}
