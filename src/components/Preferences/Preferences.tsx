@@ -255,7 +255,7 @@ export default function Preferences() {
                 key={s.id}
                 onClick={() => { setTab(s.id); if (isMobile) setShowNav(false); }}
                 aria-current={tab === s.id ? 'page' : undefined}
-                className="flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row"
+                className={`flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row ${isMobile ? 'justify-between' : ''}`}
                 style={{
                   background: tab === s.id ? 'var(--accent)' : 'transparent',
                   color: tab === s.id ? '#ffffff' : 'var(--list-title)',
@@ -263,6 +263,10 @@ export default function Preferences() {
                 }}
               >
                 {s.label}
+                {/* Mobile only: this list is a drill-down (tap → section screen),
+                    not a pane switcher like on desktop, so it should read as
+                    navigation. */}
+                {isMobile && <span aria-hidden="true" className="opacity-60">›</span>}
               </button>
             ))}
             {isAdmin && (
@@ -271,7 +275,7 @@ export default function Preferences() {
                 <button
                   onClick={() => { setTab('admin'); if (isMobile) setShowNav(false); }}
                   aria-current={tab === 'admin' ? 'page' : undefined}
-                  className="flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row"
+                  className={`flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row ${isMobile ? 'justify-between' : ''}`}
                   style={{
                     background: tab === 'admin' ? 'var(--accent)' : 'transparent',
                     color: tab === 'admin' ? '#ffffff' : 'var(--list-title)',
@@ -279,6 +283,7 @@ export default function Preferences() {
                   }}
                 >
                   {t('preferences.sections.admin')}
+                  {isMobile && <span aria-hidden="true" className="opacity-60">›</span>}
                 </button>
               </>
             )}
@@ -287,10 +292,13 @@ export default function Preferences() {
             {isMobile && (
               <button
                 onClick={() => setShowNav(true)}
-                className="flex items-center gap-1.5 mb-3 text-xs min-h-[44px]"
-                style={{ color: 'var(--list-summary)' }}
+                /* A way back, not the subject of the screen: kept quiet —
+                   smaller icon, muted colour — while the 44pt tap target
+                   stays via min-height/padding. */
+                className="flex items-center gap-1 mb-3 text-[11px] min-h-[44px]"
+                style={{ color: 'var(--list-time)' }}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
                 {t('preferences.nav.back')}
