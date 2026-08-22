@@ -12,6 +12,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # Pour compter les exécutions de ce workflow (numéro de build dev).
+      actions: read
     steps:
       # Full history + tags so the dev build label can count commits since the
       # last release tag (see the DEV_VERSION step below).
@@ -43,6 +45,9 @@ jobs:
       # dev → :dev (testing), git tag vX.Y.Z → :X.Y.Z and :X.Y (releases).
       - name: Compute image tags
         id: tags
+        env:
+          # `gh api` (dev build number) authenticates with this.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           IMAGE=ghcr.io/fripix/frirss
           TAGS="$IMAGE:sha-${GITHUB_SHA::7}"
@@ -64,16 +69,33 @@ jobs:
           fi
           echo "platforms=$PLATFORMS" >> "$GITHUB_OUTPUT"
           echo "Platforms: $PLATFORMS"
-          # Dev builds carry a beta label "v<version>b<N>" where N counts the
-          # feature commits (no merges) since the last release tag — one bump
-          # per push to dev, reset each release. Empty on main / release tags.
+          # Dev builds carry a beta label "v<version>b<N>" where N is the
+          # number of PUSHES to dev since the last release tag, reset each
+          # release. Empty on main / release tags.
+          #
+          # N used to count commits, which inflated it fast — a single working
+          # session pushed the last cycle to b73 and the number stopped meaning
+          # anything. Git records commits, not pushes; the only thing that maps
+          # 1:1 to a push is a run of this very workflow, so that is what we
+          # count. Falls back to the commit count if the API is unavailable, so
+          # a build never fails over a build label.
           DEV_VERSION=""
           if [[ "${GITHUB_REF}" == "refs/heads/dev" ]]; then
             LAST_TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo '')"
-            RANGE="${LAST_TAG:+$LAST_TAG..}HEAD"
-            # --first-parent so commits merged in from main (README web edits)
-            # don't inflate the count — one bump per feature push to dev.
-            N="$(git rev-list --count --no-merges --first-parent $RANGE)"
+            if [[ -n "$LAST_TAG" ]]; then
+              SINCE="$(git log -1 --format=%cI "$LAST_TAG")"
+            else
+              SINCE="1970-01-01T00:00:00Z"
+            fi
+            N="$(gh api --paginate \
+                  "repos/${GITHUB_REPOSITORY}/actions/workflows/publish.yml/runs?branch=dev&event=push&per_page=100" \
+                  --jq "[.workflow_runs[] | select(.created_at > \"$SINCE\")] | length" \
+                 2>/dev/null | awk '{s+=$1} END {print s+0}')"
+            if [[ -z "$N" || "$N" == "0" ]]; then
+              RANGE="${LAST_TAG:+$LAST_TAG..}HEAD"
+              N="$(git rev-list --count --no-merges --first-parent $RANGE)"
+              echo "Run-count unavailable, fell back to the commit count."
+            fi
             DEV_VERSION="v$(node -p "require('./package.json').version")b${N}"
           fi
           echo "dev_version=$DEV_VERSION" >> "$GITHUB_OUTPUT"
