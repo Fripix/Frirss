@@ -82,14 +82,20 @@ jobs:
           DEV_VERSION=""
           if [[ "${GITHUB_REF}" == "refs/heads/dev" ]]; then
             LAST_TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo '')"
+            # Cutoff = when the tag was CUT, not when its commit was authored.
+            # The push that delivered that commit predates the release and must
+            # not count, or every cycle would start at b2.
+            SINCE_TS=0
             if [[ -n "$LAST_TAG" ]]; then
-              SINCE="$(git log -1 --format=%cI "$LAST_TAG")"
-            else
-              SINCE="1970-01-01T00:00:00Z"
+              SINCE_TS="$(git for-each-ref --format='%(taggerdate:unix)' "refs/tags/$LAST_TAG")"
+              [[ -z "$SINCE_TS" ]] && SINCE_TS="$(git log -1 --format=%ct "$LAST_TAG")"
             fi
+            # Compare as numbers. Dates were compared as strings once and every
+            # run was silently excluded: git prints "+02:00" offsets and GitHub
+            # prints "Z", so "09:40Z" sorted below "10:51+02:00".
             N="$(gh api --paginate \
                   "repos/${GITHUB_REPOSITORY}/actions/workflows/publish.yml/runs?branch=dev&event=push&per_page=100" \
-                  --jq "[.workflow_runs[] | select(.created_at > \"$SINCE\")] | length" \
+                  --jq "[.workflow_runs[] | select((.created_at | fromdateiso8601) > $SINCE_TS)] | length" \
                  2>/dev/null | awk '{s+=$1} END {print s+0}')"
             if [[ -z "$N" || "$N" == "0" ]]; then
               RANGE="${LAST_TAG:+$LAST_TAG..}HEAD"
