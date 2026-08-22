@@ -130,7 +130,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
               className="cursor-pointer text-xs font-medium select-none"
               style={{ color: 'var(--list-summary)' }}
             >
-              {t('preferences.tabs.refresh')}
+              {t('preferences.refresh.title')}
             </summary>
             <div className="mt-2 space-y-2">
               <input

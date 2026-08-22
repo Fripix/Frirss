@@ -484,14 +484,14 @@ function ServerStep() {
               mean hidden from the warning — the field and its scope warning
               only appear together, so nobody can type the secret without
               seeing what it grants first. Same pattern as AddServerDialog
-              and the Preferences > Refresh tab, restyled for this screen's
+              and the Preferences > Refresh section, restyled for this screen's
               dark-glass surface. */}
           <details className="pt-1">
             <summary
               className="cursor-pointer text-xs font-medium select-none"
               style={{ color: 'var(--sidebar-text)' }}
             >
-              {t('preferences.tabs.refresh')}
+              {t('preferences.refresh.title')}
             </summary>
             <div className="mt-2 space-y-2">
               <input

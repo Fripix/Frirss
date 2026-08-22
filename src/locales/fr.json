@@ -151,18 +151,6 @@
     "resetAll": "Tout réinitialiser",
     "confirm": "Confirmer ?",
     "resetAllTooltip": "Réinitialiser toutes les préférences (couleurs, tailles, raccourcis…)",
-    "tabs": {
-      "general": "Général",
-      "branding": "Apparence",
-      "colors": "Couleurs",
-      "fonts": "Tailles",
-      "labels": "Étiquettes",
-      "themes": "Thèmes",
-      "shortcuts": "Raccourcis",
-      "admin": "Admin",
-      "offline": "Hors-ligne",
-      "refresh": "Relève"
-    },
     "general": {
       "title": "Général",
       "confirmMarkAllRead": "Confirmer avant de tout marquer comme lu",
@@ -359,6 +347,7 @@
       "imagesFailed_other": "{{count}} images n’ont pas pu être récupérées — c’est courant : certains sites refusent les images demandées depuis un autre serveur."
     },
     "refresh": {
+      "title": "Relève",
       "tokenLabel": "Jeton d'identification maître",
       "tokenHelp": "À créer dans FreshRSS, page Profil, champ « Jeton d'identification maître ». Laisser vide pour désactiver.",
       "scopeWarning": "Ce jeton permet aussi de lire tous vos articles et d'exporter votre liste d'abonnements sans mot de passe. FreshRSS n'accepte cet appel qu'en GET : le jeton apparaît donc dans les journaux d'accès de votre serveur FreshRSS. Changez-le si ces journaux sont exposés.",

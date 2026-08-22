@@ -151,18 +151,6 @@
     "resetAll": "Repor tudo",
     "confirm": "Confirmar?",
     "resetAllTooltip": "Repor todas as preferências (cores, tamanhos, atalhos…)",
-    "tabs": {
-      "general": "Geral",
-      "branding": "Aparência",
-      "colors": "Cores",
-      "fonts": "Tamanhos",
-      "labels": "Etiquetas",
-      "themes": "Temas",
-      "shortcuts": "Atalhos",
-      "admin": "Admin",
-      "offline": "Offline",
-      "refresh": "Atualização"
-    },
     "general": {
       "title": "Geral",
       "confirmMarkAllRead": "Confirmar antes de marcar tudo como lido",
@@ -359,6 +347,7 @@
       "imagesFailed_other": "Não foi possível obter {{count}} imagens — é comum: alguns sites recusam imagens pedidas a partir de outro servidor."
     },
     "refresh": {
+      "title": "Atualização",
       "tokenLabel": "Token de autenticação principal",
       "tokenHelp": "Crie-o no FreshRSS, página Perfil, campo «Token de autenticação principal». Deixe vazio para desativar.",
       "scopeWarning": "Este token também permite ler todos os seus artigos e exportar a sua lista de subscrições sem palavra-passe. O FreshRSS só aceita esta chamada como GET, pelo que o token aparece nos registos de acesso do seu servidor FreshRSS. Substitua-o se esses registos estiverem expostos.",

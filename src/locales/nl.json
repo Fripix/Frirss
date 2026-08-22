@@ -151,18 +151,6 @@
     "resetAll": "Alles herstellen",
     "confirm": "Bevestigen?",
     "resetAllTooltip": "Alle voorkeuren herstellen (kleuren, groottes, sneltoetsen…)",
-    "tabs": {
-      "general": "Algemeen",
-      "branding": "Uiterlijk",
-      "colors": "Kleuren",
-      "fonts": "Groottes",
-      "labels": "Labels",
-      "themes": "Thema's",
-      "shortcuts": "Sneltoetsen",
-      "admin": "Admin",
-      "offline": "Offline",
-      "refresh": "Ophalen"
-    },
     "general": {
       "title": "Algemeen",
       "confirmMarkAllRead": "Bevestigen voordat alles als gelezen wordt gemarkeerd",
@@ -359,6 +347,7 @@
       "imagesFailed_other": "{{count}} afbeeldingen konden niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd."
     },
     "refresh": {
+      "title": "Ophalen",
       "tokenLabel": "Hoofdauthenticatietoken",
       "tokenHelp": "Maak het aan in FreshRSS, pagina Profiel, veld \"Hoofdauthenticatietoken\". Laat leeg om uit te schakelen.",
       "scopeWarning": "Dit token geeft ook zonder wachtwoord toegang tot al je artikelen en je abonnementenlijst. FreshRSS accepteert deze aanroep alleen als GET, dus het token verschijnt in de toegangslogs van je FreshRSS-server. Vervang het als die logs toegankelijk zijn.",

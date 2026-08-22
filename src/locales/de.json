@@ -151,18 +151,6 @@
     "resetAll": "Alles zurücksetzen",
     "confirm": "Bestätigen?",
     "resetAllTooltip": "Alle Einstellungen zurücksetzen (Farben, Größen, Tastenkürzel…)",
-    "tabs": {
-      "general": "Allgemein",
-      "branding": "Aussehen",
-      "colors": "Farben",
-      "fonts": "Größen",
-      "labels": "Labels",
-      "themes": "Designs",
-      "shortcuts": "Tastenkürzel",
-      "admin": "Admin",
-      "offline": "Offline",
-      "refresh": "Abruf"
-    },
     "general": {
       "title": "Allgemein",
       "confirmMarkAllRead": "Vor „Alles als gelesen markieren“ bestätigen",
@@ -359,6 +347,7 @@
       "imagesFailed_other": "{{count}} Bilder konnten nicht geladen werden — das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab."
     },
     "refresh": {
+      "title": "Abruf",
       "tokenLabel": "Master-Authentifizierungs-Token",
       "tokenHelp": "In FreshRSS unter Profil im Feld „Master-Authentifizierungs-Token\" anlegen. Leer lassen zum Deaktivieren.",
       "scopeWarning": "Dieses Token erlaubt außerdem den passwortfreien Zugriff auf alle Ihre Artikel und Ihre Abonnementliste. FreshRSS akzeptiert diesen Aufruf nur als GET, daher erscheint das Token in den Zugriffsprotokollen Ihres FreshRSS-Servers. Wechseln Sie es, wenn diese Protokolle zugänglich sind.",

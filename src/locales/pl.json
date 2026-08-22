@@ -151,18 +151,6 @@
     "resetAll": "Zresetuj wszystko",
     "confirm": "Potwierdzić?",
     "resetAllTooltip": "Zresetuj wszystkie preferencje (kolory, rozmiary, skróty…)",
-    "tabs": {
-      "general": "Ogólne",
-      "branding": "Wygląd",
-      "colors": "Kolory",
-      "fonts": "Rozmiary",
-      "labels": "Etykiety",
-      "themes": "Motywy",
-      "shortcuts": "Skróty",
-      "admin": "Admin",
-      "offline": "Offline",
-      "refresh": "Odświeżanie"
-    },
     "general": {
       "title": "Ogólne",
       "confirmMarkAllRead": "Potwierdź przed oznaczeniem wszystkiego jako przeczytane",
@@ -363,6 +351,7 @@
       "imagesFailed_many": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera."
     },
     "refresh": {
+      "title": "Odświeżanie",
       "tokenLabel": "Główny token uwierzytelniający",
       "tokenHelp": "Utwórz go w FreshRSS, na stronie Profil, w polu „Główny token uwierzytelniający\". Puste pole wyłącza funkcję.",
       "scopeWarning": "Ten token daje też dostęp bez hasła do wszystkich Twoich artykułów i listy subskrypcji. FreshRSS przyjmuje to wywołanie wyłącznie jako GET, więc token pojawia się w logach dostępu Twojego serwera FreshRSS. Zmień go, jeśli te logi są dostępne dla innych.",

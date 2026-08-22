@@ -151,18 +151,6 @@
     "resetAll": "Restablecer todo",
     "confirm": "¿Confirmar?",
     "resetAllTooltip": "Restablecer todas las preferencias (colores, tamaños, atajos…)",
-    "tabs": {
-      "general": "General",
-      "branding": "Apariencia",
-      "colors": "Colores",
-      "fonts": "Tamaños",
-      "labels": "Etiquetas",
-      "themes": "Temas",
-      "shortcuts": "Atajos",
-      "admin": "Admin",
-      "offline": "Sin conexión",
-      "refresh": "Actualización"
-    },
     "general": {
       "title": "General",
       "confirmMarkAllRead": "Confirmar antes de marcar todo como leído",
@@ -359,6 +347,7 @@
       "imagesFailed_other": "No se pudieron recuperar {{count}} imágenes — es habitual: algunos sitios rechazan las imágenes solicitadas desde otro servidor."
     },
     "refresh": {
+      "title": "Actualización",
       "tokenLabel": "Token de autenticación maestro",
       "tokenHelp": "Créalo en FreshRSS, página Perfil, campo «Token de autenticación maestro». Déjalo vacío para desactivarlo.",
       "scopeWarning": "Este token también permite leer todos tus artículos y exportar tu lista de suscripciones sin contraseña. FreshRSS solo acepta esta llamada como GET, por lo que el token aparece en los registros de acceso de tu servidor FreshRSS. Cámbialo si esos registros están expuestos.",

@@ -151,18 +151,6 @@
     "resetAll": "Reset all",
     "confirm": "Confirm?",
     "resetAllTooltip": "Reset all preferences (colors, sizes, shortcuts…)",
-    "tabs": {
-      "general": "General",
-      "branding": "Appearance",
-      "colors": "Colors",
-      "fonts": "Sizes",
-      "labels": "Tags",
-      "themes": "Themes",
-      "shortcuts": "Shortcuts",
-      "admin": "Admin",
-      "offline": "Offline",
-      "refresh": "Refresh"
-    },
     "general": {
       "title": "General",
       "confirmMarkAllRead": "Confirm before marking all as read",
@@ -359,6 +347,7 @@
       "imagesFailed_other": "{{count}} images could not be fetched — this is common: some sites refuse images requested from another server."
     },
     "refresh": {
+      "title": "Refresh",
       "tokenLabel": "Master authentication token",
       "tokenHelp": "Create it in FreshRSS, Profile page, \"Master authentication token\" field. Leave empty to disable.",
       "scopeWarning": "This token also grants password-free access to all your articles and to your subscription list. FreshRSS only accepts this call as a GET, so the token appears in your FreshRSS server's access logs. Rotate it if those logs are exposed.",

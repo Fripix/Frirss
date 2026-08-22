@@ -11,8 +11,11 @@ import path from 'path';
  * Ce qu'il n'attrape PAS, et qui reste à vérifier à l'œil : un réglage encore
  * référencé mais devenu inatteignable, ou dont l'action ne fait plus rien.
  *
- * `preferences.tabs.*` est volontairement hors relevé : la refonte restructure
- * les libellés de navigation, dix onglets devenant six sections.
+ * `preferences.tabs.*` était volontairement hors relevé : la refonte restructure
+ * les libellés de navigation, dix onglets devenant six sections. Ces clés ont
+ * depuis été retirées des 9 locales (leur seul usage restant, hors panneau
+ * Préférences, a migré vers `preferences.refresh.title`) ; le test ci-dessous
+ * vérifie que ce retrait reste assumé.
  *
  * Vérification des traductions et pluriels i18next : une clé appelée avec un
  * argument `count` (ex. `t('preferences.offline.imagesCached', { count })`)
@@ -90,5 +93,12 @@ describe('couverture des réglages du panneau Préférences', () => {
       missing,
       `traductions manquantes (clé nue et toutes formes pluriel absentes) :\n${missing.slice(0, 20).join('\n')}`,
     ).toEqual([]);
+  });
+
+  it('a bien retiré les anciens libellés d’onglets, seul retrait assumé', () => {
+    const fr = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), 'src/locales/fr.json'), 'utf8'),
+    );
+    expect(fr.preferences.tabs).toBeUndefined();
   });
 });
