@@ -388,11 +388,17 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
         )}
       </label>
       <div className="flex items-center gap-1 flex-shrink-0">
-        {/* Reset to default — only visible on hover when modified */}
+        {/* Remise à zéro — révélée au survol, et montrée en permanence là où le
+            survol n'existe pas (.prefs-row-action) : `opacity: 0` laisse le bouton
+            cliquable, donc au doigt c'était un bouton invisible mais actif, qui jette
+            la couleur sans confirmation. */}
         {isModified && (
           <button
-            onClick={() => { onReset?.(); }}
-            className="p-0.5 rounded transition-all opacity-0 group-hover:opacity-100 hover:bg-black/5"
+            /* La ligne entière épingle la couleur : sans cette coupure, une
+               remise à zéro épinglerait aussi, au moment où l'on vient de jeter
+               la valeur. */
+            onClick={(e) => { e.stopPropagation(); onReset?.(); }}
+            className="prefs-row-action p-0.5 rounded transition-all opacity-0 group-hover:opacity-100 hover:bg-black/5"
             style={{ color: 'var(--list-summary)' }}
             title={t('preferences.colors.resetTooltip')}
           >

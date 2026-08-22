@@ -693,10 +693,14 @@ function LabelRow({
           )}
         </span>
 
-        {/* Actions: move + rename + delete (visible on hover) */}
+        {/* Actions : déplacer + renommer + supprimer. Révélées au survol, et
+            montrées en permanence là où le survol n'existe pas (.prefs-row-action) :
+            `opacity: 0` laisse le bouton cliquable, donc au doigt c'étaient trois
+            boutons invisibles mais actifs, dont une suppression — et déplacer ou
+            renommer une étiquette n'a pas d'autre point d'entrée. */}
         <button
           onClick={() => setMode('move')}
-          className="p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-black/5"
+          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-black/5"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.moveTooltip')}
         >
@@ -706,7 +710,7 @@ function LabelRow({
         </button>
         <button
           onClick={() => { setRenameValue(name); setMode('rename'); }}
-          className="p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-black/5"
+          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-black/5"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.rename')}
         >
@@ -716,7 +720,7 @@ function LabelRow({
         </button>
         <button
           onClick={() => setMode('confirmDelete')}
-          className="p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-red-50"
+          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-red-50"
           style={{ color: 'var(--danger, #ef4444)' }}
           title={t('preferences.labels.delete')}
         >

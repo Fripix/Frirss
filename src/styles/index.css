@@ -1017,6 +1017,16 @@ html {
 }
 [data-layout="mobile"] .prefs-tap-swatch { width: 44px; height: 44px; }
 
+/* Actions de ligne révélées au survol (remise à zéro d'une couleur, déplacer /
+   renommer / supprimer une étiquette). `opacity: 0` ne retire pas le ciblage :
+   au doigt ce sont des boutons invisibles mais actifs, dont un destructif, et
+   sans autre point d'entrée. Là où le survol n'existe pas, on les montre —
+   question de pointeur, pas de largeur. Idiome déjà en place plus haut
+   (.article-card__actions). */
+@media (hover: none) {
+  .prefs-row-action { opacity: 1; }
+}
+
 /* The mobile drill-down toggles the nav / content panes via the `hidden`
    attribute, but both panes also carry a Tailwind `flex`/`flex-1` display
    utility. Preflight's `[hidden]` rule sits earlier in the cascade than the
