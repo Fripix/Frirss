@@ -5,7 +5,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useFeedStore } from '../../stores/feedStore';
 import ToggleSwitch from '../ToggleSwitch';
 import type { Tag } from '../../types';
-import { TabResetButton } from './Preferences';
+import { TabResetButton } from './TabResetButton';
 
 // Label grouping item (Preferences labels tab)
 interface PrefLabelChild { tag: Tag; leafName: string; fullName: string }
