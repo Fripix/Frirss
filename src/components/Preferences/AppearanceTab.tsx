@@ -1,7 +1,8 @@
-import { useState, useRef, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { TabResetButton } from './TabResetButton';
 import ThemePreview, { PREVIEW_ZONES } from './ThemePreview';
 import { hasRealHighlight } from './colorHighlight';
@@ -16,7 +17,23 @@ export default function AppearanceTab({ onHighlight }: { onHighlight: (key: stri
   // aperçu au sommet des sous-sections Couleurs et Tailles sert les deux.
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
-  const shown = focusedKey ?? pinnedKey;
+  // Une seule couleur « montrée » à la fois, quelle que soit la façon dont on
+  // l'a désignée. Hors de la sous-section Couleurs, plus rien n'est montré :
+  // une épingle survivante encadrerait un élément sans légende pour le dire.
+  const shown = sub === 'colors' ? (focusedKey ?? pinnedKey) : null;
+
+  // L'encadrement de l'élément réel suit `shown`, pas les événements souris.
+  // Branché sur le survol seul, il disparaissait dès que le pointeur quittait
+  // la ligne épinglée — la légende affirmait alors un encadrement qui n'existait
+  // plus — et au doigt, où le survol n'a pas lieu, il était inatteignable.
+  useEffect(() => {
+    onHighlight(shown);
+  }, [shown, onHighlight]);
+  useEffect(() => () => onHighlight(null), [onHighlight]);
+
+  // Plein écran : le panneau couvre l'interface, il n'y a rien à encadrer
+  // derrière lui. L'aperçu devient le seul retour possible.
+  const isFullScreen = useBreakpoint() === 'mobile';
 
   return (
     <div>
@@ -40,8 +57,8 @@ export default function AppearanceTab({ onHighlight }: { onHighlight: (key: stri
       {sub === 'theme' && <ThemeSection />}
       {sub === 'colors' && (
         <ColorsSection
-          onHighlight={onHighlight}
           shown={shown}
+          isFullScreen={isFullScreen}
           setFocusedKey={setFocusedKey}
           pinnedKey={pinnedKey}
           setPinnedKey={setPinnedKey}
@@ -262,13 +279,13 @@ const COLOR_SECTIONS = [
 ];
 
 interface ColorsSectionProps {
-  onHighlight: (key: string | null) => void;
   shown: string | null;
+  isFullScreen: boolean;
   setFocusedKey: (key: string | null) => void;
   pinnedKey: string | null;
   setPinnedKey: (key: string | null) => void;
 }
-function ColorsSection({ onHighlight, shown, setFocusedKey, pinnedKey, setPinnedKey }: ColorsSectionProps) {
+function ColorsSection({ shown, isFullScreen, setFocusedKey, pinnedKey, setPinnedKey }: ColorsSectionProps) {
   const { t } = useTranslation();
   const { theme, setColor, resetColors, resetColor, isColorModified } = useThemeStore();
 
@@ -281,10 +298,14 @@ function ColorsSection({ onHighlight, shown, setFocusedKey, pinnedKey, setPinned
               (topbar-*, list-hover, star-color…) have a real highlight but no
               preview-zone entry. Gating on PREVIEW_ZONES first would tell those
               users "neither mechanism shows it", which is false — the real
-              element does light up. */}
+              element does light up.
+              …sauf en plein écran : le panneau recouvre l'interface, donc
+              l'encadrement réel n'existe pas. Ces 16 clés-là retombent alors sur
+              previewNeither, et les 14 qui ont une zone gardent
+              previewPreviewOnly — l'aperçu, lui, est bien visible. */}
           {!shown
             ? t('preferences.appearance.previewHint')
-            : hasRealHighlight(shown)
+            : hasRealHighlight(shown) && !isFullScreen
               ? t('preferences.appearance.previewReal')
               : PREVIEW_ZONES[shown]
                 ? t('preferences.appearance.previewPreviewOnly')
@@ -307,7 +328,6 @@ function ColorsSection({ onHighlight, shown, setFocusedKey, pinnedKey, setPinned
                 value={theme.colors[key]}
                 onChange={(v) => setColor(key, v)}
                 colorKey={key}
-                onHighlight={onHighlight}
                 isModified={isColorModified(key)}
                 onReset={() => resetColor(key)}
                 onFocus={setFocusedKey}
@@ -328,14 +348,13 @@ interface ColorRowProps {
   value: string;
   onChange: (value: string) => void;
   colorKey: string;
-  onHighlight?: (key: string | null) => void;
   isModified?: boolean;
   onReset?: () => void;
   onFocus: (key: string | null) => void;
   pinned: boolean;
   onTogglePin: () => void;
 }
-function ColorRow({ label, value, onChange, colorKey, onHighlight, isModified, onReset, onFocus, pinned, onTogglePin }: ColorRowProps) {
+function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFocus, pinned, onTogglePin }: ColorRowProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [hex, setHex] = useState(value);
@@ -358,8 +377,8 @@ function ColorRow({ label, value, onChange, colorKey, onHighlight, isModified, o
     <div
       className="group flex items-center gap-2 py-1 px-1.5 -mx-1.5 rounded-md transition-colors hover:bg-black/[.03] max-md:min-h-[44px]"
       style={{ background: pinned ? 'var(--accent-glow)' : undefined }}
-      onMouseEnter={() => { onFocus(colorKey); onHighlight?.(colorKey); }}
-      onMouseLeave={() => { onFocus(null); onHighlight?.(null); }}
+      onMouseEnter={() => onFocus(colorKey)}
+      onMouseLeave={() => onFocus(null)}
       onClick={onTogglePin}
     >
       <label className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
