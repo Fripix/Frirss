@@ -381,7 +381,7 @@
       "sizes": "Tailles",
       "identity": "Identité",
       "previewHint": "Survolez ou touchez une couleur : sa zone est cerclée dans l'aperçu.",
-      "previewReal": "Cerclé ici, et encadré sur l'élément réel.",
+      "previewReal": "Encadré sur l'élément réel, derrière le panneau.",
       "previewPreviewOnly": "Trop d'éléments concernés pour l'encadrer dans l'interface. L'aperçu la montre.",
       "previewNeither": "Ni l'aperçu ni l'interface ne peuvent la désigner. Le réglage fonctionne."
     },

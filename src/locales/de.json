@@ -381,7 +381,7 @@
       "sizes": "Größen",
       "identity": "Identität",
       "previewHint": "Farbe überfahren oder antippen: Ihr Bereich wird in der Vorschau umrandet.",
-      "previewReal": "Hier umrandet und am echten Element hervorgehoben.",
+      "previewReal": "Am echten Element hinter dem Panel hervorgehoben.",
       "previewPreviewOnly": "Zu viele Elemente für eine Hervorhebung in der Oberfläche. Die Vorschau zeigt sie.",
       "previewNeither": "Weder Vorschau noch Oberfläche können darauf zeigen. Die Einstellung wirkt trotzdem."
     },

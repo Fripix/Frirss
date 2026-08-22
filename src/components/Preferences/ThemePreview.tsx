@@ -41,7 +41,7 @@ export default function ThemePreview({ focusedKey }: { focusedKey: string | null
       aria-label={t('preferences.appearance.previewHint')}
     >
       <div className={`${on('sidebar-bg')} flex-shrink-0`} style={{ width: 92, background: 'var(--sidebar-bg)' }}>
-        <div className={on('sidebar-header accent')} style={{ height: 30, background: 'linear-gradient(135deg, var(--sidebar-header-from), var(--sidebar-header-to))' }} />
+        <div className={on('sidebar-header accent')} style={{ height: 30, background: 'var(--sidebar-header-bg)' }} />
         <div className={on('sidebar-text-active')} style={{ height: 7, margin: '9px 10px', borderRadius: 3, background: 'var(--sidebar-text-active)', opacity: 0.95 }} />
         <div className={on('sidebar-text')} style={{ height: 7, margin: '9px 10px', borderRadius: 3, background: 'var(--sidebar-text)', opacity: 0.6 }} />
         <div className={on('sidebar-text')} style={{ height: 7, margin: '9px 10px', borderRadius: 3, background: 'var(--sidebar-text)', opacity: 0.6 }} />

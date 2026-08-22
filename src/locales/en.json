@@ -381,7 +381,7 @@
       "sizes": "Sizes",
       "identity": "Identity",
       "previewHint": "Hover or tap a colour: its area is ringed in the preview.",
-      "previewReal": "Ringed here, and outlined on the real element.",
+      "previewReal": "Outlined on the real element, behind the panel.",
       "previewPreviewOnly": "Too many elements to outline in the interface. The preview shows it.",
       "previewNeither": "Neither the preview nor the interface can point at it. The setting still works."
     },
