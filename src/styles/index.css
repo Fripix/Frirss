@@ -989,13 +989,33 @@ html {
   .preview-zone { transition: none; }
 }
 
-/* Le panneau couvre tout l'écran sur téléphone : il doit dégager l'encoche en
-   haut et l'indicateur d'accueil en bas. Le dépôt possède déjà cet idiome pour
-   la barre latérale et l'en-tête de liste — on le réutilise. */
-@media (max-width: 767px) {
-  .prefs-panel-head { padding-top: max(0.75rem, env(safe-area-inset-top)); }
-  .prefs-panel-body { padding-bottom: env(safe-area-inset-bottom); }
+/* Panneau Préférences — forme, zones sûres et cibles tactiles suivent la même
+   décision. `Preferences.tsx` choisit sa forme avec useBreakpoint(), qui honore
+   le basculement manuel desktop/mobile ; gérer les marges et les cibles à la
+   largeur d'écran les désaccordait sur ce chemin précis — une tablette passée
+   en mode mobile obtenait le plein écran sans encoche dégagée ni cible de
+   44 pt. `data-layout` porte la décision effective, c'est donc lui qu'on lit.
+
+   Le panneau couvre tout l'écran : il doit dégager l'encoche en haut et
+   l'indicateur d'accueil en bas. Le dépôt possède déjà cet idiome pour la barre
+   latérale et l'en-tête de liste — on le réutilise. */
+:where([data-layout="mobile"]) .prefs-panel-head {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
 }
+:where([data-layout="mobile"]) .prefs-panel-body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Cibles de 44 pt. Spécificité volontairement supérieure à celle d'un
+   utilitaire Tailwind (w-6, h-7…) pour gagner sans dépendre de l'ordre. */
+[data-layout="mobile"] .prefs-tap-row { min-height: 44px; }
+[data-layout="mobile"] .prefs-tap-btn {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+[data-layout="mobile"] .prefs-tap-swatch { width: 44px; height: 44px; }
 
 /* The mobile drill-down toggles the nav / content panes via the `hidden`
    attribute, but both panes also carry a Tailwind `flex`/`flex-1` display

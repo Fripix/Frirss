@@ -169,7 +169,7 @@ export default function Preferences() {
               <select
                 value={theme.name}
                 onChange={(e) => loadSavedTheme(e.target.value)}
-                className="text-xs px-2 py-1 rounded-md appearance-none cursor-pointer pr-6 max-md:min-h-[44px]"
+                className="text-xs px-2 py-1 rounded-md appearance-none cursor-pointer pr-6 prefs-tap-row"
                 style={{
                   border: '1px solid var(--panel-border)',
                   color: 'var(--list-title)',
@@ -187,7 +187,7 @@ export default function Preferences() {
           <div className="flex items-center gap-1">
             <button
               onClick={handleReset}
-              className="text-[10px] px-2 py-1 rounded-md transition-colors max-md:min-h-[44px] max-md:inline-flex max-md:items-center max-md:justify-center"
+              className="text-[10px] px-2 py-1 rounded-md transition-colors prefs-tap-btn"
               style={{
                 color: confirmReset ? '#ffffff' : 'var(--danger)',
                 background: confirmReset ? 'var(--danger)' : 'transparent',
@@ -199,7 +199,7 @@ export default function Preferences() {
             <button
               onClick={closePreferences}
               aria-label={t('app.close')}
-              className="p-1 rounded-lg hover:bg-black/5 transition-colors max-md:min-h-[44px] max-md:min-w-[44px] max-md:flex max-md:items-center max-md:justify-center"
+              className="p-1 rounded-lg hover:bg-black/5 transition-colors prefs-tap-btn"
               style={{ color: 'var(--list-summary)' }}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -221,7 +221,7 @@ export default function Preferences() {
                 key={s.id}
                 onClick={() => { setTab(s.id); if (isMobile) setShowNav(false); }}
                 aria-current={tab === s.id ? 'page' : undefined}
-                className="flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors max-md:min-h-[44px]"
+                className="flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row"
                 style={{
                   background: tab === s.id ? 'var(--accent)' : 'transparent',
                   color: tab === s.id ? '#ffffff' : 'var(--list-title)',
@@ -237,7 +237,7 @@ export default function Preferences() {
                 <button
                   onClick={() => { setTab('admin'); if (isMobile) setShowNav(false); }}
                   aria-current={tab === 'admin' ? 'page' : undefined}
-                  className="flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors max-md:min-h-[44px]"
+                  className="flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row"
                   style={{
                     background: tab === 'admin' ? 'var(--accent)' : 'transparent',
                     color: tab === 'admin' ? '#ffffff' : 'var(--list-title)',
