@@ -283,13 +283,14 @@ export default function Preferences() {
             {isMobile && (
               <button
                 onClick={() => setShowNav(true)}
-                /* A way back, not the subject of the screen: kept quiet —
-                   smaller icon, muted colour — while the 44pt tap target
-                   stays via min-height/padding. */
-                className="flex items-center gap-1 mb-3 text-[11px] min-h-[44px]"
-                style={{ color: 'var(--list-time)' }}
+                /* The way back, not the subject of the screen: it needs to
+                   read at a glance without becoming the primary action, so
+                   it borrows the accent colour and a heavier weight rather
+                   than a filled button. 44pt tap target via min-height. */
+                className="flex items-center gap-1.5 mb-3 text-xs font-semibold min-h-[44px]"
+                style={{ color: 'var(--accent)' }}
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
                 {t('preferences.nav.back')}
