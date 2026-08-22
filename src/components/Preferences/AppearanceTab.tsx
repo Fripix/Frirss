@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
 import { TabResetButton } from './TabResetButton';
+import ThemePreview, { PREVIEW_ZONES } from './ThemePreview';
+import { hasRealHighlight } from './colorHighlight';
 
 type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
 
@@ -10,6 +12,11 @@ export default function AppearanceTab({ onHighlight }: { onHighlight: (key: stri
   const { t } = useTranslation();
   const [sub, setSub] = useState<Sub>('colors');
   const SUBS: Sub[] = ['theme', 'colors', 'sizes', 'identity'];
+  // Survol (transitoire) et sélection (persistante au clic/tap) — un seul
+  // aperçu au sommet des sous-sections Couleurs et Tailles sert les deux.
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null);
+  const shown = focusedKey ?? pinnedKey;
 
   return (
     <div>
@@ -31,7 +38,15 @@ export default function AppearanceTab({ onHighlight }: { onHighlight: (key: stri
         ))}
       </div>
       {sub === 'theme' && <ThemeSection />}
-      {sub === 'colors' && <ColorsSection onHighlight={onHighlight} />}
+      {sub === 'colors' && (
+        <ColorsSection
+          onHighlight={onHighlight}
+          shown={shown}
+          setFocusedKey={setFocusedKey}
+          pinnedKey={pinnedKey}
+          setPinnedKey={setPinnedKey}
+        />
+      )}
       {sub === 'sizes' && <SizesSection />}
       {sub === 'identity' && <IdentitySection />}
     </div>
@@ -246,12 +261,36 @@ const COLOR_SECTIONS = [
   },
 ];
 
-function ColorsSection({ onHighlight }: { onHighlight: (key: string | null) => void }) {
+interface ColorsSectionProps {
+  onHighlight: (key: string | null) => void;
+  shown: string | null;
+  setFocusedKey: (key: string | null) => void;
+  pinnedKey: string | null;
+  setPinnedKey: (key: string | null) => void;
+}
+function ColorsSection({ onHighlight, shown, setFocusedKey, pinnedKey, setPinnedKey }: ColorsSectionProps) {
   const { t } = useTranslation();
   const { theme, setColor, resetColors, resetColor, isColorModified } = useThemeStore();
 
   return (
     <div className="space-y-5">
+      <div>
+        <ThemePreview focusedKey={shown} />
+        <p className="text-[11px] mb-3" style={{ color: 'var(--list-summary)' }}>
+          {/* hasRealHighlight is checked before PREVIEW_ZONES: 16 of the 36 keys
+              (topbar-*, list-hover, star-color…) have a real highlight but no
+              preview-zone entry. Gating on PREVIEW_ZONES first would tell those
+              users "neither mechanism shows it", which is false — the real
+              element does light up. */}
+          {!shown
+            ? t('preferences.appearance.previewHint')
+            : hasRealHighlight(shown)
+              ? t('preferences.appearance.previewReal')
+              : PREVIEW_ZONES[shown]
+                ? t('preferences.appearance.previewPreviewOnly')
+                : t('preferences.appearance.previewNeither')}
+        </p>
+      </div>
       {COLOR_SECTIONS.map((section) => (
         <div key={section.titleKey}>
           <h3
@@ -271,6 +310,9 @@ function ColorsSection({ onHighlight }: { onHighlight: (key: string | null) => v
                 onHighlight={onHighlight}
                 isModified={isColorModified(key)}
                 onReset={() => resetColor(key)}
+                onFocus={setFocusedKey}
+                pinned={pinnedKey === key}
+                onTogglePin={() => setPinnedKey(pinnedKey === key ? null : key)}
               />
             ))}
           </div>
@@ -289,8 +331,11 @@ interface ColorRowProps {
   onHighlight?: (key: string | null) => void;
   isModified?: boolean;
   onReset?: () => void;
+  onFocus: (key: string | null) => void;
+  pinned: boolean;
+  onTogglePin: () => void;
 }
-function ColorRow({ label, value, onChange, colorKey, onHighlight, isModified, onReset }: ColorRowProps) {
+function ColorRow({ label, value, onChange, colorKey, onHighlight, isModified, onReset, onFocus, pinned, onTogglePin }: ColorRowProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [hex, setHex] = useState(value);
@@ -312,8 +357,10 @@ function ColorRow({ label, value, onChange, colorKey, onHighlight, isModified, o
   return (
     <div
       className="group flex items-center gap-2 py-1 px-1.5 -mx-1.5 rounded-md transition-colors hover:bg-black/[.03]"
-      onMouseEnter={() => onHighlight?.(colorKey)}
-      onMouseLeave={() => onHighlight?.(null)}
+      style={{ background: pinned ? 'var(--accent-glow)' : undefined }}
+      onMouseEnter={() => { onFocus(colorKey); onHighlight?.(colorKey); }}
+      onMouseLeave={() => { onFocus(null); onHighlight?.(null); }}
+      onClick={onTogglePin}
     >
       <label className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
         {label}
@@ -407,6 +454,7 @@ function SizesSection() {
 
   return (
     <div className="space-y-5">
+      <ThemePreview focusedKey={null} />
       {FONT_SECTIONS.map((section) => (
         <div key={section.titleKey}>
           <h3

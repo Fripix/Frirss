@@ -975,3 +975,16 @@ html {
   pointer-events: none;
 }
 .article-card__play svg { width: 13px; height: 13px; }
+
+/* Aperçu du thème : la zone visée est cerclée, rien n'est éteint autour —
+   assombrir le reste s'est révélé illisible à l'usage. */
+.preview-zone { transition: box-shadow .12s; }
+.preview-zone--on {
+  box-shadow: 0 0 0 2px var(--panel-bg), 0 0 0 4px var(--reading-title);
+  border-radius: 3px;
+  position: relative;
+  z-index: 2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .preview-zone { transition: none; }
+}
