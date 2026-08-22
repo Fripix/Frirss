@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type CSSProperties } from 'react';
+import { useState, useRef, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -12,34 +12,6 @@ import AppearanceTab from './AppearanceTab';
 import { COLOR_HIGHLIGHT_MAP } from './colorHighlight';
 
 interface HighlightRect { top: number; left: number; width: number; height: number }
-
-/**
- * Builds a CSS mask that covers the full viewport except the given rects —
- * a spotlight. Base layer covers everything; each rect layer is subtracted
- * from it via `mask-composite: exclude` (standard) / `-webkit-mask-composite:
- * xor` (Safari's older syntax, same result for non-overlapping rects). This
- * keeps the dim overlay off both the panel and the highlighted element,
- * instead of just cutting the panel out of it.
- */
-function spotlightMask(rects: HighlightRect[]): CSSProperties {
-  const images = ['linear-gradient(#fff, #fff)', ...rects.map(() => 'linear-gradient(#fff, #fff)')];
-  const sizes = ['100% 100%', ...rects.map((r) => `${r.width}px ${r.height}px`)];
-  const positions = ['0 0', ...rects.map((r) => `${r.left}px ${r.top}px`)];
-  const composite = ['add', ...rects.map(() => 'exclude')];
-  const webkitComposite = ['source-over', ...rects.map(() => 'xor')];
-  return {
-    maskImage: images.join(', '),
-    maskSize: sizes.join(', '),
-    maskPosition: positions.join(', '),
-    maskRepeat: 'no-repeat',
-    maskComposite: composite.join(', '),
-    WebkitMaskImage: images.join(', '),
-    WebkitMaskSize: sizes.join(', '),
-    WebkitMaskPosition: positions.join(', '),
-    WebkitMaskRepeat: 'no-repeat',
-    WebkitMaskComposite: webkitComposite.join(', '),
-  };
-}
 
 export default function Preferences() {
   const {
@@ -59,6 +31,10 @@ export default function Preferences() {
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [highlightRects, setHighlightRects] = useState<HighlightRect[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
+  // Unique per mount so two Preferences instances (shouldn't normally
+  // happen, but tests/HMR can) never share — and shadow each other's —
+  // <mask id>.
+  const spotlightMaskId = `prefs-spotlight-${useId()}`;
 
   // Reset tab (and the mobile drill-down) every time preferences are opened
   // (preferencesOpenId changes each open)
@@ -125,16 +101,31 @@ export default function Preferences() {
     >
       {/* Dim overlay — a spotlight: darkens everything except the panel
           (which sits above it via z-index) and the highlighted rects (cut
-          out of the dim via a CSS mask), so neither is darkened. */}
+          out of the dim via an SVG mask). A CSS `mask`/`mask-composite`
+          version of this looked right in Chromium but Safari — including
+          the iOS PWA this app runs as — didn't apply the composite, so the
+          whole screen stayed dark. An inline SVG mask is the one approach
+          that behaves the same everywhere. */}
       {highlightRects.length > 0 && (
-        <div
-          className="fixed inset-0 pointer-events-none z-[48]"
-          style={{
-            background: 'rgba(0, 0, 0, 0.15)',
-            transition: 'opacity 0.2s',
-            ...spotlightMask(highlightRects),
-          }}
-        />
+        <svg className="fixed inset-0 pointer-events-none z-[48]" width="100%" height="100%" aria-hidden="true">
+          <defs>
+            <mask id={spotlightMaskId}>
+              <rect width="100%" height="100%" fill="white" />
+              {highlightRects.map((r, i) => (
+                <rect
+                  key={i}
+                  x={r.left - 4}
+                  y={r.top - 4}
+                  width={r.width + 8}
+                  height={r.height + 8}
+                  rx="8"
+                  fill="black"
+                />
+              ))}
+            </mask>
+          </defs>
+          <rect width="100%" height="100%" fill="rgba(0,0,0,0.15)" mask={`url(#${spotlightMaskId})`} />
+        </svg>
       )}
       {/* Highlight overlays for color keys */}
       {highlightRects.map((r, i) => (
