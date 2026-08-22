@@ -121,7 +121,9 @@ export default function GeneralTab() {
                 localStorage.setItem('frirss_language', lang.code);
               }}
               aria-pressed={i18n.language === lang.code}
-              className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs min-h-[44px]"
+              aria-label={lang.name}
+              title={lang.name}
+              className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs min-h-[44px]"
               style={{
                 border: `1px solid ${i18n.language === lang.code ? 'var(--accent)' : 'var(--panel-border)'}`,
                 background: i18n.language === lang.code ? 'var(--list-selected)' : 'transparent',
@@ -130,7 +132,7 @@ export default function GeneralTab() {
               }}
             >
               <span aria-hidden="true" className="text-base leading-none flex-shrink-0">{lang.flag}</span>
-              <span className="truncate">{lang.name}</span>
+              <span aria-hidden="true">{lang.code.toUpperCase()}</span>
             </button>
           ))}
         </div>
