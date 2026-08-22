@@ -333,6 +333,7 @@ function ColorsSection({ shown, isFullScreen, setFocusedKey, pinnedKey, setPinne
                 onFocus={setFocusedKey}
                 pinned={pinnedKey === key}
                 onTogglePin={() => setPinnedKey(pinnedKey === key ? null : key)}
+                selectable={!isFullScreen}
               />
             ))}
           </div>
@@ -353,8 +354,13 @@ interface ColorRowProps {
   onFocus: (key: string | null) => void;
   pinned: boolean;
   onTogglePin: () => void;
+  /** Desktop/tablet: hover previews, tap pins — both stay. Mobile: neither —
+      the panel is full-screen there and the pin gesture read as an unwanted
+      highlight-on-tap ("ça donne mal"), so the row is inert and the live
+      preview thumbnail is the only feedback. */
+  selectable: boolean;
 }
-function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFocus, pinned, onTogglePin }: ColorRowProps) {
+function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFocus, pinned, onTogglePin, selectable }: ColorRowProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [hex, setHex] = useState(value);
@@ -377,9 +383,9 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
     <div
       className="group flex items-center gap-2 py-1 px-1.5 -mx-1.5 rounded-md transition-colors hover:bg-black/[.03] prefs-tap-row"
       style={{ background: pinned ? 'var(--accent-glow)' : undefined }}
-      onMouseEnter={() => onFocus(colorKey)}
-      onMouseLeave={() => onFocus(null)}
-      onClick={onTogglePin}
+      onMouseEnter={selectable ? () => onFocus(colorKey) : undefined}
+      onMouseLeave={selectable ? () => onFocus(null) : undefined}
+      onClick={selectable ? onTogglePin : undefined}
     >
       <label className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
         {label}
@@ -388,17 +394,17 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
         )}
       </label>
       <div className="flex items-center gap-1 flex-shrink-0">
-        {/* Remise à zéro — révélée au survol, et montrée en permanence là où le
-            survol n'existe pas (.prefs-row-action) : `opacity: 0` laisse le bouton
-            cliquable, donc au doigt c'était un bouton invisible mais actif, qui jette
-            la couleur sans confirmation. */}
+        {/* Remise à zéro — visible dès que la couleur est modifiée, sur tous
+            les appareils : un utilisateur qui ne survole jamais (doigt) ou ne
+            s'attarde pas (souris) doit quand même la voir. Discrète (opacité
+            réduite) plutôt que cachée, pour rester une action secondaire. */}
         {isModified && (
           <button
             /* La ligne entière épingle la couleur : sans cette coupure, une
                remise à zéro épinglerait aussi, au moment où l'on vient de jeter
                la valeur. */
             onClick={(e) => { e.stopPropagation(); onReset?.(); }}
-            className="prefs-row-action p-0.5 rounded transition-all opacity-0 group-hover:opacity-100 hover:bg-black/5"
+            className="p-0.5 rounded transition-all opacity-60 hover:opacity-100 hover:bg-black/5"
             style={{ color: 'var(--list-summary)' }}
             title={t('preferences.colors.resetTooltip')}
           >
