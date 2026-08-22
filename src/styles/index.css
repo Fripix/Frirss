@@ -601,6 +601,24 @@ html {
   }
 }
 
+/* ── Toggle switch — pill track + sliding knob ────────────────────── */
+/* Sizes are set here (not Tailwind) so the coarse-pointer media query below
+   can resize the whole pill without fighting inline styles. Knob position is
+   driven off the `aria-checked` the switch already carries. */
+.toggle-switch {
+  width: 32px;
+  height: 16px;
+}
+.toggle-switch-knob {
+  width: 14px;
+  height: 14px;
+  top: 1px;
+  left: 1px;
+}
+.toggle-switch[aria-checked="true"] .toggle-switch-knob {
+  left: 17px;
+}
+
 /* ── Touch devices: comfortable tap targets for buttons ──────────── */
 /* Article rows are <div>; their inline action buttons stay compact to
    preserve the dense list layout. The label colour grid is exempted for a
@@ -608,14 +626,30 @@ html {
    each swatch to 40px would overflow the grid rather than just look odd —
    there isn't room to keep 8 columns and grow them at once. Left square at
    20px, next to the always-visible 44px custom-colour swatch for anyone who
-   needs a bigger target. */
+   needs a bigger target. The toggle switch is exempted for the same kind of
+   reason: it must stay a pill, not stretch into a vertical egg, so it gets
+   its own coarse-pointer sizing instead of the blanket min-height. */
 @media (pointer: coarse) {
   button {
     min-height: 40px;
   }
   .article-row button,
-  .label-swatch-grid button {
+  .label-swatch-grid button,
+  .toggle-switch {
     min-height: 0;
+  }
+  .toggle-switch {
+    width: 44px;
+    height: 24px;
+  }
+  .toggle-switch-knob {
+    width: 20px;
+    height: 20px;
+    top: 2px;
+    left: 2px;
+  }
+  .toggle-switch[aria-checked="true"] .toggle-switch-knob {
+    left: 22px;
   }
 }
 
