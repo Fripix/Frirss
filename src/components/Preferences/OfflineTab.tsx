@@ -10,7 +10,7 @@ import {
 import { getStorageEstimate, formatBytes, clearImageCache } from '../../lib/storageEstimate';
 import { countCachedImages } from '../../lib/imageCache';
 
-export default function OfflineTab() {
+export default function OfflineTab({ active = true }: { active?: boolean }) {
   const { t } = useTranslation();
   const offlinePrep = useFeedStore((s) => s.offlinePrep);
   const prepareOffline = useFeedStore((s) => s.prepareOffline);
@@ -29,7 +29,10 @@ export default function OfflineTab() {
     getStorageEstimate().then(setEstimate);
     countCachedImages().then(setImageCount);
   }, []);
-  useEffect(() => { refreshEstimate(); }, [refreshEstimate]);
+  // Relu à chaque retour sur la section, pas seulement au montage : la
+  // section reste montée une fois visitée, et l'espace disque comme le
+  // nombre d'images changent entre deux visites.
+  useEffect(() => { if (active) refreshEstimate(); }, [active, refreshEstimate]);
 
   const quota = estimate?.quota ?? 0;
   const imagesOff = offlineImagePreset === 'none';

@@ -77,6 +77,15 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
   ligne de n'importe quel serveur, sans y basculer — les routes sont adressées
   par `/:id`. Le drapeau global `hasRefreshToken` ne décrit que le serveur
   actif : `RefreshTokenField` ne l'écrit que depuis la ligne de celui-ci.
+- **Affichage immédiat, revalidation derrière** : la liste s'affiche dès que des
+  serveurs sont déjà en mémoire (`shouldShowServerList()` dans
+  `src/lib/serverList.ts`), et le rechargement court en arrière-plan. Le
+  squelette ne sert plus qu'au démarrage à froid — indispensable, car
+  `displayServers()` fabrique une ligne synthétique à partir de `serverUrl`
+  quand la liste est vide : rendue trop tôt, elle se ferait passer pour un
+  compte hérité et une panne réseau affirmerait que l'utilisateur n'a qu'un
+  serveur ingérable. Un échec de chargement se dit toujours, même quand des
+  données connues restent affichées.
 - **Piège corrigé le 2026-08-26** : la gestion vivait uniquement dans
   `ServerSwitcher`, qui ne se monte que si la barre du haut est visible — la
   masquer emportait la bascule avec elle. Pire, renommer, définir par défaut et
@@ -307,6 +316,21 @@ Panneau à navigation verticale : **Général** (langue, lecture, raccourcis),
   modifier le relevé pour faire passer le test. Son parcours est **récursif**
   depuis le 2026-08-26 : à plat, il déclarait disparu tout réglage déplacé dans
   un sous-dossier du panneau.
+- **Montage des sections** : une section n'est montée qu'à sa **première
+  visite**, puis y reste, masquée par un `display:none` en ligne. Le montage
+  conditionnel d'origine la détruisait à chaque changement : Flux et
+  Administration, les deux seules sections qui appellent le réseau au montage,
+  repayaient un aller-retour complet à chaque retour, écran vide. Mesuré après
+  correction : **zéro requête** sur trois allers-retours entre deux sections.
+  - Le style en ligne n'est pas un caprice : la règle
+    `.prefs-panel-body > [hidden]` ne vise que les enfants directs, et
+    l'attribut `hidden` seul perd contre une classe utilitaire d'affichage.
+  - **Conséquence à ne pas oublier** : une section qui reste montée ne peut plus
+    compter sur son démontage. Trois d'entre elles reçoivent donc une prop
+    `active` — `AppearanceTab` (sans quoi l'encadrement de couleur resterait à
+    l'écran depuis une autre section), `OfflineTab` (qui doit relire l'espace
+    disque à chaque retour) et `AdminTab` (qui revalide en silence, sans
+    repasser par son écran de chargement).
 - **Synchronisation** : les préférences logiques sont synchronisées par le serveur
   (`UI_SYNC_KEYS`) ; les préférences géométriques — largeurs de panneaux,
   visibilité de la barre latérale — restent locales à chaque appareil.

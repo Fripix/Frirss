@@ -29,6 +29,11 @@ export default function Preferences() {
   const [tab, setTab] = useState<string>(preferencesTab || 'general');
   const [showNav, setShowNav] = useState(!preferencesTab);
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
+  // Une section n'est montée qu'à sa première visite, puis le reste. Le montage
+  // conditionnel d'origine la détruisait à chaque changement de section : Flux
+  // et Administration, les deux seules à appeler le réseau au montage,
+  // repayaient un aller-retour complet à chaque retour, écran vide.
+  const [visited, setVisited] = useState<Set<string>>(() => new Set([preferencesTab || 'general']));
   const [highlightRects, setHighlightRects] = useState<HighlightRect[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
   // Unique per mount so two Preferences instances (shouldn't normally
@@ -42,6 +47,10 @@ export default function Preferences() {
     setTab(preferencesTab || 'general');
     setShowNav(!preferencesTab);
   }, [preferencesTab, preferencesOpenId]);
+
+  useEffect(() => {
+    setVisited((cur) => (cur.has(tab) ? cur : new Set(cur).add(tab)));
+  }, [tab]);
 
   // A11y: move focus into the dialog when it opens (keyboard / screen readers)
   useEffect(() => {
@@ -296,17 +305,45 @@ export default function Preferences() {
                 {t('preferences.nav.back')}
               </button>
             )}
-          {tab === 'general' && <GeneralTab />}
+          {/* `display:none` en ligne plutôt que l'attribut `hidden` seul : la
+              règle `.prefs-panel-body > [hidden]` ne vise que les enfants
+              directs, et `hidden` perd contre une classe utilitaire d'affichage
+              (le piège déjà rencontré sur la navigation mobile). Un style en
+              ligne, lui, ne peut pas être battu par une classe. */}
+          {visited.has('general') && <Pane id="general" tab={tab}><GeneralTab /></Pane>}
+          {visited.has('appearance') && (
+            <Pane id="appearance" tab={tab}>
+              <AppearanceTab onHighlight={setHighlightKey} active={tab === 'appearance'} />
+            </Pane>
+          )}
+          {visited.has('labels') && (
+            <Pane id="labels" tab={tab}><LabelsTab resetLabelColors={resetLabelColors} /></Pane>
+          )}
+          {visited.has('feeds') && <Pane id="feeds" tab={tab}><FeedsTab /></Pane>}
+          {visited.has('offline') && (
+            <Pane id="offline" tab={tab}><OfflineTab active={tab === 'offline'} /></Pane>
+          )}
 
-          {tab === 'appearance' && <AppearanceTab onHighlight={setHighlightKey} />}
-          {tab === 'labels' && <LabelsTab resetLabelColors={resetLabelColors} />}
-          {tab === 'feeds' && <FeedsTab />}
-          {tab === 'offline' && <OfflineTab />}
-
-          {tab === 'admin' && isAdmin && <AdminTab />}
+          {isAdmin && visited.has('admin') && (
+            <Pane id="admin" tab={tab}><AdminTab active={tab === 'admin'} /></Pane>
+          )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Enveloppe d'une section : montée une fois visitée, masquée le reste du temps.
+ * Garder la section montée rend le retour instantané ; `hidden` porte le sens
+ * pour les technologies d'assistance, `display` garantit l'effet visuel.
+ */
+function Pane({ id, tab, children }: { id: string; tab: string; children: React.ReactNode }) {
+  const shown = tab === id;
+  return (
+    <div hidden={!shown} style={{ display: shown ? undefined : 'none' }}>
+      {children}
     </div>
   );
 }

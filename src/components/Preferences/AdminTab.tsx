@@ -85,7 +85,7 @@ function CopyField({ label, value, hint }: { label: string; value: string; hint?
 }
 
 /* ── Admin Tab ─────────────────────────────────────────────────────── */
-export default function AdminTab() {
+export default function AdminTab({ active = true }: { active?: boolean }) {
   const { t } = useTranslation();
   const currentUser = useAuthStore((s) => s.backendUser);
   const [users, setUsers] = useState<User[]>([]);
@@ -114,7 +114,12 @@ export default function AdminTab() {
   const [editError, setEditError] = useState('');
   const [editSaving, setEditSaving] = useState(false);
 
+  // La section reste montée une fois visitée : revenir dessus doit être
+  // instantané. On revalide donc à chaque retour, mais sans toucher à
+  // `loading` — repasser par l'écran vide annulerait le bénéfice, et les
+  // données affichées restent valables le temps de l'aller-retour.
   useEffect(() => {
+    if (!active) return;
     Promise.all([getAdminUsers(), getAdminSettings()])
       .then(([u, s]) => {
         setUsers(u);
@@ -127,7 +132,7 @@ export default function AdminTab() {
         });
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [active]);
 
   async function toggleActive(user: User) {
     const updated = await updateAdminUser(user.id, { active: !user.active });

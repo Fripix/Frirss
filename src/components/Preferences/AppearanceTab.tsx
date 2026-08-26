@@ -9,7 +9,7 @@ import { hasRealHighlight, PREVIEW_ZONES } from './colorHighlight';
 
 type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
 
-export default function AppearanceTab({ onHighlight }: { onHighlight: (key: string | null) => void }) {
+export default function AppearanceTab({ onHighlight, active = true }: { onHighlight: (key: string | null) => void; active?: boolean }) {
   const { t } = useTranslation();
   const [sub, setSub] = useState<Sub>('colors');
   const SUBS: Sub[] = ['theme', 'colors', 'sizes', 'identity'];
@@ -26,9 +26,14 @@ export default function AppearanceTab({ onHighlight }: { onHighlight: (key: stri
   // Branché sur le survol seul, il disparaissait dès que le pointeur quittait
   // la ligne épinglée — la légende affirmait alors un encadrement qui n'existait
   // plus — et au doigt, où le survol n'a pas lieu, il était inatteignable.
+  // `active` : la section reste montée une fois visitée, pour que revenir
+  // dessus soit instantané. L'encadrement ne peut donc plus dépendre du
+  // démontage — sans ce garde, quitter Apparence avec une couleur épinglée
+  // laissait le voile et le cadre pointillé à l'écran depuis une autre
+  // section. Revenir sur la section rétablit l'encadrement épinglé.
   useEffect(() => {
-    onHighlight(shown);
-  }, [shown, onHighlight]);
+    onHighlight(active ? shown : null);
+  }, [shown, active, onHighlight]);
   useEffect(() => () => onHighlight(null), [onHighlight]);
 
   // Plein écran : le panneau couvre l'interface, il n'y a rien à encadrer

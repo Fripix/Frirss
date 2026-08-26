@@ -62,3 +62,20 @@ export function nextServerAfterDelete(
 export function canDeleteServer(servers: ServerConnection[]): boolean {
   return servers.length > 1;
 }
+
+/**
+ * Faut-il rendre la liste, ou attendre ?
+ *
+ * Le piège : `displayServers()` fabrique une ligne synthétique à partir de
+ * `serverUrl` quand la liste est vide. Rendue avant le premier chargement,
+ * elle est indiscernable d'un compte hérité — une panne réseau affirmerait
+ * alors tranquillement que l'utilisateur n'a qu'un serveur ingérable.
+ *
+ * Mais attendre un chargement quand des serveurs sont DÉJÀ en mémoire fait
+ * patienter devant une donnée qu'on possède : le magasin est rempli au
+ * démarrage par `App.tsx`, et par `ServerSwitcher` quand la barre est visible.
+ * On affiche donc tout de suite ce qu'on a, et on revalide derrière.
+ */
+export function shouldShowServerList(serverCount: number, loaded: boolean): boolean {
+  return serverCount > 0 || loaded;
+}

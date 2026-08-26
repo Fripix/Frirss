@@ -4,6 +4,7 @@ import {
   displayServers,
   nextServerAfterDelete,
   canDeleteServer,
+  shouldShowServerList,
 } from './serverList';
 import type { ServerConnection } from '../types';
 
@@ -95,5 +96,25 @@ describe('canDeleteServer', () => {
 
   it('autorise la suppression dès qu\'il y en a deux', () => {
     expect(canDeleteServer([srv({ id: 1 }), srv({ id: 2 })])).toBe(true);
+  });
+});
+
+describe('shouldShowServerList', () => {
+  it('cache la liste tant qu’aucun chargement n’a abouti et qu’il n’y a rien en mémoire', () => {
+    // Le cas dangereux : displayServers() fabriquerait une ligne synthétique à
+    // partir de serverUrl, indiscernable d’un compte hérité.
+    expect(shouldShowServerList(0, false)).toBe(false);
+  });
+
+  it('affiche la liste dès qu’un serveur est déjà en mémoire, sans attendre', () => {
+    expect(shouldShowServerList(2, false)).toBe(true);
+  });
+
+  it('affiche la liste une fois le chargement abouti, même vide', () => {
+    expect(shouldShowServerList(0, true)).toBe(true);
+  });
+
+  it('affiche la liste quand les deux conditions tiennent', () => {
+    expect(shouldShowServerList(3, true)).toBe(true);
   });
 });

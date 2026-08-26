@@ -13,6 +13,7 @@ import {
   displayServers,
   nextServerAfterDelete,
   canDeleteServer,
+  shouldShowServerList,
 } from '../../../lib/serverList';
 import type { ServerConnection } from '../../../types';
 import ServerRow from './ServerRow';
@@ -133,19 +134,14 @@ export default function ServerList() {
 
   const rows = displayServers(servers, activeServerId, serverUrl);
   const deletable = canDeleteServer(servers);
+  // Ce que l'on a déjà s'affiche tout de suite ; la revalidation court derrière.
+  const showList = shouldShowServerList(servers.length, loaded);
 
   return (
     <div className="space-y-4">
-      {!loaded ? (
-        <div className="space-y-2" aria-hidden="true">
-          {[0, 1].map((i) => (
-            <div key={i} className="rounded-lg px-3 py-2 min-h-[44px]" style={{ border: '1px solid var(--panel-border)' }}>
-              <div className="skeleton h-3 w-1/3 mb-1.5" />
-              <div className="skeleton h-2.5 w-1/2" />
-            </div>
-          ))}
-        </div>
-      ) : loadFailed ? (
+      {/* L'échec se dit même quand des données connues restent affichées :
+          montrer du périmé en silence serait mentir. */}
+      {loadFailed && (
         <div
           className="flex items-center justify-between gap-2 rounded-lg px-3 py-2"
           style={{ border: '1px solid var(--panel-border)' }}
@@ -162,6 +158,23 @@ export default function ServerList() {
             {t('readingPane.retry')}
           </button>
         </div>
+      )}
+
+      {!showList ? (
+        // Squelette réservé au démarrage à froid : sans lui, la ligne
+        // synthétique de displayServers() se ferait passer pour un compte
+        // hérité. Inutile de l'afficher si le chargement a déjà échoué —
+        // l'erreur ci-dessus le dit mieux qu'une attente sans fin.
+        !loadFailed && (
+        <div className="space-y-2" aria-hidden="true">
+          {[0, 1].map((i) => (
+            <div key={i} className="rounded-lg px-3 py-2 min-h-[44px]" style={{ border: '1px solid var(--panel-border)' }}>
+              <div className="skeleton h-3 w-1/3 mb-1.5" />
+              <div className="skeleton h-2.5 w-1/2" />
+            </div>
+          ))}
+        </div>
+        )
       ) : (
         <ul className="space-y-2" aria-label={t('servers.label')}>
           {rows.map((server) => (
