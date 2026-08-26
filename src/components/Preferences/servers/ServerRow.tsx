@@ -37,13 +37,15 @@ export default function ServerRow({
   // produisait rien à l'écran — six `catch { /* ignore */ }` dans l'ancien
   // menu contextuel. Tolérable dans un menu fugace, pas dans un écran de
   // gestion.
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<void>): Promise<boolean> {
     setBusy(true);
     setError('');
     try {
       await action();
+      return true;
     } catch {
       setError(t('servers.errorGeneric'));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -102,7 +104,7 @@ export default function ServerRow({
                 e.preventDefault();
                 const name = renameValue.trim();
                 if (!name || name === server.name) { setRenaming(false); return; }
-                run(() => onRename(name)).then(() => setRenaming(false));
+                run(() => onRename(name)).then((ok) => { if (ok) setRenaming(false); });
               }}
               className="flex items-center gap-2 flex-wrap"
             >
