@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../../stores/authStore';
 import { useFeedStore } from '../../../stores/feedStore';
@@ -47,6 +47,20 @@ export default function ServerList() {
   // réseau silencieux.
   const [loaded, setLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+  const wasAddOpen = useRef(false);
+
+  // AddServerDialog se démonte à sa fermeture (Échap ou Annuler) : le focus
+  // qu'il portait retombe alors sur `document.body`, hors de l'arbre qui
+  // écoute Échap dans Preferences.tsx. On le rend au bouton déclencheur,
+  // remonté à ce point du rendu — d'où l'effet plutôt qu'un `.focus()` dans
+  // le gestionnaire de fermeture.
+  useEffect(() => {
+    if (wasAddOpen.current && !addOpen) {
+      addButtonRef.current?.focus();
+    }
+    wasAddOpen.current = addOpen;
+  }, [addOpen]);
 
   async function reload(): Promise<ServerConnection[]> {
     try {
@@ -171,6 +185,7 @@ export default function ServerList() {
       )}
 
       <button
+        ref={addButtonRef}
         type="button"
         onClick={() => setAddOpen(true)}
         className="w-full px-4 py-2 text-xs font-medium rounded-lg min-h-[44px] transition-colors inline-flex items-center justify-center gap-1.5"

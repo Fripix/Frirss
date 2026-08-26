@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, useRef, useEffect, type FormEvent, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { hostnameOf, type DisplayServer } from '../../../lib/serverList';
 import RefreshTokenField from './RefreshTokenField';
@@ -33,6 +33,20 @@ export default function ServerRow({
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(server.name || '');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const renameButtonRef = useRef<HTMLButtonElement>(null);
+  const wasRenaming = useRef(false);
+
+  // Le formulaire de renommage se démonte quand `renaming` repasse à faux
+  // (Échap ou Annuler) : le navigateur renvoie alors le focus sur
+  // `document.body`, hors de l'arbre qui écoute Échap dans Preferences.tsx.
+  // On le rend explicitement au bouton déclencheur, remonté à ce point du
+  // rendu — d'où l'effet plutôt qu'un `.focus()` dans le gestionnaire.
+  useEffect(() => {
+    if (wasRenaming.current && !renaming) {
+      renameButtonRef.current?.focus();
+    }
+    wasRenaming.current = renaming;
+  }, [renaming]);
 
   // Les gestionnaires rejettent : sans ce relais, un renommage refusé ne
   // produisait rien à l'écran — six `catch { /* ignore */ }` dans l'ancien
@@ -131,7 +145,7 @@ export default function ServerRow({
             </form>
           ) : (
             <div className="flex items-center gap-2 flex-wrap">
-              <RowAction label={t('servers.rename')} onClick={() => { setRenameValue(server.name || ''); setRenaming(true); }} disabled={busy} />
+              <RowAction buttonRef={renameButtonRef} label={t('servers.rename')} onClick={() => { setRenameValue(server.name || ''); setRenaming(true); }} disabled={busy} />
               {!isDefault && (
                 <RowAction label={t('servers.setDefault')} onClick={() => run(onSetDefault)} disabled={busy} />
               )}
@@ -209,9 +223,12 @@ function Badge({ label, accent }: { label: string; accent?: boolean }) {
   );
 }
 
-function RowAction({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
+function RowAction({
+  label, onClick, disabled, buttonRef,
+}: { label: string; onClick: () => void; disabled?: boolean; buttonRef?: Ref<HTMLButtonElement> }) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={onClick}
       disabled={disabled}

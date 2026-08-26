@@ -82,6 +82,9 @@ describe('ServerRow — rename form', () => {
 });
 
 describe('ServerRow — synthetic (legacy) connection', () => {
+  // En usage réel, la ligne synthétique EST la ligne active (displayServers()
+  // lui attribue id = activeServerId) : isActive: true rend le test fidèle
+  // sans changer ce qu'il affirme (le corps reste inerte, `synthetic` prime).
   const syntheticServer: DisplayServer = {
     id: 1,
     name: 'Legacy connection',
@@ -97,6 +100,7 @@ describe('ServerRow — synthetic (legacy) connection', () => {
       <ServerRow
         {...baseProps()}
         server={syntheticServer}
+        isActive
         expanded
         onToggle={onToggle}
         onSwitch={onSwitch}
@@ -113,6 +117,29 @@ describe('ServerRow — synthetic (legacy) connection', () => {
     fireEvent.click(bodyButton!);
 
     expect(onToggle).not.toHaveBeenCalled();
+    expect(onSwitch).not.toHaveBeenCalled();
+  });
+});
+
+describe('ServerRow — active row body click', () => {
+  it('routes a click on the active row body to onToggle, not onSwitch', () => {
+    const onToggle = vi.fn();
+    const onSwitch = vi.fn();
+    const { getByText } = render(
+      <ServerRow
+        {...baseProps()}
+        isActive
+        onToggle={onToggle}
+        onSwitch={onSwitch}
+        onRename={vi.fn()}
+      />,
+    );
+
+    const bodyButton = getByText('Old name').closest('button');
+    expect(bodyButton).not.toBeNull();
+    fireEvent.click(bodyButton!);
+
+    expect(onToggle).toHaveBeenCalledTimes(1);
     expect(onSwitch).not.toHaveBeenCalled();
   });
 });
