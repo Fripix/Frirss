@@ -64,4 +64,66 @@ describe('ServerRow — rename form', () => {
 
     await waitFor(() => expect(queryByDisplayValue('New name')).toBeNull());
   });
+
+  it('discards the typed value when cancel is clicked', () => {
+    const onRename = vi.fn();
+    const { getByText, getByDisplayValue, queryByDisplayValue } = render(
+      <ServerRow {...baseProps()} onRename={onRename} />,
+    );
+
+    fireEvent.click(getByText('servers.rename'));
+    const input = getByDisplayValue('Old name');
+    fireEvent.change(input, { target: { value: 'Abandoned name' } });
+    fireEvent.click(getByText('sidebar.cancel'));
+
+    expect(queryByDisplayValue('Abandoned name')).toBeNull();
+    expect(onRename).not.toHaveBeenCalled();
+  });
+});
+
+describe('ServerRow — synthetic (legacy) connection', () => {
+  const syntheticServer: DisplayServer = {
+    id: 1,
+    name: 'Legacy connection',
+    url: 'https://legacy.example.com',
+    freshrss_user: 'alice',
+    synthetic: true,
+  };
+
+  it('stays inert even when expanded is true: no expand control, no token field, no toggle', () => {
+    const onToggle = vi.fn();
+    const onSwitch = vi.fn();
+    const { queryByLabelText, queryByText, getByText } = render(
+      <ServerRow
+        {...baseProps()}
+        server={syntheticServer}
+        expanded
+        onToggle={onToggle}
+        onSwitch={onSwitch}
+        onRename={vi.fn()}
+      />,
+    );
+
+    expect(queryByLabelText('servers.expand')).toBeNull();
+    expect(queryByLabelText('servers.collapse')).toBeNull();
+    expect(queryByText('preferences.refresh.tokenLabel')).toBeNull();
+
+    const bodyButton = getByText('Legacy connection').closest('button');
+    expect(bodyButton).not.toBeNull();
+    fireEvent.click(bodyButton!);
+
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(onSwitch).not.toHaveBeenCalled();
+  });
+});
+
+describe('ServerRow — cannotDeleteLast', () => {
+  it('disables the delete button when canDelete is false', () => {
+    const { getByText } = render(
+      <ServerRow {...baseProps()} canDelete={false} onRename={vi.fn()} />,
+    );
+
+    const deleteButton = getByText('servers.delete').closest('button') as HTMLButtonElement;
+    expect(deleteButton.disabled).toBe(true);
+  });
 });

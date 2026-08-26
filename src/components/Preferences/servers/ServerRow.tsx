@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { hostnameOf, type DisplayServer } from '../../../lib/serverList';
 import RefreshTokenField from './RefreshTokenField';
@@ -27,6 +27,7 @@ export default function ServerRow({
   onToggle, onSwitch, onRename, onSetDefault, onDelete, onSaved,
 }: ServerRowProps) {
   const { t } = useTranslation();
+  const panelId = `server-panel-${useId()}`;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -58,8 +59,8 @@ export default function ServerRow({
       <div className="flex items-stretch">
         <button
           type="button"
-          onClick={onSwitch}
-          disabled={isActive || !!server.synthetic}
+          onClick={isActive ? onToggle : onSwitch}
+          disabled={!!server.synthetic}
           title={isActive ? undefined : t('servers.switchTo')}
           className="flex-1 text-left px-3 py-2 min-h-[44px] flex flex-col justify-center gap-0.5 transition-colors hover:bg-black/5 disabled:hover:bg-transparent min-w-0"
         >
@@ -81,6 +82,7 @@ export default function ServerRow({
             type="button"
             onClick={onToggle}
             aria-expanded={expanded}
+            aria-controls={panelId}
             aria-label={expanded ? t('servers.collapse') : t('servers.expand')}
             className="w-11 flex-shrink-0 flex items-center justify-center transition-colors hover:bg-black/5"
             style={{ borderLeft: '1px solid var(--panel-border)', color: 'var(--list-summary)' }}
@@ -97,7 +99,7 @@ export default function ServerRow({
       </div>
 
       {expanded && !server.synthetic && (
-        <div className="px-3 py-3 space-y-3" style={{ borderTop: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}>
+        <div id={panelId} className="px-3 py-3 space-y-3" style={{ borderTop: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}>
           {renaming ? (
             <form
               onSubmit={(e: FormEvent) => {
@@ -113,7 +115,7 @@ export default function ServerRow({
                 type="text"
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Escape') setRenaming(false); }}
+                onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setRenaming(false); } }}
                 className="flex-1 min-w-[8rem] text-sm px-2.5 py-1.5 rounded-lg outline-none"
                 style={{ border: '1px solid var(--accent)', color: 'var(--list-title)', background: 'var(--panel-bg)' }}
               />
@@ -125,6 +127,7 @@ export default function ServerRow({
               >
                 {t('servers.rename')}
               </button>
+              <RowAction label={t('sidebar.cancel')} onClick={() => setRenaming(false)} disabled={busy} />
             </form>
           ) : (
             <div className="flex items-center gap-2 flex-wrap">

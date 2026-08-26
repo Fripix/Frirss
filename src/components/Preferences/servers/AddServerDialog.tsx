@@ -77,6 +77,12 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
         className="w-full max-w-sm rounded-xl p-6 shadow-2xl"
         style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          // Escape here means "close this dialog", not "close Préférences"
+          // underneath it — without stopping propagation, the same key
+          // demounts the whole panel with a half-filled server form inside.
+          if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+        }}
       >
         <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--list-title)' }}>
           {t('servers.addTitle')}

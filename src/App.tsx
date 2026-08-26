@@ -239,8 +239,9 @@ export default function App() {
   // while the topbar is shown, and the topbar is a one-click user preference.
   // With it hidden, nothing ever set the flag — Refresh silently fell back to
   // a read-only sync and the banner offered to "enable feed refreshing" to
-  // someone who had configured it long ago. ServerSwitcher, FeedsTab and
-  // AddServerDialog keep writing it; they are updates, this is the source.
+  // someone who had configured it long ago. ServerList, RefreshTokenField and
+  // AddServerDialog keep writing it; ServerSwitcher only does on an explicit
+  // switch, not on mount. They are updates, this is the source.
   // A failed lookup leaves the flag untouched: not knowing is not "no token".
   useEffect(() => {
     if (!isAuthenticated) return;

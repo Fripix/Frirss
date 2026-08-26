@@ -40,6 +40,13 @@ export default function ServerList() {
   const [expandedId, setExpandedId] = useState<string | null>(
     activeServerId != null ? String(activeServerId) : null,
   );
+  // Avant la première réponse de getServers(), `servers` vaut `[]` et
+  // displayServers() rendrait une ligne synthétique en lecture seule —
+  // indiscernable d'une vraie connexion héritée. `loaded` bloque ce rendu
+  // trompeur ; `loadFailed` distingue une liste vide légitime d'un échec
+  // réseau silencieux.
+  const [loaded, setLoaded] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   async function reload(): Promise<ServerConnection[]> {
     try {
@@ -49,9 +56,13 @@ export default function ServerList() {
         (s) => String(s.id) === String(useAuthStore.getState().activeServerId),
       );
       useFeedStore.getState().setHasRefreshToken(!!active?.has_refresh_token);
+      setLoadFailed(false);
       return list;
     } catch {
+      setLoadFailed(true);
       return servers;
+    } finally {
+      setLoaded(true);
     }
   }
 
@@ -84,6 +95,7 @@ export default function ServerList() {
     if (String(server.id) === String(activeServerId)) return;
     switchServer(server);
     useFeedStore.getState().setHasRefreshToken(!!server.has_refresh_token);
+    setExpandedId(String(server.id));
   }
 
   // Les trois gestionnaires ci-dessous laissent remonter leur échec : c'est
@@ -110,25 +122,53 @@ export default function ServerList() {
 
   return (
     <div className="space-y-4">
-      <ul className="space-y-2" aria-label={t('servers.label')}>
-        {rows.map((server) => (
-          <ServerRow
-            key={server.id}
-            server={server}
-            isActive={String(server.id) === String(activeServerId)}
-            expanded={expandedId === String(server.id)}
-            canDelete={deletable}
-            onToggle={() =>
-              setExpandedId((cur) => (cur === String(server.id) ? null : String(server.id)))
-            }
-            onSwitch={() => handleSwitch(server as ServerConnection)}
-            onRename={(name) => handleRename(server as ServerConnection, name)}
-            onSetDefault={() => handleSetDefault(server as ServerConnection)}
-            onDelete={() => handleDelete(server as ServerConnection)}
-            onSaved={() => { reload(); }}
-          />
-        ))}
-      </ul>
+      {!loaded ? (
+        <div className="space-y-2" aria-hidden="true">
+          {[0, 1].map((i) => (
+            <div key={i} className="rounded-lg px-3 py-2 min-h-[44px]" style={{ border: '1px solid var(--panel-border)' }}>
+              <div className="skeleton h-3 w-1/3 mb-1.5" />
+              <div className="skeleton h-2.5 w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : loadFailed ? (
+        <div
+          className="flex items-center justify-between gap-2 rounded-lg px-3 py-2"
+          style={{ border: '1px solid var(--panel-border)' }}
+        >
+          <span className="text-xs" role="alert" style={{ color: 'var(--danger)' }}>
+            {t('servers.errorGeneric')}
+          </span>
+          <button
+            type="button"
+            onClick={() => reload()}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] flex-shrink-0 transition-colors hover:bg-black/5"
+            style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
+          >
+            {t('sidebar.refresh')}
+          </button>
+        </div>
+      ) : (
+        <ul className="space-y-2" aria-label={t('servers.label')}>
+          {rows.map((server) => (
+            <ServerRow
+              key={server.id}
+              server={server}
+              isActive={String(server.id) === String(activeServerId)}
+              expanded={expandedId === String(server.id)}
+              canDelete={deletable}
+              onToggle={() =>
+                setExpandedId((cur) => (cur === String(server.id) ? null : String(server.id)))
+              }
+              onSwitch={() => handleSwitch(server as ServerConnection)}
+              onRename={(name) => handleRename(server as ServerConnection, name)}
+              onSetDefault={() => handleSetDefault(server as ServerConnection)}
+              onDelete={() => handleDelete(server as ServerConnection)}
+              onSaved={() => { reload(); }}
+            />
+          ))}
+        </ul>
+      )}
 
       <button
         type="button"
