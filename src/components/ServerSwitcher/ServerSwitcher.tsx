@@ -9,7 +9,7 @@ import {
   deleteServer,
   setDefaultServer,
 } from '../../api/backend';
-import AddServerDialog from './AddServerDialog';
+import AddServerDialog from '../Preferences/servers/AddServerDialog';
 import type { ServerConnection } from '../../types';
 
 type DisplayServer = Omit<ServerConnection, 'id'> & { id: string | number; synthetic?: boolean };

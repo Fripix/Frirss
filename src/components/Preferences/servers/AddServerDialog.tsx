@@ -1,9 +1,9 @@
 import { useState, type FormEvent, type ReactEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
-import { addServer as apiAddServer, updateServer } from '../../api/backend';
-import { login as freshrssLogin } from '../../api/auth';
-import { useFeedStore } from '../../stores/feedStore';
-import type { ServerConnection } from '../../types';
+import { addServer as apiAddServer, updateServer } from '../../../api/backend';
+import { login as freshrssLogin } from '../../../api/auth';
+import { useFeedStore } from '../../../stores/feedStore';
+import type { ServerConnection } from '../../../types';
 
 interface AddServerDialogProps {
   onClose: () => void;
