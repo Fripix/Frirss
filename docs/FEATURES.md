@@ -64,11 +64,28 @@ Plusieurs connexions FreshRSS par utilisateur, avec un serveur par défaut et un
 basculement rapide. Le jeton greader est **chiffré en base** (AES-256-GCM) et
 injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
 
-- **Où** : `server/routes/servers.ts`, `server/crypto.ts`, `src/components/ServerSwitcher/`
-- **Piège connu** : `ServerSwitcher` est **le seul** endroit permettant d'ajouter,
-  renommer, supprimer ou changer de serveur, et il ne se monte que si la barre
-  supérieure est visible. La masquer rend la gestion des serveurs inaccessible.
-  Déplacement vers Préférences → Flux prévu au backlog.
+- **Où** : `server/routes/servers.ts`, `server/crypto.ts`,
+  `src/components/Preferences/servers/` (gestion complète),
+  `src/components/ServerSwitcher/` (sélecteur), `src/lib/serverList.ts`
+  (logique partagée).
+- **Deux endroits, un seul complet** : Préférences → Flux liste les serveurs et
+  porte toutes les actions — basculer, ajouter, renommer, définir par défaut,
+  supprimer, et le jeton maître de chaque serveur. La barre du haut ne fait que
+  basculer ; son `+` et son clic droit sont des raccourcis vers Préférences,
+  ils n'exécutent rien.
+- **Jeton par serveur** : le jeton maître se configure et s'éprouve depuis la
+  ligne de n'importe quel serveur, sans y basculer — les routes sont adressées
+  par `/:id`. Le drapeau global `hasRefreshToken` ne décrit que le serveur
+  actif : `RefreshTokenField` ne l'écrit que depuis la ligne de celui-ci.
+- **Piège corrigé le 2026-08-26** : la gestion vivait uniquement dans
+  `ServerSwitcher`, qui ne se monte que si la barre du haut est visible — la
+  masquer emportait la bascule avec elle. Pire, renommer, définir par défaut et
+  supprimer passaient par `onContextMenu`, que Safari iOS n'émet pas : trois
+  actions sur cinq n'existaient pas dans la PWA installée.
+- **Piège subsistant** : la connexion FreshRSS sans enregistrement en base
+  (première connexion, comptes anciens) s'affiche en entrée synthétique, en
+  lecture seule et non dépliable. Elle n'a pas d'identifiant en base : aucune
+  action de gestion ne peut la viser.
 
 ---
 
@@ -206,10 +223,12 @@ d'origine.
 
 - **Où** : `server/actualizeRequest.ts`, `server/refreshJobs.ts`,
   `server/routes/servers.ts` (`/:id/actualize`), `src/lib/refreshPolling.ts`,
-  `src/components/Preferences/FeedsTab.tsx`, `src/components/RefreshBanner.tsx`
+  `src/components/Preferences/servers/RefreshTokenField.tsx`,
+  `src/components/RefreshBanner.tsx`
 - **Spec** : `docs/superpowers/specs/2026-08-20-real-feed-refresh-design.md`
 - **Réglages** : jeton maître (Préférences → Flux, écran de connexion, ajout de
-  serveur) ; `FRIRSS_REFRESH_MAX_FEEDS`
+  serveur) ; `FRIRSS_REFRESH_MAX_FEEDS`. Dans Préférences, le jeton se règle
+  **par serveur**, depuis la ligne de chacun — y compris un serveur non actif.
 - **Pièges** :
   - l'API greader **ne sait pas** déclencher une relève ; il faut l'action
     `c=feed&a=actualize`, hors API ;
@@ -277,14 +296,17 @@ partageables par lien.
 ## Préférences
 
 Panneau à navigation verticale : **Général** (langue, lecture, raccourcis),
-**Apparence** (thème, couleurs, tailles, identité), **Étiquettes**, **Flux**,
-**Hors-ligne**, plus **Administration** pour les administrateurs.
+**Apparence** (thème, couleurs, tailles, identité), **Étiquettes**, **Flux**
+(gestion des serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, plus
+**Administration** pour les administrateurs.
 
 - **Où** : `src/components/Preferences/`
 - **Spec** : `docs/superpowers/specs/2026-08-21-preferences-rework-design.md`
 - **Garde-fou** : `src/components/Preferences/settingsCoverage.test.ts` fige un
   relevé de **232 réglages** et échoue si l'un cesse d'être référencé. Ne jamais
-  modifier le relevé pour faire passer le test.
+  modifier le relevé pour faire passer le test. Son parcours est **récursif**
+  depuis le 2026-08-26 : à plat, il déclarait disparu tout réglage déplacé dans
+  un sous-dossier du panneau.
 - **Synchronisation** : les préférences logiques sont synchronisées par le serveur
   (`UI_SYNC_KEYS`) ; les préférences géométriques — largeurs de panneaux,
   visibilité de la barre latérale — restent locales à chaque appareil.
