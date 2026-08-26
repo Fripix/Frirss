@@ -503,7 +503,7 @@
     "switchTo": "Basculer sur ce serveur",
     "expand": "Afficher les détails",
     "collapse": "Masquer les détails",
-    "errorGeneric": "L'action a échoué. Réessayez.",
+    "errorGeneric": "L’action a échoué. Réessayez.",
     "cannotDeleteLast": "Le dernier serveur ne peut pas être supprimé."
   },
   "dates": {
