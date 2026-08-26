@@ -618,7 +618,7 @@ export default function Sidebar() {
         </button>
         <div className="flex-1" />
         <a
-          href="https://github.com/Fripix/frirss"
+          href="https://github.com/Fripix/Frirss"
           target="_blank"
           rel="noopener noreferrer"
           className="p-1.5 rounded transition-all hover:bg-white/10 group"

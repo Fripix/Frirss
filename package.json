@@ -7,9 +7,9 @@
   "author": "Fripix",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Fripix/frirss.git"
+    "url": "https://github.com/Fripix/Frirss.git"
   },
-  "homepage": "https://github.com/Fripix/frirss#readme",
+  "homepage": "https://github.com/Fripix/Frirss#readme",
   "type": "module",
   "scripts": {
     "dev": "tsx watch server/index.ts & vite",

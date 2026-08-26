@@ -297,7 +297,7 @@ router.all('/', async (req, res) => {
       const origin = new URL(rawTarget).origin;
       headers.Referer = `${origin}/`;
       headers['User-Agent'] =
-        'Mozilla/5.0 (compatible; FriRSS offline prefetch; +https://github.com/Fripix/frirss)';
+        'Mozilla/5.0 (compatible; FriRSS offline prefetch; +https://github.com/Fripix/Frirss)';
     } catch { /* target already validated above; ignore */ }
   }
   const ct = req.header('content-type');
