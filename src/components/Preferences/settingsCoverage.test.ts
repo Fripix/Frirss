@@ -31,6 +31,20 @@ import path from 'path';
 const DIR = path.join(process.cwd(), 'src/components/Preferences');
 const PLURAL_SUFFIXES = ['', '_zero', '_one', '_two', '_few', '_many', '_other'];
 
+/**
+ * Tous les fichiers source du panneau, sous-dossiers compris. Le parcours était
+ * à plat : déplacer un réglage dans un sous-dossier le rendait invisible au
+ * relevé, et le garde-fou rougissait sans que rien ne soit cassé. Un
+ * sous-dossier du panneau reste le panneau.
+ */
+function sourceFiles(dir: string): string[] {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(full);
+    return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [full] : [];
+  });
+}
+
 /** Vrai si `key` ou une de ses formes pluriel suffixées résout une chaîne dans `json`. */
 function resolvesInLocale(json: unknown, key: string): boolean {
   return PLURAL_SUFFIXES.some((suffix) => {
@@ -42,9 +56,8 @@ function resolvesInLocale(json: unknown, key: string): boolean {
 
 function referencedKeys(): Set<string> {
   const fr = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'src/locales/fr.json'), 'utf8'));
-  const src = fs.readdirSync(DIR)
-    .filter((f) => /\.tsx?$/.test(f) && !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
-    .map((f) => fs.readFileSync(path.join(DIR, f), 'utf8'))
+  const src = sourceFiles(DIR)
+    .map((f) => fs.readFileSync(f, 'utf8'))
     .join('\n');
 
   const keys = new Set<string>();
