@@ -145,7 +145,7 @@ export default function ServerList() {
             className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] flex-shrink-0 transition-colors hover:bg-black/5"
             style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
           >
-            {t('sidebar.refresh')}
+            {t('readingPane.retry')}
           </button>
         </div>
       ) : (
