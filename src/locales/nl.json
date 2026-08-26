@@ -496,7 +496,15 @@
     "setDefault": "Als standaard instellen",
     "delete": "Verwijderen",
     "confirmDelete": "Server „{{name}}” verwijderen?",
-    "errorDuplicate": "Deze server is al geregistreerd."
+    "errorDuplicate": "Deze server is al geregistreerd.",
+    "manage": "Servers beheren…",
+    "active": "Actief",
+    "defaultBadge": "Standaard",
+    "switchTo": "Naar deze server wisselen",
+    "expand": "Details tonen",
+    "collapse": "Details verbergen",
+    "errorGeneric": "De actie is mislukt. Probeer het opnieuw.",
+    "cannotDeleteLast": "De laatste server kan niet worden verwijderd."
   },
   "dates": {
     "today": "Vandaag",

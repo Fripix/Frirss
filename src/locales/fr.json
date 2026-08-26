@@ -496,7 +496,15 @@
     "setDefault": "Définir par défaut",
     "delete": "Supprimer",
     "confirmDelete": "Supprimer le serveur « {{name}} » ?",
-    "errorDuplicate": "Ce serveur est déjà enregistré."
+    "errorDuplicate": "Ce serveur est déjà enregistré.",
+    "manage": "Gérer les serveurs…",
+    "active": "Actif",
+    "defaultBadge": "Par défaut",
+    "switchTo": "Basculer sur ce serveur",
+    "expand": "Afficher les détails",
+    "collapse": "Masquer les détails",
+    "errorGeneric": "L'action a échoué. Réessayez.",
+    "cannotDeleteLast": "Le dernier serveur ne peut pas être supprimé."
   },
   "dates": {
     "today": "Aujourd'hui",

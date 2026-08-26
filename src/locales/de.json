@@ -496,7 +496,15 @@
     "setDefault": "Als Standard festlegen",
     "delete": "Löschen",
     "confirmDelete": "Server „{{name}}“ löschen?",
-    "errorDuplicate": "Dieser Server ist bereits registriert."
+    "errorDuplicate": "Dieser Server ist bereits registriert.",
+    "manage": "Server verwalten…",
+    "active": "Aktiv",
+    "defaultBadge": "Standard",
+    "switchTo": "Zu diesem Server wechseln",
+    "expand": "Details anzeigen",
+    "collapse": "Details ausblenden",
+    "errorGeneric": "Die Aktion ist fehlgeschlagen. Bitte erneut versuchen.",
+    "cannotDeleteLast": "Der letzte Server kann nicht gelöscht werden."
   },
   "dates": {
     "today": "Heute",

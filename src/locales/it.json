@@ -496,7 +496,15 @@
     "setDefault": "Imposta come predefinito",
     "delete": "Elimina",
     "confirmDelete": "Eliminare il server «{{name}}»?",
-    "errorDuplicate": "Questo server è già registrato."
+    "errorDuplicate": "Questo server è già registrato.",
+    "manage": "Gestisci i server…",
+    "active": "Attivo",
+    "defaultBadge": "Predefinito",
+    "switchTo": "Passa a questo server",
+    "expand": "Mostra i dettagli",
+    "collapse": "Nascondi i dettagli",
+    "errorGeneric": "Azione non riuscita. Riprova.",
+    "cannotDeleteLast": "L'ultimo server non può essere eliminato."
   },
   "dates": {
     "today": "Oggi",

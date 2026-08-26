@@ -496,7 +496,15 @@
     "setDefault": "Establecer por defecto",
     "delete": "Eliminar",
     "confirmDelete": "¿Eliminar el servidor «{{name}}»?",
-    "errorDuplicate": "Este servidor ya está registrado."
+    "errorDuplicate": "Este servidor ya está registrado.",
+    "manage": "Gestionar servidores…",
+    "active": "Activo",
+    "defaultBadge": "Por defecto",
+    "switchTo": "Cambiar a este servidor",
+    "expand": "Mostrar detalles",
+    "collapse": "Ocultar detalles",
+    "errorGeneric": "La acción ha fallado. Inténtalo de nuevo.",
+    "cannotDeleteLast": "No se puede eliminar el último servidor."
   },
   "dates": {
     "today": "Hoy",

@@ -496,7 +496,15 @@
     "setDefault": "Set as default",
     "delete": "Delete",
     "confirmDelete": "Delete server \"{{name}}\"?",
-    "errorDuplicate": "This server is already registered."
+    "errorDuplicate": "This server is already registered.",
+    "manage": "Manage servers…",
+    "active": "Active",
+    "defaultBadge": "Default",
+    "switchTo": "Switch to this server",
+    "expand": "Show details",
+    "collapse": "Hide details",
+    "errorGeneric": "The action failed. Try again.",
+    "cannotDeleteLast": "The last server cannot be deleted."
   },
   "dates": {
     "today": "Today",

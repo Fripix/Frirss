@@ -500,7 +500,15 @@
     "setDefault": "Ustaw jako domyślny",
     "delete": "Usuń",
     "confirmDelete": "Usunąć serwer „{{name}}”?",
-    "errorDuplicate": "Ten serwer jest już zarejestrowany."
+    "errorDuplicate": "Ten serwer jest już zarejestrowany.",
+    "manage": "Zarządzaj serwerami…",
+    "active": "Aktywny",
+    "defaultBadge": "Domyślny",
+    "switchTo": "Przełącz na ten serwer",
+    "expand": "Pokaż szczegóły",
+    "collapse": "Ukryj szczegóły",
+    "errorGeneric": "Akcja nie powiodła się. Spróbuj ponownie.",
+    "cannotDeleteLast": "Nie można usunąć ostatniego serwera."
   },
   "dates": {
     "today": "Dzisiaj",
