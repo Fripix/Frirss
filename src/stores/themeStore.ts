@@ -375,9 +375,14 @@ export interface ThemeState {
   labelColors: Record<string, LabelColor>;
   preferencesOpen: boolean;
   preferencesTab: string | null;
+  // Intention ponctuelle portée par l'ouverture : la section seule ne dit pas
+  // ce qu'on vient y faire. Consommée puis vidée au montage, sinon rouvrir le
+  // panneau relancerait l'action.
+  preferencesIntent: string | null;
   preferencesOpenId: number;
 
-  openPreferences: (tab?: string | null) => void;
+  openPreferences: (tab?: string | null, intent?: string | null) => void;
+  clearPreferencesIntent: () => void;
   closePreferences: () => void;
   setColor: (key: string, value: string) => void;
   setFontSize: (key: string, value: string) => void;
@@ -415,10 +420,12 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
     labelColors: loadLabelColors(),
     preferencesOpen: false,
     preferencesTab: null, // null = default ('general'), or force a specific tab on open
+    preferencesIntent: null, // null = just open the section
     preferencesOpenId: 0,  // increments each open — forces useEffect to re-fire
 
-    openPreferences: (tab = null) => set((s) => ({ preferencesOpen: true, preferencesTab: tab, preferencesOpenId: s.preferencesOpenId + 1 })),
-    closePreferences: () => set({ preferencesOpen: false, preferencesTab: null }),
+    openPreferences: (tab = null, intent = null) => set((s) => ({ preferencesOpen: true, preferencesTab: tab, preferencesIntent: intent, preferencesOpenId: s.preferencesOpenId + 1 })),
+    clearPreferencesIntent: () => set({ preferencesIntent: null }),
+    closePreferences: () => set({ preferencesOpen: false, preferencesTab: null, preferencesIntent: null }),
 
     setColor: (key, value) => {
       set((state) => {
