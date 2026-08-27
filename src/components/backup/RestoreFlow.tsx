@@ -58,6 +58,11 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
     try {
       await applyRestore(envelope, passphrase, setup);
       setPhase('done');
+      // La phrase de passe et le contenu déchiffré n'ont plus lieu d'être en
+      // mémoire du composant pendant la seconde et demie qui précède la
+      // déconnexion déclenchée par onRestored().
+      setPassphrase('');
+      setEnvelope(null);
       onRestored();
     } catch (err) {
       setError(t(backupErrorKey(err)));
@@ -110,7 +115,15 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
           type="password"
           autoComplete="off"
           value={passphrase}
-          onChange={(e) => setPassphrase(e.target.value)}
+          onChange={(e) => {
+            setPassphrase(e.target.value);
+            // Même raisonnement que pour le choix d'un fichier : l'aperçu
+            // affiché correspond à la phrase de passe précédente, pas à
+            // celle qui vient d'être modifiée. Le vider évite de laisser un
+            // bouton de remplacement cliquable pointant vers un contenu qui
+            // ne correspond plus à ce qui est saisi.
+            setSummary(null);
+          }}
           className="w-full px-3 py-1.5 text-sm rounded-md"
           style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)', background: 'var(--panel-header-bg)' }}
         />
