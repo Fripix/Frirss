@@ -52,19 +52,14 @@ function collectEnvironment(): Record<string, string> {
  * façon dans le localStorage de l'ancienne origine.
  */
 export function collectBackup(): BackupPayload {
-  const preferences = db.prepare('SELECT * FROM preferences ORDER BY user_id, key').all() as Row[];
-  // Preserve the correct type: preferences.user_id should be TEXT to match its role as a
-  // foreign key to users.id. Even if the schema incorrectly declares it INTEGER, convert it
-  // to TEXT for backup consistency (restoring would lose data if this mismatch exists).
-  const preferencesWithCorrectTypes = preferences.map((p) => ({
-    ...p,
-    user_id: String(p.user_id),
-  }));
-
+  // Les lignes sont rendues telles que la base les donne. `preferences.user_id`
+  // est du TEXT là où `users.id` est un INTEGER : convertir l'un vers l'autre
+  // orphelinerait toutes les préférences sans la moindre erreur, et SQLite étant
+  // typé dynamiquement, une sauvegarde n'a pas à avoir d'opinion sur ce qu'elle lit.
   return {
     users: db.prepare('SELECT * FROM users ORDER BY id').all() as Row[],
     servers: db.prepare('SELECT * FROM servers ORDER BY id').all() as Row[],
-    preferences: preferencesWithCorrectTypes,
+    preferences: db.prepare('SELECT * FROM preferences ORDER BY user_id, key').all() as Row[],
     settings: db.prepare('SELECT * FROM settings ORDER BY key').all() as Row[],
     environment: collectEnvironment(),
   };

@@ -46,9 +46,13 @@ describe('collectBackup', () => {
     expect(keys(collectBackup())).toContain('encryption_key');
   });
 
-  it("emporte les préférences en conservant le type de user_id", () => {
-    const p = collectBackup();
-    expect(p.preferences[0]).toMatchObject({ user_id: '1', key: 'theme', value: 'dark' });
+  it('emporte les préférences telles que la base les rend, sans conversion', () => {
+    const direct = db.prepare('SELECT * FROM preferences ORDER BY user_id, key').all();
+    expect(collectBackup().preferences).toEqual(direct);
+  });
+
+  it('emporte les préférences avec leur contenu utile', () => {
+    expect(collectBackup().preferences[0]).toMatchObject({ key: 'theme', value: 'dark' });
   });
 
   it("n'emporte PAS les sessions", () => {
