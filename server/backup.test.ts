@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import db from './db.js';
 import { collectBackup, summarizeBackup, BACKUP_ENV_KEYS, applyBackup } from './backup.js';
-import { encrypt, decrypt } from './crypto.js';
+import { encrypt, decrypt, resetKeyCache } from './crypto.js';
 import { randomBytes } from 'crypto';
 
 function wipe() {
@@ -140,22 +140,42 @@ describe('applyBackup', () => {
   });
 
   it('vide le cache de clé, sans quoi les jetons restaurés seraient illisibles', () => {
-    // Force la mise en cache de la clé actuelle.
+    const lire = () =>
+      (db.prepare("SELECT value FROM settings WHERE key = 'encryption_key'").get() as { value: string }).value;
+    const poser = (v: string) =>
+      db.prepare("UPDATE settings SET value = ? WHERE key = 'encryption_key'").run(v);
+
+    const cleOrigine = lire();
+    const cleNouvelle = randomBytes(32).toString('hex');
+
+    // 1. Fabriquer un chiffré sous la NOUVELLE clé, hors du scénario : on bascule
+    //    la base, on vide le cache, on chiffre, et on note le résultat.
+    poser(cleNouvelle);
+    resetKeyCache();
+    const jetonSousNouvelleCle = encrypt('jeton-sous-nouvelle-cle') as string;
+
+    // 2. Revenir à la clé d'origine et la forcer en cache : c'est l'état réel
+    //    d'un processus qui tourne au moment où l'on restaure.
+    poser(cleOrigine);
+    resetKeyCache();
     encrypt('amorce');
-    // Une sauvegarde portant une AUTRE clé, et un jeton chiffré sous celle-ci.
+
+    // 3. Restaurer une sauvegarde qui porte la NOUVELLE clé, et dont le serveur
+    //    porte le jeton chiffré sous cette même clé.
     const backup = collectBackup();
-    const newKey = randomBytes(32).toString('hex');
     backup.settings = backup.settings.map((s) =>
-      s.key === 'encryption_key' ? { ...s, value: newKey } : s,
+      s.key === 'encryption_key' ? { ...s, value: cleNouvelle } : s,
     );
+    backup.servers = backup.servers.map((s) => ({ ...s, freshrss_token: jetonSousNouvelleCle }));
 
     applyBackup(backup);
 
-    // Après restauration, chiffrer/déchiffrer doit fonctionner avec la NOUVELLE clé.
-    const roundTrip = decrypt(encrypt('secret-apres-restauration'));
-    expect(roundTrip).toBe('secret-apres-restauration');
-    expect(db.prepare(`SELECT value FROM settings WHERE key = 'encryption_key'`).get())
-      .toMatchObject({ value: newKey });
+    // 4. Sans resetKeyCache(), le processus utiliserait encore la clé d'origine :
+    //    decrypt() échouerait et renverrait null — « pas de jeton » plutôt que
+    //    « clé fausse ». C'est précisément la panne silencieuse à empêcher.
+    const stocke = db.prepare('SELECT freshrss_token FROM servers').get() as { freshrss_token: string };
+    expect(decrypt(stocke.freshrss_token)).toBe('jeton-sous-nouvelle-cle');
+    expect(lire()).toBe(cleNouvelle);
   });
 
   it('n’écrit rien du tout si l’application échoue en cours de route', () => {
