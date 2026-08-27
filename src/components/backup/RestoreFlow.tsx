@@ -91,21 +91,44 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); }}
       />
-      <div className="flex items-center gap-2 flex-wrap">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] transition-colors hover:bg-black/5"
-          style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
+      {/* Un seul contrôle, qui porte son état. L'ancien bouton étroit, bordé et
+          au libellé muet se lisait comme un champ de saisie vide, et le nom du
+          fichier vivait à côté, détaché de ce qui l'avait produit. Ici la
+          bordure tiretée dit « en attente d'un fichier », le trait plein dit
+          « j'en ai un », et cliquer de nouveau le remplace — sans qu'aucune
+          seconde commande ne soit nécessaire. */}
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        className="w-full min-h-[44px] rounded-lg px-4 py-3 flex items-center gap-3 text-left transition-colors hover:bg-black/5"
+        style={{
+          border: `1px ${fileName ? 'solid' : 'dashed'} var(--panel-border)`,
+          background: fileName ? 'var(--panel-header-bg)' : 'transparent',
+          color: 'var(--list-title)',
+        }}
+      >
+        <svg
+          className="w-5 h-5 flex-shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          style={{ color: fileName ? 'var(--accent)' : 'var(--list-summary)' }}
+          aria-hidden="true"
         >
-          {t('backup.chooseFile')}
-        </button>
-        {fileName && (
-          <span className="text-[11px] truncate" style={{ color: 'var(--list-summary)' }}>
-            {t('backup.fileChosen')} {fileName}
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        </svg>
+        {fileName ? (
+          <span className="min-w-0">
+            <span className="block text-[10px] uppercase tracking-wide" style={{ color: 'var(--list-summary)' }}>
+              {t('backup.fileChosen')}
+            </span>
+            <span className="block text-xs font-medium truncate">{fileName}</span>
           </span>
+        ) : (
+          <span className="text-xs font-medium">{t('backup.chooseFile')}</span>
         )}
-      </div>
+      </button>
 
       <div>
         <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>

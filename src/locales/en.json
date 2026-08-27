@@ -581,7 +581,7 @@
     "preparing": "Preparing…",
     "restoreTitle": "Restore a backup",
     "chooseFile": "Choose a file",
-    "fileChosen": "Chosen file:",
+    "fileChosen": "Chosen file",
     "check": "Check the backup",
     "previewTitle": "Backup contents",
     "createdAt": "Created on",

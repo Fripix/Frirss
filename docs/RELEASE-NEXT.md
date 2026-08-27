@@ -31,6 +31,15 @@ la release publiée.
 - **Écran de première installation** : la note sur le compte administrateur et
   le lien de restauration sont passés sur une surface lisible, au lieu de
   flotter sur l'animation de fond.
+- **Formulaire de restauration lisible partout.** Il empruntait la palette du
+  panneau d'Administration, qui est claire, y compris sur l'écran de connexion,
+  qui est sombre : texte presque noir sur fond presque noir, bordures blanches,
+  champ blanc au milieu d'une carte sombre. Chaque écran décrit désormais sa
+  propre surface.
+- **Sélecteur de fichier repensé.** Il se lisait comme un champ de saisie vide,
+  et le nom du fichier choisi s'affichait à côté, détaché. C'est maintenant un
+  seul contrôle qui porte son état : bordure tiretée en attente, trait plein et
+  nom du fichier une fois choisi, cliquable de nouveau pour le remplacer.
 
 ## Actions requises à la mise à jour
 

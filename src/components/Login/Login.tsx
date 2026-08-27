@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode, type FormEvent } from 'react';
+import { useState, useEffect, type ReactNode, type FormEvent, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import {
@@ -194,6 +194,21 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
                 border: '1px solid rgba(255,255,255,0.10)',
                 backdropFilter: 'blur(10px)',
                 WebkitBackdropFilter: 'blur(10px)',
+                // RestoreFlow est partagé avec Préférences → Administration et
+                // s'habille donc de la palette du panneau, qui est CLAIRE par
+                // défaut (--list-title vaut #2c2d35, --panel-border #e8e8ec).
+                // Posée telle quelle sur cette carte sombre, elle donnait du
+                // texte presque noir sur fond presque noir et des bordures
+                // blanches. On redéclare ici la même famille de jetons pour la
+                // surface de cet écran : le composant n'a pas à savoir où il
+                // est monté, c'est au contenant de décrire son propre fond.
+                ...({
+                  '--panel-bg': 'rgba(255,255,255,0.04)',
+                  '--panel-border': 'rgba(255,255,255,0.14)',
+                  '--panel-header-bg': 'rgba(255,255,255,0.06)',
+                  '--list-title': '#e0e0dc',
+                  '--list-summary': '#9a9c99',
+                } as CSSProperties),
               }}
             >
               <RestoreFlow
