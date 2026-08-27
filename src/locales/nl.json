@@ -386,7 +386,7 @@
     "welcome": "Welkom bij FriRSS",
     "loginTitle": "Aanmelden",
     "registerTitle": "Een account aanmaken",
-    "firstUserHint": "Eerste account = beheerder",
+    "firstUserHint": "Het eerste account wordt beheerder.",
     "username": "Gebruikersnaam",
     "displayName": "Weergavenaam (optioneel)",
     "email": "E-mailadres",
@@ -421,7 +421,8 @@
     "addServer": "Verbinden",
     "addingServer": "Verbinden…",
     "errorServer": "Verbinden met de FreshRSS-server is mislukt.",
-    "skip": "Overslaan"
+    "skip": "Overslaan",
+    "restorePrompt": "Herstellen vanaf een back-up?"
   },
   "admin": {
     "title": "Beheer",

@@ -175,21 +175,38 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
               ? t('backup.restoreTitle')
               : isRegister ? t('login.registerTitle') : t('login.loginTitle')}
           </p>
+          {/* Une note, pas un bouton. En pastille pleine et accentuée, cette
+              information portait l'habit d'une action et se confondait avec le
+              lien de restauration juste à côté — deux rôles opposés, un seul
+              langage visuel. Elle explique une conséquence du formulaire : elle
+              se range donc sous le sous-titre, à voix basse. */}
           {isFirstUser && isRegister && (
-            <p className="mt-2 text-xs px-4 py-1.5 rounded-full inline-block" style={{ background: 'var(--accent)', color: '#fff' }}>
+            <p className="mt-2 text-xs" style={{ color: 'var(--sidebar-text)' }}>
               {t('login.firstUserHint')}
             </p>
           )}
 
+          {/* La restauration n'est pas une précision de plus sur le formulaire :
+              c'est l'autre chemin. Le filet la sépare de ce qui précède, et la
+              tournure « phrase muette + action soulignée » reprend mot pour mot
+              celle qui sert déjà au bas de cet écran (« Pas de compte ? … »)
+              plutôt que d'inventer un second vocabulaire. Le {' '} qui manquait
+              entre les deux éléments est ce qui les faisait se toucher. */}
           {isFirstUser && mode === 'register' && (
-            <button
-              type="button"
-              onClick={() => setMode('restore')}
-              className="mt-3 text-xs font-semibold min-h-[44px]"
-              style={{ color: 'var(--accent)' }}
+            <p
+              className="mt-5 pt-4 text-xs"
+              style={{ borderTop: '1px solid var(--sidebar-divider)', color: 'var(--sidebar-text)' }}
             >
-              {t('backup.restoreTitle')}
-            </button>
+              {t('login.restorePrompt')}{' '}
+              <button
+                type="button"
+                onClick={() => setMode('restore')}
+                className="inline-flex items-center min-h-[44px] font-semibold underline hover:brightness-125"
+                style={{ color: 'var(--accent)' }}
+              >
+                {t('backup.restoreTitle')}
+              </button>
+            </p>
           )}
 
           {isFirstUser && mode === 'restore' && (

@@ -386,7 +386,7 @@
     "welcome": "Benvenuto su FriRSS",
     "loginTitle": "Accesso",
     "registerTitle": "Crea un account",
-    "firstUserHint": "Primo account = amministratore",
+    "firstUserHint": "Il primo account creato sarà l’amministratore.",
     "username": "Nome utente",
     "displayName": "Nome visualizzato (facoltativo)",
     "email": "Indirizzo e-mail",
@@ -421,7 +421,8 @@
     "addServer": "Connetti",
     "addingServer": "Connessione…",
     "errorServer": "Connessione al server FreshRSS non riuscita.",
-    "skip": "Salta"
+    "skip": "Salta",
+    "restorePrompt": "Riparti da un backup?"
   },
   "admin": {
     "title": "Amministrazione",

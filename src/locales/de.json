@@ -386,7 +386,7 @@
     "welcome": "Willkommen bei FriRSS",
     "loginTitle": "Anmeldung",
     "registerTitle": "Konto erstellen",
-    "firstUserHint": "Erstes Konto = Administrator",
+    "firstUserHint": "Das erste Konto wird zum Administrator.",
     "username": "Benutzername",
     "displayName": "Anzeigename (optional)",
     "email": "E-Mail-Adresse",
@@ -421,7 +421,8 @@
     "addServer": "Verbinden",
     "addingServer": "Verbindung…",
     "errorServer": "Verbindung zum FreshRSS-Server fehlgeschlagen.",
-    "skip": "Überspringen"
+    "skip": "Überspringen",
+    "restorePrompt": "Aus einer Sicherung wiederherstellen?"
   },
   "admin": {
     "title": "Verwaltung",
