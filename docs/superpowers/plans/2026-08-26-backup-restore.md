@@ -243,8 +243,8 @@ export function openBackup(envelope: unknown, passphrase: string): unknown {
   if (typeof e.version !== 'number' || e.version > BACKUP_VERSION) {
     throw new BackupError('unsupported_version', 'Backup was produced by a newer FriRSS');
   }
-  if (!e.kdf || e.kdf.algo !== 'scrypt' || e.cipher !== 'aes-256-gcm'
-      || typeof e.salt !== 'undefined' // garde-fou : champ inattendu
+  if (!e.kdf || e.kdf.algo !== 'scrypt' || typeof e.kdf.salt !== 'string'
+      || e.cipher !== 'aes-256-gcm'
       || typeof e.iv !== 'string' || typeof e.tag !== 'string' || typeof e.payload !== 'string') {
     throw new BackupError('not_a_backup', 'Malformed backup envelope');
   }
@@ -270,8 +270,6 @@ export function openBackup(envelope: unknown, passphrase: string): unknown {
 
 Run: `npx vitest run server/backupCrypto.test.ts`
 Expected: PASS — 13 tests.
-
-Si le test « rejette une enveloppe qui n'est pas un objet » échoue avec une autre erreur que `not_a_backup`, retirer la ligne `typeof e.salt !== 'undefined'` : c'est un garde-fou de forme, pas une exigence.
 
 - [ ] **Step 5: Gates et commit**
 
