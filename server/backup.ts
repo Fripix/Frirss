@@ -52,10 +52,13 @@ function collectEnvironment(): Record<string, string> {
  * façon dans le localStorage de l'ancienne origine.
  */
 export function collectBackup(): BackupPayload {
-  // Les lignes sont rendues telles que la base les donne. `preferences.user_id`
-  // est du TEXT là où `users.id` est un INTEGER : convertir l'un vers l'autre
-  // orphelinerait toutes les préférences sans la moindre erreur, et SQLite étant
-  // typé dynamiquement, une sauvegarde n'a pas à avoir d'opinion sur ce qu'elle lit.
+  // Les lignes sont rendues telles que la base les donne, sans conversion.
+  // `server/db.ts` déclare `preferences.user_id` en INTEGER, mais une base
+  // créée par une version antérieure du schéma la porte en TEXT — et
+  // `CREATE TABLE IF NOT EXISTS` ne modifie jamais une table existante. Les
+  // deux coexistent donc dans la nature. Convertir serait juste dans un monde
+  // et faux dans l'autre : une sauvegarde n'a pas à avoir d'opinion sur le
+  // type de ce qu'elle transporte.
   return {
     users: db.prepare('SELECT * FROM users ORDER BY id').all() as Row[],
     servers: db.prepare('SELECT * FROM servers ORDER BY id').all() as Row[],

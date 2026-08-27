@@ -83,8 +83,13 @@ describe("instantané d'environnement", () => {
   });
 
   it("omet les variables non définies plutôt que de les rendre vides", () => {
-    delete process.env.CORS_ORIGIN;
-    expect(collectBackup().environment).not.toHaveProperty('CORS_ORIGIN');
+    const saved = process.env.CORS_ORIGIN;
+    try {
+      delete process.env.CORS_ORIGIN;
+      expect(collectBackup().environment).not.toHaveProperty('CORS_ORIGIN');
+    } finally {
+      if (saved !== undefined) process.env.CORS_ORIGIN = saved;
+    }
   });
 });
 
