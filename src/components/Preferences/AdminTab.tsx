@@ -6,6 +6,7 @@ import {
   setAdminUserPassword, getAdminSettings, updateAdminSettings,
 } from '../../api/backend';
 import type { User } from '../../types';
+import BackupBlock from './admin/BackupBlock';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -705,6 +706,10 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="pt-5" style={{ borderTop: '1px solid var(--panel-border)' }}>
+        <BackupBlock />
       </div>
     </div>
   );
