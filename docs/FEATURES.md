@@ -390,6 +390,43 @@ SQLite en WAL. Migrations **additives** uniquement (`PRAGMA table_info` +
 
 ---
 
+## Sauvegarde et restauration
+
+Sauvegarde **complète et chiffrée** de tout ce que FriRSS sait de lui-même :
+comptes et mots de passe (hachages bcrypt), serveurs avec leur jeton FreshRSS et
+leur jeton maître, la **clé qui déchiffre ces jetons**, le secret JWT, le secret
+client OIDC, toutes les préférences et tous les réglages d'instance. Restaurée,
+l'instance est celle qu'on avait.
+
+Ne s'y trouvent pas : le **contenu FreshRSS** — articles, flux, états de lecture
+— qui vit dans FreshRSS ; et `sessions`, seule table écartée, faite de jetons
+porteurs qui expirent.
+
+- **Où** : `server/backupCrypto.ts` (enveloppe), `server/backup.ts` (collecte et
+  application), `server/routes/backup.ts` (routes), famille i18n `backup`
+- **Spec** : `docs/superpowers/specs/2026-08-26-backup-restore-design.md`
+- **Chiffrement** : `scrypt` puis AES-256-GCM (`node:crypto`, aucune dépendance
+  ajoutée). **Phrase de passe obligatoire, 12 caractères minimum** : le fichier
+  contient tout, un chiffrement facultatif serait un piège. Perdue, elle rend la
+  sauvegarde définitivement inutilisable.
+- **Deux chemins, une implémentation** : `/api/admin/*` derrière le garde
+  administrateur, `/api/setup/*` derrière un garde « instance vierge ».
+- **Pièges** :
+  - `server/crypto.ts` met la clé de chiffrement en cache pour la durée du
+    processus. La restauration appelle `resetKeyCache()` après le commit ; sans
+    cela **tous** les déchiffrements échoueraient en silence, `decrypt()`
+    renvoyant `null` — ce qui se lit « pas de jeton ».
+  - Les routes `/api/setup/*` refusent dès qu'**un seul** utilisateur existe
+    (`userCount()`) : elles ne peuvent pas exiger d'être administrateur.
+  - L'instantané des variables d'environnement se construit par **liste
+    blanche** (`BACKUP_ENV_KEYS`), jamais depuis `process.env` en bloc.
+  - Le remplacement tient dans **une seule transaction** : un échec en cours de
+    route laisse l'instance intacte.
+- **`scripts/backup-db.js` reste** : instantané brut, sans phrase de passe, pour
+  l'opérateur qui a un accès shell. Les deux ne se remplacent pas.
+
+---
+
 ## Internationalisation
 
 **9 locales** : `fr` (repli), `en`, `de`, `es`, `it`, `nl`, `pl`, `pt`, `uk`.
