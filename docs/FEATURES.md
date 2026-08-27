@@ -411,7 +411,8 @@ porteurs qui expirent.
     ci-dessous ; `src/components/Preferences/admin/BackupBlock.tsx` héberge le
     bloc dans Administration ; `src/lib/backupErrors.ts` traduit le `code`
     renvoyé par le serveur en clé i18n (`backup.errNotBackup`,
-    `backup.errVersion`, `backup.errPassphrase`, `backup.errGeneric`)
+    `backup.errVersion`, `backup.errPassphrase`, `backup.errSchema`,
+    `backup.errTooMany`, `backup.errGeneric`)
   - Traductions : famille `backup`
 - **Spec** : `docs/superpowers/specs/2026-08-26-backup-restore-design.md`
 - **Chiffrement** : `scrypt` puis AES-256-GCM (`node:crypto`, aucune dépendance
@@ -453,7 +454,47 @@ porteurs qui expirent.
     déconnecte, ce qui éjecterait l'administrateur avant qu'il ne voie
     l'erreur. Le serveur répond **422** — l'utilisateur est authentifié, c'est
     la phrase de passe *du fichier* qui est fausse — et le client distingue les
-    motifs par le `code` de la réponse, pas par le statut HTTP.
+    motifs par le `code` de la réponse, pas par le statut HTTP. La
+    correspondance code → statut est extraite dans `backupErrorStatus()`
+    (`server/routes/backup.ts`), testée seule pour qu'une régression vers 401
+    ne repasse plus inaperçue.
+  - `openBackup()` **borne** les paramètres scrypt (`N` puissance de deux entre
+    2¹² et 2¹⁷, `r` entre 1 et 16, `p` entre 1 et 4) avant tout appel à
+    `scryptSync`. `maxmem` ne suffit pas : la mémoire de scrypt vaut
+    `128 × r × N` (indépendante de `p`), le travail vaut `N × p × r` — une
+    enveloppe forgée peut donc déplacer tout le coût vers `p` sans jamais
+    dépasser `maxmem`. Comme `scryptSync` est **synchrone**, un tel fichier
+    bloquerait la boucle d'événements et donc tout le processus Express
+    (`/api/health`, `/api/proxy` de tous les utilisateurs) le temps du calcul —
+    y compris via `/api/setup/restore/preview`, accessible sans authentification
+    sur une instance vierge.
+  - Une sauvegarde produite par un FriRSS **plus récent** peut porter une
+    colonne qu'`ALTER TABLE ADD COLUMN` a ajoutée après coup : le garde de
+    version de l'enveloppe ne le détecte pas, puisque le *format* n'a pas
+    changé. `insertRows()` (`server/backup.ts`) compare les colonnes de chaque
+    ligne au schéma réel (`PRAGMA table_info`) et lève `schema_mismatch` en
+    **nommant** la colonne fautive plutôt que de la filtrer en silence — un
+    filtre silencieux avaliserait la perte d'une future colonne sensible.
+  - `assertPayload()` exige que `settings` contienne `encryption_key` **et**
+    `jwt_secret` : une charge utile amputée de l'un des deux « réussirait » à
+    s'appliquer tout en rendant l'instance irrécupérable (plus personne ne se
+    connecte, jetons illisibles au redémarrage suivant).
+  - Toute erreur non typée dans `fail()` est journalisée côté serveur
+    (`console.error`, jamais le corps de la requête ni la phrase de passe)
+    avant de répondre 500 générique au client — sans quoi un échec de
+    restauration, précisément le moment où le diagnostic compte, ne laissait
+    aucune trace.
+  - Avec `REDIS_URL` défini, le cache est indexé par identifiant numérique
+    d'utilisateur ; `applyBackup` réinstalle un jeu d'utilisateurs différent
+    sur ces mêmes identifiants. `cachePurgeAll()` (`server/cache.ts`) purge
+    tout l'espace de clés `frirss:c:*` après le commit, **juste à côté de**
+    `resetKeyCache()` — même piège (état vivant hors de la transaction) sous
+    deux formes. No-op si le cache est désactivé.
+  - `RestoreFlow.tsx` vide `passphrase` et `envelope` dès l'entrée en phase
+    `done`, et vide l'aperçu (`summary`) dès que la phrase de passe change
+    après un aperçu réussi — même raisonnement que pour le choix d'un nouveau
+    fichier : un aperçu périmé ne doit pas rester derrière un bouton de
+    remplacement cliquable.
 - **`scripts/backup-db.js` reste** : instantané brut, sans phrase de passe, pour
   l'opérateur qui a un accès shell. Les deux ne se remplacent pas.
 
