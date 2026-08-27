@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import db from './db.js';
 import { collectBackup, summarizeBackup, BACKUP_ENV_KEYS, applyBackup } from './backup.js';
 import { encrypt, decrypt, resetKeyCache } from './crypto.js';
+import { BackupError } from './backupCrypto.js';
 import { randomBytes } from 'crypto';
 
 function wipe() {
@@ -200,9 +201,44 @@ describe('applyBackup', () => {
     expect(() => applyBackup(null)).toThrow();
   });
 
+  it('refuse une charge utile amputée de encryption_key ou jwt_secret : elle brique l’instance sans le dire', () => {
+    const sansCleChiffrement = collectBackup();
+    sansCleChiffrement.settings = sansCleChiffrement.settings.filter((s) => s.key !== 'encryption_key');
+    expect(() => applyBackup(sansCleChiffrement)).toThrow();
+
+    const sansSecretJwt = collectBackup();
+    sansSecretJwt.settings = sansSecretJwt.settings.filter((s) => s.key !== 'jwt_secret');
+    expect(() => applyBackup(sansSecretJwt)).toThrow();
+
+    // Rien n'a bougé : le rejet est intervenu avant la transaction.
+    expect(db.prepare('SELECT username FROM users').all()).toEqual([{ username: 'alice' }]);
+  });
+
   it('purge les sessions existantes : elles ne survivent pas à un remplacement', () => {
     const backup = collectBackup();
     applyBackup(backup);
     expect(db.prepare('SELECT COUNT(*) c FROM sessions').get()).toMatchObject({ c: 0 });
+  });
+
+  it("lève schema_mismatch en nommant la colonne, et laisse la base intacte, quand une ligne porte une colonne que le schéma courant ne connaît pas", () => {
+    const backup = collectBackup();
+    backup.users = backup.users.map((u) => ({ ...u, totp_secret: 'colonne-du-futur' }));
+
+    let caught: unknown;
+    try {
+      applyBackup(backup);
+    } catch (e) {
+      caught = e;
+    }
+
+    expect(caught).toBeInstanceOf(BackupError);
+    expect((caught as BackupError).code).toBe('schema_mismatch');
+    expect((caught as BackupError).message).toContain('totp_secret');
+
+    // La transaction a été annulée en entier : l'instance reste dans son
+    // état d'avant, alice comprise (elle n'a pas été supprimée puis jamais
+    // réinsérée).
+    expect(db.prepare('SELECT COUNT(*) c FROM users').get()).toMatchObject({ c: 1 });
+    expect(db.prepare('SELECT username FROM users').all()).toEqual([{ username: 'alice' }]);
   });
 });

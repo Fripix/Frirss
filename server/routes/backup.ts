@@ -4,7 +4,7 @@ import { userCount } from '../db.js';
 import { APP_VERSION } from '../version.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { collectBackup, applyBackup, summarizeBackup } from '../backup.js';
-import { sealBackup, openBackup, BackupError, MIN_PASSPHRASE_LENGTH } from '../backupCrypto.js';
+import { sealBackup, openBackup, BackupError, MIN_PASSPHRASE_LENGTH, type BackupErrorCode } from '../backupCrypto.js';
 
 // Le déchiffrement d'une enveloppe est un oracle : sans limite de cadence,
 // il autorise un essai de phrase de passe par requête, indéfiniment.
@@ -14,7 +14,7 @@ const backupLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-  message: { error: 'Too many attempts, please try again later' },
+  message: { error: 'Too many attempts, please try again later', code: 'rate_limited' },
 });
 
 /**
@@ -30,16 +30,32 @@ export function requireEmptyInstance(_req: Request, res: Response, next: NextFun
   next();
 }
 
+/**
+ * Correspondance code d'erreur → statut HTTP.
+ *
+ * Extraite et exportée pour être testée seule : c'est le point unique où une
+ * régression réintroduirait le 401 qui déconnectait l'administrateur à
+ * chaque phrase de passe erronée — le défaut que cette branche corrige.
+ * Jamais 401 ici : l'intercepteur d'axios le lit comme une session expirée et
+ * déconnecte, alors que l'utilisateur EST authentifié — c'est la phrase de
+ * passe du fichier (ou son contenu) qui pose problème. 422 dit « je ne peux
+ * pas traiter ce contenu », ce qui est exactement le cas ; le client
+ * distingue les motifs par `code`.
+ */
+export function backupErrorStatus(code: BackupErrorCode): number {
+  return code === 'weak_passphrase' ? 400 : 422;
+}
+
 /** Traduit un BackupError en réponse HTTP. Les autres erreurs restent des 500. */
-function fail(res: Response, err: unknown) {
+export function fail(res: Response, err: unknown) {
   if (err instanceof BackupError) {
-    // Jamais 401 : l'intercepteur d'axios le lit comme une session expirée et
-    // déconnecte. Or l'utilisateur EST authentifié — c'est la phrase de passe du
-    // fichier qui est fausse. 422 dit « je ne peux pas traiter ce contenu », ce
-    // qui est exactement le cas. Le client distingue les motifs par `code`.
-    const status = err.code === 'weak_passphrase' ? 400 : 422;
-    return res.status(status).json({ error: err.message, code: err.code });
+    return res.status(backupErrorStatus(err.code)).json({ error: err.message, code: err.code });
   }
+  // Fonctionnalité de reprise après sinistre : le moment où on s'en sert est
+  // précisément celui où le diagnostic compte. Le message client reste
+  // générique (jamais le corps de la requête ni la phrase de passe côté
+  // serveur), mais l'erreur réelle doit survivre quelque part.
+  console.error('[backup] operation failed:', err);
   return res.status(500).json({ error: 'Backup operation failed' });
 }
 

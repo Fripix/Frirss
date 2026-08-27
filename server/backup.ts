@@ -1,5 +1,7 @@
 import db from './db.js';
 import { resetKeyCache } from './crypto.js';
+import { BackupError } from './backupCrypto.js';
+import { cachePurgeAll } from './cache.js';
 
 type Row = Record<string, unknown>;
 
@@ -85,19 +87,63 @@ export function summarizeBackup(payload: unknown): {
 
 const TABLES = ['users', 'servers', 'preferences', 'settings'] as const;
 
+/**
+ * Réglages sans lesquels l'instance restaurée serait irrécupérable :
+ * `encryption_key` déchiffre les jetons FreshRSS des serveurs restaurés, et
+ * `jwt_secret` signe les sessions — sans lui, `getJwtSecret()` rend `''` et
+ * plus personne ne peut se connecter. Une sauvegarde amputée de l'un des deux
+ * « réussirait » à s'appliquer tout en brisant l'instance, et au redémarrage
+ * suivant une clé de chiffrement neuve rendrait tous les jetons restaurés
+ * illisibles. Peu probable, mais irrécupérable — le mauvais compromis.
+ */
+const REQUIRED_SETTINGS = ['encryption_key', 'jwt_secret'] as const;
+
 function assertPayload(payload: unknown): asserts payload is BackupPayload {
   const p = payload as Partial<BackupPayload> | null;
   if (!p || typeof p !== 'object') throw new Error('Malformed backup payload');
   for (const t of TABLES) {
     if (!Array.isArray(p[t])) throw new Error(`Malformed backup payload: ${t}`);
   }
+  const settingsKeys = new Set((p.settings as Row[]).map((s) => s.key as string));
+  for (const key of REQUIRED_SETTINGS) {
+    if (!settingsKeys.has(key)) throw new Error(`Malformed backup payload: missing setting ${key}`);
+  }
 }
 
-/** Insère un tableau de lignes en nommant les colonnes présentes dans chacune. */
+/** Colonnes réellement présentes dans `table`, selon le schéma courant. */
+function tableColumns(table: string): Set<string> {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  return new Set(rows.map((r) => r.name));
+}
+
+/**
+ * Insère un tableau de lignes en nommant les colonnes présentes dans chacune.
+ *
+ * Le garde de version du format d'enveloppe (`openBackup`) ne couvre pas ce
+ * cas : il protège le FORMAT de l'enveloppe, qu'un simple `ALTER TABLE ADD
+ * COLUMN` ne fait pas changer. Une sauvegarde produite par un FriRSS plus
+ * récent — donc avec une colonne que le schéma courant ne connaît pas
+ * encore — est le déclencheur réaliste, et rien d'autre ne le rattrape. Sans
+ * ce contrôle, `INSERT` échouerait avec un `SQLITE_ERROR` opaque, journalisé
+ * mais rendu au client sous un message générique.
+ *
+ * On NOMME la colonne fautive plutôt que de la filtrer en silence : un filtre
+ * silencieux avaliserait la perte d'une future colonne sensible (par exemple
+ * `users.totp_secret`) sans que personne ne le remarque.
+ */
 function insertRows(table: string, rows: Row[]): void {
+  const validColumns = tableColumns(table);
   for (const row of rows) {
     const cols = Object.keys(row);
     if (cols.length === 0) continue;
+    for (const c of cols) {
+      if (!validColumns.has(c)) {
+        throw new BackupError(
+          'schema_mismatch',
+          `La sauvegarde contient une colonne inconnue « ${table}.${c} » — probablement produite par une version plus récente de FriRSS. Rien n'a été modifié.`,
+        );
+      }
+    }
     const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`;
     // Les valeurs sont liées telles quelles, sans conversion. Le schéma
     // déclaré et les bases anciennes divergent sur `preferences.user_id`
@@ -134,7 +180,14 @@ export function applyBackup(payload: unknown): void {
 
   run(payload);
 
-  // Après le commit seulement : la clé de chiffrement vient peut-être de
-  // changer, et le processus garde l'ancienne en mémoire.
+  // Après le commit seulement, et les deux ensemble : c'est le même piège
+  // sous deux formes — de l'état vivant hors de la transaction SQL. La clé de
+  // chiffrement vient peut-être de changer et le processus garde l'ancienne
+  // en mémoire ; le cache Redis (s'il est actif) indexe ses clés par
+  // identifiant numérique d'utilisateur, et applyBackup réinstalle un jeu
+  // d'utilisateurs différent sur ces mêmes identifiants — sans purge,
+  // l'utilisateur 1 restauré verrait le cache de l'ancien utilisateur 1
+  // jusqu'à expiration, et c'est ce cache que le client affiche en premier.
   resetKeyCache();
+  void cachePurgeAll();
 }

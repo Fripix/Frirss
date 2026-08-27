@@ -26,10 +26,39 @@ if (cacheEnabled) {
   client.on('connect', () => { loggedError = false; console.log('[cache] Redis connected'); });
 }
 
+const KEY_PREFIX = 'frirss:c:';
+
 /** Namespaced key for a cached response of `target` belonging to `userId`. */
 export function cacheKey(userId: number | string, target: string): string {
   const h = createHash('sha1').update(target).digest('hex').slice(0, 24);
-  return `frirss:c:${userId}:${h}`;
+  return `${KEY_PREFIX}${userId}:${h}`;
+}
+
+/**
+ * Purge tout le cache applicatif (toutes les clés `frirss:c:*`).
+ *
+ * Nécessaire après une restauration de sauvegarde : `applyBackup` réinstalle
+ * un jeu d'utilisateurs entièrement différent sur les MÊMES identifiants
+ * numériques, et les clés de cache sont indexées par ce même identifiant.
+ * Sans cette purge, l'utilisateur 1 restauré se verrait servir le cache de
+ * l'ancien utilisateur 1 jusqu'à expiration (`CACHE_TTL`) — et c'est ce
+ * contenu périmé que le client affiche en premier, avant toute revalidation.
+ *
+ * No-op si le cache est désactivé (`REDIS_URL` absent) : le cache est
+ * optionnel, cette purge doit l'être tout autant.
+ */
+export async function cachePurgeAll(): Promise<void> {
+  if (!client) return;
+  try {
+    let cursor = '0';
+    do {
+      const [next, keys]: [string, string[]] = await client.scan(cursor, 'MATCH', `${KEY_PREFIX}*`, 'COUNT', 500);
+      cursor = next;
+      if (keys.length > 0) await client.unlink(...keys);
+    } while (cursor !== '0');
+  } catch {
+    /* degrade silently, comme le reste du module */
+  }
 }
 
 export async function cacheGet(key: string): Promise<string | null> {
