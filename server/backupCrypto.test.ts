@@ -97,4 +97,57 @@ describe('openBackup', () => {
     try { openBackup({}, PASS); } catch (e) { caught = e; }
     expect(caught).toBeInstanceOf(BackupError);
   });
+
+  describe('bornes des paramètres scrypt', () => {
+    /**
+     * `p` élevé déplace le TRAVAIL (N × p × r) sans toucher à la MÉMOIRE
+     * (128 × r × N) : c'est le vecteur du déni de service que ces bornes
+     * empêchent. `maxmem` ne l'aurait pas arrêté. L'assertion de temps est ce
+     * qui distingue « refusé avant tout calcul » de « calculé puis refusé » —
+     * sans elle, un refus tardif après un scrypt de plusieurs secondes
+     * passerait ce test tout en laissant le déni de service intact.
+     */
+    it('refuse un p élevé sans délai mesurable, avant tout calcul scrypt', () => {
+      const env = sealBackup(payload, PASS, '1.4.3');
+      const forged = { ...env, kdf: { ...env.kdf, N: 2048, r: 8, p: 2048 } };
+      const start = performance.now();
+      expect(codeThrownBy(() => openBackup(forged, PASS))).toBe('not_a_backup');
+      expect(performance.now() - start).toBeLessThan(100);
+    });
+
+    it('refuse un N qui n\'est pas une puissance de deux', () => {
+      const env = sealBackup(payload, PASS, '1.4.3');
+      const forged = { ...env, kdf: { ...env.kdf, N: 32000, r: 8, p: 1 } };
+      expect(codeThrownBy(() => openBackup(forged, PASS))).toBe('not_a_backup');
+    });
+
+    it('refuse un N hors bornes (trop petit et trop grand)', () => {
+      const env = sealBackup(payload, PASS, '1.4.3');
+      const tropPetit = { ...env, kdf: { ...env.kdf, N: 2 ** 11, r: 8, p: 1 } };
+      const tropGrand = { ...env, kdf: { ...env.kdf, N: 2 ** 18, r: 8, p: 1 } };
+      expect(codeThrownBy(() => openBackup(tropPetit, PASS))).toBe('not_a_backup');
+      expect(codeThrownBy(() => openBackup(tropGrand, PASS))).toBe('not_a_backup');
+    });
+
+    it('refuse un r hors bornes', () => {
+      const env = sealBackup(payload, PASS, '1.4.3');
+      const nul = { ...env, kdf: { ...env.kdf, N: 32768, r: 0, p: 1 } };
+      const trop = { ...env, kdf: { ...env.kdf, N: 32768, r: 17, p: 1 } };
+      expect(codeThrownBy(() => openBackup(nul, PASS))).toBe('not_a_backup');
+      expect(codeThrownBy(() => openBackup(trop, PASS))).toBe('not_a_backup');
+    });
+
+    it('refuse un p hors bornes', () => {
+      const env = sealBackup(payload, PASS, '1.4.3');
+      const nul = { ...env, kdf: { ...env.kdf, N: 32768, r: 8, p: 0 } };
+      const trop = { ...env, kdf: { ...env.kdf, N: 32768, r: 8, p: 5 } };
+      expect(codeThrownBy(() => openBackup(nul, PASS))).toBe('not_a_backup');
+      expect(codeThrownBy(() => openBackup(trop, PASS))).toBe('not_a_backup');
+    });
+
+    it('continue d\'ouvrir une enveloppe légitime, aux bornes ou non', () => {
+      const env = sealBackup(payload, PASS, '1.4.3');
+      expect(openBackup(env, PASS)).toEqual(payload);
+    });
+  });
 });

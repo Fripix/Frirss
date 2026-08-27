@@ -13,7 +13,8 @@ export type BackupErrorCode =
   | 'not_a_backup'
   | 'unsupported_version'
   | 'bad_passphrase'
-  | 'weak_passphrase';
+  | 'weak_passphrase'
+  | 'schema_mismatch';
 
 export class BackupError extends Error {
   constructor(public code: BackupErrorCode, message: string) {
@@ -32,6 +33,42 @@ export interface BackupEnvelope {
   iv: string;
   tag: string;
   payload: string;
+}
+
+/**
+ * Borne les paramètres scrypt qu'une enveloppe (fournie par l'attaquant) peut
+ * réclamer, AVANT tout appel à scryptSync().
+ *
+ * `maxmem` ne protège pas contre ça : la MÉMOIRE de scrypt vaut `128 × r × N`
+ * (indépendante de `p`), alors que le TRAVAIL vaut `N × p × r`. Un fichier
+ * forgé peut donc déplacer tout le coût vers `p` — par exemple
+ * `N=2048, r=8, p=2048` — sans jamais dépasser `maxmem`, tout en multipliant
+ * le temps de calcul. Et `scryptSync` est SYNCHRONE : il bloque la boucle
+ * d'événements Node, donc tout le processus Express pendant le calcul —
+ * `/api/health` (healthcheck du conteneur) et `/api/proxy` de tous les
+ * utilisateurs compris. Ces bornes sont la seule protection réelle contre ce
+ * déni de service ; ne pas les retirer en croyant que `maxmem` fait double
+ * emploi.
+ *
+ * Les bornes laissent de la place pour durcir `SCRYPT` plus tard sans casser
+ * les anciennes sauvegardes : les élargir reste une modification d'une ligne.
+ */
+function assertKdfParamsInBounds(kdf: { N: unknown; r: unknown; p: unknown }): void {
+  const { N, r, p } = kdf;
+  const isPowerOfTwoInt = (n: unknown): n is number =>
+    typeof n === 'number' && Number.isInteger(n) && n > 0 && (n & (n - 1)) === 0;
+  const isIntInRange = (n: unknown, min: number, max: number): n is number =>
+    typeof n === 'number' && Number.isInteger(n) && n >= min && n <= max;
+
+  if (!isPowerOfTwoInt(N) || N < 2 ** 12 || N > 2 ** 17) {
+    throw new BackupError('not_a_backup', 'Backup KDF parameter N out of bounds');
+  }
+  if (!isIntInRange(r, 1, 16)) {
+    throw new BackupError('not_a_backup', 'Backup KDF parameter r out of bounds');
+  }
+  if (!isIntInRange(p, 1, 4)) {
+    throw new BackupError('not_a_backup', 'Backup KDF parameter p out of bounds');
+  }
 }
 
 function deriveKey(passphrase: string, salt: Buffer, kdf: { N: number; r: number; p: number }): Buffer {
@@ -90,6 +127,7 @@ export function openBackup(envelope: unknown, passphrase: string): unknown {
       || typeof e.iv !== 'string' || typeof e.tag !== 'string' || typeof e.payload !== 'string') {
     throw new BackupError('not_a_backup', 'Malformed backup envelope');
   }
+  assertKdfParamsInBounds(e.kdf);
   try {
     const key = deriveKey(passphrase, Buffer.from(e.kdf.salt, 'base64'), e.kdf);
     const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(e.iv, 'base64'));
