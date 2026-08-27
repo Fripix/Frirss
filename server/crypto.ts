@@ -15,6 +15,18 @@ function key(): Buffer {
   return cachedKey;
 }
 
+/**
+ * Oublie la clé mise en cache, pour que le prochain appel la relise en base.
+ *
+ * Indispensable après une restauration : sans cela, le processus continuerait
+ * d'utiliser l'ancienne clé et TOUS les déchiffrements échoueraient en
+ * silence — `decrypt()` attrape l'erreur et renvoie `null`, ce qui se lit
+ * « pas de jeton » plutôt que « clé fausse ».
+ */
+export function resetKeyCache(): void {
+  cachedKey = null;
+}
+
 /** Encrypt a UTF-8 string → "enc:v1:<iv>:<tag>:<ciphertext>" (all base64). */
 export function encrypt(plaintext: string | null | undefined): string | null | undefined {
   if (plaintext == null || plaintext === '') return plaintext;

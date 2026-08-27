@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import db from './db.js';
-import { collectBackup, summarizeBackup, BACKUP_ENV_KEYS } from './backup.js';
+import { collectBackup, summarizeBackup, BACKUP_ENV_KEYS, applyBackup } from './backup.js';
+import { encrypt, decrypt } from './crypto.js';
+import { randomBytes } from 'crypto';
 
 function wipe() {
   db.prepare('DELETE FROM sessions').run();
@@ -108,5 +110,79 @@ describe('summarizeBackup', () => {
     } finally {
       delete process.env.CACHE_TTL;
     }
+  });
+});
+
+describe('applyBackup', () => {
+  beforeEach(seed);
+
+  it('restaure un état identique dans une base vidée', () => {
+    const before = collectBackup();
+    wipe();
+    expect(db.prepare('SELECT COUNT(*) c FROM users').get()).toMatchObject({ c: 0 });
+
+    applyBackup(before);
+
+    const after = collectBackup();
+    expect(after.users).toEqual(before.users);
+    expect(after.servers).toEqual(before.servers);
+    expect(after.preferences).toEqual(before.preferences);
+  });
+
+  it('remplace l’existant au lieu de fusionner', () => {
+    const backup = collectBackup();
+    db.prepare(`INSERT INTO users (id, username, role) VALUES (?, ?, ?)`).run(99, 'intrus', 'user');
+
+    applyBackup(backup);
+
+    const names = (db.prepare('SELECT username FROM users').all() as Record<string, unknown>[]).map((r) => r.username);
+    expect(names).toEqual(['alice']);
+  });
+
+  it('vide le cache de clé, sans quoi les jetons restaurés seraient illisibles', () => {
+    // Force la mise en cache de la clé actuelle.
+    encrypt('amorce');
+    // Une sauvegarde portant une AUTRE clé, et un jeton chiffré sous celle-ci.
+    const backup = collectBackup();
+    const newKey = randomBytes(32).toString('hex');
+    backup.settings = backup.settings.map((s) =>
+      s.key === 'encryption_key' ? { ...s, value: newKey } : s,
+    );
+
+    applyBackup(backup);
+
+    // Après restauration, chiffrer/déchiffrer doit fonctionner avec la NOUVELLE clé.
+    const roundTrip = decrypt(encrypt('secret-apres-restauration'));
+    expect(roundTrip).toBe('secret-apres-restauration');
+    expect(db.prepare(`SELECT value FROM settings WHERE key = 'encryption_key'`).get())
+      .toMatchObject({ value: newKey });
+  });
+
+  it('n’écrit rien du tout si l’application échoue en cours de route', () => {
+    const backup = collectBackup();
+    // Un serveur rattaché à un utilisateur absent : la clé étrangère refuse.
+    backup.servers = [...backup.servers, {
+      id: 999, user_id: 4242, name: 'orphelin', url: 'https://autre.example.com',
+      freshrss_user: 'bob', freshrss_token: null, refresh_token: null,
+      is_default: 0, created_at: '2026-01-01 00:00:00',
+    }];
+
+    expect(() => applyBackup(backup)).toThrow();
+
+    // L'instance est exactement dans son état d'avant.
+    expect(db.prepare('SELECT COUNT(*) c FROM users').get()).toMatchObject({ c: 1 });
+    expect(db.prepare('SELECT COUNT(*) c FROM servers').get()).toMatchObject({ c: 1 });
+    expect(db.prepare('SELECT username FROM users').all()).toEqual([{ username: 'alice' }]);
+  });
+
+  it('refuse une charge utile qui n’a pas la forme attendue', () => {
+    expect(() => applyBackup({ users: 'pas un tableau' })).toThrow();
+    expect(() => applyBackup(null)).toThrow();
+  });
+
+  it('purge les sessions existantes : elles ne survivent pas à un remplacement', () => {
+    const backup = collectBackup();
+    applyBackup(backup);
+    expect(db.prepare('SELECT COUNT(*) c FROM sessions').get()).toMatchObject({ c: 0 });
   });
 });
