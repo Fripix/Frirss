@@ -663,9 +663,11 @@ function insertRows(table: string, rows: Row[]): void {
     const cols = Object.keys(row);
     if (cols.length === 0) continue;
     const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`;
-    // Les valeurs sont liées telles quelles : `preferences.user_id` est du TEXT
-    // là où `users.id` est un INTEGER, et convertir l'un en l'autre
-    // orphelinerait toutes les préférences sans la moindre erreur.
+    // Les valeurs sont liées telles quelles, sans conversion. Le schéma
+    // déclaré et les bases anciennes divergent sur `preferences.user_id`
+    // (INTEGER dans db.ts, TEXT dans une base créée avant) : convertir
+    // serait juste dans un monde et faux dans l'autre. Réinsérer ce qu'on a
+    // lu est le seul comportement correct des deux côtés.
     db.prepare(sql).run(...cols.map((c) => row[c] as never));
   }
 }

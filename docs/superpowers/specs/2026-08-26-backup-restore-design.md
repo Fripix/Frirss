@@ -249,9 +249,19 @@ dans les sous-dossiers depuis le 2026-08-26.
    journaliser. Limiter la cadence des routes d'aperçu et de restauration —
    `authLimiter` existe — sans quoi le déchiffrement devient un oracle à essais
    illimités.
-4. **`preferences.user_id` est `TEXT`, `users.id` est `INTEGER`.** Une
-   conversion de type au passage et toutes les préférences s'orphelinent sans
-   la moindre erreur.
+4. **Le schéma déclaré et les bases existantes divergent sur
+   `preferences.user_id`.** Découvert le 2026-08-26 en écrivant la collecte :
+   `server/db.ts` déclare cette colonne en `INTEGER`, mais une base créée par
+   une version antérieure la porte en `TEXT`, et `CREATE TABLE IF NOT EXISTS`
+   n'a jamais modifié la table existante. Une base neuve et une base ancienne
+   n'ont donc pas la même affinité pour la même colonne, et SQLite convertit
+   la valeur à l'insertion selon celle de la cible.
+   La conséquence pour la sauvegarde est une règle simple : **rendre ce qu'on
+   lit, réinsérer ce qu'on a lu, sans jamais convertir**. Une sauvegarde n'a
+   pas à avoir d'opinion sur le type de ce qu'elle transporte ; c'est le seul
+   comportement correct dans les deux mondes à la fois.
+   La divergence elle-même dépasse ce chantier et reste à traiter — voir la
+   section « Hors périmètre ».
 5. **Sens des clés étrangères.** Purge et réinsertion dans l'ordre : sessions,
    préférences, serveurs, utilisateurs, réglages.
 6. **Sauvegarde plus récente que l'instance.** Les migrations sont additives,
@@ -314,3 +324,7 @@ piège 6 et des trois échecs d'ouverture.
   retirerait au fichier compose son rôle de source de vérité.
 - **`scripts/backup-db.js` reste** : il sert l'opérateur qui a un accès shell et
   veut un instantané brut, sans phrase de passe. Les deux ne se remplacent pas.
+- **Réconcilier `preferences.user_id`** entre le schéma déclaré (`INTEGER`) et
+  les bases anciennes (`TEXT`). C'est une migration à part entière, avec ses
+  propres risques ; la sauvegarde s'en accommode en ne convertissant rien, ce
+  qui est correct des deux côtés. À traiter pour lui-même.
