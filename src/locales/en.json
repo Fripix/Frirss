@@ -422,7 +422,9 @@
     "addingServer": "Connecting…",
     "errorServer": "Failed to connect to FreshRSS server.",
     "skip": "Skip",
-    "restorePrompt": "Rebuilding from a backup?"
+    "restorePrompt": "Rebuilding from a backup?",
+    "errorTooMany": "Too many attempts. Wait a few minutes before trying again.",
+    "errorUnavailable": "The server did not answer. This says nothing about your credentials."
   },
   "admin": {
     "title": "Administration",
@@ -600,6 +602,7 @@
     "errPassphrase": "Wrong passphrase, or damaged file.",
     "errGeneric": "The operation failed. Try again.",
     "errSchema": "The backup contains data this version of FriRSS does not know how to store, probably because it comes from a newer version. Nothing was changed.",
-    "errTooMany": "Too many attempts. Try again later."
+    "errTooMany": "Too many attempts. Try again later.",
+    "errConfigured": "This instance already has accounts, so first-boot restore no longer applies. Use Preferences → Administration instead."
   }
 }

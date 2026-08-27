@@ -426,7 +426,9 @@
     "addingServer": "Łączenie…",
     "errorServer": "Nie udało się połączyć z serwerem FreshRSS.",
     "skip": "Pomiń",
-    "restorePrompt": "Odtwarzasz z kopii zapasowej?"
+    "restorePrompt": "Odtwarzasz z kopii zapasowej?",
+    "errorTooMany": "Zbyt wiele prób. Odczekaj kilka minut.",
+    "errorUnavailable": "Serwer nie odpowiedział. To nic nie mówi o Twoich danych logowania."
   },
   "admin": {
     "title": "Administracja",
@@ -610,6 +612,7 @@
     "errPassphrase": "Błędne hasło lub uszkodzony plik.",
     "errGeneric": "Operacja nie powiodła się. Spróbuj ponownie.",
     "errSchema": "Kopia zawiera dane, których ta wersja FriRSS nie potrafi zapisać — prawdopodobnie pochodzi z nowszej wersji. Nic nie zostało zmienione.",
-    "errTooMany": "Zbyt wiele prób. Spróbuj ponownie później."
+    "errTooMany": "Zbyt wiele prób. Spróbuj ponownie później.",
+    "errConfigured": "Ta instancja ma już konta, więc odtwarzanie przy pierwszym uruchomieniu nie jest możliwe. Użyj Ustawienia → Administracja."
   }
 }

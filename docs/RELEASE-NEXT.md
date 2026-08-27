@@ -41,6 +41,20 @@ la release publiée.
   seul contrôle qui porte son état : bordure tiretée en attente, trait plein et
   nom du fichier une fois choisi, cliquable de nouveau pour le remplacer.
 
+- **Se reconnecter après une restauration fonctionne du premier coup.** La
+  restauration armait une déconnexion différée de 1,5 s qu'aucun démontage
+  n'annulait. Comme la suppression des sessions renvoie l'utilisateur à l'écran
+  de connexion bien avant ce délai, une reconnexion rapide était détruite par ce
+  minuteur périmé : il fallait s'y reprendre à deux ou trois fois.
+- **Les messages d'erreur de connexion ne mentent plus.** Toute panne — limite
+  de cadence, erreur serveur, coupure réseau — annonçait « identifiants
+  incorrects », ce qui envoyait retaper indéfiniment un mot de passe pourtant
+  juste. Seul un refus d'authentification le dit désormais ; les autres cas ont
+  leur propre message.
+- **Restaurer sur une instance déjà configurée le dit.** Ce refus s'affichait
+  « L'opération a échoué. Réessayez. » — un conseil qui ne pouvait pas
+  fonctionner, puisque réessayer rendait le même refus.
+
 ## Actions requises à la mise à jour
 
 Aucune. Aucune variable d'environnement nouvelle, aucune migration manuelle.

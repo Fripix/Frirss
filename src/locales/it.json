@@ -422,7 +422,9 @@
     "addingServer": "Connessione…",
     "errorServer": "Connessione al server FreshRSS non riuscita.",
     "skip": "Salta",
-    "restorePrompt": "Riparti da un backup?"
+    "restorePrompt": "Riparti da un backup?",
+    "errorTooMany": "Troppi tentativi. Attendi qualche minuto prima di riprovare.",
+    "errorUnavailable": "Il server non ha risposto. Questo non dice nulla sulle tue credenziali."
   },
   "admin": {
     "title": "Amministrazione",
@@ -600,6 +602,7 @@
     "errPassphrase": "Passphrase errata, o file danneggiato.",
     "errGeneric": "Operazione non riuscita. Riprova.",
     "errSchema": "Il backup contiene un dato che questa versione di FriRSS non sa gestire, probabilmente perché proviene da una versione più recente. Non è stato modificato nulla.",
-    "errTooMany": "Troppi tentativi. Riprova più tardi."
+    "errTooMany": "Troppi tentativi. Riprova più tardi.",
+    "errConfigured": "Questa istanza ha già degli account: il ripristino al primo avvio non è più possibile. Usa Preferenze → Amministrazione."
   }
 }

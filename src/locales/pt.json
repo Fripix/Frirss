@@ -422,7 +422,9 @@
     "addingServer": "A ligar…",
     "errorServer": "Falha ao ligar ao servidor FreshRSS.",
     "skip": "Ignorar",
-    "restorePrompt": "Está a repor a partir de uma cópia?"
+    "restorePrompt": "Está a repor a partir de uma cópia?",
+    "errorTooMany": "Demasiadas tentativas. Aguarde alguns minutos antes de tentar de novo.",
+    "errorUnavailable": "O servidor não respondeu. Isto não diz nada sobre as suas credenciais."
   },
   "admin": {
     "title": "Administração",
@@ -600,6 +602,7 @@
     "errPassphrase": "Frase-passe incorreta, ou ficheiro danificado.",
     "errGeneric": "A operação falhou. Tente novamente.",
     "errSchema": "A cópia contém um dado que esta versão do FriRSS não sabe guardar, provavelmente por vir de uma versão mais recente. Nada foi alterado.",
-    "errTooMany": "Demasiadas tentativas. Tente novamente mais tarde."
+    "errTooMany": "Demasiadas tentativas. Tente novamente mais tarde.",
+    "errConfigured": "Esta instância já tem contas: a reposição no primeiro arranque já não é possível. Use Preferências → Administração."
   }
 }

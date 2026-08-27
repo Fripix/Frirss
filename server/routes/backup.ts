@@ -25,7 +25,9 @@ const backupLimiter = rateLimit({
  */
 export function requireEmptyInstance(_req: Request, res: Response, next: NextFunction) {
   if (userCount() > 0) {
-    return res.status(403).json({ error: 'Instance already configured' });
+    // Un code, sans quoi le client retombe sur « Réessayez » — un conseil qui
+    // ne peut pas fonctionner, puisque réessayer donnera le même 403.
+    return res.status(403).json({ error: 'Instance already configured', code: 'instance_configured' });
   }
   next();
 }

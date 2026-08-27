@@ -422,7 +422,9 @@
     "addingServer": "Conectando…",
     "errorServer": "No se pudo conectar al servidor FreshRSS.",
     "skip": "Omitir",
-    "restorePrompt": "¿Vuelves a partir de una copia?"
+    "restorePrompt": "¿Vuelves a partir de una copia?",
+    "errorTooMany": "Demasiados intentos. Espera unos minutos antes de volver a probar.",
+    "errorUnavailable": "El servidor no ha respondido. Esto no dice nada sobre tus credenciales."
   },
   "admin": {
     "title": "Administración",
@@ -600,6 +602,7 @@
     "errPassphrase": "Frase de contraseña incorrecta, o archivo dañado.",
     "errGeneric": "La operación ha fallado. Inténtalo de nuevo.",
     "errSchema": "La copia contiene un dato que esta versión de FriRSS no sabe clasificar, probablemente porque procede de una versión más reciente. No se ha modificado nada.",
-    "errTooMany": "Demasiados intentos. Inténtalo de nuevo más tarde."
+    "errTooMany": "Demasiados intentos. Inténtalo de nuevo más tarde.",
+    "errConfigured": "Esta instancia ya tiene cuentas: la restauración de primer arranque ya no es posible. Usa Preferencias → Administración."
   }
 }

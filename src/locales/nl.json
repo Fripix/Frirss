@@ -422,7 +422,9 @@
     "addingServer": "Verbinden…",
     "errorServer": "Verbinden met de FreshRSS-server is mislukt.",
     "skip": "Overslaan",
-    "restorePrompt": "Herstellen vanaf een back-up?"
+    "restorePrompt": "Herstellen vanaf een back-up?",
+    "errorTooMany": "Te veel pogingen. Wacht enkele minuten voordat u het opnieuw probeert.",
+    "errorUnavailable": "De server heeft niet geantwoord. Dat zegt niets over uw gegevens."
   },
   "admin": {
     "title": "Beheer",
@@ -600,6 +602,7 @@
     "errPassphrase": "Verkeerde wachtwoordzin, of beschadigd bestand.",
     "errGeneric": "De bewerking is mislukt. Probeer het opnieuw.",
     "errSchema": "De back-up bevat gegevens die deze versie van FriRSS niet kan verwerken, waarschijnlijk omdat ze van een nieuwere versie komt. Er is niets gewijzigd.",
-    "errTooMany": "Te veel pogingen. Probeer het later opnieuw."
+    "errTooMany": "Te veel pogingen. Probeer het later opnieuw.",
+    "errConfigured": "Deze installatie heeft al accounts: terugzetten bij eerste start kan niet meer. Gebruik Voorkeuren → Beheer."
   }
 }

@@ -422,7 +422,9 @@
     "addingServer": "Connexion…",
     "errorServer": "Échec de la connexion au serveur FreshRSS.",
     "skip": "Passer",
-    "restorePrompt": "Vous repartez d’une sauvegarde ?"
+    "restorePrompt": "Vous repartez d’une sauvegarde ?",
+    "errorTooMany": "Trop de tentatives. Patientez quelques minutes avant de réessayer.",
+    "errorUnavailable": "Le serveur n’a pas répondu. Vos identifiants n’ont pas été mis en cause."
   },
   "admin": {
     "title": "Administration",
@@ -600,6 +602,7 @@
     "errPassphrase": "Phrase de passe incorrecte, ou fichier abîmé.",
     "errGeneric": "L’opération a échoué. Réessayez.",
     "errSchema": "La sauvegarde contient une donnée que cette version de FriRSS ne sait pas ranger, probablement parce qu’elle vient d’une version plus récente. Rien n’a été modifié.",
-    "errTooMany": "Trop de tentatives. Réessayez plus tard."
+    "errTooMany": "Trop de tentatives. Réessayez plus tard.",
+    "errConfigured": "Cette instance a déjà des comptes : la restauration au premier démarrage n’est plus possible. Passez par Préférences → Administration."
   }
 }

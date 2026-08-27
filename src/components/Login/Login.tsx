@@ -13,6 +13,7 @@ import {
   type OidcConfig,
 } from '../../api/backend';
 import { login as freshrssLogin } from '../../api/auth';
+import { loginErrorKey } from '../../lib/loginErrors';
 import { useFeedStore } from '../../stores/feedStore';
 import MatrixRain from './MatrixRain';
 import RestoreFlow from '../backup/RestoreFlow';
@@ -141,7 +142,10 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
       } else if (mode === 'register') {
         setError(msg || t('login.errorRegister'));
       } else {
-        setError(t('login.errorLogin'));
+        // Ne pas mettre les identifiants en cause sans preuve : un 429 ou une
+        // coupure réseau disaient « incorrects » et envoyaient l'utilisateur
+        // retaper indéfiniment un mot de passe pourtant juste.
+        setError(t(loginErrorKey(err)));
       }
     } finally {
       setLoading(false);

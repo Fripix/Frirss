@@ -422,7 +422,9 @@
     "addingServer": "Verbindung…",
     "errorServer": "Verbindung zum FreshRSS-Server fehlgeschlagen.",
     "skip": "Überspringen",
-    "restorePrompt": "Aus einer Sicherung wiederherstellen?"
+    "restorePrompt": "Aus einer Sicherung wiederherstellen?",
+    "errorTooMany": "Zu viele Versuche. Warten Sie einige Minuten.",
+    "errorUnavailable": "Der Server hat nicht geantwortet. Das sagt nichts über Ihre Zugangsdaten aus."
   },
   "admin": {
     "title": "Verwaltung",
@@ -600,6 +602,7 @@
     "errPassphrase": "Falsche Passphrase oder beschädigte Datei.",
     "errGeneric": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.",
     "errSchema": "Die Sicherung enthält Daten, die diese FriRSS-Version nicht einordnen kann – vermutlich stammt sie von einer neueren Version. Es wurde nichts geändert.",
-    "errTooMany": "Zu viele Versuche. Bitte später erneut versuchen."
+    "errTooMany": "Zu viele Versuche. Bitte später erneut versuchen.",
+    "errConfigured": "Diese Instanz hat bereits Konten – eine Wiederherstellung beim Erststart ist nicht mehr möglich. Nutzen Sie Einstellungen → Administration."
   }
 }

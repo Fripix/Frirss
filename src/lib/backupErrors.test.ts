@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import fr from '../locales/fr.json';
 import { backupErrorKey } from './backupErrors';
 
@@ -16,6 +18,22 @@ function hasKey(dotted: string): boolean {
 function withCode(code: string) {
   return { response: { data: { code } } };
 }
+
+describe('backupErrorKey — instance déjà configurée', () => {
+  it('nomme le refus au premier démarrage plutôt que de dire « réessayez »', () => {
+    // Le 403 de /api/setup/* ne portait aucun code : le client affichait
+    // « L'opération a échoué. Réessayez. » — un conseil qui ne peut pas
+    // fonctionner, puisque réessayer rend exactement le même 403.
+    expect(backupErrorKey({ response: { data: { code: 'instance_configured' } } }))
+      .toBe('backup.errConfigured');
+  });
+
+  it('rend une clé qui existe réellement dans les traductions', () => {
+    const fr = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'src/locales/fr.json'), 'utf8'));
+    const resolves = (key: string) => key.split('.').reduce((d, part) => d?.[part], fr);
+    expect(typeof resolves('backup.errConfigured')).toBe('string');
+  });
+});
 
 describe('backupErrorKey', () => {
   it('distingue les pannes portées par le code serveur', () => {
