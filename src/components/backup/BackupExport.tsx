@@ -27,7 +27,10 @@ export default function BackupExport() {
       a.href = url;
       a.download = `frirss-backup-${stamp}.json`;
       a.click();
-      URL.revokeObjectURL(url);
+      // Révocation différée : certains navigateurs annulent un téléchargement
+      // encore en vol si l'URL de l'objet est libérée dans le même tour de
+      // boucle que le clic qui le déclenche.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
       setPassphrase('');
       setConfirm('');
     } catch {

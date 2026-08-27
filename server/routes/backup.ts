@@ -33,7 +33,11 @@ export function requireEmptyInstance(_req: Request, res: Response, next: NextFun
 /** Traduit un BackupError en réponse HTTP. Les autres erreurs restent des 500. */
 function fail(res: Response, err: unknown) {
   if (err instanceof BackupError) {
-    const status = err.code === 'weak_passphrase' ? 400 : err.code === 'bad_passphrase' ? 401 : 422;
+    // Jamais 401 : l'intercepteur d'axios le lit comme une session expirée et
+    // déconnecte. Or l'utilisateur EST authentifié — c'est la phrase de passe du
+    // fichier qui est fausse. 422 dit « je ne peux pas traiter ce contenu », ce
+    // qui est exactement le cas. Le client distingue les motifs par `code`.
+    const status = err.code === 'weak_passphrase' ? 400 : 422;
     return res.status(status).json({ error: err.message, code: err.code });
   }
   return res.status(500).json({ error: 'Backup operation failed' });

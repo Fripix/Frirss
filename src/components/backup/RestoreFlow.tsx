@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { previewRestore, applyRestore } from '../../api/backend';
+import { backupErrorKey } from '../../lib/backupErrors';
 import type { RestoreSummary } from '../../types';
 
 interface RestoreFlowProps {
@@ -10,15 +11,6 @@ interface RestoreFlowProps {
 }
 
 type Phase = 'idle' | 'checking' | 'preview' | 'restoring' | 'done';
-
-/** Traduit le code d'erreur du serveur en message. Partagé par les deux écrans. */
-function messageFor(err: unknown, t: (k: string) => string): string {
-  const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
-  if (code === 'not_a_backup') return t('backup.errNotBackup');
-  if (code === 'unsupported_version') return t('backup.errVersion');
-  if (code === 'bad_passphrase') return t('backup.errPassphrase');
-  return t('backup.errGeneric');
-}
 
 export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
   const { t } = useTranslation();
@@ -50,7 +42,12 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
       setSummary(await previewRestore(envelope, passphrase, setup));
       setPhase('preview');
     } catch (err) {
-      setError(messageFor(err, t));
+      setError(t(backupErrorKey(err)));
+      // L'aperçu affiché correspond à la vérification précédente, pas à celle
+      // qui vient d'échouer : le vider évite de laisser un bouton de
+      // remplacement cliquable pointant vers un contenu qui ne correspond
+      // plus à la phrase de passe saisie.
+      setSummary(null);
       setPhase('idle');
     }
   }
@@ -63,7 +60,7 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
       setPhase('done');
       onRestored();
     } catch (err) {
-      setError(messageFor(err, t));
+      setError(t(backupErrorKey(err)));
       setPhase('preview');
     }
   }
@@ -86,7 +83,7 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
         ref={fileRef}
         type="file"
         accept="application/json,.json"
-        className="sr-only"
+        className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); }}
       />
       <div className="flex items-center gap-2 flex-wrap">
@@ -146,7 +143,16 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
               <pre className="text-[11px] overflow-x-auto rounded p-2" style={{ background: 'var(--panel-bg)', color: 'var(--list-title)' }}>{envText}</pre>
               <button
                 type="button"
-                onClick={() => { navigator.clipboard?.writeText(envText); setCopied(true); }}
+                onClick={() => {
+                  // Ces variables ne sont visibles que sur cet écran, avant une
+                  // opération qui déconnecte l'utilisateur : ne signaler « copié »
+                  // qu'en cas de succès réel (l'API peut être absente en contexte
+                  // non sécurisé, ou la promesse peut être rejetée), sinon on lui
+                  // fait croire qu'il les a sauvegardées alors que non.
+                  const clipboard = navigator.clipboard;
+                  if (!clipboard) return;
+                  clipboard.writeText(envText).then(() => setCopied(true)).catch(() => {});
+                }}
                 className="px-3 py-1.5 text-xs rounded-lg min-h-[44px] transition-colors hover:bg-black/5"
                 style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
               >
