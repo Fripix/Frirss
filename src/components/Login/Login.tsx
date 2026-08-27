@@ -194,7 +194,17 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
 
           {isFirstUser && mode === 'restore' && (
             <div className="mt-3 space-y-3">
-              <RestoreFlow setup onRestored={() => setMode('login')} />
+              <RestoreFlow
+                setup
+                onRestored={() => {
+                  // L'instance avait zéro compte quand cet écran a interrogé le serveur ;
+                  // elle en a maintenant. Sans cette relecture, `isFirstUser` resterait vrai
+                  // et l'écran continuerait de se croire en première installation — la
+                  // bascule connexion/inscription resterait masquée jusqu'à un rechargement.
+                  getAuthStatus().then(setStatus).catch(() => { /* l'écran de connexion reste utilisable */ });
+                  setMode('login');
+                }}
+              />
               <button
                 type="button"
                 onClick={() => setMode('register')}
