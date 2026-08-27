@@ -15,6 +15,7 @@ import {
 import { login as freshrssLogin } from '../../api/auth';
 import { useFeedStore } from '../../stores/feedStore';
 import MatrixRain from './MatrixRain';
+import RestoreFlow from '../backup/RestoreFlow';
 import { shouldHideLocalLogin, isLocalFallbackUrl } from '../../lib/shouldHideLocalLogin';
 import type { AuthStatus } from '../../types';
 
@@ -73,7 +74,9 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
   const { t } = useTranslation();
   const setBackendAuth = useAuthStore((s) => s.setBackendAuth);
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  // 'restore' n'est proposé qu'à la toute première ouverture, quand aucun
+  // compte n'existe : c'est le seul moment où il n'y a rien à écraser.
+  const [mode, setMode] = useState<'login' | 'register' | 'restore'>('login');
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [oidc, setOidc] = useState<OidcConfig | null>(null);
   const [username, setUsername] = useState('');
@@ -168,16 +171,46 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
           />
           <h1 className="text-2xl font-bold text-white">{t('login.welcome')}</h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--sidebar-text)' }}>
-            {isRegister ? t('login.registerTitle') : t('login.loginTitle')}
+            {mode === 'restore'
+              ? t('backup.restoreTitle')
+              : isRegister ? t('login.registerTitle') : t('login.loginTitle')}
           </p>
           {isFirstUser && isRegister && (
             <p className="mt-2 text-xs px-4 py-1.5 rounded-full inline-block" style={{ background: 'var(--accent)', color: '#fff' }}>
               {t('login.firstUserHint')}
             </p>
           )}
+
+          {isFirstUser && mode === 'register' && (
+            <button
+              type="button"
+              onClick={() => setMode('restore')}
+              className="mt-3 text-xs font-semibold min-h-[44px]"
+              style={{ color: 'var(--accent)' }}
+            >
+              {t('backup.restoreTitle')}
+            </button>
+          )}
+
+          {isFirstUser && mode === 'restore' && (
+            <div className="mt-3 space-y-3">
+              <RestoreFlow setup onRestored={() => setMode('login')} />
+              <button
+                type="button"
+                onClick={() => setMode('register')}
+                className="text-xs font-semibold min-h-[44px]"
+                style={{ color: 'var(--accent)' }}
+              >
+                {t('sidebar.cancel')}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Form */}
+        {/* Form — masqué en mode restauration : son contenu (identifiants,
+            SSO, bascule) ne s'applique pas et le panneau resterait vide, un
+            cadre translucide sans rien dedans sous le flux de restauration. */}
+        {mode !== 'restore' && (
         <form
           onSubmit={handleSubmit}
           className="rounded-xl p-6 space-y-4 shadow-2xl"
@@ -304,6 +337,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
             </div>
           )}
         </form>
+        )}
       </div>
     </LoginShell>
   );
