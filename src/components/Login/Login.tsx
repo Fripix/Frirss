@@ -175,42 +175,27 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
               ? t('backup.restoreTitle')
               : isRegister ? t('login.registerTitle') : t('login.loginTitle')}
           </p>
-          {/* Une note, pas un bouton. En pastille pleine et accentuée, cette
-              information portait l'habit d'une action et se confondait avec le
-              lien de restauration juste à côté — deux rôles opposés, un seul
-              langage visuel. Elle explique une conséquence du formulaire : elle
-              se range donc sous le sous-titre, à voix basse. */}
-          {isFirstUser && isRegister && (
-            <p className="mt-2 text-xs" style={{ color: 'var(--sidebar-text)' }}>
-              {t('login.firstUserHint')}
-            </p>
-          )}
+          {/* La note et la branche de restauration vivaient ici, posées à même
+              l'animation de fond : trop peu contrastées pour être lues. Elles
+              ont rejoint la surface que cet écran possède déjà — fond sombre
+              translucide et flou d'arrière-plan — plutôt que d'inventer un
+              encadré de plus. Le titre, lui, garde le fond pour lui seul : il
+              est assez gros et assez clair pour le supporter. */}
 
-          {/* La restauration n'est pas une précision de plus sur le formulaire :
-              c'est l'autre chemin. Le filet la sépare de ce qui précède, et la
-              tournure « phrase muette + action soulignée » reprend mot pour mot
-              celle qui sert déjà au bas de cet écran (« Pas de compte ? … »)
-              plutôt que d'inventer un second vocabulaire. Le {' '} qui manquait
-              entre les deux éléments est ce qui les faisait se toucher. */}
-          {isFirstUser && mode === 'register' && (
-            <p
-              className="mt-5 pt-4 text-xs"
-              style={{ borderTop: '1px solid var(--sidebar-divider)', color: 'var(--sidebar-text)' }}
-            >
-              {t('login.restorePrompt')}{' '}
-              <button
-                type="button"
-                onClick={() => setMode('restore')}
-                className="inline-flex items-center min-h-[44px] font-semibold underline hover:brightness-125"
-                style={{ color: 'var(--accent)' }}
-              >
-                {t('backup.restoreTitle')}
-              </button>
-            </p>
-          )}
-
+          {/* Le mode restauration reçoit la même surface que le formulaire :
+              corriger l'entrée en laissant la pièce qu'elle ouvre à nu sur
+              l'animation ne serait qu'un demi-travail. `text-left` parce que
+              l'en-tête est centré alors qu'un formulaire se lit aligné. */}
           {isFirstUser && mode === 'restore' && (
-            <div className="mt-3 space-y-3">
+            <div
+              className="mt-5 rounded-xl p-6 space-y-4 text-left shadow-2xl"
+              style={{
+                background: 'rgba(20,20,24,0.72)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+              }}
+            >
               <RestoreFlow
                 setup
                 onRestored={() => {
@@ -237,6 +222,34 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
         {/* Form — masqué en mode restauration : son contenu (identifiants,
             SSO, bascule) ne s'applique pas et le panneau resterait vide, un
             cadre translucide sans rien dedans sous le flux de restauration. */}
+        {/* Deux chemins s'ouvrent ici, et la question « lequel suis-je ? » se
+            pose avant de remplir quoi que ce soit : la bifurcation précède donc
+            le formulaire au lieu de le suivre. Même surface que la carte, en
+            plus mince — une bande et une carte se lisent comme une hiérarchie,
+            pas comme deux boîtes concurrentes. */}
+        {isFirstUser && mode === 'register' && (
+          <p
+            className="mb-4 rounded-xl px-4 py-3 text-center text-xs shadow-2xl"
+            style={{
+              background: 'rgba(20,20,24,0.72)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              color: 'var(--sidebar-text-active)',
+            }}
+          >
+            {t('login.restorePrompt')}{' '}
+            <button
+              type="button"
+              onClick={() => setMode('restore')}
+              className="inline-flex items-center min-h-[44px] font-semibold underline hover:brightness-125"
+              style={{ color: 'var(--accent)' }}
+            >
+              {t('backup.restoreTitle')}
+            </button>
+          </p>
+        )}
+
         {mode !== 'restore' && (
         <form
           onSubmit={handleSubmit}
@@ -248,6 +261,18 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
             WebkitBackdropFilter: 'blur(10px)',
           }}
         >
+          {/* Elle décrit une conséquence de CE formulaire : sa place est en
+              tête de celui-ci, sur une surface lisible, et non flottante
+              au-dessus. */}
+          {isFirstUser && isRegister && (
+            <p
+              className="pb-4 text-xs"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.10)', color: 'var(--sidebar-text-active)' }}
+            >
+              {t('login.firstUserHint')}
+            </p>
+          )}
+
           {!hideLocal && (
           <>
           <InputField
