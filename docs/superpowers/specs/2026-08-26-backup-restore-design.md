@@ -19,7 +19,25 @@ serveur lancé. Il ne fait que la moitié du chemin.
    `settings.encryption_key`, la clé AES qui déchiffre les jetons FreshRSS de
    tous les utilisateurs.
 
-## Ce qui contraint tout le reste
+## Ce que contient la sauvegarde
+
+**Tout ce que FriRSS sait de lui-même.** Comptes et **mots de passe** (hachages
+bcrypt), serveurs configurés avec leur **jeton FreshRSS** et leur **jeton maître
+de rafraîchissement**, la **clé qui déchiffre ces jetons**, le secret JWT, le
+secret client OIDC, toutes les préférences, tous les réglages d'instance.
+
+Restaurée, l'instance est celle qu'on avait : on se connecte avec le même mot de
+passe, les flux arrivent immédiatement, rien n'est à reconfigurer.
+
+Ce qu'elle ne contient pas : **le contenu FreshRSS** — articles, flux, états de
+lecture — qui vit dans FreshRSS et n'a jamais appartenu à FriRSS. Et `sessions`,
+seule table écartée : des jetons porteurs qui expirent.
+
+C'est précisément parce qu'elle contient tout cela que le chiffrement est
+obligatoire. La section suivante explique pourquoi il n'existait pas
+d'alternative.
+
+## Pourquoi le chiffrement n'est pas optionnel
 
 La base tient cinq tables, et leur contenu se range en trois niveaux :
 
@@ -138,12 +156,26 @@ qu'après l'utilisateur sera déconnecté.
 
 ### Depuis Administration, instance en marche
 
-Choisir le fichier, saisir la phrase de passe, lire l'aperçu, puis **une
-confirmation délibérée : retaper son propre nom d'utilisateur**, pas cliquer
-« OK ». Le nom d'utilisateur plutôt qu'un mot magique du genre `REMPLACER` :
-il n'a pas à être traduit dans neuf langues, il est différent pour chacun,
-donc impossible à taper par réflexe, et il rappelle au passage que le compte
-avec lequel on est connecté ne survivra peut-être pas à l'opération.
+Choisir le fichier, saisir la phrase de passe, lire l'aperçu, puis confirmer.
+
+**Le contrôle de sécurité, c'est la phrase de passe** — pas le geste de
+confirmation. Quelqu'un devant une session restée ouverte ne peut rien
+restaurer : il lui faudrait le fichier *et* sa phrase, qui n'est stockée nulle
+part. L'étape finale est donc une **friction assumée devant un acte
+irréversible**, pas une barrière : un bouton dont le libellé dit ce qu'il fait
+— remplacer définitivement le contenu de cette instance — présenté après
+l'aperçu, jamais avant.
+
+Deux fausses bonnes idées écartées :
+
+- **Retaper son nom d'utilisateur.** Habillage : ça n'arrête personne qui soit
+  déjà devant l'écran, et le présenter comme de la sécurité induit en erreur.
+- **Ressaisir le mot de passe de son compte.** La ré-authentification existe
+  bien dans le projet (`server/routes/auth.ts`, `bcrypt.compare`), mais elle
+  **refuse les comptes SSO**, qui n'ont pas de `password_hash`. Un contrôle
+  inopérant pour les administrateurs Authentik n'est pas un contrôle. Et il
+  ferait entrer un second secret dans un flux que la phrase de passe garde
+  déjà.
 
 Le remplacement est **intégral** — comptes, serveurs, préférences, réglages —
 et se fait dans **une seule transaction SQLite**. Si quoi que ce soit échoue,
