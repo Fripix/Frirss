@@ -10,8 +10,10 @@ import serversRoutes from './routes/servers.js';
 import preferencesRoutes from './routes/preferences.js';
 import adminRoutes from './routes/admin.js';
 import proxyRoutes from './routes/proxy.js';
+import { adminBackupRouter, setupBackupRouter } from './routes/backup.js';
 import { migrateEncryptTokens } from './crypto.js';
 import { startBackgroundSync } from './worker.js';
+import { APP_VERSION } from './version.js';
 
 // Encrypt any FreshRSS tokens still stored in plaintext (one-time, idempotent)
 migrateEncryptTokens();
@@ -66,6 +68,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/servers', serversRoutes);
 app.use('/api/preferences', preferencesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminBackupRouter);
+app.use('/api/setup', setupBackupRouter);
 app.use('/api/proxy', proxyRoutes);
 
 // ── Health check ────────────────────────────────────────────────────
@@ -78,7 +82,7 @@ app.get('/api/health', (req, res) => {
   } catch { /* db unreachable */ }
   res.status(dbOk ? 200 : 503).json({
     status: dbOk ? 'ok' : 'degraded',
-    version: '1.4.3',
+    version: APP_VERSION,
     db: dbOk ? 'up' : 'down',
     uptime: Math.floor((Date.now() - startedAt) / 1000),
   });
