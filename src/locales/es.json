@@ -597,6 +597,8 @@
     "errNotBackup": "Este archivo no es una copia de FriRSS.",
     "errVersion": "Esta copia se creó con una versión más reciente de FriRSS.",
     "errPassphrase": "Frase de contraseña incorrecta, o archivo dañado.",
-    "errGeneric": "La operación ha fallado. Inténtalo de nuevo."
+    "errGeneric": "La operación ha fallado. Inténtalo de nuevo.",
+    "errSchema": "La copia contiene un dato que esta versión de FriRSS no sabe clasificar, probablemente porque procede de una versión más reciente. No se ha modificado nada.",
+    "errTooMany": "Demasiados intentos. Inténtalo de nuevo más tarde."
   }
 }

@@ -597,6 +597,8 @@
     "errNotBackup": "Ce fichier n’est pas une sauvegarde FriRSS.",
     "errVersion": "Cette sauvegarde a été produite par une version plus récente de FriRSS.",
     "errPassphrase": "Phrase de passe incorrecte, ou fichier abîmé.",
-    "errGeneric": "L’opération a échoué. Réessayez."
+    "errGeneric": "L’opération a échoué. Réessayez.",
+    "errSchema": "La sauvegarde contient une donnée que cette version de FriRSS ne sait pas ranger, probablement parce qu’elle vient d’une version plus récente. Rien n’a été modifié.",
+    "errTooMany": "Trop de tentatives. Réessayez plus tard."
   }
 }

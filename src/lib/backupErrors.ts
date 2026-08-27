@@ -12,6 +12,8 @@ export function backupErrorKey(err: unknown): string {
     case 'not_a_backup': return 'backup.errNotBackup';
     case 'unsupported_version': return 'backup.errVersion';
     case 'bad_passphrase': return 'backup.errPassphrase';
+    case 'schema_mismatch': return 'backup.errSchema';
+    case 'rate_limited': return 'backup.errTooMany';
     default: return 'backup.errGeneric';
   }
 }

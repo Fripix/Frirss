@@ -597,6 +597,8 @@
     "errNotBackup": "Questo file non è un backup FriRSS.",
     "errVersion": "Questo backup è stato prodotto da una versione più recente di FriRSS.",
     "errPassphrase": "Passphrase errata, o file danneggiato.",
-    "errGeneric": "Operazione non riuscita. Riprova."
+    "errGeneric": "Operazione non riuscita. Riprova.",
+    "errSchema": "Il backup contiene un dato che questa versione di FriRSS non sa gestire, probabilmente perché proviene da una versione più recente. Non è stato modificato nulla.",
+    "errTooMany": "Troppi tentativi. Riprova più tardi."
   }
 }

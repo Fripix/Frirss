@@ -607,6 +607,8 @@
     "errNotBackup": "Ten plik nie jest kopią zapasową FriRSS.",
     "errVersion": "Ta kopia pochodzi z nowszej wersji FriRSS.",
     "errPassphrase": "Błędne hasło lub uszkodzony plik.",
-    "errGeneric": "Operacja nie powiodła się. Spróbuj ponownie."
+    "errGeneric": "Operacja nie powiodła się. Spróbuj ponownie.",
+    "errSchema": "Kopia zawiera dane, których ta wersja FriRSS nie potrafi zapisać — prawdopodobnie pochodzi z nowszej wersji. Nic nie zostało zmienione.",
+    "errTooMany": "Zbyt wiele prób. Spróbuj ponownie później."
   }
 }

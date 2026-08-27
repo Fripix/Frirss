@@ -18,10 +18,12 @@ function withCode(code: string) {
 }
 
 describe('backupErrorKey', () => {
-  it('distingue les trois pannes portées par le code serveur', () => {
+  it('distingue les pannes portées par le code serveur', () => {
     expect(backupErrorKey(withCode('not_a_backup'))).toBe('backup.errNotBackup');
     expect(backupErrorKey(withCode('unsupported_version'))).toBe('backup.errVersion');
     expect(backupErrorKey(withCode('bad_passphrase'))).toBe('backup.errPassphrase');
+    expect(backupErrorKey(withCode('schema_mismatch'))).toBe('backup.errSchema');
+    expect(backupErrorKey(withCode('rate_limited'))).toBe('backup.errTooMany');
   });
 
   it('retombe sur le générique pour weak_passphrase (erreur de saisie, pas de fichier)', () => {
@@ -42,10 +44,12 @@ describe('backupErrorKey', () => {
     expect(backupErrorKey(undefined)).toBe('backup.errGeneric');
   });
 
-  it('les quatre clés rendues existent réellement dans fr.json', () => {
+  it('les six clés rendues existent réellement dans fr.json', () => {
     expect(hasKey('backup.errNotBackup')).toBe(true);
     expect(hasKey('backup.errVersion')).toBe(true);
     expect(hasKey('backup.errPassphrase')).toBe(true);
     expect(hasKey('backup.errGeneric')).toBe(true);
+    expect(hasKey('backup.errSchema')).toBe(true);
+    expect(hasKey('backup.errTooMany')).toBe(true);
   });
 });
