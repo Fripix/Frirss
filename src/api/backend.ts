@@ -5,6 +5,8 @@ import type {
   ServerConnection,
   AuthStatus,
   AuthSession,
+  BackupEnvelope,
+  RestoreSummary,
 } from '../types';
 
 // Client for the FriRSS backend API (/api/*)
@@ -201,6 +203,34 @@ export async function getAdminSettings(): Promise<Record<string, unknown>> {
 
 export async function updateAdminSettings(settings: Record<string, unknown>): Promise<void> {
   await backend.put('/admin/settings', settings);
+}
+
+// ── Sauvegarde & restauration ────────────────────────────────────────
+
+/**
+ * Produit l'enveloppe chiffrée. En POST, et non en GET : la phrase de passe ne
+ * doit apparaître ni dans une URL, ni dans un journal d'accès.
+ */
+export async function createBackup(passphrase: string): Promise<BackupEnvelope> {
+  const { data } = await backend.post<{ backup: BackupEnvelope }>('/admin/backup', { passphrase });
+  return data.backup;
+}
+
+/** `setup` : instance vierge (premier démarrage) plutôt qu'Administration. */
+export async function previewRestore(
+  backup: unknown,
+  passphrase: string,
+  setup: boolean,
+): Promise<RestoreSummary> {
+  const { data } = await backend.post<RestoreSummary>(
+    `${setup ? '/setup' : '/admin'}/restore/preview`,
+    { backup, passphrase },
+  );
+  return data;
+}
+
+export async function applyRestore(backup: unknown, passphrase: string, setup: boolean): Promise<void> {
+  await backend.post(`${setup ? '/setup' : '/admin'}/restore`, { backup, passphrase });
 }
 
 export default backend;

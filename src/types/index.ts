@@ -126,3 +126,22 @@ export interface AuthSession {
   user: User;
   isFirstUser?: boolean;
 }
+
+// ── Sauvegarde & restauration ────────────────────────────────────────
+export interface BackupEnvelope {
+  format: string;
+  version: number;
+  createdAt: string;
+  appVersion: string;
+  kdf: { algo: string; N: number; r: number; p: number; salt: string };
+  cipher: string;
+  iv: string;
+  tag: string;
+  payload: string;
+}
+
+export interface RestoreSummary {
+  summary: { users: number; servers: number; environment: Record<string, string> };
+  createdAt: string | null;
+  appVersion: string | null;
+}
