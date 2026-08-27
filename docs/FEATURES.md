@@ -402,15 +402,41 @@ Ne s'y trouvent pas : le **contenu FreshRSS** — articles, flux, états de lect
 — qui vit dans FreshRSS ; et `sessions`, seule table écartée, faite de jetons
 porteurs qui expirent.
 
-- **Où** : `server/backupCrypto.ts` (enveloppe), `server/backup.ts` (collecte et
-  application), `server/routes/backup.ts` (routes), famille i18n `backup`
+- **Où** :
+  - Serveur : `server/backupCrypto.ts` (enveloppe), `server/backup.ts`
+    (collecte et application), `server/routes/backup.ts` (les deux routeurs)
+  - Interface : `src/components/backup/` — `BackupExport.tsx` (formulaire
+    d'export, phrase de passe + confirmation) et `RestoreFlow.tsx` (choix de
+    fichier → aperçu → remplacement), **partagé** entre les deux points d'accès
+    ci-dessous ; `src/components/Preferences/admin/BackupBlock.tsx` héberge le
+    bloc dans Administration ; `src/lib/backupErrors.ts` traduit le `code`
+    renvoyé par le serveur en clé i18n (`backup.errNotBackup`,
+    `backup.errVersion`, `backup.errPassphrase`, `backup.errGeneric`)
+  - Traductions : famille `backup`
 - **Spec** : `docs/superpowers/specs/2026-08-26-backup-restore-design.md`
 - **Chiffrement** : `scrypt` puis AES-256-GCM (`node:crypto`, aucune dépendance
   ajoutée). **Phrase de passe obligatoire, 12 caractères minimum** : le fichier
   contient tout, un chiffrement facultatif serait un piège. Perdue, elle rend la
   sauvegarde définitivement inutilisable.
-- **Deux chemins, une implémentation** : `/api/admin/*` derrière le garde
-  administrateur, `/api/setup/*` derrière un garde « instance vierge ».
+- **Deux points d'accès, une seule implémentation** (`RestoreFlow.tsx`,
+  prop `setup`) :
+  - **Administration**, sur une instance déjà en marche : bloc
+    « Sauvegarde et restauration » de `BackupBlock.tsx`, derrière
+    `/api/admin/*` et le garde administrateur.
+  - **Écran de première connexion**, sur une instance vierge (`Login.tsx`,
+    lien « restaurer » visible tant qu'aucun compte n'existe) : mêmes étapes,
+    derrière `/api/setup/*` et le garde « instance vierge ».
+  - Dans les deux cas, le fichier choisi et sa phrase de passe ne servent
+    d'abord qu'à un **aperçu** (nombre de comptes, de serveurs, date de
+    création, version d'origine, variables d'environnement d'origine) : le
+    remplacement n'est jamais à un clic du choix de fichier, il faut valider
+    l'aperçu.
+  - Le remplacement **déconnecte** l'utilisateur (les comptes de la session
+    courante n'existent plus après restauration) ; il se reconnecte avec le
+    mot de passe **de la sauvegarde**, pas celui de l'instance qu'il vient de
+    remplacer. Depuis l'écran de première connexion, la restauration bascule
+    aussi l'écran de « inscription » vers « connexion » (l'instance n'est plus
+    vierge).
 - **Pièges** :
   - `server/crypto.ts` met la clé de chiffrement en cache pour la durée du
     processus. La restauration appelle `resetKeyCache()` après le commit ; sans
@@ -422,6 +448,12 @@ porteurs qui expirent.
     blanche** (`BACKUP_ENV_KEYS`), jamais depuis `process.env` en bloc.
   - Le remplacement tient dans **une seule transaction** : un échec en cours de
     route laisse l'instance intacte.
+  - Une phrase de passe erronée (`bad_passphrase`) ne doit **jamais** répondre
+    401 : l'intercepteur axios lit tout 401 comme une session expirée et
+    déconnecte, ce qui éjecterait l'administrateur avant qu'il ne voie
+    l'erreur. Le serveur répond **422** — l'utilisateur est authentifié, c'est
+    la phrase de passe *du fichier* qui est fausse — et le client distingue les
+    motifs par le `code` de la réponse, pas par le statut HTTP.
 - **`scripts/backup-db.js` reste** : instantané brut, sans phrase de passe, pour
   l'opérateur qui a un accès shell. Les deux ne se remplacent pas.
 
@@ -482,6 +514,11 @@ et `uk`.
 | DELETE | `/api/admin/users/:id` | Supprimer un compte |
 | GET | `/api/admin/settings` | Lire les réglages du serveur |
 | PUT | `/api/admin/settings` | Écrire les réglages du serveur |
+| POST | `/api/admin/backup` | Produire la sauvegarde chiffrée |
+| POST | `/api/admin/restore/preview` | Déchiffrer et résumer, sans écrire |
+| POST | `/api/admin/restore` | Remplacer l'instance |
+| POST | `/api/setup/restore/preview` | Idem, instance vierge uniquement |
+| POST | `/api/setup/restore` | Idem, instance vierge uniquement |
 | ALL | `/api/proxy` | Passage vers FreshRSS et extraction d'articles |
 
 ---
