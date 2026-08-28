@@ -67,6 +67,14 @@ la release publiée.
   pendant le travail, et l'aperçu — qui se dépliait plus bas sans rien
   signaler — s'annonce par un liseré accentué, se fait lire par les
   technologies d'assistance et vient sous les yeux.
+- **Paquets Alpine mis à jour à la construction de l'image.** Docker Scout
+  signalait 10 vulnérabilités sur `fripix/frirss:latest`, toutes sur le même
+  paquet — l'openssl fourni par `node:24-alpine`, contre lequel nginx est lié —
+  et toutes déjà corrigées en amont. L'image de base est reconstruite à son
+  propre rythme : ses paquets ont l'âge de sa dernière reconstruction. Un `apk
+  upgrade` en début d'étape de production récupère les correctifs de la branche
+  qu'elle épingle déjà, au niveau du correctif uniquement.
+
 - **Traductions** : 25 clés mortes retirées des 9 locales (dont toute la
   famille `shortcutBar`, orpheline depuis une refonte), et deux compteurs
   passés en vraies formes plurielles — le polonais et l'ukrainien recevaient

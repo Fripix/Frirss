@@ -23,9 +23,16 @@ RUN npm prune --omit=dev
 FROM node:24-alpine
 WORKDIR /app
 
-# nginx (static + /api proxy), tzdata (so TZ works on Alpine), and the runtime
-# lib for better-sqlite3
-RUN apk add --no-cache nginx libstdc++ tzdata
+# `apk upgrade` first: the base image is rebuilt on its own schedule, so the
+# Alpine packages it ships (openssl in particular, which nginx links against)
+# are as old as the last node:24-alpine build. Upgrading at build time pulls
+# the patched versions from the branch the base image already pins — patch
+# level only, never a distro jump. Without it the published image carries
+# whatever CVEs the base picked up since its last rebuild.
+#
+# Then nginx (static + /api proxy), tzdata (so TZ works on Alpine), and the
+# runtime lib for better-sqlite3.
+RUN apk upgrade --no-cache && apk add --no-cache nginx libstdc++ tzdata
 
 # The runtime only ever runs `node` (see docker-entrypoint.sh) — never npm. Drop
 # the base image's bundled npm/npx/corepack: they ship their own dependencies
