@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/logo_frirss.png" alt="FriRSS" width="96" />
+  <img src="public/logo_frirss.png" alt="" width="96" />
   <h1>FriRSS</h1>
   <p><em>Your FriRSS, your rules.</em></p>
   <p>A self-hosted, customizable web frontend for <a href="https://freshrss.org">FreshRSS</a>.</p>
@@ -16,40 +16,20 @@
     <img src="https://flagcdn.com/24x18/ua.png" alt="Українська" />
   </p>
 
-<p>
-  <a href="https://github.com/Fripix/Frirss/releases"><img src="https://img.shields.io/github/v/release/Fripix/Frirss?label=release&style=flat-square" alt="Release" /></a>
-  <a href="https://github.com/Fripix/Frirss/stargazers"><img src="https://img.shields.io/github/stars/Fripix/Frirss?label=stars&style=flat-square&color=gold" alt="Stars" /></a>
-  <a href="https://github.com/Fripix/Frirss/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/ci.yml?branch=main&label=CI&style=flat-square" alt="CI" /></a>
-  <a href="https://github.com/Fripix/Frirss/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/security.yml?branch=main&label=security&style=flat-square" alt="Security" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Fripix/Frirss?style=flat-square" alt="License" /></a>
-</p>
+  <p>
+    <a href="https://github.com/Fripix/Frirss/releases"><img src="https://img.shields.io/github/v/release/Fripix/Frirss?label=release&style=flat-square" alt="Release" /></a>
+    <a href="https://github.com/Fripix/Frirss/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/ci.yml?branch=main&label=CI&style=flat-square" alt="CI" /></a>
+    <a href="https://github.com/Fripix/Frirss/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/Fripix/Frirss/security.yml?branch=main&label=security&style=flat-square" alt="Security" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/Fripix/Frirss?style=flat-square" alt="License" /></a>
+  </p>
 
-<p>
-  <a href="https://ca.unraid.net/apps"><img src="https://img.shields.io/badge/Unraid-Community%20Apps-F15A2C?logo=unraid&logoColor=white&style=flat-square" alt="Unraid Community Apps" /></a>
-  <a href="https://hub.docker.com/r/fripix/frirss"><img src="https://img.shields.io/docker/pulls/fripix/frirss?label=Docker%20pulls&logo=docker&style=flat-square" alt="Docker pulls" /></a>
-  <a href="https://github.com/Fripix/Frirss/pkgs/container/frirss"><img src="https://img.shields.io/badge/GHCR-frirss-2496ED?logo=github&style=flat-square" alt="GHCR" /></a>
-  <img src="https://img.shields.io/badge/arch-amd64%20%7C%20arm64-555555?style=flat-square" alt="amd64 and arm64" />
-  <img src="https://img.shields.io/badge/PWA-installable-8A2BE2?style=flat-square" alt="PWA" />
-  <img src="https://img.shields.io/badge/languages-9-orange?style=flat-square" alt="9 languages" />
-</p>
+  <p>
+    <a href="https://github.com/Fripix/Frirss/pkgs/container/frirss"><img src="https://img.shields.io/badge/GHCR-frirss-2496ED?logo=github&style=flat-square" alt="GHCR" /></a>
+    <a href="https://hub.docker.com/r/fripix/frirss"><img src="https://img.shields.io/docker/pulls/fripix/frirss?label=Docker%20pulls&logo=docker&style=flat-square" alt="Docker pulls" /></a>
+    <a href="https://ca.unraid.net/apps"><img src="https://img.shields.io/badge/Unraid-Community%20Apps-F15A2C?logo=unraid&logoColor=white&style=flat-square" alt="Unraid Community Apps" /></a>
+    <img src="https://img.shields.io/badge/arch-amd64%20%7C%20arm64-555555?style=flat-square" alt="amd64 and arm64" />
+  </p>
 </div>
-
-<p align="center">
-  <a href="https://buymeacoffee.com/fripix">
-    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
-         alt="Buy Me a Coffee"
-         height="36">
-  </a>
-</p>
-
-<p align="center">
-  <a href="#about">About</a> ·
-  <a href="#features">Features</a> ·
-  <a href="#installation">Installation</a> ·
-  <a href="#configuration">Configuration</a> ·
-  <a href="#security">Security</a> ·
-  <a href="#feedback--contributing">Feedback & Contributing</a>
-</p>
 
 ## Preview
 
@@ -74,11 +54,12 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 ## Features
 
 ### Reading
-- Three-pane reader on desktop; an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
-- **Full-text extraction** (Readability) when a feed only ships a summary, cached so re-reads are instant.
-- **Offline reading** (installable PWA): articles — text and images — stay readable without a connection. Favorites and read-later are kept offline automatically, plus a one-tap *Prepare offline* sweep (last 30 days, all feeds) and optional auto-refresh on open.
-- Favorites, read-later, mark read/unread, filters (all / unread / favorites) — the **unread-only** filter is remembered per feed — search and infinite scroll.
-- **Resume where you left off**: your last feed and filter are restored on reopen, with an unobtrusive **offline / back-online** indicator.
+- **Three panes on desktop**, and an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
+- **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant.
+- **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
+- **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed.
+- **Search and infinite scroll**, scoped to the view you are actually in.
+- **Resume where you left off** — your last feed and filter come back on reopen, with an unobtrusive offline / back-online indicator.
 
 ### Make it yours
 Almost everything is yours to tweak:
@@ -86,10 +67,11 @@ Almost everything is yours to tweak:
 - **Themes** — full control over every color and font; **create, save, export and import** your own themes.
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
-- **Layout** — resizable columns, density and spacing options, date separators, toggles for the source label and top bar, and a desktop/mobile layout switch on tablets. Collapsed sidebar sections (labels and categories) are remembered, and feeds with no unread can be hidden to declutter large lists.
-- **Labels & sub-labels** — a nestable tagging system: create, rename, color, drag-and-drop to organize, group under parents, with per-label article counts.
+- **Layout** — resizable columns, density and spacing, date separators, toggles for the source label and top bar, and a desktop/mobile switch on tablets.
+- **A sidebar that remembers** — collapsed sections stay collapsed, and feeds with nothing unread can be hidden to declutter long lists.
+- **Labels & sub-labels** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with per-label article counts.
 - **Branding** — set your own app name and logo.
-- **9 languages** — FR · EN · DE · ES · IT · PT · NL · PL · UK; the interface follows your browser language on first run.
+- **9 languages** — the interface follows your browser language on first run.
 
 ### Accounts, SSO & multi-server
 - **Multi-user** with admin/user roles — each person keeps their own feeds and settings.
@@ -106,10 +88,6 @@ Almost everything is yours to tweak:
 
 FriRSS is a frontend for FreshRSS, so you need a running FreshRSS instance with the Google Reader API enabled (*Settings → Authentication → Allow API access*).
 
-### Docker
-
-Using GHCR:
-
 ```bash
 mkdir -p frirss-data
 docker run -d --name frirss \
@@ -119,24 +97,11 @@ docker run -d --name frirss \
   ghcr.io/fripix/frirss:latest
 ```
 
-Or using Docker Hub:
+The database lands in a `frirss-data` folder right where you ran the command. The same image is on Docker Hub as `fripix/frirss:latest` if you prefer it, and a ready-to-edit [`docker-compose.yml`](docker-compose.yml) is included.
 
-```bash
-mkdir -p frirss-data
-docker run -d --name frirss \
-  -p 8080:80 \
-  -v "$PWD/frirss-data:/app/data" \
-  -e TZ=Europe/Zurich \
-  fripix/frirss:latest
-```
+Then open `http://localhost:8080` and create the first account — it becomes the administrator. Connect your FreshRSS server next: its URL, your FreshRSS username, and the API password from *FreshRSS → Settings → Profile*.
 
-(`$PWD` is your current directory, so the database is stored in a `frirss-data` folder right where you run the command — back it up and you back up everything.)
-
-Open `http://localhost:8080`, create the first account (it becomes admin), then connect your FreshRSS server: its URL, your FreshRSS username, and the API password (set in *FreshRSS → Settings → Profile*).
-
-Prefer Compose? A ready-to-edit [`docker-compose.yml`](docker-compose.yml) is included.
-
-The first launch generates the JWT secret and the token-encryption key and stores them in the SQLite database, so backing up the data volume backs up everything.
+The first launch generates the JWT secret and the token-encryption key and stores them in the database, so backing up the data folder backs up everything — see [Backups](#backups).
 
 ## Configuration
 
@@ -150,6 +115,8 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `CACHE_ARTICLES_PER_FEED` | Articles kept per feed in the cache | `50` |
 | `CACHE_TTL` | Cache key expiry, in seconds | `86400` |
 | `CACHE_SYNC_INTERVAL` | Background pre-fetch interval in minutes (`0` disables; needs `REDIS_URL`) | `0` |
+| `CACHE_SYNC_ACTIVE_DAYS` | Only pre-fetch for users seen in the last N days | `7` |
+| `CACHE_SYNC_PARALLEL_USERS` | Users pre-fetched in parallel | `3` |
 | `FRIRSS_REFRESH_MAX_FEEDS` | Number of feeds to refresh per button press (non-integer or < 1 → default) | `1000` |
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
@@ -203,11 +170,16 @@ scripts/reset-password.js` sets a new password from the terminal.
 
 ## Security
 
-Security checks are run regularly and can also be launched manually.
+FriRSS holds the credentials to your FreshRSS server, so a few things are not optional:
 
-If you discover a security issue, please follow the instructions in [`SECURITY.md`](SECURITY.md) instead of opening a public issue.
+- FreshRSS passwords and tokens are **encrypted at rest** and never reach the browser — not in a response, not in a URL, not in a log.
+- All FreshRSS traffic goes through an authenticated **same-origin proxy** with an anti-SSRF guard: it rejects targets that *resolve* to a private address, and re-checks every redirect hop.
+- The app page carries a **Content-Security-Policy** (`script-src 'self'`) along with `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy`.
+- JWT verification is pinned to HS256, and the runtime image ships neither npm nor its dependency tree — nothing there is executed, and it was the source of most reported CVEs.
 
-You can also follow the current security workflow in [GitHub Actions](https://github.com/Fripix/Frirss/actions/workflows/security.yml).
+Dependency and image scans run on every push and can be launched by hand; the current state is in [GitHub Actions](https://github.com/Fripix/Frirss/actions/workflows/security.yml).
+
+Found a security issue? Please follow [`SECURITY.md`](SECURITY.md) rather than opening a public issue.
 
 ## Feedback & Contributing
 
@@ -217,6 +189,14 @@ FriRSS is a personal project, but feedback, ideas and contributions are welcome.
 - Have an idea or question? [Start a discussion](https://github.com/Fripix/Frirss/discussions)
 - Want to contribute code? Pull requests are welcome.
 - Wondering what changed? [`CHANGELOG.md`](CHANGELOG.md)
+
+<p align="center">
+  <a href="https://buymeacoffee.com/fripix">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+         alt="Buy Me a Coffee"
+         height="36">
+  </a>
+</p>
 
 ## License
 
