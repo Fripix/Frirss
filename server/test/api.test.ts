@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import request from 'supertest';
 import app from '../index.js';
 import db from '../db.js';
@@ -651,6 +651,70 @@ describe('cache', () => {
       .set('X-Cache-Only', '1')
       .set('X-Proxy-Target', 'https://rss.example.com/api/greader.php/reader/api/0/stream/contents/x?output=json&n=50');
     expect(res.status).toBe(204);
+  });
+});
+
+describe('proxy — injection du jeton FreshRSS', () => {
+  let serverId: number;
+  const SERVER_URL = 'https://rss20.example.com';
+  const TOKEN = 'tok-must-not-leak';
+
+  const proxyGet = (target: string) => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: new Headers(), body: null,
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return request(app).get('/api/proxy')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Server-Id', String(serverId))
+      .set('X-Proxy-Target', target)
+      .then(() => (fetchMock.mock.calls[0]?.[1] as { headers?: Record<string, string> })?.headers ?? {});
+  };
+
+  beforeAll(async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'InjectionScope', url: SERVER_URL, freshrssUser: 'admin', freshrssToken: TOKEN });
+    serverId = add.body.server.id;
+  });
+
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('attaches the token to the server’s own API URL', async () => {
+    const headers = await proxyGet(`${SERVER_URL}/api/greader.php/reader/api/0/subscription/list`);
+    expect(headers.Authorization).toBe(`GoogleLogin auth=${TOKEN}`);
+  });
+
+  // Une comparaison par préfixe de chaîne accepte un hôte qui COMMENCE par
+  // l'URL du serveur. Les URL d'images et de favicons viennent du contenu des
+  // flux : celui qui publie un flux choisit donc la cible.
+  it('never attaches the token to a look-alike host', async () => {
+    const headers = await proxyGet(`${SERVER_URL}.attacker.tld/pixel.png`);
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  // `https://rss20.example.com@attacker.tld/` a pour hôte réel attacker.tld :
+  // tout ce qui précède le « @ » est un userinfo, pas un nom d'hôte.
+  it('never attaches the token when the server URL is only a userinfo part', async () => {
+    const headers = await proxyGet(`${SERVER_URL}@attacker.tld/pixel.png`);
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  // Un sous-chemin doit rester une frontière : le serveur déclaré sous
+  // /freshrss ne couvre pas /freshrss-public.
+  it('never attaches the token to a sibling path outside the server’s subpath', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Subpath', url: 'https://rss21.example.com/freshrss', freshrssUser: 'admin', freshrssToken: TOKEN });
+    const subId = add.body.server.id;
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, headers: new Headers(), body: null });
+    vi.stubGlobal('fetch', fetchMock);
+    await request(app).get('/api/proxy')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Server-Id', String(subId))
+      .set('X-Proxy-Target', 'https://rss21.example.com/freshrss-public/leak');
+    const headers = (fetchMock.mock.calls[0]?.[1] as { headers?: Record<string, string> })?.headers ?? {};
+    expect(headers.Authorization).toBeUndefined();
   });
 });
 

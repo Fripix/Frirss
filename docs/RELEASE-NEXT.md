@@ -17,7 +17,15 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Sécurité — le jeton FreshRSS ne peut plus partir chez un tiers.** Le proxy
+  décidait d'attacher le jeton en comparant la cible à l'URL du serveur par
+  simple préfixe de chaîne : `https://serveur.tld.tiers.tld/` et
+  `https://serveur.tld@tiers.tld/` passaient tous deux le contrôle, alors que
+  ni l'un ni l'autre n'est le serveur. Les URL d'images d'articles et de
+  favicons venant du contenu des flux, un flux hostile suffisait à faire
+  envoyer le jeton — un accès complet au compte FreshRSS — vers son propre
+  domaine. La comparaison porte désormais sur l'origine analysée, chemin
+  compris.
 
 ## Sous le capot
 

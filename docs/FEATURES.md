@@ -68,6 +68,16 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
   `src/components/Preferences/servers/` (gestion complète),
   `src/components/ServerSwitcher/` (sélecteur), `src/lib/serverList.ts`
   (logique partagée).
+- **Portée du jeton — piège** : le proxy n'attache le jeton greader qu'aux
+  cibles dont l'**origine analysée** vaut celle du serveur, le chemin étant
+  comparé avec une frontière explicite (`targetBelongsToServer`,
+  `server/routes/proxy.ts`). Une comparaison par préfixe de chaîne — ce
+  qu'elle était jusqu'à la 1.4.4 — acceptait `https://serveur.tld.tiers.tld/`
+  et `https://serveur.tld@tiers.tld/`, deux hôtes étrangers. Ce n'est pas
+  théorique : les URL d'images d'articles et de favicons viennent du **contenu
+  des flux**, et `src/api/client.ts` attache `X-Server-Id` à toutes ses
+  requêtes sans distinction — celui qui publie un flux choisit donc la cible.
+
 - **Deux endroits, un seul complet** : Préférences → Flux liste les serveurs et
   porte toutes les actions — basculer, ajouter, renommer, définir par défaut,
   supprimer, et le jeton maître de chaque serveur. La barre du haut ne fait que

@@ -134,6 +134,42 @@ export function targetAllowedLiteral(rawTarget: string): boolean {
   return !isInternalHostLiteral(host);
 }
 
+/**
+ * Le jeton FreshRSS de `serverUrl` a-t-il le droit d'accompagner `rawTarget` ?
+ *
+ * La question se pose à chaque requête proxifiée, et la réponse doit être NON
+ * pour toute cible que l'utilisateur n'a pas lui-même choisie. Or les URL
+ * d'images d'articles et de favicons viennent du CONTENU DES FLUX : celui qui
+ * publie un flux choisit donc la cible, et `client.ts` attache `X-Server-Id` à
+ * toutes ses requêtes sans distinction.
+ *
+ * D'où une comparaison d'ORIGINES ANALYSÉES, jamais de préfixe de chaîne. Un
+ * `startsWith(srv.url)` acceptait deux hôtes étrangers :
+ *   - `https://rss.example.com.attacker.tld/` — un sous-domaine de l'attaquant
+ *     qui commence par la chaîne attendue ;
+ *   - `https://rss.example.com@attacker.tld/` — où tout ce qui précède le « @ »
+ *     n'est qu'un userinfo, l'hôte réel étant `attacker.tld`.
+ * Dans les deux cas le jeton greader — un accès complet au compte FreshRSS de
+ * la victime — partait chez un tiers.
+ *
+ * Le chemin est comparé avec une frontière explicite, pour la même raison en
+ * plus petit : un serveur déclaré sous `/freshrss` ne couvre pas
+ * `/freshrss-public`.
+ */
+export function targetBelongsToServer(serverUrl: string, rawTarget: string): boolean {
+  let target: URL;
+  let server: URL;
+  try {
+    target = new URL(rawTarget);
+    server = new URL(serverUrl);
+  } catch {
+    return false;
+  }
+  if (target.origin !== server.origin) return false;
+  const base = server.pathname.replace(/\/+$/, '');
+  return target.pathname === base || target.pathname.startsWith(`${base}/`);
+}
+
 class BlockedTargetError extends Error {}
 
 // Throws BlockedTargetError if `rawUrl` must not be fetched. Trusted internal
@@ -275,7 +311,7 @@ router.all('/', async (req, res) => {
   if (serverId) {
     const srv = db.prepare('SELECT url, freshrss_token FROM servers WHERE id = ? AND user_id = ?')
       .get(serverId, req.user.id) as { url: string; freshrss_token: string | null } | undefined;
-    if (srv && srv.freshrss_token && rawTarget.startsWith(srv.url)) {
+    if (srv && srv.freshrss_token && targetBelongsToServer(srv.url, rawTarget)) {
       const tok = decrypt(srv.freshrss_token);
       if (tok) headers.Authorization = `GoogleLogin auth=${tok}`;
     }
