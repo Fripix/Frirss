@@ -84,6 +84,33 @@ export function facadeMarkup(ref: YouTubeRef, thumbnail: string, labels: FacadeL
 const IFRAME_RE = /<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/iframe>|<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*\/?>/gi;
 const LINK_RE = /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>.*?<\/a>/gi;
 
+// Tout <iframe>, avec ou sans `src`, fermé ou auto-fermant. Contrairement aux
+// deux regexes ci-dessus, celle-ci ne s'applique qu'à la SORTIE de DOMPurify —
+// donc à du HTML déjà normalisé et équilibré par un sérialiseur DOM, jamais au
+// balisage brut d'un flux.
+const ANY_IFRAME_RE = /<iframe\b([^>]*)>(?:[\s\S]*?<\/iframe>)?/gi;
+const IFRAME_SRC_RE = /\bsrc\s*=\s*["']([^"']*)["']/i;
+
+/**
+ * Ne garde que les <iframe> que la façade sait transformer en lecteur.
+ *
+ * Le passage d'assainissement de l'extraction (`src/utils/extractContent.ts`)
+ * doit accepter les iframes, sans quoi une vidéo intégrée à un article extrait
+ * disparaîtrait avant qu'`injectVideoFacades` puisse la voir. Mais l'accepter
+ * sans condition revient à ARCHIVER dans IndexedDB du balisage plus large que
+ * ce que la moindre vue affiche : `ReadingPane` repasse tout par
+ * `sanitizeHtml`, qui supprime les iframes, donc rien ne s'affichait — la
+ * sûreté ne tenait qu'au fait que chaque consommateur pense à réassainir.
+ * Aligner le stockage sur le contrat d'affichage retire cette dépendance.
+ */
+export function dropNonVideoIframes(html: string): string {
+  if (!html) return '';
+  return html.replace(ANY_IFRAME_RE, (whole, attrs: string) => {
+    const src = String(attrs).match(IFRAME_SRC_RE)?.[1] ?? '';
+    return extractYouTubeId(src) ? whole : '';
+  });
+}
+
 /**
  * Turn YouTube iframes and links in article HTML into facades, in place.
  * Must run BEFORE sanitizeHtml — afterwards the iframes no longer exist.

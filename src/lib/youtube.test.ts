@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractYouTubeId, youtubeThumbnail, youtubeWatchUrl, injectVideoFacades } from './youtube';
+import { extractYouTubeId, youtubeThumbnail, youtubeWatchUrl, injectVideoFacades, dropNonVideoIframes } from './youtube';
 
 const L = { play: 'Lire', open: 'Ouvrir sur YouTube' };
 
@@ -116,5 +116,47 @@ describe('youtubeWatchUrl', () => {
   });
   it('keeps the start time', () => {
     expect(youtubeWatchUrl({ id: 'dQw4w9WgXcQ', start: 42 })).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s');
+  });
+});
+
+describe('dropNonVideoIframes', () => {
+  // Le passage d'assainissement de l'extraction gardait <iframe> avec un src
+  // libre. Rien ne l'affichait — ReadingPane repasse tout par sanitizeHtml,
+  // qui supprime les iframes — mais le contenu ARCHIVÉ dans IndexedDB était
+  // plus large que ce que la moindre vue rend. Ne garder que les iframes que
+  // la façade sait transformer en lecteur aligne le stockage sur l'affichage.
+
+  it('keeps an iframe the facade can turn into a player', () => {
+    for (const src of ['https://www.youtube.com/embed/dQw4w9WgXcQ',
+                       'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ']) {
+      const html = `<p>a</p><iframe src="${src}" allowfullscreen></iframe><p>b</p>`;
+      expect(dropNonVideoIframes(html), src).toBe(html);
+    }
+  });
+
+  it('drops a foreign iframe', () => {
+    expect(dropNonVideoIframes('<p>a</p><iframe src="https://attacker.tld/phish"></iframe><p>b</p>'))
+      .toBe('<p>a</p><p>b</p>');
+  });
+
+  it('drops a self-closing foreign iframe', () => {
+    expect(dropNonVideoIframes('<iframe src="https://attacker.tld/x" />')).toBe('');
+  });
+
+  it('drops an iframe with no src at all', () => {
+    expect(dropNonVideoIframes('<p>a</p><iframe></iframe>')).toBe('<p>a</p>');
+  });
+
+  it('keeps the video and drops the intruder in the same document', () => {
+    const html = '<iframe src="https://attacker.tld/x"></iframe>'
+      + '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>';
+    expect(dropNonVideoIframes(html))
+      .toBe('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>');
+  });
+
+  it('leaves iframe-free content untouched', () => {
+    const html = '<p>Rien à voir <a href="https://example.com">ici</a></p>';
+    expect(dropNonVideoIframes(html)).toBe(html);
+    expect(dropNonVideoIframes('')).toBe('');
   });
 });

@@ -42,6 +42,17 @@ _(rien pour l'instant)_
   un compte authentifié pouvait remplir le volume SQLite. Les plafonds (clé ≤
   128 caractères, valeur ≤ 1 Mio, 200 clés par requête, 500 par utilisateur)
   laissent une large marge au client réel.
+- **Sécurité — les fichiers statiques portent enfin les en-têtes de sécurité.**
+  nginx sert chaque requête depuis une seule location, et celle des `.js`,
+  `.css` et `.svg` l'emportait sur celle qui posait la CSP : ces fichiers
+  sortaient sans CSP ni `nosniff`. Cela comptait surtout pour les `.svg`, qu'un
+  navigateur traite comme un document de même origine pouvant porter du script.
+- **Sécurité — le contenu extrait n'est plus archivé plus large qu'il n'est
+  affiché.** L'assainissement de l'extraction acceptait n'importe quel
+  `<iframe>`. Rien ne l'affichait — le volet de lecture réassainit tout — mais
+  le résultat était stocké tel quel, et cette innocuité ne tenait qu'à la
+  vigilance de chaque consommateur. Seules restent les vidéos que la façade
+  sait transformer en lecteur.
 
 ## Sous le capot
 
@@ -59,4 +70,7 @@ _(à compléter)_
 
 ## Documentation
 
-_(rien pour l'instant)_
+- **`docs/FEATURES.md` : l'extraction ne passe plus par `/cors-proxy/`.**
+  L'inventaire annonçait un endpoint supprimé de la production en 1.3.1. Il
+  décrit maintenant le vrai chemin (`/api/proxy`), la frontière
+  d'assainissement de l'extraction, et le comportement des en-têtes nginx.

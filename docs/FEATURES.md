@@ -189,10 +189,25 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   articles vient de sources non fiables.
 
 ### Extraction du contenu complet
-Pour les flux tronqués, récupération de l'article complet via `/cors-proxy/`,
-avec cache à deux niveaux. Activable par flux.
+Pour les flux tronqués, récupération de l'article complet via **`/api/proxy`**
+(même origine, JWT requis, garde anti-SSRF), avec cache à deux niveaux.
+Activable par flux. *(La doc a longtemps annoncé `/cors-proxy/` : cet endpoint
+a été supprimé de la production en 1.3.1, et du serveur de développement en
+1.4.4.)*
 
-- **Où** : `src/lib/extractCache.ts`, `src/lib/extractStore.ts`
+- **Où** : `src/utils/extractContent.ts`, `src/lib/extractCache.ts`,
+  `src/lib/extractStore.ts`
+- **Assainissement à part** : `sanitizeExtracted()` est **plus permissif** que
+  `sanitizeHtml()` sur un point, et doit l'être — il garde les `<iframe>`, sans
+  quoi une vidéo intégrée à un article extrait disparaîtrait avant
+  qu'`injectVideoFacades` puisse la voir. La permission est refermée aussitôt
+  par `dropNonVideoIframes()` sur les seules vidéos que la façade sait lire.
+- **Piège** : le résultat est **archivé tel quel** dans IndexedDB
+  (`putExtract`). Ce qui est stocké doit donc correspondre à ce qu'une vue
+  affiche : jusqu'à la 1.4.4 le stockage était plus large, et son innocuité ne
+  tenait qu'au fait que `ReadingPane` repasse tout par `sanitizeHtml`. Une
+  sûreté qui dépend de la vigilance de chaque futur consommateur n'en est pas
+  une.
 
 ### Vidéos YouTube intégrées
 Vignette cliquable (façade) au lieu d'un `<iframe>` chargé d'emblée.
@@ -381,6 +396,22 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   L'inverse mettait jusqu'à 5 Mo en mémoire pour un inconnu avant de lui rendre
   son 401 ; sa signature était un `413` répondu à une requête non
   authentifiée.
+
+### nginx (image de production)
+Sert `dist/` et proxifie `/api/` vers Express. Porte les en-têtes de sécurité
+destinés au navigateur — CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy` —
+parce que c'est lui qui rend le document, pas le backend (`server/index.ts`
+désactive délibérément la CSP de helmet pour ne pas entretenir deux politiques
+divergentes).
+
+- **Où** : `nginx.conf`
+- **Piège** : nginx sert chaque requête depuis **une seule** location, et une
+  location regex l'emporte sur le préfixe `/`. Les `.js`/`.css`/`.svg` étaient
+  donc servis par le bloc « static assets » et jamais par `location /` : ils
+  sortaient avec `Cache-Control` seul, sans CSP ni `nosniff`. Les quatre
+  en-têtes y sont désormais **répétés**, et cette duplication est voulue —
+  remonter les en-têtes au bloc `server` ne suffirait pas, un bloc qui déclare
+  un `add_header` n'hérite plus d'aucun. Garder les deux listes en phase.
 
 ### Cache Redis (facultatif)
 Mise en cache write-through des lectures greader, avec revalidation. Vide =

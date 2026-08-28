@@ -1,6 +1,7 @@
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
 import { useAuthStore } from '../stores/authStore';
+import { dropNonVideoIframes } from '../lib/youtube';
 
 export interface ExtractedContent {
   title: string;
@@ -9,6 +10,29 @@ export interface ExtractedContent {
   byline: string;
   siteName: string;
   length: number;
+}
+
+/**
+ * Assainit le HTML d'un article extrait.
+ *
+ * Plus permissif que `sanitizeHtml()` sur un seul point, et ce point est
+ * obligatoire : les <iframe> doivent survivre, sans quoi une vidéo intégrée à
+ * un article extrait disparaîtrait avant qu'`injectVideoFacades` (appelé au
+ * rendu, dans `ReadingPane`) puisse la transformer en façade.
+ *
+ * Cette permission est refermée aussitôt sur les seules vidéos que la façade
+ * sait lire. Ce qu'elle laissait passer avant n'atteignait pas l'écran —
+ * `ReadingPane` repasse tout par `sanitizeHtml`, qui supprime les iframes —
+ * mais le résultat est ARCHIVÉ tel quel dans IndexedDB (`putExtract`), donc
+ * l'innocuité ne tenait qu'au fait que chaque consommateur pense à réassainir.
+ * Un stockage qui correspond au contrat d'affichage ne dépend de personne.
+ */
+export function sanitizeExtracted(html: string): string {
+  return dropNonVideoIframes(DOMPurify.sanitize(html, {
+    ADD_TAGS: ['iframe'],
+    ADD_ATTR: ['allow', 'allowfullscreen'],
+    ALLOW_DATA_ATTR: false,
+  }));
 }
 
 /**
@@ -54,12 +78,7 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
     throw new Error('NO_CONTENT');
   }
 
-  // Sanitize the HTML
-  const cleanContent = DOMPurify.sanitize(result.content, {
-    ADD_TAGS: ['iframe'],
-    ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'src'],
-    ALLOW_DATA_ATTR: false,
-  });
+  const cleanContent = sanitizeExtracted(result.content);
 
   return {
     title: result.title || '',
