@@ -32,9 +32,10 @@ basics that matter:
   token-encryption key (all generated on first launch).
 - The backend proxy blocks internal/private targets by default (anti-SSRF); only
   widen `PROXY_INTERNAL_HOSTS` to hosts you trust.
-- Give accounts only to people you trust, and turn registration off once your own
-  account exists. An account is what unlocks the proxy — see the DNS-rebinding
-  note below.
+- Give accounts only to people you trust. Registration is closed by default —
+  only the very first account can be created without an admin opening it — so
+  the safe posture is the one you already have. An account is what unlocks the
+  outgoing proxy; see the DNS-rebinding note below before opening sign-ups.
 
 ## Design decisions
 
@@ -95,4 +96,5 @@ an authenticated user, on an instance whose accounts the operator chose.
 
 What would change the calculation: opening registration to strangers, or Node
 exposing a supported way to supply a resolver to `fetch`. The first is the one
-to watch — leave `registration_enabled` off once your own account exists.
+to watch. Registration ships closed, and the moment you open it this note stops
+being theoretical — anyone who signs up can aim the proxy.

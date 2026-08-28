@@ -92,7 +92,19 @@ const initSetting = db.prepare(`
   INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)
 `);
 
-initSetting.run('registration_enabled', 'true');
+// Inscription FERMÉE par défaut. Le premier compte reste toujours autorisé —
+// `routes/auth.ts` exempte `count === 0`, sans quoi une instance neuve serait
+// inaccessible à son propre installateur. Ouvrir ensuite est un geste explicite
+// de l'administrateur, dans Préférences → Administration.
+//
+// Le défaut était `true` : une instance neuve exposée publiquement acceptait
+// l'inscription de n'importe qui, et un compte est ce qui donne accès au proxy
+// sortant — voir la note DNS rebinding de SECURITY.md, dont l'arbitrage repose
+// précisément sur le fait que l'opérateur choisit ses comptes.
+//
+// `INSERT OR IGNORE` : ce changement ne touche QUE les bases neuves. Une
+// instance existante conserve la valeur qu'elle a déjà enregistrée.
+initSetting.run('registration_enabled', 'false');
 
 // Generate a JWT secret if none exists
 const existing = db.prepare(`SELECT value FROM settings WHERE key = 'jwt_secret'`).get();

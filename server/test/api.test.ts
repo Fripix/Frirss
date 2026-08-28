@@ -69,9 +69,30 @@ describe('auth', () => {
     adminToken = res.body.token;
   });
 
+  // L'inscription est fermée par défaut : le premier compte passe (il n'y a
+  // personne pour l'autoriser), les suivants demandent un geste explicite de
+  // l'administrateur. Le test « registers the first user as admin » ci-dessus
+  // prouve l'exemption du premier compte — il tourne sur une base neuve, donc
+  // avec l'inscription déjà fermée.
+  it('refuses a second registration by default', async () => {
+    const res = await request(app).post('/api/auth/register')
+      .send({ username: 'stranger', password: 'secret123', email: 'stranger@example.com' });
+    expect(res.status).toBe(403);
+  });
+
+  it('reports registration as closed once the first account exists', async () => {
+    const res = await request(app).get('/api/auth/status');
+    expect(res.body.hasUsers).toBe(true);
+    expect(res.body.registrationEnabled).toBe(false);
+  });
+
   it('rejects a duplicate username', async () => {
+    // Ce test porte sur la détection de doublon, pas sur l'interrupteur : il
+    // faut donc ouvrir l'inscription, sinon le 403 arrive avant le 409.
+    setSetting('registration_enabled', 'true');
     const res = await request(app).post('/api/auth/register')
       .send({ username: 'admin', password: 'secret123', email: 'other@example.com' });
+    setSetting('registration_enabled', 'false');
     expect(res.status).toBe(409);
   });
 

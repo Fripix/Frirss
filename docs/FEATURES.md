@@ -40,6 +40,17 @@ administrateur.
 
 - **Où** : `server/routes/auth.ts`, `src/components/Login/Login.tsx`, `src/stores/authStore.ts`
 - **Réglages** : inscriptions ouvertes/fermées (Préférences → Administration)
+- **Fermée par défaut** : depuis la 1.4.4, une instance neuve refuse les
+  inscriptions. Le **premier** compte reste toujours autorisé (`count === 0` est
+  exempté), sans quoi une instance neuve serait inaccessible à son propre
+  installateur ; les suivants demandent un geste explicite de l'administrateur.
+  Le défaut précédent (`true`) laissait n'importe qui créer un compte sur une
+  instance neuve exposée publiquement — et un compte est ce qui donne accès au
+  proxy sortant.
+- **Piège** : `INSERT OR IGNORE` sur `settings` — changer ce défaut ne touche que
+  les bases **neuves**. Une instance existante garde la valeur enregistrée, ce
+  qui est le comportement voulu : personne ne se fait fermer la porte par une
+  mise à jour.
 
 ### SSO / OIDC
 Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la place**

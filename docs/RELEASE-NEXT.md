@@ -59,6 +59,13 @@ _(rien pour l'instant)_
   possédait le conteneur, `/app/data` compris — donc le secret JWT et la clé de
   chiffrement des jetons. Aucune action n'est requise : l'entrypoint adopte le
   répertoire de données existant au démarrage.
+- **Sécurité — l'inscription est désormais fermée par défaut.** Une instance
+  neuve exposée publiquement acceptait l'inscription de n'importe qui, et un
+  compte est ce qui donne accès au proxy sortant. Le premier compte reste
+  toujours autorisé — l'installateur n'est jamais enfermé dehors — et
+  l'ouverture se fait depuis Préférences → Administration. **Les instances
+  existantes ne changent pas de comportement** : elles gardent le réglage
+  qu'elles ont déjà enregistré.
 
 ## Sous le capot
 
@@ -73,9 +80,12 @@ _(rien pour l'instant)_
 ## Actions requises à la mise à jour
 
 - **Rien à faire.** Le passage à un conteneur non privilégié adopte tout seul le
-  répertoire de données existant. Une seule réserve : un runtime qui interdit
-  les capacités de fichier (`no-new-privileges`, `--cap-drop`) empêcherait nginx
-  de se lier au port 80 — le conteneur ne répondrait alors plus.
+  répertoire de données existant, et le nouveau défaut d'inscription ne
+  s'applique qu'aux bases neuves — une instance existante garde son réglage.
+- **Une seule réserve** : un runtime qui interdit les capacités de fichier
+  (`no-new-privileges`, `--cap-drop`) empêcherait nginx de se lier au port 80,
+  et le conteneur ne répondrait plus. Vérifier ce point si le redéploiement
+  reste muet.
 
 ## Documentation
 

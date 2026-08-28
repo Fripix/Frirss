@@ -99,7 +99,7 @@ docker run -d --name frirss \
 
 The database lands in a `frirss-data` folder right where you ran the command. The same image is on Docker Hub as `fripix/frirss:latest` if you prefer it, and a ready-to-edit [`docker-compose.yml`](docker-compose.yml) is included.
 
-Then open `http://localhost:8080` and create the first account — it becomes the administrator. Connect your FreshRSS server next: its URL, your FreshRSS username, and the API password from *FreshRSS → Settings → Profile*.
+Then open `http://localhost:8080` and create the first account — it becomes the administrator. Registration then closes: new instances refuse sign-ups by default, and you open them again from *Preferences → Administration* when you want to invite someone. Connect your FreshRSS server next: its URL, your FreshRSS username, and the API password from *FreshRSS → Settings → Profile*.
 
 The first launch generates the JWT secret and the token-encryption key and stores them in the database, so backing up the data folder backs up everything — see [Backups](#backups).
 
