@@ -98,6 +98,7 @@ Almost everything is yours to tweak:
 
 ### Self-hosting
 - Optional **Redis cache** (stale-while-revalidate) and a background pre-fetch worker for instant loads.
+- **Encrypted backup and restore** — one passphrase-protected file rebuilds a whole instance, including on a brand-new one.
 - FreshRSS tokens **encrypted at rest**; same-origin proxy (no CORS) with an anti-SSRF guard.
 - Ships as a single **Docker** image (nginx + Node) with SQLite storage, built for **amd64 and arm64** (Raspberry Pi, 64-bit OS).
 
@@ -152,7 +153,53 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `FRIRSS_REFRESH_MAX_FEEDS` | Number of feeds to refresh per button press (non-integer or < 1 → default) | `1000` |
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
-Single sign-on is configured at runtime in *Preferences → Admin → SSO* (issuer, client ID, client secret).
+Single sign-on is configured at runtime in *Preferences → Administration* (issuer, client ID, client secret).
+
+## Backups
+
+Two things are worth backing up, and they are not the same thing.
+
+### The encrypted export
+
+*Preferences → Administration → Backup* produces a single file holding
+everything FriRSS knows about itself: accounts and their password hashes, the
+configured FreshRSS servers, their tokens **and the key that decrypts them**,
+preferences, and instance settings. It does not hold your articles — those live
+in FreshRSS.
+
+That file is therefore enough to impersonate every account on the instance, which
+is why a passphrase is mandatory (12 characters minimum). **Lose the passphrase
+and the file is permanently unusable.** There is no recovery path, by design;
+keep it somewhere other than next to the file.
+
+Restore it from the same screen, or from the first-run screen of a fresh
+instance — which makes it a migration tool as much as a backup. Either way you
+see what the file contains before committing: when it was made, which version
+produced it, how many accounts and servers. Restoring replaces the instance's
+contents entirely and signs everyone out.
+
+Environment variables are recorded in the file and shown at restore time, but
+never applied: they belong to the deployment, not to the backup. Copy them into
+your compose file yourself.
+
+### The data directory
+
+`/app/data` holds `frirss.db` and its write-ahead log — the JWT secret and the
+token-encryption key included. Backing up that volume backs up the instance.
+
+To take a copy out of a running container, use the snapshot script rather than
+`cp`:
+
+```bash
+docker exec frirss node scripts/backup-db.js /app/data/backups
+```
+
+It goes through SQLite's `.backup()` API: atomic, and safe while the server is
+writing. Copying `frirss.db` on its own is **not** a valid backup — the most
+recent writes live in the `-wal` file beside it.
+
+Locked out of every admin account? `docker exec -it frirss node
+scripts/reset-password.js` sets a new password from the terminal.
 
 ## Security
 
@@ -169,6 +216,7 @@ FriRSS is a personal project, but feedback, ideas and contributions are welcome.
 - Found a bug? [Open an issue](https://github.com/Fripix/Frirss/issues)
 - Have an idea or question? [Start a discussion](https://github.com/Fripix/Frirss/discussions)
 - Want to contribute code? Pull requests are welcome.
+- Wondering what changed? [`CHANGELOG.md`](CHANGELOG.md)
 
 ## License
 

@@ -84,7 +84,13 @@ la release publiée.
 
 Aucune. Aucune variable d'environnement nouvelle, aucune migration manuelle.
 
-## Incidence sur le README
+## Documentation
 
-- **À faire** : le README ne mentionne pas la sauvegarde. Sur un produit
-  auto-hébergé, « comment je sauvegarde ? » est une des premières questions.
+- **README** : section « Backups » ajoutée — l'export chiffré d'un côté, le
+  répertoire de données et `scripts/backup-db.js` de l'autre, avec ce qui
+  distingue les deux. Le README n'en disait rien, alors que « comment je
+  sauvegarde ? » est une des premières questions sur un produit auto-hébergé.
+  Au passage, `Preferences → Admin` corrigé en `Preferences → Administration`,
+  qui est le libellé réel de l'onglet.
+- **`CHANGELOG.md`** créé, au format Keep a Changelog, garni de 1.4.3 et
+  rétro-rempli depuis les notes de release de 1.3.0 à 1.4.2.
