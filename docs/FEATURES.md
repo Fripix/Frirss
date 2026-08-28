@@ -424,17 +424,27 @@ désactive délibérément la CSP de helmet pour ne pas entretenir deux politiqu
 divergentes).
 
 - **Où** : `nginx.conf`, `Dockerfile`, `docker-entrypoint.sh`
-- **Sans privilèges** : nginx et Node tournent en `PUID:PGID` (1000:1000 par
-  défaut). L'entrypoint démarre en root le temps d'adopter `/app/data` — toute
-  installation antérieure l'a en root, et échouer dessus casserait chaque mise à
-  jour — puis abandonne les privilèges via `su-exec`. nginx garde le port 80
-  grâce à `cap_net_bind_service` posée sur le binaire, pour ne pas déplacer un
-  port qui figure dans la configuration de reverse proxy de tout le monde.
-- **Piège** : un runtime qui interdit les capacités de fichier
-  (`no-new-privileges`, `--cap-drop`) empêchera nginx de se lier au port 80.
+- **Node sans privilèges** : Node tourne en `PUID:PGID` (1000:1000 par défaut).
+  C'est lui qui exécute le code applicatif, analyse du contenu non fiable et
+  détient la base — la moindre exécution de code y possédait le conteneur, donc
+  le secret JWT et la clé de chiffrement des jetons. L'entrypoint démarre en
+  root le temps d'adopter `/app/data` — toute installation antérieure l'a en
+  root, et échouer dessus casserait chaque mise à jour — puis abaisse Node via
+  `su-exec`.
+- **nginx garde sa répartition standard** : master root qui se lie au port 80,
+  workers abaissés au compte `nginx` par la directive `user`. Ce sont les
+  workers qui touchent aux données des requêtes.
+- **Piège — ne pas « finir le travail » en rendant le master non privilégié.**
+  Ça marche, avec `cap_net_bind_service` posée sur le binaire, et c'est ce qui
+  avait été fait d'abord. Mais une capacité de fichier est refusée sous
+  `no-new-privileges` ou `cap_drop: ALL` : l'image cassait alors là où elle
+  fonctionnait avant, pour un gain marginal — le master ne fait que superviser.
+  Le seul déplacement acceptable serait de sortir du port 80, or ce port figure
+  dans la configuration de reverse proxy de tous les utilisateurs.
 - **Garde-fou** : le job `docker` de `ci.yml` construit l'image, la lance sur un
   `/app/data` appartenant à root (le cas de mise à jour réel), vérifie
-  `/api/health` **et** qu'aucun processus nginx/node ne tourne en root.
+  `/api/health`, que PID 1 n'est pas root, qu'aucun worker nginx ne l'est, et
+  qu'aucun autre processus root ne traîne.
 - **Piège** : nginx sert chaque requête depuis **une seule** location, et une
   location regex l'emporte sur le préfixe `/`. Les `.js`/`.css`/`.svg` étaient
   donc servis par le bloc « static assets » et jamais par `location /` : ils

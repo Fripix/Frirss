@@ -53,12 +53,14 @@ _(rien pour l'instant)_
   le résultat était stocké tel quel, et cette innocuité ne tenait qu'à la
   vigilance de chaque consommateur. Seules restent les vidéos que la façade
   sait transformer en lecteur.
-- **Sécurité — le conteneur n'exécute plus l'application en root.** nginx et
-  Node tournent désormais sous un compte non privilégié (`PUID`/`PGID`, 1000
-  par défaut). Auparavant, la moindre exécution de code dans le processus Node
-  possédait le conteneur, `/app/data` compris — donc le secret JWT et la clé de
-  chiffrement des jetons. Aucune action n'est requise : l'entrypoint adopte le
-  répertoire de données existant au démarrage.
+- **Sécurité — le backend n'est plus exécuté en root.** Node tourne désormais
+  sous un compte non privilégié (`PUID`/`PGID`, 1000 par défaut). Auparavant, la
+  moindre exécution de code dans ce processus possédait le conteneur,
+  `/app/data` compris — donc le secret JWT et la clé de chiffrement des jetons.
+  nginx conserve exactement les privilèges qu'il avait, master root et workers
+  non privilégiés, pour qu'aucun déploiement existant ne change de
+  comportement. Aucune action n'est requise : l'entrypoint adopte le répertoire
+  de données existant au démarrage.
 - **Sécurité — l'inscription est désormais fermée par défaut.** Une instance
   neuve exposée publiquement acceptait l'inscription de n'importe qui, et un
   compte est ce qui donne accès au proxy sortant. Le premier compte reste
@@ -82,10 +84,8 @@ _(rien pour l'instant)_
 - **Rien à faire.** Le passage à un conteneur non privilégié adopte tout seul le
   répertoire de données existant, et le nouveau défaut d'inscription ne
   s'applique qu'aux bases neuves — une instance existante garde son réglage.
-- **Une seule réserve** : un runtime qui interdit les capacités de fichier
-  (`no-new-privileges`, `--cap-drop`) empêcherait nginx de se lier au port 80,
-  et le conteneur ne répondrait plus. Vérifier ce point si le redéploiement
-  reste muet.
+  Le conteneur n'exige aucun privilège qu'il n'exigeait pas déjà : les options
+  de durcissement qui fonctionnaient avant fonctionnent après.
 
 ## Documentation
 

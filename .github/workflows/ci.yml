@@ -73,27 +73,34 @@ jobs:
           done
           echo "health check failed"; docker logs frirss; exit 1
 
-      # No process in the container may be root. Before this was enforced, any
-      # code execution inside Node owned the container — including the SQLite
-      # database that holds the JWT secret and the token-encryption key.
+      # Node must not be root: it runs the application code, parses untrusted
+      # content and owns the SQLite database that holds the JWT secret and the
+      # token-encryption key. nginx keeps its standard split — a root master
+      # that binds :80, unprivileged workers that handle request data — because
+      # making the master unprivileged needs a file capability that
+      # `no-new-privileges` and `cap_drop: ALL` refuse, and this image must not
+      # break where it used to work.
       #
-      # The check matches on the USER column, never on the command name: busybox
-      # ps reports the Node process as "MainThread", so a first version keyed on
-      # /nginx|node/ silently skipped the very process that matters. The only
-      # tolerated root is the `ps` that `docker exec` itself spawns.
-      - name: Assert no application process runs as root
+      # The check matches on the USER column, never on a command name: busybox
+      # ps reports Node as "MainThread", so a first version keyed on
+      # /nginx|node/ silently skipped the very process it existed for.
+      - name: Assert only the nginx master runs as root
         run: |
-          ps_out=$(docker exec frirss ps -o user,pid,comm)
+          ps_out=$(docker exec frirss ps -o user,pid,args)
           echo "$ps_out"
-          if echo "$ps_out" | awk 'NR>1 && $1 == "root" && $3 != "ps"' | grep -q .; then
-            echo "::error::a process is still running as root"
-            exit 1
-          fi
           if [ "$(echo "$ps_out" | awk '$2 == 1 {print $1}')" = "root" ]; then
-            echo "::error::PID 1 is root"
+            echo "::error::PID 1 (Node) is root"
             exit 1
           fi
-          echo "no root-owned application process"
+          if echo "$ps_out" | awk '$1 == "root" && /worker process/' | grep -q .; then
+            echo "::error::an nginx worker is running as root"
+            exit 1
+          fi
+          if echo "$ps_out" | awk 'NR>1 && $1 == "root" && !/master process/ && $3 != "ps"' | grep -q .; then
+            echo "::error::an unexpected root process is running"
+            exit 1
+          fi
+          echo "only the nginx master is root"
 
       - name: Stop container
         if: always()

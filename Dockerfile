@@ -35,22 +35,21 @@ WORKDIR /app
 RUN apk upgrade --no-cache && apk add --no-cache nginx libstdc++ tzdata su-exec
 
 # ── Unprivileged runtime ────────────────────────────────────────────
-# nginx and Node both ran as root: any code execution inside Node owned the
-# container, including /app/data — which holds the JWT secret and the
-# token-encryption key. docker-entrypoint.sh now drops both to PUID:PGID.
+# Node used to run as root: any code execution inside it owned the container,
+# including /app/data — which holds the JWT secret and the token-encryption
+# key. docker-entrypoint.sh now runs it as PUID:PGID.
 #
-# nginx still has to bind :80 without being root, so the capability is granted
-# on the binary itself rather than moving the port (the published port is part
-# of everyone's reverse-proxy config). libcap is only needed to set it — the
-# capability survives on the file, the tool does not need to ship.
+# nginx keeps the standard split instead: a root master that binds :80, and
+# workers dropped to the unprivileged `nginx` user by the `user` directive.
+# The workers are what touch request data; the master only supervises.
 #
-# The `user` directive is dropped from nginx.conf: it only means something for
-# a master running as root, and otherwise emits a warning on every start.
-RUN apk add --no-cache --virtual .setcap libcap \
- && setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx \
- && apk del .setcap \
- && sed -i '/^user[[:space:]]/d' /etc/nginx/nginx.conf \
- && mkdir -p /run/nginx /var/lib/nginx /var/log/nginx
+# This deliberately avoids granting cap_net_bind_service on the nginx binary to
+# run the master unprivileged too. That works, but a file capability is refused
+# under `no-new-privileges` or `cap_drop: ALL` — a failure mode this image never
+# had before. Keeping the master's privileges exactly as they always were means
+# the change cannot break a deployment that used to work.
+RUN mkdir -p /run/nginx /var/lib/nginx /var/log/nginx \
+ && chown -R nginx:nginx /var/lib/nginx /var/log/nginx
 
 # The runtime only ever runs `node` (see docker-entrypoint.sh) — never npm. Drop
 # the base image's bundled npm/npx/corepack: they ship their own dependencies
@@ -81,7 +80,7 @@ RUN mkdir -p /app/data
 VOLUME /app/data
 
 # Startup script: chown the data volume, then nginx (background) + Express
-# (foreground), both as the unprivileged PUID:PGID.
+# (foreground, as the unprivileged PUID:PGID).
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
