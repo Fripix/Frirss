@@ -1,6 +1,5 @@
 {
   "app": {
-    "name": "FriRSS",
     "loading": "Loading…",
     "close": "Close"
   },
@@ -63,11 +62,8 @@
   },
   "articleList": {
     "allFeeds": "All feeds",
-    "starredSuffix": "Favorites",
-    "unreadSuffix": "Unread",
     "readLaterSuffix": "Read later",
     "search": "Search",
-    "searchPlaceholder": "Search words or #tags",
     "closeSearch": "Close (Esc)",
     "unread": "Unread",
     "starred": "Favorites",
@@ -124,7 +120,6 @@
     "markRead": "Read",
     "markUnread": "Unread",
     "star": "Favorite",
-    "unstar": "Favorite",
     "readLater": "Later",
     "openOriginal": "Original",
     "fullContent": "Full article",
@@ -136,9 +131,7 @@
     "showRss": "RSS content",
     "readingTime": "{{count}} min",
     "labels": "Tags",
-    "addLabel": "Add a tag",
     "newLabel": "New tag…",
-    "newLabelPlaceholder": "Tag name",
     "focusEnter": "Focus mode (full width)",
     "focusExit": "Exit focus mode",
     "focusHint": "double-click the article, Esc to exit",
@@ -181,8 +174,7 @@
     },
     "colors": {
       "resetColors": "Reset colors",
-      "resetTooltip": "Reset this color",
-      "modified": "Modified"
+      "resetTooltip": "Reset this color"
     },
     "colorSections": {
       "sidebar": "Sidebar",
@@ -248,7 +240,6 @@
       "reading-body": "Body"
     },
     "labels": {
-      "title": "Tags",
       "description": "Manage your tags: color, order, hierarchy.",
       "simpleLabels": "Standalone tags",
       "rename": "Rename",
@@ -262,7 +253,6 @@
       "resetColors": "Reset tag colors",
       "noLabels": "No tags",
       "noLabelsHint": "Colors will appear here once tags are created.",
-      "inheritColor": "Inherit parent color",
       "applyToSub": "Apply to sub-tags",
       "dropHere": "drop here",
       "nestHere": "nest here",
@@ -275,7 +265,6 @@
     },
     "themes": {
       "saveTitle": "Save current theme",
-      "savedThemes": "Saved themes ({{count}})",
       "share": "Share",
       "themeName": "Theme name",
       "save": "Save",
@@ -286,8 +275,8 @@
       "import": "Import",
       "importError": "Invalid theme file",
       "delete": "Delete",
-      "confirmDelete": "Delete \"{{name}}\"?",
-      "default": "Default"
+      "savedThemes_one": "Saved theme ({{count}})",
+      "savedThemes_other": "Saved themes ({{count}})"
     },
     "shortcuts": {
       "title": "Keyboard navigation",
@@ -421,26 +410,19 @@
     "addServer": "Connect",
     "addingServer": "Connecting…",
     "errorServer": "Failed to connect to FreshRSS server.",
-    "skip": "Skip",
     "restorePrompt": "Rebuilding from a backup?",
     "errorTooMany": "Too many attempts. Wait a few minutes before trying again.",
     "errorUnavailable": "The server did not answer. This says nothing about your credentials."
   },
   "admin": {
-    "title": "Administration",
     "users": "Users",
-    "userCount": "{{count}} user(s)",
-    "role": "Role",
     "admin": "Admin",
     "user": "User",
     "active": "Active",
     "inactive": "Inactive",
-    "activate": "Activate",
-    "deactivate": "Deactivate",
     "promoteAdmin": "Promote to admin",
     "demoteUser": "Demote to user",
     "deleteUser": "Delete user",
-    "confirmDeleteUser": "Delete \"{{name}}\"? All their data will be lost.",
     "createUser": "Create account",
     "fieldUsername": "Username",
     "fieldDisplayName": "Display name (optional)",
@@ -479,7 +461,6 @@
     "save": "Save",
     "saved": "Saved",
     "you": "(you)",
-    "provider": "Provider",
     "local": "Local",
     "oidc": "SSO",
     "authMode": "Authentication mode",
@@ -490,7 +471,9 @@
     "copied": "Copied",
     "redirectUri": "Redirect URI (add it to your IdP)",
     "redirectUriHint": "Add this URL to your provider’s “Redirect URIs” (Authentik, Authelia, Keycloak…).",
-    "breakGlassUrl": "Fallback URL (local login)"
+    "breakGlassUrl": "Fallback URL (local login)",
+    "userCount_one": "{{count}} user",
+    "userCount_other": "{{count}} users"
   },
   "servers": {
     "label": "Servers",
@@ -529,14 +512,6 @@
     "minutes": "{{count}} MIN",
     "hours": "{{count}}H",
     "days": "{{count}}D"
-  },
-  "shortcutBar": {
-    "prev": "Prev",
-    "next": "Next",
-    "open": "Open",
-    "star": "Favorite",
-    "unread": "Unread",
-    "readLater": "Later"
   },
   "viewMode": {
     "compact": "Compact",

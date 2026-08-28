@@ -1,6 +1,5 @@
 {
   "app": {
-    "name": "FriRSS",
     "loading": "Laden…",
     "close": "Sluiten"
   },
@@ -63,11 +62,8 @@
   },
   "articleList": {
     "allFeeds": "Alle feeds",
-    "starredSuffix": "Favorieten",
-    "unreadSuffix": "Ongelezen",
     "readLaterSuffix": "Later lezen",
     "search": "Zoeken",
-    "searchPlaceholder": "Zoek op woorden of #tags",
     "closeSearch": "Sluiten (Esc)",
     "unread": "Ongelezen",
     "starred": "Favorieten",
@@ -124,7 +120,6 @@
     "markRead": "Gelezen",
     "markUnread": "Ongelezen",
     "star": "Favoriet",
-    "unstar": "Favoriet",
     "readLater": "Later",
     "openOriginal": "Origineel",
     "fullContent": "Volledig artikel",
@@ -136,9 +131,7 @@
     "showRss": "RSS-inhoud",
     "readingTime": "{{count}} min",
     "labels": "Labels",
-    "addLabel": "Een label toevoegen",
     "newLabel": "Nieuw label…",
-    "newLabelPlaceholder": "Labelnaam",
     "focusEnter": "Focusmodus (volledig scherm)",
     "focusExit": "Focusmodus verlaten",
     "focusHint": "dubbelklik op het artikel, Esc om te verlaten",
@@ -181,8 +174,7 @@
     },
     "colors": {
       "resetColors": "Kleuren herstellen",
-      "resetTooltip": "Deze kleur herstellen",
-      "modified": "Gewijzigd"
+      "resetTooltip": "Deze kleur herstellen"
     },
     "colorSections": {
       "sidebar": "Zijbalk",
@@ -248,7 +240,6 @@
       "reading-body": "Tekst"
     },
     "labels": {
-      "title": "Labels",
       "description": "Beheer uw labels: kleur, volgorde, hiërarchie.",
       "simpleLabels": "Eenvoudige labels",
       "rename": "Hernoemen",
@@ -262,7 +253,6 @@
       "resetColors": "Labelkleuren herstellen",
       "noLabels": "Geen labels",
       "noLabelsHint": "De kleuren verschijnen hier zodra er labels zijn gemaakt.",
-      "inheritColor": "Kleur van bovenliggend label overnemen",
       "applyToSub": "Op sublabels toepassen",
       "dropHere": "hier neerzetten",
       "nestHere": "hier nesten",
@@ -275,7 +265,6 @@
     },
     "themes": {
       "saveTitle": "Huidig thema opslaan",
-      "savedThemes": "Opgeslagen thema's ({{count}})",
       "share": "Delen",
       "themeName": "Themanaam",
       "save": "Opslaan",
@@ -286,8 +275,8 @@
       "import": "Importeren",
       "importError": "Ongeldig themabestand",
       "delete": "Verwijderen",
-      "confirmDelete": "„{{name}}” verwijderen?",
-      "default": "Standaard"
+      "savedThemes_one": "Opgeslagen thema ({{count}})",
+      "savedThemes_other": "Opgeslagen thema’s ({{count}})"
     },
     "shortcuts": {
       "title": "Toetsenbordnavigatie",
@@ -421,22 +410,16 @@
     "addServer": "Verbinden",
     "addingServer": "Verbinden…",
     "errorServer": "Verbinden met de FreshRSS-server is mislukt.",
-    "skip": "Overslaan",
     "restorePrompt": "Herstellen vanaf een back-up?",
     "errorTooMany": "Te veel pogingen. Wacht enkele minuten voordat u het opnieuw probeert.",
     "errorUnavailable": "De server heeft niet geantwoord. Dat zegt niets over uw gegevens."
   },
   "admin": {
-    "title": "Beheer",
     "users": "Gebruikers",
-    "userCount": "{{count}} gebruiker(s)",
-    "role": "Rol",
     "admin": "Admin",
     "user": "Gebruiker",
     "active": "Actief",
     "inactive": "Inactief",
-    "activate": "Activeren",
-    "deactivate": "Deactiveren",
     "promoteAdmin": "Tot admin promoveren",
     "demoteUser": "Tot gebruiker degraderen",
     "deleteUser": "Gebruiker verwijderen",
@@ -461,7 +444,6 @@
     "saving": "Opslaan…",
     "passwordUpdated": "Wachtwoord bijgewerkt",
     "errorPasswordReset": "Bijwerken van het wachtwoord mislukt.",
-    "confirmDeleteUser": "„{{name}}” verwijderen? Alle gegevens gaan verloren.",
     "registration": "Registraties",
     "registrationOpen": "Registraties open",
     "registrationClosed": "Registraties gesloten",
@@ -479,7 +461,6 @@
     "save": "Opslaan",
     "saved": "Opgeslagen",
     "you": "(u)",
-    "provider": "Provider",
     "local": "Lokaal",
     "oidc": "SSO",
     "authMode": "Authenticatiemodus",
@@ -490,7 +471,9 @@
     "copied": "Gekopieerd",
     "redirectUri": "Redirect-URI (voeg toe aan je IdP)",
     "redirectUriHint": "Voeg deze URL toe aan de ‘Redirect URIs’ van je provider (Authentik, Authelia, Keycloak…).",
-    "breakGlassUrl": "Nood-URL (lokaal inloggen)"
+    "breakGlassUrl": "Nood-URL (lokaal inloggen)",
+    "userCount_one": "{{count}} gebruiker",
+    "userCount_other": "{{count}} gebruikers"
   },
   "servers": {
     "label": "Servers",
@@ -529,14 +512,6 @@
     "minutes": "{{count}} MIN",
     "hours": "{{count}} U",
     "days": "{{count}} D"
-  },
-  "shortcutBar": {
-    "prev": "Vorige",
-    "next": "Volgende",
-    "open": "Openen",
-    "star": "Favoriet",
-    "unread": "Ongelezen",
-    "readLater": "Later"
   },
   "viewMode": {
     "compact": "Compact",

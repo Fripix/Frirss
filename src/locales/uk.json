@@ -1,6 +1,5 @@
 {
   "app": {
-    "name": "FriRSS",
     "loading": "Завантаження…",
     "close": "Закрити"
   },
@@ -63,11 +62,8 @@
   },
   "articleList": {
     "allFeeds": "Усі стрічки",
-    "starredSuffix": "Обране",
-    "unreadSuffix": "Непрочитані",
     "readLaterSuffix": "Прочитати пізніше",
     "search": "Пошук",
-    "searchPlaceholder": "Пошук слів або #тегів",
     "closeSearch": "Закрити (Esc)",
     "unread": "Непрочитані",
     "starred": "Обране",
@@ -124,7 +120,6 @@
     "markRead": "Прочитано",
     "markUnread": "Непрочитано",
     "star": "Обране",
-    "unstar": "Обране",
     "readLater": "Пізніше",
     "openOriginal": "Оригінал",
     "fullContent": "Повна стаття",
@@ -136,9 +131,7 @@
     "showRss": "Вміст RSS",
     "readingTime": "{{count}} хв",
     "labels": "Мітки",
-    "addLabel": "Додати мітку",
     "newLabel": "Нова мітка…",
-    "newLabelPlaceholder": "Назва мітки",
     "focusEnter": "Режим фокусування (на весь екран)",
     "focusExit": "Вийти з режиму фокусування",
     "focusHint": "подвійний клік на статті, Esc для виходу",
@@ -181,8 +174,7 @@
     },
     "colors": {
       "resetColors": "Скинути кольори",
-      "resetTooltip": "Скинути цей колір",
-      "modified": "Змінено"
+      "resetTooltip": "Скинути цей колір"
     },
     "colorSections": {
       "sidebar": "Бічна панель",
@@ -248,7 +240,6 @@
       "reading-body": "Текст"
     },
     "labels": {
-      "title": "Мітки",
       "description": "Керуйте своїми мітками: колір, порядок, ієрархія.",
       "simpleLabels": "Прості мітки",
       "rename": "Перейменувати",
@@ -262,7 +253,6 @@
       "resetColors": "Скинути кольори міток",
       "noLabels": "Немає міток",
       "noLabelsHint": "Кольори з'являться тут після створення міток.",
-      "inheritColor": "Успадкувати колір від батьківської мітки",
       "applyToSub": "Застосувати до підміток",
       "dropHere": "перетягніть сюди",
       "nestHere": "вкласти сюди",
@@ -275,7 +265,6 @@
     },
     "themes": {
       "saveTitle": "Зберегти поточну тему",
-      "savedThemes": "Збережені теми ({{count}})",
       "share": "Поділитися",
       "themeName": "Назва теми",
       "save": "Зберегти",
@@ -286,8 +275,10 @@
       "import": "Імпортувати",
       "importError": "Недійсний файл теми",
       "delete": "Видалити",
-      "confirmDelete": "Видалити «{{name}}»?",
-      "default": "Стандартна"
+      "savedThemes_one": "Збережена тема ({{count}})",
+      "savedThemes_few": "Збережені теми ({{count}})",
+      "savedThemes_many": "Збережених тем ({{count}})",
+      "savedThemes_other": "Збереженої теми ({{count}})"
     },
     "shortcuts": {
       "title": "Навігація з клавіатури",
@@ -425,22 +416,16 @@
     "addServer": "Підключити",
     "addingServer": "З'єднання…",
     "errorServer": "Не вдалося підключитися до сервера FreshRSS.",
-    "skip": "Пропустити",
     "restorePrompt": "Відновлюєте з резервної копії?",
     "errorTooMany": "Забагато спроб. Зачекайте кілька хвилин.",
     "errorUnavailable": "Сервер не відповів. Це нічого не говорить про ваші дані входу."
   },
   "admin": {
-    "title": "Адміністрування",
     "users": "Користувачі",
-    "userCount": "{{count}} користувач(ів)",
-    "role": "Роль",
     "admin": "Адмін",
     "user": "Користувач",
     "active": "Активний",
     "inactive": "Неактивний",
-    "activate": "Активувати",
-    "deactivate": "Деактивувати",
     "promoteAdmin": "Підвищити до адміністратора",
     "demoteUser": "Понизити до користувача",
     "deleteUser": "Видалити користувача",
@@ -465,7 +450,6 @@
     "saving": "Збереження…",
     "passwordUpdated": "Пароль оновлено",
     "errorPasswordReset": "Не вдалося оновити пароль.",
-    "confirmDeleteUser": "Видалити «{{name}}»? Усі дані буде втрачено.",
     "registration": "Реєстрації",
     "registrationOpen": "Реєстрації відкриті",
     "registrationClosed": "Реєстрації закриті",
@@ -483,7 +467,6 @@
     "save": "Зберегти",
     "saved": "Збережено",
     "you": "(ви)",
-    "provider": "Постачальник",
     "local": "Локальний",
     "oidc": "SSO",
     "authMode": "Режим автентифікації",
@@ -494,7 +477,11 @@
     "copied": "Скопійовано",
     "redirectUri": "URI перенаправлення (додайте у ваш IdP)",
     "redirectUriHint": "Додайте цей URL до «Redirect URIs» вашого провайдера (Authentik, Authelia, Keycloak…).",
-    "breakGlassUrl": "Аварійний URL (локальний вхід)"
+    "breakGlassUrl": "Аварійний URL (локальний вхід)",
+    "userCount_one": "{{count}} користувач",
+    "userCount_few": "{{count}} користувачі",
+    "userCount_many": "{{count}} користувачів",
+    "userCount_other": "{{count}} користувача"
   },
   "servers": {
     "label": "Сервери",
@@ -533,14 +520,6 @@
     "minutes": "{{count}} ХВ",
     "hours": "{{count}} ГОД",
     "days": "{{count}} ДН"
-  },
-  "shortcutBar": {
-    "prev": "Попер.",
-    "next": "Наст.",
-    "open": "Відкрити",
-    "star": "Обране",
-    "unread": "Непрочитано",
-    "readLater": "Пізніше"
   },
   "viewMode": {
     "compact": "Компактний",

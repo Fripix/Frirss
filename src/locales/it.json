@@ -1,6 +1,5 @@
 {
   "app": {
-    "name": "FriRSS",
     "loading": "Caricamento…",
     "close": "Chiudi"
   },
@@ -63,11 +62,8 @@
   },
   "articleList": {
     "allFeeds": "Tutti i feed",
-    "starredSuffix": "Preferiti",
-    "unreadSuffix": "Non letti",
     "readLaterSuffix": "Leggi più tardi",
     "search": "Cerca",
-    "searchPlaceholder": "Cerca parole o #tag",
     "closeSearch": "Chiudi (Esc)",
     "unread": "Non letti",
     "starred": "Preferiti",
@@ -124,7 +120,6 @@
     "markRead": "Letto",
     "markUnread": "Non letto",
     "star": "Preferito",
-    "unstar": "Preferito",
     "readLater": "Più tardi",
     "openOriginal": "Originale",
     "fullContent": "Articolo completo",
@@ -136,9 +131,7 @@
     "showRss": "Contenuto RSS",
     "readingTime": "{{count}} min",
     "labels": "Etichette",
-    "addLabel": "Aggiungi un'etichetta",
     "newLabel": "Nuova etichetta…",
-    "newLabelPlaceholder": "Nome dell'etichetta",
     "focusEnter": "Modalità Focus (schermo intero)",
     "focusExit": "Esci dalla modalità Focus",
     "focusHint": "doppio clic sull’articolo, Esc per uscire",
@@ -181,8 +174,7 @@
     },
     "colors": {
       "resetColors": "Reimposta i colori",
-      "resetTooltip": "Reimposta questo colore",
-      "modified": "Modificato"
+      "resetTooltip": "Reimposta questo colore"
     },
     "colorSections": {
       "sidebar": "Barra laterale",
@@ -248,7 +240,6 @@
       "reading-body": "Corpo"
     },
     "labels": {
-      "title": "Etichette",
       "description": "Gestisci le tue etichette: colore, ordine, gerarchia.",
       "simpleLabels": "Etichette semplici",
       "rename": "Rinomina",
@@ -262,7 +253,6 @@
       "resetColors": "Reimposta i colori delle etichette",
       "noLabels": "Nessuna etichetta",
       "noLabelsHint": "I colori appariranno qui una volta create le etichette.",
-      "inheritColor": "Eredita il colore dal genitore",
       "applyToSub": "Applica alle sottoetichette",
       "dropHere": "rilascia qui",
       "nestHere": "annida qui",
@@ -275,7 +265,6 @@
     },
     "themes": {
       "saveTitle": "Salva il tema attuale",
-      "savedThemes": "Temi salvati ({{count}})",
       "share": "Condividi",
       "themeName": "Nome del tema",
       "save": "Salva",
@@ -286,8 +275,8 @@
       "import": "Importa",
       "importError": "File del tema non valido",
       "delete": "Elimina",
-      "confirmDelete": "Eliminare «{{name}}»?",
-      "default": "Predefinito"
+      "savedThemes_one": "Tema salvato ({{count}})",
+      "savedThemes_other": "Temi salvati ({{count}})"
     },
     "shortcuts": {
       "title": "Navigazione da tastiera",
@@ -421,22 +410,16 @@
     "addServer": "Connetti",
     "addingServer": "Connessione…",
     "errorServer": "Connessione al server FreshRSS non riuscita.",
-    "skip": "Salta",
     "restorePrompt": "Riparti da un backup?",
     "errorTooMany": "Troppi tentativi. Attendi qualche minuto prima di riprovare.",
     "errorUnavailable": "Il server non ha risposto. Questo non dice nulla sulle tue credenziali."
   },
   "admin": {
-    "title": "Amministrazione",
     "users": "Utenti",
-    "userCount": "{{count}} utente/i",
-    "role": "Ruolo",
     "admin": "Admin",
     "user": "Utente",
     "active": "Attivo",
     "inactive": "Inattivo",
-    "activate": "Attiva",
-    "deactivate": "Disattiva",
     "promoteAdmin": "Promuovi ad admin",
     "demoteUser": "Retrocedi a utente",
     "deleteUser": "Elimina l'utente",
@@ -461,7 +444,6 @@
     "saving": "Salvataggio…",
     "passwordUpdated": "Password aggiornata",
     "errorPasswordReset": "Aggiornamento della password non riuscito.",
-    "confirmDeleteUser": "Eliminare «{{name}}»? Tutti i suoi dati andranno persi.",
     "registration": "Registrazioni",
     "registrationOpen": "Registrazioni aperte",
     "registrationClosed": "Registrazioni chiuse",
@@ -479,7 +461,6 @@
     "save": "Salva",
     "saved": "Salvato",
     "you": "(tu)",
-    "provider": "Provider",
     "local": "Locale",
     "oidc": "SSO",
     "authMode": "Modalità di autenticazione",
@@ -490,7 +471,9 @@
     "copied": "Copiato",
     "redirectUri": "URI di reindirizzamento (da aggiungere nell’IdP)",
     "redirectUriHint": "Aggiungi questo URL ai «Redirect URIs» del tuo provider (Authentik, Authelia, Keycloak…).",
-    "breakGlassUrl": "URL di emergenza (accesso locale)"
+    "breakGlassUrl": "URL di emergenza (accesso locale)",
+    "userCount_one": "{{count}} utente",
+    "userCount_other": "{{count}} utenti"
   },
   "servers": {
     "label": "Server",
@@ -529,14 +512,6 @@
     "minutes": "{{count}} MIN",
     "hours": "{{count}} O",
     "days": "{{count}} G"
-  },
-  "shortcutBar": {
-    "prev": "Prec.",
-    "next": "Succ.",
-    "open": "Apri",
-    "star": "Preferito",
-    "unread": "Non letto",
-    "readLater": "Più tardi"
   },
   "viewMode": {
     "compact": "Compatto",

@@ -1,6 +1,5 @@
 {
   "app": {
-    "name": "FriRSS",
     "loading": "Ładowanie…",
     "close": "Zamknij"
   },
@@ -63,11 +62,8 @@
   },
   "articleList": {
     "allFeeds": "Wszystkie kanały",
-    "starredSuffix": "Ulubione",
-    "unreadSuffix": "Nieprzeczytane",
     "readLaterSuffix": "Do przeczytania później",
     "search": "Szukaj",
-    "searchPlaceholder": "Szukaj słów lub #tagów",
     "closeSearch": "Zamknij (Esc)",
     "unread": "Nieprzeczytane",
     "starred": "Ulubione",
@@ -124,7 +120,6 @@
     "markRead": "Przeczytane",
     "markUnread": "Nieprzeczytane",
     "star": "Ulubione",
-    "unstar": "Ulubione",
     "readLater": "Później",
     "openOriginal": "Oryginał",
     "fullContent": "Pełny artykuł",
@@ -136,9 +131,7 @@
     "showRss": "Treść RSS",
     "readingTime": "{{count}} min",
     "labels": "Etykiety",
-    "addLabel": "Dodaj etykietę",
     "newLabel": "Nowa etykieta…",
-    "newLabelPlaceholder": "Nazwa etykiety",
     "focusEnter": "Tryb skupienia (pełny ekran)",
     "focusExit": "Wyjdź z trybu skupienia",
     "focusHint": "podwójne kliknięcie artykułu, Esc aby wyjść",
@@ -181,8 +174,7 @@
     },
     "colors": {
       "resetColors": "Zresetuj kolory",
-      "resetTooltip": "Zresetuj ten kolor",
-      "modified": "Zmieniony"
+      "resetTooltip": "Zresetuj ten kolor"
     },
     "colorSections": {
       "sidebar": "Pasek boczny",
@@ -248,7 +240,6 @@
       "reading-body": "Treść"
     },
     "labels": {
-      "title": "Etykiety",
       "description": "Zarządzaj etykietami: kolor, kolejność, hierarchia.",
       "simpleLabels": "Proste etykiety",
       "rename": "Zmień nazwę",
@@ -262,7 +253,6 @@
       "resetColors": "Zresetuj kolory etykiet",
       "noLabels": "Brak etykiet",
       "noLabelsHint": "Kolory pojawią się tutaj po utworzeniu etykiet.",
-      "inheritColor": "Dziedzicz kolor z elementu nadrzędnego",
       "applyToSub": "Zastosuj do podetykiet",
       "dropHere": "upuść tutaj",
       "nestHere": "zagnieźdź tutaj",
@@ -275,7 +265,6 @@
     },
     "themes": {
       "saveTitle": "Zapisz bieżący motyw",
-      "savedThemes": "Zapisane motywy ({{count}})",
       "share": "Udostępnij",
       "themeName": "Nazwa motywu",
       "save": "Zapisz",
@@ -286,8 +275,10 @@
       "import": "Importuj",
       "importError": "Nieprawidłowy plik motywu",
       "delete": "Usuń",
-      "confirmDelete": "Usunąć „{{name}}”?",
-      "default": "Domyślny"
+      "savedThemes_one": "Zapisany motyw ({{count}})",
+      "savedThemes_few": "Zapisane motywy ({{count}})",
+      "savedThemes_many": "Zapisanych motywów ({{count}})",
+      "savedThemes_other": "Zapisanego motywu ({{count}})"
     },
     "shortcuts": {
       "title": "Nawigacja klawiaturą",
@@ -425,22 +416,16 @@
     "addServer": "Połącz",
     "addingServer": "Łączenie…",
     "errorServer": "Nie udało się połączyć z serwerem FreshRSS.",
-    "skip": "Pomiń",
     "restorePrompt": "Odtwarzasz z kopii zapasowej?",
     "errorTooMany": "Zbyt wiele prób. Odczekaj kilka minut.",
     "errorUnavailable": "Serwer nie odpowiedział. To nic nie mówi o Twoich danych logowania."
   },
   "admin": {
-    "title": "Administracja",
     "users": "Użytkownicy",
-    "userCount": "{{count}} użytkownik(ów)",
-    "role": "Rola",
     "admin": "Admin",
     "user": "Użytkownik",
     "active": "Aktywny",
     "inactive": "Nieaktywny",
-    "activate": "Aktywuj",
-    "deactivate": "Dezaktywuj",
     "promoteAdmin": "Awansuj na administratora",
     "demoteUser": "Zdegraduj do użytkownika",
     "deleteUser": "Usuń użytkownika",
@@ -465,7 +450,6 @@
     "saving": "Zapisywanie…",
     "passwordUpdated": "Hasło zaktualizowane",
     "errorPasswordReset": "Aktualizacja hasła nie powiodła się.",
-    "confirmDeleteUser": "Usunąć „{{name}}”? Wszystkie dane zostaną utracone.",
     "registration": "Rejestracje",
     "registrationOpen": "Rejestracje otwarte",
     "registrationClosed": "Rejestracje zamknięte",
@@ -483,7 +467,6 @@
     "save": "Zapisz",
     "saved": "Zapisano",
     "you": "(Ty)",
-    "provider": "Dostawca",
     "local": "Lokalny",
     "oidc": "SSO",
     "authMode": "Tryb uwierzytelniania",
@@ -494,7 +477,11 @@
     "copied": "Skopiowano",
     "redirectUri": "Adres przekierowania (dodaj w swoim IdP)",
     "redirectUriHint": "Dodaj ten adres do „Redirect URIs” swojego dostawcy (Authentik, Authelia, Keycloak…).",
-    "breakGlassUrl": "Awaryjny adres URL (logowanie lokalne)"
+    "breakGlassUrl": "Awaryjny adres URL (logowanie lokalne)",
+    "userCount_one": "{{count}} użytkownik",
+    "userCount_few": "{{count}} użytkownicy",
+    "userCount_many": "{{count}} użytkowników",
+    "userCount_other": "{{count}} użytkownika"
   },
   "servers": {
     "label": "Serwery",
@@ -533,14 +520,6 @@
     "minutes": "{{count}} MIN",
     "hours": "{{count}} GODZ",
     "days": "{{count}} DN"
-  },
-  "shortcutBar": {
-    "prev": "Poprz.",
-    "next": "Nast.",
-    "open": "Otwórz",
-    "star": "Ulubione",
-    "unread": "Nieprzeczytane",
-    "readLater": "Później"
   },
   "viewMode": {
     "compact": "Kompaktowy",
