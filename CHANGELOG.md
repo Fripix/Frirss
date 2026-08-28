@@ -34,7 +34,9 @@ FriRSS follows [semantic versioning](https://semver.org/).
   were the smallest, palest text on the page — a heading quieter than its own
   content titles nothing.
 - The first-run screen puts the administrator note and the restore link on a
-  readable surface instead of floating them over the background animation.
+  readable surface instead of floating them over the background animation, and
+  the note is a sentence — "The first account you create becomes the
+  administrator." — rather than the cryptic "First account = administrator".
 - 25 dead translation keys removed across the nine locales, and two counters
   given real plural forms — Polish and Ukrainian were receiving a French-shaped
   `user(s)` where their grammar asks for four forms.
@@ -59,6 +61,29 @@ FriRSS follows [semantic versioning](https://semver.org/).
   empty input with the chosen filename detached beside it.
 - Checking a backup shows that it is working, and the preview that unfolds below
   announces itself rather than appearing unnoticed.
+- **Escape no longer closes the Preferences panel from under an open form.** The
+  server forms moved into Preferences, which already handles Escape at the panel
+  level, so cancelling a rename tore the whole panel down. Focus also returns to
+  the button that opened the layer — without it a second Escape did nothing,
+  focus having fallen back to `document.body`, outside the listening tree.
+- A refused rename keeps the form open along with what you typed, instead of
+  closing and discarding it to show the error.
+- The server list tells its states apart. A pending load and a failed
+  `getServers()` were indistinguishable from a read-only legacy connection. The
+  recovery action reads **Retry**, not Refresh: it does not refresh anything, it
+  reissues the request that failed.
+- The active server's row expands when you click its body instead of doing
+  nothing, the chevron and its panel are tied by `aria-controls`, and the rename
+  form has a cancel button like the delete flow.
+- French and Italian use the typographic apostrophe instead of the straight one.
+
+### Under the hood
+
+- `docs/FEATURES.md` inventories everything FriRSS does, with a test that fails
+  when a server route, an environment variable or a translation family is
+  missing from it.
+- The 232-settings guard now walks the panel recursively; it was not descending
+  into nested settings, so it guarded less than it claimed.
 
 ### Security
 
