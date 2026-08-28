@@ -55,6 +55,19 @@ la release publiée.
   « L'opération a échoué. Réessayez. » — un conseil qui ne pouvait pas
   fonctionner, puisque réessayer rendait le même refus.
 
+- **Rubriques d'Administration lisibles d'un coup d'œil.** Cinq groupes sans
+  rapport entre eux n'étaient séparés que par du blanc et un libellé gris qui
+  perdait contre le contenu. Chaque rubrique porte désormais son titre et un
+  filet qui marque où elle commence.
+- **La vérification d'une sauvegarde se voit.** Le bouton affiche un compteur
+  pendant le travail, et l'aperçu — qui se dépliait plus bas sans rien
+  signaler — s'annonce par un liseré accentué, se fait lire par les
+  technologies d'assistance et vient sous les yeux.
+- **Traductions** : 25 clés mortes retirées des 9 locales (dont toute la
+  famille `shortcutBar`, orpheline depuis une refonte), et deux compteurs
+  passés en vraies formes plurielles — le polonais et l'ukrainien recevaient
+  « utilisateur(ów) » là où leur grammaire réclame quatre formes.
+
 ## Actions requises à la mise à jour
 
 Aucune. Aucune variable d'environnement nouvelle, aucune migration manuelle.

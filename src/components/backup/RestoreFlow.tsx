@@ -15,6 +15,7 @@ type Phase = 'idle' | 'checking' | 'preview' | 'restoring' | 'done';
 export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
   const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [fileName, setFileName] = useState('');
   const [envelope, setEnvelope] = useState<unknown>(null);
   const [passphrase, setPassphrase] = useState('');
@@ -41,6 +42,13 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
     try {
       setSummary(await previewRestore(envelope, passphrase, setup));
       setPhase('preview');
+      // Après le rendu : l'aperçu peut naître hors de l'écran, et un résultat
+      // qu'on ne voit pas n'en est pas un. `smooth` seulement si l'utilisateur
+      // n'a pas demandé moins d'animations.
+      const doux = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      requestAnimationFrame(() => {
+        previewRef.current?.scrollIntoView({ behavior: doux ? 'smooth' : 'auto', block: 'nearest' });
+      });
     } catch (err) {
       setError(t(backupErrorKey(err)));
       // L'aperçu affiché correspond à la vérification précédente, pas à celle
@@ -160,12 +168,34 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
         className="px-4 py-2 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
         style={{ background: 'var(--accent)', color: '#fff' }}
       >
+        {/* Le même compteur que le champ de jeton : la vérification déchiffre
+            et fait un aller-retour, elle n'est jamais instantanée, et sans lui
+            le clic ne produisait aucun signe visible. */}
+        {phase === 'checking' && (
+          <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        )}
         {t('backup.check')}
       </button>
 
+      {/* L'aperçu se dépliait plus bas sans rien signaler : on cliquait, et
+          rien ne semblait se passer. Trois choses le font exister — un liseré
+          accentué qui le désigne comme le résultat du geste qu'on vient de
+          faire, `role="status"` pour que les lecteurs d'écran l'annoncent, et
+          un défilement qui l'amène sous les yeux. */}
       {summary && (
-        <div className="rounded-lg px-3 py-3 space-y-2" style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}>
-          <p className="text-xs font-semibold" style={{ color: 'var(--list-title)' }}>{t('backup.previewTitle')}</p>
+        <div
+          ref={previewRef}
+          role="status"
+          className="rounded-lg px-3 py-3 space-y-2"
+          style={{
+            border: '1px solid var(--panel-border)',
+            borderLeft: '3px solid var(--accent)',
+            background: 'var(--panel-header-bg)',
+          }}
+        >
+          <p className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>{t('backup.previewTitle')}</p>
           <dl className="text-[11px] space-y-1" style={{ color: 'var(--list-summary)' }}>
             <div><dt className="inline">{t('backup.createdAt')} : </dt><dd className="inline">{summary.createdAt ?? '—'}</dd></div>
             <div><dt className="inline">{t('backup.producedBy')} : </dt><dd className="inline">{summary.appVersion ?? '—'}</dd></div>
