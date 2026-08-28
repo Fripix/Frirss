@@ -56,9 +56,13 @@ la release publiée.
   fonctionner, puisque réessayer rendait le même refus.
 
 - **Rubriques d'Administration lisibles d'un coup d'œil.** Cinq groupes sans
-  rapport entre eux n'étaient séparés que par du blanc et un libellé gris qui
-  perdait contre le contenu. Chaque rubrique porte désormais son titre et un
-  filet qui marque où elle commence.
+  rapport entre eux n'étaient séparés que par du blanc et un libellé gris plus
+  petit et plus pâle que le contenu qu'il annonçait — un titre plus discret que
+  son propre contenu ne titre rien. Les titres sont désormais les plus gros et
+  les plus sombres de la rubrique, portent un repère accentué que le contenu ne
+  produit jamais, et l'écart qui les sépare du groupe précédent est trois fois
+  celui qui les rattache au leur. La séparation vient de la hiérarchie et de la
+  proximité, pas de filets supplémentaires.
 - **La vérification d'une sauvegarde se voit.** Le bouton affiche un compteur
   pendant le travail, et l'aperçu — qui se dépliait plus bas sans rien
   signaler — s'annonce par un liseré accentué, se fait lire par les

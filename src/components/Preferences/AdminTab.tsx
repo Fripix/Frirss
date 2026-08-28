@@ -286,20 +286,29 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
     return <p className="text-sm" style={{ color: 'var(--list-summary)' }}>{t('app.loading')}</p>;
   }
 
-  // Cinq groupes sans rapport entre eux : on vient ici pour l'un d'eux, pas
-  // pour lire la page. Le seul repère était un libellé gris perdu dans du
-  // blanc, qui perdait contre les libellés du contenu juste en dessous.
-  // Le filet sous le titre n'est pas un ornement : il dit « tout ce qui suit
-  // appartient à cette rubrique », ce qui est vrai, et rend la page
-  // parcourable d'un coup d'œil.
-  const sectionTitle = "text-[11px] font-bold uppercase tracking-widest mb-3 pb-1.5 border-b";
+  // Cinq groupes sans rapport entre eux : on vient ici pour l'un d'eux, jamais
+  // pour lire la page.
+  //
+  // Premier essai raté : un filet de 1 px en --panel-border sous chaque titre.
+  // Or tous les encadrés du contenu portent DÉJÀ cette bordure-là : le
+  // séparateur avait le même poids que ce qu'il séparait, il rejoignait le
+  // bruit. Et le titre était en 11 px gris — le texte le plus petit et le plus
+  // pâle de la page, plus discret que ce qu'il titrait.
+  //
+  // La hiérarchie se fait donc par le TYPE et la PROXIMITÉ, pas par des traits
+  // supplémentaires : un titre franchement plus gros et plus sombre, collé à
+  // son contenu, et beaucoup d'air entre les groupes. Un seul repère visuel
+  // s'y ajoute — un tiret accentué épais, une marque que le contenu ne fait
+  // jamais, donc impossible à confondre avec une bordure d'encadré.
+  const sectionTitle = "flex items-center gap-2.5 text-sm font-bold mb-3";
   const rowStyle = { background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* ── Users ──────────────────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)', borderColor: 'var(--panel-border)' }}>
+        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
+          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
           {t('admin.users')} — {t('admin.userCount', { count: users.length })}
           {pwDone && (
             <span className="ml-2 normal-case tracking-normal font-normal" style={{ color: 'var(--accent)' }}>
@@ -477,7 +486,8 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Create user ────────────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)', borderColor: 'var(--panel-border)' }}>
+        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
+          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
           {t('admin.createUser')}
         </h3>
         <form onSubmit={handleCreateUser} className="space-y-2 p-3 rounded-md" style={rowStyle}>
@@ -536,7 +546,8 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Registration toggle ────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)', borderColor: 'var(--panel-border)' }}>
+        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
+          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
           {t('admin.registration')}
         </h3>
         <button
@@ -561,7 +572,8 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Login animation ────────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)', borderColor: 'var(--panel-border)' }}>
+        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
+          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
           {t('admin.loginAnimation')}
         </h3>
         <div className="flex flex-wrap gap-1.5">
@@ -591,7 +603,8 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── SSO Configuration ──────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)', borderColor: 'var(--panel-border)' }}>
+        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
+          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
           {t('admin.ssoConfig')}
         </h3>
 
@@ -714,9 +727,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
         )}
       </div>
 
-      <div className="pt-5" style={{ borderTop: '1px solid var(--panel-border)' }}>
-        <BackupBlock />
-      </div>
+      <BackupBlock />
     </div>
   );
 }

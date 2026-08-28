@@ -13,16 +13,18 @@ export default function BackupBlock() {
   const logout = useAuthStore((s) => s.logout);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
-        <h3 className="text-[11px] font-bold uppercase tracking-widest mb-3 pb-1.5 border-b" style={{ color: 'var(--list-title)', borderColor: 'var(--panel-border)' }}>
+        <h3 className="flex items-center gap-2.5 text-sm font-bold mb-3" style={{ color: 'var(--list-title)' }}>
+          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
           {t('backup.title')}
         </h3>
         <BackupExport />
       </div>
 
       <div>
-        <h3 className="text-[11px] font-bold uppercase tracking-widest mb-3 pb-1.5 border-b" style={{ color: 'var(--list-title)', borderColor: 'var(--panel-border)' }}>
+        <h3 className="flex items-center gap-2.5 text-sm font-bold mb-3" style={{ color: 'var(--list-title)' }}>
+          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
           {t('backup.restoreTitle')}
         </h3>
         {/* La restauration remplace les comptes : la session courante ne vaut

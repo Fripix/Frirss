@@ -165,12 +165,12 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
         onClick={check}
         disabled={!envelope || passphrase === '' || phase === 'checking'}
         aria-busy={phase === 'checking'}
-        className="px-4 py-2 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
         style={{ background: 'var(--accent)', color: '#fff' }}
       >
-        {/* Le même compteur que le champ de jeton : la vérification déchiffre
-            et fait un aller-retour, elle n'est jamais instantanée, et sans lui
-            le clic ne produisait aucun signe visible. */}
+        {/* Le même compteur que le champ de jeton. `inline-flex items-center`
+            sur le bouton, sans quoi le compteur s'empile AU-DESSUS du libellé
+            et le bouton pousse sur deux étages le temps du travail. */}
         {phase === 'checking' && (
           <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
