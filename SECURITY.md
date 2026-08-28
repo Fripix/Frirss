@@ -32,6 +32,9 @@ basics that matter:
   token-encryption key (all generated on first launch).
 - The backend proxy blocks internal/private targets by default (anti-SSRF); only
   widen `PROXY_INTERNAL_HOSTS` to hosts you trust.
+- Give accounts only to people you trust, and turn registration off once your own
+  account exists. An account is what unlocks the proxy — see the DNS-rebinding
+  note below.
 
 ## Design decisions
 
@@ -65,3 +68,31 @@ What tips the balance here:
 
 If the CSP is ever relaxed, or third-party scripts are introduced, this decision
 should be revisited — that is what would change the calculation.
+
+### The anti-SSRF guard does not pin the resolved address
+
+Before fetching a client-supplied target, the proxy resolves its hostname and
+refuses the request if any answer is a private, loopback, link-local or cloud
+metadata address. It repeats that check on every redirect hop.
+
+It does not, however, pin the address it validated: `fetch()` resolves the name
+again when it opens the connection. A hostname whose DNS answers a public
+address to the first lookup and a private one to the second — classic DNS
+rebinding, and cheap to set up with a zero TTL — therefore slips past the check.
+
+Closing it means pinning the validated IP at connect time, which Node's `fetch`
+gives no way to do: its HTTP client is internal and takes no custom resolver, an
+externally installed `undici` is rejected by it outright, and rewriting the URL
+to the IP breaks TLS certificate validation. The remaining route is to rebuild
+the outgoing request on `node:http`/`node:https`, which do accept a `lookup`
+option — re-implementing transparent decompression, streaming and abort
+handling in the single most security-sensitive function of the app.
+
+That rewrite is not worth its regression risk against what the gap actually
+costs here. Reaching it requires an account **and** a domain whose DNS the
+attacker controls; what comes back is a response from the internal network, to
+an authenticated user, on an instance whose accounts the operator chose.
+
+What would change the calculation: opening registration to strangers, or Node
+exposing a supported way to supply a resolver to `fetch`. The first is the one
+to watch — leave `registration_enabled` off once your own account exists.

@@ -79,6 +79,10 @@ _(rien pour l'instant)_
 
 ## Documentation
 
+- **`SECURITY.md` consigne une limite connue du garde anti-SSRF.** Le garde ne
+  fixe pas l'adresse qu'il a validée, ce qui laisse passer un DNS rebinding. Le
+  correctif et son coût sont écrits noir sur blanc, ainsi que ce qui devrait
+  faire changer d'avis.
 - **`docs/FEATURES.md` : l'extraction ne passe plus par `/cors-proxy/`.**
   L'inventaire annonçait un endpoint supprimé de la production en 1.3.1. Il
   décrit maintenant le vrai chemin (`/api/proxy`), la frontière

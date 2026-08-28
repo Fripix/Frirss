@@ -387,6 +387,14 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   `fetch()` directement, sous peine de contourner le garde SSRF.
 - **Redaction** : `redactUrl()` retire la valeur d'un paramètre `token` avant
   toute écriture dans un journal.
+- **Limite connue, assumée** : le garde valide l'hôte après résolution, mais
+  **n'épingle pas** l'adresse validée — `fetch()` résout de nouveau à la
+  connexion. Un DNS à TTL nul qui répond une adresse publique puis une adresse
+  privée passe donc au travers. Le refermer imposerait de reconstruire la
+  requête sortante sur `node:http(s)` (seuls à accepter une option `lookup`),
+  donc de réimplémenter décompression, flux et annulation dans la fonction la
+  plus sensible de l'application. Arbitrage écrit dans `SECURITY.md` : à
+  revoir si l'inscription est ouverte aux inconnus.
 - **Cadence** : `FRIRSS_PROXY_RATE_LIMIT` plafonne les requêtes proxifiées par
   utilisateur et par minute (600 par défaut, `0` désactive). La clé est
   l'identifiant de l'utilisateur, jamais son IP : plusieurs personnes derrière
