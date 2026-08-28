@@ -404,7 +404,18 @@ parce que c'est lui qui rend le document, pas le backend (`server/index.ts`
 désactive délibérément la CSP de helmet pour ne pas entretenir deux politiques
 divergentes).
 
-- **Où** : `nginx.conf`
+- **Où** : `nginx.conf`, `Dockerfile`, `docker-entrypoint.sh`
+- **Sans privilèges** : nginx et Node tournent en `PUID:PGID` (1000:1000 par
+  défaut). L'entrypoint démarre en root le temps d'adopter `/app/data` — toute
+  installation antérieure l'a en root, et échouer dessus casserait chaque mise à
+  jour — puis abandonne les privilèges via `su-exec`. nginx garde le port 80
+  grâce à `cap_net_bind_service` posée sur le binaire, pour ne pas déplacer un
+  port qui figure dans la configuration de reverse proxy de tout le monde.
+- **Piège** : un runtime qui interdit les capacités de fichier
+  (`no-new-privileges`, `--cap-drop`) empêchera nginx de se lier au port 80.
+- **Garde-fou** : le job `docker` de `ci.yml` construit l'image, la lance sur un
+  `/app/data` appartenant à root (le cas de mise à jour réel), vérifie
+  `/api/health` **et** qu'aucun processus nginx/node ne tourne en root.
 - **Piège** : nginx sert chaque requête depuis **une seule** location, et une
   location regex l'emporte sur le préfixe `/`. Les `.js`/`.css`/`.svg` étaient
   donc servis par le bloc « static assets » et jamais par `location /` : ils
@@ -632,7 +643,7 @@ et `uk`.
 
 Les valeurs par défaut et les explications détaillées sont dans le `README.md`.
 
-`FRIRSS_BASE_URL` · `FRIRSS_DATA_DIR` · `PROXY_REWRITES` ·
+`FRIRSS_BASE_URL` · `FRIRSS_DATA_DIR` · `PUID` · `PGID` · `PROXY_REWRITES` ·
 `PROXY_INTERNAL_HOSTS` · `REDIS_URL` · `CACHE_ARTICLES_PER_FEED` · `CACHE_TTL` ·
 `CACHE_SYNC_INTERVAL` · `FRIRSS_REFRESH_MAX_FEEDS` · `FRIRSS_PROXY_RATE_LIMIT` ·
 `CORS_ORIGIN`

@@ -14,6 +14,10 @@ services:
       - NODE_ENV=production
       - FRIRSS_DATA_DIR=/app/data
       - TZ=Europe/Zurich
+      # Identity the nginx/Node processes run as. The data directory is
+      # adopted on start, so an existing root-owned one keeps working.
+      # - PUID=1000
+      # - PGID=1000
       # Public base URL — set this behind a reverse proxy (also fixes OIDC redirect URIs)
       # - FRIRSS_BASE_URL=https://frirss.example.com
       # Optional Redis cache (instant loads via stale-while-revalidate)

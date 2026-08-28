@@ -107,6 +107,8 @@ The first launch generates the JWT secret and the token-encryption key and store
 
 | Variable | Description | Default |
 |---|---|---|
+| `PUID` | User id the nginx/Node processes run as (the data directory is adopted on start) | `1000` |
+| `PGID` | Group id for the same processes | `1000` |
 | `FRIRSS_BASE_URL` | Public base URL — recommended behind a reverse proxy; fixes OIDC redirect URIs | derived |
 | `FRIRSS_DATA_DIR` | SQLite database directory | `/app/data` |
 | `PROXY_REWRITES` | public→internal URL rewrites for the backend proxy (`from=to`, comma-separated) | — |

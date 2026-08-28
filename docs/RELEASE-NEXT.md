@@ -53,6 +53,12 @@ _(rien pour l'instant)_
   le résultat était stocké tel quel, et cette innocuité ne tenait qu'à la
   vigilance de chaque consommateur. Seules restent les vidéos que la façade
   sait transformer en lecteur.
+- **Sécurité — le conteneur n'exécute plus l'application en root.** nginx et
+  Node tournent désormais sous un compte non privilégié (`PUID`/`PGID`, 1000
+  par défaut). Auparavant, la moindre exécution de code dans le processus Node
+  possédait le conteneur, `/app/data` compris — donc le secret JWT et la clé de
+  chiffrement des jetons. Aucune action n'est requise : l'entrypoint adopte le
+  répertoire de données existant au démarrage.
 
 ## Sous le capot
 
@@ -66,7 +72,10 @@ _(rien pour l'instant)_
 
 ## Actions requises à la mise à jour
 
-_(à compléter)_
+- **Rien à faire.** Le passage à un conteneur non privilégié adopte tout seul le
+  répertoire de données existant. Une seule réserve : un runtime qui interdit
+  les capacités de fichier (`no-new-privileges`, `--cap-drop`) empêcherait nginx
+  de se lier au port 80 — le conteneur ne répondrait alors plus.
 
 ## Documentation
 

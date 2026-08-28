@@ -32,7 +32,25 @@ WORKDIR /app
 #
 # Then nginx (static + /api proxy), tzdata (so TZ works on Alpine), and the
 # runtime lib for better-sqlite3.
-RUN apk upgrade --no-cache && apk add --no-cache nginx libstdc++ tzdata
+RUN apk upgrade --no-cache && apk add --no-cache nginx libstdc++ tzdata su-exec
+
+# ── Unprivileged runtime ────────────────────────────────────────────
+# nginx and Node both ran as root: any code execution inside Node owned the
+# container, including /app/data — which holds the JWT secret and the
+# token-encryption key. docker-entrypoint.sh now drops both to PUID:PGID.
+#
+# nginx still has to bind :80 without being root, so the capability is granted
+# on the binary itself rather than moving the port (the published port is part
+# of everyone's reverse-proxy config). libcap is only needed to set it — the
+# capability survives on the file, the tool does not need to ship.
+#
+# The `user` directive is dropped from nginx.conf: it only means something for
+# a master running as root, and otherwise emits a warning on every start.
+RUN apk add --no-cache --virtual .setcap libcap \
+ && setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx \
+ && apk del .setcap \
+ && sed -i '/^user[[:space:]]/d' /etc/nginx/nginx.conf \
+ && mkdir -p /run/nginx /var/lib/nginx /var/log/nginx
 
 # The runtime only ever runs `node` (see docker-entrypoint.sh) — never npm. Drop
 # the base image's bundled npm/npx/corepack: they ship their own dependencies
@@ -62,7 +80,8 @@ COPY nginx.conf /etc/nginx/http.d/default.conf
 RUN mkdir -p /app/data
 VOLUME /app/data
 
-# Startup script: nginx (background) + Express (foreground)
+# Startup script: chown the data volume, then nginx (background) + Express
+# (foreground), both as the unprivileged PUID:PGID.
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 

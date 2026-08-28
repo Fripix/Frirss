@@ -52,8 +52,16 @@ jobs:
       - name: Build image
         run: docker build -t frirss:ci .
 
+      # A pre-existing data directory owned by root is the realistic upgrade
+      # case: every install created before the container dropped privileges has
+      # one. The entrypoint must adopt it, not fail on it.
+      - name: Prepare a root-owned data directory (upgrade path)
+        run: |
+          sudo mkdir -p /tmp/frirss-data
+          sudo chown 0:0 /tmp/frirss-data
+
       - name: Run container
-        run: docker run -d --name frirss -p 8080:80 frirss:ci
+        run: docker run -d --name frirss -p 8080:80 -v /tmp/frirss-data:/app/data frirss:ci
 
       - name: Smoke-test /api/health
         run: |
@@ -64,6 +72,19 @@ jobs:
             sleep 2
           done
           echo "health check failed"; docker logs frirss; exit 1
+
+      # The application processes must not be root. Before this was enforced,
+      # any code execution inside Node owned the container — including the
+      # SQLite database that holds the JWT secret and the token-encryption key.
+      - name: Assert nginx and node do not run as root
+        run: |
+          ps_out=$(docker exec frirss ps -o user,comm)
+          echo "$ps_out"
+          if echo "$ps_out" | awk 'NR>1 && ($2 ~ /nginx|node/) && ($1 == "root" || $1 == "0")' | grep -q .; then
+            echo "::error::a privileged nginx/node process is still running as root"
+            exit 1
+          fi
+          echo "no root-owned application process"
 
       - name: Stop container
         if: always()
