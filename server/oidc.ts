@@ -1,5 +1,6 @@
 import type { Request } from 'express';
 import { getSetting } from './db.js';
+import { fetchUpstream } from './routes/proxy.js';
 
 /**
  * OIDC helpers for Authentik (or any OpenID Connect provider).
@@ -73,7 +74,11 @@ export async function getDiscovery(): Promise<DiscoveryDoc> {
 
   const base = issuer.replace(/\/$/, '');
   const url = `${base}/.well-known/openid-configuration`;
-  const res = await fetch(url);
+  // Via fetchUpstream, pas un `fetch` nu : l'émetteur est une URL que
+  // l'administrateur fixe librement depuis l'interface, et c'était le seul
+  // appel sortant du serveur à échapper au garde anti-SSRF — sur la cible
+  // comme sur chaque saut de redirection.
+  const res = await fetchUpstream(url);
   if (!res.ok) {
     throw new Error(`OIDC discovery failed (${res.status}) at ${url}`);
   }

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import type { Response as ExpressResponse } from 'express';
 import { Readable } from 'stream';
 import dns from 'dns';
@@ -23,11 +24,60 @@ const router = Router();
 // setup-only fallback (ClientLogin, before a server row exists). The real
 // target is given in X-Proxy-Target.
 
-// Capture the raw body for any content type (greader writes are urlencoded)
-router.use(express.raw({ type: '*/*', limit: '5mb' }));
+const TIMEOUT_MS = 30_000;
+
+/**
+ * Plafond de requêtes proxifiées, par utilisateur et par minute.
+ *
+ * Un compte authentifié peut faire émettre au backend autant de requêtes
+ * sortantes qu'il le demande : sans plafond, le proxy est un relais
+ * anonymisant et un amplificateur de bande passante offerts avec chaque
+ * compte.
+ *
+ * Le défaut est délibérément haut. La préparation hors-ligne est de loin le
+ * plus gros consommateur — une extraction plus jusqu'à `perArticle` images par
+ * article, à 4 requêtes simultanées (`BATCH`, `src/lib/imageCache.ts`) — et
+ * elle reste sous la centaine de requêtes par minute. Un plafond serré
+ * casserait la fonctionnalité sans gêner un abus, qui se contente d'être
+ * patient : 600 laisse six fois la marge nécessaire tout en fermant le robinet.
+ *
+ * `0` désactive complètement le contrôle, pour l'opérateur qui sait ce qu'il
+ * fait. Une valeur illisible retombe sur le défaut : un plafond mal saisi ne
+ * doit jamais verrouiller le proxy.
+ */
+export const DEFAULT_PROXY_RATE_LIMIT = 600;
+
+export function proxyRateLimit(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env.FRIRSS_PROXY_RATE_LIMIT;
+  if (raw == null || raw === '') return DEFAULT_PROXY_RATE_LIMIT;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : DEFAULT_PROXY_RATE_LIMIT;
+}
+
+// ── Ordre des middlewares : l'authentification D'ABORD ───────────────
+// `express.raw` mettait jusqu'à 5 Mo en mémoire avant que qui que ce soit ait
+// prouvé son identité — un inconnu pouvait donc faire allouer 5 Mo par
+// requête pour finir sur un 401. L'identité se lit dans les en-têtes, elle n'a
+// jamais eu besoin du corps.
 router.use(requireAuth);
 
-const TIMEOUT_MS = 30_000;
+// Ensuite seulement la cadence : la clé est l'identifiant de l'utilisateur, pas
+// son IP — plusieurs personnes derrière un même NAT ne doivent pas se partager
+// un seau, et après `requireAuth` on dispose d'une clé bien meilleure.
+const PROXY_RATE_LIMIT = proxyRateLimit();
+if (PROXY_RATE_LIMIT > 0) {
+  router.use(rateLimit({
+    windowMs: 60_000,
+    max: PROXY_RATE_LIMIT,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => String(req.user.id),
+    message: { error: 'Too many proxied requests, please slow down' },
+  }));
+}
+
+// Capture the raw body for any content type (greader writes are urlencoded)
+router.use(express.raw({ type: '*/*', limit: '5mb' }));
 
 // Optional public→internal target rewrites, so the backend reaches FreshRSS
 // directly over the Docker network (e.g. http://freshrss:80) instead of

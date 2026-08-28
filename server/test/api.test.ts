@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import request from 'supertest';
 import app from '../index.js';
-import db from '../db.js';
+import db, { setSetting } from '../db.js';
 import { encrypt, decrypt } from '../crypto.js';
 import { cacheEnabled, cacheGet, trimStreamJson } from '../cache.js';
 import { redactUrl } from '../routes/proxy.js';
+import { getDiscovery, clearDiscoveryCache } from '../oidc.js';
 
 // The actualize route now goes through fetchUpstream, which resolves the
 // target host before allowing the request (SSRF guard). The fictional
@@ -680,6 +681,24 @@ describe('proxy — injection du jeton FreshRSS', () => {
 
   afterEach(() => { vi.unstubAllGlobals(); });
 
+  // Le corps était analysé (jusqu'à 5 Mo) AVANT le contrôle d'authentification :
+  // un inconnu pouvait donc faire allouer 5 Mo par requête pour finir sur un
+  // 401. Un 413 est la signature de ce défaut — il ne peut être produit que par
+  // l'analyseur de corps, donc après avoir lu ce corps. Une fois le contrôle
+  // remis en tête, la réponse est 401, ou la connexion tombe parce que le
+  // serveur a refermé pendant que le client émettait encore : les deux disent
+  // la même chose, le corps n'a pas été lu.
+  it('never answers 413 to an unauthenticated request — the body is read after the check', async () => {
+    const outcome = await request(app).post('/api/proxy')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Proxy-Target', `${SERVER_URL}/api/greader.php/reader/api/0/edit-tag`)
+      .send(Buffer.alloc(6 * 1024 * 1024))
+      .then((r) => r.status as number | string)
+      .catch(() => 'connection-closed');
+    expect(outcome).not.toBe(413);
+    expect([401, 'connection-closed']).toContain(outcome);
+  });
+
   it('attaches the token to the server’s own API URL', async () => {
     const headers = await proxyGet(`${SERVER_URL}/api/greader.php/reader/api/0/subscription/list`);
     expect(headers.Authorization).toBe(`GoogleLogin auth=${TOKEN}`);
@@ -715,6 +734,113 @@ describe('proxy — injection du jeton FreshRSS', () => {
       .set('X-Proxy-Target', 'https://rss21.example.com/freshrss-public/leak');
     const headers = (fetchMock.mock.calls[0]?.[1] as { headers?: Record<string, string> })?.headers ?? {};
     expect(headers.Authorization).toBeUndefined();
+  });
+});
+
+describe('preferences — bornes', () => {
+  // Rien ne bornait ces écritures : ni la longueur des clés, ni la taille des
+  // valeurs, ni leur nombre. Un compte authentifié pouvait donc remplir le
+  // volume SQLite, 5 Mo par requête, indéfiniment.
+
+  it('accepts a realistic sync payload — 31 clés, logo compris', async () => {
+    const prefs: Record<string, unknown> = { appLogo: `data:image/png;base64,${'A'.repeat(300 * 1024)}` };
+    for (let i = 0; i < 30; i++) prefs[`syncKey${i}`] = { some: 'value', n: i };
+    const res = await request(app).put('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`).send(prefs);
+    expect(res.status).toBe(200);
+
+    const read = await request(app).get('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(read.body.preferences.syncKey7).toEqual({ some: 'value', n: 7 });
+  });
+
+  it('rejects an over-long key', async () => {
+    const res = await request(app).put('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`).send({ ['k'.repeat(200)]: 1 });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('key_too_long');
+  });
+
+  it('rejects an over-large value', async () => {
+    const res = await request(app).put('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`).send({ huge: 'x'.repeat(2 * 1024 * 1024) });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('value_too_large');
+  });
+
+  it('rejects too many keys in one request', async () => {
+    const prefs: Record<string, number> = {};
+    for (let i = 0; i < 300; i++) prefs[`bulk${i}`] = i;
+    const res = await request(app).put('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`).send(prefs);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('too_many_keys');
+  });
+
+  it('caps the total number of stored keys per user', async () => {
+    for (let round = 0; round < 4; round++) {
+      const prefs: Record<string, number> = {};
+      for (let i = 0; i < 200; i++) prefs[`r${round}k${i}`] = i;
+      const res = await request(app).put('/api/preferences')
+        .set('Authorization', `Bearer ${adminToken}`).send(prefs);
+      if (res.status === 400) {
+        expect(res.body.code).toBe('too_many_preferences');
+        return;
+      }
+    }
+    throw new Error('the per-user ceiling never triggered');
+  });
+
+  it('applies the same bounds to the single-key route', async () => {
+    const res = await request(app).put('/api/preferences/single')
+      .set('Authorization', `Bearer ${adminToken}`).send({ value: 'x'.repeat(2 * 1024 * 1024) });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('value_too_large');
+  });
+
+  it('leaves the stored preferences untouched when a request is rejected', async () => {
+    await request(app).put('/api/preferences/keeper')
+      .set('Authorization', `Bearer ${adminToken}`).send({ value: 'intact' });
+    await request(app).put('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ keeper: 'clobbered', huge: 'x'.repeat(2 * 1024 * 1024) });
+    const read = await request(app).get('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(read.body.preferences.keeper).toBe('intact');
+  });
+});
+
+describe('oidc discovery', () => {
+  // C'était le seul `fetch` sortant du serveur à ne pas passer par le garde
+  // anti-SSRF, sur une URL que l'administrateur fixe librement.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearDiscoveryCache();
+    setSetting('oidc_issuer', '');
+  });
+
+  const okDoc = (authEndpoint: string) => vi.fn().mockResolvedValue({
+    ok: true, status: 200, headers: new Headers(),
+    json: async () => ({ authorization_endpoint: authEndpoint }),
+  });
+
+  it('refuses an issuer aimed at the internal network', async () => {
+    setSetting('oidc_issuer', 'http://10.0.0.7/application/o/frirss/');
+    clearDiscoveryCache();
+    vi.stubGlobal('fetch', okDoc('http://10.0.0.7/authorize'));
+    await expect(getDiscovery()).rejects.toThrow();
+  });
+
+  it('still fetches a public issuer, at the well-known path', async () => {
+    setSetting('oidc_issuer', 'https://auth.example.com/application/o/frirss/');
+    clearDiscoveryCache();
+    const fetchMock = okDoc('https://auth.example.com/authorize');
+    vi.stubGlobal('fetch', fetchMock);
+
+    const doc = await getDiscovery();
+    expect(doc.authorization_endpoint).toBe('https://auth.example.com/authorize');
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://auth.example.com/application/o/frirss/.well-known/openid-configuration');
   });
 });
 

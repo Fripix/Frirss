@@ -118,6 +118,7 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `CACHE_SYNC_ACTIVE_DAYS` | Only pre-fetch for users seen in the last N days | `7` |
 | `CACHE_SYNC_PARALLEL_USERS` | Users pre-fetched in parallel | `3` |
 | `FRIRSS_REFRESH_MAX_FEEDS` | Number of feeds to refresh per button press (non-integer or < 1 → default) | `1000` |
+| `FRIRSS_PROXY_RATE_LIMIT` | Proxied requests allowed per user per minute (`0` disables; non-integer or negative → default) | `600` |
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
 Single sign-on is configured at runtime in *Preferences → Administration* (issuer, client ID, client secret).

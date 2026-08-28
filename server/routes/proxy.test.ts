@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral, fetchUpstream, redactUrl } from './proxy.js';
+import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral, fetchUpstream, redactUrl, targetBelongsToServer, proxyRateLimit } from './proxy.js';
 
 // fetchUpstream resolves its target host before allowing the request (SSRF
 // guard) — stub DNS so example.com-style test targets resolve to a public
@@ -196,5 +196,55 @@ describe('fetchUpstream logging', () => {
     const logged = warn.mock.calls[0].join(' ');
     expect(logged).not.toContain('s3cr3t-token');
     expect(logged).toContain('token=REDACTED');
+  });
+});
+
+describe('targetBelongsToServer', () => {
+  const SERVER = 'https://rss.example.com';
+
+  it('accepts the server\'s own URLs', () => {
+    for (const t of [SERVER, `${SERVER}/`, `${SERVER}/api/greader.php/reader/api/0/token`]) {
+      expect(targetBelongsToServer(SERVER, t), t).toBe(true);
+    }
+  });
+
+  it('rejects foreign hosts that merely start with the server URL', () => {
+    for (const t of [`${SERVER}.attacker.tld/x`, `${SERVER}@attacker.tld/x`,
+                     'https://rss.example.commercial.tld/x', 'http://rss.example.com/x']) {
+      expect(targetBelongsToServer(SERVER, t), t).toBe(false);
+    }
+  });
+
+  it('treats a subpath as a boundary', () => {
+    const sub = 'https://rss.example.com/freshrss';
+    expect(targetBelongsToServer(sub, `${sub}/api/greader.php`)).toBe(true);
+    expect(targetBelongsToServer(sub, sub)).toBe(true);
+    expect(targetBelongsToServer(sub, 'https://rss.example.com/freshrss-public/x')).toBe(false);
+  });
+
+  it('rejects unparseable input rather than guessing', () => {
+    expect(targetBelongsToServer(SERVER, 'not-a-url')).toBe(false);
+    expect(targetBelongsToServer('not-a-url', `${SERVER}/x`)).toBe(false);
+  });
+});
+
+describe('proxyRateLimit', () => {
+  it('defaults to a ceiling the offline prefetch never approaches', () => {
+    expect(proxyRateLimit({} as NodeJS.ProcessEnv)).toBe(600);
+    expect(proxyRateLimit({ FRIRSS_PROXY_RATE_LIMIT: '' } as NodeJS.ProcessEnv)).toBe(600);
+  });
+
+  it('honours an operator override', () => {
+    expect(proxyRateLimit({ FRIRSS_PROXY_RATE_LIMIT: '50' } as NodeJS.ProcessEnv)).toBe(50);
+  });
+
+  it('treats 0 as disabled', () => {
+    expect(proxyRateLimit({ FRIRSS_PROXY_RATE_LIMIT: '0' } as NodeJS.ProcessEnv)).toBe(0);
+  });
+
+  it('falls back to the default on junk rather than locking the proxy shut', () => {
+    for (const raw of ['abc', '-5', '1.5']) {
+      expect(proxyRateLimit({ FRIRSS_PROXY_RATE_LIMIT: raw } as NodeJS.ProcessEnv), raw).toBe(600);
+    }
   });
 });

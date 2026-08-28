@@ -372,6 +372,15 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   `fetch()` directement, sous peine de contourner le garde SSRF.
 - **Redaction** : `redactUrl()` retire la valeur d'un paramètre `token` avant
   toute écriture dans un journal.
+- **Cadence** : `FRIRSS_PROXY_RATE_LIMIT` plafonne les requêtes proxifiées par
+  utilisateur et par minute (600 par défaut, `0` désactive). La clé est
+  l'identifiant de l'utilisateur, jamais son IP : plusieurs personnes derrière
+  un même NAT ne doivent pas se partager un seau. Sans plafond, chaque compte
+  emportait un relais anonymisant.
+- **Ordre des middlewares — piège** : `requireAuth` **avant** `express.raw`.
+  L'inverse mettait jusqu'à 5 Mo en mémoire pour un inconnu avant de lui rendre
+  son 401 ; sa signature était un `413` répondu à une requête non
+  authentifiée.
 
 ### Cache Redis (facultatif)
 Mise en cache write-through des lectures greader, avec revalidation. Vide =
@@ -393,6 +402,20 @@ SQLite en WAL. Migrations **additives** uniquement (`PRAGMA table_info` +
 - **Piège** : ne jamais sauvegarder `frirss.db` seul — les écritures récentes sont
   dans le `-wal` voisin. Utiliser `scripts/backup-db.js` (API `.backup()`, sûre
   même serveur lancé) ou arrêter le conteneur et copier les trois fichiers.
+
+### Préférences serveur
+Stockage clé/valeur par utilisateur (`preferences`), poussé en un lot par
+`src/lib/prefsSync.ts`.
+
+- **Où** : `server/routes/preferences.ts`
+- **Bornes** : clé ≤ 128 caractères, valeur ≤ 1 Mio, 200 clés par requête,
+  500 clés stockées par utilisateur. Calibrées très au-dessus du client réel —
+  ~31 clés poussées d'un coup, la plus grosse étant `appLogo`, un PNG en data
+  URL redimensionné à 256×256 côté client. Sans elles, un compte authentifié
+  remplissait le volume SQLite 5 Mo à la fois.
+- **Piège** : tout le lot est validé **avant** la moindre écriture. Valider au
+  fil de l'insertion laisserait derrière soi les clés qui précédaient la
+  fautive, sur une requête pourtant refusée.
 
 ### Scripts opérateur
 - `scripts/backup-db.js` — instantané atomique horodaté
@@ -580,7 +603,8 @@ Les valeurs par défaut et les explications détaillées sont dans le `README.md
 
 `FRIRSS_BASE_URL` · `FRIRSS_DATA_DIR` · `PROXY_REWRITES` ·
 `PROXY_INTERNAL_HOSTS` · `REDIS_URL` · `CACHE_ARTICLES_PER_FEED` · `CACHE_TTL` ·
-`CACHE_SYNC_INTERVAL` · `FRIRSS_REFRESH_MAX_FEEDS` · `CORS_ORIGIN`
+`CACHE_SYNC_INTERVAL` · `FRIRSS_REFRESH_MAX_FEEDS` · `FRIRSS_PROXY_RATE_LIMIT` ·
+`CORS_ORIGIN`
 
 ---
 
