@@ -47,7 +47,9 @@ _(rien pour l'instant)_
   service worker applique à ses propres `fetch()` la CSP livrée avec son
   script : sous `connect-src 'self'`, celui qui met les images en cache ne
   pouvait plus en récupérer une seule, et toutes les images tierces
-  disparaissaient. `/sw.js` est désormais servi sans CSP.
+  disparaissaient. `/sw.js` est désormais servi sans CSP — et sans `immutable`,
+  qui promettait un an d'immuabilité au seul fichier par lequel une mise à jour
+  du worker peut arriver.
 - **Sécurité — les fichiers statiques portent enfin les en-têtes de sécurité.**
   nginx sert chaque requête depuis une seule location, et celle des `.js`,
   `.css` et `.svg` l'emportait sur celle qui posait la CSP : ces fichiers

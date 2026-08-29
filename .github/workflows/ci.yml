@@ -119,6 +119,12 @@ jobs:
             echo "::error::/sw.js lost its other security headers"
             exit 1
           fi
+          # Le script du worker n'est pas versionné par un hash : le déclarer
+          # immuable ferme le seul chemin par lequel une mise à jour arrive.
+          if echo "$sw" | grep -i '^cache-control' | grep -qi 'immutable'; then
+            echo "::error::/sw.js is served as immutable — updates cannot reach clients"
+            exit 1
+          fi
           doc=$(curl -fsSI http://localhost:8080/)
           if ! echo "$doc" | grep -qi '^content-security-policy'; then
             echo "::error::the app document lost its CSP"
@@ -129,7 +135,7 @@ jobs:
             echo "::error::static assets lost their CSP"
             exit 1
           fi
-          echo "sw without CSP, document and assets with it"
+          echo "sw without CSP nor immutable, document and assets with CSP"
 
       - name: Stop container
         if: always()

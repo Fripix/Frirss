@@ -490,8 +490,13 @@ divergentes).
   worker. C'est exactement ce qui est arrivé pendant le cycle 1.4.4 : le bloc
   « static assets » matche `\.js$`, donc `/sw.js` avec. Une `location = /sw.js`
   le devance et lui rend les trois autres en-têtes sans la CSP.
+- **Piège — `/sw.js` ne doit pas non plus être `immutable`.** Il est le seul
+  fichier non versionné par un hash que sert le bloc statique, et le seul chemin
+  par lequel une nouvelle version du worker atteint les clients. Il sort en
+  `no-cache` : mise en cache autorisée, revalidation imposée.
 - **Garde-fou** : le job `docker` de `ci.yml` vérifie que `/sw.js` sort **sans**
-  CSP, et que le document comme les fichiers statiques en portent bien une.
+  CSP et **sans** `immutable`, et que le document comme les fichiers statiques
+  portent bien une CSP.
 
 ### Cache Redis (facultatif)
 Mise en cache write-through des lectures greader, avec revalidation. Vide =
