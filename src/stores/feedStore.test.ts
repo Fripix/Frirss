@@ -420,3 +420,60 @@ describe('feedStore.selectCategory', () => {
     useFeedStore.setState({ selectView: original });
   });
 });
+
+describe('feedStore.toggleStar — refus du serveur depuis la vue Favoris', () => {
+  const starred = { id: 'a1', read: false, starred: true, sourceId: 'feed/1' } as Article;
+
+  beforeEach(() => {
+    useFeedStore.setState({
+      filter: 'starred',
+      articles: [{ id: 'a0', sourceId: 'feed/1' } as Article, { ...starred }],
+      selectedArticle: { ...starred },
+      starredCount: 1,
+    });
+    vi.mocked(api.removeStarred).mockRejectedValue(
+      Object.assign(new Error('refused'), { response: { status: 403 } }),
+    );
+  });
+
+  afterEach(() => {
+    vi.mocked(api.removeStarred).mockResolvedValue(undefined);
+    useFeedStore.setState({ filter: 'all', starredCount: 0 });
+  });
+
+  // Retirer le favori depuis la vue Favoris SORT l'article de la liste — c'est
+  // voulu. Mais le rollback ne faisait qu'un `.map()`, incapable de remettre un
+  // élément déjà retiré : sur un refus du serveur, l'article disparaissait de
+  // l'écran tout en restant en favori côté FreshRSS, et le compteur restauré
+  // annonçait « 1 favori » au-dessus d'une liste qui n'en montrait aucun.
+  it('remet l’article dans la liste, à sa place d’origine', async () => {
+    await useFeedStore.getState().toggleStar({ ...starred });
+    const { articles } = useFeedStore.getState();
+    expect(articles.map((a) => a.id)).toEqual(['a0', 'a1']);
+    expect(articles[1].starred).toBe(true);
+  });
+
+  it('remet l’article sélectionné', async () => {
+    await useFeedStore.getState().toggleStar({ ...starred });
+    expect(useFeedStore.getState().selectedArticle?.id).toBe('a1');
+    expect(useFeedStore.getState().selectedArticle?.starred).toBe(true);
+  });
+
+  it('restaure le compteur de favoris', async () => {
+    await useFeedStore.getState().toggleStar({ ...starred });
+    expect(useFeedStore.getState().starredCount).toBe(1);
+  });
+
+  // La file d'actions est un état de MODULE : elle survit d'un test à l'autre
+  // dans ce fichier. On vérifie donc ce qui vient d'être déposé, pas la taille
+  // totale de la file — sans quoi le test dépendrait de ce qui l'a précédé.
+  it('hors ligne, garde l’état optimiste et met l’action en file', async () => {
+    vi.mocked(api.removeStarred).mockRejectedValue(new Error('network down'));
+    await useFeedStore.getState().toggleStar({ ...starred });
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0']);
+    const queued = vi.mocked(offline.queuePut).mock.calls.at(-1)?.[0] ?? [];
+    expect(queued).toContainEqual(
+      expect.objectContaining({ articleId: 'a1', type: 'star', value: false }),
+    );
+  });
+});

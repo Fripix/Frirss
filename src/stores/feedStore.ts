@@ -865,6 +865,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   toggleStar: async (article) => {
     const newStarred = !article.starred;
+    // Ce que la mise à jour optimiste va DÉFAIRE, capturé avant de la faire.
+    // Retirer le favori depuis la vue Favoris sort l'article de la liste ; un
+    // rollback par `.map()` ne peut alors rien remettre — il n'y a plus de
+    // ligne à modifier. L'article disparaissait donc de l'écran alors qu'il
+    // restait en favori côté FreshRSS, et le compteur, lui, était bien
+    // restauré : « 1 favori » au-dessus d'une liste vide.
+    const removedFromList = get().filter === 'starred' && !newStarred;
+    const previousIndex = get().articles.findIndex((a) => a.id === article.id);
+    const wasSelected = get().selectedArticle?.id === article.id;
     // Optimistic update — instant UI feedback
     set((state) => {
       const isStarredFilter = state.filter === 'starred';
@@ -898,16 +907,28 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return;
       }
       // Rollback on failure
-      set((state) => ({
-        articles: state.articles.map((a) =>
-          a.id === article.id ? { ...a, starred: !newStarred } : a
-        ),
-        selectedArticle:
-          state.selectedArticle?.id === article.id
-            ? { ...state.selectedArticle, starred: !newStarred }
-            : state.selectedArticle,
-        starredCount: Math.max(0, state.starredCount + (newStarred ? -1 : 1)),
-      }));
+      set((state) => {
+        const restored: Article = { ...article, starred: !newStarred };
+        const stillListed = state.articles.some((a) => a.id === article.id);
+        // Réinsérer à sa place d'origine, pas en tête : l'ordre de la liste est
+        // celui du flux, et faire remonter l'article ferait passer un refus
+        // pour un article neuf.
+        const articles = removedFromList && !stillListed
+          ? [
+              ...state.articles.slice(0, previousIndex),
+              restored,
+              ...state.articles.slice(previousIndex),
+            ]
+          : state.articles.map((a) => (a.id === article.id ? restored : a));
+        return {
+          articles,
+          selectedArticle:
+            wasSelected || state.selectedArticle?.id === article.id
+              ? restored
+              : state.selectedArticle,
+          starredCount: Math.max(0, state.starredCount + (newStarred ? -1 : 1)),
+        };
+      });
     }
   },
 

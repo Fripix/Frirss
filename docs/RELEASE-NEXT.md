@@ -68,6 +68,11 @@ _(rien pour l'instant)_
   l'ouverture se fait depuis Préférences → Administration. **Les instances
   existantes ne changent pas de comportement** : elles gardent le réglage
   qu'elles ont déjà enregistré.
+- **Un favori retiré puis refusé par le serveur ne disparaît plus.** Dans la
+  vue Favoris, retirer le favori sort l'article de la liste — c'est voulu. Mais
+  si le serveur refusait l'opération, l'annulation ne remettait pas l'article :
+  il disparaissait de l'écran tout en restant en favori côté FreshRSS, et le
+  compteur restauré annonçait un favori que la liste ne montrait pas.
 
 ## Sous le capot
 

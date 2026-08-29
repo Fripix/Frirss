@@ -167,6 +167,13 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   `toggleRead`. Il y a **cinq** sites d'écriture dans `feedStore` (lecture via
   `selectArticle`, lecture via `toggleRead`, favori, à lire plus tard,
   étiquettes) — toute modification du traitement des échecs doit couvrir les cinq.
+- **Piège du rollback** : un seul de ces cinq sites RETIRE une ligne de la liste
+  au lieu de la modifier — retirer le favori depuis la vue Favoris. Son
+  annulation ne peut donc pas se contenter d'un `.map()` : il faut réinsérer
+  l'article **à son index d'origine**, sinon un refus du serveur le fait
+  disparaître de l'écran alors qu'il reste en favori côté FreshRSS, avec un
+  compteur restauré qui annonce « 1 favori » au-dessus d'une liste vide.
+  (Corrigé en 1.4.4 ; `feedStore.test.ts` épingle les trois états à restaurer.)
 
 ### Marquer tout comme lu
 Confirmation optionnelle avant de vider une vue entière.
