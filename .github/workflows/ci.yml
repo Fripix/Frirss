@@ -137,6 +137,28 @@ jobs:
           fi
           echo "sw without CSP nor immutable, document and assets with CSP"
 
+      # Le conteneur ne doit pas être plus strict que le backend qu'il sert.
+      # Avec le défaut nginx (1 Mo), une requête de 2 Mo mourait sur un 413
+      # émis par nginx, alors qu'Express en accepte 5 — c'est la restauration
+      # de sauvegarde qui en pâtissait. Un corps non authentifié doit atteindre
+      # Express et se voir refuser pour ce qu'il est : un 401, jamais un 413.
+      - name: Assert a 2 MB body reaches the backend
+        run: |
+          code=$(head -c 2097152 /dev/zero | curl -s -o /dev/null -w '%{http_code}' \
+            -X POST --data-binary @- \
+            -H 'Content-Type: application/octet-stream' \
+            -H 'X-Proxy-Target: https://example.com/' \
+            http://localhost:8080/api/proxy)
+          echo "2 MB unauthenticated POST → $code"
+          if [ "$code" = "413" ]; then
+            echo "::error::nginx rejects a 2 MB body the backend would accept (client_max_body_size)"
+            exit 1
+          fi
+          if [ "$code" != "401" ]; then
+            echo "::error::expected 401 from the backend, got $code"
+            exit 1
+          fi
+
       - name: Stop container
         if: always()
         run: docker rm -f frirss || true
