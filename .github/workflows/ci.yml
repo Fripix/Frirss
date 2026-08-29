@@ -102,6 +102,35 @@ jobs:
           fi
           echo "only the nginx master is root"
 
+      # Le service worker ne doit JAMAIS recevoir de CSP : il l'applique à ses
+      # propres fetch(), et il intercepte toutes les images d'articles. Une CSP
+      # avec `connect-src 'self'` sur /sw.js casse silencieusement TOUTES les
+      # images tierces de l'application — c'est arrivé, en ajoutant les en-têtes
+      # de sécurité au bloc des fichiers statiques, qui matche aussi `.js`.
+      - name: Assert the service worker carries no CSP, the document does
+        run: |
+          sw=$(curl -fsSI http://localhost:8080/sw.js)
+          echo "$sw"
+          if echo "$sw" | grep -qi '^content-security-policy'; then
+            echo "::error::/sw.js is served with a CSP — cross-origin images will break"
+            exit 1
+          fi
+          if ! echo "$sw" | grep -qi '^x-content-type-options'; then
+            echo "::error::/sw.js lost its other security headers"
+            exit 1
+          fi
+          doc=$(curl -fsSI http://localhost:8080/)
+          if ! echo "$doc" | grep -qi '^content-security-policy'; then
+            echo "::error::the app document lost its CSP"
+            exit 1
+          fi
+          asset=$(curl -fsSI "http://localhost:8080/$(docker exec frirss sh -c 'ls /app/dist/assets/index-*.js | head -1' | sed 's#/app/dist/##')")
+          if ! echo "$asset" | grep -qi '^content-security-policy'; then
+            echo "::error::static assets lost their CSP"
+            exit 1
+          fi
+          echo "sw without CSP, document and assets with it"
+
       - name: Stop container
         if: always()
         run: docker rm -f frirss || true

@@ -42,6 +42,12 @@ _(rien pour l'instant)_
   un compte authentifié pouvait remplir le volume SQLite. Les plafonds (clé ≤
   128 caractères, valeur ≤ 1 Mio, 200 clés par requête, 500 par utilisateur)
   laissent une large marge au client réel.
+- **Les images d'articles s'affichent de nouveau.** L'ajout des en-têtes de
+  sécurité aux fichiers statiques (entrée suivante) touchait aussi `/sw.js`. Un
+  service worker applique à ses propres `fetch()` la CSP livrée avec son
+  script : sous `connect-src 'self'`, celui qui met les images en cache ne
+  pouvait plus en récupérer une seule, et toutes les images tierces
+  disparaissaient. `/sw.js` est désormais servi sans CSP.
 - **Sécurité — les fichiers statiques portent enfin les en-têtes de sécurité.**
   nginx sert chaque requête depuis une seule location, et celle des `.js`,
   `.css` et `.svg` l'emportait sur celle qui posait la CSP : ces fichiers

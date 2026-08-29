@@ -481,6 +481,17 @@ divergentes).
   en-têtes y sont désormais **répétés**, et cette duplication est voulue —
   remonter les en-têtes au bloc `server` ne suffirait pas, un bloc qui déclare
   un `add_header` n'hérite plus d'aucun. Garder les deux listes en phase.
+- **Piège majeur — `/sw.js` ne doit JAMAIS recevoir de CSP.** Un service worker
+  hérite de la CSP livrée avec son propre script et l'applique à ses `fetch()`
+  internes. Or il intercepte toutes les requêtes d'images (`CacheFirst`, voir
+  `vite.config.js`) : sous `connect-src 'self'`, il ne peut plus aller chercher
+  une image tierce et **toutes les images d'articles cassent**, sans la moindre
+  violation CSP visible sur le document — elle a lieu dans le contexte du
+  worker. C'est exactement ce qui est arrivé pendant le cycle 1.4.4 : le bloc
+  « static assets » matche `\.js$`, donc `/sw.js` avec. Une `location = /sw.js`
+  le devance et lui rend les trois autres en-têtes sans la CSP.
+- **Garde-fou** : le job `docker` de `ci.yml` vérifie que `/sw.js` sort **sans**
+  CSP, et que le document comme les fichiers statiques en portent bien une.
 
 ### Cache Redis (facultatif)
 Mise en cache write-through des lectures greader, avec revalidation. Vide =
