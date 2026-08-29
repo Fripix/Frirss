@@ -632,6 +632,10 @@ et `uk`.
 
 - **Où** : `src/lib/version.ts`, `.github/workflows/publish.yml`
 - **Spec** : `docs/superpowers/specs/2026-08-14-dev-version-label-design.md`
+- **`FRIRSS_DEV_VERSION`** : l'étiquette est injectée **à la construction**, pas
+  à l'exécution — `publish.yml` la passe en argument de build, le `Dockerfile`
+  en fait une variable d'environnement de l'étape builder, et `vite.config.js`
+  la fige dans le bundle via `define`. Vide sur les images de production.
 
 ---
 
@@ -680,10 +684,26 @@ et `uk`.
 
 Les valeurs par défaut et les explications détaillées sont dans le `README.md`.
 
-`FRIRSS_BASE_URL` · `FRIRSS_DATA_DIR` · `PUID` · `PGID` · `PROXY_REWRITES` ·
-`PROXY_INTERNAL_HOSTS` · `REDIS_URL` · `CACHE_ARTICLES_PER_FEED` · `CACHE_TTL` ·
-`CACHE_SYNC_INTERVAL` · `FRIRSS_REFRESH_MAX_FEEDS` · `FRIRSS_PROXY_RATE_LIMIT` ·
-`CORS_ORIGIN`
+**Réglages de déploiement** — `NODE_ENV` (`production` active le service des
+fichiers statiques et `trust proxy`) · `PORT` (port interne d'Express, 3001) ·
+`PUID` · `PGID` · `FRIRSS_DATA_DIR` · `FRIRSS_BASE_URL` · `CORS_ORIGIN`
+
+**Proxy sortant** — `PROXY_REWRITES` · `PROXY_INTERNAL_HOSTS` ·
+`FRIRSS_PROXY_RATE_LIMIT`
+
+**Cache et relève** — `REDIS_URL` · `CACHE_ARTICLES_PER_FEED` · `CACHE_TTL` ·
+`CACHE_SYNC_INTERVAL` · `CACHE_SYNC_ACTIVE_DAYS` · `CACHE_SYNC_PARALLEL_USERS` ·
+`FRIRSS_REFRESH_MAX_FEEDS`
+
+> `FRIRSS_DEV_VERSION` n'est pas un réglage d'exécution : elle est lue **à la
+> construction** par Vite (voir « Versions et livraison »).
+
+> **Garde-fou** : `src/lib/featuresDoc.test.ts` relève les variables
+> effectivement lues par le code — `env.X` et `env['X']`, fichiers de test
+> exclus — et échoue si l'une manque ici. Jusqu'au 2026-08-29 il lisait le
+> tableau du `README.md` : il ne pouvait donc attraper qu'un oubli entre deux
+> documents, jamais une variable neuve absente des deux. C'est ainsi que
+> `FRIRSS_PROXY_RATE_LIMIT` a traversé son propre ajout sans le faire rougir.
 
 ---
 

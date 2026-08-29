@@ -96,6 +96,11 @@ _(rien pour l'instant)_
 
 ## Documentation
 
+- **Le garde-fou de l'inventaire relève enfin les variables d'environnement dans
+  le code.** Il lisait le tableau du `README.md` : il ne pouvait donc attraper
+  qu'un oubli entre deux documents, jamais une variable neuve absente des deux.
+  Trois variables réellement lues n'étaient pas inventoriées (`NODE_ENV`,
+  `PORT`, `FRIRSS_DEV_VERSION`) ; elles le sont.
 - **`SECURITY.md` consigne une limite connue du garde anti-SSRF.** Le garde ne
   fixe pas l'adresse qu'il a validée, ce qui laisse passer un DNS rebinding. Le
   correctif et son coût sont écrits noir sur blanc, ainsi que ce qui devrait

@@ -101,9 +101,39 @@ function declaredRoutes(): string[] {
 }
 
 /** Variables d'environnement documentées dans le tableau du README. */
+/**
+ * Variables d'environnement RÉELLEMENT lues par le code.
+ *
+ * TROU COMBLÉ (2026-08-29) : cette fonction lisait le tableau du `README.md`.
+ * Elle ne pouvait donc attraper qu'une variable déjà documentée à un endroit et
+ * oubliée à l'autre — jamais une variable neuve, absente des deux, qui est
+ * pourtant le cas courant. `FRIRSS_PROXY_RATE_LIMIT` est passée sous ce radar :
+ * le test est resté vert pendant tout son ajout, et seule une relecture
+ * manuelle l'a documentée.
+ *
+ * Les fichiers de test sont exclus : `server/backup.test.ts` fabrique de
+ * fausses variables (`FRIRSS_INVENTEE`, `UN_SECRET_D_UN_AUTRE_SERVICE`) pour
+ * vérifier que la sauvegarde ne les emporte pas. Les inventorier reviendrait à
+ * exiger que l'inventaire documente des variables qui n'existent pas.
+ */
 function declaredEnvVars(): string[] {
-  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
-  return [...new Set([...readme.matchAll(/^\|\s*`([A-Z][A-Z0-9_]+)`/gm)].map((m) => m[1]))];
+  const found = new Set<string>();
+  const scan = (file: string) => {
+    const text = fs.readFileSync(file, 'utf8');
+    for (const m of text.matchAll(/\benv(?:\.([A-Z][A-Z0-9_]+)|\[['"`]([A-Z][A-Z0-9_]+)['"`]\])/g)) {
+      found.add(m[1] ?? m[2]);
+    }
+  };
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(ts|tsx|js)$/.test(entry.name) && !/\.test\./.test(entry.name)) scan(full);
+    }
+  };
+  for (const dir of ['server', 'src', 'scripts']) walk(path.join(ROOT, dir));
+  scan(path.join(ROOT, 'vite.config.js'));
+  return [...found].sort();
 }
 
 /** Familles de traductions de premier niveau. */
@@ -128,7 +158,7 @@ describe('docs/FEATURES.md suit le code', () => {
     ).toEqual([]);
   });
 
-  it('mentionne chaque variable d’environnement du README', () => {
+  it('mentionne chaque variable d’environnement lue par le code', () => {
     const missing = declaredEnvVars().filter((v) => !DOC.includes(v));
     expect(
       missing,
