@@ -398,6 +398,14 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   `fetch()` directement, sous peine de contourner le garde SSRF.
 - **Redaction** : `redactUrl()` retire la valeur d'un paramètre `token` avant
   toute écriture dans un journal.
+- **Aucun en-tête d'identification fourni par le client n'est honoré.** Le jeton
+  greader est injecté côté serveur, et seulement là. Un repli `X-Freshrss-Auth`
+  a existé « pour l'installation, avant qu'une ligne serveur existe » — mais
+  personne ne l'envoyait jamais : le flux d'installation passe les identifiants
+  dans le corps du ClientLogin puis enregistre le jeton via `/api/servers`. Il
+  ne servait qu'à laisser un compte authentifié attacher l'`Authorization` de
+  son choix à n'importe quelle cible autorisée. Retiré en 1.4.4, avec un test
+  qui garde la porte fermée.
 - **Limite connue, assumée** : le garde valide l'hôte après résolution, mais
   **n'épingle pas** l'adresse validée — `fetch()` résout de nouveau à la
   connexion. Un DNS à TTL nul qui répond une adresse publique puis une adresse

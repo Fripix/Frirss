@@ -18,11 +18,17 @@ const router = Router();
 //
 // The caller authenticates with the FriRSS JWT (Authorization: Bearer …, via
 // requireAuth) — so this is NOT an open proxy. The FreshRSS token is injected
-// server-side: the client sends X-Server-Id, we look up that server's encrypted
-// token and forward it as a GoogleLogin header (only toward the server's own
-// URL — never leaks to external article URLs). X-Freshrss-Auth remains a
-// setup-only fallback (ClientLogin, before a server row exists). The real
-// target is given in X-Proxy-Target.
+// server-side and ONLY server-side: the client sends X-Server-Id, we look up
+// that server's encrypted token and forward it as a GoogleLogin header, only
+// toward the server's own origin (see targetBelongsToServer). The real target
+// is given in X-Proxy-Target.
+//
+// A client-supplied credential header is deliberately NOT honoured. An
+// X-Freshrss-Auth fallback used to exist "for setup, before a server row
+// exists", but nothing ever sent it: the setup flow passes credentials in the
+// ClientLogin body and then stores the token through /api/servers. All it did
+// was let any authenticated account attach an Authorization of its choosing to
+// any allowed target.
 
 const TIMEOUT_MS = 30_000;
 
@@ -365,12 +371,6 @@ router.all('/', async (req, res) => {
       const tok = decrypt(srv.freshrss_token);
       if (tok) headers.Authorization = `GoogleLogin auth=${tok}`;
     }
-  }
-  // Legacy / setup fallback (e.g. ClientLogin before a server exists): the
-  // client may still pass the token directly. Used only if none was injected.
-  if (!headers.Authorization) {
-    const fauth = req.header('x-freshrss-auth');
-    if (fauth) headers.Authorization = `GoogleLogin auth=${fauth}`;
   }
   const accept = req.header('x-proxy-accept');
   if (accept) headers.Accept = accept;

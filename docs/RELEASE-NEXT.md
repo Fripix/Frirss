@@ -71,6 +71,13 @@ _(rien pour l'instant)_
 
 ## Sous le capot
 
+- **Nettoyage — trois reliquats sans consommateur retirés.** Le repli
+  `X-Freshrss-Auth` du proxy, que plus rien n'envoyait depuis longtemps et qui
+  laissait un compte authentifié choisir l'en-tête d'identification d'une
+  requête sortante ; la classe CSS `.line-clamp-1`, orpheline ; et deux
+  dépendances de développement jamais importées (`@testing-library/jest-dom`,
+  `@testing-library/user-event`).
+
 - **La découverte OIDC passe par le garde anti-SSRF.** C'était le seul appel
   sortant du serveur à utiliser `fetch()` directement, sur une URL d'émetteur
   que l'administrateur fixe librement.

@@ -725,6 +725,24 @@ describe('proxy — injection du jeton FreshRSS', () => {
     expect(headers.Authorization).toBe(`GoogleLogin auth=${TOKEN}`);
   });
 
+  // Le proxy acceptait un en-tête X-Freshrss-Auth que PLUS PERSONNE n'envoyait :
+  // le flux d'installation passe les identifiants dans le corps du ClientLogin,
+  // puis enregistre le jeton par /api/servers. Le repli laissait donc n'importe
+  // quel compte authentifié faire attacher un Authorization de son choix à
+  // n'importe quelle cible autorisée. Ce test garde la porte fermée.
+  it('ignores a client-supplied X-Freshrss-Auth header', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: new Headers(), body: null,
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await request(app).get('/api/proxy')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Freshrss-Auth', 'attacker-chosen-token')
+      .set('X-Proxy-Target', 'https://elsewhere.example.com/collect');
+    const headers = (fetchMock.mock.calls[0]?.[1] as { headers?: Record<string, string> })?.headers ?? {};
+    expect(headers.Authorization).toBeUndefined();
+  });
+
   // Une comparaison par préfixe de chaîne accepte un hôte qui COMMENCE par
   // l'URL du serveur. Les URL d'images et de favicons viennent du contenu des
   // flux : celui qui publie un flux choisit donc la cible.
