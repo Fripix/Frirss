@@ -153,8 +153,11 @@ function memMarkRead(articleId: string, read: boolean): void {
     if (changed) memCache.set(key, { ...view, articles });
   }
 }
-// Re-persist the current view's list to the offline store after an optimistic
-// read change, so an offline return to it reflects the latest state.
+// Re-persist the current view's list to the offline store after ANY optimistic
+// change, so an offline return to it reflects the latest state. Longtemps
+// appelé par les seuls chemins de lecture : le favori et « à lire plus tard »
+// étaient donc perdus du cache, et un rechargement hors ligne les affichait
+// dans leur état d'avant.
 function persistCurrentView(get: () => FeedState): void {
   const s = get();
   listPut(viewKey(s.selectedFeed, s.filter), s.articles, s.continuation).catch(() => {});
@@ -336,6 +339,17 @@ export interface FeedState {
 // The queue lives in IndexedDB; this mirror avoids a read on every toggle.
 let actionQueue: QueuedAction[] = [];
 let queueLoaded = false;
+/**
+ * Rejeu en cours, s'il y en a un.
+ *
+ * `replayQueue` est déclenché au montage de l'application ET à chaque événement
+ * `online` (`App.tsx`). Deux passes pouvaient donc se chevaucher : elles
+ * lisaient la même file, envoyaient chaque action deux fois, et la plus lente
+ * réécrivait ensuite la file de la plus rapide — ressuscitant au passage des
+ * actions déjà traitées. Les appelants concurrents attendent désormais la
+ * même exécution.
+ */
+let replayInFlight: Promise<void> | null = null;
 
 async function loadQueue(): Promise<QueuedAction[]> {
   if (!queueLoaded) { actionQueue = await queueGet(); queueLoaded = true; }
@@ -865,34 +879,29 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   toggleStar: async (article) => {
     const newStarred = !article.starred;
-    // Ce que la mise à jour optimiste va DÉFAIRE, capturé avant de la faire.
-    // Retirer le favori depuis la vue Favoris sort l'article de la liste ; un
-    // rollback par `.map()` ne peut alors rien remettre — il n'y a plus de
-    // ligne à modifier. L'article disparaissait donc de l'écran alors qu'il
-    // restait en favori côté FreshRSS, et le compteur, lui, était bien
-    // restauré : « 1 favori » au-dessus d'une liste vide.
-    const removedFromList = get().filter === 'starred' && !newStarred;
-    const previousIndex = get().articles.findIndex((a) => a.id === article.id);
-    const wasSelected = get().selectedArticle?.id === article.id;
+    // Retirer le favori depuis la vue Favoris NE SORT PAS l'article de la
+    // liste. C'est l'alignement sur les quatre autres sites d'écriture :
+    // marquer lu depuis la vue Non lus laisse la ligne, et `silentRefresh`
+    // réinsère même l'article en cours de lecture pour qu'il ne s'évapore pas.
+    // La vue se réconcilie au rechargement, jamais sous les yeux du lecteur.
+    //
+    // Ce retrait venait du commit initial, sans décision consignée, et il
+    // coûtait cher : le rollback ne pouvait pas remettre une ligne déjà
+    // retirée, donc un refus du serveur faisait disparaître l'article de
+    // l'écran alors qu'il restait en favori côté FreshRSS — avec un compteur
+    // correctement restauré annonçant « 1 favori » au-dessus d'une liste vide.
     // Optimistic update — instant UI feedback
-    set((state) => {
-      const isStarredFilter = state.filter === 'starred';
-      const articles = isStarredFilter && !newStarred
-        ? state.articles.filter((a) => a.id !== article.id)
-        : state.articles.map((a) =>
-            a.id === article.id ? { ...a, starred: newStarred } : a
-          );
-      return {
-        articles,
-        selectedArticle:
-          isStarredFilter && !newStarred && state.selectedArticle?.id === article.id
-            ? null
-            : state.selectedArticle?.id === article.id
-              ? { ...state.selectedArticle, starred: newStarred }
-              : state.selectedArticle,
-        starredCount: Math.max(0, state.starredCount + (newStarred ? 1 : -1)),
-      };
-    });
+    set((state) => ({
+      articles: state.articles.map((a) =>
+        a.id === article.id ? { ...a, starred: newStarred } : a
+      ),
+      selectedArticle:
+        state.selectedArticle?.id === article.id
+          ? { ...state.selectedArticle, starred: newStarred }
+          : state.selectedArticle,
+      starredCount: Math.max(0, state.starredCount + (newStarred ? 1 : -1)),
+    }));
+    persistCurrentView(get);
     try {
       if (newStarred) {
         await markAsStarred(article.id);
@@ -906,29 +915,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         await enqueueAction(set, article.id, 'star', newStarred);
         return;
       }
-      // Rollback on failure
-      set((state) => {
-        const restored: Article = { ...article, starred: !newStarred };
-        const stillListed = state.articles.some((a) => a.id === article.id);
-        // Réinsérer à sa place d'origine, pas en tête : l'ordre de la liste est
-        // celui du flux, et faire remonter l'article ferait passer un refus
-        // pour un article neuf.
-        const articles = removedFromList && !stillListed
-          ? [
-              ...state.articles.slice(0, previousIndex),
-              restored,
-              ...state.articles.slice(previousIndex),
-            ]
-          : state.articles.map((a) => (a.id === article.id ? restored : a));
-        return {
-          articles,
-          selectedArticle:
-            wasSelected || state.selectedArticle?.id === article.id
-              ? restored
-              : state.selectedArticle,
-          starredCount: Math.max(0, state.starredCount + (newStarred ? -1 : 1)),
-        };
-      });
+      // Rollback on failure — un simple `.map()` suffit désormais : plus rien
+      // n'est retiré de la liste, il n'y a donc jamais de ligne à réinsérer.
+      set((state) => ({
+        articles: state.articles.map((a) =>
+          a.id === article.id ? { ...a, starred: !newStarred } : a
+        ),
+        selectedArticle:
+          state.selectedArticle?.id === article.id
+            ? { ...state.selectedArticle, starred: !newStarred }
+            : state.selectedArticle,
+        starredCount: Math.max(0, state.starredCount + (newStarred ? -1 : 1)),
+      }));
+      persistCurrentView(get);
     }
   },
 
@@ -1053,6 +1052,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         readLaterCount: Math.max(0, state.readLaterCount + (removing ? -1 : 1)),
       };
     });
+    persistCurrentView(get);
     try {
       await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
     } catch (err) {
@@ -1077,6 +1077,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           readLaterCount: Math.max(0, state.readLaterCount + (removing ? 1 : -1)),
         };
       });
+      persistCurrentView(get);
     }
   },
 
@@ -1386,6 +1387,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   replayQueue: async () => {
+    if (replayInFlight) return replayInFlight;
+    const run = (async () => {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     const queue = await loadQueue();
     if (!queue.length) return;
@@ -1414,6 +1417,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     actionQueue = remaining;
     await queuePut(remaining);
     set({ pendingActions: remaining.length, failedActions: failed });
+    })();
+    replayInFlight = run;
+    try {
+      await run;
+    } finally {
+      replayInFlight = null;
+    }
   },
 
   clearRefreshResult: () => set({ refreshResult: null }),

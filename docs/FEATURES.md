@@ -167,18 +167,28 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   `toggleRead`. Il y a **cinq** sites d'écriture dans `feedStore` (lecture via
   `selectArticle`, lecture via `toggleRead`, favori, à lire plus tard,
   étiquettes) — toute modification du traitement des échecs doit couvrir les cinq.
-- **Piège du rollback** : un seul de ces cinq sites RETIRE une ligne de la liste
-  au lieu de la modifier — retirer le favori depuis la vue Favoris. Son
-  annulation ne peut donc pas se contenter d'un `.map()` : il faut réinsérer
-  l'article **à son index d'origine**, sinon un refus du serveur le fait
-  disparaître de l'écran alors qu'il reste en favori côté FreshRSS, avec un
-  compteur restauré qui annonce « 1 favori » au-dessus d'une liste vide.
-  (Corrigé en 1.4.4 ; `feedStore.test.ts` épingle les trois états à restaurer.)
+- **Règle** : aucune de ces écritures ne RETIRE une ligne de la liste ; elles la
+  modifient, et la vue se réconcilie au rechargement. Retirer le favori depuis
+  la vue Favoris sortait l'article de la liste — hérité du commit initial, sans
+  décision consignée, et incohérent avec les quatre autres. Le prix en était un
+  rollback impossible : un refus du serveur faisait disparaître l'article alors
+  qu'il restait en favori côté FreshRSS, avec un compteur correctement restauré
+  annonçant « 1 favori » au-dessus d'une liste vide. Aligné en 1.4.4.
+- **Cache hors-ligne** : les cinq sites appellent `persistCurrentView()`, à
+  l'aller **et** au rollback. Seuls les deux chemins de lecture le faisaient :
+  mettre un favori puis recharger hors ligne le montrait non favori.
 
 ### Marquer tout comme lu
 Confirmation optionnelle avant de vider une vue entière.
 
 - **Où** : `src/lib/markAllRead.ts`
+- **Pas offert partout** : `canMarkAllRead()` retire le bouton des vues
+  **Favoris** et **À lire plus tard**. `markAllAsRead()` s'adresse au flux
+  sélectionné ou à la liste de lecture entière, et n'a aucune notion de filtre —
+  il ne peut pas en avoir, ces deux vues étant des sélections transversales et
+  non des flux qu'on vide. Le bouton y était rendu quand même : un contrôle qui
+  se lit « marquer ces articles comme lus » marquait TOUTE la liste de lecture.
+  Aucun raccourci clavier n'y mène, le bouton était la seule porte.
 - **Spec** : `docs/superpowers/specs/2026-08-15-optional-mark-all-read-confirm-design.md`
 
 ### Recherche
@@ -323,6 +333,10 @@ Les actions faites sans réseau (lu, favori, à lire plus tard, étiquettes) son
 mises en file et rejouées au retour.
 
 - **Où** : `src/lib/actionQueue.ts`
+- **Piège** : `replayQueue()` est déclenché au montage **et** à chaque événement
+  `online`. Sans garde, deux passes se chevauchaient, envoyaient chaque action
+  deux fois, et la plus lente réécrivait la file de la plus rapide. Les appels
+  concurrents attendent maintenant la même exécution (`replayInFlight`).
 - **Spec** : `docs/superpowers/specs/2026-08-20-offline-action-queue-design.md`
 
 ---

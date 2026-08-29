@@ -446,6 +446,20 @@ describe('feedStore.toggleStar — refus du serveur depuis la vue Favoris', () =
   // élément déjà retiré : sur un refus du serveur, l'article disparaissait de
   // l'écran tout en restant en favori côté FreshRSS, et le compteur restauré
   // annonçait « 1 favori » au-dessus d'une liste qui n'en montrait aucun.
+  // Retirer le favori ne SORT PLUS l'article de la liste. C'est ce que font
+  // déjà `toggleRead` (marquer lu depuis la vue Non lus laisse la ligne) et
+  // `toggleReadLater` ; la vue se réconcilie au rechargement. Deux vues sœurs
+  // qui se comportaient différemment, sans qu'aucune décision ne l'ait jamais
+  // établi — le retrait venait du commit initial.
+  it('garde la ligne en place quand le retrait réussit', async () => {
+    vi.mocked(api.removeStarred).mockResolvedValue(undefined);
+    await useFeedStore.getState().toggleStar({ ...starred });
+    const { articles } = useFeedStore.getState();
+    expect(articles.map((a) => a.id)).toEqual(['a0', 'a1']);
+    expect(articles[1].starred).toBe(false);
+    expect(useFeedStore.getState().selectedArticle?.id).toBe('a1');
+  });
+
   it('remet l’article dans la liste, à sa place d’origine', async () => {
     await useFeedStore.getState().toggleStar({ ...starred });
     const { articles } = useFeedStore.getState();
@@ -470,10 +484,75 @@ describe('feedStore.toggleStar — refus du serveur depuis la vue Favoris', () =
   it('hors ligne, garde l’état optimiste et met l’action en file', async () => {
     vi.mocked(api.removeStarred).mockRejectedValue(new Error('network down'));
     await useFeedStore.getState().toggleStar({ ...starred });
-    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0']);
+    const { articles } = useFeedStore.getState();
+    expect(articles.map((a) => a.id)).toEqual(['a0', 'a1']);
+    expect(articles[1].starred).toBe(false); // l'état optimiste est conservé
     const queued = vi.mocked(offline.queuePut).mock.calls.at(-1)?.[0] ?? [];
     expect(queued).toContainEqual(
       expect.objectContaining({ articleId: 'a1', type: 'star', value: false }),
     );
+  });
+});
+
+describe('feedStore — le cache hors-ligne suit toutes les écritures', () => {
+  // `persistCurrentView` n'était appelé que par les deux chemins de LECTURE.
+  // La liste rejouée hors ligne gardait donc l'ancien état du favori et de
+  // « à lire plus tard » : mettre un favori puis recharger sans réseau le
+  // montrait non favori.
+  beforeEach(() => {
+    useFeedStore.setState({
+      filter: 'all',
+      articles: [{ id: 'a1', read: false, starred: false, sourceId: 'feed/1', labels: [] as string[] } as Article],
+      selectedArticle: null,
+    });
+  });
+
+  it('persiste la vue après un favori', async () => {
+    await useFeedStore.getState().toggleStar(useFeedStore.getState().articles[0]);
+    expect(offline.listPut).toHaveBeenCalled();
+    const stored = vi.mocked(offline.listPut).mock.calls.at(-1)?.[1] as Article[];
+    expect(stored.find((a) => a.id === 'a1')?.starred).toBe(true);
+  });
+
+  it('persiste la vue après un « à lire plus tard »', async () => {
+    await useFeedStore.getState().toggleReadLater(useFeedStore.getState().articles[0]);
+    expect(offline.listPut).toHaveBeenCalled();
+    const stored = vi.mocked(offline.listPut).mock.calls.at(-1)?.[1] as Article[];
+    // Comparé à ce que le store porte, pas à un littéral : le libellé « à lire
+    // plus tard » est une étiquette FreshRSS localisée, pas un état standard.
+    const inStore = useFeedStore.getState().articles.find((a) => a.id === 'a1');
+    expect(inStore?.labels?.length).toBe(1);
+    expect(stored.find((a) => a.id === 'a1')?.labels).toEqual(inStore?.labels);
+  });
+});
+
+describe('feedStore.replayQueue — réentrance', () => {
+  // Le rejeu est déclenché au montage ET à chaque événement `online`
+  // (`App.tsx`). Deux exécutions pouvaient donc se chevaucher, lire la même
+  // file et se réécrire l'une l'autre : chaque action partait deux fois, et la
+  // passe la plus lente pouvait ressusciter une action déjà traitée.
+  beforeEach(() => {
+    useFeedStore.setState({ articles: [], selectedArticle: null });
+  });
+
+  it('ne rejoue pas deux fois la même action quand deux passes se chevauchent', async () => {
+    // Une action mise en file parce que le réseau manquait.
+    vi.mocked(api.markAsRead).mockRejectedValue(new Error('network down'));
+    await useFeedStore.getState().toggleRead({ id: 'r1', read: false, sourceId: 'feed/1' } as Article);
+
+    // Un rejeu lent, pour que la seconde passe démarre pendant la première —
+    // exactement deux événements `online` rapprochés.
+    vi.mocked(api.markAsRead).mockReset();
+    vi.mocked(api.markAsRead).mockImplementation(
+      () => new Promise<void>((r) => setTimeout(r, 5)),
+    );
+
+    await Promise.all([
+      useFeedStore.getState().replayQueue(),
+      useFeedStore.getState().replayQueue(),
+    ]);
+
+    const forR1 = vi.mocked(api.markAsRead).mock.calls.filter((c) => c[0] === 'r1');
+    expect(forR1).toHaveLength(1);
   });
 });

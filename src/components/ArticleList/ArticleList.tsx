@@ -4,7 +4,7 @@ import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
-import { markAllReadAction } from '../../lib/markAllRead';
+import { markAllReadAction, canMarkAllRead } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
@@ -294,8 +294,10 @@ export default function ArticleList() {
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
               <ToolbarBtn flex1 iconOnly icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
-              <ToolbarBtn flex1 iconOnly icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
-                active={markAllConfirm} onClick={handleMarkAllRead} />
+              {canMarkAllRead(filter) && (
+                <ToolbarBtn flex1 iconOnly icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
+                  active={markAllConfirm} onClick={handleMarkAllRead} />
+              )}
               <ToolbarBtn flex1 iconOnly icon={<OptionsIcon />} label={t('articleList.viewOptions')} active={optionsOpen}
                 onClick={() => setOptionsOpen((o) => !o)} />
             </div>
@@ -355,9 +357,13 @@ export default function ArticleList() {
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
-              <ToolbarSep />
-              <ToolbarBtn icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
-                active={markAllConfirm} onClick={handleMarkAllRead} />
+              {canMarkAllRead(filter) && (
+                <>
+                  <ToolbarSep />
+                  <ToolbarBtn icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
+                    active={markAllConfirm} onClick={handleMarkAllRead} />
+                </>
+              )}
             </div>
 
             <div className="flex-1" />
@@ -417,9 +423,13 @@ export default function ArticleList() {
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
-              <ToolbarSep />
-              <ToolbarBtn icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
-                active={markAllConfirm} onClick={handleMarkAllRead} />
+              {canMarkAllRead(filter) && (
+                <>
+                  <ToolbarSep />
+                  <ToolbarBtn icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
+                    active={markAllConfirm} onClick={handleMarkAllRead} />
+                </>
+              )}
             </div>
           </>
         )}

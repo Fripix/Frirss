@@ -68,11 +68,21 @@ _(rien pour l'instant)_
   l'ouverture se fait depuis Préférences → Administration. **Les instances
   existantes ne changent pas de comportement** : elles gardent le réglage
   qu'elles ont déjà enregistré.
-- **Un favori retiré puis refusé par le serveur ne disparaît plus.** Dans la
-  vue Favoris, retirer le favori sort l'article de la liste — c'est voulu. Mais
-  si le serveur refusait l'opération, l'annulation ne remettait pas l'article :
-  il disparaissait de l'écran tout en restant en favori côté FreshRSS, et le
-  compteur restauré annonçait un favori que la liste ne montrait pas.
+- **« Marquer tout comme lu » disparaît des vues Favoris et À lire plus tard.**
+  Le bouton y était affiché alors que l'action ne connaît pas le filtre : depuis
+  la vue Favoris, un contrôle qui se lit « marquer ces articles comme lus »
+  marquait toute la liste de lecture et remettait tous les compteurs à zéro.
+- **Retirer un favori ne fait plus disparaître la ligne.** La vue Favoris était
+  la seule à sortir l'article de la liste au lieu de simplement le mettre à
+  jour, contrairement à « lu » et à « à lire plus tard ». Elle se réconcilie
+  désormais au rechargement, comme les autres — et un refus du serveur ne peut
+  plus faire disparaître un article qui reste en favori côté FreshRSS.
+- **Le favori et « à lire plus tard » sont enregistrés dans le cache
+  hors-ligne.** Seule la lecture l'était : mettre un favori puis rouvrir
+  l'application sans réseau le montrait non favori.
+- **Les actions faites hors ligne ne sont plus rejouées en double.** Le rejeu se
+  déclenche au démarrage et au retour du réseau ; deux déclenchements
+  rapprochés se chevauchaient.
 
 ## Sous le capot
 
