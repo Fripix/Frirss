@@ -264,6 +264,12 @@
       "showCounts": "Afficher le nombre d'articles"
     },
     "themes": {
+      "presets": "Préréglages",
+      "presetsHint": "Un thème complet en un clic. Le charger remplace les 36 couleurs ; tout reste modifiable ensuite.",
+      "followSystem": "Suivre le thème du système",
+      "followSystemHint": "Bascule entre les deux thèmes ci-dessous quand l’appareil passe en clair ou en sombre.",
+      "lightTheme": "Thème clair",
+      "darkTheme": "Thème sombre",
       "saveTitle": "Enregistrer le thème actuel",
       "share": "Partager",
       "themeName": "Nom du thème",

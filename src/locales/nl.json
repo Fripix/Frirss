@@ -264,6 +264,12 @@
       "showCounts": "Aantal artikelen tonen"
     },
     "themes": {
+      "presets": "Voorinstellingen",
+      "presetsHint": "Een volledig thema met één klik. Laden vervangt alle 36 kleuren; daarna blijft alles aanpasbaar.",
+      "followSystem": "Systeemthema volgen",
+      "followSystemHint": "Wisselt tussen de twee thema’s hieronder wanneer het apparaat licht of donker wordt.",
+      "lightTheme": "Licht thema",
+      "darkTheme": "Donker thema",
       "saveTitle": "Huidig thema opslaan",
       "share": "Delen",
       "themeName": "Themanaam",

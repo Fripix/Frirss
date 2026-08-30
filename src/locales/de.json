@@ -264,6 +264,12 @@
       "showCounts": "Artikelanzahl anzeigen"
     },
     "themes": {
+      "presets": "Voreinstellungen",
+      "presetsHint": "Ein vollständiges Theme mit einem Klick. Das Laden ersetzt alle 36 Farben; danach bleibt alles änderbar.",
+      "followSystem": "Systemdesign folgen",
+      "followSystemHint": "Wechselt zwischen den beiden Themes unten, wenn das Gerät auf Hell oder Dunkel umschaltet.",
+      "lightTheme": "Helles Theme",
+      "darkTheme": "Dunkles Theme",
       "saveTitle": "Aktuelles Theme speichern",
       "share": "Teilen",
       "themeName": "Theme-Name",

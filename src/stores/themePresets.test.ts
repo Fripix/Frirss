@@ -1,0 +1,119 @@
+// @vitest-environment jsdom
+import { describe, it, expect } from 'vitest';
+import {
+  SHIPPED_THEMES,
+  DEFAULT_THEME_NAME,
+  NIGHT_THEME_NAME,
+  ensureShippedThemes,
+  pickAutoTheme,
+} from './themeStore';
+import { readableTextOn, DARK_INK } from '../lib/readableText';
+import type { Theme } from '../types';
+
+const base = SHIPPED_THEMES[0];
+
+describe('shipped themes', () => {
+  it('ships the default plus three presets', () => {
+    expect(SHIPPED_THEMES).toHaveLength(4);
+    expect(SHIPPED_THEMES[0].name).toBe(DEFAULT_THEME_NAME);
+    expect(SHIPPED_THEMES.map((t) => t.name)).toContain(NIGHT_THEME_NAME);
+  });
+
+  it('gives every preset every colour the default defines', () => {
+    // 36 colours × 3 presets: one forgotten key would fall back to whatever the
+    // previous theme left on :root, which is how a half-dark interface happens.
+    const keys = Object.keys(base.colors);
+    for (const theme of SHIPPED_THEMES) {
+      expect(Object.keys(theme.colors).sort(), theme.name).toEqual(keys.slice().sort());
+    }
+  });
+
+  it('gives every preset every font size the default defines', () => {
+    const keys = Object.keys(base.fontSizes).sort();
+    for (const theme of SHIPPED_THEMES) {
+      expect(Object.keys(theme.fontSizes).sort(), theme.name).toEqual(keys);
+    }
+  });
+
+  it('writes every colour as a hex value or an rgba() one', () => {
+    for (const theme of SHIPPED_THEMES) {
+      for (const [key, value] of Object.entries(theme.colors)) {
+        expect(value, `${theme.name} / ${key}`).toMatch(/^(#[0-9a-f]{6}|rgba\([\d\s.,]+\))$/i);
+      }
+    }
+  });
+
+  it('never puts a light title on a light panel, or the reverse', () => {
+    // Cheap sanity net rather than a full contrast audit — it catches a preset
+    // that pastes a light palette's text colour onto a dark ground. A colour
+    // that wants DARK ink written on it is itself a light colour.
+    for (const theme of SHIPPED_THEMES) {
+      const panelIsLight = readableTextOn(theme.colors['panel-bg']) === DARK_INK;
+      const titleIsLight = readableTextOn(theme.colors['list-title']) === DARK_INK;
+      expect(titleIsLight, `${theme.name}: title and panel are both ${panelIsLight ? 'light' : 'dark'}`)
+        .toBe(!panelIsLight);
+    }
+  });
+
+  it('keeps the sidebar darker than the panels in every preset', () => {
+    // The hierarchy has to survive the flip: a sidebar lighter than the panel
+    // next to it reads as floating rather than as a frame.
+    for (const theme of SHIPPED_THEMES) {
+      expect(theme.colors['sidebar-bg'], theme.name).not.toBe(theme.colors['panel-bg']);
+    }
+  });
+});
+
+describe('ensureShippedThemes', () => {
+  it('adds every missing preset', () => {
+    expect(ensureShippedThemes([]).map((t) => t.name)).toEqual(
+      SHIPPED_THEMES.map((t) => t.name)
+    );
+  });
+
+  it('keeps the user themes and leaves them after the shipped ones', () => {
+    const mine: Theme = { name: 'Mine', colors: { ...base.colors }, fontSizes: { ...base.fontSizes } };
+    const out = ensureShippedThemes([mine]);
+    expect(out.map((t) => t.name)).toEqual([...SHIPPED_THEMES.map((t) => t.name), 'Mine']);
+  });
+
+  it('never duplicates a preset, and never overwrites an edited one', () => {
+    const edited: Theme = {
+      name: NIGHT_THEME_NAME,
+      colors: { ...base.colors, accent: '#123456' },
+      fontSizes: { ...base.fontSizes },
+    };
+    const out = ensureShippedThemes([edited]);
+    expect(out.filter((t) => t.name === NIGHT_THEME_NAME)).toHaveLength(1);
+    expect(out.find((t) => t.name === NIGHT_THEME_NAME)?.colors.accent).toBe('#123456');
+  });
+
+  it('drops entries that are not themes rather than passing them on', () => {
+    const out = ensureShippedThemes([null, { name: 'x' }] as unknown as Theme[]);
+    expect(out.map((t) => t.name)).toEqual(SHIPPED_THEMES.map((t) => t.name));
+  });
+});
+
+describe('pickAutoTheme', () => {
+  const saved = SHIPPED_THEMES;
+
+  it('returns nothing when the setting is off', () => {
+    expect(pickAutoTheme(false, true, DEFAULT_THEME_NAME, NIGHT_THEME_NAME, saved)).toBeNull();
+  });
+
+  it('picks the dark theme when the system is dark', () => {
+    expect(pickAutoTheme(true, true, DEFAULT_THEME_NAME, NIGHT_THEME_NAME, saved)?.name)
+      .toBe(NIGHT_THEME_NAME);
+  });
+
+  it('picks the light theme when it is not', () => {
+    expect(pickAutoTheme(true, false, DEFAULT_THEME_NAME, NIGHT_THEME_NAME, saved)?.name)
+      .toBe(DEFAULT_THEME_NAME);
+  });
+
+  it('returns nothing when the chosen theme no longer exists', () => {
+    // Deleted from the list: better to leave the current theme alone than to
+    // fall back to something the user never picked.
+    expect(pickAutoTheme(true, true, DEFAULT_THEME_NAME, 'Gone', saved)).toBeNull();
+  });
+});

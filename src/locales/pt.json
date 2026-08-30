@@ -264,6 +264,12 @@
       "showCounts": "Mostrar o número de artigos"
     },
     "themes": {
+      "presets": "Predefinições",
+      "presetsHint": "Um tema completo num clique. Carregá-lo substitui as 36 cores; tudo continua editável depois.",
+      "followSystem": "Seguir o tema do sistema",
+      "followSystemHint": "Alterna entre os dois temas abaixo quando o dispositivo passa a claro ou escuro.",
+      "lightTheme": "Tema claro",
+      "darkTheme": "Tema escuro",
       "saveTitle": "Guardar o tema atual",
       "share": "Partilhar",
       "themeName": "Nome do tema",

@@ -3,8 +3,13 @@ import { useUiStore } from './uiStore';
 import { readableTextOn } from '../lib/readableText';
 import type { Theme, LabelColor } from '../types';
 
+export const DEFAULT_THEME_NAME = 'FriRSS Default';
+export const NIGHT_THEME_NAME = 'FriRSS Night';
+export const PAPER_THEME_NAME = 'FriRSS Paper';
+export const CONTRAST_THEME_NAME = 'FriRSS High Contrast';
+
 const defaultTheme: Theme = {
-  name: 'FriRSS Default',
+  name: DEFAULT_THEME_NAME,
   colors: {
     'sidebar-bg': '#201f1b',
     'sidebar-header-from': '#4cd4a1',
@@ -20,9 +25,9 @@ const defaultTheme: Theme = {
     'topbar-seg-active': '#363532',
     'accent': '#4cd4a1',
     'accent-dark': '#38b888',
-    'panel-bg': '#ffffff',
-    'panel-border': '#e8e8ec',
-    'panel-header-bg': '#fafafa',
+    'panel-bg': '#faf9f6',
+    'panel-border': '#e6e3da',
+    'panel-header-bg': '#f2f0e9',
     'list-hover': '#e9f8f2',
     'list-active': '#f0f0f5',
     'list-selected': '#def7ee',
@@ -61,6 +66,13 @@ const defaultTheme: Theme = {
 const COLOR_DEFAULT_MIGRATIONS: Record<string, [string, string]> = {
   'list-hover': ['#f5f5f8', '#e9f8f2'],
   'readlater-color': ['#a78bfa', '#8b5cf6'],
+  // Panneaux tièdes : la barre latérale est en #201f1b, un noir *chaud*, et les
+  // panneaux à côté étaient en blanc froid — les deux moitiés de l'écran
+  // n'appartenaient pas à la même famille, et le blanc pur est le fond le plus
+  // fatigant en lecture longue.
+  'panel-bg': ['#ffffff', '#faf9f6'],
+  'panel-header-bg': ['#fafafa', '#f2f0e9'],
+  'panel-border': ['#e8e8ec', '#e6e3da'],
 };
 
 function migrateColors(colors: Record<string, string>): Record<string, string> {
@@ -70,6 +82,195 @@ function migrateColors(colors: Record<string, string>): Record<string, string> {
     if (out[key] === oldVal) out[key] = newVal;
   }
   return out;
+}
+
+/* ── Thèmes livrés ──────────────────────────────────────────────────────
+ * Le moteur de thèmes était complet — 36 couleurs, enregistrement, export CSS,
+ * import, partage par lien — mais ne livrait qu'un seul thème. Quelqu'un qui
+ * voulait lire au lit devait régler 36 valeurs à la main.
+ *
+ * Les préréglages sont de simples thèmes enregistrés : `ensureShippedThemes()`
+ * garantit leur présence dans la liste, exactement comme le thème par défaut
+ * l'était déjà, et « Charger » les applique sans machinerie nouvelle.
+ *
+ * Chacun définit les 36 couleurs. Un test (`themePresets.test.ts`) échoue si
+ * l'un en oublie une : une clé manquante laisserait sur `:root` la valeur du
+ * thème précédent, ce qui donne une interface à moitié sombre.
+ */
+function preset(name: string, colors: Record<string, string>): Theme {
+  return { name, colors, fontSizes: { ...defaultTheme.fontSizes } };
+}
+
+const nightTheme = preset(NIGHT_THEME_NAME, {
+  // La barre latérale descend SOUS les panneaux. En thème clair la hiérarchie
+  // va du sombre vers le clair ; en thème sombre elle doit rester du sombre
+  // vers le moins sombre, sinon la barre latérale a l'air de flotter.
+  'sidebar-bg': '#151410',
+  'sidebar-header-from': '#38b888',
+  'sidebar-header-to': '#2a8f6c',
+  'sidebar-text': '#8a887e',
+  'sidebar-text-active': '#ecebe4',
+  'sidebar-category-text': '#6d6b61',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.07)',
+  'topbar-bg': '#151410',
+  'topbar-text': '#8a887e',
+  'topbar-text-active': '#4cd4a1',
+  'topbar-track': '#23221d',
+  'topbar-seg-active': '#2e2d26',
+  'accent': '#4cd4a1',
+  'accent-dark': '#38b888',
+  'panel-bg': '#201f1b',
+  'panel-border': '#34322b',
+  'panel-header-bg': '#26251f',
+  'list-hover': '#26332d',
+  'list-active': '#2b2a24',
+  'list-selected': '#1e3830',
+  'list-source': '#4cd4a1',
+  'list-title': '#e8e6df',
+  'list-title-read': '#86847b',
+  'list-summary': '#9a988e',
+  'list-time': '#74726a',
+  'reading-title': '#f0eee7',
+  'reading-text': '#cbc8bd',
+  'reading-meta': '#97948a',
+  'reading-link': '#4cd4a1',
+  'star-color': '#f5c542',
+  'readlater-color': '#a78bfa',
+  'danger': '#f87171',
+  'danger-light': '#3a1f1f',
+  'code-bg': '#1a1915',
+  'scrollbar': '#3d3b33',
+  'scrollbar-hover': '#555248',
+});
+
+const paperTheme = preset(PAPER_THEME_NAME, {
+  // Papier tiède pour la lecture longue. L'accent garde sa teinte mais fonce :
+  // le menthe clair sur crème ne tient pas le contraste.
+  'sidebar-bg': '#33302a',
+  'sidebar-header-from': '#4cd4a1',
+  'sidebar-header-to': '#38b888',
+  'sidebar-text': '#8b8779',
+  'sidebar-text-active': '#eee9dc',
+  'sidebar-category-text': '#6b675c',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.08)',
+  'topbar-bg': '#33302a',
+  'topbar-text': '#8b8779',
+  'topbar-text-active': '#4cd4a1',
+  'topbar-track': '#403c34',
+  'topbar-seg-active': '#4b473d',
+  'accent': '#2f9e77',
+  'accent-dark': '#23795b',
+  'panel-bg': '#f6f1e4',
+  'panel-border': '#e0d7c0',
+  'panel-header-bg': '#efe8d6',
+  'list-hover': '#e3eee4',
+  'list-active': '#eae2ce',
+  'list-selected': '#dbe9dd',
+  'list-source': '#2f9e77',
+  'list-title': '#2e2a20',
+  'list-title-read': '#8d8674',
+  'list-summary': '#7d7663',
+  'list-time': '#a39b86',
+  'reading-title': '#2e2a20',
+  'reading-text': '#4a4437',
+  'reading-meta': '#857d69',
+  'reading-link': '#23795b',
+  'star-color': '#b8860b',
+  'readlater-color': '#7c5cd6',
+  'danger': '#b3382c',
+  'danger-light': '#f7e6e3',
+  'code-bg': '#ece5d3',
+  'scrollbar': '#cfc6ae',
+  'scrollbar-hover': '#b3a98e',
+});
+
+const contrastTheme = preset(CONTRAST_THEME_NAME, {
+  // Noir et blanc francs, accent assombri jusqu'à porter du texte blanc.
+  'sidebar-bg': '#000000',
+  'sidebar-header-from': '#067a52',
+  'sidebar-header-to': '#04593c',
+  'sidebar-text': '#c9c9c9',
+  'sidebar-text-active': '#ffffff',
+  'sidebar-category-text': '#a8a8a8',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.25)',
+  'topbar-bg': '#000000',
+  'topbar-text': '#c9c9c9',
+  'topbar-text-active': '#4cd4a1',
+  'topbar-track': '#1a1a1a',
+  'topbar-seg-active': '#2e2e2e',
+  'accent': '#067a52',
+  'accent-dark': '#04593c',
+  'panel-bg': '#ffffff',
+  'panel-border': '#767676',
+  'panel-header-bg': '#f0f0f0',
+  'list-hover': '#dff0e8',
+  'list-active': '#e6e6e6',
+  'list-selected': '#c9e8da',
+  'list-source': '#067a52',
+  'list-title': '#000000',
+  'list-title-read': '#3d3d3d',
+  'list-summary': '#333333',
+  'list-time': '#4a4a4a',
+  'reading-title': '#000000',
+  'reading-text': '#1a1a1a',
+  'reading-meta': '#3d3d3d',
+  'reading-link': '#045c3d',
+  'star-color': '#8a6100',
+  'readlater-color': '#5b21b6',
+  'danger': '#b91c1c',
+  'danger-light': '#fee2e2',
+  'code-bg': '#f0f0f0',
+  'scrollbar': '#767676',
+  'scrollbar-hover': '#4a4a4a',
+});
+
+export const SHIPPED_THEMES: Theme[] = [defaultTheme, nightTheme, paperTheme, contrastTheme];
+
+/**
+ * Garantit la présence des thèmes livrés, en tête et sans doublon.
+ *
+ * Un préréglage que l'utilisateur a modifié n'est PAS écrasé : sa version
+ * gagne. Un préréglage supprimé revient au chargement suivant — c'est déjà le
+ * comportement du thème par défaut, et une liste de thèmes livrés amputée
+ * casserait le choix « suivre le système ».
+ */
+export function ensureShippedThemes(list: Theme[] | null | undefined): Theme[] {
+  const existing = Array.isArray(list)
+    ? list.filter((t): t is Theme => !!t && typeof t.name === 'string' && !!t.colors)
+    : [];
+  const shipped = SHIPPED_THEMES.map(
+    (s) => existing.find((t) => t.name === s.name) ?? ({ ...s, colors: { ...s.colors }, fontSizes: { ...s.fontSizes } })
+  );
+  const rest = existing.filter((t) => !SHIPPED_THEMES.some((s) => s.name === t.name));
+  return [...shipped, ...rest];
+}
+
+/**
+ * Quel thème le système réclame-t-il ? `null` = ne rien changer.
+ *
+ * Renvoie `null` aussi quand le thème visé n'existe plus dans la liste :
+ * mieux vaut laisser le thème courant en place que de basculer vers quelque
+ * chose que l'utilisateur n'a pas choisi.
+ */
+export function pickAutoTheme(
+  followSystem: boolean,
+  prefersDark: boolean,
+  lightThemeName: string,
+  darkThemeName: string,
+  savedThemes: Theme[]
+): Theme | null {
+  if (!followSystem) return null;
+  const wanted = prefersDark ? darkThemeName : lightThemeName;
+  return savedThemes.find((t) => t.name === wanted) ?? null;
+}
+
+function systemPrefersDark(): boolean {
+  try {
+    if (typeof matchMedia !== 'function') return false;
+    return matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch {
+    return false;
+  }
 }
 
 function loadTheme(): Theme {
@@ -91,14 +292,9 @@ function loadTheme(): Theme {
 function loadSavedThemes(): Theme[] {
   try {
     const saved = localStorage.getItem('frirss_savedThemes');
-    const list: Theme[] = saved ? JSON.parse(saved) : [];
-    // Ensure the default theme is always present (first, non-deletable)
-    if (!list.find((t) => t.name === defaultTheme.name)) {
-      list.unshift({ ...defaultTheme });
-    }
-    return list;
+    return ensureShippedThemes(saved ? JSON.parse(saved) : []);
   } catch {
-    return [{ ...defaultTheme }];
+    return ensureShippedThemes([]);
   }
 }
 
@@ -413,6 +609,15 @@ export interface ThemeState {
   resetFontSizes: () => void;
   resetLabelColors: () => void;
   applyServerPrefs: (prefs: Record<string, unknown> | null | undefined) => void;
+
+  /** Suivre le thème clair/sombre du système. */
+  followSystem: boolean;
+  lightThemeName: string;
+  darkThemeName: string;
+  setFollowSystem: (on: boolean) => void;
+  setSchemeTheme: (scheme: 'light' | 'dark', name: string) => void;
+  /** Applique le thème réclamé par le système, si le réglage est actif. */
+  syncSystemTheme: () => void;
 }
 
 export const useThemeStore = create<ThemeState>()((set, get) => {
@@ -431,6 +636,10 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
     preferencesTab: null, // null = default ('general'), or force a specific tab on open
     preferencesIntent: null, // null = just open the section
     preferencesOpenId: 0,  // increments each open — forces useEffect to re-fire
+
+    followSystem: localStorage.getItem('frirss_followSystem') === 'true',
+    lightThemeName: localStorage.getItem('frirss_lightThemeName') || DEFAULT_THEME_NAME,
+    darkThemeName: localStorage.getItem('frirss_darkThemeName') || NIGHT_THEME_NAME,
 
     openPreferences: (tab = null, intent = null) => set((s) => ({ preferencesOpen: true, preferencesTab: tab, preferencesIntent: intent, preferencesOpenId: s.preferencesOpenId + 1 })),
     clearPreferencesIntent: () => set({ preferencesIntent: null }),
@@ -673,6 +882,37 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
       set({ labelColors: {} });
     },
 
+    setFollowSystem: (on) => {
+      localStorage.setItem('frirss_followSystem', String(on));
+      set({ followSystem: on });
+      get().syncSystemTheme();
+    },
+
+    setSchemeTheme: (scheme, name) => {
+      const key = scheme === 'dark' ? 'darkThemeName' : 'lightThemeName';
+      localStorage.setItem(`frirss_${key}`, name);
+      set({ [key]: name } as Partial<ThemeState>);
+      get().syncSystemTheme();
+    },
+
+    syncSystemTheme: () => {
+      const { followSystem, lightThemeName, darkThemeName, savedThemes, theme } = get();
+      const target = pickAutoTheme(followSystem, systemPrefersDark(), lightThemeName, darkThemeName, savedThemes);
+      if (!target || target.name === theme.name) return;
+      // Les tailles de police courantes sont conservées : une bascule
+      // automatique au coucher du soleil qui remettrait aussi la taille du
+      // corps de texte à sa valeur d'usine serait une mauvaise surprise.
+      // « Charger » à la main garde, lui, son remplacement complet.
+      const next: Theme = {
+        ...target,
+        colors: { ...target.colors },
+        fontSizes: { ...theme.fontSizes },
+      };
+      localStorage.setItem('frirss_theme', JSON.stringify(next));
+      applyThemeToDOM(next);
+      set({ theme: next, baseTheme: resolveBaseTheme(next, savedThemes) });
+    },
+
     // ── Server-side sync ──────────────────────────────────────────
     // Apply theme-related preferences hydrated from the backend.
     // Recognised keys: theme, savedThemes, labelColors.
@@ -694,10 +934,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
       }
 
       if (Array.isArray(prefs.savedThemes)) {
-        const list: Theme[] = (prefs.savedThemes as Theme[]).slice();
-        if (!list.find((t) => t && t.name === defaultTheme.name)) {
-          list.unshift({ ...defaultTheme });
-        }
+        const list = ensureShippedThemes(prefs.savedThemes as Theme[]);
         localStorage.setItem('frirss_savedThemes', JSON.stringify(list));
         patch.savedThemes = list;
       }
@@ -705,6 +942,17 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
       if (prefs.labelColors && typeof prefs.labelColors === 'object') {
         localStorage.setItem('frirss_labelColors', JSON.stringify(prefs.labelColors));
         patch.labelColors = prefs.labelColors;
+      }
+
+      if (typeof prefs.followSystem === 'boolean') {
+        localStorage.setItem('frirss_followSystem', String(prefs.followSystem));
+        patch.followSystem = prefs.followSystem;
+      }
+      for (const key of ['lightThemeName', 'darkThemeName'] as const) {
+        if (typeof prefs[key] === 'string') {
+          localStorage.setItem(`frirss_${key}`, prefs[key] as string);
+          patch[key] = prefs[key];
+        }
       }
 
       // Recompute the reset target from the freshly applied theme/savedThemes
@@ -715,9 +963,36 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
       }
 
       if (Object.keys(patch).length) set(patch as Partial<ThemeState>);
+      // Les préférences arrivent après le démarrage : le réglage « suivre le
+      // système » peut n'être connu qu'ici, donc on rejoue la décision.
+      get().syncSystemTheme();
     },
   };
 });
 
 // Theme-related keys synced to the server (logical prefs).
-export const THEME_SYNC_KEYS = ['theme', 'savedThemes', 'labelColors'];
+export const THEME_SYNC_KEYS = [
+  'theme', 'savedThemes', 'labelColors',
+  'followSystem', 'lightThemeName', 'darkThemeName',
+];
+
+/* Le système change d'avis (coucher du soleil, bascule manuelle de macOS) :
+ * on rejoue la décision. Un seul écouteur pour toute l'application, posé au
+ * chargement du module — `matchMedia` peut ne pas exister (jsdom), auquel cas
+ * le réglage reste simplement sans effet. */
+if (typeof matchMedia === 'function') {
+  try {
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => useThemeStore.getState().syncSystemTheme();
+    mq.addEventListener?.('change', sync);
+    // Deuxième filet : le système peut basculer pendant que l'onglet est
+    // masqué — c'est même le cas courant, une PWA laissée ouverte au coucher
+    // du soleil. Le retour au premier plan rejoue la décision.
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') sync();
+      });
+    }
+    setTimeout(sync, 0);
+  } catch { /* pas de matchMedia utilisable : réglage inopérant, jamais fatal */ }
+}

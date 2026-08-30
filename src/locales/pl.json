@@ -264,6 +264,12 @@
       "showCounts": "Pokaż liczbę artykułów"
     },
     "themes": {
+      "presets": "Gotowe motywy",
+      "presetsHint": "Kompletny motyw jednym kliknięciem. Wczytanie zastępuje wszystkie 36 kolorów; wszystko pozostaje edytowalne.",
+      "followSystem": "Podążaj za motywem systemu",
+      "followSystemHint": "Przełącza między dwoma motywami poniżej, gdy urządzenie przechodzi w tryb jasny lub ciemny.",
+      "lightTheme": "Motyw jasny",
+      "darkTheme": "Motyw ciemny",
       "saveTitle": "Zapisz bieżący motyw",
       "share": "Udostępnij",
       "themeName": "Nazwa motywu",

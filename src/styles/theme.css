@@ -15,9 +15,9 @@
   --accent-glow: rgba(76, 212, 161, 0.12);
 
   /* Content panels (white/light) */
-  --panel-bg: #ffffff;
-  --panel-border: #e8e8ec;
-  --panel-header-bg: #fafafa;
+  --panel-bg: #faf9f6;
+  --panel-border: #e6e3da;
+  --panel-header-bg: #f2f0e9;
 
   /* Article list */
   --list-hover: #e9f8f2;

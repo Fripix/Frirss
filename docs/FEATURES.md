@@ -397,10 +397,44 @@ dans quelques composants partagés.
 
 **36 couleurs** en 6 groupes, **7 tailles** de police en 3 groupes, nom et logo
 de l'application, thèmes enregistrables, exportables en CSS, importables et
-partageables par lien.
+partageables par lien. **Quatre thèmes sont livrés** et le thème peut suivre le
+réglage clair/sombre du système.
 
 - **Où** : `src/stores/themeStore.ts`, `src/components/Preferences/AppearanceTab.tsx`,
   `src/components/Preferences/ThemePreview.tsx`, `src/components/Preferences/colorHighlight.ts`
+- **Thèmes livrés** (1.4.5) : `FriRSS Default`, `FriRSS Night`, `FriRSS Paper`,
+  `FriRSS High Contrast`, définis dans `SHIPPED_THEMES`. Ce sont de simples
+  **thèmes enregistrés** : `ensureShippedThemes()` garantit leur présence en
+  tête de la liste — comme le thème par défaut l'était déjà — et « Charger »
+  les applique sans machinerie nouvelle. Un préréglage modifié par
+  l'utilisateur n'est jamais écrasé ; un préréglage supprimé revient au
+  chargement suivant, parce que « suivre le système » a besoin d'eux.
+  *Avant : le moteur savait tout faire — 36 couleurs, export, import, partage —
+  mais ne livrait qu'un thème. Atteindre un thème sombre demandait de régler 36
+  valeurs à la main.*
+  - **Leurs noms ne sont pas traduits.** Le nom est l'identifiant : le traduire
+    casserait la correspondance au changement de langue. Cohérent avec
+    `FriRSS Default`, qui l'était déjà.
+  - **Chaque préréglage définit les 36 couleurs.** `themePresets.test.ts` échoue
+    si l'un en oublie une — une clé absente laisserait sur `:root` la valeur du
+    thème précédent, ce qui donne une interface à moitié sombre.
+  - **Règle de hiérarchie** : la barre latérale reste *plus sombre* que les
+    panneaux. En thème sombre elle descend sous eux (`#151410` contre
+    `#201f1b`) ; l'inverse la fait flotter.
+- **Suivre le système** : `followSystem`, `lightThemeName`, `darkThemeName`
+  (synchronisés). `syncSystemTheme()` applique le thème visé, et **conserve les
+  tailles de police courantes** — une bascule au coucher du soleil qui
+  remettrait aussi le corps de texte à sa valeur d'usine serait une mauvaise
+  surprise. « Charger » à la main garde, lui, son remplacement complet.
+  Deux déclencheurs : l'événement `change` de `matchMedia`, et le retour au
+  premier plan (`visibilitychange`) — le système bascule souvent pendant que
+  l'onglet est masqué, ce qui est le cas courant d'une PWA laissée ouverte.
+  Un thème visé qui n'existe plus ne déclenche rien : mieux vaut laisser le
+  thème courant que basculer vers ce que personne n'a choisi.
+- **Panneaux tièdes** (1.4.5) : `panel-bg`, `panel-header-bg` et `panel-border`
+  passent du blanc froid à un papier tiède, via `COLOR_DEFAULT_MIGRATIONS` —
+  la barre latérale est en `#201f1b`, un noir *chaud*, et les deux moitiés de
+  l'écran n'appartenaient pas à la même famille.
 - **Aides visuelles** : survoler une couleur **encadre l'élément réel** derrière le
   panneau, et **cercle la zone correspondante** dans un aperçu vivant qui se
   recompose en direct. Couverture : 28 couleurs encadrables sur l'interface, 14

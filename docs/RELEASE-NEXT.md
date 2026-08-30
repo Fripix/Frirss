@@ -13,7 +13,15 @@ la release publiée.
 
 ## Fonctionnalités
 
-_(rien pour l'instant)_
+- **Un thème sombre, enfin.** Trois thèmes livrés en plus du thème par défaut —
+  **Night**, **Paper** et **High Contrast** — présentés en galerie de vignettes
+  en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
+  il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
+  36 couleurs à la main.
+- **Le thème peut suivre le système.** Un interrupteur, puis le choix du thème
+  clair et du thème sombre. La bascule conserve vos tailles de police, et se
+  rejoue aussi au retour dans l'application — le système change souvent d'avis
+  pendant que l'onglet est en arrière-plan.
 
 ## Corrections et améliorations
 
@@ -41,6 +49,11 @@ _(rien pour l'instant)_
   leur infobulle, que le tactile n'affiche jamais.
 - **« Mouvement réduit » est respecté partout**, y compris par les deux
   transitions de navigation mobile, dont les durées échappaient au CSS.
+- **Les panneaux ne sont plus d'un blanc froid.** La barre latérale est un noir
+  chaud ; les panneaux à côté étaient en blanc pur, et les deux moitiés de
+  l'écran n'allaient pas ensemble. Le blanc pur est aussi le fond le plus
+  fatigant en lecture longue. Un thème personnalisé n'est pas touché : seules
+  les valeurs restées à l'ancien défaut sont reprises.
 
 ## Sous le capot
 

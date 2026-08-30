@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useThemeStore } from '../../stores/themeStore';
+import { useThemeStore, SHIPPED_THEMES } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { TabResetButton } from './TabResetButton';
 import ThemePreview from './ThemePreview';
+import ToggleSwitch from '../ToggleSwitch';
 import { hasRealHighlight, PREVIEW_ZONES } from './colorHighlight';
 
 type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
@@ -107,6 +108,9 @@ function ThemeSection() {
 
   return (
     <div className="space-y-5">
+      <ThemePresets />
+      <FollowSystem />
+
       {/* Save current */}
       <div>
         <h3
@@ -149,7 +153,9 @@ function ThemeSection() {
           </h3>
           <div className="space-y-1">
             {savedThemes.map((st) => {
-              const isDefault = st.name === 'FriRSS Default';
+              // Les thèmes livrés ne se suppriment pas : ils reviendraient au
+              // chargement suivant, et « suivre le système » a besoin d'eux.
+              const isDefault = SHIPPED_THEMES.some((sh) => sh.name === st.name);
               const isActive = st.name === theme.name;
               return (
                 <div
@@ -249,6 +255,158 @@ function ThemeSection() {
           <p className="text-red-400 text-xs mt-1">{importError}</p>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Préréglages livrés ─────────────────────────────────────────────
+ * Le moteur de thèmes savait tout faire sauf proposer un point de départ :
+ * atteindre un thème sombre demandait de régler 36 couleurs à la main.
+ * Chaque vignette est un aperçu réel, peinte avec les couleurs du préréglage. */
+
+function ThemePresets() {
+  const { t } = useTranslation();
+  const theme = useThemeStore((s) => s.theme);
+  const loadSavedTheme = useThemeStore((s) => s.loadSavedTheme);
+
+  return (
+    <div>
+      <h3
+        className="text-[11px] font-bold uppercase tracking-widest mb-1"
+        style={{ color: 'var(--list-summary)' }}
+      >
+        {t('preferences.themes.presets')}
+      </h3>
+      <p className="text-[11px] mb-2.5" style={{ color: 'var(--list-summary)' }}>
+        {t('preferences.themes.presetsHint')}
+      </p>
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(116px, 1fr))' }}>
+        {SHIPPED_THEMES.map((preset) => {
+          const active = theme.name === preset.name;
+          return (
+            <button
+              key={preset.name}
+              onClick={() => loadSavedTheme(preset.name)}
+              aria-pressed={active}
+              className="prefs-tap-row rounded-lg overflow-hidden text-left transition-all"
+              style={{
+                border: active
+                  ? '2px solid var(--accent)'
+                  : '1px solid var(--panel-border)',
+                boxShadow: active ? '0 0 0 3px var(--accent-glow)' : undefined,
+              }}
+            >
+              {/* Aperçu : bande latérale + panneau, comme l'écran réel */}
+              <div className="flex h-11" aria-hidden="true">
+                <div
+                  className="w-1/3 flex items-end p-1"
+                  style={{ background: preset.colors['sidebar-bg'] }}
+                >
+                  <span
+                    className="block w-full h-1 rounded-full"
+                    style={{ background: preset.colors['accent'] }}
+                  />
+                </div>
+                <div
+                  className="flex-1 flex flex-col justify-center gap-1 px-1.5"
+                  style={{ background: preset.colors['panel-bg'] }}
+                >
+                  <span
+                    className="block h-1 w-4/5 rounded-full"
+                    style={{ background: preset.colors['list-title'] }}
+                  />
+                  <span
+                    className="block h-1 w-3/5 rounded-full"
+                    style={{ background: preset.colors['list-summary'] }}
+                  />
+                </div>
+              </div>
+              <div
+                className="px-1.5 py-1 text-[10px] font-semibold truncate"
+                style={{
+                  color: active ? 'var(--accent)' : 'var(--list-title)',
+                  background: 'var(--panel-header-bg)',
+                }}
+              >
+                {preset.name.replace(/^FriRSS /, '')}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Suivre le thème du système ─────────────────────────────────────── */
+
+function FollowSystem() {
+  const { t } = useTranslation();
+  const savedThemes = useThemeStore((s) => s.savedThemes);
+  const followSystem = useThemeStore((s) => s.followSystem);
+  const lightThemeName = useThemeStore((s) => s.lightThemeName);
+  const darkThemeName = useThemeStore((s) => s.darkThemeName);
+  const setFollowSystem = useThemeStore((s) => s.setFollowSystem);
+  const setSchemeTheme = useThemeStore((s) => s.setSchemeTheme);
+
+  const selectStyle = {
+    border: '1px solid var(--panel-border)',
+    color: 'var(--list-title)',
+    background: 'var(--panel-header-bg)',
+  };
+
+  return (
+    <div>
+      <div className="prefs-tap-row flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium" style={{ color: 'var(--list-title)' }}>
+            {t('preferences.themes.followSystem')}
+          </p>
+          <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.themes.followSystemHint')}
+          </p>
+        </div>
+        <ToggleSwitch
+          checked={followSystem}
+          onChange={setFollowSystem}
+          ariaLabel={t('preferences.themes.followSystem')}
+        />
+      </div>
+
+      {followSystem && (
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium" style={{ color: 'var(--list-summary)' }}>
+              {t('preferences.themes.lightTheme')}
+            </span>
+            <select
+              value={lightThemeName}
+              onChange={(e) => setSchemeTheme('light', e.target.value)}
+              className="px-2 py-1.5 text-xs rounded-md"
+              style={selectStyle}
+            >
+              {savedThemes.map((st) => (
+                <option key={st.name} value={st.name}>{st.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium" style={{ color: 'var(--list-summary)' }}>
+              {t('preferences.themes.darkTheme')}
+            </span>
+            <select
+              value={darkThemeName}
+              onChange={(e) => setSchemeTheme('dark', e.target.value)}
+              className="px-2 py-1.5 text-xs rounded-md"
+              style={selectStyle}
+            >
+              {savedThemes.map((st) => (
+                <option key={st.name} value={st.name}>{st.name}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
     </div>
   );
 }
