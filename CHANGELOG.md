@@ -6,6 +6,55 @@ release live on its [release page](https://github.com/Fripix/Frirss/releases).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 FriRSS follows [semantic versioning](https://semver.org/).
 
+## [1.4.4] — 2026-08-30
+
+Version de sécurité et de correction : aucune nouvelle fonctionnalité, et rien à
+faire à la mise à jour.
+
+### Security
+
+- **Le jeton FreshRSS ne peut plus partir chez un tiers.** Le proxy décidait de
+  l'attacher en comparant la cible à l'URL du serveur par simple préfixe de
+  chaîne, si bien que `https://serveur.tld.tiers.tld/` et
+  `https://serveur.tld@tiers.tld/` passaient tous deux le contrôle. Les URL
+  d'images et de favicons venant du contenu des flux, un flux hostile suffisait
+  à faire envoyer le jeton — un accès complet au compte FreshRSS — vers son
+  propre domaine. La comparaison porte désormais sur l'origine analysée.
+- **L'inscription est fermée par défaut.** Le premier compte reste toujours
+  autorisé ; les instances existantes gardent leur réglage.
+- **Le backend ne s'exécute plus en root** (`PUID`/`PGID`, 1000 par défaut). Le
+  répertoire de données est adopté au démarrage : aucune action requise.
+- **Les requêtes proxifiées sont plafonnées par utilisateur**
+  (`FRIRSS_PROXY_RATE_LIMIT`, 600/min, `0` désactive).
+- **L'authentification est vérifiée avant la lecture du corps de requête.**
+- **Les écritures de préférences sont bornées** — longueur de clé, taille de
+  valeur, nombre par requête et total par utilisateur.
+- **Les fichiers statiques portent les en-têtes de sécurité.** `/sw.js` en est
+  délibérément exclu : un service worker applique à ses propres `fetch()` la CSP
+  livrée avec son script, et ne pourrait plus récupérer une image tierce.
+- **L'extraction d'article n'archive plus de balisage plus large qu'affiché.**
+- **La découverte OIDC passe par le garde anti-SSRF.**
+- **Le proxy ouvert du serveur de développement est supprimé.**
+
+### Fixed
+
+- **« Marquer tout comme lu » n'est plus proposé dans Favoris et À lire plus
+  tard**, où il marquait toute la liste de lecture.
+- **Retirer un favori ne fait plus disparaître la ligne.**
+- **Le favori et « à lire plus tard » sont enregistrés dans le cache
+  hors-ligne.**
+- **Les actions faites hors ligne ne sont plus rejouées en double.**
+
+### Changed
+
+- Code mort retiré : le repli `X-Freshrss-Auth` du proxy, une règle CSS
+  orpheline, deux dépendances de développement jamais importées.
+- `SECURITY.md` consigne une limite connue du garde anti-SSRF : il ne fixe pas
+  l'adresse qu'il a validée, ce qui laisse passer un DNS rebinding.
+- Le garde-fou de l'inventaire relève les variables d'environnement dans le
+  code ; la CI vérifie qu'aucun processus applicatif ne tourne en root et que
+  `/sw.js` ne porte ni CSP ni `immutable`.
+
 ## [1.4.3] — 2026-08-28
 
 ### Added

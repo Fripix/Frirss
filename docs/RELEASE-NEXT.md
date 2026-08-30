@@ -1,4 +1,4 @@
-# 1.4.4 — en préparation
+# 1.4.5 — en préparation
 
 Journal des changements du cycle en cours, tenu au fil de l'eau. Il alimente les
 notes de la release GitHub et les corrections du README, puis se vide une fois
@@ -17,115 +17,16 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-- **Sécurité — le jeton FreshRSS ne peut plus partir chez un tiers.** Le proxy
-  décidait d'attacher le jeton en comparant la cible à l'URL du serveur par
-  simple préfixe de chaîne : `https://serveur.tld.tiers.tld/` et
-  `https://serveur.tld@tiers.tld/` passaient tous deux le contrôle, alors que
-  ni l'un ni l'autre n'est le serveur. Les URL d'images d'articles et de
-  favicons venant du contenu des flux, un flux hostile suffisait à faire
-  envoyer le jeton — un accès complet au compte FreshRSS — vers son propre
-  domaine. La comparaison porte désormais sur l'origine analysée, chemin
-  compris.
-
-- **Sécurité — le proxy a désormais un plafond de cadence.** Un compte
-  authentifié pouvait faire émettre au backend autant de requêtes sortantes
-  qu'il le voulait : le proxy venait avec un relais anonymisant offert. Le
-  plafond est de 600 requêtes par utilisateur et par minute, réglable par
-  `FRIRSS_PROXY_RATE_LIMIT` (`0` désactive). Il est délibérément haut : la
-  préparation hors-ligne, de loin le plus gros consommateur, reste sous la
-  centaine de requêtes par minute.
-- **Sécurité — l'authentification est vérifiée avant de lire le corps d'une
-  requête proxifiée.** Un inconnu pouvait faire allouer jusqu'à 5 Mo par
-  requête avant de recevoir son 401.
-- **Sécurité — les préférences ne peuvent plus grossir sans fin.** Ni la
-  longueur des clés, ni la taille des valeurs, ni leur nombre n'étaient bornés :
-  un compte authentifié pouvait remplir le volume SQLite. Les plafonds (clé ≤
-  128 caractères, valeur ≤ 1 Mio, 200 clés par requête, 500 par utilisateur)
-  laissent une large marge au client réel.
-- **Sécurité — les fichiers statiques portent enfin les en-têtes de sécurité.**
-  nginx sert chaque requête depuis une seule location, et celle des `.js`,
-  `.css` et `.svg` l'emportait sur celle qui posait la CSP : ces fichiers
-  sortaient sans CSP ni `nosniff`. Cela comptait surtout pour les `.svg`, qu'un
-  navigateur traite comme un document de même origine pouvant porter du script.
-  **`/sw.js` en est délibérément exclu** : un service worker applique à ses
-  propres `fetch()` la CSP livrée avec son script, et sous `connect-src 'self'`
-  celui qui met les images en cache ne pourrait plus en récupérer une seule. Il
-  n'est pas non plus déclaré `immutable` — c'est le seul fichier non versionné
-  par un hash, et le seul chemin par lequel une mise à jour du worker arrive.
-- **Sécurité — le contenu extrait n'est plus archivé plus large qu'il n'est
-  affiché.** L'assainissement de l'extraction acceptait n'importe quel
-  `<iframe>`. Rien ne l'affichait — le volet de lecture réassainit tout — mais
-  le résultat était stocké tel quel, et cette innocuité ne tenait qu'à la
-  vigilance de chaque consommateur. Seules restent les vidéos que la façade
-  sait transformer en lecteur.
-- **Sécurité — le backend n'est plus exécuté en root.** Node tourne désormais
-  sous un compte non privilégié (`PUID`/`PGID`, 1000 par défaut). Auparavant, la
-  moindre exécution de code dans ce processus possédait le conteneur,
-  `/app/data` compris — donc le secret JWT et la clé de chiffrement des jetons.
-  nginx conserve exactement les privilèges qu'il avait, master root et workers
-  non privilégiés, pour qu'aucun déploiement existant ne change de
-  comportement. Aucune action n'est requise : l'entrypoint adopte le répertoire
-  de données existant au démarrage.
-- **Sécurité — l'inscription est désormais fermée par défaut.** Une instance
-  neuve exposée publiquement acceptait l'inscription de n'importe qui, et un
-  compte est ce qui donne accès au proxy sortant. Le premier compte reste
-  toujours autorisé — l'installateur n'est jamais enfermé dehors — et
-  l'ouverture se fait depuis Préférences → Administration. **Les instances
-  existantes ne changent pas de comportement** : elles gardent le réglage
-  qu'elles ont déjà enregistré.
-- **« Marquer tout comme lu » disparaît des vues Favoris et À lire plus tard.**
-  Le bouton y était affiché alors que l'action ne connaît pas le filtre : depuis
-  la vue Favoris, un contrôle qui se lit « marquer ces articles comme lus »
-  marquait toute la liste de lecture et remettait tous les compteurs à zéro.
-- **Retirer un favori ne fait plus disparaître la ligne.** La vue Favoris était
-  la seule à sortir l'article de la liste au lieu de simplement le mettre à
-  jour, contrairement à « lu » et à « à lire plus tard ». Elle se réconcilie
-  désormais au rechargement, comme les autres — et un refus du serveur ne peut
-  plus faire disparaître un article qui reste en favori côté FreshRSS.
-- **Le favori et « à lire plus tard » sont enregistrés dans le cache
-  hors-ligne.** Seule la lecture l'était : mettre un favori puis rouvrir
-  l'application sans réseau le montrait non favori.
-- **Les actions faites hors ligne ne sont plus rejouées en double.** Le rejeu se
-  déclenche au démarrage et au retour du réseau ; deux déclenchements
-  rapprochés se chevauchaient.
+_(rien pour l'instant)_
 
 ## Sous le capot
 
-- **Nettoyage — trois reliquats sans consommateur retirés.** Le repli
-  `X-Freshrss-Auth` du proxy, que plus rien n'envoyait depuis longtemps et qui
-  laissait un compte authentifié choisir l'en-tête d'identification d'une
-  requête sortante ; la classe CSS `.line-clamp-1`, orpheline ; et deux
-  dépendances de développement jamais importées (`@testing-library/jest-dom`,
-  `@testing-library/user-event`).
-
-- **La découverte OIDC passe par le garde anti-SSRF.** C'était le seul appel
-  sortant du serveur à utiliser `fetch()` directement, sur une URL d'émetteur
-  que l'administrateur fixe librement.
-- **Le proxy ouvert du serveur de développement est supprimé.** Il relayait vers
-  n'importe quelle URL en réexpédiant tous les en-têtes du client, en-têtes
-  d'authentification compris — l'équivalent de l'endpoint retiré de la
-  production en 1.3.1. Plus rien ne l'utilisait.
+_(rien pour l'instant)_
 
 ## Actions requises à la mise à jour
 
-- **Rien à faire.** Le passage à un conteneur non privilégié adopte tout seul le
-  répertoire de données existant, et le nouveau défaut d'inscription ne
-  s'applique qu'aux bases neuves — une instance existante garde son réglage.
-  Le conteneur n'exige aucun privilège qu'il n'exigeait pas déjà : les options
-  de durcissement qui fonctionnaient avant fonctionnent après.
+_(à compléter)_
 
 ## Documentation
 
-- **Le garde-fou de l'inventaire relève enfin les variables d'environnement dans
-  le code.** Il lisait le tableau du `README.md` : il ne pouvait donc attraper
-  qu'un oubli entre deux documents, jamais une variable neuve absente des deux.
-  Trois variables réellement lues n'étaient pas inventoriées (`NODE_ENV`,
-  `PORT`, `FRIRSS_DEV_VERSION`) ; elles le sont.
-- **`SECURITY.md` consigne une limite connue du garde anti-SSRF.** Le garde ne
-  fixe pas l'adresse qu'il a validée, ce qui laisse passer un DNS rebinding. Le
-  correctif et son coût sont écrits noir sur blanc, ainsi que ce qui devrait
-  faire changer d'avis.
-- **`docs/FEATURES.md` : l'extraction ne passe plus par `/cors-proxy/`.**
-  L'inventaire annonçait un endpoint supprimé de la production en 1.3.1. Il
-  décrit maintenant le vrai chemin (`/api/proxy`), la frontière
-  d'assainissement de l'extraction, et le comportement des en-têtes nginx.
+_(rien pour l'instant)_
