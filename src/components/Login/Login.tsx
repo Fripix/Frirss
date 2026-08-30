@@ -175,9 +175,14 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
           />
           <h1 className="text-2xl font-bold text-white">{t('login.welcome')}</h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--sidebar-text)' }}>
+            {/* En mode connexion, le sous-titre disait « Connexion » entre
+                « Bienvenue sur FriRSS » et le bouton « Se connecter » : trois
+                fois la même chose, dont deux qui ne servent à rien. Il dit
+                maintenant ce que l'application EST. En inscription et en
+                restauration il porte une vraie information : on la garde. */}
             {mode === 'restore'
               ? t('backup.restoreTitle')
-              : isRegister ? t('login.registerTitle') : t('login.loginTitle')}
+              : isRegister ? t('login.registerTitle') : t('login.tagline')}
           </p>
           {/* La note et la branche de restauration vivaient ici, posées à même
               l'animation de fond : trop peu contrastées pour être lues. Elles
@@ -671,26 +676,57 @@ interface InputFieldProps {
 // Shared input field component
 // ═════════════════════════════════════════════════════════════════════
 function InputField({ id, label, type = 'text', value, onChange, placeholder, required, autoFocus }: InputFieldProps) {
+  const { t } = useTranslation();
+  // Voir le mot de passe qu'on tape. Posé ici plutôt qu'à chaque appel : les
+  // quatre champs de mot de passe de cet écran passent tous par ce composant.
+  const [revealed, setRevealed] = useState(false);
+  const isPassword = type === 'password';
+  const inputType = isPassword && revealed ? 'text' : type;
+
   return (
     <div>
       <label htmlFor={id} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--sidebar-text)' }}>
         {label}
       </label>
-      <input
-        id={id}
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-        autoFocus={autoFocus}
-        autoComplete={type === 'password' ? 'current-password' : undefined}
-        className="w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 transition-all"
-        style={{
-          background: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.1)',
-        }}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          type={inputType}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+          autoFocus={autoFocus}
+          autoComplete={isPassword ? 'current-password' : undefined}
+          className={`w-full rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 transition-all ${isPassword ? 'pr-11' : ''}`}
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setRevealed((r) => !r)}
+            aria-label={revealed ? t('login.hidePassword') : t('login.showPassword')}
+            aria-pressed={revealed}
+            title={revealed ? t('login.hidePassword') : t('login.showPassword')}
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-lg transition-colors"
+            style={{ color: 'var(--sidebar-text)' }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+              {revealed ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+              ) : (
+                <>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </>
+              )}
+            </svg>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

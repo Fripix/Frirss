@@ -390,7 +390,6 @@
   },
   "login": {
     "welcome": "Bem-vindo ao FriRSS",
-    "loginTitle": "Início de sessão",
     "registerTitle": "Criar uma conta",
     "firstUserHint": "A primeira conta criada será a de administrador.",
     "username": "Nome de utilizador",
@@ -429,7 +428,10 @@
     "errorServer": "Falha ao ligar ao servidor FreshRSS.",
     "restorePrompt": "Está a repor a partir de uma cópia?",
     "errorTooMany": "Demasiadas tentativas. Aguarde alguns minutos antes de tentar de novo.",
-    "errorUnavailable": "O servidor não respondeu. Isto não diz nada sobre as suas credenciais."
+    "errorUnavailable": "O servidor não respondeu. Isto não diz nada sobre as suas credenciais.",
+    "tagline": "Um leitor moderno para o seu servidor FreshRSS.",
+    "showPassword": "Mostrar a palavra-passe",
+    "hidePassword": "Ocultar a palavra-passe"
   },
   "admin": {
     "users": "Utilizadores",
@@ -604,5 +606,18 @@
     "markedReadAll": "Artigos marcados como lidos",
     "linkCopied": "Ligação copiada",
     "copyFailed": "Não foi possível copiar a ligação"
+  },
+  "palette": {
+    "title": "Paleta de comandos",
+    "placeholder": "Ir para uma fonte, uma etiqueta, uma ação…",
+    "empty": "Sem resultados",
+    "navHint": "↑ ↓ para navegar · ↵ para abrir · Esc para fechar",
+    "group": {
+      "views": "Vistas",
+      "categories": "Categorias",
+      "feeds": "Fontes",
+      "labels": "Etiquetas",
+      "actions": "Ações"
+    }
   }
 }

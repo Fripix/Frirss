@@ -18,9 +18,15 @@ la release publiée.
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
   36 couleurs à la main.
+- **Un bouton pour voir le mot de passe** sur l'écran de connexion, et un
+  sous-titre qui dit ce qu'est FriRSS au lieu de répéter « Connexion » entre
+  « Bienvenue sur FriRSS » et le bouton « Se connecter ».
 - **Des messages de confirmation.** L'application ne disait jamais qu'une
   action avait abouti. Un message bref apparaît en bas de l'écran — articles
   marqués comme lus, lien copié — et disparaît seul.
+- **Une palette de commandes, sur ⌘K (Ctrl+K).** Une seule entrée pour aller à
+  un flux, une catégorie, une étiquette ou une vue, et pour lancer les actions
+  courantes. Les accents sont ignorés : « securite » trouve « Sécurité ».
 - **Marquer les articles comme lus en défilant**, en option (Préférences →
   Général, éteinte par défaut). C'est la seule façon de traiter une vue Non lus
   à trois cents entrées sans cliquer trois cents fois. Jamais pendant une

@@ -66,6 +66,19 @@ Trois étapes : compte FriRSS, puis serveur FreshRSS, puis identifiants FreshRSS
 Animation de connexion configurable (aucune / portail / scanline).
 
 - **Où** : `src/components/Login/` (`Login.tsx`, `LoginTransition.tsx`, `MatrixRain.tsx`)
+- **Voir le mot de passe** (1.4.5) : la bascule vit dans le composant partagé
+  `InputField`, donc les quatre champs de mot de passe de l'écran l'ont d'un
+  coup. `aria-pressed` porte l'état.
+- **Copie** (1.4.5) : en mode connexion, le sous-titre disait « Connexion »
+  entre « Bienvenue sur FriRSS » et le bouton « Se connecter » — trois fois la
+  même chose, dont deux inutiles. Il dit maintenant ce que l'application EST
+  (`login.tagline`). En inscription et en restauration le sous-titre portait
+  une vraie information : il la garde. `login.loginTitle` est devenue morte et
+  a été retirée des 9 locales — `i18nCoverage.test.ts` l'a signalée.
+- **Pas fait** : la composition en deux colonnes sur grand écran, proposée par
+  la revue d'interface. La branche de restauration est imbriquée dans le même
+  bloc d'en-tête que le titre, donc la refonte les emporterait ensemble ; à
+  reprendre avec cette contrainte en tête.
 
 ---
 
@@ -849,6 +862,34 @@ porteurs qui expirent.
 
 ---
 
+## Palette de commandes
+
+Entrée unique sur **⌘K / Ctrl+K** : aller à un flux, une catégorie, une
+étiquette, une vue fixe, ou lancer une action (recherche, aide-mémoire des
+raccourcis, dispositions, sections de préférences).
+
+- **Où** : `src/lib/commandPalette.ts` (recherche et classement, testés),
+  `src/components/CommandPalette.tsx`
+- **Pourquoi** : l'application avait de quoi la nourrir depuis longtemps — dix
+  raccourcis, une recherche à périmètre, flux, catégories, étiquettes, sections
+  de préférences — il manquait l'entrée unique. Avec soixante-et-onze flux,
+  atteindre le bon demandait de dérouler la barre latérale et de lire.
+- **Rien de nouveau n'est stocké** : la palette assemble ce que les stores
+  contiennent déjà. Son état d'ouverture n'est ni persisté ni synchronisé.
+- **Accents repliés** : « securite » atteint « Sécurité ». Sans cela, la moitié
+  des libellés français seraient inatteignables au clavier.
+- **Tri stable** : à score égal l'ordre d'origine est conservé, sinon la liste
+  sauterait sous le doigt à chaque frappe. Un début de libellé l'emporte sur un
+  début de mot, qui l'emporte sur une occurrence au milieu.
+- **⌘K est traité AVANT le filtre des champs de saisie** de `useKeyboardNav` :
+  la convention veut qu'il fonctionne même le curseur dans la recherche.
+- **Les catégories sont dédupliquées depuis les abonnements** : le store ne les
+  liste pas à part, ce sont les flux qui les portent.
+- **Pas encore dedans** : le changement de serveur. Il vit dans
+  `ServerSwitcher` et demanderait d'en extraire l'action.
+
+---
+
 ## Messages transitoires (toasts)
 
 Pile de messages en bas de l'écran, `role="status"` / `aria-live="polite"`.
@@ -985,7 +1026,7 @@ Chaque famille correspond à une zone de l'interface :
 `app` · `sidebar` · `addFeed` · `articleList` · `articleRow` · `swipe` ·
 `emptyState` · `readingPane` · `preferences` · `login` · `admin` · `servers` ·
 `dates` · `time` · `shortcutBar` · `viewMode` · `connection` · `update` ·
-`refresh` · `saved` · `backup` · `toast`
+`refresh` · `saved` · `backup` · `toast` · `palette`
 
 ---
 

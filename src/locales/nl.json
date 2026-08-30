@@ -390,7 +390,6 @@
   },
   "login": {
     "welcome": "Welkom bij FriRSS",
-    "loginTitle": "Aanmelden",
     "registerTitle": "Een account aanmaken",
     "firstUserHint": "Het eerste account wordt beheerder.",
     "username": "Gebruikersnaam",
@@ -429,7 +428,10 @@
     "errorServer": "Verbinden met de FreshRSS-server is mislukt.",
     "restorePrompt": "Herstellen vanaf een back-up?",
     "errorTooMany": "Te veel pogingen. Wacht enkele minuten voordat u het opnieuw probeert.",
-    "errorUnavailable": "De server heeft niet geantwoord. Dat zegt niets over uw gegevens."
+    "errorUnavailable": "De server heeft niet geantwoord. Dat zegt niets over uw gegevens.",
+    "tagline": "Een moderne lezer voor je FreshRSS-server.",
+    "showPassword": "Wachtwoord tonen",
+    "hidePassword": "Wachtwoord verbergen"
   },
   "admin": {
     "users": "Gebruikers",
@@ -604,5 +606,18 @@
     "markedReadAll": "Artikelen als gelezen gemarkeerd",
     "linkCopied": "Link gekopieerd",
     "copyFailed": "Kon de link niet kopiëren"
+  },
+  "palette": {
+    "title": "Opdrachtenpalet",
+    "placeholder": "Naar een feed, een label, een actie…",
+    "empty": "Geen resultaten",
+    "navHint": "↑ ↓ om te navigeren · ↵ om te openen · Esc om te sluiten",
+    "group": {
+      "views": "Weergaven",
+      "categories": "Categorieën",
+      "feeds": "Feeds",
+      "labels": "Labels",
+      "actions": "Acties"
+    }
   }
 }

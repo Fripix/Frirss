@@ -390,7 +390,6 @@
   },
   "login": {
     "welcome": "Willkommen bei FriRSS",
-    "loginTitle": "Anmeldung",
     "registerTitle": "Konto erstellen",
     "firstUserHint": "Das erste Konto wird zum Administrator.",
     "username": "Benutzername",
@@ -429,7 +428,10 @@
     "errorServer": "Verbindung zum FreshRSS-Server fehlgeschlagen.",
     "restorePrompt": "Aus einer Sicherung wiederherstellen?",
     "errorTooMany": "Zu viele Versuche. Warten Sie einige Minuten.",
-    "errorUnavailable": "Der Server hat nicht geantwortet. Das sagt nichts über Ihre Zugangsdaten aus."
+    "errorUnavailable": "Der Server hat nicht geantwortet. Das sagt nichts über Ihre Zugangsdaten aus.",
+    "tagline": "Ein moderner Reader für Ihren FreshRSS-Server.",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen"
   },
   "admin": {
     "users": "Benutzer",
@@ -604,5 +606,18 @@
     "markedReadAll": "Artikel als gelesen markiert",
     "linkCopied": "Link kopiert",
     "copyFailed": "Link konnte nicht kopiert werden"
+  },
+  "palette": {
+    "title": "Befehlspalette",
+    "placeholder": "Zu einem Feed, Label oder einer Aktion…",
+    "empty": "Keine Treffer",
+    "navHint": "↑ ↓ zum Navigieren · ↵ zum Öffnen · Esc zum Schließen",
+    "group": {
+      "views": "Ansichten",
+      "categories": "Kategorien",
+      "feeds": "Feeds",
+      "labels": "Labels",
+      "actions": "Aktionen"
+    }
   }
 }

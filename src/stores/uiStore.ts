@@ -66,6 +66,9 @@ export interface UiState {
   /** Fenêtre d'aide-mémoire des raccourcis (`?`). Ni persistée ni synchronisée. */
   shortcutHelpOpen: boolean;
   setShortcutHelpOpen: (open: boolean) => void;
+  /** Palette de commandes (⌘K). Ni persistée ni synchronisée. */
+  commandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
 
   toasts: Toast[];
   /** Empile un message ; renvoie son identifiant. */
@@ -545,6 +548,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
   // aucun sens.
   shortcutHelpOpen: false,
   setShortcutHelpOpen: (open) => set({ shortcutHelpOpen: open }),
+
+  commandPaletteOpen: false,
+  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
 
   toasts: [],
   pushToast: (message, opts) => {

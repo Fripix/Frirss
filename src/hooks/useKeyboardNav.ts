@@ -9,6 +9,15 @@ export function useKeyboardNav(): void {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Palette de commandes — AVANT le filtre des champs de saisie : ⌘K doit
+      // fonctionner même le curseur dans la recherche, c'est la convention.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        const ui = useUiStore.getState();
+        ui.setCommandPaletteOpen(!ui.commandPaletteOpen);
+        return;
+      }
+
       // Ignore when typing in an input/textarea/contenteditable
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;

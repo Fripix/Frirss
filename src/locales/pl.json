@@ -396,7 +396,6 @@
   },
   "login": {
     "welcome": "Witamy w FriRSS",
-    "loginTitle": "Logowanie",
     "registerTitle": "Utwórz konto",
     "firstUserHint": "Pierwsze utworzone konto będzie kontem administratora.",
     "username": "Nazwa użytkownika",
@@ -435,7 +434,10 @@
     "errorServer": "Nie udało się połączyć z serwerem FreshRSS.",
     "restorePrompt": "Odtwarzasz z kopii zapasowej?",
     "errorTooMany": "Zbyt wiele prób. Odczekaj kilka minut.",
-    "errorUnavailable": "Serwer nie odpowiedział. To nic nie mówi o Twoich danych logowania."
+    "errorUnavailable": "Serwer nie odpowiedział. To nic nie mówi o Twoich danych logowania.",
+    "tagline": "Nowoczesny czytnik dla Twojego serwera FreshRSS.",
+    "showPassword": "Pokaż hasło",
+    "hidePassword": "Ukryj hasło"
   },
   "admin": {
     "users": "Użytkownicy",
@@ -620,5 +622,18 @@
     "markedReadAll": "Artykuły oznaczone jako przeczytane",
     "linkCopied": "Skopiowano link",
     "copyFailed": "Nie udało się skopiować linku"
+  },
+  "palette": {
+    "title": "Paleta poleceń",
+    "placeholder": "Przejdź do kanału, etykiety, akcji…",
+    "empty": "Brak wyników",
+    "navHint": "↑ ↓ nawigacja · ↵ otwórz · Esc zamknij",
+    "group": {
+      "views": "Widoki",
+      "categories": "Kategorie",
+      "feeds": "Kanały",
+      "labels": "Etykiety",
+      "actions": "Akcje"
+    }
   }
 }
