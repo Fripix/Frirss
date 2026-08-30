@@ -139,7 +139,9 @@
     "focusHint": "Doppelklick auf den Artikel, Esc zum Verlassen",
     "videoPlay": "Video abspielen",
     "videoOpen": "Auf YouTube öffnen",
-    "videoOffline": "Video offline nicht verfügbar"
+    "videoOffline": "Video offline nicht verfügbar",
+    "share": "Teilen",
+    "copyLink": "Link kopieren"
   },
   "preferences": {
     "title": "Einstellungen",
@@ -587,5 +589,13 @@
     "errSchema": "Die Sicherung enthält Daten, die diese FriRSS-Version nicht einordnen kann – vermutlich stammt sie von einer neueren Version. Es wurde nichts geändert.",
     "errTooMany": "Zu viele Versuche. Bitte später erneut versuchen.",
     "errConfigured": "Diese Instanz hat bereits Konten – eine Wiederherstellung beim Erststart ist nicht mehr möglich. Nutzen Sie Einstellungen → Administration."
+  },
+  "toast": {
+    "dismiss": "Schließen",
+    "markedRead_one": "{{count}} Artikel als gelesen markiert",
+    "markedRead_other": "{{count}} Artikel als gelesen markiert",
+    "markedReadAll": "Artikel als gelesen markiert",
+    "linkCopied": "Link kopiert",
+    "copyFailed": "Link konnte nicht kopiert werden"
   }
 }

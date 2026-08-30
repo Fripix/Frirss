@@ -139,7 +139,9 @@
     "focusHint": "doble clic en el artículo, Esc para salir",
     "videoPlay": "Reproducir el vídeo",
     "videoOpen": "Abrir en YouTube",
-    "videoOffline": "Vídeo no disponible sin conexión"
+    "videoOffline": "Vídeo no disponible sin conexión",
+    "share": "Compartir",
+    "copyLink": "Copiar enlace"
   },
   "preferences": {
     "title": "Preferencias",
@@ -587,5 +589,13 @@
     "errSchema": "La copia contiene un dato que esta versión de FriRSS no sabe clasificar, probablemente porque procede de una versión más reciente. No se ha modificado nada.",
     "errTooMany": "Demasiados intentos. Inténtalo de nuevo más tarde.",
     "errConfigured": "Esta instancia ya tiene cuentas: la restauración de primer arranque ya no es posible. Usa Preferencias → Administración."
+  },
+  "toast": {
+    "dismiss": "Cerrar",
+    "markedRead_one": "{{count}} artículo marcado como leído",
+    "markedRead_other": "{{count}} artículos marcados como leídos",
+    "markedReadAll": "Artículos marcados como leídos",
+    "linkCopied": "Enlace copiado",
+    "copyFailed": "No se pudo copiar el enlace"
   }
 }

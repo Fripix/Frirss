@@ -55,6 +55,7 @@ export default function ArticleList() {
   const showFavicons = useUiStore((s) => s.showFavicons);
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const unreadCounts = useFeedStore((s) => s.unreadCounts);
+  const pushToast = useUiStore((s) => s.pushToast);
   const showSourceInAll = useUiStore((s) => s.showSourceInAll);
   const toggleShowSourceInFeed = useUiStore((s) => s.toggleShowSourceInFeed);
   const toggleShowSourceInAll = useUiStore((s) => s.toggleShowSourceInAll);
@@ -272,7 +273,17 @@ export default function ArticleList() {
       setTimeout(() => setMarkAllConfirm(false), 3000);
       return;
     }
+    // Le compte vient du compteur de non-lus de la vue, pas des articles
+    // chargés : le serveur vide TOUT le flux, pas seulement la page affichée.
+    // Il n'y a **pas** d'annulation, et il ne peut pas y en avoir d'honnête :
+    // l'API marque le flux entier à une date donnée, sans jamais dire quels
+    // articles étaient concernés. Restaurer les seuls articles en mémoire
+    // rendrait une partie de la vue non lue et laisserait le reste lu, avec
+    // des compteurs qui mentiraient. La confirmation avant reste donc le
+    // garde-fou. Voir `markAllRead.ts`.
+    const count = headerUnread;
     markAllAsRead();
+    pushToast(count ? t('toast.markedRead', { count }) : t('toast.markedReadAll'));
     setMarkAllConfirm(false);
   }
 

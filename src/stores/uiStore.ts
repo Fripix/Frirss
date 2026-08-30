@@ -17,6 +17,10 @@ function normalizeImagePreset(v: unknown): OfflineImagePreset {
 
 export type Shortcuts = Record<string, string>;
 
+/* Identifiant croissant : deux messages identiques doivent coexister, donc la
+ * clé ne peut pas être le texte. */
+let toastSeq = 0;
+
 const defaultShortcuts: Shortcuts = {
   nextArticle: 'ArrowDown',
   prevArticle: 'ArrowUp',
@@ -40,7 +44,30 @@ export interface FeedSetting {
   layout?: string;
 }
 
+/**
+ * Message transitoire. L'application n'avait aucun retour de ce genre — deux
+ * bandeaux fixes (hors ligne, relève) et rien d'autre — donc une action réussie
+ * ne se disait jamais, et une action échouée ne se disait qu'en changeant l'état
+ * affiché.
+ */
+export interface Toast {
+  id: number;
+  message: string;
+  /** Action facultative. N'en poser une que si elle est réellement réalisable. */
+  action?: { label: string; run: () => void };
+  /** Message d'échec : couleur d'alerte plutôt que neutre. */
+  tone?: 'error';
+}
+
+/** Au-delà, les plus anciens sortent — une pile de messages masquerait l'app. */
+export const MAX_TOASTS = 3;
+
 export interface UiState {
+  toasts: Toast[];
+  /** Empile un message ; renvoie son identifiant. */
+  pushToast: (message: string, opts?: { action?: Toast['action']; tone?: Toast['tone'] }) => number;
+  dismissToast: (id: number) => void;
+
   viewMode: string;
   setViewMode: (mode: string) => void;
   mobileReadingFontSize: number;
@@ -497,6 +524,19 @@ export const useUiStore = create<UiState>()((set, get) => ({
     localStorage.setItem('frirss_shortcuts', JSON.stringify(defaultShortcuts));
     set({ shortcuts: { ...defaultShortcuts } });
   },
+
+  // Les toasts ne sont ni persistés ni synchronisés : un message transitoire
+  // n'est pas une préférence, et le rejouer sur un autre appareil n'aurait
+  // aucun sens.
+  toasts: [],
+  pushToast: (message, opts) => {
+    const id = ++toastSeq;
+    set((state) => ({
+      toasts: [...state.toasts, { id, message, ...opts }].slice(-MAX_TOASTS),
+    }));
+    return id;
+  },
+  dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 
   refreshHintDismissed: loadJson('frirss_refreshHintDismissed', false),
   dismissRefreshHint: () => {

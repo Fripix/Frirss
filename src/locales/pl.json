@@ -139,7 +139,9 @@
     "focusHint": "podwójne kliknięcie artykułu, Esc aby wyjść",
     "videoPlay": "Odtwórz wideo",
     "videoOpen": "Otwórz w YouTube",
-    "videoOffline": "Wideo niedostępne offline"
+    "videoOffline": "Wideo niedostępne offline",
+    "share": "Udostępnij",
+    "copyLink": "Kopiuj link"
   },
   "preferences": {
     "title": "Preferencje",
@@ -601,5 +603,15 @@
     "errSchema": "Kopia zawiera dane, których ta wersja FriRSS nie potrafi zapisać — prawdopodobnie pochodzi z nowszej wersji. Nic nie zostało zmienione.",
     "errTooMany": "Zbyt wiele prób. Spróbuj ponownie później.",
     "errConfigured": "Ta instancja ma już konta, więc odtwarzanie przy pierwszym uruchomieniu nie jest możliwe. Użyj Ustawienia → Administracja."
+  },
+  "toast": {
+    "dismiss": "Zamknij",
+    "markedRead_one": "Oznaczono {{count}} artykuł jako przeczytany",
+    "markedRead_few": "Oznaczono {{count}} artykuły jako przeczytane",
+    "markedRead_many": "Oznaczono {{count}} artykułów jako przeczytane",
+    "markedRead_other": "Oznaczono {{count}} artykułów jako przeczytane",
+    "markedReadAll": "Artykuły oznaczone jako przeczytane",
+    "linkCopied": "Skopiowano link",
+    "copyFailed": "Nie udało się skopiować linku"
   }
 }

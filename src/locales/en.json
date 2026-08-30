@@ -139,7 +139,9 @@
     "focusHint": "double-click the article, Esc to exit",
     "videoPlay": "Play video",
     "videoOpen": "Open on YouTube",
-    "videoOffline": "Video unavailable offline"
+    "videoOffline": "Video unavailable offline",
+    "share": "Share",
+    "copyLink": "Copy link"
   },
   "preferences": {
     "title": "Preferences",
@@ -587,5 +589,13 @@
     "errSchema": "The backup contains data this version of FriRSS does not know how to store, probably because it comes from a newer version. Nothing was changed.",
     "errTooMany": "Too many attempts. Try again later.",
     "errConfigured": "This instance already has accounts, so first-boot restore no longer applies. Use Preferences → Administration instead."
+  },
+  "toast": {
+    "dismiss": "Dismiss",
+    "markedRead_one": "{{count}} article marked read",
+    "markedRead_other": "{{count}} articles marked read",
+    "markedReadAll": "Articles marked read",
+    "linkCopied": "Link copied",
+    "copyFailed": "Could not copy the link"
   }
 }

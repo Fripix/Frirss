@@ -139,7 +139,9 @@
     "focusHint": "dubbelklik op het artikel, Esc om te verlaten",
     "videoPlay": "Video afspelen",
     "videoOpen": "Openen op YouTube",
-    "videoOffline": "Video offline niet beschikbaar"
+    "videoOffline": "Video offline niet beschikbaar",
+    "share": "Delen",
+    "copyLink": "Link kopiëren"
   },
   "preferences": {
     "title": "Voorkeuren",
@@ -587,5 +589,13 @@
     "errSchema": "De back-up bevat gegevens die deze versie van FriRSS niet kan verwerken, waarschijnlijk omdat ze van een nieuwere versie komt. Er is niets gewijzigd.",
     "errTooMany": "Te veel pogingen. Probeer het later opnieuw.",
     "errConfigured": "Deze installatie heeft al accounts: terugzetten bij eerste start kan niet meer. Gebruik Voorkeuren → Beheer."
+  },
+  "toast": {
+    "dismiss": "Sluiten",
+    "markedRead_one": "{{count}} artikel als gelezen gemarkeerd",
+    "markedRead_other": "{{count}} artikelen als gelezen gemarkeerd",
+    "markedReadAll": "Artikelen als gelezen gemarkeerd",
+    "linkCopied": "Link gekopieerd",
+    "copyFailed": "Kon de link niet kopiëren"
   }
 }

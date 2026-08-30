@@ -18,6 +18,7 @@ import ResizeHandle from './components/ResizeHandle';
 import ServerSwitcher from './components/ServerSwitcher/ServerSwitcher';
 import ShortcutBar from './components/ShortcutBar';
 import OfflineBanner from './components/OfflineBanner';
+import Toaster from './components/Toaster';
 import { effectiveLayout } from './lib/effectiveLayout';
 import MobileDrawer from './components/MobileDrawer';
 import MobileStack from './components/MobileStack';
@@ -345,6 +346,7 @@ export default function App() {
         )}
         {transitionLayer}
       <OfflineBanner />
+      <Toaster />
       </>
     );
   }
@@ -393,6 +395,7 @@ export default function App() {
         )}
         {transitionLayer}
       <OfflineBanner />
+      <Toaster />
       </>
     );
   }
@@ -470,6 +473,7 @@ export default function App() {
         )}
       {transitionLayer}
       <OfflineBanner />
+      <Toaster />
     </>
   );
 }

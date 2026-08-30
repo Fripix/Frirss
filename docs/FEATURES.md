@@ -245,6 +245,12 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   qui ne joue **qu'au montage** de ce nœud : changer d'article réutilise le
   même élément, si bien que la seule animation réelle est la bascule
   squelette → corps, qui se faisait dans la même image et clignotait.
+- **Partager / copier le lien** (1.4.5) : `navigator.share()` là où l'API
+  existe, sinon le presse-papiers avec un toast de confirmation. Le volet ne
+  proposait que « ouvrir l'original » : dans la PWA iOS installée, envoyer un
+  article à quelqu'un obligeait à l'ouvrir d'abord dans Safari. Un partage
+  **annulé par l'utilisateur** (`AbortError`) n'affiche rien — ce n'est pas un
+  échec.
 - **Images** : `max-height: 80vh` avec `width: auto`. Sans plafond, une
   infographie verticale — courante en tech et en sécurité — occupait trois
   écrans et coupait la lecture en deux.
@@ -784,6 +790,40 @@ porteurs qui expirent.
 
 ---
 
+## Messages transitoires (toasts)
+
+Pile de messages en bas de l'écran, `role="status"` / `aria-live="polite"`.
+Trois au maximum ; au-delà, les plus anciens sortent.
+
+- **Où** : `src/stores/uiStore.ts` (`toasts`, `pushToast`, `dismissToast`,
+  `MAX_TOASTS`), `src/components/Toaster.tsx`, styles `.toaster` / `.toast`
+- **Pourquoi** : l'application n'avait **aucun** retour transitoire — deux
+  bandeaux fixes (hors ligne, relève) et rien d'autre. Une action réussie ne se
+  disait jamais.
+- **Ni persistés ni synchronisés** : un message transitoire n'est pas une
+  préférence, et le rejouer sur un autre appareil n'aurait aucun sens. Un test
+  vérifie que `toasts` n'entre pas dans `UI_SYNC_KEYS`.
+- **Identifiant croissant, pas le texte** : deux messages identiques doivent
+  pouvoir coexister.
+- **Durées** : 3,8 s sans action, 6,5 s avec — il faut le temps de lire, de
+  décider, puis d'atteindre le bouton.
+
+### Pourquoi « tout marquer comme lu » n'a pas d'annulation
+
+C'est la seule action de l'application que rien ne défait, et la revue
+d'interface demandait un « Annuler ». **Ce n'est pas réalisable honnêtement.**
+L'API greader marque le flux **entier** à une date donnée et ne dit jamais
+quels articles étaient concernés. Restaurer les seuls articles présents en
+mémoire rendrait une partie de la vue non lue en laissant le reste lu, avec des
+compteurs qui mentiraient. Un « Annuler » qui n'annule qu'une partie est pire
+que pas d'annulation.
+
+La confirmation **avant** (`markAllRead.ts`, optionnelle) reste donc le
+garde-fou, et le toast se contente d'annoncer ce qui a été fait — avec le
+compte pris du compteur de non-lus de la vue, pas du nombre d'articles chargés.
+
+---
+
 ## Internationalisation
 
 **9 locales** : `fr` (repli), `en`, `de`, `es`, `it`, `nl`, `pl`, `pt`, `uk`.
@@ -886,7 +926,7 @@ Chaque famille correspond à une zone de l'interface :
 `app` · `sidebar` · `addFeed` · `articleList` · `articleRow` · `swipe` ·
 `emptyState` · `readingPane` · `preferences` · `login` · `admin` · `servers` ·
 `dates` · `time` · `shortcutBar` · `viewMode` · `connection` · `update` ·
-`refresh` · `saved`
+`refresh` · `saved` · `backup` · `toast`
 
 ---
 

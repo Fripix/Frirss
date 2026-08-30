@@ -139,7 +139,9 @@
     "focusHint": "duplo clique no artigo, Esc para sair",
     "videoPlay": "Reproduzir o vídeo",
     "videoOpen": "Abrir no YouTube",
-    "videoOffline": "Vídeo indisponível offline"
+    "videoOffline": "Vídeo indisponível offline",
+    "share": "Partilhar",
+    "copyLink": "Copiar ligação"
   },
   "preferences": {
     "title": "Preferências",
@@ -587,5 +589,13 @@
     "errSchema": "A cópia contém um dado que esta versão do FriRSS não sabe guardar, provavelmente por vir de uma versão mais recente. Nada foi alterado.",
     "errTooMany": "Demasiadas tentativas. Tente novamente mais tarde.",
     "errConfigured": "Esta instância já tem contas: a reposição no primeiro arranque já não é possível. Use Preferências → Administração."
+  },
+  "toast": {
+    "dismiss": "Fechar",
+    "markedRead_one": "{{count}} artigo marcado como lido",
+    "markedRead_other": "{{count}} artigos marcados como lidos",
+    "markedReadAll": "Artigos marcados como lidos",
+    "linkCopied": "Ligação copiada",
+    "copyFailed": "Não foi possível copiar a ligação"
   }
 }

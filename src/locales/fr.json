@@ -139,7 +139,9 @@
     "focusHint": "double-clic sur l’article, Échap pour sortir",
     "videoPlay": "Lire la vidéo",
     "videoOpen": "Ouvrir sur YouTube",
-    "videoOffline": "Vidéo indisponible hors ligne"
+    "videoOffline": "Vidéo indisponible hors ligne",
+    "share": "Partager",
+    "copyLink": "Copier le lien"
   },
   "preferences": {
     "title": "Préférences",
@@ -587,5 +589,13 @@
     "errSchema": "La sauvegarde contient une donnée que cette version de FriRSS ne sait pas ranger, probablement parce qu’elle vient d’une version plus récente. Rien n’a été modifié.",
     "errTooMany": "Trop de tentatives. Réessayez plus tard.",
     "errConfigured": "Cette instance a déjà des comptes : la restauration au premier démarrage n’est plus possible. Passez par Préférences → Administration."
+  },
+  "toast": {
+    "dismiss": "Fermer",
+    "markedRead_one": "{{count}} article marqué comme lu",
+    "markedRead_other": "{{count}} articles marqués comme lus",
+    "markedReadAll": "Articles marqués comme lus",
+    "linkCopied": "Lien copié",
+    "copyFailed": "Impossible de copier le lien"
   }
 }

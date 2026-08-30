@@ -77,6 +77,28 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const setMobileReadingFontSize = useUiStore((s) => s.setMobileReadingFontSize);
   const bodySize = parseInt(theme.fontSizes['reading-body']) || 14;
 
+  // Partager / copier le lien. Le volet ne proposait que « ouvrir l'original » :
+  // dans la PWA iOS installée, envoyer un article à quelqu'un obligeait à
+  // l'ouvrir d'abord dans Safari. `navigator.share` là où il existe, le
+  // presse-papiers partout ailleurs.
+  const pushToast = useUiStore((s) => s.pushToast);
+  const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  const shareArticle = useCallback(async (article: Article) => {
+    if (!article.url) return;
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share({ title: article.title, url: article.url });
+        return;
+      }
+      await navigator.clipboard.writeText(article.url);
+      pushToast(t('toast.linkCopied'));
+    } catch (err) {
+      // Un partage refusé par l'utilisateur n'est pas une erreur à annoncer.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      pushToast(t('toast.copyFailed'), { tone: 'error' });
+    }
+  }, [pushToast, t]);
+
   // Full content extraction state
   const [extractedContent, setExtractedContent] = useState<ExtractedContent | null>(null);
   const [extracting, setExtracting] = useState(false);
@@ -855,6 +877,22 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </a>
         )}
 
+        {/* Partager / copier le lien */}
+        {article.url && (
+          <button
+            onClick={() => shareArticle(article)}
+            className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
+            style={{ color: 'var(--reading-meta)', border: '1.5px solid transparent' }}
+            title={canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}
+            aria-label={canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+            </svg>
+            <span>{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
+          </button>
+        )}
+
         {/* Spacer */}
         <div className="toolbar-spacer flex-1 min-w-0" />
 
@@ -1229,6 +1267,18 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                     </svg>
                     <span className="text-[13px] font-medium">{t('readingPane.openOriginal')}</span>
                   </a>
+                )}
+                {article.url && (
+                  <button
+                    onClick={() => { setReadSettingsOpen(false); shareArticle(article); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left"
+                    style={{ color: 'var(--reading-text)', borderTop: '1px solid var(--panel-border)' }}
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                    </svg>
+                    <span className="text-[13px] font-medium">{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
+                  </button>
                 )}
                 <div className="flex items-center justify-between gap-2 px-3 py-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
                   <span className="text-[13px] font-medium" style={{ color: 'var(--reading-text)' }}>{t('readingPane.textSize')}</span>

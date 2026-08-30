@@ -139,7 +139,9 @@
     "focusHint": "doppio clic sull’articolo, Esc per uscire",
     "videoPlay": "Riproduci il video",
     "videoOpen": "Apri su YouTube",
-    "videoOffline": "Video non disponibile offline"
+    "videoOffline": "Video non disponibile offline",
+    "share": "Condividi",
+    "copyLink": "Copia link"
   },
   "preferences": {
     "title": "Preferenze",
@@ -587,5 +589,13 @@
     "errSchema": "Il backup contiene un dato che questa versione di FriRSS non sa gestire, probabilmente perché proviene da una versione più recente. Non è stato modificato nulla.",
     "errTooMany": "Troppi tentativi. Riprova più tardi.",
     "errConfigured": "Questa istanza ha già degli account: il ripristino al primo avvio non è più possibile. Usa Preferenze → Amministrazione."
+  },
+  "toast": {
+    "dismiss": "Chiudi",
+    "markedRead_one": "{{count}} articolo segnato come letto",
+    "markedRead_other": "{{count}} articoli segnati come letti",
+    "markedReadAll": "Articoli segnati come letti",
+    "linkCopied": "Link copiato",
+    "copyFailed": "Impossibile copiare il link"
   }
 }

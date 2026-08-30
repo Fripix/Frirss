@@ -421,12 +421,8 @@ html {
   font-weight: 600;
 }
 
-/* Preferences: highlight overlay animations */
-@keyframes highlight-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
+/* Preferences: highlight overlay animation.
+   `highlight-pulse` vivait ici sans qu'aucun composant ne la nomme — retirée. */
 @keyframes highlight-glow {
   0%, 100% { box-shadow: 0 0 8px 2px rgba(59, 130, 246, 0.45), inset 0 0 12px rgba(59, 130, 246, 0.05); }
   50% { box-shadow: 0 0 24px 6px rgba(59, 130, 246, 0.7), inset 0 0 30px rgba(59, 130, 246, 0.1); }
@@ -1249,4 +1245,99 @@ summary:focus-visible,
   .action-btn:active {
     transform: none;
   }
+}
+
+/* ── Messages transitoires (toasts) ───────────────────────────────── */
+/* En bas, au-dessus de la barre d'actions mobile et de l'indicateur d'accueil.
+   `pointer-events: none` sur la pile pour ne jamais bloquer la liste ; seuls
+   les boutons du message reprennent le clic. */
+.toaster {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  width: min(440px, calc(100vw - 24px));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text-active);
+  border: 1px solid var(--sidebar-divider);
+  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.45);
+  animation: toast-in 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* L'échec se distingue de la confirmation par un liseré, pas par un fond
+   rouge : le message reste lisible et le ton ne hurle pas. */
+.toast[data-tone='error'] {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.45),
+              inset 3px 0 0 var(--danger);
+}
+
+.toast__message { flex: 1; min-width: 0; }
+
+.toast__action {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  transition: background-color 0.15s ease;
+}
+.toast__action:hover { background: color-mix(in srgb, var(--accent) 26%, transparent); }
+
+.toast__close {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  color: var(--sidebar-text);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.toast__close svg { width: 13px; height: 13px; }
+.toast__close:hover {
+  color: var(--sidebar-text-active);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+
+/* Sur mobile, la barre d'actions du volet de lecture occupe le bas de
+   l'écran : le message se pose au-dessus plutôt que par-dessus. */
+:where([data-layout='mobile'], [data-layout='tablet']) .toaster {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+}
+
+/* Cibles tactiles : le bouton d'action et la fermeture restent atteignables. */
+@media (pointer: coarse) {
+  .toast__action, .toast__close { min-height: 36px; }
+  .toast__close { width: 36px; }
 }

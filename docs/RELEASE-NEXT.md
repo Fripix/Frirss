@@ -18,6 +18,11 @@ la release publiée.
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
   36 couleurs à la main.
+- **Des messages de confirmation.** L'application ne disait jamais qu'une
+  action avait abouti. Un message bref apparaît en bas de l'écran — articles
+  marqués comme lus, lien copié — et disparaît seul.
+- **Partager un article, ou copier son lien**, depuis le volet de lecture. Sur
+  mobile, la feuille de partage du système ; ailleurs, le presse-papiers.
 - **Le thème peut suivre le système.** Un interrupteur, puis le choix du thème
   clair et du thème sombre. La bascule conserve vos tailles de police, et se
   rejoue aussi au retour dans l'application — le système change souvent d'avis
