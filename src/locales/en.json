@@ -112,7 +112,9 @@
     "noReadLater": "Nothing to read later",
     "noReadLaterHint": "Add articles to find them here",
     "noArticles": "No articles",
-    "noArticlesHint": "This feed is empty"
+    "noArticlesHint": "This feed is empty",
+    "allReadAction": "Show all articles",
+    "noResultsAction": "Search all feeds"
   },
   "readingPane": {
     "noArticle": "Select an article to read",

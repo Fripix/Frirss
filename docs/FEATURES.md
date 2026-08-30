@@ -160,6 +160,25 @@ lignes, barre verticale pour les non-lus. Scroll infini paginé. En-têtes de
 groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grille.
 
 - **Où** : `src/components/ArticleList/`
+- **Favicon du flux dans la ligne** (1.4.5) : `src/components/FeedFavicon.tsx`,
+  extrait de la barre latérale où il ne servait qu'elle. La source n'était
+  qu'un mot en majuscules de 10 px : repérer un flux dans une vue Tous les flux
+  demandait de lire au lieu de reconnaître. Suit le réglage `showFavicons`
+  existant. `ArticleList` construit une **carte** `sourceId → iconUrl` plutôt
+  qu'un `find()` par ligne. **Pas dans la grille** : la carte a déjà sa
+  vignette et son repli lettre, un favicon y ferait doublon.
+- **En-tête** : titre à 15-16 px (il était à 14 px, noyé au milieu de huit
+  icônes de même poids) et compte de non-lus de la vue à côté. Le compte n'est
+  affiché que pour un flux et pour « tous les flux » : favoris, à lire plus
+  tard et catégories sont des sélections transversales, un compte y voudrait
+  dire autre chose.
+- **Séparateurs de date** : 11 px sur `--list-summary` (ils étaient à 10 px
+  dans le gris le plus clair de la palette) et suivis du nombre d'articles du
+  jour. Ce sont les seuls repères de progression d'un scroll infini.
+- **Apparition échelonnée** : les dix premières lignes se déposent avec 25 ms
+  d'écart (`data-stagger`). **Jamais sur le scroll infini** — l'animation ne
+  joue qu'au montage, et les pages suivantes ne remontent pas les lignes déjà
+  affichées, donc l'attente n'est jamais infligée deux fois.
 - **Repère « non lu »** : une barre de 3 px à gauche de la ligne, posée en CSS
   depuis l'attribut `data-unread` (`.article-row[data-unread]`), plus la pastille
   du mode Compact. Cette phrase a longtemps été fausse : `--list-unread-bar`
@@ -218,6 +237,17 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 (plein écran) au double-clic. Contenu bidirectionnel rendu dans son sens propre.
 
 - **Où** : `src/components/ReadingPane/ReadingPane.tsx`, `src/utils/sanitizeHtml.ts`
+- **Mouvement** (1.4.5) : l'article entre avec un léger déplacement vertical
+  **dans le sens de la navigation** — un article situé plus haut dans la liste
+  entre par le haut (`data-enter` posé sur l'élément avant le redéclenchement
+  de l'animation). Position inconnue (recherche, ouverture directe) : sens par
+  défaut, on n'invente pas un mouvement. Le corps porte `reading-body-enter`,
+  qui ne joue **qu'au montage** de ce nœud : changer d'article réutilise le
+  même élément, si bien que la seule animation réelle est la bascule
+  squelette → corps, qui se faisait dans la même image et clignotait.
+- **Images** : `max-height: 80vh` avec `width: auto`. Sans plafond, une
+  infographie verticale — courante en tech et en sécurité — occupait trois
+  écrans et coupait la lecture en deux.
 - **Largeur de colonne** : `.reading-pane article` est plafonné à `44em`
   (`index.css`) et centré. Sans plafond — l'état jusqu'à la 1.4.5 — le mode
   Focus étalait le texte sur toute la largeur de l'écran, et l'œil perdait la
@@ -440,6 +470,12 @@ réglage clair/sombre du système.
   recompose en direct. Couverture : 28 couleurs encadrables sur l'interface, 14
   avec une zone d'aperçu, **6 avec aucune des deux** — l'interface le dit au lieu
   de laisser attendre une mise en évidence qui n'arrivera pas.
+- **Piège des couleurs en dur** : `--badge-bg` et `--badge-text` sont dérivés
+  de l'accent, mais le badge de non-lus de la barre latérale écrivait le menthe
+  à 15 % en dur — sur un thème dont l'accent change (« Paper », « High
+  Contrast »), il restait vert. Corrigé en 1.4.5, en même temps que les trois
+  surbrillances de glisser-déposer restées orange. **Aucune couleur de
+  l'interface ne doit être écrite en dur** : elles sont toutes réglables.
 - **Encres dérivées** : `--on-accent` et `--on-danger` sont calculées par
   `applyThemeToDOM()` avec `readableTextOn()` (`src/lib/readableText.ts`,
   luminance WCAG). Ce ne sont **pas** des clés de thème : rien à régler, elles

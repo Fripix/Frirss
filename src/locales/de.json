@@ -112,7 +112,9 @@
     "noReadLater": "Nichts für später",
     "noReadLaterHint": "Fügen Sie Artikel hinzu, um sie hier wiederzufinden",
     "noArticles": "Keine Artikel",
-    "noArticlesHint": "Dieser Feed ist leer"
+    "noArticlesHint": "Dieser Feed ist leer",
+    "allReadAction": "Alle Artikel anzeigen",
+    "noResultsAction": "In allen Feeds suchen"
   },
   "readingPane": {
     "noArticle": "Wählen Sie einen Artikel zum Lesen aus",

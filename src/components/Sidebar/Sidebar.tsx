@@ -6,15 +6,13 @@ import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import client from '../../api/client';
 import AddFeedDialog from './AddFeedDialog';
 import type { Article, Subscription, Tag } from '../../types';
 import { groupLabels } from '../../utils/labels';
 import {
   savedCategories, isSavedCategory, READ_LATER_PREFIX, STARRED_PREFIX,
 } from '../../lib/savedCategories';
-import { getFavicon, setFavicon, blobToDataUrl } from '../../lib/faviconCache';
-import { readableTextOn } from '../../lib/readableText';
+import FeedFavicon from '../FeedFavicon';
 import { resolveVersionLabel } from '../../lib/version';
 
 const SIDEBAR_FONT_MIN = 11;
@@ -1256,14 +1254,39 @@ function SpecialBadge({ count, color }: { count: number; color?: string }) {
   );
 }
 
+/**
+ * Le badge se contracte brièvement quand le compte change.
+ *
+ * C'est le retour le plus fréquent de toute l'application — ouvrir un article
+ * décrémente le compteur du flux — et c'était le seul signe que l'écriture est
+ * bien passée côté serveur, sans aucune transition. Le pendant de
+ * `feed-new-pulse`, qui signale l'arrivée de contenu, dans l'autre sens.
+ */
 function UnreadBadge({ count }: { count: number }) {
+  const [bump, setBump] = useState(false);
+  const prev = useRef(count);
+
+  useEffect(() => {
+    if (prev.current !== count && count > 0) {
+      setBump(true);
+      const timer = setTimeout(() => setBump(false), 300);
+      prev.current = count;
+      return () => clearTimeout(timer);
+    }
+    prev.current = count;
+  }, [count]);
+
   if (!count) return null;
   return (
     <span
-      className="flex-shrink-0 min-w-[22px] h-[20px] px-[7px] flex items-center justify-center rounded-full text-[10px] font-bold tabular-nums"
+      {...(bump ? { 'data-bump': '' } : {})}
+      className="unread-badge flex-shrink-0 min-w-[22px] h-[20px] px-[7px] flex items-center justify-center rounded-full text-[10px] font-bold tabular-nums"
       style={{
         color: 'var(--accent)',
-        background: 'rgba(76, 212, 161, 0.15)',
+        // `--badge-bg` est dérivé de l'accent par le thème. La valeur était
+        // écrite en dur (le menthe à 15 %) : sur un thème dont l'accent change
+        // — « High Contrast », « Paper » — le badge restait vert menthe.
+        background: 'var(--badge-bg)',
       }}
     >
       {count}
@@ -1614,100 +1637,3 @@ function LabelDropItem({ labelId, name, isSelected, onClick, onArticleDrop, isPa
   );
 }
 
-function getLetterAvatarColor(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 50%, 42%)`;
-}
-
-function LetterAvatar({ title }: { title?: string }) {
-  const letter = (title || '?')[0].toUpperCase();
-  const color = getLetterAvatarColor(title || '');
-  return (
-    <div
-      className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center text-[7px] font-bold leading-none"
-      style={{ background: color, color: readableTextOn(color) }}
-    >
-      {letter}
-    </div>
-  );
-}
-
-function FeedFavicon({ iconUrl, title }: { iconUrl?: string; title?: string }) {
-  // Seed synchronously from the persistent cache → the icon paints on the
-  // first frame after a reload, with no flash and no re-fetch.
-  const [src, setSrc] = useState<string | null>(() => getFavicon(iconUrl));
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!iconUrl) {
-      setFailed(true);
-      return;
-    }
-
-    // Already resolved (this session or a previous one).
-    const cached = getFavicon(iconUrl);
-    if (cached) {
-      setSrc(cached);
-      setFailed(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    // Strategy 1: fetch through the authenticated client (proxy + auth), then
-    // persist as a data URL so it survives reloads.
-    client
-      .get<Blob>(iconUrl, { responseType: 'blob' })
-      .then(async (response) => {
-        // Check that we got an image (not an HTML error page)
-        if (response.data.type && response.data.type.startsWith('image')) {
-          const dataUrl = await blobToDataUrl(response.data);
-          if (cancelled) return;
-          setFavicon(iconUrl, dataUrl);
-          setSrc(dataUrl);
-        } else {
-          throw new Error('Not an image');
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        // Strategy 2: load the image directly (works if the server allows
-        // unauthenticated access); the plain URL is cacheable as-is.
-        const img = new Image();
-        img.onload = () => {
-          if (cancelled) return;
-          setFavicon(iconUrl, iconUrl);
-          setSrc(iconUrl);
-        };
-        img.onerror = () => {
-          if (cancelled) return;
-          console.warn('[FriRSS] Favicon failed to load:', iconUrl);
-          setFailed(true);
-        };
-        img.src = iconUrl;
-      });
-
-    return () => { cancelled = true; };
-  }, [iconUrl]);
-
-  if (failed || !iconUrl) {
-    return <LetterAvatar title={title} />;
-  }
-
-  if (!src) {
-    return <LetterAvatar title={title} />;
-  }
-
-  return (
-    <img
-      src={src}
-      alt=""
-      className="w-3.5 h-3.5 rounded flex-shrink-0"
-      onError={() => setFailed(true)}
-    />
-  );
-}

@@ -112,7 +112,9 @@
     "noReadLater": "Nada para ler mais tarde",
     "noReadLaterHint": "Adicione artigos para os encontrar aqui",
     "noArticles": "Sem artigos",
-    "noArticlesHint": "Este feed está vazio"
+    "noArticlesHint": "Este feed está vazio",
+    "allReadAction": "Ver todos os artigos",
+    "noResultsAction": "Pesquisar em todas as fontes"
   },
   "readingPane": {
     "noArticle": "Selecione um artigo para o ler",

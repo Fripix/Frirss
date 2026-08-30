@@ -108,6 +108,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   }, [selectedArticle?.id]);
 
   // Article change — fade animation on tap, no animation on swipe
+  const prevArticleIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedArticle?.id) return;
     setReadProgress(0);
@@ -115,12 +116,22 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       // Tap: trigger fade-in animation + scroll to top
       const el = articleRef.current;
       if (el) {
+        // Sens du mouvement : l'animation était un fondu d'opacité pur, sans
+        // déplacement — rien ne disait qu'on avançait dans une liste, ni dans
+        // quel sens. Un article situé plus haut dans la liste entre par le
+        // haut. Position inconnue (recherche, ouverture directe) : on garde le
+        // sens par défaut plutôt que d'inventer un mouvement.
+        const list = useFeedStore.getState().articles;
+        const from = list.findIndex((a) => a.id === prevArticleIdRef.current);
+        const to = list.findIndex((a) => a.id === selectedArticle.id);
+        el.dataset.enter = from >= 0 && to >= 0 && to < from ? 'up' : 'down';
         el.classList.remove('article-enter');
         void el.offsetWidth; // force reflow to re-trigger animation
         el.classList.add('article-enter');
       }
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
     }
+    prevArticleIdRef.current = selectedArticle.id;
     // Swipe: scroll + animation handled by the swipe handler
   }, [selectedArticle?.id]);
 
@@ -1118,7 +1129,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           ) : (
             <div
               dir="auto"
-              className="article-content leading-relaxed"
+              /* `reading-body-enter` ne joue qu'au MONTAGE de cet élément.
+                 Changer d'article réutilise le même nœud (rien ne bouge ici) ;
+                 le seul montage réel est la bascule squelette → corps, qui se
+                 faisait dans la même image et clignotait. */
+              className="article-content leading-relaxed reading-body-enter"
               data-theme="reading-text"
               style={{ color: 'var(--reading-text)', fontSize: 'var(--fs-reading-body)' }}
               onClick={handleVideoClick}

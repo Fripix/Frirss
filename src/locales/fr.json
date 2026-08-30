@@ -112,7 +112,9 @@
     "noReadLater": "Rien à lire plus tard",
     "noReadLaterHint": "Ajoutez des articles pour les retrouver ici",
     "noArticles": "Aucun article",
-    "noArticlesHint": "Ce flux est vide"
+    "noArticlesHint": "Ce flux est vide",
+    "allReadAction": "Voir tous les articles",
+    "noResultsAction": "Chercher dans tous les flux"
   },
   "readingPane": {
     "noArticle": "Sélectionnez un article pour le lire",

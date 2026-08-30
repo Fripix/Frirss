@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -12,6 +12,7 @@ import ViewModeSwitcher from './ViewModeSwitcher';
 import SwipeableArticleRow from './SwipeableArticleRow';
 import { StarButton, ReadLaterButton, MarkReadButton } from './ArticleActions';
 import ArticleCard from './ArticleCard';
+import FeedFavicon from '../FeedFavicon';
 import type { Article, Filter } from '../../types';
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
@@ -51,6 +52,9 @@ export default function ArticleList() {
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const showSourceInFeed = useUiStore((s) => s.showSourceInFeed);
+  const showFavicons = useUiStore((s) => s.showFavicons);
+  const subscriptions = useFeedStore((s) => s.subscriptions);
+  const unreadCounts = useFeedStore((s) => s.unreadCounts);
   const showSourceInAll = useUiStore((s) => s.showSourceInAll);
   const toggleShowSourceInFeed = useUiStore((s) => s.toggleShowSourceInFeed);
   const toggleShowSourceInAll = useUiStore((s) => s.toggleShowSourceInAll);
@@ -95,6 +99,38 @@ export default function ArticleList() {
       onToggleReadLater={(e) => { e.stopPropagation(); toggleReadLater(article); }}
     />
   );
+
+  // Icône par flux, pour la ligne d'article. La source y était un mot en
+  // majuscules de 10 px : dans une vue Tous les flux, repérer un flux
+  // demandait de lire au lieu de reconnaître. Une carte plutôt qu'un
+  // `find()` par ligne — la liste va jusqu'à plusieurs centaines d'entrées.
+  const iconByFeedId = useMemo(() => {
+    const map = new Map<string, string | undefined>();
+    for (const sub of subscriptions) map.set(sub.id, sub.iconUrl);
+    return map;
+  }, [subscriptions]);
+
+  // Position à plat de chaque article : sert au décalage d'apparition des dix
+  // premières lignes. Une carte plutôt qu'un `indexOf` par ligne.
+  const rowIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    articles.forEach((a, i) => map.set(a.id, i));
+    return map;
+  }, [articles]);
+
+  // Non-lus de la vue courante, affichés à côté du titre. En scroll infini,
+  // rien ne disait s'il restait dix articles ou deux cents. Seulement pour un
+  // flux et pour la vue « tous les flux » : les sélections transversales
+  // (favoris, à lire plus tard, étiquettes) ne sont pas des flux qu'on vide,
+  // et un compte y voudrait dire autre chose.
+  const headerUnread = useMemo(() => {
+    if (filter === 'starred' || filter === 'readlater') return null;
+    if (selectedFeed) {
+      if (isCategoryStreamId(selectedFeed.id)) return null;
+      return unreadCounts[selectedFeed.id] || 0;
+    }
+    return subscriptions.reduce((sum, sub) => sum + (unreadCounts[sub.id] || 0), 0);
+  }, [filter, selectedFeed, subscriptions, unreadCounts]);
 
   const listRef = useRef<HTMLDivElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -286,9 +322,10 @@ export default function ArticleList() {
                 </svg>
               </button>
             )}
-            <h2 className="text-sm font-bold truncate min-w-0 mr-1" style={{ color: 'var(--list-title)' }}>
+            <h2 className="text-[15px] font-bold truncate min-w-0" style={{ color: 'var(--list-title)' }}>
               {searchQuery ? `${t('articleList.search')} : ${searchQuery}` : title}
             </h2>
+            <HeaderUnread count={headerUnread} />
             <div className="flex-1 flex items-center">
               <ToolbarBtn flex1 iconOnly icon={<SearchIcon />} label={t('articleList.search')} onClick={() => setSearchOpen(true)} />
               <ToolbarBtn flex1 iconOnly icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
@@ -346,9 +383,10 @@ export default function ArticleList() {
               </button>
             )}
 
-            <h2 className="text-sm font-bold truncate min-w-0" style={{ color: 'var(--list-title)' }}>
+            <h2 className="text-[16px] font-bold truncate min-w-0" style={{ color: 'var(--list-title)' }}>
               {searchQuery ? `${t('articleList.search')} : ${searchQuery}` : title}
             </h2>
+            <HeaderUnread count={headerUnread} />
 
             <div className="w-px h-4 mx-1 flex-shrink-0" style={{ background: 'var(--panel-border)' }} />
 
@@ -400,10 +438,11 @@ export default function ArticleList() {
                 </button>
               )}
 
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-bold truncate" style={{ color: 'var(--list-title)' }}>
+              <div className="min-w-0 flex-1 flex items-center gap-2">
+                <h2 className="text-[16px] font-bold truncate" style={{ color: 'var(--list-title)' }}>
                   {searchQuery ? `${t('articleList.search')} : ${searchQuery}` : title}
                 </h2>
+                <HeaderUnread count={headerUnread} />
               </div>
 
               <div className="flex items-center gap-1 flex-shrink-0">
@@ -560,15 +599,25 @@ export default function ArticleList() {
           groups.map((group, groupIdx) => (
             <div key={`${group.label}-${groupIdx}`}>
               {dateSepActive && (
+                /* Ces bandeaux sont les seuls repères de progression d'un
+                   scroll infini. Ils étaient à 10 px dans le gris le plus
+                   clair de la palette : plus décoratifs qu'utiles. Le compte
+                   du jour en fait un vrai repère. */
                 <div
-                  className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest sticky top-0 z-10"
+                  className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-widest sticky top-0 z-10 flex items-center gap-2"
                   style={{
-                    color: 'var(--list-time)',
+                    color: 'var(--list-summary)',
                     background: 'var(--panel-header-bg)',
                     borderBottom: '1px solid var(--panel-border)',
                   }}
                 >
-                  {group.label}
+                  <span className="truncate">{group.label}</span>
+                  <span
+                    className="tabular-nums font-normal"
+                    style={{ color: 'var(--list-time)' }}
+                  >
+                    {group.articles.length}
+                  </span>
                 </div>
               )}
               {gridLayout ? (
@@ -582,6 +631,8 @@ export default function ArticleList() {
                       article={article}
                       viewMode={viewMode}
                       showSource={showSource}
+                      favicon={showFavicons ? iconByFeedId.get(article.sourceId) ?? null : undefined}
+                      staggerIndex={rowIndex.get(article.id)}
                       active={selectedArticle?.id === article.id}
                       onSelect={() => selectArticle(article)}
                       onToggleStar={(e) => {
@@ -634,6 +685,24 @@ export default function ArticleList() {
 }
 
 /* ── Toolbar components ─────────────────────────────────────────── */
+
+/**
+ * Compte de non-lus de la vue, à côté du titre. `null` = vue sans compte qui
+ * ait un sens ; `0` = vue à jour, on n'affiche rien plutôt qu'un zéro.
+ */
+function HeaderUnread({ count }: { count: number | null }) {
+  const { t } = useTranslation();
+  if (!count) return null;
+  return (
+    <span
+      className="unread-badge flex-shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums"
+      style={{ color: 'var(--accent)', background: 'var(--badge-bg)' }}
+      title={t('articleList.unread')}
+    >
+      {count}
+    </span>
+  );
+}
 
 function ToolbarSep() {
   return <div className="w-px h-4 mx-0.5" style={{ background: 'var(--panel-border)' }} />;
@@ -834,21 +903,66 @@ function EmptyState({ filter, searchQuery }: { filter: Filter; searchQuery: stri
     subtitle = t('emptyState.noArticlesHint');
   }
 
-  const isSuccess = filter === 'unread';
+  const isSuccess = filter === 'unread' && !searchQuery;
+
+  // Cinq états vides partageaient un gabarit alors qu'ils ne disent pas la même
+  // chose. « Tout est lu » est une réussite — le moment où l'application a fini
+  // son travail — et « aucun résultat » est une impasse, qui doit proposer la
+  // sortie. Un écran vide est une invitation à agir, pas un constat.
+  let action: { label: string; run: () => void } | null = null;
+  if (searchQuery) {
+    action = {
+      label: t('emptyState.noResultsAction'),
+      run: () => {
+        const store = useFeedStore.getState();
+        store.selectView(null, 'all');
+        store.search(searchQuery);
+      },
+    };
+  } else if (isSuccess) {
+    action = {
+      label: t('emptyState.allReadAction'),
+      run: () => useFeedStore.getState().setUnreadFilter(false),
+    };
+  }
 
   return (
-    <div className="p-12 text-center flex flex-col items-center gap-3">
+    <div className="px-8 py-12 text-center flex flex-col items-center gap-3">
       <div
-        className="w-14 h-14 rounded-full flex items-center justify-center"
+        className="rounded-full flex items-center justify-center"
         style={{
+          width: isSuccess ? 72 : 56,
+          height: isSuccess ? 72 : 56,
           background: isSuccess ? 'var(--accent-glow)' : 'color-mix(in srgb, var(--panel-border) 40%, transparent)',
           color: isSuccess ? 'var(--accent)' : 'var(--list-summary)',
+          boxShadow: isSuccess ? '0 0 0 8px color-mix(in srgb, var(--accent) 7%, transparent)' : undefined,
         }}
       >
         {icon}
       </div>
-      <p className="text-sm font-medium" style={{ color: 'var(--list-title)' }}>{title}</p>
-      <p className="text-xs" style={{ color: 'var(--list-summary)' }}>{subtitle}</p>
+      <p
+        className="font-semibold"
+        style={{
+          color: isSuccess ? 'var(--accent)' : 'var(--list-title)',
+          fontSize: isSuccess ? '17px' : '14px',
+        }}
+      >
+        {title}
+      </p>
+      <p className="text-xs max-w-[36ch]" style={{ color: 'var(--list-summary)' }}>{subtitle}</p>
+      {action && (
+        <button
+          onClick={action.run}
+          className="mt-1 px-3.5 py-2 rounded-full text-xs font-semibold transition-colors"
+          style={{
+            color: 'var(--accent)',
+            background: 'var(--accent-glow)',
+            border: '1.5px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+          }}
+        >
+          {action.label}
+        </button>
+      )}
     </div>
   );
 }
@@ -859,6 +973,11 @@ interface ArticleRowProps {
   article: Article;
   viewMode: string;
   showSource: boolean;
+  /** URL de l'icône du flux ; `null` = pas d'icône connue mais on affiche le
+   *  repli (pastille-lettre) ; `undefined` = favicons désactivés. */
+  favicon?: string | null;
+  /** Position dans la liste — seules les dix premières lignes s'échelonnent. */
+  staggerIndex?: number;
   active: boolean;
   onSelect: () => void;
   onToggleStar: (e: ReactMouseEvent) => void;
@@ -866,10 +985,16 @@ interface ArticleRowProps {
   onToggleReadLater: (e: ReactMouseEvent) => void;
 }
 
-function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater }: ArticleRowProps) {
+function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater }: ArticleRowProps) {
   const { t } = useTranslation();
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = viewMode === 'preview' ? extractImageFromContent(article.content) : null;
+  // Décalage d'apparition, plafonné aux dix premières lignes. L'animation ne
+  // joue qu'au montage : les pages suivantes du scroll infini ne remontent pas
+  // les lignes déjà là, donc l'attente n'est jamais infligée deux fois.
+  const stagger = staggerIndex !== undefined && staggerIndex < 10
+    ? { 'data-stagger': '', style: { animationDelay: `${staggerIndex * 25}ms` } }
+    : null;
 
   function handleDragStart(e: ReactDragEvent<HTMLDivElement>) {
     e.dataTransfer.setData('application/frirss-article', article.id);
@@ -904,13 +1029,17 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
         className={`article-row w-full text-left flex items-center gap-3 px-4 py-2 cursor-pointer ${
           active ? 'article-row-active bg-[var(--list-selected)]' : 'hover:bg-[var(--list-hover)]'
         }`}
-        style={{ borderBottom: '1px solid var(--panel-border)' }}
+        {...(stagger ? { 'data-stagger': '' } : {})}
+        style={{ borderBottom: '1px solid var(--panel-border)', ...(stagger?.style ?? {}) }}
       >
         {/* Always reserve space for the unread dot to avoid alignment shift */}
         <div
           className="w-1.5 h-1.5 rounded-full flex-shrink-0"
           style={{ background: article.read ? 'transparent' : 'var(--list-unread-bar)' }}
         />
+        {favicon !== undefined && (
+          <FeedFavicon iconUrl={favicon ?? undefined} title={article.source} size={14} />
+        )}
         {showSource && (
           <span
             className="font-medium uppercase flex-shrink-0"
@@ -954,7 +1083,8 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
       className={`article-row w-full text-left flex gap-3 px-4 py-3 cursor-pointer ${
         active ? 'article-row-active bg-[var(--list-selected)]' : 'hover:bg-[var(--list-hover)]'
       }`}
-      style={{ borderBottom: '1px solid var(--panel-border)' }}
+      {...(stagger ? { 'data-stagger': '' } : {})}
+      style={{ borderBottom: '1px solid var(--panel-border)', ...(stagger?.style ?? {}) }}
     >
       {thumbnail && viewMode === 'preview' && (
         <div className="w-20 h-16 rounded overflow-hidden flex-shrink-0 bg-gray-100">
@@ -969,6 +1099,9 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
+          {favicon !== undefined && (
+            <FeedFavicon iconUrl={favicon ?? undefined} title={article.source} size={16} />
+          )}
           {showSource && (
             <span
               className="font-semibold uppercase tracking-wide"

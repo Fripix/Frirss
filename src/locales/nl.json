@@ -112,7 +112,9 @@
     "noReadLater": "Niets om later te lezen",
     "noReadLaterHint": "Voeg artikelen toe om ze hier terug te vinden",
     "noArticles": "Geen artikelen",
-    "noArticlesHint": "Deze feed is leeg"
+    "noArticlesHint": "Deze feed is leeg",
+    "allReadAction": "Alle artikelen tonen",
+    "noResultsAction": "In alle feeds zoeken"
   },
   "readingPane": {
     "noArticle": "Selecteer een artikel om te lezen",

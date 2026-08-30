@@ -322,10 +322,15 @@ html {
 
 .article-content img {
   max-width: 100%;
+  /* Plafond de hauteur : une infographie verticale — courante en tech et en
+     sécurité — occupait trois écrans et coupait la lecture en deux. Avec
+     `width: auto` et les deux maxima, l'image se réduit en gardant son
+     rapport, sans letterbox. */
+  max-height: 80vh;
+  width: auto;
   height: auto;
   border-radius: var(--radius);
   margin: 1em 0;
-
 }
 
 /* Loading skeleton for the article body (shown while an auto-extract feed
@@ -447,13 +452,51 @@ html {
 }
 
 /* ── Article appear animation ─────────────────────────────────────── */
+/* Le passage d'un article à l'autre sur desktop n'était qu'un fondu
+   d'opacité, sans mouvement : rien ne disait qu'on avançait dans une liste,
+   ni dans quel sens. Le sens vient de `data-enter` posé par la liste. */
 .article-enter {
-  animation: articleFadeIn 0.25s ease both;
+  animation: articleFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes articleFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.article-enter[data-enter='up'] {
+  animation-name: articleFadeInUp;
+}
+
+@keyframes articleFadeInUp {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Le squelette était retiré et le contenu apparaissait dans la même image :
+   un clignotement, alors que tout le travail de réservation d'espace visait
+   précisément à l'éviter. */
+.reading-body-enter {
+  animation: articleFadeIn 0.15s ease both;
+}
+
+/* ── Compteurs de non-lus ─────────────────────────────────────────── */
+/* Ouvrir un article décrémentait le badge sans transition, alors que c'est le
+   retour le plus fréquent de l'application et le seul signe que l'action est
+   passée côté serveur. Le pendant de `feed-new-pulse`, dans l'autre sens. */
+.unread-badge {
+  transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+.unread-badge[data-bump] {
+  animation: unreadBump 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes unreadBump {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(0.86); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .unread-badge[data-bump] { animation: none; }
 }
 
 /* ── Reading progress bar ─────────────────────────────────────────── */
@@ -511,6 +554,27 @@ html {
 
 .article-row:hover {
   transform: translateX(2px);
+}
+
+/* Marquer lu changeait la graisse et la couleur d'un coup. La graisse ne
+   s'anime pas ; la couleur si, et la barre de non-lu s'efface avec le
+   `box-shadow` déjà présent dans la transition ci-dessus. */
+.article-row h3,
+.article-row span,
+.article-row p {
+  transition: color 0.2s ease;
+}
+
+/* 22 — la première page se dépose au lieu d'arriver en bloc. Jamais sur le
+   scroll infini : la liste pose `data-stagger` sur les dix premières lignes
+   seulement, sinon l'attente serait infligée à chaque page chargée. */
+.article-row[data-stagger] {
+  animation: rowSettle 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes rowSettle {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .article-row-active {
@@ -1165,11 +1229,19 @@ summary:focus-visible,
     opacity: 1;
   }
   .article-row,
+  .article-row h3,
+  .article-row span,
+  .article-row p,
   .sidebar-feed-item,
   .sidebar-feed-item::before,
   .article-card__thumb img,
+  .unread-badge,
   .preview-zone {
     transition: none;
+  }
+  .article-row[data-stagger],
+  .reading-body-enter {
+    animation: none;
   }
   .article-row:hover,
   .sidebar-feed-item:not(.sidebar-feed-active):hover,

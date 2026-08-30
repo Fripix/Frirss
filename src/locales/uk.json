@@ -112,7 +112,9 @@
     "noReadLater": "Нічого читати пізніше",
     "noReadLaterHint": "Додайте статті, щоб знайти їх тут",
     "noArticles": "Немає статей",
-    "noArticlesHint": "Ця стрічка порожня"
+    "noArticlesHint": "Ця стрічка порожня",
+    "allReadAction": "Показати всі статті",
+    "noResultsAction": "Шукати в усіх стрічках"
   },
   "readingPane": {
     "noArticle": "Виберіть статтю для читання",

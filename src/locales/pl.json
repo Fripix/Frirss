@@ -112,7 +112,9 @@
     "noReadLater": "Nic do przeczytania później",
     "noReadLaterHint": "Dodaj artykuły, aby znaleźć je tutaj",
     "noArticles": "Brak artykułów",
-    "noArticlesHint": "Ten kanał jest pusty"
+    "noArticlesHint": "Ten kanał jest pusty",
+    "allReadAction": "Pokaż wszystkie artykuły",
+    "noResultsAction": "Szukaj we wszystkich kanałach"
   },
   "readingPane": {
     "noArticle": "Wybierz artykuł do przeczytania",

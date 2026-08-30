@@ -25,6 +25,21 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Les favicons apparaissent dans la liste d'articles.** La source n'était
+  qu'un mot en majuscules : dans une vue Tous les flux, il fallait lire au lieu
+  de reconnaître. Suit le réglage de favicons déjà présent.
+- **L'en-tête de liste a une hiérarchie.** Le titre du flux est plus grand, et
+  le nombre d'articles non lus de la vue s'affiche à côté — en scroll infini,
+  rien ne disait s'il restait dix articles ou deux cents.
+- **Les séparateurs de date sont lisibles** et indiquent le nombre d'articles
+  du jour. Ce sont les seuls repères de progression d'une liste sans fin.
+- **Les états vides proposent une action.** « Tout est lu » est une réussite et
+  le montre ; « aucun résultat » propose d'élargir la recherche à tous les flux.
+- **Les images d'article ne dépassent plus 80 % de la hauteur d'écran.** Une
+  infographie verticale occupait trois écrans et coupait la lecture en deux.
+- **Le badge de non-lus suivait mal les thèmes** : son fond était le vert
+  menthe écrit en dur, y compris sur un thème dont l'accent est différent.
+
 - **Le focus clavier est enfin visible.** Un anneau `:focus-visible` global :
   l'interface comptait 137 boutons pour 4 anneaux de focus, tous sur l'écran de
   connexion. Naviguer au clavier hors des raccourcis dédiés était impossible.
@@ -57,7 +72,13 @@ la release publiée.
 
 ## Sous le capot
 
-_(rien pour l'instant)_
+- Le passage d'un article à l'autre se fait avec un léger mouvement, dans le
+  sens de la navigation ; la bascule du squelette vers le texte se fond au lieu
+  de clignoter ; les dix premières lignes d'une liste se déposent au lieu
+  d'arriver en bloc ; et le compteur de non-lus marque le coup quand il change.
+  Tout est désactivé si le système demande un mouvement réduit.
+- Le composant de favicon a été sorti de la barre latérale, où il ne servait
+  qu'elle, vers `src/components/FeedFavicon.tsx`.
 
 ## Actions requises à la mise à jour
 
