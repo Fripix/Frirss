@@ -42,19 +42,16 @@ _(rien pour l'instant)_
   un compte authentifié pouvait remplir le volume SQLite. Les plafonds (clé ≤
   128 caractères, valeur ≤ 1 Mio, 200 clés par requête, 500 par utilisateur)
   laissent une large marge au client réel.
-- **Les images d'articles s'affichent de nouveau.** L'ajout des en-têtes de
-  sécurité aux fichiers statiques (entrée suivante) touchait aussi `/sw.js`. Un
-  service worker applique à ses propres `fetch()` la CSP livrée avec son
-  script : sous `connect-src 'self'`, celui qui met les images en cache ne
-  pouvait plus en récupérer une seule, et toutes les images tierces
-  disparaissaient. `/sw.js` est désormais servi sans CSP — et sans `immutable`,
-  qui promettait un an d'immuabilité au seul fichier par lequel une mise à jour
-  du worker peut arriver.
 - **Sécurité — les fichiers statiques portent enfin les en-têtes de sécurité.**
   nginx sert chaque requête depuis une seule location, et celle des `.js`,
   `.css` et `.svg` l'emportait sur celle qui posait la CSP : ces fichiers
   sortaient sans CSP ni `nosniff`. Cela comptait surtout pour les `.svg`, qu'un
   navigateur traite comme un document de même origine pouvant porter du script.
+  **`/sw.js` en est délibérément exclu** : un service worker applique à ses
+  propres `fetch()` la CSP livrée avec son script, et sous `connect-src 'self'`
+  celui qui met les images en cache ne pourrait plus en récupérer une seule. Il
+  n'est pas non plus déclaré `immutable` — c'est le seul fichier non versionné
+  par un hash, et le seul chemin par lequel une mise à jour du worker arrive.
 - **Sécurité — le contenu extrait n'est plus archivé plus large qu'il n'est
   affiché.** L'assainissement de l'extraction acceptait n'importe quel
   `<iframe>`. Rien ne l'affichait — le volet de lecture réassainit tout — mais
