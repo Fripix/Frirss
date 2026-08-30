@@ -483,11 +483,8 @@ divergentes).
   un `add_header` n'hérite plus d'aucun. Garder les deux listes en phase.
 - **Taille des corps** : `client_max_body_size 5m`, aligné sur `express.json`
   et `express.raw`. Le défaut nginx (1 Mo) rendait le conteneur plus strict que
-  le backend qu'il sert, et refusait par un 413 **venu de nginx** des requêtes
-  que l'application acceptait — la restauration de sauvegarde, dont l'enveloppe
-  chiffrée part en un seul JSON, en était la victime désignée. **Ce n'est pas
-  la seule limite du chemin** : un reverse proxy en amont impose la sienne, à
-  relever séparément.
+  le backend qu'il sert. Vérifié par le job `docker` de `ci.yml`, qui exige
+  qu'un corps de 2 Mo atteigne Express.
 - **Piège majeur — `/sw.js` ne doit JAMAIS recevoir de CSP.** Un service worker
   hérite de la CSP livrée avec son propre script et l'applique à ses `fetch()`
   internes. Or il intercepte toutes les requêtes d'images (`CacheFirst`, voir

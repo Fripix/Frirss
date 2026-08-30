@@ -123,12 +123,6 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `FRIRSS_PROXY_RATE_LIMIT` | Proxied requests allowed per user per minute (`0` disables; non-integer or negative → default) | `600` |
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
-> **Behind a reverse proxy**: FriRSS accepts request bodies up to 5 MB (the
-> encrypted backup a restore uploads can approach that). Most reverse proxies
-> cap them at 1 MB by default, and the request then fails with a 413 that never
-> reaches FriRSS. On nginx or Nginx Proxy Manager, add `client_max_body_size 5m;`
-> to the host's advanced configuration.
-
 Single sign-on is configured at runtime in *Preferences → Administration* (issuer, client ID, client secret).
 
 ## Backups

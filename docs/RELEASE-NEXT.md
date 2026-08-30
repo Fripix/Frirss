@@ -108,11 +108,6 @@ _(rien pour l'instant)_
   n'importe quelle URL en réexpédiant tous les en-têtes du client, en-têtes
   d'authentification compris — l'équivalent de l'endpoint retiré de la
   production en 1.3.1. Plus rien ne l'utilisait.
-- **Le conteneur n'est plus plus strict que son propre backend sur la taille
-  des requêtes.** nginx plafonnait à 1 Mo (son défaut) là où Express accepte
-  5 Mo : une restauration de sauvegarde un peu fournie échouait sur un 413
-  opaque, émis par nginx et jamais par FriRSS. Attention, **un reverse proxy en
-  amont impose sa propre limite** — voir les actions requises.
 
 ## Actions requises à la mise à jour
 
@@ -121,11 +116,6 @@ _(rien pour l'instant)_
   s'applique qu'aux bases neuves — une instance existante garde son réglage.
   Le conteneur n'exige aucun privilège qu'il n'exigeait pas déjà : les options
   de durcissement qui fonctionnaient avant fonctionnent après.
-- **Derrière un reverse proxy** : si tu utilises la restauration de sauvegarde,
-  relève la limite de taille de corps de ton proxy à 5 Mo
-  (`client_max_body_size 5m;`, onglet *Advanced* sur Nginx Proxy Manager). Le
-  conteneur ne peut pas le faire à sa place : la requête est refusée avant de
-  l'atteindre.
 
 ## Documentation
 
