@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useUiStore } from './uiStore';
+import { readableTextOn } from '../lib/readableText';
 import type { Theme, LabelColor } from '../types';
 
 const defaultTheme: Theme = {
@@ -158,6 +159,14 @@ function applyThemeToDOM(theme: Theme): void {
   root.style.setProperty('--badge-text', theme.colors['accent']);
   root.style.setProperty('--star-inactive', '#d0d1da');
   root.style.setProperty('--resize-handle-hover', theme.colors['accent']);
+
+  // Ink that stays readable on the two colours the interface fills buttons and
+  // pills with. Both are user-settable, so `#fff` written in a className was a
+  // guess: white on the default mint accent is about 1.9:1, and any pale
+  // accent or danger colour made its own button label vanish. Derived, not a
+  // theme key — there is nothing here for the user to decide.
+  root.style.setProperty('--on-accent', readableTextOn(theme.colors['accent']));
+  root.style.setProperty('--on-danger', readableTextOn(theme.colors['danger']));
 
   // Apply font sizes as CSS custom properties
   Object.entries(theme.fontSizes).forEach(([key, value]) => {

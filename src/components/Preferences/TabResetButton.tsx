@@ -14,7 +14,7 @@ export function TabResetButton({ label, onReset }: { label: string; onReset: () 
         }}
         className="text-[11px] px-3 py-1.5 rounded-md transition-colors"
         style={{
-          color: confirm ? '#fff' : 'var(--danger)',
+          color: confirm ? 'var(--on-danger)' : 'var(--danger)',
           background: confirm ? 'var(--danger)' : 'var(--danger-light)',
         }}
       >

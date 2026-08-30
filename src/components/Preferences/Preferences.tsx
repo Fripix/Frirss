@@ -223,7 +223,7 @@ export default function Preferences() {
               onClick={handleReset}
               className="text-[10px] px-2 py-1 rounded-md transition-colors prefs-tap-btn"
               style={{
-                color: confirmReset ? '#ffffff' : 'var(--danger)',
+                color: confirmReset ? 'var(--on-danger)' : 'var(--danger)',
                 background: confirmReset ? 'var(--danger)' : 'transparent',
               }}
               title={t('preferences.resetAllTooltip')}

@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, type ReactNode } from 'react';
+import { prefersReducedMotion } from '../lib/reducedMotion';
 
 interface MobileStackProps {
   showOverlay: boolean;
@@ -43,7 +44,11 @@ export default function MobileStack({ showOverlay, base, overlay }: MobileStackP
   const overlayX = visible ? 0 : w;
   const dimOpacity = mounted ? (visible ? 0.15 : 0) : 0;
 
-  const transition = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)';
+  // Inline style, out of reach of the CSS `prefers-reduced-motion` blocks —
+  // read the preference here instead. The push/pop still happens, it just
+  // happens at once.
+  const reduced = prefersReducedMotion();
+  const transition = reduced ? 'none' : 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)';
 
   return (
     <div className="h-full relative overflow-hidden">
@@ -62,7 +67,7 @@ export default function MobileStack({ showOverlay, base, overlay }: MobileStackP
           style={{
             background: 'black',
             opacity: dimOpacity,
-            transition: 'opacity 0.35s ease',
+            transition: reduced ? 'none' : 'opacity 0.35s ease',
           }}
         />
       )}

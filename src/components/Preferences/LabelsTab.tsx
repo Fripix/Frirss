@@ -505,6 +505,7 @@ function LabelRow({
             className="p-0.5 rounded transition-colors hover:bg-black/5"
             style={{ color: 'var(--accent)' }}
             title={t('preferences.labels.validate')}
+            aria-label={t('preferences.labels.validate')}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -516,6 +517,7 @@ function LabelRow({
             className="p-0.5 rounded transition-colors hover:bg-black/5"
             style={{ color: 'var(--list-summary)' }}
             title={t('preferences.labels.cancel')}
+            aria-label={t('preferences.labels.cancel')}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -534,8 +536,8 @@ function LabelRow({
         </span>
         <button
           onClick={async () => { await onDelete(labelId); setMode(null); }}
-          className="px-2 py-0.5 rounded text-[10px] font-medium text-white"
-          style={{ background: 'var(--danger)' }}
+          className="px-2 py-0.5 rounded text-[10px] font-medium"
+          style={{ background: 'var(--danger)', color: 'var(--on-danger)' }}
         >
           {t('preferences.labels.delete')}
         </button>
@@ -703,6 +705,7 @@ function LabelRow({
           className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-black/5"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.moveTooltip')}
+          aria-label={t('preferences.labels.moveTooltip')}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
@@ -713,6 +716,7 @@ function LabelRow({
           className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-black/5"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.rename')}
+          aria-label={t('preferences.labels.rename')}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
@@ -723,6 +727,7 @@ function LabelRow({
           className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-red-50"
           style={{ color: 'var(--danger, #ef4444)' }}
           title={t('preferences.labels.delete')}
+          aria-label={t('preferences.labels.delete')}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -829,6 +834,7 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
           className="p-0.5 rounded transition-colors hover:bg-black/10"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.removeColor')}
+          aria-label={t('preferences.labels.removeColor')}
         >
           <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

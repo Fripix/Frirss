@@ -136,8 +136,8 @@ export default function ServerRow({
               <button
                 type="submit"
                 disabled={busy}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg text-white min-h-[44px] disabled:opacity-50"
-                style={{ background: 'var(--accent)' }}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
+                style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
               >
                 {t('servers.rename')}
               </button>
@@ -170,8 +170,8 @@ export default function ServerRow({
                   type="button"
                   onClick={() => run(onDelete)}
                   disabled={busy}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg text-white min-h-[44px] disabled:opacity-50"
-                  style={{ background: 'var(--danger)' }}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
+                  style={{ background: 'var(--danger)', color: 'var(--on-danger)' }}
                 >
                   {t('servers.delete')}
                 </button>

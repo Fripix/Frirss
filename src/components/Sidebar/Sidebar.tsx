@@ -14,6 +14,7 @@ import {
   savedCategories, isSavedCategory, READ_LATER_PREFIX, STARRED_PREFIX,
 } from '../../lib/savedCategories';
 import { getFavicon, setFavicon, blobToDataUrl } from '../../lib/faviconCache';
+import { readableTextOn } from '../../lib/readableText';
 import { resolveVersionLabel } from '../../lib/version';
 
 const SIDEBAR_FONT_MIN = 11;
@@ -269,6 +270,7 @@ export default function Sidebar() {
             disabled={refreshing}
             className={`flex-shrink-0 ml-auto rounded transition-colors hover:bg-white/20 text-white/80 ${isMobile ? 'p-2' : 'p-1.5'}`}
             title={t('sidebar.refresh')}
+            aria-label={t('sidebar.refresh')}
           >
             <svg
               className={`${isMobile ? 'w-5 h-5' : 'w-4 h-4'} ${refreshing ? 'animate-spin' : ''}`}
@@ -351,6 +353,7 @@ export default function Sidebar() {
               className="p-1.5 rounded transition-colors hover:bg-white/5"
               style={{ color: showFavicons ? 'var(--accent)' : 'var(--sidebar-text)' }}
               title={showFavicons ? t('sidebar.hideFavicons') : t('sidebar.showFavicons')}
+              aria-label={showFavicons ? t('sidebar.hideFavicons') : t('sidebar.showFavicons')}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
@@ -361,6 +364,7 @@ export default function Sidebar() {
               className="p-1.5 rounded transition-colors hover:bg-white/5"
               style={{ color: organizeMode ? 'var(--accent)' : 'var(--sidebar-text)' }}
               title={organizeMode ? t('sidebar.organizeEnd') : t('sidebar.organize')}
+              aria-label={organizeMode ? t('sidebar.organizeEnd') : t('sidebar.organize')}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
@@ -406,6 +410,7 @@ export default function Sidebar() {
           className={`rounded transition-colors hover:bg-white/5 ${isMobile ? 'p-2' : 'p-1.5'}`}
           style={{ color: 'var(--accent)' }}
           title={t('sidebar.addFeed')}
+          aria-label={t('sidebar.addFeed')}
         >
           <svg className={isMobile ? 'w-5 h-5' : 'w-3.5 h-3.5'} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -634,6 +639,7 @@ export default function Sidebar() {
           className="p-1.5 rounded-md transition-colors hover:bg-white/10"
           style={{ color: 'var(--sidebar-text-active)' }}
           title={t('sidebar.preferences')}
+          aria-label={t('sidebar.preferences')}
         >
           <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
@@ -793,8 +799,8 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
             </button>
             <button
               type="submit"
-              className="px-2.5 py-1 text-xs font-medium rounded-lg text-white"
-              style={{ background: 'var(--accent)' }}
+              className="px-2.5 py-1 text-xs font-medium rounded-lg"
+              style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               {t('sidebar.rename')}
             </button>
@@ -820,8 +826,8 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
           </button>
           <button
             onClick={async () => { await onDelete(feed.id); onClose(); }}
-            className="px-2.5 py-1 text-xs font-medium rounded-lg text-white"
-            style={{ background: 'var(--danger)' }}
+            className="px-2.5 py-1 text-xs font-medium rounded-lg"
+            style={{ background: 'var(--danger)', color: 'var(--on-danger)' }}
           >
             {t('sidebar.delete')}
           </button>
@@ -1197,7 +1203,7 @@ function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, on
           background: dragOver ? 'var(--accent)' : undefined,
           borderRadius: '6px',
           margin: dragOver ? '2px 6px' : '0',
-          boxShadow: dragOver ? '0 0 12px rgba(249,115,22,0.5)' : undefined,
+          boxShadow: dragOver ? '0 0 12px color-mix(in srgb, var(--accent) 50%, transparent)' : undefined,
           fontSize: 'var(--fs-sidebar-feed)',
         }}
       >
@@ -1358,6 +1364,7 @@ function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop }: Labe
           className="p-1.5 mr-2 rounded transition-colors hover:bg-white/10"
           style={{ color: 'var(--sidebar-text)' }}
           title={t('sidebar.manageLabels')}
+          aria-label={t('sidebar.manageLabels')}
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.204-.107-.397.165-.71.505-.78.929l-.15.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
@@ -1582,7 +1589,7 @@ function LabelDropItem({ labelId, name, isSelected, onClick, onArticleDrop, isPa
         background: dragOver ? 'var(--accent)' : undefined,
         borderRadius: dragOver ? '6px' : undefined,
         margin: dragOver ? '2px 6px' : '0',
-        boxShadow: dragOver ? '0 0 12px rgba(249,115,22,0.5)' : undefined,
+        boxShadow: dragOver ? '0 0 12px color-mix(in srgb, var(--accent) 50%, transparent)' : undefined,
         fontSize: 'var(--fs-sidebar-feed)',
         fontStyle: isParentEntry ? 'italic' : undefined,
         opacity: isParentEntry ? 0.7 : undefined,
@@ -1621,8 +1628,8 @@ function LetterAvatar({ title }: { title?: string }) {
   const color = getLetterAvatarColor(title || '');
   return (
     <div
-      className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center text-[7px] font-bold leading-none text-white"
-      style={{ background: color }}
+      className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center text-[7px] font-bold leading-none"
+      style={{ background: color, color: readableTextOn(color) }}
     >
       {letter}
     </div>

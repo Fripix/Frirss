@@ -41,6 +41,12 @@
   --readlater-color: #8b5cf6;
   --star-inactive: #d0d1da;
   --badge-bg: rgba(76, 212, 161, 0.12);
+
+  /* Encre lisible sur les deux couleurs de remplissage. Recalculée par
+     themeStore.applyThemeToDOM() dès qu'un thème est appliqué ; ces valeurs
+     ne servent qu'au tout premier rendu, avant que le JS ne tourne. */
+  --on-accent: #1c1c1a;
+  --on-danger: #1c1c1a;
   --badge-text: #4cd4a1;
 
   --radius: 8px;

@@ -183,8 +183,8 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-all disabled:opacity-50 hover:brightness-110"
-              style={{ background: 'var(--accent)' }}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 hover:brightness-110"
+              style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               {loading ? t('login.addingServer') : t('login.addServer')}
             </button>

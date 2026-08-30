@@ -160,6 +160,13 @@ lignes, barre verticale pour les non-lus. Scroll infini paginé. En-têtes de
 groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grille.
 
 - **Où** : `src/components/ArticleList/`
+- **Repère « non lu »** : une barre de 3 px à gauche de la ligne, posée en CSS
+  depuis l'attribut `data-unread` (`.article-row[data-unread]`), plus la pastille
+  du mode Compact. Cette phrase a longtemps été fausse : `--list-unread-bar`
+  n'était lue que par la pastille, et dans les modes Standard et Aperçu — les
+  deux par défaut — l'état non-lu ne reposait que sur la graisse du titre et sa
+  couleur. Barre ajoutée en 1.4.5. Même idiome (`inset 3px`) que la ligne
+  sélectionnée : quand une ligne est les deux, les barres ont la même couleur.
 - **Fonctions** : marquer lu au clic, favori, à lire plus tard, ouverture de
   l'original, balayage sur mobile (`SwipeableArticleRow`), sélection multiple
   via les actions de ligne
@@ -211,6 +218,11 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 (plein écran) au double-clic. Contenu bidirectionnel rendu dans son sens propre.
 
 - **Où** : `src/components/ReadingPane/ReadingPane.tsx`, `src/utils/sanitizeHtml.ts`
+- **Largeur de colonne** : `.reading-pane article` est plafonné à `44em`
+  (`index.css`) et centré. Sans plafond — l'état jusqu'à la 1.4.5 — le mode
+  Focus étalait le texte sur toute la largeur de l'écran, et l'œil perdait la
+  ligne au retour. `em` et non `px` pour que la mesure suive la taille de
+  police. Sans effet en 3 panneaux, où la colonne est déjà plus étroite.
 - **Piège majeur** : le profil DOMPurify `html: true` **retire `<iframe>` et
   `<svg>`**, silencieusement. Une icône SVG dans le HTML d'un article ressort
   vide — dessiner ces icônes en CSS. Ne **pas** élargir le profil : le HTML des
@@ -341,6 +353,46 @@ mises en file et rejouées au retour.
 
 ---
 
+## Accessibilité et confort d'usage
+
+Travail transversal, sans écran dédié — il vit dans `src/styles/index.css` et
+dans quelques composants partagés.
+
+- **Focus clavier** : un anneau `:focus-visible` global (`index.css`). Chaque
+  sélecteur est écrit en toutes lettres plutôt que dans un `:where()`, pour
+  valoir 0-1-1 et l'emporter sur l'utilitaire `.outline-none` (0-1-0) quel que
+  soit l'ordre du fichier. La couleur mélange l'accent à `--reading-title`,
+  c'est-à-dire à la couleur du **texte de la surface** : elle fonce sur un fond
+  clair, s'éclaircira sur un fond sombre, sans deuxième clé de thème. La barre
+  latérale reprend l'accent pur.
+  *Avant la 1.4.5 : 137 boutons, 4 anneaux de focus (tous dans `Login.tsx`),
+  aucune occurrence de `:focus-visible`, 18 `outline-none`.*
+- **Zoom iOS** : la règle `@media (max-width: 768px) { input { font-size: 16px } }`
+  vaut 0-0-1 et **perdait** contre `.text-sm` (0-1-0). Elle porte désormais
+  `!important` — c'est la seule façon de battre un utilitaire sans le dupliquer
+  sur vingt appels. Le champ de recherche de la liste garde son style en ligne,
+  qui était le contournement ponctuel du même problème.
+- **Cibles tactiles** : le bloc `@media (pointer: coarse)` couvre maintenant les
+  champs en plus des boutons (44 px). Exclusions communes aux deux règles :
+  cases à cocher, boutons radio, sélecteurs de couleur et curseurs, qui ont leur
+  propre dimensionnement.
+- **Mouvement réduit** : `prefers-reduced-motion` couvre le reste des animations.
+  **Pas** de règle attrape-tout `* { animation: none }` : le bandeau de relève se
+  ferme *par* une animation et resterait affiché indéfiniment. Les rotations de
+  chargement sont gardées aussi. Les deux transitions mobiles
+  (`MobileStack`, `MobileDrawer`) posent leurs durées en style en ligne, hors
+  d'atteinte du CSS : elles lisent `prefersReducedMotion()`
+  (`src/lib/reducedMotion.ts`).
+- **Noms accessibles** : les boutons à icône seule portent un `aria-label` en
+  plus du `title` (une infobulle, que le tactile n'affiche jamais et que les
+  lecteurs d'écran annoncent inégalement). **Règle** : ne jamais poser
+  d'`aria-label` sur un bouton dont le libellé est visible et différent — cela
+  casserait « Label in Name » au lieu de le corriger. Les composants partagés
+  (`ToolbarBtn`, `ActionBtn`) le posent depuis leur prop `label`, celle-là même
+  qu'ils affichent quand le contexte le permet.
+
+---
+
 ## Apparence et thèmes
 
 **36 couleurs** en 6 groupes, **7 tailles** de police en 3 groupes, nom et logo
@@ -354,6 +406,15 @@ partageables par lien.
   recompose en direct. Couverture : 28 couleurs encadrables sur l'interface, 14
   avec une zone d'aperçu, **6 avec aucune des deux** — l'interface le dit au lieu
   de laisser attendre une mise en évidence qui n'arrivera pas.
+- **Encres dérivées** : `--on-accent` et `--on-danger` sont calculées par
+  `applyThemeToDOM()` avec `readableTextOn()` (`src/lib/readableText.ts`,
+  luminance WCAG). Ce ne sont **pas** des clés de thème : rien à régler, elles
+  suivent l'accent et la couleur de danger choisis. Tout remplissage plein par
+  l'une de ces deux couleurs doit écrire son texte avec l'encre correspondante,
+  jamais `text-white` — le blanc sur l'accent menthe par défaut ne donnait que
+  1,9:1, et un accent pâle faisait disparaître le libellé de son propre bouton.
+  Même fonction pour les pastilles d'étiquette et les pastilles-lettres, dont la
+  couleur vient de l'utilisateur ou d'un hachage.
 - **Piège** : `--sidebar-header-from` / `--sidebar-header-to` sont des **clés de
   thème**, pas des variables CSS ; seul `--sidebar-header-bg` est publié.
 

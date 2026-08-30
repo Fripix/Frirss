@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
+import { prefersReducedMotion } from '../lib/reducedMotion';
 
 interface DrawerTouch {
   startX?: number;
@@ -101,7 +102,10 @@ export default function MobileDrawer({ open, onClose, children, width = 280 }: M
   // ── Computed styles ──────────────────────────────────────────────
   const progress = open ? Math.max(0, 1 + dragX / width) : 0; // 1 = fully open
 
-  const transition = dragging
+  // These durations are inline styles, so no `@media (prefers-reduced-motion)`
+  // rule can reach them — the preference has to be read in JS.
+  const reduced = prefersReducedMotion();
+  const transition = dragging || reduced
     ? 'none'
     : 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease';
 
@@ -114,7 +118,7 @@ export default function MobileDrawer({ open, onClose, children, width = 280 }: M
           background: 'rgba(0,0,0,0.5)',
           opacity: open ? (dragging ? progress : 1) : 0,
           pointerEvents: open ? 'auto' : 'none',
-          transition: dragging ? 'none' : 'opacity 0.35s ease',
+          transition: dragging || reduced ? 'none' : 'opacity 0.35s ease',
         }}
         onClick={onClose}
       />

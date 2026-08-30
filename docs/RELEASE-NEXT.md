@@ -17,7 +17,30 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Le focus clavier est enfin visible.** Un anneau `:focus-visible` global :
+  l'interface comptait 137 boutons pour 4 anneaux de focus, tous sur l'écran de
+  connexion. Naviguer au clavier hors des raccourcis dédiés était impossible.
+- **iOS ne zoome plus sur les champs de saisie.** La règle qui les forçait à
+  16 px perdait contre les classes utilitaires : mesuré à 14 px sur l'écran de
+  connexion, sur tous les champs sauf celui de la recherche, qui avait son
+  contournement à lui.
+- **Le texte des boutons pleins est lisible.** Le blanc était écrit en dur sur
+  l'accent et sur la couleur de danger, deux couleurs que l'utilisateur choisit ;
+  sur l'accent menthe par défaut, cela donnait 1,9:1. L'encre est maintenant
+  calculée à partir de la couleur de fond. Idem pour les pastilles d'étiquette,
+  qui pouvaient écrire leur nom en blanc sur un fond jaune.
+- **Les articles non lus se repèrent dans la liste.** Une barre à gauche de la
+  ligne, dans les modes Standard et Aperçu, où l'état non-lu ne tenait qu'à la
+  graisse du titre et à sa nuance de gris.
+- **Le texte d'un article ne s'étale plus sur toute la largeur** en mode Focus :
+  la colonne de lecture est plafonnée et centrée.
+- **Les champs de saisie atteignent 44 px au doigt**, comme les boutons.
+- **Les surbrillances de glisser-déposer suivent le thème.** Trois d'entre elles
+  étaient en orange codé en dur — l'accent d'une ancienne version.
+- **Les boutons à icône seule ont un nom** pour les lecteurs d'écran, en plus de
+  leur infobulle, que le tactile n'affiche jamais.
+- **« Mouvement réduit » est respecté partout**, y compris par les deux
+  transitions de navigation mobile, dont les durées échappaient au CSS.
 
 ## Sous le capot
 
@@ -25,7 +48,7 @@ _(rien pour l'instant)_
 
 ## Actions requises à la mise à jour
 
-_(à compléter)_
+Aucune.
 
 ## Documentation
 

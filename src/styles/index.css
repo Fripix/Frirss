@@ -517,6 +517,15 @@ html {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
+/* Unread marker for the standard / preview rows. `--list-unread-bar` was only
+   ever read by the compact row's dot, so in the two default view modes the
+   unread state rested entirely on font weight and text colour. Same left-edge
+   language as the selected row above; when a row is both, the two bars are the
+   same colour, so nothing collides. */
+.article-row[data-unread] {
+  box-shadow: inset 3px 0 0 var(--list-unread-bar);
+}
+
 /* ── Bottom sheet / modal animations ─────────────────────────────── */
 @keyframes sheetSlideUp {
   from { transform: translateY(100%); }
@@ -587,11 +596,20 @@ html {
 :where([data-layout="tablet"]) .action-btn:hover { transform: none; }
 
 /* ── Mobile: avoid iOS focus-zoom (inputs must be ≥16px) ─────────── */
+/* A bare `input` selector (0-0-1) LOSES to a Tailwind size utility like
+   `.text-sm` (0-1-0), whichever comes last in the file — so this rule was
+   silently doing nothing on every field that carries one, and iOS kept
+   zooming in on focus (measured: 14px on the login fields at 375px wide).
+   `!important` is the way to beat a utility class without duplicating it on
+   twenty call sites; the search field in ArticleList already worked around
+   the same problem with an inline style, which is the symptom, not the fix.
+   Checkboxes/radios are excluded: font-size does not affect them and iOS
+   does not zoom for them. */
 @media (max-width: 768px) {
-  input,
+  input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']),
   textarea,
   select {
-    font-size: 16px;
+    font-size: 16px !important;
   }
 }
 
@@ -626,6 +644,15 @@ html {
 @media (pointer: coarse) {
   button {
     min-height: 40px;
+  }
+  /* Text fields were left out of this rule and stayed at 34-42px, below the
+     44pt target. Same exclusions as the font-size rule above: a checkbox,
+     radio, colour swatch or slider is not a text field and has its own
+     sizing (`.prefs-tap-swatch`, `.label-swatch-grid`). */
+  input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']),
+  select,
+  textarea {
+    min-height: 44px;
   }
   .article-row button,
   .label-swatch-grid button,
@@ -1063,3 +1090,91 @@ html {
    utilities layer, so `.flex` would otherwise win and keep a "hidden" pane
    visible. Raise specificity here rather than hiding this globally. */
 .prefs-panel-body > [hidden] { display: none; }
+
+/* ── Focus clavier ────────────────────────────────────────────────── */
+/* Il n'y avait rien : 137 boutons dans `src/components`, 4 anneaux de focus
+   (tous dans `Login.tsx`), aucune occurrence de `:focus-visible`, et 18
+   `outline-none`. Naviguer au clavier hors des raccourcis dédiés était
+   impossible — on ne savait jamais où l'on était.
+
+   Chaque sélecteur est écrit en toutes lettres plutôt que dans un `:where()` :
+   `button:focus-visible` vaut 0-1-1 et l'emporte donc sur l'utilitaire
+   `.outline-none` (0-1-0) quel que soit l'ordre du fichier. `:focus-visible`
+   (et non `:focus`) laisse la souris tranquille : l'anneau n'apparaît qu'à la
+   navigation clavier.
+
+   La couleur mélange l'accent à la couleur du TEXTE de la surface. C'est ce
+   qui la rend lisible des deux côtés sans deuxième clé de thème : sur un
+   panneau clair `--reading-title` est sombre, donc le vert fonce et passe le
+   contraste sur blanc ; sur un fond sombre il éclaircira dans le même
+   mouvement. La barre latérale, elle, reprend l'accent pur — il y est déjà
+   très lisible. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[role='button']:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 62%, var(--reading-title));
+  outline-offset: 2px;
+}
+
+.sidebar a:focus-visible,
+.sidebar button:focus-visible,
+.sidebar input:focus-visible,
+.sidebar [role='button']:focus-visible,
+.sidebar [tabindex]:not([tabindex='-1']):focus-visible {
+  outline-color: var(--accent);
+}
+
+/* ── Volet de lecture : largeur de colonne ────────────────────────── */
+/* L'article portait des marges latérales mais aucune largeur maximale : en
+   mode Focus sur un grand écran, le texte courait sur toute la largeur et
+   l'œil perdait la ligne au retour. `em` (et non px) pour que la mesure
+   suive la taille de police choisie. Sans effet en 3 panneaux, où la colonne
+   est déjà plus étroite que ce plafond. */
+.reading-pane article {
+  max-width: 44em;
+  margin-inline: auto;
+}
+
+/* ── Mouvement réduit — le reste des animations ───────────────────── */
+/* Les blocs `prefers-reduced-motion` plus haut ne couvraient que le bandeau
+   de relève, la pulsation de flux, les cartes de la grille, la façade vidéo,
+   l'aperçu de thème et les barres de progression. Tout le mouvement du
+   quotidien passait au travers.
+
+   Volontairement PAS de règle attrape-tout `* { animation: none }` : le
+   bandeau de relève se ferme par une animation (`refresh-banner-out`), et la
+   couper le laisserait affiché indéfiniment. Les rotations de chargement
+   (`animate-spin`) sont gardées aussi — c'est le seul signe qu'un travail est
+   en cours, et le retirer coûterait plus que le mouvement n'en gêne. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .reading-skeleton,
+  .article-enter,
+  .sidebar-feed-edit-btn,
+  .update-overlay,
+  .offline-banner {
+    animation: none;
+  }
+  .reading-skeleton,
+  .sidebar-feed-edit-btn {
+    opacity: 1;
+  }
+  .article-row,
+  .sidebar-feed-item,
+  .sidebar-feed-item::before,
+  .article-card__thumb img,
+  .preview-zone {
+    transition: none;
+  }
+  .article-row:hover,
+  .sidebar-feed-item:not(.sidebar-feed-active):hover,
+  .action-btn:hover,
+  .action-btn:active {
+    transform: none;
+  }
+}

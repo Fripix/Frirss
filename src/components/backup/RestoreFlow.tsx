@@ -236,8 +236,8 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
             onClick={replace}
             disabled={phase === 'restoring'}
             aria-busy={phase === 'restoring'}
-            className="px-4 py-2 text-xs font-medium rounded-lg min-h-[44px] text-white disabled:opacity-50"
-            style={{ background: 'var(--danger)' }}
+            className="px-4 py-2 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
+            style={{ background: 'var(--danger)', color: 'var(--on-danger)' }}
           >
             {phase === 'restoring' ? t('backup.restoring') : t('backup.replace')}
           </button>

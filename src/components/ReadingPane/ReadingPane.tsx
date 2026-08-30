@@ -12,6 +12,7 @@ import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../li
 import { isFocusToggleTarget } from '../../lib/readingFocus';
 import { extractYouTubeId, injectVideoFacades, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
+import { readableTextOn } from '../../lib/readableText';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
@@ -725,6 +726,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             className="p-1.5 rounded-lg transition-colors hover:bg-black/5 mr-1"
             style={{ color: 'var(--accent)' }}
             title={t('readingPane.back')}
+            aria-label={t('readingPane.back')}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -869,6 +871,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             className="p-1 rounded transition-colors hover:bg-black/5"
             style={{ color: 'var(--list-summary)' }}
             title={`${t('sidebar.reduceText')} (${fontVal}px)`}
+            aria-label={`${t('sidebar.reduceText')} (${fontVal}px)`}
             disabled={fontVal <= fontMin}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -886,6 +889,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             className="p-1 rounded transition-colors hover:bg-black/5"
             style={{ color: 'var(--list-summary)' }}
             title={`${t('sidebar.enlargeText')} (${fontVal}px)`}
+            aria-label={`${t('sidebar.enlargeText')} (${fontVal}px)`}
             disabled={fontVal >= fontMax}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1028,7 +1032,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 {userLabels.map((label) => {
                   const fullName = label.split('/label/').pop() ?? label;
                   const displayName = fullName.includes('/') ? fullName.split('/').pop() : fullName;
-                  const color = getLabelColor(label) || 'var(--accent)';
+                  // The pill is filled with the label's own colour, which the
+                  // user picks — so the ink has to be measured against it. A
+                  // pale label (yellow, beige) used to write its own name in
+                  // white on itself. No colour set = the accent, whose ink is
+                  // already published as a variable.
+                  const ownColor = getLabelColor(label);
+                  const color = ownColor || 'var(--accent)';
+                  const ink = ownColor ? readableTextOn(ownColor) : 'var(--on-accent)';
                   return (
                     <span
                       key={label}
@@ -1036,7 +1047,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                       className="inline-flex items-center gap-1 pl-2.5 pr-2 py-1 rounded-full text-[11px] font-semibold"
                       style={{
                         background: color,
-                        color: '#fff',
+                        color: ink,
                       }}
                     >
                       <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1330,6 +1341,10 @@ function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFil
       className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
       style={style}
       title={onFile ? `${label} — ${t('saved.holdHint')}` : label}
+      /* The span below is hidden by CSS on the mobile layout, which leaves the
+         button nameless there. `label` — not the title — so the accessible
+         name still matches the visible text where the span is shown. */
+      aria-label={label}
     >
       {icon}
       <span>{label}</span>

@@ -532,8 +532,8 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
             <button
               type="submit"
               disabled={creating}
-              className="px-3 py-1.5 text-xs font-medium rounded-md text-white disabled:opacity-50"
-              style={{ background: 'var(--accent)' }}
+              className="px-3 py-1.5 text-xs font-medium rounded-md disabled:opacity-50"
+              style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               {creating ? t('admin.creating') : t('admin.create')}
             </button>
@@ -665,8 +665,8 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={saveOidc}
-                className="px-3 py-1.5 text-xs font-medium rounded-md text-white"
-                style={{ background: 'var(--accent)' }}
+                className="px-3 py-1.5 text-xs font-medium rounded-md"
+                style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
               >
                 {t('admin.save')}
               </button>

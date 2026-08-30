@@ -352,8 +352,8 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full text-white font-medium py-2.5 rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
-            style={{ background: 'var(--accent)' }}
+            className="w-full font-medium py-2.5 rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             {loading
               ? (isRegister ? t('login.registering') : t('login.connecting'))
@@ -633,8 +633,8 @@ function ServerStep() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full text-white font-medium py-2.5 rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
-            style={{ background: 'var(--accent)' }}
+            className="w-full font-medium py-2.5 rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             {loading ? t('login.addingServer') : t('login.addServer')}
           </button>

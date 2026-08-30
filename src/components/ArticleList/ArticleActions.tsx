@@ -156,6 +156,7 @@ export function MarkReadButton({ read, onClick }: MarkReadButtonProps) {
       className="p-1 rounded transition-colors hover:bg-black/5"
       style={{ color: read ? 'var(--star-inactive)' : 'var(--accent)' }}
       title={read ? t('articleRow.markUnread') : t('articleRow.markRead')}
+      aria-label={read ? t('articleRow.markUnread') : t('articleRow.markRead')}
     >
       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

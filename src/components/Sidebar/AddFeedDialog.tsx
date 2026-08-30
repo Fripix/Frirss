@@ -164,8 +164,8 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
             <button
               type="submit"
               disabled={loading || !feedUrl.trim()}
-              className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50"
-              style={{ background: 'var(--accent)' }}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+              style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               {loading ? t('addFeed.adding') : t('addFeed.add')}
             </button>

@@ -279,6 +279,7 @@ export default function ArticleList() {
                 className="p-1.5 -ml-1 rounded transition-colors hover:bg-black/5 flex-shrink-0"
                 style={{ color: 'var(--list-summary)' }}
                 title={t('sidebar.showSidebar')}
+                aria-label={t('sidebar.showSidebar')}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
@@ -337,6 +338,7 @@ export default function ArticleList() {
                 className="p-1.5 rounded transition-colors hover:bg-black/5 flex-shrink-0"
                 style={{ color: 'var(--list-summary)' }}
                 title={t('sidebar.showSidebar')}
+                aria-label={t('sidebar.showSidebar')}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
@@ -390,6 +392,7 @@ export default function ArticleList() {
                   className="p-1.5 rounded transition-colors hover:bg-black/5 flex-shrink-0"
                   style={{ color: 'var(--list-summary)' }}
                   title={t('sidebar.showSidebar')}
+                  aria-label={t('sidebar.showSidebar')}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
@@ -475,6 +478,7 @@ export default function ArticleList() {
               className="p-1.5 rounded-lg transition-colors hover:bg-black/5"
               style={{ color: 'var(--list-summary)' }}
               title={t('articleList.closeSearch')}
+              aria-label={t('articleList.closeSearch')}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -651,14 +655,17 @@ function ToolbarBtn({ icon, label, shortcut, onClick, active, iconOnly, flex1 }:
       onClick={onClick}
       className={`flex items-center justify-center gap-1 ${flex1 ? 'flex-1 py-2 [&_svg]:w-[19px] [&_svg]:h-[19px]' : iconOnly ? 'p-1.5' : 'px-2 py-1'} rounded-md text-[11px] transition-colors whitespace-nowrap ${
         active
-          ? 'text-white'
+          ? ''
           : 'hover:bg-black/5'
       }`}
       style={{
-        color: active ? '#fff' : 'var(--list-summary)',
+        color: active ? 'var(--on-accent)' : 'var(--list-summary)',
         background: active ? 'var(--accent)' : undefined,
       }}
       title={shortcut ? `${label} (${shortcut})` : label}
+      // The label is hidden by `iconOnly`, and by CSS on mobile — without this
+      // the button has no accessible name at all in those cases.
+      aria-label={label}
     >
       {icon}
       {!iconOnly && <span>{label}</span>}
@@ -876,7 +883,7 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
       position: 'fixed', left: '-9999px', top: '0',
       maxWidth: '220px', padding: '6px 12px',
       borderRadius: '8px', fontSize: '11px', fontWeight: '600',
-      background: 'rgba(249,115,22,0.85)', color: '#fff',
+      background: 'var(--accent)', color: '#fff',
       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
     });
@@ -938,6 +945,12 @@ function ArticleRow({ article, viewMode, showSource, active, onSelect, onToggleS
       onDragStart={handleDragStart}
       onClick={onSelect}
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}
+      /* Unread marker. The compact row has a dot; these rows had nothing but a
+         bolder title in a darker grey — invisible on a matt screen, at an
+         angle, or to an eye that separates greys poorly. The bar is drawn in
+         CSS off this attribute, reusing the `inset 3px` idiom that already
+         marks the selected row. */
+      data-unread={article.read ? undefined : ''}
       className={`article-row w-full text-left flex gap-3 px-4 py-3 cursor-pointer ${
         active ? 'article-row-active bg-[var(--list-selected)]' : 'hover:bg-[var(--list-hover)]'
       }`}
@@ -1006,6 +1019,7 @@ function DateSepToggle({ active, onClick }: ToggleProps) {
     <button
       onClick={onClick}
       title={active ? t('articleList.hideDateSep') : t('articleList.showDateSep')}
+      aria-label={active ? t('articleList.hideDateSep') : t('articleList.showDateSep')}
       className={`p-1 rounded transition-all ${
         active
           ? 'text-[var(--accent)]'
