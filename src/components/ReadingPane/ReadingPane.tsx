@@ -1051,7 +1051,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             >
               <h1
                 dir="auto"
-                className="font-bold leading-tight"
+                className="font-bold leading-tight article-title-target"
                 data-theme="reading-title"
                 style={{ color: 'var(--reading-title)', fontSize: 'var(--fs-reading-title)' }}
               >
@@ -1061,7 +1061,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           ) : (
             <h1
               dir="auto"
-              className="font-bold leading-tight mb-4"
+              className="font-bold leading-tight mb-4 article-title-target"
               data-theme="reading-title"
               style={{ color: 'var(--reading-title)', fontSize: 'var(--fs-reading-title)' }}
             >

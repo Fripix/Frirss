@@ -220,6 +220,28 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   l'aller **et** au rollback. Seuls les deux chemins de lecture le faisaient :
   mettre un favori puis recharger hors ligne le montrait non favori.
 
+### Marquer lu au défilement
+Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article
+est marqué lu une seconde après être sorti par le **haut** de la liste.
+
+- **Où** : `src/lib/markReadOnScroll.ts` (les décisions, testées),
+  `ArticleList.tsx` (l'`IntersectionObserver`)
+- **Pas un sixième site d'écriture** : l'écriture passe par `toggleRead`, l'un
+  des cinq existants — donc le repli en cas d'échec et `persistCurrentView()`
+  s'appliquent déjà. C'est aussi pourquoi la décision refuse un article **déjà
+  lu** : `toggleRead` le repasserait non lu, l'exact contraire du réglage.
+- **Piège majeur — le premier appel de l'observateur** rapporte l'état de
+  TOUTES les lignes observées. Sans garde, ouvrir une vue dont la position de
+  défilement est restaurée marquerait lu tout ce qui se trouve au-dessus. D'où
+  `seen` : seule une ligne **ayant été visible** peut être marquée. L'ensemble
+  est vidé à chaque changement de vue.
+- **Sortie par le bas ≠ sortie par le haut** : remonter la liste fait sortir des
+  lignes par le bas ; celles-là ne sont jamais marquées, on ne les a pas
+  dépassées. `scrolledPastTop()` porte cette distinction.
+- **Jamais pendant une recherche** : on parcourt des résultats, on ne dépile pas
+  une file. Le délai d'une seconde laisse le temps de remonter, et revenir à
+  l'écran annule la programmation.
+
 ### Marquer tout comme lu
 Confirmation optionnelle avant de vider une vue entière.
 
@@ -264,6 +286,16 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 (plein écran) au double-clic. Contenu bidirectionnel rendu dans son sens propre.
 
 - **Où** : `src/components/ReadingPane/ReadingPane.tsx`, `src/utils/sanitizeHtml.ts`
+- **Morphing du titre** (1.4.5) : `src/lib/viewTransition.ts`. Le titre de la
+  ligne cliquée et celui du volet portent le même `view-transition-name` le
+  temps de la transition ; le navigateur anime le passage de l'un à l'autre.
+  **Uniquement en 2 panneaux et en grille, sur desktop** : là, la liste est
+  remplacée par le volet. En 3 panneaux les deux titres coexistent et se
+  disputeraient le nom (le navigateur saute alors la transition) ; sur mobile,
+  `MobileStack` garde la liste montée derrière **et** anime déjà la navigation.
+  Sans support navigateur, ou sous mouvement réduit, il ne se passe rien.
+  `flushSync` est indispensable : sans commit synchrone, le navigateur
+  photographie deux fois l'ancien état.
 - **Mouvement** (1.4.5) : l'article entre avec un léger déplacement vertical
   **dans le sens de la navigation** — un article situé plus haut dans la liste
   entre par le haut (`data-enter` posé sur l'élément avant le redéclenchement

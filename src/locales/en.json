@@ -155,7 +155,9 @@
       "confirmMarkAllRead": "Confirm before marking all as read",
       "confirmMarkAllReadHint": "When off, \"Mark all as read\" acts in a single click, with no confirmation.",
       "inlineVideos": "Play videos in the article",
-      "inlineVideosHint": "Shows the thumbnail; the video loads only on click. Off, a link to YouTube is shown instead."
+      "inlineVideosHint": "Shows the thumbnail; the video loads only on click. Off, a link to YouTube is shown instead.",
+      "markReadOnScroll": "Mark read while scrolling",
+      "markReadOnScrollHint": "An article is marked read a second after it leaves the top of the list. Never during a search."
     },
     "branding": {
       "language": "Language",

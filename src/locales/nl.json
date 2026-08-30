@@ -155,7 +155,9 @@
       "confirmMarkAllRead": "Bevestigen voordat alles als gelezen wordt gemarkeerd",
       "confirmMarkAllReadHint": "Wanneer uit werkt ‘Alles als gelezen markeren’ met één klik, zonder bevestiging.",
       "inlineVideos": "Videos in het artikel afspelen",
-      "inlineVideosHint": "Toont de miniatuur; de video laadt pas bij klikken. Uit: een link naar YouTube."
+      "inlineVideosHint": "Toont de miniatuur; de video laadt pas bij klikken. Uit: een link naar YouTube.",
+      "markReadOnScroll": "Als gelezen markeren tijdens scrollen",
+      "markReadOnScrollHint": "Een artikel wordt een seconde nadat het bovenaan de lijst verdwijnt als gelezen gemarkeerd. Nooit tijdens een zoekopdracht."
     },
     "branding": {
       "language": "Taal",

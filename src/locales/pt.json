@@ -155,7 +155,9 @@
       "confirmMarkAllRead": "Confirmar antes de marcar tudo como lido",
       "confirmMarkAllReadHint": "Quando desativado, «Marcar tudo como lido» age com um único clique, sem confirmação.",
       "inlineVideos": "Reproduzir os vídeos no artigo",
-      "inlineVideosHint": "Mostra a miniatura; o vídeo só carrega ao clicar. Desativado, é apresentado um link para o YouTube."
+      "inlineVideosHint": "Mostra a miniatura; o vídeo só carrega ao clicar. Desativado, é apresentado um link para o YouTube.",
+      "markReadOnScroll": "Marcar como lido ao deslocar",
+      "markReadOnScrollHint": "Um artigo é marcado como lido um segundo depois de sair pelo topo da lista. Nunca durante uma pesquisa."
     },
     "branding": {
       "language": "Idioma",

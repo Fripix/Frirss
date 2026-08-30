@@ -155,7 +155,9 @@
       "confirmMarkAllRead": "Confirmer avant de tout marquer comme lu",
       "confirmMarkAllReadHint": "Désactivé, « Tout marquer comme lu » agit en un seul clic, sans confirmation.",
       "inlineVideos": "Lire les vidéos dans l’article",
-      "inlineVideosHint": "Affiche la miniature ; la vidéo n’est chargée qu’au clic. Désactivé, un lien vers YouTube s’affiche."
+      "inlineVideosHint": "Affiche la miniature ; la vidéo n’est chargée qu’au clic. Désactivé, un lien vers YouTube s’affiche.",
+      "markReadOnScroll": "Marquer lu au défilement",
+      "markReadOnScrollHint": "Un article est marqué lu une seconde après être sorti par le haut de la liste. Jamais pendant une recherche."
     },
     "branding": {
       "language": "Langue",

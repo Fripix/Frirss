@@ -1514,3 +1514,16 @@ summary:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   .bottom-sheet, .bottom-sheet__backdrop { animation: none; }
 }
+
+/* ── Morphing liste → lecture (View Transitions) ──────────────────── */
+/* Le titre du volet porte le nom en permanence ; la ligne cliquée le reçoit
+   le temps de la transition, posé par `openArticle`. Hors transition, un seul
+   élément le revendique, donc aucune collision. Là où l'API n'existe pas,
+   ces règles sont simplement inertes. */
+.article-title-target {
+  view-transition-name: frirss-article-title;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .article-title-target { view-transition-name: none; }
+}

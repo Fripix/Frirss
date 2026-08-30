@@ -107,6 +107,11 @@ export interface UiState {
   // Synced per-user. Off → mark immediately.
   confirmMarkAllRead: boolean;
   setConfirmMarkAllRead: (v: boolean) => void;
+  // Marquer un article lu quand il sort de l'écran par le haut. Éteint par
+  // défaut : c'est une écriture déclenchée par un geste passif, personne ne
+  // doit se la voir imposer par une mise à jour. Synchronisé.
+  markReadOnScroll: boolean;
+  setMarkReadOnScroll: (v: boolean) => void;
   // Show a click-to-load player for YouTube videos. Off → a plain link.
   inlineVideos: boolean;
   setInlineVideos: (v: boolean) => void;
@@ -296,6 +301,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setConfirmMarkAllRead: (v) => {
     localStorage.setItem('frirss_confirmMarkAllRead', JSON.stringify(v));
     set({ confirmMarkAllRead: v });
+  },
+
+  markReadOnScroll: loadJson('frirss_markReadOnScroll', false),
+  setMarkReadOnScroll: (v) => {
+    localStorage.setItem('frirss_markReadOnScroll', JSON.stringify(v));
+    set({ markReadOnScroll: v });
   },
 
   inlineVideos: loadJson('frirss_inlineVideos', true),
@@ -591,7 +602,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-      'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
+      'confirmMarkAllRead', 'markReadOnScroll', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -615,7 +626,7 @@ export const UI_SYNC_KEYS = [
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-  'confirmMarkAllRead', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
+  'confirmMarkAllRead', 'markReadOnScroll', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

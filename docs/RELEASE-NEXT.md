@@ -21,6 +21,10 @@ la release publiée.
 - **Des messages de confirmation.** L'application ne disait jamais qu'une
   action avait abouti. Un message bref apparaît en bas de l'écran — articles
   marqués comme lus, lien copié — et disparaît seul.
+- **Marquer les articles comme lus en défilant**, en option (Préférences →
+  Général, éteinte par défaut). C'est la seule façon de traiter une vue Non lus
+  à trois cents entrées sans cliquer trois cents fois. Jamais pendant une
+  recherche, et une seconde de délai laisse le temps de remonter.
 - **Un aide-mémoire des raccourcis, sur la touche `?`.** Ils étaient
   réassignables et documentés dans les préférences, mais rien ne les montrait
   au moment où on en a besoin.
@@ -87,6 +91,10 @@ la release publiée.
   de clignoter ; les dix premières lignes d'une liste se déposent au lieu
   d'arriver en bloc ; et le compteur de non-lus marque le coup quand il change.
   Tout est désactivé si le système demande un mouvement réduit.
+- Ouvrir un article depuis la vue deux colonnes ou la grille fait grandir son
+  titre jusqu'à sa place dans le volet de lecture, au lieu de le faire
+  disparaître d'un côté et réapparaître de l'autre. Les navigateurs qui ne
+  savent pas le faire n'affichent simplement rien de particulier.
 - Les menus d'options du format mobile s'ouvrent en feuille depuis le bas, à
   portée du pouce, au lieu d'une liste ancrée en haut de l'écran. Le motif
   existait déjà pour les étiquettes ; les trois partagent maintenant un seul

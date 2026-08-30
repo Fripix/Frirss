@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -16,6 +17,9 @@ import FeedFavicon from '../FeedFavicon';
 import BottomSheet from '../BottomSheet';
 import { useAuthStore } from '../../stores/authStore';
 import { loadSearchHistory, rememberSearch, forgetSearch } from '../../lib/searchHistory';
+import { scrolledPastTop, shouldMark, MARK_READ_DELAY_MS } from '../../lib/markReadOnScroll';
+import { canMorph, withMorph } from '../../lib/viewTransition';
+import { prefersReducedMotion } from '../../lib/reducedMotion';
 import type { Article, Filter } from '../../types';
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
@@ -59,6 +63,7 @@ export default function ArticleList() {
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const unreadCounts = useFeedStore((s) => s.unreadCounts);
   const pushToast = useUiStore((s) => s.pushToast);
+  const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
   const showSourceInAll = useUiStore((s) => s.showSourceInAll);
   const toggleShowSourceInFeed = useUiStore((s) => s.toggleShowSourceInFeed);
   const toggleShowSourceInAll = useUiStore((s) => s.toggleShowSourceInAll);
@@ -80,6 +85,8 @@ export default function ArticleList() {
   // width and the reading pane replaces it on selection.
   const gridLayout = layout === 'grid';
   const is2Panel = layout === '2' || gridLayout || !isDesktop;
+  // La liste cède-t-elle la place au volet ? (2 panneaux et grille, desktop)
+  const panelLayoutReplacesList = layout === '2' || gridLayout;
   // Date grouping: the grid has its own (off-by-default) toggle; the list views
   // use the shared one.
   const dateSepActive = gridLayout ? gridDateSeparators : showDateSeparators;
@@ -97,7 +104,7 @@ export default function ArticleList() {
       article={article}
       showSource={showSource}
       active={selectedArticle?.id === article.id}
-      onSelect={() => selectArticle(article)}
+      onSelect={() => openArticle(article)}
       onToggleStar={(e) => { e.stopPropagation(); toggleStar(article); }}
       onToggleRead={(e) => { e.stopPropagation(); toggleRead(article); }}
       onToggleReadLater={(e) => { e.stopPropagation(); toggleReadLater(article); }}
@@ -137,6 +144,34 @@ export default function ArticleList() {
   }, [filter, selectedFeed, subscriptions, unreadCounts]);
 
   const listRef = useRef<HTMLDivElement>(null);
+
+  // ── Ouverture d'un article, avec morphing du titre ────────────────
+  // Le titre de la ligne et celui du volet portent le même
+  // `view-transition-name` le temps de la transition : le navigateur anime le
+  // passage de l'un à l'autre.
+  //
+  // Seulement là où la liste est REMPLACÉE par le volet — 2 panneaux et grille
+  // sur desktop. En 3 panneaux les deux titres coexistent et se disputeraient
+  // le nom ; sur mobile, `MobileStack` garde la liste montée derrière ET anime
+  // déjà la navigation. Sans support navigateur, il ne se passe rien.
+  const openArticle = useCallback((article: Article) => {
+    const enabled = canMorph({
+      listIsReplaced: isDesktop && (panelLayoutReplacesList),
+      reducedMotion: prefersReducedMotion(),
+    });
+    let titleEl: HTMLElement | null = null;
+    if (enabled && listRef.current) {
+      const escaped = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(article.id) : article.id;
+      titleEl = listRef.current.querySelector<HTMLElement>(`[data-article-id="${escaped}"] .article-title`);
+      if (titleEl) titleEl.style.viewTransitionName = 'frirss-article-title';
+    }
+    // `flushSync` : le navigateur doit voir le nouveau DOM dans le même tour,
+    // sinon il photographie deux fois l'ancien état.
+    withMorph(() => flushSync(() => selectArticle(article)), enabled);
+    // La ligne est démontée avec la liste dans ce mode ; le nettoyage ne sert
+    // que si le rendu la garde pour une raison quelconque.
+    if (titleEl) titleEl.style.viewTransitionName = '';
+  }, [isDesktop, panelLayoutReplacesList, selectArticle]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   // Recherches récentes du serveur actif. Rechargées à chaque ouverture du
@@ -245,6 +280,83 @@ export default function ArticleList() {
     el.addEventListener('scroll', handleScroll);
     return () => el.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
+
+  // ── Marquer lu au défilement (optionnel) ──────────────────────────
+  // Éteint par défaut. Jamais pendant une recherche : on parcourt alors des
+  // résultats, on ne dépile pas une file.
+  //
+  // `seenRef` retient les lignes qui ont été visibles au moins une fois. Sans
+  // lui, le premier appel de l'observateur — qui rapporte l'état de TOUTES les
+  // lignes observées — marquerait lu tout ce qui se trouve au-dessus d'une
+  // position de défilement restaurée.
+  //
+  // L'écriture passe par `toggleRead`, l'un des cinq sites d'écriture
+  // existants : ce n'est pas un sixième, et le repli en cas d'échec ainsi que
+  // `persistCurrentView()` s'appliquent donc déjà.
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const seenRef = useRef<Set<string>>(new Set());
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const root = listRef.current;
+    const timers = timersRef.current;
+    const seen = seenRef.current;
+    const active = markReadOnScroll && !searchQuery;
+    if (!active || !root || typeof IntersectionObserver === 'undefined') {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      timers.forEach(clearTimeout);
+      timers.clear();
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).dataset.articleId;
+          if (!id) continue;
+
+          if (entry.isIntersecting) {
+            seen.add(id);
+            // Revenue à l'écran : on annule, l'utilisateur est remonté.
+            const pending = timers.get(id);
+            if (pending) { clearTimeout(pending); timers.delete(id); }
+            continue;
+          }
+
+          const pastTop = scrolledPastTop(entry.boundingClientRect, entry.rootBounds);
+          const article = useFeedStore.getState().articles.find((a) => a.id === id);
+          if (!article || !shouldMark(article, pastTop, seen)) continue;
+          if (timers.has(id)) continue;
+
+          timers.set(id, setTimeout(() => {
+            timers.delete(id);
+            // Relire l'article : il a pu être ouvert — donc marqué lu — entre
+            // la programmation et l'échéance.
+            const fresh = useFeedStore.getState().articles.find((a) => a.id === id);
+            if (fresh && !fresh.read) useFeedStore.getState().toggleRead(fresh);
+          }, MARK_READ_DELAY_MS));
+        }
+      },
+      { root, threshold: 0 }
+    );
+    observerRef.current = observer;
+
+    root.querySelectorAll('[data-article-id]').forEach((node) => observer.observe(node));
+
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, [markReadOnScroll, searchQuery, articles.length]);
+
+  // Changer de vue repart d'une page blanche : les lignes de la vue
+  // précédente ne doivent pas compter comme « déjà vues ».
+  useEffect(() => {
+    seenRef.current.clear();
+  }, [scrollKey]);
 
   // Focus search input when opened
   useEffect(() => {
@@ -700,7 +812,7 @@ export default function ArticleList() {
                       favicon={showFavicons ? iconByFeedId.get(article.sourceId) ?? null : undefined}
                       staggerIndex={rowIndex.get(article.id)}
                       active={selectedArticle?.id === article.id}
-                      onSelect={() => selectArticle(article)}
+                      onSelect={() => openArticle(article)}
                       onToggleStar={(e) => {
                         e.stopPropagation();
                         toggleStar(article);
@@ -1096,6 +1208,7 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
           active ? 'article-row-active bg-[var(--list-selected)]' : 'hover:bg-[var(--list-hover)]'
         }`}
         {...(stagger ? { 'data-stagger': '' } : {})}
+        data-article-id={article.id}
         style={{ borderBottom: '1px solid var(--panel-border)', ...(stagger?.style ?? {}) }}
       >
         {/* Always reserve space for the unread dot to avoid alignment shift */}
@@ -1117,7 +1230,7 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
         )}
         <span
           dir="auto"
-          className={`truncate flex-1 ${article.read ? 'font-normal' : 'font-medium'}`}
+          className={`article-title truncate flex-1 ${article.read ? 'font-normal' : 'font-medium'}`}
           data-theme={article.read ? 'list-title-read' : 'list-title'}
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
         >
@@ -1150,6 +1263,7 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
         active ? 'article-row-active bg-[var(--list-selected)]' : 'hover:bg-[var(--list-hover)]'
       }`}
       {...(stagger ? { 'data-stagger': '' } : {})}
+      data-article-id={article.id}
       style={{ borderBottom: '1px solid var(--panel-border)', ...(stagger?.style ?? {}) }}
     >
       {thumbnail && viewMode === 'preview' && (
@@ -1184,7 +1298,7 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
 
         <h3
           dir="auto"
-          className={`leading-snug mb-1 ${article.read ? 'font-normal' : 'font-semibold'}`}
+          className={`article-title leading-snug mb-1 ${article.read ? 'font-normal' : 'font-semibold'}`}
           data-theme={article.read ? 'list-title-read' : 'list-title'}
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
         >

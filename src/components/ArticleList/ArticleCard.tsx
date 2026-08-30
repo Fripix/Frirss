@@ -30,6 +30,7 @@ export default function ArticleCard({
       role="button"
       tabIndex={0}
       aria-label={article.title}
+      data-article-id={article.id}
       onClick={onSelect}
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}
       className={`article-card ${active ? 'article-card--active' : ''} ${article.read ? 'article-card--read' : ''}`}
@@ -63,7 +64,7 @@ export default function ArticleCard({
           {showSource && <span className="article-card__source">{article.source}</span>}
           <span className="article-card__time">{timeAgo(article.published, t)}</span>
         </div>
-        <h3 className="article-card__title" dir="auto">{article.title}</h3>
+        <h3 className="article-card__title article-title" dir="auto">{article.title}</h3>
         <p className="article-card__summary" dir="auto">{article.summary}</p>
       </div>
 

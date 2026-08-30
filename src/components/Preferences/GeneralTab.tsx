@@ -8,6 +8,8 @@ export default function GeneralTab() {
   const { t, i18n } = useTranslation();
   const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
   const setConfirmMarkAllRead = useUiStore((s) => s.setConfirmMarkAllRead);
+  const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
+  const setMarkReadOnScroll = useUiStore((s) => s.setMarkReadOnScroll);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
   const setInlineVideos = useUiStore((s) => s.setInlineVideos);
   const { shortcuts, setShortcut, resetShortcuts } = useUiStore();
@@ -70,6 +72,23 @@ export default function GeneralTab() {
               checked={confirmMarkAllRead}
               onChange={setConfirmMarkAllRead}
               ariaLabel={t('preferences.general.confirmMarkAllRead')}
+            />
+          </span>
+        </div>
+
+        {/* Mark an article read once it scrolls off the top */}
+        <div className="flex items-start justify-between gap-4 select-none mt-4">
+          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.general.markReadOnScroll')}
+            <span className="block text-[11px] opacity-70 mt-0.5">
+              {t('preferences.general.markReadOnScrollHint')}
+            </span>
+          </span>
+          <span className="mt-0.5">
+            <ToggleSwitch
+              checked={markReadOnScroll}
+              onChange={setMarkReadOnScroll}
+              ariaLabel={t('preferences.general.markReadOnScroll')}
             />
           </span>
         </div>
