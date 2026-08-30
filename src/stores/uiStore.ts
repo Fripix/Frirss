@@ -63,6 +63,10 @@ export interface Toast {
 export const MAX_TOASTS = 3;
 
 export interface UiState {
+  /** Fenêtre d'aide-mémoire des raccourcis (`?`). Ni persistée ni synchronisée. */
+  shortcutHelpOpen: boolean;
+  setShortcutHelpOpen: (open: boolean) => void;
+
   toasts: Toast[];
   /** Empile un message ; renvoie son identifiant. */
   pushToast: (message: string, opts?: { action?: Toast['action']; tone?: Toast['tone'] }) => number;
@@ -528,6 +532,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
   // Les toasts ne sont ni persistés ni synchronisés : un message transitoire
   // n'est pas une préférence, et le rejouer sur un autre appareil n'aurait
   // aucun sens.
+  shortcutHelpOpen: false,
+  setShortcutHelpOpen: (open) => set({ shortcutHelpOpen: open }),
+
   toasts: [],
   pushToast: (message, opts) => {
     const id = ++toastSeq;

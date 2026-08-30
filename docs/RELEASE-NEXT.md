@@ -21,6 +21,11 @@ la release publiée.
 - **Des messages de confirmation.** L'application ne disait jamais qu'une
   action avait abouti. Un message bref apparaît en bas de l'écran — articles
   marqués comme lus, lien copié — et disparaît seul.
+- **Un aide-mémoire des raccourcis, sur la touche `?`.** Ils étaient
+  réassignables et documentés dans les préférences, mais rien ne les montrait
+  au moment où on en a besoin.
+- **La recherche se souvient des cinq dernières requêtes**, par serveur, et les
+  propose à l'ouverture du champ.
 - **Partager un article, ou copier son lien**, depuis le volet de lecture. Sur
   mobile, la feuille de partage du système ; ailleurs, le presse-papiers.
 - **Le thème peut suivre le système.** Un interrupteur, puis le choix du thème
@@ -82,6 +87,10 @@ la release publiée.
   de clignoter ; les dix premières lignes d'une liste se déposent au lieu
   d'arriver en bloc ; et le compteur de non-lus marque le coup quand il change.
   Tout est désactivé si le système demande un mouvement réduit.
+- Les menus d'options du format mobile s'ouvrent en feuille depuis le bas, à
+  portée du pouce, au lieu d'une liste ancrée en haut de l'écran. Le motif
+  existait déjà pour les étiquettes ; les trois partagent maintenant un seul
+  composant.
 - Le composant de favicon a été sorti de la barre latérale, où il ne servait
   qu'elle, vers `src/components/FeedFavicon.tsx`.
 

@@ -86,7 +86,9 @@
     "searchIn": "In {{scope}} suchen",
     "gridLayout": "Raster",
     "layoutOverridden": "Dieser Feed hat eine eigene Ansicht (Rechtsklick auf den Feed)",
-    "layoutScopeAll": "alle Feeds"
+    "layoutScopeAll": "alle Feeds",
+    "recentSearches": "Zuletzt",
+    "forgetSearch": "Diese Suche vergessen"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",
@@ -314,7 +316,10 @@
       "keyDoubleClick": "Doppelklick",
       "doubleClickFocus": "Fokusmodus (Vollbild) im Artikel",
       "keyHold": "Gedrückt halten",
-      "holdToFile": "Artikel in eine Kategorie einsortieren (Favorit / Später lesen)"
+      "holdToFile": "Artikel in eine Kategorie einsortieren (Favorit / Später lesen)",
+      "customize": "In den Einstellungen anpassen",
+      "gestureHelp": "Dieses Fenster anzeigen",
+      "helpTitle": "Tastenkürzel"
     },
     "offline": {
       "title": "Offline",

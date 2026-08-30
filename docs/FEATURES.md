@@ -149,7 +149,17 @@ d'adopter la disposition mobile.
 Navigation et actions au clavier, chaque raccourci réassignable. Gestes intégrés
 non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
 
-- **Où** : `src/hooks/useKeyboardNav.ts`, `src/components/ShortcutBar.tsx`, Préférences → Général
+- **Où** : `src/hooks/useKeyboardNav.ts`, `src/components/ShortcutBar.tsx`,
+  `src/components/ShortcutHelp.tsx`, Préférences → Général
+- **Aide-mémoire sur `?`** (1.4.5) : fenêtre listant **tous** les raccourcis
+  configurables avec les touches **réellement configurées**, plus les gestes
+  intégrés dans une section à part — les mélanger laisserait croire qu'on peut
+  les réassigner. Les libellés sont ceux de la section « Gestes et touches
+  intégrés » des Préférences : les mêmes gestes, donc les mêmes chaînes, sinon
+  les deux écrans divergent. `?` est traité **avant** les raccourcis
+  configurables, sans quoi on pourrait le masquer en l'attribuant à une action.
+  Échap y est capté en phase de capture, pour passer avant le gestionnaire
+  global qui s'en sert pour quitter le mode Focus.
 
 ---
 
@@ -160,6 +170,12 @@ lignes, barre verticale pour les non-lus. Scroll infini paginé. En-têtes de
 groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grille.
 
 - **Où** : `src/components/ArticleList/`
+- **Menus du format mobile** : `src/components/BottomSheet.tsx`. Le motif
+  existait — le menu d'étiquettes du volet de lecture le posait à la main —
+  mais les menus d'options s'ouvraient en liste ancrée sous leur icône, donc en
+  **haut** de l'écran, hors de portée du pouce, avec des rangées de 13 px. Une
+  seule implémentation, utilisée par les trois (options de liste, menu « ⋯ » du
+  volet, étiquettes).
 - **Favicon du flux dans la ligne** (1.4.5) : `src/components/FeedFavicon.tsx`,
   extrait de la barre latérale où il ne servait qu'elle. La source n'était
   qu'un mot en majuscules de 10 px : repérer un flux dans une vue Tous les flux
@@ -220,6 +236,17 @@ Confirmation optionnelle avant de vider une vue entière.
 ### Recherche
 Recherche respectant le **périmètre** de la vue courante : chercher depuis un
 flux cherche dans ce flux, depuis une catégorie dans cette catégorie.
+
+- **Recherches récentes** (1.4.5) : `src/lib/searchHistory.ts`, cinq au
+  maximum, **par serveur** comme la vue courante (`lastView.ts`) — les flux
+  diffèrent d'un serveur à l'autre, donc une requête qui avait un sens sur l'un
+  est du bruit sur le suivant. Proposées seulement quand le champ est vide,
+  sinon elles recouvriraient ce qu'on est en train de taper. **Locales à
+  l'appareil, jamais synchronisées** : c'est la sorte de trace qu'on ne
+  s'attend pas à voir apparaître sur un autre écran.
+- **Piège** : `activeServerId` vaut `string` sur certains chemins et `number`
+  sur d'autres ; la clé de stockage interpole, pour que les deux formes visent
+  le même seau.
 
 - **Spec** : `docs/superpowers/specs/2026-08-16-scoped-search-design.md`
 

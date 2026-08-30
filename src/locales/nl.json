@@ -86,7 +86,9 @@
     "searchIn": "Zoeken in {{scope}}",
     "gridLayout": "Raster",
     "layoutOverridden": "Deze feed heeft een eigen indeling (rechtsklik op de feed)",
-    "layoutScopeAll": "alle feeds"
+    "layoutScopeAll": "alle feeds",
+    "recentSearches": "Recent",
+    "forgetSearch": "Deze zoekopdracht vergeten"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",
@@ -314,7 +316,10 @@
       "keyDoubleClick": "Dubbelklik",
       "doubleClickFocus": "Focusmodus (volledig scherm) op het artikel",
       "keyHold": "Ingedrukt houden",
-      "holdToFile": "Artikel in een categorie opslaan (Favoriet / Later lezen)"
+      "holdToFile": "Artikel in een categorie opslaan (Favoriet / Later lezen)",
+      "customize": "Aanpassen in de voorkeuren",
+      "gestureHelp": "Dit venster tonen",
+      "helpTitle": "Sneltoetsen"
     },
     "offline": {
       "title": "Offline",

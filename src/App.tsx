@@ -19,6 +19,7 @@ import ServerSwitcher from './components/ServerSwitcher/ServerSwitcher';
 import ShortcutBar from './components/ShortcutBar';
 import OfflineBanner from './components/OfflineBanner';
 import Toaster from './components/Toaster';
+import ShortcutHelp from './components/ShortcutHelp';
 import { effectiveLayout } from './lib/effectiveLayout';
 import MobileDrawer from './components/MobileDrawer';
 import MobileStack from './components/MobileStack';
@@ -347,6 +348,7 @@ export default function App() {
         {transitionLayer}
       <OfflineBanner />
       <Toaster />
+      <ShortcutHelp />
       </>
     );
   }
@@ -396,6 +398,7 @@ export default function App() {
         {transitionLayer}
       <OfflineBanner />
       <Toaster />
+      <ShortcutHelp />
       </>
     );
   }
@@ -474,6 +477,7 @@ export default function App() {
       {transitionLayer}
       <OfflineBanner />
       <Toaster />
+      <ShortcutHelp />
     </>
   );
 }

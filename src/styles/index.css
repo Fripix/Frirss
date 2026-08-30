@@ -1341,3 +1341,176 @@ summary:focus-visible,
   .toast__action, .toast__close { min-height: 36px; }
   .toast__close { width: 36px; }
 }
+
+/* ── Aide-mémoire des raccourcis (touche ?) ───────────────────────── */
+.shortcut-help-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  animation: backdropFadeIn 0.18s ease both;
+}
+
+.shortcut-help {
+  width: min(520px, 100%);
+  max-height: min(80vh, 640px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.5);
+  animation: shortcut-help-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes shortcut-help-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.shortcut-help__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 14px 18px;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel-header-bg);
+}
+.shortcut-help__head h2 {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--list-title);
+}
+.shortcut-help__close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--list-summary);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.shortcut-help__close svg { width: 15px; height: 15px; }
+.shortcut-help__close:hover {
+  color: var(--list-title);
+  background: color-mix(in srgb, var(--reading-meta) 12%, transparent);
+}
+
+.shortcut-help__body {
+  overflow-y: auto;
+  padding: 14px 18px 18px;
+}
+.shortcut-help__body h3 {
+  margin-top: 18px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--list-summary);
+}
+
+.shortcut-help__list {
+  display: grid;
+  gap: 2px;
+  list-style: none;
+}
+.shortcut-help__list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--reading-text);
+}
+.shortcut-help__list li:nth-child(odd) {
+  background: color-mix(in srgb, var(--panel-border) 28%, transparent);
+}
+.shortcut-help__list kbd {
+  flex-shrink: 0;
+  min-width: 30px;
+  padding: 3px 7px;
+  text-align: center;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  color: var(--list-title);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 1px 0 var(--panel-border);
+}
+
+.shortcut-help__customize {
+  flex-shrink: 0;
+  padding: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  border-top: 1px solid var(--panel-border);
+  background: var(--panel-header-bg);
+  transition: background-color 0.15s ease;
+}
+.shortcut-help__customize:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel-header-bg));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shortcut-help-backdrop, .shortcut-help { animation: none; }
+}
+
+/* ── Feuille du bas (menus du format mobile) ──────────────────────── */
+.bottom-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+.bottom-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  animation: backdropFadeIn 0.2s ease;
+}
+.bottom-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: 18px 18px 0 0;
+  background: var(--panel-bg);
+  box-shadow: 0 -8px 30px -10px rgba(0, 0, 0, 0.45);
+  animation: sheetSlideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.bottom-sheet__grip {
+  width: 40px;
+  height: 4px;
+  margin: 10px auto 6px;
+  border-radius: 999px;
+  background: var(--panel-border);
+}
+.bottom-sheet__title {
+  padding: 0 16px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--list-title);
+}
+/* Les rangées d'une feuille sont plus hautes que celles d'un menu ancré :
+   c'est du doigt qu'on les vise. */
+.bottom-sheet .sheet-row {
+  min-height: 48px;
+  font-size: 15px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet, .bottom-sheet__backdrop { animation: none; }
+}

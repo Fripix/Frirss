@@ -86,7 +86,9 @@
     "searchIn": "Rechercher dans {{scope}}",
     "gridLayout": "Grille",
     "layoutOverridden": "Ce flux a sa propre disposition (clic droit sur le flux)",
-    "layoutScopeAll": "tous les flux"
+    "layoutScopeAll": "tous les flux",
+    "recentSearches": "Récent",
+    "forgetSearch": "Oublier cette recherche"
   },
   "articleRow": {
     "markRead": "Marquer lu",
@@ -314,7 +316,10 @@
       "keyDoubleClick": "Double-clic",
       "doubleClickFocus": "Mode Focus (plein écran) sur l’article",
       "keyHold": "Clic prolongé",
-      "holdToFile": "Ranger l’article dans une catégorie (Favori / À lire plus tard)"
+      "holdToFile": "Ranger l’article dans une catégorie (Favori / À lire plus tard)",
+      "customize": "Personnaliser dans les préférences",
+      "gestureHelp": "Afficher cette fenêtre",
+      "helpTitle": "Raccourcis clavier"
     },
     "offline": {
       "title": "Hors-ligne",

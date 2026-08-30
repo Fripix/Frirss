@@ -86,7 +86,9 @@
     "searchIn": "Szukaj w {{scope}}",
     "gridLayout": "Siatka",
     "layoutOverridden": "Ten kanał ma własny układ (kliknij go prawym przyciskiem)",
-    "layoutScopeAll": "wszystkie kanały"
+    "layoutScopeAll": "wszystkie kanały",
+    "recentSearches": "Ostatnie",
+    "forgetSearch": "Zapomnij to wyszukiwanie"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",
@@ -316,7 +318,10 @@
       "keyDoubleClick": "Podwójne kliknięcie",
       "doubleClickFocus": "Tryb skupienia (pełny ekran) na artykule",
       "keyHold": "Przytrzymanie",
-      "holdToFile": "Zapisz artykuł w kategorii (Ulubione / Do przeczytania)"
+      "holdToFile": "Zapisz artykuł w kategorii (Ulubione / Do przeczytania)",
+      "customize": "Dostosuj w preferencjach",
+      "gestureHelp": "Pokaż to okno",
+      "helpTitle": "Skróty klawiszowe"
     },
     "offline": {
       "title": "Offline",

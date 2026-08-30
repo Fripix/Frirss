@@ -34,6 +34,16 @@ export function useKeyboardNav(): void {
       }
 
       const key = e.key;
+
+      // Aide-mémoire des raccourcis. Placé avant les raccourcis configurables :
+      // `?` n'est pas réassignable, et le laisser en dernier permettrait de le
+      // masquer en l'attribuant à une action.
+      if (key === '?') {
+        e.preventDefault();
+        useUiStore.getState().setShortcutHelpOpen(!useUiStore.getState().shortcutHelpOpen);
+        return;
+      }
+
       const store = useFeedStore.getState();
 
       if (key === shortcuts.nextArticle) {

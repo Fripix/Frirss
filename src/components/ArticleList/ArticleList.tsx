@@ -13,6 +13,9 @@ import SwipeableArticleRow from './SwipeableArticleRow';
 import { StarButton, ReadLaterButton, MarkReadButton } from './ArticleActions';
 import ArticleCard from './ArticleCard';
 import FeedFavicon from '../FeedFavicon';
+import BottomSheet from '../BottomSheet';
+import { useAuthStore } from '../../stores/authStore';
+import { loadSearchHistory, rememberSearch, forgetSearch } from '../../lib/searchHistory';
 import type { Article, Filter } from '../../types';
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
@@ -136,6 +139,10 @@ export default function ArticleList() {
   const listRef = useRef<HTMLDivElement>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  // Recherches récentes du serveur actif. Rechargées à chaque ouverture du
+  // champ plutôt que gardées en état : elles changent à la soumission.
+  const activeServerId = useAuthStore((s) => s.activeServerId);
+  const [history, setHistory] = useState<string[]>([]);
   const [markAllConfirm, setMarkAllConfirm] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false); // mobile view-options sheet
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -244,7 +251,8 @@ export default function ArticleList() {
     if (searchOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
-  }, [searchOpen]);
+    if (searchOpen) setHistory(loadSearchHistory(activeServerId));
+  }, [searchOpen, activeServerId]);
 
   // Keyboard shortcut asks for the search: open it — the effect above then
   // focuses the input once it exists.
@@ -254,11 +262,17 @@ export default function ArticleList() {
     return () => window.removeEventListener('frirss:open-search', open);
   }, []);
 
+  function runSearch(query: string) {
+    const value = query.trim();
+    if (!value) return;
+    search(value);
+    rememberSearch(activeServerId, value);
+    setHistory(loadSearchHistory(activeServerId));
+  }
+
   function handleSearch(e: FormEvent) {
     e.preventDefault();
-    if (searchValue.trim()) {
-      search(searchValue.trim());
-    }
+    runSearch(searchValue);
   }
 
   function handleClearSearch() {
@@ -351,31 +365,30 @@ export default function ArticleList() {
                 onClick={() => setOptionsOpen((o) => !o)} />
             </div>
 
-            {optionsOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setOptionsOpen(false)} />
-                <div
-                  className="absolute right-1 top-full mt-1 z-30 rounded-xl overflow-hidden shadow-xl py-1 min-w-[224px]"
-                  style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-                >
-                  <SheetRow icon={<SourceGlyph />} label={t('articleList.feedSource')} active={showSource}
-                    onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll} />
-                  <SheetRow icon={<DateGlyph />} label={t('articleList.dateSeparators')} active={dateSepActive}
-                    onClick={toggleDateSep} />
-                  <SheetRow icon={<TopbarGlyph on={topbarVisible} />} label={t('articleList.serverBar')} active={topbarVisible}
-                    onClick={toggleTopbar} />
+            {/* Feuille du bas plutôt que menu ancré : ancré, il s'ouvrait en
+                haut de l'écran, hors de portée du pouce. */}
+            <BottomSheet
+              open={optionsOpen}
+              onClose={() => setOptionsOpen(false)}
+              title={t('articleList.viewOptions')}
+            >
+              <SheetRow icon={<SourceGlyph />} label={t('articleList.feedSource')} active={showSource}
+                onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll} />
+              <SheetRow icon={<DateGlyph />} label={t('articleList.dateSeparators')} active={dateSepActive}
+                onClick={toggleDateSep} />
+              <SheetRow icon={<TopbarGlyph on={topbarVisible} />} label={t('articleList.serverBar')} active={topbarVisible}
+                onClick={toggleTopbar} />
 
+              {!gridLayout && (
+                <>
                   <SheetDivider />
-
-                  {!gridLayout && (
-                    <div className="px-3 py-2 flex items-center justify-between gap-2">
-                      <span className="text-[13px] font-medium" style={{ color: 'var(--list-title)' }}>{t('articleList.displayMode')}</span>
-                      <ViewModeSwitcher />
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+                  <div className="px-4 py-3 flex items-center justify-between gap-2">
+                    <span className="text-[15px] font-medium" style={{ color: 'var(--list-title)' }}>{t('articleList.displayMode')}</span>
+                    <ViewModeSwitcher />
+                  </div>
+                </>
+              )}
+            </BottomSheet>
           </div>
         ) : is2Panel ? (
           /* ── 2-panel: single unified toolbar ── */
@@ -535,6 +548,48 @@ export default function ArticleList() {
               </svg>
             </button>
           </form>
+        )}
+
+        {/* Recherches récentes — seulement quand le champ est vide, sinon elles
+            recouvriraient ce que l'utilisateur est en train de taper. */}
+        {searchOpen && !searchValue.trim() && history.length > 0 && (
+          <div
+            className="px-3 pb-2 pt-2 flex flex-wrap items-center gap-1.5"
+            style={{ borderTop: '1px solid var(--panel-border)' }}
+          >
+            <span
+              className="text-[10px] font-semibold uppercase tracking-wider mr-0.5"
+              style={{ color: 'var(--list-time)' }}
+            >
+              {t('articleList.recentSearches')}
+            </span>
+            {history.map((q) => (
+              <span
+                key={q}
+                className="inline-flex items-center rounded-full text-[11px]"
+                style={{ background: 'var(--list-active)', color: 'var(--list-title)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => { setSearchValue(q); runSearch(q); }}
+                  className="pl-2.5 pr-1 py-1 rounded-l-full"
+                >
+                  {q}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { forgetSearch(activeServerId, q); setHistory(loadSearchHistory(activeServerId)); }}
+                  className="pr-2 pl-0.5 py-1 rounded-r-full opacity-50 hover:opacity-100 transition-opacity"
+                  aria-label={`${t('articleList.forgetSearch')} : ${q}`}
+                  title={t('articleList.forgetSearch')}
+                >
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </span>
+            ))}
+          </div>
         )}
 
         {/* Search indicator */}
@@ -850,11 +905,11 @@ function SheetRow({ icon, label, active, onClick }: SheetRowProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-black/5"
+      className="sheet-row w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5"
       style={{ color: active ? 'var(--accent)' : 'var(--list-title)' }}
     >
       <span className="flex-shrink-0">{icon}</span>
-      <span className="flex-1 text-[13px] font-medium">{label}</span>
+      <span className="flex-1 font-medium">{label}</span>
       {active && (
         <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

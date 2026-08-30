@@ -14,6 +14,7 @@ import { extractYouTubeId, injectVideoFacades, facadeMarkup, youtubeThumbnail } 
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import { readableTextOn } from '../../lib/readableText';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
+import BottomSheet from '../BottomSheet';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
 // Reserve vertical space for images that declare width/height, via
@@ -1248,57 +1249,55 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </svg>
           </BarBtn>
 
-          {readSettingsOpen && (
-            <>
-              <div className="fixed inset-0 z-30" onClick={() => setReadSettingsOpen(false)} />
-              <div
-                className="absolute right-2 bottom-full mb-2 z-40 rounded-xl shadow-xl overflow-hidden py-1 min-w-[220px]"
-                style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
+          <BottomSheet
+            open={readSettingsOpen}
+            onClose={() => setReadSettingsOpen(false)}
+            title={t('readingPane.more')}
+          >
+            {article.url && (
+              <a
+                href={article.url} target="_blank" rel="noopener noreferrer"
+                onClick={() => setReadSettingsOpen(false)}
+                className="sheet-row flex items-center gap-3 px-4 py-3"
+                style={{ color: 'var(--reading-text)' }}
               >
-                {article.url && (
-                  <a
-                    href={article.url} target="_blank" rel="noopener noreferrer"
-                    onClick={() => setReadSettingsOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2.5"
-                    style={{ color: 'var(--reading-text)' }}
-                  >
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                    </svg>
-                    <span className="text-[13px] font-medium">{t('readingPane.openOriginal')}</span>
-                  </a>
-                )}
-                {article.url && (
-                  <button
-                    onClick={() => { setReadSettingsOpen(false); shareArticle(article); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left"
-                    style={{ color: 'var(--reading-text)', borderTop: '1px solid var(--panel-border)' }}
-                  >
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-                    </svg>
-                    <span className="text-[13px] font-medium">{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
-                  </button>
-                )}
-                <div className="flex items-center justify-between gap-2 px-3 py-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
-                  <span className="text-[13px] font-medium" style={{ color: 'var(--reading-text)' }}>{t('readingPane.textSize')}</span>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={decFont} disabled={fontVal <= fontMin}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 disabled:opacity-30"
-                      style={{ color: 'var(--reading-text)', border: '1px solid var(--panel-border)' }}>
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" /></svg>
-                    </button>
-                    <span className="font-mono text-xs min-w-[34px] text-center" style={{ color: 'var(--reading-text)' }}>{fontVal}px</span>
-                    <button onClick={incFont} disabled={fontVal >= fontMax}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 disabled:opacity-30"
-                      style={{ color: 'var(--reading-text)', border: '1px solid var(--panel-border)' }}>
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                    </button>
-                  </div>
-                </div>
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+                <span className="font-medium">{t('readingPane.openOriginal')}</span>
+              </a>
+            )}
+            {article.url && (
+              <button
+                onClick={() => { setReadSettingsOpen(false); shareArticle(article); }}
+                className="sheet-row w-full flex items-center gap-3 px-4 py-3 text-left"
+                style={{ color: 'var(--reading-text)', borderTop: '1px solid var(--panel-border)' }}
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                </svg>
+                <span className="font-medium">{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
+              </button>
+            )}
+            <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: '1px solid var(--panel-border)' }}>
+              <span className="font-medium" style={{ color: 'var(--reading-text)' }}>{t('readingPane.textSize')}</span>
+              <div className="flex items-center gap-2">
+                <button onClick={decFont} disabled={fontVal <= fontMin}
+                  aria-label={t('sidebar.reduceText')}
+                  className="w-11 h-11 rounded-lg flex items-center justify-center hover:bg-black/5 disabled:opacity-30"
+                  style={{ color: 'var(--reading-text)', border: '1px solid var(--panel-border)' }}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" /></svg>
+                </button>
+                <span className="font-mono text-sm min-w-[40px] text-center" style={{ color: 'var(--reading-text)' }}>{fontVal}px</span>
+                <button onClick={incFont} disabled={fontVal >= fontMax}
+                  aria-label={t('sidebar.enlargeText')}
+                  className="w-11 h-11 rounded-lg flex items-center justify-center hover:bg-black/5 disabled:opacity-30"
+                  style={{ color: 'var(--reading-text)', border: '1px solid var(--panel-border)' }}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                </button>
               </div>
-            </>
-          )}
+            </div>
+          </BottomSheet>
         </div>
       )}
 
@@ -1589,42 +1588,20 @@ function LabelMenu({ article, variant }: LabelMenuProps) {
     );
   }
 
-  // ── Mobile: bottom sheet via portal ──────────────────────────────
+  // ── Mobile: bottom sheet ─────────────────────────────────────────
+  // La feuille était posée à la main ici ; elle vit maintenant dans
+  // `BottomSheet`, partagée avec les deux menus d'options du format mobile.
   if (isMobile) {
     return (
       <>
         {triggerButton}
-        {open && createPortal(
-          <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)}>
-            {/* Backdrop */}
-            <div
-              className="absolute inset-0"
-              style={{ background: 'rgba(0,0,0,0.5)', animation: 'backdropFadeIn 0.2s ease' }}
-            />
-            {/* Sheet */}
-            <div
-              className="absolute bottom-0 left-0 right-0 rounded-t-2xl overflow-hidden"
-              style={{
-                background: 'var(--panel-bg)',
-                animation: 'sheetSlideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Drag handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full" style={{ background: 'var(--panel-border)' }} />
-              </div>
-              {/* Title */}
-              <div className="px-4 pb-2">
-                <h3 className="text-sm font-semibold" style={{ color: 'var(--list-title)' }}>{t('readingPane.labels')}</h3>
-              </div>
-              {renderLabelList()}
-              {/* Safe area padding */}
-              <div style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} />
-            </div>
-          </div>,
-          document.body
-        )}
+        <BottomSheet
+          open={open}
+          onClose={() => setOpen(false)}
+          title={t('readingPane.labels')}
+        >
+          {renderLabelList()}
+        </BottomSheet>
       </>
     );
   }

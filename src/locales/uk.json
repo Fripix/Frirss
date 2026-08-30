@@ -86,7 +86,9 @@
     "searchIn": "Пошук у {{scope}}",
     "gridLayout": "Сітка",
     "layoutOverridden": "Цей канал має власне розташування (правий клік на каналі)",
-    "layoutScopeAll": "усі канали"
+    "layoutScopeAll": "усі канали",
+    "recentSearches": "Нещодавні",
+    "forgetSearch": "Забути цей пошук"
   },
   "articleRow": {
     "markRead": "Позначити прочитаним",
@@ -316,7 +318,10 @@
       "keyDoubleClick": "Подвійний клік",
       "doubleClickFocus": "Режим фокус (на весь екран) у статті",
       "keyHold": "Утримання",
-      "holdToFile": "Зберегти статтю в категорію (Обране / Читати пізніше)"
+      "holdToFile": "Зберегти статтю в категорію (Обране / Читати пізніше)",
+      "customize": "Налаштувати в параметрах",
+      "gestureHelp": "Показати це вікно",
+      "helpTitle": "Клавіатурні скорочення"
     },
     "offline": {
       "title": "Офлайн",

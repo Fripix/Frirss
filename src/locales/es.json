@@ -86,7 +86,9 @@
     "searchIn": "Buscar en {{scope}}",
     "gridLayout": "Cuadrícula",
     "layoutOverridden": "Este flujo tiene su propia disposición (clic derecho en el flujo)",
-    "layoutScopeAll": "todos los flujos"
+    "layoutScopeAll": "todos los flujos",
+    "recentSearches": "Reciente",
+    "forgetSearch": "Olvidar esta búsqueda"
   },
   "articleRow": {
     "markRead": "Marcar como leído",
@@ -314,7 +316,10 @@
       "keyDoubleClick": "Doble clic",
       "doubleClickFocus": "Modo Enfoque (pantalla completa) en el artículo",
       "keyHold": "Mantener pulsado",
-      "holdToFile": "Guardar el artículo en una categoría (Favorito / Leer más tarde)"
+      "holdToFile": "Guardar el artículo en una categoría (Favorito / Leer más tarde)",
+      "customize": "Personalizar en las preferencias",
+      "gestureHelp": "Mostrar esta ventana",
+      "helpTitle": "Atajos de teclado"
     },
     "offline": {
       "title": "Sin conexión",

@@ -86,7 +86,9 @@
     "searchIn": "Search in {{scope}}",
     "gridLayout": "Grid",
     "layoutOverridden": "This feed has its own layout (right-click the feed)",
-    "layoutScopeAll": "all feeds"
+    "layoutScopeAll": "all feeds",
+    "recentSearches": "Recent",
+    "forgetSearch": "Forget this search"
   },
   "articleRow": {
     "markRead": "Mark as read",
@@ -314,7 +316,10 @@
       "keyDoubleClick": "Double-click",
       "doubleClickFocus": "Focus mode (full screen) on the article",
       "keyHold": "Press and hold",
-      "holdToFile": "File the article into a category (Star / Read later)"
+      "holdToFile": "File the article into a category (Star / Read later)",
+      "customize": "Customise in preferences",
+      "gestureHelp": "Show this window",
+      "helpTitle": "Keyboard shortcuts"
     },
     "offline": {
       "title": "Offline",
