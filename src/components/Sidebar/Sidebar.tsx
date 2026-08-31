@@ -607,6 +607,54 @@ export default function Sidebar() {
         </span>
       </div>
 
+      {/* Communauté — étoile, soutien, idée. Trois icônes de même poids, sans
+          texte : c'est une application qu'on ouvre vingt fois par jour, un
+          appel visible y deviendrait vite pesant. Rangée à part plutôt que
+          dans le pied : à quatre icônes, le libellé « Se déconnecter » n'avait
+          plus la place de s'afficher sur une barre latérale étroite. */}
+      <div className="sidebar-community flex-shrink-0 flex items-center justify-center gap-1">
+        <a
+          href="https://github.com/Fripix/Frirss"
+          target="_blank"
+          rel="noopener noreferrer"
+          title={t('sidebar.starOnGithub')}
+          aria-label={t('sidebar.starOnGithub')}
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+          </svg>
+        </a>
+        <a
+          href="https://buymeacoffee.com/fripix"
+          target="_blank"
+          rel="noopener noreferrer"
+          title={t('sidebar.support')}
+          aria-label={t('sidebar.support')}
+        >
+          {/* Tasse — dessinée en traits plutôt qu'avec le logo de la marque,
+              pour rester dans la famille d'icônes de l'application. */}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 8h12v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8z" />
+            <path d="M16 10h2.2a2.3 2.3 0 0 1 0 4.6H16" />
+            <path d="M7.5 3.2v1.6M11 2.6v2.2M14.5 3.2v1.6" />
+          </svg>
+        </a>
+        <a
+          href="https://github.com/Fripix/Frirss/issues/new/choose"
+          target="_blank"
+          rel="noopener noreferrer"
+          title={t('sidebar.suggest')}
+          aria-label={t('sidebar.suggest')}
+        >
+          {/* Ampoule : une idée, pas un rapport de bug — l'entrée mène au
+              choix entre les deux modèles d'issue. */}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9.5 18h5M10 21h4" />
+            <path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6v.5h5.4v-.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z" />
+          </svg>
+        </a>
+      </div>
+
       {/* Footer */}
       <div
         className="sidebar-bottom p-3 flex-shrink-0 flex items-center gap-1"
@@ -620,18 +668,6 @@ export default function Sidebar() {
           {t('sidebar.disconnect')}
         </button>
         <div className="flex-1" />
-        <a
-          href="https://github.com/Fripix/Frirss"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-1.5 rounded transition-all hover:bg-white/10 group"
-          style={{ color: 'var(--sidebar-text)' }}
-          title={t('sidebar.github')}
-        >
-          <svg className="w-3.5 h-3.5 opacity-40 group-hover:opacity-80 transition-opacity" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-          </svg>
-        </a>
         <button
           onClick={() => useThemeStore.getState().openPreferences()}
           className="p-1.5 rounded-md transition-colors hover:bg-white/10"

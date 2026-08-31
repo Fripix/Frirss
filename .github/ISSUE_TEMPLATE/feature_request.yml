@@ -1,0 +1,36 @@
+name: Idea or improvement
+description: Something FriRSS could do, or could do better.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome. The most useful ones describe the *situation* rather
+        than the solution — that usually leads somewhere better than the first
+        thing either of us would have built.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The moment where FriRSS gets in your way, or does not help.
+      placeholder: |
+        I follow 70 feeds and reaching a specific one means scrolling the sidebar and reading.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you had in mind
+      description: Optional. If you already have a shape in mind, describe it — but the situation above matters more.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked that FriRSS does not already do this (the README lists the features).
+          required: false

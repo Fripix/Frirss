@@ -13,6 +13,10 @@ la release publiée.
 
 ## Fonctionnalités
 
+- **Trois liens discrets en bas de la barre latérale** : mettre une étoile sur
+  GitHub, soutenir le projet, et proposer une idée ou signaler un bug. Ce
+  dernier mène à des formulaires guidés plutôt qu'à une page blanche.
+
 - **Un thème sombre, enfin.** Cinq thèmes livrés en plus du thème par défaut :
   **Riso** (blanc et rose fluo), **Paper** (sépia) et **High Contrast** en
   clair, **Night** et **Desk** en sombre — présentés en galerie de vignettes

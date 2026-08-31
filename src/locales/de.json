@@ -36,7 +36,6 @@
     "collapse": "Einklappen",
     "expand": "Ausklappen",
     "manageLabels": "Labels verwalten",
-    "github": "FriRSS auf GitHub",
     "layoutDesktop": "Desktop-Layout",
     "layoutMobile": "Mobiles Layout",
     "hideReadFeeds": "Gelesene Feeds ausblenden",
@@ -44,7 +43,10 @@
     "feedLayoutDefault": "Standard",
     "feedLayoutThisFeed": "Ansicht für diesen Feed",
     "expandCategory": "Kategorie ausklappen",
-    "collapseCategory": "Kategorie einklappen"
+    "collapseCategory": "Kategorie einklappen",
+    "starOnGithub": "Auf GitHub mit einem Stern versehen",
+    "support": "Das Projekt unterstützen",
+    "suggest": "Idee vorschlagen oder Fehler melden"
   },
   "addFeed": {
     "title": "RSS-Feed hinzufügen",

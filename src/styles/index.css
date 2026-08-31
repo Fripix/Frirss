@@ -1661,3 +1661,36 @@ summary:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   .option-toggle { transition: none; }
 }
+
+/* ── Barre latérale : rangée communauté (étoile / soutien / idée) ──── */
+/* Discrète par défaut, elle s'éclaire au survol. Sur une application qu'on
+   ouvre vingt fois par jour, un appel au soutien visible en permanence
+   deviendrait vite pesant — c'est la même retenue que l'icône GitHub qu'elle
+   remplace, appliquée aux trois. */
+.sidebar-community {
+  padding: 4px 12px 2px;
+}
+.sidebar-community a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  color: var(--sidebar-text);
+  opacity: 0.4;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+.sidebar-community a svg { width: 15px; height: 15px; }
+.sidebar-community a:hover {
+  opacity: 0.9;
+  background: rgba(255, 255, 255, 0.08);
+}
+/* Cibles tactiles : la rangée n'est pas dans `.sidebar-bottom`, elle ne
+   bénéficie donc pas de la règle de 44 pt posée là-bas. */
+@media (pointer: coarse) {
+  .sidebar-community a { min-width: 44px; min-height: 44px; }
+  .sidebar-community a svg { width: 18px; height: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-community a { transition: none; }
+}

@@ -36,7 +36,6 @@
     "collapse": "Recolher",
     "expand": "Expandir",
     "manageLabels": "Gerir etiquetas",
-    "github": "FriRSS no GitHub",
     "layoutDesktop": "Disposição desktop",
     "layoutMobile": "Disposição móvel",
     "hideReadFeeds": "Ocultar feeds lidos",
@@ -44,7 +43,10 @@
     "feedLayoutDefault": "Predefinição",
     "feedLayoutThisFeed": "Disposição deste fluxo",
     "expandCategory": "Expandir a categoria",
-    "collapseCategory": "Recolher a categoria"
+    "collapseCategory": "Recolher a categoria",
+    "starOnGithub": "Dar uma estrela no GitHub",
+    "support": "Apoiar o projeto",
+    "suggest": "Sugerir uma ideia ou reportar um erro"
   },
   "addFeed": {
     "title": "Adicionar um feed RSS",

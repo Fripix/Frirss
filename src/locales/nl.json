@@ -36,7 +36,6 @@
     "collapse": "Inklappen",
     "expand": "Uitklappen",
     "manageLabels": "Labels beheren",
-    "github": "FriRSS op GitHub",
     "layoutDesktop": "Desktopindeling",
     "layoutMobile": "Mobiele indeling",
     "hideReadFeeds": "Gelezen feeds verbergen",
@@ -44,7 +43,10 @@
     "feedLayoutDefault": "Standaard",
     "feedLayoutThisFeed": "Indeling voor deze feed",
     "expandCategory": "Categorie uitklappen",
-    "collapseCategory": "Categorie inklappen"
+    "collapseCategory": "Categorie inklappen",
+    "starOnGithub": "Geef een ster op GitHub",
+    "support": "Steun het project",
+    "suggest": "Een idee voorstellen of een bug melden"
   },
   "addFeed": {
     "title": "Een RSS-feed toevoegen",

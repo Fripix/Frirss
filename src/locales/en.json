@@ -38,13 +38,15 @@
     "collapse": "Collapse",
     "expand": "Expand",
     "manageLabels": "Manage tags",
-    "github": "FriRSS on GitHub",
     "layoutDesktop": "Desktop layout",
     "layoutMobile": "Mobile layout",
     "hideReadFeeds": "Hide read feeds",
     "showReadFeeds": "Show all feeds",
     "feedLayoutDefault": "Default",
-    "feedLayoutThisFeed": "Layout for this feed"
+    "feedLayoutThisFeed": "Layout for this feed",
+    "starOnGithub": "Star it on GitHub",
+    "support": "Support the project",
+    "suggest": "Suggest an idea or report a bug"
   },
   "addFeed": {
     "title": "Add an RSS feed",

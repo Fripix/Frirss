@@ -140,6 +140,21 @@ Catégories repliables, flux avec favicon et compteur de non-lus, entrées fixes
 glisser-déposer, masquage des flux entièrement lus.
 
 - **Où** : `src/components/Sidebar/Sidebar.tsx`, `src/stores/uiStore.ts`
+- **Rangée communauté** (1.4.5) : trois liens externes au-dessus du pied —
+  étoile GitHub, soutien (BuyMeACoffee), proposer une idée. Discrets par
+  défaut (opacité 0,4), ils s'éclairent au survol : c'est une application qu'on
+  ouvre vingt fois par jour, un appel au soutien visible en permanence y
+  deviendrait pesant.
+  - **Rangée à part, et pas dans le pied** : à quatre icônes, le libellé
+    « Se déconnecter » n'avait plus la place de s'afficher sur une barre
+    latérale à sa largeur minimale (160 px).
+  - Elle n'est pas dans `.sidebar-bottom`, donc elle **ne bénéficie pas** de la
+    règle de 44 pt posée là-bas — elle a la sienne.
+  - « Proposer une idée » mène à `issues/new/choose`, c'est-à-dire au **choix
+    entre les modèles d'issue** définis dans `.github/ISSUE_TEMPLATE/`
+    (rapport de bug, idée, plus des liens vers les discussions FreshRSS et le
+    signalement privé de vulnérabilité). Sans ces modèles, une proposition
+    arrivait en texte libre.
 
 ### Dispositions
 Trois colonnes, deux colonnes (liste seule), ou **grille**. La disposition est

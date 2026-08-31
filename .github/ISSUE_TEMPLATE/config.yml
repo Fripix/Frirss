@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question about FreshRSS itself
+    url: https://github.com/FreshRSS/FreshRSS/discussions
+    about: FriRSS is a frontend. Feed fetching, accounts and the API live in FreshRSS.
+  - name: Security issue
+    url: https://github.com/Fripix/Frirss/security/advisories/new
+    about: Please report vulnerabilities privately rather than in a public issue.

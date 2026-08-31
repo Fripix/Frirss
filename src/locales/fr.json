@@ -38,13 +38,15 @@
     "collapse": "Replier",
     "expand": "Déplier",
     "manageLabels": "Gérer les étiquettes",
-    "github": "FriRSS sur GitHub",
     "layoutDesktop": "Disposition bureau",
     "layoutMobile": "Disposition mobile",
     "hideReadFeeds": "Masquer les flux lus",
     "showReadFeeds": "Afficher tous les flux",
     "feedLayoutDefault": "Par défaut",
-    "feedLayoutThisFeed": "Disposition de ce flux"
+    "feedLayoutThisFeed": "Disposition de ce flux",
+    "starOnGithub": "Mettre une étoile sur GitHub",
+    "support": "Soutenir le projet",
+    "suggest": "Proposer une idée ou signaler un bug"
   },
   "addFeed": {
     "title": "Ajouter un flux RSS",

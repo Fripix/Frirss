@@ -36,7 +36,6 @@
     "collapse": "Zwiń",
     "expand": "Rozwiń",
     "manageLabels": "Zarządzaj etykietami",
-    "github": "FriRSS na GitHub",
     "layoutDesktop": "Układ desktopowy",
     "layoutMobile": "Układ mobilny",
     "hideReadFeeds": "Ukryj przeczytane kanały",
@@ -44,7 +43,10 @@
     "feedLayoutDefault": "Domyślny",
     "feedLayoutThisFeed": "Układ tego kanału",
     "expandCategory": "Rozwiń kategorię",
-    "collapseCategory": "Zwiń kategorię"
+    "collapseCategory": "Zwiń kategorię",
+    "starOnGithub": "Dodaj gwiazdkę na GitHubie",
+    "support": "Wesprzyj projekt",
+    "suggest": "Zaproponuj pomysł lub zgłoś błąd"
   },
   "addFeed": {
     "title": "Dodaj kanał RSS",

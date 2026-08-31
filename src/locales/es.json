@@ -36,7 +36,6 @@
     "collapse": "Contraer",
     "expand": "Expandir",
     "manageLabels": "Gestionar etiquetas",
-    "github": "FriRSS en GitHub",
     "layoutDesktop": "Diseño de escritorio",
     "layoutMobile": "Diseño móvil",
     "hideReadFeeds": "Ocultar feeds leídos",
@@ -44,7 +43,10 @@
     "feedLayoutDefault": "Por defecto",
     "feedLayoutThisFeed": "Disposición de este flujo",
     "expandCategory": "Desplegar la categoría",
-    "collapseCategory": "Plegar la categoría"
+    "collapseCategory": "Plegar la categoría",
+    "starOnGithub": "Dar una estrella en GitHub",
+    "support": "Apoyar el proyecto",
+    "suggest": "Proponer una idea o informar de un error"
   },
   "addFeed": {
     "title": "Añadir una fuente RSS",

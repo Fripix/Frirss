@@ -36,7 +36,6 @@
     "collapse": "Згорнути",
     "expand": "Розгорнути",
     "manageLabels": "Керувати мітками",
-    "github": "FriRSS на GitHub",
     "layoutDesktop": "Десктопний вигляд",
     "layoutMobile": "Мобільний вигляд",
     "hideReadFeeds": "Приховати прочитані канали",
@@ -44,7 +43,10 @@
     "feedLayoutDefault": "За умовчанням",
     "feedLayoutThisFeed": "Розташування цього каналу",
     "expandCategory": "Розгорнути категорію",
-    "collapseCategory": "Згорнути категорію"
+    "collapseCategory": "Згорнути категорію",
+    "starOnGithub": "Поставити зірку на GitHub",
+    "support": "Підтримати проєкт",
+    "suggest": "Запропонувати ідею або повідомити про помилку"
   },
   "addFeed": {
     "title": "Додати RSS-стрічку",

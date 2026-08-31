@@ -1,0 +1,64 @@
+name: Bug report
+description: Something in FriRSS does not work the way it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The three fields below are what actually
+        makes a report actionable — everything else is a bonus.
+
+  - type: textarea
+    id: what-happens
+    attributes:
+      label: What happens
+      description: What you see, and what you expected instead.
+      placeholder: |
+        When I open a feed in grid view, the unread count stays at the previous feed's number.
+        I expected it to show the current feed's count.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      description: The shortest path you know that shows the problem.
+      placeholder: |
+        1. Open any feed with unread articles
+        2. Switch to grid layout
+        3. Click another feed in the sidebar
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: FriRSS version
+      description: Shown at the bottom of the sidebar (e.g. v1.4.4, or v1.4.5b7 on a dev build).
+      placeholder: v1.4.4
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Desktop browser
+        - Tablet
+        - Phone (browser)
+        - Phone (installed PWA)
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: |
+        Screenshots help a lot. Browser console errors too, if you have them.
+        Please do not paste tokens, passwords or the URL of your FreshRSS server.
+    validations:
+      required: false
