@@ -540,11 +540,21 @@ réglage clair/sombre du système.
   leur nombre — il vérifie que le thème par défaut ouvre la liste et que les
   noms sont uniques.
   - **Comment on en ajoute un** : l'utilisateur donne deux couleurs
-    principales — ou une image de référence — et la palette complète est
-    dérivée de là. **Recette** : la première couleur devient l'accent (et le
-    premier terme du dégradé d'en-tête), la seconde le second terme du dégradé
-    **et** la couleur des liens, pour qu'elle ait un rôle et pas seulement une
-    présence. Le fond, clair ou sombre, est choisi pour porter les deux. Trois préréglages
+    principales — ou une image de référence — **et dit s'il le veut clair ou
+    sombre**. La palette complète est dérivée de là.
+  - **Recette** : la première couleur devient l'accent (et ouvre le dégradé
+    d'en-tête), la seconde ferme ce dégradé **et** prend les liens, pour
+    qu'elle ait un rôle et pas seulement une présence.
+  - **Le compromis des thèmes clairs** : une couleur vive et saturée ne tient
+    pas le contraste sur un fond clair — `#4cdcbc` sur blanc ne donne que
+    1,6:1. La couleur d'origine garde donc les **grandes surfaces** (le dégradé
+    d'en-tête, où elle est incontestable) pendant qu'`accent`, qui habille du
+    texte et des icônes, prend une version **assombrie de la même teinte**.
+    Repère mesuré : `list-source` est du texte de 10 px, donc l'accent vise
+    4,5:1 sur `panel-bg`. Lagoon, Neon, Desk et Circuit sont entre 5,0 et 5,5 —
+    au-dessus du thème par défaut (1,8) et de Paper (3,0), qui sont hérités.
+  - Dans un thème clair, la barre latérale **reste sombre** : c'est elle qui
+    donne sa structure à l'écran, et la règle de hiérarchie tient toujours. Trois préréglages
     (`Midnight`, `Ember`, `Nordic`) ont été inventés sans cette étape et
     retirés aussitôt : une galerie de thèmes que personne n'a demandés
     encombre plus qu'elle ne sert. Ils sont listés dans
