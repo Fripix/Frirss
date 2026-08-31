@@ -535,7 +535,7 @@ réglage clair/sombre du système.
   donc celle qu'on vient changer d'abord ; elle était en troisième position,
   sous deux sections de réglages fins de la barre latérale.
 - **Thèmes livrés** (1.4.5), définis dans `SHIPPED_THEMES` : `FriRSS Default`
-  (clair), `FriRSS Porcelain` (clair), `FriRSS Paper` (clair, sépia),
+  (clair), `FriRSS Riso` (clair), `FriRSS Paper` (clair, sépia),
   `FriRSS High Contrast` (clair), `FriRSS Night` (sombre),
   `FriRSS Desk` (sombre). **Les clairs d'abord dans la galerie** : c'est ce
   qui est préféré, autant que ce soit ce qu'on voit en premier.
@@ -547,17 +547,16 @@ réglage clair/sombre du système.
     faire sur tout nouveau thème : `sidebar-header-from/to`, `accent`,
     `list-hover` et `list-selected` sont les quatre endroits d'où la teinte du
     thème par défaut a tendance à survivre.
-  - **`Porcelain`** résout la contrainte propre aux thèmes **clairs** : le fond
-    doit rester blanc (teinter la surface de lecture a été essayé deux fois et
-    rejeté), donc le matériau doit vivre ailleurs — *à moins que le matériau ne
-    soit le blanc*. C'est la porcelaine : un corps blanc, un seul bleu de
-    cobalt posé dessus. Le blanc cesse d'être un pis-aller et devient le sujet.
-    Le bleu descend en trois profondeurs — barre latérale, accent, encre des
-    titres — si bien que toute la page appartient à une famille **sans qu'aucune
-    surface ne soit teintée** ; il ne touche que des états transitoires (survol,
-    sélection). L'or des favoris est la seule autre note, pour la raison qui
-    fait qu'une porcelaine a un filet doré. C'est aussi le seul bleu de la
-    galerie, jusque-là entièrement verte et brune.
+  - **`Riso`** résout la contrainte propre aux thèmes **clairs** : le fond doit
+    rester blanc (le teinter a été essayé deux fois et rejeté), donc le blanc
+    doit être **le sujet** plutôt qu'un pis-aller. Ici c'est le papier d'une
+    impression risographe, et l'encre fluo rose est la couleur signature du
+    procédé. Le rose descend en trois profondeurs — encre pleine dans le
+    bandeau, version assombrie pour l'accent qui porte du texte sur blanc, et
+    presque-noir pour l'encre des titres — si bien que la page appartient à une
+    famille **sans qu'aucune surface soit teintée** : le rose ne touche que le
+    survol et la sélection. Ce qui le sépare de `Neon`, retiré : là, deux
+    couleurs saturées sur fond sombre se disputaient l'écran.
   - **Deux leçons payées cher**, à relire avant d'en proposer un autre :
     l'idée d'un thème doit être **visible** — `Lowlight` reposait sur une
     baisse de contraste, un principe qu'on ne voit pas, et il ne restait à
@@ -566,7 +565,7 @@ réglage clair/sombre du système.
     l'abstrait — c'est ce qui sépare `Paper`, `Desk` et `Porcelain` de tous
     ceux qui ont été retirés.
 - **Ce qui a été essayé et écarté** — Lagoon, Neon et Circuit, en sombre puis
-  en clair, plus Midnight, Ember, Nordic, Lowlight et Velvet. La leçon, à retenir avant d'en
+  en clair, plus Midnight, Ember, Nordic, Lowlight, Velvet et Porcelain. La leçon, à retenir avant d'en
   proposer d'autres : **une palette bâtie autour de deux couleurs vives donne
   un écran qui fatigue vite**, et sur fond clair la couleur doit être si
   assombrie pour rester lisible qu'il n'en reste plus grand-chose. Ce qui tient
@@ -657,6 +656,19 @@ réglage clair/sombre du système.
   recompose en direct. Couverture : 28 couleurs encadrables sur l'interface, 14
   avec une zone d'aperçu, **6 avec aucune des deux** — l'interface le dit au lieu
   de laisser attendre une mise en évidence qui n'arrivera pas.
+- **Piège majeur — l'accent n'est PAS lisible partout.** Il est réglé pour le
+  **panneau**. Dans un thème clair il est assombri pour tenir sur le blanc, et
+  devient alors illisible sur la **barre latérale**, qui reste sombre : le
+  compteur de non-lus y disparaissait dans tous les thèmes clairs sauf celui
+  par défaut, dont l'accent est clair par chance. Mesuré : accent sur
+  `sidebar-bg` à **2,2** dans « Paper », **3,1** dans « Riso », **3,9** dans
+  « High Contrast ».
+  `applyThemeToDOM()` publie donc `--sidebar-badge-text`, `--sidebar-badge-bg`,
+  `--sidebar-star` et `--sidebar-readlater`, calculés par `readableOn()`
+  (`src/lib/readableText.ts`), qui éclaircit juste assez pour atteindre 4,5:1
+  **en gardant la teinte**. **Toute couleur posée dans la barre latérale doit
+  passer par là**, jamais par `--accent` ni `--badge-*`, qui appartiennent au
+  panneau.
 - **Piège des couleurs en dur** : `--badge-bg` et `--badge-text` sont dérivés
   de l'accent, mais le badge de non-lus de la barre latérale écrivait le menthe
   à 15 % en dur — sur un thème dont l'accent change (« Paper », « High

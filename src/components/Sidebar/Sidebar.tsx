@@ -455,7 +455,7 @@ export default function Sidebar() {
           label={t('sidebar.starred')}
           active={filter === 'starred' && !selectedFeed}
           badge={starredCount}
-          badgeColor="var(--star-color)"
+          badgeColor="var(--sidebar-star)"
           onClick={() => selectView(null, 'starred')}
           onArticleDrop={(article) => {
             if (!article.starred) toggleStar(article);
@@ -475,7 +475,7 @@ export default function Sidebar() {
           label={t('sidebar.readLater')}
           active={filter === 'readlater' && !selectedFeed}
           badge={readLaterCount}
-          badgeColor="var(--readlater-color)"
+          badgeColor="var(--sidebar-readlater)"
           onClick={() => selectView(null, 'readlater')}
           onArticleDrop={(article) => {
             if (!article.labels?.includes(READ_LATER_LABEL)) toggleReadLater(article);
@@ -1282,11 +1282,11 @@ function UnreadBadge({ count }: { count: number }) {
       {...(bump ? { 'data-bump': '' } : {})}
       className="unread-badge flex-shrink-0 min-w-[22px] h-[20px] px-[7px] flex items-center justify-center rounded-full text-[10px] font-bold tabular-nums"
       style={{
-        color: 'var(--accent)',
-        // `--badge-bg` est dérivé de l'accent par le thème. La valeur était
-        // écrite en dur (le menthe à 15 %) : sur un thème dont l'accent change
-        // — « High Contrast », « Paper » — le badge restait vert menthe.
-        background: 'var(--badge-bg)',
+        // `--sidebar-badge-*` et non `--badge-*` : ces derniers sont réglés
+        // pour le panneau clair, où l'accent d'un thème clair est assombri —
+        // donc invisible ici, sur une barre latérale sombre.
+        color: 'var(--sidebar-badge-text)',
+        background: 'var(--sidebar-badge-bg)',
       }}
     >
       {count}

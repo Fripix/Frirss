@@ -14,7 +14,7 @@ la release publiée.
 ## Fonctionnalités
 
 - **Un thème sombre, enfin.** Cinq thèmes livrés en plus du thème par défaut :
-  **Porcelain** (blanc et cobalt), **Paper** (sépia) et **High Contrast** en
+  **Riso** (blanc et rose fluo), **Paper** (sépia) et **High Contrast** en
   clair, **Night** et **Desk** en sombre — présentés en galerie de vignettes
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
@@ -55,6 +55,10 @@ la release publiée.
   latérale et son bandeau restaient aux couleurs du thème par défaut : une page
   de livre surmontée d'un bandeau vert vif. Cuir sombre, bandeau tan, encre
   sienna.
+- **Le compteur de non-lus est lisible dans la barre latérale, quel que soit
+  le thème.** Il prenait la couleur d'accent, réglée pour le panneau clair —
+  donc presque invisible sur la barre latérale sombre dès que le thème est
+  clair. « Paper » était le plus touché.
 - **Le blanc est redevenu blanc.** Les surfaces de lecture avaient reçu une
   teinte — chaude pour le thème par défaut, colorée pour les thèmes de couleur.
   À l'usage, cela se lit comme un voile sur les articles. Fonds neutres

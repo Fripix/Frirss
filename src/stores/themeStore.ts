@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useUiStore } from './uiStore';
-import { readableTextOn } from '../lib/readableText';
+import { readableTextOn, readableOn } from '../lib/readableText';
 import type { Theme, LabelColor } from '../types';
 
 export const DEFAULT_THEME_NAME = 'FriRSS Default';
@@ -8,7 +8,7 @@ export const NIGHT_THEME_NAME = 'FriRSS Night';
 export const PAPER_THEME_NAME = 'FriRSS Paper';
 export const CONTRAST_THEME_NAME = 'FriRSS High Contrast';
 export const DESK_THEME_NAME = 'FriRSS Desk';
-export const PORCELAIN_THEME_NAME = 'FriRSS Porcelain';
+export const RISO_THEME_NAME = 'FriRSS Riso';
 
 const defaultTheme: Theme = {
   name: DEFAULT_THEME_NAME,
@@ -305,68 +305,67 @@ const deskTheme = preset(DESK_THEME_NAME, {
 });
 
 
-/* ── Porcelain ──────────────────────────────────────────────────────────
- * Un matériau, comme « Paper » — mais résolvant la contrainte propre aux
- * thèmes CLAIRS : le fond doit rester blanc (teinter la surface de lecture a
- * été essayé deux fois et rejeté), donc le matériau doit vivre ailleurs. À
- * moins que le matériau NE SOIT le blanc.
+/* ── Riso ───────────────────────────────────────────────────────────────
+ * Un matériau, comme « Paper » : l'impression risographe. Du papier blanc et
+ * UNE encre fluo — le rose vif est la couleur signature du procédé.
  *
- * C'est la porcelaine : un corps blanc, un seul bleu de cobalt posé dessus.
- * Le blanc cesse d'être un défaut faute de mieux et devient le sujet. La barre
- * latérale est le bleu à sa pleine profondeur, l'accent le même bleu à mi-
- * chemin, et l'encre des titres ce bleu poussé jusqu'au presque-noir : toute
- * la page appartient à une seule famille sans qu'aucune surface ne soit
- * teintée.
+ * C'est ce qui résout la contrainte des thèmes clairs : le fond doit rester
+ * blanc (le teinter a été essayé deux fois et rejeté), donc le blanc doit
+ * être le sujet plutôt qu'un pis-aller. Ici c'est le papier.
  *
- * L'or des favoris est la seule autre note, et il est là pour la raison qui
- * fait qu'une porcelaine a un filet doré.
+ * Le rose descend en trois profondeurs — l'encre pleine dans le bandeau, une
+ * version assombrie pour l'accent qui porte du texte sur le blanc, et le même
+ * rose poussé au presque-noir pour l'encre des titres. Toute la page
+ * appartient donc à une famille sans qu'aucune surface soit teintée : le rose
+ * ne touche que des états transitoires, survol et sélection.
  *
- * Bleu, aussi, parce que la galerie n'en contenait aucun : elle était
- * entièrement verte et brune.
+ * Ce qui le sépare de « Neon », retiré : là il y avait deux couleurs saturées
+ * sur fond sombre, qui se disputaient l'écran. Ici, un fond franc et une seule
+ * encre.
  */
-const porcelainTheme = preset(PORCELAIN_THEME_NAME, {
-  'sidebar-bg': '#16233d',
-  'sidebar-header-from': '#2a5db0',
-  'sidebar-header-to': '#16376e',
-  'sidebar-text': '#7d8798',
-  'sidebar-text-active': '#e8edf5',
-  'sidebar-category-text': '#636d80',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.08)',
-  'topbar-bg': '#16233d',
-  'topbar-text': '#7d8798',
-  'topbar-text-active': '#6fa4e8',
-  'topbar-track': '#1e2f4d',
-  'topbar-seg-active': '#27395c',
-  'accent': '#2a5db0',
-  'accent-dark': '#1e4485',
-  // Surfaces neutres : le blanc est le corps de la porcelaine, pas un pis-aller.
+const risoTheme = preset(RISO_THEME_NAME, {
+  'sidebar-bg': '#25101d',
+  'sidebar-header-from': '#ff48b0',
+  'sidebar-header-to': '#c2186f',
+  'sidebar-text': '#95848d',
+  'sidebar-text-active': '#f4e9f0',
+  'sidebar-category-text': '#75656e',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.09)',
+  'topbar-bg': '#25101d',
+  'topbar-text': '#95848d',
+  'topbar-text-active': '#ff77c2',
+  'topbar-track': '#331825',
+  'topbar-seg-active': '#40202f',
+  'accent': '#c2186f',
+  'accent-dark': '#961255',
+  // Surfaces neutres : le blanc est le papier, pas un pis-aller.
   'panel-bg': '#ffffff',
   'panel-border': '#e8e8ec',
   'panel-header-bg': '#fafafa',
   'list-active': '#f0f0f0',
   'code-bg': '#f5f5f7',
-  // Le bleu n'apparaît que sur des états transitoires, jamais sur la page.
-  'list-hover': '#eaf1fb',
-  'list-selected': '#d9e6f9',
-  'list-source': '#2a5db0',
-  'list-title': '#16233d',
-  'list-title-read': '#8a93a3',
-  'list-summary': '#6b7383',
-  'list-time': '#9aa3b3',
-  'reading-title': '#16233d',
-  'reading-text': '#3b4453',
-  'reading-meta': '#7a8394',
-  'reading-link': '#1e4485',
+  // L'encre ne touche que des états transitoires.
+  'list-hover': '#fdeaf4',
+  'list-selected': '#fbd9ec',
+  'list-source': '#c2186f',
+  'list-title': '#26101d',
+  'list-title-read': '#8f8288',
+  'list-summary': '#6e626a',
+  'list-time': '#a1959c',
+  'reading-title': '#26101d',
+  'reading-text': '#443a41',
+  'reading-meta': '#7d717a',
+  'reading-link': '#961255',
   'star-color': '#c08a1e',
-  'readlater-color': '#6b5bb5',
+  'readlater-color': '#5b52b8',
   'danger': '#b3382c',
   'danger-light': '#fbeae8',
-  'scrollbar': '#ccd2dc',
-  'scrollbar-hover': '#a8b1c0',
+  'scrollbar': '#d8ccd3',
+  'scrollbar-hover': '#b6a6af',
 });
 
 export const SHIPPED_THEMES: Theme[] = [
-  defaultTheme, porcelainTheme, paperTheme, contrastTheme, nightTheme, deskTheme,
+  defaultTheme, risoTheme, paperTheme, contrastTheme, nightTheme, deskTheme,
 ];
 
 /**
@@ -387,6 +386,8 @@ const RETIRED_THEME_NAMES = [
   // Le principe — un matériau — était bon, la couleur non, et il était sombre
   // là où un thème clair est préféré. Repris en « Porcelain ».
   'FriRSS Velvet',
+  // Bon principe, mauvaise couleur — repris en « Riso ».
+  'FriRSS Porcelain',
   // Commandés, essayés en sombre puis en clair, et écartés à l'usage. Les deux
   // variantes partent : ce qui ne convainc pas encombre la galerie.
   'FriRSS Lagoon', 'FriRSS Lagoon Light',
@@ -548,6 +549,20 @@ function applyThemeToDOM(theme: Theme): void {
   root.style.setProperty('--list-unread-bar', theme.colors['accent']);
   root.style.setProperty('--badge-bg', hexToGlow(theme.colors['accent']));
   root.style.setProperty('--badge-text', theme.colors['accent']);
+
+  // Badges de la BARRE LATÉRALE. Ils ne peuvent pas reprendre `--badge-*` :
+  // ceux-là sont dérivés de l'accent, lequel est réglé pour le panneau. Dans
+  // un thème clair l'accent est assombri pour tenir sur le blanc, et devient
+  // alors illisible sur la barre latérale, qui reste sombre — le compteur de
+  // non-lus y disparaissait dans tous les thèmes clairs sauf celui par défaut,
+  // dont l'accent est clair par chance. `readableOn` éclaircit juste assez, en
+  // gardant la teinte.
+  const sidebarAccent = readableOn(theme.colors['sidebar-bg'], theme.colors['accent']);
+  root.style.setProperty('--sidebar-badge-text', sidebarAccent);
+  root.style.setProperty('--sidebar-badge-bg', hexToGlow(sidebarAccent));
+  // Favoris et « à lire plus tard » comptent aussi dans la barre latérale.
+  root.style.setProperty('--sidebar-star', readableOn(theme.colors['sidebar-bg'], theme.colors['star-color']));
+  root.style.setProperty('--sidebar-readlater', readableOn(theme.colors['sidebar-bg'], theme.colors['readlater-color']));
   root.style.setProperty('--star-inactive', '#d0d1da');
   root.style.setProperty('--resize-handle-hover', theme.colors['accent']);
 

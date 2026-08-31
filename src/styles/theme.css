@@ -49,6 +49,13 @@
   --on-danger: #1c1c1a;
   --badge-text: #4cd4a1;
 
+  /* Badges de la barre latérale — recalculés par applyThemeToDOM() pour rester
+     lisibles sur `--sidebar-bg`, qui est sombre même en thème clair. */
+  --sidebar-badge-text: #4cd4a1;
+  --sidebar-badge-bg: rgba(76, 212, 161, 0.12);
+  --sidebar-star: #f5c542;
+  --sidebar-readlater: #8b5cf6;
+
   --radius: 8px;
   --radius-sm: 5px;
 
