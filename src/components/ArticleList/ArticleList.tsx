@@ -59,7 +59,8 @@ export default function ArticleList() {
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const showSourceInFeed = useUiStore((s) => s.showSourceInFeed);
-  const showFavicons = useUiStore((s) => s.showFavicons);
+  const showListFavicons = useUiStore((s) => s.showListFavicons);
+  const toggleShowListFavicons = useUiStore((s) => s.toggleShowListFavicons);
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const unreadCounts = useFeedStore((s) => s.unreadCounts);
   const pushToast = useUiStore((s) => s.pushToast);
@@ -486,6 +487,8 @@ export default function ArticleList() {
             >
               <SheetRow icon={<SourceGlyph />} label={t('articleList.feedSource')} active={showSource}
                 onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll} />
+              <SheetRow icon={<FaviconGlyph />} label={t('articleList.listFavicons')} active={showListFavicons}
+                onClick={toggleShowListFavicons} />
               <SheetRow icon={<DateGlyph />} label={t('articleList.dateSeparators')} active={dateSepActive}
                 onClick={toggleDateSep} />
               <SheetRow icon={<TopbarGlyph on={topbarVisible} />} label={t('articleList.serverBar')} active={topbarVisible}
@@ -544,14 +547,19 @@ export default function ArticleList() {
 
             <div className="flex-1" />
 
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <SourceToggle
-                active={showSource}
-                onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll}
-                tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
-              />
-              <DateSepToggle active={dateSepActive} onClick={toggleDateSep} />
-              <TopbarToggle />
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {/* Les quatre bascules d'affichage forment un groupe, comme la
+                  densité et la disposition en ont déjà un. */}
+              <div className="option-track">
+                <SourceToggle
+                  active={showSource}
+                  onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll}
+                  tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
+                />
+                <FaviconToggle />
+                <DateSepToggle active={dateSepActive} onClick={toggleDateSep} />
+                <TopbarToggle />
+              </div>
               {!gridLayout && <ViewModeSwitcher />}
               {isDesktop && <LayoutToggle overridden={feedLayoutOverride} />}
             </div>
@@ -581,14 +589,17 @@ export default function ArticleList() {
                 <HeaderUnread count={headerUnread} />
               </div>
 
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <SourceToggle
-                  active={showSource}
-                  onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll}
-                  tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
-                />
-                <DateSepToggle active={showDateSeparators} onClick={toggleDateSeparators} />
-                <TopbarToggle />
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className="option-track">
+                  <SourceToggle
+                    active={showSource}
+                    onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll}
+                    tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
+                  />
+                  <FaviconToggle />
+                  <DateSepToggle active={showDateSeparators} onClick={toggleDateSeparators} />
+                  <TopbarToggle />
+                </div>
                 <ViewModeSwitcher />
                 <LayoutToggle overridden={feedLayoutOverride} />
               </div>
@@ -809,7 +820,7 @@ export default function ArticleList() {
                       article={article}
                       viewMode={viewMode}
                       showSource={showSource}
-                      favicon={showFavicons ? iconByFeedId.get(article.sourceId) ?? null : undefined}
+                      favicon={showListFavicons ? iconByFeedId.get(article.sourceId) ?? null : undefined}
                       staggerIndex={rowIndex.get(article.id)}
                       active={selectedArticle?.id === article.id}
                       onSelect={() => openArticle(article)}
@@ -980,6 +991,15 @@ function SourceGlyph() {
     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+    </svg>
+  );
+}
+
+function FaviconGlyph() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+      <circle cx="12" cy="12" r="3.2" />
     </svg>
   );
 }
@@ -1333,14 +1353,8 @@ function DateSepToggle({ active, onClick }: ToggleProps) {
       onClick={onClick}
       title={active ? t('articleList.hideDateSep') : t('articleList.showDateSep')}
       aria-label={active ? t('articleList.hideDateSep') : t('articleList.showDateSep')}
-      className={`p-1 rounded transition-all ${
-        active
-          ? 'text-[var(--accent)]'
-          : 'text-[var(--list-summary)] hover:text-[var(--list-title)]'
-      }`}
-      style={{
-        background: active ? 'var(--accent-glow)' : undefined,
-      }}
+      aria-pressed={active}
+      className={`option-toggle ${active ? 'option-toggle--on' : ''}`}
     >
       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
@@ -1357,14 +1371,8 @@ function TopbarToggle() {
     <button
       onClick={toggleTopbar}
       title={topbarVisible ? t('articleList.hideTopbar') : t('articleList.showTopbar')}
-      className={`p-1 rounded transition-all ${
-        topbarVisible
-          ? 'text-[var(--accent)]'
-          : 'text-[var(--list-summary)] hover:text-[var(--list-title)]'
-      }`}
-      style={{
-        background: topbarVisible ? 'var(--accent-glow)' : undefined,
-      }}
+      aria-pressed={topbarVisible}
+      className={`option-toggle ${topbarVisible ? 'option-toggle--on' : ''}`}
     >
       {/* Top-panel icon — window with a solid top bar (filled when shown) */}
       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round">
@@ -1373,6 +1381,29 @@ function TopbarToggle() {
           <path d="M5 4h14a2 2 0 0 1 2 2v2.5H3V6a2 2 0 0 1 2-2z" fill="currentColor" stroke="none" />
         )}
         <path d="M3 8.5h18" />
+      </svg>
+    </button>
+  );
+}
+
+/** Favicons dans la liste — même groupe que « nom du flux » et « dates ». */
+function FaviconToggle() {
+  const { t } = useTranslation();
+  const on = useUiStore((s) => s.showListFavicons);
+  const toggle = useUiStore((s) => s.toggleShowListFavicons);
+  const label = on ? t('articleList.hideListFavicons') : t('articleList.showListFavicons');
+  return (
+    <button
+      onClick={toggle}
+      title={label}
+      aria-label={label}
+      aria-pressed={on}
+      className={`option-toggle ${on ? 'option-toggle--on' : ''}`}
+    >
+      {/* Carré arrondi + pastille : une icône de site, pas une image. */}
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+        <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+        <circle cx="12" cy="12" r="3.2" fill={on ? 'currentColor' : 'none'} />
       </svg>
     </button>
   );
@@ -1389,14 +1420,9 @@ function SourceToggle({ active, onClick, tooltip }: SourceToggleProps) {
     <button
       onClick={onClick}
       title={tooltip}
-      className={`p-1 rounded transition-all ${
-        active
-          ? 'text-[var(--accent)]'
-          : 'text-[var(--list-summary)] hover:text-[var(--list-title)]'
-      }`}
-      style={{
-        background: active ? 'var(--accent-glow)' : undefined,
-      }}
+      aria-label={tooltip}
+      aria-pressed={active}
+      className={`option-toggle ${active ? 'option-toggle--on' : ''}`}
     >
       {/* Source/feed name icon — tag with "Aa" */}
       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>

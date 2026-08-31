@@ -30,22 +30,25 @@ describe('groupByDate', () => {
     expect(groupByDate([])).toEqual([]);
   });
 
-  it('labels an article from today', () => {
-    expect(label([article(daysAgo(0))])).toBe('DATES.TODAY');
+  // Chaque libellé porte une DATE en plus du mot : « MERCREDI » seul ne dit
+  // pas de quel mercredi il s'agit, ce qui est précisément ce qu'on cherche à
+  // savoir en faisant défiler une liste sans fin.
+  it('labels an article from today, with the date', () => {
+    expect(label([article(daysAgo(0))])).toBe('DATES.TODAY · JUNE 15');
   });
 
-  it('labels an article from yesterday', () => {
-    expect(label([article(daysAgo(1))])).toBe('DATES.YESTERDAY');
+  it('labels an article from yesterday, with the date', () => {
+    expect(label([article(daysAgo(1))])).toBe('DATES.YESTERDAY · JUNE 14');
   });
 
-  it('labels an article within the last week by weekday', () => {
+  it('labels an article within the last week by weekday, with the date', () => {
     const d = daysAgo(3);
-    expect(label([article(d)])).toBe(weekdayLabel(d));
+    expect(label([article(d)])).toBe(`${weekdayLabel(d)} · JUNE 12`);
   });
 
   it('labels an article 7+ days old with a full date (no year, same year)', () => {
     // 10 days before 15 June → 5 June 2026.
-    expect(label([article(daysAgo(10))])).toBe('June 5');
+    expect(label([article(daysAgo(10))])).toBe('JUNE 5');
   });
 
   it('includes the year for an article from a previous year', () => {
@@ -59,9 +62,9 @@ describe('groupByDate', () => {
       article(daysAgo(1, 15)),
     ]);
     expect(groups).toHaveLength(2);
-    expect(groups[0].label).toBe('DATES.TODAY');
+    expect(groups[0].label).toBe('DATES.TODAY · JUNE 15');
     expect(groups[0].articles).toHaveLength(2);
-    expect(groups[1].label).toBe('DATES.YESTERDAY');
+    expect(groups[1].label).toBe('DATES.YESTERDAY · JUNE 14');
     expect(groups[1].articles).toHaveLength(1);
   });
 
@@ -73,9 +76,9 @@ describe('groupByDate', () => {
       article(daysAgo(0)),
     ]);
     expect(groups.map((g) => g.label)).toEqual([
-      'DATES.TODAY',
-      'DATES.YESTERDAY',
-      'DATES.TODAY',
+      'DATES.TODAY · JUNE 15',
+      'DATES.YESTERDAY · JUNE 14',
+      'DATES.TODAY · JUNE 15',
     ]);
   });
 });

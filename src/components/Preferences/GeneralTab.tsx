@@ -8,6 +8,8 @@ export default function GeneralTab() {
   const { t, i18n } = useTranslation();
   const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
   const setConfirmMarkAllRead = useUiStore((s) => s.setConfirmMarkAllRead);
+  const readingWidth = useUiStore((s) => s.readingWidth);
+  const setReadingWidth = useUiStore((s) => s.setReadingWidth);
   const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
   const setMarkReadOnScroll = useUiStore((s) => s.setMarkReadOnScroll);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
@@ -74,6 +76,32 @@ export default function GeneralTab() {
               ariaLabel={t('preferences.general.confirmMarkAllRead')}
             />
           </span>
+        </div>
+
+        {/* Reading column width */}
+        <div className="flex items-start justify-between gap-4 select-none mt-4">
+          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.general.readingWidth')}
+            <span className="block text-[11px] opacity-70 mt-0.5">
+              {t('preferences.general.readingWidthHint')}
+            </span>
+          </span>
+          <select
+            value={readingWidth}
+            onChange={(e) => setReadingWidth(e.target.value)}
+            aria-label={t('preferences.general.readingWidth')}
+            className="px-2 py-1.5 text-xs rounded-md flex-shrink-0"
+            style={{
+              border: '1px solid var(--panel-border)',
+              color: 'var(--list-title)',
+              background: 'var(--panel-header-bg)',
+            }}
+          >
+            <option value="narrow">{t('preferences.general.readingWidthNarrow')}</option>
+            <option value="comfort">{t('preferences.general.readingWidthComfort')}</option>
+            <option value="wide">{t('preferences.general.readingWidthWide')}</option>
+            <option value="full">{t('preferences.general.readingWidthFull')}</option>
+          </select>
         </div>
 
         {/* Mark an article read once it scrolls off the top */}

@@ -88,7 +88,10 @@
     "layoutOverridden": "Questo flusso ha la propria disposizione (clic destro sul flusso)",
     "layoutScopeAll": "tutti i flussi",
     "recentSearches": "Recenti",
-    "forgetSearch": "Dimentica questa ricerca"
+    "forgetSearch": "Dimentica questa ricerca",
+    "listFavicons": "Icone dei feed",
+    "showListFavicons": "Mostra le icone dei feed",
+    "hideListFavicons": "Nascondi le icone dei feed"
   },
   "articleRow": {
     "markRead": "Segna come letto",
@@ -157,7 +160,13 @@
       "inlineVideos": "Riprodurre i video nell’articolo",
       "inlineVideosHint": "Mostra la miniatura; il video si carica solo al clic. Disattivato, viene mostrato un link a YouTube.",
       "markReadOnScroll": "Segna come letto scorrendo",
-      "markReadOnScrollHint": "Un articolo viene segnato come letto un secondo dopo essere uscito dalla parte alta della lista. Mai durante una ricerca."
+      "markReadOnScrollHint": "Un articolo viene segnato come letto un secondo dopo essere uscito dalla parte alta della lista. Mai durante una ricerca.",
+      "readingWidth": "Larghezza della colonna di lettura",
+      "readingWidthHint": "Limita la lunghezza delle righe nel riquadro di lettura. «Senza limite» usa tutta la larghezza disponibile.",
+      "readingWidthNarrow": "Stretta",
+      "readingWidthComfort": "Comoda",
+      "readingWidthWide": "Larga",
+      "readingWidthFull": "Senza limite"
     },
     "branding": {
       "language": "Lingua",

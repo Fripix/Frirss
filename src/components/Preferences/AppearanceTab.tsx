@@ -415,6 +415,14 @@ function FollowSystem() {
 
 // Color section definitions — titles and labels resolved via t() at render time
 const COLOR_SECTIONS = [
+  // L'accent en tête : c'est la couleur qui teinte toute l'interface — badges,
+  // liens, états actifs, anneau de focus — donc celle qu'on vient changer en
+  // premier. Elle était en troisième position, sous deux sections de réglages
+  // fins de la barre latérale.
+  {
+    titleKey: 'accent',
+    keys: ['accent', 'accent-dark'],
+  },
   {
     titleKey: 'sidebar',
     keys: ['sidebar-bg', 'sidebar-header-from', 'sidebar-header-to', 'sidebar-text', 'sidebar-text-active', 'sidebar-category-text', 'sidebar-divider'],
@@ -422,10 +430,6 @@ const COLOR_SECTIONS = [
   {
     titleKey: 'topbar',
     keys: ['topbar-bg', 'topbar-text', 'topbar-text-active', 'topbar-track', 'topbar-seg-active'],
-  },
-  {
-    titleKey: 'accent',
-    keys: ['accent', 'accent-dark'],
   },
   {
     titleKey: 'articleList',

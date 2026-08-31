@@ -164,6 +164,13 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
 
 - **Où** : `src/hooks/useKeyboardNav.ts`, `src/components/ShortcutBar.tsx`,
   `src/components/ShortcutHelp.tsx`, Préférences → Général
+- **Barre du bas** : les deux entrées globales — palette (⌘K / Ctrl+K) et
+  aide-mémoire (`?`) — sont poussées à droite derrière un séparateur et leur
+  touche est en accent. Elles ne sont ni réassignables ni contextuelles,
+  contrairement à tout ce qui les précède, et les mélanger le laisserait
+  croire. Le libellé de la touche suit le clavier (`src/lib/platformKeys.ts`) :
+  nommer ⌘ sur une machine qui n'a pas cette touche est la pire des deux
+  erreurs.
 - **Aide-mémoire sur `?`** (1.4.5) : fenêtre listant **tous** les raccourcis
   configurables avec les touches **réellement configurées**, plus les gestes
   intégrés dans une section à part — les mélanger laisserait croire qu'on peut
@@ -189,6 +196,12 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   **haut** de l'écran, hors de portée du pouce, avec des rangées de 13 px. Une
   seule implémentation, utilisée par les trois (options de liste, menu « ⋯ » du
   volet, étiquettes).
+- **Bascules d'affichage groupées** : nom du flux, icônes des flux, séparateurs
+  de date et barre serveur vivent dans une même piste (`.option-track`), comme
+  la densité et la disposition en avaient déjà une. Leur état actif passe par
+  la **seule couleur de l'icône** : le fond `--accent-glow` d'origine ressortait
+  beaucoup plus sur le nouvel en-tête tiède que sur l'ancien blanc froid, et
+  pesait plus que l'information ne le mérite.
 - **Favicon du flux dans la ligne** (1.4.5) : `src/components/FeedFavicon.tsx`,
   extrait de la barre latérale où il ne servait qu'elle. La source n'était
   qu'un mot en majuscules de 10 px : repérer un flux dans une vue Tous les flux
@@ -204,6 +217,9 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
 - **Séparateurs de date** : 11 px sur `--list-summary` (ils étaient à 10 px
   dans le gris le plus clair de la palette) et suivis du nombre d'articles du
   jour. Ce sont les seuls repères de progression d'un scroll infini.
+  **Chaque libellé porte une date**, pas seulement un mot : « MERCREDI » seul
+  ne dit pas de quel mercredi il s'agit, et « Aujourd'hui » devient faux dès
+  qu'on laisse l'onglet ouvert une nuit. Format : `AUJOURD'HUI · 31 AOÛT`.
 - **Apparition échelonnée** : les dix premières lignes se déposent avec 25 ms
   d'écart (`data-stagger`). **Jamais sur le scroll infini** — l'animation ne
   joue qu'au montage, et les pages suivantes ne remontent pas les lignes déjà
@@ -326,11 +342,14 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 - **Images** : `max-height: 80vh` avec `width: auto`. Sans plafond, une
   infographie verticale — courante en tech et en sécurité — occupait trois
   écrans et coupait la lecture en deux.
-- **Largeur de colonne** : `.reading-pane article` est plafonné à `44em`
-  (`index.css`) et centré. Sans plafond — l'état jusqu'à la 1.4.5 — le mode
-  Focus étalait le texte sur toute la largeur de l'écran, et l'œil perdait la
-  ligne au retour. `em` et non `px` pour que la mesure suive la taille de
-  police. Sans effet en 3 panneaux, où la colonne est déjà plus étroite.
+- **Largeur de colonne** : réglable (Préférences → Général,
+  `readingWidth`, synchronisé) — Étroite 40em / Confort 52em / **Large 64em**
+  (défaut) / Sans limite. Sans plafond — l'état jusqu'à la 1.4.5 — le mode
+  Focus étalait le texte sur toute la largeur de l'écran et l'œil perdait la
+  ligne au retour ; mais le premier jet imposait 44em à tout le monde, ce qui
+  s'est révélé bien trop serré sur un grand écran. `em` et non `px` pour que la
+  mesure suive la taille de police. `full` rend exactement le comportement
+  d'avant.
 - **Piège majeur** : le profil DOMPurify `html: true` **retire `<iframe>` et
   `<svg>`**, silencieusement. Une icône SVG dans le HTML d'un article ressort
   vide — dessiner ces icônes en CSS. Ne **pas** élargir le profil : le HTML des
@@ -510,8 +529,15 @@ réglage clair/sombre du système.
 
 - **Où** : `src/stores/themeStore.ts`, `src/components/Preferences/AppearanceTab.tsx`,
   `src/components/Preferences/ThemePreview.tsx`, `src/components/Preferences/colorHighlight.ts`
-- **Thèmes livrés** (1.4.5) : `FriRSS Default`, `FriRSS Night`, `FriRSS Paper`,
-  `FriRSS High Contrast`, définis dans `SHIPPED_THEMES`. Ce sont de simples
+- **Ordre des groupes de couleurs** : **Accent en premier**. C'est la couleur
+  qui teinte toute l'interface — badges, liens, états actifs, anneau de focus —
+  donc celle qu'on vient changer d'abord ; elle était en troisième position,
+  sous deux sections de réglages fins de la barre latérale.
+- **Thèmes livrés** (1.4.5) : `FriRSS Default`, `FriRSS Night`,
+  `FriRSS Midnight`, `FriRSS Ember`, `FriRSS Paper`, `FriRSS Nordic`,
+  `FriRSS High Contrast`, définis dans `SHIPPED_THEMES`. La liste est faite
+  pour s'étoffer : le test ne fige pas leur nombre, il vérifie que le thème par
+  défaut ouvre la liste et que les noms sont uniques. Ce sont de simples
   **thèmes enregistrés** : `ensureShippedThemes()` garantit leur présence en
   tête de la liste — comme le thème par défaut l'était déjà — et « Charger »
   les applique sans machinerie nouvelle. Un préréglage modifié par
@@ -526,6 +552,11 @@ réglage clair/sombre du système.
   - **Chaque préréglage définit les 36 couleurs.** `themePresets.test.ts` échoue
     si l'un en oublie une — une clé absente laisserait sur `:root` la valeur du
     thème précédent, ce qui donne une interface à moitié sombre.
+  - **Piège corrigé** : `ensureShippedThemes()` fait passer les thèmes
+    **enregistrés** par `migrateColors`, comme le thème actif l'était déjà au
+    chargement. Sans cela, démarrer donnait les panneaux tièdes alors que
+    recharger « FriRSS Default » depuis la liste ramenait le blanc froid : la
+    même interface changeait d'aspect selon le chemin emprunté.
   - **Règle de hiérarchie** : la barre latérale reste *plus sombre* que les
     panneaux. En thème sombre elle descend sous eux (`#151410` contre
     `#201f1b`) ; l'inverse la fait flotter.

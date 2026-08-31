@@ -88,7 +88,10 @@
     "layoutOverridden": "Ten kanał ma własny układ (kliknij go prawym przyciskiem)",
     "layoutScopeAll": "wszystkie kanały",
     "recentSearches": "Ostatnie",
-    "forgetSearch": "Zapomnij to wyszukiwanie"
+    "forgetSearch": "Zapomnij to wyszukiwanie",
+    "listFavicons": "Ikony kanałów",
+    "showListFavicons": "Pokaż ikony kanałów",
+    "hideListFavicons": "Ukryj ikony kanałów"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",
@@ -157,7 +160,13 @@
       "inlineVideos": "Odtwarzaj filmy w artykule",
       "inlineVideosHint": "Pokazuje miniaturę; wideo ładuje się dopiero po kliknięciu. Wyłączone: link do YouTube.",
       "markReadOnScroll": "Oznaczaj jako przeczytane przy przewijaniu",
-      "markReadOnScrollHint": "Artykuł zostaje oznaczony jako przeczytany sekundę po zniknięciu u góry listy. Nigdy podczas wyszukiwania."
+      "markReadOnScrollHint": "Artykuł zostaje oznaczony jako przeczytany sekundę po zniknięciu u góry listy. Nigdy podczas wyszukiwania.",
+      "readingWidth": "Szerokość kolumny czytania",
+      "readingWidthHint": "Ogranicza długość wierszy w panelu czytania. „Bez limitu” wykorzystuje całą szerokość.",
+      "readingWidthNarrow": "Wąska",
+      "readingWidthComfort": "Wygodna",
+      "readingWidthWide": "Szeroka",
+      "readingWidthFull": "Bez limitu"
     },
     "branding": {
       "language": "Język",

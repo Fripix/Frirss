@@ -88,7 +88,10 @@
     "layoutOverridden": "This feed has its own layout (right-click the feed)",
     "layoutScopeAll": "all feeds",
     "recentSearches": "Recent",
-    "forgetSearch": "Forget this search"
+    "forgetSearch": "Forget this search",
+    "listFavicons": "Feed icons",
+    "showListFavicons": "Show feed icons",
+    "hideListFavicons": "Hide feed icons"
   },
   "articleRow": {
     "markRead": "Mark as read",
@@ -157,7 +160,13 @@
       "inlineVideos": "Play videos in the article",
       "inlineVideosHint": "Shows the thumbnail; the video loads only on click. Off, a link to YouTube is shown instead.",
       "markReadOnScroll": "Mark read while scrolling",
-      "markReadOnScrollHint": "An article is marked read a second after it leaves the top of the list. Never during a search."
+      "markReadOnScrollHint": "An article is marked read a second after it leaves the top of the list. Never during a search.",
+      "readingWidth": "Reading column width",
+      "readingWidthHint": "Caps the line length in the reading pane. “Unlimited” uses the full available width.",
+      "readingWidthNarrow": "Narrow",
+      "readingWidthComfort": "Comfortable",
+      "readingWidthWide": "Wide",
+      "readingWidthFull": "Unlimited"
     },
     "branding": {
       "language": "Language",

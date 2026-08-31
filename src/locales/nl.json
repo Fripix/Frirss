@@ -88,7 +88,10 @@
     "layoutOverridden": "Deze feed heeft een eigen indeling (rechtsklik op de feed)",
     "layoutScopeAll": "alle feeds",
     "recentSearches": "Recent",
-    "forgetSearch": "Deze zoekopdracht vergeten"
+    "forgetSearch": "Deze zoekopdracht vergeten",
+    "listFavicons": "Feedpictogrammen",
+    "showListFavicons": "Feedpictogrammen tonen",
+    "hideListFavicons": "Feedpictogrammen verbergen"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",
@@ -157,7 +160,13 @@
       "inlineVideos": "Videos in het artikel afspelen",
       "inlineVideosHint": "Toont de miniatuur; de video laadt pas bij klikken. Uit: een link naar YouTube.",
       "markReadOnScroll": "Als gelezen markeren tijdens scrollen",
-      "markReadOnScrollHint": "Een artikel wordt een seconde nadat het bovenaan de lijst verdwijnt als gelezen gemarkeerd. Nooit tijdens een zoekopdracht."
+      "markReadOnScrollHint": "Een artikel wordt een seconde nadat het bovenaan de lijst verdwijnt als gelezen gemarkeerd. Nooit tijdens een zoekopdracht.",
+      "readingWidth": "Breedte van de leeskolom",
+      "readingWidthHint": "Beperkt de regellengte in het leesvenster. “Onbeperkt” gebruikt de volle breedte.",
+      "readingWidthNarrow": "Smal",
+      "readingWidthComfort": "Comfortabel",
+      "readingWidthWide": "Breed",
+      "readingWidthFull": "Onbeperkt"
     },
     "branding": {
       "language": "Taal",

@@ -88,7 +88,10 @@
     "layoutOverridden": "Dieser Feed hat eine eigene Ansicht (Rechtsklick auf den Feed)",
     "layoutScopeAll": "alle Feeds",
     "recentSearches": "Zuletzt",
-    "forgetSearch": "Diese Suche vergessen"
+    "forgetSearch": "Diese Suche vergessen",
+    "listFavicons": "Feed-Symbole",
+    "showListFavicons": "Feed-Symbole anzeigen",
+    "hideListFavicons": "Feed-Symbole ausblenden"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",
@@ -157,7 +160,13 @@
       "inlineVideos": "Videos im Artikel abspielen",
       "inlineVideosHint": "Zeigt das Vorschaubild; das Video lädt erst beim Klick. Aus: stattdessen ein Link zu YouTube.",
       "markReadOnScroll": "Beim Scrollen als gelesen markieren",
-      "markReadOnScrollHint": "Ein Artikel gilt eine Sekunde nach dem Verlassen des oberen Listenrands als gelesen. Nie während einer Suche."
+      "markReadOnScrollHint": "Ein Artikel gilt eine Sekunde nach dem Verlassen des oberen Listenrands als gelesen. Nie während einer Suche.",
+      "readingWidth": "Breite der Lesespalte",
+      "readingWidthHint": "Begrenzt die Zeilenlänge im Lesebereich. „Unbegrenzt“ nutzt die volle Breite.",
+      "readingWidthNarrow": "Schmal",
+      "readingWidthComfort": "Komfortabel",
+      "readingWidthWide": "Breit",
+      "readingWidthFull": "Unbegrenzt"
     },
     "branding": {
       "language": "Sprache",

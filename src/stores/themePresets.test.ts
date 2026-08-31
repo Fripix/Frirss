@@ -13,10 +13,13 @@ import type { Theme } from '../types';
 const base = SHIPPED_THEMES[0];
 
 describe('shipped themes', () => {
-  it('ships the default plus three presets', () => {
-    expect(SHIPPED_THEMES).toHaveLength(4);
+  it('ships the default first, then presets', () => {
+    // Pas de compte figé : la galerie est faite pour s'étoffer. Ce qui compte
+    // est que le thème par défaut ouvre la liste et que les noms soient uniques.
+    expect(SHIPPED_THEMES.length).toBeGreaterThanOrEqual(4);
     expect(SHIPPED_THEMES[0].name).toBe(DEFAULT_THEME_NAME);
     expect(SHIPPED_THEMES.map((t) => t.name)).toContain(NIGHT_THEME_NAME);
+    expect(new Set(SHIPPED_THEMES.map((t) => t.name)).size).toBe(SHIPPED_THEMES.length);
   });
 
   it('gives every preset every colour the default defines', () => {
@@ -86,6 +89,32 @@ describe('ensureShippedThemes', () => {
     const out = ensureShippedThemes([edited]);
     expect(out.filter((t) => t.name === NIGHT_THEME_NAME)).toHaveLength(1);
     expect(out.find((t) => t.name === NIGHT_THEME_NAME)?.colors.accent).toBe('#123456');
+  });
+
+  it('migrates a stored theme whose colours are still the old defaults', () => {
+    // Le bug : au démarrage, le thème actif passe par `migrateColors` et
+    // reçoit les panneaux tièdes ; la liste des thèmes enregistrés, non. En
+    // rechargeant « FriRSS Default » depuis la liste, on retombait donc sur le
+    // blanc froid — l'interface changeait d'aspect selon le chemin emprunté.
+    const stale: Theme = {
+      name: DEFAULT_THEME_NAME,
+      colors: { ...base.colors, 'panel-bg': '#ffffff', 'panel-header-bg': '#fafafa' },
+      fontSizes: { ...base.fontSizes },
+    };
+    const out = ensureShippedThemes([stale]);
+    const restored = out.find((t) => t.name === DEFAULT_THEME_NAME)!;
+    expect(restored.colors['panel-bg']).toBe(base.colors['panel-bg']);
+    expect(restored.colors['panel-header-bg']).toBe(base.colors['panel-header-bg']);
+  });
+
+  it('leaves a colour the user deliberately chose alone', () => {
+    const mine: Theme = {
+      name: 'Mine',
+      colors: { ...base.colors, 'panel-bg': '#123456' },
+      fontSizes: { ...base.fontSizes },
+    };
+    expect(ensureShippedThemes([mine]).find((t) => t.name === 'Mine')!.colors['panel-bg'])
+      .toBe('#123456');
   });
 
   it('drops entries that are not themes rather than passing them on', () => {

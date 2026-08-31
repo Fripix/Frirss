@@ -115,6 +115,17 @@ export interface UiState {
   // doit se la voir imposer par une mise à jour. Synchronisé.
   markReadOnScroll: boolean;
   setMarkReadOnScroll: (v: boolean) => void;
+  // Largeur maximale de la colonne de lecture. Le plafond introduit en 1.4.5
+  // était unique et trop serré sur un grand écran : il est désormais réglable,
+  // « full » rendant le comportement d'avant (aucune limite). Synchronisé.
+  readingWidth: string;
+  setReadingWidth: (v: string) => void;
+  // Favicons dans la LISTE d'articles. Réglage distinct de `showFavicons`, qui
+  // gouverne la barre latérale : les couper dans la liste sans les perdre dans
+  // la barre est une demande légitime, et partager un seul réglage rendrait le
+  // bouton de la liste surprenant. Synchronisé.
+  showListFavicons: boolean;
+  toggleShowListFavicons: () => void;
   // Show a click-to-load player for YouTube videos. Off → a plain link.
   inlineVideos: boolean;
   setInlineVideos: (v: boolean) => void;
@@ -304,6 +315,19 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setConfirmMarkAllRead: (v) => {
     localStorage.setItem('frirss_confirmMarkAllRead', JSON.stringify(v));
     set({ confirmMarkAllRead: v });
+  },
+
+  showListFavicons: loadJson('frirss_showListFavicons', true),
+  toggleShowListFavicons: () => set((state) => {
+    const next = !state.showListFavicons;
+    localStorage.setItem('frirss_showListFavicons', JSON.stringify(next));
+    return { showListFavicons: next };
+  }),
+
+  readingWidth: localStorage.getItem('frirss_readingWidth') || 'wide',
+  setReadingWidth: (v) => {
+    localStorage.setItem('frirss_readingWidth', v);
+    set({ readingWidth: v });
   },
 
   markReadOnScroll: loadJson('frirss_markReadOnScroll', false),
@@ -601,6 +625,11 @@ export const useUiStore = create<UiState>()((set, get) => ({
       localStorage.setItem('frirss_logoMode', prefs.logoMode);
       next.logoMode = prefs.logoMode;
     }
+    // Chaîne brute, comme viewMode / appTitle — pas du JSON.
+    if (has('readingWidth') && typeof prefs.readingWidth === 'string') {
+      localStorage.setItem('frirss_readingWidth', prefs.readingWidth);
+      next.readingWidth = prefs.readingWidth;
+    }
 
     // JSON keys — state field name matches the localStorage suffix
     const jsonKeys = [
@@ -608,7 +637,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-      'confirmMarkAllRead', 'markReadOnScroll', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
+      'confirmMarkAllRead', 'markReadOnScroll', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -632,7 +661,8 @@ export const UI_SYNC_KEYS = [
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-  'confirmMarkAllRead', 'markReadOnScroll', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
+  'confirmMarkAllRead', 'markReadOnScroll', 'readingWidth', 'showListFavicons',
+  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

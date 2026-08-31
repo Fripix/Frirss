@@ -1195,10 +1195,18 @@ summary:focus-visible,
    l'œil perdait la ligne au retour. `em` (et non px) pour que la mesure
    suive la taille de police choisie. Sans effet en 3 panneaux, où la colonne
    est déjà plus étroite que ce plafond. */
+/* Le premier jet imposait 44em à tout le monde : trop serré sur un grand
+   écran, et c'est le retour qui est remonté en premier. La mesure est
+   réglable, `full` rendant le comportement d'avant (aucune limite). `em` et
+   non `px` pour qu'elle suive la taille de police. */
 .reading-pane article {
-  max-width: 44em;
   margin-inline: auto;
+  max-width: 64em;
 }
+.reading-pane[data-reading-width='narrow'] article  { max-width: 40em; }
+.reading-pane[data-reading-width='comfort'] article { max-width: 52em; }
+.reading-pane[data-reading-width='wide'] article    { max-width: 64em; }
+.reading-pane[data-reading-width='full'] article    { max-width: none; }
 
 /* ── Mouvement réduit — le reste des animations ───────────────────── */
 /* Les blocs `prefers-reduced-motion` plus haut ne couvraient que le bandeau
@@ -1634,4 +1642,41 @@ summary:focus-visible,
 
 @media (prefers-reduced-motion: reduce) {
   .palette, .palette-backdrop { animation: none; }
+}
+
+/* ── Bascules d'affichage de l'en-tête de liste ───────────────────── */
+/* Elles portaient chacune un fond `--accent-glow` à l'état actif. Sur le
+   nouveau fond d'en-tête, plus chaud, ce fond vert ressortait bien plus qu'il
+   ne le faisait sur le blanc froid, et pesait plus que l'information ne le
+   mérite. L'état passe donc par la seule couleur de l'icône — c'est le même
+   langage que le reste de la barre — et les quatre sont réunies dans une
+   piste, comme la densité et la disposition l'étaient déjà. */
+.option-track {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--list-active);
+  flex-shrink: 0;
+}
+
+.option-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 5px;
+  color: var(--list-summary);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.option-toggle:hover { color: var(--list-title); }
+.option-toggle--on {
+  color: var(--accent);
+  background: var(--panel-bg);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option-toggle { transition: none; }
 }

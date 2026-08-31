@@ -13,8 +13,9 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Un thème sombre, enfin.** Trois thèmes livrés en plus du thème par défaut —
-  **Night**, **Paper** et **High Contrast** — présentés en galerie de vignettes
+- **Un thème sombre, enfin.** Six thèmes livrés en plus du thème par défaut —
+  **Night**, **Midnight**, **Ember**, **Paper**, **Nordic** et
+  **High Contrast** — présentés en galerie de vignettes
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
   36 couleurs à la main.
@@ -24,7 +25,9 @@ la release publiée.
 - **Des messages de confirmation.** L'application ne disait jamais qu'une
   action avait abouti. Un message bref apparaît en bas de l'écran — articles
   marqués comme lus, lien copié — et disparaît seul.
-- **Une palette de commandes, sur ⌘K (Ctrl+K).** Une seule entrée pour aller à
+- **Une palette de commandes, sur ⌘K (Ctrl+K).** Elle et l'aide-mémoire `?`
+  sont rappelées dans la barre du bas, à part des raccourcis d'articles, et la
+  touche affichée suit le clavier — ⌘ sur Mac, Ctrl ailleurs. Une seule entrée pour aller à
   un flux, une catégorie, une étiquette ou une vue, et pour lancer les actions
   courantes. Les accents sont ignorés : « securite » trouve « Sécurité ».
 - **Marquer les articles comme lus en défilant**, en option (Préférences →
@@ -44,6 +47,24 @@ la release publiée.
   pendant que l'onglet est en arrière-plan.
 
 ## Corrections et améliorations
+
+- **La largeur de la colonne de lecture est réglable** (Préférences → Général).
+  Le plafond introduit plus tôt dans ce cycle était unique et bien trop serré
+  sur un grand écran ; il y a maintenant quatre choix, dont « Sans limite » qui
+  rend le comportement d'avant. Le défaut est plus large qu'avant ce réglage.
+- **Les séparateurs de date portent la date**, pas seulement le jour :
+  « MERCREDI » seul ne dit pas de quel mercredi il s'agit.
+- **Recharger un thème enregistré donne bien le même résultat que le
+  démarrage.** Les thèmes de la liste ne passaient pas par les migrations de
+  couleurs par défaut : revenir sur « FriRSS Default » ramenait les anciens
+  panneaux blancs.
+- **Les bascules d'affichage de l'en-tête sont regroupées** et leur état actif
+  ne se signale plus par un fond vert, devenu trop présent sur le nouvel
+  en-tête.
+- **Les icônes des flux dans la liste se désactivent séparément** de celles de
+  la barre latérale, dans le même groupe que « nom du flux » et « dates ».
+- **Dans les préférences, « Accent » ouvre la liste des couleurs** — c'est
+  celle qu'on vient changer en premier.
 
 - **Les favicons apparaissent dans la liste d'articles.** La source n'était
   qu'un mot en majuscules : dans une vue Tous les flux, il fallait lire au lieu
