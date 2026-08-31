@@ -534,9 +534,12 @@ réglage clair/sombre du système.
   qui teinte toute l'interface — badges, liens, états actifs, anneau de focus —
   donc celle qu'on vient changer d'abord ; elle était en troisième position,
   sous deux sections de réglages fins de la barre latérale.
-- **Thèmes livrés** (1.4.5) : `FriRSS Default`, `FriRSS Night`,
-  `FriRSS Lagoon`, `FriRSS Neon`, `FriRSS Desk`, `FriRSS Circuit`,
-  `FriRSS Paper`, `FriRSS High Contrast`, définis dans `SHIPPED_THEMES`. Le test ne fige pas
+- **Thèmes livrés** (1.4.5), définis dans `SHIPPED_THEMES` : `FriRSS Default`
+  (clair) ; **sombres** `FriRSS Night`, `FriRSS Lagoon`, `FriRSS Neon`,
+  `FriRSS Desk` ; **clairs** `FriRSS Lagoon Light`, `FriRSS Neon Light`,
+  `FriRSS Circuit Light`, `FriRSS Paper`, `FriRSS High Contrast`.
+  Une palette peut exister dans les deux variantes, sous deux noms : le nom nu
+  pour la sombre, suffixé `Light` pour la claire. Le test ne fige pas
   leur nombre — il vérifie que le thème par défaut ouvre la liste et que les
   noms sont uniques.
   - **Comment on en ajoute un** : l'utilisateur donne deux couleurs
@@ -576,11 +579,18 @@ réglage clair/sombre du système.
   - **Chaque préréglage définit les 36 couleurs.** `themePresets.test.ts` échoue
     si l'un en oublie une — une clé absente laisserait sur `:root` la valeur du
     thème précédent, ce qui donne une interface à moitié sombre.
-  - **Piège corrigé** : `ensureShippedThemes()` fait passer les thèmes
-    **enregistrés** par `migrateColors`, comme le thème actif l'était déjà au
-    chargement. Sans cela, démarrer donnait les panneaux tièdes alors que
-    recharger « FriRSS Default » depuis la liste ramenait le blanc froid : la
-    même interface changeait d'aspect selon le chemin emprunté.
+  - **Piège majeur, corrigé** : un préréglage livré suit désormais le **code**,
+    il n'est plus figé à la première version reçue. L'inverse était le
+    comportement d'origine et s'est retourné contre nous — les quatre thèmes
+    commandés ont été repassés en clair et **personne ne l'a jamais vu** : la
+    copie enregistrée l'emportait, sans aucun moyen de s'en sortir depuis
+    l'interface. Un correctif de préréglage doit atteindre tout le monde.
+    Sans risque pour les personnalisations : régler une couleur modifie le
+    thème **actif** (`frirss_theme`), pas l'entrée enregistrée — celle-ci ne
+    change que si on appuie sur « Enregistrer » sous ce nom. Une variante
+    personnelle se garde donc sous son propre nom.
+  - **Migrations** : `migrateColors` ne concerne plus que les thèmes
+    **personnels**, les préréglages venant du code.
   - **Règle de hiérarchie** : la barre latérale reste *plus sombre* que les
     panneaux. En thème sombre elle descend sous eux (`#151410` contre
     `#201f1b`) ; l'inverse la fait flotter.

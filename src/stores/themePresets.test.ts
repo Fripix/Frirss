@@ -80,29 +80,52 @@ describe('ensureShippedThemes', () => {
     expect(out.map((t) => t.name)).toEqual([...SHIPPED_THEMES.map((t) => t.name), 'Mine']);
   });
 
-  it('never duplicates a preset, and never overwrites an edited one', () => {
-    const edited: Theme = {
+  it('refreshes a shipped preset from its shipped definition, without duplicating it', () => {
+    // Décision INVERSÉE. La copie enregistrée l'emportait, si bien qu'un
+    // préréglage corrigé ou refondu n'atteignait jamais quelqu'un qui l'avait
+    // déjà en liste : les quatre thèmes repassés en clair sont restés sombres
+    // chez l'utilisateur, et rien dans l'interface ne permettait de s'en
+    // sortir. Un préréglage suit donc désormais le code.
+    //
+    // Sans risque pour les personnalisations : régler une couleur modifie le
+    // thème ACTIF (`frirss_theme`), pas l'entrée enregistrée — celle-ci ne
+    // change que si on appuie explicitement sur « Enregistrer » sous ce nom.
+    const stale: Theme = {
       name: NIGHT_THEME_NAME,
       colors: { ...base.colors, accent: '#123456' },
       fontSizes: { ...base.fontSizes },
     };
-    const out = ensureShippedThemes([edited]);
+    const out = ensureShippedThemes([stale]);
+    const shipped = SHIPPED_THEMES.find((t) => t.name === NIGHT_THEME_NAME)!;
     expect(out.filter((t) => t.name === NIGHT_THEME_NAME)).toHaveLength(1);
-    expect(out.find((t) => t.name === NIGHT_THEME_NAME)?.colors.accent).toBe('#123456');
+    expect(out.find((t) => t.name === NIGHT_THEME_NAME)?.colors.accent)
+      .toBe(shipped.colors.accent);
   });
 
-  it('migrates a stored theme whose colours are still the old defaults', () => {
+  it('leaves a theme of the user\'s own untouched', () => {
+    const mine: Theme = {
+      name: 'Mine',
+      colors: { ...base.colors, accent: '#123456' },
+      fontSizes: { ...base.fontSizes },
+    };
+    expect(ensureShippedThemes([mine]).find((t) => t.name === 'Mine')?.colors.accent)
+      .toBe('#123456');
+  });
+
+  it('migrates a stored theme of the user that still carries the old defaults', () => {
     // Le bug : au démarrage, le thème actif passe par `migrateColors` et
     // reçoit les panneaux tièdes ; la liste des thèmes enregistrés, non. En
     // rechargeant « FriRSS Default » depuis la liste, on retombait donc sur le
     // blanc froid — l'interface changeait d'aspect selon le chemin emprunté.
+    // Sur un thème PERSONNEL : les préréglages livrés, eux, viennent
+    // désormais du code et n'ont plus rien à migrer.
     const stale: Theme = {
-      name: DEFAULT_THEME_NAME,
+      name: 'Le mien',
       colors: { ...base.colors, 'panel-bg': '#ffffff', 'panel-header-bg': '#fafafa' },
       fontSizes: { ...base.fontSizes },
     };
     const out = ensureShippedThemes([stale]);
-    const restored = out.find((t) => t.name === DEFAULT_THEME_NAME)!;
+    const restored = out.find((t) => t.name === 'Le mien')!;
     expect(restored.colors['panel-bg']).toBe(base.colors['panel-bg']);
     expect(restored.colors['panel-header-bg']).toBe(base.colors['panel-header-bg']);
   });

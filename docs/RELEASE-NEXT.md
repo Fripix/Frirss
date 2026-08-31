@@ -13,9 +13,9 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Un thème sombre, enfin.** Sept thèmes livrés en plus du thème par défaut :
-  **Night** (sombre), **Lagoon**, **Neon**, **Desk**, **Circuit**, **Paper** et
-  **High Contrast** (clairs) — présentés en galerie de vignettes
+- **Un thème sombre, enfin.** Neuf thèmes livrés en plus du thème par défaut :
+  **Night**, **Lagoon**, **Neon** et **Desk** en sombre ; **Lagoon Light**,
+  **Neon Light**, **Circuit Light**, **Paper** et **High Contrast** en clair — présentés en galerie de vignettes
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
   36 couleurs à la main.
@@ -61,10 +61,11 @@ la release publiée.
   suivante, sur un bouton qu'on ne regardait plus.
 - **Les séparateurs de date portent la date**, pas seulement le jour :
   « MERCREDI » seul ne dit pas de quel mercredi il s'agit.
-- **Recharger un thème enregistré donne bien le même résultat que le
-  démarrage.** Les thèmes de la liste ne passaient pas par les migrations de
-  couleurs par défaut : revenir sur « FriRSS Default » ramenait les anciens
-  panneaux blancs.
+- **Les thèmes livrés se mettent à jour.** Une fois un préréglage dans votre
+  liste, il y restait figé : une correction apportée à ce thème ne vous
+  parvenait jamais, et rien dans l'interface ne permettait de le rafraîchir.
+  Vos propres thèmes ne sont pas touchés — un préréglage modifié se garde sous
+  son propre nom, avec « Enregistrer ».
 - **Les bascules d'affichage de l'en-tête sont regroupées** et leur état actif
   ne se signale plus par un fond vert, devenu trop présent sur le nouvel
   en-tête.
