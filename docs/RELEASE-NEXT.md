@@ -13,8 +13,8 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Un thème sombre, enfin.** Quatre thèmes livrés en plus du thème par
-  défaut : **Night** et **Desk** en sombre, **Paper** (sépia) et
+- **Un thème sombre, enfin.** Cinq thèmes livrés en plus du thème par défaut :
+  **Night**, **Lowlight** et **Desk** en sombre, **Paper** (sépia) et
   **High Contrast** en clair — présentés en galerie de vignettes
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
@@ -51,6 +51,10 @@ la release publiée.
 - **Le texte d'un article occupe toute la largeur du volet**, comme avant ce
   cycle. Le plafond de largeur essayé ici n'a convaincu à aucune des deux
   versions : la colonne est déjà bornée par la disposition.
+- **« Paper » est sépia jusqu'au bout.** La page était crème mais la barre
+  latérale et son bandeau restaient aux couleurs du thème par défaut : une page
+  de livre surmontée d'un bandeau vert vif. Cuir sombre, bandeau tan, encre
+  sienna.
 - **Le blanc est redevenu blanc.** Les surfaces de lecture avaient reçu une
   teinte — chaude pour le thème par défaut, colorée pour les thèmes de couleur.
   À l'usage, cela se lit comme un voile sur les articles. Fonds neutres

@@ -8,6 +8,7 @@ export const NIGHT_THEME_NAME = 'FriRSS Night';
 export const PAPER_THEME_NAME = 'FriRSS Paper';
 export const CONTRAST_THEME_NAME = 'FriRSS High Contrast';
 export const DESK_THEME_NAME = 'FriRSS Desk';
+export const LOWLIGHT_THEME_NAME = 'FriRSS Lowlight';
 
 const defaultTheme: Theme = {
   name: DEFAULT_THEME_NAME,
@@ -159,29 +160,33 @@ const nightTheme = preset(NIGHT_THEME_NAME, {
 });
 
 const paperTheme = preset(PAPER_THEME_NAME, {
-  // Papier tiède pour la lecture longue. L'accent garde sa teinte mais fonce :
-  // le menthe clair sur crème ne tient pas le contraste.
-  'sidebar-bg': '#33302a',
-  'sidebar-header-from': '#4cd4a1',
-  'sidebar-header-to': '#38b888',
-  'sidebar-text': '#8b8779',
-  'sidebar-text-active': '#eee9dc',
-  'sidebar-category-text': '#6b675c',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.08)',
-  'topbar-bg': '#33302a',
-  'topbar-text': '#8b8779',
-  'topbar-text-active': '#4cd4a1',
-  'topbar-track': '#403c34',
-  'topbar-seg-active': '#4b473d',
-  'accent': '#2f9e77',
-  'accent-dark': '#23795b',
+  // Papier tiède pour la lecture longue — et sépia JUSQU'AU BOUT. La première
+  // version gardait la barre latérale neutre, le dégradé d'en-tête menthe et
+  // des survols verdis : une page de livre surmontée d'un bandeau vert vif, ce
+  // qui ne voulait rien dire. Le vert de la marque appartient au thème par
+  // défaut et à « Night » ; ici l'accent est une encre sienna, la barre
+  // latérale un cuir sombre, et le bandeau va du tan au brun.
+  'sidebar-bg': '#383024',
+  'sidebar-header-from': '#a8763f',
+  'sidebar-header-to': '#7d5427',
+  'sidebar-text': '#97897a',
+  'sidebar-text-active': '#f2ece0',
+  'sidebar-category-text': '#7a6d5c',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.09)',
+  'topbar-bg': '#383024',
+  'topbar-text': '#97897a',
+  'topbar-text-active': '#d2a061',
+  'topbar-track': '#453c2e',
+  'topbar-seg-active': '#524738',
+  'accent': '#8a5a2b',
+  'accent-dark': '#6d4520',
   'panel-bg': '#f6f1e4',
   'panel-border': '#e0d7c0',
   'panel-header-bg': '#efe8d6',
-  'list-hover': '#e3eee4',
+  'list-hover': '#efe6d2',
   'list-active': '#eae2ce',
-  'list-selected': '#dbe9dd',
-  'list-source': '#2f9e77',
+  'list-selected': '#e8dcc0',
+  'list-source': '#8a5a2b',
   'list-title': '#2e2a20',
   'list-title-read': '#8d8674',
   'list-summary': '#7d7663',
@@ -189,9 +194,11 @@ const paperTheme = preset(PAPER_THEME_NAME, {
   'reading-title': '#2e2a20',
   'reading-text': '#4a4437',
   'reading-meta': '#857d69',
-  'reading-link': '#23795b',
+  'reading-link': '#6d4520',
   'star-color': '#b8860b',
-  'readlater-color': '#7c5cd6',
+  // Indigo éteint : il faut qu'il se distingue de l'ambre des favoris et du
+  // sienna de l'accent, et c'est la seule note froide que la page supporte.
+  'readlater-color': '#5f5b9c',
   'danger': '#b3382c',
   'danger-light': '#f7e6e3',
   'code-bg': '#ece5d3',
@@ -298,8 +305,61 @@ const deskTheme = preset(DESK_THEME_NAME, {
 });
 
 
+/* ── Lowlight ───────────────────────────────────────────────────────────
+ * Une idée plutôt qu'une palette de plus : celui-ci est réglé pour lire dans
+ * une pièce sombre, et il en tire une conséquence que les autres thèmes
+ * sombres ne tirent pas — **le texte y est volontairement moins lumineux**.
+ * Du blanc pur sur du noir est l'erreur classique de la lecture de nuit : le
+ * contraste maximal fait halo et fatigue. Les titres plafonnent donc autour de
+ * 9,5:1 là où « Night » et « Desk » montent à 13 et plus.
+ *
+ * Le fond est un charbon très légèrement bleuté — froid, ce qu'aucun autre
+ * thème livré n'est — et la seule couleur qui ponctue est un ambre de lampe.
+ * D'où le bandeau chaud en haut d'une barre latérale froide : c'est la lampe
+ * au-dessus de la page, et c'est la signature du thème.
+ */
+const lowlightTheme = preset(LOWLIGHT_THEME_NAME, {
+  'sidebar-bg': '#0e1015',
+  'sidebar-header-from': '#e8a75c',
+  'sidebar-header-to': '#a3673a',
+  'sidebar-text': '#6f7480',
+  'sidebar-text-active': '#c6cad4',
+  'sidebar-category-text': '#575c68',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.06)',
+  'topbar-bg': '#0e1015',
+  'topbar-text': '#6f7480',
+  'topbar-text-active': '#e8a75c',
+  'topbar-track': '#191c24',
+  'topbar-seg-active': '#22262f',
+  'accent': '#e8a75c',
+  'accent-dark': '#c0813d',
+  'panel-bg': '#14161d',
+  'panel-border': '#262a34',
+  'panel-header-bg': '#191c24',
+  'list-hover': '#22252f',
+  'list-active': '#1e212a',
+  'list-selected': '#2b2519',
+  'list-source': '#e8a75c',
+  // Volontairement en deçà du blanc : c'est le sujet du thème.
+  'list-title': '#b9bcc6',
+  'list-title-read': '#6b7080',
+  'list-summary': '#878c99',
+  'list-time': '#5f6472',
+  'reading-title': '#c6cad4',
+  'reading-text': '#a3a8b5',
+  'reading-meta': '#7a8090',
+  'reading-link': '#e8a75c',
+  'star-color': '#e8c95c',
+  'readlater-color': '#9b8fd4',
+  'danger': '#d97066',
+  'danger-light': '#2e1b18',
+  'code-bg': '#10121a',
+  'scrollbar': '#2c313d',
+  'scrollbar-hover': '#3f4553',
+});
+
 export const SHIPPED_THEMES: Theme[] = [
-  defaultTheme, nightTheme, deskTheme, paperTheme, contrastTheme,
+  defaultTheme, nightTheme, lowlightTheme, deskTheme, paperTheme, contrastTheme,
 ];
 
 /**
