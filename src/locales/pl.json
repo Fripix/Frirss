@@ -397,6 +397,29 @@
     },
     "nav": {
       "back": "Wstecz"
+    },
+    "categories": {
+      "title": "Kategorie",
+      "hint": "Zmień nazwę, usuń lub przenieś kanał do innej kategorii. Pusta kategoria nie istnieje: powstaje wraz z pierwszym kanałem, który do niej trafi.",
+      "empty": "Nie ma jeszcze kanałów.",
+      "none": "Bez kategorii",
+      "rename": "Zmień nazwę",
+      "delete": "Usuń",
+      "save": "Zapisz",
+      "cancel": "Anuluj",
+      "move": "Przenieś",
+      "moveTo": "Przenieś do…",
+      "newCategory": "Nowa kategoria…",
+      "newName": "Nazwa kategorii",
+      "confirmDelete": "Usuń kategorię",
+      "deleteWarning_one": "Kategoria znika. Kanał, który zawiera, nie zostaje usunięty: zostaje bez kategorii.",
+      "deleteWarning_few": "Kategoria znika. {{count}} kanały, które zawiera, nie zostają usunięte: zostają bez kategorii.",
+      "deleteWarning_many": "Kategoria znika. {{count}} kanałów, które zawiera, nie zostaje usuniętych: zostają bez kategorii.",
+      "deleteWarning_other": "Kategoria znika. {{count}} kanałów, które zawiera, nie zostaje usuniętych: zostają bez kategorii.",
+      "renamed": "Zmieniono nazwę kategorii",
+      "deleted": "Usunięto kategorię",
+      "moved": "Przeniesiono kanał",
+      "failed": "Operacja się nie powiodła"
     }
   },
   "login": {

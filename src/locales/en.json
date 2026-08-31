@@ -391,6 +391,27 @@
     },
     "nav": {
       "back": "Back"
+    },
+    "categories": {
+      "title": "Categories",
+      "hint": "Rename, delete, or move a feed from one category to another. An empty category does not exist: it comes into being with the first feed you file in it.",
+      "empty": "No feeds yet.",
+      "none": "Uncategorised",
+      "rename": "Rename",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel",
+      "move": "Move",
+      "moveTo": "Move to…",
+      "newCategory": "New category…",
+      "newName": "Category name",
+      "confirmDelete": "Delete the category",
+      "deleteWarning_one": "The category goes. The feed in it is not deleted: it ends up with no category.",
+      "deleteWarning_other": "The category goes. The {{count}} feeds in it are not deleted: they end up with no category.",
+      "renamed": "Category renamed",
+      "deleted": "Category deleted",
+      "moved": "Feed moved",
+      "failed": "That did not work"
     }
   },
   "login": {

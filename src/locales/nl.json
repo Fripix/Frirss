@@ -391,6 +391,27 @@
     },
     "nav": {
       "back": "Terug"
+    },
+    "categories": {
+      "title": "Categorieën",
+      "hint": "Hernoemen, verwijderen of een feed naar een andere categorie verplaatsen. Een lege categorie bestaat niet: ze ontstaat met de eerste feed die je erin zet.",
+      "empty": "Nog geen feeds.",
+      "none": "Zonder categorie",
+      "rename": "Hernoemen",
+      "delete": "Verwijderen",
+      "save": "Opslaan",
+      "cancel": "Annuleren",
+      "move": "Verplaatsen",
+      "moveTo": "Verplaatsen naar…",
+      "newCategory": "Nieuwe categorie…",
+      "newName": "Naam van de categorie",
+      "confirmDelete": "Categorie verwijderen",
+      "deleteWarning_one": "De categorie verdwijnt. De feed erin wordt niet verwijderd: die blijft zonder categorie achter.",
+      "deleteWarning_other": "De categorie verdwijnt. De {{count}} feeds erin worden niet verwijderd: die blijven zonder categorie achter.",
+      "renamed": "Categorie hernoemd",
+      "deleted": "Categorie verwijderd",
+      "moved": "Feed verplaatst",
+      "failed": "Dat is niet gelukt"
     }
   },
   "login": {

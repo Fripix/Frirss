@@ -391,6 +391,27 @@
     },
     "nav": {
       "back": "Retour"
+    },
+    "categories": {
+      "title": "Catégories",
+      "hint": "Renommer, supprimer, ou déplacer un flux d’une catégorie à l’autre. Une catégorie vide n’existe pas : elle naît du premier flux qu’on y range.",
+      "empty": "Aucun flux pour l’instant.",
+      "none": "Sans catégorie",
+      "rename": "Renommer",
+      "delete": "Supprimer",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "move": "Déplacer",
+      "moveTo": "Déplacer vers…",
+      "newCategory": "Nouvelle catégorie…",
+      "newName": "Nom de la catégorie",
+      "confirmDelete": "Supprimer la catégorie",
+      "deleteWarning_one": "La catégorie disparaît. Le flux qu’elle contient n’est pas supprimé : il se retrouve sans catégorie.",
+      "deleteWarning_other": "La catégorie disparaît. Les {{count}} flux qu’elle contient ne sont pas supprimés : ils se retrouvent sans catégorie.",
+      "renamed": "Catégorie renommée",
+      "deleted": "Catégorie supprimée",
+      "moved": "Flux déplacé",
+      "failed": "L’opération a échoué"
     }
   },
   "login": {

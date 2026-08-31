@@ -391,6 +391,27 @@
     },
     "nav": {
       "back": "Zurück"
+    },
+    "categories": {
+      "title": "Kategorien",
+      "hint": "Umbenennen, löschen oder einen Feed in eine andere Kategorie verschieben. Eine leere Kategorie gibt es nicht: sie entsteht mit dem ersten Feed darin.",
+      "empty": "Noch keine Feeds.",
+      "none": "Ohne Kategorie",
+      "rename": "Umbenennen",
+      "delete": "Löschen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "move": "Verschieben",
+      "moveTo": "Verschieben nach…",
+      "newCategory": "Neue Kategorie…",
+      "newName": "Name der Kategorie",
+      "confirmDelete": "Kategorie löschen",
+      "deleteWarning_one": "Die Kategorie verschwindet. Der enthaltene Feed wird nicht gelöscht: er hat danach keine Kategorie.",
+      "deleteWarning_other": "Die Kategorie verschwindet. Die {{count}} enthaltenen Feeds werden nicht gelöscht: sie haben danach keine Kategorie.",
+      "renamed": "Kategorie umbenannt",
+      "deleted": "Kategorie gelöscht",
+      "moved": "Feed verschoben",
+      "failed": "Das hat nicht geklappt"
     }
   },
   "login": {

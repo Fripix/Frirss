@@ -404,6 +404,38 @@ Vignette cliquable (façade) au lieu d'un `<iframe>` chargé d'emblée.
 
 Ajout d'un flux par URL avec choix de la catégorie, renommage, suppression.
 
+### Catégories (Préférences → Flux)
+Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
+
+- **Où** : `src/lib/feedCategories.ts` (regroupement et validation, testés),
+  `src/components/Preferences/CategoryList.tsx`, `feedStore`
+  (`renameCategory`, `deleteCategory`, `moveFeedToCategory`)
+- **Une catégorie n'est pas un objet stocké** : FreshRSS ne l'expose que
+  **portée par ses flux** (`subscription.categories`). Il n'y a donc pas de
+  liste à charger, seulement une liste à déduire — et **une catégorie vide
+  n'existe pas**. En créer une se fait en y déplaçant son premier flux, ce que
+  le sélecteur propose sous « nouvelle catégorie ». Même limite du modèle
+  Google Reader que pour les catégories d'articles sauvegardés.
+- **Supprimer une catégorie ne supprime aucun flux** : ils se retrouvent sans
+  catégorie. La confirmation le dit **avant**, avec le nombre de flux
+  concernés — c'est la question que pose toute suppression de catégorie, et y
+  répondre après coup est trop tard.
+- **Les trois actions rechargent les abonnements** au lieu de rapiécer l'état
+  local : le serveur est seul à savoir ce qui reste après un renommage ou une
+  suppression. `moveFeedToCategory` n'envoie que `a=` (ajouter à la catégorie),
+  ce qui vaut déplacement parce que FreshRSS n'accorde qu'une catégorie par
+  flux — mais on recharge derrière plutôt que de le supposer.
+- **Pas de « retirer d'une catégorie »** : cela demanderait le paramètre `r=`,
+  que `editFeed` n'envoie pas. Un flux sans catégorie apparaît dans le groupe
+  « Sans catégorie », qui n'est ni renommable ni supprimable.
+- **La barre oblique est refusée** dans un nom : l'identifiant est
+  `user/-/label/<nom>`, et une barre à l'intérieur se lirait comme une
+  imbrication.
+- **Piège** : les actions de ligne (renommer / supprimer) sont révélées au
+  survol par `group-hover`. **La classe `group` doit être sur la ligne**, sans
+  quoi elles n'ont aucun parent à survoler et restent invisibles pour toujours.
+  Écrit une première fois sans elle.
+
 - **Où** : `src/components/Sidebar/AddFeedDialog.tsx`, `feedStore` (`addFeed`, `renameFeed`, `removeFeed`)
 - **Note** : la découverte automatique du flux depuis l'URL d'un site est assurée
   par FreshRSS, pas par FriRSS.

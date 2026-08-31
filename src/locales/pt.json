@@ -391,6 +391,27 @@
     },
     "nav": {
       "back": "Voltar"
+    },
+    "categories": {
+      "title": "Categorias",
+      "hint": "Renomear, eliminar ou mover uma fonte de uma categoria para outra. Uma categoria vazia não existe: nasce com a primeira fonte que lá se arruma.",
+      "empty": "Ainda não há fontes.",
+      "none": "Sem categoria",
+      "rename": "Renomear",
+      "delete": "Eliminar",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "move": "Mover",
+      "moveTo": "Mover para…",
+      "newCategory": "Nova categoria…",
+      "newName": "Nome da categoria",
+      "confirmDelete": "Eliminar a categoria",
+      "deleteWarning_one": "A categoria desaparece. A fonte que contém não é eliminada: fica sem categoria.",
+      "deleteWarning_other": "A categoria desaparece. As {{count}} fontes que contém não são eliminadas: ficam sem categoria.",
+      "renamed": "Categoria renomeada",
+      "deleted": "Categoria eliminada",
+      "moved": "Fonte movida",
+      "failed": "A operação falhou"
     }
   },
   "login": {

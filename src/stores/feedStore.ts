@@ -25,6 +25,7 @@ import { useUiStore } from './uiStore';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
+import { isValidCategoryName } from '../lib/feedCategories';
 import {
   actionKey, mergeAction, isNetworkFailure, shouldRetry,
   type QueuedAction, type QueuedActionType,
@@ -311,6 +312,10 @@ export interface FeedState {
   renameLabel: (oldLabelId: string, newName: string) => Promise<boolean>;
   deleteLabel: (labelId: string) => Promise<boolean>;
   renameFeed: (feedId: string, newTitle: string) => Promise<boolean>;
+  /** Catégories de flux — voir `src/lib/feedCategories.ts` pour le modèle. */
+  renameCategory: (categoryId: string, newName: string) => Promise<boolean>;
+  deleteCategory: (categoryId: string) => Promise<boolean>;
+  moveFeedToCategory: (feedId: string, categoryName: string) => Promise<boolean>;
   addFeed: (feedUrl: string, title?: string, categoryId?: string, categoryLabel?: string) => Promise<boolean>;
   removeFeed: (feedId: string) => Promise<boolean>;
   selectNextArticle: () => void;
@@ -1178,6 +1183,50 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   // Feed management
+  // ── Catégories de flux ────────────────────────────────────────────
+  // Une catégorie n'est pas un objet stocké : elle n'existe que portée par les
+  // flux. Ces trois actions rechargent donc les abonnements plutôt que de
+  // rapiécer l'état local — le serveur est la seule source qui sache ce qui
+  // reste après un renommage ou une suppression.
+  renameCategory: async (categoryId, newName) => {
+    const name = newName.trim();
+    if (!isValidCategoryName(name)) return false;
+    try {
+      await renameTag(categoryId, `user/-/label/${name}`);
+      await get().loadSubscriptions();
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  deleteCategory: async (categoryId) => {
+    try {
+      await deleteTag(categoryId);
+      // Les flux ne sont PAS supprimés : ils se retrouvent sans catégorie.
+      await get().loadSubscriptions();
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  moveFeedToCategory: async (feedId, categoryName) => {
+    const name = categoryName.trim();
+    if (!isValidCategoryName(name)) return false;
+    try {
+      // `editFeed` envoie `a=` (ajouter à la catégorie). FreshRSS n'accorde
+      // qu'une catégorie par flux, donc cela vaut déplacement — mais on
+      // recharge derrière plutôt que de le supposer : si le serveur en décidait
+      // autrement, l'interface montrerait la réalité et non une promesse.
+      await editFeed(feedId, undefined, `user/-/label/${name}`, name);
+      await get().loadSubscriptions();
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   renameFeed: async (feedId, newTitle) => {
     try {
       await editFeed(feedId, newTitle);
