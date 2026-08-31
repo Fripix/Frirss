@@ -8,7 +8,7 @@ export const NIGHT_THEME_NAME = 'FriRSS Night';
 export const PAPER_THEME_NAME = 'FriRSS Paper';
 export const CONTRAST_THEME_NAME = 'FriRSS High Contrast';
 export const DESK_THEME_NAME = 'FriRSS Desk';
-export const VELVET_THEME_NAME = 'FriRSS Velvet';
+export const PORCELAIN_THEME_NAME = 'FriRSS Porcelain';
 
 const defaultTheme: Theme = {
   name: DEFAULT_THEME_NAME,
@@ -305,66 +305,68 @@ const deskTheme = preset(DESK_THEME_NAME, {
 });
 
 
-/* ── Velvet ─────────────────────────────────────────────────────────────
- * Un matériau, comme « Paper » en a un : la reliure de velours, le noir d'une
- * salle avant que la lumière ne tombe. C'est ce qui donne son fond — un
- * aubergine très sombre, pas un charbon — et sa ponctuation, un vieux rose
- * poudré.
+/* ── Porcelain ──────────────────────────────────────────────────────────
+ * Un matériau, comme « Paper » — mais résolvant la contrainte propre aux
+ * thèmes CLAIRS : le fond doit rester blanc (teinter la surface de lecture a
+ * été essayé deux fois et rejeté), donc le matériau doit vivre ailleurs. À
+ * moins que le matériau NE SOIT le blanc.
  *
- * Pourquoi celui-ci et pas un énième gris : la galerie ne contenait que du
- * vert et du brun, et rien de la famille pourpre. C'est aussi le seul fond
- * sombre qui ne soit ni neutre ni verdi, ce qui le rend reconnaissable à un
- * coup d'œil — le vrai critère d'un thème.
+ * C'est la porcelaine : un corps blanc, un seul bleu de cobalt posé dessus.
+ * Le blanc cesse d'être un défaut faute de mieux et devient le sujet. La barre
+ * latérale est le bleu à sa pleine profondeur, l'accent le même bleu à mi-
+ * chemin, et l'encre des titres ce bleu poussé jusqu'au presque-noir : toute
+ * la page appartient à une seule famille sans qu'aucune surface ne soit
+ * teintée.
  *
- * Il tient la leçon apprise plus haut : un fond franc, UNE couleur qui
- * ponctue, et une saturation basse. Le rose est poudré, pas magenta ; le fond
- * est sombre avant d'être violet. Ce qui a échoué en « Neon », c'était deux
- * couleurs saturées qui se disputaient l'écran.
+ * L'or des favoris est la seule autre note, et il est là pour la raison qui
+ * fait qu'une porcelaine a un filet doré.
  *
- * L'or des favoris est la seule autre note chromatique, et il est là parce
- * qu'un laiton sur du velours est cohérent avec le matériau.
+ * Bleu, aussi, parce que la galerie n'en contenait aucun : elle était
+ * entièrement verte et brune.
  */
-const velvetTheme = preset(VELVET_THEME_NAME, {
-  'sidebar-bg': '#1a1016',
-  'sidebar-header-from': '#dd8fa0',
-  'sidebar-header-to': '#8a4a63',
-  'sidebar-text': '#8a7a84',
-  'sidebar-text-active': '#efe4ea',
-  'sidebar-category-text': '#6b5d66',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.07)',
-  'topbar-bg': '#1a1016',
-  'topbar-text': '#8a7a84',
-  'topbar-text-active': '#dd8fa0',
-  'topbar-track': '#271a23',
-  'topbar-seg-active': '#31222c',
-  'accent': '#dd8fa0',
-  'accent-dark': '#b96f80',
-  'panel-bg': '#231721',
-  'panel-border': '#3b2a37',
-  'panel-header-bg': '#2b1c28',
-  'list-hover': '#31212d',
-  'list-active': '#2c1f28',
-  'list-selected': '#3a2130',
-  'list-source': '#dd8fa0',
-  'list-title': '#ece2e8',
-  'list-title-read': '#8a7b85',
-  'list-summary': '#a3939c',
-  'list-time': '#7a6b74',
-  'reading-title': '#f4ecf1',
-  'reading-text': '#cfc0c9',
-  'reading-meta': '#9b8b95',
-  'reading-link': '#dd8fa0',
-  'star-color': '#e8c07a',
-  'readlater-color': '#9c8fd8',
-  'danger': '#e57373',
-  'danger-light': '#3a1e22',
-  'code-bg': '#1c1219',
-  'scrollbar': '#3f2e3a',
-  'scrollbar-hover': '#584152',
+const porcelainTheme = preset(PORCELAIN_THEME_NAME, {
+  'sidebar-bg': '#16233d',
+  'sidebar-header-from': '#2a5db0',
+  'sidebar-header-to': '#16376e',
+  'sidebar-text': '#7d8798',
+  'sidebar-text-active': '#e8edf5',
+  'sidebar-category-text': '#636d80',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.08)',
+  'topbar-bg': '#16233d',
+  'topbar-text': '#7d8798',
+  'topbar-text-active': '#6fa4e8',
+  'topbar-track': '#1e2f4d',
+  'topbar-seg-active': '#27395c',
+  'accent': '#2a5db0',
+  'accent-dark': '#1e4485',
+  // Surfaces neutres : le blanc est le corps de la porcelaine, pas un pis-aller.
+  'panel-bg': '#ffffff',
+  'panel-border': '#e8e8ec',
+  'panel-header-bg': '#fafafa',
+  'list-active': '#f0f0f0',
+  'code-bg': '#f5f5f7',
+  // Le bleu n'apparaît que sur des états transitoires, jamais sur la page.
+  'list-hover': '#eaf1fb',
+  'list-selected': '#d9e6f9',
+  'list-source': '#2a5db0',
+  'list-title': '#16233d',
+  'list-title-read': '#8a93a3',
+  'list-summary': '#6b7383',
+  'list-time': '#9aa3b3',
+  'reading-title': '#16233d',
+  'reading-text': '#3b4453',
+  'reading-meta': '#7a8394',
+  'reading-link': '#1e4485',
+  'star-color': '#c08a1e',
+  'readlater-color': '#6b5bb5',
+  'danger': '#b3382c',
+  'danger-light': '#fbeae8',
+  'scrollbar': '#ccd2dc',
+  'scrollbar-hover': '#a8b1c0',
 });
 
 export const SHIPPED_THEMES: Theme[] = [
-  defaultTheme, nightTheme, velvetTheme, deskTheme, paperTheme, contrastTheme,
+  defaultTheme, porcelainTheme, paperTheme, contrastTheme, nightTheme, deskTheme,
 ];
 
 /**
@@ -382,6 +384,9 @@ const RETIRED_THEME_NAMES = [
   // l'écran il ne restait que charbon + ambre, la combinaison la plus banale
   // qui soit. Un thème se juge en le regardant.
   'FriRSS Lowlight',
+  // Le principe — un matériau — était bon, la couleur non, et il était sombre
+  // là où un thème clair est préféré. Repris en « Porcelain ».
+  'FriRSS Velvet',
   // Commandés, essayés en sombre puis en clair, et écartés à l'usage. Les deux
   // variantes partent : ce qui ne convainc pas encombre la galerie.
   'FriRSS Lagoon', 'FriRSS Lagoon Light',

@@ -535,9 +535,10 @@ réglage clair/sombre du système.
   donc celle qu'on vient changer d'abord ; elle était en troisième position,
   sous deux sections de réglages fins de la barre latérale.
 - **Thèmes livrés** (1.4.5), définis dans `SHIPPED_THEMES` : `FriRSS Default`
-  (clair), `FriRSS Night` (sombre), `FriRSS Velvet` (sombre),
-  `FriRSS Desk` (sombre), `FriRSS Paper` (clair, sépia),
-  `FriRSS High Contrast` (clair).
+  (clair), `FriRSS Porcelain` (clair), `FriRSS Paper` (clair, sépia),
+  `FriRSS High Contrast` (clair), `FriRSS Night` (sombre),
+  `FriRSS Desk` (sombre). **Les clairs d'abord dans la galerie** : c'est ce
+  qui est préféré, autant que ce soit ce qu'on voit en premier.
   - **Un thème va jusqu'au bout de son idée, barre latérale comprise.** Paper
     a longtemps été une page sépia surmontée d'un bandeau menthe, avec un
     accent vert et des survols verdis : le vert de la marque appartient au
@@ -546,20 +547,26 @@ réglage clair/sombre du système.
     faire sur tout nouveau thème : `sidebar-header-from/to`, `accent`,
     `list-hover` et `list-selected` sont les quatre endroits d'où la teinte du
     thème par défaut a tendance à survivre.
-  - **`Velvet`** part d'un **matériau**, comme `Paper` : la reliure de velours.
-    D'où un fond aubergine très sombre — pas un charbon — et une seule
-    ponctuation, un vieux rose poudré, plus l'or des favoris qui va avec le
-    laiton d'une reliure. C'est la seule famille pourpre de la galerie, et le
-    seul fond sombre qui ne soit ni neutre ni verdi : reconnaissable à un coup
-    d'œil, ce qui est le vrai critère.
-  - **Leçon de `Lowlight`, retiré** : son idée était une baisse de contraste
-    pour la lecture de nuit. Une idée **qu'on ne voit pas** — à l'écran il ne
-    restait que charbon + ambre, la combinaison la plus banale qui soit. Un
-    thème se juge en le regardant : son idée doit être **visible**, et de
-    préférence tenir à un référent concret (une page de livre, une photo, un
-    matériau) plutôt qu'à un principe.
+  - **`Porcelain`** résout la contrainte propre aux thèmes **clairs** : le fond
+    doit rester blanc (teinter la surface de lecture a été essayé deux fois et
+    rejeté), donc le matériau doit vivre ailleurs — *à moins que le matériau ne
+    soit le blanc*. C'est la porcelaine : un corps blanc, un seul bleu de
+    cobalt posé dessus. Le blanc cesse d'être un pis-aller et devient le sujet.
+    Le bleu descend en trois profondeurs — barre latérale, accent, encre des
+    titres — si bien que toute la page appartient à une famille **sans qu'aucune
+    surface ne soit teintée** ; il ne touche que des états transitoires (survol,
+    sélection). L'or des favoris est la seule autre note, pour la raison qui
+    fait qu'une porcelaine a un filet doré. C'est aussi le seul bleu de la
+    galerie, jusque-là entièrement verte et brune.
+  - **Deux leçons payées cher**, à relire avant d'en proposer un autre :
+    l'idée d'un thème doit être **visible** — `Lowlight` reposait sur une
+    baisse de contraste, un principe qu'on ne voit pas, et il ne restait à
+    l'écran que charbon + ambre. Et un référent concret (page de livre, photo,
+    matériau) donne un meilleur résultat qu'un accord de couleurs choisi dans
+    l'abstrait — c'est ce qui sépare `Paper`, `Desk` et `Porcelain` de tous
+    ceux qui ont été retirés.
 - **Ce qui a été essayé et écarté** — Lagoon, Neon et Circuit, en sombre puis
-  en clair, plus Midnight, Ember, Nordic et Lowlight. La leçon, à retenir avant d'en
+  en clair, plus Midnight, Ember, Nordic, Lowlight et Velvet. La leçon, à retenir avant d'en
   proposer d'autres : **une palette bâtie autour de deux couleurs vives donne
   un écran qui fatigue vite**, et sur fond clair la couleur doit être si
   assombrie pour rester lisible qu'il n'en reste plus grand-chose. Ce qui tient
