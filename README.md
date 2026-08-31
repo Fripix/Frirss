@@ -58,17 +58,26 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant.
 - **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
 - **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed.
-- **Search and infinite scroll**, scoped to the view you are actually in.
+- **Search and infinite scroll**, scoped to the view you are actually in — and the last five queries are offered back, per server.
+- **Mark as read while scrolling**, optionally: an article is marked once it has left the top of the list. Off by default, never during a search.
+- **Share an article or copy its link** from the reading pane — the system share sheet on mobile, the clipboard elsewhere.
 - **Resume where you left off** — your last feed and filter come back on reopen, with an unobtrusive offline / back-online indicator.
+
+### Keyboard and reach
+- **A command palette** on <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>: jump to a feed, a category, a label, a view, switch FreshRSS server, or run an action. Accents are ignored, so *securite* finds *Sécurité*.
+- **Ten reassignable shortcuts**, and <kbd>?</kbd> opens a sheet listing them with the keys you actually configured.
+- **Built to be used without a mouse** — a visible focus ring throughout, 44pt touch targets, screen-reader names on icon-only buttons, and *reduced motion* honored everywhere.
 
 ### Make it yours
 Almost everything is yours to tweak:
 
-- **Themes** — full control over every color and font; **create, save, export and import** your own themes.
+- **Six themes ship with it** — Default, Riso, Paper and High Contrast in light, Night and Desk in dark — and FriRSS can **follow your system's light/dark setting**, switching between the two you pick.
+- **Themes are yours to make** — full control over all 36 colors and 7 font sizes; **create, save, export, import and share** your own.
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
-- **Layout** — resizable columns, density and spacing, date separators, toggles for the source label and top bar, and a desktop/mobile switch on tablets.
+- **Layout** — resizable columns, density and spacing, date separators, feed icons, toggles for the source label and top bar, and a desktop/mobile switch on tablets.
 - **A sidebar that remembers** — collapsed sections stay collapsed, and feeds with nothing unread can be hidden to declutter long lists.
+- **Categories & feeds** — rename or delete a category and move feeds between categories, right from the preferences.
 - **Labels & sub-labels** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with per-label article counts.
 - **Branding** — set your own app name and logo.
 - **9 languages** — the interface follows your browser language on first run.
@@ -76,7 +85,7 @@ Almost everything is yours to tweak:
 ### Accounts, SSO & multi-server
 - **Multi-user** with admin/user roles — each person keeps their own feeds and settings.
 - **Single sign-on** via OIDC (tested with [Authentik](https://goauthentik.io)); existing accounts are linked by email, and passkeys work through your provider.
-- **Multi-server** — connect several FreshRSS instances and switch between them.
+- **Multi-server** — connect several FreshRSS instances and switch between them, from the top bar or the command palette.
 
 ### Self-hosting
 - Optional **Redis cache** (stale-while-revalidate) and a background pre-fetch worker for instant loads.
@@ -191,8 +200,8 @@ Found a security issue? Please follow [`SECURITY.md`](SECURITY.md) rather than o
 
 FriRSS is a personal project, but feedback, ideas and contributions are welcome.
 
-- Found a bug? [Open an issue](https://github.com/Fripix/Frirss/issues)
-- Have an idea or question? [Start a discussion](https://github.com/Fripix/Frirss/discussions)
+- Found a bug, or have an idea? [Open an issue](https://github.com/Fripix/Frirss/issues/new/choose) — there are guided forms for both.
+- A question, or something to talk through? [Start a discussion](https://github.com/Fripix/Frirss/discussions)
 - Want to contribute code? Pull requests are welcome.
 - Wondering what changed? [`CHANGELOG.md`](CHANGELOG.md)
 
