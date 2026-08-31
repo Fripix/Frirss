@@ -58,9 +58,9 @@ la release publiée.
 
 ## Corrections et améliorations
 
-- **Le texte d'un article occupe toute la largeur du volet**, comme avant ce
-  cycle. Le plafond de largeur essayé ici n'a convaincu à aucune des deux
-  versions : la colonne est déjà bornée par la disposition.
+- **Les images d'article ne dépassent plus 80 % de la hauteur d'écran.** Une
+  infographie verticale occupait trois écrans et coupait la lecture en deux.
+  Le TEXTE, lui, occupe toujours toute la largeur du volet, comme avant.
 - **« Paper » est sépia jusqu'au bout.** La page était crème mais la barre
   latérale et son bandeau restaient aux couleurs du thème par défaut : une page
   de livre surmontée d'un bandeau vert vif. Cuir sombre, bandeau tan, encre
@@ -104,8 +104,6 @@ la release publiée.
   du jour. Ce sont les seuls repères de progression d'une liste sans fin.
 - **Les états vides proposent une action.** « Tout est lu » est une réussite et
   le montre ; « aucun résultat » propose d'élargir la recherche à tous les flux.
-- **Les images d'article ne dépassent plus 80 % de la hauteur d'écran.** Une
-  infographie verticale occupait trois écrans et coupait la lecture en deux.
 - **Le badge de non-lus suivait mal les thèmes** : son fond était le vert
   menthe écrit en dur, y compris sur un thème dont l'accent est différent.
 
@@ -124,8 +122,6 @@ la release publiée.
 - **Les articles non lus se repèrent dans la liste.** Une barre à gauche de la
   ligne, dans les modes Standard et Aperçu, où l'état non-lu ne tenait qu'à la
   graisse du titre et à sa nuance de gris.
-- **Le texte d'un article ne s'étale plus sur toute la largeur** en mode Focus :
-  la colonne de lecture est plafonnée et centrée.
 - **Les champs de saisie atteignent 44 px au doigt**, comme les boutons.
 - **Les surbrillances de glisser-déposer suivent le thème.** Trois d'entre elles
   étaient en orange codé en dur — l'accent d'une ancienne version.
@@ -151,6 +147,9 @@ la release publiée.
   composant.
 - Le composant de favicon a été sorti de la barre latérale, où il ne servait
   qu'elle, vers `src/components/FeedFavicon.tsx`.
+- **React 19.** Aucun changement de code : les API retirées par cette version
+  n'étaient utilisées nulle part. Rien de visible à l'usage — c'est une montée
+  d'entretien, pour rester sur la version supportée.
 
 ## Actions requises à la mise à jour
 
