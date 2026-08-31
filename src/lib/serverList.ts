@@ -59,6 +59,25 @@ export function nextServerAfterDelete(
 }
 
 /** Le dernier serveur ne se supprime pas : le compte resterait sans connexion. */
+/**
+ * Peut-on basculer vers ce serveur ?
+ *
+ * Deux refus : celui qui est déjà actif, et une entrée **synthétique** — la
+ * connexion FreshRSS active qui n'a pas d'enregistrement en base. Elle se voit
+ * mais ne se gère pas, et « basculer » vers elle n'aurait aucun sens.
+ *
+ * Les identifiants sont comparés en TEXTE : ils arrivent tantôt en nombre
+ * (base) tantôt en chaîne (`localStorage`), et une comparaison stricte
+ * laisserait basculer vers le serveur déjà actif.
+ */
+export function canSwitchTo(
+  server: DisplayServer,
+  activeServerId: string | number | null
+): boolean {
+  if (server.synthetic) return false;
+  return String(server.id) !== String(activeServerId);
+}
+
 export function canDeleteServer(servers: ServerConnection[]): boolean {
   return servers.length > 1;
 }

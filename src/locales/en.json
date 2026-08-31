@@ -643,7 +643,8 @@
       "categories": "Categories",
       "feeds": "Feeds",
       "labels": "Labels",
-      "actions": "Actions"
+      "actions": "Actions",
+      "servers": "Servers"
     }
   }
 }

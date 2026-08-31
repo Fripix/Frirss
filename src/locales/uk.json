@@ -661,7 +661,8 @@
       "categories": "Категорії",
       "feeds": "Стрічки",
       "labels": "Мітки",
-      "actions": "Дії"
+      "actions": "Дії",
+      "servers": "Сервери"
     }
   }
 }

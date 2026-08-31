@@ -35,6 +35,9 @@ la release publiée.
 - **Des messages de confirmation.** L'application ne disait jamais qu'une
   action avait abouti. Un message bref apparaît en bas de l'écran — articles
   marqués comme lus, lien copié — et disparaît seul.
+- **La palette de commandes sait aussi changer de serveur FreshRSS**, ce qui
+  était jusqu'ici réservé à la barre du haut — donc indisponible à qui la
+  masque.
 - **Une palette de commandes, sur ⌘K (Ctrl+K).** Elle et l'aide-mémoire `?`
   sont rappelées dans la barre du bas, à part des raccourcis d'articles, et la
   touche affichée suit le clavier — ⌘ sur Mac, Ctrl ailleurs. Une seule entrée pour aller à

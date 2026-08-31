@@ -252,6 +252,12 @@ export default function App() {
     getServers()
       .then((servers) => {
         if (cancelled) return;
+        // La liste est aussi rangée dans le store ici, et non plus seulement
+        // par `ServerSwitcher` : ce composant ne se monte que si la barre du
+        // haut est visible, et la masquer est un réglage. La palette de
+        // commandes a besoin de la liste dans les deux cas — c'est le même
+        // piège que celui déjà consigné pour la gestion des serveurs.
+        useAuthStore.getState().setServers(servers);
         const active = servers.find((s) => String(s.id) === String(activeServerId));
         useFeedStore.getState().setHasRefreshToken(!!active?.has_refresh_token);
       })

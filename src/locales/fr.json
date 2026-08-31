@@ -643,7 +643,8 @@
       "categories": "Catégories",
       "feeds": "Flux",
       "labels": "Étiquettes",
-      "actions": "Actions"
+      "actions": "Actions",
+      "servers": "Serveurs"
     }
   }
 }

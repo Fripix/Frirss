@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
-import { useFeedStore } from '../../stores/feedStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { getServers } from '../../api/backend';
 import { displayServers, type DisplayServer } from '../../lib/serverList';
+import { switchToServer } from '../../lib/switchServer';
 
 // ═════════════════════════════════════════════════════════════════════
 // Sélecteur de serveur — pastilles horizontales dans la barre du haut.
@@ -19,7 +19,6 @@ export default function ServerSwitcher() {
   const { t } = useTranslation();
   const servers = useAuthStore((s) => s.servers);
   const setServers = useAuthStore((s) => s.setServers);
-  const switchServer = useAuthStore((s) => s.switchServer);
   const activeServerId = useAuthStore((s) => s.activeServerId);
   const serverUrl = useAuthStore((s) => s.serverUrl);
   const openPreferences = useThemeStore((s) => s.openPreferences);
@@ -33,11 +32,9 @@ export default function ServerSwitcher() {
       .catch(() => { /* garder la liste connue */ });
   }, [setServers]);
 
-  function handleSwitch(server: DisplayServer) {
-    if (server.synthetic || String(server.id) === String(activeServerId)) return;
-    switchServer(server as { id: string | number; url: string });
-    useFeedStore.getState().setHasRefreshToken(!!server.has_refresh_token);
-  }
+  // Le geste vit dans `lib/switchServer` : la palette de commandes l'utilise
+  // aussi, et il ne doit pas exister en deux exemplaires.
+  const handleSwitch = switchToServer;
 
   const rows = displayServers(servers, activeServerId, serverUrl);
 

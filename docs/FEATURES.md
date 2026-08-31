@@ -1062,8 +1062,20 @@ raccourcis, dispositions, sections de préférences).
   la convention veut qu'il fonctionne même le curseur dans la recherche.
 - **Les catégories sont dédupliquées depuis les abonnements** : le store ne les
   liste pas à part, ce sont les flux qui les portent.
-- **Pas encore dedans** : le changement de serveur. Il vit dans
-  `ServerSwitcher` et demanderait d'en extraire l'action.
+- **Changement de serveur** (1.4.5) : le geste vit dans
+  `src/lib/switchServer.ts`, extrait de `ServerSwitcher` où il était seul, et
+  la garde est la fonction pure `canSwitchTo()` (`serverList.ts`, testée) —
+  elle refuse le serveur déjà actif et l'entrée **synthétique**, et compare les
+  identifiants en TEXTE parce qu'ils arrivent tantôt en nombre, tantôt en
+  chaîne. Un serveur sans nom est désigné par son hôte.
+  - **Piège, déjà connu ailleurs et reproduit ici** : `ServerSwitcher` ne se
+    monte que si la barre du haut est visible, et la masquer est un réglage —
+    la liste des serveurs n'était donc rangée dans le store que dans ce cas.
+    `App.tsx` la range désormais lui-même, dans l'effet qui interrogeait déjà
+    `getServers()`. Sans cela, la palette n'aurait proposé aucun serveur
+    précisément à ceux qui en ont le plus besoin.
+  - Le serveur actif n'est pas listé : une entrée « basculer » qui désigne
+    l'endroit où l'on est déjà n'est pas une commande.
 
 ---
 

@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../stores/uiStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useFeedStore, READ_LATER_LABEL } from '../stores/feedStore';
+import { useAuthStore } from '../stores/authStore';
+import { displayServers, hostnameOf } from '../lib/serverList';
+import { switchToServer } from '../lib/switchServer';
 import { rankCommands, type Command } from '../lib/commandPalette';
 
 /**
@@ -21,6 +24,9 @@ export default function CommandPalette() {
   const setPanelLayout = useUiStore((s) => s.setPanelLayout);
   const openPreferences = useThemeStore((s) => s.openPreferences);
 
+  const servers = useAuthStore((s) => s.servers);
+  const activeServerId = useAuthStore((s) => s.activeServerId);
+  const serverUrl = useAuthStore((s) => s.serverUrl);
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const labels = useFeedStore((s) => s.labels);
   const unreadCounts = useFeedStore((s) => s.unreadCounts);
@@ -86,6 +92,22 @@ export default function CommandPalette() {
       });
     }
 
+    // Serveurs — seulement s'il y en a plusieurs : une entrée « basculer »
+    // unique désignerait le serveur sur lequel on est déjà.
+    const rows = displayServers(servers, activeServerId, serverUrl)
+      .filter((srv) => !srv.synthetic && String(srv.id) !== String(activeServerId));
+    for (const server of rows) {
+      out.push({
+        id: `server:${server.id}`,
+        // Un serveur peut n'avoir pas de nom : son hôte le désigne alors,
+        // comme ailleurs dans l'interface.
+        label: server.name || hostnameOf(server.url),
+        group: 'servers',
+        hint: server.is_default ? t('servers.defaultBadge') : undefined,
+        run: () => { switchToServer(server); close(); },
+      });
+    }
+
     const actions: Array<[string, string, () => void]> = [
       ['search', t('articleList.search'), () => window.dispatchEvent(new CustomEvent('frirss:open-search'))],
       ['shortcuts', t('preferences.shortcuts.helpTitle'), () => useUiStore.getState().setShortcutHelpOpen(true)],
@@ -101,7 +123,7 @@ export default function CommandPalette() {
     }
 
     return out;
-  }, [open, subscriptions, labels, unreadCounts, t, setOpen, setPanelLayout, openPreferences]);
+  }, [open, subscriptions, labels, unreadCounts, servers, activeServerId, serverUrl, t, setOpen, setPanelLayout, openPreferences]);
 
   const results = useMemo(() => rankCommands(commands, query), [commands, query]);
 

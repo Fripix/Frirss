@@ -4,6 +4,8 @@ import {
   displayServers,
   nextServerAfterDelete,
   canDeleteServer,
+  canSwitchTo,
+  type DisplayServer,
   shouldShowServerList,
 } from './serverList';
 import type { ServerConnection } from '../types';
@@ -116,5 +118,33 @@ describe('shouldShowServerList', () => {
 
   it('affiche la liste quand les deux conditions tiennent', () => {
     expect(shouldShowServerList(3, true)).toBe(true);
+  });
+});
+
+describe('canSwitchTo', () => {
+  const srv = (over: Partial<DisplayServer> = {}): DisplayServer =>
+    ({ id: 2, name: 'B', url: 'https://b.example.com', ...over } as DisplayServer);
+
+  it('allows switching to another server', () => {
+    expect(canSwitchTo(srv(), 1)).toBe(true);
+  });
+
+  it('refuses the server already active', () => {
+    expect(canSwitchTo(srv({ id: 1 }), 1)).toBe(false);
+  });
+
+  it('compares ids as text, since one side is a number and the other a string', () => {
+    expect(canSwitchTo(srv({ id: 1 }), '1')).toBe(false);
+    expect(canSwitchTo(srv({ id: '1' }), 1)).toBe(false);
+  });
+
+  it('refuses a synthetic entry', () => {
+    // La connexion active sans enregistrement en base : elle se voit, elle ne
+    // se gère pas, et « basculer » vers elle n'aurait aucun sens.
+    expect(canSwitchTo(srv({ synthetic: true }), 1)).toBe(false);
+  });
+
+  it('allows switching when nothing is active yet', () => {
+    expect(canSwitchTo(srv(), null)).toBe(true);
   });
 });

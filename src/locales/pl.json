@@ -661,7 +661,8 @@
       "categories": "Kategorie",
       "feeds": "Kanały",
       "labels": "Etykiety",
-      "actions": "Akcje"
+      "actions": "Akcje",
+      "servers": "Serwery"
     }
   }
 }

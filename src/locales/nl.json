@@ -643,7 +643,8 @@
       "categories": "Categorieën",
       "feeds": "Feeds",
       "labels": "Labels",
-      "actions": "Acties"
+      "actions": "Acties",
+      "servers": "Servers"
     }
   }
 }
