@@ -14,7 +14,7 @@ la release publiée.
 ## Fonctionnalités
 
 - **Un thème sombre, enfin.** Cinq thèmes livrés en plus du thème par défaut :
-  **Night**, **Lowlight** et **Desk** en sombre, **Paper** (sépia) et
+  **Night**, **Velvet** et **Desk** en sombre, **Paper** (sépia) et
   **High Contrast** en clair — présentés en galerie de vignettes
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler

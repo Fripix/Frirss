@@ -535,7 +535,7 @@ réglage clair/sombre du système.
   donc celle qu'on vient changer d'abord ; elle était en troisième position,
   sous deux sections de réglages fins de la barre latérale.
 - **Thèmes livrés** (1.4.5), définis dans `SHIPPED_THEMES` : `FriRSS Default`
-  (clair), `FriRSS Night` (sombre), `FriRSS Lowlight` (sombre),
+  (clair), `FriRSS Night` (sombre), `FriRSS Velvet` (sombre),
   `FriRSS Desk` (sombre), `FriRSS Paper` (clair, sépia),
   `FriRSS High Contrast` (clair).
   - **Un thème va jusqu'au bout de son idée, barre latérale comprise.** Paper
@@ -546,15 +546,20 @@ réglage clair/sombre du système.
     faire sur tout nouveau thème : `sidebar-header-from/to`, `accent`,
     `list-hover` et `list-selected` sont les quatre endroits d'où la teinte du
     thème par défaut a tendance à survivre.
-  - **`Lowlight`** est le seul thème dont l'idée n'est pas une couleur : il est
-    réglé pour lire dans une pièce sombre, donc **son texte est volontairement
-    moins lumineux**. Du blanc pur sur du noir fait halo et fatigue ; ses
-    titres plafonnent à ~9,5:1 là où `Night` et `Desk` montent à 13 et 15. Ne
-    pas « corriger » ce contraste plus bas en croyant à un oubli : c'est le
-    sujet. Fond charbon légèrement bleuté — la seule note froide de la galerie
-    — et une lampe ambre en haut de la barre latérale pour seule ponctuation.
+  - **`Velvet`** part d'un **matériau**, comme `Paper` : la reliure de velours.
+    D'où un fond aubergine très sombre — pas un charbon — et une seule
+    ponctuation, un vieux rose poudré, plus l'or des favoris qui va avec le
+    laiton d'une reliure. C'est la seule famille pourpre de la galerie, et le
+    seul fond sombre qui ne soit ni neutre ni verdi : reconnaissable à un coup
+    d'œil, ce qui est le vrai critère.
+  - **Leçon de `Lowlight`, retiré** : son idée était une baisse de contraste
+    pour la lecture de nuit. Une idée **qu'on ne voit pas** — à l'écran il ne
+    restait que charbon + ambre, la combinaison la plus banale qui soit. Un
+    thème se juge en le regardant : son idée doit être **visible**, et de
+    préférence tenir à un référent concret (une page de livre, une photo, un
+    matériau) plutôt qu'à un principe.
 - **Ce qui a été essayé et écarté** — Lagoon, Neon et Circuit, en sombre puis
-  en clair, plus Midnight, Ember et Nordic. La leçon, à retenir avant d'en
+  en clair, plus Midnight, Ember, Nordic et Lowlight. La leçon, à retenir avant d'en
   proposer d'autres : **une palette bâtie autour de deux couleurs vives donne
   un écran qui fatigue vite**, et sur fond clair la couleur doit être si
   assombrie pour rester lisible qu'il n'en reste plus grand-chose. Ce qui tient

@@ -8,7 +8,7 @@ export const NIGHT_THEME_NAME = 'FriRSS Night';
 export const PAPER_THEME_NAME = 'FriRSS Paper';
 export const CONTRAST_THEME_NAME = 'FriRSS High Contrast';
 export const DESK_THEME_NAME = 'FriRSS Desk';
-export const LOWLIGHT_THEME_NAME = 'FriRSS Lowlight';
+export const VELVET_THEME_NAME = 'FriRSS Velvet';
 
 const defaultTheme: Theme = {
   name: DEFAULT_THEME_NAME,
@@ -305,61 +305,66 @@ const deskTheme = preset(DESK_THEME_NAME, {
 });
 
 
-/* ── Lowlight ───────────────────────────────────────────────────────────
- * Une idée plutôt qu'une palette de plus : celui-ci est réglé pour lire dans
- * une pièce sombre, et il en tire une conséquence que les autres thèmes
- * sombres ne tirent pas — **le texte y est volontairement moins lumineux**.
- * Du blanc pur sur du noir est l'erreur classique de la lecture de nuit : le
- * contraste maximal fait halo et fatigue. Les titres plafonnent donc autour de
- * 9,5:1 là où « Night » et « Desk » montent à 13 et plus.
+/* ── Velvet ─────────────────────────────────────────────────────────────
+ * Un matériau, comme « Paper » en a un : la reliure de velours, le noir d'une
+ * salle avant que la lumière ne tombe. C'est ce qui donne son fond — un
+ * aubergine très sombre, pas un charbon — et sa ponctuation, un vieux rose
+ * poudré.
  *
- * Le fond est un charbon très légèrement bleuté — froid, ce qu'aucun autre
- * thème livré n'est — et la seule couleur qui ponctue est un ambre de lampe.
- * D'où le bandeau chaud en haut d'une barre latérale froide : c'est la lampe
- * au-dessus de la page, et c'est la signature du thème.
+ * Pourquoi celui-ci et pas un énième gris : la galerie ne contenait que du
+ * vert et du brun, et rien de la famille pourpre. C'est aussi le seul fond
+ * sombre qui ne soit ni neutre ni verdi, ce qui le rend reconnaissable à un
+ * coup d'œil — le vrai critère d'un thème.
+ *
+ * Il tient la leçon apprise plus haut : un fond franc, UNE couleur qui
+ * ponctue, et une saturation basse. Le rose est poudré, pas magenta ; le fond
+ * est sombre avant d'être violet. Ce qui a échoué en « Neon », c'était deux
+ * couleurs saturées qui se disputaient l'écran.
+ *
+ * L'or des favoris est la seule autre note chromatique, et il est là parce
+ * qu'un laiton sur du velours est cohérent avec le matériau.
  */
-const lowlightTheme = preset(LOWLIGHT_THEME_NAME, {
-  'sidebar-bg': '#0e1015',
-  'sidebar-header-from': '#e8a75c',
-  'sidebar-header-to': '#a3673a',
-  'sidebar-text': '#6f7480',
-  'sidebar-text-active': '#c6cad4',
-  'sidebar-category-text': '#575c68',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.06)',
-  'topbar-bg': '#0e1015',
-  'topbar-text': '#6f7480',
-  'topbar-text-active': '#e8a75c',
-  'topbar-track': '#191c24',
-  'topbar-seg-active': '#22262f',
-  'accent': '#e8a75c',
-  'accent-dark': '#c0813d',
-  'panel-bg': '#14161d',
-  'panel-border': '#262a34',
-  'panel-header-bg': '#191c24',
-  'list-hover': '#22252f',
-  'list-active': '#1e212a',
-  'list-selected': '#2b2519',
-  'list-source': '#e8a75c',
-  // Volontairement en deçà du blanc : c'est le sujet du thème.
-  'list-title': '#b9bcc6',
-  'list-title-read': '#6b7080',
-  'list-summary': '#878c99',
-  'list-time': '#5f6472',
-  'reading-title': '#c6cad4',
-  'reading-text': '#a3a8b5',
-  'reading-meta': '#7a8090',
-  'reading-link': '#e8a75c',
-  'star-color': '#e8c95c',
-  'readlater-color': '#9b8fd4',
-  'danger': '#d97066',
-  'danger-light': '#2e1b18',
-  'code-bg': '#10121a',
-  'scrollbar': '#2c313d',
-  'scrollbar-hover': '#3f4553',
+const velvetTheme = preset(VELVET_THEME_NAME, {
+  'sidebar-bg': '#1a1016',
+  'sidebar-header-from': '#dd8fa0',
+  'sidebar-header-to': '#8a4a63',
+  'sidebar-text': '#8a7a84',
+  'sidebar-text-active': '#efe4ea',
+  'sidebar-category-text': '#6b5d66',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.07)',
+  'topbar-bg': '#1a1016',
+  'topbar-text': '#8a7a84',
+  'topbar-text-active': '#dd8fa0',
+  'topbar-track': '#271a23',
+  'topbar-seg-active': '#31222c',
+  'accent': '#dd8fa0',
+  'accent-dark': '#b96f80',
+  'panel-bg': '#231721',
+  'panel-border': '#3b2a37',
+  'panel-header-bg': '#2b1c28',
+  'list-hover': '#31212d',
+  'list-active': '#2c1f28',
+  'list-selected': '#3a2130',
+  'list-source': '#dd8fa0',
+  'list-title': '#ece2e8',
+  'list-title-read': '#8a7b85',
+  'list-summary': '#a3939c',
+  'list-time': '#7a6b74',
+  'reading-title': '#f4ecf1',
+  'reading-text': '#cfc0c9',
+  'reading-meta': '#9b8b95',
+  'reading-link': '#dd8fa0',
+  'star-color': '#e8c07a',
+  'readlater-color': '#9c8fd8',
+  'danger': '#e57373',
+  'danger-light': '#3a1e22',
+  'code-bg': '#1c1219',
+  'scrollbar': '#3f2e3a',
+  'scrollbar-hover': '#584152',
 });
 
 export const SHIPPED_THEMES: Theme[] = [
-  defaultTheme, nightTheme, lowlightTheme, deskTheme, paperTheme, contrastTheme,
+  defaultTheme, nightTheme, velvetTheme, deskTheme, paperTheme, contrastTheme,
 ];
 
 /**
@@ -373,6 +378,10 @@ export const SHIPPED_THEMES: Theme[] = [
 const RETIRED_THEME_NAMES = [
   // Inventés sans être demandés.
   'FriRSS Midnight', 'FriRSS Ember', 'FriRSS Nordic',
+  // Son idée était une baisse de contraste — un concept qu'on ne VOIT pas. À
+  // l'écran il ne restait que charbon + ambre, la combinaison la plus banale
+  // qui soit. Un thème se juge en le regardant.
+  'FriRSS Lowlight',
   // Commandés, essayés en sombre puis en clair, et écartés à l'usage. Les deux
   // variantes partent : ce qui ne convainc pas encombre la galerie.
   'FriRSS Lagoon', 'FriRSS Lagoon Light',
