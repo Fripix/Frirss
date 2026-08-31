@@ -45,8 +45,7 @@
     "feedLayoutDefault": "Default",
     "feedLayoutThisFeed": "Layout for this feed",
     "starOnGithub": "Star it on GitHub",
-    "support": "Support the project",
-    "suggest": "Suggest an idea or report a bug"
+    "support": "Support the project"
   },
   "addFeed": {
     "title": "Add an RSS feed",

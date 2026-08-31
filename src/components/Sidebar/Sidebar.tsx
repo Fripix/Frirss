@@ -607,16 +607,31 @@ export default function Sidebar() {
         </span>
       </div>
 
-      {/* Communauté — étoile, soutien, idée. Trois icônes de même poids, sans
-          texte : c'est une application qu'on ouvre vingt fois par jour, un
-          appel visible y deviendrait vite pesant. Rangée à part plutôt que
-          dans le pied : à quatre icônes, le libellé « Se déconnecter » n'avait
-          plus la place de s'afficher sur une barre latérale étroite. */}
-      <div className="sidebar-community flex-shrink-0 flex items-center justify-center gap-1">
+      {/* Footer */}
+      <div
+        className="sidebar-bottom p-3 flex-shrink-0 flex items-center gap-1"
+        style={{ borderTop: '1px solid var(--sidebar-divider)' }}
+      >
+        {/* Le libellé cède, les icônes non : à la largeur minimale (160 px)
+            les trois icônes et le texte ne tiennent pas ensemble, et c'est
+            l'engrenage qui sortait du cadre. */}
+        <button
+          onClick={logout}
+          className="text-[11px] transition-colors hover:text-white/60 truncate min-w-0"
+          style={{ color: 'var(--sidebar-text)' }}
+          title={t('sidebar.disconnect')}
+        >
+          {t('sidebar.disconnect')}
+        </button>
+        <div className="flex-1 min-w-0" />
+        {/* Étoile et soutien, à côté de l'engrenage des préférences. Discrets :
+            c'est une application qu'on ouvre vingt fois par jour, un appel au
+            soutien qui se voit en permanence y deviendrait pesant. */}
         <a
           href="https://github.com/Fripix/Frirss"
           target="_blank"
           rel="noopener noreferrer"
+          className="sidebar-link"
           title={t('sidebar.starOnGithub')}
           aria-label={t('sidebar.starOnGithub')}
         >
@@ -628,49 +643,21 @@ export default function Sidebar() {
           href="https://buymeacoffee.com/fripix"
           target="_blank"
           rel="noopener noreferrer"
+          className="sidebar-link"
           title={t('sidebar.support')}
           aria-label={t('sidebar.support')}
         >
-          {/* Tasse — dessinée en traits plutôt qu'avec le logo de la marque,
-              pour rester dans la famille d'icônes de l'application. */}
+          {/* Tasse dessinée en traits, pas le logo de la marque : elle reste
+              dans la famille d'icônes de l'application. */}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 8h12v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8z" />
             <path d="M16 10h2.2a2.3 2.3 0 0 1 0 4.6H16" />
             <path d="M7.5 3.2v1.6M11 2.6v2.2M14.5 3.2v1.6" />
           </svg>
         </a>
-        <a
-          href="https://github.com/Fripix/Frirss/issues/new/choose"
-          target="_blank"
-          rel="noopener noreferrer"
-          title={t('sidebar.suggest')}
-          aria-label={t('sidebar.suggest')}
-        >
-          {/* Ampoule : une idée, pas un rapport de bug — l'entrée mène au
-              choix entre les deux modèles d'issue. */}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9.5 18h5M10 21h4" />
-            <path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6v.5h5.4v-.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z" />
-          </svg>
-        </a>
-      </div>
-
-      {/* Footer */}
-      <div
-        className="sidebar-bottom p-3 flex-shrink-0 flex items-center gap-1"
-        style={{ borderTop: '1px solid var(--sidebar-divider)' }}
-      >
-        <button
-          onClick={logout}
-          className="text-[11px] transition-colors hover:text-white/60"
-          style={{ color: 'var(--sidebar-text)' }}
-        >
-          {t('sidebar.disconnect')}
-        </button>
-        <div className="flex-1" />
         <button
           onClick={() => useThemeStore.getState().openPreferences()}
-          className="p-1.5 rounded-md transition-colors hover:bg-white/10"
+          className="p-1.5 rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
           style={{ color: 'var(--sidebar-text-active)' }}
           title={t('sidebar.preferences')}
           aria-label={t('sidebar.preferences')}

@@ -45,8 +45,7 @@
     "feedLayoutDefault": "Par défaut",
     "feedLayoutThisFeed": "Disposition de ce flux",
     "starOnGithub": "Mettre une étoile sur GitHub",
-    "support": "Soutenir le projet",
-    "suggest": "Proposer une idée ou signaler un bug"
+    "support": "Soutenir le projet"
   },
   "addFeed": {
     "title": "Ajouter un flux RSS",

@@ -19,9 +19,8 @@ la release publiée.
   la confirmation le dit avant. Une catégorie vide n'existe pas dans FreshRSS :
   elle naît du premier flux qu'on y range, ce que propose le sélecteur.
 
-- **Trois liens discrets en bas de la barre latérale** : mettre une étoile sur
-  GitHub, soutenir le projet, et proposer une idée ou signaler un bug. Ce
-  dernier mène à des formulaires guidés plutôt qu'à une page blanche.
+- **Deux liens discrets en bas de la barre latérale**, à côté de l'engrenage :
+  mettre une étoile sur GitHub et soutenir le projet.
 
 - **Un thème sombre, enfin.** Cinq thèmes livrés en plus du thème par défaut :
   **Riso** (blanc et rose fluo), **Paper** (sépia) et **High Contrast** en

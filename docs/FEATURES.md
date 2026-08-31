@@ -140,21 +140,23 @@ Catégories repliables, flux avec favicon et compteur de non-lus, entrées fixes
 glisser-déposer, masquage des flux entièrement lus.
 
 - **Où** : `src/components/Sidebar/Sidebar.tsx`, `src/stores/uiStore.ts`
-- **Rangée communauté** (1.4.5) : trois liens externes au-dessus du pied —
-  étoile GitHub, soutien (BuyMeACoffee), proposer une idée. Discrets par
-  défaut (opacité 0,4), ils s'éclairent au survol : c'est une application qu'on
-  ouvre vingt fois par jour, un appel au soutien visible en permanence y
-  deviendrait pesant.
-  - **Rangée à part, et pas dans le pied** : à quatre icônes, le libellé
-    « Se déconnecter » n'avait plus la place de s'afficher sur une barre
-    latérale à sa largeur minimale (160 px).
-  - Elle n'est pas dans `.sidebar-bottom`, donc elle **ne bénéficie pas** de la
-    règle de 44 pt posée là-bas — elle a la sienne.
-  - « Proposer une idée » mène à `issues/new/choose`, c'est-à-dire au **choix
-    entre les modèles d'issue** définis dans `.github/ISSUE_TEMPLATE/`
-    (rapport de bug, idée, plus des liens vers les discussions FreshRSS et le
-    signalement privé de vulnérabilité). Sans ces modèles, une proposition
-    arrivait en texte libre.
+- **Liens du pied** (1.4.5) : étoile GitHub et soutien (BuyMeACoffee), à côté
+  de l'engrenage des préférences. Discrets (opacité 0,4), éclairés au survol :
+  c'est une application qu'on ouvre vingt fois par jour, un appel au soutien
+  visible en permanence y deviendrait pesant.
+  - **Une rangée séparée a été essayée puis abandonnée** : mal placée. Les deux
+    liens sont revenus dans le pied.
+  - **Le libellé cède, les icônes non.** À la largeur minimale (160 px), trois
+    icônes et « Se déconnecter » ne tiennent pas ensemble et l'engrenage
+    sortait du cadre : le texte est tronqué (`truncate min-w-0`) et les icônes
+    portent `flex-shrink-0`. À la largeur par défaut, tout tient.
+  - La règle de 44 pt du pied mobile vise `button` **et `a`** : ces liens sont
+    des ancres, et la règle les laissait à 27 px au doigt.
+  - **Pas de lien « proposer une idée » dans l'application** — essayé, retiré.
+    Les modèles d'issue restent sur GitHub (`.github/ISSUE_TEMPLATE/` :
+    rapport de bug, idée, plus des liens vers les discussions FreshRSS et le
+    signalement privé de vulnérabilité) et servent à qui ouvre une issue
+    depuis le dépôt.
 
 ### Dispositions
 Trois colonnes, deux colonnes (liste seule), ou **grille**. La disposition est

@@ -150,10 +150,15 @@ html {
   padding-bottom: env(safe-area-inset-bottom);
 }
 /* Bottom action bar (theme / settings) — bigger targets + safe area */
-.sidebar-mobile .sidebar-bottom button {
+/* `a` autant que `button` : les liens d'étoile et de soutien vivent ici et
+   sont des ancres — la règle ne visait que les boutons et les laissait à 27 px
+   au doigt. */
+.sidebar-mobile .sidebar-bottom button,
+.sidebar-mobile .sidebar-bottom a {
   min-height: 44px;
   min-width: 44px;
 }
+.sidebar-mobile .sidebar-bottom .sidebar-link svg { width: 18px; height: 18px; }
 .sidebar-mobile .sidebar-bottom {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
@@ -1329,6 +1334,362 @@ summary:focus-visible,
 @media (pointer: coarse) {
   .toast__action, .toast__close { min-height: 36px; }
   .toast__close { width: 36px; }
+}
+
+/* ── Aide-mémoire des raccourcis (touche ?) ───────────────────────── */
+.shortcut-help-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  animation: backdropFadeIn 0.18s ease both;
+}
+
+.shortcut-help {
+  width: min(520px, 100%);
+  max-height: min(80vh, 640px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.5);
+  animation: shortcut-help-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes shortcut-help-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.shortcut-help__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 14px 18px;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel-header-bg);
+}
+.shortcut-help__head h2 {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--list-title);
+}
+.shortcut-help__close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--list-summary);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.shortcut-help__close svg { width: 15px; height: 15px; }
+.shortcut-help__close:hover {
+  color: var(--list-title);
+  background: color-mix(in srgb, var(--reading-meta) 12%, transparent);
+}
+
+.shortcut-help__body {
+  overflow-y: auto;
+  padding: 14px 18px 18px;
+}
+.shortcut-help__body h3 {
+  margin-top: 18px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--list-summary);
+}
+
+.shortcut-help__list {
+  display: grid;
+  gap: 2px;
+  list-style: none;
+}
+.shortcut-help__list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--reading-text);
+}
+.shortcut-help__list li:nth-child(odd) {
+  background: color-mix(in srgb, var(--panel-border) 28%, transparent);
+}
+.shortcut-help__list kbd {
+  flex-shrink: 0;
+  min-width: 30px;
+  padding: 3px 7px;
+  text-align: center;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  color: var(--list-title);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 1px 0 var(--panel-border);
+}
+
+.shortcut-help__customize {
+  flex-shrink: 0;
+  padding: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  border-top: 1px solid var(--panel-border);
+  background: var(--panel-header-bg);
+  transition: background-color 0.15s ease;
+}
+.shortcut-help__customize:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel-header-bg));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shortcut-help-backdrop, .shortcut-help { animation: none; }
+}
+
+/* ── Feuille du bas (menus du format mobile) ──────────────────────── */
+.bottom-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+.bottom-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  animation: backdropFadeIn 0.2s ease;
+}
+.bottom-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: 18px 18px 0 0;
+  background: var(--panel-bg);
+  box-shadow: 0 -8px 30px -10px rgba(0, 0, 0, 0.45);
+  animation: sheetSlideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.bottom-sheet__grip {
+  width: 40px;
+  height: 4px;
+  margin: 10px auto 6px;
+  border-radius: 999px;
+  background: var(--panel-border);
+}
+.bottom-sheet__title {
+  padding: 0 16px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--list-title);
+}
+/* Les rangées d'une feuille sont plus hautes que celles d'un menu ancré :
+   c'est du doigt qu'on les vise. */
+.bottom-sheet .sheet-row {
+  min-height: 48px;
+  font-size: 15px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet, .bottom-sheet__backdrop { animation: none; }
+}
+
+/* ── Morphing liste → lecture (View Transitions) ──────────────────── */
+/* Le titre du volet porte le nom en permanence ; la ligne cliquée le reçoit
+   le temps de la transition, posé par `openArticle`. Hors transition, un seul
+   élément le revendique, donc aucune collision. Là où l'API n'existe pas,
+   ces règles sont simplement inertes. */
+.article-title-target {
+  view-transition-name: frirss-article-title;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .article-title-target { view-transition-name: none; }
+}
+
+/* ── Palette de commandes (⌘K) ────────────────────────────────────── */
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: max(48px, 10vh) 16px 16px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  animation: backdropFadeIn 0.15s ease both;
+}
+
+.palette {
+  width: min(560px, 100%);
+  max-height: min(60vh, 520px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 28px 70px -20px rgba(0, 0, 0, 0.55);
+  animation: palette-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes palette-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.palette__input {
+  flex-shrink: 0;
+  padding: 15px 18px;
+  font-size: 15px;
+  color: var(--list-title);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--panel-border);
+  outline: none;
+}
+.palette__input::placeholder { color: var(--list-time); }
+
+.palette__results {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding: 6px;
+}
+
+.palette__group {
+  padding: 8px 10px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--list-time);
+}
+
+.palette__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 13.5px;
+  color: var(--list-title);
+}
+/* Le curseur suit la souris ET le clavier : un seul état visuel pour les
+   deux, sinon on ne sait plus ce que fera Entrée. */
+.palette__item[data-active='true'] {
+  background: var(--list-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.palette__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette__hint {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--badge-bg);
+}
+
+.palette__empty,
+.palette__foot {
+  padding: 14px 18px;
+  font-size: 12px;
+  color: var(--list-summary);
+}
+.palette__foot {
+  flex-shrink: 0;
+  padding: 9px 18px;
+  font-size: 11px;
+  color: var(--list-time);
+  border-top: 1px solid var(--panel-border);
+  background: var(--panel-header-bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .palette, .palette-backdrop { animation: none; }
+}
+
+/* ── Bascules d'affichage de l'en-tête de liste ───────────────────── */
+/* Elles portaient chacune un fond `--accent-glow` à l'état actif. Sur le
+   nouveau fond d'en-tête, plus chaud, ce fond vert ressortait bien plus qu'il
+   ne le faisait sur le blanc froid, et pesait plus que l'information ne le
+   mérite. L'état passe donc par la seule couleur de l'icône — c'est le même
+   langage que le reste de la barre — et les quatre sont réunies dans une
+   piste, comme la densité et la disposition l'étaient déjà. */
+.option-track {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--list-active);
+  flex-shrink: 0;
+}
+
+.option-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 5px;
+  color: var(--list-summary);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.option-toggle:hover { color: var(--list-title); }
+.option-toggle--on {
+  color: var(--accent);
+  background: var(--panel-bg);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option-toggle { transition: none; }
+}
+
+/* ── Barre latérale : liens du pied (étoile / soutien) ─────────────── */
+/* Discrets par défaut, ils s'éclairent au survol — même retenue que l'icône
+   GitHub qu'ils remplacent. Ils vivent à côté de l'engrenage des préférences :
+   une rangée à part avait été essayée et jugée mal placée. Le lien « proposer
+   une idée » a été retiré ; les modèles d'issue restent sur GitHub. */
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  color: var(--sidebar-text);
+  opacity: 0.4;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+.sidebar-link svg { width: 15px; height: 15px; }
+.sidebar-link:hover {
+  opacity: 0.9;
+  background: rgba(255, 255, 255, 0.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-link { transition: none; }
 }
 
 /* ── Aide-mémoire des raccourcis (touche ?) ───────────────────────── */
