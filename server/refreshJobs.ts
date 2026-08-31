@@ -18,6 +18,9 @@ export type RefreshStatus = 'running' | 'done' | 'failed';
 export const REFRESH_KINDS = ['refresh', 'test'] as const;
 export type RefreshKind = (typeof REFRESH_KINDS)[number];
 
+/** Promesses des travaux en vol — uniquement pour `__settleJobs` (tests). */
+const inFlight = new Set<Promise<void>>();
+
 export function isRefreshKind(v: unknown): v is RefreshKind {
   return typeof v === 'string' && (REFRESH_KINDS as readonly string[]).includes(v);
 }
@@ -78,13 +81,18 @@ export function startJob(
   const timer = setTimeout(() => ac.abort(), REFRESH_TIMEOUT_MS);
   timer.unref?.();
 
-  Promise.resolve().then(() => run(ac.signal)).then(
+  const settled = Promise.resolve().then(() => run(ac.signal)).then(
     () => { job.status = 'done'; },
     (err) => { job.status = 'failed'; job.error = sanitizeError(err, secrets); },
   ).finally(() => {
     clearTimeout(timer);
     job.finishedAt = Date.now();
+    inFlight.delete(settled);
   });
+  // Gardé pour que les TESTS puissent attendre la fin — voir `__settleJobs`.
+  // La production ne s'en sert pas : ne pas attendre est ici le comportement
+  // voulu, l'appelant répond tout de suite.
+  inFlight.add(settled);
 
   return job;
 }
@@ -92,4 +100,23 @@ export function startJob(
 /** Test-only: clear the registry between cases. */
 export function __resetJobs(): void {
   jobs.clear();
+}
+
+/**
+ * Test-only : attend que tout travail encore en vol soit terminé.
+ *
+ * `startJob` lance `run` **sans l'attendre**, et c'est le bon comportement en
+ * production — l'appelant répond immédiatement. En test, cela laissait des
+ * appels réseau se poser après coup, dans le `vi.stubGlobal('fetch')` d'un
+ * test *ultérieur*, où ils devenaient son `mock.calls[0]`. Un test lisait
+ * alors les en-têtes d'une requête qui n'était pas la sienne, par
+ * intermittence et selon la charge de la machine.
+ *
+ * Ne rejette jamais : un travail en échec a déjà été enregistré sur le job,
+ * et faire échouer le nettoyage sur ce motif masquerait le vrai test.
+ */
+export async function __settleJobs(): Promise<void> {
+  while (inFlight.size) {
+    await Promise.allSettled([...inFlight]);
+  }
 }

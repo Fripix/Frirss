@@ -147,6 +147,10 @@ la release publiée.
   composant.
 - Le composant de favicon a été sorti de la barre latérale, où il ne servait
   qu'elle, vers `src/components/FeedFavicon.tsx`.
+- Un test serveur échouait par intermittence : une relève de flux lancée en
+  arrière-plan par un test antérieur venait se poser dans le simulacre de
+  `fetch` d'un test ultérieur. Les travaux de fond sont maintenant drainés
+  entre les tests.
 - **React 19.** Aucun changement de code : les API retirées par cette version
   n'étaient utilisées nulle part. Rien de visible à l'usage — c'est une montée
   d'entretien, pour rester sur la version supportée.

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { startJob, getJob, sanitizeError, __resetJobs } from './refreshJobs.js';
+import { startJob, getJob, sanitizeError, __resetJobs, __settleJobs } from './refreshJobs.js';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -69,5 +69,39 @@ describe('startJob', () => {
     await tick();
     expect(getJob(1, 7)?.status).toBe('failed');
     expect(getJob(1, 7)?.error).toContain('sync boom');
+  });
+});
+
+describe('__settleJobs', () => {
+  // Pourquoi cette API existe : `startJob` lance `run` SANS l'attendre, ce qui
+  // est le bon comportement en production — l'appelant répond tout de suite.
+  // En test, cela laisse des appels réseau en vol qui atterrissent dans le
+  // `vi.stubGlobal('fetch')` d'un test ULTÉRIEUR, et deviennent son
+  // `mock.calls[0]`. C'est la cause de l'échec intermittent de
+  // « attaches the token to the server's own API URL » dans `api.test.ts` :
+  // le test lisait les en-têtes d'une requête qui n'était pas la sienne.
+  it('waits for a job still in flight', async () => {
+    let done = false;
+    startJob(1, 'srv', async () => {
+      await new Promise((r) => setTimeout(r, 20));
+      done = true;
+    });
+    expect(done).toBe(false);
+    await __settleJobs();
+    expect(done).toBe(true);
+    expect(getJob(1, 'srv')?.status).toBe('done');
+  });
+
+  it('waits for a job that fails, without throwing', async () => {
+    startJob(1, 'srv', async () => {
+      await new Promise((r) => setTimeout(r, 10));
+      throw new Error('boom');
+    });
+    await expect(__settleJobs()).resolves.toBeUndefined();
+    expect(getJob(1, 'srv')?.status).toBe('failed');
+  });
+
+  it('returns immediately when nothing is running', async () => {
+    await expect(__settleJobs()).resolves.toBeUndefined();
   });
 });

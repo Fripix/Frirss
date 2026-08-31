@@ -5,6 +5,7 @@ import db, { setSetting } from '../db.js';
 import { encrypt, decrypt } from '../crypto.js';
 import { cacheEnabled, cacheGet, trimStreamJson } from '../cache.js';
 import { redactUrl } from '../routes/proxy.js';
+import { __settleJobs } from '../refreshJobs.js';
 import { getDiscovery, clearDiscoveryCache } from '../oidc.js';
 
 // The actualize route now goes through fetchUpstream, which resolves the
@@ -207,7 +208,14 @@ describe('servers', () => {
 describe('servers actualize', () => {
   const tick = () => new Promise((r) => setTimeout(r, 0));
 
-  afterEach(() => {
+  afterEach(async () => {
+    // `startJob` lance son travail SANS l'attendre — c'est voulu en
+    // production. Sans ce drainage, un `fetch` de relève encore en vol se
+    // posait dans le `stubGlobal('fetch')` d'un test ULTÉRIEUR et devenait son
+    // `mock.calls[0]` : « attaches the token to the server's own API URL »
+    // échouait alors par intermittence, en lisant les en-têtes d'une requête
+    // qui n'était pas la sienne.
+    await __settleJobs();
     vi.unstubAllGlobals();
   });
 
@@ -690,7 +698,16 @@ describe('proxy — injection du jeton FreshRSS', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Server-Id', String(serverId))
       .set('X-Proxy-Target', target)
-      .then(() => (fetchMock.mock.calls[0]?.[1] as { headers?: Record<string, string> })?.headers ?? {});
+      .then(() => {
+        // On cherche l'appel qui vise CETTE cible, au lieu de prendre le
+        // premier venu : un appel étranger arrivé entre-temps donnerait des
+        // en-têtes qui ne sont pas ceux qu'on teste. Un appel absent est
+        // signalé plutôt que confondu avec « pas d'en-tête Authorization »,
+        // qui est justement ce que la moitié de ces tests attendent.
+        const call = fetchMock.mock.calls.find((c) => String(c[0]) === target);
+        if (!call) return { __noCall: 'true' } as Record<string, string>;
+        return (call[1] as { headers?: Record<string, string> })?.headers ?? {};
+      });
   };
 
   beforeAll(async () => {

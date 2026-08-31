@@ -484,7 +484,16 @@ d'origine.
   - FreshRSS refuse de relever un flux plus d'une fois toutes les **20 minutes** :
     une relève peut légitimement ne rien ramener ;
   - le jeton maître donne aussi accès en **lecture** à tous les articles et à la
-    liste d'abonnements. L'interface le dit avant la saisie.
+    liste d'abonnements. L'interface le dit avant la saisie ;
+  - **`startJob` lance son travail SANS l'attendre** — voulu en production,
+    l'appelant répond immédiatement. En test, cela laissait des `fetch` de
+    relève se poser *après coup*, dans le `vi.stubGlobal('fetch')` d'un test
+    **ultérieur**, où ils devenaient son `mock.calls[0]`. Un test lisait alors
+    les en-têtes d'une requête qui n'était pas la sienne, par intermittence et
+    selon la charge de la machine. `__settleJobs()` (réservé aux tests) draine
+    les travaux en vol ; tout bloc de test qui déclenche une relève doit
+    l'appeler dans son `afterEach`. Diagnostiqué en 1.4.5 sur un échec
+    intermittent de `api.test.ts`.
 
 ### Retour visuel
 Bandeau « X nouveaux articles » / « À jour » / « Relève en cours… », avec pulsation
