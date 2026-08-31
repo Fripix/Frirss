@@ -15,13 +15,13 @@
   --accent-glow: rgba(76, 212, 161, 0.12);
 
   /* Content panels (white/light) */
-  --panel-bg: #faf9f6;
-  --panel-border: #e6e3da;
-  --panel-header-bg: #f2f0e9;
+  --panel-bg: #ffffff;
+  --panel-border: #e8e8ec;
+  --panel-header-bg: #fafafa;
 
   /* Article list */
   --list-hover: #e9f8f2;
-  --list-active: #eeebe2;
+  --list-active: #f0f0f0;
   --list-selected: #def7ee;
   --list-source: #4cd4a1;
   --list-title: #2c2d35;

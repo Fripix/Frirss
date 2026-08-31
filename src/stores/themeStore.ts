@@ -31,11 +31,11 @@ const defaultTheme: Theme = {
     'topbar-seg-active': '#363532',
     'accent': '#4cd4a1',
     'accent-dark': '#38b888',
-    'panel-bg': '#faf9f6',
-    'panel-border': '#e6e3da',
-    'panel-header-bg': '#f2f0e9',
+    'panel-bg': '#ffffff',
+    'panel-border': '#e8e8ec',
+    'panel-header-bg': '#fafafa',
     'list-hover': '#e9f8f2',
-    'list-active': '#eeebe2',
+    'list-active': '#f0f0f0',
     'list-selected': '#def7ee',
     'list-source': '#4cd4a1',
     'list-title': '#2c2d35',
@@ -69,28 +69,37 @@ const defaultTheme: Theme = {
 // default is bumped to the new one. Idempotent and applied on every load
 // (localStorage + backend hydration), so a persisted theme picks up the
 // new default while genuine user customizations (any other value) are kept.
-const COLOR_DEFAULT_MIGRATIONS: Record<string, [string, string]> = {
-  'list-hover': ['#f5f5f8', '#e9f8f2'],
-  'readlater-color': ['#a78bfa', '#8b5cf6'],
-  // Panneaux tièdes : la barre latérale est en #201f1b, un noir *chaud*, et les
-  // panneaux à côté étaient en blanc froid — les deux moitiés de l'écran
-  // n'appartenaient pas à la même famille, et le blanc pur est le fond le plus
-  // fatigant en lecture longue.
-  'panel-bg': ['#ffffff', '#faf9f6'],
-  'panel-header-bg': ['#fafafa', '#f2f0e9'],
-  'panel-border': ['#e8e8ec', '#e6e3da'],
-  // `--list-active` peint les pistes qui groupent les icônes de l'en-tête
-  // (affichage, densité, disposition). Il valait #f0f0f5, un gris FROID :
-  // invisible sur l'ancien en-tête blanc froid, il ressortait en lilas sur le
-  // nouvel en-tête tiède. Les groupes restent, la teinte suit la famille.
-  'list-active': ['#f0f0f5', '#eeebe2'],
+/**
+ * Anciennes valeurs par défaut d'une couleur → sa valeur actuelle.
+ *
+ * Le premier terme est une LISTE : une couleur peut avoir eu plusieurs
+ * défauts successifs, et toutes doivent mener à la valeur du jour, sinon la
+ * moitié des installations reste sur une teinte abandonnée selon la version
+ * d'où elle vient. Une valeur que l'utilisateur a réellement choisie ne
+ * correspond à aucune et n'est jamais touchée.
+ */
+const COLOR_DEFAULT_MIGRATIONS: Record<string, [string[], string]> = {
+  'list-hover': [['#f5f5f8'], '#e9f8f2'],
+  'readlater-color': [['#a78bfa'], '#8b5cf6'],
+  // Parenthèse des panneaux tièdes, ouverte puis refermée : le blanc cassé
+  // avait été choisi pour s'accorder au noir chaud de la barre latérale, mais
+  // à l'usage il se lit comme un voile de couleur sur les articles. La surface
+  // de lecture redevient blanche ; la chaleur reste où elle a un sens, dans
+  // « Paper ».
+  'panel-bg': [['#faf9f6'], '#ffffff'],
+  'panel-header-bg': [['#f2f0e9'], '#fafafa'],
+  'panel-border': [['#e6e3da'], '#e8e8ec'],
+  // `--list-active` peint les pistes qui groupent les icônes de l'en-tête.
+  // #f0f0f5 tirait au lilas, #eeebe2 au beige : les deux se voyaient. Gris
+  // franc, qui ne penche d'aucun côté.
+  'list-active': [['#f0f0f5', '#eeebe2'], '#f0f0f0'],
 };
 
 function migrateColors(colors: Record<string, string>): Record<string, string> {
   const out = { ...colors };
   for (const key in COLOR_DEFAULT_MIGRATIONS) {
-    const [oldVal, newVal] = COLOR_DEFAULT_MIGRATIONS[key];
-    if (out[key] === oldVal) out[key] = newVal;
+    const [oldValues, newVal] = COLOR_DEFAULT_MIGRATIONS[key];
+    if (oldValues.includes(out[key])) out[key] = newVal;
   }
   return out;
 }
@@ -400,11 +409,11 @@ const lagoonLightTheme = preset(LAGOON_LIGHT_THEME_NAME, {
   'topbar-seg-active': '#294f59',
   'accent': '#0c7a68',
   'accent-dark': '#085c4e',
-  'panel-bg': '#f7fbfa',
-  'panel-border': '#dce8e6',
-  'panel-header-bg': '#eef5f4',
-  'list-hover': '#e2f3ef',
-  'list-active': '#e8efee',
+  'panel-bg': '#ffffff',
+  'panel-border': '#e8e8ec',
+  'panel-header-bg': '#fafafa',
+  'list-hover': '#e6f5f1',
+  'list-active': '#f0f0f0',
   'list-selected': '#d5ece7',
   'list-source': '#0c7a68',
   'list-title': '#17282c',
@@ -419,9 +428,9 @@ const lagoonLightTheme = preset(LAGOON_LIGHT_THEME_NAME, {
   'readlater-color': '#7053c9',
   'danger': '#c0392b',
   'danger-light': '#fbeae8',
-  'code-bg': '#eef3f2',
-  'scrollbar': '#c6d6d3',
-  'scrollbar-hover': '#a6bab7',
+  'code-bg': '#f5f5f7',
+  'scrollbar': '#d0d1d6',
+  'scrollbar-hover': '#b0b1ba',
 });
 
 
@@ -445,11 +454,11 @@ const neonLightTheme = preset(NEON_LIGHT_THEME_NAME, {
   'topbar-seg-active': '#48214f',
   'accent': '#c60077',
   'accent-dark': '#9c005e',
-  'panel-bg': '#fdf8fb',
-  'panel-border': '#ecdfe8',
-  'panel-header-bg': '#f8eef5',
-  'list-hover': '#fce4f2',
-  'list-active': '#f3e9ef',
+  'panel-bg': '#ffffff',
+  'panel-border': '#e8e8ec',
+  'panel-header-bg': '#fafafa',
+  'list-hover': '#fdeaf5',
+  'list-active': '#f0f0f0',
   'list-selected': '#fbd7ec',
   'list-source': '#c60077',
   'list-title': '#2a1030',
@@ -464,9 +473,9 @@ const neonLightTheme = preset(NEON_LIGHT_THEME_NAME, {
   'readlater-color': '#6d3fd1',
   'danger': '#c62828',
   'danger-light': '#fdeaea',
-  'code-bg': '#f6eef3',
-  'scrollbar': '#dcc9d6',
-  'scrollbar-hover': '#bfa6b8',
+  'code-bg': '#f5f5f7',
+  'scrollbar': '#d0d1d6',
+  'scrollbar-hover': '#b0b1ba',
 });
 
 
@@ -489,11 +498,11 @@ const circuitLightTheme = preset(CIRCUIT_LIGHT_THEME_NAME, {
   'topbar-seg-active': '#283327',
   'accent': '#357522',
   'accent-dark': '#275718',
-  'panel-bg': '#f9fbf8',
-  'panel-border': '#dfe6dc',
-  'panel-header-bg': '#eff4ed',
-  'list-hover': '#e6f3e0',
-  'list-active': '#e9eee7',
+  'panel-bg': '#ffffff',
+  'panel-border': '#e8e8ec',
+  'panel-header-bg': '#fafafa',
+  'list-hover': '#e9f5e4',
+  'list-active': '#f0f0f0',
   'list-selected': '#d8ecd0',
   'list-source': '#357522',
   'list-title': '#17201a',
@@ -508,9 +517,9 @@ const circuitLightTheme = preset(CIRCUIT_LIGHT_THEME_NAME, {
   'readlater-color': '#3f6fbf',
   'danger': '#b53a30',
   'danger-light': '#f9eae8',
-  'code-bg': '#eff3ee',
-  'scrollbar': '#c9d4c6',
-  'scrollbar-hover': '#a8b6a5',
+  'code-bg': '#f5f5f7',
+  'scrollbar': '#d0d1d6',
+  'scrollbar-hover': '#b0b1ba',
 });
 
 

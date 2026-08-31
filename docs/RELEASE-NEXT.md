@@ -51,9 +51,11 @@ la release publiée.
 - **Le texte d'un article occupe toute la largeur du volet**, comme avant ce
   cycle. Le plafond de largeur essayé ici n'a convaincu à aucune des deux
   versions : la colonne est déjà bornée par la disposition.
-- **La piste qui groupe les icônes d'affichage n'est plus lilas.** Elle était
-  peinte d'un gris froid, invisible sur l'ancien en-tête blanc et voyant sur le
-  nouveau, plus chaud.
+- **Le blanc est redevenu blanc.** Les surfaces de lecture avaient reçu une
+  teinte — chaude pour le thème par défaut, colorée pour les thèmes de couleur.
+  À l'usage, cela se lit comme un voile sur les articles. Fonds neutres
+  partout, sauf « Paper » où la teinte est le sujet. La piste qui groupe les
+  icônes d'affichage suit : un gris franc, ni lilas ni beige.
 - **Préférences → Apparence s'ouvre sur la galerie de thèmes**, pas sur la
   liste des 36 couleurs.
 - **Plus d'encadré surgissant sur les bascules d'affichage.** Après un clic,
@@ -113,11 +115,6 @@ la release publiée.
   leur infobulle, que le tactile n'affiche jamais.
 - **« Mouvement réduit » est respecté partout**, y compris par les deux
   transitions de navigation mobile, dont les durées échappaient au CSS.
-- **Les panneaux ne sont plus d'un blanc froid.** La barre latérale est un noir
-  chaud ; les panneaux à côté étaient en blanc pur, et les deux moitiés de
-  l'écran n'allaient pas ensemble. Le blanc pur est aussi le fond le plus
-  fatigant en lecture longue. Un thème personnalisé n'est pas touché : seules
-  les valeurs restées à l'ancien défaut sont reprises.
 
 ## Sous le capot
 

@@ -112,6 +112,22 @@ describe('ensureShippedThemes', () => {
       .toBe('#123456');
   });
 
+  it('migrates a colour away from ANY of its former defaults', () => {
+    // `list-active` a eu trois valeurs successives : le gris froid d'origine,
+    // le beige de la parenthèse tiède, puis le gris neutre. Les deux premières
+    // doivent mener à la troisième, sinon la moitié des installations reste
+    // sur une teinte abandonnée selon la version d'où elles viennent.
+    const from = (value: string) => ensureShippedThemes([{
+      name: 'Le mien',
+      colors: { ...base.colors, 'list-active': value },
+      fontSizes: { ...base.fontSizes },
+    }]).find((t) => t.name === 'Le mien')!.colors['list-active'];
+    expect(from('#f0f0f5')).toBe(base.colors['list-active']);
+    expect(from('#eeebe2')).toBe(base.colors['list-active']);
+    // Une valeur choisie par l'utilisateur n'est jamais touchée.
+    expect(from('#123456')).toBe('#123456');
+  });
+
   it('migrates a stored theme of the user that still carries the old defaults', () => {
     // Le bug : au démarrage, le thème actif passe par `migrateColors` et
     // reçoit les panneaux tièdes ; la liste des thèmes enregistrés, non. En

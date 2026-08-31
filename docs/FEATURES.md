@@ -553,6 +553,8 @@ réglage clair/sombre du système.
     1,6:1. La couleur d'origine garde donc les **grandes surfaces** (le dégradé
     d'en-tête, où elle est incontestable) pendant qu'`accent`, qui habille du
     texte et des icônes, prend une version **assombrie de la même teinte**.
+    Le fond, lui, reste **blanc** : teinter les panneaux à la couleur du thème
+    a été essayé et rejeté (voir ci-dessus).
     Repère mesuré : `list-source` est du texte de 10 px, donc l'accent vise
     4,5:1 sur `panel-bg`. Lagoon, Neon, Desk et Circuit sont entre 5,0 et 5,5 —
     au-dessus du thème par défaut (1,8) et de Paper (3,0), qui sont hérités.
@@ -590,7 +592,11 @@ réglage clair/sombre du système.
     change que si on appuie sur « Enregistrer » sous ce nom. Une variante
     personnelle se garde donc sous son propre nom.
   - **Migrations** : `migrateColors` ne concerne plus que les thèmes
-    **personnels**, les préréglages venant du code.
+    **personnels**, les préréglages venant du code. Le premier terme de chaque
+    entrée est une **liste** d'anciens défauts : une couleur peut en avoir eu
+    plusieurs (`list-active` a été lilas, puis beige, puis gris neutre) et
+    toutes doivent mener à la valeur du jour, sinon la moitié des installations
+    reste sur une teinte abandonnée selon la version d'où elle vient.
   - **Règle de hiérarchie** : la barre latérale reste *plus sombre* que les
     panneaux. En thème sombre elle descend sous eux (`#151410` contre
     `#201f1b`) ; l'inverse la fait flotter.
@@ -604,10 +610,15 @@ réglage clair/sombre du système.
   l'onglet est masqué, ce qui est le cas courant d'une PWA laissée ouverte.
   Un thème visé qui n'existe plus ne déclenche rien : mieux vaut laisser le
   thème courant que basculer vers ce que personne n'a choisi.
-- **Panneaux tièdes** (1.4.5) : `panel-bg`, `panel-header-bg` et `panel-border`
-  passent du blanc froid à un papier tiède, via `COLOR_DEFAULT_MIGRATIONS` —
-  la barre latérale est en `#201f1b`, un noir *chaud*, et les deux moitiés de
-  l'écran n'appartenaient pas à la même famille.
+- **Les surfaces de lecture sont NEUTRES.** Décision prise à l'essai, après
+  deux tentatives de teinte : `panel-bg` `#ffffff`, `panel-header-bg`
+  `#fafafa`, `panel-border` `#e8e8ec`, `list-active` `#f0f0f0`. La revue
+  d'interface proposait un papier tiède pour s'accorder au noir chaud de la
+  barre latérale ; les thèmes de couleur ont ensuite reçu un fond légèrement
+  teinté de leur propre teinte. Les deux se lisent comme **un voile de couleur
+  sur les articles** — c'est le retour reçu, deux fois. La teinte reste où elle
+  est le sujet (« Paper »), et où elle a un sens transitoire (survol,
+  sélection). **Ne pas reteinter la surface de lecture.**
 - **Aides visuelles** : survoler une couleur **encadre l'élément réel** derrière le
   panneau, et **cercle la zone correspondante** dans un aperçu vivant qui se
   recompose en direct. Couverture : 28 couleurs encadrables sur l'interface, 14
