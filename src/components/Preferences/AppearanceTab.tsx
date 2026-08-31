@@ -12,7 +12,9 @@ type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
 
 export default function AppearanceTab({ onHighlight, active = true }: { onHighlight: (key: string | null) => void; active?: boolean }) {
   const { t } = useTranslation();
-  const [sub, setSub] = useState<Sub>('colors');
+  // La galerie de thèmes ouvre la section : c'est le geste le plus courant, et
+  // le seul qui change tout d'un coup. Les 36 couleurs viennent après.
+  const [sub, setSub] = useState<Sub>('theme');
   const SUBS: Sub[] = ['theme', 'colors', 'sizes', 'identity'];
   // Survol (transitoire) et sélection (persistante au clic/tap) — un seul
   // aperçu au sommet des sous-sections Couleurs et Tailles sert les deux.

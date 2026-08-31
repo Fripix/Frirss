@@ -527,16 +527,24 @@ réglage clair/sombre du système.
 
 - **Où** : `src/stores/themeStore.ts`, `src/components/Preferences/AppearanceTab.tsx`,
   `src/components/Preferences/ThemePreview.tsx`, `src/components/Preferences/colorHighlight.ts`
+- **Section ouverte par défaut** : **Thème** (la galerie), pas Couleurs. C'est
+  le geste le plus courant et le seul qui change tout d'un coup ; les 36
+  couleurs viennent après.
 - **Ordre des groupes de couleurs** : **Accent en premier**. C'est la couleur
   qui teinte toute l'interface — badges, liens, états actifs, anneau de focus —
   donc celle qu'on vient changer d'abord ; elle était en troisième position,
   sous deux sections de réglages fins de la barre latérale.
-- **Thèmes livrés** (1.4.5) : `FriRSS Default`, `FriRSS Night`, `FriRSS Paper`,
-  `FriRSS High Contrast`, définis dans `SHIPPED_THEMES`. Le test ne fige pas
+- **Thèmes livrés** (1.4.5) : `FriRSS Default`, `FriRSS Night`,
+  `FriRSS Lagoon`, `FriRSS Neon`, `FriRSS Desk`, `FriRSS Circuit`,
+  `FriRSS Paper`, `FriRSS High Contrast`, définis dans `SHIPPED_THEMES`. Le test ne fige pas
   leur nombre — il vérifie que le thème par défaut ouvre la liste et que les
   noms sont uniques.
   - **Comment on en ajoute un** : l'utilisateur donne deux couleurs
-    principales, la palette complète est dérivée de là. Trois préréglages
+    principales — ou une image de référence — et la palette complète est
+    dérivée de là. **Recette** : la première couleur devient l'accent (et le
+    premier terme du dégradé d'en-tête), la seconde le second terme du dégradé
+    **et** la couleur des liens, pour qu'elle ait un rôle et pas seulement une
+    présence. Le fond, clair ou sombre, est choisi pour porter les deux. Trois préréglages
     (`Midnight`, `Ember`, `Nordic`) ont été inventés sans cette étape et
     retirés aussitôt : une galerie de thèmes que personne n'a demandés
     encombre plus qu'elle ne sert. Ils sont listés dans

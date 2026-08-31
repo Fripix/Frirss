@@ -7,6 +7,10 @@ export const DEFAULT_THEME_NAME = 'FriRSS Default';
 export const NIGHT_THEME_NAME = 'FriRSS Night';
 export const PAPER_THEME_NAME = 'FriRSS Paper';
 export const CONTRAST_THEME_NAME = 'FriRSS High Contrast';
+export const LAGOON_THEME_NAME = 'FriRSS Lagoon';
+export const NEON_THEME_NAME = 'FriRSS Neon';
+export const DESK_THEME_NAME = 'FriRSS Desk';
+export const CIRCUIT_THEME_NAME = 'FriRSS Circuit';
 
 const defaultTheme: Theme = {
   name: DEFAULT_THEME_NAME,
@@ -29,7 +33,7 @@ const defaultTheme: Theme = {
     'panel-border': '#e6e3da',
     'panel-header-bg': '#f2f0e9',
     'list-hover': '#e9f8f2',
-    'list-active': '#f0f0f5',
+    'list-active': '#eeebe2',
     'list-selected': '#def7ee',
     'list-source': '#4cd4a1',
     'list-title': '#2c2d35',
@@ -73,6 +77,11 @@ const COLOR_DEFAULT_MIGRATIONS: Record<string, [string, string]> = {
   'panel-bg': ['#ffffff', '#faf9f6'],
   'panel-header-bg': ['#fafafa', '#f2f0e9'],
   'panel-border': ['#e8e8ec', '#e6e3da'],
+  // `--list-active` peint les pistes qui groupent les icônes de l'en-tête
+  // (affichage, densité, disposition). Il valait #f0f0f5, un gris FROID :
+  // invisible sur l'ancien en-tête blanc froid, il ressortait en lilas sur le
+  // nouvel en-tête tiède. Les groupes restent, la teinte suit la famille.
+  'list-active': ['#f0f0f5', '#eeebe2'],
 };
 
 function migrateColors(colors: Record<string, string>): Record<string, string> {
@@ -224,7 +233,189 @@ const contrastTheme = preset(CONTRAST_THEME_NAME, {
   'scrollbar-hover': '#4a4a4a',
 });
 
-export const SHIPPED_THEMES: Theme[] = [defaultTheme, nightTheme, paperTheme, contrastTheme];
+/* ── Thèmes commandés ───────────────────────────────────────────────────
+ * Ceux-ci ne sont pas inventés : chacun part de ce que l'utilisateur a donné —
+ * deux couleurs, ou une image de référence. La recette est la même à chaque
+ * fois : la première couleur devient l'accent, la seconde le second terme du
+ * dégradé d'en-tête et la couleur des liens, pour qu'elle ait un vrai rôle et
+ * pas seulement une présence décorative. Le fond est choisi pour porter les
+ * deux : clair ou sombre selon leur luminosité.
+ */
+
+const lagoonTheme = preset(LAGOON_THEME_NAME, {
+  // Demandé : #4cdcbc (turquoise) + #79b2fb (bleu clair). Deux couleurs vives
+  // et proches en luminosité : un fond sombre et légèrement bleuté les tient
+  // toutes les deux sans que l'une écrase l'autre.
+  'sidebar-bg': '#0e1a1c',
+  'sidebar-header-from': '#4cdcbc',
+  'sidebar-header-to': '#79b2fb',
+  'sidebar-text': '#7e918f',
+  'sidebar-text-active': '#e4f0ee',
+  'sidebar-category-text': '#62736f',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.07)',
+  'topbar-bg': '#0e1a1c',
+  'topbar-text': '#7e918f',
+  'topbar-text-active': '#4cdcbc',
+  'topbar-track': '#17262a',
+  'topbar-seg-active': '#1f3238',
+  'accent': '#4cdcbc',
+  'accent-dark': '#2fb499',
+  'panel-bg': '#142326',
+  'panel-border': '#26383c',
+  'panel-header-bg': '#182b2f',
+  'list-hover': '#1a3339',
+  'list-active': '#1e2f33',
+  'list-selected': '#163d3c',
+  'list-source': '#4cdcbc',
+  'list-title': '#e2efee',
+  'list-title-read': '#7e918f',
+  'list-summary': '#94a6a4',
+  'list-time': '#6c7d7b',
+  'reading-title': '#eef7f6',
+  'reading-text': '#c4d4d3',
+  'reading-meta': '#8fa1a0',
+  'reading-link': '#79b2fb',
+  'star-color': '#f2c75c',
+  'readlater-color': '#a99bf7',
+  'danger': '#f4736b',
+  'danger-light': '#3a1e1e',
+  'code-bg': '#101d20',
+  'scrollbar': '#2f4348',
+  'scrollbar-hover': '#446065',
+});
+
+const neonTheme = preset(NEON_THEME_NAME, {
+  // Demandé : #ff009c (magenta) + #00d2ff (cyan). Deux couleurs saturées et
+  // opposées : le fond descend presque au noir, sinon elles vibrent l'une
+  // contre l'autre. Le cyan tient les liens, le magenta tout le reste.
+  'sidebar-bg': '#0b0713',
+  'sidebar-header-from': '#ff009c',
+  'sidebar-header-to': '#00d2ff',
+  'sidebar-text': '#857a94',
+  'sidebar-text-active': '#efe8f7',
+  'sidebar-category-text': '#6a6079',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.08)',
+  'topbar-bg': '#0b0713',
+  'topbar-text': '#857a94',
+  'topbar-text-active': '#ff009c',
+  'topbar-track': '#170f24',
+  'topbar-seg-active': '#21172f',
+  'accent': '#ff009c',
+  'accent-dark': '#cc007d',
+  'panel-bg': '#120c1e',
+  'panel-border': '#2a2038',
+  'panel-header-bg': '#171029',
+  'list-hover': '#221533',
+  'list-active': '#1d1530',
+  'list-selected': '#2e0a26',
+  'list-source': '#ff009c',
+  'list-title': '#ece4f5',
+  'list-title-read': '#857a94',
+  'list-summary': '#9c90ad',
+  'list-time': '#746a85',
+  'reading-title': '#f5eefb',
+  'reading-text': '#cbc0da',
+  'reading-meta': '#948aa5',
+  'reading-link': '#00d2ff',
+  'star-color': '#ffcb47',
+  'readlater-color': '#a06bff',
+  'danger': '#ff5470',
+  'danger-light': '#3a1020',
+  'code-bg': '#0f0a1a',
+  'scrollbar': '#382c4a',
+  'scrollbar-hover': '#4e3f66',
+});
+
+const deskTheme = preset(DESK_THEME_NAME, {
+  // D'après la photo de bureau : noir profond, halo vert lime au sol, et la
+  // lampe qui pose une chaleur ambrée. C'est cette chaleur qui distingue ce
+  // thème du suivant — elle va aux favoris, le seul endroit où une seconde
+  // couleur chaude a un sens.
+  'sidebar-bg': '#0a0d08',
+  'sidebar-header-from': '#a6e22e',
+  'sidebar-header-to': '#6b9e18',
+  'sidebar-text': '#7c8472',
+  'sidebar-text-active': '#e7ecdf',
+  'sidebar-category-text': '#616858',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.07)',
+  'topbar-bg': '#0a0d08',
+  'topbar-text': '#7c8472',
+  'topbar-text-active': '#a6e22e',
+  'topbar-track': '#141810',
+  'topbar-seg-active': '#1d2317',
+  'accent': '#a6e22e',
+  'accent-dark': '#7fb418',
+  'panel-bg': '#11150d',
+  'panel-border': '#232a1c',
+  'panel-header-bg': '#161b11',
+  'list-hover': '#1c2513',
+  'list-active': '#1e2418',
+  'list-selected': '#253312',
+  'list-source': '#a6e22e',
+  'list-title': '#e4e9dc',
+  'list-title-read': '#7c8472',
+  'list-summary': '#929a86',
+  'list-time': '#6a7261',
+  'reading-title': '#eff3e8',
+  'reading-text': '#c6ccb9',
+  'reading-meta': '#8d9581',
+  'reading-link': '#a6e22e',
+  'star-color': '#e8a33d',
+  'readlater-color': '#b08cf0',
+  'danger': '#ef6b5e',
+  'danger-light': '#331a17',
+  'code-bg': '#0d1109',
+  'scrollbar': '#2c3423',
+  'scrollbar-hover': '#414c33',
+});
+
+const circuitTheme = preset(CIRCUIT_THEME_NAME, {
+  // D'après la seconde photo, très proche de la première. Ce qui les sépare :
+  // celle-ci est plus plate et plus froide — le noir descend plus bas, le vert
+  // tire vers l'acide, et les traces de circuit bleutées du fond donnent la
+  // seconde couleur. Aucune chaleur de lampe ici.
+  'sidebar-bg': '#050705',
+  'sidebar-header-from': '#9fe870',
+  'sidebar-header-to': '#4f9e3a',
+  'sidebar-text': '#6f7a6c',
+  'sidebar-text-active': '#e0e8dc',
+  'sidebar-category-text': '#566052',
+  'sidebar-divider': 'rgba(255, 255, 255, 0.09)',
+  'topbar-bg': '#050705',
+  'topbar-text': '#6f7a6c',
+  'topbar-text-active': '#9fe870',
+  'topbar-track': '#0f130e',
+  'topbar-seg-active': '#171d15',
+  'accent': '#9fe870',
+  'accent-dark': '#6cb945',
+  'panel-bg': '#0b0f0a',
+  'panel-border': '#1e261c',
+  'panel-header-bg': '#10150f',
+  'list-hover': '#162314',
+  'list-active': '#171e15',
+  'list-selected': '#1a2f17',
+  'list-source': '#9fe870',
+  'list-title': '#dfe7db',
+  'list-title-read': '#6f7a6c',
+  'list-summary': '#8b9687',
+  'list-time': '#667061',
+  'reading-title': '#ecf2e8',
+  'reading-text': '#bfc9ba',
+  'reading-meta': '#879184',
+  'reading-link': '#9fe870',
+  'star-color': '#d9c04a',
+  'readlater-color': '#8fb8f0',
+  'danger': '#e8635b',
+  'danger-light': '#2e1615',
+  'code-bg': '#080b07',
+  'scrollbar': '#26301f',
+  'scrollbar-hover': '#3a4733',
+});
+
+export const SHIPPED_THEMES: Theme[] = [
+  defaultTheme, nightTheme, lagoonTheme, neonTheme, deskTheme, circuitTheme,
+  paperTheme, contrastTheme,
+];
 
 /**
  * Préréglages livrés puis retirés.

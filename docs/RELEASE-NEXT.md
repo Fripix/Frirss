@@ -13,8 +13,9 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Un thème sombre, enfin.** Trois thèmes livrés en plus du thème par défaut —
-  **Night**, **Paper** et **High Contrast** — présentés en galerie de vignettes
+- **Un thème sombre, enfin.** Sept thèmes livrés en plus du thème par défaut —
+  **Night**, **Lagoon**, **Neon**, **Desk**, **Circuit**, **Paper** et
+  **High Contrast** — présentés en galerie de vignettes
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
   36 couleurs à la main.
@@ -50,6 +51,11 @@ la release publiée.
 - **Le texte d'un article occupe toute la largeur du volet**, comme avant ce
   cycle. Le plafond de largeur essayé ici n'a convaincu à aucune des deux
   versions : la colonne est déjà bornée par la disposition.
+- **La piste qui groupe les icônes d'affichage n'est plus lilas.** Elle était
+  peinte d'un gris froid, invisible sur l'ancien en-tête blanc et voyant sur le
+  nouveau, plus chaud.
+- **Préférences → Apparence s'ouvre sur la galerie de thèmes**, pas sur la
+  liste des 36 couleurs.
 - **Plus d'encadré surgissant sur les bascules d'affichage.** Après un clic,
   elles gardaient le focus et l'anneau du clavier s'allumait à la frappe
   suivante, sur un bouton qu'on ne regardait plus.
