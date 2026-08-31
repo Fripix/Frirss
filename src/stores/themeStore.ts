@@ -7,12 +7,7 @@ export const DEFAULT_THEME_NAME = 'FriRSS Default';
 export const NIGHT_THEME_NAME = 'FriRSS Night';
 export const PAPER_THEME_NAME = 'FriRSS Paper';
 export const CONTRAST_THEME_NAME = 'FriRSS High Contrast';
-export const LAGOON_THEME_NAME = 'FriRSS Lagoon';
-export const NEON_THEME_NAME = 'FriRSS Neon';
 export const DESK_THEME_NAME = 'FriRSS Desk';
-export const LAGOON_LIGHT_THEME_NAME = 'FriRSS Lagoon Light';
-export const NEON_LIGHT_THEME_NAME = 'FriRSS Neon Light';
-export const CIRCUIT_LIGHT_THEME_NAME = 'FriRSS Circuit Light';
 
 const defaultTheme: Theme = {
   name: DEFAULT_THEME_NAME,
@@ -244,108 +239,20 @@ const contrastTheme = preset(CONTRAST_THEME_NAME, {
   'scrollbar-hover': '#4a4a4a',
 });
 
-/* ── Thèmes commandés ───────────────────────────────────────────────────
- * Ceux-ci ne sont pas inventés : chacun part de ce que l'utilisateur a donné —
- * deux couleurs, ou une image de référence — et de la variante demandée,
- * sombre ou claire.
+/* ── Thème commandé ─────────────────────────────────────────────────────
+ * Parti d'une image de référence donnée par l'utilisateur, pas d'une idée.
  *
- * Recette : la première couleur devient l'accent et ouvre le dégradé
- * d'en-tête, la seconde ferme ce dégradé **et** prend les liens, pour qu'elle
- * ait un rôle et pas seulement une présence.
+ * Recette, pour la prochaine fois : la première couleur devient l'accent et
+ * ouvre le dégradé d'en-tête, la seconde ferme ce dégradé **et** prend les
+ * liens, pour qu'elle ait un rôle et pas seulement une présence. Demander
+ * aussi la variante voulue, claire ou sombre.
  *
- * Les variantes CLAIRES portent en plus un compromis : une couleur vive et
- * saturée ne tient pas le contraste sur un fond clair (#4cdcbc sur blanc ne
- * donne que 1,6:1). La couleur d'origine garde donc les grandes surfaces — le
- * dégradé d'en-tête, où elle est incontestable — pendant qu'`accent`, qui
- * habille du texte et des icônes, prend une version assombrie de la MÊME
- * teinte. `list-source` étant du texte de 10 px, la cible est 4,5:1.
+ * Ce qui a été essayé et écarté (Lagoon, Neon, Circuit, en sombre puis en
+ * clair) : une palette bâtie autour de deux couleurs vives donne un écran qui
+ * fatigue vite, et sur fond clair la couleur doit être tellement assombrie
+ * pour rester lisible qu'il n'en reste plus grand-chose. Ce qui marche ici est
+ * un fond franc — blanc ou noir — et une seule couleur qui ponctue.
  */
-
-const lagoonTheme = preset(LAGOON_THEME_NAME, {
-  // Demandé : #4cdcbc (turquoise) + #79b2fb (bleu clair). Deux couleurs vives
-  // et proches en luminosité : un fond sombre et légèrement bleuté les tient
-  // toutes les deux sans que l'une écrase l'autre.
-  'sidebar-bg': '#0e1a1c',
-  'sidebar-header-from': '#4cdcbc',
-  'sidebar-header-to': '#79b2fb',
-  'sidebar-text': '#7e918f',
-  'sidebar-text-active': '#e4f0ee',
-  'sidebar-category-text': '#62736f',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.07)',
-  'topbar-bg': '#0e1a1c',
-  'topbar-text': '#7e918f',
-  'topbar-text-active': '#4cdcbc',
-  'topbar-track': '#17262a',
-  'topbar-seg-active': '#1f3238',
-  'accent': '#4cdcbc',
-  'accent-dark': '#2fb499',
-  'panel-bg': '#142326',
-  'panel-border': '#26383c',
-  'panel-header-bg': '#182b2f',
-  'list-hover': '#1a3339',
-  'list-active': '#1e2f33',
-  'list-selected': '#163d3c',
-  'list-source': '#4cdcbc',
-  'list-title': '#e2efee',
-  'list-title-read': '#7e918f',
-  'list-summary': '#94a6a4',
-  'list-time': '#6c7d7b',
-  'reading-title': '#eef7f6',
-  'reading-text': '#c4d4d3',
-  'reading-meta': '#8fa1a0',
-  'reading-link': '#79b2fb',
-  'star-color': '#f2c75c',
-  'readlater-color': '#a99bf7',
-  'danger': '#f4736b',
-  'danger-light': '#3a1e1e',
-  'code-bg': '#101d20',
-  'scrollbar': '#2f4348',
-  'scrollbar-hover': '#446065',
-});
-
-
-const neonTheme = preset(NEON_THEME_NAME, {
-  // Demandé : #ff009c (magenta) + #00d2ff (cyan). Deux couleurs saturées et
-  // opposées : le fond descend presque au noir, sinon elles vibrent l'une
-  // contre l'autre. Le cyan tient les liens, le magenta tout le reste.
-  'sidebar-bg': '#0b0713',
-  'sidebar-header-from': '#ff009c',
-  'sidebar-header-to': '#00d2ff',
-  'sidebar-text': '#857a94',
-  'sidebar-text-active': '#efe8f7',
-  'sidebar-category-text': '#6a6079',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.08)',
-  'topbar-bg': '#0b0713',
-  'topbar-text': '#857a94',
-  'topbar-text-active': '#ff009c',
-  'topbar-track': '#170f24',
-  'topbar-seg-active': '#21172f',
-  'accent': '#ff009c',
-  'accent-dark': '#cc007d',
-  'panel-bg': '#120c1e',
-  'panel-border': '#2a2038',
-  'panel-header-bg': '#171029',
-  'list-hover': '#221533',
-  'list-active': '#1d1530',
-  'list-selected': '#2e0a26',
-  'list-source': '#ff009c',
-  'list-title': '#ece4f5',
-  'list-title-read': '#857a94',
-  'list-summary': '#9c90ad',
-  'list-time': '#746a85',
-  'reading-title': '#f5eefb',
-  'reading-text': '#cbc0da',
-  'reading-meta': '#948aa5',
-  'reading-link': '#00d2ff',
-  'star-color': '#ffcb47',
-  'readlater-color': '#a06bff',
-  'danger': '#ff5470',
-  'danger-light': '#3a1020',
-  'code-bg': '#0f0a1a',
-  'scrollbar': '#382c4a',
-  'scrollbar-hover': '#4e3f66',
-});
-
 
 const deskTheme = preset(DESK_THEME_NAME, {
   // D'après la photo de bureau : noir profond, halo vert lime au sol, et la
@@ -391,143 +298,8 @@ const deskTheme = preset(DESK_THEME_NAME, {
 });
 
 
-const lagoonLightTheme = preset(LAGOON_LIGHT_THEME_NAME, {
-  // Demandé : #4cdcbc (turquoise) + #79b2fb (bleu clair). Les deux tiennent le
-  // dégradé d'en-tête ; l'accent est le turquoise assombri, les liens le bleu
-  // assombri — la seconde couleur a ainsi un rôle et pas seulement une place.
-  'sidebar-bg': '#16323a',
-  'sidebar-header-from': '#4cdcbc',
-  'sidebar-header-to': '#79b2fb',
-  'sidebar-text': '#7d9aa0',
-  'sidebar-text-active': '#eaf5f4',
-  'sidebar-category-text': '#64818a',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.08)',
-  'topbar-bg': '#16323a',
-  'topbar-text': '#7d9aa0',
-  'topbar-text-active': '#4cdcbc',
-  'topbar-track': '#1f424b',
-  'topbar-seg-active': '#294f59',
-  'accent': '#0c7a68',
-  'accent-dark': '#085c4e',
-  'panel-bg': '#ffffff',
-  'panel-border': '#e8e8ec',
-  'panel-header-bg': '#fafafa',
-  'list-hover': '#e6f5f1',
-  'list-active': '#f0f0f0',
-  'list-selected': '#d5ece7',
-  'list-source': '#0c7a68',
-  'list-title': '#17282c',
-  'list-title-read': '#7a8d90',
-  'list-summary': '#6a7d80',
-  'list-time': '#9aabae',
-  'reading-title': '#17282c',
-  'reading-text': '#3d4f52',
-  'reading-meta': '#7a8d90',
-  'reading-link': '#245fa8',
-  'star-color': '#c78d10',
-  'readlater-color': '#7053c9',
-  'danger': '#c0392b',
-  'danger-light': '#fbeae8',
-  'code-bg': '#f5f5f7',
-  'scrollbar': '#d0d1d6',
-  'scrollbar-hover': '#b0b1ba',
-});
-
-
-const neonLightTheme = preset(NEON_LIGHT_THEME_NAME, {
-  // Demandé : #ff009c (magenta) + #00d2ff (cyan). Deux couleurs opposées et
-  // très saturées : sur fond clair elles ne peuvent pas cohabiter à pleine
-  // intensité ailleurs que dans l'en-tête. Le magenta assombri prend l'accent,
-  // le cyan assombri les liens, et le blanc du panneau reçoit un voile rosé
-  // pour que l'écran appartienne quand même à la famille.
-  'sidebar-bg': '#2a1030',
-  'sidebar-header-from': '#ff009c',
-  'sidebar-header-to': '#00d2ff',
-  'sidebar-text': '#a08bab',
-  'sidebar-text-active': '#f6ecf8',
-  'sidebar-category-text': '#86728f',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.10)',
-  'topbar-bg': '#2a1030',
-  'topbar-text': '#a08bab',
-  'topbar-text-active': '#ff009c',
-  'topbar-track': '#3a1a42',
-  'topbar-seg-active': '#48214f',
-  'accent': '#c60077',
-  'accent-dark': '#9c005e',
-  'panel-bg': '#ffffff',
-  'panel-border': '#e8e8ec',
-  'panel-header-bg': '#fafafa',
-  'list-hover': '#fdeaf5',
-  'list-active': '#f0f0f0',
-  'list-selected': '#fbd7ec',
-  'list-source': '#c60077',
-  'list-title': '#2a1030',
-  'list-title-read': '#8b7d93',
-  'list-summary': '#776a80',
-  'list-time': '#a89cae',
-  'reading-title': '#2a1030',
-  'reading-text': '#453a4c',
-  'reading-meta': '#7d7085',
-  'reading-link': '#0077a3',
-  'star-color': '#b8860b',
-  'readlater-color': '#6d3fd1',
-  'danger': '#c62828',
-  'danger-light': '#fdeaea',
-  'code-bg': '#f5f5f7',
-  'scrollbar': '#d0d1d6',
-  'scrollbar-hover': '#b0b1ba',
-});
-
-
-const circuitLightTheme = preset(CIRCUIT_LIGHT_THEME_NAME, {
-  // D'après la seconde photo, très proche de la première. Ce qui les sépare en
-  // clair : ici le vert est plus froid, le papier tire au gris-vert plutôt
-  // qu'au crème, et la seconde couleur est le bleu des traces de circuit du
-  // fond — aucune chaleur de lampe.
-  'sidebar-bg': '#131a13',
-  'sidebar-header-from': '#9fe870',
-  'sidebar-header-to': '#4f9e3a',
-  'sidebar-text': '#83907f',
-  'sidebar-text-active': '#e9efe6',
-  'sidebar-category-text': '#687465',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.09)',
-  'topbar-bg': '#131a13',
-  'topbar-text': '#83907f',
-  'topbar-text-active': '#9fe870',
-  'topbar-track': '#1e281d',
-  'topbar-seg-active': '#283327',
-  'accent': '#357522',
-  'accent-dark': '#275718',
-  'panel-bg': '#ffffff',
-  'panel-border': '#e8e8ec',
-  'panel-header-bg': '#fafafa',
-  'list-hover': '#e9f5e4',
-  'list-active': '#f0f0f0',
-  'list-selected': '#d8ecd0',
-  'list-source': '#357522',
-  'list-title': '#17201a',
-  'list-title-read': '#7d8a7c',
-  'list-summary': '#6b7a6a',
-  'list-time': '#9aa898',
-  'reading-title': '#17201a',
-  'reading-text': '#3b473b',
-  'reading-meta': '#788677',
-  'reading-link': '#275718',
-  'star-color': '#a8850f',
-  'readlater-color': '#3f6fbf',
-  'danger': '#b53a30',
-  'danger-light': '#f9eae8',
-  'code-bg': '#f5f5f7',
-  'scrollbar': '#d0d1d6',
-  'scrollbar-hover': '#b0b1ba',
-});
-
-
 export const SHIPPED_THEMES: Theme[] = [
-  defaultTheme,
-  nightTheme, lagoonTheme, neonTheme, deskTheme,
-  lagoonLightTheme, neonLightTheme, circuitLightTheme,
-  paperTheme, contrastTheme,
+  defaultTheme, nightTheme, deskTheme, paperTheme, contrastTheme,
 ];
 
 /**
@@ -539,9 +311,13 @@ export const SHIPPED_THEMES: Theme[] = [
  * donc retirés au chargement, pas seulement absents des nouvelles listes.
  */
 const RETIRED_THEME_NAMES = [
+  // Inventés sans être demandés.
   'FriRSS Midnight', 'FriRSS Ember', 'FriRSS Nordic',
-  // Trop proche de « Desk » une fois les deux à l'essai — retiré à la demande.
-  'FriRSS Circuit',
+  // Commandés, essayés en sombre puis en clair, et écartés à l'usage. Les deux
+  // variantes partent : ce qui ne convainc pas encombre la galerie.
+  'FriRSS Lagoon', 'FriRSS Lagoon Light',
+  'FriRSS Neon', 'FriRSS Neon Light',
+  'FriRSS Circuit', 'FriRSS Circuit Light',
 ];
 
 /**

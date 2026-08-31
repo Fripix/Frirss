@@ -13,9 +13,9 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Un thème sombre, enfin.** Neuf thèmes livrés en plus du thème par défaut :
-  **Night**, **Lagoon**, **Neon** et **Desk** en sombre ; **Lagoon Light**,
-  **Neon Light**, **Circuit Light**, **Paper** et **High Contrast** en clair — présentés en galerie de vignettes
+- **Un thème sombre, enfin.** Quatre thèmes livrés en plus du thème par
+  défaut : **Night** et **Desk** en sombre, **Paper** (sépia) et
+  **High Contrast** en clair — présentés en galerie de vignettes
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
   36 couleurs à la main.

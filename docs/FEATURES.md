@@ -535,11 +535,16 @@ réglage clair/sombre du système.
   donc celle qu'on vient changer d'abord ; elle était en troisième position,
   sous deux sections de réglages fins de la barre latérale.
 - **Thèmes livrés** (1.4.5), définis dans `SHIPPED_THEMES` : `FriRSS Default`
-  (clair) ; **sombres** `FriRSS Night`, `FriRSS Lagoon`, `FriRSS Neon`,
-  `FriRSS Desk` ; **clairs** `FriRSS Lagoon Light`, `FriRSS Neon Light`,
-  `FriRSS Circuit Light`, `FriRSS Paper`, `FriRSS High Contrast`.
-  Une palette peut exister dans les deux variantes, sous deux noms : le nom nu
-  pour la sombre, suffixé `Light` pour la claire. Le test ne fige pas
+  (clair), `FriRSS Night` (sombre), `FriRSS Desk` (sombre),
+  `FriRSS Paper` (clair, sépia), `FriRSS High Contrast` (clair).
+- **Ce qui a été essayé et écarté** — Lagoon, Neon et Circuit, en sombre puis
+  en clair, plus Midnight, Ember et Nordic. La leçon, à retenir avant d'en
+  proposer d'autres : **une palette bâtie autour de deux couleurs vives donne
+  un écran qui fatigue vite**, et sur fond clair la couleur doit être si
+  assombrie pour rester lisible qu'il n'en reste plus grand-chose. Ce qui tient
+  est un fond franc — blanc ou noir — et une seule couleur qui ponctue.
+  Tous ces noms vivent dans `RETIRED_THEME_NAMES` et sont retirés des listes
+  enregistrées. Le test ne fige pas
   leur nombre — il vérifie que le thème par défaut ouvre la liste et que les
   noms sont uniques.
   - **Comment on en ajoute un** : l'utilisateur donne deux couleurs
