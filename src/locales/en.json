@@ -160,13 +160,7 @@
       "inlineVideos": "Play videos in the article",
       "inlineVideosHint": "Shows the thumbnail; the video loads only on click. Off, a link to YouTube is shown instead.",
       "markReadOnScroll": "Mark read while scrolling",
-      "markReadOnScrollHint": "An article is marked read a second after it leaves the top of the list. Never during a search.",
-      "readingWidth": "Reading column width",
-      "readingWidthHint": "Caps the line length in the reading pane. “Unlimited” uses the full available width.",
-      "readingWidthNarrow": "Narrow",
-      "readingWidthComfort": "Comfortable",
-      "readingWidthWide": "Wide",
-      "readingWidthFull": "Unlimited"
+      "markReadOnScrollHint": "An article is marked read a second after it leaves the top of the list. Never during a search."
     },
     "branding": {
       "language": "Language",

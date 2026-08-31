@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
+import { noFocusOnPointer } from '../../lib/pointerFocus';
 
 export default function ViewModeSwitcher() {
   const { t } = useTranslation();
@@ -41,7 +42,10 @@ export default function ViewModeSwitcher() {
         <button
           key={mode.id}
           onClick={() => setViewMode(mode.id)}
+          {...noFocusOnPointer}
           title={mode.title}
+          aria-label={mode.title}
+          aria-pressed={viewMode === mode.id}
           className={`p-1 rounded transition-all ${
             viewMode === mode.id
               ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'

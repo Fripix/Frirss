@@ -74,7 +74,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // Which saved-category picker is open (null = none).
   const [filing, setFiling] = useState<{ prefix: string; x: number; y: number } | null>(null);
   const toggleReadingFocus = useUiStore((s) => s.toggleReadingFocus);
-  const readingWidth = useUiStore((s) => s.readingWidth);
   const mobileReadingFontSize = useUiStore((s) => s.mobileReadingFontSize);
   const setMobileReadingFontSize = useUiStore((s) => s.setMobileReadingFontSize);
   const bodySize = parseInt(theme.fontSizes['reading-body']) || 14;
@@ -733,7 +732,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   return (
     <div
       className="reading-pane h-full flex flex-col relative"
-      data-reading-width={readingWidth}
       style={{ background: 'var(--panel-bg)' }}
       onDoubleClick={(e) => { if (isFocusToggleTarget(e.target as Element)) toggleReadingFocus(); }}
     >

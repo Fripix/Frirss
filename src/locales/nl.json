@@ -160,13 +160,7 @@
       "inlineVideos": "Videos in het artikel afspelen",
       "inlineVideosHint": "Toont de miniatuur; de video laadt pas bij klikken. Uit: een link naar YouTube.",
       "markReadOnScroll": "Als gelezen markeren tijdens scrollen",
-      "markReadOnScrollHint": "Een artikel wordt een seconde nadat het bovenaan de lijst verdwijnt als gelezen gemarkeerd. Nooit tijdens een zoekopdracht.",
-      "readingWidth": "Breedte van de leeskolom",
-      "readingWidthHint": "Beperkt de regellengte in het leesvenster. “Onbeperkt” gebruikt de volle breedte.",
-      "readingWidthNarrow": "Smal",
-      "readingWidthComfort": "Comfortabel",
-      "readingWidthWide": "Breed",
-      "readingWidthFull": "Onbeperkt"
+      "markReadOnScrollHint": "Een artikel wordt een seconde nadat het bovenaan de lijst verdwijnt als gelezen gemarkeerd. Nooit tijdens een zoekopdracht."
     },
     "branding": {
       "language": "Taal",

@@ -19,6 +19,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { loadSearchHistory, rememberSearch, forgetSearch } from '../../lib/searchHistory';
 import { scrolledPastTop, shouldMark, MARK_READ_DELAY_MS } from '../../lib/markReadOnScroll';
 import { canMorph, withMorph } from '../../lib/viewTransition';
+import { noFocusOnPointer } from '../../lib/pointerFocus';
 import { prefersReducedMotion } from '../../lib/reducedMotion';
 import type { Article, Filter } from '../../types';
 
@@ -1354,6 +1355,7 @@ function DateSepToggle({ active, onClick }: ToggleProps) {
       title={active ? t('articleList.hideDateSep') : t('articleList.showDateSep')}
       aria-label={active ? t('articleList.hideDateSep') : t('articleList.showDateSep')}
       aria-pressed={active}
+      {...noFocusOnPointer}
       className={`option-toggle ${active ? 'option-toggle--on' : ''}`}
     >
       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -1372,6 +1374,7 @@ function TopbarToggle() {
       onClick={toggleTopbar}
       title={topbarVisible ? t('articleList.hideTopbar') : t('articleList.showTopbar')}
       aria-pressed={topbarVisible}
+      {...noFocusOnPointer}
       className={`option-toggle ${topbarVisible ? 'option-toggle--on' : ''}`}
     >
       {/* Top-panel icon — window with a solid top bar (filled when shown) */}
@@ -1398,6 +1401,7 @@ function FaviconToggle() {
       title={label}
       aria-label={label}
       aria-pressed={on}
+      {...noFocusOnPointer}
       className={`option-toggle ${on ? 'option-toggle--on' : ''}`}
     >
       {/* Carré arrondi + pastille : une icône de site, pas une image. */}
@@ -1422,6 +1426,7 @@ function SourceToggle({ active, onClick, tooltip }: SourceToggleProps) {
       title={tooltip}
       aria-label={tooltip}
       aria-pressed={active}
+      {...noFocusOnPointer}
       className={`option-toggle ${active ? 'option-toggle--on' : ''}`}
     >
       {/* Source/feed name icon — tag with "Aa" */}
@@ -1461,6 +1466,7 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
       <button
         onClick={() => setPanelLayout('2')}
         title={tip(t('articleList.listOnly'))}
+        {...noFocusOnPointer}
         className={`p-1 rounded transition-all ${
           panelLayout === '2'
             ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'
@@ -1476,6 +1482,7 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
       <button
         onClick={() => setPanelLayout('3')}
         title={tip(t('articleList.listAndReading'))}
+        {...noFocusOnPointer}
         className={`p-1 rounded transition-all ${
           panelLayout === '3'
             ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'
@@ -1492,6 +1499,7 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
       <button
         onClick={() => setPanelLayout('grid')}
         title={tip(t('articleList.gridLayout'))}
+        {...noFocusOnPointer}
         className={`p-1 rounded transition-all ${
           panelLayout === 'grid'
             ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'

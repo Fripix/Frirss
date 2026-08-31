@@ -160,13 +160,7 @@
       "inlineVideos": "Odtwarzaj filmy w artykule",
       "inlineVideosHint": "Pokazuje miniaturę; wideo ładuje się dopiero po kliknięciu. Wyłączone: link do YouTube.",
       "markReadOnScroll": "Oznaczaj jako przeczytane przy przewijaniu",
-      "markReadOnScrollHint": "Artykuł zostaje oznaczony jako przeczytany sekundę po zniknięciu u góry listy. Nigdy podczas wyszukiwania.",
-      "readingWidth": "Szerokość kolumny czytania",
-      "readingWidthHint": "Ogranicza długość wierszy w panelu czytania. „Bez limitu” wykorzystuje całą szerokość.",
-      "readingWidthNarrow": "Wąska",
-      "readingWidthComfort": "Wygodna",
-      "readingWidthWide": "Szeroka",
-      "readingWidthFull": "Bez limitu"
+      "markReadOnScrollHint": "Artykuł zostaje oznaczony jako przeczytany sekundę po zniknięciu u góry listy. Nigdy podczas wyszukiwania."
     },
     "branding": {
       "language": "Język",

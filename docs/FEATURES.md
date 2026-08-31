@@ -342,14 +342,12 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 - **Images** : `max-height: 80vh` avec `width: auto`. Sans plafond, une
   infographie verticale — courante en tech et en sécurité — occupait trois
   écrans et coupait la lecture en deux.
-- **Largeur de colonne** : réglable (Préférences → Général,
-  `readingWidth`, synchronisé) — Étroite 40em / Confort 52em / **Large 64em**
-  (défaut) / Sans limite. Sans plafond — l'état jusqu'à la 1.4.5 — le mode
-  Focus étalait le texte sur toute la largeur de l'écran et l'œil perdait la
-  ligne au retour ; mais le premier jet imposait 44em à tout le monde, ce qui
-  s'est révélé bien trop serré sur un grand écran. `em` et non `px` pour que la
-  mesure suive la taille de police. `full` rend exactement le comportement
-  d'avant.
+- **Largeur de colonne : aucune limite** — décision de l'utilisateur, prise à
+  l'essai. La revue d'interface proposait un plafond, jugeant qu'en mode Focus
+  sur un grand écran le texte s'étalait trop. Deux versions ont été livrées
+  (44em fixe, puis un réglage à quatre valeurs) et les deux ont été rejetées :
+  la colonne suit la largeur disponible du volet, qui est déjà bornée par la
+  disposition. **Ne pas réintroduire de plafond sans nouvel élément.**
 - **Piège majeur** : le profil DOMPurify `html: true` **retire `<iframe>` et
   `<svg>`**, silencieusement. Une icône SVG dans le HTML d'un article ressort
   vide — dessiner ces icônes en CSS. Ne **pas** élargir le profil : le HTML des
@@ -533,11 +531,19 @@ réglage clair/sombre du système.
   qui teinte toute l'interface — badges, liens, états actifs, anneau de focus —
   donc celle qu'on vient changer d'abord ; elle était en troisième position,
   sous deux sections de réglages fins de la barre latérale.
-- **Thèmes livrés** (1.4.5) : `FriRSS Default`, `FriRSS Night`,
-  `FriRSS Midnight`, `FriRSS Ember`, `FriRSS Paper`, `FriRSS Nordic`,
-  `FriRSS High Contrast`, définis dans `SHIPPED_THEMES`. La liste est faite
-  pour s'étoffer : le test ne fige pas leur nombre, il vérifie que le thème par
-  défaut ouvre la liste et que les noms sont uniques. Ce sont de simples
+- **Thèmes livrés** (1.4.5) : `FriRSS Default`, `FriRSS Night`, `FriRSS Paper`,
+  `FriRSS High Contrast`, définis dans `SHIPPED_THEMES`. Le test ne fige pas
+  leur nombre — il vérifie que le thème par défaut ouvre la liste et que les
+  noms sont uniques.
+  - **Comment on en ajoute un** : l'utilisateur donne deux couleurs
+    principales, la palette complète est dérivée de là. Trois préréglages
+    (`Midnight`, `Ember`, `Nordic`) ont été inventés sans cette étape et
+    retirés aussitôt : une galerie de thèmes que personne n'a demandés
+    encombre plus qu'elle ne sert. Ils sont listés dans
+    `RETIRED_THEME_NAMES` et **activement retirés** des listes enregistrées,
+    puisque c'est `ensureShippedThemes()` qui les y avait mis. Un choix
+    « suivre le système » qui les visait retombe sur le préréglage
+    correspondant, sans quoi le réglage cesserait d'agir en silence. Ce sont de simples
   **thèmes enregistrés** : `ensureShippedThemes()` garantit leur présence en
   tête de la liste — comme le thème par défaut l'était déjà — et « Charger »
   les applique sans machinerie nouvelle. Un préréglage modifié par

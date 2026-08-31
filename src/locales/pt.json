@@ -160,13 +160,7 @@
       "inlineVideos": "Reproduzir os vídeos no artigo",
       "inlineVideosHint": "Mostra a miniatura; o vídeo só carrega ao clicar. Desativado, é apresentado um link para o YouTube.",
       "markReadOnScroll": "Marcar como lido ao deslocar",
-      "markReadOnScrollHint": "Um artigo é marcado como lido um segundo depois de sair pelo topo da lista. Nunca durante uma pesquisa.",
-      "readingWidth": "Largura da coluna de leitura",
-      "readingWidthHint": "Limita o comprimento das linhas no painel de leitura. «Sem limite» usa toda a largura disponível.",
-      "readingWidthNarrow": "Estreita",
-      "readingWidthComfort": "Confortável",
-      "readingWidthWide": "Larga",
-      "readingWidthFull": "Sem limite"
+      "markReadOnScrollHint": "Um artigo é marcado como lido um segundo depois de sair pelo topo da lista. Nunca durante uma pesquisa."
     },
     "branding": {
       "language": "Idioma",

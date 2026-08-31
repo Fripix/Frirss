@@ -117,6 +117,22 @@ describe('ensureShippedThemes', () => {
       .toBe('#123456');
   });
 
+  it('removes presets that were shipped and then withdrawn', () => {
+    // Midnight / Ember / Nordic ont été livrés puis retirés. Ils n'ont jamais
+    // été choisis par personne : `ensureShippedThemes` les ajoutait tout seul.
+    // Les laisser traîner encombrerait la galerie de thèmes que l'utilisateur
+    // n'a pas demandés et ne peut pas distinguer des siens.
+    const stale: Theme = {
+      name: 'FriRSS Midnight',
+      colors: { ...base.colors },
+      fontSizes: { ...base.fontSizes },
+    };
+    const mine: Theme = { name: 'Mine', colors: { ...base.colors }, fontSizes: { ...base.fontSizes } };
+    const out = ensureShippedThemes([stale, mine]);
+    expect(out.map((t) => t.name)).not.toContain('FriRSS Midnight');
+    expect(out.map((t) => t.name)).toContain('Mine');
+  });
+
   it('drops entries that are not themes rather than passing them on', () => {
     const out = ensureShippedThemes([null, { name: 'x' }] as unknown as Theme[]);
     expect(out.map((t) => t.name)).toEqual(SHIPPED_THEMES.map((t) => t.name));

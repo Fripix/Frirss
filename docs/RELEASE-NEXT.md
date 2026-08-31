@@ -13,9 +13,8 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Un thème sombre, enfin.** Six thèmes livrés en plus du thème par défaut —
-  **Night**, **Midnight**, **Ember**, **Paper**, **Nordic** et
-  **High Contrast** — présentés en galerie de vignettes
+- **Un thème sombre, enfin.** Trois thèmes livrés en plus du thème par défaut —
+  **Night**, **Paper** et **High Contrast** — présentés en galerie de vignettes
   en haut de Préférences → Apparence → Thème. Le moteur savait déjà tout faire :
   il ne livrait aucun contenu, et atteindre un thème sombre demandait de régler
   36 couleurs à la main.
@@ -48,10 +47,12 @@ la release publiée.
 
 ## Corrections et améliorations
 
-- **La largeur de la colonne de lecture est réglable** (Préférences → Général).
-  Le plafond introduit plus tôt dans ce cycle était unique et bien trop serré
-  sur un grand écran ; il y a maintenant quatre choix, dont « Sans limite » qui
-  rend le comportement d'avant. Le défaut est plus large qu'avant ce réglage.
+- **Le texte d'un article occupe toute la largeur du volet**, comme avant ce
+  cycle. Le plafond de largeur essayé ici n'a convaincu à aucune des deux
+  versions : la colonne est déjà bornée par la disposition.
+- **Plus d'encadré surgissant sur les bascules d'affichage.** Après un clic,
+  elles gardaient le focus et l'anneau du clavier s'allumait à la frappe
+  suivante, sur un bouton qu'on ne regardait plus.
 - **Les séparateurs de date portent la date**, pas seulement le jour :
   « MERCREDI » seul ne dit pas de quel mercredi il s'agit.
 - **Recharger un thème enregistré donne bien le même résultat que le

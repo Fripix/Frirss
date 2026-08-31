@@ -7,9 +7,6 @@ export const DEFAULT_THEME_NAME = 'FriRSS Default';
 export const NIGHT_THEME_NAME = 'FriRSS Night';
 export const PAPER_THEME_NAME = 'FriRSS Paper';
 export const CONTRAST_THEME_NAME = 'FriRSS High Contrast';
-export const MIDNIGHT_THEME_NAME = 'FriRSS Midnight';
-export const EMBER_THEME_NAME = 'FriRSS Ember';
-export const NORDIC_THEME_NAME = 'FriRSS Nordic';
 
 const defaultTheme: Theme = {
   name: DEFAULT_THEME_NAME,
@@ -227,129 +224,17 @@ const contrastTheme = preset(CONTRAST_THEME_NAME, {
   'scrollbar-hover': '#4a4a4a',
 });
 
-const midnightTheme = preset(MIDNIGHT_THEME_NAME, {
-  // Sombre et froid, accent cyan. La contrepartie de « Night », qui est chaud.
-  'sidebar-bg': '#0d1117',
-  'sidebar-header-from': '#2a7fbf',
-  'sidebar-header-to': '#1c5f92',
-  'sidebar-text': '#7d8590',
-  'sidebar-text-active': '#e6edf3',
-  'sidebar-category-text': '#656c76',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.08)',
-  'topbar-bg': '#0d1117',
-  'topbar-text': '#7d8590',
-  'topbar-text-active': '#4cc4f0',
-  'topbar-track': '#161b22',
-  'topbar-seg-active': '#21262d',
-  'accent': '#4cc4f0',
-  'accent-dark': '#2a9fd0',
-  'panel-bg': '#161b22',
-  'panel-border': '#2b323b',
-  'panel-header-bg': '#1c222b',
-  'list-hover': '#1c2b36',
-  'list-active': '#21262d',
-  'list-selected': '#16303f',
-  'list-source': '#4cc4f0',
-  'list-title': '#e6edf3',
-  'list-title-read': '#7d8590',
-  'list-summary': '#9198a1',
-  'list-time': '#6b727c',
-  'reading-title': '#f0f6fc',
-  'reading-text': '#c9d1d9',
-  'reading-meta': '#8b949e',
-  'reading-link': '#4cc4f0',
-  'star-color': '#e3b341',
-  'readlater-color': '#a78bfa',
-  'danger': '#f85149',
-  'danger-light': '#3a1a1a',
-  'code-bg': '#12171e',
-  'scrollbar': '#343b45',
-  'scrollbar-hover': '#4a525d',
-});
+export const SHIPPED_THEMES: Theme[] = [defaultTheme, nightTheme, paperTheme, contrastTheme];
 
-const emberTheme = preset(EMBER_THEME_NAME, {
-  // Sombre et très chaud, accent ambre — pour la lecture tard le soir.
-  'sidebar-bg': '#161210',
-  'sidebar-header-from': '#e08c3f',
-  'sidebar-header-to': '#b96c26',
-  'sidebar-text': '#8c8177',
-  'sidebar-text-active': '#efe6dc',
-  'sidebar-category-text': '#6e6459',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.07)',
-  'topbar-bg': '#161210',
-  'topbar-text': '#8c8177',
-  'topbar-text-active': '#f0a04b',
-  'topbar-track': '#241d18',
-  'topbar-seg-active': '#2f2620',
-  'accent': '#f0a04b',
-  'accent-dark': '#d17f2c',
-  'panel-bg': '#201a16',
-  'panel-border': '#362c25',
-  'panel-header-bg': '#271f1a',
-  'list-hover': '#33261c',
-  'list-active': '#2b231d',
-  'list-selected': '#3a2a1b',
-  'list-source': '#f0a04b',
-  'list-title': '#ece2d8',
-  'list-title-read': '#8c8177',
-  'list-summary': '#a0958a',
-  'list-time': '#776d63',
-  'reading-title': '#f5ece2',
-  'reading-text': '#cfc4b8',
-  'reading-meta': '#9b9084',
-  'reading-link': '#f0a04b',
-  'star-color': '#f5c542',
-  'readlater-color': '#c39bf5',
-  'danger': '#f2726a',
-  'danger-light': '#3a1e1c',
-  'code-bg': '#1a1512',
-  'scrollbar': '#3f342c',
-  'scrollbar-hover': '#574940',
-});
-
-const nordicTheme = preset(NORDIC_THEME_NAME, {
-  // Clair et froid, accent bleu ardoise — le pendant clair de « Midnight ».
-  'sidebar-bg': '#2e3440',
-  'sidebar-header-from': '#5e81ac',
-  'sidebar-header-to': '#4c6a8f',
-  'sidebar-text': '#7b8394',
-  'sidebar-text-active': '#eceff4',
-  'sidebar-category-text': '#646d7d',
-  'sidebar-divider': 'rgba(255, 255, 255, 0.08)',
-  'topbar-bg': '#2e3440',
-  'topbar-text': '#7b8394',
-  'topbar-text-active': '#88c0d0',
-  'topbar-track': '#3b4252',
-  'topbar-seg-active': '#434c5e',
-  'accent': '#4a7fa5',
-  'accent-dark': '#3b6684',
-  'panel-bg': '#fbfcfd',
-  'panel-border': '#dfe3e9',
-  'panel-header-bg': '#f0f3f6',
-  'list-hover': '#e6eef5',
-  'list-active': '#eaeef3',
-  'list-selected': '#d8e6f1',
-  'list-source': '#4a7fa5',
-  'list-title': '#2e3440',
-  'list-title-read': '#7b8394',
-  'list-summary': '#6b7484',
-  'list-time': '#99a1af',
-  'reading-title': '#2e3440',
-  'reading-text': '#434c5e',
-  'reading-meta': '#7b8394',
-  'reading-link': '#3b6684',
-  'star-color': '#c9971f',
-  'readlater-color': '#7c5cd6',
-  'danger': '#bf4c4c',
-  'danger-light': '#f9eaea',
-  'code-bg': '#eef1f5',
-  'scrollbar': '#c8d0da',
-  'scrollbar-hover': '#a8b3c1',
-});
-
-export const SHIPPED_THEMES: Theme[] = [
-  defaultTheme, nightTheme, midnightTheme, emberTheme, paperTheme, nordicTheme, contrastTheme,
-];
+/**
+ * Préréglages livrés puis retirés.
+ *
+ * `ensureShippedThemes()` les ajoutait tout seul : personne ne les a choisis,
+ * et les laisser dans la liste encombrerait la galerie de thèmes que
+ * l'utilisateur n'a pas demandés et ne peut pas distinguer des siens. Ils sont
+ * donc retirés au chargement, pas seulement absents des nouvelles listes.
+ */
+const RETIRED_THEME_NAMES = ['FriRSS Midnight', 'FriRSS Ember', 'FriRSS Nordic'];
 
 /**
  * Garantit la présence des thèmes livrés, en tête et sans doublon.
@@ -370,6 +255,7 @@ export function ensureShippedThemes(list: Theme[] | null | undefined): Theme[] {
         // interface changeait d'aspect selon le chemin emprunté. Une valeur
         // que l'utilisateur a réellement choisie n'est jamais touchée — les
         // migrations ne remplacent qu'un ancien défaut exact.
+        .filter((t) => !RETIRED_THEME_NAMES.includes(t.name))
         .map((t) => ({ ...t, colors: migrateColors(t.colors) }))
     : [];
   const shipped = SHIPPED_THEMES.map(
@@ -396,6 +282,11 @@ export function pickAutoTheme(
   if (!followSystem) return null;
   const wanted = prefersDark ? darkThemeName : lightThemeName;
   return savedThemes.find((t) => t.name === wanted) ?? null;
+}
+
+function resolveSchemeName(stored: string | null, fallback: string): string {
+  if (!stored || RETIRED_THEME_NAMES.includes(stored)) return fallback;
+  return stored;
 }
 
 function systemPrefersDark(): boolean {
@@ -772,8 +663,12 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
     preferencesOpenId: 0,  // increments each open — forces useEffect to re-fire
 
     followSystem: localStorage.getItem('frirss_followSystem') === 'true',
-    lightThemeName: localStorage.getItem('frirss_lightThemeName') || DEFAULT_THEME_NAME,
-    darkThemeName: localStorage.getItem('frirss_darkThemeName') || NIGHT_THEME_NAME,
+    // Un thème visé qui a été RETIRÉ laisserait « suivre le système » sans
+    // effet et sans rien dire (`pickAutoTheme` renvoie null quand la cible
+    // n'existe plus). Comme c'est notre retrait qui l'aurait cassé, on
+    // ramène le choix sur le préréglage correspondant.
+    lightThemeName: resolveSchemeName(localStorage.getItem('frirss_lightThemeName'), DEFAULT_THEME_NAME),
+    darkThemeName: resolveSchemeName(localStorage.getItem('frirss_darkThemeName'), NIGHT_THEME_NAME),
 
     openPreferences: (tab = null, intent = null) => set((s) => ({ preferencesOpen: true, preferencesTab: tab, preferencesIntent: intent, preferencesOpenId: s.preferencesOpenId + 1 })),
     clearPreferencesIntent: () => set({ preferencesIntent: null }),

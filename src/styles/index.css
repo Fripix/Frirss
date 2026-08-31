@@ -1189,25 +1189,6 @@ summary:focus-visible,
   outline-color: var(--accent);
 }
 
-/* ── Volet de lecture : largeur de colonne ────────────────────────── */
-/* L'article portait des marges latérales mais aucune largeur maximale : en
-   mode Focus sur un grand écran, le texte courait sur toute la largeur et
-   l'œil perdait la ligne au retour. `em` (et non px) pour que la mesure
-   suive la taille de police choisie. Sans effet en 3 panneaux, où la colonne
-   est déjà plus étroite que ce plafond. */
-/* Le premier jet imposait 44em à tout le monde : trop serré sur un grand
-   écran, et c'est le retour qui est remonté en premier. La mesure est
-   réglable, `full` rendant le comportement d'avant (aucune limite). `em` et
-   non `px` pour qu'elle suive la taille de police. */
-.reading-pane article {
-  margin-inline: auto;
-  max-width: 64em;
-}
-.reading-pane[data-reading-width='narrow'] article  { max-width: 40em; }
-.reading-pane[data-reading-width='comfort'] article { max-width: 52em; }
-.reading-pane[data-reading-width='wide'] article    { max-width: 64em; }
-.reading-pane[data-reading-width='full'] article    { max-width: none; }
-
 /* ── Mouvement réduit — le reste des animations ───────────────────── */
 /* Les blocs `prefers-reduced-motion` plus haut ne couvraient que le bandeau
    de relève, la pulsation de flux, les cartes de la grille, la façade vidéo,

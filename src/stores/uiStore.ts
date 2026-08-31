@@ -115,11 +115,6 @@ export interface UiState {
   // doit se la voir imposer par une mise à jour. Synchronisé.
   markReadOnScroll: boolean;
   setMarkReadOnScroll: (v: boolean) => void;
-  // Largeur maximale de la colonne de lecture. Le plafond introduit en 1.4.5
-  // était unique et trop serré sur un grand écran : il est désormais réglable,
-  // « full » rendant le comportement d'avant (aucune limite). Synchronisé.
-  readingWidth: string;
-  setReadingWidth: (v: string) => void;
   // Favicons dans la LISTE d'articles. Réglage distinct de `showFavicons`, qui
   // gouverne la barre latérale : les couper dans la liste sans les perdre dans
   // la barre est une demande légitime, et partager un seul réglage rendrait le
@@ -323,12 +318,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
     localStorage.setItem('frirss_showListFavicons', JSON.stringify(next));
     return { showListFavicons: next };
   }),
-
-  readingWidth: localStorage.getItem('frirss_readingWidth') || 'wide',
-  setReadingWidth: (v) => {
-    localStorage.setItem('frirss_readingWidth', v);
-    set({ readingWidth: v });
-  },
 
   markReadOnScroll: loadJson('frirss_markReadOnScroll', false),
   setMarkReadOnScroll: (v) => {
@@ -625,11 +614,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
       localStorage.setItem('frirss_logoMode', prefs.logoMode);
       next.logoMode = prefs.logoMode;
     }
-    // Chaîne brute, comme viewMode / appTitle — pas du JSON.
-    if (has('readingWidth') && typeof prefs.readingWidth === 'string') {
-      localStorage.setItem('frirss_readingWidth', prefs.readingWidth);
-      next.readingWidth = prefs.readingWidth;
-    }
 
     // JSON keys — state field name matches the localStorage suffix
     const jsonKeys = [
@@ -661,7 +645,7 @@ export const UI_SYNC_KEYS = [
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
-  'confirmMarkAllRead', 'markReadOnScroll', 'readingWidth', 'showListFavicons',
+  'confirmMarkAllRead', 'markReadOnScroll', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
 ];
 
