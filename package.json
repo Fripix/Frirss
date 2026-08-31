@@ -1,7 +1,7 @@
 {
   "name": "frirss",
   "private": true,
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "A self-hosted, customizable web frontend for FreshRSS.",
   "license": "MIT",
   "author": "Fripix",
