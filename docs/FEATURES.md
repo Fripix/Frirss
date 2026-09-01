@@ -296,17 +296,25 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   `toggleRead`. Il y a **cinq** sites d'écriture dans `feedStore` (lecture via
   `selectArticle`, lecture via `toggleRead`, favori, à lire plus tard,
   étiquettes) — toute modification du traitement des échecs doit couvrir les cinq.
-- **Règle** : aucune de ces écritures ne RETIRE une ligne de la liste ; elles la
-  modifient, et la vue se réconcilie au rechargement. Retirer le favori depuis
-  la vue Favoris sortait l'article de la liste — hérité du commit initial, sans
-  décision consignée, et incohérent avec les quatre autres. Le prix en était un
-  rollback impossible : un refus du serveur faisait disparaître l'article alors
-  qu'il restait en favori côté FreshRSS, avec un compteur correctement restauré
-  annonçant « 1 favori » au-dessus d'une liste vide. Aligné en 1.4.4.
-  **Exception depuis 2026-09-01** : le ✓ (`toggleRead`) retire désormais la
-  ligne sous le filtre « Non lus » — voir plus bas. Une mise à l'écart
-  explicite retire, sous le filtre qu'elle concerne ; ce n'est pas revenu sur
-  l'alignement du favori, qui reste sans retrait.
+- **Règle** : **deux** de ces cinq écritures RETIRENT une ligne de la liste ;
+  les trois autres la modifient seulement, et la vue se réconcilie au
+  rechargement. Une mise à l'écart explicite retire, sous le filtre qu'elle
+  concerne — ailleurs, rien ne disparaît.
+  - `toggleRead` (le ✓) retire sous le filtre « Non lus », depuis le
+    2026-09-01 (issue #10). **Après confirmation du serveur**, et jamais la
+    ligne de l'article ouvert. Décision assumée, détaillée plus bas.
+  - `toggleReadLater` retire de la vue « À lire plus tard » quand on enlève
+    l'étiquette — mais **de façon optimiste, avant la réponse du serveur**,
+    avec un rollback qui n'est qu'un `.map()` : il ne sait pas remettre une
+    ligne déjà partie. C'est exactement le défaut payé puis corrigé sur
+    `toggleStar` en 1.4.4, resté ici. **Défaut préexistant connu, pas une
+    décision** ; non corrigé à ce jour.
+  - `selectArticle`, `toggleStar` et les étiquettes ne retirent rien. Retirer
+    le favori depuis la vue Favoris sortait l'article de la liste — hérité du
+    commit initial, sans décision consignée. Le prix en était un rollback
+    impossible : un refus du serveur faisait disparaître l'article alors qu'il
+    restait en favori côté FreshRSS, avec un compteur correctement restauré
+    annonçant « 1 favori » au-dessus d'une liste vide. Aligné en 1.4.4.
 - **Cache hors-ligne** : les cinq sites appellent `persistCurrentView()`, à
   l'aller **et** au rollback. Seuls les deux chemins de lecture le faisaient :
   mettre un favori puis recharger hors ligne le montrait non favori.
@@ -322,14 +330,37 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     `toggleRead` n'est qu'un `.map()` : il ne sait pas remettre une ligne
     partie. C'est le bug déjà payé sur `toggleStar`, où l'article disparaissait
     de l'écran en restant favori côté FreshRSS.
+  - **Jamais la ligne de l'article OUVERT.** Deux bascules depuis le volet de
+    lecture atteignent une vraie transition non-lu → lu sur lui : sans garde,
+    sa ligne partait pendant qu'il restait affiché, `selectNextArticle` ne le
+    retrouvait plus (`findIndex` → -1, puis `articles[0]`) et sautait en tête,
+    et le balayage suivant/précédent du mobile devenait inerte. C'est
+    l'invariant que `silentRefresh` entretient déjà en RÉINSÉRANT l'article en
+    cours de lecture.
+  - **Le retrait vaut aussi pour le cache mémoire** (`memRemoveFromUnreadViews`
+    dans `feedStore.ts`, toutes les vues dont la clé finit par `:unread`).
+    Il ne touchait que `articles` et le cache hors-ligne : quitter le flux et y
+    revenir repeignait depuis le cache mémoire — et comme `loadArticles` pose
+    `loading: !cached`, la ligne lue réapparaissait dans « Non lus » sans même
+    un spinner, indéfiniment hors ligne. C'est le symptôme exact de l'issue #10.
+  - **La pagination doit continuer** (`useAutoLoadMore`,
+    `src/lib/listPagination.ts`). Le scroll infini ne partait que d'un
+    événement `scroll` : en dépilant par le haut, `scrollTop` reste à 0 et
+    aucun événement n'est émis — et quand le reste tient dans la fenêtre, la
+    liste n'est même plus défilable. Le contrôle est donc refait à chaque
+    changement du nombre de lignes.
+  - **Ne jamais annoncer « tout est lu » à tort.** L'état vide est un message
+    de réussite ; tant que `continuation` promet une page suivante, il serait
+    faux. Liste vide + continuation ⇒ squelette de chargement
+    (`emptyListIsFinal`), pas `emptyState.allRead`.
   - **Écarté** : réglage optionnel, bandeau « Annuler » (il ne rattrapait pas
     le cas invoqué), uniformisation des hauteurs de ligne. Détail et raisons
     dans `docs/superpowers/specs/2026-09-01-mark-read-removes-row-design.md`.
-- **Les trois actions y sont désormais complètes** : à lire plus tard, favori,
-  et ✓ (2026-09-01, demandé avec l'issue #10). Le ✓ y manquait alors qu'il
-  existait dans la ligne normale et la vue grille. Les lignes compactes ayant
-  toutes la même hauteur, le ✓ suivant se place exactement où était le
-  précédent : on enchaîne les marquages sans bouger la souris.
+- **Le mode Compact a désormais les trois actions** : à lire plus tard, favori,
+  et ✓ (2026-09-01, demandé avec l'issue #10). Le ✓ manquait aux lignes
+  compactes alors qu'il existait dans la ligne normale et la vue grille. Ces
+  lignes ayant toutes la même hauteur, le ✓ suivant se place exactement où
+  était le précédent : on enchaîne les marquages sans bouger la souris.
 
 ### Marquer lu au défilement
 Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article

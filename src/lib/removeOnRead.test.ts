@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { shouldLeaveList } from './removeOnRead';
 
-const base = { becameRead: true, filter: 'unread' as const, implicit: false };
+const base = { becameRead: true, filter: 'unread' as const, implicit: false, selected: false };
 
 describe('shouldLeaveList', () => {
   it('retire la ligne quand un geste explicite marque lu sous le filtre non-lus', () => {
@@ -26,5 +26,11 @@ describe('shouldLeaveList', () => {
     // Le marquage au défilement décide à la place de l'utilisateur. Retirer
     // ces lignes ferait s'effondrer la liste en continu pendant qu'il défile.
     expect(shouldLeaveList({ ...base, implicit: true })).toBe(false);
+  });
+
+  it('ne retire rien quand l’article marqué lu est celui qui est ouvert', () => {
+    // Sa ligne est sa place dans la liste : sans elle, `selectNextArticle` ne
+    // le retrouve plus et saute en tête, et suivant/précédent devient inerte.
+    expect(shouldLeaveList({ ...base, selected: true })).toBe(false);
   });
 });

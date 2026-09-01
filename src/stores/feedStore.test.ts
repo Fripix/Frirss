@@ -453,6 +453,13 @@ describe('feedStore.toggleStar — refus du serveur depuis la vue Favoris', () =
   // `toggleRead` retire désormais la ligne sous le filtre non-lus (issue #10),
   // sur un geste explicite et après confirmation du serveur. Les deux vues
   // divergent donc à nouveau — cette fois par décision, pas par accident.
+  //
+  // Ce n'est pas le seul site d'écriture qui retire : `toggleReadLater` sort
+  // aussi la ligne de la vue « À lire plus tard », et le fait de façon
+  // OPTIMISTE, avant la réponse du serveur, avec le même rollback en `.map()`
+  // incapable de la remettre — le défaut exact corrigé ici en 1.4.4. Il est
+  // préexistant et n'a jamais été décidé ; le dire évite de croire le retrait
+  // du ✓ seul de son espèce.
   it('garde la ligne en place quand le retrait réussit', async () => {
     vi.mocked(api.removeStarred).mockResolvedValue(undefined);
     await useFeedStore.getState().toggleStar({ ...starred });
@@ -629,5 +636,87 @@ describe('feedStore.toggleRead — retrait de la ligne sous le filtre non-lus', 
     useFeedStore.setState({ articles: [row('a0'), { ...row('a1'), read: true }, row('a2')] });
     await useFeedStore.getState().toggleRead({ ...row('a1'), read: true });
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+  });
+});
+
+describe('feedStore.toggleRead — la ligne de l’article ouvert ne part jamais', () => {
+  const row = (id: string): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/1', title: id } as Article);
+
+  beforeEach(() => {
+    vi.mocked(api.markAsRead).mockReset();
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+    useFeedStore.setState({
+      articles: [row('a0'), row('a1'), row('a2')],
+      selectedArticle: { ...row('a1') },
+      filter: 'unread',
+    });
+  });
+
+  // Deux bascules depuis le volet de lecture (lu → non lu, puis non lu → lu)
+  // atteignent une vraie transition non-lu → lu sur l'article OUVERT. Retirer
+  // sa ligne le laisse à l'écran sans ligne : `selectNextArticle` ne le trouve
+  // plus (`findIndex` → -1, puis `articles[0]`) et saute en tête de liste, et
+  // le balayage suivant/précédent du mobile devient inerte. `silentRefresh`
+  // entretient déjà l'invariant inverse : il RÉINSÈRE l'article en lecture.
+  it('garde la ligne quand l’article marqué lu est celui qui est ouvert', async () => {
+    await useFeedStore.getState().toggleRead(row('a1'));
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+    expect(s.articles[1].read).toBe(true);
+  });
+
+  it('laisse suivant/précédent utilisables depuis l’article marqué lu', async () => {
+    await useFeedStore.getState().toggleRead(row('a1'));
+    useFeedStore.getState().selectNextArticle();
+    expect(useFeedStore.getState().selectedArticle?.id).toBe('a2');
+  });
+
+  it('retire toujours la ligne d’un AUTRE article', async () => {
+    await useFeedStore.getState().toggleRead(row('a2'));
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1']);
+  });
+});
+
+describe('feedStore.toggleRead — le retrait survit au cache mémoire', () => {
+  const feed1 = { id: 'feed/1', title: 'F1' } as unknown as Subscription;
+  const feed2 = { id: 'feed/2', title: 'F2' } as unknown as Subscription;
+  const item = (id: string) => ({ id, categories: [] });
+
+  beforeEach(() => {
+    vi.mocked(api.markAsRead).mockReset();
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+    vi.mocked(api.getStreamContents).mockReset();
+    vi.mocked(api.getStreamContents).mockImplementation((streamId: string) =>
+      Promise.resolve(
+        (streamId === 'feed/1'
+          ? { items: [item('a0'), item('a1'), item('a2')], continuation: null }
+          : { items: [], continuation: null }) as never
+      )
+    );
+    useFeedStore.setState({
+      selectedFeed: feed1,
+      filter: 'unread',
+      articles: [],
+      continuation: null,
+      selectedArticle: null,
+    });
+  });
+
+  // Le retrait mettait à jour `articles` et le cache hors-ligne, mais PAS le
+  // cache mémoire des vues. Quitter la vue puis y revenir la repeignait depuis
+  // ce cache — sans spinner, `loading` valant `!cached` — et la ligne marquée
+  // lue réapparaissait dans la liste « Non lus ».
+  it('ne repeint pas la ligne retirée en revenant sur la vue', async () => {
+    await useFeedStore.getState().loadArticles();
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+
+    await useFeedStore.getState().toggleRead(useFeedStore.getState().articles[1]);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+
+    useFeedStore.getState().selectFeed(feed2);
+    useFeedStore.getState().selectFeed(feed1);
+    // Peinture immédiate depuis le cache mémoire, avant toute réponse serveur.
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
   });
 });

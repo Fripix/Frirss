@@ -7,6 +7,8 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
+import { shouldLoadMore, emptyListIsFinal } from '../../lib/listPagination';
+import { useAutoLoadMore } from '../../hooks/useAutoLoadMore';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
@@ -201,11 +203,33 @@ export default function ArticleList() {
     const el = listRef.current;
     if (!el) return;
     listScrollMem.set(scrollKeyRef.current, el.scrollTop);
-    if (!continuation || loadingMore) return;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) {
+    if (
+      shouldLoadMore({
+        hasContinuation: !!continuation,
+        loading,
+        loadingMore,
+        scrollTop: el.scrollTop,
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight,
+      })
+    ) {
       loadMore();
     }
-  }, [continuation, loadingMore, loadMore]);
+  }, [continuation, loading, loadingMore, loadMore]);
+
+  // Le défilement n'est plus le seul déclencheur : depuis que le ✓ retire des
+  // lignes sous le filtre « Non lus », la liste peut se vider par le haut sans
+  // qu'aucun `scroll` ne soit émis — et une liste plus courte que sa fenêtre
+  // ne peut même plus être défilée. Sans ce contrôle, la pagination s'arrêtait
+  // net et l'état vide annonçait « tout est lu » avec des non-lus en attente.
+  useAutoLoadMore({
+    ref: listRef,
+    articleCount: articles.length,
+    hasContinuation: !!continuation,
+    loading,
+    loadingMore,
+    loadMore,
+  });
 
   // Restore the saved scroll position once, after the list has content
   // (covers remounts; on mobile the list stays mounted so position persists).
@@ -437,6 +461,18 @@ export default function ArticleList() {
     : feedName;
 
   const groups = groupByDate(articles);
+
+  // Une liste vide ne veut dire « il n'y a plus rien » que si le flux est
+  // épuisé. Vidée par le ✓ alors que `continuation` promet une page suivante,
+  // elle affichait « tout est lu » — en vert, en grand, comme une réussite —
+  // au-dessus d'articles non lus qui attendaient encore sur le serveur. Tant
+  // que la page suivante arrive (`useAutoLoadMore` l'a déjà demandée), c'est
+  // un chargement, et le squelette le dit.
+  const emptyIsFinal = emptyListIsFinal({
+    articleCount: articles.length,
+    hasContinuation: !!continuation,
+  });
+  const awaitingMore = articles.length === 0 && !emptyIsFinal;
 
   return (
     <div className="article-list h-full flex flex-col overflow-x-hidden" style={{ background: 'var(--panel-bg)' }}>
@@ -768,7 +804,7 @@ export default function ArticleList() {
           </div>
         )}
         <div style={{ transform: pull ? `translateY(${pull}px)` : undefined, transition: (pull > 0 && !refreshing) ? 'none' : 'transform 0.25s ease' }}>
-        {loading ? (
+        {loading || awaitingMore ? (
           <div className="py-2">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="flex gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)' }}>
@@ -781,7 +817,7 @@ export default function ArticleList() {
               </div>
             ))}
           </div>
-        ) : articles.length === 0 ? (
+        ) : emptyIsFinal ? (
           <EmptyState filter={filter} searchQuery={searchQuery} />
         ) : gridLayout && !gridDateSeparators ? (
           /* Grid, default: one continuous gallery, no date bands. */

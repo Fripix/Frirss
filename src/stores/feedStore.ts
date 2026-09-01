@@ -155,6 +155,20 @@ function memMarkRead(articleId: string, read: boolean): void {
     if (changed) memCache.set(key, { ...view, articles });
   }
 }
+// Retirer une ligne du cache mémoire de TOUTES les vues « Non lus » — un
+// article lu n'a sa place dans aucune d'elles. Sans cela, le retrait du ✓ ne
+// durait que le temps de la vue : `loadArticles` repeint depuis ce cache et
+// pose `loading: !cached`, donc revenir sur le flux réaffichait la ligne lue
+// dans la liste « Non lus », sans spinner et sans limite de temps hors ligne.
+// Le filtre est lu dans la clé (`<feedId>:<filter>`) : seules les vues qui
+// excluent les articles lus sont concernées.
+function memRemoveFromUnreadViews(articleId: string): void {
+  for (const [key, view] of memCache) {
+    if (!key.endsWith(':unread')) continue;
+    const articles = view.articles.filter((a) => a.id !== articleId);
+    if (articles.length !== view.articles.length) memCache.set(key, { ...view, articles });
+  }
+}
 // Re-persist the current view's list to the offline store after ANY optimistic
 // change, so an offline return to it reflects the latest state. Longtemps
 // appelé par les seuls chemins de lecture : le favori et « à lire plus tard »
@@ -867,8 +881,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         becameRead: newRead,
         filter: get().filter,
         implicit: opts?.implicit ?? false,
+        selected: get().selectedArticle?.id === article.id,
       })) {
         set((state) => ({ articles: state.articles.filter((a) => a.id !== article.id) }));
+        memRemoveFromUnreadViews(article.id);
         persistCurrentView(get);
       }
     } catch (err) {
@@ -1051,6 +1067,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   toggleReadLater: async (article) => {
     const hasLabel = article.labels?.includes(READ_LATER_LABEL);
     const removing = hasLabel;
+    // ⚠️ Défaut préexistant connu, jamais décidé : depuis la vue « À lire plus
+    // tard », le retrait de l'étiquette sort la ligne de la liste AVANT la
+    // réponse du serveur. Le rollback plus bas n'est qu'un `.map()` : sur un
+    // refus, l'article disparaît de l'écran tout en gardant son étiquette côté
+    // FreshRSS. C'est exactement ce qui a été corrigé sur `toggleStar` en
+    // 1.4.4 ; ce site-là attend encore sa décision.
     // Optimistic update — instant UI feedback
     set((state) => {
       const isReadLaterFilter = state.filter === 'readlater';
