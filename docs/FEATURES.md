@@ -325,6 +325,11 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   - **Écarté** : réglage optionnel, bandeau « Annuler » (il ne rattrapait pas
     le cas invoqué), uniformisation des hauteurs de ligne. Détail et raisons
     dans `docs/superpowers/specs/2026-09-01-mark-read-removes-row-design.md`.
+- **Les trois actions y sont désormais complètes** : à lire plus tard, favori,
+  et ✓ (2026-09-01, demandé avec l'issue #10). Le ✓ y manquait alors qu'il
+  existait dans la ligne normale et la vue grille. Les lignes compactes ayant
+  toutes la même hauteur, le ✓ suivant se place exactement où était le
+  précédent : on enchaîne les marquages sans bouger la souris.
 
 ### Marquer lu au défilement
 Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article

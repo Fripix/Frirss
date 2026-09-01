@@ -1265,6 +1265,7 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
         </span>
         <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} article={article} />
         <StarButton starred={article.starred} onClick={onToggleStar} article={article} />
+        <MarkReadButton read={article.read} onClick={onToggleRead} />
       </div>
     );
   }

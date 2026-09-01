@@ -17,7 +17,13 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Marquer un article lu le fait sortir de la liste « Non lus ».** Cliquer le ✓
+  d'une ligne n'avait aucun effet visible sous le filtre dont c'était pourtant
+  le sujet. La ligne disparaît maintenant, une fois le serveur confirmé — hors
+  ligne ou sur un refus, elle reste. Ouvrir un article ne retire pas sa ligne,
+  et le marquage au défilement non plus. (issue #10)
+- **Le ✓ arrive dans l'affichage compact**, où il manquait alors qu'il existait
+  dans les autres dispositions.
 
 ## Sous le capot
 
