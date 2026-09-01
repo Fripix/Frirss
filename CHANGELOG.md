@@ -6,6 +6,39 @@ release live on its [release page](https://github.com/Fripix/Frirss/releases).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 FriRSS follows [semantic versioning](https://semver.org/).
 
+## [1.4.6] - 2026-09-01
+
+## Corrections et améliorations
+
+- **Connexion à un FreshRSS auto-hébergé : l'écran dit enfin pourquoi elle
+  échoue.** Une instance sur une IP privée est refusée par la garde anti-SSRF,
+  qui répond `403 Target host not allowed` — mais l'écran affichait « connexion
+  au serveur impossible » et taisait la cause comme la solution. Il nomme
+  maintenant le blocage et la variable qui le lève, `PROXY_INTERNAL_HOSTS`.
+  Vaut pour la première connexion comme pour l'ajout d'un serveur depuis les
+  préférences. (issue #8)
+- **Un mot de passe d'API refusé ne se présente plus comme une panne de
+  serveur.** FreshRSS répond 401 quand le mot de passe d'API est faux — ou
+  quand aucun n'a jamais été défini — et l'écran annonçait « connexion au
+  serveur impossible ». Il dit maintenant que les identifiants ont été refusés
+  et rappelle que ce mot de passe se définit à part de celui du compte. Les 401
+  venant de FriRSS lui-même (session expirée) restent exclus de ce diagnostic.
+- **Aucune autre cause n'est nommée, délibérément.** Un hôte injoignable, une
+  coupure réseau ou une session FriRSS expirée gardent le message générique :
+  seule une cause que le backend a réellement vérifiée est annoncée.
+
+## Documentation
+
+- **README** : l'installation prévient que la plupart des FreshRSS
+  auto-hébergés vivent sur une adresse privée, montre la ligne
+  `PROXY_INTERNAL_HOSTS` à ajouter, explique pourquoi le refus existe et donne
+  la signature à chercher dans le journal (`POST /api/proxy 403`). La ligne du
+  tableau de configuration dit désormais quand la variable est nécessaire.
+- **Template Unraid Community Applications** : le champ `PROXY_INTERNAL_HOSTS`
+  y figure enfin — son absence est la raison pour laquelle le blocage passait
+  inaperçu. Un conteneur déjà installé garde sa copie du template : la variable
+  doit y être ajoutée à la main.
+
 ## [1.4.5] - 2026-08-31
 
 ## Fonctionnalités
