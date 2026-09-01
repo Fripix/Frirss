@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldLoadMore, emptyListIsFinal, listBodyState } from './listPagination';
+import { shouldLoadMore, emptyListIsFinal, listBodyState, canLoadMore, shouldReportInvisibleProgress } from './listPagination';
 
 const viewport = {
   hasContinuation: true,
@@ -101,5 +101,51 @@ describe('listBodyState', () => {
   // sa propre sortie (« chercher dans tous les flux »).
   it('ne propose pas la page suivante pendant une recherche', () => {
     expect(listBodyState({ ...base, hasContinuation: true, searching: true })).toBe('empty');
+  });
+});
+
+describe('canLoadMore', () => {
+  const base = { hasContinuation: true, loadingMore: false, revalidating: false };
+
+  it('autorise le clic quand rien n’est en vol', () => {
+    expect(canLoadMore(base)).toBe(true);
+  });
+
+  it('refuse sans continuation', () => {
+    expect(canLoadMore({ ...base, hasContinuation: false })).toBe(false);
+  });
+
+  it('refuse pendant une page déjà en vol', () => {
+    expect(canLoadMore({ ...base, loadingMore: true })).toBe(false);
+  });
+
+  // Le cache mémoire peint une vue instantanément (`loading` reste faux)
+  // pendant que `loadArticles` revalide encore en tâche de fond. Un clic sur
+  // « charger la suite » dans cette fenêtre lance `loadMore` en même temps que
+  // cette revalidation ; elle gagne presque toujours la course et écrase la
+  // page ajoutée en réinitialisant `continuation` — le travail du clic est
+  // jeté sans un mot.
+  it('refuse pendant la revalidation d’arrière-plan d’une vue déjà peinte par le cache', () => {
+    expect(canLoadMore({ ...base, revalidating: true })).toBe(false);
+  });
+});
+
+describe('shouldReportInvisibleProgress', () => {
+  it('ne dit rien quand la page a ajouté des lignes visibles', () => {
+    expect(shouldReportInvisibleProgress({ itemsAdded: 12, hasMore: true })).toBe(false);
+  });
+
+  // Les favoris d'un flux sont filtrés CÔTÉ CLIENT (voir `feedStore`) : une
+  // page peut légitimement ne matcher aucun favori. Le clic a bien avancé —
+  // une requête est partie, `continuation` a changé — mais l'écran ne bouge
+  // pas d'un pixel. Sur un flux de 500 articles dont l'unique favori se
+  // trouve vers la position 480, dix clics d'affilée repeignent le même écran
+  // vide : sans un mot pour le dire, le bouton a l'air cassé.
+  it('signale une page qui n’a rien ajouté de visible, tant qu’il en reste', () => {
+    expect(shouldReportInvisibleProgress({ itemsAdded: 0, hasMore: true })).toBe(true);
+  });
+
+  it('se tait quand le flux est épuisé : l’état vide définitif le dit déjà', () => {
+    expect(shouldReportInvisibleProgress({ itemsAdded: 0, hasMore: false })).toBe(false);
   });
 });

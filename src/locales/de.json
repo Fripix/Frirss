@@ -635,7 +635,8 @@
     "markedRead_other": "{{count}} Artikel als gelesen markiert",
     "markedReadAll": "Artikel als gelesen markiert",
     "linkCopied": "Link kopiert",
-    "copyFailed": "Link konnte nicht kopiert werden"
+    "copyFailed": "Link konnte nicht kopiert werden",
+    "loadMoreEmpty": "Nächste Seite geladen, noch immer nichts anzuzeigen."
   },
   "palette": {
     "title": "Befehlspalette",

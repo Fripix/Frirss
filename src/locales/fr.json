@@ -635,7 +635,8 @@
     "markedRead_other": "{{count}} articles marqués comme lus",
     "markedReadAll": "Articles marqués comme lus",
     "linkCopied": "Lien copié",
-    "copyFailed": "Impossible de copier le lien"
+    "copyFailed": "Impossible de copier le lien",
+    "loadMoreEmpty": "Page suivante chargée, toujours rien à afficher."
   },
   "palette": {
     "title": "Palette de commandes",

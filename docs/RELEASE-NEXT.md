@@ -45,6 +45,15 @@ _(rien pour l'instant)_
   serveur : sur un refus elle ne revenait pas, et le compteur annonçait un
   élément au-dessus d'une liste vide. La ligne ne part désormais qu'une fois le
   retrait confirmé — même correction que celle appliquée aux favoris en 1.4.4.
+- **Le bouton « Charger la suite » de la liste vide ne clique plus jamais dans
+  le vide.** Trois cas où il ne se passait rien de visible : un échec réseau
+  ou serveur remettait le bouton à son état de départ sans un mot (il affiche
+  désormais un message d'erreur) ; une page dont les favoris filtrés ne
+  rendent aucune ligne repeignait le même écran vide sans le dire (un message
+  confirme que la page suivante a bien été chargée) ; et un clic pendant la
+  revalidation d'arrière-plan d'une vue déjà affichée depuis le cache pouvait
+  perdre la course contre elle et jeter le travail du clic — le bouton reste
+  désormais inactif le temps que cette revalidation se termine.
 
 ## Sous le capot
 

@@ -635,7 +635,8 @@
     "markedRead_other": "{{count}} artikelen als gelezen gemarkeerd",
     "markedReadAll": "Artikelen als gelezen gemarkeerd",
     "linkCopied": "Link gekopieerd",
-    "copyFailed": "Kon de link niet kopiëren"
+    "copyFailed": "Kon de link niet kopiëren",
+    "loadMoreEmpty": "Volgende pagina geladen, nog steeds niets om te tonen."
   },
   "palette": {
     "title": "Opdrachtenpalet",

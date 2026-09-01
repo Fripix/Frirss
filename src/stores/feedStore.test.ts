@@ -43,6 +43,11 @@ vi.mock('../api/backend', () => ({
   getActualizeStatus: vi.fn(),
 }));
 
+// Stub i18n so toast text is deterministic: t(key) → key. Mirrors dates.test.ts.
+vi.mock('../i18n', () => ({
+  default: { t: (k: string) => k },
+}));
+
 import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId, READ_LATER_LABEL } from './feedStore';
 import { useUiStore } from './uiStore';
 import { useAuthStore } from './authStore';
@@ -62,7 +67,9 @@ beforeEach(() => {
     articles: [{ ...baseArticle }],
     selectedArticle: null,
     unreadCounts: { 'feed/1': 3, [READING_LIST]: 5 },
+    revalidating: false,
   });
+  useUiStore.setState({ toasts: [] });
 });
 
 describe('feedStore.selectArticle', () => {
@@ -947,5 +954,167 @@ describe('feedStore.toggleReadLater — le retrait survit au cache mémoire', ()
     useFeedStore.getState().selectView(null, 'readlater');
     // Peinture immédiate depuis le cache mémoire, avant toute réponse serveur.
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['l1']);
+  });
+});
+
+describe('feedStore.loadMore — échec réseau/serveur', () => {
+  const row = (id: string): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/1', title: id } as Article);
+
+  beforeEach(() => {
+    vi.mocked(api.getStreamContents).mockReset();
+    useFeedStore.setState({
+      selectedFeed: null,
+      filter: 'all',
+      articles: [row('a0')],
+      continuation: 'page-2',
+      selectedArticle: null,
+      loadingMore: false,
+      revalidating: false,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ continuation: null, loadingMore: false, revalidating: false });
+  });
+
+  // Le `catch` ne faisait que remettre `loadingMore` à faux : sur un 502 le
+  // bouton affichait « Chargement… » le temps de l'aller-retour puis
+  // reprenait son état de départ, sans un mot nulle part. Réutilise le
+  // mécanisme de toast existant et un message d'erreur déjà traduit plutôt
+  // que d'en inventer un nouveau.
+  it('signale l’échec par un toast au lieu de se taire', async () => {
+    vi.mocked(api.getStreamContents).mockRejectedValue(new Error('502'));
+    await useFeedStore.getState().loadMore();
+    expect(useFeedStore.getState().loadingMore).toBe(false);
+    // `continuation` reste en place : l'utilisateur peut retenter le clic.
+    expect(useFeedStore.getState().continuation).toBe('page-2');
+    const [toast] = useUiStore.getState().toasts;
+    expect(toast).toMatchObject({ message: 'sidebar.loadError', tone: 'error' });
+  });
+});
+
+describe('feedStore.loadMore — page qui n’ajoute aucune ligne visible', () => {
+  const feed1 = { id: 'feed/1', title: 'F1' } as unknown as Subscription;
+
+  beforeEach(() => {
+    vi.mocked(api.getStreamContents).mockReset();
+    useFeedStore.setState({
+      selectedFeed: feed1,
+      filter: 'starred',
+      articles: [],
+      continuation: 'page-2',
+      selectedArticle: null,
+      loadingMore: false,
+      revalidating: false,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ selectedFeed: null, filter: 'all', continuation: null, loadingMore: false, revalidating: false });
+  });
+
+  // Les favoris d'un flux sont filtrés CÔTÉ CLIENT (voir `feedStore`) : une
+  // page de 50 articles peut légitimement n'en rendre AUCUN. Sur un flux de
+  // 500 articles dont l'unique favori se trouve vers la position 480, dix
+  // clics d'affilée repeignaient le même écran vide sans un mot.
+  it('signale un clic sans effet visible, tant qu’il reste une page', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [], continuation: 'page-3' } as never
+    );
+    await useFeedStore.getState().loadMore();
+    const [toast] = useUiStore.getState().toasts;
+    expect(toast).toMatchObject({ message: 'toast.loadMoreEmpty' });
+    expect(toast.tone).not.toBe('error');
+  });
+
+  it('se tait quand la page ajoute des lignes visibles', async () => {
+    // `filter: 'starred'` + `selectedFeed` filtre côté client sur ce tag :
+    // sans lui l'article n'aurait jamais passé le filtre, faussant le test.
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [{ id: 'b0', categories: ['user/-/state/com.google/starred'] }], continuation: 'page-3' } as never
+    );
+    await useFeedStore.getState().loadMore();
+    expect(useUiStore.getState().toasts).toEqual([]);
+  });
+
+  it('se tait quand le flux est épuisé : l’état vide définitif le dit déjà', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [], continuation: null } as never
+    );
+    await useFeedStore.getState().loadMore();
+    expect(useUiStore.getState().toasts).toEqual([]);
+  });
+});
+
+describe('feedStore — le clic sur « charger la suite » pendant la revalidation d’une vue en cache', () => {
+  const feed1 = { id: 'feed/1', title: 'F1' } as unknown as Subscription;
+  const item = (id: string) => ({ id, categories: [] });
+
+  beforeEach(() => {
+    vi.mocked(api.getStreamContents).mockReset();
+    useFeedStore.setState({
+      selectedFeed: feed1,
+      filter: 'unread',
+      articles: [],
+      continuation: null,
+      selectedArticle: null,
+      loadingMore: false,
+      revalidating: false,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ selectedFeed: null, filter: 'all', continuation: null, loadingMore: false, revalidating: false });
+  });
+
+  // Le cache mémoire peint une vue déjà visitée instantanément — `loading`
+  // reste faux, aucun squelette — pendant que `loadArticles` revalide encore
+  // en tâche de fond. Rien d'autre ne le disait avant `revalidating`.
+  it('revalide en tâche de fond après un hit du cache mémoire, sans lever le squelette', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [item('a0')], continuation: null } as never
+    );
+    await useFeedStore.getState().loadArticles(); // peuple le cache mémoire
+    expect(useFeedStore.getState().revalidating).toBe(false);
+
+    let resolveLive!: (v: unknown) => void;
+    vi.mocked(api.getStreamContents).mockReturnValueOnce(
+      new Promise((resolve) => { resolveLive = resolve; }) as never
+    );
+    const p = useFeedStore.getState().loadArticles(); // deuxième visite : hit de cache
+    expect(useFeedStore.getState().loading).toBe(false);
+    expect(useFeedStore.getState().revalidating).toBe(true);
+
+    resolveLive({ items: [item('a0')], continuation: null });
+    await p;
+    expect(useFeedStore.getState().revalidating).toBe(false);
+  });
+
+  // Le cœur de la course : cliquer dans cette fenêtre lançait `loadMore` en
+  // même temps que la revalidation, qui gagne presque toujours et écrase la
+  // page ajoutée en réinitialisant `continuation` — le travail du clic est
+  // jeté sans un mot.
+  it('ignore un clic sur « charger la suite » pendant la revalidation', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [item('a0')], continuation: 'page-2' } as never
+    );
+    await useFeedStore.getState().loadArticles();
+
+    let resolveLive!: (v: unknown) => void;
+    vi.mocked(api.getStreamContents).mockReturnValueOnce(
+      new Promise((resolve) => { resolveLive = resolve; }) as never
+    );
+    const p = useFeedStore.getState().loadArticles();
+    expect(useFeedStore.getState().revalidating).toBe(true);
+
+    vi.mocked(api.getStreamContents).mockClear();
+    await useFeedStore.getState().loadMore();
+    expect(api.getStreamContents).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().continuation).toBe('page-2');
+    expect(useFeedStore.getState().loadingMore).toBe(false);
+
+    resolveLive({ items: [item('a0')], continuation: 'page-2' });
+    await p;
   });
 });

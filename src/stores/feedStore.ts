@@ -36,6 +36,7 @@ import { cacheImages } from '../lib/imageCache';
 import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
 import { shouldLeaveList } from '../lib/removeOnRead';
 import { shouldTopUpAfterRemoval } from '../lib/listTopUp';
+import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPagination';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import type {
   Article,
@@ -53,6 +54,18 @@ export const READ_LATER_LABEL = 'user/-/label/À lire plus tard';
 // Smaller pages load far faster (FreshRSS returns full content per item);
 // infinite scroll fetches more on demand.
 const PAGE_SIZE = 50;
+
+// Lazy (dynamic) import of i18n, not a static one at the top of the file:
+// `feedStore.ts` is imported by nearly every component, and a static import
+// of `../i18n` ran its `i18n.init()` as soon as the module loaded — including
+// in isolated component tests that stub `react-i18next` without
+// `initReactI18next`. In the real app `../i18n` is already loaded by
+// `main.tsx` well before a click is possible, so this dynamic import resolves
+// from cache — no real cost.
+async function pushLoadMoreToast(key: string, opts?: { tone: 'error' }): Promise<void> {
+  const { default: i18n } = await import('../i18n');
+  useUiStore.getState().pushToast(i18n.t(key), opts);
+}
 
 // ── Shared stream resolver ──────────────────────────────────────────
 // All three loaders (initial, load-more, silent refresh) resolve the
@@ -279,6 +292,17 @@ export interface FeedState {
   filter: Filter;
   loading: boolean;
   loadingMore: boolean;
+  /**
+   * Vrai pendant la requête AUTHORITATIVE de `loadArticles` (celle qui
+   * confirme/actualise ce que le cache mémoire vient de peindre), du hit de
+   * cache jusqu'à sa résolution. `loading` reste faux dans ce cas — la vue
+   * est déjà peinte, pas de spinner — donc rien d'autre ne dit qu'une requête
+   * est en vol. Sert à bloquer « charger la suite » : un clic dans cette
+   * fenêtre lancerait `loadMore` en même temps que cette requête, qui gagne
+   * presque toujours la course et écraserait la page ajoutée en
+   * réinitialisant `continuation`. Voir `canLoadMore` dans `listPagination.ts`.
+   */
+  revalidating: boolean;
   searchQuery: string;
   labels: Tag[];
   labelCounts: Record<string, number>;
@@ -413,6 +437,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   filter: useUiStore.getState().unreadOnlyByFeed[''] ? 'unread' : 'all',
   loading: false,
   loadingMore: false,
+  revalidating: false,
   refreshResult: null,
   refreshPhase: 'idle',
   hasRefreshToken: false,
@@ -774,7 +799,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const sameView = () => viewKey(get().selectedFeed, get().filter) === key;
     const cached = memGet(key);
     // Memory cache already painted (set by the select action) → no spinner.
-    set({ loading: !cached });
+    // `revalidating` covers the gap this leaves: the request below (2.) stays
+    // in flight until it resolves, whether or not `cached` was set.
+    set({ loading: !cached, revalidating: true });
 
     // 1. Server cache (SWR) — only when memory had nothing, for an instant-ish
     //    first paint (first visit this session / cross-device). Non-blocking.
@@ -793,7 +820,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     try {
       const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
       if (!sameView()) return; // user switched away while loading
-      if (!result) { set({ loading: false }); return; }
+      if (!result) { set({ loading: false, revalidating: false }); return; }
       const articles = result.items.map(normalizeArticle);
       memSet(key, { articles, continuation: result.continuation });
       listPut(key, articles, result.continuation).catch(() => {}); // persist for offline
@@ -815,7 +842,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             setZeroFloor(selectedFeed.id, false); // fully loaded but some unread → drop the floor
           }
         }
-        return { articles, continuation: result.continuation, loading: false, feedErrors: newErrors, unreadCounts };
+        return { articles, continuation: result.continuation, loading: false, revalidating: false, feedErrors: newErrors, unreadCounts };
       });
     } catch (err) {
       if (!sameView()) return;
@@ -823,12 +850,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const persisted = await listGet(key);
       if (persisted && sameView()) {
         memSet(key, { articles: persisted.articles, continuation: persisted.continuation });
-        set({ articles: persisted.articles, continuation: persisted.continuation, loading: false });
+        set({ articles: persisted.articles, continuation: persisted.continuation, loading: false, revalidating: false });
         return;
       }
       console.error('[FriRSS] loadArticles error:', err);
       set((state) => ({
         loading: false,
+        revalidating: false,
         feedErrors: selectedFeed
           ? { ...state.feedErrors, [selectedFeed.id]: Date.now() }
           : state.feedErrors,
@@ -837,8 +865,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   loadMore: async () => {
-    const { continuation, selectedFeed, filter, loadingMore } = get();
-    if (!continuation || loadingMore) return;
+    const { continuation, selectedFeed, filter, loadingMore, revalidating } = get();
+    if (!canLoadMore({ hasContinuation: !!continuation, loadingMore, revalidating })) return;
     set({ loadingMore: true });
 
     try {
@@ -853,8 +881,22 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return { articles, continuation: result.continuation, loadingMore: false };
       });
       warmExtracts(get().articles); // background: extract newly loaded pages for offline
+
+      // Le clic a-t-il changé quoi que ce soit à l'écran ? Les favoris d'un
+      // flux sont filtrés CÔTÉ CLIENT (voir `fetchArticleStream` ci-dessus) :
+      // une page peut légitimement ne rendre AUCUNE ligne. Sans un mot pour
+      // le dire, des clics répétés repeignent le même écran vide et le
+      // bouton a l'air cassé.
+      if (shouldReportInvisibleProgress({ itemsAdded: result.items.length, hasMore: result.continuation != null })) {
+        await pushLoadMoreToast('toast.loadMoreEmpty');
+      }
     } catch {
       set({ loadingMore: false });
+      // Le `catch` se contentait de remettre `loadingMore` à faux : sur un
+      // échec réseau/serveur, le bouton reprenait son état de départ sans un
+      // mot nulle part. Réutilise le mécanisme de toast existant et un
+      // message d'erreur déjà traduit plutôt que d'en inventer un nouveau.
+      await pushLoadMoreToast('sidebar.loadError', { tone: 'error' });
     }
   },
 
@@ -1564,6 +1606,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       filter: 'all',
       loading: true,
       loadingMore: false,
+      revalidating: false,
       searchQuery: '',
       labels: [],
       labelCounts: {},

@@ -635,7 +635,8 @@
     "markedRead_other": "{{count}} articoli segnati come letti",
     "markedReadAll": "Articoli segnati come letti",
     "linkCopied": "Link copiato",
-    "copyFailed": "Impossibile copiare il link"
+    "copyFailed": "Impossibile copiare il link",
+    "loadMoreEmpty": "Pagina successiva caricata, ancora nulla da mostrare."
   },
   "palette": {
     "title": "Palette dei comandi",

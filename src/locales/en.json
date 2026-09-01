@@ -635,7 +635,8 @@
     "markedRead_other": "{{count}} articles marked read",
     "markedReadAll": "Articles marked read",
     "linkCopied": "Link copied",
-    "copyFailed": "Could not copy the link"
+    "copyFailed": "Could not copy the link",
+    "loadMoreEmpty": "Next page loaded, still nothing to show."
   },
   "palette": {
     "title": "Command palette",

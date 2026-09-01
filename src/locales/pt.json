@@ -635,7 +635,8 @@
     "markedRead_other": "{{count}} artigos marcados como lidos",
     "markedReadAll": "Artigos marcados como lidos",
     "linkCopied": "Ligação copiada",
-    "copyFailed": "Não foi possível copiar a ligação"
+    "copyFailed": "Não foi possível copiar a ligação",
+    "loadMoreEmpty": "Página seguinte carregada, ainda sem nada para mostrar."
   },
   "palette": {
     "title": "Paleta de comandos",

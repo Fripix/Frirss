@@ -7,7 +7,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
-import { shouldLoadMore, listBodyState } from '../../lib/listPagination';
+import { shouldLoadMore, listBodyState, canLoadMore } from '../../lib/listPagination';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
@@ -41,6 +41,7 @@ export default function ArticleList() {
     articles,
     loading,
     loadingMore,
+    revalidating,
     selectedArticle,
     selectedFeed,
     filter,
@@ -461,6 +462,12 @@ export default function ArticleList() {
     hasContinuation: !!continuation,
     searching: !!searchQuery,
   });
+  // Le bouton « charger la suite » de l'état vide neutre reste inactif tant
+  // qu'un clic ne peut pas agir sans risque — page déjà en vol, ou vue encore
+  // en cours de revalidation depuis un hit du cache mémoire (voir
+  // `canLoadMore` : cliquer dans cette fenêtre perdrait la course contre
+  // `loadArticles` et jetterait le travail du clic).
+  const loadMoreBusy = !canLoadMore({ hasContinuation: !!continuation, loadingMore, revalidating });
 
   return (
     <div className="article-list h-full flex flex-col overflow-x-hidden" style={{ background: 'var(--panel-bg)' }}>
@@ -810,7 +817,7 @@ export default function ArticleList() {
             filter={filter}
             searchQuery={searchQuery}
             awaitingPage={bodyState === 'empty-more'}
-            loadingMore={loadingMore}
+            loadMoreBusy={loadMoreBusy}
             onLoadMore={loadMore}
           />
         ) : gridLayout && !gridDateSeparators ? (
@@ -1092,11 +1099,14 @@ interface EmptyStateProps {
   searchQuery: string;
   /** Liste vide alors qu'une page reste promise — voir `listBodyState`. */
   awaitingPage: boolean;
-  loadingMore: boolean;
+  /** Le bouton « charger la suite » doit-il s'afficher occupé/inactif ?
+   *  Vrai pendant le chargement ET pendant la revalidation d'arrière-plan
+   *  d'une vue déjà peinte par le cache — voir `canLoadMore`. */
+  loadMoreBusy: boolean;
   onLoadMore: () => void;
 }
 
-function EmptyState({ filter, searchQuery, awaitingPage, loadingMore, onLoadMore }: EmptyStateProps) {
+function EmptyState({ filter, searchQuery, awaitingPage, loadMoreBusy, onLoadMore }: EmptyStateProps) {
   const { t } = useTranslation();
   let icon: ReactNode;
   let title: string;
@@ -1166,9 +1176,9 @@ function EmptyState({ filter, searchQuery, awaitingPage, loadingMore, onLoadMore
   let action: { label: string; run: () => void; busy?: boolean } | null = null;
   if (awaitingPage) {
     action = {
-      label: loadingMore ? t('articleList.loading') : t('emptyState.morePagesAction'),
+      label: loadMoreBusy ? t('articleList.loading') : t('emptyState.morePagesAction'),
       run: onLoadMore,
-      busy: loadingMore,
+      busy: loadMoreBusy,
     };
   } else if (searchQuery) {
     action = {

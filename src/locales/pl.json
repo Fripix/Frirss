@@ -653,7 +653,8 @@
     "markedRead_other": "Oznaczono {{count}} artykułów jako przeczytane",
     "markedReadAll": "Artykuły oznaczone jako przeczytane",
     "linkCopied": "Skopiowano link",
-    "copyFailed": "Nie udało się skopiować linku"
+    "copyFailed": "Nie udało się skopiować linku",
+    "loadMoreEmpty": "Załadowano kolejną stronę, wciąż nic do wyświetlenia."
   },
   "palette": {
     "title": "Paleta poleceń",

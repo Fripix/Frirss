@@ -104,3 +104,42 @@ export function listBodyState(opts: {
   }
   return opts.searching ? 'empty' : 'empty-more';
 }
+
+/**
+ * Le bouton « charger la suite » de l'état vide neutre (`empty-more`) peut-il
+ * agir maintenant ?
+ *
+ * Une vue déjà peinte depuis le cache mémoire garde `loading` à faux pendant
+ * que `loadArticles` revalide encore en tâche de fond (`revalidating` dans
+ * `feedStore`) : rien d'autre ne dit alors qu'une requête est en vol. Cliquer
+ * dans cette fenêtre lance `loadMore` en même temps que cette revalidation ;
+ * elle gagne presque toujours la course et écrase la page ajoutée en
+ * réinitialisant `continuation` — le travail du clic est jeté sans un mot.
+ */
+export function canLoadMore(opts: {
+  hasContinuation: boolean;
+  loadingMore: boolean;
+  revalidating: boolean;
+}): boolean {
+  return opts.hasContinuation && !opts.loadingMore && !opts.revalidating;
+}
+
+/**
+ * Une page qui n'ajoute aucune ligne visible mérite-elle un mot ?
+ *
+ * `fetchArticleStream` filtre les favoris d'un flux CÔTÉ CLIENT (voir
+ * `feedStore`) : une page peut légitimement ne matcher aucun favori. Le clic
+ * a bien avancé — une requête est partie, `continuation` a changé — mais
+ * l'écran ne bouge pas d'un pixel. Sur un flux de 500 articles dont l'unique
+ * favori se trouve vers la position 480, dix clics d'affilée repeignent le
+ * même écran vide : sans un mot pour le dire, le bouton a l'air cassé.
+ *
+ * Ne dit rien quand le flux est épuisé : l'état vide définitif (« aucun
+ * favori ») le dit déjà, et mieux.
+ */
+export function shouldReportInvisibleProgress(opts: {
+  itemsAdded: number;
+  hasMore: boolean;
+}): boolean {
+  return opts.itemsAdded === 0 && opts.hasMore;
+}

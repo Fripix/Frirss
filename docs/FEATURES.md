@@ -404,6 +404,37 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     « Charger la suite ». Pendant une **recherche**, cet état retombe sur
     l'état vide ordinaire : `loadMore` ne sait pas paginer une recherche, le
     bouton y injecterait des articles étrangers à la requête.
+  - **Le bouton « Charger la suite » ne doit jamais être un no-op silencieux
+    (2026-09-02).** Trois manières dont il pouvait cliquer pour rien, sans un
+    mot :
+    - **Échec réseau/serveur.** Le `catch` de `loadMore` se contentait de
+      remettre `loadingMore` à `false` ; sur un 502 le bouton affichait
+      « Chargement… » le temps de l'aller-retour puis revenait à son état de
+      départ. Il pousse désormais un toast d'erreur — réutilise le mécanisme
+      existant (`useUiStore.pushToast`, `tone: 'error'`) et le message déjà
+      traduit `sidebar.loadError`, plutôt que d'en inventer un nouveau.
+      `continuation` n'est pas touché : le bouton reste actionnable pour
+      retenter.
+    - **Page qui n'ajoute aucune ligne visible.** Les favoris d'un flux sont
+      filtrés côté client (voir plus haut) : une page de 50 éléments peut
+      légitimement n'en rendre aucun. Sur un flux de 500 articles dont
+      l'unique favori se trouve vers la position 480, dix clics d'affilée
+      repeignaient le même écran vide. `shouldReportInvisibleProgress`
+      (`listPagination.ts`) détecte ce cas — page reçue, zéro ligne ajoutée,
+      flux non épuisé — et déclenche un toast neutre (`toast.loadMoreEmpty`).
+      Se tait quand le flux est épuisé : l'état vide définitif le dit déjà,
+      et mieux.
+    - **Course avec la revalidation d'une vue en cache.** `loadArticles` peint
+      une vue déjà visitée depuis le cache mémoire (`loading` reste faux, pas
+      de squelette) pendant que sa requête authoritative revalide encore en
+      tâche de fond — rien ne le disait avant. Un clic dans cette fenêtre
+      lançait `loadMore` en même temps que cette revalidation, qui gagne
+      presque toujours la course et écrase la page ajoutée en réinitialisant
+      `continuation` : le travail du clic était jeté sans un mot. Un nouveau
+      champ `revalidating` du store couvre cette fenêtre ; `canLoadMore`
+      (`listPagination.ts`) bloque à la fois le clic (bouton grisé, même
+      libellé « Chargement… » que `loadingMore`) et l'action `loadMore`
+      elle-même (garde-fou côté store, en plus de l'UI).
   - **Écarté** : réglage optionnel, bandeau « Annuler » (il ne rattrapait pas
     le cas invoqué), uniformisation des hauteurs de ligne. Détail et raisons
     dans `docs/superpowers/specs/2026-09-01-mark-read-removes-row-design.md`.
