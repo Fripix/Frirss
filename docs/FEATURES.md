@@ -102,6 +102,28 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
   des flux**, et `src/api/client.ts` attache `X-Server-Id` à toutes ses
   requêtes sans distinction — celui qui publie un flux choisit donc la cible.
 
+- **Échec du rattachement — ce que l'écran a le droit de dire** :
+  `serverConnectErrorKey()` (`src/lib/loginErrors.ts`) ne nomme **qu'une** cause,
+  celle que le backend a réellement vérifiée : un 403 dont le corps porte
+  `Target host not allowed`, c'est-à-dire notre garde anti-SSRF refusant une
+  cible privée. Le message renvoie alors à `PROXY_INTERNAL_HOSTS`. Tout le
+  reste — 401 de FreshRSS, hôte injoignable, coupure réseau — garde le message
+  générique `login.errorServer`.
+  - **Pourquoi** : le proxy relaie le **statut amont tel quel**, donc un 403 peut
+    aussi bien venir de FreshRSS que de nous ; seul le corps distingue les deux.
+    Avant la 1.4.6, le `catch` de `Login.tsx` jetait l'erreur sans la lire et
+    affichait « connexion impossible » pour tout. Héberger FreshRSS sur une IP
+    privée — le cas majoritaire — produisait donc le message le moins
+    exploitable, sans jamais mentionner la variable qui débloque (issue #8).
+  - **Piège** : le marqueur est écrit des deux côtés d'une frontière que le
+    typage ne traverse pas. `loginErrors.test.ts` relit `server/routes/proxy.ts`
+    pour vérifier qu'il correspond encore ; sans lui, une reformulation côté
+    serveur ferait repasser l'écran au message générique **en silence**, sans
+    qu'aucun test de comportement ne rougisse.
+  - **Les deux sites d'appel comptent** : `Login.tsx` (première connexion) et
+    `AddServerDialog.tsx` (Préférences → ajouter un serveur) mènent au même
+    échec et partagent la fonction.
+
 - **Deux endroits, un seul complet** : Préférences → Flux liste les serveurs et
   porte toutes les actions — basculer, ajouter, renommer, définir par défaut,
   supprimer, et le jeton maître de chaque serveur. La barre du haut ne fait que
@@ -801,6 +823,10 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
 - **Protection SSRF** : cibles internes bloquées par défaut, en littéral **et**
   après résolution DNS (ce qui défait `10.x.x.x.nip.io`), à chaque saut de
   redirection. `PROXY_INTERNAL_HOSTS` autorise explicitement des hôtes internes.
+  Le refus renvoie `403 { error: 'Target host not allowed' }` — corps que
+  l'écran de connexion reconnaît pour nommer la cause (voir *Serveurs
+  FreshRSS*). Le README documente le cas à l'endroit où on le rencontre :
+  la dernière étape de l'installation.
 - **Réécritures** : `PROXY_REWRITES` remplace l'URL publique par une adresse
   interne — gros gain de latence quand FriRSS et FreshRSS partagent un réseau.
 - **Règle** : tout nouvel appel sortant passe par `fetchUpstream()`, jamais par

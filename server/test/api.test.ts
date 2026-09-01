@@ -647,11 +647,24 @@ describe('proxy', () => {
   });
 
   it('blocks an internal/private target (SSRF guard)', async () => {
-    for (const target of ['http://10.0.0.5:3306/', 'http://localhost:6379/', 'http://169.254.169.254/latest/meta-data/']) {
+    const targets = [
+      'http://10.0.0.5:3306/',
+      'http://localhost:6379/',
+      'http://169.254.169.254/latest/meta-data/',
+      // A LAN-hosted FreshRSS: refused like any other private target. This is
+      // the majority self-hosting case, not an exotic one.
+      'http://192.168.1.7:82/api/greader.php/accounts/ClientLogin',
+    ];
+    for (const target of targets) {
       const res = await request(app).get('/api/proxy')
         .set('Authorization', `Bearer ${adminToken}`)
         .set('X-Proxy-Target', target);
-      expect(res.status).toBe(403);
+      expect(res.status, target).toBe(403);
+      // The body is a contract, not a detail: the login screen reads this
+      // exact phrase to tell the user their host was blocked and to name
+      // PROXY_INTERNAL_HOSTS (src/lib/loginErrors.ts). Reword it here and the
+      // screen silently falls back to "connection failed".
+      expect(res.body, target).toEqual({ error: 'Target host not allowed' });
     }
   });
 });

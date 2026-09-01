@@ -459,6 +459,7 @@
     "addServer": "Połącz",
     "addingServer": "Łączenie…",
     "errorServer": "Nie udało się połączyć z serwerem FreshRSS.",
+    "errorServerBlocked": "Ten adres wskazuje wnętrze Twojej sieci, więc FriRSS go zablokował. Dodaj jego host do PROXY_INTERNAL_HOSTS i uruchom ponownie kontener.",
     "restorePrompt": "Odtwarzasz z kopii zapasowej?",
     "errorTooMany": "Zbyt wiele prób. Odczekaj kilka minut.",
     "errorUnavailable": "Serwer nie odpowiedział. To nic nie mówi o Twoich danych logowania.",

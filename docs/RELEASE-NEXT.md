@@ -17,7 +17,13 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Connexion à un FreshRSS auto-hébergé : l'écran dit enfin pourquoi elle
+  échoue.** Une instance sur une IP privée est refusée par la garde anti-SSRF,
+  qui répond `403 Target host not allowed` — mais l'écran affichait « connexion
+  au serveur impossible » et taisait la cause comme la solution. Il nomme
+  maintenant le blocage et la variable qui le lève, `PROXY_INTERNAL_HOSTS`.
+  Vaut pour la première connexion comme pour l'ajout d'un serveur depuis les
+  préférences. (issue #8)
 
 ## Sous le capot
 
@@ -29,4 +35,8 @@ _(à compléter)_
 
 ## Documentation
 
-_(rien pour l'instant)_
+- **README** : l'installation prévient que la plupart des FreshRSS
+  auto-hébergés vivent sur une adresse privée, montre la ligne
+  `PROXY_INTERNAL_HOSTS` à ajouter, explique pourquoi le refus existe et donne
+  la signature à chercher dans le journal (`POST /api/proxy 403`). La ligne du
+  tableau de configuration dit désormais quand la variable est nécessaire.

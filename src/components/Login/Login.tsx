@@ -13,7 +13,7 @@ import {
   type OidcConfig,
 } from '../../api/backend';
 import { login as freshrssLogin } from '../../api/auth';
-import { loginErrorKey } from '../../lib/loginErrors';
+import { loginErrorKey, serverConnectErrorKey } from '../../lib/loginErrors';
 import { useFeedStore } from '../../stores/feedStore';
 import MatrixRain from './MatrixRain';
 import RestoreFlow from '../backup/RestoreFlow';
@@ -495,8 +495,8 @@ function ServerStep() {
 
       // 3. Set as active (token now lives only in the backend DB)
       setFreshrssAuth(server.id, normalizedUrl);
-    } catch {
-      setError(t('login.errorServer'));
+    } catch (err) {
+      setError(t(serverConnectErrorKey(err)));
     } finally {
       setLoading(false);
     }

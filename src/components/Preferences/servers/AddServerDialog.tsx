@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addServer as apiAddServer, updateServer } from '../../../api/backend';
 import { login as freshrssLogin } from '../../../api/auth';
+import { serverConnectErrorKey } from '../../../lib/loginErrors';
 import { useFeedStore } from '../../../stores/feedStore';
 import type { ServerConnection } from '../../../types';
 
@@ -61,7 +62,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
       if (status === 409) {
         setError(t('servers.errorDuplicate'));
       } else {
-        setError(t('login.errorServer'));
+        setError(t(serverConnectErrorKey(err)));
       }
       setLoading(false);
     }

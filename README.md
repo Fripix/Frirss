@@ -110,6 +110,14 @@ The database lands in a `frirss-data` folder right where you ran the command. Th
 
 Then open `http://localhost:8080` and create the first account — it becomes the administrator. Registration then closes: new instances refuse sign-ups by default, and you open them again from *Preferences → Administration* when you want to invite someone. Connect your FreshRSS server next: its URL, your FreshRSS username, and the API password from *FreshRSS → Settings → Profile*.
 
+> **Is your FreshRSS on a private address?** Most self-hosted instances are — `http://192.168.1.20:8080`, `http://freshrss` on a Docker network, anything your router alone can reach. The backend refuses private targets by default, so a logged-in user cannot aim it at your NAS, your database, or a cloud metadata endpoint. Trust your FreshRSS host explicitly and the block lifts for that one address:
+>
+> ```bash
+> -e PROXY_INTERNAL_HOSTS=192.168.1.20
+> ```
+>
+> Skip it and connecting fails while the container log shows `POST /api/proxy 403`. Public FreshRSS URLs need nothing.
+
 The first launch generates the JWT secret and the token-encryption key and stores them in the database, so backing up the data folder backs up everything — see [Backups](#backups).
 
 ## Configuration
@@ -121,7 +129,7 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `FRIRSS_BASE_URL` | Public base URL — recommended behind a reverse proxy; fixes OIDC redirect URIs | derived |
 | `FRIRSS_DATA_DIR` | SQLite database directory | `/app/data` |
 | `PROXY_REWRITES` | public→internal URL rewrites for the backend proxy (`from=to`, comma-separated) | — |
-| `PROXY_INTERNAL_HOSTS` | Anti-SSRF allowlist: internal hosts the proxy may reach directly | — |
+| `PROXY_INTERNAL_HOSTS` | Anti-SSRF allowlist: private hosts the proxy may reach directly, comma-separated. Needed when FreshRSS sits on a LAN or Docker address | — |
 | `REDIS_URL` | Enables the read cache (stale-while-revalidate); empty disables it | — |
 | `CACHE_ARTICLES_PER_FEED` | Articles kept per feed in the cache | `50` |
 | `CACHE_TTL` | Cache key expiry, in seconds | `86400` |
