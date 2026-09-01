@@ -56,7 +56,7 @@ le cas échéant. Le marquage au défilement, seul appelant implicite de
 
 ---
 
-### Tâche 1 : la décision de retrait, en logique pure
+### Task 1 — la décision de retrait, en logique pure
 
 **Fichiers :**
 - Créer : `src/lib/removeOnRead.ts`
@@ -172,7 +172,7 @@ git commit -m "feat(list): decide when a row leaves the unread view"
 
 ---
 
-### Tâche 2 : `toggleRead` applique le retrait
+### Task 2 — `toggleRead` applique le retrait
 
 **Fichiers :**
 - Modifier : `src/stores/feedStore.ts` (déclaration ~ligne 304, implémentation
@@ -468,7 +468,7 @@ git commit -m "feat(list): marking an article read removes its row from the unre
 
 ---
 
-### Tâche 3 : le ✓ en affichage compact
+### Task 3 — le ✓ en affichage compact
 
 **Fichiers :**
 - Modifier : `src/components/ArticleList/ArticleList.tsx` (~ligne 1263, branche
