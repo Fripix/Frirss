@@ -14,10 +14,13 @@ export const LOAD_MORE_THRESHOLD_PX = 300;
  *
  * La distance au bas de la liste est comptée telle quelle : quand le contenu
  * restant ne remplit plus la fenêtre, elle est négative et la condition est
- * donc vraie. C'est le cas décisif — une liste plus courte que sa fenêtre ne
- * peut plus être défilée du tout, aucun `scroll` ne sera jamais émis, et sans
- * cette re-vérification la pagination reste bloquée alors que `continuation`
- * promet d'autres articles.
+ * donc vraie.
+ *
+ * ⚠️ Cette fonction ne répond qu'à un événement `scroll`. Une liste plus courte
+ * que sa fenêtre ne peut plus être défilée du tout : aucun `scroll` ne sera
+ * jamais émis, et elle ne sera donc jamais rappelée. Ce cas-là — celui que le
+ * ✓ crée en dépilant par le haut — est traité ailleurs, au moment du retrait :
+ * `shouldTopUpAfterRemoval` dans `src/lib/listTopUp.ts`.
  */
 export function shouldLoadMore(opts: {
   hasContinuation: boolean;

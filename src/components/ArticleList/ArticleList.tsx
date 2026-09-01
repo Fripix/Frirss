@@ -8,7 +8,6 @@ import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { shouldLoadMore, emptyListIsFinal } from '../../lib/listPagination';
-import { useAutoLoadMore } from '../../hooks/useAutoLoadMore';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
@@ -216,20 +215,6 @@ export default function ArticleList() {
       loadMore();
     }
   }, [continuation, loading, loadingMore, loadMore]);
-
-  // Le défilement n'est plus le seul déclencheur : depuis que le ✓ retire des
-  // lignes sous le filtre « Non lus », la liste peut se vider par le haut sans
-  // qu'aucun `scroll` ne soit émis — et une liste plus courte que sa fenêtre
-  // ne peut même plus être défilée. Sans ce contrôle, la pagination s'arrêtait
-  // net et l'état vide annonçait « tout est lu » avec des non-lus en attente.
-  useAutoLoadMore({
-    ref: listRef,
-    articleCount: articles.length,
-    hasContinuation: !!continuation,
-    loading,
-    loadingMore,
-    loadMore,
-  });
 
   // Restore the saved scroll position once, after the list has content
   // (covers remounts; on mobile the list stays mounted so position persists).
@@ -466,8 +451,8 @@ export default function ArticleList() {
   // épuisé. Vidée par le ✓ alors que `continuation` promet une page suivante,
   // elle affichait « tout est lu » — en vert, en grand, comme une réussite —
   // au-dessus d'articles non lus qui attendaient encore sur le serveur. Tant
-  // que la page suivante arrive (`useAutoLoadMore` l'a déjà demandée), c'est
-  // un chargement, et le squelette le dit.
+  // que la page suivante arrive (`toggleRead` l'a déjà demandée, voir
+  // `src/lib/listTopUp.ts`), c'est un chargement, et le squelette le dit.
   const emptyIsFinal = emptyListIsFinal({
     articleCount: articles.length,
     hasContinuation: !!continuation,

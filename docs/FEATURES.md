@@ -304,11 +304,13 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     2026-09-01 (issue #10). **Après confirmation du serveur**, et jamais la
     ligne de l'article ouvert. Décision assumée, détaillée plus bas.
   - `toggleReadLater` retire de la vue « À lire plus tard » quand on enlève
-    l'étiquette — mais **de façon optimiste, avant la réponse du serveur**,
-    avec un rollback qui n'est qu'un `.map()` : il ne sait pas remettre une
-    ligne déjà partie. C'est exactement le défaut payé puis corrigé sur
-    `toggleStar` en 1.4.4, resté ici. **Défaut préexistant connu, pas une
-    décision** ; non corrigé à ce jour.
+    l'étiquette, **après confirmation du serveur** depuis le 2026-09-01. Le
+    retrait était optimiste, avec un rollback qui n'est qu'un `.map()` :
+    incapable de remettre une ligne déjà partie, il laissait sur un refus
+    `articles: []` au-dessus d'un `readLaterCount: 1` — un élément compté sans
+    ligne, l'étiquette restant posée côté FreshRSS. C'était le défaut payé puis
+    corrigé sur `toggleStar` en 1.4.4, réglé ici de la même façon : seuls
+    l'étiquette et le compteur bougent avant la réponse.
   - `selectArticle`, `toggleStar` et les étiquettes ne retirent rien. Retirer
     le favori depuis la vue Favoris sortait l'article de la liste — hérité du
     commit initial, sans décision consignée. Le prix en était un rollback
@@ -343,12 +345,25 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     revenir repeignait depuis le cache mémoire — et comme `loadArticles` pose
     `loading: !cached`, la ligne lue réapparaissait dans « Non lus » sans même
     un spinner, indéfiniment hors ligne. C'est le symptôme exact de l'issue #10.
-  - **La pagination doit continuer** (`useAutoLoadMore`,
-    `src/lib/listPagination.ts`). Le scroll infini ne partait que d'un
-    événement `scroll` : en dépilant par le haut, `scrollTop` reste à 0 et
-    aucun événement n'est émis — et quand le reste tient dans la fenêtre, la
-    liste n'est même plus défilable. Le contrôle est donc refait à chaque
-    changement du nombre de lignes.
+  - **La pagination doit continuer** (`shouldTopUpAfterRemoval`,
+    `src/lib/listTopUp.ts`). Le scroll infini ne partait que d'un événement
+    `scroll` : en dépilant par le haut, `scrollTop` reste à 0 et aucun
+    événement n'est émis — et quand le reste tient dans la fenêtre, la liste
+    n'est même plus défilable. `toggleRead` demande donc **une** page
+    supplémentaire quand le retrait laisse moins de `TOP_UP_MIN_ROWS` lignes
+    avec une `continuation` non nulle.
+  - **Piège — jamais depuis un effet React.** Une première version du
+    rattrapage était un effet qui surveillait l'état de la liste
+    (`useAutoLoadMore`, retiré le jour même). Deux emballements l'ont
+    condamné : (1) le `catch` de `loadMore` remet `loadingMore` à `false` sans
+    toucher `continuation`, donc `true → false` relançait l'effet, qui
+    rappelait `loadMore` — 51 appels consécutifs mesurés ; (2) une page de 50
+    éléments serveur peut ne rendre AUCUNE ligne (les favoris d'un flux sont
+    filtrés côté client dans `fetchArticleStream`), l'effet voyait une liste
+    trop courte et repaginait jusqu'à vider le flux — un seul appui sur le ★
+    d'un gros flux suffisait. La décision est donc prise **au moment du
+    retrait**, une fois : un geste ⇒ au plus une page. Un rattrapage en échec
+    s'arrête, il ne se replanifie pas.
   - **Ne jamais annoncer « tout est lu » à tort.** L'état vide est un message
     de réussite ; tant que `continuation` promet une page suivante, il serait
     faux. Liste vide + continuation ⇒ squelette de chargement

@@ -43,7 +43,7 @@ vi.mock('../api/backend', () => ({
   getActualizeStatus: vi.fn(),
 }));
 
-import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId } from './feedStore';
+import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId, READ_LATER_LABEL } from './feedStore';
 import { useUiStore } from './uiStore';
 import { useAuthStore } from './authStore';
 import * as api from '../api/feeds';
@@ -455,11 +455,11 @@ describe('feedStore.toggleStar — refus du serveur depuis la vue Favoris', () =
   // divergent donc à nouveau — cette fois par décision, pas par accident.
   //
   // Ce n'est pas le seul site d'écriture qui retire : `toggleReadLater` sort
-  // aussi la ligne de la vue « À lire plus tard », et le fait de façon
+  // aussi la ligne de la vue « À lire plus tard ». Il le faisait de façon
   // OPTIMISTE, avant la réponse du serveur, avec le même rollback en `.map()`
-  // incapable de la remettre — le défaut exact corrigé ici en 1.4.4. Il est
-  // préexistant et n'a jamais été décidé ; le dire évite de croire le retrait
-  // du ✓ seul de son espèce.
+  // incapable de la remettre — le défaut exact corrigé ici en 1.4.4. Corrigé
+  // à son tour le 2026-09-01 (retrait après confirmation) ; son bloc de tests
+  // est en fin de fichier.
   it('garde la ligne en place quand le retrait réussit', async () => {
     vi.mocked(api.removeStarred).mockResolvedValue(undefined);
     await useFeedStore.getState().toggleStar({ ...starred });
@@ -718,5 +718,147 @@ describe('feedStore.toggleRead — le retrait survit au cache mémoire', () => {
     useFeedStore.getState().selectFeed(feed1);
     // Peinture immédiate depuis le cache mémoire, avant toute réponse serveur.
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+  });
+});
+
+describe('feedStore.toggleReadLater — retrait de la ligne depuis la vue « À lire plus tard »', () => {
+  const row = (id: string): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/1', labels: [READ_LATER_LABEL] } as Article);
+
+  beforeEach(() => {
+    vi.mocked(api.setArticleLabel).mockReset();
+    vi.mocked(api.setArticleLabel).mockResolvedValue(undefined);
+    useFeedStore.setState({
+      filter: 'readlater',
+      articles: [row('a1')],
+      selectedArticle: null,
+      readLaterCount: 1,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ filter: 'all', readLaterCount: 0 });
+  });
+
+  it('retire la ligne une fois le serveur confirmé', async () => {
+    await useFeedStore.getState().toggleReadLater(row('a1'));
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual([]);
+    expect(s.readLaterCount).toBe(0);
+  });
+
+  // Le défaut corrigé : le retrait était OPTIMISTE, et le rollback n'est qu'un
+  // `.map()` — incapable de remettre une ligne déjà partie. Sur un refus, on
+  // finissait avec `articles: []` et `readLaterCount: 1` : un élément compté
+  // au-dessus d'une liste vide. C'est le bug déjà payé sur `toggleStar` en 1.4.4.
+  it('garde la ligne quand le serveur refuse', async () => {
+    vi.mocked(api.setArticleLabel).mockRejectedValueOnce({ response: { status: 403 } });
+    await useFeedStore.getState().toggleReadLater(row('a1'));
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['a1']);
+    expect(s.articles[0].labels).toContain(READ_LATER_LABEL);
+    expect(s.readLaterCount).toBe(1);
+  });
+
+  it('garde la ligne hors ligne, l’action étant seulement mise en file', async () => {
+    vi.mocked(api.setArticleLabel).mockRejectedValueOnce(new Error('Network Error'));
+    await useFeedStore.getState().toggleReadLater(row('a1'));
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['a1']);
+    const queued = vi.mocked(offline.queuePut).mock.calls.at(-1)?.[0] ?? [];
+    expect(queued).toContainEqual(
+      expect.objectContaining({ articleId: 'a1', type: 'readLater', value: false }),
+    );
+  });
+
+  it('ne retire rien hors de la vue « À lire plus tard »', async () => {
+    useFeedStore.setState({ filter: 'all' });
+    await useFeedStore.getState().toggleReadLater(row('a1'));
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a1']);
+  });
+});
+
+describe('feedStore.toggleRead — la remise à niveau de la liste est bornée', () => {
+  const row = (id: string): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/1', title: id } as Article);
+  const item = (id: string) => ({ id, categories: [] });
+
+  beforeEach(() => {
+    vi.mocked(api.markAsRead).mockReset();
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+    vi.mocked(api.getStreamContents).mockReset();
+    useFeedStore.setState({
+      selectedFeed: null,
+      filter: 'unread',
+      articles: [row('a0'), row('a1')],
+      continuation: 'page-2',
+      selectedArticle: null,
+      loadingMore: false,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ filter: 'all', continuation: null, loadingMore: false });
+  });
+
+  // Sans cela, dépiler par le haut laisse une liste plus courte que la fenêtre :
+  // plus rien ne défile, aucun `scroll` n'est émis, la pagination s'arrête et
+  // l'utilisateur croit être au bout alors que `continuation` promet la suite.
+  it('demande une page quand le retrait laisse la liste trop courte', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [item('b0'), item('b1')], continuation: 'page-3' } as never
+    );
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(api.getStreamContents).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'b0', 'b1']);
+  });
+
+  // La tempête d'échecs mesurée sur l'effet retiré : le `catch` de `loadMore`
+  // remet `loadingMore` à `false` en gardant `continuation`, ce qui relançait
+  // l'effet, qui rappelait `loadMore` — 51 appels et plus. Un échec doit
+  // simplement s'arrêter.
+  it('n’en redemande pas quand la page échoue', async () => {
+    vi.mocked(api.getStreamContents).mockRejectedValue(new Error('boom'));
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(api.getStreamContents).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().loadingMore).toBe(false);
+    expect(useFeedStore.getState().continuation).toBe('page-2');
+  });
+
+  // Le vidage complet du flux : une page peut ne rendre AUCUNE ligne (les
+  // favoris d'un flux sont filtrés côté client) tout en gardant une
+  // continuation. L'effet repaginait alors jusqu'à épuiser le flux.
+  it('n’enchaîne pas quand la page reçue ne rend aucune ligne', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [], continuation: 'page-3' } as never
+    );
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(api.getStreamContents).toHaveBeenCalledTimes(1);
+  });
+
+  it('ne demande rien quand le flux est épuisé', async () => {
+    useFeedStore.setState({ continuation: null });
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(api.getStreamContents).not.toHaveBeenCalled();
+  });
+
+  it('ne demande rien quand la liste reste fournie', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => row(`a${i}`));
+    useFeedStore.setState({ articles: many });
+    await useFeedStore.getState().toggleRead(row('a5'));
+    expect(api.getStreamContents).not.toHaveBeenCalled();
+  });
+
+  it('ne demande rien quand une page est déjà en vol', async () => {
+    useFeedStore.setState({ loadingMore: true });
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(api.getStreamContents).not.toHaveBeenCalled();
+  });
+
+  it('ne demande rien quand le serveur refuse le marquage', async () => {
+    vi.mocked(api.markAsRead).mockRejectedValueOnce({ response: { status: 403 } });
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(api.getStreamContents).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1']);
   });
 });

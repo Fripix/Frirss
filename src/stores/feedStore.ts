@@ -35,6 +35,7 @@ import { getStorageEstimate } from '../lib/storageEstimate';
 import { cacheImages } from '../lib/imageCache';
 import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
 import { shouldLeaveList } from '../lib/removeOnRead';
+import { shouldTopUpAfterRemoval } from '../lib/listTopUp';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import type {
   Article,
@@ -855,6 +856,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   toggleRead: async (article, opts) => {
     const newRead = !article.read;
+    // Une seule page de rattrapage, décidée au moment du retrait et exécutée
+    // APRÈS le `try` : un geste ⇒ au plus une requête, sans effet React pour
+    // la relancer (voir `src/lib/listTopUp.ts` pour les deux emballements que
+    // cette forme interdit).
+    let topUp = false;
     // Optimistic update — instant UI feedback
     set((state) => ({
       articles: state.articles.map((a) =>
@@ -886,6 +892,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         set((state) => ({ articles: state.articles.filter((a) => a.id !== article.id) }));
         memRemoveFromUnreadViews(article.id);
         persistCurrentView(get);
+        // Ce qui reste peut désormais être plus court que la fenêtre : plus
+        // rien ne défile, aucun `scroll` n'est émis, et la pagination
+        // s'arrêterait là avec une `continuation` pourtant non nulle.
+        const s = get();
+        topUp = shouldTopUpAfterRemoval({
+          remaining: s.articles.length,
+          hasContinuation: s.continuation != null,
+          loadingMore: s.loadingMore,
+        });
       }
     } catch (err) {
       // No network: keep the optimistic state and replay it later. Only a
@@ -908,6 +923,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       memMarkRead(article.id, !newRead);
       persistCurrentView(get);
     }
+    // Hors du `try` : une page de rattrapage en échec ne doit jamais être
+    // confondue avec un marquage refusé, et ne déclenche RIEN d'autre.
+    // `loadMore` avale ses propres erreurs — un échec s'arrête ici.
+    if (topUp) await get().loadMore();
   },
 
   toggleStar: async (article) => {
@@ -1067,23 +1086,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   toggleReadLater: async (article) => {
     const hasLabel = article.labels?.includes(READ_LATER_LABEL);
     const removing = hasLabel;
-    // ⚠️ Défaut préexistant connu, jamais décidé : depuis la vue « À lire plus
-    // tard », le retrait de l'étiquette sort la ligne de la liste AVANT la
-    // réponse du serveur. Le rollback plus bas n'est qu'un `.map()` : sur un
-    // refus, l'article disparaît de l'écran tout en gardant son étiquette côté
-    // FreshRSS. C'est exactement ce qui a été corrigé sur `toggleStar` en
-    // 1.4.4 ; ce site-là attend encore sa décision.
+    // L'optimisme s'arrête à l'étiquette et au compteur : la LIGNE, elle, ne
+    // part qu'après confirmation du serveur (voir plus bas). Le retrait était
+    // optimiste, et le rollback n'est qu'un `.map()` : incapable de remettre
+    // une ligne déjà sortie du tableau. Un refus laissait donc `articles: []`
+    // au-dessus d'un `readLaterCount: 1` — un élément compté sans ligne, et
+    // l'étiquette toujours en place côté FreshRSS. C'est le défaut corrigé sur
+    // `toggleStar` en 1.4.4, réglé ici de la même façon que sur `toggleRead`.
     // Optimistic update — instant UI feedback
     set((state) => {
-      const isReadLaterFilter = state.filter === 'readlater';
-      if (isReadLaterFilter && removing) {
-        return {
-          articles: state.articles.filter((a) => a.id !== article.id),
-          selectedArticle:
-            state.selectedArticle?.id === article.id ? null : state.selectedArticle,
-          readLaterCount: Math.max(0, state.readLaterCount - 1),
-        };
-      }
       const update = (a: Article): Article => {
         if (a.id !== article.id) return a;
         const labels = removing
@@ -1100,6 +1111,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     persistCurrentView(get);
     try {
       await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
+      // Le retrait vient APRÈS la confirmation, jamais avant : le rollback
+      // ci-dessous ne fait qu'un `.map()` et ne saurait pas remettre une ligne
+      // déjà sortie de la liste.
+      if (removing && get().filter === 'readlater') {
+        set((state) => ({
+          articles: state.articles.filter((a) => a.id !== article.id),
+          selectedArticle:
+            state.selectedArticle?.id === article.id ? null : state.selectedArticle,
+        }));
+        persistCurrentView(get);
+      }
     } catch (err) {
       // No network: keep the optimistic state and replay it later. Only a
       // server refusal is rolled back.

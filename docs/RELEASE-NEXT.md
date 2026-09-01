@@ -27,6 +27,11 @@ _(rien pour l'instant)_
   lu » que lorsqu'il ne reste vraiment plus rien à charger. (issue #10)
 - **Le ✓ arrive dans l'affichage compact**, où il manquait alors qu'il existait
   dans les autres dispositions.
+- **Retirer « À lire plus tard » ne fait plus disparaître l'article quand le
+  serveur refuse.** Depuis cette vue, la ligne partait avant même la réponse du
+  serveur : sur un refus elle ne revenait pas, et le compteur annonçait un
+  élément au-dessus d'une liste vide. La ligne ne part désormais qu'une fois le
+  retrait confirmé — même correction que celle appliquée aux favoris en 1.4.4.
 
 ## Sous le capot
 
