@@ -452,6 +452,7 @@
     "addingServer": "Verbindung…",
     "errorServer": "Verbindung zum FreshRSS-Server fehlgeschlagen.",
     "errorServerBlocked": "Diese Adresse zeigt in Ihr internes Netzwerk, deshalb hat FriRSS sie blockiert. Fügen Sie ihren Host zu PROXY_INTERNAL_HOSTS hinzu und starten Sie den Container neu.",
+    "errorServerCredentials": "FreshRSS hat diese Zugangsdaten abgelehnt. Das API-Passwort wird getrennt vom Kontopasswort festgelegt, unter FreshRSS → Einstellungen → Profil.",
     "restorePrompt": "Aus einer Sicherung wiederherstellen?",
     "errorTooMany": "Zu viele Versuche. Warten Sie einige Minuten.",
     "errorUnavailable": "Der Server hat nicht geantwortet. Das sagt nichts über Ihre Zugangsdaten aus.",

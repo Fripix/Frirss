@@ -103,12 +103,19 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
   requêtes sans distinction — celui qui publie un flux choisit donc la cible.
 
 - **Échec du rattachement — ce que l'écran a le droit de dire** :
-  `serverConnectErrorKey()` (`src/lib/loginErrors.ts`) ne nomme **qu'une** cause,
-  celle que le backend a réellement vérifiée : un 403 dont le corps porte
-  `Target host not allowed`, c'est-à-dire notre garde anti-SSRF refusant une
-  cible privée. Le message renvoie alors à `PROXY_INTERNAL_HOSTS`. Tout le
-  reste — 401 de FreshRSS, hôte injoignable, coupure réseau — garde le message
-  générique `login.errorServer`.
+  `serverConnectErrorKey()` (`src/lib/loginErrors.ts`) ne nomme que les causes
+  réellement vérifiées, et rien d'autre :
+  - **403 + `Target host not allowed`** → notre garde anti-SSRF a refusé une
+    cible privée ; le message renvoie à `PROXY_INTERNAL_HOSTS`.
+  - **401 qui n'est pas l'un des nôtres** → FreshRSS a refusé les identifiants ;
+    le message rappelle que le mot de passe d'**API** se définit à part de celui
+    du compte. `greader.php` répond le même 401 `Unauthorized!` pour un mot de
+    passe faux **et** pour un mot de passe d'API jamais défini : le message
+    couvre donc les deux.
+  - Tout le reste — hôte injoignable, coupure réseau, et le 400 d'un nom
+    d'utilisateur inconnu — garde le générique `login.errorServer`. Ce 400 est
+    partagé avec notre propre « cible absente » : deux causes, un statut, donc
+    aucune nommée.
   - **Pourquoi** : le proxy relaie le **statut amont tel quel**, donc un 403 peut
     aussi bien venir de FreshRSS que de nous ; seul le corps distingue les deux.
     Avant la 1.4.6, le `catch` de `Login.tsx` jetait l'erreur sans la lire et
@@ -120,6 +127,18 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
     pour vérifier qu'il correspond encore ; sans lui, une reformulation côté
     serveur ferait repasser l'écran au message générique **en silence**, sans
     qu'aucun test de comportement ne rougisse.
+  - **Le tri des 401 se fait par exclusion, et c'est délibéré.** `/api/proxy`
+    répond aussi 401 quand le JWT **FriRSS** a expiré, avant même de joindre
+    FreshRSS. On écarte donc les nôtres (`BACKEND_AUTH_MARKERS`) au lieu de
+    reconnaître ceux de FreshRSS : nos messages vivent dans ce dépôt et sont
+    vérifiables contre la dérive, ceux de FreshRSS non. Un quatrième message
+    ajouté à `server/middleware/auth.ts` sans être listé ferait accuser le mot
+    de passe de l'utilisateur alors que sa session a simplement expiré —
+    `loginErrors.test.ts` relit le middleware et rougit dans ce cas.
+  - **Pas de déconnexion parasite** : `src/api/auth.ts` utilise **axios nu**, pas
+    le client de `src/api/client.ts` dont l'intercepteur déconnecte sur tout
+    401. Un refus d'identifiants FreshRSS ne fait donc pas sauter la session
+    FriRSS.
   - **Les deux sites d'appel comptent** : `Login.tsx` (première connexion) et
     `AddServerDialog.tsx` (Préférences → ajouter un serveur) mènent au même
     échec et partagent la fonction.

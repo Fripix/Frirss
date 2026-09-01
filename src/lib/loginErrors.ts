@@ -23,6 +23,14 @@ export function loginErrorKey(err: unknown): string {
  */
 export const BLOCKED_TARGET_MARKER = 'Target host not allowed';
 
+/**
+ * Messages des 401 émis par NOTRE middleware d'authentification
+ * (`server/middleware/auth.ts`), avant que la requête n'atteigne FreshRSS.
+ *
+ * Le tri des 401 se fait par exclusion — voir `serverConnectErrorKey`.
+ */
+export const BACKEND_AUTH_MARKERS = ['Token required', 'Session expired', 'Invalid token'];
+
 /** Corps de réponse rendu en texte, que axios l'ait parsé ou non. */
 function bodyText(data: unknown): string {
   if (typeof data === 'string') return data;
@@ -50,6 +58,19 @@ export function serverConnectErrorKey(err: unknown): string {
   const res = (err as { response?: { status?: number; data?: unknown } })?.response;
   if (res?.status === 403 && bodyText(res.data).includes(BLOCKED_TARGET_MARKER)) {
     return 'login.errorServerBlocked';
+  }
+  // Un 401 vient soit de FreshRSS (greader.php répond « Unauthorized! » pour un
+  // mot de passe d'API faux **comme** pour un mot de passe jamais défini), soit
+  // de notre propre middleware si le JWT FriRSS a expiré. Le second cas est
+  // écarté par ses marqueurs plutôt que le premier reconnu par les siens : les
+  // nôtres sont dans ce dépôt, donc vérifiables contre la dérive, alors qu'une
+  // reformulation côté FreshRSS nous échapperait — et se tromper de sens ferait
+  // accuser le mot de passe de l'utilisateur quand c'est sa session qui a fondu.
+  if (res?.status === 401) {
+    const body = bodyText(res.data);
+    if (!BACKEND_AUTH_MARKERS.some((m) => body.includes(m))) {
+      return 'login.errorServerCredentials';
+    }
   }
   return 'login.errorServer';
 }

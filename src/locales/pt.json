@@ -452,6 +452,7 @@
     "addingServer": "A ligar…",
     "errorServer": "Falha ao ligar ao servidor FreshRSS.",
     "errorServerBlocked": "Este endereço aponta para o interior da sua rede, por isso o FriRSS bloqueou-o. Adicione o seu anfitrião a PROXY_INTERNAL_HOSTS e reinicie o contentor.",
+    "errorServerCredentials": "O FreshRSS recusou estas credenciais. A palavra-passe de API define-se à parte da palavra-passe da conta, em FreshRSS → Configuração → Perfil.",
     "restorePrompt": "Está a repor a partir de uma cópia?",
     "errorTooMany": "Demasiadas tentativas. Aguarde alguns minutos antes de tentar de novo.",
     "errorUnavailable": "O servidor não respondeu. Isto não diz nada sobre as suas credenciais.",

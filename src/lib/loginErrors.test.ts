@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { loginErrorKey, serverConnectErrorKey, BLOCKED_TARGET_MARKER } from './loginErrors';
+import { loginErrorKey, serverConnectErrorKey, BLOCKED_TARGET_MARKER, BACKEND_AUTH_MARKERS } from './loginErrors';
 
 const httpError = (status: number) => ({ response: { status } });
 
@@ -62,7 +62,6 @@ describe('serverConnectErrorKey', () => {
   });
 
   it('laisse le message générique aux causes qu’il n’a pas vérifiées', () => {
-    expect(serverConnectErrorKey(proxyError(401, 'Unauthorized'))).toBe('login.errorServer');
     expect(serverConnectErrorKey(proxyError(502, { error: 'Upstream request failed' }))).toBe('login.errorServer');
     expect(serverConnectErrorKey(new Error('Network Error'))).toBe('login.errorServer');
     expect(serverConnectErrorKey(null)).toBe('login.errorServer');
@@ -85,5 +84,49 @@ describe('BLOCKED_TARGET_MARKER', () => {
     // générique, sans qu'aucun test de comportement ne rougisse.
     const proxy = fs.readFileSync(path.join(process.cwd(), 'server/routes/proxy.ts'), 'utf8');
     expect(proxy).toContain(`{ error: '${BLOCKED_TARGET_MARKER}' }`);
+  });
+});
+
+describe('serverConnectErrorKey — identifiants refusés par FreshRSS', () => {
+  it('nomme le refus quand FreshRSS a répondu 401', () => {
+    // greader.php répond 401 « Unauthorized! » en text/plain, aussi bien pour
+    // un mot de passe d'API faux que pour un mot de passe d'API jamais défini.
+    expect(serverConnectErrorKey(proxyError(401, 'Unauthorized!')))
+      .toBe('login.errorServerCredentials');
+  });
+
+  it('n’accuse pas les identifiants quand c’est NOTRE session qui a expiré', () => {
+    // /api/proxy répond 401 avant même de joindre FreshRSS si le JWT FriRSS
+    // ne vaut plus rien. Envoyer l'utilisateur retaper son mot de passe API
+    // serait exactement la faute que ce module existe pour éviter.
+    for (const marker of BACKEND_AUTH_MARKERS) {
+      expect(serverConnectErrorKey(proxyError(401, { error: marker })), marker)
+        .toBe('login.errorServer');
+    }
+  });
+
+  it('garde le générique pour un nom d’utilisateur inconnu (400)', () => {
+    // FreshRSS répond 400 « Bad Request! » — mais notre proxy répond aussi 400
+    // pour une cible absente. Deux causes, un statut : on n'en nomme aucune.
+    expect(serverConnectErrorKey(proxyError(400, 'Bad Request!'))).toBe('login.errorServer');
+  });
+
+  it('rend une clé qui existe réellement dans les traductions', () => {
+    const fr = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'src/locales/fr.json'), 'utf8'));
+    const resolves = (key: string) => key.split('.').reduce<unknown>((d, p) => (d as Record<string, unknown>)?.[p], fr);
+    expect(typeof resolves('login.errorServerCredentials')).toBe('string');
+  });
+});
+
+describe('BACKEND_AUTH_MARKERS', () => {
+  it('couvre encore TOUS les 401 du middleware d’authentification', () => {
+    // Le tri se fait par exclusion : un 401 qui n'est pas l'un des nôtres est
+    // attribué à FreshRSS. Un quatrième message ajouté dans le middleware sans
+    // être listé ici ferait donc accuser les identifiants de l'utilisateur à
+    // tort. Ce test est la seule chose qui l'empêche.
+    const src = fs.readFileSync(path.join(process.cwd(), 'server/middleware/auth.ts'), 'utf8');
+    const found = [...src.matchAll(/status\(401\)\.json\(\{ error: '([^']+)' \}\)/g)].map((m) => m[1]);
+    expect(found.length).toBeGreaterThan(0);
+    expect(new Set(found)).toEqual(new Set(BACKEND_AUTH_MARKERS));
   });
 });

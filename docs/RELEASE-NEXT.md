@@ -24,6 +24,12 @@ _(rien pour l'instant)_
   maintenant le blocage et la variable qui le lève, `PROXY_INTERNAL_HOSTS`.
   Vaut pour la première connexion comme pour l'ajout d'un serveur depuis les
   préférences. (issue #8)
+- **Un mot de passe d'API refusé ne se présente plus comme une panne de
+  serveur.** FreshRSS répond 401 quand le mot de passe d'API est faux — ou
+  quand aucun n'a jamais été défini — et l'écran annonçait « connexion au
+  serveur impossible ». Il dit maintenant que les identifiants ont été refusés
+  et rappelle que ce mot de passe se définit à part de celui du compte. Les 401
+  venant de FriRSS lui-même (session expirée) restent exclus de ce diagnostic.
 
 ## Sous le capot
 
