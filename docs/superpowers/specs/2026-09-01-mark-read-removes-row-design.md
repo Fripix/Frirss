@@ -73,12 +73,25 @@ marque les articles l'un après l'autre sans bouger la souris.
   C'est le seul appel *implicite* à `toggleRead` : le système décide, pas
   l'utilisateur. Retirer ces lignes ferait s'effondrer la liste en continu
   pendant qu'on défile.
-- **Le raccourci clavier et la bascule du volet de lecture.** Aucune règle
-  spéciale n'est nécessaire : l'article sélectionné est déjà lu, donc ces gestes
-  produisent une transition lu → *non lu*, qui ne retire rien par construction.
+- **Le raccourci clavier et la bascule du volet de lecture.** ⚠️ **Le
+  raisonnement d'origine de cette spec était FAUX**, et il est corrigé ici
+  plutôt que masqué. Il disait : « aucune règle spéciale n'est nécessaire :
+  l'article sélectionné est déjà lu, donc ces gestes produisent une transition
+  lu → *non lu*, qui ne retire rien par construction. » Ce n'est vrai que du
+  **premier** appui. La bascule est une bascule : un deuxième appui repasse
+  l'article en lu, et cette transition-là est bien non-lu → lu sur l'article
+  ouvert. Sans garde, sa ligne partait pendant qu'il restait affiché à
+  l'écran — `selectNextArticle` ne le retrouvait plus (`findIndex` → -1, puis
+  `articles[0]`) et sautait en tête de liste, et le suivant/précédent du
+  mobile devenait inerte. L'implémentation a donc dû ajouter un critère
+  `selected` à `shouldLeaveList` (`src/lib/removeOnRead.ts`) : **la ligne de
+  l'article ouvert ne part jamais**. C'est le même invariant que
+  `silentRefresh` entretient déjà en réinsérant l'article en cours de lecture.
 
 En pratique, deux gestes déclenchent le retrait : le ✓ d'une ligne non
-sélectionnée, et le balayage vers la gauche sur mobile — le même geste au doigt.
+sélectionnée, et le balayage vers la gauche sur mobile — le même geste au
+doigt. « Non sélectionnée » est une condition à part entière, pas une
+observation : voir le paragraphe précédent.
 
 ## Écarté, et pourquoi
 
