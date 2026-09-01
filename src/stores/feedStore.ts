@@ -34,6 +34,7 @@ import { collectImageUrls, imageBudget, prioritizeForOffline } from '../lib/offl
 import { getStorageEstimate } from '../lib/storageEstimate';
 import { cacheImages } from '../lib/imageCache';
 import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
+import { shouldLeaveList } from '../lib/removeOnRead';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import type {
   Article,
@@ -301,7 +302,7 @@ export interface FeedState {
   loadSpecialCounts: () => Promise<void>;
   loadArticles: () => Promise<void>;
   loadMore: () => Promise<void>;
-  toggleRead: (article: Article) => Promise<void>;
+  toggleRead: (article: Article, opts?: { implicit?: boolean }) => Promise<void>;
   toggleStar: (article: Article) => Promise<void>;
   search: (query: string) => Promise<void>;
   clearSearch: () => void;
@@ -838,7 +839,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     }
   },
 
-  toggleRead: async (article) => {
+  toggleRead: async (article, opts) => {
     const newRead = !article.read;
     // Optimistic update — instant UI feedback
     set((state) => ({
@@ -858,6 +859,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         await markAsRead(article.id);
       } else {
         await markAsUnread(article.id);
+      }
+      // Le retrait vient APRÈS la confirmation, jamais avant : le rollback
+      // ci-dessous ne fait qu'un `.map()` et ne saurait pas remettre une ligne
+      // déjà sortie de la liste.
+      if (shouldLeaveList({
+        becameRead: newRead,
+        filter: get().filter,
+        implicit: opts?.implicit ?? false,
+      })) {
+        set((state) => ({ articles: state.articles.filter((a) => a.id !== article.id) }));
+        persistCurrentView(get);
       }
     } catch (err) {
       // No network: keep the optimistic state and replay it later. Only a
@@ -885,10 +897,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   toggleStar: async (article) => {
     const newStarred = !article.starred;
     // Retirer le favori depuis la vue Favoris NE SORT PAS l'article de la
-    // liste. C'est l'alignement sur les quatre autres sites d'écriture :
-    // marquer lu depuis la vue Non lus laisse la ligne, et `silentRefresh`
-    // réinsère même l'article en cours de lecture pour qu'il ne s'évapore pas.
-    // La vue se réconcilie au rechargement, jamais sous les yeux du lecteur.
+    // liste ; la vue se réconcilie au rechargement.
+    //
+    // Depuis 2026-09-01, `toggleRead` retire la ligne sous le filtre non-lus
+    // (issue #10) : l'alignement invoqué ici ne tient donc plus, et c'est
+    // assumé. La règle n'est pas « tous les sites d'écriture se ressemblent »
+    // mais « une mise à l'écart explicite retire, sous le filtre qu'elle
+    // concerne ». Personne n'a demandé ce comportement pour les favoris, et
+    // l'y étendre coûterait le même soin : retrait après confirmation
+    // seulement, sans quoi le rollback ci-dessous — un simple `.map()` —
+    // laisserait l'article hors de l'écran tout en le gardant favori.
     //
     // Ce retrait venait du commit initial, sans décision consignée, et il
     // coûtait cher : le rollback ne pouvait pas remettre une ligne déjà

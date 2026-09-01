@@ -303,9 +303,28 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   rollback impossible : un refus du serveur faisait disparaître l'article alors
   qu'il restait en favori côté FreshRSS, avec un compteur correctement restauré
   annonçant « 1 favori » au-dessus d'une liste vide. Aligné en 1.4.4.
+  **Exception depuis 2026-09-01** : le ✓ (`toggleRead`) retire désormais la
+  ligne sous le filtre « Non lus » — voir plus bas. Une mise à l'écart
+  explicite retire, sous le filtre qu'elle concerne ; ce n'est pas revenu sur
+  l'alignement du favori, qui reste sans retrait.
 - **Cache hors-ligne** : les cinq sites appellent `persistCurrentView()`, à
   l'aller **et** au rollback. Seuls les deux chemins de lecture le faisaient :
   mettre un favori puis recharger hors ligne le montrait non favori.
+- **Le ✓ retire la ligne sous le filtre « Non lus »** (issue #10, 2026-09-01).
+  La décision est prise par `shouldLeaveList()` (`src/lib/removeOnRead.ts`) et
+  appliquée par `toggleRead` **après confirmation du serveur**.
+  - **Le geste compte, pas l'état.** Ouvrir un article le marque lu
+    (`selectArticle`) mais laisse sa ligne : elle disparaîtrait pendant qu'on
+    le lit. Le marquage au défilement, seul écrivain implicite, passe
+    `{ implicit: true }` et ne retire rien — sans quoi la liste s'effondrerait
+    en continu sous le lecteur.
+  - **Piège** : ne jamais retirer avant la réponse du serveur. Le rollback de
+    `toggleRead` n'est qu'un `.map()` : il ne sait pas remettre une ligne
+    partie. C'est le bug déjà payé sur `toggleStar`, où l'article disparaissait
+    de l'écran en restant favori côté FreshRSS.
+  - **Écarté** : réglage optionnel, bandeau « Annuler » (il ne rattrapait pas
+    le cas invoqué), uniformisation des hauteurs de ligne. Détail et raisons
+    dans `docs/superpowers/specs/2026-09-01-mark-read-removes-row-design.md`.
 
 ### Marquer lu au défilement
 Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article

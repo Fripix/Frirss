@@ -336,7 +336,10 @@ export default function ArticleList() {
             // Relire l'article : il a pu être ouvert — donc marqué lu — entre
             // la programmation et l'échéance.
             const fresh = useFeedStore.getState().articles.find((a) => a.id === id);
-            if (fresh && !fresh.read) useFeedStore.getState().toggleRead(fresh);
+            // Implicite : c'est le défilement qui décide, pas l'utilisateur.
+            // Sans ce drapeau, la liste s'effondrerait sous lui pendant qu'il
+            // fait défiler.
+            if (fresh && !fresh.read) useFeedStore.getState().toggleRead(fresh, { implicit: true });
           }, MARK_READ_DELAY_MS));
         }
       },

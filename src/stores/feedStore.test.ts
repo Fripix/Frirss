@@ -446,11 +446,13 @@ describe('feedStore.toggleStar — refus du serveur depuis la vue Favoris', () =
   // élément déjà retiré : sur un refus du serveur, l'article disparaissait de
   // l'écran tout en restant en favori côté FreshRSS, et le compteur restauré
   // annonçait « 1 favori » au-dessus d'une liste qui n'en montrait aucun.
-  // Retirer le favori ne SORT PLUS l'article de la liste. C'est ce que font
-  // déjà `toggleRead` (marquer lu depuis la vue Non lus laisse la ligne) et
-  // `toggleReadLater` ; la vue se réconcilie au rechargement. Deux vues sœurs
-  // qui se comportaient différemment, sans qu'aucune décision ne l'ait jamais
-  // établi — le retrait venait du commit initial.
+  // Retirer le favori ne SORT PLUS l'article de la liste ; la vue se
+  // réconcilie au rechargement. Le retrait venait du commit initial, sans
+  // qu'aucune décision ne l'ait jamais établi.
+  //
+  // `toggleRead` retire désormais la ligne sous le filtre non-lus (issue #10),
+  // sur un geste explicite et après confirmation du serveur. Les deux vues
+  // divergent donc à nouveau — cette fois par décision, pas par accident.
   it('garde la ligne en place quand le retrait réussit', async () => {
     vi.mocked(api.removeStarred).mockResolvedValue(undefined);
     await useFeedStore.getState().toggleStar({ ...starred });
@@ -554,5 +556,78 @@ describe('feedStore.replayQueue — réentrance', () => {
 
     const forR1 = vi.mocked(api.markAsRead).mock.calls.filter((c) => c[0] === 'r1');
     expect(forR1).toHaveLength(1);
+  });
+});
+
+describe('feedStore.toggleRead — retrait de la ligne sous le filtre non-lus', () => {
+  const row = (id: string): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/1', title: id } as Article);
+
+  beforeEach(() => {
+    vi.mocked(api.markAsRead).mockReset();
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+    vi.mocked(api.markAsUnread).mockReset();
+    vi.mocked(api.markAsUnread).mockResolvedValue(undefined);
+    useFeedStore.setState({
+      articles: [row('a0'), row('a1'), row('a2')],
+      selectedArticle: null,
+      filter: 'unread',
+    });
+  });
+
+  it('retire la ligne une fois le serveur confirmé', async () => {
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+  });
+
+  it('garde la ligne quand le serveur refuse', async () => {
+    // Le rollback ne fait qu'un `.map()` : une ligne déjà retirée serait
+    // irrécupérable, et l'article disparaîtrait de l'écran en restant non lu
+    // côté FreshRSS. C'est le bug déjà payé sur `toggleStar`.
+    vi.mocked(api.markAsRead).mockRejectedValueOnce({ response: { status: 403 } });
+    await useFeedStore.getState().toggleRead(row('a1'));
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+    expect(s.articles[1].read).toBe(false);
+  });
+
+  it('garde la ligne hors ligne, l’action étant seulement mise en file', async () => {
+    vi.mocked(api.markAsRead).mockRejectedValueOnce(new Error('Network Error'));
+    await useFeedStore.getState().toggleRead(row('a1'));
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+    expect(s.articles[1].read).toBe(true);
+  });
+
+  it('ne retire rien hors du filtre non-lus', async () => {
+    useFeedStore.setState({ filter: 'all' });
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+  });
+
+  it('ne retire rien pour une écriture implicite (marquage au défilement)', async () => {
+    await useFeedStore.getState().toggleRead(row('a1'), { implicit: true });
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+    expect(s.articles[1].read).toBe(true);
+  });
+
+  it('ne retire PAS la ligne d’un article simplement ouvert', async () => {
+    // Le garde-fou central de cette fonctionnalité. `selectArticle` marque lu
+    // sans passer par `toggleRead` : si l'implémentation se branchait sur
+    // l'état « devenu lu » plutôt que sur le geste, la ligne de l'article
+    // qu'on vient d'ouvrir disparaîtrait pendant qu'on le lit. Ce test doit
+    // échouer dans ce cas.
+    useFeedStore.getState().selectArticle(row('a1'));
+    await new Promise((r) => setTimeout(r, 0));
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+    expect(s.articles[1].read).toBe(true);
+  });
+
+  it('ne retire rien quand on remet un article en non-lu', async () => {
+    useFeedStore.setState({ articles: [row('a0'), { ...row('a1'), read: true }, row('a2')] });
+    await useFeedStore.getState().toggleRead({ ...row('a1'), read: true });
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
   });
 });
