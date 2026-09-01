@@ -156,16 +156,20 @@ function memMarkRead(articleId: string, read: boolean): void {
     if (changed) memCache.set(key, { ...view, articles });
   }
 }
-// Retirer une ligne du cache mémoire de TOUTES les vues « Non lus » — un
-// article lu n'a sa place dans aucune d'elles. Sans cela, le retrait du ✓ ne
-// durait que le temps de la vue : `loadArticles` repeint depuis ce cache et
-// pose `loading: !cached`, donc revenir sur le flux réaffichait la ligne lue
-// dans la liste « Non lus », sans spinner et sans limite de temps hors ligne.
-// Le filtre est lu dans la clé (`<feedId>:<filter>`) : seules les vues qui
-// excluent les articles lus sont concernées.
-function memRemoveFromUnreadViews(articleId: string): void {
+// Retirer une ligne du cache mémoire de TOUTES les vues portant un filtre
+// donné. Sans cela, un retrait ne dure que le temps de la vue : `loadArticles`
+// repeint depuis ce cache et pose `loading: !cached`, donc y revenir
+// réaffichait la ligne retirée, sans spinner et sans limite de temps hors
+// ligne. Le filtre est lu dans la clé (`<feedId>:<filter>`).
+//
+// Générique parce que DEUX écrivains retirent une ligne : le ✓ sous « Non
+// lus » (`toggleRead`) et le retrait de l'étiquette depuis « À lire plus
+// tard » (`toggleReadLater`). Le second avait été oublié — même défaut, même
+// symptôme.
+function memRemoveFromViews(articleId: string, filter: Filter): void {
+  const suffix = `:${filter}`;
   for (const [key, view] of memCache) {
-    if (!key.endsWith(':unread')) continue;
+    if (!key.endsWith(suffix)) continue;
     const articles = view.articles.filter((a) => a.id !== articleId);
     if (articles.length !== view.articles.length) memCache.set(key, { ...view, articles });
   }
@@ -890,7 +894,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         selected: get().selectedArticle?.id === article.id,
       })) {
         set((state) => ({ articles: state.articles.filter((a) => a.id !== article.id) }));
-        memRemoveFromUnreadViews(article.id);
+        memRemoveFromViews(article.id, 'unread');
         persistCurrentView(get);
         // Ce qui reste peut désormais être plus court que la fenêtre : plus
         // rien ne défile, aucun `scroll` n'est émis, et la pagination
@@ -900,6 +904,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           remaining: s.articles.length,
           hasContinuation: s.continuation != null,
           loadingMore: s.loadingMore,
+          searching: !!s.searchQuery,
         });
       }
     } catch (err) {
@@ -1120,6 +1125,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           selectedArticle:
             state.selectedArticle?.id === article.id ? null : state.selectedArticle,
         }));
+        // Le cache mémoire des vues aussi, sans quoi quitter « À lire plus
+        // tard » puis y revenir repeint la ligne retirée depuis `memGet`.
+        memRemoveFromViews(article.id, 'readlater');
         persistCurrentView(get);
       }
     } catch (err) {

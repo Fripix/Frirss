@@ -120,7 +120,10 @@
     "noArticles": "Brak artykułów",
     "noArticlesHint": "Ten kanał jest pusty",
     "allReadAction": "Pokaż wszystkie artykuły",
-    "noResultsAction": "Szukaj we wszystkich kanałach"
+    "noResultsAction": "Szukaj we wszystkich kanałach",
+    "morePages": "Nic na tej stronie",
+    "morePagesHint": "Kolejne artykuły nie zostały jeszcze wczytane",
+    "morePagesAction": "Wczytaj więcej"
   },
   "readingPane": {
     "noArticle": "Wybierz artykuł do przeczytania",

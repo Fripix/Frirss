@@ -42,10 +42,23 @@ export function shouldTopUpAfterRemoval(opts: {
   remaining: number;
   hasContinuation: boolean;
   loadingMore: boolean;
+  /** Une recherche est-elle active ? */
+  searching: boolean;
 }): boolean {
   // Flux épuisé : il n'y a rien à demander.
   if (!opts.hasContinuation) return false;
   // Une requête est déjà en vol — elle apportera sa page toute seule.
   if (opts.loadingMore) return false;
+  // Recherche active : `loadMore` appelle `fetchArticleStream(filter,
+  // selectedFeed, …)` sans jamais passer `searchQuery`, donc la page qu'il
+  // rapporte est celle du FLUX NU. L'appendre aux résultats donnerait des
+  // articles sans rapport avec la requête, sous une boîte de recherche
+  // toujours remplie. `shouldLeaveList` ne regarde que le filtre, resté
+  // « unread » pendant la recherche : la ligne part bien, mais le rattrapage
+  // se tait. Le décalage `loadMore`/recherche est antérieur — il demandait
+  // jusqu'ici de descendre volontairement au bas des résultats ; le rattrapage
+  // le déclenchait depuis un seul ✓ sur un résultat court, soit le cas
+  // courant. Même précédent que `markReadOnScroll`, déjà éteint en recherche.
+  if (opts.searching) return false;
   return opts.remaining < TOP_UP_MIN_ROWS;
 }

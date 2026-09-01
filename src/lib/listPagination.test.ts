@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldLoadMore, emptyListIsFinal } from './listPagination';
+import { shouldLoadMore, emptyListIsFinal, listBodyState } from './listPagination';
 
 const viewport = {
   hasContinuation: true,
@@ -58,5 +58,48 @@ describe('emptyListIsFinal', () => {
 
   it('ne conclut rien quand la liste a du contenu', () => {
     expect(emptyListIsFinal({ articleCount: 3, hasContinuation: false })).toBe(false);
+  });
+});
+
+describe('listBodyState', () => {
+  const base = { loading: false, articleCount: 0, hasContinuation: false, searching: false };
+
+  it('montre les lignes dès qu’il y en a', () => {
+    expect(listBodyState({ ...base, articleCount: 3 })).toBe('rows');
+    expect(listBodyState({ ...base, articleCount: 3, hasContinuation: true })).toBe('rows');
+  });
+
+  it('montre l’état vide définitif quand le flux est épuisé', () => {
+    expect(listBodyState(base)).toBe('empty');
+  });
+
+  // Le défaut corrigé : une liste vide avec une `continuation` non nulle
+  // rendait le squelette de chargement, dans TOUTES les vues. Rien ne le
+  // relançait jamais — la pagination ne repart que sur un `scroll`, et un
+  // squelette plus court que la fenêtre n'en émet aucun. L'utilisateur devait
+  // changer de vue pour s'en sortir. Un ★ sur un flux dont les 50 premiers
+  // articles ne sont pas favoris suffisait à l'y enfermer.
+  it('n’enferme jamais dans un squelette : une liste vide avec suite reste un état vide', () => {
+    expect(listBodyState({ ...base, hasContinuation: true })).toBe('empty-more');
+  });
+
+  it('ne montre le squelette que pendant un vrai chargement', () => {
+    expect(listBodyState({ ...base, loading: true })).toBe('skeleton');
+    for (const articleCount of [0, 5]) {
+      for (const hasContinuation of [false, true]) {
+        for (const searching of [false, true]) {
+          expect(listBodyState({ loading: false, articleCount, hasContinuation, searching }))
+            .not.toBe('skeleton');
+        }
+      }
+    }
+  });
+
+  // `loadMore` ne sait pas paginer une recherche : il redemande le flux nu et
+  // y injecterait des articles étrangers à la requête (voir `listTopUp.ts`).
+  // Un état vide de recherche n'offre donc pas « charger la suite » ; il garde
+  // sa propre sortie (« chercher dans tous les flux »).
+  it('ne propose pas la page suivante pendant une recherche', () => {
+    expect(listBodyState({ ...base, hasContinuation: true, searching: true })).toBe('empty');
   });
 });

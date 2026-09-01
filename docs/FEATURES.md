@@ -320,6 +320,16 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
 - **Cache hors-ligne** : les cinq sites appellent `persistCurrentView()`, à
   l'aller **et** au rollback. Seuls les deux chemins de lecture le faisaient :
   mettre un favori puis recharger hors ligne le montrait non favori.
+- **Cache mémoire des vues** : les DEUX écritures qui retirent une ligne
+  appellent `memRemoveFromViews(articleId, filter)`, qui la retire du cache
+  mémoire de **toutes** les vues portant ce filtre (la clé vaut
+  `<feedId>:<filter>`). Sans cela, le retrait ne dure que le temps de la vue :
+  `loadArticles` repeint depuis ce cache en posant `loading: !cached`, donc
+  quitter la vue puis y revenir réaffiche la ligne retirée, sans spinner et
+  sans limite de temps. Le helper n'a d'abord couvert que « Non lus » ;
+  `toggleReadLater` avait le même défaut et l'a gardé jusqu'à ce que le helper
+  soit généralisé. Un jumeau à moitié corrigé est un piège : **si un site
+  d'écriture retire une ligne, il purge ce cache**.
 - **Le ✓ retire la ligne sous le filtre « Non lus »** (issue #10, 2026-09-01).
   La décision est prise par `shouldLeaveList()` (`src/lib/removeOnRead.ts`) et
   appliquée par `toggleRead` **après confirmation du serveur**.
@@ -339,7 +349,7 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     et le balayage suivant/précédent du mobile devenait inerte. C'est
     l'invariant que `silentRefresh` entretient déjà en RÉINSÉRANT l'article en
     cours de lecture.
-  - **Le retrait vaut aussi pour le cache mémoire** (`memRemoveFromUnreadViews`
+  - **Le retrait vaut aussi pour le cache mémoire** (`memRemoveFromViews`
     dans `feedStore.ts`, toutes les vues dont la clé finit par `:unread`).
     Il ne touchait que `articles` et le cache hors-ligne : quitter le flux et y
     revenir repeignait depuis le cache mémoire — et comme `loadArticles` pose
@@ -352,6 +362,17 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     n'est même plus défilable. `toggleRead` demande donc **une** page
     supplémentaire quand le retrait laisse moins de `TOP_UP_MIN_ROWS` lignes
     avec une `continuation` non nulle.
+  - **Piège — pas pendant une recherche.** `shouldLeaveList` ne regarde que le
+    filtre, resté « unread » quand une recherche est active : la ligne part
+    donc bien, mais le rattrapage doit se taire. `loadMore` appelle
+    `fetchArticleStream(filter, selectedFeed, …)` sans jamais passer
+    `searchQuery` : il rapporte le FLUX NU et l'appendrait aux résultats, sous
+    une boîte de recherche toujours remplie. Le décalage `loadMore`/recherche
+    est antérieur — il demandait de descendre volontairement au bas des
+    résultats ; le rattrapage le déclenchait depuis un seul ✓ sur un résultat
+    court. `shouldTopUpAfterRemoval` prend donc `searching`, comme
+    `markReadOnScroll` est déjà éteint en recherche. Faire paginer les
+    recherches à `loadMore` est un autre chantier.
   - **Piège — jamais depuis un effet React.** Une première version du
     rattrapage était un effet qui surveillait l'état de la liste
     (`useAutoLoadMore`, retiré le jour même). Deux emballements l'ont
@@ -364,10 +385,25 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     d'un gros flux suffisait. La décision est donc prise **au moment du
     retrait**, une fois : un geste ⇒ au plus une page. Un rattrapage en échec
     s'arrête, il ne se replanifie pas.
-  - **Ne jamais annoncer « tout est lu » à tort.** L'état vide est un message
-    de réussite ; tant que `continuation` promet une page suivante, il serait
-    faux. Liste vide + continuation ⇒ squelette de chargement
-    (`emptyListIsFinal`), pas `emptyState.allRead`.
+  - **Ne jamais annoncer « tout est lu » à tort, ni enfermer dans un
+    squelette.** L'état vide « Non lus » est un message de réussite ; tant que
+    `continuation` promet une page suivante, il serait faux. La première
+    correction rendait alors le **squelette de chargement** — et ce squelette
+    était **terminal** : rien ne le relançait jamais (le sondage d'`App.tsx` ne
+    touche qu'aux compteurs, `silentRefresh` attend un retour d'onglet, et un
+    squelette plus court que la fenêtre n'émet aucun `scroll`, donc
+    `shouldLoadMore` n'était jamais consulté). Il ne portait pas non plus sur
+    le seul ✓ : **toutes** les vues étaient concernées, et un ★ sur un flux
+    dont les 50 premiers articles ne sont pas favoris suffisait à y tomber
+    (`fetchArticleStream` filtre les favoris côté client, donc `articles: []`
+    avec une continuation non nulle est un résultat normal). Le corps de la
+    liste est désormais décidé par **`listBodyState`** (`listPagination.ts`),
+    qui garantit que le squelette n'apparaît **que** pendant un vrai
+    chargement : liste vide + continuation ⇒ état vide **neutre**
+    (`emptyState.morePages`, jamais `emptyState.allRead`) avec un bouton
+    « Charger la suite ». Pendant une **recherche**, cet état retombe sur
+    l'état vide ordinaire : `loadMore` ne sait pas paginer une recherche, le
+    bouton y injecterait des articles étrangers à la requête.
   - **Écarté** : réglage optionnel, bandeau « Annuler » (il ne rattrapait pas
     le cas invoqué), uniformisation des hauteurs de ligne. Détail et raisons
     dans `docs/superpowers/specs/2026-09-01-mark-read-removes-row-design.md`.

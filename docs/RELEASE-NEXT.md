@@ -25,6 +25,19 @@ _(rien pour l'instant)_
   jamais, pour que suivant/précédent continuent de fonctionner. La liste
   enchaîne les pages suivantes au fil des retraits, et n'annonce « tout est
   lu » que lorsqu'il ne reste vraiment plus rien à charger. (issue #10)
+- **Une liste vide ne se fige plus sur un squelette de chargement.** Quand la
+  liste n'a plus rien à montrer alors que le flux n'est pas épuisé — par
+  exemple en filtrant sur les favoris un flux dont les premiers articles n'en
+  sont pas — elle affichait un squelette que rien ne terminait : il fallait
+  changer de vue pour s'en sortir. Elle affiche désormais un message neutre et
+  un bouton « Charger la suite ». Elle n'annonce toujours « tout est lu » que
+  lorsque c'est vrai.
+- **Le ✓ n'injecte plus d'articles étrangers dans une recherche.** Marquer un
+  résultat de recherche comme lu pouvait faire apparaître à sa suite des
+  articles sans rapport avec la requête. La liste ne charge plus de page
+  supplémentaire tant qu'une recherche est active.
+- **Une ligne retirée de « À lire plus tard » ne revient plus.** Quitter la vue
+  puis y revenir réaffichait l'article dont l'étiquette venait d'être enlevée.
 - **Le ✓ arrive dans l'affichage compact**, où il manquait alors qu'il existait
   dans les autres dispositions.
 - **Retirer « À lire plus tard » ne fait plus disparaître l'article quand le

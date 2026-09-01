@@ -120,7 +120,10 @@
     "noArticles": "Nessun articolo",
     "noArticlesHint": "Questo feed è vuoto",
     "allReadAction": "Mostra tutti gli articoli",
-    "noResultsAction": "Cerca in tutti i feed"
+    "noResultsAction": "Cerca in tutti i feed",
+    "morePages": "Niente in questa pagina",
+    "morePagesHint": "I prossimi articoli non sono ancora stati caricati",
+    "morePagesAction": "Carica altri"
   },
   "readingPane": {
     "noArticle": "Seleziona un articolo da leggere",

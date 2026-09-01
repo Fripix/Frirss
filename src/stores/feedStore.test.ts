@@ -862,3 +862,90 @@ describe('feedStore.toggleRead — la remise à niveau de la liste est bornée',
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1']);
   });
 });
+
+describe('feedStore.toggleRead — la remise à niveau se tait pendant une recherche', () => {
+  const row = (id: string): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/1', title: id } as Article);
+  const item = (id: string) => ({ id, categories: [] });
+
+  beforeEach(() => {
+    vi.mocked(api.markAsRead).mockReset();
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+    vi.mocked(api.getStreamContents).mockReset();
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [item('intrus1'), item('intrus2')], continuation: 'page-3' } as never
+    );
+    useFeedStore.setState({
+      selectedFeed: null,
+      filter: 'unread',
+      searchQuery: 'zustand',
+      articles: [row('r0'), row('r1')],
+      continuation: 'page-2',
+      selectedArticle: null,
+      loadingMore: false,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ filter: 'all', searchQuery: '', continuation: null, loadingMore: false });
+  });
+
+  // `shouldLeaveList` ne regarde que le filtre, qui reste « unread » pendant
+  // une recherche : le ✓ retire donc bien sa ligne. Mais `loadMore` ignore
+  // `searchQuery` et rapporte le flux nu — la remise à niveau injectait des
+  // articles étrangers à la requête au milieu des résultats.
+  it('retire la ligne sans aller chercher la page suivante', async () => {
+    await useFeedStore.getState().toggleRead(row('r1'));
+    expect(api.getStreamContents).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['r0']);
+  });
+});
+
+describe('feedStore.toggleReadLater — le retrait survit au cache mémoire', () => {
+  const feedA = { id: 'feed/rl-a', title: 'A' } as unknown as Subscription;
+  const feedB = { id: 'feed/rl-b', title: 'B' } as unknown as Subscription;
+  const item = (id: string) => ({ id, categories: [READ_LATER_LABEL] });
+
+  beforeEach(() => {
+    vi.mocked(api.setArticleLabel).mockReset();
+    vi.mocked(api.setArticleLabel).mockResolvedValue(undefined);
+    vi.mocked(api.getStreamContents).mockReset();
+    vi.mocked(api.getStreamContents).mockImplementation((streamId: string) =>
+      Promise.resolve(
+        (streamId === READ_LATER_LABEL
+          ? { items: [item('l0'), item('l1')], continuation: null }
+          : { items: [], continuation: null }) as never
+      )
+    );
+    useFeedStore.setState({
+      selectedFeed: null,
+      filter: 'readlater',
+      articles: [],
+      continuation: null,
+      selectedArticle: null,
+      readLaterCount: 2,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ filter: 'all', selectedFeed: null, readLaterCount: 0 });
+  });
+
+  // Exactement le défaut que `memRemoveFromUnreadViews` avait corrigé pour
+  // `toggleRead`, laissé en l'état sur son jumeau : quitter « À lire plus
+  // tard » puis y revenir repeignait la ligne retirée depuis `memGet`.
+  it('ne repeint pas la ligne retirée en revenant sur la vue', async () => {
+    await useFeedStore.getState().loadArticles();
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['l0', 'l1']);
+
+    await useFeedStore.getState().toggleReadLater(useFeedStore.getState().articles[0]);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['l1']);
+
+    useFeedStore.getState().selectFeed(feedA);
+    useFeedStore.setState({ filter: 'readlater' });
+    useFeedStore.getState().selectFeed(feedB);
+    useFeedStore.getState().selectView(null, 'readlater');
+    // Peinture immédiate depuis le cache mémoire, avant toute réponse serveur.
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['l1']);
+  });
+});

@@ -120,7 +120,10 @@
     "noArticles": "Keine Artikel",
     "noArticlesHint": "Dieser Feed ist leer",
     "allReadAction": "Alle Artikel anzeigen",
-    "noResultsAction": "In allen Feeds suchen"
+    "noResultsAction": "In allen Feeds suchen",
+    "morePages": "Nichts auf dieser Seite",
+    "morePagesHint": "Die nächsten Artikel sind noch nicht geladen",
+    "morePagesAction": "Mehr laden"
   },
   "readingPane": {
     "noArticle": "Wählen Sie einen Artikel zum Lesen aus",

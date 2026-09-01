@@ -7,7 +7,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
-import { shouldLoadMore, emptyListIsFinal } from '../../lib/listPagination';
+import { shouldLoadMore, listBodyState } from '../../lib/listPagination';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
@@ -448,16 +448,19 @@ export default function ArticleList() {
   const groups = groupByDate(articles);
 
   // Une liste vide ne veut dire « il n'y a plus rien » que si le flux est
-  // épuisé. Vidée par le ✓ alors que `continuation` promet une page suivante,
-  // elle affichait « tout est lu » — en vert, en grand, comme une réussite —
-  // au-dessus d'articles non lus qui attendaient encore sur le serveur. Tant
-  // que la page suivante arrive (`toggleRead` l'a déjà demandée, voir
-  // `src/lib/listTopUp.ts`), c'est un chargement, et le squelette le dit.
-  const emptyIsFinal = emptyListIsFinal({
+  // épuisé. Vidée alors que `continuation` promet une page suivante, elle
+  // affichait « tout est lu » — en vert, en grand, comme une réussite —
+  // au-dessus d'articles qui attendaient encore sur le serveur.
+  //
+  // ⚠️ La première correction rendait le squelette dans ce cas : un squelette
+  // que RIEN ne pouvait terminer (voir `listBodyState`). L'état neutre
+  // `empty-more` le remplace : il ne prétend rien et propose la page suivante.
+  const bodyState = listBodyState({
+    loading,
     articleCount: articles.length,
     hasContinuation: !!continuation,
+    searching: !!searchQuery,
   });
-  const awaitingMore = articles.length === 0 && !emptyIsFinal;
 
   return (
     <div className="article-list h-full flex flex-col overflow-x-hidden" style={{ background: 'var(--panel-bg)' }}>
@@ -789,7 +792,7 @@ export default function ArticleList() {
           </div>
         )}
         <div style={{ transform: pull ? `translateY(${pull}px)` : undefined, transition: (pull > 0 && !refreshing) ? 'none' : 'transform 0.25s ease' }}>
-        {loading || awaitingMore ? (
+        {bodyState === 'skeleton' ? (
           <div className="py-2">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="flex gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)' }}>
@@ -802,8 +805,14 @@ export default function ArticleList() {
               </div>
             ))}
           </div>
-        ) : emptyIsFinal ? (
-          <EmptyState filter={filter} searchQuery={searchQuery} />
+        ) : bodyState === 'empty' || bodyState === 'empty-more' ? (
+          <EmptyState
+            filter={filter}
+            searchQuery={searchQuery}
+            awaitingPage={bodyState === 'empty-more'}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
+          />
         ) : gridLayout && !gridDateSeparators ? (
           /* Grid, default: one continuous gallery, no date bands. */
           <div className="article-grid">
@@ -1078,13 +1087,34 @@ function SheetRow({ icon, label, active, onClick }: SheetRowProps) {
 
 /* ── Empty state ────────────────────────────────────────────────── */
 
-function EmptyState({ filter, searchQuery }: { filter: Filter; searchQuery: string }) {
+interface EmptyStateProps {
+  filter: Filter;
+  searchQuery: string;
+  /** Liste vide alors qu'une page reste promise — voir `listBodyState`. */
+  awaitingPage: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+}
+
+function EmptyState({ filter, searchQuery, awaitingPage, loadingMore, onLoadMore }: EmptyStateProps) {
   const { t } = useTranslation();
   let icon: ReactNode;
   let title: string;
   let subtitle: string;
 
-  if (searchQuery) {
+  if (awaitingPage) {
+    // État neutre : la liste n'a plus de ligne à montrer mais le flux n'est
+    // pas épuisé. Il n'affirme donc RIEN — ni « tout est lu », ni « aucun
+    // favori » — et donne la seule action qui avance : charger la suite.
+    // C'est ce qui remplace le squelette sans fin de la première correction.
+    icon = (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 5.25l-7.5 7.5-7.5-7.5m15 6l-7.5 7.5-7.5-7.5" />
+      </svg>
+    );
+    title = t('emptyState.morePages');
+    subtitle = t('emptyState.morePagesHint');
+  } else if (searchQuery) {
     icon = (
       <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -1126,14 +1156,21 @@ function EmptyState({ filter, searchQuery }: { filter: Filter; searchQuery: stri
     subtitle = t('emptyState.noArticlesHint');
   }
 
-  const isSuccess = filter === 'unread' && !searchQuery;
+  const isSuccess = filter === 'unread' && !searchQuery && !awaitingPage;
 
-  // Cinq états vides partageaient un gabarit alors qu'ils ne disent pas la même
+  // Six états vides partagent un gabarit alors qu'ils ne disent pas la même
   // chose. « Tout est lu » est une réussite — le moment où l'application a fini
   // son travail — et « aucun résultat » est une impasse, qui doit proposer la
-  // sortie. Un écran vide est une invitation à agir, pas un constat.
-  let action: { label: string; run: () => void } | null = null;
-  if (searchQuery) {
+  // sortie. Un écran vide est une invitation à agir, pas un constat : celui-là
+  // ne doit JAMAIS être une impasse (c'est ce qu'était le squelette sans fin).
+  let action: { label: string; run: () => void; busy?: boolean } | null = null;
+  if (awaitingPage) {
+    action = {
+      label: loadingMore ? t('articleList.loading') : t('emptyState.morePagesAction'),
+      run: onLoadMore,
+      busy: loadingMore,
+    };
+  } else if (searchQuery) {
     action = {
       label: t('emptyState.noResultsAction'),
       run: () => {
@@ -1176,11 +1213,14 @@ function EmptyState({ filter, searchQuery }: { filter: Filter; searchQuery: stri
       {action && (
         <button
           onClick={action.run}
+          disabled={action.busy}
           className="mt-1 px-3.5 py-2 rounded-full text-xs font-semibold transition-colors"
           style={{
             color: 'var(--accent)',
             background: 'var(--accent-glow)',
             border: '1.5px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+            opacity: action.busy ? 0.6 : undefined,
+            cursor: action.busy ? 'default' : undefined,
           }}
         >
           {action.label}

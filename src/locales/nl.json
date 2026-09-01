@@ -120,7 +120,10 @@
     "noArticles": "Geen artikelen",
     "noArticlesHint": "Deze feed is leeg",
     "allReadAction": "Alle artikelen tonen",
-    "noResultsAction": "In alle feeds zoeken"
+    "noResultsAction": "In alle feeds zoeken",
+    "morePages": "Niets op deze pagina",
+    "morePagesHint": "De volgende artikelen zijn nog niet geladen",
+    "morePagesAction": "Meer laden"
   },
   "readingPane": {
     "noArticle": "Selecteer een artikel om te lezen",

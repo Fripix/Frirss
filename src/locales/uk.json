@@ -120,7 +120,10 @@
     "noArticles": "Немає статей",
     "noArticlesHint": "Ця стрічка порожня",
     "allReadAction": "Показати всі статті",
-    "noResultsAction": "Шукати в усіх стрічках"
+    "noResultsAction": "Шукати в усіх стрічках",
+    "morePages": "Нічого на цій сторінці",
+    "morePagesHint": "Наступні статті ще не завантажені",
+    "morePagesAction": "Завантажити ще"
   },
   "readingPane": {
     "noArticle": "Виберіть статтю для читання",

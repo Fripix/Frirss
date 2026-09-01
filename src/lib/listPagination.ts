@@ -46,7 +46,61 @@ export function shouldLoadMore(opts: {
  * lignes avec le ✓ affichait « tout est lu », en vert et en grand, alors que
  * des non-lus attendaient encore sur le serveur. C'est précisément le flux de
  * travail que le ✓ du mode Compact devait rendre possible.
+ *
+ * Ce prédicat dit seulement si le flux est épuisé. Ce que la liste affiche
+ * alors est décidé par `listBodyState` ci-dessous — et surtout PAS par un
+ * squelette de chargement, qui n'aurait rien pour se terminer.
  */
 export function emptyListIsFinal(opts: { articleCount: number; hasContinuation: boolean }): boolean {
   return opts.articleCount === 0 && !opts.hasContinuation;
+}
+
+/** Ce que le corps de la liste doit afficher. */
+export type ListBodyState =
+  /** Chargement de la vue : squelette. */
+  | 'skeleton'
+  /** Des lignes à afficher. */
+  | 'rows'
+  /** Liste vide et rien de plus à charger : l'état vide, définitif. */
+  | 'empty'
+  /** Liste vide, mais une page reste promise : état vide neutre + « charger la suite ». */
+  | 'empty-more';
+
+/**
+ * Que montrer dans le corps de la liste ?
+ *
+ * Le rôle de cette fonction est de garantir un invariant : **le squelette
+ * n'apparaît que pendant un vrai chargement**. Une première version rendait le
+ * squelette dès qu'une liste vide gardait une `continuation`, pour ne pas
+ * annoncer « tout est lu » à tort. Rien ne le relançait jamais : le sondage
+ * d'`App.tsx` ne touche qu'aux compteurs, `silentRefresh` attend un retour
+ * d'onglet, et un squelette plus court que la fenêtre n'émet aucun `scroll`
+ * donc `shouldLoadMore` n'est jamais consulté. L'utilisateur était enfermé
+ * jusqu'à ce qu'il change de vue — et `persistCurrentView` écrivait cet état
+ * dans le cache hors ligne. Un ★ sur un flux dont les 50 premiers articles ne
+ * sont pas favoris suffisait à l'y mettre (`fetchArticleStream` filtre les
+ * favoris CÔTÉ CLIENT : `articles: []` avec une continuation non nulle est un
+ * résultat parfaitement normal).
+ *
+ * L'honnêteté est conservée, mais dite autrement : `empty-more` est un état
+ * vide **final et neutre**, qui n'annonce pas « tout est lu » et propose de
+ * charger la page suivante. On ne reste jamais coincé.
+ *
+ * `searching` fait retomber sur l'état vide ordinaire : `loadMore` ne sait pas
+ * paginer une recherche — il redemande le flux nu — donc lui offrir un bouton
+ * injecterait des articles étrangers à la requête. L'état vide de recherche a
+ * déjà sa propre sortie (« chercher dans tous les flux »).
+ */
+export function listBodyState(opts: {
+  loading: boolean;
+  articleCount: number;
+  hasContinuation: boolean;
+  searching: boolean;
+}): ListBodyState {
+  if (opts.loading) return 'skeleton';
+  if (opts.articleCount > 0) return 'rows';
+  if (emptyListIsFinal({ articleCount: opts.articleCount, hasContinuation: opts.hasContinuation })) {
+    return 'empty';
+  }
+  return opts.searching ? 'empty' : 'empty-more';
 }
