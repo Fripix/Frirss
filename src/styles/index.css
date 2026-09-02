@@ -567,8 +567,11 @@ html {
 }
 
 /* 22 — la première page se dépose au lieu d'arriver en bloc. Jamais sur le
-   scroll infini : la liste pose `data-stagger` sur les dix premières lignes
-   seulement, sinon l'attente serait infligée à chaque page chargée. */
+   scroll infini : `data-stagger` n'est posé qu'à la PREMIÈRE apparition d'un
+   article dans la vue, et seulement s'il y entre dans les dix premières lignes
+   (`src/lib/rowStagger.ts`). Une ligne déjà rendue ne le reprend jamais — sans
+   quoi tout retrait, qui fait remonter les suivantes d'un cran, ferait rejouer
+   l'animation à une ligne qui n'a pas quitté l'écran. */
 .article-row[data-stagger] {
   animation: rowSettle 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

@@ -26,6 +26,20 @@ _(rien pour l'instant)_
   jamais, pour que suivant/précédent continuent de fonctionner. La liste
   enchaîne les pages suivantes au fil des retraits, et n'annonce « tout est
   lu » que lorsqu'il ne reste vraiment plus rien à charger. (issue #10)
+- **Marquer un article lu ne peut plus déranger la liste d'un autre flux.**
+  Si le serveur refusait le marquage après un changement de flux, de filtre ou
+  de recherche, l'article revenait au milieu de la liste affichée — et y
+  restait après rechargement. Il n'y revient plus que si la liste est encore la
+  sienne, et jamais en double si un rafraîchissement l'a déjà ramené.
+- **Un article refusé retrouve sa place même quand d'autres ✓ ont suivi.**
+  Deux marquages rapprochés dont un seul échouait renvoyaient l'article en fin
+  de liste ; sa place se déduit maintenant de sa date de publication.
+- **Hors ligne, une ligne marquée lue ne réapparaît plus.** Sans réseau, le ✓
+  est mis en attente et la ligne part ; quitter la vue et y revenir la
+  réaffichait pourtant, marquée lue, dans « Non lus ».
+- **Une bande de date entière ne clignote plus.** Marquer lu le dernier article
+  d'une journée faisait rejouer l'animation d'entrée à toutes les lignes des
+  journées suivantes.
 - **Un article ne clignote plus quand une ligne quitte la liste.** Chaque
   retrait faisait remonter les lignes suivantes d'un cran, et celle qui
   franchissait ainsi la dixième position rejouait l'animation d'entrée : elle

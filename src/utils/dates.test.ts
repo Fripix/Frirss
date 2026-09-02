@@ -82,3 +82,53 @@ describe('groupByDate', () => {
     ]);
   });
 });
+
+// La clé de rendu d'une bande de date. Elle valait `${label}-${index}` : vider
+// une bande décalait l'index de TOUTES les suivantes, donc leur clé, donc React
+// démontait et remontait leurs sous-arbres entiers. Les lignes remontées
+// portaient encore `data-stagger` et rejouaient leur animation d'entrée sur des
+// nœuds neufs : marquer lu le dernier article d'« Aujourd'hui » faisait
+// clignoter jusqu'à dix lignes d'un coup.
+describe('groupByDate — clés de bandes', () => {
+  const withId = (id: string, d: Date): Article => ({ id, published: d.getTime() } as Article);
+  // Une clé absente comparerait `undefined` à `undefined` : les tests de
+  // stabilité passeraient sans rien garder. On exige donc une vraie clé.
+  const keys = (articles: Article[]) =>
+    groupByDate(articles).map((g) => {
+      expect(typeof g.key).toBe('string');
+      expect(g.key).not.toBe('');
+      return g.key;
+    });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('garde la clé des bandes suivantes quand la première se vide', () => {
+    const list = [
+      withId('a0', daysAgo(0, 11)),
+      withId('a1', daysAgo(1, 15)),
+      withId('a2', daysAgo(2, 9)),
+    ];
+    expect(keys(list.slice(1))).toEqual(keys(list).slice(1));
+  });
+
+  it('garde la clé d’une bande quand elle perd une ligne', () => {
+    const list = [withId('a0', daysAgo(0, 11)), withId('a1', daysAgo(0, 9))];
+    expect(keys([list[0]])).toEqual(keys(list));
+  });
+
+  it('distingue deux bandes portant le même libellé', () => {
+    // Cas déjà couvert plus haut : une liste dont un jour revient plus bas
+    // rouvre une bande de même libellé. Deux clés identiques feraient deux
+    // enfants React sous la même clé.
+    const ks = keys([
+      withId('a0', daysAgo(0)),
+      withId('a1', daysAgo(1)),
+      withId('a2', daysAgo(0)),
+    ]);
+    expect(new Set(ks).size).toBe(3);
+  });
+});

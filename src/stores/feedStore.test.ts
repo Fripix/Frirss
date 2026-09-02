@@ -777,6 +777,126 @@ describe('feedStore.toggleRead — le retrait survit au cache mémoire', () => {
     useFeedStore.getState().selectFeed(feed1);
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
   });
+
+  // Hors ligne, la ligne RESTE retirée — la file la rejouera — mais le cache
+  // mémoire, lui, n'était pas purgé : quitter la vue et y revenir la repeignait
+  // depuis ce cache, marquée LUE, sous le filtre « Non lus », sans spinner et
+  // sans limite de temps. C'est le symptôme exact de l'issue #10, reparu par
+  // le seul chemin qui ne purgeait pas.
+  it('hors ligne, ne repeint pas la ligne retirée en revenant sur la vue', async () => {
+    await useFeedStore.getState().loadArticles();
+    vi.mocked(api.markAsRead).mockRejectedValueOnce(new Error('Network Error'));
+    await useFeedStore.getState().toggleRead(useFeedStore.getState().articles[1]);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+    expect(useFeedStore.getState().pendingActions).toBe(1);
+
+    useFeedStore.getState().selectFeed(feed2);
+    useFeedStore.getState().selectFeed(feed1);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+  });
+});
+
+describe('feedStore.toggleRead — le rollback ne réinsère qu’à bon escient', () => {
+  const feed1 = { id: 'feed/1', title: 'F1' } as unknown as Subscription;
+  const feed2 = { id: 'feed/2', title: 'F2' } as unknown as Subscription;
+  const row = (id: string, published: number): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/1', title: id, published } as Article);
+
+  // Un refus 4xx qui n'arrive QUE lorsqu'on le déclenche : c'est entre le
+  // retrait et ce refus que la liste change sous les pieds du rollback.
+  const refusalInFlight = (): (() => void) => {
+    let fail!: () => void;
+    vi.mocked(api.markAsRead).mockReturnValueOnce(
+      new Promise<void>((_, reject) => { fail = () => reject({ response: { status: 403 } }); }),
+    );
+    return () => fail();
+  };
+
+  beforeEach(() => {
+    vi.mocked(api.markAsRead).mockReset();
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+    useFeedStore.setState({
+      selectedFeed: feed1,
+      filter: 'unread',
+      searchQuery: '',
+      continuation: null,
+      selectedArticle: null,
+      articles: [row('a0', 5), row('a1', 4), row('a2', 3)],
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ selectedFeed: null, filter: 'all' });
+  });
+
+  it('ne réinsère pas dans la liste d’un autre flux', async () => {
+    // `selectFeed` remplace `articles` en bloc : au retour du refus, la liste
+    // à l'écran est celle du flux B. Y replacer un article du flux A le posait
+    // au milieu d'articles étrangers — et `persistCurrentView` l'écrivait
+    // aussitôt dans le cache de B, où il survivait au rechargement.
+    const fail = refusalInFlight();
+    const pending = useFeedStore.getState().toggleRead(row('a1', 4));
+    useFeedStore.setState({ selectedFeed: feed2, articles: [row('b0', 9), row('b1', 8)] });
+    fail();
+    await pending;
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['b0', 'b1']);
+  });
+
+  it('n’écrit pas l’article étranger dans le cache hors-ligne de l’autre flux', async () => {
+    const fail = refusalInFlight();
+    const pending = useFeedStore.getState().toggleRead(row('a1', 4));
+    useFeedStore.setState({ selectedFeed: feed2, articles: [row('b0', 9), row('b1', 8)] });
+    fail();
+    await pending;
+    const foreign = vi.mocked(offline.listPut).mock.calls.filter(
+      ([key, articles]) => key === 'feed/2:unread' && (articles as Article[]).some((a) => a.id === 'a1'),
+    );
+    expect(foreign).toHaveLength(0);
+  });
+
+  it('ne duplique pas la ligne qu’un rafraîchissement a déjà ramenée', async () => {
+    // Le marquage a échoué : la page serveur rapportée par un
+    // tiré-pour-rafraîchir (ou par `silentRefresh`) contient toujours
+    // l'article, non lu. Réinsérer en faisait une seconde copie — deux enfants
+    // React sous la même clé, et le doublon persisté.
+    const fail = refusalInFlight();
+    const pending = useFeedStore.getState().toggleRead(row('a1', 4));
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+    useFeedStore.setState({ articles: [row('a0', 5), row('a1', 4), row('a2', 3)] });
+    fail();
+    await pending;
+    const ids = useFeedStore.getState().articles.map((a) => a.id);
+    expect(ids).toEqual(['a0', 'a1', 'a2']);
+    expect(ids.filter((id) => id === 'a1')).toHaveLength(1);
+  });
+
+  it('replace la ligne au bon endroit quand un autre ✓ a été confirmé entre-temps', async () => {
+    // Deux ✓ rapprochés : a3 est refusé, a0 confirmé. L'index retenu pour a3
+    // désigne désormais la fin de la liste — la date, elle, désigne toujours
+    // la place entre a2 et a4.
+    useFeedStore.setState({
+      articles: [row('a0', 5), row('a1', 4), row('a2', 3), row('a3', 2), row('a4', 1)],
+    });
+    const fail = refusalInFlight();
+    const pending = useFeedStore.getState().toggleRead(row('a3', 2));
+    await useFeedStore.getState().toggleRead(row('a0', 5));
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a1', 'a2', 'a4']);
+    fail();
+    await pending;
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a1', 'a2', 'a3', 'a4']);
+  });
+
+  it('rend le compteur de non-lus même quand la ligne n’est pas réinsérée', async () => {
+    // Le serveur a refusé : l'article est toujours non lu. Le compteur doit
+    // revenir, que la ligne ait pu retrouver sa place ou non.
+    useFeedStore.setState({ unreadCounts: { 'feed/1': 3 } });
+    const fail = refusalInFlight();
+    const pending = useFeedStore.getState().toggleRead(row('a1', 4));
+    useFeedStore.setState({ selectedFeed: feed2, articles: [row('b0', 9)] });
+    fail();
+    await pending;
+    expect(useFeedStore.getState().unreadCounts['feed/1']).toBe(3);
+  });
 });
 
 describe('feedStore.toggleReadLater — retrait de la ligne depuis la vue « À lire plus tard »', () => {

@@ -845,8 +845,12 @@ export default function ArticleList() {
             {articles.map(renderCard)}
           </div>
         ) : (
-          groups.map((group, groupIdx) => (
-            <div key={`${group.label}-${groupIdx}`}>
+          /* La clé vient du groupe, jamais de sa position : `${label}-${index}`
+             changeait la clé de toutes les bandes suivantes dès qu'une bande se
+             vidait, et React remontait leurs sous-arbres entiers — les lignes
+             remontées rejouant leur animation d'entrée (voir `DateGroup.key`). */
+          groups.map((group) => (
+            <div key={group.key}>
               {dateSepActive && (
                 /* Ces bandeaux sont les seuls repères de progression d'un
                    scroll infini. Ils étaient à 10 px dans le gris le plus

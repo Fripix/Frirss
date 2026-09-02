@@ -36,6 +36,7 @@ import { cacheImages } from '../lib/imageCache';
 import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
 import { shouldLeaveList } from '../lib/removeOnRead';
 import { shouldTopUpAfterRemoval } from '../lib/listTopUp';
+import { planRowRestore } from '../lib/rollbackRow';
 import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPagination';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import type {
@@ -192,6 +193,14 @@ function memRemoveFromViews(articleId: string, filter: Filter): void {
 // appelé par les seuls chemins de lecture : le favori et « à lire plus tard »
 // étaient donc perdus du cache, et un rechargement hors ligne les affichait
 // dans leur état d'avant.
+// Identité de la vue affichée : le flux, le filtre, et la recherche en cours.
+// Le rollback d'un retrait optimiste s'en sert pour vérifier qu'il réinsère
+// bien dans la liste d'où la ligne vient — `selectFeed` remplace `articles` en
+// bloc, et une recherche aussi. La clé du cache (`viewKey`) ne suffit pas : une
+// recherche ne change ni le flux ni le filtre, mais bien la liste à l'écran.
+function viewIdentity(s: FeedState): string {
+  return `${s.selectedFeed?.id || ''}:${s.filter}:${s.searchQuery || ''}`;
+}
 function persistCurrentView(get: () => FeedState): void {
   const s = get();
   listPut(viewKey(s.selectedFeed, s.filter), s.articles, s.continuation).catch(() => {});
@@ -918,11 +927,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       implicit: opts?.implicit ?? false,
       selected: get().selectedArticle?.id === article.id,
     });
-    // Position et contenu de la ligne retenus AVANT le retrait : c'est tout ce
-    // dont le rollback a besoin pour la réinsérer où elle était. La réinsérer
-    // en fin de liste serait une autre façon de perdre l'article.
+    // Ce que le rollback retient du retrait : la ligne elle-même, la VUE d'où
+    // elle vient, et le voisin qu'elle avait au-dessus. Pas son index — entre
+    // le retrait et un refus, la liste peut avoir changé de flux, avoir été
+    // remplacée par un rafraîchissement, ou avoir perdu d'autres lignes ; un
+    // index ne survit à aucun des trois (`src/lib/rollbackRow.ts`).
     const removedIndex = leaving ? get().articles.findIndex((a) => a.id === article.id) : -1;
     const removedRow = removedIndex >= 0 ? get().articles[removedIndex] : null;
+    const removedPreviousId = removedIndex > 0 ? get().articles[removedIndex - 1].id : null;
+    const removedView = viewIdentity(get());
     // Optimistic update — instant UI feedback
     set((state) => {
       const updated = state.articles.map((a) =>
@@ -945,9 +958,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       } else {
         await markAsUnread(article.id);
       }
-      // La purge du cache DURABLE, elle, reste APRÈS la confirmation : seule
-      // la liste visible bouge d'avance. Un refus n'a ainsi rien à défaire
-      // ici — la ligne réinsérée y est toujours.
+      // La purge du cache MÉMOIRE des vues attend la confirmation : c'est le
+      // seul cache qu'un refus n'a alors rien à défaire, la ligne réinsérée y
+      // étant toujours. (Le cache durable, lui, est déjà réécrit d'avance par
+      // le `persistCurrentView` ci-dessus.) Le chemin HORS LIGNE, qui garde la
+      // ligne retirée, doit donc purger de son côté — voir le `catch`.
       if (leaving) {
         memRemoveFromViews(article.id, 'unread');
         persistCurrentView(get);
@@ -967,15 +982,31 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // server refusal is rolled back.
       if (isNetworkFailure(err)) {
         // La ligne RESTE retirée : l'état optimiste est celui qu'`enqueueAction`
-        // rejouera. La remettre contredirait la file d'attente.
+        // rejouera. La remettre contredirait la file d'attente. Le cache
+        // mémoire doit donc suivre, sans quoi quitter la vue et y revenir la
+        // repeint — marquée LUE, sous « Non lus », sans spinner et sans limite
+        // de temps. C'est le symptôme exact de l'issue #10, par le seul chemin
+        // qui ne purgeait pas.
+        if (leaving) memRemoveFromViews(article.id, 'unread');
         await enqueueAction(set, article.id, 'read', newRead);
         return;
       }
-      // Rollback on failure — un refus du serveur doit tout rendre, la ligne
-      // comprise, à sa place d'origine (`removedIndex`).
+      // Rollback sur refus du serveur : tout est rendu, la ligne comprise —
+      // mais seulement si la liste à l'écran est encore la sienne et qu'elle
+      // n'y est pas déjà revenue. `planRowRestore` tranche, et recalcule la
+      // place sur la liste TELLE QU'ELLE EST.
+      const plan = removedRow
+        ? planRowRestore({
+            row: removedRow,
+            articles: get().articles,
+            viewAtRemoval: removedView,
+            viewNow: viewIdentity(get()),
+            previousId: removedPreviousId,
+          })
+        : null;
       set((state) => {
-        const articles = removedRow
-          ? [...state.articles.slice(0, removedIndex), removedRow, ...state.articles.slice(removedIndex)]
+        const articles = plan?.insert
+          ? [...state.articles.slice(0, plan.index), removedRow!, ...state.articles.slice(plan.index)]
           : state.articles.map((a) => (a.id === article.id ? { ...a, read: !newRead } : a));
         return {
           articles,

@@ -4,18 +4,42 @@ import type { Article } from '../types';
 export interface DateGroup {
   label: string | null;
   articles: Article[];
+  /**
+   * Clé de rendu de la bande, INDÉPENDANTE de sa position.
+   *
+   * ⚠️ Elle valait `${label}-${index}` côté rendu. Vider une bande — marquer
+   * lu le dernier article d'« Aujourd'hui » — décalait l'index de toutes les
+   * suivantes, donc leur clé : React démontait puis remontait leurs sous-arbres
+   * entiers, et les lignes remontées, portant encore `data-stagger`, rejouaient
+   * leur animation d'entrée sur des nœuds neufs. Jusqu'à dix lignes
+   * clignotaient d'un coup, sans avoir jamais quitté l'écran.
+   *
+   * Le libellé suffit tant qu'il ne se répète pas — mais une liste dont un jour
+   * revient plus bas rouvre bien une bande de même libellé (cas testé). Le
+   * doublon est alors levé par l'identifiant de son premier article, unique par
+   * construction.
+   */
+  key: string;
 }
 
 export function groupByDate(articles: Article[]): DateGroup[] {
   const groups: DateGroup[] = [];
   let currentLabel: string | null = null;
   let currentItems: Article[] = [];
+  const seen = new Set<string>();
+
+  const push = (label: string | null, items: Article[]): void => {
+    const base = label ?? '';
+    const key = seen.has(base) ? `${base}#${items[0].id}` : base;
+    seen.add(base);
+    groups.push({ label, articles: items, key });
+  };
 
   for (const article of articles) {
     const label = getDateLabel(article.published);
     if (label !== currentLabel) {
       if (currentItems.length > 0) {
-        groups.push({ label: currentLabel, articles: currentItems });
+        push(currentLabel, currentItems);
       }
       currentLabel = label;
       currentItems = [article];
@@ -25,7 +49,7 @@ export function groupByDate(articles: Article[]): DateGroup[] {
   }
 
   if (currentItems.length > 0) {
-    groups.push({ label: currentLabel, articles: currentItems });
+    push(currentLabel, currentItems);
   }
 
   return groups;

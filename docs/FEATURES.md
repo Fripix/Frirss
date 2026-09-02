@@ -296,6 +296,15 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   Le suivi des identifiants vus est mis à jour dans un effet, **jamais pendant
   le rendu** : un double rendu (StrictMode) verrait sinon toutes les lignes
   comme déjà vues dès la première peinture, et plus rien ne s'animerait.
+  **Second piège, même symptôme** : la clé de rendu d'une bande de date valait
+  `${label}-${index}`. Vider une bande — marquer lu le dernier article
+  d'« Aujourd'hui » — décalait l'index de toutes les suivantes, donc leur clé :
+  React démontait puis remontait leurs sous-arbres entiers, et les lignes
+  remontées, portant encore `data-stagger`, rejouaient leur animation sur des
+  nœuds neufs. Jusqu'à dix lignes clignotaient d'un coup. La clé vient
+  désormais de `DateGroup.key` (`src/utils/dates.ts`), **indépendante de la
+  position** : le libellé, complété de l'identifiant du premier article quand
+  un même jour rouvre une bande plus bas dans la liste.
 - **Repère « non lu »** : une barre de 3 px à gauche de la ligne, posée en CSS
   depuis l'attribut `data-unread` (`.article-row[data-unread]`), plus la pastille
   du mode Compact. Cette phrase a longtemps été fausse : `--list-unread-bar`
@@ -344,7 +353,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   sans limite de temps. Le helper n'a d'abord couvert que « Non lus » ;
   `toggleReadLater` avait le même défaut et l'a gardé jusqu'à ce que le helper
   soit généralisé. Un jumeau à moitié corrigé est un piège : **si un site
-  d'écriture retire une ligne, il purge ce cache**.
+  d'écriture retire une ligne, il purge ce cache** — y compris le chemin qui
+  garde la ligne retirée sans confirmation du serveur : le `catch` réseau de
+  `toggleRead`, qui met l'action en file et laisse la ligne partie, purge de
+  son côté.
 - **Le ✓ retire la ligne sous le filtre « Non lus »** (issue #10, 2026-09-01).
   La décision est prise par `shouldLeaveList()` (`src/lib/removeOnRead.ts`) et
   appliquée par `toggleRead` **avant l'appel au serveur**, comme le drapeau
@@ -361,15 +373,44 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     n'était pas le principe mais le rollback — un simple `.map()`, incapable
     de remettre une ligne déjà sortie du tableau. C'est le bug payé sur
     `toggleStar`, où l'article disparaissait de l'écran en restant favori côté
-    FreshRSS. `toggleRead` retient donc l'**index** et la ligne AVANT de
-    retirer, et un refus les réinsère à leur place exacte — la réinsérer en
-    fin de liste serait une autre façon de perdre l'article. Sur un échec
-    RÉSEAU, en revanche, la ligne **reste retirée** : l'état optimiste est
-    celui qu'`enqueueAction` rejouera, le remettre contredirait la file.
-  - **Seule la liste visible bouge d'avance.** `memRemoveFromViews` et la
-    décision de rattrapage restent APRÈS la confirmation : le cache durable
-    n'est purgé qu'une fois le serveur d'accord, si bien qu'un refus n'a rien
-    à y défaire.
+    FreshRSS. `toggleRead` retient donc la ligne AVANT de retirer, et un refus
+    la réinsère — mais **la place se recalcule au moment du refus**, jamais
+    depuis un index. Trois choses ont pu changer entre-temps, et un index n'en
+    survit à aucune ; `planRowRestore()` (`src/lib/rollbackRow.ts`) les tranche
+    toutes les trois :
+    - **La vue n'est plus la même.** Le ✓ part du flux A, l'utilisateur ouvre
+      le flux B pendant que l'écriture est en vol (`selectFeed` remplace
+      `articles` en bloc) : réinsérer posait un article du flux A au milieu de
+      la liste du flux B, et `persistCurrentView` l'écrivait aussitôt dans le
+      cache de B, où il survivait au rechargement et au retour hors ligne. La
+      vue est donc comparée par `viewIdentity()` — flux, filtre **et**
+      recherche en cours, qu'une clé de cache ne distingue pas.
+    - **La ligne est déjà revenue.** Un tiré-pour-rafraîchir ou un
+      `silentRefresh` remplace la liste par une page serveur qui contient
+      toujours l'article, le marquage ayant échoué : réinsérer en faisait une
+      SECONDE copie, deux enfants React sous la même clé, et le doublon
+      persisté.
+    - **La liste a bougé.** Deux ✓ rapprochés dont l'un est confirmé : l'index
+      retenu pour l'autre désigne la fin de la liste. La place se déduit de la
+      DATE de publication, l'ordre de la liste elle-même ; le voisin du dessus
+      ne sert qu'à départager un bloc publié à la même seconde, et il est
+      vérifié présent, jamais supposé.
+
+    Ce chemin n'a rien d'exotique : le jeton d'écriture CSRF est mis en cache
+    pour toute la session (`src/api/feeds.ts`), donc un jeton périmé envoie
+    chaque ✓ dans le refus. Sur un échec RÉSEAU, en revanche, la ligne **reste
+    retirée** : l'état optimiste est celui qu'`enqueueAction` rejouera, le
+    remettre contredirait la file.
+  - **Le cache mémoire attend la confirmation — sauf hors ligne.**
+    `memRemoveFromViews` et la décision de rattrapage restent APRÈS la réponse
+    du serveur : c'est le seul cache qu'un refus n'a alors rien à défaire, la
+    ligne réinsérée y étant toujours. Le cache DURABLE, lui, est réécrit
+    d'avance avec la liste optimiste (`persistCurrentView`). D'où le piège
+    payé : sur échec réseau, la ligne reste retirée pour la file d'attente,
+    mais le cache mémoire la gardait — quitter la vue et y revenir la
+    repeignait, marquée LUE, sous « Non lus », sans spinner et sans limite de
+    temps, soit le symptôme exact de l'issue #10 par le seul chemin qui ne
+    purgeait pas. Le `catch` réseau purge donc lui aussi.
   - **Jamais la ligne de l'article OUVERT.** Deux bascules depuis le volet de
     lecture atteignent une vraie transition non-lu → lu sur lui : sans garde,
     sa ligne partait pendant qu'il restait affiché, `selectNextArticle` ne le
