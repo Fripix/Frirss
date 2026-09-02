@@ -636,7 +636,9 @@
     "markedReadAll": "Artikelen als gelezen gemarkeerd",
     "linkCopied": "Link gekopieerd",
     "copyFailed": "Kon de link niet kopiëren",
-    "loadMoreEmpty": "Volgende pagina geladen, nog steeds niets om te tonen."
+    "loadMoreEmpty": "Volgende pagina geladen, nog steeds niets om te tonen.",
+    "markFailed": "De server weigerde dit artikel te markeren: de rij is teruggezet.",
+    "markQueued": "De wijziging is niet doorgekomen. Er wordt later opnieuw geprobeerd."
   },
   "palette": {
     "title": "Opdrachtenpalet",

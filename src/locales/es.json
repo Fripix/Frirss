@@ -636,7 +636,9 @@
     "markedReadAll": "Artículos marcados como leídos",
     "linkCopied": "Enlace copiado",
     "copyFailed": "No se pudo copiar el enlace",
-    "loadMoreEmpty": "Página siguiente cargada, todavía no hay nada que mostrar."
+    "loadMoreEmpty": "Página siguiente cargada, todavía no hay nada que mostrar.",
+    "markFailed": "El servidor rechazó marcar este artículo: se ha restaurado su fila.",
+    "markQueued": "El cambio no se ha enviado. Se reintentará más tarde."
   },
   "palette": {
     "title": "Paleta de comandos",

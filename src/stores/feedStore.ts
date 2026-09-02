@@ -37,6 +37,7 @@ import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhas
 import { shouldLeaveList } from '../lib/removeOnRead';
 import { shouldTopUpAfterRemoval } from '../lib/listTopUp';
 import { planRowRestore } from '../lib/rollbackRow';
+import { writeFailureNotice } from '../lib/writeFailureNotice';
 import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPagination';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import type {
@@ -63,9 +64,30 @@ const PAGE_SIZE = 50;
 // `initReactI18next`. In the real app `../i18n` is already loaded by
 // `main.tsx` well before a click is possible, so this dynamic import resolves
 // from cache — no real cost.
-async function pushLoadMoreToast(key: string, opts?: { tone: 'error' }): Promise<void> {
+async function pushI18nToast(key: string, opts?: { tone: 'error' }): Promise<void> {
   const { default: i18n } = await import('../i18n');
   useUiStore.getState().pushToast(i18n.t(key), opts);
+}
+
+/**
+ * Dire à l'utilisateur qu'une écriture d'article n'est pas passée.
+ *
+ * Le ✓ retire la ligne avant la réponse de FreshRSS : sans ce message, un
+ * échec est indiscernable d'une réussite jusqu'au prochain rechargement, où
+ * tout ce qu'on croyait avoir lu revient non lu. `writeFailureNotice`
+ * (`src/lib/writeFailureNotice.ts`) décide seul s'il faut parler et de quoi ;
+ * le hors-ligne véritable reste muet, le bandeau global le couvre déjà.
+ */
+async function notifyWriteFailure(err: unknown): Promise<void> {
+  const notice = writeFailureNotice({
+    networkFailure: isNetworkFailure(err),
+    online: typeof navigator === 'undefined' ? true : navigator.onLine,
+  });
+  if (!notice) return;
+  await pushI18nToast(
+    notice === 'refused' ? 'toast.markFailed' : 'toast.markQueued',
+    { tone: 'error' },
+  );
 }
 
 // ── Shared stream resolver ──────────────────────────────────────────
@@ -897,7 +919,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // le dire, des clics répétés repeignent le même écran vide et le
       // bouton a l'air cassé.
       if (shouldReportInvisibleProgress({ itemsAdded: result.items.length, hasMore: result.continuation != null })) {
-        await pushLoadMoreToast('toast.loadMoreEmpty');
+        await pushI18nToast('toast.loadMoreEmpty');
       }
     } catch {
       set({ loadingMore: false });
@@ -905,7 +927,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // échec réseau/serveur, le bouton reprenait son état de départ sans un
       // mot nulle part. Réutilise le mécanisme de toast existant et un
       // message d'erreur déjà traduit plutôt que d'en inventer un nouveau.
-      await pushLoadMoreToast('sidebar.loadError', { tone: 'error' });
+      await pushI18nToast('sidebar.loadError', { tone: 'error' });
     }
   },
 
@@ -990,6 +1012,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // qui ne purgeait pas.
         if (leaving) memRemoveFromViews(article.id, 'unread');
         await enqueueAction(set, article.id, 'read', newRead);
+        // La ligne reste partie alors que RIEN n'a été écrit. Hors ligne, le
+        // bandeau global suffit ; en ligne — un 5xx de FreshRSS, une requête
+        // restée sans réponse — plus rien ne le signalait.
+        await notifyWriteFailure(err);
         return;
       }
       // Rollback sur refus du serveur : tout est rendu, la ligne comprise —
@@ -1020,6 +1046,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       });
       memMarkRead(article.id, !newRead);
       persistCurrentView(get);
+      // Le rollback rend la ligne et le compteur, mais une ligne qui
+      // réapparaît toute seule est incompréhensible : il faut la commenter.
+      await notifyWriteFailure(err);
     }
     // Hors du `try` : une page de rattrapage en échec ne doit jamais être
     // confondue avec un marquage refusé, et ne déclenche RIEN d'autre.

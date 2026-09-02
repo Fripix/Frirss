@@ -636,7 +636,9 @@
     "markedReadAll": "Artikel als gelesen markiert",
     "linkCopied": "Link kopiert",
     "copyFailed": "Link konnte nicht kopiert werden",
-    "loadMoreEmpty": "Nächste Seite geladen, noch immer nichts anzuzeigen."
+    "loadMoreEmpty": "Nächste Seite geladen, noch immer nichts anzuzeigen.",
+    "markFailed": "Der Server hat das Markieren abgelehnt: Der Eintrag wurde wiederhergestellt.",
+    "markQueued": "Die Änderung ging nicht durch. Sie wird später erneut versucht."
   },
   "palette": {
     "title": "Befehlspalette",

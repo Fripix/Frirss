@@ -1289,3 +1289,63 @@ describe('feedStore — le clic sur « charger la suite » pendant la revalidati
     await p;
   });
 });
+
+describe('feedStore.toggleRead — une écriture perdue se voit', () => {
+  // Le ✓ retire la ligne AVANT la réponse de FreshRSS. Un échec ressemble donc
+  // à une réussite : la ligne part, le compteur baisse, et l'utilisateur
+  // n'apprend qu'au rechargement que rien n'a été écrit. Ces trois cas sont
+  // ceux qui doivent parler — ou se taire, pour le dernier.
+  const row = (id: string): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/1', title: id } as Article);
+  let onLine: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.mocked(api.markAsRead).mockReset();
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+    onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    useFeedStore.setState({
+      articles: [row('a0'), row('a1'), row('a2')],
+      selectedArticle: null,
+      filter: 'unread',
+    });
+    useUiStore.setState({ toasts: [] });
+  });
+
+  afterEach(() => { onLine.mockRestore(); });
+
+  it('dit que le marquage a été refusé et que la ligne est revenue', async () => {
+    vi.mocked(api.markAsRead).mockRejectedValueOnce({ response: { status: 403 } });
+    await useFeedStore.getState().toggleRead(row('a1'));
+    // Le rollback fait déjà son travail ; ce qui manquait, c'est de le DIRE.
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+    const [toast] = useUiStore.getState().toasts;
+    expect(toast).toMatchObject({ message: 'toast.markFailed', tone: 'error' });
+  });
+
+  it('dit qu’une écriture mise en file n’est pas passée quand le navigateur est en ligne', async () => {
+    // Un 5xx de FreshRSS, ou une requête sans réponse alors que la connexion
+    // est là : la ligne RESTE partie, et rien ne le signalait.
+    vi.mocked(api.markAsRead).mockRejectedValueOnce({ response: { status: 502 } });
+    const before = useFeedStore.getState().pendingActions;
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+    expect(useFeedStore.getState().pendingActions).toBeGreaterThan(before);
+    const [toast] = useUiStore.getState().toasts;
+    expect(toast).toMatchObject({ message: 'toast.markQueued', tone: 'error' });
+  });
+
+  it('se tait quand le navigateur est vraiment hors ligne', async () => {
+    // Le bandeau hors-ligne couvre déjà le cas ; un toast par clic serait du
+    // bruit pendant toute une session de lecture sans réseau.
+    onLine.mockReturnValue(false);
+    vi.mocked(api.markAsRead).mockRejectedValueOnce(new Error('Network Error'));
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(offline.queuePut).toHaveBeenCalled();
+    expect(useUiStore.getState().toasts).toEqual([]);
+  });
+
+  it('ne dit rien quand l’écriture passe', async () => {
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(useUiStore.getState().toasts).toEqual([]);
+  });
+});

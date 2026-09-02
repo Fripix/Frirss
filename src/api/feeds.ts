@@ -1,4 +1,5 @@
 import client from './client';
+import { isStaleWriteTokenFailure } from '../lib/writeTokenRetry';
 import type { Subscription, Tag, UnreadCount, GReaderItem, GReaderStream } from '../types';
 
 const BASE = '/api/greader.php/reader/api/0';
@@ -114,19 +115,61 @@ export function clearWriteToken(): void {
   writeToken = null;
 }
 
+/**
+ * Envoyer une écriture SIGNÉE par le jeton d'écriture, avec une seule reprise.
+ *
+ * Le jeton était obtenu une fois puis gardé pour toute la session, et rien ne
+ * l'invalidait : dès qu'il périmait, chaque ✓, chaque favori, chaque « à lire
+ * plus tard » échouait jusqu'au rechargement de la page. Le retrait optimiste
+ * de la ligne déguisait ces échecs en réussites.
+ *
+ * La reprise est UNIQUE, et elle l'est par construction — `client.post` n'est
+ * appelé qu'à deux endroits, jamais dans une boucle ni par récursion. Un
+ * second échec ressort tel quel : ce sont les appelants qui savent quoi en
+ * faire (rollback pour un refus, file d'attente pour un incident réseau), et
+ * une reprise supplémentaire ici leur retirerait cette décision tout en
+ * multipliant les écritures en vol.
+ *
+ * `build` reçoit le jeton en argument plutôt que de le lire au-dessus : la
+ * seconde tentative doit repartir du jeton FRAIS, sinon elle rejoue le refus.
+ */
+async function postSigned(
+  path: string,
+  build: (token: string | null) => URLSearchParams
+): Promise<void> {
+  const token = await ensureToken();
+  try {
+    await client.post(`${BASE}${path}`, build(token));
+  } catch (err) {
+    // Hors ligne, 5xx, 404… : rien qu'un nouveau jeton puisse réparer.
+    if (!isStaleWriteTokenFailure(err)) throw err;
+    let fresh: string | null;
+    try {
+      clearWriteToken();
+      fresh = await ensureToken();
+    } catch {
+      // Impossible d'obtenir un jeton : c'est l'échec d'ORIGINE qui compte,
+      // lui seul décrit ce qui est arrivé à l'écriture.
+      throw err;
+    }
+    await client.post(`${BASE}${path}`, build(fresh));
+  }
+}
+
 async function editTag(
   itemIds: string | string[],
   addTag: string | null = null,
   removeTag: string | null = null
 ): Promise<void> {
-  const token = await ensureToken();
-  const params = new URLSearchParams();
-  if (token) params.append('T', token);
-  const ids = Array.isArray(itemIds) ? itemIds : [itemIds];
-  ids.forEach((id) => params.append('i', id));
-  if (addTag) params.append('a', addTag);
-  if (removeTag) params.append('r', removeTag);
-  await client.post(`${BASE}/edit-tag`, params);
+  return postSigned('/edit-tag', (token) => {
+    const params = new URLSearchParams();
+    if (token) params.append('T', token);
+    const ids = Array.isArray(itemIds) ? itemIds : [itemIds];
+    ids.forEach((id) => params.append('i', id));
+    if (addTag) params.append('a', addTag);
+    if (removeTag) params.append('r', removeTag);
+    return params;
+  });
 }
 
 export function markAsRead(itemIds: string | string[]): Promise<void> {
@@ -153,14 +196,15 @@ async function getToken(): Promise<string> {
 
 // Mark all items in a stream as read (up to a timestamp)
 export async function markAllAsRead(streamId: string, timestampUsec: string | number | null = null): Promise<void> {
-  const token = await ensureToken();
-  const params = new URLSearchParams();
-  if (token) params.append('T', token);
-  params.append('s', streamId);
-  if (timestampUsec) {
-    params.append('ts', String(timestampUsec));
-  }
-  await client.post(`${BASE}/mark-all-as-read`, params);
+  return postSigned('/mark-all-as-read', (token) => {
+    const params = new URLSearchParams();
+    if (token) params.append('T', token);
+    params.append('s', streamId);
+    if (timestampUsec) {
+      params.append('ts', String(timestampUsec));
+    }
+    return params;
+  });
 }
 
 // Search articles
@@ -189,17 +233,18 @@ export async function subscribeFeed(
   categoryId = '',
   categoryLabel = ''
 ): Promise<void> {
-  const token = await ensureToken();
-  const params = new URLSearchParams();
-  if (token) params.append('T', token);
-  params.append('ac', 'subscribe');
-  params.append('s', `feed/${feedUrl}`);
-  if (title) params.append('t', title);
-  if (categoryId && categoryLabel) {
-    params.append('a', categoryId);
-    params.append('l', categoryLabel);
-  }
-  await client.post(`${BASE}/subscription/edit`, params);
+  return postSigned('/subscription/edit', (token) => {
+    const params = new URLSearchParams();
+    if (token) params.append('T', token);
+    params.append('ac', 'subscribe');
+    params.append('s', `feed/${feedUrl}`);
+    if (title) params.append('t', title);
+    if (categoryId && categoryLabel) {
+      params.append('a', categoryId);
+      params.append('l', categoryLabel);
+    }
+    return params;
+  });
 }
 
 // Rename / move a feed
@@ -209,46 +254,50 @@ export async function editFeed(
   categoryId?: string,
   categoryLabel?: string
 ): Promise<void> {
-  const token = await ensureToken();
-  const params = new URLSearchParams();
-  if (token) params.append('T', token);
-  params.append('ac', 'edit');
-  params.append('s', feedId);
-  if (title) params.append('t', title);
-  if (categoryId && categoryLabel) {
-    params.append('a', categoryId);
-    params.append('l', categoryLabel);
-  }
-  await client.post(`${BASE}/subscription/edit`, params);
+  return postSigned('/subscription/edit', (token) => {
+    const params = new URLSearchParams();
+    if (token) params.append('T', token);
+    params.append('ac', 'edit');
+    params.append('s', feedId);
+    if (title) params.append('t', title);
+    if (categoryId && categoryLabel) {
+      params.append('a', categoryId);
+      params.append('l', categoryLabel);
+    }
+    return params;
+  });
 }
 
 // Unsubscribe from a feed
 export async function unsubscribeFeed(feedId: string): Promise<void> {
-  const token = await ensureToken();
-  const params = new URLSearchParams();
-  if (token) params.append('T', token);
-  params.append('ac', 'unsubscribe');
-  params.append('s', feedId);
-  await client.post(`${BASE}/subscription/edit`, params);
+  return postSigned('/subscription/edit', (token) => {
+    const params = new URLSearchParams();
+    if (token) params.append('T', token);
+    params.append('ac', 'unsubscribe');
+    params.append('s', feedId);
+    return params;
+  });
 }
 
 // Rename a label / tag
 export async function renameTag(oldTag: string, newTag: string): Promise<void> {
-  const token = await ensureToken();
-  const params = new URLSearchParams();
-  if (token) params.append('T', token);
-  params.append('s', oldTag);
-  params.append('dest', newTag);
-  await client.post(`${BASE}/rename-tag`, params);
+  return postSigned('/rename-tag', (token) => {
+    const params = new URLSearchParams();
+    if (token) params.append('T', token);
+    params.append('s', oldTag);
+    params.append('dest', newTag);
+    return params;
+  });
 }
 
 // Delete a label / tag
 export async function deleteTag(tagId: string): Promise<void> {
-  const token = await ensureToken();
-  const params = new URLSearchParams();
-  if (token) params.append('T', token);
-  params.append('s', tagId);
-  await client.post(`${BASE}/disable-tag`, params);
+  return postSigned('/disable-tag', (token) => {
+    const params = new URLSearchParams();
+    if (token) params.append('T', token);
+    params.append('s', tagId);
+    return params;
+  });
 }
 
 // Add/remove a label on articles

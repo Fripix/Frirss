@@ -397,10 +397,29 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
       vérifié présent, jamais supposé.
 
     Ce chemin n'a rien d'exotique : le jeton d'écriture CSRF est mis en cache
-    pour toute la session (`src/api/feeds.ts`), donc un jeton périmé envoie
-    chaque ✓ dans le refus. Sur un échec RÉSEAU, en revanche, la ligne **reste
-    retirée** : l'état optimiste est celui qu'`enqueueAction` rejouera, le
-    remettre contredirait la file.
+    pour toute la session (`src/api/feeds.ts`). Un jeton périmé envoyait donc
+    chaque ✓ dans le refus, et pour toujours — voir « Jeton d'écriture
+    (CSRF) » plus bas, qui redemande maintenant un jeton et rejoue l'écriture
+    une fois. Sur un échec RÉSEAU, en revanche, la ligne **reste retirée** :
+    l'état optimiste est celui qu'`enqueueAction` rejouera, le remettre
+    contredirait la file.
+  - **Un échec ne se déguise plus en réussite.** Le retrait étant optimiste, une
+    écriture perdue est indiscernable d'une écriture passée : la ligne s'en va,
+    le compteur baisse, et l'utilisateur ne l'apprend qu'au rechargement — où
+    tout ce qu'il croyait avoir lu revient non lu. Les deux chemins d'échec de
+    `toggleRead` poussent donc un toast d'erreur, la décision revenant à
+    `writeFailureNotice()` (`src/lib/writeFailureNotice.ts`) :
+    - **refus du serveur** → `toast.markFailed`, qui explique la ligne
+      réapparue ;
+    - **mise en file alors que le navigateur est EN LIGNE** →
+      `toast.markQueued` : un 5xx de FreshRSS ou une requête restée sans
+      réponse n'est pas une situation hors ligne, mais `isNetworkFailure` les
+      range là — la ligne reste partie sans que rien n'ait été écrit ;
+    - **hors ligne pour de bon** → silence, le bandeau global le dit déjà et un
+      toast par clic serait du bruit.
+
+    La notification n'a rien reclassé : `isNetworkFailure` garde son contrat et
+    la file d'attente son comportement.
   - **Le cache mémoire attend la confirmation — sauf hors ligne.**
     `memRemoveFromViews` et la décision de rattrapage restent APRÈS la réponse
     du serveur : c'est le seul cache qu'un refus n'a alors rien à défaire, la
@@ -780,6 +799,29 @@ mises en file et rejouées au retour.
   deux fois, et la plus lente réécrivait la file de la plus rapide. Les appels
   concurrents attendent maintenant la même exécution (`replayInFlight`).
 - **Spec** : `docs/superpowers/specs/2026-08-20-offline-action-queue-design.md`
+
+### Jeton d'écriture (CSRF)
+Toute écriture vers FreshRSS — ✓, favori, « à lire plus tard », étiquette,
+« tout marquer comme lu », abonnement, renommage/suppression de libellé — est
+signée par un jeton obtenu sur `/reader/api/0/token` et gardé en mémoire.
+
+- **Où** : `src/api/feeds.ts` (`ensureToken`, `clearWriteToken`, `postSigned`),
+  classification dans `src/lib/writeTokenRetry.ts`
+- **Le piège qu'il a coûté** : le jeton n'était vidé qu'à la connexion et au
+  changement de serveur. Une fois périmé — session FreshRSS renouvelée, serveur
+  redémarré —, **toutes** les écritures échouaient jusqu'au rechargement de la
+  page. Combiné au retrait optimiste de la ligne, cela donnait des articles qui
+  disparaissaient de l'écran, un compteur de non-lus immobile, et tout qui
+  revenait non lu au rechargement.
+- **Une seule reprise.** `postSigned()` vide le jeton, en redemande un et
+  rejoue l'écriture **une fois**, avec le jeton FRAIS. Un second échec ressort
+  tel quel, sans transformation : rollback et file d'attente conservent
+  exactement les décisions qu'ils prenaient déjà. La reprise unique tient à la
+  forme du code — deux appels écrits en clair, ni boucle ni récursion.
+- **Ce qui déclenche la reprise** : 401 (réponse canonique de greader,
+  `Google-Bad-Token`), 403 et 400 selon la version de FreshRSS et le proxy
+  devant. **Pas** une absence de réponse (c'est le hors-ligne, il doit aller
+  en file sans délai), **pas** un 5xx, **pas** les autres 4xx.
 
 ---
 
@@ -1349,6 +1391,10 @@ Trois au maximum ; au-delà, les plus anciens sortent.
   pouvoir coexister.
 - **Durées** : 3,8 s sans action, 6,5 s avec — il faut le temps de lire, de
   décider, puis d'atteindre le bouton.
+- **Un toast d'erreur n'est pas décoratif.** `toast.markFailed` et
+  `toast.markQueued` sont, depuis le retrait optimiste de la ligne, le SEUL
+  signal qu'une écriture n'est pas passée : les retirer rendrait l'échec
+  invisible jusqu'au rechargement (voir « Liste d'articles »).
 
 ### Pourquoi « tout marquer comme lu » n'a pas d'annulation
 

@@ -25,9 +25,11 @@
 // d'un bloc de même horodatage, où la date ne dit plus rien (flux datés au
 // jour, imports en masse), et il est vérifié présent, jamais supposé.
 //
-// ⚠️ Ce chemin n'a rien d'exotique : le jeton d'écriture CSRF est mis en cache
-// pour toute la session (`src/api/feeds.ts`), donc un jeton périmé envoie
-// CHAQUE ✓ dans le refus.
+// ⚠️ Ce chemin n'a rien d'exotique. Le jeton d'écriture CSRF est mis en cache
+// pour toute la session (`src/api/feeds.ts`) : un jeton périmé envoyait CHAQUE
+// ✓ dans le refus, et pour toujours. `postSigned()` en redemande désormais un
+// et rejoue l'écriture une fois — mais une seule, et un refus qui persiste
+// arrive bien ici.
 
 /** Le strict minimum dont la décision a besoin — pas un `Article` entier. */
 export interface RestorableRow {

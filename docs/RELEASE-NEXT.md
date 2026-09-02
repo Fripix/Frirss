@@ -66,6 +66,20 @@ _(rien pour l'instant)_
   serveur : sur un refus elle ne revenait pas, et le compteur annonçait un
   élément au-dessus d'une liste vide. La ligne ne part désormais qu'une fois le
   retrait confirmé — même correction que celle appliquée aux favoris en 1.4.4.
+- **Un jeton d'écriture périmé ne condamne plus toutes les écritures.** Le
+  jeton CSRF de FreshRSS était obtenu une fois pour toute la session et rien ne
+  le renouvelait : dès qu'il expirait — session FreshRSS renouvelée, serveur
+  redémarré —, chaque ✓, chaque favori et chaque « à lire plus tard » échouait
+  jusqu'au rechargement de la page. Comme la ligne part désormais sans attendre
+  la réponse du serveur, les articles disparaissaient de l'écran sans que le
+  compteur de non-lus bouge, et revenaient tous non lus au rechargement.
+  FriRSS redemande maintenant un jeton et rejoue l'écriture **une fois** ; un
+  second échec est traité comme avant.
+- **Une écriture perdue le dit.** Un marquage refusé par le serveur remettait
+  la ligne en place sans un mot, et une écriture mise en file d'attente laissait
+  la ligne partie en silence. Un message d'erreur explique désormais les deux
+  cas — y compris quand la connexion est bonne mais que FreshRSS ne répond pas.
+  Hors ligne pour de bon, rien ne s'affiche : le bandeau hors-ligne le dit déjà.
 - **Le bouton « Charger la suite » de la liste vide ne clique plus jamais dans
   le vide.** Trois cas où il ne se passait rien de visible : un échec réseau
   ou serveur remettait le bouton à son état de départ sans un mot (il affiche

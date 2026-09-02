@@ -636,7 +636,9 @@
     "markedReadAll": "Articles marked read",
     "linkCopied": "Link copied",
     "copyFailed": "Could not copy the link",
-    "loadMoreEmpty": "Next page loaded, still nothing to show."
+    "loadMoreEmpty": "Next page loaded, still nothing to show.",
+    "markFailed": "The server refused to mark this article: its row has been put back.",
+    "markQueued": "The change did not go through. It will be retried later."
   },
   "palette": {
     "title": "Command palette",

@@ -636,7 +636,9 @@
     "markedReadAll": "Articles marqués comme lus",
     "linkCopied": "Lien copié",
     "copyFailed": "Impossible de copier le lien",
-    "loadMoreEmpty": "Page suivante chargée, toujours rien à afficher."
+    "loadMoreEmpty": "Page suivante chargée, toujours rien à afficher.",
+    "markFailed": "Le serveur a refusé de marquer cet article : sa ligne a été remise.",
+    "markQueued": "Le marquage n’est pas passé. Il sera réessayé plus tard."
   },
   "palette": {
     "title": "Palette de commandes",

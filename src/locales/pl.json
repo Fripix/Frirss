@@ -654,7 +654,9 @@
     "markedReadAll": "Artykuły oznaczone jako przeczytane",
     "linkCopied": "Skopiowano link",
     "copyFailed": "Nie udało się skopiować linku",
-    "loadMoreEmpty": "Załadowano kolejną stronę, wciąż nic do wyświetlenia."
+    "loadMoreEmpty": "Załadowano kolejną stronę, wciąż nic do wyświetlenia.",
+    "markFailed": "Serwer odmówił oznaczenia tego artykułu: wiersz został przywrócony.",
+    "markQueued": "Zmiana nie doszła do skutku. Zostanie ponowiona później."
   },
   "palette": {
     "title": "Paleta poleceń",

@@ -636,7 +636,9 @@
     "markedReadAll": "Articoli segnati come letti",
     "linkCopied": "Link copiato",
     "copyFailed": "Impossibile copiare il link",
-    "loadMoreEmpty": "Pagina successiva caricata, ancora nulla da mostrare."
+    "loadMoreEmpty": "Pagina successiva caricata, ancora nulla da mostrare.",
+    "markFailed": "Il server ha rifiutato di contrassegnare questo articolo: la riga è stata ripristinata.",
+    "markQueued": "La modifica non è andata a buon fine. Verrà ritentata più tardi."
   },
   "palette": {
     "title": "Palette dei comandi",
