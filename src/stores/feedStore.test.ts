@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Article, Subscription } from '../types';
+import { publishListCanScroll, resetListCanScroll, listCanScroll } from '../lib/listOverflow';
 
 // Mock the FreshRSS API layer so the store never hits the network.
 vi.mock('../api/feeds', () => ({
@@ -965,6 +966,9 @@ describe('feedStore.toggleRead — la remise à niveau de la liste est bornée',
     vi.mocked(api.markAsRead).mockReset();
     vi.mocked(api.markAsRead).mockResolvedValue(undefined);
     vi.mocked(api.getStreamContents).mockReset();
+    // La liste ne défile plus : c'est l'état que le ✓ crée en dépilant par le
+    // haut, et le seul qui justifie une page supplémentaire.
+    publishListCanScroll(false);
     useFeedStore.setState({
       selectedFeed: null,
       filter: 'unread',
@@ -976,13 +980,14 @@ describe('feedStore.toggleRead — la remise à niveau de la liste est bornée',
   });
 
   afterEach(() => {
+    resetListCanScroll();
     useFeedStore.setState({ filter: 'all', continuation: null, loadingMore: false });
   });
 
   // Sans cela, dépiler par le haut laisse une liste plus courte que la fenêtre :
   // plus rien ne défile, aucun `scroll` n'est émis, la pagination s'arrête et
   // l'utilisateur croit être au bout alors que `continuation` promet la suite.
-  it('demande une page quand le retrait laisse la liste trop courte', async () => {
+  it('demande une page quand le retrait laisse la liste sans rien à faire défiler', async () => {
     vi.mocked(api.getStreamContents).mockResolvedValue(
       { items: [item('b0'), item('b1')], continuation: 'page-3' } as never
     );
@@ -1005,7 +1010,9 @@ describe('feedStore.toggleRead — la remise à niveau de la liste est bornée',
 
   // Le vidage complet du flux : une page peut ne rendre AUCUNE ligne (les
   // favoris d'un flux sont filtrés côté client) tout en gardant une
-  // continuation. L'effet repaginait alors jusqu'à épuiser le flux.
+  // continuation. L'effet repaginait alors jusqu'à épuiser le flux. La mesure
+  // reste « ne défile plus » — c'est le cas le plus tentant — et pourtant rien
+  // ne repart : la décision est prise une fois, au retrait.
   it('n’enchaîne pas quand la page reçue ne rend aucune ligne', async () => {
     vi.mocked(api.getStreamContents).mockResolvedValue(
       { items: [], continuation: 'page-3' } as never
@@ -1020,11 +1027,24 @@ describe('feedStore.toggleRead — la remise à niveau de la liste est bornée',
     expect(api.getStreamContents).not.toHaveBeenCalled();
   });
 
-  it('ne demande rien quand la liste reste fournie', async () => {
+  // Le comptage de lignes que cette règle remplace : vingt-cinq lignes
+  // restantes passaient très au-dessus du seuil de huit, alors qu'elles ne
+  // remplissaient pas la fenêtre — la pagination s'arrêtait là. Ce qui compte
+  // est le débordement, pas le nombre.
+  it('ne demande rien quand la liste déborde encore, si courte soit-elle', async () => {
+    publishListCanScroll(true);
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(api.getStreamContents).not.toHaveBeenCalled();
+  });
+
+  it('demande une page même avec beaucoup de lignes restantes, si rien ne défile', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [item('b0')], continuation: 'page-3' } as never
+    );
     const many = Array.from({ length: 30 }, (_, i) => row(`a${i}`));
     useFeedStore.setState({ articles: many });
     await useFeedStore.getState().toggleRead(row('a5'));
-    expect(api.getStreamContents).not.toHaveBeenCalled();
+    expect(api.getStreamContents).toHaveBeenCalledTimes(1);
   });
 
   it('ne demande rien quand une page est déjà en vol', async () => {
@@ -1038,6 +1058,23 @@ describe('feedStore.toggleRead — la remise à niveau de la liste est bornée',
     await useFeedStore.getState().toggleRead(row('a1'));
     expect(api.getStreamContents).not.toHaveBeenCalled();
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1']);
+  });
+
+  // La borne, dite frontalement : un geste ⇒ au plus une page, quoi que
+  // rapporte cette page et quoi qu'en dise la mesure ensuite. C'est ce qu'un
+  // effet React ne savait pas garantir.
+  it('un seul retrait ne produit jamais plus d’un `loadMore`', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [], continuation: 'page-3' } as never
+    );
+    await useFeedStore.getState().toggleRead(row('a1'));
+    expect(api.getStreamContents).toHaveBeenCalledTimes(1);
+    // Rien ne se rejoue : ni la page vide, ni le retour de `loadingMore` à
+    // faux, ni une mesure toujours à « ne défile plus ».
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(api.getStreamContents).toHaveBeenCalledTimes(1);
+    expect(listCanScroll()).toBe(false);
   });
 });
 
@@ -1053,6 +1090,7 @@ describe('feedStore.toggleRead — la remise à niveau se tait pendant une reche
     vi.mocked(api.getStreamContents).mockResolvedValue(
       { items: [item('intrus1'), item('intrus2')], continuation: 'page-3' } as never
     );
+    publishListCanScroll(false);
     useFeedStore.setState({
       selectedFeed: null,
       filter: 'unread',
@@ -1065,6 +1103,7 @@ describe('feedStore.toggleRead — la remise à niveau se tait pendant une reche
   });
 
   afterEach(() => {
+    resetListCanScroll();
     useFeedStore.setState({ filter: 'all', searchQuery: '', continuation: null, loadingMore: false });
   });
 

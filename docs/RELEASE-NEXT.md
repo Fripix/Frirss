@@ -57,6 +57,12 @@ _(rien pour l'instant)_
   résultat de recherche comme lu pouvait faire apparaître à sa suite des
   articles sans rapport avec la requête. La liste ne charge plus de page
   supplémentaire tant qu'une recherche est active.
+- **La liste ne se bloque plus après une série de ✓.** En marquant lus une
+  vingtaine d'articles à la suite, la liste s'arrêtait sur ce qui restait de sa
+  première page — une trentaine de lignes pour bien plus de non-lus — et seul un
+  rechargement complet ramenait la suite. La page suivante est désormais
+  demandée dès que la liste n'a plus rien à faire défiler, quelle que soit la
+  taille de l'écran ; agrandir la fenêtre suffit aussi à la relancer.
 - **Une ligne retirée de « À lire plus tard » ne revient plus.** Quitter la vue
   puis y revenir réaffichait l'article dont l'étiquette venait d'être enlevée.
 - **Le ✓ arrive dans l'affichage compact**, où il manquait alors qu'il existait

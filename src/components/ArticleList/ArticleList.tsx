@@ -8,6 +8,7 @@ import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { shouldLoadMore, listBodyState, canLoadMore } from '../../lib/listPagination';
+import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
@@ -218,10 +219,64 @@ export default function ArticleList() {
     rememberStagger(seenRowsRef.current.memo, articleIds, staggerById);
   }, [articleIds, scrollKey, staggerById]);
 
+  // ── Mesure du débordement ────────────────────────────────────────
+  // Le store décide s'il faut une page de rattrapage après un ✓, mais il n'a
+  // pas de DOM : seule la liste sait si elle a encore quelque chose à faire
+  // défiler. Elle publie donc ce fait dans un canal hors React
+  // (`src/lib/listOverflow.ts`), que `toggleRead` LIT au moment du retrait.
+  //
+  // Publier n'est pas décider : rien ici n'appelle `loadMore`, ne pose d'état
+  // React ni ne re-rend quoi que ce soit. C'est ce qui interdit la boucle du
+  // `useAutoLoadMore` retiré le 2026-09-01 — la mesure ne se rappelle jamais
+  // elle-même.
+  const measureOverflow = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    publishListCanScroll(
+      listOverflows({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })
+    );
+  }, []);
+
+  // Après CHAQUE rendu : c'est le rendu qui retire la ligne, donc le seul
+  // moment où la liste vient peut-être de cesser de déborder.
+  useEffect(() => {
+    measureOverflow();
+  });
+
+  // Le conteneur peut changer de taille sans qu'aucune ligne ne bouge —
+  // fenêtre agrandie, barre latérale repliée, clavier virtuel — et une liste
+  // qui débordait cesse alors de déborder. `ResizeObserver` couvre les trois ;
+  // le repli sur `resize` sert les environnements qui ne l'ont pas.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(measureOverflow);
+      ro.observe(el);
+    } else {
+      window.addEventListener('resize', measureOverflow);
+    }
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', measureOverflow);
+      // Plus aucune liste à l'écran (onglet mobile, volet de lecture plein
+      // écran) : la dernière mesure serait figée et un ✓ depuis le volet de
+      // lecture demanderait une page par geste, sans que personne ne la voie.
+      resetListCanScroll();
+    };
+  }, [measureOverflow]);
+
   const handleScroll = useCallback(() => {
     const el = listRef.current;
     if (!el) return;
     listScrollMem.set(scrollKeyRef.current, el.scrollTop);
+    // Les images qui finissent de charger changent `scrollHeight` sans aucun
+    // rendu React : le défilement est la meilleure occasion de se remettre à
+    // jour, et les hauteurs sont déjà lues juste en dessous.
+    publishListCanScroll(
+      listOverflows({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })
+    );
     if (
       shouldLoadMore({
         hasContinuation: !!continuation,

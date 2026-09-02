@@ -28,18 +28,32 @@
 // `loadingMore` à `false`, ni une page qui ne rend aucune ligne ne peuvent la
 // redéclencher : l'échec s'arrête, tout simplement.
 
-// Seuil volontairement bas : on comble une liste devenue plus courte que sa
-// fenêtre, on ne prépare pas le hors-ligne. Un seuil proche de la taille de
-// page ferait paginer à chaque ✓.
-export const TOP_UP_MIN_ROWS = 8;
-
 /**
  * Après le retrait d'une ligne, faut-il demander UNE page supplémentaire ?
  *
  * Appelée une seule fois par retrait confirmé, jamais depuis un effet.
  */
 export function shouldTopUpAfterRemoval(opts: {
-  remaining: number;
+  /**
+   * La liste a-t-elle encore quelque chose à faire défiler ?
+   *
+   * C'est le seul critère utile, et il remplace un comptage de lignes
+   * (`remaining < TOP_UP_MIN_ROWS`, seuil à 8) qui ne voulait rien dire : huit
+   * lignes sont plausibles sur un téléphone et absurdes sur un grand écran.
+   * Une page d'articles non lus en rapporte une cinquantaine ; en retirer
+   * vingt-cinq en laisse vingt-cinq — très au-dessus du seuil, donc aucun
+   * rattrapage, mais trop peu pour remplir une grande fenêtre, donc plus aucun
+   * `scroll` non plus. Les deux mécanismes se taisaient ensemble et la liste
+   * restait bloquée sur le reste d'une seule page. Mesure publiée par
+   * `ArticleList` via `src/lib/listOverflow.ts`.
+   *
+   * Elle peut être périmée d'un rendu (le retrait est optimiste, React n'a
+   * pas forcément repeint quand la confirmation revient). C'est sans gravité
+   * dans les deux sens : une mesure périmée coûte au plus une page inutile, ou
+   * un rattrapage qui attend le ✓ suivant. Jamais une boucle — rien de ce que
+   * `loadMore` fait ne réécrit cette mesure sans un nouveau geste.
+   */
+  listCanScroll: boolean;
   hasContinuation: boolean;
   loadingMore: boolean;
   /** Une recherche est-elle active ? */
@@ -60,5 +74,7 @@ export function shouldTopUpAfterRemoval(opts: {
   // le déclenchait depuis un seul ✓ sur un résultat court, soit le cas
   // courant. Même précédent que `markReadOnScroll`, déjà éteint en recherche.
   if (opts.searching) return false;
-  return opts.remaining < TOP_UP_MIN_ROWS;
+  // La liste déborde encore : l'écouteur `scroll` fera le travail le moment
+  // venu, il n'y a rien à rattraper.
+  return !opts.listCanScroll;
 }

@@ -36,6 +36,7 @@ import { cacheImages } from '../lib/imageCache';
 import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
 import { shouldLeaveList } from '../lib/removeOnRead';
 import { shouldTopUpAfterRemoval } from '../lib/listTopUp';
+import { listCanScroll } from '../lib/listOverflow';
 import { planRowRestore } from '../lib/rollbackRow';
 import { writeFailureNotice } from '../lib/writeFailureNotice';
 import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPagination';
@@ -989,12 +990,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (leaving) {
         memRemoveFromViews(article.id, 'unread');
         persistCurrentView(get);
-        // Ce qui reste peut désormais être plus court que la fenêtre : plus
+        // Ce qui reste peut désormais tenir tout entier dans la fenêtre : plus
         // rien ne défile, aucun `scroll` n'est émis, et la pagination
-        // s'arrêterait là avec une `continuation` pourtant non nulle.
+        // s'arrêterait là avec une `continuation` pourtant non nulle. Le
+        // critère est bien le débordement, mesuré par la liste elle-même
+        // (`src/lib/listOverflow.ts`) — un nombre de lignes restantes ne veut
+        // rien dire d'un écran à l'autre.
         const s = get();
         topUp = shouldTopUpAfterRemoval({
-          remaining: s.articles.length,
+          listCanScroll: listCanScroll(),
           hasContinuation: s.continuation != null,
           loadingMore: s.loadingMore,
           searching: !!s.searchQuery,

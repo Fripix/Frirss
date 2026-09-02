@@ -448,8 +448,31 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     `scroll` : en dépilant par le haut, `scrollTop` reste à 0 et aucun
     événement n'est émis — et quand le reste tient dans la fenêtre, la liste
     n'est même plus défilable. `toggleRead` demande donc **une** page
-    supplémentaire quand le retrait laisse moins de `TOP_UP_MIN_ROWS` lignes
-    avec une `continuation` non nulle.
+    supplémentaire quand, après le retrait, **la liste n'a plus rien à faire
+    défiler** et que `continuation` n'est pas nulle.
+  - **Le critère est le débordement, pas un nombre de lignes (2026-09-02).**
+    La première version comparait les lignes restantes à un seuil
+    (`TOP_UP_MIN_ROWS = 8`), ce qui ne veut rien dire d'un écran à l'autre :
+    huit lignes sont plausibles sur un téléphone et absurdes sur un grand
+    écran. Une vue charge ~50 non-lus ; en marquer 25 d'affilée en laisse 25,
+    très au-dessus du seuil — donc aucun rattrapage — mais trop peu pour
+    remplir une grande fenêtre — donc plus aucun `scroll` non plus. Les deux
+    mécanismes se taisaient ensemble et la liste restait bloquée sur le reste
+    d'une seule page (~25 lignes affichées pour ~80 non lus, seul un
+    rechargement complet en sortait). Le fait « la liste défile-t-elle
+    encore ? » est mesuré par `ArticleList` (`listOverflows`,
+    `src/lib/listOverflow.ts` : `scrollHeight > clientHeight +
+    OVERFLOW_SLACK_PX`) et **publié dans un canal hors React**
+    (`publishListCanScroll`), que `toggleRead` lit au moment du retrait. La
+    mesure est rafraîchie **après chaque rendu**, **au défilement** (les
+    images qui finissent de charger changent `scrollHeight` sans rendu) et par
+    un `ResizeObserver` sur le conteneur (fenêtre agrandie, barre latérale
+    repliée : un simple redimensionnement suffit à faire cesser un
+    débordement). Au démontage de la liste, elle revient au défaut prudent
+    « défile encore » — sans quoi un ✓ depuis le volet de lecture plein écran
+    demanderait une page par geste. Une mesure périmée coûte au pire une page
+    inutile ou un rattrapage repoussé au ✓ suivant, jamais une boucle : rien
+    de ce que fait `loadMore` ne réécrit cette mesure.
   - **Piège — pas pendant une recherche.** `shouldLeaveList` ne regarde que le
     filtre, resté « unread » quand une recherche est active : la ligne part
     donc bien, mais le rattrapage doit se taire. `loadMore` appelle

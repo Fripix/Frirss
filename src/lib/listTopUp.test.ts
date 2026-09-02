@@ -1,16 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { shouldTopUpAfterRemoval, TOP_UP_MIN_ROWS } from './listTopUp';
+import { shouldTopUpAfterRemoval } from './listTopUp';
 
-const base = { remaining: 0, hasContinuation: true, loadingMore: false, searching: false };
+const base = { listCanScroll: false, hasContinuation: true, loadingMore: false, searching: false };
 
 describe('shouldTopUpAfterRemoval', () => {
-  it('demande une page quand il ne reste presque plus rien', () => {
-    expect(shouldTopUpAfterRemoval({ ...base, remaining: 1 })).toBe(true);
+  // Le critère n'est pas un nombre de lignes mais un fait d'écran : la liste
+  // a-t-elle encore quelque chose à faire défiler ? Sinon plus aucun `scroll`
+  // ne sera émis et la pagination s'arrête là.
+  it('demande une page quand la liste ne défile plus', () => {
+    expect(shouldTopUpAfterRemoval({ ...base, listCanScroll: false })).toBe(true);
   });
 
-  it('ne demande rien quand la liste est encore fournie', () => {
-    expect(shouldTopUpAfterRemoval({ ...base, remaining: TOP_UP_MIN_ROWS })).toBe(false);
-    expect(shouldTopUpAfterRemoval({ ...base, remaining: TOP_UP_MIN_ROWS + 40 })).toBe(false);
+  // Vingt-cinq lignes restantes ne disent rien : c'est court sur un grand
+  // écran, long sur un téléphone. Tant que la liste déborde de sa fenêtre,
+  // l'écouteur `scroll` fera le travail.
+  it('ne demande rien tant que la liste déborde encore', () => {
+    expect(shouldTopUpAfterRemoval({ ...base, listCanScroll: true })).toBe(false);
   });
 
   it('ne demande rien quand le flux est épuisé', () => {
@@ -19,14 +24,6 @@ describe('shouldTopUpAfterRemoval', () => {
 
   it('ne demande rien pendant qu’une page est déjà en vol', () => {
     expect(shouldTopUpAfterRemoval({ ...base, loadingMore: true })).toBe(false);
-  });
-
-  // Le seuil reste petit par construction : c'est une remise à niveau d'une
-  // liste devenue plus courte que sa fenêtre, pas une préparation hors-ligne.
-  // Un seuil proche de la taille de page ferait paginer à chaque ✓.
-  it('garde un seuil petit', () => {
-    expect(TOP_UP_MIN_ROWS).toBeGreaterThan(0);
-    expect(TOP_UP_MIN_ROWS).toBeLessThan(20);
   });
 });
 
@@ -40,10 +37,10 @@ describe('shouldTopUpAfterRemoval — pendant une recherche', () => {
   // déclenchait depuis un seul ✓ sur un résultat court, soit le cas courant.
   // Même raison que `markReadOnScroll`, déjà désactivé pendant une recherche.
   it('ne demande aucune page tant qu’une recherche est active', () => {
-    expect(shouldTopUpAfterRemoval({ ...base, remaining: 1, searching: true })).toBe(false);
+    expect(shouldTopUpAfterRemoval({ ...base, searching: true })).toBe(false);
   });
 
   it('reste actif hors recherche', () => {
-    expect(shouldTopUpAfterRemoval({ ...base, remaining: 1, searching: false })).toBe(true);
+    expect(shouldTopUpAfterRemoval({ ...base, searching: false })).toBe(true);
   });
 });
