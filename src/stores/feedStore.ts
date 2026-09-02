@@ -920,7 +920,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // la confirmation faisait payer à l'utilisateur l'aller-retour vers
     // FreshRSS — instantané quand il répond vite, plusieurs secondes sinon.
     // Ce qu'il en coûte est assumé plus bas : le rollback doit savoir remettre
-    // une ligne déjà partie, à sa place exacte.
+    // une ligne déjà partie — sa place est recalculée par `planRowRestore()`,
+    // qui s'abstient si la vue a changé ou si l'article est déjà revenu.
     const leaving = shouldLeaveList({
       becameRead: newRead,
       filter: get().filter,

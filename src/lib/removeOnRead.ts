@@ -23,8 +23,12 @@ import type { Filter } from '../types';
  *
  * L'appelant décide AVANT d'appeler le serveur — attendre la confirmation
  * faisait payer l'aller-retour vers FreshRSS à chaque clic. Le prix en est un
- * rollback qui ne peut PAS se contenter d'un `.map()` : `toggleRead` retient
- * l'index et la ligne retirés pour les réinsérer à l'identique sur un refus.
+ * rollback qui ne peut PAS se contenter d'un `.map()`, incapable de remettre
+ * une ligne déjà sortie du tableau. `toggleRead` s'en remet à
+ * `planRowRestore()` (`src/lib/rollbackRow.ts`), qui refuse la réinsertion si
+ * la vue a changé ou si l'article est déjà revenu, et calcule sinon sa place
+ * par date sur la liste telle qu'elle est au moment du refus — un index
+ * mémorisé se périmerait dès qu'un autre retrait passerait au-dessus.
  * Un appelant qui retirerait de façon optimiste sans savoir remettre
  * rejouerait le bug payé sur `toggleStar` : l'article disparu de l'écran, mais
  * toujours non lu côté FreshRSS.
