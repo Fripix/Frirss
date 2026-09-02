@@ -112,6 +112,15 @@ html {
   scrollbar-color: var(--scrollbar) transparent;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  /* La gouttière est réservée en permanence, sinon la colonne CHANGE DE
+     LARGEUR chaque fois que la barre apparaît ou disparaît. Depuis que le ✓
+     retire la ligne, la liste franchit ce seuil sans arrêt — retrait après
+     retrait, puis dans l'autre sens quand le rattrapage rapporte une page — et
+     la colonne tressautait sous le curseur pendant un marquage rapide.
+     Sans effet pour qui a des barres en superposition (macOS par défaut) :
+     elles ne prennent aucune place, donc rien n'est réservé. Ça ne coûte que
+     pour les barres classiques, celles-là mêmes qui provoquaient le saut. */
+  scrollbar-gutter: stable;
 }
 
 /* Legacy WebKit (Safari, old Chrome): thumb grows on hover */

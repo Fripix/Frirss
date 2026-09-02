@@ -1104,6 +1104,20 @@ inscriptions, animation de connexion.
 
 ---
 
+### Gouttière de défilement
+`.nice-scroll` (`src/styles/index.css`) réserve la gouttière en permanence
+(`scrollbar-gutter: stable`), sur la liste d'articles et le volet de lecture.
+
+- **Pourquoi** : sans elle, la colonne change de largeur chaque fois que la
+  barre de défilement apparaît ou disparaît. Depuis que le ✓ retire la ligne
+  (2026-09-01), la liste franchit ce seuil en permanence — un retrait la fait
+  passer sous la fenêtre, le rattrapage la repasse au-dessus — et la colonne
+  tressautait sous le curseur pendant un marquage rapide.
+- **Piège** : le symptôme est invisible pour qui a des barres en superposition
+  (macOS par défaut), puisqu'elles ne prennent aucune place. Il n'apparaît
+  qu'avec des barres classiques — macOS réglé sur « Toujours », Windows, Linux.
+  Ne pas conclure d'un écran de développeur que le problème n'existe pas.
+
 ## Backend
 
 ### Proxy

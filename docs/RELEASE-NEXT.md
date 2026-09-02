@@ -17,6 +17,11 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
+- **La colonne de la liste ne tressaute plus** pendant qu'on marque des
+  articles lus. La barre de défilement apparaissait et disparaissait au gré des
+  retraits, et sa place changeait la largeur à chaque fois ; la gouttière est
+  désormais réservée en permanence.
+
 - **Marquer un article lu le fait sortir de la liste « Non lus ».** Cliquer le ✓
   d'une ligne n'avait aucun effet visible sous le filtre dont c'était pourtant
   le sujet. La ligne disparaît maintenant **immédiatement** ; si le serveur
