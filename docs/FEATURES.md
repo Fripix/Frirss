@@ -301,8 +301,9 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   rechargement. Une mise à l'écart explicite retire, sous le filtre qu'elle
   concerne — ailleurs, rien ne disparaît.
   - `toggleRead` (le ✓) retire sous le filtre « Non lus », depuis le
-    2026-09-01 (issue #10). **Après confirmation du serveur**, et jamais la
-    ligne de l'article ouvert. Décision assumée, détaillée plus bas.
+    2026-09-01 (issue #10). **De façon optimiste**, avec un rollback capable de
+    réinsérer la ligne à son index d'origine, et jamais la ligne de l'article
+    ouvert. Décision assumée, détaillée plus bas.
   - `toggleReadLater` retire de la vue « À lire plus tard » quand on enlève
     l'étiquette, **après confirmation du serveur** depuis le 2026-09-01. Le
     retrait était optimiste, avec un rollback qui n'est qu'un `.map()` :
@@ -332,16 +333,29 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   d'écriture retire une ligne, il purge ce cache**.
 - **Le ✓ retire la ligne sous le filtre « Non lus »** (issue #10, 2026-09-01).
   La décision est prise par `shouldLeaveList()` (`src/lib/removeOnRead.ts`) et
-  appliquée par `toggleRead` **après confirmation du serveur**.
+  appliquée par `toggleRead` **avant l'appel au serveur**, comme le drapeau
+  `read` lui-même.
   - **Le geste compte, pas l'état.** Ouvrir un article le marque lu
     (`selectArticle`) mais laisse sa ligne : elle disparaîtrait pendant qu'on
     le lit. Le marquage au défilement, seul écrivain implicite, passe
     `{ implicit: true }` et ne retire rien — sans quoi la liste s'effondrerait
     en continu sous le lecteur.
-  - **Piège** : ne jamais retirer avant la réponse du serveur. Le rollback de
-    `toggleRead` n'est qu'un `.map()` : il ne sait pas remettre une ligne
-    partie. C'est le bug déjà payé sur `toggleStar`, où l'article disparaissait
-    de l'écran en restant favori côté FreshRSS.
+  - **Le retrait est optimiste, et le rollback sait remettre la ligne.** Il a
+    d'abord attendu la confirmation du serveur, ce qui faisait payer
+    l'aller-retour vers FreshRSS à chaque clic : instantané quand il répond
+    vite, plusieurs secondes sinon. Ce qui interdisait de retirer d'avance
+    n'était pas le principe mais le rollback — un simple `.map()`, incapable
+    de remettre une ligne déjà sortie du tableau. C'est le bug payé sur
+    `toggleStar`, où l'article disparaissait de l'écran en restant favori côté
+    FreshRSS. `toggleRead` retient donc l'**index** et la ligne AVANT de
+    retirer, et un refus les réinsère à leur place exacte — la réinsérer en
+    fin de liste serait une autre façon de perdre l'article. Sur un échec
+    RÉSEAU, en revanche, la ligne **reste retirée** : l'état optimiste est
+    celui qu'`enqueueAction` rejouera, le remettre contredirait la file.
+  - **Seule la liste visible bouge d'avance.** `memRemoveFromViews` et la
+    décision de rattrapage restent APRÈS la confirmation : le cache durable
+    n'est purgé qu'une fois le serveur d'accord, si bien qu'un refus n'a rien
+    à y défaire.
   - **Jamais la ligne de l'article OUVERT.** Deux bascules depuis le volet de
     lecture atteignent une vraie transition non-lu → lu sur lui : sans garde,
     sa ligne partait pendant qu'il restait affiché, `selectNextArticle` ne le

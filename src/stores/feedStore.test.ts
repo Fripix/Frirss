@@ -589,28 +589,65 @@ describe('feedStore.toggleRead — retrait de la ligne sous le filtre non-lus', 
     });
   });
 
-  it('retire la ligne une fois le serveur confirmé', async () => {
-    await useFeedStore.getState().toggleRead(row('a1'));
+  it('retire la ligne sans attendre la réponse du serveur', async () => {
+    // Le retrait était différé jusqu'à la confirmation : la ligne restait à
+    // l'écran le temps de l'aller-retour vers FreshRSS, soit plusieurs
+    // secondes quand il traîne. Elle part maintenant tout de suite, et c'est
+    // le rollback qui sait la remettre (test suivant).
+    let confirm!: () => void;
+    vi.mocked(api.markAsRead).mockReturnValueOnce(
+      new Promise<void>((resolve) => { confirm = () => resolve(); }),
+    );
+    const pending = useFeedStore.getState().toggleRead(row('a1'));
+    // Rien n'a encore été confirmé.
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+    confirm();
+    await pending;
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
   });
 
-  it('garde la ligne quand le serveur refuse', async () => {
-    // Le rollback ne fait qu'un `.map()` : une ligne déjà retirée serait
-    // irrécupérable, et l'article disparaîtrait de l'écran en restant non lu
-    // côté FreshRSS. C'est le bug déjà payé sur `toggleStar`.
+  it('remet la ligne à sa place exacte quand le serveur refuse', async () => {
+    // Le prix du retrait optimiste : un rollback qui ne ferait qu'un `.map()`
+    // serait incapable de remettre une ligne déjà sortie, et l'article
+    // disparaîtrait de l'écran en restant non lu côté FreshRSS. C'est le bug
+    // déjà payé sur `toggleStar`. Le rollback réinsère donc à l'INDEX retenu
+    // avant le retrait — l'ordre complet est vérifié, pas la seule présence.
     vi.mocked(api.markAsRead).mockRejectedValueOnce({ response: { status: 403 } });
     await useFeedStore.getState().toggleRead(row('a1'));
     const s = useFeedStore.getState();
     expect(s.articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
     expect(s.articles[1].read).toBe(false);
+    expect(s.unreadCounts['feed/1']).toBe(3);
   });
 
-  it('garde la ligne hors ligne, l’action étant seulement mise en file', async () => {
+  it('remet la première ligne en tête, pas à la fin', async () => {
+    vi.mocked(api.markAsRead).mockRejectedValueOnce({ response: { status: 403 } });
+    await useFeedStore.getState().toggleRead(row('a0'));
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+  });
+
+  it('remet l’article sélectionné quand le serveur refuse', async () => {
+    // L'article ouvert ne voit jamais sa ligne partir, mais un autre chemin
+    // peut le sélectionner après coup : le drapeau `read` du volet doit
+    // revenir comme celui de la ligne.
+    vi.mocked(api.markAsRead).mockRejectedValueOnce({ response: { status: 403 } });
+    const target = row('a1');
+    useFeedStore.setState({ articles: [row('a0'), row('a1'), row('a2')], selectedArticle: null });
+    const pending = useFeedStore.getState().toggleRead(target);
+    useFeedStore.setState({ selectedArticle: { ...target, read: true } });
+    await pending;
+    expect(useFeedStore.getState().selectedArticle?.read).toBe(false);
+  });
+
+  it('hors ligne, laisse la ligne retirée et met l’action en file', async () => {
+    // Pas de rollback sans réseau : l'état optimiste est CONSERVÉ et rejoué
+    // plus tard, exactement comme l'est déjà le drapeau `read`. Remettre la
+    // ligne contredirait la file d'attente.
     vi.mocked(api.markAsRead).mockRejectedValueOnce(new Error('Network Error'));
     await useFeedStore.getState().toggleRead(row('a1'));
     const s = useFeedStore.getState();
-    expect(s.articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
-    expect(s.articles[1].read).toBe(true);
+    expect(s.articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+    expect(s.pendingActions).toBe(1);
   });
 
   it('ne retire rien hors du filtre non-lus', async () => {
@@ -725,6 +762,20 @@ describe('feedStore.toggleRead — le retrait survit au cache mémoire', () => {
     useFeedStore.getState().selectFeed(feed1);
     // Peinture immédiate depuis le cache mémoire, avant toute réponse serveur.
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
+  });
+
+  // Le retrait de la LIGNE est optimiste, la purge du cache ne l'est pas :
+  // celle-ci n'a lieu qu'une fois le serveur d'accord. Un refus n'a donc rien
+  // à défaire dans le cache — la ligne réinsérée y est toujours.
+  it('laisse le cache mémoire intact quand le serveur refuse', async () => {
+    await useFeedStore.getState().loadArticles();
+    vi.mocked(api.markAsRead).mockRejectedValueOnce({ response: { status: 403 } });
+    await useFeedStore.getState().toggleRead(useFeedStore.getState().articles[1]);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
+
+    useFeedStore.getState().selectFeed(feed2);
+    useFeedStore.getState().selectFeed(feed1);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
   });
 });
 

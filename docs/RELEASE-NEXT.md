@@ -19,8 +19,9 @@ _(rien pour l'instant)_
 
 - **Marquer un article lu le fait sortir de la liste « Non lus ».** Cliquer le ✓
   d'une ligne n'avait aucun effet visible sous le filtre dont c'était pourtant
-  le sujet. La ligne disparaît maintenant, une fois le serveur confirmé — hors
-  ligne ou sur un refus, elle reste. Ouvrir un article ne retire pas sa ligne,
+  le sujet. La ligne disparaît maintenant **immédiatement** ; si le serveur
+  refuse le marquage, elle revient exactement à sa place. Ouvrir un article ne
+  retire pas sa ligne,
   et le marquage au défilement non plus — celle de l'article ouvert ne part
   jamais, pour que suivant/précédent continuent de fonctionner. La liste
   enchaîne les pages suivantes au fil des retraits, et n'annonce « tout est

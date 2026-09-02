@@ -21,9 +21,13 @@ import type { Filter } from '../types';
  * ne le retrouve plus et saute en tête. C'est l'invariant que `silentRefresh`
  * entretient déjà en réinsérant l'article en cours de lecture.
  *
- * L'appelant ne doit invoquer cette fonction qu'APRÈS confirmation du serveur :
- * le rollback de `toggleRead` ne fait qu'un `.map()` et serait incapable de
- * remettre une ligne déjà retirée.
+ * L'appelant décide AVANT d'appeler le serveur — attendre la confirmation
+ * faisait payer l'aller-retour vers FreshRSS à chaque clic. Le prix en est un
+ * rollback qui ne peut PAS se contenter d'un `.map()` : `toggleRead` retient
+ * l'index et la ligne retirés pour les réinsérer à l'identique sur un refus.
+ * Un appelant qui retirerait de façon optimiste sans savoir remettre
+ * rejouerait le bug payé sur `toggleStar` : l'article disparu de l'écran, mais
+ * toujours non lu côté FreshRSS.
  */
 export function shouldLeaveList(opts: {
   becameRead: boolean;

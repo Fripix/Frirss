@@ -907,17 +907,36 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // la relancer (voir `src/lib/listTopUp.ts` pour les deux emballements que
     // cette forme interdit).
     let topUp = false;
+    // Le retrait de la LIGNE est optimiste, comme le drapeau `read` : attendre
+    // la confirmation faisait payer à l'utilisateur l'aller-retour vers
+    // FreshRSS — instantané quand il répond vite, plusieurs secondes sinon.
+    // Ce qu'il en coûte est assumé plus bas : le rollback doit savoir remettre
+    // une ligne déjà partie, à sa place exacte.
+    const leaving = shouldLeaveList({
+      becameRead: newRead,
+      filter: get().filter,
+      implicit: opts?.implicit ?? false,
+      selected: get().selectedArticle?.id === article.id,
+    });
+    // Position et contenu de la ligne retenus AVANT le retrait : c'est tout ce
+    // dont le rollback a besoin pour la réinsérer où elle était. La réinsérer
+    // en fin de liste serait une autre façon de perdre l'article.
+    const removedIndex = leaving ? get().articles.findIndex((a) => a.id === article.id) : -1;
+    const removedRow = removedIndex >= 0 ? get().articles[removedIndex] : null;
     // Optimistic update — instant UI feedback
-    set((state) => ({
-      articles: state.articles.map((a) =>
+    set((state) => {
+      const updated = state.articles.map((a) =>
         a.id === article.id ? { ...a, read: newRead } : a
-      ),
-      selectedArticle:
-        state.selectedArticle?.id === article.id
-          ? { ...state.selectedArticle, read: newRead }
-          : state.selectedArticle,
-      unreadCounts: updateCount(state.unreadCounts, article, newRead ? -1 : 1),
-    }));
+      );
+      return {
+        articles: leaving ? updated.filter((a) => a.id !== article.id) : updated,
+        selectedArticle:
+          state.selectedArticle?.id === article.id
+            ? { ...state.selectedArticle, read: newRead }
+            : state.selectedArticle,
+        unreadCounts: updateCount(state.unreadCounts, article, newRead ? -1 : 1),
+      };
+    });
     memMarkRead(article.id, newRead);
     persistCurrentView(get);
     try {
@@ -926,16 +945,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       } else {
         await markAsUnread(article.id);
       }
-      // Le retrait vient APRÈS la confirmation, jamais avant : le rollback
-      // ci-dessous ne fait qu'un `.map()` et ne saurait pas remettre une ligne
-      // déjà sortie de la liste.
-      if (shouldLeaveList({
-        becameRead: newRead,
-        filter: get().filter,
-        implicit: opts?.implicit ?? false,
-        selected: get().selectedArticle?.id === article.id,
-      })) {
-        set((state) => ({ articles: state.articles.filter((a) => a.id !== article.id) }));
+      // La purge du cache DURABLE, elle, reste APRÈS la confirmation : seule
+      // la liste visible bouge d'avance. Un refus n'a ainsi rien à défaire
+      // ici — la ligne réinsérée y est toujours.
+      if (leaving) {
         memRemoveFromViews(article.id, 'unread');
         persistCurrentView(get);
         // Ce qui reste peut désormais être plus court que la fenêtre : plus
@@ -953,20 +966,26 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // No network: keep the optimistic state and replay it later. Only a
       // server refusal is rolled back.
       if (isNetworkFailure(err)) {
+        // La ligne RESTE retirée : l'état optimiste est celui qu'`enqueueAction`
+        // rejouera. La remettre contredirait la file d'attente.
         await enqueueAction(set, article.id, 'read', newRead);
         return;
       }
-      // Rollback on failure
-      set((state) => ({
-        articles: state.articles.map((a) =>
-          a.id === article.id ? { ...a, read: !newRead } : a
-        ),
-        selectedArticle:
-          state.selectedArticle?.id === article.id
-            ? { ...state.selectedArticle, read: !newRead }
-            : state.selectedArticle,
-        unreadCounts: updateCount(state.unreadCounts, article, newRead ? 1 : -1),
-      }));
+      // Rollback on failure — un refus du serveur doit tout rendre, la ligne
+      // comprise, à sa place d'origine (`removedIndex`).
+      set((state) => {
+        const articles = removedRow
+          ? [...state.articles.slice(0, removedIndex), removedRow, ...state.articles.slice(removedIndex)]
+          : state.articles.map((a) => (a.id === article.id ? { ...a, read: !newRead } : a));
+        return {
+          articles,
+          selectedArticle:
+            state.selectedArticle?.id === article.id
+              ? { ...state.selectedArticle, read: !newRead }
+              : state.selectedArticle,
+          unreadCounts: updateCount(state.unreadCounts, article, newRead ? 1 : -1),
+        };
+      });
       memMarkRead(article.id, !newRead);
       persistCurrentView(get);
     }
