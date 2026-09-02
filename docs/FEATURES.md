@@ -668,6 +668,18 @@ a été supprimé de la production en 1.3.1, et du serveur de développement en
 
 - **Où** : `src/utils/extractContent.ts`, `src/lib/extractCache.ts`,
   `src/lib/extractStore.ts`
+- **Extraction de fond** : sur un flux à extraction automatique, la page
+  entière est extraite en arrière-plan pour que l'article soit prêt avant
+  qu'on l'ouvre. Séquentielle, précédée d'un délai d'installation de deux
+  secondes pour ne pas concurrencer le premier rendu, et elle saute ce qui est
+  déjà en cache. L'ordonnancement vit dans `src/lib/warmSchedule.ts`.
+- **Piège** : seul un changement de VUE (`viewIdentity` : flux, filtre,
+  recherche) annule le travail en cours. Un nouvel appel pour la même vue —
+  c'est ce que fait le rattrapage de pagination, à chaque retrait de ligne —
+  ÉTEND la file du run en cours. Le jeton d'annulation était auparavant
+  incrémenté par chaque appel : le run repartait de zéro et repayait ses deux
+  secondes sans arrêt, si bien qu'il ne prenait jamais d'avance et que
+  l'article suivant arrivait en deux temps, texte puis image.
 - **Assainissement à part** : `sanitizeExtracted()` est **plus permissif** que
   `sanitizeHtml()` sur un point, et doit l'être — il garde les `<iframe>`, sans
   quoi une vidéo intégrée à un article extrait disparaîtrait avant

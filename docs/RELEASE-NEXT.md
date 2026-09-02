@@ -52,7 +52,12 @@ la release publiée.
 
 ## Sous le capot
 
-_(rien pour l'instant)_
+- **L'extraction de fond suit le rattrapage de pagination.** Le rattrapage
+  introduit par le retrait de ligne redemande une page à chaque ✓ ; chacune de
+  ces pages annulait et relançait l'extraction du contenu complet, qui ne
+  prenait donc jamais d'avance sur un flux à extraction automatique. Une page
+  supplémentaire alimente désormais le travail en cours au lieu de le
+  remplacer.
 
 ## Actions requises à la mise à jour
 

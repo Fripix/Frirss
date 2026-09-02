@@ -40,6 +40,7 @@ import { listCanScroll } from '../lib/listOverflow';
 import { planRowRestore } from '../lib/rollbackRow';
 import { writeFailureNotice } from '../lib/writeFailureNotice';
 import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPagination';
+import { createWarmRunner } from '../lib/warmSchedule';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import type {
   Article,
@@ -256,24 +257,26 @@ function memClear(): void {
 // Background-extract the auto-extract articles of a freshly loaded view so the
 // WHOLE page is available offline (not only the ones the user opened).
 // Sequential + delayed (doesn't compete with rendering), skips already-cached,
-// writes through to the persistent cache. A token cancels stale runs when the
-// user switches views, to avoid piling up dozens of parallel fetches.
-let warmToken = 0;
-async function warmExtracts(articles: Article[]): Promise<void> {
-  const token = ++warmToken;
+// writes through to the persistent cache.
+//
+// L'ordonnancement — quand annuler, quand étendre, quand payer le délai
+// d'installation — vit dans `src/lib/warmSchedule.ts`. Il tenait ici dans un
+// compteur de jetons que CHAQUE appel incrémentait, donc que chaque appel
+// annulait ; le rattrapage de pagination, qui redemande une page à chaque
+// retrait de ligne, le relançait alors sans fin sur une même vue.
+const warmRunner = createWarmRunner<Article>({
+  isCached: async (a) => !!peekExtract(a.id) || !!(await getExtract(a.id)),
+  extract: async (a) => {
+    // Import dynamique : résolu depuis le cache de modules dès la deuxième
+    // extraction, et jamais chargé sur une vue qui n'extrait rien.
+    const { extractFullContent } = await import('../utils/extractContent');
+    await putExtract(a.id, await extractFullContent(a.url!));
+  },
+  settle: () => new Promise((r) => setTimeout(r, 2000)), // let the view settle first
+});
+function warmExtracts(articles: Article[], view: string): void {
   const fs = useUiStore.getState().feedSettings;
-  const targets = articles.filter((a) => a.url && fs[a.sourceId]?.autoExtract);
-  if (!targets.length) return;
-  await new Promise((r) => setTimeout(r, 2000)); // let the view settle first
-  if (token !== warmToken) return;
-  const { extractFullContent } = await import('../utils/extractContent');
-  for (const a of targets) {
-    if (token !== warmToken) return; // a newer view started warming
-    if (peekExtract(a.id) || (await getExtract(a.id))) continue;
-    try {
-      await putExtract(a.id, await extractFullContent(a.url!));
-    } catch { /* ignore */ }
-  }
+  void warmRunner.schedule(view, articles.filter((a) => a.url && fs[a.sourceId]?.autoExtract));
 }
 
 // ── First-page prefetch ─────────────────────────────────────────────
@@ -856,7 +859,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const articles = result.items.map(normalizeArticle);
       memSet(key, { articles, continuation: result.continuation });
       listPut(key, articles, result.continuation).catch(() => {}); // persist for offline
-      warmExtracts(articles); // background: extract the whole page for offline
+      warmExtracts(articles, viewIdentity(get())); // background: extract the whole page for offline
       set((state) => {
         const newErrors = { ...state.feedErrors };
         if (selectedFeed) delete newErrors[selectedFeed.id];
@@ -912,7 +915,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
         return { articles, continuation: result.continuation, loadingMore: false };
       });
-      warmExtracts(get().articles); // background: extract newly loaded pages for offline
+      // Même vue qu'à l'ouverture : ces articles s'ajoutent au travail en
+      // cours au lieu de l'annuler (voir `src/lib/warmSchedule.ts`).
+      warmExtracts(get().articles, viewIdentity(get())); // background: extract newly loaded pages for offline
 
       // Le clic a-t-il changé quoi que ce soit à l'écran ? Les favoris d'un
       // flux sont filtrés CÔTÉ CLIENT (voir `fetchArticleStream` ci-dessus) :
