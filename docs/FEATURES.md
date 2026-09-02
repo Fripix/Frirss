@@ -279,9 +279,23 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   ne dit pas de quel mercredi il s'agit, et « Aujourd'hui » devient faux dès
   qu'on laisse l'onglet ouvert une nuit. Format : `AUJOURD'HUI · 31 AOÛT`.
 - **Apparition échelonnée** : les dix premières lignes se déposent avec 25 ms
-  d'écart (`data-stagger`). **Jamais sur le scroll infini** — l'animation ne
-  joue qu'au montage, et les pages suivantes ne remontent pas les lignes déjà
-  affichées, donc l'attente n'est jamais infligée deux fois.
+  d'écart (`data-stagger`). La décision revient à `staggerIndexes()`
+  (`src/lib/rowStagger.ts`) : **la position ne sert qu'à ATTRIBUER un retard,
+  une seule fois, à une ligne jamais rendue**. Ce qui a déjà été attribué ne
+  bouge plus (une ligne en pleine animation ne doit pas perdre `data-stagger`
+  au rendu suivant : elle sauterait à son état final), et ce qui a été rendu
+  sans retard n'en reçoit jamais. La liste garde cette mémoire dans une ref
+  (`rememberStagger`), remise à zéro à chaque changement de vue (flux, filtre,
+  recherche) pour qu'y entrer anime toujours ses lignes. **Jamais sur le scroll infini** — une page ajoutée en bas arrive
+  au-delà du seuil, et ses lignes ne sont de toute façon rendues qu'une fois.
+  **Piège** : la règle portait d'abord sur la seule position. Depuis que le ✓
+  retire une ligne (issue #10), tout ce qui la suit remonte d'un cran : la
+  onzième ligne devenait la dixième, franchissait le seuil pour la première
+  fois et rejouait l'animation d'entrée (`opacity: 0 → 1`, `fill: both`) alors
+  qu'elle n'avait jamais quitté l'écran — un article clignotait à chaque clic.
+  Le suivi des identifiants vus est mis à jour dans un effet, **jamais pendant
+  le rendu** : un double rendu (StrictMode) verrait sinon toutes les lignes
+  comme déjà vues dès la première peinture, et plus rien ne s'animerait.
 - **Repère « non lu »** : une barre de 3 px à gauche de la ligne, posée en CSS
   depuis l'attribut `data-unread` (`.article-row[data-unread]`), plus la pastille
   du mode Compact. Cette phrase a longtemps été fausse : `--list-unread-bar`

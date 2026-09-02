@@ -22,6 +22,7 @@ import { scrolledPastTop, shouldMark, MARK_READ_DELAY_MS } from '../../lib/markR
 import { canMorph, withMorph } from '../../lib/viewTransition';
 import { noFocusOnPointer } from '../../lib/pointerFocus';
 import { prefersReducedMotion } from '../../lib/reducedMotion';
+import { staggerIndexes, rememberStagger } from '../../lib/rowStagger';
 import type { Article, Filter } from '../../types';
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
@@ -125,14 +126,6 @@ export default function ArticleList() {
     return map;
   }, [subscriptions]);
 
-  // Position à plat de chaque article : sert au décalage d'apparition des dix
-  // premières lignes. Une carte plutôt qu'un `indexOf` par ligne.
-  const rowIndex = useMemo(() => {
-    const map = new Map<string, number>();
-    articles.forEach((a, i) => map.set(a.id, i));
-    return map;
-  }, [articles]);
-
   // Non-lus de la vue courante, affichés à côté du titre. En scroll infini,
   // rien ne disait s'il restait dix articles ou deux cents. Seulement pour un
   // flux et pour la vue « tous les flux » : les sélections transversales
@@ -198,6 +191,32 @@ export default function ArticleList() {
   const scrollKeyRef = useRef(scrollKey);
   scrollKeyRef.current = scrollKey;
   const didRestoreRef = useRef(false);
+
+  // ── Apparition échelonnée ────────────────────────────────────────
+  // Le décalage d'entrée se décidait sur la seule position : la ligne
+  // remontée d'un cran par un retrait franchissait le seuil et rejouait
+  // l'animation, en clignotant. `staggerIndexes` ne le donne qu'aux lignes
+  // JAMAIS RENDUES dans la vue courante (`src/lib/rowStagger.ts`).
+  //
+  // Le suivi vit dans une ref, mise à jour dans un effet et jamais pendant le
+  // rendu : un double rendu (StrictMode) verrait sinon toutes les lignes déjà
+  // vues dès la première peinture, et plus rien ne s'animerait. La clé de vue
+  // le remet à zéro — entrer dans un flux ou changer de filtre anime bien ses
+  // lignes, y compris celles déjà croisées ailleurs.
+  const articleIds = useMemo(() => articles.map((a) => a.id), [articles]);
+  const seenRowsRef = useRef<{ key: string; memo: Map<string, number | null> }>({
+    key: scrollKey,
+    memo: new Map(),
+  });
+  const staggerById = useMemo(() => {
+    const mem = seenRowsRef.current;
+    return staggerIndexes(articleIds, mem.key === scrollKey ? mem.memo : new Map());
+  }, [articleIds, scrollKey]);
+  useEffect(() => {
+    const mem = seenRowsRef.current;
+    if (mem.key !== scrollKey) seenRowsRef.current = { key: scrollKey, memo: new Map() };
+    rememberStagger(seenRowsRef.current.memo, articleIds, staggerById);
+  }, [articleIds, scrollKey, staggerById]);
 
   const handleScroll = useCallback(() => {
     const el = listRef.current;
@@ -862,7 +881,7 @@ export default function ArticleList() {
                       viewMode={viewMode}
                       showSource={showSource}
                       favicon={showListFavicons ? iconByFeedId.get(article.sourceId) ?? null : undefined}
-                      staggerIndex={rowIndex.get(article.id)}
+                      staggerIndex={staggerById.get(article.id)}
                       active={selectedArticle?.id === article.id}
                       onSelect={() => openArticle(article)}
                       onToggleStar={(e) => {
@@ -1249,7 +1268,8 @@ interface ArticleRowProps {
   /** URL de l'icône du flux ; `null` = pas d'icône connue mais on affiche le
    *  repli (pastille-lettre) ; `undefined` = favicons désactivés. */
   favicon?: string | null;
-  /** Position dans la liste — seules les dix premières lignes s'échelonnent. */
+  /** Retard d'apparition, ou `undefined` pour ne pas animer. Décidé par
+   *  `staggerIndexes` : seule une PREMIÈRE apparition dans la vue s'anime. */
   staggerIndex?: number;
   active: boolean;
   onSelect: () => void;
@@ -1262,10 +1282,11 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
   const { t } = useTranslation();
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = viewMode === 'preview' ? extractImageFromContent(article.content) : null;
-  // Décalage d'apparition, plafonné aux dix premières lignes. L'animation ne
-  // joue qu'au montage : les pages suivantes du scroll infini ne remontent pas
-  // les lignes déjà là, donc l'attente n'est jamais infligée deux fois.
-  const stagger = staggerIndex !== undefined && staggerIndex < 10
+  // Décalage d'apparition. Le seuil et le droit d'animer sont décidés en
+  // amont (`staggerIndexes`) : une ligne déjà rendue n'en reçoit pas, sans
+  // quoi elle rejouerait l'animation d'entrée en clignotant dès qu'un retrait
+  // la fait remonter.
+  const stagger = staggerIndex !== undefined
     ? { 'data-stagger': '', style: { animationDelay: `${staggerIndex * 25}ms` } }
     : null;
 

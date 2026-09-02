@@ -26,6 +26,12 @@ _(rien pour l'instant)_
   jamais, pour que suivant/précédent continuent de fonctionner. La liste
   enchaîne les pages suivantes au fil des retraits, et n'annonce « tout est
   lu » que lorsqu'il ne reste vraiment plus rien à charger. (issue #10)
+- **Un article ne clignote plus quand une ligne quitte la liste.** Chaque
+  retrait faisait remonter les lignes suivantes d'un cran, et celle qui
+  franchissait ainsi la dixième position rejouait l'animation d'entrée : elle
+  s'effaçait puis réapparaissait alors qu'elle n'avait jamais quitté l'écran.
+  L'animation ne joue plus qu'à la première apparition d'un article dans la
+  vue.
 - **Une liste vide ne se fige plus sur un squelette de chargement.** Quand la
   liste n'a plus rien à montrer alors que le flux n'est pas épuisé — par
   exemple en filtrant sur les favoris un flux dont les premiers articles n'en
