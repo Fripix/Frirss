@@ -58,6 +58,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant.
 - **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
 - **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed.
+- **Ticking an article read clears it from the unread list** — instantly, in every layout including the compact one. Opening an article leaves its row where it is, so you keep your place; only a deliberate tick removes one. If the server refuses the write, the row comes back and says so.
 - **Search and infinite scroll**, scoped to the view you are actually in — and the last five queries are offered back, per server.
 - **Mark as read while scrolling**, optionally: an article is marked once it has left the top of the list. Off by default, never during a search.
 - **Share an article or copy its link** from the reading pane — the system share sheet on mobile, the clipboard elsewhere.
