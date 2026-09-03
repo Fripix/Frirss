@@ -51,6 +51,12 @@ administrateur.
   les bases **neuves**. Une instance existante garde la valeur enregistrée, ce
   qui est le comportement voulu : personne ne se fait fermer la porte par une
   mise à jour.
+- **Piège — un 401 ne dit pas de quelle couche il vient.** Le compte FriRSS et
+  le serveur FreshRSS rattaché sont deux authentifications indépendantes, et le
+  proxy relaie le statut amont tel quel. L'intercepteur de `src/api/client.ts`
+  ne déconnecte donc que sur les 401 de **notre** middleware, reconnus par
+  `isBackendAuthFailure` (`src/lib/loginErrors.ts`) — voir « Serveurs
+  FreshRSS ».
 
 ### SSO / OIDC
 Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la place**
@@ -135,10 +141,17 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
     ajouté à `server/middleware/auth.ts` sans être listé ferait accuser le mot
     de passe de l'utilisateur alors que sa session a simplement expiré —
     `loginErrors.test.ts` relit le middleware et rougit dans ce cas.
-  - **Pas de déconnexion parasite** : `src/api/auth.ts` utilise **axios nu**, pas
-    le client de `src/api/client.ts` dont l'intercepteur déconnecte sur tout
-    401. Un refus d'identifiants FreshRSS ne fait donc pas sauter la session
-    FriRSS.
+  - **Pas de déconnexion parasite**, à deux verrous. `src/api/auth.ts` utilise
+    **axios nu**, pas le client de `src/api/client.ts` : le rattachement d'un
+    serveur ne passe donc pas du tout par l'intercepteur. Et depuis la 1.4.8,
+    cet intercepteur ne déconnecte plus sur **tout** 401 : il n'agit que sur
+    les nôtres (`isBackendAuthFailure`, même `BACKEND_AUTH_MARKERS`). Un 401 de
+    FreshRSS — session expirée là-bas, mot de passe d'API changé — traversait
+    tout le reste de l'application (listes, favicons, extraction) et fermait la
+    session FriRSS : une panne d'une couche déconnectait de l'autre. Un corps
+    illisible (`responseType` binaire des images) n'est **pas** attribué à
+    FriRSS : ne rien affirmer coûte une requête en erreur, se tromper coûte la
+    session.
   - **Les deux sites d'appel comptent** : `Login.tsx` (première connexion) et
     `AddServerDialog.tsx` (Préférences → ajouter un serveur) mènent au même
     échec et partagent la fonction.

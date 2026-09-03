@@ -31,6 +31,28 @@ export const BLOCKED_TARGET_MARKER = 'Target host not allowed';
  */
 export const BACKEND_AUTH_MARKERS = ['Token required', 'Session expired', 'Invalid token'];
 
+/**
+ * Ce 401 est-il le NÔTRE, c'est-à-dire celui de `server/middleware/auth.ts` ?
+ *
+ * FriRSS a deux couches d'authentification sans rapport : le compte FriRSS (un
+ * JWT qui protège `/api/*`) et le serveur FreshRSS rattaché (API Google
+ * Reader). Le proxy relaie le **statut amont tel quel**, donc un 401 de
+ * FreshRSS — session expirée là-bas, mot de passe d'API changé — arrive avec
+ * le même statut que l'expiration de notre JWT. L'intercepteur de
+ * `src/api/client.ts` déconnectait sur les deux : une panne d'une couche
+ * fermait la session de l'autre.
+ *
+ * Seuls nos propres messages font foi. Un corps illisible (`responseType`
+ * binaire des images et des favicons) ou inconnu n'est PAS attribué à FriRSS :
+ * ne rien affirmer coûte une requête en erreur, se tromper coûte la session.
+ */
+export function isBackendAuthFailure(err: unknown): boolean {
+  const res = (err as { response?: { status?: number; data?: unknown } })?.response;
+  if (res?.status !== 401) return false;
+  const body = bodyText(res.data);
+  return BACKEND_AUTH_MARKERS.some((m) => body.includes(m));
+}
+
 /** Corps de réponse rendu en texte, que axios l'ait parsé ou non. */
 function bodyText(data: unknown): string {
   if (typeof data === 'string') return data;

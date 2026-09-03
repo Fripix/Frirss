@@ -35,6 +35,11 @@ _(rien pour l'instant)_
   requête : des articles sans rapport s'ajoutaient sous une boîte de recherche
   toujours remplie. La pagination poursuit désormais la recherche, dans le même
   périmètre (flux, catégorie, favoris, à lire plus tard).
+- **Un problème côté FreshRSS ne vous déconnecte plus de FriRSS.** Une session
+  FreshRSS expirée ou un mot de passe d'API changé faisait fermer la session
+  FriRSS et renvoyait à l'écran de connexion, alors que le compte FriRSS était
+  parfaitement valide. Les deux authentifications sont désormais distinguées :
+  seule l'expiration de la session **FriRSS** déconnecte.
 
 ## Sous le capot
 

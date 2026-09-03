@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { loginErrorKey, serverConnectErrorKey, BLOCKED_TARGET_MARKER, BACKEND_AUTH_MARKERS } from './loginErrors';
+import { loginErrorKey, serverConnectErrorKey, isBackendAuthFailure, BLOCKED_TARGET_MARKER, BACKEND_AUTH_MARKERS } from './loginErrors';
 
 const httpError = (status: number) => ({ response: { status } });
 
@@ -128,5 +128,41 @@ describe('BACKEND_AUTH_MARKERS', () => {
     const found = [...src.matchAll(/status\(401\)\.json\(\{ error: '([^']+)' \}\)/g)].map((m) => m[1]);
     expect(found.length).toBeGreaterThan(0);
     expect(new Set(found)).toEqual(new Set(BACKEND_AUTH_MARKERS));
+  });
+});
+
+describe('isBackendAuthFailure', () => {
+  // Deux couches d'authentification sans rapport : le compte FriRSS (JWT sur
+  // `/api/*`) et le serveur FreshRSS rattaché. Le proxy relaie le statut amont
+  // TEL QUEL, donc un 401 de FreshRSS — session expirée là-bas, mot de passe
+  // d'API changé — arrive avec le même statut que l'expiration de NOTRE JWT.
+  // Réagir aux deux de la même façon déconnectait de FriRSS pour une panne qui
+  // ne le concernait pas.
+  it('reconnaît chacun des 401 de notre middleware', () => {
+    for (const marker of BACKEND_AUTH_MARKERS) {
+      expect(isBackendAuthFailure(proxyError(401, { error: marker })), marker).toBe(true);
+      // Selon le `responseType`, axios rend l'objet JSON ou la chaîne brute.
+      expect(isBackendAuthFailure(proxyError(401, `{"error":"${marker}"}`)), marker).toBe(true);
+    }
+  });
+
+  it('n’attribue pas à FriRSS le 401 de FreshRSS', () => {
+    expect(isBackendAuthFailure(proxyError(401, 'Unauthorized!'))).toBe(false);
+    expect(isBackendAuthFailure(proxyError(401, '<html>401</html>'))).toBe(false);
+  });
+
+  it('reste muet sur un corps illisible plutôt que de deviner', () => {
+    // `responseType: 'blob'`/`'arraybuffer'` (images, favicons) : le corps
+    // n'est pas du texte. Ne rien affirmer ne coûte qu'une requête en erreur ;
+    // se tromper coûte la session de l'utilisateur.
+    expect(isBackendAuthFailure(proxyError(401, new ArrayBuffer(8)))).toBe(false);
+    expect(isBackendAuthFailure(proxyError(401, undefined))).toBe(false);
+  });
+
+  it('ignore tout ce qui n’est pas un 401', () => {
+    expect(isBackendAuthFailure(proxyError(403, { error: 'Account disabled' }))).toBe(false);
+    expect(isBackendAuthFailure(proxyError(500, { error: 'Token required' }))).toBe(false);
+    expect(isBackendAuthFailure(new Error('Network Error'))).toBe(false);
+    expect(isBackendAuthFailure(null)).toBe(false);
   });
 });
