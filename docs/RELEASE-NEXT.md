@@ -17,7 +17,13 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Deux vulnérabilités corrigées dans une dépendance du serveur.** `qs`, la
+  bibliothèque qu'Express utilise pour analyser les paramètres d'URL, portait
+  deux avis de sévérité moyenne : un contournement de sa limite de taille de
+  tableau, et un déni de service. Passée en 6.16.0. C'est la seule
+  vulnérabilité que l'image publiée portait — les autres remontées par `npm
+  audit` vivent dans les dépendances de développement et ne sont jamais
+  embarquées.
 
 ## Sous le capot
 
