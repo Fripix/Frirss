@@ -35,6 +35,21 @@ export function cacheKey(userId: number | string, target: string): string {
 }
 
 /**
+ * Clé du cache d'EXTRAITS d'articles.
+ *
+ * Contrairement à `cacheKey`, elle ne porte **aucun identifiant
+ * d'utilisateur** : le texte extrait d'une page est le même pour tout le
+ * monde, alors qu'une liste d'articles dépend de l'état de lecture du compte.
+ * C'est cette absence qui fait qu'un Mac profite du travail d'un iPhone, et
+ * qu'à dix comptes lisant les mêmes flux la page n'est extraite qu'une fois.
+ * Y ajouter `userId` multiplierait le volume par le nombre de comptes et
+ * annulerait le partage — sans rien casser de visible.
+ */
+export function extractKey(url: string): string {
+  return `frirss:x:${createHash('sha1').update(url).digest('hex').slice(0, 24)}`;
+}
+
+/**
  * Purge tout le cache applicatif (toutes les clés `frirss:c:*`).
  *
  * Nécessaire après une restauration de sauvegarde : `applyBackup` réinstalle
