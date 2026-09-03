@@ -55,7 +55,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 
 ### Reading
 - **Three panes on desktop**, and an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
-- **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant.
+- **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant. On a feed set to auto-extract, the next articles are warmed ahead of you, images included, so swiping lands on a page that is already whole.
 - **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
 - **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed.
 - **Ticking an article read clears it from the unread list** — instantly, in every layout including the compact one. Opening an article leaves its row where it is, so you keep your place; only a deliberate tick removes one. If the server refuses the write, the row comes back and says so.
