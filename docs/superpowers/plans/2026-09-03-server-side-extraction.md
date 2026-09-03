@@ -32,10 +32,11 @@ absente ou en erreur fait basculer le client sur son extracteur local, inchangé
 - **Tout appel sortant passe par `fetchUpstream`** (`server/routes/proxy.ts`),
   jamais par `fetch()` direct : c'est ce qui applique la garde anti-SSRF et les
   réécritures `PROXY_REWRITES`. Règle explicite de `CLAUDE.md`.
-- **Le serveur ne peut pas importer depuis `src/`** : `server/tsconfig.json` a
-  `rootDir: "."`. Le contrat d'assainissement est donc écrit des deux côtés,
-  lié par un test de dérive — l'idiome déjà utilisé par
-  `src/lib/loginErrors.test.ts`, qui relit `server/middleware/auth.ts`.
+- **Le serveur n'assainit PAS** (corrigé le 2026-09-04) : `createDOMPurify` sur
+  la fenêtre de `linkedom` ne filtre rien — il manque `NodeFilter`, DOMPurify
+  bascule en mode « environnement non supporté » et rend l'entrée inchangée,
+  sans erreur. Le client assainit à réception avec `sanitizeExtracted()`, la
+  fonction qu'il applique déjà à sa propre extraction.
 - **La clé de cache ne contient JAMAIS d'identifiant d'utilisateur.** C'est ce
   qui fait tout le partage entre appareils et entre comptes.
 - **Sans Redis, tout continue de fonctionner.** `REDIS_URL` vide est le défaut.
@@ -56,8 +57,7 @@ absente ou en erreur fait basculer le client sur son extracteur local, inchangé
 | Fichier | Responsabilité |
 |---|---|
 | `server/cache.ts` | `extractKey(url)` — la clé sans utilisateur |
-| `server/extractSanitize.ts` *(nouveau)* | Le contrat d'assainissement, côté serveur |
-| `server/extract.ts` *(nouveau)* | Récupérer, extraire, assainir — sans Express |
+| `server/extract.ts` *(nouveau)* | Récupérer et extraire — sans Express, sans assainir |
 | `server/routes/extract.ts` *(nouveau)* | La route HTTP et le cache |
 | `server/index.ts` | Montage de la route |
 | `src/utils/extractContent.ts` | Demander au serveur, se replier sinon |
@@ -169,202 +169,7 @@ git commit -m "feat(cache): key extracted articles by URL, not by user"
 
 ---
 
-### Task 2 — le contrat d'assainissement côté serveur
-
-**Fichiers :**
-- Créer : `server/extractSanitize.ts`
-- Test : `server/test/extractSanitize.test.ts`
-
-**Interfaces :**
-- Produit : `sanitizeExtractedHtml(html: string, window: unknown): string`
-  — `window` est l'objet fourni par `linkedom`, injecté pour que la fonction
-  reste testable sans dépendre d'un global.
-
-**Pourquoi ce fichier existe.** `src/utils/extractContent.ts` contient déjà
-`sanitizeExtracted()`, et l'idéal serait de l'importer. C'est **impossible** :
-`server/tsconfig.json` a `rootDir: "."` et ne compile que `server/`. Le contrat
-est donc écrit deux fois et lié par un test de dérive — l'idiome que
-`src/lib/loginErrors.test.ts` applique déjà à `server/middleware/auth.ts`.
-
-Le contrat côté client, à reproduire exactement :
-
-```ts
-dropNonVideoIframes(DOMPurify.sanitize(html, {
-  ADD_TAGS: ['iframe'],
-  ADD_ATTR: ['allow', 'allowfullscreen'],
-  ALLOW_DATA_ATTR: false,
-}))
-```
-
-Les `<iframe>` doivent survivre : `injectVideoFacades` les transforme en
-façades au rendu, et un serveur plus strict ferait **disparaître des vidéos qui
-s'affichent aujourd'hui**.
-
-- [ ] **Étape 1 — Écrire le test qui échoue**
-
-Créer `server/test/extractSanitize.test.ts` :
-
-```ts
-import { describe, it, expect } from 'vitest';
-import fs from 'fs';
-import path from 'path';
-import { parseHTML } from 'linkedom';
-import { sanitizeExtractedHtml } from '../extractSanitize.js';
-
-const win = () => parseHTML('<html><body></body></html>');
-
-describe('sanitizeExtractedHtml', () => {
-  it('supprime les scripts', () => {
-    const out = sanitizeExtractedHtml('<p>bonjour</p><script>alert(1)</script>', win());
-    expect(out).toContain('bonjour');
-    expect(out).not.toContain('script');
-  });
-
-  it('supprime les gestionnaires d’événements', () => {
-    const out = sanitizeExtractedHtml('<p onclick="alert(1)">a</p>', win());
-    expect(out).not.toContain('onclick');
-  });
-
-  it('LAISSE PASSER une iframe vidéo', () => {
-    // Sans cette permission, une vidéo intégrée disparaîtrait avant
-    // qu'`injectVideoFacades` puisse en faire une façade — le serveur
-    // afficherait moins que le navigateur pour le même article.
-    const out = sanitizeExtractedHtml(
-      '<iframe src="https://www.youtube.com/embed/abc123" allowfullscreen></iframe>',
-      win(),
-    );
-    expect(out).toContain('iframe');
-    expect(out).toContain('youtube.com/embed/abc123');
-  });
-
-  it('supprime une iframe qui n’est pas une vidéo', () => {
-    const out = sanitizeExtractedHtml('<iframe src="https://evil.example/x"></iframe>', win());
-    expect(out).not.toContain('evil.example');
-  });
-});
-
-describe('dérive avec le client', () => {
-  it('applique les mêmes options DOMPurify que sanitizeExtracted', () => {
-    // Le serveur ne peut pas importer `src/` (rootDir). Ce test relit la
-    // source du client : si l'un des deux contrats change, il rougit plutôt
-    // que de laisser les deux extractions diverger en silence.
-    const client = fs.readFileSync(
-      path.join(process.cwd(), 'src/utils/extractContent.ts'), 'utf8',
-    );
-    const server = fs.readFileSync(
-      path.join(process.cwd(), 'server/extractSanitize.ts'), 'utf8',
-    );
-    for (const needle of ["ADD_TAGS: ['iframe']", "ADD_ATTR: ['allow', 'allowfullscreen']", 'ALLOW_DATA_ATTR: false']) {
-      expect(client, `client: ${needle}`).toContain(needle);
-      expect(server, `serveur: ${needle}`).toContain(needle);
-    }
-  });
-
-  it('reconnaît les mêmes hôtes vidéo que le client', () => {
-    // Les options DOMPurify ne suffisent pas : ce qui décide qu'une iframe
-    // survit, c'est la liste des hôtes. Si le client apprend un nouvel
-    // hébergeur et pas le serveur, la même vidéo s'afficherait sur un chemin
-    // et disparaîtrait sur l'autre — le pire des symptômes, intermittent.
-    const youtube = fs.readFileSync(path.join(process.cwd(), 'src/lib/youtube.ts'), 'utf8');
-    const server = fs.readFileSync(path.join(process.cwd(), 'server/extractSanitize.ts'), 'utf8');
-    for (const host of ['youtube.com', 'youtube-nocookie.com', 'youtu.be', 'player.vimeo.com']) {
-      expect(youtube, `client: ${host}`).toContain(host);
-      expect(server, `serveur: ${host}`).toContain(host);
-    }
-  });
-});
-```
-
-- [ ] **Étape 2 — Installer `linkedom` et vérifier la barrière CVE**
-
-```bash
-npm install linkedom
-npm audit --omit=dev
-```
-
-Attendu : `found 0 vulnerabilities`. **Si ce n'est pas le cas, arrêter le plan
-et le signaler au propriétaire** — c'est la barrière de livraison.
-
-- [ ] **Étape 3 — Lancer le test et le voir échouer**
-
-```bash
-npx vitest run server/test/extractSanitize.test.ts
-```
-
-Attendu : ÉCHEC, module `../extractSanitize.js` introuvable.
-
-- [ ] **Étape 4 — Écrire l'implémentation**
-
-Créer `server/extractSanitize.ts` :
-
-```ts
-import createDOMPurify from 'dompurify';
-
-/**
- * Contrat d'assainissement des articles extraits, côté serveur.
- *
- * ⚠️ Ce contrat est écrit DEUX FOIS : ici et dans `sanitizeExtracted()`
- * (`src/utils/extractContent.ts`). Ce n'est pas un oubli — `server/tsconfig.json`
- * a `rootDir: "."` et ne compile que `server/`, donc le serveur ne peut rien
- * importer de `src/`. `server/test/extractSanitize.test.ts` relit la source du
- * client et rougit si les deux divergent.
- *
- * La permission accordée aux `<iframe>` est OBLIGATOIRE : `injectVideoFacades`
- * les transforme en façades au moment du rendu. Un serveur plus strict — le
- * réflexe naturel — ferait disparaître des vidéos qui s'affichent aujourd'hui.
- * Elle est refermée aussitôt sur les seules vidéos reconnues.
- */
-export function sanitizeExtractedHtml(html: string, window: unknown): string {
-  const purify = createDOMPurify(window as never);
-  const clean = purify.sanitize(html, {
-    ADD_TAGS: ['iframe'],
-    ADD_ATTR: ['allow', 'allowfullscreen'],
-    ALLOW_DATA_ATTR: false,
-  });
-  return dropNonVideoIframes(clean);
-}
-
-/**
- * Ne garde que les `<iframe>` dont la source est une vidéo reconnue.
- * Miroir de `dropNonVideoIframes` (`src/lib/youtube.ts`), même raison de
- * duplication que ci-dessus.
- */
-function dropNonVideoIframes(html: string): string {
-  return html.replace(/<iframe\b[^>]*>(?:<\/iframe>)?/gi, (tag) => {
-    const src = tag.match(/\bsrc=["']([^"']+)["']/i)?.[1] ?? '';
-    return /(?:youtube\.com|youtube-nocookie\.com|youtu\.be|player\.vimeo\.com)/i.test(src)
-      ? tag
-      : '';
-  });
-}
-```
-
-- [ ] **Étape 5 — Lancer le test et le voir passer**
-
-```bash
-npx vitest run server/test/extractSanitize.test.ts
-```
-
-Attendu : PASS, 5 tests.
-
-- [ ] **Étape 6 — Gates, garde-fou, commit**
-
-```bash
-npm run typecheck && npm run lint && npx vitest run && npm run build
-```
-
-```bash
-git grep -nI --untracked -e 'fri[h]ub' -e '10\.[3]\.0\.[0-9]' -- . ':(exclude).github/workflows/*' ':(exclude)package-lock.json'
-```
-
-```bash
-git add server/extractSanitize.ts server/test/extractSanitize.test.ts package.json package-lock.json
-git commit -m "feat(extract): mirror the client sanitising contract on the server"
-```
-
----
-
-### Task 3 — extraire côté serveur, et la route
+### Task 2 — extraire côté serveur, et la route
 
 **Fichiers :**
 - Créer : `server/extract.ts` — la logique, sans Express
@@ -373,7 +178,7 @@ git commit -m "feat(extract): mirror the client sanitising contract on the serve
 - Test : `server/test/extract.test.ts`
 
 **Interfaces :**
-- Consomme : `extractKey` (Tâche 1), `sanitizeExtractedHtml` (Tâche 2),
+- Consomme : `extractKey` (Tâche 1),
   `fetchUpstream(rawTarget, opts)` (`server/routes/proxy.ts`),
   `cacheEnabled`, `cacheGet`, `cacheSet` (`server/cache.ts`),
   `requireAuth` (`server/middleware/auth.js`)
@@ -405,10 +210,16 @@ describe('extractArticle', () => {
     expect(out!.title).toContain('titre');
   });
 
-  it('assainit le résultat', () => {
-    const evil = page.replace('</article>', '<script>alert(1)</script></article>');
+  it('N’assainit PAS — c’est le client qui le fait', () => {
+    // Décision du 2026-09-04. `createDOMPurify` sur la fenêtre de `linkedom`
+    // ne filtre rien (il manque `NodeFilter`, DOMPurify passe en mode
+    // « environnement non supporté » et rend l'entrée telle quelle, sans
+    // erreur). Assainir ici aurait donné un filet auquel on croit et qui ne
+    // retient rien. Le client applique `sanitizeExtracted()` à la réception,
+    // comme il le fait déjà pour sa propre extraction.
+    const evil = page.replace('</article>', '<p>zzz</p></article>');
     const out = extractArticle('https://example.com/a', evil);
-    expect(out!.content).not.toContain('script');
+    expect(out!.content).toContain('zzz');
   });
 
   it('résout les URL relatives contre l’URL de l’article', () => {
@@ -441,7 +252,6 @@ Créer `server/extract.ts` :
 ```ts
 import { parseHTML } from 'linkedom';
 import { Readability } from '@mozilla/readability';
-import { sanitizeExtractedHtml } from './extractSanitize.js';
 
 export interface ExtractedArticle {
   title: string;
@@ -459,7 +269,7 @@ export interface ExtractedArticle {
  * laisser la main au navigateur plutôt que de renvoyer un corps vide.
  */
 export function extractArticle(url: string, html: string): ExtractedArticle | null {
-  const { document, window } = parseHTML(html);
+  const { document } = parseHTML(html);
 
   // Une URL relative dans la page ne veut rien dire pour le navigateur, qui
   // reçoit le HTML sans savoir d'où il vient. `<base>` les résout ici.
@@ -472,7 +282,7 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
 
   return {
     title: parsed.title || '',
-    content: sanitizeExtractedHtml(parsed.content, window),
+    content: parsed.content,
     excerpt: parsed.excerpt || '',
     byline: parsed.byline || '',
     siteName: parsed.siteName || '',
@@ -570,8 +380,7 @@ import extractRoutes from './routes/extract.js';
 ### Extraction d'articles
 `GET /api/extract?url=…` rend l'article extrait et assaini, prêt à afficher.
 
-- **Où** : `server/routes/extract.ts`, `server/extract.ts`,
-  `server/extractSanitize.ts`
+- **Où** : `server/routes/extract.ts`, `server/extract.ts`
 - **Cache** : Redis, clé `frirss:x:<sha1(url)>` — **sans identifiant
   d'utilisateur**, contrairement au cache de listes. Le texte extrait d'une
   page est le même pour tous : c'est ce qui fait qu'un appareil profite du
@@ -581,10 +390,11 @@ import extractRoutes from './routes/extract.js';
 - **Sans Redis** : la route extrait quand même, sans rien garder.
 - **Piège** : l'appel sortant passe par `fetchUpstream`, jamais par `fetch` —
   c'est lui qui porte la garde anti-SSRF.
-- **Piège** : le contrat d'assainissement est écrit des deux côtés
-  (`rootDir` interdit au serveur d'importer `src/`) et lié par un test de
-  dérive. Les `<iframe>` vidéo doivent survivre, sinon les vidéos intégrées
-  disparaissent.
+- **Piège** : la route rend du HTML **non assaini**, et c'est voulu. Assainir
+  côté serveur a été tenté puis abandonné le 2026-09-04 — `createDOMPurify` sur
+  `linkedom` ne filtre rien faute de `NodeFilter`, et rend l'entrée telle
+  quelle sans lever d'erreur. Le client assainit à réception. Ne pas
+  « rétablir » un assainissement serveur sans vérifier qu'il filtre vraiment.
 - **422 quand la page n'est pas extractible** : le client doit pouvoir se
   replier sur son extracteur local ; un corps vide en 200 l'en priverait.
 ```
@@ -612,7 +422,7 @@ git commit -m "feat(extract): serve extracted articles from a shared cache"
 
 ---
 
-### Task 4 — le client demande au serveur, et se replie
+### Task 3 — le client demande, assainit, et se replie
 
 **Fichiers :**
 - Modifier : `src/utils/extractContent.ts` (`extractFullContent`)

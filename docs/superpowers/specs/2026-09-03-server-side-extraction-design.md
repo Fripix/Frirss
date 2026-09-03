@@ -28,9 +28,9 @@ clé `frirss:c:<userId>:<hash>`, coupées à `CACHE_ARTICLES_PER_FEED` (50) par
 
 ## Ce qui change
 
-Une route `GET /api/extract` rend l'article **déjà extrait et assaini**. Le
-client la demande d'abord ; si elle ne répond pas, il extrait lui-même comme
-aujourd'hui.
+Une route `GET /api/extract` rend l'article **déjà extrait**. Le client la
+demande d'abord, l'assainit à réception, et extrait lui-même si elle ne répond
+pas.
 
 ### Les trois niveaux
 
@@ -90,20 +90,42 @@ C'est le vrai risque de cette conception, consigné plutôt que découvert. Le
 serveur et le navigateur peuvent produire un HTML légèrement différent pour le
 même article — moteurs DOM distincts.
 
-Trois décisions le contiennent :
+Deux décisions le contiennent :
 
 - **Le serveur fait autorité quand il répond.** Le client ne corrige, ne
   complète ni ne compare son résultat. Une seule vérité par réponse.
-- **Le contrat d'assainissement est le même des deux côtés**, en particulier la
-  permission accordée aux `<iframe>` vidéo : `sanitizeExtracted`
-  (`src/utils/extractContent.ts`) les laisse passer délibérément, sans quoi une
-  vidéo intégrée disparaîtrait avant qu'`injectVideoFacades` puisse en faire une
-  façade. Un serveur plus strict ferait disparaître des vidéos qui s'affichent
-  aujourd'hui.
-- **Pas de troisième assainisseur.** La logique commune est extraite dans un
-  module partagé, testé une fois, importé des deux côtés. Ce dépôt en compte
-  déjà deux et documente ce piège ; un troisième serait une régression de
-  conception, pas un détail.
+- **Un seul assainisseur, côté client.** Corrigé le 2026-09-04, après que
+  l'implémentation a montré que la première idée ne tenait pas.
+
+### L'assainissement reste au client — corrigé le 2026-09-04
+
+La première version de cette spec faisait assainir le serveur, avec un contrat
+dupliqué des deux côtés et un test de dérive pour les lier. **Deux faits
+découverts à l'implémentation l'ont invalidée :**
+
+1. **`createDOMPurify` sur la fenêtre de `linkedom` n'assainit rien.** Il lui
+   manque `NodeFilter` ; DOMPurify bascule alors silencieusement en mode
+   « environnement non supporté » et **rend l'entrée inchangée**, sans lever
+   d'erreur. On aurait livré un assainisseur factice, et une faille de type XSS
+   stockée le jour où la route est branchée.
+2. **Le client réassainit déjà tout ce qu'il affiche** — `buildArticleBody`
+   (`src/lib/articleBody.ts`) passe systématiquement par `sanitizeHtml`. Un
+   assainissement serveur aurait été un second filet redondant.
+
+Donc : **le serveur extrait, il n'assainit pas.** Il met en cache le HTML brut
+issu de Readability. Le client applique `sanitizeExtracted()` à la réponse —
+la fonction qu'il applique déjà à sa propre extraction — **avant** de la
+renvoyer et de la stocker en IndexedDB, pour que le contrat du cache local
+reste inchangé.
+
+Un cache serveur contenant du HTML non assaini n'est pas un risque nouveau :
+c'est exactement le statut du contenu RSS que FriRSS manipule depuis toujours,
+et le client le traite comme non fiable. Ce qui serait un risque, c'est un
+assainisseur en lequel on croit et qui ne fait rien.
+
+Bénéfice secondaire : plus de duplication de `dropNonVideoIframes`, plus de
+test de dérive, et l'obstacle du `rootDir` — qui interdit au serveur d'importer
+`src/` — devient sans objet.
 
 ## Les deux garde-fous posés par le propriétaire
 
@@ -150,9 +172,10 @@ Logique pure d'abord, dans `src/lib/` ou `server/`, testée avant d'être écrit
 - **La clé de cache** — même URL, même clé ; URL différente, clé différente ;
   aucun identifiant d'utilisateur n'y entre. Un test doit échouer si quelqu'un
   réintroduit `userId`, car ce serait annuler le partage entre comptes.
-- **Le contrat d'assainissement partagé** — les `<iframe>` vidéo survivent, le
-  reste tombe. Ce test doit vivre à côté du module partagé et couvrir les deux
-  appelants.
+- **L'assainissement de la réponse serveur** — le client applique
+  `sanitizeExtracted()` à ce que le serveur renvoie, avant de le rendre et de
+  le stocker. Un test doit échouer si cette étape saute : sans elle, le contrat
+  du cache IndexedDB change en silence.
 - **Le repli client** — réponse absente, 404, 500, corps illisible : chacun
   bascule sur l'extraction locale. Un test par cas, sans quoi le filet n'est
   pas prouvé.
@@ -170,7 +193,6 @@ documentation n'est pas écrite — c'est voulu.
 | `server/routes/extract.ts` *(nouveau)* | La route, le cache, l'extraction |
 | `server/cache.ts` | Une clé sans utilisateur, à côté de `cacheKey` |
 | `src/utils/extractContent.ts` | Demander au serveur, se replier sinon |
-| Module partagé *(nouveau)* | Contrat d'assainissement commun |
 | `docs/FEATURES.md`, `README.md` | Obligatoires, même commit |
 
 Aucune chaîne d'interface nouvelle n'est prévue : la fonctionnalité est
