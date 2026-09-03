@@ -890,10 +890,22 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   loadMore: async () => {
     const { continuation, selectedFeed, filter, loadingMore, revalidating } = get();
     if (!canLoadMore({ hasContinuation: !!continuation, loadingMore, revalidating })) return;
+    // La vue POUR LAQUELLE cette page est demandée, retenue avant la requête.
+    // Sans elle, une page arrivée après un changement de flux abîmait deux
+    // choses d'un coup : `state.articles` étant la NOUVELLE liste, la page de
+    // l'ancienne vue lui était appendue ; et cette liste mélangée était écrite
+    // dans les caches sous la clé de l'ANCIENNE vue, donc la corruption
+    // survivait au rechargement. `viewIdentity` couvre le flux, le filtre et
+    // la recherche — les trois choses qui changent la liste à l'écran.
+    const view = viewIdentity(get());
     set({ loadingMore: true });
 
     try {
       const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, continuation);
+      // La vue a changé pendant l'aller-retour : cette page n'appartient plus
+      // à rien de ce qui est affiché. On la jette entièrement — pas d'ajout,
+      // pas d'écriture de cache, pas de `continuation` — et on rend la main.
+      if (viewIdentity(get()) !== view) { set({ loadingMore: false }); return; }
       if (!result) { set({ loadingMore: false }); return; }
 
       set((state) => {

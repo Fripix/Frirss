@@ -546,6 +546,19 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
       (`listPagination.ts`) bloque à la fois le clic (bouton grisé, même
       libellé « Chargement… » que `loadingMore`) et l'action `loadMore`
       elle-même (garde-fou côté store, en plus de l'UI).
+  - **Une page appartient à la vue qui l'a demandée (1.4.8).** `loadMore`
+    capturait le flux et le filtre avant sa requête puis écrivait le résultat
+    sur l'état d'APRÈS : changer de flux pendant l'aller-retour abîmait deux
+    choses d'un coup. `state.articles` étant déjà la NOUVELLE liste, la page de
+    l'ancienne vue lui était appendue ; et cette liste mélangée était persistée
+    sous la clé de l'ANCIENNE vue (cache mémoire **et** cache hors ligne), donc
+    la corruption survivait au rechargement. `loadMore` retient désormais
+    `viewIdentity()` avant la requête et la relit après : si elle a changé, la
+    page est **jetée entièrement** — pas d'ajout, pas d'écriture de cache, pas
+    de `continuation` — et seul `loadingMore` retombe. Même garde que le
+    `sameView()` de `loadArticles`, qui l'avait depuis toujours ;
+    `viewIdentity` couvre en plus la recherche, qui change la liste à l'écran
+    sans changer la clé de cache.
   - **Écarté** : réglage optionnel, bandeau « Annuler » (il ne rattrapait pas
     le cas invoqué), uniformisation des hauteurs de ligne. Détail et raisons
     dans `docs/superpowers/specs/2026-09-01-mark-read-removes-row-design.md`.

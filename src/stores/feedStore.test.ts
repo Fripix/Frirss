@@ -1388,3 +1388,68 @@ describe('feedStore.toggleRead — une écriture perdue se voit', () => {
     expect(useUiStore.getState().toasts).toEqual([]);
   });
 });
+
+describe('feedStore.loadMore — changement de vue pendant que la page est en vol', () => {
+  // `loadMore` capture le flux et le filtre AVANT sa requête, puis écrit son
+  // résultat sur l'état d'APRÈS. Changer de flux pendant l'aller-retour
+  // abîmait donc deux choses d'un coup : la page de l'ancienne vue était
+  // appendue à la liste de la nouvelle, et cette liste mélangée était écrite
+  // dans les caches (mémoire et hors-ligne) sous la clé de l'ANCIENNE — la
+  // corruption survivait au rechargement.
+  const feedA = { id: 'feed/A', title: 'A' } as unknown as Subscription;
+  const feedB = { id: 'feed/B', title: 'B' } as unknown as Subscription;
+  const item = (id: string) => ({ id, categories: [] });
+  const row = (id: string): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/B', title: id } as Article);
+
+  beforeEach(() => {
+    vi.mocked(api.getStreamContents).mockReset();
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({
+      selectedFeed: null, filter: 'all', searchQuery: '',
+      continuation: null, loadingMore: false, revalidating: false,
+    });
+  });
+
+  it('jette la page au lieu de l’appendre à la vue arrivée entre-temps', async () => {
+    // 1. La vue A est chargée : son cache mémoire porte [a1] / 'page-2'.
+    vi.mocked(api.getStreamContents).mockResolvedValueOnce(
+      { items: [item('a1')], continuation: 'page-2' } as never
+    );
+    useFeedStore.setState({ selectedFeed: feedA, filter: 'all', searchQuery: '' });
+    await useFeedStore.getState().loadArticles();
+    expect(useFeedStore.getState().continuation).toBe('page-2');
+
+    // 2. Une page part pour A…
+    let resolvePage!: (v: unknown) => void;
+    vi.mocked(api.getStreamContents).mockReturnValueOnce(
+      new Promise((resolve) => { resolvePage = resolve; }) as never
+    );
+    const p = useFeedStore.getState().loadMore();
+
+    // 3. …et l'utilisateur bascule sur B avant qu'elle n'arrive.
+    useFeedStore.setState({
+      selectedFeed: feedB, articles: [row('b1')], continuation: 'b-page-2', revalidating: false,
+    });
+    vi.mocked(offline.listPut).mockClear();
+    resolvePage({ items: [item('a2')], continuation: 'page-3' });
+    await p;
+
+    // La liste de B est intacte, sa continuation aussi, et le drapeau est levé.
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['b1']);
+    expect(s.continuation).toBe('b-page-2');
+    expect(s.loadingMore).toBe(false);
+    // Rien n'a été persisté : ni sous la clé de B, ni sous celle de A.
+    expect(offline.listPut).not.toHaveBeenCalled();
+
+    // Et le cache mémoire de A n'a pas été empoisonné : y revenir repeint
+    // exactement ce qui y avait été chargé.
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    useFeedStore.getState().selectFeed(feedA);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a1']);
+    expect(useFeedStore.getState().continuation).toBe('page-2');
+  });
+});

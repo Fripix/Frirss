@@ -24,6 +24,12 @@ _(rien pour l'instant)_
   préchargement réchauffe désormais aussi les images du corps, et porte sur les
   **dix** articles suivants au lieu de cinq. Il obéit au réglage « images hors
   ligne » : sur « aucune », rien n'est téléchargé.
+- **Changer de flux pendant un chargement ne mélange plus les listes.** Quand
+  une page du scroll infini arrivait après un changement de flux, ses articles
+  étaient ajoutés à la liste affichée — celle d'un autre flux — et le mélange
+  était enregistré dans le cache de la vue quittée : il revenait tel quel au
+  rechargement suivant, y compris hors ligne. La page est désormais jetée si
+  la vue a changé entre-temps.
 
 ## Sous le capot
 
