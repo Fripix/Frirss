@@ -12,11 +12,6 @@ import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
-import { awaitGhostPaint } from '../../lib/ghostFade';
-import { planPrefetchAhead, runPrefetchAhead } from '../../lib/prefetchAhead';
-import { imageBudget } from '../../lib/offlineImages';
-import { getStorageEstimate } from '../../lib/storageEstimate';
-import { cacheImages } from '../../lib/imageCache';
 import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import { readableTextOn } from '../../lib/readableText';
@@ -166,11 +161,13 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // concurrencer l'article courant ; l'extrait rejoint le cache LRU borné, donc
   // la mémoire reste plafonnée.
   //
-  // On réchauffe AUSSI les images du corps : le HTML préchargé n'est jamais
-  // rendu tant qu'on n'y glisse pas, donc aucune requête d'image ne partait, et
-  // le texte arrivait avant les images qui le poussaient ensuite vers le bas.
-  // La décision (quels articles, quelles images, quand s'arrêter) vit dans
-  // `prefetchAhead.ts` ; ici, seul le câblage.
+  // TEXTE SEULEMENT, et sur CINQ articles. Le cycle 1.4.10 avait élargi la
+  // fenêtre à dix et y avait ajouté le réchauffage des images du corps : à la
+  // moindre pause dans le glissement, dix extractions plus quatre requêtes
+  // d'image chacune partaient d'un coup et saturaient le proxy de fond, si
+  // bien que le glissement suivant attendait derrière la file — 2 à 7 s sur
+  // iPhone au lieu de ~0,9 s. Ne pas y revenir sans un plafond de concurrence
+  // côté proxy.
   useEffect(() => {
     const cur = selectedArticle;
     if (!cur?.id) return;
@@ -179,35 +176,23 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
       const { articles } = useFeedStore.getState();
       const fs = useUiStore.getState().feedSettings;
-      const upcoming = planPrefetchAhead({
-        articles,
-        currentId: cur.id,
-        autoExtract: (sourceId) => !!fs[sourceId]?.autoExtract,
-      });
+      const idx = articles.findIndex((a) => a.id === cur.id);
+      if (idx < 0) return;
+      const upcoming = articles
+        .slice(idx + 1, idx + 6) // N+1 … N+5
+        .filter((a) => a.url && fs[a.sourceId]?.autoExtract && !peekExtract(a.id));
       if (upcoming.length === 0) return;
-      const ui = useUiStore.getState();
-      const budget = imageBudget(
-        ui.offlineImagePreset,
-        ui.offlineImageSizes,
-        (await getStorageEstimate())?.quota ?? 0,
-      );
-      if (cancelled) return;
       const { extractFullContent } = await import('../../utils/extractContent');
-      await runPrefetchAhead(upcoming, {
-        budget,
-        cancelled: () => cancelled,
-        // Déjà extrait ? Le cache persistant le remonte en mémoire, et le
-        // réseau est épargné — mais l'article reste candidat pour ses images.
-        cachedExtract: async (a) =>
-          peekExtract(a.id)?.content ?? (await getExtract(a.id))?.content ?? null,
-        extract: async (a) => {
+      for (const a of upcoming) {
+        if (cancelled) break;
+        if (peekExtract(a.id)) continue;
+        // Déjà persisté ? Le remonter en mémoire et épargner le réseau.
+        if (await getExtract(a.id)) continue;
+        try {
           const result = await extractFullContent(a.url!);
-          if (cancelled) return null;
-          await putExtract(a.id, result);
-          return result.content;
-        },
-        cacheImages,
-      });
+          if (!cancelled) await putExtract(a.id, result);
+        } catch { /* échecs de préchargement ignorés */ }
+      }
     }, 1000); // laisser l'article courant se charger d'abord
     return () => { cancelled = true; clearTimeout(timer); };
   }, [selectedArticle?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -504,12 +489,25 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                     setTimeout(() => cleanupPreview(t), 130);
                   }
                 };
-                // Quand fondre : voir `src/lib/ghostFade.ts`. L'attente porte
-                // sur le DÉCODAGE de l'image, pas sur son chargement — depuis
-                // le préchargement, « chargée » arrive avant que la trame soit
-                // peignable, et le fantôme s'effaçait sur un trou blanc.
+                // L'attente porte sur le CHARGEMENT des premières images, pas
+                // sur leur décodage : attendre `decode()` retenait le fantôme
+                // bien plus longtemps sur iPhone, et le glissement paraissait
+                // bloqué.
                 const imgs = el2 ? el2.querySelectorAll<HTMLImageElement>('.article-content img') : [];
-                awaitGhostPaint(imgs, done, { immediate });
+                const visible = Array.from(imgs).slice(0, 3);
+                if (immediate || visible.length === 0 || visible.every(i => i.complete)) {
+                  done();
+                } else {
+                  let settled = false;
+                  const finish = () => { if (!settled) { settled = true; done(); } };
+                  visible.forEach(i => {
+                    if (!i.complete) {
+                      i.addEventListener('load', finish, { once: true });
+                      i.addEventListener('error', finish, { once: true });
+                    }
+                  });
+                  setTimeout(finish, 1500); // repli
+                }
               };
 
               // Cached incoming article → reveal immediately (no image wait).

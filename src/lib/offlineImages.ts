@@ -95,9 +95,10 @@ export function collectImageUrls(html: string, limit: number): string[] {
  * Image URLs worth caching for one article: the RSS thumbnail first (it is what
  * the list and the grid render), then body images from the extracted content.
  *
- * Shared by the manual offline sweep (`feedStore.prepareOffline`) and by the
- * read-ahead prefetch (`prefetchAhead.ts`), so both pick the same images: a
- * duplicate would drift, and the two would warm different caches.
+ * Used by the manual offline sweep (`feedStore.prepareOffline`), its only
+ * caller today. It lives here rather than inside the store so the choice of
+ * images is testable on its own, and so a second consumer cannot grow a
+ * duplicate that drifts.
  */
 export function articleImageUrls(
   rssHtml: string,

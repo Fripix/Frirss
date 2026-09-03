@@ -710,22 +710,14 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   l'animation) porte l'article visé. À l'arrivée, le vrai article est commité
   en `flushSync` **derrière** le fantôme, qui ne se fond qu'ensuite : sans ce
   maintien, le fondu découvrirait un article encore vide.
-- **Quand le fantôme s'efface** (1.4.10) : `src/lib/ghostFade.ts` — le
-  composant n'en fait que le câblage. On attend le **décodage** de l'image de
-  tête (`HTMLImageElement.decode()`), pas son chargement.
-  **Piège** : `complete` signifie « la ressource est arrivée », pas « la trame
-  est peignable » ; sur iOS l'écart entre les deux se voit. Tant que les images
-  n'étaient pas en cache, il restait masqué — elles n'étaient jamais `complete`
-  au moment du fondu, on attendait donc l'événement `load`, tardif au point de
-  couvrir le décodage. Depuis le préchargement en avant (1.4.9), elles sont
-  `complete` dès le rendu : le fantôme s'effaçait sur un trou blanc et l'image
-  clignotait pile à l'arrivée de l'article. Trois garde-fous conservés : un
-  rejet de `decode()` (image cassée) libère comme le faisait `error`, un délai
-  de garde de 1,5 s empêche tout fantôme collé à l'écran, et un moteur sans
-  `decode()` (jsdom, vieux WebKit) retrouve l'ancien comportement.
-  **Second piège** : les images différées sont écartées de l'attente — sauf
-  s'il ne reste qu'elles, car la façade YouTube porte `loading="lazy"` alors
-  qu'elle EST l'image de tête.
+- **Quand le fantôme s'efface** : câblé dans `ReadingPane.tsx`. On regarde les
+  **trois premières** images du corps ; si elles sont déjà `complete` — ou si
+  l'article venait du cache d'extraits — le fondu part tout de suite, sinon on
+  attend leur `load`/`error`, avec un délai de garde de 1,5 s pour qu'aucun
+  fantôme ne reste collé à l'écran. **Piège** : attendre le *décodage*
+  (`HTMLImageElement.decode()`) plutôt que le chargement a été essayé pendant
+  le cycle 1.4.10 et retiré avant publication — le fantôme restait bien plus
+  longtemps sur iPhone, et le balayage paraissait bloqué.
 - **Partager / copier le lien** (1.4.5) : `navigator.share()` là où l'API
   existe, sinon le presse-papiers avec un toast de confirmation. Le volet ne
   proposait que « ouvrir l'original » : dans la PWA iOS installée, envoyer un
@@ -768,27 +760,20 @@ a été supprimé de la production en 1.3.1, et du serveur de développement en
   secondes sans arrêt, si bien qu'il ne prenait jamais d'avance et que
   l'article suivant arrivait en deux temps, texte puis image.
 - **Préchargement en avant (volet de lecture)** : une seconde après l'ouverture
-  d'un article, FriRSS prépare les **dix articles suivants** de la liste, sur les
-  seuls flux à extraction automatique — leur texte, **et leurs images de corps**.
-  Réchauffer les images est indispensable : le HTML préchargé n'est jamais rendu
-  tant qu'on n'a pas glissé jusqu'à lui, donc aucune requête d'image ne partait,
-  et sur iPhone le texte s'affichait avant que les images ne tombent en le
-  poussant vers le bas. La décision — quels articles, quelles images, quand
-  s'arrêter — vit dans `src/lib/prefetchAhead.ts` ; `ReadingPane` n'en fait que
-  le câblage.
-- **Ce préchargement obéit au réglage « images hors ligne »** (`imageBudget`) :
-  preset « aucune » = budget nul = aucune image préchargée, mais le texte
-  continue d'être extrait. Sinon, au plus `perArticle` images par article, et
-  arrêt dès que le budget d'octets est épuisé — le motif de la préparation hors
-  ligne. Un article dont l'extrait est **déjà** en cache reste candidat : son
-  texte est prêt, ses images ne le sont pas forcément.
-- **Piège** : ce préchargement est un **second consommateur** du proxy backend,
-  qui est plafonné par utilisateur et par minute
-  (`FRIRSS_PROXY_RATE_LIMIT`), pendant que l'extraction de fond y puise déjà.
-  D'où trois bornes à ne pas relâcher : dix articles au plus, `perArticle`
-  images au plus, **aucune reprise sur échec**. Le travail est séquentiel et
-  annulable (le drapeau `cancelled` de l'effet), et rien de ce qui échoue ne
-  remonte : ni une extraction, ni une image.
+  d'un article, FriRSS extrait **le texte des cinq articles suivants** (N+1 …
+  N+5) de la liste, sur les seuls flux à extraction automatique. Séquentiel,
+  annulable (le drapeau `cancelled` de l'effet), sans reprise sur échec ; le
+  délai d'une seconde fait que balayer vite annule tout. Câblé directement dans
+  `ReadingPane.tsx`. **Texte seulement — aucune image n'est réchauffée ici.**
+- **Piège, payé cher** : le cycle 1.4.10 avait élargi la fenêtre à dix articles
+  et y avait ajouté le réchauffage des images du corps. Effet mesuré sur
+  iPhone : à la moindre pause dans le balayage, dix extractions plus quatre
+  requêtes d'image chacune partaient d'un coup, saturaient le proxy backend
+  (plafonné par utilisateur et par minute, `FRIRSS_PROXY_RATE_LIMIT`, pendant
+  que l'extraction de fond y puise déjà), et le balayage suivant attendait
+  derrière la file — 2 à 7 s au lieu de ~0,9 s par article. Les deux ont été
+  retirés avant publication. Ne pas y revenir sans un plafond de concurrence
+  côté proxy.
 - **Assainissement à part** : `sanitizeExtracted()` est **plus permissif** que
   `sanitizeHtml()` sur un point, et doit l'être — il garde les `<iframe>`, sans
   quoi une vidéo intégrée à un article extrait disparaîtrait avant
@@ -926,13 +911,13 @@ images consultés restent lisibles sans réseau.
   `src/components/OfflineBanner.tsx`, `src/components/UpdatePrompt.tsx`
 - **Réglages** : préparation manuelle, mise à jour à l'ouverture, budget d'images
   (aucune / légère / standard / maximale)
-- **Deux remplisseurs du cache d'images** : la préparation manuelle
-  (`feedStore.prepareOffline`) et le préchargement en avant du volet de lecture
-  (`src/lib/prefetchAhead.ts`, voir « Extraction du contenu complet »). Ils
-  choisissent les mêmes images via `articleImageUrls()`, exporté par
-  `offlineImages.ts` — c'était un helper privé du store, et un doublon aurait
-  fini par diverger, chacun réchauffant un cache différent. Le budget d'images
-  commande les deux : preset « aucune » les prive tous les deux d'images.
+- **Un seul remplisseur du cache d'images** : la préparation manuelle
+  (`feedStore.prepareOffline`). Le choix des images vit dans
+  `articleImageUrls()`, exporté par `offlineImages.ts` et testé à part — c'était
+  un helper privé du store. Le préchargement en avant du volet de lecture ne
+  télécharge **aucune** image (voir « Extraction du contenu complet ») : il
+  l'avait fait pendant le cycle 1.4.10, au prix d'un balayage bloqué sur
+  iPhone.
 - **Spec** : `docs/superpowers/specs/2026-08-18-offline-images-design.md`
 - **Piège majeur** : **récupérer une image ne la met pas en cache**. La route
   Workbox filtre sur `request.destination === 'image'`, ce qu'un `fetch()`
