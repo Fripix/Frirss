@@ -12,6 +12,7 @@ import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
+import { awaitGhostPaint } from '../../lib/ghostFade';
 import { planPrefetchAhead, runPrefetchAhead } from '../../lib/prefetchAhead';
 import { imageBudget } from '../../lib/offlineImages';
 import { getStorageEstimate } from '../../lib/storageEstimate';
@@ -503,21 +504,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                     setTimeout(() => cleanupPreview(t), 130);
                   }
                 };
+                // Quand fondre : voir `src/lib/ghostFade.ts`. L'attente porte
+                // sur le DÉCODAGE de l'image, pas sur son chargement — depuis
+                // le préchargement, « chargée » arrive avant que la trame soit
+                // peignable, et le fantôme s'effaçait sur un trou blanc.
                 const imgs = el2 ? el2.querySelectorAll<HTMLImageElement>('.article-content img') : [];
-                const visible = Array.from(imgs).slice(0, 3);
-                if (immediate || visible.length === 0 || visible.every(i => i.complete)) {
-                  done();
-                } else {
-                  let settled = false;
-                  const finish = () => { if (!settled) { settled = true; done(); } };
-                  visible.forEach(i => {
-                    if (!i.complete) {
-                      i.addEventListener('load', finish, { once: true });
-                      i.addEventListener('error', finish, { once: true });
-                    }
-                  });
-                  setTimeout(finish, 1500); // fallback
-                }
+                awaitGhostPaint(imgs, done, { immediate });
               };
 
               // Cached incoming article → reveal immediately (no image wait).

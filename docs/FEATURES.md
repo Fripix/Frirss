@@ -703,6 +703,29 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   qui ne joue **qu'au montage** de ce nœud : changer d'article réutilise le
   même élément, si bien que la seule animation réelle est la bascule
   squelette → corps, qui se faisait dans la même image et clignotait.
+- **Balayage d'un article à l'autre** (mobile et tablette) : le geste
+  horizontal fait glisser l'article suivant ou précédent. Pendant le geste, un
+  **fantôme** (`swipe-ghost`, un `<div>` DOM construit à la main dans
+  `ReadingPane`, hors de React pour qu'aucun rendu ne vienne saccader
+  l'animation) porte l'article visé. À l'arrivée, le vrai article est commité
+  en `flushSync` **derrière** le fantôme, qui ne se fond qu'ensuite : sans ce
+  maintien, le fondu découvrirait un article encore vide.
+- **Quand le fantôme s'efface** (1.4.10) : `src/lib/ghostFade.ts` — le
+  composant n'en fait que le câblage. On attend le **décodage** de l'image de
+  tête (`HTMLImageElement.decode()`), pas son chargement.
+  **Piège** : `complete` signifie « la ressource est arrivée », pas « la trame
+  est peignable » ; sur iOS l'écart entre les deux se voit. Tant que les images
+  n'étaient pas en cache, il restait masqué — elles n'étaient jamais `complete`
+  au moment du fondu, on attendait donc l'événement `load`, tardif au point de
+  couvrir le décodage. Depuis le préchargement en avant (1.4.9), elles sont
+  `complete` dès le rendu : le fantôme s'effaçait sur un trou blanc et l'image
+  clignotait pile à l'arrivée de l'article. Trois garde-fous conservés : un
+  rejet de `decode()` (image cassée) libère comme le faisait `error`, un délai
+  de garde de 1,5 s empêche tout fantôme collé à l'écran, et un moteur sans
+  `decode()` (jsdom, vieux WebKit) retrouve l'ancien comportement.
+  **Second piège** : les images différées sont écartées de l'attente — sauf
+  s'il ne reste qu'elles, car la façade YouTube porte `loading="lazy"` alors
+  qu'elle EST l'image de tête.
 - **Partager / copier le lien** (1.4.5) : `navigator.share()` là où l'API
   existe, sinon le presse-papiers avec un toast de confirmation. Le volet ne
   proposait que « ouvrir l'original » : dans la PWA iOS installée, envoyer un

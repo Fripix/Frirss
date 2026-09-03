@@ -23,6 +23,13 @@ _(rien pour l'instant)_
   défilement. Le volet reconstruisait tout le corps à chaque rendu, donc
   détruisait et recréait chaque image. Il ne le réécrit désormais que lorsque
   le contenu change vraiment.
+- **L'image ne clignote plus à l'arrivée d'un article balayé.** En PWA iOS, sur
+  un flux sans extraction automatique, l'image restait visible pendant tout le
+  glissement puis disparaissait et revenait une fois, pile au moment où
+  l'article se posait. Le volet attendait que l'image soit *chargée* avant
+  d'effacer le calque de transition ; depuis que les images sont préchargées,
+  elles le sont avant d'être *décodées*, donc peignables. Il attend désormais
+  le décodage.
 - **Défilement plus fluide dans le volet de lecture** : la barre de progression
   se mesure une fois par image affichée, plus une fois par événement de
   défilement.
