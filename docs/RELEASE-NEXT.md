@@ -30,6 +30,11 @@ _(rien pour l'instant)_
   était enregistré dans le cache de la vue quittée : il revenait tel quel au
   rechargement suivant, y compris hors ligne. La page est désormais jetée si
   la vue a changé entre-temps.
+- **Le scroll infini d'une recherche reste dans la recherche.** Descendre au
+  bas d'une liste de résultats chargeait la suite du **flux**, pas celle de la
+  requête : des articles sans rapport s'ajoutaient sous une boîte de recherche
+  toujours remplie. La pagination poursuit désormais la recherche, dans le même
+  périmètre (flux, catégorie, favoris, à lire plus tard).
 
 ## Sous le capot
 

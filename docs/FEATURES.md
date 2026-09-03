@@ -475,15 +475,13 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     de ce que fait `loadMore` ne réécrit cette mesure.
   - **Piège — pas pendant une recherche.** `shouldLeaveList` ne regarde que le
     filtre, resté « unread » quand une recherche est active : la ligne part
-    donc bien, mais le rattrapage doit se taire. `loadMore` appelle
-    `fetchArticleStream(filter, selectedFeed, …)` sans jamais passer
-    `searchQuery` : il rapporte le FLUX NU et l'appendrait aux résultats, sous
-    une boîte de recherche toujours remplie. Le décalage `loadMore`/recherche
-    est antérieur — il demandait de descendre volontairement au bas des
-    résultats ; le rattrapage le déclenchait depuis un seul ✓ sur un résultat
-    court. `shouldTopUpAfterRemoval` prend donc `searching`, comme
-    `markReadOnScroll` est déjà éteint en recherche. Faire paginer les
-    recherches à `loadMore` est un autre chantier.
+    donc bien, mais le rattrapage se tait (`shouldTopUpAfterRemoval` prend
+    `searching`). La garde a été posée quand `loadMore` ignorait `searchQuery`
+    et rapportait le FLUX NU ; depuis la 1.4.8 il pagine la recherche
+    elle-même, donc **elle est devenue conservatrice** et non plus un
+    contournement : rien ne dit qu'on veuille voir une liste de résultats se
+    réalimenter sous le curseur après un simple ✓, et lever la garde se ferait
+    exprès. Même précédent que `markReadOnScroll`, éteint en recherche.
   - **Piège — jamais depuis un effet React.** Une première version du
     rattrapage était un effet qui surveillait l'état de la liste
     (`useAutoLoadMore`, retiré le jour même). Deux emballements l'ont
@@ -513,8 +511,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     chargement : liste vide + continuation ⇒ état vide **neutre**
     (`emptyState.morePages`, jamais `emptyState.allRead`) avec un bouton
     « Charger la suite ». Pendant une **recherche**, cet état retombe sur
-    l'état vide ordinaire : `loadMore` ne sait pas paginer une recherche, le
-    bouton y injecterait des articles étrangers à la requête.
+    l'état vide ordinaire — non plus faute de savoir paginer (voir ci-dessous),
+    mais parce que l'état vide de recherche a déjà sa propre sortie
+    (« chercher dans tous les flux »), plus utile là qu'un bouton de page
+    suivante sur zéro résultat.
   - **Le bouton « Charger la suite » ne doit jamais être un no-op silencieux
     (2026-09-02).** Trois manières dont il pouvait cliquer pour rien, sans un
     mot :
@@ -614,6 +614,18 @@ flux cherche dans ce flux, depuis une catégorie dans cette catégorie.
   sinon elles recouvriraient ce qu'on est en train de taper. **Locales à
   l'appareil, jamais synchronisées** : c'est la sorte de trace qu'on ne
   s'attend pas à voir apparaître sur un autre écran.
+- **Scroll infini des résultats** (1.4.8) : `loadMore` appelait
+  `fetchArticleStream(filter, selectedFeed, …)` sans jamais passer
+  `searchQuery`. Descendre au bas d'une liste de résultats y appendait donc la
+  page du **flux nu** — des articles sans rapport avec la requête, sous une
+  boîte de recherche toujours remplie. Il passe désormais par `searchItems`,
+  qui accepte une continuation, avec le **même périmètre** que la recherche
+  initiale (`resolveSearchStreamId`) — sans quoi la suite chercherait ailleurs
+  que le début.
+- **Piège** : une page de résultats n'est écrite dans **aucun cache**, ni
+  mémoire ni hors ligne. `viewKey` ne connaît que le flux et le filtre : y
+  ranger des résultats les ferait repeindre à l'ouverture de la vue nue, hors
+  de toute recherche. C'est déjà pourquoi `search` n'écrit rien.
 - **Piège** : `activeServerId` vaut `string` sur certains chemins et `number`
   sur d'autres ; la clé de stockage interpole, pour que les deux formes visent
   le même seau.

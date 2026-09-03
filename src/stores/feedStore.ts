@@ -888,7 +888,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   loadMore: async () => {
-    const { continuation, selectedFeed, filter, loadingMore, revalidating } = get();
+    const { continuation, selectedFeed, filter, searchQuery, loadingMore, revalidating } = get();
     if (!canLoadMore({ hasContinuation: !!continuation, loadingMore, revalidating })) return;
     // La vue POUR LAQUELLE cette page est demandée, retenue avant la requête.
     // Sans elle, une page arrivée après un changement de flux abîmait deux
@@ -901,7 +901,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     set({ loadingMore: true });
 
     try {
-      const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, continuation);
+      // Une recherche se pagine par la recherche elle-même. Le chemin du flux
+      // nu ignorait `searchQuery` : arriver au bas des résultats appendait des
+      // articles sans rapport avec la requête, sous une boîte de recherche
+      // toujours remplie. `searchItems` accepte une continuation, et le
+      // périmètre est celui que `search` a utilisé — même appel de
+      // `resolveSearchStreamId`, sans quoi la suite chercherait ailleurs que
+      // le début.
+      const result = searchQuery
+        ? await searchItems(searchQuery, PAGE_SIZE, continuation, resolveSearchStreamId(selectedFeed, filter))
+        : await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, continuation);
       // La vue a changé pendant l'aller-retour : cette page n'appartient plus
       // à rien de ce qui est affiché. On la jette entièrement — pas d'ajout,
       // pas d'écriture de cache, pas de `continuation` — et on rend la main.
@@ -910,9 +919,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
       set((state) => {
         const articles = [...state.articles, ...result.items.map(normalizeArticle)];
-        const key = viewKey(selectedFeed, filter);
-        memSet(key, { articles, continuation: result.continuation });
-        listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
+        // Une recherche n'a pas de clé à elle : `viewKey` ne connaît que le
+        // flux et le filtre. Persister ses résultats sous cette clé les ferait
+        // repeindre à l'ouverture de la vue nue, hors de toute recherche —
+        // c'est pourquoi `search` n'écrit rien non plus.
+        if (!searchQuery) {
+          const key = viewKey(selectedFeed, filter);
+          memSet(key, { articles, continuation: result.continuation });
+          listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
+        }
         return { articles, continuation: result.continuation, loadingMore: false };
       });
       // Même vue qu'à l'ouverture : ces articles s'ajoutent au travail en

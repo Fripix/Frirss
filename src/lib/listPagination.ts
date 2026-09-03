@@ -86,10 +86,12 @@ export type ListBodyState =
  * vide **final et neutre**, qui n'annonce pas « tout est lu » et propose de
  * charger la page suivante. On ne reste jamais coincé.
  *
- * `searching` fait retomber sur l'état vide ordinaire : `loadMore` ne sait pas
- * paginer une recherche — il redemande le flux nu — donc lui offrir un bouton
- * injecterait des articles étrangers à la requête. L'état vide de recherche a
- * déjà sa propre sortie (« chercher dans tous les flux »).
+ * `searching` fait retomber sur l'état vide ordinaire. La raison d'origine —
+ * `loadMore` redemandait le flux nu, donc son bouton aurait injecté des
+ * articles étrangers à la requête — ne tient plus : il pagine désormais la
+ * recherche elle-même. Ce qui reste est un choix d'écran, conservé tel quel :
+ * l'état vide de recherche a déjà sa propre sortie (« chercher dans tous les
+ * flux »), plus utile qu'un « charger la suite » sur zéro résultat.
  */
 export function listBodyState(opts: {
   loading: boolean;

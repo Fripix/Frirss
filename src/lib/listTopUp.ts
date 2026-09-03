@@ -63,16 +63,19 @@ export function shouldTopUpAfterRemoval(opts: {
   if (!opts.hasContinuation) return false;
   // Une requête est déjà en vol — elle apportera sa page toute seule.
   if (opts.loadingMore) return false;
-  // Recherche active : `loadMore` appelle `fetchArticleStream(filter,
-  // selectedFeed, …)` sans jamais passer `searchQuery`, donc la page qu'il
-  // rapporte est celle du FLUX NU. L'appendre aux résultats donnerait des
-  // articles sans rapport avec la requête, sous une boîte de recherche
-  // toujours remplie. `shouldLeaveList` ne regarde que le filtre, resté
-  // « unread » pendant la recherche : la ligne part bien, mais le rattrapage
-  // se tait. Le décalage `loadMore`/recherche est antérieur — il demandait
-  // jusqu'ici de descendre volontairement au bas des résultats ; le rattrapage
-  // le déclenchait depuis un seul ✓ sur un résultat court, soit le cas
-  // courant. Même précédent que `markReadOnScroll`, déjà éteint en recherche.
+  // Recherche active : garde CONSERVATRICE, pas un contournement.
+  //
+  // Elle a été posée quand `loadMore` ignorait `searchQuery` et rapportait la
+  // page du FLUX NU : l'appendre aux résultats donnait des articles sans
+  // rapport avec la requête. Ce n'est plus le cas — `loadMore` pagine
+  // désormais la recherche elle-même, avec son périmètre
+  // (`resolveSearchStreamId`). La garde reste néanmoins : `shouldLeaveList` ne
+  // regarde que le filtre, resté « unread » pendant la recherche, donc la
+  // ligne part bien ; mais rien ne dit qu'on veuille voir une liste de
+  // résultats se réalimenter toute seule sous le curseur après un simple ✓.
+  // C'est une décision d'usage que personne n'a prise, et la lever se ferait
+  // exprès, pas par effet de bord. Même précédent que `markReadOnScroll`,
+  // éteint en recherche pour la même raison.
   if (opts.searching) return false;
   // La liste déborde encore : l'écouteur `scroll` fera le travail le moment
   // venu, il n'y a rien à rattraper.

@@ -1453,3 +1453,70 @@ describe('feedStore.loadMore — changement de vue pendant que la page est en vo
     expect(useFeedStore.getState().continuation).toBe('page-2');
   });
 });
+
+describe('feedStore.loadMore — pagination d’une recherche', () => {
+  // `loadMore` appelait `fetchArticleStream(filter, selectedFeed, …)` sans
+  // jamais passer `searchQuery` : descendre au bas d'une liste de résultats
+  // appendait donc des articles du FLUX NU, sans rapport avec la requête, sous
+  // une boîte de recherche toujours remplie.
+  const feed1 = { id: 'feed/1', title: 'F1' } as unknown as Subscription;
+  const item = (id: string) => ({ id, categories: [] });
+  const row = (id: string): Article =>
+    ({ id, read: false, starred: false, sourceId: 'feed/1', title: id } as Article);
+
+  beforeEach(() => {
+    vi.mocked(api.getStreamContents).mockReset();
+    vi.mocked(api.searchItems).mockReset();
+    useFeedStore.setState({
+      selectedFeed: feed1,
+      filter: 'unread',
+      searchQuery: 'zèbre',
+      articles: [row('r1')],
+      continuation: 'search-2',
+      selectedArticle: null,
+      loadingMore: false,
+      revalidating: false,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({
+      selectedFeed: null, filter: 'all', searchQuery: '',
+      continuation: null, loadingMore: false, revalidating: false,
+    });
+  });
+
+  it('poursuit la recherche, avec le périmètre que la recherche a utilisé', async () => {
+    vi.mocked(api.searchItems).mockResolvedValue(
+      { items: [item('r2')], continuation: 'search-3' } as never
+    );
+    await useFeedStore.getState().loadMore();
+    // Même flux que `resolveSearchStreamId` donne à `search`, et la
+    // continuation de la recherche, pas celle d'un flux.
+    expect(api.searchItems).toHaveBeenCalledWith('zèbre', 50, 'search-2', 'feed/1');
+    expect(api.getStreamContents).not.toHaveBeenCalled();
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual(['r1', 'r2']);
+    expect(s.continuation).toBe('search-3');
+    expect(s.loadingMore).toBe(false);
+  });
+
+  it('n’écrit pas les résultats dans le cache de la vue nue', async () => {
+    // `viewKey` ignore la requête : persister une page de résultats sous la
+    // clé du flux les y ferait repeindre, hors de toute recherche. `search`
+    // n'écrit rien non plus, pour la même raison.
+    vi.mocked(api.searchItems).mockResolvedValue(
+      { items: [item('r2')], continuation: 'search-3' } as never
+    );
+    vi.mocked(offline.listPut).mockClear();
+    await useFeedStore.getState().loadMore();
+    expect(offline.listPut).not.toHaveBeenCalled();
+
+    // Le cache mémoire de « flux 1 / non lus » n'a pas reçu le résultat : y
+    // revenir n'ouvre pas la vue nue sur des articles trouvés par une requête.
+    useFeedStore.setState({ searchQuery: '' });
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    useFeedStore.getState().selectFeed(feed1);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).not.toContain('r2');
+  });
+});
