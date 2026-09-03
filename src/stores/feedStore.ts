@@ -30,7 +30,7 @@ import {
   actionKey, mergeAction, isNetworkFailure, shouldRetry,
   type QueuedAction, type QueuedActionType,
 } from '../lib/actionQueue';
-import { collectImageUrls, imageBudget, prioritizeForOffline } from '../lib/offlineImages';
+import { articleImageUrls, imageBudget, prioritizeForOffline } from '../lib/offlineImages';
 import { getStorageEstimate } from '../lib/storageEstimate';
 import { cacheImages } from '../lib/imageCache';
 import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
@@ -303,18 +303,6 @@ export function pickPrefetchFeeds(
 function connectionTooSlow(): boolean {
   const c = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
   return !!c && (c.saveData === true || c.effectiveType === 'slow-2g' || c.effectiveType === '2g');
-}
-
-/**
- * Image URLs worth caching for one article: the RSS thumbnail first (it is what
- * the list and the grid render), then body images from the extracted content.
- */
-function articleImageUrls(rssHtml: string, extractedHtml: string | null, perArticle: number): string[] {
-  if (perArticle <= 0) return [];
-  const thumb = collectImageUrls(rssHtml, 1);
-  if (perArticle === 1) return thumb;
-  const body = collectImageUrls(extractedHtml || rssHtml, perArticle);
-  return Array.from(new Set([...thumb, ...body])).slice(0, perArticle);
 }
 
 export interface FeedState {

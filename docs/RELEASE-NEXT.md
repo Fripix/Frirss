@@ -17,7 +17,13 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Passer à l'article suivant ne fait plus sauter le texte.** Sur un flux à
+  extraction automatique, FriRSS préchargeait le texte des articles suivants
+  mais pas leurs images : elles n'arrivaient qu'une fois l'article ouvert, et
+  poussaient le texte vers le bas (très visible sur iPhone, en PWA). Le
+  préchargement réchauffe désormais aussi les images du corps, et porte sur les
+  **dix** articles suivants au lieu de cinq. Il obéit au réglage « images hors
+  ligne » : sur « aucune », rien n'est téléchargé.
 
 ## Sous le capot
 

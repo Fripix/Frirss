@@ -680,6 +680,28 @@ a été supprimé de la production en 1.3.1, et du serveur de développement en
   incrémenté par chaque appel : le run repartait de zéro et repayait ses deux
   secondes sans arrêt, si bien qu'il ne prenait jamais d'avance et que
   l'article suivant arrivait en deux temps, texte puis image.
+- **Préchargement en avant (volet de lecture)** : une seconde après l'ouverture
+  d'un article, FriRSS prépare les **dix articles suivants** de la liste, sur les
+  seuls flux à extraction automatique — leur texte, **et leurs images de corps**.
+  Réchauffer les images est indispensable : le HTML préchargé n'est jamais rendu
+  tant qu'on n'a pas glissé jusqu'à lui, donc aucune requête d'image ne partait,
+  et sur iPhone le texte s'affichait avant que les images ne tombent en le
+  poussant vers le bas. La décision — quels articles, quelles images, quand
+  s'arrêter — vit dans `src/lib/prefetchAhead.ts` ; `ReadingPane` n'en fait que
+  le câblage.
+- **Ce préchargement obéit au réglage « images hors ligne »** (`imageBudget`) :
+  preset « aucune » = budget nul = aucune image préchargée, mais le texte
+  continue d'être extrait. Sinon, au plus `perArticle` images par article, et
+  arrêt dès que le budget d'octets est épuisé — le motif de la préparation hors
+  ligne. Un article dont l'extrait est **déjà** en cache reste candidat : son
+  texte est prêt, ses images ne le sont pas forcément.
+- **Piège** : ce préchargement est un **second consommateur** du proxy backend,
+  qui est plafonné par utilisateur et par minute
+  (`FRIRSS_PROXY_RATE_LIMIT`), pendant que l'extraction de fond y puise déjà.
+  D'où trois bornes à ne pas relâcher : dix articles au plus, `perArticle`
+  images au plus, **aucune reprise sur échec**. Le travail est séquentiel et
+  annulable (le drapeau `cancelled` de l'effet), et rien de ce qui échoue ne
+  remonte : ni une extraction, ni une image.
 - **Assainissement à part** : `sanitizeExtracted()` est **plus permissif** que
   `sanitizeHtml()` sur un point, et doit l'être — il garde les `<iframe>`, sans
   quoi une vidéo intégrée à un article extrait disparaîtrait avant
@@ -817,6 +839,13 @@ images consultés restent lisibles sans réseau.
   `src/components/OfflineBanner.tsx`, `src/components/UpdatePrompt.tsx`
 - **Réglages** : préparation manuelle, mise à jour à l'ouverture, budget d'images
   (aucune / légère / standard / maximale)
+- **Deux remplisseurs du cache d'images** : la préparation manuelle
+  (`feedStore.prepareOffline`) et le préchargement en avant du volet de lecture
+  (`src/lib/prefetchAhead.ts`, voir « Extraction du contenu complet »). Ils
+  choisissent les mêmes images via `articleImageUrls()`, exporté par
+  `offlineImages.ts` — c'était un helper privé du store, et un doublon aurait
+  fini par diverger, chacun réchauffant un cache différent. Le budget d'images
+  commande les deux : preset « aucune » les prive tous les deux d'images.
 - **Spec** : `docs/superpowers/specs/2026-08-18-offline-images-design.md`
 - **Piège majeur** : **récupérer une image ne la met pas en cache**. La route
   Workbox filtre sur `request.destination === 'image'`, ce qu'un `fetch()`

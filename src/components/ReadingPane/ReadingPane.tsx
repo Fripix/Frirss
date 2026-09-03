@@ -10,6 +10,10 @@ import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
+import { planPrefetchAhead, runPrefetchAhead } from '../../lib/prefetchAhead';
+import { imageBudget } from '../../lib/offlineImages';
+import { getStorageEstimate } from '../../lib/storageEstimate';
+import { cacheImages } from '../../lib/imageCache';
 import { extractYouTubeId, injectVideoFacades, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import { readableTextOn } from '../../lib/readableText';
@@ -171,35 +175,55 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }
   }, [selectedArticle?.id, selectedArticle?.sourceId, feedSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Background prefetch: extract the next few articles ahead of time so moving
-  // to them is instant. Only for auto-extract feeds (others already have their
-  // body in memory). Sequential + delayed so it doesn't compete with the
-  // current article; reuses the bounded LRU cache, so memory stays capped.
+  // Préchargement de fond : préparer les articles suivants pour que passer à
+  // eux soit instantané. Uniquement sur les flux à extraction automatique (les
+  // autres ont déjà leur corps en mémoire). Séquentiel et différé pour ne pas
+  // concurrencer l'article courant ; l'extrait rejoint le cache LRU borné, donc
+  // la mémoire reste plafonnée.
+  //
+  // On réchauffe AUSSI les images du corps : le HTML préchargé n'est jamais
+  // rendu tant qu'on n'y glisse pas, donc aucune requête d'image ne partait, et
+  // le texte arrivait avant les images qui le poussaient ensuite vers le bas.
+  // La décision (quels articles, quelles images, quand s'arrêter) vit dans
+  // `prefetchAhead.ts` ; ici, seul le câblage.
   useEffect(() => {
     const cur = selectedArticle;
     if (!cur?.id) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
       const { articles } = useFeedStore.getState();
       const fs = useUiStore.getState().feedSettings;
-      const idx = articles.findIndex((a) => a.id === cur.id);
-      if (idx < 0) return;
-      const upcoming = articles
-        .slice(idx + 1, idx + 6) // N+1 … N+5
-        .filter((a) => a.url && fs[a.sourceId]?.autoExtract && !peekExtract(a.id));
+      const upcoming = planPrefetchAhead({
+        articles,
+        currentId: cur.id,
+        autoExtract: (sourceId) => !!fs[sourceId]?.autoExtract,
+      });
       if (upcoming.length === 0) return;
+      const ui = useUiStore.getState();
+      const budget = imageBudget(
+        ui.offlineImagePreset,
+        ui.offlineImageSizes,
+        (await getStorageEstimate())?.quota ?? 0,
+      );
+      if (cancelled) return;
       const { extractFullContent } = await import('../../utils/extractContent');
-      for (const a of upcoming) {
-        if (cancelled) break;
-        if (peekExtract(a.id)) continue;
-        // Already persisted? promote it into memory and skip the network.
-        if (await getExtract(a.id)) continue;
-        try {
+      await runPrefetchAhead(upcoming, {
+        budget,
+        cancelled: () => cancelled,
+        // Déjà extrait ? Le cache persistant le remonte en mémoire, et le
+        // réseau est épargné — mais l'article reste candidat pour ses images.
+        cachedExtract: async (a) =>
+          peekExtract(a.id)?.content ?? (await getExtract(a.id))?.content ?? null,
+        extract: async (a) => {
           const result = await extractFullContent(a.url!);
-          if (!cancelled) await putExtract(a.id, result);
-        } catch { /* ignore prefetch failures */ }
-      }
-    }, 1000); // let the current article load first
+          if (cancelled) return null;
+          await putExtract(a.id, result);
+          return result.content;
+        },
+        cacheImages,
+      });
+    }, 1000); // laisser l'article courant se charger d'abord
     return () => { cancelled = true; clearTimeout(timer); };
   }, [selectedArticle?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

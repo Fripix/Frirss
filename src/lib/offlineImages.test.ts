@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  imageBudget, defaultPresetMb, collectImageUrls, prioritizeForOffline,
+  imageBudget, defaultPresetMb, collectImageUrls, articleImageUrls, prioritizeForOffline,
   OFFLINE_IMAGE_PRESETS,
 } from './offlineImages';
 import type { Article } from '../types';
@@ -129,6 +129,37 @@ const art = (over: Partial<Article>): Article => ({
   id: 'x', title: 't', summary: '', content: '', author: '', url: 'u',
   source: 's', sourceId: 'f', published: 0, read: false, starred: false,
   labels: [], tags: [], ...over,
+});
+
+describe('articleImageUrls', () => {
+  const img = (n: string) => `<img src="https://cdn.example/${n}.jpg">`;
+
+  it('keeps the RSS thumbnail first, then body images from the extract', () => {
+    expect(articleImageUrls(img('thumb'), img('a') + img('b'), 6)).toEqual([
+      'https://cdn.example/thumb.jpg',
+      'https://cdn.example/a.jpg',
+      'https://cdn.example/b.jpg',
+    ]);
+  });
+
+  it('takes the thumbnail only when the preset allows a single image', () => {
+    expect(articleImageUrls(img('thumb'), img('a') + img('b'), 1))
+      .toEqual(['https://cdn.example/thumb.jpg']);
+  });
+
+  it('caps the list at perArticle and never repeats a URL', () => {
+    const urls = articleImageUrls(img('a'), img('a') + img('b') + img('c'), 2);
+    expect(urls).toEqual(['https://cdn.example/a.jpg', 'https://cdn.example/b.jpg']);
+  });
+
+  it('falls back to the RSS content when there is no extract', () => {
+    expect(articleImageUrls(img('a') + img('b'), null, 6)).toHaveLength(2);
+  });
+
+  // Le preset « aucune » passe par ici : budget nul, zéro image.
+  it('returns nothing when the budget allows no image', () => {
+    expect(articleImageUrls(img('a'), img('b'), 0)).toEqual([]);
+  });
 });
 
 describe('prioritizeForOffline', () => {
