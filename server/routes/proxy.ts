@@ -434,15 +434,30 @@ router.all('/', async (req, res) => {
   stream.pipe(res);
 });
 
-function finishError(res: ExpressResponse, err: unknown, target: string) {
+/**
+ * Traduit l'échec d'un appel sortant en réponse HTTP, de façon identique pour
+ * toutes les routes qui passent par `fetchUpstream`.
+ *
+ * Partagé (et non recopié) exprès : deux routes qui décrivent différemment le
+ * même échec — cible refusée, délai dépassé, panne amont — fabriquent un
+ * client qui doit connaître la route pour comprendre la réponse. `label`
+ * n'existe que pour situer la ligne de journal.
+ *
+ * Le corps ne dit jamais quelle cible a été refusée ni pourquoi : ce serait
+ * offrir un scanner de réseau interne à qui essaie des URL.
+ */
+export function finishError(res: ExpressResponse, err: unknown, target: string, label = 'Proxy error:') {
   if (err instanceof BlockedTargetError) {
+    // Une cible refusée est journalisée : un balayage SSRF doit laisser une
+    // trace côté serveur, même si le client, lui, n'apprend rien.
+    console.warn(label, 'blocked target →', redactUrl(target));
     return res.status(403).json({ error: 'Target host not allowed' });
   }
   const e = err as { name?: string; cause?: { code?: string }; message?: string };
   if (e.name === 'AbortError') {
     return res.status(504).json({ error: 'Upstream timeout' });
   }
-  console.error('Proxy error:', e.cause?.code || e.message, '→', redactUrl(target));
+  console.error(label, e.cause?.code || e.message, '→', redactUrl(target));
   res.status(502).json({ error: 'Upstream request failed' });
 }
 

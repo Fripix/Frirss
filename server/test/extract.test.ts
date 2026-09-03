@@ -26,9 +26,18 @@ describe('extractArticle', () => {
     // erreur). Assainir ici aurait donné un filet auquel on croit et qui ne
     // retient rien. Le client applique `sanitizeExtracted()` à la réception,
     // comme il le fait déjà pour sa propre extraction.
-    const evil = page.replace('</article>', '<p>zzz</p></article>');
+    //
+    // La sonde doit être un attribut que DOMPurify RETIRE : une version
+    // antérieure cherchait un `<p>zzz</p>`, qui survit aussi bien à un
+    // assainissement — le test passait donc au vert contre une implémentation
+    // assainissante, et ne gardait rien. `onclick`/`onerror` ne survivent que
+    // sur le chemin non assaini.
+    const evil = page
+      .replace('<p>Un premier', '<p onclick="alert(1)">Un premier')
+      .replace('</article>', '<img src="/img/a.jpg" onerror="alert(2)"></article>');
     const out = extractArticle('https://example.com/a', evil);
-    expect(out!.content).toContain('zzz');
+    expect(out!.content).toContain('onclick="alert(1)"');
+    expect(out!.content).toContain('onerror="alert(2)"');
   });
 
   it('résout les URL relatives contre l’URL de l’article', () => {

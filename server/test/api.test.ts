@@ -5,6 +5,7 @@ import db, { setSetting } from '../db.js';
 import { encrypt, decrypt } from '../crypto.js';
 import { cacheEnabled, cacheGet, trimStreamJson } from '../cache.js';
 import { redactUrl } from '../routes/proxy.js';
+import { readBoundedText } from '../routes/extract.js';
 import { __settleJobs } from '../refreshJobs.js';
 import { getDiscovery, clearDiscoveryCache } from '../oidc.js';
 
@@ -922,5 +923,132 @@ describe('rate limiting', () => {
       if (res.status === 429) { got429 = true; break; }
     }
     expect(got429).toBe(true);
+  });
+});
+
+// ── /api/extract ─────────────────────────────────────────────────────
+// La route rejoue les gardes du proxy (JWT, anti-SSRF, classification des
+// échecs) sur un chemin distinct : ce sont donc bien deux jeux de gardes à
+// vérifier, pas un. Le mock DNS en tête de fichier s'applique ici aussi —
+// `example.com` nu résout vers une adresse privée, les sous-domaines vers une
+// adresse publique.
+describe('extract', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  const ARTICLE = `<!doctype html><html><head><title>Titre de la page</title></head>
+<body><article><h1>Un vrai titre</h1>
+<p>Un premier paragraphe suffisamment long pour que Readability le retienne comme corps de l'article, avec assez de mots pour dépasser son seuil.</p>
+<p>Un second paragraphe, lui aussi assez fourni pour peser dans la balance du score de lisibilité calculé par Readability.</p>
+</article></body></html>`;
+
+  const streamOf = (chunks: Uint8Array[], onCancel?: () => void) => {
+    let i = 0;
+    return new ReadableStream<Uint8Array>({
+      pull(c) { if (i < chunks.length) c.enqueue(chunks[i++]); else c.close(); },
+      cancel() { onCancel?.(); },
+    });
+  };
+  const htmlStream = (html: string) => streamOf([new TextEncoder().encode(html)]);
+
+  const stubUpstream = (body: ReadableStream<Uint8Array>, ctype = 'text/html; charset=utf-8') =>
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: new Headers({ 'content-type': ctype }), body,
+    }));
+
+  const get = (url: string) => request(app).get('/api/extract')
+    .query({ url }).set('Authorization', `Bearer ${adminToken}`);
+
+  it('rejects requests without a JWT', async () => {
+    const res = await request(app).get('/api/extract').query({ url: 'https://news.example.com/a' });
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a missing or non-http url', async () => {
+    for (const q of [{}, { url: '' }, { url: 'file:///etc/passwd' }]) {
+      const res = await request(app).get('/api/extract')
+        .query(q).set('Authorization', `Bearer ${adminToken}`);
+      expect(res.status, JSON.stringify(q)).toBe(400);
+    }
+  });
+
+  it('blocks an internal/private target (SSRF guard)', async () => {
+    const targets = [
+      'http://10.0.0.5/a',
+      'http://localhost:6379/a',
+      'http://169.254.169.254/latest/meta-data/',
+      // `example.com` nu est la sentinelle que le mock DNS résout en privé :
+      // celle-ci ne passe PAS par le pré-contrôle littéral, elle exerce la
+      // garde par résolution, et donc la classification de `finishError`.
+      'https://example.com/a',
+    ];
+    for (const target of targets) {
+      const res = await get(target);
+      expect(res.status, target).toBe(403);
+      expect(res.body, target).toEqual({ error: 'Target host not allowed' });
+    }
+  });
+
+  it('returns the extracted article', async () => {
+    stubUpstream(htmlStream(ARTICLE));
+    const res = await get('https://news.example.com/a');
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe('Titre de la page');
+    expect(res.body.content).toContain('premier paragraphe');
+  });
+
+  // Un 200 au corps vide priverait le client de son repli : il ne saurait pas
+  // distinguer « rien à extraire » de « article vide ».
+  it('answers 422, not an empty 200, when the page has no article', async () => {
+    stubUpstream(htmlStream('<html><body></body></html>'));
+    const res = await get('https://news.example.com/vide');
+    expect(res.status).toBe(422);
+    expect(res.body).toEqual({ error: 'Not extractable' });
+  });
+
+  it('refuses a non-HTML response without reading its body', async () => {
+    let cancelled = false;
+    const body = streamOf([new Uint8Array(1024)], () => { cancelled = true; });
+    stubUpstream(body, 'application/pdf');
+    const res = await get('https://news.example.com/doc.pdf');
+    expect(res.status).toBe(415);
+    expect(res.body).toEqual({ error: 'Unsupported content type' });
+    expect(cancelled).toBe(true);
+  });
+
+  it('refuses a body larger than the cap', async () => {
+    // 1 Mo par morceau, 20 morceaux : le plafond (5 Mo) tombe bien avant.
+    const chunks = Array.from({ length: 20 }, () => new Uint8Array(1_000_000).fill(0x20));
+    stubUpstream(streamOf(chunks));
+    const res = await get('https://news.example.com/enorme');
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({ error: 'Upstream response too large' });
+  });
+
+  // Bornes testées directement : les vraies valeurs (5 Mo / 20 s) rendraient
+  // le test du délai insupportablement lent.
+  describe('readBoundedText', () => {
+    const respOf = (body: ReadableStream<Uint8Array>) =>
+      ({ body, text: async () => '' }) as unknown as Response;
+
+    it('reads a body that stays within both bounds', async () => {
+      const out = await readBoundedText(respOf(htmlStream('<p>ok</p>')), 1000, 1000);
+      expect(out).toBe('<p>ok</p>');
+    });
+
+    it('rejects past the byte cap', async () => {
+      const chunks = [new Uint8Array(50), new Uint8Array(50)];
+      await expect(readBoundedText(respOf(streamOf(chunks)), 60, 1000)).rejects.toThrow();
+    });
+
+    // Le minuteur de `fetchUpstream` est désarmé à l'arrivée des en-têtes : un
+    // amont qui n'envoie jamais la suite du corps tiendrait le gestionnaire
+    // pour toujours. L'échec porte `AbortError`, donc un 504 comme sur le proxy.
+    it('rejects with AbortError past the time cap', async () => {
+      const stalled = new ReadableStream<Uint8Array>({
+        start(c) { c.enqueue(new TextEncoder().encode('<p>')); },   // puis plus rien
+      });
+      await expect(readBoundedText(respOf(stalled), 1_000_000, 20))
+        .rejects.toMatchObject({ name: 'AbortError' });
+    });
   });
 });

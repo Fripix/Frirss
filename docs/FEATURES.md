@@ -1344,7 +1344,9 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   authentifiée.
 
 ### Extraction d'articles
-`GET /api/extract?url=…` rend l'article extrait et assaini, prêt à afficher.
+`GET /api/extract?url=…` rend l'article extrait en HTML **brut, non assaini** :
+c'est le **client** qui assainit à la réception, et l'afficher sans passer par
+là est une faille XSS.
 
 - **Où** : `server/routes/extract.ts`, `server/extract.ts`
 - **Cache** : Redis, clé `frirss:x:<sha1(url)>` — **sans identifiant
@@ -1356,11 +1358,29 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
 - **Sans Redis** : la route extrait quand même, sans rien garder.
 - **Piège** : l'appel sortant passe par `fetchUpstream`, jamais par `fetch` —
   c'est lui qui porte la garde anti-SSRF.
-- **Piège** : la route rend du HTML **non assaini**, et c'est voulu. Assainir
-  côté serveur a été tenté puis abandonné le 2026-09-04 — `createDOMPurify` sur
-  `linkedom` ne filtre rien faute de `NodeFilter`, et rend l'entrée telle
-  quelle sans lever d'erreur. Le client assainit à réception. Ne pas
-  « rétablir » un assainissement serveur sans vérifier qu'il filtre vraiment.
+- **Piège — le HTML rendu est BRUT, et c'est voulu.** `onclick`, `onerror` et le
+  reste survivent : Readability ne les retire pas. Le client applique
+  `sanitizeExtracted()` à la réception, exactement comme pour sa propre
+  extraction ; sauter cette étape publie une XSS vivante. Assainir côté serveur
+  a été tenté puis abandonné le 2026-09-04 — `createDOMPurify` sur `linkedom` ne
+  filtre **rien** faute de `NodeFilter` : DOMPurify bascule sans bruit en mode
+  « environnement non supporté » et rend l'entrée telle quelle, sans erreur.
+  Avant de « rétablir » un assainissement serveur, **prouver qu'il filtre** —
+  un test qui injecte un `onerror` et le voit disparaître.
+- **Plafonds de lecture** (`server/routes/extract.ts`) : la réponse doit être du
+  `text/html` (sinon 415, avant toute lecture — un PDF ou une vidéo n'a pas
+  d'article), au plus 5 Mo (sinon 502) et lue en moins de 20 s (sinon 504). Le
+  minuteur de `fetchUpstream` est désarmé à l'arrivée des en-têtes : il couvre
+  la connexion, pas le corps. Sans ces bornes, une URL publique quelconque
+  suffisait à faire avaler des Go au seul processus Node, ou à lui faire tenir
+  une socket indéfiniment.
+- **Cadence** : même plafond par utilisateur et par minute que `/api/proxy`
+  (`FRIRSS_PROXY_RATE_LIMIT`, 600 par défaut), même forme. L'extraction est le
+  plus gros consommateur de ce budget : une route sans plafond rendrait la
+  protection contournable en changeant d'URL.
+- **Échecs classés comme sur `/api/proxy`** : 403 cible refusée (journalisée,
+  pour qu'un balayage SSRF laisse une trace), 504 délai, 502 panne amont. Le
+  corps ne nomme jamais la cible.
 - **422 quand la page n'est pas extractible** : le client doit pouvoir se
   replier sur son extracteur local ; un corps vide en 200 l'en priverait.
 
