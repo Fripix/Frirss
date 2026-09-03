@@ -6,6 +6,18 @@ release live on its [release page](https://github.com/Fripix/Frirss/releases).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 FriRSS follows [semantic versioning](https://semver.org/).
 
+## [1.4.9] - 2026-09-03
+
+## Corrections et améliorations
+
+- **Deux vulnérabilités corrigées dans une dépendance du serveur.** `qs`, la
+  bibliothèque qu'Express utilise pour analyser les paramètres d'URL, portait
+  deux avis de sévérité moyenne : un contournement de sa limite de taille de
+  tableau, et un déni de service. Passée en 6.16.0. C'est la seule
+  vulnérabilité que l'image publiée portait — les autres remontées par `npm
+  audit` vivent dans les dépendances de développement et ne sont jamais
+  embarquées.
+
 ## [1.4.8] - 2026-09-03
 
 ## Corrections et améliorations
