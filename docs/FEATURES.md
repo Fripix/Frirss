@@ -659,9 +659,36 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 (plein écran) au double-clic. Contenu bidirectionnel rendu dans son sens propre.
 
 - **Où** : `src/components/ReadingPane/ReadingPane.tsx`, `src/utils/sanitizeHtml.ts`,
-  `src/lib/articleBody.ts` (fabrication du corps), `src/lib/imageAspect.ts`
-  (réservation de la place des images), `src/lib/heroWarm.ts` (réchauffage des
-  images en avant), `src/lib/readProgress.ts`
+  `src/lib/articleBody.ts` (fabrication du corps), `src/lib/readingBody.ts`
+  (ce qui est montré, et quand), `src/lib/imageAspect.ts` (réservation de la
+  place des images), `src/lib/heroWarm.ts` (réchauffage des images en avant),
+  `src/lib/readProgress.ts`
+- **Ce que le volet montre** (1.4.10) : `src/lib/readingBody.ts`
+  (`readingBodyKind`, `showsSkeleton`, `showsReadingTime`), testé à part.
+  L'extraction si elle est là, **sinon le contenu du flux** — qui est déjà en
+  mémoire, arrivé avec la liste — et le **squelette** seulement quand il n'y a
+  réellement rien à montrer : un flux sans contenu (texte ni image ; un
+  `<p>&nbsp;</p>` ne compte pas) dont on attend l'extraction. Sans extraction
+  automatique, un article vide reste vide : pas de squelette que rien ne
+  viendrait remplacer.
+- **Pourquoi ce changement** : jusqu'ici, un flux à extraction automatique
+  affichait le squelette gris tant que le texte complet n'était pas revenu,
+  *alors que le contenu du flux était disponible*. L'application montrait un
+  simulacre de chargement en tenant du vrai texte — c'est ce qui lui donnait
+  son air de charger sans arrêt, en PWA iOS surtout, où l'on balaie vite. Le
+  fantôme de balayage suit la même règle (et consulte `peekExtract`, donc il
+  montre l'extrait quand le préchargement l'a déjà ramené) : il n'y a plus
+  d'article gris ni pendant le geste ni après.
+- **Bascule flux → extraction** : une **seule** réécriture d'`innerHTML`, sur
+  le même nœud, sans animation — `reading-body-enter` ne joue qu'au montage, et
+  le nœud ne se démonte plus. L'image d'en-tête garde la **même URL** de part
+  et d'autre : `displayedHtml()` réinjecte celle du flux quand l'extraction l'a
+  perdue, et quand l'extraction la porte, c'est la même. Le navigateur ne
+  repart donc pas chercher une image. Épinglé par
+  `src/lib/articleBody.test.ts` et `ReadingPane.body.test.tsx`.
+- **Pastille « x min »** : affichée dès qu'il y a un corps, sur le contenu
+  **montré** ; sa valeur grandit donc quand l'extraction arrive. Elle n'était
+  auparavant cachée que parce qu'il n'y avait rien à mesurer sous le squelette.
 - **Fabrication du corps** (1.4.10) : `src/lib/articleBody.ts` tient toute la
   chaîne — contenu choisi (extrait ou flux, image d'en-tête du flux réinjectée
   si l'extraction l'a perdue), façades vidéo, assainissement, `aspect-ratio`
@@ -706,8 +733,9 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   de l'animation). Position inconnue (recherche, ouverture directe) : sens par
   défaut, on n'invente pas un mouvement. Le corps porte `reading-body-enter`,
   qui ne joue **qu'au montage** de ce nœud : changer d'article réutilise le
-  même élément, si bien que la seule animation réelle est la bascule
-  squelette → corps, qui se faisait dans la même image et clignotait.
+  même élément, et la bascule flux → extraction aussi (elle ne réécrit que le
+  contenu). Le seul montage réel qui reste est la sortie du squelette, pour les
+  articles dont le flux ne livre rien.
 - **Balayage d'un article à l'autre** (mobile et tablette) : le geste
   horizontal fait glisser l'article suivant ou précédent. Pendant le geste, un
   **fantôme** (`swipe-ghost`, un `<div>` DOM construit à la main dans
@@ -769,9 +797,10 @@ a été supprimé de la production en 1.3.1, et du serveur de développement en
   dans le même effet de `ReadingPane.tsx`, annulables par le même drapeau
   `cancelled` et sans reprise sur échec — le délai d'une seconde fait que
   balayer vite n'envoie rien du tout :
-  - **le TEXTE des cinq articles suivants** (N+1 … N+5), sur les seuls flux à
-    extraction automatique, séquentiellement. Il passe par `/api/proxy` : cette
-    fenêtre ne doit pas grandir (voir le piège ci-dessous) ;
+  - **le TEXTE des dix articles suivants** (N+1 … N+10, 1.4.10 — la fenêtre
+    était de cinq), sur les seuls flux à extraction automatique,
+    **séquentiellement** : une requête `/api/proxy` à la fois. Ne pas élargir
+    davantage ni paralléliser (voir le piège ci-dessous) ;
   - **l'image d'en-tête des dix articles suivants** (1.4.10), deux chargements
     en vol au plus. Le plan et le runner vivent dans `src/lib/heroWarm.ts` ; le
     composant ne fait que le câblage DOM.
@@ -802,9 +831,11 @@ a été supprimé de la production en 1.3.1, et du serveur de développement en
   par minute, `FRIRSS_PROXY_RATE_LIMIT`, pendant que l'extraction de fond y
   puise déjà), et le balayage suivant attendait derrière la file — 2 à 7 s au
   lieu de ~0,9 s par article. Cette version-là a été retirée. **Ne jamais
-  réintroduire de récupération d'image proxifiée dans le volet de lecture** : la
-  fenêtre de texte reste à cinq, et les images ne passent que par le chargement
-  direct décrit ci-dessus.
+  réintroduire de récupération d'image proxifiée dans le volet de lecture** :
+  les images ne passent que par le chargement direct décrit ci-dessus. Ce qui
+  avait saturé le proxy n'était pas la largeur de la fenêtre de texte (revenue
+  à dix, mais séquentielle : une requête par article) — c'étaient les quatre
+  requêtes d'image par article qui s'y ajoutaient.
 - **Assainissement à part** : `sanitizeExtracted()` est **plus permissif** que
   `sanitizeHtml()` sur un point, et doit l'être — il garde les `<iframe>`, sans
   quoi une vidéo intégrée à un article extrait disparaîtrait avant

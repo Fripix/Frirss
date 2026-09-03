@@ -27,9 +27,9 @@ _(rien pour l'instant)_
   d'un article au suivant se bloquait 2 à 7 secondes par à-coups. La 1.4.8
   préchargeait les **images** des dix articles suivants : dès qu'on marquait une
   pause, dix extractions et leurs images partaient d'un coup et saturaient le
-  serveur, si bien que le balayage suivant attendait derrière la file. Le
-  préchargement redevient ce qu'il était : le **texte** des cinq articles
-  suivants, rien de plus.
+  serveur, si bien que le balayage suivant attendait derrière la file. Les
+  images ont quitté le serveur ; le préchargement de **texte** garde ses dix
+  articles d'avance, mais un article à la fois.
 - **Les images des articles suivants sont prêtes avant qu'on y arrive.** En
   lisant un article, FriRSS charge maintenant l'image d'en-tête des dix
   articles suivants, directement depuis leur site et deux à la fois — sans
@@ -38,6 +38,15 @@ _(rien pour l'instant)_
   redemandée, et rien ne part pendant un balayage. En prime, la place de
   l'image est désormais réservée même quand le flux n'annonce pas ses
   dimensions : le texte ne saute plus quand elle se pose.
+- **L'article s'affiche tout de suite, sans écran d'attente.** Sur un flux à
+  extraction automatique, le volet montrait un rectangle gris tant que le texte
+  complet n'était pas récupéré — alors que le contenu du flux était déjà là. Il
+  affiche désormais ce qu'il a immédiatement, puis complète en silence quand
+  l'article entier arrive. Le même changement vaut pendant un balayage : plus
+  d'article gris qui glisse à l'écran. Le rectangle d'attente ne subsiste que
+  là où le flux ne livre réellement rien.
+- **Dix articles d'avance au lieu de cinq** pour le texte préparé pendant la
+  lecture — toujours un article à la fois, pour ne pas charger le serveur.
 - **Défilement plus fluide dans le volet de lecture** : la barre de progression
   se mesure une fois par image affichée, plus une fois par événement de
   défilement.

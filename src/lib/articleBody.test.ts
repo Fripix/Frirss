@@ -150,3 +150,24 @@ describe('buildArticleBody', () => {
     expect(build(input).html).toBe(build(input).html);
   });
 });
+
+// Le volet montre désormais le contenu du flux pendant que l'extraction se
+// prépare, puis bascule (voir `src/lib/readingBody.ts`). Cette bascule réécrit
+// le corps une fois : si l'URL de l'image d'en-tête changeait au passage, le
+// navigateur repartirait chercher une image, et le lecteur verrait un trou
+// blanc là où il avait déjà l'illustration. Elle doit rester identique.
+describe('bascule flux → extraction', () => {
+  const heroSrc = (html: string) => html.match(/<img[^>]+src="([^"]+)"/i)?.[1];
+  const rss = '<p>flux</p><img src="https://example.com/hero.jpg" width="800" height="450">';
+
+  it('garde la même URL d’image d’en-tête avant et après la bascule', () => {
+    const before = heroSrc(build(rss).html);
+    expect(before).toBe('https://example.com/hero.jpg');
+    // Extraction qui a perdu l'image : `displayedHtml` la réinjecte.
+    expect(heroSrc(build(rss, '<p>complet</p>').html)).toBe(before);
+    // Extraction qui la porte déjà : même URL, pas de doublon.
+    const kept = build(rss, '<p>complet</p><img src="https://example.com/hero.jpg">').html;
+    expect(heroSrc(kept)).toBe(before);
+    expect(kept.match(/hero\.jpg/g)).toHaveLength(1);
+  });
+});

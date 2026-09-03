@@ -122,7 +122,12 @@ describe('ReadingPane — corps d’article', () => {
     expect(spy.writes).toEqual([]);
   });
 
-  it('écrit le corps une fois quand l’extraction remplace le squelette', async () => {
+  // Le squelette gris a disparu du cas courant : le contenu du flux est déjà
+  // en mémoire, on le montre. Ce test tient les deux exigences de la bascule
+  // qui s'ensuit — UNE seule écriture d'`innerHTML`, et la même image d'en-tête
+  // de part et d'autre, sinon le lecteur voit un trou blanc à la place de
+  // l'illustration qu'il avait déjà.
+  it('montre le flux tout de suite, puis bascule en une seule écriture', async () => {
     // Un AUTRE identifiant : le cache mémoire des extraits vit dans le module
     // et survit d'un test à l'autre — réutiliser « a1 » servirait déjà le corps.
     const fresh = { ...article, id: 'a2' } as Article;
@@ -131,28 +136,58 @@ describe('ReadingPane — corps d’article', () => {
 
     const { container } = render(<ReadingPane />);
     await act(async () => { await Promise.resolve(); });
-    // Pas d'extrait : le squelette tient la place, pas le corps.
-    expect(container.querySelector('.reading-skeleton')).toBeTruthy();
+
+    // Pas d'extrait, et pourtant du texte : le contenu du flux, pas un squelette.
+    expect(container.querySelector('.reading-skeleton')).toBeNull();
+    const bodyEl = container.querySelector(BODY_SELECTOR) as HTMLElement;
+    expect(bodyEl.textContent).toContain('rss');
+    const heroBefore = container.querySelector(`${BODY_SELECTOR} img`) as HTMLImageElement;
+    expect(heroBefore.getAttribute('src')).toBe('https://example.com/hero.jpg');
+    // La pastille de durée est là aussi : il y a du texte à mesurer.
+    // (Rendu desktop en jsdom : la pastille écrit « N min ».)
+    expect(container.textContent).toMatch(/\d+ min/);
 
     // L'extraction arrive (le bouton « contenu complet » sert de déclencheur
-    // synchrone : le cache mémoire répond sans réseau).
+    // synchrone : le cache mémoire répond sans réseau). Elle ne porte PAS
+    // l'image d'en-tête — le cas fréquent, que `displayedHtml` rattrape.
     await putExtract('a2', {
-      title: 'Titre', content: '<p>full</p><img src="https://example.com/hero.jpg">',
+      title: 'Titre', content: '<p>full</p>',
       excerpt: '', byline: '', siteName: '', length: 10,
     });
+    const spy = spyOnBodyWrites();
     const btn = container.querySelector('[title="readingPane.fullContent"]') as HTMLElement;
     await act(async () => { fireEvent.click(btn); await Promise.resolve(); });
 
-    const img = container.querySelector(`${BODY_SELECTOR} img`);
-    expect(img).toBeTruthy();
-    expect(container.querySelector('.reading-skeleton')).toBeNull();
+    // Une écriture, une seule : pas de reconstruction en boucle.
+    expect(spy.writes).toHaveLength(1);
+    // Le même nœud a été réécrit, pas remplacé.
+    expect(container.querySelector(BODY_SELECTOR)).toBe(bodyEl);
+    expect(bodyEl.textContent).toContain('full');
+    // …et l'image d'en-tête garde exactement la même URL.
+    const heroAfter = container.querySelector(`${BODY_SELECTOR} img`) as HTMLImageElement;
+    expect(heroAfter.getAttribute('src')).toBe(heroBefore.getAttribute('src'));
 
-    // …et le défilement qui suit ne le reconstruit toujours pas.
-    const spy = spyOnBodyWrites();
+    // Le défilement qui suit ne le reconstruit toujours pas.
     const scroller = container.querySelector('.nice-scroll') as HTMLElement;
     for (const top of [200, 800]) await scrollTo(scroller, top);
     spy.restore();
-    expect(container.querySelector(`${BODY_SELECTOR} img`)).toBe(img);
-    expect(spy.writes).toEqual([]);
+    expect(container.querySelector(`${BODY_SELECTOR} img`)).toBe(heroAfter);
+    expect(spy.writes).toHaveLength(1);
+  });
+
+  // Le squelette n'a pas disparu : il garde la place quand le flux ne livre
+  // vraiment rien et que l'extraction est en route.
+  it('garde le squelette quand le flux ne livre aucun contenu', async () => {
+    const empty = { ...article, id: 'a3', content: '<p>&nbsp;</p>' } as Article;
+    useUiStore.setState({ feedSettings: { 'feed/1': { autoExtract: true } } } as never);
+    useFeedStore.setState({ selectedArticle: empty, articles: [empty] } as never);
+
+    const { container } = render(<ReadingPane />);
+    await act(async () => { await Promise.resolve(); });
+
+    expect(container.querySelector('.reading-skeleton')).toBeTruthy();
+    expect(container.querySelector(BODY_SELECTOR)).toBeNull();
+    // Rien à mesurer : pas de pastille de durée non plus.
+    expect(container.textContent).not.toMatch(/\d+ min/);
   });
 });

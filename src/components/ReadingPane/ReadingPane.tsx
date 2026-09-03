@@ -5,7 +5,8 @@ import { useFeedStore, READ_LATER_LABEL } from '../../stores/feedStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import { buildArticleBody, reserveImgAspect, readingMinutes } from '../../lib/articleBody';
+import { buildArticleBody, displayedHtml, reserveImgAspect, readingMinutes } from '../../lib/articleBody';
+import { readingBodyKind, showsSkeleton, showsReadingTime } from '../../lib/readingBody';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import { readProgressPercent } from '../../lib/readProgress';
 import type { Article } from '../../types';
@@ -219,14 +220,17 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   //
   // Deux travaux, deux portées, et la différence est celle du TRANSPORT :
   //
-  //  • Le TEXTE, sur CINQ articles (N+1 … N+5), et sur les seuls flux à
+  //  • Le TEXTE, sur DIX articles (N+1 … N+10), et sur les seuls flux à
   //    extraction automatique. Il passe par le **proxy backend**, plafonné par
-  //    utilisateur et par minute, où l'extraction de fond puise déjà. Le cycle
-  //    1.4.10 avait porté cette fenêtre à dix en y ajoutant le téléchargement
-  //    des images du corps *par le même proxy* : à la moindre pause dans le
-  //    balayage, dix extractions plus quatre requêtes d'image chacune
-  //    partaient d'un coup, et le balayage suivant attendait derrière la file
-  //    — 2 à 7 s sur iPhone au lieu de ~0,9 s. Cette fenêtre-là ne bouge pas.
+  //    utilisateur et par minute, où l'extraction de fond puise déjà — d'où la
+  //    boucle SÉQUENTIELLE : une requête à la fois, et rien ne part si le
+  //    balayage reprend. Ce qui avait saturé le proxy plus tôt dans le cycle
+  //    1.4.10 n'était pas la taille de cette fenêtre mais le téléchargement des
+  //    images du corps *par le même proxy* : dix extractions plus quatre
+  //    requêtes d'image chacune partaient d'un coup, et le balayage suivant
+  //    attendait derrière la file — 2 à 7 s sur iPhone au lieu de ~0,9 s. Les
+  //    images ont quitté le proxy (ci-dessous) ; le texte seul y tient, une
+  //    requête par article. **Ne pas élargir davantage, ni paralléliser.**
   //
   //  • Les IMAGES d'en-tête, sur DIX articles, et **hors du proxy**. Rien ne
   //    réécrit le `src` d'une image d'article : le navigateur va la chercher
@@ -261,7 +265,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       );
 
       const upcoming = articles
-        .slice(idx + 1, idx + 6) // N+1 … N+5
+        .slice(idx + 1, idx + 11) // N+1 … N+10, comme les images
         .filter((a) => a.url && fs[a.sourceId]?.autoExtract && !peekExtract(a.id));
       if (upcoming.length === 0) return;
       const { extractFullContent } = await import('../../utils/extractContent');
@@ -416,12 +420,19 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               day: 'numeric', month: 'long', year: 'numeric',
               hour: '2-digit', minute: '2-digit',
             });
-            // Reading time
-            const wc = (adj.content || '').replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
-            const rt = readingMinutes(wc);
-            // Hide the reading-time pill for auto-extract feeds (the body is a
-            // skeleton; the real value appears once the full text loads).
+            // Le fantôme montre EXACTEMENT ce que le rendu montrera : même
+            // décision (`readingBodyKind`), même contenu (`displayedHtml`),
+            // extrait compris s'il est déjà en mémoire — sinon le contenu du
+            // flux, qui l'est toujours. Avant la 1.4.10, un flux à extraction
+            // automatique donnait ici un squelette : on balayait d'un article
+            // gris à l'autre alors que le texte était disponible.
             const adjAuto = !!useUiStore.getState().feedSettings[adj.sourceId]?.autoExtract;
+            const adjExtract = peekExtract(adj.id)?.content ?? null;
+            const adjKind = readingBodyKind({ rssHtml: adj.content, extractedHtml: adjExtract, autoExtract: adjAuto });
+            const adjHtml = adjKind === 'skeleton' ? '' : displayedHtml(adj.content, adjExtract);
+            // Durée de lecture du contenu réellement montré, comme dans le rendu.
+            const wc = adjHtml.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
+            const rt = readingMinutes(wc);
             // Tags — use same Tailwind classes as React render
             const tags = adj.tags || [];
             const tagsHtml = tags.length > 0
@@ -444,7 +455,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                       (adj.author ? esc(adj.author) + ' &middot; ' : '') + adjDate +
                     '</div>' +
                   '</div>' +
-                  (adjAuto ? '' :
+                  (adjKind === 'skeleton' ? '' :
                     '<span class="flex items-center gap-1 px-2.5 rounded-lg text-[11px] font-medium flex-shrink-0" style="color:var(--accent);background:var(--accent-glow)">' +
                       '<svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
                       rt + '&nbsp;min' +
@@ -456,12 +467,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 '</h1>' +
                 // ── Tags ──
                 tagsHtml +
-                // ── Content (skeleton if the adjacent feed auto-extracts, so
-                //    the ghost matches what the article will show) ──
-                (useUiStore.getState().feedSettings[adj.sourceId]?.autoExtract
+                // ── Contenu — le même que celui que le rendu posera ──
+                (adjKind === 'skeleton'
                   ? SKELETON_HTML
                   : '<div class="article-content leading-relaxed" style="color:var(--reading-text);font-size:var(--fs-reading-body)">' +
-                      reserveImgAspect(sanitizeHtml(adj.content || '')) +
+                      reserveImgAspect(sanitizeHtml(adjHtml)) +
                     '</div>') +
               '</div>';
             contentWrapperRef.current.appendChild(preview);
@@ -779,16 +789,27 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const decFont = () => (isMobileOrTablet ? setMobileReadingFontSize(mobileReadingFontSize - 1) : decreaseFont());
   const incFont = () => (isMobileOrTablet ? setMobileReadingFontSize(mobileReadingFontSize + 1) : increaseFont());
 
-  // While an auto-extract feed is still fetching the full text, show a skeleton
-  // instead of the RSS body — the article then appears once, fully, with no
-  // RSS→extracted swap (no layout shift), especially during a swipe.
+  // Ce que le volet montre : l'extraction si elle est là, sinon le contenu du
+  // flux — qui est DÉJÀ en mémoire, arrivé avec la liste. Le squelette ne
+  // couvre plus que le cas où il n'y a réellement rien (flux sans contenu, en
+  // attente de l'extraction). Jusqu'à la 1.4.10, un flux à extraction
+  // automatique affichait le squelette même quand du texte était disponible :
+  // c'est ce qui donnait à l'application son air de charger sans arrêt.
+  // La règle vit dans `src/lib/readingBody.ts`, testée à part.
   const feedAutoExtract = !!feedSettings[article?.sourceId]?.autoExtract;
-  const awaitingExtract = feedAutoExtract && !extractedContent;
+  const bodyState = {
+    rssHtml: article?.content,
+    extractedHtml: extractedContent?.content ?? null,
+    autoExtract: feedAutoExtract,
+  };
+  const showSkeleton = showsSkeleton(bodyState);
 
-  // Reading time from the *displayed* content (so it's accurate for the full
-  // extracted text). The pill is hidden while auto-extract is still loading
-  // (awaitingExtract) so it appears once, with the correct value — no flip.
+  // Durée de lecture du contenu AFFICHÉ. Elle grandit donc quand l'extraction
+  // remplace le contenu du flux : le corps change sous les yeux du lecteur, la
+  // pastille le suit. La cacher jusqu'à l'extraction n'avait de sens que tant
+  // qu'il n'y avait rien à mesurer — désormais, seul le squelette la retient.
   const readingTime = readingMinutes(body.words);
+  const showReadingTime = showsReadingTime(bodyState);
 
   // One listener for every facade (head + inline): swap in the real player.
   // The iframe is built through the DOM API, so the sanitizer never sees it.
@@ -1089,7 +1110,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                   {article.author ? `${article.author} · ` : ''}{date}
                 </div>
               </div>
-              {!awaitingExtract && (
+              {showReadingTime && (
                 <span
                   className="flex items-center gap-1 px-2.5 rounded-lg text-[11px] font-medium flex-shrink-0"
                   style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}
@@ -1120,7 +1141,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               )}
               <span style={{ color: 'var(--reading-meta)' }}>·</span>
               <span className="text-xs" style={{ color: 'var(--reading-meta)' }}>{date}</span>
-              {!awaitingExtract && (
+              {showReadingTime && (
                 <span
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
                   style={{
@@ -1250,7 +1271,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </div>
           )}
 
-          {/* Body — skeleton while auto-extract loads, else the article */}
+          {/* Corps — le contenu disponible tout de suite ; squelette seulement
+              s'il n'y a rien à montrer (voir `lib/readingBody.ts`) */}
           {/* Video first for a YouTube-feed article — the video IS the article */}
           {headFacadeHtml && (
             <div
@@ -1260,15 +1282,19 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             />
           )}
 
-          {awaitingExtract ? (
+          {showSkeleton ? (
             <div dangerouslySetInnerHTML={SKELETON_PROP} />
           ) : (
             <div
               dir="auto"
               /* `reading-body-enter` ne joue qu'au MONTAGE de cet élément.
-                 Changer d'article réutilise le même nœud (rien ne bouge ici) ;
-                 le seul montage réel est la bascule squelette → corps, qui se
-                 faisait dans la même image et clignotait. */
+                 Changer d'article réutilise le même nœud, et la bascule
+                 flux → extraction aussi : une seule réécriture d'`innerHTML`,
+                 sans animation. Elle recrée bien les <img>, mais l'image
+                 d'en-tête garde la MÊME URL (`displayedHtml` réinjecte celle du
+                 flux si l'extraction l'a perdue), donc le cache la ressert.
+                 Le seul montage réel qui reste est la sortie du squelette,
+                 pour les articles dont le flux ne livre rien. */
               className="article-content leading-relaxed reading-body-enter"
               data-theme="reading-text"
               style={{ color: 'var(--reading-text)', fontSize: 'var(--fs-reading-body)' }}
