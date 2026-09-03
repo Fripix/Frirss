@@ -1,11 +1,13 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal, flushSync } from 'react-dom';
 import { useFeedStore, READ_LATER_LABEL } from '../../stores/feedStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { buildArticleBody, reserveImgAspect, readingMinutes } from '../../lib/articleBody';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
+import { readProgressPercent } from '../../lib/readProgress';
 import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
@@ -14,17 +16,17 @@ import { planPrefetchAhead, runPrefetchAhead } from '../../lib/prefetchAhead';
 import { imageBudget } from '../../lib/offlineImages';
 import { getStorageEstimate } from '../../lib/storageEstimate';
 import { cacheImages } from '../../lib/imageCache';
-import { extractYouTubeId, injectVideoFacades, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
+import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import { readableTextOn } from '../../lib/readableText';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 import BottomSheet from '../BottomSheet';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
-// Reserve vertical space for images that declare width/height, via
-// aspect-ratio — so the text below a header image doesn't jump as the image
-// loads (visible especially during the swipe transition between articles).
 // Body placeholder shown while an auto-extract feed loads the full text.
+// La prop d'injection est un objet de MODULE, pas un littéral dans le JSX :
+// React 19 réécrit `innerHTML` dès que l'objet `dangerouslySetInnerHTML`
+// change d'identité, même à contenu identique (voir `src/lib/articleBody.ts`).
 const SKELETON_HTML =
   '<div class="reading-skeleton">' +
     '<div class="rs-img"></div>' +
@@ -32,25 +34,7 @@ const SKELETON_HTML =
       .map((w) => `<div class="rs-line" style="width:${w}"></div>`)
       .join('') +
   '</div>';
-
-function reserveImgAspect(html: string): string {
-  // Drop empty paragraphs / stray breaks that some feeds add around the hero
-  // image — they create a gap above the text that the extracted (full) content
-  // doesn't have, making the layout jump when auto-extract swaps the body.
-  html = html
-    .replace(/<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi, '')
-    .replace(/^(?:\s|&nbsp;|<br\s*\/?>)+/i, '');
-  return html.replace(/<img\b[^>]*>/gi, (tag) => {
-    const w = tag.match(/\bwidth=["']?(\d{1,5})/i);
-    const h = tag.match(/\bheight=["']?(\d{1,5})/i);
-    if (!w || !h || +w[1] === 0 || +h[1] === 0) return tag;
-    const decl = `aspect-ratio:${w[1]}/${h[1]}`;
-    if (/\bstyle=/i.test(tag)) {
-      return tag.replace(/style=(["'])(.*?)\1/i, (_m, q, s) => `style=${q}${s};${decl}${q}`);
-    }
-    return tag.replace(/<img\b/i, `<img style="${decl}"`);
-  });
-}
+const SKELETON_PROP = { __html: SKELETON_HTML };
 
 interface SwipeTouch {
   startX?: number;
@@ -228,17 +212,32 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   }, [selectedArticle?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reading progress tracking
+  //
+  // Une mesure par IMAGE, pas par événement de défilement. Le défilement par
+  // inertie d'iOS émet ses événements plus vite que le rendu, et chacun
+  // lisait `scrollHeight`/`clientHeight` (donc forçait un recalcul de mise en
+  // page) avant de poser un état qui re-rendait tout le volet. Coalescer sur
+  // `requestAnimationFrame` borne le travail à ce que l'écran peut montrer.
+  // Ce n'est PAS ce qui causait le clignotement — voir `articleBody.ts` — mais
+  // c'est du travail que personne ne voyait.
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      setReadProgress(readProgressPercent(scrollTop, scrollHeight, clientHeight));
+    };
     function handleScroll() {
-      const { scrollTop, scrollHeight, clientHeight } = container!;
-      const maxScroll = scrollHeight - clientHeight;
-      if (maxScroll <= 0) { setReadProgress(100); return; }
-      setReadProgress(Math.min(100, Math.round((scrollTop / maxScroll) * 100)));
+      if (frame) return;
+      frame = requestAnimationFrame(measure);
     }
     container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [selectedArticle?.id]);
 
   const breakpoint = useBreakpoint();
@@ -351,7 +350,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             });
             // Reading time
             const wc = (adj.content || '').replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
-            const rt = Math.max(1, Math.round(wc / 200));
+            const rt = readingMinutes(wc);
             // Hide the reading-time pill for auto-extract feeds (the body is a
             // skeleton; the real value appears once the full text loads).
             const adjAuto = !!useUiStore.getState().feedSettings[adj.sourceId]?.autoExtract;
@@ -623,6 +622,44 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }
   }, [selectedArticle, extracting, t]);
 
+  // ── Corps de l'article ────────────────────────────────────────────────────
+  // Mémoïsé, et il FAUT que ce soit avant le retour anticipé ci-dessous : les
+  // hooks se comptent, pas se choisissent.
+  //
+  // Deux raisons, dont la seconde est un vrai défaut d'affichage :
+  //
+  //  1. la chaîne est lourde — DOMPurify analyse l'article entier — et elle
+  //     tournait à chaque rendu, donc à chaque événement de défilement ;
+  //  2. surtout, l'objet passé à `dangerouslySetInnerHTML` doit garder son
+  //     IDENTITÉ. React 19 n'écarte une prop que si `nextProp === lastProp`,
+  //     puis réaffecte `innerHTML` sans comparer `__html` : un littéral
+  //     `{{ __html: … }}` dans le JSX reconstruisait donc tout le corps à
+  //     chaque rendu, détruisant et recréant chaque <img> — le clignotement
+  //     observé en PWA iOS pendant le défilement. Mémoïser la seule chaîne
+  //     n'y suffirait pas : c'est l'objet qui doit survivre.
+  const videoPlayLabel = t('readingPane.videoPlay');
+  const videoOpenLabel = t('readingPane.videoOpen');
+  const body = useMemo(
+    () => buildArticleBody({
+      rssHtml: selectedArticle?.content,
+      extractedHtml: extractedContent?.content ?? null,
+      inlineVideos,
+      videoLabels: { play: videoPlayLabel, open: videoOpenLabel },
+    }),
+    [selectedArticle?.content, extractedContent?.content, inlineVideos, videoPlayLabel, videoOpenLabel],
+  );
+  const bodyProp = useMemo(() => ({ __html: body.html }), [body.html]);
+
+  // Un article de flux YouTube EST la vidéo : on la montre en tête, sauf si le
+  // corps porte déjà la même (l'injection ci-dessus l'a alors transformée en
+  // façade).
+  const headFacadeHtml = useMemo(() => {
+    const ref = inlineVideos ? extractYouTubeId(selectedArticle?.url || '') : null;
+    if (!ref || body.videoIds.includes(ref.id)) return '';
+    return facadeMarkup(ref, youtubeThumbnail(ref.id), { play: videoPlayLabel, open: videoOpenLabel });
+  }, [inlineVideos, selectedArticle?.url, body.videoIds, videoPlayLabel, videoOpenLabel]);
+  const headFacadeProp = useMemo(() => ({ __html: headFacadeHtml }), [headFacadeHtml]);
+
   if (!selectedArticle) {
     return (
       <div className="h-full flex items-center justify-center" style={{ background: 'var(--panel-bg)' }}>
@@ -676,46 +713,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const feedAutoExtract = !!feedSettings[article?.sourceId]?.autoExtract;
   const awaitingExtract = feedAutoExtract && !extractedContent;
 
-  // Compute display content — preserve hero image from original RSS when extracted
-  let displayContent = article.content;
-  if (extractedContent?.content) {
-    displayContent = extractedContent.content;
-    const imgMatch = article.content?.match(/<img[^>]+src=["']([^"']+)["']/i);
-    if (imgMatch && !extractedContent.content.includes(imgMatch[1])) {
-      displayContent = `<img src="${imgMatch[1].replace(/"/g, '&quot;')}" alt="" />` + displayContent;
-    }
-  }
-
   // Reading time from the *displayed* content (so it's accurate for the full
   // extracted text). The pill is hidden while auto-extract is still loading
   // (awaitingExtract) so it appears once, with the correct value — no flip.
-  const wordCount = (displayContent || '').replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
-  const readingTime = Math.max(1, Math.round(wordCount / 200));
-
-  // Lazy-load images in article body
-  // Lazy-load images — skip first 2 (hero images must load instantly for swipe transitions)
-  let _imgIdx = 0;
-  // Sanitize first (strips scripts/handlers from untrusted feed HTML), then add lazy-loading.
-  // Facades must be injected BEFORE sanitising: DOMPurify deletes <iframe>
-  // outright, which is why embedded videos are invisible without this.
-  const videoLabels = { play: t('readingPane.videoPlay'), open: t('readingPane.videoOpen') };
-  const withVideos = inlineVideos
-    ? injectVideoFacades(displayContent || '', videoLabels)
-    : { html: displayContent || '', ids: [] as string[] };
-  const finalContent = reserveImgAspect(sanitizeHtml(withVideos.html))
-    .replace(/<img(?!\s+loading=)/gi, (m) => ++_imgIdx <= 2 ? m : '<img loading="lazy"')
-    // Per-block direction: an Arabic or Hebrew paragraph reads right-to-left
-    // even inside an otherwise left-to-right article. Applied after sanitising,
-    // like the lazy-loading above.
-    .replace(/<(p|h[1-6]|li|blockquote|figcaption)(?![^>]*\bdir=)/gi, '<$1 dir="auto"');
-
-  // A YouTube-feed article IS the video: show it first, unless the body already
-  // carries the same one (which the injection above turned into a facade).
-  const articleVideo = inlineVideos ? extractYouTubeId(selectedArticle?.url || '') : null;
-  const headVideo = articleVideo && !withVideos.ids.includes(articleVideo.id) ? articleVideo : null;
-  const headFacadeHtml = headVideo
-    ? facadeMarkup(headVideo, youtubeThumbnail(headVideo.id), videoLabels)
-    : '';
+  const readingTime = readingMinutes(body.words);
 
   // One listener for every facade (head + inline): swap in the real player.
   // The iframe is built through the DOM API, so the sanitizer never sees it.
@@ -1183,12 +1184,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             <div
               className="article-content"
               onClick={handleVideoClick}
-              dangerouslySetInnerHTML={{ __html: headFacadeHtml }}
+              dangerouslySetInnerHTML={headFacadeProp}
             />
           )}
 
           {awaitingExtract ? (
-            <div dangerouslySetInnerHTML={{ __html: SKELETON_HTML }} />
+            <div dangerouslySetInnerHTML={SKELETON_PROP} />
           ) : (
             <div
               dir="auto"
@@ -1200,7 +1201,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               data-theme="reading-text"
               style={{ color: 'var(--reading-text)', fontSize: 'var(--fs-reading-body)' }}
               onClick={handleVideoClick}
-              dangerouslySetInnerHTML={{ __html: finalContent }}
+              dangerouslySetInnerHTML={bodyProp}
             />
           )}
         </article>

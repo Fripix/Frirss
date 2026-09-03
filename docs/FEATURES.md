@@ -658,7 +658,33 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 **assaini**, liens en accent, blocs de code et citations stylés. Mode Focus
 (plein écran) au double-clic. Contenu bidirectionnel rendu dans son sens propre.
 
-- **Où** : `src/components/ReadingPane/ReadingPane.tsx`, `src/utils/sanitizeHtml.ts`
+- **Où** : `src/components/ReadingPane/ReadingPane.tsx`, `src/utils/sanitizeHtml.ts`,
+  `src/lib/articleBody.ts` (fabrication du corps), `src/lib/readProgress.ts`
+- **Fabrication du corps** (1.4.10) : `src/lib/articleBody.ts` tient toute la
+  chaîne — contenu choisi (extrait ou flux, image d'en-tête du flux réinjectée
+  si l'extraction l'a perdue), façades vidéo, assainissement, `aspect-ratio`
+  réservé, chargement différé au-delà des deux premières images, direction par
+  bloc. Elle vivait dans le composant et tournait à **chaque rendu**.
+- **Piège majeur — l'objet `dangerouslySetInnerHTML` doit garder son identité**
+  (1.4.10). React 19 n'écarte une prop que si `nextProp === lastProp`, puis
+  réaffecte `innerHTML` **sans comparer `__html`**. Un littéral
+  `{{ __html: … }}` écrit dans le JSX est un objet neuf à chaque rendu : le
+  corps entier était reconstruit, chaque `<img>` détruite puis recréée, et donc
+  blanche le temps de recharger. Comme le volet re-rend à chaque événement de
+  défilement, cela produisait un clignotement violent en PWA iOS sur les flux à
+  extraction automatique. Le corps, la façade vidéo d'en-tête et le squelette
+  passent maintenant par des objets **mémoïsés** (`SKELETON_PROP` est même une
+  constante de module). Mémoïser la seule chaîne n'y suffirait pas : c'est
+  l'objet qui doit survivre. Le défaut existait depuis le passage à React 19
+  (1.4.5) — React 18 comparait la chaîne et le masquait ; les 1.4.7 et 1.4.9
+  l'ont rendu visible en faisant enfin aboutir l'extraction, donc en peuplant
+  les articles d'images. Garde-fou :
+  `src/components/ReadingPane/ReadingPane.body.test.tsx`.
+- **Barre de progression** : `src/lib/readProgress.ts`. La mesure est coalescée
+  sur `requestAnimationFrame` — une par image affichée, plus une par événement
+  de défilement : chacun lisait `scrollHeight`/`clientHeight` (recalcul de mise
+  en page forcé) puis posait un état qui re-rendait tout le volet. Un article
+  plus court que la fenêtre affiche 100 %, pas 0 % : il est lu dès qu'il est là.
 - **Morphing du titre** (1.4.5) : `src/lib/viewTransition.ts`. Le titre de la
   ligne cliquée et celui du volet portent le même `view-transition-name` le
   temps de la transition ; le navigateur anime le passage de l'un à l'autre.

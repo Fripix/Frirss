@@ -17,7 +17,15 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Le corps d'un article ne clignote plus quand on le fait défiler.** Sur les
+  flux à extraction automatique, en PWA iOS, les images de l'article
+  disparaissaient et revenaient une trentaine de fois par seconde pendant un
+  défilement. Le volet reconstruisait tout le corps à chaque rendu, donc
+  détruisait et recréait chaque image. Il ne le réécrit désormais que lorsque
+  le contenu change vraiment.
+- **Défilement plus fluide dans le volet de lecture** : la barre de progression
+  se mesure une fois par image affichée, plus une fois par événement de
+  défilement.
 
 ## Sous le capot
 
