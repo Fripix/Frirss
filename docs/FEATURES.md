@@ -1338,6 +1338,19 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   l'identifiant de l'utilisateur, jamais son IP : plusieurs personnes derrière
   un même NAT ne doivent pas se partager un seau. Sans plafond, chaque compte
   emportait un relais anonymisant.
+  **Le middleware est exporté (`proxyRateLimiter`) et `/api/extract` réutilise
+  cette instance** : le plafond est UN seau pour les deux routes sortantes.
+  Piège : `rateLimit()` s'alloue un `MemoryStore` neuf à chaque appel — deux
+  appels de même configuration donnent deux compteurs indépendants sur le même
+  identifiant, donc le double du plafond annoncé et une protection contournable
+  en changeant d'URL.
+- **Un refus de cible est toujours journalisé** : le pré-contrôle littéral
+  comme la garde par résolution passent par `finishError`, qui écrit la cible
+  (expurgée) dans le journal. C'est le pré-contrôle qui attrape les sondes les
+  plus bruyantes (`http://127.0.0.1:6379/`, un nom de service nu, une IP
+  privée) : le laisser répondre 403 en silence vidait de son sens la trace
+  promise. Le corps de la réponse, lui, ne nomme jamais la cible — ce serait
+  offrir un scanner de réseau interne.
 - **Ordre des middlewares — piège** : `requireAuth` **avant** `express.raw`.
   L'inverse mettait jusqu'à 5 Mo en mémoire pour un inconnu avant de lui rendre
   son 401 ; sa signature était un `413` répondu à une requête non
@@ -1369,18 +1382,26 @@ là est une faille XSS.
   un test qui injecte un `onerror` et le voit disparaître.
 - **Plafonds de lecture** (`server/routes/extract.ts`) : la réponse doit être du
   `text/html` (sinon 415, avant toute lecture — un PDF ou une vidéo n'a pas
-  d'article), au plus 5 Mo (sinon 502) et lue en moins de 20 s (sinon 504). Le
+  d'article ; une réponse **sans en-tête `Content-Type`** tombe dans le même
+  refus, plus étroit que l'ancien chemin par le proxy, et le client se replie
+  sur son extracteur local), au plus 5 Mo (sinon 502) et lue en moins de 20 s
+  (sinon 504). Le
   minuteur de `fetchUpstream` est désarmé à l'arrivée des en-têtes : il couvre
   la connexion, pas le corps. Sans ces bornes, une URL publique quelconque
   suffisait à faire avaler des Go au seul processus Node, ou à lui faire tenir
   une socket indéfiniment.
-- **Cadence** : même plafond par utilisateur et par minute que `/api/proxy`
-  (`FRIRSS_PROXY_RATE_LIMIT`, 600 par défaut), même forme. L'extraction est le
-  plus gros consommateur de ce budget : une route sans plafond rendrait la
-  protection contournable en changeant d'URL.
+- **Cadence** : **le même seau que `/api/proxy`**, pas un second de même
+  taille — la route réutilise le middleware exporté par `server/routes/proxy.ts`
+  (`FRIRSS_PROXY_RATE_LIMIT`, 600 par défaut, `0` désactive). L'extraction est
+  le plus gros consommateur de ce budget : une route sans plafond, ou dotée de
+  son propre compteur, rendrait la protection contournable en changeant d'URL.
 - **Échecs classés comme sur `/api/proxy`** : 403 cible refusée (journalisée,
   pour qu'un balayage SSRF laisse une trace), 504 délai, 502 panne amont. Le
-  corps ne nomme jamais la cible.
+  corps ne nomme jamais la cible. La route ne recopie **aucun** contrôle du
+  proxy : `assertTargetSafe` teste déjà l'hôte littéral avant toute résolution
+  DNS, et `finishError` produit le 403, son corps et sa ligne de journal par un
+  seul chemin. Un `400 { error: 'Invalid or missing url' }` couvre les deux
+  entrées refusées d'emblée — `url` absente, ou présente mais pas http(s).
 - **422 quand la page n'est pas extractible** : le client doit pouvoir se
   replier sur son extracteur local ; un corps vide en 200 l'en priverait.
 

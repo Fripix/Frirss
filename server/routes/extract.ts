@@ -1,7 +1,6 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth.js';
-import { fetchUpstream, finishError, proxyRateLimit, redactUrl, targetAllowedLiteral } from './proxy.js';
+import { fetchUpstream, finishError, proxyRateLimiter } from './proxy.js';
 import { cacheEnabled, cacheGet, cacheSet, extractKey } from '../cache.js';
 import { extractArticle } from '../extract.js';
 
@@ -97,32 +96,26 @@ export async function readBoundedText(resp: Response, maxBytes: number, timeoutM
 // l'identifiant de l'utilisateur, pas son IP.
 router.use(requireAuth);
 
-// Même plafond que `/api/proxy`, même variable d'environnement, même forme :
-// l'extraction d'article est le plus gros consommateur de ce budget et migre
-// du proxy vers cette route. La laisser sans plafond — ou lui en inventer un
-// second — reviendrait à rendre la protection documentée contournable en
-// changeant d'URL.
-const EXTRACT_RATE_LIMIT = proxyRateLimit();
-if (EXTRACT_RATE_LIMIT > 0) {
-  router.use(rateLimit({
-    windowMs: 60_000,
-    max: EXTRACT_RATE_LIMIT,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) => String(req.user.id),
-    message: { error: 'Too many proxied requests, please slow down' },
-  }));
-}
+// LE MÊME seau que `/api/proxy` — l'instance de middleware, pas une copie de
+// sa configuration. L'extraction d'article est le plus gros consommateur de ce
+// budget et migre du proxy vers cette route ; un second seau de même taille
+// doublerait ce qu'un compte peut faire émettre au backend et rendrait la
+// protection documentée contournable en changeant d'URL. Une requête ne
+// traverse qu'une des deux routes, donc partager l'instance ne compte jamais
+// deux fois.
+if (proxyRateLimiter) router.use(proxyRateLimiter);
 
 router.get('/', async (req, res) => {
   const url = typeof req.query.url === 'string' ? req.query.url : '';
-  if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Missing url' });
-  // Pré-contrôle littéral, comme le proxy : la garde réelle (résolution DNS,
-  // et à chaque saut de redirection) reste dans `fetchUpstream`.
-  if (!targetAllowedLiteral(url)) {
-    console.warn('Extract error:', 'blocked target →', redactUrl(url));
-    return res.status(403).json({ error: 'Target host not allowed' });
-  }
+  // Le message couvre les DEUX cas qu'il refuse — absent, ou présent mais pas
+  // http(s). Dire « Missing url » d'un `file:///etc/passwd` bien présent, c'est
+  // envoyer chercher le défaut là où il n'est pas.
+  if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Invalid or missing url' });
+  // Pas de pré-contrôle littéral ici : `assertTargetSafe`, dans
+  // `fetchUpstream`, teste `isInternalHostLiteral` AVANT toute résolution DNS,
+  // et son échec repart par `finishError` — même 403, même corps, même ligne
+  // de journal, par un seul chemin. Le recopier ne faisait que créer une
+  // seconde description du même refus, vouée à diverger.
 
   const key = cacheEnabled ? extractKey(url) : null;
   if (key) {
@@ -140,9 +133,18 @@ router.get('/', async (req, res) => {
     // et les réécritures PROXY_REWRITES. Un appel direct rouvrirait la porte
     // que le proxy ferme.
     const upstream = await fetchUpstream(url, { headers: { Accept: 'text/html' } });
-    if (!upstream.ok) return res.status(502).json({ error: 'Upstream request failed' });
+    if (!upstream.ok) {
+      // Corps annulé, comme pour un type refusé : sous undici la socket reste
+      // retenue jusqu'au ramassage tant que le flux n'est ni lu ni annulé —
+      // un amont qui répond 500 en boucle accumulerait les connexions.
+      upstream.body?.cancel().catch(() => {});
+      return res.status(502).json({ error: 'Upstream request failed' });
+    }
     // Le type est vérifié AVANT de lire quoi que ce soit : une vidéo ou un PDF
     // n'a pas d'article à extraire, et n'a donc aucune raison d'être avalé.
+    // Une réponse SANS `Content-Type` tombe dans le même refus (`|| ''` ne
+    // correspond à rien) : c'est plus étroit que l'ancien chemin par le proxy,
+    // et assumé — le client se replie sur son extracteur local.
     const ctype = upstream.headers.get('content-type') || '';
     if (!HTML_TYPES.test(ctype)) {
       upstream.body?.cancel().catch(() => {});

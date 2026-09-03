@@ -70,17 +70,27 @@ router.use(requireAuth);
 // Ensuite seulement la cadence : la clé est l'identifiant de l'utilisateur, pas
 // son IP — plusieurs personnes derrière un même NAT ne doivent pas se partager
 // un seau, et après `requireAuth` on dispose d'une clé bien meilleure.
+//
+// Le middleware est EXPORTÉ, et `/api/extract` réutilise cette instance-là.
+// `rateLimit()` s'alloue un `MemoryStore` neuf à chaque appel : deux appels,
+// même valeur de plafond, donnent deux seaux indépendants indexés par le même
+// identifiant d'utilisateur — donc le double du plafond annoncé pour un compte,
+// et la protection contournable en changeant d'URL. Une seule instance
+// partagée = un seul magasin, donc un seul seau : `FRIRSS_PROXY_RATE_LIMIT`
+// borne bien ce qu'un compte peut faire émettre au backend, toutes routes
+// sortantes confondues.
 const PROXY_RATE_LIMIT = proxyRateLimit();
-if (PROXY_RATE_LIMIT > 0) {
-  router.use(rateLimit({
+export const proxyRateLimiter = PROXY_RATE_LIMIT > 0
+  ? rateLimit({
     windowMs: 60_000,
     max: PROXY_RATE_LIMIT,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => String(req.user.id),
     message: { error: 'Too many proxied requests, please slow down' },
-  }));
-}
+  })
+  : null;
+if (proxyRateLimiter) router.use(proxyRateLimiter);
 
 // Capture the raw body for any content type (greader writes are urlencoded)
 router.use(express.raw({ type: '*/*', limit: '5mb' }));
@@ -353,8 +363,15 @@ router.all('/', async (req, res) => {
   }
   // SSRF guard (fast literal pre-check; the resolve-based check runs in
   // fetchUpstream, on the real target and every redirect hop).
+  //
+  // Le refus passe par `finishError` — et pas par un `res.status(403)` écrit
+  // ici — pour qu'il soit JOURNALISÉ comme celui de la garde par résolution.
+  // C'est ce pré-contrôle qui attrape les sondes les plus bruyantes
+  // (`http://127.0.0.1:6379/`, un nom de service nu, une IP privée) : les
+  // laisser repartir en silence vidait de son sens la trace promise côté
+  // serveur. Le corps, lui, ne nomme toujours pas la cible.
   if (!targetAllowedLiteral(rawTarget)) {
-    return res.status(403).json({ error: 'Target host not allowed' });
+    return finishError(res, new BlockedTargetError(rawTarget), rawTarget);
   }
 
   const headers: Record<string, string> = {};

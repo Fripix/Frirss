@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import request from 'supertest';
 import app from '../index.js';
 import db, { setSetting } from '../db.js';
@@ -963,11 +965,27 @@ describe('extract', () => {
     expect(res.status).toBe(401);
   });
 
+  // `rateLimit()` s'alloue un `MemoryStore` NEUF à chaque appel : deux appels,
+  // même plafond, donnent deux seaux indépendants indexés par le même
+  // identifiant d'utilisateur — soit le double du plafond annoncé pour un
+  // compte, et `FRIRSS_PROXY_RATE_LIMIT` qui ne borne plus ce qu'il prétend
+  // borner. Le seul moyen de le vérifier sans émettre 600 requêtes est de lire
+  // la source, comme le fait déjà le garde-fou de `extractKey`.
+  it("partage le seau de cadence de `/api/proxy` au lieu d'en créer un second", () => {
+    const src = fs.readFileSync(path.join(process.cwd(), 'server/routes/extract.ts'), 'utf8');
+    expect(src).not.toMatch(/rateLimit\(/);
+    expect(src).toMatch(/router\.use\(proxyRateLimiter\)/);
+  });
+
+  // Le message doit couvrir les deux cas qu'il refuse : `file:///etc/passwd`
+  // est bien PRÉSENT, et un « Missing url » enverrait chercher le défaut là
+  // où il n'est pas.
   it('rejects a missing or non-http url', async () => {
     for (const q of [{}, { url: '' }, { url: 'file:///etc/passwd' }]) {
       const res = await request(app).get('/api/extract')
         .query(q).set('Authorization', `Bearer ${adminToken}`);
       expect(res.status, JSON.stringify(q)).toBe(400);
+      expect(res.body, JSON.stringify(q)).toEqual({ error: 'Invalid or missing url' });
     }
   });
 
