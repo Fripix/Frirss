@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { buildArticleBody, displayedHtml, reserveImgAspect, readingMinutes } from './articleBody';
+import { rememberImageSize, forgetMeasuredSizes } from './imageAspect';
 
 const labels = { play: 'Lire', open: 'Ouvrir' };
 const build = (rssHtml: string | null, extractedHtml: string | null = null, inlineVideos = false) =>
@@ -59,6 +60,36 @@ describe('reserveImgAspect', () => {
 
   it('retire les paragraphes vides autour de l’image d’en-tête', () => {
     expect(reserveImgAspect('<p> </p><p>texte</p>')).toBe('<p>texte</p>');
+  });
+
+  // Beaucoup de flux n'annoncent pas les dimensions. Le réchauffage en avant
+  // les MESURE au chargement : la place est alors réservée sans rien deviner.
+  describe('avec une mesure du réchauffage', () => {
+    beforeEach(() => forgetMeasuredSizes());
+    afterEach(() => forgetMeasuredSizes());
+
+    it('réserve la place d’une image sans attributs, une fois mesurée', () => {
+      rememberImageSize('https://ex.com/hero.jpg', 1200, 800);
+      expect(reserveImgAspect('<img src="https://ex.com/hero.jpg">'))
+        .toContain('style="aspect-ratio:1200/800"');
+    });
+
+    it('retrouve la mesure malgré l’échappement de l’assainisseur', () => {
+      rememberImageSize('https://ex.com/h.jpg?w=1&h=2', 800, 600);
+      expect(reserveImgAspect('<img src="https://ex.com/h.jpg?w=1&amp;h=2">'))
+        .toContain('aspect-ratio:800/600');
+    });
+
+    it('laisse les attributs de la balise l’emporter', () => {
+      rememberImageSize('https://ex.com/hero.jpg', 1200, 800);
+      expect(reserveImgAspect('<img src="https://ex.com/hero.jpg" width="4" height="3">'))
+        .toContain('aspect-ratio:4/3');
+    });
+
+    it('ne touche à rien tant que l’image n’a pas été mesurée', () => {
+      expect(reserveImgAspect('<img src="https://ex.com/jamais-vue.jpg">'))
+        .toBe('<img src="https://ex.com/jamais-vue.jpg">');
+    });
   });
 });
 

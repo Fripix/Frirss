@@ -15,6 +15,9 @@ import { isFocusToggleTarget } from '../../lib/readingFocus';
 import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import { readableTextOn } from '../../lib/readableText';
+import { planHeroWarm, runHeroWarm } from '../../lib/heroWarm';
+import { rememberImageSize } from '../../lib/imageAspect';
+import { IMAGE_CACHE_NAME } from '../../lib/storageEstimate';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 import BottomSheet from '../BottomSheet';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
@@ -31,6 +34,59 @@ const SKELETON_HTML =
       .join('') +
   '</div>';
 const SKELETON_PROP = { __html: SKELETON_HTML };
+
+/**
+ * L'image est-elle déjà dans le cache du service worker ?
+ *
+ * `caches.match(url, { cacheName })` plutôt que `caches.open()` : la seconde
+ * CRÉERAIT le cache s'il n'existe pas encore. `caches` est absent de jsdom et
+ * d'un contexte non sécurisé — l'absence vaut « non », jamais une erreur.
+ */
+async function isImageCached(url: string): Promise<boolean> {
+  try {
+    if (typeof caches === 'undefined') return false;
+    return !!(await caches.match(url, { cacheName: IMAGE_CACHE_NAME }));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Charger une image **exactement comme le rendu le ferait** : en affectant
+ * `src` sur un élément `<img>` détaché. La requête porte alors
+ * `destination === 'image'`, donc la route Workbox la met en cache — ce qu'un
+ * `fetch()` programmatique ne produit pas, et que la CSP (`connect-src 'self'`)
+ * bloquerait de toute façon en cross-origin.
+ *
+ * Renvoie les dimensions naturelles mesurées, ou `null` si l'image a échoué —
+ * ce qu'un hébergeur qui refuse le lien direct fait couramment.
+ *
+ * Le délai de garde n'annule rien : il rend seulement sa place au runner. Une
+ * requête qui ne répond jamais immobiliserait sinon l'une des deux voies pour
+ * la durée de la session, et chaque article traversé en laisserait une de plus.
+ */
+const WARM_IMAGE_TIMEOUT = 10_000;
+
+function warmImage(url: string): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof Image === 'undefined') { resolve(null); return; }
+    const img = new Image();
+    let done = false;
+    const finish = (value: { width: number; height: number } | null) => {
+      if (done) return;
+      done = true;
+      clearTimeout(guard);
+      img.onload = null;
+      img.onerror = null;
+      resolve(value);
+    };
+    const guard = setTimeout(() => finish(null), WARM_IMAGE_TIMEOUT);
+    img.decoding = 'async';
+    img.onload = () => finish({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => finish(null);
+    img.src = url;
+  });
+}
 
 interface SwipeTouch {
   startX?: number;
@@ -161,13 +217,26 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // concurrencer l'article courant ; l'extrait rejoint le cache LRU borné, donc
   // la mémoire reste plafonnée.
   //
-  // TEXTE SEULEMENT, et sur CINQ articles. Le cycle 1.4.10 avait élargi la
-  // fenêtre à dix et y avait ajouté le réchauffage des images du corps : à la
-  // moindre pause dans le glissement, dix extractions plus quatre requêtes
-  // d'image chacune partaient d'un coup et saturaient le proxy de fond, si
-  // bien que le glissement suivant attendait derrière la file — 2 à 7 s sur
-  // iPhone au lieu de ~0,9 s. Ne pas y revenir sans un plafond de concurrence
-  // côté proxy.
+  // Deux travaux, deux portées, et la différence est celle du TRANSPORT :
+  //
+  //  • Le TEXTE, sur CINQ articles (N+1 … N+5), et sur les seuls flux à
+  //    extraction automatique. Il passe par le **proxy backend**, plafonné par
+  //    utilisateur et par minute, où l'extraction de fond puise déjà. Le cycle
+  //    1.4.10 avait porté cette fenêtre à dix en y ajoutant le téléchargement
+  //    des images du corps *par le même proxy* : à la moindre pause dans le
+  //    balayage, dix extractions plus quatre requêtes d'image chacune
+  //    partaient d'un coup, et le balayage suivant attendait derrière la file
+  //    — 2 à 7 s sur iPhone au lieu de ~0,9 s. Cette fenêtre-là ne bouge pas.
+  //
+  //  • Les IMAGES d'en-tête, sur DIX articles, et **hors du proxy**. Rien ne
+  //    réécrit le `src` d'une image d'article : le navigateur va la chercher
+  //    directement à son origine, et le service worker la met en cache
+  //    (`destination === 'image'`). Réchauffer, c'est faire exactement cela sur
+  //    une `new Image()` détachée. Aucun octet ne traverse le backend, d'où une
+  //    fenêtre généreuse et un plafond de deux requêtes en vol qui suffit.
+  //
+  // Le délai d'une seconde couvre les deux : pendant un balayage rapide,
+  // l'effet est démonté avant que quoi que ce soit ne parte.
   useEffect(() => {
     const cur = selectedArticle;
     if (!cur?.id) return;
@@ -178,6 +247,19 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       const fs = useUiStore.getState().feedSettings;
       const idx = articles.findIndex((a) => a.id === cur.id);
       if (idx < 0) return;
+
+      // Images : lancé sans être attendu, il n'a rien à voir avec l'extraction
+      // et n'emprunte pas le même chemin.
+      void runHeroWarm(
+        planHeroWarm({ articles, currentId: cur.id }),
+        {
+          isCached: isImageCached,
+          warm: warmImage,
+          remember: (url, m) => rememberImageSize(url, m.width, m.height),
+          cancelled: () => cancelled,
+        },
+      );
+
       const upcoming = articles
         .slice(idx + 1, idx + 6) // N+1 … N+5
         .filter((a) => a.url && fs[a.sourceId]?.autoExtract && !peekExtract(a.id));

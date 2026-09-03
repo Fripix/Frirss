@@ -30,6 +30,14 @@ _(rien pour l'instant)_
   serveur, si bien que le balayage suivant attendait derrière la file. Le
   préchargement redevient ce qu'il était : le **texte** des cinq articles
   suivants, rien de plus.
+- **Les images des articles suivants sont prêtes avant qu'on y arrive.** En
+  lisant un article, FriRSS charge maintenant l'image d'en-tête des dix
+  articles suivants, directement depuis leur site et deux à la fois — sans
+  passer par le serveur, contrairement à la tentative qui avait bloqué le
+  balayage plus tôt dans ce cycle. Une image déjà en cache n'est pas
+  redemandée, et rien ne part pendant un balayage. En prime, la place de
+  l'image est désormais réservée même quand le flux n'annonce pas ses
+  dimensions : le texte ne saute plus quand elle se pose.
 - **Défilement plus fluide dans le volet de lecture** : la barre de progression
   se mesure une fois par image affichée, plus une fois par événement de
   défilement.

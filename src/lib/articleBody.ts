@@ -18,6 +18,7 @@
 
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { injectVideoFacades, type FacadeLabels } from './youtube';
+import { aspectDecl, withAspect, imgTagSrc, measuredImageSize } from './imageAspect';
 
 /** Combien d'images du début échappent au chargement différé. Les premières
  *  doivent être là *avant* la transition de balayage, pas après. */
@@ -46,9 +47,21 @@ export interface ArticleBody {
 }
 
 /**
- * Réserver la place verticale des images qui déclarent width/height, via
- * `aspect-ratio` — pour que le texte sous une image d'en-tête ne saute pas
- * pendant qu'elle charge (très visible pendant la transition de balayage).
+ * Réserver la place verticale des images, via `aspect-ratio` — pour que le
+ * texte sous une image d'en-tête ne saute pas pendant qu'elle charge (très
+ * visible pendant la transition de balayage).
+ *
+ * Deux sources de dimensions, dans cet ordre : les attributs `width`/`height`
+ * de la balise, puis — pour les nombreux flux qui ne les écrivent pas — la
+ * mesure relevée par le réchauffage en avant (`heroWarm.ts`), retenue par
+ * `imageAspect.ts`. Sans l'une ni l'autre, la balise ressort **intacte** :
+ * deviner un format déplacerait le texte deux fois au lieu d'une.
+ *
+ * ⚠️ Ce n'est donc plus une fonction pure : son résultat dépend de ce qui a
+ * été mesuré. Le contrat de stabilité du module tient quand même — les
+ * mesures arrivent AVANT que l'article ne soit ouvert, précisément parce que
+ * le réchauffage travaille en avance, si bien que le corps mémoïsé de
+ * l'article en cours n'a aucune raison d'être recalculé.
  */
 export function reserveImgAspect(html: string): string {
   // On retire au passage les paragraphes vides et les <br> égarés que
@@ -59,14 +72,9 @@ export function reserveImgAspect(html: string): string {
     .replace(/<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi, '')
     .replace(/^(?:\s|&nbsp;|<br\s*\/?>)+/i, '');
   return html.replace(/<img\b[^>]*>/gi, (tag) => {
-    const w = tag.match(/\bwidth=["']?(\d{1,5})/i);
-    const h = tag.match(/\bheight=["']?(\d{1,5})/i);
-    if (!w || !h || +w[1] === 0 || +h[1] === 0) return tag;
-    const decl = `aspect-ratio:${w[1]}/${h[1]}`;
-    if (/\bstyle=/i.test(tag)) {
-      return tag.replace(/style=(["'])(.*?)\1/i, (_m, q, s) => `style=${q}${s};${decl}${q}`);
-    }
-    return tag.replace(/<img\b/i, `<img style="${decl}"`);
+    const src = imgTagSrc(tag);
+    const decl = aspectDecl(tag, src ? measuredImageSize(src) : null);
+    return decl ? withAspect(tag, decl) : tag;
   });
 }
 

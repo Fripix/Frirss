@@ -659,12 +659,17 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 (plein écran) au double-clic. Contenu bidirectionnel rendu dans son sens propre.
 
 - **Où** : `src/components/ReadingPane/ReadingPane.tsx`, `src/utils/sanitizeHtml.ts`,
-  `src/lib/articleBody.ts` (fabrication du corps), `src/lib/readProgress.ts`
+  `src/lib/articleBody.ts` (fabrication du corps), `src/lib/imageAspect.ts`
+  (réservation de la place des images), `src/lib/heroWarm.ts` (réchauffage des
+  images en avant), `src/lib/readProgress.ts`
 - **Fabrication du corps** (1.4.10) : `src/lib/articleBody.ts` tient toute la
   chaîne — contenu choisi (extrait ou flux, image d'en-tête du flux réinjectée
   si l'extraction l'a perdue), façades vidéo, assainissement, `aspect-ratio`
   réservé, chargement différé au-delà des deux premières images, direction par
   bloc. Elle vivait dans le composant et tournait à **chaque rendu**.
+  `reserveImgAspect()` tire ses dimensions des attributs de la balise, puis —
+  depuis la 1.4.10 — des mesures relevées par le réchauffage en avant
+  (`imageAspect.ts`). Sans l'une ni l'autre, la balise ressort intacte.
 - **Piège majeur — l'objet `dangerouslySetInnerHTML` doit garder son identité**
   (1.4.10). React 19 n'écarte une prop que si `nextProp === lastProp`, puis
   réaffecte `innerHTML` **sans comparer `__html`**. Un littéral
@@ -760,20 +765,46 @@ a été supprimé de la production en 1.3.1, et du serveur de développement en
   secondes sans arrêt, si bien qu'il ne prenait jamais d'avance et que
   l'article suivant arrivait en deux temps, texte puis image.
 - **Préchargement en avant (volet de lecture)** : une seconde après l'ouverture
-  d'un article, FriRSS extrait **le texte des cinq articles suivants** (N+1 …
-  N+5) de la liste, sur les seuls flux à extraction automatique. Séquentiel,
-  annulable (le drapeau `cancelled` de l'effet), sans reprise sur échec ; le
-  délai d'une seconde fait que balayer vite annule tout. Câblé directement dans
-  `ReadingPane.tsx`. **Texte seulement — aucune image n'est réchauffée ici.**
-- **Piège, payé cher** : le cycle 1.4.10 avait élargi la fenêtre à dix articles
-  et y avait ajouté le réchauffage des images du corps. Effet mesuré sur
-  iPhone : à la moindre pause dans le balayage, dix extractions plus quatre
-  requêtes d'image chacune partaient d'un coup, saturaient le proxy backend
-  (plafonné par utilisateur et par minute, `FRIRSS_PROXY_RATE_LIMIT`, pendant
-  que l'extraction de fond y puise déjà), et le balayage suivant attendait
-  derrière la file — 2 à 7 s au lieu de ~0,9 s par article. Les deux ont été
-  retirés avant publication. Ne pas y revenir sans un plafond de concurrence
-  côté proxy.
+  d'un article, FriRSS prépare la suite de la liste. Deux travaux distincts,
+  dans le même effet de `ReadingPane.tsx`, annulables par le même drapeau
+  `cancelled` et sans reprise sur échec — le délai d'une seconde fait que
+  balayer vite n'envoie rien du tout :
+  - **le TEXTE des cinq articles suivants** (N+1 … N+5), sur les seuls flux à
+    extraction automatique, séquentiellement. Il passe par `/api/proxy` : cette
+    fenêtre ne doit pas grandir (voir le piège ci-dessous) ;
+  - **l'image d'en-tête des dix articles suivants** (1.4.10), deux chargements
+    en vol au plus. Le plan et le runner vivent dans `src/lib/heroWarm.ts` ; le
+    composant ne fait que le câblage DOM.
+- **Pourquoi le réchauffage d'images ne repasse pas par le proxy** : rien ne
+  réécrit le `src` des images d'article. Quand un article s'affiche, le
+  navigateur va chercher ses images **directement à leur origine** (la CSP
+  autorise `img-src … https: http:`) et le service worker les met en cache. Le
+  réchauffage fait donc littéralement ce que fera le rendu : `src` affecté sur
+  une `new Image()` détachée. Même `destination === 'image'`, même route
+  Workbox, **zéro octet par le backend**. C'est ce qui permet une fenêtre de
+  dix là où la version proxifiée devait se rationner. Une image déjà présente
+  dans `frirss-images` (`caches.match`) est sautée : relire un flux ne coûte
+  rien.
+- **Bénéfice second** : l'événement `load` donne `naturalWidth`/`naturalHeight`
+  gratuitement. `src/lib/imageAspect.ts` les retient (carte bornée à 300
+  entrées, éviction de la plus ancienne) et `reserveImgAspect()` s'en sert pour
+  réserver la place des images dont le flux **n'annonce pas** les dimensions —
+  le cas le plus fréquent, et celui où le texte sautait quand l'image se
+  posait. Les attributs `width`/`height` de la balise restent prioritaires, et
+  sans mesure utilisable la balise ressort **intacte** : rien n'est deviné.
+  Cette réservation profite aussi au fantôme de balayage, qui construit son
+  HTML avec la même fonction — l'article N+1 est justement le premier réchauffé.
+- **Piège, payé cher** : le cycle 1.4.10 avait d'abord élargi la fenêtre de
+  **texte** à dix articles et y avait ajouté le téléchargement des images du
+  corps **par le proxy backend** (`cacheImages`). Effet mesuré sur iPhone : à la
+  moindre pause dans le balayage, dix extractions plus quatre requêtes d'image
+  chacune partaient d'un coup, saturaient le proxy (plafonné par utilisateur et
+  par minute, `FRIRSS_PROXY_RATE_LIMIT`, pendant que l'extraction de fond y
+  puise déjà), et le balayage suivant attendait derrière la file — 2 à 7 s au
+  lieu de ~0,9 s par article. Cette version-là a été retirée. **Ne jamais
+  réintroduire de récupération d'image proxifiée dans le volet de lecture** : la
+  fenêtre de texte reste à cinq, et les images ne passent que par le chargement
+  direct décrit ci-dessus.
 - **Assainissement à part** : `sanitizeExtracted()` est **plus permissif** que
   `sanitizeHtml()` sur un point, et doit l'être — il garde les `<iframe>`, sans
   quoi une vidéo intégrée à un article extrait disparaîtrait avant
@@ -911,13 +942,18 @@ images consultés restent lisibles sans réseau.
   `src/components/OfflineBanner.tsx`, `src/components/UpdatePrompt.tsx`
 - **Réglages** : préparation manuelle, mise à jour à l'ouverture, budget d'images
   (aucune / légère / standard / maximale)
-- **Un seul remplisseur du cache d'images** : la préparation manuelle
-  (`feedStore.prepareOffline`). Le choix des images vit dans
-  `articleImageUrls()`, exporté par `offlineImages.ts` et testé à part — c'était
-  un helper privé du store. Le préchargement en avant du volet de lecture ne
-  télécharge **aucune** image (voir « Extraction du contenu complet ») : il
-  l'avait fait pendant le cycle 1.4.10, au prix d'un balayage bloqué sur
-  iPhone.
+- **Un seul remplisseur PROXIFIÉ du cache d'images** : la préparation manuelle
+  (`feedStore.prepareOffline` → `imageCache.cacheImages`, seul `cache.put()`
+  explicite du projet). Le choix des images y vit dans `articleImageUrls()`,
+  exporté par `offlineImages.ts` et testé à part — c'était un helper privé du
+  store. Le budget d'images (`imageBudget`) ne concerne que ce chemin-là.
+- **L'autre remplisseur ne passe pas par le backend** : la route Workbox
+  elle-même, quand le navigateur charge une image. C'est vrai du rendu d'un
+  article, et donc du réchauffage en avant (`heroWarm.ts`, 1.4.10), qui charge
+  l'image d'en-tête des dix articles suivants sur une `new Image()` détachée —
+  aucune requête proxifiée, aucun budget consommé. La version proxifiée de ce
+  réchauffage, essayée plus tôt dans le même cycle, bloquait le balayage sur
+  iPhone : voir « Extraction du contenu complet ».
 - **Spec** : `docs/superpowers/specs/2026-08-18-offline-images-design.md`
 - **Piège majeur** : **récupérer une image ne la met pas en cache**. La route
   Workbox filtre sur `request.destination === 'image'`, ce qu'un `fetch()`
