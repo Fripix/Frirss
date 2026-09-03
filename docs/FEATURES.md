@@ -1343,6 +1343,27 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   son 401 ; sa signature était un `413` répondu à une requête non
   authentifiée.
 
+### Extraction d'articles
+`GET /api/extract?url=…` rend l'article extrait et assaini, prêt à afficher.
+
+- **Où** : `server/routes/extract.ts`, `server/extract.ts`
+- **Cache** : Redis, clé `frirss:x:<sha1(url)>` — **sans identifiant
+  d'utilisateur**, contrairement au cache de listes. Le texte extrait d'une
+  page est le même pour tous : c'est ce qui fait qu'un appareil profite du
+  travail d'un autre, et qu'à dix comptes la page n'est extraite qu'une fois.
+  TTL commun (`CACHE_TTL`, 24 h) ; aucune détection de modification de la
+  source, le bouton « Article complet » relance à la demande.
+- **Sans Redis** : la route extrait quand même, sans rien garder.
+- **Piège** : l'appel sortant passe par `fetchUpstream`, jamais par `fetch` —
+  c'est lui qui porte la garde anti-SSRF.
+- **Piège** : la route rend du HTML **non assaini**, et c'est voulu. Assainir
+  côté serveur a été tenté puis abandonné le 2026-09-04 — `createDOMPurify` sur
+  `linkedom` ne filtre rien faute de `NodeFilter`, et rend l'entrée telle
+  quelle sans lever d'erreur. Le client assainit à réception. Ne pas
+  « rétablir » un assainissement serveur sans vérifier qu'il filtre vraiment.
+- **422 quand la page n'est pas extractible** : le client doit pouvoir se
+  replier sur son extracteur local ; un corps vide en 200 l'en priverait.
+
 ### nginx (image de production)
 Sert `dist/` et proxifie `/api/` vers Express. Porte les en-têtes de sécurité
 destinés au navigateur — CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy` —
@@ -1694,6 +1715,7 @@ et `uk`.
 | POST | `/api/setup/restore/preview` | Idem, instance vierge uniquement |
 | POST | `/api/setup/restore` | Idem, instance vierge uniquement |
 | ALL | `/api/proxy` | Passage vers FreshRSS et extraction d'articles |
+| GET | `/api/extract` | Article extrait côté serveur, depuis le cache partagé ou fraîchement |
 
 ---
 

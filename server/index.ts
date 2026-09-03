@@ -10,6 +10,7 @@ import serversRoutes from './routes/servers.js';
 import preferencesRoutes from './routes/preferences.js';
 import adminRoutes from './routes/admin.js';
 import proxyRoutes from './routes/proxy.js';
+import extractRoutes from './routes/extract.js';
 import { adminBackupRouter, setupBackupRouter } from './routes/backup.js';
 import { migrateEncryptTokens } from './crypto.js';
 import { startBackgroundSync } from './worker.js';
@@ -71,6 +72,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/admin', adminBackupRouter);
 app.use('/api/setup', setupBackupRouter);
 app.use('/api/proxy', proxyRoutes);
+app.use('/api/extract', extractRoutes);
 
 // ── Health check ────────────────────────────────────────────────────
 const startedAt = Date.now();
