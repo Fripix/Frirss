@@ -207,7 +207,11 @@ describe('extractArticle', () => {
     const out = extractArticle('https://example.com/a', page);
     expect(out).not.toBeNull();
     expect(out!.content).toContain('premier paragraphe');
-    expect(out!.title).toContain('titre');
+    // Readability garde le <title> de la page quand le <h1> ne partage aucun
+    // mot avec lui — c'est son comportement, pas un défaut. On l'assert tel
+    // quel plutôt qu'approximativement : un changement de règle en amont doit
+    // se voir.
+    expect(out!.title).toBe('Titre de la page');
   });
 
   it('N’assainit PAS — c’est le client qui le fait', () => {
