@@ -10,7 +10,7 @@ import { effectiveLayout } from '../../lib/effectiveLayout';
 import { shouldLoadMore, listBodyState, canLoadMore } from '../../lib/listPagination';
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
-import { openExternal } from '../../lib/openExternal';
+import { openArticleAtSource } from '../../lib/openArticleAtSource';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
 import SwipeableArticleRow from './SwipeableArticleRow';
@@ -117,10 +117,7 @@ export default function ArticleList() {
       onToggleReadLater={(e) => { e.stopPropagation(); toggleReadLater(article); }}
       onOpenSource={(e) => {
         e.stopPropagation();
-        openExternal(article.url);
-        // Marquage SOUS CONDITION, jamais la bascule : `toggleRead` sur un
-        // article déjà lu le repasserait en non lu, l'inverse de l'intention.
-        if (!article.read) toggleRead(article);
+        openArticleAtSource(article, toggleRead);
       }}
     />
   );
@@ -965,10 +962,7 @@ export default function ArticleList() {
                       }}
                       onOpenSource={(e) => {
                         e.stopPropagation();
-                        openExternal(article.url);
-                        // Marquage SOUS CONDITION, jamais la bascule : `toggleRead` sur un
-                        // article déjà lu le repasserait en non lu, l'inverse de l'intention.
-                        if (!article.read) toggleRead(article);
+                        openArticleAtSource(article, toggleRead);
                       }}
                     />
                   );

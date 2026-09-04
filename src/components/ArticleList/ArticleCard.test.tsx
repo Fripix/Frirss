@@ -52,4 +52,53 @@ describe('ArticleCard', () => {
     fireEvent.click(getByRole('button', { name: /Hello World/i }));
     expect(onSelect).toHaveBeenCalledOnce();
   });
+
+  it('affiche les quatre actions, dans l’ordre étoile → à lire plus tard → ouvrir à la source → ✓', () => {
+    const { container } = render(
+      <ArticleCard article={base} showSource active={false}
+        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
+    );
+    const actions = container.querySelector('.article-card__actions');
+    // Chaque emplacement est un enfant direct du conteneur : soit le bouton
+    // lui-même (ouvrir à la source, ✓), soit un `<span>` qui l'enveloppe
+    // (étoile, à lire plus tard, à cause du geste d'appui long). On lit le
+    // `title` du bouton qu'il porte pour retrouver l'ordre affiché.
+    const kinds = Array.from(actions?.children ?? []).map((el) => {
+      const button = el.matches('button') ? el : el.querySelector('button');
+      return button?.getAttribute('title')?.split(' — ')[0] ?? null;
+    });
+    expect(kinds).toEqual([
+      'articleRow.addStar', 'articleRow.addReadLater', 'articleRow.openSource', 'articleRow.markRead',
+    ]);
+  });
+
+  it('réserve un emplacement vide pour « ouvrir à la source » quand l’article n’a pas d’URL', () => {
+    const { container } = render(
+      <ArticleCard article={{ ...base, url: '' }} showSource active={false}
+        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
+    );
+    const actions = container.querySelector('.article-card__actions');
+    // Toujours 4 emplacements : un article sans URL ne fait pas disparaître
+    // le troisième, il le rend vide — sinon le ✓ se décalerait sur cette ligne.
+    expect(actions?.children.length).toBe(4);
+    const thirdSlot = actions?.children[2];
+    expect(thirdSlot?.querySelector('button')).toBeNull();
+    expect(thirdSlot?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('le clic sur « ouvrir à la source » appelle onOpenSource, jamais onSelect', () => {
+    const onOpenSource = vi.fn();
+    const onSelect = vi.fn();
+    const { container } = render(
+      <ArticleCard article={base} showSource active={false}
+        onSelect={onSelect} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={onOpenSource} />
+    );
+    const actions = container.querySelector('.article-card__actions');
+    const slot = actions?.children[2];
+    const button = slot?.matches('button') ? slot : slot?.querySelector('button');
+    expect(button).toBeTruthy();
+    fireEvent.click(button as Element);
+    expect(onOpenSource).toHaveBeenCalledOnce();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
 });

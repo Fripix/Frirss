@@ -67,7 +67,7 @@ interface StarButtonProps {
   article?: Article;
 }
 
-export function StarButton({ starred, onClick, article }: StarButtonProps) {
+function StarButton({ starred, onClick, article }: StarButtonProps) {
   const { t } = useTranslation();
   const { picking, setPicking, handlers, guardClick, anchor } = useFileGesture(!!article);
   return (
@@ -111,7 +111,7 @@ interface ReadLaterButtonProps {
   article?: Article;
 }
 
-export function ReadLaterButton({ active, onClick, article }: ReadLaterButtonProps) {
+function ReadLaterButton({ active, onClick, article }: ReadLaterButtonProps) {
   const { t } = useTranslation();
   const { picking, setPicking, handlers, guardClick, anchor } = useFileGesture(!!article);
   return (
@@ -149,7 +149,7 @@ interface MarkReadButtonProps {
   onClick: (e: ReactMouseEvent) => void;
 }
 
-export function MarkReadButton({ read, onClick }: MarkReadButtonProps) {
+function MarkReadButton({ read, onClick }: MarkReadButtonProps) {
   const { t } = useTranslation();
   return (
     <button
