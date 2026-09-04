@@ -325,7 +325,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
               type="email"
               value={email}
               onChange={setEmail}
-              placeholder="nom@exemple.com"
+              placeholder={t('login.emailPlaceholder')}
               required
             />
           )}

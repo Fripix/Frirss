@@ -934,7 +934,7 @@ function IdentitySection() {
               value={logoUrlDraft}
               onChange={(e) => setLogoUrlDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { applyLogoUrl(); e.currentTarget.blur(); } }}
-              placeholder="https://exemple.com/logo.png"
+              placeholder={t('preferences.branding.logoUrlPlaceholder')}
               className="flex-1 text-sm px-3 py-2 rounded-lg border outline-none transition-colors"
               style={{
                 borderColor: 'var(--panel-border)',

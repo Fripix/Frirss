@@ -186,7 +186,8 @@
       "logoCompact": "Compact (logo + titel)",
       "logoFull": "Volledig (alleen logo)",
       "logoModeHint": "Compact: klein logo naast de naam. Volledig: het logo vervangt de naam.",
-      "logoSizeHint": "Vierkante PNG aanbevolen (256×256), transparante achtergrond. Automatisch geschaald."
+      "logoSizeHint": "Vierkante PNG aanbevolen (256×256), transparante achtergrond. Automatisch geschaald.",
+      "logoUrlPlaceholder": "https://example.com/logo.png"
     },
     "colors": {
       "resetColors": "Kleuren herstellen",
@@ -472,7 +473,8 @@
     "errorUnavailable": "De server heeft niet geantwoord. Dat zegt niets over uw gegevens.",
     "tagline": "Een moderne lezer voor je FreshRSS-server.",
     "showPassword": "Wachtwoord tonen",
-    "hidePassword": "Wachtwoord verbergen"
+    "hidePassword": "Wachtwoord verbergen",
+    "emailPlaceholder": "naam@example.com"
   },
   "admin": {
     "users": "Gebruikers",

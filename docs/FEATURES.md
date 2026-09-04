@@ -2247,6 +2247,18 @@ et `uk`.
   voix et prononciation sur cet attribut. Pas de `dir` : les neuf langues
   d'interface vont de gauche à droite ; le sens d'écriture ne concerne que le
   **contenu** des articles, porté bloc par bloc par `dir="auto"`.
+- ⚠️ **Ce que la parité NE voit pas.** Le script du `CLAUDE.md` compare les
+  clés du français aux huit autres : il ne peut rien dire d'une chaîne qui
+  n'est jamais passée par i18next. Trois lui avaient échappé, trouvées le
+  2026-09-04 en balayant les attributs visibles (`title`, `aria-label`,
+  `placeholder`, `alt`) et le texte JSX littéral : deux exemples rédigés en
+  français servis aux neuf langues (`nom@exemple.com` sur l'inscription,
+  `https://exemple.com/logo.png` dans l'identité) et un `aria-label="Loading"`
+  en anglais sur la barre de progression — laquelle n'a aucun texte, donc
+  c'était le SEUL mot qu'un lecteur d'écran annonçait. Refaire ce balayage
+  quand on doute, la parité ne le remplace pas.
+- ⚠️ **`example.com` et pas `exemple.com`** dans les exemples : le premier est
+  réservé par l'IANA, le second est un domaine réel et achetable.
 - **Les dates suivent aussi la langue** : `dateLocale()` (`src/utils/dates.ts`)
   rend l'étiquette i18next telle quelle — c'est une balise BCP 47 valide, donc
   `toLocaleDateString` la résout sans table à tenir à jour.

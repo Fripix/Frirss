@@ -104,6 +104,11 @@ la release publiée.
   remplir son cadre, laissant apparaître le fond de celui-ci sur la droite. Le
   défaut ne se voyait qu'au-delà d'une certaine largeur de colonne, donc jamais
   sur mobile.
+- **Trois textes restaient dans une seule langue.** L'exemple d'adresse
+  courriel à l'inscription et celui d'URL de logo étaient rédigés en français
+  pour tout le monde ; la barre de progression du haut s'annonçait « Loading »
+  aux lecteurs d'écran, quelle que soit la langue — et comme elle n'affiche
+  aucun texte, c'était le seul mot qu'ils prononçaient.
 - **La page déclare la langue de l'interface.** Elle annonçait le français quelle
   que soit la langue choisie. Les lecteurs d'écran y prennent leur voix et leurs
   règles de prononciation : une interface polonaise était lue avec une voix

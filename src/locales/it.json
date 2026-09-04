@@ -186,7 +186,8 @@
       "logoCompact": "Compatto (logo + titolo)",
       "logoFull": "Completo (solo logo)",
       "logoModeHint": "Compatto: piccolo logo accanto al nome. Completo: il logo sostituisce il nome.",
-      "logoSizeHint": "PNG quadrato consigliato (256×256), sfondo trasparente. Ridimensionato automaticamente."
+      "logoSizeHint": "PNG quadrato consigliato (256×256), sfondo trasparente. Ridimensionato automaticamente.",
+      "logoUrlPlaceholder": "https://example.com/logo.png"
     },
     "colors": {
       "resetColors": "Reimposta i colori",
@@ -472,7 +473,8 @@
     "errorUnavailable": "Il server non ha risposto. Questo non dice nulla sulle tue credenziali.",
     "tagline": "Un lettore moderno per il tuo server FreshRSS.",
     "showPassword": "Mostra la password",
-    "hidePassword": "Nascondi la password"
+    "hidePassword": "Nascondi la password",
+    "emailPlaceholder": "nome@example.com"
   },
   "admin": {
     "users": "Utenti",

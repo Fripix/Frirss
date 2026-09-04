@@ -186,7 +186,8 @@
       "logoCompact": "Kompaktowy (logo + tytuł)",
       "logoFull": "Pełny (samo logo)",
       "logoModeHint": "Kompaktowy: małe logo obok nazwy. Pełny: logo zastępuje nazwę.",
-      "logoSizeHint": "Zalecany kwadratowy PNG (256×256), przezroczyste tło. Automatycznie skalowane."
+      "logoSizeHint": "Zalecany kwadratowy PNG (256×256), przezroczyste tło. Automatycznie skalowane.",
+      "logoUrlPlaceholder": "https://example.com/logo.png"
     },
     "colors": {
       "resetColors": "Zresetuj kolory",
@@ -480,7 +481,8 @@
     "errorUnavailable": "Serwer nie odpowiedział. To nic nie mówi o Twoich danych logowania.",
     "tagline": "Nowoczesny czytnik dla Twojego serwera FreshRSS.",
     "showPassword": "Pokaż hasło",
-    "hidePassword": "Ukryj hasło"
+    "hidePassword": "Ukryj hasło",
+    "emailPlaceholder": "nazwa@example.com"
   },
   "admin": {
     "users": "Użytkownicy",
