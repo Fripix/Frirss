@@ -14,12 +14,17 @@ la release publiée.
 ## Fonctionnalités
 
 - **Ouvrir un article à sa source depuis la liste.** Une icône sur chaque ligne
-  ouvre l'article sur le site d'origine dans un nouvel onglet et le marque lu,
-  sans l'ouvrir dans FriRSS — pour qui préfère lire ses flux à la source.
-  Demandé dans l'issue #11. La quatrième icône ne coûte pas un pixel de
-  hauteur : la ligne normale range désormais ses icônes sur deux rangs plutôt
-  qu'en colonne. En mode Compact, elles sont aussi plus espacées qu'avant, pour
-  que le doigt ne vise pas le ✓ et n'ouvre pas un onglet.
+  ouvre l'article sur le site d'origine dans un nouvel onglet, sans l'ouvrir
+  dans FriRSS — pour qui préfère lire ses flux à la source. Demandé dans
+  l'issue #11. L'article ouvert devient l'article sélectionné : il est donc
+  marqué lu, sa ligne **reste** dans la liste même sous le filtre « Non lus »,
+  et au retour de l'onglet on peut enchaîner les actions dessus sans avoir à
+  le retrouver. En mode Compact, les icônes sont aussi plus espacées qu'avant,
+  pour que le doigt ne vise pas le ✓ et n'ouvre pas un onglet. À savoir : dans
+  la vue normale, les quatre icônes restent empilées en colonne, et cette
+  colonne est plus haute que le texte de la ligne — les lignes y gagnent une
+  vingtaine de pixels, soit à peu près un article de moins par écran. Masquer
+  une icône dans Préférences → Mise en page rend cette hauteur.
 - **Choisir les icônes affichées sur une ligne.** Une nouvelle section
   « Mise en page » dans les préférences permet d'afficher ou de masquer chacune
   des quatre icônes, une par une. Les balayages, les raccourcis et le volet de

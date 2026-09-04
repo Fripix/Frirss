@@ -594,9 +594,9 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   cible reste **22 × 22 px**, sous le minimum de 24 px de la règle WCAG 2.5.8 —
   et elles sont désormais quatre de front. Depuis l'arrivée de la 4ᵉ icône, une
   méprise coûte cher : le doigt qui visait le ✓ tombait sur « ouvrir à la
-  source », qui ouvre un onglet, marque lu **et** retire la ligne sous
-  « Non lus ». Doubler l'écart rend l'essentiel de la séparation d'avant pour
-  8 px de largeur de ligne. L'ordre est désormais **le même partout** :
+  source », qui ouvre un onglet, marque lu **et** sélectionne l'article — soit
+  trois effets pour un doigt mal posé. Doubler l'écart rend l'essentiel de la
+  séparation d'avant pour 8 px de largeur de ligne. L'ordre est désormais **le même partout** :
   étoile → à lire plus tard → ouvrir à la source → ✓, alors que le mode
   Compact inversait auparavant étoile et « à lire plus tard ». Le ✓ reste en
   DERNIER : c'est ce qui permet d'enchaîner des clics de marquage sans bouger
@@ -609,17 +609,21 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   cause vaut pour toute la liste, rien n'a besoin d'absorber une variation).
   **Chaque mode garde sa disposition**, passée en `className` : la ligne
   compacte et la carte de grille alignent leurs icônes **en ligne** ; la ligne
-  normale (et l'aperçu) les range en **grille 2 × 2**
-  (`grid grid-cols-2 gap-1 flex-shrink-0 self-start pt-0.5`). Une colonne
-  verticale y avait d'abord été essayée, et elle coûtait cher : quatre boutons
-  empilés mesurent **102 px** alors que le bloc de texte voisin (source, titre,
-  résumé sur deux lignes) en fait 80 — la colonne devenait donc ce qui dicte la
-  hauteur de la ligne, qui passait de **105 à 127 px**, un article de moins par
-  écran dans la vue par DÉFAUT. Sur deux rangs, la barre retombe à 48 px, reste
-  à l'intérieur du texte, et la ligne retrouve ses 105 px (mesuré au navigateur
-  sur le vrai balisage et la feuille de styles construite, pas à l'œil).
-  `self-start` n'est pas décoratif : sans lui, la grille s'étire sur toute la
-  hauteur de la ligne et étire ses boutons avec elle.
+  normale (et l'aperçu) les empile en **colonne**
+  (`flex flex-col items-center gap-1 flex-shrink-0 pt-0.5`), comme du temps où
+  elles étaient trois.
+  ⚠️ **Cette colonne coûte de la hauteur de ligne, et c'est un choix assumé.**
+  Quatre boutons empilés mesurent **102 px**, alors que le bloc de texte voisin
+  (source, titre, résumé sur deux lignes) en fait **79,25 px** : la colonne est
+  donc ce qui dicte la hauteur de la ligne, qui passe de **104,25 px** (trois
+  icônes, la barre tenant alors dans le texte) à **127 px** — +22,75 px, à peu
+  près un article de moins par écran dans la vue par DÉFAUT. Une **grille
+  2 × 2** rendait ces 22,75 px et a été essayée un temps ; elle a été refusée à
+  l'usage : les quatre icônes doivent rester alignées comme les trois d'avant.
+  Les chiffres sont mesurés au navigateur (`getBoundingClientRect()`) sur le
+  vrai balisage et la feuille de styles **construite**, panneau de 420 px, pas
+  à l'œil. Rétrécir les boutons n'est pas l'échappatoire : ils sont déjà à
+  22 × 22 px, sous le minimum WCAG 2.5.8 rappelé ci-dessus.
   Réglages de visibilité : `ArticleRowActions` reçoit désormais le choix de
   l'utilisateur (`useUiStore(s => s.rowActions)`), réglable dans Préférences →
   **Mise en page** (voir *Préférences* ci-dessous) — toutes visibles par
@@ -640,23 +644,36 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   `ArticleRow` depuis `ArticleList.tsx`, qui n'a pas d'autre consommateur.
 - **Ouvrir à la source** (4ᵉ icône, `OpenSourceButton`) : ouvre l'URL d'origine
   de l'article dans un nouvel onglet (`openExternal()`, `src/lib/openExternal.ts`
-  — `window.open(url, '_blank', 'noopener')`, jamais l'article dans FriRSS) et
-  marque l'article lu **sous condition** (`openArticleAtSource()`,
-  `src/lib/openArticleAtSource.ts`) — jamais une bascule : appeler `toggleRead`
-  sur un article déjà lu le repasserait à non lu, l'inverse de l'intention.
+  — `window.open(url, '_blank', 'noopener')`, jamais l'article dans FriRSS)
+  puis **sélectionne** l'article (`openArticleAtSource()`,
+  `src/lib/openArticleAtSource.ts`, qui reçoit `selectArticle` en argument).
+  L'article ouvert devient donc l'article courant : au retour de l'onglet, le
+  volet de lecture, les raccourcis et les actions portent déjà sur lui, sans
+  avoir à le retrouver dans la liste. C'est ce que l'usage réel a demandé ;
+  l'icône se contentait auparavant de le marquer lu **sous condition**.
+  Deux conséquences, et ce sont elles qui font l'intérêt du changement :
+  - `selectArticle` (`src/stores/feedStore.ts`) marque lui-même l'article lu,
+    de façon optimiste et par le chemin de lecture normal — celui qui sait
+    survivre hors ligne. La garde « jamais une bascule » de l'ancienne version
+    n'a donc plus d'objet : elle protégeait de `toggleRead`, qui aurait
+    repassé non lu un article déjà lu ; `selectArticle` sur un article déjà lu
+    se contente de le sélectionner.
+  - **La ligne ne quitte plus la liste sous « Non lus ».** Le retrait est
+    décidé par `shouldLeaveList()` (`src/lib/removeOnRead.ts`), que seul
+    `toggleRead` consulte — et dont le critère `selected` protège de toute
+    façon l'article sélectionné. Le clic laisse donc la ligne en place, là où
+    il la faisait disparaître.
   Le clic appelle `e.stopPropagation()` en premier, comme les trois autres
-  boutons de la ligne, pour ne jamais sélectionner l'article ni l'ouvrir dans
-  le volet de lecture. Sous le filtre « Non lus », le marquage déclenche donc
-  le même retrait de ligne que le ✓ décrit plus haut : **optimiste**, avant la
-  réponse du serveur, avec le même rollback en cas de refus. Sur un article
-  **déjà lu**, en revanche, l'icône ouvre et ne touche à rien : elle n'est pas
-  un ✓, qui le repasserait non lu.
+  boutons de la ligne, et la sélection est appelée **explicitement** dans le
+  gestionnaire : laisser le clic remonter jusqu'à la ligne donnerait un
+  comportement différent d'un mode à l'autre, la carte de grille arrêtant déjà
+  la propagation sur son conteneur d'actions.
   Sans URL, `openArticleAtSource()` ne fait **rien du tout** — ni ouverture, ni
-  marquage. La garde est dans le module et pas seulement dans l'affichage :
+  sélection. La garde est dans le module et pas seulement dans l'affichage :
   aucun bouton ne mène là aujourd'hui (`rowActionSlots()` rend l'emplacement
   vide), mais un futur appelant qui ne consulterait pas les emplacements — un
-  raccourci clavier, par exemple — marquerait sinon l'article lu sans que rien
-  ne s'ouvre.
+  raccourci clavier, par exemple — changerait sinon l'état de l'article sans
+  que rien ne s'ouvre.
 
 ### Marquer lu au défilement
 Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article

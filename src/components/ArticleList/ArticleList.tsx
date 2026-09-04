@@ -120,7 +120,10 @@ export default function ArticleList() {
       onToggleReadLater={(e) => { e.stopPropagation(); toggleReadLater(article); }}
       onOpenSource={(e) => {
         e.stopPropagation();
-        openArticleAtSource(article, toggleRead);
+        // `stopPropagation` puis sélection explicite : la carte arrête déjà la
+        // propagation sur son conteneur d'actions, laisser le clic remonter ne
+        // sélectionnerait donc rien ici et sélectionnerait ailleurs.
+        openArticleAtSource(article, selectArticle);
       }}
     />
   );
@@ -966,7 +969,9 @@ export default function ArticleList() {
                       }}
                       onOpenSource={(e) => {
                         e.stopPropagation();
-                        openArticleAtSource(article, toggleRead);
+                        // Sélection explicite, pas un clic qu'on laisse
+                        // remonter jusqu'à la ligne : voir `renderCard`.
+                        openArticleAtSource(article, selectArticle);
                       }}
                     />
                   );
@@ -1440,8 +1445,8 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
             `.article-row button` est exempté du `min-height: 40px` tactile,
             juste en dessous du minimum WCAG 2.5.8 — et un doigt qui visait le
             ✓ tombait sur « ouvrir à la source », qui ouvre un onglet, marque
-            lu ET retire la ligne sous « Non lus ». Huit pixels de largeur de
-            ligne contre une méprise coûteuse. */}
+            lu ET sélectionne l'article. Huit pixels de largeur de ligne contre
+            une méprise coûteuse. */}
         <ArticleRowActions
           article={article}
           isReadLater={isReadLater}
@@ -1523,19 +1528,23 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
         )}
       </div>
 
-      {/* Grille 2×2, pas une colonne. Une colonne de quatre boutons mesure
-          102 px, alors que le bloc de texte à côté (source + titre + résumé sur
-          deux lignes) en fait 80 : la colonne devenait ce qui dicte la hauteur
-          de la ligne, qui passait de 105 à 127 px — un article de moins par
-          écran, dans la vue par défaut. Sur deux rangs elle retombe à 48 px,
-          bien à l'intérieur du texte, et la ligne retrouve ses 105 px.
-          `self-start` est indispensable : sans lui la grille s'étire sur toute
-          la hauteur de la ligne et étire ses boutons avec elle. */}
+      {/* Une COLONNE, et elle coûte de la hauteur — c'est assumé. Quatre
+          boutons empilés mesurent 102 px, alors que le bloc de texte voisin
+          (source + titre + résumé sur deux lignes) en fait 79,25 : la colonne
+          devient donc ce qui dicte la hauteur de la ligne, qui passe de
+          104,25 px à 127 px, soit +22,75 px (mesuré au navigateur sur ce
+          balisage et la feuille de styles construite, panneau de 420 px).
+          Une grille 2 × 2 rendait ces 22,75 px, et elle a été refusée : les
+          quatre icônes doivent rester alignées comme les trois d'avant.
+          Rétrécir les boutons n'est PAS l'échappatoire : ils font déjà
+          22 × 22 px, sous le minimum de 24 px de WCAG 2.5.8, parce que
+          `.article-row button` est exempté du `min-height: 40px` tactile.
+          Les deux autres modes gardent leur disposition en ligne. */}
       <ArticleRowActions
         article={article}
         isReadLater={isReadLater}
         settings={rowActions}
-        className="grid grid-cols-2 gap-1 flex-shrink-0 self-start pt-0.5"
+        className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5"
         onToggleStar={onToggleStar}
         onToggleReadLater={onToggleReadLater}
         onOpenSource={onOpenSource}

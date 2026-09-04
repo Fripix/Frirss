@@ -92,7 +92,10 @@ describe('ArticleRow — mode compact', () => {
     ]);
   });
 
-  it('le clic sur « ouvrir à la source » appelle onOpenSource, jamais onSelect', () => {
+  // La sélection de l'article se fait désormais DANS `onOpenSource`, appelée
+  // explicitement ; le clic, lui, ne doit toujours pas remonter jusqu'à la
+  // ligne — c'est ce chemin-là que le test garde.
+  it('le clic sur « ouvrir à la source » appelle onOpenSource, sans déclencher onSelect par propagation', () => {
     const onSelect = vi.fn();
     // Le gestionnaire réel d'`ArticleList` commence par `e.stopPropagation()` ;
     // le test reproduit ce point d'appel, sinon il ne prouverait rien de ce que

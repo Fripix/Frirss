@@ -16,21 +16,31 @@ const article = (over: Partial<Article> = {}): Article => ({
 
 describe('openArticleAtSource', () => {
   it("ouvre l'URL de l'article", () => {
-    const toggleRead = vi.fn();
-    openArticleAtSource(article(), toggleRead);
+    openArticleAtSource(article(), vi.fn());
     expect(openExternalModule.openExternal).toHaveBeenCalledWith('https://example.com/1');
   });
 
-  it('marque lu un article non lu', () => {
-    const toggleRead = vi.fn();
-    openArticleAtSource(article({ read: false }), toggleRead);
-    expect(toggleRead).toHaveBeenCalledOnce();
+  // Le comportement a changé : l'icône marquait lu, elle sélectionne. C'est
+  // `selectArticle` qui marque lu au passage, et c'est ce qui permet d'agir
+  // ensuite sur l'article sans le rechercher dans la liste.
+  it("sélectionne l'article ouvert", () => {
+    const selectArticle = vi.fn();
+    const a = article({ read: false });
+    openArticleAtSource(a, selectArticle);
+    expect(selectArticle).toHaveBeenCalledOnce();
+    expect(selectArticle).toHaveBeenCalledWith(a);
   });
 
-  it('NE bascule PAS un article déjà lu — sinon il repasserait à non lu', () => {
-    const toggleRead = vi.fn();
-    openArticleAtSource(article({ read: true }), toggleRead);
-    expect(toggleRead).not.toHaveBeenCalled();
+  // L'ancienne version refusait d'agir sur un article déjà lu, parce que
+  // `toggleRead` l'aurait repassé non lu. `selectArticle` n'est pas une
+  // bascule : il sélectionne dans les deux cas, et la garde disparaît avec le
+  // danger qui la justifiait.
+  it('sélectionne aussi un article déjà lu', () => {
+    const selectArticle = vi.fn();
+    const a = article({ read: true });
+    openArticleAtSource(a, selectArticle);
+    expect(selectArticle).toHaveBeenCalledOnce();
+    expect(selectArticle).toHaveBeenCalledWith(a);
   });
 
   it.each([
@@ -38,12 +48,12 @@ describe('openArticleAtSource', () => {
     ['absente', undefined],
     ['nulle', null],
     ['blanche', '   '],
-  ])("sans URL (%s) : n'ouvre rien ET ne marque rien", (_label, url) => {
-    const toggleRead = vi.fn();
-    openArticleAtSource(article({ url } as Partial<Article>), toggleRead);
+  ])("sans URL (%s) : n'ouvre rien ET ne sélectionne rien", (_label, url) => {
+    const selectArticle = vi.fn();
+    openArticleAtSource(article({ url } as Partial<Article>), selectArticle);
     expect(openExternalModule.openExternal).not.toHaveBeenCalled();
-    // Le piège : `openExternal('')` ne fait rien, mais le marquage partait
-    // quand même — l'article devenait lu sans que rien ne s'ouvre.
-    expect(toggleRead).not.toHaveBeenCalled();
+    // Le piège : `openExternal('')` ne fait rien, mais la suite partait quand
+    // même — l'article changeait d'état sans que rien ne s'ouvre.
+    expect(selectArticle).not.toHaveBeenCalled();
   });
 });

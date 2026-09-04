@@ -87,7 +87,10 @@ describe('ArticleCard', () => {
     expect(thirdSlot?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('le clic sur « ouvrir à la source » appelle onOpenSource, jamais onSelect', () => {
+  // `onOpenSource` sélectionne désormais l'article, mais EXPLICITEMENT, dans
+  // son propre gestionnaire : le clic ne doit toujours pas remonter jusqu'à la
+  // carte. Ce que ce test garde, c'est le chemin, pas l'absence de sélection.
+  it('le clic sur « ouvrir à la source » appelle onOpenSource, sans déclencher onSelect par propagation', () => {
     const onOpenSource = vi.fn();
     const onSelect = vi.fn();
     const { container } = render(
