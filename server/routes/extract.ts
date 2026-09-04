@@ -132,12 +132,17 @@ router.get('/', async (req, res) => {
   // nouveau dans `fetchUpstream` (plus une par saut de redirection). Aucune
   // n'est gratuite : l'image de production est bâtie sur alpine, donc musl, qui
   // ne garde AUCUN cache de résolution, et l'étape de production n'installe ni
-  // nscd ni résolveur local — chaque appel sort donc du processus. La sortie
-  // reste modeste sous Docker : le premier saut est le résolveur embarqué, sur
-  // la loopback du conteneur, soit un aller-retour de socket local et non un
-  // trajet WAN. La seconde résolution n'est pas évitée : il faudrait
-  // mémoriser un verdict, donc le tenir pour valide au-delà de l'instant où il
-  // a été établi, dans la fonction qui garde toutes les sorties du backend.
+  // nscd ni résolveur local — chaque appel sort donc du processus, et sort
+  // aussi de la machine. Sur un réseau Docker défini par l'utilisateur — le
+  // seul cas où le résolveur embarqué existe ; ni le pont par défaut ni
+  // `network_mode: host` n'en ont — ce résolveur ne répond localement que les
+  // NOMS DE CONTENEURS et transmet tout le reste aux serveurs de l'hôte, sans
+  // rien mémoriser. Les cibles d'extraction étant des hôtes d'articles
+  // publics, seul le PREMIER saut est un socket local : la requête externe
+  // complète reste due, à chaque résolution. La seconde n'est pas évitée : il
+  // faudrait mémoriser un verdict, donc le tenir pour valide au-delà de
+  // l'instant où il a été établi, dans la fonction qui garde toutes les
+  // sorties du backend.
   // Le prix est assumé pour ce qu'il achète : une entrée empoisonnée du cache
   // d'extraction est servie à TOUTE l'instance, en silence, pendant `CACHE_TTL`.
   //
@@ -160,7 +165,10 @@ router.get('/', async (req, res) => {
     // `lookupFailure` : un nom dont le résolveur dit qu'il n'existe pas
     // (`ENOTFOUND`) reste une cible refusée. Ce n'est pas un hoquet mais l'état
     // stable d'un hôte interne retiré de `PROXY_REWRITES` — le servir depuis le
-    // cache rouvrait tout entier le trou que cette garde ferme.
+    // cache rouvrait tout entier le trou que cette garde ferme. C'est aussi,
+    // et plus souvent, l'état stable d'un hôte d'article PUBLIC dont le
+    // domaine a expiré ou déménagé : son entrée de cache chaude répond
+    // désormais 403 au lieu d'être rendue hors ligne. Voulu, pas un défaut.
     //
     // Rien n'est perdu en cas d'absence : `fetchUpstream` rejoue la garde et
     // refuse avant le moindre appel sortant. Un hôte qu'on ne sait pas situer

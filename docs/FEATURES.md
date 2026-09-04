@@ -1317,8 +1317,9 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   5 s par tentative, 2 tentatives par serveur de noms). **Ce que le plafond
   borne : UNE résolution**, pas la réponse rendue. Une requête qui en déclenche
   plusieurs les additionne — un échec de cache sur `/api/extract` en fait deux
-  (garde pré-cache puis `fetchUpstream`, plus une par saut de redirection),
-  soit jusqu'à 10 s. **Limite connue** : ce plafond ne borne pas non plus le
+  (garde pré-cache puis `fetchUpstream`, plus une par saut de redirection) :
+  10 s sans redirection, et jusqu'à ~35 s au bout des `MAX_REDIRECTS` (5)
+  sauts, qui portent le compte à 1 + 6 résolutions. **Limite connue** : ce plafond ne borne pas non plus le
   fil de `libuv` — `dns.lookup`
   s'exécute sur le pool de threads (4 par défaut, `UV_THREADPOOL_SIZE` n'est
   fixé nulle part, pool partagé avec les entrées-sorties fichier et la
@@ -1434,9 +1435,14 @@ là est une faille XSS.
   du système** — l'image est bâtie sur alpine, donc sur musl, qui n'en tient
   aucun, et l'étape de production n'installe ni nscd ni résolveur local (la
   glibc n'en garde pas davantage sans nscd). Chaque appel sort donc du
-  processus — sans être pour autant un trajet WAN : sous Docker, le premier
-  saut est le résolveur embarqué, sur la loopback du conteneur, soit un
-  aller-retour de socket local. La seconde résolution n'est pas évitée, et ce
+  processus, et sort aussi de la machine : sur un réseau Docker défini par
+  l'utilisateur — le seul cas où le résolveur embarqué existe, ni le pont par
+  défaut ni `network_mode: host` n'en ayant un — ce résolveur ne répond
+  localement que les **noms de conteneurs** et transmet tout le reste aux
+  serveurs de l'hôte, sans rien mémoriser. Les cibles d'extraction étant des
+  hôtes d'articles publics, seul le premier saut est un socket local : la
+  requête externe complète reste due à chaque fois. La seconde résolution
+  n'est pas évitée, et ce
   n'est pas un oubli : il faudrait mémoriser un verdict, donc le tenir pour
   valide au-delà de l'instant où il a été établi, dans la fonction qui garde
   toutes les sorties du backend. Le prix est assumé pour ce qu'il achète : une
@@ -1457,16 +1463,41 @@ là est une faille XSS.
   le trou entier : `ENOTFOUND` est l'état *stable* d'un hôte interne au nom
   pointé qu'on vient de retirer de `PROXY_REWRITES`, ou dont le conteneur ne
   voit plus le résolveur interne — son entrée de cache serait alors ressortie
-  en 200 vers toute l'instance pendant `CACHE_TTL`. `lookupFailure`
-  (`server/routes/proxy.ts`) trie donc par liste POSITIVE : seuls `EAI_AGAIN`,
-  `ESERVFAIL`, `ETIMEDOUT` et le dépassement de `LOOKUP_TIMEOUT_MS` valent une
-  panne ; `ENOTFOUND`, `EAI_NONAME` **et tout code inconnu** sont un refus.
-  ⚠️ **Réserve** : la coupure est moins nette sur la musl de l'image de
-  production que sur la glibc d'un poste de développement — musl replie plus
-  volontiers ses échecs sur `EAI_NONAME`, donc un résolveur réellement muet
-  peut y être classé « nom inexistant » et faire répondre 403 là où le cache
-  aurait suffi. Le troc est assumé dans ce sens : c'est la disponibilité qui
-  cède, jamais la garde.
+  en 200 vers toute l'instance pendant `CACHE_TTL`. C'est aussi, et bien plus
+  souvent dans un lecteur de flux, l'état stable d'un hôte d'article
+  **public** dont le domaine a expiré ou déménagé : son entrée de cache
+  chaude, autrefois rendue hors ligne, répond désormais 403. C'est le 403 le
+  plus fréquent de cette route, et il est voulu — pas un défaut à déboguer.
+  `lookupFailure` (`server/routes/proxy.ts`) trie par liste POSITIVE : seuls
+  `EAI_AGAIN` (rcode SERVFAIL, ou délai total épuisé), `EAI_FAIL` (les autres
+  rcodes d'échec — FORMERR, NOTIMP, et surtout REFUSED) et le dépassement de
+  `LOOKUP_TIMEOUT_MS` (`ETIMEDOUT`) valent une panne ; `ENOTFOUND` **et tout
+  code inconnu** sont un refus. Les deux réponses définitives — NXDOMAIN et
+  « ce nom n'a pas d'adresse » — arrivent sous ce seul code `ENOTFOUND`, Node
+  relabellisant `EAI_NONAME` et `EAI_NODATA` avant tout appelant : aucun code
+  de la liste transitoire ne peut donc accompagner une réponse du résolveur.
+  (`ESERVFAIL`, listé ici jusqu'au 2026-09-04, est un code de **c-ares** que
+  seul `dns.resolve*` produit — jamais appelé dans ce dépôt : il n'a jamais
+  rien classé, et une panne rendant `EAI_FAIL` valait un 403.)
+  ⚠️ **Réserve** : une panne franche n'est pas toujours reconnue pour telle.
+  Sous la musl de l'image de production, un échec d'**envoi** de la requête
+  (`resolv.conf` illisible, socket refusé, aucun serveur de noms configuré)
+  rend `EAI_SYSTEM`, que libuv ne transmet pas tel quel : sa traduction le
+  remplace par l'`errno` du moment, un code quelconque absent de la liste,
+  donc un refus. Une extraction répond alors 403 là où le cache aurait suffi.
+  Le troc est assumé dans ce sens : c'est la disponibilité qui cède, jamais la
+  garde. *(La réserve écrite ici jusqu'au 2026-09-04 nommait `EAI_NONAME` —
+  une chaîne que le code ne reçoit jamais — et prêtait à musl un repliement de
+  ses échecs qu'elle ne fait pas : `EAI_NONAME` est sa réponse NXDOMAIN, le
+  cas définitif.)*
+  ⚠️ **Limite acceptée, dans l'autre sens** : la phrase ci-dessus vaut pour
+  `ENOTFOUND`, pas pour la branche transitoire. Pendant une vraie panne de
+  résolveur, le repli sert le cache d'extraction — global à l'instance — y
+  compris pour un hôte interne *autrefois* autorisé, la seule classe d'entrées
+  qui puisse porter du contenu interne (`ALLOWED_INTERNAL` court-circuite la
+  résolution au moment de l'écriture). Le tri par liste positive a ramené cette
+  fenêtre de « toujours » à « tant que le résolveur bafouille » ; il ne la
+  referme pas.
   **La sortie réseau, elle, ne faiblit pas** : cache vide,
   `fetchUpstream` rejoue la garde et refuse avant le moindre appel — et il le
   fait avec le même 403 que n'importe quel refus, sans code à part, pour ne pas

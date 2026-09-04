@@ -277,12 +277,16 @@ export class UnresolvedTargetError extends BlockedTargetError {}
  * Ce que ce plafond borne : UNE résolution, pas la réponse rendue à
  * l'appelant. Une requête qui en déclenche plusieurs les additionne — un échec
  * de cache sur `/api/extract` en fait deux (la garde pré-cache, puis
- * `fetchUpstream`, plus une par saut de redirection), donc jusqu'à 10 s avant
- * la première ligne du corps. Ce qu'il ne borne PAS non plus : le fil de
- * `libuv`. `dns.lookup` s'exécute sur le pool de threads (4 par
- * défaut — `UV_THREADPOOL_SIZE` n'est fixé nulle part — et partagé avec les
- * entrées-sorties fichier et la cryptographie), et abandonner l'attente ne rend
- * pas le fil, qui reste pris jusqu'à ce que le résolveur abandonne à son tour.
+ * `fetchUpstream`, plus une par saut de redirection) : 10 s avant la première
+ * ligne du corps SANS redirection, et jusqu'à ~35 s au bout des
+ * `MAX_REDIRECTS` (5) sauts, qui portent le compte à 1 + 6 résolutions. Le
+ * chiffre de 10 s seul, longtemps écrit ici trois mots après la clause qui
+ * énumère les sauts, décrivait le meilleur cas comme s'il était le plafond.
+ * Ce qu'il ne borne PAS non plus : le fil de `libuv`. `dns.lookup` s'exécute
+ * sur le pool de threads (4 par défaut — `UV_THREADPOOL_SIZE` n'est fixé nulle
+ * part — et partagé avec les entrées-sorties fichier et la cryptographie), et
+ * abandonner l'attente ne rend pas le fil, qui reste pris jusqu'à ce que le
+ * résolveur abandonne à son tour.
  * Un résolveur en panne continue donc de coûter des fils occupés ; il ne coûte
  * plus des requêtes immobiles. Le refermer complètement demanderait de passer
  * à `dns.promises.resolve4/6` (c-ares, hors pool), qui ignore `/etc/hosts` et
@@ -322,10 +326,25 @@ async function lookupWithTimeout(host: string): Promise<dns.LookupAddress[]> {
 /**
  * Codes de résolution qui disent « réessaie » — les seuls à valoir une panne.
  *
- * Le reste, `ENOTFOUND` et `EAI_NONAME` en tête, est une réponse DÉFINITIVE :
- * le résolveur a parlé, ce nom n'existe pas.
+ * Ce sont les trois seuls que ce chemin puisse recevoir pour une absence de
+ * réponse : `EAI_AGAIN` (rcode SERVFAIL, ou délai total épuisé), `EAI_FAIL`
+ * (les autres rcodes d'échec — FORMERR, NOTIMP, et surtout REFUSED, celui d'un
+ * résolveur filtrant qui redémarre) et le dépassement de `LOOKUP_TIMEOUT_MS`,
+ * dont le rejet porte `ETIMEDOUT`.
+ *
+ * Le reste est une réponse DÉFINITIVE : le résolveur a parlé. Ses deux formes —
+ * NXDOMAIN, et « ce nom existe mais n'a pas d'adresse » — arrivent ici sous un
+ * SEUL code, `ENOTFOUND` : Node relabellise `UV_EAI_NONAME` et `UV_EAI_NODATA`
+ * avant qu'aucun appelant ne les voie. C'est ce qui rend la liste ci-dessus
+ * sûre — aucun de ses codes ne peut accompagner une réponse du résolveur.
+ *
+ * `ESERVFAIL` en a été retiré le 2026-09-04 : c'est un code de **c-ares**, que
+ * seul `dns.resolve*` produit — jamais appelé dans ce dépôt — et qui ne figure
+ * même pas dans la table d'erreurs de libuv (`util.getSystemErrorMap()`). Il
+ * n'a donc jamais rien classé : la liste réelle se réduisait à `EAI_AGAIN` et
+ * au délai, et une panne rendant `EAI_FAIL` valait un 403.
  */
-const TRANSIENT_LOOKUP_CODES = new Set(['EAI_AGAIN', 'ESERVFAIL', 'ETIMEDOUT']);
+const TRANSIENT_LOOKUP_CODES = new Set(['EAI_AGAIN', 'EAI_FAIL', 'ETIMEDOUT']);
 
 /**
  * Classe un échec de résolution : panne du résolveur, ou nom inexistant ?
@@ -334,7 +353,11 @@ const TRANSIENT_LOOKUP_CODES = new Set(['EAI_AGAIN', 'ESERVFAIL', 'ETIMEDOUT']);
  * `UnresolvedTargetError`), et elle y est décisive. Un nom qui n'existe pas
  * n'est pas un hoquet : c'est l'état STABLE d'un hôte interne au nom pointé
  * qu'on vient de retirer de `PROXY_REWRITES`, ou dont le conteneur ne voit
- * plus le résolveur interne. Tout ranger dans « on ne sait pas » faisait
+ * plus le résolveur interne. C'est aussi — et bien plus souvent, dans un
+ * lecteur de flux — l'état stable d'un hôte d'article PUBLIC dont le domaine a
+ * expiré ou déménagé : son entrée de cache chaude, autrefois rendue hors
+ * ligne, répond désormais 403. Ce 403-là est le plus fréquent de la route, et
+ * il est voulu. Tout ranger dans « on ne sait pas » faisait
  * ressortir son entrée de cache — écrite du temps où il était autorisé — en
  * 200 vers n'importe quel compte de l'instance pendant tout `CACHE_TTL` :
  * exactement le trou pour lequel la garde a été avancée devant le cache.
@@ -344,12 +367,27 @@ const TRANSIENT_LOOKUP_CODES = new Set(['EAI_AGAIN', 'ESERVFAIL', 'ETIMEDOUT']);
  * refuser un nom qui n'existe pas ne coûte qu'une lecture de cache qu'on
  * n'aura pas, le servir peut livrer un contenu interne.
  *
- * ⚠️ **Réserve, à connaître** : la coupure est moins nette qu'elle n'en a
- * l'air. La musl de l'image de production replie ses échecs sur `EAI_NONAME`
- * plus volontiers que la glibc d'un poste de développement — un résolveur
- * réellement en panne peut donc y être classé « nom inexistant », et une
- * extraction répondre 403 là où le cache aurait suffi. Le troc est assumé dans
- * ce sens-là : c'est la disponibilité qui cède, jamais la garde.
+ * ⚠️ **Réserve, à connaître** : une panne franche n'est pas toujours reconnue
+ * pour telle. Sous musl — la libc de l'image de production — un échec d'ENVOI
+ * de la requête (`resolv.conf` illisible, socket refusé, aucun serveur de noms
+ * configuré) rend `EAI_SYSTEM`, que libuv ne transmet pas tel quel : sa
+ * traduction le remplace par l'`errno` du moment, donc par un code quelconque,
+ * absent de la liste ci-dessus. Cette panne-là est donc classée en refus, et
+ * une extraction répond 403 là où le cache aurait suffi. Le troc est assumé
+ * dans ce sens-là : c'est la disponibilité qui cède, jamais la garde.
+ *
+ * *(La réserve écrite ici jusqu'au 2026-09-04 nommait `EAI_NONAME` — une chaîne
+ * que ce code ne reçoit jamais, Node la relabellisant en `ENOTFOUND` — et
+ * prêtait à musl un repliement qu'elle ne fait pas : `EAI_NONAME` est sa
+ * réponse NXDOMAIN, le cas définitif, pas un échec replié.)*
+ *
+ * ⚠️ **Et dans l'autre sens, la fenêtre n'est pas close** : sur la branche
+ * transitoire, le repli sert le cache d'extraction — global à l'instance — y
+ * compris pour un hôte interne AUTREFOIS autorisé, la seule classe d'entrées
+ * qui puisse porter du contenu interne (`ALLOWED_INTERNAL` court-circuite la
+ * résolution au moment de l'écriture). Le tri par liste positive a ramené cette
+ * fenêtre de « toujours » à « tant que le résolveur bafouille » ; il ne la
+ * referme pas. Limite connue et acceptée.
  */
 function lookupFailure(host: string, err: unknown): BlockedTargetError {
   const code = (err as { code?: unknown } | null)?.code;

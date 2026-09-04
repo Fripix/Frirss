@@ -32,7 +32,12 @@ describe('assertTargetSafe — classement des échecs de résolution', () => {
   // Ces codes-là disent que le résolveur n'a pas répondu, pas que la cible est
   // mauvaise. `/api/extract` s'en sert pour servir quand même son cache — voir
   // `extractCache.test.ts` pour le comportement de bout en bout.
-  for (const code of ['EAI_AGAIN', 'ESERVFAIL', 'ETIMEDOUT']) {
+  //
+  // Ce sont les trois seuls que ce chemin puisse recevoir pour une absence de
+  // réponse : `EAI_AGAIN` (SERVFAIL, ou délai total épuisé), `EAI_FAIL` (les
+  // autres rcodes d'échec — FORMERR, NOTIMP, et surtout REFUSED, celui du
+  // résolveur filtrant qui redémarre) et le rejet du minuteur, `ETIMEDOUT`.
+  for (const code of ['EAI_AGAIN', 'EAI_FAIL', 'ETIMEDOUT']) {
     it(`classe ${code} en panne de résolution`, async () => {
       failWith(code);
       await expect(assertTargetSafe(TARGET)).rejects.toBeInstanceOf(UnresolvedTargetError);
@@ -47,9 +52,19 @@ describe('assertTargetSafe — classement des échecs de résolution', () => {
   //
   // Le code inconnu est dans la même liste, et c'est le sens du tri : la liste
   // des paniques est POSITIVE, tout ce qui n'y figure pas est un refus.
+  //
+  // Les trois derniers cas ne sont pas des doublons du code inconnu : ce sont
+  // des chaînes que ce chemin ne reçoit JAMAIS, et les lister prouve que la
+  // liste positive ne les rattrape pas si quelqu'un les y remet.
+  // `EAI_NONAME` et `EAI_NODATA` sont relabellisés en `ENOTFOUND` par Node
+  // avant tout appelant ; `ESERVFAIL` appartient à c-ares (`dns.resolve*`),
+  // jamais appelé ici ; `EAI_SYSTEM` est remplacé par l'`errno` du moment dans
+  // la traduction de libuv. Quoi qu'il arrive, le défaut reste le refus.
   const refusals: [string, string | undefined][] = [
     ['un nom inexistant (ENOTFOUND)', 'ENOTFOUND'],
-    ['un nom inexistant (EAI_NONAME, la forme de musl)', 'EAI_NONAME'],
+    ['la forme brute que Node ne délivre jamais (EAI_NONAME)', 'EAI_NONAME'],
+    ['un code de c-ares, hors de ce chemin (ESERVFAIL)', 'ESERVFAIL'],
+    ["l'échec d'envoi de musl, tel que musl le nomme (EAI_SYSTEM)", 'EAI_SYSTEM'],
     ['un code inconnu', 'EQUELQUECHOSE'],
     ['une erreur sans code', undefined],
   ];
