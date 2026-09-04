@@ -806,8 +806,9 @@ ces composants.
    visibles au doigt.
 4. **Un clic sur l'icône neuve** ouvre un onglet vers l'article **et** marque la
    ligne lue — sans ouvrir l'article dans FriRSS.
-5. **Sous le filtre « Non lus »**, la ligne disparaît après confirmation du
-   serveur. C'est voulu.
+5. **Sous le filtre « Non lus »**, la ligne disparaît immédiatement — le
+   retrait est optimiste, comme le drapeau `read` ; `planRowRestore()` la
+   remet si le serveur refuse. C'est voulu.
 6. **Un article déjà lu** : le clic ouvre l'onglet et ne le repasse **pas** en
    non lu.
 
