@@ -1,6 +1,4 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
-import fs from 'fs';
-import path from 'path';
 import request from 'supertest';
 import app from '../index.js';
 import db, { setSetting } from '../db.js';
@@ -670,6 +668,22 @@ describe('proxy', () => {
       expect(res.body, target).toEqual({ error: 'Target host not allowed' });
     }
   });
+
+  // `https://` franchit le filtre `^https?://` mais `new URL()` s'y casse. Les
+  // deux routes sortantes doivent en dire la même chose — `docs/FEATURES.md`
+  // promet qu'`/api/extract` classe ses échecs « comme sur `/api/proxy` », et
+  // une URL indécodable est une cible qu'on refuse, pas une panne amont.
+  it("classe une URL malformée en 403 sur les DEUX routes sortantes", async () => {
+    const proxyRes = await request(app).get('/api/proxy')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .set('X-Proxy-Target', 'https://');
+    const extractRes = await request(app).get('/api/extract')
+      .query({ url: 'https://' }).set('Authorization', `Bearer ${adminToken}`);
+
+    expect(proxyRes.status).toBe(403);
+    expect(extractRes.status).toBe(403);
+    expect(extractRes.body).toEqual(proxyRes.body);
+  });
 });
 
 describe('cache', () => {
@@ -965,17 +979,11 @@ describe('extract', () => {
     expect(res.status).toBe(401);
   });
 
-  // `rateLimit()` s'alloue un `MemoryStore` NEUF à chaque appel : deux appels,
-  // même plafond, donnent deux seaux indépendants indexés par le même
-  // identifiant d'utilisateur — soit le double du plafond annoncé pour un
-  // compte, et `FRIRSS_PROXY_RATE_LIMIT` qui ne borne plus ce qu'il prétend
-  // borner. Le seul moyen de le vérifier sans émettre 600 requêtes est de lire
-  // la source, comme le fait déjà le garde-fou de `extractKey`.
-  it("partage le seau de cadence de `/api/proxy` au lieu d'en créer un second", () => {
-    const src = fs.readFileSync(path.join(process.cwd(), 'server/routes/extract.ts'), 'utf8');
-    expect(src).not.toMatch(/rateLimit\(/);
-    expect(src).toMatch(/router\.use\(proxyRateLimiter\)/);
-  });
+  // Le partage du seau de cadence avec `/api/proxy` est vérifié pour de vrai —
+  // deux requêtes proxifiées puis une extraction, plafond abaissé à 2 — dans
+  // `server/test/proxyRateLimit.test.ts` : abaisser le plafond demande de
+  // stabiliser l'environnement AVANT le chargement des modules, ce que ce
+  // fichier-ci ne peut pas faire (il importe `../index.js` en tête).
 
   // Le message doit couvrir les deux cas qu'il refuse : `file:///etc/passwd`
   // est bien PRÉSENT, et un « Missing url » enverrait chercher le défaut là
@@ -1028,6 +1036,34 @@ describe('extract', () => {
     const body = streamOf([new Uint8Array(1024)], () => { cancelled = true; });
     stubUpstream(body, 'application/pdf');
     const res = await get('https://news.example.com/doc.pdf');
+    expect(res.status).toBe(415);
+    expect(res.body).toEqual({ error: 'Unsupported content type' });
+    expect(cancelled).toBe(true);
+  });
+
+  // Sous undici, une socket reste retenue tant que le flux n'est ni lu ni
+  // annulé : un amont qui répond 500 en boucle accumulerait les connexions.
+  it('cancels the body of a failed upstream response', async () => {
+    let cancelled = false;
+    const body = streamOf([new Uint8Array(1024)], () => { cancelled = true; });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 500, headers: new Headers({ 'content-type': 'text/html' }), body,
+    }));
+    const res = await get('https://news.example.com/500');
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({ error: 'Upstream request failed' });
+    expect(cancelled).toBe(true);
+  });
+
+  // Une réponse SANS `Content-Type` tombe dans le refus 415, comme un type
+  // non-HTML : plus étroit que l'ancien chemin par le proxy, et assumé.
+  it('refuses a response with no Content-Type at all', async () => {
+    let cancelled = false;
+    const body = streamOf([new Uint8Array(1024)], () => { cancelled = true; });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: new Headers(), body,
+    }));
+    const res = await get('https://news.example.com/sans-type');
     expect(res.status).toBe(415);
     expect(res.body).toEqual({ error: 'Unsupported content type' });
     expect(cancelled).toBe(true);

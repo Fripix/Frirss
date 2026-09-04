@@ -236,7 +236,12 @@ export function targetBelongsToServer(serverUrl: string, rawTarget: string): boo
   return target.pathname === base || target.pathname.startsWith(`${base}/`);
 }
 
-class BlockedTargetError extends Error {}
+/**
+ * Cible refusée. Exportée pour que `/api/extract` lève EXACTEMENT le même
+ * échec que le proxy et le fasse repartir par `finishError` : un seul 403, un
+ * seul corps, une seule ligne de journal, décrits à un seul endroit.
+ */
+export class BlockedTargetError extends Error {}
 
 // Throws BlockedTargetError if `rawUrl` must not be fetched. Trusted internal
 // hosts (PROXY_REWRITES / PROXY_INTERNAL_HOSTS) pass. Otherwise the host is
@@ -304,10 +309,15 @@ export async function fetchUpstream(
     let curMethod = method;
     let curHeaders = { ...headers };
     let curBody = body;
-    let startHost = new URL(url).host;
+    // Renseigné APRÈS le premier `assertTargetSafe` : `new URL()` levait ici un
+    // `TypeError` brut pour une URL malformée (`https://`, qui passe pourtant
+    // le filtre `^https?://`), avant que `BlockedTargetError` puisse être
+    // levée — l'appelant classait alors en 502 ce que le proxy classe en 403.
+    let startHost = '';
 
     for (let hop = 0; ; hop++) {
       await assertTargetSafe(url);
+      if (hop === 0) startHost = new URL(url).host;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs ?? TIMEOUT_MS);
       // Combine the caller's signal into this hop's controller so a caller

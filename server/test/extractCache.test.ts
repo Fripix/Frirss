@@ -103,6 +103,31 @@ describe('extract — cache', () => {
     expect(JSON.parse(body)).toEqual(res.body);
   });
 
+  // ── Le refus de cible passe AVANT la lecture du cache ──────────────
+  // La clé d'extraction est globale à l'instance : une entrée écrite du temps
+  // où un hôte interne était autorisé (`PROXY_INTERNAL_HOSTS`,
+  // `PROXY_REWRITES`) survit à son retrait pendant tout `CACHE_TTL`. Quand le
+  // cache était lu en premier, elle repartait en 200 vers n'importe quel compte
+  // de l'instance, sans refus et sans ligne de journal. Ce test-ci est le seul
+  // du fichier qui n'a pas besoin du mock DNS : le pré-contrôle littéral tranche
+  // avant toute résolution.
+  it("refuse une cible interne sans consulter le cache, même s'il a une entrée", async () => {
+    cacheGet.mockResolvedValue(JSON.stringify({ title: 'contenu interne', content: '<p>fuite</p>' }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const res = await request(app).get('/api/extract').query({ url: 'http://10.0.0.5/a' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Target host not allowed' });
+    expect(cacheGet).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    // Un balayage SSRF doit laisser une trace côté serveur.
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it("n'écrit rien dans le cache quand la page n'est pas extractible", async () => {
     cacheGet.mockResolvedValue(null);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({

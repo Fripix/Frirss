@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { fetchUpstream, finishError, proxyRateLimiter } from './proxy.js';
+import { BlockedTargetError, fetchUpstream, finishError, proxyRateLimiter, targetAllowedLiteral } from './proxy.js';
 import { cacheEnabled, cacheGet, cacheSet, extractKey } from '../cache.js';
 import { extractArticle } from '../extract.js';
 
@@ -31,7 +31,7 @@ const BODY_TIMEOUT_MS = 20_000;
 /** Types de contenu dont il y a un article à extraire. */
 const HTML_TYPES = /^(text\/html|application\/xhtml\+xml)\b/i;
 
-/** Plafond dépassé : échec ordinaire, le client se replie sur son extracteur. */
+/** Plafond dépassé : échec ordinaire, dont le client doit pouvoir se replier. */
 class BodyTooLargeError extends Error {}
 
 /**
@@ -111,11 +111,21 @@ router.get('/', async (req, res) => {
   // http(s). Dire « Missing url » d'un `file:///etc/passwd` bien présent, c'est
   // envoyer chercher le défaut là où il n'est pas.
   if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Invalid or missing url' });
-  // Pas de pré-contrôle littéral ici : `assertTargetSafe`, dans
-  // `fetchUpstream`, teste `isInternalHostLiteral` AVANT toute résolution DNS,
-  // et son échec repart par `finishError` — même 403, même corps, même ligne
-  // de journal, par un seul chemin. Le recopier ne faisait que créer une
-  // seconde description du même refus, vouée à diverger.
+  // Pré-contrôle littéral AVANT la lecture du cache, et non délégué à
+  // `assertTargetSafe` : la clé d'extraction est globale à l'instance, donc une
+  // entrée écrite du temps où un hôte interne était autorisé
+  // (`PROXY_INTERNAL_HOSTS`, `PROXY_REWRITES`) continuait, une fois cet hôte
+  // retiré, à être servie à tout le monde pendant `CACHE_TTL` — 200, sans
+  // refus, sans ligne de journal. Le refus doit précéder toute lecture ; une
+  // sonde SSRF ne doit pas non plus coûter un aller-retour Redis.
+  //
+  // Le refus lui-même n'est PAS réécrit ici : même erreur, même `finishError`
+  // que `/api/proxy` (voir son gestionnaire) — un seul 403, un seul corps, une
+  // seule ligne de journal. La garde par résolution DNS, elle, reste dans
+  // `fetchUpstream`, sur la cible réelle et sur chaque saut de redirection.
+  if (!targetAllowedLiteral(url)) {
+    return finishError(res, new BlockedTargetError(url), url, 'Extract error:');
+  }
 
   const key = cacheEnabled ? extractKey(url) : null;
   if (key) {
@@ -144,7 +154,7 @@ router.get('/', async (req, res) => {
     // n'a pas d'article à extraire, et n'a donc aucune raison d'être avalé.
     // Une réponse SANS `Content-Type` tombe dans le même refus (`|| ''` ne
     // correspond à rien) : c'est plus étroit que l'ancien chemin par le proxy,
-    // et assumé — le client se replie sur son extracteur local.
+    // et assumé — le client doit pouvoir se replier sur son extracteur local.
     const ctype = upstream.headers.get('content-type') || '';
     if (!HTML_TYPES.test(ctype)) {
       upstream.body?.cancel().catch(() => {});
@@ -152,10 +162,10 @@ router.get('/', async (req, res) => {
     }
     html = await readBoundedText(upstream, MAX_HTML_BYTES, BODY_TIMEOUT_MS);
   } catch (err) {
-    // Dépassement de taille : échec ordinaire, le client se replie. Le reste
-    // (cible refusée, délai, panne amont) est classé exactement comme sur
-    // `/api/proxy` — deux routes ne doivent pas décrire le même échec de deux
-    // façons.
+    // Dépassement de taille : échec ordinaire, dont le client doit pouvoir se
+    // replier. Le reste (cible refusée, délai, panne amont) est classé
+    // exactement comme sur `/api/proxy` — deux routes ne doivent pas décrire
+    // le même échec de deux façons.
     if (err instanceof BodyTooLargeError) {
       return res.status(502).json({ error: 'Upstream response too large' });
     }
@@ -163,8 +173,8 @@ router.get('/', async (req, res) => {
   }
 
   const article = extractArticle(url, html);
-  // Pas d'article lisible : on le dit, et le client extrait de son côté. Un
-  // corps vide renvoyé en 200 le priverait de son repli.
+  // Pas d'article lisible : on le dit, pour que le client puisse extraire de
+  // son côté. Un corps vide renvoyé en 200 le priverait de ce repli.
   if (!article) return res.status(422).json({ error: 'Not extractable' });
 
   const body = JSON.stringify(article);

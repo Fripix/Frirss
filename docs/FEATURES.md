@@ -1343,11 +1343,19 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   Piège : `rateLimit()` s'alloue un `MemoryStore` neuf à chaque appel — deux
   appels de même configuration donnent deux compteurs indépendants sur le même
   identifiant, donc le double du plafond annoncé et une protection contournable
-  en changeant d'URL.
+  en changeant d'URL. Le partage est vérifié par un test de comportement
+  (`server/test/proxyRateLimit.test.ts`, plafond abaissé à 2), pas par une
+  lecture du texte des sources — un garde-fou qui lisait `extract.ts` restait
+  vert quand la ligne `router.use(...)` était mise en commentaire.
+  À noter : ce magasin est **en mémoire, donc par processus**. Le plafond vaut
+  par processus Node, pas par instance — sans effet sur l'image Docker de
+  FriRSS, qui n'en lance qu'un, mais ce serait à revoir derrière plusieurs
+  répliques (il faudrait alors un magasin partagé, Redis par exemple).
 - **Un refus de cible est toujours journalisé** : le pré-contrôle littéral
   comme la garde par résolution passent par `finishError`, qui écrit la cible
-  (expurgée) dans le journal. C'est le pré-contrôle qui attrape les sondes les
-  plus bruyantes (`http://127.0.0.1:6379/`, un nom de service nu, une IP
+  (expurgée) dans le journal — sur `/api/proxy` comme sur `/api/extract`, qui
+  lèvent la même `BlockedTargetError` exportée. C'est le pré-contrôle qui
+  attrape les sondes les plus bruyantes (`http://127.0.0.1:6379/`, un nom de service nu, une IP
   privée) : le laisser répondre 403 en silence vidait de son sens la trace
   promise. Le corps de la réponse, lui, ne nomme jamais la cible — ce serait
   offrir un scanner de réseau interne.
@@ -1368,6 +1376,13 @@ là est une faille XSS.
   travail d'un autre, et qu'à dix comptes la page n'est extraite qu'une fois.
   TTL commun (`CACHE_TTL`, 24 h) ; aucune détection de modification de la
   source, le bouton « Article complet » relance à la demande.
+- **Piège — le refus de cible passe AVANT la lecture du cache.** Justement
+  parce que la clé est globale à l'instance : une entrée écrite du temps où un
+  hôte interne était autorisé (`PROXY_INTERNAL_HOSTS`, `PROXY_REWRITES`) lui
+  survit pendant tout le `CACHE_TTL`, et une lecture placée en premier la
+  servait en 200 à n'importe quel compte, sans refus ni ligne de journal. Une
+  sonde SSRF ne doit pas non plus coûter un aller-retour Redis avant son 403.
+  Couvert par `server/test/extractCache.test.ts`, cache garni compris.
 - **Sans Redis** : la route extrait quand même, sans rien garder.
 - **Piège** : l'appel sortant passe par `fetchUpstream`, jamais par `fetch` —
   c'est lui qui porte la garde anti-SSRF.
@@ -1383,11 +1398,10 @@ là est une faille XSS.
 - **Plafonds de lecture** (`server/routes/extract.ts`) : la réponse doit être du
   `text/html` (sinon 415, avant toute lecture — un PDF ou une vidéo n'a pas
   d'article ; une réponse **sans en-tête `Content-Type`** tombe dans le même
-  refus, plus étroit que l'ancien chemin par le proxy, et le client se replie
-  sur son extracteur local), au plus 5 Mo (sinon 502) et lue en moins de 20 s
-  (sinon 504). Le
-  minuteur de `fetchUpstream` est désarmé à l'arrivée des en-têtes : il couvre
-  la connexion, pas le corps. Sans ces bornes, une URL publique quelconque
+  refus, plus étroit que l'ancien chemin par le proxy : le client **doit
+  pouvoir** se replier sur son extracteur local), au plus 5 Mo (sinon 502) et
+  lue en moins de 20 s (sinon 504). Le minuteur de `fetchUpstream` est désarmé
+  à l'arrivée des en-têtes : il couvre la connexion, pas le corps. Sans ces bornes, une URL publique quelconque
   suffisait à faire avaler des Go au seul processus Node, ou à lui faire tenir
   une socket indéfiniment.
 - **Cadence** : **le même seau que `/api/proxy`**, pas un second de même
@@ -1397,11 +1411,16 @@ là est une faille XSS.
   son propre compteur, rendrait la protection contournable en changeant d'URL.
 - **Échecs classés comme sur `/api/proxy`** : 403 cible refusée (journalisée,
   pour qu'un balayage SSRF laisse une trace), 504 délai, 502 panne amont. Le
-  corps ne nomme jamais la cible. La route ne recopie **aucun** contrôle du
-  proxy : `assertTargetSafe` teste déjà l'hôte littéral avant toute résolution
-  DNS, et `finishError` produit le 403, son corps et sa ligne de journal par un
-  seul chemin. Un `400 { error: 'Invalid or missing url' }` couvre les deux
-  entrées refusées d'emblée — `url` absente, ou présente mais pas http(s).
+  corps ne nomme jamais la cible. La route rejoue le **pré-contrôle littéral**
+  (`targetAllowedLiteral`, avant la lecture du cache) mais ne recopie ni le
+  corps du 403 ni sa ligne de journal : elle lève la `BlockedTargetError`
+  exportée par le proxy et la fait repartir par `finishError`, un seul chemin
+  pour les deux routes. La garde par résolution DNS, elle, reste dans
+  `fetchUpstream` — cible réelle et chaque saut de redirection. Une URL
+  malformée qui franchit le filtre `^https?://` (`https://`, sur laquelle
+  `new URL()` se casse) est donc un **403 des deux côtés**, jamais un 502.
+  Un `400 { error: 'Invalid or missing url' }` couvre les deux entrées
+  refusées d'emblée — `url` absente, ou présente mais pas http(s).
 - **422 quand la page n'est pas extractible** : le client doit pouvoir se
   replier sur son extracteur local ; un corps vide en 200 l'en priverait.
 
