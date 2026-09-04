@@ -100,7 +100,8 @@
     "addStar": "加入收藏",
     "removeStar": "取消收藏",
     "addReadLater": "加入稍后阅读",
-    "removeReadLater": "移出稍后阅读"
+    "removeReadLater": "移出稍后阅读",
+    "openSource": "Open at source"
   },
   "swipe": {
     "read": "已读",
@@ -185,7 +186,8 @@
       "logoCompact": "紧凑（Logo + 标题）",
       "logoFull": "完整（仅 Logo）",
       "logoModeHint": "紧凑：名称旁显示小 Logo。完整：仅显示 Logo，隐藏名称。",
-      "logoSizeHint": "建议使用正方形透明背景 PNG（256×256），会自动缩放。"
+      "logoSizeHint": "建议使用正方形透明背景 PNG（256×256），会自动缩放。",
+      "logoUrlPlaceholder": "https://example.com/logo.png"
     },
     "colors": {
       "resetColors": "重置颜色",
@@ -375,7 +377,8 @@
       "labels": "标签",
       "feeds": "订阅源",
       "offline": "离线",
-      "admin": "管理"
+      "admin": "管理",
+      "layout": "Layout"
     },
     "appearance": {
       "theme": "主题",
@@ -414,6 +417,14 @@
       "deleted": "分类已删除",
       "moved": "订阅源已移动",
       "failed": "操作失败"
+    },
+    "layout": {
+      "title": "Article action icons",
+      "hint": "Choose which icons appear on each article row. Swipes, shortcuts and the reading pane are unaffected; hiding Star or Read later, however, also removes the long press that files an article into a category from the list.",
+      "star": "Star",
+      "readLater": "Read later",
+      "openSource": "Open at source",
+      "markRead": "Mark as read"
     }
   },
   "login": {
@@ -461,7 +472,9 @@
     "errorUnavailable": "服务器无响应。这与你的凭据无关。",
     "tagline": "为你的 FreshRSS 服务器打造的现代阅读器。",
     "showPassword": "显示密码",
-    "hidePassword": "隐藏密码"
+    "hidePassword": "隐藏密码",
+    "errorServerUnresolved": "FriRSS could not resolve this server’s address: the DNS resolver did not answer. Check the hostname, then try again.",
+    "emailPlaceholder": "name@example.com"
   },
   "admin": {
     "users": "用户",
