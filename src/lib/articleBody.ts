@@ -72,6 +72,22 @@ export function reserveImgAspect(html: string): string {
     .replace(/<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi, '')
     .replace(/^(?:\s|&nbsp;|<br\s*\/?>)+/i, '');
   return html.replace(/<img\b[^>]*>/gi, (tag) => {
+    // La vignette d'une façade vidéo est NOTRE balisage, pas celui du flux.
+    // Sa place est déjà réservée par le `aspect-ratio: 16/9` de `.yt-facade`,
+    // et elle remplit sa boîte en `object-fit: cover` : réserver un format par
+    // dessus ne décrit rien de vrai.
+    //
+    // Le cas se présente vraiment : `youtubeThumbnail()` réutilise l'URL
+    // `hqdefault.jpg` que le réchauffage en avant a déjà mesurée comme image
+    // d'en-tête du même article, donc la mesure existe et un
+    // `aspect-ratio:480/360` — du 4:3 — se posait sur une boîte 16:9.
+    //
+    // Sans effet visible aujourd'hui, la CSS fixant les deux dimensions : ce
+    // n'est PAS ce qui causait le rectangle vert (voir `.yt-facade__thumb`
+    // dans `src/styles/index.css`, c'était une affaire de spécificité). On
+    // s'abstient quand même — un mécanisme prévu pour les images d'un flux n'a
+    // rien à faire sur du balisage que nous produisons nous-mêmes.
+    if (/\byt-facade__thumb\b/.test(tag)) return tag;
     const src = imgTagSrc(tag);
     const decl = aspectDecl(tag, src ? measuredImageSize(src) : null);
     return decl ? withAspect(tag, decl) : tag;

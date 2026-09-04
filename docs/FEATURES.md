@@ -953,6 +953,23 @@ Vignette cliquable (façade) au lieu d'un `<iframe>` chargé d'emblée.
 - **Piège** : la façade doit être posée **avant** l'assainissement — après, il n'y
   a plus d'iframe à remplacer. `src/lib/youtubeFacade.sanitize.test.ts` épingle
   cet invariant.
+- **Piège — spécificité CSS** : la vignette vit dans `.article-content`, et
+  `.article-content img` pèse 0,1,1 (une classe + un type) contre 0,1,0 pour
+  une classe seule. Elle héritait donc de `width:auto; height:auto;
+  margin:1em 0` et s'affichait à sa taille **naturelle** — 480×360 pour
+  `hqdefault.jpg` — dans une boîte 16:9 plus large qu'elle, découvrant le fond
+  `--list-hover` : un rectangle vert sur la droite. Visible uniquement quand la
+  colonne de lecture dépasse 480 px, donc sur bureau et jamais sur mobile, ce
+  qui explique qu'il ait survécu longtemps. Corrigé par un sélecteur descendant
+  (`.yt-facade .yt-facade__thumb`), qui repasse à 0,2,0. **Toute règle posée
+  sur `.article-content <balise>` gagnera de la même façon contre le balisage
+  que FriRSS injecte lui-même** : y penser avant d'en ajouter une.
+- **Piège** : `reserveImgAspect()` ne pose rien sur la vignette. Le
+  réchauffage en avant mesure l'image d'en-tête d'un article de flux YouTube,
+  qui porte **exactement** l'URL `hqdefault.jpg` que la façade réutilise — la
+  mesure existe donc, et un `aspect-ratio` 4:3 se serait posé sur une boîte
+  16:9. Sans effet visible (la CSS fixe les deux dimensions), mais un mécanisme
+  prévu pour les images d'un flux n'a rien à faire sur notre propre balisage.
 
 ---
 

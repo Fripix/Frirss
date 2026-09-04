@@ -67,6 +67,11 @@ _(rien pour l'instant)_
   par ailleurs traduite. Au passage, la date affichée pendant le balayage d'un
   article à l'autre était figée en français : elle changeait sous les yeux au
   moment où l'article s'affichait vraiment.
+- **Plus de bande verte à côté des vignettes vidéo.** Sur les écrans larges, la
+  vignette d'une vidéo YouTube s'affichait à sa taille d'origine au lieu de
+  remplir son cadre, laissant apparaître le fond de celui-ci sur la droite. Le
+  défaut ne se voyait qu'au-delà d'une certaine largeur de colonne, donc jamais
+  sur mobile.
 - **La page déclare la langue de l'interface.** Elle annonçait le français quelle
   que soit la langue choisie. Les lecteurs d'écran y prennent leur voix et leurs
   règles de prononciation : une interface polonaise était lue avec une voix

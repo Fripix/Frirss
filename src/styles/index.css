@@ -1069,7 +1069,26 @@ html {
   background: var(--list-hover);
   cursor: pointer;
 }
-.yt-facade__thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* ⚠️ Sélecteur descendant, et c'est le point : `.article-content img` pèse
+   0,1,1 (une classe + un type) et l'emportait sur `.yt-facade__thumb`, qui ne
+   pèse que 0,1,0. La vignette héritait donc de `width:auto; height:auto;
+   margin:1em 0` et s'affichait à sa taille NATURELLE — 480×360 pour
+   `hqdefault.jpg` — dans une boîte en 16:9 plus large qu'elle. Le fond du
+   conteneur (`--list-hover`) apparaissait alors sur la droite : le rectangle
+   vert. Visible seulement quand la colonne de lecture dépasse 480 px, d'où un
+   défaut de bureau que le mobile ne montre jamais. `.yt-facade` en tête porte
+   la règle à 0,2,0 et lui rend la main. */
+.yt-facade .yt-facade__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* Les trois que `.article-content img` imposait en plus : la marge décalait
+     la vignette dans sa boîte, et le rayon doublait celui du conteneur. */
+  margin: 0;
+  border-radius: 0;
+  max-height: none;
+}
 /* Drawn in CSS: the sanitizer strips <svg> from article HTML, and widening it
    for untrusted feed content would be a bad trade for an icon. */
 .yt-facade__play {
