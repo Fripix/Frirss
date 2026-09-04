@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import SavedCategoryPicker from './SavedCategoryPicker';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import type { Article } from '../../types';
+import { rowActionSlots, DEFAULT_ROW_ACTIONS, type RowActionSettings } from '../../lib/rowActions';
 
 /**
  * A long press — with a finger or with the mouse — opens the category picker,
@@ -162,5 +163,95 @@ export function MarkReadButton({ read, onClick }: MarkReadButtonProps) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
       </svg>
     </button>
+  );
+}
+
+interface OpenSourceButtonProps {
+  onClick: (e: ReactMouseEvent) => void;
+}
+
+/**
+ * Ouvrir l'article à sa source.
+ *
+ * Le glyphe est celui de « Ouvrir le site » dans le menu contextuel d'un flux :
+ * même verbe, même signe. L'icône porte l'action (« ouvrir ailleurs »), le
+ * contexte porte l'objet — un article ici, un flux là-bas.
+ *
+ * Pas de geste d'appui long, contrairement à l'étoile et à « à lire plus
+ * tard » : cette action n'a rien à classer.
+ */
+export function OpenSourceButton({ onClick }: OpenSourceButtonProps) {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={onClick}
+      className="p-1 rounded transition-colors hover:bg-black/5"
+      style={{ color: 'var(--star-inactive)' }}
+      title={t('articleRow.openSource')}
+      aria-label={t('articleRow.openSource')}
+    >
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+      </svg>
+    </button>
+  );
+}
+
+interface ArticleRowActionsProps {
+  article: Article;
+  isReadLater: boolean;
+  /** Classe du conteneur : chaque mode d'affichage garde sa disposition. */
+  className: string;
+  /** Réglages de visibilité. La grille passe les mêmes que les lignes. */
+  settings?: RowActionSettings;
+  /** Utilisé par la grille, qui empêche le clic d'atteindre la carte. */
+  onContainerClick?: (e: ReactMouseEvent) => void;
+  onToggleStar: (e: ReactMouseEvent) => void;
+  onToggleReadLater: (e: ReactMouseEvent) => void;
+  onOpenSource: (e: ReactMouseEvent) => void;
+  onToggleRead: (e: ReactMouseEvent) => void;
+}
+
+/**
+ * La barre d'actions d'une ligne — un seul composant pour les trois modes.
+ *
+ * Avant, les trois boutons étaient écrits trois fois, et la ligne compacte
+ * n'avait même pas de conteneur : ses boutons étaient enfants directs de la
+ * ligne, donc écartés du `gap-3` de celle-ci, comme le titre et l'heure.
+ *
+ * Un emplacement indisponible (`available: false`) rend une case VIDE de la
+ * même taille qu'un bouton, jamais rien : c'est ce qui empêche le ✓ de danser
+ * d'une ligne à l'autre. Même raison que la pastille « non lu », dont la place
+ * est déjà réservée quelques lignes plus haut dans `ArticleList.tsx`.
+ */
+export function ArticleRowActions({
+  article, isReadLater, className, settings = DEFAULT_ROW_ACTIONS,
+  onContainerClick, onToggleStar, onToggleReadLater, onOpenSource, onToggleRead,
+}: ArticleRowActionsProps) {
+  const slots = rowActionSlots(article, settings);
+  if (!slots.length) return null;
+  return (
+    <div className={className} onClick={onContainerClick}>
+      {slots.map((slot) => {
+        if (!slot.available) {
+          // Même boîte qu'un bouton : `p-1` autour d'un carré de 3.5.
+          return (
+            <span key={slot.kind} className="p-1 inline-flex" aria-hidden="true">
+              <span className="w-3.5 h-3.5" />
+            </span>
+          );
+        }
+        switch (slot.kind) {
+          case 'star':
+            return <StarButton key={slot.kind} starred={article.starred} onClick={onToggleStar} article={article} />;
+          case 'readLater':
+            return <ReadLaterButton key={slot.kind} active={isReadLater} onClick={onToggleReadLater} article={article} />;
+          case 'openSource':
+            return <OpenSourceButton key={slot.kind} onClick={onOpenSource} />;
+          case 'markRead':
+            return <MarkReadButton key={slot.kind} read={article.read} onClick={onToggleRead} />;
+        }
+      })}
+    </div>
   );
 }

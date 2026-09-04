@@ -100,7 +100,8 @@
     "addStar": "Aggiungi ai preferiti",
     "removeStar": "Rimuovi dai preferiti",
     "addReadLater": "Leggi più tardi",
-    "removeReadLater": "Rimuovi da Leggi più tardi"
+    "removeReadLater": "Rimuovi da Leggi più tardi",
+    "openSource": "Apri alla fonte"
   },
   "swipe": {
     "read": "Letto",

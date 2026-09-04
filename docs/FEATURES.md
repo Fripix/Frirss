@@ -580,6 +580,37 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   compactes alors qu'il existait dans la ligne normale et la vue grille. Ces
   lignes ayant toutes la même hauteur, le ✓ suivant se place exactement où
   était le précédent : on enchaîne les marquages sans bouger la souris.
+- **Une barre d'actions unique pour les trois modes** (`ArticleRowActions`,
+  `src/components/ArticleList/ArticleActions.tsx`) remplace les trois copies
+  qu'écrivaient la ligne normale, la ligne compacte et la carte de grille.
+  La ligne compacte n'avait **aucun conteneur** pour ses boutons : ils étaient
+  enfants directs de la ligne et héritaient donc de son `gap-3`, comme le
+  titre et l'heure — un conteneur dédié (`gap-1`) leur donne maintenant leur
+  propre écartement, plus resserré. L'ordre est désormais **le même partout** :
+  étoile → à lire plus tard → ouvrir à la source → ✓, alors que le mode
+  Compact inversait auparavant étoile et « à lire plus tard ». Le ✓ reste en
+  DERNIER : c'est ce qui permet d'enchaîner des clics de marquage sans bouger
+  la souris (issue #10, voir plus haut) — l'insérer avant l'aurait cassé.
+  Les emplacements viennent de `rowActionSlots()` (`src/lib/rowActions.ts`),
+  qui distingue deux absences : un article **sans URL** laisse un emplacement
+  **réservé**, vide mais de la même taille qu'un bouton (sinon les icônes
+  suivantes se décaleraient sur cette seule ligne) ; une icône masquée par
+  réglage laisse un emplacement **retiré**, rien n'occupant sa place (la
+  cause vaut pour toute la liste, rien n'a besoin d'absorber une variation).
+  Réglages de visibilité : tâche 4 seulement, `ArticleRowActions` reçoit pour
+  l'instant `DEFAULT_ROW_ACTIONS` en dur, donc les quatre icônes sont visibles.
+- **Ouvrir à la source** (4ᵉ icône, `OpenSourceButton`) : ouvre l'URL d'origine
+  de l'article dans un nouvel onglet (`openExternal()`, `src/lib/openExternal.ts`
+  — `window.open(url, '_blank', 'noopener')`, jamais l'article dans FriRSS) et
+  marque l'article lu **sous condition** (`if (!article.read) toggleRead(article)`)
+  — jamais une bascule : appeler `toggleRead` sur un article déjà lu le
+  repasserait à non lu, l'inverse de l'intention. Le clic appelle
+  `e.stopPropagation()` en premier, comme les trois autres boutons de la
+  ligne, pour ne jamais sélectionner l'article ni l'ouvrir dans le volet de
+  lecture. Sous le filtre « Non lus », le marquage déclenche donc le même
+  retrait de ligne que le ✓ décrit plus haut : **optimiste**, avant la
+  réponse du serveur, avec le même rollback en cas de refus — cliquer
+  l'icône équivaut à un ✓ suivi de l'ouverture externe.
 
 ### Marquer lu au défilement
 Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article

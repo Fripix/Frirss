@@ -10,10 +10,11 @@ import { effectiveLayout } from '../../lib/effectiveLayout';
 import { shouldLoadMore, listBodyState, canLoadMore } from '../../lib/listPagination';
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
+import { openExternal } from '../../lib/openExternal';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
 import SwipeableArticleRow from './SwipeableArticleRow';
-import { StarButton, ReadLaterButton, MarkReadButton } from './ArticleActions';
+import { ArticleRowActions } from './ArticleActions';
 import ArticleCard from './ArticleCard';
 import FeedFavicon from '../FeedFavicon';
 import BottomSheet from '../BottomSheet';
@@ -114,6 +115,13 @@ export default function ArticleList() {
       onToggleStar={(e) => { e.stopPropagation(); toggleStar(article); }}
       onToggleRead={(e) => { e.stopPropagation(); toggleRead(article); }}
       onToggleReadLater={(e) => { e.stopPropagation(); toggleReadLater(article); }}
+      onOpenSource={(e) => {
+        e.stopPropagation();
+        openExternal(article.url);
+        // Marquage SOUS CONDITION, jamais la bascule : `toggleRead` sur un
+        // article déjà lu le repasserait en non lu, l'inverse de l'intention.
+        if (!article.read) toggleRead(article);
+      }}
     />
   );
 
@@ -955,6 +963,13 @@ export default function ArticleList() {
                         e.stopPropagation();
                         toggleReadLater(article);
                       }}
+                      onOpenSource={(e) => {
+                        e.stopPropagation();
+                        openExternal(article.url);
+                        // Marquage SOUS CONDITION, jamais la bascule : `toggleRead` sur un
+                        // article déjà lu le repasserait en non lu, l'inverse de l'intention.
+                        if (!article.read) toggleRead(article);
+                      }}
                     />
                   );
 
@@ -1335,9 +1350,10 @@ interface ArticleRowProps {
   onToggleStar: (e: ReactMouseEvent) => void;
   onToggleRead: (e: ReactMouseEvent) => void;
   onToggleReadLater: (e: ReactMouseEvent) => void;
+  onOpenSource: (e: ReactMouseEvent) => void;
 }
 
-function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater }: ArticleRowProps) {
+function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource }: ArticleRowProps) {
   const { t } = useTranslation();
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = viewMode === 'preview' ? extractImageFromContent(article.content) : null;
@@ -1414,9 +1430,15 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
         <span className="text-[10px] flex-shrink-0" data-theme="list-time" style={{ color: 'var(--list-time)' }}>
           {timeAgo(article.published, t)}
         </span>
-        <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} article={article} />
-        <StarButton starred={article.starred} onClick={onToggleStar} article={article} />
-        <MarkReadButton read={article.read} onClick={onToggleRead} />
+        <ArticleRowActions
+          article={article}
+          isReadLater={isReadLater}
+          className="flex items-center gap-1 flex-shrink-0"
+          onToggleStar={onToggleStar}
+          onToggleReadLater={onToggleReadLater}
+          onOpenSource={onOpenSource}
+          onToggleRead={onToggleRead}
+        />
       </div>
     );
   }
@@ -1488,11 +1510,15 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
         )}
       </div>
 
-      <div className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5">
-        <StarButton starred={article.starred} onClick={onToggleStar} article={article} />
-        <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} article={article} />
-        <MarkReadButton read={article.read} onClick={onToggleRead} />
-      </div>
+      <ArticleRowActions
+        article={article}
+        isReadLater={isReadLater}
+        className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5"
+        onToggleStar={onToggleStar}
+        onToggleReadLater={onToggleReadLater}
+        onOpenSource={onOpenSource}
+        onToggleRead={onToggleRead}
+      />
     </div>
   );
 }

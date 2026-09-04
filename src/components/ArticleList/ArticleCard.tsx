@@ -5,7 +5,7 @@ import { READ_LATER_LABEL } from '../../stores/feedStore';
 import { extractImageFromContent, sourceInitial } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
 import { extractYouTubeId } from '../../lib/youtube';
-import { StarButton, ReadLaterButton, MarkReadButton } from './ArticleActions';
+import { ArticleRowActions } from './ArticleActions';
 
 interface ArticleCardProps {
   article: Article;
@@ -15,10 +15,11 @@ interface ArticleCardProps {
   onToggleStar: (e: ReactMouseEvent) => void;
   onToggleRead: (e: ReactMouseEvent) => void;
   onToggleReadLater: (e: ReactMouseEvent) => void;
+  onOpenSource: (e: ReactMouseEvent) => void;
 }
 
 export default function ArticleCard({
-  article, showSource, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater,
+  article, showSource, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource,
 }: ArticleCardProps) {
   const { t } = useTranslation();
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
@@ -68,11 +69,16 @@ export default function ArticleCard({
         <p className="article-card__summary" dir="auto">{article.summary}</p>
       </div>
 
-      <div className="article-card__actions" onClick={(e) => e.stopPropagation()}>
-        <StarButton starred={article.starred} onClick={onToggleStar} article={article} />
-        <ReadLaterButton active={isReadLater} onClick={onToggleReadLater} article={article} />
-        <MarkReadButton read={article.read} onClick={onToggleRead} />
-      </div>
+      <ArticleRowActions
+        article={article}
+        isReadLater={isReadLater}
+        className="article-card__actions"
+        onContainerClick={(e) => e.stopPropagation()}
+        onToggleStar={onToggleStar}
+        onToggleReadLater={onToggleReadLater}
+        onOpenSource={onOpenSource}
+        onToggleRead={onToggleRead}
+      />
     </div>
   );
 }

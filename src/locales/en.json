@@ -100,7 +100,8 @@
     "addStar": "Add to favorites",
     "removeStar": "Remove from favorites",
     "addReadLater": "Read later",
-    "removeReadLater": "Remove from read later"
+    "removeReadLater": "Remove from read later",
+    "openSource": "Open at source"
   },
   "swipe": {
     "read": "Read",

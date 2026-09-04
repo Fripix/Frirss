@@ -20,7 +20,7 @@ describe('ArticleCard', () => {
   it('renders the title and source', () => {
     const { getByText } = render(
       <ArticleCard article={base} showSource active={false}
-        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} />
+        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     expect(getByText('Hello World')).toBeTruthy();
     expect(getByText('The Verge')).toBeTruthy();
@@ -29,7 +29,7 @@ describe('ArticleCard', () => {
   it('shows the source-initial fallback when there is no image', () => {
     const { container } = render(
       <ArticleCard article={{ ...base, content: '<p>no image</p>' }} showSource active={false}
-        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} />
+        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     expect(container.querySelector('.article-card__fallback')).toBeTruthy();
   });
@@ -37,7 +37,7 @@ describe('ArticleCard', () => {
   it('renders a thumbnail when the content has an image', () => {
     const { container } = render(
       <ArticleCard article={{ ...base, content: '<img src="https://x/a.jpg">' }} showSource active={false}
-        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} />
+        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     expect(container.querySelector('img')).toBeTruthy();
     expect(container.querySelector('.article-card__fallback')).toBeNull();
@@ -47,7 +47,7 @@ describe('ArticleCard', () => {
     const onSelect = vi.fn();
     const { getByRole } = render(
       <ArticleCard article={base} showSource active={false}
-        onSelect={onSelect} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} />
+        onSelect={onSelect} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     fireEvent.click(getByRole('button', { name: /Hello World/i }));
     expect(onSelect).toHaveBeenCalledOnce();

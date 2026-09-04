@@ -100,7 +100,8 @@
     "addStar": "Aan favorieten toevoegen",
     "removeStar": "Uit favorieten verwijderen",
     "addReadLater": "Later lezen",
-    "removeReadLater": "Uit Later lezen verwijderen"
+    "removeReadLater": "Uit Later lezen verwijderen",
+    "openSource": "Bij de bron openen"
   },
   "swipe": {
     "read": "Gelezen",
