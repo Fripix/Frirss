@@ -1352,7 +1352,14 @@ interface ArticleRowProps {
   onOpenSource: (e: ReactMouseEvent) => void;
 }
 
-function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource }: ArticleRowProps) {
+/**
+ * Exporté pour les tests (`ArticleRow.compact.test.tsx`) : la ligne compacte
+ * est le mode le plus retouché des trois et n'était couverte par rien : l'ordre
+ * des icônes, l'emplacement réservé et « le clic n'ouvre pas l'article » ne
+ * tenaient qu'à travers la carte de la vue grille. `ArticleList` reste
+ * l'unique consommateur applicatif.
+ */
+export function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource }: ArticleRowProps) {
   const { t } = useTranslation();
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = viewMode === 'preview' ? extractImageFromContent(article.content) : null;
@@ -1429,11 +1436,17 @@ function ArticleRow({ article, viewMode, showSource, rowActions, favicon, stagge
         <span className="text-[10px] flex-shrink-0" data-theme="list-time" style={{ color: 'var(--list-time)' }}>
           {timeAgo(article.published, t)}
         </span>
+        {/* `gap-2` (8 px), pas `gap-1` : quatre cibles de 22 px côte à côte —
+            `.article-row button` est exempté du `min-height: 40px` tactile,
+            juste en dessous du minimum WCAG 2.5.8 — et un doigt qui visait le
+            ✓ tombait sur « ouvrir à la source », qui ouvre un onglet, marque
+            lu ET retire la ligne sous « Non lus ». Huit pixels de largeur de
+            ligne contre une méprise coûteuse. */}
         <ArticleRowActions
           article={article}
           isReadLater={isReadLater}
           settings={rowActions}
-          className="flex items-center gap-1 flex-shrink-0"
+          className="flex items-center gap-2 flex-shrink-0"
           onToggleStar={onToggleStar}
           onToggleReadLater={onToggleReadLater}
           onOpenSource={onOpenSource}
@@ -1510,11 +1523,19 @@ function ArticleRow({ article, viewMode, showSource, rowActions, favicon, stagge
         )}
       </div>
 
+      {/* Grille 2×2, pas une colonne. Une colonne de quatre boutons mesure
+          102 px, alors que le bloc de texte à côté (source + titre + résumé sur
+          deux lignes) en fait 80 : la colonne devenait ce qui dicte la hauteur
+          de la ligne, qui passait de 105 à 127 px — un article de moins par
+          écran, dans la vue par défaut. Sur deux rangs elle retombe à 48 px,
+          bien à l'intérieur du texte, et la ligne retrouve ses 105 px.
+          `self-start` est indispensable : sans lui la grille s'étire sur toute
+          la hauteur de la ligne et étire ses boutons avec elle. */}
       <ArticleRowActions
         article={article}
         isReadLater={isReadLater}
         settings={rowActions}
-        className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5"
+        className="grid grid-cols-2 gap-1 flex-shrink-0 self-start pt-0.5"
         onToggleStar={onToggleStar}
         onToggleReadLater={onToggleReadLater}
         onOpenSource={onOpenSource}

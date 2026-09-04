@@ -32,4 +32,18 @@ describe('openArticleAtSource', () => {
     openArticleAtSource(article({ read: true }), toggleRead);
     expect(toggleRead).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['vide', ''],
+    ['absente', undefined],
+    ['nulle', null],
+    ['blanche', '   '],
+  ])("sans URL (%s) : n'ouvre rien ET ne marque rien", (_label, url) => {
+    const toggleRead = vi.fn();
+    openArticleAtSource(article({ url } as Partial<Article>), toggleRead);
+    expect(openExternalModule.openExternal).not.toHaveBeenCalled();
+    // Le piège : `openExternal('')` ne fait rien, mais le marquage partait
+    // quand même — l'article devenait lu sans que rien ne s'ouvre.
+    expect(toggleRead).not.toHaveBeenCalled();
+  });
 });
