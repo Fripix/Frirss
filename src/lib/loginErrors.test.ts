@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { loginErrorKey, serverConnectErrorKey, isBackendAuthFailure, BLOCKED_TARGET_MARKER, BACKEND_AUTH_MARKERS } from './loginErrors';
+import { loginErrorKey, serverConnectErrorKey, isBackendAuthFailure, BLOCKED_TARGET_MARKER, UNRESOLVED_TARGET_MARKER, BACKEND_AUTH_MARKERS } from './loginErrors';
 
 const httpError = (status: number) => ({ response: { status } });
 
@@ -61,6 +61,26 @@ describe('serverConnectErrorKey', () => {
       .toBe('login.errorServer');
   });
 
+  // ── Panne de résolveur ≠ hôte refusé ──────────────────────────────
+  // Les deux se répondaient à l'identique jusqu'au 2026-09-04, et l'écran
+  // annonçait donc « cette adresse pointe à l'intérieur de votre réseau » pour
+  // un simple paquet DNS perdu pendant l'installation — avec la marche à
+  // suivre de PROXY_INTERNAL_HOSTS en prime. Sous musl, une seule tentative de
+  // résolution dure déjà les 5 s du plafond du backend : il n'en faut pas plus.
+  it('nomme la panne de résolution sans accuser l’hôte', () => {
+    expect(serverConnectErrorKey(proxyError(503, { error: 'Target host unresolved' })))
+      .toBe('login.errorServerUnresolved');
+    expect(serverConnectErrorKey(proxyError(503, '{"error":"Target host unresolved"}')))
+      .toBe('login.errorServerUnresolved');
+  });
+
+  it('garde le générique pour un 503 qui ne vient pas de la garde', () => {
+    // Un 503 relayé depuis FreshRSS (maintenance, amont saturé) n'est pas une
+    // panne de résolution : ne rien affirmer vaut mieux que se tromper.
+    expect(serverConnectErrorKey(proxyError(503, '<html>Service Unavailable</html>')))
+      .toBe('login.errorServer');
+  });
+
   it('laisse le message générique aux causes qu’il n’a pas vérifiées', () => {
     expect(serverConnectErrorKey(proxyError(502, { error: 'Upstream request failed' }))).toBe('login.errorServer');
     expect(serverConnectErrorKey(new Error('Network Error'))).toBe('login.errorServer');
@@ -70,7 +90,7 @@ describe('serverConnectErrorKey', () => {
   it('rend une clé qui existe réellement dans les traductions', () => {
     const fr = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'src/locales/fr.json'), 'utf8'));
     const resolves = (key: string) => key.split('.').reduce<unknown>((d, p) => (d as Record<string, unknown>)?.[p], fr);
-    for (const k of ['login.errorServer', 'login.errorServerBlocked']) {
+    for (const k of ['login.errorServer', 'login.errorServerBlocked', 'login.errorServerUnresolved']) {
       expect(typeof resolves(k), k).toBe('string');
     }
   });
@@ -84,6 +104,15 @@ describe('BLOCKED_TARGET_MARKER', () => {
     // générique, sans qu'aucun test de comportement ne rougisse.
     const proxy = fs.readFileSync(path.join(process.cwd(), 'server/routes/proxy.ts'), 'utf8');
     expect(proxy).toContain(`{ error: '${BLOCKED_TARGET_MARKER}' }`);
+  });
+});
+
+describe('UNRESOLVED_TARGET_MARKER', () => {
+  it('correspond encore au corps que le backend renvoie', () => {
+    // Même frontière non typée que ci-dessus : si le backend reformule ce
+    // corps, l'écran retombe en silence sur le message générique.
+    const proxy = fs.readFileSync(path.join(process.cwd(), 'server/routes/proxy.ts'), 'utf8');
+    expect(proxy).toContain(`{ error: '${UNRESOLVED_TARGET_MARKER}' }`);
   });
 });
 

@@ -11,6 +11,81 @@ export interface ExtractedArticle {
 }
 
 /**
+ * Nombre d'extractions qu'on accepte d'avoir en cours ou en attente.
+ *
+ * `parseHTML` + `Readability` sont **entièrement synchrones** : pendant leur
+ * exécution, l'unique processus Node qui sert toute l'instance ne fait rien
+ * d'autre. Mesuré avec les modules de ce dépôt : 20 ms pour 0,1 Mo, 113 ms pour
+ * 1,6 Mo, 203 ms pour 3,2 Mo de HTML synthétique — et environ le double sur du
+ * HTML réel, bien plus dense en balises (471 ms relevés pour 2,7 Mo). Au
+ * plafond de lecture (5 Mo, `MAX_HTML_BYTES`), c'est de l'ordre de la seconde
+ * d'immobilité pour TOUS les lecteurs. Et cette charge est neuve : elle vivait
+ * auparavant sur chaque téléphone.
+ *
+ * Le seul frein existant était le seau de cadence (600/min par compte), qui
+ * autorise un ordre de grandeur de plus que ce que la boucle peut absorber.
+ *
+ * ⚠️ **Ce qu'un sémaphore classique aurait donné ici : rien.** Compter les
+ * analyses « en cours » ne borne rien quand l'analyse est synchrone — pendant
+ * qu'elle tourne, aucun autre appelant ne s'exécute, donc le compteur est
+ * toujours retombé à zéro quand quelqu'un le lit. Ce qui se compte utilement,
+ * c'est le nombre de requêtes ARRIVÉES qui attendent leur tour d'analyse : ce
+ * plafond-là est réel, et c'est celui-ci.
+ *
+ * 5 : une en train de s'exécuter, quatre en attente, donc un retard d'au plus
+ * ~5 analyses. Au pire cas mesuré (~1 s la pièce) cela reste bien sous le
+ * budget que le client accorde à cette jambe (`SERVER_EXTRACT_TIMEOUT_MS`,
+ * 20 s) — une attente qui a donc encore une chance d'aboutir, là où une file
+ * plus longue ne promettrait que des réponses arrivant après l'abandon.
+ *
+ * Au-delà, la requête est REFUSÉE plutôt que mise en attente : le client sait
+ * se replier sur son propre extracteur, donc un refus lui coûte une extraction
+ * locale — ce qu'il faisait de toute façon avant la 1.4.10 — quand une file
+ * sans borne coûterait la mémoire du serveur et la patience du lecteur.
+ */
+export const EXTRACT_MAX_PENDING = 5;
+
+/** La file d'extraction est pleine — échec ordinaire, le client se replie. */
+export class ExtractorBusyError extends Error {}
+
+let pending = 0;
+/** Fin de file : chaque analyse s'accroche à la précédente. */
+let tail: Promise<unknown> = Promise.resolve();
+
+/** Extractions en cours ou en attente — pour les tests et le diagnostic. */
+export function extractPending(): number {
+  return pending;
+}
+
+/**
+ * Exécute `run` (l'étape synchrone et coûteuse) à son tour de file.
+ *
+ * La file n'entoure QUE l'analyse : la tenir pendant la récupération réseau de
+ * la page rendrait le débit de l'instance égal à celui du site le plus lent.
+ *
+ * `setImmediate` entre deux analyses, et pas un simple `await` : une promesse
+ * déjà réglée ne rend la main qu'aux micro-tâches, donc enchaînerait N
+ * immobilisations sans que la boucle traite la moindre entrée-sortie. Un tour
+ * de boucle complet entre deux analyses, c'est la différence entre « le serveur
+ * est lent » et « le serveur ne répond plus ».
+ */
+export async function withExtractSlot<T>(run: () => T): Promise<T> {
+  if (pending >= EXTRACT_MAX_PENDING) throw new ExtractorBusyError();
+  pending++;
+  const turn = tail.then(() => new Promise<void>((resolve) => setImmediate(resolve)));
+  // La file avance même si un tour échoue : sans ce `catch`, une seule analyse
+  // en erreur laisserait une promesse rejetée en fin de file et bloquerait
+  // toutes les suivantes.
+  tail = turn.catch(() => {});
+  try {
+    await turn;
+    return run();
+  } finally {
+    pending--;
+  }
+}
+
+/**
  * Extrait le corps lisible d'une page. **Le HTML rendu est BRUT — il n'est PAS
  * assaini.** `onclick`, `onerror` et le reste survivent tels quels.
  *

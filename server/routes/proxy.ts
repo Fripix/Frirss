@@ -42,10 +42,16 @@ const TIMEOUT_MS = 30_000;
  *
  * Le défaut est délibérément haut. La préparation hors-ligne est de loin le
  * plus gros consommateur — une extraction plus jusqu'à `perArticle` images par
- * article, à 4 requêtes simultanées (`BATCH`, `src/lib/imageCache.ts`) — et
- * elle reste sous la centaine de requêtes par minute. Un plafond serré
- * casserait la fonctionnalité sans gêner un abus, qui se contente d'être
- * patient : 600 laisse six fois la marge nécessaire tout en fermant le robinet.
+ * article, à 4 requêtes simultanées (`BATCH`, `src/lib/imageCache.ts`) : avec
+ * le préréglage *standard*, de l'ordre de 400 requêtes par minute. Un plafond
+ * serré casserait la fonctionnalité sans gêner un abus, qui se contente d'être
+ * patient : 600 laisse la marge nécessaire tout en fermant le robinet.
+ *
+ * ⚠️ Ce commentaire a annoncé « sous la centaine » jusqu'au 2026-09-04, chiffre
+ * d'avant l'extraction côté serveur. Depuis, un balayage sur un appareil dont
+ * les images sont déjà en cache n'est plus freiné que par la latence : il
+ * DÉPASSE le plafond. C'est pour cela que `extractFullContent` honore
+ * `Retry-After` au lieu de laisser tomber l'article en silence.
  *
  * `0` désactive complètement le contrôle, pour l'opérateur qui sait ce qu'il
  * fait. Une valeur illisible retombe sur le défaut : un plafond mal saisi ne
@@ -249,18 +255,29 @@ export class BlockedTargetError extends Error {}
  * une — voir `lookupFailure`, qui fait le tri.
  *
  * C'est une SOUS-CLASSE de `BlockedTargetError`, et délibérément : sur le
- * chemin de l'appel sortant, rien ne change. `fetchUpstream` ne se replie
- * toujours pas dessus, `finishError` répond toujours le même 403 sans nommer
- * la cible. Un hôte qu'on ne sait pas situer ne doit pas être joint, et lui
- * donner un code à part ferait de la route un oracle : en comparant les deux
- * réponses, un appelant apprendrait qu'un 403 signifie « cet hôte résout vers
- * le réseau interne » — exactement la carte du réseau que le corps du 403
- * s'interdit de dessiner.
+ * chemin de l'appel SORTANT, rien ne change. `fetchUpstream` ne se replie
+ * toujours pas dessus — un hôte qu'on ne sait pas situer n'est jamais joint.
  *
- * Ce que le type ajoute ne sert qu'AVANT toute sortie réseau : la garde
- * pré-cache de `/api/extract` (voir sa route) doit pouvoir distinguer une
- * cible refusée d'une panne de résolution, là où rien ne sera joint de toute
- * façon.
+ * ⚠️ **Le statut rendu, lui, diffère depuis le 2026-09-04 : 503, pas 403.**
+ * L'argument d'oracle qui justifiait de les confondre (« un code à part
+ * apprendrait par différence qu'un 403 signifie : cet hôte résout vers le
+ * réseau interne ») ne tient pas à la relecture. Ce type-ci ne se produit QUE
+ * lorsque le résolveur n'a rien dit du tout ; il n'est donc pas une
+ * classification de la cible mais un fait sur le résolveur, et il ne révèle
+ * rien de la topologie interne — d'autant qu'un attaquant qui sonde un hôte
+ * dont il tient le DNS connaît déjà le classement qu'il en attend.
+ *
+ * Le coût de la confusion, lui, était réel et régulier : sous musl (la libc de
+ * l'image de production) une seule tentative de résolution dure déjà
+ * `LOOKUP_TIMEOUT_MS`, donc un paquet DNS perdu — qui aboutissait autrefois au
+ * second essai — rend `ETIMEDOUT`, et l'écran de rattachement d'un serveur
+ * FreshRSS annonçait alors à l'utilisateur que **son hôte est refusé**, avec la
+ * marche à suivre de `PROXY_INTERNAL_HOSTS` en prime. Une erreur qui accuse une
+ * cause qu'elle n'a pas vérifiée : exactement ce que ce dépôt s'interdit.
+ *
+ * Le type sert donc à deux postes : ici, pour que la réponse dise la vérité, et
+ * dans la garde pré-cache de `/api/extract`, qui sert quand même son cache
+ * quand le résolveur bafouille.
  */
 export class UnresolvedTargetError extends BlockedTargetError {}
 
@@ -650,8 +667,22 @@ router.all('/', async (req, res) => {
  *
  * Le corps ne dit jamais quelle cible a été refusée ni pourquoi : ce serait
  * offrir un scanner de réseau interne à qui essaie des URL.
+ *
+ * `target` n'existe QUE pour la ligne de journal, et c'est à l'appelant de le
+ * réduire à ce que le journal a le droit de retenir. `/api/proxy` passe l'URL
+ * entière — le chemin greader qui a échoué est ce qu'on relit en exploitation.
+ * `/api/extract` ne passe que l'ORIGINE : son chemin est l'URL d'un article,
+ * donc un historique de lecture, et la route la plus fréquente à échouer (un
+ * domaine d'article mort) en aurait déposé un plein journal.
  */
 export function finishError(res: ExpressResponse, err: unknown, target: string, label = 'Proxy error:') {
+  // Avant le refus : une panne de résolveur n'est pas une cible refusée, et le
+  // dire l'un pour l'autre fait accuser l'hôte de l'utilisateur (voir
+  // `UnresolvedTargetError`). 503 — réessayez — et non 403.
+  if (err instanceof UnresolvedTargetError) {
+    console.warn(label, 'unresolved target →', target);
+    return res.status(503).json({ error: 'Target host unresolved' });
+  }
   if (err instanceof BlockedTargetError) {
     // Une cible refusée est journalisée : un balayage SSRF doit laisser une
     // trace côté serveur, même si le client, lui, n'apprend rien.

@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { extractFullContent, SERVER_EXTRACT_TIMEOUT_MS } from './extractContent';
+import {
+  extractFullContent,
+  retryAfterMs,
+  RateLimitedError,
+  FALLBACK_EXTRACT_TIMEOUT_MS,
+  RATE_LIMIT_MAX_WAIT_MS,
+  SERVER_EXTRACT_TIMEOUT_MS,
+} from './extractContent';
 
 const serverAnswer = {
   title: 'Titre serveur', content: '<p>corps serveur</p>',
@@ -117,4 +124,121 @@ describe('extractFullContent', () => {
       expect(out.content).not.toContain('corps serveur');
     });
   }
+});
+
+// ── La jambe de repli doit être bornée elle aussi ────────────────────
+// Le minuteur de la route serveur visait un backend qui accepte la connexion
+// et ne répond jamais. Or cette panne-là frappe `/api/proxy` exactement de la
+// même façon : ne minuter que la première jambe déplaçait le blocage d'une
+// ligne au lieu de le supprimer, et la file séquentielle restait bloquée pour
+// toujours.
+describe('extractFullContent — délais des deux jambes', () => {
+  it('abandonne aussi un repli muet, au lieu de bloquer la file pour toujours', async () => {
+    vi.useFakeTimers();
+    try {
+      // Les deux routes acceptent puis se taisent : elles ne se règlent QUE
+      // sur l'abandon. Sans minuteur sur la seconde, ce test expire.
+      vi.stubGlobal('fetch', vi.fn((_input: RequestInfo, init?: RequestInit) =>
+        new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        })));
+
+      const pending = extractFullContent('https://example.com/a');
+      const settled = vi.fn();
+      void pending.then(settled, settled);
+
+      await vi.advanceTimersByTimeAsync(SERVER_EXTRACT_TIMEOUT_MS);
+      expect(settled).not.toHaveBeenCalled();          // la jambe de repli court
+
+      await vi.advanceTimersByTimeAsync(FALLBACK_EXTRACT_TIMEOUT_MS);
+      expect(settled).toHaveBeenCalledTimes(1);
+      await expect(pending).rejects.toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// ── 429 : attendre, pas perdre l'article ─────────────────────────────
+// Le seau de cadence est partagé par `/api/extract`, `/api/proxy` et le
+// préchargement d'images. Depuis que la route serveur répond à la vitesse de
+// Redis, un balayage `prepareOffline` peut l'atteindre — et l'article
+// disparaissait alors du jeu hors ligne sans un mot, `feedStore` avalant
+// l'échec.
+describe('extractFullContent — cadence dépassée', () => {
+  const tooMany = (retryAfter: string) =>
+    new Response('', { status: 429, headers: { 'Retry-After': retryAfter } });
+
+  it('honore Retry-After puis réessaie', async () => {
+    vi.useFakeTimers();
+    try {
+      let asked = 0;
+      vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+        if (String(input).startsWith('/api/extract')) {
+          asked++;
+          return asked === 1 ? tooMany('30') : new Response(JSON.stringify(serverAnswer), { status: 200 });
+        }
+        throw new Error('pas de repli sur /api/proxy : c’est le même seau');
+      }));
+
+      const pending = extractFullContent('https://example.com/a');
+      await vi.advanceTimersByTimeAsync(30_000);
+      const out = await pending;
+
+      expect(out.content).toContain('corps serveur');
+      expect(asked).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ne se replie pas sur /api/proxy quand l’attente n’a pas suffi', async () => {
+    vi.useFakeTimers();
+    try {
+      let proxied = 0;
+      vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+        if (String(input).startsWith('/api/extract')) return tooMany('1');
+        proxied++;
+        return new Response(pageHtml, { status: 200 });
+      }));
+
+      const pending = extractFullContent('https://example.com/a');
+      const settled = vi.fn();
+      void pending.then(settled, settled);
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await expect(pending).rejects.toBeInstanceOf(RateLimitedError);
+      expect(proxied).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('retryAfterMs', () => {
+  const headers = (v?: string) => new Headers(v == null ? {} : { 'Retry-After': v });
+
+  it('lit les secondes émises par express-rate-limit', () => {
+    expect(retryAfterMs(headers('42'))).toBe(42_000);
+  });
+
+  it('lit aussi la forme date HTTP', () => {
+    const now = Date.parse('2026-09-04T10:00:00Z');
+    expect(retryAfterMs(headers('Fri, 04 Sep 2026 10:00:20 GMT'), now)).toBe(20_000);
+  });
+
+  it('rend null sans en-tête', () => {
+    expect(retryAfterMs(headers())).toBeNull();
+  });
+
+  // Tronquer une attente trop longue, c'est retomber sur un 429 : mieux vaut
+  // refuser l'attente que la raccourcir.
+  it('refuse une attente au-delà du plafond plutôt que de la tronquer', () => {
+    expect(retryAfterMs(headers(String(RATE_LIMIT_MAX_WAIT_MS / 1000 + 1)))).toBeNull();
+  });
+
+  it('ramène une date déjà passée à zéro', () => {
+    const now = Date.parse('2026-09-04T10:00:00Z');
+    expect(retryAfterMs(headers('Fri, 04 Sep 2026 09:59:00 GMT'), now)).toBe(0);
+  });
 });

@@ -143,15 +143,21 @@ The first launch generates the JWT secret and the token-encryption key and store
 
 > Since 1.4.10 the **server** extracts article text: the browser asks
 > `GET /api/extract` first, and falls back to extracting the page itself only
-> when that route is missing (an older backend), refuses the page, or cannot
-> reach it. With `REDIS_URL` set the result is cached by URL rather than by
-> account, so a page is extracted once for the whole instance instead of once
+> when that route is missing (an older backend), refuses the page, is busy, or
+> cannot reach it. With `REDIS_URL` set the result is cached by URL rather than
+> by account, so a page is extracted once for the whole instance instead of once
 > per device: a second device, or another user reading the same feed, gets it
-> instantly and the origin site sees one request instead of many. **Without
-> Redis the route still runs** — it simply keeps nothing, so the next device
-> pays for the extraction again. Either way the work now happens on the server
-> rather than on every phone, so budget for it: extraction parses the page in
-> the single Node process that serves the whole instance.
+> instantly. Devices asking for the same cold page at the same moment are
+> coalesced onto a single extraction, so the origin site sees one request rather
+> than one per reader. **Without Redis the route still runs** — it simply keeps
+> nothing, so the next device pays for the extraction again. Either way the work
+> now happens on the server rather than on every phone, so budget for it:
+> parsing a page blocks the single Node process that serves the whole instance
+> for tens of milliseconds up to about a second on the largest pages. That work
+> is bounded — one page is parsed at a time and at most five requests may be
+> in flight or waiting, beyond which the server says so and the browser extracts locally —
+> but the bound is a queue, not extra capacity: a busy instance is one where
+> phones do the parsing again.
 
 Single sign-on is configured at runtime in *Preferences → Administration* (issuer, client ID, client secret).
 

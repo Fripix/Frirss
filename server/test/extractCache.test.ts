@@ -150,8 +150,16 @@ describe('extract — cache', () => {
       expect(cacheGet).not.toHaveBeenCalled();
       expect(fetchMock).not.toHaveBeenCalled();
       // Un balayage SSRF doit laisser une trace côté serveur — et une trace qui
-      // NOMME la cible : « il y a eu un avertissement » ne se relit pas.
-      expect(warn).toHaveBeenCalledWith('Extract error:', 'blocked target →', target);
+      // NOMME l'hôte visé : « il y a eu un avertissement » ne se relit pas.
+      //
+      // L'ORIGINE, et plus l'URL entière, depuis le 2026-09-04 : sur cette
+      // route le chemin est celui d'un article, donc une donnée de lecture, et
+      // le refus le plus fréquent y est un domaine d'article mort — un balayage
+      // hors ligne en aurait déposé des dizaines dans le journal, défaisant ce
+      // que `server/accessLog.ts` venait de fermer. Ce qui fait la valeur de la
+      // trace, l'hôte visé, est intact ; `/api/proxy`, lui, garde son chemin
+      // complet (voir `finishError`).
+      expect(warn).toHaveBeenCalledWith('Extract error:', 'blocked target →', new URL(target).origin);
       warn.mockRestore();
     });
   }
@@ -182,7 +190,17 @@ describe('extract — cache', () => {
   // sans entrée en cache, il n'y a plus rien à servir — et un hôte qu'on ne
   // sait pas situer ne doit pas être joint pour autant. `fetchUpstream` rejoue
   // la garde et refuse avant le moindre appel sortant.
-  it("refuse malgré tout de sortir vers un hôte qui ne résout pas", async () => {
+  //
+  // Le STATUT a changé le 2026-09-04 : 503, plus 403. Ce test attendait le
+  // même refus qu'une cible interdite, au nom d'un argument d'oracle (un code à
+  // part apprendrait par différence qu'un 403 veut dire « résout en privé »).
+  // Cet argument ne tient pas : ce cas-ci ne se produit QUE lorsque le
+  // résolveur n'a rien dit, c'est un fait sur le résolveur et non un classement
+  // de la cible. Et le prix de la confusion était payé par l'utilisateur — un
+  // paquet DNS perdu pendant l'installation lui annonçait que son serveur
+  // FreshRSS était refusé (voir `src/lib/loginErrors.ts`). Ce qui ne change
+  // pas, et qui est le point du test : rien n'est joint.
+  it("refuse malgré tout de sortir vers un hôte qui ne résout pas, mais le dit comme une panne", async () => {
     dnsLookup.mockRejectedValue(Object.assign(new Error('getaddrinfo EAI_AGAIN'), { code: 'EAI_AGAIN' }));
     cacheGet.mockResolvedValue(null);
     const fetchMock = vi.fn();
@@ -191,8 +209,8 @@ describe('extract — cache', () => {
 
     const res = await request(app).get('/api/extract').query({ url: URL_A });
 
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({ error: 'Target host not allowed' });
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ error: 'Target host unresolved' });
     expect(fetchMock).not.toHaveBeenCalled();
     warn.mockRestore();
   });
@@ -217,6 +235,77 @@ describe('extract — cache', () => {
     expect(cacheGet).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+
+  // ── Coalescence des demandes simultanées ──────────────────────────
+  // Le cache ne sert que ce qui est DÉJÀ extrait. Dix appareils demandant la
+  // même URL froide en même temps — un préchargement partagé, deux téléphones
+  // sur le même article — produisaient dix extractions et dix requêtes chez le
+  // site d'origine. Le « une requête au lieu de dix » du README ne tenait donc
+  // que pour des lecteurs décalés dans le temps.
+  it('ne récupère la page QU’UNE fois pour des demandes simultanées', async () => {
+    // L'amont est retenu jusqu'à ce que les TROIS requêtes soient arrivées :
+    // sans cela, la première pouvait finir avant que la troisième n'atteigne la
+    // table des extractions en cours, et le test dépendait de l'ordonnancement
+    // (vert seul, rouge dans la suite complète). `cacheGet` sert de compteur —
+    // chaque requête y passe, une fois, avant la coalescence.
+    let arrived = 0;
+    let release = () => {};
+    const allArrived = new Promise<void>((resolve) => { release = resolve; });
+    cacheGet.mockImplementation(async () => {
+      if (++arrived === 3) release();
+      return null;
+    });
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      await allArrived;
+      return {
+        ok: true, status: 200,
+        headers: new Headers({ 'content-type': 'text/html' }),
+        body: htmlStream(ARTICLE),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const [a, b, c] = await Promise.all([
+      request(app).get('/api/extract').query({ url: URL_A }),
+      request(app).get('/api/extract').query({ url: URL_A }),
+      request(app).get('/api/extract').query({ url: URL_A }),
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    for (const res of [a, b, c]) {
+      expect(res.status).toBe(200);
+      expect(res.body.title).toBe('Titre de la page');
+    }
+    // Une seule extraction, donc une seule écriture : le cache n'est pas
+    // réécrit une fois par appelant.
+    expect(cacheSet).toHaveBeenCalledTimes(1);
+  });
+
+  // Une extraction en cours ne doit pas devenir un cache d'échecs : la table
+  // se vide dans les DEUX issues, sans quoi une panne passagère condamnerait
+  // l'URL à rendre la même erreur à tout le monde jusqu'au redémarrage.
+  it('n’empoisonne pas les demandes suivantes après un échec', async () => {
+    cacheGet.mockResolvedValue(null);
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('boom'), { cause: { code: 'ECONNREFUSED' } }))
+      .mockImplementation(() => Promise.resolve({
+        ok: true, status: 200,
+        headers: new Headers({ 'content-type': 'text/html' }),
+        body: htmlStream(ARTICLE),
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const first = await request(app).get('/api/extract').query({ url: URL_A });
+    expect(first.status).toBe(502);
+    // Le journal ne reçoit que l'ORIGINE : le chemin d'une cible d'extraction
+    // est l'URL d'un article, donc une donnée de lecture.
+    expect(error).toHaveBeenCalledWith('Extract error:', 'ECONNREFUSED', '→', 'https://news.example.com');
+
+    const second = await request(app).get('/api/extract').query({ url: URL_A });
+    expect(second.status).toBe(200);
+    error.mockRestore();
   });
 
   it("n'écrit rien dans le cache quand la page n'est pas extractible", async () => {

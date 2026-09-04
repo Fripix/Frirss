@@ -67,6 +67,30 @@ _(rien pour l'instant)_
   écrivait `req.originalUrl` ; l'extraction côté serveur y aurait déposé l'URL
   complète de chaque article ouvert par chaque compte — préchargement et
   préparation hors-ligne compris. Seul le chemin est journalisé désormais.
+- **Et ce chemin est de nouveau complet.** La première version le lisait trop
+  tard (Express l'a alors réécrit en relatif au routeur) : la production
+  journalisait `GET /` aussi bien pour `/api/proxy` que pour `/api/extract`, et
+  `POST /login` pour `/api/auth/login`. Le journal est désormais couvert par un
+  test.
+- **Les URL d'articles ne partent plus non plus dans les lignes d'erreur** du
+  serveur : sur la route d'extraction, seul l'hôte visé est journalisé.
+- **Une panne de résolution DNS ne se fait plus passer pour un serveur
+  refusé.** Un unique paquet DNS perdu pendant l'installation annonçait « cette
+  adresse pointe à l'intérieur de votre réseau, FriRSS l'a bloquée », avec la
+  marche à suivre correspondante. L'écran dit maintenant ce qui s'est réellement
+  passé.
+- **L'extraction côté serveur ne peut plus saturer l'instance.** L'analyse d'une
+  page bloque l'unique processus qui sert tout le monde ; elle est désormais
+  bornée (une à la fois, cinq en attente au plus), et au-delà le navigateur
+  reprend la main comme avant la 1.4.10.
+- **Dix appareils qui ouvrent le même article au même moment ne déclenchent plus
+  qu'une seule extraction**, donc une seule requête chez le site d'origine.
+- **La préparation hors-ligne ne perd plus d'articles en silence** quand elle
+  atteint le plafond de cadence : elle attend le délai annoncé par le serveur
+  puis réessaie, au lieu de laisser l'article absent du jeu hors ligne.
+- **Le repli d'extraction est borné dans le temps lui aussi.** Un backend qui
+  accepte la connexion sans jamais répondre bloquait encore la file : le
+  minuteur ne couvrait que la première des deux requêtes.
 
 ## Actions requises à la mise à jour
 
@@ -74,4 +98,10 @@ _(à compléter)_
 
 ## Documentation
 
-_(rien pour l'instant)_
+- `docs/FEATURES.md` : trois affirmations fausses corrigées — le journal
+  d'accès (chemin tronqué), la fraîcheur des extraits (« le bouton *Article
+  complet* relance à la demande », faux : rien ne ré-extrait, et l'entrée
+  serveur vit 24 h là où le client revalide à 12 h) et « les deux
+  consommateurs » du délai d'extraction (il y en a cinq). Le plafond de
+  résolution DNS est désormais décrit pour ce qu'il est : une garde de TOUTES
+  les sorties du backend, pas seulement de l'extraction.

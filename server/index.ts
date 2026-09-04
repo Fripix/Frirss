@@ -13,6 +13,7 @@ import proxyRoutes from './routes/proxy.js';
 import extractRoutes from './routes/extract.js';
 import { adminBackupRouter, setupBackupRouter } from './routes/backup.js';
 import { migrateEncryptTokens } from './crypto.js';
+import { accessLog } from './accessLog.js';
 import { startBackgroundSync } from './worker.js';
 import { APP_VERSION } from './version.js';
 
@@ -52,26 +53,11 @@ app.use(express.json({ limit: '5mb' })); // allow logo uploads
 // ── Request logging ──────────────────────────────────────────────────
 // Lightweight structured access log: method, path, status, duration.
 // Silent during tests; /api/health is skipped to avoid healthcheck noise.
-//
-// `req.path` et JAMAIS `req.originalUrl` : la chaîne de requête ne doit pas
-// atteindre le journal. `GET /api/extract?url=…` y déposerait l'URL complète de
-// chaque article lu par chaque compte — préchargement des dix articles suivants
-// et balayage `prepareOffline` de trente jours compris, donc bien plus que ce
-// que la personne a réellement lu. Le refus de cible, lui, journalise déjà sa
-// cible expurgée (`finishError`) : c'est cette intention-là que la ligne
-// d'accès défaisait, sur le chemin du succès qui est le cas courant.
-// La règle est volontairement globale, et non une exception pour cette route :
-// la prochaine route qui portera une donnée en query string en héritera.
+// Le middleware vit dans `server/accessLog.ts`, où il est testable — et il
+// l'est, parce que la subtilité qui l'a cassé une fois (le chemin doit être lu
+// AVANT le routage) ne se voit pas à la relecture.
 if (process.env.NODE_ENV !== 'test') {
-  app.use((req, res, next) => {
-    if (req.path === '/api/health') return next();
-    const start = process.hrtime.bigint();
-    res.on('finish', () => {
-      const ms = Number(process.hrtime.bigint() - start) / 1e6;
-      console.log(`${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${ms.toFixed(1)}ms`);
-    });
-    next();
-  });
+  app.use(accessLog());
 }
 
 // ── API Routes ──────────────────────────────────────────────────────

@@ -784,8 +784,9 @@ développement en 1.4.4.)*
   anti-SSRF sur la cible), qui extrait une fois pour toute l'instance et — quand
   Redis est là — partage le résultat entre appareils et entre comptes.
   **Toute** réponse absente, en erreur (404 sur un serveur plus ancien, 422 page
-  non extractible, 403, 415, 502, 504) ou illisible fait tomber sur l'extraction
-  locale décrite ci-dessous — page récupérée par `/api/proxy` (**JWT requis**,
+  non extractible, 403, 415, 502, 503, 504) ou illisible fait tomber sur
+  l'extraction locale décrite ci-dessous — **sauf un 429**, qui est une question
+  de cadence et non de capacité : voir plus bas — page récupérée par `/api/proxy` (**JWT requis**,
   même garde anti-SSRF) puis Readability dans le navigateur. Ce repli n'est pas
   du code hérité : c'est ce qui tient quand le serveur n'a pas la route, ne sait
   pas lire la page, ou ne répond pas.
@@ -799,19 +800,47 @@ développement en 1.4.4.)*
   appareil et chaque compte repaie l'extraction, sur le CPU et la bande
   passante du serveur au lieu du téléphone. Un déploiement sans Redis n'est pas
   « comme avant » : il a déplacé la charge sans le partage qui la justifiait.
-- **Délai sur la route serveur : 25 s** (`SERVER_EXTRACT_TIMEOUT_MS`). Un
-  serveur qui accepte la connexion et ne répond jamais tenait l'extraction
-  indéfiniment ; les deux consommateurs étant strictement séquentiels
-  (préchargement à dix articles, `prepareOffline` sur trente jours), un seul
-  article bloqué bloquait toute la file, et « Article complet » restait sur
-  « Extraction… » sans erreur ni sortie. La valeur se pose juste **au-dessus**
-  du plafond de corps du serveur (20 s) : en dessous, on abandonnerait une page
-  qu'il est en train de lire pour envoyer le repli chercher le MÊME site lent.
-  Un test à faux minuteurs échoue si le signal d'abandon n'est plus passé.
-  *(`/api/proxy` n'a jamais eu de délai client non plus — même forme, mais
-  cette route-ci est désormais devant lui.)*
-- **Ce que coûte un repli** : sur 415, 422 ou 502, le site d'origine est
-  récupéré **deux fois** — une fois par le serveur, une fois par le navigateur
+- **Délais : 20 s sur la route serveur, 20 s sur le repli**
+  (`SERVER_EXTRACT_TIMEOUT_MS`, `FALLBACK_EXTRACT_TIMEOUT_MS`). Un serveur qui
+  accepte la connexion et ne répond jamais tenait l'extraction indéfiniment ;
+  **les cinq consommateurs** sont strictement séquentiels — `warmRunner`,
+  `warmOfflineCache` et `prepareOffline` (`src/stores/feedStore.ts`),
+  `revalidateIfStale` (`src/lib/extractCache.ts`) et `handleExtract`
+  (`ReadingPane`) — donc un seul article bloqué bloque toute la file, et
+  « Article complet » reste sur « Extraction… » sans erreur ni sortie.
+  ⚠️ **Le repli était, lui, sans minuteur jusqu'au 2026-09-04**, ce qui vidait
+  le premier de son sens : la panne visée est un backend coincé, et un backend
+  coincé coince `/api/proxy` à l'identique — le blocage ne disparaissait pas,
+  il se décalait d'une route. Les deux jambes sont désormais bornées, donc un
+  article coûte au pire ~40 s à la file.
+  ⚠️ **Le chiffre est celui de la patience d'un lecteur, pas un calcul.** La
+  doc a affirmé jusqu'au 2026-09-04 que 25 s se posait « juste au-dessus du
+  plafond de corps du serveur (20 s) », donc qu'une page en cours de lecture
+  n'était jamais abandonnée : c'était faux. Le budget réel du serveur additionne
+  la résolution pré-cache (≤ 5 s), les en-têtes (≤ 30 s par saut) et le corps
+  (≤ 20 s) — **au moins 55 s** sans redirection. Aucun délai client tenable ne
+  couvre cela. Abandonner une page que le serveur lit encore est donc possible,
+  et assumé : le repli repart chercher la même origine (deux requêtes pour cet
+  article-là), mais l'extraction serveur va au bout et remplit le cache, dont le
+  prochain appareil profitera. Des tests à faux minuteurs échouent si l'une des
+  deux jambes perd son signal d'abandon.
+- **429 : on attend, on ne perd pas l'article** (`RATE_LIMIT_MAX_WAIT_MS`, 60 s).
+  Le seau de cadence (`FRIRSS_PROXY_RATE_LIMIT`, 600/min et par compte) est
+  partagé par `/api/extract`, `/api/proxy` et le préchargement d'images. Depuis
+  que la route répond à la vitesse de Redis, un balayage `prepareOffline` sur un
+  appareil au cache chaud n'est plus freiné par le coût de l'extraction : sans
+  image à charger, une boucle séquentielle dépasse largement le millier de
+  requêtes par minute, donc le plafond est atteignable — là où la doc estimait
+  encore que la préparation hors-ligne « reste sous la centaine ». Avec images
+  (préréglage *standard* : 1 extraction + jusqu'à 6 images par article), on
+  tourne plutôt autour de 400 requêtes/minute, sous le plafond mais pas loin.
+  `extractFullContent` honore donc `Retry-After` une fois, puis réessaie ; sans
+  cela l'article disparaissait du jeu hors ligne **en silence**, `feedStore`
+  avalant l'échec — un défaut qui ne se découvre que dans l'avion. Et sur un 429
+  le repli navigateur n'est PAS tenté : même seau, échec certain, jeton
+  gaspillé.
+- **Ce que coûte un repli** : sur 415, 422, 502 ou 503 (file d'analyse pleine),
+  le site d'origine est récupéré **deux fois** — une fois par le serveur, une fois par le navigateur
   — et deux jetons quittent le seau de cadence partagé. Le « une requête au
   lieu de dix » du README décrit le chemin nominal ; le repli, lui, double le
   trafic vers l'origine pour cet article-là.
@@ -1349,7 +1378,7 @@ Une ligne par requête sur la sortie standard : horodatage, méthode, **chemin**
 code, durée. `/api/health` est sauté (bruit de sonde) et le journal est muet
 sous `NODE_ENV=test`.
 
-- **Où** : `server/index.ts`
+- **Où** : `server/accessLog.ts` (monté dans `server/index.ts`)
 - **Ce que l'instance retient de ses lecteurs — décision du 2026-09-04** : la
   **chaîne de requête n'est pas journalisée**. Le middleware écrivait
   `req.originalUrl` ; c'était sans conséquence tant qu'aucune route ne portait
@@ -1365,10 +1394,28 @@ sous `NODE_ENV=test`.
   en query string, et à oublier une fois. La cible n'a pas quitté la query
   string en revanche — l'y déplacer aurait touché la garde anti-SSRF, le seau
   de cadence et la clé de cache pour un gain nul sur le journal.
-- **Ce qui reste journalisé, et doit le rester** : le refus de cible passe par
-  `finishError`, qui écrit la cible **expurgée** — c'est la trace promise à un
-  balayage SSRF (voir *Proxy*). La ligne d'accès défaisait cette intention sur
-  le chemin du succès, qui est le cas courant ; elle ne la défait plus.
+- ⚠️ **Piège — le chemin se lit AVANT le routage.** Express réécrit `req.url`
+  en relatif au routeur qui traite la requête et ne le restaure qu'au retour de
+  `next()`, ce qu'une route qui RÉPOND ne fait jamais. La première version lisait
+  `req.path` depuis `res.on('finish')` : la production journalisait donc `GET /`
+  pour `/api/proxy` **comme** pour `/api/extract` (les deux routes les plus
+  volumineuses, devenues indiscernables), `POST /login` pour `/api/auth/login`,
+  `PUT /users/3` pour `/api/admin/users/3` — toutes les routes sauf
+  `/api/health` perdaient leur préfixe. La confidentialité était tenue, la
+  valeur d'exploitation perdue. Le middleware capture donc le chemin à
+  l'entrée ; `server/test/accessLog.test.ts` échoue si on le relit trop tard.
+- **Ce qui reste journalisé, et doit le rester** : `finishError` écrit une ligne
+  pour un refus de cible (trace promise à un balayage SSRF, voir *Proxy*), pour
+  une panne de résolution et pour un échec d'amont. La ligne d'accès défaisait
+  cette intention sur le chemin du succès, qui est le cas courant ; elle ne la
+  défait plus.
+- **Et ces lignes-là ne portent plus l'URL d'un article** (2026-09-04) :
+  `/api/extract` ne passe à `finishError` que l'**origine** de sa cible, jamais
+  le chemin. Le journal d'accès ne suffisait pas : l'échec d'amont, lui, écrivait
+  la cible entière, et le refus le plus fréquent de cette route est un domaine
+  d'article mort (`ENOTFOUND`) — un balayage hors ligne en déposait des dizaines.
+  `/api/proxy` garde son chemin complet : là, c'est le point de terminaison
+  greader qui a échoué, et c'est ce qu'on relit en exploitation.
 
 ### Proxy
 Point de passage unique vers FreshRSS. Il sert aussi l'extraction d'articles,
@@ -1384,8 +1431,32 @@ répondu (voir *Extraction du contenu complet*).
   l'écran de connexion reconnaît pour nommer la cause (voir *Serveurs
   FreshRSS*). Le README documente le cas à l'endroit où on le rencontre :
   la dernière étape de l'installation.
+- **Une panne de résolveur n'est PAS un refus** (2026-09-04) : quand le
+  résolveur n'a rien répondu du tout (`EAI_AGAIN`, `EAI_FAIL`, délai dépassé —
+  `UnresolvedTargetError`), la réponse est `503 { error: 'Target host
+  unresolved' }`, pas un 403. Les deux se répondaient à l'identique, au nom d'un
+  argument d'oracle : un code à part aurait appris par différence qu'un 403
+  signifie « cet hôte résout vers le réseau interne ». L'argument ne tient pas —
+  ce cas ne se produit que lorsque le résolveur s'est tu, c'est un fait sur le
+  résolveur et non un classement de la cible, et qui sonde un hôte dont il tient
+  le DNS connaît déjà ce classement. Le prix de la confusion, lui, était payé
+  par l'utilisateur : voir la *Résolution bornée* ci-dessous. Ce qui ne change
+  pas : rien n'est joint, `fetchUpstream` ne se replie pas dessus. Un nom
+  INEXISTANT (`ENOTFOUND`) reste un refus 403 — c'est l'état stable d'un hôte
+  interne retiré de `PROXY_REWRITES`, pas un hoquet.
 - **Résolution bornée dans le temps** : `assertTargetSafe` n'attend pas plus de
-  `LOOKUP_TIMEOUT_MS` (5 s). `dns.promises.lookup` n'accepte aucun délai, et la
+  `LOOKUP_TIMEOUT_MS` (5 s). ⚠️ **Ce plafond ne concerne pas que l'extraction**,
+  bien qu'il ait été introduit pour elle : `assertTargetSafe` garde TOUTES les
+  sorties du backend, donc `/api/proxy` (chaque lecture et écriture FreshRSS,
+  chaque favicon), le worker de synchronisation (`server/worker.ts`), la
+  découverte OIDC (`server/oidc.ts`) et le rafraîchissement de flux
+  (`server/routes/servers.ts`). Conséquence, et c'est ce qui a rendu le 503
+  ci-dessus nécessaire : sous musl une seule tentative dure déjà ces 5 s, donc
+  un unique paquet DNS perdu — qui aboutissait autrefois au second essai — rend
+  `ETIMEDOUT`. Tant que ce cas répondait 403, l'écran de rattachement d'un
+  serveur FreshRSS annonçait à l'utilisateur que **son hôte était refusé**, avec
+  la marche à suivre de `PROXY_INTERNAL_HOSTS` en prime : une erreur qui accuse
+  une cause qu'elle n'a pas vérifiée. `dns.promises.lookup` n'accepte aucun délai, et la
   borne réelle serait sinon le budget de reprise du résolveur du système (musl :
   5 s par tentative, 2 tentatives par serveur de noms). **Ce que le plafond
   borne : UNE résolution**, pas la réponse rendue. Une requête qui en déclenche
@@ -1481,8 +1552,44 @@ qu'elle rend (voir *Extraction du contenu complet*).
   d'utilisateur**, contrairement au cache de listes. Le texte extrait d'une
   page est le même pour tous : c'est ce qui fait qu'un appareil profite du
   travail d'un autre, et qu'à dix comptes la page n'est extraite qu'une fois.
-  TTL commun (`CACHE_TTL`, 24 h) ; aucune détection de modification de la
-  source, le bouton « Article complet » relance à la demande.
+  TTL commun (`CACHE_TTL`, 24 h).
+- **Fraîcheur : aucune détection de modification de la source, et aucun moyen
+  de forcer une ré-extraction.** La doc a prétendu jusqu'au 2026-09-04 que « le
+  bouton *Article complet* relance à la demande » : c'est faux deux fois.
+  `handleExtract` (`src/components/ReadingPane/ReadingPane.tsx`) lit la mémoire
+  puis IndexedDB et ne ré-extrait jamais ce qui est déjà en cache ; et même un
+  cache local vidé serait servi par l'entrée Redis de 24 h, la route n'ayant
+  aucun paramètre de contournement. Ce qui rafraîchit réellement, c'est
+  `revalidateIfStale` (`src/lib/extractCache.ts`), au bout de 12 h — mais le
+  serveur lui répond depuis une entrée qui vit 24 h, donc en pratique un article
+  modifié ressort avec **jusqu'à ~24 h** de retard, pas 12, et une revalidation
+  qui tombe sur le cache serveur ne fait que repousser `cachedAt`. Décrit tel
+  quel plutôt que corrigé : ajouter un contournement rouvrirait à chaque client
+  le droit de faire ré-extraire une page à volonté.
+- **Analyse bornée : une à la fois, cinq requêtes au plus dans la file**
+  (une en cours, quatre en attente — `EXTRACT_MAX_PENDING`,
+  `server/extract.ts`). `parseHTML` + `Readability` sont **synchrones** : de
+  ~20 ms pour 0,1 Mo à ~1 s au plafond de lecture (5 Mo), pendant lesquels
+  l'unique processus Node qui sert toute l'instance ne fait rien d'autre — et
+  cette charge est NEUVE, elle vivait sur chaque téléphone avant la 1.4.10. Le
+  seau de cadence (600/min et par compte) permet un ordre de grandeur de plus
+  que ce que la boucle absorbe : ce n'était pas une borne. ⚠️ **Un sémaphore
+  classique n'aurait rien borné** — compter les analyses « en cours » est vain
+  quand l'analyse est synchrone, le compteur est toujours retombé à zéro quand
+  un autre appelant le lit ; ce qui se compte utilement, c'est le nombre de
+  requêtes ARRIVÉES qui attendent leur tour. Au-delà de cinq, la route répond
+  `503 { error: 'Extractor busy' }` et le client se replie sur son propre
+  extracteur — ce qu'il faisait de toute façon avant la 1.4.10. Un
+  `setImmediate` entre deux analyses rend un tour de boucle COMPLET aux autres
+  requêtes ; une simple promesse réglée n'aurait rendu la main qu'aux
+  micro-tâches.
+- **Demandes simultanées coalescées** : dix appareils qui réclament la même URL
+  froide en même temps ne déclenchent **qu'une** extraction et **une** requête
+  chez le site d'origine. Le cache ne couvre que ce qui est déjà extrait : sans
+  cette table des extractions en cours (bornée à 64 URL, vidée dans les deux
+  issues pour ne jamais devenir un cache d'échecs), le « une requête au lieu de
+  dix » du README ne valait que pour des lecteurs décalés dans le temps — pas
+  pour une rafale de préchargement partagée.
 - **Piège — le refus de cible passe AVANT la lecture du cache, et c'est la
   garde COMPLÈTE qui passe devant.** Justement parce que la clé est globale à
   l'instance : une entrée écrite du temps où un hôte interne était autorisé

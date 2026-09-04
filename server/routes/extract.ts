@@ -2,9 +2,27 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { assertTargetSafe, fetchUpstream, finishError, proxyRateLimiter, UnresolvedTargetError } from './proxy.js';
 import { cacheEnabled, cacheGet, cacheSet, extractKey } from '../cache.js';
-import { extractArticle } from '../extract.js';
+import { extractArticle, ExtractorBusyError, withExtractSlot } from '../extract.js';
 
 const router = Router();
+
+/**
+ * Ce que le journal a le droit de retenir d'une cible d'extraction : l'ORIGINE,
+ * jamais le chemin.
+ *
+ * Le chemin d'une cible d'extraction est l'URL d'un article, donc une donnée de
+ * lecture — exactement ce que le journal d'accès a cessé d'écrire
+ * (`server/accessLog.ts`). Le laisser passer par `finishError` défaisait ce
+ * choix sur les chemins qui se répètent le plus : un domaine d'article mort
+ * (`ENOTFOUND`) est le refus le plus fréquent de cette route, et un balayage
+ * hors ligne en rencontre des dizaines.
+ *
+ * Ce que la trace garde : l'hôte visé, qui est ce qui compte pour un balayage
+ * SSRF comme pour une panne d'amont.
+ */
+function loggableTarget(url: string): string {
+  try { return new URL(url).origin; } catch { return '<url invalide>'; }
+}
 
 /**
  * Taille maximale du corps téléchargé avant analyse.
@@ -92,6 +110,86 @@ export async function readBoundedText(resp: Response, maxBytes: number, timeoutM
   }
 }
 
+/** Réponse d'une extraction, telle qu'elle sera rendue à chaque appelant coalescé. */
+interface Outcome { status: number; body: string }
+
+/**
+ * Extractions en cours, par URL. Bornée : voir `IN_FLIGHT_MAX`.
+ *
+ * Ce n'est pas un cache — une entrée ne survit pas à la fin de son extraction,
+ * succès comme échec.
+ */
+const inFlight = new Map<string, Promise<Outcome>>();
+
+/**
+ * Nombre d'URL distinctes pouvant être coalescées à un instant donné.
+ *
+ * Chaque entrée ne pèse qu'une promesse, mais la table est indexée par une
+ * chaîne fournie par le client : sans borne, une rafale d'URL uniques la ferait
+ * enfler dans le seul processus de l'instance. Au-delà, l'extraction a lieu
+ * sans coalescence — on perd le partage, jamais la réponse.
+ */
+const IN_FLIGHT_MAX = 64;
+
+/** Récupère la page et l'extrait. Une seule exécution sert tous les appelants. */
+async function produce(url: string, key: string | null): Promise<Outcome> {
+  const json = (status: number, body: unknown): Outcome => ({ status, body: JSON.stringify(body) });
+
+  let html: string;
+  try {
+    // `fetchUpstream` et pas `fetch` : c'est lui qui porte la garde anti-SSRF
+    // et les réécritures PROXY_REWRITES. Un appel direct rouvrirait la porte
+    // que le proxy ferme.
+    const upstream = await fetchUpstream(url, { headers: { Accept: 'text/html' } });
+    if (!upstream.ok) {
+      // Corps annulé, comme pour un type refusé : sous undici la socket reste
+      // retenue jusqu'au ramassage tant que le flux n'est ni lu ni annulé —
+      // un amont qui répond 500 en boucle accumulerait les connexions.
+      upstream.body?.cancel().catch(() => {});
+      return json(502, { error: 'Upstream request failed' });
+    }
+    // Le type est vérifié AVANT de lire quoi que ce soit : une vidéo ou un PDF
+    // n'a pas d'article à extraire, et n'a donc aucune raison d'être avalé.
+    // Une réponse SANS `Content-Type` tombe dans le même refus (`|| ''` ne
+    // correspond à rien) : c'est plus étroit que l'ancien chemin par le proxy,
+    // et assumé — le client doit pouvoir se replier sur son extracteur local.
+    const ctype = upstream.headers.get('content-type') || '';
+    if (!HTML_TYPES.test(ctype)) {
+      upstream.body?.cancel().catch(() => {});
+      return json(415, { error: 'Unsupported content type' });
+    }
+    html = await readBoundedText(upstream, MAX_HTML_BYTES, BODY_TIMEOUT_MS);
+  } catch (err) {
+    // Dépassement de taille : échec ordinaire, dont le client doit pouvoir se
+    // replier. Le reste remonte à l'appelant, qui le passe à `finishError`.
+    if (err instanceof BodyTooLargeError) return json(502, { error: 'Upstream response too large' });
+    throw err;
+  }
+
+  // ── L'analyse passe par la file ───────────────────────────────────
+  // `parseHTML` + `Readability` bloquent l'unique boucle d'événements de
+  // l'instance, de quelques dizaines de millisecondes à ~1 s au plafond de
+  // 5 Mo. Le seau de cadence (600/min par compte) n'est pas une borne à cette
+  // échelle-là : voir `EXTRACT_MAX_PENDING`. Une file pleine se dit — et le
+  // client se replie sur son propre extracteur, comme avant la 1.4.10.
+  let article;
+  try {
+    article = await withExtractSlot(() => extractArticle(url, html));
+  } catch (err) {
+    if (err instanceof ExtractorBusyError) return json(503, { error: 'Extractor busy' });
+    throw err;
+  }
+  // Pas d'article lisible : on le dit, pour que le client puisse extraire de
+  // son côté. Un corps vide renvoyé en 200 le priverait de ce repli.
+  if (!article) return json(422, { error: 'Not extractable' });
+
+  const body = JSON.stringify(article);
+  // Écriture au mieux : un Redis en panne ne doit pas priver le client de sa
+  // réponse, qui est déjà calculée.
+  if (key) cacheSet(key, body).catch(() => {});
+  return { status: 200, body };
+}
+
 // L'authentification d'abord, la cadence ensuite : la clé du seau est
 // l'identifiant de l'utilisateur, pas son IP.
 router.use(requireAuth);
@@ -174,7 +272,7 @@ router.get('/', async (req, res) => {
     // refuse avant le moindre appel sortant. Un hôte qu'on ne sait pas situer
     // n'est jamais joint — et il y reste classé en 403, sans code à part, pour
     // ne pas révéler par différence lequel des deux refus a joué.
-    if (!(err instanceof UnresolvedTargetError)) return finishError(res, err, url, 'Extract error:');
+    if (!(err instanceof UnresolvedTargetError)) return finishError(res, err, loggableTarget(url), 'Extract error:');
   }
 
   const key = cacheEnabled ? extractKey(url) : null;
@@ -187,52 +285,43 @@ router.get('/', async (req, res) => {
     }
   }
 
-  let html: string;
+  // ── Coalescence des demandes simultanées ──────────────────────────
+  // Le cache ne sert que ce qui est DÉJÀ extrait. Dix appareils qui demandent
+  // la même URL froide en même temps — le cas typique d'un préchargement
+  // partagé, ou de deux téléphones qui ouvrent le même article — produisaient
+  // dix extractions et dix requêtes chez le site d'origine : exactement ce que
+  // le « une requête au lieu de dix » du README promet d'éviter, et qui ne
+  // tenait en réalité que pour des lecteurs décalés dans le temps.
+  //
+  // La clé est l'URL, comme celle du cache : le résultat ne dépend d'aucun
+  // compte, donc le partager entre appelants ne partage rien de privé.
+  const shared = inFlight.get(url);
+  let outcome: Outcome;
   try {
-    // `fetchUpstream` et pas `fetch` : c'est lui qui porte la garde anti-SSRF
-    // et les réécritures PROXY_REWRITES. Un appel direct rouvrirait la porte
-    // que le proxy ferme.
-    const upstream = await fetchUpstream(url, { headers: { Accept: 'text/html' } });
-    if (!upstream.ok) {
-      // Corps annulé, comme pour un type refusé : sous undici la socket reste
-      // retenue jusqu'au ramassage tant que le flux n'est ni lu ni annulé —
-      // un amont qui répond 500 en boucle accumulerait les connexions.
-      upstream.body?.cancel().catch(() => {});
-      return res.status(502).json({ error: 'Upstream request failed' });
+    if (shared) {
+      outcome = await shared;
+    } else {
+      const run = produce(url, key);
+      // La table est BORNÉE : au-delà, on extrait sans s'inscrire plutôt que
+      // de laisser une rafale d'URL distinctes la faire enfler.
+      if (inFlight.size < IN_FLIGHT_MAX) {
+        inFlight.set(url, run);
+        // Retrait dans les DEUX issues. Un échec qui resterait mémorisé
+        // condamnerait l'URL à rendre la même erreur à tout le monde, pour
+        // toujours — un cache d'échecs que personne n'a demandé.
+        void run.then(() => inFlight.delete(url), () => inFlight.delete(url));
+      }
+      outcome = await run;
     }
-    // Le type est vérifié AVANT de lire quoi que ce soit : une vidéo ou un PDF
-    // n'a pas d'article à extraire, et n'a donc aucune raison d'être avalé.
-    // Une réponse SANS `Content-Type` tombe dans le même refus (`|| ''` ne
-    // correspond à rien) : c'est plus étroit que l'ancien chemin par le proxy,
-    // et assumé — le client doit pouvoir se replier sur son extracteur local.
-    const ctype = upstream.headers.get('content-type') || '';
-    if (!HTML_TYPES.test(ctype)) {
-      upstream.body?.cancel().catch(() => {});
-      return res.status(415).json({ error: 'Unsupported content type' });
-    }
-    html = await readBoundedText(upstream, MAX_HTML_BYTES, BODY_TIMEOUT_MS);
   } catch (err) {
-    // Dépassement de taille : échec ordinaire, dont le client doit pouvoir se
-    // replier. Le reste (cible refusée, délai, panne amont) est classé
-    // exactement comme sur `/api/proxy` — deux routes ne doivent pas décrire
-    // le même échec de deux façons.
-    if (err instanceof BodyTooLargeError) {
-      return res.status(502).json({ error: 'Upstream response too large' });
-    }
-    return finishError(res, err, url, 'Extract error:');
+    // Cible refusée, délai, panne amont : classés exactement comme sur
+    // `/api/proxy` — deux routes ne doivent pas décrire le même échec de deux
+    // façons. Le journal ne reçoit que l'origine (voir `loggableTarget`).
+    return finishError(res, err, loggableTarget(url), 'Extract error:');
   }
 
-  const article = extractArticle(url, html);
-  // Pas d'article lisible : on le dit, pour que le client puisse extraire de
-  // son côté. Un corps vide renvoyé en 200 le priverait de ce repli.
-  if (!article) return res.status(422).json({ error: 'Not extractable' });
-
-  const body = JSON.stringify(article);
-  // Écriture au mieux : un Redis en panne ne doit pas priver le client de sa
-  // réponse, qui est déjà calculée.
-  if (key) cacheSet(key, body).catch(() => {});
   res.set('Content-Type', 'application/json');
-  res.send(body);
+  res.status(outcome.status).send(outcome.body);
 });
 
 export default router;

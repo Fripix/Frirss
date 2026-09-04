@@ -24,6 +24,19 @@ export function loginErrorKey(err: unknown): string {
 export const BLOCKED_TARGET_MARKER = 'Target host not allowed';
 
 /**
+ * Marqueur du 503 émis quand le RÉSOLVEUR n'a pas répondu — panne de
+ * disponibilité, pas refus de cible (`UnresolvedTargetError`, même fichier).
+ *
+ * Les deux se répondaient à l'identique jusqu'au 2026-09-04, et l'écran
+ * annonçait donc « cette adresse pointe à l'intérieur de votre réseau, FriRSS
+ * l'a bloquée » pour un simple hoquet DNS pendant l'installation — avec la
+ * marche à suivre de `PROXY_INTERNAL_HOSTS`, envoyant chercher le défaut là où
+ * il n'est pas. Un paquet perdu suffit : sous musl, une seule tentative de
+ * résolution dure déjà cinq secondes, le plafond du backend.
+ */
+export const UNRESOLVED_TARGET_MARKER = 'Target host unresolved';
+
+/**
  * Messages des 401 émis par NOTRE middleware d'authentification
  * (`server/middleware/auth.ts`), avant que la requête n'atteigne FreshRSS.
  *
@@ -80,6 +93,11 @@ export function serverConnectErrorKey(err: unknown): string {
   const res = (err as { response?: { status?: number; data?: unknown } })?.response;
   if (res?.status === 403 && bodyText(res.data).includes(BLOCKED_TARGET_MARKER)) {
     return 'login.errorServerBlocked';
+  }
+  // Le résolveur n'a pas répondu : c'est une panne, et le dire évite d'accuser
+  // l'adresse saisie d'un refus qui n'a pas eu lieu.
+  if (res?.status === 503 && bodyText(res.data).includes(UNRESOLVED_TARGET_MARKER)) {
+    return 'login.errorServerUnresolved';
   }
   // Un 401 vient soit de FreshRSS (greader.php répond « Unauthorized! » pour un
   // mot de passe d'API faux **comme** pour un mot de passe jamais défini), soit

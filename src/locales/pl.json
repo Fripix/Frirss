@@ -463,6 +463,7 @@
     "addingServer": "Łączenie…",
     "errorServer": "Nie udało się połączyć z serwerem FreshRSS.",
     "errorServerBlocked": "Ten adres wskazuje wnętrze Twojej sieci, więc FriRSS go zablokował. Dodaj jego host do PROXY_INTERNAL_HOSTS i uruchom ponownie kontener.",
+    "errorServerUnresolved": "FriRSS nie mógł rozwiązać adresu tego serwera: resolver DNS nie odpowiedział. Sprawdź nazwę hosta i spróbuj ponownie.",
     "errorServerCredentials": "FreshRSS odrzucił te dane logowania. Hasło API ustawia się osobno od hasła konta, w FreshRSS → Ustawienia → Profil.",
     "restorePrompt": "Odtwarzasz z kopii zapasowej?",
     "errorTooMany": "Zbyt wiele prób. Odczekaj kilka minut.",

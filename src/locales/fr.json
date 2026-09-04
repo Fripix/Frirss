@@ -455,6 +455,7 @@
     "addingServer": "Connexion…",
     "errorServer": "Échec de la connexion au serveur FreshRSS.",
     "errorServerBlocked": "Cette adresse pointe à l’intérieur de votre réseau : FriRSS l’a bloquée. Ajoutez son hôte à PROXY_INTERNAL_HOSTS, puis redémarrez le conteneur.",
+    "errorServerUnresolved": "FriRSS n’a pas pu résoudre l’adresse de ce serveur : le résolveur DNS n’a pas répondu. Vérifiez le nom d’hôte, puis réessayez.",
     "errorServerCredentials": "FreshRSS a refusé ces identifiants. Le mot de passe d’API se définit à part du mot de passe du compte, dans FreshRSS → Configuration → Profil.",
     "restorePrompt": "Vous repartez d’une sauvegarde ?",
     "errorTooMany": "Trop de tentatives. Patientez quelques minutes avant de réessayer.",
