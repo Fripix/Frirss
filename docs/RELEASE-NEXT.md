@@ -60,6 +60,17 @@ _(rien pour l'instant)_
 - **Défilement plus fluide dans le volet de lecture** : la barre de progression
   se mesure une fois par image affichée, plus une fois par événement de
   défilement.
+- **Les dates s'affichent enfin dans votre langue.** Le formatage s'était arrêté
+  à deux langues : hors français, tout passait au format américain. Un lecteur
+  allemand, espagnol, italien, néerlandais, polonais, portugais ou ukrainien —
+  sept des neuf langues — voyait donc des dates anglaises dans une interface
+  par ailleurs traduite. Au passage, la date affichée pendant le balayage d'un
+  article à l'autre était figée en français : elle changeait sous les yeux au
+  moment où l'article s'affichait vraiment.
+- **La page déclare la langue de l'interface.** Elle annonçait le français quelle
+  que soit la langue choisie. Les lecteurs d'écran y prennent leur voix et leurs
+  règles de prononciation : une interface polonaise était lue avec une voix
+  française. Le correcteur orthographique des champs de saisie s'aligne aussi.
 
 ## Sous le capot
 

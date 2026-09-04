@@ -2070,6 +2070,24 @@ et `uk`.
 - **Où** : `src/locales/*.json`, `src/i18n.ts`
 - **Règle** : toute chaîne visible va dans **les neuf** fichiers. Vérifier la
   parité avec la commande du `CLAUDE.md` avant de livrer.
+- **`<html lang>` suit la langue** : posé par `src/i18n.ts` à l'initialisation
+  puis à chaque `languageChanged`. `index.html` fige `lang="fr"` — fichier
+  statique servi par nginx, rien de mieux n'est possible avant l'exécution du
+  bundle — et rien ne le corrigeait ensuite : le document annonçait du français
+  à un lecteur polonais dès le premier écran. Les lecteurs d'écran choisissent
+  voix et prononciation sur cet attribut. Pas de `dir` : les neuf langues
+  d'interface vont de gauche à droite ; le sens d'écriture ne concerne que le
+  **contenu** des articles, porté bloc par bloc par `dir="auto"`.
+- **Les dates suivent aussi la langue** : `dateLocale()` (`src/utils/dates.ts`)
+  rend l'étiquette i18next telle quelle — c'est une balise BCP 47 valide, donc
+  `toLocaleDateString` la résout sans table à tenir à jour.
+  ⚠️ **Piège corrigé** : trois endroits testaient `lng === 'fr' ? 'fr-FR' :
+  'en-US'`, liste arrêtée aux deux premières langues du projet — **sept locales
+  sur neuf** affichaient donc des dates à l'américaine. Le troisième, le
+  fantôme de balayage du volet de lecture, était même figé sur `fr-FR` : hors
+  interface française, la date changeait à l'instant où le fantôme cédait la
+  place au rendu. `formatArticleDate()` sert désormais les deux, pour qu'ils ne
+  puissent plus diverger.
 
 ---
 

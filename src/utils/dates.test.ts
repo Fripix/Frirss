@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Stub i18n so date labels are deterministic: t(key) → key, English locale.
-vi.mock('../i18n', () => ({
-  default: { t: (k: string) => k, language: 'en' },
-}));
+// `language` est modifiable : le formatage des dates suit la langue active,
+// et c'est précisément ce qu'on veut pouvoir faire varier dans un test.
+const i18nStub = vi.hoisted(() => ({ t: (k: string) => k, language: 'en' }));
+vi.mock('../i18n', () => ({ default: i18nStub }));
 
-import { groupByDate } from './dates';
+import { groupByDate, dateLocale, formatArticleDate } from './dates';
 import type { Article } from '../types';
 
 const article = (d: Date): Article => ({ published: d.getTime() } as Article);
@@ -130,5 +131,36 @@ describe('groupByDate — clés de bandes', () => {
       withId('a2', daysAgo(0)),
     ]);
     expect(new Set(ks).size).toBe(3);
+  });
+});
+
+describe('locale de formatage', () => {
+  afterEach(() => { i18nStub.language = 'en'; });
+
+  it("suit la langue de l'interface, pas seulement fr ou en", () => {
+    for (const lng of ['fr', 'en', 'de', 'es', 'it', 'nl', 'pl', 'pt', 'uk']) {
+      i18nStub.language = lng;
+      expect(dateLocale()).toBe(lng);
+    }
+  });
+
+  it('retombe sur le français si la langue est absente', () => {
+    i18nStub.language = '';
+    expect(dateLocale()).toBe('fr');
+  });
+
+  it('rend le mois dans la langue active', () => {
+    const d = new Date(2026, 5, 15, 10, 0, 0);
+    i18nStub.language = 'de';
+    expect(formatArticleDate(d.getTime())).toContain('Juni');
+    i18nStub.language = 'pl';
+    expect(formatArticleDate(d.getTime())).toContain('czerwca');
+    i18nStub.language = 'en';
+    expect(formatArticleDate(d.getTime())).toContain('June');
+  });
+
+  it("porte l'heure et la minute, comme le volet de lecture les affiche", () => {
+    i18nStub.language = 'fr';
+    expect(formatArticleDate(new Date(2026, 5, 15, 14, 5, 0).getTime())).toMatch(/14[:h]05/);
   });
 });

@@ -18,6 +18,7 @@ import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import { readableTextOn } from '../../lib/readableText';
 import { planHeroWarm, runHeroWarm } from '../../lib/heroWarm';
 import { rememberImageSize } from '../../lib/imageAspect';
+import { formatArticleDate } from '../../utils/dates';
 import { IMAGE_CACHE_NAME } from '../../lib/storageEstimate';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 import BottomSheet from '../BottomSheet';
@@ -104,7 +105,7 @@ interface ReadingPaneProps {
 }
 
 export default function ReadingPane({ showBack }: ReadingPaneProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { selectedArticle, selectArticle, toggleRead, toggleStar, toggleReadLater, categoryIds, selectNextArticle, selectPrevArticle } = useFeedStore();
   const theme = useThemeStore((s) => s.theme);
   const getLabelColor = useThemeStore((s) => s.getLabelColor);
@@ -416,10 +417,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               background:var(--panel-bg);
               z-index:1;overflow-y:auto;pointer-events:none;
             `;
-            const adjDate = new Date(adj.published).toLocaleDateString('fr-FR', {
-              day: 'numeric', month: 'long', year: 'numeric',
-              hour: '2-digit', minute: '2-digit',
-            });
+            const adjDate = formatArticleDate(adj.published);
             // Le fantôme montre EXACTEMENT ce que le rendu montrera : même
             // décision (`readingBodyKind`), même contenu (`displayedHtml`),
             // extrait compris s'il est déjà en mémoire — sinon le contenu du
@@ -765,14 +763,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   }
 
   const article = selectedArticle;
-  const dateLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-US';
-  const date = new Date(article.published).toLocaleDateString(dateLocale, {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const date = formatArticleDate(article.published);
 
   function decreaseFont() {
     if (bodySize > 10) setFontSize('reading-body', String(bodySize - 1));

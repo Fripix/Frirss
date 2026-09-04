@@ -50,6 +50,35 @@ i18n.use(initReactI18next).init({
 });
 
 /**
+ * Déclare la langue courante sur `<html>`.
+ *
+ * `index.html` fige `lang="fr"` — c'est un fichier statique servi par nginx,
+ * on ne peut pas faire mieux avant l'exécution du bundle — et rien ne le
+ * mettait à jour ensuite. Le document annonçait donc « ceci est du français »
+ * à un lecteur polonais ou néerlandais, dès le premier écran.
+ *
+ * Ce que ça change concrètement : les lecteurs d'écran choisissent leur voix et
+ * leurs règles de prononciation sur cet attribut — une interface polonaise lue
+ * par une voix française n'est pas « moins bonne », elle est inintelligible.
+ * S'y ajoutent le correcteur orthographique des champs de saisie et les
+ * sélecteurs `:lang()`.
+ *
+ * Branché ici plutôt que dans le sélecteur de langue des réglages : c'est le
+ * seul endroit qui connaît la langue **à l'initialisation** comme à chaque
+ * changement, d'où qu'il vienne.
+ *
+ * Pas de `dir` : les neuf langues d'interface s'écrivent de gauche à droite.
+ * Le sens d'écriture ne concerne que le **contenu** des articles, où il est
+ * porté bloc par bloc par `dir="auto"` (`src/lib/articleBody.ts`).
+ */
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = i18n.language;
+  i18n.on('languageChanged', (lng) => {
+    document.documentElement.lang = lng;
+  });
+}
+
+/**
  * Load a language bundle on demand. No-op for `fr` (bundled) or an
  * already-loaded language. Await this before calling changeLanguage().
  */
