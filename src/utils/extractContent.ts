@@ -42,9 +42,36 @@ export function sanitizeExtracted(html: string): string {
  * Returns { title, content, excerpt, byline, siteName, length } or throws.
  */
 export async function extractFullContent(url: string): Promise<ExtractedContent> {
+  const { backendToken } = useAuthStore.getState();
+
+  // Le serveur fait autorité quand il répond : il extrait une fois pour toute
+  // l'instance et partage le résultat entre appareils et entre comptes. Toute
+  // réponse absente, en erreur ou illisible fait tomber sur l'extraction
+  // locale ci-dessous, qui reste le filet — la route peut manquer (serveur
+  // plus ancien), échouer sur une page que `linkedom` ne sait pas lire, ou
+  // ne rien garder faute de Redis.
+  //
+  // Le HTML rendu par la route est BRUT, délibérément : `createDOMPurify` sur
+  // `linkedom` ne filtre rien (pas de `NodeFilter`, donc DOMPurify bascule sans
+  // bruit en mode « environnement non supporté » et rend l'entrée telle
+  // quelle). C'est donc ICI qu'il est assaini, avant d'être rendu à l'appelant
+  // et donc avant d'être archivé dans IndexedDB (`putExtract`) : sauter cette
+  // étape publie une XSS stockée, atteignable depuis n'importe quel flux dont
+  // la page d'origine porte un `onclick` ou un `onerror`.
+  try {
+    const served = await fetch(`/api/extract?url=${encodeURIComponent(url)}`, {
+      headers: { ...(backendToken ? { Authorization: `Bearer ${backendToken}` } : {}) },
+    });
+    if (served.ok) {
+      const data = (await served.json()) as ExtractedContent;
+      if (data && typeof data.content === 'string' && data.content) {
+        return { ...data, content: sanitizeExtracted(data.content) };
+      }
+    }
+  } catch { /* repli */ }
+
   // Fetch through the same-origin backend proxy (avoids CORS; the target is
   // passed in a header, auth via the FriRSS JWT).
-  const { backendToken } = useAuthStore.getState();
   const response = await fetch('/api/proxy', {
     headers: {
       'X-Proxy-Target': url,

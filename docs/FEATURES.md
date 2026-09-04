@@ -772,14 +772,29 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   articles vient de sources non fiables.
 
 ### Extraction du contenu complet
-Pour les flux tronqués, récupération de l'article complet via **`/api/proxy`**
-(même origine, JWT requis, garde anti-SSRF), avec cache à deux niveaux.
-Activable par flux. *(La doc a longtemps annoncé `/cors-proxy/` : cet endpoint
-a été supprimé de la production en 1.3.1, et du serveur de développement en
-1.4.4.)*
+Pour les flux tronqués, récupération de l'article complet, avec cache à deux
+niveaux. Activable par flux. *(La doc a longtemps annoncé `/cors-proxy/` : cet
+endpoint a été supprimé de la production en 1.3.1, et du serveur de
+développement en 1.4.4.)*
 
 - **Où** : `src/utils/extractContent.ts`, `src/lib/extractCache.ts`,
   `src/lib/extractStore.ts`
+- **Le serveur d'abord, le navigateur en filet** (1.4.10) :
+  `extractFullContent()` demande `GET /api/extract?url=…`, qui extrait une fois
+  pour toute l'instance et partage le résultat entre appareils et entre comptes.
+  **Toute** réponse absente, en erreur (404 sur un serveur plus ancien, 422 page
+  non extractible, 403, 415, 502, 504) ou illisible fait tomber sur l'extraction
+  locale décrite ci-dessous — page récupérée par `/api/proxy` puis Readability
+  dans le navigateur. Ce repli n'est pas du code hérité : c'est ce qui tient
+  quand le serveur n'a pas de Redis, ne sait pas lire la page, ou n'a pas la
+  route.
+- **Piège — le HTML rendu par la route est BRUT.** Le serveur n'assainit rien
+  (voir *Extraction d'articles*, côté backend), donc le client applique
+  `sanitizeExtracted()` à la réception, avant de rendre la valeur et **avant
+  qu'elle n'atteigne IndexedDB** (`putExtract`). Retirer cet appel publie une
+  XSS stockée, atteignable depuis n'importe quel flux dont la page d'origine
+  porte un `onclick` ou un `onerror`. Un test de
+  `src/utils/extractContent.test.ts` échoue si l'étape saute.
 - **Extraction de fond** : sur un flux à extraction automatique, la page
   entière est extraite en arrière-plan pour que l'article soit prêt avant
   qu'on l'ouvre. Séquentielle, précédée d'un délai d'installation de deux
@@ -799,7 +814,9 @@ a été supprimé de la production en 1.3.1, et du serveur de développement en
   balayer vite n'envoie rien du tout :
   - **le TEXTE des dix articles suivants** (N+1 … N+10, 1.4.10 — la fenêtre
     était de cinq), sur les seuls flux à extraction automatique,
-    **séquentiellement** : une requête `/api/proxy` à la fois. Ne pas élargir
+    **séquentiellement** : une extraction à la fois — `/api/extract`, ou
+    `/api/proxy` quand elle se replie, et les deux puisent dans le **même**
+    seau de cadence. Ne pas élargir
     davantage ni paralléliser (voir le piège ci-dessous) ;
   - **l'image d'en-tête des dix articles suivants** (1.4.10), deux chargements
     en vol au plus. Le plan et le runner vivent dans `src/lib/heroWarm.ts` ; le
@@ -1301,7 +1318,10 @@ inscriptions, animation de connexion.
 ## Backend
 
 ### Proxy
-Point de passage unique vers FreshRSS et vers l'extraction d'articles.
+Point de passage unique vers FreshRSS. Il sert aussi l'extraction d'articles,
+mais seulement **en repli** depuis la 1.4.10 : le client demande d'abord
+`/api/extract`, et ne récupère la page lui-même que si cette route n'a pas
+répondu (voir *Extraction du contenu complet*).
 
 - **Où** : `server/routes/proxy.ts`
 - **Protection SSRF** : cibles internes bloquées par défaut, en littéral **et**
@@ -1399,7 +1419,9 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
 ### Extraction d'articles
 `GET /api/extract?url=…` rend l'article extrait en HTML **brut, non assaini** :
 c'est le **client** qui assainit à la réception, et l'afficher sans passer par
-là est une faille XSS.
+là est une faille XSS. Depuis la 1.4.10, `extractFullContent()` interroge cette
+route **avant** d'extraire elle-même, et applique `sanitizeExtracted()` à ce
+qu'elle rend (voir *Extraction du contenu complet*).
 
 - **Où** : `server/routes/extract.ts`, `server/extract.ts`
 - **Cache** : Redis, clé `frirss:x:<sha1(url)>` — **sans identifiant
@@ -1521,8 +1543,9 @@ là est une faille XSS.
 - **Plafonds de lecture** (`server/routes/extract.ts`) : la réponse doit être du
   `text/html` (sinon 415, avant toute lecture — un PDF ou une vidéo n'a pas
   d'article ; une réponse **sans en-tête `Content-Type`** tombe dans le même
-  refus, plus étroit que l'ancien chemin par le proxy : le client **doit
-  pouvoir** se replier sur son extracteur local), au plus 5 Mo (sinon 502) et
+  refus, plus étroit que l'ancien chemin par le proxy : le client se replie
+  alors sur son extracteur local, qui, lui, lit la page quand même), au plus
+  5 Mo (sinon 502) et
   lue en moins de 20 s (sinon 504). Le minuteur de `fetchUpstream` est désarmé
   à l'arrivée des en-têtes : il couvre la connexion, pas le corps. Sans ces
   bornes, une URL publique quelconque suffisait à faire avaler des Go au seul
@@ -1553,8 +1576,9 @@ là est une faille XSS.
   resterait vert quel que soit son comportement.
   Un `400 { error: 'Invalid or missing url' }` couvre les deux entrées
   refusées d'emblée — `url` absente, ou présente mais pas http(s).
-- **422 quand la page n'est pas extractible** : le client doit pouvoir se
-  replier sur son extracteur local ; un corps vide en 200 l'en priverait.
+- **422 quand la page n'est pas extractible** : le client tombe alors sur son
+  extracteur local ; un corps vide en 200 l'en priverait, puisqu'il ne
+  retient la réponse du serveur que lorsqu'elle porte un `content` non vide.
 
 ### nginx (image de production)
 Sert `dist/` et proxifie `/api/` vers Express. Porte les en-têtes de sécurité
@@ -1906,7 +1930,7 @@ et `uk`.
 | POST | `/api/admin/restore` | Remplacer l'instance |
 | POST | `/api/setup/restore/preview` | Idem, instance vierge uniquement |
 | POST | `/api/setup/restore` | Idem, instance vierge uniquement |
-| ALL | `/api/proxy` | Passage vers FreshRSS et extraction d'articles |
+| ALL | `/api/proxy` | Passage vers FreshRSS ; extraction d'articles en repli |
 | GET | `/api/extract` | Article extrait côté serveur, depuis le cache partagé ou fraîchement |
 
 ---

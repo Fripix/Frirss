@@ -141,6 +141,13 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `FRIRSS_PROXY_RATE_LIMIT` | Proxied requests allowed per user per minute (`0` disables; non-integer or negative → default) | `600` |
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
+> With `REDIS_URL` set, FriRSS also caches the **extracted text** of articles,
+> keyed by URL rather than by account. The page is then extracted once for the
+> whole instance instead of once per device: a second device, or another user
+> reading the same feed, gets it instantly and the origin site sees one request
+> instead of many. Without Redis nothing breaks — the browser extracts as it
+> always has.
+
 Single sign-on is configured at runtime in *Preferences → Administration* (issuer, client ID, client secret).
 
 ## Backups

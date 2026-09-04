@@ -47,6 +47,12 @@ _(rien pour l'instant)_
   là où le flux ne livre réellement rien.
 - **Dix articles d'avance au lieu de cinq** pour le texte préparé pendant la
   lecture — toujours un article à la fois, pour ne pas charger le serveur.
+- **Le texte des articles est extrait une fois pour toute l'instance.** Chaque
+  appareil refaisait l'extraction de chaque article : dix lecteurs des mêmes
+  flux, c'étaient dix extractions identiques et dix requêtes chez le site
+  d'origine. Le serveur s'en charge désormais et partage le résultat entre
+  appareils et entre comptes — le téléphone ne calcule plus rien. Sans Redis,
+  rien ne change : le navigateur extrait comme avant.
 - **Défilement plus fluide dans le volet de lecture** : la barre de progression
   se mesure une fois par image affichée, plus une fois par événement de
   défilement.
