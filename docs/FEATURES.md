@@ -587,8 +587,16 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   qu'écrivaient la ligne normale, la ligne compacte et la carte de grille.
   La ligne compacte n'avait **aucun conteneur** pour ses boutons : ils étaient
   enfants directs de la ligne et héritaient donc de son `gap-3`, comme le
-  titre et l'heure — un conteneur dédié (`gap-1`) leur donne maintenant leur
-  propre écartement, plus resserré. L'ordre est désormais **le même partout** :
+  titre et l'heure — un conteneur dédié leur donne maintenant leur propre
+  écartement : **`gap-2`, soit 8 px**. Il avait d'abord été fixé à `gap-1`
+  (4 px), et c'était trop peu : `.article-row button` est volontairement
+  exempté du `min-height: 40px` tactile (`src/styles/index.css`), donc chaque
+  cible reste **22 × 22 px**, sous le minimum de 24 px de la règle WCAG 2.5.8 —
+  et elles sont désormais quatre de front. Depuis l'arrivée de la 4ᵉ icône, une
+  méprise coûte cher : le doigt qui visait le ✓ tombait sur « ouvrir à la
+  source », qui ouvre un onglet, marque lu **et** retire la ligne sous
+  « Non lus ». Doubler l'écart rend l'essentiel de la séparation d'avant pour
+  8 px de largeur de ligne. L'ordre est désormais **le même partout** :
   étoile → à lire plus tard → ouvrir à la source → ✓, alors que le mode
   Compact inversait auparavant étoile et « à lire plus tard ». Le ✓ reste en
   DERNIER : c'est ce qui permet d'enchaîner des clics de marquage sans bouger
@@ -599,10 +607,37 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   suivantes se décaleraient sur cette seule ligne) ; une icône masquée par
   réglage laisse un emplacement **retiré**, rien n'occupant sa place (la
   cause vaut pour toute la liste, rien n'a besoin d'absorber une variation).
+  **Chaque mode garde sa disposition**, passée en `className` : la ligne
+  compacte et la carte de grille alignent leurs icônes **en ligne** ; la ligne
+  normale (et l'aperçu) les range en **grille 2 × 2**
+  (`grid grid-cols-2 gap-1 flex-shrink-0 self-start pt-0.5`). Une colonne
+  verticale y avait d'abord été essayée, et elle coûtait cher : quatre boutons
+  empilés mesurent **102 px** alors que le bloc de texte voisin (source, titre,
+  résumé sur deux lignes) en fait 80 — la colonne devenait donc ce qui dicte la
+  hauteur de la ligne, qui passait de **105 à 127 px**, un article de moins par
+  écran dans la vue par DÉFAUT. Sur deux rangs, la barre retombe à 48 px, reste
+  à l'intérieur du texte, et la ligne retrouve ses 105 px (mesuré au navigateur
+  sur le vrai balisage et la feuille de styles construite, pas à l'œil).
+  `self-start` n'est pas décoratif : sans lui, la grille s'étire sur toute la
+  hauteur de la ligne et étire ses boutons avec elle.
   Réglages de visibilité : `ArticleRowActions` reçoit désormais le choix de
   l'utilisateur (`useUiStore(s => s.rowActions)`), réglable dans Préférences →
   **Mise en page** (voir *Préférences* ci-dessous) — toutes visibles par
   défaut.
+  ⚠️ **Masquer l'étoile ou « à lire plus tard » retire aussi un geste.**
+  `useFileGesture` vit DANS `StarButton` et `ReadLaterButton` : l'appui long
+  (ou le clic droit) qui ouvre `SavedCategoryPicker` disparaît avec le bouton,
+  et avec lui la seule façon de classer un article dans une catégorie **depuis
+  la liste** — le volet de lecture garde la sienne. Les balayages et les
+  raccourcis clavier, eux, ne bougent pas. Le texte d'aide de la section
+  « Mise en page » (`preferences.layout.hint`) le dit, dans les neuf langues :
+  il a affirmé le contraire (« les gestes ne changent pas ») le temps d'un
+  cycle.
+  **Tests** : la carte de grille par `ArticleCard.test.tsx`, la ligne compacte
+  par `ArticleRow.compact.test.tsx` (ordre des quatre icônes, emplacement
+  réservé en 3ᵉ position sans URL, emplacement retiré par réglage, et le clic
+  sur « ouvrir à la source » qui n'ouvre jamais l'article) — d'où l'export de
+  `ArticleRow` depuis `ArticleList.tsx`, qui n'a pas d'autre consommateur.
 - **Ouvrir à la source** (4ᵉ icône, `OpenSourceButton`) : ouvre l'URL d'origine
   de l'article dans un nouvel onglet (`openExternal()`, `src/lib/openExternal.ts`
   — `window.open(url, '_blank', 'noopener')`, jamais l'article dans FriRSS) et
@@ -613,8 +648,15 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   boutons de la ligne, pour ne jamais sélectionner l'article ni l'ouvrir dans
   le volet de lecture. Sous le filtre « Non lus », le marquage déclenche donc
   le même retrait de ligne que le ✓ décrit plus haut : **optimiste**, avant la
-  réponse du serveur, avec le même rollback en cas de refus — cliquer
-  l'icône équivaut à un ✓ suivi de l'ouverture externe.
+  réponse du serveur, avec le même rollback en cas de refus. Sur un article
+  **déjà lu**, en revanche, l'icône ouvre et ne touche à rien : elle n'est pas
+  un ✓, qui le repasserait non lu.
+  Sans URL, `openArticleAtSource()` ne fait **rien du tout** — ni ouverture, ni
+  marquage. La garde est dans le module et pas seulement dans l'affichage :
+  aucun bouton ne mène là aujourd'hui (`rowActionSlots()` rend l'emplacement
+  vide), mais un futur appelant qui ne consulterait pas les emplacements — un
+  raccourci clavier, par exemple — marquerait sinon l'article lu sans que rien
+  ne s'ouvre.
 
 ### Marquer lu au défilement
 Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article
@@ -1436,6 +1478,12 @@ serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, plus
   leurs, indépendamment), ni la piste d'options en tête de liste (source,
   favicons, séparateurs de dates, barre — qui règle le CONTENU montré par la
   ligne, pas les OUTILS qu'elle propose).
+  - **Piège — deux des quatre interrupteurs emportent un geste avec eux.**
+    Masquer « Favori » ou « À lire plus tard » retire aussi l'appui long (et le
+    clic droit) qui classe un article dans une catégorie depuis la liste : le
+    geste vit dans ces deux boutons, pas dans la ligne. Le texte d'aide de la
+    section l'annonce ; les balayages et les raccourcis, eux, sont bien
+    inchangés.
   - **Piège** : un appareil resté sur une version antérieure à cette
     fonctionnalité synchronise (ou relit depuis `localStorage`) un objet
     `rowActions` auquel il manque les clés ajoutées depuis. Sans

@@ -419,7 +419,7 @@
     },
     "layout": {
       "title": "Actiepictogrammen voor artikelen",
-      "hint": "Kies welke pictogrammen op elke artikelregel verschijnen. Gebaren, sneltoetsen en het leespaneel veranderen niet.",
+      "hint": "Kies welke pictogrammen op elke artikelregel verschijnen. Veegbewegingen, sneltoetsen en het leespaneel veranderen niet; wie Favoriet of Later lezen verbergt, verliest echter ook het lang indrukken waarmee een artikel vanuit de lijst in een categorie wordt opgeborgen.",
       "star": "Favoriet",
       "readLater": "Later lezen",
       "openSource": "Bij de bron openen",

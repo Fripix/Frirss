@@ -427,7 +427,7 @@
     },
     "layout": {
       "title": "Ikony akcji artykułu",
-      "hint": "Wybierz, które ikony pojawiają się w każdym wierszu artykułu. Gesty, skróty i panel czytania pozostają bez zmian.",
+      "hint": "Wybierz, które ikony pojawiają się w każdym wierszu artykułu. Gesty przesunięcia, skróty i panel czytania pozostają bez zmian; ukrycie ikony „Ulubione” lub „Do przeczytania później” usuwa jednak także długie przytrzymanie, które przypisuje artykuł do kategorii z poziomu listy.",
       "star": "Ulubione",
       "readLater": "Do przeczytania później",
       "openSource": "Otwórz u źródła",

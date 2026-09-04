@@ -419,7 +419,7 @@
     },
     "layout": {
       "title": "Icônes d’action des articles",
-      "hint": "Choisissez les icônes affichées sur chaque ligne d’article. Les gestes, les raccourcis et le volet de lecture ne changent pas.",
+      "hint": "Choisissez les icônes affichées sur chaque ligne d’article. Les balayages, les raccourcis et le volet de lecture ne changent pas ; en revanche, masquer « Favori » ou « À lire plus tard » retire aussi l’appui long qui classe un article dans une catégorie depuis la liste.",
       "star": "Favori",
       "readLater": "À lire plus tard",
       "openSource": "Ouvrir à la source",

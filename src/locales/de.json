@@ -419,7 +419,7 @@
     },
     "layout": {
       "title": "Aktionssymbole für Artikel",
-      "hint": "Wählen Sie, welche Symbole in jeder Artikelzeile erscheinen. Gesten, Tastenkürzel und der Lesebereich bleiben unverändert.",
+      "hint": "Wählen Sie, welche Symbole in jeder Artikelzeile erscheinen. Wischgesten, Tastenkürzel und der Lesebereich bleiben unverändert; wer jedoch „Favorit“ oder „Später lesen“ ausblendet, verliert auch das lange Drücken, mit dem sich ein Artikel aus der Liste in eine Kategorie einordnen lässt.",
       "star": "Favorit",
       "readLater": "Später lesen",
       "openSource": "An der Quelle öffnen",

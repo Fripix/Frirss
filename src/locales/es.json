@@ -419,7 +419,7 @@
     },
     "layout": {
       "title": "Iconos de acción de los artículos",
-      "hint": "Elija qué iconos aparecen en cada fila de artículo. Los gestos, los atajos y el panel de lectura no cambian.",
+      "hint": "Elija qué iconos aparecen en cada fila de artículo. Los deslizamientos, los atajos y el panel de lectura no cambian; en cambio, ocultar «Favorito» o «Leer más tarde» también elimina la pulsación larga que archiva un artículo en una categoría desde la lista.",
       "star": "Favorito",
       "readLater": "Leer más tarde",
       "openSource": "Abrir en el origen",

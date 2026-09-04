@@ -419,7 +419,7 @@
     },
     "layout": {
       "title": "Ícones de ação dos artigos",
-      "hint": "Escolha os ícones que aparecem em cada linha de artigo. Gestos, atalhos e o painel de leitura não mudam.",
+      "hint": "Escolha os ícones que aparecem em cada linha de artigo. Os deslizes, os atalhos e o painel de leitura não mudam; ocultar «Favorito» ou «Ler mais tarde», porém, também remove a pressão longa que arquiva um artigo numa categoria a partir da lista.",
       "star": "Favorito",
       "readLater": "Ler mais tarde",
       "openSource": "Abrir na origem",

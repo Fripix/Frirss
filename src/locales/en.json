@@ -419,7 +419,7 @@
     },
     "layout": {
       "title": "Article action icons",
-      "hint": "Choose which icons appear on each article row. Gestures, shortcuts and the reading pane are unaffected.",
+      "hint": "Choose which icons appear on each article row. Swipes, shortcuts and the reading pane are unaffected; hiding Star or Read later, however, also removes the long press that files an article into a category from the list.",
       "star": "Star",
       "readLater": "Read later",
       "openSource": "Open at source",

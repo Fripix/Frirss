@@ -16,14 +16,28 @@ la release publiée.
 - **Ouvrir un article à sa source depuis la liste.** Une icône sur chaque ligne
   ouvre l'article sur le site d'origine dans un nouvel onglet et le marque lu,
   sans l'ouvrir dans FriRSS — pour qui préfère lire ses flux à la source.
-  Demandé dans l'issue #11.
+  Demandé dans l'issue #11. La quatrième icône ne coûte pas un pixel de
+  hauteur : la ligne normale range désormais ses icônes sur deux rangs plutôt
+  qu'en colonne. En mode Compact, elles sont aussi plus espacées qu'avant, pour
+  que le doigt ne vise pas le ✓ et n'ouvre pas un onglet.
 - **Choisir les icônes affichées sur une ligne.** Une nouvelle section
   « Mise en page » dans les préférences permet d'afficher ou de masquer chacune
-  des quatre icônes, une par une. Les gestes, les raccourcis et le volet de
-  lecture ne changent pas.
+  des quatre icônes, une par une. Les balayages, les raccourcis et le volet de
+  lecture ne changent pas — en revanche, masquer « Favori » ou « À lire plus
+  tard » retire aussi l'appui long qui classe un article dans une catégorie
+  depuis la liste : ce geste vit dans ces deux boutons. Le texte d'aide de la
+  section le dit.
 
 ## Corrections et améliorations
 
+- **Un site ouvert depuis FriRSS ne peut plus reprendre la main sur l'onglet
+  resté derrière.** Le raccourci `O` (ouvrir l'article d'origine) et
+  « Ouvrir le site » du menu contextuel d'un flux ouvraient un onglet qui
+  gardait un lien vers FriRSS : la page visée pouvait rediriger l'onglet FriRSS
+  laissé en arrière-plan — vers une fausse page de connexion, par exemple.
+  C'est le *reverse tabnabbing*, dont les liens contenus dans les articles
+  étaient déjà protégés ; ces deux ouvertures-là ne l'étaient pas. Elles
+  passent désormais par une fonction unique qui coupe ce lien.
 - **Le corps d'un article ne clignote plus quand on le fait défiler.** Sur les
   flux à extraction automatique, en PWA iOS, les images de l'article
   disparaissaient et revenaient une trentaine de fois par seconde pendant un
@@ -149,3 +163,12 @@ _(à compléter)_
   l'argument du « sémaphore classique » décrivait de travers le compteur qu'il
   justifiait. La liste des échecs de `/api/extract` mentionne enfin ses deux
   503.
+- Barre d'actions d'une ligne : la disposition retenue pour chaque mode
+  d'affichage est désormais écrite, avec la mesure qui la justifie (une colonne
+  de quatre boutons rendait la ligne normale 21 % plus haute), ainsi que
+  l'écartement des cibles tactiles en mode Compact et la raison de le doubler.
+  Deux affirmations fausses corrigées : « cliquer l'icône équivaut à un ✓ suivi
+  de l'ouverture externe » (faux sur un article déjà lu, que le ✓ repasserait
+  non lu) et l'écartement « plus resserré » de la ligne compacte. Le couplage
+  entre les icônes Favori / À lire plus tard et le geste de classement y est
+  consigné, des deux côtés — barre d'actions et Préférences.
