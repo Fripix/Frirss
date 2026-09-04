@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { extractFullContent } from './extractContent';
+import { extractFullContent, SERVER_EXTRACT_TIMEOUT_MS } from './extractContent';
 
 const serverAnswer = {
   title: 'Titre serveur', content: '<p>corps serveur</p>',
@@ -48,11 +48,64 @@ describe('extractFullContent', () => {
     expect(out.content).not.toMatch(/onclick/i);
   });
 
+  // La route ne rend que ce que le serveur a réellement extrait — les champs
+  // absents ne doivent pas partir tels quels dans IndexedDB (`putExtract`), et
+  // une clé que la route ajouterait ne doit pas s'y inviter. Le chemin local
+  // normalise déjà ; celui-ci doit le faire de la même façon.
+  it('normalise les champs du serveur et n’en garde aucun autre', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) {
+        return new Response(JSON.stringify({
+          content: '<p>corps serveur</p>', imprevu: 'clé que le client ne connaît pas',
+        }), { status: 200 });
+      }
+      throw new Error('le client ne doit pas aller chercher la page lui-même');
+    }));
+    const out = await extractFullContent('https://example.com/a');
+    expect(out).toEqual({
+      title: '', content: '<p>corps serveur</p>',
+      excerpt: '', byline: '', siteName: '', length: 0,
+    });
+    expect(Object.keys(out).sort()).toEqual(
+      ['byline', 'content', 'excerpt', 'length', 'siteName', 'title'],
+    );
+  });
+
+  // Une route qui accepte la connexion et ne répond jamais tenait l'extraction
+  // indéfiniment. Les deux appelants étant séquentiels, un article suffisait à
+  // bloquer toute la file — et « Article complet » restait sur « Extraction… ».
+  it('abandonne une route muette au bout du délai et se replie', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('fetch', vi.fn((input: RequestInfo, init?: RequestInit) => {
+        if (String(input).startsWith('/api/extract')) {
+          // Ne se règle QUE sur l'abandon : sans minuteur côté client, la
+          // promesse ci-dessous n'aboutit jamais et ce test expire.
+          return new Promise<Response>((_, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+          });
+        }
+        return Promise.resolve(new Response(pageHtml, { status: 200 }));
+      }));
+      const pending = extractFullContent('https://example.com/a');
+      await vi.advanceTimersByTimeAsync(SERVER_EXTRACT_TIMEOUT_MS);
+      const out = await pending;
+      expect(out.content).toContain('paragraphe');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   for (const [label, reply] of [
     ['404 (serveur plus ancien, route absente)', () => new Response('', { status: 404 })],
     ['422 (page non extractible)', () => new Response('', { status: 422 })],
     ['500', () => new Response('', { status: 500 })],
     ['corps illisible', () => new Response('pas du json', { status: 200 })],
+    // Le 200 à `content` vide est la raison d'être du 422 côté serveur : sans
+    // cette garde, le volet afficherait un article vide au lieu d'extraire.
+    ['200 au content vide', () => new Response(JSON.stringify({ ...serverAnswer, content: '' }), { status: 200 })],
+    ['200 sans champ content', () => new Response(JSON.stringify({ title: 'Titre seul' }), { status: 200 })],
+    ['erreur réseau', (): Response => { throw new TypeError('Failed to fetch'); }],
   ] as const) {
     it(`se replie sur l’extraction locale — ${label}`, async () => {
       vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {

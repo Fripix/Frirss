@@ -50,16 +50,23 @@ _(rien pour l'instant)_
 - **Le texte des articles est extrait une fois pour toute l'instance.** Chaque
   appareil refaisait l'extraction de chaque article : dix lecteurs des mêmes
   flux, c'étaient dix extractions identiques et dix requêtes chez le site
-  d'origine. Le serveur s'en charge désormais et partage le résultat entre
-  appareils et entre comptes — le téléphone ne calcule plus rien. Sans Redis,
-  rien ne change : le navigateur extrait comme avant.
+  d'origine. Le serveur s'en charge désormais et, quand Redis est là, partage
+  le résultat entre appareils et entre comptes — le téléphone ne calcule plus
+  rien. **Sans Redis, le serveur extrait quand même** : il ne garde simplement
+  rien, et l'appareil suivant repaie l'extraction. Le navigateur ne reprend la
+  main que si la route manque (serveur plus ancien), si elle renonce à la page
+  ou si elle ne répond pas — au bout de 25 s, l'extraction bascule d'elle-même
+  sur le navigateur plutôt que d'attendre indéfiniment.
 - **Défilement plus fluide dans le volet de lecture** : la barre de progression
   se mesure une fois par image affichée, plus une fois par événement de
   défilement.
 
 ## Sous le capot
 
-_(rien pour l'instant)_
+- **Le journal d'accès du serveur n'enregistre plus la chaîne de requête.** Il
+  écrivait `req.originalUrl` ; l'extraction côté serveur y aurait déposé l'URL
+  complète de chaque article ouvert par chaque compte — préchargement et
+  préparation hors-ligne compris. Seul le chemin est journalisé désormais.
 
 ## Actions requises à la mise à jour
 

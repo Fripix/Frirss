@@ -141,12 +141,17 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `FRIRSS_PROXY_RATE_LIMIT` | Proxied requests allowed per user per minute (`0` disables; non-integer or negative → default) | `600` |
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
-> With `REDIS_URL` set, FriRSS also caches the **extracted text** of articles,
-> keyed by URL rather than by account. The page is then extracted once for the
-> whole instance instead of once per device: a second device, or another user
-> reading the same feed, gets it instantly and the origin site sees one request
-> instead of many. Without Redis nothing breaks — the browser extracts as it
-> always has.
+> Since 1.4.10 the **server** extracts article text: the browser asks
+> `GET /api/extract` first, and falls back to extracting the page itself only
+> when that route is missing (an older backend), refuses the page, or cannot
+> reach it. With `REDIS_URL` set the result is cached by URL rather than by
+> account, so a page is extracted once for the whole instance instead of once
+> per device: a second device, or another user reading the same feed, gets it
+> instantly and the origin site sees one request instead of many. **Without
+> Redis the route still runs** — it simply keeps nothing, so the next device
+> pays for the extraction again. Either way the work now happens on the server
+> rather than on every phone, so budget for it: extraction parses the page in
+> the single Node process that serves the whole instance.
 
 Single sign-on is configured at runtime in *Preferences → Administration* (issuer, client ID, client secret).
 

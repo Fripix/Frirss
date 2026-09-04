@@ -780,14 +780,41 @@ développement en 1.4.4.)*
 - **Où** : `src/utils/extractContent.ts`, `src/lib/extractCache.ts`,
   `src/lib/extractStore.ts`
 - **Le serveur d'abord, le navigateur en filet** (1.4.10) :
-  `extractFullContent()` demande `GET /api/extract?url=…`, qui extrait une fois
-  pour toute l'instance et partage le résultat entre appareils et entre comptes.
+  `extractFullContent()` demande `GET /api/extract?url=…` (**JWT requis**, garde
+  anti-SSRF sur la cible), qui extrait une fois pour toute l'instance et — quand
+  Redis est là — partage le résultat entre appareils et entre comptes.
   **Toute** réponse absente, en erreur (404 sur un serveur plus ancien, 422 page
   non extractible, 403, 415, 502, 504) ou illisible fait tomber sur l'extraction
-  locale décrite ci-dessous — page récupérée par `/api/proxy` puis Readability
-  dans le navigateur. Ce repli n'est pas du code hérité : c'est ce qui tient
-  quand le serveur n'a pas de Redis, ne sait pas lire la page, ou n'a pas la
-  route.
+  locale décrite ci-dessous — page récupérée par `/api/proxy` (**JWT requis**,
+  même garde anti-SSRF) puis Readability dans le navigateur. Ce repli n'est pas
+  du code hérité : c'est ce qui tient quand le serveur n'a pas la route, ne sait
+  pas lire la page, ou ne répond pas.
+  ⚠️ **Il ne couvre PAS l'absence de Redis** — la doc l'a affirmé jusqu'au
+  2026-09-04, et c'était faux dans les trois endroits où elle le disait
+  (README, notes de version, ici). `server/index.ts` monte la route
+  inconditionnellement et `server/routes/extract.ts` ne conditionne à
+  `cacheEnabled` que la lecture et l'écriture du cache : sans Redis la route
+  répond quand même 200 avec un article frais, donc le repli **ne s'engage
+  jamais**. Ce qui change sans Redis, c'est que rien n'est gardé — chaque
+  appareil et chaque compte repaie l'extraction, sur le CPU et la bande
+  passante du serveur au lieu du téléphone. Un déploiement sans Redis n'est pas
+  « comme avant » : il a déplacé la charge sans le partage qui la justifiait.
+- **Délai sur la route serveur : 25 s** (`SERVER_EXTRACT_TIMEOUT_MS`). Un
+  serveur qui accepte la connexion et ne répond jamais tenait l'extraction
+  indéfiniment ; les deux consommateurs étant strictement séquentiels
+  (préchargement à dix articles, `prepareOffline` sur trente jours), un seul
+  article bloqué bloquait toute la file, et « Article complet » restait sur
+  « Extraction… » sans erreur ni sortie. La valeur se pose juste **au-dessus**
+  du plafond de corps du serveur (20 s) : en dessous, on abandonnerait une page
+  qu'il est en train de lire pour envoyer le repli chercher le MÊME site lent.
+  Un test à faux minuteurs échoue si le signal d'abandon n'est plus passé.
+  *(`/api/proxy` n'a jamais eu de délai client non plus — même forme, mais
+  cette route-ci est désormais devant lui.)*
+- **Ce que coûte un repli** : sur 415, 422 ou 502, le site d'origine est
+  récupéré **deux fois** — une fois par le serveur, une fois par le navigateur
+  — et deux jetons quittent le seau de cadence partagé. Le « une requête au
+  lieu de dix » du README décrit le chemin nominal ; le repli, lui, double le
+  trafic vers l'origine pour cet article-là.
 - **Piège — le HTML rendu par la route est BRUT.** Le serveur n'assainit rien
   (voir *Extraction d'articles*, côté backend), donc le client applique
   `sanitizeExtracted()` à la réception, avant de rendre la valeur et **avant
@@ -816,8 +843,8 @@ développement en 1.4.4.)*
     était de cinq), sur les seuls flux à extraction automatique,
     **séquentiellement** : une extraction à la fois — `/api/extract`, ou
     `/api/proxy` quand elle se replie, et les deux puisent dans le **même**
-    seau de cadence. Ne pas élargir
-    davantage ni paralléliser (voir le piège ci-dessous) ;
+    seau de cadence. Ne pas élargir davantage ni paralléliser (voir le piège
+    ci-dessous) ;
   - **l'image d'en-tête des dix articles suivants** (1.4.10), deux chargements
     en vol au plus. Le plan et le runner vivent dans `src/lib/heroWarm.ts` ; le
     composant ne fait que le câblage DOM.
@@ -1316,6 +1343,32 @@ inscriptions, animation de connexion.
   Ne pas conclure d'un écran de développeur que le problème n'existe pas.
 
 ## Backend
+
+### Journal d'accès
+Une ligne par requête sur la sortie standard : horodatage, méthode, **chemin**,
+code, durée. `/api/health` est sauté (bruit de sonde) et le journal est muet
+sous `NODE_ENV=test`.
+
+- **Où** : `server/index.ts`
+- **Ce que l'instance retient de ses lecteurs — décision du 2026-09-04** : la
+  **chaîne de requête n'est pas journalisée**. Le middleware écrivait
+  `req.originalUrl` ; c'était sans conséquence tant qu'aucune route ne portait
+  de donnée en query string, et `/api/proxy` passe sa cible dans un en-tête,
+  qui n'est pas journalisé. `GET /api/extract?url=…` (1.4.10) a changé cela :
+  un conteneur de production aurait consigné l'URL complète de **chaque
+  article extrait par chaque compte** — préchargement des dix articles suivants
+  et balayage `prepareOffline` de trente jours compris, donc un historique de
+  lecture plus large que ce que la personne a réellement lu. Le journal écrit
+  donc `req.path`.
+- **Pourquoi le chemin plutôt qu'une exception pour cette route** : une
+  exception aurait été à re-décider à chaque nouvelle route portant une donnée
+  en query string, et à oublier une fois. La cible n'a pas quitté la query
+  string en revanche — l'y déplacer aurait touché la garde anti-SSRF, le seau
+  de cadence et la clé de cache pour un gain nul sur le journal.
+- **Ce qui reste journalisé, et doit le rester** : le refus de cible passe par
+  `finishError`, qui écrit la cible **expurgée** — c'est la trace promise à un
+  balayage SSRF (voir *Proxy*). La ligne d'accès défaisait cette intention sur
+  le chemin du succès, qui est le cas courant ; elle ne la défait plus.
 
 ### Proxy
 Point de passage unique vers FreshRSS. Il sert aussi l'extraction d'articles,

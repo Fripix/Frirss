@@ -36,6 +36,29 @@ export function sanitizeExtracted(html: string): string {
 }
 
 /**
+ * Délai au-delà duquel la route serveur est abandonnée au profit du repli.
+ *
+ * Sans minuteur, un serveur qui accepte la connexion et ne répond jamais tient
+ * l'extraction indéfiniment. Les deux appelants sont strictement séquentiels —
+ * le préchargement des dix articles suivants (`ReadingPane`) et
+ * `prepareOffline` sur trente jours d'articles (`feedStore`) — donc un seul
+ * article bloqué bloque toute la file, et « Article complet » reste sur
+ * « Extraction… » sans erreur ni sortie.
+ *
+ * 25 s se pose juste AU-DESSUS du plafond de corps du serveur (20 s,
+ * `BODY_TIMEOUT_MS` dans `server/routes/extract.ts`) : une page qu'il est en
+ * train de lire n'est jamais abandonnée en cours de route — l'abandonner
+ * enverrait le repli chercher le MÊME site lent, deux fois le trafic à
+ * l'origine pour un résultat plus tardif. Au-delà, ce n'est plus une
+ * extraction lente mais une route qui ne répondra pas.
+ *
+ * `AbortController` explicite plutôt qu'`AbortSignal.timeout()` : c'est ce qui
+ * rend le délai pilotable par les faux minuteurs, donc testable sans faire
+ * attendre la suite de tests vingt-cinq secondes.
+ */
+export const SERVER_EXTRACT_TIMEOUT_MS = 25_000;
+
+/**
  * Fetch the full article content from its original URL,
  * parse it with Mozilla Readability, and sanitize with DOMPurify.
  *
@@ -45,11 +68,15 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   const { backendToken } = useAuthStore.getState();
 
   // Le serveur fait autorité quand il répond : il extrait une fois pour toute
-  // l'instance et partage le résultat entre appareils et entre comptes. Toute
-  // réponse absente, en erreur ou illisible fait tomber sur l'extraction
-  // locale ci-dessous, qui reste le filet — la route peut manquer (serveur
-  // plus ancien), échouer sur une page que `linkedom` ne sait pas lire, ou
-  // ne rien garder faute de Redis.
+  // l'instance et, quand Redis est là, partage le résultat entre appareils et
+  // entre comptes. Toute réponse absente, en erreur, trop lente ou illisible
+  // fait tomber sur l'extraction locale ci-dessous, qui reste le filet — la
+  // route peut manquer (serveur plus ancien), refuser la page (415, 422) ou
+  // échouer à la joindre (502, 504).
+  //
+  // Ce repli ne couvre PAS l'absence de Redis : sans cache, la route extrait
+  // quand même et répond 200 — elle ne garde simplement rien, et le prochain
+  // appareil repaiera l'extraction.
   //
   // Le HTML rendu par la route est BRUT, délibérément : `createDOMPurify` sur
   // `linkedom` ne filtre rien (pas de `NodeFilter`, donc DOMPurify bascule sans
@@ -58,17 +85,34 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   // et donc avant d'être archivé dans IndexedDB (`putExtract`) : sauter cette
   // étape publie une XSS stockée, atteignable depuis n'importe quel flux dont
   // la page d'origine porte un `onclick` ou un `onerror`.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SERVER_EXTRACT_TIMEOUT_MS);
   try {
     const served = await fetch(`/api/extract?url=${encodeURIComponent(url)}`, {
       headers: { ...(backendToken ? { Authorization: `Bearer ${backendToken}` } : {}) },
+      signal: controller.signal,
     });
     if (served.ok) {
-      const data = (await served.json()) as ExtractedContent;
+      const data = (await served.json()) as Partial<ExtractedContent>;
+      // Champ par champ, exactement comme le chemin local plus bas. Un
+      // `{ ...data }` recopierait dans IndexedDB (`putExtract`) toute clé que
+      // la route viendrait à ajouter, et laisserait passer un `title` absent —
+      // `ExtractRecord extends ExtractedContent` ne vaudrait alors que ce que
+      // vaut le JSON reçu.
       if (data && typeof data.content === 'string' && data.content) {
-        return { ...data, content: sanitizeExtracted(data.content) };
+        return {
+          title: data.title || '',
+          content: sanitizeExtracted(data.content),
+          excerpt: data.excerpt || '',
+          byline: data.byline || '',
+          siteName: data.siteName || '',
+          length: data.length || 0,
+        };
       }
     }
-  } catch { /* repli */ }
+  } catch { /* repli */ } finally {
+    clearTimeout(timer);
+  }
 
   // Fetch through the same-origin backend proxy (avoids CORS; the target is
   // passed in a header, auth via the FriRSS JWT).
