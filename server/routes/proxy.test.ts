@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral, fetchUpstream, redactUrl, targetBelongsToServer, proxyRateLimit } from './proxy.js';
+import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral, fetchUpstream, redactUrl, targetBelongsToServer, proxyRateLimit, finishError, BlockedTargetError, UnresolvedTargetError } from './proxy.js';
 
 // fetchUpstream resolves its target host before allowing the request (SSRF
 // guard) — stub DNS so example.com-style test targets resolve to a public
@@ -246,5 +246,74 @@ describe('proxyRateLimit', () => {
     for (const raw of ['abc', '-5', '1.5']) {
       expect(proxyRateLimit({ FRIRSS_PROXY_RATE_LIMIT: raw } as NodeJS.ProcessEnv), raw).toBe(600);
     }
+  });
+});
+
+// ── Aucune branche de `finishError` n'écrit une cible en clair ────────
+// Le trou que ce bloc ferme : la branche 503 (`UnresolvedTargetError`)
+// journalisait `target` sans le réduire, alors que les deux autres passaient
+// par `redactUrl`. `/api/proxy` lui donne l'URL fournie par le client, et le
+// préchargement d'images hors ligne y fait passer des URL de CDN signées par
+// un `?token=…` : un hoquet de résolveur pendant un balayage écrivait donc en
+// clair ce que la MÊME URL, échouant en 502 ou en 403, avait vu retirer.
+//
+// Aucune branche n'était tenue par un test — pas même celle du 403, pourtant
+// correcte. C'est pour cela que la suite n'a rien vu, et c'est pour cela que
+// le bloc les parcourt TOUTES plutôt que la seule qui a dérivé.
+describe('finishError — la cible journalisée est toujours réduite', () => {
+  const SECRET = 'https://cdn.example.com/img/hero.jpg?token=s3cr3t-cdn&w=1200';
+
+  function fakeRes() {
+    const seen: { status?: number; body?: unknown } = {};
+    const res = {
+      status(n: number) { seen.status = n; return res; },
+      json(b: unknown) { seen.body = b; return res; },
+    };
+    return { res: res as unknown as Parameters<typeof finishError>[0], seen };
+  }
+
+  const branches: [string, unknown, number][] = [
+    ['résolution sans réponse (503)', new UnresolvedTargetError('cdn.example.com'), 503],
+    ['cible refusée (403)', new BlockedTargetError('cdn.example.com'), 403],
+    ['panne amont (502)', Object.assign(new Error('boom'), { cause: { code: 'ECONNRESET' } }), 502],
+  ];
+
+  for (const [label, err, status] of branches) {
+    it(`${label} : jamais le secret, toujours le reste`, () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { res, seen } = fakeRes();
+
+      finishError(res, err, SECRET);
+
+      expect(seen.status).toBe(status);
+      const logged = [...warn.mock.calls, ...error.mock.calls].map((c) => c.join(' ')).join('\n');
+      // La branche journalise — sans quoi le test passerait au vert en ne
+      // vérifiant rien du tout.
+      expect(logged).toContain('cdn.example.com');
+      expect(logged).not.toContain('s3cr3t-cdn');
+      expect(logged).toContain('token=REDACTED');
+      // Le reste de l'URL survit : un journal réduit reste utile, un journal
+      // muet ne l'est pas.
+      expect(logged).toContain('w=1200');
+      // Et le corps ne nomme toujours pas la cible.
+      expect(JSON.stringify(seen.body)).not.toContain('cdn.example.com');
+      warn.mockRestore();
+      error.mockRestore();
+    });
+  }
+
+  it('ne journalise pas un dépassement de délai (504)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { res, seen } = fakeRes();
+
+    finishError(res, Object.assign(new Error('timed out'), { name: 'AbortError' }), SECRET);
+
+    expect(seen.status).toBe(504);
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    warn.mockRestore();
+    error.mockRestore();
   });
 });

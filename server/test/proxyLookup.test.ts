@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import express from 'express';
+import request from 'supertest';
+import type { Request, Response, NextFunction } from 'express';
 
 // ── La résolution de la garde anti-SSRF, vue de près ──────────────────
 // Deux mécanismes vivent dans `assertTargetSafe` et n'étaient tenus par aucun
@@ -17,7 +20,17 @@ vi.mock('dns', () => {
   return { default: { lookup, promises }, lookup, promises };
 });
 
-const { assertTargetSafe, BlockedTargetError, UnresolvedTargetError, LOOKUP_TIMEOUT_MS } =
+// Le routeur est monté plus bas pour observer le VERDICT HTTP, pas seulement
+// le type d'erreur : l'authentification n'est pas le sujet ici.
+vi.mock('../middleware/auth.js', () => ({
+  requireAuth: (req: Request, _res: Response, next: NextFunction) => {
+    (req as Request & { user: { id: number } }).user = { id: 1 };
+    next();
+  },
+  requireAdmin: (_req: Request, _res: Response, next: NextFunction) => next(),
+}));
+
+const { default: proxyRouter, assertTargetSafe, BlockedTargetError, UnresolvedTargetError, LOOKUP_TIMEOUT_MS } =
   await import('../routes/proxy.js');
 
 const TARGET = 'https://news.example.com/a';
@@ -105,5 +118,47 @@ describe('assertTargetSafe — plafond de temps de la résolution', () => {
     // Un délai dépassé est une panne, pas une cible refusée : le rejet du
     // minuteur porte un `code` pour tomber du bon côté du tri.
     expect(settled.mock.calls[0][0]).toBeInstanceOf(UnresolvedTargetError);
+  });
+});
+
+// ── Le verdict rendu par `/api/proxy` lui-même ───────────────────────
+// Le tri panne/refus n'était vérifié de bout en bout que par `/api/extract`.
+// `/api/proxy` est pourtant la route que frappe l'écran de rattachement d'un
+// serveur — celui dont le message accusait la cible d'un défaut de résolveur —
+// et son 503 ne tenait que par déduction, les deux routes partageant
+// `finishError`. Une déduction n'est pas un test.
+describe('/api/proxy — une résolution sans réponse répond 503', () => {
+  const app = express();
+  app.use('/api/proxy', proxyRouter);
+
+  // Une cible signée, comme celles du préchargement d'images hors ligne : la
+  // ligne de journal de cette branche doit réduire le secret comme les autres.
+  const SIGNED = 'https://news.example.com/a?token=s3cr3t-cdn&w=1200';
+
+  beforeEach(() => { dnsLookup.mockReset(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('rend 503 « Target host unresolved », sans nommer la cible', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    dnsLookup.mockRejectedValue(Object.assign(new Error('getaddrinfo EAI_AGAIN'), { code: 'EAI_AGAIN' }));
+
+    const res = await request(app).get('/api/proxy').set('X-Proxy-Target', SIGNED);
+
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('Target host unresolved');
+    expect(JSON.stringify(res.body)).not.toContain('news.example.com');
+    const logged = warn.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(logged).toContain('news.example.com');
+    expect(logged).not.toContain('s3cr3t-cdn');
+  });
+
+  it('garde 403 pour un nom dont le résolveur dit qu\'il n\'existe pas', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    dnsLookup.mockRejectedValue(Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' }));
+
+    const res = await request(app).get('/api/proxy').set('X-Proxy-Target', 'https://news.example.com/a');
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Target host not allowed');
   });
 });

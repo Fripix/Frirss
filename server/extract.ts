@@ -25,12 +25,13 @@ export interface ExtractedArticle {
  * Le seul frein existant était le seau de cadence (600/min par compte), qui
  * autorise un ordre de grandeur de plus que ce que la boucle peut absorber.
  *
- * ⚠️ **Ce qu'un sémaphore classique aurait donné ici : rien.** Compter les
- * analyses « en cours » ne borne rien quand l'analyse est synchrone — pendant
- * qu'elle tourne, aucun autre appelant ne s'exécute, donc le compteur est
- * toujours retombé à zéro quand quelqu'un le lit. Ce qui se compte utilement,
- * c'est le nombre de requêtes ARRIVÉES qui attendent leur tour d'analyse : ce
- * plafond-là est réel, et c'est celui-ci.
+ * Ce que compte `pending` : les requêtes ARRIVÉES à l'analyse et pas encore
+ * reparties — le compteur est pris à l'entrée, tenu pendant l'attente du tour,
+ * et rendu dans un `finally`. C'est la LONGUEUR DE FILE qui est bornée, pas un
+ * parallélisme : celui-ci vaut déjà un, l'analyse étant synchrone. Un compteur
+ * qui n'entourerait que l'appel à `run()` ne bornerait rien — pendant qu'il
+ * s'exécute, aucun autre appelant n'a la main pour le lire, donc il vaut
+ * toujours zéro vu de l'extérieur.
  *
  * 5 : une en train de s'exécuter, quatre en attente, donc un retard d'au plus
  * ~5 analyses. Au pire cas mesuré (~1 s la pièce) cela reste bien sous le

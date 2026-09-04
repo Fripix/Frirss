@@ -39,11 +39,15 @@ export function sanitizeExtracted(html: string): string {
  * Délai au-delà duquel la route serveur est abandonnée au profit du repli.
  *
  * Sans minuteur, un serveur qui accepte la connexion et ne répond jamais tient
- * l'extraction indéfiniment. Les cinq appelants sont strictement séquentiels —
- * `warmRunner` et `warmOfflineCache` et `prepareOffline` (`src/stores/feedStore.ts`),
- * `revalidateIfStale` (`src/lib/extractCache.ts`) et `handleExtract`
- * (`ReadingPane`) — donc un seul article bloqué bloque toute la file, et
- * « Article complet » reste sur « Extraction… » sans erreur ni sortie.
+ * l'extraction indéfiniment. Six appelants, dont quatre sont des files
+ * strictement séquentielles — `warmRunner`, `warmOfflineCache` et
+ * `prepareOffline` (`src/stores/feedStore.ts`) et le préchargement N+1…N+10 du
+ * volet de lecture (`ReadingPane.tsx`) — où un seul article bloqué bloque tout
+ * ce qui le suit. Les deux autres sont des appels uniques :
+ * `revalidateIfStale` (`src/lib/extractCache.ts`), lancé sans être attendu, et
+ * `handleExtract` (`ReadingPane`), celui du bouton — où le blocage ne coûte
+ * rien à une file, mais laisse « Article complet » sur « Extraction… » sans
+ * erreur ni sortie.
  *
  * **Le chiffre est celui de la patience d'un lecteur, pas celui d'un budget
  * serveur.** Une version antérieure affirmait que 25 s se posait « juste
@@ -82,8 +86,11 @@ export const SERVER_EXTRACT_TIMEOUT_MS = 20_000;
  * restait bloquée pour toujours, juste une ligne plus bas.
  *
  * Même valeur que la jambe serveur, pour la même raison (la patience du
- * lecteur), ce qui borne une extraction à ~40 s au total : c'est le budget que
- * la file cède au pire à un seul article avant de passer au suivant.
+ * lecteur). Ce que cela borne, mesuré et non estimé : **~40 s** quand les deux
+ * jambes se taisent, et **~100 s** au vrai pire cas — l'attente honorée après
+ * un 429 (60 s au plafond, `RATE_LIMIT_MAX_WAIT_MS`) s'ajoute alors aux deux
+ * budgets. C'est ce qu'un seul article peut coûter à la file avant qu'elle
+ * passe au suivant ; un test à faux minuteurs fixe le chiffre.
  *
  * Le signal couvre AUSSI la lecture du corps : un amont qui distille sa page
  * octet par octet passerait sinon entre les mailles, le minuteur ayant été
@@ -107,8 +114,22 @@ export const FALLBACK_EXTRACT_TIMEOUT_MS = 20_000;
  * celui de la fenêtre du seau : au-delà, ce n'est plus une attente, c'est une
  * panne.
  *
+ * ⚠️ **Ce que cela ne couvre PAS, et il faut le dire exactement.** L'attente
+ * n'a lieu que si la réponse annonce un délai exploitable. Sans en-tête
+ * `Retry-After`, avec un en-tête illisible, ou au-delà du plafond,
+ * `retryAfterMs` rend `null` : il n'y a alors ni attente ni repli, et
+ * `extractFullContent` lève `RateLimitedError` — que `feedStore` avale, donc
+ * l'article est bel et bien absent du passage, en silence. Idem si le second
+ * essai revient en 429. En pratique la fenêtre du seau est d'une minute et
+ * `express-rate-limit` émet toujours un `Retry-After` inférieur ou égal à 60,
+ * donc le cas courant est couvert — mais « on ne perd pas l'article » reste
+ * faux comme énoncé général : c'est « on ne le perd pas quand le serveur dit
+ * quand revenir », et le passage suivant le reprendra puisque rien n'a été mis
+ * en cache.
+ *
  * Et sur un 429 on ne se replie PAS sur `/api/proxy` : c'est le même seau, donc
- * un échec certain et un jeton gaspillé.
+ * un échec certain et un jeton gaspillé. Le refus tient même si la seconde
+ * tentative échoue — voir le drapeau `rateLimited` plus bas.
  */
 export const RATE_LIMIT_MAX_WAIT_MS = 60_000;
 
@@ -201,18 +222,29 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
     return null;
   });
 
+  // Le drapeau est posé dès le PREMIER 429 et il survit à l'échec de la
+  // seconde tentative : sans cela, une seconde tentative qui LÈVE — abandon au
+  // bout de `SERVER_EXTRACT_TIMEOUT_MS`, panne réseau — était avalée par le
+  // `catch` du repli, et `/api/proxy` recevait la requête que ce chemin existe
+  // justement pour éviter. Seule une seconde réponse qui n'est PLUS un 429 le
+  // lève : le seau a laissé passer, le navigateur peut retenter sa chance.
   let rateLimited = false;
   try {
     let served = await askServer();
-    // Cadence dépassée : on attend ce que le backend demande, une fois, plutôt
-    // que de laisser tomber l'article — voir `RATE_LIMIT_MAX_WAIT_MS`.
-    if (served && 'limited' in served && served.wait != null) {
-      const wait = served.wait;
-      await new Promise((resolve) => setTimeout(resolve, wait));
-      served = await askServer();
+    if (served && 'limited' in served) {
+      rateLimited = true;
+      // Cadence dépassée : on attend ce que le backend demande, une fois,
+      // plutôt que de laisser tomber l'article — voir `RATE_LIMIT_MAX_WAIT_MS`.
+      // Sans délai exploitable (`retryAfterMs` rend alors `null`), il n'y a
+      // rien à attendre : l'article est abandonné pour ce passage.
+      if (served.wait != null) {
+        const wait = served.wait;
+        await new Promise((resolve) => setTimeout(resolve, wait));
+        served = await askServer();
+        rateLimited = !!(served && 'limited' in served);
+      }
     }
-    if (served && 'limited' in served) rateLimited = true;
-    else if (served) return served;
+    if (served && !('limited' in served)) return served;
   } catch { /* repli */ }
 
   // Le seau est partagé avec `/api/proxy` : y aller après un 429 est un échec

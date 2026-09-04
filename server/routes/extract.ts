@@ -270,8 +270,13 @@ router.get('/', async (req, res) => {
     //
     // Rien n'est perdu en cas d'absence : `fetchUpstream` rejoue la garde et
     // refuse avant le moindre appel sortant. Un hôte qu'on ne sait pas situer
-    // n'est jamais joint — et il y reste classé en 403, sans code à part, pour
-    // ne pas révéler par différence lequel des deux refus a joué.
+    // n'est donc jamais joint — mais il n'est plus classé en 403 : `finishError`
+    // en fait un 503 « Target host unresolved ». Ce code à part ne révèle rien
+    // du réseau interrogé, il ne dit que l'état du RÉSOLVEUR : « il n'a pas
+    // répondu, réessayez ». Ce sont les trois cas qui dessineraient une carte —
+    // littéral interne, nom inexistant, nom qui résout vers une adresse
+    // privée — qui restent confondus dans un seul 403, sans code à part et sans
+    // corps qui nomme la cible.
     if (!(err instanceof UnresolvedTargetError)) return finishError(res, err, loggableTarget(url), 'Extract error:');
   }
 

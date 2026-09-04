@@ -680,7 +680,13 @@ export function finishError(res: ExpressResponse, err: unknown, target: string, 
   // dire l'un pour l'autre fait accuser l'hôte de l'utilisateur (voir
   // `UnresolvedTargetError`). 503 — réessayez — et non 403.
   if (err instanceof UnresolvedTargetError) {
-    console.warn(label, 'unresolved target →', target);
+    // `redactUrl` comme les deux autres branches, et pas par symétrie
+    // décorative : `/api/proxy` passe ici l'URL fournie par le client, et le
+    // préchargement d'images hors ligne (`x-proxy-image`) y fait passer des
+    // URL de CDN tierces, dont beaucoup sont signées par un `?token=…`. Un
+    // hoquet de résolveur pendant un balayage écrivait donc en clair ce que
+    // `SECRET_PARAMS` existe pour retirer.
+    console.warn(label, 'unresolved target →', redactUrl(target));
     return res.status(503).json({ error: 'Target host unresolved' });
   }
   if (err instanceof BlockedTargetError) {

@@ -55,7 +55,7 @@ _(rien pour l'instant)_
   rien. **Sans Redis, le serveur extrait quand même** : il ne garde simplement
   rien, et l'appareil suivant repaie l'extraction. Le navigateur ne reprend la
   main que si la route manque (serveur plus ancien), si elle renonce à la page
-  ou si elle ne répond pas — au bout de 25 s, l'extraction bascule d'elle-même
+  ou si elle ne répond pas — au bout de 20 s, l'extraction bascule d'elle-même
   sur le navigateur plutôt que d'attendre indéfiniment.
 - **Défilement plus fluide dans le volet de lecture** : la barre de progression
   se mesure une fois par image affichée, plus une fois par événement de
@@ -79,15 +79,27 @@ _(rien pour l'instant)_
   adresse pointe à l'intérieur de votre réseau, FriRSS l'a bloquée », avec la
   marche à suivre correspondante. L'écran dit maintenant ce qui s'est réellement
   passé.
-- **L'extraction côté serveur ne peut plus saturer l'instance.** L'analyse d'une
-  page bloque l'unique processus qui sert tout le monde ; elle est désormais
-  bornée (une à la fois, cinq en attente au plus), et au-delà le navigateur
-  reprend la main comme avant la 1.4.10.
+- **L'extraction côté serveur ne bloque plus l'instance.** L'analyse d'une page
+  immobilise l'unique processus qui sert tout le monde ; la file est désormais
+  bornée (une analyse à la fois, cinq requêtes au plus en attente) et un tour
+  complet est rendu aux autres requêtes entre deux analyses. Au-delà de cinq, le
+  navigateur reprend la main comme avant la 1.4.10. Ce n'est pas un plafond de
+  charge : un compte obstiné peut faire analyser en continu — mais le serveur
+  reste joignable pendant ce temps.
 - **Dix appareils qui ouvrent le même article au même moment ne déclenchent plus
   qu'une seule extraction**, donc une seule requête chez le site d'origine.
-- **La préparation hors-ligne ne perd plus d'articles en silence** quand elle
-  atteint le plafond de cadence : elle attend le délai annoncé par le serveur
-  puis réessaie, au lieu de laisser l'article absent du jeu hors ligne.
+- **La préparation hors-ligne garde les articles que le plafond de cadence lui
+  refusait.** Quand le serveur répond « trop de requêtes » **en annonçant quand
+  revenir**, elle attend ce délai puis réessaie, au lieu de laisser l'article
+  absent du jeu hors ligne. C'est le cas courant. Si le serveur n'annonce aucun
+  délai exploitable, ou s'il refuse une seconde fois, l'article reste absent de
+  ce passage — le passage suivant le reprendra.
+- **Une URL signée ne peut plus finir en clair dans le journal du serveur.** La
+  branche qui annonce une résolution sans réponse écrivait la cible telle
+  quelle, là où les deux autres en retiraient les paramètres secrets — or le
+  préchargement d'images hors ligne y fait passer des URL de CDN signées par un
+  jeton. Les trois branches sont désormais identiques, et un test échoue si
+  l'une d'elles se remet à écrire une cible brute.
 - **Le repli d'extraction est borné dans le temps lui aussi.** Un backend qui
   accepte la connexion sans jamais répondre bloquait encore la file : le
   minuteur ne couvrait que la première des deux requêtes.
@@ -102,6 +114,15 @@ _(à compléter)_
   d'accès (chemin tronqué), la fraîcheur des extraits (« le bouton *Article
   complet* relance à la demande », faux : rien ne ré-extrait, et l'entrée
   serveur vit 24 h là où le client revalide à 12 h) et « les deux
-  consommateurs » du délai d'extraction (il y en a cinq). Le plafond de
-  résolution DNS est désormais décrit pour ce qu'il est : une garde de TOUTES
-  les sorties du backend, pas seulement de l'extraction.
+  consommateurs » du délai d'extraction. Le plafond de résolution DNS est
+  désormais décrit pour ce qu'il est : une garde de TOUTES les sorties du
+  backend, pas seulement de l'extraction.
+- **Relecture de fin de cycle**, cinq énoncés remis d'aplomb : les
+  consommateurs du délai d'extraction sont **six**, pas cinq, et quatre
+  seulement sont des files (la boucle de préchargement du volet de lecture
+  manquait à l'appel) ; le pire cas d'un article est **~100 s** avec une attente
+  de cadence, pas ~40 s ; le traitement du 429 dit maintenant ce qu'il couvre
+  et ce qu'il ne couvre pas ; la borne d'analyse borne une file, pas le CPU ; et
+  l'argument du « sémaphore classique » décrivait de travers le compteur qu'il
+  justifiait. La liste des échecs de `/api/extract` mentionne enfin ses deux
+  503.

@@ -802,17 +802,27 @@ développement en 1.4.4.)*
   « comme avant » : il a déplacé la charge sans le partage qui la justifiait.
 - **Délais : 20 s sur la route serveur, 20 s sur le repli**
   (`SERVER_EXTRACT_TIMEOUT_MS`, `FALLBACK_EXTRACT_TIMEOUT_MS`). Un serveur qui
-  accepte la connexion et ne répond jamais tenait l'extraction indéfiniment ;
-  **les cinq consommateurs** sont strictement séquentiels — `warmRunner`,
-  `warmOfflineCache` et `prepareOffline` (`src/stores/feedStore.ts`),
-  `revalidateIfStale` (`src/lib/extractCache.ts`) et `handleExtract`
-  (`ReadingPane`) — donc un seul article bloqué bloque toute la file, et
-  « Article complet » reste sur « Extraction… » sans erreur ni sortie.
+  accepte la connexion et ne répond jamais tenait l'extraction indéfiniment.
+  **Six consommateurs**, dont **quatre files séquentielles** — `warmRunner`,
+  `warmOfflineCache` et `prepareOffline` (`src/stores/feedStore.ts`) et le
+  préchargement N+1…N+10 du volet de lecture (`ReadingPane.tsx`) — où un seul
+  article bloqué bloque tout ce qui le suit. Les **deux autres sont des appels
+  uniques**, pas des files : `revalidateIfStale` (`src/lib/extractCache.ts`),
+  lancé sans être attendu, et `handleExtract` (`ReadingPane`), celui du bouton —
+  là, le blocage ne retient personne d'autre, mais « Article complet » reste sur
+  « Extraction… » sans erreur ni sortie.
+  ⚠️ La doc a annoncé « cinq consommateurs, strictement séquentiels » jusqu'au
+  2026-09-04 : elle oubliait la boucle de préchargement du volet de lecture —
+  celle-là même qu'une version antérieure nommait, et la plus exposée à un
+  article coincé — et qualifiait de file deux appels qui n'en sont pas.
   ⚠️ **Le repli était, lui, sans minuteur jusqu'au 2026-09-04**, ce qui vidait
   le premier de son sens : la panne visée est un backend coincé, et un backend
   coincé coince `/api/proxy` à l'identique — le blocage ne disparaissait pas,
-  il se décalait d'une route. Les deux jambes sont désormais bornées, donc un
-  article coûte au pire ~40 s à la file.
+  il se décalait d'une route. Les deux jambes sont désormais bornées : un
+  article coûte **~40 s** quand les deux se taisent, et **~100 s** au vrai pire
+  cas — l'attente honorée après un 429 (60 s au plafond) s'ajoute alors aux deux
+  budgets. La doc a annoncé 40 s pour tous les cas jusqu'au 2026-09-04 ; le
+  chiffre est désormais mesuré par un test à faux minuteurs, pas estimé.
   ⚠️ **Le chiffre est celui de la patience d'un lecteur, pas un calcul.** La
   doc a affirmé jusqu'au 2026-09-04 que 25 s se posait « juste au-dessus du
   plafond de corps du serveur (20 s) », donc qu'une page en cours de lecture
@@ -824,8 +834,8 @@ développement en 1.4.4.)*
   article-là), mais l'extraction serveur va au bout et remplit le cache, dont le
   prochain appareil profitera. Des tests à faux minuteurs échouent si l'une des
   deux jambes perd son signal d'abandon.
-- **429 : on attend, on ne perd pas l'article** (`RATE_LIMIT_MAX_WAIT_MS`, 60 s).
-  Le seau de cadence (`FRIRSS_PROXY_RATE_LIMIT`, 600/min et par compte) est
+- **429 : on attend quand le serveur dit quand revenir**
+  (`RATE_LIMIT_MAX_WAIT_MS`, 60 s). Le seau de cadence (`FRIRSS_PROXY_RATE_LIMIT`, 600/min et par compte) est
   partagé par `/api/extract`, `/api/proxy` et le préchargement d'images. Depuis
   que la route répond à la vitesse de Redis, un balayage `prepareOffline` sur un
   appareil au cache chaud n'est plus freiné par le coût de l'extraction : sans
@@ -838,10 +848,24 @@ développement en 1.4.4.)*
   cela l'article disparaissait du jeu hors ligne **en silence**, `feedStore`
   avalant l'échec — un défaut qui ne se découvre que dans l'avion. Et sur un 429
   le repli navigateur n'est PAS tenté : même seau, échec certain, jeton
-  gaspillé.
-- **Ce que coûte un repli** : sur 415, 422, 502 ou 503 (file d'analyse pleine),
-  le site d'origine est récupéré **deux fois** — une fois par le serveur, une fois par le navigateur
-  — et deux jetons quittent le seau de cadence partagé. Le « une requête au
+  gaspillé. Ce refus tient même quand la seconde tentative **échoue** (abandon,
+  panne réseau) : jusqu'au 2026-09-04 elle retombait dans `/api/proxy`, le
+  jeton en moins.
+  ⚠️ **Ce qui n'est PAS couvert, et la doc l'a longtemps passé sous silence en
+  écrivant « on ne perd pas l'article ».** L'attente n'a lieu que si la réponse
+  annonce un délai exploitable : sans en-tête `Retry-After`, avec un en-tête
+  illisible, ou au-delà du plafond de 60 s, `retryAfterMs` rend `null` — il n'y
+  a alors **ni attente ni repli**, `RateLimitedError` est levée, `feedStore`
+  l'avale, et l'article est absent de ce passage exactement comme avant. Idem
+  si le second essai revient en 429. Le cas courant reste couvert :
+  `express-rate-limit` émet toujours un `Retry-After` d'au plus 60 s avec une
+  fenêtre d'une minute. Rien n'ayant été mis en cache, le passage suivant
+  reprend l'article.
+- **Ce que coûte un repli** : sur 415, 422, 502 ou 503 `Extractor busy`, le site
+  d'origine est récupéré **deux fois** — une fois par le serveur, une fois par
+  le navigateur — et deux jetons quittent le seau de cadence partagé. (Sur
+  l'autre 503, `Target host unresolved`, le serveur n'a joint personne : le
+  repli est la seule requête.) Le « une requête au
   lieu de dix » du README décrit le chemin nominal ; le repli, lui, double le
   trafic vers l'origine pour cet article-là.
 - **Piège — le HTML rendu par la route est BRUT.** Le serveur n'assainit rien
@@ -1573,16 +1597,19 @@ qu'elle rend (voir *Extraction du contenu complet*).
   l'unique processus Node qui sert toute l'instance ne fait rien d'autre — et
   cette charge est NEUVE, elle vivait sur chaque téléphone avant la 1.4.10. Le
   seau de cadence (600/min et par compte) permet un ordre de grandeur de plus
-  que ce que la boucle absorbe : ce n'était pas une borne. ⚠️ **Un sémaphore
-  classique n'aurait rien borné** — compter les analyses « en cours » est vain
-  quand l'analyse est synchrone, le compteur est toujours retombé à zéro quand
-  un autre appelant le lit ; ce qui se compte utilement, c'est le nombre de
-  requêtes ARRIVÉES qui attendent leur tour. Au-delà de cinq, la route répond
-  `503 { error: 'Extractor busy' }` et le client se replie sur son propre
-  extracteur — ce qu'il faisait de toute façon avant la 1.4.10. Un
-  `setImmediate` entre deux analyses rend un tour de boucle COMPLET aux autres
-  requêtes ; une simple promesse réglée n'aurait rendu la main qu'aux
-  micro-tâches.
+  que ce que la boucle absorbe : ce n'était pas une borne. Le compteur est pris
+  à l'ARRIVÉE et rendu au départ, donc ce qui est borné est la **longueur de la
+  file**, pas un parallélisme — celui-ci vaut déjà un, l'analyse étant
+  synchrone. Au-delà de cinq, la route répond `503 { error: 'Extractor busy' }`
+  et le client se replie sur son propre extracteur — ce qu'il faisait de toute
+  façon avant la 1.4.10. Un `setImmediate` entre deux analyses rend un tour de
+  boucle COMPLET aux autres requêtes ; une simple promesse réglée n'aurait rendu
+  la main qu'aux micro-tâches.
+  ⚠️ **Ce que cette borne ne fait PAS : borner le CPU.** Un compte peut tenir
+  cinq requêtes en file indéfiniment, donc faire analyser en continu, avec un
+  tour de boucle rendu entre chaque analyse. C'est la différence entre « le
+  serveur est lent » et « le serveur ne répond plus » — pas une immunité à la
+  charge.
 - **Demandes simultanées coalescées** : dix appareils qui réclament la même URL
   froide en même temps ne déclenchent **qu'une** extraction et **une** requête
   chez le site d'origine. Le cache ne couvre que ce qui est déjà extrait : sans
@@ -1716,8 +1743,16 @@ qu'elle rend (voir *Extraction du contenu complet*).
   le plus gros consommateur de ce budget : une route sans plafond, ou dotée de
   son propre compteur, rendrait la protection contournable en changeant d'URL.
 - **Échecs classés comme sur `/api/proxy`** : 403 cible refusée (journalisée,
-  pour qu'un balayage SSRF laisse une trace), 504 délai, 502 panne amont. Le
-  corps ne nomme jamais la cible. La route appelle la garde complète
+  pour qu'un balayage SSRF laisse une trace), **503 `Target host unresolved`**
+  (le résolveur n'a pas répondu — une panne, pas un refus : voir plus bas), 504
+  délai, 502 panne amont. S'y ajoute un 503 propre à cette route,
+  **`Extractor busy`**, quand la file d'analyse est pleine
+  (`EXTRACT_MAX_PENDING`) : même code, deux corps distincts, et le client se
+  replie dans les deux cas. Le corps ne nomme jamais la cible, et la ligne de
+  journal passe par `redactUrl` dans **toutes** les branches — la branche 503
+  écrivait la cible en clair jusqu'au 2026-09-04, alors que le préchargement
+  d'images y fait passer des URL de CDN signées par un `?token=…`.
+  La route appelle la garde complète
   (`assertTargetSafe`, exportée par le proxy, **avant la lecture du cache**)
   mais ne recopie ni le corps du 403 ni sa ligne de journal : elle laisse
   remonter la `BlockedTargetError` et la fait repartir par `finishError`, un

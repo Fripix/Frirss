@@ -157,6 +157,49 @@ describe('extractFullContent — délais des deux jambes', () => {
       vi.useRealTimers();
     }
   });
+
+  // ── Le plafond réel, celui que la doc annonce ──────────────────────
+  // 40 s (20 + 20) est le pire cas SANS 429. Le vrai pire cas y ajoute
+  // l'attente honorée après un 429 : 60 s de `Retry-After` au plafond, puis
+  // une seconde jambe serveur qui va au bout de son budget sans rien rendre
+  // d'exploitable, puis un repli muet. La doc a annoncé 40 s pour ce cas-là ;
+  // ce test fixe le chiffre à mesurer plutôt qu'à estimer.
+  it('plafonne un article à ~100 s, attente de cadence comprise', async () => {
+    vi.useFakeTimers();
+    try {
+      let asked = 0;
+      vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+        if (String(input).startsWith('/api/extract')) {
+          asked++;
+          if (asked === 1) return new Response('', { status: 429, headers: { 'Retry-After': '60' } });
+          // Juste sous l'abandon : la jambe consomme tout son budget puis rend
+          // une réponse inexploitable — donc le repli s'engage encore.
+          await new Promise((r) => setTimeout(r, SERVER_EXTRACT_TIMEOUT_MS - 1));
+          return new Response('{}', { status: 200 });
+        }
+        return await new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        });
+      }));
+
+      const pending = extractFullContent('https://example.com/a');
+      const settled = vi.fn();
+      void pending.then(settled, settled);
+
+      // 60 s d'attente + 19,999 s de seconde jambe + 20 s de repli : 99,999 s,
+      // soit le plafond des ~100 s annoncés (le 1 ms manquant n'est que la
+      // marge qui empêche la seconde jambe de courir son abandon).
+      const total = RATE_LIMIT_MAX_WAIT_MS + (SERVER_EXTRACT_TIMEOUT_MS - 1) + FALLBACK_EXTRACT_TIMEOUT_MS;
+      await vi.advanceTimersByTimeAsync(total - 1);
+      expect(settled).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toHaveBeenCalledTimes(1);
+      await expect(pending).rejects.toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 // ── 429 : attendre, pas perdre l'article ─────────────────────────────
@@ -209,6 +252,68 @@ describe('extractFullContent — cadence dépassée', () => {
 
       await expect(pending).rejects.toBeInstanceOf(RateLimitedError);
       expect(proxied).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Le trou que ce test ferme : le refus du repli ne tenait qu'au fait que la
+  // seconde tentative RENVOIE le marqueur. Qu'elle LÈVE — abandon au bout de
+  // 20 s, panne réseau — et le `catch` du repli avalait l'échec, puis
+  // `/api/proxy` recevait la requête : le même seau, déjà vide, donc un jeton
+  // gaspillé pour un échec certain.
+  it('ne se replie pas non plus quand la seconde tentative échoue', async () => {
+    vi.useFakeTimers();
+    try {
+      let asked = 0;
+      let proxied = 0;
+      vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+        if (String(input).startsWith('/api/extract')) {
+          asked++;
+          if (asked === 1) return tooMany('1');
+          throw new TypeError('Failed to fetch');
+        }
+        proxied++;
+        return new Response(pageHtml, { status: 200 });
+      }));
+
+      const pending = extractFullContent('https://example.com/a');
+      const settled = vi.fn();
+      void pending.then(settled, settled);
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await expect(pending).rejects.toBeInstanceOf(RateLimitedError);
+      expect(asked).toBe(2);
+      expect(proxied).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // La borne de l'autre côté : une fois l'attente honorée, un échec qui n'est
+  // PLUS un 429 rend la main au repli. Le seau a laissé passer la requête, donc
+  // le navigateur peut de nouveau tenter sa chance.
+  it('rend la main au repli quand la seconde réponse n’est plus un 429', async () => {
+    vi.useFakeTimers();
+    try {
+      let asked = 0;
+      let proxied = 0;
+      vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+        if (String(input).startsWith('/api/extract')) {
+          asked++;
+          return asked === 1 ? tooMany('1') : new Response('', { status: 502 });
+        }
+        proxied++;
+        return new Response(pageHtml, { status: 200 });
+      }));
+
+      const pending = extractFullContent('https://example.com/a');
+      await vi.advanceTimersByTimeAsync(1000);
+      const out = await pending;
+
+      expect(out.content).toContain('paragraphe');
+      expect(asked).toBe(2);
+      expect(proxied).toBe(1);
     } finally {
       vi.useRealTimers();
     }
