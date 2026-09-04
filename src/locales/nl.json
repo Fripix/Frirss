@@ -376,7 +376,8 @@
       "labels": "Labels",
       "feeds": "Feeds",
       "offline": "Offline",
-      "admin": "Beheer"
+      "admin": "Beheer",
+      "layout": "Lay-out"
     },
     "appearance": {
       "theme": "Thema",
@@ -415,6 +416,14 @@
       "deleted": "Categorie verwijderd",
       "moved": "Feed verplaatst",
       "failed": "Dat is niet gelukt"
+    },
+    "layout": {
+      "title": "Actiepictogrammen voor artikelen",
+      "hint": "Kies welke pictogrammen op elke artikelregel verschijnen. Gebaren, sneltoetsen en het leespaneel veranderen niet.",
+      "star": "Favoriet",
+      "readLater": "Later lezen",
+      "openSource": "Bij de bron openen",
+      "markRead": "Markeren als gelezen"
     }
   },
   "login": {

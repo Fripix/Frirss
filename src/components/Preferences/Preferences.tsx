@@ -9,6 +9,7 @@ import OfflineTab from './OfflineTab';
 import LabelsTab from './LabelsTab';
 import GeneralTab from './GeneralTab';
 import AppearanceTab from './AppearanceTab';
+import LayoutTab from './LayoutTab';
 import { COLOR_HIGHLIGHT_MAP } from './colorHighlight';
 
 interface HighlightRect { top: number; left: number; width: number; height: number }
@@ -90,7 +91,7 @@ export default function Preferences() {
   }
 
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
-  const SECTIONS = ['general', 'appearance', 'labels', 'feeds', 'offline'] as const;
+  const SECTIONS = ['general', 'appearance', 'layout', 'labels', 'feeds', 'offline'] as const;
   const sections = SECTIONS.map((id) => ({ id, label: t(`preferences.sections.${id}`) }));
 
   return (
@@ -316,6 +317,7 @@ export default function Preferences() {
               <AppearanceTab onHighlight={setHighlightKey} active={tab === 'appearance'} />
             </Pane>
           )}
+          {visited.has('layout') && <Pane id="layout" tab={tab}><LayoutTab /></Pane>}
           {visited.has('labels') && (
             <Pane id="labels" tab={tab}><LabelsTab resetLabelColors={resetLabelColors} /></Pane>
           )}

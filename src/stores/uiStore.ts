@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
+import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -81,6 +82,9 @@ export interface UiState {
   setMobileReadingFontSize: (px: number) => void;
   showFavicons: boolean;
   toggleFavicons: () => void;
+  /** Quelles icônes d'action apparaissent sur une ligne d'article. */
+  rowActions: RowActionSettings;
+  setRowAction: (kind: RowActionKind, visible: boolean) => void;
   sidebarVisible: boolean;
   toggleSidebar: () => void;
   setSidebarVisible: (v: boolean) => void;
@@ -223,6 +227,16 @@ export const useUiStore = create<UiState>()((set, get) => ({
       const next = !state.showFavicons;
       localStorage.setItem('frirss_showFavicons', JSON.stringify(next));
       return { showFavicons: next };
+    });
+  },
+
+  // Icônes d'action d'une ligne d'article (Préférences → Mise en page)
+  rowActions: normalizeRowActions(loadJson('frirss_rowActions', null)),
+  setRowAction: (kind, visible) => {
+    set((state) => {
+      const next = { ...state.rowActions, [kind]: visible };
+      localStorage.setItem('frirss_rowActions', JSON.stringify(next));
+      return { rowActions: next };
     });
   },
 
@@ -622,12 +636,15 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
+      'rowActions',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
         // A preset synced from a device still on an older version can name a
         // preset we dropped — normalise it here too, not just on load.
-        const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k]) : prefs[k];
+        const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k])
+          : k === 'rowActions' ? normalizeRowActions(prefs[k])
+          : prefs[k];
         localStorage.setItem(`frirss_${k}`, JSON.stringify(value));
         next[k] = value;
       }
@@ -646,7 +663,7 @@ export const UI_SYNC_KEYS = [
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showListFavicons',
-  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
+  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

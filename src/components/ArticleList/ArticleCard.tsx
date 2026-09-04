@@ -5,11 +5,13 @@ import { READ_LATER_LABEL } from '../../stores/feedStore';
 import { extractImageFromContent, sourceInitial } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
 import { extractYouTubeId } from '../../lib/youtube';
+import type { RowActionSettings } from '../../lib/rowActions';
 import { ArticleRowActions } from './ArticleActions';
 
 interface ArticleCardProps {
   article: Article;
   showSource: boolean;
+  rowActions: RowActionSettings;
   active: boolean;
   onSelect: () => void;
   onToggleStar: (e: ReactMouseEvent) => void;
@@ -19,7 +21,7 @@ interface ArticleCardProps {
 }
 
 export default function ArticleCard({
-  article, showSource, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource,
+  article, showSource, rowActions, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource,
 }: ArticleCardProps) {
   const { t } = useTranslation();
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
@@ -72,6 +74,7 @@ export default function ArticleCard({
       <ArticleRowActions
         article={article}
         isReadLater={isReadLater}
+        settings={rowActions}
         className="article-card__actions"
         onContainerClick={(e) => e.stopPropagation()}
         onToggleStar={onToggleStar}

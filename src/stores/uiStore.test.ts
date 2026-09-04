@@ -110,4 +110,41 @@ describe('uiStore', () => {
     useUiStore.getState().applyServerPrefs({ offlineImagePreset: 'max' });
     expect(useUiStore.getState().offlineImagePreset).toBe('max');
   });
+
+  it('setRowAction flips a single icon and persists it, others untouched', () => {
+    useUiStore.setState({ rowActions: { star: true, readLater: true, openSource: true, markRead: true } });
+    useUiStore.getState().setRowAction('openSource', false);
+    const s = useUiStore.getState();
+    expect(s.rowActions.openSource).toBe(false);
+    expect(s.rowActions.star).toBe(true);
+    expect(s.rowActions.readLater).toBe(true);
+    expect(s.rowActions.markRead).toBe(true);
+    expect(JSON.parse(localStorage.getItem('frirss_rowActions')!)).toEqual(s.rowActions);
+  });
+
+  it('rowActions is synced across devices (present in UI_SYNC_KEYS)', () => {
+    expect(UI_SYNC_KEYS).toContain('rowActions');
+  });
+
+  // A device still on an older version syncs a `rowActions` object missing
+  // keys added since — completing it here (as for `offlineImagePreset`
+  // above) is what keeps an icon from vanishing in silence.
+  it('applyServerPrefs completes a rowActions object missing newer keys', () => {
+    useUiStore.getState().applyServerPrefs({ rowActions: { star: false } });
+    expect(useUiStore.getState().rowActions).toEqual({
+      star: false, readLater: true, openSource: true, markRead: true,
+    });
+    expect(JSON.parse(localStorage.getItem('frirss_rowActions')!)).toEqual({
+      star: false, readLater: true, openSource: true, markRead: true,
+    });
+  });
+
+  it('applyServerPrefs keeps a fully-specified rowActions object as-is', () => {
+    useUiStore.getState().applyServerPrefs({
+      rowActions: { star: false, readLater: false, openSource: true, markRead: false },
+    });
+    expect(useUiStore.getState().rowActions).toEqual({
+      star: false, readLater: false, openSource: true, markRead: false,
+    });
+  });
 });

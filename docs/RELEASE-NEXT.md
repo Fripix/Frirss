@@ -13,7 +13,14 @@ la release publiée.
 
 ## Fonctionnalités
 
-_(rien pour l'instant)_
+- **Ouvrir un article à sa source depuis la liste.** Une icône sur chaque ligne
+  ouvre l'article sur le site d'origine dans un nouvel onglet et le marque lu,
+  sans l'ouvrir dans FriRSS — pour qui préfère lire ses flux à la source.
+  Demandé dans l'issue #11.
+- **Choisir les icônes affichées sur une ligne.** Une nouvelle section
+  « Mise en page » dans les préférences permet d'afficher ou de masquer chacune
+  des quatre icônes, une par une. Les gestes, les raccourcis et le volet de
+  lecture ne changent pas.
 
 ## Corrections et améliorations
 

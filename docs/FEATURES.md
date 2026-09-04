@@ -599,9 +599,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   suivantes se décaleraient sur cette seule ligne) ; une icône masquée par
   réglage laisse un emplacement **retiré**, rien n'occupant sa place (la
   cause vaut pour toute la liste, rien n'a besoin d'absorber une variation).
-  Réglages de visibilité : rien ne branche encore un réglage utilisateur sur
-  `ArticleRowActions`, qui reçoit donc `DEFAULT_ROW_ACTIONS` en dur — les
-  quatre icônes sont visibles pour tout le monde.
+  Réglages de visibilité : `ArticleRowActions` reçoit désormais le choix de
+  l'utilisateur (`useUiStore(s => s.rowActions)`), réglable dans Préférences →
+  **Mise en page** (voir *Préférences* ci-dessous) — toutes visibles par
+  défaut.
 - **Ouvrir à la source** (4ᵉ icône, `OpenSourceButton`) : ouvre l'URL d'origine
   de l'article dans un nouvel onglet (`openExternal()`, `src/lib/openExternal.ts`
   — `window.open(url, '_blank', 'noopener')`, jamais l'article dans FriRSS) et
@@ -1390,8 +1391,9 @@ réglage clair/sombre du système.
 ## Préférences
 
 Panneau à navigation verticale : **Général** (langue, lecture, raccourcis),
-**Apparence** (thème, couleurs, tailles, identité), **Étiquettes**, **Flux**
-(gestion des serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, plus
+**Apparence** (thème, couleurs, tailles, identité), **Mise en page** (icônes
+d'action de la ligne d'article), **Étiquettes**, **Flux** (gestion des
+serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, plus
 **Administration** pour les administrateurs.
 
 - **Où** : `src/components/Preferences/`
@@ -1419,6 +1421,32 @@ Panneau à navigation verticale : **Général** (langue, lecture, raccourcis),
 - **Synchronisation** : les préférences logiques sont synchronisées par le serveur
   (`UI_SYNC_KEYS`) ; les préférences géométriques — largeurs de panneaux,
   visibilité de la barre latérale — restent locales à chaque appareil.
+- **Mise en page** (`src/components/Preferences/LayoutTab.tsx`) : quatre
+  interrupteurs, un par icône de la barre d'actions d'une ligne d'article
+  (favori, à lire plus tard, ouvrir à la source, ✓) — toutes actives par
+  défaut. Un seul objet en stockage (`useUiStore(s => s.rowActions)`,
+  `setRowAction(kind, visible)`, clé `frirss_rowActions`), pas quatre
+  booléens séparés : une seule entrée dans `UI_SYNC_KEYS` et dans les clés
+  JSON restaurées, qu'une cinquième icône future n'aura pas à toucher.
+  Décocher une icône **retire** son emplacement (les autres se resserrent) ;
+  c'est différent de l'absence par article (ex. « ouvrir à la source » sans
+  URL source), qui **réserve** l'emplacement au lieu de le retirer — voir
+  `rowActionSlots()` plus haut. Cette section ne règle QUE les outils
+  affichés sur la ligne : ni les boutons du volet de lecture (qui gardent les
+  leurs, indépendamment), ni la piste d'options en tête de liste (source,
+  favicons, séparateurs de dates, barre — qui règle le CONTENU montré par la
+  ligne, pas les OUTILS qu'elle propose).
+  - **Piège** : un appareil resté sur une version antérieure à cette
+    fonctionnalité synchronise (ou relit depuis `localStorage`) un objet
+    `rowActions` auquel il manque les clés ajoutées depuis. Sans
+    complétion, `settings[kind]` vaudrait `undefined` — donc faux — et une
+    icône disparaîtrait sans que personne l'ait décoché. `normalizeRowActions()`
+    (`src/lib/rowActions.ts`) comble les clés manquantes avec
+    `DEFAULT_ROW_ACTIONS`, et tourne aux **deux** endroits où l'objet entre
+    dans le magasin : au chargement (`loadJson` + `normalizeRowActions`) et à
+    la restauration synchronisée (`applyServerPrefs`) — exactement le même
+    piège, et le même remède, que `normalizeImagePreset` pour
+    `offlineImagePreset`.
 
 ---
 

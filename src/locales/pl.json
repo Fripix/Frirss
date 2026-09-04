@@ -382,7 +382,8 @@
       "labels": "Etykiety",
       "feeds": "Kanały",
       "offline": "Offline",
-      "admin": "Administracja"
+      "admin": "Administracja",
+      "layout": "Układ"
     },
     "appearance": {
       "theme": "Motyw",
@@ -423,6 +424,14 @@
       "deleted": "Usunięto kategorię",
       "moved": "Przeniesiono kanał",
       "failed": "Operacja się nie powiodła"
+    },
+    "layout": {
+      "title": "Ikony akcji artykułu",
+      "hint": "Wybierz, które ikony pojawiają się w każdym wierszu artykułu. Gesty, skróty i panel czytania pozostają bez zmian.",
+      "star": "Ulubione",
+      "readLater": "Przeczytaj później",
+      "openSource": "Otwórz u źródła",
+      "markRead": "Oznacz jako przeczytane"
     }
   },
   "login": {

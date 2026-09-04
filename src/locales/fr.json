@@ -376,7 +376,8 @@
       "labels": "Étiquettes",
       "feeds": "Flux",
       "offline": "Hors-ligne",
-      "admin": "Administration"
+      "admin": "Administration",
+      "layout": "Mise en page"
     },
     "appearance": {
       "theme": "Thème",
@@ -415,6 +416,14 @@
       "deleted": "Catégorie supprimée",
       "moved": "Flux déplacé",
       "failed": "L’opération a échoué"
+    },
+    "layout": {
+      "title": "Icônes d’action des articles",
+      "hint": "Choisissez les icônes affichées sur chaque ligne d’article. Les gestes, les raccourcis et le volet de lecture ne changent pas.",
+      "star": "Favori",
+      "readLater": "À lire plus tard",
+      "openSource": "Ouvrir à la source",
+      "markRead": "Marquer comme lu"
     }
   },
   "login": {

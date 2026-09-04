@@ -376,7 +376,8 @@
       "labels": "Labels",
       "feeds": "Feeds",
       "offline": "Offline",
-      "admin": "Administration"
+      "admin": "Administration",
+      "layout": "Layout"
     },
     "appearance": {
       "theme": "Theme",
@@ -415,6 +416,14 @@
       "deleted": "Category deleted",
       "moved": "Feed moved",
       "failed": "That did not work"
+    },
+    "layout": {
+      "title": "Article action icons",
+      "hint": "Choose which icons appear on each article row. Gestures, shortcuts and the reading pane are unaffected.",
+      "star": "Star",
+      "readLater": "Read later",
+      "openSource": "Open at source",
+      "markRead": "Mark as read"
     }
   },
   "login": {

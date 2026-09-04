@@ -376,7 +376,8 @@
       "labels": "Etichette",
       "feeds": "Flussi",
       "offline": "Offline",
-      "admin": "Amministrazione"
+      "admin": "Amministrazione",
+      "layout": "Layout"
     },
     "appearance": {
       "theme": "Tema",
@@ -415,6 +416,14 @@
       "deleted": "Categoria eliminata",
       "moved": "Feed spostato",
       "failed": "Operazione non riuscita"
+    },
+    "layout": {
+      "title": "Icone di azione degli articoli",
+      "hint": "Scegli quali icone appaiono su ogni riga di articolo. Gesti, scorciatoie e riquadro di lettura non cambiano.",
+      "star": "Preferito",
+      "readLater": "Leggi dopo",
+      "openSource": "Apri alla fonte",
+      "markRead": "Segna come letto"
     }
   },
   "login": {

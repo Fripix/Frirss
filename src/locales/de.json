@@ -376,7 +376,8 @@
       "labels": "Etiketten",
       "feeds": "Feeds",
       "offline": "Offline",
-      "admin": "Verwaltung"
+      "admin": "Verwaltung",
+      "layout": "Layout"
     },
     "appearance": {
       "theme": "Design",
@@ -415,6 +416,14 @@
       "deleted": "Kategorie gelöscht",
       "moved": "Feed verschoben",
       "failed": "Das hat nicht geklappt"
+    },
+    "layout": {
+      "title": "Aktionssymbole für Artikel",
+      "hint": "Wählen Sie, welche Symbole in jeder Artikelzeile erscheinen. Gesten, Tastenkürzel und der Lesebereich bleiben unverändert.",
+      "star": "Favorit",
+      "readLater": "Später lesen",
+      "openSource": "An der Quelle öffnen",
+      "markRead": "Als gelesen markieren"
     }
   },
   "login": {

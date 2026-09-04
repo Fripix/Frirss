@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import ArticleCard from './ArticleCard';
+import { DEFAULT_ROW_ACTIONS } from '../../lib/rowActions';
 import type { Article } from '../../types';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -19,7 +20,7 @@ const noop = () => {};
 describe('ArticleCard', () => {
   it('renders the title and source', () => {
     const { getByText } = render(
-      <ArticleCard article={base} showSource active={false}
+      <ArticleCard article={base} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
         onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     expect(getByText('Hello World')).toBeTruthy();
@@ -28,7 +29,7 @@ describe('ArticleCard', () => {
 
   it('shows the source-initial fallback when there is no image', () => {
     const { container } = render(
-      <ArticleCard article={{ ...base, content: '<p>no image</p>' }} showSource active={false}
+      <ArticleCard article={{ ...base, content: '<p>no image</p>' }} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
         onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     expect(container.querySelector('.article-card__fallback')).toBeTruthy();
@@ -36,7 +37,7 @@ describe('ArticleCard', () => {
 
   it('renders a thumbnail when the content has an image', () => {
     const { container } = render(
-      <ArticleCard article={{ ...base, content: '<img src="https://x/a.jpg">' }} showSource active={false}
+      <ArticleCard article={{ ...base, content: '<img src="https://x/a.jpg">' }} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
         onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     expect(container.querySelector('img')).toBeTruthy();
@@ -46,7 +47,7 @@ describe('ArticleCard', () => {
   it('calls onSelect when the card is clicked', () => {
     const onSelect = vi.fn();
     const { getByRole } = render(
-      <ArticleCard article={base} showSource active={false}
+      <ArticleCard article={base} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
         onSelect={onSelect} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     fireEvent.click(getByRole('button', { name: /Hello World/i }));
@@ -55,7 +56,7 @@ describe('ArticleCard', () => {
 
   it('affiche les quatre actions, dans l’ordre étoile → à lire plus tard → ouvrir à la source → ✓', () => {
     const { container } = render(
-      <ArticleCard article={base} showSource active={false}
+      <ArticleCard article={base} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
         onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     const actions = container.querySelector('.article-card__actions');
@@ -74,7 +75,7 @@ describe('ArticleCard', () => {
 
   it('réserve un emplacement vide pour « ouvrir à la source » quand l’article n’a pas d’URL', () => {
     const { container } = render(
-      <ArticleCard article={{ ...base, url: '' }} showSource active={false}
+      <ArticleCard article={{ ...base, url: '' }} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
         onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
     const actions = container.querySelector('.article-card__actions');
@@ -90,7 +91,7 @@ describe('ArticleCard', () => {
     const onOpenSource = vi.fn();
     const onSelect = vi.fn();
     const { container } = render(
-      <ArticleCard article={base} showSource active={false}
+      <ArticleCard article={base} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
         onSelect={onSelect} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={onOpenSource} />
     );
     const actions = container.querySelector('.article-card__actions');

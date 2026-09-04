@@ -376,7 +376,8 @@
       "labels": "Etiquetas",
       "feeds": "Fontes",
       "offline": "Offline",
-      "admin": "Administração"
+      "admin": "Administração",
+      "layout": "Disposição"
     },
     "appearance": {
       "theme": "Tema",
@@ -415,6 +416,14 @@
       "deleted": "Categoria eliminada",
       "moved": "Fonte movida",
       "failed": "A operação falhou"
+    },
+    "layout": {
+      "title": "Ícones de ação dos artigos",
+      "hint": "Escolha os ícones que aparecem em cada linha de artigo. Gestos, atalhos e o painel de leitura não mudam.",
+      "star": "Favorito",
+      "readLater": "Ler mais tarde",
+      "openSource": "Abrir na origem",
+      "markRead": "Marcar como lido"
     }
   },
   "login": {

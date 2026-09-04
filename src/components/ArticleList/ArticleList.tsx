@@ -11,6 +11,7 @@ import { shouldLoadMore, listBodyState, canLoadMore } from '../../lib/listPagina
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { openArticleAtSource } from '../../lib/openArticleAtSource';
+import type { RowActionSettings } from '../../lib/rowActions';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
 import SwipeableArticleRow from './SwipeableArticleRow';
@@ -66,6 +67,7 @@ export default function ArticleList() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const showSourceInFeed = useUiStore((s) => s.showSourceInFeed);
   const showListFavicons = useUiStore((s) => s.showListFavicons);
+  const rowActions = useUiStore((s) => s.rowActions);
   const toggleShowListFavicons = useUiStore((s) => s.toggleShowListFavicons);
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const unreadCounts = useFeedStore((s) => s.unreadCounts);
@@ -110,6 +112,7 @@ export default function ArticleList() {
       key={article.id}
       article={article}
       showSource={showSource}
+      rowActions={rowActions}
       active={selectedArticle?.id === article.id}
       onSelect={() => openArticle(article)}
       onToggleStar={(e) => { e.stopPropagation(); toggleStar(article); }}
@@ -944,6 +947,7 @@ export default function ArticleList() {
                       article={article}
                       viewMode={viewMode}
                       showSource={showSource}
+                      rowActions={rowActions}
                       favicon={showListFavicons ? iconByFeedId.get(article.sourceId) ?? null : undefined}
                       staggerIndex={staggerById.get(article.id)}
                       active={selectedArticle?.id === article.id}
@@ -1333,6 +1337,7 @@ interface ArticleRowProps {
   article: Article;
   viewMode: string;
   showSource: boolean;
+  rowActions: RowActionSettings;
   /** URL de l'icône du flux ; `null` = pas d'icône connue mais on affiche le
    *  repli (pastille-lettre) ; `undefined` = favicons désactivés. */
   favicon?: string | null;
@@ -1347,7 +1352,7 @@ interface ArticleRowProps {
   onOpenSource: (e: ReactMouseEvent) => void;
 }
 
-function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource }: ArticleRowProps) {
+function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource }: ArticleRowProps) {
   const { t } = useTranslation();
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = viewMode === 'preview' ? extractImageFromContent(article.content) : null;
@@ -1427,6 +1432,7 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
         <ArticleRowActions
           article={article}
           isReadLater={isReadLater}
+          settings={rowActions}
           className="flex items-center gap-1 flex-shrink-0"
           onToggleStar={onToggleStar}
           onToggleReadLater={onToggleReadLater}
@@ -1507,6 +1513,7 @@ function ArticleRow({ article, viewMode, showSource, favicon, staggerIndex, acti
       <ArticleRowActions
         article={article}
         isReadLater={isReadLater}
+        settings={rowActions}
         className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5"
         onToggleStar={onToggleStar}
         onToggleReadLater={onToggleReadLater}
