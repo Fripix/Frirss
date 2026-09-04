@@ -14,12 +14,18 @@ la release publiée.
 ## Fonctionnalités
 
 - **Ouvrir un article à sa source depuis la liste.** Une icône sur chaque ligne
-  ouvre l'article sur le site d'origine dans un nouvel onglet, sans l'ouvrir
+  ouvre l'article sur le site d'origine dans un nouvel onglet, sans y naviguer
   dans FriRSS — pour qui préfère lire ses flux à la source. Demandé dans
   l'issue #11. L'article ouvert devient l'article sélectionné : il est donc
-  marqué lu, sa ligne **reste** dans la liste même sous le filtre « Non lus »,
-  et au retour de l'onglet on peut enchaîner les actions dessus sans avoir à
-  le retrouver. En mode Compact, les icônes sont aussi plus espacées qu'avant,
+  marqué lu et sa ligne **reste** dans la liste même sous le filtre « Non
+  lus ». Mais sélectionner ouvre aussi le volet de lecture, qui prend la place
+  de la liste sur téléphone, en tablette et sur desktop en 2 panneaux/grille —
+  seul le desktop en 3 panneaux garde liste et volet côte à côte. Au retour de
+  l'onglet, on retombe donc le plus souvent sur le volet de l'article qu'on
+  vient de lire ailleurs, pas sur la liste ; un Retour suffit pour la
+  retrouver. C'est un compromis assumé, pas une disposition oubliée : la
+  sélection se comporte pareil partout, sans condition par mise en page. En
+  mode Compact, les icônes sont aussi plus espacées qu'avant,
   pour que le doigt ne vise pas le ✓ et n'ouvre pas un onglet. À savoir : dans
   la vue normale, les quatre icônes restent empilées en colonne, et cette
   colonne est plus haute que le texte de la ligne — les lignes y gagnent une

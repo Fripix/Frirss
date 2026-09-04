@@ -34,10 +34,19 @@ import { openExternal } from './openExternal';
  * au clic qui remonterait jusqu'à la ligne : la carte de la vue grille arrête
  * la propagation sur son conteneur, le comportement différerait donc d'un mode
  * d'affichage à l'autre.
+ *
+ * ⚠️ Le type du second paramètre reprend volontairement celui de
+ * `selectArticle` dans `feedStore.ts` (`(article: Article | null) => void`),
+ * pas un type plus permissif comme `(article: Article) => void`. C'est ce qui
+ * fait que `tsc` refuse `toggleRead` (`(article: Article, opts?) => Promise<void>`)
+ * à cet emplacement : `Article | null` n'est pas assignable à son premier
+ * paramètre `Article`. Un appelant qui reviendrait à `toggleRead` — le
+ * comportement d'avant ce module — ne passe donc plus le typecheck ; voir
+ * `openArticleAtSource.test.ts` pour la preuve compilée.
  */
 export function openArticleAtSource(
   article: Article,
-  selectArticle: (article: Article) => void,
+  selectArticle: (article: Article | null) => void,
 ): void {
   if (!article.url?.trim()) return;
   openExternal(article.url);

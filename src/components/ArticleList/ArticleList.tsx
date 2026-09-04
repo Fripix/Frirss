@@ -123,7 +123,7 @@ export default function ArticleList() {
         // `stopPropagation` puis sélection explicite : la carte arrête déjà la
         // propagation sur son conteneur d'actions, laisser le clic remonter ne
         // sélectionnerait donc rien ici et sélectionnerait ailleurs.
-        openArticleAtSource(article, selectArticle);
+        openArticleAtSource(article, selectArticleAtSource);
       }}
     />
   );
@@ -181,6 +181,15 @@ export default function ArticleList() {
     // que si le rendu la garde pour une raison quelconque.
     if (titleEl) titleEl.style.viewTransitionName = '';
   }, [isDesktop, panelLayoutReplacesList, selectArticle]);
+
+  // La sélection déclenchée par « ouvrir à la source » (`openArticleAtSource`,
+  // `src/lib/openArticleAtSource.ts`) passe par `openArticle` plutôt que par
+  // `selectArticle` directement, pour la même raison qu'un clic sur la ligne :
+  // sans le morph, le passage liste → volet en 2 panneaux et en grille se
+  // ferait d'un coup, alors que toute autre sélection l'anime.
+  const selectArticleAtSource = useCallback((article: Article | null) => {
+    if (article) openArticle(article);
+  }, [openArticle]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   // Recherches récentes du serveur actif. Rechargées à chaque ouverture du
@@ -971,7 +980,7 @@ export default function ArticleList() {
                         e.stopPropagation();
                         // Sélection explicite, pas un clic qu'on laisse
                         // remonter jusqu'à la ligne : voir `renderCard`.
-                        openArticleAtSource(article, selectArticle);
+                        openArticleAtSource(article, selectArticleAtSource);
                       }}
                     />
                   );

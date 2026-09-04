@@ -640,17 +640,20 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   **Tests** : la carte de grille par `ArticleCard.test.tsx`, la ligne compacte
   par `ArticleRow.compact.test.tsx` (ordre des quatre icônes, emplacement
   réservé en 3ᵉ position sans URL, emplacement retiré par réglage, et le clic
-  sur « ouvrir à la source » qui n'ouvre jamais l'article) — d'où l'export de
-  `ArticleRow` depuis `ArticleList.tsx`, qui n'a pas d'autre consommateur.
+  sur « ouvrir à la source » qui appelle `onOpenSource` sans déclencher
+  `onSelect` par propagation) — d'où l'export de `ArticleRow` depuis
+  `ArticleList.tsx`, qui n'a pas d'autre consommateur.
 - **Ouvrir à la source** (4ᵉ icône, `OpenSourceButton`) : ouvre l'URL d'origine
   de l'article dans un nouvel onglet (`openExternal()`, `src/lib/openExternal.ts`
-  — `window.open(url, '_blank', 'noopener')`, jamais l'article dans FriRSS)
-  puis **sélectionne** l'article (`openArticleAtSource()`,
-  `src/lib/openArticleAtSource.ts`, qui reçoit `selectArticle` en argument).
-  L'article ouvert devient donc l'article courant : au retour de l'onglet, le
-  volet de lecture, les raccourcis et les actions portent déjà sur lui, sans
-  avoir à le retrouver dans la liste. C'est ce que l'usage réel a demandé ;
-  l'icône se contentait auparavant de le marquer lu **sous condition**.
+  — `window.open(url, '_blank', 'noopener')`, qui ne navigue jamais DANS
+  FriRSS) puis **sélectionne** l'article dans FriRSS (`openArticleAtSource()`,
+  `src/lib/openArticleAtSource.ts`, qui reçoit un sélecteur en argument —
+  `ArticleList.tsx` lui passe `selectArticleAtSource`, un habillage
+  d'`openArticle`, voir plus bas). L'article ouvert devient donc l'article
+  courant : au retour de l'onglet, le volet de lecture, les raccourcis et les
+  actions portent déjà sur lui, sans avoir à le retrouver dans la liste. C'est
+  ce que l'usage réel a demandé ; l'icône se contentait auparavant de le
+  marquer lu **sous condition**.
   Deux conséquences, et ce sont elles qui font l'intérêt du changement :
   - `selectArticle` (`src/stores/feedStore.ts`) marque lui-même l'article lu,
     de façon optimiste et par le chemin de lecture normal — celui qui sait
@@ -663,11 +666,33 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     `toggleRead` consulte — et dont le critère `selected` protège de toute
     façon l'article sélectionné. Le clic laisse donc la ligne en place, là où
     il la faisait disparaître.
+  ⚠️ **« La ligne reste dans la liste » ne veut pas dire « la liste reste à
+  l'écran ».** Sélectionner un article ouvre le volet de lecture, et selon la
+  disposition (`src/App.tsx`) celui-ci prend la place de la liste dans quatre
+  cas sur cinq : en **mobile** (`:334`, `MobileStack` avec
+  `showOverlay={!!selectedArticle}`) le volet recouvre la liste ; en
+  **tablette** (`:378-390`) la liste se rétrécit à 38 % de la largeur ; sur
+  **desktop en 2 panneaux et en grille** (`:427`,
+  `showArticleList = !readingFocus && (!is2Panel || !selectedArticle)`) la
+  liste est démontée. Seul le **3 panneaux desktop** garde la liste intacte à
+  côté du volet. Concrètement, sur téléphone ou tablette : on touche l'icône,
+  on lit sur le site d'origine, on revient sur l'onglet FriRSS, et on retombe
+  sur le volet de lecture de l'article qu'on vient de lire ailleurs — un
+  bouton Retour est nécessaire pour retrouver la liste. C'est un compromis
+  assumé (l'icône existe pour lire hors de FriRSS, et fait pourtant entrer
+  dans FriRSS au retour), pas un oubli : il n'y a volontairement **aucune**
+  condition par disposition, la sélection se comporte pareil partout.
   Le clic appelle `e.stopPropagation()` en premier, comme les trois autres
   boutons de la ligne, et la sélection est appelée **explicitement** dans le
   gestionnaire : laisser le clic remonter jusqu'à la ligne donnerait un
   comportement différent d'un mode à l'autre, la carte de grille arrêtant déjà
   la propagation sur son conteneur d'actions.
+  La sélection passe par `selectArticleAtSource`, un petit habillage
+  d'`openArticle` (le même callback que le clic sur la ligne — commentaire
+  « Ouverture d'un article, avec morphing du titre » dans `ArticleList.tsx`)
+  plutôt que par `selectArticle` directement : sans ce détour, le passage
+  liste → volet en 2 panneaux et en grille se ferait d'un coup, alors que
+  toute autre sélection l'anime avec la transition de morph du titre.
   Sans URL, `openArticleAtSource()` ne fait **rien du tout** — ni ouverture, ni
   sélection. La garde est dans le module et pas seulement dans l'affichage :
   aucun bouton ne mène là aujourd'hui (`rowActionSlots()` rend l'emplacement

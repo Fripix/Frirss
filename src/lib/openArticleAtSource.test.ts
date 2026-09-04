@@ -56,4 +56,24 @@ describe('openArticleAtSource', () => {
     // même — l'article changeait d'état sans que rien ne s'ouvre.
     expect(selectArticle).not.toHaveBeenCalled();
   });
+
+  // Garde de type : un appelant qui reviendrait à `toggleRead` (le
+  // comportement d'avant ce module — repasse non lu, retire la ligne sous
+  // « Non lus ») ne doit plus compiler. Le second paramètre est typé
+  // `(article: Article | null) => void`, exactement la signature de
+  // `selectArticle` dans `feedStore.ts` ; `toggleRead` exige un `Article` non
+  // nul, donc `Article | null` n'est pas assignable à son premier paramètre.
+  // `@ts-expect-error` exige une erreur de compilation sur la ligne suivante
+  // : la retirer ci-dessous et relancer `npm run typecheck` fait échouer la
+  // compilation — la preuve que cette ligne détecte bien un retour en
+  // arrière, pas seulement qu'elle a l'air de le faire.
+  it("le type refuse toggleRead comme second argument (vérifié par tsc, rien à exécuter ici)", () => {
+    const toggleRead = (async (_a: Article, _opts?: { implicit?: boolean }) => {}) as (
+      a: Article,
+      opts?: { implicit?: boolean },
+    ) => Promise<void>;
+    // @ts-expect-error toggleRead ne sélectionne pas : voir le commentaire ci-dessus.
+    openArticleAtSource(article(), toggleRead);
+    expect(true).toBe(true);
+  });
 });
