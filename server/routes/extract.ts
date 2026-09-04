@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { assertTargetSafe, fetchUpstream, finishError, proxyRateLimiter } from './proxy.js';
+import { assertTargetSafe, fetchUpstream, finishError, proxyRateLimiter, UnresolvedTargetError } from './proxy.js';
 import { cacheEnabled, cacheGet, cacheSet, extractKey } from '../cache.js';
 import { extractArticle } from '../extract.js';
 
@@ -127,10 +127,17 @@ router.get('/', async (req, res) => {
   // donc elle qu'on attend ici, et non elle seule dans `fetchUpstream`, où elle
   // s'exécute après la lecture du cache.
   //
-  // Coût : une résolution de plus par requête, refaite par `fetchUpstream` sur
-  // la cible réelle et sur chaque saut de redirection. La réponse est en cache
-  // au niveau de l'OS, donc c'est bien moins qu'un aller-retour Redis — que la
-  // sonde SSRF, elle, ne coûte plus du tout.
+  // Coût, compté : UNE résolution sur un succès de cache — il n'en fallait
+  // aucune — et DEUX sur un échec, le même hôte étant résolu ici puis de
+  // nouveau dans `fetchUpstream` (plus une par saut de redirection). Aucune
+  // n'est gratuite : l'image de production est bâtie sur alpine, donc musl, qui
+  // ne garde AUCUN cache de résolution, et l'étape de production n'installe ni
+  // nscd ni résolveur local — chaque appel part sur le réseau vers le résolveur
+  // du conteneur. La seconde résolution n'est pas évitée : il faudrait
+  // mémoriser un verdict, donc le tenir pour valide au-delà de l'instant où il
+  // a été établi, dans la fonction qui garde toutes les sorties du backend.
+  // Le prix est assumé pour ce qu'il achète : une entrée empoisonnée du cache
+  // d'extraction est servie à TOUTE l'instance, en silence, pendant `CACHE_TTL`.
   //
   // Le refus lui-même n'est PAS réécrit ici : même erreur, même `finishError`
   // que `/api/proxy` (voir son gestionnaire) — un seul 403, un seul corps, une
@@ -138,7 +145,20 @@ router.get('/', async (req, res) => {
   try {
     await assertTargetSafe(url);
   } catch (err) {
-    return finishError(res, err, url, 'Extract error:');
+    // Une résolution SANS RÉPONSE n'est pas une cible refusée : c'est une
+    // panne de disponibilité. Les confondre à ce poste transformait le moindre
+    // hoquet du résolveur (un redémarrage sur le réseau Docker suffit) en
+    // « Target host not allowed » sur TOUTES les extractions, y compris celles
+    // que Redis pouvait rendre sans toucher au réseau — une erreur qui accuse
+    // la cible d'un défaut qui n'est pas le sien. On poursuit donc jusqu'au
+    // cache, dont chaque entrée n'a été écrite qu'après un passage COMPLET de
+    // cette même garde.
+    //
+    // Rien n'est perdu en cas d'absence : `fetchUpstream` rejoue la garde et
+    // refuse avant le moindre appel sortant. Un hôte qu'on ne sait pas situer
+    // n'est jamais joint — et il y reste classé en 403, sans code à part, pour
+    // ne pas révéler par différence lequel des deux refus a joué.
+    if (!(err instanceof UnresolvedTargetError)) return finishError(res, err, url, 'Extract error:');
   }
 
   const key = cacheEnabled ? extractKey(url) : null;

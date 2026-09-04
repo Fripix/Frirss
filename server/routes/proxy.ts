@@ -243,6 +243,70 @@ export function targetBelongsToServer(serverUrl: string, rawTarget: string): boo
  */
 export class BlockedTargetError extends Error {}
 
+/**
+ * Résolution SANS RÉPONSE : le résolveur n'a rien dit, ni « publique » ni
+ * « privée ».
+ *
+ * C'est une SOUS-CLASSE de `BlockedTargetError`, et délibérément : sur le
+ * chemin de l'appel sortant, rien ne change. `fetchUpstream` ne se replie
+ * toujours pas dessus, `finishError` répond toujours le même 403 sans nommer
+ * la cible. Un hôte qu'on ne sait pas situer ne doit pas être joint, et lui
+ * donner un code à part ferait de la route un oracle : en comparant les deux
+ * réponses, un appelant apprendrait qu'un 403 signifie « cet hôte résout vers
+ * le réseau interne » — exactement la carte du réseau que le corps du 403
+ * s'interdit de dessiner.
+ *
+ * Ce que le type ajoute ne sert qu'AVANT toute sortie réseau : la garde
+ * pré-cache de `/api/extract` (voir sa route) doit pouvoir distinguer une
+ * cible refusée d'une panne de résolution, là où rien ne sera joint de toute
+ * façon.
+ */
+export class UnresolvedTargetError extends BlockedTargetError {}
+
+/**
+ * Attente maximale d'une résolution avant de la tenir pour sans réponse.
+ *
+ * `dns.promises.lookup` n'accepte aucun délai : la borne réelle est le budget
+ * de reprise du résolveur du système — sous musl, la libc de l'image de
+ * production, 5 s par tentative et 2 tentatives par serveur de noms, soit une
+ * dizaine de secondes d'immobilité. La garde étant désormais devant CHAQUE
+ * extraction, y compris celles que le cache aurait servies sans réseau, ce
+ * n'est plus une attente acceptable.
+ *
+ * Ce que ce plafond borne : la réponse rendue à l'appelant. Ce qu'il ne borne
+ * PAS : le fil de `libuv`. `dns.lookup` s'exécute sur le pool de threads (4 par
+ * défaut — `UV_THREADPOOL_SIZE` n'est fixé nulle part — et partagé avec les
+ * entrées-sorties fichier et la cryptographie), et abandonner l'attente ne rend
+ * pas le fil, qui reste pris jusqu'à ce que le résolveur abandonne à son tour.
+ * Un résolveur en panne continue donc de coûter des fils occupés ; il ne coûte
+ * plus des requêtes immobiles. Le refermer complètement demanderait de passer
+ * à `dns.promises.resolve4/6` (c-ares, hors pool), qui ignore `/etc/hosts` et
+ * ne suit pas les règles de résolution du système : à ne pas troquer à la
+ * légère dans la fonction qui garde toutes les sorties du backend.
+ */
+export const LOOKUP_TIMEOUT_MS = 5_000;
+
+/**
+ * `dns.promises.lookup(host, { all: true })`, borné dans le temps.
+ *
+ * Le perdant de la course garde ses gestionnaires (`Promise.race` en attache
+ * un à chacune) : une résolution qui échoue après le délai ne devient pas un
+ * rejet non traité.
+ */
+async function lookupWithTimeout(host: string): Promise<dns.LookupAddress[]> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      dns.promises.lookup(host, { all: true }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('dns lookup timed out')), LOOKUP_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Throws BlockedTargetError if `rawUrl` must not be fetched. Trusted internal
 // hosts (PROXY_REWRITES / PROXY_INTERNAL_HOSTS) pass. Otherwise the host is
 // rejected if it is an internal literal, OR if it RESOLVES to a private IP —
@@ -263,9 +327,14 @@ export async function assertTargetSafe(rawUrl: string): Promise<void> {
   if (isInternalHostLiteral(host)) throw new BlockedTargetError(host);
   let addrs: dns.LookupAddress[];
   try {
-    addrs = await dns.promises.lookup(host, { all: true });
+    addrs = await lookupWithTimeout(host);
   } catch {
-    throw new BlockedTargetError(host);                   // unresolvable → block
+    // Sans réponse du résolveur, on ne sait pas où l'on va : on n'y va pas.
+    // Le type dit seulement POURQUOI — il n'existe que pour la garde
+    // pré-cache d'`/api/extract`, qui, elle, ne va nulle part. Partout
+    // ailleurs c'est un refus comme un autre : même 403, même journal, aucun
+    // repli.
+    throw new UnresolvedTargetError(host);                // unresolvable → block
   }
   if (addrs.some((a) => isPrivateIp(a.address))) throw new BlockedTargetError(host);
 }
@@ -428,6 +497,19 @@ router.all('/', async (req, res) => {
   const key = cacheable ? cacheKey(req.user.id, rawTarget) : null;
 
   // ── Cache-only read: instant paint, no FreshRSS round-trip ──
+  //
+  // EXCEPTION assumée au principe « refuser avant de lire le cache » que
+  // `/api/extract` applique : ici, seul le pré-contrôle littéral ci-dessus est
+  // passé, `assertTargetSafe` ne tourne pas, et un hôte interne au nom POINTÉ
+  // retiré de `PROXY_INTERNAL_HOSTS` peut donc encore se faire rendre son
+  // entrée. Ce qui la rend étroite, contrairement au cache d'extraction : la
+  // clé porte l'identifiant de l'utilisateur (`cacheKey(req.user.id, …)`) et
+  // `isCacheableRead` exige un GET sur `/reader/api/0/` — l'appelant ne peut
+  // donc relire que ce que SON compte a lui-même mis en cache du temps où
+  // l'hôte était autorisé, jamais le travail d'un autre. Y placer la garde
+  // complète coûterait une résolution DNS sur le chemin de peinture instantanée
+  // de l'application, celui qui doit répondre sans réseau : le troc n'en vaut
+  // pas la peine pour ce périmètre-là.
   if (req.header('x-cache-only')) {
     if (!key) return res.status(204).end();
     const cached = await cacheGet(key);

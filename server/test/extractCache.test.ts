@@ -122,8 +122,13 @@ describe('extract — cache', () => {
   // attrapées par le même mécanisme : l'IP littérale tombe sur le contrôle
   // syntaxique, le nom pointé n'est classé que par la résolution DNS. Une
   // version n'attendant que le contrôle littéral servait le cache au second.
+  //
+  // Chaque cas fait donc répondre au doublon DNS l'adresse qui laisse SON
+  // mécanisme juger seul : une adresse PUBLIQUE pour l'IP littérale, sans quoi
+  // la résolution refusait à la place du contrôle syntaxique et le cas restait
+  // vert même en supprimant ce dernier de `assertTargetSafe`.
   const refusals: [string, string, string][] = [
-    ['une IP privée littérale', 'http://10.0.0.5/a', '10.0.0.5'],
+    ['une IP privée littérale', 'http://10.0.0.5/a', '93.184.216.34'],
     // `PROXY_INTERNAL_HOSTS=nas.example.com`, ou une réécriture vers
     // `http://nas.lan:8080` : un hôte interne au nom POINTÉ est invisible pour
     // `isInternalHostLiteral` — d'où le doublon DNS ci-dessus, qui est ici le
@@ -150,6 +155,47 @@ describe('extract — cache', () => {
       warn.mockRestore();
     });
   }
+
+  // ── Résolveur muet : une panne de disponibilité, pas un refus ──────
+  // La garde complète est passée devant le cache, et `assertTargetSafe` refuse
+  // aussi bien un hôte qui résout en privé qu'un hôte qui ne résout PAS. Au
+  // poste pré-cache, confondre les deux transformait le moindre hoquet du
+  // résolveur en 403 sur toutes les extractions — y compris celles que Redis
+  // pouvait rendre sans toucher au réseau, et avec un message accusant la
+  // cible d'un défaut qui n'était pas le sien.
+  it("sert quand même le cache quand la résolution ne répond pas", async () => {
+    dnsLookup.mockRejectedValue(Object.assign(new Error('getaddrinfo EAI_AGAIN'), { code: 'EAI_AGAIN' }));
+    const cached = JSON.stringify({ title: 'Depuis le cache', content: '<p>déjà extrait</p>' });
+    cacheGet.mockResolvedValue(cached);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await request(app).get('/api/extract').query({ url: URL_A });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['x-from-cache']).toBe('1');
+    expect(cacheGet).toHaveBeenCalledWith(extractKey(URL_A));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // Le pendant du test ci-dessus, et la moitié qui compte pour la sécurité :
+  // sans entrée en cache, il n'y a plus rien à servir — et un hôte qu'on ne
+  // sait pas situer ne doit pas être joint pour autant. `fetchUpstream` rejoue
+  // la garde et refuse avant le moindre appel sortant.
+  it("refuse malgré tout de sortir vers un hôte qui ne résout pas", async () => {
+    dnsLookup.mockRejectedValue(Object.assign(new Error('getaddrinfo EAI_AGAIN'), { code: 'EAI_AGAIN' }));
+    cacheGet.mockResolvedValue(null);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const res = await request(app).get('/api/extract').query({ url: URL_A });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Target host not allowed' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
 
   it("n'écrit rien dans le cache quand la page n'est pas extractible", async () => {
     cacheGet.mockResolvedValue(null);

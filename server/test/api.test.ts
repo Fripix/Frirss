@@ -30,6 +30,31 @@ vi.mock('dns', () => {
 let adminToken: string;
 let secondUserId: number;
 
+// ── Le premier compte est créé ICI, pas depuis un test ───────────────
+// `adminToken` alimente presque tous les blocs du fichier. L'assigner depuis
+// un `it` rendait l'ensemble tributaire de l'ordre d'exécution : qu'un seul
+// test d'inscription soit ignoré ou échoue, et tout le reste partait avec un
+// « Bearer undefined » — donc des 401, puis des « Cannot read properties of
+// undefined » dans des blocs sans aucun rapport avec la panne. Le symptôme a
+// été vu deux fois, et il envoie chaque fois chercher le défaut là où il n'est
+// pas.
+//
+// Le parcours « base neuve » ne perd aucune vérification : ses réponses sont
+// enregistrées au passage et relues par les tests ci-dessous, dans le même
+// ordre qu'avant.
+let freshStatus: request.Response;
+let invalidEmail: request.Response;
+let firstRegistration: request.Response;
+
+beforeAll(async () => {
+  freshStatus = await request(app).get('/api/auth/status');
+  invalidEmail = await request(app).post('/api/auth/register')
+    .send({ username: 'admin', password: 'secret123', email: 'not-an-email' });
+  firstRegistration = await request(app).post('/api/auth/register')
+    .send({ username: 'admin', password: 'secret123', email: 'admin@example.com', displayName: 'Admin' });
+  adminToken = firstRegistration.body.token;
+});
+
 describe('health', () => {
   it('reports ok with db up', async () => {
     const res = await request(app).get('/api/health');
@@ -51,24 +76,18 @@ describe('crypto', () => {
 });
 
 describe('auth', () => {
-  it('reports no users on a fresh database', async () => {
-    const res = await request(app).get('/api/auth/status');
-    expect(res.body.hasUsers).toBe(false);
+  it('reports no users on a fresh database', () => {
+    expect(freshStatus.body.hasUsers).toBe(false);
   });
 
-  it('rejects registration with an invalid email', async () => {
-    const res = await request(app).post('/api/auth/register')
-      .send({ username: 'admin', password: 'secret123', email: 'not-an-email' });
-    expect(res.status).toBe(400);
+  it('rejects registration with an invalid email', () => {
+    expect(invalidEmail.status).toBe(400);
   });
 
-  it('registers the first user as admin', async () => {
-    const res = await request(app).post('/api/auth/register')
-      .send({ username: 'admin', password: 'secret123', email: 'admin@example.com', displayName: 'Admin' });
-    expect(res.status).toBe(201);
-    expect(res.body.user.role).toBe('admin');
-    expect(res.body.token).toBeTruthy();
-    adminToken = res.body.token;
+  it('registers the first user as admin', () => {
+    expect(firstRegistration.status).toBe(201);
+    expect(firstRegistration.body.user.role).toBe('admin');
+    expect(firstRegistration.body.token).toBeTruthy();
   });
 
   // L'inscription est fermée par défaut : le premier compte passe (il n'y a

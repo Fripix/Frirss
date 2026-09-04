@@ -1311,6 +1311,32 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   l'écran de connexion reconnaît pour nommer la cause (voir *Serveurs
   FreshRSS*). Le README documente le cas à l'endroit où on le rencontre :
   la dernière étape de l'installation.
+- **Résolution bornée dans le temps** : `assertTargetSafe` n'attend pas plus de
+  `LOOKUP_TIMEOUT_MS` (5 s). `dns.promises.lookup` n'accepte aucun délai, et la
+  borne réelle serait sinon le budget de reprise du résolveur du système (musl :
+  5 s par tentative, 2 tentatives par serveur de noms). **Limite connue** : ce
+  plafond borne la réponse rendue, **pas** le fil de `libuv` — `dns.lookup`
+  s'exécute sur le pool de threads (4 par défaut, `UV_THREADPOOL_SIZE` n'est
+  fixé nulle part, pool partagé avec les entrées-sorties fichier et la
+  cryptographie) et abandonner l'attente ne rend pas le fil. Un résolveur en
+  panne coûte donc encore des fils occupés, mais plus des requêtes immobiles —
+  ce qui compte, la préparation hors-ligne tirant 4 requêtes de front (`BATCH`,
+  `src/lib/imageCache.ts`), soit exactement la taille du pool. **Aucune
+  mémorisation** des résolutions non plus, et c'est délibéré : garder un verdict
+  « sûre » quelques secondes élargirait d'autant la fenêtre de la limite notée
+  ci-dessus (l'adresse validée n'est pas épinglée).
+- **Exception assumée — la lecture `X-Cache-Only` précède la garde complète.**
+  Cette branche (peinture instantanée, sans aller-retour FreshRSS) ne franchit
+  que le pré-contrôle littéral : `assertTargetSafe` n'y tourne pas, et un hôte
+  interne au nom POINTÉ retiré depuis de `PROXY_INTERNAL_HOSTS` peut donc
+  encore se faire rendre son entrée, sans refus ni ligne de journal — le trou
+  qu'`/api/extract` a fermé de son côté, en beaucoup plus étroit. Ce qui
+  l'étrécit : la clé porte l'identifiant de l'utilisateur et `isCacheableRead`
+  exige un GET sur `/reader/api/0/`, donc un appelant ne relit que ce que SON
+  compte a mis en cache du temps où l'hôte était autorisé, jamais le travail
+  d'un autre. Y placer la garde complète coûterait une résolution DNS sur le
+  chemin de peinture instantanée, celui qui doit précisément répondre sans
+  réseau : troc refusé, exception écrite plutôt que tue.
 - **Réécritures** : `PROXY_REWRITES` remplace l'URL publique par une adresse
   interne — gros gain de latence quand FriRSS et FreshRSS partagent un réseau.
 - **Règle** : tout nouvel appel sortant passe par `fetchUpstream()`, jamais par
@@ -1389,12 +1415,43 @@ là est une faille XSS.
   les deux réglages qui rouvrent la porte nomment couramment un hôte POINTÉ
   (`PROXY_INTERNAL_HOSTS=nas.example.com`, une réécriture vers
   `http://nas.lan:8080`, un `*.svc.cluster.local`) — invisible pour lui, et
-  donc servi depuis le cache. Le prix est une résolution de plus par requête,
-  refaite ensuite par `fetchUpstream` : la réponse est en cache au niveau de
-  l'OS, c'est moins cher que l'aller-retour Redis que la sonde SSRF ne coûte
-  désormais plus du tout. Couvert par `server/test/extractCache.test.ts`, cache
-  garni, pour les DEUX formes d'hôte interne — l'IP littérale et le nom pointé
-  qui résout en privé, qui ne sont pas attrapées par le même mécanisme.
+  donc servi depuis le cache. Couvert par `server/test/extractCache.test.ts`,
+  cache garni, pour les DEUX formes d'hôte interne — l'IP littérale et le nom
+  pointé qui résout en privé, qui ne sont pas attrapées par le même mécanisme.
+  Chaque cas y fait répondre au doublon DNS l'adresse qui laisse SON mécanisme
+  juger seul (une adresse publique pour l'IP littérale) : autrement la
+  résolution refuse à la place du contrôle syntaxique, et le cas reste vert
+  quand on retire ce dernier de `assertTargetSafe`.
+- **Le prix de cette garde, compté** : **une** résolution sur un succès de
+  cache — il n'en fallait aucune — et **deux** sur un échec, le même hôte étant
+  résolu par la route puis de nouveau par `fetchUpstream` (plus une par saut de
+  redirection). Aucune n'est gratuite : contrairement à ce que cette page a
+  affirmé jusqu'au 2026-09-04, **il n'y a pas de cache de résolution au niveau
+  du système** — l'image est bâtie sur alpine, donc sur musl, qui n'en tient
+  aucun, et l'étape de production n'installe ni nscd ni résolveur local (la
+  glibc n'en garde pas davantage sans nscd). Chaque appel part sur le réseau,
+  vers le résolveur du conteneur. La seconde résolution n'est pas évitée, et ce
+  n'est pas un oubli : il faudrait mémoriser un verdict, donc le tenir pour
+  valide au-delà de l'instant où il a été établi, dans la fonction qui garde
+  toutes les sorties du backend. Le prix est assumé pour ce qu'il achète : une
+  entrée empoisonnée est servie en silence à TOUTE l'instance pendant 24 h.
+- **Piège — une résolution SANS RÉPONSE n'est pas une cible refusée.**
+  `assertTargetSafe` bloque aussi bien un hôte qui résout vers le réseau
+  interne qu'un hôte qui ne résout pas du tout : ne pas savoir où l'on va
+  n'autorise pas à y aller. Mais au poste pré-cache, confondre les deux
+  transformait le moindre hoquet du résolveur — un redémarrage sur le réseau
+  Docker suffit — en 403 « Target host not allowed » sur TOUTES les
+  extractions, y compris celles que Redis pouvait rendre sans toucher au
+  réseau, et avec une erreur qui accuse la cible d'un défaut qui n'est pas le
+  sien. La route distingue donc la panne de résolution
+  (`UnresolvedTargetError`, sous-classe de `BlockedTargetError`) et poursuit
+  jusqu'au cache, dont chaque entrée n'a été écrite qu'après un passage complet
+  de cette même garde. **La sortie réseau, elle, ne faiblit pas** : cache vide,
+  `fetchUpstream` rejoue la garde et refuse avant le moindre appel — et il le
+  fait avec le même 403 que n'importe quel refus, sans code à part, pour ne pas
+  offrir l'oracle « 403 = cet hôte résout vers le réseau interne ». Les deux
+  moitiés sont tenues par un test chacune dans
+  `server/test/extractCache.test.ts`.
 - **Sans Redis** : la route extrait quand même, sans rien garder.
 - **Piège** : l'appel sortant passe par `fetchUpstream`, jamais par `fetch` —
   c'est lui qui porte la garde anti-SSRF.
@@ -1430,8 +1487,11 @@ là est une faille XSS.
   seul chemin pour les deux routes. `fetchUpstream` rejoue ensuite la même
   garde sur la cible réelle et sur chaque saut de redirection. Une URL
   malformée qui franchit le filtre `^https?://` (`https://`, sur laquelle
-  `new URL()` se casse) est donc un **403 des deux côtés**, jamais un 502 :
-  c'est `assertTargetSafe` qui la classe, et `fetchUpstream` ne construit son
+  `new URL()` se casse) est donc un **403 des deux côtés**, jamais un 502 —
+  mais pas par le même juge : sur `/api/proxy` c'est le pré-contrôle
+  `targetAllowedLiteral` qui la classe (son `new URL()` échoue, il renvoie
+  `false`), sur `/api/extract` et chez les appelants sans route devant eux
+  c'est `assertTargetSafe`. Et `fetchUpstream` ne construit son
   `startHost` qu'APRÈS elle — sans quoi un `TypeError` brut échapperait à la
   classification pour les appelants sans route devant eux (`worker.ts`,
   `oidc.ts`, `servers.ts`). Un test appelle `fetchUpstream` **directement**
