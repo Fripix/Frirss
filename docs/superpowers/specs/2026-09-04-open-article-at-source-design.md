@@ -129,9 +129,18 @@ disparaît partout et ne peut pas revenir par un quatrième appel écrit à la m
 ### 4. Quatre réglages de visibilité
 
 Un interrupteur par icône — étoile, à lire plus tard, ouvrir à la source,
-marquer lu —, dans **Préférences → Général**, toutes visibles par défaut
-(comportement actuel). Le patron existe : `showFavicons` dans `uiStore`, un
-booléen persisté en `localStorage`.
+marquer lu —, toutes visibles par défaut (comportement actuel). Le patron
+existe : `showFavicons` dans `uiStore`, un booléen persisté en `localStorage`.
+
+Ils vivent dans une **nouvelle section de premier niveau, « Mise en page »**,
+placée entre « Apparence » et « Étiquettes ». Le tableau de navigation
+(`SECTIONS` dans `Preferences.tsx`) en compte cinq plus l'administration ; on
+en ajoute une sixième, et un onglet `LayoutTab.tsx` qui la rend.
+
+Elle ne portera d'abord que ces quatre interrupteurs — c'est peu pour une entrée
+de navigation, et c'est assumé : le nom décrit une famille (comment la ligne est
+composée) qui a de la place devant elle, là où les loger ailleurs les aurait
+rendus introuvables.
 
 Le réglage vaut pour **les trois modes à la fois**. Une icône masquée l'est
 partout : c'est un choix sur le vocabulaire de l'interface, pas sur une vue.
@@ -171,6 +180,17 @@ nativement : le conflit serait à démêler pour un gain que l'icône apporte d�
 
 **Mettre les interrupteurs dans la piste d'options.** Refusé par le
 propriétaire : cette piste ne doit pas changer.
+
+**Les mettre dans « Général ».** Premier choix de cette spec, écarté à la
+relecture : « Général » est déjà un fourre-tout — confirmation, vidéos en ligne,
+marquage au défilement, langue, raccourcis — et quatre interrupteurs de plus s'y
+seraient perdus.
+
+**En faire un cinquième sous-onglet d'« Apparence ».** Le mécanisme existe
+(`Thème · Couleurs · Tailles · Identité`) et n'aurait rien coûté en navigation.
+Écarté : « Apparence » ne parle aujourd'hui que de thème, de couleurs et de
+typographie, et y glisser des interrupteurs fonctionnels aurait dilué ce que la
+section annonce. Une entrée qui dit « mise en page » dit ce qu'elle contient.
 
 **Aligner l'ordre du compact dans un commit séparé.** L'ordre avait été mis hors
 périmètre lors de l'issue #10. Mais le composant partagé force la question — la
@@ -213,13 +233,17 @@ Garde-fous existants à surveiller :
 | `src/hooks/useKeyboardNav.ts` | Le raccourci `O` passe par `openExternal` |
 | `src/components/Sidebar/Sidebar.tsx` | « Ouvrir le site » passe par `openExternal` |
 | `src/stores/uiStore.ts` | Quatre booléens persistés |
-| `src/components/Preferences/GeneralTab.tsx` | Quatre interrupteurs |
+| `src/components/Preferences/LayoutTab.tsx` *(nouveau)* | La section « Mise en page » |
+| `src/components/Preferences/Preferences.tsx` | La sixième entrée de navigation |
 | `src/locales/*.json` | **Les neuf** locales |
 | `docs/FEATURES.md`, `docs/RELEASE-NEXT.md` | Obligatoires, même commit |
 
 Chaînes d'interface nouvelles : le libellé du bouton (`articleRow.openSource`),
-le titre du groupe de réglages et ses quatre libellés. **Dans les neuf locales**,
-parité vérifiée avant livraison.
+le nom de la section (`preferences.sections.layout`) et les quatre libellés
+d'interrupteurs, sous `preferences.layout.*`. **Dans les neuf locales**, parité
+vérifiée avant livraison. Aucune famille de traductions de premier niveau
+nouvelle — `preferences` existe déjà — donc `featuresDoc.test.ts` n'exige rien
+de plus à ce titre.
 
 ## Hors périmètre
 
