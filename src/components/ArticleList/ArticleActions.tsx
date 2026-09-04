@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import SavedCategoryPicker from './SavedCategoryPicker';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import type { Article } from '../../types';
-import { rowActionSlots, DEFAULT_ROW_ACTIONS, type RowActionSettings } from '../../lib/rowActions';
+import { rowActionSlots, type RowActionSettings } from '../../lib/rowActions';
 
 /**
  * A long press — with a finger or with the mouse — opens the category picker,
@@ -203,7 +203,7 @@ interface ArticleRowActionsProps {
   /** Classe du conteneur : chaque mode d'affichage garde sa disposition. */
   className: string;
   /** Réglages de visibilité. La grille passe les mêmes que les lignes. */
-  settings?: RowActionSettings;
+  settings: RowActionSettings;
   /** Utilisé par la grille, qui empêche le clic d'atteindre la carte. */
   onContainerClick?: (e: ReactMouseEvent) => void;
   onToggleStar: (e: ReactMouseEvent) => void;
@@ -225,7 +225,7 @@ interface ArticleRowActionsProps {
  * est déjà réservée quelques lignes plus haut dans `ArticleList.tsx`.
  */
 export function ArticleRowActions({
-  article, isReadLater, className, settings = DEFAULT_ROW_ACTIONS,
+  article, isReadLater, className, settings,
   onContainerClick, onToggleStar, onToggleReadLater, onOpenSource, onToggleRead,
 }: ArticleRowActionsProps) {
   const slots = rowActionSlots(article, settings);

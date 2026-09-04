@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useUiStore, UI_SYNC_KEYS } from './uiStore';
 
 describe('uiStore', () => {
@@ -145,6 +145,20 @@ describe('uiStore', () => {
     });
     expect(useUiStore.getState().rowActions).toEqual({
       star: false, readLater: false, openSource: true, markRead: false,
+    });
+  });
+
+  // The completion above guards `applyServerPrefs` (sync). The initial load
+  // from `localStorage` — the other of the "two places" `docs/FEATURES.md`
+  // says are guarded — goes through the same `normalizeRowActions()`, but at
+  // module-init time, so it needs its own re-import to exercise: a partial
+  // object left by an older build must not make an icon vanish at startup.
+  it('completes a partial rowActions object read from localStorage at load', async () => {
+    localStorage.setItem('frirss_rowActions', JSON.stringify({ star: false }));
+    vi.resetModules();
+    const { useUiStore: freshStore } = await import('./uiStore');
+    expect(freshStore.getState().rowActions).toEqual({
+      star: false, readLater: true, openSource: true, markRead: true,
     });
   });
 });

@@ -102,4 +102,33 @@ describe('ArticleCard', () => {
     expect(onOpenSource).toHaveBeenCalledOnce();
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  it('masquer une icône par réglage RETIRE son emplacement, sans le réserver', () => {
+    const { container } = render(
+      <ArticleCard article={base} showSource rowActions={{ ...DEFAULT_ROW_ACTIONS, openSource: false }} active={false}
+        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
+    );
+    const actions = container.querySelector('.article-card__actions');
+    // Trois emplacements, pas quatre : contrairement à l'absence d'URL (test
+    // ci-dessus), un réglage masqué resserre les icônes restantes au lieu de
+    // laisser une case vide.
+    expect(actions?.children.length).toBe(3);
+    expect(actions?.querySelector('[aria-hidden="true"]')).toBeNull();
+    const kinds = Array.from(actions?.children ?? []).map((el) => {
+      const button = el.matches('button') ? el : el.querySelector('button');
+      return button?.getAttribute('title')?.split(' — ')[0] ?? null;
+    });
+    expect(kinds).toEqual([
+      'articleRow.addStar', 'articleRow.addReadLater', 'articleRow.markRead',
+    ]);
+  });
+
+  it('masquer les quatre icônes fait disparaître le conteneur d’actions entièrement', () => {
+    const allHidden = { star: false, readLater: false, openSource: false, markRead: false };
+    const { container } = render(
+      <ArticleCard article={base} showSource rowActions={allHidden} active={false}
+        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
+    );
+    expect(container.querySelector('.article-card__actions')).toBeNull();
+  });
 });

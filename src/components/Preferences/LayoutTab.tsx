@@ -21,7 +21,7 @@ export default function LayoutTab() {
 
   return (
     <div className="max-w-xl">
-      <h3 className="text-xs font-semibold mb-1" style={{ color: 'var(--list-title)' }}>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--list-summary)' }}>
         {t('preferences.layout.title')}
       </h3>
       <p className="text-[11px] opacity-70 mb-3" style={{ color: 'var(--list-summary)' }}>
