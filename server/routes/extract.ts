@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { BlockedTargetError, fetchUpstream, finishError, proxyRateLimiter, targetAllowedLiteral } from './proxy.js';
+import { assertTargetSafe, fetchUpstream, finishError, proxyRateLimiter } from './proxy.js';
 import { cacheEnabled, cacheGet, cacheSet, extractKey } from '../cache.js';
 import { extractArticle } from '../extract.js';
 
@@ -111,20 +111,34 @@ router.get('/', async (req, res) => {
   // http(s). Dire « Missing url » d'un `file:///etc/passwd` bien présent, c'est
   // envoyer chercher le défaut là où il n'est pas.
   if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Invalid or missing url' });
-  // Pré-contrôle littéral AVANT la lecture du cache, et non délégué à
-  // `assertTargetSafe` : la clé d'extraction est globale à l'instance, donc une
-  // entrée écrite du temps où un hôte interne était autorisé
-  // (`PROXY_INTERNAL_HOSTS`, `PROXY_REWRITES`) continuait, une fois cet hôte
-  // retiré, à être servie à tout le monde pendant `CACHE_TTL` — 200, sans
-  // refus, sans ligne de journal. Le refus doit précéder toute lecture ; une
-  // sonde SSRF ne doit pas non plus coûter un aller-retour Redis.
+  // La garde COMPLÈTE — résolution DNS comprise — AVANT la lecture du cache.
+  //
+  // La clé d'extraction est globale à l'instance : une entrée écrite du temps
+  // où un hôte interne était autorisé (`PROXY_INTERNAL_HOSTS`,
+  // `PROXY_REWRITES`) continuait, une fois cet hôte retiré, à être servie à
+  // tout le monde pendant `CACHE_TTL` — 200, sans refus, sans ligne de journal.
+  //
+  // Un pré-contrôle `targetAllowedLiteral` ne ferme cette porte qu'à moitié :
+  // il ne connaît que `localhost`, les noms SANS point et les IP littérales.
+  // Or les deux réglages qui la rouvrent nomment couramment un hôte POINTÉ —
+  // `PROXY_INTERNAL_HOSTS=nas.example.com`,
+  // `PROXY_REWRITES=https://rss.example.com=http://nas.lan:8080` — et un tel
+  // nom lui est invisible : seule `assertTargetSafe` sait le classer. C'est
+  // donc elle qu'on attend ici, et non elle seule dans `fetchUpstream`, où elle
+  // s'exécute après la lecture du cache.
+  //
+  // Coût : une résolution de plus par requête, refaite par `fetchUpstream` sur
+  // la cible réelle et sur chaque saut de redirection. La réponse est en cache
+  // au niveau de l'OS, donc c'est bien moins qu'un aller-retour Redis — que la
+  // sonde SSRF, elle, ne coûte plus du tout.
   //
   // Le refus lui-même n'est PAS réécrit ici : même erreur, même `finishError`
   // que `/api/proxy` (voir son gestionnaire) — un seul 403, un seul corps, une
-  // seule ligne de journal. La garde par résolution DNS, elle, reste dans
-  // `fetchUpstream`, sur la cible réelle et sur chaque saut de redirection.
-  if (!targetAllowedLiteral(url)) {
-    return finishError(res, new BlockedTargetError(url), url, 'Extract error:');
+  // seule ligne de journal.
+  try {
+    await assertTargetSafe(url);
+  } catch (err) {
+    return finishError(res, err, url, 'Extract error:');
   }
 
   const key = cacheEnabled ? extractKey(url) : null;

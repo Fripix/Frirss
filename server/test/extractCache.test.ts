@@ -34,8 +34,14 @@ vi.mock('../middleware/auth.js', () => ({
 
 // `assertTargetSafe` résout l'hôte : sans ce doublon, `news.example.com` ne
 // résout pas et tout finirait en 403 avant d'atteindre le cache.
+//
+// La fonction est hissée pour être pilotable test par test : c'est elle qui
+// permet de fabriquer un hôte au nom POINTÉ pointant vers une IP privée — le
+// cas qu'aucun contrôle littéral ne sait voir.
+const { dnsLookup } = vi.hoisted(() => ({ dnsLookup: vi.fn() }));
+
 vi.mock('dns', () => {
-  const promises = { lookup: vi.fn(() => Promise.resolve([{ address: '93.184.216.34', family: 4 }])) };
+  const promises = { lookup: dnsLookup };
   const lookup = vi.fn();
   return { default: { lookup, promises }, lookup, promises };
 });
@@ -62,6 +68,8 @@ describe('extract — cache', () => {
   beforeEach(() => {
     cacheGet.mockReset();
     cacheSet.mockReset().mockResolvedValue(undefined);
+    // Par défaut, tout hôte résout vers une adresse publique.
+    dnsLookup.mockReset().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
   });
   afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -108,25 +116,40 @@ describe('extract — cache', () => {
   // où un hôte interne était autorisé (`PROXY_INTERNAL_HOSTS`,
   // `PROXY_REWRITES`) survit à son retrait pendant tout `CACHE_TTL`. Quand le
   // cache était lu en premier, elle repartait en 200 vers n'importe quel compte
-  // de l'instance, sans refus et sans ligne de journal. Ce test-ci est le seul
-  // du fichier qui n'a pas besoin du mock DNS : le pré-contrôle littéral tranche
-  // avant toute résolution.
-  it("refuse une cible interne sans consulter le cache, même s'il a une entrée", async () => {
-    cacheGet.mockResolvedValue(JSON.stringify({ title: 'contenu interne', content: '<p>fuite</p>' }));
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  // de l'instance, sans refus et sans ligne de journal.
+  //
+  // Les deux formes d'hôte interne sont vérifiées, parce qu'elles ne sont PAS
+  // attrapées par le même mécanisme : l'IP littérale tombe sur le contrôle
+  // syntaxique, le nom pointé n'est classé que par la résolution DNS. Une
+  // version n'attendant que le contrôle littéral servait le cache au second.
+  const refusals: [string, string, string][] = [
+    ['une IP privée littérale', 'http://10.0.0.5/a', '10.0.0.5'],
+    // `PROXY_INTERNAL_HOSTS=nas.example.com`, ou une réécriture vers
+    // `http://nas.lan:8080` : un hôte interne au nom POINTÉ est invisible pour
+    // `isInternalHostLiteral` — d'où le doublon DNS ci-dessus, qui est ici le
+    // seul juge.
+    ['un nom POINTÉ résolvant en privé', 'http://nas.example.com/secret', '10.0.0.9'],
+  ];
+  for (const [label, target, address] of refusals) {
+    it(`refuse ${label} sans consulter le cache, même s'il a une entrée`, async () => {
+      dnsLookup.mockResolvedValue([{ address, family: 4 }]);
+      cacheGet.mockResolvedValue(JSON.stringify({ title: 'contenu interne', content: '<p>fuite</p>' }));
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const res = await request(app).get('/api/extract').query({ url: 'http://10.0.0.5/a' });
+      const res = await request(app).get('/api/extract').query({ url: target });
 
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({ error: 'Target host not allowed' });
-    expect(cacheGet).not.toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
-    // Un balayage SSRF doit laisser une trace côté serveur.
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
-  });
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: 'Target host not allowed' });
+      expect(cacheGet).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+      // Un balayage SSRF doit laisser une trace côté serveur — et une trace qui
+      // NOMME la cible : « il y a eu un avertissement » ne se relit pas.
+      expect(warn).toHaveBeenCalledWith('Extract error:', 'blocked target →', target);
+      warn.mockRestore();
+    });
+  }
 
   it("n'écrit rien dans le cache quand la page n'est pas extractible", async () => {
     cacheGet.mockResolvedValue(null);

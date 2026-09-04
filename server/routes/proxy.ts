@@ -248,7 +248,14 @@ export class BlockedTargetError extends Error {}
 // rejected if it is an internal literal, OR if it RESOLVES to a private IP —
 // which defeats `10.x.x.x.nip.io` and DNS records aimed at the internal
 // network (a string-only check missed those).
-async function assertTargetSafe(rawUrl: string): Promise<void> {
+//
+// Exportée : `/api/extract` doit refuser une cible AVANT de lire son cache
+// (clé globale à l'instance, voir sa route), et `targetAllowedLiteral` ne
+// suffit pas à ce poste — il ne connaît que `localhost`, les noms SANS point et
+// les IP littérales. Un hôte interne au nom POINTÉ (`nas.example.com`, un
+// `.lan`, un `*.svc.cluster.local`) lui est invisible ; seule la résolution
+// ci-dessous sait le classer.
+export async function assertTargetSafe(rawUrl: string): Promise<void> {
   let host: string;
   try { host = new URL(rawUrl).hostname; } catch { throw new BlockedTargetError('bad-url'); }
   const h = host.toLowerCase().replace(/^\[|\]$/g, '');

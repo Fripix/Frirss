@@ -4,7 +4,7 @@ import app from '../index.js';
 import db, { setSetting } from '../db.js';
 import { encrypt, decrypt } from '../crypto.js';
 import { cacheEnabled, cacheGet, trimStreamJson } from '../cache.js';
-import { redactUrl } from '../routes/proxy.js';
+import { BlockedTargetError, fetchUpstream, redactUrl } from '../routes/proxy.js';
 import { readBoundedText } from '../routes/extract.js';
 import { __settleJobs } from '../refreshJobs.js';
 import { getDiscovery, clearDiscoveryCache } from '../oidc.js';
@@ -683,6 +683,19 @@ describe('proxy', () => {
     expect(proxyRes.status).toBe(403);
     expect(extractRes.status).toBe(403);
     expect(extractRes.body).toEqual(proxyRes.body);
+  });
+
+  // Le test ci-dessus passe par les deux routes HTTP, qui refusent l'une comme
+  // l'autre la cible AVANT d'appeler `fetchUpstream` : il est vert tant qu'UN
+  // des deux contrôles tient, et ne dit donc rien du classement fait par
+  // `fetchUpstream` lui-même. Or ce classement est le seul qui protège les
+  // appelants qui n'ont pas de route devant eux — `worker.ts`, `oidc.ts`,
+  // `servers.ts`. D'où ce test direct : une URL indécodable est une cible
+  // refusée (`BlockedTargetError`, donc 403 chez l'appelant), pas le
+  // `TypeError` brut que `new URL()` levait avant `assertTargetSafe`, et que
+  // `finishError` aurait classé en 502.
+  it("fetchUpstream classe une URL malformée en cible refusée, pas en panne amont", async () => {
+    await expect(fetchUpstream('https://')).rejects.toBeInstanceOf(BlockedTargetError);
   });
 });
 

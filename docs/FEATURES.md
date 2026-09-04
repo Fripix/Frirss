@@ -1351,14 +1351,15 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
   par processus Node, pas par instance — sans effet sur l'image Docker de
   FriRSS, qui n'en lance qu'un, mais ce serait à revoir derrière plusieurs
   répliques (il faudrait alors un magasin partagé, Redis par exemple).
-- **Un refus de cible est toujours journalisé** : le pré-contrôle littéral
-  comme la garde par résolution passent par `finishError`, qui écrit la cible
-  (expurgée) dans le journal — sur `/api/proxy` comme sur `/api/extract`, qui
-  lèvent la même `BlockedTargetError` exportée. C'est le pré-contrôle qui
-  attrape les sondes les plus bruyantes (`http://127.0.0.1:6379/`, un nom de service nu, une IP
-  privée) : le laisser répondre 403 en silence vidait de son sens la trace
-  promise. Le corps de la réponse, lui, ne nomme jamais la cible — ce serait
-  offrir un scanner de réseau interne.
+- **Un refus de cible est toujours journalisé** : le pré-contrôle littéral de
+  `/api/proxy` comme la garde par résolution passent par `finishError`, qui
+  écrit la cible (expurgée) dans le journal — sur `/api/proxy` comme sur
+  `/api/extract`, qui lèvent la même `BlockedTargetError` exportée. Laisser
+  l'un des deux répondre 403 en silence vidait de son sens la trace promise :
+  les sondes les plus bruyantes (`http://127.0.0.1:6379/`, un nom de service
+  nu, une IP privée) sont justement celles que le pré-contrôle tranche sans
+  rien résoudre. Le corps de la réponse, lui, ne nomme jamais la cible — ce
+  serait offrir un scanner de réseau interne.
 - **Ordre des middlewares — piège** : `requireAuth` **avant** `express.raw`.
   L'inverse mettait jusqu'à 5 Mo en mémoire pour un inconnu avant de lui rendre
   son 401 ; sa signature était un `413` répondu à une requête non
@@ -1376,13 +1377,24 @@ là est une faille XSS.
   travail d'un autre, et qu'à dix comptes la page n'est extraite qu'une fois.
   TTL commun (`CACHE_TTL`, 24 h) ; aucune détection de modification de la
   source, le bouton « Article complet » relance à la demande.
-- **Piège — le refus de cible passe AVANT la lecture du cache.** Justement
-  parce que la clé est globale à l'instance : une entrée écrite du temps où un
-  hôte interne était autorisé (`PROXY_INTERNAL_HOSTS`, `PROXY_REWRITES`) lui
-  survit pendant tout le `CACHE_TTL`, et une lecture placée en premier la
-  servait en 200 à n'importe quel compte, sans refus ni ligne de journal. Une
-  sonde SSRF ne doit pas non plus coûter un aller-retour Redis avant son 403.
-  Couvert par `server/test/extractCache.test.ts`, cache garni compris.
+- **Piège — le refus de cible passe AVANT la lecture du cache, et c'est la
+  garde COMPLÈTE qui passe devant.** Justement parce que la clé est globale à
+  l'instance : une entrée écrite du temps où un hôte interne était autorisé
+  (`PROXY_INTERNAL_HOSTS`, `PROXY_REWRITES`) lui survit pendant tout le
+  `CACHE_TTL`, et une lecture placée en premier la servait en 200 à n'importe
+  quel compte, sans refus ni ligne de journal. La route attend donc
+  `assertTargetSafe` — résolution DNS comprise — avant de toucher au cache.
+  **Un pré-contrôle littéral n'y suffit pas** : `targetAllowedLiteral` ne
+  connaît que `localhost`, les noms SANS point et les IP littérales, alors que
+  les deux réglages qui rouvrent la porte nomment couramment un hôte POINTÉ
+  (`PROXY_INTERNAL_HOSTS=nas.example.com`, une réécriture vers
+  `http://nas.lan:8080`, un `*.svc.cluster.local`) — invisible pour lui, et
+  donc servi depuis le cache. Le prix est une résolution de plus par requête,
+  refaite ensuite par `fetchUpstream` : la réponse est en cache au niveau de
+  l'OS, c'est moins cher que l'aller-retour Redis que la sonde SSRF ne coûte
+  désormais plus du tout. Couvert par `server/test/extractCache.test.ts`, cache
+  garni, pour les DEUX formes d'hôte interne — l'IP littérale et le nom pointé
+  qui résout en privé, qui ne sont pas attrapées par le même mécanisme.
 - **Sans Redis** : la route extrait quand même, sans rien garder.
 - **Piège** : l'appel sortant passe par `fetchUpstream`, jamais par `fetch` —
   c'est lui qui porte la garde anti-SSRF.
@@ -1401,9 +1413,9 @@ là est une faille XSS.
   refus, plus étroit que l'ancien chemin par le proxy : le client **doit
   pouvoir** se replier sur son extracteur local), au plus 5 Mo (sinon 502) et
   lue en moins de 20 s (sinon 504). Le minuteur de `fetchUpstream` est désarmé
-  à l'arrivée des en-têtes : il couvre la connexion, pas le corps. Sans ces bornes, une URL publique quelconque
-  suffisait à faire avaler des Go au seul processus Node, ou à lui faire tenir
-  une socket indéfiniment.
+  à l'arrivée des en-têtes : il couvre la connexion, pas le corps. Sans ces
+  bornes, une URL publique quelconque suffisait à faire avaler des Go au seul
+  processus Node, ou à lui faire tenir une socket indéfiniment.
 - **Cadence** : **le même seau que `/api/proxy`**, pas un second de même
   taille — la route réutilise le middleware exporté par `server/routes/proxy.ts`
   (`FRIRSS_PROXY_RATE_LIMIT`, 600 par défaut, `0` désactive). L'extraction est
@@ -1411,14 +1423,20 @@ là est une faille XSS.
   son propre compteur, rendrait la protection contournable en changeant d'URL.
 - **Échecs classés comme sur `/api/proxy`** : 403 cible refusée (journalisée,
   pour qu'un balayage SSRF laisse une trace), 504 délai, 502 panne amont. Le
-  corps ne nomme jamais la cible. La route rejoue le **pré-contrôle littéral**
-  (`targetAllowedLiteral`, avant la lecture du cache) mais ne recopie ni le
-  corps du 403 ni sa ligne de journal : elle lève la `BlockedTargetError`
-  exportée par le proxy et la fait repartir par `finishError`, un seul chemin
-  pour les deux routes. La garde par résolution DNS, elle, reste dans
-  `fetchUpstream` — cible réelle et chaque saut de redirection. Une URL
+  corps ne nomme jamais la cible. La route appelle la garde complète
+  (`assertTargetSafe`, exportée par le proxy, **avant la lecture du cache**)
+  mais ne recopie ni le corps du 403 ni sa ligne de journal : elle laisse
+  remonter la `BlockedTargetError` et la fait repartir par `finishError`, un
+  seul chemin pour les deux routes. `fetchUpstream` rejoue ensuite la même
+  garde sur la cible réelle et sur chaque saut de redirection. Une URL
   malformée qui franchit le filtre `^https?://` (`https://`, sur laquelle
-  `new URL()` se casse) est donc un **403 des deux côtés**, jamais un 502.
+  `new URL()` se casse) est donc un **403 des deux côtés**, jamais un 502 :
+  c'est `assertTargetSafe` qui la classe, et `fetchUpstream` ne construit son
+  `startHost` qu'APRÈS elle — sans quoi un `TypeError` brut échapperait à la
+  classification pour les appelants sans route devant eux (`worker.ts`,
+  `oidc.ts`, `servers.ts`). Un test appelle `fetchUpstream` **directement**
+  pour ce point : par les deux routes HTTP, qui refusent la cible avant lui, il
+  resterait vert quel que soit son comportement.
   Un `400 { error: 'Invalid or missing url' }` couvre les deux entrées
   refusées d'emblée — `url` absente, ou présente mais pas http(s).
 - **422 quand la page n'est pas extractible** : le client doit pouvoir se
