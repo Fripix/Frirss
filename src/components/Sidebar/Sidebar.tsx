@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode, type
 import { useTranslation } from 'react-i18next';
 import { useFeedStore, READ_LATER_LABEL, getSampleArticleUrl } from '../../stores/feedStore';
 import { feedSiteUrl } from '../../lib/feedSiteUrl';
+import { openExternal } from '../../lib/openExternal';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useThemeStore } from '../../stores/themeStore';
@@ -885,8 +886,7 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
         }
         label={t('sidebar.openSite')}
         onClick={() => {
-          const url = feedSiteUrl(feed, getSampleArticleUrl(feed.id));
-          if (url) window.open(url, '_blank');
+          openExternal(feedSiteUrl(feed, getSampleArticleUrl(feed.id)));
           onClose();
         }}
       />

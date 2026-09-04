@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useFeedStore } from '../stores/feedStore';
 import { useUiStore } from '../stores/uiStore';
 import { effectiveLayout } from '../lib/effectiveLayout';
+import { openExternal } from '../lib/openExternal';
 
 export function useKeyboardNav(): void {
   const shortcuts = useUiStore((s) => s.shortcuts);
@@ -85,9 +86,7 @@ export function useKeyboardNav(): void {
         }
       } else if (key === shortcuts.openOriginal) {
         e.preventDefault();
-        if (store.selectedArticle?.url) {
-          window.open(store.selectedArticle.url, '_blank');
-        }
+        openExternal(store.selectedArticle?.url);
       } else if (key === shortcuts.toggleSidebar) {
         e.preventDefault();
         toggleSidebar();
