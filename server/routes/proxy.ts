@@ -244,8 +244,9 @@ export function targetBelongsToServer(serverUrl: string, rawTarget: string): boo
 export class BlockedTargetError extends Error {}
 
 /**
- * Résolution SANS RÉPONSE : le résolveur n'a rien dit, ni « publique » ni
- * « privée ».
+ * Résolution SANS RÉPONSE : le résolveur n'a rien dit du tout, ni « publique »
+ * ni « privée ». Une réponse DÉFINITIVE « ce nom n'existe pas » n'en est pas
+ * une — voir `lookupFailure`, qui fait le tri.
  *
  * C'est une SOUS-CLASSE de `BlockedTargetError`, et délibérément : sur le
  * chemin de l'appel sortant, rien ne change. `fetchUpstream` ne se replie
@@ -273,8 +274,12 @@ export class UnresolvedTargetError extends BlockedTargetError {}
  * extraction, y compris celles que le cache aurait servies sans réseau, ce
  * n'est plus une attente acceptable.
  *
- * Ce que ce plafond borne : la réponse rendue à l'appelant. Ce qu'il ne borne
- * PAS : le fil de `libuv`. `dns.lookup` s'exécute sur le pool de threads (4 par
+ * Ce que ce plafond borne : UNE résolution, pas la réponse rendue à
+ * l'appelant. Une requête qui en déclenche plusieurs les additionne — un échec
+ * de cache sur `/api/extract` en fait deux (la garde pré-cache, puis
+ * `fetchUpstream`, plus une par saut de redirection), donc jusqu'à 10 s avant
+ * la première ligne du corps. Ce qu'il ne borne PAS non plus : le fil de
+ * `libuv`. `dns.lookup` s'exécute sur le pool de threads (4 par
  * défaut — `UV_THREADPOOL_SIZE` n'est fixé nulle part — et partagé avec les
  * entrées-sorties fichier et la cryptographie), et abandonner l'attente ne rend
  * pas le fil, qui reste pris jusqu'à ce que le résolveur abandonne à son tour.
@@ -292,6 +297,10 @@ export const LOOKUP_TIMEOUT_MS = 5_000;
  * Le perdant de la course garde ses gestionnaires (`Promise.race` en attache
  * un à chacune) : une résolution qui échoue après le délai ne devient pas un
  * rejet non traité.
+ *
+ * Le rejet du minuteur porte un `code`, comme celui d'un vrai échec de
+ * résolution : c'est `lookupFailure` qui classe les deux, et un rejet sans
+ * code y passerait pour un nom inexistant.
  */
 async function lookupWithTimeout(host: string): Promise<dns.LookupAddress[]> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -299,12 +308,54 @@ async function lookupWithTimeout(host: string): Promise<dns.LookupAddress[]> {
     return await Promise.race([
       dns.promises.lookup(host, { all: true }),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('dns lookup timed out')), LOOKUP_TIMEOUT_MS);
+        timer = setTimeout(
+          () => reject(Object.assign(new Error('dns lookup timed out'), { code: 'ETIMEDOUT' })),
+          LOOKUP_TIMEOUT_MS,
+        );
       }),
     ]);
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Codes de résolution qui disent « réessaie » — les seuls à valoir une panne.
+ *
+ * Le reste, `ENOTFOUND` et `EAI_NONAME` en tête, est une réponse DÉFINITIVE :
+ * le résolveur a parlé, ce nom n'existe pas.
+ */
+const TRANSIENT_LOOKUP_CODES = new Set(['EAI_AGAIN', 'ESERVFAIL', 'ETIMEDOUT']);
+
+/**
+ * Classe un échec de résolution : panne du résolveur, ou nom inexistant ?
+ *
+ * La distinction ne sert QUE la garde pré-cache d'`/api/extract` (voir
+ * `UnresolvedTargetError`), et elle y est décisive. Un nom qui n'existe pas
+ * n'est pas un hoquet : c'est l'état STABLE d'un hôte interne au nom pointé
+ * qu'on vient de retirer de `PROXY_REWRITES`, ou dont le conteneur ne voit
+ * plus le résolveur interne. Tout ranger dans « on ne sait pas » faisait
+ * ressortir son entrée de cache — écrite du temps où il était autorisé — en
+ * 200 vers n'importe quel compte de l'instance pendant tout `CACHE_TTL` :
+ * exactement le trou pour lequel la garde a été avancée devant le cache.
+ *
+ * D'où un tri par liste POSITIVE : seuls les codes transitoires deviennent une
+ * panne ; un code inconnu est traité comme un refus. Le troc est asymétrique —
+ * refuser un nom qui n'existe pas ne coûte qu'une lecture de cache qu'on
+ * n'aura pas, le servir peut livrer un contenu interne.
+ *
+ * ⚠️ **Réserve, à connaître** : la coupure est moins nette qu'elle n'en a
+ * l'air. La musl de l'image de production replie ses échecs sur `EAI_NONAME`
+ * plus volontiers que la glibc d'un poste de développement — un résolveur
+ * réellement en panne peut donc y être classé « nom inexistant », et une
+ * extraction répondre 403 là où le cache aurait suffi. Le troc est assumé dans
+ * ce sens-là : c'est la disponibilité qui cède, jamais la garde.
+ */
+function lookupFailure(host: string, err: unknown): BlockedTargetError {
+  const code = (err as { code?: unknown } | null)?.code;
+  return TRANSIENT_LOOKUP_CODES.has(String(code))
+    ? new UnresolvedTargetError(host)
+    : new BlockedTargetError(host);
 }
 
 // Throws BlockedTargetError if `rawUrl` must not be fetched. Trusted internal
@@ -328,13 +379,13 @@ export async function assertTargetSafe(rawUrl: string): Promise<void> {
   let addrs: dns.LookupAddress[];
   try {
     addrs = await lookupWithTimeout(host);
-  } catch {
-    // Sans réponse du résolveur, on ne sait pas où l'on va : on n'y va pas.
-    // Le type dit seulement POURQUOI — il n'existe que pour la garde
-    // pré-cache d'`/api/extract`, qui, elle, ne va nulle part. Partout
-    // ailleurs c'est un refus comme un autre : même 403, même journal, aucun
-    // repli.
-    throw new UnresolvedTargetError(host);                // unresolvable → block
+  } catch (err) {
+    // Résolution ratée, on ne sait pas où l'on va : on n'y va pas. Le TYPE de
+    // l'erreur dit seulement POURQUOI, et seule la garde pré-cache
+    // d'`/api/extract` s'en sert — elle qui, justement, ne va nulle part.
+    // Partout ailleurs c'est un refus comme un autre : même 403, même journal,
+    // aucun repli.
+    throw lookupFailure(host, err);                       // unresolvable → block
   }
   if (addrs.some((a) => isPrivateIp(a.address))) throw new BlockedTargetError(host);
 }

@@ -1314,8 +1314,12 @@ Point de passage unique vers FreshRSS et vers l'extraction d'articles.
 - **Résolution bornée dans le temps** : `assertTargetSafe` n'attend pas plus de
   `LOOKUP_TIMEOUT_MS` (5 s). `dns.promises.lookup` n'accepte aucun délai, et la
   borne réelle serait sinon le budget de reprise du résolveur du système (musl :
-  5 s par tentative, 2 tentatives par serveur de noms). **Limite connue** : ce
-  plafond borne la réponse rendue, **pas** le fil de `libuv` — `dns.lookup`
+  5 s par tentative, 2 tentatives par serveur de noms). **Ce que le plafond
+  borne : UNE résolution**, pas la réponse rendue. Une requête qui en déclenche
+  plusieurs les additionne — un échec de cache sur `/api/extract` en fait deux
+  (garde pré-cache puis `fetchUpstream`, plus une par saut de redirection),
+  soit jusqu'à 10 s. **Limite connue** : ce plafond ne borne pas non plus le
+  fil de `libuv` — `dns.lookup`
   s'exécute sur le pool de threads (4 par défaut, `UV_THREADPOOL_SIZE` n'est
   fixé nulle part, pool partagé avec les entrées-sorties fichier et la
   cryptographie) et abandonner l'attente ne rend pas le fil. Un résolveur en
@@ -1429,8 +1433,10 @@ là est une faille XSS.
   affirmé jusqu'au 2026-09-04, **il n'y a pas de cache de résolution au niveau
   du système** — l'image est bâtie sur alpine, donc sur musl, qui n'en tient
   aucun, et l'étape de production n'installe ni nscd ni résolveur local (la
-  glibc n'en garde pas davantage sans nscd). Chaque appel part sur le réseau,
-  vers le résolveur du conteneur. La seconde résolution n'est pas évitée, et ce
+  glibc n'en garde pas davantage sans nscd). Chaque appel sort donc du
+  processus — sans être pour autant un trajet WAN : sous Docker, le premier
+  saut est le résolveur embarqué, sur la loopback du conteneur, soit un
+  aller-retour de socket local. La seconde résolution n'est pas évitée, et ce
   n'est pas un oubli : il faudrait mémoriser un verdict, donc le tenir pour
   valide au-delà de l'instant où il a été établi, dans la fonction qui garde
   toutes les sorties du backend. Le prix est assumé pour ce qu'il achète : une
@@ -1446,12 +1452,29 @@ là est une faille XSS.
   sien. La route distingue donc la panne de résolution
   (`UnresolvedTargetError`, sous-classe de `BlockedTargetError`) et poursuit
   jusqu'au cache, dont chaque entrée n'a été écrite qu'après un passage complet
-  de cette même garde. **La sortie réseau, elle, ne faiblit pas** : cache vide,
+  de cette même garde.
+  **Un nom INEXISTANT n'est pas une panne**, et le confondre avec une rouvrait
+  le trou entier : `ENOTFOUND` est l'état *stable* d'un hôte interne au nom
+  pointé qu'on vient de retirer de `PROXY_REWRITES`, ou dont le conteneur ne
+  voit plus le résolveur interne — son entrée de cache serait alors ressortie
+  en 200 vers toute l'instance pendant `CACHE_TTL`. `lookupFailure`
+  (`server/routes/proxy.ts`) trie donc par liste POSITIVE : seuls `EAI_AGAIN`,
+  `ESERVFAIL`, `ETIMEDOUT` et le dépassement de `LOOKUP_TIMEOUT_MS` valent une
+  panne ; `ENOTFOUND`, `EAI_NONAME` **et tout code inconnu** sont un refus.
+  ⚠️ **Réserve** : la coupure est moins nette sur la musl de l'image de
+  production que sur la glibc d'un poste de développement — musl replie plus
+  volontiers ses échecs sur `EAI_NONAME`, donc un résolveur réellement muet
+  peut y être classé « nom inexistant » et faire répondre 403 là où le cache
+  aurait suffi. Le troc est assumé dans ce sens : c'est la disponibilité qui
+  cède, jamais la garde.
+  **La sortie réseau, elle, ne faiblit pas** : cache vide,
   `fetchUpstream` rejoue la garde et refuse avant le moindre appel — et il le
   fait avec le même 403 que n'importe quel refus, sans code à part, pour ne pas
-  offrir l'oracle « 403 = cet hôte résout vers le réseau interne ». Les deux
-  moitiés sont tenues par un test chacune dans
-  `server/test/extractCache.test.ts`.
+  offrir l'oracle « 403 = cet hôte résout vers le réseau interne ». Chaque
+  moitié est tenue par un test de `server/test/extractCache.test.ts` : la panne
+  sert le cache, la panne sans cache refuse quand même, et un `ENOTFOUND` ne
+  consulte même pas le cache. Le tri lui-même, code par code, et le plafond de
+  temps qui le nourrit sont vérifiés dans `server/test/proxyLookup.test.ts`.
 - **Sans Redis** : la route extrait quand même, sans rien garder.
 - **Piège** : l'appel sortant passe par `fetchUpstream`, jamais par `fetch` —
   c'est lui qui porte la garde anti-SSRF.

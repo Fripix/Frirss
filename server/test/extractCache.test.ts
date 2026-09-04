@@ -197,6 +197,28 @@ describe('extract — cache', () => {
     warn.mockRestore();
   });
 
+  // ── Un nom INEXISTANT n'est pas une panne ─────────────────────────
+  // Et les confondre rouvrait tout entier le trou pour lequel la garde a été
+  // avancée devant le cache : `ENOTFOUND` est l'état STABLE d'un hôte interne
+  // au nom pointé qu'on vient de retirer de `PROXY_REWRITES` — pas un hoquet.
+  // Servir son entrée de cache, c'est rendre son contenu interne en 200 à
+  // n'importe quel compte de l'instance pendant tout `CACHE_TTL`.
+  it("refuse sans consulter le cache quand le résolveur dit que le nom n'existe pas", async () => {
+    dnsLookup.mockRejectedValue(Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' }));
+    cacheGet.mockResolvedValue(JSON.stringify({ title: 'contenu interne', content: '<p>fuite</p>' }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const res = await request(app).get('/api/extract').query({ url: 'http://nas.example.com/secret' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Target host not allowed' });
+    expect(cacheGet).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it("n'écrit rien dans le cache quand la page n'est pas extractible", async () => {
     cacheGet.mockResolvedValue(null);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({

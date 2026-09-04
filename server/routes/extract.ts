@@ -132,8 +132,10 @@ router.get('/', async (req, res) => {
   // nouveau dans `fetchUpstream` (plus une par saut de redirection). Aucune
   // n'est gratuite : l'image de production est bâtie sur alpine, donc musl, qui
   // ne garde AUCUN cache de résolution, et l'étape de production n'installe ni
-  // nscd ni résolveur local — chaque appel part sur le réseau vers le résolveur
-  // du conteneur. La seconde résolution n'est pas évitée : il faudrait
+  // nscd ni résolveur local — chaque appel sort donc du processus. La sortie
+  // reste modeste sous Docker : le premier saut est le résolveur embarqué, sur
+  // la loopback du conteneur, soit un aller-retour de socket local et non un
+  // trajet WAN. La seconde résolution n'est pas évitée : il faudrait
   // mémoriser un verdict, donc le tenir pour valide au-delà de l'instant où il
   // a été établi, dans la fonction qui garde toutes les sorties du backend.
   // Le prix est assumé pour ce qu'il achète : une entrée empoisonnée du cache
@@ -153,6 +155,12 @@ router.get('/', async (req, res) => {
     // la cible d'un défaut qui n'est pas le sien. On poursuit donc jusqu'au
     // cache, dont chaque entrée n'a été écrite qu'après un passage COMPLET de
     // cette même garde.
+    //
+    // Ce repli ne vaut QUE pour une panne, et le tri se fait dans
+    // `lookupFailure` : un nom dont le résolveur dit qu'il n'existe pas
+    // (`ENOTFOUND`) reste une cible refusée. Ce n'est pas un hoquet mais l'état
+    // stable d'un hôte interne retiré de `PROXY_REWRITES` — le servir depuis le
+    // cache rouvrait tout entier le trou que cette garde ferme.
     //
     // Rien n'est perdu en cas d'absence : `fetchUpstream` rejoue la garde et
     // refuse avant le moindre appel sortant. Un hôte qu'on ne sait pas situer

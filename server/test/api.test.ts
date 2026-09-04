@@ -30,14 +30,16 @@ vi.mock('dns', () => {
 let adminToken: string;
 let secondUserId: number;
 
-// ── Le premier compte est créé ICI, pas depuis un test ───────────────
-// `adminToken` alimente presque tous les blocs du fichier. L'assigner depuis
-// un `it` rendait l'ensemble tributaire de l'ordre d'exécution : qu'un seul
-// test d'inscription soit ignoré ou échoue, et tout le reste partait avec un
-// « Bearer undefined » — donc des 401, puis des « Cannot read properties of
-// undefined » dans des blocs sans aucun rapport avec la panne. Le symptôme a
-// été vu deux fois, et il envoie chaque fois chercher le défaut là où il n'est
-// pas.
+// ── Les comptes sont créés ICI, pas depuis un test ───────────────────
+// `adminToken` et `secondUserId` alimentent presque tous les blocs du fichier.
+// Les assigner depuis un `it` rendait l'ensemble tributaire de l'ordre
+// d'exécution : qu'un seul test de création soit ignoré ou échoue, et le reste
+// partait avec un « Bearer undefined » ou un `/api/admin/users/undefined` —
+// donc des 401 et des 404, puis des « Cannot read properties of undefined »,
+// dans des blocs sans aucun rapport avec la panne. Le symptôme a été vu
+// plusieurs fois, et il envoie chaque fois chercher le défaut là où il n'est
+// pas. Un `-t "updates a user profile"` seul le montrait encore : 404 attendu
+// 200, parce que le compte de `creates a user` n'avait pas été joué.
 //
 // Le parcours « base neuve » ne perd aucune vérification : ses réponses sont
 // enregistrées au passage et relues par les tests ci-dessous, dans le même
@@ -45,6 +47,7 @@ let secondUserId: number;
 let freshStatus: request.Response;
 let invalidEmail: request.Response;
 let firstRegistration: request.Response;
+let secondUserCreation: request.Response;
 
 beforeAll(async () => {
   freshStatus = await request(app).get('/api/auth/status');
@@ -53,6 +56,10 @@ beforeAll(async () => {
   firstRegistration = await request(app).post('/api/auth/register')
     .send({ username: 'admin', password: 'secret123', email: 'admin@example.com', displayName: 'Admin' });
   adminToken = firstRegistration.body.token;
+  secondUserCreation = await request(app).post('/api/admin/users')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ username: 'bob', password: 'secret123', email: 'bob@example.com', role: 'user' });
+  secondUserId = secondUserCreation.body.user?.id;
 });
 
 describe('health', () => {
@@ -137,13 +144,9 @@ describe('admin', () => {
     expect(res.status).toBe(401);
   });
 
-  it('creates a user', async () => {
-    const res = await request(app).post('/api/admin/users')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ username: 'bob', password: 'secret123', email: 'bob@example.com', role: 'user' });
-    expect(res.status).toBe(201);
-    expect(res.body.user.username).toBe('bob');
-    secondUserId = res.body.user.id;
+  it('creates a user', () => {
+    expect(secondUserCreation.status).toBe(201);
+    expect(secondUserCreation.body.user.username).toBe('bob');
   });
 
   it('lists both users', async () => {
