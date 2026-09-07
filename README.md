@@ -44,6 +44,19 @@
   <img src="docs/screenshots/tablet.png" alt="FriRSS on a tablet" height="400" />
 </div>
 
+## Live demo
+
+**[frirss.fripix.ch](https://frirss.fripix.ch)**
+
+> **Username** `fridemo` &nbsp;·&nbsp; **Password** `6wVQj3Q@2Qz@`
+
+- Runs on a small server with no Redis cache.
+- Feeds cannot be added or removed, and no FreshRSS server can be connected.
+- Preferences reset every 30 minutes, so themes and layout return to their defaults.
+- Read state and favorites are shared with everyone else visiting.
+
+The demo is there to try the interface.
+
 ## About
 
 [FreshRSS](https://freshrss.org) has an excellent engine: solid, self-hosted, great at fetching and storing feeds. Its built-in interface just wasn't for me, and none of the alternatives fit what I wanted — so I built my own.
