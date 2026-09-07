@@ -194,6 +194,27 @@ Catégories repliables, flux avec favicon et compteur de non-lus, entrées fixes
 glisser-déposer, masquage des flux entièrement lus.
 
 - **Où** : `src/components/Sidebar/Sidebar.tsx`, `src/stores/uiStore.ts`
+- **Menu d'un flux** — renommer, ouvrir le site, extraction automatique, se
+  désabonner. Trois chemins : le clic droit, le bouton ⋯ révélé au survol, et
+  **un appui long de 500 ms au doigt** (`FEED_LONG_PRESS_MS`).
+  ⚠️ **L'appui long n'est pas un agrément, il était indispensable.** Jusqu'à la
+  1.4.11, ces quatre actions n'avaient AUCUN chemin tactile : le ⋯ ne paraît
+  qu'au survol, et le clic droit n'existe pas au doigt. L'extraction
+  automatique par flux, mise en avant, ne se réglait donc que depuis un bureau.
+  Confirmé sur appareil par le propriétaire avant correction.
+  ⚠️ **Pourquoi pas simplement montrer le ⋯ au doigt**, comme le font
+  `.article-card__actions` et `.prefs-row-action` sous `@media (hover: none)` :
+  ici le ⋯ **occupe l'emplacement du compteur de non-lus** (un carré fixe de
+  24×20 qui évite tout saut de mise en page). L'afficher en permanence
+  masquerait le compteur — l'information la plus utile de la barre latérale.
+  - Le geste s'annule dès que le doigt bouge, sinon un défilement de la barre
+    ouvrirait un menu. Il est inerte en mode organisation, où la ligne se
+    glisse. Et le clic qui le termine est avalé, sans quoi le flux se
+    chargerait derrière le menu.
+  - **Faiblesse assumée** : rien ne signale le geste. Même situation que
+    l'appui long de classement d'un article, sans l'équivalent de la barre
+    latérale pour le faire découvrir.
+  - **Tests** : `src/components/Sidebar/FeedItem.longpress.test.tsx`.
 - **Liens du pied** (1.4.5) : étoile GitHub et soutien (BuyMeACoffee), à côté
   de l'engrenage des préférences. Discrets (opacité 0,4), éclairés au survol :
   c'est une application qu'on ouvre vingt fois par jour, un appel au soutien

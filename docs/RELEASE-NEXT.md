@@ -17,7 +17,11 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Le menu d'un flux s'ouvre enfin au doigt.** Un appui long sur un flux dans
+  la barre latérale ouvre le même menu que le clic droit : renommer, ouvrir le
+  site, extraction automatique, se désabonner. Sur téléphone et tablette, ces
+  quatre actions n'étaient jusqu'ici accessibles par aucun geste — le bouton ⋯
+  n'apparaît qu'au survol d'une souris.
 
 ## Sous le capot
 
