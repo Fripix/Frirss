@@ -38,6 +38,11 @@ la release publiée.
   tard » retire aussi l'appui long qui classe un article dans une catégorie
   depuis la liste : ce geste vit dans ces deux boutons. Le texte d'aide de la
   section le dit.
+- **FriRSS parle chinois simplifié.** Dixième langue de l'interface, contribuée
+  par [zhhbinn](https://github.com/zhhbinn) — traduction complète, dont la
+  terminologie suit celle de l'interface chinoise de FreshRSS. Elle se
+  sélectionne dans Préférences → Général, et s'active toute seule pour un
+  navigateur réglé en `zh`.
 
 ## Corrections et améliorations
 

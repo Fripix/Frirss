@@ -650,7 +650,7 @@
     "linkCopied": "链接已复制",
     "copyFailed": "无法复制链接",
     "loadMoreEmpty": "下一页已加载，但仍无内容。",
-    "markFailed": "服务器拒绝将此文章标为已读，已重新放回列表。",
+    "markFailed": "服务器拒绝标记该文章，已重新放回列表。",
     "markQueued": "更改未成功，稍后将自动重试。"
   },
   "palette": {

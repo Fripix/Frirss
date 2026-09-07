@@ -634,7 +634,7 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   et avec lui la seule façon de classer un article dans une catégorie **depuis
   la liste** — le volet de lecture garde la sienne. Les balayages et les
   raccourcis clavier, eux, ne bougent pas. Le texte d'aide de la section
-  « Mise en page » (`preferences.layout.hint`) le dit, dans les neuf langues :
+  « Mise en page » (`preferences.layout.hint`) le dit, dans les dix langues :
   il a affirmé le contraire (« les gestes ne changent pas ») le temps d'un
   cycle.
   **Tests** : la carte de grille par `ArticleCard.test.tsx`, la ligne compacte
@@ -2232,23 +2232,34 @@ compte pris du compteur de non-lus de la vue, pas du nombre d'articles chargés.
 
 ## Internationalisation
 
-**9 locales** : `fr` (repli), `en`, `de`, `es`, `it`, `nl`, `pl`, `pt`, `uk`.
-488 clés. i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour `pl`
-et `uk`.
+**10 locales** : `fr` (repli), `en`, `de`, `es`, `it`, `nl`, `pl`, `pt`, `uk`,
+`zh`. 586 clés. i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
+`pl` et `uk`.
+
+Le chinois simplifié est arrivé par contribution externe (PR #12, zhhbinn,
+2026-09-07). Sa terminologie suit l'interface chinoise de FreshRSS.
+⚠️ **Piège de vocabulaire relevé à cette occasion** : la section de réglages des
+icônes de ligne s'appelle 操作图标 et **non** 布局 — ce dernier nomme déjà cinq
+réglages de disposition (`sidebar.layoutDesktop`, `layoutMobile`,
+`feedLayoutThisFeed`, `articleList.displayMode`, `layoutOverridden`). Vérifier
+qu'un terme n'est pas déjà pris avant de le réutiliser.
 
 - **Où** : `src/locales/*.json`, `src/i18n.ts`
-- **Règle** : toute chaîne visible va dans **les neuf** fichiers. Vérifier la
+- **Règle** : toute chaîne visible va dans **les dix** fichiers. Vérifier la
   parité avec la commande du `CLAUDE.md` avant de livrer.
+- **`zh` n'a que `other` en CLDR**, mais `i18nCoverage.test.ts` exige la paire
+  `_one`/`_other` pour toute locale hors `pl`/`uk` : les neuf `_one` chinois
+  sont du poids mort **assumé**, pas un oubli à corriger.
 - **`<html lang>` suit la langue** : posé par `src/i18n.ts` à l'initialisation
   puis à chaque `languageChanged`. `index.html` fige `lang="fr"` — fichier
   statique servi par nginx, rien de mieux n'est possible avant l'exécution du
   bundle — et rien ne le corrigeait ensuite : le document annonçait du français
   à un lecteur polonais dès le premier écran. Les lecteurs d'écran choisissent
-  voix et prononciation sur cet attribut. Pas de `dir` : les neuf langues
-  d'interface vont de gauche à droite ; le sens d'écriture ne concerne que le
+  voix et prononciation sur cet attribut. Pas de `dir` : les dix langues
+  d'interface vont de gauche à droite, le chinois simplifié compris ; le sens d'écriture ne concerne que le
   **contenu** des articles, porté bloc par bloc par `dir="auto"`.
 - ⚠️ **Ce que la parité NE voit pas.** Le script du `CLAUDE.md` compare les
-  clés du français aux huit autres : il ne peut rien dire d'une chaîne qui
+  clés du français aux neuf autres : il ne peut rien dire d'une chaîne qui
   n'est jamais passée par i18next. Trois lui avaient échappé, trouvées le
   2026-09-04 en balayant les attributs visibles (`title`, `aria-label`,
   `placeholder`, `alt`) et le texte JSX littéral : deux exemples rédigés en
