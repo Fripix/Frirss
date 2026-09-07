@@ -195,8 +195,12 @@ export default function Preferences() {
           className="prefs-panel-head px-5 py-3 flex items-center justify-between flex-shrink-0"
           style={{ borderBottom: '1px solid var(--panel-border)' }}
         >
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold" style={{ color: 'var(--list-title)' }}>
+          {/* ⚠️ `min-w-0` et la troncature ne sont pas cosmétiques : sans eux, le
+              sélecteur de thème pousse « Tout réinitialiser » puis la croix de
+              fermeture HORS du panneau sur un téléphone. Vu sur iPhone : plus
+              aucun moyen de sortir des préférences. */}
+          <div className="flex items-center gap-3 min-w-0">
+            <h2 className="text-lg font-bold flex-shrink-0" style={{ color: 'var(--list-title)' }}>
               {t('preferences.title')}
             </h2>
             {/* Theme dropdown — show when there are custom themes beyond the default */}
@@ -204,7 +208,7 @@ export default function Preferences() {
               <select
                 value={theme.name}
                 onChange={(e) => loadSavedTheme(e.target.value)}
-                className="text-xs px-2 py-1 rounded-md appearance-none cursor-pointer pr-6 prefs-tap-row"
+                className="text-xs px-2 py-1 rounded-md appearance-none cursor-pointer pr-6 prefs-tap-row min-w-[76px] flex-shrink truncate"
                 style={{
                   border: '1px solid var(--panel-border)',
                   color: 'var(--list-title)',
@@ -219,7 +223,7 @@ export default function Preferences() {
               </select>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={handleReset}
               className="text-[10px] px-2 py-1 rounded-md transition-colors prefs-tap-btn"

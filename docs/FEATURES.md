@@ -226,6 +226,15 @@ glisser-déposer, masquage des flux entièrement lus.
   ⚠️ **La fermeture au clic en dehors écoutait `mousedown`**, que iOS n'émet
   pas avant le `click` : une tape à côté laissait le menu ouvert. Passée à
   `pointerdown`.
+  ⚠️ **L'appui long déclenchait aussi la sélection de texte d'iOS** : le titre
+  du flux se surlignait en bleu, poignées comprises, par-dessus le menu.
+  `.sidebar-feed-item` porte donc `-webkit-touch-callout: none` **et**
+  `user-select: none` — la première seule laisse le surlignage, la seconde
+  seule laisse la bulle système.
+  ⚠️ **La rangée « Disposition de ce flux » débordait du menu** et se faisait
+  couper par son `overflow: hidden` : le libellé traduit et les quatre boutons
+  ne tiennent pas dans 236 px. Elle passe à la ligne (`flex-wrap`) plutôt que
+  d'imposer un menu plus large partout.
 - **Liens du pied** (1.4.5) : étoile GitHub et soutien (BuyMeACoffee), à côté
   de l'engrenage des préférences. Discrets (opacité 0,4), éclairés au survol :
   c'est une application qu'on ouvre vingt fois par jour, un appel au soutien
@@ -1505,6 +1514,15 @@ réglage clair/sombre du système.
 ---
 
 ## Préférences
+
+⚠️ **L'en-tête doit garder sa croix de fermeture atteignable.** Le sélecteur de
+thème n'avait aucune contrainte de largeur : sur un écran étroit il poussait
+« Tout réinitialiser » à la ligne, puis la croix **hors du panneau** — plus
+aucun moyen de sortir des préférences. Reproduit à 320 px de large (un iPhone
+avec le zoom d'affichage) : la croix tombait à 376 px. Le titre est
+`flex-shrink-0`, le sélecteur cède avant lui sans descendre sous 76 px, et le
+groupe de droite est `flex-shrink-0` pour ne jamais être poussé dehors.
+
 
 Panneau à navigation verticale : **Général** (langue, lecture, raccourcis),
 **Apparence** (thème, couleurs, tailles, identité), **Mise en page** (icônes

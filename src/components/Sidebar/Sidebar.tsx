@@ -921,7 +921,11 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
 
       {/* Per-feed layout override — falls back to the global layout when empty */}
       <div className="h-px mx-2 my-1" style={{ background: 'var(--panel-border)' }} />
-      <div className="px-3 py-2 flex items-center justify-between gap-2">
+      {/* `flex-wrap` : à 236 px de menu, le libellé traduit et les quatre
+          boutons ne tiennent pas sur une ligne — les boutons étaient coupés par
+          l'`overflow: hidden` du menu. Ils passent dessous plutôt que d'imposer
+          un menu plus large à tout le monde. */}
+      <div className="px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
         <span className="text-[13px] font-medium" style={{ color: 'var(--list-title)' }}>
           {t('sidebar.feedLayoutThisFeed')}
         </span>

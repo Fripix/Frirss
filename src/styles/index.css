@@ -268,6 +268,14 @@ html {
   transition: background 0.25s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.25s ease;
   border-radius: 6px;
   margin: 1px 0;
+  /* ⚠️ L'appui long qui ouvre le menu d'un flux déclenchait AUSSI la sélection
+     de texte d'iOS : le titre se surlignait en bleu avec ses deux poignées, par
+     dessus le menu. `-webkit-touch-callout` coupe la bulle système, `user-select`
+     la sélection. Les deux sont nécessaires — la première seule laisse le
+     surlignage, la seconde seule laisse la bulle. */
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .sidebar-feed-item::before {

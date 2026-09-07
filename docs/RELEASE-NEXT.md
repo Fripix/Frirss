@@ -27,6 +27,13 @@ _(rien pour l'instant)_
   s'ouvrait en dehors, ce qui donnait l'impression que rien ne se passait. Le
   clic droit près du bord d'une fenêtre étroite était touché de la même façon.
   Une tape à côté du menu le referme désormais aussi au doigt.
+- **Et son contenu ne déborde plus.** La rangée de disposition du flux était
+  coupée par le bord du menu ; elle passe à la ligne quand elle ne tient pas.
+- **L'appui long ne surligne plus le nom du flux.** iOS lançait sa sélection de
+  texte par-dessus le menu qui venait de s'ouvrir.
+- **On peut de nouveau sortir des préférences sur un écran étroit.** Le
+  sélecteur de thème poussait la croix de fermeture hors du panneau : il n'y
+  avait plus aucun moyen de revenir à l'interface.
 
 ## Sous le capot
 
