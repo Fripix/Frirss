@@ -164,7 +164,14 @@ la release publiée.
 
 ## Actions requises à la mise à jour
 
-_(à compléter)_
+Aucune : pas de nouvelle variable d'environnement, pas de migration.
+
+⚠️ **Un seul point à vérifier si vous aviez abaissé `FRIRSS_PROXY_RATE_LIMIT`.**
+L'extraction d'articles puise désormais dans **le même seau** que le proxy, au
+lieu d'un seau distinct — c'était un défaut : deux seaux doublaient
+silencieusement le plafond annoncé. À la valeur par défaut (600/min par compte)
+il n'y a rien à faire ; à une valeur basse, la préparation hors-ligne peut
+désormais l'atteindre.
 
 ## Documentation
 

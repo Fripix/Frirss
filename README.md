@@ -60,6 +60,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
 - **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed.
 - **Ticking an article read clears it from the unread list** — instantly, in every layout including the compact one. Opening an article leaves its row where it is, so you keep your place; only a deliberate tick removes one. If the server refuses the write, the row comes back and says so.
+- **Open an article at its source** — an icon on each row opens the origin site in a new tab and selects the article, so it is marked read and keeps its place in the list. For the feeds you would rather read on the site itself.
 - **Search and infinite scroll**, scoped to the view you are actually in — and the last five queries are offered back, per server.
 - **Mark as read while scrolling**, optionally: an article is marked once it has left the top of the list. Off by default, never during a search.
 - **Share an article or copy its link** from the reading pane — the system share sheet on mobile, the clipboard elsewhere.
@@ -78,6 +79,7 @@ Almost everything is yours to tweak:
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
 - **Layout** — resizable columns, density and spacing, date separators, feed icons, toggles for the source label and top bar, and a desktop/mobile switch on tablets.
+- **Row action icons** — show or hide each of the four icons on an article row (favorite, read later, open at source, mark read), one by one, from the new *Layout* section.
 - **A sidebar that remembers** — collapsed sections stay collapsed, and feeds with nothing unread can be hidden to declutter long lists.
 - **Categories & feeds** — rename or delete a category and move feeds between categories, right from the preferences.
 - **Labels & sub-labels** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with per-label article counts.
@@ -139,7 +141,7 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `CACHE_SYNC_ACTIVE_DAYS` | Only pre-fetch for users seen in the last N days | `7` |
 | `CACHE_SYNC_PARALLEL_USERS` | Users pre-fetched in parallel | `3` |
 | `FRIRSS_REFRESH_MAX_FEEDS` | Number of feeds to refresh per button press (non-integer or < 1 → default) | `1000` |
-| `FRIRSS_PROXY_RATE_LIMIT` | Proxied requests allowed per user per minute (`0` disables; non-integer or negative → default) | `600` |
+| `FRIRSS_PROXY_RATE_LIMIT` | Proxied **and** article-extraction requests allowed per user per minute — one shared budget (`0` disables; non-integer or negative → default) | `600` |
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
 > Since 1.4.10 the **server** extracts article text: the browser asks
