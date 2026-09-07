@@ -101,7 +101,7 @@
     "removeStar": "取消收藏",
     "addReadLater": "加入稍后阅读",
     "removeReadLater": "移出稍后阅读",
-    "openSource": "Open at source"
+    "openSource": "打开原文"
   },
   "swipe": {
     "read": "已读",
@@ -117,7 +117,7 @@
     "noStarred": "暂无收藏",
     "noStarredHint": "收藏文章后即可在这里找到",
     "noReadLater": "暂无稍后阅读",
-    "noReadLaterHint": "添加文章后即可在这里找到",
+    "noReadLaterHint": "加入稍后阅读后即可在这里找到",
     "noArticles": "暂无文章",
     "noArticlesHint": "该订阅源暂无内容",
     "allReadAction": "显示全部文章",
@@ -160,7 +160,7 @@
     "resetAllTooltip": "重置全部偏好设置（颜色、字号、快捷键等）",
     "general": {
       "title": "通用",
-      "confirmMarkAllRead": "“全部标为已读”前先确认",
+      "confirmMarkAllRead": "全部标为已读前先确认",
       "confirmMarkAllReadHint": "关闭后，“全部标为已读”一次点击即可生效，无需确认。",
       "inlineVideos": "在文章内播放视频",
       "inlineVideosHint": "显示视频缩略图，点击后才加载视频。关闭后改为显示 YouTube 链接。",
@@ -223,7 +223,7 @@
       "list-title": "标题",
       "list-title-read": "已读标题",
       "list-selected": "选中文章",
-      "list-active": "分段/胶囊背景",
+      "list-active": "胶囊背景",
       "list-hover": "文章悬停",
       "list-summary": "摘要",
       "list-time": "日期",
@@ -365,7 +365,7 @@
       "title": "刷新",
       "tokenLabel": "主认证令牌",
       "tokenHelp": "在 FreshRSS 的“帐户”（或个人资料）页面的“主认证令牌”字段中创建。留空则禁用。",
-      "scopeWarning": "该令牌也允许免密码访问你的全部文章和订阅列表。FreshRSS 仅接受以 GET 方式调用此接口，因此令牌会出现在 FreshRSS 服务器的访问日志中。若日志有泄露风险，请轮换该令牌。",
+      "scopeWarning": "该令牌也允许免密码访问你的全部文章和订阅列表。FreshRSS 仅接受以 GET 方式调用此接口，因此令牌会出现在 FreshRSS 服务器的访问日志中。若日志有泄露风险，请更换该令牌。",
       "test": "测试",
       "testOk": "令牌可用。",
       "testFail": "令牌被拒绝。",
@@ -378,13 +378,13 @@
       "feeds": "订阅源",
       "offline": "离线",
       "admin": "管理",
-      "layout": "Layout"
+      "layout": "操作图标"
     },
     "appearance": {
       "theme": "主题",
       "colors": "颜色",
       "sizes": "字号",
-      "identity": "品牌标识",
+      "identity": "名称与 Logo",
       "previewHint": "悬停或点击某个颜色，对应区域会在预览中高亮圈出。",
       "previewReal": "在面板后方的真实元素上描边。",
       "previewPreviewOnly": "界面中可描边的元素太多，改为在预览中显示。",
@@ -419,12 +419,12 @@
       "failed": "操作失败"
     },
     "layout": {
-      "title": "Article action icons",
-      "hint": "Choose which icons appear on each article row. Swipes, shortcuts and the reading pane are unaffected; hiding Star or Read later, however, also removes the long press that files an article into a category from the list.",
-      "star": "Star",
-      "readLater": "Read later",
-      "openSource": "Open at source",
-      "markRead": "Mark as read"
+      "title": "文章操作图标",
+      "hint": "选择每行文章显示哪些操作图标。滑动手势、快捷键和阅读面板不受影响；但长按归入分类的手势就在“收藏”和“稍后阅读”按钮上，隐藏其中任一按钮，该手势也会一起消失。",
+      "star": "收藏",
+      "readLater": "稍后阅读",
+      "openSource": "打开原文",
+      "markRead": "标为已读"
     }
   },
   "login": {
@@ -466,14 +466,14 @@
     "addingServer": "连接中…",
     "errorServer": "连接 FreshRSS 服务器失败。",
     "errorServerBlocked": "该地址指向你的内网，FriRSS 已将其拦截。请将该主机加入 PROXY_INTERNAL_HOSTS，然后重启容器。",
-    "errorServerCredentials": "FreshRSS 拒绝了这些凭据。API 密码与账户密码是分开设置的，在 FreshRSS → 设置 → 帐户（或个人资料）中配置。",
+    "errorServerCredentials": "FreshRSS 拒绝了这些账号密码。API 密码与账户密码是分开设置的，在 FreshRSS → 设置 → 帐户（或个人资料）中配置。",
     "restorePrompt": "要从备份恢复吗？",
     "errorTooMany": "尝试次数过多，请几分钟后再试。",
-    "errorUnavailable": "服务器无响应。这与你的凭据无关。",
+    "errorUnavailable": "服务器无响应。这与你的账号密码无关。",
     "tagline": "为你的 FreshRSS 服务器打造的现代阅读器。",
     "showPassword": "显示密码",
     "hidePassword": "隐藏密码",
-    "errorServerUnresolved": "FriRSS could not resolve this server’s address: the DNS resolver did not answer. Check the hostname, then try again.",
+    "errorServerUnresolved": "FriRSS 无法解析该服务器的地址：DNS 解析器没有响应。请检查主机名后重试。",
     "emailPlaceholder": "name@example.com"
   },
   "admin": {
@@ -533,7 +533,7 @@
     "copied": "已复制",
     "redirectUri": "重定向 URI（添加到你的身份提供方）",
     "redirectUriHint": "将此 URL 添加到你的身份提供方的“重定向 URI”（Authentik、Authelia、Keycloak 等）。",
-    "breakGlassUrl": "应急登录地址（本地登录）",
+    "breakGlassUrl": "备用登录地址（本地登录）",
     "userCount_one": "{{count}} 个用户",
     "userCount_other": "{{count}} 个用户"
   },
@@ -610,12 +610,12 @@
   "backup": {
     "title": "备份",
     "description": "备份包含重建本实例所需的全部数据：账户与密码、已配置的服务器、FreshRSS 令牌及其解密密钥。备份不包含你的文章，文章存储在 FreshRSS 中。",
-    "whyPassphrase": "因此必须加密：若无口令短语，拥有此文件便可访问所有账户。",
-    "passphraseLost": "丢失口令短语将导致备份永久无法使用。请将其保存在文件之外的其他地方。",
-    "passphrase": "口令短语",
-    "passphraseConfirm": "确认口令短语",
+    "whyPassphrase": "因此必须加密：若无口令，拥有此文件便可访问所有账户。",
+    "passphraseLost": "丢失口令将导致备份永久无法使用。请将其保存在文件之外的其他地方。",
+    "passphrase": "口令",
+    "passphraseConfirm": "确认口令",
     "tooShort": "至少 12 个字符。",
-    "mismatch": "两次输入的口令短语不一致。",
+    "mismatch": "两次输入的口令不一致。",
     "download": "下载备份",
     "preparing": "准备中…",
     "restoreTitle": "恢复备份",
@@ -631,16 +631,16 @@
     "copy": "复制",
     "copied": "已复制",
     "replace": "永久替换本实例的内容",
-    "replaceHint": "当前账户、服务器和偏好设置将被覆盖。你将被退出登录，需要使用备份中的凭据重新登录。",
+    "replaceHint": "当前账户、服务器和偏好设置将被覆盖。你将被退出登录，需要使用备份中的账号密码重新登录。",
     "restoring": "恢复中…",
     "restored": "恢复完成，请重新登录。",
     "errNotBackup": "此文件不是 FriRSS 备份。",
     "errVersion": "此备份由更新版本的 FriRSS 生成。",
-    "errPassphrase": "口令短语错误，或文件已损坏。",
+    "errPassphrase": "口令错误，或文件已损坏。",
     "errGeneric": "操作失败，请重试。",
     "errSchema": "备份包含当前版本 FriRSS 无法存储的数据，可能来自更新版本。未做任何改动。",
     "errTooMany": "尝试次数过多，请稍后再试。",
-    "errConfigured": "此实例已有账户，首次启动恢复不再适用。请改用 偏好设置 → 管理。"
+    "errConfigured": "此实例已有账户，首次启动恢复不再适用。请改用偏好设置 → 管理。"
   },
   "toast": {
     "dismiss": "关闭",
@@ -650,7 +650,7 @@
     "linkCopied": "链接已复制",
     "copyFailed": "无法复制链接",
     "loadMoreEmpty": "下一页已加载，但仍无内容。",
-    "markFailed": "服务器拒绝标记该文章，已重新放回列表。",
+    "markFailed": "服务器拒绝将此文章标为已读，已重新放回列表。",
     "markQueued": "更改未成功，稍后将自动重试。"
   },
   "palette": {
