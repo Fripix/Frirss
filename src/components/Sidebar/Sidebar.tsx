@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore, READ_LATER_LABEL, getSampleArticleUrl } from '../../stores/feedStore';
 import { feedSiteUrl } from '../../lib/feedSiteUrl';
 import { openExternal } from '../../lib/openExternal';
+import { clampToViewport } from '../../lib/clampToViewport';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useThemeStore } from '../../stores/themeStore';
@@ -768,18 +769,33 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
   const isAutoExtract = feedSettings[feed.id]?.autoExtract || false;
   const feedLayout = feedSettings[feed.id]?.layout || '';
 
-  // Close on outside click
+  // Fermeture au clic en dehors. `pointerdown` et non `mousedown` : au doigt,
+  // iOS n'émet pas de `mousedown` avant le `click`, si bien qu'une tape à côté
+  // laissait le menu ouvert.
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: Event) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
     }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('pointerdown', handleClick);
+    return () => document.removeEventListener('pointerdown', handleClick);
   }, [onClose]);
 
-  // Position: keep menu in viewport
+  // Position ramenée dans la fenêtre APRÈS mesure : la hauteur dépend du mode
+  // (menu, renommage, confirmation) et la largeur du plus long libellé traduit.
+  // `useLayoutEffect` corrige avant la peinture, donc sans saut visible.
+  const [pos, setPos] = useState({ left: x, top: y });
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setPos(clampToViewport({
+      x, y, w: r.width, h: r.height,
+      vw: window.innerWidth, vh: window.innerHeight,
+    }));
+  }, [x, y, mode]);
+
   const style: CSSProperties = {
-    position: 'fixed', left: x, top: y, zIndex: 100,
+    position: 'fixed', left: pos.left, top: pos.top, zIndex: 100,
     background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
     borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
     minWidth: '236px', overflow: 'hidden',

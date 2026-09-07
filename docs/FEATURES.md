@@ -215,6 +215,17 @@ glisser-déposer, masquage des flux entièrement lus.
     l'appui long de classement d'un article, sans l'équivalent de la barre
     latérale pour le faire découvrir.
   - **Tests** : `src/components/Sidebar/FeedItem.longpress.test.tsx`.
+  ⚠️ **Le menu s'ouvrait hors écran, et le geste paraissait donc inopérant.**
+  `FeedContextMenu` portait le commentaire « keep menu in viewport » au-dessus
+  d'un `left: x, top: y` brut : l'intention était écrite, jamais implémentée.
+  Le tiroir mobile fait `min(360, 85 %)` — 331 px sur un iPhone de 390 — et le
+  menu s'ancre au bord droit de la ligne, pour une largeur minimale de 236 px :
+  il s'ouvrait de 331 à 567. `clampToViewport()` (`src/lib/`) le ramène, après
+  mesure, la hauteur dépendant du mode et la largeur du plus long libellé
+  traduit. Vaut aussi au clic droit près du bord d'une fenêtre étroite.
+  ⚠️ **La fermeture au clic en dehors écoutait `mousedown`**, que iOS n'émet
+  pas avant le `click` : une tape à côté laissait le menu ouvert. Passée à
+  `pointerdown`.
 - **Liens du pied** (1.4.5) : étoile GitHub et soutien (BuyMeACoffee), à côté
   de l'engrenage des préférences. Discrets (opacité 0,4), éclairés au survol :
   c'est une application qu'on ouvre vingt fois par jour, un appel au soutien

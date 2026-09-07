@@ -22,6 +22,11 @@ _(rien pour l'instant)_
   site, extraction automatique, se désabonner. Sur téléphone et tablette, ces
   quatre actions n'étaient jusqu'ici accessibles par aucun geste — le bouton ⋯
   n'apparaît qu'au survol d'une souris.
+- **Et ce menu ne s'ouvre plus hors de l'écran.** Il s'ancrait au bord droit de
+  la ligne sans jamais être ramené dans la fenêtre : sur un téléphone, il
+  s'ouvrait en dehors, ce qui donnait l'impression que rien ne se passait. Le
+  clic droit près du bord d'une fenêtre étroite était touché de la même façon.
+  Une tape à côté du menu le referme désormais aussi au doigt.
 
 ## Sous le capot
 
