@@ -15,7 +15,7 @@ import path from 'path';
  * le peut ; cela reste sous responsabilité humaine.
  */
 const ROOT = process.cwd();
-const LOCALES = ['fr', 'en', 'de', 'es', 'it', 'nl', 'pl', 'pt', 'uk'] as const;
+const LOCALES = ['fr', 'en', 'de', 'es', 'it', 'nl', 'pl', 'pt', 'uk', 'zh'] as const;
 /** pl et uk déclinent en quatre formes ; les autres se contentent de deux. */
 const PLURAL_FORMS: Record<string, string[]> = {
   pl: ['_one', '_few', '_many', '_other'],
@@ -88,7 +88,7 @@ const SRC = sourceText();
 const REFERENCED = referencedKeys(SRC);
 
 describe('couverture des traductions', () => {
-  it('chaque clé citée par le code existe dans les 9 locales', () => {
+  it('chaque clé citée par le code existe dans les 10 locales', () => {
     const missing: string[] = [];
     for (const l of LOCALES) {
       for (const key of REFERENCED) if (!exists(l, key)) missing.push(`${l}: ${key}`);
@@ -106,7 +106,7 @@ describe('couverture des traductions', () => {
     expect(orphans, `Clés définies mais jamais utilisées :\n${orphans.join('\n')}`).toEqual([]);
   });
 
-  it('les 9 locales ont exactement le même jeu de clés', () => {
+  it('les 10 locales ont exactement le même jeu de clés', () => {
     const drift: string[] = [];
     const strip = (keys: string[]) =>
       new Set(keys.map((k) => k.replace(/_(zero|one|two|few|many|other)$/, '')));

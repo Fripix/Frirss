@@ -130,6 +130,7 @@ export default function GeneralTab() {
             { code: 'nl', flag: '🇳🇱', name: 'Nederlands' },
             { code: 'pl', flag: '🇵🇱', name: 'Polski' },
             { code: 'uk', flag: '🇺🇦', name: 'Українська' },
+            { code: 'zh', flag: '🇨🇳', name: '简体中文' },
           ].map((lang) => (
             <button
               key={lang.code}

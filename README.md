@@ -13,7 +13,8 @@
     <img src="https://flagcdn.com/24x18/pt.png" alt="Português" />&nbsp;
     <img src="https://flagcdn.com/24x18/nl.png" alt="Nederlands" />&nbsp;
     <img src="https://flagcdn.com/24x18/pl.png" alt="Polski" />&nbsp;
-    <img src="https://flagcdn.com/24x18/ua.png" alt="Українська" />
+    <img src="https://flagcdn.com/24x18/ua.png" alt="Українська" />&nbsp;
+    <img src="https://flagcdn.com/24x18/cn.png" alt="简体中文" />
   </p>
 
   <p>
@@ -81,7 +82,7 @@ Almost everything is yours to tweak:
 - **Categories & feeds** — rename or delete a category and move feeds between categories, right from the preferences.
 - **Labels & sub-labels** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with per-label article counts.
 - **Branding** — set your own app name and logo.
-- **9 languages** — the interface follows your browser language on first run.
+- **10 languages** — the interface follows your browser language on first run.
 
 ### Accounts, SSO & multi-server
 - **Multi-user** with admin/user roles — each person keeps their own feeds and settings.

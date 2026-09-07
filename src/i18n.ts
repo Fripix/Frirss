@@ -16,6 +16,7 @@ const loaders: Record<string, () => Promise<LocaleModule>> = {
   nl: () => import('./locales/nl.json'),
   pl: () => import('./locales/pl.json'),
   uk: () => import('./locales/uk.json'),
+  zh: () => import('./locales/zh.json'),
 };
 
 const SUPPORTED_LANGUAGES = ['fr', ...Object.keys(loaders)];

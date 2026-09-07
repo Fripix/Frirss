@@ -31,8 +31,18 @@ describe('resolveInitialLanguage', () => {
     expect(resolveInitialLanguage()).toBe('pt');
   });
 
+  it('matches Simplified Chinese on its primary subtag', () => {
+    setBrowserLanguages(['zh-CN']);
+    expect(resolveInitialLanguage()).toBe('zh');
+  });
+
+  it('matches a bare `zh` browser language', () => {
+    setBrowserLanguages(['zh', 'en']);
+    expect(resolveInitialLanguage()).toBe('zh');
+  });
+
   it('falls back to English when nothing matches', () => {
-    setBrowserLanguages(['ja-JP', 'zh-CN']);
+    setBrowserLanguages(['ja-JP', 'ar-EG']);
     expect(resolveInitialLanguage()).toBe('en');
   });
 });
