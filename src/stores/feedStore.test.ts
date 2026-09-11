@@ -166,6 +166,44 @@ describe('feedStore — per-feed unread default filter', () => {
   });
 });
 
+describe('feedStore — filtre Non lus en portée « Tous les flux »', () => {
+  const feedA = { id: 'feed/A', title: 'A' } as unknown as Subscription;
+  const feedB = { id: 'feed/B', title: 'B' } as unknown as Subscription;
+
+  beforeEach(() => {
+    localStorage.clear();
+    useFeedStore.setState({ loadArticles: vi.fn() as never, selectedFeed: null });
+    useUiStore.setState({ unreadOnlyScope: 'all', unreadOnlyAll: false, unreadOnlyByFeed: { 'feed/B': false } });
+  });
+
+  afterEach(() => {
+    // Les describe suivants supposent la portée par défaut.
+    useUiStore.setState({ unreadOnlyScope: 'feed', unreadOnlyAll: false, unreadOnlyByFeed: {} });
+  });
+
+  it('setUnreadFilter writes the global state and leaves the per-feed table alone', () => {
+    useFeedStore.setState({ selectedFeed: feedA as never });
+    useFeedStore.getState().setUnreadFilter(true);
+    expect(useUiStore.getState().unreadOnlyAll).toBe(true);
+    expect(useUiStore.getState().unreadOnlyByFeed).toEqual({ 'feed/B': false });
+    expect(useFeedStore.getState().filter).toBe('unread');
+  });
+
+  it('every view opens filtered, even a feed whose own choice was "all"', () => {
+    useUiStore.setState({ unreadOnlyAll: true });
+    useFeedStore.getState().selectView(feedB);
+    expect(useFeedStore.getState().filter).toBe('unread');
+    useFeedStore.getState().selectView(null);
+    expect(useFeedStore.getState().filter).toBe('unread');
+  });
+
+  it('an explicit filter still wins over the global state', () => {
+    useUiStore.setState({ unreadOnlyAll: true });
+    useFeedStore.getState().selectView(feedA, 'starred');
+    expect(useFeedStore.getState().filter).toBe('starred');
+  });
+});
+
 describe('feedStore.silentRefresh — keep the article being read (unread filter)', () => {
   const feed = { id: 'feed/1', title: 'F' } as unknown as Subscription;
   const A = { id: 'a', read: true, sourceId: 'feed/1', title: 'A', published: 1000 } as Article;

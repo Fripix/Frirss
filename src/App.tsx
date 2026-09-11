@@ -3,7 +3,7 @@ import { useAuthStore } from './stores/authStore';
 import { getMe, getAuthStatus, getServers } from './api/backend';
 import { useFeedStore } from './stores/feedStore';
 import { useThemeStore } from './stores/themeStore';
-import { useUiStore } from './stores/uiStore';
+import { useUiStore, isUnreadOnly } from './stores/uiStore';
 import { useKeyboardNav } from './hooks/useKeyboardNav';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { hydrateExtractCache } from './lib/extractCache';
@@ -200,7 +200,7 @@ export default function App() {
         // feed/favorites/read-later the user already opened during the fetch).
         if (restoredViewRef.current) return; // a saved view already won
         const fs = useFeedStore.getState();
-        const desired = useUiStore.getState().unreadOnlyByFeed[''] ? 'unread' : 'all';
+        const desired = isUnreadOnly('') ? 'unread' : 'all';
         if (!fs.selectedFeed && !fs.selectedArticle &&
             (fs.filter === 'all' || fs.filter === 'unread') && fs.filter !== desired) {
           fs.selectView(null, desired);

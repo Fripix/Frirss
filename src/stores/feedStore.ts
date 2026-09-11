@@ -21,7 +21,7 @@ import {
   clearWriteToken,
 } from '../api/feeds';
 import { useAuthStore } from './authStore';
-import { useUiStore } from './uiStore';
+import { useUiStore, isUnreadOnly } from './uiStore';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
@@ -457,7 +457,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   selectedArticle: null,
   // Honour the persisted per-feed "unread only" preference for the startup
   // (landing / "all feeds") view.
-  filter: useUiStore.getState().unreadOnlyByFeed[''] ? 'unread' : 'all',
+  filter: isUnreadOnly('') ? 'unread' : 'all',
   loading: false,
   loadingMore: false,
   revalidating: false,
@@ -482,11 +482,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     get().loadArticles();
   },
 
-  // Toggle the "unread only" reading mode for the CURRENT feed/label only:
-  // persist the per-feed preference (synced, survives reloads) then apply it.
+  // Toggle the "unread only" reading mode. Where the choice is stored depends
+  // on the scope (Preferences → General): per feed, for the CURRENT feed/label
+  // only; all feeds, one state for every view. Synced, survives reloads.
   setUnreadFilter: (on) => {
-    const key = get().selectedFeed?.id ?? '';
-    useUiStore.getState().setFeedUnreadOnly(key, on);
+    const ui = useUiStore.getState();
+    if (ui.unreadOnlyScope === 'all') ui.setUnreadOnlyAll(on);
+    else ui.setFeedUnreadOnly(get().selectedFeed?.id ?? '', on);
     get().setFilter(on ? 'unread' : 'all');
   },
 
@@ -500,7 +502,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   // When no filter is given (feed/label navigation), fall back to that feed's
   // own persisted "unread only" preference instead of always showing everything.
   selectView: (feed, filter) => {
-    const f = filter ?? (useUiStore.getState().unreadOnlyByFeed[feed?.id ?? ''] ? 'unread' : 'all');
+    const f = filter ?? (isUnreadOnly(feed?.id ?? '') ? 'unread' : 'all');
     const c = memGet(viewKey(feed ?? null, f));
     set({ selectedFeed: feed ?? null, filter: f, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
@@ -651,7 +653,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   prefetchView: async (feed) => {
     if (!feed?.id) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-    const filter: Filter = useUiStore.getState().unreadOnlyByFeed[feed.id] ? 'unread' : 'all';
+    const filter: Filter = isUnreadOnly(feed.id) ? 'unread' : 'all';
     const key = viewKey(feed, filter);
     if (memGet(key) || prefetchInFlight.has(key)) return;
     prefetchInFlight.add(key);
