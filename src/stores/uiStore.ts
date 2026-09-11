@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
+import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -152,6 +153,15 @@ export interface UiState {
   // (keyed by feed id; '' = the "all feeds" landing view). Synced per-user.
   unreadOnlyByFeed: Record<string, boolean>;
   setFeedUnreadOnly: (feedKey: string, on: boolean) => void;
+  // Portée du filtre « Non lus » : 'feed' = chaque vue retient son choix
+  // (unreadOnlyByFeed), 'all' = un seul état pour toutes (unreadOnlyAll).
+  // Ne jamais lire ces champs directement pour décider d'un filtre : passer
+  // par isUnreadOnly(). Voir src/lib/unreadScope.ts. Synchronisé.
+  unreadOnlyScope: UnreadScope;
+  unreadOnlyAll: boolean;
+  setUnreadOnlyAll: (on: boolean) => void;
+  /** `currentKey` : clé de la vue affichée (id du flux ou de l'étiquette, '' pour l'accueil). */
+  setUnreadOnlyScope: (scope: UnreadScope, currentKey: string) => void;
   // Auto-refresh the offline cache on app open (local per-device, never synced).
   autoOffline: boolean;
   setAutoOffline: (v: boolean) => void;
@@ -418,6 +428,28 @@ export const useUiStore = create<UiState>()((set, get) => ({
       return { unreadOnlyByFeed: next };
     });
   },
+  unreadOnlyScope: normalizeUnreadScope(loadJson('frirss_unreadOnlyScope', 'feed')),
+  unreadOnlyAll: loadJson('frirss_unreadOnlyAll', false),
+  setUnreadOnlyAll: (on) => {
+    localStorage.setItem('frirss_unreadOnlyAll', JSON.stringify(on));
+    set({ unreadOnlyAll: on });
+  },
+  // Un seul `set` pour les trois champs : la synchronisation (prefsSync) voit
+  // la nouvelle portée et la table vidée dans le même changement.
+  setUnreadOnlyScope: (scope, currentKey) => {
+    set((state) => {
+      const next = switchUnreadScope(
+        { scope: state.unreadOnlyScope, all: state.unreadOnlyAll, byFeed: state.unreadOnlyByFeed },
+        scope,
+        currentKey,
+      );
+      if (next.scope === state.unreadOnlyScope) return {};
+      localStorage.setItem('frirss_unreadOnlyScope', JSON.stringify(next.scope));
+      localStorage.setItem('frirss_unreadOnlyAll', JSON.stringify(next.all));
+      localStorage.setItem('frirss_unreadOnlyByFeed', JSON.stringify(next.byFeed));
+      return { unreadOnlyScope: next.scope, unreadOnlyAll: next.all, unreadOnlyByFeed: next.byFeed };
+    });
+  },
   // Auto-refresh the offline cache on app open (local, throttled in App).
   autoOffline: loadJson('frirss_autoOffline', false),
   setAutoOffline: (v) => {
@@ -634,7 +666,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showFavicons', 'topbarVisible', 'categoryOrder', 'feedOrder',
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
-      'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
+      'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions',
     ];
@@ -644,6 +676,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
         // preset we dropped — normalise it here too, not just on load.
         const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k])
           : k === 'rowActions' ? normalizeRowActions(prefs[k])
+          : k === 'unreadOnlyScope' ? normalizeUnreadScope(prefs[k])
           : prefs[k];
         localStorage.setItem(`frirss_${k}`, JSON.stringify(value));
         next[k] = value;
@@ -654,6 +687,16 @@ export const useUiStore = create<UiState>()((set, get) => ({
   },
 }));
 
+/**
+ * Vrai si la vue de clé `key` (id du flux ou de l'étiquette, '' pour l'accueil)
+ * s'ouvre filtrée sur les non-lus. SEULE lecture autorisée de la portée du
+ * filtre — voir src/lib/unreadScope.ts.
+ */
+export function isUnreadOnly(key: string): boolean {
+  const s = useUiStore.getState();
+  return unreadOnlyFor(key, { scope: s.unreadOnlyScope, all: s.unreadOnlyAll, byFeed: s.unreadOnlyByFeed });
+}
+
 // Keys synced to the server (logical prefs — NOT geometric: panel widths,
 // 2/3-column layout and sidebar visibility stay local to each device).
 export const UI_SYNC_KEYS = [
@@ -661,7 +704,7 @@ export const UI_SYNC_KEYS = [
   'categoryOrder', 'feedOrder', 'labelOrder', 'labelSortAlpha', 'showLabelCounts',
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
-  'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'hideReadFeeds',
+  'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions',
 ];

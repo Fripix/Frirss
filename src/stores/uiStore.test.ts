@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useUiStore, UI_SYNC_KEYS } from './uiStore';
+import { isUnreadOnly } from './uiStore';
 
 describe('uiStore', () => {
   beforeEach(() => localStorage.clear());
@@ -160,5 +161,68 @@ describe('uiStore', () => {
     expect(freshStore.getState().rowActions).toEqual({
       star: false, readLater: true, openSource: true, markRead: true,
     });
+  });
+});
+
+describe('uiStore — portée du filtre Non lus', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiStore.setState({ unreadOnlyScope: 'feed', unreadOnlyAll: false, unreadOnlyByFeed: {} });
+  });
+
+  it('isUnreadOnly per feed reads the stored choice, like before', () => {
+    useUiStore.setState({ unreadOnlyByFeed: { 'feed/A': true, 'feed/B': false } });
+    expect(isUnreadOnly('feed/A')).toBe(true);
+    expect(isUnreadOnly('feed/B')).toBe(false);
+    expect(isUnreadOnly('feed/unset')).toBe(false);
+  });
+
+  it('setUnreadOnlyScope to all takes the choice of the current view and keeps the table', () => {
+    useUiStore.setState({ unreadOnlyByFeed: { 'feed/A': true, 'feed/B': false } });
+    useUiStore.getState().setUnreadOnlyScope('all', 'feed/A');
+    const s = useUiStore.getState();
+    expect(s.unreadOnlyScope).toBe('all');
+    expect(s.unreadOnlyAll).toBe(true);
+    expect(s.unreadOnlyByFeed).toEqual({ 'feed/A': true, 'feed/B': false });
+    expect(JSON.parse(localStorage.getItem('frirss_unreadOnlyScope')!)).toBe('all');
+    expect(JSON.parse(localStorage.getItem('frirss_unreadOnlyAll')!)).toBe(true);
+    expect(isUnreadOnly('feed/B')).toBe(true);
+  });
+
+  it('back to per feed keeps the last state and clears the per-feed table', () => {
+    useUiStore.setState({ unreadOnlyScope: 'all', unreadOnlyAll: true, unreadOnlyByFeed: { 'feed/B': false } });
+    useUiStore.getState().setUnreadOnlyScope('feed', 'feed/A');
+    const s = useUiStore.getState();
+    expect(s.unreadOnlyScope).toBe('feed');
+    expect(s.unreadOnlyAll).toBe(true);
+    expect(s.unreadOnlyByFeed).toEqual({});
+    expect(JSON.parse(localStorage.getItem('frirss_unreadOnlyByFeed')!)).toEqual({});
+    expect(isUnreadOnly('feed/B')).toBe(true);
+  });
+
+  it('choosing the active scope writes nothing', () => {
+    useUiStore.setState({ unreadOnlyByFeed: { 'feed/A': true } });
+    useUiStore.getState().setUnreadOnlyScope('feed', 'feed/A');
+    expect(useUiStore.getState().unreadOnlyByFeed).toEqual({ 'feed/A': true });
+    expect(localStorage.getItem('frirss_unreadOnlyScope')).toBeNull();
+  });
+
+  it('setUnreadOnlyAll stores and persists the global state', () => {
+    useUiStore.getState().setUnreadOnlyAll(true);
+    expect(useUiStore.getState().unreadOnlyAll).toBe(true);
+    expect(localStorage.getItem('frirss_unreadOnlyAll')).toBe('true');
+  });
+
+  it('applyServerPrefs applies both prefs and normalises an unknown scope', () => {
+    useUiStore.getState().applyServerPrefs({ unreadOnlyScope: 'all', unreadOnlyAll: true });
+    expect(useUiStore.getState().unreadOnlyScope).toBe('all');
+    expect(useUiStore.getState().unreadOnlyAll).toBe(true);
+    useUiStore.getState().applyServerPrefs({ unreadOnlyScope: 'everything' });
+    expect(useUiStore.getState().unreadOnlyScope).toBe('feed');
+  });
+
+  it('syncs both prefs across devices', () => {
+    expect(UI_SYNC_KEYS).toContain('unreadOnlyScope');
+    expect(UI_SYNC_KEYS).toContain('unreadOnlyAll');
   });
 });
