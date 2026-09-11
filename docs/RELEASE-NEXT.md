@@ -13,7 +13,11 @@ la release publiée.
 
 ## Fonctionnalités
 
-_(rien pour l'instant)_
+- **Le filtre Non lus peut s'appliquer à tous les flux.** Préférences →
+  Général, « Filtre Non lus » : *Par flux*, le fonctionnement actuel où chaque
+  flux retient son choix, ou *Tous les flux*, où le bouton Non lus s'applique
+  partout. Revenir à *Par flux* repart de l'état du moment : les choix par flux
+  antérieurs sont effacés. Demandé dans la discussion #13.
 
 ## Corrections et améliorations
 

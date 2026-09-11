@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { loadLanguage } from '../../i18n';
 import { useUiStore, shortcutActions } from '../../stores/uiStore';
 import ToggleSwitch from '../ToggleSwitch';
+import { useFeedStore } from '../../stores/feedStore';
 
 export default function GeneralTab() {
   const { t, i18n } = useTranslation();
@@ -10,6 +11,8 @@ export default function GeneralTab() {
   const setConfirmMarkAllRead = useUiStore((s) => s.setConfirmMarkAllRead);
   const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
   const setMarkReadOnScroll = useUiStore((s) => s.setMarkReadOnScroll);
+  const unreadOnlyScope = useUiStore((s) => s.unreadOnlyScope);
+  const setUnreadOnlyScope = useUiStore((s) => s.setUnreadOnlyScope);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
   const setInlineVideos = useUiStore((s) => s.setInlineVideos);
   const { shortcuts, setShortcut, resetShortcuts } = useUiStore();
@@ -91,6 +94,47 @@ export default function GeneralTab() {
               ariaLabel={t('preferences.general.markReadOnScroll')}
             />
           </span>
+        </div>
+
+        {/* Scope of the "Unread" filter: per feed, or one state for all feeds */}
+        <div className="select-none mt-4">
+          <span className="text-xs block" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.general.unreadScope')}
+            <span className="block text-[11px] opacity-70 mt-0.5">
+              {t('preferences.general.unreadScopeHint')}
+            </span>
+          </span>
+          {/* Segmented control — same markup as the authentication mode in
+              AdminTab: plain buttons, so a single click always registers. */}
+          <div
+            className="flex gap-1 p-0.5 rounded-lg mt-2"
+            role="radiogroup"
+            aria-label={t('preferences.general.unreadScope')}
+            style={{ background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' }}
+          >
+            {([
+              { scope: 'feed', label: t('preferences.general.unreadScopeFeed') },
+              { scope: 'all', label: t('preferences.general.unreadScopeAll') },
+            ] as const).map((opt) => {
+              const selected = unreadOnlyScope === opt.scope;
+              return (
+                <button
+                  key={opt.scope}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setUnreadOnlyScope(opt.scope, useFeedStore.getState().selectedFeed?.id ?? '')}
+                  className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                  style={{
+                    background: selected ? 'var(--accent)' : 'transparent',
+                    color: selected ? '#fff' : 'var(--list-title)',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Play YouTube videos in the article (click-to-load facade) */}

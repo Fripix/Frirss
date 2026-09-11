@@ -165,7 +165,11 @@
       "inlineVideos": "Videos im Artikel abspielen",
       "inlineVideosHint": "Zeigt das Vorschaubild; das Video lädt erst beim Klick. Aus: stattdessen ein Link zu YouTube.",
       "markReadOnScroll": "Beim Scrollen als gelesen markieren",
-      "markReadOnScrollHint": "Ein Artikel gilt eine Sekunde nach dem Verlassen des oberen Listenrands als gelesen. Nie während einer Suche."
+      "markReadOnScrollHint": "Ein Artikel gilt eine Sekunde nach dem Verlassen des oberen Listenrands als gelesen. Nie während einer Suche.",
+      "unreadScope": "Ungelesen-Filter",
+      "unreadScopeFeed": "Pro Feed",
+      "unreadScopeAll": "Alle Feeds",
+      "unreadScopeHint": "Pro Feed behält jeder Feed seine eigene Wahl. Bei „Alle Feeds“ gilt die Schaltfläche Ungelesen überall; zurück zu „Pro Feed“ geht vom aktuellen Zustand aus."
     },
     "branding": {
       "language": "Sprache",

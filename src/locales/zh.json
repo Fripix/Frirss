@@ -165,7 +165,11 @@
       "inlineVideos": "在文章内播放视频",
       "inlineVideosHint": "显示视频缩略图，点击后才加载视频。关闭后改为显示 YouTube 链接。",
       "markReadOnScroll": "滚动时标为已读",
-      "markReadOnScrollHint": "文章滚出列表顶部一秒后自动标为已读。搜索时不会触发。"
+      "markReadOnScrollHint": "文章滚出列表顶部一秒后自动标为已读。搜索时不会触发。",
+      "unreadScope": "未读筛选",
+      "unreadScopeFeed": "按订阅源",
+      "unreadScopeAll": "全部订阅源",
+      "unreadScopeHint": "按订阅源：每个订阅源各自记住选择。全部订阅源：未读按钮对所有视图生效；切回“按订阅源”时以当前状态为起点。"
     },
     "branding": {
       "language": "语言",

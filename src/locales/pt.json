@@ -165,7 +165,11 @@
       "inlineVideos": "Reproduzir os vídeos no artigo",
       "inlineVideosHint": "Mostra a miniatura; o vídeo só carrega ao clicar. Desativado, é apresentado um link para o YouTube.",
       "markReadOnScroll": "Marcar como lido ao deslocar",
-      "markReadOnScrollHint": "Um artigo é marcado como lido um segundo depois de sair pelo topo da lista. Nunca durante uma pesquisa."
+      "markReadOnScrollHint": "Um artigo é marcado como lido um segundo depois de sair pelo topo da lista. Nunca durante uma pesquisa.",
+      "unreadScope": "Filtro Não lidos",
+      "unreadScopeFeed": "Por fonte",
+      "unreadScopeAll": "Todos os feeds",
+      "unreadScopeHint": "Por fonte, cada fonte guarda a sua escolha. Com «Todos os feeds», o botão Não lidos aplica-se em todo o lado; voltar a «Por fonte» parte do estado atual."
     },
     "branding": {
       "language": "Idioma",

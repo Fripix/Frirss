@@ -741,6 +741,36 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   raccourci clavier, par exemple — changerait sinon l'état de l'article sans
   que rien ne s'ouvre.
 
+### Filtre Non lus
+Le bouton **Non lus** de l'en-tête filtre la vue. Sa portée se règle dans
+Préférences → Général (synchronisée) : **Par flux** (défaut) ou **Tous les
+flux**.
+
+- **Où** : `src/lib/unreadScope.ts` (la règle et les changements de portée,
+  testés), `src/stores/uiStore.ts` (`unreadOnlyScope`, `unreadOnlyAll`,
+  `unreadOnlyByFeed`, `isUnreadOnly`), `feedStore.setUnreadFilter`,
+  `src/components/Preferences/GeneralTab.tsx`
+- **Spec** : `docs/superpowers/specs/2026-09-10-unread-filter-scope-design.md`
+- **Par flux** : chaque flux, catégorie et étiquette retient son choix
+  (`unreadOnlyByFeed`, la clé `''` désignant la vue d'accueil). Le filtre a
+  d'abord été un drapeau unique ; `6c19c36` (2026-07-31) l'a rendu par flux,
+  parce qu'activer le filtre sur un flux l'activait partout. La discussion #13 a
+  demandé l'inverse : les deux besoins existent, d'où la portée.
+- **Tous les flux** : un seul état, `unreadOnlyAll`, pour toutes les vues ; la
+  table par flux est ignorée. Le bouton de l'état vide « Tout est lu » désactive
+  alors le filtre partout.
+- **Une seule porte de lecture** : `isUnreadOnly(clé)`. Ne jamais relire
+  `unreadOnlyByFeed` directement pour décider d'un filtre — c'est ce que
+  faisaient les quatre sites d'origine, et un cinquième ignorerait la portée.
+- **Piège — revenir à « Par flux » efface les choix par flux**, sur tous les
+  appareils : chaque flux repart de l'état global du moment. Voulu (les anciens
+  choix ne doivent pas ressurgir), mais irréversible.
+- **Non-régression** : tant que le mode global n'a jamais servi,
+  `unreadOnlyAll` vaut `false` et la règle rend exactement l'ancienne
+  expression. Changer de portée ne recharge jamais la vue affichée.
+- **Sans rapport avec la règle du ✓** (issue #10), qui lit `feedStore.filter`,
+  l'état dérivé.
+
 ### Marquer lu au défilement
 Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article
 est marqué lu une seconde après être sorti par le **haut** de la liste.
