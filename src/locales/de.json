@@ -169,7 +169,7 @@
       "unreadScope": "Ungelesen-Filter",
       "unreadScopeFeed": "Pro Feed",
       "unreadScopeAll": "Alle Feeds",
-      "unreadScopeHint": "Pro Feed behält jeder Feed seine eigene Wahl. Bei „Alle Feeds“ gilt die Schaltfläche Ungelesen überall; zurück zu „Pro Feed“ geht vom aktuellen Zustand aus."
+      "unreadScopeHint": "Bei „Pro Feed“ behält jeder Feed seine eigene Wahl. Bei „Alle Feeds“ gilt die Schaltfläche Ungelesen überall. Zurück zu „Pro Feed“ löscht die Einzelwahl: Jeder Feed startet vom aktuellen Zustand."
     },
     "branding": {
       "language": "Sprache",

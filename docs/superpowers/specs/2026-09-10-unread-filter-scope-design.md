@@ -80,8 +80,13 @@ Changer de portée **ne recharge jamais la vue affichée**.
   les clics suivants sur le bouton Non lus enregistrent à nouveau des choix par
   flux.
   ⚠️ **Les choix par flux antérieurs au passage en mode global sont perdus**, et
-  la suppression est synchronisée sur tous les appareils. C'est la décision du
-  propriétaire : ils ne doivent pas ressurgir.
+  la suppression est synchronisée. C'est la décision du propriétaire : ils ne
+  doivent pas ressurgir. **Limite relevée en revue finale** : la synchronisation
+  pousse un instantané complet des préférences et ne relit le serveur qu'au
+  démarrage ; un appareil resté ouvert depuis avant le changement, ou une
+  version antérieure, peut réécrire l'ancienne table au prochain changement de
+  préférence. Documenté dans `docs/FEATURES.md` ; la correction (ne pousser que
+  les clés modifiées) est hors de ce cycle.
 - Choisir la portée déjà active ne fait rien.
 
 Les deux transitions vivent dans une fonction pure,

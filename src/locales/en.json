@@ -169,7 +169,7 @@
       "unreadScope": "Unread filter",
       "unreadScopeFeed": "Per feed",
       "unreadScopeAll": "All feeds",
-      "unreadScopeHint": "Per feed, each feed keeps its own choice. All feeds, the Unread button applies everywhere; switching back to Per feed starts from the current state."
+      "unreadScopeHint": "With Per feed, each feed keeps its own choice. With All feeds, the Unread button applies everywhere. Switching back to Per feed erases the per-feed choices: every feed starts from the current state."
     },
     "branding": {
       "language": "Language",

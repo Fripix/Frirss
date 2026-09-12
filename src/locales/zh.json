@@ -169,7 +169,7 @@
       "unreadScope": "未读筛选",
       "unreadScopeFeed": "按订阅源",
       "unreadScopeAll": "全部订阅源",
-      "unreadScopeHint": "按订阅源：每个订阅源各自记住选择。全部订阅源：未读按钮对所有视图生效；切回“按订阅源”时以当前状态为起点。"
+      "unreadScopeHint": "按订阅源：每个订阅源各自记住选择。全部订阅源：未读按钮对所有视图生效。切回“按订阅源”会清除各订阅源的单独选择，统一从当前状态开始。"
     },
     "branding": {
       "language": "语言",

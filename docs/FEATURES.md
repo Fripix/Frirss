@@ -762,9 +762,18 @@ flux**.
 - **Une seule porte de lecture** : `isUnreadOnly(clé)`. Ne jamais relire
   `unreadOnlyByFeed` directement pour décider d'un filtre — c'est ce que
   faisaient les quatre sites d'origine, et un cinquième ignorerait la portée.
-- **Piège — revenir à « Par flux » efface les choix par flux**, sur tous les
-  appareils : chaque flux repart de l'état global du moment. Voulu (les anciens
-  choix ne doivent pas ressurgir), mais irréversible.
+- **Piège — revenir à « Par flux » efface les choix par flux** : chaque flux
+  repart de l'état global du moment. Voulu (les anciens choix ne doivent pas
+  ressurgir), et irréversible sur l'appareil qui fait le changement.
+  ⚠️ **La synchronisation ne le garantit pas partout.** `collectPrefs()` pousse
+  TOUTES les clés synchronisées à chaque changement, et `hydratePrefs()` ne
+  relit le serveur qu'à la connexion ou au démarrage. Un appareil resté ouvert
+  depuis avant le changement — ou une version antérieure de FriRSS — réécrit sa
+  vieille table (et sa vieille portée) au prochain changement de n'importe
+  quelle préférence synchronisée, et les anciens choix reviennent partout au
+  chargement suivant. C'est une limite du modèle « instantané complet, dernier
+  écrivain gagne », antérieure à cette fonctionnalité ; la vraie correction
+  serait de ne pousser que les clés modifiées.
 - **Non-régression** : tant que le mode global n'a jamais servi,
   `unreadOnlyAll` vaut `false` et la règle rend exactement l'ancienne
   expression. Changer de portée ne recharge jamais la vue affichée.

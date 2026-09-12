@@ -169,7 +169,7 @@
       "unreadScope": "Filtro No leídos",
       "unreadScopeFeed": "Por fuente",
       "unreadScopeAll": "Todas las fuentes",
-      "unreadScopeHint": "Por fuente, cada fuente conserva su propia elección. Con «Todas las fuentes», el botón No leídos se aplica en todas partes; volver a «Por fuente» parte del estado actual."
+      "unreadScopeHint": "Con «Por fuente», cada fuente conserva su propia elección. Con «Todas las fuentes», el botón No leídos se aplica en todas partes. Volver a «Por fuente» borra las elecciones por fuente: cada fuente parte del estado actual."
     },
     "branding": {
       "language": "Idioma",

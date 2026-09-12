@@ -429,7 +429,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
     });
   },
   unreadOnlyScope: normalizeUnreadScope(loadJson('frirss_unreadOnlyScope', 'feed')),
-  unreadOnlyAll: loadJson('frirss_unreadOnlyAll', false),
+  unreadOnlyAll: loadJson<boolean>('frirss_unreadOnlyAll', false) === true,
   setUnreadOnlyAll: (on) => {
     localStorage.setItem('frirss_unreadOnlyAll', JSON.stringify(on));
     set({ unreadOnlyAll: on });
@@ -677,6 +677,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
         const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k])
           : k === 'rowActions' ? normalizeRowActions(prefs[k])
           : k === 'unreadOnlyScope' ? normalizeUnreadScope(prefs[k])
+          : k === 'unreadOnlyAll' ? prefs[k] === true
           : prefs[k];
         localStorage.setItem(`frirss_${k}`, JSON.stringify(value));
         next[k] = value;

@@ -169,7 +169,7 @@
       "unreadScope": "Filtro Non letti",
       "unreadScopeFeed": "Per feed",
       "unreadScopeAll": "Tutti i feed",
-      "unreadScopeHint": "Per feed, ogni feed mantiene la propria scelta. Con «Tutti i feed», il pulsante Non letti vale ovunque; tornare a «Per feed» riparte dallo stato attuale."
+      "unreadScopeHint": "Con «Per feed», ogni feed mantiene la propria scelta. Con «Tutti i feed», il pulsante Non letti vale ovunque. Tornare a «Per feed» cancella le scelte per feed: ogni feed riparte dallo stato attuale."
     },
     "branding": {
       "language": "Lingua",

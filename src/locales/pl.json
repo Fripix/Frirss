@@ -169,7 +169,7 @@
       "unreadScope": "Filtr Nieprzeczytane",
       "unreadScopeFeed": "Osobno",
       "unreadScopeAll": "Wszystkie kanały",
-      "unreadScopeHint": "W trybie „Osobno” każdy kanał zapamiętuje własny wybór. W trybie „Wszystkie kanały” przycisk Nieprzeczytane działa wszędzie; powrót do „Osobno” zaczyna od bieżącego stanu."
+      "unreadScopeHint": "W trybie „Osobno” każdy kanał zapamiętuje własny wybór. W trybie „Wszystkie kanały” przycisk Nieprzeczytane działa wszędzie. Powrót do „Osobno” usuwa wybory poszczególnych kanałów: każdy kanał zaczyna od bieżącego stanu."
     },
     "branding": {
       "language": "Język",

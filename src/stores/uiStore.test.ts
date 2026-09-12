@@ -225,4 +225,13 @@ describe('uiStore — portée du filtre Non lus', () => {
     expect(UI_SYNC_KEYS).toContain('unreadOnlyScope');
     expect(UI_SYNC_KEYS).toContain('unreadOnlyAll');
   });
+
+  it('applyServerPrefs only accepts a real true for the global state', () => {
+    useUiStore.getState().applyServerPrefs({ unreadOnlyAll: 'false' });
+    expect(useUiStore.getState().unreadOnlyAll).toBe(false);
+    useUiStore.getState().applyServerPrefs({ unreadOnlyAll: 1 });
+    expect(useUiStore.getState().unreadOnlyAll).toBe(false);
+    useUiStore.getState().applyServerPrefs({ unreadOnlyAll: true });
+    expect(useUiStore.getState().unreadOnlyAll).toBe(true);
+  });
 });

@@ -169,7 +169,7 @@
       "unreadScope": "Filtro Não lidos",
       "unreadScopeFeed": "Por fonte",
       "unreadScopeAll": "Todos os feeds",
-      "unreadScopeHint": "Por fonte, cada fonte guarda a sua escolha. Com «Todos os feeds», o botão Não lidos aplica-se em todo o lado; voltar a «Por fonte» parte do estado atual."
+      "unreadScopeHint": "Com «Por fonte», cada fonte guarda a sua escolha. Com «Todos os feeds», o botão Não lidos aplica-se em todo o lado. Voltar a «Por fonte» apaga as escolhas por fonte: cada fonte parte do estado atual."
     },
     "branding": {
       "language": "Idioma",

@@ -169,7 +169,7 @@
       "unreadScope": "Filter Ongelezen",
       "unreadScopeFeed": "Per feed",
       "unreadScopeAll": "Alle feeds",
-      "unreadScopeHint": "Per feed houdt elke feed zijn eigen keuze. Bij ‘Alle feeds’ geldt de knop Ongelezen overal; terug naar ‘Per feed’ gaat uit van de huidige stand."
+      "unreadScopeHint": "Bij ‘Per feed’ houdt elke feed zijn eigen keuze. Bij ‘Alle feeds’ geldt de knop Ongelezen overal. Terug naar ‘Per feed’ wist de keuzes per feed: elke feed begint bij de huidige stand."
     },
     "branding": {
       "language": "Taal",

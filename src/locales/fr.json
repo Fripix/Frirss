@@ -169,7 +169,7 @@
       "unreadScope": "Filtre Non lus",
       "unreadScopeFeed": "Par flux",
       "unreadScopeAll": "Tous les flux",
-      "unreadScopeHint": "Par flux, chaque flux retient son choix. Tous les flux, le bouton Non lus s'applique partout ; revenir à Par flux repart de l'état actuel."
+      "unreadScopeHint": "Par flux, chaque flux retient son choix. Tous les flux, le bouton Non lus s'applique partout. Revenir à Par flux efface les choix par flux : chaque flux repart de l'état actuel."
     },
     "branding": {
       "language": "Langue",
