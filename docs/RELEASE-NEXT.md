@@ -38,6 +38,9 @@ la release publiée.
 - **On peut de nouveau sortir des préférences sur un écran étroit.** Le
   sélecteur de thème poussait la croix de fermeture hors du panneau : il n'y
   avait plus aucun moyen de revenir à l'interface.
+- **Le choix actif du « Mode d'authentification » se lit enfin.** Il était écrit
+  en blanc sur le vert d'accent, un contraste de 1,9:1 ; il prend désormais la
+  couleur de texte prévue pour l'accent, lisible dans tous les thèmes.
 
 ## Sous le capot
 

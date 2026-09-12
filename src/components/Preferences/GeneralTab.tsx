@@ -127,7 +127,7 @@ export default function GeneralTab() {
                   className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
                   style={{
                     background: selected ? 'var(--accent)' : 'transparent',
-                    color: selected ? '#fff' : 'var(--list-title)',
+                    color: selected ? 'var(--on-accent)' : 'var(--list-title)',
                   }}
                 >
                   {opt.label}

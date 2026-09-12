@@ -32,6 +32,12 @@ describe('GeneralTab — portée du filtre Non lus', () => {
     expect(getByRole('radio', { name: 'preferences.general.unreadScopeAll' }).getAttribute('aria-checked')).toBe('false');
   });
 
+  it('gives the checked segment a readable label colour', () => {
+    const { getByRole } = render(<GeneralTab />);
+    const checked = getByRole('radio', { name: 'preferences.general.unreadScopeFeed' }) as HTMLElement;
+    expect(checked.style.color).toBe('var(--on-accent)');
+  });
+
   it('switching to all feeds takes the choice of the view on screen', () => {
     const { getByRole } = render(<GeneralTab />);
     fireEvent.click(getByRole('radio', { name: 'preferences.general.unreadScopeAll' }));
