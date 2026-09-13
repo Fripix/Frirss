@@ -46,6 +46,9 @@ la release publiée.
 - **Le choix actif du « Mode d'authentification » se lit enfin.** Il était écrit
   en blanc sur le vert d'accent, un contraste de 1,9:1 ; il prend désormais la
   couleur de texte prévue pour l'accent, lisible dans tous les thèmes.
+- **Les menus contextuels se visent mieux au doigt.** Sur tablette et
+  téléphone, les entrées du menu d'un flux — et du nouveau menu d'un article —
+  font désormais 44 pt de haut, contre 40 px.
 
 ## Sous le capot
 

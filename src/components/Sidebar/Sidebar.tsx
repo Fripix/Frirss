@@ -964,7 +964,7 @@ function ContextMenuItem({ icon, label, onClick, danger }: ContextMenuItemProps)
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors hover:bg-black/5"
+      className="context-menu-item w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors hover:bg-black/5"
       style={{ color: danger ? 'var(--danger)' : 'var(--list-title)' }}
     >
       {icon}

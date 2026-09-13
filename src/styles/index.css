@@ -730,6 +730,11 @@ html {
   button {
     min-height: 40px;
   }
+  /* Les menus contextuels d'un article et d'un flux étaient à 40px, en dessous
+     de la cible de 44 pt. */
+  .context-menu-item {
+    min-height: 44px;
+  }
   /* Text fields were left out of this rule and stayed at 34-42px, below the
      44pt target. Same exclusions as the font-size rule above: a checkbox,
      radio, colour swatch or slider is not a text field and has its own

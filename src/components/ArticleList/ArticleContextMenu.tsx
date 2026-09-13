@@ -140,7 +140,7 @@ export default function ArticleContextMenu({
           key={item.kind}
           type="button"
           onClick={() => run(item.kind)}
-          className="w-full flex items-center px-3 py-2 text-xs text-left transition-colors hover:bg-black/5"
+          className="context-menu-item w-full flex items-center px-3 py-2 text-xs text-left transition-colors hover:bg-black/5"
           style={{ color: 'var(--list-title)' }}
         >
           {t(item.labelKey)}

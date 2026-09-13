@@ -196,7 +196,9 @@ glisser-déposer, masquage des flux entièrement lus.
 - **Où** : `src/components/Sidebar/Sidebar.tsx`, `src/stores/uiStore.ts`
 - **Menu d'un flux** — renommer, ouvrir le site, extraction automatique, se
   désabonner. Trois chemins : le clic droit, le bouton ⋯ révélé au survol, et
-  **un appui long de 500 ms au doigt** (`FEED_LONG_PRESS_MS`).
+  **un appui long de 500 ms au doigt** (`FEED_LONG_PRESS_MS`). Ses entrées
+  (`ContextMenuItem`) font 44 pt de haut au doigt (`.context-menu-item`,
+  comme celles du menu d'un article), contre 40 px avant.
   ⚠️ **L'appui long n'est pas un agrément, il était indispensable.** Jusqu'à la
   1.4.11, ces quatre actions n'avaient AUCUN chemin tactile : le ⋯ ne paraît
   qu'au survol, et le clic droit n'existe pas au doigt. L'extraction
@@ -756,7 +758,9 @@ dans l'issue #11 : le réflexe vient de FreshRSS, où le titre est un vrai lien.
 - **Présentation** : feuille du bas sur téléphone (`useBreakpoint() ===
   'mobile'`), menu flottant ailleurs, rendu dans un portail et replacé par
   `clampToViewport()`. Un iPad au trackpad reçoit le menu flottant : le choix
-  suit le format, pas le pointeur.
+  suit le format, pas le pointeur. Ses entrées font 44 pt de haut au doigt
+  (`.context-menu-item`, comme celles du menu d'un flux), contre 40 px avant —
+  les rangées de la feuille du bas (`.sheet-row`) étaient déjà à 48 px.
 - **Les actions sont celles des icônes** : « Ouvrir à la source » passe par
   `openArticleAtSource()` (sélection, la ligne garde sa place), « Marquer lu »
   par `toggleRead` (retrait sous « Non lus » compris). Sans URL, « Ouvrir à la

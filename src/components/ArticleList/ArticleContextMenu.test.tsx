@@ -41,6 +41,16 @@ describe('ArticleContextMenu', () => {
     ]);
   });
 
+  it('gives every floating entry a 44pt touch target on coarse pointers', () => {
+    // Sur pointeur grossier, `.context-menu-item` porte `min-height: 44px`
+    // (src/styles/index.css) — les boutons du menu flottant en ont besoin,
+    // contrairement aux rangées de la feuille du bas (`.sheet-row`, déjà 48px).
+    setup();
+    for (const button of screen.getAllByRole('button')) {
+      expect(button.className.split(' ')).toContain('context-menu-item');
+    }
+  });
+
   it('runs each entry through its own handler, then closes', () => {
     const cases: [string, 'onOpenSource' | 'onToggleRead' | 'onToggleStar' | 'onToggleReadLater' | 'onCopyLink'][] = [
       ['articleRow.openSource', 'onOpenSource'],
