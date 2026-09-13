@@ -101,7 +101,8 @@
     "removeStar": "Quitar de favoritos",
     "addReadLater": "Leer más tarde",
     "removeReadLater": "Quitar de Leer más tarde",
-    "openSource": "Abrir en el origen"
+    "openSource": "Abrir en el origen",
+    "copyLink": "Copiar enlace"
   },
   "swipe": {
     "read": "Leído",

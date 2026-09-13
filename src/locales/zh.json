@@ -101,7 +101,8 @@
     "removeStar": "取消收藏",
     "addReadLater": "加入稍后阅读",
     "removeReadLater": "移出稍后阅读",
-    "openSource": "打开原文"
+    "openSource": "打开原文",
+    "copyLink": "复制链接"
   },
   "swipe": {
     "read": "已读",
