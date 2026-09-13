@@ -14,6 +14,7 @@ function Harness({ onLongPress, onClick }: { onLongPress: (p: PressPoint) => voi
       onTouchStart={lp.onTouchStart}
       onTouchMove={lp.onTouchMove}
       onTouchEnd={lp.onTouchEnd}
+      onTouchCancel={lp.onTouchCancel}
       onClickCapture={lp.onClickCapture}
       onClick={onClick}
     >
@@ -113,5 +114,35 @@ describe('useLongPress', () => {
     expect(firedRecently()).toBe(true);
     vi.advanceTimersByTime(LONG_PRESS_ECHO_MS);
     expect(firedRecently()).toBe(false);
+  });
+
+  it('lets a click through once the echo window has passed, even with no intervening touch', () => {
+    // Régression : sans nouveau contact pour effacer `fired`, le clic restait
+    // avalé indéfiniment — le prochain tap sur un bouton de la ligne se perdait.
+    const { onClick, row } = setup();
+    fireEvent.touchStart(row, at);
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    fireEvent.touchEnd(row);
+    vi.advanceTimersByTime(LONG_PRESS_ECHO_MS);
+    fireEvent.click(row);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('touchcancel before the delay cancels the pending press', () => {
+    const { onLongPress, row } = setup();
+    fireEvent.touchStart(row, at);
+    vi.advanceTimersByTime(LONG_PRESS_MS - 50);
+    fireEvent.touchCancel(row);
+    vi.advanceTimersByTime(200);
+    expect(onLongPress).not.toHaveBeenCalled();
+  });
+
+  it('a second touch cancels a pending press, without starting a new one', () => {
+    const { onLongPress, row } = setup();
+    fireEvent.touchStart(row, at);
+    vi.advanceTimersByTime(LONG_PRESS_MS - 50);
+    fireEvent.touchStart(row, { touches: [{ clientX: 12, clientY: 34 }, { clientX: 50, clientY: 60 }] });
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(onLongPress).not.toHaveBeenCalled();
   });
 });

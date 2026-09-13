@@ -1,29 +1,58 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
+import { createPortal } from 'react-dom';
 import { useArticleMenuGestures } from './useArticleMenuGestures';
 import { LONG_PRESS_MS, type PressPoint } from './useLongPress';
 
-function Harness({ onOpenMenu, onOpenSource, onSelect, onButtonContextMenu }: {
+function Harness({ onOpenMenu, onOpenSource, onSelect, onButtonContextMenu, onButtonClick, withPortal, withInput }: {
   onOpenMenu?: (p: PressPoint) => void;
   onOpenSource: () => void;
   onSelect: () => void;
   onButtonContextMenu: () => void;
+  onButtonClick?: () => void;
+  withPortal?: boolean;
+  withInput?: boolean;
 }) {
   const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource);
   return (
     <div role="button" data-testid="row" {...gestures} onClick={onSelect}>
       <span>Hello</span>
       {/* Stands in for the Star button: its own right-click already calls preventDefault. */}
-      <button type="button" onContextMenu={(e) => { e.preventDefault(); onButtonContextMenu(); }}>star</button>
+      <button
+        type="button"
+        onContextMenu={(e) => { e.preventDefault(); onButtonContextMenu(); }}
+        onClick={onButtonClick}
+      >
+        star
+      </button>
+      {withInput && <input data-testid="row-field" />}
+      {/* Stands in for SavedCategoryPicker: a React child of the row, rendered
+          through a portal — its DOM lives outside the row, but events still
+          bubble through the React tree to the row's handlers. */}
+      {withPortal && createPortal(
+        <div data-testid="portal">
+          <input data-testid="field" />
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
 
-function setup(withMenu = true) {
-  const spies = { onOpenMenu: vi.fn(), onOpenSource: vi.fn(), onSelect: vi.fn(), onButtonContextMenu: vi.fn() };
-  const c = render(<Harness {...spies} onOpenMenu={withMenu ? spies.onOpenMenu : undefined} />);
-  return { ...spies, row: c.getByTestId('row'), button: c.getByRole('button', { name: 'star' }) };
+function setup(withMenu = true, opts: { withPortal?: boolean; withInput?: boolean } = {}) {
+  const spies = {
+    onOpenMenu: vi.fn(), onOpenSource: vi.fn(), onSelect: vi.fn(), onButtonContextMenu: vi.fn(), onButtonClick: vi.fn(),
+  };
+  const c = render(<Harness {...spies} onOpenMenu={withMenu ? spies.onOpenMenu : undefined} {...opts} />);
+  return {
+    ...spies,
+    row: c.getByTestId('row'),
+    button: c.getByRole('button', { name: 'star' }),
+    get portal() { return c.getByTestId('portal'); },
+    get field() { return c.getByTestId('field'); },
+    get rowField() { return c.getByTestId('row-field'); },
+  };
 }
 
 function middleClick(el: Element) {
@@ -103,5 +132,51 @@ describe('useArticleMenuGestures', () => {
     const { onOpenSource, button } = setup();
     middleClick(button);
     expect(onOpenSource).not.toHaveBeenCalled();
+  });
+
+  it('does not lose the next tap on a row button after a long press', () => {
+    // Régression : le `touchend` d'un appui abouti est `preventDefault()`, donc
+    // aucun clic ne consomme `fired` ; un contact qui démarre sur un bouton
+    // sortait tôt par `fromButton` et ne rappelait jamais `longPress.reset()`.
+    // Le clic suivant sur ce bouton restait avalé en capture.
+    const { onOpenMenu, onButtonClick, row, button } = setup();
+    fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 30 }] });
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    fireEvent.touchEnd(row);
+    expect(onOpenMenu).toHaveBeenCalledTimes(1);
+
+    fireEvent.touchStart(button, { touches: [{ clientX: 20, clientY: 30 }] });
+    fireEvent.touchEnd(button);
+    fireEvent.click(button);
+    expect(onButtonClick).toHaveBeenCalledTimes(1);
+  });
+
+  describe('portal content (SavedCategoryPicker) is a React child but lives outside the row in the DOM', () => {
+    it('a right-click on the portal does not open the menu, nor get prevented by the row', () => {
+      const { onOpenMenu, portal } = setup(true, { withPortal: true });
+      const notPrevented = fireEvent.contextMenu(portal, { clientX: 40, clientY: 50 });
+      expect(onOpenMenu).not.toHaveBeenCalled();
+      expect(notPrevented).toBe(true);
+    });
+
+    it('a middle click on the portal does not open the article at its source', () => {
+      const { onOpenSource, portal } = setup(true, { withPortal: true });
+      middleClick(portal);
+      expect(onOpenSource).not.toHaveBeenCalled();
+    });
+
+    it('a long press on the portal field does not open the menu', () => {
+      const { onOpenMenu, field } = setup(true, { withPortal: true });
+      fireEvent.touchStart(field, { touches: [{ clientX: 20, clientY: 30 }] });
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      expect(onOpenMenu).not.toHaveBeenCalled();
+    });
+  });
+
+  it('a long press starting on an input directly inside the row does not open the menu', () => {
+    const { onOpenMenu, rowField } = setup(true, { withInput: true });
+    fireEvent.touchStart(rowField, { touches: [{ clientX: 20, clientY: 30 }] });
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(onOpenMenu).not.toHaveBeenCalled();
   });
 });

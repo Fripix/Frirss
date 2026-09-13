@@ -86,6 +86,28 @@ export default function ArticleContextMenu({
     }));
   }, [sheet, x, y, items.length]);
 
+  // Menu flottant seulement : ouvert au clavier (touche Menu), il doit rester
+  // utilisable au clavier. Focus sur la première entrée à l'ouverture, rendu à
+  // l'élément qui l'avait à la fermeture — sauf s'il a déjà perdu ce focus
+  // autrement (fermeture par clic ailleurs, qui a déjà déplacé le focus).
+  // `useLayoutEffect`, pas `useEffect` : le nettoyage doit encore pouvoir lire
+  // `menuRef` au démontage, avant que React ne détache le DOM.
+  useLayoutEffect(() => {
+    if (sheet) return;
+    const previouslyFocused = document.activeElement;
+    const menuEl = menuRef.current;
+    const firstButton = menuEl?.querySelector('button');
+    firstButton?.focus({ preventScroll: true });
+    return () => {
+      const active = document.activeElement;
+      const stillInMenu = active === document.body || active === null
+        || (menuEl?.contains(active) ?? false);
+      if (stillInMenu && previouslyFocused instanceof HTMLElement) {
+        previouslyFocused.focus({ preventScroll: true });
+      }
+    };
+  }, [sheet]);
+
   if (sheet) {
     return (
       <BottomSheet open onClose={onClose} title={article.title}>

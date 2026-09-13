@@ -212,6 +212,11 @@ export default function ArticleList() {
   const menuArticle = articleMenu && articleMenu.view === currentView
     ? articles.find((a) => a.id === articleMenu.articleId) ?? null
     : null;
+  // Le menu ne doit pas juste rester masqué : s'il perd son article (marqué lu
+  // et retiré de « Non lus », par exemple) ou sa vue, il se ferme pour de bon.
+  useEffect(() => {
+    if (articleMenu && !menuArticle) setArticleMenu(null);
+  }, [articleMenu, menuArticle]);
   const copyArticleLink = useCallback(async (url: string) => {
     const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard ?? null : null;
     if (await copyLink(url, clipboard) === 'copied') pushToast(t('toast.linkCopied'));

@@ -19,15 +19,21 @@ export interface PressPoint {
  * (`ArticleActions.tsx`) fonctionnent et viennent d'être validées sur appareil.
  * Les unifier est au backlog, pas dans ce changement.
  *
- * - `touchmove` et `touchend` annulent : un défilement ou un balayage de ligne
- *   n'ouvre rien ;
+ * - `touchmove`, `touchend`, `touchcancel` et un second doigt annulent : un
+ *   défilement, un balayage de ligne, ou un geste à deux doigts (pincer)
+ *   n'ouvrent rien ;
  * - le `touchend` d'un appui abouti est `preventDefault()` : le clic de
  *   compatibilité n'est pas émis (sur téléphone il refermerait la feuille du
  *   bas ouverte sous le doigt). Filet en plus : le clic qui arriverait quand
- *   même est avalé en phase de capture — sans cela, le menu s'ouvrirait ET
- *   l'article se sélectionnerait derrière. Un nouveau contact efface cette
- *   consigne si aucun clic ne l'a consommée ;
- * - `firedRecently()` sert au piège de Chrome Android, qui émet aussi
+ *   même est avalé en phase de capture, mais seulement s'il arrive dans la
+ *   fenêtre d'écho (`firedRecently()`) — passé ce délai, un clic qu'aucun
+ *   nouveau contact n'a effacé (ex. celui d'un bouton de la ligne, dont le
+ *   geste appartient au bouton et ne repasse jamais par `onTouchStart`) est
+ *   laissé passer plutôt que perdu indéfiniment ;
+ * - `reset()` efface cette consigne sans toucher `firedAt` : appelée par
+ *   `useArticleMenuGestures` sur CHAQUE contact qui démarre dans la ligne,
+ *   avant même ses propres filtres (bouton, menu absent) ;
+ * - `firedRecently()` sert aussi au piège de Chrome Android, qui émet
  *   `contextmenu` sur un appui long.
  */
 export function useLongPress(onLongPress: (point: PressPoint) => void) {
@@ -47,30 +53,44 @@ export function useLongPress(onLongPress: (point: PressPoint) => void) {
   }, []);
   useEffect(() => cancel, [cancel]);
 
-  const onTouchStart = useCallback((e: ReactTouchEvent) => {
-    const touch = e.touches[0];
-    const point = { x: touch?.clientX ?? 0, y: touch?.clientY ?? 0 };
+  const reset = useCallback(() => {
     fired.current = false;
-    cancel();
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      fired.current = true;
-      firedAt.current = Date.now();
-      callback.current(point);
-    }, LONG_PRESS_MS);
-  }, [cancel]);
-
-  const onClickCapture = useCallback((e: ReactMouseEvent) => {
-    if (!fired.current) return;
-    fired.current = false;
-    e.preventDefault();
-    e.stopPropagation();
   }, []);
 
   const firedRecently = useCallback(
     () => firedAt.current !== null && Date.now() - firedAt.current < LONG_PRESS_ECHO_MS,
     [],
   );
+
+  const onTouchStart = useCallback((e: ReactTouchEvent) => {
+    reset();
+    cancel();
+    // Un second doigt (pincer, geste à deux doigts) annule l'appui en cours
+    // sans en démarrer un nouveau.
+    if (e.touches.length > 1) return;
+    const touch = e.touches[0];
+    const point = { x: touch?.clientX ?? 0, y: touch?.clientY ?? 0 };
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      fired.current = true;
+      firedAt.current = Date.now();
+      callback.current(point);
+    }, LONG_PRESS_MS);
+  }, [cancel, reset]);
+
+  const onTouchCancel = useCallback(() => {
+    cancel();
+    reset();
+  }, [cancel, reset]);
+
+  const onClickCapture = useCallback((e: ReactMouseEvent) => {
+    if (!fired.current) return;
+    const recent = firedRecently();
+    fired.current = false;
+    if (!recent) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, [firedRecently]);
 
   const onTouchEnd = useCallback((e: ReactTouchEvent) => {
     cancel();
@@ -81,5 +101,5 @@ export function useLongPress(onLongPress: (point: PressPoint) => void) {
     if (fired.current && e.cancelable) e.preventDefault();
   }, [cancel]);
 
-  return { onTouchStart, onTouchMove: cancel, onTouchEnd, onClickCapture, firedRecently };
+  return { onTouchStart, onTouchMove: cancel, onTouchEnd, onTouchCancel, onClickCapture, firedRecently, reset };
 }

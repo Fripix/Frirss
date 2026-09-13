@@ -760,33 +760,60 @@ dans l'issue #11 : le réflexe vient de FreshRSS, où le titre est un vrai lien.
 - **Les actions sont celles des icônes** : « Ouvrir à la source » passe par
   `openArticleAtSource()` (sélection, la ligne garde sa place), « Marquer lu »
   par `toggleRead` (retrait sous « Non lus » compris). Sans URL, « Ouvrir à la
-  source » et « Copier le lien » disparaissent.
+  source » et « Copier le lien » disparaissent. **Le clic molette ouvre
+  l'onglet au premier plan** (`window.open` dans `openExternal()`), à la
+  différence d'un lien natif du navigateur, qui l'ouvrirait en arrière-plan.
 - **« Copier le lien » copie toujours**, même là où `navigator.share` existe :
   l'entrée dit « copier ». `navigator.clipboard` n'existe qu'en contexte
   sécurisé ; son absence est un échec annoncé (`toast.copyFailed`).
 - **Piège — le clic droit des boutons Favori et À lire plus tard est
   prioritaire** : leur rangement par catégorie (`useFileGesture`) appelle
   `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou
-  un clic molette partis d'un bouton lui appartiennent aussi.
+  un clic molette partis d'un élément interactif (bouton, lien, champ,
+  `contenteditable`) lui appartiennent aussi.
+- **Piège — le contenu d'un portail est un enfant React de la ligne** :
+  `SavedCategoryPicker` (rangement par catégorie) se rend dans un portail —
+  son DOM vit hors de la ligne, mais les événements synthétiques React
+  remontent quand même jusqu'à ses gestionnaires, en suivant l'arbre React, pas
+  le DOM. Chaque geste de la ligne vérifie donc en plus une containment DOM
+  (`currentTarget.contains(target)`) avant d'agir : sans elle, un appui long
+  dans le champ « nouvelle catégorie », un clic droit ou un clic molette sur le
+  fond de fermeture du portail étaient captés par la ligne.
 - **Piège — Chrome Android émet `contextmenu` sur un appui long** : dans la
   seconde qui suit un appui long abouti, il est absorbé sans rouvrir le menu
   (`firedRecently()`).
 - **Piège — touche Menu** : `contextmenu` arrive avec `clientX = clientY = 0` ;
   le menu s'ouvre alors sous la ligne (`menuAnchor()`), pas dans le coin de la
   fenêtre.
-- **Appui long** : 500 ms, annulé par `touchmove` et `touchend` (défilement,
-  balayage de ligne).
+- **Appui long** : 500 ms, annulé par `touchmove`, `touchend`, `touchcancel` et
+  un second doigt (pincer, geste à deux doigts).
 - **Piège — le clic de compatibilité après un appui long** : sur téléphone, la
   feuille du bas s'ouvre SOUS le doigt, et le clic émis au relâchement tombait
   sur son fond, qui la refermait aussitôt. Le `touchend` d'un appui abouti est
   donc `preventDefault()` ; le clic qui passerait quand même est avalé en phase
-  de capture sur la ligne.
+  de capture sur la ligne — mais seulement s'il arrive dans la seconde qui
+  suit (`firedRecently()`).
+- **Piège — ce clic avalé perdait le tap suivant sur un bouton de la ligne** :
+  aucun clic ne consommait la consigne « avaler » d'un appui abouti (le
+  `touchend` qui la pose est `preventDefault()`), et un contact qui démarrait
+  sur un bouton en sortait tôt sans jamais l'effacer. `reset()` l'efface donc
+  sur CHAQUE contact qui démarre dans la ligne, avant même de savoir s'il
+  appartient à un bouton ; et l'avalage en capture ne joue plus que dans la
+  fenêtre d'écho (`firedRecently()`) — passé ce délai, un clic qu'aucun nouveau
+  contact n'a effacé est laissé passer plutôt que perdu indéfiniment.
 - **Sélection iOS** : sous `(hover: none)`, lignes et cartes coupent la sélection de texte d'iOS
   (`-webkit-touch-callout` ET `user-select`, comme `.sidebar-feed-item`).
   Troisième implémentation d'un appui long, assumée — celle des flux et
   `useFileGesture` n'ont pas été touchées ; leur unification est au backlog.
+- **Clavier** : le menu flottant (pas la feuille du bas) prend le focus sur sa
+  première entrée à l'ouverture, et le rend à l'élément qui l'avait avant —
+  sauf s'il l'a déjà perdu autrement (fermeture par clic ailleurs). Sans quoi
+  un menu ouvert à la touche Menu ne se pilotait plus au clavier une fois
+  ouvert.
 - **Fermeture** : après chaque action, au `pointerdown` extérieur, à Échap, et
-  quand la vue change (le menu garde l'id de l'article et la vue, pas l'objet).
+  quand la vue change ou que l'article disparaît de la liste courante (le menu
+  garde l'id de l'article et la vue, pas l'objet, et se referme pour de bon
+  s'il ne le retrouve plus — pas seulement masqué).
 - **Pas de `role="menu"`** : il promettrait une navigation aux flèches
   qu'aucun menu de l'application ne fournit.
 

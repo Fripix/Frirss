@@ -92,4 +92,56 @@ describe('ArticleContextMenu', () => {
     expect(h.onToggleStar).toHaveBeenCalledTimes(1);
     expect(h.onClose).toHaveBeenCalledTimes(1);
   });
+
+  describe('clavier', () => {
+    it('donne le focus à la première entrée du menu flottant, à l’ouverture', () => {
+      setup();
+      const buttons = screen.getAllByRole('button');
+      expect(document.activeElement).toBe(buttons[0]);
+    });
+
+    it('rend le focus à l’élément qui l’avait avant l’ouverture, à la fermeture', () => {
+      function Wrapper({ show }: { show: boolean }) {
+        return (
+          <div>
+            <button type="button">outside</button>
+            {show && (
+              <ArticleContextMenu
+                article={article}
+                isReadLater={false}
+                x={30}
+                y={40}
+                sheet={false}
+                onClose={() => {}}
+                onOpenSource={() => {}}
+                onToggleRead={() => {}}
+                onToggleStar={() => {}}
+                onToggleReadLater={() => {}}
+                onCopyLink={() => {}}
+              />
+            )}
+          </div>
+        );
+      }
+      const { rerender } = render(<Wrapper show={false} />);
+      const outside = screen.getByRole('button', { name: 'outside' });
+      outside.focus();
+      expect(document.activeElement).toBe(outside);
+
+      rerender(<Wrapper show />);
+      expect(document.activeElement).not.toBe(outside);
+
+      rerender(<Wrapper show={false} />);
+      expect(document.activeElement).toBe(outside);
+    });
+
+    it('ne déplace pas le focus en feuille du bas', () => {
+      const outside = document.createElement('button');
+      document.body.appendChild(outside);
+      outside.focus();
+      setup({ sheet: true });
+      expect(document.activeElement).toBe(outside);
+      outside.remove();
+    });
+  });
 });
