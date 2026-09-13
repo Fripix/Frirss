@@ -999,6 +999,20 @@ html {
 }
 .article-card--read { opacity: 0.62; }
 
+/* ⚠️ L'appui long qui ouvre le menu d'un article déclencherait AUSSI la
+   sélection de texte d'iOS, par-dessus le menu — le piège déjà rencontré sur
+   `.sidebar-feed-item`. Les deux propriétés sont nécessaires : la première
+   seule laisse le surlignage, la seconde seule laisse la bulle. Seulement là
+   où le survol n'existe pas : le bureau garde la sélection de texte. */
+@media (hover: none) {
+  .article-row,
+  .article-card {
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
 .article-card__thumb {
   position: relative;
   aspect-ratio: 16 / 9;

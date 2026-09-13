@@ -741,6 +741,55 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   raccourci clavier, par exemple — changerait sinon l'état de l'article sans
   que rien ne s'ouvre.
 
+### Menu d'un article
+Clic droit sur une ligne (normale ou compacte) ou une carte de la grille,
+touche Menu du clavier, ou **appui long** au doigt : un menu propose **Ouvrir
+à la source**, **Marquer lu / non lu**, **Favori**, **À lire plus tard** et
+**Copier le lien**. Le **clic molette** ouvre directement à la source. Demandé
+dans l'issue #11 : le réflexe vient de FreshRSS, où le titre est un vrai lien.
+
+- **Où** : `src/components/ArticleList/ArticleContextMenu.tsx` (rendu),
+  `src/hooks/useArticleMenuGestures.ts` (gestes), `src/hooks/useLongPress.ts`,
+  `src/lib/articleMenu.ts` (entrées, point d'ouverture),
+  `src/lib/copyLink.ts` ; état du menu dans `ArticleList.tsx`
+- **Spec** : `docs/superpowers/specs/2026-09-13-article-context-menu-design.md`
+- **Présentation** : feuille du bas sur téléphone (`useBreakpoint() ===
+  'mobile'`), menu flottant ailleurs, rendu dans un portail et replacé par
+  `clampToViewport()`. Un iPad au trackpad reçoit le menu flottant : le choix
+  suit le format, pas le pointeur.
+- **Les actions sont celles des icônes** : « Ouvrir à la source » passe par
+  `openArticleAtSource()` (sélection, la ligne garde sa place), « Marquer lu »
+  par `toggleRead` (retrait sous « Non lus » compris). Sans URL, « Ouvrir à la
+  source » et « Copier le lien » disparaissent.
+- **« Copier le lien » copie toujours**, même là où `navigator.share` existe :
+  l'entrée dit « copier ». `navigator.clipboard` n'existe qu'en contexte
+  sécurisé ; son absence est un échec annoncé (`toast.copyFailed`).
+- **Piège — le clic droit des boutons Favori et À lire plus tard est
+  prioritaire** : leur rangement par catégorie (`useFileGesture`) appelle
+  `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou
+  un clic molette partis d'un bouton lui appartiennent aussi.
+- **Piège — Chrome Android émet `contextmenu` sur un appui long** : dans la
+  seconde qui suit un appui long abouti, il est absorbé sans rouvrir le menu
+  (`firedRecently()`).
+- **Piège — touche Menu** : `contextmenu` arrive avec `clientX = clientY = 0` ;
+  le menu s'ouvre alors sous la ligne (`menuAnchor()`), pas dans le coin de la
+  fenêtre.
+- **Appui long** : 500 ms, annulé par `touchmove` et `touchend` (défilement,
+  balayage de ligne).
+- **Piège — le clic de compatibilité après un appui long** : sur téléphone, la
+  feuille du bas s'ouvre SOUS le doigt, et le clic émis au relâchement tombait
+  sur son fond, qui la refermait aussitôt. Le `touchend` d'un appui abouti est
+  donc `preventDefault()` ; le clic qui passerait quand même est avalé en phase
+  de capture sur la ligne.
+- **Sélection iOS** : sous `(hover: none)`, lignes et cartes coupent la sélection de texte d'iOS
+  (`-webkit-touch-callout` ET `user-select`, comme `.sidebar-feed-item`).
+  Troisième implémentation d'un appui long, assumée — celle des flux et
+  `useFileGesture` n'ont pas été touchées ; leur unification est au backlog.
+- **Fermeture** : après chaque action, au `pointerdown` extérieur, à Échap, et
+  quand la vue change (le menu garde l'id de l'article et la vue, pas l'objet).
+- **Pas de `role="menu"`** : il promettrait une navigation aux flèches
+  qu'aucun menu de l'application ne fournit.
+
 ### Filtre Non lus
 Le bouton **Non lus** de l'en-tête filtre la vue. Sa portée se règle dans
 Préférences → Général (synchronisée) : **Par flux** (défaut) ou **Tous les

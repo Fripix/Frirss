@@ -7,6 +7,7 @@ import { timeAgo } from '../../lib/timeAgo';
 import { extractYouTubeId } from '../../lib/youtube';
 import type { RowActionSettings } from '../../lib/rowActions';
 import { ArticleRowActions } from './ArticleActions';
+import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 
 interface ArticleCardProps {
   article: Article;
@@ -18,12 +19,15 @@ interface ArticleCardProps {
   onToggleRead: (e: ReactMouseEvent) => void;
   onToggleReadLater: (e: ReactMouseEvent) => void;
   onOpenSource: (e: ReactMouseEvent) => void;
+  /** Clic droit, touche Menu ou appui long : ouvre le menu de l'article. Absent, le navigateur garde son menu. */
+  onOpenMenu?: (point: { x: number; y: number }) => void;
 }
 
 export default function ArticleCard({
-  article, showSource, rowActions, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource,
+  article, showSource, rowActions, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu,
 }: ArticleCardProps) {
   const { t } = useTranslation();
+  const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource);
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = extractImageFromContent(article.content);
   const isVideo = !!extractYouTubeId(article.url || '');
@@ -34,6 +38,7 @@ export default function ArticleCard({
       tabIndex={0}
       aria-label={article.title}
       data-article-id={article.id}
+      {...gestures}
       onClick={onSelect}
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}
       className={`article-card ${active ? 'article-card--active' : ''} ${article.read ? 'article-card--read' : ''}`}

@@ -18,6 +18,11 @@ la release publiée.
   flux retient son choix, ou *Tous les flux*, où le bouton Non lus s'applique
   partout. Revenir à *Par flux* repart de l'état du moment : les choix par flux
   antérieurs sont effacés. Demandé dans la discussion #13.
+- **Clic droit sur un article.** Un menu ouvre l'article à la source dans un
+  nouvel onglet, le marque lu ou non lu, l'ajoute aux favoris ou à lire plus
+  tard, ou copie son lien. Au doigt, un appui long ouvre le même menu, en
+  feuille du bas sur téléphone. Le clic molette ouvre directement l'article à
+  la source. Demandé dans l'issue #11.
 
 ## Corrections et améliorations
 

@@ -19,6 +19,9 @@ import { ArticleRowActions } from './ArticleActions';
 import ArticleCard from './ArticleCard';
 import FeedFavicon from '../FeedFavicon';
 import BottomSheet from '../BottomSheet';
+import ArticleContextMenu from './ArticleContextMenu';
+import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
+import { copyLink } from '../../lib/copyLink';
 import { useAuthStore } from '../../stores/authStore';
 import { loadSearchHistory, rememberSearch, forgetSearch } from '../../lib/searchHistory';
 import { scrolledPastTop, shouldMark, MARK_READ_DELAY_MS } from '../../lib/markReadOnScroll';
@@ -125,6 +128,7 @@ export default function ArticleList() {
         // sélectionnerait donc rien ici et sélectionnerait ailleurs.
         openArticleAtSource(article, selectArticleAtSource);
       }}
+      onOpenMenu={(point) => setArticleMenu({ articleId: article.id, view: currentView, ...point })}
     />
   );
 
@@ -198,6 +202,21 @@ export default function ArticleList() {
   const [history, setHistory] = useState<string[]>([]);
   const [markAllConfirm, setMarkAllConfirm] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false); // mobile view-options sheet
+  // Menu contextuel d'un article (clic droit, touche Menu, appui long) — voir
+  // `ArticleContextMenu`. On garde l'id et la vue, pas l'objet : le menu relit
+  // l'article courant, et disparaît si l'article quitte la liste ou si la vue
+  // change.
+  const [articleMenu, setArticleMenu] = useState<{ articleId: string; view: string; x: number; y: number } | null>(null);
+  const closeArticleMenu = useCallback(() => setArticleMenu(null), []);
+  const currentView = `${selectedFeed?.id ?? ''}:${filter}`;
+  const menuArticle = articleMenu && articleMenu.view === currentView
+    ? articles.find((a) => a.id === articleMenu.articleId) ?? null
+    : null;
+  const copyArticleLink = useCallback(async (url: string) => {
+    const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard ?? null : null;
+    if (await copyLink(url, clipboard) === 'copied') pushToast(t('toast.linkCopied'));
+    else pushToast(t('toast.copyFailed'), { tone: 'error' });
+  }, [pushToast, t]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Pull-to-refresh (touch)
@@ -565,6 +584,21 @@ export default function ArticleList() {
 
   return (
     <div className="article-list h-full flex flex-col overflow-x-hidden" style={{ background: 'var(--panel-bg)' }}>
+      {menuArticle && articleMenu && (
+        <ArticleContextMenu
+          article={menuArticle}
+          isReadLater={!!menuArticle.labels?.includes(READ_LATER_LABEL)}
+          x={articleMenu.x}
+          y={articleMenu.y}
+          sheet={isMobile}
+          onClose={closeArticleMenu}
+          onOpenSource={() => openArticleAtSource(menuArticle, selectArticleAtSource)}
+          onToggleRead={() => { void toggleRead(menuArticle); }}
+          onToggleStar={() => { void toggleStar(menuArticle); }}
+          onToggleReadLater={() => { void toggleReadLater(menuArticle); }}
+          onCopyLink={() => { void copyArticleLink(menuArticle.url); }}
+        />
+      )}
       {/* Header */}
       <div
         className="article-list-header flex-shrink-0"
@@ -982,6 +1016,7 @@ export default function ArticleList() {
                         // remonter jusqu'à la ligne : voir `renderCard`.
                         openArticleAtSource(article, selectArticleAtSource);
                       }}
+                      onOpenMenu={(point) => setArticleMenu({ articleId: article.id, view: currentView, ...point })}
                     />
                   );
 
@@ -1364,6 +1399,8 @@ interface ArticleRowProps {
   onToggleRead: (e: ReactMouseEvent) => void;
   onToggleReadLater: (e: ReactMouseEvent) => void;
   onOpenSource: (e: ReactMouseEvent) => void;
+  /** Clic droit, touche Menu ou appui long : ouvre le menu de l'article. Absent, le navigateur garde son menu. */
+  onOpenMenu?: (point: { x: number; y: number }) => void;
 }
 
 /**
@@ -1373,8 +1410,9 @@ interface ArticleRowProps {
  * tenaient qu'à travers la carte de la vue grille. `ArticleList` reste
  * l'unique consommateur applicatif.
  */
-export function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource }: ArticleRowProps) {
+export function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu }: ArticleRowProps) {
   const { t } = useTranslation();
+  const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource);
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = viewMode === 'preview' ? extractImageFromContent(article.content) : null;
   // Décalage d'apparition. Le seuil et le droit d'animer sont décidés en
@@ -1413,6 +1451,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
         tabIndex={0}
         draggable
         onDragStart={handleDragStart}
+        {...gestures}
         onClick={onSelect}
         onKeyDown={(e) => e.key === 'Enter' && onSelect()}
         className={`article-row w-full text-left flex items-center gap-3 px-4 py-2 cursor-pointer ${
@@ -1476,6 +1515,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
       tabIndex={0}
       draggable
       onDragStart={handleDragStart}
+      {...gestures}
       onClick={onSelect}
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}
       /* Unread marker. The compact row has a dot; these rows had nothing but a
