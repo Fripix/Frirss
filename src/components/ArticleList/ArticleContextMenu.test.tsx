@@ -1,0 +1,95 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, cleanup, fireEvent, screen } from '@testing-library/react';
+import ArticleContextMenu from './ArticleContextMenu';
+import type { Article } from '../../types';
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (k: string) => k }),
+  initReactI18next: { type: '3rdParty', init: () => {} },
+}));
+
+afterEach(cleanup);
+
+const article = {
+  id: 'a1', title: 'Hello World', url: 'https://example.com/1', read: false, starred: false, labels: [],
+} as unknown as Article;
+
+function setup(over: { article?: Partial<Article>; isReadLater?: boolean; sheet?: boolean } = {}) {
+  const handlers = {
+    onClose: vi.fn(), onOpenSource: vi.fn(), onToggleRead: vi.fn(),
+    onToggleStar: vi.fn(), onToggleReadLater: vi.fn(), onCopyLink: vi.fn(),
+  };
+  render(
+    <ArticleContextMenu
+      article={{ ...article, ...over.article }}
+      isReadLater={over.isReadLater ?? false}
+      x={30}
+      y={40}
+      sheet={over.sheet ?? false}
+      {...handlers}
+    />,
+  );
+  return handlers;
+}
+
+describe('ArticleContextMenu', () => {
+  it('shows the five entries in order', () => {
+    setup();
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'articleRow.openSource', 'articleRow.markRead', 'articleRow.addStar', 'articleRow.addReadLater', 'articleRow.copyLink',
+    ]);
+  });
+
+  it('runs each entry through its own handler, then closes', () => {
+    const cases: [string, 'onOpenSource' | 'onToggleRead' | 'onToggleStar' | 'onToggleReadLater' | 'onCopyLink'][] = [
+      ['articleRow.openSource', 'onOpenSource'],
+      ['articleRow.markRead', 'onToggleRead'],
+      ['articleRow.addStar', 'onToggleStar'],
+      ['articleRow.addReadLater', 'onToggleReadLater'],
+      ['articleRow.copyLink', 'onCopyLink'],
+    ];
+    for (const [label, handler] of cases) {
+      const h = setup();
+      fireEvent.click(screen.getByRole('button', { name: label }));
+      expect(h[handler]).toHaveBeenCalledTimes(1);
+      expect(h.onClose).toHaveBeenCalledTimes(1);
+      cleanup();
+    }
+  });
+
+  it('labels follow the article state', () => {
+    setup({ article: { read: true, starred: true }, isReadLater: true });
+    expect(screen.getByRole('button', { name: 'articleRow.markUnread' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'articleRow.removeStar' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'articleRow.removeReadLater' })).toBeTruthy();
+  });
+
+  it('has no open-at-source nor copy-link without a URL', () => {
+    setup({ article: { url: '' } });
+    expect(screen.queryByRole('button', { name: 'articleRow.openSource' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'articleRow.copyLink' })).toBeNull();
+  });
+
+  it('closes on Escape', () => {
+    const h = setup();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(h.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes on a pointerdown outside, not inside', () => {
+    const h = setup();
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'articleRow.markRead' }));
+    expect(h.onClose).not.toHaveBeenCalled();
+    fireEvent.pointerDown(document.body);
+    expect(h.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('on a phone, renders a bottom sheet titled with the article', () => {
+    const h = setup({ sheet: true });
+    expect(screen.getByRole('dialog', { name: 'Hello World' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'articleRow.addStar' }));
+    expect(h.onToggleStar).toHaveBeenCalledTimes(1);
+    expect(h.onClose).toHaveBeenCalledTimes(1);
+  });
+});
