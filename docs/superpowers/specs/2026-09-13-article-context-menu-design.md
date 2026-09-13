@@ -55,6 +55,10 @@ lecture.
   `touchend` — un défilement ou un balayage de ligne (`SwipeableArticleRow`, qui
   écoute `touchmove` en natif) annule donc l'appui. Le clic qui termine un appui
   abouti est avalé : il n'ouvre pas l'article.
+  - **Piège (relevé au plan)** : sur téléphone, la feuille du bas s'ouvre sous le
+    doigt ; le clic de compatibilité émis au relâchement tomberait sur son fond
+    et la refermerait. Le `touchend` d'un appui abouti est donc
+    `preventDefault()`, ce qui supprime ce clic à la source.
   - **Piège** : Chrome Android émet aussi `contextmenu` sur appui long. Si l'appui
     long vient d'ouvrir le menu, ce `contextmenu` est absorbé
     (`preventDefault()`) sans rouvrir le menu.
@@ -101,7 +105,8 @@ lecture.
 |---|---|
 | `src/lib/articleMenu.ts` (nouveau) | `articleMenuItems(article)` → liste ordonnée `{ kind, labelKey }` ; `menuAnchor(event, rect)` → point d'ouverture (curseur, ou ligne si ouverture clavier) |
 | `src/lib/copyLink.ts` (nouveau) | `copyLink(url, clipboard?)` → `'copied' \| 'failed'`, sans dépendance à l'interface |
-| `src/hooks/useLongPress.ts` (nouveau) | appui long 500 ms au doigt : `onTouchStart`, `onTouchMove`, `onTouchEnd`, `onClickCapture` (clic avalé), `firedRecently()` pour le piège Android |
+| `src/hooks/useLongPress.ts` (nouveau) | appui long 500 ms au doigt : `onTouchStart`, `onTouchMove`, `onTouchEnd` (`preventDefault()` après un appui abouti), `onClickCapture` (clic avalé), `firedRecently()` pour le piège Android |
+| `src/hooks/useArticleMenuGestures.ts` (nouveau, ajouté au plan) | les gestes d'une ligne ou d'une carte réunis une fois pour trois surfaces : clic droit / touche Menu / appui long → menu, clic molette → source, priorité aux boutons |
 | `src/components/ArticleList/ArticleContextMenu.tsx` (nouveau) | rendu : `BottomSheet` sur téléphone, menu flottant ailleurs ; exécute les actions ; se ferme |
 | `ArticleList.tsx` (`ArticleRow`, grille), `ArticleCard.tsx` | branchement : clic droit, appui long, clic molette ; un seul état de menu au niveau de la liste |
 | `src/styles/index.css` | suppression de la sélection iOS sous `(hover: none)` |
