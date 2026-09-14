@@ -6,6 +6,65 @@ release live on its [release page](https://github.com/Fripix/Frirss/releases).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 FriRSS follows [semantic versioning](https://semver.org/).
 
+## [1.4.11] - 2026-09-14
+
+## Fonctionnalités
+
+- **Le filtre Non lus peut s'appliquer à tous les flux.** Préférences →
+  Général, « Filtre Non lus » : *Par flux*, le fonctionnement actuel où chaque
+  flux retient son choix, ou *Tous les flux*, où le bouton Non lus s'applique
+  partout, y compris à l'entrée « Tous les flux » de la barre latérale. Revenir
+  à *Par flux* repart de l'état du moment : les choix par flux
+  antérieurs sont effacés. Limite connue : les préférences se synchronisent
+  d'un bloc, si bien qu'un appareil resté ouvert depuis avant le retour à *Par
+  flux* peut réécrire les anciens choix à son prochain changement de
+  préférence — recharger les autres appareils ouverts. Demandé dans la
+  discussion #13.
+- **Clic droit sur un article.** Un menu ouvre l'article à la source dans un
+  nouvel onglet, le marque lu ou non lu, l'ajoute aux favoris ou à lire plus
+  tard, ou copie son lien. Au doigt, un appui long ouvre le même menu, en
+  feuille du bas sur téléphone. Le clic molette ouvre directement l'article à
+  la source. Demandé dans l'issue #11.
+
+## Corrections et améliorations
+
+- **Le menu d'un flux s'ouvre enfin au doigt.** Un appui long sur un flux dans
+  la barre latérale ouvre le même menu que le clic droit : renommer, ouvrir le
+  site, extraction automatique, se désabonner. Sur téléphone et tablette, ces
+  quatre actions n'étaient jusqu'ici accessibles par aucun geste — le bouton ⋯
+  n'apparaît qu'au survol d'une souris.
+- **Et ce menu ne s'ouvre plus hors de l'écran.** Il s'ancrait au bord droit de
+  la ligne sans jamais être ramené dans la fenêtre : sur un téléphone, il
+  s'ouvrait en dehors, ce qui donnait l'impression que rien ne se passait. Le
+  clic droit près du bord d'une fenêtre étroite était touché de la même façon.
+  Une tape à côté du menu le referme désormais aussi au doigt.
+- **Et son contenu ne déborde plus.** La rangée de disposition du flux était
+  coupée par le bord du menu ; elle passe à la ligne quand elle ne tient pas.
+- **L'appui long ne surligne plus le nom du flux.** iOS lançait sa sélection de
+  texte par-dessus le menu qui venait de s'ouvrir.
+- **On peut de nouveau sortir des préférences sur un écran étroit.** Le
+  sélecteur de thème poussait la croix de fermeture hors du panneau : il n'y
+  avait plus aucun moyen de revenir à l'interface. Sur téléphone, ce raccourci
+  de thème quitte l'en-tête, où il recouvrait « Tout réinitialiser » ; les
+  thèmes restent dans la section Apparence.
+- **Le choix actif du « Mode d'authentification » se lit enfin.** Il était écrit
+  en blanc sur le vert d'accent, un contraste de 1,9:1 ; il prend désormais la
+  couleur de texte prévue pour l'accent, lisible dans tous les thèmes.
+- **Les menus contextuels se visent mieux au doigt.** Sur tablette et
+  téléphone, les entrées du menu d'un flux — et du nouveau menu d'un article —
+  font désormais 44 pt de haut, contre 40 px.
+
+## Actions requises à la mise à jour
+
+Rien à faire : aucune nouvelle variable d'environnement, aucune migration.
+
+## Documentation
+
+- **La démo en ligne est annoncée dans le README**, avec ses identifiants de
+  démonstration et les restrictions de l'instance.
+- **README** : la portée du filtre Non lus, le menu d'un article et l'appui long
+  qui ouvre un menu au doigt rejoignent la liste des fonctionnalités.
+
 ## [1.4.10] - 2026-09-07
 
 ## Fonctionnalités
