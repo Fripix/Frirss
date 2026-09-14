@@ -203,8 +203,12 @@ export default function Preferences() {
             <h2 className="text-lg font-bold flex-shrink-0" style={{ color: 'var(--list-title)' }}>
               {t('preferences.title')}
             </h2>
-            {/* Theme dropdown — show when there are custom themes beyond the default */}
-            {savedThemes.length > 1 && (
+            {/* Raccourci de thème — pas sur téléphone. À 320 px il chevauchait
+                « Tout réinitialiser » dans toutes les langues : 280 px utiles,
+                141 pour le bouton et la croix, 116 pour le titre et l'espace,
+                et le sélecteur ne descend pas sous 76. Les thèmes restent tous
+                dans la section Apparence. */}
+            {!isMobile && savedThemes.length > 1 && (
               <select
                 value={theme.name}
                 onChange={(e) => loadSavedTheme(e.target.value)}

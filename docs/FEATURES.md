@@ -1651,6 +1651,14 @@ avec le zoom d'affichage) : la croix tombait à 376 px. Le titre est
 `flex-shrink-0`, le sélecteur cède avant lui sans descendre sous 76 px, et le
 groupe de droite est `flex-shrink-0` pour ne jamais être poussé dehors.
 
+⚠️ **Et ce minimum de 76 px ne suffisait pas.** À 320 px, l'en-tête a 280 px
+utiles : 141 pour « Tout réinitialiser » et la croix, 116 pour le titre et
+l'espacement. Le sélecteur, même réduit, **chevauchait** le bouton — 54 px en
+français, 76 en allemand, mesuré avec `getBoundingClientRect()` sur le vrai
+balisage. Sur téléphone (`useBreakpoint() === 'mobile'`), le raccourci de thème
+n'est donc plus rendu : les thèmes restent tous dans la section Apparence.
+Tablette et desktop le gardent. Test : `Preferences.header.test.tsx`.
+
 
 Panneau à navigation verticale : **Général** (langue, lecture, raccourcis),
 **Apparence** (thème, couleurs, tailles, identité), **Mise en page** (icônes
