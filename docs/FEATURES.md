@@ -839,6 +839,15 @@ flux**.
 - **Tous les flux** : un seul état, `unreadOnlyAll`, pour toutes les vues ; la
   table par flux est ignorée. Le bouton de l'état vide « Tout est lu » désactive
   alors le filtre partout.
+- **L'entrée « Tous les flux »** (barre latérale, palette) : par flux, elle
+  montre tout, comme avant. En portée « Tous les flux », elle **suit l'état
+  global** (`feedStore.selectHomeAll()`) et **reste surlignée** même quand la
+  vue ne montre que les non-lus. Le store retient l'entrée d'accueil choisie
+  (`homeEntry` — « Non lus » seulement quand la vue non lus est demandée), et
+  `homeEntryActive()` (`src/lib/unreadScope.ts`) décide du surlignage. Sans
+  cela, cliquer « Tous les flux » allumait « Non lus ». Décision du
+  propriétaire, 2026-09-14 ; en portée par flux, la règle de surlignage est
+  l'ancienne, à l'identique (test).
 - **Une seule porte de lecture** : `isUnreadOnly(clé)`. Ne jamais relire
   `unreadOnlyByFeed` directement pour décider d'un filtre — c'est ce que
   faisaient les quatre sites d'origine, et un cinquième ignorerait la portée.

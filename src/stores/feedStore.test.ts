@@ -204,6 +204,47 @@ describe('feedStore — filtre Non lus en portée « Tous les flux »', () => {
   });
 });
 
+describe('feedStore — entrée d\'accueil « Tous les flux »', () => {
+  const feedA = { id: 'feed/A', title: 'A' } as unknown as Subscription;
+
+  beforeEach(() => {
+    localStorage.clear();
+    useFeedStore.setState({ loadArticles: vi.fn() as never, selectedFeed: null, filter: 'all', homeEntry: 'all' });
+  });
+
+  afterEach(() => {
+    useUiStore.setState({ unreadOnlyScope: 'feed', unreadOnlyAll: false, unreadOnlyByFeed: {} });
+  });
+
+  it('per feed: « Tous les flux » still shows everything, whatever the home view remembered', () => {
+    useUiStore.setState({ unreadOnlyScope: 'feed', unreadOnlyAll: false, unreadOnlyByFeed: { '': true } });
+    useFeedStore.getState().selectHomeAll();
+    expect(useFeedStore.getState().filter).toBe('all');
+    expect(useFeedStore.getState().selectedFeed).toBeNull();
+    expect(useFeedStore.getState().homeEntry).toBe('all');
+  });
+
+  it('all feeds: « Tous les flux » follows the global unread state', () => {
+    useUiStore.setState({ unreadOnlyScope: 'all', unreadOnlyAll: true, unreadOnlyByFeed: {} });
+    useFeedStore.getState().selectHomeAll();
+    expect(useFeedStore.getState().filter).toBe('unread');
+    expect(useFeedStore.getState().homeEntry).toBe('all');
+  });
+
+  it('asking for the unread view explicitly records the « Non lus » entry', () => {
+    useFeedStore.getState().selectView(null, 'unread');
+    expect(useFeedStore.getState().homeEntry).toBe('unread');
+    useFeedStore.getState().selectView(null, 'all');
+    expect(useFeedStore.getState().homeEntry).toBe('all');
+  });
+
+  it('opening a feed leaves the recorded home entry alone', () => {
+    useFeedStore.getState().selectView(null, 'unread');
+    useFeedStore.getState().selectView(feedA);
+    expect(useFeedStore.getState().homeEntry).toBe('unread');
+  });
+});
+
 describe('feedStore.silentRefresh — keep the article being read (unread filter)', () => {
   const feed = { id: 'feed/1', title: 'F' } as unknown as Subscription;
   const A = { id: 'a', read: true, sourceId: 'feed/1', title: 'A', published: 1000 } as Article;

@@ -6,6 +6,7 @@ import { openExternal } from '../../lib/openExternal';
 import { clampToViewport } from '../../lib/clampToViewport';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
+import { homeEntryActive } from '../../lib/unreadScope';
 import { useThemeStore } from '../../stores/themeStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import AddFeedDialog from './AddFeedDialog';
@@ -37,7 +38,9 @@ export default function Sidebar() {
     unreadCounts,
     selectedFeed,
     filter,
+    homeEntry,
     selectView,
+    selectHomeAll,
     selectCategory,
     refresh,
     labels,
@@ -51,6 +54,7 @@ export default function Sidebar() {
   } = useFeedStore();
   const serverUrl = useAuthStore((s) => s.serverUrl);
   const logout = useAuthStore((s) => s.logout);
+  const unreadOnlyScope = useUiStore((s) => s.unreadOnlyScope);
   const {
     showFavicons,
     toggleFavicons,
@@ -432,9 +436,9 @@ export default function Sidebar() {
             </svg>
           }
           label={t('sidebar.allFeeds')}
-          active={filter === 'all' && !selectedFeed}
+          active={homeEntryActive('all', { hasFeed: !!selectedFeed, filter, scope: unreadOnlyScope, homeEntry })}
           count={totalUnread}
-          onClick={() => selectView(null, 'all')}
+          onClick={() => selectHomeAll()}
         />
         <FilterItem
           icon={
@@ -444,7 +448,7 @@ export default function Sidebar() {
             </svg>
           }
           label={t('sidebar.unread')}
-          active={filter === 'unread' && !selectedFeed}
+          active={homeEntryActive('unread', { hasFeed: !!selectedFeed, filter, scope: unreadOnlyScope, homeEntry })}
           count={totalUnread}
           onClick={() => selectView(null, 'unread')}
         />

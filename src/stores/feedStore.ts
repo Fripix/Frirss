@@ -22,6 +22,7 @@ import {
 } from '../api/feeds';
 import { useAuthStore } from './authStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
+import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
@@ -313,6 +314,8 @@ export interface FeedState {
   selectedFeed: Subscription | null;
   selectedArticle: Article | null;
   filter: Filter;
+  /** Entrée d'accueil choisie — voir `homeEntryActive` (`src/lib/unreadScope.ts`). */
+  homeEntry: HomeEntry;
   loading: boolean;
   loadingMore: boolean;
   /**
@@ -362,6 +365,8 @@ export interface FeedState {
   warmFeedLists: () => Promise<void>;
   selectFeed: (feed: Subscription | null) => void;
   selectView: (feed: Subscription | null, filter?: Filter) => void;
+  /** Entrée « Tous les flux » (barre latérale, palette). */
+  selectHomeAll: () => void;
   selectCategory: (cat: FeedCategory) => void;
   selectArticle: (article: Article | null) => void;
   loadSubscriptions: () => Promise<void>;
@@ -458,6 +463,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   // Honour the persisted per-feed "unread only" preference for the startup
   // (landing / "all feeds") view.
   filter: isUnreadOnly('') ? 'unread' : 'all',
+  homeEntry: 'all',
   loading: false,
   loadingMore: false,
   revalidating: false,
@@ -504,8 +510,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   selectView: (feed, filter) => {
     const f = filter ?? (isUnreadOnly(feed?.id ?? '') ? 'unread' : 'all');
     const c = memGet(viewKey(feed ?? null, f));
-    set({ selectedFeed: feed ?? null, filter: f, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
+    // Entrée d'accueil surlignée (`homeEntryActive`) : « Non lus » seulement
+    // quand la vue non lus est DEMANDÉE ; toute autre vue d'accueil relève de
+    // « Tous les flux ». Ouvrir un flux ne la change pas.
+    const homeEntry: HomeEntry = feed ? get().homeEntry : filter === 'unread' ? 'unread' : 'all';
+    set({ selectedFeed: feed ?? null, filter: f, homeEntry, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
+  },
+
+  // Entrée « Tous les flux ». Par flux, elle montre tout, comme avant. En
+  // portée « Tous les flux », elle suit l'état global : sans filtre explicite,
+  // `selectView` résout par `isUnreadOnly('')`.
+  selectHomeAll: () => {
+    get().selectView(null, useUiStore.getState().unreadOnlyScope === 'all' ? undefined : 'all');
   },
 
   // Open a whole category: its Google Reader label stream aggregates every feed

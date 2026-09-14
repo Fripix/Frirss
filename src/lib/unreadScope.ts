@@ -47,3 +47,25 @@ export function switchUnreadScope(prefs: UnreadPrefs, to: UnreadScope, currentKe
   }
   return { scope: 'feed', all: prefs.all, byFeed: {} };
 }
+
+/** Entrée d'accueil de la barre latérale : « Tous les flux » ou « Non lus ». */
+export type HomeEntry = 'all' | 'unread';
+
+/**
+ * L'entrée d'accueil `entry` est-elle surlignée ?
+ *
+ * En portée par flux : l'ancienne règle, à l'identique — le surlignage suit le
+ * filtre affiché. En portée « Tous les flux », l'entrée « Tous les flux » suit
+ * l'état global et peut donc montrer les non-lus : elle reste alors surlignée
+ * tant que c'est elle qui a été choisie (`homeEntry === 'all'`), sinon cliquer
+ * « Tous les flux » allumerait « Non lus ». Décision du propriétaire, 2026-09-14.
+ */
+export function homeEntryActive(
+  entry: HomeEntry,
+  view: { hasFeed: boolean; filter: string; scope: UnreadScope; homeEntry: HomeEntry },
+): boolean {
+  if (view.hasFeed) return false;
+  const globalHome = view.scope === 'all' && view.homeEntry === 'all';
+  if (entry === 'all') return view.filter === 'all' || (view.filter === 'unread' && globalHome);
+  return view.filter === 'unread' && !globalHome;
+}

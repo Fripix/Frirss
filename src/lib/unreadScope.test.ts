@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadPrefs } from './unreadScope';
+import { homeEntryActive, type HomeEntry } from './unreadScope';
 
 const prefs = (over: Partial<UnreadPrefs> = {}): UnreadPrefs => ({
   scope: 'feed',
@@ -65,5 +66,41 @@ describe('normalizeUnreadScope', () => {
     expect(normalizeUnreadScope('everything')).toBe('feed');
     expect(normalizeUnreadScope(undefined)).toBe('feed');
     expect(normalizeUnreadScope(null)).toBe('feed');
+  });
+});
+
+describe('homeEntryActive', () => {
+  const view = (over: Partial<{ hasFeed: boolean; filter: string; scope: 'feed' | 'all'; homeEntry: HomeEntry }> = {}) => ({
+    hasFeed: false, filter: 'all', scope: 'feed' as const, homeEntry: 'all' as HomeEntry, ...over,
+  });
+
+  it('per feed: exactly the legacy rule — the highlighted entry follows the filter', () => {
+    for (const homeEntry of ['all', 'unread'] as HomeEntry[]) {
+      expect(homeEntryActive('all', view({ filter: 'all', homeEntry }))).toBe(true);
+      expect(homeEntryActive('unread', view({ filter: 'all', homeEntry }))).toBe(false);
+      expect(homeEntryActive('all', view({ filter: 'unread', homeEntry }))).toBe(false);
+      expect(homeEntryActive('unread', view({ filter: 'unread', homeEntry }))).toBe(true);
+    }
+  });
+
+  it('all feeds: « Tous les flux » stays highlighted while the global filter shows unread only', () => {
+    const v = view({ scope: 'all', filter: 'unread', homeEntry: 'all' });
+    expect(homeEntryActive('all', v)).toBe(true);
+    expect(homeEntryActive('unread', v)).toBe(false);
+  });
+
+  it('all feeds: « Non lus » is highlighted when it was the entry chosen', () => {
+    const v = view({ scope: 'all', filter: 'unread', homeEntry: 'unread' });
+    expect(homeEntryActive('unread', v)).toBe(true);
+    expect(homeEntryActive('all', v)).toBe(false);
+  });
+
+  it('no home entry is highlighted on a feed, or on favourites and read later', () => {
+    for (const scope of ['feed', 'all'] as const) {
+      expect(homeEntryActive('all', view({ scope, hasFeed: true, filter: 'unread' }))).toBe(false);
+      expect(homeEntryActive('unread', view({ scope, hasFeed: true, filter: 'unread', homeEntry: 'unread' }))).toBe(false);
+      expect(homeEntryActive('all', view({ scope, filter: 'starred' }))).toBe(false);
+      expect(homeEntryActive('unread', view({ scope, filter: 'readlater', homeEntry: 'unread' }))).toBe(false);
+    }
   });
 });

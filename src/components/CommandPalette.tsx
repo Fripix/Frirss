@@ -44,7 +44,7 @@ export default function CommandPalette() {
 
     // Vues fixes — l'équivalent des entrées du haut de la barre latérale.
     const views: Array<[string, string, () => void]> = [
-      ['all', t('sidebar.allFeeds'), () => feedStore.selectView(null, 'all')],
+      ['all', t('sidebar.allFeeds'), () => feedStore.selectHomeAll()],
       ['unread', t('sidebar.unread'), () => feedStore.selectView(null, 'unread')],
       ['starred', t('sidebar.starred'), () => feedStore.selectView(null, 'starred')],
       ['readlater', t('sidebar.readLater'), () => feedStore.selectView(null, 'readlater')],

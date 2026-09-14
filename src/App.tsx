@@ -203,7 +203,9 @@ export default function App() {
         const desired = isUnreadOnly('') ? 'unread' : 'all';
         if (!fs.selectedFeed && !fs.selectedArticle &&
             (fs.filter === 'all' || fs.filter === 'unread') && fs.filter !== desired) {
-          fs.selectView(null, desired);
+          // En portée « Tous les flux », pas de filtre explicite : la vue
+          // d'accueil reste rangée sous l'entrée « Tous les flux » (`homeEntry`).
+          fs.selectView(null, useUiStore.getState().unreadOnlyScope === 'all' ? undefined : desired);
         }
       });
     } else {

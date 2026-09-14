@@ -164,6 +164,24 @@ desktop, dans un thème clair et un sombre.
 | `src/locales/*.json` | libellé, aide et deux choix, dans les **10** locales |
 | `docs/FEATURES.md` | Liste d'articles et Préférences — obligatoire, même commit |
 
+## Complément — 2026-09-14 : l'entrée « Tous les flux »
+
+Vérifié sur l'instance de dev : en portée « Tous les flux » avec Non lus actif,
+l'entrée « Tous les flux » de la barre latérale affichait tout (filtre explicite
+`'all'`, antérieur à cette fonctionnalité). Décision du propriétaire : elle suit
+l'état global, et **reste surlignée**.
+
+- `feedStore.selectHomeAll()` : par flux, `selectView(null, 'all')` comme avant ;
+  en portée `all`, `selectView(null)`, qui résout par `isUnreadOnly('')`. Même
+  action pour la palette de commandes.
+- `homeEntry` (`'all' | 'unread'`) : `'unread'` seulement quand la vue non lus
+  est demandée explicitement ; ouvrir un flux ne la change pas.
+- `homeEntryActive(entrée, vue)` : en portée par flux, l'ancienne règle à
+  l'identique ; en portée `all` avec `homeEntry === 'all'`, « Tous les flux »
+  reste allumée sous le filtre non lus et « Non lus » s'éteint.
+- Démarrage (`App.tsx`) : en portée `all`, la vue d'accueil passe par
+  `selectView(null)` et reste rangée sous « Tous les flux ».
+
 ## Hors périmètre
 
 Le clic droit sur un article (issue #11) et le rafraîchissement automatique de la

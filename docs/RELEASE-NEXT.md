@@ -16,7 +16,8 @@ la release publiée.
 - **Le filtre Non lus peut s'appliquer à tous les flux.** Préférences →
   Général, « Filtre Non lus » : *Par flux*, le fonctionnement actuel où chaque
   flux retient son choix, ou *Tous les flux*, où le bouton Non lus s'applique
-  partout. Revenir à *Par flux* repart de l'état du moment : les choix par flux
+  partout, y compris à l'entrée « Tous les flux » de la barre latérale. Revenir
+  à *Par flux* repart de l'état du moment : les choix par flux
   antérieurs sont effacés. Demandé dans la discussion #13.
 - **Clic droit sur un article.** Un menu ouvre l'article à la source dans un
   nouvel onglet, le marque lu ou non lu, l'ajoute aux favoris ou à lire plus
