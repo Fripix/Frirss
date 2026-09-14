@@ -71,9 +71,10 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Three panes on desktop**, and an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
 - **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant. On a feed set to auto-extract, the next articles are warmed ahead of you, images included, so swiping lands on a page that is already whole.
 - **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
-- **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed.
+- **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed — or, if you prefer, one choice applies to every feed (*Preferences → General → Unread filter*).
 - **Ticking an article read clears it from the unread list** — instantly, in every layout including the compact one. Opening an article leaves its row where it is, so you keep your place; only a deliberate tick removes one. If the server refuses the write, the row comes back and says so.
 - **Open an article at its source** — an icon on each row opens the origin site in a new tab and selects the article, so it is marked read and keeps its place in the list. For the feeds you would rather read on the site itself.
+- **Right-click an article** — or long-press it on touch, or press the keyboard Menu key — for a menu: open at source, mark read or unread, favorite, read later, copy link. On a phone it opens as a bottom sheet; a middle click opens the article at its source directly.
 - **Search and infinite scroll**, scoped to the view you are actually in — and the last five queries are offered back, per server.
 - **Mark as read while scrolling**, optionally: an article is marked once it has left the top of the list. Off by default, never during a search.
 - **Share an article or copy its link** from the reading pane — the system share sheet on mobile, the clipboard elsewhere.
@@ -82,6 +83,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 ### Keyboard and reach
 - **A command palette** on <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>: jump to a feed, a category, a label, a view, switch FreshRSS server, or run an action. Accents are ignored, so *securite* finds *Sécurité*.
 - **Ten reassignable shortcuts**, and <kbd>?</kbd> opens a sheet listing them with the keys you actually configured.
+- **Menus by long press on touch** — a feed in the sidebar opens its menu (rename, open site, auto-extract, unsubscribe), an article opens its own, with 44pt rows.
 - **Built to be used without a mouse** — a visible focus ring throughout, 44pt touch targets, screen-reader names on icon-only buttons, and *reduced motion* honored everywhere.
 
 ### Make it yours

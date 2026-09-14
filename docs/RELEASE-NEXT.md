@@ -18,7 +18,11 @@ la release publiée.
   flux retient son choix, ou *Tous les flux*, où le bouton Non lus s'applique
   partout, y compris à l'entrée « Tous les flux » de la barre latérale. Revenir
   à *Par flux* repart de l'état du moment : les choix par flux
-  antérieurs sont effacés. Demandé dans la discussion #13.
+  antérieurs sont effacés. Limite connue : les préférences se synchronisent
+  d'un bloc, si bien qu'un appareil resté ouvert depuis avant le retour à *Par
+  flux* peut réécrire les anciens choix à son prochain changement de
+  préférence — recharger les autres appareils ouverts. Demandé dans la
+  discussion #13.
 - **Clic droit sur un article.** Un menu ouvre l'article à la source dans un
   nouvel onglet, le marque lu ou non lu, l'ajoute aux favoris ou à lire plus
   tard, ou copie son lien. Au doigt, un appui long ouvre le même menu, en
@@ -55,12 +59,15 @@ la release publiée.
 
 ## Sous le capot
 
-_(rien pour l'instant)_
+_(rien)_
 
 ## Actions requises à la mise à jour
 
-_(à compléter)_
+Rien à faire : aucune nouvelle variable d'environnement, aucune migration.
 
 ## Documentation
 
-_(rien pour l'instant)_
+- **La démo en ligne est annoncée dans le README**, avec ses identifiants de
+  démonstration et les restrictions de l'instance.
+- **README** : la portée du filtre Non lus, le menu d'un article et l'appui long
+  qui ouvre un menu au doigt rejoignent la liste des fonctionnalités.
