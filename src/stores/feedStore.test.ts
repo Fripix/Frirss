@@ -469,6 +469,26 @@ describe('feedStore — pastille « nouveaux articles »', () => {
       await writePending;
     });
 
+    // Contrôle final (2026-09-17) : le pendant du test ci-dessus — un ✓ qui
+    // RÉUSSIT doit relâcher `readWritesInFlight`, sans quoi TOUTE arrivée
+    // future resterait masquée pour toujours (pas seulement le relevé qui
+    // suit). Passe par `selectArticle` (pas `toggleRead`) : c'est le seul des
+    // deux sites où l'appel réseau est fire-and-forget (`.catch().finally()`,
+    // jamais `await`é par la fonction elle-même) — le risque d'oublier le
+    // décrément y est distinct.
+    it('un ✓ réussi via selectArticle libère le compteur — une vraie hausse ultérieure est comptée', async () => {
+      vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+      useFeedStore.setState({ articles: [feedArticle] });
+      useFeedStore.getState().selectArticle(feedArticle);
+      // `selectArticle` ne rend pas la chaîne `.catch().finally()` : le seul
+      // moyen de laisser le `finally` s'exécuter est de rendre la main à la
+      // boucle d'événements.
+      await new Promise((r) => setTimeout(r, 0));
+      vi.mocked(api.getUnreadCounts).mockResolvedValueOnce(counts({ 'feed/A': 5, 'feed/B': 1 }));
+      await useFeedStore.getState().syncCounts();
+      expect(useFeedStore.getState().newInView).toBeGreaterThan(0);
+    });
+
     it('« tout marquer lu » pendant le vol ne compte pas comme une arrivée', async () => {
       vi.mocked(api.markAllAsRead).mockResolvedValue(undefined);
       const resolveCounts = deferredCounts();

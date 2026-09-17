@@ -518,6 +518,21 @@ async function enqueueAction(
   value: boolean,
   labelId?: string,
 ): Promise<void> {
+  // Posé EN PREMIER, avant tout `await` (dernier contrôle, 2026-09-17) : le
+  // caller a déjà décrémenté `readWritesInFlight` et bumpé `countsEpoch` dans
+  // son propre `finally`, AVANT d'appeler `enqueueAction` (voir
+  // `selectArticle`/`toggleRead`) — un relevé qui démarre entre ce moment-là
+  // et la fin des deux `await` ci-dessous (IndexedDB) ne verrait ni l'un ni
+  // l'autre signal, seulement `skipNextArrivals`. La mise en file EST le
+  // changement local qui a échoué à atteindre le serveur : le relevé qui
+  // suit ne doit rien en conclure. Un seul relevé suffit à l'ignorer : ce
+  // relevé-là écrase le compte local par celui du serveur (`syncCounts`
+  // applique toujours `next`), donc à partir du suivant les deux compteurs
+  // sont d'accord et une vraie arrivée redevient détectable — inutile
+  // d'attendre que la file entière soit rejouée (`replayQueue` ne tourne
+  // qu'au montage et sur l'événement `online` : une action encore en attente
+  // aurait sinon masqué la pastille pour toute une session).
+  skipNextArrivals = true;
   await loadQueue();
   actionQueue = mergeAction(actionQueue, {
     key: actionKey(articleId, type, labelId),
@@ -525,16 +540,6 @@ async function enqueueAction(
   });
   await queuePut(actionQueue);
   set({ pendingActions: actionQueue.length });
-  // La mise en file EST le changement local qui a échoué à atteindre le
-  // serveur : le prochain relevé (revue finale, contrôleur 2026-09-17) ne
-  // doit rien en conclure. Un seul relevé suffit à l'ignorer : ce relevé-là
-  // écrase le compte local par celui du serveur (`syncCounts` applique
-  // toujours `next`), donc à partir du suivant les deux compteurs sont
-  // d'accord et une vraie arrivée redevient détectable — inutile d'attendre
-  // que la file entière soit rejouée (`replayQueue` ne tourne qu'au montage
-  // et sur l'événement `online` : une action encore en attente aurait sinon
-  // masqué la pastille pour toute une session).
-  skipNextArrivals = true;
 }
 
 export const useFeedStore = create<FeedState>()((set, get) => ({
