@@ -279,6 +279,118 @@ describe('feedStore.silentRefresh — keep the article being read (unread filter
   });
 });
 
+describe('feedStore — pastille « nouveaux articles »', () => {
+  const feedA = { id: 'feed/A', title: 'A', categories: [{ id: 'user/-/label/Tech' }] } as unknown as Subscription;
+  const feedB = { id: 'feed/B', title: 'B' } as unknown as Subscription;
+  const counts = (m: Record<string, number>) => Object.entries(m).map(([id, count]) => ({ id, count })) as never;
+  const real = {
+    loadSpecialCounts: useFeedStore.getState().loadSpecialCounts,
+    loadArticles: useFeedStore.getState().loadArticles,
+  };
+
+  beforeEach(() => {
+    useFeedStore.setState({
+      subscriptions: [feedA, feedB],
+      selectedFeed: feedA,
+      filter: 'unread',
+      searchQuery: '',
+      unreadCounts: { 'feed/A': 2, 'feed/B': 1 },
+      newInView: 0,
+      loadSpecialCounts: vi.fn() as never,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ ...real, selectedFeed: null, filter: 'all', newInView: 0 });
+  });
+
+  it('counts the arrivals of the feed on screen', async () => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 5, 'feed/B': 1 }));
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().newInView).toBe(3);
+    expect(useFeedStore.getState().unreadCounts['feed/A']).toBe(5);
+  });
+
+  it('adds successive polls up', async () => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 3, 'feed/B': 1 }));
+    await useFeedStore.getState().syncCounts();
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 4, 'feed/B': 1 }));
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().newInView).toBe(2);
+  });
+
+  it('ignores other feeds and decreases', async () => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 1, 'feed/B': 4 }));
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().newInView).toBe(0);
+  });
+
+  it('ignores a change the app already applied locally', async () => {
+    // Marquer non lu dans FriRSS a déjà porté le compteur local à 3.
+    useFeedStore.setState({ unreadCounts: { 'feed/A': 3, 'feed/B': 1 } });
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 3, 'feed/B': 1 }));
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().newInView).toBe(0);
+  });
+
+  it('counts nothing on the very first poll', async () => {
+    useFeedStore.setState({ unreadCounts: {} });
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 5, 'feed/B': 1 }));
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().newInView).toBe(0);
+  });
+
+  it('the home view counts every feed; favourites count nothing', async () => {
+    useFeedStore.setState({ selectedFeed: null, filter: 'all' });
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 3, 'feed/B': 2 }));
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().newInView).toBe(2);
+
+    useFeedStore.setState({ filter: 'starred', newInView: 0 });
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 6, 'feed/B': 2 }));
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().newInView).toBe(0);
+  });
+
+  it('a category counts only its own feeds', async () => {
+    useFeedStore.setState({ selectedFeed: { id: 'user/-/label/Tech', title: 'Tech' } as unknown as Subscription });
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 4, 'feed/B': 3 }));
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().newInView).toBe(2);
+  });
+
+  it('a search counts nothing', async () => {
+    useFeedStore.setState({ searchQuery: 'kernel' });
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 9, 'feed/B': 1 }));
+    await useFeedStore.getState().syncCounts();
+    expect(useFeedStore.getState().newInView).toBe(0);
+  });
+
+  it('reloading the list resets the count', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    useFeedStore.setState({ newInView: 4 });
+    const pending = useFeedStore.getState().loadArticles();
+    expect(useFeedStore.getState().newInView).toBe(0);
+    await pending;
+  });
+
+  it('loadNewArticles resets the count and reloads the list', async () => {
+    const loadArticles = vi.fn().mockResolvedValue(undefined);
+    useFeedStore.setState({ newInView: 4, loadArticles: loadArticles as never });
+    await useFeedStore.getState().loadNewArticles();
+    expect(useFeedStore.getState().newInView).toBe(0);
+    expect(loadArticles).toHaveBeenCalledTimes(1);
+  });
+
+  it('a silent refresh resets the count once the list is reloaded', async () => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 2, 'feed/B': 1 }));
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    useFeedStore.setState({ newInView: 4 });
+    await useFeedStore.getState().silentRefresh();
+    expect(useFeedStore.getState().newInView).toBe(0);
+  });
+});
+
 describe('pickPrefetchFeeds', () => {
   const feed = (id: string) => ({ id } as unknown as Subscription);
   it('keeps only unread feeds, most-unread first', () => {

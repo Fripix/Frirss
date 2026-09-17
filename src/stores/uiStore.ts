@@ -120,6 +120,10 @@ export interface UiState {
   // doit se la voir imposer par une mise à jour. Synchronisé.
   markReadOnScroll: boolean;
   setMarkReadOnScroll: (v: boolean) => void;
+  // Pastille « N nouveaux articles » en haut de la liste (discussion #14).
+  // Activée par défaut : elle signale, elle n'écrit rien. Synchronisé.
+  showNewArticlesPill: boolean;
+  setShowNewArticlesPill: (v: boolean) => void;
   // Favicons dans la LISTE d'articles. Réglage distinct de `showFavicons`, qui
   // gouverne la barre latérale : les couper dans la liste sans les perdre dans
   // la barre est une demande légitime, et partager un seul réglage rendrait le
@@ -347,6 +351,13 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setMarkReadOnScroll: (v) => {
     localStorage.setItem('frirss_markReadOnScroll', JSON.stringify(v));
     set({ markReadOnScroll: v });
+  },
+
+  // Seul un `false` explicite l'éteint : c'est le défaut qui doit gagner.
+  showNewArticlesPill: loadJson<boolean>('frirss_showNewArticlesPill', true) !== false,
+  setShowNewArticlesPill: (v) => {
+    localStorage.setItem('frirss_showNewArticlesPill', JSON.stringify(v));
+    set({ showNewArticlesPill: v });
   },
 
   inlineVideos: loadJson('frirss_inlineVideos', true),
@@ -667,7 +678,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
-      'confirmMarkAllRead', 'markReadOnScroll', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
+      'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions',
     ];
     for (const k of jsonKeys) {
@@ -678,6 +689,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'rowActions' ? normalizeRowActions(prefs[k])
           : k === 'unreadOnlyScope' ? normalizeUnreadScope(prefs[k])
           : k === 'unreadOnlyAll' ? prefs[k] === true
+          : k === 'showNewArticlesPill' ? prefs[k] !== false
           : prefs[k];
         localStorage.setItem(`frirss_${k}`, JSON.stringify(value));
         next[k] = value;
@@ -706,7 +718,7 @@ export const UI_SYNC_KEYS = [
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
-  'confirmMarkAllRead', 'markReadOnScroll', 'showListFavicons',
+  'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions',
 ];
 

@@ -235,3 +235,27 @@ describe('uiStore — portée du filtre Non lus', () => {
     expect(useUiStore.getState().unreadOnlyAll).toBe(true);
   });
 });
+
+describe('uiStore — pastille « nouveaux articles »', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiStore.setState({ showNewArticlesPill: true });
+  });
+
+  it('persists a change', () => {
+    useUiStore.getState().setShowNewArticlesPill(false);
+    expect(useUiStore.getState().showNewArticlesPill).toBe(false);
+    expect(localStorage.getItem('frirss_showNewArticlesPill')).toBe('false');
+  });
+
+  it('syncs across devices, and only an explicit false turns it off', () => {
+    expect(UI_SYNC_KEYS).toContain('showNewArticlesPill');
+    useUiStore.getState().applyServerPrefs({ showNewArticlesPill: false });
+    expect(useUiStore.getState().showNewArticlesPill).toBe(false);
+    useUiStore.getState().applyServerPrefs({ showNewArticlesPill: 'false' });
+    expect(useUiStore.getState().showNewArticlesPill).toBe(true);
+    useUiStore.getState().applyServerPrefs({ showNewArticlesPill: false });
+    useUiStore.getState().applyServerPrefs({ showNewArticlesPill: true });
+    expect(useUiStore.getState().showNewArticlesPill).toBe(true);
+  });
+});

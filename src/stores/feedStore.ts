@@ -26,6 +26,7 @@ import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
+import { countNewInView, viewFeedIds } from '../lib/newArticles';
 import { isValidCategoryName } from '../lib/feedCategories';
 import {
   actionKey, mergeAction, isNetworkFailure, shouldRetry,
@@ -394,12 +395,16 @@ export interface FeedState {
   selectPrevArticle: () => void;
   syncCounts: () => Promise<void>;
   silentRefresh: () => Promise<void>;
+  /** Remet `newInView` à zéro et recharge la liste. */
+  loadNewArticles: () => Promise<void>;
   refresh: () => Promise<void>;
   resetAndReload: () => void;
   // Feedback after a manual refresh: how many new articles arrived and where.
   // Drives the "X new articles" banner + the per-feed pulse; cleared after a
   // few seconds by the banner.
   refreshResult: { totalNew: number; newByFeed: Record<string, number>; at: number } | null;
+  /** Articles arrivés dans la vue affichée depuis son chargement (pastille, discussion #14). */
+  newInView: number;
   clearRefreshResult: () => void;
   /** Phase of a real (server-side) feed refresh; 'idle' when none is running. */
   refreshPhase: RefreshPhase;
@@ -468,6 +473,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   loadingMore: false,
   revalidating: false,
   refreshResult: null,
+  newInView: 0,
   refreshPhase: 'idle',
   hasRefreshToken: false,
   pendingActions: 0,
@@ -843,7 +849,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // Memory cache already painted (set by the select action) → no spinner.
     // `revalidating` covers the gap this leaves: the request below (2.) stays
     // in flight until it resolves, whether or not `cached` was set.
-    set({ loading: !cached, revalidating: true });
+    // La liste repart du serveur : ce qui était signalé comme nouveau y sera.
+    set({ loading: !cached, revalidating: true, newInView: 0 });
 
     // 1. Server cache (SWR) — only when memory had nothing, for an instant-ish
     //    first paint (first visit this session / cross-device). Non-blocking.
@@ -1531,7 +1538,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const counts = await getUnreadCounts();
       const countMap: Record<string, number> = {};
       counts.forEach((c) => { countMap[c.id] = c.count; });
-      set({ unreadCounts: applyZeroFloor(countMap) });
+      const next = applyZeroFloor(countMap);
+      // Pastille « nouveaux articles » (discussion #14) : seules les HAUSSES des
+      // flux de la vue affichée comptent. Une action locale a déjà mis le
+      // compteur à jour, elle ne produit donc aucune hausse ici. Sans compteur
+      // connu (premier relevé), rien n'est compté : tout le stock passerait
+      // pour une arrivée.
+      const { selectedFeed, filter, searchQuery, subscriptions, unreadCounts } = get();
+      const feedIds = viewFeedIds(
+        { feedId: selectedFeed?.id ?? null, filter, searching: !!searchQuery },
+        subscriptions,
+      );
+      const arrived = feedIds && Object.keys(unreadCounts).length
+        ? countNewInView(computeRefreshDelta(unreadCounts, next).newByFeed, feedIds)
+        : 0;
+      set((s) => ({ unreadCounts: next, newInView: s.newInView + arrived }));
       // Also refresh starred & read-later counts
       get().loadSpecialCounts();
     } catch { /* ignore */ }
@@ -1570,9 +1591,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           articles,
           continuation: result.continuation,
           selectedArticle: updatedSelected,
+          // La liste vient d'être rechargée : plus rien de nouveau à signaler.
+          newInView: 0,
         };
       });
     } catch { /* ignore */ }
+  },
+
+  loadNewArticles: async () => {
+    set({ newInView: 0 });
+    await get().loadArticles();
   },
 
   setHasRefreshToken: (v: boolean) => set({ hasRefreshToken: v }),
