@@ -888,16 +888,21 @@ défaut). Demandé dans la discussion #14.
   Un relevé lit le serveur APRÈS un aller-retour réseau : une écriture locale
   faite par l'app pendant ce vol (✓, tout marquer lu, une nouvelle vue) change
   le compteur local avant que le serveur ne le sache, et ressemblerait sinon à
-  une arrivée. Depuis la revue finale du 2026-09-17 (Fix 2, corrigée au
-  contrôle du même jour), un relevé ne compte donc **aucune** arrivée si l'une
-  de ces conditions tient : une écriture locale a eu lieu pendant son vol
-  (`countsEpoch`, un compteur incrémenté à chaque écriture) ; un rejeu
-  hors-ligne (`replayQueue`) est en cours ; un rafraîchissement manuel tourne
-  (`refreshPhase === 'running'` — il a son propre bandeau, et se termine par
-  `loadArticles`) ; ou une action a été mise en file, ou abandonnée par un
-  rejeu (refusée ou rejetée après trop d'échecs — les deux cas), depuis le
-  relevé précédent (`skipNextArrivals`, consommé une seule fois par le SEUL
-  relevé qui suit) ; ou le flux concerné vient de quitter son plancher zéro
+  une arrivée. Depuis la revue finale du 2026-09-17 (Fix 2, corrigée à deux
+  contrôles ultérieurs le même jour), un relevé ne compte donc **aucune**
+  arrivée si l'une de ces conditions tient : une écriture locale a eu lieu
+  pendant son vol (`countsEpoch`, un compteur incrémenté à l'écriture ET à son
+  règlement — voir ci-dessous) ; un ✓/non-lu était encore EN VOL au démarrage
+  du relevé (`readWritesInFlight` : l'epoch seul ne verrait rien si l'appel
+  réseau ne se règle pas pendant l'attente du relevé — `markAllAsRead` n'a pas
+  besoin de cette garde, elle n'écrit localement qu'après confirmation
+  serveur) ; un rejeu hors-ligne (`replayQueue`) est en cours ; un
+  rafraîchissement manuel tourne (`refreshPhase === 'running'` — il a son
+  propre bandeau, et se termine par `loadArticles`) ; ou une action a été mise
+  en file, ou abandonnée par un rejeu (refusée ou rejetée après trop d'échecs
+  — les deux cas), depuis le relevé précédent (`skipNextArrivals`, consommé
+  par le PROCHAIN RELEVÉ RÉUSSI seulement — un relevé qui échoue le laisse
+  posé) ; ou le flux concerné vient de quitter son plancher zéro
   (`zeroUnreadFloor` : il saute de 0 à son vrai compte, ce qui n'est pas une
   arrivée). Un relevé qui se termine après un changement de serveur (Fix 3)
   est ignoré entièrement, y compris pour `unreadCounts`. Les compteurs
@@ -935,12 +940,14 @@ défaut). Demandé dans la discussion #14.
   défaut ne porte que sur le texte ajouté/modifié, pas sur le retrait) ;
   44 px de haut au doigt ; texte `--on-accent` sur l'accent. Réglage éteint =
   rien n'est rendu, pas même la région `aria-live`. Le conteneur de la liste
-  est désormais focusable au clavier (`tabIndex={-1}`, anneau de focus
-  invisible) : un clic sur la pastille lui donne le focus avant de faire
-  remonter la vue (sinon le focus clavier retombe sur `<body>` — le bouton
-  disparaît avec le clic) ; effet de bord assumé, `tabIndex={-1}` permet aussi
-  à la liste de recevoir le focus au clic dans Safari, qui ne le donne pas
-  nativement aux éléments non focusables.
+  (`tabIndex={-1}`, anneau de focus invisible) peut désormais recevoir le
+  focus depuis le code (après un clic sur la pastille) et au clic n'importe
+  où à l'intérieur, dans tous les navigateurs — mais **n'entre jamais dans
+  l'ordre de tabulation** (`tabIndex={-1}` en écarte, il ne l'y ajoute pas).
+  Un clic sur la pastille lui donne le focus avant de faire remonter la vue
+  (sinon le focus clavier retombe sur `<body>` — le bouton disparaît avec le
+  clic). Safari rend cet effet plus visible : il ne donne pas nativement le
+  focus aux boutons cliqués, contrairement aux autres navigateurs.
 - **À ne pas confondre** avec `RefreshBanner`, la notification de 5 s qui suit
   un clic sur Rafraîchir.
 

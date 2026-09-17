@@ -155,15 +155,19 @@ démarrage, le forçage couvre toute la durée de la recherche).
 nouvelle vue) y ressemblait à une arrivée. Garde ajoutée :
 - `countsEpoch` (module-level, incrémenté à chaque écriture locale
   recensée) : `syncCounts` compare sa valeur avant/après son attente réseau.
-- Aucune arrivée comptée si : l'epoch a changé, un rejeu hors-ligne
-  (`replayInFlight`) est en cours, un rafraîchissement manuel tourne
-  (`refreshPhase === 'running'`), ou `skipNextArrivals` est vrai.
+- Aucune arrivée comptée si : l'epoch a changé, un ✓/non-lu était encore EN
+  VOL au démarrage du relevé (`readWritesInFlight`, voir Important 1
+  ci-dessous), un rejeu hors-ligne (`replayInFlight`) est en cours, un
+  rafraîchissement manuel tourne (`refreshPhase === 'running'`), ou
+  `skipNextArrivals` est vrai.
 - `skipNextArrivals` : posé (a) par `enqueueAction`, dès qu'une action rejoint
   la file hors-ligne, et (b) par `replayQueue` quand elle abandonne au moins
   une action — refusée par le serveur OU rejetée après trop d'échecs, les
   deux cas tombent dans `failed` côté `replayQueue`. Dans les deux cas, le ✓
   local ne correspond à rien côté serveur pour le relevé qui suit ; consommé
-  (remis à faux) par ce seul relevé.
+  (remis à faux) par le PROCHAIN RELEVÉ RÉUSSI seulement — un relevé qui
+  échoue (exception avant la ligne qui le consomme) le laisse posé, sans quoi
+  l'arrivée resterait masquée pour rien à la panne suivante.
 - Plancher zéro (`zeroUnreadFloor`) : les flux dont le plancher expire
   pendant l'appel à `applyZeroFloor` sont notés dans un `Set` module-level et
   exclus du décompte d'arrivées de ce relevé (ils sautent de 0 au compte
@@ -183,6 +187,25 @@ bien après que le relevé SUIVANT ait déjà écrasé le compte local par celui
 serveur. `skipNextArrivals`, posé au moment de la mise en file plutôt qu'à
 celui de son abandon, couvre exactement ce cas sans ce défaut : un seul relevé
 l'ignore, le suivant redétecte normalement une vraie hausse.
+
+**Important 1 (deuxième re-revue, 2026-09-17) — une écriture ✓/non-lu encore
+en vol.** `countsEpoch` était bumpé à l'écriture LOCALE optimiste
+(`selectArticle`, `toggleRead`), avant l'appel réseau — pas à son règlement.
+Un relevé qui démarre APRÈS ce bump, alors que `markAsRead`/`markAsUnread`
+n'a pas encore atteint FreshRSS, capture donc un epoch déjà à jour : la
+comparaison avant/après de `syncCounts` n'y voit aucun écart, alors que le
+compte local a déjà bougé et que le serveur répond encore avec l'ancien.
+`markAllAsRead` n'est pas concerné : elle n'écrit `unreadCounts` qu'APRÈS la
+confirmation du serveur, jamais avant.
+- `readWritesInFlight` (module-level, compteur) : incrémenté juste avant
+  l'appel à `markAsRead`/`markAsUnread` dans `selectArticle` et `toggleRead`
+  (les deux seuls sites hors `replayQueue`, déjà couvert par
+  `replayInFlight`), décrémenté dans un `finally` — succès ou échec — qui
+  bumpe aussi `countsEpoch` (le règlement PENDANT le vol du relevé reste
+  couvert par la comparaison d'epoch existante).
+- `syncCounts` capture `readWritesInFlight > 0` AVANT sa propre attente
+  réseau ; si vrai, ce relevé ne compte aucune arrivée — que l'écriture se
+  règle avant, pendant ou après son propre aller-retour.
 
 **Fix 3 — changement de serveur.** Couvert par la même fonction : si
 `activeServerId` a changé entre le départ de la requête et sa réponse,

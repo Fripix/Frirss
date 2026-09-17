@@ -49,7 +49,7 @@ vi.mock('../i18n', () => ({
   default: { t: (k: string) => k },
 }));
 
-import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId, READ_LATER_LABEL } from './feedStore';
+import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId, READ_LATER_LABEL, __resetNewArticlesStateForTests } from './feedStore';
 import { useUiStore } from './uiStore';
 import { useAuthStore } from './authStore';
 import * as api from '../api/feeds';
@@ -289,6 +289,11 @@ describe('feedStore — pastille « nouveaux articles »', () => {
   };
 
   beforeEach(() => {
+    // L'état module-level de la garde (epoch mis à part, qui n'a besoin que
+    // d'être COHÉRENT avec lui-même, pas remis à zéro) n'est jamais nettoyé
+    // entre les tests d'un même fichier — contrairement au store Zustand,
+    // remis à plat ci-dessous.
+    __resetNewArticlesStateForTests();
     useFeedStore.setState({
       subscriptions: [feedA, feedB],
       selectedFeed: feedA,
@@ -436,6 +441,32 @@ describe('feedStore — pastille « nouveaux articles »', () => {
       resolveCounts({ 'feed/A': 2, 'feed/B': 1 });
       await pending;
       expect(useFeedStore.getState().newInView).toBe(0);
+    });
+
+    // Important 1 (deuxième re-revue) : `countsEpoch` est bumpé à l'écriture
+    // OPTIMISTE, pas à son règlement. Un relevé qui démarre APRÈS ce bump —
+    // donc dont l'epoch capturé est DÉJÀ à jour — mais alors que l'appel
+    // réseau n'a pas encore atteint FreshRSS ne verrait, sans
+    // `readWritesInFlight`, aucun écart d'epoch : le compte local a pourtant
+    // déjà bougé, et le serveur répond encore avec l'ancien. Contrairement au
+    // test précédent (où le ✓ se règle ENTIÈREMENT avant que le relevé ne
+    // démarre son propre aller-retour), ici l'écriture est TOUJOURS en vol
+    // quand `syncCounts` capture son epoch de départ.
+    it('une écriture ✓ encore en vol au démarrage du relevé ne compte pas comme une arrivée', async () => {
+      let resolveWrite!: () => void;
+      vi.mocked(api.markAsRead).mockReturnValueOnce(
+        new Promise<void>((r) => { resolveWrite = r; }),
+      );
+      useFeedStore.setState({ articles: [feedArticle] });
+      // Ne PAS attendre : l'écriture reste en vol pendant tout le relevé.
+      const writePending = useFeedStore.getState().toggleRead(feedArticle);
+      vi.mocked(api.getUnreadCounts).mockResolvedValueOnce(counts({ 'feed/A': 2, 'feed/B': 1 }));
+      await useFeedStore.getState().syncCounts();
+      expect(useFeedStore.getState().newInView).toBe(0);
+      // Régler l'écriture après coup ne doit rien changer rétroactivement au
+      // relevé déjà terminé — juste laisser le ✓ se conclure proprement.
+      resolveWrite();
+      await writePending;
     });
 
     it('« tout marquer lu » pendant le vol ne compte pas comme une arrivée', async () => {

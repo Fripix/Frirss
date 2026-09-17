@@ -280,17 +280,47 @@ function applyZeroFloor(counts: Record<string, number>): Record<string, number> 
 let countsEpoch = 0;
 function bumpCountsEpoch(): void { countsEpoch++; }
 
-// Posé (revue du 2026-09-17) chaque fois qu'un relevé qui suit pourrait lire
-// une écriture locale non encore reflétée côté serveur, sans que ce soit une
-// hausse : une action mise en file (`enqueueAction`, hors-ligne ou après un
-// 5xx transitoire) et une file rejouée qui abandonne une action
-// (`replayQueue` — un refus ET des échecs répétés atterrissent tous deux dans
-// `failed`, donc les deux posent ce drapeau) laissent un ✓ local sans
-// correspondant côté serveur. Un seul relevé l'ignore, puis tout redevient
-// normal — soit parce que ce relevé a déjà écrasé le compte local par celui
-// du serveur (mise en file), soit parce que rien ne le corrigera plus jamais
-// (action abandonnée).
+// Posé chaque fois qu'un relevé qui suit pourrait lire une écriture locale
+// non encore reflétée côté serveur, sans que ce soit une hausse : une action
+// mise en file (`enqueueAction`, hors-ligne ou après un 5xx transitoire) et
+// une file rejouée qui abandonne une action (`replayQueue` — un refus ET des
+// échecs répétés atterrissent tous deux dans `failed`, donc les deux posent
+// ce drapeau) laissent un ✓ local sans correspondant côté serveur. Consommé
+// (remis à faux) par le PROCHAIN RELEVÉ RÉUSSI seulement — un relevé qui
+// échoue (exception avant d'atteindre la ligne qui le consomme) le laisse
+// posé, sans quoi l'arrivée resterait masquée pour rien à la panne suivante.
 let skipNextArrivals = false;
+
+// Contrôle du 2026-09-17 (Important 1) : `countsEpoch` est incrémenté au
+// moment de l'écriture LOCALE optimiste (juste avant l'appel réseau), pas à
+// sa confirmation. Un relevé qui démarre APRÈS ce bump mais alors que
+// `markAsRead`/`markAsUnread` n'a pas encore atteint FreshRSS capture donc un
+// epoch déjà à jour : la comparaison avant/après de `syncCounts` n'y voit
+// aucun écart, alors que le compte local a déjà bougé et que le serveur, lui,
+// répond encore avec l'ancien. `readWritesInFlight` couvre ce trou : posé à
+// vrai dès que l'appel réseau démarre, il reste vrai tant que la réponse
+// (succès ou échec) n'est pas revenue. `syncCounts` le lit AVANT sa propre
+// attente réseau ; s'il était vrai à ce moment-là, ce relevé ne compte aucune
+// arrivée — l'écriture qui se règle PENDANT le relevé reste couverte par le
+// second bump d'epoch posé à son règlement (voir les sites d'appel).
+// `markAllAsRead` n'a pas besoin de ce compteur : elle n'écrit
+// `unreadCounts` qu'APRÈS la confirmation du serveur, jamais avant.
+let readWritesInFlight = 0;
+
+/**
+ * Remet à l'état neutre l'état module-level de la garde anti-fausse-arrivée
+ * de la pastille « nouveaux articles ». N'existe QUE pour l'isolation des
+ * tests (`feedStore.test.ts`) : ce module-level n'est jamais remis à zéro
+ * entre les fichiers/tests d'un même run, contrairement au store Zustand
+ * lui-même (`useFeedStore.setState`).
+ */
+export function __resetNewArticlesStateForTests(): void {
+  skipNextArrivals = false;
+  readWritesInFlight = 0;
+  zeroFloorJustExpired.clear();
+  zeroUnreadFloor.clear();
+}
+
 function memClear(): void {
   memCache.clear();
 }
@@ -607,6 +637,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // Fire-and-forget; revert if the server call fails.
     // NOTE: reading an article goes through here, NOT through toggleRead —
     // this is the path that must survive being offline.
+    readWritesInFlight++; // Important 1 — voir la garde en tête de fichier
     markAsRead(article.id).catch((err) => {
       // No network: keep it read and replay later. Only a refusal is reverted.
       if (isNetworkFailure(err)) {
@@ -626,6 +657,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       bumpCountsEpoch(); // écriture locale (rollback) — voir la garde en tête de fichier
       memMarkRead(article.id, false);
       persistCurrentView(get);
+    }).finally(() => {
+      readWritesInFlight--;
+      bumpCountsEpoch(); // règlement (succès ou échec) — voir Important 1 en tête de fichier
     });
   },
 
@@ -1083,10 +1117,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     memMarkRead(article.id, newRead);
     persistCurrentView(get);
     try {
-      if (newRead) {
-        await markAsRead(article.id);
-      } else {
-        await markAsUnread(article.id);
+      // Important 1 (deuxième re-revue) : posé AVANT l'appel réseau, levé
+      // dans le `finally` qui suit — que l'appel réussisse ou échoue. Un
+      // relevé qui capture ce drapeau avant son propre aller-retour sait
+      // qu'une écriture est en vol, même si l'epoch (posé plus haut) ne
+      // bouge plus d'ici là. Voir la garde en tête de fichier.
+      readWritesInFlight++;
+      try {
+        if (newRead) {
+          await markAsRead(article.id);
+        } else {
+          await markAsUnread(article.id);
+        }
+      } finally {
+        readWritesInFlight--;
+        bumpCountsEpoch(); // règlement (succès ou échec)
       }
       // La purge du cache MÉMOIRE des vues attend la confirmation : c'est le
       // seul cache qu'un refus n'a alors rien à défaire, la ligne réinsérée y
@@ -1605,6 +1650,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // voir la garde en tête de fichier.
     const epoch = countsEpoch;
     const serverId = useAuthStore.getState().activeServerId;
+    // Important 1 (deuxième re-revue) : un ✓/non-lu déjà en vol AU DÉMARRAGE
+    // de ce relevé a déjà bougé `unreadCounts` et déjà bumpé l'epoch — cette
+    // comparaison avant/après n'y verra donc AUCUN écart si l'écriture ne se
+    // règle pas pendant l'attente ci-dessous. Seul ce drapeau, lu ici, le
+    // sait encore.
+    const writeWasInFlight = readWritesInFlight > 0;
     try {
       const counts = await getUnreadCounts();
       // Ce relevé appartient au serveur sur lequel il a démarré : un autre est
@@ -1632,13 +1683,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         { feedId: selectedFeed?.id ?? null, filter, searching: !!searchQuery },
         subscriptions,
       );
-      // Fix 2 (revue finale, corrigée au contrôle du 2026-09-17) : ce relevé
-      // ne compte AUCUNE arrivée si quelque chose a pu le fausser — une
-      // écriture locale pendant son vol (`countsEpoch` a changé), un rejeu
-      // hors-ligne en cours, un rafraîchissement manuel (qui a son propre
-      // bandeau et se termine par `loadArticles`), ou une action mise en
-      // file/abandonnée depuis le relevé précédent (`skipNextArrivals`,
-      // consommée ici).
+      // Fix 2 (revue finale, corrigée aux contrôles du 2026-09-17) : ce
+      // relevé ne compte AUCUNE arrivée si quelque chose a pu le fausser —
+      // une écriture locale pendant son vol (`countsEpoch` a changé), une
+      // écriture ✓/non-lu déjà en vol à son démarrage (`writeWasInFlight`,
+      // Important 1 — l'epoch seul ne le voit pas si l'écriture ne se règle
+      // pas pendant l'attente), un rejeu hors-ligne en cours, un
+      // rafraîchissement manuel (qui a son propre bandeau et se termine par
+      // `loadArticles`), ou une action mise en file/abandonnée depuis le
+      // relevé précédent (`skipNextArrivals`, consommée ici).
       //
       // `pendingActions > 0` a été RETIRÉ : `replayQueue` ne tourne qu'au
       // montage de l'app et sur l'événement `online` (`App.tsx`), donc une
@@ -1648,6 +1701,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // qui suit la mise en file doit l'ignorer ; `skipNextArrivals` (posé
       // par `enqueueAction`) le fait déjà et se consomme en un seul coup.
       const skipThisPoll = epoch !== countsEpoch
+        || writeWasInFlight
         || replayInFlight !== null
         || get().refreshPhase === 'running'
         || skipNextArrivals;
