@@ -242,16 +242,49 @@ function setZeroFloor(feedId: string, on: boolean): void {
   if (on) zeroUnreadFloor.set(feedId, Date.now() + ZERO_FLOOR_MS);
   else zeroUnreadFloor.delete(feedId);
 }
+// Flux dont le plancher zéro vient d'expirer au dernier `applyZeroFloor` : ils
+// sautent de 0 au compte réel, ce qui n'est pas une arrivée pour la pastille
+// « nouveaux articles » (`syncCounts` la consomme et la vide — voir plus bas).
+const zeroFloorJustExpired = new Set<string>();
 // Force still-in-window feeds to 0 (server count is lagging) and drop expired
 // entries. Applied wherever server unread counts overwrite the local ones.
 function applyZeroFloor(counts: Record<string, number>): Record<string, number> {
   const now = Date.now();
   for (const [feedId, until] of zeroUnreadFloor) {
-    if (until <= now) zeroUnreadFloor.delete(feedId);
-    else counts[feedId] = 0;
+    if (until <= now) {
+      zeroUnreadFloor.delete(feedId);
+      zeroFloorJustExpired.add(feedId);
+    } else {
+      counts[feedId] = 0;
+    }
   }
   return counts;
 }
+
+// ── Pastille « nouveaux articles » : garde contre les fausses arrivées ─────
+// (revue finale, discussion #14, 2026-09-17)
+//
+// `syncCounts` lit les compteurs du serveur APRÈS un aller-retour réseau. Si
+// l'app écrit `unreadCounts` localement (✓, tout marquer lu, une nouvelle vue
+// qui repart de zéro) pendant que ce relevé est en vol, le compteur local a
+// déjà bougé avant que le serveur ne le sache : le relevé qui répond ensuite
+// avec l'ancien compte ressemble à une arrivée, alors que ce n'est que l'écho
+// du propre changement de l'app.
+//
+// `countsEpoch` sert d'horodatage grossier : toute écriture locale
+// l'incrémente. `syncCounts` retient sa valeur avant son attente réseau et la
+// compare à sa valeur après — un écart dit qu'une écriture locale a eu lieu
+// entre-temps, et ce relevé ne compte alors aucune arrivée (les compteurs
+// eux-mêmes sont quand même appliqués : une arrivée manquée se voit au
+// prochain relevé).
+let countsEpoch = 0;
+function bumpCountsEpoch(): void { countsEpoch++; }
+
+// Une file rejouée qui abandonne au moins une action (échecs répétés, jamais
+// des refus — voir `replayQueue`) laisse son ✓ local orphelin : rien ne le
+// corrige plus jamais côté serveur, donc le relevé suivant le lirait comme
+// une arrivée permanente. Un seul relevé l'ignore, puis tout redevient normal.
+let skipNextArrivals = false;
 function memClear(): void {
   memCache.clear();
 }
@@ -552,6 +585,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       ),
       unreadCounts: updateCount(state.unreadCounts, article, -1),
     }));
+    bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
     memMarkRead(article.id, true);
     persistCurrentView(get);
     // Fire-and-forget; revert if the server call fails.
@@ -573,6 +607,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             : state.selectedArticle,
         unreadCounts: updateCount(state.unreadCounts, article, 1),
       }));
+      bumpCountsEpoch(); // écriture locale (rollback) — voir la garde en tête de fichier
       memMarkRead(article.id, false);
       persistCurrentView(get);
     });
@@ -842,6 +877,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   loadArticles: async () => {
+    bumpCountsEpoch(); // une vue qui repart de zéro n'est pas une arrivée
     const { selectedFeed, filter } = get();
     const key = viewKey(selectedFeed, filter);
     const sameView = () => viewKey(get().selectedFeed, get().filter) === key;
@@ -1020,6 +1056,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         unreadCounts: updateCount(state.unreadCounts, article, newRead ? -1 : 1),
       };
     });
+    bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
     memMarkRead(article.id, newRead);
     persistCurrentView(get);
     try {
@@ -1094,6 +1131,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           unreadCounts: updateCount(state.unreadCounts, article, newRead ? 1 : -1),
         };
       });
+      bumpCountsEpoch(); // écriture locale (rollback) — voir la garde en tête de fichier
       memMarkRead(article.id, !newRead);
       persistCurrentView(get);
       // Le rollback rend la ligne et le compteur, mais une ligne qui
@@ -1172,7 +1210,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       set({ searchQuery: '' });
       return get().loadArticles();
     }
-    set({ searchQuery: query, loading: true });
+    // Une recherche repart d'une liste neuve : la pastille de la vue qu'elle
+    // recouvre ne doit pas flotter au-dessus des résultats — un clic dessus
+    // rechargerait le flux normal (`loadNewArticles` → `loadArticles`) alors
+    // qu'une recherche est en cours.
+    set({ searchQuery: query, loading: true, newInView: 0 });
     try {
       // Scope the search to the current view (feed / category / read-later /
       // starred), not always the whole reading-list.
@@ -1219,6 +1261,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             : null,
         };
       });
+      bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
     } catch { /* ignore */ }
   },
 
@@ -1534,8 +1577,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   // Lightweight sync — just refresh counters from server (no article reload)
   // Used for background polling & cross-device sync
   syncCounts: async () => {
+    // Pris AVANT l'attente réseau : comparés à leur valeur après, ils disent
+    // si l'app a écrit `unreadCounts` (ou changé de serveur) pendant le vol —
+    // voir la garde en tête de fichier.
+    const epoch = countsEpoch;
+    const serverId = useAuthStore.getState().activeServerId;
     try {
       const counts = await getUnreadCounts();
+      // Ce relevé appartient au serveur sur lequel il a démarré : un autre est
+      // actif entre-temps, ses compteurs décriraient un monde différent.
+      // Fix 3 (revue finale) — rien n'est touché, pas même `unreadCounts`.
+      if (String(useAuthStore.getState().activeServerId) !== String(serverId)) return;
       const countMap: Record<string, number> = {};
       counts.forEach((c) => { countMap[c.id] = c.count; });
       const next = applyZeroFloor(countMap);
@@ -1549,9 +1601,27 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         { feedId: selectedFeed?.id ?? null, filter, searching: !!searchQuery },
         subscriptions,
       );
-      const arrived = feedIds && Object.keys(unreadCounts).length
-        ? countNewInView(computeRefreshDelta(unreadCounts, next).newByFeed, feedIds)
-        : 0;
+      // Fix 2 (revue finale) : ce relevé ne compte AUCUNE arrivée si quelque
+      // chose a pu le fausser — une écriture locale pendant son vol
+      // (`countsEpoch` a changé), un rejeu hors-ligne en cours, des actions
+      // encore en attente, un rafraîchissement manuel (qui a son propre
+      // bandeau et se termine par `loadArticles`), ou une action de la file
+      // abandonnée au relevé précédent (`skipNextArrivals`, consommée ici).
+      const skipThisPoll = epoch !== countsEpoch
+        || replayInFlight !== null
+        || get().pendingActions > 0
+        || get().refreshPhase === 'running'
+        || skipNextArrivals;
+      if (skipNextArrivals) skipNextArrivals = false;
+      let arrived = 0;
+      if (!skipThisPoll && feedIds && Object.keys(unreadCounts).length) {
+        const newByFeed = { ...computeRefreshDelta(unreadCounts, next).newByFeed };
+        // Un flux qui vient de quitter son plancher zéro saute de 0 à son
+        // vrai compte : ce n'est pas une arrivée.
+        for (const id of zeroFloorJustExpired) delete newByFeed[id];
+        arrived = countNewInView(newByFeed, feedIds);
+      }
+      zeroFloorJustExpired.clear();
       set((s) => ({ unreadCounts: next, newInView: s.newInView + arrived }));
       // Also refresh starred & read-later counts
       get().loadSpecialCounts();
@@ -1564,9 +1634,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     await get().syncCounts();
     // Silently reload current article list (no loading spinner)
     const { selectedFeed, filter } = get();
+    // La vue affichée au moment de la requête — comme `loadArticles` avec
+    // `sameView()`. Sans ce garde-fou (M2, revue finale), un résultat qui
+    // arrive après un changement de vue écrirait `articles` et remettrait
+    // `newInView` à zéro pour une vue qui n'est plus à l'écran.
+    const key = viewKey(selectedFeed, filter);
     try {
       const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
       if (!result) return;
+      if (viewKey(get().selectedFeed, get().filter) !== key) return;
       const newArticles = result.items.map(normalizeArticle);
       // Merge: keep selectedArticle in sync if it still exists
       set((state) => {
@@ -1726,6 +1802,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       }
     }
 
+    // Une action abandonnée (échecs répétés, jamais un refus) laisse un ✓
+    // local sans correspondant côté serveur : le prochain relevé de
+    // compteurs le lirait comme une arrivée qui ne s'efface jamais.
+    if (failed > 0) skipNextArrivals = true;
     actionQueue = remaining;
     await queuePut(remaining);
     set({ pendingActions: remaining.length, failedActions: failed });

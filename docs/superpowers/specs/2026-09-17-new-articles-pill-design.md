@@ -136,6 +136,66 @@ lu au défilement ». Deux clés nouvelles (`preferences.general.newArticlesPill
 Vérification réelle : la pastille à **320 px**, sur tablette et desktop, en
 liste et en grille, thème clair et sombre.
 
+## Complément — revue finale (2026-09-17)
+
+Trois défauts et deux points mineurs relevés à la revue finale du premier
+passage d'implémentation.
+
+**Fix 1 — recherche.** `search()` ne remettait pas `newInView` à zéro : une
+pastille affichée avant une recherche restait visible au-dessus des
+résultats, et un clic rechargeait le flux normal (`loadArticles`) pendant
+qu'une recherche restait active. `search()` remet maintenant `newInView` à
+zéro dès qu'elle démarre, et `ArticleList` force le compte à 0 tant que
+`searchQuery` est renseigné (double garde : la remise à zéro couvre le
+démarrage, le forçage couvre toute la durée de la recherche).
+
+**Fix 2 — un relevé en vol ne doit jamais compter les écritures de l'app.**
+`syncCounts` lit les compteurs serveur APRÈS un aller-retour réseau ; toute
+écriture locale de `unreadCounts` pendant ce vol (✓, tout marquer lu, une
+nouvelle vue) y ressemblait à une arrivée. Garde ajoutée :
+- `countsEpoch` (module-level, incrémenté à chaque écriture locale
+  recensée) : `syncCounts` compare sa valeur avant/après son attente réseau.
+- Aucune arrivée comptée si : l'epoch a changé, un rejeu hors-ligne
+  (`replayInFlight`) est en cours, des actions sont en attente
+  (`pendingActions > 0`), un rafraîchissement manuel tourne
+  (`refreshPhase === 'running'`), ou `skipNextArrivals` est vrai.
+- `skipNextArrivals` : posé par `replayQueue` quand elle abandonne au moins
+  une action (échecs répétés, jamais un refus) — le ✓ local de cette action
+  reste orphelin, sans quoi le relevé suivant le lirait comme une arrivée
+  permanente. Consommé (remis à faux) au relevé qui suit.
+- Plancher zéro (`zeroUnreadFloor`) : les flux dont le plancher expire
+  pendant l'appel à `applyZeroFloor` sont notés dans un `Set` module-level et
+  exclus du décompte d'arrivées de ce relevé (ils sautent de 0 au compte
+  réel, ce qui n'est pas une arrivée) ; le `Set` est vidé après usage.
+- Les compteurs eux-mêmes (`unreadCounts`) sont toujours appliqués — seul le
+  décompte de la pastille est retenu. Une arrivée manquée par ces gardes se
+  voit donc au prochain rechargement, jamais perdue.
+
+**Fix 3 — changement de serveur.** Couvert par la même fonction : si
+`activeServerId` a changé entre le départ de la requête et sa réponse,
+`syncCounts` retourne sans rien toucher — ni `unreadCounts`, ni `newInView`.
+Un relevé du serveur qu'on vient de quitter décrirait un monde qui n'est
+plus le nôtre.
+
+**M1 — focus au clic.** Le bouton de la pastille disparaît avec le clic ; le
+focus clavier retombait sur `<body>`. La liste (`listRef`) reçoit
+`tabIndex={-1}` (elle n'entre donc jamais dans l'ordre de tabulation normal)
+et reçoit le focus programmatique (`{ preventScroll: true }`, le `scrollTo`
+suivant fait déjà remonter la vue) juste après `loadNewArticles()`.
+
+**M2 — `silentRefresh` et un changement de vue en vol.** La vue affichée est
+retenue avant la requête (`viewKey`, comme `loadArticles` avec `sameView()`).
+Si elle a changé au retour de la requête, le résultat est jeté : ni
+`articles` ni `newInView` ne sont écrits pour une vue qui n'est plus à
+l'écran.
+
+**M6 — réglage désactivé, testé au niveau composant.** `NewArticlesPill`
+prend désormais un prop `enabled` et ne rend RIEN quand il est faux — pas
+même la région `aria-live`, pour ne pas laisser un lecteur d'écran annoncer
+un décompte que le réglage a coupé. `ArticleList` la monte
+inconditionnellement (`<NewArticlesPill enabled={showNewArticlesPill} …/>`)
+au lieu de la conditionner par `&&`.
+
 ## Hors périmètre
 
 Chargement automatique en haut de liste (refusé) ; notifications système ;

@@ -389,6 +389,92 @@ describe('feedStore — pastille « nouveaux articles »', () => {
     await useFeedStore.getState().silentRefresh();
     expect(useFeedStore.getState().newInView).toBe(0);
   });
+
+  // Fix 1 (revue finale) : une recherche qui démarre alors qu'une pastille
+  // était déjà affichée ne doit pas la laisser flotter au-dessus des
+  // résultats — un clic dessus rechargerait le flux normal pendant qu'une
+  // recherche est en cours.
+  it('a search resets the count', async () => {
+    vi.mocked(api.searchItems).mockResolvedValue({ items: [], continuation: null } as never);
+    useFeedStore.setState({ newInView: 4 });
+    await useFeedStore.getState().search('x');
+    expect(useFeedStore.getState().newInView).toBe(0);
+  });
+
+  // Fix 2 (revue finale) : un relevé de compteurs lit APRÈS son aller-retour
+  // réseau. Toute écriture locale faite par l'app pendant ce vol (le sien,
+  // pas un vrai changement serveur) ne doit jamais ressembler à une arrivée.
+  describe('un relevé en vol ne doit jamais compter les écritures locales de l’app', () => {
+    const feedArticle = { id: 'x1', read: false, starred: false, sourceId: 'feed/A', title: 'x1' } as Article;
+
+    function deferredCounts() {
+      let resolve!: (v: unknown) => void;
+      const promise = new Promise((r) => { resolve = r; });
+      vi.mocked(api.getUnreadCounts).mockReturnValueOnce(promise as never);
+      return (v: Record<string, number>) => resolve(counts(v));
+    }
+
+    it('un ✓ local pendant le vol ne compte pas comme une arrivée', async () => {
+      vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+      useFeedStore.setState({ articles: [feedArticle] });
+      const resolveCounts = deferredCounts();
+      const pending = useFeedStore.getState().syncCounts();
+      // Écriture locale PENDANT le vol : le compteur local baisse tout de
+      // suite, avant que le serveur ne le sache.
+      await useFeedStore.getState().toggleRead(feedArticle);
+      // Le serveur répond avec l'ANCIEN compte (il ne sait rien du ✓) : sans
+      // la garde, ce relevé lirait une hausse (compte serveur 2 contre
+      // compte local déjà baissé à 1 par le ✓) qui n'est que le propre
+      // changement de l'app.
+      resolveCounts({ 'feed/A': 2, 'feed/B': 1 });
+      await pending;
+      expect(useFeedStore.getState().newInView).toBe(0);
+    });
+
+    it('« tout marquer lu » pendant le vol ne compte pas comme une arrivée', async () => {
+      vi.mocked(api.markAllAsRead).mockResolvedValue(undefined);
+      const resolveCounts = deferredCounts();
+      const pending = useFeedStore.getState().syncCounts();
+      await useFeedStore.getState().markAllAsRead();
+      // Compte d'avant le marquage — sans la garde, `syncCounts` verrait une
+      // hausse de 2 sur feed/A (2 → 0 localement, 2 côté « serveur »).
+      resolveCounts({ 'feed/A': 2, 'feed/B': 1 });
+      await pending;
+      expect(useFeedStore.getState().newInView).toBe(0);
+    });
+
+    it('changer de serveur pendant le vol : rien n’est touché', async () => {
+      const original = useAuthStore.getState().activeServerId;
+      const before = { ...useFeedStore.getState().unreadCounts };
+      const resolveCounts = deferredCounts();
+      const pending = useFeedStore.getState().syncCounts();
+      useAuthStore.setState({ activeServerId: 'other-server' });
+      resolveCounts({ 'feed/A': 99, 'feed/B': 99 });
+      await pending;
+      expect(useFeedStore.getState().newInView).toBe(0);
+      expect(useFeedStore.getState().unreadCounts).toEqual(before);
+      useAuthStore.setState({ activeServerId: original });
+    });
+
+    it('un rafraîchissement manuel en cours ne compte aucune hausse', async () => {
+      useFeedStore.setState({ refreshPhase: 'running' });
+      vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 9, 'feed/B': 1 }));
+      await useFeedStore.getState().syncCounts();
+      expect(useFeedStore.getState().newInView).toBe(0);
+      useFeedStore.setState({ refreshPhase: 'idle' });
+    });
+
+    it('une vraie hausse, sans écriture locale, compte toujours (garde de non-régression)', async () => {
+      // Vue sur feed/B (pas feed/A) : un test précédent de cette suite a pu
+      // recharger une liste vide sur feed/A, ce qui pose un plancher zéro de
+      // 30 s (`setZeroFloor`, non lié à cette fonctionnalité) — le rendre
+      // insensible à cet ordre plutôt que d'en dépendre.
+      useFeedStore.setState({ selectedFeed: feedB });
+      vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 2, 'feed/B': 4 }));
+      await useFeedStore.getState().syncCounts();
+      expect(useFeedStore.getState().newInView).toBe(3);
+    });
+  });
 });
 
 describe('pickPrefetchFeeds', () => {

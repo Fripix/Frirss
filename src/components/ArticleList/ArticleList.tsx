@@ -913,16 +913,27 @@ export default function ArticleList() {
       </div>
 
       {/* List */}
-      <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden nice-scroll relative">
-        {showNewArticlesPill && (
-          <NewArticlesPill
-            count={newInView}
-            onClick={() => {
-              void loadNewArticles();
-              listRef.current?.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-            }}
-          />
-        )}
+      <div
+        ref={listRef}
+        tabIndex={-1}
+        className="flex-1 overflow-y-auto overflow-x-hidden nice-scroll relative outline-none"
+      >
+        <NewArticlesPill
+          enabled={showNewArticlesPill}
+          // Une recherche est en cours : la pastille de la vue qu'elle
+          // recouvre ne doit pas rester visible au-dessus des résultats (Fix
+          // 1, revue finale) — `search()` a déjà remis `newInView` à zéro,
+          // mais rien ne la remet tant qu'on reste DANS la recherche.
+          count={searchQuery ? 0 : newInView}
+          onClick={() => {
+            void loadNewArticles();
+            // Le bouton disparaît avec le clic : sans ce focus, le clavier
+            // retombe sur `<body>` (M1, revue finale). `preventScroll` — le
+            // `scrollTo` juste après fait déjà remonter la liste.
+            listRef.current?.focus({ preventScroll: true });
+            listRef.current?.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+          }}
+        />
         {/* Pull-to-refresh spinner */}
         {(pull > 0 || refreshing) && (
           <div className="absolute left-0 right-0 top-0 z-20 flex justify-center pointer-events-none">

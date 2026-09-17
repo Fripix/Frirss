@@ -883,13 +883,38 @@ défaut). Demandé dans la discussion #14.
 - **Spec** : `docs/superpowers/specs/2026-09-17-new-articles-pill-design.md`
 - **Le signal** : à chaque relevé des compteurs (60 s), `computeRefreshDelta()`
   compare les compteurs du serveur à ceux du store ; seules les hausses des
-  flux de la vue comptent. Une action locale a déjà mis le compteur à jour :
-  elle ne produit aucune hausse. Au premier relevé, sans compteur connu, rien
-  n'est compté — tout le stock passerait pour une arrivée.
+  flux de la vue comptent. Au premier relevé, sans compteur connu, rien n'est
+  compté — tout le stock passerait pour une arrivée.
+  Un relevé lit le serveur APRÈS un aller-retour réseau : une écriture locale
+  faite par l'app pendant ce vol (✓, tout marquer lu, une nouvelle vue) change
+  le compteur local avant que le serveur ne le sache, et ressemblerait sinon à
+  une arrivée. Depuis la revue finale du 2026-09-17 (Fix 2), un relevé ne
+  compte donc **aucune** arrivée si l'une de ces conditions tient :
+  une écriture locale a eu lieu pendant son vol (`countsEpoch`, un compteur
+  incrémenté à chaque écriture) ; un rejeu hors-ligne (`replayQueue`) est en
+  cours ; des actions sont encore en attente (`pendingActions > 0`) ; un
+  rafraîchissement manuel tourne (`refreshPhase === 'running'` — il a son
+  propre bandeau, et se termine par `loadArticles`) ; une action de la file a
+  été abandonnée au relevé précédent (échecs répétés — pas un refus —
+  `skipNextArrivals`, consommé une seule fois) ; ou le flux concerné vient de
+  quitter son plancher zéro (`zeroUnreadFloor` : il saute de 0 à son vrai
+  compte, ce qui n'est pas une arrivée). Un relevé qui se termine après un
+  changement de serveur (Fix 3) est ignoré entièrement, y compris pour
+  `unreadCounts`. Les compteurs eux-mêmes sont toujours appliqués : seul le
+  décompte de la pastille est retenu. **Une arrivée manquée par ces gardes se
+  voit au prochain rechargement** (elle finit dans les compteurs, jamais
+  perdue) — c'est le compromis assumé : une fausse pastille est pire qu'une
+  pastille en retard.
 - **Vues** : un flux, une catégorie (ses flux), l'accueil en `all` ou
-  `unread`. Pas d'étiquette, de Favoris, d'À lire plus tard ni de recherche.
+  `unread`. Pas d'étiquette, de Favoris, d'À lire plus tard ni de recherche —
+  une recherche en cours masque aussi la pastille déjà affichée (le compte
+  passe à 0 tant que `searchQuery` est renseigné), et `search()` remet
+  `newInView` à zéro dès qu'elle démarre.
 - **Remise à zéro** : `loadArticles` (changement de vue, Rafraîchir), fin d'un
-  `silentRefresh` (retour sur l'onglet), `loadNewArticles`.
+  `silentRefresh` (retour sur l'onglet), `loadNewArticles`, `search()`.
+  `silentRefresh` ignore un résultat arrivé pour une vue qui n'est plus à
+  l'écran (la vue a changé pendant l'aller-retour) : il n'écrit alors ni la
+  liste ni `newInView`.
 - **Limites** : un article marqué non lu sur un autre appareil compte comme une
   arrivée ; des arrivées et des lectures faites ailleurs dans le même
   intervalle, sur le même flux, peuvent s'annuler. Et `loadSubscriptions`
@@ -899,8 +924,12 @@ défaut). Demandé dans la discussion #14.
 - **Discrète par construction** : l'emplacement est `sticky` et de hauteur
   nulle (rien ne se décale) ; l'entrée n'est animée qu'une fois, le bouton
   restant le même élément quand le nombre change ; aucune animation sous
-  `prefers-reduced-motion` ; région `aria-live="polite"` toujours montée ;
-  44 px de haut au doigt ; texte `--on-accent` sur l'accent.
+  `prefers-reduced-motion` ; région `aria-live="polite"` montée tant que le
+  réglage est actif, et qui annonce le nouveau nombre à chaque changement ;
+  44 px de haut au doigt ; texte `--on-accent` sur l'accent. Réglage éteint =
+  rien n'est rendu, pas même la région `aria-live`. Un clic déplace le focus
+  clavier sur la liste (le bouton disparaît avec lui, sinon le focus retombe
+  sur `<body>`).
 - **À ne pas confondre** avec `RefreshBanner`, la notification de 5 s qui suit
   un clic sur Rafraîchir.
 

@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 
 interface NewArticlesPillProps {
+  /** Réglage « Signaler les nouveaux articles » (Préférences → Général). */
+  enabled: boolean;
   /** Articles arrivés dans la vue depuis son chargement (`feedStore.newInView`). */
   count: number;
   onClick: () => void;
@@ -14,9 +16,14 @@ interface NewArticlesPillProps {
  * sans rien décaler. La région `aria-live` reste montée même à zéro, sinon le
  * premier nombre ne serait pas annoncé. Le bouton reste le MÊME élément quand
  * le nombre change : l'animation d'entrée ne se rejoue pas.
+ *
+ * `enabled` (M6, revue finale) : le réglage éteint ne rend RIEN, pas même la
+ * région `aria-live` — sinon un lecteur d'écran continuerait d'entendre un
+ * décompte que l'utilisateur a désactivé.
  */
-export default function NewArticlesPill({ count, onClick }: NewArticlesPillProps) {
+export default function NewArticlesPill({ enabled, count, onClick }: NewArticlesPillProps) {
   const { t } = useTranslation();
+  if (!enabled) return null;
   return (
     <div className="new-articles-slot" aria-live="polite">
       {count > 0 && (
