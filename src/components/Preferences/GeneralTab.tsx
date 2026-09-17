@@ -11,6 +11,8 @@ export default function GeneralTab() {
   const setConfirmMarkAllRead = useUiStore((s) => s.setConfirmMarkAllRead);
   const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
   const setMarkReadOnScroll = useUiStore((s) => s.setMarkReadOnScroll);
+  const showNewArticlesPill = useUiStore((s) => s.showNewArticlesPill);
+  const setShowNewArticlesPill = useUiStore((s) => s.setShowNewArticlesPill);
   const unreadOnlyScope = useUiStore((s) => s.unreadOnlyScope);
   const setUnreadOnlyScope = useUiStore((s) => s.setUnreadOnlyScope);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
@@ -135,6 +137,23 @@ export default function GeneralTab() {
               );
             })}
           </div>
+        </div>
+
+        {/* Signal articles that arrived since the list was loaded (discussion #14) */}
+        <div className="flex items-start justify-between gap-4 select-none mt-4">
+          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.general.newArticlesPill')}
+            <span className="block text-[11px] opacity-70 mt-0.5">
+              {t('preferences.general.newArticlesPillHint')}
+            </span>
+          </span>
+          <span className="mt-0.5">
+            <ToggleSwitch
+              checked={showNewArticlesPill}
+              onChange={setShowNewArticlesPill}
+              ariaLabel={t('preferences.general.newArticlesPill')}
+            />
+          </span>
         </div>
 
         {/* Play YouTube videos in the article (click-to-load facade) */}

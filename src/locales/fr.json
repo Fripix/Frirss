@@ -170,7 +170,9 @@
       "unreadScope": "Filtre Non lus",
       "unreadScopeFeed": "Par flux",
       "unreadScopeAll": "Tous les flux",
-      "unreadScopeHint": "Par flux, chaque flux retient son choix. Tous les flux, le bouton Non lus s'applique partout. Revenir à Par flux efface les choix par flux : chaque flux repart de l'état actuel."
+      "unreadScopeHint": "Par flux, chaque flux retient son choix. Tous les flux, le bouton Non lus s'applique partout. Revenir à Par flux efface les choix par flux : chaque flux repart de l'état actuel.",
+      "newArticlesPill": "Signaler les nouveaux articles",
+      "newArticlesPillHint": "Une pastille en haut de la liste compte les articles arrivés depuis son chargement et les affiche d'un clic. La liste ne change jamais d'elle-même."
     },
     "branding": {
       "language": "Langue",

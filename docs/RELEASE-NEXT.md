@@ -13,7 +13,10 @@ la release publiée.
 
 ## Fonctionnalités
 
-_(rien pour l'instant)_
+- **Une pastille signale les nouveaux articles.** Quand de nouveaux articles
+  arrivent dans la vue affichée, « ↑ N nouveaux articles » apparaît en haut de
+  la liste ; un clic les charge. La liste ne change jamais d'elle-même.
+  Désactivable dans Préférences → Général. Demandé dans la discussion #14.
 
 ## Corrections et améliorations
 

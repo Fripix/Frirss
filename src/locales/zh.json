@@ -170,7 +170,9 @@
       "unreadScope": "未读筛选",
       "unreadScopeFeed": "按订阅源",
       "unreadScopeAll": "全部订阅源",
-      "unreadScopeHint": "按订阅源：每个订阅源各自记住选择。全部订阅源：未读按钮对所有视图生效。切回“按订阅源”会清除各订阅源的单独选择，统一从当前状态开始。"
+      "unreadScopeHint": "按订阅源：每个订阅源各自记住选择。全部订阅源：未读按钮对所有视图生效。切回“按订阅源”会清除各订阅源的单独选择，统一从当前状态开始。",
+      "newArticlesPill": "提示新文章",
+      "newArticlesPillHint": "列表顶部的标签会统计列表加载后新到的文章，点一下即可显示。列表不会自行变化。"
     },
     "branding": {
       "language": "语言",

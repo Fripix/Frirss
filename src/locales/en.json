@@ -170,7 +170,9 @@
       "unreadScope": "Unread filter",
       "unreadScopeFeed": "Per feed",
       "unreadScopeAll": "All feeds",
-      "unreadScopeHint": "With Per feed, each feed keeps its own choice. With All feeds, the Unread button applies everywhere. Switching back to Per feed erases the per-feed choices: every feed starts from the current state."
+      "unreadScopeHint": "With Per feed, each feed keeps its own choice. With All feeds, the Unread button applies everywhere. Switching back to Per feed erases the per-feed choices: every feed starts from the current state.",
+      "newArticlesPill": "Show new articles",
+      "newArticlesPillHint": "A pill at the top of the list counts the articles that arrived since it loaded, and shows them in one click. The list never changes on its own."
     },
     "branding": {
       "language": "Language",

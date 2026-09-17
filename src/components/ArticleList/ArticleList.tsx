@@ -20,6 +20,7 @@ import ArticleCard from './ArticleCard';
 import FeedFavicon from '../FeedFavicon';
 import BottomSheet from '../BottomSheet';
 import ArticleContextMenu from './ArticleContextMenu';
+import NewArticlesPill from './NewArticlesPill';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 import { copyLink } from '../../lib/copyLink';
 import { useAuthStore } from '../../stores/authStore';
@@ -75,6 +76,9 @@ export default function ArticleList() {
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const unreadCounts = useFeedStore((s) => s.unreadCounts);
   const pushToast = useUiStore((s) => s.pushToast);
+  const showNewArticlesPill = useUiStore((s) => s.showNewArticlesPill);
+  const newInView = useFeedStore((s) => s.newInView);
+  const loadNewArticles = useFeedStore((s) => s.loadNewArticles);
   const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
   const showSourceInAll = useUiStore((s) => s.showSourceInAll);
   const toggleShowSourceInFeed = useUiStore((s) => s.toggleShowSourceInFeed);
@@ -910,6 +914,15 @@ export default function ArticleList() {
 
       {/* List */}
       <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden nice-scroll relative">
+        {showNewArticlesPill && (
+          <NewArticlesPill
+            count={newInView}
+            onClick={() => {
+              void loadNewArticles();
+              listRef.current?.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+            }}
+          />
+        )}
         {/* Pull-to-refresh spinner */}
         {(pull > 0 || refreshing) && (
           <div className="absolute left-0 right-0 top-0 z-20 flex justify-center pointer-events-none">

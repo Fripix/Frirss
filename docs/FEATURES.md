@@ -869,6 +869,41 @@ flux**.
 - **Sans rapport avec la règle du ✓** (issue #10), qui lit `feedStore.filter`,
   l'état dérivé.
 
+### Pastille « nouveaux articles »
+Une pastille « ↑ N nouveaux articles » en haut de la liste signale les articles
+arrivés dans la vue affichée depuis son chargement ; un clic les charge et
+remonte en haut. La liste ne change jamais d'elle-même. Réglage « Signaler les
+nouveaux articles » (Préférences → Général, synchronisé, **activé** par
+défaut). Demandé dans la discussion #14.
+
+- **Où** : `src/lib/newArticles.ts` (`viewFeedIds`, `countNewInView`, testés),
+  `feedStore.newInView` et `loadNewArticles` (cumul dans `syncCounts`),
+  `src/components/ArticleList/NewArticlesPill.tsx`,
+  `uiStore.showNewArticlesPill`
+- **Spec** : `docs/superpowers/specs/2026-09-17-new-articles-pill-design.md`
+- **Le signal** : à chaque relevé des compteurs (60 s), `computeRefreshDelta()`
+  compare les compteurs du serveur à ceux du store ; seules les hausses des
+  flux de la vue comptent. Une action locale a déjà mis le compteur à jour :
+  elle ne produit aucune hausse. Au premier relevé, sans compteur connu, rien
+  n'est compté — tout le stock passerait pour une arrivée.
+- **Vues** : un flux, une catégorie (ses flux), l'accueil en `all` ou
+  `unread`. Pas d'étiquette, de Favoris, d'À lire plus tard ni de recherche.
+- **Remise à zéro** : `loadArticles` (changement de vue, Rafraîchir), fin d'un
+  `silentRefresh` (retour sur l'onglet), `loadNewArticles`.
+- **Limites** : un article marqué non lu sur un autre appareil compte comme une
+  arrivée ; des arrivées et des lectures faites ailleurs dans le même
+  intervalle, sur le même flux, peuvent s'annuler. Et `loadSubscriptions`
+  (renommer ou déplacer une catégorie, ajouter un flux) reprend les compteurs
+  du serveur sans rien compter : les arrivées de la minute qui précède ces
+  actions ne sont pas signalées.
+- **Discrète par construction** : l'emplacement est `sticky` et de hauteur
+  nulle (rien ne se décale) ; l'entrée n'est animée qu'une fois, le bouton
+  restant le même élément quand le nombre change ; aucune animation sous
+  `prefers-reduced-motion` ; région `aria-live="polite"` toujours montée ;
+  44 px de haut au doigt ; texte `--on-accent` sur l'accent.
+- **À ne pas confondre** avec `RefreshBanner`, la notification de 5 s qui suit
+  un clic sur Rafraîchir.
+
 ### Marquer lu au défilement
 Option **éteinte par défaut** (Préférences → Général, synchronisée) : un article
 est marqué lu une seconde après être sorti par le **haut** de la liste.

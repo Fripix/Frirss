@@ -170,7 +170,9 @@
       "unreadScope": "Filtro Non letti",
       "unreadScopeFeed": "Per feed",
       "unreadScopeAll": "Tutti i feed",
-      "unreadScopeHint": "Con «Per feed», ogni feed mantiene la propria scelta. Con «Tutti i feed», il pulsante Non letti vale ovunque. Tornare a «Per feed» cancella le scelte per feed: ogni feed riparte dallo stato attuale."
+      "unreadScopeHint": "Con «Per feed», ogni feed mantiene la propria scelta. Con «Tutti i feed», il pulsante Non letti vale ovunque. Tornare a «Per feed» cancella le scelte per feed: ogni feed riparte dallo stato attuale.",
+      "newArticlesPill": "Segnala nuovi articoli",
+      "newArticlesPillHint": "Un'etichetta in cima alla lista conta gli articoli arrivati da quando è stata caricata e li mostra con un clic. La lista non cambia mai da sola."
     },
     "branding": {
       "language": "Lingua",

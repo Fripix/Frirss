@@ -170,7 +170,9 @@
       "unreadScope": "Ungelesen-Filter",
       "unreadScopeFeed": "Pro Feed",
       "unreadScopeAll": "Alle Feeds",
-      "unreadScopeHint": "Bei „Pro Feed“ behält jeder Feed seine eigene Wahl. Bei „Alle Feeds“ gilt die Schaltfläche Ungelesen überall. Zurück zu „Pro Feed“ löscht die Einzelwahl: Jeder Feed startet vom aktuellen Zustand."
+      "unreadScopeHint": "Bei „Pro Feed“ behält jeder Feed seine eigene Wahl. Bei „Alle Feeds“ gilt die Schaltfläche Ungelesen überall. Zurück zu „Pro Feed“ löscht die Einzelwahl: Jeder Feed startet vom aktuellen Zustand.",
+      "newArticlesPill": "Neue Artikel anzeigen",
+      "newArticlesPillHint": "Ein Hinweis oben in der Liste zählt die seit dem Laden eingetroffenen Artikel und zeigt sie mit einem Klick an. Die Liste ändert sich nie von selbst."
     },
     "branding": {
       "language": "Sprache",
