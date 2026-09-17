@@ -156,20 +156,33 @@ nouvelle vue) y ressemblait à une arrivée. Garde ajoutée :
 - `countsEpoch` (module-level, incrémenté à chaque écriture locale
   recensée) : `syncCounts` compare sa valeur avant/après son attente réseau.
 - Aucune arrivée comptée si : l'epoch a changé, un rejeu hors-ligne
-  (`replayInFlight`) est en cours, des actions sont en attente
-  (`pendingActions > 0`), un rafraîchissement manuel tourne
+  (`replayInFlight`) est en cours, un rafraîchissement manuel tourne
   (`refreshPhase === 'running'`), ou `skipNextArrivals` est vrai.
-- `skipNextArrivals` : posé par `replayQueue` quand elle abandonne au moins
-  une action (échecs répétés, jamais un refus) — le ✓ local de cette action
-  reste orphelin, sans quoi le relevé suivant le lirait comme une arrivée
-  permanente. Consommé (remis à faux) au relevé qui suit.
+- `skipNextArrivals` : posé (a) par `enqueueAction`, dès qu'une action rejoint
+  la file hors-ligne, et (b) par `replayQueue` quand elle abandonne au moins
+  une action — refusée par le serveur OU rejetée après trop d'échecs, les
+  deux cas tombent dans `failed` côté `replayQueue`. Dans les deux cas, le ✓
+  local ne correspond à rien côté serveur pour le relevé qui suit ; consommé
+  (remis à faux) par ce seul relevé.
 - Plancher zéro (`zeroUnreadFloor`) : les flux dont le plancher expire
   pendant l'appel à `applyZeroFloor` sont notés dans un `Set` module-level et
   exclus du décompte d'arrivées de ce relevé (ils sautent de 0 au compte
-  réel, ce qui n'est pas une arrivée) ; le `Set` est vidé après usage.
+  réel, ce qui n'est pas une arrivée) ; le `Set` est vidé après usage, y
+  compris quand `applyZeroFloor` est appelé par `loadSubscriptions` (rien
+  d'autre que `syncCounts` ne le consommerait) et lors d'un changement de
+  serveur (`resetAndReload`, et le retour anticipé de `syncCounts` pour Fix 3).
 - Les compteurs eux-mêmes (`unreadCounts`) sont toujours appliqués — seul le
   décompte de la pastille est retenu. Une arrivée manquée par ces gardes se
   voit donc au prochain rechargement, jamais perdue.
+
+*Corrigé au contrôle du 2026-09-17* : `pendingActions > 0` faisait initialement
+partie de la garde. Retiré — `replayQueue` ne tourne qu'au montage de l'app et
+sur l'événement `online` (`App.tsx`), donc une seule action mise en file (un
+5xx transitoire, par exemple) aurait masqué la pastille pour toute la session,
+bien après que le relevé SUIVANT ait déjà écrasé le compte local par celui du
+serveur. `skipNextArrivals`, posé au moment de la mise en file plutôt qu'à
+celui de son abandon, couvre exactement ce cas sans ce défaut : un seul relevé
+l'ignore, le suivant redétecte normalement une vraie hausse.
 
 **Fix 3 — changement de serveur.** Couvert par la même fonction : si
 `activeServerId` a changé entre le départ de la requête et sa réponse,

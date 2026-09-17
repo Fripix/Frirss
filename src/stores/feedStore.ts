@@ -280,10 +280,16 @@ function applyZeroFloor(counts: Record<string, number>): Record<string, number> 
 let countsEpoch = 0;
 function bumpCountsEpoch(): void { countsEpoch++; }
 
-// Une file rejouée qui abandonne au moins une action (échecs répétés, jamais
-// des refus — voir `replayQueue`) laisse son ✓ local orphelin : rien ne le
-// corrige plus jamais côté serveur, donc le relevé suivant le lirait comme
-// une arrivée permanente. Un seul relevé l'ignore, puis tout redevient normal.
+// Posé (revue du 2026-09-17) chaque fois qu'un relevé qui suit pourrait lire
+// une écriture locale non encore reflétée côté serveur, sans que ce soit une
+// hausse : une action mise en file (`enqueueAction`, hors-ligne ou après un
+// 5xx transitoire) et une file rejouée qui abandonne une action
+// (`replayQueue` — un refus ET des échecs répétés atterrissent tous deux dans
+// `failed`, donc les deux posent ce drapeau) laissent un ✓ local sans
+// correspondant côté serveur. Un seul relevé l'ignore, puis tout redevient
+// normal — soit parce que ce relevé a déjà écrasé le compte local par celui
+// du serveur (mise en file), soit parce que rien ne le corrigera plus jamais
+// (action abandonnée).
 let skipNextArrivals = false;
 function memClear(): void {
   memCache.clear();
@@ -489,6 +495,16 @@ async function enqueueAction(
   });
   await queuePut(actionQueue);
   set({ pendingActions: actionQueue.length });
+  // La mise en file EST le changement local qui a échoué à atteindre le
+  // serveur : le prochain relevé (revue finale, contrôleur 2026-09-17) ne
+  // doit rien en conclure. Un seul relevé suffit à l'ignorer : ce relevé-là
+  // écrase le compte local par celui du serveur (`syncCounts` applique
+  // toujours `next`), donc à partir du suivant les deux compteurs sont
+  // d'accord et une vraie arrivée redevient détectable — inutile d'attendre
+  // que la file entière soit rejouée (`replayQueue` ne tourne qu'au montage
+  // et sur l'événement `online` : une action encore en attente aurait sinon
+  // masqué la pastille pour toute une session).
+  skipNextArrivals = true;
 }
 
 export const useFeedStore = create<FeedState>()((set, get) => ({
@@ -668,6 +684,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         unreadCounts: applyZeroFloor(countMap),
         categoryIds: catIds,
       });
+      // `applyZeroFloor` ci-dessus a pu noter des flux dont le plancher zéro
+      // vient d'expirer (`zeroFloorJustExpired`) : seul `syncCounts` sait
+      // quoi en faire (les exclure d'un décompte d'arrivées) ; ici, personne
+      // ne le consommera jamais. Le vider évite qu'un `syncCounts` ultérieur
+      // n'exclue à tort un flux dont le saut à son vrai compte remonte à ce
+      // chargement des abonnements, pas à son propre relevé.
+      zeroFloorJustExpired.clear();
       subsPut(normalizedSubs).catch(() => {}); // persist for offline
       // Auto-load user labels now that we know categories
       get().loadLabels();
@@ -1586,8 +1609,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const counts = await getUnreadCounts();
       // Ce relevé appartient au serveur sur lequel il a démarré : un autre est
       // actif entre-temps, ses compteurs décriraient un monde différent.
-      // Fix 3 (revue finale) — rien n'est touché, pas même `unreadCounts`.
-      if (String(useAuthStore.getState().activeServerId) !== String(serverId)) return;
+      // Fix 3 (revue finale) — rien n'est touché, pas même `unreadCounts`. Les
+      // deux drapeaux module-level sont vidés ici : ils décrivaient un état
+      // (planchers zéro expirés, file changée) qui appartient lui aussi au
+      // serveur qu'on vient de quitter — `resetAndReload` les videra encore
+      // à l'arrivée sur le nouveau, mais rien ne doit rester d'ici là.
+      if (String(useAuthStore.getState().activeServerId) !== String(serverId)) {
+        zeroFloorJustExpired.clear();
+        skipNextArrivals = false;
+        return;
+      }
       const countMap: Record<string, number> = {};
       counts.forEach((c) => { countMap[c.id] = c.count; });
       const next = applyZeroFloor(countMap);
@@ -1601,15 +1632,23 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         { feedId: selectedFeed?.id ?? null, filter, searching: !!searchQuery },
         subscriptions,
       );
-      // Fix 2 (revue finale) : ce relevé ne compte AUCUNE arrivée si quelque
-      // chose a pu le fausser — une écriture locale pendant son vol
-      // (`countsEpoch` a changé), un rejeu hors-ligne en cours, des actions
-      // encore en attente, un rafraîchissement manuel (qui a son propre
-      // bandeau et se termine par `loadArticles`), ou une action de la file
-      // abandonnée au relevé précédent (`skipNextArrivals`, consommée ici).
+      // Fix 2 (revue finale, corrigée au contrôle du 2026-09-17) : ce relevé
+      // ne compte AUCUNE arrivée si quelque chose a pu le fausser — une
+      // écriture locale pendant son vol (`countsEpoch` a changé), un rejeu
+      // hors-ligne en cours, un rafraîchissement manuel (qui a son propre
+      // bandeau et se termine par `loadArticles`), ou une action mise en
+      // file/abandonnée depuis le relevé précédent (`skipNextArrivals`,
+      // consommée ici).
+      //
+      // `pendingActions > 0` a été RETIRÉ : `replayQueue` ne tourne qu'au
+      // montage de l'app et sur l'événement `online` (`App.tsx`), donc une
+      // seule action mise en file (un 5xx transitoire, par exemple) aurait
+      // masqué la pastille pour toute la session — bien après que ce relevé
+      // ait déjà écrasé le compte local par celui du serveur. Seul LE relevé
+      // qui suit la mise en file doit l'ignorer ; `skipNextArrivals` (posé
+      // par `enqueueAction`) le fait déjà et se consomme en un seul coup.
       const skipThisPoll = epoch !== countsEpoch
         || replayInFlight !== null
-        || get().pendingActions > 0
         || get().refreshPhase === 'running'
         || skipNextArrivals;
       if (skipNextArrivals) skipNextArrivals = false;
@@ -1802,9 +1841,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       }
     }
 
-    // Une action abandonnée (échecs répétés, jamais un refus) laisse un ✓
-    // local sans correspondant côté serveur : le prochain relevé de
-    // compteurs le lirait comme une arrivée qui ne s'efface jamais.
+    // Une action abandonnée — refusée par le serveur OU rejetée après trop
+    // d'échecs, les deux tombent dans `failed` ci-dessus — laisse un ✓ local
+    // sans correspondant côté serveur : le prochain relevé de compteurs le
+    // lirait comme une arrivée qui ne s'efface jamais.
     if (failed > 0) skipNextArrivals = true;
     actionQueue = remaining;
     await queuePut(remaining);
@@ -1827,6 +1867,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     clearWriteToken();
     warmListsToken++; // cancel any in-flight prefetch sweep for the old server
     memClear(); // memory cache is per-server (feed ids/global keys differ)
+    // Pastille « nouveaux articles » : les deux drapeaux module-level de
+    // `syncCounts` décrivent un état (plancher zéro expiré, écriture/file en
+    // cours) qui appartenait au serveur qu'on quitte. `syncCounts` les vide
+    // déjà s'il constate le changement en plein vol (Fix 3) ; ici pour le cas
+    // où aucun relevé n'était en vol au moment du changement.
+    zeroFloorJustExpired.clear();
+    skipNextArrivals = false;
     set({
       subscriptions: [],
       unreadCounts: {},

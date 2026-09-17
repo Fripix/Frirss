@@ -888,23 +888,28 @@ défaut). Demandé dans la discussion #14.
   Un relevé lit le serveur APRÈS un aller-retour réseau : une écriture locale
   faite par l'app pendant ce vol (✓, tout marquer lu, une nouvelle vue) change
   le compteur local avant que le serveur ne le sache, et ressemblerait sinon à
-  une arrivée. Depuis la revue finale du 2026-09-17 (Fix 2), un relevé ne
-  compte donc **aucune** arrivée si l'une de ces conditions tient :
-  une écriture locale a eu lieu pendant son vol (`countsEpoch`, un compteur
-  incrémenté à chaque écriture) ; un rejeu hors-ligne (`replayQueue`) est en
-  cours ; des actions sont encore en attente (`pendingActions > 0`) ; un
-  rafraîchissement manuel tourne (`refreshPhase === 'running'` — il a son
-  propre bandeau, et se termine par `loadArticles`) ; une action de la file a
-  été abandonnée au relevé précédent (échecs répétés — pas un refus —
-  `skipNextArrivals`, consommé une seule fois) ; ou le flux concerné vient de
-  quitter son plancher zéro (`zeroUnreadFloor` : il saute de 0 à son vrai
-  compte, ce qui n'est pas une arrivée). Un relevé qui se termine après un
-  changement de serveur (Fix 3) est ignoré entièrement, y compris pour
-  `unreadCounts`. Les compteurs eux-mêmes sont toujours appliqués : seul le
-  décompte de la pastille est retenu. **Une arrivée manquée par ces gardes se
-  voit au prochain rechargement** (elle finit dans les compteurs, jamais
-  perdue) — c'est le compromis assumé : une fausse pastille est pire qu'une
-  pastille en retard.
+  une arrivée. Depuis la revue finale du 2026-09-17 (Fix 2, corrigée au
+  contrôle du même jour), un relevé ne compte donc **aucune** arrivée si l'une
+  de ces conditions tient : une écriture locale a eu lieu pendant son vol
+  (`countsEpoch`, un compteur incrémenté à chaque écriture) ; un rejeu
+  hors-ligne (`replayQueue`) est en cours ; un rafraîchissement manuel tourne
+  (`refreshPhase === 'running'` — il a son propre bandeau, et se termine par
+  `loadArticles`) ; ou une action a été mise en file, ou abandonnée par un
+  rejeu (refusée ou rejetée après trop d'échecs — les deux cas), depuis le
+  relevé précédent (`skipNextArrivals`, consommé une seule fois par le SEUL
+  relevé qui suit) ; ou le flux concerné vient de quitter son plancher zéro
+  (`zeroUnreadFloor` : il saute de 0 à son vrai compte, ce qui n'est pas une
+  arrivée). Un relevé qui se termine après un changement de serveur (Fix 3)
+  est ignoré entièrement, y compris pour `unreadCounts`. Les compteurs
+  eux-mêmes sont toujours appliqués : seul le décompte de la pastille est
+  retenu. **Une arrivée manquée par ces gardes se voit au prochain
+  rechargement** (elle finit dans les compteurs, jamais perdue) — c'est le
+  compromis assumé : une fausse pastille est pire qu'une pastille en retard.
+  `pendingActions > 0` (des actions en attente) a été essayé puis RETIRÉ : la
+  relève hors-ligne ne tourne qu'au montage de l'app et sur l'événement
+  `online`, donc une seule action mise en file (un 5xx transitoire, par
+  exemple) aurait masqué la pastille pour toute la session — bien après que
+  le relevé suivant ait déjà écrasé le compte local par celui du serveur.
 - **Vues** : un flux, une catégorie (ses flux), l'accueil en `all` ou
   `unread`. Pas d'étiquette, de Favoris, d'À lire plus tard ni de recherche —
   une recherche en cours masque aussi la pastille déjà affichée (le compte
@@ -925,11 +930,17 @@ défaut). Demandé dans la discussion #14.
   nulle (rien ne se décale) ; l'entrée n'est animée qu'une fois, le bouton
   restant le même élément quand le nombre change ; aucune animation sous
   `prefers-reduced-motion` ; région `aria-live="polite"` montée tant que le
-  réglage est actif, et qui annonce le nouveau nombre à chaque changement ;
+  réglage est actif, qui annonce le nouveau nombre à son apparition et à
+  chaque changement (une disparition n'est PAS annoncée — `aria-relevant` par
+  défaut ne porte que sur le texte ajouté/modifié, pas sur le retrait) ;
   44 px de haut au doigt ; texte `--on-accent` sur l'accent. Réglage éteint =
-  rien n'est rendu, pas même la région `aria-live`. Un clic déplace le focus
-  clavier sur la liste (le bouton disparaît avec lui, sinon le focus retombe
-  sur `<body>`).
+  rien n'est rendu, pas même la région `aria-live`. Le conteneur de la liste
+  est désormais focusable au clavier (`tabIndex={-1}`, anneau de focus
+  invisible) : un clic sur la pastille lui donne le focus avant de faire
+  remonter la vue (sinon le focus clavier retombe sur `<body>` — le bouton
+  disparaît avec le clic) ; effet de bord assumé, `tabIndex={-1}` permet aussi
+  à la liste de recevoir le focus au clic dans Safari, qui ne le donne pas
+  nativement aux éléments non focusables.
 - **À ne pas confondre** avec `RefreshBanner`, la notification de 5 s qui suit
   un clic sur Rafraîchir.
 

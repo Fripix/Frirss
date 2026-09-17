@@ -367,7 +367,14 @@ describe('feedStore — pastille « nouveaux articles »', () => {
   });
 
   it('reloading the list resets the count', async () => {
-    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    // Un item UNREAD, pas une liste vide : une liste vide rendrait
+    // `articles.every(a => a.read)` vacuously vrai et poserait un plancher
+    // zéro de 30 s sur feed/A (`setZeroFloor`, non lié à cette
+    // fonctionnalité) — qui fausserait ensuite les tests de la revue finale
+    // plus bas dans ce même fichier (`applyZeroFloor` forcerait feed/A à 0).
+    vi.mocked(api.getStreamContents).mockResolvedValue(
+      { items: [{ id: 'n1', categories: [] }], continuation: null } as never,
+    );
     useFeedStore.setState({ newInView: 4 });
     const pending = useFeedStore.getState().loadArticles();
     expect(useFeedStore.getState().newInView).toBe(0);
@@ -464,13 +471,38 @@ describe('feedStore — pastille « nouveaux articles »', () => {
       useFeedStore.setState({ refreshPhase: 'idle' });
     });
 
+    // Contrôleur (2026-09-17) : `pendingActions > 0` masquerait la pastille
+    // pour toute une session (`replayQueue` ne tourne qu'au montage et sur
+    // `online`) — remplacé par `skipNextArrivals`, posé au moment de la mise
+    // en file et consommé par le SEUL relevé qui suit.
+    it('un ✓ mis en file (échec réseau) n’est ignoré que par le relevé qui suit', async () => {
+      vi.mocked(api.markAsRead).mockRejectedValueOnce(new Error('Network Error'));
+      useFeedStore.setState({ articles: [feedArticle] });
+      await useFeedStore.getState().toggleRead(feedArticle);
+      // La file d'actions hors-ligne est un état privé du module, partagé par
+      // tout le fichier de test (contrairement au champ `pendingActions` du
+      // store, remis à zéro par le `beforeEach` global, elle n'est jamais
+      // vidée entre des tests qui ne rejouent pas la file) : sa TAILLE
+      // absolue n'est donc pas fiable ici. `queuePut` l'est — il est appelé à
+      // chaque mise en file, avec le contenu réel qu'elle vient d'écrire.
+      expect(offline.queuePut).toHaveBeenCalled();
+
+      // Premier relevé après la mise en file : le serveur ne sait encore rien
+      // du ✓, donc semble en hausse par rapport au compte local déjà baissé —
+      // ignoré, mais les compteurs sont quand même appliqués.
+      vi.mocked(api.getUnreadCounts).mockResolvedValueOnce(counts({ 'feed/A': 2, 'feed/B': 1 }));
+      await useFeedStore.getState().syncCounts();
+      expect(useFeedStore.getState().newInView).toBe(0);
+
+      // Le relevé SUIVANT redevient normal, sans attendre que la file soit
+      // rejouée : une vraie hausse est de nouveau comptée.
+      vi.mocked(api.getUnreadCounts).mockResolvedValueOnce(counts({ 'feed/A': 5, 'feed/B': 1 }));
+      await useFeedStore.getState().syncCounts();
+      expect(useFeedStore.getState().newInView).toBe(3);
+    });
+
     it('une vraie hausse, sans écriture locale, compte toujours (garde de non-régression)', async () => {
-      // Vue sur feed/B (pas feed/A) : un test précédent de cette suite a pu
-      // recharger une liste vide sur feed/A, ce qui pose un plancher zéro de
-      // 30 s (`setZeroFloor`, non lié à cette fonctionnalité) — le rendre
-      // insensible à cet ordre plutôt que d'en dépendre.
-      useFeedStore.setState({ selectedFeed: feedB });
-      vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 2, 'feed/B': 4 }));
+      vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 5, 'feed/B': 1 }));
       await useFeedStore.getState().syncCounts();
       expect(useFeedStore.getState().newInView).toBe(3);
     });
