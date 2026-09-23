@@ -23,8 +23,8 @@ la release publiée.
 - **La recherche filtre enfin.** Elle ne filtrait rien : FriRSS envoyait un
   paramètre `q` que l'API Google Reader de FreshRSS n'a jamais lu — vérifié sur
   les versions 1.20.2, 1.23.1, 1.24.3, 1.26.0 et 1.27.0 — et le serveur
-  renvoyait le flux entier. Un
-  terme inexistant ramenait quand même tous les articles. Le filtrage se fait
+  renvoyait le flux entier. Un terme inexistant ramenait quand même tous les
+  articles. Le filtrage se fait
   désormais dans le navigateur : FriRSS balaye le périmètre de la vue courante
   (flux, catégorie, ou tous les flux), articles lus compris, affiche les
   correspondances au fur et à mesure avec un compteur et un bouton pour
