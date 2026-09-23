@@ -2153,3 +2153,41 @@ summary:focus-visible,
 @media (pointer: coarse) {
   .new-articles-pill { min-height: 44px; }
 }
+
+/* ── Barre d'état du balayage de recherche ────────────────────────────── */
+/* Pleine largeur, discrète (même registre que le compteur de résultats),
+   avec son propre bouton (Arrêter pendant, Réessayer après une panne). */
+.search-scan-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--list-summary);
+  border-top: 1px solid var(--panel-border);
+}
+.search-scan-bar span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-scan-bar button {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--list-summary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.search-scan-bar button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+@media (pointer: coarse) {
+  .search-scan-bar button { min-height: 44px; }
+}

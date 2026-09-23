@@ -111,6 +111,21 @@ describe('search — balayage', () => {
     expect(useFeedStore.getState().searchScan).toMatchObject({ running: false, stopped: true, done: false });
   });
 
+  // Deuxième correction (revue tâche 4) — appelé sur un balayage déjà
+  // terminé, `stopSearch` produisait l'état contradictoire
+  // { done: true, stopped: true }, que la barre d'état devait ensuite
+  // départager. Rien ne tourne : l'appel ne doit rien changer.
+  it('stopSearch ne fait rien sur un balayage déjà terminé', async () => {
+    page.mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: null });
+    await useFeedStore.getState().search('moteur');
+    const before = useFeedStore.getState().searchScan;
+    expect(before).toMatchObject({ running: false, done: true, stopped: false });
+
+    useFeedStore.getState().stopSearch();
+
+    expect(useFeedStore.getState().searchScan).toEqual(before);
+  });
+
   it('déduplique un article livré deux fois', async () => {
     page
       .mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: 'C1' })

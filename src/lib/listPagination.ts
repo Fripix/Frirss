@@ -92,14 +92,24 @@ export type ListBodyState =
  * recherche elle-même. Ce qui reste est un choix d'écran, conservé tel quel :
  * l'état vide de recherche a déjà sa propre sortie (« chercher dans tous les
  * flux »), plus utile qu'un « charger la suite » sur zéro résultat.
+ *
+ * `scanning` couvre un cas que `searching` seul ne distingue pas : un
+ * balayage en cours et un balayage qui n'a rien trouvé se ressemblent trop —
+ * liste vide dans les deux cas. Annoncer « aucun résultat » pendant que le
+ * balayage tourne encore serait le même mensonge que le « tout est lu »
+ * corrigé ci-dessus, alors que `empty-more` ne convient pas non plus : il n'y
+ * a ici ni bouton à proposer ni pagination réseau, juste une attente déjà
+ * dite par `SearchScanBar`. Le squelette existant sert cette attente-là.
  */
 export function listBodyState(opts: {
   loading: boolean;
   articleCount: number;
   hasContinuation: boolean;
   searching: boolean;
+  scanning?: boolean;
 }): ListBodyState {
   if (opts.loading) return 'skeleton';
+  if (opts.searching && opts.scanning && opts.articleCount === 0) return 'skeleton';
   if (opts.articleCount > 0) return 'rows';
   if (emptyListIsFinal({ articleCount: opts.articleCount, hasContinuation: opts.hasContinuation })) {
     return 'empty';
@@ -144,4 +154,34 @@ export function shouldReportInvisibleProgress(opts: {
   hasMore: boolean;
 }): boolean {
   return opts.itemsAdded === 0 && opts.hasMore;
+}
+
+/**
+ * `hasContinuation`, mais qui reste vrai pendant une recherche tant que le
+ * balayage a plus à montrer que ce qui est visible.
+ *
+ * `search()` remet `continuation` (celle du flux nu) à `null` dès l'entrée en
+ * recherche, pour que la pagination locale des résultats n'hérite pas de
+ * celle, périmée, de la vue qu'elle recouvre — et rien ne la fait jamais
+ * redevenir non nulle pendant qu'on cherche : `runScan` ne touche qu'au
+ * corpus de recherche. Lire `continuation` brut pendant une recherche revient
+ * donc à toujours répondre « non », ce qui coupe le scroll infini
+ * (`shouldLoadMore`), le bouton « charger la suite » (`canLoadMore`) et
+ * l'état vide (`listBodyState`) dès la 51ᵉ correspondance : un balayage à 300
+ * résultats n'en montrerait jamais plus de 50, pour toujours.
+ *
+ * Pendant une recherche, la vraie question est locale : reste-t-il des
+ * correspondances déjà balayées mais pas encore montrées
+ * (`searchVisible < searchResults.length`) ? `showMoreSearchResults` avance
+ * `searchVisible` sans réseau ; c'est cette avancée que ces trois fonctions
+ * doivent voir.
+ */
+export function searchAwareHasContinuation(opts: {
+  searching: boolean;
+  continuation: unknown;
+  searchVisible: number;
+  searchResultsCount: number;
+}): boolean {
+  if (opts.searching) return opts.searchVisible < opts.searchResultsCount;
+  return !!opts.continuation;
 }

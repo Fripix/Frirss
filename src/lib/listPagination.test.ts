@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { shouldLoadMore, emptyListIsFinal, listBodyState, canLoadMore, shouldReportInvisibleProgress } from './listPagination';
+import {
+  shouldLoadMore,
+  emptyListIsFinal,
+  listBodyState,
+  canLoadMore,
+  shouldReportInvisibleProgress,
+  searchAwareHasContinuation,
+} from './listPagination';
 
 const viewport = {
   hasContinuation: true,
@@ -102,6 +109,16 @@ describe('listBodyState', () => {
   it('ne propose pas la page suivante pendant une recherche', () => {
     expect(listBodyState({ ...base, hasContinuation: true, searching: true })).toBe('empty');
   });
+
+  // Un balayage de recherche en cours n'a encore rien prouvé : afficher
+  // « aucun résultat » pendant qu'il tourne serait le même mensonge que le
+  // « tout est lu » d'une liste qui attendait sa page suivante.
+  it('ne déclare pas une liste vide tant qu’un balayage de recherche tourne', () => {
+    expect(listBodyState({ loading: false, articleCount: 0, hasContinuation: false, searching: true, scanning: true }))
+      .toBe('skeleton');
+    expect(listBodyState({ loading: false, articleCount: 0, hasContinuation: false, searching: true, scanning: false }))
+      .toBe('empty');
+  });
 });
 
 describe('canLoadMore', () => {
@@ -147,5 +164,35 @@ describe('shouldReportInvisibleProgress', () => {
 
   it('se tait quand le flux est épuisé : l’état vide définitif le dit déjà', () => {
     expect(shouldReportInvisibleProgress({ itemsAdded: 0, hasMore: false })).toBe(false);
+  });
+});
+
+describe('searchAwareHasContinuation', () => {
+  // Hors recherche, rien ne change : `continuation` reste la seule source.
+  it('hors recherche, retombe sur la continuation du flux', () => {
+    expect(searchAwareHasContinuation({ searching: false, continuation: 'C1', searchVisible: 50, searchResultsCount: 50 }))
+      .toBe(true);
+    expect(searchAwareHasContinuation({ searching: false, continuation: null, searchVisible: 50, searchResultsCount: 50 }))
+      .toBe(false);
+  });
+
+  // Le défaut corrigé : `search()` remet `continuation` à `null` (la page nue
+  // qu'elle quitte ne doit pas prêter sa pagination aux résultats), mais rien
+  // ne relayait plus jamais la suite. Un balayage à 300 correspondances
+  // n'en montrait donc que 50, pour toujours — `continuation` ne redevient
+  // jamais non-nul pendant une recherche. La pagination locale
+  // (`searchVisible` face à `searchResults.length`) doit prendre le relais.
+  it('en recherche, ignore la continuation du flux nu et regarde la pagination locale', () => {
+    expect(searchAwareHasContinuation({ searching: true, continuation: null, searchVisible: 50, searchResultsCount: 300 }))
+      .toBe(true);
+    expect(searchAwareHasContinuation({ searching: true, continuation: 'ignorée', searchVisible: 50, searchResultsCount: 300 }))
+      .toBe(true);
+  });
+
+  it('en recherche, s’arrête quand tout ce qui est trouvé est déjà montré', () => {
+    expect(searchAwareHasContinuation({ searching: true, continuation: null, searchVisible: 50, searchResultsCount: 50 }))
+      .toBe(false);
+    expect(searchAwareHasContinuation({ searching: true, continuation: null, searchVisible: 7, searchResultsCount: 7 }))
+      .toBe(false);
   });
 });

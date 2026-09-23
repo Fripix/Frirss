@@ -92,7 +92,17 @@
     "forgetSearch": "Oublier cette recherche",
     "listFavicons": "Icônes des flux",
     "showListFavicons": "Afficher les icônes des flux",
-    "hideListFavicons": "Masquer les icônes des flux"
+    "hideListFavicons": "Masquer les icônes des flux",
+    "scanScanned_one": "{{count}} article parcouru",
+    "scanScanned_other": "{{count}} articles parcourus",
+    "scanResults_one": "{{count}} résultat",
+    "scanResults_other": "{{count}} résultats",
+    "scanStop": "Arrêter",
+    "scanRetry": "Réessayer",
+    "scanStopped": "Balayage interrompu",
+    "scanOffline": "Hors ligne — résultats parmi les articles disponibles",
+    "scanNetworkError": "Connexion perdue pendant le balayage",
+    "scanRateLimited": "Trop de requêtes — réessayez dans une minute"
   },
   "articleRow": {
     "markRead": "Marquer lu",

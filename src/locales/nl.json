@@ -92,7 +92,17 @@
     "forgetSearch": "Deze zoekopdracht vergeten",
     "listFavicons": "Feedpictogrammen",
     "showListFavicons": "Feedpictogrammen tonen",
-    "hideListFavicons": "Feedpictogrammen verbergen"
+    "hideListFavicons": "Feedpictogrammen verbergen",
+    "scanScanned_one": "{{count}} artikel doorzocht",
+    "scanScanned_other": "{{count}} artikelen doorzocht",
+    "scanResults_one": "{{count}} resultaat",
+    "scanResults_other": "{{count}} resultaten",
+    "scanStop": "Stoppen",
+    "scanRetry": "Opnieuw proberen",
+    "scanStopped": "Zoekactie gestopt",
+    "scanOffline": "Offline — resultaten uit de beschikbare artikelen",
+    "scanNetworkError": "Verbinding verloren tijdens het doorzoeken",
+    "scanRateLimited": "Te veel aanvragen — probeer het over een minuut opnieuw"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",

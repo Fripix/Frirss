@@ -92,7 +92,21 @@
     "forgetSearch": "Забути цей пошук",
     "listFavicons": "Іконки стрічок",
     "showListFavicons": "Показати іконки стрічок",
-    "hideListFavicons": "Приховати іконки стрічок"
+    "hideListFavicons": "Приховати іконки стрічок",
+    "scanScanned_one": "{{count}} переглянута стаття",
+    "scanScanned_few": "{{count}} переглянуті статті",
+    "scanScanned_many": "{{count}} переглянутих статей",
+    "scanScanned_other": "{{count}} переглянутих статей",
+    "scanResults_one": "{{count}} результат",
+    "scanResults_few": "{{count}} результати",
+    "scanResults_many": "{{count}} результатів",
+    "scanResults_other": "{{count}} результатів",
+    "scanStop": "Зупинити",
+    "scanRetry": "Повторити",
+    "scanStopped": "Сканування зупинено",
+    "scanOffline": "Офлайн — результати серед доступних статей",
+    "scanNetworkError": "З'єднання втрачено під час сканування",
+    "scanRateLimited": "Забагато запитів — спробуйте ще раз за хвилину"
   },
   "articleRow": {
     "markRead": "Позначити прочитаним",

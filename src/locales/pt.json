@@ -92,7 +92,17 @@
     "forgetSearch": "Esquecer esta pesquisa",
     "listFavicons": "Ícones das fontes",
     "showListFavicons": "Mostrar os ícones das fontes",
-    "hideListFavicons": "Ocultar os ícones das fontes"
+    "hideListFavicons": "Ocultar os ícones das fontes",
+    "scanScanned_one": "{{count}} artigo analisado",
+    "scanScanned_other": "{{count}} artigos analisados",
+    "scanResults_one": "{{count}} resultado",
+    "scanResults_other": "{{count}} resultados",
+    "scanStop": "Parar",
+    "scanRetry": "Tentar novamente",
+    "scanStopped": "Busca interrompida",
+    "scanOffline": "Offline — resultados entre os artigos disponíveis",
+    "scanNetworkError": "Conexão perdida durante a busca",
+    "scanRateLimited": "Muitos pedidos — tente novamente em um minuto"
   },
   "articleRow": {
     "markRead": "Marcar como lido",

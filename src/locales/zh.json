@@ -92,7 +92,17 @@
     "forgetSearch": "删除此记录",
     "listFavicons": "订阅源图标",
     "showListFavicons": "显示订阅源图标",
-    "hideListFavicons": "隐藏订阅源图标"
+    "hideListFavicons": "隐藏订阅源图标",
+    "scanScanned_one": "{{count}} 篇文章已扫描",
+    "scanScanned_other": "{{count}} 篇文章已扫描",
+    "scanResults_one": "{{count}} 个结果",
+    "scanResults_other": "{{count}} 个结果",
+    "scanStop": "停止",
+    "scanRetry": "重试",
+    "scanStopped": "扫描已停止",
+    "scanOffline": "离线 — 结果来自可用的文章",
+    "scanNetworkError": "扫描过程中连接中断",
+    "scanRateLimited": "请求过多 — 请一分钟后重试"
   },
   "articleRow": {
     "markRead": "标为已读",

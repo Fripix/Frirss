@@ -92,7 +92,21 @@
     "forgetSearch": "Zapomnij to wyszukiwanie",
     "listFavicons": "Ikony kanałów",
     "showListFavicons": "Pokaż ikony kanałów",
-    "hideListFavicons": "Ukryj ikony kanałów"
+    "hideListFavicons": "Ukryj ikony kanałów",
+    "scanScanned_one": "{{count}} przeszukany artykuł",
+    "scanScanned_few": "{{count}} przeszukane artykuły",
+    "scanScanned_many": "{{count}} przeszukanych artykułów",
+    "scanScanned_other": "{{count}} przeszukanych artykułów",
+    "scanResults_one": "{{count}} wynik",
+    "scanResults_few": "{{count}} wyniki",
+    "scanResults_many": "{{count}} wyników",
+    "scanResults_other": "{{count}} wyników",
+    "scanStop": "Zatrzymaj",
+    "scanRetry": "Ponów",
+    "scanStopped": "Przeszukiwanie zatrzymane",
+    "scanOffline": "Offline — wyniki wśród dostępnych artykułów",
+    "scanNetworkError": "Utracono połączenie podczas przeszukiwania",
+    "scanRateLimited": "Zbyt wiele żądań — spróbuj ponownie za minutę"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",

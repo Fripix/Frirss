@@ -92,7 +92,17 @@
     "forgetSearch": "Forget this search",
     "listFavicons": "Feed icons",
     "showListFavicons": "Show feed icons",
-    "hideListFavicons": "Hide feed icons"
+    "hideListFavicons": "Hide feed icons",
+    "scanScanned_one": "{{count}} article scanned",
+    "scanScanned_other": "{{count}} articles scanned",
+    "scanResults_one": "{{count}} result",
+    "scanResults_other": "{{count}} results",
+    "scanStop": "Stop",
+    "scanRetry": "Retry",
+    "scanStopped": "Scan stopped",
+    "scanOffline": "Offline — results among the available articles",
+    "scanNetworkError": "Connection lost during the scan",
+    "scanRateLimited": "Too many requests — try again in a minute"
   },
   "articleRow": {
     "markRead": "Mark as read",

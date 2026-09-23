@@ -7,7 +7,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
-import { shouldLoadMore, listBodyState, canLoadMore } from '../../lib/listPagination';
+import { shouldLoadMore, listBodyState, canLoadMore, searchAwareHasContinuation } from '../../lib/listPagination';
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { openArticleAtSource } from '../../lib/openArticleAtSource';
@@ -21,6 +21,7 @@ import FeedFavicon from '../FeedFavicon';
 import BottomSheet from '../BottomSheet';
 import ArticleContextMenu from './ArticleContextMenu';
 import NewArticlesPill from './NewArticlesPill';
+import SearchScanBar from './SearchScanBar';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 import { copyLink } from '../../lib/copyLink';
 import { useAuthStore } from '../../stores/authStore';
@@ -54,6 +55,11 @@ export default function ArticleList() {
     selectedFeed,
     filter,
     searchQuery,
+    searchResults,
+    searchVisible,
+    searchScan,
+    stopSearch,
+    retrySearch,
     selectArticle,
     toggleStar,
     toggleRead,
@@ -241,6 +247,19 @@ export default function ArticleList() {
   scrollKeyRef.current = scrollKey;
   const didRestoreRef = useRef(false);
 
+  // `search()` remet `continuation` (celle du flux nu) à `null` et rien ne la
+  // fait jamais redevenir non nulle pendant qu'on cherche : la lire brute
+  // pendant une recherche couperait le scroll infini, le bouton « charger la
+  // suite » et l'état vide dès la 51ᵉ correspondance. Pendant une recherche,
+  // c'est la pagination locale (`searchVisible` face à `searchResults`) qui
+  // porte la réponse — voir `searchAwareHasContinuation`.
+  const hasContinuation = searchAwareHasContinuation({
+    searching: !!searchQuery,
+    continuation,
+    searchVisible,
+    searchResultsCount: searchResults.length,
+  });
+
   // ── Apparition échelonnée ────────────────────────────────────────
   // Le décalage d'entrée se décidait sur la seule position : la ligne
   // remontée d'un cran par un retrait franchissait le seuil et rejouait
@@ -327,7 +346,7 @@ export default function ArticleList() {
     );
     if (
       shouldLoadMore({
-        hasContinuation: !!continuation,
+        hasContinuation,
         loading,
         loadingMore,
         scrollTop: el.scrollTop,
@@ -337,7 +356,7 @@ export default function ArticleList() {
     ) {
       loadMore();
     }
-  }, [continuation, loading, loadingMore, loadMore]);
+  }, [hasContinuation, loading, loadingMore, loadMore]);
 
   // Restore the saved scroll position once, after the list has content
   // (covers remounts; on mobile the list stays mounted so position persists).
@@ -581,15 +600,16 @@ export default function ArticleList() {
   const bodyState = listBodyState({
     loading,
     articleCount: articles.length,
-    hasContinuation: !!continuation,
+    hasContinuation,
     searching: !!searchQuery,
+    scanning: searchScan.running,
   });
   // Le bouton « charger la suite » de l'état vide neutre reste inactif tant
   // qu'un clic ne peut pas agir sans risque — page déjà en vol, ou vue encore
   // en cours de revalidation depuis un hit du cache mémoire (voir
   // `canLoadMore` : cliquer dans cette fenêtre perdrait la course contre
   // `loadArticles` et jetterait le travail du clic).
-  const loadMoreBusy = !canLoadMore({ hasContinuation: !!continuation, loadingMore, revalidating });
+  const loadMoreBusy = !canLoadMore({ hasContinuation, loadingMore, revalidating });
 
   return (
     <div className="article-list h-full flex flex-col overflow-x-hidden" style={{ background: 'var(--panel-bg)' }}>
@@ -911,6 +931,8 @@ export default function ArticleList() {
           </div>
         )}
       </div>
+
+      <SearchScanBar scan={searchScan} results={searchResults.length} onStop={stopSearch} onRetry={retrySearch} />
 
       {/* List */}
       <div

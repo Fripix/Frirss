@@ -1384,6 +1384,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   stopSearch: () => {
+    // Rien ne tourne : ne pas produire l'état contradictoire
+    // { done: true, stopped: true }, que la barre d'état devrait ensuite
+    // départager.
+    if (!get().searchScan.running) return;
     scanToken++;
     set((s) => ({ searchScan: { ...s.searchScan, running: false, stopped: true } }));
   },
