@@ -31,6 +31,9 @@ la release publiée.
   arrêter, et ne dit « aucun résultat » qu'une fois le balayage terminé. Les
   accents et la casse sont ignorés, tous les mots de la requête sont exigés.
   Hors ligne, la recherche fouille ce que l'appareil détient et le dit.
+  **Changement de comportement** : changer de flux, de filtre ou de catégorie
+  referme désormais la recherche, au lieu de laisser la boîte remplie au-dessus
+  d'une autre vue.
 
 ## Sous le capot
 
