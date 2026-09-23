@@ -712,6 +712,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
     memMarkRead(article.id, true);
     persistCurrentView(get);
+    // Le corpus gardé suit l'optimisme, comme sur `toggleRead`.
+    patchSearchCorpus(article.id, { read: true });
     // Fire-and-forget; revert if the server call fails.
     // NOTE: reading an article goes through here, NOT through toggleRead —
     // this is the path that must survive being offline.
@@ -735,6 +737,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       bumpCountsEpoch(); // écriture locale (rollback) — voir la garde en tête de fichier
       memMarkRead(article.id, false);
       persistCurrentView(get);
+      // Rollback : le corpus revient avec la ligne.
+      patchSearchCorpus(article.id, { read: false });
     }).finally(() => {
       readWritesInFlight--;
       bumpCountsEpoch(); // règlement (succès ou échec) — voir Important 1 en tête de fichier
@@ -1186,6 +1190,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
     memMarkRead(article.id, newRead);
     persistCurrentView(get);
+    // Le corpus gardé suit l'optimisme : sans ce relais, une recherche future
+    // réutiliserait le corpus et ressortirait l'ancien état de lecture.
+    patchSearchCorpus(article.id, { read: newRead });
     try {
       // Important 1 (deuxième re-revue) : posé AVANT l'appel réseau, levé
       // dans le `finally` qui suit — que l'appel réussisse ou échoue. Un
@@ -1272,6 +1279,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       bumpCountsEpoch(); // écriture locale (rollback) — voir la garde en tête de fichier
       memMarkRead(article.id, !newRead);
       persistCurrentView(get);
+      // Le corpus doit revenir avec la ligne : un refus laissé tel quel y
+      // garderait l'état optimiste, jamais écrit côté FreshRSS.
+      patchSearchCorpus(article.id, { read: !newRead });
       // Le rollback rend la ligne et le compteur, mais une ligne qui
       // réapparaît toute seule est incompréhensible : il faut la commenter.
       await notifyWriteFailure(err);
@@ -1313,6 +1323,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       starredCount: Math.max(0, state.starredCount + (newStarred ? 1 : -1)),
     }));
     persistCurrentView(get);
+    // Le corpus gardé suit l'optimisme, comme sur `toggleRead`.
+    patchSearchCorpus(article.id, { starred: newStarred });
     try {
       if (newStarred) {
         await markAsStarred(article.id);
@@ -1339,6 +1351,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         starredCount: Math.max(0, state.starredCount + (newStarred ? -1 : 1)),
       }));
       persistCurrentView(get);
+      // Rollback : le corpus revient avec la ligne.
+      patchSearchCorpus(article.id, { starred: !newStarred });
     }
   },
 
@@ -1482,6 +1496,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         };
       });
       bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
+      // Un « tout lu » touche trop d'articles pour être répercuté un par un ; le
+      // corpus gardé deviendrait faux en bloc.
+      dropSearchCorpus();
     } catch { /* ignore */ }
   },
 
@@ -1549,6 +1566,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       };
     });
     persistCurrentView(get);
+    // Le corpus gardé suit l'optimisme, comme sur `toggleRead`.
+    const optimisticLabels = removing
+      ? (article.labels || []).filter((l) => l !== READ_LATER_LABEL)
+      : [...(article.labels || []), READ_LATER_LABEL];
+    patchSearchCorpus(article.id, { labels: optimisticLabels });
     try {
       await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
       // Le retrait vient APRÈS la confirmation, jamais avant : le rollback
@@ -1588,6 +1610,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         };
       });
       persistCurrentView(get);
+      // Rollback : le corpus revient avec la ligne — l'étiquette d'origine.
+      patchSearchCorpus(article.id, { labels: article.labels || [] });
     }
   },
 
