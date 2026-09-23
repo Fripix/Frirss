@@ -20,7 +20,7 @@ import {
   deleteTag,
   clearWriteToken,
 } from '../api/feeds';
-import { articleHaystack, parseQuery } from '../lib/searchMatch';
+import { articleHaystack, parseQuery, matchesTerms } from '../lib/searchMatch';
 import { scanErrorKind } from '../lib/scanError';
 import {
   createCorpus, addPage, corpusIsUsable, corpusMatches, patchCorpusArticle,
@@ -1363,6 +1363,35 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // appartenait à la vue nue qu'on quitte ; la laisser pendrait la
     // pagination locale des résultats à celle, périmée, du flux brut.
     set({ searchQuery: trimmed, newInView: 0, searchVisible: PAGE_SIZE, loading: false, continuation: null });
+
+    // Hors ligne : aucun balayage possible. On filtre ce qu'on détient — la
+    // liste en mémoire et la liste rangée pour cette vue — et la barre d'état
+    // dit ce qui a été fouillé. Prétendre avoir tout vu serait pire que ne rien
+    // chercher.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const record = await listGet(viewKey(selectedFeed, filter)).catch(() => undefined);
+      const pool = [...get().articles, ...(record?.articles ?? [])];
+      // `scanned` compte les articles DISTINCTS effectivement examinés : un
+      // article présent à la fois en mémoire et dans le cache hors ligne
+      // (rechargement après un premier passage) ne doit être compté — ni
+      // affiché — qu'une fois. La somme brute des deux sources gonflerait ce
+      // qui a « été fouillé » sans que rien de plus n'ait réellement été vu.
+      const seen = new Set<string>();
+      const hits: Article[] = [];
+      let scanned = 0;
+      for (const a of pool) {
+        if (seen.has(a.id)) continue;
+        seen.add(a.id);
+        scanned++;
+        if (matchesTerms(articleHaystack(a), scanTerms)) hits.push(a);
+      }
+      set({
+        searchResults: hits,
+        articles: hits.slice(0, PAGE_SIZE),
+        searchScan: { running: false, scanned, done: true, stopped: false, error: 'offline' },
+      });
+      return;
+    }
 
     if (corpusIsUsable(searchCorpus, streamId, serverId, Date.now())) {
       const hits = corpusMatches(searchCorpus as Corpus, scanTerms);
