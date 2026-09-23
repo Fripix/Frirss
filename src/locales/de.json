@@ -99,7 +99,7 @@
     "scanResults_other": "{{count}} Ergebnisse",
     "scanStop": "Stopp",
     "scanRetry": "Erneut versuchen",
-    "scanStopped": "Suche angehalten",
+    "scanStopped": "Suchlauf angehalten",
     "scanOffline": "Offline – Ergebnisse aus den verfügbaren Artikeln",
     "scanNetworkError": "Verbindung während des Suchlaufs verloren",
     "scanRateLimited": "Zu viele Anfragen – in einer Minute erneut versuchen"

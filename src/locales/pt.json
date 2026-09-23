@@ -99,9 +99,9 @@
     "scanResults_other": "{{count}} resultados",
     "scanStop": "Parar",
     "scanRetry": "Tentar novamente",
-    "scanStopped": "Busca interrompida",
+    "scanStopped": "Análise interrompida",
     "scanOffline": "Offline — resultados entre os artigos disponíveis",
-    "scanNetworkError": "Conexão perdida durante a busca",
+    "scanNetworkError": "Conexão perdida durante a análise",
     "scanRateLimited": "Muitos pedidos — tente novamente em um minuto"
   },
   "articleRow": {
