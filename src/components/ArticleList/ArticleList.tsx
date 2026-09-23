@@ -522,6 +522,21 @@ export default function ArticleList() {
     if (searchOpen) setHistory(loadSearchHistory(activeServerId));
   }, [searchOpen, activeServerId]);
 
+  // Le store referme la recherche dès que la vue change (`closeSearch`) : la
+  // boîte doit suivre, sinon elle reste remplie au-dessus d'une liste qui
+  // n'est plus filtrée — vu sur l'instance de dev, la requête « debian »
+  // flottait au-dessus de « Tous les flux » entier. Clé sur la vue, pas sur
+  // `searchQuery` : celui-ci est vide aussi pendant qu'on tape, et effacer
+  // alors reviendrait à manger la frappe.
+  const viewSignature = `${selectedFeed?.id ?? ''}:${filter}`;
+  const lastViewSignature = useRef(viewSignature);
+  useEffect(() => {
+    if (lastViewSignature.current === viewSignature) return;
+    lastViewSignature.current = viewSignature;
+    setSearchValue('');
+    setSearchOpen(false);
+  }, [viewSignature]);
+
   // Keyboard shortcut asks for the search: open it — the effect above then
   // focuses the input once it exists.
   useEffect(() => {
