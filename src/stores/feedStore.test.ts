@@ -1876,3 +1876,71 @@ describe('feedStore.loadMore — pendant une recherche', () => {
     expect(s.loadingMore).toBe(false);
   });
 });
+
+describe('feedStore.silentRefresh — gardes contre une recherche en cours', () => {
+  const feed = { id: 'feed/1', title: 'F' } as unknown as Subscription;
+  const article = { id: 'a1', read: false, sourceId: 'feed/1', title: 'A' } as Article;
+  const searchedArticle = { id: 's1', read: false, sourceId: 'feed/1', title: 'Result' } as Article;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([]);
+    __resetSearchStateForTests();
+  });
+
+  it('garde d\'entree : n\'appelle pas l\'API si une recherche est en cours', async () => {
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [{ id: 'api-result', categories: [] }], continuation: null } as never);
+    const originalArticles = [article];
+    useFeedStore.setState({
+      selectedFeed: feed,
+      filter: 'all',
+      articles: originalArticles,
+      searchQuery: 'kernel',
+      searchResults: [searchedArticle],
+    });
+
+    await useFeedStore.getState().silentRefresh();
+
+    // `syncCounts` tourne avant le renoncement et relève légitimement les
+    // compteurs (favoris, à lire plus tard) : ce qui est épinglé ici, c'est
+    // que la LISTE du flux affiché n'est jamais demandée.
+    const askedForTheFeed = vi.mocked(api.getStreamContents).mock.calls.some((c) => c[0] === feed.id);
+    expect(askedForTheFeed).toBe(false);
+  });
+
+  it("garde après l'await : n'écrase pas les résultats si une recherche démarre pendant le vol", async () => {
+    // La requête de LISTE est tenue en vol ; les relevés de compteurs que
+    // `syncCounts` déclenche avant elle répondent tout de suite, sinon c'est la
+    // garde d'ENTRÉE qui attraperait le cas et celle d'après l'attente ne
+    // serait jamais exercée.
+    let resolveList!: (v: unknown) => void;
+    vi.mocked(api.getStreamContents).mockImplementation(((streamId: string) =>
+      streamId === feed.id
+        ? new Promise((r) => { resolveList = r; })
+        : Promise.resolve({ items: [], continuation: null })) as never);
+
+    useFeedStore.setState({
+      selectedFeed: feed,
+      filter: 'all',
+      articles: [article],
+      searchQuery: '',
+      searchResults: [],
+    });
+
+    const silentRefreshPromise = useFeedStore.getState().silentRefresh();
+    await vi.waitFor(() => expect(resolveList).toBeDefined());
+
+    vi.mocked(api.fetchStreamPage).mockResolvedValueOnce(
+      { items: [{ id: 's1', categories: [] }], continuation: null } as never
+    );
+    await useFeedStore.getState().search('noyau');
+    const idsAvantResolution = useFeedStore.getState().articles.map((a) => a.id);
+
+    resolveList({ items: [{ id: 'new1', categories: [] }], continuation: null });
+    await silentRefreshPromise;
+
+    const s = useFeedStore.getState();
+    expect(s.searchQuery).toBe('noyau');
+    expect(s.articles.map((a) => a.id)).toEqual(idsAvantResolution);
+  });
+});
