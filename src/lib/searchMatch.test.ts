@@ -37,6 +37,10 @@ describe('stripHtml', () => {
     expect(stripHtml('<p>Bonjour <b>le</b> monde</p>')).toBe('Bonjour le monde');
   });
 
+  it('ne colle pas les mots quand deux balises sont adjacentes', () => {
+    expect(stripHtml('<b>moteur</b><i>recherche</i>')).toBe('moteur recherche');
+  });
+
   it('décode les entités', () => {
     expect(stripHtml('l&#39;été &amp; la pluie')).toBe("l'été & la pluie");
   });
