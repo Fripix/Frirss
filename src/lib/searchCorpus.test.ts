@@ -30,13 +30,13 @@ describe('corpus', () => {
     expect(c.complete).toBe(false);
   });
 
-  it('se declare complet quand la continuation tombe', () => {
+  it('se déclare complet quand la continuation tombe', () => {
     let c = createCorpus('feed/1', '7', 1_000);
     c = addPage(c, [entry('a', 'alpha')], null, 1_100);
     expect(c.complete).toBe(true);
   });
 
-  it('deduplique par identifiant un flux qui bouge livre deux fois le meme article', () => {
+  it('déduplique par identifiant — un flux qui bouge livre deux fois le même article', () => {
     let c = createCorpus('feed/1', '7', 1_000);
     c = addPage(c, [entry('a', 'alpha')], 'CONT1', 1_100);
     c = addPage(c, [entry('a', 'alpha'), entry('b', 'beta')], null, 1_200);
@@ -47,27 +47,27 @@ describe('corpus', () => {
 describe('corpusIsUsable', () => {
   const complete = () => addPage(createCorpus('feed/1', '7', 0), [entry('a', 'alpha')], null, 1_000);
 
-  it('accepte un corpus complet, frais, du bon perimetre et du bon serveur', () => {
+  it('accepte un corpus complet, frais, du bon périmètre et du bon serveur', () => {
     expect(corpusIsUsable(complete(), 'feed/1', '7', 1_000 + CORPUS_TTL_MS - 1)).toBe(true);
   });
 
-  it('accepte un corpus exactement a la limite de perennite TTL', () => {
+  it('accepte un corpus exactement à la limite de fraîcheur', () => {
     expect(corpusIsUsable(complete(), 'feed/1', '7', 1_000 + CORPUS_TTL_MS)).toBe(true);
   });
 
-  it('refuse un corpus perime', () => {
+  it('refuse un corpus périmé', () => {
     expect(corpusIsUsable(complete(), 'feed/1', '7', 1_000 + CORPUS_TTL_MS + 1)).toBe(false);
   });
 
-  it('refuse un autre perimetre', () => {
+  it('refuse un autre périmètre', () => {
     expect(corpusIsUsable(complete(), 'feed/2', '7', 1_000)).toBe(false);
   });
 
-  it('refuse un autre serveur ses articles decrivent un autre monde', () => {
+  it('refuse un autre serveur — ses articles décrivent un autre monde', () => {
     expect(corpusIsUsable(complete(), 'feed/1', '8', 1_000)).toBe(false);
   });
 
-  it('refuse un corpus incomplet il ne prouve pas une absence', () => {
+  it('refuse un corpus incomplet : il ne prouve pas une absence', () => {
     const partial = addPage(createCorpus('feed/1', '7', 0), [entry('a', 'alpha')], 'CONT1', 1_000);
     expect(corpusIsUsable(partial, 'feed/1', '7', 1_000)).toBe(false);
   });
@@ -78,7 +78,7 @@ describe('corpusIsUsable', () => {
 });
 
 describe('corpusMatches', () => {
-  it('rend les articles correspondants dans l ordre du corpus', () => {
+  it("rend les articles correspondants dans l'ordre du corpus", () => {
     let c = createCorpus('feed/1', '7', 0);
     c = addPage(c, [entry('a', 'alpha moteur'), entry('b', 'beta'), entry('c', 'gamma moteur')], null, 0);
     expect(corpusMatches(c, ['moteur']).map((a) => a.id)).toEqual(['a', 'c']);
@@ -86,7 +86,7 @@ describe('corpusMatches', () => {
 });
 
 describe('patchCorpusArticle', () => {
-  it('met a jour l article garde sinon la recherche suivante ressortirait l ancien etat', () => {
+  it("met à jour l'article gardé — sinon la recherche suivante ressortirait l'ancien état", () => {
     let c = createCorpus('feed/1', '7', 0);
     c = addPage(c, [entry('a', 'alpha')], null, 0);
     c = patchCorpusArticle(c, 'a', { read: true });
