@@ -1014,6 +1014,14 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   périmé, d'un autre périmètre ou d'un autre serveur ; il tombe entièrement sur
   « tout marquer comme lu » (`dropSearchCorpus`) et au changement de serveur
   (`resetAndReload`).
+- **Changer de flux, de filtre, de catégorie ou de vue referme la
+  recherche** (`closeSearch`, appelée par `setFilter`, `selectFeed`,
+  `selectView`, `selectCategory` et par `markAllAsRead` après
+  `dropSearchCorpus`) : le balayage en vol est périmé (`scanToken`),
+  `searchQuery`/`searchResults`/`searchScan` reviennent à l'état neutre. Sans
+  ce geste, un balayage abandonné laissait `searchScan.running` bloqué à vrai
+  pour toujours — squelette sans fin dans `listBodyState` — ou une barre
+  d'état flottant au-dessus d'un tout autre flux.
 - **Correspondance** (`src/lib/searchMatch.ts`) : tous les mots de la requête
   doivent être présents dans le titre ou le texte, sans distinction de casse ni
   d'accents (`election` trouve « élection » et l'inverse), HTML retiré et
@@ -1043,10 +1051,24 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   (`src/lib/listPagination.ts`), qui bascule sur `searchVisible <
   searchResults.length` pendant une recherche, une requête à 300
   correspondances en montrerait 50, définitivement.
+  ⚠️ **Piège** : `loadArticles` et `silentRefresh` se gardaient sur `viewKey`
+  (flux + filtre), qui ignore `searchQuery` — contrairement à `runScan` et
+  `loadMore`, gardés sur `viewIdentity`. Un retour d'onglet ou un
+  tirer-pour-rafraîchir mobile pendant une recherche déjà terminée
+  remplaçaient alors les résultats par le flux nu, sous un en-tête qui
+  annonçait toujours « Recherche : … ». Les deux renoncent désormais dès
+  qu'une recherche est en cours, avant et après leur propre aller-retour
+  réseau.
 - **Hors ligne** : aucun balayage. On filtre ce qu'on détient — la liste en
   mémoire et la liste rangée pour cette vue (`listGet`) —, les doublons entre
   les deux sources sont écartés, et la barre d'état dit ce qui a réellement été
   fouillé. Prétendre avoir tout vu serait pire que ne rien chercher.
+  ⚠️ **Piège** : « lus compris » (ci-dessus) ne vaut qu'**en ligne**. Hors
+  ligne, la liste en mémoire et `listGet` portent tous deux la vue affichée
+  telle quelle — depuis « Non lus », seuls les non-lus sont fouillés. **Réessayer**
+  emprunte le même chemin hors ligne (`retrySearch`, via `scanOffline`) : il
+  ne relance jamais le réseau, et ne réécrit pas une coupure en panne
+  « réseau » alors que la vraie cause est l'absence de connexion.
 - **Les écritures suivent le corpus** : cocher lu, mettre en favori ou en « à
   lire plus tard » depuis un résultat met à jour l'article **gardé en mémoire**
   comme la ligne affichée, rollback compris. Sans ça, la recherche suivante

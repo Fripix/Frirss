@@ -2160,6 +2160,13 @@ summary:focus-visible,
 .search-scan-bar {
   display: flex;
   align-items: center;
+  /* À 320 px, le message le plus long (compteur français, panne polonaise —
+     voir I2, revue finale) dépasse la largeur disponible à côté du bouton :
+     241 px demandés pour 222 px offerts sur l'un, l'action carrément coupée
+     sur l'autre. `flex-wrap` laisse le texte passer sur une seconde ligne au
+     lieu de le tronquer — vérifié à 320 px contre la feuille de style
+     construite, `getBoundingClientRect()`/`scrollWidth` à l'appui. */
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
   padding: 6px 12px;
@@ -2168,11 +2175,9 @@ summary:focus-visible,
   border-top: 1px solid var(--panel-border);
 }
 .search-scan-bar span {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 .search-scan-bar button {
   flex-shrink: 0;
