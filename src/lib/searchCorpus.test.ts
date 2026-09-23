@@ -51,6 +51,10 @@ describe('corpusIsUsable', () => {
     expect(corpusIsUsable(complete(), 'feed/1', '7', 1_000 + CORPUS_TTL_MS - 1)).toBe(true);
   });
 
+  it('accepte un corpus exactement a la limite de perennite TTL', () => {
+    expect(corpusIsUsable(complete(), 'feed/1', '7', 1_000 + CORPUS_TTL_MS)).toBe(true);
+  });
+
   it('refuse un corpus perime', () => {
     expect(corpusIsUsable(complete(), 'feed/1', '7', 1_000 + CORPUS_TTL_MS + 1)).toBe(false);
   });
