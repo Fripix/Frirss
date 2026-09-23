@@ -20,7 +20,16 @@ la release publiée.
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **La recherche filtre enfin.** Elle ne filtrait rien : FriRSS envoyait un
+  paramètre `q` que l'API Google Reader de FreshRSS n'a jamais lu — vérifié de
+  la version 1.20.2 à la 1.27.0 — et le serveur renvoyait le flux entier. Un
+  terme inexistant ramenait quand même tous les articles. Le filtrage se fait
+  désormais dans le navigateur : FriRSS balaye le périmètre de la vue courante
+  (flux, catégorie, ou tous les flux), articles lus compris, affiche les
+  correspondances au fur et à mesure avec un compteur et un bouton pour
+  arrêter, et ne dit « aucun résultat » qu'une fois le balayage terminé. Les
+  accents et la casse sont ignorés, tous les mots de la requête sont exigés.
+  Hors ligne, la recherche fouille ce que l'appareil détient et le dit.
 
 ## Sous le capot
 

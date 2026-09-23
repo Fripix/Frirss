@@ -987,9 +987,70 @@ Confirmation optionnelle avant de vider une vue entière.
 - **Spec** : `docs/superpowers/specs/2026-08-15-optional-mark-all-read-confirm-design.md`
 
 ### Recherche
-Recherche respectant le **périmètre** de la vue courante : chercher depuis un
-flux cherche dans ce flux, depuis une catégorie dans cette catégorie.
+Recherche **côté client**, respectant le **périmètre** de la vue courante :
+chercher depuis un flux cherche dans ce flux, depuis une catégorie dans cette
+catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
 
+> ⚠️ **L'API greader de FreshRSS n'a PAS de paramètre de recherche.** Dans
+> `p/api/greader.php`, `streamContentsFilters` ne lit que `xt`, `it`, `n`, `r`,
+> `ot`, `nt`, `c`, `s` et `output` ; le `FreshRSS_BooleanSearch` qu'il construit
+> n'est rempli qu'avec des bornes de dates. Vérifié sur les versions 1.20.2,
+> 1.23.1, 1.24.3, 1.26.0 et 1.27.0. Jusqu'à la 1.4.12, FriRSS envoyait un `q=`
+> que le serveur ignorait : la « recherche » rendait le flux entier, non filtré,
+> et un terme inexistant ramenait quand même tous les articles. **Ne jamais
+> réintroduire `q`** — il ne filtrera rien.
+
+- **Balayage** (`feedStore.runScan`) : le périmètre est lu page par page via
+  `fetchStreamPage` (tranches de `SCAN_PAGE` = 1 000, la continuation de chaque
+  page ouvrant la suivante), et chaque tranche est filtrée au passage. Mesuré
+  sur un compte réel : 1 000 articles en ~830 ms pour ~2 Mo, soit ~11 requêtes,
+  ~21 Mo et une dizaine de secondes pour une archive de 10 000 articles ; un
+  flux seul tient en une requête. Séquentiel par nature — une page ne peut pas
+  être demandée avant d'avoir lu la continuation de la précédente.
+- **Le corpus balayé est gardé cinq minutes** (`src/lib/searchCorpus.ts`,
+  `CORPUS_TTL_MS`), pour un seul périmètre à la fois : affiner une requête
+  refiltre la mémoire sans toucher au réseau. Il est refusé — donc rebalayé —
+  s'il est **incomplet** (un balayage interrompu ne prouve aucune absence),
+  périmé, d'un autre périmètre ou d'un autre serveur ; il tombe entièrement sur
+  « tout marquer comme lu » (`dropSearchCorpus`) et au changement de serveur
+  (`resetAndReload`).
+- **Correspondance** (`src/lib/searchMatch.ts`) : tous les mots de la requête
+  doivent être présents dans le titre ou le texte, sans distinction de casse ni
+  d'accents (`election` trouve « élection » et l'inverse), HTML retiré et
+  entités décodées avant comparaison. Les balises deviennent des espaces : sans
+  ça `<b>moteur</b><i>recherche</i>` donnerait « moteurrecherche ». Le texte
+  cherchable de chaque article est calculé **une fois au balayage**, jamais à
+  chaque frappe. Pas d'opérateurs, pas de classement par pertinence : l'ordre
+  reste celui du flux, date décroissante.
+- **Le filtre Non lus ne restreint pas la recherche** : on cherche parmi tous
+  les articles du périmètre, lus compris — retrouver un article déjà lu est le
+  premier usage d'une loupe. Chaque ligne porte son état, donc un article lu ne
+  se déguise pas en nouveauté.
+- **Barre d'état** (`SearchScanBar`) : pendant le balayage, « N articles
+  parcourus · M résultats » et un bouton **Arrêter** ; après une coupure, le
+  motif de l'échec (réseau, plafond de requêtes, hors ligne) et **Réessayer**,
+  qui reprend à la continuation en cours au lieu de tout refaire.
+  ⚠️ **« Aucun résultat » n'apparaît qu'une fois le balayage terminé** :
+  `listBodyState` reçoit `scanning` et rend le squelette tant qu'il tourne. Une
+  recherche qui n'a rien trouvé et une recherche qui n'a pas fini se ressemblent
+  trop à l'écran — c'est le même mensonge que le « tout est lu » d'une liste qui
+  attendait encore sa page.
+- **Pagination des résultats, purement locale** : `searchResults` porte toutes
+  les correspondances, `articles` en reçoit des tranches de `PAGE_SIZE`
+  complétées au défilement, sans un seul appel réseau.
+  ⚠️ **Piège** : `search()` remet `continuation` à `null`, or le scroll infini
+  ne se déclenche que sur `hasContinuation`. Sans `searchAwareHasContinuation`
+  (`src/lib/listPagination.ts`), qui bascule sur `searchVisible <
+  searchResults.length` pendant une recherche, une requête à 300
+  correspondances en montrerait 50, définitivement.
+- **Hors ligne** : aucun balayage. On filtre ce qu'on détient — la liste en
+  mémoire et la liste rangée pour cette vue (`listGet`) —, les doublons entre
+  les deux sources sont écartés, et la barre d'état dit ce qui a réellement été
+  fouillé. Prétendre avoir tout vu serait pire que ne rien chercher.
+- **Les écritures suivent le corpus** : cocher lu, mettre en favori ou en « à
+  lire plus tard » depuis un résultat met à jour l'article **gardé en mémoire**
+  comme la ligne affichée, rollback compris. Sans ça, la recherche suivante
+  ressortirait l'ancien état : un article coché qui redevient non lu.
 - **Recherches récentes** (1.4.5) : `src/lib/searchHistory.ts`, cinq au
   maximum, **par serveur** comme la vue courante (`lastView.ts`) — les flux
   diffèrent d'un serveur à l'autre, donc une requête qui avait un sens sur l'un
@@ -997,23 +1058,22 @@ flux cherche dans ce flux, depuis une catégorie dans cette catégorie.
   sinon elles recouvriraient ce qu'on est en train de taper. **Locales à
   l'appareil, jamais synchronisées** : c'est la sorte de trace qu'on ne
   s'attend pas à voir apparaître sur un autre écran.
-- **Scroll infini des résultats** (1.4.8) : `loadMore` appelait
-  `fetchArticleStream(filter, selectedFeed, …)` sans jamais passer
-  `searchQuery`. Descendre au bas d'une liste de résultats y appendait donc la
-  page du **flux nu** — des articles sans rapport avec la requête, sous une
-  boîte de recherche toujours remplie. Il passe désormais par `searchItems`,
-  qui accepte une continuation, avec le **même périmètre** que la recherche
-  initiale (`resolveSearchStreamId`) — sans quoi la suite chercherait ailleurs
-  que le début.
 - **Piège** : une page de résultats n'est écrite dans **aucun cache**, ni
   mémoire ni hors ligne. `viewKey` ne connaît que le flux et le filtre : y
   ranger des résultats les ferait repeindre à l'ouverture de la vue nue, hors
-  de toute recherche. C'est déjà pourquoi `search` n'écrit rien.
+  de toute recherche. `persistCurrentView` s'en garde explicitement tant qu'une
+  recherche est en cours.
 - **Piège** : `activeServerId` vaut `string` sur certains chemins et `number`
   sur d'autres ; la clé de stockage interpole, pour que les deux formes visent
   le même seau.
+- **Coût assumé** : le corpus d'une archive de 10 000 articles occupe quelques
+  dizaines de mégaoctets en mémoire. Confortable sur ordinateur, à surveiller
+  sur téléphone, où le navigateur peut décharger un onglet gourmand laissé en
+  arrière-plan. Si ça coince, ne garder que le texte normalisé et les articles
+  correspondants divise la facture par trois.
 
-- **Spec** : `docs/superpowers/specs/2026-08-16-scoped-search-design.md`
+- **Specs** : `docs/superpowers/specs/2026-08-16-scoped-search-design.md`,
+  `docs/superpowers/specs/2026-09-23-client-side-search-design.md`
 
 ### Vue agrégée d'une catégorie
 Cliquer une catégorie affiche les articles de tous ses flux.
