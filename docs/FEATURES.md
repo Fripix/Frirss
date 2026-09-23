@@ -1051,6 +1051,16 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   lire plus tard » depuis un résultat met à jour l'article **gardé en mémoire**
   comme la ligne affichée, rollback compris. Sans ça, la recherche suivante
   ressortirait l'ancien état : un article coché qui redevient non lu.
+- **Déclenchement** : la recherche part à la validation du champ (Entrée), pas à
+  la frappe — un balayage par caractère tapé serait absurde.
+  ⚠️ **Piège** : après un **Arrêter**, seul le bouton **Réessayer** reprend à la
+  continuation atteinte ; retaper la même requête rebalaye depuis le début,
+  parce qu'un corpus incomplet est refusé à la réutilisation. C'est voulu — un
+  corpus partiel ne peut pas fonder un « aucun résultat » — mais ça surprend.
+- **Un flux qui bouge pendant le balayage** peut livrer deux fois le même
+  article d'une tranche à l'autre : `addPage` écarte ceux qu'il a déjà vus. Le
+  compteur « articles parcourus » décrit donc les articles **distincts**
+  examinés, en ligne comme hors ligne.
 - **Recherches récentes** (1.4.5) : `src/lib/searchHistory.ts`, cinq au
   maximum, **par serveur** comme la vue courante (`lastView.ts`) — les flux
   diffèrent d'un serveur à l'autre, donc une requête qui avait un sens sur l'un
