@@ -612,6 +612,73 @@ async function enqueueAction(
 
 const IDLE_SCAN: SearchScan = { running: false, scanned: 0, done: false, stopped: false, error: null };
 
+/**
+ * Referme la recherche : périme un balayage en vol et remet la recherche à
+ * son état neutre (requête, résultats, tranche visible, barre d'état).
+ *
+ * Appelée par les quatre actions de changement de vue (`setFilter`,
+ * `selectFeed`, `selectView`, `selectCategory` — cette dernière via
+ * `selectView`) et par `markAllAsRead` juste après `dropSearchCorpus()`.
+ * Sans ce geste, un balayage abandonné (`runScan` rend la main sur `stale()`
+ * sans rien écrire) laissait `searchScan.running` bloqué à vrai pour
+ * toujours — squelette sans fin dans `listBodyState`, ou barre d'état
+ * flottant au-dessus d'un tout autre flux (revue finale, C1). Et sans lui,
+ * `loadMore` se fiait au seul `searchQuery` (toujours renseigné) pour
+ * décider de paginer localement, et REMPLAÇAIT la liste de la nouvelle vue
+ * par les résultats de l'ancienne recherche (C2).
+ *
+ * `scanToken++` — pas seulement le `set` — car une page déjà en vol ne doit
+ * plus rien écrire une fois la vue quittée, même après coup.
+ *
+ * Inoffensif quand aucune recherche n'est en cours (démarrage, restauration
+ * de la dernière vue via `App.tsx`) : `scanToken` avance d'un cran pour
+ * rien, et le `set` ne fait que réécrire des champs déjà à leur valeur
+ * neutre.
+ */
+function closeSearch(set: (partial: Partial<FeedState>) => void): void {
+  scanToken++;
+  set({ searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
+}
+
+/**
+ * Hors ligne : aucun balayage possible. Filtre ce qui est disponible
+ * localement — la liste en mémoire et la liste rangée pour cette vue
+ * (`listGet`), doublons entre les deux écartés — et le dit dans la barre
+ * d'état plutôt que de prétendre avoir tout vu.
+ *
+ * Partagée entre `search()` et `retrySearch()` (I3, revue finale) :
+ * `retrySearch` empruntait jusque-là le seul chemin réseau même hors ligne,
+ * échouait à coup sûr, et réécrivait la panne en « connexion perdue pendant
+ * le balayage » — un mensonge sur la cause. `scanTerms` (module-level) porte
+ * déjà les mots de la recherche en cours, posés par `search()` avant tout
+ * appel possible à `retrySearch()`.
+ */
+async function scanOffline(
+  set: (partial: Partial<FeedState>) => void,
+  get: () => FeedState,
+  selectedFeed: Subscription | null,
+  filter: Filter,
+): Promise<void> {
+  const record = await listGet(viewKey(selectedFeed, filter)).catch(() => undefined);
+  const pool = [...get().articles, ...(record?.articles ?? [])];
+  // `scanned` compte les articles DISTINCTS effectivement examinés — voir la
+  // même remarque dans l'ancien emplacement de ce code, `search()`.
+  const seen = new Set<string>();
+  const hits: Article[] = [];
+  let scanned = 0;
+  for (const a of pool) {
+    if (seen.has(a.id)) continue;
+    seen.add(a.id);
+    scanned++;
+    if (matchesTerms(articleHaystack(a), scanTerms)) hits.push(a);
+  }
+  set({
+    searchResults: hits,
+    articles: hits.slice(0, PAGE_SIZE),
+    searchScan: { running: false, scanned, done: true, stopped: false, error: 'offline' },
+  });
+}
+
 export const useFeedStore = create<FeedState>()((set, get) => ({
   subscriptions: [],
   unreadCounts: {},
@@ -646,6 +713,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   feedErrors: {}, // { [feedId]: timestamp } — tracks feeds that errored on load
 
   setFilter: (filter) => {
+    closeSearch(set);
     const c = memGet(viewKey(get().selectedFeed, filter));
     set({ filter, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
@@ -662,6 +730,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   selectFeed: (feed) => {
+    closeSearch(set);
     const c = memGet(viewKey(feed, get().filter));
     set({ selectedFeed: feed, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
@@ -671,6 +740,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   // When no filter is given (feed/label navigation), fall back to that feed's
   // own persisted "unread only" preference instead of always showing everything.
   selectView: (feed, filter) => {
+    closeSearch(set);
     const f = filter ?? (isUnreadOnly(feed?.id ?? '') ? 'unread' : 'all');
     const c = memGet(viewKey(feed ?? null, f));
     // Entrée d'accueil surlignée (`homeEntryActive`) : « Non lus » seulement
@@ -1019,7 +1089,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     bumpCountsEpoch(); // une vue qui repart de zéro n'est pas une arrivée
     const { selectedFeed, filter } = get();
     const key = viewKey(selectedFeed, filter);
-    const sameView = () => viewKey(get().selectedFeed, get().filter) === key;
+    // `viewKey` ne voit que le flux et le filtre : une recherche démarrée
+    // pendant l'aller-retour ci-dessous (ex. le bouton « chercher dans tous
+    // les flux » de l'état vide, qui enchaîne `selectView` puis `search`
+    // sans attendre le premier) restait invisible à cette garde, et le flux
+    // nu écrasait les résultats de la recherche à sa place (I1, revue
+    // finale). `runScan`/`loadMore` se gardent déjà sur `viewIdentity`
+    // (flux + filtre + requête) ; ce chemin-ci renonce plus simplement dès
+    // qu'une recherche est en cours, avant sa propre écriture.
+    const sameView = () => viewKey(get().selectedFeed, get().filter) === key && !get().searchQuery;
     const cached = memGet(key);
     // Memory cache already painted (set by the select action) → no spinner.
     // `revalidating` covers the gap this leaves: the request below (2.) stays
@@ -1383,27 +1461,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // dit ce qui a été fouillé. Prétendre avoir tout vu serait pire que ne rien
     // chercher.
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      const record = await listGet(viewKey(selectedFeed, filter)).catch(() => undefined);
-      const pool = [...get().articles, ...(record?.articles ?? [])];
-      // `scanned` compte les articles DISTINCTS effectivement examinés : un
-      // article présent à la fois en mémoire et dans le cache hors ligne
-      // (rechargement après un premier passage) ne doit être compté — ni
-      // affiché — qu'une fois. La somme brute des deux sources gonflerait ce
-      // qui a « été fouillé » sans que rien de plus n'ait réellement été vu.
-      const seen = new Set<string>();
-      const hits: Article[] = [];
-      let scanned = 0;
-      for (const a of pool) {
-        if (seen.has(a.id)) continue;
-        seen.add(a.id);
-        scanned++;
-        if (matchesTerms(articleHaystack(a), scanTerms)) hits.push(a);
-      }
-      set({
-        searchResults: hits,
-        articles: hits.slice(0, PAGE_SIZE),
-        searchScan: { running: false, scanned, done: true, stopped: false, error: 'offline' },
-      });
+      await scanOffline(set, get, selectedFeed, filter);
       return;
     }
 
@@ -1437,6 +1495,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   retrySearch: async () => {
     const { selectedFeed, filter } = get();
+    // I3 (revue finale) : hors ligne, reprendre le chemin réseau échoue à
+    // coup sûr et réécrit la panne en « connexion perdue pendant le
+    // balayage » — faux, la cause est l'absence de réseau, pas une coupure
+    // en vol. Emprunter le même chemin que `search()`.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      await scanOffline(set, get, selectedFeed, filter);
+      return;
+    }
     const streamId = resolveSearchStreamId(selectedFeed, filter);
     const serverId = String(useAuthStore.getState().activeServerId ?? '');
     // Le corpus gardé peut appartenir à un autre périmètre que celui d'à
@@ -1499,6 +1565,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // Un « tout lu » touche trop d'articles pour être répercuté un par un ; le
       // corpus gardé deviendrait faux en bloc.
       dropSearchCorpus();
+      // Même fermeture que sur un changement de vue (C1, revue finale) :
+      // sans elle, un balayage en cours voyait son corpus disparaître sous
+      // lui (`stale()` dans `runScan` rend la main sans rien écrire) et
+      // `searchScan.running` restait bloqué à vrai pour toujours.
+      closeSearch(set);
     } catch { /* ignore */ }
   },
 
@@ -1901,6 +1972,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   // Used when tab regains visibility (cross-device scenario)
   silentRefresh: async () => {
     await get().syncCounts();
+    // Une recherche affiche sa propre liste (`searchResults` filtrés par le
+    // balayage), sous un en-tête qui l'annonce toujours — `viewKey` l'ignore
+    // (flux + filtre seulement). Un retour d'onglet ou un tirer-pour-
+    // rafraîchir mobile déclenchent ce chemin PENDANT une recherche déjà
+    // terminée aussi bien qu'au démarrage : sans ce renoncement, le flux nu
+    // remplaçait les résultats sous l'en-tête « Recherche : … » (I1, revue
+    // finale). Revérifié après l'attente réseau : une recherche a pu
+    // démarrer pendant le vol.
+    if (get().searchQuery) return;
     // Silently reload current article list (no loading spinner)
     const { selectedFeed, filter } = get();
     // La vue affichée au moment de la requête — comme `loadArticles` avec
@@ -1911,7 +1991,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     try {
       const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
       if (!result) return;
-      if (viewKey(get().selectedFeed, get().filter) !== key) return;
+      if (viewKey(get().selectedFeed, get().filter) !== key || get().searchQuery) return;
       const newArticles = result.items.map(normalizeArticle);
       // Merge: keep selectedArticle in sync if it still exists
       set((state) => {

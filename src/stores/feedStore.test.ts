@@ -49,7 +49,7 @@ vi.mock('../i18n', () => ({
   default: { t: (k: string) => k },
 }));
 
-import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId, READ_LATER_LABEL, __resetNewArticlesStateForTests } from './feedStore';
+import { useFeedStore, pickPrefetchFeeds, isCategoryStreamId, resolveSearchStreamId, READ_LATER_LABEL, __resetNewArticlesStateForTests, __resetSearchStateForTests } from './feedStore';
 import { useUiStore } from './uiStore';
 import { useAuthStore } from './authStore';
 import * as api from '../api/feeds';
@@ -62,6 +62,13 @@ const baseArticle = { id: 'a1', read: false, sourceId: 'feed/1' } as Article;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // M2 (revue finale) : seul fichier de test à appeler `search()` sans
+  // remettre à zéro l'état module-level qui la porte (`searchCorpus`,
+  // `scanToken`) — un corpus complet y survivait à tous les tests suivants.
+  // Et `searchQuery` (état du STORE, pas module-level : `__resetSearchStateForTests`
+  // ne le touche pas) n'était remis à '' par aucun test : un test qui le
+  // posait le laissait derrière lui pour tous les suivants du fichier.
+  __resetSearchStateForTests();
   useFeedStore.setState({
     pendingActions: 0,
     failedActions: 0,
@@ -69,6 +76,9 @@ beforeEach(() => {
     selectedArticle: null,
     unreadCounts: { 'feed/1': 3, [READING_LIST]: 5 },
     revalidating: false,
+    searchQuery: '',
+    searchResults: [],
+    searchScan: { running: false, scanned: 0, done: false, stopped: false, error: null },
   });
   useUiStore.setState({ toasts: [] });
 });

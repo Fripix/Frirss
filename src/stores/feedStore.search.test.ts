@@ -254,4 +254,81 @@ describe('search — balayage', () => {
 
     expect(page).toHaveBeenCalled(); // pas de corpus périmé réutilisé
   });
+
+  // I3 — hors ligne, « Réessayer » ne doit ni relancer le réseau ni mentir
+  // sur la cause de l'échec : `retrySearch` empruntait jusque-là le seul
+  // chemin réseau, sans jamais vérifier `navigator.onLine`, et réécrivait la
+  // coupure en « connexion perdue pendant le balayage ».
+  it('retrySearch hors ligne ne relance pas le réseau et dit « hors ligne », pas une coupure', async () => {
+    page
+      .mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: 'C1' })
+      .mockRejectedValueOnce(new Error('coupure réseau pendant le balayage'));
+    await useFeedStore.getState().search('moteur');
+    // Un corpus partiel existe désormais (première page acquise, deuxième
+    // en échec) : c'est précisément le cas où l'ancien code shuntait la
+    // recherche neuve et fonçait droit sur le réseau.
+    expect(useFeedStore.getState().searchScan.error).not.toBeNull();
+    page.mockClear();
+
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    try {
+      await useFeedStore.getState().retrySearch();
+
+      expect(page).not.toHaveBeenCalled();
+      expect(useFeedStore.getState().searchScan).toMatchObject({ running: false, done: true, error: 'offline' });
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    }
+  });
+
+  // M1 — rien ne devait garantir que `runScan` respecte une tranche visible
+  // avancée localement (`showMoreSearchResults`) pendant que le balayage
+  // continue : une régression qui la fige à `PAGE_SIZE` (50) faisait
+  // retomber la liste à 50 lignes au prochain page reçue, en plein
+  // défilement.
+  it('respecte une tranche visible avancée pendant le balayage, pas une tranche fixe', async () => {
+    const page1 = Array.from({ length: 60 }, (_, i) => item(`a${i}`, 'alpha moteur'));
+    const page2 = Array.from({ length: 60 }, (_, i) => item(`b${i}`, 'beta moteur'));
+    let resolvePage2!: (v: { items: typeof page2; continuation: null }) => void;
+    page
+      .mockResolvedValueOnce({ items: page1, continuation: 'C1' })
+      .mockImplementationOnce(() => new Promise((r) => { resolvePage2 = r; }));
+
+    const searchPromise = useFeedStore.getState().search('moteur');
+    // La première page a rempli `searchResults` (60 correspondances) ; la
+    // seconde reste en vol tant qu'on ne l'a pas résolue nous-même.
+    await vi.waitFor(() => expect(page).toHaveBeenCalledTimes(2));
+    useFeedStore.getState().showMoreSearchResults();
+    expect(useFeedStore.getState().searchVisible).toBe(60);
+
+    resolvePage2({ items: page2, continuation: null });
+    await searchPromise;
+
+    // 120 correspondances au total ; la tranche affichée doit suivre
+    // `searchVisible` (60), pas retomber à une tranche fixe de 50.
+    expect(useFeedStore.getState().searchResults).toHaveLength(120);
+    expect(useFeedStore.getState().articles).toHaveLength(60);
+  });
+
+  // Garde de vue manquante du bloc `catch` de `runScan` — sans elle, une
+  // page en échec arrivée après un changement de flux rallumerait
+  // `searchScan.error` sur une vue qui n'a jamais balayé (aucun rapport avec
+  // l'échec, qui appartient à l'ancien flux).
+  it('une page en échec après un changement de flux ne pollue pas la vue qui n’a jamais balayé', async () => {
+    page
+      .mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: 'C1' })
+      .mockImplementationOnce(async () => {
+        // La vue change avant que cette page n'échoue — état neutre, comme
+        // une vue qui n'a jamais lancé de balayage.
+        useFeedStore.setState({
+          selectedFeed: { id: 'feed/9', title: 'Autre' },
+          searchScan: { running: false, scanned: 0, done: false, stopped: false, error: null },
+        } as never);
+        throw { response: { status: 429 } };
+      });
+
+    await useFeedStore.getState().search('moteur');
+
+    expect(useFeedStore.getState().searchScan).toMatchObject({ running: false, error: null, done: false });
+  });
 });
