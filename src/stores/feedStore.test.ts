@@ -14,7 +14,7 @@ vi.mock('../api/feeds', () => ({
   markAsStarred: vi.fn(() => Promise.resolve()),
   removeStarred: vi.fn(() => Promise.resolve()),
   markAllAsRead: vi.fn(() => Promise.resolve()),
-  searchItems: vi.fn(),
+  fetchStreamPage: vi.fn(),
   subscribeFeed: vi.fn(),
   editFeed: vi.fn(),
   unsubscribeFeed: vi.fn(),
@@ -407,7 +407,7 @@ describe('feedStore — pastille « nouveaux articles »', () => {
   // résultats — un clic dessus rechargerait le flux normal pendant qu'une
   // recherche est en cours.
   it('a search resets the count', async () => {
-    vi.mocked(api.searchItems).mockResolvedValue({ items: [], continuation: null } as never);
+    vi.mocked(api.fetchStreamPage).mockResolvedValue({ items: [], continuation: null } as never);
     useFeedStore.setState({ newInView: 4 });
     await useFeedStore.getState().search('x');
     expect(useFeedStore.getState().newInView).toBe(0);
@@ -1814,25 +1814,27 @@ describe('feedStore.loadMore — changement de vue pendant que la page est en vo
   });
 });
 
-describe('feedStore.loadMore — pagination d’une recherche', () => {
-  // `loadMore` appelait `fetchArticleStream(filter, selectedFeed, …)` sans
-  // jamais passer `searchQuery` : descendre au bas d'une liste de résultats
-  // appendait donc des articles du FLUX NU, sans rapport avec la requête, sous
-  // une boîte de recherche toujours remplie.
+describe('feedStore.loadMore — pendant une recherche', () => {
+  // `loadMore` appelait autrefois `searchItems` avec la continuation de la
+  // recherche, en repartant au réseau. Depuis 1.4.12, une recherche est
+  // entièrement balayée d'avance (`search`, voir feedStore.search.test.ts) :
+  // `loadMore` ne fait plus que montrer la tranche suivante de
+  // `searchResults`, sans le moindre aller-retour.
   const feed1 = { id: 'feed/1', title: 'F1' } as unknown as Subscription;
-  const item = (id: string) => ({ id, categories: [] });
   const row = (id: string): Article =>
     ({ id, read: false, starred: false, sourceId: 'feed/1', title: id } as Article);
 
   beforeEach(() => {
     vi.mocked(api.getStreamContents).mockReset();
-    vi.mocked(api.searchItems).mockReset();
+    vi.mocked(api.fetchStreamPage).mockReset();
     useFeedStore.setState({
       selectedFeed: feed1,
       filter: 'unread',
       searchQuery: 'zèbre',
+      searchResults: [row('r1'), row('r2')],
+      searchVisible: 1,
       articles: [row('r1')],
-      continuation: 'search-2',
+      continuation: null,
       selectedArticle: null,
       loadingMore: false,
       revalidating: false,
@@ -1842,41 +1844,17 @@ describe('feedStore.loadMore — pagination d’une recherche', () => {
   afterEach(() => {
     useFeedStore.setState({
       selectedFeed: null, filter: 'all', searchQuery: '',
+      searchResults: [], searchVisible: 50,
       continuation: null, loadingMore: false, revalidating: false,
     });
   });
 
-  it('poursuit la recherche, avec le périmètre que la recherche a utilisé', async () => {
-    vi.mocked(api.searchItems).mockResolvedValue(
-      { items: [item('r2')], continuation: 'search-3' } as never
-    );
+  it('affiche la tranche suivante de searchResults, sans requête réseau', async () => {
     await useFeedStore.getState().loadMore();
-    // Même flux que `resolveSearchStreamId` donne à `search`, et la
-    // continuation de la recherche, pas celle d'un flux.
-    expect(api.searchItems).toHaveBeenCalledWith('zèbre', 50, 'search-2', 'feed/1');
     expect(api.getStreamContents).not.toHaveBeenCalled();
+    expect(api.fetchStreamPage).not.toHaveBeenCalled();
     const s = useFeedStore.getState();
     expect(s.articles.map((a) => a.id)).toEqual(['r1', 'r2']);
-    expect(s.continuation).toBe('search-3');
     expect(s.loadingMore).toBe(false);
-  });
-
-  it('n’écrit pas les résultats dans le cache de la vue nue', async () => {
-    // `viewKey` ignore la requête : persister une page de résultats sous la
-    // clé du flux les y ferait repeindre, hors de toute recherche. `search`
-    // n'écrit rien non plus, pour la même raison.
-    vi.mocked(api.searchItems).mockResolvedValue(
-      { items: [item('r2')], continuation: 'search-3' } as never
-    );
-    vi.mocked(offline.listPut).mockClear();
-    await useFeedStore.getState().loadMore();
-    expect(offline.listPut).not.toHaveBeenCalled();
-
-    // Le cache mémoire de « flux 1 / non lus » n'a pas reçu le résultat : y
-    // revenir n'ouvre pas la vue nue sur des articles trouvés par une requête.
-    useFeedStore.setState({ searchQuery: '' });
-    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
-    useFeedStore.getState().selectFeed(feed1);
-    expect(useFeedStore.getState().articles.map((a) => a.id)).not.toContain('r2');
   });
 });

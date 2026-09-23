@@ -25,7 +25,7 @@ vi.mock('../../api/feeds', () => ({
   getStarredItems: vi.fn(), markAsRead: vi.fn(() => Promise.resolve()),
   markAsUnread: vi.fn(() => Promise.resolve()), markAsStarred: vi.fn(() => Promise.resolve()),
   removeStarred: vi.fn(() => Promise.resolve()), markAllAsRead: vi.fn(() => Promise.resolve()),
-  searchItems: vi.fn(), subscribeFeed: vi.fn(), editFeed: vi.fn(), unsubscribeFeed: vi.fn(),
+  fetchStreamPage: vi.fn(), subscribeFeed: vi.fn(), editFeed: vi.fn(), unsubscribeFeed: vi.fn(),
   getTagList: vi.fn(), getStreamItemCount: vi.fn(), setArticleLabel: vi.fn(),
   renameTag: vi.fn(), deleteTag: vi.fn(), clearWriteToken: vi.fn(),
 }));

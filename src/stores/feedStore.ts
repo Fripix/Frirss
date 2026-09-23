@@ -9,7 +9,7 @@ import {
   markAsStarred,
   removeStarred,
   markAllAsRead,
-  searchItems,
+  fetchStreamPage,
   subscribeFeed,
   editFeed,
   unsubscribeFeed,
@@ -20,6 +20,12 @@ import {
   deleteTag,
   clearWriteToken,
 } from '../api/feeds';
+import { articleHaystack, parseQuery } from '../lib/searchMatch';
+import { scanErrorKind } from '../lib/scanError';
+import {
+  createCorpus, addPage, corpusIsUsable, corpusMatches, patchCorpusArticle,
+  type Corpus,
+} from '../lib/searchCorpus';
 import { useAuthStore } from './authStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import type { HomeEntry } from '../lib/unreadScope';
@@ -60,6 +66,42 @@ export const READ_LATER_LABEL = 'user/-/label/À lire plus tard';
 // Smaller pages load far faster (FreshRSS returns full content per item);
 // infinite scroll fetches more on demand.
 const PAGE_SIZE = 50;
+
+/**
+ * Taille d'une tranche de balayage de recherche.
+ * Mesuré : 1 000 articles en ~830 ms, ~2 Mo. `PAGE_SIZE` reste la taille des
+ * tranches VISIBLES (résultats rendus d'un coup) — deux constantes à 50 dans
+ * ce même fichier seraient un doublon.
+ */
+const SCAN_PAGE = 1000;
+
+/** Le seul corpus gardé — celui du dernier périmètre balayé. */
+let searchCorpus: Corpus | null = null;
+/**
+ * Jeton du balayage courant. Toute nouvelle recherche, tout arrêt, tout
+ * changement de serveur l'incrémente : la boucle en vol se voit périmée et rend
+ * la main sans rien écrire. Même garde que `countsEpoch` pour les compteurs.
+ */
+let scanToken = 0;
+/** Les mots du balayage en cours, pour que `retrySearch` reprenne les mêmes. */
+let scanTerms: string[] = [];
+
+export function __resetSearchStateForTests(): void {
+  searchCorpus = null;
+  scanToken = 0;
+  scanTerms = [];
+}
+
+/** Le corpus n'appartient qu'au serveur qui l'a produit. */
+export function dropSearchCorpus(): void {
+  searchCorpus = null;
+  scanToken++;
+}
+
+/** Répercute une écriture locale sur le corpus gardé. */
+function patchSearchCorpus(id: string, patch: Partial<Article>): void {
+  if (searchCorpus) searchCorpus = patchCorpusArticle(searchCorpus, id, patch);
+}
 
 // Lazy (dynamic) import of i18n, not a static one at the top of the file:
 // `feedStore.ts` is imported by nearly every component, and a static import
@@ -376,6 +418,15 @@ function connectionTooSlow(): boolean {
   return !!c && (c.saveData === true || c.effectiveType === 'slow-2g' || c.effectiveType === '2g');
 }
 
+/** État du balayage de recherche en cours (ou du dernier terminé). */
+export interface SearchScan {
+  running: boolean;
+  scanned: number;
+  done: boolean;
+  stopped: boolean;
+  error: 'network' | 'rate-limit' | 'offline' | null;
+}
+
 export interface FeedState {
   subscriptions: Subscription[];
   unreadCounts: Record<string, number>;
@@ -400,6 +451,12 @@ export interface FeedState {
    */
   revalidating: boolean;
   searchQuery: string;
+  /** Toutes les correspondances trouvées par le balayage en cours. */
+  searchResults: Article[];
+  /** Combien de `searchResults` sont montrés dans `articles` (pagination locale, par tranches). */
+  searchVisible: number;
+  /** Avancement / issue du balayage de recherche — voir `SearchScan`. */
+  searchScan: SearchScan;
   labels: Tag[];
   labelCounts: Record<string, number>;
   categoryIds: string[];
@@ -447,6 +504,12 @@ export interface FeedState {
   toggleStar: (article: Article) => Promise<void>;
   search: (query: string) => Promise<void>;
   clearSearch: () => void;
+  /** Interrompt le balayage en cours, résultats conservés. */
+  stopSearch: () => void;
+  /** Reprend un balayage interrompu à sa continuation, sans refaire ce qui est déjà acquis. */
+  retrySearch: () => Promise<void>;
+  /** Montre la tranche de résultats suivante — purement local, aucun réseau. */
+  showMoreSearchResults: () => void;
   markAllAsRead: () => Promise<void>;
   loadLabels: () => Promise<void>;
   toggleReadLater: (article: Article) => Promise<void>;
@@ -542,6 +605,8 @@ async function enqueueAction(
   set({ pendingActions: actionQueue.length });
 }
 
+const IDLE_SCAN: SearchScan = { running: false, scanned: 0, done: false, stopped: false, error: null };
+
 export const useFeedStore = create<FeedState>()((set, get) => ({
   subscriptions: [],
   unreadCounts: {},
@@ -563,6 +628,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   pendingActions: 0,
   failedActions: 0,
   searchQuery: '',
+  searchResults: [],
+  searchVisible: PAGE_SIZE,
+  searchScan: { ...IDLE_SCAN },
   labels: [],
   labelCounts: {},
   categoryIds: [],
@@ -1012,7 +1080,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   loadMore: async () => {
-    const { continuation, selectedFeed, filter, searchQuery, loadingMore, revalidating } = get();
+    // Une recherche est déjà entièrement en mémoire : paginer, c'est montrer
+    // la tranche suivante. Plus aucun appel réseau — c'est ce chemin qui
+    // appendait autrefois le flux nu sous une boîte de recherche remplie.
+    // `continuation` n'a plus aucun sens ici : la garde plus bas ne la
+    // consulte donc jamais pour une recherche.
+    if (get().searchQuery) { get().showMoreSearchResults(); return; }
+
+    const { continuation, selectedFeed, filter, loadingMore, revalidating } = get();
     if (!canLoadMore({ hasContinuation: !!continuation, loadingMore, revalidating })) return;
     // La vue POUR LAQUELLE cette page est demandée, retenue avant la requête.
     // Sans elle, une page arrivée après un changement de flux abîmait deux
@@ -1025,16 +1100,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     set({ loadingMore: true });
 
     try {
-      // Une recherche se pagine par la recherche elle-même. Le chemin du flux
-      // nu ignorait `searchQuery` : arriver au bas des résultats appendait des
-      // articles sans rapport avec la requête, sous une boîte de recherche
-      // toujours remplie. `searchItems` accepte une continuation, et le
-      // périmètre est celui que `search` a utilisé — même appel de
-      // `resolveSearchStreamId`, sans quoi la suite chercherait ailleurs que
-      // le début.
-      const result = searchQuery
-        ? await searchItems(searchQuery, PAGE_SIZE, continuation, resolveSearchStreamId(selectedFeed, filter))
-        : await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, continuation);
+      const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, continuation);
       // La vue a changé pendant l'aller-retour : cette page n'appartient plus
       // à rien de ce qui est affiché. On la jette entièrement — pas d'ajout,
       // pas d'écriture de cache, pas de `continuation` — et on rend la main.
@@ -1043,15 +1109,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
       set((state) => {
         const articles = [...state.articles, ...result.items.map(normalizeArticle)];
-        // Une recherche n'a pas de clé à elle : `viewKey` ne connaît que le
-        // flux et le filtre. Persister ses résultats sous cette clé les ferait
-        // repeindre à l'ouverture de la vue nue, hors de toute recherche —
-        // c'est pourquoi `search` n'écrit rien non plus.
-        if (!searchQuery) {
-          const key = viewKey(selectedFeed, filter);
-          memSet(key, { articles, continuation: result.continuation });
-          listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
-        }
+        const key = viewKey(selectedFeed, filter);
+        memSet(key, { articles, continuation: result.continuation });
+        listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
         return { articles, continuation: result.continuation, loadingMore: false };
       });
       // Même vue qu'à l'ouverture : ces articles s'ajoutent au travail en
@@ -1277,34 +1337,70 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     }
   },
 
-  // Search
-  search: async (query) => {
-    if (!query.trim()) {
-      set({ searchQuery: '' });
+  // Search — balaye le périmètre courant page par page (`runScan`, plus bas
+  // dans ce fichier) et filtre au passage. Voir
+  // docs/superpowers/specs/2026-09-23-client-side-search-design.md.
+  search: async (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      scanToken++; // périme un balayage en vol
+      set({ searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
       return get().loadArticles();
     }
+    const { selectedFeed, filter } = get();
+    const streamId = resolveSearchStreamId(selectedFeed, filter);
+    const serverId = String(useAuthStore.getState().activeServerId ?? '');
+    scanTerms = parseQuery(trimmed);
+    const token = ++scanToken;
+
     // Une recherche repart d'une liste neuve : la pastille de la vue qu'elle
-    // recouvre ne doit pas flotter au-dessus des résultats — un clic dessus
-    // rechargerait le flux normal (`loadNewArticles` → `loadArticles`) alors
-    // qu'une recherche est en cours.
-    set({ searchQuery: query, loading: true, newInView: 0 });
-    try {
-      // Scope the search to the current view (feed / category / read-later /
-      // starred), not always the whole reading-list.
-      const { selectedFeed, filter } = get();
-      const result = await searchItems(query, 40, null, resolveSearchStreamId(selectedFeed, filter));
+    // recouvre ne doit pas flotter au-dessus des résultats.
+    set({ searchQuery: trimmed, newInView: 0, searchVisible: PAGE_SIZE, loading: false });
+
+    if (corpusIsUsable(searchCorpus, streamId, serverId, Date.now())) {
+      const hits = corpusMatches(searchCorpus as Corpus, scanTerms);
       set({
-        articles: result.items.map(normalizeArticle),
-        continuation: result.continuation,
-        loading: false,
+        searchResults: hits,
+        articles: hits.slice(0, PAGE_SIZE),
+        searchScan: { running: false, scanned: (searchCorpus as Corpus).entries.length, done: true, stopped: false, error: null },
       });
-    } catch {
-      set({ loading: false });
+      return;
     }
+
+    searchCorpus = createCorpus(streamId, serverId, Date.now());
+    set({
+      searchResults: [],
+      articles: [],
+      searchScan: { running: true, scanned: 0, done: false, stopped: false, error: null },
+    });
+    await runScan(token, streamId);
   },
 
+  stopSearch: () => {
+    scanToken++;
+    set((s) => ({ searchScan: { ...s.searchScan, running: false, stopped: true } }));
+  },
+
+  retrySearch: async () => {
+    const { selectedFeed, filter } = get();
+    const streamId = resolveSearchStreamId(selectedFeed, filter);
+    if (!searchCorpus) return get().search(get().searchQuery);
+    const token = ++scanToken;
+    set((s) => ({ searchScan: { ...s.searchScan, running: true, stopped: false, error: null } }));
+    await runScan(token, streamId);
+  },
+
+  showMoreSearchResults: () => set((s) => {
+    const visible = Math.min(s.searchVisible + PAGE_SIZE, s.searchResults.length);
+    return { searchVisible: visible, articles: s.searchResults.slice(0, visible) };
+  }),
+
   clearSearch: () => {
-    set({ searchQuery: '' });
+    // Referme la recherche comme le ferait une requête blanche : périme un
+    // balayage en vol et vide les résultats, sinon une page qui arrive après
+    // coup continuerait d'écrire dans `articles`.
+    scanToken++;
+    set({ searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
     get().loadArticles();
   },
 
@@ -1933,6 +2029,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // où aucun relevé n'était en vol au moment du changement.
     zeroFloorJustExpired.clear();
     skipNextArrivals = false;
+    // Le corpus balayé décrit un autre monde une fois le serveur changé —
+    // même garde que ci-dessus, pour la recherche.
+    dropSearchCorpus();
     set({
       subscriptions: [],
       unreadCounts: {},
@@ -1945,6 +2044,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       loadingMore: false,
       revalidating: false,
       searchQuery: '',
+      searchResults: [],
+      searchVisible: PAGE_SIZE,
+      searchScan: { ...IDLE_SCAN },
       labels: [],
       labelCounts: {},
       categoryIds: [],
@@ -1962,6 +2064,48 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     get().loadArticles();
   },
 }));
+
+/**
+ * Balaye le périmètre page par page et filtre au passage.
+ *
+ * Séquentiel par nature : chaque page porte la continuation de la suivante. Les
+ * résultats sont poussés à chaque tranche — une recherche qui n'a rien trouvé et
+ * une recherche qui n'a pas fini se ressemblent trop pour attendre la fin.
+ */
+async function runScan(token: number, streamId: string): Promise<void> {
+  try {
+    for (;;) {
+      if (token !== scanToken || !searchCorpus) return;
+      const result = await fetchStreamPage(streamId, SCAN_PAGE, searchCorpus.continuation);
+      if (token !== scanToken || !searchCorpus) return;
+      const entries = result.items.map((item) => {
+        const article = normalizeArticle(item);
+        return { article, haystack: articleHaystack(article) };
+      });
+      searchCorpus = addPage(searchCorpus, entries, result.continuation, Date.now());
+      const hits = corpusMatches(searchCorpus, scanTerms);
+      const complete = searchCorpus.complete;
+      const scanned = searchCorpus.entries.length;
+      useFeedStore.setState((s) => ({
+        searchResults: hits,
+        articles: hits.slice(0, s.searchVisible),
+        searchScan: { running: !complete, scanned, done: complete, stopped: false, error: null },
+      }));
+      if (complete) return;
+    }
+  } catch (err) {
+    if (token !== scanToken) return;
+    useFeedStore.setState({
+      searchScan: {
+        running: false,
+        scanned: searchCorpus?.entries.length ?? 0,
+        done: false,
+        stopped: false,
+        error: scanErrorKind(err),
+      },
+    });
+  }
+}
 
 function normalizeArticle(item: GReaderItem): Article {
   return {
