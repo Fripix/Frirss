@@ -901,6 +901,14 @@ describe('feedStore — le cache hors-ligne suit toutes les écritures', () => {
     expect(inStore?.labels?.length).toBe(1);
     expect(stored.find((a) => a.id === 'a1')?.labels).toEqual(inStore?.labels);
   });
+
+  // I4 — `viewKey` ignore `searchQuery` : persister pendant une recherche
+  // écrirait les résultats filtrés sous la clé de la vue nue.
+  it('ne persiste rien pendant une recherche', async () => {
+    useFeedStore.setState({ searchQuery: 'moteur' });
+    await useFeedStore.getState().toggleStar(useFeedStore.getState().articles[0]);
+    expect(offline.listPut).not.toHaveBeenCalled();
+  });
 });
 
 describe('feedStore.replayQueue — réentrance', () => {

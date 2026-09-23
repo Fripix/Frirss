@@ -7,7 +7,7 @@ vi.mock('../api/feeds', async () => {
 });
 
 import { fetchStreamPage } from '../api/feeds';
-import { useFeedStore, __resetSearchStateForTests } from './feedStore';
+import { useFeedStore, __resetSearchStateForTests, dropSearchCorpus } from './feedStore';
 import { useAuthStore } from './authStore';
 
 const page = vi.mocked(fetchStreamPage);
@@ -142,5 +142,101 @@ describe('search — balayage', () => {
 
     expect(useFeedStore.getState().searchQuery).toBe('');
     expect(loadArticles).toHaveBeenCalled();
+  });
+
+  // C1 — un changement de vue pendant l'attente réseau ne doit rien laisser
+  // écrire : la page arrivée après coup appartient à l'ancien flux.
+  it('annule le balayage si la vue change pendant l’attente réseau', async () => {
+    page.mockImplementationOnce(async () => {
+      // La réponse arrive après que l'utilisateur a quitté le flux balayé.
+      useFeedStore.setState({ selectedFeed: { id: 'feed/9', title: 'Autre' }, articles: ['SENTINELLE'] } as never);
+      return { items: [item('a', 'alpha moteur')], continuation: null };
+    });
+
+    await useFeedStore.getState().search('moteur');
+
+    // La nouvelle vue garde ce qu'elle avait ; la page en retard n'y a rien ajouté.
+    expect(useFeedStore.getState().articles).toEqual(['SENTINELLE']);
+  });
+
+  // C2 — retrySearch doit vérifier que le corpus gardé appartient toujours au
+  // périmètre courant avant de reprendre sa continuation.
+  it('retrySearch repart d’une recherche neuve si le périmètre a changé entre-temps', async () => {
+    page
+      .mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: 'C1' })
+      .mockRejectedValueOnce(new Error('offline'));
+    await useFeedStore.getState().search('moteur');
+    page.mockClear();
+
+    // L'utilisateur change de flux avant de cliquer « réessayer ».
+    useFeedStore.setState({ selectedFeed: { id: 'feed/2', title: 'Autre' } } as never);
+    page.mockResolvedValueOnce({ items: [item('z', 'zêta moteur')], continuation: null });
+
+    await useFeedStore.getState().retrySearch();
+
+    // Pas de reprise sur la continuation de feed/1 : une recherche neuve, sans continuation.
+    expect(page.mock.calls[0][2]).toBeNull();
+    expect(useFeedStore.getState().searchResults.map((a) => a.id)).toEqual(['z']);
+  });
+
+  // I1 — la pagination locale ne doit jamais faire reculer `searchVisible`.
+  it('showMoreSearchResults ne fait jamais reculer searchVisible', async () => {
+    page.mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: null });
+    await useFeedStore.getState().search('moteur');
+    expect(useFeedStore.getState().searchVisible).toBe(50); // PAGE_SIZE, un seul résultat trouvé
+
+    useFeedStore.getState().showMoreSearchResults();
+
+    expect(useFeedStore.getState().searchVisible).toBeGreaterThanOrEqual(50);
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a']);
+  });
+
+  // I2 — search() doit remettre `continuation` à null : sinon la pagination
+  // locale des résultats hérite de celle, périmée, de la vue nue.
+  it('search() remet la continuation de la vue nue à null', async () => {
+    useFeedStore.setState({ continuation: 'ancienne-continuation-de-la-vue-nue' } as never);
+    page.mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: null });
+
+    await useFeedStore.getState().search('moteur');
+
+    expect(useFeedStore.getState().continuation).toBeNull();
+  });
+
+  // I3 — un balayage interrompu ne doit jamais laisser un corpus réutilisable :
+  // la requête suivante, même dans le même périmètre, doit retoucher le réseau.
+  it('un balayage arrêté ne laisse pas de corpus réutilisable — la recherche suivante repart au réseau', async () => {
+    page.mockImplementationOnce(async () => {
+      useFeedStore.getState().stopSearch();
+      return { items: [item('a', 'alpha moteur')], continuation: 'C1' };
+    });
+    await useFeedStore.getState().search('moteur');
+    page.mockClear();
+    page.mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: null });
+
+    await useFeedStore.getState().search('moteur');
+
+    expect(page).toHaveBeenCalled();
+  });
+
+  // I5 — dropSearchCorpus (appelé par resetAndReload au changement de serveur)
+  // doit empêcher une page en retard d'écrire dans le nouveau contexte, et
+  // laisser la recherche suivante repartir au réseau.
+  it('un changement de serveur en plein balayage annule la page en retard', async () => {
+    page.mockImplementationOnce(async () => {
+      dropSearchCorpus();
+      return { items: [item('a', 'alpha moteur')], continuation: 'C1' };
+    });
+
+    await useFeedStore.getState().search('moteur');
+
+    // La page en retard n'a rien écrit.
+    expect(useFeedStore.getState().searchResults).toEqual([]);
+    expect(useFeedStore.getState().articles).toEqual([]);
+
+    page.mockClear();
+    page.mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: null });
+    await useFeedStore.getState().search('moteur');
+
+    expect(page).toHaveBeenCalled(); // pas de corpus périmé réutilisé
   });
 });

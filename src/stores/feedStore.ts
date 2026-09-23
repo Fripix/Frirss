@@ -271,6 +271,11 @@ function viewIdentity(s: FeedState): string {
 }
 function persistCurrentView(get: () => FeedState): void {
   const s = get();
+  // `viewKey` ignore `searchQuery` : persister pendant une recherche
+  // écrirait les résultats filtrés sous la clé de la vue nue, que le
+  // prochain retour hors ligne sur ce flux resservirait comme s'il n'y avait
+  // jamais eu de recherche.
+  if (s.searchQuery) return;
   listPut(viewKey(s.selectedFeed, s.filter), s.articles, s.continuation).catch(() => {});
 }
 
@@ -1354,8 +1359,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const token = ++scanToken;
 
     // Une recherche repart d'une liste neuve : la pastille de la vue qu'elle
-    // recouvre ne doit pas flotter au-dessus des résultats.
-    set({ searchQuery: trimmed, newInView: 0, searchVisible: PAGE_SIZE, loading: false });
+    // recouvre ne doit pas flotter au-dessus des résultats. `continuation`
+    // appartenait à la vue nue qu'on quitte ; la laisser pendrait la
+    // pagination locale des résultats à celle, périmée, du flux brut.
+    set({ searchQuery: trimmed, newInView: 0, searchVisible: PAGE_SIZE, loading: false, continuation: null });
 
     if (corpusIsUsable(searchCorpus, streamId, serverId, Date.now())) {
       const hits = corpusMatches(searchCorpus as Corpus, scanTerms);
@@ -1373,7 +1380,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       articles: [],
       searchScan: { running: true, scanned: 0, done: false, stopped: false, error: null },
     });
-    await runScan(token, streamId);
+    await runScan(token, streamId, viewIdentity(get()));
   },
 
   stopSearch: () => {
@@ -1384,14 +1391,25 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   retrySearch: async () => {
     const { selectedFeed, filter } = get();
     const streamId = resolveSearchStreamId(selectedFeed, filter);
-    if (!searchCorpus) return get().search(get().searchQuery);
+    const serverId = String(useAuthStore.getState().activeServerId ?? '');
+    // Le corpus gardé peut appartenir à un autre périmètre que celui d'à
+    // présent (flux ou serveur changés pendant la panne) : sa continuation ne
+    // veut alors plus rien dire pour le flux courant. Repartir d'une
+    // recherche neuve plutôt que de mélanger deux flux sous une même étiquette.
+    if (!searchCorpus || searchCorpus.streamId !== streamId || searchCorpus.serverId !== serverId) {
+      return get().search(get().searchQuery);
+    }
     const token = ++scanToken;
     set((s) => ({ searchScan: { ...s.searchScan, running: true, stopped: false, error: null } }));
-    await runScan(token, streamId);
+    await runScan(token, streamId, viewIdentity(get()));
   },
 
   showMoreSearchResults: () => set((s) => {
-    const visible = Math.min(s.searchVisible + PAGE_SIZE, s.searchResults.length);
+    // Ne jamais reculer : si `searchResults` est momentanément plus court que
+    // `searchVisible` (une tranche vidée par une dédup en cours de balayage),
+    // `Math.min` seul ferait chuter la tranche affichée — et avec elle, tout
+    // ce qui avait déjà été montré.
+    const visible = Math.max(s.searchVisible, Math.min(s.searchVisible + PAGE_SIZE, s.searchResults.length));
     return { searchVisible: visible, articles: s.searchResults.slice(0, visible) };
   }),
 
@@ -2071,18 +2089,27 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
  * Séquentiel par nature : chaque page porte la continuation de la suivante. Les
  * résultats sont poussés à chaque tranche — une recherche qui n'a rien trouvé et
  * une recherche qui n'a pas fini se ressemblent trop pour attendre la fin.
+ *
+ * `view` est l'identité de la vue (`viewIdentity`) retenue à l'entrée : ni
+ * `selectFeed`, ni `selectView`, ni `setFilter`, ni `selectCategory` ne
+ * touchent `scanToken` ou le corpus, donc une page arrivée après un de ces
+ * changements passerait la garde du jeton et écrirait les articles de
+ * l'ancien flux dans la nouvelle vue. Revérifiée après CHAQUE `await`, comme
+ * dans `loadMore`.
  */
-async function runScan(token: number, streamId: string): Promise<void> {
+async function runScan(token: number, streamId: string, view: string): Promise<void> {
+  const stale = () =>
+    token !== scanToken || !searchCorpus || viewIdentity(useFeedStore.getState()) !== view;
   try {
     for (;;) {
-      if (token !== scanToken || !searchCorpus) return;
-      const result = await fetchStreamPage(streamId, SCAN_PAGE, searchCorpus.continuation);
-      if (token !== scanToken || !searchCorpus) return;
+      if (stale()) return;
+      const result = await fetchStreamPage(streamId, SCAN_PAGE, searchCorpus!.continuation);
+      if (stale()) return;
       const entries = result.items.map((item) => {
         const article = normalizeArticle(item);
         return { article, haystack: articleHaystack(article) };
       });
-      searchCorpus = addPage(searchCorpus, entries, result.continuation, Date.now());
+      searchCorpus = addPage(searchCorpus!, entries, result.continuation, Date.now());
       const hits = corpusMatches(searchCorpus, scanTerms);
       const complete = searchCorpus.complete;
       const scanned = searchCorpus.entries.length;
@@ -2094,7 +2121,7 @@ async function runScan(token: number, streamId: string): Promise<void> {
       if (complete) return;
     }
   } catch (err) {
-    if (token !== scanToken) return;
+    if (token !== scanToken || viewIdentity(useFeedStore.getState()) !== view) return;
     useFeedStore.setState({
       searchScan: {
         running: false,
