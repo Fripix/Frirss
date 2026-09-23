@@ -207,6 +207,27 @@ export async function markAllAsRead(streamId: string, timestampUsec: string | nu
   });
 }
 
+/**
+ * Une page brute d'un flux greader, suivie par continuation.
+ *
+ * Pas de `q` : l'API greader de FreshRSS n'a pas de paramètre de recherche
+ * (`streamContents` ne lit que `xt`, `it`, `n`, `r`, `ot`, `nt`, `c`, `s`,
+ * `output`). Le filtrage se fait côté client, voir `src/lib/searchMatch.ts`.
+ */
+export async function fetchStreamPage(
+  streamId: string,
+  count: number,
+  continuation: string | null = null,
+): Promise<GReaderStream> {
+  const params: Record<string, string | number> = { output: 'json', n: count };
+  if (continuation) params.c = continuation;
+  const { data } = await client.get<{ items?: GReaderItem[]; continuation?: string | null }>(
+    `${BASE}/stream/contents/${buildStreamPath(streamId)}`,
+    { params },
+  );
+  return { items: data.items || [], continuation: data.continuation || null };
+}
+
 // Search articles
 export async function searchItems(
   query: string,
