@@ -19,15 +19,29 @@ const DEC = /^[0-9]+$/;
 
 /** L'identifiant d'entrée, en décimal, ou `null` si la forme est inconnue. */
 export function entryIdUsec(articleId: string): string | null {
-  const queue = articleId.includes('/') ? articleId.slice(articleId.lastIndexOf('/') + 1) : articleId;
-  if (!queue) return null;
-  if (DEC.test(queue) && queue.length >= 16) return queue;          // déjà décimal
-  if (!HEX.test(queue)) return null;
-  try {
-    return BigInt(`0x${queue}`).toString();
-  } catch {
-    return null;
+  const id = articleId.trim();
+  if (!id) return null;
+  const slash = id.lastIndexOf('/');
+  if (slash >= 0) {
+    // Forme greader (`…/reader/item/00065a872a755226`) : l'identifiant est en
+    // HEXADÉCIMAL, complété à seize caractères par `dec2hex` côté FreshRSS.
+    //
+    // ⚠️ La base se déduit de la FORME, jamais du contenu : un identifiant
+    // hexadécimal dont les seize caractères sont tous des chiffres — environ un
+    // article sur 450 — passerait pour du décimal et rendrait une valeur des
+    // centaines de fois trop petite. Côté « en dessous », la borne ne
+    // marquerait plus rien ; côté « au-dessus », la pagination ne s'arrêterait
+    // jamais et marquerait le flux entier.
+    const hex = id.slice(slash + 1);
+    if (!HEX.test(hex)) return null;
+    try {
+      return BigInt(`0x${hex}`).toString();
+    } catch {
+      return null;
+    }
   }
+  // Forme brute de `stream/items/ids` : décimal, sans préfixe.
+  return DEC.test(id) ? id : null;
 }
 
 /** Borne « strictement plus ancien que cet article », pour `ts`. */

@@ -11,6 +11,12 @@ describe('entryIdUsec', () => {
     expect(entryIdUsec(ID)).toBe('1788386439680550');
   });
 
+  it('lit en hexadécimal même quand les seize caractères sont tous des chiffres', () => {
+    // ≈ un article sur 450 : aucune lettre a-f ne tombe dans les treize
+    // positions libres. Lu comme du décimal, il vaudrait 280 fois moins.
+    expect(entryIdUsec('tag:google.com,2005:reader/item/0006181514495856')).toBe('1715328673994838');
+  });
+
   it('accepte un identifiant déjà décimal, tel que le rend stream/items/ids', () => {
     expect(entryIdUsec('1788386439680550')).toBe('1788386439680550');
   });
