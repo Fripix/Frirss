@@ -1596,6 +1596,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // revient exactement où elle était. Un article coché qui reste coché après
     // un échec est le mensonge que 1.4.7 avait déjà coûté.
     const avant = articles;
+    // La vue affichée au lancement. Un aller-retour réseau peut durer assez
+    // longtemps pour que l'utilisateur change de flux pendant qu'il est en
+    // vol : `avant` appartiendrait alors à une liste qui n'est plus à
+    // l'écran, et l'y remettre écraserait le nouveau flux avec l'ancien.
+    const vueALancement = viewIdentity(get());
 
     set((s) => ({ articles: s.articles.map((a) => (touche(a) ? { ...a, read: true } : a)) }));
     bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
@@ -1603,6 +1608,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // besoin de le jeter comme le fait « tout marquer comme lu », ce qui
     // refermerait la recherche en cours de l'utilisateur.
     patchSearchCorpusByDate(bound, { read: true });
+    // Le corpus tel qu'on le laisse, PAR RÉFÉRENCE, juste avant l'attente
+    // réseau. Chaque patch — et chaque nouvelle recherche — réaffecte
+    // `searchCorpus` à un nouvel objet : une inégalité au retour dit que ce
+    // n'est plus le même corpus, probablement celui d'une recherche démarrée
+    // entre-temps, dans un périmètre différent.
+    const corpusALancement = searchCorpus;
 
     try {
       if (direction === 'below') {
@@ -1621,10 +1632,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // pastille n'y verra donc rien.
       await get().syncCounts();
     } catch {
-      set({ articles: avant });
+      // La vue a-t-elle changé pendant l'aller-retour ? L'action a bien eu
+      // lieu côté serveur ou non, mais l'écran ne lui appartient plus : ne
+      // pas y toucher, sous peine d'écraser un autre flux avec `avant`.
+      if (viewIdentity(get()) === vueALancement) set({ articles: avant });
       bumpCountsEpoch();
-      patchSearchCorpusByDate(bound, { read: false });
-      void pushI18nToast('toast.markRangeFailed', { tone: 'error' });
+      // Même chose pour le corpus, mais gardée par la référence de l'objet
+      // plutôt que par la vue : une nouvelle recherche dans le MÊME flux
+      // (donc la même identité de vue) construit elle aussi un nouveau
+      // corpus, qu'un patch par date ne doit pas défaire à l'aveugle.
+      if (searchCorpus === corpusALancement) patchSearchCorpusByDate(bound, { read: false });
+      // Un lot accepté par le serveur avant l'échec d'un lot suivant reste
+      // lu côté serveur : seul un relevé fait foi, que la vue ait changé ou
+      // non — le compteur est global, pas attaché à un écran.
+      await get().syncCounts();
+      await pushI18nToast('toast.markRangeFailed', { tone: 'error' });
     }
   },
 
