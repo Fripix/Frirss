@@ -746,9 +746,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
 ### Menu d'un article
 Clic droit sur une ligne (normale ou compacte) ou une carte de la grille,
 touche Menu du clavier, ou **appui long** au doigt : un menu propose **Ouvrir
-à la source**, **Marquer lu / non lu**, **Favori**, **À lire plus tard** et
-**Copier le lien**. Le **clic molette** ouvre directement à la source. Demandé
-dans l'issue #11 : le réflexe vient de FreshRSS, où le titre est un vrai lien.
+à la source**, **Marquer lu / non lu**, **Tout lu en dessous / au-dessus**,
+**Favori**, **À lire plus tard** et **Copier le lien**. Le **clic molette**
+ouvre directement à la source. Demandé dans l'issue #11 : le réflexe vient de
+FreshRSS, où le titre est un vrai lien.
 
 - **Où** : `src/components/ArticleList/ArticleContextMenu.tsx` (rendu),
   `src/hooks/useArticleMenuGestures.ts` (gestes), `src/hooks/useLongPress.ts`,
@@ -770,6 +771,22 @@ dans l'issue #11 : le réflexe vient de FreshRSS, où le titre est un vrai lien.
 - **« Copier le lien » copie toujours**, même là où `navigator.share` existe :
   l'entrée dit « copier ». `navigator.clipboard` n'existe qu'en contexte
   sécurisé ; son absence est un échec annoncé (`toast.copyFailed`).
+- **« Tout lu en dessous / au-dessus » (issue #15)** appellent
+  `markReadRelative(article, 'below' | 'above')` (`useFeedStore`, testé dans
+  `src/stores/feedStore.markRange.test.ts`) : marque lu tout ce dont la date
+  de publication est strictement plus ancienne (en dessous) ou plus récente
+  (au-dessus) que l'article cliqué — jamais lui-même. « En dessous » passe par
+  `markAllAsRead` du flux avec une borne exclusive ; « au-dessus » relève
+  d'abord les identifiants plus récents (`itemIdsNewerThan`) puis les marque
+  par lots de 100. **Toujours présentes, quelle que soit la position de la
+  ligne dans la liste chargée** : celle-ci ne dit rien de ce que le flux
+  contient au-delà (page suivante non chargée, articles arrivés depuis), donc
+  les masquer par index mentirait une fois sur deux. L'échec revient à l'état
+  d'avant si l'écran affiche toujours le même flux (`toast.markRangeFailed`)
+  et refait toujours un relevé des compteurs, même après un lot déjà accepté
+  côté serveur. Le corpus de recherche est corrigé par date plutôt que jeté :
+  contrairement à « tout marquer comme lu », le critère reste vrai pendant une
+  recherche en cours.
 - **Piège — le clic droit des boutons Favori et À lire plus tard est
   prioritaire** : leur rangement par catégorie (`useFileGesture`) appelle
   `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou

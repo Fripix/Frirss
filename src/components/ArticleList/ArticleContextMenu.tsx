@@ -17,6 +17,8 @@ interface ArticleContextMenuProps {
   onClose: () => void;
   onOpenSource: () => void;
   onToggleRead: () => void;
+  onMarkBelowRead: () => void;
+  onMarkAboveRead: () => void;
   onToggleStar: () => void;
   onToggleReadLater: () => void;
   onCopyLink: () => void;
@@ -33,7 +35,8 @@ interface ArticleContextMenuProps {
  */
 export default function ArticleContextMenu({
   article, isReadLater, x, y, sheet,
-  onClose, onOpenSource, onToggleRead, onToggleStar, onToggleReadLater, onCopyLink,
+  onClose, onOpenSource, onToggleRead, onMarkBelowRead, onMarkAboveRead,
+  onToggleStar, onToggleReadLater, onCopyLink,
 }: ArticleContextMenuProps) {
   const { t } = useTranslation();
   const items = articleMenuItems(article, isReadLater);
@@ -43,6 +46,8 @@ export default function ArticleContextMenu({
   const actions: Record<ArticleMenuKind, () => void> = {
     openSource: onOpenSource,
     toggleRead: onToggleRead,
+    markBelowRead: onMarkBelowRead,
+    markAboveRead: onMarkAboveRead,
     toggleStar: onToggleStar,
     toggleReadLater: onToggleReadLater,
     copyLink: onCopyLink,

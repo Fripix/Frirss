@@ -107,6 +107,8 @@
   "articleRow": {
     "markRead": "标为已读",
     "markUnread": "标为未读",
+    "markBelowRead": "以下全部标为已读",
+    "markAboveRead": "以上全部标为已读",
     "addStar": "加入收藏",
     "removeStar": "取消收藏",
     "addReadLater": "加入稍后阅读",

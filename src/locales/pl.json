@@ -111,6 +111,8 @@
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",
     "markUnread": "Oznacz jako nieprzeczytane",
+    "markBelowRead": "Oznacz poniżej jako przeczytane",
+    "markAboveRead": "Oznacz powyżej jako przeczytane",
     "addStar": "Dodaj do ulubionych",
     "removeStar": "Usuń z ulubionych",
     "addReadLater": "Do przeczytania później",

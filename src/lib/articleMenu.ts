@@ -2,7 +2,9 @@
  * Menu contextuel d'un article : ce qu'il contient, et où il s'ouvre.
  * Spec : docs/superpowers/specs/2026-09-13-article-context-menu-design.md
  */
-export type ArticleMenuKind = 'openSource' | 'toggleRead' | 'toggleStar' | 'toggleReadLater' | 'copyLink';
+export type ArticleMenuKind =
+  | 'openSource' | 'toggleRead' | 'markBelowRead' | 'markAboveRead'
+  | 'toggleStar' | 'toggleReadLater' | 'copyLink';
 
 export interface ArticleMenuItem {
   kind: ArticleMenuKind;
@@ -22,6 +24,12 @@ export function articleMenuItems(
   const items: ArticleMenuItem[] = [];
   if (hasUrl) items.push({ kind: 'openSource', labelKey: 'articleRow.openSource' });
   items.push({ kind: 'toggleRead', labelKey: article.read ? 'articleRow.markUnread' : 'articleRow.markRead' });
+  // Marquages de plage (issue #15) : placés contre « Marquer lu », dont ils
+  // sont l'extension, et TOUJOURS présents — la position d'une ligne dans la
+  // liste chargée ne dit pas si le flux contient quelque chose au-dessus ou en
+  // dessous, donc les masquer selon l'index mentirait une fois sur deux.
+  items.push({ kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' });
+  items.push({ kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead' });
   items.push({ kind: 'toggleStar', labelKey: article.starred ? 'articleRow.removeStar' : 'articleRow.addStar' });
   items.push({ kind: 'toggleReadLater', labelKey: isReadLater ? 'articleRow.removeReadLater' : 'articleRow.addReadLater' });
   if (hasUrl) items.push({ kind: 'copyLink', labelKey: 'articleRow.copyLink' });

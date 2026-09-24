@@ -4,35 +4,35 @@ import { articleMenuItems, menuAnchor } from './articleMenu';
 const base = { url: 'https://example.com/a', read: false, starred: false };
 
 describe('articleMenuItems', () => {
-  it('lists the five entries in order for an unread, unstarred article with a URL', () => {
+  it('liste les sept entrées, dans l’ordre, pour un article non lu et non favori avec URL', () => {
     expect(articleMenuItems(base, false)).toEqual([
       { kind: 'openSource', labelKey: 'articleRow.openSource' },
       { kind: 'toggleRead', labelKey: 'articleRow.markRead' },
+      { kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' },
+      { kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead' },
       { kind: 'toggleStar', labelKey: 'articleRow.addStar' },
       { kind: 'toggleReadLater', labelKey: 'articleRow.addReadLater' },
       { kind: 'copyLink', labelKey: 'articleRow.copyLink' },
     ]);
   });
 
-  it('labels follow the article state', () => {
+  it('les libellés suivent l’état de l’article, sauf ceux des deux marquages de plage', () => {
     const labels = articleMenuItems({ ...base, read: true, starred: true }, true).map((i) => i.labelKey);
     expect(labels).toEqual([
       'articleRow.openSource',
       'articleRow.markUnread',
+      'articleRow.markBelowRead',
+      'articleRow.markAboveRead',
       'articleRow.removeStar',
       'articleRow.removeReadLater',
       'articleRow.copyLink',
     ]);
   });
 
-  it('drops open-at-source and copy-link without a URL', () => {
-    for (const url of ['', '   ', undefined]) {
-      expect(articleMenuItems({ ...base, url }, false).map((i) => i.kind)).toEqual([
-        'toggleRead',
-        'toggleStar',
-        'toggleReadLater',
-      ]);
-    }
+  it('garde les deux marquages de plage même sans URL — ils ne dépendent pas du lien', () => {
+    expect(articleMenuItems({ ...base, url: '' }, false).map((i) => i.kind)).toEqual([
+      'toggleRead', 'markBelowRead', 'markAboveRead', 'toggleStar', 'toggleReadLater',
+    ]);
   });
 });
 

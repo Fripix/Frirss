@@ -15,10 +15,17 @@ const article = {
   id: 'a1', title: 'Hello World', url: 'https://example.com/1', read: false, starred: false, labels: [],
 } as unknown as Article;
 
-function setup(over: { article?: Partial<Article>; isReadLater?: boolean; sheet?: boolean } = {}) {
+function setup(over: {
+  article?: Partial<Article>;
+  isReadLater?: boolean;
+  sheet?: boolean;
+  handlers?: { onMarkBelowRead?: () => void; onMarkAboveRead?: () => void };
+} = {}) {
   const handlers = {
     onClose: vi.fn(), onOpenSource: vi.fn(), onToggleRead: vi.fn(),
     onToggleStar: vi.fn(), onToggleReadLater: vi.fn(), onCopyLink: vi.fn(),
+    onMarkBelowRead: vi.fn(), onMarkAboveRead: vi.fn(),
+    ...over.handlers,
   };
   render(
     <ArticleContextMenu
@@ -34,11 +41,22 @@ function setup(over: { article?: Partial<Article>; isReadLater?: boolean; sheet?
 }
 
 describe('ArticleContextMenu', () => {
-  it('shows the five entries in order', () => {
+  it('shows the seven entries in order', () => {
     setup();
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
-      'articleRow.openSource', 'articleRow.markRead', 'articleRow.addStar', 'articleRow.addReadLater', 'articleRow.copyLink',
+      'articleRow.openSource', 'articleRow.markRead', 'articleRow.markBelowRead', 'articleRow.markAboveRead',
+      'articleRow.addStar', 'articleRow.addReadLater', 'articleRow.copyLink',
     ]);
+  });
+
+  it('appelle la bonne direction depuis chaque entrée de plage', () => {
+    const onMarkBelowRead = vi.fn();
+    const onMarkAboveRead = vi.fn();
+    setup({ handlers: { onMarkBelowRead, onMarkAboveRead } });
+
+    fireEvent.click(screen.getByText('articleRow.markBelowRead'));
+    expect(onMarkBelowRead).toHaveBeenCalledTimes(1);
+    expect(onMarkAboveRead).not.toHaveBeenCalled();
   });
 
   it('gives every floating entry a 44pt touch target on coarse pointers', () => {
@@ -125,6 +143,8 @@ describe('ArticleContextMenu', () => {
                 onClose={() => {}}
                 onOpenSource={() => {}}
                 onToggleRead={() => {}}
+                onMarkBelowRead={() => {}}
+                onMarkAboveRead={() => {}}
                 onToggleStar={() => {}}
                 onToggleReadLater={() => {}}
                 onCopyLink={() => {}}

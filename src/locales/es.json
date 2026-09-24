@@ -107,6 +107,8 @@
   "articleRow": {
     "markRead": "Marcar como leído",
     "markUnread": "Marcar como no leído",
+    "markBelowRead": "Marcar todo leído abajo",
+    "markAboveRead": "Marcar todo leído arriba",
     "addStar": "Añadir a favoritos",
     "removeStar": "Quitar de favoritos",
     "addReadLater": "Leer más tarde",

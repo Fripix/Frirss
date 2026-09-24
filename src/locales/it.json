@@ -107,6 +107,8 @@
   "articleRow": {
     "markRead": "Segna come letto",
     "markUnread": "Segna come non letto",
+    "markBelowRead": "Segna tutto letto sotto",
+    "markAboveRead": "Segna tutto letto sopra",
     "addStar": "Aggiungi ai preferiti",
     "removeStar": "Rimuovi dai preferiti",
     "addReadLater": "Leggi più tardi",

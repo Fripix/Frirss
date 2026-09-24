@@ -107,6 +107,8 @@
   "articleRow": {
     "markRead": "Mark as read",
     "markUnread": "Mark as unread",
+    "markBelowRead": "Mark below as read",
+    "markAboveRead": "Mark above as read",
     "addStar": "Add to favorites",
     "removeStar": "Remove from favorites",
     "addReadLater": "Read later",

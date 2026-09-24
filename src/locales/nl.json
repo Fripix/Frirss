@@ -107,6 +107,8 @@
   "articleRow": {
     "markRead": "Als gelezen markeren",
     "markUnread": "Als ongelezen markeren",
+    "markBelowRead": "Hieronder als gelezen markeren",
+    "markAboveRead": "Hierboven als gelezen markeren",
     "addStar": "Aan favorieten toevoegen",
     "removeStar": "Uit favorieten verwijderen",
     "addReadLater": "Later lezen",
