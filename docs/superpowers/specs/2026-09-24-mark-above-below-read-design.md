@@ -126,8 +126,13 @@ Une action : `markReadRelative(article: Article, direction: 'above' | 'below')`.
   au-delà de ce qui est chargé). On ne devine pas : `syncCounts()` est appelé à
   la fin et le serveur donne le vrai chiffre. Une baisse n'est pas une arrivée,
   la pastille n'en verra donc rien.
-- **Corpus de recherche** : `dropSearchCorpus()`, comme `markAllAsRead` — trop
-  d'articles changent pour les répercuter un par un.
+- ~~**Corpus de recherche** : `dropSearchCorpus()`, comme `markAllAsRead` — trop
+  d'articles changent pour les répercuter un par un.~~ **Corrigé (revue finale
+  du 25/09)** : le corpus n'est **pas** vidé. Le critère de plage est un
+  identifiant d'entrée, pas une date : il reste vrai pendant une recherche en
+  cours, donc `patchSearchCorpusByEntry()` le corrige par identifiant à
+  l'aller comme au retour — jeter le corpus refermerait la recherche de
+  l'utilisateur sans raison.
 - **Échec** : les lignes reviennent à leur état d'origine et un toast le dit.
   Pas de file hors ligne : `markAllAsRead` n'en a pas non plus, et rejouer plus
   tard un marquage de masse daté serait pire que de ne rien faire.
@@ -151,8 +156,10 @@ l'intérêt d'avoir écarté le sous-menu.
 - **Favoris / À lire plus tard** : l'action marque lu sans retirer l'étoile ni
   l'étiquette — marquer lu et ranger sont deux choses différentes.
 - **Recherche en cours** : les entrées restent disponibles ; l'action s'applique
-  au **flux de la vue**, pas aux résultats affichés, et le corpus est vidé.
-  (Le menu s'ouvre depuis une ligne de résultat comme depuis une ligne normale.)
+  au **flux de la vue**, pas aux résultats affichés. ~~Le corpus est vidé.~~
+  **Corrigé (revue finale du 25/09)** : le corpus est corrigé par identifiant
+  d'entrée, pas vidé — la recherche en cours n'est donc pas refermée. (Le menu
+  s'ouvre depuis une ligne de résultat comme depuis une ligne normale.)
 - **Rien au-dessus / en dessous** : l'appel part quand même et ne change rien.
   Aucun message : annoncer « 0 article » pour un geste sans effet serait du
   bruit.
@@ -169,7 +176,9 @@ l'intérêt d'avoir écarté le sous-menu.
 - **`feedStore`** (API simulée, `feedStore.markRange.test.ts`) : « en dessous »
   fait **un seul** appel avec la bonne borne ; « au-dessus » relève les
   identifiants puis marque par lots de 100 ; l'article cliqué n'est dans aucun
-  lot ; le corpus est vidé ; les compteurs sont resynchronisés ; un échec rend
+  lot ; ~~le corpus est vidé~~ **Corrigé (revue finale du 25/09)** : le corpus
+  est corrigé par identifiant d'entrée, ce que les tests du fichier prouvent
+  (aller comme retour) ; les compteurs sont resynchronisés ; un échec rend
   les lignes à leur état.
 - **Composant** : les deux entrées sont rendues et appellent l'action avec la
   bonne direction ; masquées quand `canMarkRange` est faux ; la confirmation

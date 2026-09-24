@@ -178,6 +178,12 @@ describe('markReadRelative — la vue et les pannes', () => {
 // que cette écriture est en vol ne le sait pas si l'écart d'epoch seul ne le
 // trahit pas (l'écriture reste en vol tout du long : aucun second bump ne
 // survient pendant l'attente du relevé), et fabrique une fausse pastille.
+//
+// Preuve de la morsure (revue finale du 25/09) : retirer `readWritesInFlight++`
+// dans `markReadRelative` (en laissant le décrément du `finally`, qui pousse
+// alors le compteur en négatif) fait rougir CE test précisément — et lui
+// seul, sur les 1223 de la suite. Vérifié en le retirant réellement, en
+// observant l'échec ci-dessous, puis en le remettant.
 describe('markReadRelative — le relevé concurrent respecte l’écriture en vol (I2)', () => {
   beforeEach(() => {
     __resetNewArticlesStateForTests();
@@ -219,11 +225,15 @@ describe('markReadRelative — périmètre refusé (C1)', () => {
   });
 });
 
-// I2 (revue finale) : `readWritesInFlight` doit couvrir cette écriture comme
-// `toggleRead` couvre la sienne — sans lui, un relevé de compteurs lancé
-// pendant l'action ne sait pas qu'une écriture est en vol et fabrique une
-// fausse pastille « nouveaux articles ». On ne peut observer le compteur
-// directement (module-privé) : la preuve est la morsure de l'étape 5.
+// I1 (revue finale du 25/09) : le retour en arrière des LIGNES doit porter sa
+// propre garde de vue, comme le corpus porte la sienne (`corpusALancement`
+// plus bas) — b91a246 l'avait posée (`vueALancement`, capturée avant l'appel
+// réseau), mais 85ac88f l'a perdue en remplaçant l'instantané de liste par un
+// recalcul sur `s.articles` : ce recalcul protège CE QUI est touché, jamais
+// SUR QUEL ÉCRAN on le réécrit. Le piège : un identifiant peut réapparaître
+// dans une autre vue (deux sélections peuvent montrer le même article) et y
+// être légitimement déjà lu — sans garde de vue, le rollback d'une action
+// périmée le repasserait non lu à tort.
 describe('markReadRelative — vue changée pendant l’appel', () => {
   it('ignore un refus une fois la vue changée : ne réécrit pas l’écran d’un autre flux', async () => {
     let rejeter!: (err: unknown) => void;
@@ -231,19 +241,25 @@ describe('markReadRelative — vue changée pendant l’appel', () => {
 
     const promesse = useFeedStore.getState().markReadRelative(pivot, 'below');
 
-    // L'utilisateur bascule sur un autre flux PENDANT l'aller-retour.
-    const autreFlux = article('9999999999999999', 5_000);
+    // L'utilisateur bascule sur un autre flux PENDANT l'aller-retour ; par
+    // coïncidence, ce flux affiche déjà `vieux` — le MÊME identifiant que
+    // celui que cette action a marqué lu, et qui figure donc dans
+    // `touchedIds` — mais légitimement lu dans son propre contexte. Un test
+    // dont le fixture porterait un identifiant absent de `touchedIds` (comme
+    // `9999999999999999` ci-avant) ne mord jamais : l'intersection est vide
+    // quelle que soit l'implémentation.
+    const memeIdAilleurs = { ...vieux, read: true };
     useFeedStore.setState({
       selectedFeed: { id: 'feed/2', title: 'Autre' },
-      articles: [autreFlux],
+      articles: [memeIdAilleurs],
     } as never);
 
     rejeter(refus);
     await promesse;
 
-    // L'écran garde ce qui appartient au flux affiché — rien de l'ancienne
-    // liste ne revient.
-    expect(useFeedStore.getState().articles).toEqual([autreFlux]);
+    // L'écran garde ce qui appartient au flux affiché : le rollback d'une
+    // action qui ne le concerne plus ne doit pas le repasser non lu.
+    expect(useFeedStore.getState().articles).toEqual([memeIdAilleurs]);
   });
 });
 

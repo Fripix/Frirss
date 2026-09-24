@@ -815,7 +815,13 @@ FreshRSS, où le titre est un vrai lien.
   ne restaure jamais un instantané : il recalcule sur la liste telle qu'elle
   est au moment du retour, et seuls les identifiants non confirmés par le
   serveur reviennent — un lot déjà accepté avant l'échec du suivant reste lu,
-  et un ✓ posé ailleurs pendant le vol n'est pas défait. Cette comparaison
+  et un ✓ posé ailleurs pendant le vol n'est pas défait. Ce retour en arrière
+  des lignes ne réécrit l'écran que s'il appartient encore à cette action —
+  la **vue** affichée au lancement (flux, filtre, recherche) est comparée à
+  la vue courante avant d'y toucher, comme pour le corpus (plus bas) : sans
+  cette garde, basculer de vue pendant l'aller-retour peut faire repasser non
+  lu, à tort, un article qui partage un identifiant touché mais qui est
+  légitimement déjà lu dans le nouveau contexte. Cette comparaison
   passe par l'identifiant d'entrée normalisé (`entryIdUsec`) des deux côtés :
   `Article.id` (forme greader) et le décimal nu que rend
   `itemIdsNewerThanEntry` ne vivent pas dans le même espace, et les comparer
@@ -832,6 +838,39 @@ FreshRSS, où le titre est un vrai lien.
   affichée**, puisque le corpus connaît des articles que la liste n'a jamais
   chargés. Ce qu'il épargne au retour : ce que le serveur a confirmé, et ce
   qui était déjà lu avant l'action.
+- **Limite connue — deux marquages de plage qui se chevauchent** : si un
+  second « au-dessus »/« en dessous » part pendant qu'un premier est encore en
+  vol, la garde du corpus de recherche gardé compare une RÉFÉRENCE d'objet
+  (`corpusALancement`) — le second marquage en a construit une nouvelle en le
+  patchant à son tour, donc au retour le premier voit un corpus qui n'est plus
+  le sien et saute son annulation si le serveur le refuse. Une recherche
+  ultérieure dans le même périmètre, servie depuis ce corpus gardé en mémoire
+  plutôt que rechargée, peut alors montrer lus des articles que le serveur a
+  toujours en non-lus — jusqu'à cinq minutes, la durée de vie du corpus
+  (`CORPUS_TTL_MS`, `src/lib/searchCorpus.ts`), après quoi il expire et la
+  recherche suivante repart du serveur.
+- **Limite connue — une catégorie contenant un flux marqué « important »
+  côté FreshRSS** : « au-dessus » marque quand même ces articles, puisqu'il
+  passe par leurs identifiants un par un (`itemIdsNewerThanEntry` puis
+  `markAsRead`, par lots) ; « en dessous », lui, passe par le marquage de
+  masse du flux (`markAllAsRead`), et FreshRSS applique à cet appel son propre
+  filtre de priorité — les articles du flux important n'y sont pas inclus. La
+  liste à l'écran les affiche lus (l'optimisme local ne connaît pas cette
+  règle serveur), le compteur non lu, lui, dit vrai dès le prochain relevé :
+  les deux directions du même geste ne se comportent donc pas pareil dans ce
+  cas précis, et rien dans l'interface ne le signale.
+- **Limite connue — « au-dessus » sur un très gros retard** : le relevé des
+  identifiants se fait par lots de mille (`itemIdsNewerThanEntry`), le
+  marquage par lots de cent (`markAsRead`) — un flux avec des dizaines de
+  milliers d'articles non lus produit donc autant de requêtes au proxy
+  backend. Au-delà du plafond `FRIRSS_PROXY_RATE_LIMIT` (600 requêtes par
+  utilisateur et par minute par défaut, partagé avec l'extraction d'articles
+  — voir *Variables d'environnement*), l'action s'arrête en chemin : la
+  plupart des lots ont déjà été acceptés par le serveur, mais le message
+  d'échec (`toast.markRangeFailed`) parle d'un refus du serveur, pas d'un
+  plafond de débit atteint côté proxy — la distinction n'est pas faite.
+  Aucun indicateur de progression pendant l'opération : rien ne dit qu'elle
+  est en cours ni où elle en est avant qu'elle échoue ou se termine.
 - **Piège — le clic droit des boutons Favori et À lire plus tard est
   prioritaire** : leur rangement par catégorie (`useFileGesture`) appelle
   `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou

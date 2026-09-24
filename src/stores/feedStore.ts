@@ -1701,6 +1701,18 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // entre-temps, dans un périmètre différent.
     const corpusALancement = searchCorpus;
 
+    // I1 (revue finale du 25/09) : la vue affichée au lancement. b91a246
+    // l'avait posée pour garder un refus de repeindre l'écran d'un autre
+    // flux ; 85ac88f l'a perdue en remplaçant l'instantané de LISTE
+    // (`avant`) par un recalcul sur `s.articles` — ce recalcul dit
+    // correctement CE QUI a été touché, mais ne dit rien de SUR QUEL ÉCRAN on
+    // le réécrit. Un identifiant peut réapparaître dans une autre vue,
+    // légitimement déjà lu pour des raisons qui lui sont propres : sans cette
+    // garde, le rollback d'une action périmée le repasserait non lu à tort.
+    // Seul le corpus (`corpusALancement`, juste au-dessus) avait gardé la
+    // sienne.
+    const vueALancement = viewIdentity(get());
+
     // I1 (revue finale) : le retour en arrière ne restaure JAMAIS un
     // instantané d'avant l'appel — il recalcule sur la liste TELLE QU'ELLE
     // EST au moment du retour. Un ✓ posé ailleurs pendant le vol, ou une page
@@ -1717,7 +1729,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // dont aucune ligne n'est à l'écran resterait marquée lue dans le corpus
       // après un refus, et la recherche suivante — même périmètre, aucun
       // réseau — ressortirait des articles lus que FreshRSS a en non-lus.
-      if (unconfirmed.size) {
+      // La garde de vue (I1, ci-dessus), elle, ne s'applique qu'aux LIGNES :
+      // l'écran n'appartient plus à cette action si la vue a changé.
+      if (unconfirmed.size && viewIdentity(get()) === vueALancement) {
         set((s) => ({
           articles: s.articles.map((a) => (unconfirmed.has(a.id) && a.read ? { ...a, read: false } : a)),
         }));
