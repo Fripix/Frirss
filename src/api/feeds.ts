@@ -228,6 +228,40 @@ export async function fetchStreamPage(
   return { items: data.items || [], continuation: data.continuation || null };
 }
 
+/**
+ * Les identifiants des articles plus récents qu'un instant donné, dans un flux.
+ *
+ * Il n'existe pas d'équivalent de `mark-all-as-read` pour ce sens : marquer
+ * « au-dessus » suppose de connaître la liste. Une page d'identifiants est
+ * légère (quelques dizaines de kilo-octets pour un millier), donc on suit la
+ * continuation jusqu'au bout plutôt que de plafonner arbitrairement.
+ */
+export async function itemIdsNewerThan(streamId: string, sinceSec: number): Promise<string[]> {
+  const ids: string[] = [];
+  const vues = new Set<string>();
+  let continuation: string | null = null;
+  for (;;) {
+    const params: Record<string, string | number> = {
+      output: 'json', n: 1000, s: streamId, ot: sinceSec,
+    };
+    if (continuation) params.c = continuation;
+    const { data } = await client.get<{ itemRefs?: { id: string }[]; continuation?: string | null }>(
+      `${BASE}/stream/items/ids`,
+      { params },
+    );
+    for (const ref of data.itemRefs || []) ids.push(ref.id);
+    const suivante = data.continuation || null;
+    // Une continuation qui ne progresse pas — serveur bogué, réponse dégénérée —
+    // ferait tourner cette boucle sans fin, et le clic resterait pendu à
+    // enchaîner des requêtes. On s'arrête sur ce qu'on a : mieux vaut marquer
+    // une partie et le savoir que ne jamais rendre la main.
+    if (suivante && vues.has(suivante)) return ids;
+    if (suivante) vues.add(suivante);
+    continuation = suivante;
+    if (!continuation) return ids;
+  }
+}
+
 // Subscribe to a new feed
 export async function subscribeFeed(
   feedUrl: string,
