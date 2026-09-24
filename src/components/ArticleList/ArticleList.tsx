@@ -639,8 +639,7 @@ export default function ArticleList() {
           onClose={closeArticleMenu}
           onOpenSource={() => openArticleAtSource(menuArticle, selectArticleAtSource)}
           onToggleRead={() => { void toggleRead(menuArticle); }}
-          onMarkBelowRead={() => { void markReadRelative(menuArticle, 'below'); }}
-          onMarkAboveRead={() => { void markReadRelative(menuArticle, 'above'); }}
+          onMarkRange={(direction) => { void markReadRelative(menuArticle, direction); }}
           onToggleStar={() => { void toggleStar(menuArticle); }}
           onToggleReadLater={() => { void toggleReadLater(menuArticle); }}
           onCopyLink={() => { void copyArticleLink(menuArticle.url); }}

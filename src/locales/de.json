@@ -107,8 +107,8 @@
   "articleRow": {
     "markRead": "Als gelesen markieren",
     "markUnread": "Als ungelesen markieren",
-    "markBelowRead": "Alle gelesen darunter",
-    "markAboveRead": "Alle gelesen darüber",
+    "markBelowRead": "Darunter als gelesen markieren",
+    "markAboveRead": "Darüber als gelesen markieren",
     "addStar": "Zu Favoriten hinzufügen",
     "removeStar": "Aus Favoriten entfernen",
     "addReadLater": "Später lesen",

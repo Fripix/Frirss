@@ -19,12 +19,12 @@ function setup(over: {
   article?: Partial<Article>;
   isReadLater?: boolean;
   sheet?: boolean;
-  handlers?: { onMarkBelowRead?: () => void; onMarkAboveRead?: () => void };
+  handlers?: { onMarkRange?: (direction: 'above' | 'below') => void };
 } = {}) {
   const handlers = {
     onClose: vi.fn(), onOpenSource: vi.fn(), onToggleRead: vi.fn(),
     onToggleStar: vi.fn(), onToggleReadLater: vi.fn(), onCopyLink: vi.fn(),
-    onMarkBelowRead: vi.fn(), onMarkAboveRead: vi.fn(),
+    onMarkRange: vi.fn(),
     ...over.handlers,
   };
   render(
@@ -49,14 +49,22 @@ describe('ArticleContextMenu', () => {
     ]);
   });
 
-  it('appelle la bonne direction depuis chaque entrée de plage', () => {
-    const onMarkBelowRead = vi.fn();
-    const onMarkAboveRead = vi.fn();
-    setup({ handlers: { onMarkBelowRead, onMarkAboveRead } });
+  it('appelle onMarkRange avec « below » depuis l’entrée « en dessous »', () => {
+    const onMarkRange = vi.fn();
+    setup({ handlers: { onMarkRange } });
 
     fireEvent.click(screen.getByText('articleRow.markBelowRead'));
-    expect(onMarkBelowRead).toHaveBeenCalledTimes(1);
-    expect(onMarkAboveRead).not.toHaveBeenCalled();
+    expect(onMarkRange).toHaveBeenCalledTimes(1);
+    expect(onMarkRange).toHaveBeenCalledWith('below');
+  });
+
+  it('appelle onMarkRange avec « above » depuis l’entrée « au-dessus »', () => {
+    const onMarkRange = vi.fn();
+    setup({ handlers: { onMarkRange } });
+
+    fireEvent.click(screen.getByText('articleRow.markAboveRead'));
+    expect(onMarkRange).toHaveBeenCalledTimes(1);
+    expect(onMarkRange).toHaveBeenCalledWith('above');
   });
 
   it('gives every floating entry a 44pt touch target on coarse pointers', () => {
@@ -143,8 +151,7 @@ describe('ArticleContextMenu', () => {
                 onClose={() => {}}
                 onOpenSource={() => {}}
                 onToggleRead={() => {}}
-                onMarkBelowRead={() => {}}
-                onMarkAboveRead={() => {}}
+                onMarkRange={() => {}}
                 onToggleStar={() => {}}
                 onToggleReadLater={() => {}}
                 onCopyLink={() => {}}

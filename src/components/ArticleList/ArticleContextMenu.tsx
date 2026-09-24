@@ -17,8 +17,10 @@ interface ArticleContextMenuProps {
   onClose: () => void;
   onOpenSource: () => void;
   onToggleRead: () => void;
-  onMarkBelowRead: () => void;
-  onMarkAboveRead: () => void;
+  /** Marquage de plage (au-dessus/en dessous) : une seule prop, direction en paramètre —
+   * la correspondance entrée→direction vit ici, là où ce fichier la teste, plutôt que
+   * dans deux littéraux câblés côté appelant et jamais vérifiés. */
+  onMarkRange: (direction: 'above' | 'below') => void;
   onToggleStar: () => void;
   onToggleReadLater: () => void;
   onCopyLink: () => void;
@@ -35,7 +37,7 @@ interface ArticleContextMenuProps {
  */
 export default function ArticleContextMenu({
   article, isReadLater, x, y, sheet,
-  onClose, onOpenSource, onToggleRead, onMarkBelowRead, onMarkAboveRead,
+  onClose, onOpenSource, onToggleRead, onMarkRange,
   onToggleStar, onToggleReadLater, onCopyLink,
 }: ArticleContextMenuProps) {
   const { t } = useTranslation();
@@ -46,8 +48,8 @@ export default function ArticleContextMenu({
   const actions: Record<ArticleMenuKind, () => void> = {
     openSource: onOpenSource,
     toggleRead: onToggleRead,
-    markBelowRead: onMarkBelowRead,
-    markAboveRead: onMarkAboveRead,
+    markBelowRead: () => onMarkRange('below'),
+    markAboveRead: () => onMarkRange('above'),
     toggleStar: onToggleStar,
     toggleReadLater: onToggleReadLater,
     copyLink: onCopyLink,
