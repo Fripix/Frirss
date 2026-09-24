@@ -23,14 +23,28 @@ import { useFeedStore, __resetSearchStateForTests, __resetNewArticlesStateForTes
 import { useAuthStore } from './authStore';
 import { useUiStore } from './uiStore';
 import type { Article, GReaderItem, Filter } from '../types';
+import { entryIdUsec } from '../lib/entryId';
 
-// Identifiants d'entrée réels (décimaux), dans l'ordre d'insertion FreshRSS —
-// PAS dans l'ordre de `published`, choisi délibérément à l'envers ci-dessous.
-// Toute borne qui se tromperait de champ (`published` au lieu de l'id) se
-// verrait immédiatement : elle marquerait la ligne opposée.
-const vieuxId = '1788386439680500'; // entrée la plus ANCIENNE, mais published la plus GRANDE
-const pivotId = '1788386439680550';
-const neufId = '1788386439680600'; // entrée la plus RÉCENTE, mais published la plus PETITE
+// Identifiants d'entrée réels, dans l'ordre d'insertion FreshRSS — PAS dans
+// l'ordre de `published`, choisi délibérément à l'envers ci-dessous. Toute
+// borne qui se tromperait de champ (`published` au lieu de l'id) se verrait
+// immédiatement : elle marquerait la ligne opposée.
+//
+// C1 (revue de ce correctif) : deux formes cohabitent et ne vivent PAS dans
+// le même espace — `Article.id` (ce que porte une ligne à l'écran, forme
+// greader hexadécimale) et le décimal nu que rend `stream/items/ids`
+// (`itemIdsNewerThanEntry`, côté « au-dessus »). Un test qui donnerait le
+// même littéral aux deux ne pourrait jamais voir une comparaison qui les
+// confond : les fixtures ci-dessous portent délibérément les DEUX formes
+// pour le même identifiant d'entrée.
+const vieuxUsec = '1788386439680500'; // entrée la plus ANCIENNE, mais published la plus GRANDE
+const pivotUsec = '1788386439680550';
+const neufUsec = '1788386439680600'; // entrée la plus RÉCENTE, mais published la plus PETITE
+// `Article.id` — forme greader hexadécimale (`0006…`, seize caractères), telle
+// que la rendent `stream/contents` et `stream/items/ids?output=json`.
+const vieuxId = 'tag:google.com,2005:reader/item/00065a872a7551f4';
+const pivotId = 'tag:google.com,2005:reader/item/00065a872a755226';
+const neufId = 'tag:google.com,2005:reader/item/00065a872a755258';
 
 const article = (id: string, publishedMs: number): Article => ({
   id, title: id, summary: '', content: '', author: '', url: `https://example.com/${id}`,
@@ -41,6 +55,12 @@ const article = (id: string, publishedMs: number): Article => ({
 const vieux = article(vieuxId, 9_000_000);
 const pivot = article(pivotId, 5_000_000);
 const neuf = article(neufId, 1_000_000);
+
+// La fixture n'a de valeur que si la forme greader et le décimal désignent
+// vraiment la même entrée — vérifié une fois ici plutôt que supposé partout.
+if (entryIdUsec(vieuxId) !== vieuxUsec || entryIdUsec(pivotId) !== pivotUsec || entryIdUsec(neufId) !== neufUsec) {
+  throw new Error('fixture incohérente : la forme greader et le décimal ne désignent pas la même entrée');
+}
 
 const page = vi.mocked(fetchStreamPage);
 
@@ -257,18 +277,26 @@ describe('markReadRelative — retour en arrière sans instantané (I1)', () => 
 
 // I5 (revue finale) : un lot refusé ne défait pas les lots déjà acceptés par
 // le serveur — seuls les lots non envoyés ou refusés reviennent.
+//
+// C1 (revue de ce correctif) : cette preuve n'a de valeur que si les DEUX
+// espaces d'identifiants sont réellement différents — `enLot1`/`enLot2` sont
+// donc la forme greader que porte `Article.id` sur l'écran, alors que ce que
+// le mock de `itemIdsNewerThanEntry` rend (`enLot1Usec`/`enLot2Usec`) est le
+// décimal nu que rend vraiment `stream/items/ids`.
 describe('markReadRelative — échec partiel par lots (I5)', () => {
   it('les lots acceptés restent lus quand le suivant échoue', async () => {
-    const enLot1 = '1788386439680700'; // dans le premier lot (accepté)
-    const enLot2 = '1788386439680800'; // dans le second lot (refusé)
+    const enLot1 = 'tag:google.com,2005:reader/item/00065a872a7552bc'; // dans le premier lot (accepté)
+    const enLot1Usec = '1788386439680700';
+    const enLot2 = 'tag:google.com,2005:reader/item/00065a872a755320'; // dans le second lot (refusé)
+    const enLot2Usec = '1788386439680800';
     useFeedStore.setState({
       articles: [article(enLot2, 2_000), article(enLot1, 1_000), pivot],
     } as never);
 
     const remplissage = (n: number, decalage: number) =>
       Array.from({ length: n }, (_, i) => `9000000000000${String(decalage + i).padStart(3, '0')}`);
-    const ids = [...remplissage(40, 0), enLot1, ...remplissage(59, 100),
-      ...remplissage(40, 200), enLot2, ...remplissage(9, 300)];
+    const ids = [...remplissage(40, 0), enLot1Usec, ...remplissage(59, 100),
+      ...remplissage(40, 200), enLot2Usec, ...remplissage(9, 300)];
     expect(ids.length).toBe(150); // 100 (lot 1, avec enLot1) + 50 (lot 2, avec enLot2)
     vi.mocked(itemIdsNewerThanEntry).mockResolvedValue(ids);
     vi.mocked(markAsRead)
@@ -332,9 +360,9 @@ describe('markReadRelative — message d’échec (I3)', () => {
   });
 });
 
-// I3 / I4 : le corpus de recherche gardé (`searchCorpus`) est repatché par
-// identifiant d'entrée. Ces tests installent un vrai corpus via `search()`,
-// comme `feedStore.search.test.ts`.
+// Le corpus de recherche gardé (`searchCorpus`) est repatché par identifiant
+// d'entrée. Ces tests installent un vrai corpus via `search()`, comme
+// `feedStore.search.test.ts`.
 describe('markReadRelative — corpus de recherche', () => {
   const buildCorpus = async () => {
     page.mockResolvedValueOnce({
@@ -391,8 +419,9 @@ describe('markReadRelative — corpus de recherche', () => {
     // exactement ce que le rollback du premier corpus, mal gardé, patcherait
     // à tort en non-lu.
     useFeedStore.setState({ selectedFeed: { id: 'feed/2', title: 'Autre' } } as never);
+    const impostorId = 'tag:google.com,2005:reader/item/00065a872a7551fe';
     page.mockResolvedValueOnce({
-      items: [item('1788386439680510', 'impostor terme', 1, ['user/-/state/com.google/read'])],
+      items: [item(impostorId, 'impostor terme', 1, ['user/-/state/com.google/read'])],
       continuation: null,
     });
     await useFeedStore.getState().search('terme');
@@ -403,7 +432,135 @@ describe('markReadRelative — corpus de recherche', () => {
     page.mockClear();
     await useFeedStore.getState().search('terme'); // même périmètre (feed/2) : pas de réseau si le corpus est intact
     expect(page).not.toHaveBeenCalled();
-    const impostorHit = useFeedStore.getState().searchResults.find((a) => a.id === '1788386439680510')!;
+    const impostorHit = useFeedStore.getState().searchResults.find((a) => a.id === impostorId)!;
     expect(impostorHit.read).toBe(true);
+  });
+
+  // I3 (revue de ce correctif) : le rollback ne doit jamais redéfaire un lot
+  // que le serveur a accepté — même dans le corpus, pas seulement à l'écran.
+  // Même piège que C1 : `itemIdsNewerThanEntry` rend du décimal nu, le corpus
+  // porte la forme greader — sans normaliser les deux côtés, ce test serait
+  // faux-vert comme l'était `feedStore.markRange.test.ts` avant ce correctif.
+  it('garde lus, dans le corpus aussi, les lots déjà acceptés quand un lot suivant échoue', async () => {
+    const enLot1 = 'tag:google.com,2005:reader/item/00065a872a7552bc'; // premier lot (accepté)
+    const enLot1Usec = '1788386439680700';
+    const enLot2 = 'tag:google.com,2005:reader/item/00065a872a755320'; // second lot (refusé)
+    const enLot2Usec = '1788386439680800';
+    page.mockResolvedValueOnce({
+      items: [
+        item(enLot2, 'lot2 terme', 3),
+        item(enLot1, 'lot1 terme', 2),
+        item(pivotId, 'pivot terme', 1),
+      ],
+      continuation: null,
+    });
+    await useFeedStore.getState().search('terme');
+    const pivotHit = useFeedStore.getState().searchResults.find((a) => a.id === pivotId)!;
+
+    const remplissage = (n: number, decalage: number) =>
+      Array.from({ length: n }, (_, i) => `9000000000000${String(decalage + i).padStart(3, '0')}`);
+    const ids = [...remplissage(40, 0), enLot1Usec, ...remplissage(59, 100),
+      ...remplissage(40, 200), enLot2Usec, ...remplissage(9, 300)];
+    vi.mocked(itemIdsNewerThanEntry).mockResolvedValue(ids);
+    vi.mocked(markAsRead)
+      .mockResolvedValueOnce(undefined) // premier lot : accepté
+      .mockRejectedValueOnce(refus); // deuxième lot : refusé
+
+    await useFeedStore.getState().markReadRelative(pivotHit, 'above');
+
+    page.mockClear();
+    await useFeedStore.getState().search('terme');
+    const lot1Hit = useFeedStore.getState().searchResults.find((a) => a.id === enLot1)!;
+    const lot2Hit = useFeedStore.getState().searchResults.find((a) => a.id === enLot2)!;
+    expect(lot1Hit.read).toBe(true); // lot accepté : reste lu dans le corpus
+    expect(lot2Hit.read).toBe(false); // lot refusé : revient dans le corpus
+  });
+
+  // I3 / C2 (revue de ce correctif) : le rollback recalcule sur une plage,
+  // qui ne sait rien du fait qu'un article y était DÉJÀ lu avant l'action.
+  // Sans exclusion explicite, il le repasserait non lu à tort — dans le
+  // corpus comme à l'écran (voir la description C2, plus bas).
+  it('ne redevient jamais non lu, dans le corpus, un article qui était déjà lu avant l’action', async () => {
+    // `vieux2` est du corpus SEULEMENT — pas de la liste chargée — pour que
+    // le rollback n'ait pas d'autre raison de s'arrêter tôt que l'exclusion
+    // qu'on vérifie ici. `unconfirmed` doit rester non vide (un test où il
+    // serait vide dès le départ ne prouverait rien : le patch de corpus ne
+    // serait jamais atteint, exclusion ou pas) — `vieux2`, LUI chargé et non
+    // lu, s'en charge : le serveur refuse, il revient sans confirmation.
+    const vieux2Id = 'tag:google.com,2005:reader/item/00065a872a755208'; // plus ancien que pivot, non lu
+    const vieux2 = article(vieux2Id, 4_000);
+    useFeedStore.setState({ articles: [neuf, pivot, vieux2] } as never);
+    page.mockResolvedValueOnce({
+      items: [
+        item(neufId, 'neuf terme', 4),
+        item(pivotId, 'pivot terme', 3),
+        item(vieux2Id, 'vieux2 terme', 2),
+        item(vieuxId, 'vieux terme', 1, ['user/-/state/com.google/read']), // déjà lu côté serveur
+      ],
+      continuation: null,
+    });
+    await useFeedStore.getState().search('terme');
+    const pivotHit = useFeedStore.getState().searchResults.find((a) => a.id === pivotId)!;
+    // `search()` a remplacé `articles` par ses résultats (les quatre) : on
+    // revient à la liste voulue, SANS `vieux` — qui n'existe que dans le
+    // corpus balayé, comme dans le test I4.
+    useFeedStore.setState({
+      articles: useFeedStore.getState().articles.filter((a) => a.id !== vieuxId),
+    } as never);
+    vi.mocked(markAllAsRead).mockRejectedValueOnce(refus);
+
+    await useFeedStore.getState().markReadRelative(pivotHit, 'below');
+
+    page.mockClear();
+    await useFeedStore.getState().search('terme');
+    const vieuxHit = useFeedStore.getState().searchResults.find((a) => a.id === vieuxId)!;
+    const vieux2Hit = useFeedStore.getState().searchResults.find((a) => a.id === vieux2Id)!;
+    expect(vieuxHit.read).toBe(true); // déjà lu avant l'action : jamais redevenu non lu
+    expect(vieux2Hit.read).toBe(false); // non confirmé par cette action : revient normalement
+  });
+
+  // I4 (revue de ce correctif, régression de 85ac88f) : le patch optimiste du
+  // corpus ne doit PAS dépendre de `touchedIds` — cet ensemble ne porte que
+  // ce qui est CHARGÉ à l'écran, alors que le corpus peut aller plus loin
+  // (un balayage de recherche antérieur). Ici, la seule ligne chargée est le
+  // pivot lui-même : rien à l'écran n'est « en dessous », mais le corpus, lui,
+  // contient une entrée plus ancienne.
+  it('patch le corpus même quand aucune ligne chargée n’est dans la plage', async () => {
+    page.mockResolvedValueOnce({
+      items: [item(pivotId, 'pivot terme', 2), item(vieuxId, 'vieux terme', 1)],
+      continuation: null,
+    });
+    await useFeedStore.getState().search('terme');
+    const pivotHit = useFeedStore.getState().searchResults.find((a) => a.id === pivotId)!;
+
+    // `search()` a posé `articles` sur les deux résultats — on l'écrase pour
+    // ne garder QUE le pivot chargé, comme si le reste (`vieux`) n'existait
+    // que dans le corpus balayé et pas dans la tranche visible à l'écran.
+    useFeedStore.setState({ articles: [pivotHit] } as never);
+
+    await useFeedStore.getState().markReadRelative(pivotHit, 'below');
+
+    page.mockClear();
+    await useFeedStore.getState().search('terme');
+    const vieuxHit = useFeedStore.getState().searchResults.find((a) => a.id === vieuxId)!;
+    expect(vieuxHit.read).toBe(true);
+  });
+});
+
+// C2 (revue de ce correctif) : le prédicat de plage ne regarde que l'ordre
+// d'insertion, jamais `read` — une ligne déjà lue AVANT l'action ne doit
+// jamais pouvoir redevenir non lue si le serveur refuse. Ce refus ne parle
+// que de ce que CETTE action a changé, pas de l'état antérieur de la ligne.
+describe('markReadRelative — jamais redevenu non lu ce qui était déjà lu (C2)', () => {
+  it('un article déjà lu avant l’action le reste quand le serveur refuse', async () => {
+    useFeedStore.setState({
+      articles: [neuf, pivot, { ...vieux, read: true }],
+    } as never);
+    vi.mocked(markAllAsRead).mockRejectedValueOnce(refus);
+
+    await useFeedStore.getState().markReadRelative(pivot, 'below');
+
+    const parId = Object.fromEntries(useFeedStore.getState().articles.map((a) => [a.id, a.read]));
+    expect(parId[vieuxId]).toBe(true);
   });
 });

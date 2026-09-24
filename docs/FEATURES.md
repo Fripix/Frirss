@@ -782,14 +782,17 @@ FreshRSS, où le titre est un vrai lien.
   version comparait des dates et se trompait sur tout flux dont l'ordre
   d'insertion diverge de l'ordre de publication (import en masse, republication).
   « En dessous » passe par `markAllAsRead` du flux avec cette borne exclusive ;
-  « au-dessus » relève d'abord les identifiants plus récents
-  (`itemIdsNewerThanEntry`, qui s'arrête de lui-même à l'article cliqué — pas de
-  borne de date envoyée) puis les marque par lots de 100. **Toujours
-  présentes, quelle que soit la position de la ligne dans la liste chargée** :
-  celle-ci ne dit rien de ce que le flux contient au-delà (page suivante non
-  chargée, articles arrivés depuis), donc les masquer par index mentirait une
-  fois sur deux. **Se refuse silencieusement depuis Favoris et À lire plus
-  tard** (`canMarkAllRead`, `src/lib/markAllRead.ts`) : ce ne sont pas des flux
+  un identifiant illisible n'envoie aucune borne et l'action ne part pas —
+  cette garde ne couvre QUE « en dessous ». « Au-dessus » relève d'abord les
+  identifiants plus récents (`itemIdsNewerThanEntry`, qui s'arrête de
+  lui-même à l'article cliqué — pas de borne de date envoyée) puis les marque
+  par lots de 100 ; un identifiant illisible n'y empêche pas l'appel réseau,
+  seul le marquage local ne touche alors rien. **Toujours présentes, quelle
+  que soit la position de la ligne dans la liste chargée** : celle-ci ne dit
+  rien de ce que le flux contient au-delà (page suivante non chargée,
+  articles arrivés depuis), donc les masquer par index mentirait une fois sur
+  deux. **Se refuse silencieusement depuis Favoris et À lire plus tard**
+  (`canMarkAllRead`, `src/lib/markAllRead.ts`) : ce ne sont pas des flux
   qu'on vide, ce sont des sélections transversales — le menu reste identique
   dans ces vues, mais l'action n'y écrit rien. L'écriture est comptée dans
   `readWritesInFlight`, comme `toggleRead` : sans cela, un relevé de compteurs
@@ -797,12 +800,21 @@ FreshRSS, où le titre est un vrai lien.
   ne restaure jamais un instantané : il recalcule sur la liste telle qu'elle
   est au moment du retour, et seuls les identifiants non confirmés par le
   serveur reviennent — un lot déjà accepté avant l'échec du suivant reste lu,
-  et un ✓ posé ailleurs pendant le vol n'est pas défait. Le message
-  (`toast.markRangeFailed`) suit `writeFailureNotice` : un refus ne s'annonce
-  que si le serveur a répondu, le hors-ligne véritable reste muet. Le corpus
-  de recherche est corrigé par identifiant d'entrée plutôt que jeté :
-  contrairement à « tout marquer comme lu », le critère reste vrai pendant une
-  recherche en cours.
+  et un ✓ posé ailleurs pendant le vol n'est pas défait. Cette comparaison
+  passe par l'identifiant d'entrée normalisé (`entryIdUsec`) des deux côtés :
+  `Article.id` (forme greader) et le décimal nu que rend
+  `itemIdsNewerThanEntry` ne vivent pas dans le même espace, et les comparer
+  tels quels laisserait l'intersection toujours vide. Une ligne déjà lue
+  AVANT l'action n'entre jamais dans ce qui peut revenir en arrière : ce
+  refus ne parle que de ce que CETTE action a changé, jamais de l'état
+  antérieur de la ligne. Le message (`toast.markRangeFailed`) suit
+  `writeFailureNotice` : un refus ne s'annonce que si le serveur a répondu,
+  le hors-ligne véritable reste muet. Le corpus de recherche est corrigé par
+  identifiant d'entrée plutôt que jeté : contrairement à « tout marquer comme
+  lu », le critère reste vrai pendant une recherche en cours — patché à
+  l'aller INCONDITIONNELLEMENT (une plage dépasse ce qui est chargé), et au
+  retour selon la même règle que l'écran : jamais ce que le serveur a
+  confirmé, jamais ce qui était déjà lu avant l'action.
 - **Piège — le clic droit des boutons Favori et À lire plus tard est
   prioritaire** : leur rangement par catégorie (`useFileGesture`) appelle
   `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou

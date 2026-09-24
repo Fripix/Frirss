@@ -103,11 +103,17 @@ export function patchCorpusArticle(corpus: Corpus, id: string, patch: Partial<Ar
  * de publication : FreshRSS ne la compare jamais pour cette action, et un
  * corpus corrigé par date divergerait du serveur sur les flux datés au jour
  * ou les imports en masse, où plusieurs entrées partagent une même date.
+ *
+ * `exclude` retire de la plage des identifiants que le seul critère
+ * d'ordre ne peut pas connaître — utilisé par le rollback de
+ * `markReadRelative` (`src/stores/feedStore.ts`) pour épargner ce que le
+ * serveur a déjà confirmé, et ce qui était déjà lu avant l'action.
  */
 export function patchCorpusByEntry(
   corpus: Corpus,
   bound: { direction: 'above' | 'below'; articleId: string },
   patch: Partial<Article>,
+  exclude?: (id: string) => boolean,
 ): Corpus {
   const touche = (id: string) => (bound.direction === 'below'
     ? isOlderEntry(id, bound.articleId)
@@ -115,7 +121,7 @@ export function patchCorpusByEntry(
   return {
     ...corpus,
     entries: corpus.entries.map((e) => (
-      touche(e.article.id) ? { ...e, article: { ...e.article, ...patch } } : e
+      touche(e.article.id) && !exclude?.(e.article.id) ? { ...e, article: { ...e.article, ...patch } } : e
     )),
   };
 }

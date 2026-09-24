@@ -138,4 +138,20 @@ describe('patchCorpusByEntry', () => {
     const c = patchCorpusByEntry(corpus(), { direction: 'below', articleId: 'inconnu' }, { read: true });
     expect(c.entries.map((e) => e.article.read)).toEqual([false, false, false]);
   });
+
+  // I3 (revue de markReadRelative) : le rollback d'un marquage de plage ne
+  // doit jamais toucher un identifiant que l'appelant exclut explicitement
+  // (confirmé par le serveur, ou déjà lu avant l'action) — seul un critère de
+  // plage ne peut pas le distinguer.
+  it('épargne les identifiants exclus, même dans la plage', () => {
+    const c = patchCorpusByEntry(
+      corpus(),
+      { direction: 'below', articleId: pivotId },
+      { read: true },
+      (id) => id === vieuxId,
+    );
+    expect(c.entries.map((e) => [e.article.id, e.article.read])).toEqual([
+      [vieuxId, false], [pivotId, false], [neufId, false],
+    ]);
+  });
 });

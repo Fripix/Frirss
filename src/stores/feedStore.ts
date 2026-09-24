@@ -21,7 +21,7 @@ import {
   clearWriteToken,
   itemIdsNewerThanEntry,
 } from '../api/feeds';
-import { exclusiveOlderThanEntryId, isOlderEntry } from '../lib/entryId';
+import { entryIdUsec, exclusiveOlderThanEntryId, isOlderEntry } from '../lib/entryId';
 import { articleHaystack, parseQuery, matchesTerms } from '../lib/searchMatch';
 import { scanErrorKind } from '../lib/scanError';
 import {
@@ -110,8 +110,9 @@ function patchSearchCorpus(id: string, patch: Partial<Article>): void {
 function patchSearchCorpusByEntry(
   bound: { direction: 'above' | 'below'; articleId: string },
   patch: Partial<Article>,
+  exclude?: (id: string) => boolean,
 ): void {
-  if (searchCorpus) searchCorpus = patchCorpusByEntry(searchCorpus, bound, patch);
+  if (searchCorpus) searchCorpus = patchCorpusByEntry(searchCorpus, bound, patch, exclude);
 }
 
 // Lazy (dynamic) import of i18n, not a static one at the top of the file:
@@ -1620,6 +1621,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
    * lignes marquer — est l'identifiant d'entrée de l'article cliqué
    * (`src/lib/entryId.ts`), JAMAIS sa date de publication (C2) : FreshRSS
    * compare `ts` à l'`id` d'insertion de l'entrée, pas à `published`.
+   *
+   * Deux pièges corrigés après coup (revue de 85ac88f), tous deux dans le
+   * retour en arrière :
+   * - **C1** : `touchedIds` porte `Article.id` (forme greader hexadécimale),
+   *   alors que `itemIdsNewerThanEntry` (« au-dessus ») rend le décimal nu de
+   *   `stream/items/ids`. Comparer les deux littéralement laisse
+   *   l'intersection toujours vide — un lot pourtant accepté par le serveur
+   *   repasserait non lu. Les deux côtés passent donc par `entryIdUsec`
+   *   avant toute comparaison.
+   * - **C2** : le prédicat de plage ne regarde que l'ordre d'insertion,
+   *   jamais `read` — une ligne déjà lue AVANT l'action ne doit jamais
+   *   pouvoir redevenir non lue si le serveur refuse : ce refus ne parle que
+   *   de ce que CETTE action a changé. `touchedIds` exclut donc dès le
+   *   départ ce qui était déjà lu, et le corpus de recherche suit la même
+   *   règle (I3) via `corpusDejaLus`.
    */
   markReadRelative: async (article: Article, direction: 'above' | 'below') => {
     const { selectedFeed, filter, articles } = get();
@@ -1632,26 +1648,54 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
     // Borne serveur, côté « en dessous » seulement — « au-dessus » n'en envoie
     // aucune (`itemIdsNewerThanEntry` s'arrête d'elle-même à l'article
-    // cliqué). Un identifiant illisible ne rend aucune borne fiable : l'action
-    // ne part pas, et rien n'est touché — ni le réseau, ni l'écran.
+    // cliqué). Un identifiant illisible ne rend aucune borne fiable pour
+    // « en dessous » : l'action ne part pas, rien n'est touché — ni le
+    // réseau, ni l'écran. « Au-dessus » n'a pas cette garde : un identifiant
+    // illisible n'empêche pas l'appel réseau, seul le marquage local ne
+    // touche rien (`isOlderEntry` range tout identifiant illisible comme
+    // « pas plus ancien »).
     const ts = direction === 'below' ? exclusiveOlderThanEntryId(article.id) : null;
     if (direction === 'below' && ts === null) return;
 
     // Les lignes CHARGÉES que cette action fait passer lues, optimiste — le
     // serveur en connaît sans doute d'autres, non chargées, qu'aucun marquage
-    // local ne peut anticiper.
-    const touchedIds = new Set(articles.filter(touche).map((a) => a.id));
+    // local ne peut anticiper. Seules les lignes ENCORE NON LUES entrent dans
+    // la plage touchée (C2) : une ligne déjà lue avant l'action n'a rien à y
+    // faire, sans quoi le rollback pourrait la repasser non lue à tort.
+    const touchedIds = new Set(articles.filter((a) => touche(a) && !a.read).map((a) => a.id));
+
+    // Le rollback compare des identifiants confirmés par le serveur à
+    // `touchedIds` : ces deux ensembles doivent vivre dans le MÊME espace
+    // (C1) — `touchedIds` porte la forme greader d'`Article.id`,
+    // `itemIdsNewerThanEntry` (« au-dessus ») le décimal nu de
+    // `stream/items/ids`. `entryIdUsec` ramène les deux au même décimal.
+    const versEspaceCommun = (id: string) => entryIdUsec(id) ?? id;
+
+    // I3/C2 pour le corpus : quelles entrées, dans la plage, étaient DÉJÀ
+    // lues avant cette action ? Capturé ICI, avant tout patch optimiste —
+    // celui qui suit écrit `read: true` sur tout ce qu'il touche et
+    // effacerait la distinction entre « déjà lu » et « lu par cette action ».
+    const corpusDejaLus = new Set(
+      (searchCorpus?.entries ?? [])
+        .filter((e) => touche(e.article) && e.article.read)
+        .map((e) => e.article.id)
+    );
 
     if (touchedIds.size) {
       set((s) => ({ articles: s.articles.map((a) => (touchedIds.has(a.id) ? { ...a, read: true } : a)) }));
       bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
-      // Le critère est un identifiant d'entrée, donc le corpus de recherche
-      // reste JUSTE : pas besoin de le jeter comme le fait « tout marquer
-      // comme lu », ce qui refermerait la recherche en cours de l'utilisateur.
-      patchSearchCorpusByEntry(bound, { read: true });
     }
-    // Le corpus tel qu'on le laisse, PAR RÉFÉRENCE, juste avant l'attente
-    // réseau. Chaque patch — et chaque nouvelle recherche — réaffecte
+    // I4 (régression de 85ac88f) : inconditionnel, contrairement au bloc
+    // ci-dessus — la plage dépasse ce qui est chargé localement (un balayage
+    // de recherche peut être allé plus loin qu'`articles`), donc
+    // `touchedIds` vide ne dit rien de ce que le corpus a à patcher. Le
+    // critère est un identifiant d'entrée, donc le corpus de recherche reste
+    // JUSTE : pas besoin de le jeter comme le fait « tout marquer comme lu »,
+    // ce qui refermerait la recherche en cours de l'utilisateur.
+    patchSearchCorpusByEntry(bound, { read: true });
+
+    // Le corpus tel qu'on le laisse, PAR RÉFÉRENCE, juste après le patch
+    // ci-dessus. Chaque patch — et chaque nouvelle recherche — réaffecte
     // `searchCorpus` à un nouvel objet : une inégalité au retour dit que ce
     // n'est plus le même corpus, probablement celui d'une recherche démarrée
     // entre-temps, dans un périmètre différent.
@@ -1666,12 +1710,18 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // par le serveur reviennent — les lots déjà acceptés restent lus.
     const confirmed = new Set<string>();
     const rollbackUnconfirmed = () => {
-      const unconfirmed = new Set([...touchedIds].filter((id) => !confirmed.has(id)));
+      const unconfirmed = new Set([...touchedIds].filter((id) => !confirmed.has(versEspaceCommun(id))));
       if (!unconfirmed.size) return;
       set((s) => ({
         articles: s.articles.map((a) => (unconfirmed.has(a.id) && a.read ? { ...a, read: false } : a)),
       }));
-      if (searchCorpus === corpusALancement) patchSearchCorpusByEntry(bound, { read: false });
+      if (searchCorpus === corpusALancement) {
+        // I3 : n'annule ni ce que le serveur a confirmé, ni ce qui était déjà
+        // lu avant l'action — un simple critère de plage ne sait distinguer
+        // ni l'un ni l'autre.
+        patchSearchCorpusByEntry(bound, { read: false }, (id) =>
+          confirmed.has(versEspaceCommun(id)) || corpusDejaLus.has(id));
+      }
     };
 
     // I2 (revue finale) : posé AVANT l'appel réseau, levé dans le `finally`
@@ -1683,7 +1733,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       try {
         if (direction === 'below') {
           await markAllAsRead(streamId, ts as string);
-          touchedIds.forEach((id) => confirmed.add(id));
+          touchedIds.forEach((id) => confirmed.add(versEspaceCommun(id)));
         } else {
           const ids = await itemIdsNewerThanEntry(streamId, article.id);
           // Par lots : `editTag` accepte un tableau, mais un millier de `i=`
@@ -1693,7 +1743,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           for (let i = 0; i < ids.length; i += 100) {
             const lot = ids.slice(i, i + 100);
             await markAsRead(lot);
-            lot.forEach((id) => confirmed.add(id));
+            lot.forEach((id) => confirmed.add(versEspaceCommun(id)));
           }
         }
       } finally {
