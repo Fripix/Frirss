@@ -5,10 +5,25 @@ import type { Article } from '../../types';
 import BottomSheet from '../BottomSheet';
 import { articleMenuItems, type ArticleMenuKind } from '../../lib/articleMenu';
 import { clampToViewport } from '../../lib/clampToViewport';
+import { markAllReadAction } from '../../lib/markAllRead';
+
+/** Direction d'un marquage de plage, pour les deux seules entrées concernées. */
+type RangeDirection = 'above' | 'below';
+const RANGE_DIRECTION: Partial<Record<ArticleMenuKind, RangeDirection>> = {
+  markBelowRead: 'below',
+  markAboveRead: 'above',
+};
 
 interface ArticleContextMenuProps {
   article: Article;
   isReadLater: boolean;
+  /** `canMarkAllRead(filter)` : porte jusqu'ici le refus de Favoris et À lire
+   * plus tard — une entrée qui ne fait rien est plus déroutante qu'une entrée
+   * absente. */
+  canMarkRange: boolean;
+  /** Réglage « Confirmer avant de tout marquer comme lu » (`uiStore`) : les
+   * deux marquages de plage le respectent, comme le bouton « Tout lu ». */
+  confirmMarkAllRead: boolean;
   /** Point d'ouverture, en coordonnées de fenêtre (ignoré en feuille du bas). */
   x: number;
   y: number;
@@ -36,14 +51,20 @@ interface ArticleContextMenuProps {
  * animations de la liste) rendrait sinon `position: fixed` relatif à lui.
  */
 export default function ArticleContextMenu({
-  article, isReadLater, x, y, sheet,
+  article, isReadLater, canMarkRange, confirmMarkAllRead, x, y, sheet,
   onClose, onOpenSource, onToggleRead, onMarkRange,
   onToggleStar, onToggleReadLater, onCopyLink,
 }: ArticleContextMenuProps) {
   const { t } = useTranslation();
-  const items = articleMenuItems(article, isReadLater);
+  const items = articleMenuItems(article, isReadLater, canMarkRange);
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: x, top: y });
+  // Marquage de plage en attente de confirmation (réglage `confirmMarkAllRead`,
+  // comme le bouton « Tout lu » — `markAllReadAction`). Une seule direction à
+  // la fois : cliquer l'autre entrée redemande pour elle, ce qui annule
+  // implicitement la première demande. Le menu se démonte à la fermeture,
+  // donc quitter le menu annule la demande sans code dédié.
+  const [confirming, setConfirming] = useState<RangeDirection | null>(null);
 
   const actions: Record<ArticleMenuKind, () => void> = {
     openSource: onOpenSource,
@@ -55,8 +76,20 @@ export default function ArticleContextMenu({
     copyLink: onCopyLink,
   };
   const run = (kind: ArticleMenuKind) => {
+    const direction = RANGE_DIRECTION[kind];
+    if (direction) {
+      if (markAllReadAction(confirmMarkAllRead, confirming === direction) === 'ask') {
+        setConfirming(direction);
+        return;
+      }
+    }
     actions[kind]();
     onClose();
+  };
+  const labelFor = (item: (typeof items)[number]): string => {
+    const direction = RANGE_DIRECTION[item.kind];
+    if (direction && confirming === direction) return t('articleList.confirm');
+    return t(item.labelKey);
   };
 
   // Menu flottant : fermeture au `pointerdown` extérieur — pas `mousedown`, qu'iOS
@@ -126,7 +159,7 @@ export default function ArticleContextMenu({
             className="sheet-row w-full flex items-center px-4 py-2.5 text-left font-medium transition-colors hover:bg-black/5"
             style={{ color: 'var(--list-title)' }}
           >
-            {t(item.labelKey)}
+            {labelFor(item)}
           </button>
         ))}
       </BottomSheet>
@@ -150,7 +183,7 @@ export default function ArticleContextMenu({
           className="context-menu-item w-full flex items-center px-3 py-2 text-xs text-left transition-colors hover:bg-black/5"
           style={{ color: 'var(--list-title)' }}
         >
-          {t(item.labelKey)}
+          {labelFor(item)}
         </button>
       ))}
     </div>,

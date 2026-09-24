@@ -22,8 +22,12 @@ la release publiée.
   article (clic droit, appui long, touche Menu) propose « Tout lu en dessous »
   et « Tout lu au-dessus » : tous les articles plus anciens, ou plus récents,
   de la vue courante passent lus — y compris ceux que la liste n'a pas encore
-  chargés. Sans confirmation et sans annulation, comme « Tout lu ». L'article
-  cliqué, lui, n'est jamais touché. Demandé dans l'issue #15.
+  chargés. Ces deux entrées respectent le réglage « Confirmer avant de tout
+  marquer comme lu » (actif par défaut), comme « Tout lu » — un premier clic
+  demande confirmation, un second agit — et n'ont pas d'annulation, comme
+  « Tout lu ». Elles n'apparaissent pas dans Favoris ni À lire plus tard : ce
+  ne sont pas des flux qu'on vide, ce sont des sélections transversales.
+  L'article cliqué, lui, n'est jamais touché. Demandé dans l'issue #15.
 
 ## Corrections et améliorations
 

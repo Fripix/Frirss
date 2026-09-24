@@ -19,6 +19,8 @@ function setup(over: {
   article?: Partial<Article>;
   isReadLater?: boolean;
   sheet?: boolean;
+  canMarkRange?: boolean;
+  confirmMarkAllRead?: boolean;
   handlers?: { onMarkRange?: (direction: 'above' | 'below') => void };
 } = {}) {
   const handlers = {
@@ -31,6 +33,8 @@ function setup(over: {
     <ArticleContextMenu
       article={{ ...article, ...over.article }}
       isReadLater={over.isReadLater ?? false}
+      canMarkRange={over.canMarkRange ?? true}
+      confirmMarkAllRead={over.confirmMarkAllRead ?? false}
       x={30}
       y={40}
       sheet={over.sheet ?? false}
@@ -107,6 +111,81 @@ describe('ArticleContextMenu', () => {
     expect(screen.queryByRole('button', { name: 'articleRow.copyLink' })).toBeNull();
   });
 
+  // Décision du propriétaire : en Favoris et À lire plus tard, l'action du
+  // store se refuse déjà — mais une entrée qui ne fait rien est plus
+  // déroutante qu'une entrée absente.
+  it('n’a ni « en dessous » ni « au-dessus » quand canMarkRange est faux — Favoris / À lire plus tard', () => {
+    setup({ canMarkRange: false });
+    expect(screen.queryByRole('button', { name: 'articleRow.markBelowRead' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'articleRow.markAboveRead' })).toBeNull();
+  });
+
+  describe('confirmation des marquages de plage', () => {
+    it('sans le réglage de confirmation, un seul clic agit et ferme, comme avant', () => {
+      const onMarkRange = vi.fn();
+      const h = setup({ confirmMarkAllRead: false, handlers: { onMarkRange } });
+      fireEvent.click(screen.getByText('articleRow.markBelowRead'));
+      expect(onMarkRange).toHaveBeenCalledTimes(1);
+      expect(onMarkRange).toHaveBeenCalledWith('below');
+      expect(h.onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('avec le réglage actif, le premier clic demande confirmation sans agir ni fermer', () => {
+      const onMarkRange = vi.fn();
+      const h = setup({ confirmMarkAllRead: true, handlers: { onMarkRange } });
+      fireEvent.click(screen.getByText('articleRow.markBelowRead'));
+      expect(onMarkRange).not.toHaveBeenCalled();
+      expect(h.onClose).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'articleList.confirm' })).toBeTruthy();
+    });
+
+    it('avec le réglage actif, le second clic sur la même entrée agit et ferme', () => {
+      const onMarkRange = vi.fn();
+      const h = setup({ confirmMarkAllRead: true, handlers: { onMarkRange } });
+      fireEvent.click(screen.getByText('articleRow.markBelowRead'));
+      fireEvent.click(screen.getByRole('button', { name: 'articleList.confirm' }));
+      expect(onMarkRange).toHaveBeenCalledTimes(1);
+      expect(onMarkRange).toHaveBeenCalledWith('below');
+      expect(h.onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('la demande de confirmation ne porte que sur l’entrée cliquée — l’autre garde son libellé', () => {
+      setup({ confirmMarkAllRead: true });
+      fireEvent.click(screen.getByText('articleRow.markBelowRead'));
+      expect(screen.getByRole('button', { name: 'articleRow.markAboveRead' })).toBeTruthy();
+    });
+
+    it('cliquer « au-dessus » pendant la confirmation de « en dessous » redemande, pour « au-dessus »', () => {
+      const onMarkRange = vi.fn();
+      const h = setup({ confirmMarkAllRead: true, handlers: { onMarkRange } });
+      fireEvent.click(screen.getByText('articleRow.markBelowRead'));
+      fireEvent.click(screen.getByText('articleRow.markAboveRead'));
+      expect(onMarkRange).not.toHaveBeenCalled();
+      expect(h.onClose).not.toHaveBeenCalled();
+    });
+
+    it('fermer le menu annule la demande — un nouvel appui long repart de zéro', () => {
+      const onMarkRange = vi.fn();
+      setup({ confirmMarkAllRead: true, handlers: { onMarkRange } });
+      fireEvent.click(screen.getByText('articleRow.markBelowRead'));
+      cleanup();
+      const onMarkRange2 = vi.fn();
+      setup({ confirmMarkAllRead: true, handlers: { onMarkRange: onMarkRange2 } });
+      expect(screen.queryByRole('button', { name: 'articleList.confirm' })).toBeNull();
+    });
+
+    it('marche aussi en feuille du bas', () => {
+      const onMarkRange = vi.fn();
+      const h = setup({ sheet: true, confirmMarkAllRead: true, handlers: { onMarkRange } });
+      fireEvent.click(screen.getByText('articleRow.markAboveRead'));
+      expect(onMarkRange).not.toHaveBeenCalled();
+      expect(h.onClose).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'articleList.confirm' }));
+      expect(onMarkRange).toHaveBeenCalledWith('above');
+      expect(h.onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('closes on Escape', () => {
     const h = setup();
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -145,6 +224,8 @@ describe('ArticleContextMenu', () => {
               <ArticleContextMenu
                 article={article}
                 isReadLater={false}
+                canMarkRange
+                confirmMarkAllRead={false}
                 x={30}
                 y={40}
                 sheet={false}

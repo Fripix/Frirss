@@ -15,21 +15,31 @@ export interface ArticleMenuItem {
 /**
  * Entrées du menu, dans l'ordre. Sans URL, « Ouvrir à la source » et « Copier le
  * lien » n'ont rien à ouvrir ni à copier : elles disparaissent.
+ *
+ * `canMarkRange` porte jusqu'ici le refus de `canMarkAllRead`
+ * (`src/lib/markAllRead.ts`) : en Favoris et À lire plus tard, l'action du
+ * store se refuse déjà — ce ne sont pas des flux qu'on vide, ce sont des
+ * sélections transversales — mais une entrée de menu qui ne fait rien est
+ * plus déroutante qu'une entrée absente. Dans les autres vues, les deux
+ * marquages de plage restent TOUJOURS présents, quelle que soit la position
+ * de la ligne dans la liste chargée : elle ne dit rien de ce que le flux
+ * contient au-delà, donc les masquer par index mentirait une fois sur deux.
  */
 export function articleMenuItems(
   article: { url?: string; read: boolean; starred: boolean },
   isReadLater: boolean,
+  canMarkRange: boolean,
 ): ArticleMenuItem[] {
   const hasUrl = !!article.url?.trim();
   const items: ArticleMenuItem[] = [];
   if (hasUrl) items.push({ kind: 'openSource', labelKey: 'articleRow.openSource' });
   items.push({ kind: 'toggleRead', labelKey: article.read ? 'articleRow.markUnread' : 'articleRow.markRead' });
   // Marquages de plage (issue #15) : placés contre « Marquer lu », dont ils
-  // sont l'extension, et TOUJOURS présents — la position d'une ligne dans la
-  // liste chargée ne dit pas si le flux contient quelque chose au-dessus ou en
-  // dessous, donc les masquer selon l'index mentirait une fois sur deux.
-  items.push({ kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' });
-  items.push({ kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead' });
+  // sont l'extension.
+  if (canMarkRange) {
+    items.push({ kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' });
+    items.push({ kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead' });
+  }
   items.push({ kind: 'toggleStar', labelKey: article.starred ? 'articleRow.removeStar' : 'articleRow.addStar' });
   items.push({ kind: 'toggleReadLater', labelKey: isReadLater ? 'articleRow.removeReadLater' : 'articleRow.addReadLater' });
   if (hasUrl) items.push({ kind: 'copyLink', labelKey: 'articleRow.copyLink' });

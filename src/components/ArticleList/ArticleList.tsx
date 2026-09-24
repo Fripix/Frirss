@@ -633,6 +633,8 @@ export default function ArticleList() {
         <ArticleContextMenu
           article={menuArticle}
           isReadLater={!!menuArticle.labels?.includes(READ_LATER_LABEL)}
+          canMarkRange={canMarkAllRead(filter)}
+          confirmMarkAllRead={confirmMarkAllRead}
           x={articleMenu.x}
           y={articleMenu.y}
           sheet={isMobile}

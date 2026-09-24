@@ -787,14 +787,29 @@ FreshRSS, où le titre est un vrai lien.
   identifiants plus récents (`itemIdsNewerThanEntry`, qui s'arrête de
   lui-même à l'article cliqué — pas de borne de date envoyée) puis les marque
   par lots de 100 ; un identifiant illisible n'y empêche pas l'appel réseau,
-  seul le marquage local ne touche alors rien. **Toujours présentes, quelle
-  que soit la position de la ligne dans la liste chargée** : celle-ci ne dit
-  rien de ce que le flux contient au-delà (page suivante non chargée,
-  articles arrivés depuis), donc les masquer par index mentirait une fois sur
-  deux. **Se refuse silencieusement depuis Favoris et À lire plus tard**
-  (`canMarkAllRead`, `src/lib/markAllRead.ts`) : ce ne sont pas des flux
-  qu'on vide, ce sont des sélections transversales — le menu reste identique
-  dans ces vues, mais l'action n'y écrit rien. L'écriture est comptée dans
+  seul le marquage local ne touche alors rien. **Toujours présentes dans les
+  vues où elles ont un sens, quelle que soit la position de la ligne dans la
+  liste chargée** : celle-ci ne dit rien de ce que le flux contient au-delà
+  (page suivante non chargée, articles arrivés depuis), donc les masquer par
+  index mentirait une fois sur deux. **Absentes du menu en Favoris et À lire
+  plus tard** — `articleMenuItems(article, isReadLater, canMarkRange)` prend
+  `canMarkRange` en troisième paramètre, et `ArticleList` lui passe
+  `canMarkAllRead(filter)` (`src/lib/markAllRead.ts`) : l'action du store s'y
+  refuse déjà, ce ne sont pas des flux qu'on vide mais des sélections
+  transversales, et une entrée de menu qui ne fait rien est plus déroutante
+  qu'une entrée absente — d'où le masquage plutôt qu'un clic qui ne
+  produirait rien. **Respectent le réglage « Confirmer avant de tout marquer
+  comme lu »** (`confirmMarkAllRead`, `uiStore`, actif par défaut) :
+  `ArticleContextMenu` réutilise la même fonction pure que le bouton « Tout
+  lu » (`markAllReadAction`, `src/lib/markAllRead.ts`). Premier clic : le
+  libellé de l'entrée devient `articleList.confirm` (« Confirmer ? ») sans
+  rien déclencher ni fermer le menu ; second clic sur la même entrée : l'action
+  part et le menu se ferme. Une seule direction est en attente à la fois — un
+  clic sur l'autre marquage de plage pendant l'attente redemande pour lui, ce
+  qui annule implicitement la première demande. Fermer le menu (Échap, clic
+  extérieur, appui long ou clic droit ailleurs) annule aussi la demande, sans
+  code dédié : le menu se démonte et son état de confirmation avec lui.
+  L'écriture est comptée dans
   `readWritesInFlight`, comme `toggleRead` : sans cela, un relevé de compteurs
   concurrent fabriquerait une fausse pastille « nouveaux articles ». L'échec
   ne restaure jamais un instantané : il recalcule sur la liste telle qu'elle
