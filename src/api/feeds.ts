@@ -1,5 +1,6 @@
 import client from './client';
 import { isStaleWriteTokenFailure } from '../lib/writeTokenRetry';
+import { entryIdUsec, isOlderEntry } from '../lib/entryId';
 import type { Subscription, Tag, UnreadCount, GReaderItem, GReaderStream } from '../types';
 
 const BASE = '/api/greader.php/reader/api/0';
@@ -255,6 +256,41 @@ export async function itemIdsNewerThan(streamId: string, sinceSec: number): Prom
     // ferait tourner cette boucle sans fin, et le clic resterait pendu à
     // enchaîner des requêtes. On s'arrête sur ce qu'on a : mieux vaut marquer
     // une partie et le savoir que ne jamais rendre la main.
+    if (suivante && vues.has(suivante)) return ids;
+    if (suivante) vues.add(suivante);
+    continuation = suivante;
+    if (!continuation) return ids;
+  }
+}
+
+/**
+ * Les identifiants des articles NON LUS insérés après celui qu'on a cliqué.
+ *
+ * Pas de `ot` : FreshRSS l'interprète comme « publié après OU modifié après »,
+ * donc un vieux billet corrigé ce matin s'y glisserait. Les identifiants étant
+ * rendus du plus récent au plus ancien, on s'arrête dès qu'on atteint l'article
+ * cliqué — ce qui évite aussi de balayer tout le flux.
+ */
+export async function itemIdsNewerThanEntry(streamId: string, stopAtArticleId: string): Promise<string[]> {
+  const stop = entryIdUsec(stopAtArticleId);
+  if (stop === null) return [];
+  const ids: string[] = [];
+  const vues = new Set<string>();
+  let continuation: string | null = null;
+  for (;;) {
+    const params: Record<string, string | number> = {
+      output: 'json', n: 1000, s: streamId, xt: 'user/-/state/com.google/read',
+    };
+    if (continuation) params.c = continuation;
+    const { data } = await client.get<{ itemRefs?: { id: string }[]; continuation?: string | null }>(
+      `${BASE}/stream/items/ids`,
+      { params },
+    );
+    for (const ref of data.itemRefs || []) {
+      if (!isOlderEntry(stop, ref.id)) return ids; // atteint l'article cliqué, ou plus ancien
+      ids.push(ref.id);
+    }
+    const suivante = data.continuation || null;
     if (suivante && vues.has(suivante)) return ids;
     if (suivante) vues.add(suivante);
     continuation = suivante;
