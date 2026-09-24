@@ -6,6 +6,7 @@ import {
   corpusIsUsable,
   corpusMatches,
   patchCorpusArticle,
+  patchCorpusByDate,
   type CorpusEntry,
 } from './searchCorpus';
 import type { Article } from '../types';
@@ -97,5 +98,35 @@ describe('patchCorpusArticle', () => {
     let c = createCorpus('feed/1', '7', 0);
     c = addPage(c, [entry('a', 'alpha')], null, 0);
     expect(patchCorpusArticle(c, 'zzz', { read: true }).entries[0].article.read).toBe(false);
+  });
+});
+
+describe('patchCorpusByDate', () => {
+  const daté = (id: string, publishedMs: number): CorpusEntry => ({
+    article: { ...art(id, 'titre'), published: publishedMs },
+    haystack: 'titre',
+  });
+
+  const corpus = () => addPage(createCorpus('feed/1', '7', 0), [
+    daté('vieux', 1_000), daté('pivot', 2_000), daté('neuf', 3_000),
+  ], null, 0);
+
+  it('marque ce qui est plus ancien, sans toucher au pivot ni au plus récent', () => {
+    const c = patchCorpusByDate(corpus(), { direction: 'below', publishedMs: 2_000 }, { read: true });
+    expect(c.entries.map((e) => [e.article.id, e.article.read])).toEqual([
+      ['vieux', true], ['pivot', false], ['neuf', false],
+    ]);
+  });
+
+  it('marque ce qui est plus récent, sans toucher au pivot ni au plus ancien', () => {
+    const c = patchCorpusByDate(corpus(), { direction: 'above', publishedMs: 2_000 }, { read: true });
+    expect(c.entries.map((e) => [e.article.id, e.article.read])).toEqual([
+      ['vieux', false], ['pivot', false], ['neuf', true],
+    ]);
+  });
+
+  it('ne touche pas au texte cherchable : seul l’état change', () => {
+    const c = patchCorpusByDate(corpus(), { direction: 'below', publishedMs: 2_000 }, { read: true });
+    expect(c.entries.map((e) => e.haystack)).toEqual(['titre', 'titre', 'titre']);
   });
 });

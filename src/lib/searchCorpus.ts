@@ -90,3 +90,25 @@ export function patchCorpusArticle(corpus: Corpus, id: string, patch: Partial<Ar
   });
   return touched ? { ...corpus, entries } : corpus;
 }
+
+/**
+ * Répercute un marquage de plage (« tout lu en dessous / au-dessus ») sur le
+ * corpus gardé. Contrairement à un « tout marquer comme lu », le critère est
+ * connu exactement — une date — donc le corpus reste juste et n'a pas à être
+ * jeté.
+ */
+export function patchCorpusByDate(
+  corpus: Corpus,
+  bound: { direction: 'above' | 'below'; publishedMs: number },
+  patch: Partial<Article>,
+): Corpus {
+  const touche = (published: number) => (bound.direction === 'below'
+    ? published < bound.publishedMs
+    : published > bound.publishedMs);
+  return {
+    ...corpus,
+    entries: corpus.entries.map((e) => (
+      touche(e.article.published) ? { ...e, article: { ...e.article, ...patch } } : e
+    )),
+  };
+}
