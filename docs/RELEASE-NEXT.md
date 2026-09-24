@@ -18,6 +18,13 @@ la release publiée.
   la liste ; un clic les charge. La liste ne change jamais d'elle-même.
   Désactivable dans Préférences → Général. Demandé dans la discussion #14.
 
+- **Marquer lu tout ce qui précède — ou suit — un article.** Le menu d'un
+  article (clic droit, appui long, touche Menu) propose « Tout lu en dessous »
+  et « Tout lu au-dessus » : tous les articles plus anciens, ou plus récents,
+  de la vue courante passent lus — y compris ceux que la liste n'a pas encore
+  chargés. Sans confirmation et sans annulation, comme « Tout lu ». L'article
+  cliqué, lui, n'est jamais touché. Demandé dans l'issue #15.
+
 ## Corrections et améliorations
 
 - **La recherche filtre enfin.** Elle ne filtrait rien : FriRSS envoyait un
