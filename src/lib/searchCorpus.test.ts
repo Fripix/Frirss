@@ -6,7 +6,7 @@ import {
   corpusIsUsable,
   corpusMatches,
   patchCorpusArticle,
-  patchCorpusByDate,
+  patchCorpusByEntry,
   type CorpusEntry,
 } from './searchCorpus';
 import type { Article } from '../types';
@@ -101,32 +101,41 @@ describe('patchCorpusArticle', () => {
   });
 });
 
-describe('patchCorpusByDate', () => {
-  const daté = (id: string, publishedMs: number): CorpusEntry => ({
-    article: { ...art(id, 'titre'), published: publishedMs },
-    haystack: 'titre',
-  });
+describe('patchCorpusByEntry', () => {
+  // Identifiants d'entrée réels (décimaux) — l'ordre croissant EST l'ordre
+  // d'insertion FreshRSS. `published` n'intervient nulle part ici : c'est
+  // justement ce que ce correctif change.
+  const vieuxId = '1788386439680500';
+  const pivotId = '1788386439680550';
+  const neufId = '1788386439680600';
+
+  const daté = (id: string): CorpusEntry => ({ article: art(id, 'titre'), haystack: 'titre' });
 
   const corpus = () => addPage(createCorpus('feed/1', '7', 0), [
-    daté('vieux', 1_000), daté('pivot', 2_000), daté('neuf', 3_000),
+    daté(vieuxId), daté(pivotId), daté(neufId),
   ], null, 0);
 
   it('marque ce qui est plus ancien, sans toucher au pivot ni au plus récent', () => {
-    const c = patchCorpusByDate(corpus(), { direction: 'below', publishedMs: 2_000 }, { read: true });
+    const c = patchCorpusByEntry(corpus(), { direction: 'below', articleId: pivotId }, { read: true });
     expect(c.entries.map((e) => [e.article.id, e.article.read])).toEqual([
-      ['vieux', true], ['pivot', false], ['neuf', false],
+      [vieuxId, true], [pivotId, false], [neufId, false],
     ]);
   });
 
   it('marque ce qui est plus récent, sans toucher au pivot ni au plus ancien', () => {
-    const c = patchCorpusByDate(corpus(), { direction: 'above', publishedMs: 2_000 }, { read: true });
+    const c = patchCorpusByEntry(corpus(), { direction: 'above', articleId: pivotId }, { read: true });
     expect(c.entries.map((e) => [e.article.id, e.article.read])).toEqual([
-      ['vieux', false], ['pivot', false], ['neuf', true],
+      [vieuxId, false], [pivotId, false], [neufId, true],
     ]);
   });
 
   it('ne touche pas au texte cherchable : seul l’état change', () => {
-    const c = patchCorpusByDate(corpus(), { direction: 'below', publishedMs: 2_000 }, { read: true });
+    const c = patchCorpusByEntry(corpus(), { direction: 'below', articleId: pivotId }, { read: true });
     expect(c.entries.map((e) => e.haystack)).toEqual(['titre', 'titre', 'titre']);
+  });
+
+  it('ignore un identifiant pivot illisible : dans le doute, on ne marque pas', () => {
+    const c = patchCorpusByEntry(corpus(), { direction: 'below', articleId: 'inconnu' }, { read: true });
+    expect(c.entries.map((e) => e.article.read)).toEqual([false, false, false]);
   });
 });

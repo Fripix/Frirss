@@ -773,18 +773,34 @@ FreshRSS, où le titre est un vrai lien.
   sécurisé ; son absence est un échec annoncé (`toast.copyFailed`).
 - **« Tout lu en dessous / au-dessus » (issue #15)** appellent
   `markReadRelative(article, 'below' | 'above')` (`useFeedStore`, testé dans
-  `src/stores/feedStore.markRange.test.ts`) : marque lu tout ce dont la date
-  de publication est strictement plus ancienne (en dessous) ou plus récente
-  (au-dessus) que l'article cliqué — jamais lui-même. « En dessous » passe par
-  `markAllAsRead` du flux avec une borne exclusive ; « au-dessus » relève
-  d'abord les identifiants plus récents (`itemIdsNewerThan`) puis les marque
-  par lots de 100. **Toujours présentes, quelle que soit la position de la
-  ligne dans la liste chargée** : celle-ci ne dit rien de ce que le flux
-  contient au-delà (page suivante non chargée, articles arrivés depuis), donc
-  les masquer par index mentirait une fois sur deux. L'échec revient à l'état
-  d'avant si l'écran affiche toujours le même flux (`toast.markRangeFailed`)
-  et refait toujours un relevé des compteurs, même après un lot déjà accepté
-  côté serveur. Le corpus de recherche est corrigé par date plutôt que jeté :
+  `src/stores/feedStore.markRange.test.ts`) : marque lu tout ce qui a été
+  inséré strictement avant (en dessous) ou après (au-dessus) l'article cliqué
+  — jamais lui-même. Le critère est l'**identifiant d'entrée** de l'article
+  (`src/lib/entryId.ts`, `isOlderEntry`/`exclusiveOlderThanEntryId`), JAMAIS sa
+  date de publication : FreshRSS compare `ts` à l'`id` d'insertion de
+  l'entrée, pas à `published` — un correctif de la revue finale, la première
+  version comparait des dates et se trompait sur tout flux dont l'ordre
+  d'insertion diverge de l'ordre de publication (import en masse, republication).
+  « En dessous » passe par `markAllAsRead` du flux avec cette borne exclusive ;
+  « au-dessus » relève d'abord les identifiants plus récents
+  (`itemIdsNewerThanEntry`, qui s'arrête de lui-même à l'article cliqué — pas de
+  borne de date envoyée) puis les marque par lots de 100. **Toujours
+  présentes, quelle que soit la position de la ligne dans la liste chargée** :
+  celle-ci ne dit rien de ce que le flux contient au-delà (page suivante non
+  chargée, articles arrivés depuis), donc les masquer par index mentirait une
+  fois sur deux. **Se refuse silencieusement depuis Favoris et À lire plus
+  tard** (`canMarkAllRead`, `src/lib/markAllRead.ts`) : ce ne sont pas des flux
+  qu'on vide, ce sont des sélections transversales — le menu reste identique
+  dans ces vues, mais l'action n'y écrit rien. L'écriture est comptée dans
+  `readWritesInFlight`, comme `toggleRead` : sans cela, un relevé de compteurs
+  concurrent fabriquerait une fausse pastille « nouveaux articles ». L'échec
+  ne restaure jamais un instantané : il recalcule sur la liste telle qu'elle
+  est au moment du retour, et seuls les identifiants non confirmés par le
+  serveur reviennent — un lot déjà accepté avant l'échec du suivant reste lu,
+  et un ✓ posé ailleurs pendant le vol n'est pas défait. Le message
+  (`toast.markRangeFailed`) suit `writeFailureNotice` : un refus ne s'annonce
+  que si le serveur a répondu, le hors-ligne véritable reste muet. Le corpus
+  de recherche est corrigé par identifiant d'entrée plutôt que jeté :
   contrairement à « tout marquer comme lu », le critère reste vrai pendant une
   recherche en cours.
 - **Piège — le clic droit des boutons Favori et À lire plus tard est

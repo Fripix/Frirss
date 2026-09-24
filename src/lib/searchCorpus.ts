@@ -1,5 +1,6 @@
 import type { Article } from '../types';
 import { matchesTerms } from './searchMatch';
+import { isOlderEntry } from './entryId';
 
 /**
  * Le corpus d'un balayage : les articles d'un périmètre et leur texte
@@ -94,21 +95,27 @@ export function patchCorpusArticle(corpus: Corpus, id: string, patch: Partial<Ar
 /**
  * Répercute un marquage de plage (« tout lu en dessous / au-dessus ») sur le
  * corpus gardé. Contrairement à un « tout marquer comme lu », le critère est
- * connu exactement — une date — donc le corpus reste juste et n'a pas à être
- * jeté.
+ * connu exactement — un identifiant d'entrée — donc le corpus reste juste et
+ * n'a pas à être jeté.
+ *
+ * Le critère est l'identifiant d'entrée de l'article pivot (`isOlderEntry`,
+ * `src/lib/entryId.ts`), le même que celui envoyé au serveur — jamais la date
+ * de publication : FreshRSS ne la compare jamais pour cette action, et un
+ * corpus corrigé par date divergerait du serveur sur les flux datés au jour
+ * ou les imports en masse, où plusieurs entrées partagent une même date.
  */
-export function patchCorpusByDate(
+export function patchCorpusByEntry(
   corpus: Corpus,
-  bound: { direction: 'above' | 'below'; publishedMs: number },
+  bound: { direction: 'above' | 'below'; articleId: string },
   patch: Partial<Article>,
 ): Corpus {
-  const touche = (published: number) => (bound.direction === 'below'
-    ? published < bound.publishedMs
-    : published > bound.publishedMs);
+  const touche = (id: string) => (bound.direction === 'below'
+    ? isOlderEntry(id, bound.articleId)
+    : isOlderEntry(bound.articleId, id));
   return {
     ...corpus,
     entries: corpus.entries.map((e) => (
-      touche(e.article.published) ? { ...e, article: { ...e.article, ...patch } } : e
+      touche(e.article.id) ? { ...e, article: { ...e.article, ...patch } } : e
     )),
   };
 }

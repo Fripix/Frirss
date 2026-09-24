@@ -19,15 +19,16 @@ import {
   renameTag,
   deleteTag,
   clearWriteToken,
-  itemIdsNewerThan,
+  itemIdsNewerThanEntry,
 } from '../api/feeds';
-import { exclusiveNewerThanSec, exclusiveOlderThanUsec } from '../lib/relativeRead';
+import { exclusiveOlderThanEntryId, isOlderEntry } from '../lib/entryId';
 import { articleHaystack, parseQuery, matchesTerms } from '../lib/searchMatch';
 import { scanErrorKind } from '../lib/scanError';
 import {
-  createCorpus, addPage, corpusIsUsable, corpusMatches, patchCorpusArticle, patchCorpusByDate,
+  createCorpus, addPage, corpusIsUsable, corpusMatches, patchCorpusArticle, patchCorpusByEntry,
   type Corpus,
 } from '../lib/searchCorpus';
+import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import type { HomeEntry } from '../lib/unreadScope';
@@ -106,11 +107,11 @@ function patchSearchCorpus(id: string, patch: Partial<Article>): void {
 }
 
 /** Répercute un marquage de plage sur le corpus gardé, s'il y en a un. */
-function patchSearchCorpusByDate(
-  bound: { direction: 'above' | 'below'; publishedMs: number },
+function patchSearchCorpusByEntry(
+  bound: { direction: 'above' | 'below'; articleId: string },
   patch: Partial<Article>,
 ): void {
-  if (searchCorpus) searchCorpus = patchCorpusByDate(searchCorpus, bound, patch);
+  if (searchCorpus) searchCorpus = patchCorpusByEntry(searchCorpus, bound, patch);
 }
 
 // Lazy (dynamic) import of i18n, not a static one at the top of the file:
@@ -142,6 +143,25 @@ async function notifyWriteFailure(err: unknown): Promise<void> {
   if (!notice) return;
   await pushI18nToast(
     notice === 'refused' ? 'toast.markFailed' : 'toast.markQueued',
+    { tone: 'error' },
+  );
+}
+
+/**
+ * Même décision que `notifyWriteFailure`, pour un marquage de PLAGE
+ * (`markReadRelative`) plutôt qu'une ligne : le refus ne se dit que si le
+ * serveur a répondu, le hors-ligne véritable reste muet. Seul le texte
+ * change — « ces articles » (`toast.markRangeFailed`), pas « cet article : sa
+ * ligne a été remise », qui décrit le rollback d'une seule ligne.
+ */
+async function notifyRangeFailure(err: unknown): Promise<void> {
+  const notice = writeFailureNotice({
+    networkFailure: isNetworkFailure(err),
+    online: typeof navigator === 'undefined' ? true : navigator.onLine,
+  });
+  if (!notice) return;
+  await pushI18nToast(
+    notice === 'refused' ? 'toast.markRangeFailed' : 'toast.markQueued',
     { tone: 'error' },
   );
 }
@@ -1584,30 +1604,52 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     } catch { /* ignore */ }
   },
 
-  /** Issue #15 : marquer lus tous les articles plus anciens (ou plus récents). */
+  /**
+   * Issue #15 : marquer lus tous les articles plus anciens (ou plus récents)
+   * que l'article cliqué, JAMAIS lui-même.
+   *
+   * Le périmètre suit la vue exactement comme la recherche
+   * (`resolveSearchStreamId`), et l'action se refuse depuis Favoris ou À lire
+   * plus tard (C1, revue finale) : ce ne sont pas des flux qu'on vide, ce
+   * sont des sélections transversales — `canMarkAllRead`
+   * (`src/lib/markAllRead.ts`) le sait déjà pour le bouton « Tout lu ». Le
+   * menu d'un article reste identique dans ces vues ; l'action s'y tait
+   * plutôt que de marquer la mauvaise chose.
+   *
+   * La borne envoyée au serveur — et le critère qui décide localement quelles
+   * lignes marquer — est l'identifiant d'entrée de l'article cliqué
+   * (`src/lib/entryId.ts`), JAMAIS sa date de publication (C2) : FreshRSS
+   * compare `ts` à l'`id` d'insertion de l'entrée, pas à `published`.
+   */
   markReadRelative: async (article: Article, direction: 'above' | 'below') => {
-    const { selectedFeed, articles } = get();
-    const streamId = selectedFeed ? selectedFeed.id : 'user/-/state/com.google/reading-list';
-    const bound = { direction, publishedMs: article.published };
+    const { selectedFeed, filter, articles } = get();
+    if (!canMarkAllRead(filter)) return;
+    const streamId = resolveSearchStreamId(selectedFeed, filter);
+    const bound = { direction, articleId: article.id };
     const touche = (a: Article) => (direction === 'below'
-      ? a.published < article.published
-      : a.published > article.published);
-    // L'état d'avant, gardé tel quel : en cas de refus du serveur, la liste
-    // revient exactement où elle était. Un article coché qui reste coché après
-    // un échec est le mensonge que 1.4.7 avait déjà coûté.
-    const avant = articles;
-    // La vue affichée au lancement. Un aller-retour réseau peut durer assez
-    // longtemps pour que l'utilisateur change de flux pendant qu'il est en
-    // vol : `avant` appartiendrait alors à une liste qui n'est plus à
-    // l'écran, et l'y remettre écraserait le nouveau flux avec l'ancien.
-    const vueALancement = viewIdentity(get());
+      ? isOlderEntry(a.id, article.id)
+      : isOlderEntry(article.id, a.id));
 
-    set((s) => ({ articles: s.articles.map((a) => (touche(a) ? { ...a, read: true } : a)) }));
-    bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
-    // Le critère est une date, donc le corpus de recherche reste JUSTE : pas
-    // besoin de le jeter comme le fait « tout marquer comme lu », ce qui
-    // refermerait la recherche en cours de l'utilisateur.
-    patchSearchCorpusByDate(bound, { read: true });
+    // Borne serveur, côté « en dessous » seulement — « au-dessus » n'en envoie
+    // aucune (`itemIdsNewerThanEntry` s'arrête d'elle-même à l'article
+    // cliqué). Un identifiant illisible ne rend aucune borne fiable : l'action
+    // ne part pas, et rien n'est touché — ni le réseau, ni l'écran.
+    const ts = direction === 'below' ? exclusiveOlderThanEntryId(article.id) : null;
+    if (direction === 'below' && ts === null) return;
+
+    // Les lignes CHARGÉES que cette action fait passer lues, optimiste — le
+    // serveur en connaît sans doute d'autres, non chargées, qu'aucun marquage
+    // local ne peut anticiper.
+    const touchedIds = new Set(articles.filter(touche).map((a) => a.id));
+
+    if (touchedIds.size) {
+      set((s) => ({ articles: s.articles.map((a) => (touchedIds.has(a.id) ? { ...a, read: true } : a)) }));
+      bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
+      // Le critère est un identifiant d'entrée, donc le corpus de recherche
+      // reste JUSTE : pas besoin de le jeter comme le fait « tout marquer
+      // comme lu », ce qui refermerait la recherche en cours de l'utilisateur.
+      patchSearchCorpusByEntry(bound, { read: true });
+    }
     // Le corpus tel qu'on le laisse, PAR RÉFÉRENCE, juste avant l'attente
     // réseau. Chaque patch — et chaque nouvelle recherche — réaffecte
     // `searchCorpus` à un nouvel objet : une inégalité au retour dit que ce
@@ -1615,38 +1657,63 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // entre-temps, dans un périmètre différent.
     const corpusALancement = searchCorpus;
 
+    // I1 (revue finale) : le retour en arrière ne restaure JAMAIS un
+    // instantané d'avant l'appel — il recalcule sur la liste TELLE QU'ELLE
+    // EST au moment du retour. Un ✓ posé ailleurs pendant le vol, ou une page
+    // arrivée depuis, ne doivent pas être défaits par cette action.
+    //
+    // I5 (revue finale) : seuls les identifiants qui n'ont PAS été confirmés
+    // par le serveur reviennent — les lots déjà acceptés restent lus.
+    const confirmed = new Set<string>();
+    const rollbackUnconfirmed = () => {
+      const unconfirmed = new Set([...touchedIds].filter((id) => !confirmed.has(id)));
+      if (!unconfirmed.size) return;
+      set((s) => ({
+        articles: s.articles.map((a) => (unconfirmed.has(a.id) && a.read ? { ...a, read: false } : a)),
+      }));
+      if (searchCorpus === corpusALancement) patchSearchCorpusByEntry(bound, { read: false });
+    };
+
+    // I2 (revue finale) : posé AVANT l'appel réseau, levé dans le `finally`
+    // qui suit — comme `toggleRead`. Sans lui, un relevé de compteurs lancé
+    // pendant cette écriture ne la verrait pas et fabriquerait une fausse
+    // pastille « nouveaux articles » (voir la garde en tête de fichier).
+    readWritesInFlight++;
     try {
-      if (direction === 'below') {
-        await markAllAsRead(streamId, exclusiveOlderThanUsec(article.published));
-      } else {
-        const ids = await itemIdsNewerThan(streamId, exclusiveNewerThanSec(article.published));
-        // Par lots : `editTag` accepte un tableau, mais un millier de `i=` dans
-        // une URL ne passerait pas.
-        for (let i = 0; i < ids.length; i += 100) {
-          await markAsRead(ids.slice(i, i + 100));
+      try {
+        if (direction === 'below') {
+          await markAllAsRead(streamId, ts as string);
+          touchedIds.forEach((id) => confirmed.add(id));
+        } else {
+          const ids = await itemIdsNewerThanEntry(streamId, article.id);
+          // Par lots : `editTag` accepte un tableau, mais un millier de `i=`
+          // dans une URL ne passerait pas. Un lot refusé arrête les
+          // suivants — pas la peine d'envoyer ce que le serveur vient de
+          // refuser.
+          for (let i = 0; i < ids.length; i += 100) {
+            const lot = ids.slice(i, i + 100);
+            await markAsRead(lot);
+            lot.forEach((id) => confirmed.add(id));
+          }
         }
+      } finally {
+        readWritesInFlight--;
+        bumpCountsEpoch(); // règlement (succès ou échec) — voir la garde en tête de fichier
       }
       // Combien d'articles le serveur a-t-il touché au-delà de ce qui est
-      // chargé ? Nous n'en savons rien, et nous ne le devinons pas : le relevé
-      // suivant rapporte le vrai compte. Une baisse n'est pas une arrivée, la
-      // pastille n'y verra donc rien.
+      // chargé ? Nous n'en savons rien, et nous ne le devinons pas : le
+      // relevé suivant rapporte le vrai compte. Une baisse n'est pas une
+      // arrivée, la pastille n'y verra donc rien.
       await get().syncCounts();
-    } catch {
-      // La vue a-t-elle changé pendant l'aller-retour ? L'action a bien eu
-      // lieu côté serveur ou non, mais l'écran ne lui appartient plus : ne
-      // pas y toucher, sous peine d'écraser un autre flux avec `avant`.
-      if (viewIdentity(get()) === vueALancement) set({ articles: avant });
-      bumpCountsEpoch();
-      // Même chose pour le corpus, mais gardée par la référence de l'objet
-      // plutôt que par la vue : une nouvelle recherche dans le MÊME flux
-      // (donc la même identité de vue) construit elle aussi un nouveau
-      // corpus, qu'un patch par date ne doit pas défaire à l'aveugle.
-      if (searchCorpus === corpusALancement) patchSearchCorpusByDate(bound, { read: false });
-      // Un lot accepté par le serveur avant l'échec d'un lot suivant reste
-      // lu côté serveur : seul un relevé fait foi, que la vue ait changé ou
-      // non — le compteur est global, pas attaché à un écran.
+    } catch (err) {
+      rollbackUnconfirmed();
+      // Un lot accepté par le serveur avant l'échec d'un lot suivant reste lu
+      // côté serveur : seul un relevé fait foi, quoi qu'il soit arrivé aux
+      // lots.
       await get().syncCounts();
-      await pushI18nToast('toast.markRangeFailed', { tone: 'error' });
+      // I3 (revue finale) : même décision que `toggleRead` — un refus ne se
+      // dit que si le serveur a répondu, le hors-ligne véritable reste muet.
+      await notifyRangeFailure(err);
     }
   },
 
