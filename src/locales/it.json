@@ -668,6 +668,7 @@
     "copyFailed": "Impossibile copiare il link",
     "loadMoreEmpty": "Pagina successiva caricata, ancora nulla da mostrare.",
     "markFailed": "Il server ha rifiutato di contrassegnare questo articolo: la riga è stata ripristinata.",
+    "markRangeFailed": "Il server ha rifiutato di contrassegnare questi articoli",
     "markQueued": "La modifica non è andata a buon fine. Verrà ritentata più tardi."
   },
   "palette": {

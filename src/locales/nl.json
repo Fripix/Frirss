@@ -668,6 +668,7 @@
     "copyFailed": "Kon de link niet kopiëren",
     "loadMoreEmpty": "Volgende pagina geladen, nog steeds niets om te tonen.",
     "markFailed": "De server weigerde dit artikel te markeren: de rij is teruggezet.",
+    "markRangeFailed": "De server weigerde deze artikelen te markeren",
     "markQueued": "De wijziging is niet doorgekomen. Er wordt later opnieuw geprobeerd."
   },
   "palette": {

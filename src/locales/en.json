@@ -668,6 +668,7 @@
     "copyFailed": "Could not copy the link",
     "loadMoreEmpty": "Next page loaded, still nothing to show.",
     "markFailed": "The server refused to mark this article: its row has been put back.",
+    "markRangeFailed": "The server refused to mark those articles",
     "markQueued": "The change did not go through. It will be retried later."
   },
   "palette": {

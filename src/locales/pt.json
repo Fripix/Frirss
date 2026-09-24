@@ -668,6 +668,7 @@
     "copyFailed": "Não foi possível copiar a ligação",
     "loadMoreEmpty": "Página seguinte carregada, ainda sem nada para mostrar.",
     "markFailed": "O servidor recusou marcar este artigo: a linha foi reposta.",
+    "markRangeFailed": "O servidor recusou marcar esses artigos",
     "markQueued": "A alteração não passou. Será tentada novamente mais tarde."
   },
   "palette": {

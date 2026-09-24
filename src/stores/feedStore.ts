@@ -19,11 +19,13 @@ import {
   renameTag,
   deleteTag,
   clearWriteToken,
+  itemIdsNewerThan,
 } from '../api/feeds';
+import { exclusiveNewerThanSec, exclusiveOlderThanUsec } from '../lib/relativeRead';
 import { articleHaystack, parseQuery, matchesTerms } from '../lib/searchMatch';
 import { scanErrorKind } from '../lib/scanError';
 import {
-  createCorpus, addPage, corpusIsUsable, corpusMatches, patchCorpusArticle,
+  createCorpus, addPage, corpusIsUsable, corpusMatches, patchCorpusArticle, patchCorpusByDate,
   type Corpus,
 } from '../lib/searchCorpus';
 import { useAuthStore } from './authStore';
@@ -101,6 +103,14 @@ export function dropSearchCorpus(): void {
 /** Répercute une écriture locale sur le corpus gardé. */
 function patchSearchCorpus(id: string, patch: Partial<Article>): void {
   if (searchCorpus) searchCorpus = patchCorpusArticle(searchCorpus, id, patch);
+}
+
+/** Répercute un marquage de plage sur le corpus gardé, s'il y en a un. */
+function patchSearchCorpusByDate(
+  bound: { direction: 'above' | 'below'; publishedMs: number },
+  patch: Partial<Article>,
+): void {
+  if (searchCorpus) searchCorpus = patchCorpusByDate(searchCorpus, bound, patch);
 }
 
 // Lazy (dynamic) import of i18n, not a static one at the top of the file:
@@ -516,6 +526,7 @@ export interface FeedState {
   /** Montre la tranche de résultats suivante — purement local, aucun réseau. */
   showMoreSearchResults: () => void;
   markAllAsRead: () => Promise<void>;
+  markReadRelative: (article: Article, direction: 'above' | 'below') => Promise<void>;
   loadLabels: () => Promise<void>;
   toggleReadLater: (article: Article) => Promise<void>;
   toggleArticleLabel: (article: Article, labelId: string) => Promise<void>;
@@ -1571,6 +1582,50 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // `searchScan.running` restait bloqué à vrai pour toujours.
       closeSearch(set);
     } catch { /* ignore */ }
+  },
+
+  /** Issue #15 : marquer lus tous les articles plus anciens (ou plus récents). */
+  markReadRelative: async (article: Article, direction: 'above' | 'below') => {
+    const { selectedFeed, articles } = get();
+    const streamId = selectedFeed ? selectedFeed.id : 'user/-/state/com.google/reading-list';
+    const bound = { direction, publishedMs: article.published };
+    const touche = (a: Article) => (direction === 'below'
+      ? a.published < article.published
+      : a.published > article.published);
+    // L'état d'avant, gardé tel quel : en cas de refus du serveur, la liste
+    // revient exactement où elle était. Un article coché qui reste coché après
+    // un échec est le mensonge que 1.4.7 avait déjà coûté.
+    const avant = articles;
+
+    set((s) => ({ articles: s.articles.map((a) => (touche(a) ? { ...a, read: true } : a)) }));
+    bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
+    // Le critère est une date, donc le corpus de recherche reste JUSTE : pas
+    // besoin de le jeter comme le fait « tout marquer comme lu », ce qui
+    // refermerait la recherche en cours de l'utilisateur.
+    patchSearchCorpusByDate(bound, { read: true });
+
+    try {
+      if (direction === 'below') {
+        await markAllAsRead(streamId, exclusiveOlderThanUsec(article.published));
+      } else {
+        const ids = await itemIdsNewerThan(streamId, exclusiveNewerThanSec(article.published));
+        // Par lots : `editTag` accepte un tableau, mais un millier de `i=` dans
+        // une URL ne passerait pas.
+        for (let i = 0; i < ids.length; i += 100) {
+          await markAsRead(ids.slice(i, i + 100));
+        }
+      }
+      // Combien d'articles le serveur a-t-il touché au-delà de ce qui est
+      // chargé ? Nous n'en savons rien, et nous ne le devinons pas : le relevé
+      // suivant rapporte le vrai compte. Une baisse n'est pas une arrivée, la
+      // pastille n'y verra donc rien.
+      await get().syncCounts();
+    } catch {
+      set({ articles: avant });
+      bumpCountsEpoch();
+      patchSearchCorpusByDate(bound, { read: false });
+      void pushI18nToast('toast.markRangeFailed', { tone: 'error' });
+    }
   },
 
   // Labels / tags — exclude categories (which are used for feeds)

@@ -668,6 +668,7 @@
     "copyFailed": "Link konnte nicht kopiert werden",
     "loadMoreEmpty": "Nächste Seite geladen, noch immer nichts anzuzeigen.",
     "markFailed": "Der Server hat das Markieren abgelehnt: Der Eintrag wurde wiederhergestellt.",
+    "markRangeFailed": "Der Server hat das Markieren dieser Artikel abgelehnt",
     "markQueued": "Die Änderung ging nicht durch. Sie wird später erneut versucht."
   },
   "palette": {
