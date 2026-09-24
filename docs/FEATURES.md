@@ -827,9 +827,11 @@ FreshRSS, où le titre est un vrai lien.
   le hors-ligne véritable reste muet. Le corpus de recherche est corrigé par
   identifiant d'entrée plutôt que jeté : contrairement à « tout marquer comme
   lu », le critère reste vrai pendant une recherche en cours — patché à
-  l'aller INCONDITIONNELLEMENT (une plage dépasse ce qui est chargé), et au
-  retour selon la même règle que l'écran : jamais ce que le serveur a
-  confirmé, jamais ce qui était déjà lu avant l'action.
+  l'aller INCONDITIONNELLEMENT (une plage dépasse ce qui est chargé), et
+  annulé de la même façon — **même quand aucune ligne de la plage n'est
+  affichée**, puisque le corpus connaît des articles que la liste n'a jamais
+  chargés. Ce qu'il épargne au retour : ce que le serveur a confirmé, et ce
+  qui était déjà lu avant l'action.
 - **Piège — le clic droit des boutons Favori et À lire plus tard est
   prioritaire** : leur rangement par catégorie (`useFileGesture`) appelle
   `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou

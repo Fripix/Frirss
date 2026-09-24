@@ -402,6 +402,26 @@ describe('markReadRelative — corpus de recherche', () => {
     expect(vieuxHit.read).toBe(false);
   });
 
+  // Régression : le patch d'ALLER du corpus est inconditionnel, son annulation
+  // doit l'être aussi. Ici AUCUNE ligne de la plage n'est à l'écran — seul le
+  // corpus balayé les connaît —, donc l'ensemble des « non confirmés » de la
+  // liste est vide. Une sortie anticipée sur cet ensemble laisserait le corpus
+  // optimiste après un refus, et la recherche suivante ressortirait lus des
+  // articles que FreshRSS a en non-lus.
+  it("défait le corpus même quand aucune ligne de la plage n'est affichée", async () => {
+    const pivotHit = await buildCorpus();
+    useFeedStore.setState({ articles: [pivotHit] } as never);
+    vi.mocked(markAllAsRead).mockRejectedValueOnce(refus);
+
+    await useFeedStore.getState().markReadRelative(pivotHit, 'below');
+
+    page.mockClear();
+    await useFeedStore.getState().search('terme');
+    expect(page).not.toHaveBeenCalled();
+    const vieuxHit = useFeedStore.getState().searchResults.find((a) => a.id === vieuxId)!;
+    expect(vieuxHit.read).toBe(false);
+  });
+
   // I3 : une recherche neuve, dans un AUTRE périmètre, démarre pendant que
   // l'appel est en vol. Elle remplace `searchCorpus` par un objet différent
   // AVANT que le refus n'arrive — le rollback ne doit pas y toucher, sinon

@@ -1711,10 +1711,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const confirmed = new Set<string>();
     const rollbackUnconfirmed = () => {
       const unconfirmed = new Set([...touchedIds].filter((id) => !confirmed.has(versEspaceCommun(id))));
-      if (!unconfirmed.size) return;
-      set((s) => ({
-        articles: s.articles.map((a) => (unconfirmed.has(a.id) && a.read ? { ...a, read: false } : a)),
-      }));
+      // ⚠️ Pas de sortie anticipée sur `unconfirmed` : le patch d'ALLER du
+      // corpus est inconditionnel (il porte sur une plage, pas sur la liste
+      // chargée), donc son annulation doit l'être aussi. Sans quoi une plage
+      // dont aucune ligne n'est à l'écran resterait marquée lue dans le corpus
+      // après un refus, et la recherche suivante — même périmètre, aucun
+      // réseau — ressortirait des articles lus que FreshRSS a en non-lus.
+      if (unconfirmed.size) {
+        set((s) => ({
+          articles: s.articles.map((a) => (unconfirmed.has(a.id) && a.read ? { ...a, read: false } : a)),
+        }));
+      }
       if (searchCorpus === corpusALancement) {
         // I3 : n'annule ni ce que le serveur a confirmé, ni ce qui était déjà
         // lu avant l'action — un simple critère de plage ne sait distinguer
