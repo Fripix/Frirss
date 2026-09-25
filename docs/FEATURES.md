@@ -751,10 +751,11 @@ touche Menu du clavier, ou **appui long** au doigt : un menu propose **Ouvrir
 ouvre directement à la source. Demandé dans l'issue #11 : le réflexe vient de
 FreshRSS, où le titre est un vrai lien.
 
-- **Où** : `src/components/ArticleList/ArticleContextMenu.tsx` (rendu),
-  `src/hooks/useArticleMenuGestures.ts` (gestes), `src/hooks/useLongPress.ts`,
-  `src/lib/articleMenu.ts` (entrées, point d'ouverture),
-  `src/lib/copyLink.ts` ; état du menu dans `ArticleList.tsx`
+- **Où** : `src/components/ArticleList/ArticleContextMenu.tsx` (rendu,
+  icônes, groupes), `src/hooks/useArticleMenuGestures.ts` (gestes),
+  `src/hooks/useLongPress.ts`, `src/lib/articleMenu.ts` (entrées, groupe,
+  point d'ouverture), `src/lib/copyLink.ts` ; état du menu dans
+  `ArticleList.tsx`
 - **Spec** : `docs/superpowers/specs/2026-09-13-article-context-menu-design.md`
 - **Présentation** : feuille du bas sur téléphone (`useBreakpoint() ===
   'mobile'`), menu flottant ailleurs, rendu dans un portail et replacé par
@@ -762,6 +763,27 @@ FreshRSS, où le titre est un vrai lien.
   suit le format, pas le pointeur. Ses entrées font 44 pt de haut au doigt
   (`.context-menu-item`, comme celles du menu d'un flux), contre 40 px avant —
   les rangées de la feuille du bas (`.sheet-row`) étaient déjà à 48 px.
+- **Icônes et groupes** (retouche visuelle, décidée avec le propriétaire) :
+  chaque entrée porte désormais une icône à gauche du libellé, dans une
+  colonne de largeur fixe (20px) pour que les libellés s'alignent, et trois
+  blocs séparés par un filet (`1px solid var(--panel-border)`, 4px de marge
+  verticale) — 1 : ouvrir à la source ; 2 : marquer lu et ses deux marquages
+  de plage ; 3 : favoris, à lire plus tard, copier le lien. Le groupe est un
+  champ de l'entrée (`ArticleMenuItem.group`, `src/lib/articleMenu.ts`), pas
+  déduit de sa position : une entrée absente (pas d'URL, pas de plage) ne fait
+  donc jamais glisser un filet sur la mauvaise frontière. **Les icônes sont
+  celles déjà utilisées pour le même geste sur une ligne d'article**
+  (`ArticleActions.tsx` pour ouvrir/marquer lu/étoile/à lire plus tard,
+  `ReadingPane.tsx` pour le lien) — aucun second vocabulaire pour désigner la
+  même action. Les deux marquages de plage n'avaient pas d'icône existante :
+  elles reprennent le ✓ de « Marquer lu », réduit et accompagné d'un petit
+  chevron directionnel (haut pour au-dessus, bas pour en dessous), pour se
+  lire comme des variantes de « Marquer lu » plutôt que des actions
+  étrangères. Icônes secondaires (16px, `stroke-width: 1.75`, couleur
+  `--list-summary`), sauf sur l'entrée en attente de confirmation
+  (« Tout lu au-dessus/en dessous »), où l'icône suit la couleur du libellé
+  (`--list-title`) — seul le libellé change côté texte pendant l'attente,
+  mais l'icône reste cohérente avec lui.
 - **Les actions sont celles des icônes** : « Ouvrir à la source » passe par
   `openArticleAtSource()` (sélection, la ligne garde sa place), « Marquer lu »
   par `toggleRead` (retrait sous « Non lus » compris). Sans URL, « Ouvrir à la

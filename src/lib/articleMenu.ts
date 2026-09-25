@@ -6,10 +6,22 @@ export type ArticleMenuKind =
   | 'openSource' | 'toggleRead' | 'markBelowRead' | 'markAboveRead'
   | 'toggleStar' | 'toggleReadLater' | 'copyLink';
 
+/** Bloc visuel de l'entrée (retouche : un filet sépare deux groupes différents). */
+export type ArticleMenuGroup = 1 | 2 | 3;
+
 export interface ArticleMenuItem {
   kind: ArticleMenuKind;
   /** Clé i18n du libellé ; elle suit l'état de l'article. */
   labelKey: string;
+  /**
+   * Groupe visuel : 1 = ouvrir à la source ; 2 = marquer lu et ses deux
+   * marquages de plage ; 3 = favoris, à lire plus tard, copier le lien. Un
+   * filet sépare deux entrées consécutives de groupes différents
+   * (`ArticleContextMenu.tsx`) — porté par l'entrée plutôt que déduit de sa
+   * position, pour qu'une entrée qui disparaît (pas d'URL, pas de plage) ne
+   * fasse pas glisser le filet sur la mauvaise frontière.
+   */
+  group: ArticleMenuGroup;
 }
 
 /**
@@ -32,17 +44,29 @@ export function articleMenuItems(
 ): ArticleMenuItem[] {
   const hasUrl = !!article.url?.trim();
   const items: ArticleMenuItem[] = [];
-  if (hasUrl) items.push({ kind: 'openSource', labelKey: 'articleRow.openSource' });
-  items.push({ kind: 'toggleRead', labelKey: article.read ? 'articleRow.markUnread' : 'articleRow.markRead' });
+  if (hasUrl) items.push({ kind: 'openSource', labelKey: 'articleRow.openSource', group: 1 });
+  items.push({
+    kind: 'toggleRead',
+    labelKey: article.read ? 'articleRow.markUnread' : 'articleRow.markRead',
+    group: 2,
+  });
   // Marquages de plage (issue #15) : placés contre « Marquer lu », dont ils
-  // sont l'extension.
+  // sont l'extension — même groupe visuel.
   if (canMarkRange) {
-    items.push({ kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead' });
-    items.push({ kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' });
+    items.push({ kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead', group: 2 });
+    items.push({ kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead', group: 2 });
   }
-  items.push({ kind: 'toggleStar', labelKey: article.starred ? 'articleRow.removeStar' : 'articleRow.addStar' });
-  items.push({ kind: 'toggleReadLater', labelKey: isReadLater ? 'articleRow.removeReadLater' : 'articleRow.addReadLater' });
-  if (hasUrl) items.push({ kind: 'copyLink', labelKey: 'articleRow.copyLink' });
+  items.push({
+    kind: 'toggleStar',
+    labelKey: article.starred ? 'articleRow.removeStar' : 'articleRow.addStar',
+    group: 3,
+  });
+  items.push({
+    kind: 'toggleReadLater',
+    labelKey: isReadLater ? 'articleRow.removeReadLater' : 'articleRow.addReadLater',
+    group: 3,
+  });
+  if (hasUrl) items.push({ kind: 'copyLink', labelKey: 'articleRow.copyLink', group: 3 });
   return items;
 }
 

@@ -6,13 +6,26 @@ const base = { url: 'https://example.com/a', read: false, starred: false };
 describe('articleMenuItems', () => {
   it('liste les sept entrées, dans l’ordre, pour un article non lu et non favori avec URL', () => {
     expect(articleMenuItems(base, false, true)).toEqual([
-      { kind: 'openSource', labelKey: 'articleRow.openSource' },
-      { kind: 'toggleRead', labelKey: 'articleRow.markRead' },
-      { kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead' },
-      { kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' },
-      { kind: 'toggleStar', labelKey: 'articleRow.addStar' },
-      { kind: 'toggleReadLater', labelKey: 'articleRow.addReadLater' },
-      { kind: 'copyLink', labelKey: 'articleRow.copyLink' },
+      { kind: 'openSource', labelKey: 'articleRow.openSource', group: 1 },
+      { kind: 'toggleRead', labelKey: 'articleRow.markRead', group: 2 },
+      { kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead', group: 2 },
+      { kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead', group: 2 },
+      { kind: 'toggleStar', labelKey: 'articleRow.addStar', group: 3 },
+      { kind: 'toggleReadLater', labelKey: 'articleRow.addReadLater', group: 3 },
+      { kind: 'copyLink', labelKey: 'articleRow.copyLink', group: 3 },
+    ]);
+  });
+
+  // Retouche visuelle (décidée avec le propriétaire) : trois blocs séparés
+  // par un filet — 1 : ouvrir à la source ; 2 : marquer lu et ses deux
+  // marquages de plage ; 3 : favoris, à lire plus tard, copier le lien.
+  it('range chaque entrée dans le bon groupe, y compris quand certaines sont absentes', () => {
+    expect(articleMenuItems(base, false, false).map((i) => ({ kind: i.kind, group: i.group }))).toEqual([
+      { kind: 'openSource', group: 1 },
+      { kind: 'toggleRead', group: 2 },
+      { kind: 'toggleStar', group: 3 },
+      { kind: 'toggleReadLater', group: 3 },
+      { kind: 'copyLink', group: 3 },
     ]);
   });
 

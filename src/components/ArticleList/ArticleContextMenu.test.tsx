@@ -29,7 +29,7 @@ function setup(over: {
     onMarkRange: vi.fn(),
     ...over.handlers,
   };
-  render(
+  const { container } = render(
     <ArticleContextMenu
       article={{ ...article, ...over.article }}
       isReadLater={over.isReadLater ?? false}
@@ -41,7 +41,7 @@ function setup(over: {
       {...handlers}
     />,
   );
-  return handlers;
+  return { ...handlers, container };
 }
 
 describe('ArticleContextMenu', () => {
@@ -51,6 +51,42 @@ describe('ArticleContextMenu', () => {
       'articleRow.openSource', 'articleRow.markRead', 'articleRow.markAboveRead', 'articleRow.markBelowRead',
       'articleRow.addStar', 'articleRow.addReadLater', 'articleRow.copyLink',
     ]);
+  });
+
+  // Retouche visuelle (décidée avec le propriétaire) : une icône par entrée,
+  // et un filet entre deux entrées de groupes différents — jamais à
+  // l'intérieur d'un même groupe.
+  it('donne une icône à chaque entrée, dans les deux rendus', () => {
+    setup();
+    for (const button of screen.getAllByRole('button')) {
+      expect(button.querySelector('svg')).not.toBeNull();
+    }
+    cleanup();
+    setup({ sheet: true });
+    for (const button of screen.getAllByRole('button')) {
+      expect(button.querySelector('svg')).not.toBeNull();
+    }
+  });
+
+  // Le menu flottant est rendu dans un portail (`document.body`), hors du
+  // conteneur local de `render()` : on interroge donc `document` plutôt que
+  // `container`, ce qui couvre les deux présentations sans distinction.
+  it('pose un filet entre les groupes 1→2 et 2→3, jamais ailleurs — menu flottant', () => {
+    setup();
+    expect(document.querySelectorAll('.article-menu-divider').length).toBe(2);
+  });
+
+  it('pose aussi le filet entre les groupes en feuille du bas', () => {
+    setup({ sheet: true });
+    expect(document.querySelectorAll('.article-menu-divider').length).toBe(2);
+  });
+
+  it('garde ses deux filets quand seuls les marquages de plage disparaissent (canMarkRange faux)', () => {
+    // Les trois groupes restent représentés (ouvrir, marquer lu, favoris…) :
+    // seules deux entrées internes au groupe 2 s'effacent, les deux
+    // frontières 1→2 et 2→3 ne bougent pas.
+    setup({ canMarkRange: false });
+    expect(document.querySelectorAll('.article-menu-divider').length).toBe(2);
   });
 
   it('appelle onMarkRange avec « below » depuis l’entrée « en dessous »', () => {
