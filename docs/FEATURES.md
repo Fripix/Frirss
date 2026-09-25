@@ -310,6 +310,16 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   **haut** de l'écran, hors de portée du pouce, avec des rangées de 13 px. Une
   seule implémentation, utilisée par les trois (options de liste, menu « ⋯ » du
   volet, étiquettes).
+- **Le fond de la feuille ne s'arme qu'une fois relevé le doigt qui l'a
+  ouverte** (1.4.12). Un appui long ouvre la feuille alors que le doigt est
+  encore posé ; au lever, iOS émet un **clic d'écho** à ses coordonnées, qui
+  tombait sur le fond et refermait la feuille dans la foulée — au doigt, le
+  menu d'article disparaissait la plupart du temps. `BottomSheet.tsx` compte
+  les touchers actifs au niveau du module et retient l'armement jusqu'à la fin
+  du toucher d'ouverture, plus `BACKDROP_GRACE_MS` (300 ms). ⚠️ **Un délai
+  compté depuis l'ouverture ne suffit pas** — première tentative, insuffisante :
+  l'écho n'arrive pas après l'ouverture mais au **lever du doigt**, donc après
+  un appui long de durée quelconque.
 - **Bascules d'affichage groupées** : nom du flux, icônes des flux, séparateurs
   de date et barre serveur vivent dans une même piste (`.option-track`), comme
   la densité et la disposition en avaient déjà une. Leur état actif passe par

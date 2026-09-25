@@ -41,6 +41,13 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Le menu d'un article porte des icônes et se lit en trois groupes.** Chaque
+  entrée est précédée de son icône, alignée sur une colonne, et un filet
+  sépare ce qui ouvre l'article (Ouvrir la source, Marquer lu/non lu) de ce qui
+  agit sur une plage (Tout lu au-dessus, Tout lu en dessous) et de ce qui range
+  (Favori, À lire plus tard, Copier le lien). Un menu de sept entrées à plat
+  obligeait à tout lire pour en trouver une.
+
 - **La barre d'action du volet de lecture ne casse plus ses libellés en deux
   lignes.** Dès que la place manquait, les boutons (Non lu, Favori, Plus
   tard, Étiquettes, Article complet, Original, Partager) passaient sur deux
@@ -48,6 +55,19 @@ la release publiée.
   une ligne, et se replient en icônes seules (nom conservé pour les lecteurs
   d'écran) quand la barre elle-même n'a plus la place — pas l'écran, la barre :
   la colonne de liste peut se redimensionner.
+
+- **Le menu d'un article ne se referme plus en levant le doigt (iOS).** Un appui
+  long faisait bien apparaître la feuille, mais le clic d'écho émis par iOS au
+  moment où le doigt se lève tombait sur le fond de la feuille et la refermait
+  aussitôt : le menu était inutilisable au doigt la plupart du temps. Le fond ne
+  devient actif qu'une fois le doigt qui a ouvert la feuille effectivement
+  relevé. Le geste attendu fonctionne : garder le doigt appuyé pour faire
+  apparaître le menu, lever, puis appuyer sur l'entrée voulue.
+
+- **Un marquage de plage bridé par le plafond de requêtes le dit.** Quand
+  « Tout lu au-dessus » heurtait la limite du proxy, le message annonçait un
+  refus du serveur alors qu'une partie des articles était bien passée. Il
+  distingue maintenant les deux cas et invite à réessayer dans une minute.
 
 - **La recherche filtre enfin.** Elle ne filtrait rien : FriRSS envoyait un
   paramètre `q` que l'API Google Reader de FreshRSS n'a jamais lu — vérifié sur
