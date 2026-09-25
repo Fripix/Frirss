@@ -19,8 +19,8 @@ la release publiée.
   Désactivable dans Préférences → Général. Demandé dans la discussion #14.
 
 - **Marquer lu tout ce qui précède — ou suit — un article.** Le menu d'un
-  article (clic droit, appui long, touche Menu) propose « Tout lu en dessous »
-  et « Tout lu au-dessus » : tous les articles plus anciens, ou plus récents,
+  article (clic droit, appui long, touche Menu) propose « Tout lu au-dessus »
+  et « Tout lu en dessous » : tous les articles plus anciens, ou plus récents,
   de la vue courante passent lus — y compris ceux que la liste n'a pas encore
   chargés. Ces deux entrées respectent le réglage « Confirmer avant de tout
   marquer comme lu » (actif par défaut), comme « Tout lu » — un premier clic

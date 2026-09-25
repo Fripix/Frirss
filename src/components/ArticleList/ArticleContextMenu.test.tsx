@@ -48,7 +48,7 @@ describe('ArticleContextMenu', () => {
   it('shows the seven entries in order', () => {
     setup();
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
-      'articleRow.openSource', 'articleRow.markRead', 'articleRow.markBelowRead', 'articleRow.markAboveRead',
+      'articleRow.openSource', 'articleRow.markRead', 'articleRow.markAboveRead', 'articleRow.markBelowRead',
       'articleRow.addStar', 'articleRow.addReadLater', 'articleRow.copyLink',
     ]);
   });

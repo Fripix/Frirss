@@ -37,8 +37,8 @@ export function articleMenuItems(
   // Marquages de plage (issue #15) : placés contre « Marquer lu », dont ils
   // sont l'extension.
   if (canMarkRange) {
-    items.push({ kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' });
     items.push({ kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead' });
+    items.push({ kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' });
   }
   items.push({ kind: 'toggleStar', labelKey: article.starred ? 'articleRow.removeStar' : 'articleRow.addStar' });
   items.push({ kind: 'toggleReadLater', labelKey: isReadLater ? 'articleRow.removeReadLater' : 'articleRow.addReadLater' });

@@ -746,7 +746,7 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
 ### Menu d'un article
 Clic droit sur une ligne (normale ou compacte) ou une carte de la grille,
 touche Menu du clavier, ou **appui long** au doigt : un menu propose **Ouvrir
-à la source**, **Marquer lu / non lu**, **Tout lu en dessous / au-dessus**,
+à la source**, **Marquer lu / non lu**, **Tout lu au-dessus / en dessous**,
 **Favori**, **À lire plus tard** et **Copier le lien**. Le **clic molette**
 ouvre directement à la source. Demandé dans l'issue #11 : le réflexe vient de
 FreshRSS, où le titre est un vrai lien.
@@ -771,7 +771,7 @@ FreshRSS, où le titre est un vrai lien.
 - **« Copier le lien » copie toujours**, même là où `navigator.share` existe :
   l'entrée dit « copier ». `navigator.clipboard` n'existe qu'en contexte
   sécurisé ; son absence est un échec annoncé (`toast.copyFailed`).
-- **« Tout lu en dessous / au-dessus » (issue #15)** appellent
+- **« Tout lu au-dessus / en dessous » (issue #15)** appellent
   `markReadRelative(article, 'below' | 'above')` (`useFeedStore`, testé dans
   `src/stores/feedStore.markRange.test.ts`) : marque lu tout ce qui a été
   inséré strictement avant (en dessous) ou après (au-dessus) l'article cliqué

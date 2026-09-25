@@ -8,8 +8,8 @@ describe('articleMenuItems', () => {
     expect(articleMenuItems(base, false, true)).toEqual([
       { kind: 'openSource', labelKey: 'articleRow.openSource' },
       { kind: 'toggleRead', labelKey: 'articleRow.markRead' },
-      { kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' },
       { kind: 'markAboveRead', labelKey: 'articleRow.markAboveRead' },
+      { kind: 'markBelowRead', labelKey: 'articleRow.markBelowRead' },
       { kind: 'toggleStar', labelKey: 'articleRow.addStar' },
       { kind: 'toggleReadLater', labelKey: 'articleRow.addReadLater' },
       { kind: 'copyLink', labelKey: 'articleRow.copyLink' },
@@ -21,8 +21,8 @@ describe('articleMenuItems', () => {
     expect(labels).toEqual([
       'articleRow.openSource',
       'articleRow.markUnread',
-      'articleRow.markBelowRead',
       'articleRow.markAboveRead',
+      'articleRow.markBelowRead',
       'articleRow.removeStar',
       'articleRow.removeReadLater',
       'articleRow.copyLink',
@@ -31,7 +31,7 @@ describe('articleMenuItems', () => {
 
   it('garde les deux marquages de plage même sans URL — ils ne dépendent pas du lien', () => {
     expect(articleMenuItems({ ...base, url: '' }, false, true).map((i) => i.kind)).toEqual([
-      'toggleRead', 'markBelowRead', 'markAboveRead', 'toggleStar', 'toggleReadLater',
+      'toggleRead', 'markAboveRead', 'markBelowRead', 'toggleStar', 'toggleReadLater',
     ]);
   });
 
