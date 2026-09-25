@@ -2200,55 +2200,31 @@ summary:focus-visible,
   .sidebar-community a { transition: none; }
 }
 
-/* ── Pastille « nouveaux articles » (discussion #14) ─────────────────── */
-/* Emplacement collant de hauteur nulle : la pastille flotte en haut de la
-   liste sans décaler les lignes. Couleurs de l'accent, texte `--on-accent`
-   (le blanc sur l'accent par défaut ne fait que 1,9:1). Entrée animée une
-   seule fois ; rien sous « réduire les animations ».
-   Retouche « autocollant » (demande du propriétaire, la pastille se fondait
-   trop dans la liste) : elle reste verte, mais devient un objet posé SUR la
-   liste — liseré `--panel-bg` + ombre portée qui la découpent du texte
-   recouvert, et un voile dégradé (`::before`, sous la classe
-   `--filled` seulement) qui écarte la ligne du dessous de ce même texte. */
+/* ── Bandeau « nouveaux articles » (discussion #14) ───────────────────── */
+/* Emplacement collant de hauteur nulle : le bandeau flotte en haut de la
+   liste sans décaler les lignes, exactement comme la pastille qu'il
+   remplace (retouche visuelle, demande du propriétaire — jugée mieux
+   qu'avant mais encore trop discrète). Couleurs de l'accent, texte
+   `--on-accent`. Entrée animée une seule fois ; rien sous « réduire les
+   animations ».
+   Pleine largeur de la colonne de liste, désormais — le liseré `--panel-bg`
+   et le voile dégradé de la pastille disparaissent avec elle : ils
+   découpaient un petit objet du texte recouvert, un bandeau opaque pleine
+   largeur n'en a plus besoin, une simple ombre portée suffit. */
 .new-articles-slot {
   position: sticky;
   top: 0;
   z-index: 15;
   height: 0;
+}
+.new-articles-banner {
   display: flex;
-  justify-content: center;
-}
-/* Le voile n'existe QUE quand une pastille est posée (`count > 0` côté
-   composant) : l'emplacement, lui, reste monté même à zéro pour `aria-live`,
-   et un voile permanent sans rien à découper serait injustifié.
-   `z-index: -1` le maintient DERRIÈRE la pastille (élément non positionné,
-   donc peint avant tout positionné sans cette valeur négative) sans sortir du
-   contexte d'empilement de `.new-articles-slot` (déjà positionné, z-index 15). */
-.new-articles-slot--filled::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 64px;
-  z-index: -1;
-  pointer-events: none;
-  background: linear-gradient(to bottom, var(--panel-bg) 30%, transparent);
-}
-.new-articles-pill {
-  margin-top: 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 7px 16px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
+  align-items: stretch;
+  width: 100%;
+  height: 40px;
   background: var(--accent);
   color: var(--on-accent);
-  box-shadow: 0 0 0 3px var(--panel-bg), 0 6px 20px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
   animation: new-articles-in 0.3s ease-out;
 }
 @keyframes new-articles-in {
@@ -2256,10 +2232,61 @@ summary:focus-visible,
   to { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .new-articles-pill { animation: none; }
+  .new-articles-banner { animation: none; }
 }
 @media (pointer: coarse) {
-  .new-articles-pill { min-height: 44px; }
+  .new-articles-banner { height: 44px; }
+}
+/* Charge les nouveaux articles — toute la zone gauche, pas juste la flèche.
+   `min-width: 0` + l'ellipse sur le libellé : sans eux, un compte très long
+   (grand nombre, locale plus verbeuse) pousserait la croix hors du bandeau
+   au lieu de se tronquer. */
+.new-articles-banner__load {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.new-articles-banner__load:hover { filter: brightness(1.06); }
+.new-articles-banner__load:active { filter: brightness(0.94); }
+.new-articles-banner__load span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Ignore le bandeau — cible d'au moins 32px (44px au doigt), même couleur
+   que le libellé mais estompée : elle doit se voir sans concurrencer
+   l'action principale. `align-items: stretch` sur le parent lui donne déjà
+   toute la hauteur du bandeau. */
+.new-articles-banner__dismiss {
+  flex-shrink: 0;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--on-accent);
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.new-articles-banner__dismiss:hover,
+.new-articles-banner__dismiss:focus-visible {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .new-articles-banner__dismiss { width: 44px; }
 }
 
 /* ── Barre d'état du balayage de recherche ────────────────────────────── */

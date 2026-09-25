@@ -184,7 +184,7 @@
       "unreadScopeAll": "Todos os feeds",
       "unreadScopeHint": "Com «Por fonte», cada fonte guarda a sua escolha. Com «Todos os feeds», o botão Não lidos aplica-se em todo o lado. Voltar a «Por fonte» apaga as escolhas por fonte: cada fonte parte do estado atual.",
       "newArticlesPill": "Assinalar novos artigos",
-      "newArticlesPillHint": "Uma etiqueta no topo da lista conta os artigos que chegaram desde que foi carregada e mostra-os com um clique. A lista nunca muda sozinha."
+      "newArticlesPillHint": "Um banner no topo da lista conta os artigos que chegaram desde que foi carregada e mostra-os com um clique. A lista nunca muda sozinha."
     },
     "branding": {
       "language": "Idioma",
@@ -610,6 +610,7 @@
   "refresh": {
     "newArticles_one": "{{count}} novo artigo",
     "newArticles_other": "{{count}} novos artigos",
+    "dismissNewArticles": "Ignorar",
     "upToDate": "Atualizado",
     "inProgress": "A atualizar as fontes…",
     "failed": "A atualização falhou",

@@ -184,7 +184,7 @@
       "unreadScopeAll": "Todas las fuentes",
       "unreadScopeHint": "Con «Por fuente», cada fuente conserva su propia elección. Con «Todas las fuentes», el botón No leídos se aplica en todas partes. Volver a «Por fuente» borra las elecciones por fuente: cada fuente parte del estado actual.",
       "newArticlesPill": "Avisar de artículos nuevos",
-      "newArticlesPillHint": "Una etiqueta en la parte superior de la lista cuenta los artículos llegados desde que se cargó y los muestra con un clic. La lista nunca cambia por sí sola."
+      "newArticlesPillHint": "Un banner en la parte superior de la lista cuenta los artículos llegados desde que se cargó y los muestra con un clic. La lista nunca cambia por sí sola."
     },
     "branding": {
       "language": "Idioma",
@@ -610,6 +610,7 @@
   "refresh": {
     "newArticles_one": "{{count}} artículo nuevo",
     "newArticles_other": "{{count}} artículos nuevos",
+    "dismissNewArticles": "Descartar",
     "upToDate": "Al día",
     "inProgress": "Actualizando fuentes…",
     "failed": "La actualización falló",

@@ -998,18 +998,25 @@ flux**.
 - **Sans rapport avec la règle du ✓** (issue #10), qui lit `feedStore.filter`,
   l'état dérivé.
 
-### Pastille « nouveaux articles »
-Une pastille « ↑ N nouveaux articles » en haut de la liste signale les articles
-arrivés dans la vue affichée depuis son chargement ; un clic les charge et
-remonte en haut. La liste ne change jamais d'elle-même. Réglage « Signaler les
-nouveaux articles » (Préférences → Général, synchronisé, **activé** par
-défaut). Demandé dans la discussion #14.
+### Bandeau « nouveaux articles »
+Un bandeau « ↑ N nouveaux articles » en haut de la liste signale les articles
+arrivés dans la vue affichée depuis son chargement ; un clic dessus les charge
+et remonte en haut. Une croix, à droite, l'ignore sans rien charger — il
+réapparaîtra à la prochaine arrivée. La liste ne change jamais d'elle-même.
+Réglage « Signaler les nouveaux articles » (Préférences → Général, synchronisé,
+**activé** par défaut). Demandé dans la discussion #14 ; devenu un bandeau
+(retouche visuelle, demande du propriétaire — la pastille d'origine était jugée
+mieux qu'avant mais encore trop discrète).
 
 - **Où** : `src/lib/newArticles.ts` (`viewFeedIds`, `countNewInView`, testés),
-  `feedStore.newInView` et `loadNewArticles` (cumul dans `syncCounts`),
-  `src/components/ArticleList/NewArticlesPill.tsx`,
-  `uiStore.showNewArticlesPill`
+  `feedStore.newInView`, `loadNewArticles` (cumul dans `syncCounts`) et
+  `dismissNewArticles` (remet `newInView` à zéro sans charger, testée),
+  `src/components/ArticleList/NewArticlesBanner.tsx`,
+  `uiStore.showNewArticlesPill` (clé de réglage conservée telle quelle malgré
+  le nom : ce n'est pas un second réglage)
 - **Spec** : `docs/superpowers/specs/2026-09-17-new-articles-pill-design.md`
+  (nom d'origine, gardé — le document reste la spec de la fonctionnalité même
+  si l'objet visuel a changé depuis)
 - **Le signal** : à chaque relevé des compteurs (60 s), `computeRefreshDelta()`
   compare les compteurs du serveur à ceux du store ; seules les hausses des
   flux de la vue comptent. Au premier relevé, sans compteur connu, rien n'est
@@ -1035,59 +1042,66 @@ défaut). Demandé dans la discussion #14.
   (`zeroUnreadFloor` : il saute de 0 à son vrai compte, ce qui n'est pas une
   arrivée). Un relevé qui se termine après un changement de serveur (Fix 3)
   est ignoré entièrement, y compris pour `unreadCounts`. Les compteurs
-  eux-mêmes sont toujours appliqués : seul le décompte de la pastille est
+  eux-mêmes sont toujours appliqués : seul le décompte du bandeau est
   retenu. **Une arrivée manquée par ces gardes se voit au prochain
   rechargement** (elle finit dans les compteurs, jamais perdue) — c'est le
-  compromis assumé : une fausse pastille est pire qu'une pastille en retard.
+  compromis assumé : un faux bandeau est pire qu'un bandeau en retard.
   `pendingActions > 0` (des actions en attente) a été essayé puis RETIRÉ : la
   relève hors-ligne ne tourne qu'au montage de l'app et sur l'événement
   `online`, donc une seule action mise en file (un 5xx transitoire, par
-  exemple) aurait masqué la pastille pour toute la session — bien après que
+  exemple) aurait masqué le bandeau pour toute la session — bien après que
   le relevé suivant ait déjà écrasé le compte local par celui du serveur.
 - **Vues** : un flux, une catégorie (ses flux), l'accueil en `all` ou
   `unread`. Pas d'étiquette, de Favoris, d'À lire plus tard ni de recherche —
-  une recherche en cours masque aussi la pastille déjà affichée (le compte
+  une recherche en cours masque aussi le bandeau déjà affiché (le compte
   passe à 0 tant que `searchQuery` est renseigné), et `search()` remet
   `newInView` à zéro dès qu'elle démarre.
 - **Remise à zéro** : `loadArticles` (changement de vue, Rafraîchir), fin d'un
-  `silentRefresh` (retour sur l'onglet), `loadNewArticles`, `search()`.
-  `silentRefresh` ignore un résultat arrivé pour une vue qui n'est plus à
-  l'écran (la vue a changé pendant l'aller-retour) : il n'écrit alors ni la
-  liste ni `newInView`.
+  `silentRefresh` (retour sur l'onglet), `loadNewArticles`, `dismissNewArticles`
+  (la croix, sans rien charger d'autre), `search()`. `silentRefresh` ignore un
+  résultat arrivé pour une vue qui n'est plus à l'écran (la vue a changé
+  pendant l'aller-retour) : il n'écrit alors ni la liste ni `newInView`.
 - **Limites** : un article marqué non lu sur un autre appareil compte comme une
   arrivée ; des arrivées et des lectures faites ailleurs dans le même
   intervalle, sur le même flux, peuvent s'annuler. Et `loadSubscriptions`
   (renommer ou déplacer une catégorie, ajouter un flux) reprend les compteurs
   du serveur sans rien compter : les arrivées de la minute qui précède ces
   actions ne sont pas signalées.
-- **L'autocollant** (retouche visuelle — la pastille se fondait trop dans la
-  liste, même vert que le reste de l'app) : l'emplacement (`.new-articles-slot`)
-  reste `sticky` et de hauteur nulle (rien ne se décale), mais la pastille
-  elle-même est désormais posée SUR la liste plutôt que collée à l'en-tête —
-  `margin-top: 16px` (au lieu de 8), un liseré `--panel-bg` de 3px plus une
-  ombre portée (`box-shadow`, `src/styles/index.css`) qui la découpent du texte
-  recouvert. Un voile dégradé (`::before` sur `.new-articles-slot--filled`,
-  `background` en dégradé vers `--panel-bg`, `pointer-events: none`, `z-index:
-  -1`) écarte en plus la ligne du dessous de ce même texte. La classe
-  `--filled` n'est posée QUE quand une pastille est effectivement affichée
-  (`count > 0` dans `NewArticlesPill.tsx`) : l'emplacement, lui, reste monté
-  même à zéro pour `aria-live`, et un voile permanent sans rien à découper
-  serait injustifié. L'entrée n'est animée qu'une fois, le bouton restant le
-  même élément quand le nombre change ; aucune animation sous
+- **Devenu un bandeau** (retouche visuelle — la pastille était jugée mieux
+  qu'avant mais encore trop discrète) : pleine largeur de la colonne de liste,
+  posé juste sous l'en-tête. L'emplacement (`.new-articles-slot`) reste
+  `sticky` et de hauteur nulle comme du temps de la pastille — rien ne se
+  décale — et le bandeau se pose par-dessus le haut de la première ligne.
+  40 px de haut (44 px sous `pointer: coarse`), fond `--accent`, texte
+  `--on-accent`, 13 px, demi-gras. Une simple ombre portée (`box-shadow`,
+  `src/styles/index.css`) le détache du texte recouvert ; le liseré
+  `--panel-bg` et le voile dégradé (`::before` sur l'ancienne classe
+  `--filled`) de la pastille ont disparu avec elle — ils découpaient un petit
+  objet du texte, un bandeau opaque pleine largeur n'en a plus besoin. La
+  classe `--filled` elle-même a été retirée : plus rien ne la consommait.
+  **Deux boutons distincts**, pas un bouton dans un autre :
+  `.new-articles-banner__load` (flèche + libellé) couvre toute la zone
+  gauche et charge les nouveaux articles ; `.new-articles-banner__dismiss`, la
+  croix à droite (cible ≥ 32 px, 44 px au doigt, même couleur à opacité
+  réduite), ignore le bandeau via `feedStore.dismissNewArticles()` — remet
+  `newInView` à zéro **sans rien charger**. Le bandeau réapparaîtra à la
+  prochaine arrivée : c'est voulu, ignorer n'est pas une préférence durable.
+  L'entrée n'est animée qu'une fois, le bouton de chargement restant le même
+  élément quand le nombre change ; aucune animation sous
   `prefers-reduced-motion` ; région `aria-live="polite"` montée tant que le
   réglage est actif, qui annonce le nouveau nombre à son apparition et à
   chaque changement (une disparition n'est PAS annoncée — `aria-relevant` par
-  défaut ne porte que sur le texte ajouté/modifié, pas sur le retrait) ;
-  44 px de haut au doigt ; texte `--on-accent` sur l'accent. Réglage éteint =
-  rien n'est rendu, pas même la région `aria-live`. Le conteneur de la liste
-  (`tabIndex={-1}`, anneau de focus invisible) peut désormais recevoir le
-  focus depuis le code (après un clic sur la pastille) et au clic n'importe
-  où à l'intérieur, dans tous les navigateurs — mais **n'entre jamais dans
-  l'ordre de tabulation** (`tabIndex={-1}` en écarte, il ne l'y ajoute pas).
-  Un clic sur la pastille lui donne le focus avant de faire remonter la vue
-  (sinon le focus clavier retombe sur `<body>` — le bouton disparaît avec le
-  clic). Safari rend cet effet plus visible : il ne donne pas nativement le
-  focus aux boutons cliqués, contrairement aux autres navigateurs.
+  défaut ne porte que sur le texte ajouté/modifié, pas sur le retrait). Réglage
+  éteint = rien n'est rendu, pas même la région `aria-live`. Le conteneur de la
+  liste (`tabIndex={-1}`, anneau de focus invisible) peut recevoir le focus
+  depuis le code (après un clic sur le bouton de chargement) et au clic
+  n'importe où à l'intérieur, dans tous les navigateurs — mais **n'entre
+  jamais dans l'ordre de tabulation** (`tabIndex={-1}` en écarte, il ne l'y
+  ajoute pas). Un clic sur le bouton de chargement lui donne le focus avant de
+  faire remonter la vue (sinon le focus clavier retombe sur `<body>` — le
+  bouton disparaît avec le clic). Safari rend cet effet plus visible : il ne
+  donne pas nativement le focus aux boutons cliqués, contrairement aux autres
+  navigateurs.
 - **À ne pas confondre** avec `RefreshBanner`, la notification de 5 s qui suit
   un clic sur Rafraîchir.
 

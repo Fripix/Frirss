@@ -5,12 +5,12 @@ import SearchScanBar from './SearchScanBar';
 
 // `@testing-library/user-event` n'est pas une dépendance du projet — les
 // autres tests de composants de ce dossier (`ArticleContextMenu.test.tsx`,
-// `NewArticlesPill.test.tsx`) simulent déjà les clics avec `fireEvent`,
+// `NewArticlesBanner.test.tsx`) simulent déjà les clics avec `fireEvent`,
 // synchrone ; on suit la même convention plutôt que d'ajouter une dépendance
 // pour un seul fichier.
 //
 // Même convention pour `react-i18next` (voir `ArticleCard.test.tsx`,
-// `NewArticlesPill.test.tsx`) : `t` renvoie la clé, suffixée de `:count`
+// `NewArticlesBanner.test.tsx`) : `t` renvoie la clé, suffixée de `:count`
 // quand un compteur est fourni — suffisant pour retrouver 3000 et 7 dans le
 // texte rendu sans dépendre des traductions réelles.
 vi.mock('react-i18next', () => ({

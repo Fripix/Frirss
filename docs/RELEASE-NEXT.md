@@ -13,10 +13,12 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Une pastille signale les nouveaux articles.** Quand de nouveaux articles
-  arrivent dans la vue affichée, « ↑ N nouveaux articles » apparaît en haut de
-  la liste ; un clic les charge. La liste ne change jamais d'elle-même.
-  Désactivable dans Préférences → Général. Demandé dans la discussion #14.
+- **Un bandeau signale les nouveaux articles.** Quand de nouveaux articles
+  arrivent dans la vue affichée, un bandeau pleine largeur « ↑ N nouveaux
+  articles » se pose en haut de la liste ; un clic dessus les charge, une
+  croix à droite l'ignore (il reviendra à la prochaine arrivée). La liste ne
+  change jamais d'elle-même. Désactivable dans Préférences → Général. Demandé
+  dans la discussion #14.
 
 - **Marquer lu tout ce qui précède — ou suit — un article.** Le menu d'un
   article (clic droit, appui long, touche Menu) propose « Tout lu au-dessus »
@@ -38,6 +40,14 @@ la release publiée.
   seule la valeur par défaut change.
 
 ## Corrections et améliorations
+
+- **La barre d'action du volet de lecture ne casse plus ses libellés en deux
+  lignes.** Dès que la place manquait, les boutons (Non lu, Favori, Plus
+  tard, Étiquettes, Article complet, Original, Partager) passaient sur deux
+  lignes et la barre doublait de hauteur. Les libellés restent maintenant sur
+  une ligne, et se replient en icônes seules (nom conservé pour les lecteurs
+  d'écran) quand la barre elle-même n'a plus la place — pas l'écran, la barre :
+  la colonne de liste peut se redimensionner.
 
 - **La recherche filtre enfin.** Elle ne filtrait rien : FriRSS envoyait un
   paramètre `q` que l'API Google Reader de FreshRSS n'a jamais lu — vérifié sur

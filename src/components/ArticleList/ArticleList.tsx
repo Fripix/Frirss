@@ -20,7 +20,7 @@ import ArticleCard from './ArticleCard';
 import FeedFavicon from '../FeedFavicon';
 import BottomSheet from '../BottomSheet';
 import ArticleContextMenu from './ArticleContextMenu';
-import NewArticlesPill from './NewArticlesPill';
+import NewArticlesBanner from './NewArticlesBanner';
 import SearchScanBar from './SearchScanBar';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 import { copyLink } from '../../lib/copyLink';
@@ -86,6 +86,7 @@ export default function ArticleList() {
   const showNewArticlesPill = useUiStore((s) => s.showNewArticlesPill);
   const newInView = useFeedStore((s) => s.newInView);
   const loadNewArticles = useFeedStore((s) => s.loadNewArticles);
+  const dismissNewArticles = useFeedStore((s) => s.dismissNewArticles);
   const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
   const showSourceInAll = useUiStore((s) => s.showSourceInAll);
   const toggleShowSourceInFeed = useUiStore((s) => s.toggleShowSourceInFeed);
@@ -959,9 +960,9 @@ export default function ArticleList() {
         tabIndex={-1}
         className="flex-1 overflow-y-auto overflow-x-hidden nice-scroll relative outline-none"
       >
-        <NewArticlesPill
+        <NewArticlesBanner
           enabled={showNewArticlesPill}
-          // Une recherche est en cours : la pastille de la vue qu'elle
+          // Une recherche est en cours : le bandeau de la vue qu'elle
           // recouvre ne doit pas rester visible au-dessus des résultats (Fix
           // 1, revue finale) — `search()` a déjà remis `newInView` à zéro,
           // mais rien ne la remet tant qu'on reste DANS la recherche.
@@ -974,6 +975,7 @@ export default function ArticleList() {
             listRef.current?.focus({ preventScroll: true });
             listRef.current?.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
           }}
+          onDismiss={dismissNewArticles}
         />
         {/* Pull-to-refresh spinner */}
         {(pull > 0 || refreshing) && (

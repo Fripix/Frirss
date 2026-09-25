@@ -404,6 +404,16 @@ describe('feedStore — pastille « nouveaux articles »', () => {
     expect(loadArticles).toHaveBeenCalledTimes(1);
   });
 
+  // Ignorer le bandeau : remet le compte à zéro mais ne recharge RIEN — le
+  // bandeau réapparaîtra à la prochaine arrivée, c'est voulu.
+  it('dismissNewArticles resets the count without reloading the list', () => {
+    const loadArticles = vi.fn().mockResolvedValue(undefined);
+    useFeedStore.setState({ newInView: 4, loadArticles: loadArticles as never });
+    useFeedStore.getState().dismissNewArticles();
+    expect(useFeedStore.getState().newInView).toBe(0);
+    expect(loadArticles).not.toHaveBeenCalled();
+  });
+
   it('a silent refresh resets the count once the list is reloaded', async () => {
     vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 2, 'feed/B': 1 }));
     vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);

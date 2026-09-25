@@ -184,7 +184,7 @@
       "unreadScopeAll": "Alle feeds",
       "unreadScopeHint": "Bij ‘Per feed’ houdt elke feed zijn eigen keuze. Bij ‘Alle feeds’ geldt de knop Ongelezen overal. Terug naar ‘Per feed’ wist de keuzes per feed: elke feed begint bij de huidige stand.",
       "newArticlesPill": "Nieuwe artikelen melden",
-      "newArticlesPillHint": "Een label boven aan de lijst telt de artikelen die sinds het laden zijn binnengekomen en toont ze met één klik. De lijst verandert nooit vanzelf."
+      "newArticlesPillHint": "Een banner boven aan de lijst telt de artikelen die sinds het laden zijn binnengekomen en toont ze met één klik. De lijst verandert nooit vanzelf."
     },
     "branding": {
       "language": "Taal",
@@ -610,6 +610,7 @@
   "refresh": {
     "newArticles_one": "{{count}} nieuw artikel",
     "newArticles_other": "{{count}} nieuwe artikelen",
+    "dismissNewArticles": "Negeren",
     "upToDate": "Bijgewerkt",
     "inProgress": "Feeds worden opgehaald…",
     "failed": "Het ophalen is mislukt",

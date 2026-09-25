@@ -579,13 +579,16 @@ export interface FeedState {
   silentRefresh: () => Promise<void>;
   /** Remet `newInView` à zéro et recharge la liste. */
   loadNewArticles: () => Promise<void>;
+  /** Ignore le bandeau : remet `newInView` à zéro sans rien charger. Il
+   *  réapparaîtra à la prochaine arrivée. */
+  dismissNewArticles: () => void;
   refresh: () => Promise<void>;
   resetAndReload: () => void;
   // Feedback after a manual refresh: how many new articles arrived and where.
   // Drives the "X new articles" banner + the per-feed pulse; cleared after a
   // few seconds by the banner.
   refreshResult: { totalNew: number; newByFeed: Record<string, number>; at: number } | null;
-  /** Articles arrivés dans la vue affichée depuis son chargement (pastille, discussion #14). */
+  /** Articles arrivés dans la vue affichée depuis son chargement (bandeau, discussion #14). */
   newInView: number;
   clearRefreshResult: () => void;
   /** Phase of a real (server-side) feed refresh; 'idle' when none is running. */
@@ -2254,6 +2257,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   loadNewArticles: async () => {
     set({ newInView: 0 });
     await get().loadArticles();
+  },
+
+  dismissNewArticles: () => {
+    set({ newInView: 0 });
   },
 
   setHasRefreshToken: (v: boolean) => set({ hasRefreshToken: v }),

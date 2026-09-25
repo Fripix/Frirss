@@ -188,7 +188,7 @@
       "unreadScopeAll": "Wszystkie kanały",
       "unreadScopeHint": "W trybie „Osobno” każdy kanał zapamiętuje własny wybór. W trybie „Wszystkie kanały” przycisk Nieprzeczytane działa wszędzie. Powrót do „Osobno” usuwa wybory poszczególnych kanałów: każdy kanał zaczyna od bieżącego stanu.",
       "newArticlesPill": "Informuj o nowych artykułach",
-      "newArticlesPillHint": "Plakietka u góry listy liczy artykuły, które przyszły od jej wczytania, i pokazuje je jednym kliknięciem. Lista nigdy nie zmienia się sama."
+      "newArticlesPillHint": "Baner u góry listy liczy artykuły, które przyszły od jej wczytania, i pokazuje je jednym kliknięciem. Lista nigdy nie zmienia się sama."
     },
     "branding": {
       "language": "Język",
@@ -630,6 +630,7 @@
     "newArticles_other": "{{count}} nowych artykułów",
     "newArticles_few": "{{count}} nowe artykuły",
     "newArticles_many": "{{count}} nowych artykułów",
+    "dismissNewArticles": "Odrzuć",
     "upToDate": "Wszystko aktualne",
     "inProgress": "Odświeżanie kanałów…",
     "failed": "Odświeżanie nie powiodło się",

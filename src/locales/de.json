@@ -184,7 +184,7 @@
       "unreadScopeAll": "Alle Feeds",
       "unreadScopeHint": "Bei „Pro Feed“ behält jeder Feed seine eigene Wahl. Bei „Alle Feeds“ gilt die Schaltfläche Ungelesen überall. Zurück zu „Pro Feed“ löscht die Einzelwahl: Jeder Feed startet vom aktuellen Zustand.",
       "newArticlesPill": "Neue Artikel anzeigen",
-      "newArticlesPillHint": "Ein Hinweis oben in der Liste zählt die seit dem Laden eingetroffenen Artikel und zeigt sie mit einem Klick an. Die Liste ändert sich nie von selbst."
+      "newArticlesPillHint": "Ein Banner oben in der Liste zählt die seit dem Laden eingetroffenen Artikel und zeigt sie mit einem Klick an. Die Liste ändert sich nie von selbst."
     },
     "branding": {
       "language": "Sprache",
@@ -610,6 +610,7 @@
   "refresh": {
     "newArticles_one": "{{count}} neuer Artikel",
     "newArticles_other": "{{count}} neue Artikel",
+    "dismissNewArticles": "Verwerfen",
     "upToDate": "Aktuell",
     "inProgress": "Feeds werden abgerufen…",
     "failed": "Abruf fehlgeschlagen",
