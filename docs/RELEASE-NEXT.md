@@ -23,11 +23,19 @@ la release publiée.
   et « Tout lu en dessous » : tous les articles plus anciens, ou plus récents,
   de la vue courante passent lus — y compris ceux que la liste n'a pas encore
   chargés. Ces deux entrées respectent le réglage « Confirmer avant de tout
-  marquer comme lu » (actif par défaut), comme « Tout lu » — un premier clic
-  demande confirmation, un second agit — et n'ont pas d'annulation, comme
-  « Tout lu ». Elles n'apparaissent pas dans Favoris ni À lire plus tard : ce
-  ne sont pas des flux qu'on vide, ce sont des sélections transversales.
-  L'article cliqué, lui, n'est jamais touché. Demandé dans l'issue #15.
+  marquer comme lu » (désactivé par défaut — qui l'a explicitement activé
+  garde son choix), comme « Tout lu » : réglage actif, un premier clic
+  demande confirmation et un second agit ; réglage éteint (le défaut), un
+  seul clic suffit. Aucune des deux n'a d'annulation, comme « Tout lu ».
+  Elles n'apparaissent pas dans Favoris ni À lire plus tard : ce ne sont pas
+  des flux qu'on vide, ce sont des sélections transversales. L'article
+  cliqué, lui, n'est jamais touché. Demandé dans l'issue #15.
+
+- **« Confirmer avant de tout marquer comme lu » est désormais désactivé par
+  défaut.** « Tout lu » et les deux marquages de plage agissent donc au
+  premier clic, sans confirmation, pour qui n'a jamais touché ce réglage
+  (Préférences → Général). Qui l'avait explicitement activé garde son choix —
+  seule la valeur par défaut change.
 
 ## Corrections et améliorations
 

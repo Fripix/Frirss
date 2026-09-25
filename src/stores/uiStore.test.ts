@@ -6,6 +6,14 @@ import { isUnreadOnly } from './uiStore';
 describe('uiStore', () => {
   beforeEach(() => localStorage.clear());
 
+  // Décision du propriétaire (2026-09-25) : sans réglage explicite, « Tout lu »
+  // et les deux marquages de plage agissent au premier clic, sans confirmation.
+  // Qui a explicitement activé la confirmation garde son choix — la valeur
+  // stockée gagne, ce test ne porte que sur le défaut au tout premier chargement.
+  it('confirmMarkAllRead est désactivé par défaut, sans réglage stocké', () => {
+    expect(useUiStore.getState().confirmMarkAllRead).toBe(false);
+  });
+
   it('setAppLogo stores then clears the logo', () => {
     useUiStore.getState().setAppLogo('https://example.com/logo.png');
     expect(useUiStore.getState().appLogo).toBe('https://example.com/logo.png');

@@ -799,7 +799,8 @@ FreshRSS, où le titre est un vrai lien.
   transversales, et une entrée de menu qui ne fait rien est plus déroutante
   qu'une entrée absente — d'où le masquage plutôt qu'un clic qui ne
   produirait rien. **Respectent le réglage « Confirmer avant de tout marquer
-  comme lu »** (`confirmMarkAllRead`, `uiStore`, actif par défaut) :
+  comme lu »** (`confirmMarkAllRead`, `uiStore`, **désactivé par défaut**
+  depuis le 2026-09-25 — qui l'a explicitement activé garde son choix) :
   `ArticleContextMenu` réutilise la même fonction pure que le bouton « Tout
   lu » (`markAllReadAction`, `src/lib/markAllRead.ts`). Premier clic : le
   libellé de l'entrée devient `articleList.confirm` (« Confirmer ? ») sans
