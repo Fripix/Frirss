@@ -866,11 +866,16 @@ FreshRSS, où le titre est un vrai lien.
   backend. Au-delà du plafond `FRIRSS_PROXY_RATE_LIMIT` (600 requêtes par
   utilisateur et par minute par défaut, partagé avec l'extraction d'articles
   — voir *Variables d'environnement*), l'action s'arrête en chemin : la
-  plupart des lots ont déjà été acceptés par le serveur, mais le message
-  d'échec (`toast.markRangeFailed`) parle d'un refus du serveur, pas d'un
-  plafond de débit atteint côté proxy — la distinction n'est pas faite.
-  Aucun indicateur de progression pendant l'opération : rien ne dit qu'elle
-  est en cours ni où elle en est avant qu'elle échoue ou se termine.
+  plupart des lots ont déjà été acceptés par le serveur. `notifyRangeFailure`
+  (`src/stores/feedStore.ts`) distingue désormais ce cas du reste via
+  `scanErrorKind` (`src/lib/scanError.ts`, déjà utilisé par le balayage de
+  recherche) : un 429 affiche `toast.markRangeThrottled` (« trop de
+  requêtes — une partie des articles a bien été marquée, réessayez dans une
+  minute »), tout autre échec garde `toast.markRangeFailed`. Les lots déjà
+  acceptés restent lus dans les deux cas — seuls ceux non confirmés reviennent
+  (voir plus haut). Aucun indicateur de progression pendant l'opération :
+  rien ne dit qu'elle est en cours ni où elle en est avant qu'elle échoue ou
+  se termine.
 - **Piège — le clic droit des boutons Favori et À lire plus tard est
   prioritaire** : leur rangement par catégorie (`useFileGesture`) appelle
   `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou

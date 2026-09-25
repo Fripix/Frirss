@@ -671,7 +671,8 @@
     "loadMoreEmpty": "Volgende pagina geladen, nog steeds niets om te tonen.",
     "markFailed": "De server weigerde dit artikel te markeren: de rij is teruggezet.",
     "markRangeFailed": "De server weigerde deze artikelen te markeren",
-    "markQueued": "De wijziging is niet doorgekomen. Er wordt later opnieuw geprobeerd."
+    "markQueued": "De wijziging is niet doorgekomen. Er wordt later opnieuw geprobeerd.",
+    "markRangeThrottled": "Te veel aanvragen — een deel van de artikelen is gemarkeerd. Probeer het over een minuut opnieuw."
   },
   "palette": {
     "title": "Opdrachtenpalet",

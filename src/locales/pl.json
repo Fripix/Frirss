@@ -693,7 +693,8 @@
     "loadMoreEmpty": "Załadowano kolejną stronę, wciąż nic do wyświetlenia.",
     "markFailed": "Serwer odmówił oznaczenia tego artykułu: wiersz został przywrócony.",
     "markRangeFailed": "Serwer odmówił oznaczenia tych artykułów",
-    "markQueued": "Zmiana nie doszła do skutku. Zostanie ponowiona później."
+    "markQueued": "Zmiana nie doszła do skutku. Zostanie ponowiona później.",
+    "markRangeThrottled": "Zbyt wiele żądań — część artykułów została oznaczona. Spróbuj ponownie za minutę."
   },
   "palette": {
     "title": "Paleta poleceń",

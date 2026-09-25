@@ -671,7 +671,8 @@
     "loadMoreEmpty": "下一页已加载，但仍无内容。",
     "markFailed": "服务器拒绝标记该文章，已重新放回列表。",
     "markRangeFailed": "服务器拒绝标记这些文章",
-    "markQueued": "更改未成功，稍后将自动重试。"
+    "markQueued": "更改未成功，稍后将自动重试。",
+    "markRangeThrottled": "请求过多 — 部分文章已标记，请一分钟后重试。"
   },
   "palette": {
     "title": "命令面板",

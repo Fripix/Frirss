@@ -376,6 +376,57 @@ describe('markReadRelative — message d’échec (I3)', () => {
   });
 });
 
+// Le plafond du proxy (429, `FRIRSS_PROXY_RATE_LIMIT`) n'est pas un refus : le
+// serveur a demandé de ralentir, pas rejeté les articles. `scanErrorKind`
+// (`src/lib/scanError.ts`) le distingue déjà pour le balayage de recherche ;
+// `markReadRelative` doit le réutiliser plutôt que de laisser un 429 tomber
+// dans la même case qu'un 403/404 (`toast.markRangeFailed`, qui mentirait
+// deux fois : ni refus, ni « ces articles » en bloc alors que la plupart des
+// lots ont déjà été acceptés).
+describe('markReadRelative — plafond du proxy (429)', () => {
+  it('avertit du plafond, pas d’un refus, quand le serveur répond 429', async () => {
+    vi.mocked(markAllAsRead).mockRejectedValueOnce({ response: { status: 429 } });
+
+    await useFeedStore.getState().markReadRelative(pivot, 'below');
+
+    const [toast] = useUiStore.getState().toasts;
+    expect(toast).toMatchObject({ message: 'toast.markRangeThrottled', tone: 'error' });
+  });
+
+  // Même scénario que I5 (« échec partiel par lots » ci-dessus) mais avec un
+  // 429 au lieu d'un refus : le plafond arrête l'envoi des lots suivants sans
+  // jamais défaire ceux que le serveur avait déjà acceptés. Le comportement
+  // est censé être partagé avec le chemin « refus » — à prouver spécifiquement
+  // sur celui-ci, pas seulement supposé.
+  it('les lots acceptés restent lus quand le lot suivant heurte le plafond', async () => {
+    const enLot1 = 'tag:google.com,2005:reader/item/00065a872a7552bc'; // premier lot (accepté)
+    const enLot1Usec = '1788386439680700';
+    const enLot2 = 'tag:google.com,2005:reader/item/00065a872a755320'; // second lot (429)
+    const enLot2Usec = '1788386439680800';
+    useFeedStore.setState({
+      articles: [article(enLot2, 2_000), article(enLot1, 1_000), pivot],
+    } as never);
+
+    const remplissage = (n: number, decalage: number) =>
+      Array.from({ length: n }, (_, i) => `9000000000000${String(decalage + i).padStart(3, '0')}`);
+    const ids = [...remplissage(40, 0), enLot1Usec, ...remplissage(59, 100),
+      ...remplissage(40, 200), enLot2Usec, ...remplissage(9, 300)];
+    vi.mocked(itemIdsNewerThanEntry).mockResolvedValue(ids);
+    vi.mocked(markAsRead)
+      .mockResolvedValueOnce(undefined) // premier lot : accepté par le serveur
+      .mockRejectedValueOnce({ response: { status: 429 } }); // deuxième lot : plafond
+
+    await useFeedStore.getState().markReadRelative(pivot, 'above');
+
+    expect(markAsRead).toHaveBeenCalledTimes(2); // le troisième lot n'est jamais tenté
+    const parId = Object.fromEntries(useFeedStore.getState().articles.map((a) => [a.id, a.read]));
+    expect(parId[enLot1]).toBe(true); // lot accepté : reste lu
+    expect(parId[enLot2]).toBe(false); // lot au 429 : revient
+    const [toast] = useUiStore.getState().toasts;
+    expect(toast).toMatchObject({ message: 'toast.markRangeThrottled', tone: 'error' });
+  });
+});
+
 // Le corpus de recherche gardé (`searchCorpus`) est repatché par identifiant
 // d'entrée. Ces tests installent un vrai corpus via `search()`, comme
 // `feedStore.search.test.ts`.

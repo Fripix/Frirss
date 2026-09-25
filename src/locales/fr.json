@@ -671,7 +671,8 @@
     "loadMoreEmpty": "Page suivante chargée, toujours rien à afficher.",
     "markFailed": "Le serveur a refusé de marquer cet article : sa ligne a été remise.",
     "markRangeFailed": "Le serveur a refusé de marquer ces articles",
-    "markQueued": "Le marquage n’est pas passé. Il sera réessayé plus tard."
+    "markQueued": "Le marquage n’est pas passé. Il sera réessayé plus tard.",
+    "markRangeThrottled": "Trop de requêtes — une partie des articles a bien été marquée. Réessayez dans une minute."
   },
   "palette": {
     "title": "Palette de commandes",

@@ -671,7 +671,8 @@
     "loadMoreEmpty": "Página seguinte carregada, ainda sem nada para mostrar.",
     "markFailed": "O servidor recusou marcar este artigo: a linha foi reposta.",
     "markRangeFailed": "O servidor recusou marcar esses artigos",
-    "markQueued": "A alteração não passou. Será tentada novamente mais tarde."
+    "markQueued": "A alteração não passou. Será tentada novamente mais tarde.",
+    "markRangeThrottled": "Muitos pedidos — alguns artigos foram marcados. Tente novamente em um minuto."
   },
   "palette": {
     "title": "Paleta de comandos",

@@ -154,8 +154,21 @@ async function notifyWriteFailure(err: unknown): Promise<void> {
  * serveur a répondu, le hors-ligne véritable reste muet. Seul le texte
  * change — « ces articles » (`toast.markRangeFailed`), pas « cet article : sa
  * ligne a été remise », qui décrit le rollback d'une seule ligne.
+ *
+ * Le plafond du proxy (429, `FRIRSS_PROXY_RATE_LIMIT`) est écarté AVANT cette
+ * décision : `writeFailureNotice` le rangerait sous « refus » (un 429 n'est
+ * ni un 5xx ni une absence de réponse, donc `isNetworkFailure` dit faux), ce
+ * qui mentirait deux fois — le serveur n'a pas refusé, il a demandé de
+ * ralentir, et la plupart des lots ont déjà été acceptés au moment où il le
+ * demande. `scanErrorKind` (`src/lib/scanError.ts`) porte déjà cette
+ * distinction pour le balayage de recherche ; on la réutilise ici plutôt que
+ * d'en écrire une deuxième.
  */
 async function notifyRangeFailure(err: unknown): Promise<void> {
+  if (scanErrorKind(err) === 'rate-limit') {
+    await pushI18nToast('toast.markRangeThrottled', { tone: 'error' });
+    return;
+  }
   const notice = writeFailureNotice({
     networkFailure: isNetworkFailure(err),
     online: typeof navigator === 'undefined' ? true : navigator.onLine,

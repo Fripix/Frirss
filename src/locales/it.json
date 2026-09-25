@@ -671,7 +671,8 @@
     "loadMoreEmpty": "Pagina successiva caricata, ancora nulla da mostrare.",
     "markFailed": "Il server ha rifiutato di contrassegnare questo articolo: la riga è stata ripristinata.",
     "markRangeFailed": "Il server ha rifiutato di contrassegnare questi articoli",
-    "markQueued": "La modifica non è andata a buon fine. Verrà ritentata più tardi."
+    "markQueued": "La modifica non è andata a buon fine. Verrà ritentata più tardi.",
+    "markRangeThrottled": "Troppe richieste — alcuni articoli sono stati contrassegnati. Riprova tra un minuto."
   },
   "palette": {
     "title": "Palette dei comandi",
