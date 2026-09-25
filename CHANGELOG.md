@@ -6,6 +6,81 @@ release live on its [release page](https://github.com/Fripix/Frirss/releases).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 FriRSS follows [semantic versioning](https://semver.org/).
 
+## [1.4.12] - 2026-09-25
+
+## Fonctionnalités
+
+- **Un bandeau signale les nouveaux articles.** Quand de nouveaux articles
+  arrivent dans la vue affichée, un bandeau pleine largeur « ↑ N nouveaux
+  articles » se pose en haut de la liste ; un clic dessus les charge, une
+  croix à droite l'ignore (il reviendra à la prochaine arrivée). La liste ne
+  change jamais d'elle-même. Désactivable dans Préférences → Général. Demandé
+  dans la discussion #14.
+
+- **Marquer lu tout ce qui précède — ou suit — un article.** Le menu d'un
+  article (clic droit, appui long, touche Menu) propose « Tout lu au-dessus »
+  et « Tout lu en dessous » : tous les articles plus anciens, ou plus récents,
+  de la vue courante passent lus — y compris ceux que la liste n'a pas encore
+  chargés. Ces deux entrées respectent le réglage « Confirmer avant de tout
+  marquer comme lu » (désactivé par défaut — qui l'a explicitement activé
+  garde son choix), comme « Tout lu » : réglage actif, un premier clic
+  demande confirmation et un second agit ; réglage éteint (le défaut), un
+  seul clic suffit. Aucune des deux n'a d'annulation, comme « Tout lu ».
+  Elles n'apparaissent pas dans Favoris ni À lire plus tard : ce ne sont pas
+  des flux qu'on vide, ce sont des sélections transversales. L'article
+  cliqué, lui, n'est jamais touché. Demandé dans l'issue #15.
+
+- **« Confirmer avant de tout marquer comme lu » est désormais désactivé par
+  défaut.** « Tout lu » et les deux marquages de plage agissent donc au
+  premier clic, sans confirmation, pour qui n'a jamais touché ce réglage
+  (Préférences → Général). Qui l'avait explicitement activé garde son choix —
+  seule la valeur par défaut change.
+
+## Corrections et améliorations
+
+- **Le menu d'un article porte des icônes et se lit en trois groupes.** Chaque
+  entrée est précédée de son icône, alignée sur une colonne, et un filet
+  sépare ce qui ouvre l'article (Ouvrir la source, Marquer lu/non lu) de ce qui
+  agit sur une plage (Tout lu au-dessus, Tout lu en dessous) et de ce qui range
+  (Favori, À lire plus tard, Copier le lien). Un menu de sept entrées à plat
+  obligeait à tout lire pour en trouver une.
+
+- **La barre d'action du volet de lecture ne casse plus ses libellés en deux
+  lignes.** Dès que la place manquait, les boutons (Non lu, Favori, Plus
+  tard, Étiquettes, Article complet, Original, Partager) passaient sur deux
+  lignes et la barre doublait de hauteur. Les libellés restent maintenant sur
+  une ligne, et se replient en icônes seules (nom conservé pour les lecteurs
+  d'écran) quand la barre elle-même n'a plus la place — pas l'écran, la barre :
+  la colonne de liste peut se redimensionner.
+
+- **Le menu d'un article ne se referme plus en levant le doigt (iOS).** Un appui
+  long faisait bien apparaître la feuille, mais le clic d'écho émis par iOS au
+  moment où le doigt se lève tombait sur le fond de la feuille et la refermait
+  aussitôt : le menu était inutilisable au doigt la plupart du temps. Le fond ne
+  devient actif qu'une fois le doigt qui a ouvert la feuille effectivement
+  relevé. Le geste attendu fonctionne : garder le doigt appuyé pour faire
+  apparaître le menu, lever, puis appuyer sur l'entrée voulue.
+
+- **Un marquage de plage bridé par le plafond de requêtes le dit.** Quand
+  « Tout lu au-dessus » heurtait la limite du proxy, le message annonçait un
+  refus du serveur alors qu'une partie des articles était bien passée. Il
+  distingue maintenant les deux cas et invite à réessayer dans une minute.
+
+- **La recherche filtre enfin.** Elle ne filtrait rien : FriRSS envoyait un
+  paramètre `q` que l'API Google Reader de FreshRSS n'a jamais lu — vérifié sur
+  les versions 1.20.2, 1.23.1, 1.24.3, 1.26.0 et 1.27.0 — et le serveur
+  renvoyait le flux entier. Un terme inexistant ramenait quand même tous les
+  articles. Le filtrage se fait
+  désormais dans le navigateur : FriRSS balaye le périmètre de la vue courante
+  (flux, catégorie, ou tous les flux), articles lus compris, affiche les
+  correspondances au fur et à mesure avec un compteur et un bouton pour
+  arrêter, et ne dit « aucun résultat » qu'une fois le balayage terminé. Les
+  accents et la casse sont ignorés, tous les mots de la requête sont exigés.
+  Hors ligne, la recherche fouille ce que l'appareil détient et le dit.
+  **Changement de comportement** : changer de flux, de filtre ou de catégorie
+  referme désormais la recherche, au lieu de laisser la boîte remplie au-dessus
+  d'une autre vue.
+
 ## [1.4.11] - 2026-09-14
 
 ## Fonctionnalités
