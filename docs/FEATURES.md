@@ -1372,6 +1372,26 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   `<svg>`**, silencieusement. Une icône SVG dans le HTML d'un article ressort
   vide — dessiner ces icônes en CSS. Ne **pas** élargir le profil : le HTML des
   articles vient de sources non fiables.
+- **Barre d'action (desktop) — libellés insécables, repli en icônes** : les
+  libellés des boutons (Non lu, Favori, Plus tard, Étiquettes, Article
+  complet, Original, Partager) ne se coupent jamais (`white-space: nowrap`,
+  classe `.toolbar-label`) ; quand la barre manque de place, ils disparaissent
+  visuellement mais restent dans l'arbre d'accessibilité (technique
+  `sr-only`) plutôt que de passer sur deux lignes. Piloté par une **requête de
+  conteneur**, pas un `ResizeObserver` : c'est la largeur de la barre
+  elle-même qui décide, pas celle de l'écran — la colonne de liste se
+  redimensionne. Le conteneur (`container-type`, nommé `reading-toolbar`) est
+  posé sur `.reading-pane`, le PARENT de la barre, pas sur la barre elle-même
+  : une règle ne peut pas interroger la taille de l'élément qu'elle stylise.
+  Deux seuils, mesurés en rendant le vrai balisage contre la feuille de style
+  construite (`getBoundingClientRect()`) : **1000px** (labels → icônes,
+  largeur naturelle mesurée 928-948px) et **560px** (rembourrage/icônes
+  resserrés en plus, sinon les icônes seules débordaient encore à 320px de
+  volet — colonne de liste élargie sur un petit écran ; plancher mesuré
+  ~260px, marge d'environ 55px à 320px).
+- **Focus de lecture** et **taille du texte** sont déjà icônes seules dans
+  cette barre (pas de libellé à coucher) ; ils rétrécissent quand même dans le
+  repli compact (classe `.toolbar-icon-btn`) pour tenir dans le même budget.
 
 ### Extraction du contenu complet
 Pour les flux tronqués, récupération de l'article complet, avec cache à deux

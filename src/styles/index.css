@@ -622,6 +622,92 @@ html {
   to   { opacity: 1; }
 }
 
+/* ── Barre d'action du volet de lecture — libellés insécables ───────── */
+/* Constat du propriétaire (capture à l'appui) : dès que la place manquait,
+   les libellés (« Non lu », « Favori », …) passaient sur deux lignes et la
+   barre doublait de hauteur. `white-space: nowrap` interdit la coupure ;
+   le repli en icônes seules est piloté par une requête de CONTENEUR — la
+   largeur de la barre elle-même, pas celle de l'écran, puisque la colonne
+   de liste se redimensionne — plutôt que par un `ResizeObserver`.
+   Seuil mesuré, pas deviné : le vrai balisage de la barre rendu contre la
+   feuille de style construite (`npm run build`), tous les boutons présents
+   (article non lu) et la variante la plus large de chaque bouton à deux
+   états (« Article complet » plutôt que « Contenu RSS », « Copier le
+   lien » plutôt que « Partager »). Largeur naturelle mesurée : 928px, et
+   ~948px avec un compteur d'étiquettes affiché (« Étiquettes (3) ») → seuil
+   fixé à 1000px, une marge d'environ 5 %. En repli, le libellé reste dans
+   l'arbre d'accessibilité (technique `sr-only`) : chaque bouton garde son
+   nom, et `title` (déjà posé sur tous ces boutons) dit ce que fait l'icône
+   au survol.
+   Le conteneur est posé sur `.reading-pane` (le PARENT de la barre), pas sur
+   la barre elle-même : une règle CSS qui cible un élément ne peut pas
+   interroger la taille de CE MÊME élément (elle retombe sur le conteneur
+   ANCÊTRE le plus proche) — posé sur `.reading-toolbar`, tout ce qui stylait
+   la barre elle-même (repli compact ci-dessous) restait silencieusement
+   sans effet ; seuls les DESCENDANTS de la barre en bénéficiaient. */
+.reading-pane {
+  container-type: inline-size;
+  container-name: reading-toolbar;
+}
+.toolbar-label {
+  white-space: nowrap;
+}
+@container reading-toolbar (max-width: 1000px) {
+  .toolbar-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+/* Repli compact : en dessous de 1000px, les icônes seules tiennent déjà
+   confortablement (531px mesurés, tous boutons compris) jusqu'à ~531px de
+   volet. En dessous, sans resserrer, elles débordaient encore à 320px (531 >
+   320 — cas réel : colonne de liste élargie sur un petit écran). Un second
+   palier resserre le rembourrage, les icônes et les séparateurs ; mesuré
+   jusqu'à tenir sans déborder à 320px avec ~55px de marge (plancher observé
+   ~260px). `flex-shrink: 0` partout : sans lui, les boutons rétrécissaient
+   en continu au lieu de se fixer sur leur taille compacte, rendant le seuil
+   instable d'une mesure à l'autre. */
+@container reading-toolbar (max-width: 560px) {
+  .reading-toolbar {
+    gap: 1px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+  .reading-toolbar .action-btn,
+  .reading-toolbar .toolbar-icon-btn,
+  .reading-toolbar .toolbar-spacer,
+  .reading-toolbar svg {
+    flex-shrink: 0;
+  }
+  .reading-toolbar .action-btn {
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+  .reading-toolbar .toolbar-icon-btn {
+    padding: 3px;
+  }
+  .reading-toolbar .toolbar-sep,
+  .reading-toolbar .font-size-value {
+    display: none;
+  }
+  .reading-toolbar .toolbar-spacer {
+    flex-grow: 0;
+    width: 0;
+    min-width: 0;
+  }
+  .reading-toolbar svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
 /* ── Reading toolbar — responsive sizing (mobile + tablet layout) ──── */
 :where([data-layout="mobile"], [data-layout="tablet"]) .reading-toolbar {
   justify-content: space-around;

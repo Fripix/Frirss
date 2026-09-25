@@ -866,7 +866,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         {showBack && (
           <button
             onClick={() => selectArticle(null)}
-            className="p-1.5 rounded-lg transition-colors hover:bg-black/5 mr-1"
+            className="toolbar-icon-btn p-1.5 rounded-lg transition-colors hover:bg-black/5 mr-1"
             style={{ color: 'var(--accent)' }}
             title={t('readingPane.back')}
             aria-label={t('readingPane.back')}
@@ -963,7 +963,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
             )}
-            <span>{extracting ? t('readingPane.extracting') : extractedContent ? t('readingPane.showRss') : t('readingPane.fullContent')}</span>
+            <span className="toolbar-label">{extracting ? t('readingPane.extracting') : extractedContent ? t('readingPane.showRss') : t('readingPane.fullContent')}</span>
           </button>
         )}
 
@@ -983,7 +983,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
             </svg>
-            <span>{t('readingPane.openOriginal')}</span>
+            <span className="toolbar-label">{t('readingPane.openOriginal')}</span>
           </a>
         )}
 
@@ -999,7 +999,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
             </svg>
-            <span>{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
+            <span className="toolbar-label">{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
           </button>
         )}
 
@@ -1009,7 +1009,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         {/* Reading Focus toggle (hide sidebar + list) */}
         <button
           onClick={toggleReadingFocus}
-          className="p-1.5 rounded-lg transition-colors hover:bg-black/5 flex-shrink-0"
+          className="toolbar-icon-btn p-1.5 rounded-lg transition-colors hover:bg-black/5 flex-shrink-0"
           style={{ color: readingFocus ? 'var(--accent)' : 'var(--list-summary)' }}
           title={`${readingFocus ? t('readingPane.focusExit') : t('readingPane.focusEnter')} — ${t('readingPane.focusHint')}`}
           aria-pressed={readingFocus}
@@ -1027,7 +1027,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             onClick={decFont}
-            className="p-1 rounded transition-colors hover:bg-black/5"
+            className="toolbar-icon-btn p-1 rounded transition-colors hover:bg-black/5"
             style={{ color: 'var(--list-summary)' }}
             title={`${t('sidebar.reduceText')} (${fontVal}px)`}
             aria-label={`${t('sidebar.reduceText')} (${fontVal}px)`}
@@ -1038,14 +1038,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </svg>
           </button>
           <span
-            className="text-[10px] font-mono min-w-[28px] text-center"
+            className="font-size-value text-[10px] font-mono min-w-[28px] text-center"
             style={{ color: 'var(--list-summary)' }}
           >
             {fontVal}
           </span>
           <button
             onClick={incFont}
-            className="p-1 rounded transition-colors hover:bg-black/5"
+            className="toolbar-icon-btn p-1 rounded transition-colors hover:bg-black/5"
             style={{ color: 'var(--list-summary)' }}
             title={`${t('sidebar.enlargeText')} (${fontVal}px)`}
             aria-label={`${t('sidebar.enlargeText')} (${fontVal}px)`}
@@ -1525,7 +1525,7 @@ function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFil
       aria-label={label}
     >
       {icon}
-      <span>{label}</span>
+      <span className="toolbar-label">{label}</span>
     </button>
   );
 }
@@ -1620,7 +1620,7 @@ function LabelMenu({ article, variant }: LabelMenuProps) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
       </svg>
-      <span>{t('readingPane.labels')}{hasLabels ? ` (${articleLabels.length})` : ''}</span>
+      <span className="toolbar-label">{t('readingPane.labels')}{hasLabels ? ` (${articleLabels.length})` : ''}</span>
     </button>
   );
 
