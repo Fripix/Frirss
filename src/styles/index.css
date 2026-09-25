@@ -2118,7 +2118,12 @@ summary:focus-visible,
 /* Emplacement collant de hauteur nulle : la pastille flotte en haut de la
    liste sans décaler les lignes. Couleurs de l'accent, texte `--on-accent`
    (le blanc sur l'accent par défaut ne fait que 1,9:1). Entrée animée une
-   seule fois ; rien sous « réduire les animations ». */
+   seule fois ; rien sous « réduire les animations ».
+   Retouche « autocollant » (demande du propriétaire, la pastille se fondait
+   trop dans la liste) : elle reste verte, mais devient un objet posé SUR la
+   liste — liseré `--panel-bg` + ombre portée qui la découpent du texte
+   recouvert, et un voile dégradé (`::before`, sous la classe
+   `--filled` seulement) qui écarte la ligne du dessous de ce même texte. */
 .new-articles-slot {
   position: sticky;
   top: 0;
@@ -2127,20 +2132,37 @@ summary:focus-visible,
   display: flex;
   justify-content: center;
 }
+/* Le voile n'existe QUE quand une pastille est posée (`count > 0` côté
+   composant) : l'emplacement, lui, reste monté même à zéro pour `aria-live`,
+   et un voile permanent sans rien à découper serait injustifié.
+   `z-index: -1` le maintient DERRIÈRE la pastille (élément non positionné,
+   donc peint avant tout positionné sans cette valeur négative) sans sortir du
+   contexte d'empilement de `.new-articles-slot` (déjà positionné, z-index 15). */
+.new-articles-slot--filled::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, var(--panel-bg) 30%, transparent);
+}
 .new-articles-pill {
-  margin-top: 8px;
+  margin-top: 16px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
-  padding: 6px 14px;
+  min-height: 34px;
+  padding: 7px 16px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
   background: var(--accent);
   color: var(--on-accent);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 0 0 3px var(--panel-bg), 0 6px 20px rgba(0, 0, 0, 0.28);
   animation: new-articles-in 0.3s ease-out;
 }
 @keyframes new-articles-in {

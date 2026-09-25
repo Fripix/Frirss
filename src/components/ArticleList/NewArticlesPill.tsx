@@ -20,12 +20,24 @@ interface NewArticlesPillProps {
  * `enabled` (M6, revue finale) : le réglage éteint ne rend RIEN, pas même la
  * région `aria-live` — sinon un lecteur d'écran continuerait d'entendre un
  * décompte que l'utilisateur a désactivé.
+ *
+ * L'« autocollant » (retouche visuelle, demande du propriétaire) : la pastille
+ * reste verte mais se pose désormais SUR la liste plutôt que collée à l'en-tête,
+ * un liseré `--panel-bg` la découpant du texte qu'elle recouvre. La classe
+ * `new-articles-slot--filled` n'est posée que quand une pastille y est
+ * effectivement affichée : c'est elle qui active le voile (`::before`,
+ * `src/styles/index.css`) qui écarte la ligne du dessous du texte de la
+ * pastille — sans elle, le voile resterait affiché en permanence, alors que
+ * l'emplacement, lui, reste monté même à zéro pour `aria-live`.
  */
 export default function NewArticlesPill({ enabled, count, onClick }: NewArticlesPillProps) {
   const { t } = useTranslation();
   if (!enabled) return null;
   return (
-    <div className="new-articles-slot" aria-live="polite">
+    <div
+      className={`new-articles-slot${count > 0 ? ' new-articles-slot--filled' : ''}`}
+      aria-live="polite"
+    >
       {count > 0 && (
         <button type="button" className="new-articles-pill" onClick={onClick}>
           <span aria-hidden="true">↑</span>

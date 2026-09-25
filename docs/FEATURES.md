@@ -1038,9 +1038,20 @@ défaut). Demandé dans la discussion #14.
   (renommer ou déplacer une catégorie, ajouter un flux) reprend les compteurs
   du serveur sans rien compter : les arrivées de la minute qui précède ces
   actions ne sont pas signalées.
-- **Discrète par construction** : l'emplacement est `sticky` et de hauteur
-  nulle (rien ne se décale) ; l'entrée n'est animée qu'une fois, le bouton
-  restant le même élément quand le nombre change ; aucune animation sous
+- **L'autocollant** (retouche visuelle — la pastille se fondait trop dans la
+  liste, même vert que le reste de l'app) : l'emplacement (`.new-articles-slot`)
+  reste `sticky` et de hauteur nulle (rien ne se décale), mais la pastille
+  elle-même est désormais posée SUR la liste plutôt que collée à l'en-tête —
+  `margin-top: 16px` (au lieu de 8), un liseré `--panel-bg` de 3px plus une
+  ombre portée (`box-shadow`, `src/styles/index.css`) qui la découpent du texte
+  recouvert. Un voile dégradé (`::before` sur `.new-articles-slot--filled`,
+  `background` en dégradé vers `--panel-bg`, `pointer-events: none`, `z-index:
+  -1`) écarte en plus la ligne du dessous de ce même texte. La classe
+  `--filled` n'est posée QUE quand une pastille est effectivement affichée
+  (`count > 0` dans `NewArticlesPill.tsx`) : l'emplacement, lui, reste monté
+  même à zéro pour `aria-live`, et un voile permanent sans rien à découper
+  serait injustifié. L'entrée n'est animée qu'une fois, le bouton restant le
+  même élément quand le nombre change ; aucune animation sous
   `prefers-reduced-motion` ; région `aria-live="polite"` montée tant que le
   réglage est actif, qui annonce le nouveau nombre à son apparition et à
   chaque changement (une disparition n'est PAS annoncée — `aria-relevant` par

@@ -43,4 +43,21 @@ describe('NewArticlesPill', () => {
     expect(container.querySelector('[aria-live="polite"]')).toBeNull();
     expect(container.innerHTML).toBe('');
   });
+
+  // L'emplacement reste monté à zéro (aria-live oblige) : le voile qui
+  // découpe la pastille du texte qu'elle recouvre ne doit donc apparaître
+  // QUE quand une pastille y est effectivement posée — sinon il resterait
+  // affiché en permanence, y compris sans rien à découper.
+  it('ne porte la classe modificatrice du voile que lorsqu’une pastille est affichée', () => {
+    const { container, rerender } = render(<NewArticlesPill enabled count={0} onClick={() => {}} />);
+    const slotAtZero = container.querySelector('.new-articles-slot');
+    expect(slotAtZero).not.toBeNull();
+    expect(slotAtZero?.className).not.toContain('new-articles-slot--filled');
+
+    rerender(<NewArticlesPill enabled count={3} onClick={() => {}} />);
+    expect(container.querySelector('.new-articles-slot')?.className).toContain('new-articles-slot--filled');
+
+    rerender(<NewArticlesPill enabled count={0} onClick={() => {}} />);
+    expect(container.querySelector('.new-articles-slot')?.className).not.toContain('new-articles-slot--filled');
+  });
 });
