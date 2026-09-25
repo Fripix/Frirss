@@ -22,6 +22,23 @@ interface BottomSheetProps {
 const BACKDROP_GRACE_MS = 300;
 
 /**
+ * Nombre de contacts tactiles actuellement posés sur l'écran. Tenu à jour au
+ * niveau du module — un seul jeu d'écouteurs, jamais réinstallé à chaque
+ * ouverture de feuille — pour que n'importe quelle instance puisse savoir,
+ * dès son ouverture, si un doigt est déjà sur l'écran.
+ */
+let activeTouchCount = 0;
+function trackActiveTouches(e: Event) {
+  const touches = (e as TouchEvent).touches;
+  if (touches) activeTouchCount = touches.length;
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('touchstart', trackActiveTouches, { capture: true, passive: true });
+  document.addEventListener('touchend', trackActiveTouches, { capture: true, passive: true });
+  document.addEventListener('touchcancel', trackActiveTouches, { capture: true, passive: true });
+}
+
+/**
  * Feuille glissant depuis le bas, pour les menus du format mobile.
  *
  * Le motif existait déjà — le menu d'étiquettes du volet de lecture le posait
@@ -31,11 +48,50 @@ const BACKDROP_GRACE_MS = 300;
  * seule implémentation ici, utilisée par les trois.
  *
  * Échap ferme, le fond aussi ; le contenu ne propage pas le clic.
+ *
+ * Armement du fond : pourquoi attendre le lever du doigt qui a ouvert la
+ * feuille. L'appui long qui déclenche l'ouverture tient le doigt posé
+ * pendant que la feuille glisse à l'écran ; iOS n'émet son clic de
+ * compatibilité (celui que la grâce doit absorber) qu'au moment où ce doigt
+ * se lève — pas à l'ouverture. Compter la grâce depuis l'ouverture suppose
+ * donc que le lever suit de près, ce qui n'est vrai que si l'appui est bref :
+ * dès que l'utilisateur garde le doigt posé une seconde de plus, le clic
+ * d'écho arrive largement après la fenêtre et referme la feuille aussitôt
+ * ouverte — le bug observé « la plupart du temps ». La seule garantie fiable
+ * est différente : si un doigt est déjà sur l'écran à l'ouverture, c'est
+ * forcément lui qui vient de l'ouvrir, donc on n'arme le fond qu'après SON
+ * lever (`touchend`/`touchcancel`), et on ne compte la grâce qu'à partir de
+ * là. Sans contact actif à l'ouverture (tape, clavier), rien ne change : la
+ * grâce est comptée depuis l'ouverture, comme avant.
  */
 export default function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
-  const openedAt = useRef<number | null>(null);
+  const armed = useRef(false);
+
   useEffect(() => {
-    openedAt.current = open ? Date.now() : null;
+    armed.current = false;
+    if (!open) return;
+
+    let graceTimer: ReturnType<typeof setTimeout> | undefined;
+    function arm() {
+      graceTimer = setTimeout(() => {
+        armed.current = true;
+      }, BACKDROP_GRACE_MS);
+    }
+
+    if (activeTouchCount === 0) {
+      arm();
+    } else {
+      // Un doigt est encore posé : c'est l'appui long qui vient d'ouvrir la
+      // feuille. On attend son lever avant de compter la grâce.
+      document.addEventListener('touchend', arm, { once: true, capture: true });
+      document.addEventListener('touchcancel', arm, { once: true, capture: true });
+    }
+
+    return () => {
+      if (graceTimer) clearTimeout(graceTimer);
+      document.removeEventListener('touchend', arm, true);
+      document.removeEventListener('touchcancel', arm, true);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -53,8 +109,8 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
   if (!open) return null;
 
   function onBackdropClick() {
-    // Écho du geste d'ouverture : ignoré, pas fermé (voir BACKDROP_GRACE_MS).
-    if (openedAt.current !== null && Date.now() - openedAt.current < BACKDROP_GRACE_MS) return;
+    // Pas encore armé : écho du geste d'ouverture, ignoré (voir plus haut).
+    if (!armed.current) return;
     onClose();
   }
 
