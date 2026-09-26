@@ -1,4 +1,4 @@
-# 1.4.13 — en préparation
+# 1.5.0 — en préparation
 
 Journal des changements du cycle en cours, tenu au fil de l'eau. Il alimente les
 notes de la release GitHub et les corrections du README, puis se vide une fois
