@@ -1686,6 +1686,29 @@ nouveaux articles, puis sonde le travail en cours et remplit la liste au fil de
 l'eau. Sans jeton configuré, il se contente d'une relecture — le comportement
 d'origine.
 
+### Ce qui tient les articles à jour sans toucher au bouton
+
+Question récurrente du support (discussion #14) : **FriRSS ne collecte jamais de
+lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
+
+1. **FreshRSS collecte**, par sa propre planification — `CRON_MIN` sur l'image
+   LinuxServer, `app/actualize_script.php` en tâche planifiée ailleurs. Sans
+   elle, aucun nouvel article n'entre : côté FriRSS, seul le bouton Rafraîchir
+   déclenche une relève, et il faut la demander.
+2. **FriRSS constate**, toutes les **60 secondes** (`App.tsx`, valeur en dur,
+   pas un réglage) : `syncCounts()` relit les compteurs de non-lus, et les
+   hausses des flux de la vue affichée alimentent le bandeau « nouveaux
+   articles ». Un retour sur l'onglet ajoute un `silentRefresh()` complet. La
+   liste ne se recharge jamais d'elle-même.
+3. **Le cache n'y change rien.** Il est *write-through* et n'est servi que sur
+   demande explicite du client (en-tête `X-Cache-Only`, peinture instantanée au
+   démarrage) ; toute autre lecture part en direct vers FreshRSS.
+   `CACHE_SYNC_INTERVAL` pré-remplit Redis pour que l'ouverture soit instantanée,
+   il ne fait jamais collecter FreshRSS.
+
+Délai réel entre la publication et le bandeau : la période du cron FreshRSS
+(15 min par défaut sur l'image LinuxServer) plus au plus 60 s.
+
 - **Où** : `server/actualizeRequest.ts`, `server/refreshJobs.ts`,
   `server/routes/servers.ts` (`/:id/actualize`), `src/lib/refreshPolling.ts`,
   `src/components/Preferences/servers/RefreshTokenField.tsx`,
