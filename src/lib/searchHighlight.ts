@@ -77,19 +77,32 @@ export function highlight(text: string, terms: readonly string[]): Segment[] {
   return segments;
 }
 
-/** Combien de texte garder de part et d'autre de la correspondance. */
-const SNIPPET_RADIUS = 90;
+/**
+ * Combien de texte garder AVANT la correspondance.
+ *
+ * Volontairement court. La ligne d'article coupe le résumé à deux lignes
+ * (`line-clamp-2`), soit ~90 caractères dans un panneau de liste ordinaire :
+ * un extrait qui CENTRE la correspondance la pousse hors du cadre visible.
+ * Mesuré sur l'instance de dev le 2026-09-27, avec un rayon de 90 de part et
+ * d'autre : 29 extraits sur 34 avaient leur terme surligné coupé — la ligne
+ * restait inexpliquée, ce que l'extrait existe précisément pour corriger.
+ */
+const SNIPPET_LEAD = 20;
+
+/** Longueur visée, contexte d'après compris : de quoi remplir les deux lignes. */
+const SNIPPET_LENGTH = 200;
 
 /**
  * Le voisinage de la première correspondance, entre ellipses ; `null` si le
- * texte ne correspond pas.
+ * texte ne correspond pas. La correspondance tombe au DÉBUT, pour rester
+ * visible là où la ligne coupe.
  */
-export function snippet(text: string, terms: readonly string[], radius = SNIPPET_RADIUS): string | null {
+export function snippet(text: string, terms: readonly string[], lead = SNIPPET_LEAD): string | null {
   const ranges = terms.length ? hitRanges(text, terms) : [];
   if (!ranges.length) return null;
-  const [start, end] = ranges[0];
-  const from = Math.max(0, start - radius);
-  const to = Math.min(text.length, end + radius);
+  const [start] = ranges[0];
+  const from = Math.max(0, start - lead);
+  const to = Math.min(text.length, from + SNIPPET_LENGTH);
   return `${from > 0 ? '…' : ''}${text.slice(from, to).trim()}${to < text.length ? '…' : ''}`;
 }
 

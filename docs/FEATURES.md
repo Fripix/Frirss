@@ -1234,8 +1234,15 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   `src/lib/searchHighlight.ts`, `Highlighted.tsx`) : les termes sont surlignés
   (`<mark class="search-hit">`) dans le titre et le résumé, et **quand le terme
   ne figure ni dans l'un ni dans l'autre, le résumé cède la place à l'extrait du
-  corps qui a fait sortir l'article** (`resultSummary`, ~90 caractères de part
-  et d'autre, entre ellipses). Mesuré sur le défaut d'origine : « docker » sur
+  corps qui a fait sortir l'article** (`resultSummary`, entre ellipses).
+  ⚠️ **L'extrait COMMENCE juste avant la correspondance** (20 caractères de
+  contexte, 200 en tout), il ne la centre pas : la ligne coupe le résumé à deux
+  lignes (`line-clamp-2`, ~90 caractères dans un panneau ordinaire), et un
+  extrait centré pousse le terme hors du cadre. Première version mesurée sur
+  l'instance de dev le 2026-09-27 : **29 extraits sur 34 avaient leur terme
+  surligné coupé** — le DOM portait bien les `<mark>`, l'écran n'en montrait
+  aucun. Le compte de `<mark>` ne prouve donc rien : ce qui compte est leur
+  position dans le cadre rendu. Mesuré sur le défaut d'origine : « docker » sur
   Non lus/tous les flux rendait 50 lignes dont **30 ne montraient le mot nulle
   part**, la recherche fouillant le corps entier que la liste n'affiche pas.
   Le surlignage repasse par les indices du texte ORIGINAL (`foldWithMap`) :

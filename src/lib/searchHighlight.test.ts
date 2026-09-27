@@ -44,13 +44,34 @@ describe('highlight', () => {
 describe('snippet', () => {
   it('découpe autour de la première correspondance, entre ellipses', () => {
     const texte = `${'a'.repeat(200)} kubernetes ${'b'.repeat(200)}`;
-    const extrait = snippet(texte, ['kubernetes'], 20);
-    expect(extrait).toMatch(/^…a+ kubernetes b+…$/);
+    const extrait = snippet(texte, ['kubernetes']);
+    expect(extrait).toMatch(/^…a* kubernetes b+…$/);
     expect(extrait!.length).toBeLessThan(texte.length);
   });
 
+  /**
+   * La ligne d'article coupe le résumé à DEUX lignes (`line-clamp-2`), soit
+   * ~90 caractères dans un panneau de liste ordinaire. Un extrait qui centre
+   * la correspondance la pousse au-delà : mesuré sur l'instance de dev le
+   * 2026-09-27, 29 extraits sur 34 avaient leur terme surligné hors du cadre
+   * visible — la ligne restait donc inexpliquée, ce que l'extrait devait
+   * justement corriger. Le terme doit tomber dans la PREMIÈRE ligne.
+   */
+  it('place la correspondance dans les premiers caractères, pas au milieu', () => {
+    const texte = `${'a'.repeat(400)} kubernetes ${'b'.repeat(400)}`;
+    const extrait = snippet(texte, ['kubernetes'])!;
+    expect(extrait.indexOf('kubernetes')).toBeLessThanOrEqual(25);
+  });
+
+  it('garde du contexte APRÈS la correspondance', () => {
+    const texte = `${'a'.repeat(400)} kubernetes ${'b'.repeat(400)}`;
+    const extrait = snippet(texte, ['kubernetes'])!;
+    const après = extrait.slice(extrait.indexOf('kubernetes') + 'kubernetes'.length).replace(/…$/, '');
+    expect(après.trim().length).toBeGreaterThan(100);
+  });
+
   it('ne met pas d’ellipse de tête quand la correspondance ouvre le texte', () => {
-    expect(snippet('kubernetes partout', ['kubernetes'], 20)).toBe('kubernetes partout');
+    expect(snippet('kubernetes partout', ['kubernetes'])).toBe('kubernetes partout');
   });
 
   it('rend null quand aucun terme n’est présent', () => {
