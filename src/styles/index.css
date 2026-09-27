@@ -2292,6 +2292,22 @@ summary:focus-visible,
 /* ── Barre d'état du balayage de recherche ────────────────────────────── */
 /* Pleine largeur, discrète (même registre que le compteur de résultats),
    avec son propre bouton (Arrêter pendant, Réessayer après une panne). */
+/* Le terme cherché, là où il est visible dans la ligne.
+
+   `<mark>` par défaut, c'est du jaune système qui ignore le thème et écrase
+   la couleur du texte. Ici : un fond d'accent très dilué, la couleur du texte
+   conservée (le titre lu reste plus pâle que le titre non lu), et un soupçon
+   de graisse — assez pour accrocher l'œil sans transformer la ligne en
+   surligneur. Le même jeton en clair comme en sombre, puisqu'il est mélangé
+   au fond du panneau. */
+.search-hit {
+  background: color-mix(in srgb, var(--accent, #4cd4a1) 26%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+  font-weight: 600;
+}
+
 .search-scan-bar {
   display: flex;
   align-items: center;

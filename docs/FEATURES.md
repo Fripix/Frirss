@@ -1201,12 +1201,33 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
 - **Barre d'état** (`SearchScanBar`) : pendant le balayage, « N articles
   parcourus · M résultats » et un bouton **Arrêter** ; après une coupure, le
   motif de l'échec (réseau, plafond de requêtes, hors ligne) et **Réessayer**,
-  qui reprend à la continuation en cours au lieu de tout refaire.
+  qui reprend à la continuation en cours au lieu de tout refaire. **Une fois le
+  balayage terminé, elle RESTE** (1.5.0) et annonce « N résultats », suivi de
+  « lus compris » quand la vue filtre les non lus (`includesRead`, posé par
+  `filter === 'unread'`).
+  ⚠️ **Elle disparaissait**, et c'est ce qui a fait conclure, le 2026-09-26, que
+  la recherche ne partait pas : plus rien à l'écran ne distinguait une liste de
+  résultats d'une liste ordinaire, d'autant que les résultats ramènent les
+  articles lus sous une vue « Non lus » (voir la puce précédente). Le compte qui
+  subsiste est le seul marqueur permanent de l'état « on lit des résultats ».
   ⚠️ **« Aucun résultat » n'apparaît qu'une fois le balayage terminé** :
   `listBodyState` reçoit `scanning` et rend le squelette tant qu'il tourne. Une
   recherche qui n'a rien trouvé et une recherche qui n'a pas fini se ressemblent
   trop à l'écran — c'est le même mensonge que le « tout est lu » d'une liste qui
   attendait encore sa page.
+- **Chaque ligne dit POURQUOI elle est un résultat** (1.5.0,
+  `src/lib/searchHighlight.ts`, `Highlighted.tsx`) : les termes sont surlignés
+  (`<mark class="search-hit">`) dans le titre et le résumé, et **quand le terme
+  ne figure ni dans l'un ni dans l'autre, le résumé cède la place à l'extrait du
+  corps qui a fait sortir l'article** (`resultSummary`, ~90 caractères de part
+  et d'autre, entre ellipses). Mesuré sur le défaut d'origine : « docker » sur
+  Non lus/tous les flux rendait 50 lignes dont **30 ne montraient le mot nulle
+  part**, la recherche fouillant le corps entier que la liste n'affiche pas.
+  Le surlignage repasse par les indices du texte ORIGINAL (`foldWithMap`) :
+  la comparaison se fait sur du texte déplié, donc marquer « election » dans
+  « élection » sans cette carte décalerait tout ce qui suit. Les termes sont
+  découpés une seule fois par requête dans `ArticleList` (`parseQuery` +
+  `useMemo`), pas dans chaque ligne.
 - **Pagination des résultats, purement locale** : `searchResults` porte toutes
   les correspondances, `articles` en reçoit des tranches de `PAGE_SIZE`
   complétées au défilement, sans un seul appel réseau.

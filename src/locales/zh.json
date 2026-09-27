@@ -97,6 +97,7 @@
     "scanScanned_other": "{{count}} 篇文章已扫描",
     "scanResults_one": "{{count}} 个结果",
     "scanResults_other": "{{count}} 个结果",
+    "scanIncludesRead": "包含已读",
     "scanStop": "停止",
     "scanRetry": "重试",
     "scanStopped": "扫描已停止",

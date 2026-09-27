@@ -22,6 +22,9 @@ import BottomSheet from '../BottomSheet';
 import ArticleContextMenu from './ArticleContextMenu';
 import NewArticlesBanner from './NewArticlesBanner';
 import SearchScanBar from './SearchScanBar';
+import Highlighted from './Highlighted';
+import { resultSummary } from '../../lib/searchHighlight';
+import { parseQuery } from '../../lib/searchMatch';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 import { copyLink } from '../../lib/copyLink';
 import { useAuthStore } from '../../stores/authStore';
@@ -122,12 +125,21 @@ export default function ArticleList() {
   const isInFeed = !!selectedFeed && !isCategoryStreamId(selectedFeed.id);
   const showSource = isInFeed ? showSourceInFeed : showSourceInAll;
 
+  // Les mots de la recherche en cours, pour que chaque ligne puisse montrer
+  // POURQUOI elle est un résultat. Découpés ici, une fois par requête, plutôt
+  // que dans chaque ligne : la liste monte à plusieurs centaines d'entrées.
+  const searchTerms = useMemo(
+    () => (searchQuery ? parseQuery(searchQuery) : undefined),
+    [searchQuery],
+  );
+
   const renderCard = (article: Article) => (
     <ArticleCard
       key={article.id}
       article={article}
       showSource={showSource}
       rowActions={rowActions}
+      searchTerms={searchTerms}
       active={selectedArticle?.id === article.id}
       onSelect={() => openArticle(article)}
       onToggleStar={(e) => { e.stopPropagation(); toggleStar(article); }}
@@ -952,7 +964,13 @@ export default function ArticleList() {
         )}
       </div>
 
-      <SearchScanBar scan={searchScan} results={searchResults.length} onStop={stopSearch} onRetry={retrySearch} />
+      <SearchScanBar
+        scan={searchScan}
+        results={searchResults.length}
+        includesRead={filter === 'unread'}
+        onStop={stopSearch}
+        onRetry={retrySearch}
+      />
 
       {/* List */}
       <div
@@ -1069,6 +1087,7 @@ export default function ArticleList() {
                       favicon={showListFavicons ? iconByFeedId.get(article.sourceId) ?? null : undefined}
                       staggerIndex={staggerById.get(article.id)}
                       active={selectedArticle?.id === article.id}
+                      searchTerms={searchTerms}
                       onSelect={() => openArticle(article)}
                       onToggleStar={(e) => {
                         e.stopPropagation();
@@ -1466,6 +1485,8 @@ interface ArticleRowProps {
    *  `staggerIndexes` : seule une PREMIÈRE apparition dans la vue s'anime. */
   staggerIndex?: number;
   active: boolean;
+  /** Les termes de la recherche en cours, à marquer dans le titre et le résumé. */
+  searchTerms?: readonly string[];
   onSelect: () => void;
   onToggleStar: (e: ReactMouseEvent) => void;
   onToggleRead: (e: ReactMouseEvent) => void;
@@ -1482,7 +1503,7 @@ interface ArticleRowProps {
  * tenaient qu'à travers la carte de la vue grille. `ArticleList` reste
  * l'unique consommateur applicatif.
  */
-export function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu }: ArticleRowProps) {
+export function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu }: ArticleRowProps) {
   const { t } = useTranslation();
   const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource);
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
@@ -1556,7 +1577,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
           data-theme={article.read ? 'list-title-read' : 'list-title'}
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
         >
-          {article.title}
+          <Highlighted text={article.title} terms={searchTerms} />
         </span>
         <span className="text-[10px] flex-shrink-0" data-theme="list-time" style={{ color: 'var(--list-time)' }}>
           {timeAgo(article.published, t)}
@@ -1639,12 +1660,12 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
           data-theme={article.read ? 'list-title-read' : 'list-title'}
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
         >
-          {article.title}
+          <Highlighted text={article.title} terms={searchTerms} />
         </h3>
 
         {viewMode !== 'compact' && (
           <p dir="auto" className="line-clamp-2 leading-relaxed" data-theme="list-summary" style={{ color: 'var(--list-summary)', fontSize: 'var(--fs-list-summary)' }}>
-            {article.summary}
+            <Highlighted text={resultSummary(article, searchTerms ?? [])} terms={searchTerms} />
           </p>
         )}
       </div>

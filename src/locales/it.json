@@ -97,6 +97,7 @@
     "scanScanned_other": "{{count}} articoli analizzati",
     "scanResults_one": "{{count}} risultato",
     "scanResults_other": "{{count}} risultati",
+    "scanIncludesRead": "inclusi i letti",
     "scanStop": "Interrompi",
     "scanRetry": "Riprova",
     "scanStopped": "Scansione interrotta",

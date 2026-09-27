@@ -7,6 +7,8 @@ import { timeAgo } from '../../lib/timeAgo';
 import { extractYouTubeId } from '../../lib/youtube';
 import type { RowActionSettings } from '../../lib/rowActions';
 import { ArticleRowActions } from './ArticleActions';
+import Highlighted from './Highlighted';
+import { resultSummary } from '../../lib/searchHighlight';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 
 interface ArticleCardProps {
@@ -14,6 +16,8 @@ interface ArticleCardProps {
   showSource: boolean;
   rowActions: RowActionSettings;
   active: boolean;
+  /** Les termes de la recherche en cours, à marquer dans le titre et le résumé. */
+  searchTerms?: readonly string[];
   onSelect: () => void;
   onToggleStar: (e: ReactMouseEvent) => void;
   onToggleRead: (e: ReactMouseEvent) => void;
@@ -24,7 +28,7 @@ interface ArticleCardProps {
 }
 
 export default function ArticleCard({
-  article, showSource, rowActions, active, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu,
+  article, showSource, rowActions, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu,
 }: ArticleCardProps) {
   const { t } = useTranslation();
   const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource);
@@ -72,8 +76,12 @@ export default function ArticleCard({
           {showSource && <span className="article-card__source">{article.source}</span>}
           <span className="article-card__time">{timeAgo(article.published, t)}</span>
         </div>
-        <h3 className="article-card__title article-title" dir="auto">{article.title}</h3>
-        <p className="article-card__summary" dir="auto">{article.summary}</p>
+        <h3 className="article-card__title article-title" dir="auto">
+          <Highlighted text={article.title} terms={searchTerms} />
+        </h3>
+        <p className="article-card__summary" dir="auto">
+          <Highlighted text={resultSummary(article, searchTerms ?? [])} terms={searchTerms} />
+        </p>
       </div>
 
       <ArticleRowActions

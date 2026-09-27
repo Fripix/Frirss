@@ -101,6 +101,7 @@
     "scanResults_few": "{{count}} результати",
     "scanResults_many": "{{count}} результатів",
     "scanResults_other": "{{count}} результатів",
+    "scanIncludesRead": "разом із прочитаними",
     "scanStop": "Зупинити",
     "scanRetry": "Повторити",
     "scanStopped": "Сканування зупинено",

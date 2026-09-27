@@ -4,6 +4,8 @@ import type { SearchScan } from '../../stores/feedStore';
 interface Props {
   scan: SearchScan;
   results: number;
+  /** La vue ne montre que les non lus : les résultats, eux, comprennent les lus. */
+  includesRead?: boolean;
   onStop: () => void;
   onRetry: () => void;
 }
@@ -14,11 +16,27 @@ interface Props {
  * Elle existe parce qu'« aucun résultat » et « pas encore fini » se ressemblent
  * à l'écran : sans ce compteur, un balayage en cours passerait pour une réponse.
  * Spec : docs/superpowers/specs/2026-09-23-client-side-search-design.md
+ *
+ * Elle RESTE une fois le balayage fini (1.5.0) : elle disparaissait, et la
+ * liste de résultats redevenait alors indiscernable de la liste ordinaire —
+ * d'autant que le balayage ramène les articles lus, même sous « Non lus »
+ * (choix de la spec). Le compte qui subsiste est la seule chose qui dise, une
+ * fois le balayage terminé, que ce qu'on lit est le produit d'une recherche.
  */
-export default function SearchScanBar({ scan, results, onStop, onRetry }: Props) {
+export default function SearchScanBar({ scan, results, includesRead, onStop, onRetry }: Props) {
   const { t } = useTranslation();
-  if (scan.done && !scan.error) return null;
-  if (!scan.running && !scan.stopped && !scan.error) return null;
+  if (!scan.running && !scan.done && !scan.stopped && !scan.error) return null;
+
+  if (scan.done && !scan.error) {
+    const done = includesRead
+      ? `${t('articleList.scanResults', { count: results })} · ${t('articleList.scanIncludesRead')}`
+      : t('articleList.scanResults', { count: results });
+    return (
+      <div className="search-scan-bar" role="status" aria-live="polite">
+        <span>{done}</span>
+      </div>
+    );
+  }
 
   const status = scan.error === 'offline'
     ? t('articleList.scanOffline')

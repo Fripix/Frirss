@@ -101,6 +101,7 @@
     "scanResults_few": "{{count}} wyniki",
     "scanResults_many": "{{count}} wyników",
     "scanResults_other": "{{count}} wyników",
+    "scanIncludesRead": "łącznie z przeczytanymi",
     "scanStop": "Zatrzymaj",
     "scanRetry": "Ponów",
     "scanStopped": "Przeszukiwanie zatrzymane",

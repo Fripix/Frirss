@@ -33,9 +33,25 @@ describe('SearchScanBar', () => {
     expect(screen.getByText(/7/)).toBeTruthy();
   });
 
-  it('disparaît quand le balayage est allé au bout', () => {
-    const { container } = render(<SearchScanBar scan={scan({ done: true, scanned: 10 })} results={2} onStop={vi.fn()} onRetry={vi.fn()} />);
-    expect(container.firstChild).toBeNull();
+  // Le bandeau DISPARAISSAIT au bout du balayage. Il ne restait alors plus
+  // rien à l'écran pour dire qu'on regardait des résultats — d'où
+  // « la recherche ne se lance pas » : une liste de résultats sans marqueur
+  // ressemble à la liste ordinaire, surtout quand elle ramène des articles
+  // déjà lus sous une vue « Non lus ».
+  it('annonce le nombre de résultats quand le balayage est allé au bout', () => {
+    render(<SearchScanBar scan={scan({ done: true, scanned: 10 })} results={2} onStop={vi.fn()} onRetry={vi.fn()} />);
+    expect(screen.getByText(/2/)).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('précise que les articles lus sont compris quand la vue ne montre que les non lus', () => {
+    render(<SearchScanBar scan={scan({ done: true, scanned: 10 })} results={2} includesRead onStop={vi.fn()} onRetry={vi.fn()} />);
+    expect(screen.getByText(/scanIncludesRead/)).toBeTruthy();
+  });
+
+  it('ne le précise pas dans une vue qui montre déjà les articles lus', () => {
+    render(<SearchScanBar scan={scan({ done: true, scanned: 10 })} results={2} onStop={vi.fn()} onRetry={vi.fn()} />);
+    expect(screen.queryByText(/scanIncludesRead/)).toBeNull();
   });
 
   it('offre Arrêter pendant, et Réessayer après une panne', () => {

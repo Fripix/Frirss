@@ -97,6 +97,7 @@
     "scanScanned_other": "{{count}} articles parcourus",
     "scanResults_one": "{{count}} résultat",
     "scanResults_other": "{{count}} résultats",
+    "scanIncludesRead": "lus compris",
     "scanStop": "Arrêter",
     "scanRetry": "Réessayer",
     "scanStopped": "Balayage interrompu",

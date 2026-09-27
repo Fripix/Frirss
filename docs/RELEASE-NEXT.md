@@ -18,11 +18,19 @@ la release publiée.
 
 ## Fonctionnalités
 
-_(rien pour l'instant)_
+- **Les résultats de recherche disent pourquoi ils sont là.** Le terme cherché
+  est surligné dans le titre et le résumé ; quand il ne figure dans ni l'un ni
+  l'autre — la recherche fouille le corps entier des articles, que la liste
+  n'affiche pas — le résumé cède la place à l'extrait du corps qui a fait
+  sortir l'article.
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **La barre d'état de la recherche reste affichée une fois le balayage
+  terminé** et annonce le nombre de résultats — « lus compris » quand la vue
+  filtre les non lus. Elle disparaissait : plus rien ne distinguait alors une
+  liste de résultats d'une liste ordinaire, au point de faire croire que la
+  recherche ne se lançait pas.
 
 ## Sous le capot
 
@@ -30,7 +38,7 @@ _(rien pour l'instant)_
 
 ## Actions requises à la mise à jour
 
-_(à compléter)_
+_(aucune)_
 
 ## Documentation
 

@@ -97,6 +97,7 @@
     "scanScanned_other": "{{count}} artigos analisados",
     "scanResults_one": "{{count}} resultado",
     "scanResults_other": "{{count}} resultados",
+    "scanIncludesRead": "lidos incluídos",
     "scanStop": "Parar",
     "scanRetry": "Tentar novamente",
     "scanStopped": "Análise interrompida",

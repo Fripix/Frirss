@@ -97,6 +97,7 @@
     "scanScanned_other": "{{count}} artikelen doorzocht",
     "scanResults_one": "{{count}} resultaat",
     "scanResults_other": "{{count}} resultaten",
+    "scanIncludesRead": "gelezen inbegrepen",
     "scanStop": "Stoppen",
     "scanRetry": "Opnieuw proberen",
     "scanStopped": "Zoekactie gestopt",
