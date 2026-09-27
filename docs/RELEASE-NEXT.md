@@ -31,6 +31,11 @@ la release publiée.
   filtre les non lus. Elle disparaissait : plus rien ne distinguait alors une
   liste de résultats d'une liste ordinaire, au point de faire croire que la
   recherche ne se lançait pas.
+- **Extraction d'article : les images et les liens relatifs ne cassent plus**
+  quand le navigateur extrait lui-même la page (le repli, quand la route
+  serveur n'a pas pu répondre). La CSP refusait le `<base>` posé pour résoudre
+  ces URLs, qui pointaient alors vers FriRSS au lieu du site d'origine — 404
+  sur les images, liens qui ramenaient dans l'application.
 
 ## Sous le capot
 

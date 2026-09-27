@@ -2,6 +2,7 @@ import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
 import { useAuthStore } from '../stores/authStore';
 import { dropNonVideoIframes } from '../lib/youtube';
+import { absolutizeUrls } from './absolutizeUrls';
 
 export interface ExtractedContent {
   title: string;
@@ -277,10 +278,11 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
-  // Resolve relative URLs in the parsed document
-  const base = doc.createElement('base');
-  base.href = url;
-  doc.head.prepend(base);
+  // Rendre les URLs absolues AVANT Readability, qui résout sinon contre
+  // `doc.baseURI` — l'origine de FriRSS pour un document de `DOMParser`. Un
+  // `<base>` injecté ici ne sert à rien : la CSP (`base-uri 'self'`) le refuse,
+  // et l'échec n'apparaît que dans la console. Voir `absolutizeUrls`.
+  absolutizeUrls(doc, url);
 
   // Extract readable content
   const reader = new Readability(doc, {

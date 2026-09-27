@@ -126,6 +126,39 @@ describe('extractFullContent', () => {
   }
 });
 
+// ── Le repli local et les URLs relatives ─────────────────────────────
+// Le document du repli naît d'un `DOMParser` : il hérite de l'origine de
+// FriRSS, et le `<base>` qu'on y injectait est refusé par la CSP
+// (`base-uri 'self'`). Readability résolvait alors `/img/a.png` contre
+// l'origine de l'app — image en 404, liens qui ramènent dans FriRSS.
+// jsdom n'applique pas de CSP : ce test reproduit donc la situation de
+// production en posant explicitement la base du document ailleurs.
+describe('extractFullContent — repli local et URLs relatives', () => {
+  const pageRelative = `<!doctype html><html><body><article>
+<p>Un paragraphe assez long pour que Readability retienne ce corps comme article, avec suffisamment de mots.</p>
+<p>Un second paragraphe, lui aussi fourni, pour dépasser le seuil de lisibilité. <img src="/img/a.png"> <a href="/suite/">la suite</a></p>
+</article></body></html>`;
+
+  it('résout les URLs relatives contre l’article, pas contre l’origine de l’app', async () => {
+    const parse = DOMParser.prototype.parseFromString;
+    vi.spyOn(DOMParser.prototype, 'parseFromString').mockImplementation(function (this: DOMParser, ...args: Parameters<typeof parse>) {
+      const doc = parse.apply(this, args);
+      Object.defineProperty(doc, 'baseURI', { value: 'https://frirss.example.com/', configurable: true });
+      return doc;
+    });
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 502 });
+      return new Response(pageRelative, { status: 200 });
+    }));
+
+    const out = await extractFullContent('https://presse.example.fr/2026/avis/');
+
+    expect(out.content).toContain('https://presse.example.fr/img/a.png');
+    expect(out.content).toContain('https://presse.example.fr/suite/');
+    expect(out.content).not.toContain('frirss.example.com');
+  });
+});
+
 // ── La jambe de repli doit être bornée elle aussi ────────────────────
 // Le minuteur de la route serveur visait un backend qui accepte la connexion
 // et ne répond jamais. Or cette panne-là frappe `/api/proxy` exactement de la

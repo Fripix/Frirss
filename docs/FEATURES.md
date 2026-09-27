@@ -1457,6 +1457,20 @@ développement en 1.4.4.)*
   même garde anti-SSRF) puis Readability dans le navigateur. Ce repli n'est pas
   du code hérité : c'est ce qui tient quand le serveur n'a pas la route, ne sait
   pas lire la page, ou ne répond pas.
+  ⚠️ **Les URLs relatives du repli sont rendues absolues À LA MAIN**
+  (`src/utils/absolutizeUrls.ts`, 1.5.0), avant Readability, contre l'URL de
+  l'article — ou contre le `<base>` que la page distante porte elle-même.
+  Le repli injectait un `<base>` dans le document du `DOMParser` ; ce document
+  hérite de la CSP de la page, et `base-uri 'self'` (`nginx.conf`) le **refuse**.
+  Readability résolvait alors contre l'origine de FriRSS : sur un avis du
+  CERT-FR, l'icône partait chercher `…/static/images/json_icon.svg` **sur
+  FriRSS** (404), et les liens internes de l'article ramenaient dans
+  l'application. Mesuré le 2026-09-26 : 48 URLs cassées sur une page LinuxFr.
+  Le seul signe était une ligne de console, et **jsdom n'applique pas de CSP**,
+  donc les tests restaient verts — celui qui couvre ce cas
+  (`extractContent.test.ts`) pose donc explicitement `baseURI` sur une autre
+  origine. Côté serveur, sans CSP, `server/extract.ts` garde son `<base>` :
+  c'est le chemin normal, et il n'a jamais eu ce défaut.
   ⚠️ **Il ne couvre PAS l'absence de Redis** — la doc l'a affirmé jusqu'au
   2026-09-04, et c'était faux dans les trois endroits où elle le disait
   (README, notes de version, ici). `server/index.ts` monte la route
