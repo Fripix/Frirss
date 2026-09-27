@@ -31,6 +31,10 @@ la release publiée.
   filtre les non lus. Elle disparaissait : plus rien ne distinguait alors une
   liste de résultats d'une liste ordinaire, au point de faire croire que la
   recherche ne se lançait pas.
+- **La loupe de la recherche envoie vraiment la recherche.** Elle n'était
+  qu'une icône : la recherche ne partait qu'en validant au clavier, et sur les
+  claviers logiciels où cette validation ne soumet pas le formulaire, elle
+  restait inatteignable.
 - **Extraction d'article : les images et les liens relatifs ne cassent plus**
   quand le navigateur extrait lui-même la page (le repli, quand la route
   serveur n'a pas pu répondre). La CSP refusait le `<base>` posé pour résoudre

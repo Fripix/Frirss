@@ -2308,6 +2308,37 @@ summary:focus-visible,
   font-weight: 600;
 }
 
+/* La loupe qui envoie la recherche : posée DANS le champ, à gauche, sur la
+   gouttière que `pl-8` réserve. Elle vient après le champ dans le DOM (ordre
+   de tabulation), d'où le positionnement absolu pour la ramener devant.
+
+   26 px de cible : en dessous du minimum tactile, mais c'est une commodité,
+   pas le chemin principal — Entrée et le « Go » du clavier soumettent le
+   formulaire, et c'est justement pour qu'ils le puissent que ce bouton
+   existe. */
+.search-submit {
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.search-submit:hover {
+  background: color-mix(in srgb, var(--list-summary) 12%, transparent);
+}
+.search-submit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .search-scan-bar {
   display: flex;
   align-items: center;

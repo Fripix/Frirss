@@ -1164,6 +1164,21 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
 > et un terme inexistant ramenait quand même tous les articles. **Ne jamais
 > réintroduire `q`** — il ne filtrera rien.
 
+- **La barre de recherche** (`SearchBar.tsx`) : un champ annonçant son
+  périmètre, la **loupe qui envoie** et la croix qui ferme (Échap aussi).
+  ⚠️ **La loupe est un vrai `type="submit"`** (1.5.0), plus un décor : le
+  formulaire n'avait aucun bouton d'envoi, donc la recherche ne partait que par
+  la *soumission implicite* du navigateur — laquelle se déclenche sur
+  l'événement `keypress` d'Entrée. Tout ce qui n'émet pas ce `keypress` rendait
+  la recherche inatteignable : le pilotage du navigateur de test (aucune
+  recherche possible depuis Oya, constaté le 2026-09-26, et vérifié sur une
+  page témoin — même un formulaire AVEC bouton d'envoi n'y part pas au clavier),
+  et le piège classique du clavier iOS dont le « Go » ne soumet pas un
+  formulaire sans bouton. Le bouton vient **après le champ dans le DOM** et est
+  ramené à gauche par positionnement (`.search-submit`) : dans l'autre ordre, la
+  tabulation atteindrait l'envoi avant la saisie. Mesuré à 320 px : 26 × 26 px,
+  entièrement dans la gouttière de 32 px que `pl-8` réserve, aucun recouvrement
+  du texte saisi.
 - **Balayage** (`feedStore.runScan`) : le périmètre est lu page par page via
   `fetchStreamPage` (tranches de `SCAN_PAGE` = 1 000, la continuation de chaque
   page ouvrant la suivante), et chaque tranche est filtrée au passage. Mesuré
