@@ -87,6 +87,23 @@ describe('resultSummary', () => {
     expect(resultSummary(article, terms)).toBe('Un guide Docker pas à pas');
   });
 
+  /**
+   * Même défaut que l'extrait centré, autre branche : le résumé qui porte le
+   * terme était rendu tel quel, terme compris s'il tombait au-delà des deux
+   * lignes visibles. Mesuré sur l'instance de dev le 2026-09-27 : 6 lignes sur
+   * les 16 sans extrait avaient leur marque hors cadre (termes aux positions
+   * 105, 120 et 179 pour ~90 caractères visibles).
+   */
+  it('recadre le résumé quand le terme y est trop loin pour rester visible', () => {
+    const article = {
+      summary: `${'x'.repeat(150)} docker ${'y'.repeat(40)}`,
+      content: '<p>peu importe</p>',
+    };
+    const rendu = resultSummary(article, terms);
+    expect(rendu.startsWith('…')).toBe(true);
+    expect(rendu.toLowerCase().indexOf('docker')).toBeLessThanOrEqual(25);
+  });
+
   it('montre un extrait du corps quand le résumé ne dit pas pourquoi la ligne est là', () => {
     const article = {
       summary: 'Retour d’expérience sur mon serveur maison',

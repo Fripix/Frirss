@@ -1242,7 +1242,14 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   l'instance de dev le 2026-09-27 : **29 extraits sur 34 avaient leur terme
   surligné coupé** — le DOM portait bien les `<mark>`, l'écran n'en montrait
   aucun. Le compte de `<mark>` ne prouve donc rien : ce qui compte est leur
-  position dans le cadre rendu. Mesuré sur le défaut d'origine : « docker » sur
+  position dans le cadre rendu.
+  ⚠️ **Le résumé qui porte le terme est recadré lui aussi** quand celui-ci
+  tombe au-delà de `VISIBLE_SUMMARY` (70 caractères) : même défaut, autre
+  branche — 6 des 16 lignes sans extrait avaient leur marque hors cadre à la
+  mesure suivante (termes aux positions 105, 120, 179). Le **titre**, lui,
+  n'est jamais recadré : il est court et se lit depuis son début ; en mode
+  compact, où il est tronqué sur une ligne, un terme tardif reste donc
+  invisible — c'est assumé. Mesuré sur le défaut d'origine : « docker » sur
   Non lus/tous les flux rendait 50 lignes dont **30 ne montraient le mot nulle
   part**, la recherche fouillant le corps entier que la liste n'affiche pas.
   Le surlignage repasse par les indices du texte ORIGINAL (`foldWithMap`) :

@@ -89,6 +89,15 @@ export function highlight(text: string, terms: readonly string[]): Segment[] {
  */
 const SNIPPET_LEAD = 20;
 
+/**
+ * Jusqu'où une correspondance dans le résumé reste visible sans recadrage.
+ *
+ * Prudent : la largeur de la ligne varie (panneau de liste, carte de grille,
+ * téléphone), et recadrer un résumé dont le terme était déjà visible ne coûte
+ * qu'une ellipse, alors que l'inverse rend la ligne inexplicable.
+ */
+const VISIBLE_SUMMARY = 70;
+
 /** Longueur visée, contexte d'après compris : de quoi remplir les deux lignes. */
 const SNIPPET_LENGTH = 200;
 
@@ -116,6 +125,14 @@ export function resultSummary(
   terms: readonly string[],
 ): string {
   if (!terms.length) return article.summary;
-  if (hitRanges(article.summary, terms).length) return article.summary;
+  const inSummary = hitRanges(article.summary, terms)[0];
+  // Le résumé porte le terme, mais l'y laisser ne suffit pas : au-delà des deux
+  // lignes rendues, il est aussi invisible que s'il n'y était pas. Même
+  // recadrage que pour le corps.
+  if (inSummary) {
+    return inSummary[0] <= VISIBLE_SUMMARY
+      ? article.summary
+      : snippet(article.summary, terms) ?? article.summary;
+  }
   return snippet(stripHtml(article.content), terms) ?? article.summary;
 }
