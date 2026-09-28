@@ -2,6 +2,16 @@ import type { Filter } from '../types';
 
 export type MarkAllAction = 'mark' | 'ask';
 
+/**
+ * Combien d'articles le retour en arrière sait rendre.
+ *
+ * `mark-all-as-read` ne dit pas ce qu'il a touché : les non-lus sont donc
+ * relevés AVANT l'appel, en une requête plafonnée. Au-delà, le relevé est
+ * partiel — on ne propose alors rien plutôt que de rendre une liste tronquée
+ * en la présentant comme complète, et la boîte de confirmation le dit.
+ */
+export const UNDO_CAP = 1000;
+
 // Decide what a "Mark all as read" click should do:
 //  - confirmation disabled           → mark immediately
 //  - confirmation enabled, first tap  → ask (show the "Confirm?" state)

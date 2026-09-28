@@ -9,6 +9,7 @@ import {
   markAsStarred,
   removeStarred,
   markAllAsRead,
+  getUnreadItemIds,
   fetchStreamPage,
   subscribeFeed,
   editFeed,
@@ -28,7 +29,7 @@ import {
   createCorpus, addPage, corpusIsUsable, corpusMatches, patchCorpusArticle, patchCorpusByEntry,
   type Corpus,
 } from '../lib/searchCorpus';
-import { canMarkAllRead } from '../lib/markAllRead';
+import { canMarkAllRead, UNDO_CAP } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import type { HomeEntry } from '../lib/unreadScope';
@@ -1589,6 +1590,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const streamId = selectedFeed
       ? selectedFeed.id
       : 'user/-/state/com.google/reading-list';
+    // Relevé AVANT l'appel : `mark-all-as-read` ne rend pas ce qu'il a touché,
+    // et seuls les articles non lus à cet instant doivent pouvoir redevenir
+    // non lus. Un échec ou un plafond atteint ne retient pas l'action — ils
+    // retirent seulement la proposition de défaire (issue #17).
+    const avant = await snapshotUnread(streamId);
     try {
       await markAllAsRead(streamId);
       // Update local state
@@ -1618,6 +1624,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // lui (`stale()` dans `runScan` rend la main sans rien écrire) et
       // `searchScan.running` restait bloqué à vrai pour toujours.
       closeSearch(set);
+      // Le bandeau vit ICI et non dans la barre d'outils : c'est le store qui
+      // sait combien d'articles étaient non lus (le relevé) et si le retour en
+      // arrière est possible.
+      const { default: i18n } = await import('../i18n');
+      useUiStore.getState().pushToast(
+        avant ? i18n.t('toast.markedRead', { count: avant.length }) : i18n.t('toast.markedReadAll'),
+                // `run` REND la promesse (la signature du toast l'autorise) : sans
+        // cela, rien — ni un test, ni un appelant — ne peut attendre la fin de
+        // la remise en non lus, qui se fait par lots successifs.
+        avant ? { action: { label: i18n.t('toast.undo'), run: () => restoreUnread(avant) } } : undefined,
+      );
     } catch { /* ignore */ }
   },
 
@@ -2469,6 +2486,45 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
  * l'ancien flux dans la nouvelle vue. Revérifiée après CHAQUE `await`, comme
  * dans `loadMore`.
  */
+/** Par lots, comme le marquage de plage (`markReadRelative`). */
+const UNDO_BATCH = 100;
+
+/** Les non-lus du flux avant un « tout lu », ou `null` si on ne peut pas
+ *  promettre de les rendre tous. */
+async function snapshotUnread(streamId: string): Promise<string[] | null> {
+  try {
+    const ids = await getUnreadItemIds(streamId, UNDO_CAP);
+    return ids.length && ids.length < UNDO_CAP ? ids : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Rendre non lus les articles relevés.
+ *
+ * La vue est rechargée depuis le serveur plutôt que rapiécée sur place : les
+ * identifiants relevés sont la forme DÉCIMALE de `stream/items/ids`, quand les
+ * lignes à l'écran portent la forme hexadécimale d'`Article.id`. Les rapprocher
+ * demanderait `entryIdUsec` sur chaque ligne, pour un résultat qu'une relecture
+ * donne exactement.
+ */
+async function restoreUnread(ids: readonly string[]): Promise<void> {
+  try {
+    for (let i = 0; i < ids.length; i += UNDO_BATCH) {
+      await markAsUnread(ids.slice(i, i + UNDO_BATCH) as string[]);
+    }
+  } catch {
+    await pushI18nToast('toast.undoFailed', { tone: 'error' });
+    return;
+  }
+  bumpCountsEpoch();
+  try {
+    await useFeedStore.getState().syncCounts();
+    await useFeedStore.getState().loadArticles();
+  } catch { /* la relecture peut échouer : les articles, eux, sont rendus */ }
+}
+
 async function runScan(token: number, streamId: string, view: string): Promise<void> {
   const stale = () =>
     token !== scanToken || !searchCorpus || viewIdentity(useFeedStore.getState()) !== view;

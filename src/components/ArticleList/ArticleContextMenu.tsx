@@ -5,6 +5,7 @@ import type { Article } from '../../types';
 import BottomSheet from '../BottomSheet';
 import { articleMenuItems, type ArticleMenuItem, type ArticleMenuKind } from '../../lib/articleMenu';
 import { clampToViewport } from '../../lib/clampToViewport';
+import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
 import { markAllReadAction } from '../../lib/markAllRead';
 
 /** Direction d'un marquage de plage, pour les deux seules entrées concernées. */
@@ -135,6 +136,10 @@ export default function ArticleContextMenu({
   // implicitement la première demande. Le menu se démonte à la fermeture,
   // donc quitter le menu annule la demande sans code dédié.
   const [confirming, setConfirming] = useState<RangeDirection | null>(null);
+  // Quand la demande a été posée. Un « Confirmer ? » qui remplace l'entrée
+  // sous le curseur est sinon validé par le second clic d'un double-clic —
+  // c'est le geste rapporté dans l'issue #17, sur le bouton « Tout lu ».
+  const askedAt = useRef(0);
 
   const actions: Record<ArticleMenuKind, () => void> = {
     openSource: onOpenSource,
@@ -150,8 +155,11 @@ export default function ArticleContextMenu({
     if (direction) {
       if (markAllReadAction(confirmMarkAllRead, confirming === direction) === 'ask') {
         setConfirming(direction);
+        askedAt.current = Date.now();
         return;
       }
+      // Trop tôt après la demande : c'est l'écho du geste qui l'a posée.
+      if (direction === confirming && Date.now() - askedAt.current < CONFIRM_GRACE_MS) return;
     }
     actions[kind]();
     onClose();

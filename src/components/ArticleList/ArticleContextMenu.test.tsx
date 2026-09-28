@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup, fireEvent, screen } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen, act } from '@testing-library/react';
 import ArticleContextMenu from './ArticleContextMenu';
+import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
 import type { Article } from '../../types';
 
 vi.mock('react-i18next', () => ({
@@ -166,6 +167,31 @@ describe('ArticleContextMenu', () => {
       expect(h.onClose).toHaveBeenCalledTimes(1);
     });
 
+    /**
+     * Issue #17 : un « Confirmer ? » qui se pose SOUS le curseur est validé
+     * par le second clic d'un double-clic. Le bouton « Tout lu » a reçu une
+     * boîte de dialogue ; ici, l'entrée reste en place, donc elle refuse une
+     * validation trop rapprochée de la demande.
+     */
+    it('ignore une validation qui suit la demande de trop près', () => {
+      vi.useFakeTimers();
+      try {
+        const onMarkRange = vi.fn();
+        setup({ confirmMarkAllRead: true, handlers: { onMarkRange } });
+        fireEvent.click(screen.getByText('articleRow.markBelowRead'));
+        // le second clic du double-clic, 80 ms plus tard
+        act(() => { vi.advanceTimersByTime(80); });
+        fireEvent.click(screen.getByText('articleList.confirm'));
+        expect(onMarkRange).not.toHaveBeenCalled();
+
+        act(() => { vi.advanceTimersByTime(CONFIRM_GRACE_MS); });
+        fireEvent.click(screen.getByText('articleList.confirm'));
+        expect(onMarkRange).toHaveBeenCalledWith('below');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('avec le réglage actif, le premier clic demande confirmation sans agir ni fermer', () => {
       const onMarkRange = vi.fn();
       const h = setup({ confirmMarkAllRead: true, handlers: { onMarkRange } });
@@ -175,14 +201,24 @@ describe('ArticleContextMenu', () => {
       expect(screen.getByRole('button', { name: 'articleList.confirm' })).toBeTruthy();
     });
 
+    // Le second clic agit toujours — mais plus dans le même souffle que le
+    // premier : la garde anti-double-clic (issue #17) impose CONFIRM_GRACE_MS
+    // entre la demande et sa validation. Deux `fireEvent.click` consécutifs
+    // dans le même tic ne sont pas un utilisateur qui décide, c'est un rebond.
     it('avec le réglage actif, le second clic sur la même entrée agit et ferme', () => {
-      const onMarkRange = vi.fn();
-      const h = setup({ confirmMarkAllRead: true, handlers: { onMarkRange } });
-      fireEvent.click(screen.getByText('articleRow.markBelowRead'));
-      fireEvent.click(screen.getByRole('button', { name: 'articleList.confirm' }));
-      expect(onMarkRange).toHaveBeenCalledTimes(1);
-      expect(onMarkRange).toHaveBeenCalledWith('below');
-      expect(h.onClose).toHaveBeenCalledTimes(1);
+      vi.useFakeTimers();
+      try {
+        const onMarkRange = vi.fn();
+        const h = setup({ confirmMarkAllRead: true, handlers: { onMarkRange } });
+        fireEvent.click(screen.getByText('articleRow.markBelowRead'));
+        act(() => { vi.advanceTimersByTime(CONFIRM_GRACE_MS); });
+        fireEvent.click(screen.getByRole('button', { name: 'articleList.confirm' }));
+        expect(onMarkRange).toHaveBeenCalledTimes(1);
+        expect(onMarkRange).toHaveBeenCalledWith('below');
+        expect(h.onClose).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('la demande de confirmation ne porte que sur l’entrée cliquée — l’autre garde son libellé', () => {
@@ -211,14 +247,20 @@ describe('ArticleContextMenu', () => {
     });
 
     it('marche aussi en feuille du bas', () => {
-      const onMarkRange = vi.fn();
-      const h = setup({ sheet: true, confirmMarkAllRead: true, handlers: { onMarkRange } });
-      fireEvent.click(screen.getByText('articleRow.markAboveRead'));
-      expect(onMarkRange).not.toHaveBeenCalled();
-      expect(h.onClose).not.toHaveBeenCalled();
-      fireEvent.click(screen.getByRole('button', { name: 'articleList.confirm' }));
-      expect(onMarkRange).toHaveBeenCalledWith('above');
-      expect(h.onClose).toHaveBeenCalledTimes(1);
+      vi.useFakeTimers();
+      try {
+        const onMarkRange = vi.fn();
+        const h = setup({ sheet: true, confirmMarkAllRead: true, handlers: { onMarkRange } });
+        fireEvent.click(screen.getByText('articleRow.markAboveRead'));
+        expect(onMarkRange).not.toHaveBeenCalled();
+        expect(h.onClose).not.toHaveBeenCalled();
+        act(() => { vi.advanceTimersByTime(CONFIRM_GRACE_MS); });
+        fireEvent.click(screen.getByRole('button', { name: 'articleList.confirm' }));
+        expect(onMarkRange).toHaveBeenCalledWith('above');
+        expect(h.onClose).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

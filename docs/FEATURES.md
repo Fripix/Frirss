@@ -1138,9 +1138,33 @@ est marqué lu une seconde après être sorti par le **haut** de la liste.
   l'écran annule la programmation.
 
 ### Marquer tout comme lu
-Confirmation optionnelle avant de vider une vue entière.
+Confirmation optionnelle avant de vider une vue entière, **par une boîte de
+dialogue**, et **retour en arrière** une fois l'action faite.
 
-- **Où** : `src/lib/markAllRead.ts`
+- **Où** : `src/lib/markAllRead.ts`, `src/components/ConfirmDialog.tsx`
+- **La confirmation est une BOÎTE** (1.5.0, famille i18n `dialog`), plus un
+  « Confirmer ? » posé à la place du bouton. Motif — **issue #17** : ce second
+  état tombait exactement sous le curseur, donc le second clic d'un double-clic
+  le validait. Un lecteur a vidé sa liste entière ainsi, en croyant par-dessus
+  le marché cliquer un filtre, le bouton étant voisin de « Non lus » et
+  « Favoris ». La boîte porte son bouton **ailleurs**, elle annonce le **compte
+  et le périmètre** (« Marquer 712 articles comme lus ? · Tous les flux »), son
+  focus de départ va sur **Annuler**, et sa validation **ignore un clic qui
+  suit l'ouverture de moins de `CONFIRM_GRACE_MS` (350 ms)** — même idée que la
+  grâce du fond de `BottomSheet`, où le geste d'ouverture ne doit pas refermer.
+  Le réglage `confirmMarkAllRead` la gouverne : désactivé, un clic agit
+  immédiatement, exactement comme avant.
+- **Les marquages de plage gardent leur « Confirmer ? » en place** — ils sont
+  annulables — mais reçoivent le **même délai de grâce** : le double-clic les
+  traversait aussi.
+- **Retour en arrière** (1.5.0) : les identifiants des articles **non lus** sont
+  relevés AVANT l'appel (`getUnreadItemIds`, `stream/items/ids` avec `xt`), puis
+  un bandeau propose « Annuler », qui les remet non lus par lots de 100
+  (`markAsUnread`). Au-delà de `UNDO_CAP` (1 000), le relevé serait partiel :
+  rien n'est promis, et la boîte le dit à l'avance. La vue est **relue** après
+  coup plutôt que rapiécée : les identifiants relevés sont la forme décimale de
+  `stream/items/ids`, quand les lignes portent la forme hexadécimale
+  d'`Article.id`.
 - **Pas offert partout** : `canMarkAllRead()` retire le bouton des vues
   **Favoris** et **À lire plus tard**. `markAllAsRead()` s'adresse au flux
   sélectionné ou à la liste de lecture entière, et n'a aucune notion de filtre —
@@ -2845,19 +2869,21 @@ Trois au maximum ; au-delà, les plus anciens sortent.
   signal qu'une écriture n'est pas passée : les retirer rendrait l'échec
   invisible jusqu'au rechargement (voir « Liste d'articles »).
 
-### Pourquoi « tout marquer comme lu » n'a pas d'annulation
+### Comment « tout marquer comme lu » s'annule
 
-C'est la seule action de l'application que rien ne défait, et la revue
-d'interface demandait un « Annuler ». **Ce n'est pas réalisable honnêtement.**
-L'API greader marque le flux **entier** à une date donnée et ne dit jamais
-quels articles étaient concernés. Restaurer les seuls articles présents en
-mémoire rendrait une partie de la vue non lue en laissant le reste lu, avec des
-compteurs qui mentiraient. Un « Annuler » qui n'annule qu'une partie est pire
-que pas d'annulation.
+Longtemps, cette section disait l'inverse : « pas réalisable honnêtement ». Le
+raisonnement tenait — l'API marque le flux **entier** et ne dit jamais quels
+articles étaient concernés, donc restaurer les articles présents **en mémoire**
+rendrait une partie de la vue non lue en laissant le reste lu — mais il partait
+du mauvais moment. **Ce qui manquait après l'appel se relève avant lui** :
+`stream/items/ids` avec `xt=…/state/com.google/read` rend les identifiants des
+articles non lus, en une requête plafonnée.
 
-La confirmation **avant** (`markAllRead.ts`, optionnelle) reste donc le
-garde-fou, et le toast se contente d'annoncer ce qui a été fait — avec le
-compte pris du compteur de non-lus de la vue, pas du nombre d'articles chargés.
+D'où, depuis la 1.5.0 : relevé avant, `mark-all-as-read`, puis un bandeau
+« Annuler » qui remet exactement ces articles — ni plus (les déjà-lus ne
+redeviennent pas non lus), ni moins. Au-delà de `UNDO_CAP`, le relevé serait
+tronqué : on ne propose alors rien, et la boîte de confirmation l'annonce
+d'avance plutôt que de laisser croire à un filet qui n'existe pas.
 
 ---
 

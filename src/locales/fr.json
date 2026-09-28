@@ -674,7 +674,9 @@
     "markFailed": "Le serveur a refusé de marquer cet article : sa ligne a été remise.",
     "markRangeFailed": "Le serveur a refusé de marquer ces articles",
     "markQueued": "Le marquage n’est pas passé. Il sera réessayé plus tard.",
-    "markRangeThrottled": "Trop de requêtes — une partie des articles a bien été marquée. Réessayez dans une minute."
+    "markRangeThrottled": "Trop de requêtes — une partie des articles a bien été marquée. Réessayez dans une minute.",
+    "undo": "Annuler",
+    "undoFailed": "Impossible de revenir en arrière"
   },
   "palette": {
     "title": "Palette de commandes",
@@ -689,5 +691,13 @@
       "actions": "Actions",
       "servers": "Serveurs"
     }
+  },
+  "dialog": {
+    "cancel": "Annuler",
+    "markAllTitle_one": "Marquer {{count}} article comme lu ?",
+    "markAllTitle_other": "Marquer {{count}} articles comme lus ?",
+    "markAllTitleAll": "Tout marquer comme lu ?",
+    "markAllNoUndo": "Au-delà de {{count}} articles, cette action ne pourra pas être annulée.",
+    "markAllConfirm": "Marquer lu"
   }
 }

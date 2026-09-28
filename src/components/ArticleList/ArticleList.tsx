@@ -5,7 +5,7 @@ import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
-import { markAllReadAction, canMarkAllRead } from '../../lib/markAllRead';
+import { markAllReadAction, canMarkAllRead, UNDO_CAP } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { shouldLoadMore, listBodyState, canLoadMore, searchAwareHasContinuation } from '../../lib/listPagination';
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
@@ -23,6 +23,7 @@ import ArticleContextMenu from './ArticleContextMenu';
 import NewArticlesBanner from './NewArticlesBanner';
 import SearchScanBar from './SearchScanBar';
 import SearchBar from './SearchBar';
+import ConfirmDialog from '../ConfirmDialog';
 import Highlighted from './Highlighted';
 import { resultSummary } from '../../lib/searchHighlight';
 import { parseQuery } from '../../lib/searchMatch';
@@ -225,7 +226,7 @@ export default function ArticleList() {
   // champ plutôt que gardées en état : elles changent à la soumission.
   const activeServerId = useAuthStore((s) => s.activeServerId);
   const [history, setHistory] = useState<string[]>([]);
-  const [markAllConfirm, setMarkAllConfirm] = useState(false);
+  const [markAllOpen, setMarkAllOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false); // mobile view-options sheet
   // Menu contextuel d'un article (clic droit, touche Menu, appui long) — voir
   // `ArticleContextMenu`. On garde l'id et la vue, pas l'objet : le menu relit
@@ -574,24 +575,24 @@ export default function ArticleList() {
     clearSearch();
   }
 
+  /**
+   * Le clic ouvre une BOÎTE quand la confirmation est demandée (réglage
+   * `confirmMarkAllRead`), au lieu de poser un « Confirmer ? » à la place du
+   * bouton — issue #17 : ce second état tombait sous le curseur, donc le
+   * second clic d'un double-clic le validait. Une boîte a son bouton
+   * ailleurs, et elle annonce ce qui va être marqué.
+   *
+   * Le compte vient du compteur de non-lus de la vue, pas des articles
+   * chargés : le serveur vide TOUT le flux, pas seulement la page affichée.
+   * Le retour en arrière, lui, vit dans le store (`markAllAsRead` relève les
+   * non-lus avant d'appeler) et s'offre par un bandeau.
+   */
   function handleMarkAllRead() {
-    if (markAllReadAction(confirmMarkAllRead, markAllConfirm) === 'ask') {
-      setMarkAllConfirm(true);
-      setTimeout(() => setMarkAllConfirm(false), 3000);
+    if (markAllReadAction(confirmMarkAllRead, false) === 'ask') {
+      setMarkAllOpen(true);
       return;
     }
-    // Le compte vient du compteur de non-lus de la vue, pas des articles
-    // chargés : le serveur vide TOUT le flux, pas seulement la page affichée.
-    // Il n'y a **pas** d'annulation, et il ne peut pas y en avoir d'honnête :
-    // l'API marque le flux entier à une date donnée, sans jamais dire quels
-    // articles étaient concernés. Restaurer les seuls articles en mémoire
-    // rendrait une partie de la vue non lue et laisserait le reste lu, avec
-    // des compteurs qui mentiraient. La confirmation avant reste donc le
-    // garde-fou. Voir `markAllRead.ts`.
-    const count = headerUnread;
     markAllAsRead();
-    pushToast(count ? t('toast.markedRead', { count }) : t('toast.markedReadAll'));
-    setMarkAllConfirm(false);
   }
 
   const feedName = selectedFeed ? selectedFeed.title : t('articleList.allFeeds');
@@ -691,8 +692,7 @@ export default function ArticleList() {
               <ToolbarBtn flex1 iconOnly icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               {canMarkAllRead(filter) && (
-                <ToolbarBtn flex1 iconOnly icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
-                  active={markAllConfirm} onClick={handleMarkAllRead} />
+                <ToolbarBtn flex1 iconOnly icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
               )}
               <ToolbarBtn flex1 iconOnly icon={<OptionsIcon />} label={t('articleList.viewOptions')} active={optionsOpen}
                 onClick={() => setOptionsOpen((o) => !o)} />
@@ -759,8 +759,7 @@ export default function ArticleList() {
               {canMarkAllRead(filter) && (
                 <>
                   <ToolbarSep />
-                  <ToolbarBtn icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
-                    active={markAllConfirm} onClick={handleMarkAllRead} />
+                  <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
                 </>
               )}
             </div>
@@ -835,8 +834,7 @@ export default function ArticleList() {
               {canMarkAllRead(filter) && (
                 <>
                   <ToolbarSep />
-                  <ToolbarBtn icon={<MarkAllReadIcon />} label={markAllConfirm ? t('articleList.confirm') : t('articleList.markAllRead')}
-                    active={markAllConfirm} onClick={handleMarkAllRead} />
+                  <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
                 </>
               )}
             </div>
@@ -922,6 +920,21 @@ export default function ArticleList() {
           </div>
         )}
       </div>
+
+      {/* La question, quand le réglage la demande. Le titre porte le COMPTE et
+          le périmètre : c'est ce qui distingue une action d'un filtre au
+          moment précis où la confusion se produit (issue #17). */}
+      <ConfirmDialog
+        open={markAllOpen}
+        title={headerUnread
+          ? t('dialog.markAllTitle', { count: headerUnread })
+          : t('dialog.markAllTitleAll')}
+        message={title}
+        warning={(headerUnread ?? 0) >= UNDO_CAP ? t('dialog.markAllNoUndo', { count: UNDO_CAP }) : undefined}
+        confirmLabel={t('dialog.markAllConfirm')}
+        onConfirm={() => { setMarkAllOpen(false); markAllAsRead(); }}
+        onCancel={() => setMarkAllOpen(false)}
+      />
 
       <SearchScanBar
         scan={searchScan}

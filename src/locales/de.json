@@ -674,7 +674,9 @@
     "markFailed": "Der Server hat das Markieren abgelehnt: Der Eintrag wurde wiederhergestellt.",
     "markRangeFailed": "Der Server hat das Markieren dieser Artikel abgelehnt",
     "markQueued": "Die Änderung ging nicht durch. Sie wird später erneut versucht.",
-    "markRangeThrottled": "Zu viele Anfragen – ein Teil der Artikel wurde markiert. In einer Minute erneut versuchen."
+    "markRangeThrottled": "Zu viele Anfragen – ein Teil der Artikel wurde markiert. In einer Minute erneut versuchen.",
+    "undo": "Rückgängig",
+    "undoFailed": "Rückgängig machen fehlgeschlagen"
   },
   "palette": {
     "title": "Befehlspalette",
@@ -689,5 +691,13 @@
       "actions": "Aktionen",
       "servers": "Server"
     }
+  },
+  "dialog": {
+    "cancel": "Abbrechen",
+    "markAllTitle_one": "{{count}} Artikel als gelesen markieren?",
+    "markAllTitle_other": "{{count}} Artikel als gelesen markieren?",
+    "markAllTitleAll": "Alles als gelesen markieren?",
+    "markAllNoUndo": "Ab {{count}} Artikeln lässt sich das nicht rückgängig machen.",
+    "markAllConfirm": "Als gelesen markieren"
   }
 }

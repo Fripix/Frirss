@@ -674,7 +674,9 @@
     "markFailed": "O servidor recusou marcar este artigo: a linha foi reposta.",
     "markRangeFailed": "O servidor recusou marcar esses artigos",
     "markQueued": "A alteração não passou. Será tentada novamente mais tarde.",
-    "markRangeThrottled": "Muitos pedidos — alguns artigos foram marcados. Tente novamente em um minuto."
+    "markRangeThrottled": "Muitos pedidos — alguns artigos foram marcados. Tente novamente em um minuto.",
+    "undo": "Desfazer",
+    "undoFailed": "Não foi possível desfazer"
   },
   "palette": {
     "title": "Paleta de comandos",
@@ -689,5 +691,13 @@
       "actions": "Ações",
       "servers": "Servidores"
     }
+  },
+  "dialog": {
+    "cancel": "Cancelar",
+    "markAllTitle_one": "Marcar {{count}} artigo como lido?",
+    "markAllTitle_other": "Marcar {{count}} artigos como lidos?",
+    "markAllTitleAll": "Marcar tudo como lido?",
+    "markAllNoUndo": "Acima de {{count}} artigos, não será possível desfazer.",
+    "markAllConfirm": "Marcar como lido"
   }
 }

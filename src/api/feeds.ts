@@ -101,6 +101,26 @@ export async function getStreamItemCount(streamId: string, cap = 1000): Promise<
   return data.itemRefs?.length ?? 0;
 }
 
+/**
+ * Les identifiants des articles NON LUS d'un flux, plafonnés.
+ *
+ * Sert au retour en arrière de « tout marquer comme lu » : `mark-all-as-read`
+ * ne rend pas ce qu'il a touché, donc la seule façon de rendre exactement les
+ * bons articles est de les relever AVANT. `xt` exclut les déjà-lus, qui ne
+ * doivent surtout pas redevenir non lus.
+ *
+ * ⚠️ Ces identifiants sont la forme DÉCIMALE de `stream/items/ids`, pas la
+ * forme hexadécimale que porte `Article.id` : ils repartent tels quels vers
+ * `edit-tag` (qui les accepte), jamais comparés à une ligne à l'écran.
+ */
+export async function getUnreadItemIds(streamId: string, cap = 1000): Promise<string[]> {
+  const { data } = await client.get<{ itemRefs?: { id: string }[] }>(
+    `${BASE}/stream/items/ids`,
+    { params: { output: 'json', s: streamId, n: cap, xt: 'user/-/state/com.google/read' } }
+  );
+  return (data.itemRefs ?? []).map((ref) => ref.id);
+}
+
 // Cache the write token (CSRF)
 let writeToken: string | null = null;
 

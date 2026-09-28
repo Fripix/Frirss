@@ -26,6 +26,18 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **« Tout marquer comme lu » demande par une boîte de dialogue** (issue #17,
+  signalée par @alasdair64) au lieu de changer le bouton en « Confirmer ? » :
+  ce second état tombait sous le curseur, si bien qu'un double-clic le validait
+  — et le bouton, voisin de « Non lus » et « Favoris », se lisait comme un
+  filtre. La boîte annonce le nombre d'articles et la vue concernée. Le réglage
+  « Confirmer avant de tout marquer comme lu » la gouverne toujours : désactivé,
+  un clic agit immédiatement, comme avant.
+- **On peut revenir en arrière après un « tout marquer comme lu »** : un bandeau
+  « Annuler » rend non lus exactement les articles qui l'étaient, tant qu'ils ne
+  dépassent pas un millier — au-delà, la boîte prévient que l'action sera
+  définitive.
+
 - **La barre d'état de la recherche reste affichée une fois le balayage
   terminé** et annonce le nombre de résultats — « lus compris » quand la vue
   filtre les non lus. Elle disparaissait : plus rien ne distinguait alors une

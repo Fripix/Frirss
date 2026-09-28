@@ -674,7 +674,9 @@
     "markFailed": "De server weigerde dit artikel te markeren: de rij is teruggezet.",
     "markRangeFailed": "De server weigerde deze artikelen te markeren",
     "markQueued": "De wijziging is niet doorgekomen. Er wordt later opnieuw geprobeerd.",
-    "markRangeThrottled": "Te veel aanvragen — een deel van de artikelen is gemarkeerd. Probeer het over een minuut opnieuw."
+    "markRangeThrottled": "Te veel aanvragen — een deel van de artikelen is gemarkeerd. Probeer het over een minuut opnieuw.",
+    "undo": "Ongedaan maken",
+    "undoFailed": "Ongedaan maken mislukt"
   },
   "palette": {
     "title": "Opdrachtenpalet",
@@ -689,5 +691,13 @@
       "actions": "Acties",
       "servers": "Servers"
     }
+  },
+  "dialog": {
+    "cancel": "Annuleren",
+    "markAllTitle_one": "{{count}} artikel als gelezen markeren?",
+    "markAllTitle_other": "{{count}} artikelen als gelezen markeren?",
+    "markAllTitleAll": "Alles als gelezen markeren?",
+    "markAllNoUndo": "Boven {{count}} artikelen kan dit niet ongedaan worden gemaakt.",
+    "markAllConfirm": "Als gelezen markeren"
   }
 }

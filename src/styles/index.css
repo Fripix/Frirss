@@ -1653,6 +1653,90 @@ summary:focus-visible,
   .bottom-sheet, .bottom-sheet__backdrop { animation: none; }
 }
 
+/* ── Boîte de confirmation ────────────────────────────────────────── */
+/* Rendue par l'application, pas par le navigateur : elle suit le thème, elle
+   se traduit, elle se teste. Le bouton de validation est à DROITE, loin de la
+   barre d'outils d'où part le clic — c'est la moitié de la garde contre le
+   double-clic (issue #17), l'autre étant le court délai avant qu'il réponde. */
+.confirm-dialog-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.confirm-dialog__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  animation: backdropFadeIn 0.2s ease;
+}
+.confirm-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+}
+.confirm-dialog__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--list-title);
+}
+.confirm-dialog__message {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--list-summary);
+}
+.confirm-dialog__warning {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--list-title);
+  background: color-mix(in srgb, var(--readlater-color, #8b5cf6) 12%, transparent);
+}
+.confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.confirm-dialog__actions button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  /* 40 px de haut au doigt : ces deux boutons décident d'une action que rien
+     ne rattrape au-delà du plafond, ils ne se visent pas à l'approximatif. */
+  min-height: 40px;
+}
+.confirm-dialog__cancel {
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--list-title);
+}
+.confirm-dialog__confirm {
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.confirm-dialog__actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog__backdrop { animation: none; }
+}
+
 /* ── Morphing liste → lecture (View Transitions) ──────────────────── */
 /* Le titre du volet porte le nom en permanence ; la ligne cliquée le reçoit
    le temps de la transition, posé par `openArticle`. Hors transition, un seul

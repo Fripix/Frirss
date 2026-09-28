@@ -674,7 +674,9 @@
     "markFailed": "服务器拒绝标记该文章，已重新放回列表。",
     "markRangeFailed": "服务器拒绝标记这些文章",
     "markQueued": "更改未成功，稍后将自动重试。",
-    "markRangeThrottled": "请求过多 — 部分文章已标记，请一分钟后重试。"
+    "markRangeThrottled": "请求过多 — 部分文章已标记，请一分钟后重试。",
+    "undo": "撤销",
+    "undoFailed": "无法撤销"
   },
   "palette": {
     "title": "命令面板",
@@ -689,5 +691,13 @@
       "actions": "操作",
       "servers": "服务器"
     }
+  },
+  "dialog": {
+    "cancel": "取消",
+    "markAllTitle_one": "将 {{count}} 篇文章标为已读？",
+    "markAllTitle_other": "将 {{count}} 篇文章标为已读？",
+    "markAllTitleAll": "全部标为已读？",
+    "markAllNoUndo": "超过 {{count}} 篇文章后将无法撤销。",
+    "markAllConfirm": "标为已读"
   }
 }

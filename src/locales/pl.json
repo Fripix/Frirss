@@ -696,7 +696,9 @@
     "markFailed": "Serwer odmówił oznaczenia tego artykułu: wiersz został przywrócony.",
     "markRangeFailed": "Serwer odmówił oznaczenia tych artykułów",
     "markQueued": "Zmiana nie doszła do skutku. Zostanie ponowiona później.",
-    "markRangeThrottled": "Zbyt wiele żądań — część artykułów została oznaczona. Spróbuj ponownie za minutę."
+    "markRangeThrottled": "Zbyt wiele żądań — część artykułów została oznaczona. Spróbuj ponownie za minutę.",
+    "undo": "Cofnij",
+    "undoFailed": "Nie udało się cofnąć"
   },
   "palette": {
     "title": "Paleta poleceń",
@@ -711,5 +713,15 @@
       "actions": "Akcje",
       "servers": "Serwery"
     }
+  },
+  "dialog": {
+    "cancel": "Anuluj",
+    "markAllTitle_one": "Oznaczyć {{count}} artykuł jako przeczytany?",
+    "markAllTitle_few": "Oznaczyć {{count}} artykuły jako przeczytane?",
+    "markAllTitle_many": "Oznaczyć {{count}} artykułów jako przeczytane?",
+    "markAllTitle_other": "Oznaczyć {{count}} artykułów jako przeczytane?",
+    "markAllTitleAll": "Oznaczyć wszystko jako przeczytane?",
+    "markAllNoUndo": "Powyżej {{count}} artykułów nie da się tego cofnąć.",
+    "markAllConfirm": "Oznacz jako przeczytane"
   }
 }

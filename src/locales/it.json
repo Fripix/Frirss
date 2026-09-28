@@ -674,7 +674,9 @@
     "markFailed": "Il server ha rifiutato di contrassegnare questo articolo: la riga è stata ripristinata.",
     "markRangeFailed": "Il server ha rifiutato di contrassegnare questi articoli",
     "markQueued": "La modifica non è andata a buon fine. Verrà ritentata più tardi.",
-    "markRangeThrottled": "Troppe richieste — alcuni articoli sono stati contrassegnati. Riprova tra un minuto."
+    "markRangeThrottled": "Troppe richieste — alcuni articoli sono stati contrassegnati. Riprova tra un minuto.",
+    "undo": "Annulla",
+    "undoFailed": "Impossibile annullare"
   },
   "palette": {
     "title": "Palette dei comandi",
@@ -689,5 +691,13 @@
       "actions": "Azioni",
       "servers": "Server"
     }
+  },
+  "dialog": {
+    "cancel": "Annulla",
+    "markAllTitle_one": "Segnare {{count}} articolo come letto?",
+    "markAllTitle_other": "Segnare {{count}} articoli come letti?",
+    "markAllTitleAll": "Segnare tutto come letto?",
+    "markAllNoUndo": "Oltre {{count}} articoli, l’operazione non è annullabile.",
+    "markAllConfirm": "Segna come letto"
   }
 }
