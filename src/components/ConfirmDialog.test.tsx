@@ -20,6 +20,12 @@ function ouvrir(over: Partial<Parameters<typeof ConfirmDialog>[0]> = {}) {
   return { props, ...render(<ConfirmDialog {...props} />) };
 }
 
+/** Franchit la grâce anti-double-clic, minuteurs réels : les tests qui
+ *  attendent une promesse ne peuvent pas vivre sous minuteurs factices. */
+async function franchirLaGrace() {
+  await act(async () => { await new Promise((r) => setTimeout(r, CONFIRM_GRACE_MS + 30)); });
+}
+
 /** Avance le temps ET laisse React appliquer les états différés. */
 function attendre(ms: number) {
   act(() => { vi.advanceTimersByTime(ms); });
@@ -67,6 +73,60 @@ describe('ConfirmDialog', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  /**
+   * Sur un gros compte, le relevé des non-lus tourne encore quand on valide —
+   * mesuré à ~1 s par millier d'articles sur l'instance de dev. Sans rien à
+   * l'écran, la validation semble n'avoir rien fait, et on reclique.
+   *
+   * Ce qui s'affiche est le travail en cours, pas son objet : un libellé du
+   * genre « préparation de l'annulation » parlerait d'un filet avant même que
+   * l'action soit faite — mauvais signal. Même patron que le bouton
+   * d'enregistrement de `RefreshTokenField` : rotation, `aria-busy`, libellé
+   * inchangé.
+   */
+  it('montre que ça travaille tant que la validation n’a pas rendu la main', async () => {
+    let resoudre: () => void = () => {};
+    const onConfirm = vi.fn(() => new Promise<void>((r) => { resoudre = r; }));
+    ouvrir({ onConfirm });
+    await franchirLaGrace();
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Marquer lu' })); });
+
+    const valider = screen.getByRole('button', { name: 'Marquer lu' });
+    expect(valider.getAttribute('aria-busy')).toBe('true');
+    expect((valider as HTMLButtonElement).disabled).toBe(true);
+    expect(valider.querySelector('svg.animate-spin')).toBeTruthy();
+    expect(document.body.querySelector('[role="dialog"]')).toBeTruthy();
+
+    await act(async () => { resoudre(); });
+  });
+
+  it('ignore les clics suivants pendant le travail', async () => {
+    let resoudre: () => void = () => {};
+    const onConfirm = vi.fn(() => new Promise<void>((r) => { resoudre = r; }));
+    ouvrir({ onConfirm });
+    await franchirLaGrace();
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Marquer lu' })); });
+    fireEvent.click(screen.getByRole('button', { name: 'Marquer lu' }));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+
+    await act(async () => { resoudre(); });
+  });
+
+  it('neutralise Annuler pendant le travail — l’action est déjà partie', async () => {
+    let resoudre: () => void = () => {};
+    const props = { onConfirm: vi.fn(() => new Promise<void>((r) => { resoudre = r; })), onCancel: vi.fn() };
+    ouvrir(props);
+    await franchirLaGrace();
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Marquer lu' })); });
+    fireEvent.click(screen.getByRole('button', { name: 'dialog.cancel' }));
+    expect(props.onCancel).not.toHaveBeenCalled();
+
+    await act(async () => { resoudre(); });
   });
 
   it('annule au clic sur Annuler', () => {

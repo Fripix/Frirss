@@ -1710,6 +1710,10 @@ summary:focus-visible,
   margin-top: 18px;
 }
 .confirm-dialog__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 13px;
@@ -1728,6 +1732,13 @@ summary:focus-visible,
   border: 1px solid transparent;
   background: var(--accent);
   color: var(--on-accent);
+}
+.confirm-dialog__actions button:disabled {
+  /* Pendant le travail : l'action est partie, plus rien n'est à décider ici.
+     L'opacité reste haute — ces boutons ne sont pas « indisponibles », ils
+     attendent, et la rotation dit laquelle. */
+  opacity: 0.75;
+  cursor: default;
 }
 .confirm-dialog__actions button:focus-visible {
   outline: 2px solid var(--accent);

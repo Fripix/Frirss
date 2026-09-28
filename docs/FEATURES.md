@@ -1172,7 +1172,15 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   - **Le relevé démarre à l'OUVERTURE de la boîte** (`prepareMarkAllUndo`), pas
     à la validation : une requête par millier d'articles, c'est du temps qui se
     dépense pendant que la question est lue. Annuler l'abandonne — il n'a rien
-    écrit.
+    écrit. Mesuré sur l'instance de dev le 2026-09-28 :
+    **1 020 non lus = 2 requêtes, ~1 s chacune**.
+  - **Si on valide avant la fin du relevé, la boîte RESTE et montre qu'elle
+    travaille** : rotation dans le bouton de validation, `aria-busy`, libellé
+    inchangé, boutons neutralisés (même patron que `RefreshTokenField`). Ce qui
+    s'affiche est le travail, **pas son objet** : un libellé du genre
+    « préparation de l'annulation » parlerait d'un filet avant même que l'action
+    soit faite — mauvais signal, écarté par le propriétaire. Sans ce retour,
+    valider sur un gros compte semblait n'avoir aucun effet, et on recliquait.
   - ⚠️ **Le relevé préparé porte son périmètre.** Annuler la question, changer
     de flux, puis marquer ailleurs consommerait sinon le relevé de la vue
     précédente, et « Annuler » rendrait non lus des articles qu'on n'a jamais

@@ -20,7 +20,8 @@ interface Props {
   confirmLabel: string;
   /** Prévient que l'action ne pourra pas être défaite. */
   warning?: string;
-  onConfirm: () => void;
+  /** Peut rendre une promesse : la boîte montre alors que ça travaille jusqu'à ce qu'elle se règle. */
+  onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -40,9 +41,13 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
   const titleId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // Lue par l'écouteur d'Échap, qui n'est posé qu'à l'ouverture.
+  const busyRef = useRef(false);
+  busyRef.current = busy;
 
   useEffect(() => {
-    if (!open) { setArmed(false); return; }
+    if (!open) { setArmed(false); setBusy(false); return; }
     cancelRef.current?.focus();
     const timer = setTimeout(() => setArmed(true), CONFIRM_GRACE_MS);
     return () => clearTimeout(timer);
@@ -51,7 +56,7 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') { e.stopPropagation(); onCancel(); }
+      if (e.key === 'Escape' && !busyRef.current) { e.stopPropagation(); onCancel(); }
     }
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
@@ -59,8 +64,20 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
 
   if (!open) return null;
 
+  async function handleConfirm() {
+    if (!armed || busy) return;
+    const done = onConfirm();
+    if (!(done instanceof Promise)) return;
+    // Le travail a commencé : la boîte reste, elle montre qu'il tourne, et
+    // elle n'accepte plus rien. Ce qui s'affiche est le travail — pas son
+    // objet : annoncer ici ce qu'on pourra défaire parlerait d'un filet avant
+    // même que l'action soit faite.
+    setBusy(true);
+    try { await done; } finally { setBusy(false); }
+  }
+
   return createPortal(
-    <div className="confirm-dialog-root" onClick={onCancel} role="presentation">
+    <div className="confirm-dialog-root" onClick={busy ? undefined : onCancel} role="presentation">
       <div className="confirm-dialog__backdrop" />
       <div
         className="confirm-dialog"
@@ -73,14 +90,21 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
         {message && <p className="confirm-dialog__message">{message}</p>}
         {warning && <p className="confirm-dialog__warning">{warning}</p>}
         <div className="confirm-dialog__actions">
-          <button type="button" ref={cancelRef} className="confirm-dialog__cancel" onClick={onCancel}>
+          <button type="button" ref={cancelRef} className="confirm-dialog__cancel" onClick={onCancel} disabled={busy}>
             {t('dialog.cancel')}
           </button>
           <button
             type="button"
             className="confirm-dialog__confirm"
-            onClick={() => { if (armed) onConfirm(); }}
+            onClick={handleConfirm}
+            disabled={busy}
+            aria-busy={busy}
           >
+            {busy && (
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
             {confirmLabel}
           </button>
         </div>

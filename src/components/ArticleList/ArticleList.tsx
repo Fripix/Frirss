@@ -937,7 +937,9 @@ export default function ArticleList() {
         message={title}
         warning={(headerUnread ?? 0) >= UNDO_CAP ? t('dialog.markAllNoUndo', { count: UNDO_CAP }) : undefined}
         confirmLabel={t('dialog.markAllConfirm')}
-        onConfirm={() => { setMarkAllOpen(false); markAllAsRead(); }}
+        // La boîte reste tant que l'action tourne — elle montre alors qu'elle
+        // travaille — et se ferme quand c'est fait.
+        onConfirm={async () => { await markAllAsRead(); setMarkAllOpen(false); }}
         onCancel={() => setMarkAllOpen(false)}
       />
 
