@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, screen, act } from '@testing-library/react';
+import { render, cleanup, screen, act, fireEvent } from '@testing-library/react';
 
 vi.mock('../api/feeds', async () => {
   const actual = await vi.importActual<typeof import('../api/feeds')>('../api/feeds');
@@ -43,5 +43,20 @@ describe('le bandeau de « tout marquer comme lu » arrive à l’écran', () =>
 
     expect(screen.getByRole('status')).toBeTruthy();
     expect(screen.getByRole('button', { name: /annuler|undo/i })).toBeTruthy();
+  });
+
+  /**
+   * Et le clic doit RENDRE les articles. Le test précédent s'arrêtait à la
+   * présence du bouton : il aurait laissé passer une action qui ne fait rien,
+   * ce que le navigateur a semblé montrer le 2026-09-28.
+   */
+  it('rend les articles quand on clique Annuler', async () => {
+    const { markAsUnread } = await import('../api/feeds');
+    render(<Toaster />);
+    await act(async () => { await useFeedStore.getState().markAllAsRead(); });
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /annuler|undo/i })); });
+
+    expect(markAsUnread).toHaveBeenCalledWith(['a', 'b']);
   });
 });
