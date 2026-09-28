@@ -2,15 +2,22 @@ import type { Filter } from '../types';
 
 export type MarkAllAction = 'mark' | 'ask';
 
+/** Taille d'une page de relevé (`stream/items/ids`). */
+export const UNDO_PAGE = 1000;
+
 /**
- * Combien d'articles le retour en arrière sait rendre.
+ * Combien de pages le relevé accepte d'enchaîner avant d'abandonner.
  *
- * `mark-all-as-read` ne dit pas ce qu'il a touché : les non-lus sont donc
- * relevés AVANT l'appel, en une requête plafonnée. Au-delà, le relevé est
- * partiel — on ne propose alors rien plutôt que de rendre une liste tronquée
- * en la présentant comme complète, et la boîte de confirmation le dit.
+ * `mark-all-as-read` ne dit pas ce qu'il a touché : les non-lus sont relevés
+ * AVANT l'appel, page par page. Ce n'est pas une limite de confort mais une
+ * borne de sûreté — vingt-cinq requêtes d'identifiants, c'est déjà beaucoup,
+ * et au-delà le relevé serait partiel. On ne promet alors rien plutôt que de
+ * rendre une liste tronquée en la présentant comme complète.
  */
-export const UNDO_CAP = 1000;
+export const UNDO_PAGES = 25;
+
+/** Le nombre d'articles au-delà duquel plus rien n'est promis. */
+export const UNDO_CAP = UNDO_PAGE * UNDO_PAGES;
 
 // Decide what a "Mark all as read" click should do:
 //  - confirmation disabled           → mark immediately

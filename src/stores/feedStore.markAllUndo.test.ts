@@ -7,7 +7,7 @@ vi.mock('../api/feeds', async () => {
     ...actual,
     markAllAsRead: vi.fn().mockResolvedValue(undefined),
     markAsUnread: vi.fn().mockResolvedValue(undefined),
-    getUnreadItemIds: vi.fn().mockResolvedValue([]),
+    getUnreadItemIds: vi.fn().mockResolvedValue({ ids: [], complete: true }),
     getUnreadCounts: vi.fn().mockResolvedValue([]),
     getStreamContents: vi.fn().mockResolvedValue({ items: [], continuation: null }),
     fetchStreamPage: vi.fn().mockResolvedValue({ items: [], continuation: null }),
@@ -38,7 +38,7 @@ beforeEach(() => {
  */
 describe('markAllAsRead — retour en arrière', () => {
   it('relève les non-lus avant de marquer, et propose de défaire', async () => {
-    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue(['a', 'b', 'c']);
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ['a', 'b', 'c'], complete: true });
 
     await useFeedStore.getState().markAllAsRead();
 
@@ -48,7 +48,7 @@ describe('markAllAsRead — retour en arrière', () => {
   });
 
   it('rend non lus exactement les articles relevés', async () => {
-    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue(['a', 'b', 'c']);
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ['a', 'b', 'c'], complete: true });
 
     await useFeedStore.getState().markAllAsRead();
     await useUiStore.getState().toasts.at(-1)!.action!.run();
@@ -56,28 +56,74 @@ describe('markAllAsRead — retour en arrière', () => {
     expect(markAsUnread).toHaveBeenCalledWith(['a', 'b', 'c']);
   });
 
-  it('découpe la remise en non lus par lots de 100', async () => {
-    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue(ids(250));
+  it('découpe la remise en non lus par lots de 500', async () => {
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ids(1200), complete: true });
 
     await useFeedStore.getState().markAllAsRead();
     await useUiStore.getState().toasts.at(-1)!.action!.run();
 
     const lots = (markAsUnread as ReturnType<typeof vi.fn>).mock.calls.map((c) => (c[0] as string[]).length);
-    expect(lots).toEqual([100, 100, 50]);
+    expect(lots).toEqual([500, 500, 200]);
   });
 
   /**
-   * Au-delà du plafond, le relevé est forcément incomplet : promettre un
-   * retour en arrière qui ne rendrait qu'une partie des articles serait pire
-   * que ne rien promettre.
+   * Le relevé pagine (`stream/items/ids` rend une continuation) : plusieurs
+   * milliers d'articles non lus, c'est ordinaire dès qu'on suit beaucoup de
+   * flux, et s'arrêter à la première page privait justement ces comptes-là du
+   * retour en arrière.
    */
-  it('ne propose rien quand le relevé bute sur le plafond', async () => {
-    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue(ids(1000));
+  it('propose de défaire bien au-delà d’une page', async () => {
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ids(4300), complete: true });
+
+    await useFeedStore.getState().markAllAsRead();
+    await useUiStore.getState().toasts.at(-1)!.action!.run();
+
+    const rendus = (markAsUnread as ReturnType<typeof vi.fn>).mock.calls
+      .reduce((n, c) => n + (c[0] as string[]).length, 0);
+    expect(rendus).toBe(4300);
+  });
+
+  it('ne promet rien quand le relevé n’a pas pu aller au bout', async () => {
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ids(25000), complete: false });
 
     await useFeedStore.getState().markAllAsRead();
 
     expect(apiMarkAllAsRead).toHaveBeenCalled();
     expect(useUiStore.getState().toasts.at(-1)?.action).toBeFalsy();
+  });
+
+  /**
+   * Le relevé est lancé À L'OUVERTURE de la boîte de confirmation : la
+   * pagination coûte une requête par millier d'articles, et ce temps doit se
+   * dépenser pendant que la question est lue, pas après la validation.
+   */
+  it('réutilise le relevé préparé pendant la question, sans le refaire', async () => {
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ['a', 'b'], complete: true });
+
+    useFeedStore.getState().prepareMarkAllUndo();
+    await useFeedStore.getState().markAllAsRead();
+
+    expect(getUnreadItemIds).toHaveBeenCalledTimes(1);
+    expect(useUiStore.getState().toasts.at(-1)?.action).toBeTruthy();
+  });
+
+  /**
+   * Le relevé préparé appartient à la vue qui a posé la question. Annuler la
+   * boîte, changer de flux, puis marquer ailleurs ne doit pas rendre non lus
+   * les articles de la vue précédente — le pire des retours en arrière, celui
+   * qui touche autre chose que ce qu'on vient de faire.
+   */
+  it('ignore un relevé préparé pour une autre vue', async () => {
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ['ancien'], complete: true });
+    useFeedStore.setState({ selectedFeed: { id: 'feed/1', title: 'A' } as never });
+    useFeedStore.getState().prepareMarkAllUndo();
+
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ['nouveau'], complete: true });
+    useFeedStore.setState({ selectedFeed: { id: 'feed/2', title: 'B' } as never });
+    await useFeedStore.getState().markAllAsRead();
+    await useUiStore.getState().toasts.at(-1)!.action!.run();
+
+    expect(markAsUnread).toHaveBeenCalledWith(['nouveau']);
   });
 
   /** Le relevé est un confort : son échec ne doit pas retenir l'action. */

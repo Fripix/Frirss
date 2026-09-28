@@ -1159,12 +1159,25 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   traversait aussi.
 - **Retour en arrière** (1.5.0) : les identifiants des articles **non lus** sont
   relevés AVANT l'appel (`getUnreadItemIds`, `stream/items/ids` avec `xt`), puis
-  un bandeau propose « Annuler », qui les remet non lus par lots de 100
-  (`markAsUnread`). Au-delà de `UNDO_CAP` (1 000), le relevé serait partiel :
-  rien n'est promis, et la boîte le dit à l'avance. La vue est **relue** après
-  coup plutôt que rapiécée : les identifiants relevés sont la forme décimale de
-  `stream/items/ids`, quand les lignes portent la forme hexadécimale
-  d'`Article.id`.
+  un bandeau propose « Annuler », qui les remet non lus par lots de
+  `UNDO_BATCH` (500). La vue est **relue** après coup plutôt que rapiécée : les
+  identifiants relevés sont la forme décimale de `stream/items/ids`, quand les
+  lignes portent la forme hexadécimale d'`Article.id`.
+  - **Le relevé PAGINE** (`UNDO_PAGE` = 1 000 par requête, `UNDO_PAGES` = 25,
+    soit `UNDO_CAP` = 25 000 articles). La première version s'arrêtait à une
+    page : passé quelques dizaines de flux, plusieurs milliers de non-lus sont
+    ordinaires, et c'est exactement à ces comptes-là que le retour en arrière
+    manquait. Au-delà de la borne, le relevé serait partiel (`complete: false`) :
+    rien n'est promis, et la boîte le dit **à l'avance**.
+  - **Le relevé démarre à l'OUVERTURE de la boîte** (`prepareMarkAllUndo`), pas
+    à la validation : une requête par millier d'articles, c'est du temps qui se
+    dépense pendant que la question est lue. Annuler l'abandonne — il n'a rien
+    écrit.
+  - ⚠️ **Le relevé préparé porte son périmètre.** Annuler la question, changer
+    de flux, puis marquer ailleurs consommerait sinon le relevé de la vue
+    précédente, et « Annuler » rendrait non lus des articles qu'on n'a jamais
+    marqués. `markAllAsRead` ne reprend le relevé que si son `streamId`
+    correspond, sinon il en refait un.
 - **Pas offert partout** : `canMarkAllRead()` retire le bouton des vues
   **Favoris** et **À lire plus tard**. `markAllAsRead()` s'adresse au flux
   sélectionné ou à la liste de lecture entière, et n'a aucune notion de filtre —
@@ -2879,11 +2892,12 @@ du mauvais moment. **Ce qui manquait après l'appel se relève avant lui** :
 `stream/items/ids` avec `xt=…/state/com.google/read` rend les identifiants des
 articles non lus, en une requête plafonnée.
 
-D'où, depuis la 1.5.0 : relevé avant, `mark-all-as-read`, puis un bandeau
-« Annuler » qui remet exactement ces articles — ni plus (les déjà-lus ne
-redeviennent pas non lus), ni moins. Au-delà de `UNDO_CAP`, le relevé serait
-tronqué : on ne propose alors rien, et la boîte de confirmation l'annonce
-d'avance plutôt que de laisser croire à un filet qui n'existe pas.
+D'où, depuis la 1.5.0 : relevé avant (paginé jusqu'à `UNDO_CAP`),
+`mark-all-as-read`, puis un bandeau « Annuler » qui remet exactement ces
+articles — ni plus (les déjà-lus ne redeviennent pas non lus), ni moins. Au-delà
+de la borne, le relevé serait tronqué : on ne propose alors rien, et la boîte de
+confirmation l'annonce d'avance plutôt que de laisser croire à un filet qui
+n'existe pas.
 
 ---
 

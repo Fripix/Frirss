@@ -29,7 +29,7 @@ import {
   createCorpus, addPage, corpusIsUsable, corpusMatches, patchCorpusArticle, patchCorpusByEntry,
   type Corpus,
 } from '../lib/searchCorpus';
-import { canMarkAllRead, UNDO_CAP } from '../lib/markAllRead';
+import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import type { HomeEntry } from '../lib/unreadScope';
@@ -561,6 +561,8 @@ export interface FeedState {
   /** Montre la tranche de résultats suivante — purement local, aucun réseau. */
   showMoreSearchResults: () => void;
   markAllAsRead: () => Promise<void>;
+  /** Prépare le retour en arrière pendant que la confirmation est à l'écran. */
+  prepareMarkAllUndo: () => void;
   markReadRelative: (article: Article, direction: 'above' | 'below') => Promise<void>;
   loadLabels: () => Promise<void>;
   toggleReadLater: (article: Article) => Promise<void>;
@@ -1584,6 +1586,20 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     get().loadArticles();
   },
 
+  /**
+   * Lancer le relevé des non-lus SANS marquer quoi que ce soit.
+   *
+   * Appelée à l'ouverture de la boîte de confirmation : le relevé coûte une
+   * requête par millier d'articles, et ce temps se dépense pendant que la
+   * question est lue plutôt qu'après la validation. Si l'utilisateur annule,
+   * le relevé est simplement abandonné — il n'a rien écrit.
+   */
+  prepareMarkAllUndo: () => {
+    const { selectedFeed } = get();
+    const streamId = selectedFeed ? selectedFeed.id : 'user/-/state/com.google/reading-list';
+    undoSnapshot = { streamId, ids: snapshotUnread(streamId) };
+  },
+
   // Mark all as read
   markAllAsRead: async () => {
     const { selectedFeed } = get();
@@ -1594,7 +1610,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // et seuls les articles non lus à cet instant doivent pouvoir redevenir
     // non lus. Un échec ou un plafond atteint ne retient pas l'action — ils
     // retirent seulement la proposition de défaire (issue #17).
-    const avant = await snapshotUnread(streamId);
+    const prepare = undoSnapshot;
+    undoSnapshot = null;
+    const avant = await (prepare?.streamId === streamId ? prepare.ids : snapshotUnread(streamId));
     try {
       await markAllAsRead(streamId);
       // Update local state
@@ -2486,15 +2504,34 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
  * l'ancien flux dans la nouvelle vue. Revérifiée après CHAQUE `await`, comme
  * dans `loadMore`.
  */
-/** Par lots, comme le marquage de plage (`markReadRelative`). */
-const UNDO_BATCH = 100;
+/**
+ * Combien d'identifiants par écriture de retour en arrière.
+ *
+ * 500 et non 100 (la taille du marquage de plage) : ce chemin-ci peut porter
+ * plusieurs milliers d'articles, et autant d'allers-retours séquentiels se
+ * verraient. `edit-tag` prend les `i=` répétés dans le CORPS de la requête,
+ * donc 500 identifiants pèsent une dizaine de kilo-octets — sans commune
+ * mesure avec la limite d'une URL.
+ */
+const UNDO_BATCH = 500;
 
-/** Les non-lus du flux avant un « tout lu », ou `null` si on ne peut pas
- *  promettre de les rendre tous. */
+/**
+ * Le relevé lancé pendant que la question est à l'écran, s'il y en a un.
+ *
+ * Il porte SON périmètre : annuler la boîte, changer de flux puis marquer
+ * ailleurs consommerait sinon le relevé de la vue précédente, et le retour en
+ * arrière rendrait non lus des articles qu'on n'a pas marqués.
+ */
+let undoSnapshot: { streamId: string; ids: Promise<string[] | null> } | null = null;
+
+/**
+ * Les non-lus du flux avant un « tout lu », ou `null` quand rien ne peut être
+ * promis — relevé impossible, ou interrompu par la borne de pages.
+ */
 async function snapshotUnread(streamId: string): Promise<string[] | null> {
   try {
-    const ids = await getUnreadItemIds(streamId, UNDO_CAP);
-    return ids.length && ids.length < UNDO_CAP ? ids : null;
+    const { ids, complete } = await getUnreadItemIds(streamId);
+    return complete && ids.length ? ids : null;
   } catch {
     return null;
   }

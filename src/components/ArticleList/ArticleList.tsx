@@ -589,6 +589,11 @@ export default function ArticleList() {
    */
   function handleMarkAllRead() {
     if (markAllReadAction(confirmMarkAllRead, false) === 'ask') {
+      // Le relevé des non-lus part MAINTENANT, pendant que la question est
+      // lue : il coûte une requête par millier d'articles, et ce temps ne doit
+      // pas s'ajouter après la validation. Annuler l'abandonne, il n'a rien
+      // écrit.
+      useFeedStore.getState().prepareMarkAllUndo();
       setMarkAllOpen(true);
       return;
     }

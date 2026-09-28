@@ -2,6 +2,7 @@ import client from './client';
 import { isStaleWriteTokenFailure } from '../lib/writeTokenRetry';
 import { entryIdUsec, isOlderEntry } from '../lib/entryId';
 import type { Subscription, Tag, UnreadCount, GReaderItem, GReaderStream } from '../types';
+import { UNDO_PAGE, UNDO_PAGES } from '../lib/markAllRead';
 
 const BASE = '/api/greader.php/reader/api/0';
 
@@ -102,23 +103,43 @@ export async function getStreamItemCount(streamId: string, cap = 1000): Promise<
 }
 
 /**
- * Les identifiants des articles NON LUS d'un flux, plafonnés.
+ * Les identifiants des articles NON LUS d'un flux, PAGINÉS jusqu'au bout.
  *
  * Sert au retour en arrière de « tout marquer comme lu » : `mark-all-as-read`
  * ne rend pas ce qu'il a touché, donc la seule façon de rendre exactement les
  * bons articles est de les relever AVANT. `xt` exclut les déjà-lus, qui ne
  * doivent surtout pas redevenir non lus.
  *
+ * Une seule page ne suffit pas : passé quelques dizaines de flux, plusieurs
+ * milliers de non-lus sont ordinaires, et s'arrêter à mille privait justement
+ * ces comptes-là du retour en arrière. `maxPages` n'est donc pas une limite de
+ * confort mais une borne de sûreté — au-delà, `complete` vaut faux et
+ * l'appelant sait qu'il ne peut rien promettre.
+ *
  * ⚠️ Ces identifiants sont la forme DÉCIMALE de `stream/items/ids`, pas la
  * forme hexadécimale que porte `Article.id` : ils repartent tels quels vers
  * `edit-tag` (qui les accepte), jamais comparés à une ligne à l'écran.
  */
-export async function getUnreadItemIds(streamId: string, cap = 1000): Promise<string[]> {
-  const { data } = await client.get<{ itemRefs?: { id: string }[] }>(
-    `${BASE}/stream/items/ids`,
-    { params: { output: 'json', s: streamId, n: cap, xt: 'user/-/state/com.google/read' } }
-  );
-  return (data.itemRefs ?? []).map((ref) => ref.id);
+export async function getUnreadItemIds(
+  streamId: string,
+  maxPages = UNDO_PAGES,
+): Promise<{ ids: string[]; complete: boolean }> {
+  const ids: string[] = [];
+  let continuation: string | null = null;
+  for (let page = 0; page < maxPages; page++) {
+    const params: Record<string, string | number> = {
+      output: 'json', s: streamId, n: UNDO_PAGE, xt: 'user/-/state/com.google/read',
+    };
+    if (continuation) params.c = continuation;
+    const { data } = await client.get<{ itemRefs?: { id: string }[]; continuation?: string | null }>(
+      `${BASE}/stream/items/ids`,
+      { params },
+    );
+    for (const ref of data.itemRefs || []) ids.push(ref.id);
+    continuation = data.continuation || null;
+    if (!continuation) return { ids, complete: true };
+  }
+  return { ids, complete: false };
 }
 
 // Cache the write token (CSRF)
