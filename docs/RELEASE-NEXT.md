@@ -1,4 +1,4 @@
-# 1.5.0 — en préparation
+# 1.5.1 — en préparation
 
 Journal des changements du cycle en cours, tenu au fil de l'eau. Il alimente les
 notes de la release GitHub et les corrections du README, puis se vide une fois
@@ -18,48 +18,11 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Les résultats de recherche disent pourquoi ils sont là.** Le terme cherché
-  est surligné dans le titre et le résumé ; quand il ne figure dans ni l'un ni
-  l'autre — la recherche fouille le corps entier des articles, que la liste
-  n'affiche pas — le résumé cède la place à l'extrait du corps qui a fait
-  sortir l'article.
+_(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-- **« Tout marquer comme lu » demande par une boîte de dialogue** (issue #17,
-  signalée par @alasdair64) au lieu de changer le bouton en « Confirmer ? » :
-  ce second état tombait sous le curseur, si bien qu'un double-clic le validait
-  — et le bouton, voisin de « Non lus » et « Favoris », se lisait comme un
-  filtre. La boîte annonce le nombre d'articles et la vue concernée. Le réglage
-  « Confirmer avant de tout marquer comme lu » la gouverne toujours : désactivé,
-  un clic agit immédiatement, comme avant.
-- **On peut revenir en arrière après un « tout marquer comme lu »** : un bandeau
-  « Annuler » rend non lus exactement les articles qui l'étaient — jusqu'à
-  25 000, de quoi couvrir les comptes qui suivent beaucoup de flux. Au-delà, la
-  boîte prévient d'avance que l'action sera définitive. Le bandeau final dit
-  combien d'articles sont revenus, et le signale quand il en manque.
-- **La confirmation avant « tout marquer comme lu » est active par défaut.**
-  Les installations existantes gardent le réglage qu'elles avaient.
-- **« Tout lu au-dessus / en dessous » demande dans la même boîte** que le
-  bouton « Tout lu », au lieu de changer l'entrée du menu en « Confirmer ? ».
-- **Les écritures longues se voient** : l'annulation affiche son avancement
-  dans son propre bandeau — « Annulation… 300/1 200 » et une jauge — au lieu de
-  disparaître dès le clic ; la barre du haut couvre le reste.
-
-- **La barre d'état de la recherche reste affichée une fois le balayage
-  terminé** et annonce le nombre de résultats — « lus compris » quand la vue
-  filtre les non lus. Elle disparaissait : plus rien ne distinguait alors une
-  liste de résultats d'une liste ordinaire, au point de faire croire que la
-  recherche ne se lançait pas.
-- **La loupe de la recherche envoie vraiment la recherche.** Elle n'était
-  qu'une icône : la recherche ne partait qu'en validant au clavier, et sur les
-  claviers logiciels où cette validation ne soumet pas le formulaire, elle
-  restait inatteignable.
-- **Extraction d'article : les images et les liens relatifs ne cassent plus**
-  quand le navigateur extrait lui-même la page (le repli, quand la route
-  serveur n'a pas pu répondre). La CSP refusait le `<base>` posé pour résoudre
-  ces URLs, qui pointaient alors vers FriRSS au lieu du site d'origine — 404
-  sur les images, liens qui ramenaient dans l'application.
+_(rien pour l'instant)_
 
 ## Sous le capot
 
