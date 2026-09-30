@@ -56,14 +56,20 @@ describe('markAllAsRead — retour en arrière', () => {
     expect(markAsUnread).toHaveBeenCalledWith(['a', 'b', 'c']);
   });
 
-  it('découpe la remise en non lus par lots de 500', async () => {
-    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ids(1200), complete: true });
+  /**
+   * 100 et non 500 : mesuré sur l'instance de dev, un lot de 500 a expiré au
+   * bout de 30 s et bloqué FreshRSS pendant ce temps (journaux du conteneur,
+   * 2026-09-30). La même taille que le marquage de plage, qui, lui, n'a jamais
+   * posé de problème.
+   */
+  it('découpe la remise en non lus par lots de 100', async () => {
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ids(250), complete: true });
 
     await useFeedStore.getState().markAllAsRead();
     await useUiStore.getState().toasts.at(-1)!.action!.run();
 
     const lots = (markAsUnread as ReturnType<typeof vi.fn>).mock.calls.map((c) => (c[0] as string[]).length);
-    expect(lots).toEqual([500, 500, 200]);
+    expect(lots).toEqual([100, 100, 50]);
   });
 
   /**
@@ -124,6 +130,65 @@ describe('markAllAsRead — retour en arrière', () => {
     await useUiStore.getState().toasts.at(-1)!.action!.run();
 
     expect(markAsUnread).toHaveBeenCalledWith(['nouveau']);
+  });
+
+  /**
+   * Ce qui s'est passé sur l'instance de dev le 2026-09-30, relevé dans les
+   * journaux du conteneur : un lot de 500 écritures a mis FreshRSS à genoux
+   * (`POST /api/proxy 504` après 30 s, une lecture expirée dans la foulée).
+   * La boucle s'arrêtait au premier échec, sans rien dire ni rien rafraîchir :
+   * 500 articles rendus sur 1 998, et une interface figée sur l'ancien état.
+   *
+   * Un lot qui échoue ne doit donc ni tout interrompre, ni passer sous silence.
+   */
+  describe('quand un lot échoue', () => {
+    const idsDe = (n: number) => ids(n);
+
+    it('réessaie le lot une fois avant de le tenir pour perdu', async () => {
+      (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: idsDe(150), complete: true });
+      let appels = 0;
+      (markAsUnread as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        appels++;
+        return appels === 1 ? Promise.reject(new Error('504')) : Promise.resolve(undefined);
+      });
+
+      await useFeedStore.getState().markAllAsRead();
+      await useUiStore.getState().toasts.at(-1)!.action!.run();
+
+      // 150 identifiants = 2 lots ; le premier échoue puis passe à la reprise.
+      expect(appels).toBe(3);
+    });
+
+    it('poursuit les lots suivants et annonce ce qui a été rendu', async () => {
+      (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: idsDe(250), complete: true });
+      let appels = 0;
+      (markAsUnread as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        appels++;
+        // Le premier lot échoue deux fois (essai + reprise), les autres passent.
+        return appels <= 2 ? Promise.reject(new Error('504')) : Promise.resolve(undefined);
+      });
+
+      await useFeedStore.getState().markAllAsRead();
+      await useUiStore.getState().toasts.at(-1)!.action!.run();
+
+      // Les deux lots restants ont été tentés malgré l'échec du premier.
+      expect(appels).toBe(4);
+      const dernier = useUiStore.getState().toasts.at(-1)!;
+      expect(dernier.message).toContain('toast.undoPartial');
+      expect(dernier.tone).toBe('error');
+    });
+
+    it('rafraîchit la vue même après un échec partiel', async () => {
+      (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: idsDe(150), complete: true });
+      (markAsUnread as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('504'));
+      const syncCounts = vi.spyOn(useFeedStore.getState(), 'syncCounts').mockResolvedValue(undefined);
+
+      await useFeedStore.getState().markAllAsRead();
+      await useUiStore.getState().toasts.at(-1)!.action!.run();
+
+      expect(syncCounts).toHaveBeenCalled();
+      syncCounts.mockRestore();
+    });
   });
 
   /** Le relevé est un confort : son échec ne doit pas retenir l'action. */

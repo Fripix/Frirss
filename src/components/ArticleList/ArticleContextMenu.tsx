@@ -5,8 +5,6 @@ import type { Article } from '../../types';
 import BottomSheet from '../BottomSheet';
 import { articleMenuItems, type ArticleMenuItem, type ArticleMenuKind } from '../../lib/articleMenu';
 import { clampToViewport } from '../../lib/clampToViewport';
-import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
-import { markAllReadAction } from '../../lib/markAllRead';
 
 /** Direction d'un marquage de plage, pour les deux seules entrées concernées. */
 type RangeDirection = 'above' | 'below';
@@ -94,7 +92,6 @@ interface ArticleContextMenuProps {
   canMarkRange: boolean;
   /** Réglage « Confirmer avant de tout marquer comme lu » (`uiStore`) : les
    * deux marquages de plage le respectent, comme le bouton « Tout lu ». */
-  confirmMarkAllRead: boolean;
   /** Point d'ouverture, en coordonnées de fenêtre (ignoré en feuille du bas). */
   x: number;
   y: number;
@@ -122,7 +119,7 @@ interface ArticleContextMenuProps {
  * animations de la liste) rendrait sinon `position: fixed` relatif à lui.
  */
 export default function ArticleContextMenu({
-  article, isReadLater, canMarkRange, confirmMarkAllRead, x, y, sheet,
+  article, isReadLater, canMarkRange, x, y, sheet,
   onClose, onOpenSource, onToggleRead, onMarkRange,
   onToggleStar, onToggleReadLater, onCopyLink,
 }: ArticleContextMenuProps) {
@@ -130,16 +127,6 @@ export default function ArticleContextMenu({
   const items = articleMenuItems(article, isReadLater, canMarkRange);
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: x, top: y });
-  // Marquage de plage en attente de confirmation (réglage `confirmMarkAllRead`,
-  // comme le bouton « Tout lu » — `markAllReadAction`). Une seule direction à
-  // la fois : cliquer l'autre entrée redemande pour elle, ce qui annule
-  // implicitement la première demande. Le menu se démonte à la fermeture,
-  // donc quitter le menu annule la demande sans code dédié.
-  const [confirming, setConfirming] = useState<RangeDirection | null>(null);
-  // Quand la demande a été posée. Un « Confirmer ? » qui remplace l'entrée
-  // sous le curseur est sinon validé par le second clic d'un double-clic —
-  // c'est le geste rapporté dans l'issue #17, sur le bouton « Tout lu ».
-  const askedAt = useRef(0);
 
   const actions: Record<ArticleMenuKind, () => void> = {
     openSource: onOpenSource,
@@ -150,33 +137,18 @@ export default function ArticleContextMenu({
     toggleReadLater: onToggleReadLater,
     copyLink: onCopyLink,
   };
+  // Le menu n'interroge plus : il transmet. La question, quand le réglage la
+  // demande, est posée par la LISTE, dans la même boîte de dialogue que le
+  // bouton « Tout lu ». Un « Confirmer ? » posé ici se validait au second clic
+  // d'un double-clic — le défaut de l'issue #17, à l'identique.
   const run = (kind: ArticleMenuKind) => {
-    const direction = RANGE_DIRECTION[kind];
-    if (direction) {
-      if (markAllReadAction(confirmMarkAllRead, confirming === direction) === 'ask') {
-        setConfirming(direction);
-        askedAt.current = Date.now();
-        return;
-      }
-      // Trop tôt après la demande : c'est l'écho du geste qui l'a posée.
-      if (direction === confirming && Date.now() - askedAt.current < CONFIRM_GRACE_MS) return;
-    }
     actions[kind]();
     onClose();
   };
-  const labelFor = (item: (typeof items)[number]): string => {
-    const direction = RANGE_DIRECTION[item.kind];
-    if (direction && confirming === direction) return t('articleList.confirm');
-    return t(item.labelKey);
-  };
-  // Icône secondaire (`--list-summary`) par défaut ; sur l'entrée en attente
-  // de confirmation, elle suit la couleur du libellé (`--list-title`) — seul
-  // le libellé change côté texte, mais l'icône doit rester cohérente avec lui.
-  const iconColorFor = (item: ArticleMenuItem): string => {
-    const direction = RANGE_DIRECTION[item.kind];
-    if (direction && confirming === direction) return 'var(--list-title)';
-    return 'var(--list-summary)';
-  };
+  const labelFor = (item: (typeof items)[number]): string => t(item.labelKey);
+  // Icône secondaire : plus aucune entrée du menu ne change d'état sur place
+  // depuis que la confirmation est passée dans la boîte de dialogue.
+  const iconColorFor = (_item: ArticleMenuItem): string => 'var(--list-summary)';
   // Un filet ne sépare que deux entrées de groupes DIFFÉRENTS — jamais à
   // l'intérieur d'un même groupe, et jamais avant la première entrée.
   const needsDividerBefore = (item: ArticleMenuItem, index: number): boolean =>

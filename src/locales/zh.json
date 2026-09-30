@@ -68,7 +68,6 @@
     "closeSearch": "关闭（Esc）",
     "unread": "未读",
     "starred": "收藏",
-    "confirm": "确认？",
     "markAllRead": "全部标为已读",
     "viewOptions": "视图选项",
     "feedSource": "订阅源名称",
@@ -676,7 +675,10 @@
     "markQueued": "更改未成功，稍后将自动重试。",
     "markRangeThrottled": "请求过多 — 部分文章已标记，请一分钟后重试。",
     "undo": "撤销",
-    "undoFailed": "无法撤销"
+    "undoDone_one": "{{count}} 篇文章已恢复为未读",
+    "undoDone_other": "{{count}} 篇文章已恢复为未读",
+    "undoPartial_one": "{{total}} 篇中 {{count}} 篇已恢复为未读",
+    "undoPartial_other": "{{total}} 篇中 {{count}} 篇已恢复为未读"
   },
   "palette": {
     "title": "命令面板",
@@ -698,6 +700,8 @@
     "markAllTitle_other": "将 {{count}} 篇文章标为已读？",
     "markAllTitleAll": "全部标为已读？",
     "markAllNoUndo": "超过 {{count}} 篇文章后将无法撤销。",
-    "markAllConfirm": "标为已读"
+    "markAllConfirm": "标为已读",
+    "markAboveTitle": "将上方的文章标为已读？",
+    "markBelowTitle": "将下方的文章标为已读？"
   }
 }

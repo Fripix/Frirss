@@ -68,7 +68,6 @@
     "closeSearch": "Zamknij (Esc)",
     "unread": "Nieprzeczytane",
     "starred": "Ulubione",
-    "confirm": "Potwierdzić?",
     "markAllRead": "Oznacz wszystkie",
     "viewOptions": "Opcje",
     "feedSource": "Nazwa kanału",
@@ -698,7 +697,14 @@
     "markQueued": "Zmiana nie doszła do skutku. Zostanie ponowiona później.",
     "markRangeThrottled": "Zbyt wiele żądań — część artykułów została oznaczona. Spróbuj ponownie za minutę.",
     "undo": "Cofnij",
-    "undoFailed": "Nie udało się cofnąć"
+    "undoDone_one": "{{count}} artykuł ponownie nieprzeczytany",
+    "undoDone_few": "{{count}} artykuły ponownie nieprzeczytane",
+    "undoDone_many": "{{count}} artykułów ponownie nieprzeczytanych",
+    "undoDone_other": "{{count}} artykułów ponownie nieprzeczytanych",
+    "undoPartial_one": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
+    "undoPartial_few": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
+    "undoPartial_many": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
+    "undoPartial_other": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych"
   },
   "palette": {
     "title": "Paleta poleceń",
@@ -722,6 +728,8 @@
     "markAllTitle_other": "Oznaczyć {{count}} artykułów jako przeczytane?",
     "markAllTitleAll": "Oznaczyć wszystko jako przeczytane?",
     "markAllNoUndo": "Powyżej {{count}} artykułów nie da się tego cofnąć.",
-    "markAllConfirm": "Oznacz jako przeczytane"
+    "markAllConfirm": "Oznacz jako przeczytane",
+    "markAboveTitle": "Oznaczyć artykuły powyżej jako przeczytane?",
+    "markBelowTitle": "Oznaczyć artykuły poniżej jako przeczytane?"
   }
 }

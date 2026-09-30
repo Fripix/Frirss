@@ -337,7 +337,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   // "Mark all as read" and both range entries act on the first click for
   // anyone who never touched the setting. Whoever turned it on explicitly
   // keeps their choice — the stored value wins.
-  confirmMarkAllRead: loadJson('frirss_confirmMarkAllRead', false),
+  confirmMarkAllRead: loadJson('frirss_confirmMarkAllRead', true),
   setConfirmMarkAllRead: (v) => {
     localStorage.setItem('frirss_confirmMarkAllRead', JSON.stringify(v));
     set({ confirmMarkAllRead: v });
@@ -650,6 +650,22 @@ export const useUiStore = create<UiState>()((set, get) => ({
     if (!prefs || typeof prefs !== 'object') return;
     const has = (k: string) => Object.prototype.hasOwnProperty.call(prefs, k);
     const next: Record<string, unknown> = {};
+
+    // La confirmation avant « tout marquer comme lu » est passée à ACTIVE par
+    // défaut (issue #17). Elle ne doit rien changer à qui utilisait déjà
+    // FriRSS : un compte qui porte des préférences enregistrées mais pas
+    // celle-ci vient d'avant le changement, donc il garde l'ancien
+    // comportement. Un compte sans aucune préférence est neuf, et reçoit le
+    // nouveau défaut.
+    //
+    // Le tri se fait ICI parce que `prefsSync` envoie TOUT le jeu de clés dès
+    // la première modification : côté serveur, « jamais touché » et
+    // « explicitement à faux » sont indiscernables pour les comptes existants,
+    // et seule l'absence complète de la clé distingue encore les deux.
+    if (!has('confirmMarkAllRead') && Object.keys(prefs).length > 0) {
+      localStorage.setItem('frirss_confirmMarkAllRead', 'false');
+      next.confirmMarkAllRead = false;
+    }
 
     // Raw-string keys
     if (has('viewMode') && typeof prefs.viewMode === 'string') {

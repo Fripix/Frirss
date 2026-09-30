@@ -1000,6 +1000,13 @@ html {
   background: transparent;
   pointer-events: none;
 }
+/* Variante chiffrée : la largeur porte l'avancement, donc pas d'animation de
+   va-et-vient par-dessus — les deux ensemble donneraient un mouvement qui ne
+   veut rien dire. */
+.top-progress--determinate {
+  animation: none;
+  transition: width 200ms linear;
+}
 .top-progress::before {
   content: '';
   position: absolute;

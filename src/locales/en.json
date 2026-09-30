@@ -68,7 +68,6 @@
     "closeSearch": "Close (Esc)",
     "unread": "Unread",
     "starred": "Favorites",
-    "confirm": "Confirm?",
     "markAllRead": "All read",
     "viewOptions": "Options",
     "feedSource": "Feed name",
@@ -676,7 +675,10 @@
     "markQueued": "The change did not go through. It will be retried later.",
     "markRangeThrottled": "Too many requests — some articles were marked. Try again in a minute.",
     "undo": "Undo",
-    "undoFailed": "Could not undo"
+    "undoDone_one": "{{count}} article back to unread",
+    "undoDone_other": "{{count}} articles back to unread",
+    "undoPartial_one": "{{count}} of {{total}} articles back to unread",
+    "undoPartial_other": "{{count}} of {{total}} articles back to unread"
   },
   "palette": {
     "title": "Command palette",
@@ -698,6 +700,8 @@
     "markAllTitle_other": "Mark {{count}} articles as read?",
     "markAllTitleAll": "Mark everything as read?",
     "markAllNoUndo": "Beyond {{count}} articles, this cannot be undone.",
-    "markAllConfirm": "Mark as read"
+    "markAllConfirm": "Mark as read",
+    "markAboveTitle": "Mark the articles above as read?",
+    "markBelowTitle": "Mark the articles below as read?"
   }
 }

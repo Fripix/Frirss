@@ -563,6 +563,13 @@ export interface FeedState {
   markAllAsRead: () => Promise<void>;
   /** Prépare le retour en arrière pendant que la confirmation est à l'écran. */
   prepareMarkAllUndo: () => void;
+  /**
+   * L'écriture de masse en cours, ou `null`. Elle existe pour être MONTRÉE :
+   * un « tout lu » sur un gros flux et son annulation prennent plusieurs
+   * secondes, et sans rien à l'écran ils passent pour des clics perdus —
+   * remonté le 2026-09-30, « je n'ai pas de vision sur les tâches en cours ».
+   */
+  bulkWork: { done: number; total: number | null } | null;
   markReadRelative: (article: Article, direction: 'above' | 'below') => Promise<void>;
   loadLabels: () => Promise<void>;
   toggleReadLater: (article: Article) => Promise<void>;
@@ -733,6 +740,7 @@ async function scanOffline(
 export const useFeedStore = create<FeedState>()((set, get) => ({
   subscriptions: [],
   unreadCounts: {},
+  bulkWork: null,
   articles: [],
   continuation: null,
   selectedFeed: null,
@@ -1612,8 +1620,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // retirent seulement la proposition de défaire (issue #17).
     const prepare = undoSnapshot;
     undoSnapshot = null;
-    const avant = await (prepare?.streamId === streamId ? prepare.ids : snapshotUnread(streamId));
+    // Sans confirmation, le relevé se fait ICI, devant l'utilisateur : une
+    // requête par millier d'articles, pendant lesquelles il ne se passait
+    // rien à l'écran — « j'ai l'impression qu'il ne se passe parfois rien »
+    // (2026-09-30). Le total n'est pas connu à cet instant : la barre dit
+    // qu'on travaille, sans chiffrer ce qu'elle ignore.
+    set({ bulkWork: { done: 0, total: null } });
     try {
+      const avant = await (prepare?.streamId === streamId ? prepare.ids : snapshotUnread(streamId));
       await markAllAsRead(streamId);
       // Update local state
       set((state) => {
@@ -1653,7 +1667,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // la remise en non lus, qui se fait par lots successifs.
         avant ? { action: { label: i18n.t('toast.undo'), run: () => restoreUnread(avant) } } : undefined,
       );
-    } catch { /* ignore */ }
+    } catch { /* ignore */ } finally {
+      set({ bulkWork: null });
+    }
   },
 
   /**
@@ -2507,13 +2523,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 /**
  * Combien d'identifiants par écriture de retour en arrière.
  *
- * 500 et non 100 (la taille du marquage de plage) : ce chemin-ci peut porter
- * plusieurs milliers d'articles, et autant d'allers-retours séquentiels se
- * verraient. `edit-tag` prend les `i=` répétés dans le CORPS de la requête,
- * donc 500 identifiants pèsent une dizaine de kilo-octets — sans commune
- * mesure avec la limite d'une URL.
+ * 100, la taille qu'emploie déjà le marquage de plage sans jamais avoir posé
+ * de problème. Un premier essai à 500 a été retiré : mesuré sur l'instance de
+ * dev le 2026-09-30, un lot de 500 a expiré au bout de 30 s
+ * (`POST /api/proxy 504`) et a bloqué FreshRSS pendant ce temps — la lecture
+ * suivante a expiré aussi. Ce n'est pas la taille de la requête qui coince
+ * (dix kilo-octets), c'est le travail demandé à la base d'un coup.
  */
-const UNDO_BATCH = 500;
+const UNDO_BATCH = 100;
 
 /**
  * Le relevé lancé pendant que la question est à l'écran, s'il y en a un.
@@ -2547,19 +2564,52 @@ async function snapshotUnread(streamId: string): Promise<string[] | null> {
  * donne exactement.
  */
 async function restoreUnread(ids: readonly string[]): Promise<void> {
+  const total = ids.length;
+  let rendus = 0;
+  useFeedStore.setState({ bulkWork: { done: 0, total } });
   try {
-    for (let i = 0; i < ids.length; i += UNDO_BATCH) {
-      await markAsUnread(ids.slice(i, i + UNDO_BATCH) as string[]);
+    for (let i = 0; i < total; i += UNDO_BATCH) {
+      const lot = ids.slice(i, i + UNDO_BATCH) as string[];
+      try {
+        await markAsUnread(lot);
+      } catch {
+        // Une seule reprise, comme les écritures d'article : un 504 vient
+        // d'une base occupée, pas d'une demande invalide — elle passe souvent
+        // au second essai.
+        try {
+          await markAsUnread(lot);
+        } catch {
+          // Ce lot est perdu, les suivants ne le sont pas : s'arrêter ici
+          // laisserait la liste à moitié rendue SANS le dire, ce qui est
+          // exactement ce qui est arrivé le 2026-09-30.
+          continue;
+        }
+      }
+      rendus += lot.length;
+      useFeedStore.setState({ bulkWork: { done: rendus, total } });
     }
-  } catch {
-    await pushI18nToast('toast.undoFailed', { tone: 'error' });
-    return;
+  } finally {
+    useFeedStore.setState({ bulkWork: null });
   }
+
   bumpCountsEpoch();
+  // La vue est relue DANS TOUS LES CAS, même partielle : l'ancien code
+  // renonçait dès le premier échec, et l'écran restait sur un état que le
+  // serveur n'avait plus.
   try {
     await useFeedStore.getState().syncCounts();
     await useFeedStore.getState().loadArticles();
   } catch { /* la relecture peut échouer : les articles, eux, sont rendus */ }
+
+  const { default: i18n } = await import('../i18n');
+  if (rendus === total) {
+    useUiStore.getState().pushToast(i18n.t('toast.undoDone', { count: rendus }));
+  } else {
+    useUiStore.getState().pushToast(
+      i18n.t('toast.undoPartial', { count: rendus, total }),
+      { tone: 'error' },
+    );
+  }
 }
 
 async function runScan(token: number, streamId: string, view: string): Promise<void> {

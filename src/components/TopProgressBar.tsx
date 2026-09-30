@@ -16,6 +16,29 @@ import { useFeedStore } from '../stores/feedStore';
 export default function TopProgressBar() {
   const { t } = useTranslation();
   const syncing = useFeedStore((s) => s.syncing);
-  if (!syncing) return null;
+  // Les écritures de masse (« tout marquer comme lu », son annulation) durent
+  // plusieurs secondes et n'avaient AUCUN signe à l'écran : un clic semblait
+  // perdu, et enchaîner les actions ne donnait aucune vision de ce qui
+  // tournait (retour du 2026-09-30). La barre existait déjà pour dire « ça
+  // travaille » — elle sert aux deux, et chiffre l'avancement quand il est
+  // connu.
+  const bulk = useFeedStore((s) => s.bulkWork);
+  if (!syncing && !bulk) return null;
+
+  if (bulk && bulk.total) {
+    const part = Math.min(100, Math.round((bulk.done / bulk.total) * 100));
+    return (
+      <div
+        className="top-progress top-progress--determinate"
+        role="progressbar"
+        aria-label={t('app.loading')}
+        aria-valuenow={bulk.done}
+        aria-valuemin={0}
+        aria-valuemax={bulk.total}
+        style={{ width: `${part}%` }}
+      />
+    );
+  }
+
   return <div className="top-progress" role="progressbar" aria-label={t('app.loading')} aria-busy="true" />;
 }

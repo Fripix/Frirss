@@ -68,7 +68,6 @@
     "closeSearch": "Fermer (Échap)",
     "unread": "Non lus",
     "starred": "Favoris",
-    "confirm": "Confirmer ?",
     "markAllRead": "Tout lu",
     "viewOptions": "Options",
     "feedSource": "Nom du flux",
@@ -676,7 +675,10 @@
     "markQueued": "Le marquage n’est pas passé. Il sera réessayé plus tard.",
     "markRangeThrottled": "Trop de requêtes — une partie des articles a bien été marquée. Réessayez dans une minute.",
     "undo": "Annuler",
-    "undoFailed": "Impossible de revenir en arrière"
+    "undoDone_one": "{{count}} article remis en non lu",
+    "undoDone_other": "{{count}} articles remis en non lus",
+    "undoPartial_one": "{{count}} article remis en non lu sur {{total}}",
+    "undoPartial_other": "{{count}} articles remis en non lus sur {{total}}"
   },
   "palette": {
     "title": "Palette de commandes",
@@ -698,6 +700,8 @@
     "markAllTitle_other": "Marquer {{count}} articles comme lus ?",
     "markAllTitleAll": "Tout marquer comme lu ?",
     "markAllNoUndo": "Au-delà de {{count}} articles, cette action ne pourra pas être annulée.",
-    "markAllConfirm": "Marquer lu"
+    "markAllConfirm": "Marquer lu",
+    "markAboveTitle": "Marquer comme lus les articles au-dessus ?",
+    "markBelowTitle": "Marquer comme lus les articles en dessous ?"
   }
 }

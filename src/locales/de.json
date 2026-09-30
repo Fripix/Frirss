@@ -68,7 +68,6 @@
     "closeSearch": "Schließen (Esc)",
     "unread": "Ungelesen",
     "starred": "Favoriten",
-    "confirm": "Bestätigen?",
     "markAllRead": "Alle gelesen",
     "viewOptions": "Optionen",
     "feedSource": "Feed-Name",
@@ -676,7 +675,10 @@
     "markQueued": "Die Änderung ging nicht durch. Sie wird später erneut versucht.",
     "markRangeThrottled": "Zu viele Anfragen – ein Teil der Artikel wurde markiert. In einer Minute erneut versuchen.",
     "undo": "Rückgängig",
-    "undoFailed": "Rückgängig machen fehlgeschlagen"
+    "undoDone_one": "{{count}} Artikel wieder ungelesen",
+    "undoDone_other": "{{count}} Artikel wieder ungelesen",
+    "undoPartial_one": "{{count}} von {{total}} Artikeln wieder ungelesen",
+    "undoPartial_other": "{{count}} von {{total}} Artikeln wieder ungelesen"
   },
   "palette": {
     "title": "Befehlspalette",
@@ -698,6 +700,8 @@
     "markAllTitle_other": "{{count}} Artikel als gelesen markieren?",
     "markAllTitleAll": "Alles als gelesen markieren?",
     "markAllNoUndo": "Ab {{count}} Artikeln lässt sich das nicht rückgängig machen.",
-    "markAllConfirm": "Als gelesen markieren"
+    "markAllConfirm": "Als gelesen markieren",
+    "markAboveTitle": "Die Artikel darüber als gelesen markieren?",
+    "markBelowTitle": "Die Artikel darunter als gelesen markieren?"
   }
 }

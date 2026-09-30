@@ -68,7 +68,6 @@
     "closeSearch": "Fechar (Esc)",
     "unread": "Não lidos",
     "starred": "Favoritos",
-    "confirm": "Confirmar?",
     "markAllRead": "Marcar tudo lido",
     "viewOptions": "Opções",
     "feedSource": "Nome do feed",
@@ -676,7 +675,10 @@
     "markQueued": "A alteração não passou. Será tentada novamente mais tarde.",
     "markRangeThrottled": "Muitos pedidos — alguns artigos foram marcados. Tente novamente em um minuto.",
     "undo": "Desfazer",
-    "undoFailed": "Não foi possível desfazer"
+    "undoDone_one": "{{count}} artigo de volta a não lido",
+    "undoDone_other": "{{count}} artigos de volta a não lidos",
+    "undoPartial_one": "{{count}} de {{total}} artigos de volta a não lidos",
+    "undoPartial_other": "{{count}} de {{total}} artigos de volta a não lidos"
   },
   "palette": {
     "title": "Paleta de comandos",
@@ -698,6 +700,8 @@
     "markAllTitle_other": "Marcar {{count}} artigos como lidos?",
     "markAllTitleAll": "Marcar tudo como lido?",
     "markAllNoUndo": "Acima de {{count}} artigos, não será possível desfazer.",
-    "markAllConfirm": "Marcar como lido"
+    "markAllConfirm": "Marcar como lido",
+    "markAboveTitle": "Marcar como lidos os artigos acima?",
+    "markBelowTitle": "Marcar como lidos os artigos abaixo?"
   }
 }

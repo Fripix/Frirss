@@ -831,17 +831,17 @@ FreshRSS, où le titre est un vrai lien.
   transversales, et une entrée de menu qui ne fait rien est plus déroutante
   qu'une entrée absente — d'où le masquage plutôt qu'un clic qui ne
   produirait rien. **Respectent le réglage « Confirmer avant de tout marquer
-  comme lu »** (`confirmMarkAllRead`, `uiStore`, **désactivé par défaut**
-  depuis le 2026-09-25 — qui l'a explicitement activé garde son choix) :
-  `ArticleContextMenu` réutilise la même fonction pure que le bouton « Tout
-  lu » (`markAllReadAction`, `src/lib/markAllRead.ts`). Premier clic : le
-  libellé de l'entrée devient `articleList.confirm` (« Confirmer ? ») sans
-  rien déclencher ni fermer le menu ; second clic sur la même entrée : l'action
-  part et le menu se ferme. Une seule direction est en attente à la fois — un
-  clic sur l'autre marquage de plage pendant l'attente redemande pour lui, ce
-  qui annule implicitement la première demande. Fermer le menu (Échap, clic
-  extérieur, appui long ou clic droit ailleurs) annule aussi la demande, sans
-  code dédié : le menu se démonte et son état de confirmation avec lui.
+  comme lu »** (`confirmMarkAllRead`, `uiStore`) — mais **par la même boîte de
+  dialogue que le bouton « Tout lu »** (1.5.0). Le menu ne pose plus de
+  question : il appelle son action et se ferme ; c'est `ArticleList` qui, si le
+  réglage le demande, ouvre `ConfirmDialog` avec `dialog.markAboveTitle` /
+  `dialog.markBelowTitle` et l'article capturé au clic — `menuArticle` n'existe
+  plus une fois le menu fermé.
+  ⚠️ **Le « Confirmer ? » posé dans le menu a été retiré** (et sa clé
+  `articleList.confirm` avec) : ce second état tombait sous le curseur, donc un
+  double-clic le validait — exactement le défaut de l'issue #17 sur le bouton
+  « Tout lu ». Un délai de grâce avait d'abord été ajouté ; la boîte le rend
+  inutile et unifie la question, ce qui était la demande du propriétaire.
   L'écriture est comptée dans
   `readWritesInFlight`, comme `toggleRead` : sans cela, un relevé de compteurs
   concurrent fabriquerait une fausse pastille « nouveaux articles ». L'échec
@@ -1142,6 +1142,17 @@ Confirmation optionnelle avant de vider une vue entière, **par une boîte de
 dialogue**, et **retour en arrière** une fois l'action faite.
 
 - **Où** : `src/lib/markAllRead.ts`, `src/components/ConfirmDialog.tsx`
+- **Le réglage est ACTIF par défaut** depuis la 1.5.0 (il ne l'était pas depuis
+  le 2026-09-25) : une action irréversible ne s'arme pas toute seule sur une
+  installation neuve.
+  ⚠️ **Sans rien changer aux installations existantes**, et le tri ne peut pas
+  se faire sur la valeur : `prefsSync` envoie TOUT le jeu de clés dès la
+  première modification, donc côté serveur « jamais touché » et « explicitement
+  à faux » sont indiscernables pour un compte déjà utilisé. Le tri se fait sur
+  la PRÉSENCE de la clé, dans `applyServerPrefs` : des préférences enregistrées
+  **sans** `confirmMarkAllRead` = compte antérieur au changement, qui garde
+  l'ancien comportement ; aucune préférence du tout = compte neuf, qui reçoit le
+  nouveau défaut. Figé par `uiStore.confirmDefault.test.ts`.
 - **La confirmation est une BOÎTE** (1.5.0, famille i18n `dialog`), plus un
   « Confirmer ? » posé à la place du bouton. Motif — **issue #17** : ce second
   état tombait exactement sous le curseur, donc le second clic d'un double-clic
@@ -1160,7 +1171,19 @@ dialogue**, et **retour en arrière** une fois l'action faite.
 - **Retour en arrière** (1.5.0) : les identifiants des articles **non lus** sont
   relevés AVANT l'appel (`getUnreadItemIds`, `stream/items/ids` avec `xt`), puis
   un bandeau propose « Annuler », qui les remet non lus par lots de
-  `UNDO_BATCH` (500). La vue est **relue** après coup plutôt que rapiécée : les
+  `UNDO_BATCH` (**100**).
+  ⚠️ **100 et non 500.** Un premier essai à 500 a été mesuré sur l'instance de
+  dev le 2026-09-30, journaux du conteneur à l'appui : le premier lot passait
+  en 784 ms, le second expirait à **30 s** (`POST /api/proxy 504`) en bloquant
+  FreshRSS au passage (la lecture suivante a expiré aussi). Ce n'est pas la
+  taille de la requête (dix kilo-octets) mais le travail demandé à la base d'un
+  coup. Conséquence observée : **500 articles rendus sur 1 998**, en silence.
+  ⚠️ **Un lot qui échoue ne fait plus tomber le reste** : une reprise, puis on
+  passe au suivant. Le bandeau final dit ce qui a été fait — `toast.undoDone`
+  quand tout est rendu, `toast.undoPartial` (« N sur M », ton d'erreur) sinon.
+  Et la vue est **relue dans tous les cas** : l'ancien code renonçait au
+  premier échec, donc l'écran restait sur un état que le serveur n'avait plus —
+  d'où « je dois recharger moi-même ». La vue est **relue** après coup plutôt que rapiécée : les
   identifiants relevés sont la forme décimale de `stream/items/ids`, quand les
   lignes portent la forme hexadécimale d'`Article.id`.
   - **Le relevé PAGINE** (`UNDO_PAGE` = 1 000 par requête, `UNDO_PAGES` = 25,
@@ -1174,6 +1197,12 @@ dialogue**, et **retour en arrière** une fois l'action faite.
     dépense pendant que la question est lue. Annuler l'abandonne — il n'a rien
     écrit. Mesuré sur l'instance de dev le 2026-09-28 :
     **1 020 non lus = 2 requêtes, ~1 s chacune**.
+  - **Toute écriture de masse se voit dans la barre de progression** du haut
+    (`feedStore.bulkWork`, `TopProgressBar`) : indéterminée pendant le relevé,
+    dont le total est inconnu, puis **chiffrée** (`aria-valuenow`, largeur =
+    rendus/total) pendant la remise en non lus. Sans elle, un « Tout lu » sans
+    confirmation semblait ne rien faire pendant le relevé, et enchaîner les
+    actions ne donnait aucune idée de ce qui tournait (2026-09-30).
   - **Si on valide avant la fin du relevé, la boîte RESTE et montre qu'elle
     travaille** : rotation dans le bouton de validation, `aria-busy`, libellé
     inchangé, boutons neutralisés (même patron que `RefreshTokenField`). Ce qui

@@ -68,7 +68,6 @@
     "closeSearch": "Chiudi (Esc)",
     "unread": "Non letti",
     "starred": "Preferiti",
-    "confirm": "Confermare?",
     "markAllRead": "Segna tutto letto",
     "viewOptions": "Opzioni",
     "feedSource": "Nome del feed",
@@ -676,7 +675,10 @@
     "markQueued": "La modifica non è andata a buon fine. Verrà ritentata più tardi.",
     "markRangeThrottled": "Troppe richieste — alcuni articoli sono stati contrassegnati. Riprova tra un minuto.",
     "undo": "Annulla",
-    "undoFailed": "Impossibile annullare"
+    "undoDone_one": "{{count}} articolo di nuovo da leggere",
+    "undoDone_other": "{{count}} articoli di nuovo da leggere",
+    "undoPartial_one": "{{count}} di {{total}} articoli di nuovo da leggere",
+    "undoPartial_other": "{{count}} di {{total}} articoli di nuovo da leggere"
   },
   "palette": {
     "title": "Palette dei comandi",
@@ -698,6 +700,8 @@
     "markAllTitle_other": "Segnare {{count}} articoli come letti?",
     "markAllTitleAll": "Segnare tutto come letto?",
     "markAllNoUndo": "Oltre {{count}} articoli, l’operazione non è annullabile.",
-    "markAllConfirm": "Segna come letto"
+    "markAllConfirm": "Segna come letto",
+    "markAboveTitle": "Segnare come letti gli articoli sopra?",
+    "markBelowTitle": "Segnare come letti gli articoli sotto?"
   }
 }

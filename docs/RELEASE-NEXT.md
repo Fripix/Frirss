@@ -36,7 +36,14 @@ la release publiée.
 - **On peut revenir en arrière après un « tout marquer comme lu »** : un bandeau
   « Annuler » rend non lus exactement les articles qui l'étaient — jusqu'à
   25 000, de quoi couvrir les comptes qui suivent beaucoup de flux. Au-delà, la
-  boîte prévient d'avance que l'action sera définitive.
+  boîte prévient d'avance que l'action sera définitive. Le bandeau final dit
+  combien d'articles sont revenus, et le signale quand il en manque.
+- **La confirmation avant « tout marquer comme lu » est active par défaut.**
+  Les installations existantes gardent le réglage qu'elles avaient.
+- **« Tout lu au-dessus / en dessous » demande dans la même boîte** que le
+  bouton « Tout lu », au lieu de changer l'entrée du menu en « Confirmer ? ».
+- **Les écritures longues se voient** : la barre de progression du haut
+  s'affiche pendant le relevé puis chiffre l'avancement de l'annulation.
 
 - **La barre d'état de la recherche reste affichée une fois le balayage
   terminé** et annonce le nombre de résultats — « lus compris » quand la vue

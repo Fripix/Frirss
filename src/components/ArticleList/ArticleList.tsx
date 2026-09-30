@@ -226,7 +226,15 @@ export default function ArticleList() {
   // champ plutôt que gardées en état : elles changent à la soumission.
   const activeServerId = useAuthStore((s) => s.activeServerId);
   const [history, setHistory] = useState<string[]>([]);
-  const [markAllOpen, setMarkAllOpen] = useState(false);
+  // La question posée, s'il y en a une : le vidage complet de la vue, ou un
+  // marquage de plage venu du menu d'article. Les deux passent par la MÊME
+  // boîte (demande du propriétaire, 2026-09-30) — le menu ne confirme plus
+  // sur place, où un double-clic validait tout seul.
+  const [ask, setAsk] = useState<
+    | { kind: 'all' }
+    | { kind: 'above' | 'below'; article: Article }
+    | null
+  >(null);
   const [optionsOpen, setOptionsOpen] = useState(false); // mobile view-options sheet
   // Menu contextuel d'un article (clic droit, touche Menu, appui long) — voir
   // `ArticleContextMenu`. On garde l'id et la vue, pas l'objet : le menu relit
@@ -594,7 +602,7 @@ export default function ArticleList() {
       // pas s'ajouter après la validation. Annuler l'abandonne, il n'a rien
       // écrit.
       useFeedStore.getState().prepareMarkAllUndo();
-      setMarkAllOpen(true);
+      setAsk({ kind: 'all' });
       return;
     }
     markAllAsRead();
@@ -649,14 +657,21 @@ export default function ArticleList() {
           article={menuArticle}
           isReadLater={!!menuArticle.labels?.includes(READ_LATER_LABEL)}
           canMarkRange={canMarkAllRead(filter)}
-          confirmMarkAllRead={confirmMarkAllRead}
           x={articleMenu.x}
           y={articleMenu.y}
           sheet={isMobile}
           onClose={closeArticleMenu}
           onOpenSource={() => openArticleAtSource(menuArticle, selectArticleAtSource)}
           onToggleRead={() => { void toggleRead(menuArticle); }}
-          onMarkRange={(direction) => { void markReadRelative(menuArticle, direction); }}
+          onMarkRange={(direction) => {
+            // Le menu se ferme derrière ce clic : l'article est capturé ici,
+            // il ne sera plus atteignable par `menuArticle` ensuite.
+            if (markAllReadAction(confirmMarkAllRead, false) === 'ask') {
+              setAsk({ kind: direction, article: menuArticle });
+              return;
+            }
+            void markReadRelative(menuArticle, direction);
+          }}
           onToggleStar={() => { void toggleStar(menuArticle); }}
           onToggleReadLater={() => { void toggleReadLater(menuArticle); }}
           onCopyLink={() => { void copyArticleLink(menuArticle.url); }}
@@ -930,17 +945,31 @@ export default function ArticleList() {
           le périmètre : c'est ce qui distingue une action d'un filtre au
           moment précis où la confusion se produit (issue #17). */}
       <ConfirmDialog
-        open={markAllOpen}
-        title={headerUnread
-          ? t('dialog.markAllTitle', { count: headerUnread })
-          : t('dialog.markAllTitleAll')}
+        open={!!ask}
+        title={
+          ask?.kind === 'above' ? t('dialog.markAboveTitle')
+            : ask?.kind === 'below' ? t('dialog.markBelowTitle')
+              : headerUnread ? t('dialog.markAllTitle', { count: headerUnread })
+                : t('dialog.markAllTitleAll')
+        }
         message={title}
-        warning={(headerUnread ?? 0) >= UNDO_CAP ? t('dialog.markAllNoUndo', { count: UNDO_CAP }) : undefined}
+        // L'avertissement ne vaut que pour le vidage complet : une plage est
+        // annulable par `markReadRelative`, qui connaît ses identifiants.
+        warning={ask?.kind === 'all' && (headerUnread ?? 0) >= UNDO_CAP
+          ? t('dialog.markAllNoUndo', { count: UNDO_CAP })
+          : undefined}
         confirmLabel={t('dialog.markAllConfirm')}
         // La boîte reste tant que l'action tourne — elle montre alors qu'elle
         // travaille — et se ferme quand c'est fait.
-        onConfirm={async () => { await markAllAsRead(); setMarkAllOpen(false); }}
-        onCancel={() => setMarkAllOpen(false)}
+        onConfirm={async () => {
+          if (ask?.kind === 'above' || ask?.kind === 'below') {
+            await markReadRelative(ask.article, ask.kind);
+          } else {
+            await markAllAsRead();
+          }
+          setAsk(null);
+        }}
+        onCancel={() => setAsk(null)}
       />
 
       <SearchScanBar

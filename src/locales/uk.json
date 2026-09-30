@@ -68,7 +68,6 @@
     "closeSearch": "Закрити (Esc)",
     "unread": "Непрочитані",
     "starred": "Обране",
-    "confirm": "Підтвердити?",
     "markAllRead": "Позначити все",
     "viewOptions": "Параметри",
     "feedSource": "Назва стрічки",
@@ -698,7 +697,14 @@
     "markQueued": "Зміну не збережено. Її буде повторено пізніше.",
     "markRangeThrottled": "Забагато запитів — частину статей позначено. Спробуйте ще раз за хвилину.",
     "undo": "Скасувати",
-    "undoFailed": "Не вдалося скасувати"
+    "undoDone_one": "{{count}} статтю повернено в непрочитані",
+    "undoDone_few": "{{count}} статті повернено в непрочитані",
+    "undoDone_many": "{{count}} статей повернено в непрочитані",
+    "undoDone_other": "{{count}} статей повернено в непрочитані",
+    "undoPartial_one": "{{count}} з {{total}} статей повернено в непрочитані",
+    "undoPartial_few": "{{count}} з {{total}} статей повернено в непрочитані",
+    "undoPartial_many": "{{count}} з {{total}} статей повернено в непрочитані",
+    "undoPartial_other": "{{count}} з {{total}} статей повернено в непрочитані"
   },
   "palette": {
     "title": "Палітра команд",
@@ -722,6 +728,8 @@
     "markAllTitle_other": "Позначити {{count}} статей прочитаними?",
     "markAllTitleAll": "Позначити все прочитаним?",
     "markAllNoUndo": "Понад {{count}} статей це скасувати неможливо.",
-    "markAllConfirm": "Позначити прочитаним"
+    "markAllConfirm": "Позначити прочитаним",
+    "markAboveTitle": "Позначити статті вище прочитаними?",
+    "markBelowTitle": "Позначити статті нижче прочитаними?"
   }
 }

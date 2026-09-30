@@ -10,8 +10,15 @@ describe('uiStore', () => {
   // et les deux marquages de plage agissent au premier clic, sans confirmation.
   // Qui a explicitement activé la confirmation garde son choix — la valeur
   // stockée gagne, ce test ne porte que sur le défaut au tout premier chargement.
-  it('confirmMarkAllRead est désactivé par défaut, sans réglage stocké', () => {
-    expect(useUiStore.getState().confirmMarkAllRead).toBe(false);
+  /**
+   * Inversé le 2026-09-30, à la demande du propriétaire, après l'issue #17 :
+   * une action irréversible ne s'arme pas toute seule sur une installation
+   * neuve. Les comptes EXISTANTS gardent l'ancien comportement — c'est
+   * `applyServerPrefs` qui s'en charge, et `uiStore.confirmDefault.test.ts`
+   * qui le fige.
+   */
+  it('confirmMarkAllRead est activé par défaut, sans réglage stocké', () => {
+    expect(useUiStore.getState().confirmMarkAllRead).toBe(true);
   });
 
   it('setAppLogo stores then clears the logo', () => {

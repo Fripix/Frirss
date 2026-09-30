@@ -68,7 +68,6 @@
     "closeSearch": "Sluiten (Esc)",
     "unread": "Ongelezen",
     "starred": "Favorieten",
-    "confirm": "Bevestigen?",
     "markAllRead": "Alles gelezen",
     "viewOptions": "Opties",
     "feedSource": "Feednaam",
@@ -676,7 +675,10 @@
     "markQueued": "De wijziging is niet doorgekomen. Er wordt later opnieuw geprobeerd.",
     "markRangeThrottled": "Te veel aanvragen — een deel van de artikelen is gemarkeerd. Probeer het over een minuut opnieuw.",
     "undo": "Ongedaan maken",
-    "undoFailed": "Ongedaan maken mislukt"
+    "undoDone_one": "{{count}} artikel weer ongelezen",
+    "undoDone_other": "{{count}} artikelen weer ongelezen",
+    "undoPartial_one": "{{count}} van {{total}} artikelen weer ongelezen",
+    "undoPartial_other": "{{count}} van {{total}} artikelen weer ongelezen"
   },
   "palette": {
     "title": "Opdrachtenpalet",
@@ -698,6 +700,8 @@
     "markAllTitle_other": "{{count}} artikelen als gelezen markeren?",
     "markAllTitleAll": "Alles als gelezen markeren?",
     "markAllNoUndo": "Boven {{count}} artikelen kan dit niet ongedaan worden gemaakt.",
-    "markAllConfirm": "Als gelezen markeren"
+    "markAllConfirm": "Als gelezen markeren",
+    "markAboveTitle": "De artikelen hierboven als gelezen markeren?",
+    "markBelowTitle": "De artikelen hieronder als gelezen markeren?"
   }
 }
