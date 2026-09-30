@@ -41,18 +41,46 @@ function resolve(value: string, base: string): string {
   }
 }
 
-/** `url 480w, url2 2x` — chaque candidat porte son URL puis son descripteur. */
+/**
+ * `url 480w, url2 2x` — chaque candidat porte son URL puis ses descripteurs.
+ *
+ * ⚠️ On ne découpe PAS sur les virgules : une URL `data:` en contient, et un
+ * découpage naïf la coupait en deux — l'image disparaissait, la queue partant
+ * se résoudre contre la page. La spec HTML sépare l'URL de ses descripteurs
+ * par des ESPACES ; la virgule ne termine que les descripteurs (ou l'URL
+ * elle-même, quand elle s'achève dessus). C'est cette lecture qui est suivie
+ * ici, caractère par caractère.
+ */
 function resolveSrcset(value: string, base: string): string {
-  return value
-    .split(',')
-    .map((candidate) => {
-      const trimmed = candidate.trim();
-      if (!trimmed) return null;
-      const [url, ...descriptor] = trimmed.split(/\s+/);
-      return [resolve(url, base), ...descriptor].join(' ');
-    })
-    .filter((c): c is string => c !== null)
-    .join(', ');
+  const candidats: string[] = [];
+  let i = 0;
+  while (i < value.length) {
+    while (i < value.length && /[\s,]/.test(value[i])) i++;
+    if (i >= value.length) break;
+
+    const debut = i;
+    while (i < value.length && !/\s/.test(value[i])) i++;
+    let url = value.slice(debut, i);
+
+    // Une URL qui finit par des virgules n'a pas de descripteur : elles la
+    // terminent (spec HTML, « splitting a string on commas » du srcset).
+    const sansVirgules = url.replace(/,+$/, '');
+    const termineParVirgule = sansVirgules !== url;
+    url = sansVirgules;
+
+    let descripteur = '';
+    if (!termineParVirgule) {
+      const debutDesc = i;
+      while (i < value.length && value[i] !== ',') i++;
+      descripteur = value.slice(debutDesc, i).trim();
+      if (value[i] === ',') i++;
+    }
+
+    if (!url) continue;
+    const resolue = resolve(url, base);
+    candidats.push(descripteur ? `${resolue} ${descripteur}` : resolue);
+  }
+  return candidats.join(', ');
 }
 
 export function absolutizeUrls(doc: Document, pageUrl: string): void {

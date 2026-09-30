@@ -76,6 +76,26 @@ describe('absolutizeUrls', () => {
       .toBe('https://www.cert.example.fr/a-480.jpg 480w, https://www.cert.example.fr/a-960.jpg 960w');
   });
 
+  /**
+   * Une URL `data:` contient des virgules — et la virgule est justement ce qui
+   * sépare deux candidats d'un `srcset`. Un découpage naïf coupait donc l'URL
+   * en deux et résolvait sa queue contre la page : l'image disparaissait.
+   * La spec HTML sépare l'URL de ses descripteurs par des ESPACES, pas par des
+   * virgules — c'est cette règle-là qu'il faut suivre.
+   */
+  it('ne coupe pas une URL data en deux dans un srcset', () => {
+    const doc = parse('<img srcset="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4= 1x, /a-2x.png 2x">');
+    absolutizeUrls(doc, ARTICLE);
+    expect(doc.querySelector('img')!.getAttribute('srcset'))
+      .toBe('data:image/svg+xml;base64,PHN2Zz48L3N2Zz4= 1x, https://www.cert.example.fr/a-2x.png 2x');
+  });
+
+  it('accepte un candidat sans descripteur', () => {
+    const doc = parse('<img srcset="/seul.png">');
+    absolutizeUrls(doc, ARTICLE);
+    expect(doc.querySelector('img')!.getAttribute('srcset')).toBe('https://www.cert.example.fr/seul.png');
+  });
+
   it('résout les sources et l’affiche des vidéos', () => {
     const doc = parse('<video poster="/p.jpg"><source src="/v.mp4"></video>');
     absolutizeUrls(doc, ARTICLE);
