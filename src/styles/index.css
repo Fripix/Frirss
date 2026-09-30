@@ -1411,6 +1411,8 @@ summary:focus-visible,
 }
 
 .toast {
+  position: relative;
+  overflow: hidden;
   pointer-events: auto;
   display: flex;
   align-items: center;
@@ -1433,6 +1435,20 @@ summary:focus-visible,
   border-color: color-mix(in srgb, var(--danger) 55%, transparent);
   box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.45),
               inset 3px 0 0 var(--danger);
+}
+
+/* Jauge d'avancement d'un travail long porté par le bandeau (l'annulation d'un
+   « tout marquer comme lu »). Elle court en pied de pastille : c'est là que le
+   regard se trouve après le clic, alors que la barre du haut, à 3 px et à
+   l'autre bout de l'écran, passait inaperçue. */
+.toast__progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 0 3px 3px 0;
+  transition: width 200ms linear;
 }
 
 .toast__message { flex: 1; min-width: 0; }

@@ -1197,12 +1197,23 @@ dialogue**, et **retour en arrière** une fois l'action faite.
     dépense pendant que la question est lue. Annuler l'abandonne — il n'a rien
     écrit. Mesuré sur l'instance de dev le 2026-09-28 :
     **1 020 non lus = 2 requêtes, ~1 s chacune**.
-  - **Toute écriture de masse se voit dans la barre de progression** du haut
+  - **L'annulation s'affiche DANS SON BANDEAU** : le bandeau cliqué ne
+    disparaît pas, il devient l'avancement — « Annulation… 300/1 200 » et une
+    jauge de 3 px en pied de pastille — puis le résultat, et c'est seulement
+    là qu'il reprend son minuteur d'effacement.
+    ⚠️ Première version : seule la barre du haut bougeait. Verdict à l'usage
+    (2026-09-30) : « c'est vraiment peu visible que c'est en cours ». Le regard
+    est resté en bas, sur le bandeau qu'on vient de cliquer — l'information
+    doit s'y trouver. Deux mécanismes le permettent, tous deux dans
+    `uiStore` : `updateToast` (changer un bandeau déjà affiché) et un bandeau
+    porteur de `progress`, qui ne s'efface pas tant que le travail tourne.
+    Une action de bandeau qui **rend une promesse** garde d'ailleurs sa
+    pastille ouverte — même convention que `ConfirmDialog`.
+  - **Le reste des écritures de masse se voit dans la barre du haut**
     (`feedStore.bulkWork`, `TopProgressBar`) : indéterminée pendant le relevé,
-    dont le total est inconnu, puis **chiffrée** (`aria-valuenow`, largeur =
-    rendus/total) pendant la remise en non lus. Sans elle, un « Tout lu » sans
-    confirmation semblait ne rien faire pendant le relevé, et enchaîner les
-    actions ne donnait aucune idée de ce qui tournait (2026-09-30).
+    dont le total est inconnu, puis chiffrée. Elle couvre ce que le bandeau ne
+    peut pas — le relevé qui précède le marquage, et le cas où l'on ferme le
+    bandeau en cours de route.
   - **Si on valide avant la fin du relevé, la boîte RESTE et montre qu'elle
     travaille** : rotation dans le bouton de validation, `aria-busy`, libellé
     inchangé, boutons neutralisés (même patron que `RefreshTokenField`). Ce qui

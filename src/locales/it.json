@@ -678,7 +678,8 @@
     "undoDone_one": "{{count}} articolo di nuovo da leggere",
     "undoDone_other": "{{count}} articoli di nuovo da leggere",
     "undoPartial_one": "{{count}} di {{total}} articoli di nuovo da leggere",
-    "undoPartial_other": "{{count}} di {{total}} articoli di nuovo da leggere"
+    "undoPartial_other": "{{count}} di {{total}} articoli di nuovo da leggere",
+    "undoing": "Annullamento… {{done}}/{{total}}"
   },
   "palette": {
     "title": "Palette dei comandi",

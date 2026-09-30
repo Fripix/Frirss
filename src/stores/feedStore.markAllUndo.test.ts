@@ -191,6 +191,44 @@ describe('markAllAsRead — retour en arrière', () => {
     });
   });
 
+  /**
+   * Le bandeau lui-même porte l'avancement. La barre de 3 px en haut de la
+   * fenêtre ne suffisait pas : « c'est vraiment peu visible que c'est en
+   * cours » (2026-09-30), alors que le regard est resté sur le bandeau qu'on
+   * vient de cliquer.
+   */
+  it('transforme le bandeau en avancement, puis en résultat', async () => {
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ids(250), complete: true });
+    let libere: () => void = () => {};
+    let appels = 0;
+    (markAsUnread as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      appels++;
+      return appels === 2 ? new Promise<void>((r) => { libere = r; }) : Promise.resolve(undefined);
+    });
+
+    await useFeedStore.getState().markAllAsRead();
+    const id = useUiStore.getState().toasts.at(-1)!.id;
+    const fini = useUiStore.getState().toasts.at(-1)!.action!.run() as Promise<void>;
+
+    // Le second lot est retenu : le bandeau doit dire où en est le travail.
+    // L'attente passe par la file des tâches — `restoreUnread` charge i18n par
+    // un import dynamique avant d'écrire quoi que ce soit.
+    for (let i = 0; i < 20 && !useUiStore.getState().toasts.find((t) => t.id === id)?.progress; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    const pendant = useUiStore.getState().toasts.find((t) => t.id === id)!;
+    expect(pendant.progress).toEqual({ done: 100, total: 250 });
+    expect(pendant.message).toContain('toast.undoing');
+    expect(pendant.action).toBeUndefined();
+
+    libere();
+    await fini;
+
+    const apres = useUiStore.getState().toasts.find((t) => t.id === id)!;
+    expect(apres.progress).toBeUndefined();
+    expect(apres.message).toContain('toast.undoDone');
+  });
+
   /** Le relevé est un confort : son échec ne doit pas retenir l'action. */
   it('marque quand même si le relevé échoue, sans proposer de défaire', async () => {
     (getUnreadItemIds as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('réseau'));

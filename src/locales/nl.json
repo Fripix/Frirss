@@ -678,7 +678,8 @@
     "undoDone_one": "{{count}} artikel weer ongelezen",
     "undoDone_other": "{{count}} artikelen weer ongelezen",
     "undoPartial_one": "{{count}} van {{total}} artikelen weer ongelezen",
-    "undoPartial_other": "{{count}} van {{total}} artikelen weer ongelezen"
+    "undoPartial_other": "{{count}} van {{total}} artikelen weer ongelezen",
+    "undoing": "Ongedaan maken… {{done}}/{{total}}"
   },
   "palette": {
     "title": "Opdrachtenpalet",

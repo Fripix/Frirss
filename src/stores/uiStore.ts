@@ -55,10 +55,22 @@ export interface FeedSetting {
 export interface Toast {
   id: number;
   message: string;
-  /** Action facultative. N'en poser une que si elle est réellement réalisable. */
-  action?: { label: string; run: () => void };
+  /**
+   * Action facultative. N'en poser une que si elle est réellement réalisable.
+   *
+   * Si elle REND UNE PROMESSE, le bandeau lui appartient jusqu'à ce qu'elle
+   * l'ait relâché : c'est ainsi que l'annulation d'un « tout marquer comme
+   * lu » garde sa place à l'écran pendant qu'elle travaille.
+   */
+  action?: { label: string; run: () => void | Promise<void> };
   /** Message d'échec : couleur d'alerte plutôt que neutre. */
   tone?: 'error';
+  /**
+   * Avancement d'un travail long porté par ce bandeau. Tant qu'il est là, le
+   * bandeau ne s'efface pas tout seul — il dit ce qui se passe, et c'est
+   * l'appelant qui le libère.
+   */
+  progress?: { done: number; total: number };
 }
 
 /** Au-delà, les plus anciens sortent — une pile de messages masquerait l'app. */
@@ -74,7 +86,9 @@ export interface UiState {
 
   toasts: Toast[];
   /** Empile un message ; renvoie son identifiant. */
-  pushToast: (message: string, opts?: { action?: Toast['action']; tone?: Toast['tone'] }) => number;
+  pushToast: (message: string, opts?: { action?: Toast['action']; tone?: Toast['tone']; progress?: Toast['progress'] }) => number;
+  /** Change un bandeau déjà affiché — message, avancement, ton. */
+  updateToast: (id: number, patch: Partial<Omit<Toast, 'id'>>) => void;
   dismissToast: (id: number) => void;
 
   viewMode: string;
@@ -633,6 +647,11 @@ export const useUiStore = create<UiState>()((set, get) => ({
     }));
     return id;
   },
+  updateToast: (id, patch) => set((state) => ({
+    // `progress: undefined` DOIT effacer la clé : c'est ce qui rend le bandeau
+    // à son minuteur d'effacement une fois le travail fini.
+    toasts: state.toasts.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+  })),
   dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 
   refreshHintDismissed: loadJson('frirss_refreshHintDismissed', false),

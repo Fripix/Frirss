@@ -678,7 +678,8 @@
     "undoDone_one": "{{count}} article remis en non lu",
     "undoDone_other": "{{count}} articles remis en non lus",
     "undoPartial_one": "{{count}} article remis en non lu sur {{total}}",
-    "undoPartial_other": "{{count}} articles remis en non lus sur {{total}}"
+    "undoPartial_other": "{{count}} articles remis en non lus sur {{total}}",
+    "undoing": "Annulation… {{done}}/{{total}}"
   },
   "palette": {
     "title": "Palette de commandes",

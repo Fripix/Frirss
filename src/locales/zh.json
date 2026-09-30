@@ -678,7 +678,8 @@
     "undoDone_one": "{{count}} 篇文章已恢复为未读",
     "undoDone_other": "{{count}} 篇文章已恢复为未读",
     "undoPartial_one": "{{total}} 篇中 {{count}} 篇已恢复为未读",
-    "undoPartial_other": "{{total}} 篇中 {{count}} 篇已恢复为未读"
+    "undoPartial_other": "{{total}} 篇中 {{count}} 篇已恢复为未读",
+    "undoing": "正在撤销… {{done}}/{{total}}"
   },
   "palette": {
     "title": "命令面板",

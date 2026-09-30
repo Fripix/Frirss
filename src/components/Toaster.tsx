@@ -34,28 +34,51 @@ function ToastRow({ toast }: { toast: Toast }) {
   const { t } = useTranslation();
   const dismissToast = useUiStore((s) => s.dismissToast);
 
+  // Un bandeau qui porte un avancement appartient au travail en cours : il ne
+  // s'efface pas tout seul, sans quoi l'annulation d'un « tout marquer comme
+  // lu » disparaîtrait de l'écran en pleine besogne.
+  const working = !!toast.progress;
+
   useEffect(() => {
+    if (working) return;
     const timer = setTimeout(
       () => dismissToast(toast.id),
       toast.action ? WITH_ACTION_MS : PLAIN_MS
     );
     return () => clearTimeout(timer);
-  }, [toast.id, toast.action, dismissToast]);
+  }, [toast.id, toast.action, working, dismissToast]);
+
+  const part = toast.progress && toast.progress.total > 0
+    ? Math.min(100, Math.round((toast.progress.done / toast.progress.total) * 100))
+    : 0;
 
   return (
-    <div className="toast" data-tone={toast.tone}>
+    <div className="toast" data-tone={toast.tone} data-working={working ? '' : undefined}>
       <span className="toast__message">{toast.message}</span>
       {toast.action && (
         <button
           type="button"
           className="toast__action"
           onClick={() => {
-            toast.action?.run();
-            dismissToast(toast.id);
+            // Une action qui rend une promesse a du travail devant elle : le
+            // bandeau reste, et c'est elle qui décidera de sa suite (elle y
+            // affiche son avancement, puis son résultat).
+            const running = toast.action?.run();
+            if (!(running instanceof Promise)) dismissToast(toast.id);
           }}
         >
           {toast.action.label}
         </button>
+      )}
+      {toast.progress && (
+        <div
+          className="toast__progress"
+          style={{ width: `${part}%` }}
+          role="progressbar"
+          aria-valuenow={toast.progress.done}
+          aria-valuemin={0}
+          aria-valuemax={toast.progress.total}
+        />
       )}
       <button
         type="button"

@@ -1660,12 +1660,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // sait combien d'articles étaient non lus (le relevé) et si le retour en
       // arrière est possible.
       const { default: i18n } = await import('../i18n');
-      useUiStore.getState().pushToast(
+      // L'identifiant est capturé pour que l'annulation écrive DANS ce
+      // bandeau-là plutôt que d'en empiler un autre.
+      let toastId = 0;
+      toastId = useUiStore.getState().pushToast(
         avant ? i18n.t('toast.markedRead', { count: avant.length }) : i18n.t('toast.markedReadAll'),
                 // `run` REND la promesse (la signature du toast l'autorise) : sans
         // cela, rien — ni un test, ni un appelant — ne peut attendre la fin de
         // la remise en non lus, qui se fait par lots successifs.
-        avant ? { action: { label: i18n.t('toast.undo'), run: () => restoreUnread(avant) } } : undefined,
+        avant ? { action: { label: i18n.t('toast.undo'), run: () => restoreUnread(avant, toastId) } } : undefined,
       );
     } catch { /* ignore */ } finally {
       set({ bulkWork: null });
@@ -2563,9 +2566,19 @@ async function snapshotUnread(streamId: string): Promise<string[] | null> {
  * demanderait `entryIdUsec` sur chaque ligne, pour un résultat qu'une relecture
  * donne exactement.
  */
-async function restoreUnread(ids: readonly string[]): Promise<void> {
+async function restoreUnread(ids: readonly string[], toastId: number): Promise<void> {
   const total = ids.length;
   let rendus = 0;
+  const { default: i18n } = await import('../i18n');
+  const ui = useUiStore.getState();
+  // Le bandeau qu'on vient de cliquer DEVIENT l'avancement : c'est là que le
+  // regard est resté, pas en haut de la fenêtre. L'action disparaît — il n'y a
+  // plus rien à décider tant que ça tourne.
+  ui.updateToast(toastId, {
+    message: i18n.t('toast.undoing', { done: 0, total }),
+    action: undefined,
+    progress: { done: 0, total },
+  });
   useFeedStore.setState({ bulkWork: { done: 0, total } });
   try {
     for (let i = 0; i < total; i += UNDO_BATCH) {
@@ -2587,6 +2600,10 @@ async function restoreUnread(ids: readonly string[]): Promise<void> {
       }
       rendus += lot.length;
       useFeedStore.setState({ bulkWork: { done: rendus, total } });
+      ui.updateToast(toastId, {
+        message: i18n.t('toast.undoing', { done: rendus, total }),
+        progress: { done: rendus, total },
+      });
     }
   } finally {
     useFeedStore.setState({ bulkWork: null });
@@ -2601,15 +2618,15 @@ async function restoreUnread(ids: readonly string[]): Promise<void> {
     await useFeedStore.getState().loadArticles();
   } catch { /* la relecture peut échouer : les articles, eux, sont rendus */ }
 
-  const { default: i18n } = await import('../i18n');
-  if (rendus === total) {
-    useUiStore.getState().pushToast(i18n.t('toast.undoDone', { count: rendus }));
-  } else {
-    useUiStore.getState().pushToast(
-      i18n.t('toast.undoPartial', { count: rendus, total }),
-      { tone: 'error' },
-    );
-  }
+  // Le même bandeau porte le résultat : retirer l'avancement lui rend son
+  // minuteur d'effacement.
+  ui.updateToast(toastId, {
+    message: rendus === total
+      ? i18n.t('toast.undoDone', { count: rendus })
+      : i18n.t('toast.undoPartial', { count: rendus, total }),
+    tone: rendus === total ? undefined : 'error',
+    progress: undefined,
+  });
 }
 
 async function runScan(token: number, streamId: string, view: string): Promise<void> {

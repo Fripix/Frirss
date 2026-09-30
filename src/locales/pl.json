@@ -704,7 +704,8 @@
     "undoPartial_one": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
     "undoPartial_few": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
     "undoPartial_many": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
-    "undoPartial_other": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych"
+    "undoPartial_other": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
+    "undoing": "Cofanie… {{done}}/{{total}}"
   },
   "palette": {
     "title": "Paleta poleceń",

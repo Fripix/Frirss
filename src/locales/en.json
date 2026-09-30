@@ -678,7 +678,8 @@
     "undoDone_one": "{{count}} article back to unread",
     "undoDone_other": "{{count}} articles back to unread",
     "undoPartial_one": "{{count}} of {{total}} articles back to unread",
-    "undoPartial_other": "{{count}} of {{total}} articles back to unread"
+    "undoPartial_other": "{{count}} of {{total}} articles back to unread",
+    "undoing": "Undoing… {{done}}/{{total}}"
   },
   "palette": {
     "title": "Command palette",

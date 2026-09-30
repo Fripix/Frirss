@@ -704,7 +704,8 @@
     "undoPartial_one": "{{count}} з {{total}} статей повернено в непрочитані",
     "undoPartial_few": "{{count}} з {{total}} статей повернено в непрочитані",
     "undoPartial_many": "{{count}} з {{total}} статей повернено в непрочитані",
-    "undoPartial_other": "{{count}} з {{total}} статей повернено в непрочитані"
+    "undoPartial_other": "{{count}} з {{total}} статей повернено в непрочитані",
+    "undoing": "Скасування… {{done}}/{{total}}"
   },
   "palette": {
     "title": "Палітра команд",

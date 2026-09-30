@@ -42,8 +42,9 @@ la release publiée.
   Les installations existantes gardent le réglage qu'elles avaient.
 - **« Tout lu au-dessus / en dessous » demande dans la même boîte** que le
   bouton « Tout lu », au lieu de changer l'entrée du menu en « Confirmer ? ».
-- **Les écritures longues se voient** : la barre de progression du haut
-  s'affiche pendant le relevé puis chiffre l'avancement de l'annulation.
+- **Les écritures longues se voient** : l'annulation affiche son avancement
+  dans son propre bandeau — « Annulation… 300/1 200 » et une jauge — au lieu de
+  disparaître dès le clic ; la barre du haut couvre le reste.
 
 - **La barre d'état de la recherche reste affichée une fois le balayage
   terminé** et annonce le nombre de résultats — « lus compris » quand la vue

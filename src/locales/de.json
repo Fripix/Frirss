@@ -678,7 +678,8 @@
     "undoDone_one": "{{count}} Artikel wieder ungelesen",
     "undoDone_other": "{{count}} Artikel wieder ungelesen",
     "undoPartial_one": "{{count}} von {{total}} Artikeln wieder ungelesen",
-    "undoPartial_other": "{{count}} von {{total}} Artikeln wieder ungelesen"
+    "undoPartial_other": "{{count}} von {{total}} Artikeln wieder ungelesen",
+    "undoing": "Wird rückgängig gemacht… {{done}}/{{total}}"
   },
   "palette": {
     "title": "Befehlspalette",

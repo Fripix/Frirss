@@ -678,7 +678,8 @@
     "undoDone_one": "{{count}} artigo de volta a não lido",
     "undoDone_other": "{{count}} artigos de volta a não lidos",
     "undoPartial_one": "{{count}} de {{total}} artigos de volta a não lidos",
-    "undoPartial_other": "{{count}} de {{total}} artigos de volta a não lidos"
+    "undoPartial_other": "{{count}} de {{total}} artigos de volta a não lidos",
+    "undoing": "A desfazer… {{done}}/{{total}}"
   },
   "palette": {
     "title": "Paleta de comandos",
