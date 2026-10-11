@@ -5,6 +5,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useFeedStore } from '../../stores/feedStore';
 import ToggleSwitch from '../ToggleSwitch';
 import type { Tag } from '../../types';
+import { setArticleLabel } from '../../api/feeds';
 import { TabResetButton } from './TabResetButton';
 
 // Label grouping item (Preferences labels tab)
@@ -82,6 +83,12 @@ function groupLabelsForPrefs(labels: Tag[], labelOrder: string[] = [], sortAlpha
 export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () => void }) {
   const { t } = useTranslation();
   const labels = useFeedStore((s) => s.labels);
+  const articles = useFeedStore((s) => s.articles);
+  const loadLabels = useFeedStore((s) => s.loadLabels);
+  const [newLabelName, setNewLabelName] = useState('');
+  const [creatingLabel, setCreatingLabel] = useState(false);
+  const [createLabelError, setCreateLabelError] = useState<string | null>(null);
+  const [createLabelSuccess, setCreateLabelSuccess] = useState(false);
   const renameLabel = useFeedStore((s) => s.renameLabel);
   const deleteLabel = useFeedStore((s) => s.deleteLabel);
   const loadLabelCounts = useFeedStore((s) => s.loadLabelCounts);
@@ -200,12 +207,124 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
   // Shared props for all LabelRow instances
   const dragProps = { dragId, setDragId, dropTarget, setDropTarget, onDrop: handleDrop, onDragCleanup: cleanup };
 
+  async function createLabel() {
+    const name = newLabelName.trim().replace(/\s*\/\s*/g, '/');
+    setCreateLabelError(null);
+    setCreateLabelSuccess(false);
+
+    if (!name || name.length > 128 || name.split('').some((char) => char.charCodeAt(0) < 32) || name.split('/').some((part) => !part.trim())) {
+      setCreateLabelError(t('preferences.labels.invalidName'));
+      return;
+    }
+    const normalizedName = name.normalize('NFC').toLocaleLowerCase();
+    if (labels.some((label) => label.id.split('/label/').pop()?.normalize('NFC').toLocaleLowerCase() === normalizedName)) {
+      setCreateLabelError(t('preferences.labels.duplicateName'));
+      return;
+    }
+    if (normalizedName === 'à lire plus tard') {
+      setCreateLabelError(t('preferences.labels.reservedName'));
+      return;
+    }
+
+    const article = articles[0];
+    if (!article) {
+      setCreateLabelError(t('preferences.labels.noArticleAvailable'));
+      return;
+    }
+
+    const labelId = `user/-/label/${name}`;
+    let addFailed = false;
+    let removalFailed = false;
+    let cleanupFailed = false;
+    setCreatingLabel(true);
+    try {
+      // FreshRSS has no documented create-label endpoint. Assigning the label
+      // creates it; removal runs even if the add response is ambiguous.
+      try {
+        await setArticleLabel(article.id, labelId, true);
+      } catch {
+        addFailed = true;
+      }
+
+      try {
+        await setArticleLabel(article.id, labelId, false);
+      } catch {
+        removalFailed = true;
+      }
+
+      // If removal failed (including a network error after the server may have
+      // applied it), make one more cleanup attempt before reporting the result.
+      if (removalFailed || addFailed) {
+        try {
+          await setArticleLabel(article.id, labelId, false);
+          removalFailed = false;
+        } catch {
+          cleanupFailed = true;
+        }
+      }
+    } finally {
+      try {
+        await loadLabels();
+      } catch {
+        // loadLabels handles its own failures; keep creation feedback below.
+      }
+      setCreatingLabel(false);
+    }
+
+    if (cleanupFailed) {
+      setCreateLabelError(t('preferences.labels.cleanupError'));
+      return;
+    }
+    if (addFailed) {
+      setCreateLabelError(t('preferences.labels.createError'));
+      return;
+    }
+    if (removalFailed) {
+      setCreateLabelError(t('preferences.labels.cleanupError'));
+      return;
+    }
+    setNewLabelName('');
+    setCreateLabelSuccess(true);
+  }
+
+  const createLabelForm = (
+    <form
+      className="flex flex-col sm:flex-row gap-2 mb-4"
+      onSubmit={(event) => { event.preventDefault(); if (!creatingLabel) void createLabel(); }}
+    >
+      <input
+        type="text"
+        value={newLabelName}
+        onChange={(event) => { setNewLabelName(event.target.value); setCreateLabelError(null); setCreateLabelSuccess(false); }}
+        maxLength={128}
+        placeholder={t('preferences.labels.createPlaceholder')}
+        aria-label={t('preferences.labels.createTitle')}
+        disabled={creatingLabel}
+        className="flex-1 min-w-0 text-xs px-3 py-2 rounded-md border outline-none disabled:opacity-50"
+        style={{ borderColor: 'var(--panel-border)', color: 'var(--list-title)', background: 'var(--panel-bg)' }}
+      />
+      <button
+        type="submit"
+        disabled={creatingLabel || !newLabelName.trim()}
+        className="text-xs font-medium px-3 py-2 rounded-md disabled:opacity-50"
+        style={{ background: 'var(--accent)', color: 'white' }}
+      >
+        {creatingLabel ? t('preferences.labels.creating') : t('preferences.labels.createButton')}
+      </button>
+      {createLabelError && <p role="alert" className="text-xs self-center" style={{ color: 'var(--danger)' }}>{createLabelError}</p>}
+      {createLabelSuccess && <p role="status" className="text-xs self-center" style={{ color: 'var(--list-summary)' }}>{t('preferences.labels.createSuccess')}</p>}
+    </form>
+  );
+
   if (labels.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-sm" style={{ color: 'var(--list-summary)' }}>
-          {t('preferences.labels.noLabels')}. {t('preferences.labels.noLabelsHint')}
-        </p>
+      <div className="space-y-4">
+        {createLabelForm}
+        <div className="text-center py-8">
+          <p className="text-sm" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.labels.noLabels')}. {t('preferences.labels.noLabelsHint')}
+          </p>
+        </div>
       </div>
     );
   }
@@ -215,6 +334,7 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
       className="space-y-4"
       onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
     >
+      {createLabelForm}
       {/* Sort toggle */}
       <div className="flex items-center justify-between">
         <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>

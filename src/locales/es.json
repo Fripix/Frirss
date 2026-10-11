@@ -311,7 +311,18 @@
       "noParent": "— Sin padre —",
       "choose": "Elegir…",
       "moveTooltip": "Mover a otro padre",
-      "showCounts": "Mostrar el número de artículos"
+      "showCounts": "Mostrar el número de artículos",
+      "createTitle": "Crear etiqueta",
+      "createPlaceholder": "Nombre de etiqueta ( / para grupos)",
+      "createButton": "Crear etiqueta",
+      "creating": "Creando…",
+      "invalidName": "Introduce un nombre válido (máximo 128 caracteres).",
+      "duplicateName": "Ya existe una etiqueta con ese nombre.",
+      "reservedName": "Este nombre está reservado para «Leer más tarde».",
+      "noArticleAvailable": "Carga al menos un artículo antes de crear una etiqueta.",
+      "createError": "No se pudo crear la etiqueta. Comprueba la conexión con FreshRSS e inténtalo de nuevo.",
+      "cleanupError": "No se pudo confirmar la limpieza. Comprueba las etiquetas del artículo en FreshRSS antes de volver a intentarlo.",
+      "createSuccess": "Etiqueta creada."
     },
     "themes": {
       "presets": "Preajustes",

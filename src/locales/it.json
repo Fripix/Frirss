@@ -311,7 +311,18 @@
       "noParent": "— Senza genitore —",
       "choose": "Scegli…",
       "moveTooltip": "Sposta in un altro genitore",
-      "showCounts": "Mostra il numero di articoli"
+      "showCounts": "Mostra il numero di articoli",
+      "createTitle": "Crea etichetta",
+      "createPlaceholder": "Nome etichetta ( / per i gruppi)",
+      "createButton": "Crea etichetta",
+      "creating": "Creazione…",
+      "invalidName": "Inserisci un nome valido (massimo 128 caratteri).",
+      "duplicateName": "Esiste già un'etichetta con questo nome.",
+      "reservedName": "Questo nome è riservato a «Leggi più tardi».",
+      "noArticleAvailable": "Carica almeno un articolo prima di creare un'etichetta.",
+      "createError": "Impossibile creare l'etichetta. Controlla la connessione a FreshRSS e riprova.",
+      "cleanupError": "Non è stato possibile confermare la rimozione temporanea. Controlla le etichette dell'articolo in FreshRSS prima di riprovare.",
+      "createSuccess": "Etichetta creata."
     },
     "themes": {
       "presets": "Preimpostazioni",

@@ -311,7 +311,18 @@
       "noParent": "— 无父标签 —",
       "choose": "选择…",
       "moveTooltip": "移动到其他父标签",
-      "showCounts": "显示文章数"
+      "showCounts": "显示文章数",
+      "createTitle": "创建标签",
+      "createPlaceholder": "标签名称（用 / 创建分组）",
+      "createButton": "创建标签",
+      "creating": "正在创建…",
+      "invalidName": "请输入有效的标签名称（最多 128 个字符）。",
+      "duplicateName": "已存在同名标签。",
+      "reservedName": "此名称保留给“稍后阅读”。",
+      "noArticleAvailable": "请先加载至少一篇文章，再创建标签。",
+      "createError": "无法创建标签。请检查 FreshRSS 连接后重试。",
+      "cleanupError": "无法确认临时标签已清理。重试前请检查 FreshRSS 中该文章的标签。",
+      "createSuccess": "标签已创建。"
     },
     "themes": {
       "presets": "预设",
@@ -347,7 +358,7 @@
       "markUnread": "标为未读",
       "toggleStar": "切换收藏",
       "openOriginal": "打开原文",
-      "pullFullArticle": "获取全文",
+      "pullFullArticle": "获取完整文章",
       "toggleSidebar": "显示/隐藏侧边栏",
       "search": "搜索",
       "readLater": "稍后阅读",
@@ -365,8 +376,7 @@
       "customize": "可在偏好设置中自定义",
       "gestureHelp": "显示此窗口",
       "helpTitle": "键盘快捷键",
-      "backToList": "返回文章列表",
-      "pullFullArticle": "获取完整文章"
+      "backToList": "返回文章列表"
     },
     "offline": {
       "title": "离线",

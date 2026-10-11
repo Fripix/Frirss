@@ -315,7 +315,18 @@
       "noParent": "— Bez elementu nadrzędnego —",
       "choose": "Wybierz…",
       "moveTooltip": "Przenieś do innego elementu nadrzędnego",
-      "showCounts": "Pokaż liczbę artykułów"
+      "showCounts": "Pokaż liczbę artykułów",
+      "createTitle": "Utwórz etykietę",
+      "createPlaceholder": "Nazwa etykiety ( / dla grup)",
+      "createButton": "Utwórz etykietę",
+      "creating": "Tworzenie…",
+      "invalidName": "Wpisz prawidłową nazwę (maksymalnie 128 znaków).",
+      "duplicateName": "Etykieta o tej nazwie już istnieje.",
+      "reservedName": "Ta nazwa jest zarezerwowana dla „Do przeczytania później”.",
+      "noArticleAvailable": "Wczytaj co najmniej jeden artykuł przed utworzeniem etykiety.",
+      "createError": "Nie udało się utworzyć etykiety. Sprawdź połączenie z FreshRSS i spróbuj ponownie.",
+      "cleanupError": "Nie udało się potwierdzić usunięcia tymczasowego przypisania. Przed ponowną próbą sprawdź etykiety artykułu w FreshRSS.",
+      "createSuccess": "Etykieta utworzona."
     },
     "themes": {
       "presets": "Gotowe motywy",

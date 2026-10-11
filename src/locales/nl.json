@@ -311,7 +311,18 @@
       "noParent": "— Geen bovenliggend —",
       "choose": "Kiezen…",
       "moveTooltip": "Naar een ander bovenliggend label verplaatsen",
-      "showCounts": "Aantal artikelen tonen"
+      "showCounts": "Aantal artikelen tonen",
+      "createTitle": "Label maken",
+      "createPlaceholder": "Labelnaam ( / voor groepen)",
+      "createButton": "Label maken",
+      "creating": "Bezig met maken…",
+      "invalidName": "Voer een geldige labelnaam in (maximaal 128 tekens).",
+      "duplicateName": "Er bestaat al een label met deze naam.",
+      "reservedName": "Deze naam is gereserveerd voor Later lezen.",
+      "noArticleAvailable": "Laad minstens één artikel voordat je een label maakt.",
+      "createError": "Label maken mislukt. Controleer de FreshRSS-verbinding en probeer het opnieuw.",
+      "cleanupError": "Het opruimen kon niet worden bevestigd. Controleer de labels van het artikel in FreshRSS voordat je het opnieuw probeert.",
+      "createSuccess": "Label gemaakt."
     },
     "themes": {
       "presets": "Voorinstellingen",

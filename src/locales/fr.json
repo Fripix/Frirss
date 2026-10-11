@@ -311,7 +311,18 @@
       "noParent": "— Sans parent —",
       "choose": "Choisir…",
       "moveTooltip": "Déplacer vers un autre parent",
-      "showCounts": "Afficher le nombre d'articles"
+      "showCounts": "Afficher le nombre d'articles",
+      "createTitle": "Créer une étiquette",
+      "createPlaceholder": "Nom de l’étiquette ( / pour les groupes)",
+      "createButton": "Créer l’étiquette",
+      "creating": "Création…",
+      "invalidName": "Saisissez un nom valide (128 caractères maximum).",
+      "duplicateName": "Une étiquette portant ce nom existe déjà.",
+      "reservedName": "Ce nom est réservé à « À lire plus tard ».",
+      "noArticleAvailable": "Chargez au moins un article avant de créer une étiquette.",
+      "createError": "Impossible de créer l’étiquette. Vérifiez la connexion FreshRSS puis réessayez.",
+      "cleanupError": "La suppression temporaire n’a pas pu être confirmée. Vérifiez les étiquettes de l’article dans FreshRSS avant de réessayer.",
+      "createSuccess": "Étiquette créée."
     },
     "themes": {
       "presets": "Préréglages",

@@ -311,7 +311,18 @@
       "noParent": "— Ohne übergeordnetes —",
       "choose": "Wählen…",
       "moveTooltip": "Zu einem anderen übergeordneten Label verschieben",
-      "showCounts": "Artikelanzahl anzeigen"
+      "showCounts": "Artikelanzahl anzeigen",
+      "createTitle": "Label erstellen",
+      "createPlaceholder": "Labelname ( / für Gruppen)",
+      "createButton": "Label erstellen",
+      "creating": "Wird erstellt…",
+      "invalidName": "Bitte einen gültigen Labelnamen eingeben (max. 128 Zeichen).",
+      "duplicateName": "Ein Label mit diesem Namen existiert bereits.",
+      "reservedName": "Dieser Name ist für „Später lesen“ reserviert.",
+      "noArticleAvailable": "Lade mindestens einen Artikel, bevor du ein Label erstellst.",
+      "createError": "Label konnte nicht erstellt werden. Prüfe die FreshRSS-Verbindung und versuche es erneut.",
+      "cleanupError": "Das Entfernen des temporären Labels konnte nicht bestätigt werden. Prüfe die Labels des Artikels in FreshRSS, bevor du es erneut versuchst.",
+      "createSuccess": "Label erstellt."
     },
     "themes": {
       "presets": "Voreinstellungen",
