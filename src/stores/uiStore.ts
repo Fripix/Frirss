@@ -18,8 +18,8 @@ function normalizeImagePreset(v: unknown): OfflineImagePreset {
 }
 
 export type Shortcuts = Record<string, string>;
-export type DisplaySettingKey = 'feedName' | 'feedIcons' | 'dateSeparators' | 'serverBar' | 'layout';
-export interface DeviceDisplaySettings { feedName: boolean; feedIcons: boolean; dateSeparators: boolean; serverBar: boolean; layout: string; rowActions: RowActionSettings; }
+export type DisplaySettingKey = 'feedName' | 'feedIcons' | 'dateSeparators' | 'serverBar' | 'layout' | 'wrapTitles';
+export interface DeviceDisplaySettings { feedName: boolean; feedIcons: boolean; dateSeparators: boolean; serverBar: boolean; layout: string; wrapTitles: boolean; rowActions: RowActionSettings; }
 function loadDeviceDisplaySettings(device: 'mobile' | 'desktop'): DeviceDisplaySettings {
   const saved = loadJson<Partial<DeviceDisplaySettings>>(`frirss_display_${device}`, {});
   return {
@@ -28,6 +28,7 @@ function loadDeviceDisplaySettings(device: 'mobile' | 'desktop'): DeviceDisplayS
     dateSeparators: typeof saved.dateSeparators === 'boolean' ? saved.dateSeparators : loadJson('frirss_showDateSeparators', true),
     serverBar: typeof saved.serverBar === 'boolean' ? saved.serverBar : loadJson('frirss_topbarVisible', true),
     layout: typeof saved.layout === 'string' && ['2', '3', 'grid'].includes(saved.layout) ? saved.layout : (localStorage.getItem('frirss_panelLayout') || '3'),
+    wrapTitles: saved.wrapTitles === true,
     // Migrate the former global preference into both device profiles on first load.
     rowActions: normalizeRowActions(saved.rowActions ?? loadJson('frirss_rowActions', null)),
   };

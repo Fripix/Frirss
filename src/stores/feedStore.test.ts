@@ -652,7 +652,7 @@ describe('resolveSearchStreamId', () => {
     expect(resolveSearchStreamId(feed, 'unread')).toBe('feed/https://ex.com/rss');
   });
   it('scopes to read-later when that filter is active', () => {
-    expect(resolveSearchStreamId(null, 'readlater')).toBe('user/-/label/À lire plus tard');
+    expect(resolveSearchStreamId(null, 'readlater')).toBe(READ_LATER_LABEL);
   });
   it('scopes to starred (global) when that filter is active', () => {
     expect(resolveSearchStreamId(null, 'starred')).toBe('user/-/state/com.google/starred');

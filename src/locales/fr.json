@@ -107,7 +107,8 @@
     "mobileSettings": "Mobile",
     "desktopSettings": "Ordinateur",
     "twoPanelLayout": "Deux panneaux",
-    "threePanelLayout": "Trois panneaux"
+    "threePanelLayout": "Trois panneaux",
+    "wrapTitles": "Renvoyer les titres sur 2 lignes"
   },
   "articleRow": {
     "markRead": "Marquer lu",

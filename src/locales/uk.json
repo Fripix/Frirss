@@ -111,7 +111,8 @@
     "mobileSettings": "Мобільний",
     "desktopSettings": "Комп’ютер",
     "twoPanelLayout": "Дві панелі",
-    "threePanelLayout": "Три панелі"
+    "threePanelLayout": "Три панелі",
+    "wrapTitles": "Переносити заголовки (2 рядки)"
   },
   "articleRow": {
     "markRead": "Позначити прочитаним",

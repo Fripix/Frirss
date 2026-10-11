@@ -107,7 +107,8 @@
     "mobileSettings": "Celular",
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Dois painéis",
-    "threePanelLayout": "Três painéis"
+    "threePanelLayout": "Três painéis",
+    "wrapTitles": "Quebrar títulos em 2 linhas"
   },
   "articleRow": {
     "markRead": "Marcar como lido",

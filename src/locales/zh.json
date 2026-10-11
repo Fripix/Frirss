@@ -107,7 +107,8 @@
     "mobileSettings": "手机",
     "desktopSettings": "桌面",
     "twoPanelLayout": "双栏",
-    "threePanelLayout": "三栏"
+    "threePanelLayout": "三栏",
+    "wrapTitles": "文章标题换行（两行）"
   },
   "articleRow": {
     "markRead": "标为已读",

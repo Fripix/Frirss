@@ -107,7 +107,8 @@
     "mobileSettings": "Mobil",
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Zwei Bereiche",
-    "threePanelLayout": "Drei Bereiche"
+    "threePanelLayout": "Drei Bereiche",
+    "wrapTitles": "Artikeltitel umbrechen (2 Zeilen)"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",

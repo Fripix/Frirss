@@ -107,7 +107,8 @@
     "mobileSettings": "Mobiel",
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Twee panelen",
-    "threePanelLayout": "Drie panelen"
+    "threePanelLayout": "Drie panelen",
+    "wrapTitles": "Artikeltitels op 2 regels"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",

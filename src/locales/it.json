@@ -107,7 +107,8 @@
     "mobileSettings": "Mobile",
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Due pannelli",
-    "threePanelLayout": "Tre pannelli"
+    "threePanelLayout": "Tre pannelli",
+    "wrapTitles": "Titoli degli articoli su 2 righe"
   },
   "articleRow": {
     "markRead": "Segna come letto",

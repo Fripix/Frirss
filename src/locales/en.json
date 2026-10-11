@@ -107,7 +107,8 @@
     "mobileSettings": "Mobile",
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Two panels",
-    "threePanelLayout": "Three panels"
+    "threePanelLayout": "Three panels",
+    "wrapTitles": "Wrap article titles (2 lines)"
   },
   "articleRow": {
     "markRead": "Mark as read",
