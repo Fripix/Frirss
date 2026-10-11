@@ -87,7 +87,7 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
                 <span className="block text-xs font-medium" style={{ color: 'var(--list-title)' }}>{article.title}</span>
                 {article.summary && (
                   <span className="mt-0.5 block text-[11px] line-clamp-2" style={{ color: 'var(--list-summary)' }}>
-                    {article.summary.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim()}
+                    {article.summary.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}
                   </span>
                 )}
               </button>
