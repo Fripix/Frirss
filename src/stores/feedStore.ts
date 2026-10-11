@@ -64,7 +64,7 @@ import type {
   GReaderStream,
 } from '../types';
 
-export const READ_LATER_LABEL = 'user/-/label/À lire plus tard';
+export const READ_LATER_LABEL = 'user/-/label/read-later';
 
 // Default page size for article streams.
 // Smaller pages load far faster (FreshRSS returns full content per item);
