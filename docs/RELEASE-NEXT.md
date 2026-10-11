@@ -26,7 +26,25 @@ _(rien pour l'instant)_
 
 ## Sous le capot
 
-_(rien pour l'instant)_
+- **Trois dépendances de production montées pour vider le panneau Docker Scout.**
+  L'image `1.5.0` publiée affichait 17 vulnérabilités (1 critique, 9 hautes,
+  5 moyennes, 2 basses), dont 14 venaient de `node_modules` et non de l'image de
+  base — un renversement par rapport aux cycles précédents, où les paquets
+  Alpine portaient presque tout. `proxy-addr` 2.0.7 → 2.0.8 corrige la critique
+  (CVE-2026-90711, score 9.1) : une IP cliente pouvait être usurpée via un
+  sous-réseau de confiance IPv6-mappé-IPv4, et c'est cette IP que `trust proxy`
+  détermine puis que le plafond de requêtes du proxy prend pour clé. `axios`
+  1.19.0 → 1.20.0 solde douze avis (7 hautes, 5 moyennes) et `dompurify`
+  3.4.13 → 3.4.16 deux XSS DOM en mode `IN_PLACE`.
+- **Le lockfile était la cause, pas `package.json`.** Les intervalles déclarés
+  autorisaient déjà les versions corrigées ; `package-lock.json` épinglait les
+  anciennes, et la CI construit depuis lui. Un `npm update` des trois paquets a
+  donc suffi, sans toucher aux dépendances déclarées. Au passage, la version du
+  projet inscrite dans le lockfile, restée à 1.4.10, redevient exacte.
+- **Les deux CVE Alpine se règlent par la reconstruction seule** : `zlib`
+  1.3.2-r0 → 1.3.2-r1 (CVE-2026-85091) et `pcre2` 10.48-r0 → 10.49-r0
+  (CVE-2026-103111) sont déjà publiées dans 3.24, et `apk upgrade` les ramasse
+  en tête de l'étape de production.
 
 ## Actions requises à la mise à jour
 
