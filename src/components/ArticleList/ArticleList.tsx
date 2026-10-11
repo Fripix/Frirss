@@ -84,7 +84,6 @@ export default function ArticleList() {
   const [settingsProfile, setSettingsProfile] = useState<'mobile' | 'desktop'>('mobile');
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
-  const showSourceInFeed = useUiStore((s) => s.showSourceInFeed);
 
   const rowActions = useUiStore((s) => s.rowActions);
 
@@ -96,7 +95,6 @@ export default function ArticleList() {
   const loadNewArticles = useFeedStore((s) => s.loadNewArticles);
   const dismissNewArticles = useFeedStore((s) => s.dismissNewArticles);
   const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
-  const showSourceInAll = useUiStore((s) => s.showSourceInAll);
   const feedSettings = useUiStore((s) => s.feedSettings);
   const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
   const breakpoint = useBreakpoint();
@@ -126,7 +124,7 @@ export default function ArticleList() {
   // feeds, so it behaves like the multi-source "all feeds" view, not a single
   // feed (where the source would be redundant).
   const isInFeed = !!selectedFeed && !isCategoryStreamId(selectedFeed.id);
-  const showSource = !!activeDisplaySettings.feedName && (isInFeed ? showSourceInFeed : showSourceInAll);
+  const showSource = !!activeDisplaySettings.feedName;
 
   // Les mots de la recherche en cours, pour que chaque ligne puisse montrer
   // POURQUOI elle est un résultat. Découpés ici, une fois par requête, plutôt
@@ -822,7 +820,7 @@ export default function ArticleList() {
                   onClick={() => setDeviceDisplaySetting(isMobile ? 'mobile' : 'desktop', 'feedName', !activeDisplaySettings.feedName)}
                   tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
                 />
-                <FaviconToggle />
+                <FaviconToggle active={showListFavicons} onClick={toggleShowListFavicons} />
                 <DateSepToggle active={dateSepActive} onClick={toggleDateSep} />
                 <TopbarToggle />
               </div>
@@ -1779,14 +1777,13 @@ function TopbarToggle() {
 }
 
 /** Favicons dans la liste — même groupe que « nom du flux » et « dates ». */
-function FaviconToggle() {
+function FaviconToggle({ active, onClick }: { active: boolean; onClick: () => void }) {
   const { t } = useTranslation();
-  const on = useUiStore((s) => s.showListFavicons);
-  const toggle = useUiStore((s) => s.toggleShowListFavicons);
+  const on = active;
   const label = on ? t('articleList.hideListFavicons') : t('articleList.showListFavicons');
   return (
     <button
-      onClick={toggle}
+      onClick={onClick}
       title={label}
       aria-label={label}
       aria-pressed={on}
