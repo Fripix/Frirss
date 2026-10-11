@@ -860,7 +860,7 @@ export default function ArticleList() {
                     onClick={() => setDeviceDisplaySetting(isMobile ? 'mobile' : 'desktop', 'feedName', !activeDisplaySettings.feedName)}
                     tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
                   />
-                  <FaviconToggle />
+                  <FaviconToggle active={showListFavicons} onClick={toggleShowListFavicons} />
                   <DateSepToggle active={dateSepActive} onClick={toggleDateSep} />
                   <TopbarToggle />
                 </div>
