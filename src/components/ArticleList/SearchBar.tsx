@@ -1,4 +1,5 @@
 import { forwardRef, type FormEvent } from 'react';
+import type { Article } from '../../types';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -9,6 +10,8 @@ interface Props {
   onChange: (value: string) => void;
   onSubmit: () => void;
   onClose: () => void;
+  suggestions?: Article[];
+  onSelectSuggestion?: (article: Article) => void;
 }
 
 /**
@@ -28,7 +31,7 @@ interface Props {
  * la saisie.
  */
 const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
-  { value, scope, mobile, onChange, onSubmit, onClose }, ref,
+  { value, scope, mobile, onChange, onSubmit, onClose, suggestions = [], onSelectSuggestion }, ref,
 ) {
   const { t } = useTranslation();
 
@@ -63,6 +66,34 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
           onBlur={(e) => e.target.style.borderColor = 'var(--panel-border)'}
           onKeyDown={(e) => e.key === 'Escape' && onClose()}
         />
+        {value.trim().length >= 2 && suggestions.length > 0 && (
+          <div
+            role="listbox"
+            aria-label="Article suggestions"
+            className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border shadow-lg"
+            style={{ borderColor: 'var(--panel-border)', background: 'var(--panel-bg)', maxHeight: 'min(60vh, 360px)', overflowY: 'auto' }}
+          >
+            {suggestions.map((article) => (
+              <button
+                key={article.id}
+                type="button"
+                role="option"
+                aria-selected="false"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onSelectSuggestion?.(article)}
+                className="block w-full px-3 py-2 text-left transition-colors hover:bg-black/5"
+                style={{ borderBottom: '1px solid var(--panel-border)' }}
+              >
+                <span className="block text-xs font-medium" style={{ color: 'var(--list-title)' }}>{article.title}</span>
+                {article.summary && (
+                  <span className="mt-0.5 block text-[11px] line-clamp-2" style={{ color: 'var(--list-summary)' }}>
+                    {article.summary.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim()}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           type="submit"
           className="search-submit"

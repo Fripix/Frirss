@@ -26,7 +26,7 @@ import SearchBar from './SearchBar';
 import ConfirmDialog from '../ConfirmDialog';
 import Highlighted from './Highlighted';
 import { resultSummary } from '../../lib/searchHighlight';
-import { parseQuery } from '../../lib/searchMatch';
+import { articleHaystack, matchesTerms, normalizeForSearch, parseQuery, stripHtml } from '../../lib/searchMatch';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 import { copyLink } from '../../lib/copyLink';
 import { useAuthStore } from '../../stores/authStore';
@@ -257,6 +257,24 @@ export default function ArticleList() {
     else pushToast(t('toast.copyFailed'), { tone: 'error' });
   }, [pushToast, t]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Suggestions are intentionally drawn from articles already loaded for this
+  // view. They are a fast preview, not a claim that the full FreshRSS archive
+  // has been searched; submitting still runs the existing complete view scan.
+  const autocompleteSuggestions = useMemo(() => {
+    const terms = parseQuery(searchValue);
+    if (searchValue.trim().length < 2 || terms.length === 0) return [];
+    return articles
+      .filter((article) => matchesTerms(articleHaystack(article), terms))
+      .sort((a, b) => {
+        const aTitle = normalizeForSearch(stripHtml(a.title));
+        const bTitle = normalizeForSearch(stripHtml(b.title));
+        const aTitleMatch = matchesTerms(aTitle, terms) ? 1 : 0;
+        const bTitleMatch = matchesTerms(bTitle, terms) ? 1 : 0;
+        return bTitleMatch - aTitleMatch;
+      })
+      .slice(0, 6);
+  }, [articles, searchValue]);
 
   // Pull-to-refresh (touch)
   const [pull, setPull] = useState(0);
@@ -908,6 +926,13 @@ export default function ArticleList() {
             onChange={setSearchValue}
             onSubmit={() => runSearch(searchValue)}
             onClose={handleClearSearch}
+            suggestions={autocompleteSuggestions}
+            onSelectSuggestion={(article) => {
+              setSearchValue(article.title);
+              setSearchOpen(false);
+              clearSearch();
+              openArticle(article);
+            }}
           />
         )}
 
