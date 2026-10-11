@@ -19,7 +19,7 @@ function normalizeImagePreset(v: unknown): OfflineImagePreset {
 
 export type Shortcuts = Record<string, string>;
 export type DisplaySettingKey = 'feedName' | 'feedIcons' | 'dateSeparators' | 'serverBar' | 'layout';
-export interface DeviceDisplaySettings { feedName: boolean; feedIcons: boolean; dateSeparators: boolean; serverBar: boolean; layout: string; }
+export interface DeviceDisplaySettings { feedName: boolean; feedIcons: boolean; dateSeparators: boolean; serverBar: boolean; layout: string; rowActions: RowActionSettings; }
 function loadDeviceDisplaySettings(device: 'mobile' | 'desktop'): DeviceDisplaySettings {
   const saved = loadJson<Partial<DeviceDisplaySettings>>(`frirss_display_${device}`, {});
   return {
@@ -28,6 +28,8 @@ function loadDeviceDisplaySettings(device: 'mobile' | 'desktop'): DeviceDisplayS
     dateSeparators: typeof saved.dateSeparators === 'boolean' ? saved.dateSeparators : loadJson('frirss_showDateSeparators', true),
     serverBar: typeof saved.serverBar === 'boolean' ? saved.serverBar : loadJson('frirss_topbarVisible', true),
     layout: typeof saved.layout === 'string' && ['2', '3', 'grid'].includes(saved.layout) ? saved.layout : (localStorage.getItem('frirss_panelLayout') || '3'),
+    // Migrate the former global preference into both device profiles on first load.
+    rowActions: normalizeRowActions(saved.rowActions ?? loadJson('frirss_rowActions', null)),
   };
 }
 
@@ -118,6 +120,7 @@ export interface UiState {
 
   deviceDisplaySettings: Record<'mobile' | 'desktop', DeviceDisplaySettings>;
   setDeviceDisplaySetting: (device: 'mobile' | 'desktop', key: DisplaySettingKey, value: boolean | string) => void;
+  setDeviceRowAction: (device: 'mobile' | 'desktop', kind: RowActionKind, visible: boolean) => void;
   viewMode: string;
   setViewMode: (mode: string) => void;
   mobileReadingFontSize: number;
@@ -263,6 +266,14 @@ export const useUiStore = create<UiState>()((set, get) => ({
   deviceDisplaySettings: { mobile: loadDeviceDisplaySettings('mobile'), desktop: loadDeviceDisplaySettings('desktop') },
   setDeviceDisplaySetting: (device, key, value) => set((state) => {
     const next = { ...state.deviceDisplaySettings[device], [key]: value };
+    localStorage.setItem(`frirss_display_${device}`, JSON.stringify(next));
+    return { deviceDisplaySettings: { ...state.deviceDisplaySettings, [device]: next } };
+  }),
+  setDeviceRowAction: (device, kind, visible) => set((state) => {
+    const next = {
+      ...state.deviceDisplaySettings[device],
+      rowActions: { ...state.deviceDisplaySettings[device].rowActions, [kind]: visible },
+    };
     localStorage.setItem(`frirss_display_${device}`, JSON.stringify(next));
     return { deviceDisplaySettings: { ...state.deviceDisplaySettings, [device]: next } };
   }),
@@ -766,6 +777,21 @@ export const useUiStore = create<UiState>()((set, get) => ({
         localStorage.setItem(`frirss_${k}`, JSON.stringify(value));
         next[k] = value;
       }
+    }
+
+    // Existing accounts may only have the former global row-action preference
+    // on the server. Use it to seed device profiles that have not been customised.
+    if (has('rowActions') && prefs.rowActions && typeof prefs.rowActions === 'object') {
+      const legacyActions = normalizeRowActions(prefs.rowActions);
+      const updatedProfiles = { ...get().deviceDisplaySettings };
+      for (const device of ['mobile', 'desktop'] as const) {
+        const savedProfile = loadJson<Partial<DeviceDisplaySettings>>(`frirss_display_${device}`, {});
+        if (!savedProfile.rowActions) {
+          updatedProfiles[device] = { ...updatedProfiles[device], rowActions: legacyActions };
+          localStorage.setItem(`frirss_display_${device}`, JSON.stringify(updatedProfiles[device]));
+        }
+      }
+      next.deviceDisplaySettings = updatedProfiles;
     }
 
     if (Object.keys(next).length) set(next as Partial<UiState>);

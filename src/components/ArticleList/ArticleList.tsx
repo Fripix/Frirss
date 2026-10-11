@@ -81,11 +81,10 @@ export default function ArticleList() {
   const panelLayout = useUiStore((s) => s.panelLayout);
   const deviceDisplaySettings = useUiStore((s) => s.deviceDisplaySettings);
   const setDeviceDisplaySetting = useUiStore((s) => s.setDeviceDisplaySetting);
+  const setDeviceRowAction = useUiStore((s) => s.setDeviceRowAction);
   const [settingsProfile, setSettingsProfile] = useState<'mobile' | 'desktop'>('mobile');
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
-
-  const rowActions = useUiStore((s) => s.rowActions);
 
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const unreadCounts = useFeedStore((s) => s.unreadCounts);
@@ -103,6 +102,7 @@ export default function ArticleList() {
   // A feed can override the global layout (set from its sidebar context menu).
   const activeDisplaySettings = deviceDisplaySettings[isMobile ? 'mobile' : 'desktop'];
   const editableDisplaySettings = deviceDisplaySettings[settingsProfile];
+  const rowActions = activeDisplaySettings.rowActions;
   const showListFavicons = !!activeDisplaySettings.feedIcons;
   const toggleShowListFavicons = () => setDeviceDisplaySetting(isMobile ? 'mobile' : 'desktop', 'feedIcons', !activeDisplaySettings.feedIcons);
   const topbarVisible = !!activeDisplaySettings.serverBar;
@@ -745,6 +745,18 @@ export default function ArticleList() {
                 onClick={() => setDeviceDisplaySetting(settingsProfile, 'dateSeparators', !editableDisplaySettings.dateSeparators)} />
               <SheetRow icon={<TopbarGlyph on={topbarVisible} />} label={t('articleList.serverBar')} active={!!editableDisplaySettings.serverBar}
                 onClick={() => setDeviceDisplaySetting(settingsProfile, 'serverBar', !editableDisplaySettings.serverBar)} />
+              <div className="px-4 pt-4 pb-2">
+                <div className="text-[15px] font-medium" style={{ color: 'var(--list-title)' }}>{t('preferences.layout.title')}</div>
+                <p className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>{t('preferences.layout.hint')}</p>
+              </div>
+              <SheetRow icon={<span aria-hidden="true">★</span>} label={t('preferences.layout.star')} active={editableDisplaySettings.rowActions.star}
+                onClick={() => setDeviceRowAction(settingsProfile, 'star', !editableDisplaySettings.rowActions.star)} />
+              <SheetRow icon={<span aria-hidden="true">◷</span>} label={t('preferences.layout.readLater')} active={editableDisplaySettings.rowActions.readLater}
+                onClick={() => setDeviceRowAction(settingsProfile, 'readLater', !editableDisplaySettings.rowActions.readLater)} />
+              <SheetRow icon={<span aria-hidden="true">↗</span>} label={t('preferences.layout.openSource')} active={editableDisplaySettings.rowActions.openSource}
+                onClick={() => setDeviceRowAction(settingsProfile, 'openSource', !editableDisplaySettings.rowActions.openSource)} />
+              <SheetRow icon={<span aria-hidden="true">✓</span>} label={t('preferences.layout.markRead')} active={editableDisplaySettings.rowActions.markRead}
+                onClick={() => setDeviceRowAction(settingsProfile, 'markRead', !editableDisplaySettings.rowActions.markRead)} />
 
               {!gridLayout && (
                 <>
