@@ -764,6 +764,10 @@ export default function ArticleList() {
               onClose={() => setOptionsOpen(false)}
               title={t('articleList.viewOptions')}
             >
+              <div className="sticky top-0 z-10 px-4 py-2 flex items-center justify-between" style={{ background: 'var(--panel-bg)', borderBottom: '1px solid var(--panel-border)' }}>
+                <span className="text-sm font-semibold" style={{ color: 'var(--list-title)' }}>{t('articleList.viewOptions')}</span>
+                <button onClick={() => setOptionsOpen(false)} className="px-3 py-1.5 rounded-lg text-sm font-medium" style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}>Back to feed</button>
+              </div>
               <div className="px-4 py-3">
                 <div className="text-[11px] font-semibold mb-2" style={{ color: 'var(--list-summary)' }}>{t('articleList.settingsFor')}</div>
                 <div className="flex gap-2">
