@@ -564,8 +564,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   const breakpoint = useBreakpoint();
   const isMobileOrTablet = breakpoint !== 'desktop';
-  const deviceDisplaySettings = useUiStore((s) => s.deviceDisplaySettings);
-  const showArticleVoting = deviceDisplaySettings[breakpoint === 'desktop' ? 'desktop' : 'mobile'].showArticleVoting;
+  const showArticleVoting = useUiStore((s) => s.deviceDisplaySettings[breakpoint === 'desktop' ? 'desktop' : 'mobile'].showArticleVoting);
 
   // Dynamic theme-color for Safari status bar
   useEffect(() => {
@@ -1744,9 +1743,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             onClose={() => setReadSettingsOpen(false)}
             title={t('readingPane.more')}
           >
-            {showArticleVoting && isMobileOrTablet && (
-              <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)' }}>
-                <span className="text-sm font-medium" style={{ color: 'var(--reading-text)' }}>Upvote / Downvote</span>
+            {isMobileOrTablet && (
+              <div className="sheet-row flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)', color: 'var(--reading-text)', display: showArticleVoting ? 'flex' : 'none' }}>
+                <span className="font-medium flex-1">Upvote / Downvote</span>
                 <IntelligenceFeedback article={article} compact />
               </div>
             )}
@@ -1775,9 +1774,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 <span className="font-medium">{t('readingPane.copyLink')}</span>
               </button>
             )}
-            <div className="px-4 py-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
-              <LabelMenu article={article} variant="sheet" />
-            </div>
+            <LabelMenu article={article} variant="sheet" />
             <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: '1px solid var(--panel-border)' }}>
               <span className="font-medium" style={{ color: 'var(--reading-text)' }}>{t('readingPane.textSize')}</span>
               <div className="flex items-center gap-2">
