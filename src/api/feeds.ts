@@ -32,11 +32,14 @@ export async function getStreamContents(
   count = 20,
   continuation: string | null = null,
   excludeTag: string | null = null,
-  { cacheOnly = false }: { cacheOnly?: boolean } = {}
+  { cacheOnly = false, includeTag = null, modifiedSince = null }: { cacheOnly?: boolean; includeTag?: string | null; modifiedSince?: number | null } = {}
 ): Promise<GReaderStream | null> {
   const params: Record<string, string | number> = { output: 'json', n: count };
   if (continuation) params.c = continuation;
   if (excludeTag) params.xt = excludeTag;
+  if (includeTag) params.it = includeTag;
+  // FreshRSS interprets ot as published OR modified since this timestamp.
+  if (modifiedSince != null) params.ot = modifiedSince;
   const url = `${BASE}/stream/contents/${buildStreamPath(streamId)}`;
   const config: { params: typeof params; headers?: Record<string, string> } = { params };
   // Cache-only read: backend returns the cached copy (200) or 204 on a miss,
