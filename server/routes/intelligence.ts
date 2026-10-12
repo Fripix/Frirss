@@ -52,14 +52,14 @@ router.put('/feedback', (req, res) => {
   const body = req.body as Record<string, unknown>;
   if (!validText(body.articleId, 512) || !body.articleId.trim()
     || !validText(body.url, 4096) || !validText(body.title, 2000) || !validText(body.summary, 10000)
-    || !validText(body.content, 100000) || !validText(body.sourceId, 512)
+    || !validText(body.content, 200000) || !validText(body.sourceId, 512)
     || (body.vote !== 1 && body.vote !== -1)) {
     return res.status(400).json({ error: 'Invalid article feedback', fields: {
       articleId: typeof body.articleId === 'string' ? (body.articleId.trim().length ? 'ok' : 'empty') : 'invalid type',
       url: typeof body.url === 'string' ? (body.url.length <= 4096 ? 'ok' : 'too long') : 'invalid type',
       title: typeof body.title === 'string' ? (body.title.length <= 2000 ? 'ok' : 'too long') : 'invalid type',
       summary: typeof body.summary === 'string' ? (body.summary.length <= 10000 ? 'ok' : 'too long') : 'invalid type',
-      content: typeof body.content === 'string' ? (body.content.length <= 100000 ? 'ok' : 'too long') : 'invalid type',
+      content: typeof body.content === 'string' ? (body.content.length <= 200000 ? 'ok' : 'too long') : 'invalid type',
       sourceId: typeof body.sourceId === 'string' ? (body.sourceId.length <= 512 ? 'ok' : 'too long') : 'invalid type',
       vote: body.vote === 1 || body.vote === -1 ? 'ok' : 'invalid value',
     } });
