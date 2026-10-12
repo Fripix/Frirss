@@ -42,6 +42,8 @@ vi.mock('../lib/offlineStore', () => ({
 vi.mock('../api/backend', () => ({
   startActualize: vi.fn(),
   getActualizeStatus: vi.fn(),
+  getInfrequentFeedCache: vi.fn(),
+  saveInfrequentFeedCache: vi.fn(),
 }));
 
 // Stub i18n so toast text is deterministic: t(key) → key. Mirrors dates.test.ts.
@@ -69,6 +71,8 @@ beforeEach(() => {
   // ne le touche pas) n'était remis à '' par aucun test : un test qui le
   // posait le laissait derrière lui pour tous les suivants du fichier.
   __resetSearchStateForTests();
+  vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValue({ cached: false, feedIds: [] });
+  vi.mocked(backendApi.saveInfrequentFeedCache).mockResolvedValue(undefined);
   useFeedStore.setState({
     pendingActions: 0,
     failedActions: 0,
@@ -1952,5 +1956,39 @@ describe('feedStore.silentRefresh — gardes contre une recherche en cours', () 
     const s = useFeedStore.getState();
     expect(s.searchQuery).toBe('noyau');
     expect(s.articles.map((a) => a.id)).toEqual(idsAvantResolution);
+  });
+});
+
+
+describe('feedStore.loadArticles — Infrequent sites classification cache', () => {
+  it('rescans an empty cached classification instead of treating it as a cache hit', async () => {
+    vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: true, feedIds: [] });
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    useFeedStore.setState({
+      filter: 'infrequent',
+      selectedFeed: null,
+      subscriptions: [{ id: 'feed/one', title: 'One' }] as Subscription[],
+    });
+
+    await useFeedStore.getState().loadArticles();
+
+    expect(api.getStreamContents).toHaveBeenCalledWith('feed/one', 1000, null);
+    expect(backendApi.saveInfrequentFeedCache).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().loading).toBe(false);
+  });
+
+  it('does not persist a partial classification when a feed scan fails', async () => {
+    vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: false, feedIds: [] });
+    vi.mocked(api.getStreamContents).mockRejectedValueOnce(new Error('FreshRSS unavailable'));
+    useFeedStore.setState({
+      filter: 'infrequent',
+      selectedFeed: null,
+      subscriptions: [{ id: 'feed/one', title: 'One' }] as Subscription[],
+    });
+
+    await useFeedStore.getState().loadArticles();
+
+    expect(backendApi.saveInfrequentFeedCache).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().loading).toBe(false);
   });
 });

@@ -247,13 +247,14 @@ async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<A
   const subscriptionIds = subscriptions.map((feed) => feed.id).sort();
   let cacheHit = false;
   // Classification is persisted in the FriRSS SQLite DB, so all devices on
-  // this instance can reuse it. If the backend cache is unavailable, fall
-  // back to the normal scan rather than breaking the view.
+  // this instance can reuse it. An empty or wholly stale classification is
+  // not treated as a hit: earlier partial scans could cache an empty list for
+  // seven days after individual feed requests failed.
   try {
     const cached = await getInfrequentFeedCache(subscriptionIds);
     if (cached.cached) {
       eligible.push(...cached.feedIds.filter((id) => subscriptionIds.includes(id)));
-      cacheHit = true;
+      cacheHit = eligible.length > 0;
     }
   } catch (error) {
     console.warn('[FriRSS] infrequent-sites: cache lookup failed; rescanning', error);
@@ -262,6 +263,7 @@ async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<A
   if (!cacheHit) {
     // Avoid flooding FreshRSS with one request per subscription at once.
     let next = 0;
+    let scanHadErrors = false;
     const workers = Array.from({ length: Math.min(4, subscriptions.length) }, async () => {
       while (next < subscriptions.length) {
         const feed = subscriptions[next++];
@@ -286,15 +288,20 @@ async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<A
           const mean = intervals.reduce((sum, n) => sum + n, 0) / intervals.length;
           if (mean >= INFREQUENT_MIN_INTERVAL_MS && medianInterval(times) >= INFREQUENT_MIN_INTERVAL_MS) eligible.push(feed.id);
         } catch (error) {
+          scanHadErrors = true;
           console.warn('[FriRSS] infrequent-sites: feed scan failed:', feed.id, error);
         }
       }
     });
     await Promise.all(workers);
-    try {
-      await saveInfrequentFeedCache(subscriptionIds, eligible);
-    } catch (error) {
-      console.warn('[FriRSS] infrequent-sites: cache save failed', error);
+    // Never persist a partial classification. A transient FreshRSS/API error
+    // must not turn into a week-long empty or incomplete Infrequent sites view.
+    if (!scanHadErrors && eligible.length > 0) {
+      try {
+        await saveInfrequentFeedCache(subscriptionIds, eligible);
+      } catch (error) {
+        console.warn('[FriRSS] infrequent-sites: cache save failed', error);
+      }
     }
   }
 
