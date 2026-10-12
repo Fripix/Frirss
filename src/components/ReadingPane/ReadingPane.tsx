@@ -202,6 +202,19 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [extractedContent, setExtractedContent] = useState<ExtractedContent | null>(null);
   // Linked pages are rendered as reader-mode documents without replacing the feed article.
   const [linkedPage, setLinkedPage] = useState<{ url: string; content: ExtractedContent } | null>(null);
+  // Give each linked page its own feedback identity and content. Voting on a
+  // linked page should teach the ranking about that page, not the parent RSS item.
+  const linkedFeedbackArticle = useMemo(() => {
+    if (!selectedArticle || !linkedPage) return selectedArticle;
+    return {
+      ...selectedArticle,
+      id: `${selectedArticle.id}::linked::${linkedPage.url}`,
+      url: linkedPage.url,
+      title: linkedPage.content.title || selectedArticle.title,
+      summary: linkedPage.content.excerpt || selectedArticle.summary,
+      content: linkedPage.content.content,
+    };
+  }, [selectedArticle, linkedPage]);
   const [linkedPageStack, setLinkedPageStack] = useState<Array<{ url: string; content: ExtractedContent }>>([]);
   const [linkedPageLoading, setLinkedPageLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -929,7 +942,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     try { url = new URL(rawHref, linkedPage?.url || selectedArticle?.url || window.location.href); } catch { return; }
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
     // Keep modified clicks and explicit new-window links behaving like normal browser links.
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || anchor.target === '_blank') return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     if (url.href === (linkedPage?.url || selectedArticle?.url)) return;
 
@@ -1332,7 +1345,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </button>
         )}
 
-        {!isMobileOrTablet && <IntelligenceFeedback article={article} compact />}
+        {!isMobileOrTablet && <IntelligenceFeedback article={linkedFeedbackArticle || article} compact />}
 
         {/* Spacer */}
         <div className="toolbar-spacer flex-1 min-w-0" />
