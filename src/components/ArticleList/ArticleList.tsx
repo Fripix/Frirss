@@ -780,6 +780,8 @@ export default function ArticleList() {
                 onClick={() => setDeviceDisplaySetting(settingsProfile, 'feedName', !editableDisplaySettings.feedName)} />
               <SheetRow icon={<FaviconGlyph />} label={t('articleList.listFavicons')} active={!!editableDisplaySettings.feedIcons}
                 onClick={() => setDeviceDisplaySetting(settingsProfile, 'feedIcons', !editableDisplaySettings.feedIcons)} />
+              <SheetRow icon={<span aria-hidden="true">↑↓</span>} label="Upvote / Downvote" active={editableDisplaySettings.showArticleVoting}
+                onClick={() => setDeviceDisplaySetting(settingsProfile, 'showArticleVoting', !editableDisplaySettings.showArticleVoting)} />
               <SheetRow icon={<span aria-hidden="true">↵</span>} label={t('articleList.wrapTitles')} active={editableDisplaySettings.wrapTitles}
                 onClick={() => setDeviceDisplaySetting(settingsProfile, 'wrapTitles', !editableDisplaySettings.wrapTitles)} />
               <SheetRow icon={<DateGlyph />} label={t('articleList.dateSeparators')} active={!!editableDisplaySettings.dateSeparators}
