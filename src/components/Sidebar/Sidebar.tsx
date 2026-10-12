@@ -14,6 +14,7 @@ import type { Article, Subscription, Tag } from '../../types';
 import { groupLabels } from '../../utils/labels';
 import {
   savedCategories, isSavedCategory, READ_LATER_PREFIX, STARRED_PREFIX,
+  LEGACY_READ_LATER_PREFIX, LEGACY_STARRED_PREFIX,
 } from '../../lib/savedCategories';
 import FeedFavicon from '../FeedFavicon';
 import { resolveVersionLabel } from '../../lib/version';
@@ -1161,7 +1162,11 @@ function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }: { pre
   const toggleArticleLabel = useFeedStore((s) => s.toggleArticleLabel);
   const deleteLabel = useFeedStore((s) => s.deleteLabel);
   const collapsed = useUiStore((s) => s.savedCollapsed[prefix]);
-  const names = useUiStore((s) => s.savedCategoryNames[prefix]);
+  const savedCategoryNames = useUiStore((s) => s.savedCategoryNames);
+  const names = [
+    ...(savedCategoryNames[prefix] ?? []),
+    ...(savedCategoryNames[prefix === READ_LATER_PREFIX ? LEGACY_READ_LATER_PREFIX : prefix === STARRED_PREFIX ? LEGACY_STARRED_PREFIX : ''] ?? []),
+  ];
   const addSavedCategory = useUiStore((s) => s.addSavedCategory);
   const removeSavedCategory = useUiStore((s) => s.removeSavedCategory);
 
@@ -1169,7 +1174,7 @@ function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }: { pre
   const [name, setName] = useState('');
   const adding = selfAdding || !!forcedAdding;
   const stopAdding = () => { setSelfAdding(false); onAddingDone?.(); };
-  const cats = useMemo(() => savedCategories(labels, prefix, names), [labels, prefix, names]);
+  const cats = useMemo(() => savedCategories(labels, prefix, names), [labels, prefix, savedCategoryNames]);
 
   if (collapsed) return null;
 
