@@ -241,20 +241,28 @@ function medianInterval(times: number[]): number {
   const mid = Math.floor(intervals.length / 2);
   return intervals.length % 2 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) / 2;
 }
-async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<Article[]> {
+const INFREQUENT_SCAN_PAGE_SIZE = 100;
+const INFREQUENT_SCAN_MAX_PAGES = 5;
+let infrequentScanController: AbortController | null = null;
+
+async function fetchInfrequentArticles(
+  subscriptions: Subscription[],
+  shouldContinue: () => boolean,
+  signal: AbortSignal,
+): Promise<Article[]> {
   const cutoff = Date.now() - INFREQUENT_WINDOW_MS;
   const eligible: string[] = [];
   const subscriptionIds = subscriptions.map((feed) => feed.id).sort();
   let cacheHit = false;
   // Classification is persisted in the FriRSS SQLite DB, so all devices on
-  // this instance can reuse it. An empty or wholly stale classification is
-  // not treated as a hit: earlier partial scans could cache an empty list for
-  // seven days after individual feed requests failed.
+  // this instance can reuse it. The cache key includes a classifier version,
+  // so a successful empty result is safe to reuse and older partial results
+  // from the previous algorithm are ignored.
   try {
     const cached = await getInfrequentFeedCache(subscriptionIds);
     if (cached.cached) {
       eligible.push(...cached.feedIds.filter((id) => subscriptionIds.includes(id)));
-      cacheHit = eligible.length > 0;
+      cacheHit = true;
     }
   } catch (error) {
     console.warn('[FriRSS] infrequent-sites: cache lookup failed; rescanning', error);
@@ -265,13 +273,19 @@ async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<A
     let next = 0;
     let scanHadErrors = false;
     const workers = Array.from({ length: Math.min(4, subscriptions.length) }, async () => {
-      while (next < subscriptions.length) {
+      while (next < subscriptions.length && shouldContinue()) {
         const feed = subscriptions[next++];
         try {
           const times: number[] = [];
           let continuation: string | null = null;
-          for (let page = 0; page < 5; page++) {
-            const result = await getStreamContents(feed.id, 1000, continuation);
+          for (let page = 0; page < INFREQUENT_SCAN_MAX_PAGES && shouldContinue(); page++) {
+            const result = await getStreamContents(
+              feed.id, INFREQUENT_SCAN_PAGE_SIZE, continuation, null, { signal },
+            );
+            // Navigation away from Infrequent sites must stop the scan after
+            // the current request; otherwise it keeps flooding FreshRSS while
+            // the user opens another view.
+            if (!shouldContinue()) return;
             if (!result || !result.items.length) break;
             let old = false;
             for (const item of result.items) {
@@ -288,15 +302,18 @@ async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<A
           const mean = intervals.reduce((sum, n) => sum + n, 0) / intervals.length;
           if (mean >= INFREQUENT_MIN_INTERVAL_MS && medianInterval(times) >= INFREQUENT_MIN_INTERVAL_MS) eligible.push(feed.id);
         } catch (error) {
+          if (!shouldContinue() || signal.aborted) return;
           scanHadErrors = true;
           console.warn('[FriRSS] infrequent-sites: feed scan failed:', feed.id, error);
         }
       }
     });
     await Promise.all(workers);
+    // Do not cache a partial result if the user navigated away mid-scan.
+    if (!shouldContinue()) return [];
     // Never persist a partial classification. A transient FreshRSS/API error
     // must not turn into a week-long empty or incomplete Infrequent sites view.
-    if (!scanHadErrors && eligible.length > 0) {
+    if (!scanHadErrors) {
       try {
         await saveInfrequentFeedCache(subscriptionIds, eligible);
       } catch (error) {
@@ -308,21 +325,23 @@ async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<A
   // Fetch the global unread stream once instead of querying up to three pages
   // for every eligible feed. FreshRSS orders this stream newest-first, so we
   // can stop as soon as we reach the 90-day cutoff and retain only eligible
-  // sources. This turns N-per-feed requests into roughly one request per 1000
-  // recent unread articles, independent of the number of infrequent feeds.
-  if (eligible.length === 0) return [];
+  // sources. Small pages keep each response bounded; this is still a scan,
+  // but it no longer downloads tens of megabytes in one request.
+  if (eligible.length === 0 || !shouldContinue()) return [];
 
   const eligibleSet = new Set(eligible);
   const articles: Article[] = [];
   let continuation: string | null = null;
   try {
-    for (let page = 0; page < 100; page++) {
+    for (let page = 0; page < 100 && shouldContinue(); page++) {
       const result = await getStreamContents(
         'user/-/state/com.google/reading-list',
-        1000,
+        INFREQUENT_SCAN_PAGE_SIZE,
         continuation,
         'user/-/state/com.google/read',
+        { signal },
       );
+      if (!shouldContinue() || signal.aborted) return [];
       if (!result || !result.items.length) break;
 
       let reachedCutoff = false;
@@ -341,6 +360,7 @@ async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<A
       if (!continuation || reachedCutoff) break;
     }
   } catch (error) {
+    if (!shouldContinue() || signal.aborted) return [];
     console.warn('[FriRSS] infrequent-sites: global unread fetch failed:', error);
   }
   return articles.sort((a, b) => b.published - a.published);
@@ -1278,17 +1298,31 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   loadArticles: async () => {
     bumpCountsEpoch();
     if (get().filter === 'infrequent' && !get().selectedFeed) {
+      infrequentScanController?.abort();
+      const controller = new AbortController();
+      infrequentScanController = controller;
       const serverId = useAuthStore.getState().activeServerId;
+      const shouldContinue = () =>
+        !controller.signal.aborted &&
+        get().filter === 'infrequent' &&
+        !get().selectedFeed &&
+        serverId === useAuthStore.getState().activeServerId;
       set({ loading: true, loadingMore: false, revalidating: true, continuation: null, articles: [], selectedArticle: null });
       try {
-        const articles = await fetchInfrequentArticles(get().subscriptions);
-        if (get().filter === 'infrequent' && serverId === useAuthStore.getState().activeServerId) set({ articles, loading: false, revalidating: false, continuation: null });
+        const articles = await fetchInfrequentArticles(get().subscriptions, shouldContinue, controller.signal);
+        if (shouldContinue()) set({ articles, loading: false, revalidating: false, continuation: null });
       } catch (error) {
-        console.error('[FriRSS] infrequent-sites scan failed:', error);
-        set({ loading: false, revalidating: false });
+        if (shouldContinue()) {
+          console.error('[FriRSS] infrequent-sites scan failed:', error);
+          set({ loading: false, revalidating: false });
+        }
+      } finally {
+        if (infrequentScanController === controller) infrequentScanController = null;
       }
       return;
     }
+    infrequentScanController?.abort();
+    infrequentScanController = null;
     const { selectedFeed, filter } = get();
     const key = viewKey(selectedFeed, filter);
     // `viewKey` ne voit que le flux et le filtre : une recherche démarrée

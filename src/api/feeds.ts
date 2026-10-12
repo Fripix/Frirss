@@ -32,7 +32,7 @@ export async function getStreamContents(
   count = 20,
   continuation: string | null = null,
   excludeTag: string | null = null,
-  { cacheOnly = false, includeTag = null, modifiedSince = null }: { cacheOnly?: boolean; includeTag?: string | null; modifiedSince?: number | null } = {}
+  { cacheOnly = false, includeTag = null, modifiedSince = null, signal }: { cacheOnly?: boolean; includeTag?: string | null; modifiedSince?: number | null; signal?: AbortSignal } = {}
 ): Promise<GReaderStream | null> {
   const params: Record<string, string | number> = { output: 'json', n: count };
   if (continuation) params.c = continuation;
@@ -41,7 +41,8 @@ export async function getStreamContents(
   // FreshRSS interprets ot as published OR modified since this timestamp.
   if (modifiedSince != null) params.ot = modifiedSince;
   const url = `${BASE}/stream/contents/${buildStreamPath(streamId)}`;
-  const config: { params: typeof params; headers?: Record<string, string> } = { params };
+  const config: { params: typeof params; headers?: Record<string, string>; signal?: AbortSignal } = { params };
+  if (signal) config.signal = signal;
   // Cache-only read: backend returns the cached copy (200) or 204 on a miss,
   // without touching FreshRSS. Used for the instant SWR first paint.
   if (cacheOnly) config.headers = { 'X-Cache-Only': '1' };

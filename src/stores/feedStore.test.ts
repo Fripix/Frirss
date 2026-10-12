@@ -1961,8 +1961,23 @@ describe('feedStore.silentRefresh — gardes contre une recherche en cours', () 
 
 
 describe('feedStore.loadArticles — Infrequent sites classification cache', () => {
-  it('rescans an empty cached classification instead of treating it as a cache hit', async () => {
+  it('reuses a cached empty classification instead of rescanning every visit', async () => {
     vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: true, feedIds: [] });
+    useFeedStore.setState({
+      filter: 'infrequent',
+      selectedFeed: null,
+      subscriptions: [{ id: 'feed/one', title: 'One' }] as Subscription[],
+    });
+
+    await useFeedStore.getState().loadArticles();
+
+    expect(api.getStreamContents).not.toHaveBeenCalled();
+    expect(backendApi.saveInfrequentFeedCache).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().loading).toBe(false);
+  });
+
+  it('caches a successful empty classification', async () => {
+    vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: false, feedIds: [] });
     vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
     useFeedStore.setState({
       filter: 'infrequent',
@@ -1972,8 +1987,10 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
 
     await useFeedStore.getState().loadArticles();
 
-    expect(api.getStreamContents).toHaveBeenCalledWith('feed/one', 1000, null);
-    expect(backendApi.saveInfrequentFeedCache).not.toHaveBeenCalled();
+    expect(api.getStreamContents).toHaveBeenCalledWith(
+      'feed/one', 100, null, null, { signal: expect.any(AbortSignal) },
+    );
+    expect(backendApi.saveInfrequentFeedCache).toHaveBeenCalledWith(['feed/one'], []);
     expect(useFeedStore.getState().loading).toBe(false);
   });
 
@@ -2001,12 +2018,42 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
     expect(api.getStreamContents).toHaveBeenCalledTimes(1);
     expect(api.getStreamContents).toHaveBeenCalledWith(
       'user/-/state/com.google/reading-list',
-      1000,
+      100,
       null,
       'user/-/state/com.google/read',
+      { signal: expect.any(AbortSignal) },
     );
     expect(useFeedStore.getState().articles.map((article) => article.id)).toContain('eligible');
     expect(useFeedStore.getState().articles.map((article) => article.id)).not.toContain('other');
+  });
+
+  it('aborts an in-flight scan when the user navigates away from Infrequent sites', async () => {
+    vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: false, feedIds: [] });
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    let scanSignal: AbortSignal | undefined;
+    vi.mocked(api.getStreamContents).mockImplementationOnce((_streamId, _count, _continuation, _excludeTag, options) =>
+      new Promise((_resolve, reject) => {
+        scanSignal = options?.signal;
+        scanSignal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+      }) as never
+    );
+    useFeedStore.setState({
+      filter: 'infrequent',
+      selectedFeed: null,
+      subscriptions: [
+        { id: 'feed/one', title: 'One' },
+        { id: 'feed/two', title: 'Two' },
+      ] as Subscription[],
+    });
+
+    const scan = useFeedStore.getState().loadArticles();
+    await vi.waitFor(() => expect(scanSignal).toBeDefined());
+    useFeedStore.getState().selectView(null, 'all');
+    await scan;
+
+    expect(scanSignal?.aborted).toBe(true);
+    expect(vi.mocked(api.getStreamContents).mock.calls.filter(([streamId]) => streamId === 'feed/one')).toHaveLength(1);
+    expect(backendApi.saveInfrequentFeedCache).not.toHaveBeenCalled();
   });
 
   it('does not persist a partial classification when a feed scan fails', async () => {

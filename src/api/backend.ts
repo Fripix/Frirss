@@ -285,10 +285,17 @@ export async function summarizeArticle(payload: AiSummaryArticlePayload & { rege
 
 
 // Persistent, account-scoped cache for Infrequent sites feed classification.
+// Bump this when the classifier changes so older partial/empty cache entries
+// cannot suppress a fresh classification run.
+const INFREQUENT_CLASSIFIER_VERSION = '2';
 export async function getInfrequentFeedCache(subscriptionIds: string[]): Promise<{ cached: boolean; feedIds: string[] }> {
-  const { data } = await backend.post<{ cached: boolean; feedIds: string[] }>('/infrequent-cache/lookup', { subscriptionIds });
+  const { data } = await backend.post<{ cached: boolean; feedIds: string[] }>('/infrequent-cache/lookup', {
+    subscriptionIds, algorithmVersion: INFREQUENT_CLASSIFIER_VERSION,
+  });
   return data;
 }
 export async function saveInfrequentFeedCache(subscriptionIds: string[], feedIds: string[]): Promise<void> {
-  await backend.put('/infrequent-cache', { subscriptionIds, feedIds });
+  await backend.put('/infrequent-cache', {
+    subscriptionIds, feedIds, algorithmVersion: INFREQUENT_CLASSIFIER_VERSION,
+  });
 }
