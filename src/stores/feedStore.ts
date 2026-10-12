@@ -199,10 +199,10 @@ async function fetchArticleStream(
   if (filter === 'readlater') {
     return getStreamContents(READ_LATER_LABEL, count, continuation, null, { cacheOnly });
   }
-  // FreshRSS's UI "Modified by user today" view is not the raw read-state
-  // stream: stream/contents does not support state/read as a path. Query the
-  // normal reading list with it=read and FreshRSS's ot date filter, which its
-  // API applies to published OR user-modified timestamps.
+  // Match FreshRSS's "Modified by user today" view. FreshRSS applies
+  // ot as a lower bound on either publication time OR user-modified time.
+  // Do not restrict with it=read: the FreshRSS view also includes articles
+  // modified today that are currently unread.
   if (filter === 'recentlyread') {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -211,7 +211,7 @@ async function fetchArticleStream(
       count,
       continuation,
       null,
-      { cacheOnly, includeTag: 'user/-/state/com.google/read', modifiedSince: Math.floor(today.getTime() / 1000) },
+      { cacheOnly, modifiedSince: Math.floor(today.getTime() / 1000) },
     );
   }
   // Specific feed or the global reading-list
