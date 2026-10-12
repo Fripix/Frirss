@@ -4,12 +4,19 @@ import { getArticleFeedback, removeArticleFeedback, setArticleFeedback } from '.
 
 let feedbackPromise: ReturnType<typeof getArticleFeedback> | null = null;
 const feedbackById = new Map<string, 1 | -1>();
+// Ignore a feedback snapshot that started before a vote mutation completed.
+// Otherwise its stale response can clear the just-updated map and turn the
+// clicked arrow grey again, even though the backend saved the vote.
+let feedbackRevision = 0;
 
 async function loadFeedback() {
   if (!feedbackPromise) {
+    const revisionAtRequest = feedbackRevision;
     feedbackPromise = getArticleFeedback().then((rows) => {
-      feedbackById.clear();
-      rows.forEach((row) => feedbackById.set(row.articleId, row.vote));
+      if (revisionAtRequest === feedbackRevision) {
+        feedbackById.clear();
+        rows.forEach((row) => feedbackById.set(row.articleId, row.vote));
+      }
       return rows;
     }).catch((error) => {
       feedbackPromise = null;
@@ -36,6 +43,7 @@ export default function IntelligenceFeedback({ article, compact = false }: { art
     try {
       if (vote === next) {
         await removeArticleFeedback(article.id);
+        feedbackRevision += 1;
         feedbackById.delete(article.id);
         feedbackPromise = null;
         setVote(null);
@@ -50,6 +58,7 @@ export default function IntelligenceFeedback({ article, compact = false }: { art
           sourceId: article.sourceId || '',
           vote: next,
         });
+        feedbackRevision += 1;
         feedbackById.set(article.id, next);
         feedbackPromise = null;
         setVote(next);
