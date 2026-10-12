@@ -640,9 +640,11 @@ export default function ArticleList() {
   // No "— Favoris/Non lus" suffix: the active filter is already shown by the
   // highlighted toolbar button. "À lire plus tard" keeps its name (no toolbar
   // toggle for it). Otherwise just the feed name / "Tous les flux".
-  const title = !selectedFeed && filter === 'readlater'
-    ? t('articleList.readLaterSuffix')
-    : feedName;
+  const title = !selectedFeed && filter === 'infrequent'
+    ? t('sidebar.infrequent')
+    : !selectedFeed && filter === 'readlater'
+      ? t('articleList.readLaterSuffix')
+      : feedName;
 
   const groups = groupByDate(articles);
 

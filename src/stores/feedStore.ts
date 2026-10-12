@@ -229,38 +229,61 @@ function medianInterval(times: number[]): number {
 async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<Article[]> {
   const cutoff = Date.now() - INFREQUENT_WINDOW_MS;
   const eligible: string[] = [];
-  await Promise.all(subscriptions.map(async (feed) => {
-    const times: number[] = [];
-    let continuation: string | null = null;
-    for (let page = 0; page < 5; page++) {
-      const result = await getStreamContents(feed.id, 1000, continuation);
-      if (!result || !result.items.length) break;
-      let old = false;
-      for (const item of result.items) {
-        const published = (item.published || 0) * 1000;
-        if (!published) continue;
-        if (published < cutoff) old = true; else times.push(published);
+  // Avoid flooding FreshRSS with one request per subscription at once. A
+  // large subscription list otherwise causes rate limits and leaves this view
+  // apparently stuck while its single Promise.all rejects.
+  let next = 0;
+  const workers = Array.from({ length: Math.min(4, subscriptions.length) }, async () => {
+    while (next < subscriptions.length) {
+      const feed = subscriptions[next++];
+      try {
+        const times: number[] = [];
+        let continuation: string | null = null;
+        for (let page = 0; page < 5; page++) {
+          const result = await getStreamContents(feed.id, 1000, continuation);
+          if (!result || !result.items.length) break;
+          let old = false;
+          for (const item of result.items) {
+            const published = (item.published || 0) * 1000;
+            if (!published) continue;
+            if (published < cutoff) old = true; else times.push(published);
+          }
+          continuation = result.continuation;
+          if (!continuation || old) break;
+        }
+        times.sort((a, b) => a - b);
+        if (times.length < 2 || times[times.length - 1] - times[0] < INFREQUENT_MIN_HISTORY_MS) continue;
+        const intervals = times.slice(1).map((t, i) => t - times[i]);
+        const mean = intervals.reduce((sum, n) => sum + n, 0) / intervals.length;
+        if (mean >= INFREQUENT_MIN_INTERVAL_MS && medianInterval(times) >= INFREQUENT_MIN_INTERVAL_MS) eligible.push(feed.id);
+      } catch (error) {
+        // One inaccessible or rate-limited feed must not break the whole view.
+        console.warn('[FriRSS] infrequent-sites: feed scan failed:', feed.id, error);
       }
-      continuation = result.continuation;
-      if (!continuation || old) break;
     }
-    times.sort((a, b) => a - b);
-    if (times.length < 2 || times[times.length - 1] - times[0] < INFREQUENT_MIN_HISTORY_MS) return;
-    const intervals = times.slice(1).map((t, i) => t - times[i]);
-    const mean = intervals.reduce((sum, n) => sum + n, 0) / intervals.length;
-    if (mean >= INFREQUENT_MIN_INTERVAL_MS && medianInterval(times) >= INFREQUENT_MIN_INTERVAL_MS) eligible.push(feed.id);
-  }));
+  });
+  await Promise.all(workers);
+
   const articles: Article[] = [];
-  await Promise.all(eligible.map(async (feedId) => {
-    let continuation: string | null = null;
-    for (let page = 0; page < 3; page++) {
-      const result = await getStreamContents(feedId, PAGE_SIZE, continuation, 'user/-/state/com.google/read');
-      if (!result || !result.items.length) break;
-      articles.push(...result.items.map(normalizeArticle).filter(a => !a.read && a.published >= cutoff));
-      continuation = result.continuation;
-      if (!continuation || result.items.some(i => i.published && i.published * 1000 < cutoff)) break;
+  let nextEligible = 0;
+  const articleWorkers = Array.from({ length: Math.min(4, eligible.length) }, async () => {
+    while (nextEligible < eligible.length) {
+      const feedId = eligible[nextEligible++];
+      try {
+        let continuation: string | null = null;
+        for (let page = 0; page < 3; page++) {
+          const result = await getStreamContents(feedId, PAGE_SIZE, continuation, 'user/-/state/com.google/read');
+          if (!result || !result.items.length) break;
+          articles.push(...result.items.map(normalizeArticle).filter(a => !a.read && a.published >= cutoff));
+          continuation = result.continuation;
+          if (!continuation || result.items.some(i => i.published && i.published * 1000 < cutoff)) break;
+        }
+      } catch (error) {
+        console.warn('[FriRSS] infrequent-sites: unread fetch failed:', feedId, error);
+      }
     }
-  }));
+  });
+  await Promise.all(articleWorkers);
   return articles.sort((a, b) => b.published - a.published);
 }
 
