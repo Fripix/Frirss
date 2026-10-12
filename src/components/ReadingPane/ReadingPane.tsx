@@ -24,6 +24,7 @@ import { getAiSummaryConfig, getCachedAiSummary, summarizeArticle, type AiSummar
 import { findTextRanges } from '../../lib/articleFind';
 import MarkdownSummary from './MarkdownSummary';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
+import IntelligenceFeedback from '../ArticleList/IntelligenceFeedback';
 import BottomSheet from '../BottomSheet';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
@@ -563,6 +564,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   const breakpoint = useBreakpoint();
   const isMobileOrTablet = breakpoint !== 'desktop';
+  const deviceDisplaySettings = useUiStore((s) => s.deviceDisplaySettings);
+  const showArticleVoting = deviceDisplaySettings[breakpoint === 'desktop' ? 'desktop' : 'mobile'].showArticleVoting;
 
   // Dynamic theme-color for Safari status bar
   useEffect(() => {
@@ -1331,6 +1334,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </button>
         )}
 
+        {showArticleVoting && !isMobileOrTablet && <IntelligenceFeedback article={article} compact />}
+
         {/* Spacer */}
         <div className="toolbar-spacer flex-1 min-w-0" />
 
@@ -1739,9 +1744,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             onClose={() => setReadSettingsOpen(false)}
             title={t('readingPane.more')}
           >
-            <div className="px-4 py-2" style={{ borderBottom: '1px solid var(--panel-border)' }}>
-              <LabelMenu article={article} variant="sheet" />
-            </div>
+            {showArticleVoting && isMobileOrTablet && (
+              <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)' }}>
+                <span className="text-xs font-medium" style={{ color: 'var(--list-summary)' }}>Upvote / Downvote</span>
+                <IntelligenceFeedback article={article} compact />
+              </div>
+            )}
             {(linkedPage?.url || article.url) && (
               <a
                 href={linkedPage?.url || article.url} target="_blank" rel="noopener noreferrer"
@@ -1755,17 +1763,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 <span className="font-medium">{t('readingPane.openOriginal')}</span>
               </a>
             )}
-            {aiConfig?.enabled && aiConfig.model.trim() && (
-              <button
-                onClick={() => { setReadSettingsOpen(false); void handleSummarize(false); }}
-                disabled={aiSummarizing}
-                className="sheet-row w-full flex items-center gap-3 px-4 py-3 text-left disabled:opacity-50"
-                style={{ color: 'var(--reading-text)', borderTop: '1px solid var(--panel-border)' }}
-              >
-                <span className="w-5 text-center flex-shrink-0" aria-hidden="true">✨</span>
-                <span className="font-medium">{aiSummarizing ? t('readingPane.summarizing') : t('readingPane.summarize')}</span>
-              </button>
-            )}
             {article.url && (
               <button
                 onClick={() => { setReadSettingsOpen(false); void shareArticle(linkedPage?.content.title || article.title, linkedPage?.url || article.url || ''); }}
@@ -1778,6 +1775,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 <span className="font-medium">{t('readingPane.copyLink')}</span>
               </button>
             )}
+            <div className="px-4 py-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
+              <LabelMenu article={article} variant="sheet" />
+            </div>
             <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: '1px solid var(--panel-border)' }}>
               <span className="font-medium" style={{ color: 'var(--reading-text)' }}>{t('readingPane.textSize')}</span>
               <div className="flex items-center gap-2">
