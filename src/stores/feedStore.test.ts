@@ -1977,6 +1977,38 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
     expect(useFeedStore.getState().loading).toBe(false);
   });
 
+  it('loads recent unread articles from one global stream and filters to eligible feeds', async () => {
+    vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: true, feedIds: ['feed/one'] });
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    vi.mocked(api.getStreamContents).mockResolvedValueOnce({
+      items: [
+        { id: 'eligible', title: 'Eligible', published: nowSeconds, origin: { streamId: 'feed/one', title: 'One' }, categories: [] },
+        { id: 'other', title: 'Other feed', published: nowSeconds, origin: { streamId: 'feed/two', title: 'Two' }, categories: [] },
+      ],
+      continuation: null,
+    } as never);
+    useFeedStore.setState({
+      filter: 'infrequent',
+      selectedFeed: null,
+      subscriptions: [
+        { id: 'feed/one', title: 'One' },
+        { id: 'feed/two', title: 'Two' },
+      ] as Subscription[],
+    });
+
+    await useFeedStore.getState().loadArticles();
+
+    expect(api.getStreamContents).toHaveBeenCalledTimes(1);
+    expect(api.getStreamContents).toHaveBeenCalledWith(
+      'user/-/state/com.google/reading-list',
+      1000,
+      null,
+      'user/-/state/com.google/read',
+    );
+    expect(useFeedStore.getState().articles.map((article) => article.id)).toContain('eligible');
+    expect(useFeedStore.getState().articles.map((article) => article.id)).not.toContain('other');
+  });
+
   it('does not persist a partial classification when a feed scan fails', async () => {
     vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: false, feedIds: [] });
     vi.mocked(api.getStreamContents).mockRejectedValueOnce(new Error('FreshRSS unavailable'));

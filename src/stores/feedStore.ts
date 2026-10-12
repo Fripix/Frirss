@@ -305,26 +305,44 @@ async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<A
     }
   }
 
+  // Fetch the global unread stream once instead of querying up to three pages
+  // for every eligible feed. FreshRSS orders this stream newest-first, so we
+  // can stop as soon as we reach the 90-day cutoff and retain only eligible
+  // sources. This turns N-per-feed requests into roughly one request per 1000
+  // recent unread articles, independent of the number of infrequent feeds.
+  if (eligible.length === 0) return [];
+
+  const eligibleSet = new Set(eligible);
   const articles: Article[] = [];
-  let nextEligible = 0;
-  const articleWorkers = Array.from({ length: Math.min(4, eligible.length) }, async () => {
-    while (nextEligible < eligible.length) {
-      const feedId = eligible[nextEligible++];
-      try {
-        let continuation: string | null = null;
-        for (let page = 0; page < 3; page++) {
-          const result = await getStreamContents(feedId, PAGE_SIZE, continuation, 'user/-/state/com.google/read');
-          if (!result || !result.items.length) break;
-          articles.push(...result.items.map(normalizeArticle).filter(a => !a.read && a.published >= cutoff));
-          continuation = result.continuation;
-          if (!continuation || result.items.some(i => i.published && i.published * 1000 < cutoff)) break;
+  let continuation: string | null = null;
+  try {
+    for (let page = 0; page < 100; page++) {
+      const result = await getStreamContents(
+        'user/-/state/com.google/reading-list',
+        1000,
+        continuation,
+        'user/-/state/com.google/read',
+      );
+      if (!result || !result.items.length) break;
+
+      let reachedCutoff = false;
+      for (const item of result.items) {
+        const published = (item.published || 0) * 1000;
+        if (published && published < cutoff) {
+          reachedCutoff = true;
+          continue;
         }
-      } catch (error) {
-        console.warn('[FriRSS] infrequent-sites: unread fetch failed:', feedId, error);
+        const article = normalizeArticle(item);
+        if (!article.read && article.published >= cutoff && eligibleSet.has(article.sourceId)) {
+          articles.push(article);
+        }
       }
+      continuation = result.continuation;
+      if (!continuation || reachedCutoff) break;
     }
-  });
-  await Promise.all(articleWorkers);
+  } catch (error) {
+    console.warn('[FriRSS] infrequent-sites: global unread fetch failed:', error);
+  }
   return articles.sort((a, b) => b.published - a.published);
 }
 
