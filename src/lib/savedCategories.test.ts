@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   savedCategories, categoryLabelId, isSavedCategory,
-  READ_LATER_PREFIX, STARRED_PREFIX,
+  READ_LATER_PREFIX, STARRED_PREFIX, LEGACY_READ_LATER_PREFIX, LEGACY_STARRED_PREFIX,
 } from './savedCategories';
 import type { Tag } from '../types';
 
@@ -84,5 +84,26 @@ describe('savedCategories with locally created names', () => {
 
   it('ignores blank local names', () => {
     expect(savedCategories([], READ_LATER_PREFIX, ['  ', ''])).toEqual([]);
+  });
+});
+
+
+describe('legacy saved-category labels', () => {
+  it('continues to show old French-prefixed categories without rewriting their IDs', () => {
+    const oldReadLater = tag(`${LEGACY_READ_LATER_PREFIX}/Veille`);
+    const oldFavorite = tag(`${LEGACY_STARRED_PREFIX}/Perso`);
+    expect(savedCategories([oldReadLater], READ_LATER_PREFIX)[0]).toEqual({
+      id: oldReadLater.id, name: 'Veille',
+    });
+    expect(savedCategories([oldFavorite], STARRED_PREFIX)[0]).toEqual({
+      id: oldFavorite.id, name: 'Perso',
+    });
+    expect(isSavedCategory(oldReadLater.id)).toBe(true);
+    expect(isSavedCategory(oldFavorite.id)).toBe(true);
+  });
+
+  it('creates new categories under the canonical English prefixes', () => {
+    expect(categoryLabelId(READ_LATER_PREFIX, 'Long reads')).toBe('user/-/label/read-later/Long reads');
+    expect(categoryLabelId(STARRED_PREFIX, 'AI')).toBe('user/-/label/Favorites/AI');
   });
 });
