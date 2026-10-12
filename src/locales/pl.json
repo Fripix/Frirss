@@ -45,7 +45,8 @@
     "expandCategory": "Rozwiń kategorię",
     "collapseCategory": "Zwiń kategorię",
     "starOnGithub": "Dodaj gwiazdkę na GitHubie",
-    "support": "Wesprzyj projekt"
+    "support": "Wesprzyj projekt",
+    "infrequent": "Rzadko publikujące źródła"
   },
   "addFeed": {
     "title": "Dodaj kanał RSS",

@@ -45,7 +45,8 @@
     "expandCategory": "Categorie uitklappen",
     "collapseCategory": "Categorie inklappen",
     "starOnGithub": "Geef een ster op GitHub",
-    "support": "Steun het project"
+    "support": "Steun het project",
+    "infrequent": "Onregelmatig bijgewerkte sites"
   },
   "addFeed": {
     "title": "Een RSS-feed toevoegen",

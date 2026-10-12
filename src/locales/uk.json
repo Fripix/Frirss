@@ -45,7 +45,8 @@
     "expandCategory": "Розгорнути категорію",
     "collapseCategory": "Згорнути категорію",
     "starOnGithub": "Поставити зірку на GitHub",
-    "support": "Підтримати проєкт"
+    "support": "Підтримати проєкт",
+    "infrequent": "Рідко оновлювані джерела"
   },
   "addFeed": {
     "title": "Додати RSS-стрічку",

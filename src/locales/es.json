@@ -45,7 +45,8 @@
     "expandCategory": "Desplegar la categoría",
     "collapseCategory": "Plegar la categoría",
     "starOnGithub": "Dar una estrella en GitHub",
-    "support": "Apoyar el proyecto"
+    "support": "Apoyar el proyecto",
+    "infrequent": "Fuentes poco frecuentes"
   },
   "addFeed": {
     "title": "Añadir una fuente RSS",

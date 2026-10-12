@@ -7,7 +7,7 @@
  */
 
 // ── Filtres de vue ───────────────────────────────────────────────────
-export type Filter = 'all' | 'unread' | 'starred' | 'readlater';
+export type Filter = 'all' | 'unread' | 'starred' | 'readlater' | 'infrequent';
 
 // ── Article normalisé (sortie de normalizeArticle) ───────────────────
 export interface Article {

@@ -45,7 +45,8 @@
     "feedLayoutDefault": "默认",
     "feedLayoutThisFeed": "此订阅源的布局",
     "starOnGithub": "在 GitHub 上标星",
-    "support": "支持本项目"
+    "support": "支持本项目",
+    "infrequent": "低频更新的网站"
   },
   "addFeed": {
     "title": "添加 RSS 订阅源",

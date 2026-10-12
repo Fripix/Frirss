@@ -216,6 +216,54 @@ async function fetchArticleStream(
   return result;
 }
 
+
+const INFREQUENT_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+const INFREQUENT_MIN_HISTORY_MS = 30 * 24 * 60 * 60 * 1000;
+const INFREQUENT_MIN_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+function medianInterval(times: number[]): number {
+  const intervals = times.slice(1).map((t, i) => t - times[i]).sort((a, b) => a - b);
+  if (!intervals.length) return 0;
+  const mid = Math.floor(intervals.length / 2);
+  return intervals.length % 2 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) / 2;
+}
+async function fetchInfrequentArticles(subscriptions: Subscription[]): Promise<Article[]> {
+  const cutoff = Date.now() - INFREQUENT_WINDOW_MS;
+  const eligible: string[] = [];
+  await Promise.all(subscriptions.map(async (feed) => {
+    const times: number[] = [];
+    let continuation: string | null = null;
+    for (let page = 0; page < 5; page++) {
+      const result = await getStreamContents(feed.id, 1000, continuation);
+      if (!result || !result.items.length) break;
+      let old = false;
+      for (const item of result.items) {
+        const published = (item.published || 0) * 1000;
+        if (!published) continue;
+        if (published < cutoff) old = true; else times.push(published);
+      }
+      continuation = result.continuation;
+      if (!continuation || old) break;
+    }
+    times.sort((a, b) => a - b);
+    if (times.length < 2 || times[times.length - 1] - times[0] < INFREQUENT_MIN_HISTORY_MS) return;
+    const intervals = times.slice(1).map((t, i) => t - times[i]);
+    const mean = intervals.reduce((sum, n) => sum + n, 0) / intervals.length;
+    if (mean >= INFREQUENT_MIN_INTERVAL_MS && medianInterval(times) >= INFREQUENT_MIN_INTERVAL_MS) eligible.push(feed.id);
+  }));
+  const articles: Article[] = [];
+  await Promise.all(eligible.map(async (feedId) => {
+    let continuation: string | null = null;
+    for (let page = 0; page < 3; page++) {
+      const result = await getStreamContents(feedId, PAGE_SIZE, continuation, 'user/-/state/com.google/read');
+      if (!result || !result.items.length) break;
+      articles.push(...result.items.map(normalizeArticle).filter(a => !a.read && a.published >= cutoff));
+      continuation = result.continuation;
+      if (!continuation || result.items.some(i => i.published && i.published * 1000 < cutoff)) break;
+    }
+  }));
+  return articles.sort((a, b) => b.published - a.published);
+}
+
 // ── Client-side memory cache ─────────────────────────────────────────
 // Keeps recently-opened views in memory so switching back is instant (0 ms,
 // no round-trip, no empty flash). Revalidated live on every load. Bounded
@@ -1145,7 +1193,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   loadArticles: async () => {
-    bumpCountsEpoch(); // une vue qui repart de zéro n'est pas une arrivée
+    bumpCountsEpoch();
+    if (get().filter === 'infrequent' && !get().selectedFeed) {
+      const serverId = useAuthStore.getState().activeServerId;
+      set({ loading: true, loadingMore: false, revalidating: true, continuation: null, articles: [], selectedArticle: null });
+      try {
+        const articles = await fetchInfrequentArticles(get().subscriptions);
+        if (get().filter === 'infrequent' && serverId === useAuthStore.getState().activeServerId) set({ articles, loading: false, revalidating: false, continuation: null });
+      } catch (error) {
+        console.error('[FriRSS] infrequent-sites scan failed:', error);
+        set({ loading: false, revalidating: false });
+      }
+      return;
+    }
     const { selectedFeed, filter } = get();
     const key = viewKey(selectedFeed, filter);
     // `viewKey` ne voit que le flux et le filtre : une recherche démarrée
