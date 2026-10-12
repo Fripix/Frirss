@@ -5,6 +5,7 @@
   },
   "sidebar": {
     "allFeeds": "Tous les flux",
+    "interesting": "Intéressant",
     "unread": "Non lus",
     "recentlyRead": "Récemment lus",
     "infrequent": "Sources peu fréquentes",
