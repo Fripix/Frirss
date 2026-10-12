@@ -1746,7 +1746,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           >
             {showArticleVoting && isMobileOrTablet && (
               <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)' }}>
-                <span className="text-xs font-medium" style={{ color: 'var(--list-summary)' }}>Upvote / Downvote</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--reading-text)' }}>Upvote / Downvote</span>
                 <IntelligenceFeedback article={article} compact />
               </div>
             )}
