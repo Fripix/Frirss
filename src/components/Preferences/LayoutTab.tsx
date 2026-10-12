@@ -13,6 +13,7 @@ export default function LayoutTab() {
   const { t } = useTranslation();
   const deviceDisplaySettings = useUiStore((s) => s.deviceDisplaySettings);
   const setDeviceRowAction = useUiStore((s) => s.setDeviceRowAction);
+  const setDeviceDisplaySetting = useUiStore((s) => s.setDeviceDisplaySetting);
 
   return (
     <div className="max-w-xl">
@@ -42,6 +43,16 @@ export default function LayoutTab() {
               </span>
             </div>
           ))}
+          <div className="flex items-start justify-between gap-4 select-none mt-4">
+            <span className="text-xs" style={{ color: 'var(--list-summary)' }}>Upvote / Downvote</span>
+            <span className="mt-0.5">
+              <ToggleSwitch
+                checked={deviceDisplaySettings[device].showArticleVoting}
+                onChange={(v: boolean) => setDeviceDisplaySetting(device, 'showArticleVoting', v)}
+                ariaLabel={`${device === 'mobile' ? 'Mobile' : 'Desktop'}: Upvote / Downvote`}
+              />
+            </span>
+          </div>
         </section>
       ))}
     </div>
