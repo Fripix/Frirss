@@ -1677,6 +1677,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, wrapTitl
         <span className="text-[10px] flex-shrink-0" data-theme="list-time" style={{ color: 'var(--list-time)' }}>
           {timeAgo(article.published, t)}
         </span>
+        <IntelligenceFeedback article={article} compact />
         {/* `gap-2` (8 px), pas `gap-1` : quatre cibles de 22 px côte à côte —
             `.article-row button` est exempté du `min-height: 40px` tactile,
             juste en dessous du minimum WCAG 2.5.8 — et un doigt qui visait le

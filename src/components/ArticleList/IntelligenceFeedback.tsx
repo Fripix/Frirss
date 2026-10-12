@@ -19,7 +19,7 @@ async function loadFeedback() {
   return feedbackPromise;
 }
 
-export default function IntelligenceFeedback({ article }: { article: Article }) {
+export default function IntelligenceFeedback({ article, compact = false }: { article: Article; compact?: boolean }) {
   const [vote, setVote] = useState<1 | -1 | null>(feedbackById.get(article.id) ?? null);
   const [busy, setBusy] = useState(false);
 
@@ -61,8 +61,8 @@ export default function IntelligenceFeedback({ article }: { article: Article }) 
   }
 
   return (
-    <div className="flex items-center gap-1 px-3 pb-2" onClick={(event) => event.stopPropagation()}>
-      <span className="text-[10px] mr-1" style={{ color: 'var(--text-muted, #888)' }}>Interesting?</span>
+    <div className={`flex items-center gap-1 ${compact ? "flex-shrink-0" : "px-3 pb-2"}`} onClick={(event) => event.stopPropagation()}>
+      {!compact && <span className="text-[10px] mr-1" style={{ color: 'var(--text-muted, #888)' }}>Interesting?</span>}
       <button type="button" disabled={busy} onClick={() => void voteFor(1)} aria-label="This article is interesting" aria-pressed={vote === 1} title="More like this" className="rounded px-1.5 py-0.5 text-xs disabled:opacity-40" style={{ color: vote === 1 ? 'var(--accent)' : 'var(--text-muted, #888)', background: vote === 1 ? 'var(--accent-bg, transparent)' : 'transparent' }}>↑</button>
       <button type="button" disabled={busy} onClick={() => void voteFor(-1)} aria-label="This article is not interesting" aria-pressed={vote === -1} title="Less like this" className="rounded px-1.5 py-0.5 text-xs disabled:opacity-40" style={{ color: vote === -1 ? 'var(--accent)' : 'var(--text-muted, #888)', background: vote === -1 ? 'var(--accent-bg, transparent)' : 'transparent' }}>↓</button>
     </div>
