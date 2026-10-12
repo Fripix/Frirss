@@ -455,7 +455,7 @@ export default function Sidebar() {
         />
         <FilterItem
           icon={<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12m-8.48 8.48-2.12 2.12" /></svg>}
-          label="Interesting"
+          label={t('sidebar.interesting')}
           active={filter === 'interesting' && !selectedFeed}
           onClick={() => selectView(null, 'interesting')}
         />
