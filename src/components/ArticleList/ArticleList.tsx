@@ -1183,6 +1183,7 @@ export default function ArticleList() {
                       viewMode={viewMode}
                       showSource={showSource}
                       rowActions={rowActions}
+                      showVoting={!!activeDisplaySettings.showArticleVoting}
                       wrapTitles={activeDisplaySettings.wrapTitles}
                       favicon={showListFavicons ? iconByFeedId.get(article.sourceId) ?? null : undefined}
                       staggerIndex={staggerById.get(article.id)}
@@ -1578,6 +1579,7 @@ interface ArticleRowProps {
   viewMode: string;
   showSource: boolean;
   rowActions: RowActionSettings;
+  showVoting: boolean;
   wrapTitles?: boolean;
   /** URL de l'icône du flux ; `null` = pas d'icône connue mais on affiche le
    *  repli (pastille-lettre) ; `undefined` = favicons désactivés. */
@@ -1604,7 +1606,7 @@ interface ArticleRowProps {
  * tenaient qu'à travers la carte de la vue grille. `ArticleList` reste
  * l'unique consommateur applicatif.
  */
-export function ArticleRow({ article, viewMode, showSource, rowActions, wrapTitles, favicon, staggerIndex, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu }: ArticleRowProps) {
+export function ArticleRow({ article, viewMode, showSource, rowActions, showVoting, wrapTitles, favicon, staggerIndex, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu }: ArticleRowProps) {
   const { t } = useTranslation();
   const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource);
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
@@ -1683,7 +1685,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, wrapTitl
         <span className="text-[10px] flex-shrink-0" data-theme="list-time" style={{ color: 'var(--list-time)' }}>
           {timeAgo(article.published, t)}
         </span>
-        <IntelligenceFeedback article={article} compact />
+        {showVoting && <IntelligenceFeedback article={article} compact />}
         {/* `gap-2` (8 px), pas `gap-1` : quatre cibles de 22 px côte à côte —
             `.article-row button` est exempté du `min-height: 40px` tactile,
             juste en dessous du minimum WCAG 2.5.8 — et un doigt qui visait le
@@ -1770,7 +1772,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, wrapTitl
             <Highlighted text={resultSummary(article, searchTerms ?? [])} terms={searchTerms} />
           </p>
         )}
-        <IntelligenceFeedback article={article} />
+        {showVoting && <IntelligenceFeedback article={article} />}
       </div>
 
       {/* Une COLONNE, et elle coûte de la hauteur — c'est assumé. Quatre
