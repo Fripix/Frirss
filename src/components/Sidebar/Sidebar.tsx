@@ -462,7 +462,13 @@ export default function Sidebar() {
           icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 3h12M6 21h12M7 3c0 4 2 6 5 9-3 3-5 5-5 9m10-18c0 4-2 6-5 9 3 3 5 5 5 9" /></svg>}
           label={t('sidebar.infrequent')}
           active={filter === 'infrequent' && !selectedFeed}
-          onClick={() => selectView(null, 'infrequent')}
+          onClick={() => {
+            // This is a special computed view, not a FreshRSS stream. Select
+            // it explicitly so no persisted unread-only preference can turn
+            // the navigation back into the all-feeds view.
+            useFeedStore.getState().selectView(null, 'infrequent');
+            if (isMobile) toggleSidebar();
+          }}
         />
         <FilterItem
           icon={
