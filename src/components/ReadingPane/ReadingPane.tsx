@@ -564,7 +564,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   const breakpoint = useBreakpoint();
   const isMobileOrTablet = breakpoint !== 'desktop';
-  const showArticleVoting = useUiStore((s) => s.deviceDisplaySettings[breakpoint === 'desktop' ? 'desktop' : 'mobile'].showArticleVoting);
 
   // Dynamic theme-color for Safari status bar
   useEffect(() => {
@@ -1333,7 +1332,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </button>
         )}
 
-        {showArticleVoting && !isMobileOrTablet && <IntelligenceFeedback article={article} compact />}
+        {!isMobileOrTablet && <IntelligenceFeedback article={article} compact />}
 
         {/* Spacer */}
         <div className="toolbar-spacer flex-1 min-w-0" />
@@ -1744,7 +1743,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             title={t('readingPane.more')}
           >
             {isMobileOrTablet && (
-              <div className="sheet-row flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)', color: 'var(--reading-text)', display: showArticleVoting ? 'flex' : 'none' }}>
+              <div className="sheet-row flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)', color: 'var(--reading-text)' }}>
                 <span className="font-medium flex-1">Upvote / Downvote</span>
                 <IntelligenceFeedback article={article} compact />
               </div>
