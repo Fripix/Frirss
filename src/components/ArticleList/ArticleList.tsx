@@ -655,14 +655,23 @@ export default function ArticleList() {
         : filter === 'unread'
           ? t('sidebar.unread')
           : t('articleList.allFeeds');
-  // No "— Favoris/Non lus" suffix: the active filter is already shown by the
-  // highlighted toolbar button. "À lire plus tard" keeps its name (no toolbar
-  // toggle for it). Otherwise just the feed name / "Tous les flux".
-  const title = !selectedFeed && filter === 'infrequent'
-    ? t('sidebar.infrequent')
-    : !selectedFeed && filter === 'readlater'
-      ? t('articleList.readLaterSuffix')
-      : feedName;
+  // For global views, show the active view name rather than the generic
+  // "All feeds" title. When a specific feed is selected, keep that feed's name.
+  const title = selectedFeed
+    ? selectedFeed.title
+    : filter === 'interesting'
+      ? t('sidebar.interesting')
+      : filter === 'unread'
+        ? t('sidebar.unread')
+        : filter === 'starred'
+          ? t('sidebar.starred')
+          : filter === 'infrequent'
+            ? t('sidebar.infrequent')
+            : filter === 'recentlyread'
+              ? t('sidebar.recentlyRead')
+              : filter === 'readlater'
+                ? t('articleList.readLaterSuffix')
+                : feedName;
 
   const rankedArticles = useMemo(() => rankInterestingArticles(articles, intelligenceFeedback), [articles, intelligenceFeedback]);
   const groups = groupByDate(filter === 'interesting' ? rankedArticles : articles);
