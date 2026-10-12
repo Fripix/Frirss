@@ -7,6 +7,7 @@ vi.mock('./client', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 import client from './client';
 import {
   clearWriteToken,
+  getStreamContents,
   markAsRead,
   markAsUnread,
   markAllAsRead,
@@ -95,5 +96,31 @@ describe("api/feeds — jeton d'écriture périmé", () => {
     await markAsRead('a2');
     expect(get).toHaveBeenCalledTimes(1);
     expect(sentToken(1)).toBe('T1');
+  });
+});
+
+
+describe('api/feeds — FreshRSS modified-today stream', () => {
+  it('passes the local start-of-day cutoff as ot without adding a read-state include filter', async () => {
+    const cutoff = Math.floor(new Date(2026, 9, 12, 0, 0, 0, 0).getTime() / 1000);
+    await getStreamContents(
+      'user/-/state/com.google/reading-list',
+      100,
+      null,
+      null,
+      { modifiedSince: cutoff },
+    );
+
+    const [url, config] = get.mock.calls[0] as [string, { params: Record<string, unknown> }];
+    expect(url).toContain('/stream/contents/user/-/state/com.google/reading-list');
+    expect(config.params.ot).toBe(cutoff);
+    expect(config.params).not.toHaveProperty('it');
+    expect(config.params).not.toHaveProperty('xt');
+  });
+
+  it('does not send a date cutoff when modifiedSince is omitted', async () => {
+    await getStreamContents('user/-/state/com.google/reading-list', 100);
+    const [, config] = get.mock.calls[0] as [string, { params: Record<string, unknown> }];
+    expect(config.params).not.toHaveProperty('ot');
   });
 });

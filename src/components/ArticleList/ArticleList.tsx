@@ -660,17 +660,17 @@ export default function ArticleList() {
   const title = selectedFeed
     ? selectedFeed.title
     : filter === 'interesting'
-      ? t('sidebar.interesting')
+      ? t('sidebar.interesting', { defaultValue: 'Interesting' })
       : filter === 'unread'
-        ? t('sidebar.unread')
+        ? t('sidebar.unread', { defaultValue: 'Unread' })
         : filter === 'starred'
-          ? t('sidebar.starred')
+          ? t('sidebar.starred', { defaultValue: 'Favorites' })
           : filter === 'infrequent'
-            ? t('sidebar.infrequent')
+            ? t('sidebar.infrequent', { defaultValue: 'Infrequent sites' })
             : filter === 'recentlyread'
-              ? t('sidebar.recentlyRead')
+              ? t('sidebar.recentlyRead', { defaultValue: 'Recently Read' })
               : filter === 'readlater'
-                ? t('articleList.readLaterSuffix')
+                ? t('articleList.readLaterSuffix', { defaultValue: 'Read later' })
                 : feedName;
 
   const rankedArticles = useMemo(() => rankInterestingArticles(articles, intelligenceFeedback), [articles, intelligenceFeedback]);
