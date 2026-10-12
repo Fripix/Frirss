@@ -13,56 +13,29 @@ import proxyRoutes from './routes/proxy.js';
 import extractRoutes from './routes/extract.js';
 import aiSummaryRoutes from './routes/aiSummary.js';
 import infrequentCacheRoutes from './routes/infrequentCache.js';
+import intelligenceRoutes from './routes/intelligence.js';
 import { adminBackupRouter, setupBackupRouter } from './routes/backup.js';
 import { migrateEncryptTokens } from './crypto.js';
 import { accessLog } from './accessLog.js';
 import { startBackgroundSync } from './worker.js';
 import { APP_VERSION } from './version.js';
 
-// Encrypt any FreshRSS tokens still stored in plaintext (one-time, idempotent)
 migrateEncryptTokens();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Behind a reverse proxy (nginx/Traefik) in production → trust the first hop
-// so rate-limiting and req.protocol use the real client IP / scheme.
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-}
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
-// ── Middleware ───────────────────────────────────────────────────────
-// Security headers for the API responses. NOTE: in the shipped image nginx
-// serves the HTML/static assets directly (only /api is proxied here), so the
-// browser-facing security headers for the *document* — CSP, X-Frame-Options,
-// nosniff, Referrer-Policy — are set in nginx.conf. CSP is left off here to
-// avoid a second, divergent policy on /api. The remaining helmet headers still
-// harden the API (and a direct-to-Express deployment without nginx).
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-}));
-
-// The frontend is same-origin (Vite proxy in dev, backend-served in prod), so
-// CORS is off by default. Set CORS_ORIGIN to enable it for a split deployment.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 if (process.env.CORS_ORIGIN) {
   app.use(cors({ origin: process.env.CORS_ORIGIN.split(','), credentials: true }));
 }
+app.use(express.json({ limit: '5mb' }));
 
-app.use(express.json({ limit: '5mb' })); // allow logo uploads
+if (process.env.NODE_ENV !== 'test') app.use(accessLog());
 
-// ── Request logging ──────────────────────────────────────────────────
-// Lightweight structured access log: method, path, status, duration.
-// Silent during tests; /api/health is skipped to avoid healthcheck noise.
-// Le middleware vit dans `server/accessLog.ts`, où il est testable — et il
-// l'est, parce que la subtilité qui l'a cassé une fois (le chemin doit être lu
-// AVANT le routage) ne se voit pas à la relecture.
-if (process.env.NODE_ENV !== 'test') {
-  app.use(accessLog());
-}
-
-// ── API Routes ──────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/servers', serversRoutes);
 app.use('/api/preferences', preferencesRoutes);
@@ -73,46 +46,30 @@ app.use('/api/proxy', proxyRoutes);
 app.use('/api/extract', extractRoutes);
 app.use('/api/ai-summary', aiSummaryRoutes);
 app.use('/api/infrequent-cache', infrequentCacheRoutes);
+app.use('/api/intelligence', intelligenceRoutes);
 
-// ── Health check ────────────────────────────────────────────────────
 const startedAt = Date.now();
 app.get('/api/health', (req, res) => {
   let dbOk = false;
-  try {
-    db.prepare('SELECT 1').get();
-    dbOk = true;
-  } catch { /* db unreachable */ }
+  try { db.prepare('SELECT 1').get(); dbOk = true; } catch { /* db unreachable */ }
   res.status(dbOk ? 200 : 503).json({
-    status: dbOk ? 'ok' : 'degraded',
-    version: APP_VERSION,
-    db: dbOk ? 'up' : 'down',
-    uptime: Math.floor((Date.now() - startedAt) / 1000),
+    status: dbOk ? 'ok' : 'degraded', version: APP_VERSION,
+    db: dbOk ? 'up' : 'down', uptime: Math.floor((Date.now() - startedAt) / 1000),
   });
 });
 
-// ── Production: serve static frontend ───────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist');
   app.use(express.static(distPath));
-
-  // SPA fallback — plain middleware (Express 5 / path-to-regexp v8 no longer
-  // accepts a bare '*' route pattern, which would crash at startup).
   app.use((req, res, next) => {
-    if (req.method === 'GET' && !req.path.startsWith('/api/')) {
-      res.sendFile(path.join(distPath, 'index.html'));
-    } else {
-      next();
-    }
+    if (req.method === 'GET' && !req.path.startsWith('/api/')) res.sendFile(path.join(distPath, 'index.html'));
+    else next();
   });
 }
 
-// ── Start ───────────────────────────────────────────────────────────
-// Skip the listener under test — supertest binds its own ephemeral port.
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`FriRSS backend listening on port ${PORT}`);
-  });
-  startBackgroundSync(); // no-op unless REDIS_URL + CACHE_SYNC_INTERVAL are set
+  app.listen(PORT, () => console.log(`FriRSS backend listening on port ${PORT}`));
+  startBackgroundSync();
 }
 
 export default app;

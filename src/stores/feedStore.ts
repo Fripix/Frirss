@@ -204,7 +204,7 @@ async function fetchArticleStream(
     ? selectedFeed.id
     : 'user/-/state/com.google/reading-list';
   // Server-side filtering: exclude read items when showing unread only
-  const excludeTag = filter === 'unread' ? 'user/-/state/com.google/read' : null;
+  const excludeTag = filter === 'unread' || filter === 'interesting' ? 'user/-/state/com.google/read' : null;
   const result = await getStreamContents(streamId, count, continuation, excludeTag, { cacheOnly });
   if (result == null) return null; // cache miss (cacheOnly)
   // Starred within a specific feed — filter client-side
@@ -1269,7 +1269,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // 1. Server cache (SWR) — only when memory had nothing, for an instant-ish
     //    first paint (first visit this session / cross-device). Non-blocking.
     if (!cached) {
-      fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null, true)
+      fetchArticleStream(filter === 'interesting' ? 'unread' : filter, selectedFeed, PAGE_SIZE, null, true)
         .then((c) => {
           if (!c || !sameView() || !get().loading) return;
           const articles = c.items.map(normalizeArticle);
@@ -1281,7 +1281,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
     // 2. Live request — authoritative; updates the view + memory cache.
     try {
-      const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
+      const result = await fetchArticleStream(filter === 'interesting' ? 'unread' : filter, selectedFeed, PAGE_SIZE, null);
       if (!sameView()) return; // user switched away while loading
       if (!result) { set({ loading: false, revalidating: false }); return; }
       const articles = result.items.map(normalizeArticle);
@@ -1348,7 +1348,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     set({ loadingMore: true });
 
     try {
-      const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, continuation);
+      const result = await fetchArticleStream(filter === 'interesting' ? 'unread' : filter, selectedFeed, PAGE_SIZE, continuation);
       // La vue a changé pendant l'aller-retour : cette page n'appartient plus
       // à rien de ce qui est affiché. On la jette entièrement — pas d'ajout,
       // pas d'écriture de cache, pas de `continuation` — et on rend la main.

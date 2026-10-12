@@ -3106,3 +3106,15 @@ Chaque famille correspond à une zone de l'interface :
    sinon `src/lib/featuresDoc.test.ts` échoue.
 4. Consigner tout piège qui a coûté du temps. C'est la partie la plus utile du
    fichier, et celle qu'aucun outil ne peut reconstituer.
+
+
+## Intelligence and article feedback (MVP)
+
+An **Interesting** view ranks articles using per-user feedback while leaving FreshRSS as the source of truth for article content and read/unread state. A positive or negative vote can be toggled off; feedback is stored in FriRSS SQLite and is scoped to the signed-in FriRSS account. Ranking currently uses local lexical similarity over the available title, RSS summary and article content, plus a small freshness prior. It does **not** yet use semantic embeddings: related concepts expressed with different words may not match. Missing article content falls back to title and RSS summary, so ranking quality depends on the text available. No vote means unknown, not a negative signal.
+
+- **Où** : `server/routes/intelligence.ts`, `src/api/intelligence.ts`, `src/lib/intelligenceRanking.ts`, `src/components/ArticleList/IntelligenceFeedback.tsx`, `src/components/Sidebar/Sidebar.tsx`.
+- **Routes** :
+  - GET `/api/intelligence/feedback`
+  - PUT `/api/intelligence/feedback`
+  - DELETE `/api/intelligence/feedback/:articleId`
+- **Limite connue** : lexical matching is a first implementation, not semantic understanding. Local embeddings and bounded background processing remain follow-up work; do not describe this version as embedding-based.

@@ -17,6 +17,7 @@ import ViewModeSwitcher from './ViewModeSwitcher';
 import SwipeableArticleRow from './SwipeableArticleRow';
 import { ArticleRowActions } from './ArticleActions';
 import ArticleCard from './ArticleCard';
+import IntelligenceFeedback from './IntelligenceFeedback';
 import FeedFavicon from '../FeedFavicon';
 import BottomSheet from '../BottomSheet';
 import ArticleContextMenu from './ArticleContextMenu';
@@ -37,6 +38,8 @@ import { noFocusOnPointer } from '../../lib/pointerFocus';
 import { prefersReducedMotion } from '../../lib/reducedMotion';
 import { staggerIndexes, rememberStagger } from '../../lib/rowStagger';
 import type { Article, Filter } from '../../types';
+import { getArticleFeedback, type ArticleFeedback } from '../../api/intelligence';
+import { rankInterestingArticles } from '../../lib/intelligenceRanking';
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
 // article in 2-panel desktop, or any re-mount of the list).
@@ -51,6 +54,21 @@ interface PullState {
 
 export default function ArticleList() {
   const { t } = useTranslation();
+
+  const [intelligenceFeedback, setIntelligenceFeedback] = useState<ArticleFeedback[]>([]);
+  useEffect(() => {
+    let active = true;
+    const refreshFeedback = () => {
+      getArticleFeedback().then((rows) => { if (active) setIntelligenceFeedback(rows); }).catch(() => {});
+    };
+    refreshFeedback();
+    window.addEventListener('frirss-intelligence-feedback-changed', refreshFeedback);
+    return () => {
+      active = false;
+      window.removeEventListener('frirss-intelligence-feedback-changed', refreshFeedback);
+    };
+  }, []);
+
   const {
     articles,
     loading,
@@ -646,7 +664,8 @@ export default function ArticleList() {
       ? t('articleList.readLaterSuffix')
       : feedName;
 
-  const groups = groupByDate(articles);
+  const rankedArticles = useMemo(() => rankInterestingArticles(articles, intelligenceFeedback), [articles, intelligenceFeedback]);
+  const groups = groupByDate(filter === 'interesting' ? rankedArticles : articles);
 
   // Une liste vide ne veut dire « il n'y a plus rien » que si le flux est
   // épuisé. Vidée alors que `continuation` promet une page suivante, elle
@@ -1115,7 +1134,7 @@ export default function ArticleList() {
         ) : gridLayout && !dateSepActive ? (
           /* Grid, default: one continuous gallery, no date bands. */
           <div className="article-grid">
-            {articles.map(renderCard)}
+            {(filter === 'interesting' ? rankedArticles : articles).map(renderCard)}
           </div>
         ) : (
           /* La clé vient du groupe, jamais de sa position : `${label}-${index}`
@@ -1744,6 +1763,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, wrapTitl
             <Highlighted text={resultSummary(article, searchTerms ?? [])} terms={searchTerms} />
           </p>
         )}
+        <IntelligenceFeedback article={article} />
       </div>
 
       {/* Une COLONNE, et elle coûte de la hauteur — c'est assumé. Quatre

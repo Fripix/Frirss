@@ -10,6 +10,7 @@ import { ArticleRowActions } from './ArticleActions';
 import Highlighted from './Highlighted';
 import { resultSummary } from '../../lib/searchHighlight';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
+import IntelligenceFeedback from './IntelligenceFeedback';
 
 interface ArticleCardProps {
   article: Article;
@@ -82,6 +83,7 @@ export default function ArticleCard({
         <p className="article-card__summary" dir="auto">
           <Highlighted text={resultSummary(article, searchTerms ?? [])} terms={searchTerms} />
         </p>
+        <IntelligenceFeedback article={article} />
       </div>
 
       <ArticleRowActions
