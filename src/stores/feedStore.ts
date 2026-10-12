@@ -199,6 +199,10 @@ async function fetchArticleStream(
   if (filter === 'readlater') {
     return getStreamContents(READ_LATER_LABEL, count, continuation, null, { cacheOnly });
   }
+  // FreshRSS's read-state stream; FreshRSS returns these as read articles.
+  if (filter === 'recentlyread') {
+    return getStreamContents('user/-/state/com.google/read', count, continuation, null, { cacheOnly });
+  }
   // Specific feed or the global reading-list
   const streamId = selectedFeed
     ? selectedFeed.id
@@ -333,6 +337,7 @@ const READING_LIST_STREAM = 'user/-/state/com.google/reading-list';
 // whole reading-list (the "all feeds" view — search everywhere).
 export function resolveSearchStreamId(selectedFeed: Subscription | null, filter: Filter): string {
   if (filter === 'readlater') return READ_LATER_LABEL;
+  if (filter === 'recentlyread') return 'user/-/state/com.google/read';
   if (filter === 'starred' && !selectedFeed) return STARRED_STREAM;
   if (selectedFeed) return selectedFeed.id;
   return READING_LIST_STREAM;
