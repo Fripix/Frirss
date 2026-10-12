@@ -12,6 +12,7 @@ import adminRoutes from './routes/admin.js';
 import proxyRoutes from './routes/proxy.js';
 import extractRoutes from './routes/extract.js';
 import aiSummaryRoutes from './routes/aiSummary.js';
+import infrequentCacheRoutes from './routes/infrequentCache.js';
 import { adminBackupRouter, setupBackupRouter } from './routes/backup.js';
 import { migrateEncryptTokens } from './crypto.js';
 import { accessLog } from './accessLog.js';
@@ -71,6 +72,7 @@ app.use('/api/setup', setupBackupRouter);
 app.use('/api/proxy', proxyRoutes);
 app.use('/api/extract', extractRoutes);
 app.use('/api/ai-summary', aiSummaryRoutes);
+app.use('/api/infrequent-cache', infrequentCacheRoutes);
 
 // ── Health check ────────────────────────────────────────────────────
 const startedAt = Date.now();

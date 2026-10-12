@@ -282,3 +282,13 @@ export async function summarizeArticle(payload: AiSummaryArticlePayload & { rege
   const { data } = await backend.post<{ summary: string; cached: boolean }>('/ai-summary/summarize', payload);
   return data;
 }
+
+
+// Persistent, account-scoped cache for Infrequent sites feed classification.
+export async function getInfrequentFeedCache(subscriptionIds: string[]): Promise<{ cached: boolean; feedIds: string[] }> {
+  const { data } = await backend.post<{ cached: boolean; feedIds: string[] }>('/infrequent-cache/lookup', { subscriptionIds });
+  return data;
+}
+export async function saveInfrequentFeedCache(subscriptionIds: string[], feedIds: string[]): Promise<void> {
+  await backend.put('/infrequent-cache', { subscriptionIds, feedIds });
+}
