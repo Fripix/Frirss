@@ -2,10 +2,15 @@ import type { Tag } from '../types';
 
 // A category is a prefixed sub-label: the data model already supports it
 // (groupLabels renders Parent/Child), so nothing new is introduced.
-// The prefixes are literal and French, matching READ_LATER_LABEL which the app
-// already hard-codes regardless of the interface language.
-export const READ_LATER_PREFIX = 'À lire plus tard';
-export const STARRED_PREFIX = 'Favoris';
+// Stable, language-independent label namespaces. These are distinct from the
+// built-in starred state and the read-later state stream.
+export const READ_LATER_PREFIX = 'read-later';
+export const STARRED_PREFIX = 'Favorites';
+// Keep displaying existing categories created by older FriRSS versions, which
+// used French prefixes. Existing server labels keep their original IDs; newly
+// created categories use the stable English prefixes above.
+export const LEGACY_READ_LATER_PREFIX = 'À lire plus tard';
+export const LEGACY_STARRED_PREFIX = 'Favoris';
 
 export interface SavedCategory {
   id: string;
@@ -24,12 +29,17 @@ const BASE = 'user/-/label/';
  * article lands in it, instead of forcing the user to file something first.
  */
 export function savedCategories(labels: Tag[], prefix: string, localNames: string[] = []): SavedCategory[] {
-  const head = `${BASE}${prefix}/`;
+  const legacy = prefix === READ_LATER_PREFIX ? [LEGACY_READ_LATER_PREFIX]
+    : prefix === STARRED_PREFIX ? [LEGACY_STARRED_PREFIX] : [];
+  const heads = [`${BASE}${prefix}/`, ...legacy.map((p) => `${BASE}${p}/`)];
   const byName = new Map<string, SavedCategory>();
   for (const t of labels) {
-    if (t.id.startsWith(head) && t.id.length > head.length) {
+    const head = heads.find((h) => t.id.startsWith(h) && t.id.length > h.length);
+    if (head) {
       const name = t.id.slice(head.length);
-      byName.set(name, { id: t.id, name });
+      // Prefer the canonical label if both old and new versions exist.
+      const existing = byName.get(name);
+      if (!existing || t.id.startsWith(`${BASE}${prefix}/`)) byName.set(name, { id: t.id, name });
     }
   }
   for (const raw of localNames) {
@@ -46,7 +56,7 @@ export function categoryLabelId(prefix: string, name: string): string {
 
 /** Is this label one of the saved-article categories (hidden from ÉTIQUETTES)? */
 export function isSavedCategory(labelId: string): boolean {
-  return [READ_LATER_PREFIX, STARRED_PREFIX].some(
+  return [READ_LATER_PREFIX, STARRED_PREFIX, LEGACY_READ_LATER_PREFIX, LEGACY_STARRED_PREFIX].some(
     (p) => labelId.startsWith(`${BASE}${p}/`) && labelId.length > `${BASE}${p}/`.length,
   );
 }
