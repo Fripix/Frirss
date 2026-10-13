@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Subscription } from '../types';
-import { homeStreamId, inMainStream, mainStreamFeedIds, homeUnreadTotal, READING_LIST_STREAM, MAIN_STREAM } from './mainStream';
+import { homeStreamId, inMainStream, mainStreamFeedIds, homeUnreadTotal, viewUnreadCount, READING_LIST_STREAM, MAIN_STREAM } from './mainStream';
 
 const sub = (id: string, priority?: Subscription['priority']): Subscription =>
   ({ id, title: id, ...(priority ? { priority } : {}) }) as Subscription;
@@ -44,5 +44,25 @@ describe('homeUnreadTotal', () => {
     const subs = [sub('feed/1', 'main'), sub('feed/2', 'category'), sub('feed/3')];
     const counts = { 'feed/1': 3, 'feed/2': 10, 'feed/3': 4, 'user/-/label/X': 13, 'user/-/state/com.google/reading-list': 17 };
     expect(homeUnreadTotal(counts, subs)).toBe(7);
+  });
+});
+
+describe('viewUnreadCount — le compte en tête de liste', () => {
+  const subs = [sub('feed/1', 'main'), sub('feed/2', 'category')];
+  const counts = { 'feed/1': 3, 'feed/2': 10 };
+
+  it("sur l'accueil, ne compte que le flux principal — comme le badge et la liste", () => {
+    expect(viewUnreadCount({ selectedFeed: null, filter: 'all' }, counts, subs)).toBe(3);
+    expect(viewUnreadCount({ selectedFeed: null, filter: 'unread' }, counts, subs)).toBe(3);
+  });
+
+  it('sur un flux, son propre compte, même hors flux principal', () => {
+    expect(viewUnreadCount({ selectedFeed: subs[1], filter: 'all' }, counts, subs)).toBe(10);
+  });
+
+  it('rien pour les sélections transversales et les catégories', () => {
+    expect(viewUnreadCount({ selectedFeed: null, filter: 'starred' }, counts, subs)).toBeNull();
+    expect(viewUnreadCount({ selectedFeed: null, filter: 'readlater' }, counts, subs)).toBeNull();
+    expect(viewUnreadCount({ selectedFeed: sub('user/-/label/X'), filter: 'all' }, counts, subs)).toBeNull();
   });
 });

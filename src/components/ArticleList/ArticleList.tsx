@@ -8,6 +8,7 @@ import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead, UNDO_CAP } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { effectiveOrder, entryDirection } from '../../lib/effectiveOrder';
+import { viewUnreadCount } from '../../lib/mainStream';
 import { shouldLoadMore, listBodyState, canLoadMore, searchAwareHasContinuation } from '../../lib/listPagination';
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
@@ -179,14 +180,12 @@ export default function ArticleList() {
   // flux et pour la vue « tous les flux » : les sélections transversales
   // (favoris, à lire plus tard, étiquettes) ne sont pas des flux qu'on vide,
   // et un compte y voudrait dire autre chose.
-  const headerUnread = useMemo(() => {
-    if (filter === 'starred' || filter === 'readlater') return null;
-    if (selectedFeed) {
-      if (isCategoryStreamId(selectedFeed.id)) return null;
-      return unreadCounts[selectedFeed.id] || 0;
-    }
-    return subscriptions.reduce((sum, sub) => sum + (unreadCounts[sub.id] || 0), 0);
-  }, [filter, selectedFeed, subscriptions, unreadCounts]);
+  // Sur l'accueil, seuls les flux du flux principal comptent (visibilité
+  // FreshRSS) : le même total que le badge de la barre latérale.
+  const headerUnread = useMemo(
+    () => viewUnreadCount({ selectedFeed, filter }, unreadCounts, subscriptions),
+    [filter, selectedFeed, subscriptions, unreadCounts],
+  );
 
   const listRef = useRef<HTMLDivElement>(null);
 

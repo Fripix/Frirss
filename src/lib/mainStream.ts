@@ -48,3 +48,23 @@ export function homeUnreadTotal(
   }
   return total;
 }
+
+/**
+ * Unread count shown in the list header, and in the "mark all" dialog: the
+ * feed's own count, or the home total above. Nothing for the cross-cutting
+ * selections (starred, read later) and for categories, which are not feeds
+ * one empties. The home total follows the home view, so the header, the
+ * sidebar badge and the dialog never disagree.
+ */
+export function viewUnreadCount(
+  view: { selectedFeed: Pick<Subscription, 'id'> | null; filter: string },
+  unreadCounts: Record<string, number>,
+  subscriptions: readonly Subscription[],
+): number | null {
+  if (view.filter === 'starred' || view.filter === 'readlater') return null;
+  if (view.selectedFeed) {
+    if (view.selectedFeed.id.startsWith('user/-/label/')) return null;
+    return unreadCounts[view.selectedFeed.id] || 0;
+  }
+  return homeUnreadTotal(unreadCounts, subscriptions);
+}

@@ -325,9 +325,12 @@ Demandé dans la discussion #18.
   (`stream/items/ids`) et envoie sa borne sur ce même flux. L'instantané
   d'annulation aussi. Tout passe par `resolveSearchStreamId(…, subscriptions)`
   ou `homeStreamId()` : ne jamais réécrire `reading-list` en dur.
-- **Le badge de l'accueil** n'additionne que les flux du flux principal
-  (`homeUnreadTotal`) ; avant, il additionnait tout et promettait des
-  articles que la liste ne montrait pas.
+- **Le badge de l'accueil, la pastille d'en-tête de la liste et le compte de
+  la boîte « Tout lu »** n'additionnent que les flux du flux principal
+  (`homeUnreadTotal`, `viewUnreadCount`) ; avant, ils additionnaient tout et
+  promettaient des articles que la liste ne montrait pas. Piège rencontré au
+  premier essai : le badge était juste (4325) et l'en-tête encore à 4865 —
+  deux sommes écrites à deux endroits. Une seule porte désormais.
 - **Repli automatique, FreshRSS < 1.28** : aucun abonnement ne porte de
   priorité → `reading-list` partout, comportement inchangé. La détection se
   fait sur les abonnements, pas sur un numéro de version ; les flux cachés ne
