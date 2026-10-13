@@ -1,21 +1,26 @@
 import type { Article } from '../types';
 import type { ArticleFeedback } from '../api/intelligence';
 
+export type InterestingAlgorithm = 'current' | 'weighted-idf' | 'synonyms' | 'topics' | 'combined';
+
+export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label: string }> = [
+  { value: 'current', label: 'Current' },
+  { value: 'weighted-idf', label: 'Weighted terms + IDF' },
+  { value: 'synonyms', label: 'Synonyms + stemming' },
+  { value: 'topics', label: 'Topic / interest profiles' },
+  { value: 'combined', label: 'Combined' },
+];
+
 function tokenize(text: string): Set<string> {
   return new Set(text.toLocaleLowerCase().replace(/<[^>]*>/g, ' ').match(/[\p{L}\p{N}]{3,}/gu) ?? []);
 }
 
-/**
- * Lightweight cold-start ranker. Feedback is compared with article text
- * (title, RSS summary and available content), not just title keywords.
- * This is deliberately deterministic and local; a semantic embedding model
- * can replace this feature representation without changing feedback storage.
- */
-export function rankInterestingArticles(
-  articles: Article[],
-  feedback: ArticleFeedback[],
-  now = Date.now(),
-): Article[] {
+function articleText(article: Article): string {
+  return `${article.title} ${article.summary} ${article.content}`;
+}
+
+/** Existing baseline retained so users can compare against today's ranking. */
+function rankCurrent(articles: Article[], feedback: ArticleFeedback[], now: number): Article[] {
   const examples = feedback.map((item) => ({
     vote: item.vote,
     terms: tokenize(`${item.title} ${item.summary} ${item.content} ${item.sourceId}`),
@@ -35,4 +40,156 @@ export function rankInterestingArticles(
     return positive - negative * 1.25 + (1 / (1 + ageHours / 72)) * 0.03;
   };
   return [...articles].sort((a, b) => score(b) - score(a));
+}
+
+const synonymGroups: string[][] = [
+  ['defence', 'defense', 'military', 'armed', 'security'],
+  ['ai', 'artificial', 'intelligence', 'machine', 'learning'],
+  ['economy', 'economic', 'economics', 'finance', 'financial', 'markets'],
+  ['government', 'politics', 'political', 'policy', 'parliament'],
+  ['climate', 'environment', 'emissions', 'warming', 'renewable'],
+  ['company', 'companies', 'business', 'corporate', 'enterprise'],
+  ['car', 'cars', 'automobile', 'automotive', 'vehicle', 'vehicles'],
+  ['buy', 'bought', 'purchase', 'purchasing', 'procurement'],
+  ['produce', 'produced', 'production', 'manufacturing', 'manufacture'],
+];
+const synonymMap = new Map<string, string>();
+for (const group of synonymGroups) for (const word of group) synonymMap.set(word, group[0]);
+
+function normalizeTerm(term: string): string {
+  const synonym = synonymMap.get(term);
+  if (synonym) return synonym;
+  // Small deterministic stemmer: intentionally conservative to avoid heavy dependencies.
+  if (term.length > 5 && term.endsWith('ies')) return term.slice(0, -3) + 'y';
+  if (term.length > 5 && term.endsWith('ing')) return term.slice(0, -3);
+  if (term.length > 4 && term.endsWith('ed')) return term.slice(0, -2);
+  if (term.length > 4 && term.endsWith('es')) return term.slice(0, -2);
+  if (term.length > 3 && term.endsWith('s')) return term.slice(0, -1);
+  return term;
+}
+
+function normalizedTokens(text: string): Set<string> {
+  return new Set([...tokenize(text)].map(normalizeTerm));
+}
+
+const topicKeywords: Record<string, string[]> = {
+  security: ['defence', 'defense', 'military', 'army', 'navy', 'war', 'nato', 'weapon', 'missile', 'security', 'ukraine', 'iran'],
+  technology: ['technology', 'software', 'computer', 'chip', 'ai', 'artificial', 'intelligence', 'data', 'robot', 'openai', 'google', 'apple'],
+  economy: ['economy', 'economic', 'finance', 'financial', 'market', 'stock', 'bank', 'trade', 'business', 'company', 'inflation'],
+  politics: ['politics', 'political', 'government', 'election', 'minister', 'parliament', 'president', 'policy', 'europe', 'germany'],
+  science: ['science', 'research', 'study', 'scientist', 'space', 'physics', 'biology', 'health', 'medical', 'climate', 'energy'],
+  culture: ['book', 'movie', 'film', 'music', 'art', 'game', 'culture', 'author', 'celebrity', 'sport'],
+};
+function topicSet(text: string): Set<string> {
+  const terms = normalizedTokens(text);
+  const topics = new Set<string>();
+  for (const [topic, keywords] of Object.entries(topicKeywords)) {
+    if (keywords.some((word) => terms.has(normalizeTerm(word)))) topics.add(topic);
+  }
+  return topics;
+}
+
+function freshness(article: Article, now: number): number {
+  const ageHours = Math.max(0, (now - article.published) / 3600000);
+  return (1 / (1 + ageHours / 72)) * 0.03;
+}
+
+function rankByTermModel(
+  articles: Article[],
+  feedback: ArticleFeedback[],
+  now: number,
+  mode: 'weighted-idf' | 'synonyms',
+): Article[] {
+  const termsFor = mode === 'synonyms' ? normalizedTokens : tokenize;
+  const candidates = articles.map((article) => ({ article, terms: termsFor(articleText(article)) }));
+  const examples = feedback.map((item) => ({ vote: item.vote, terms: termsFor(`${item.title} ${item.summary} ${item.content}`) }));
+  const df = new Map<string, number>();
+  for (const candidate of candidates) for (const term of candidate.terms) df.set(term, (df.get(term) ?? 0) + 1);
+  const idf = (term: string) => Math.log((candidates.length + 1) / ((df.get(term) ?? 0) + 1)) + 1;
+  const profile = new Map<string, number>();
+  for (const example of examples) {
+    for (const term of example.terms) {
+      const weight = mode === 'weighted-idf' ? idf(term) : 1;
+      profile.set(term, (profile.get(term) ?? 0) + example.vote * weight);
+    }
+  }
+  const scored = candidates.map(({ article, terms }) => {
+    let positive = 0;
+    let negative = 0;
+    for (const term of terms) {
+      const preference = profile.get(term) ?? 0;
+      const rarity = mode === 'weighted-idf' ? idf(term) : 1;
+      if (preference > 0) positive += preference * rarity;
+      else if (preference < 0) negative += Math.abs(preference) * rarity;
+    }
+    const score = (positive - negative * 1.25) / Math.max(1, Math.sqrt(terms.size)) + freshness(article, now);
+    return { article, score };
+  });
+  return scored.sort((a, b) => b.score - a.score).map(({ article }) => article);
+}
+
+function rankTopics(articles: Article[], feedback: ArticleFeedback[], now: number): Article[] {
+  const profile = new Map<string, number>();
+  for (const item of feedback) {
+    for (const topic of topicSet(`${item.title} ${item.summary} ${item.content}`)) {
+      profile.set(topic, (profile.get(topic) ?? 0) + item.vote);
+    }
+  }
+  return articles.map((article) => {
+    const topics = topicSet(articleText(article));
+    let score = 0;
+    for (const topic of topics) score += profile.get(topic) ?? 0;
+    return { article, score: score / Math.max(1, topics.size) + freshness(article, now) };
+  }).sort((a, b) => b.score - a.score).map(({ article }) => article);
+}
+
+/** Re-rank with a mild source penalty so Combined is less likely to show one feed repeatedly. */
+function diversify(articles: Article[], maxRun = 2): Article[] {
+  const remaining = [...articles];
+  const result: Article[] = [];
+  const sourceRun = new Map<string, number>();
+  while (remaining.length) {
+    let bestIndex = 0;
+    let bestPenalty = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < remaining.length; i++) {
+      const source = remaining[i].source || remaining[i].sourceId || '';
+      const run = sourceRun.get(source) ?? 0;
+      const penalty = run >= maxRun ? 1 : 0;
+      if (penalty < bestPenalty) { bestPenalty = penalty; bestIndex = i; }
+      if (penalty === 0) break;
+    }
+    const [next] = remaining.splice(bestIndex, 1);
+    const source = next.source || next.sourceId || '';
+    sourceRun.set(source, (sourceRun.get(source) ?? 0) + 1);
+    result.push(next);
+  }
+  return result;
+}
+
+/**
+ * Local deterministic ranking methods for the Interesting feed.
+ * The baseline is intentionally preserved; experimental models use only article text,
+ * not source identifiers, to avoid accidental source-name overlap affecting relevance.
+ */
+export function rankInterestingArticles(
+  articles: Article[],
+  feedback: ArticleFeedback[],
+  now = Date.now(),
+  algorithm: InterestingAlgorithm = 'current',
+): Article[] {
+  if (algorithm === 'current') return rankCurrent(articles, feedback, now);
+  if (algorithm === 'weighted-idf') return rankByTermModel(articles, feedback, now, 'weighted-idf');
+  if (algorithm === 'synonyms') return rankByTermModel(articles, feedback, now, 'synonyms');
+  if (algorithm === 'topics') return rankTopics(articles, feedback, now);
+  const weighted = rankByTermModel(articles, feedback, now, 'weighted-idf');
+  const synonyms = rankByTermModel(articles, feedback, now, 'synonyms');
+  const topics = rankTopics(articles, feedback, now);
+  const rankMaps = [weighted, synonyms, topics].map((ranked) => new Map(ranked.map((article, index) => [article.id, index])));
+  const scores = new Map<string, number>();
+  for (const article of articles) {
+    const score = rankMaps.reduce((sum, ranks, index) => sum + 1 / (20 + (ranks.get(article.id) ?? articles.length)) * [0.45, 0.3, 0.25][index], 0);
+    scores.set(article.id, score);
+  }
+  const combined = [...articles].sort((a, b) => (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0));
+  return diversify(combined);
 }

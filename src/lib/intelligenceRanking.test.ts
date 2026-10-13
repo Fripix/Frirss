@@ -35,3 +35,17 @@ describe('rankInterestingArticles', () => {
     expect(items.map((item) => item.id)).toEqual(['a', 'b']);
   });
 });
+
+it('supports all experimental algorithms without mutating input', () => {
+  const articles = [
+    article('a', 'NATO defence procurement', 'Military production expands'),
+    article('b', 'AI chip design', 'Researchers improve machine learning'),
+    article('c', 'Celebrity gossip', 'Relationship rumours spread'),
+  ];
+  for (const algorithm of ['current', 'weighted-idf', 'synonyms', 'topics', 'combined'] as const) {
+    const ranked = rankInterestingArticles(articles, [feedback('defense production', 'military procurement', 1)], Date.now(), algorithm);
+    expect(ranked).toHaveLength(3);
+    expect(new Set(ranked.map((item) => item.id)).size).toBe(3);
+  }
+  expect(articles.map((item) => item.id)).toEqual(['a', 'b', 'c']);
+});

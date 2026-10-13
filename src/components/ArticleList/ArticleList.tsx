@@ -39,7 +39,7 @@ import { prefersReducedMotion } from '../../lib/reducedMotion';
 import { staggerIndexes, rememberStagger } from '../../lib/rowStagger';
 import type { Article, Filter } from '../../types';
 import { getArticleFeedback, type ArticleFeedback } from '../../api/intelligence';
-import { rankInterestingArticles } from '../../lib/intelligenceRanking';
+import { rankInterestingArticles, INTERESTING_ALGORITHMS } from '../../lib/intelligenceRanking';
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
 // article in 2-panel desktop, or any re-mount of the list).
@@ -56,6 +56,11 @@ export default function ArticleList() {
   const { t } = useTranslation();
 
   const [intelligenceFeedback, setIntelligenceFeedback] = useState<ArticleFeedback[]>([]);
+  const [interestingAlgorithm, setInterestingAlgorithm] = useState<import('../../lib/intelligenceRanking').InterestingAlgorithm>(() => {
+    const saved = localStorage.getItem('frirss_interesting_algorithm');
+    return saved === 'weighted-idf' || saved === 'synonyms' || saved === 'topics' || saved === 'combined' ? saved : 'current';
+  });
+  useEffect(() => { localStorage.setItem('frirss_interesting_algorithm', interestingAlgorithm); }, [interestingAlgorithm]);
   useEffect(() => {
     let active = true;
     const refreshFeedback = () => {
@@ -673,7 +678,7 @@ export default function ArticleList() {
                 ? t('articleList.readLaterSuffix', { defaultValue: 'Read later' })
                 : feedName;
 
-  const rankedArticles = useMemo(() => rankInterestingArticles(articles, intelligenceFeedback), [articles, intelligenceFeedback]);
+  const rankedArticles = useMemo(() => rankInterestingArticles(articles, intelligenceFeedback, Date.now(), interestingAlgorithm), [articles, intelligenceFeedback, interestingAlgorithm]);
   const groups = groupByDate(filter === 'interesting' ? rankedArticles : articles);
 
   // Une liste vide ne veut dire « il n'y a plus rien » que si le flux est
@@ -875,6 +880,23 @@ export default function ArticleList() {
                   <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
                 </>
               )}
+              {filter === 'interesting' && (
+                <>
+                  <ToolbarSep />
+                  <label className="flex items-center gap-1.5 px-1 flex-shrink-0" title="Choose the Interesting ranking algorithm">
+                    <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--list-summary)' }}>Algorithm</span>
+                    <select
+                      aria-label="Interesting ranking algorithm"
+                      value={interestingAlgorithm}
+                      onChange={(event) => setInterestingAlgorithm(event.target.value as import('../../lib/intelligenceRanking').InterestingAlgorithm)}
+                      className="max-w-[170px] rounded-md px-2 py-1 text-[11px] outline-none"
+                      style={{ background: 'var(--panel-bg)', color: 'var(--list-title)', border: '1px solid var(--panel-border)' }}
+                    >
+                      {INTERESTING_ALGORITHMS.map((algorithm) => <option key={algorithm.value} value={algorithm.value}>{algorithm.label}</option>)}
+                    </select>
+                  </label>
+                </>
+              )}
             </div>
 
             <div className="flex-1" />
@@ -948,6 +970,23 @@ export default function ArticleList() {
                 <>
                   <ToolbarSep />
                   <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
+                </>
+              )}
+              {filter === 'interesting' && (
+                <>
+                  <ToolbarSep />
+                  <label className="flex items-center gap-1.5 px-1 flex-shrink-0" title="Choose the Interesting ranking algorithm">
+                    <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--list-summary)' }}>Algorithm</span>
+                    <select
+                      aria-label="Interesting ranking algorithm"
+                      value={interestingAlgorithm}
+                      onChange={(event) => setInterestingAlgorithm(event.target.value as import('../../lib/intelligenceRanking').InterestingAlgorithm)}
+                      className="max-w-[170px] rounded-md px-2 py-1 text-[11px] outline-none"
+                      style={{ background: 'var(--panel-bg)', color: 'var(--list-title)', border: '1px solid var(--panel-border)' }}
+                    >
+                      {INTERESTING_ALGORITHMS.map((algorithm) => <option key={algorithm.value} value={algorithm.value}>{algorithm.label}</option>)}
+                    </select>
+                  </label>
                 </>
               )}
             </div>
