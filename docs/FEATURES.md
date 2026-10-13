@@ -1991,6 +1991,14 @@ images consultés restent lisibles sans réseau.
   `src/components/OfflineBanner.tsx`, `src/components/UpdatePrompt.tsx`
 - **Réglages** : préparation manuelle, mise à jour à l'ouverture, budget d'images
   (aucune / légère / standard / maximale)
+- **Le bandeau « Hors ligne » est une rangée de la coquille**, montée dans
+  `App.tsx` sous la bande safe-area (les trois dispositions) : il pousse
+  l'en-tête vers le bas. ⚠️ Il a été `position: fixed; top: 0` jusqu'en
+  1.5.1 : sur Android, sans safe-area où se loger, il recouvrait l'en-tête
+  mobile en entier (mesuré à 320 px : 44 px sur 44, recherche et filtres
+  invisibles — discussion #19). « Cliquable au travers » ne sauvait rien :
+  on ne clique pas ce qu'on ne voit pas. `OfflineBanner.test.tsx` vérifie
+  que la feuille de style ne le refixe pas.
 - **Un seul remplisseur PROXIFIÉ du cache d'images** : la préparation manuelle
   (`feedStore.prepareOffline` → `imageCache.cacheImages`, seul `cache.put()`
   explicite du projet). Le choix des images y vit dans `articleImageUrls()`,

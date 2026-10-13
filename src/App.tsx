@@ -330,6 +330,7 @@ export default function App() {
       <>
         <div ref={containerRef} className="app-shell overflow-hidden flex flex-col">
           <div className="safe-area-top" />
+          <OfflineBanner />
           {topbarVisible && <ServerSwitcher />}
           <div className="flex-1 min-h-0">
             <MobileStack
@@ -355,7 +356,6 @@ export default function App() {
           </Suspense>
         )}
         {transitionLayer}
-      <OfflineBanner />
       <Toaster />
       <ShortcutHelp />
       <CommandPalette />
@@ -371,6 +371,7 @@ export default function App() {
       <>
         <div ref={containerRef} className="app-shell overflow-hidden flex flex-col">
           <div className="safe-area-top" />
+          <OfflineBanner />
           {topbarVisible && <ServerSwitcher />}
           <div className="flex-1 flex overflow-hidden min-h-0">
             {!readingFocus && (
@@ -406,7 +407,6 @@ export default function App() {
           </Suspense>
         )}
         {transitionLayer}
-      <OfflineBanner />
       <Toaster />
       <ShortcutHelp />
       <CommandPalette />
@@ -431,6 +431,7 @@ export default function App() {
   return (
     <>
       <div className="h-screen flex flex-col overflow-hidden">
+        <OfflineBanner />
         {topbarVisible && <ServerSwitcher />}
         <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Sidebar — full height, no shortcut bar */}
@@ -486,7 +487,6 @@ export default function App() {
           </Suspense>
         )}
       {transitionLayer}
-      <OfflineBanner />
       <Toaster />
       <ShortcutHelp />
       <CommandPalette />

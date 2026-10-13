@@ -858,18 +858,17 @@ html {
 }
 
 /* ── Offline / back-online banner — thin, pinned to the top ───────── */
-/* Sits above the safe-area strip (z-index 60); informational, click-through. */
+/* A row of the app shell, right under the safe-area strip: it pushes the
+   header down instead of floating over it. Fixed at the top of the viewport,
+   it hid the mobile header outright on Android, where there is no safe-area
+   inset to land in (discussion #19). Informational, click-through. */
 .offline-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 70;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: calc(env(safe-area-inset-top, 0px) + 5px) 12px 5px;
+  padding: 5px 12px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;

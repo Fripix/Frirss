@@ -39,7 +39,12 @@ la release publiée.
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Le bandeau « Hors ligne » ne recouvre plus l'en-tête.** Fixé en haut de
+  l'écran, il masquait sur Android la barre de la liste — titre, recherche,
+  filtres — puisqu'aucune safe-area ne l'écartait (discussion #19, capture à
+  l'appui ; mesuré à 320 px : l'en-tête entier dessous). Il occupe
+  maintenant sa propre rangée sous la bande safe-area, dans les trois
+  dispositions, et pousse l'en-tête vers le bas.
 
 ## Sous le capot
 
