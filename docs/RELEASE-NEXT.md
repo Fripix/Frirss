@@ -45,6 +45,11 @@ la release publiée.
   l'appui ; mesuré à 320 px : l'en-tête entier dessous). Il occupe
   maintenant sa propre rangée sous la bande safe-area, dans les trois
   dispositions, et pousse l'en-tête vers le bas.
+- **« Tout lu » dans la vue Non lus vide la liste.** Les lignes restaient
+  affichées, passées lues, et il fallait tirer pour rafraîchir ou passer par
+  le menu (discussion #19) ; le ✓ d'une seule ligne, lui, la retirait déjà.
+  L'état « Tout est lu » s'affiche aussitôt ; le retour en arrière recharge
+  la liste.
 
 ## Sous le capot
 

@@ -1251,6 +1251,15 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   grâce du fond de `BottomSheet`, où le geste d'ouverture ne doit pas refermer.
   Le réglage `confirmMarkAllRead` la gouverne : désactivé, un clic agit
   immédiatement, exactement comme avant.
+- **Sous le filtre Non lus, « Tout lu » vide la vue** (1.5.1, discussion #19) :
+  l'état « Tout est lu » apparaît aussitôt, avec son bouton « Afficher tous
+  les articles ». Avant, les lignes restaient à l'écran, passées lues, et il
+  fallait tirer pour rafraîchir — alors que le ✓ d'une seule ligne la retire
+  déjà sous ce filtre (issue #10). Le cache mémoire et la liste hors-ligne de
+  la vue sont vidés avec elle, sinon un retour sur la vue repeignait les
+  lignes lues ; `continuation` passe à `null`, sans quoi l'état vide dirait
+  « d'autres pages ». Sous « Tous », les lignes restent, passées lues. Le
+  retour en arrière recharge la liste (`restoreUnread` → `loadArticles`).
 - **Les marquages de plage gardent leur « Confirmer ? » en place** — ils sont
   annulables — mais reçoivent le **même délai de grâce** : le double-clic les
   traversait aussi.

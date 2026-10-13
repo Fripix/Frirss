@@ -1651,9 +1651,22 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     try {
       const avant = await (prepare?.streamId === streamId ? prepare.ids : snapshotUnread(streamId));
       await markAllAsRead(streamId);
+      // Sous le filtre Non lus, la vue se vide : le ✓ retire déjà sa ligne
+      // sous ce filtre (issue #10), et des lignes lues qui restent à l'écran
+      // laissaient croire que rien ne s'était passé jusqu'au prochain
+      // tirer-pour-rafraîchir (discussion #19). Le cache mémoire et la liste
+      // hors-ligne de la vue suivent, sans quoi un retour sur la vue
+      // repeindrait les lignes lues. Le retour en arrière recharge la liste.
+      const { filter, searchQuery } = get();
+      const emptied = filter === 'unread' && !searchQuery;
+      if (emptied) {
+        const key = viewKey(selectedFeed, filter);
+        memCache.delete(key);
+        listPut(key, [], null).catch(() => {});
+      }
       // Update local state
       set((state) => {
-        const updated = state.articles.map((a) => ({ ...a, read: true }));
+        const updated = emptied ? [] : state.articles.map((a) => ({ ...a, read: true }));
         const newCounts = { ...state.unreadCounts };
         if (selectedFeed) {
           newCounts[selectedFeed.id] = 0;
@@ -1666,6 +1679,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         }
         return {
           articles: updated,
+          continuation: emptied ? null : state.continuation,
           unreadCounts: newCounts,
           selectedArticle: state.selectedArticle
             ? { ...state.selectedArticle, read: true }
