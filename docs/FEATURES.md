@@ -331,6 +331,11 @@ Demandé dans la discussion #18.
   promettaient des articles que la liste ne montrait pas. Piège rencontré au
   premier essai : le badge était juste (4325) et l'en-tête encore à 4865 —
   deux sommes écrites à deux endroits. Une seule porte désormais.
+- **Piège — la mise à jour optimiste de « Tout lu »** mettait *tous* les
+  compteurs locaux à zéro sur l'accueil, Zoomit compris, alors que FreshRSS
+  l'avait laissé intact : le badge mentait jusqu'au relevé suivant. Elle ne
+  touche plus que `mainStreamFeedIds()` ; les clés dérivées (étiquettes,
+  total) attendent le relevé de la minute. Vu en vrai le 2026-10-13.
 - **Repli automatique, FreshRSS < 1.28** : aucun abonnement ne porte de
   priorité → `reading-list` partout, comportement inchangé. La détection se
   fait sur les abonnements, pas sur un numéro de version ; les flux cachés ne

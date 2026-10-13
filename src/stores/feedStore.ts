@@ -33,7 +33,7 @@ import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
-import { homeStreamId, READING_LIST_STREAM } from '../lib/mainStream';
+import { homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut } from '../lib/offlineStore';
@@ -1658,8 +1658,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         if (selectedFeed) {
           newCounts[selectedFeed.id] = 0;
         } else {
-          // Reset all counts
-          Object.keys(newCounts).forEach((k) => { newCounts[k] = 0; });
+          // Only the feeds the home view shows: FreshRSS left a category-only
+          // feed untouched, and zeroing its badge here claimed otherwise until
+          // the next poll. Derived keys (labels, totals) are not zeroed either;
+          // the poll reconciles them within the minute.
+          for (const id of mainStreamFeedIds(subscriptions)) newCounts[id] = 0;
         }
         return {
           articles: updated,

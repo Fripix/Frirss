@@ -77,6 +77,13 @@ describe('feedStore — accueil et visibilité FreshRSS', () => {
     expect(vi.mocked(api.markAllAsRead).mock.calls[0][0]).toBe(MAIN);
   });
 
+  it('« Tout lu » sur l’accueil laisse intact le compteur local d’un flux hors flux principal', async () => {
+    useFeedStore.setState({ subscriptions: modern, unreadCounts: { 'feed/1': 2, 'feed/2': 5 } });
+    await useFeedStore.getState().markAllAsRead();
+    expect(useFeedStore.getState().unreadCounts['feed/1']).toBe(0);
+    expect(useFeedStore.getState().unreadCounts['feed/2']).toBe(5);
+  });
+
   it('la recherche sur l’accueil suit le même flux', () => {
     expect(resolveSearchStreamId(null, 'all', modern)).toBe(MAIN);
     expect(resolveSearchStreamId(null, 'all', legacy)).toBe(READING_LIST);
