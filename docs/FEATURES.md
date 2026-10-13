@@ -357,6 +357,22 @@ d'adopter la disposition mobile.
 - **Où** : `src/hooks/useBreakpoint.ts`, `src/components/MobileDrawer.tsx`, `src/components/MobileStack.tsx`
 - **Règle** : conditionner le **survol** à `(hover: hover)`, jamais à la largeur —
   une tablette avec trackpad est un pointeur fin. Cibles tactiles ≥ 44 pt.
+- **Barre d'état Android (app installée)** : sa couleur est `<meta
+  name="theme-color">`, et Chrome teinte la barre de navigation à l'avenant.
+  Une seule règle, `src/lib/statusBarColor.ts` (testée), appliquée par un
+  effet dans `App.tsx` sur mobile et tablette : **la barre prend la couleur
+  de la surface juste dessous** — `topbar-bg` si la barre des serveurs est
+  affichée, sinon `panel-header-bg` (en-tête de liste), et `panel-bg` en
+  lecture. Trois couleurs du thème déjà réglables : pas de réglage propre.
+  ⚠️ Jusqu'en 1.5.1 la balise valait `#201f1b` en dur — la barre des
+  serveurs, **masquée par défaut sur mobile** — d'où une barre noire sur un
+  en-tête clair (discussion #19, vue sur l'émulateur Android 17) ; et
+  `ReadingPane` la passait à l'accent en lecture, « pour Safari ». Décision
+  du propriétaire (2026-10-13, option B) : jamais l'accent, la surface
+  dessous, sans exception. **iOS n'est pas concerné** : sa bande est peinte
+  par la page (`.safe-area-top`, décision du 2026-09-25), pas par cette
+  balise. Le `theme_color` du manifeste reste sombre : il sert à l'écran de
+  lancement, autre surface.
 
 ### Raccourcis clavier
 Navigation et actions au clavier, chaque raccourci réassignable. Gestes intégrés

@@ -50,6 +50,14 @@ la release publiée.
   le menu (discussion #19) ; le ✓ d'une seule ligne, lui, la retirait déjà.
   L'état « Tout est lu » s'affiche aussitôt ; le retour en arrière recharge
   la liste.
+- **Android, app installée : la barre d'état ne fait plus « fenêtre de
+  navigateur ».** Elle prenait la couleur de la barre des serveurs, sombre
+  et masquée par défaut sur mobile — noire au-dessus d'un en-tête clair —
+  puis l'accent en lecture (discussion #19). Elle prend maintenant la couleur
+  de ce qui est juste dessous : l'en-tête de liste, le fond de l'article, ou
+  la barre des serveurs si elle est affichée ; Chrome teinte la barre de
+  navigation de même. Ce sont des couleurs du thème, déjà réglables. iOS
+  inchangé.
 
 ## Sous le capot
 

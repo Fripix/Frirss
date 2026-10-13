@@ -22,6 +22,7 @@ import Toaster from './components/Toaster';
 import ShortcutHelp from './components/ShortcutHelp';
 import CommandPalette from './components/CommandPalette';
 import { effectiveLayout } from './lib/effectiveLayout';
+import { statusBarColor } from './lib/statusBarColor';
 import MobileDrawer from './components/MobileDrawer';
 import MobileStack from './components/MobileStack';
 
@@ -56,6 +57,18 @@ export default function App() {
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint === 'mobile';
   const isTablet = breakpoint === 'tablet';
+
+  // Android status bar (installed app): the colour of whatever sits right
+  // under it — see src/lib/statusBarColor.ts. Read from the theme store, so a
+  // customised colour or a theme change is followed; desktop keeps the static
+  // value, the browser frame is its own.
+  const themeColors = useThemeStore((s) => s.theme.colors);
+  useEffect(() => {
+    if (breakpoint === 'desktop') return;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    meta.setAttribute('content', statusBarColor({ topbarVisible, reading: !!selectedArticle }, themeColors));
+  }, [breakpoint, topbarVisible, !!selectedArticle, themeColors]); // eslint-disable-line react-hooks/exhaustive-deps
   const isDesktop = breakpoint === 'desktop';
   const containerRef = useRef<HTMLDivElement>(null);
 

@@ -316,19 +316,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const breakpoint = useBreakpoint();
   const isMobileOrTablet = breakpoint !== 'desktop';
 
-  // Dynamic theme-color for Safari status bar
-  useEffect(() => {
-    if (!isMobileOrTablet || !selectedArticle) return;
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (!meta) return;
-    const prev = meta.getAttribute('content');
-    const accent = getComputedStyle(document.documentElement)
-      .getPropertyValue('--accent')
-      .trim();
-    meta.setAttribute('content', accent || '#4cd4a1');
-    return () => meta.setAttribute('content', prev || '#ffffff');
-  }, [isMobileOrTablet, !!selectedArticle]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Swipe left/right for next/prev article (mobile/tablet) ──────
   // 100% DOM-based — no React state for positions/animations to avoid conflicts
   const swipeXRef = useRef(0);
