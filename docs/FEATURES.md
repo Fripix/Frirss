@@ -386,7 +386,7 @@ d'adopter la disposition mobile.
   article ; un retour sans couche ouverte quitte l'app, comme toute app.
   Fermer depuis l'app (croix, bouton retour en bas à gauche) reprend l'entrée
   par un `history.back()` synthétique dont le `popstate` ne ferme rien.
-  Avant la 1.5.1, le geste retour natif fermait l'app depuis un article
+  Avant la 1.6.0, le geste retour natif fermait l'app depuis un article
   (discussion #19, reproduit sur l'émulateur). ⚠️ **Android seulement, par
   plateforme** (`isAndroid(userAgent)`), jamais par largeur d'écran : le
   propriétaire a demandé qu'iOS ne bouge pas — l'iPhone n'a pas de bouton
@@ -400,7 +400,7 @@ d'adopter la disposition mobile.
   de la surface juste dessous** — `topbar-bg` si la barre des serveurs est
   affichée, sinon `panel-header-bg` (en-tête de liste), et `panel-bg` en
   lecture. Trois couleurs du thème déjà réglables : pas de réglage propre.
-  ⚠️ Jusqu'en 1.5.1 la balise valait `#201f1b` en dur — la barre des
+  ⚠️ Jusqu'en 1.6.0 la balise valait `#201f1b` en dur — la barre des
   serveurs, **masquée par défaut sur mobile** — d'où une barre noire sur un
   en-tête clair (discussion #19, vue sur l'émulateur Android 17) ; et
   `ReadingPane` la passait à l'accent en lecture, « pour Safari ». Décision
@@ -1338,7 +1338,7 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   grâce du fond de `BottomSheet`, où le geste d'ouverture ne doit pas refermer.
   Le réglage `confirmMarkAllRead` la gouverne : désactivé, un clic agit
   immédiatement, exactement comme avant.
-- **Sous le filtre Non lus, « Tout lu » vide la vue** (1.5.1, discussion #19) :
+- **Sous le filtre Non lus, « Tout lu » vide la vue** (1.6.0, discussion #19) :
   l'état « Tout est lu » apparaît aussitôt, avec son bouton « Afficher tous
   les articles ». Avant, les lignes restaient à l'écran, passées lues, et il
   fallait tirer pour rafraîchir — alors que le ✓ d'une seule ligne la retire
@@ -2108,7 +2108,7 @@ images consultés restent lisibles sans réseau.
 - **Le bandeau « Hors ligne » est une rangée de la coquille**, montée dans
   `App.tsx` sous la bande safe-area (les trois dispositions) : il pousse
   l'en-tête vers le bas. ⚠️ Il a été `position: fixed; top: 0` jusqu'en
-  1.5.1 : sur Android, sans safe-area où se loger, il recouvrait l'en-tête
+  1.6.0 : sur Android, sans safe-area où se loger, il recouvrait l'en-tête
   mobile en entier (mesuré à 320 px : 44 px sur 44, recherche et filtres
   invisibles — discussion #19). « Cliquable au travers » ne sauvait rien :
   on ne clique pas ce qu'on ne voit pas. `OfflineBanner.test.tsx` vérifie
