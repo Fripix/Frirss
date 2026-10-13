@@ -303,6 +303,44 @@ par un lecteur qui lit dans l'ordre de parution.
   qui ne connaissent que l'ordre par défaut — un lecteur en ordre inverse ne
   profite pas du cache chaud du worker.
 
+### Visibilité par flux (réglage FreshRSS)
+FreshRSS règle, par flux, où il apparaît : *flux principal*, *sa catégorie
+seulement*, *sa propre vue seulement*, ou *caché*. FriRSS honore ce réglage
+dans ses vues d'accueil (Tous les flux / Non lus) **sans réglage propre** :
+c'est celui de FreshRSS qui fait foi, comme dans l'interface de FreshRSS.
+Demandé dans la discussion #18.
+
+- **Où** : `src/lib/mainStream.ts` — `homeStreamId()` (le flux de l'accueil),
+  `inMainStream()`, `homeUnreadTotal()` (le badge) ; `Subscription.priority`
+  lu depuis `frss:priority` dans `src/api/feeds.ts` ; `viewFeedIds()`
+  (`src/lib/newArticles.ts`) pour le bandeau « N nouveaux » ; `server/worker.ts`
+- **Deux flux greader, pas un filtre local.** `reading-list` = « tout sauf
+  caché ». `user/-/state/org.freshrss/main` (FreshRSS **1.28+**) = « ce qui a
+  demandé le flux principal » (priorités `main` et `important`). L'accueil
+  charge ce second flux : pages, filtre Non lus, recherche, continuation.
+- **Les écritures suivent le même flux — c'est le point qui compte.** « Tout
+  lu » sur l'accueil vise `org.freshrss/main`, que FreshRSS borne par la
+  priorité : un flux « catégorie seulement » n'est jamais marqué lu depuis
+  Tous les flux. « Au-dessus / en dessous » lit ses identifiants
+  (`stream/items/ids`) et envoie sa borne sur ce même flux. L'instantané
+  d'annulation aussi. Tout passe par `resolveSearchStreamId(…, subscriptions)`
+  ou `homeStreamId()` : ne jamais réécrire `reading-list` en dur.
+- **Le badge de l'accueil** n'additionne que les flux du flux principal
+  (`homeUnreadTotal`) ; avant, il additionnait tout et promettait des
+  articles que la liste ne montrait pas.
+- **Repli automatique, FreshRSS < 1.28** : aucun abonnement ne porte de
+  priorité → `reading-list` partout, comportement inchangé. La détection se
+  fait sur les abonnements, pas sur un numéro de version ; les flux cachés ne
+  sont pas renvoyés du tout par l'API, à aucune version.
+- **Ce qui ne suit pas la visibilité, à dessein** : les vues de catégorie
+  (FreshRSS y inclut ses flux « catégorie seulement », comme chez lui),
+  Favoris et À lire plus tard (des sélections transversales, pas des flux).
+- **Worker de cache** : préchauffe `org.freshrss/main` *et* `reading-list`,
+  ne sachant pas la version du serveur ; le flux inconnu répond 400 et est
+  sauté.
+- **Pas de marqueur dans la barre latérale** pour les flux hors flux principal
+  — à ajouter si le besoin se montre.
+
 ### Adaptation aux formats
 `useBreakpoint()` renvoie `mobile` / `tablet` / `desktop`. Sur mobile, navigation
 par onglets et pile de vues ; un basculement manuel permet à une tablette

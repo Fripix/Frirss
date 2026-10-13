@@ -1,4 +1,6 @@
 import type { Filter } from '../types';
+import { inMainStream } from './mainStream';
+import type { FeedPriority } from '../types';
 
 /**
  * Pastille « N nouveaux articles » (discussion #14) : quels flux comptent pour
@@ -22,11 +24,13 @@ const LABEL_PREFIX = 'user/-/label/';
  */
 export function viewFeedIds(
   view: ViewDescriptor,
-  subscriptions: ReadonlyArray<{ id: string; categories?: ReadonlyArray<{ id: string }> }>,
+  subscriptions: ReadonlyArray<{ id: string; priority?: FeedPriority; categories?: ReadonlyArray<{ id: string }> }>,
 ): string[] | null {
   if (view.searching) return null;
   if (view.filter === 'starred' || view.filter === 'readlater') return null;
-  if (view.feedId === null) return subscriptions.map((s) => s.id);
+  // The home view shows the main stream only: a feed FreshRSS keeps in its
+  // category must not count as an arrival "in view".
+  if (view.feedId === null) return subscriptions.filter(inMainStream).map((s) => s.id);
   if (view.feedId.startsWith('feed/')) return [view.feedId];
   if (view.feedId.startsWith(LABEL_PREFIX)) {
     const ids = subscriptions

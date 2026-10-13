@@ -59,3 +59,23 @@ describe('countNewInView', () => {
     expect(countNewInView({ 'feed/A': 2 }, [])).toBe(0);
   });
 });
+
+describe('viewFeedIds — visibilité FreshRSS', () => {
+  it("sur l'accueil, écarte les flux limités à leur catégorie ou à leur propre vue", () => {
+    const subs = [
+      { id: 'feed/A', priority: 'main' as const },
+      { id: 'feed/B', priority: 'category' as const },
+      { id: 'feed/C', priority: 'feed' as const },
+      { id: 'feed/D', priority: 'important' as const },
+    ];
+    expect(viewFeedIds({ feedId: null, filter: 'all', searching: false }, subs)).toEqual(['feed/A', 'feed/D']);
+  });
+
+  it('dans une catégorie, garde ses flux « catégorie seulement »', () => {
+    const subs = [
+      { id: 'feed/A', priority: 'main' as const, categories: [{ id: 'user/-/label/X' }] },
+      { id: 'feed/B', priority: 'category' as const, categories: [{ id: 'user/-/label/X' }] },
+    ];
+    expect(viewFeedIds({ feedId: 'user/-/label/X', filter: 'all', searching: false }, subs)).toEqual(['feed/A', 'feed/B']);
+  });
+});

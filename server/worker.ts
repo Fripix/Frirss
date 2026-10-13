@@ -19,11 +19,17 @@ const BASE = '/api/greader.php/reader/api/0';
 const XT_READ = 'user%2F-%2Fstate%2Fcom.google%2Fread'; // URLSearchParams-encoded
 
 // Exactly the URLs the client builds for the global views (keys must match).
+// The home view is `org.freshrss/main` on FreshRSS 1.28+ (feed visibility
+// honoured) and `reading-list` before that; the worker cannot tell which one
+// a user's server is, so it warms both — the unknown stream answers 400 on an
+// old server and is simply skipped below.
 function streamTargets(serverUrl: string): string[] {
   const root = `${serverUrl}${BASE}/stream/contents`;
   return [
-    `${root}/user/-/state/com.google/reading-list?output=json&n=${N}`,               // All
-    `${root}/user/-/state/com.google/reading-list?output=json&n=${N}&xt=${XT_READ}`, // Unread
+    `${root}/user/-/state/org.freshrss/main?output=json&n=${N}`,                     // All (1.28+)
+    `${root}/user/-/state/org.freshrss/main?output=json&n=${N}&xt=${XT_READ}`,       // Unread (1.28+)
+    `${root}/user/-/state/com.google/reading-list?output=json&n=${N}`,               // All (older)
+    `${root}/user/-/state/com.google/reading-list?output=json&n=${N}&xt=${XT_READ}`, // Unread (older)
     `${root}/user/-/state/com.google/starred?output=json&n=${N}`,                    // Starred
   ];
 }

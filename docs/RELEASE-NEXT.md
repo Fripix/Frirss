@@ -27,6 +27,15 @@ la release publiée.
   cache serveur. « Marquer au-dessus / en dessous » suit l'ordre affiché : en
   liste inversée, « au-dessus » désigne bien les plus anciens. Demandé dans
   l'issue #20.
+- **La visibilité par flux de FreshRSS est honorée.** Un flux réglé « afficher
+  dans sa catégorie seulement » (ou dans sa propre vue seulement) ne paraît
+  plus dans Tous les flux / Non lus, et son compte ne gonfle plus le badge.
+  L'accueil charge le flux `org.freshrss/main` de FreshRSS 1.28+ au lieu de
+  `reading-list` ; « Tout lu », « au-dessus / en dessous », la recherche et
+  l'annulation visent ce même flux, donc un flux de catégorie n'est jamais
+  marqué lu depuis l'accueil. Aucun réglage FriRSS : celui de FreshRSS fait
+  foi. Un FreshRSS plus ancien ne change pas de comportement. Demandé dans la
+  discussion #18.
 
 ## Corrections et améliorations
 

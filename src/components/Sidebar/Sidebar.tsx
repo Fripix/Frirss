@@ -7,6 +7,7 @@ import { clampToViewport } from '../../lib/clampToViewport';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import type { ArticleOrder } from '../../lib/effectiveOrder';
+import { homeUnreadTotal } from '../../lib/mainStream';
 import { homeEntryActive } from '../../lib/unreadScope';
 import { useThemeStore } from '../../stores/themeStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -150,12 +151,9 @@ export default function Sidebar() {
       .filter((cat) => cat.feeds.length > 0);
   }, [categories, hideReadFeeds, organizeMode, unreadCounts, selectedFeed]);
 
-  const totalUnread = useMemo(() => {
-    return Object.entries(unreadCounts).reduce((sum, [key, count]) => {
-      if (subscriptions.some((s) => s.id === key)) return sum + count;
-      return sum;
-    }, 0);
-  }, [unreadCounts, subscriptions]);
+  // Only the feeds the home view shows: a feed FreshRSS keeps in its category
+  // must not swell a badge the list cannot honour.
+  const totalUnread = useMemo(() => homeUnreadTotal(unreadCounts, subscriptions), [unreadCounts, subscriptions]);
 
   function toggleCategory(catId: string) {
     toggleCategoryCollapsed(catId);

@@ -1,5 +1,6 @@
 import client from './client';
 import type { ArticleOrder } from '../lib/effectiveOrder';
+import type { FeedPriority } from '../types';
 import { isStaleWriteTokenFailure } from '../lib/writeTokenRetry';
 import { entryIdUsec, isOlderEntry } from '../lib/entryId';
 import type { Subscription, Tag, UnreadCount, GReaderItem, GReaderStream } from '../types';
@@ -7,11 +8,18 @@ import { UNDO_PAGE, UNDO_PAGES } from '../lib/markAllRead';
 
 const BASE = '/api/greader.php/reader/api/0';
 
+const FEED_PRIORITIES: ReadonlySet<string> = new Set(['important', 'main', 'category', 'feed']);
+
 export async function getSubscriptionList(): Promise<Subscription[]> {
-  const { data } = await client.get<{ subscriptions?: Subscription[] }>(`${BASE}/subscription/list`, {
+  type RawSubscription = Subscription & { 'frss:priority'?: unknown };
+  const { data } = await client.get<{ subscriptions?: RawSubscription[] }>(`${BASE}/subscription/list`, {
     params: { output: 'json' },
   });
-  return data.subscriptions || [];
+  // FreshRSS 1.28+ names each feed's visibility (`frss:priority`); an older
+  // server leaves the field out, and so do we — see `src/lib/mainStream.ts`.
+  return (data.subscriptions || []).map(({ 'frss:priority': raw, ...sub }) =>
+    typeof raw === 'string' && FEED_PRIORITIES.has(raw) ? { ...sub, priority: raw as FeedPriority } : sub,
+  );
 }
 
 export async function getTagList(): Promise<Tag[]> {

@@ -37,6 +37,13 @@ export interface FeedCategory {
   label?: string;
 }
 
+/**
+ * FreshRSS per-feed visibility (`frss:priority` in subscription/list, 1.28+).
+ * `main` and `important` show in the home view; `category` only inside its
+ * category; `feed` only in its own view. Hidden feeds are never returned.
+ */
+export type FeedPriority = 'important' | 'main' | 'category' | 'feed';
+
 export interface Subscription {
   id: string;
   title: string;
@@ -44,6 +51,8 @@ export interface Subscription {
   htmlUrl?: string;
   iconUrl?: string;
   categories?: FeedCategory[];
+  /** Absent on a FreshRSS that predates the field — see `src/lib/mainStream.ts`. */
+  priority?: FeedPriority;
 }
 
 export interface UnreadCount {

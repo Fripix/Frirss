@@ -33,6 +33,7 @@ import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
+import { homeStreamId, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut } from '../lib/offlineStore';
@@ -203,10 +204,11 @@ async function fetchArticleStream(
   if (filter === 'readlater') {
     return getStreamContents(READ_LATER_LABEL, count, continuation, null, { cacheOnly, order });
   }
-  // Specific feed or the global reading-list
+  // Specific feed, or the home view — the main stream when FreshRSS knows
+  // about feed visibility, the whole reading-list otherwise.
   const streamId = selectedFeed
     ? selectedFeed.id
-    : 'user/-/state/com.google/reading-list';
+    : homeStreamId(useFeedStore.getState().subscriptions);
   // Server-side filtering: exclude read items when showing unread only
   const excludeTag = filter === 'unread' ? 'user/-/state/com.google/read' : null;
   const result = await getStreamContents(streamId, count, continuation, excludeTag, { cacheOnly, order });
@@ -249,16 +251,21 @@ export const isCategoryStreamId = (id?: string | null): boolean =>
   !!id && id.startsWith('user/-/label/');
 
 const STARRED_STREAM = 'user/-/state/com.google/starred';
-const READING_LIST_STREAM = 'user/-/state/com.google/reading-list';
 
 // The Google Reader stream a search should be scoped to, matching the current
 // view: the selected feed/category, else the active filter's stream, else the
 // whole reading-list (the "all feeds" view — search everywhere).
-export function resolveSearchStreamId(selectedFeed: Subscription | null, filter: Filter): string {
+export function resolveSearchStreamId(
+  selectedFeed: Subscription | null,
+  filter: Filter,
+  subscriptions: readonly Subscription[] = [],
+): string {
   if (filter === 'readlater') return READ_LATER_LABEL;
   if (filter === 'starred' && !selectedFeed) return STARRED_STREAM;
   if (selectedFeed) return selectedFeed.id;
-  return READING_LIST_STREAM;
+  // Home: the same stream the list is loaded from, so a search, a range
+  // mark and "mark all" never reach a feed the home view does not show.
+  return subscriptions.length ? homeStreamId(subscriptions) : READING_LIST_STREAM;
 }
 function memGet(key: string): CachedView | undefined {
   return memCache.get(key);
@@ -1517,7 +1524,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       return get().loadArticles();
     }
     const { selectedFeed, filter } = get();
-    const streamId = resolveSearchStreamId(selectedFeed, filter);
+    const streamId = resolveSearchStreamId(selectedFeed, filter, get().subscriptions);
     const serverId = String(useAuthStore.getState().activeServerId ?? '');
     scanTerms = parseQuery(trimmed);
     const token = ++scanToken;
@@ -1575,7 +1582,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       await scanOffline(set, get, selectedFeed, filter);
       return;
     }
-    const streamId = resolveSearchStreamId(selectedFeed, filter);
+    const streamId = resolveSearchStreamId(selectedFeed, filter, get().subscriptions);
     const serverId = String(useAuthStore.getState().activeServerId ?? '');
     // Le corpus gardé peut appartenir à un autre périmètre que celui d'à
     // présent (flux ou serveur changés pendant la panne) : sa continuation ne
@@ -1616,17 +1623,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
    * le relevé est simplement abandonné — il n'a rien écrit.
    */
   prepareMarkAllUndo: () => {
-    const { selectedFeed } = get();
-    const streamId = selectedFeed ? selectedFeed.id : 'user/-/state/com.google/reading-list';
+    const { selectedFeed, subscriptions } = get();
+    const streamId = selectedFeed ? selectedFeed.id : homeStreamId(subscriptions);
     undoSnapshot = { streamId, ids: snapshotUnread(streamId) };
   },
 
   // Mark all as read
   markAllAsRead: async () => {
-    const { selectedFeed } = get();
+    const { selectedFeed, subscriptions } = get();
+    // Home: the main stream, which FreshRSS bounds by feed visibility too —
+    // a feed kept in its category is not marked read from "All feeds".
     const streamId = selectedFeed
       ? selectedFeed.id
-      : 'user/-/state/com.google/reading-list';
+      : homeStreamId(subscriptions);
     // Relevé AVANT l'appel : `mark-all-as-read` ne rend pas ce qu'il a touché,
     // et seuls les articles non lus à cet instant doivent pouvoir redevenir
     // non lus. Un échec ou un plafond atteint ne retient pas l'action — ils
@@ -1723,7 +1732,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   markReadRelative: async (article: Article, direction: 'above' | 'below') => {
     const { selectedFeed, filter, articles } = get();
     if (!canMarkAllRead(filter)) return;
-    const streamId = resolveSearchStreamId(selectedFeed, filter);
+    const streamId = resolveSearchStreamId(selectedFeed, filter, get().subscriptions);
     const bound = { direction, articleId: article.id };
     const touche = (a: Article) => (direction === 'below'
       ? isOlderEntry(a.id, article.id)
