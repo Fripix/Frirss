@@ -357,6 +357,16 @@ Demandé dans la discussion #18.
   l'avait laissé intact : le badge mentait jusqu'au relevé suivant. Elle ne
   touche plus que `mainStreamFeedIds()` ; les clés dérivées (étiquettes,
   total) attendent le relevé de la minute. Vu en vrai le 2026-10-13.
+- **Piège — le démarrage.** La vue restaurée à l'ouverture était choisie
+  AVANT que les abonnements soient là : `resolveSearchStreamId(…, [])` retombe
+  sur `reading-list`, et les flux « catégorie seulement » s'affichaient à
+  l'accueil jusqu'au premier clic (vu le 2026-10-14 sur dev, Zoomit présent
+  après rechargement, absent après un clic sur Non lus). L'effet de démarrage
+  (`App.tsx`) attend maintenant `restoreSubscriptionsSnapshot()` — l'instantané
+  hors-ligne des abonnements, lecture locale de quelques millisecondes, qui
+  porte les priorités — avant de sélectionner la vue. Un tout premier
+  lancement sans instantané part encore sur `reading-list` ; le chargement
+  direct des abonnements suit, et le lancement suivant est juste.
 - **Repli automatique, FreshRSS < 1.28** : aucun abonnement ne porte de
   priorité → `reading-list` partout, comportement inchangé. La détection se
   fait sur les abonnements, pas sur un numéro de version ; les flux cachés ne

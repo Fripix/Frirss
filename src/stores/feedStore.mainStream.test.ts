@@ -38,6 +38,7 @@ vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));
 import { useFeedStore, resolveSearchStreamId } from './feedStore';
 import { useUiStore } from './uiStore';
 import * as api from '../api/feeds';
+import * as offline from '../lib/offlineStore';
 
 const MAIN = 'user/-/state/org.freshrss/main';
 const READING_LIST = 'user/-/state/com.google/reading-list';
@@ -82,6 +83,25 @@ describe('feedStore — accueil et visibilité FreshRSS', () => {
     await useFeedStore.getState().markAllAsRead();
     expect(useFeedStore.getState().unreadCounts['feed/1']).toBe(0);
     expect(useFeedStore.getState().unreadCounts['feed/2']).toBe(5);
+  });
+
+  it("au démarrage, l'instantané hors-ligne des abonnements décide du flux avant le premier chargement", async () => {
+    // Vu le 14.10 sur dev : la vue restaurée partait sur reading-list parce que
+    // les abonnements n'étaient pas encore là, et les flux « catégorie
+    // seulement » s'affichaient à l'accueil jusqu'au premier clic.
+    useFeedStore.setState({ subscriptions: [] });
+    vi.mocked(offline.subsGet).mockResolvedValueOnce(modern);
+    await useFeedStore.getState().restoreSubscriptionsSnapshot();
+    expect(useFeedStore.getState().subscriptions).toEqual(modern);
+    await useFeedStore.getState().selectView(null, 'unread');
+    expect(streamOf(0)).toBe(MAIN);
+  });
+
+  it("l'instantané ne remplace jamais des abonnements déjà chargés", async () => {
+    useFeedStore.setState({ subscriptions: legacy });
+    vi.mocked(offline.subsGet).mockResolvedValueOnce(modern);
+    await useFeedStore.getState().restoreSubscriptionsSnapshot();
+    expect(useFeedStore.getState().subscriptions).toEqual(legacy);
   });
 
   it('la recherche sur l’accueil suit le même flux', () => {

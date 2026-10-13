@@ -568,6 +568,13 @@ export interface FeedState {
   selectCategory: (cat: FeedCategory) => void;
   selectArticle: (article: Article | null) => void;
   loadSubscriptions: () => Promise<void>;
+  /**
+   * Instant paint from the offline snapshot of the subscriptions (structure
+   * only; counts arrive with the live load). Resolves once applied, so the
+   * startup view can be chosen with the feeds' visibility known — the home
+   * stream depends on it (`homeStreamId`). Never clobbers loaded data.
+   */
+  restoreSubscriptionsSnapshot: () => Promise<void>;
   loadSpecialCounts: () => Promise<void>;
   loadArticles: () => Promise<void>;
   loadMore: () => Promise<void>;
@@ -895,19 +902,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     });
   },
 
-  loadSubscriptions: async () => {
-    // Instant paint from the offline snapshot (structure only; counts arrive
-    // with the live load) so the sidebar isn't blank while FreshRSS responds —
-    // stale-while-revalidate. Guarded so it never clobbers already-loaded data.
-    if (get().subscriptions.length === 0) {
-      subsGet()
-        .then((snap) => {
-          if (snap?.length && get().subscriptions.length === 0) {
-            set({ subscriptions: snap });
-          }
-        })
-        .catch(() => {});
+  restoreSubscriptionsSnapshot: async () => {
+    if (get().subscriptions.length > 0) return;
+    try {
+      const snap = await subsGet();
+      if (snap?.length && get().subscriptions.length === 0) set({ subscriptions: snap });
+    } catch {
+      // No snapshot (first launch, blocked storage): the live load fills in.
     }
+  },
+
+  loadSubscriptions: async () => {
+    // Stale-while-revalidate: the snapshot paints the sidebar while FreshRSS
+    // responds. Not awaited here — the startup effect awaits it itself,
+    // before choosing the view (see `restoreSubscriptionsSnapshot`).
+    void get().restoreSubscriptionsSnapshot();
     set({ syncing: true });
     try {
       const [subs, counts] = await Promise.all([

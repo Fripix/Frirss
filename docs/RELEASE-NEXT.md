@@ -33,9 +33,9 @@ la release publiée.
   L'accueil charge le flux `org.freshrss/main` de FreshRSS 1.28+ au lieu de
   `reading-list` ; « Tout lu », « au-dessus / en dessous », la recherche et
   l'annulation visent ce même flux, donc un flux de catégorie n'est jamais
-  marqué lu depuis l'accueil. Aucun réglage FriRSS : celui de FreshRSS fait
-  foi. Un FreshRSS plus ancien ne change pas de comportement. Demandé dans la
-  discussion #18.
+  marqué lu depuis l'accueil, y compris sur la vue restaurée à l'ouverture.
+  Aucun réglage FriRSS : celui de FreshRSS fait foi. Un FreshRSS plus ancien
+  ne change pas de comportement. Demandé dans la discussion #18.
 - **Vue à l'ouverture.** Préférences → Général : *Dernière vue* (défaut, le
   comportement d'avant), *Tous les flux* ou *Non lus* — toujours cette vue au
   lancement et au rechargement, quoi qu'on ait consulté avant. Demandé dans

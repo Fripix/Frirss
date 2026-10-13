@@ -199,18 +199,25 @@ export default function App() {
     // view counts as "restored" so the unread-scope reconcile below leaves it.
     const action = startupAction(useUiStore.getState().startupView, loadLastView(useAuthStore.getState().activeServerId));
     const fs = useFeedStore.getState();
-    if (action.kind === 'restore') {
-      restoredViewRef.current = true;
-      fs.selectView(action.view.feed, action.view.filter);
-    } else if (action.kind === 'home-all') {
-      restoredViewRef.current = true;
-      fs.selectHomeAll();
-    } else if (action.kind === 'home-unread') {
-      restoredViewRef.current = true;
-      fs.selectView(null, 'unread');
-    } else {
-      loadArticles();
-    }
+    if (action.kind !== 'default') restoredViewRef.current = true;
+    // The home stream depends on the feeds' visibility (`homeStreamId`), which
+    // only the subscriptions carry. Choosing the view before the offline
+    // snapshot was applied sent the restored home view to `reading-list`:
+    // feeds set to "category only" showed up until the first click (seen on
+    // dev, 2026-10-14). The snapshot is a local read — a few milliseconds.
+    let cancelled = false;
+    fs.restoreSubscriptionsSnapshot().then(() => {
+      if (cancelled) return;
+      if (action.kind === 'restore') {
+        fs.selectView(action.view.feed, action.view.filter);
+      } else if (action.kind === 'home-all') {
+        fs.selectHomeAll();
+      } else if (action.kind === 'home-unread') {
+        fs.selectView(null, 'unread');
+      } else {
+        loadArticles();
+      }
+    });
     const timers: ReturnType<typeof setTimeout>[] = [];
     // Warm the offline cache (favorites + read-later) in the background,
     // a few seconds after the initial load so it doesn't compete for bandwidth.
@@ -226,7 +233,10 @@ export default function App() {
         timers.push(setTimeout(() => useFeedStore.getState().prepareOffline(), 8000));
       }
     }
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
   }, [isAuthenticated, loadSubscriptions, loadArticles]);
 
   // ── Hydrate logical preferences from the backend (per-user sync) ──
