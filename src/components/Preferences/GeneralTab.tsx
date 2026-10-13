@@ -15,6 +15,8 @@ export default function GeneralTab() {
   const setShowNewArticlesPill = useUiStore((s) => s.setShowNewArticlesPill);
   const unreadOnlyScope = useUiStore((s) => s.unreadOnlyScope);
   const setUnreadOnlyScope = useUiStore((s) => s.setUnreadOnlyScope);
+  const startupView = useUiStore((s) => s.startupView);
+  const setStartupView = useUiStore((s) => s.setStartupView);
   const articleOrder = useUiStore((s) => s.articleOrder);
   const setArticleOrder = useUiStore((s) => s.setArticleOrder);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
@@ -130,6 +132,46 @@ export default function GeneralTab() {
                   role="radio"
                   aria-checked={selected}
                   onClick={() => setUnreadOnlyScope(opt.scope, useFeedStore.getState().selectedFeed?.id ?? '')}
+                  className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                  style={{
+                    background: selected ? 'var(--accent)' : 'transparent',
+                    color: selected ? 'var(--on-accent)' : 'var(--list-title)',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* What opens at launch: the last view, or always a home entry */}
+        <div className="select-none mt-4">
+          <span className="text-xs block" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.general.startupView')}
+            <span className="block text-[11px] opacity-70 mt-0.5">
+              {t('preferences.general.startupViewHint')}
+            </span>
+          </span>
+          <div
+            className="flex gap-1 p-0.5 rounded-lg mt-2"
+            role="radiogroup"
+            aria-label={t('preferences.general.startupView')}
+            style={{ background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' }}
+          >
+            {([
+              { view: 'last', label: t('preferences.general.startupViewLast') },
+              { view: 'all', label: t('sidebar.allFeeds') },
+              { view: 'unread', label: t('sidebar.unread') },
+            ] as const).map((opt) => {
+              const selected = startupView === opt.view;
+              return (
+                <button
+                  key={opt.view}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setStartupView(opt.view)}
                   className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
                   style={{
                     background: selected ? 'var(--accent)' : 'transparent',

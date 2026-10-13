@@ -263,6 +263,27 @@ globale, mais surchargeable **par flux**.
   (surcharge du flux ?? global), jamais en lisant `panelLayout` directement
 - **Spec** : `docs/superpowers/specs/2026-08-18-grid-view-design.md`
 
+### Vue à l'ouverture
+Ce que FriRSS ouvre au lancement et au rechargement : **Dernière vue**
+(défaut — la vue quittée sur ce serveur, `lastView.ts`, locale à l'appareil),
+**Tous les flux** ou **Non lus**, toujours. Préférences → Général, synchronisé.
+Demandé dans la discussion #19 par un lecteur qui ne veut pas rétablir le
+filtre Non lus à chaque ouverture.
+
+- **Où** : `src/lib/startupView.ts` (`normalizeStartupView`, `startupAction`,
+  testés), `uiStore.startupView`, le premier effet de démarrage d'`App.tsx`,
+  `GeneralTab.tsx`
+- **Une vue choisie compte comme « restaurée »** (`restoredViewRef`) : sans
+  quoi le réconciliateur de portée du filtre Non lus, qui tourne après la
+  synchronisation des préférences, la renverserait. « Tous les flux » appelle
+  `selectHomeAll()` et « Non lus » `selectView(null, 'unread')` — exactement
+  les deux entrées de la barre latérale, pour que l'état d'accueil
+  (`homeEntry`, surlignage) soit le même qu'après un clic.
+- **La dernière vue reste enregistrée** quel que soit le réglage : repasser à
+  « Dernière vue » rouvre bien la vue quittée.
+- Favoris et À lire plus tard ne sont pas proposés : non demandés, faciles à
+  ajouter.
+
 ### Ordre des articles
 Plus récents d'abord (défaut) ou **plus anciens d'abord**. Réglage global dans
 Préférences → Général (synchronisé), surchargeable **par flux** depuis le menu

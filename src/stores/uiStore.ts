@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { normalizeArticleOrder, type ArticleOrder } from '../lib/effectiveOrder';
+import { normalizeStartupView, type StartupView } from '../lib/startupView';
 import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
@@ -222,6 +223,10 @@ export interface UiState {
   // full text opts in (discussion #19). Resolve through effectiveAutoExtract().
   autoExtractDefault: boolean;
   setAutoExtractDefault: (on: boolean) => void;
+  // What opens at launch and on reload: the last view (historical default),
+  // or always one of the two home entries. Synced. See src/lib/startupView.ts.
+  startupView: StartupView;
+  setStartupView: (v: StartupView) => void;
   /** Set (or clear, with '') this feed's layout override. */
   setFeedLayout: (feedId: string, layout: string) => void;
   // Order of the article list. Synced: "I read the oldest first" is a habit,
@@ -603,6 +608,11 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'autoExtract', value) }));
   },
   autoExtractDefault: loadJson<boolean>('frirss_autoExtractDefault', false) === true,
+  startupView: normalizeStartupView(loadJson('frirss_startupView', 'last')),
+  setStartupView: (v) => {
+    localStorage.setItem('frirss_startupView', JSON.stringify(v));
+    set({ startupView: v });
+  },
   setAutoExtractDefault: (on) => {
     localStorage.setItem('frirss_autoExtractDefault', JSON.stringify(on));
     set({ autoExtractDefault: on });
@@ -752,7 +762,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
-      'rowActions', 'articleOrder', 'autoExtractDefault',
+      'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -762,6 +772,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'rowActions' ? normalizeRowActions(prefs[k])
           : k === 'unreadOnlyScope' ? normalizeUnreadScope(prefs[k])
           : k === 'articleOrder' ? normalizeArticleOrder(prefs[k])
+          : k === 'startupView' ? normalizeStartupView(prefs[k])
           // A non-boolean (older or foreign client) leaves the current value alone.
           : k === 'autoExtractDefault' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().autoExtractDefault)
           : k === 'unreadOnlyAll' ? prefs[k] === true
@@ -795,7 +806,7 @@ export const UI_SYNC_KEYS = [
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
-  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault',
+  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

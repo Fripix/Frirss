@@ -10,6 +10,7 @@ import { useAndroidBack } from './hooks/useAndroidBack';
 import { hydrateExtractCache } from './lib/extractCache';
 import { hydratePrefs, stopSync } from './lib/prefsSync';
 import { saveLastView, loadLastView } from './lib/lastView';
+import { startupAction } from './lib/startupView';
 import Login from './components/Login/Login';
 import LoginTransition from './components/Login/LoginTransition';
 import Sidebar from './components/Sidebar/Sidebar';
@@ -189,11 +190,20 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
     loadSubscriptions();
-    // Resume the last view (feed/label + filter) for this server, if any.
-    const saved = loadLastView(useAuthStore.getState().activeServerId);
-    if (saved) {
+    // Open on the view the user asked for: the last one left on this server
+    // (historical default), or always a home entry (discussion #19). A chosen
+    // view counts as "restored" so the unread-scope reconcile below leaves it.
+    const action = startupAction(useUiStore.getState().startupView, loadLastView(useAuthStore.getState().activeServerId));
+    const fs = useFeedStore.getState();
+    if (action.kind === 'restore') {
       restoredViewRef.current = true;
-      useFeedStore.getState().selectView(saved.feed, saved.filter);
+      fs.selectView(action.view.feed, action.view.filter);
+    } else if (action.kind === 'home-all') {
+      restoredViewRef.current = true;
+      fs.selectHomeAll();
+    } else if (action.kind === 'home-unread') {
+      restoredViewRef.current = true;
+      fs.selectView(null, 'unread');
     } else {
       loadArticles();
     }
