@@ -1994,7 +1994,7 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
     expect(useFeedStore.getState().loading).toBe(false);
   });
 
-  it('loads recent unread articles from one global stream and filters to eligible feeds', async () => {
+  it('fetches articles directly from eligible feeds only', async () => {
     vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: true, feedIds: ['feed/one'] });
     const nowSeconds = Math.floor(Date.now() / 1000);
     vi.mocked(api.getStreamContents).mockResolvedValueOnce({
@@ -2017,8 +2017,8 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
 
     expect(api.getStreamContents).toHaveBeenCalledTimes(1);
     expect(api.getStreamContents).toHaveBeenCalledWith(
-      'user/-/state/com.google/reading-list',
-      25,
+      'feed/one',
+      expect.any(Number),
       null,
       'user/-/state/com.google/read',
       { signal: expect.any(AbortSignal) },

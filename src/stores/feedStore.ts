@@ -322,47 +322,42 @@ async function fetchInfrequentArticles(
     }
   }
 
-  // Fetch the global unread stream once instead of querying up to three pages
-  // for every eligible feed. FreshRSS orders this stream newest-first, so we
-  // can stop as soon as we reach the 90-day cutoff and retain only eligible
-  // sources. Small pages keep each response bounded; this is still a scan,
-  // but it no longer downloads tens of megabytes in one request.
+  // Fetch articles directly from the feeds classified as infrequent.
+  // Do not use the global unread stream here: its origin metadata can differ
+  // from feed IDs, allowing unrelated sources into this view.
   if (eligible.length === 0 || !shouldContinue()) return [];
 
-  const eligibleSet = new Set(eligible);
   const articles: Article[] = [];
-  let continuation: string | null = null;
-  try {
-    for (let page = 0; page < 100 && shouldContinue(); page++) {
-      const result = await getStreamContents(
-        'user/-/state/com.google/reading-list',
-        INFREQUENT_SCAN_PAGE_SIZE,
-        continuation,
-        'user/-/state/com.google/read',
-        { signal },
-      );
-      if (!shouldContinue() || signal.aborted) return [];
-      if (!result || !result.items.length) break;
-
-      let reachedCutoff = false;
-      for (const item of result.items) {
-        const published = (item.published || 0) * 1000;
-        if (published && published < cutoff) {
-          reachedCutoff = true;
-          continue;
+  let nextEligible = 0;
+  const articleWorkers = Array.from({ length: Math.min(2, eligible.length) }, async () => {
+    while (nextEligible < eligible.length && shouldContinue()) {
+      const feedId = eligible[nextEligible++];
+      try {
+        let continuation: string | null = null;
+        for (let page = 0; page < 3 && shouldContinue(); page++) {
+          const result = await getStreamContents(
+            feedId,
+            PAGE_SIZE,
+            continuation,
+            'user/-/state/com.google/read',
+            { signal },
+          );
+          if (!shouldContinue() || signal.aborted) return;
+          if (!result || !result.items.length) break;
+          articles.push(...result.items.map(normalizeArticle).filter(
+            (article) => !article.read && article.published >= cutoff && article.sourceId === feedId,
+          ));
+          continuation = result.continuation;
+          if (!continuation || result.items.some((item) => item.published && item.published * 1000 < cutoff)) break;
         }
-        const article = normalizeArticle(item);
-        if (!article.read && article.published >= cutoff && eligibleSet.has(article.sourceId)) {
-          articles.push(article);
-        }
+      } catch (error) {
+        if (!shouldContinue() || signal.aborted) return;
+        console.warn('[FriRSS] infrequent-sites: unread fetch failed:', feedId, error);
       }
-      continuation = result.continuation;
-      if (!continuation || reachedCutoff) break;
     }
-  } catch (error) {
-    if (!shouldContinue() || signal.aborted) return [];
-    console.warn('[FriRSS] infrequent-sites: global unread fetch failed:', error);
-  }
+  });
+  await Promise.all(articleWorkers);
+  if (!shouldContinue()) return [];
   return articles.sort((a, b) => b.published - a.published);
 }
 
