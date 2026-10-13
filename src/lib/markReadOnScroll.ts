@@ -43,3 +43,12 @@ export function shouldMark(article: Article, pastTop: boolean, seen: Set<string>
   if (!pastTop) return false;
   return seen.has(article.id);
 }
+
+/** True only when the observer has a new, downward user-scroll event to process. */
+export function shouldProcessReadObserver(
+  currentEpoch: number,
+  processedEpoch: number,
+  direction: 'up' | 'down' | null,
+): boolean {
+  return currentEpoch > processedEpoch && direction === 'down';
+}

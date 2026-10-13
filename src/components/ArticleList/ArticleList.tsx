@@ -32,7 +32,7 @@ import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 import { copyLink } from '../../lib/copyLink';
 import { useAuthStore } from '../../stores/authStore';
 import { loadSearchHistory, rememberSearch, forgetSearch } from '../../lib/searchHistory';
-import { scrolledPastTop, shouldMark, MARK_READ_DELAY_MS } from '../../lib/markReadOnScroll';
+import { scrolledPastTop, shouldMark, shouldProcessReadObserver, MARK_READ_DELAY_MS } from '../../lib/markReadOnScroll';
 import { canMorph, withMorph } from '../../lib/viewTransition';
 import { noFocusOnPointer } from '../../lib/pointerFocus';
 import { prefersReducedMotion } from '../../lib/reducedMotion';
@@ -399,9 +399,36 @@ export default function ArticleList() {
     };
   }, [measureOverflow]);
 
+  // Automatic read status must be driven by genuine user scrolling, not by
+  // IntersectionObserver notifications caused by a sort/re-render.
+  const userScrollIntentRef = useRef(false);
+  const userScrollIntentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastScrollTopRef = useRef<number | null>(null);
+  const userScrollEpochRef = useRef(0);
+  const processedScrollEpochRef = useRef(0);
+  const userScrollDirectionRef = useRef<'up' | 'down' | null>(null);
+
+  const noteUserScrollIntent = useCallback(() => {
+    userScrollIntentRef.current = true;
+    if (userScrollIntentTimerRef.current) clearTimeout(userScrollIntentTimerRef.current);
+    userScrollIntentTimerRef.current = setTimeout(() => {
+      userScrollIntentRef.current = false;
+      userScrollIntentTimerRef.current = null;
+    }, 250);
+  }, []);
+
   const handleScroll = useCallback(() => {
     const el = listRef.current;
     if (!el) return;
+    const previousTop = lastScrollTopRef.current;
+    if (previousTop !== null && el.scrollTop !== previousTop && userScrollIntentRef.current) {
+      userScrollDirectionRef.current = el.scrollTop > previousTop ? 'down' : 'up';
+      userScrollEpochRef.current += 1;
+      userScrollIntentRef.current = false;
+      if (userScrollIntentTimerRef.current) clearTimeout(userScrollIntentTimerRef.current);
+      userScrollIntentTimerRef.current = null;
+    }
+    lastScrollTopRef.current = el.scrollTop;
     listScrollMem.set(scrollKeyRef.current, el.scrollTop);
     // Les images qui finissent de charger changent `scrollHeight` sans aucun
     // rendu React : le défilement est la meilleure occasion de se remettre à
@@ -495,9 +522,30 @@ export default function ArticleList() {
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
+    // Seed the baseline after scroll restoration, so mounting a list at a saved
+    // position is not mistaken for user scrolling.
+    lastScrollTopRef.current = el.scrollTop;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) {
+        noteUserScrollIntent();
+      }
+    };
     el.addEventListener('scroll', handleScroll);
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, [handleScroll]);
+    el.addEventListener('wheel', noteUserScrollIntent, { passive: true });
+    el.addEventListener('touchmove', noteUserScrollIntent, { passive: true });
+    el.addEventListener('pointerdown', noteUserScrollIntent, { passive: true });
+    el.addEventListener('keydown', onKeyDown);
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      el.removeEventListener('wheel', noteUserScrollIntent);
+      el.removeEventListener('touchmove', noteUserScrollIntent);
+      el.removeEventListener('pointerdown', noteUserScrollIntent);
+      el.removeEventListener('keydown', onKeyDown);
+      if (userScrollIntentTimerRef.current) clearTimeout(userScrollIntentTimerRef.current);
+      userScrollIntentTimerRef.current = null;
+      userScrollIntentRef.current = false;
+    };
+  }, [handleScroll, noteUserScrollIntent]);
 
   // ── Marquer lu au défilement (optionnel) ──────────────────────────
   // Éteint par défaut. Jamais pendant une recherche : on parcourt alors des
@@ -530,6 +578,15 @@ export default function ArticleList() {
 
     const observer = new IntersectionObserver(
       (entries) => {
+        const scrollEpoch = userScrollEpochRef.current;
+        // Reordering can move previously visible rows above the viewport and
+        // trigger this observer without any scroll. Only one fresh, downward
+        // user-scroll event may authorize a batch of automatic read changes.
+        if (scrollEpoch <= processedScrollEpochRef.current) return;
+        if (!shouldProcessReadObserver(scrollEpoch, processedScrollEpochRef.current, userScrollDirectionRef.current)) {
+          processedScrollEpochRef.current = scrollEpoch;
+          return;
+        }
         for (const entry of entries) {
           const id = (entry.target as HTMLElement).dataset.articleId;
           if (!id) continue;
@@ -558,6 +615,7 @@ export default function ArticleList() {
             if (fresh && !fresh.read) useFeedStore.getState().toggleRead(fresh, { implicit: true });
           }, MARK_READ_DELAY_MS));
         }
+        processedScrollEpochRef.current = scrollEpoch;
       },
       { root, threshold: 0 }
     );

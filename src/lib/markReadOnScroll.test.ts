@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scrolledPastTop, shouldMark, MARK_READ_DELAY_MS } from './markReadOnScroll';
+import { scrolledPastTop, shouldMark, shouldProcessReadObserver, MARK_READ_DELAY_MS } from './markReadOnScroll';
 import type { Article } from '../types';
 
 const article = (over: Partial<Article> = {}): Article => ({
@@ -63,5 +63,20 @@ describe('shouldMark', () => {
 describe('MARK_READ_DELAY_MS', () => {
   it('leaves time to scroll back', () => {
     expect(MARK_READ_DELAY_MS).toBeGreaterThanOrEqual(600);
+  });
+});
+
+describe('shouldProcessReadObserver', () => {
+  it('processes a fresh downward user scroll', () => {
+    expect(shouldProcessReadObserver(2, 1, 'down')).toBe(true);
+  });
+
+  it('ignores observer callbacks without a new scroll event', () => {
+    expect(shouldProcessReadObserver(1, 1, 'down')).toBe(false);
+  });
+
+  it('ignores upward scrolling and sort/re-render observer callbacks', () => {
+    expect(shouldProcessReadObserver(2, 1, 'up')).toBe(false);
+    expect(shouldProcessReadObserver(1, 1, null)).toBe(false);
   });
 });
