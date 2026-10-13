@@ -1988,7 +1988,7 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
     await useFeedStore.getState().loadArticles();
 
     expect(api.getStreamContents).toHaveBeenCalledWith(
-      'feed/one', 100, null, null, { signal: expect.any(AbortSignal) },
+      'feed/one', 25, null, null, { signal: expect.any(AbortSignal) },
     );
     expect(backendApi.saveInfrequentFeedCache).toHaveBeenCalledWith(['feed/one'], []);
     expect(useFeedStore.getState().loading).toBe(false);
@@ -2018,7 +2018,7 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
     expect(api.getStreamContents).toHaveBeenCalledTimes(1);
     expect(api.getStreamContents).toHaveBeenCalledWith(
       'user/-/state/com.google/reading-list',
-      100,
+      25,
       null,
       'user/-/state/com.google/read',
       { signal: expect.any(AbortSignal) },

@@ -241,8 +241,8 @@ function medianInterval(times: number[]): number {
   const mid = Math.floor(intervals.length / 2);
   return intervals.length % 2 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) / 2;
 }
-const INFREQUENT_SCAN_PAGE_SIZE = 100;
-const INFREQUENT_SCAN_MAX_PAGES = 5;
+const INFREQUENT_SCAN_PAGE_SIZE = 25;
+const INFREQUENT_SCAN_MAX_PAGES = 4;
 let infrequentScanController: AbortController | null = null;
 
 async function fetchInfrequentArticles(
@@ -272,7 +272,7 @@ async function fetchInfrequentArticles(
     // Avoid flooding FreshRSS with one request per subscription at once.
     let next = 0;
     let scanHadErrors = false;
-    const workers = Array.from({ length: Math.min(4, subscriptions.length) }, async () => {
+    const workers = Array.from({ length: Math.min(2, subscriptions.length) }, async () => {
       while (next < subscriptions.length && shouldContinue()) {
         const feed = subscriptions[next++];
         try {
