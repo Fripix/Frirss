@@ -109,7 +109,9 @@
     "scanStopped": "Przeszukiwanie zatrzymane",
     "scanOffline": "Offline — wyniki wśród dostępnych artykułów",
     "scanNetworkError": "Utracono połączenie podczas przeszukiwania",
-    "scanRateLimited": "Zbyt wiele żądań — spróbuj ponownie za minutę"
+    "scanRateLimited": "Zbyt wiele żądań — spróbuj ponownie za minutę",
+    "endOfList": "Koniec listy",
+    "endOfListMarkRead": "Oznacz wszystko jako przeczytane"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",

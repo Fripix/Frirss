@@ -1284,6 +1284,19 @@ est marqué lu une seconde après être sorti par le **haut** de la liste.
 - **Jamais pendant une recherche** : on parcourt des résultats, on ne dépile pas
   une file. Le délai d'une seconde laisse le temps de remonter, et revenir à
   l'écran annule la programmation.
+- **Les derniers articles ne sortent jamais par le haut** : au bout d'une
+  liste, on ne défile plus, et ils restaient non lus sans autre recours que la
+  barre d'outils (issue #19, point 5). D'où le **pied de liste** : une fois la
+  dernière page chargée (plus de `continuation`, rien en cours), s'il reste des
+  non-lus parmi les articles chargés — qui SONT alors la vue entière —, une
+  ligne « Fin de la liste » et un bouton « Tout marquer lu » terminent la
+  liste. Le bouton appelle `handleMarkAllRead`, l'action de la barre d'outils :
+  même boîte de confirmation, même Annuler. La décision (`showEndOfListMarkAll`,
+  `src/lib/endOfList.ts`, testée) obéit à `canMarkAllRead` (pas dans Favoris ni
+  À lire plus tard) et se tait pendant une recherche. Le pied s'affiche que le
+  réglage « Marquer lu au défilement » soit actif ou non : il sert dans les deux
+  cas. Le balayage vers le haut proposé dans l'issue a été écarté : au bout
+  d'une liste, c'est le geste normal de défilement.
 
 ### Marquer tout comme lu
 Confirmation optionnelle avant de vider une vue entière, **par une boîte de

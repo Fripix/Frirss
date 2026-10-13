@@ -49,6 +49,14 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **« Tout marquer lu » au bout de la liste.** Avec « Marquer lu au
+  défilement », les derniers articles ne sortaient jamais par le haut et
+  restaient non lus sans autre recours que la barre d'outils (issue #19, point
+  5). Une fois la dernière page chargée, s'il reste des non-lus, la liste se
+  termine par une ligne « Fin de la liste » et un bouton « Tout marquer lu » :
+  la même action que la barre d'outils, confirmation et Annuler compris. Jamais
+  dans Favoris, À lire plus tard, ni pendant une recherche.
+
 - **Le bandeau « Hors ligne » ne recouvre plus l'en-tête.** Fixé en haut de
   l'écran, il masquait sur Android la barre de la liste — titre, recherche,
   filtres — puisqu'aucune safe-area ne l'écartait (discussion #19, capture à

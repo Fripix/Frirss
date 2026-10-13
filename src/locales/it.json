@@ -105,7 +105,9 @@
     "scanStopped": "Scansione interrotta",
     "scanOffline": "Non in linea — risultati tra gli articoli disponibili",
     "scanNetworkError": "Connessione persa durante la scansione",
-    "scanRateLimited": "Troppe richieste — riprova tra un minuto"
+    "scanRateLimited": "Troppe richieste — riprova tra un minuto",
+    "endOfList": "Fine dell'elenco",
+    "endOfListMarkRead": "Segna tutto come letto"
   },
   "articleRow": {
     "markRead": "Segna come letto",

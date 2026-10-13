@@ -105,7 +105,9 @@
     "scanStopped": "Scan stopped",
     "scanOffline": "Offline — results among the available articles",
     "scanNetworkError": "Connection lost during the scan",
-    "scanRateLimited": "Too many requests — try again in a minute"
+    "scanRateLimited": "Too many requests — try again in a minute",
+    "endOfList": "End of the list",
+    "endOfListMarkRead": "Mark all as read"
   },
   "articleRow": {
     "markRead": "Mark as read",

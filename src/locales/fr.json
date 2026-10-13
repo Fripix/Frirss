@@ -105,7 +105,9 @@
     "scanStopped": "Balayage interrompu",
     "scanOffline": "Hors ligne — résultats parmi les articles disponibles",
     "scanNetworkError": "Connexion perdue pendant le balayage",
-    "scanRateLimited": "Trop de requêtes — réessayez dans une minute"
+    "scanRateLimited": "Trop de requêtes — réessayez dans une minute",
+    "endOfList": "Fin de la liste",
+    "endOfListMarkRead": "Tout marquer lu"
   },
   "articleRow": {
     "markRead": "Marquer lu",

@@ -105,7 +105,9 @@
     "scanStopped": "Suchlauf angehalten",
     "scanOffline": "Offline – Ergebnisse aus den verfügbaren Artikeln",
     "scanNetworkError": "Verbindung während des Suchlaufs verloren",
-    "scanRateLimited": "Zu viele Anfragen – in einer Minute erneut versuchen"
+    "scanRateLimited": "Zu viele Anfragen – in einer Minute erneut versuchen",
+    "endOfList": "Ende der Liste",
+    "endOfListMarkRead": "Alle als gelesen markieren"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",

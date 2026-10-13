@@ -105,7 +105,9 @@
     "scanStopped": "Análisis detenido",
     "scanOffline": "Sin conexión — resultados entre los artículos disponibles",
     "scanNetworkError": "Conexión perdida durante el análisis",
-    "scanRateLimited": "Demasiadas solicitudes — inténtalo de nuevo en un minuto"
+    "scanRateLimited": "Demasiadas solicitudes — inténtalo de nuevo en un minuto",
+    "endOfList": "Fin de la lista",
+    "endOfListMarkRead": "Marcar todo como leído"
   },
   "articleRow": {
     "markRead": "Marcar como leído",

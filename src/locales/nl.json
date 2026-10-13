@@ -105,7 +105,9 @@
     "scanStopped": "Zoekactie gestopt",
     "scanOffline": "Offline — resultaten uit de beschikbare artikelen",
     "scanNetworkError": "Verbinding verloren tijdens het doorzoeken",
-    "scanRateLimited": "Te veel aanvragen — probeer het over een minuut opnieuw"
+    "scanRateLimited": "Te veel aanvragen — probeer het over een minuut opnieuw",
+    "endOfList": "Einde van de lijst",
+    "endOfListMarkRead": "Alles als gelezen markeren"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",

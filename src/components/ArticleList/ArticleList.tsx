@@ -6,6 +6,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead, UNDO_CAP } from '../../lib/markAllRead';
+import { showEndOfListMarkAll } from '../../lib/endOfList';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { effectiveOrder, entryDirection } from '../../lib/effectiveOrder';
 import { viewUnreadCount } from '../../lib/mainStream';
@@ -654,6 +655,14 @@ export default function ArticleList() {
   // `canLoadMore` : cliquer dans cette fenêtre perdrait la course contre
   // `loadArticles` et jetterait le travail du clic).
   const loadMoreBusy = !canLoadMore({ hasContinuation, loadingMore, revalidating });
+  const endOfListMarkAll = showEndOfListMarkAll({
+    hasContinuation,
+    loading,
+    loadingMore,
+    searchQuery,
+    filter,
+    articles,
+  });
 
   return (
     <div className="article-list h-full flex flex-col overflow-x-hidden" style={{ background: 'var(--panel-bg)' }}>
@@ -1150,6 +1159,31 @@ export default function ArticleList() {
         {loadingMore && (
           <div className="p-3 text-center text-xs" style={{ color: 'var(--list-summary)' }}>
             {t('articleList.loading')}
+          </div>
+        )}
+        {bodyState === 'rows' && endOfListMarkAll && (
+          /* « Marquer lu au défilement » ne marque qu'à la sortie par le haut :
+             les derniers articles ne sortent jamais. Ce pied leur donne une
+             issue, la même action que la barre d'outils (boîte de confirmation
+             et Annuler compris). Voir `showEndOfListMarkAll`. */
+          <div
+            className="px-6 py-8 text-center flex flex-col items-center gap-3"
+            style={{ borderTop: '1px solid var(--panel-border)' }}
+          >
+            <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
+              {t('articleList.endOfList')}
+            </p>
+            <button
+              onClick={handleMarkAllRead}
+              className="px-3.5 py-2 rounded-full text-xs font-semibold transition-colors"
+              style={{
+                color: 'var(--accent)',
+                background: 'var(--accent-glow)',
+                border: '1.5px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+              }}
+            >
+              {t('articleList.endOfListMarkRead')}
+            </button>
           </div>
         )}
         </div>
