@@ -1,4 +1,5 @@
 import client from './client';
+import type { ArticleOrder } from '../lib/effectiveOrder';
 import { isStaleWriteTokenFailure } from '../lib/writeTokenRetry';
 import { entryIdUsec, isOlderEntry } from '../lib/entryId';
 import type { Subscription, Tag, UnreadCount, GReaderItem, GReaderStream } from '../types';
@@ -32,11 +33,14 @@ export async function getStreamContents(
   count = 20,
   continuation: string | null = null,
   excludeTag: string | null = null,
-  { cacheOnly = false }: { cacheOnly?: boolean } = {}
+  { cacheOnly = false, order = 'newest' }: { cacheOnly?: boolean; order?: ArticleOrder } = {}
 ): Promise<GReaderStream | null> {
   const params: Record<string, string | number> = { output: 'json', n: count };
   if (continuation) params.c = continuation;
   if (excludeTag) params.xt = excludeTag;
+  // `r=o` asks FreshRSS for the stream from the other end (ASC), continuation
+  // included. Sorting locally would only reorder the pages already loaded.
+  if (order === 'oldest') params.r = 'o';
   const url = `${BASE}/stream/contents/${buildStreamPath(streamId)}`;
   const config: { params: typeof params; headers?: Record<string, string> } = { params };
   // Cache-only read: backend returns the cached copy (200) or 204 on a miss,
@@ -85,9 +89,10 @@ function buildStreamPath(streamId: string): string {
 export async function getStarredItems(
   count = 20,
   continuation: string | null = null,
-  cacheOnly = false
+  cacheOnly = false,
+  order: ArticleOrder = 'newest'
 ): Promise<GReaderStream | null> {
-  return getStreamContents('user/-/state/com.google/starred', count, continuation, null, { cacheOnly });
+  return getStreamContents('user/-/state/com.google/starred', count, continuation, null, { cacheOnly, order });
 }
 
 /**

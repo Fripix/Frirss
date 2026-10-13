@@ -42,6 +42,7 @@
     "showReadFeeds": "Mostrar todos los feeds",
     "feedLayoutDefault": "Por defecto",
     "feedLayoutThisFeed": "Disposición de este flujo",
+    "feedOrderThisFeed": "Orden de este flujo",
     "expandCategory": "Desplegar la categoría",
     "collapseCategory": "Plegar la categoría",
     "starOnGithub": "Dar una estrella en GitHub",
@@ -183,6 +184,10 @@
       "unreadScopeFeed": "Por fuente",
       "unreadScopeAll": "Todas las fuentes",
       "unreadScopeHint": "Con «Por fuente», cada fuente conserva su propia elección. Con «Todas las fuentes», el botón No leídos se aplica en todas partes. Volver a «Por fuente» borra las elecciones por fuente: cada fuente parte del estado actual.",
+      "articleOrder": "Orden de los artículos",
+      "articleOrderNewest": "Más recientes primero",
+      "articleOrderOldest": "Más antiguos primero",
+      "articleOrderHint": "Más antiguos primero conviene a quien lee en orden de publicación. Cada flujo puede conservar su propio orden desde su menú.",
       "newArticlesPill": "Avisar de artículos nuevos",
       "newArticlesPillHint": "Un banner en la parte superior de la lista cuenta los artículos llegados desde que se cargó y los muestra con un clic. La lista nunca cambia por sí sola."
     },

@@ -263,6 +263,46 @@ globale, mais surchargeable **par flux**.
   (surcharge du flux ?? global), jamais en lisant `panelLayout` directement
 - **Spec** : `docs/superpowers/specs/2026-08-18-grid-view-design.md`
 
+### Ordre des articles
+Plus récents d'abord (défaut) ou **plus anciens d'abord**. Réglage global dans
+Préférences → Général (synchronisé), surchargeable **par flux** depuis le menu
+contextuel du flux, sous le sélecteur de disposition. Demandé dans l'issue #20
+par un lecteur qui lit dans l'ordre de parution.
+
+- **Où** : `src/lib/effectiveOrder.ts` — toujours résoudre par
+  `effectiveOrder()` (surcharge du flux ?? global), jamais en lisant
+  `articleOrder` ou `FeedSetting.order` directement ; `uiStore.articleOrder`,
+  `setArticleOrder`, `setFeedArticleOrder` (pas `setFeedOrder`, qui range les
+  flux d'une catégorie) ; `GeneralTab.tsx`, `Sidebar.tsx` (`FeedOrderPicker`)
+- **C'est FreshRSS qui livre l'ordre, pas FriRSS qui trie.** La liste se charge
+  page par page : trier localement ne réordonnerait que les pages déjà reçues,
+  et les plus anciens d'un flux sont sur la dernière. `getStreamContents()`
+  envoie `r=o` (`src/api/feeds.ts`), que l'API greader de FreshRSS traduit en
+  `ASC`, continuation comprise. Rien n'est écrit chez FreshRSS.
+- **L'ordre fait partie de la vue** : `viewKey` du `feedStore` le porte
+  (`feed:filter:oldest`), donc cache mémoire, liste hors-ligne et cache
+  serveur (clé = URL complète) ne mélangent jamais les deux sens. L'ordre par
+  défaut garde l'ancienne clé : les listes hors-ligne existantes restent
+  lisibles.
+- **Changer l'ordre recharge la vue** — c'est l'appelant qui le fait
+  (`loadArticles()` depuis l'onglet Général et depuis le menu du flux quand ce
+  flux est affiché), pas le store : `uiStore` ne peut pas importer `feedStore`.
+  Un nouveau point de réglage doit le faire aussi.
+- **Piège — « Marquer au-dessus / en dessous »** : les libellés sont des
+  positions, mais `markReadRelative()` raisonne en entrées plus récentes /
+  plus anciennes. En ordre inverse, « au-dessus » désigne les plus anciens :
+  `entryDirection()` (`effectiveOrder.ts`, testé) fait la traduction dans
+  `ArticleList.tsx`, aux deux appels (menu et boîte de confirmation). Sans
+  elle, l'action marquerait l'autre moitié.
+- **Bandeau « N nouveaux articles »** : inchangé. En ordre inverse, les
+  nouveautés arrivent en fin de liste, derrière la pagination ; le clic
+  recharge une première page qui n'a pas bougé. Compteur juste, geste
+  inoffensif, pas de cas particulier.
+- **Non suivis par l'ordre, à dessein** : la recherche (`searchCorpus`, date
+  décroissante), la préparation hors-ligne et le worker de cache (Modèle B),
+  qui ne connaissent que l'ordre par défaut — un lecteur en ordre inverse ne
+  profite pas du cache chaud du worker.
+
 ### Adaptation aux formats
 `useBreakpoint()` renvoie `mobile` / `tablet` / `desktop`. Sur mobile, navigation
 par onglets et pile de vues ; un basculement manuel permet à une tablette

@@ -44,6 +44,7 @@
     "showReadFeeds": "显示全部订阅源",
     "feedLayoutDefault": "默认",
     "feedLayoutThisFeed": "此订阅源的布局",
+    "feedOrderThisFeed": "此订阅源的排序",
     "starOnGithub": "在 GitHub 上标星",
     "support": "支持本项目"
   },
@@ -183,6 +184,10 @@
       "unreadScopeFeed": "按订阅源",
       "unreadScopeAll": "全部订阅源",
       "unreadScopeHint": "按订阅源：每个订阅源各自记住选择。全部订阅源：未读按钮对所有视图生效。切回“按订阅源”会清除各订阅源的单独选择，统一从当前状态开始。",
+      "articleOrder": "文章排序",
+      "articleOrderNewest": "最新在前",
+      "articleOrderOldest": "最早在前",
+      "articleOrderHint": "最早在前适合按发布顺序阅读。每个订阅源都可以在其菜单中保留自己的排序。",
       "newArticlesPill": "提示新文章",
       "newArticlesPillHint": "列表顶部的横幅会统计列表加载后新到的文章，点一下即可显示。列表不会自行变化。"
     },

@@ -6,6 +6,7 @@ import { openExternal } from '../../lib/openExternal';
 import { clampToViewport } from '../../lib/clampToViewport';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
+import type { ArticleOrder } from '../../lib/effectiveOrder';
 import { homeEntryActive } from '../../lib/unreadScope';
 import { useThemeStore } from '../../stores/themeStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -700,25 +701,15 @@ interface FeedContextMenuProps {
 }
 
 /**
- * Per-feed layout picker — same segmented look (and icons) as the toolbar's
- * layout toggle, so the two read as the same control. '' = follow the global
- * layout.
+ * Shell shared by the per-feed override pickers: a segmented row of icon
+ * buttons, same look as the toolbar's layout toggle so the two read as the
+ * same control. '' = follow the global setting.
  */
-function FeedLayoutPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const { t } = useTranslation();
-  const options = [
-    {
-      id: '',
-      title: t('sidebar.feedLayoutDefault'),
-      // Reset arrow — "go back to the global setting"
-      path: 'M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3',
-      single: true,
-    },
-    { id: '2', title: t('articleList.listOnly') },
-    { id: '3', title: t('articleList.listAndReading') },
-    { id: 'grid', title: t('articleList.gridLayout') },
-  ];
-
+function OverridePicker({ value, onChange, options }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { id: string; title: string; icon: ReactNode }[];
+}) {
   return (
     <div
       data-theme="list-active"
@@ -739,27 +730,73 @@ function FeedLayoutPicker({ value, onChange }: { value: string; onChange: (v: st
           }`}
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-            {opt.single ? (
-              <path strokeLinecap="round" strokeLinejoin="round" d={opt.path} />
-            ) : opt.id === '2' ? (
-              <>
-                <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
-                <path strokeLinecap="round" d="M7 9h10M7 12h10M7 15h6" />
-              </>
-            ) : opt.id === '3' ? (
-              <>
-                <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
-                <line x1="11" y1="4.5" x2="11" y2="19.5" />
-                <path strokeLinecap="round" d="M6 9h3M6 12h3M14 9h4M14 11.5h4M14 14h2.5" />
-              </>
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5zm-10 10h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5z" />
-            )}
+            {opt.icon}
           </svg>
         </button>
       ))}
     </div>
   );
+}
+
+// Reset arrow — "go back to the global setting". Shared by every override picker.
+const RESET_ICON = <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />;
+
+/** Per-feed layout picker: default / list / side by side / grid. */
+function FeedLayoutPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
+  const options = [
+    { id: '', title: t('sidebar.feedLayoutDefault'), icon: RESET_ICON },
+    {
+      id: '2',
+      title: t('articleList.listOnly'),
+      icon: (
+        <>
+          <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+          <path strokeLinecap="round" d="M7 9h10M7 12h10M7 15h6" />
+        </>
+      ),
+    },
+    {
+      id: '3',
+      title: t('articleList.listAndReading'),
+      icon: (
+        <>
+          <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
+          <line x1="11" y1="4.5" x2="11" y2="19.5" />
+          <path strokeLinecap="round" d="M6 9h3M6 12h3M14 9h4M14 11.5h4M14 14h2.5" />
+        </>
+      ),
+    },
+    {
+      id: 'grid',
+      title: t('articleList.gridLayout'),
+      icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5zm-10 10h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5z" />,
+    },
+  ];
+  return <OverridePicker value={value} onChange={onChange} options={options} />;
+}
+
+/**
+ * Per-feed order picker: default / newest first / oldest first. The glyphs
+ * are the two sort marks — bars shrinking or growing along the arrow — so the
+ * direction reads without a label.
+ */
+function FeedOrderPicker({ value, onChange }: { value: ArticleOrder | ''; onChange: (v: ArticleOrder | '') => void }) {
+  const { t } = useTranslation();
+  const options = [
+    { id: '', title: t('sidebar.feedLayoutDefault'), icon: RESET_ICON },
+    {
+      id: 'newest',
+      title: t('preferences.general.articleOrderNewest'),
+      icon: <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h12M4 11h8M4 16h4M18 9v10m0 0l-3-3m3 3l3-3" />,
+    },
+    {
+      id: 'oldest',
+      title: t('preferences.general.articleOrderOldest'),
+      icon: <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h4M4 11h8M4 16h12M18 5v10m0 0l-3-3m3 3l3-3" />,
+    },
+  ];
+  return <OverridePicker value={value} onChange={(v) => onChange(v as ArticleOrder | '')} options={options} />;
 }
 
 function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContextMenuProps) {
@@ -770,8 +807,10 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
   const feedSettings = useUiStore((s) => s.feedSettings);
   const setFeedAutoExtract = useUiStore((s) => s.setFeedAutoExtract);
   const setFeedLayout = useUiStore((s) => s.setFeedLayout);
+  const setFeedArticleOrder = useUiStore((s) => s.setFeedArticleOrder);
   const isAutoExtract = feedSettings[feed.id]?.autoExtract || false;
   const feedLayout = feedSettings[feed.id]?.layout || '';
+  const feedOrder = feedSettings[feed.id]?.order || '';
 
   // Fermeture au clic en dehors. `pointerdown` et non `mousedown` : au doigt,
   // iOS n'émet pas de `mousedown` avant le `click`, si bien qu'une tape à côté
@@ -937,6 +976,23 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
           value={feedLayout}
           onChange={(v) => {
             setFeedLayout(feed.id, v);
+            onClose();
+          }}
+        />
+      </div>
+
+      {/* Per-feed order override — the list is reloaded when this feed is on
+          screen: the order is part of the request, not a local sort. */}
+      <div className="px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
+        <span className="text-[13px] font-medium" style={{ color: 'var(--list-title)' }}>
+          {t('sidebar.feedOrderThisFeed')}
+        </span>
+        <FeedOrderPicker
+          value={feedOrder}
+          onChange={(v) => {
+            setFeedArticleOrder(feed.id, v);
+            const fs = useFeedStore.getState();
+            if (fs.selectedFeed?.id === feed.id) void fs.loadArticles();
             onClose();
           }}
         />

@@ -15,6 +15,8 @@ export default function GeneralTab() {
   const setShowNewArticlesPill = useUiStore((s) => s.setShowNewArticlesPill);
   const unreadOnlyScope = useUiStore((s) => s.unreadOnlyScope);
   const setUnreadOnlyScope = useUiStore((s) => s.setUnreadOnlyScope);
+  const articleOrder = useUiStore((s) => s.articleOrder);
+  const setArticleOrder = useUiStore((s) => s.setArticleOrder);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
   const setInlineVideos = useUiStore((s) => s.setInlineVideos);
   const { shortcuts, setShortcut, resetShortcuts } = useUiStore();
@@ -126,6 +128,51 @@ export default function GeneralTab() {
                   role="radio"
                   aria-checked={selected}
                   onClick={() => setUnreadOnlyScope(opt.scope, useFeedStore.getState().selectedFeed?.id ?? '')}
+                  className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                  style={{
+                    background: selected ? 'var(--accent)' : 'transparent',
+                    color: selected ? 'var(--on-accent)' : 'var(--list-title)',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Order of the article list. The order is part of the request to
+            FreshRSS, so the open view reloads; a feed may override it from
+            its own menu. */}
+        <div className="select-none mt-4">
+          <span className="text-xs block" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.general.articleOrder')}
+            <span className="block text-[11px] opacity-70 mt-0.5">
+              {t('preferences.general.articleOrderHint')}
+            </span>
+          </span>
+          <div
+            className="flex gap-1 p-0.5 rounded-lg mt-2"
+            role="radiogroup"
+            aria-label={t('preferences.general.articleOrder')}
+            style={{ background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' }}
+          >
+            {([
+              { order: 'newest', label: t('preferences.general.articleOrderNewest') },
+              { order: 'oldest', label: t('preferences.general.articleOrderOldest') },
+            ] as const).map((opt) => {
+              const selected = articleOrder === opt.order;
+              return (
+                <button
+                  key={opt.order}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    if (selected) return;
+                    setArticleOrder(opt.order);
+                    void useFeedStore.getState().loadArticles();
+                  }}
                   className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
                   style={{
                     background: selected ? 'var(--accent)' : 'transparent',

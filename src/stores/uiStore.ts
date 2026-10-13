@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { normalizeArticleOrder, type ArticleOrder } from '../lib/effectiveOrder';
 import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
@@ -44,6 +45,12 @@ export interface FeedSetting {
    * grid" is a property of the feed, true on every device.
    */
   layout?: string;
+  /**
+   * Per-feed article order override. Absent means the feed follows the global
+   * `articleOrder`. Synced, like `layout`: reading a feed oldest-first is a
+   * property of the feed. Resolve through `effectiveOrder()` only.
+   */
+  order?: ArticleOrder;
 }
 
 /**
@@ -211,6 +218,13 @@ export interface UiState {
   getFeedAutoExtract: (feedId: string) => boolean;
   /** Set (or clear, with '') this feed's layout override. */
   setFeedLayout: (feedId: string, layout: string) => void;
+  // Order of the article list. Synced: "I read the oldest first" is a habit,
+  // not a device trait. Never read directly to order a view — resolve through
+  // effectiveOrder(), which lets a feed override it.
+  articleOrder: ArticleOrder;
+  setArticleOrder: (order: ArticleOrder) => void;
+  /** Set (or clear, with '') this feed's article order override. */
+  setFeedArticleOrder: (feedId: string, order: ArticleOrder | '') => void;
   appTitle: string;
   appLogo: string | null;
   logoMode: 'small' | 'large';
@@ -229,6 +243,28 @@ export interface UiState {
   refreshHintDismissed: boolean;
   dismissRefreshHint: () => void;
   applyServerPrefs: (prefs: Record<string, unknown> | null | undefined) => void;
+}
+
+/**
+ * Per-feed override set (or cleared with '') and persisted. The entry
+ * disappears once it carries no setting at all, so a feed back on every
+ * global default leaves no trace in the synced table.
+ */
+function withFeedOverride<K extends 'layout' | 'order'>(
+  settings: Record<string, FeedSetting>,
+  feedId: string,
+  key: K,
+  value: FeedSetting[K] | '',
+): Record<string, FeedSetting> {
+  const entry = { ...settings[feedId] };
+  if (value) entry[key] = value as FeedSetting[K];
+  else delete entry[key];
+
+  const next = { ...settings, [feedId]: entry };
+  if (Object.keys(entry).length === 0) delete next[feedId];
+
+  localStorage.setItem('frirss_feedSettings', JSON.stringify(next));
+  return next;
 }
 
 export const useUiStore = create<UiState>()((set, get) => ({
@@ -570,18 +606,15 @@ export const useUiStore = create<UiState>()((set, get) => ({
     return feedSettings[feedId]?.autoExtract || false;
   },
   setFeedLayout: (feedId, layout) => {
-    set((state) => {
-      const entry = { ...state.feedSettings[feedId] };
-      if (layout) entry.layout = layout;
-      else delete entry.layout;
-
-      const next = { ...state.feedSettings, [feedId]: entry };
-      // Drop the entry entirely once it carries no settings at all.
-      if (Object.keys(entry).length === 0) delete next[feedId];
-
-      localStorage.setItem('frirss_feedSettings', JSON.stringify(next));
-      return { feedSettings: next };
-    });
+    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'layout', layout) }));
+  },
+  articleOrder: normalizeArticleOrder(loadJson('frirss_articleOrder', 'newest')),
+  setArticleOrder: (order) => {
+    localStorage.setItem('frirss_articleOrder', JSON.stringify(order));
+    set({ articleOrder: order });
+  },
+  setFeedArticleOrder: (feedId, order) => {
+    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'order', order) }));
   },
 
   // App branding — custom title & logo
@@ -717,7 +750,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
-      'rowActions',
+      'rowActions', 'articleOrder',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -726,6 +759,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
         const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k])
           : k === 'rowActions' ? normalizeRowActions(prefs[k])
           : k === 'unreadOnlyScope' ? normalizeUnreadScope(prefs[k])
+          : k === 'articleOrder' ? normalizeArticleOrder(prefs[k])
           : k === 'unreadOnlyAll' ? prefs[k] === true
           : k === 'showNewArticlesPill' ? prefs[k] !== false
           : prefs[k];
@@ -757,7 +791,7 @@ export const UI_SYNC_KEYS = [
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
-  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions',
+  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

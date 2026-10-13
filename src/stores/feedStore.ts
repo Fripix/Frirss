@@ -32,6 +32,7 @@ import {
 import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
+import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
 import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut } from '../lib/offlineStore';
@@ -191,13 +192,16 @@ async function fetchArticleStream(
   continuation: string | null,
   cacheOnly = false
 ): Promise<GReaderStream | null> {
+  // The view's order travels with every page, including the SWR first paint:
+  // the server cache keys on the full URL, so the two orders never mix.
+  const order = viewOrder(selectedFeed);
   // Global starred — dedicated API
   if (filter === 'starred' && !selectedFeed) {
-    return getStarredItems(count, continuation, cacheOnly);
+    return getStarredItems(count, continuation, cacheOnly, order);
   }
   // Read Later — label stream
   if (filter === 'readlater') {
-    return getStreamContents(READ_LATER_LABEL, count, continuation, null, { cacheOnly });
+    return getStreamContents(READ_LATER_LABEL, count, continuation, null, { cacheOnly, order });
   }
   // Specific feed or the global reading-list
   const streamId = selectedFeed
@@ -205,7 +209,7 @@ async function fetchArticleStream(
     : 'user/-/state/com.google/reading-list';
   // Server-side filtering: exclude read items when showing unread only
   const excludeTag = filter === 'unread' ? 'user/-/state/com.google/read' : null;
-  const result = await getStreamContents(streamId, count, continuation, excludeTag, { cacheOnly });
+  const result = await getStreamContents(streamId, count, continuation, excludeTag, { cacheOnly, order });
   if (result == null) return null; // cache miss (cacheOnly)
   // Starred within a specific feed — filter client-side
   if (filter === 'starred' && selectedFeed) {
@@ -226,7 +230,16 @@ interface CachedView {
 }
 const MEM_CACHE_MAX = 60; // room for prefetched feed views alongside active ones
 const memCache = new Map<string, CachedView>();
-const viewKey = (feed: Subscription | null, filter: Filter) => `${feed?.id || ''}:${filter}`;
+/** Order in effect for a view — the only reader of the global + per-feed settings. */
+function viewOrder(feed: Subscription | null): ArticleOrder {
+  const ui = useUiStore.getState();
+  return effectiveOrder(ui.articleOrder, ui.feedSettings, feed?.id);
+}
+// The order is part of the view: the same feed read from the other end is
+// another list, in memory and in the offline store alike. The default order
+// keeps the historical key so existing offline lists stay readable.
+const viewKey = (feed: Subscription | null, filter: Filter) =>
+  `${feed?.id || ''}:${filter}${viewOrder(feed) === 'oldest' ? ':oldest' : ''}`;
 
 // A category is opened as its Google Reader label stream (user/-/label/Name).
 // When such a stream is the selected "feed", the view aggregates every feed in

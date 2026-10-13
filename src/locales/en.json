@@ -44,6 +44,7 @@
     "showReadFeeds": "Show all feeds",
     "feedLayoutDefault": "Default",
     "feedLayoutThisFeed": "Layout for this feed",
+    "feedOrderThisFeed": "Order for this feed",
     "starOnGithub": "Star it on GitHub",
     "support": "Support the project"
   },
@@ -183,6 +184,10 @@
       "unreadScopeFeed": "Per feed",
       "unreadScopeAll": "All feeds",
       "unreadScopeHint": "With Per feed, each feed keeps its own choice. With All feeds, the Unread button applies everywhere. Switching back to Per feed erases the per-feed choices: every feed starts from the current state.",
+      "articleOrder": "Article order",
+      "articleOrderNewest": "Newest first",
+      "articleOrderOldest": "Oldest first",
+      "articleOrderHint": "Oldest first suits reading in publication order. Each feed can keep its own order from its menu.",
       "newArticlesPill": "Show new articles",
       "newArticlesPillHint": "A banner at the top of the list counts the articles that arrived since it loaded, and shows them in one click. The list never changes on its own."
     },

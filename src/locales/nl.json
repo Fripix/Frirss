@@ -42,6 +42,7 @@
     "showReadFeeds": "Alle feeds tonen",
     "feedLayoutDefault": "Standaard",
     "feedLayoutThisFeed": "Indeling voor deze feed",
+    "feedOrderThisFeed": "Volgorde voor deze feed",
     "expandCategory": "Categorie uitklappen",
     "collapseCategory": "Categorie inklappen",
     "starOnGithub": "Geef een ster op GitHub",
@@ -183,6 +184,10 @@
       "unreadScopeFeed": "Per feed",
       "unreadScopeAll": "Alle feeds",
       "unreadScopeHint": "Bij ‘Per feed’ houdt elke feed zijn eigen keuze. Bij ‘Alle feeds’ geldt de knop Ongelezen overal. Terug naar ‘Per feed’ wist de keuzes per feed: elke feed begint bij de huidige stand.",
+      "articleOrder": "Volgorde van artikelen",
+      "articleOrderNewest": "Nieuwste eerst",
+      "articleOrderOldest": "Oudste eerst",
+      "articleOrderHint": "Oudste eerst past bij lezen in volgorde van verschijnen. Elke feed kan via zijn menu een eigen volgorde houden.",
       "newArticlesPill": "Nieuwe artikelen melden",
       "newArticlesPillHint": "Een banner boven aan de lijst telt de artikelen die sinds het laden zijn binnengekomen en toont ze met één klik. De lijst verandert nooit vanzelf."
     },

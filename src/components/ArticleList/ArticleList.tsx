@@ -7,6 +7,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead, UNDO_CAP } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
+import { effectiveOrder, entryDirection } from '../../lib/effectiveOrder';
 import { shouldLoadMore, listBodyState, canLoadMore, searchAwareHasContinuation } from '../../lib/listPagination';
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
@@ -97,6 +98,7 @@ export default function ArticleList() {
   const toggleShowSourceInFeed = useUiStore((s) => s.toggleShowSourceInFeed);
   const toggleShowSourceInAll = useUiStore((s) => s.toggleShowSourceInAll);
   const feedSettings = useUiStore((s) => s.feedSettings);
+  const articleOrder = useUiStore((s) => s.articleOrder);
   const showDateSeparators = useUiStore((s) => s.showDateSeparators);
   const toggleDateSeparators = useUiStore((s) => s.toggleDateSeparators);
   const gridDateSeparators = useUiStore((s) => s.gridDateSeparators);
@@ -109,6 +111,10 @@ export default function ArticleList() {
   const isMobile = breakpoint === 'mobile';
   // A feed can override the global layout (set from its sidebar context menu).
   const layout = effectiveLayout(panelLayout, feedSettings, selectedFeed?.id);
+  // « Au-dessus / en dessous » sont des positions ; le marquage de plage
+  // raisonne en entrées plus récentes / plus anciennes. L'ordre de la vue
+  // fait la traduction — sans elle, la liste inversée marquerait l'autre moitié.
+  const order = effectiveOrder(articleOrder, feedSettings, selectedFeed?.id);
   const feedLayoutOverride = !!(selectedFeed && feedSettings[selectedFeed.id]?.layout);
   // Grid is a full-width layout: like 2-panel, the list body spans the whole
   // width and the reading pane replaces it on selection.
@@ -670,7 +676,7 @@ export default function ArticleList() {
               setAsk({ kind: direction, article: menuArticle });
               return;
             }
-            void markReadRelative(menuArticle, direction);
+            void markReadRelative(menuArticle, entryDirection(direction, order));
           }}
           onToggleStar={() => { void toggleStar(menuArticle); }}
           onToggleReadLater={() => { void toggleReadLater(menuArticle); }}
@@ -963,7 +969,7 @@ export default function ArticleList() {
         // travaille — et se ferme quand c'est fait.
         onConfirm={async () => {
           if (ask?.kind === 'above' || ask?.kind === 'below') {
-            await markReadRelative(ask.article, ask.kind);
+            await markReadRelative(ask.article, entryDirection(ask.kind, order));
           } else {
             await markAllAsRead();
           }

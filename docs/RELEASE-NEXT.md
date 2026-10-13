@@ -18,7 +18,15 @@ la release publiée.
 
 ## Fonctionnalités
 
-_(rien pour l'instant)_
+- **Ordre des articles : plus anciens d'abord.** Réglage global dans
+  Préférences → Général (synchronisé), surchargeable par flux depuis le menu
+  contextuel du flux, sous le sélecteur de disposition — même moule que la
+  disposition par flux. C'est FreshRSS qui livre la liste dans l'autre sens
+  (`r=o`), page par page : un tri local n'aurait réordonné que les pages déjà
+  reçues. Les deux sens ne partagent ni cache mémoire, ni liste hors-ligne, ni
+  cache serveur. « Marquer au-dessus / en dessous » suit l'ordre affiché : en
+  liste inversée, « au-dessus » désigne bien les plus anciens. Demandé dans
+  l'issue #20.
 
 ## Corrections et améliorations
 
