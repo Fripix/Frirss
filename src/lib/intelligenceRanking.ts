@@ -11,22 +11,31 @@ export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label:
   { value: 'combined', label: 'Combined' },
 ];
 
+const meaningfulShortTerms = new Set(['ai', 'eu', 'uk', 'us', 'ua', 'un', 'uk']);
+
 function tokenize(text: string): Set<string> {
-  return new Set(text.toLocaleLowerCase().replace(/<[^>]*>/g, ' ').match(/[\p{L}\p{N}]{3,}/gu) ?? []);
+  const words = text.toLocaleLowerCase().replace(/<[^>]*>/g, ' ').match(/[\p{L}\p{N}]+/gu) ?? [];
+  return new Set(words.filter((word) => word.length >= 3 || meaningfulShortTerms.has(word)));
 }
 
 function articleText(article: Article): string {
   return `${article.title} ${article.summary} ${article.content}`;
 }
 
-/** Existing baseline retained so users can compare against today's ranking. */
+function validVote(vote: unknown): vote is 1 | -1 {
+  return vote === 1 || vote === -1;
+}
+
+/** Existing baseline, with source identifiers excluded from lexical similarity. */
 function rankCurrent(articles: Article[], feedback: ArticleFeedback[], now: number): Article[] {
-  const examples = feedback.map((item) => ({
-    vote: item.vote,
-    terms: tokenize(`${item.title} ${item.summary} ${item.content} ${item.sourceId}`),
-  }));
+  const examples = feedback
+    .filter((item) => validVote(item.vote))
+    .map((item) => ({
+      vote: item.vote,
+      terms: tokenize(`${item.title} ${item.summary} ${item.content}`),
+    }));
   const score = (article: Article) => {
-    const terms = tokenize(`${article.title} ${article.summary} ${article.content} ${article.source}`);
+    const terms = tokenize(articleText(article));
     let positive = 0;
     let negative = 0;
     for (const example of examples) {
@@ -34,7 +43,7 @@ function rankCurrent(articles: Article[], feedback: ArticleFeedback[], now: numb
       for (const term of example.terms) if (terms.has(term)) shared++;
       const similarity = shared / Math.max(1, Math.sqrt(terms.size * example.terms.size));
       if (example.vote === 1) positive += similarity;
-      else negative += similarity;
+      else if (example.vote === -1) negative += similarity;
     }
     const ageHours = Math.max(0, (now - article.published) / 3600000);
     return positive - negative * 1.25 + (1 / (1 + ageHours / 72)) * 0.03;
@@ -53,19 +62,44 @@ const synonymGroups: string[][] = [
   ['buy', 'bought', 'purchase', 'purchasing', 'procurement'],
   ['produce', 'produced', 'production', 'manufacturing', 'manufacture'],
 ];
+
 const synonymMap = new Map<string, string>();
 for (const group of synonymGroups) for (const word of group) synonymMap.set(word, group[0]);
 
+/**
+ * A small deterministic stemmer for common English inflections. It is not a
+ * full Porter implementation, but handles plurals, -ed and -ing forms without
+ * leaving doubled consonants or losing a final silent "e" (running/run, hiking/hike).
+ */
+function stemTerm(term: string): string {
+  if (term.length > 5 && term.endsWith('ies')) return `${term.slice(0, -3)}y`;
+
+  if (term.length > 5 && term.endsWith('sses')) return term.slice(0, -2);
+  if (term.length > 4 && /(ches|shes|xes|zes)$/.test(term)) return term.slice(0, -2);
+  if (term.length > 3 && term.endsWith('s') && !/(ss|us|is)$/.test(term)) return term.slice(0, -1);
+
+  let stem = term;
+  if (stem.length > 5 && stem.endsWith('ing')) {
+    stem = stem.slice(0, -3);
+  } else if (stem.length > 4 && stem.endsWith('ed')) {
+    stem = stem.slice(0, -2);
+  } else {
+    return stem;
+  }
+
+  // Remove a doubled final consonant: runn -> run, stopp -> stop.
+  const hadDoubleConsonant = /(bb|cc|dd|ff|gg|mm|nn|pp|rr|tt)$/.test(stem);
+  if (hadDoubleConsonant) stem = stem.slice(0, -1);
+
+  // Restore a silent e for common CVC forms: hik -> hike, mak -> make.
+  // Do not do this after de-doubling: runn -> run, not rune.
+  if (!hadDoubleConsonant && stem.length >= 3 && /[^aeiou][aeiou][^aeiouwxy]$/.test(stem)) stem += 'e';
+  return stem;
+}
+
 function normalizeTerm(term: string): string {
-  const synonym = synonymMap.get(term);
-  if (synonym) return synonym;
-  // Small deterministic stemmer: intentionally conservative to avoid heavy dependencies.
-  if (term.length > 5 && term.endsWith('ies')) return term.slice(0, -3) + 'y';
-  if (term.length > 5 && term.endsWith('ing')) return term.slice(0, -3);
-  if (term.length > 4 && term.endsWith('ed')) return term.slice(0, -2);
-  if (term.length > 4 && term.endsWith('es')) return term.slice(0, -2);
-  if (term.length > 3 && term.endsWith('s')) return term.slice(0, -1);
-  return term;
+  const stem = stemTerm(term);
+  return synonymMap.get(stem) ?? stem;
 }
 
 function normalizedTokens(text: string): Set<string> {
@@ -80,6 +114,7 @@ const topicKeywords: Record<string, string[]> = {
   science: ['science', 'research', 'study', 'scientist', 'space', 'physics', 'biology', 'health', 'medical', 'climate', 'energy'],
   culture: ['book', 'movie', 'film', 'music', 'art', 'game', 'culture', 'author', 'celebrity', 'sport'],
 };
+
 function topicSet(text: string): Set<string> {
   const terms = normalizedTokens(text);
   const topics = new Set<string>();
@@ -102,17 +137,28 @@ function rankByTermModel(
 ): Article[] {
   const termsFor = mode === 'synonyms' ? normalizedTokens : tokenize;
   const candidates = articles.map((article) => ({ article, terms: termsFor(articleText(article)) }));
-  const examples = feedback.map((item) => ({ vote: item.vote, terms: termsFor(`${item.title} ${item.summary} ${item.content}`) }));
+  const examples = feedback
+    .filter((item) => validVote(item.vote))
+    .map((item) => ({ vote: item.vote, terms: termsFor(`${item.title} ${item.summary} ${item.content}`) }));
+
+  // Estimate document frequency over candidate articles and feedback examples,
+  // so the profile and candidates use the same corpus and IDF is applied once.
   const df = new Map<string, number>();
-  for (const candidate of candidates) for (const term of candidate.terms) df.set(term, (df.get(term) ?? 0) + 1);
-  const idf = (term: string) => Math.log((candidates.length + 1) / ((df.get(term) ?? 0) + 1)) + 1;
+  for (const document of [...candidates.map((item) => item.terms), ...examples.map((item) => item.terms)]) {
+    for (const term of document) df.set(term, (df.get(term) ?? 0) + 1);
+  }
+  const documentCount = candidates.length + examples.length;
+  const idf = (term: string) => Math.log((documentCount + 1) / ((df.get(term) ?? 0) + 1)) + 1;
+
+  // Keep the preference profile as raw signed vote counts. IDF belongs only
+  // in candidate scoring; weighting both stages squares the rarity effect.
   const profile = new Map<string, number>();
   for (const example of examples) {
     for (const term of example.terms) {
-      const weight = mode === 'weighted-idf' ? idf(term) : 1;
-      profile.set(term, (profile.get(term) ?? 0) + example.vote * weight);
+      profile.set(term, (profile.get(term) ?? 0) + example.vote);
     }
   }
+
   const scored = candidates.map(({ article, terms }) => {
     let positive = 0;
     let negative = 0;
@@ -131,6 +177,7 @@ function rankByTermModel(
 function rankTopics(articles: Article[], feedback: ArticleFeedback[], now: number): Article[] {
   const profile = new Map<string, number>();
   for (const item of feedback) {
+    if (!validVote(item.vote)) continue;
     for (const topic of topicSet(`${item.title} ${item.summary} ${item.content}`)) {
       profile.set(topic, (profile.get(topic) ?? 0) + item.vote);
     }
@@ -143,33 +190,28 @@ function rankTopics(articles: Article[], feedback: ArticleFeedback[], now: numbe
   }).sort((a, b) => b.score - a.score).map(({ article }) => article);
 }
 
-/** Re-rank with a mild source penalty so Combined is less likely to show one feed repeatedly. */
+/** Avoid more than maxRun consecutive items from one source when alternatives exist. */
 function diversify(articles: Article[], maxRun = 2): Article[] {
   const remaining = [...articles];
   const result: Article[] = [];
-  const sourceRun = new Map<string, number>();
   while (remaining.length) {
-    let bestIndex = 0;
-    let bestPenalty = Number.POSITIVE_INFINITY;
-    for (let i = 0; i < remaining.length; i++) {
-      const source = remaining[i].source || remaining[i].sourceId || '';
-      const run = sourceRun.get(source) ?? 0;
-      const penalty = run >= maxRun ? 1 : 0;
-      if (penalty < bestPenalty) { bestPenalty = penalty; bestIndex = i; }
-      if (penalty === 0) break;
-    }
-    const [next] = remaining.splice(bestIndex, 1);
-    const source = next.source || next.sourceId || '';
-    sourceRun.set(source, (sourceRun.get(source) ?? 0) + 1);
-    result.push(next);
+    const recentSources = result.slice(-maxRun).map((article) => article.sourceId || article.source || '');
+    const alternativeIndex = remaining.findIndex((article) => {
+      const source = article.sourceId || article.source || '';
+      return recentSources.length < maxRun || !recentSources.every((recent) => recent === source);
+    });
+    // If every remaining item is from the same source, do not lose articles;
+    // relevance order is the least-bad fallback.
+    const nextIndex = alternativeIndex >= 0 ? alternativeIndex : 0;
+    result.push(remaining.splice(nextIndex, 1)[0]);
   }
   return result;
 }
 
 /**
  * Local deterministic ranking methods for the Interesting feed.
- * The baseline is intentionally preserved; experimental models use only article text,
- * not source identifiers, to avoid accidental source-name overlap affecting relevance.
+ * All lexical models use article text only; source identifiers are reserved for
+ * diversification, where source identity is compared consistently.
  */
 export function rankInterestingArticles(
   articles: Article[],
@@ -181,15 +223,22 @@ export function rankInterestingArticles(
   if (algorithm === 'weighted-idf') return rankByTermModel(articles, feedback, now, 'weighted-idf');
   if (algorithm === 'synonyms') return rankByTermModel(articles, feedback, now, 'synonyms');
   if (algorithm === 'topics') return rankTopics(articles, feedback, now);
+
   const weighted = rankByTermModel(articles, feedback, now, 'weighted-idf');
   const synonyms = rankByTermModel(articles, feedback, now, 'synonyms');
   const topics = rankTopics(articles, feedback, now);
-  const rankMaps = [weighted, synonyms, topics].map((ranked) => new Map(ranked.map((article, index) => [article.id, index])));
-  const scores = new Map<string, number>();
+  // Object identity, not article.id, prevents collisions from duplicate or missing IDs.
+  const rankMaps = [weighted, synonyms, topics].map(
+    (ranked) => new Map(ranked.map((article, index) => [article, index])),
+  );
+  const scores = new Map<Article, number>();
   for (const article of articles) {
-    const score = rankMaps.reduce((sum, ranks, index) => sum + 1 / (20 + (ranks.get(article.id) ?? articles.length)) * [0.45, 0.3, 0.25][index], 0);
-    scores.set(article.id, score);
+    const score = rankMaps.reduce(
+      (sum, ranks, index) => sum + 1 / (20 + (ranks.get(article) ?? articles.length)) * [0.45, 0.3, 0.25][index],
+      0,
+    );
+    scores.set(article, score);
   }
-  const combined = [...articles].sort((a, b) => (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0));
+  const combined = [...articles].sort((a, b) => (scores.get(b) ?? 0) - (scores.get(a) ?? 0));
   return diversify(combined);
 }

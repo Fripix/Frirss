@@ -34,6 +34,76 @@ describe('rankInterestingArticles', () => {
     rankInterestingArticles(items, []);
     expect(items.map((item) => item.id)).toEqual(['a', 'b']);
   });
+  it('matches short abbreviations in the synonyms model', () => {
+    const abbreviation = article('ai', 'AI regulation and research', 'New AI policy');
+    const unrelated = article('other', 'Gardening tools', 'Pruning and soil care');
+    const ranked = rankInterestingArticles(
+      [unrelated, abbreviation],
+      [feedback('Artificial intelligence', 'AI systems and research', 1)],
+      Date.now(),
+      'synonyms',
+    );
+    expect(ranked[0].id).toBe('ai');
+  });
+
+  it('normalizes inflected synonym forms before synonym lookup', () => {
+    const inflected = article('defence', 'Defences and military readiness', 'Security planning');
+    const unrelated = article('other', 'Gardening tools', 'Pruning and soil care');
+    const ranked = rankInterestingArticles(
+      [unrelated, inflected],
+      [feedback('Defence readiness', 'Military security planning', 1)],
+      Date.now(),
+      'synonyms',
+    );
+    expect(ranked[0].id).toBe('defence');
+  });
+
+  it('handles duplicate and empty IDs in Combined mode without collapsing articles', () => {
+    const first = article('duplicate', 'AI chip research', 'Artificial intelligence advances');
+    const second = article('duplicate', 'Gardening tools', 'Pruning and soil care');
+    const third = article('', 'Military defence analysis', 'Security research');
+    const ranked = rankInterestingArticles(
+      [first, second, third],
+      [feedback('AI chip research', 'Artificial intelligence advances', 1)],
+      Date.now(),
+      'combined',
+    );
+    expect(ranked).toHaveLength(3);
+    expect(new Set(ranked).size).toBe(3);
+    expect(ranked).toContain(first);
+    expect(ranked).toContain(second);
+    expect(ranked).toContain(third);
+  });
+
+  it('diversifies repeated sources without banning them for the rest of the list', () => {
+    const sameSource = [
+      article('a', 'AI chip research', 'Artificial intelligence advances'),
+      article('b', 'AI chip research', 'Artificial intelligence advances'),
+      article('c', 'AI chip research', 'Artificial intelligence advances'),
+      article('d', 'AI chip research', 'Artificial intelligence advances'),
+    ];
+    sameSource.forEach((item) => { item.sourceId = 'feed/a'; });
+    const otherSource = article('other', 'AI chip research', 'Artificial intelligence advances');
+    otherSource.sourceId = 'feed/b';
+    const ranked = rankInterestingArticles(
+      [...sameSource, otherSource],
+      [feedback('AI chip research', 'Artificial intelligence advances', 1)],
+      Date.now(),
+      'combined',
+    );
+    expect(ranked[2].sourceId).toBe('feed/b');
+    expect(ranked.slice(3).some((item) => item.sourceId === 'feed/a')).toBe(true);
+  });
+
+  it('ignores unexpected runtime vote values instead of treating them as dislikes', () => {
+    const relevant = article('relevant', 'AI chip research', 'Artificial intelligence advances');
+    const unrelated = article('other', 'Gardening tools', 'Pruning and soil care');
+    const malformed = { ...feedback('AI chip research', 'Artificial intelligence advances', 1), vote: 0 } as unknown as ArticleFeedback;
+    const withoutFeedback = rankInterestingArticles([unrelated, relevant], [], Date.now(), 'current');
+    const withMalformedFeedback = rankInterestingArticles([unrelated, relevant], [malformed], Date.now(), 'current');
+    expect(withMalformedFeedback.map((item) => item.id)).toEqual(withoutFeedback.map((item) => item.id));
+  });
+
 });
 
 it('supports all experimental algorithms without mutating input', () => {
