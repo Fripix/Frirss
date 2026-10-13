@@ -7,6 +7,7 @@ import { useUiStore, isUnreadOnly } from './stores/uiStore';
 import { useKeyboardNav } from './hooks/useKeyboardNav';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { useAndroidBack } from './hooks/useAndroidBack';
+import { useAndroidViewportHeight } from './hooks/useAndroidViewportHeight';
 import { hydrateExtractCache } from './lib/extractCache';
 import { hydratePrefs, stopSync } from './lib/prefsSync';
 import { saveLastView, loadLastView } from './lib/lastView';
@@ -83,6 +84,9 @@ export default function App() {
       prefs: () => useThemeStore.getState().closePreferences(),
     },
   );
+  // Android: the shell's height comes from `innerHeight`, not from a frozen
+  // `100vh` — see the hook. No-op elsewhere.
+  useAndroidViewportHeight(navigator.userAgent);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Expose the effective layout to CSS (responsive rules key off this instead

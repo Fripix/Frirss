@@ -84,6 +84,11 @@ la release publiée.
   surface plus claire que ce que Chrome accepte en app installée (luminosité
   > 0,94, mesuré) est ramenée au plafond : `#fafafa` donne `#efefef`, presque
   blanc. iOS inchangé.
+- **Android, app installée : le bas des listes est de nouveau atteignable.**
+  Chrome donnait à la colonne une hauteur figée de 56 px supérieure à la
+  fenêtre : la fin de chaque liste restait hors écran, et le nouveau bouton
+  de fin de liste y était coupé. La hauteur vient maintenant de la fenêtre
+  réelle, suivie au redimensionnement. Android seulement ; iOS inchangé.
 
 ## Sous le capot
 

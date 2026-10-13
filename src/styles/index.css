@@ -17,7 +17,7 @@ body {
   color: var(--reading-text);
   /* Dynamic viewport height: never taller than the *visible* area on iOS
      Safari (avoids the body scrolling behind the dynamic toolbar). */
-  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
   /* Kill horizontal jitter and the elastic rubber-band / pull-to-refresh
      that makes the mobile layout feel like it "moves everywhere". */
   overflow-x: hidden;
@@ -27,11 +27,14 @@ body {
 /* App shell height: dynamic viewport in the browser (so it tracks Safari's
    collapsing toolbar), but plain 100vh when installed as a PWA — in iOS
    standalone, dvh is computed a bit short and leaves a white band at the
-   bottom, whereas 100vh = the full screen (no browser chrome). */
-.app-shell { height: 100dvh; }
+   bottom, whereas 100vh = the full screen (no browser chrome).
+   `--app-height` is set on Android only (`useAndroidViewportHeight`): Chrome's
+   installed app froze the stylesheet's 100vh 56 px past the real viewport, so
+   the bottom of every list was unreachable. Unset elsewhere → the fallbacks. */
+.app-shell { height: var(--app-height, 100dvh); }
 @media (display-mode: standalone) {
-  .app-shell { height: 100vh; }
-  body { min-height: 100vh; }
+  .app-shell { height: var(--app-height, 100vh); }
+  body { min-height: var(--app-height, 100vh); }
 }
 
 /* Installed PWA on a wide screen (e.g. iPad in the desktop 3-pane layout):

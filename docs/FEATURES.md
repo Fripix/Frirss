@@ -419,6 +419,18 @@ d'adopter la disposition mobile.
   n'est jamais *exactement* blanche sur Android ; décision du propriétaire
   (2026-10-13) plutôt que l'accent. Le `background_color` du manifeste reste
   sombre : c'est l'écran de lancement, autre surface.
+- **Hauteur de la coque sur Android** (`src/hooks/useAndroidViewportHeight.ts`,
+  testé ; branché dans `App.tsx`) : `--app-height` reçoit `innerHeight` et
+  suit `resize` ; `.app-shell` et `body` la lisent avant de retomber sur
+  `100vh`/`100dvh`. Mesuré sur Chrome 145, app installée, Android 17 : la
+  règle `height: 100vh` de la feuille se résolvait à 946 px pour une fenêtre
+  de 890 px et gardait cette valeur — une règle `100vh` injectée après coup
+  donnait 890. La colonne dépassait l'écran de 56 px et le bas de toute liste
+  était inatteignable ; le pied « Tout marquer lu » l'a révélé (bouton coupé).
+  ⚠️ Android seulement (`isAndroid`), jamais ailleurs : iOS garde ses unités,
+  où `dvh` en app installée a déjà laissé une bande blanche (commentaire de
+  `index.css`). La variable n'existe pas hors Android, donc les replis
+  s'appliquent tels quels.
 
 ### Raccourcis clavier
 Navigation et actions au clavier, chaque raccourci réassignable. Gestes intégrés
