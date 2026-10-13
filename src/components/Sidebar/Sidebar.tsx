@@ -778,9 +778,10 @@ function FeedLayoutPicker({ value, onChange }: { value: string; onChange: (v: st
 
 /**
  * Per-feed order picker: default / newest first / oldest first. The glyphs
- * are the two sort marks: a full-height arrow and two bars, long-then-short
- * for newest first, short-then-long for oldest first. Two bars, not three —
- * at 14 px a third bar and the arrowhead melted into one blot.
+ * are the two sort marks, told apart by the ARROW: down for newest first
+ * (descending), up for oldest first (ascending). The bars alone did not do
+ * it — at 14 px, which of two bars is the longer one is invisible, and the
+ * pair read as the same icon.
  */
 function FeedOrderPicker({ value, onChange }: { value: ArticleOrder | ''; onChange: (v: ArticleOrder | '') => void }) {
   const { t } = useTranslation();
@@ -794,7 +795,7 @@ function FeedOrderPicker({ value, onChange }: { value: ArticleOrder | ''; onChan
     {
       id: 'oldest',
       title: t('preferences.general.articleOrderOldest'),
-      icon: <path strokeLinecap="round" strokeLinejoin="round" d="m3 15 4 4 4-4M7 19V5M12 7h5M12 13h9" />,
+      icon: <path strokeLinecap="round" strokeLinejoin="round" d="m3 9 4-4 4 4M7 5v14M12 11h5M12 17h9" />,
     },
   ];
   return <OverridePicker value={value} onChange={(v) => onChange(v as ArticleOrder | '')} options={options} />;
