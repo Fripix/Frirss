@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { effectiveAutoExtract } from '../../lib/effectiveAutoExtract';
 import { useTranslation } from 'react-i18next';
 import { createPortal, flushSync } from 'react-dom';
 import { useFeedStore, READ_LATER_LABEL } from '../../stores/feedStore';
@@ -111,6 +112,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const getLabelColor = useThemeStore((s) => s.getLabelColor);
   const setFontSize = useThemeStore((s) => s.setFontSize);
   const feedSettings = useUiStore((s) => s.feedSettings);
+  const autoExtractDefault = useUiStore((s) => s.autoExtractDefault);
   const readingFocus = useUiStore((s) => s.readingFocus);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
   // Which saved-category picker is open (null = none).
@@ -204,14 +206,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   useEffect(() => {
     if (!selectedArticle?.url || !selectedArticle?.sourceId) return;
     if (lastExtractedId.current === selectedArticle.id) return;
-    const autoExtract = feedSettings[selectedArticle.sourceId]?.autoExtract;
+    const autoExtract = effectiveAutoExtract(autoExtractDefault, feedSettings, selectedArticle.sourceId);
     if (autoExtract) {
       const timer = setTimeout(() => {
         handleExtract();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [selectedArticle?.id, selectedArticle?.sourceId, feedSettings]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedArticle?.id, selectedArticle?.sourceId, feedSettings, autoExtractDefault]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Préchargement de fond : préparer les articles suivants pour que passer à
   // eux soit instantané. Uniquement sur les flux à extraction automatique (les
@@ -249,7 +251,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     const timer = setTimeout(async () => {
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
       const { articles } = useFeedStore.getState();
-      const fs = useUiStore.getState().feedSettings;
+      const ui = useUiStore.getState();
+      const fs = ui.feedSettings;
       const idx = articles.findIndex((a) => a.id === cur.id);
       if (idx < 0) return;
 
@@ -267,7 +270,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
       const upcoming = articles
         .slice(idx + 1, idx + 11) // N+1 … N+10, comme les images
-        .filter((a) => a.url && fs[a.sourceId]?.autoExtract && !peekExtract(a.id));
+        .filter((a) => a.url && effectiveAutoExtract(ui.autoExtractDefault, fs, a.sourceId) && !peekExtract(a.id));
       if (upcoming.length === 0) return;
       const { extractFullContent } = await import('../../utils/extractContent');
       for (const a of upcoming) {
@@ -411,7 +414,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             // flux, qui l'est toujours. Avant la 1.4.10, un flux à extraction
             // automatique donnait ici un squelette : on balayait d'un article
             // gris à l'autre alors que le texte était disponible.
-            const adjAuto = !!useUiStore.getState().feedSettings[adj.sourceId]?.autoExtract;
+            const uiNow = useUiStore.getState();
+            const adjAuto = effectiveAutoExtract(uiNow.autoExtractDefault, uiNow.feedSettings, adj.sourceId);
             const adjExtract = peekExtract(adj.id)?.content ?? null;
             const adjKind = readingBodyKind({ rssHtml: adj.content, extractedHtml: adjExtract, autoExtract: adjAuto });
             const adjHtml = adjKind === 'skeleton' ? '' : displayedHtml(adj.content, adjExtract);
@@ -597,8 +601,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               // content is in (or 1.5s), so we reveal the extracted article
               // directly instead of flashing the RSS body then reflowing.
               const newArt = useFeedStore.getState().selectedArticle;
-              const fs = useUiStore.getState().feedSettings;
-              const needsExtract = newArt && fs[newArt.sourceId]?.autoExtract
+              const uiNow = useUiStore.getState();
+              const needsExtract = newArt && effectiveAutoExtract(uiNow.autoExtractDefault, uiNow.feedSettings, newArt.sourceId)
                 && lastExtractedId.current !== newArt.id;
               if (needsExtract) {
                 const t0 = Date.now();

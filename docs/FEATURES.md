@@ -1675,9 +1675,27 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 
 ### Extraction du contenu complet
 Pour les flux tronqués, récupération de l'article complet, avec cache à deux
-niveaux. Activable par flux. *(La doc a longtemps annoncé `/cors-proxy/` : cet
-endpoint a été supprimé de la production en 1.3.1, et du serveur de
-développement en 1.4.4.)*
+niveaux. **Par défaut global** (Préférences → Général → « Article complet par
+défaut », synchronisé, **désactivé** d'origine — décision du propriétaire,
+2026-10-13), **surchargeable par flux** à trois positions (*Par défaut / Oui /
+Non*) depuis le menu du flux. Demandé dans la discussion #19 par un lecteur
+qui lit toujours l'article entier. *(La doc a longtemps annoncé
+`/cors-proxy/` : cet endpoint a été supprimé de la production en 1.3.1, et du
+serveur de développement en 1.4.4.)*
+
+- **Une seule porte** : `effectiveAutoExtract(global, feedSettings, feedId)`
+  (`src/lib/effectiveAutoExtract.ts`, testée). Sept lectures directes de
+  `FeedSetting.autoExtract` existaient (ouverture, voisin précalculé,
+  réchauffage en fond, préparation hors-ligne…) : un global aurait été
+  invisible à chacune. Ne jamais relire le drapeau directement.
+- **Trois états par flux** : `true` / `false` / absent. `false` est un choix
+  (un flux qui refuse le défaut global), pas un effacement — seul `''` retire
+  la surcharge (`setFeedAutoExtract`). Les anciens flux cochés gardent leur
+  `true` ; les anciens décochés gardent un `false` explicite, donc ne suivent
+  pas un global activé plus tard — assumé, c'est leur réglage.
+- **Le global change l'échelle** : chaque article ouvert ou préparé hors-ligne
+  passe par `/api/extract`, sous `FRIRSS_PROXY_RATE_LIMIT` (600/min, partagé
+  avec le proxy). L'aide du réglage le dit.
 
 - **Où** : `src/utils/extractContent.ts`, `src/lib/extractCache.ts`,
   `src/lib/extractStore.ts`

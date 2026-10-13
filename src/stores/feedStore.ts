@@ -33,6 +33,7 @@ import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
+import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
 import { homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
@@ -458,8 +459,8 @@ const warmRunner = createWarmRunner<Article>({
   settle: () => new Promise((r) => setTimeout(r, 2000)), // let the view settle first
 });
 function warmExtracts(articles: Article[], view: string): void {
-  const fs = useUiStore.getState().feedSettings;
-  void warmRunner.schedule(view, articles.filter((a) => a.url && fs[a.sourceId]?.autoExtract));
+  const ui = useUiStore.getState();
+  void warmRunner.schedule(view, articles.filter((a) => a.url && effectiveAutoExtract(ui.autoExtractDefault, ui.feedSettings, a.sourceId)));
 }
 
 // ── First-page prefetch ─────────────────────────────────────────────

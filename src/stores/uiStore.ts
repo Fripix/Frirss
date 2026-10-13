@@ -214,8 +214,14 @@ export interface UiState {
   panelLayout: string;
   setPanelLayout: (layout: string) => void;
   feedSettings: Record<string, FeedSetting>;
-  setFeedAutoExtract: (feedId: string, value: boolean) => void;
-  getFeedAutoExtract: (feedId: string) => boolean;
+  /** Set this feed's full-article choice (true/false), or clear it with '' to follow the default. */
+  setFeedAutoExtract: (feedId: string, value: boolean | '') => void;
+  // Open articles as their extracted full text unless a feed says otherwise.
+  // Synced. Off by default: extraction costs a request per article, on the
+  // server and against the proxy rate limit — a reader who always wants the
+  // full text opts in (discussion #19). Resolve through effectiveAutoExtract().
+  autoExtractDefault: boolean;
+  setAutoExtractDefault: (on: boolean) => void;
   /** Set (or clear, with '') this feed's layout override. */
   setFeedLayout: (feedId: string, layout: string) => void;
   // Order of the article list. Synced: "I read the oldest first" is a habit,
@@ -250,14 +256,16 @@ export interface UiState {
  * disappears once it carries no setting at all, so a feed back on every
  * global default leaves no trace in the synced table.
  */
-function withFeedOverride<K extends 'layout' | 'order'>(
+function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract'>(
   settings: Record<string, FeedSetting>,
   feedId: string,
   key: K,
   value: FeedSetting[K] | '',
 ): Record<string, FeedSetting> {
   const entry = { ...settings[feedId] };
-  if (value) entry[key] = value as FeedSetting[K];
+  // '' clears; `false` is a choice of its own (a feed opting out of a global
+  // default), so only the empty string removes the key.
+  if (value !== '' && value !== undefined) entry[key] = value as FeedSetting[K];
   else delete entry[key];
 
   const next = { ...settings, [feedId]: entry };
@@ -592,18 +600,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
   // Per-feed settings: { [feedId]: { autoExtract: true } }
   feedSettings: loadJson('frirss_feedSettings', {} as Record<string, FeedSetting>),
   setFeedAutoExtract: (feedId, value) => {
-    set((state) => {
-      const next = {
-        ...state.feedSettings,
-        [feedId]: { ...state.feedSettings[feedId], autoExtract: value },
-      };
-      localStorage.setItem('frirss_feedSettings', JSON.stringify(next));
-      return { feedSettings: next };
-    });
+    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'autoExtract', value) }));
   },
-  getFeedAutoExtract: (feedId) => {
-    const { feedSettings } = get();
-    return feedSettings[feedId]?.autoExtract || false;
+  autoExtractDefault: loadJson<boolean>('frirss_autoExtractDefault', false) === true,
+  setAutoExtractDefault: (on) => {
+    localStorage.setItem('frirss_autoExtractDefault', JSON.stringify(on));
+    set({ autoExtractDefault: on });
   },
   setFeedLayout: (feedId, layout) => {
     set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'layout', layout) }));
@@ -750,7 +752,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
-      'rowActions', 'articleOrder',
+      'rowActions', 'articleOrder', 'autoExtractDefault',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -760,6 +762,8 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'rowActions' ? normalizeRowActions(prefs[k])
           : k === 'unreadOnlyScope' ? normalizeUnreadScope(prefs[k])
           : k === 'articleOrder' ? normalizeArticleOrder(prefs[k])
+          // A non-boolean (older or foreign client) leaves the current value alone.
+          : k === 'autoExtractDefault' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().autoExtractDefault)
           : k === 'unreadOnlyAll' ? prefs[k] === true
           : k === 'showNewArticlesPill' ? prefs[k] !== false
           : prefs[k];
@@ -791,7 +795,7 @@ export const UI_SYNC_KEYS = [
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
-  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder',
+  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

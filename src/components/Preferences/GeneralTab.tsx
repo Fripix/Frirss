@@ -19,6 +19,8 @@ export default function GeneralTab() {
   const setArticleOrder = useUiStore((s) => s.setArticleOrder);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
   const setInlineVideos = useUiStore((s) => s.setInlineVideos);
+  const autoExtractDefault = useUiStore((s) => s.autoExtractDefault);
+  const setAutoExtractDefault = useUiStore((s) => s.setAutoExtractDefault);
   const { shortcuts, setShortcut, resetShortcuts } = useUiStore();
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -216,6 +218,23 @@ export default function GeneralTab() {
               checked={inlineVideos}
               onChange={setInlineVideos}
               ariaLabel={t('preferences.general.inlineVideos')}
+            />
+          </span>
+        </div>
+
+        {/* Full article by default — each feed may still say yes or no from its menu */}
+        <div className="flex items-start justify-between gap-4 select-none mt-4">
+          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.general.autoExtractDefault')}
+            <span className="block text-[11px] opacity-70 mt-0.5">
+              {t('preferences.general.autoExtractDefaultHint')}
+            </span>
+          </span>
+          <span className="mt-0.5">
+            <ToggleSwitch
+              checked={autoExtractDefault}
+              onChange={setAutoExtractDefault}
+              ariaLabel={t('preferences.general.autoExtractDefault')}
             />
           </span>
         </div>

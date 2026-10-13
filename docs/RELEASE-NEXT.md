@@ -36,6 +36,12 @@ la release publiée.
   marqué lu depuis l'accueil. Aucun réglage FriRSS : celui de FreshRSS fait
   foi. Un FreshRSS plus ancien ne change pas de comportement. Demandé dans la
   discussion #18.
+- **Article complet par défaut.** Un réglage global dans Préférences → Général
+  (désactivé d'origine), que chaque flux peut surcharger — *Par défaut / Oui /
+  Non* — depuis son menu, à la place de l'ancienne case « Article complet
+  auto ». Les flux déjà réglés gardent leur choix. Demandé dans la discussion
+  #19 ; l'aide du réglage rappelle le coût : une extraction par article ouvert
+  ou préparé hors-ligne.
 
 ## Corrections et améliorations
 
