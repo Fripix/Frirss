@@ -31,7 +31,9 @@ export default defineConfig({
         short_name: 'FriRSS',
         description: 'Lecteur RSS moderne pour FreshRSS',
         lang: 'fr',
-        theme_color: '#201f1b',
+        // Repli de Chrome pour la barre d'état de l'app installée (couleur refusée
+        // au-dessus de 0,94 de luminosité) : l'en-tête de liste au plafond, pas le noir.
+        theme_color: '#efefef',
         background_color: '#201f1b',
         display: 'standalone',
         start_url: '/',

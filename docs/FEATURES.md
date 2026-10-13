@@ -371,8 +371,18 @@ d'adopter la disposition mobile.
   du propriétaire (2026-10-13, option B) : jamais l'accent, la surface
   dessous, sans exception. **iOS n'est pas concerné** : sa bande est peinte
   par la page (`.safe-area-top`, décision du 2026-09-25), pas par cette
-  balise. Le `theme_color` du manifeste reste sombre : il sert à l'écran de
-  lancement, autre surface.
+  balise.
+  ⚠️ **Le plafond de Chrome** : en app installée, une couleur de luminosité
+  HSL **> 0,94** est ignorée et Chrome retombe sur la couleur d'installation
+  (celle du manifeste) — mesuré sur Android 17 par DevTools : `#e8e8e8`
+  appliqué, `#f0f0f0` refusé, alors qu'en mode navigateur tout passe. Le
+  thème par défaut (`#fafafa`, `#ffffff`) est dans la zone interdite :
+  `clampForChromeWebapp()` ramène toute surface trop claire au plafond, teinte
+  gardée (`#fafafa` → `#efefef`), et le `theme_color` du manifeste vaut ce
+  même `#efefef` pour que le repli ne soit plus noir. C'est pourquoi la barre
+  n'est jamais *exactement* blanche sur Android ; décision du propriétaire
+  (2026-10-13) plutôt que l'accent. Le `background_color` du manifeste reste
+  sombre : c'est l'écran de lancement, autre surface.
 
 ### Raccourcis clavier
 Navigation et actions au clavier, chaque raccourci réassignable. Gestes intégrés

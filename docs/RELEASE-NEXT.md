@@ -56,8 +56,10 @@ la release publiée.
   puis l'accent en lecture (discussion #19). Elle prend maintenant la couleur
   de ce qui est juste dessous : l'en-tête de liste, le fond de l'article, ou
   la barre des serveurs si elle est affichée ; Chrome teinte la barre de
-  navigation de même. Ce sont des couleurs du thème, déjà réglables. iOS
-  inchangé.
+  navigation de même. Ce sont des couleurs du thème, déjà réglables. Une
+  surface plus claire que ce que Chrome accepte en app installée (luminosité
+  > 0,94, mesuré) est ramenée au plafond : `#fafafa` donne `#efefef`, presque
+  blanc. iOS inchangé.
 
 ## Sous le capot
 
