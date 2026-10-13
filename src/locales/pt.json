@@ -185,8 +185,8 @@
       "unreadScopeAll": "Todos os feeds",
       "unreadScopeHint": "Com «Por fonte», cada fonte guarda a sua escolha. Com «Todos os feeds», o botão Não lidos aplica-se em todo o lado. Voltar a «Por fonte» apaga as escolhas por fonte: cada fonte parte do estado atual.",
       "articleOrder": "Ordem dos artigos",
-      "articleOrderNewest": "Mais recentes primeiro",
-      "articleOrderOldest": "Mais antigos primeiro",
+      "articleOrderNewest": "Mais recentes",
+      "articleOrderOldest": "Mais antigos",
       "articleOrderHint": "Mais antigos primeiro convém a quem lê por ordem de publicação. Cada fluxo pode manter a sua própria ordem a partir do seu menu.",
       "newArticlesPill": "Assinalar novos artigos",
       "newArticlesPillHint": "Um banner no topo da lista conta os artigos que chegaram desde que foi carregada e mostra-os com um clique. A lista nunca muda sozinha."

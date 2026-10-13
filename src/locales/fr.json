@@ -185,8 +185,8 @@
       "unreadScopeAll": "Tous les flux",
       "unreadScopeHint": "Par flux, chaque flux retient son choix. Tous les flux, le bouton Non lus s'applique partout. Revenir à Par flux efface les choix par flux : chaque flux repart de l'état actuel.",
       "articleOrder": "Ordre des articles",
-      "articleOrderNewest": "Plus récents d'abord",
-      "articleOrderOldest": "Plus anciens d'abord",
+      "articleOrderNewest": "Récents d'abord",
+      "articleOrderOldest": "Anciens d'abord",
       "articleOrderHint": "Plus anciens d'abord convient à qui lit dans l'ordre de parution. Chaque flux peut garder son propre ordre depuis son menu.",
       "newArticlesPill": "Signaler les nouveaux articles",
       "newArticlesPillHint": "Un bandeau en haut de la liste compte les articles arrivés depuis son chargement et les affiche d’un clic. La liste ne change jamais d’elle-même."

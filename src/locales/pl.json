@@ -189,8 +189,8 @@
       "unreadScopeAll": "Wszystkie kanały",
       "unreadScopeHint": "W trybie „Osobno” każdy kanał zapamiętuje własny wybór. W trybie „Wszystkie kanały” przycisk Nieprzeczytane działa wszędzie. Powrót do „Osobno” usuwa wybory poszczególnych kanałów: każdy kanał zaczyna od bieżącego stanu.",
       "articleOrder": "Kolejność artykułów",
-      "articleOrderNewest": "Najnowsze najpierw",
-      "articleOrderOldest": "Najstarsze najpierw",
+      "articleOrderNewest": "Od najnowszych",
+      "articleOrderOldest": "Od najstarszych",
       "articleOrderHint": "Najstarsze najpierw sprawdza się przy czytaniu w kolejności publikacji. Każdy kanał może zachować własną kolejność w swoim menu.",
       "newArticlesPill": "Informuj o nowych artykułach",
       "newArticlesPillHint": "Baner u góry listy liczy artykuły, które przyszły od jej wczytania, i pokazuje je jednym kliknięciem. Lista nigdy nie zmienia się sama."
