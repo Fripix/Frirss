@@ -357,6 +357,21 @@ d'adopter la disposition mobile.
 - **Où** : `src/hooks/useBreakpoint.ts`, `src/components/MobileDrawer.tsx`, `src/components/MobileStack.tsx`
 - **Règle** : conditionner le **survol** à `(hover: hover)`, jamais à la largeur —
   une tablette avec trackpad est un pointeur fin. Cibles tactiles ≥ 44 pt.
+- **Geste retour Android** (`src/lib/historyLayers.ts`, testé ;
+  `src/hooks/useAndroidBack.ts`, branché dans `App.tsx`) : chaque surface qui
+  recouvre l'écran — article sur téléphone, tiroir des flux, Préférences —
+  pousse une entrée d'historique ; un retour (geste depuis le bord, bouton
+  Précédent) ferme la couche du dessus, Préférences avant tiroir avant
+  article ; un retour sans couche ouverte quitte l'app, comme toute app.
+  Fermer depuis l'app (croix, bouton retour en bas à gauche) reprend l'entrée
+  par un `history.back()` synthétique dont le `popstate` ne ferme rien.
+  Avant la 1.5.1, le geste retour natif fermait l'app depuis un article
+  (discussion #19, reproduit sur l'émulateur). ⚠️ **Android seulement, par
+  plateforme** (`isAndroid(userAgent)`), jamais par largeur d'écran : le
+  propriétaire a demandé qu'iOS ne bouge pas — l'iPhone n'a pas de bouton
+  système et son balayage depuis le bord a sa propre sémantique. Les gestes
+  gauche/droite (article suivant/précédent) sont inchangés : le retour, c'est
+  le bord gauche, celui d'Android.
 - **Barre d'état Android (app installée)** : sa couleur est `<meta
   name="theme-color">`, et Chrome teinte la barre de navigation à l'avenant.
   Une seule règle, `src/lib/statusBarColor.ts` (testée), appliquée par un

@@ -6,6 +6,7 @@ import { useThemeStore } from './stores/themeStore';
 import { useUiStore, isUnreadOnly } from './stores/uiStore';
 import { useKeyboardNav } from './hooks/useKeyboardNav';
 import { useBreakpoint } from './hooks/useBreakpoint';
+import { useAndroidBack } from './hooks/useAndroidBack';
 import { hydrateExtractCache } from './lib/extractCache';
 import { hydratePrefs, stopSync } from './lib/prefsSync';
 import { saveLastView, loadLastView } from './lib/lastView';
@@ -70,6 +71,17 @@ export default function App() {
     meta.setAttribute('content', statusBarColor({ topbarVisible, reading: !!selectedArticle }, themeColors));
   }, [breakpoint, topbarVisible, !!selectedArticle, themeColors]); // eslint-disable-line react-hooks/exhaustive-deps
   const isDesktop = breakpoint === 'desktop';
+
+  // Android back gesture: closes what covers the screen instead of leaving.
+  // The article is a layer on phones only (tablets show it beside the list).
+  useAndroidBack(
+    { article: isMobile && !!selectedArticle, drawer: !isDesktop && sidebarVisible, prefs: !isDesktop && preferencesOpen },
+    {
+      article: () => useFeedStore.getState().selectArticle(null),
+      drawer: () => setSidebarVisible(false),
+      prefs: () => useThemeStore.getState().closePreferences(),
+    },
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Expose the effective layout to CSS (responsive rules key off this instead

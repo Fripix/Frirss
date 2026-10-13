@@ -56,6 +56,12 @@ la release publiée.
   le menu (discussion #19) ; le ✓ d'une seule ligne, lui, la retirait déjà.
   L'état « Tout est lu » s'affiche aussitôt ; le retour en arrière recharge
   la liste.
+- **Android : le geste retour revient à la liste.** Depuis un article, le
+  balayage depuis le bord gauche (ou le bouton Précédent) fermait l'app ; il
+  ferme maintenant ce qui recouvre l'écran — l'article, le tiroir des flux,
+  les Préférences — et ne quitte l'app qu'une fois tout refermé. Les
+  balayages gauche/droite entre articles sont inchangés. Android seulement ;
+  iOS et bureau ne changent pas. Demandé dans la discussion #19.
 - **Android, app installée : la barre d'état ne fait plus « fenêtre de
   navigateur ».** Elle prenait la couleur de la barre des serveurs, sombre
   et masquée par défaut sur mobile — noire au-dessus d'un en-tête clair —
