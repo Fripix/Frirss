@@ -579,14 +579,15 @@ export default function ArticleList() {
     const observer = new IntersectionObserver(
       (entries) => {
         const scrollEpoch = userScrollEpochRef.current;
-        // Reordering can move previously visible rows above the viewport and
-        // trigger this observer without any scroll. Only one fresh, downward
-        // user-scroll event may authorize a batch of automatic read changes.
-        if (scrollEpoch <= processedScrollEpochRef.current) return;
-        if (!shouldProcessReadObserver(scrollEpoch, processedScrollEpochRef.current, userScrollDirectionRef.current)) {
-          processedScrollEpochRef.current = scrollEpoch;
-          return;
-        }
+        // The observer's initial callback is also how we learn which rows have
+        // actually been visible. Always record entries entering the viewport,
+        // even when no scroll happened; otherwise the initial callback is
+        // discarded and no article ever qualifies as "seen".
+        const canMarkFromThisCallback = shouldProcessReadObserver(
+          scrollEpoch,
+          processedScrollEpochRef.current,
+          userScrollDirectionRef.current,
+        );
         for (const entry of entries) {
           const id = (entry.target as HTMLElement).dataset.articleId;
           if (!id) continue;
@@ -598,6 +599,11 @@ export default function ArticleList() {
             if (pending) { clearTimeout(pending); timers.delete(id); }
             continue;
           }
+
+          // Sorting/re-rendering can also generate exit notifications. They
+          // must never mark articles read unless a fresh downward user scroll
+          // authorized this callback.
+          if (!canMarkFromThisCallback) continue;
 
           const pastTop = scrolledPastTop(entry.boundingClientRect, entry.rootBounds);
           const article = useFeedStore.getState().articles.find((a) => a.id === id);
@@ -615,7 +621,9 @@ export default function ArticleList() {
             if (fresh && !fresh.read) useFeedStore.getState().toggleRead(fresh, { implicit: true });
           }, MARK_READ_DELAY_MS));
         }
-        processedScrollEpochRef.current = scrollEpoch;
+        if (scrollEpoch > processedScrollEpochRef.current) {
+          processedScrollEpochRef.current = scrollEpoch;
+        }
       },
       { root, threshold: 0 }
     );
