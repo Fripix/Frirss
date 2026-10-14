@@ -167,6 +167,8 @@ function MarkReadButton({ read, onClick }: MarkReadButtonProps) {
 }
 
 interface OpenSourceButtonProps {
+  /** URL d'origine de l'article : portée par le `href`, jamais vide ici. */
+  href: string;
   onClick: (e: ReactMouseEvent) => void;
 }
 
@@ -177,15 +179,25 @@ interface OpenSourceButtonProps {
  * même verbe, même signe. L'icône porte l'action (« ouvrir ailleurs »), le
  * contexte porte l'objet — un article ici, un flux là-bas.
  *
+ * **Un lien, pas un bouton** (issue #21) : les extensions de prévisualisation,
+ * « copier l'adresse du lien » et le clic molette natif lisent le `href`. Le
+ * clic simple, lui, est neutralisé (`preventDefault`) et passe par `onClick`
+ * comme avant — c'est ce gestionnaire qui ouvre l'onglet ET sélectionne
+ * l'article (`openArticleAtSource`), le même chemin que le clic molette sur
+ * la ligne ; laisser la navigation native en plus ouvrirait l'URL deux fois.
+ *
  * Pas de geste d'appui long, contrairement à l'étoile et à « à lire plus
  * tard » : cette action n'a rien à classer.
  */
-export function OpenSourceButton({ onClick }: OpenSourceButtonProps) {
+export function OpenSourceButton({ href, onClick }: OpenSourceButtonProps) {
   const { t } = useTranslation();
   return (
-    <button
-      onClick={onClick}
-      className="p-1 rounded transition-colors hover:bg-black/5"
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => { e.preventDefault(); onClick(e); }}
+      className="p-1 rounded inline-flex transition-colors hover:bg-black/5"
       style={{ color: 'var(--star-inactive)' }}
       title={t('articleRow.openSource')}
       aria-label={t('articleRow.openSource')}
@@ -193,7 +205,7 @@ export function OpenSourceButton({ onClick }: OpenSourceButtonProps) {
       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
       </svg>
-    </button>
+    </a>
   );
 }
 
@@ -247,7 +259,7 @@ export function ArticleRowActions({
           case 'readLater':
             return <ReadLaterButton key={slot.kind} active={isReadLater} onClick={onToggleReadLater} article={article} />;
           case 'openSource':
-            return <OpenSourceButton key={slot.kind} onClick={onOpenSource} />;
+            return <OpenSourceButton key={slot.kind} href={article.url} onClick={onOpenSource} />;
           case 'markRead':
             return <MarkReadButton key={slot.kind} read={article.read} onClick={onToggleRead} />;
         }

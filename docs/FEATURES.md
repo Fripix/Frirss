@@ -886,8 +886,13 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   sur « ouvrir à la source » qui appelle `onOpenSource` sans déclencher
   `onSelect` par propagation) — d'où l'export de `ArticleRow` depuis
   `ArticleList.tsx`, qui n'a pas d'autre consommateur.
-- **Ouvrir à la source** (4ᵉ icône, `OpenSourceButton`) : ouvre l'URL d'origine
-  de l'article dans un nouvel onglet (`openExternal()`, `src/lib/openExternal.ts`
+- **Ouvrir à la source** (4ᵉ icône, `OpenSourceButton`) : un **lien** `<a
+  href target="_blank" rel="noopener noreferrer">` qui porte l'URL de
+  l'article (1.6.1, issue #21 : les extensions de prévisualisation, « copier
+  l'adresse du lien » et le clic molette natif lisent le `href` ; un bouton ne
+  leur donnait rien). Le clic simple est neutralisé (`preventDefault`) et suit
+  le chemin d'avant : ouvre l'URL d'origine dans un nouvel onglet
+  (`openExternal()`, `src/lib/openExternal.ts`
   — `window.open(url, '_blank', 'noopener')`, qui ne navigue jamais DANS
   FriRSS) puis **sélectionne** l'article dans FriRSS (`openArticleAtSource()`,
   `src/lib/openArticleAtSource.ts`, qui reçoit un sélecteur en argument —

@@ -29,6 +29,11 @@ _(rien pour l'instant)_
   maintenant gardée telle quelle ; seuls `oidc_verifier` et `oidc_nonce` sont
   lus, et eux sont toujours bien encodés. Parseur extrait dans
   `server/cookies.ts`, testé.
+- **« Ouvrir à la source » est un lien (issue #21).** Dans les modes liste et
+  grille, l'icône était un bouton sans `href` : les extensions de
+  prévisualisation d'URL et « copier l'adresse du lien » ne la voyaient pas.
+  C'est désormais un `<a href>` vers l'article ; le clic garde le comportement
+  d'avant (nouvel onglet puis sélection de l'article), sans double ouverture.
 
 ## Sous le capot
 

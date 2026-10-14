@@ -51,10 +51,14 @@ function actionsOf(container: HTMLElement) {
   return row?.lastElementChild ?? null;
 }
 
-/** Le `title` du bouton porté par un emplacement, ou `null` s'il est vide. */
+/**
+ * Le `title` de la commande portée par un emplacement, ou `null` s'il est
+ * vide. Une commande est un bouton, sauf « ouvrir à la source » qui est un
+ * lien (issue #21).
+ */
 function kindOf(el: Element | null | undefined) {
-  const button = el?.matches('button') ? el : el?.querySelector('button');
-  return button?.getAttribute('title')?.split(' — ')[0] ?? null;
+  const control = el?.matches('button, a') ? el : el?.querySelector('button, a');
+  return control?.getAttribute('title')?.split(' — ')[0] ?? null;
 }
 
 describe('ArticleRow — mode compact', () => {
@@ -103,10 +107,30 @@ describe('ArticleRow — mode compact', () => {
     const onOpenSource = vi.fn((e: { stopPropagation: () => void }) => e.stopPropagation());
     const { container } = renderCompact({}, { onSelect, onOpenSource });
     const actions = actionsOf(container);
-    const button = actions?.children[2] as HTMLElement;
-    expect(button.tagName).toBe('BUTTON');
-    fireEvent.click(button);
+    const link = actions?.children[2] as HTMLElement;
+    fireEvent.click(link);
     expect(onOpenSource).toHaveBeenCalledOnce();
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  // Issue #21 : un lien, pas un bouton — les extensions de prévisualisation,
+  // « copier l'adresse du lien » et le clic molette natif lisent le `href`.
+  it('« ouvrir à la source » est un lien qui porte l’URL de l’article (issue #21)', () => {
+    const { container } = renderCompact();
+    const link = actionsOf(container)?.children[2] as HTMLAnchorElement;
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('href')).toBe('https://example.com/1');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('le clic sur le lien neutralise la navigation native : l’ouverture reste celle d’onOpenSource, une seule fois', () => {
+    const onOpenSource = vi.fn((e: { stopPropagation: () => void }) => e.stopPropagation());
+    const { container } = renderCompact({}, { onOpenSource });
+    const link = actionsOf(container)?.children[2] as HTMLAnchorElement;
+    const ev = new MouseEvent('click', { bubbles: true, cancelable: true });
+    link.dispatchEvent(ev);
+    expect(onOpenSource).toHaveBeenCalledOnce();
+    expect(ev.defaultPrevented).toBe(true);
   });
 });

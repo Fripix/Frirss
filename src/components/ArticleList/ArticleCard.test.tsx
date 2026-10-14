@@ -65,8 +65,8 @@ describe('ArticleCard', () => {
     // (étoile, à lire plus tard, à cause du geste d'appui long). On lit le
     // `title` du bouton qu'il porte pour retrouver l'ordre affiché.
     const kinds = Array.from(actions?.children ?? []).map((el) => {
-      const button = el.matches('button') ? el : el.querySelector('button');
-      return button?.getAttribute('title')?.split(' — ')[0] ?? null;
+      const control = el.matches('button, a') ? el : el.querySelector('button, a');
+      return control?.getAttribute('title')?.split(' — ')[0] ?? null;
     });
     expect(kinds).toEqual([
       'articleRow.addStar', 'articleRow.addReadLater', 'articleRow.openSource', 'articleRow.markRead',
@@ -99,11 +99,23 @@ describe('ArticleCard', () => {
     );
     const actions = container.querySelector('.article-card__actions');
     const slot = actions?.children[2];
-    const button = slot?.matches('button') ? slot : slot?.querySelector('button');
-    expect(button).toBeTruthy();
-    fireEvent.click(button as Element);
+    expect(slot).toBeTruthy();
+    fireEvent.click(slot as Element);
     expect(onOpenSource).toHaveBeenCalledOnce();
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  // Issue #21 : même lien que dans les lignes — la grille partage la barre.
+  it('« ouvrir à la source » est un lien qui porte l’URL de l’article (issue #21)', () => {
+    const { container } = render(
+      <ArticleCard article={base} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
+        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
+    );
+    const link = container.querySelector('.article-card__actions')?.children[2] as HTMLAnchorElement;
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('href')).toBe('https://x/1');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
   });
 
   it('masquer une icône par réglage RETIRE son emplacement, sans le réserver', () => {
@@ -118,8 +130,8 @@ describe('ArticleCard', () => {
     expect(actions?.children.length).toBe(3);
     expect(actions?.querySelector('[aria-hidden="true"]')).toBeNull();
     const kinds = Array.from(actions?.children ?? []).map((el) => {
-      const button = el.matches('button') ? el : el.querySelector('button');
-      return button?.getAttribute('title')?.split(' — ')[0] ?? null;
+      const control = el.matches('button, a') ? el : el.querySelector('button, a');
+      return control?.getAttribute('title')?.split(' — ')[0] ?? null;
     });
     expect(kinds).toEqual([
       'articleRow.addStar', 'articleRow.addReadLater', 'articleRow.markRead',
