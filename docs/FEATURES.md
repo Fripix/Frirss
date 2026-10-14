@@ -66,6 +66,14 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
 - **Spec** : `docs/superpowers/specs/2026-08-15-sso-only-mode-design.md`
 - **Piège** : une URL « break-glass » permet de revenir au formulaire local si le
   SSO tombe. Sans elle, un OIDC cassé enferme dehors l'administrateur.
+- **Piège** (1.6.1, issue #23) : le callback lit les cookies de l'hôte avec un
+  parseur maison (`server/cookies.ts`, `parseCookieHeader()`), et cet hôte
+  porte aussi les cookies des **autres** services posés sur le même domaine
+  (Authelia derrière SWAG, par exemple). Une seule valeur avec une séquence
+  `%` invalide faisait lever `URIError: URI malformed` à `decodeURIComponent`
+  et échouer TOUT le callback. Une valeur indécodable est maintenant gardée
+  brute : elle n'est jamais la nôtre (`oidc_verifier` et `oidc_nonce` sont
+  encodés par Express). Test : `server/cookies.test.ts`.
 
 ### Écran de connexion
 Trois étapes : compte FriRSS, puis serveur FreshRSS, puis identifiants FreshRSS.

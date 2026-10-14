@@ -22,7 +22,13 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Connexion OIDC derrière un SSO tiers (issue #23).** Le callback OIDC
+  échouait avec `URIError: URI malformed` dès qu'un cookie du domaine (Authelia
+  derrière SWAG, par exemple) portait une séquence `%` invalide : le parseur
+  de cookies décodait chaque valeur sans tolérance. Une valeur indécodable est
+  maintenant gardée telle quelle ; seuls `oidc_verifier` et `oidc_nonce` sont
+  lus, et eux sont toujours bien encodés. Parseur extrait dans
+  `server/cookies.ts`, testé.
 
 ## Sous le capot
 

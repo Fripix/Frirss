@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import db, { getSetting, getJwtSecret, userCount } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getOidcConfig, getDiscovery, getRedirectUri, isOidcEnabled } from '../oidc.js';
+import { parseCookieHeader } from '../cookies.js';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -29,21 +30,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // ── OIDC PKCE / nonce helpers ───────────────────────────────────────
 const base64url = (buf: Buffer): string =>
   buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
-// Minimal cookie parser (avoids a cookie-parser dependency)
-function parseCookies(req: Request): Record<string, string> {
-  const header = req.headers.cookie;
-  if (!header) return {};
-  const out: Record<string, string> = {};
-  for (const part of header.split(';')) {
-    const idx = part.indexOf('=');
-    if (idx === -1) continue;
-    const k = part.slice(0, idx).trim();
-    const v = part.slice(idx + 1).trim();
-    if (k) out[k] = decodeURIComponent(v);
-  }
-  return out;
-}
 
 // HttpOnly cookie options for the short-lived OIDC handshake values
 function oidcCookieOpts(req: Request): CookieOptions {
@@ -316,7 +302,7 @@ router.get('/oidc/callback', async (req, res) => {
     }
 
     // Retrieve & immediately clear the PKCE verifier + nonce cookies
-    const cookies = parseCookies(req);
+    const cookies = parseCookieHeader(req.headers.cookie);
     const codeVerifier = cookies.oidc_verifier;
     const expectedNonce = cookies.oidc_nonce;
     const clearOpts: CookieOptions = { httpOnly: true, sameSite: 'lax', path: '/api/auth' };
