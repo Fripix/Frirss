@@ -69,7 +69,9 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 
 ### Reading
 - **Three panes on desktop**, and an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
-- **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant. On a feed set to auto-extract, the next articles are warmed ahead of you, images included, so swiping lands on a page that is already whole.
+- **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant. A global default (*Preferences → General → Full article by default*, off out of the box) opens every article in full; each feed can follow it, or say yes or no on its own, from its menu. On a feed that extracts, the next articles are warmed ahead of you, images included, so swiping lands on a page that is already whole.
+- **Oldest first, if you prefer** — a global order in *Preferences → General*, overridable per feed from its menu. FreshRSS serves the pages in that order, so it holds across infinite scroll, and *mark everything above / below* follows the order on screen.
+- **FreshRSS's per-feed visibility is honoured** — a feed set to *show in its category only* (or in its own view only) stays out of *All feeds* and *Unread*, out of their counts, and out of *Mark all as read* from there, while it still shows in its category. The setting lives in FreshRSS; it needs FreshRSS 1.28 or later, and older servers behave as before.
 - **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
 - **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed — or, if you prefer, one choice applies to every feed (*Preferences → General → Unread filter*).
 - **Ticking an article read clears it from the unread list** — instantly, in every layout including the compact one. Opening an article leaves its row where it is, so you keep your place; only a deliberate tick removes one. If the server refuses the write, the row comes back and says so.
@@ -77,15 +79,16 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Open an article at its source** — an icon on each row opens the origin site in a new tab and selects the article, so it is marked read and keeps its place in the list. For the feeds you would rather read on the site itself.
 - **Right-click an article** — or long-press it on touch, or press the keyboard Menu key — for a menu: open at source, mark read or unread, mark everything above or below as read, favorite, read later, copy link. Entries carry icons and are grouped by what they do; the two range actions cover the whole view, loaded rows or not. On a phone it opens as a bottom sheet; a middle click opens the article at its source directly.
 - **Search that actually filters**, scoped to the view you are in: FriRSS scans that scope article by article in your browser — read ones included — and shows matches as they turn up, with a counter and a stop button while it works. **Every result says why it is one**: the term is highlighted in the title and summary, and when it only appears deep in the article, the row shows the passage that matched instead of the usual summary. The count stays on screen once the scan is done. FreshRSS's Google Reader API has no search parameter, so the filtering happens client-side; offline, it searches what your device already holds and says so. The last five queries are offered back, per server.
-- **Mark as read while scrolling**, optionally: an article is marked once it has left the top of the list. Off by default, never during a search.
+- **Mark as read while scrolling**, optionally: an article is marked once it has left the top of the list. Off by default, never during a search. The last rows never leave the top, so a list ends with a *Mark all as read* button whenever unread rows remain — the same action as the toolbar's, confirmation and undo included.
 - **New articles announce themselves** — a banner at the top of the list counts what has arrived in the view you are looking at, and loads it in one click. Dismiss it and it comes back on the next arrival. The list never changes under you. Off in *Preferences → General* if you would rather it did not.
 - **Share an article or copy its link** from the reading pane — the system share sheet on mobile, the clipboard elsewhere.
-- **Resume where you left off** — your last feed and filter come back on reopen, with an unobtrusive offline / back-online indicator.
+- **Resume where you left off** — your last feed and filter come back on reopen, or FriRSS always opens on *All feeds* or *Unread* if you say so (*Preferences → General → Startup view*). An unobtrusive offline / back-online indicator sits above the list.
+- **At home on Android** — in the installed app, the back gesture closes what is on top (article, feed drawer, preferences) instead of leaving the app, and the status bar takes the colour of the surface beneath it.
 
 ### Keyboard and reach
 - **A command palette** on <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>: jump to a feed, a category, a label, a view, switch FreshRSS server, or run an action. Accents are ignored, so *securite* finds *Sécurité*.
 - **Ten reassignable shortcuts**, and <kbd>?</kbd> opens a sheet listing them with the keys you actually configured.
-- **Menus by long press on touch** — a feed in the sidebar opens its menu (rename, open site, auto-extract, unsubscribe), an article opens its own, with 44pt rows.
+- **Menus by long press on touch** — a feed in the sidebar opens its menu (rename, open site, full article, layout and order for this feed, unsubscribe), an article opens its own, with 44pt rows.
 - **Built to be used without a mouse** — a visible focus ring throughout, 44pt touch targets, screen-reader names on icon-only buttons, and *reduced motion* honored everywhere.
 
 ### Make it yours
