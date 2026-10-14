@@ -6,6 +6,39 @@ release live on its [release page](https://github.com/Fripix/Frirss/releases).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 FriRSS follows [semantic versioning](https://semver.org/).
 
+## [1.6.1] - 2026-10-15
+
+## Corrections et améliorations
+
+- **Connexion OIDC derrière un SSO tiers (issue #23).** Le callback OIDC
+  échouait avec `URIError: URI malformed` dès qu'un cookie du domaine (Authelia
+  derrière SWAG, par exemple) portait une séquence `%` invalide : le parseur
+  de cookies décodait chaque valeur sans tolérance. Une valeur indécodable est
+  maintenant gardée telle quelle ; seuls `oidc_verifier` et `oidc_nonce` sont
+  lus, et eux sont toujours bien encodés. Parseur extrait dans
+  `server/cookies.ts`, testé.
+- **« Ouvrir à la source » est un lien (issue #21).** Dans les modes liste et
+  grille, l'icône était un bouton sans `href` : les extensions de
+  prévisualisation d'URL et « copier l'adresse du lien » ne la voyaient pas.
+  C'est désormais un `<a href>` vers l'article ; le clic garde le comportement
+  d'avant (nouvel onglet puis sélection de l'article), sans double ouverture.
+- **Connexion SSO derrière un split-DNS.** Depuis la 1.4.4, la découverte OIDC
+  passait par la garde anti-SSRF, qui refusait l'émetteur dès que son nom
+  public se résolvait en IP privée depuis le conteneur (cas typique : le
+  fournisseur d'identité derrière le même reverse proxy, sur le même réseau).
+  Toute connexion SSO échouait alors en `login_failed`, sans explication.
+  L'hôte de l'émetteur, fixé par l'administrateur, est désormais de confiance
+  pour la garde ; et l'échange du code et `userinfo`, jusqu'ici des `fetch`
+  hors garde, passent par elle avec la même règle. Une redirection de
+  l'émetteur vers un autre hôte interne reste refusée. Décision et coût dans
+  `SECURITY.md`.
+
+## Actions requises à la mise à jour
+
+- Aucune. Si vous aviez ajouté l'hôte de votre fournisseur OIDC à
+  `PROXY_INTERNAL_HOSTS` pour contourner `login_failed`, vous pouvez le retirer
+  (le garder ne change rien).
+
 ## [1.6.0] - 2026-10-14
 
 ## Fonctionnalités
