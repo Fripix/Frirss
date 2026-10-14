@@ -744,7 +744,34 @@ export default function ArticleList() {
                 ? t('articleList.readLaterSuffix', { defaultValue: 'Read later' })
                 : feedName;
 
-  const rankedArticles = useMemo(() => rankInterestingArticles(articles, intelligenceFeedback, Date.now(), interestingAlgorithm), [articles, intelligenceFeedback, interestingAlgorithm]);
+  // Mark-as-read changes only `article.read`, but it replaces the articles
+  // array in the store. Ranking every article again on each such update makes
+  // the Interesting list stutter while scrolling. Rank by the fields that
+  // actually influence relevance, then hydrate the ranked IDs from the live
+  // store objects so read/star state stays current without rerunning the model.
+  const interestingRankingKey = useMemo(
+    () => articles.map((article) => [
+      article.id,
+      article.title,
+      article.summary,
+      article.content,
+      article.published,
+    ].join('\\u001f')).join('\\u001e'),
+    [articles],
+  );
+  const rankingIdentity = useCallback(
+    (article: Article) => `${article.id}\\u001f${article.url}\\u001f${article.title}`,
+    [],
+  );
+  const rankedArticleKeys = useMemo(
+    () => rankInterestingArticles(articles, intelligenceFeedback, Date.now(), interestingAlgorithm)
+      .map(rankingIdentity),
+    [interestingRankingKey, intelligenceFeedback, interestingAlgorithm, rankingIdentity],
+  );
+  const rankedArticles = useMemo(() => {
+    const currentByKey = new Map(articles.map((article) => [rankingIdentity(article), article]));
+    return rankedArticleKeys.map((key) => currentByKey.get(key)).filter((article): article is Article => !!article);
+  }, [articles, rankedArticleKeys, rankingIdentity]);
   const groups = groupByDate(filter === 'interesting' ? rankedArticles : articles);
 
   // Une liste vide ne veut dire « il n'y a plus rien » que si le flux est
