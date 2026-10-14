@@ -34,6 +34,16 @@ _(rien pour l'instant)_
   prévisualisation d'URL et « copier l'adresse du lien » ne la voyaient pas.
   C'est désormais un `<a href>` vers l'article ; le clic garde le comportement
   d'avant (nouvel onglet puis sélection de l'article), sans double ouverture.
+- **Connexion SSO derrière un split-DNS.** Depuis la 1.4.4, la découverte OIDC
+  passait par la garde anti-SSRF, qui refusait l'émetteur dès que son nom
+  public se résolvait en IP privée depuis le conteneur (cas typique : le
+  fournisseur d'identité derrière le même reverse proxy, sur le même réseau).
+  Toute connexion SSO échouait alors en `login_failed`, sans explication.
+  L'hôte de l'émetteur, fixé par l'administrateur, est désormais de confiance
+  pour la garde ; et l'échange du code et `userinfo`, jusqu'ici des `fetch`
+  hors garde, passent par elle avec la même règle. Une redirection de
+  l'émetteur vers un autre hôte interne reste refusée. Décision et coût dans
+  `SECURITY.md`.
 
 ## Sous le capot
 
@@ -41,7 +51,9 @@ _(rien pour l'instant)_
 
 ## Actions requises à la mise à jour
 
-_(aucune)_
+- Aucune. Si vous aviez ajouté l'hôte de votre fournisseur OIDC à
+  `PROXY_INTERNAL_HOSTS` pour contourner `login_failed`, vous pouvez le retirer
+  (le garder ne change rien).
 
 ## Documentation
 

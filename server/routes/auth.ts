@@ -6,7 +6,7 @@ import { randomBytes, createHash } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import db, { getSetting, getJwtSecret, userCount } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { getOidcConfig, getDiscovery, getRedirectUri, isOidcEnabled } from '../oidc.js';
+import { getOidcConfig, getDiscovery, getRedirectUri, isOidcEnabled, oidcFetch } from '../oidc.js';
 import { parseCookieHeader } from '../cookies.js';
 
 const router = Router();
@@ -317,7 +317,9 @@ router.get('/oidc/callback', async (req, res) => {
     const redirectUri = decoded.redirectUri || getRedirectUri(req);
 
     // Exchange the authorization code for tokens (with PKCE verifier)
-    const tokenRes = await fetch(disco.token_endpoint, {
+    // `oidcFetch`, pas un `fetch` nu : l'URL vient du document de découverte,
+    // la garde anti-SSRF s'applique (hôte de l'émetteur de confiance).
+    const tokenRes = await oidcFetch(disco.token_endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -327,7 +329,7 @@ router.get('/oidc/callback', async (req, res) => {
         client_id: cfg.clientId,
         client_secret: cfg.clientSecret,
         code_verifier: codeVerifier,
-      }),
+      }).toString(),
     });
 
     if (!tokenRes.ok) {
@@ -347,7 +349,7 @@ router.get('/oidc/callback', async (req, res) => {
     }
 
     // Fetch userinfo
-    const userinfoRes = await fetch(disco.userinfo_endpoint, {
+    const userinfoRes = await oidcFetch(disco.userinfo_endpoint, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     if (!userinfoRes.ok) {

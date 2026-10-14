@@ -932,8 +932,11 @@ describe('preferences — bornes', () => {
 });
 
 describe('oidc discovery', () => {
-  // C'était le seul `fetch` sortant du serveur à ne pas passer par le garde
-  // anti-SSRF, sur une URL que l'administrateur fixe librement.
+  // La découverte passe par le garde anti-SSRF (1.4.4), mais l'hôte de
+  // l'émetteur est de confiance d'office (1.6.1) : c'est l'administrateur qui
+  // le fixe, et en split-DNS il se résout en IP privée depuis le conteneur —
+  // la garde refusait alors toute connexion SSO (`login_failed`). La confiance
+  // s'arrête à cet hôte : un saut vers un autre hôte interne reste refusé.
   afterEach(() => {
     vi.unstubAllGlobals();
     clearDiscoveryCache();
@@ -945,10 +948,20 @@ describe('oidc discovery', () => {
     json: async () => ({ authorization_endpoint: authEndpoint }),
   });
 
-  it('refuses an issuer aimed at the internal network', async () => {
+  it('reaches an issuer on the internal network: the admin chose it (split-DNS)', async () => {
     setSetting('oidc_issuer', 'http://10.0.0.7/application/o/frirss/');
     clearDiscoveryCache();
     vi.stubGlobal('fetch', okDoc('http://10.0.0.7/authorize'));
+    const doc = await getDiscovery();
+    expect(doc.authorization_endpoint).toBe('http://10.0.0.7/authorize');
+  });
+
+  it('refuses a redirect from the issuer into another internal host', async () => {
+    setSetting('oidc_issuer', 'http://10.0.0.7/application/o/frirss/');
+    clearDiscoveryCache();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 302, headers: new Headers({ location: 'http://10.0.0.9/.well-known/openid-configuration' }),
+    }));
     await expect(getDiscovery()).rejects.toThrow();
   });
 

@@ -153,7 +153,7 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `FRIRSS_BASE_URL` | Public base URL — recommended behind a reverse proxy; fixes OIDC redirect URIs | derived |
 | `FRIRSS_DATA_DIR` | SQLite database directory | `/app/data` |
 | `PROXY_REWRITES` | public→internal URL rewrites for the backend proxy (`from=to`, comma-separated) | — |
-| `PROXY_INTERNAL_HOSTS` | Anti-SSRF allowlist: private hosts the proxy may reach directly, comma-separated. Needed when FreshRSS sits on a LAN or Docker address | — |
+| `PROXY_INTERNAL_HOSTS` | Anti-SSRF allowlist: private hosts the proxy may reach directly, comma-separated. Needed when FreshRSS sits on a LAN or Docker address. The OIDC issuer host is trusted automatically | — |
 | `REDIS_URL` | Enables the read cache (stale-while-revalidate); empty disables it | — |
 | `CACHE_ARTICLES_PER_FEED` | Articles kept per feed in the cache | `50` |
 | `CACHE_TTL` | Cache key expiry, in seconds | `86400` |

@@ -70,6 +70,29 @@ What tips the balance here:
 If the CSP is ever relaxed, or third-party scripts are introduced, this decision
 should be revisited — that is what would change the calculation.
 
+### The OIDC issuer is trusted by the anti-SSRF guard
+
+Every outgoing call of the OIDC flow — discovery, the code exchange, `userinfo`
+— goes through the same guard as the proxy, on every redirect hop. The host of
+the **issuer** is exempt from the private-address rule, and only that host:
+a redirect from the issuer towards another internal host is still refused.
+
+Why the exemption: the issuer is not a client-supplied target, the
+administrator sets it. And inside a home network with split-DNS, the public
+name of the identity provider resolves to a private address (the reverse proxy)
+from within the container, so the guard refused discovery and every SSO login
+failed with `login_failed` and no explanation. Until 1.6.1 the exchange and
+`userinfo` calls did not go through the guard at all, for URLs dictated by the
+discovery document: the guard covered one hop out of three.
+
+What the exemption costs: an attacker who already holds an **admin** account can
+point the issuer at an internal host and learn whether a JSON document is served
+at its well-known path — a blind probe, and a trivial one next to what an admin
+account already grants (that same attacker can replace the issuer with their own
+provider and sign in as anyone through the e-mail link-up). If you would rather
+keep the issuer under the rule, nothing is lost: `PROXY_INTERNAL_HOSTS` still
+works and the exemption adds no host you did not configure yourself.
+
 ### The anti-SSRF guard does not pin the resolved address
 
 Before fetching a client-supplied target, the proxy resolves its hostname and

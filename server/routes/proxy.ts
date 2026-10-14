@@ -425,11 +425,18 @@ function lookupFailure(host: string, err: unknown): BlockedTargetError {
 // les IP littérales. Un hôte interne au nom POINTÉ (`nas.example.com`, un
 // `.lan`, un `*.svc.cluster.local`) lui est invisible ; seule la résolution
 // ci-dessous sait le classer.
-export async function assertTargetSafe(rawUrl: string): Promise<void> {
+//
+// `trustedHosts` : hôtes de confiance propres à CET appel, en plus de
+// `PROXY_INTERNAL_HOSTS` — l'émetteur OIDC fixé par l'administrateur
+// (`server/oidc.ts`), que le split-DNS d'un réseau local résout en IP privée
+// depuis le conteneur. La confiance porte sur l'hôte nommé, pas sur la
+// requête : un saut de redirection vers un autre hôte privé reste refusé.
+export async function assertTargetSafe(rawUrl: string, trustedHosts: readonly string[] = []): Promise<void> {
   let host: string;
   try { host = new URL(rawUrl).hostname; } catch { throw new BlockedTargetError('bad-url'); }
   const h = host.toLowerCase().replace(/^\[|\]$/g, '');
   if (ALLOWED_INTERNAL.has(h)) return;                    // explicitly trusted
+  if (trustedHosts.some((t) => t.toLowerCase() === h)) return;
   if (isInternalHostLiteral(host)) throw new BlockedTargetError(host);
   let addrs: dns.LookupAddress[];
   try {
@@ -453,7 +460,7 @@ function isCacheableRead(method: string, target: string): boolean {
     && !target.includes('/reader/api/0/token');
 }
 
-interface FetchUpstreamOpts {
+export interface FetchUpstreamOpts {
   method?: string;
   headers?: Record<string, string>;
   body?: Buffer | string;
@@ -461,6 +468,8 @@ interface FetchUpstreamOpts {
   signal?: AbortSignal;
   /** Per-hop timeout override. Defaults to TIMEOUT_MS when omitted. */
   timeoutMs?: number;
+  /** Hosts this call may reach even if they resolve privately — see `assertTargetSafe`. */
+  trustedHosts?: readonly string[];
   /**
    * When false, a 3xx response is returned as-is instead of being chased.
    * Defaults to true (existing behaviour). Sensitive non-GET calls that carry
@@ -480,7 +489,7 @@ const MAX_REDIRECTS = 5;
 
 export async function fetchUpstream(
   rawTarget: string,
-  { method = 'GET', headers = {}, body, signal, timeoutMs, followRedirects = true }: FetchUpstreamOpts = {}
+  { method = 'GET', headers = {}, body, signal, timeoutMs, followRedirects = true, trustedHosts = [] }: FetchUpstreamOpts = {}
 ): Promise<Response> {
   const target = rewriteTarget(rawTarget);
 
@@ -498,7 +507,7 @@ export async function fetchUpstream(
     let startHost = '';
 
     for (let hop = 0; ; hop++) {
-      await assertTargetSafe(url);
+      await assertTargetSafe(url, trustedHosts);
       if (hop === 0) startHost = new URL(url).host;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs ?? TIMEOUT_MS);

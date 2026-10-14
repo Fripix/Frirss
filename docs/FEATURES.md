@@ -74,6 +74,20 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
   et échouer TOUT le callback. Une valeur indécodable est maintenant gardée
   brute : elle n'est jamais la nôtre (`oidc_verifier` et `oidc_nonce` sont
   encodés par Express). Test : `server/cookies.test.ts`.
+- **L'hôte de l'émetteur est de confiance pour la garde anti-SSRF** (1.6.1).
+  Tout appel sortant du flux passe par `oidcFetch()` (`server/oidc.ts`) =
+  `fetchUpstream` avec `trustedHosts: [hôte de l'émetteur]` : découverte,
+  échange du code et `userinfo` — ces deux derniers étaient des `fetch` nus,
+  hors garde, pour des URL dictées par le document de découverte. La confiance
+  s'arrête à l'hôte nommé : un saut de redirection vers un autre hôte privé
+  reste refusé. **Piège corrigé** : en split-DNS, le nom public du fournisseur
+  se résout en IP privée (le reverse proxy) depuis le conteneur, et la garde
+  de la 1.4.4 refusait la découverte — `login_failed` sans explication, sept
+  semaines en prod sans que personne ne le voie, le JWT courant n'expirant
+  pas. Le contournement d'alors (`PROXY_INTERNAL_HOSTS`) reste valable mais
+  n'est plus nécessaire. Décision et coût écrits dans `SECURITY.md`. Tests :
+  `server/oidc.test.ts`, `server/routes/proxy.test.ts` (`trustedHosts`),
+  `server/test/api.test.ts` (découverte).
 
 ### Écran de connexion
 Trois étapes : compte FriRSS, puis serveur FreshRSS, puis identifiants FreshRSS.
@@ -2578,7 +2592,9 @@ répondu (voir *Extraction du contenu complet*).
 - **Où** : `server/routes/proxy.ts`
 - **Protection SSRF** : cibles internes bloquées par défaut, en littéral **et**
   après résolution DNS (ce qui défait `10.x.x.x.nip.io`), à chaque saut de
-  redirection. `PROXY_INTERNAL_HOSTS` autorise explicitement des hôtes internes.
+  redirection. `PROXY_INTERNAL_HOSTS` autorise explicitement des hôtes internes,
+  et un appelant peut déclarer les siens par `trustedHosts` (1.6.1) — seul
+  l'émetteur OIDC le fait, voir *SSO / OIDC*.
   Le refus renvoie `403 { error: 'Target host not allowed' }` — corps que
   l'écran de connexion reconnaît pour nommer la cause (voir *Serveurs
   FreshRSS*). Le README documente le cas à l'endroit où on le rencontre :

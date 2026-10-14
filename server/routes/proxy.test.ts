@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral, fetchUpstream, redactUrl, targetBelongsToServer, proxyRateLimit, finishError, BlockedTargetError, UnresolvedTargetError } from './proxy.js';
+import dns from 'dns';
+import { isPrivateIp, isInternalHostLiteral, targetAllowedLiteral, fetchUpstream, assertTargetSafe, redactUrl, targetBelongsToServer, proxyRateLimit, finishError, BlockedTargetError, UnresolvedTargetError } from './proxy.js';
 
 // fetchUpstream resolves its target host before allowing the request (SSRF
 // guard) — stub DNS so example.com-style test targets resolve to a public
@@ -315,5 +316,41 @@ describe('finishError — la cible journalisée est toujours réduite', () => {
     expect(error).not.toHaveBeenCalled();
     warn.mockRestore();
     error.mockRestore();
+  });
+});
+
+// L'émetteur OIDC est fixé par l'administrateur, pas par un client : en
+// split-DNS il se résout en IP privée depuis le conteneur, et la garde le
+// refusait (`login_failed` sans explication, sept semaines en prod). L'appelant
+// peut donc déclarer un hôte de confiance — CET hôte seulement, et chaque
+// saut de redirection reste gardé.
+describe('assertTargetSafe — trustedHosts', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('blocks a host that resolves to a private address', async () => {
+    vi.mocked(dns.promises.lookup).mockResolvedValueOnce([{ address: '10.0.0.5', family: 4 }] as never);
+    await expect(assertTargetSafe('https://idp.lan.example/')).rejects.toBeInstanceOf(BlockedTargetError);
+  });
+
+  it('lets that same host through when the caller trusts it', async () => {
+    vi.mocked(dns.promises.lookup).mockResolvedValueOnce([{ address: '10.0.0.5', family: 4 }] as never);
+    await expect(assertTargetSafe('https://IDP.lan.example/.well-known/openid-configuration', ['idp.lan.example'])).resolves.toBeUndefined();
+  });
+
+  it('trust is per host: another private host stays blocked', async () => {
+    vi.mocked(dns.promises.lookup).mockResolvedValueOnce([{ address: '10.0.0.9', family: 4 }] as never);
+    await expect(assertTargetSafe('https://other.lan.example/', ['idp.lan.example'])).rejects.toBeInstanceOf(BlockedTargetError);
+  });
+
+  it('a trusted host redirecting into the private network is still blocked at the hop', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false, status: 302, headers: new Headers({ location: 'http://10.0.0.9/secret' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchUpstream('https://idp.lan.example/t', { trustedHosts: ['idp.lan.example'] }))
+      .rejects.toBeInstanceOf(BlockedTargetError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
