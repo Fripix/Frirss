@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore, READ_LATER_LABEL, getSampleArticleUrl } from '../../stores/feedStore';
 import { feedSiteUrl } from '../../lib/feedSiteUrl';
 import { openExternal } from '../../lib/openExternal';
-import { clampToViewport } from '../../lib/clampToViewport';
+import { clampToViewport, MENU_MARGIN } from '../../lib/clampToViewport';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import type { ArticleOrder } from '../../lib/effectiveOrder';
@@ -815,7 +816,7 @@ function FeedOrderPicker({ value, onChange }: { value: ArticleOrder | ''; onChan
   return <OverridePicker value={value} onChange={(v) => onChange(v as ArticleOrder | '')} options={options} />;
 }
 
-function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContextMenuProps) {
+export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContextMenuProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'rename' | 'confirmDelete' | null>(null);
   const [renameValue, setRenameValue] = useState(feed.title);
@@ -853,15 +854,23 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
     }));
   }, [x, y, mode]);
 
+  // Rendu par portail sous <body>, comme le menu des articles : sur mobile le
+  // tiroir est `fixed`, transformé (glissement) et `overflow: hidden`, donc un
+  // `position: fixed` rendu dedans s'ancre au tiroir et s'y rogne. Le menu
+  // recalé sur la fenêtre (320 px) allait de 76 à 312 px dans un tiroir de
+  // 272 px : les sélecteurs à droite des lignes « Article complet auto » et
+  // « Ordre de ce flux » étaient coupés (iPhone, 2026-10-14). `max-content`
+  // rend la largeur indépendante de `left`, donc la mesure du recalage vaut
+  // pour la position finale ; le plafond garde une marge de chaque côté.
   const style: CSSProperties = {
     position: 'fixed', left: pos.left, top: pos.top, zIndex: 100,
     background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
     borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-    minWidth: '236px', overflow: 'hidden',
+    width: 'max-content', minWidth: '236px', maxWidth: `calc(100vw - ${2 * MENU_MARGIN}px)`, overflow: 'hidden',
   };
 
   if (mode === 'rename') {
-    return (
+    return createPortal(
       <div ref={menuRef} style={style} className="p-3">
         <form onSubmit={async (e: FormEvent) => {
           e.preventDefault();
@@ -904,11 +913,11 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
           </div>
         </form>
       </div>
-    );
+      , document.body);
   }
 
   if (mode === 'confirmDelete') {
-    return (
+    return createPortal(
       <div ref={menuRef} style={style} className="p-3">
         <p className="text-xs mb-3" style={{ color: 'var(--list-title)' }}>
           {t('sidebar.deleteFeedConfirm', { name: feed.title })}
@@ -930,10 +939,10 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
           </button>
         </div>
       </div>
-    );
+      , document.body);
   }
 
-  return (
+    return createPortal(
     <div ref={menuRef} style={style} className="py-1">
       {/* Feed name header — anchors every item below to this feed. */}
       <div
@@ -1029,7 +1038,7 @@ function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContex
         onClick={() => setMode('confirmDelete')}
       />
     </div>
-  );
+      , document.body);
 }
 
 interface ContextMenuItemProps {

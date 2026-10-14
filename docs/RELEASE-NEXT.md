@@ -49,6 +49,11 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Mobile : le menu d'un flux n'est plus coupé par le tiroir.** Il était
+  rendu dans le tiroir, qui le rognait à son bord droit : les sélecteurs
+  « Article complet auto » et « Ordre de ce flux » sortaient du cadre sur un
+  iPhone. Le menu flotte maintenant au-dessus du tiroir, entièrement visible.
+
 - **« Tout marquer lu » au bout de la liste.** Avec « Marquer lu au
   défilement », les derniers articles ne sortaient jamais par le haut et
   restaient non lus sans autre recours que la barre d'outils (issue #19, point

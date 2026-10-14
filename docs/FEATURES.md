@@ -237,6 +237,18 @@ glisser-déposer, masquage des flux entièrement lus.
   couper par son `overflow: hidden` : le libellé traduit et les quatre boutons
   ne tiennent pas dans 236 px. Elle passe à la ligne (`flex-wrap`) plutôt que
   d'imposer un menu plus large partout.
+  ⚠️ **Le menu était rendu DANS le tiroir, qui le rognait** (vu le 2026-10-14
+  sur iPhone à 320 px, reproduit sur l'émulateur Android à 320 px). Le tiroir
+  mobile est `fixed`, transformé (glissement) et `overflow: hidden` : un
+  `position: fixed` rendu dedans s'ancre au tiroir, et `clampToViewport()`
+  recalait sur la **fenêtre** — 76 → 312 px dans un tiroir de 272. Les lignes
+  dont le sélecteur tient à droite du libellé (« Article complet auto »,
+  « Ordre de ce flux », 225 → 299 px) étaient coupées ; celle de la
+  disposition passait à la ligne et restait visible à gauche. Le menu est
+  maintenant rendu par **portail sous `<body>`**, comme `ArticleContextMenu`,
+  en `width: max-content` (mesure indépendante de `left`, donc recalage exact)
+  plafonné à la fenêtre moins deux marges. Test :
+  `FeedContextMenu.portal.test.tsx`.
 - **Liens du pied** (1.4.5) : étoile GitHub et soutien (BuyMeACoffee), à côté
   de l'engrenage des préférences. Discrets (opacité 0,4), éclairés au survol :
   c'est une application qu'on ouvre vingt fois par jour, un appel au soutien
