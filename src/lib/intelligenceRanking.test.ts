@@ -119,3 +119,27 @@ it('supports all experimental algorithms without mutating input', () => {
   }
   expect(articles.map((item) => item.id)).toEqual(['a', 'b', 'c']);
 });
+
+it('supports the Microsoft NewsRec-inspired attention ranker', () => {
+  const defence = article('defence', 'NATO defence procurement expands', 'Military production and European security planning');
+  const unrelated = article('other', 'Celebrity gossip and dating rumours', 'Entertainment news about actors');
+  const relevantButDifferentWords = article('security', 'European alliance increases readiness', 'Armed forces prepare new procurement plans');
+  const ranked = rankInterestingArticles(
+    [unrelated, relevantButDifferentWords, defence],
+    [
+      feedback('NATO defence procurement', 'Military security and readiness', 1),
+      feedback('Celebrity gossip', 'Dating rumours about actors', -1),
+    ],
+    Date.now(),
+    'microsoft-news',
+  );
+  expect(ranked[0].id).toBe('defence');
+  expect(ranked[ranked.length - 1].id).toBe('other');
+});
+
+it('keeps all candidates in Microsoft NewsRec-inspired mode with empty feedback', () => {
+  const items = [article('a', 'AI research', 'New chips'), article('b', 'Garden design', 'Plants and soil')];
+  const ranked = rankInterestingArticles(items, [], Date.now(), 'microsoft-news');
+  expect(ranked).toHaveLength(2);
+  expect(new Set(ranked).size).toBe(2);
+});

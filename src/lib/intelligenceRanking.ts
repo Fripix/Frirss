@@ -1,7 +1,7 @@
 import type { Article } from '../types';
 import type { ArticleFeedback } from '../api/intelligence';
 
-export type InterestingAlgorithm = 'current' | 'weighted-idf' | 'synonyms' | 'topics' | 'combined';
+export type InterestingAlgorithm = 'current' | 'weighted-idf' | 'synonyms' | 'topics' | 'combined' | 'microsoft-news';
 
 export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label: string }> = [
   { value: 'current', label: 'Current' },
@@ -9,6 +9,7 @@ export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label:
   { value: 'synonyms', label: 'Synonyms + stemming' },
   { value: 'topics', label: 'Topic / interest profiles' },
   { value: 'combined', label: 'Combined' },
+  { value: 'microsoft-news', label: 'Microsoft NewsRec (attention-inspired)' },
 ];
 
 const meaningfulShortTerms = new Set(['ai', 'eu', 'uk', 'us', 'ua', 'un', 'uk']);
@@ -208,6 +209,87 @@ function diversify(articles: Article[], maxRun = 2): Article[] {
   return result;
 }
 
+
+/**
+ * Lightweight, local adaptation inspired by Microsoft's NewsRec/NRMS family.
+ *
+ * This is NOT the official neural NRMS model: that implementation expects
+ * pretrained word embeddings and a trained TensorFlow model. This variant
+ * keeps FriRSS dependency-free and borrows the useful high-level idea of
+ * attending to the most relevant parts of a reader's positive/negative history.
+ * It weights title, summary and body separately, applies corpus IDF, then uses
+ * candidate-conditioned attention over feedback examples so one prolific
+ * topic cannot dominate solely because it has more votes.
+ */
+function rankMicrosoftNews(articles: Article[], feedback: ArticleFeedback[], now: number): Article[] {
+  type Sections = { title: Set<string>; summary: Set<string>; content: Set<string> };
+  const sectionsFor = (title: string, summary: string, content: string): Sections => ({
+    title: tokenize(title),
+    summary: tokenize(summary),
+    content: tokenize(content),
+  });
+  const candidates = articles.map((article) => ({
+    article,
+    sections: sectionsFor(article.title, article.summary, article.content),
+  }));
+  const examples = feedback
+    .filter((item) => validVote(item.vote))
+    .map((item) => ({
+      vote: item.vote,
+      sections: sectionsFor(item.title, item.summary, item.content),
+    }));
+
+  const documents = [
+    ...candidates.map(({ sections }) => sections),
+    ...examples.map(({ sections }) => sections),
+  ];
+  const df = new Map<string, number>();
+  for (const doc of documents) {
+    const terms = new Set([...doc.title, ...doc.summary, ...doc.content]);
+    for (const term of terms) df.set(term, (df.get(term) ?? 0) + 1);
+  }
+  const idf = (term: string) => Math.log(1 + (documents.length + 1) / ((df.get(term) ?? 0) + 1));
+  const weighted = (terms: Set<string>) => new Map([...terms].map((term) => [term, idf(term)]));
+  const cosine = (left: Set<string>, right: Set<string>) => {
+    if (!left.size || !right.size) return 0;
+    const a = weighted(left);
+    const b = weighted(right);
+    let dot = 0;
+    let normA = 0;
+    let normB = 0;
+    for (const value of a.values()) normA += value * value;
+    for (const value of b.values()) normB += value * value;
+    for (const [term, value] of a) dot += value * (b.get(term) ?? 0);
+    return dot / Math.max(1e-9, Math.sqrt(normA * normB));
+  };
+  const sectionSimilarity = (a: Sections, b: Sections) =>
+    cosine(a.title, b.title) * 0.5 +
+    cosine(a.summary, b.summary) * 0.3 +
+    cosine(a.content, b.content) * 0.2;
+
+  const scored = candidates.map(({ article, sections }) => {
+    const evidence = examples.map((example) => ({
+      vote: example.vote,
+      similarity: sectionSimilarity(sections, example.sections),
+    }));
+    // Candidate-conditioned attention: sharpen the strongest evidence while
+    // normalizing each polarity separately, so many weak votes do not swamp
+    // one strong match. The small floor avoids numerical underflow.
+    const aggregate = (vote: 1 | -1) => {
+      const matching = evidence.filter((item) => item.vote === vote && item.similarity > 0);
+      if (!matching.length) return 0;
+      const weights = matching.map((item) => Math.exp(Math.min(12, item.similarity * 8)));
+      const total = weights.reduce((sum, value) => sum + value, 0);
+      return matching.reduce((sum, item, index) => sum + item.similarity * weights[index], 0) / total;
+    };
+    const positive = aggregate(1);
+    const negative = aggregate(-1);
+    const score = positive - negative * 1.35 + freshness(article, now);
+    return { article, score };
+  });
+  return diversify(scored.sort((a, b) => b.score - a.score).map(({ article }) => article));
+}
+
 /**
  * Local deterministic ranking methods for the Interesting feed.
  * All lexical models use article text only; source identifiers are reserved for
@@ -223,6 +305,7 @@ export function rankInterestingArticles(
   if (algorithm === 'weighted-idf') return rankByTermModel(articles, feedback, now, 'weighted-idf');
   if (algorithm === 'synonyms') return rankByTermModel(articles, feedback, now, 'synonyms');
   if (algorithm === 'topics') return rankTopics(articles, feedback, now);
+  if (algorithm === 'microsoft-news') return rankMicrosoftNews(articles, feedback, now);
 
   const weighted = rankByTermModel(articles, feedback, now, 'weighted-idf');
   const synonyms = rankByTermModel(articles, feedback, now, 'synonyms');

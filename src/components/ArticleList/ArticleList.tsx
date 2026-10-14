@@ -58,7 +58,7 @@ export default function ArticleList() {
   const [intelligenceFeedback, setIntelligenceFeedback] = useState<ArticleFeedback[]>([]);
   const [interestingAlgorithm, setInterestingAlgorithm] = useState<import('../../lib/intelligenceRanking').InterestingAlgorithm>(() => {
     const saved = localStorage.getItem('frirss_interesting_algorithm');
-    return saved === 'weighted-idf' || saved === 'synonyms' || saved === 'topics' || saved === 'combined' ? saved : 'current';
+    return saved === 'weighted-idf' || saved === 'synonyms' || saved === 'topics' || saved === 'combined' || saved === 'microsoft-news' ? saved : 'current';
   });
   useEffect(() => { localStorage.setItem('frirss_interesting_algorithm', interestingAlgorithm); }, [interestingAlgorithm]);
   useEffect(() => {
