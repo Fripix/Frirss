@@ -1,7 +1,7 @@
 import type { Article } from '../types';
 import type { ArticleFeedback } from '../api/intelligence';
 
-export type InterestingAlgorithm = 'current' | 'weighted-idf' | 'synonyms' | 'topics' | 'combined' | 'microsoft-news';
+export type InterestingAlgorithm = 'current' | 'weighted-idf' | 'synonyms' | 'topics' | 'combined' | 'microsoft-news' | 'personal-news';
 
 export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label: string }> = [
   { value: 'current', label: 'Current' },
@@ -9,7 +9,8 @@ export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label:
   { value: 'synonyms', label: 'Synonyms + stemming' },
   { value: 'topics', label: 'Topic / interest profiles' },
   { value: 'combined', label: 'Combined' },
-  { value: 'microsoft-news', label: 'Microsoft NewsRec (attention-inspired)' },
+  { value: 'microsoft-news', label: 'MS NewsRec' },
+  { value: 'personal-news', label: 'Personal News' },
 ];
 
 const meaningfulShortTerms = new Set(['ai', 'eu', 'uk', 'us', 'ua', 'un', 'uk']);
@@ -210,6 +211,101 @@ function diversify(articles: Article[], maxRun = 2): Article[] {
 }
 
 
+
+/**
+ * Personal News: a dependency-free hybrid recommender inspired by
+ * content-based personalisation and maximal marginal relevance (MMR).
+ *
+ * It discovers interests from the user's own voted article vocabulary rather
+ * than requiring a fixed topic taxonomy, blends article-to-feedback similarity
+ * with a signed term profile, and greedily reranks for novelty and source/topic
+ * diversity. This is a local heuristic, not a port of the Python prototype's
+ * trained BERTopic/ALS/association-rule pipeline.
+ */
+function rankPersonalNews(articles: Article[], feedback: ArticleFeedback[], now: number): Article[] {
+  const candidates = articles.map((article) => ({
+    article,
+    terms: normalizedTokens(articleText(article)),
+    topics: topicSet(articleText(article)),
+  }));
+  const examples = feedback
+    .filter((item) => validVote(item.vote))
+    .map((item) => ({
+      vote: item.vote,
+      terms: normalizedTokens(`${item.title} ${item.summary} ${item.content}`),
+      topics: topicSet(`${item.title} ${item.summary} ${item.content}`),
+    }));
+  const documents = [...candidates.map((item) => item.terms), ...examples.map((item) => item.terms)];
+  const df = new Map<string, number>();
+  for (const terms of documents) for (const term of terms) df.set(term, (df.get(term) ?? 0) + 1);
+  const idf = (term: string) => Math.log((documents.length + 1) / ((df.get(term) ?? 0) + 1)) + 1;
+  const vector = (terms: Set<string>) => new Map([...terms].map((term) => [term, idf(term)]));
+  const cosine = (left: Set<string>, right: Set<string>) => {
+    if (!left.size || !right.size) return 0;
+    const a = vector(left);
+    const b = vector(right);
+    let dot = 0, normA = 0, normB = 0;
+    for (const value of a.values()) normA += value * value;
+    for (const value of b.values()) normB += value * value;
+    for (const [term, value] of a) dot += value * (b.get(term) ?? 0);
+    return dot / Math.max(1e-9, Math.sqrt(normA * normB));
+  };
+
+  // Learned interests are weighted by vote polarity and inverse document
+  // frequency; normalising keeps profiles comparable across feedback volumes.
+  const termProfile = new Map<string, number>();
+  const topicProfile = new Map<string, number>();
+  for (const example of examples) {
+    for (const term of example.terms) termProfile.set(term, (termProfile.get(term) ?? 0) + example.vote * idf(term));
+    for (const topic of example.topics) topicProfile.set(topic, (topicProfile.get(topic) ?? 0) + example.vote);
+  }
+  const profileScale = Math.max(1, [...termProfile.values()].reduce((sum, value) => sum + Math.abs(value), 0));
+  const topicScale = Math.max(1, [...topicProfile.values()].reduce((sum, value) => sum + Math.abs(value), 0));
+
+  const scored = candidates.map((candidate) => {
+    const termAffinity = [...candidate.terms].reduce((sum, term) => sum + (termProfile.get(term) ?? 0), 0) / profileScale;
+    const topicAffinity = [...candidate.topics].reduce((sum, topic) => sum + (topicProfile.get(topic) ?? 0), 0) / topicScale;
+    const positive = examples.filter((example) => example.vote === 1)
+      .map((example) => cosine(candidate.terms, example.terms)).sort((a, b) => b - a).slice(0, 3);
+    const negative = examples.filter((example) => example.vote === -1)
+      .map((example) => cosine(candidate.terms, example.terms)).sort((a, b) => b - a).slice(0, 3);
+    const meanTop = (values: number[]) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+    const feedbackAffinity = meanTop(positive) - meanTop(negative) * 1.2;
+    const ageHours = Math.max(0, (now - candidate.article.published) / 3600000);
+    const fresh = 1 / (1 + ageHours / 72);
+    const relevance = feedbackAffinity * 0.55 + termAffinity * 0.25 + topicAffinity * 0.12 + fresh * 0.08;
+    return { ...candidate, relevance };
+  });
+
+  // MMR-style greedy reranking: trade a little relevance for new vocabulary,
+  // topic coverage and publishers. All candidates remain in the result.
+  const remaining = [...scored];
+  const result: typeof scored = [];
+  while (remaining.length) {
+    let bestIndex = 0;
+    let bestScore = -Infinity;
+    for (let index = 0; index < remaining.length; index++) {
+      const candidate = remaining[index];
+      const similarityPenalty = result.length
+        ? Math.max(...result.map((selected) => cosine(candidate.terms, selected.terms)))
+        : 0;
+      const sameTopicPenalty = result.length && candidate.topics.size
+        ? Math.max(...result.map((selected) => {
+            const shared = [...candidate.topics].filter((topic) => selected.topics.has(topic)).length;
+            return shared / Math.max(1, new Set([...candidate.topics, ...selected.topics]).size);
+          }))
+        : 0;
+      const source = candidate.article.sourceId || candidate.article.source || '';
+      const recentSources = result.slice(-2).map((item) => item.article.sourceId || item.article.source || '');
+      const sourcePenalty = source && recentSources.includes(source) ? 0.08 : 0;
+      const mmr = candidate.relevance - similarityPenalty * 0.22 - sameTopicPenalty * 0.08 - sourcePenalty;
+      if (mmr > bestScore) { bestScore = mmr; bestIndex = index; }
+    }
+    result.push(remaining.splice(bestIndex, 1)[0]);
+  }
+  return result.map(({ article }) => article);
+}
+
 /**
  * Lightweight, local adaptation inspired by Microsoft's NewsRec/NRMS family.
  *
@@ -306,6 +402,7 @@ export function rankInterestingArticles(
   if (algorithm === 'synonyms') return rankByTermModel(articles, feedback, now, 'synonyms');
   if (algorithm === 'topics') return rankTopics(articles, feedback, now);
   if (algorithm === 'microsoft-news') return rankMicrosoftNews(articles, feedback, now);
+  if (algorithm === 'personal-news') return rankPersonalNews(articles, feedback, now);
 
   const weighted = rankByTermModel(articles, feedback, now, 'weighted-idf');
   const synonyms = rankByTermModel(articles, feedback, now, 'synonyms');

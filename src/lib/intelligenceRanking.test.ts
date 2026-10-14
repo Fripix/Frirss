@@ -112,7 +112,7 @@ it('supports all experimental algorithms without mutating input', () => {
     article('b', 'AI chip design', 'Researchers improve machine learning'),
     article('c', 'Celebrity gossip', 'Relationship rumours spread'),
   ];
-  for (const algorithm of ['current', 'weighted-idf', 'synonyms', 'topics', 'combined'] as const) {
+  for (const algorithm of ['current', 'weighted-idf', 'synonyms', 'topics', 'combined', 'microsoft-news', 'personal-news'] as const) {
     const ranked = rankInterestingArticles(articles, [feedback('defense production', 'military procurement', 1)], Date.now(), algorithm);
     expect(ranked).toHaveLength(3);
     expect(new Set(ranked.map((item) => item.id)).size).toBe(3);
@@ -140,6 +140,34 @@ it('supports the Microsoft NewsRec-inspired attention ranker', () => {
 it('keeps all candidates in Microsoft NewsRec-inspired mode with empty feedback', () => {
   const items = [article('a', 'AI research', 'New chips'), article('b', 'Garden design', 'Plants and soil')];
   const ranked = rankInterestingArticles(items, [], Date.now(), 'microsoft-news');
+  expect(ranked).toHaveLength(2);
+  expect(new Set(ranked).size).toBe(2);
+});
+
+
+it('supports Personal News by learning preferences and retaining diverse candidates', () => {
+  const liked = article('liked', 'European defence procurement', 'NATO military readiness and security policy');
+  const related = article('related', 'Military readiness in Europe', 'Defence procurement and alliance planning');
+  const disliked = article('disliked', 'Celebrity gossip', 'Actors dating rumours and entertainment news');
+  const independent = article('independent', 'AI chip research', 'Researchers improve machine learning');
+  independent.sourceId = 'feed/2';
+  const ranked = rankInterestingArticles(
+    [disliked, related, independent, liked],
+    [
+      feedback('European defence procurement', 'NATO military readiness and security policy', 1),
+      feedback('Celebrity gossip', 'Actors dating rumours and entertainment news', -1),
+    ],
+    Date.now(),
+    'personal-news',
+  );
+  expect(ranked).toHaveLength(4);
+  expect(ranked[0].id).toBe('liked');
+  expect(ranked.findIndex((item) => item.id === 'disliked')).toBeGreaterThan(0);
+});
+
+it('keeps all candidates in Personal News mode with empty feedback', () => {
+  const items = [article('a', 'AI research', 'New chips'), article('b', 'Garden design', 'Plants and soil')];
+  const ranked = rankInterestingArticles(items, [], Date.now(), 'personal-news');
   expect(ranked).toHaveLength(2);
   expect(new Set(ranked).size).toBe(2);
 });
