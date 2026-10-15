@@ -50,6 +50,31 @@ describe('AiTab', () => {
     expect(await findByText('Ollama')).toBeTruthy();
     expect((getByLabelText('ai.admin.key') as HTMLInputElement).value).toBe('');
   });
+  it('the base URL field explains to leave out the trailing /v1', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    const { findByRole, getByLabelText, getByText } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
+    const hint = getByText('ai.admin.baseUrlHint');
+    expect(getByLabelText('ai.admin.baseUrl').getAttribute('aria-describedby')).toBe(hint.id);
+  });
+  it('an emptied or invalid daily cap reverts on blur and saves nothing; a valid one saves', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    vi.mocked(getAiProviders).mockResolvedValue({ providers: [], settings: { enabled: true, userKeysAllowed: false, dailyCap: 20, defaultProvider: null } });
+    vi.mocked(updateAiSettings).mockResolvedValue();
+    const { findByRole, getByLabelText } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: /ai\.admin\.advanced/ }));
+    const cap = getByLabelText('ai.admin.dailyCap') as HTMLInputElement;
+    await waitFor(() => expect(cap.value).toBe('20'));
+    for (const bad of ['', '-3', '2.5']) {
+      fireEvent.change(cap, { target: { value: bad } });
+      fireEvent.blur(cap);
+      expect(cap.value).toBe('20');
+    }
+    expect(updateAiSettings).not.toHaveBeenCalled();
+    fireEvent.change(cap, { target: { value: '0' } });
+    fireEvent.blur(cap);
+    await waitFor(() => expect(updateAiSettings).toHaveBeenCalledWith({ dailyCap: 0 }));
+  });
   it('the test button reports the outcome', async () => {
     useAuthStore.setState({ backendUser: admin });
     vi.mocked(getAiProviders).mockResolvedValue({ providers: [{ id: 7, name: 'Ollama', type: 'openai', baseUrl: 'http://o', model: 'm', hasAdminKey: false, shared: false, position: 0 }], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });

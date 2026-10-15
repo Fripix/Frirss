@@ -731,12 +731,15 @@
     "userIntro": "Los resúmenes con IA están listos: abre un artículo y haz clic en «Resumen con IA».",
     "errors": {
       "auth": "El proveedor ha rechazado la clave. Compruébala en Preferencias › IA.",
+      "authUser": "El proveedor ha rechazado la clave. Avisa a tu administrador.",
       "quota": "Se alcanzó la cuota del proveedor. Inténtalo de nuevo más tarde.",
+      "rateLimited": "Demasiadas solicitudes. Inténtalo de nuevo en un minuto.",
       "cap": "Se alcanzó el límite diario de resúmenes.",
       "tooShort": "Artículo demasiado corto para resumirlo.",
+      "tooLong": "Artículo demasiado largo para resumirlo.",
       "refused": "El proveedor se negó a resumir este artículo.",
       "noProvider": "Ningún proveedor disponible.",
-      "technical": "El proveedor no respondió. Inténtalo de nuevo."
+      "technical": "El proveedor devolvió un error. Inténtalo de nuevo."
     },
     "admin": {
       "title": "Proveedores",
@@ -757,6 +760,7 @@
       "typeOpenai": "Compatible con OpenAI (OpenAI, Ollama, Mistral, OpenRouter…)",
       "typeAnthropic": "Anthropic (Claude)",
       "baseUrl": "URL base",
+      "baseUrlHint": "Sin el /v1 final — p. ej. http://ollama:11434 o https://api.openai.com",
       "model": "Modelo",
       "key": "Clave de API",
       "keyKeep": "Déjalo vacío para conservar la clave actual",

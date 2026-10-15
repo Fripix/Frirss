@@ -149,15 +149,17 @@ function AdminProviders({ active }: { active: boolean }) {
   const draft = editing?.draft;
   const editedHasKey = editing?.id != null && providers.find((p) => p.id === editing.id)?.hasAdminKey;
 
-  const textField = (key: 'name' | 'baseUrl' | 'model' | 'adminKey', label: string, opts: { type?: string; placeholder?: string; autoComplete?: string } = {}) => (
+  const textField = (key: 'name' | 'baseUrl' | 'model' | 'adminKey', label: string, opts: { type?: string; placeholder?: string; autoComplete?: string; hint?: string } = {}) => (
     <div>
       <label htmlFor={`${uid}-${key}`} className={labelClass} style={labelStyle}>{label}</label>
       <input
         id={`${uid}-${key}`} type={opts.type ?? 'text'} value={(draft?.[key] as string) ?? ''}
         placeholder={opts.placeholder} autoComplete={opts.autoComplete ?? 'off'} spellCheck={false}
+        aria-describedby={opts.hint ? `${uid}-${key}-hint` : undefined}
         onChange={(e) => setDraft({ [key]: e.target.value })}
         className={inputClass} style={inputStyle}
       />
+      {opts.hint && <p id={`${uid}-${key}-hint`} className="text-[11px] mt-1 break-words" style={{ color: 'var(--list-summary)' }}>{opts.hint}</p>}
     </div>
   );
 
@@ -223,7 +225,7 @@ function AdminProviders({ active }: { active: boolean }) {
               <option value="anthropic">{t('ai.admin.typeAnthropic')}</option>
             </select>
           </div>
-          {textField('baseUrl', t('ai.admin.baseUrl'), { type: 'url' })}
+          {textField('baseUrl', t('ai.admin.baseUrl'), { type: 'url', hint: t('ai.admin.baseUrlHint') })}
           {textField('model', t('ai.admin.model'))}
           {textField('adminKey', t('ai.admin.key'), { type: 'password', autoComplete: 'new-password', placeholder: editedHasKey ? t('ai.admin.keyKeep') : undefined })}
           <label className="prefs-tap-row flex items-center gap-2 text-xs" style={{ color: 'var(--list-title)' }}>
@@ -275,7 +277,10 @@ function AdminProviders({ active }: { active: boolean }) {
                 id={`${uid}-cap`} type="number" inputMode="numeric" min={0} value={capDraft} aria-describedby={`${uid}-cap-hint`}
                 onChange={(e) => setCapDraft(e.target.value)}
                 onBlur={() => {
-                  const n = Math.max(0, parseInt(capDraft, 10) || 0);
+                  // Un champ vidé ou illisible n'est pas « 0 = illimité » : il revient à la valeur enregistrée.
+                  const raw = capDraft.trim();
+                  if (!/^\d+$/.test(raw)) { setCapDraft(String(settings.dailyCap)); return; }
+                  const n = parseInt(raw, 10);
                   setCapDraft(String(n));
                   if (n !== settings.dailyCap) void saveSettings({ dailyCap: n });
                 }}

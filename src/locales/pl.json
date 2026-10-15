@@ -759,12 +759,15 @@
     "userIntro": "Podsumowania AI są gotowe: otwórz artykuł i kliknij „Podsumowanie AI”.",
     "errors": {
       "auth": "Dostawca odrzucił klucz. Sprawdź go w Preferencje › AI.",
+      "authUser": "Dostawca odrzucił klucz. Powiadom administratora.",
       "quota": "Osiągnięto limit dostawcy. Spróbuj ponownie później.",
+      "rateLimited": "Zbyt wiele żądań. Spróbuj ponownie za minutę.",
       "cap": "Osiągnięto dzienny limit podsumowań.",
       "tooShort": "Artykuł jest zbyt krótki, by go podsumować.",
+      "tooLong": "Artykuł jest zbyt długi, by go podsumować.",
       "refused": "Dostawca odmówił podsumowania tego artykułu.",
       "noProvider": "Brak dostępnego dostawcy.",
-      "technical": "Dostawca nie odpowiedział. Spróbuj ponownie."
+      "technical": "Dostawca zwrócił błąd. Spróbuj ponownie."
     },
     "admin": {
       "title": "Dostawcy",
@@ -785,6 +788,7 @@
       "typeOpenai": "Zgodny z OpenAI (OpenAI, Ollama, Mistral, OpenRouter…)",
       "typeAnthropic": "Anthropic (Claude)",
       "baseUrl": "Bazowy adres URL",
+      "baseUrlHint": "Bez końcowego /v1 — np. http://ollama:11434 lub https://api.openai.com",
       "model": "Model",
       "key": "Klucz API",
       "keyKeep": "Pozostaw puste, aby zachować obecny klucz",

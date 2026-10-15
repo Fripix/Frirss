@@ -731,12 +731,15 @@
     "userIntro": "AI-samenvattingen zijn klaar: open een artikel en klik op ‘AI-samenvatting’.",
     "errors": {
       "auth": "Sleutel geweigerd door de aanbieder. Controleer hem in Voorkeuren › AI.",
+      "authUser": "Sleutel geweigerd door de aanbieder. Laat het je beheerder weten.",
       "quota": "Limiet van de aanbieder bereikt. Probeer het later opnieuw.",
+      "rateLimited": "Te veel verzoeken, probeer het over een minuut opnieuw.",
       "cap": "Dagelijkse samenvattingslimiet bereikt.",
       "tooShort": "Artikel te kort om samen te vatten.",
+      "tooLong": "Artikel te lang om samen te vatten.",
       "refused": "De aanbieder weigerde dit artikel samen te vatten.",
       "noProvider": "Geen aanbieder beschikbaar.",
-      "technical": "De aanbieder antwoordde niet. Probeer het opnieuw."
+      "technical": "De aanbieder gaf een fout terug. Probeer het opnieuw."
     },
     "admin": {
       "title": "Aanbieders",
@@ -757,6 +760,7 @@
       "typeOpenai": "OpenAI-compatibel (OpenAI, Ollama, Mistral, OpenRouter…)",
       "typeAnthropic": "Anthropic (Claude)",
       "baseUrl": "Basis-URL",
+      "baseUrlHint": "Zonder de afsluitende /v1 — bijv. http://ollama:11434 of https://api.openai.com",
       "model": "Model",
       "key": "API-sleutel",
       "keyKeep": "Laat leeg om de huidige sleutel te behouden",

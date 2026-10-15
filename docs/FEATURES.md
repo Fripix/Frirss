@@ -1802,8 +1802,10 @@ le plan 3.
   résolution, pures), `summarize.ts` (orchestration) ; routes
   `server/routes/ai.ts` (utilisateur) et `server/routes/adminAi.ts` (admin).
   Client `src/stores/aiStore.ts`, `src/components/ReadingPane/AiSummary.tsx`,
-  `src/components/Preferences/AiTab.tsx`. Tests : `server/ai/*.test.ts`,
-  `server/test/ai.test.ts`, `src/stores/aiStore.test.ts`,
+  `src/components/Preferences/AiTab.tsx`, `src/lib/aiPayload.ts` (HTML allégé
+  avant envoi), `src/lib/aiErrorKey.ts` (réponse d'erreur → message). Tests :
+  `server/ai/*.test.ts`, `server/test/ai.test.ts`, `server/backup.test.ts`,
+  `src/stores/aiStore.test.ts`, `src/lib/{aiPayload,aiErrorKey}.test.ts`,
   `ReadingPane/{AiSummary,ReadingPane.ai}.test.tsx`,
   `Preferences/{AiTab,Preferences.ai}.test.tsx`. Traductions : famille `ai`.
 - **Deux adaptateurs, jamais plus** : `anthropic` (Messages API) et `openai`
@@ -1900,9 +1902,16 @@ le plan 3.
   content_filter` (OpenAI) = `refused`, 422, pas de repli. Plafond 429
   `ai_daily_cap`, aucun fournisseur 409 `no_provider`, tout le reste 502
   `ai_failed` avec le `kind` (le détail reste dans le journal serveur). Le
-  volet traduit `error` / `kind` en message (`ai.errors.*` : plafond, trop court,
-  refusé, aucun fournisseur, clé refusée, quota, sinon « technique ») et ne
-  devine jamais une cause de plus.
+  volet traduit statut / `error` / `kind` en message par `aiErrorKey`
+  (`src/lib/aiErrorKey.ts`, pur, testé) et ne devine jamais une cause de plus :
+  429 `ai_daily_cap` → plafond ; **429 sans `ai_daily_cap`** (le seau du proxy)
+  → « trop de requêtes, réessayez dans une minute » ; 400 `invalid_body` →
+  « article trop long » ; trop court, refusé, aucun fournisseur ; `kind: auth`
+  → « vérifiez la clé dans Préférences › IA » pour un **admin**, « prévenez
+  votre administrateur » pour un utilisateur (`authUser`, rôle lu dans
+  `useAuthStore`) ; quota ; sinon « le fournisseur a renvoyé une erreur ».
+  Un « Résumer avec… » raté **garde le résumé déjà affiché**, l'erreur sous
+  lui (`AiSummary` affiche `result` aussi en statut `error`).
 - **Administration** : `PUT /api/admin/ai/settings` valide **tout avant
   d'écrire** (un 400 ne laisse aucune écriture partielle) ; booléens stricts
   (`=== true`), `dailyCap` entier ≥ 0, `defaultProvider` nombre ou `null` d'un
@@ -1927,10 +1936,20 @@ le plan 3.
   feuille du bas sur les formats tablette et smartphone (`useBreakpoint() !==
   'desktop'`, le format est forçable manuellement : ce n'est pas la détection du
   tactile). La pastille
-  est **désactivée hors ligne**.
+  est **désactivée hors ligne** (`useOnlineStatus`, qui suit les événements
+  `online` / `offline`) et **absente** quand aucun fournisseur n'est
+  disponible pour cet utilisateur (`providers.some(p => p.available)`) : elle ne
+  ferait que répondre « aucun fournisseur ». À 320 px, l'en-tête du résumé
+  passe à la ligne et tronque un nom de fournisseur trop long ; les paragraphes
+  gardent leurs retours à la ligne simples (`whitespace-pre-line`, listes à
+  puces).
 - **Pièges** : le volet envoie le texte *affiché* (contenu complet extrait s'il
   y en a un, sinon celui du flux) : résumer avant ou après l'extraction donne
-  deux entrées de cache ; ne jamais suivre un 3xx du fournisseur ; ne pas
+  deux entrées de cache. Il l'envoie **allégé** par `stripMediaForSummary`
+  (`src/lib/aiPayload.ts`, testé) : `<img>`, `<svg>`, `<video>`, `<audio>`,
+  `<iframe>`, `<picture>` et tout attribut en `data:` partent, sans quoi une
+  seule image base64 dépassait les 200 Ko et l'article « trop long » faisait dix
+  lignes ; ne jamais suivre un 3xx du fournisseur ; ne pas
   confondre « payé par l'admin » (`paidByAdmin` ne pilote que le plafond et le
   décompte d'usage, pas l'éligibilité au repli) et « clé admin utilisée »
   (un admin n'est pas facturé) ; la clé de cache doit garder le hash du
@@ -2624,7 +2643,9 @@ serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, plus
   Administration (puis le bloc admin d'`AiTab`, qui appelle `getAiProviders()`
   quand `active`), seules sections à appeler le réseau au montage,
   repayaient un aller-retour complet à chaque retour, écran vide. Mesuré après
-  correction : **zéro requête** sur trois allers-retours entre deux sections.
+  correction : **zéro requête** sur trois allers-retours entre deux sections —
+  sauf `AiTab`, qui recharge volontairement ses fournisseurs (`getAiProviders()`)
+  à **chaque** activation, sans écran vide pour autant.
   - Le style en ligne n'est pas un caprice : la règle
     `.prefs-panel-body > [hidden]` ne vise que les enfants directs, et
     l'attribut `hidden` seul perd contre une classe utilitaire d'affichage.

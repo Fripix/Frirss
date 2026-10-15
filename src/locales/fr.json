@@ -731,12 +731,15 @@
     "userIntro": "Les résumés IA sont prêts : ouvrez un article et cliquez « Résumé IA ».",
     "errors": {
       "auth": "Clé refusée par le fournisseur. Vérifiez-la dans Préférences › IA.",
+      "authUser": "Clé refusée par le fournisseur. Prévenez votre administrateur.",
       "quota": "Quota du fournisseur atteint. Réessayez plus tard.",
+      "rateLimited": "Trop de requêtes, réessayez dans une minute.",
       "cap": "Limite quotidienne de résumés atteinte.",
       "tooShort": "Article trop court pour être résumé.",
+      "tooLong": "Article trop long pour être résumé.",
       "refused": "Le fournisseur a refusé de résumer cet article.",
       "noProvider": "Aucun fournisseur disponible.",
-      "technical": "Le fournisseur n’a pas répondu. Réessayez."
+      "technical": "Le fournisseur a renvoyé une erreur. Réessayez."
     },
     "admin": {
       "title": "Fournisseurs",
@@ -757,6 +760,7 @@
       "typeOpenai": "Compatible OpenAI (OpenAI, Ollama, Mistral, OpenRouter…)",
       "typeAnthropic": "Anthropic (Claude)",
       "baseUrl": "URL de base",
+      "baseUrlHint": "Sans le /v1 final — ex. http://ollama:11434 ou https://api.openai.com",
       "model": "Modèle",
       "key": "Clé d’API",
       "keyKeep": "Laisser vide pour conserver la clé actuelle",

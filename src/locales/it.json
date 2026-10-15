@@ -731,12 +731,15 @@
     "userIntro": "I riassunti IA sono pronti: apri un articolo e fai clic su «Riassunto IA».",
     "errors": {
       "auth": "Chiave rifiutata dal fornitore. Controllala in Preferenze › IA.",
+      "authUser": "Chiave rifiutata dal fornitore. Avvisa il tuo amministratore.",
       "quota": "Quota del fornitore raggiunta. Riprova più tardi.",
+      "rateLimited": "Troppe richieste, riprova tra un minuto.",
       "cap": "Limite giornaliero di riassunti raggiunto.",
       "tooShort": "Articolo troppo breve per essere riassunto.",
+      "tooLong": "Articolo troppo lungo per essere riassunto.",
       "refused": "Il fornitore ha rifiutato di riassumere questo articolo.",
       "noProvider": "Nessun fornitore disponibile.",
-      "technical": "Il fornitore non ha risposto. Riprova."
+      "technical": "Il fornitore ha restituito un errore. Riprova."
     },
     "admin": {
       "title": "Fornitori",
@@ -757,6 +760,7 @@
       "typeOpenai": "Compatibile con OpenAI (OpenAI, Ollama, Mistral, OpenRouter…)",
       "typeAnthropic": "Anthropic (Claude)",
       "baseUrl": "URL di base",
+      "baseUrlHint": "Senza il /v1 finale — es. http://ollama:11434 o https://api.openai.com",
       "model": "Modello",
       "key": "Chiave API",
       "keyKeep": "Lascia vuoto per mantenere la chiave attuale",

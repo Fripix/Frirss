@@ -24,8 +24,9 @@ la release publiée.
   l'article. Éteint d'origine ; nouvelle section « IA » des Préférences avec le
   bloc admin « Fournisseurs » (interrupteur, fournisseurs, clé partagée, test de
   connexion, plafond quotidien). Repli automatique entre fournisseurs, cache
-  des résumés, clés chiffrées, aucune dépendance nouvelle. Les clés
-  personnelles, les réglages par flux et la traduction viennent ensuite.
+  des résumés, clés chiffrées, aucune dépendance nouvelle ; la sauvegarde
+  chiffrée emporte les fournisseurs et leurs clés. Les clés personnelles, les
+  réglages par flux et la traduction viennent ensuite.
 
 ## Corrections et améliorations
 

@@ -731,12 +731,15 @@
     "userIntro": "KI-Zusammenfassungen sind bereit: Öffnen Sie einen Artikel und klicken Sie auf „KI-Zusammenfassung“.",
     "errors": {
       "auth": "Der Anbieter hat den Schlüssel abgelehnt. Prüfen Sie ihn unter Einstellungen › KI.",
+      "authUser": "Der Anbieter hat den Schlüssel abgelehnt. Informieren Sie Ihren Administrator.",
       "quota": "Kontingent des Anbieters erreicht. Versuchen Sie es später erneut.",
+      "rateLimited": "Zu viele Anfragen. Versuchen Sie es in einer Minute erneut.",
       "cap": "Tageslimit für Zusammenfassungen erreicht.",
       "tooShort": "Artikel zu kurz für eine Zusammenfassung.",
+      "tooLong": "Artikel zu lang für eine Zusammenfassung.",
       "refused": "Der Anbieter hat die Zusammenfassung dieses Artikels abgelehnt.",
       "noProvider": "Kein Anbieter verfügbar.",
-      "technical": "Der Anbieter hat nicht geantwortet. Versuchen Sie es erneut."
+      "technical": "Der Anbieter hat einen Fehler gemeldet. Versuchen Sie es erneut."
     },
     "admin": {
       "title": "Anbieter",
@@ -757,6 +760,7 @@
       "typeOpenai": "OpenAI-kompatibel (OpenAI, Ollama, Mistral, OpenRouter…)",
       "typeAnthropic": "Anthropic (Claude)",
       "baseUrl": "Basis-URL",
+      "baseUrlHint": "Ohne das abschließende /v1 – z. B. http://ollama:11434 oder https://api.openai.com",
       "model": "Modell",
       "key": "API-Schlüssel",
       "keyKeep": "Leer lassen, um den aktuellen Schlüssel zu behalten",

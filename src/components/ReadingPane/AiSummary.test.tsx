@@ -143,6 +143,25 @@ describe('AiSummary', () => {
     fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
     expect(getAllByRole('menuitem')[0].className).not.toContain('sheet-row');
   });
+  it('error after a summary: the summary stays, the error shows under it', () => {
+    const { getByText, getByRole } = render(<AiSummary status="error" result={result} error="ai.errors.technical" providers={providers} onSummarize={noop} onHide={noop} />);
+    const summary = getByText('Premier.');
+    const alert = getByRole('alert');
+    expect(alert.textContent).toBe('ai.errors.technical');
+    expect(summary.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(getByRole('button', { name: 'ai.withProvider' })).toBeTruthy();
+  });
+  it('the header wraps and truncates a long provider name (320 px)', () => {
+    const { getByText } = render(<AiSummary {...doneProps} />);
+    const name = getByText('ai.by:Ollama');
+    expect(name.className).toContain('truncate');
+    expect(name.className).toContain('min-w-0');
+    expect(name.parentElement!.className).toContain('flex-wrap');
+  });
+  it('paragraphs keep single line breaks (bullet lists)', () => {
+    const { getByText } = render(<AiSummary {...doneProps} result={{ ...result, text: '- un\n- deux' }} />);
+    expect(getByText(/- un/).className).toContain('whitespace-pre-line');
+  });
   it('the menu closes when the status leaves done, and does not reopen', () => {
     const { getByRole, queryByRole, rerender } = render(<AiSummary {...doneProps} />);
     fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));

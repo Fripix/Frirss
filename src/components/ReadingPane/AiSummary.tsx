@@ -39,7 +39,8 @@ export default function AiSummary({ status, result, error, providers, onSummariz
   const [menuOpen, setMenuOpen] = useState(false);
   const menuAnchor = useRef<HTMLButtonElement>(null);
   const available = providers.filter((p) => p.available);
-  const done = status === 'done' && result ? result : null;
+  // Une erreur après un résumé (« Résumer avec… » raté) laisse le résumé à l'écran, l'erreur dessous.
+  const done = (status === 'done' || status === 'error') && result ? result : null;
   const loading = status === 'loading';
 
   // Le menu n'existe que tant qu'un résumé est affiché : si le statut quitte
@@ -94,10 +95,6 @@ export default function AiSummary({ status, result, error, providers, onSummariz
     <div className="mb-4">
       <div className="flex flex-wrap items-center gap-2">{chip}</div>
 
-      {status === 'error' && error && (
-        <p role="alert" className="mt-2 text-xs leading-snug" style={{ color: 'var(--danger)' }}>{error}</p>
-      )}
-
       {/* Région vivante toujours montée : une région insérée avec son contenu
           n'est pas annoncée de façon fiable. La pastille est désactivée pendant
           le chargement, c'est donc le seul retour que reçoit un lecteur d'écran. */}
@@ -109,8 +106,8 @@ export default function AiSummary({ status, result, error, providers, onSummariz
             style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
           >
             <header className="mb-2.5" style={{ color: 'var(--reading-meta)' }}>
-              <div className="flex items-center gap-x-3 text-xs">
-                <span className="font-medium">{t('ai.by', { name: done.providerName })}</span>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                <span className="font-medium min-w-0 truncate">{t('ai.by', { name: done.providerName })}</span>
                 {done.fromCache && <span className="opacity-80">{t('ai.fromCache')}</span>}
                 {available.length > 0 && (
                   <button
@@ -132,12 +129,16 @@ export default function AiSummary({ status, result, error, providers, onSummariz
             </header>
             <div className="max-w-[68ch]">
               {done.text.split(/\n{2,}/).map((p, i) => (
-                <p key={i} className="text-[15px] leading-[1.65] mb-2.5 last:mb-0" style={{ color: 'var(--reading-text)' }}>{p}</p>
+                <p key={i} className="text-[15px] leading-[1.65] mb-2.5 last:mb-0 whitespace-pre-line" style={{ color: 'var(--reading-text)' }}>{p}</p>
               ))}
             </div>
           </section>
         )}
       </div>
+
+      {status === 'error' && error && (
+        <p role="alert" className="mt-2 text-xs leading-snug" style={{ color: 'var(--danger)' }}>{error}</p>
+      )}
 
       {menuShown && (touch
         ? <BottomSheet open onClose={closeMenu} title={t('ai.withProvider')}>{menuItems}</BottomSheet>

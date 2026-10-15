@@ -731,12 +731,15 @@
     "userIntro": "AI 摘要已就绪：打开一篇文章并点击“AI 摘要”。",
     "errors": {
       "auth": "服务商拒绝了该密钥。请在“偏好设置 › AI”中检查。",
+      "authUser": "服务商拒绝了该密钥。请告知您的管理员。",
       "quota": "已达到服务商的配额。请稍后再试。",
+      "rateLimited": "请求过多，请一分钟后再试。",
       "cap": "已达到每日摘要上限。",
       "tooShort": "文章太短，无法生成摘要。",
+      "tooLong": "文章太长，无法生成摘要。",
       "refused": "服务商拒绝为这篇文章生成摘要。",
       "noProvider": "没有可用的服务商。",
-      "technical": "服务商没有响应。请重试。"
+      "technical": "服务商返回了错误。请重试。"
     },
     "admin": {
       "title": "服务商",
@@ -757,6 +760,7 @@
       "typeOpenai": "兼容 OpenAI（OpenAI、Ollama、Mistral、OpenRouter…）",
       "typeAnthropic": "Anthropic（Claude）",
       "baseUrl": "基础 URL",
+      "baseUrlHint": "不要带末尾的 /v1，例如 http://ollama:11434 或 https://api.openai.com",
       "model": "模型",
       "key": "API 密钥",
       "keyKeep": "留空以保留当前密钥",

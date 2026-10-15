@@ -26,6 +26,10 @@ import BottomSheet from '../BottomSheet';
 import AiSummary from './AiSummary';
 import { useAiStore, aiEnabled } from '../../stores/aiStore';
 import { requestAiSummary, type AiSummaryResult, type AiProviderView } from '../../api/backend';
+import { useAuthStore } from '../../stores/authStore';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import { stripMediaForSummary } from '../../lib/aiPayload';
+import { aiErrorKey } from '../../lib/aiErrorKey';
 import axios from 'axios';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
@@ -165,6 +169,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [aiResult, setAiResult] = useState<AiSummaryResult | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const aiInFlight = useRef<string | null>(null);
+  const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
+  const online = useOnlineStatus();
+  // Aucun fournisseur utilisable pour cet utilisateur : une pastille qui ne
+  // rendrait que « Aucun fournisseur disponible » n'a rien à faire à l'écran.
+  const aiUsable = aiOn && aiProviders.some((p) => p.available);
 
   useEffect(() => {
     setAiStatus('idle'); setAiResult(null); setAiError(null); aiInFlight.current = null;
@@ -721,26 +730,21 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     try {
       const r = await requestAiSummary({
         articleId: id, title: selectedArticle.title,
-        html: extractedContent?.content ?? selectedArticle.content ?? '',
+        html: stripMediaForSummary(extractedContent?.content ?? selectedArticle.content ?? ''),
         provider: providerId,
       });
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
       setAiResult(r); setAiStatus('done');
     } catch (err) {
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
-      const code = axios.isAxiosError(err) ? (err.response?.data as { error?: string; kind?: string } | undefined) : undefined;
-      const key = code?.error === 'ai_daily_cap' ? 'ai.errors.cap'
-        : code?.error === 'article_too_short' ? 'ai.errors.tooShort'
-        : code?.error === 'ai_refused' ? 'ai.errors.refused'
-        : code?.error === 'no_provider' ? 'ai.errors.noProvider'
-        : code?.kind === 'auth' ? 'ai.errors.auth'
-        : code?.kind === 'quota' ? 'ai.errors.quota'
-        : 'ai.errors.technical';
-      setAiError(t(key)); setAiStatus('error');
+      const resp = axios.isAxiosError(err) ? err.response : undefined;
+      // Le résumé déjà affiché (`aiResult`) reste : un « Résumer avec… » raté ne l'efface pas.
+      setAiError(t(aiErrorKey(resp?.status, resp?.data as { error?: string; kind?: string } | undefined, isAdmin)));
+      setAiStatus('error');
     } finally {
       if (aiInFlight.current === id) aiInFlight.current = null;
     }
-  }, [selectedArticle, extractedContent, t]);
+  }, [selectedArticle, extractedContent, t, isAdmin]);
 
   // ── Corps de l'article ────────────────────────────────────────────────────
   // Mémoïsé, et il FAUT que ce soit avant le retour anticipé ci-dessous : les
@@ -1274,12 +1278,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             );
           })()}
 
-          {aiOn && (
+          {aiUsable && (
             <AiSummary
               status={aiStatus} result={aiResult} error={aiError} providers={aiProviders}
               onSummarize={handleSummarize}
               onHide={() => { setAiStatus('idle'); setAiResult(null); }}
-              disabled={typeof navigator !== 'undefined' && navigator.onLine === false}
+              disabled={!online}
             />
           )}
 

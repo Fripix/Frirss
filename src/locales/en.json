@@ -731,12 +731,15 @@
     "userIntro": "AI summaries are ready: open an article and click “AI summary”.",
     "errors": {
       "auth": "Key rejected by the provider. Check it in Preferences › AI.",
+      "authUser": "Key rejected by the provider. Tell your administrator.",
       "quota": "Provider quota reached. Try again later.",
+      "rateLimited": "Too many requests, try again in a minute.",
       "cap": "Daily summary limit reached.",
       "tooShort": "Article too short to summarise.",
+      "tooLong": "Article too long to summarise.",
       "refused": "The provider declined to summarise this article.",
       "noProvider": "No provider available.",
-      "technical": "The provider did not answer. Try again."
+      "technical": "The provider returned an error. Try again."
     },
     "admin": {
       "title": "Providers",
@@ -757,6 +760,7 @@
       "typeOpenai": "OpenAI-compatible (OpenAI, Ollama, Mistral, OpenRouter…)",
       "typeAnthropic": "Anthropic (Claude)",
       "baseUrl": "Base URL",
+      "baseUrlHint": "Without the trailing /v1 — e.g. http://ollama:11434 or https://api.openai.com",
       "model": "Model",
       "key": "API key",
       "keyKeep": "Leave empty to keep the current key",
