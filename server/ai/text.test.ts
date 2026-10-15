@@ -28,6 +28,32 @@ describe('htmlToText', () => {
     // 'a'*3 puis U+1F600 (paire 😀) : une coupe à 4 laisse le surrogate haut seul.
     expect(htmlToText('<p>aaa😀</p>', 4)).toBe('aaa');
   });
+  it('strips script/style blocks whatever their case, and keeps the text after an unclosed one', () => {
+    expect(htmlToText('<p>a</p><SCRIPT type="x">bad()</Script><p>b</p>')).toBe('a\n\nb');
+    expect(htmlToText('<p>a <script>b c</p>')).toBe('a b c');
+  });
+});
+
+// Entrées hostiles de 200 Ko : un motif quadratique y bloquait la boucle d'événements 4 à 22 s.
+describe('linear time on adversarial input', () => {
+  const N = 200_000;
+  const timed = (fn: () => unknown) => { const t = performance.now(); fn(); return performance.now() - t; };
+  const adversarial: Record<string, string> = {
+    spaces: ' '.repeat(N),
+    'lone <': '<'.repeat(N),
+    '<a': '<a'.repeat(N / 2),
+    '<script ': '<script '.repeat(N / 8),
+    '<script>': '<script>'.repeat(N / 8),
+    '<br + spaces': '<br' + ' '.repeat(N),
+  };
+  for (const [name, input] of Object.entries(adversarial)) {
+    it(`htmlToText on 200 KB of ${name} returns under 250 ms`, () => {
+      expect(timed(() => htmlToText(input))).toBeLessThan(250);
+    });
+  }
+  it('countWords on 200 KB of spaces returns under 250 ms', () => {
+    expect(timed(() => countWords(' '.repeat(N)))).toBeLessThan(250);
+  });
 });
 
 describe('countWords', () => {
