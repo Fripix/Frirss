@@ -84,7 +84,7 @@ describe('ai admin + summary', () => {
       .send({ articleId: 'art-route-1', title: 'Titre', html: longHtml });
     expect(second.body.fromCache).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(cfgUsage(userToken)).resolves.toBe(1);
+    await expect(cfgUsage(userToken)).resolves.toBe(1);
   });
   it('rejects a short article with 400 and a bad body with 400', async () => {
     const short = await request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
@@ -94,11 +94,78 @@ describe('ai admin + summary', () => {
     const bad = await request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`).send({ title: 't' });
     expect(bad.status).toBe(400);
   });
+  it('bounds articleId, title and html', async () => {
+    const post = (b: object) => request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`).send(b);
+    const longId = await post({ articleId: 'x'.repeat(600), title: 't', html: longHtml });
+    expect(longId.status).toBe(400);
+    expect(longId.body.error).toBe('invalid_body');
+    const big = await post({ articleId: 'big', title: 't', html: '<p>' + 'a'.repeat(201 * 1024) + '</p>' });
+    expect(big.status).toBe(400);
+    expect(big.body.error).toBe('invalid_body');
+  });
+  it('maps a provider 500 to 502 ai_failed and a content filter to 422 ai_refused', async () => {
+    const post = (id: string) => request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
+      .send({ articleId: id, title: 't', html: longHtml, fallback: false });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers(), text: async () => 'boom', json: async () => ({}) }));
+    const fail = await post('art-502');
+    expect(fail.status).toBe(502);
+    expect(fail.body).toMatchObject({ error: 'ai_failed', kind: 'technical' });
+    vi.unstubAllGlobals();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: new Headers(), text: async () => '',
+      json: async () => ({ model: 'm', choices: [{ message: { content: '' }, finish_reason: 'content_filter' }], usage: {} }),
+    }));
+    const refused = await post('art-422');
+    expect(refused.status).toBe(422);
+    expect(refused.body.error).toBe('ai_refused');
+  });
+  it('rejects invalid settings atomically and strictly', async () => {
+    const put = (b: object) => request(app).put('/api/admin/ai/settings').set('Authorization', `Bearer ${adminToken}`).send(b);
+    expect(getSetting('ai_enabled')).toBe('true');
+    const half = await put({ enabled: false, dailyCap: -1 });
+    expect(half.status).toBe(400);
+    expect(half.body.error).toBe('invalid_cap');
+    expect(getSetting('ai_enabled')).toBe('true');
+    const unknown = await put({ defaultProvider: 999 });
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.error).toBe('unknown_provider');
+    expect((await put({ defaultProvider: String(providerId) })).status).toBe(400);
+    expect((await put({ enabled: 'false' })).status).toBe(200);
+    expect(getSetting('ai_enabled')).toBe('false');
+    expect((await put({ enabled: true })).status).toBe(200);
+    expect(getSetting('ai_enabled')).toBe('true');
+  });
+  it('lists without keys, validates partial updates, reorders exactly the existing ids', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const second = await request(app).post('/api/admin/ai/providers').set(auth)
+      .send({ name: 'Second', type: 'anthropic', baseUrl: 'https://api.example.com', model: 'm2', adminKey: 'secret-2' });
+    const id2 = second.body.provider.id as number;
+    const list = await request(app).get('/api/admin/ai/providers').set(auth);
+    expect(list.status).toBe(200);
+    expect(JSON.stringify(list.body)).not.toContain('secret-k');
+    expect(JSON.stringify(list.body)).not.toContain('secret-2');
+    expect(list.body.providers.map((p: { id: number }) => p.id)).toEqual([providerId, id2]);
+
+    expect((await request(app).put(`/api/admin/ai/providers/${id2}`).set(auth).send({ name: '  ' })).status).toBe(400);
+    expect((await request(app).put(`/api/admin/ai/providers/${id2}`).set(auth).send({ adminKey: 42 })).status).toBe(400);
+
+    const partial = await request(app).put('/api/admin/ai/providers/order').set(auth).send({ ids: [id2] });
+    expect(partial.status).toBe(400);
+    expect(partial.body.error).toBe('invalid_order');
+    expect((await request(app).put('/api/admin/ai/providers/order').set(auth).send({ ids: [id2, id2] })).status).toBe(400);
+    const ok = await request(app).put('/api/admin/ai/providers/order').set(auth).send({ ids: [id2, providerId] });
+    expect(ok.status).toBe(200);
+    const after = await request(app).get('/api/admin/ai/providers').set(auth);
+    expect(after.body.providers.map((p: { id: number }) => p.id)).toEqual([id2, providerId]);
+
+    expect((await request(app).delete(`/api/admin/ai/providers/${id2}`).set(auth)).status).toBe(200);
+  });
   it('the test route reports a failure without throwing', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, headers: new Headers(), text: async () => 'nope', json: async () => ({}) }));
     const res = await request(app).post(`/api/admin/ai/providers/${providerId}/test`).set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ ok: false, kind: 'auth' });
+    expect(JSON.stringify(res.body)).not.toContain('secret-k');
   });
   it('deleting the default provider leaves config consistent', async () => {
     const del = await request(app).delete(`/api/admin/ai/providers/${providerId}`).set('Authorization', `Bearer ${adminToken}`);

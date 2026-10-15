@@ -27,6 +27,12 @@ describe('availableFor', () => {
     expect(availableFor(providers, keys, { adminUser: true })).toEqual([{ provider: providers[0], key: 'admin5', paidByAdmin: false }]);
     expect(availableFor(providers, keys)).toEqual([]);
   });
+  it('an admin user is never paidByAdmin, even on a shared provider; a plain user is', () => {
+    const providers = [P(8, 'anthropic', true, true)];
+    const keys = { user: () => null, admin: () => 'admin8' };
+    expect(availableFor(providers, keys, { adminUser: true })[0].paidByAdmin).toBe(false);
+    expect(availableFor(providers, keys)[0].paidByAdmin).toBe(true);
+  });
   it('a personal key beats the admin key on a shared provider, unpaid', () => {
     const avail = availableFor([P(6, 'anthropic', true, true)], { user: () => 'mine', admin: () => 'admin' });
     expect(avail.map((a) => [a.provider.id, a.key, a.paidByAdmin])).toEqual([[6, 'mine', false]]);

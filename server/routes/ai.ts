@@ -15,6 +15,8 @@ router.use(requireAuth);
 if (proxyRateLimiter) router.use(proxyRateLimiter);
 
 const MAX_HTML_BYTES = 200 * 1024;
+const MAX_ID_CHARS = 512;
+const MAX_TITLE_CHARS = 500;
 
 function availability(user: { id: number; role: string }) {
   return availableFor(
@@ -45,12 +47,12 @@ const asId = (v: unknown): number | null => (typeof v === 'number' && Number.isI
 router.post('/summary', async (req, res) => {
   if (!isAiEnabled()) return res.status(404).json({ error: 'ai_disabled' });
   const { articleId, title, html, provider, feedProvider, categoryProvider, preferredProvider, fallback } = req.body ?? {};
-  if (typeof articleId !== 'string' || !articleId || typeof html !== 'string' || Buffer.byteLength(html) > MAX_HTML_BYTES) {
+  if (typeof articleId !== 'string' || !articleId || articleId.length > MAX_ID_CHARS || typeof html !== 'string' || Buffer.byteLength(html) > MAX_HTML_BYTES) {
     return res.status(400).json({ error: 'invalid_body' });
   }
   try {
     const out = await summarize({
-      userId: req.user.id, articleId, title: typeof title === 'string' ? title : '', html,
+      userId: req.user.id, articleId, title: typeof title === 'string' ? title.slice(0, MAX_TITLE_CHARS) : '', html,
       resolution: { force: asId(provider), feed: asId(feedProvider), category: asId(categoryProvider), preferred: asId(preferredProvider), adminDefault: defaultProviderId() },
       available: availability(req.user),
       fallback: fallback !== false,

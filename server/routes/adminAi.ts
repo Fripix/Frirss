@@ -18,14 +18,20 @@ function parseInput(body: unknown, partial: boolean): ProviderInput | null {
   const str = (k: string) => (typeof b[k] === 'string' ? (b[k] as string).trim() : undefined);
   const name = str('name'), type = str('type'), baseUrl = str('baseUrl'), model = str('model');
   if (!partial && (!name || !type || !baseUrl || !model)) return null;
+  // Un champ fourni mais vide (ou d'un autre type) est une erreur, jamais un effacement silencieux.
+  for (const k of ['name', 'type', 'baseUrl', 'model']) {
+    if (b[k] !== undefined && !str(k)) return null;
+  }
   if (type !== undefined && !TYPES.includes(type)) return null;
   if (baseUrl !== undefined && !/^https?:\/\//i.test(baseUrl)) return null;
+  // `null` efface la clé, volontairement ; tout autre type que chaîne est refusé.
+  if (b.adminKey !== undefined && b.adminKey !== null && typeof b.adminKey !== 'string') return null;
   const out: Partial<ProviderInput> = {};
   if (name !== undefined) out.name = name;
   if (type !== undefined) out.type = type as ProviderInput['type'];
   if (baseUrl !== undefined) out.baseUrl = baseUrl;
   if (model !== undefined) out.model = model;
-  if (b.adminKey !== undefined) out.adminKey = typeof b.adminKey === 'string' ? b.adminKey : null;
+  if (b.adminKey !== undefined) out.adminKey = b.adminKey as string | null;
   if (b.shared !== undefined) out.shared = b.shared === true;
   return out as ProviderInput;
 }
@@ -40,9 +46,15 @@ router.post('/ai/providers', (req, res) => {
 });
 
 router.put('/ai/providers/order', (req, res) => {
-  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((n: unknown) => Number.isInteger(n)) : null;
-  if (!ids) return res.status(400).json({ error: 'invalid_order' });
-  reorderProviders(ids);
+  const ids: unknown = req.body?.ids;
+  const existing = listProviders().map((p) => p.id).sort((a, b) => a - b);
+  const given = Array.isArray(ids) && ids.every((n) => typeof n === 'number' && Number.isInteger(n))
+    ? [...(ids as number[])].sort((a, b) => a - b) : null;
+  // Exactement l'ensemble des fournisseurs existants : ni doublon, ni inconnu, ni oubli.
+  if (!given || given.length !== existing.length || given.some((n, i) => n !== existing[i])) {
+    return res.status(400).json({ error: 'invalid_order' });
+  }
+  reorderProviders(ids as number[]);
   res.json({ ok: true });
 });
 
@@ -75,16 +87,18 @@ router.post('/ai/providers/:id/test', async (req, res) => {
 
 router.put('/ai/settings', (req, res) => {
   const { enabled, userKeysAllowed: uk, dailyCap: cap, defaultProvider } = req.body ?? {};
-  if (enabled !== undefined) setSetting('ai_enabled', enabled ? 'true' : 'false');
-  if (uk !== undefined) setSetting('ai_user_keys_allowed', uk ? 'true' : 'false');
-  if (cap !== undefined) {
-    if (!Number.isInteger(cap) || cap < 0) return res.status(400).json({ error: 'invalid_cap' });
-    setSetting('ai_daily_cap', String(cap));
+  // Tout valider d'abord, écrire ensuite : un 400 ne doit laisser aucune écriture partielle.
+  if (cap !== undefined && (typeof cap !== 'number' || !Number.isInteger(cap) || cap < 0)) {
+    return res.status(400).json({ error: 'invalid_cap' });
   }
-  if (defaultProvider !== undefined) {
-    if (defaultProvider !== null && !getProvider(Number(defaultProvider))) return res.status(400).json({ error: 'unknown_provider' });
-    setSetting('ai_default_provider', defaultProvider === null ? '' : String(defaultProvider));
+  if (defaultProvider !== undefined && defaultProvider !== null
+    && (typeof defaultProvider !== 'number' || !Number.isInteger(defaultProvider) || !getProvider(defaultProvider))) {
+    return res.status(400).json({ error: 'unknown_provider' });
   }
+  if (enabled !== undefined) setSetting('ai_enabled', enabled === true ? 'true' : 'false');
+  if (uk !== undefined) setSetting('ai_user_keys_allowed', uk === true ? 'true' : 'false');
+  if (cap !== undefined) setSetting('ai_daily_cap', String(cap));
+  if (defaultProvider !== undefined) setSetting('ai_default_provider', defaultProvider === null ? '' : String(defaultProvider));
   res.json({ ok: true, settings: settingsView() });
 });
 

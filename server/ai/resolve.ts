@@ -2,7 +2,11 @@ import type { AiProvider } from './store.js';
 
 export interface Availability { provider: AiProvider; key: string | null; paidByAdmin: boolean }
 
-/** Clé personnelle, sinon clé admin partagée ; `openai` sans clé reste utilisable (Ollama). */
+/**
+ * Clé personnelle, sinon clé admin partagée ; `openai` sans clé reste utilisable (Ollama).
+ * Un administrateur (`opts.adminUser`) se sert de la clé admin même non partagée, et n'est jamais
+ * « payé par l'admin » : c'est sa propre clé, donc ni plafond quotidien ni facturation à un tiers.
+ */
 export function availableFor(
   providers: AiProvider[],
   keys: { user: (id: number) => string | null; admin: (id: number) => string | null },
