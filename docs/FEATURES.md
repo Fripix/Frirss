@@ -1879,24 +1879,32 @@ le plan 3.
   d'écrire** (un 400 ne laisse aucune écriture partielle) ; booléens stricts
   (`=== true`), `dailyCap` entier ≥ 0, `defaultProvider` nombre ou `null` d'un
   fournisseur existant. `PUT …/providers/order` exige **exactement** l'ensemble
-  des identifiants existants. Un champ fourni mais vide est un 400, jamais un
-  effacement silencieux. Supprimer le fournisseur par défaut vide
+  des identifiants existants. Un champ fourni mais vide est un 400 pour `name`,
+  `type`, `baseUrl` et `model`, jamais un effacement silencieux ; en revanche
+  `adminKey: ''` (comme `null`) est accepté et **efface** la clé. Supprimer le fournisseur par défaut vide
   `ai_default_provider`. `POST …/providers/:id/test` répond **200** avec
   `{ ok:false, kind, message }` en cas d'échec (message ≤ 200 caractères) : un
   test raté n'est pas une erreur HTTP.
 - **Interface** : section **« IA »** (un mot, comme les autres) des
   Préférences ; aujourd'hui elle ne porte que le bloc admin « Fournisseurs »
-  (interrupteur, liste, éditeur, test, clé partagée, plafond, défaut) et, pour
-  un utilisateur, une ligne d'introduction. Après un enregistrement,
+  (interrupteur, liste réordonnable par flèches haut / bas, éditeur, test, clé
+  partagée, plafond, défaut), un repli « Avancé » avec l'interrupteur « Les
+  utilisateurs peuvent saisir leur propre clé » (**inerte tant que le plan 2
+  n'a pas livré route ni écran de clé personnelle**) et, pour un utilisateur,
+  une ligne d'introduction. La section n'est montée que pour un admin ou quand
+  l'IA est activée. Après un enregistrement,
   l'éditeur **reste ouvert** : clé effacée du champ, « Enregistré »,
   « Fermer ». Le bloc de résumé est une région `aria-live="polite"`. Le menu
-  « Résumer avec… » est un popover en portail sur ordinateur et une feuille du
-  bas au tactile (même règle que les autres surfaces flottantes). La pastille
+  « Résumer avec… » est un popover en portail sur le format ordinateur et une
+  feuille du bas sur les formats tablette et smartphone (`useBreakpoint() !==
+  'desktop'`, le format est forçable manuellement : ce n'est pas la détection du
+  tactile). La pastille
   est **désactivée hors ligne**.
 - **Pièges** : le volet envoie le texte *affiché* (contenu complet extrait s'il
   y en a un, sinon celui du flux) : résumer avant ou après l'extraction donne
   deux entrées de cache ; ne jamais suivre un 3xx du fournisseur ; ne pas
-  confondre « payé par l'admin » (plafond, repli) et « clé admin utilisée »
+  confondre « payé par l'admin » (`paidByAdmin` ne pilote que le plafond et le
+  décompte d'usage, pas l'éligibilité au repli) et « clé admin utilisée »
   (un admin n'est pas facturé) ; la clé de cache doit garder le hash du
   contenu.
 - **Réglages serveur** (`settings`) : `ai_enabled`, `ai_user_keys_allowed`,
@@ -2583,18 +2591,21 @@ serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, plus
 - **Montage des sections** : une section n'est montée qu'à sa **première
   visite**, puis y reste, masquée par un `display:none` en ligne. Le montage
   conditionnel d'origine la détruisait à chaque changement : Flux et
-  Administration, les deux seules sections qui appellent le réseau au montage,
+  Administration (puis le bloc admin d'`AiTab`, qui appelle `getAiProviders()`
+  quand `active`), seules sections à appeler le réseau au montage,
   repayaient un aller-retour complet à chaque retour, écran vide. Mesuré après
   correction : **zéro requête** sur trois allers-retours entre deux sections.
   - Le style en ligne n'est pas un caprice : la règle
     `.prefs-panel-body > [hidden]` ne vise que les enfants directs, et
     l'attribut `hidden` seul perd contre une classe utilitaire d'affichage.
   - **Conséquence à ne pas oublier** : une section qui reste montée ne peut plus
-    compter sur son démontage. Trois d'entre elles reçoivent donc une prop
+    compter sur son démontage. Quatre d'entre elles reçoivent donc une prop
     `active` — `AppearanceTab` (sans quoi l'encadrement de couleur resterait à
     l'écran depuis une autre section), `OfflineTab` (qui doit relire l'espace
-    disque à chaque retour) et `AdminTab` (qui revalide en silence, sans
-    repasser par son écran de chargement).
+    disque à chaque retour), `AdminTab` (qui revalide en silence, sans
+    repasser par son écran de chargement) et `AiTab` (qui recharge les
+    fournisseurs à chaque retour ; montée seulement pour un admin ou quand l'IA
+    est activée).
 - **Synchronisation** : les préférences logiques sont synchronisées par le serveur
   (`UI_SYNC_KEYS`) ; les préférences géométriques — largeurs de panneaux,
   visibilité de la barre latérale — restent locales à chaque appareil.

@@ -102,6 +102,7 @@ describe('summarize', () => {
     expect(call).toHaveBeenCalledTimes(2);
   });
   it('wraps a non-AiError with a fixed message and falls back', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const call = vi.fn()
       .mockRejectedValueOnce(new Error('secret sk-123 leaked'))
       .mockResolvedValueOnce({ text: 'lang: en\n\nOk.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
@@ -109,5 +110,8 @@ describe('summarize', () => {
     expect(r.providerName).toBe('B');
     const solo = vi.fn().mockRejectedValue(new Error('secret sk-123 leaked'));
     await expect(summarize({ ...base, fallback: false, available: [A(1, 'A')] }, { call: solo })).rejects.toMatchObject({ kind: 'technical', message: 'provider_error' });
+    expect(spy).toHaveBeenCalled();
+    expect(spy.mock.calls[0][0]).toBe('AI provider error:');
+    spy.mockRestore();
   });
 });
