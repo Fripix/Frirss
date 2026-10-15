@@ -18,7 +18,13 @@ const DEFAULT_MAX_TOKENS = 4096;
  */
 export async function callProvider(provider: AiProvider, key: string | null, call: AiCall): Promise<AiResult> {
   const started = Date.now();
-  const host = new URL(provider.baseUrl).hostname.toLowerCase();
+  let host: string;
+  try {
+    // assertTargetSafe compare sans les crochets d'un littéral IPv6.
+    host = new URL(provider.baseUrl).hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  } catch {
+    throw new AiError('technical', `${provider.name}: invalid base URL`);
+  }
   const { url, headers, body } = provider.type === 'anthropic'
     ? anthropicRequest(provider, key, call)
     : openaiRequest(provider, key, call);
@@ -34,7 +40,8 @@ export async function callProvider(provider: AiProvider, key: string | null, cal
   }
   if (!resp.ok) {
     const detail = (await resp.text().catch(() => '')).slice(0, 300);
-    throw new AiError(classifyStatus(resp.status), `${provider.name}: HTTP ${resp.status} ${detail}`, resp.status);
+    const safe = key ? detail.split(key).join('***') : detail;
+    throw new AiError(classifyStatus(resp.status), `${provider.name}: HTTP ${resp.status} ${safe}`, resp.status);
   }
   let json: unknown;
   try { json = await resp.json(); } catch { throw new AiError('technical', `${provider.name}: non-JSON response`); }

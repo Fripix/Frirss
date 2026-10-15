@@ -63,11 +63,36 @@ describe('openai adapter', () => {
   });
   it('treats a redirect as technical and never follows it', async () => {
     const fetchMock = stub(301, {}, { location: 'https://elsewhere.example.com/' });
-    await expect(callProvider(openai, 'k', call)).rejects.toBeInstanceOf(AiError);
+    await expect(callProvider(openai, 'k', call)).rejects.toMatchObject({ kind: 'technical' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
   it('content_filter is refused', async () => {
     stub(200, { choices: [{ message: { content: '' }, finish_reason: 'content_filter' }] });
     await expect(callProvider(openai, 'k', call)).rejects.toMatchObject({ kind: 'refused' });
+  });
+  it('never leaks the key in an error message', async () => {
+    stub(401, { error: 'invalid key sk-secret-123' });
+    const err = await callProvider(openai, 'sk-secret-123', call).catch((e: Error) => e);
+    expect(err).toBeInstanceOf(AiError);
+    expect((err as Error).message).not.toContain('sk-secret-123');
+  });
+});
+
+describe('base URL handling', () => {
+  const okBody = { model: 'm', choices: [{ message: { content: 'lang: en\n\nS' }, finish_reason: 'stop' }], usage: {} };
+  it('classifies a malformed base URL as technical without calling fetch', async () => {
+    const fetchMock = stub(200, okBody);
+    await expect(callProvider({ ...openai, baseUrl: 'not a url' }, 'k', call)).rejects.toMatchObject({ kind: 'technical' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('trusts an IPv6 literal host', async () => {
+    stub(200, okBody);
+    const r = await callProvider({ ...openai, baseUrl: 'http://[::1]:11434' }, null, call);
+    expect(r.text).toBe('lang: en\n\nS');
+  });
+  it('accepts a private LAN IP literal thanks to trustedHosts', async () => {
+    const fetchMock = stub(200, okBody);
+    await callProvider({ ...openai, baseUrl: 'http://10.0.0.5:11434' }, null, call);
+    expect(fetchMock.mock.calls[0][0]).toBe('http://10.0.0.5:11434/v1/chat/completions');
   });
 });
