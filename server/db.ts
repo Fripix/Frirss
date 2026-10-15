@@ -65,6 +65,42 @@ db.exec(`
     key   TEXT PRIMARY KEY,
     value TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS ai_providers (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    type       TEXT    NOT NULL CHECK(type IN ('anthropic', 'openai')),
+    base_url   TEXT    NOT NULL,
+    model      TEXT    NOT NULL,
+    admin_key  TEXT,
+    shared     INTEGER DEFAULT 0,
+    position   INTEGER DEFAULT 0,
+    created_at TEXT    DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS ai_user_keys (
+    user_id     INTEGER NOT NULL,
+    provider_id INTEGER NOT NULL,
+    key         TEXT    NOT NULL,
+    PRIMARY KEY (user_id, provider_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS ai_usage (
+    user_id INTEGER NOT NULL,
+    day     TEXT    NOT NULL,
+    count   INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, day),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS ai_cache (
+    key        TEXT PRIMARY KEY,
+    text       TEXT NOT NULL,
+    lang       TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // ── Migrations (additive, idempotent) ───────────────────────────────
@@ -105,6 +141,13 @@ const initSetting = db.prepare(`
 // `INSERT OR IGNORE` : ce changement ne touche QUE les bases neuves. Une
 // instance existante conserve la valeur qu'elle a déjà enregistrée.
 initSetting.run('registration_enabled', 'false');
+
+// Résumés IA (spec docs/superpowers/specs/2026-10-15-ai-summaries-design.md) :
+// éteints d'origine — rien n'est visible tant que l'admin n'allume pas.
+initSetting.run('ai_enabled', 'false');
+initSetting.run('ai_user_keys_allowed', 'false');
+initSetting.run('ai_daily_cap', '50');
+initSetting.run('ai_default_provider', '');
 
 // Generate a JWT secret if none exists
 const existing = db.prepare(`SELECT value FROM settings WHERE key = 'jwt_secret'`).get();
