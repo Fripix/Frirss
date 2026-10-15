@@ -29,6 +29,7 @@ vi.mock('./LabelsTab', () => ({ default: () => null }));
 vi.mock('./GeneralTab', () => ({ default: () => null }));
 vi.mock('./AppearanceTab', () => ({ default: () => null }));
 vi.mock('./LayoutTab', () => ({ default: () => null }));
+vi.mock('./AiTab', () => ({ default: () => null }));
 
 import Preferences from './Preferences';
 import { useThemeStore, SHIPPED_THEMES } from '../../stores/themeStore';

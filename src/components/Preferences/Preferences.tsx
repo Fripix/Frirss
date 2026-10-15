@@ -10,6 +10,8 @@ import LabelsTab from './LabelsTab';
 import GeneralTab from './GeneralTab';
 import AppearanceTab from './AppearanceTab';
 import LayoutTab from './LayoutTab';
+import AiTab from './AiTab';
+import { useAiStore, aiEnabled } from '../../stores/aiStore';
 import { COLOR_HIGHLIGHT_MAP } from './colorHighlight';
 
 interface HighlightRect { top: number; left: number; width: number; height: number }
@@ -91,7 +93,9 @@ export default function Preferences() {
   }
 
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
-  const SECTIONS = ['general', 'appearance', 'layout', 'labels', 'feeds', 'offline'] as const;
+  const aiOn = useAiStore(aiEnabled);
+  const showAi = aiOn || isAdmin;
+  const SECTIONS: readonly string[] = ['general', 'appearance', 'layout', 'labels', 'feeds', 'offline', ...(showAi ? ['ai'] : [])];
   const sections = SECTIONS.map((id) => ({ id, label: t(`preferences.sections.${id}`) }));
 
   return (
@@ -334,6 +338,9 @@ export default function Preferences() {
             <Pane id="offline" tab={tab}><OfflineTab active={tab === 'offline'} /></Pane>
           )}
 
+          {showAi && visited.has('ai') && (
+            <Pane id="ai" tab={tab}><AiTab active={tab === 'ai'} /></Pane>
+          )}
           {isAdmin && visited.has('admin') && (
             <Pane id="admin" tab={tab}><AdminTab active={tab === 'admin'} /></Pane>
           )}
