@@ -3,7 +3,7 @@ import { callProvider } from './providers.js';
 import { AiError } from './errors.js';
 import { resolveProvider, fallbackOrder, type Availability } from './resolve.js';
 import { aiCacheKey, aiCacheGet, aiCacheSet, usageToday, bumpUsage, dailyCap } from './store.js';
-import { SUMMARY_SYSTEM, summaryUserMessage } from './prompts.js';
+import { summarySystem, summaryUserMessage, DEFAULT_SUMMARY_RATIO } from './prompts.js';
 import { splitLangLine } from './lang.js';
 import { htmlToText, countWords } from './text.js';
 
@@ -14,6 +14,8 @@ export interface SummaryRequest {
   resolution: { force?: number | null; feed?: number | null; category?: number | null; preferred?: number | null; adminDefault?: number | null };
   available: Availability[];
   fallback: boolean;
+  /** Longueur visée en pour cent de l'article ; validée par la route. */
+  ratio?: number;
 }
 export interface SummaryResponse {
   text: string; lang: string | null; providerId: number; providerName: string; model: string; fromCache: boolean; fellBackFrom?: string;
@@ -38,13 +40,14 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
   if (!first) throw new AiError('technical', 'no_provider');
   const candidates = req.fallback ? fallbackOrder(first, req.available) : [first];
   // Le titre fait partie du prompt : deux titres pour un même corps sont deux résumés.
+  const ratio = req.ratio ?? DEFAULT_SUMMARY_RATIO;
   const contentHash = createHash('sha1').update(`${req.title}\0${text}`).digest('hex').slice(0, 16);
 
   let fellBackFrom: string | undefined;
   let lastError: AiError | null = null;
   let capped = false;
   for (const cand of candidates) {
-    const key = aiCacheKey({ articleId: req.articleId, op: 'summary', providerId: cand.provider.id, model: cand.provider.model, contentHash });
+    const key = aiCacheKey({ articleId: req.articleId, op: 'summary', providerId: cand.provider.id, model: cand.provider.model, ratio, contentHash });
     let cached = null;
     try { cached = await aiCacheGet(key); } catch { /* cache illisible = absence */ }
     if (cached) return { ...cached, providerId: cand.provider.id, providerName: cand.provider.name, model: cand.provider.model, fromCache: true, fellBackFrom };
@@ -58,7 +61,7 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
 
     let result;
     try {
-      result = await call(cand.provider, cand.key, { system: SUMMARY_SYSTEM, user: summaryUserMessage(req.title, text) });
+      result = await call(cand.provider, cand.key, { system: summarySystem(ratio), user: summaryUserMessage(req.title, text) });
     } catch (err) {
       // Que des chaînes : jamais l'objet d'erreur brut, qui peut porter la requête et ses en-têtes (donc la clé).
       if (!(err instanceof AiError)) console.error('AI provider error:', cand.provider.name, (err as Error)?.name, (err as Error)?.message);

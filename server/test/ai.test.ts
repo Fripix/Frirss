@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, vi, afterEach } from 'vitest';
 import request from 'supertest';
 import app from '../index.js';
-import db, { getSetting } from '../db.js';
+import db, { getSetting, setSetting } from '../db.js';
 
 let adminToken: string;
 let userToken: string;
@@ -85,6 +85,28 @@ describe('ai admin + summary', () => {
     expect(second.body.fromCache).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await expect(cfgUsage(userToken)).resolves.toBe(1);
+  });
+  it('passes a valid ratio to the prompt and falls back to 20 for anything else, never 400', async () => {
+    const fetchMock = stubProvider();
+    const post = (articleId: string, ratio: unknown) => request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
+      .send({ articleId, title: 't', html: longHtml, ratio });
+    const system = (i: number) => JSON.parse(fetchMock.mock.calls[i][1].body).messages[0].content as string;
+    // Six appels payés par la clé admin : le plafond (5) n'est pas ce qu'on teste ici.
+    const usage = db.prepare('SELECT user_id, day, count FROM ai_usage').all() as { user_id: number; day: string; count: number }[];
+    const cap = getSetting('ai_daily_cap');
+    setSetting('ai_daily_cap', '0');
+    expect((await post('ratio-ok', 35)).status).toBe(200);
+    expect(system(0)).toContain('about 35%');
+    const bad: unknown[] = [3, 55, 12.5, '30', null];
+    for (const [i, r] of bad.entries()) {
+      const res = await post(`ratio-bad-${i}`, r);
+      expect(res.status, String(r)).toBe(200);
+      expect(system(i + 1), String(r)).toContain('about 20%');
+    }
+    setSetting('ai_daily_cap', cap ?? '50');
+    db.exec('DELETE FROM ai_usage');
+    const ins = db.prepare('INSERT INTO ai_usage (user_id, day, count) VALUES (?, ?, ?)');
+    for (const u of usage) ins.run(u.user_id, u.day, u.count);
   });
   it('rejects a short article with 400 and a bad body with 400', async () => {
     const short = await request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)

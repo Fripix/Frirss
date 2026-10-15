@@ -104,9 +104,13 @@ export interface AiCacheValue { text: string; lang: string | null }
 const AI_CACHE_MAX_ROWS = 10_000;
 const AI_CACHE_TTL = 30 * 24 * 3600;
 
-/** Le modèle fait partie de la clé : changer de modèle ne doit pas resservir le résumé de l'ancien. */
-export function aiCacheKey(p: { articleId: string; op: 'summary' | 'translate'; providerId: number; model: string; lang?: string; contentHash?: string }): string {
-  return `frirss:ai:v${PROMPT_VERSION}:${p.op}:${p.providerId}:${encodeURIComponent(p.model)}:${p.lang ?? '-'}:${p.articleId}:${p.contentHash ?? '-'}`;
+/**
+ * Le modèle fait partie de la clé : changer de modèle ne doit pas resservir le résumé de l'ancien.
+ * La longueur visée (`ratio`) aussi : deux réglages sont deux résumés.
+ */
+export function aiCacheKey(p: { articleId: string; op: 'summary' | 'translate'; providerId: number; model: string; lang?: string; ratio?: number; contentHash?: string }): string {
+  const ratio = p.ratio === undefined ? '-' : `r${p.ratio}`;
+  return `frirss:ai:v${PROMPT_VERSION}:${p.op}:${p.providerId}:${encodeURIComponent(p.model)}:${p.lang ?? '-'}:${ratio}:${p.articleId}:${p.contentHash ?? '-'}`;
 }
 export async function aiCacheGet(key: string): Promise<AiCacheValue | null> {
   if (cacheEnabled) {

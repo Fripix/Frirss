@@ -217,7 +217,8 @@ export async function getAiConfig(): Promise<AiConfig> {
   const { data } = await backend.get<AiConfig>('/ai/config');
   return data;
 }
-export async function requestAiSummary(body: { articleId: string; title: string; html: string; provider?: number }): Promise<AiSummaryResult> {
+/** `ratio` : longueur visée en % de l'article (réglage `aiSummaryRatio`). */
+export async function requestAiSummary(body: { articleId: string; title: string; html: string; provider?: number; ratio?: number }): Promise<AiSummaryResult> {
   const { data } = await backend.post<AiSummaryResult>('/ai/summary', body);
   return data;
 }

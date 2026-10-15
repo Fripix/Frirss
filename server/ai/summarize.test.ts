@@ -28,6 +28,25 @@ describe('summarize', () => {
     expect(call.mock.calls[0][2].user.startsWith('<article>')).toBe(true);
     expect(call.mock.calls[0][2].user.endsWith('Summarise the article above.')).toBe(true);
   });
+  it('puts the requested ratio in the system prompt, 20 % by default', async () => {
+    const call = vi.fn().mockResolvedValue({ text: 'lang: fr\n\nR.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+    await summarize({ ...base, articleId: 'r-def', available: [A(1, 'A')] }, { call });
+    expect(call.mock.calls[0][2].system).toContain('about 20%');
+    await summarize({ ...base, articleId: 'r-40', ratio: 40, available: [A(1, 'A')] }, { call });
+    expect(call.mock.calls[1][2].system).toContain('about 40%');
+  });
+  it('does not share a cache entry between two ratios', async () => {
+    const call = vi.fn().mockResolvedValue({ text: 'lang: fr\n\nR.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+    await summarize({ ...base, ratio: 10, available: [A(1, 'A')] }, { call });
+    const other = await summarize({ ...base, ratio: 30, available: [A(1, 'A')] }, { call });
+    expect(other.fromCache).toBe(false);
+    expect(call).toHaveBeenCalledTimes(2);
+    const again = await summarize({ ...base, ratio: 10, available: [A(1, 'A')] }, { call });
+    expect(again.fromCache).toBe(true);
+    const keys = (db.prepare('SELECT key FROM ai_cache').all() as { key: string }[]).map((r) => r.key);
+    expect(keys.some((k) => k.includes(':r10:'))).toBe(true);
+    expect(keys.some((k) => k.includes(':r30:'))).toBe(true);
+  });
   it('serves the cache on the second call without calling the provider', async () => {
     const call = vi.fn().mockResolvedValue({ text: 'lang: fr\n\nRésumé.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 5 });
     await summarize({ ...base, available: [A(1, 'Ollama')] }, { call });

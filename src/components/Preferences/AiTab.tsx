@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useAiStore } from '../../stores/aiStore';
+import { useUiStore } from '../../stores/uiStore';
 import ToggleSwitch from '../ToggleSwitch';
 import ConfirmDialog from '../ConfirmDialog';
 import {
@@ -17,17 +18,64 @@ const inputClass = 'prefs-tap-row w-full px-3 py-1.5 text-sm rounded-md min-h-[3
 const quietBtn = 'prefs-tap-btn px-2.5 py-1.5 text-xs rounded-md cursor-pointer disabled:opacity-40 disabled:cursor-default';
 
 /**
- * Section « IA » (spec §10). Plan 1 : le bloc admin « Fournisseurs » seul ;
- * les blocs utilisateur arrivent avec le plan 2. Rien n'est chargé pour un
- * non-admin : les routes lui sont fermées, inutile de les appeler.
+ * Section « IA » (spec §10). Le bloc « Résumés » (réglages de chacun) pour
+ * tous, puis, pour l'admin seul, le bloc « Fournisseurs ». Rien n'est chargé
+ * pour un non-admin : les routes admin lui sont fermées, inutile de les appeler.
  */
 export default function AiTab({ active = true }: { active?: boolean }) {
-  const { t } = useTranslation();
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
-  if (!isAdmin) {
-    return <p className="text-sm max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.userIntro')}</p>;
+  return (
+    <div className="space-y-8 max-w-2xl">
+      <SummariesBlock showIntro={!isAdmin} />
+      {isAdmin && <AdminProviders active={active} />}
+    </div>
+  );
+}
+
+function BlockTitle({ children }: { children: string }) {
+  return (
+    <h3 className="flex items-center gap-2.5 text-sm font-bold" style={{ color: 'var(--list-title)' }}>
+      <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
+      {children}
+    </h3>
+  );
+}
+
+/**
+ * Bloc « Résumés » : la longueur visée, en pour cent de l'article. Le
+ * pourcentage est formaté par la langue (« 20 % » en français, « 20% » en
+ * anglais), sans clé de traduction.
+ */
+function SummariesBlock({ showIntro }: { showIntro: boolean }) {
+  const { t, i18n } = useTranslation();
+  const uid = useId();
+  const ratio = useUiStore((s) => s.aiSummaryRatio);
+  const setRatio = useUiStore((s) => s.setAiSummaryRatio);
+  let shown: string;
+  try {
+    shown = new Intl.NumberFormat(i18n?.language || undefined, { style: 'percent' }).format(ratio / 100);
+  } catch {
+    shown = `${ratio} %`;
   }
-  return <AdminProviders active={active} />;
+  return (
+    <section className="space-y-3">
+      <BlockTitle>{t('ai.user.title')}</BlockTitle>
+      {showIntro && <p className="text-sm max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.userIntro')}</p>}
+      <div>
+        <div className="flex items-baseline justify-between gap-3 mb-1">
+          <label htmlFor={`${uid}-ratio`} className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.user.ratio')}</label>
+          <span aria-hidden="true" className="text-sm font-semibold tabular-nums" style={{ color: 'var(--list-title)' }}>{shown}</span>
+        </div>
+        <input
+          id={`${uid}-ratio`} type="range" min={5} max={50} step={5} value={ratio}
+          aria-valuetext={shown} aria-describedby={`${uid}-ratio-hint`}
+          onChange={(e) => setRatio(Number(e.target.value))}
+          className="prefs-tap-row w-full cursor-pointer accent-[var(--accent)]"
+        />
+        <p id={`${uid}-ratio-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.ratioHint')}</p>
+      </div>
+    </section>
+  );
 }
 
 type TestState = { state: 'busy' } | { state: 'ok' } | { state: 'fail'; message?: string };
@@ -164,11 +212,8 @@ function AdminProviders({ active }: { active: boolean }) {
   );
 
   return (
-    <div className="space-y-5 max-w-2xl">
-      <h3 className="flex items-center gap-2.5 text-sm font-bold" style={{ color: 'var(--list-title)' }}>
-        <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
-        {t('ai.admin.title')}
-      </h3>
+    <section className="space-y-5">
+      <BlockTitle>{t('ai.admin.title')}</BlockTitle>
 
       <div className="prefs-tap-row flex items-center justify-between gap-3">
         <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.enable')}</span>
@@ -300,6 +345,6 @@ function AdminProviders({ active }: { active: boolean }) {
         onConfirm={() => toDelete ? remove(toDelete) : undefined}
         onCancel={() => setToDelete(null)}
       />
-    </div>
+    </section>
   );
 }

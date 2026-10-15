@@ -14,6 +14,15 @@ function loadJson<T>(key: string, fallback: T): T {
   }
 }
 
+/**
+ * Longueur visée des résumés IA, en pour cent de l'article : un multiple de 5
+ * entre 5 et 50 (le pas du curseur). Toute autre valeur — client plus ancien,
+ * chaîne, valeur trafiquée — revient au défaut, 20.
+ */
+export function normalizeAiSummaryRatio(v: unknown): number {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 5 && v <= 50 && v % 5 === 0 ? v : 20;
+}
+
 /** Any preset value we no longer ship falls back to 'standard'. */
 function normalizeImagePreset(v: unknown): OfflineImagePreset {
   return v === 'none' || v === 'light' || v === 'standard' || v === 'max' ? v : 'standard';
@@ -146,6 +155,18 @@ export interface UiState {
   // Activée par défaut : elle signale, elle n'écrit rien. Synchronisé.
   showNewArticlesPill: boolean;
   setShowNewArticlesPill: (v: boolean) => void;
+  // Panneau « Résumé IA » replié : mémoire GLOBALE (pas par article) et
+  // synchronisée. Déplié par défaut. Synchronisé.
+  aiPanelCollapsed: boolean;
+  setAiPanelCollapsed: (v: boolean) => void;
+  // Le panneau s'est-il déjà déplié tout seul, au premier « Résumer » lancé
+  // replié ? Une seule fois, puis le choix de l'utilisateur prime. Local à
+  // l'appareil, comme `layoutMode` : ce n'est pas une préférence.
+  aiPanelAutoExpanded: boolean;
+  markAiPanelAutoExpanded: () => void;
+  // Longueur visée des résumés IA, en % de l'article (5…50, pas de 5). Synchronisé.
+  aiSummaryRatio: number;
+  setAiSummaryRatio: (v: number) => void;
   // Favicons dans la LISTE d'articles. Réglage distinct de `showFavicons`, qui
   // gouverne la barre latérale : les couper dans la liste sans les perdre dans
   // la barre est une demande légitime, et partager un seul réglage rendrait le
@@ -424,6 +445,26 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setShowNewArticlesPill: (v) => {
     localStorage.setItem('frirss_showNewArticlesPill', JSON.stringify(v));
     set({ showNewArticlesPill: v });
+  },
+
+  // Seul un `true` explicite le replie : c'est le défaut (déplié) qui doit gagner.
+  aiPanelCollapsed: loadJson<boolean>('frirss_aiPanelCollapsed', false) === true,
+  setAiPanelCollapsed: (v) => {
+    localStorage.setItem('frirss_aiPanelCollapsed', JSON.stringify(v));
+    set({ aiPanelCollapsed: v });
+  },
+
+  aiPanelAutoExpanded: loadJson<boolean>('frirss_aiPanelAutoExpanded', false) === true,
+  markAiPanelAutoExpanded: () => {
+    localStorage.setItem('frirss_aiPanelAutoExpanded', 'true');
+    set({ aiPanelAutoExpanded: true });
+  },
+
+  aiSummaryRatio: normalizeAiSummaryRatio(loadJson<unknown>('frirss_aiSummaryRatio', 20)),
+  setAiSummaryRatio: (v) => {
+    const value = normalizeAiSummaryRatio(v);
+    localStorage.setItem('frirss_aiSummaryRatio', JSON.stringify(value));
+    set({ aiSummaryRatio: value });
   },
 
   inlineVideos: loadJson('frirss_inlineVideos', true),
@@ -762,7 +803,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
-      'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
+      'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
@@ -777,6 +818,8 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'autoExtractDefault' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().autoExtractDefault)
           : k === 'unreadOnlyAll' ? prefs[k] === true
           : k === 'showNewArticlesPill' ? prefs[k] !== false
+          : k === 'aiPanelCollapsed' ? prefs[k] === true
+          : k === 'aiSummaryRatio' ? normalizeAiSummaryRatio(prefs[k])
           : prefs[k];
         localStorage.setItem(`frirss_${k}`, JSON.stringify(value));
         next[k] = value;
@@ -807,6 +850,7 @@ export const UI_SYNC_KEYS = [
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
+  'aiPanelCollapsed', 'aiSummaryRatio',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

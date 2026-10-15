@@ -169,6 +169,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [aiResult, setAiResult] = useState<AiSummaryResult | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const aiInFlight = useRef<string | null>(null);
+  const aiRatio = useUiStore((s) => s.aiSummaryRatio);
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
   const online = useOnlineStatus();
   // Aucun fournisseur utilisable pour cet utilisateur : une pastille qui ne
@@ -732,6 +733,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         articleId: id, title: selectedArticle.title,
         html: stripMediaForSummary(extractedContent?.content ?? selectedArticle.content ?? ''),
         provider: providerId,
+        ratio: aiRatio,
       });
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
       setAiResult(r); setAiStatus('done');
@@ -744,7 +746,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     } finally {
       if (aiInFlight.current === id) aiInFlight.current = null;
     }
-  }, [selectedArticle, extractedContent, t, isAdmin]);
+  }, [selectedArticle, extractedContent, t, isAdmin, aiRatio]);
 
   // ── Corps de l'article ────────────────────────────────────────────────────
   // Mémoïsé, et il FAUT que ce soit avant le retour anticipé ci-dessous : les

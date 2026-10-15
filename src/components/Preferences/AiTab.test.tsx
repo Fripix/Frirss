@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'fr' } }) }));
 vi.mock('../../api/backend', () => ({
   getAiProviders: vi.fn(), createAiProvider: vi.fn(), updateAiProvider: vi.fn(), deleteAiProvider: vi.fn(),
   reorderAiProviders: vi.fn(), testAiProvider: vi.fn(), updateAiSettings: vi.fn(), getAiConfig: vi.fn(),
 }));
 import { getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, updateAiSettings, testAiProvider, reorderAiProviders } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
+import { useUiStore } from '../../stores/uiStore';
 import AiTab from './AiTab';
 
 const admin = { id: 1, username: 'root', role: 'admin' as const };
@@ -19,12 +20,36 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('AiTab', () => {
-  it('a plain user sees the intro, never the providers block', async () => {
+  it('a plain user sees the « Résumés » block with the intro, never the providers block', async () => {
     useAuthStore.setState({ backendUser: user });
-    const { findByText, queryByText } = render(<AiTab active />);
+    const { findByText, queryByText, getByText } = render(<AiTab active />);
     expect(await findByText('ai.userIntro')).toBeTruthy();
+    expect(getByText('ai.user.title')).toBeTruthy();
     expect(queryByText('ai.admin.title')).toBeNull();
     expect(getAiProviders).not.toHaveBeenCalled();
+  });
+  it('the length slider goes from 5 to 50 by 5, shows the value and writes the store', () => {
+    useAuthStore.setState({ backendUser: user });
+    useUiStore.setState({ aiSummaryRatio: 20 });
+    const { getByLabelText, getByText } = render(<AiTab active />);
+    const range = getByLabelText('ai.user.ratio') as HTMLInputElement;
+    expect(range.type).toBe('range');
+    expect([range.min, range.max, range.step, range.value]).toEqual(['5', '50', '5', '20']);
+    const hint = getByText('ai.ratioHint');
+    expect(range.getAttribute('aria-describedby')).toContain(hint.id);
+    fireEvent.change(range, { target: { value: '35' } });
+    expect(useUiStore.getState().aiSummaryRatio).toBe(35);
+    // Le pourcentage suit la langue (« 35 % » en français, « 35% » en anglais).
+    const shown = getByText('35 %');
+    expect(range.getAttribute('aria-valuetext')).toBe(shown.textContent);
+  });
+  it('the admin sees « Résumés » above « Fournisseurs »', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    const { findByText, getByText, queryByText } = render(<AiTab active />);
+    const providers = await findByText('ai.admin.title');
+    const summaries = getByText('ai.user.title');
+    expect(summaries.compareDocumentPosition(providers) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(queryByText('ai.userIntro')).toBeNull();
   });
   it('the admin toggles the feature on', async () => {
     useAuthStore.setState({ backendUser: admin });

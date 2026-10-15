@@ -77,12 +77,18 @@ describe('cache', () => {
     const k1 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 3, model: 'm' });
     const k2 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 4, model: 'm' });
     expect(k1).not.toBe(k2);
-    expect(k1).toContain(':v2:');
+    expect(k1).toContain(':v3:');
   });
   it('binds the key to the model', () => {
     const a = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'llama3' });
     const b = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'llama3.1' });
     expect(a).not.toBe(b);
+  });
+  it('binds the key to the length ratio', () => {
+    const a = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'm', ratio: 20 });
+    const b = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'm', ratio: 35 });
+    expect(a).not.toBe(b);
+    expect(a).toContain(':r20:');
   });
   it('binds the key to the content hash', () => {
     const a = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'm', contentHash: 'h1' });

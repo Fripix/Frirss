@@ -8,6 +8,7 @@ import {
 import { availableFor } from '../ai/resolve.js';
 import { summarize } from '../ai/summarize.js';
 import { AiError } from '../ai/errors.js';
+import { DEFAULT_SUMMARY_RATIO } from '../ai/prompts.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -43,10 +44,12 @@ router.get('/config', (req, res) => {
 });
 
 const asId = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
+/** Réglage de confort, jamais une raison de refuser : hors bornes, c'est le défaut. */
+const asRatio = (v: unknown): number => (typeof v === 'number' && Number.isInteger(v) && v >= 5 && v <= 50 ? v : DEFAULT_SUMMARY_RATIO);
 
 router.post('/summary', async (req, res) => {
   if (!isAiEnabled()) return res.status(404).json({ error: 'ai_disabled' });
-  const { articleId, title, html, provider, feedProvider, categoryProvider, preferredProvider, fallback } = req.body ?? {};
+  const { articleId, title, html, provider, feedProvider, categoryProvider, preferredProvider, fallback, ratio } = req.body ?? {};
   if (typeof articleId !== 'string' || !articleId || articleId.length > MAX_ID_CHARS || typeof html !== 'string' || Buffer.byteLength(html) > MAX_HTML_BYTES) {
     return res.status(400).json({ error: 'invalid_body' });
   }
@@ -56,6 +59,7 @@ router.post('/summary', async (req, res) => {
       resolution: { force: asId(provider), feed: asId(feedProvider), category: asId(categoryProvider), preferred: asId(preferredProvider), adminDefault: defaultProviderId() },
       available: availability(req.user),
       fallback: fallback !== false,
+      ratio: asRatio(ratio),
     });
     res.json(out);
   } catch (err) {

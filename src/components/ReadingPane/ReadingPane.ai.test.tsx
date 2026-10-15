@@ -32,6 +32,7 @@ import { useFeedStore } from '../../stores/feedStore';
 import { useAiStore } from '../../stores/aiStore';
 import { requestAiSummary } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
+import { useUiStore } from '../../stores/uiStore';
 
 const article = (id: string) => ({
   id, title: 'Titre ' + id, summary: 's', source: 'Src', sourceId: 'feed/1',
@@ -62,6 +63,13 @@ describe('ReadingPane — Résumé IA', () => {
     fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
     expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1', title: 'Titre a1', html: expect.stringContaining('mot') }));
     expect(await findByText('Le résumé.')).toBeTruthy();
+  });
+  it('sends the length ratio chosen in the preferences', () => {
+    vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+    useUiStore.setState({ aiSummaryRatio: 35 });
+    const { getByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
+    expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ ratio: 35 }));
   });
   it('ignores a summary that arrives after the article changed', async () => {
     let resolve!: (v: unknown) => void;

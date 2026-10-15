@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useUiStore, UI_SYNC_KEYS } from './uiStore';
+import { useUiStore, UI_SYNC_KEYS, normalizeAiSummaryRatio } from './uiStore';
 import { isUnreadOnly } from './uiStore';
 
 describe('uiStore', () => {
@@ -272,5 +272,57 @@ describe('uiStore — pastille « nouveaux articles »', () => {
     useUiStore.getState().applyServerPrefs({ showNewArticlesPill: false });
     useUiStore.getState().applyServerPrefs({ showNewArticlesPill: true });
     expect(useUiStore.getState().showNewArticlesPill).toBe(true);
+  });
+});
+
+describe('uiStore — panneau « Résumé IA »', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiStore.setState({ aiPanelCollapsed: false, aiSummaryRatio: 20, aiPanelAutoExpanded: false });
+  });
+
+  it('persists the collapse state and syncs it', () => {
+    useUiStore.getState().setAiPanelCollapsed(true);
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
+    expect(localStorage.getItem('frirss_aiPanelCollapsed')).toBe('true');
+    expect(UI_SYNC_KEYS).toContain('aiPanelCollapsed');
+    useUiStore.getState().applyServerPrefs({ aiPanelCollapsed: false });
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
+    // Seul un `true` explicite replie : le défaut est déplié.
+    useUiStore.getState().applyServerPrefs({ aiPanelCollapsed: 'true' });
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
+  });
+
+  it('remembers, on this device only, that the panel already opened itself once', () => {
+    useUiStore.getState().markAiPanelAutoExpanded();
+    expect(useUiStore.getState().aiPanelAutoExpanded).toBe(true);
+    expect(localStorage.getItem('frirss_aiPanelAutoExpanded')).toBe('true');
+    expect(UI_SYNC_KEYS).not.toContain('aiPanelAutoExpanded');
+  });
+});
+
+describe('uiStore — longueur des résumés IA', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiStore.setState({ aiSummaryRatio: 20 });
+  });
+
+  it('normalises to a multiple of 5 between 5 and 50, 20 otherwise', () => {
+    expect(normalizeAiSummaryRatio(35)).toBe(35);
+    expect(normalizeAiSummaryRatio(5)).toBe(5);
+    expect(normalizeAiSummaryRatio(50)).toBe(50);
+    for (const bad of [0, 55, 12, 12.5, '30', null, undefined, NaN]) expect(normalizeAiSummaryRatio(bad), String(bad)).toBe(20);
+  });
+
+  it('persists a change and syncs it, normalised on apply', () => {
+    useUiStore.getState().setAiSummaryRatio(40);
+    expect(useUiStore.getState().aiSummaryRatio).toBe(40);
+    expect(localStorage.getItem('frirss_aiSummaryRatio')).toBe('40');
+    expect(UI_SYNC_KEYS).toContain('aiSummaryRatio');
+    useUiStore.getState().applyServerPrefs({ aiSummaryRatio: 15 });
+    expect(useUiStore.getState().aiSummaryRatio).toBe(15);
+    useUiStore.getState().applyServerPrefs({ aiSummaryRatio: 999 });
+    expect(useUiStore.getState().aiSummaryRatio).toBe(20);
+    expect(localStorage.getItem('frirss_aiSummaryRatio')).toBe('20');
   });
 });
