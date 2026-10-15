@@ -1,6 +1,7 @@
 // server/ai/summarize.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import db, { setSetting } from '../db.js';
+import { usageToday, bumpUsage } from './store.js';
 import { summarize } from './summarize.js';
 import { AiError } from './errors.js';
 import type { Availability } from './resolve.js';
@@ -23,7 +24,7 @@ describe('summarize', () => {
     const r = await summarize({ ...base, available: [A(1, 'Ollama')] }, { call });
     expect(r).toMatchObject({ text: 'Résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', fromCache: false });
     expect(call.mock.calls[0][2].user).toContain('mot mot');
-    expect(call.mock.calls[0][2].user).toContain('T');
+    expect(call.mock.calls[0][2].user).toContain('Title: T');
   });
   it('serves the cache on the second call without calling the provider', async () => {
     const call = vi.fn().mockResolvedValue({ text: 'lang: fr\n\nRésumé.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 5 });
@@ -58,5 +59,55 @@ describe('summarize', () => {
     const call = vi.fn();
     await expect(summarize({ ...base, html: '<p>trop court</p>', available: [A(1, 'A')] }, { call })).rejects.toMatchObject({ message: 'article_too_short' });
     expect(call).not.toHaveBeenCalled();
+  });
+  const ok = () => vi.fn().mockResolvedValue({ text: 'lang: fr\n\nR.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+  const reachCap = () => { bumpUsage(41); bumpUsage(41); };
+
+  it('skips a capped admin-paid candidate and falls through to an unpaid one without reporting a fallback', async () => {
+    reachCap();
+    const call = ok();
+    const r = await summarize({ ...base, available: [A(1, 'Paid', true), A(2, 'Own')] }, { call });
+    expect(r.providerName).toBe('Own');
+    expect(r.fellBackFrom).toBeUndefined();
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+  it('rejects ai_daily_cap when every candidate is paid and capped, or when fallback is off', async () => {
+    reachCap();
+    const call = ok();
+    await expect(summarize({ ...base, available: [A(1, 'P1', true), A(2, 'P2', true)] }, { call })).rejects.toMatchObject({ kind: 'quota', message: 'ai_daily_cap' });
+    await expect(summarize({ ...base, fallback: false, available: [A(1, 'Paid', true), A(2, 'Own')] }, { call })).rejects.toMatchObject({ message: 'ai_daily_cap' });
+    expect(call).not.toHaveBeenCalled();
+  });
+  it('prefers a real provider error over the cap marker', async () => {
+    reachCap();
+    const call = vi.fn().mockRejectedValue(new AiError('technical', 'down'));
+    await expect(summarize({ ...base, available: [A(1, 'Paid', true), A(2, 'Own')] }, { call })).rejects.toMatchObject({ message: 'down' });
+  });
+  it('does not bump usage for an unpaid provider', async () => {
+    await summarize({ ...base, available: [A(2, 'Own')] }, { call: ok() });
+    expect(usageToday(41)).toBe(0);
+  });
+  it('serves a cached summary for free under the cap', async () => {
+    await summarize({ ...base, available: [A(1, 'Paid', true)] }, { call: ok() });
+    reachCap();
+    const call = ok();
+    const r = await summarize({ ...base, available: [A(1, 'Paid', true)] }, { call });
+    expect(r.fromCache).toBe(true);
+    expect(call).not.toHaveBeenCalled();
+  });
+  it('does not share a cache entry between two bodies under the same articleId', async () => {
+    const call = ok();
+    await summarize({ ...base, available: [A(1, 'A')] }, { call });
+    await summarize({ ...base, html: '<p>' + 'autre '.repeat(60) + '</p>', available: [A(1, 'A')] }, { call });
+    expect(call).toHaveBeenCalledTimes(2);
+  });
+  it('wraps a non-AiError with a fixed message and falls back', async () => {
+    const call = vi.fn()
+      .mockRejectedValueOnce(new Error('secret sk-123 leaked'))
+      .mockResolvedValueOnce({ text: 'lang: en\n\nOk.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+    const r = await summarize({ ...base, available: [A(1, 'A'), A(2, 'B')] }, { call });
+    expect(r.providerName).toBe('B');
+    const solo = vi.fn().mockRejectedValue(new Error('secret sk-123 leaked'));
+    await expect(summarize({ ...base, fallback: false, available: [A(1, 'A')] }, { call: solo })).rejects.toMatchObject({ kind: 'technical', message: 'provider_error' });
   });
 });

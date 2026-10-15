@@ -64,6 +64,11 @@ describe('cache', () => {
     expect(k1).not.toBe(k2);
     expect(k1).toContain(':v1:');
   });
+  it('binds the key to the content hash', () => {
+    const a = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, contentHash: 'h1' });
+    const b = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, contentHash: 'h2' });
+    expect(a).not.toBe(b);
+  });
   it('round-trips through SQLite when Redis is off', async () => {
     const k = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1 });
     expect(await aiCacheGet(k)).toBeNull();

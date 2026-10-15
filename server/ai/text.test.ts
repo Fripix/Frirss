@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { htmlToText } from './text.js';
+import { htmlToText, countWords } from './text.js';
 
 describe('htmlToText', () => {
   it('drops tags, scripts and styles, keeps paragraph breaks', () => {
@@ -27,5 +27,14 @@ describe('htmlToText', () => {
   it('drops a lone high surrogate left at the end of the cut', () => {
     // 'a'*3 puis U+1F600 (paire 😀) : une coupe à 4 laisse le surrogate haut seul.
     expect(htmlToText('<p>aaa😀</p>', 4)).toBe('aaa');
+  });
+});
+
+describe('countWords', () => {
+  it('counts space-separated words', () => {
+    expect(countWords('mot '.repeat(60))).toBe(60);
+  });
+  it('counts words in scripts without spaces', () => {
+    expect(countWords('汉字'.repeat(1000))).toBeGreaterThan(40);
   });
 });

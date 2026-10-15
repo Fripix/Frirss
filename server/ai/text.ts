@@ -35,3 +35,13 @@ export function htmlToText(html: string, maxChars = 200_000): string {
   if (/[\uD800-\uDBFF]$/.test(cut)) cut = cut.slice(0, -1);
   return cut.trimEnd();
 }
+
+/**
+ * Nombre de mots, y compris pour les écritures sans espaces (chinois, japonais) :
+ * un `split(/\s+/)` y compterait une phrase entière pour un seul mot.
+ */
+export function countWords(text: string): number {
+  let n = 0;
+  for (const seg of new Intl.Segmenter(undefined, { granularity: 'word' }).segment(text)) if (seg.isWordLike) n++;
+  return n;
+}

@@ -87,8 +87,8 @@ export interface AiCacheValue { text: string; lang: string | null }
 const AI_CACHE_MAX_ROWS = 10_000;
 const AI_CACHE_TTL = 30 * 24 * 3600;
 
-export function aiCacheKey(p: { articleId: string; op: 'summary' | 'translate'; providerId: number; lang?: string }): string {
-  return `frirss:ai:v${PROMPT_VERSION}:${p.op}:${p.providerId}:${p.lang ?? '-'}:${p.articleId}`;
+export function aiCacheKey(p: { articleId: string; op: 'summary' | 'translate'; providerId: number; lang?: string; contentHash?: string }): string {
+  return `frirss:ai:v${PROMPT_VERSION}:${p.op}:${p.providerId}:${p.lang ?? '-'}:${p.articleId}:${p.contentHash ?? '-'}`;
 }
 export async function aiCacheGet(key: string): Promise<AiCacheValue | null> {
   if (cacheEnabled) {
