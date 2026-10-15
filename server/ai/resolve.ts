@@ -32,5 +32,12 @@ export function resolveProvider(
 }
 
 export function fallbackOrder(first: Availability, available: Availability[]): Availability[] {
-  return [first, ...available.filter((a) => a.provider.id !== first.provider.id)];
+  const seen = new Set<number>([first.provider.id]);
+  const out: Availability[] = [first];
+  for (const a of available) {
+    if (seen.has(a.provider.id)) continue;
+    seen.add(a.provider.id);
+    out.push(a);
+  }
+  return out;
 }

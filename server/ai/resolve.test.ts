@@ -17,6 +17,18 @@ describe('availableFor', () => {
     expect(avail[0].key).toBeNull();
     expect(avail[0].paidByAdmin).toBe(false);
   });
+  it('an unshared provider with an admin key and no personal key is absent (shared gate)', () => {
+    const avail = availableFor([P(5, 'anthropic', true, false)], { user: () => null, admin: () => 'adm' });
+    expect(avail).toEqual([]);
+  });
+  it('a personal key beats the admin key on a shared provider, unpaid', () => {
+    const avail = availableFor([P(6, 'anthropic', true, true)], { user: () => 'mine', admin: () => 'admin' });
+    expect(avail.map((a) => [a.provider.id, a.key, a.paidByAdmin])).toEqual([[6, 'mine', false]]);
+  });
+  it('an openai provider holding an admin key but not shared does not fall through to keyless', () => {
+    const avail = availableFor([P(7, 'openai', true, false)], { user: () => null, admin: () => 'adm' });
+    expect(avail).toEqual([]);
+  });
 });
 
 describe('resolveProvider', () => {
@@ -32,11 +44,19 @@ describe('resolveProvider', () => {
     expect(resolveProvider({ feed: 42, adminDefault: 99 }, avail)!.provider.id).toBe(1);
     expect(resolveProvider({}, [])).toBeNull();
   });
+  it('a skipped stage lets the next stage win, not just the first available', () => {
+    expect(resolveProvider({ feed: 42, preferred: 3 }, avail)!.provider.id).toBe(3);
+  });
 });
 
 describe('fallbackOrder', () => {
   it('first, then the others by position, no duplicate', () => {
     const avail = availableFor([P(1, 'openai', false, false), P(2, 'openai', false, false), P(3, 'openai', false, false)], { user: () => null, admin: () => null });
     expect(fallbackOrder(avail[1], avail).map((a) => a.provider.id)).toEqual([2, 1, 3]);
+  });
+  it('a duplicated entry in available appears once', () => {
+    const avail = availableFor([P(1, 'openai', false, false), P(2, 'openai', false, false), P(3, 'openai', false, false)], { user: () => null, admin: () => null });
+    const dup = [avail[0], avail[1], avail[2], avail[2]];
+    expect(fallbackOrder(avail[1], dup).map((a) => a.provider.id)).toEqual([2, 1, 3]);
   });
 });
