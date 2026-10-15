@@ -6,6 +6,7 @@ import {
   NIGHT_THEME_NAME,
   ensureShippedThemes,
   pickAutoTheme,
+  useThemeStore,
 } from './themeStore';
 import { readableTextOn, DARK_INK } from '../lib/readableText';
 import type { Theme } from '../types';
@@ -23,12 +24,43 @@ describe('shipped themes', () => {
   });
 
   it('gives every preset every colour the default defines', () => {
-    // 36 colours × 3 presets: one forgotten key would fall back to whatever the
+    // 38 colours × every preset: one forgotten key would fall back to whatever the
     // previous theme left on :root, which is how a half-dark interface happens.
     const keys = Object.keys(base.colors);
     for (const theme of SHIPPED_THEMES) {
       expect(Object.keys(theme.colors).sort(), theme.name).toEqual(keys.slice().sort());
     }
+  });
+
+  it('defines the two AI summary colours', () => {
+    expect(Object.keys(base.colors)).toHaveLength(38);
+    expect(base.colors).toHaveProperty('ai-bg');
+    expect(base.colors).toHaveProperty('ai-border');
+  });
+
+  it('tints the AI summary surface on the same side as the panel (light on light, dark on dark)', () => {
+    for (const theme of SHIPPED_THEMES) {
+      const panelIsLight = readableTextOn(theme.colors['panel-bg']) === DARK_INK;
+      const aiIsLight = readableTextOn(theme.colors['ai-bg']) === DARK_INK;
+      expect(aiIsLight, `${theme.name}: ai-bg`).toBe(panelIsLight);
+      expect(theme.colors['ai-bg'], `${theme.name}: ai-bg is a tint, not the panel itself`).not.toBe(theme.colors['panel-bg']);
+    }
+  });
+
+  it('derives the AI colours of a theme saved before they existed from its own panel and accent', () => {
+    const night = SHIPPED_THEMES.find((t) => t.name === NIGHT_THEME_NAME)!;
+    const old = { ...night.colors };
+    delete old['ai-bg'];
+    delete old['ai-border'];
+    useThemeStore.getState().applyServerPrefs({ theme: { name: 'Ma nuit', colors: old, fontSizes: night.fontSizes } });
+    const got = useThemeStore.getState().theme.colors;
+    // Un thème sombre ne doit pas hériter du fond clair du thème par défaut.
+    expect(readableTextOn(got['ai-bg'])).not.toBe(DARK_INK);
+    expect(got['ai-bg']).not.toBe(base.colors['ai-bg']);
+    expect(got['ai-border']).toMatch(/^#[0-9a-f]{6}$/i);
+    // Une valeur choisie n'est jamais recalculée.
+    useThemeStore.getState().applyServerPrefs({ theme: { name: 'X', colors: { ...old, 'ai-bg': '#123456' }, fontSizes: night.fontSizes } });
+    expect(useThemeStore.getState().theme.colors['ai-bg']).toBe('#123456');
   });
 
   it('gives every preset every font size the default defines', () => {

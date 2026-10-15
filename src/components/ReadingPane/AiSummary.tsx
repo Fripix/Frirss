@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useId, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { clampToViewport } from '../../lib/clampToViewport';
 import BottomSheet from '../BottomSheet';
+import { useUiStore } from '../../stores/uiStore';
 import type { AiProviderView, AiSummaryResult } from '../../api/backend';
 
 export interface AiSummaryProps {
@@ -12,40 +13,59 @@ export interface AiSummaryProps {
   error: string | null;
   providers: AiProviderView[];
   onSummarize: (providerId?: number) => void;
-  onHide: () => void;
   disabled?: boolean;
 }
 
 /**
- * La pastille « Résumé IA » et le bloc qui s'ouvre dessous (spec §11).
- * Un seul emplacement sur les trois formats ; les actions rares (« Résumer
- * avec… ») n'apparaissent qu'une fois un résumé produit.
+ * Le panneau « Résumé IA » (spec §11), en tête de la colonne de lecture, sur
+ * les trois formats.
+ *
+ * Structure :
+ * - un EN-TÊTE toujours visible, dont toute la partie gauche est un seul
+ *   bouton (titre, statut, chevron) qui replie ou déplie le panneau ;
+ * - à droite, HORS de ce bouton, l'action : « Résumer » tant qu'il n'y a rien,
+ *   puis « Résumer avec… » (popover sur bureau, feuille sur tactile) ;
+ * - le CORPS, sur toute la largeur de la colonne : le résumé, l'erreur, ou une
+ *   ligne d'aide.
+ *
+ * Le repli est une mémoire GLOBALE et synchronisée (`aiPanelCollapsed`), pas
+ * un état par article : qui replie le panneau le retrouve replié partout. Un
+ * résumé qui arrive panneau replié ne le rouvre pas — le statut dit « Résumé
+ * par X ». Seule exception, une fois par appareil : le tout premier « Résumer »
+ * lancé panneau replié le déplie, sinon on demanderait un résumé sans jamais
+ * le voir.
  *
  * Choix visuels :
- * - la pastille se distingue des autres boutons d'action par un seul trait —
- *   un contour accent, là où ses voisines n'ont ni bordure ni fond au repos ;
- *   le texte reste fin (pas de plein accent) pour ne pas crier. Ouverte, elle
- *   prend le même état « actif » que les voisines (verre accent), pas un
- *   aplat plus fort ;
- * - le bloc est une surface neutre (fond du panneau, filet) : aucune teinte, le
- *   texte est de la lecture et se lit comme tel, en corps 15 px / 1,65 sur une
- *   mesure bornée à 68 caractères ;
- * - le menu « Résumer avec… » est une action rare : texte discret, aligné à
- *   droite de l'en-tête ; il s'ouvre en popover (bureau) ou en feuille (tactile).
+ * - la surface est une teinte de l'accent, réglable (`--ai-bg`, `--ai-border`) :
+ *   c'est le seul trait qui distingue le texte de la machine de celui de
+ *   l'article, tout le reste du panneau reste sobre ;
+ * - l'en-tête est sur deux lignes (titre, puis statut en petit) : à 320 px,
+ *   une seule ligne aurait réduit le statut à trois lettres. Le statut passe
+ *   à la ligne plutôt que d'être tronqué : « X indisponible » doit se lire ;
+ * - un seul chevron, celui du repli : « Résumer avec… » n'en porte pas, ses
+ *   points de suspension disent déjà qu'un choix suit ;
+ * - « Résumer » est la seule action pleine (fond accent) ; « Résumer avec… »
+ *   est rare, donc discrète.
  */
-export default function AiSummary({ status, result, error, providers, onSummarize, onHide, disabled }: AiSummaryProps) {
+export default function AiSummary({ status, result, error, providers, onSummarize, disabled }: AiSummaryProps) {
   const { t } = useTranslation();
   const touch = useBreakpoint() !== 'desktop';
+  const uid = useId();
+  const bodyId = `${uid}-body`;
+  const collapsed = useUiStore((s) => s.aiPanelCollapsed);
+  const setCollapsed = useUiStore((s) => s.setAiPanelCollapsed);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuAnchor = useRef<HTMLButtonElement>(null);
   const available = providers.filter((p) => p.available);
-  // Une erreur après un résumé (« Résumer avec… » raté) laisse le résumé à l'écran, l'erreur dessous.
-  const done = (status === 'done' || status === 'error') && result ? result : null;
   const loading = status === 'loading';
+  // Le résumé reste affiché pendant une nouvelle demande (« Résumer avec… ») et
+  // après un échec : il n'est remplacé que par un autre résumé.
+  const done = status !== 'idle' && result ? result : null;
+  const failed = status === 'error' && !!error;
 
-  // Le menu n'existe que tant qu'un résumé est affiché : si le statut quitte
-  // `done` (nouvelle demande, erreur), il ne doit pas rester ouvert ni rouvrir.
-  const menuShown = menuOpen && !!done && available.length > 0;
+  // Le menu n'existe que tant qu'un résumé est affiché et qu'aucune demande ne
+  // tourne : si le statut change, il ne doit pas rester ouvert ni rouvrir.
+  const menuShown = menuOpen && !!done && !loading && available.length > 0;
   // Le drapeau lui-même est remis à zéro (ajustement d'état pendant le rendu) :
   // sans cela, le menu rouvrirait tout seul au retour de `done`.
   if (menuOpen && !menuShown) setMenuOpen(false);
@@ -56,27 +76,53 @@ export default function AiSummary({ status, result, error, providers, onSummariz
     menuAnchor.current?.focus();
   }, []);
 
-  const chip = (
+  const summarize = () => {
+    const ui = useUiStore.getState();
+    if (ui.aiPanelCollapsed && !ui.aiPanelAutoExpanded) {
+      ui.setAiPanelCollapsed(false);
+      ui.markAiPanelAutoExpanded();
+    }
+    onSummarize(undefined);
+  };
+
+  // Les éléments du statut sont des segments séparés : chacun garde sa
+  // couleur, et la ligne passe à la ligne au lieu de pousser l'action dehors.
+  const statusParts = done
+    ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, done.fellBackFrom ? t('ai.fellBack', { name: done.fellBackFrom }) : null].filter((x): x is string => !!x)
+    : [t('ai.status.none')];
+
+  const errorLine = failed && (
+    <p role="alert" className="text-xs leading-snug" style={{ color: 'var(--danger)' }}>{error}</p>
+  );
+
+  const actionClass = `inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-opacity duration-150 disabled:cursor-default ${touch ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`;
+
+  const action = done && available.length > 0 && !loading ? (
+    <button
+      ref={menuAnchor}
+      type="button"
+      onClick={() => setMenuOpen((o) => !o)}
+      disabled={disabled}
+      aria-haspopup={touch ? 'dialog' : 'menu'}
+      aria-expanded={menuShown}
+      className={`${actionClass} font-medium underline underline-offset-2 hover:opacity-80 disabled:opacity-50`}
+      style={{ color: 'var(--reading-meta)' }}
+    >
+      {t('ai.withProvider')}
+    </button>
+  ) : !done || loading ? (
     <button
       type="button"
-      onClick={() => (done ? onHide() : onSummarize(undefined))}
+      onClick={summarize}
       disabled={disabled || loading}
-      title={t('ai.summarize')}
-      aria-label={t('ai.summarize')}
-      aria-pressed={!!done}
       aria-busy={loading}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors duration-200 disabled:cursor-default ${touch ? 'min-h-[44px] px-4' : ''}`}
-      style={{
-        color: 'var(--accent)',
-        background: done ? 'var(--accent-glow)' : 'transparent',
-        border: `1.5px solid color-mix(in srgb, var(--accent) ${done ? 55 : 35}%, transparent)`,
-        opacity: disabled && !loading ? 0.5 : 1,
-      }}
+      className={`${actionClass} hover:opacity-90`}
+      style={{ background: 'var(--accent)', color: 'var(--on-accent)', opacity: disabled && !loading ? 0.5 : 1 }}
     >
-      {loading ? <Spinner /> : <Sparkle />}
-      <span>{loading ? t('ai.summarizing') : t('ai.summarize')}</span>
+      {loading && <Spinner />}
+      <span>{loading ? t('ai.summarizing') : t('ai.summarizeAction')}</span>
     </button>
-  );
+  ) : null;
 
   const menuItems = available.map((p) => (
     <button
@@ -92,53 +138,59 @@ export default function AiSummary({ status, result, error, providers, onSummariz
   ));
 
   return (
-    <div className="mb-4">
-      <div className="flex flex-wrap items-center gap-2">{chip}</div>
-
-      {/* Région vivante toujours montée : une région insérée avec son contenu
-          n'est pas annoncée de façon fiable. La pastille est désactivée pendant
-          le chargement, c'est donc le seul retour que reçoit un lecteur d'écran. */}
-      <div role="status" aria-live="polite">
-        {done && (
-          <section
-            aria-label={t('ai.summaryTitle')}
-            className="mt-3 rounded-lg px-4 py-3"
-            style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-          >
-            <header className="mb-2.5" style={{ color: 'var(--reading-meta)' }}>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                <span className="font-medium min-w-0 truncate">{t('ai.by', { name: done.providerName })}</span>
-                {done.fromCache && <span className="opacity-80">{t('ai.fromCache')}</span>}
-                {available.length > 0 && (
-                  <button
-                    ref={menuAnchor}
-                    type="button"
-                    onClick={() => setMenuOpen((o) => !o)}
-                    aria-haspopup={touch ? 'dialog' : 'menu'}
-                    aria-expanded={menuShown}
-                    className={`ml-auto inline-flex items-center gap-1 rounded-md px-1.5 -mr-1.5 underline underline-offset-2 hover:opacity-80 ${touch ? 'min-h-[44px]' : 'py-0.5'}`}
-                  >
-                    {t('ai.withProvider')}
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-                  </button>
-                )}
-              </div>
-              {done.fellBackFrom && (
-                <p className="mt-1 text-xs" style={{ color: 'var(--reading-meta)' }}>{t('ai.fellBack', { name: done.fellBackFrom })}</p>
-              )}
-            </header>
-            <div className="max-w-[68ch]">
-              {done.text.split(/\n{2,}/).map((p, i) => (
-                <p key={i} className="text-[15px] leading-[1.65] mb-2.5 last:mb-0 whitespace-pre-line" style={{ color: 'var(--reading-text)' }}>{p}</p>
-              ))}
-            </div>
-          </section>
-        )}
+    <div className="ai-summary mb-5 rounded-lg" style={{ background: 'var(--ai-bg)', border: '1px solid var(--ai-border)' }}>
+      {/* L'en-tête passe sur deux rangs quand la place manque (320 px) : l'action
+          descend sous le titre, alignée à droite, au lieu d'écraser le statut. */}
+      <div className="flex flex-wrap items-center justify-end gap-x-2 pr-2">
+        <button
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+          aria-expanded={!collapsed}
+          aria-controls={bodyId}
+          className={`flex grow basis-44 min-w-0 items-center gap-2.5 pl-3.5 pr-1 py-2 text-left rounded-lg cursor-pointer ${touch ? 'min-h-[44px]' : ''}`}
+        >
+          <Sparkle />
+          <span className="flex-1 min-w-0">
+            <span className="block text-[13px] font-semibold leading-tight" style={{ color: 'var(--reading-title)' }}>{t('ai.summarize')}</span>
+            {/* Replié, une erreur prend la place du statut : sinon un échec ne laisserait aucune trace. */}
+            {collapsed && failed ? null : (
+              <span data-status className="block text-xs leading-snug mt-0.5 break-words">
+                {statusParts.map((part, i) => (
+                  <span key={i} style={{ color: 'var(--reading-meta)' }}>{i > 0 ? ', ' : ''}<span>{part}</span></span>
+                ))}
+              </span>
+            )}
+          </span>
+          <svg data-chevron className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true" style={{ color: 'var(--reading-meta)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+        </button>
+        {action && <div className="py-1">{action}</div>}
       </div>
 
-      {status === 'error' && error && (
-        <p role="alert" className="mt-2 text-xs leading-snug" style={{ color: 'var(--danger)' }}>{error}</p>
-      )}
+      {/* Aligné sur le titre (marge du bouton + étincelle + écart). */}
+      {collapsed && failed && <div className="pl-[42px] pr-3.5 pb-2.5 -mt-1">{errorLine}</div>}
+
+      {/* Région vivante toujours montée, même replié : une région insérée avec son
+          contenu n'est pas annoncée de façon fiable. */}
+      <div role="status" aria-live="polite">
+        {!collapsed && (
+          <div id={bodyId} className="px-4 pt-3 pb-3.5" style={{ borderTop: '1px solid var(--ai-border)' }}>
+            {done ? (
+              <section aria-label={t('ai.summaryTitle')}>
+                {done.text.split(/\n{2,}/).map((p, i) => (
+                  <p key={i} className="text-[15px] leading-[1.65] mb-2.5 last:mb-0 whitespace-pre-line" style={{ color: 'var(--reading-text)' }}>{p}</p>
+                ))}
+              </section>
+            ) : loading ? (
+              <div aria-hidden="true" className="space-y-2 py-1 animate-pulse motion-reduce:animate-none">
+                {['100%', '92%', '64%'].map((w) => <div key={w} className="h-2.5 rounded-full" style={{ width: w, background: 'var(--ai-border)' }} />)}
+              </div>
+            ) : !failed ? (
+              <p className="text-[13px] leading-snug" style={{ color: 'var(--reading-meta)' }}>{t('ai.hint')}</p>
+            ) : null}
+            {failed && <div className={done ? 'mt-2.5' : ''}>{errorLine}</div>}
+          </div>
+        )}
+      </div>
 
       {menuShown && (touch
         ? <BottomSheet open onClose={closeMenu} title={t('ai.withProvider')}>{menuItems}</BottomSheet>
@@ -205,5 +257,5 @@ function Spinner() {
 }
 
 function Sparkle() {
-  return <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" /></svg>;
+  return <svg className="w-[18px] h-[18px] flex-shrink-0" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" /></svg>;
 }

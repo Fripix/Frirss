@@ -38,6 +38,9 @@ export const COLOR_HIGHLIGHT_MAP: Record<string, string | null> = {
   'code-bg':              '.article-content pre, .article-content code',
   'scrollbar':            null,
   'scrollbar-hover':      null,
+  // Le panneau n'existe que si l'IA est active : sans lui, rien à encadrer.
+  'ai-bg':                '.ai-summary',
+  'ai-border':            '.ai-summary',
 };
 
 /** Vrai si cette couleur peut être encadrée sur l'interface réelle. */

@@ -4,7 +4,8 @@ import { COLOR_HIGHLIGHT_MAP, PREVIEW_ZONES, hasRealHighlight } from './colorHig
 /**
  * Pin de la « couverture honnête » promise par la spec de la refonte
  * (docs/superpowers/specs/2026-08-21-preferences-rework-design.md, section
- * « Couverture honnête ») : sur les 36 couleurs, 28 sont encadrables sur
+ * « Couverture honnête ») : sur les 38 couleurs, 30 sont encadrables (dont les deux du
+ * panneau « Résumé IA », ajoutées après la refonte) sur
  * l'interface réelle, 14 ont une zone dans l'aperçu, et 6 n'ont ni l'un ni
  * l'autre.
  *
@@ -15,6 +16,8 @@ import { COLOR_HIGHLIGHT_MAP, PREVIEW_ZONES, hasRealHighlight } from './colorHig
  */
 
 const REAL_HIGHLIGHT_KEYS = [
+  'ai-bg',
+  'ai-border',
   'code-bg',
   'list-active',
   'list-hover',
@@ -74,11 +77,11 @@ const NEITHER_KEYS = [
 describe('colour preview coverage', () => {
   const allKeys = Object.keys(COLOR_HIGHLIGHT_MAP);
 
-  it('tracks exactly 36 colour keys', () => {
-    expect(allKeys).toHaveLength(36);
+  it('tracks exactly 38 colour keys', () => {
+    expect(allKeys).toHaveLength(38);
   });
 
-  it('has a real-element selector for exactly these 28 keys', () => {
+  it('has a real-element selector for exactly these 30 keys', () => {
     const actual = allKeys.filter((k) => hasRealHighlight(k)).sort();
     expect(actual).toEqual(REAL_HIGHLIGHT_KEYS);
   });

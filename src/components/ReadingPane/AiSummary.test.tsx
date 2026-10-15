@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import AiSummary from './AiSummary';
+import { useUiStore } from '../../stores/uiStore';
 import type { AiProviderView, AiSummaryResult } from '../../api/backend';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (o?.name ? `${k}:${o.name}` : k) }) }));
 const breakpoint = vi.fn<() => 'desktop' | 'tablet' | 'mobile'>(() => 'desktop');
 vi.mock('../../hooks/useBreakpoint', () => ({ useBreakpoint: () => breakpoint() }));
+beforeEach(() => {
+  localStorage.clear();
+  useUiStore.setState({ aiPanelCollapsed: false, aiPanelAutoExpanded: false });
+});
 afterEach(() => { cleanup(); breakpoint.mockReset(); breakpoint.mockImplementation(() => 'desktop'); });
 
 const providers: AiProviderView[] = [
@@ -16,56 +21,105 @@ const providers: AiProviderView[] = [
 ];
 const result: AiSummaryResult = { text: 'Premier.\n\nSecond.', lang: 'fr', providerId: 2, providerName: 'Ollama', model: 'm', fromCache: false, fellBackFrom: 'Claude' };
 const noop = () => {};
+const idleProps = { status: 'idle' as const, result: null, error: null, providers, onSummarize: noop };
+const doneProps = { status: 'done' as const, result, error: null, providers, onSummarize: noop };
 
-describe('AiSummary', () => {
-  it('idle: the chip asks for a summary with the default provider', () => {
-    const onSummarize = vi.fn();
-    const { getByRole } = render(<AiSummary status="idle" result={null} error={null} providers={providers} onSummarize={onSummarize} onHide={noop} />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
-    expect(onSummarize).toHaveBeenCalledWith(undefined);
+/** L'en-tête : son nom accessible commence par le titre, suivi du statut. */
+const TOGGLE = { name: /^ai\.summarize\s/ };
+const ACTION = { name: 'ai.summarizeAction' };
+
+describe('AiSummary — en-tête et repli', () => {
+  it('the header is one button that toggles the panel and remembers it globally', () => {
+    const { getByRole, queryByText } = render(<AiSummary {...idleProps} />);
+    const toggle = getByRole('button', TOGGLE);
+    expect(toggle.getAttribute('type')).toBe('button');
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const body = document.getElementById(toggle.getAttribute('aria-controls')!);
+    expect(body).toBeTruthy();
+    expect(queryByText('ai.hint')).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
+    expect(localStorage.getItem('frirss_aiPanelCollapsed')).toBe('true');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(queryByText('ai.hint')).toBeNull();
+    fireEvent.click(toggle);
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
   });
-  it('loading: the chip is disabled', () => {
-    const { getByRole } = render(<AiSummary status="loading" result={null} error={null} providers={providers} onSummarize={noop} onHide={noop} />);
-    expect((getByRole('button', { name: 'ai.summarize' }) as HTMLButtonElement).disabled).toBe(true);
-  });
-  it('done: shows provider, fallback notice, paragraphs, and only available providers in the menu', () => {
-    const onSummarize = vi.fn();
-    const { getByText, getByRole, queryByText } = render(<AiSummary status="done" result={result} error={null} providers={providers} onSummarize={onSummarize} onHide={noop} />);
+  it('starts collapsed when the synced preference says so, the status still visible', () => {
+    useUiStore.setState({ aiPanelCollapsed: true });
+    const { getByRole, getByText, queryByText } = render(<AiSummary {...doneProps} />);
+    expect(getByRole('button', TOGGLE).getAttribute('aria-expanded')).toBe('false');
     expect(getByText('ai.by:Ollama')).toBeTruthy();
+    expect(queryByText('Premier.')).toBeNull();
+  });
+  it('the action lives outside the toggle: using it never folds the panel', () => {
+    const onSummarize = vi.fn();
+    const { getByRole } = render(<AiSummary {...idleProps} onSummarize={onSummarize} />);
+    const toggle = getByRole('button', TOGGLE);
+    const action = getByRole('button', ACTION);
+    expect(toggle.contains(action)).toBe(false);
+    fireEvent.click(action);
+    expect(onSummarize).toHaveBeenCalledWith(undefined);
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
+  });
+  it('the first « Résumer » on a collapsed panel opens it, once', () => {
+    useUiStore.setState({ aiPanelCollapsed: true });
+    const { getByRole } = render(<AiSummary {...idleProps} />);
+    fireEvent.click(getByRole('button', ACTION));
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
+    expect(useUiStore.getState().aiPanelAutoExpanded).toBe(true);
+    fireEvent.click(getByRole('button', TOGGLE));
+    fireEvent.click(getByRole('button', ACTION));
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
+  });
+  it('a summary arriving while collapsed does not open the panel', () => {
+    useUiStore.setState({ aiPanelCollapsed: true, aiPanelAutoExpanded: true });
+    const { rerender, getByText, queryByText } = render(<AiSummary {...idleProps} status="loading" />);
+    rerender(<AiSummary {...doneProps} />);
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
+    expect(queryByText('Premier.')).toBeNull();
+    expect(getByText('ai.by:Ollama')).toBeTruthy();
+  });
+  it('the chevron turns with the panel', () => {
+    const { getByRole } = render(<AiSummary {...idleProps} />);
+    const chevron = getByRole('button', TOGGLE).querySelector('[data-chevron]')!;
+    expect(chevron.getAttribute('class')).toContain('rotate-180');
+    fireEvent.click(getByRole('button', TOGGLE));
+    expect(chevron.getAttribute('class')).not.toContain('rotate-180');
+  });
+});
+
+describe('AiSummary — statut et action', () => {
+  it('idle: « Pas encore résumé », the « Résumer » action and the hint', () => {
+    const { getByText, getByRole, queryByRole } = render(<AiSummary {...idleProps} />);
+    expect(getByText('ai.status.none')).toBeTruthy();
+    expect(getByText('ai.hint')).toBeTruthy();
+    expect(getByRole('button', ACTION)).toBeTruthy();
+    expect(queryByRole('button', { name: 'ai.withProvider' })).toBeNull();
+  });
+  it('loading: the action is disabled, busy, and says so', () => {
+    const { getByRole } = render(<AiSummary {...idleProps} status="loading" />);
+    const action = getByRole('button', { name: 'ai.summarizing' }) as HTMLButtonElement;
+    expect(action.disabled).toBe(true);
+    expect(action.getAttribute('aria-busy')).toBe('true');
+  });
+  it('offline: the action is disabled', () => {
+    const { getByRole } = render(<AiSummary {...idleProps} disabled />);
+    expect((getByRole('button', ACTION) as HTMLButtonElement).disabled).toBe(true);
+  });
+  it('done: provider and fallback in the header, « Résumer avec… » replaces « Résumer », only available providers listed', () => {
+    const onSummarize = vi.fn();
+    const { getByText, getByRole, queryByText, queryByRole } = render(<AiSummary {...doneProps} onSummarize={onSummarize} />);
+    const toggle = getByRole('button', TOGGLE);
+    expect(toggle.contains(getByText('ai.by:Ollama'))).toBe(true);
     expect(getByText('ai.fellBack:Claude')).toBeTruthy();
+    expect(queryByRole('button', ACTION)).toBeNull();
     expect(getByText('Premier.')).toBeTruthy();
     expect(getByText('Second.')).toBeTruthy();
     fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
     expect(queryByText('Privé')).toBeNull();
     fireEvent.click(getByText('Claude'));
     expect(onSummarize).toHaveBeenCalledWith(1);
-  });
-  it('done: clicking the chip hides the block', () => {
-    const onHide = vi.fn();
-    const { getByRole } = render(<AiSummary status="done" result={result} error={null} providers={providers} onSummarize={noop} onHide={onHide} />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
-    expect(onHide).toHaveBeenCalledOnce();
-  });
-  it('error: the message is shown and the chip retries', () => {
-    const onSummarize = vi.fn();
-    const { getByText, getByRole } = render(<AiSummary status="error" result={null} error="ai.errors.auth" providers={providers} onSummarize={onSummarize} onHide={noop} />);
-    expect(getByText('ai.errors.auth')).toBeTruthy();
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
-    expect(onSummarize).toHaveBeenCalled();
-  });
-
-  const doneProps = { status: 'done' as const, result, error: null, providers, onSummarize: noop, onHide: noop };
-
-  it('aria-pressed is false when idle and true when done', () => {
-    const idle = render(<AiSummary status="idle" result={null} error={null} providers={providers} onSummarize={noop} onHide={noop} />);
-    expect(idle.getByRole('button', { name: 'ai.summarize' }).getAttribute('aria-pressed')).toBe('false');
-    cleanup();
-    const done = render(<AiSummary {...doneProps} />);
-    expect(done.getByRole('button', { name: 'ai.summarize' }).getAttribute('aria-pressed')).toBe('true');
-  });
-  it('error: the message is a role=alert', () => {
-    const { getByRole } = render(<AiSummary status="error" result={null} error="ai.errors.auth" providers={providers} onSummarize={noop} onHide={noop} />);
-    expect(getByRole('alert').textContent).toBe('ai.errors.auth');
   });
   it('shows the cache note only when the summary came from the cache', () => {
     const fresh = render(<AiSummary {...doneProps} />);
@@ -74,13 +128,50 @@ describe('AiSummary', () => {
     const cached = render(<AiSummary {...doneProps} result={{ ...result, fromCache: true }} />);
     expect(cached.getByText('ai.fromCache')).toBeTruthy();
   });
-  it('the fallback notice is information, not an alert', () => {
-    const { getByText, queryByRole } = render(<AiSummary {...doneProps} />);
-    expect(getByText('ai.fellBack:Claude').style.color).toBe('var(--reading-meta)');
+  it('the fallback notice is information in the status line, not an alert', () => {
+    const { getByText, getByRole, queryByRole } = render(<AiSummary {...doneProps} />);
+    const notice = getByText('ai.fellBack:Claude');
+    expect(getByRole('button', TOGGLE).contains(notice)).toBe(true);
+    expect((notice.parentElement as HTMLElement).style.color).toBe('var(--reading-meta)');
     expect(queryByRole('alert')).toBeNull();
   });
+  it('the status wraps instead of pushing the action out (320 px)', () => {
+    const { getByText } = render(<AiSummary {...doneProps} />);
+    const status = getByText('ai.by:Ollama').closest('[data-status]')!;
+    expect(status.className).toContain('break-words');
+    expect(getByText('ai.by:Ollama').closest('button')!.className).toContain('min-w-0');
+  });
+});
+
+describe('AiSummary — corps', () => {
+  it('sits on the tinted, themable surface and uses the full column width', () => {
+    const { container, getByText } = render(<AiSummary {...doneProps} />);
+    const panel = container.querySelector('.ai-summary') as HTMLElement;
+    expect(panel.style.background).toBe('var(--ai-bg)');
+    expect(panel.style.border).toBe('1px solid var(--ai-border)');
+    expect(container.innerHTML).not.toContain('max-w-');
+    expect(getByText('Premier.').className).toContain('whitespace-pre-line');
+  });
+  it('error: the message is a role=alert under the header', () => {
+    const { getByRole } = render(<AiSummary {...idleProps} status="error" error="ai.errors.auth" />);
+    expect(getByRole('alert').textContent).toBe('ai.errors.auth');
+  });
+  it('error while collapsed: the alert still shows, in place of the status', () => {
+    useUiStore.setState({ aiPanelCollapsed: true });
+    const { getByRole, queryByText } = render(<AiSummary {...idleProps} status="error" error="ai.errors.auth" />);
+    expect(getByRole('alert').textContent).toBe('ai.errors.auth');
+    expect(queryByText('ai.status.none')).toBeNull();
+  });
+  it('error after a summary: the summary stays, the error shows under it', () => {
+    const { getByText, getByRole } = render(<AiSummary {...doneProps} status="error" error="ai.errors.technical" />);
+    const summary = getByText('Premier.');
+    const alert = getByRole('alert');
+    expect(alert.textContent).toBe('ai.errors.technical');
+    expect(summary.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(getByRole('button', { name: 'ai.withProvider' })).toBeTruthy();
+  });
   it('the summary lives in a polite live region that is mounted before the result arrives', () => {
-    const { getByRole, rerender, queryByLabelText } = render(<AiSummary status="loading" result={null} error={null} providers={providers} onSummarize={noop} onHide={noop} />);
+    const { getByRole, rerender, queryByLabelText } = render(<AiSummary {...idleProps} status="loading" />);
     const region = getByRole('status');
     expect(region.getAttribute('aria-live')).toBe('polite');
     expect(queryByLabelText('ai.summaryTitle')).toBeNull();
@@ -88,6 +179,15 @@ describe('AiSummary', () => {
     expect(getByRole('status')).toBe(region);
     expect(region.contains(queryByLabelText('ai.summaryTitle'))).toBe(true);
   });
+  it('touch: header and action are 44 px tall', () => {
+    breakpoint.mockImplementation(() => 'mobile');
+    const { getByRole } = render(<AiSummary {...idleProps} />);
+    expect(getByRole('button', TOGGLE).className).toContain('min-h-[44px]');
+    expect(getByRole('button', ACTION).className).toContain('min-h-[44px]');
+  });
+});
+
+describe('AiSummary — « Résumer avec… »', () => {
   it('desktop: the menu is a role=menu portal under body, with menuitem children', () => {
     const { getByRole, getAllByRole, container } = render(<AiSummary {...doneProps} />);
     fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
@@ -95,6 +195,11 @@ describe('AiSummary', () => {
     expect(menu.parentElement).toBe(document.body);
     expect(container.contains(menu)).toBe(false);
     expect(getAllByRole('menuitem').map((b) => b.textContent)).toEqual(['Claude', 'Ollama']);
+  });
+  it('opening the menu does not fold the panel', () => {
+    const { getByRole } = render(<AiSummary {...doneProps} />);
+    fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
   });
   it('desktop: Escape closes the menu and returns focus to the trigger', () => {
     const { getByRole, queryByRole } = render(<AiSummary {...doneProps} />);
@@ -129,6 +234,7 @@ describe('AiSummary', () => {
     breakpoint.mockImplementation(() => 'mobile');
     const { getByRole, queryByRole, getByText } = render(<AiSummary {...doneProps} />);
     const trigger = getByRole('button', { name: 'ai.withProvider' });
+    expect(trigger.className).toContain('min-h-[44px]');
     fireEvent.click(trigger);
     const dialog = getByRole('dialog');
     expect(dialog.className).toContain('bottom-sheet');
@@ -142,25 +248,6 @@ describe('AiSummary', () => {
     const { getByRole, getAllByRole } = render(<AiSummary {...doneProps} />);
     fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
     expect(getAllByRole('menuitem')[0].className).not.toContain('sheet-row');
-  });
-  it('error after a summary: the summary stays, the error shows under it', () => {
-    const { getByText, getByRole } = render(<AiSummary status="error" result={result} error="ai.errors.technical" providers={providers} onSummarize={noop} onHide={noop} />);
-    const summary = getByText('Premier.');
-    const alert = getByRole('alert');
-    expect(alert.textContent).toBe('ai.errors.technical');
-    expect(summary.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(getByRole('button', { name: 'ai.withProvider' })).toBeTruthy();
-  });
-  it('the header wraps and truncates a long provider name (320 px)', () => {
-    const { getByText } = render(<AiSummary {...doneProps} />);
-    const name = getByText('ai.by:Ollama');
-    expect(name.className).toContain('truncate');
-    expect(name.className).toContain('min-w-0');
-    expect(name.parentElement!.className).toContain('flex-wrap');
-  });
-  it('paragraphs keep single line breaks (bullet lists)', () => {
-    const { getByText } = render(<AiSummary {...doneProps} result={{ ...result, text: '- un\n- deux' }} />);
-    expect(getByText(/- un/).className).toContain('whitespace-pre-line');
   });
   it('the menu closes when the status leaves done, and does not reopen', () => {
     const { getByRole, queryByRole, rerender } = render(<AiSummary {...doneProps} />);

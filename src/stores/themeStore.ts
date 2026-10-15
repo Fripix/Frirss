@@ -49,6 +49,8 @@ const defaultTheme: Theme = {
     'code-bg': '#f5f5f8',
     'scrollbar': '#d0d1da',
     'scrollbar-hover': '#b0b2c0',
+    'ai-bg': '#eefaf5',
+    'ai-border': '#bfe9d8',
   },
   fontSizes: {
     'sidebar-feed': '14',
@@ -100,8 +102,33 @@ function migrateColors(colors: Record<string, string>): Record<string, string> {
   return out;
 }
 
+/**
+ * Les deux couleurs du panneau « Résumé IA » sont arrivées après coup. Un
+ * thème enregistré avant elles ne les porte pas, et la fusion avec le thème
+ * par défaut lui donnerait sa teinte CLAIRE — une plaque pâle au milieu d'un
+ * thème sombre. Elles sont donc dérivées du thème lui-même : un voile de son
+ * accent sur son fond de panneau (10 % pour le fond, 32 % pour la bordure).
+ * Une valeur présente, choisie ou non, n'est jamais recalculée.
+ */
+export function withAiColors(colors: Record<string, string> | undefined): Record<string, string> {
+  const c = { ...(colors ?? {}) };
+  if (c['ai-bg'] && c['ai-border']) return c;
+  const hex = (v: string | undefined, fallback: string) => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : fallback);
+  const accent = hex(c['accent'], defaultTheme.colors['accent']);
+  const panel = hex(c['panel-bg'], defaultTheme.colors['panel-bg']);
+  const mix = (t: number) => '#' + [1, 3, 5].map((i) => {
+    const a = parseInt(accent.slice(i, i + 2), 16);
+    const p = parseInt(panel.slice(i, i + 2), 16);
+    return Math.round(p + (a - p) * t).toString(16).padStart(2, '0');
+  }).join('');
+  if (!c['ai-bg']) c['ai-bg'] = mix(0.1);
+  if (!c['ai-border']) c['ai-border'] = mix(0.32);
+  return c;
+}
+
 /* ── Thèmes livrés ──────────────────────────────────────────────────────
- * Le moteur de thèmes était complet — 36 couleurs, enregistrement, export CSS,
+ * Le moteur de thèmes était complet — 36 couleurs (38 depuis le panneau
+ * « Résumé IA »), enregistrement, export CSS,
  * import, partage par lien — mais ne livrait qu'un seul thème. Quelqu'un qui
  * voulait lire au lit devait régler 36 valeurs à la main.
  *
@@ -109,7 +136,7 @@ function migrateColors(colors: Record<string, string>): Record<string, string> {
  * garantit leur présence dans la liste, exactement comme le thème par défaut
  * l'était déjà, et « Charger » les applique sans machinerie nouvelle.
  *
- * Chacun définit les 36 couleurs. Un test (`themePresets.test.ts`) échoue si
+ * Chacun définit toutes les couleurs (38). Un test (`themePresets.test.ts`) échoue si
  * l'un en oublie une : une clé manquante laisserait sur `:root` la valeur du
  * thème précédent, ce qui donne une interface à moitié sombre.
  */
@@ -157,6 +184,8 @@ const nightTheme = preset(NIGHT_THEME_NAME, {
   'code-bg': '#1a1915',
   'scrollbar': '#3d3b33',
   'scrollbar-hover': '#555248',
+  'ai-bg': '#243128',
+  'ai-border': '#2f5444',
 });
 
 const paperTheme = preset(PAPER_THEME_NAME, {
@@ -204,6 +233,8 @@ const paperTheme = preset(PAPER_THEME_NAME, {
   'code-bg': '#ece5d3',
   'scrollbar': '#cfc6ae',
   'scrollbar-hover': '#b3a98e',
+  'ai-bg': '#ede4d2',
+  'ai-border': '#d6c3a6',
 });
 
 const contrastTheme = preset(CONTRAST_THEME_NAME, {
@@ -244,6 +275,8 @@ const contrastTheme = preset(CONTRAST_THEME_NAME, {
   'code-bg': '#f0f0f0',
   'scrollbar': '#767676',
   'scrollbar-hover': '#4a4a4a',
+  'ai-bg': '#e6f2ee',
+  'ai-border': '#067a52',
 });
 
 /* ── Thème commandé ─────────────────────────────────────────────────────
@@ -302,6 +335,8 @@ const deskTheme = preset(DESK_THEME_NAME, {
   'code-bg': '#0d1109',
   'scrollbar': '#2c3423',
   'scrollbar-hover': '#414c33',
+  'ai-bg': '#1e2710',
+  'ai-border': '#3d5218',
 });
 
 
@@ -362,6 +397,8 @@ const risoTheme = preset(RISO_THEME_NAME, {
   'danger-light': '#fbeae8',
   'scrollbar': '#d8ccd3',
   'scrollbar-hover': '#b6a6af',
+  'ai-bg': '#f9e8f1',
+  'ai-border': '#ebb5d1',
 });
 
 export const SHIPPED_THEMES: Theme[] = [
@@ -427,7 +464,7 @@ export function ensureShippedThemes(list: Theme[] | null | undefined): Theme[] {
         // que l'utilisateur a réellement choisie n'est jamais touchée — les
         // migrations ne remplacent qu'un ancien défaut exact.
         .filter((t) => !RETIRED_THEME_NAMES.includes(t.name))
-        .map((t) => ({ ...t, colors: migrateColors(t.colors) }))
+        .map((t) => ({ ...t, colors: migrateColors(withAiColors(t.colors)) }))
     : [];
   const shipped = SHIPPED_THEMES.map(
     (s) => ({ ...s, colors: { ...s.colors }, fontSizes: { ...s.fontSizes } })
@@ -477,7 +514,7 @@ function loadTheme(): Theme {
       return {
         ...defaultTheme,
         ...parsed,
-        colors: migrateColors({ ...defaultTheme.colors, ...parsed.colors }),
+        colors: migrateColors({ ...defaultTheme.colors, ...withAiColors(parsed.colors) }),
         fontSizes: { ...defaultTheme.fontSizes, ...parsed.fontSizes },
       };
     }
@@ -631,6 +668,8 @@ const COLOR_COMMENTS: Record<string, BilingualComment> = {
   'code-bg':              ['Code block background',           'Fond des blocs de code'],
   'scrollbar':            ['Scrollbar track',                 'Barre de défilement'],
   'scrollbar-hover':      ['Scrollbar hover',                 'Barre de défilement (survol)'],
+  'ai-bg':                ['AI summary background',           'Fond du résumé IA'],
+  'ai-border':            ['AI summary border',               'Bordure du résumé IA'],
 };
 
 const FONT_COMMENTS: Record<string, BilingualComment> = {
@@ -658,7 +697,7 @@ const COLOR_SECTIONS_CSS: ColorSection[] = [
   { comment: ['Article list', 'Liste d\'articles'],
     keys: ['panel-bg', 'panel-border', 'panel-header-bg', 'list-hover', 'list-active', 'list-selected', 'list-source', 'list-title', 'list-title-read', 'list-summary', 'list-time'] },
   { comment: ['Reading pane', 'Panneau de lecture'],
-    keys: ['reading-title', 'reading-text', 'reading-meta', 'reading-link'] },
+    keys: ['reading-title', 'reading-text', 'reading-meta', 'reading-link', 'ai-bg', 'ai-border'] },
   { comment: ['Misc', 'Divers'],
     keys: ['star-color', 'readlater-color', 'danger', 'danger-light', 'code-bg', 'scrollbar', 'scrollbar-hover'] },
 ];
@@ -948,7 +987,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
         const merged: Theme & { logo?: string } = {
           ...defaultTheme,
           ...imported,
-          colors: { ...defaultTheme.colors, ...imported.colors },
+          colors: { ...defaultTheme.colors, ...withAiColors(imported.colors) },
           fontSizes: { ...defaultTheme.fontSizes, ...imported.fontSizes },
         };
         // Logo travels with the theme but lives in uiStore — not part of the theme object
@@ -1139,7 +1178,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
         const merged: Theme = {
           ...defaultTheme,
           ...pt,
-          colors: migrateColors({ ...defaultTheme.colors, ...pt.colors }),
+          colors: migrateColors({ ...defaultTheme.colors, ...withAiColors(pt.colors) }),
           fontSizes: { ...defaultTheme.fontSizes, ...pt.fontSizes },
         };
         localStorage.setItem('frirss_theme', JSON.stringify(merged));

@@ -1284,7 +1284,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             <AiSummary
               status={aiStatus} result={aiResult} error={aiError} providers={aiProviders}
               onSummarize={handleSummarize}
-              onHide={() => { setAiStatus('idle'); setAiResult(null); }}
               disabled={!online}
             />
           )}

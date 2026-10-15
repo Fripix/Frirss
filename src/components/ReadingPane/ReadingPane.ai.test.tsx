@@ -45,6 +45,7 @@ beforeEach(() => {
   useFeedStore.setState({ selectedArticle: article('a1'), articles: [article('a1'), article('a2')] });
   useAiStore.setState({ config: ON });
   useAuthStore.setState({ backendUser: { id: 2, username: 'u', role: 'user' } as never });
+  useUiStore.setState({ aiPanelCollapsed: false, aiPanelAutoExpanded: false, aiSummaryRatio: 20 });
   vi.mocked(requestAiSummary).mockReset();
 });
 const httpError = (status: number, data: unknown) =>
@@ -52,15 +53,15 @@ const httpError = (status: number, data: unknown) =>
 afterEach(cleanup);
 
 describe('ReadingPane — Résumé IA', () => {
-  it('shows no chip when the feature is off', () => {
+  it('shows no panel when the feature is off', () => {
     useAiStore.setState({ config: { ...ON, enabled: false, providers: [] } });
     const { queryByRole } = render(<ReadingPane />);
-    expect(queryByRole('button', { name: 'ai.summarize' })).toBeNull();
+    expect(queryByRole('button', { name: /^ai\.summarize/ })).toBeNull();
   });
   it('requests a summary with the article id, title and html, then shows it', async () => {
     vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
     const { getByRole, findByText } = render(<ReadingPane />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1', title: 'Titre a1', html: expect.stringContaining('mot') }));
     expect(await findByText('Le résumé.')).toBeTruthy();
   });
@@ -68,29 +69,46 @@ describe('ReadingPane — Résumé IA', () => {
     vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
     useUiStore.setState({ aiSummaryRatio: 35 });
     const { getByRole } = render(<ReadingPane />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ ratio: 35 }));
+  });
+  it('shows the panel above the article, with its status, while nothing was requested', () => {
+    const { getByRole, getByText } = render(<ReadingPane />);
+    expect(getByRole('button', { name: /^ai\.summarize\s/ }).getAttribute('aria-expanded')).toBe('true');
+    expect(getByText('ai.status.none')).toBeTruthy();
+    expect(getByText('ai.hint')).toBeTruthy();
+  });
+  it('keeps the panel folded on the next article when the user folded it', async () => {
+    vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+    const { getByRole, findByText, queryByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    expect(await findByText('Le résumé.')).toBeTruthy();
+    fireEvent.click(getByRole('button', { name: /^ai\.summarize\s/ }));
+    expect(queryByText('Le résumé.')).toBeNull();
+    act(() => { useFeedStore.setState({ selectedArticle: article('a2') }); });
+    expect(getByRole('button', { name: /^ai\.summarize\s/ }).getAttribute('aria-expanded')).toBe('false');
+    expect(queryByText('ai.hint')).toBeNull();
   });
   it('ignores a summary that arrives after the article changed', async () => {
     let resolve!: (v: unknown) => void;
     vi.mocked(requestAiSummary).mockReturnValue(new Promise((r) => { resolve = r; }) as never);
     const { getByRole, queryByText } = render(<ReadingPane />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     act(() => { useFeedStore.setState({ selectedArticle: article('a2') }); });
     await act(async () => { resolve({ text: 'Résumé de a1', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false }); });
     await waitFor(() => expect(queryByText('Résumé de a1')).toBeNull());
   });
-  it('shows no chip when no provider is available to this user', () => {
+  it('shows no panel when no provider is available to this user', () => {
     useAiStore.setState({ config: { ...ON, providers: [{ ...ON.providers[0], available: false }] } });
     const { queryByRole } = render(<ReadingPane />);
-    expect(queryByRole('button', { name: 'ai.summarize' })).toBeNull();
+    expect(queryByRole('button', { name: /^ai\.summarize/ })).toBeNull();
   });
   it('strips images and data: URIs from the html it sends', () => {
     vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
     const withMedia = { ...article('a1'), content: '<p>' + 'mot '.repeat(60) + '</p><img src="data:image/png;base64,AAAA"><svg><path/></svg>' } as Article;
     useFeedStore.setState({ selectedArticle: withMedia, articles: [withMedia] });
     const { getByRole } = render(<ReadingPane />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     const sent = vi.mocked(requestAiSummary).mock.calls[0][0].html;
     expect(sent).toContain('mot');
     expect(sent).not.toContain('<img');
@@ -100,27 +118,27 @@ describe('ReadingPane — Résumé IA', () => {
   it('maps 400 invalid_body to "too long"', async () => {
     vi.mocked(requestAiSummary).mockRejectedValue(httpError(400, { error: 'invalid_body' }));
     const { getByRole, findByText } = render(<ReadingPane />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(await findByText('ai.errors.tooLong')).toBeTruthy();
   });
   it('maps a 429 without ai_daily_cap to "rate limited", and the cap to "cap"', async () => {
     vi.mocked(requestAiSummary).mockRejectedValueOnce(httpError(429, { error: 'Too many requests' }));
     const { getByRole, findByText } = render(<ReadingPane />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(await findByText('ai.errors.rateLimited')).toBeTruthy();
     vi.mocked(requestAiSummary).mockRejectedValueOnce(httpError(429, { error: 'ai_daily_cap', cap: 5 }));
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(await findByText('ai.errors.cap')).toBeTruthy();
   });
   it('tells a plain user to warn the admin about a rejected key, and the admin to check it', async () => {
     vi.mocked(requestAiSummary).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'auth' }));
     const user = render(<ReadingPane />);
-    fireEvent.click(user.getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(user.getByRole('button', { name: 'ai.summarizeAction' }));
     expect(await user.findByText('ai.errors.authUser')).toBeTruthy();
     user.unmount();
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin' } as never });
     const admin = render(<ReadingPane />);
-    fireEvent.click(admin.getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(admin.getByRole('button', { name: 'ai.summarizeAction' }));
     expect(await admin.findByText('ai.errors.auth')).toBeTruthy();
   });
   it('keeps the summary on screen when a later attempt fails', async () => {
@@ -128,20 +146,20 @@ describe('ReadingPane — Résumé IA', () => {
       .mockResolvedValueOnce({ text: 'Premier résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false })
       .mockRejectedValueOnce(httpError(502, { error: 'ai_failed', kind: 'technical' }));
     const { getByRole, findByText, getByText } = render(<ReadingPane />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarize' }));
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(await findByText('Premier résumé.')).toBeTruthy();
     fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
     fireEvent.click(getByRole('menuitem', { name: 'Ollama' }));
     expect(await findByText('ai.errors.technical')).toBeTruthy();
     expect(getByText('Premier résumé.')).toBeTruthy();
   });
-  it('disables the chip when the browser goes offline', async () => {
+  it('disables the action when the browser goes offline', async () => {
     const { getByRole } = render(<ReadingPane />);
-    const chip = () => getByRole('button', { name: 'ai.summarize' }) as HTMLButtonElement;
-    expect(chip().disabled).toBe(false);
+    const action = () => getByRole('button', { name: 'ai.summarizeAction' }) as HTMLButtonElement;
+    expect(action().disabled).toBe(false);
     act(() => { window.dispatchEvent(new Event('offline')); });
-    expect(chip().disabled).toBe(true);
+    expect(action().disabled).toBe(true);
     act(() => { window.dispatchEvent(new Event('online')); });
-    expect(chip().disabled).toBe(false);
+    expect(action().disabled).toBe(false);
   });
 });

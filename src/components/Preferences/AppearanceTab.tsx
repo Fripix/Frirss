@@ -439,7 +439,9 @@ const COLOR_SECTIONS = [
   },
   {
     titleKey: 'reading',
-    keys: ['reading-title', 'reading-text', 'reading-meta', 'reading-link'],
+    // Le panneau « Résumé IA » vit dans la colonne de lecture : ses deux
+    // couleurs y sont rangées plutôt que dans une section à elles seules.
+    keys: ['reading-title', 'reading-text', 'reading-meta', 'reading-link', 'ai-bg', 'ai-border'],
   },
   {
     titleKey: 'misc',

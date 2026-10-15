@@ -36,6 +36,10 @@
   --reading-meta: #8b8d9a;
   --reading-link: #4cd4a1;
 
+  /* Panneau « Résumé IA » */
+  --ai-bg: #eefaf5;
+  --ai-border: #bfe9d8;
+
   /* General */
   --star-color: #f5c542;
   --readlater-color: #8b5cf6;
