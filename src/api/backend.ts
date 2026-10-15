@@ -205,6 +205,48 @@ export async function updateAdminSettings(settings: Record<string, unknown>): Pr
   await backend.put('/admin/settings', settings);
 }
 
+// ── Résumés IA ──────────────────────────────────────────────────────
+export interface AiProviderView { id: number; name: string; type: 'anthropic' | 'openai'; hasAdminKey: boolean; shared: boolean; hasUserKey: boolean; available: boolean }
+export interface AiConfig { enabled: boolean; providers: AiProviderView[]; userKeysAllowed: boolean; dailyCap: number; usageToday: number; defaultProvider: number | null }
+export interface AiSummaryResult { text: string; lang: string | null; providerId: number; providerName: string; model: string; fromCache: boolean; fellBackFrom?: string }
+export interface AiProviderAdmin { id: number; name: string; type: 'anthropic' | 'openai'; baseUrl: string; model: string; hasAdminKey: boolean; shared: boolean; position: number }
+export interface AiAdminSettings { enabled: boolean; userKeysAllowed: boolean; dailyCap: number; defaultProvider: number | null }
+export interface AiProviderInput { name: string; type: 'anthropic' | 'openai'; baseUrl: string; model: string; adminKey?: string | null; shared?: boolean }
+
+export async function getAiConfig(): Promise<AiConfig> {
+  const { data } = await backend.get<AiConfig>('/ai/config');
+  return data;
+}
+export async function requestAiSummary(body: { articleId: string; title: string; html: string; provider?: number }): Promise<AiSummaryResult> {
+  const { data } = await backend.post<AiSummaryResult>('/ai/summary', body);
+  return data;
+}
+export async function getAiProviders(): Promise<{ providers: AiProviderAdmin[]; settings: AiAdminSettings }> {
+  const { data } = await backend.get<{ providers: AiProviderAdmin[]; settings: AiAdminSettings }>('/admin/ai/providers');
+  return data;
+}
+export async function createAiProvider(input: AiProviderInput): Promise<AiProviderAdmin> {
+  const { data } = await backend.post<{ provider: AiProviderAdmin }>('/admin/ai/providers', input);
+  return data.provider;
+}
+export async function updateAiProvider(id: number, input: Partial<AiProviderInput>): Promise<AiProviderAdmin> {
+  const { data } = await backend.put<{ provider: AiProviderAdmin }>(`/admin/ai/providers/${id}`, input);
+  return data.provider;
+}
+export async function deleteAiProvider(id: number): Promise<void> {
+  await backend.delete(`/admin/ai/providers/${id}`);
+}
+export async function reorderAiProviders(ids: number[]): Promise<void> {
+  await backend.put('/admin/ai/providers/order', { ids });
+}
+export async function testAiProvider(id: number): Promise<{ ok: boolean; model?: string; durationMs?: number; kind?: string; message?: string }> {
+  const { data } = await backend.post(`/admin/ai/providers/${id}/test`);
+  return data;
+}
+export async function updateAiSettings(settings: Partial<AiAdminSettings>): Promise<void> {
+  await backend.put('/admin/ai/settings', settings);
+}
+
 // ── Sauvegarde & restauration ────────────────────────────────────────
 
 /**

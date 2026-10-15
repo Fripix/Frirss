@@ -14,6 +14,7 @@
 import { getPreferences, savePreferences } from '../api/backend';
 import { useUiStore, UI_SYNC_KEYS } from '../stores/uiStore';
 import { useThemeStore, THEME_SYNC_KEYS } from '../stores/themeStore';
+import { useAiStore } from '../stores/aiStore';
 
 let hydrating = false;
 let started = false;
@@ -103,6 +104,7 @@ export async function hydratePrefs(): Promise<void> {
   }
 
   startSync();
+  void useAiStore.getState().load();
 
   if (!hasAny) {
     // Seed the server from local state (migration on first login).
