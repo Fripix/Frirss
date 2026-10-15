@@ -16,10 +16,12 @@ export function htmlToText(html: string, maxChars = 200_000): string {
     // Balises en ligne : elles ne séparent pas les mots (« <b>mot</b>. » reste « mot. »).
     .replace(/<\/?(?:a|abbr|b|cite|code|em|font|i|ins|kbd|mark|q|s|small|span|strong|sub|sup|time|u)\b[^>]*>/gi, '')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, code: string) => {
+    .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, code: string) => {
       if (code[0] === '#') {
         const n = code[1].toLowerCase() === 'x' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
-        return Number.isFinite(n) ? String.fromCodePoint(n) : m;
+        // String.fromCodePoint lève une RangeError hors de 0..0x10FFFF ; les surrogates ne sont pas des caractères.
+        const valid = Number.isFinite(n) && n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff);
+        return valid ? String.fromCodePoint(n) : m;
       }
       return ENTITIES[code.toLowerCase()] ?? m;
     })
@@ -27,5 +29,9 @@ export function htmlToText(html: string, maxChars = 200_000): string {
     .replace(/ *\n */g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  return text.length > maxChars ? text.slice(0, maxChars) : text;
+  if (text.length <= maxChars) return text;
+  // Coupe, retire un surrogate haut resté seul en fin de coupe, puis rogne l'espace résiduel.
+  let cut = text.slice(0, maxChars);
+  if (/[\uD800-\uDBFF]$/.test(cut)) cut = cut.slice(0, -1);
+  return cut.trimEnd();
 }
