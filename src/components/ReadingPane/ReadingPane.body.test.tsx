@@ -29,7 +29,7 @@ vi.mock('../../api/feeds', () => ({
   getTagList: vi.fn(), getStreamItemCount: vi.fn(), setArticleLabel: vi.fn(),
   renameTag: vi.fn(), deleteTag: vi.fn(), clearWriteToken: vi.fn(),
 }));
-vi.mock('../../api/backend', () => ({ startActualize: vi.fn(), getActualizeStatus: vi.fn() }));
+vi.mock('../../api/backend', () => ({ startActualize: vi.fn(), getActualizeStatus: vi.fn(), getAiConfig: vi.fn(), requestAiSummary: vi.fn() }));
 vi.mock('../../lib/offlineStore', () => ({
   listGet: vi.fn(() => Promise.resolve(undefined)), listPut: vi.fn(() => Promise.resolve()),
   listEvictOlderThan: vi.fn(() => Promise.resolve()), subsGet: vi.fn(() => Promise.resolve(undefined)),

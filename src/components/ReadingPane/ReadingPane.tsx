@@ -23,7 +23,15 @@ import { formatArticleDate } from '../../utils/dates';
 import { IMAGE_CACHE_NAME } from '../../lib/storageEstimate';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 import BottomSheet from '../BottomSheet';
+import AiSummary from './AiSummary';
+import { useAiStore, aiEnabled } from '../../stores/aiStore';
+import { requestAiSummary, type AiSummaryResult, type AiProviderView } from '../../api/backend';
+import axios from 'axios';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
+
+// Référence stable : un `?? []` dans le sélecteur zustand en créerait une neuve à
+// chaque lecture (config encore nulle) et boucle en « maximum update depth ».
+const NO_AI_PROVIDERS: AiProviderView[] = [];
 
 // Body placeholder shown while an auto-extract feed loads the full text.
 // La prop d'injection est un objet de MODULE, pas un littéral dans le JSX :
@@ -149,6 +157,18 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const lastExtractedId = useRef<string | null>(null);
+
+  // Résumé IA — un état par article affiché ; remis à zéro quand il change.
+  const aiOn = useAiStore(aiEnabled);
+  const aiProviders = useAiStore((s) => s.config?.providers) ?? NO_AI_PROVIDERS;
+  const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [aiResult, setAiResult] = useState<AiSummaryResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const aiInFlight = useRef<string | null>(null);
+
+  useEffect(() => {
+    setAiStatus('idle'); setAiResult(null); setAiError(null); aiInFlight.current = null;
+  }, [selectedArticle?.id]);
 
   // Reading progress
   const [readProgress, setReadProgress] = useState(0);
@@ -693,6 +713,35 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }
   }, [selectedArticle, extracting, t]);
 
+  const handleSummarize = useCallback(async (providerId?: number) => {
+    if (!selectedArticle || aiInFlight.current === selectedArticle.id) return;
+    const id = selectedArticle.id;
+    aiInFlight.current = id;
+    setAiStatus('loading'); setAiError(null);
+    try {
+      const r = await requestAiSummary({
+        articleId: id, title: selectedArticle.title,
+        html: extractedContent?.content ?? selectedArticle.content ?? '',
+        provider: providerId,
+      });
+      if (useFeedStore.getState().selectedArticle?.id !== id) return;
+      setAiResult(r); setAiStatus('done');
+    } catch (err) {
+      if (useFeedStore.getState().selectedArticle?.id !== id) return;
+      const code = axios.isAxiosError(err) ? (err.response?.data as { error?: string; kind?: string } | undefined) : undefined;
+      const key = code?.error === 'ai_daily_cap' ? 'ai.errors.cap'
+        : code?.error === 'article_too_short' ? 'ai.errors.tooShort'
+        : code?.error === 'ai_refused' ? 'ai.errors.refused'
+        : code?.error === 'no_provider' ? 'ai.errors.noProvider'
+        : code?.kind === 'auth' ? 'ai.errors.auth'
+        : code?.kind === 'quota' ? 'ai.errors.quota'
+        : 'ai.errors.technical';
+      setAiError(t(key)); setAiStatus('error');
+    } finally {
+      if (aiInFlight.current === id) aiInFlight.current = null;
+    }
+  }, [selectedArticle, extractedContent, t]);
+
   // ── Corps de l'article ────────────────────────────────────────────────────
   // Mémoïsé, et il FAUT que ce soit avant le retour anticipé ci-dessous : les
   // hooks se comptent, pas se choisissent.
@@ -1224,6 +1273,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               </div>
             );
           })()}
+
+          {aiOn && (
+            <AiSummary
+              status={aiStatus} result={aiResult} error={aiError} providers={aiProviders}
+              onSummarize={handleSummarize}
+              onHide={() => { setAiStatus('idle'); setAiResult(null); }}
+              disabled={typeof navigator !== 'undefined' && navigator.onLine === false}
+            />
+          )}
 
           {/* Extraction error */}
           {extractError && (
