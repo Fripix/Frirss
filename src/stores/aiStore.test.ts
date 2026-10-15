@@ -15,6 +15,7 @@ describe('aiStore', () => {
   it('a failed load leaves the feature off, never throws', async () => {
     vi.mocked(getAiConfig).mockRejectedValue(new Error('network'));
     await expect(useAiStore.getState().load()).resolves.toBeUndefined();
-    expect(useAiStore.getState().config?.enabled ?? false).toBe(false);
+    expect(useAiStore.getState().config).not.toBeNull();
+    expect(useAiStore.getState().config?.enabled).toBe(false);
   });
 });

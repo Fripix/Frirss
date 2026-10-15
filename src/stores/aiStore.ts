@@ -4,8 +4,7 @@ import { getAiConfig, type AiConfig } from '../api/backend';
 /**
  * Ce que le client sait de l'IA : rien tant que `load()` n'a pas répondu, et
  * « éteint » si la requête échoue — un réseau en panne ne doit pas faire
- * apparaître de pastille. Rechargé après chaque connexion (prefsSync) et
- * après chaque sauvegarde du bloc admin.
+ * apparaître de pastille. Rechargé après chaque connexion (prefsSync).
  */
 interface AiState {
   config: AiConfig | null;

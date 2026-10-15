@@ -240,7 +240,7 @@ export async function reorderAiProviders(ids: number[]): Promise<void> {
   await backend.put('/admin/ai/providers/order', { ids });
 }
 export async function testAiProvider(id: number): Promise<{ ok: boolean; model?: string; durationMs?: number; kind?: string; message?: string }> {
-  const { data } = await backend.post(`/admin/ai/providers/${id}/test`);
+  const { data } = await backend.post<{ ok: boolean; model?: string; durationMs?: number; kind?: string; message?: string }>(`/admin/ai/providers/${id}/test`);
   return data;
 }
 export async function updateAiSettings(settings: Partial<AiAdminSettings>): Promise<void> {
