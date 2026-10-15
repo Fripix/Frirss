@@ -231,29 +231,41 @@ est actif, puisqu'il coûte.
 **Le seau `FRIRSS_PROXY_RATE_LIMIT`** compte aussi ces appels : ils passent
 par `fetchUpstream`. Un résumé par article ouvert ne s'en approche pas.
 
-## 10. Panneau « Résumés IA » (Préférences)
+## 10. Section « IA » (Préférences)
 
-Nouvelle section dans `SECTIONS` (`src/components/Preferences/Preferences.tsx`),
-rendue **seulement si `ai_enabled`** côté serveur ; l'admin la voit toujours,
-pour pouvoir allumer. Fichier `src/components/Preferences/AiTab.tsx`.
+Nouvelle section **« IA »** dans `SECTIONS`
+(`src/components/Preferences/Preferences.tsx`), nommée d'un mot comme les
+autres (Général, Apparence, Disposition, Étiquettes, Flux, Hors ligne), et qui
+regroupe **résumés et traductions** : ils partagent fournisseurs, clés, repli,
+plafond et cache, les séparer obligerait à choisir le fournisseur à deux
+endroits. Rendue **seulement si `ai_enabled`** côté serveur ; l'admin la voit
+toujours, pour pouvoir allumer. Rien de l'IA ne s'ajoute à la section
+Administration. Fichier `src/components/Preferences/AiTab.tsx`.
 
-**Bloc « Pour vous »** (tout utilisateur) :
+Blocs, dans cet ordre, nommés par l'usage :
+
+**« Résumés »** (tout utilisateur) :
 - Fournisseur préféré (liste des disponibles ; un fournisseur sans clé
   accessible est grisé avec « clé requise »).
 - Repli automatique (interrupteur, aide : « si votre fournisseur échoue, le
   suivant de la liste prend le relais »).
 - Résumé automatique à l'ouverture (interrupteur, avec la confirmation de §8).
-- Traduction : langue cible (« Langue de l'interface » ou une des 28),
-  fournisseur (« Même que le résumé » ou un fournisseur).
-- Par flux et par catégorie : une liste reprenant l'arborescence de la barre
-  latérale, chaque ligne avec un sélecteur « Par défaut / fournisseur ».
-  Réutilise `CategoryList.tsx` et le moule des surcharges existantes.
-- Mes clés (si `ai_user_keys_allowed`) : une ligne par fournisseur, champ
-  masqué, « Enregistrer » / « Effacer », état « clé enregistrée ». Une clé
-  saisie n'est jamais réaffichée.
-- Usage du jour quand un plafond s'applique.
 
-**Bloc « Fournisseurs »** (admin seul) :
+**« Traduction »** :
+- Langue cible (« Langue de l'interface » ou une des 28).
+- Fournisseur (« Même que le résumé » ou un fournisseur).
+- Traduction automatique à l'ouverture (étape B, même confirmation).
+
+**« Par flux et catégorie »** : une liste reprenant l'arborescence de la
+barre latérale, chaque ligne avec un sélecteur « Par défaut / fournisseur ».
+Réutilise `CategoryList.tsx` et le moule des surcharges existantes.
+
+**« Mes clés »** (si `ai_user_keys_allowed`) : une ligne par fournisseur,
+champ masqué, « Enregistrer » / « Effacer », état « clé enregistrée ». Une clé
+saisie n'est jamais réaffichée. L'usage du jour s'affiche ici quand un
+plafond s'applique.
+
+**« Fournisseurs »** (admin seul, en dernier) :
 - Interrupteur général « Activer les résumés IA » (éteint par défaut).
 - Liste ordonnée, réordonnable comme les catégories : nom, type, URL de base,
   modèle, clé admin (masquée, « enregistrée » / « aucune »), « Partager la clé
@@ -296,7 +308,7 @@ table des raccourcis, dans la famille de « Article complet ».
 ## 12. i18n
 
 Nouvelle famille `ai` dans les dix locales (`fr` source, parité vérifiée par
-le script du `CLAUDE.md`), plus les clés des sections de préférences et de la
+le script du `CLAUDE.md`), plus la clé `preferences.sections.ai` (« IA ») et celles de la
 palette. Les noms de langues sont hors i18n (§7). Balayer aussi `title`,
 `aria-label`, `placeholder` : la parité ne voit que la structure.
 
