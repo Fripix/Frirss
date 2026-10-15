@@ -750,9 +750,9 @@
   },
   "ai": {
     "summarize": "Podsumowanie AI",
-    "summarizing": "Podsumowuję…",
+    "summarizing": "Trwa podsumowywanie…",
     "summaryTitle": "Podsumowanie",
-    "by": "Podsumowanie od {{name}}",
+    "by": "Podsumowanie: {{name}}",
     "fromCache": "z pamięci podręcznej",
     "fellBack": "{{name}} niedostępny",
     "withProvider": "Podsumuj za pomocą…",

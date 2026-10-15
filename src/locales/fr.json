@@ -722,7 +722,7 @@
   },
   "ai": {
     "summarize": "Résumé IA",
-    "summarizing": "Résumé…",
+    "summarizing": "Résumé en cours…",
     "summaryTitle": "Résumé",
     "by": "Résumé par {{name}}",
     "fromCache": "depuis le cache",

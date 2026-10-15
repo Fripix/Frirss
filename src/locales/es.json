@@ -721,14 +721,14 @@
     "markBelowTitle": "¿Marcar como leídos los artículos de abajo?"
   },
   "ai": {
-    "summarize": "Resumen IA",
+    "summarize": "Resumen con IA",
     "summarizing": "Resumiendo…",
     "summaryTitle": "Resumen",
     "by": "Resumen de {{name}}",
     "fromCache": "desde la caché",
     "fellBack": "{{name}} no disponible",
     "withProvider": "Resumir con…",
-    "userIntro": "Los resúmenes IA están listos: abre un artículo y haz clic en «Resumen IA».",
+    "userIntro": "Los resúmenes con IA están listos: abre un artículo y haz clic en «Resumen con IA».",
     "errors": {
       "auth": "El proveedor ha rechazado la clave. Compruébala en Preferencias › IA.",
       "quota": "Se alcanzó la cuota del proveedor. Inténtalo de nuevo más tarde.",
@@ -740,7 +740,7 @@
     },
     "admin": {
       "title": "Proveedores",
-      "enable": "Activar los resúmenes IA",
+      "enable": "Activar los resúmenes con IA",
       "add": "Añadir un proveedor",
       "edit": "Editar",
       "delete": "Eliminar",
