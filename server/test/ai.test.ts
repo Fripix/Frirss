@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi, afterEach } from 'vitest';
 import request from 'supertest';
 import app from '../index.js';
 import db, { getSetting } from '../db.js';
@@ -27,3 +27,89 @@ describe('ai schema', () => {
     expect(getSetting('ai_daily_cap')).toBe('50');
   });
 });
+
+function stubProvider(text = 'lang: fr\n\nRésumé long.') {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true, status: 200, headers: new Headers(),
+    text: async () => '', json: async () => ({ model: 'm', choices: [{ message: { content: text }, finish_reason: 'stop' }], usage: {} }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+afterEach(() => vi.unstubAllGlobals());
+const longHtml = '<p>' + 'mot '.repeat(80) + '</p>';
+
+describe('ai routes while disabled', () => {
+  it('config says disabled and summary is 404', async () => {
+    const cfg = await request(app).get('/api/ai/config').set('Authorization', `Bearer ${userToken}`);
+    expect(cfg.body).toMatchObject({ enabled: false, providers: [] });
+    const sum = await request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
+      .send({ articleId: 'a', title: 't', html: longHtml });
+    expect(sum.status).toBe(404);
+    expect(sum.body.error).toBe('ai_disabled');
+  });
+  it('admin routes refuse a plain user', async () => {
+    const res = await request(app).get('/api/admin/ai/providers').set('Authorization', `Bearer ${userToken}`);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('ai admin + summary', () => {
+  let providerId: number;
+  it('admin creates a provider, the key never comes back', async () => {
+    const res = await request(app).post('/api/admin/ai/providers').set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Ollama', type: 'openai', baseUrl: 'https://ollama.example.com/', model: 'llama3', adminKey: 'secret-k', shared: true });
+    expect(res.status).toBe(201);
+    providerId = res.body.provider.id;
+    expect(res.body.provider.hasAdminKey).toBe(true);
+    expect(JSON.stringify(res.body)).not.toContain('secret-k');
+    expect(res.body.provider.baseUrl).toBe('https://ollama.example.com');
+  });
+  it('admin enables the feature and sets the default', async () => {
+    const res = await request(app).put('/api/admin/ai/settings').set('Authorization', `Bearer ${adminToken}`)
+      .send({ enabled: true, defaultProvider: providerId, dailyCap: 5 });
+    expect(res.status).toBe(200);
+    const cfg = await request(app).get('/api/ai/config').set('Authorization', `Bearer ${userToken}`);
+    expect(cfg.body.enabled).toBe(true);
+    expect(cfg.body.providers[0]).toMatchObject({ id: providerId, name: 'Ollama', available: true, hasUserKey: false });
+    expect(JSON.stringify(cfg.body)).not.toContain('secret-k');
+  });
+  it('user gets a summary, then the cached one', async () => {
+    const fetchMock = stubProvider();
+    const first = await request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
+      .send({ articleId: 'art-route-1', title: 'Titre', html: longHtml });
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ text: 'Résumé long.', lang: 'fr', providerName: 'Ollama', fromCache: false });
+    const second = await request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
+      .send({ articleId: 'art-route-1', title: 'Titre', html: longHtml });
+    expect(second.body.fromCache).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(cfgUsage(userToken)).resolves.toBe(1);
+  });
+  it('rejects a short article with 400 and a bad body with 400', async () => {
+    const short = await request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
+      .send({ articleId: 'a2', title: 't', html: '<p>court</p>' });
+    expect(short.status).toBe(400);
+    expect(short.body.error).toBe('article_too_short');
+    const bad = await request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`).send({ title: 't' });
+    expect(bad.status).toBe(400);
+  });
+  it('the test route reports a failure without throwing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, headers: new Headers(), text: async () => 'nope', json: async () => ({}) }));
+    const res = await request(app).post(`/api/admin/ai/providers/${providerId}/test`).set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: false, kind: 'auth' });
+  });
+  it('deleting the default provider leaves config consistent', async () => {
+    const del = await request(app).delete(`/api/admin/ai/providers/${providerId}`).set('Authorization', `Bearer ${adminToken}`);
+    expect(del.status).toBe(200);
+    const cfg = await request(app).get('/api/ai/config').set('Authorization', `Bearer ${userToken}`);
+    expect(cfg.body.providers).toEqual([]);
+    expect(cfg.body.defaultProvider).toBeNull();
+  });
+});
+
+async function cfgUsage(token: string): Promise<number> {
+  const cfg = await request(app).get('/api/ai/config').set('Authorization', `Bearer ${token}`);
+  return cfg.body.usageToday as number;
+}

@@ -3308,6 +3308,15 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | DELETE | `/api/admin/users/:id` | Supprimer un compte |
 | GET | `/api/admin/settings` | Lire les réglages du serveur |
 | PUT | `/api/admin/settings` | Écrire les réglages du serveur |
+| GET | `/api/ai/config` | Ce que le client sait de l'IA (fournisseurs sans clés, plafond, usage) |
+| POST | `/api/ai/summary` | Résumer un article |
+| GET | `/api/admin/ai/providers` | Lister fournisseurs et réglages IA |
+| POST | `/api/admin/ai/providers` | Créer un fournisseur |
+| PUT | `/api/admin/ai/providers/order` | Réordonner les fournisseurs |
+| PUT | `/api/admin/ai/providers/:id` | Modifier un fournisseur |
+| DELETE | `/api/admin/ai/providers/:id` | Supprimer un fournisseur |
+| POST | `/api/admin/ai/providers/:id/test` | Appel d'essai |
+| PUT | `/api/admin/ai/settings` | Interrupteur, politique des clés, plafond, défaut |
 | POST | `/api/admin/backup` | Produire la sauvegarde chiffrée |
 | POST | `/api/admin/restore/preview` | Déchiffrer et résumer, sans écrire |
 | POST | `/api/admin/restore` | Remplacer l'instance |

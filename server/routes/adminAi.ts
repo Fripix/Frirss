@@ -1,0 +1,91 @@
+// server/routes/adminAi.ts
+import { Router } from 'express';
+import { setSetting } from '../db.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import {
+  listProviders, getProvider, createProvider, updateProvider, deleteProvider, reorderProviders, adminKeyFor,
+  isAiEnabled, userKeysAllowed, dailyCap, defaultProviderId, type ProviderInput,
+} from '../ai/store.js';
+import { callProvider } from '../ai/providers.js';
+import { AiError } from '../ai/errors.js';
+
+const router = Router();
+router.use(requireAuth, requireAdmin);
+
+const TYPES = ['anthropic', 'openai'];
+function parseInput(body: unknown, partial: boolean): ProviderInput | null {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const str = (k: string) => (typeof b[k] === 'string' ? (b[k] as string).trim() : undefined);
+  const name = str('name'), type = str('type'), baseUrl = str('baseUrl'), model = str('model');
+  if (!partial && (!name || !type || !baseUrl || !model)) return null;
+  if (type !== undefined && !TYPES.includes(type)) return null;
+  if (baseUrl !== undefined && !/^https?:\/\//i.test(baseUrl)) return null;
+  const out: Partial<ProviderInput> = {};
+  if (name !== undefined) out.name = name;
+  if (type !== undefined) out.type = type as ProviderInput['type'];
+  if (baseUrl !== undefined) out.baseUrl = baseUrl;
+  if (model !== undefined) out.model = model;
+  if (b.adminKey !== undefined) out.adminKey = typeof b.adminKey === 'string' ? b.adminKey : null;
+  if (b.shared !== undefined) out.shared = b.shared === true;
+  return out as ProviderInput;
+}
+const settingsView = () => ({ enabled: isAiEnabled(), userKeysAllowed: userKeysAllowed(), dailyCap: dailyCap(), defaultProvider: defaultProviderId() });
+
+router.get('/ai/providers', (_req, res) => res.json({ providers: listProviders(), settings: settingsView() }));
+
+router.post('/ai/providers', (req, res) => {
+  const input = parseInput(req.body, false);
+  if (!input) return res.status(400).json({ error: 'invalid_provider' });
+  res.status(201).json({ provider: createProvider(input) });
+});
+
+router.put('/ai/providers/order', (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((n: unknown) => Number.isInteger(n)) : null;
+  if (!ids) return res.status(400).json({ error: 'invalid_order' });
+  reorderProviders(ids);
+  res.json({ ok: true });
+});
+
+router.put('/ai/providers/:id', (req, res) => {
+  const input = parseInput(req.body, true);
+  if (!input) return res.status(400).json({ error: 'invalid_provider' });
+  const p = updateProvider(Number(req.params.id), input);
+  if (!p) return res.status(404).json({ error: 'not_found' });
+  res.json({ provider: p });
+});
+
+router.delete('/ai/providers/:id', (req, res) => {
+  const id = Number(req.params.id);
+  if (!deleteProvider(id)) return res.status(404).json({ error: 'not_found' });
+  if (defaultProviderId() === id) setSetting('ai_default_provider', '');
+  res.json({ ok: true });
+});
+
+router.post('/ai/providers/:id/test', async (req, res) => {
+  const p = getProvider(Number(req.params.id));
+  if (!p) return res.status(404).json({ error: 'not_found' });
+  try {
+    const r = await callProvider(p, adminKeyFor(p.id), { system: 'Reply with the single word OK.', user: 'ping', maxTokens: 16 });
+    res.json({ ok: true, model: r.model, durationMs: r.durationMs });
+  } catch (err) {
+    const e = err instanceof AiError ? err : new AiError('technical', (err as Error).message);
+    res.json({ ok: false, kind: e.kind, message: e.message.slice(0, 200) });
+  }
+});
+
+router.put('/ai/settings', (req, res) => {
+  const { enabled, userKeysAllowed: uk, dailyCap: cap, defaultProvider } = req.body ?? {};
+  if (enabled !== undefined) setSetting('ai_enabled', enabled ? 'true' : 'false');
+  if (uk !== undefined) setSetting('ai_user_keys_allowed', uk ? 'true' : 'false');
+  if (cap !== undefined) {
+    if (!Number.isInteger(cap) || cap < 0) return res.status(400).json({ error: 'invalid_cap' });
+    setSetting('ai_daily_cap', String(cap));
+  }
+  if (defaultProvider !== undefined) {
+    if (defaultProvider !== null && !getProvider(Number(defaultProvider))) return res.status(400).json({ error: 'unknown_provider' });
+    setSetting('ai_default_provider', defaultProvider === null ? '' : String(defaultProvider));
+  }
+  res.json({ ok: true, settings: settingsView() });
+});
+
+export default router;
