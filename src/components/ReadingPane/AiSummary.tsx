@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -42,10 +42,18 @@ export default function AiSummary({ status, result, error, providers, onSummariz
   const done = status === 'done' && result ? result : null;
   const loading = status === 'loading';
 
-  const closeMenu = () => {
+  // Le menu n'existe que tant qu'un résumé est affiché : si le statut quitte
+  // `done` (nouvelle demande, erreur), il ne doit pas rester ouvert ni rouvrir.
+  const menuShown = menuOpen && !!done && available.length > 0;
+  // Le drapeau lui-même est remis à zéro (ajustement d'état pendant le rendu) :
+  // sans cela, le menu rouvrirait tout seul au retour de `done`.
+  if (menuOpen && !menuShown) setMenuOpen(false);
+
+  // Stable : le Popover s'abonne au clavier avec cette référence.
+  const closeMenu = useCallback(() => {
     setMenuOpen(false);
     menuAnchor.current?.focus();
-  };
+  }, []);
 
   const chip = (
     <button
@@ -75,7 +83,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
       type="button"
       role={touch ? undefined : 'menuitem'}
       onClick={() => { setMenuOpen(false); onSummarize(p.id); }}
-      className={`sheet-row flex items-center w-full text-left rounded-md hover:bg-black/5 ${touch ? 'px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`}
+      className={`flex items-center w-full text-left rounded-md hover:bg-black/5 ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`}
       style={{ color: 'var(--list-title)' }}
     >
       <span className="truncate">{p.name}</span>
@@ -90,50 +98,55 @@ export default function AiSummary({ status, result, error, providers, onSummariz
         <p role="alert" className="mt-2 text-xs leading-snug" style={{ color: 'var(--danger)' }}>{error}</p>
       )}
 
-      {done && (
-        <section
-          aria-label={t('ai.summaryTitle')}
-          className="mt-3 rounded-lg px-4 py-3"
-          style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-        >
-          <header className="mb-2.5" style={{ color: 'var(--reading-meta)' }}>
-            <div className="flex items-center gap-x-3 text-xs">
-              <span className="font-medium">{t('ai.by', { name: done.providerName })}</span>
-              {done.fromCache && <span className="opacity-80">{t('ai.fromCache')}</span>}
-              {available.length > 0 && (
-                <button
-                  ref={menuAnchor}
-                  type="button"
-                  onClick={() => setMenuOpen((o) => !o)}
-                  aria-haspopup={touch ? 'dialog' : 'menu'}
-                  aria-expanded={menuOpen}
-                  className={`ml-auto inline-flex items-center gap-1 rounded-md px-1.5 -mr-1.5 underline underline-offset-2 hover:opacity-80 ${touch ? 'min-h-[44px]' : 'py-0.5'}`}
-                >
-                  {t('ai.withProvider')}
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-                </button>
+      {/* Région vivante toujours montée : une région insérée avec son contenu
+          n'est pas annoncée de façon fiable. La pastille est désactivée pendant
+          le chargement, c'est donc le seul retour que reçoit un lecteur d'écran. */}
+      <div role="status" aria-live="polite">
+        {done && (
+          <section
+            aria-label={t('ai.summaryTitle')}
+            className="mt-3 rounded-lg px-4 py-3"
+            style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
+          >
+            <header className="mb-2.5" style={{ color: 'var(--reading-meta)' }}>
+              <div className="flex items-center gap-x-3 text-xs">
+                <span className="font-medium">{t('ai.by', { name: done.providerName })}</span>
+                {done.fromCache && <span className="opacity-80">{t('ai.fromCache')}</span>}
+                {available.length > 0 && (
+                  <button
+                    ref={menuAnchor}
+                    type="button"
+                    onClick={() => setMenuOpen((o) => !o)}
+                    aria-haspopup={touch ? 'dialog' : 'menu'}
+                    aria-expanded={menuShown}
+                    className={`ml-auto inline-flex items-center gap-1 rounded-md px-1.5 -mr-1.5 underline underline-offset-2 hover:opacity-80 ${touch ? 'min-h-[44px]' : 'py-0.5'}`}
+                  >
+                    {t('ai.withProvider')}
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                  </button>
+                )}
+              </div>
+              {done.fellBackFrom && (
+                <p className="mt-1 text-xs" style={{ color: 'var(--reading-meta)' }}>{t('ai.fellBack', { name: done.fellBackFrom })}</p>
               )}
+            </header>
+            <div className="max-w-[68ch]">
+              {done.text.split(/\n{2,}/).map((p, i) => (
+                <p key={i} className="text-[15px] leading-[1.65] mb-2.5 last:mb-0" style={{ color: 'var(--reading-text)' }}>{p}</p>
+              ))}
             </div>
-            {done.fellBackFrom && (
-              <p className="mt-1 text-xs" style={{ color: 'var(--danger)' }}>{t('ai.fellBack', { name: done.fellBackFrom })}</p>
-            )}
-          </header>
-          <div className="max-w-[68ch]">
-            {done.text.split(/\n{2,}/).map((p, i) => (
-              <p key={i} className="text-[15px] leading-[1.65] mb-2.5 last:mb-0" style={{ color: 'var(--reading-text)' }}>{p}</p>
-            ))}
-          </div>
-        </section>
-      )}
+          </section>
+        )}
+      </div>
 
-      {menuOpen && available.length > 0 && (touch
-        ? <BottomSheet open onClose={() => setMenuOpen(false)} title={t('ai.withProvider')}>{menuItems}</BottomSheet>
+      {menuShown && (touch
+        ? <BottomSheet open onClose={closeMenu} title={t('ai.withProvider')}>{menuItems}</BottomSheet>
         : createPortal(<Popover anchor={menuAnchor.current} onClose={closeMenu}>{menuItems}</Popover>, document.body))}
     </div>
   );
 }
 
-/** Menu ancré sous son déclencheur, ramené dans la fenêtre, fermé par Échap, clic extérieur ou redimensionnement. */
+/** Menu ancré sous son déclencheur, ramené dans la fenêtre, fermé par Échap, Tab, clic extérieur ou redimensionnement. */
 function Popover({ anchor, onClose, children }: { anchor: HTMLElement | null; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: 0, top: 0 });
@@ -154,6 +167,7 @@ function Popover({ anchor, onClose, children }: { anchor: HTMLElement | null; on
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if (e.key === 'Tab') { onClose(); return; }
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
       const items = Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
       if (!items.length) return;
