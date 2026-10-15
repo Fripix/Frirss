@@ -34,7 +34,7 @@ _(rien pour l'instant)_
 
 ## Sous le capot
 
-_(rien pour l'instant)_
+- **Image de branche** : un lancement manuel du workflow de publication sur une branche autre que `main` et `dev` publie `:sha-…` et `:<branche>` (nom assaini), en amd64 seulement.
 
 ## Actions requises à la mise à jour
 
