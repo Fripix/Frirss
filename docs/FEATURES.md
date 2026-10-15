@@ -1839,7 +1839,8 @@ le plan 3.
   `technical` seulement, dans l'ordre de l'admin, **jamais** sur `refused`, un
   seul tour ; la réponse dit d'où on vient (`fellBackFrom`). Une exception qui
   n'est pas une `AiError` devient `provider_error` (`technical`, repli permis) ;
-  son message brut n'apparaît que dans le journal du serveur.
+  seul le journal du serveur en garde trace : nom du fournisseur, nom et
+  message de l'erreur — jamais l'objet brut ni les en-têtes.
 - **Plafond** (`ai_daily_cap`, défaut 50, 0 = illimité) : par utilisateur et
   par jour civil, **seulement quand la clé admin paie pour un utilisateur**. Un
   admin en est exempt sur tout fournisseur dont la clé admin paie, partagé ou

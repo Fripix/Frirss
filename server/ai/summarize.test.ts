@@ -101,17 +101,23 @@ describe('summarize', () => {
     await summarize({ ...base, html: '<p>' + 'autre '.repeat(60) + '</p>', available: [A(1, 'A')] }, { call });
     expect(call).toHaveBeenCalledTimes(2);
   });
-  it('wraps a non-AiError with a fixed message and falls back', async () => {
+  it('wraps a non-AiError with a fixed message, falls back, and logs only strings', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const call = vi.fn()
-      .mockRejectedValueOnce(new Error('secret sk-123 leaked'))
-      .mockResolvedValueOnce({ text: 'lang: en\n\nOk.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
-    const r = await summarize({ ...base, available: [A(1, 'A'), A(2, 'B')] }, { call });
-    expect(r.providerName).toBe('B');
-    const solo = vi.fn().mockRejectedValue(new Error('secret sk-123 leaked'));
-    await expect(summarize({ ...base, fallback: false, available: [A(1, 'A')] }, { call: solo })).rejects.toMatchObject({ kind: 'technical', message: 'provider_error' });
-    expect(spy).toHaveBeenCalled();
-    expect(spy.mock.calls[0][0]).toBe('AI provider error:');
-    spy.mockRestore();
+    try {
+      // L'erreur porte la requête (en-têtes, clé) comme le ferait une erreur de client HTTP.
+      const boom = () => Object.assign(new Error('network exploded'), { config: { headers: { 'x-api-key': 'sk-123' } } });
+      const call = vi.fn()
+        .mockRejectedValueOnce(boom())
+        .mockResolvedValueOnce({ text: 'lang: en\n\nOk.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+      const r = await summarize({ ...base, available: [{ ...A(1, 'A'), key: 'sk-123' }, A(2, 'B')] }, { call });
+      expect(r.providerName).toBe('B');
+      const solo = vi.fn().mockRejectedValue(boom());
+      await expect(summarize({ ...base, fallback: false, available: [{ ...A(1, 'A'), key: 'sk-123' }] }, { call: solo })).rejects.toMatchObject({ kind: 'technical', message: 'provider_error' });
+      expect(spy).toHaveBeenCalled();
+      expect(spy.mock.calls[0]).toEqual(['AI provider error:', 'A', 'Error', 'network exploded']);
+      expect(JSON.stringify(spy.mock.calls)).not.toContain('sk-123');
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

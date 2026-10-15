@@ -59,8 +59,8 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
     try {
       result = await call(cand.provider, cand.key, { system: SUMMARY_SYSTEM, user: `Title: ${req.title}\n\n${text}` });
     } catch (err) {
-      // Le message brut ne va que dans le journal : il n'atteint jamais le client (la clé n'y figure pas, elle ne part que dans la requête).
-      if (!(err instanceof AiError)) console.error('AI provider error:', cand.provider.name, err);
+      // Que des chaînes : jamais l'objet d'erreur brut, qui peut porter la requête et ses en-têtes (donc la clé).
+      if (!(err instanceof AiError)) console.error('AI provider error:', cand.provider.name, (err as Error)?.name, (err as Error)?.message);
       const e = err instanceof AiError ? err : new AiError('technical', 'provider_error');
       if (e.kind === 'refused' || !req.fallback) throw e;
       lastError = e;
