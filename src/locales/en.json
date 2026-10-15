@@ -739,7 +739,7 @@
       "tooLong": "Article too long to summarise.",
       "refused": "The provider declined to summarise this article.",
       "noProvider": "No provider available.",
-      "technical": "The provider returned an error. Try again."
+      "technical": "The summary failed. Try again."
     },
     "admin": {
       "title": "Providers",

@@ -739,7 +739,7 @@
       "tooLong": "Artikel te lang om samen te vatten.",
       "refused": "De aanbieder weigerde dit artikel samen te vatten.",
       "noProvider": "Geen aanbieder beschikbaar.",
-      "technical": "De aanbieder gaf een fout terug. Probeer het opnieuw."
+      "technical": "De samenvatting is mislukt. Probeer het opnieuw."
     },
     "admin": {
       "title": "Aanbieders",

@@ -739,7 +739,7 @@
       "tooLong": "Article trop long pour être résumé.",
       "refused": "Le fournisseur a refusé de résumer cet article.",
       "noProvider": "Aucun fournisseur disponible.",
-      "technical": "Le fournisseur a renvoyé une erreur. Réessayez."
+      "technical": "Le résumé a échoué. Réessayez."
     },
     "admin": {
       "title": "Fournisseurs",

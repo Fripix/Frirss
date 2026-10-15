@@ -739,7 +739,7 @@
       "tooLong": "Artikel zu lang für eine Zusammenfassung.",
       "refused": "Der Anbieter hat die Zusammenfassung dieses Artikels abgelehnt.",
       "noProvider": "Kein Anbieter verfügbar.",
-      "technical": "Der Anbieter hat einen Fehler gemeldet. Versuchen Sie es erneut."
+      "technical": "Die Zusammenfassung ist fehlgeschlagen. Versuchen Sie es erneut."
     },
     "admin": {
       "title": "Anbieter",

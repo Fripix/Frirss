@@ -767,7 +767,7 @@
       "tooLong": "Artykuł jest zbyt długi, by go podsumować.",
       "refused": "Dostawca odmówił podsumowania tego artykułu.",
       "noProvider": "Brak dostępnego dostawcy.",
-      "technical": "Dostawca zwrócił błąd. Spróbuj ponownie."
+      "technical": "Nie udało się utworzyć streszczenia. Spróbuj ponownie."
     },
     "admin": {
       "title": "Dostawcy",
