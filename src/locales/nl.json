@@ -411,7 +411,8 @@
       "feeds": "Feeds",
       "offline": "Offline",
       "admin": "Beheer",
-      "layout": "Lay-out"
+      "layout": "Lay-out",
+      "ai": "AI"
     },
     "appearance": {
       "theme": "Thema",
@@ -718,5 +719,60 @@
     "markAllConfirm": "Als gelezen markeren",
     "markAboveTitle": "De artikelen hierboven als gelezen markeren?",
     "markBelowTitle": "De artikelen hieronder als gelezen markeren?"
+  },
+  "ai": {
+    "summarize": "AI-samenvatting",
+    "summarizing": "Samenvatten…",
+    "summaryTitle": "Samenvatting",
+    "by": "Samenvatting door {{name}}",
+    "fromCache": "uit de cache",
+    "fellBack": "{{name}} niet beschikbaar",
+    "withProvider": "Samenvatten met…",
+    "userIntro": "AI-samenvattingen zijn klaar: open een artikel en klik op ‘AI-samenvatting’.",
+    "errors": {
+      "auth": "Sleutel geweigerd door de aanbieder. Controleer hem in Voorkeuren › AI.",
+      "quota": "Limiet van de aanbieder bereikt. Probeer het later opnieuw.",
+      "cap": "Dagelijkse samenvattingslimiet bereikt.",
+      "tooShort": "Artikel te kort om samen te vatten.",
+      "refused": "De aanbieder weigerde dit artikel samen te vatten.",
+      "noProvider": "Geen aanbieder beschikbaar.",
+      "technical": "De aanbieder antwoordde niet. Probeer het opnieuw."
+    },
+    "admin": {
+      "title": "Aanbieders",
+      "enable": "AI-samenvattingen inschakelen",
+      "add": "Aanbieder toevoegen",
+      "edit": "Bewerken",
+      "delete": "Verwijderen",
+      "deleteTitle": "Deze aanbieder verwijderen?",
+      "save": "Opslaan",
+      "saved": "Opgeslagen",
+      "close": "Sluiten",
+      "test": "Testen",
+      "testing": "Bezig met testen…",
+      "testOk": "Verbinding geslaagd",
+      "testFailed": "Mislukt: controleer de URL, het model en de sleutel",
+      "name": "Naam",
+      "type": "Type",
+      "typeOpenai": "OpenAI-compatibel (OpenAI, Ollama, Mistral, OpenRouter…)",
+      "typeAnthropic": "Anthropic (Claude)",
+      "baseUrl": "Basis-URL",
+      "model": "Model",
+      "key": "API-sleutel",
+      "keyKeep": "Laat leeg om de huidige sleutel te behouden",
+      "keySet": "sleutel opgeslagen",
+      "shared": "Deze sleutel delen met gebruikers",
+      "defaultProvider": "Standaardaanbieder",
+      "none": "Geen",
+      "moveUp": "Omhoog",
+      "moveDown": "Omlaag",
+      "advanced": "Geavanceerd",
+      "userKeysAllowed": "Gebruikers mogen hun eigen sleutel invoeren",
+      "dailyCap": "Dagelijkse limiet per gebruiker",
+      "dailyCapHint": "Telt alleen aanroepen die met jouw sleutel worden betaald. 0 = onbeperkt.",
+      "missingFields": "Naam, URL en model zijn verplicht.",
+      "loadError": "De aanbieders konden niet worden geladen.",
+      "saveError": "Opslaan mislukt. Probeer het opnieuw."
+    }
   }
 }

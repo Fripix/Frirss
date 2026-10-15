@@ -421,7 +421,8 @@
       "feeds": "Kanały",
       "offline": "Offline",
       "admin": "Administracja",
-      "layout": "Układ"
+      "layout": "Układ",
+      "ai": "AI"
     },
     "appearance": {
       "theme": "Motyw",
@@ -746,5 +747,60 @@
     "markAllConfirm": "Oznacz jako przeczytane",
     "markAboveTitle": "Oznaczyć artykuły powyżej jako przeczytane?",
     "markBelowTitle": "Oznaczyć artykuły poniżej jako przeczytane?"
+  },
+  "ai": {
+    "summarize": "Podsumowanie AI",
+    "summarizing": "Podsumowuję…",
+    "summaryTitle": "Podsumowanie",
+    "by": "Podsumowanie od {{name}}",
+    "fromCache": "z pamięci podręcznej",
+    "fellBack": "{{name}} niedostępny",
+    "withProvider": "Podsumuj za pomocą…",
+    "userIntro": "Podsumowania AI są gotowe: otwórz artykuł i kliknij „Podsumowanie AI”.",
+    "errors": {
+      "auth": "Dostawca odrzucił klucz. Sprawdź go w Preferencje › AI.",
+      "quota": "Osiągnięto limit dostawcy. Spróbuj ponownie później.",
+      "cap": "Osiągnięto dzienny limit podsumowań.",
+      "tooShort": "Artykuł jest zbyt krótki, by go podsumować.",
+      "refused": "Dostawca odmówił podsumowania tego artykułu.",
+      "noProvider": "Brak dostępnego dostawcy.",
+      "technical": "Dostawca nie odpowiedział. Spróbuj ponownie."
+    },
+    "admin": {
+      "title": "Dostawcy",
+      "enable": "Włącz podsumowania AI",
+      "add": "Dodaj dostawcę",
+      "edit": "Edytuj",
+      "delete": "Usuń",
+      "deleteTitle": "Usunąć tego dostawcę?",
+      "save": "Zapisz",
+      "saved": "Zapisano",
+      "close": "Zamknij",
+      "test": "Testuj",
+      "testing": "Trwa test…",
+      "testOk": "Połączenie udane",
+      "testFailed": "Niepowodzenie: sprawdź adres URL, model i klucz",
+      "name": "Nazwa",
+      "type": "Typ",
+      "typeOpenai": "Zgodny z OpenAI (OpenAI, Ollama, Mistral, OpenRouter…)",
+      "typeAnthropic": "Anthropic (Claude)",
+      "baseUrl": "Bazowy adres URL",
+      "model": "Model",
+      "key": "Klucz API",
+      "keyKeep": "Pozostaw puste, aby zachować obecny klucz",
+      "keySet": "klucz zapisany",
+      "shared": "Udostępnij ten klucz użytkownikom",
+      "defaultProvider": "Domyślny dostawca",
+      "none": "Brak",
+      "moveUp": "W górę",
+      "moveDown": "W dół",
+      "advanced": "Zaawansowane",
+      "userKeysAllowed": "Użytkownicy mogą podać własny klucz",
+      "dailyCap": "Dzienny limit na użytkownika",
+      "dailyCapHint": "Liczy tylko wywołania opłacone Twoim kluczem. 0 = bez limitu.",
+      "missingFields": "Nazwa, adres URL i model są wymagane.",
+      "loadError": "Nie udało się wczytać dostawców.",
+      "saveError": "Nie udało się zapisać. Spróbuj ponownie."
+    }
   }
 }

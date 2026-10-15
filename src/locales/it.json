@@ -411,7 +411,8 @@
       "feeds": "Flussi",
       "offline": "Offline",
       "admin": "Amministrazione",
-      "layout": "Layout"
+      "layout": "Layout",
+      "ai": "IA"
     },
     "appearance": {
       "theme": "Tema",
@@ -718,5 +719,60 @@
     "markAllConfirm": "Segna come letto",
     "markAboveTitle": "Segnare come letti gli articoli sopra?",
     "markBelowTitle": "Segnare come letti gli articoli sotto?"
+  },
+  "ai": {
+    "summarize": "Riassunto IA",
+    "summarizing": "Riassunto in corso…",
+    "summaryTitle": "Riassunto",
+    "by": "Riassunto di {{name}}",
+    "fromCache": "dalla cache",
+    "fellBack": "{{name}} non disponibile",
+    "withProvider": "Riassumi con…",
+    "userIntro": "I riassunti IA sono pronti: apri un articolo e fai clic su «Riassunto IA».",
+    "errors": {
+      "auth": "Chiave rifiutata dal fornitore. Controllala in Preferenze › IA.",
+      "quota": "Quota del fornitore raggiunta. Riprova più tardi.",
+      "cap": "Limite giornaliero di riassunti raggiunto.",
+      "tooShort": "Articolo troppo breve per essere riassunto.",
+      "refused": "Il fornitore ha rifiutato di riassumere questo articolo.",
+      "noProvider": "Nessun fornitore disponibile.",
+      "technical": "Il fornitore non ha risposto. Riprova."
+    },
+    "admin": {
+      "title": "Fornitori",
+      "enable": "Attiva i riassunti IA",
+      "add": "Aggiungi un fornitore",
+      "edit": "Modifica",
+      "delete": "Elimina",
+      "deleteTitle": "Eliminare questo fornitore?",
+      "save": "Salva",
+      "saved": "Salvato",
+      "close": "Chiudi",
+      "test": "Prova",
+      "testing": "Prova in corso…",
+      "testOk": "Connessione riuscita",
+      "testFailed": "Non riuscito: controlla URL, modello e chiave",
+      "name": "Nome",
+      "type": "Tipo",
+      "typeOpenai": "Compatibile con OpenAI (OpenAI, Ollama, Mistral, OpenRouter…)",
+      "typeAnthropic": "Anthropic (Claude)",
+      "baseUrl": "URL di base",
+      "model": "Modello",
+      "key": "Chiave API",
+      "keyKeep": "Lascia vuoto per mantenere la chiave attuale",
+      "keySet": "chiave salvata",
+      "shared": "Condividi questa chiave con gli utenti",
+      "defaultProvider": "Fornitore predefinito",
+      "none": "Nessuno",
+      "moveUp": "Sposta su",
+      "moveDown": "Sposta giù",
+      "advanced": "Avanzate",
+      "userKeysAllowed": "Gli utenti possono inserire la propria chiave",
+      "dailyCap": "Limite giornaliero per utente",
+      "dailyCapHint": "Conta solo le chiamate pagate con la tua chiave. 0 = illimitato.",
+      "missingFields": "Nome, URL e modello sono obbligatori.",
+      "loadError": "Impossibile caricare i fornitori.",
+      "saveError": "Salvataggio non riuscito. Riprova."
+    }
   }
 }

@@ -411,7 +411,8 @@
       "feeds": "Flux",
       "offline": "Hors-ligne",
       "admin": "Administration",
-      "layout": "Mise en page"
+      "layout": "Mise en page",
+      "ai": "IA"
     },
     "appearance": {
       "theme": "Thème",
@@ -718,5 +719,60 @@
     "markAllConfirm": "Marquer lu",
     "markAboveTitle": "Marquer comme lus les articles au-dessus ?",
     "markBelowTitle": "Marquer comme lus les articles en dessous ?"
+  },
+  "ai": {
+    "summarize": "Résumé IA",
+    "summarizing": "Résumé…",
+    "summaryTitle": "Résumé",
+    "by": "Résumé par {{name}}",
+    "fromCache": "depuis le cache",
+    "fellBack": "{{name}} indisponible",
+    "withProvider": "Résumer avec…",
+    "userIntro": "Les résumés IA sont prêts : ouvrez un article et cliquez « Résumé IA ».",
+    "errors": {
+      "auth": "Clé refusée par le fournisseur. Vérifiez-la dans Préférences › IA.",
+      "quota": "Quota du fournisseur atteint. Réessayez plus tard.",
+      "cap": "Limite quotidienne de résumés atteinte.",
+      "tooShort": "Article trop court pour être résumé.",
+      "refused": "Le fournisseur a refusé de résumer cet article.",
+      "noProvider": "Aucun fournisseur disponible.",
+      "technical": "Le fournisseur n’a pas répondu. Réessayez."
+    },
+    "admin": {
+      "title": "Fournisseurs",
+      "enable": "Activer les résumés IA",
+      "add": "Ajouter un fournisseur",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "deleteTitle": "Supprimer ce fournisseur ?",
+      "save": "Enregistrer",
+      "saved": "Enregistré",
+      "close": "Fermer",
+      "test": "Tester",
+      "testing": "Test en cours…",
+      "testOk": "Connexion réussie",
+      "testFailed": "Échec : vérifiez l’URL, le modèle et la clé",
+      "name": "Nom",
+      "type": "Type",
+      "typeOpenai": "Compatible OpenAI (OpenAI, Ollama, Mistral, OpenRouter…)",
+      "typeAnthropic": "Anthropic (Claude)",
+      "baseUrl": "URL de base",
+      "model": "Modèle",
+      "key": "Clé d’API",
+      "keyKeep": "Laisser vide pour conserver la clé actuelle",
+      "keySet": "clé enregistrée",
+      "shared": "Partager cette clé avec les utilisateurs",
+      "defaultProvider": "Fournisseur par défaut",
+      "none": "Aucun",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
+      "advanced": "Avancé",
+      "userKeysAllowed": "Les utilisateurs peuvent saisir leur propre clé",
+      "dailyCap": "Plafond quotidien par utilisateur",
+      "dailyCapHint": "Compte seulement les appels payés par votre clé. 0 = illimité.",
+      "missingFields": "Nom, URL et modèle sont obligatoires.",
+      "loadError": "Impossible de charger les fournisseurs.",
+      "saveError": "Enregistrement impossible. Réessayez."
+    }
   }
 }

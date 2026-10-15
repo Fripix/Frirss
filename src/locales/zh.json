@@ -411,7 +411,8 @@
       "feeds": "订阅源",
       "offline": "离线",
       "admin": "管理",
-      "layout": "操作图标"
+      "layout": "操作图标",
+      "ai": "AI"
     },
     "appearance": {
       "theme": "主题",
@@ -718,5 +719,60 @@
     "markAllConfirm": "标为已读",
     "markAboveTitle": "将上方的文章标为已读？",
     "markBelowTitle": "将下方的文章标为已读？"
+  },
+  "ai": {
+    "summarize": "AI 摘要",
+    "summarizing": "正在生成摘要…",
+    "summaryTitle": "摘要",
+    "by": "由 {{name}} 生成的摘要",
+    "fromCache": "来自缓存",
+    "fellBack": "{{name}} 不可用",
+    "withProvider": "使用以下服务生成摘要…",
+    "userIntro": "AI 摘要已就绪：打开一篇文章并点击“AI 摘要”。",
+    "errors": {
+      "auth": "服务商拒绝了该密钥。请在“偏好设置 › AI”中检查。",
+      "quota": "已达到服务商的配额。请稍后再试。",
+      "cap": "已达到每日摘要上限。",
+      "tooShort": "文章太短，无法生成摘要。",
+      "refused": "服务商拒绝为这篇文章生成摘要。",
+      "noProvider": "没有可用的服务商。",
+      "technical": "服务商没有响应。请重试。"
+    },
+    "admin": {
+      "title": "服务商",
+      "enable": "启用 AI 摘要",
+      "add": "添加服务商",
+      "edit": "编辑",
+      "delete": "删除",
+      "deleteTitle": "删除此服务商？",
+      "save": "保存",
+      "saved": "已保存",
+      "close": "关闭",
+      "test": "测试",
+      "testing": "正在测试…",
+      "testOk": "连接成功",
+      "testFailed": "失败：请检查 URL、模型和密钥",
+      "name": "名称",
+      "type": "类型",
+      "typeOpenai": "兼容 OpenAI（OpenAI、Ollama、Mistral、OpenRouter…）",
+      "typeAnthropic": "Anthropic（Claude）",
+      "baseUrl": "基础 URL",
+      "model": "模型",
+      "key": "API 密钥",
+      "keyKeep": "留空以保留当前密钥",
+      "keySet": "密钥已保存",
+      "shared": "与用户共享此密钥",
+      "defaultProvider": "默认服务商",
+      "none": "无",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "advanced": "高级",
+      "userKeysAllowed": "允许用户输入自己的密钥",
+      "dailyCap": "每位用户的每日上限",
+      "dailyCapHint": "仅统计使用您的密钥付费的调用。0 = 不限。",
+      "missingFields": "名称、URL 和模型为必填项。",
+      "loadError": "无法加载服务商。",
+      "saveError": "保存失败。请重试。"
+    }
   }
 }

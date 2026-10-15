@@ -411,7 +411,8 @@
       "feeds": "Feeds",
       "offline": "Offline",
       "admin": "Verwaltung",
-      "layout": "Layout"
+      "layout": "Layout",
+      "ai": "KI"
     },
     "appearance": {
       "theme": "Design",
@@ -718,5 +719,60 @@
     "markAllConfirm": "Als gelesen markieren",
     "markAboveTitle": "Die Artikel darüber als gelesen markieren?",
     "markBelowTitle": "Die Artikel darunter als gelesen markieren?"
+  },
+  "ai": {
+    "summarize": "KI-Zusammenfassung",
+    "summarizing": "Zusammenfassen…",
+    "summaryTitle": "Zusammenfassung",
+    "by": "Zusammenfassung von {{name}}",
+    "fromCache": "aus dem Cache",
+    "fellBack": "{{name}} nicht verfügbar",
+    "withProvider": "Zusammenfassen mit…",
+    "userIntro": "KI-Zusammenfassungen sind bereit: Öffnen Sie einen Artikel und klicken Sie auf „KI-Zusammenfassung“.",
+    "errors": {
+      "auth": "Der Anbieter hat den Schlüssel abgelehnt. Prüfen Sie ihn unter Einstellungen › KI.",
+      "quota": "Kontingent des Anbieters erreicht. Versuchen Sie es später erneut.",
+      "cap": "Tageslimit für Zusammenfassungen erreicht.",
+      "tooShort": "Artikel zu kurz für eine Zusammenfassung.",
+      "refused": "Der Anbieter hat die Zusammenfassung dieses Artikels abgelehnt.",
+      "noProvider": "Kein Anbieter verfügbar.",
+      "technical": "Der Anbieter hat nicht geantwortet. Versuchen Sie es erneut."
+    },
+    "admin": {
+      "title": "Anbieter",
+      "enable": "KI-Zusammenfassungen aktivieren",
+      "add": "Anbieter hinzufügen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "deleteTitle": "Diesen Anbieter löschen?",
+      "save": "Speichern",
+      "saved": "Gespeichert",
+      "close": "Schließen",
+      "test": "Testen",
+      "testing": "Test läuft…",
+      "testOk": "Verbindung erfolgreich",
+      "testFailed": "Fehlgeschlagen: Prüfen Sie URL, Modell und Schlüssel",
+      "name": "Name",
+      "type": "Typ",
+      "typeOpenai": "OpenAI-kompatibel (OpenAI, Ollama, Mistral, OpenRouter…)",
+      "typeAnthropic": "Anthropic (Claude)",
+      "baseUrl": "Basis-URL",
+      "model": "Modell",
+      "key": "API-Schlüssel",
+      "keyKeep": "Leer lassen, um den aktuellen Schlüssel zu behalten",
+      "keySet": "Schlüssel gespeichert",
+      "shared": "Diesen Schlüssel mit den Nutzern teilen",
+      "defaultProvider": "Standardanbieter",
+      "none": "Keiner",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
+      "advanced": "Erweitert",
+      "userKeysAllowed": "Nutzer dürfen einen eigenen Schlüssel eingeben",
+      "dailyCap": "Tageslimit pro Nutzer",
+      "dailyCapHint": "Zählt nur Aufrufe, die mit Ihrem Schlüssel bezahlt werden. 0 = unbegrenzt.",
+      "missingFields": "Name, URL und Modell sind erforderlich.",
+      "loadError": "Die Anbieter konnten nicht geladen werden.",
+      "saveError": "Speichern nicht möglich. Versuchen Sie es erneut."
+    }
   }
 }

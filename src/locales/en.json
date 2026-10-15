@@ -411,7 +411,8 @@
       "feeds": "Feeds",
       "offline": "Offline",
       "admin": "Administration",
-      "layout": "Layout"
+      "layout": "Layout",
+      "ai": "AI"
     },
     "appearance": {
       "theme": "Theme",
@@ -718,5 +719,60 @@
     "markAllConfirm": "Mark as read",
     "markAboveTitle": "Mark the articles above as read?",
     "markBelowTitle": "Mark the articles below as read?"
+  },
+  "ai": {
+    "summarize": "AI summary",
+    "summarizing": "Summarising…",
+    "summaryTitle": "Summary",
+    "by": "Summary by {{name}}",
+    "fromCache": "from cache",
+    "fellBack": "{{name}} unavailable",
+    "withProvider": "Summarise with…",
+    "userIntro": "AI summaries are ready: open an article and click “AI summary”.",
+    "errors": {
+      "auth": "Key rejected by the provider. Check it in Preferences › AI.",
+      "quota": "Provider quota reached. Try again later.",
+      "cap": "Daily summary limit reached.",
+      "tooShort": "Article too short to summarise.",
+      "refused": "The provider declined to summarise this article.",
+      "noProvider": "No provider available.",
+      "technical": "The provider did not answer. Try again."
+    },
+    "admin": {
+      "title": "Providers",
+      "enable": "Enable AI summaries",
+      "add": "Add a provider",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteTitle": "Delete this provider?",
+      "save": "Save",
+      "saved": "Saved",
+      "close": "Close",
+      "test": "Test",
+      "testing": "Testing…",
+      "testOk": "Connection OK",
+      "testFailed": "Failed: check the URL, model and key",
+      "name": "Name",
+      "type": "Type",
+      "typeOpenai": "OpenAI-compatible (OpenAI, Ollama, Mistral, OpenRouter…)",
+      "typeAnthropic": "Anthropic (Claude)",
+      "baseUrl": "Base URL",
+      "model": "Model",
+      "key": "API key",
+      "keyKeep": "Leave empty to keep the current key",
+      "keySet": "key set",
+      "shared": "Share this key with users",
+      "defaultProvider": "Default provider",
+      "none": "None",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "advanced": "Advanced",
+      "userKeysAllowed": "Users may enter their own key",
+      "dailyCap": "Daily cap per user",
+      "dailyCapHint": "Counts only calls paid with your key. 0 = unlimited.",
+      "missingFields": "Name, URL and model are required.",
+      "loadError": "Could not load the providers.",
+      "saveError": "Could not save. Try again."
+    }
   }
 }

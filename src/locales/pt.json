@@ -411,7 +411,8 @@
       "feeds": "Fontes",
       "offline": "Offline",
       "admin": "Administração",
-      "layout": "Disposição"
+      "layout": "Disposição",
+      "ai": "IA"
     },
     "appearance": {
       "theme": "Tema",
@@ -718,5 +719,60 @@
     "markAllConfirm": "Marcar como lido",
     "markAboveTitle": "Marcar como lidos os artigos acima?",
     "markBelowTitle": "Marcar como lidos os artigos abaixo?"
+  },
+  "ai": {
+    "summarize": "Resumo IA",
+    "summarizing": "A resumir…",
+    "summaryTitle": "Resumo",
+    "by": "Resumo de {{name}}",
+    "fromCache": "da cache",
+    "fellBack": "{{name}} indisponível",
+    "withProvider": "Resumir com…",
+    "userIntro": "Os resumos IA estão prontos: abra um artigo e clique em «Resumo IA».",
+    "errors": {
+      "auth": "Chave recusada pelo fornecedor. Verifique-a em Preferências › IA.",
+      "quota": "Quota do fornecedor atingida. Tente novamente mais tarde.",
+      "cap": "Limite diário de resumos atingido.",
+      "tooShort": "Artigo demasiado curto para ser resumido.",
+      "refused": "O fornecedor recusou-se a resumir este artigo.",
+      "noProvider": "Nenhum fornecedor disponível.",
+      "technical": "O fornecedor não respondeu. Tente novamente."
+    },
+    "admin": {
+      "title": "Fornecedores",
+      "enable": "Ativar os resumos IA",
+      "add": "Adicionar um fornecedor",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "deleteTitle": "Eliminar este fornecedor?",
+      "save": "Guardar",
+      "saved": "Guardado",
+      "close": "Fechar",
+      "test": "Testar",
+      "testing": "A testar…",
+      "testOk": "Ligação bem-sucedida",
+      "testFailed": "Falha: verifique o URL, o modelo e a chave",
+      "name": "Nome",
+      "type": "Tipo",
+      "typeOpenai": "Compatível com OpenAI (OpenAI, Ollama, Mistral, OpenRouter…)",
+      "typeAnthropic": "Anthropic (Claude)",
+      "baseUrl": "URL base",
+      "model": "Modelo",
+      "key": "Chave de API",
+      "keyKeep": "Deixe vazio para manter a chave atual",
+      "keySet": "chave guardada",
+      "shared": "Partilhar esta chave com os utilizadores",
+      "defaultProvider": "Fornecedor predefinido",
+      "none": "Nenhum",
+      "moveUp": "Subir",
+      "moveDown": "Descer",
+      "advanced": "Avançado",
+      "userKeysAllowed": "Os utilizadores podem introduzir a sua própria chave",
+      "dailyCap": "Limite diário por utilizador",
+      "dailyCapHint": "Conta apenas as chamadas pagas com a sua chave. 0 = ilimitado.",
+      "missingFields": "Nome, URL e modelo são obrigatórios.",
+      "loadError": "Não foi possível carregar os fornecedores.",
+      "saveError": "Não foi possível guardar. Tente novamente."
+    }
   }
 }

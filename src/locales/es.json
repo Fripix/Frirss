@@ -411,7 +411,8 @@
       "feeds": "Fuentes",
       "offline": "Sin conexión",
       "admin": "Administración",
-      "layout": "Diseño"
+      "layout": "Diseño",
+      "ai": "IA"
     },
     "appearance": {
       "theme": "Tema",
@@ -718,5 +719,60 @@
     "markAllConfirm": "Marcar como leído",
     "markAboveTitle": "¿Marcar como leídos los artículos de arriba?",
     "markBelowTitle": "¿Marcar como leídos los artículos de abajo?"
+  },
+  "ai": {
+    "summarize": "Resumen IA",
+    "summarizing": "Resumiendo…",
+    "summaryTitle": "Resumen",
+    "by": "Resumen de {{name}}",
+    "fromCache": "desde la caché",
+    "fellBack": "{{name}} no disponible",
+    "withProvider": "Resumir con…",
+    "userIntro": "Los resúmenes IA están listos: abre un artículo y haz clic en «Resumen IA».",
+    "errors": {
+      "auth": "El proveedor ha rechazado la clave. Compruébala en Preferencias › IA.",
+      "quota": "Se alcanzó la cuota del proveedor. Inténtalo de nuevo más tarde.",
+      "cap": "Se alcanzó el límite diario de resúmenes.",
+      "tooShort": "Artículo demasiado corto para resumirlo.",
+      "refused": "El proveedor se negó a resumir este artículo.",
+      "noProvider": "Ningún proveedor disponible.",
+      "technical": "El proveedor no respondió. Inténtalo de nuevo."
+    },
+    "admin": {
+      "title": "Proveedores",
+      "enable": "Activar los resúmenes IA",
+      "add": "Añadir un proveedor",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "deleteTitle": "¿Eliminar este proveedor?",
+      "save": "Guardar",
+      "saved": "Guardado",
+      "close": "Cerrar",
+      "test": "Probar",
+      "testing": "Probando…",
+      "testOk": "Conexión correcta",
+      "testFailed": "Error: comprueba la URL, el modelo y la clave",
+      "name": "Nombre",
+      "type": "Tipo",
+      "typeOpenai": "Compatible con OpenAI (OpenAI, Ollama, Mistral, OpenRouter…)",
+      "typeAnthropic": "Anthropic (Claude)",
+      "baseUrl": "URL base",
+      "model": "Modelo",
+      "key": "Clave de API",
+      "keyKeep": "Déjalo vacío para conservar la clave actual",
+      "keySet": "clave guardada",
+      "shared": "Compartir esta clave con los usuarios",
+      "defaultProvider": "Proveedor predeterminado",
+      "none": "Ninguno",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "advanced": "Avanzado",
+      "userKeysAllowed": "Los usuarios pueden introducir su propia clave",
+      "dailyCap": "Límite diario por usuario",
+      "dailyCapHint": "Solo cuenta las llamadas pagadas con tu clave. 0 = ilimitado.",
+      "missingFields": "El nombre, la URL y el modelo son obligatorios.",
+      "loadError": "No se pudieron cargar los proveedores.",
+      "saveError": "No se pudo guardar. Inténtalo de nuevo."
+    }
   }
 }
