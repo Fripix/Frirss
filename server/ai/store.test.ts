@@ -3,7 +3,7 @@ import db from '../db.js';
 import {
   listProviders, createProvider, updateProvider, deleteProvider, reorderProviders,
   adminKeyFor, setUserKey, userKeyFor, hasUserKey, usageToday, bumpUsage,
-  aiCacheKey, aiCacheGet, aiCacheSet,
+  aiCacheKey, aiCacheGet, aiCacheSet, getProvider, normalizeBaseUrl, nextUsageReset,
 } from './store.js';
 
 beforeEach(() => {
@@ -24,6 +24,16 @@ describe('providers', () => {
     const p = createProvider({ name: 'X', type: 'openai', baseUrl: 'http://ollama:11434', model: 'llama3', adminKey: 'k' });
     expect(updateProvider(p.id, { name: 'Y' })!.hasAdminKey).toBe(true);
     expect(updateProvider(p.id, { adminKey: '' })!.hasAdminKey).toBe(false);
+  });
+  it('normalises the base URL: trailing slashes, then a trailing /v1', () => {
+    expect(normalizeBaseUrl('http://ollama:11434/v1/')).toBe('http://ollama:11434');
+    expect(normalizeBaseUrl('https://api.openai.com/V1')).toBe('https://api.openai.com');
+    expect(normalizeBaseUrl('https://api.anthropic.com//')).toBe('https://api.anthropic.com');
+    expect(normalizeBaseUrl('https://host/proxy/v1beta')).toBe('https://host/proxy/v1beta');
+    const p = createProvider({ name: 'O', type: 'openai', baseUrl: 'http://ollama:11434/v1/', model: 'm' });
+    expect(p.baseUrl).toBe('http://ollama:11434');
+    expect(updateProvider(p.id, { baseUrl: 'https://api.openai.com/v1' })!.baseUrl).toBe('https://api.openai.com');
+    expect(getProvider(p.id)!.baseUrl).toBe('https://api.openai.com');
   });
   it('orders by position and reorders', () => {
     const a = createProvider({ name: 'A', type: 'openai', baseUrl: 'http://a', model: 'm' });
@@ -55,24 +65,45 @@ describe('usage', () => {
     expect(bumpUsage(41)).toBe(2);
     expect(usageToday(41)).toBe(2);
   });
+  it('resets at the next local midnight', () => {
+    const now = new Date(2026, 9, 15, 18, 30);
+    const reset = new Date(nextUsageReset(now));
+    expect(reset.getTime()).toBe(new Date(2026, 9, 16, 0, 0).getTime());
+  });
 });
 
 describe('cache', () => {
   it('keys by article, op, provider, lang and prompt version', () => {
-    const k1 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 3 });
-    const k2 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 4 });
+    const k1 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 3, model: 'm' });
+    const k2 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 4, model: 'm' });
     expect(k1).not.toBe(k2);
     expect(k1).toContain(':v1:');
   });
+  it('binds the key to the model', () => {
+    const a = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'llama3' });
+    const b = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'llama3.1' });
+    expect(a).not.toBe(b);
+  });
   it('binds the key to the content hash', () => {
-    const a = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, contentHash: 'h1' });
-    const b = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, contentHash: 'h2' });
+    const a = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'm', contentHash: 'h1' });
+    const b = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'm', contentHash: 'h2' });
     expect(a).not.toBe(b);
   });
   it('round-trips through SQLite when Redis is off', async () => {
-    const k = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1 });
+    const k = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'm' });
     expect(await aiCacheGet(k)).toBeNull();
     await aiCacheSet(k, { text: 'résumé', lang: 'fr' });
     expect(await aiCacheGet(k)).toEqual({ text: 'résumé', lang: 'fr' });
+  });
+  it('purges the oldest rows first, insertion order breaking created_at ties', async () => {
+    const ins = db.prepare("INSERT INTO ai_cache (key, text, lang, created_at) VALUES (?, 't', NULL, '2026-01-01 00:00:00')");
+    // Clés en ordre alphabétique inverse de l'insertion : seul le rowid désigne la plus ancienne.
+    db.transaction(() => { for (let i = 0; i < 10_000; i++) ins.run(`z${String(99_999 - i).padStart(5, '0')}`); })();
+    await aiCacheSet('newest', { text: 'n', lang: null });
+    const n = (db.prepare('SELECT COUNT(*) AS n FROM ai_cache').get() as { n: number }).n;
+    expect(n).toBe(10_000);
+    expect(db.prepare("SELECT 1 FROM ai_cache WHERE key = 'z99999'").get()).toBeUndefined();
+    expect(db.prepare("SELECT 1 FROM ai_cache WHERE key = 'z90000'").get()).toBeTruthy();
+    expect(db.prepare("SELECT 1 FROM ai_cache WHERE key = 'newest'").get()).toBeTruthy();
   });
 });

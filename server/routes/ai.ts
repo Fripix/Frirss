@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { proxyRateLimiter } from './proxy.js';
 import {
-  listProviders, adminKeyFor, userKeyFor, hasUserKey, usageToday, dailyCap, isAiEnabled, userKeysAllowed, defaultProviderId,
+  listProviders, adminKeyFor, userKeyFor, hasUserKey, usageToday, dailyCap, nextUsageReset, isAiEnabled, userKeysAllowed, defaultProviderId,
 } from '../ai/store.js';
 import { availableFor } from '../ai/resolve.js';
 import { summarize } from '../ai/summarize.js';
@@ -61,7 +61,7 @@ router.post('/summary', async (req, res) => {
   } catch (err) {
     if (!(err instanceof AiError)) { console.error('AI summary error:', err); return res.status(500).json({ error: 'ai_failed' }); }
     if (err.message === 'article_too_short') return res.status(400).json({ error: 'article_too_short' });
-    if (err.message === 'ai_daily_cap') return res.status(429).json({ error: 'ai_daily_cap', cap: dailyCap() });
+    if (err.message === 'ai_daily_cap') return res.status(429).json({ error: 'ai_daily_cap', cap: dailyCap(), resetAt: nextUsageReset() });
     if (err.message === 'no_provider') return res.status(409).json({ error: 'no_provider' });
     if (err.kind === 'refused') return res.status(422).json({ error: 'ai_refused' });
     console.error('AI summary failed:', err.kind, err.message);

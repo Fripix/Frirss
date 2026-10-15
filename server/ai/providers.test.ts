@@ -34,6 +34,7 @@ describe('anthropic adapter', () => {
     expect((init.headers as Record<string, string>)['x-api-key']).toBe('sk-ant');
     expect((init.headers as Record<string, string>)['anthropic-version']).toBe('2023-06-01');
     const body = JSON.parse(init.body as string);
+    expect(body.max_tokens).toBe(4096);
     expect(body.system).toBe('sys');
     expect(body.messages).toEqual([{ role: 'user', content: 'texte' }]);
     expect(init.redirect).toBe('manual');
@@ -54,6 +55,11 @@ describe('openai adapter', () => {
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
     const body = JSON.parse(init.body as string);
     expect(body.messages[0]).toEqual({ role: 'system', content: 'sys' });
+    // Les modèles de raisonnement d'OpenAI refusent `max_tokens`.
+    expect(body).not.toHaveProperty('max_tokens');
+    const capped = stub(200, { choices: [{ message: { content: 'x' }, finish_reason: 'stop' }] });
+    await callProvider(openai, null, { ...call, maxTokens: 16 });
+    expect(JSON.parse((capped.mock.calls[0] as [string, RequestInit])[1].body as string)).not.toHaveProperty('max_tokens');
   });
   it('maps 401 to auth and 429 to quota', async () => {
     stub(401, { error: 'bad key' });
@@ -74,6 +80,22 @@ describe('openai adapter', () => {
     stub(401, { error: 'invalid key sk-secret-123' });
     const err = await callProvider(openai, 'sk-secret-123', call).catch((e: Error) => e);
     expect(err).toBeInstanceOf(AiError);
+    expect((err as Error).message).not.toContain('sk-secret-123');
+  });
+  it('redacts the key before cutting the body, so no fragment survives at the cut', async () => {
+    const key = 'sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    // La clé chevauche la coupe à 300 : 20 caractères avant, le reste après.
+    const body = 'x'.repeat(280) + key + 'y'.repeat(600 - 280 - key.length);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, headers: new Headers(), text: async () => body, json: async () => ({}) }));
+    const err = await callProvider(openai, key, call).catch((e: Error) => e);
+    expect(err).toBeInstanceOf(AiError);
+    const msg = (err as Error).message;
+    for (let i = 0; i + 8 <= key.length; i++) expect(msg).not.toContain(key.slice(i, i + 8));
+  });
+  it('redacts the key from a transport error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('connect failed for sk-secret-123')));
+    const err = await callProvider(openai, 'sk-secret-123', call).catch((e: Error) => e);
+    expect(err).toMatchObject({ kind: 'technical' });
     expect((err as Error).message).not.toContain('sk-secret-123');
   });
 });

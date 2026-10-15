@@ -13,6 +13,15 @@ const router = Router();
 router.use(requireAuth, requireAdmin);
 
 const TYPES = ['anthropic', 'openai'];
+/** Une URL analysable, http ou https, avec un hôte : `http://` seul ne l'est pas. */
+function isHttpUrl(v: string): boolean {
+  try {
+    const u = new URL(v);
+    return (u.protocol === 'http:' || u.protocol === 'https:') && !!u.hostname;
+  } catch {
+    return false;
+  }
+}
 function parseInput(body: unknown, partial: boolean): ProviderInput | null {
   const b = (body ?? {}) as Record<string, unknown>;
   const str = (k: string) => (typeof b[k] === 'string' ? (b[k] as string).trim() : undefined);
@@ -23,7 +32,7 @@ function parseInput(body: unknown, partial: boolean): ProviderInput | null {
     if (b[k] !== undefined && !str(k)) return null;
   }
   if (type !== undefined && !TYPES.includes(type)) return null;
-  if (baseUrl !== undefined && !/^https?:\/\//i.test(baseUrl)) return null;
+  if (baseUrl !== undefined && !isHttpUrl(baseUrl)) return null;
   // `null` efface la clé, volontairement ; tout autre type que chaîne est refusé.
   if (b.adminKey !== undefined && b.adminKey !== null && typeof b.adminKey !== 'string') return null;
   const out: Partial<ProviderInput> = {};

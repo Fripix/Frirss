@@ -176,6 +176,63 @@ describe('ai admin + summary', () => {
   });
 });
 
+describe('ai base URL validation', () => {
+  it('refuses a base URL that is not a parseable http(s) URL with a host', async () => {
+    const post = (baseUrl: string) => request(app).post('/api/admin/ai/providers').set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Bad', type: 'openai', baseUrl, model: 'm' });
+    for (const bad of ['http://', 'https://', 'ftp://example.com', 'example.com', 'http//example.com']) {
+      const res = await post(bad);
+      expect(res.status, bad).toBe(400);
+      expect(res.body.error).toBe('invalid_provider');
+    }
+  });
+});
+
+describe('ai admin role', () => {
+  const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
+  const sum = (t: string, articleId: string) => request(app).post('/api/ai/summary').set(auth(t))
+    .send({ articleId, title: 't', html: longHtml });
+
+  it('caps a plain user on a shared admin-paid provider, never the admin', async () => {
+    db.exec('DELETE FROM ai_usage; DELETE FROM ai_cache;');
+    const created = await request(app).post('/api/admin/ai/providers').set(auth(adminToken))
+      .send({ name: 'Shared', type: 'openai', baseUrl: 'https://shared.example.com', model: 'm', adminKey: 'k-shared', shared: true });
+    const id = created.body.provider.id as number;
+    expect((await request(app).put('/api/admin/ai/settings').set(auth(adminToken)).send({ enabled: true, dailyCap: 1, defaultProvider: id })).status).toBe(200);
+    stubProvider();
+
+    expect((await sum(userToken, 'cap-u1')).status).toBe(200);
+    const capped = await sum(userToken, 'cap-u2');
+    expect(capped.status).toBe(429);
+    expect(capped.body).toMatchObject({ error: 'ai_daily_cap', cap: 1 });
+    const reset = Date.parse(capped.body.resetAt);
+    expect(Number.isNaN(reset)).toBe(false);
+    expect(reset).toBeGreaterThan(Date.now());
+    expect(reset - Date.now()).toBeLessThanOrEqual(25 * 3600 * 1000);
+
+    expect((await sum(adminToken, 'cap-a1')).status).toBe(200);
+    expect((await sum(adminToken, 'cap-a2')).status).toBe(200);
+    expect(await cfgUsage(adminToken)).toBe(0);
+
+    expect((await request(app).delete(`/api/admin/ai/providers/${id}`).set(auth(adminToken))).status).toBe(200);
+  });
+  it('an unshared provider with an admin key serves the admin only', async () => {
+    const created = await request(app).post('/api/admin/ai/providers').set(auth(adminToken))
+      .send({ name: 'Private', type: 'openai', baseUrl: 'https://private.example.com', model: 'm', adminKey: 'k-private', shared: false });
+    const id = created.body.provider.id as number;
+    stubProvider();
+
+    const user = await sum(userToken, 'priv-u');
+    expect(user.status).toBe(409);
+    expect(user.body.error).toBe('no_provider');
+    const admin = await sum(adminToken, 'priv-a');
+    expect(admin.status).toBe(200);
+    expect(admin.body.providerName).toBe('Private');
+
+    expect((await request(app).delete(`/api/admin/ai/providers/${id}`).set(auth(adminToken))).status).toBe(200);
+  });
+});
+
 async function cfgUsage(token: string): Promise<number> {
   const cfg = await request(app).get('/api/ai/config').set('Authorization', `Bearer ${token}`);
   return cfg.body.usageToday as number;

@@ -7,6 +7,8 @@ import { randomBytes } from 'crypto';
 
 function wipe() {
   db.prepare('DELETE FROM sessions').run();
+  db.prepare('DELETE FROM ai_user_keys').run();
+  db.prepare('DELETE FROM ai_providers').run();
   db.prepare('DELETE FROM preferences').run();
   db.prepare('DELETE FROM servers').run();
   db.prepare('DELETE FROM users').run();
@@ -128,6 +130,44 @@ describe('applyBackup', () => {
     expect(after.users).toEqual(before.users);
     expect(after.servers).toEqual(before.servers);
     expect(after.preferences).toEqual(before.preferences);
+  });
+
+  it('emporte et restaure les fournisseurs IA et les clés personnelles, chiffrées telles quelles', () => {
+    db.prepare(
+      "INSERT INTO ai_providers (id, name, type, base_url, model, admin_key, shared, position) VALUES (3, 'Claude', 'anthropic', 'https://api.example.com', 'm', 'enc:v1:admin', 1, 0)",
+    ).run();
+    db.prepare("INSERT INTO ai_user_keys (user_id, provider_id, key) VALUES (1, 3, 'enc:v1:perso')").run();
+    const before = collectBackup();
+    expect(before.ai_providers).toHaveLength(1);
+    expect(before.ai_providers![0]).toMatchObject({ name: 'Claude', admin_key: 'enc:v1:admin' });
+    expect(before.ai_user_keys).toEqual([{ user_id: 1, provider_id: 3, key: 'enc:v1:perso' }]);
+
+    wipe();
+    applyBackup(before);
+
+    const after = collectBackup();
+    expect(after.ai_providers).toEqual(before.ai_providers);
+    expect(after.ai_user_keys).toEqual(before.ai_user_keys);
+  });
+
+  it('restaure une sauvegarde antérieure aux résumés par IA, sans fournisseur', () => {
+    const ancienne = collectBackup() as Partial<ReturnType<typeof collectBackup>>;
+    delete ancienne.ai_providers;
+    delete ancienne.ai_user_keys;
+    db.prepare(
+      "INSERT INTO ai_providers (id, name, type, base_url, model, admin_key, shared, position) VALUES (5, 'Local', 'openai', 'http://ollama.example.com', 'm', 'enc:v1:x', 0, 0)",
+    ).run();
+
+    expect(() => applyBackup(ancienne)).not.toThrow();
+
+    expect(db.prepare('SELECT username FROM users').all()).toEqual([{ username: 'alice' }]);
+    expect(db.prepare('SELECT COUNT(*) c FROM ai_providers').get()).toMatchObject({ c: 0 });
+  });
+
+  it('refuse une table IA présente mais mal formée', () => {
+    const backup = collectBackup() as unknown as Record<string, unknown>;
+    backup.ai_providers = 'pas un tableau';
+    expect(() => applyBackup(backup)).toThrow(/ai_providers/);
   });
 
   it('remplace l’existant au lieu de fusionner', () => {

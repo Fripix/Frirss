@@ -104,8 +104,10 @@ API key is never sent to a host the admin did not type. Users never set an
 endpoint.
 
 API keys are encrypted at rest with the instance key and never returned by any
-route; the part of a provider's error body that is logged or shown is cut to 300
-characters and has the key redacted. The article text leaves the instance for
+route; the part of a provider's error body that is logged or shown has the key
+redacted first and is then cut to 300 characters (the other order could leave a
+fragment of the key at the cut), and a transport error message is redacted the
+same way. The article text leaves the instance for
 the provider the admin chose, which is the point of the feature and also its
 privacy cost: leave it off, or point it at a local model, if articles must not
 leave the network.

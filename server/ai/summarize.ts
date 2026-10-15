@@ -37,13 +37,14 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
   const first = resolveProvider(req.resolution, req.available);
   if (!first) throw new AiError('technical', 'no_provider');
   const candidates = req.fallback ? fallbackOrder(first, req.available) : [first];
-  const contentHash = createHash('sha1').update(text).digest('hex').slice(0, 16);
+  // Le titre fait partie du prompt : deux titres pour un même corps sont deux résumés.
+  const contentHash = createHash('sha1').update(`${req.title}\0${text}`).digest('hex').slice(0, 16);
 
   let fellBackFrom: string | undefined;
   let lastError: AiError | null = null;
   let capped = false;
   for (const cand of candidates) {
-    const key = aiCacheKey({ articleId: req.articleId, op: 'summary', providerId: cand.provider.id, contentHash });
+    const key = aiCacheKey({ articleId: req.articleId, op: 'summary', providerId: cand.provider.id, model: cand.provider.model, contentHash });
     let cached = null;
     try { cached = await aiCacheGet(key); } catch { /* cache illisible = absence */ }
     if (cached) return { ...cached, providerId: cand.provider.id, providerName: cand.provider.name, model: cand.provider.model, fromCache: true, fellBackFrom };

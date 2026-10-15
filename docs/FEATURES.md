@@ -1808,14 +1808,28 @@ le plan 3.
   `Preferences/{AiTab,Preferences.ai}.test.tsx`. Traductions : famille `ai`.
 - **Deux adaptateurs, jamais plus** : `anthropic` (Messages API) et `openai`
   (`/v1/chat/completions`), qui couvre OpenAI, Ollama, LM Studio, Mistral,
-  Groq, DeepSeek, Grok, OpenRouter, Gemini. Ajouter un fournisseur = l'admin
-  saisit un nom, un type, une URL de base (`http(s)://`, sans le `/v1`), un
-  modèle et éventuellement une clé. Un service sans point d'accès compatible
-  OpenAI passe par OpenRouter. L'adresse de l'API est celle du fournisseur
+  Groq, DeepSeek, Grok, OpenRouter. **Pas Gemini en direct** : sa couche
+  compatible vit sous `/v1beta/openai/…`, inatteignable avec la convention
+  `{baseUrl}/v1/…` ; il passe par OpenRouter, comme tout service sans point
+  d'accès compatible OpenAI sous `/v1`. Ajouter un fournisseur = l'admin
+  saisit un nom, un type, une URL de base, un modèle et éventuellement une
+  clé. L'URL de base doit être une URL `http(s)` analysable avec un hôte
+  (`new URL()`, `http://` seul → 400) ; elle est **normalisée** à
+  l'enregistrement (`normalizeBaseUrl`, `store.ts`) : barres finales retirées,
+  puis un `/v1` final — coller `http://ollama:11434/v1/` depuis une doc donne
+  `http://ollama:11434`, sans quoi l'appel partirait vers `/v1/v1/…`. Une aide
+  sous le champ le dit (`ai.admin.baseUrlHint`).
+- **Corps des requêtes** : `anthropic` envoie `max_tokens` (exigé, 4096 ; 16
+  pour le bouton de test) ; `openai` **n'envoie pas** `max_tokens` — les
+  modèles de raisonnement d'OpenAI le refusent (ils veulent
+  `max_completion_tokens`) et Ollama l'ignore : le plafond par défaut du
+  fournisseur s'applique, bouton de test compris. L'adresse de l'API est celle du fournisseur
   (`https://api.example.com`), ou `http://10.0.0.5:11434` pour un Ollama local.
 - **Clés** : chiffrées en base (`server/crypto.ts`, comme les jetons FreshRSS),
   jamais renvoyées par l'API (`hasAdminKey` / `hasUserKey`) et rédigées (`***`)
-  dans les 300 caractères de détail d'une erreur du fournisseur. Le serveur
+  dans le détail d'une erreur du fournisseur **avant** la coupe à 300
+  caractères (couper d'abord laisserait un morceau de clé que la rédaction ne
+  reconnaît plus), ainsi que dans le message d'une erreur de transport. Le serveur
   sait lire une clé personnelle (`ai_user_keys`), mais **aucune route ni écran
   ne permet encore d'en saisir une** (plan 2). Disponibilité d'un fournisseur
   pour un utilisateur : clé personnelle > clé admin si le fournisseur est
@@ -1828,8 +1842,11 @@ le plan 3.
   un littéral IPv6 est reconnu, crochets retirés), `followRedirects: false`,
   délai 60 s. Un 3xx est une erreur `technical`, jamais suivi : la clé ne part
   pas vers un hôte que l'admin n'a pas saisi. URL de base illisible →
-  `technical`. Les appels comptent dans le seau `FRIRSS_PROXY_RATE_LIMIT`
-  (`/api/ai` partage le limiteur de `/api/proxy`).
+  `technical`. `/api/ai` partage le seau `FRIRSS_PROXY_RATE_LIMIT` de
+  `/api/proxy` : le seau compte les **requêtes HTTP** vers `/api/ai`,
+  `/config` comprise, pas les appels sortants — une requête de résumé avec
+  repli peut en faire plusieurs vers les fournisseurs. Le bouton de test
+  (`/api/admin/ai/providers/:id/test`) n'est pas dans le seau.
 - **Résolution** (`resolve.ts`, pure, testée) : forçage ponctuel (menu
   « Résumer avec… ») > fournisseur du flux > de la catégorie > préféré de
   l'utilisateur > défaut admin (`ai_default_provider`) > premier disponible. Un
@@ -1849,23 +1866,33 @@ le plan 3.
   sur un candidat payé par l'admin, repli actif** : ce candidat est *sauté* et
   on essaie le suivant non payé par l'admin (clé personnelle, Ollama sans clé) ;
   `ai_daily_cap` (429) n'est levé que s'il n'en reste aucun. Repli coupé : 429
-  tout de suite. ⚠️ **Le contrôle n'est pas atomique** (lecture avant l'appel,
+  tout de suite. Le corps du 429 porte `cap` et `resetAt` (ISO du prochain
+  minuit local du serveur, `nextUsageReset`). ⚠️ **Le contrôle n'est pas atomique** (lecture avant l'appel,
   incrément après) : N requêtes parallèles peuvent dépasser le plafond de N−1.
   Assumé : c'est un garde-fou de coût, pas un quota comptable.
-- **Cache** : clé = article + opération + fournisseur + langue cible (`-` pour
-  un résumé, réservée à la traduction du plan 3) + version de consigne
-  (`PROMPT_VERSION`) **+ sha1 (16 hex) du texte nettoyé**. Le hash
+- **Cache** : clé = article + opération + fournisseur + **modèle** (changer de
+  modèle ne resert pas le résumé de l'ancien) + langue cible (`-` pour un
+  résumé, réservée à la traduction du plan 3) + version de consigne
+  (`PROMPT_VERSION`) **+ sha1 (16 hex) du titre et du texte nettoyé**. Le hash
   existe parce que l'`articleId` vient du client : sans lui, un utilisateur
-  pourrait lire ou empoisonner le résumé d'un autre ; deux contenus pour le même
-  identifiant donnent deux entrées. Redis si `REDIS_URL` (30 jours), sinon table
-  `ai_cache` purgée au-delà de 10 000 lignes. Une panne du cache n'empêche ni la
-  lecture ni l'écriture du résumé.
+  pourrait lire ou empoisonner le résumé d'un autre ; deux contenus (ou deux
+  titres, le titre fait partie du prompt) pour le même identifiant donnent deux
+  entrées. Redis si `REDIS_URL` (30 jours), sinon table `ai_cache` purgée au-delà
+  de 10 000 lignes, les plus anciennes d'abord (`created_at`, puis `rowid` pour
+  départager une même seconde). Une panne du cache n'empêche ni la lecture ni
+  l'écriture du résumé ; une valeur Redis illisible est une absence.
 - **Langue** : le résumé est dans la langue de l'article ; le modèle rend
   `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) pour la
   traduction (plan 3).
 - **Entrée** (`POST /api/ai/summary`) : `articleId` ≤ 512 caractères, `title`
   tronqué à 500, `html` ≤ 200 Ko, sinon 400 `invalid_body` ; le texte est ensuite
-  borné à 200 000 caractères. Moins de **40 mots** (`article_too_short`) → 400
+  borné à 200 000 caractères. La conversion HTML → texte (`text.ts`) est
+  **linéaire** même sur une entrée hostile : 200 Ko d'espaces, de `<` ou de
+  `<a` bloquaient la boucle d'événements 16 à 21 s avec les premiers motifs
+  (`[^>]*` rebalayait la fin du texte depuis chaque `<`). Les balises s'arrêtent
+  à `[^<>]`, `<script>` / `<style>` / `<noscript>` sont retirés par un balayage
+  qui ne cherche qu'une fois une fermante absente ; des tests chronométrés
+  (< 250 ms sur 200 Ko) le gardent. Moins de **40 mots** (`article_too_short`) → 400
   avant tout appel. Le comptage utilise `Intl.Segmenter` (mots réels,
   `isWordLike`) : un article en chinois ou en japonais, sans espaces, n'est pas
   rejeté comme trop court. IA éteinte → 404 `ai_disabled`.
@@ -1910,7 +1937,9 @@ le plan 3.
   contenu.
 - **Réglages serveur** (`settings`) : `ai_enabled`, `ai_user_keys_allowed`,
   `ai_daily_cap`, `ai_default_provider`. Tables : `ai_providers`,
-  `ai_user_keys`, `ai_usage`, `ai_cache`.
+  `ai_user_keys`, `ai_usage`, `ai_cache`. La sauvegarde chiffrée emporte
+  `ai_providers` et `ai_user_keys` (voir « Sauvegarde et restauration ») ;
+  `ai_usage` et `ai_cache` sont du jetable.
 
 ### Extraction du contenu complet
 Pour les flux tronqués, récupération de l'article complet, avec cache à deux
@@ -3154,12 +3183,14 @@ Stockage clé/valeur par utilisateur (`preferences`), poussé en un lot par
 Sauvegarde **complète et chiffrée** de tout ce que FriRSS sait de lui-même :
 comptes et mots de passe (hachages bcrypt), serveurs avec leur jeton FreshRSS et
 leur jeton maître, la **clé qui déchiffre ces jetons**, le secret JWT, le secret
-client OIDC, toutes les préférences et tous les réglages d'instance. Restaurée,
+client OIDC, toutes les préférences et tous les réglages d'instance, les
+**fournisseurs IA et les clés personnelles** (`ai_providers`, `ai_user_keys`,
+chiffrées telles qu'en base : la clé d'instance part avec elles). Restaurée,
 l'instance est celle qu'on avait.
 
 Ne s'y trouvent pas : le **contenu FreshRSS** — articles, flux, états de lecture
-— qui vit dans FreshRSS ; et `sessions`, seule table écartée, faite de jetons
-porteurs qui expirent.
+— qui vit dans FreshRSS ; `sessions`, faite de jetons porteurs qui expirent ;
+et le jetable de l'IA, `ai_usage` (compteur du jour) et `ai_cache`.
 
 - **Où** :
   - Serveur : `server/backupCrypto.ts` (enveloppe), `server/backup.ts`
@@ -3208,6 +3239,11 @@ porteurs qui expirent.
     blanche** (`BACKUP_ENV_KEYS`), jamais depuis `process.env` en bloc.
   - Le remplacement tient dans **une seule transaction** : un échec en cours de
     route laisse l'instance intacte.
+  - Les tables IA sont **optionnelles** à la restauration (`OPTIONAL_TABLES`) :
+    une sauvegarde d'avant les résumés par IA se restaure, et l'instance en
+    sort **sans fournisseur** — ceux en place sont effacés, leurs clés admin
+    étant chiffrées sous la clé d'instance que la restauration remplace.
+    Présente mais pas un tableau : rejetée comme toute charge mal formée.
   - Une phrase de passe erronée (`bad_passphrase`) ne doit **jamais** répondre
     401 : l'intercepteur axios lit tout 401 comme une session expirée et
     déconnecte, ce qui éjecterait l'administrateur avant qu'il ne voie

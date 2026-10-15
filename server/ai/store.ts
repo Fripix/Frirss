@@ -19,6 +19,15 @@ const toProvider = (r: Row): AiProvider => ({
   hasAdminKey: !!r.admin_key, shared: r.shared === 1, position: r.position,
 });
 
+/**
+ * Les adaptateurs ajoutent eux-mêmes `/v1/…` : l'URL saisie s'arrête à l'hôte.
+ * Un `/v1` collé depuis une doc (`http://ollama:11434/v1/`) est donc retiré,
+ * sinon l'appel partirait vers `/v1/v1/chat/completions`.
+ */
+export function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, '').replace(/\/v1$/i, '').replace(/\/+$/, '');
+}
+
 export function listProviders(): AiProvider[] {
   return (db.prepare('SELECT * FROM ai_providers ORDER BY position, id').all() as Row[]).map(toProvider);
 }
@@ -30,7 +39,7 @@ export function createProvider(input: ProviderInput): AiProvider {
   const pos = (db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS p FROM ai_providers').get() as { p: number }).p;
   const res = db.prepare(
     'INSERT INTO ai_providers (name, type, base_url, model, admin_key, shared, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
-  ).run(input.name, input.type, input.baseUrl.replace(/\/$/, ''), input.model,
+  ).run(input.name, input.type, normalizeBaseUrl(input.baseUrl), input.model,
     input.adminKey ? encrypt(input.adminKey) : null, input.shared ? 1 : 0, pos);
   return getProvider(Number(res.lastInsertRowid))!;
 }
@@ -40,7 +49,7 @@ export function updateProvider(id: number, input: Partial<ProviderInput>): AiPro
   const adminKey = input.adminKey === undefined ? cur.admin_key
     : input.adminKey === '' || input.adminKey === null ? null : encrypt(input.adminKey);
   db.prepare('UPDATE ai_providers SET name = ?, type = ?, base_url = ?, model = ?, admin_key = ?, shared = ? WHERE id = ?').run(
-    input.name ?? cur.name, input.type ?? cur.type, (input.baseUrl ?? cur.base_url).replace(/\/$/, ''),
+    input.name ?? cur.name, input.type ?? cur.type, normalizeBaseUrl(input.baseUrl ?? cur.base_url),
     input.model ?? cur.model, adminKey, input.shared === undefined ? cur.shared : (input.shared ? 1 : 0), id,
   );
   return getProvider(id);
@@ -79,21 +88,32 @@ export function usageToday(userId: number): number {
   return r?.count ?? 0;
 }
 export function bumpUsage(userId: number): number {
-  db.prepare('INSERT INTO ai_usage (user_id, day, count) VALUES (?, ?, 1) ON CONFLICT(user_id, day) DO UPDATE SET count = count + 1').run(userId, today());
-  return usageToday(userId);
+  const r = db.prepare(
+    'INSERT INTO ai_usage (user_id, day, count) VALUES (?, ?, 1) ON CONFLICT(user_id, day) DO UPDATE SET count = count + 1 RETURNING count',
+  ).get(userId, today()) as { count: number };
+  return r.count;
+}
+/** Prochain minuit local du serveur : l'instant où le plafond quotidien se remet à zéro. */
+export function nextUsageReset(now = new Date()): string {
+  const d = new Date(now);
+  d.setHours(24, 0, 0, 0);
+  return d.toISOString();
 }
 
 export interface AiCacheValue { text: string; lang: string | null }
 const AI_CACHE_MAX_ROWS = 10_000;
 const AI_CACHE_TTL = 30 * 24 * 3600;
 
-export function aiCacheKey(p: { articleId: string; op: 'summary' | 'translate'; providerId: number; lang?: string; contentHash?: string }): string {
-  return `frirss:ai:v${PROMPT_VERSION}:${p.op}:${p.providerId}:${p.lang ?? '-'}:${p.articleId}:${p.contentHash ?? '-'}`;
+/** Le modèle fait partie de la clé : changer de modèle ne doit pas resservir le résumé de l'ancien. */
+export function aiCacheKey(p: { articleId: string; op: 'summary' | 'translate'; providerId: number; model: string; lang?: string; contentHash?: string }): string {
+  return `frirss:ai:v${PROMPT_VERSION}:${p.op}:${p.providerId}:${encodeURIComponent(p.model)}:${p.lang ?? '-'}:${p.articleId}:${p.contentHash ?? '-'}`;
 }
 export async function aiCacheGet(key: string): Promise<AiCacheValue | null> {
   if (cacheEnabled) {
     const raw = await cacheGet(key);
-    return raw ? (JSON.parse(raw) as AiCacheValue) : null;
+    if (!raw) return null;
+    // Une valeur illisible (écrite par une autre version, tronquée) est une absence, pas une erreur.
+    try { return JSON.parse(raw) as AiCacheValue; } catch { return null; }
   }
   const r = db.prepare('SELECT text, lang FROM ai_cache WHERE key = ?').get(key) as AiCacheValue | undefined;
   return r ?? null;
@@ -103,7 +123,7 @@ export async function aiCacheSet(key: string, value: AiCacheValue): Promise<void
   db.prepare('INSERT OR REPLACE INTO ai_cache (key, text, lang) VALUES (?, ?, ?)').run(key, value.text, value.lang);
   const n = (db.prepare('SELECT COUNT(*) AS n FROM ai_cache').get() as { n: number }).n;
   if (n > AI_CACHE_MAX_ROWS) {
-    db.prepare('DELETE FROM ai_cache WHERE key IN (SELECT key FROM ai_cache ORDER BY created_at LIMIT ?)').run(n - AI_CACHE_MAX_ROWS);
+    db.prepare('DELETE FROM ai_cache WHERE key IN (SELECT key FROM ai_cache ORDER BY created_at, rowid LIMIT ?)').run(n - AI_CACHE_MAX_ROWS);
   }
 }
 

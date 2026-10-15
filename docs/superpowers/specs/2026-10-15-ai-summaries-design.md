@@ -54,7 +54,12 @@ adaptateurs vivent dans `server/ai/providers/` :
 | Type | Point d'accès | Couvre |
 |---|---|---|
 | `anthropic` | `POST {baseUrl}/v1/messages`, en-têtes `x-api-key`, `anthropic-version` | Claude |
-| `openai` | `POST {baseUrl}/v1/chat/completions`, en-tête `Authorization: Bearer` | OpenAI, Ollama, LM Studio, Mistral, Groq, DeepSeek, Grok, OpenRouter, Gemini (couche compatible) |
+| `openai` | `POST {baseUrl}/v1/chat/completions`, en-tête `Authorization: Bearer` | OpenAI, Ollama, LM Studio, Mistral, Groq, DeepSeek, Grok, OpenRouter |
+
+Gemini n'est **pas** couvert en direct : sa couche compatible vit sous
+`/v1beta/openai/…`, inatteignable avec `{baseUrl}/v1/…`. Il passe par
+OpenRouter. L'URL de base est normalisée à l'enregistrement (barres finales,
+puis un `/v1` final retirés).
 
 Les deux reçoivent la même entrée (consigne système, texte, langue cible
 éventuelle, plafond de sortie) et rendent la même sortie (`text`, `model`,
@@ -69,8 +74,9 @@ redirection vers un autre hôte interne reste refusée. Délai : 60 s par appel
 Appels bruts, **sans SDK** : chaque API est un `POST` JSON. L'adaptateur
 Anthropic envoie `max_tokens`, `system`, `messages` ; pas de `thinking` ni
 d'`effort` explicites, les valeurs par défaut du modèle suffisent pour un
-résumé. L'adaptateur OpenAI envoie `messages` avec un rôle `system` et
-`max_tokens`. Les erreurs HTTP sont classées en trois familles, parce que le
+résumé. L'adaptateur OpenAI envoie `messages` avec un rôle `system`, **sans**
+`max_tokens` (refusé par les modèles de raisonnement d'OpenAI, ignoré par
+Ollama). Les erreurs HTTP sont classées en trois familles, parce que le
 repli en dépend : `auth` (401/403), `quota` (429, 402), `technical` (réseau,
 délai, 5xx, réponse non JSON). Un refus de contenu (réponse 200 dont le modèle
 décline) est `refused` et ne déclenche **jamais** de repli.
@@ -213,11 +219,12 @@ surcharge par flux viendra si elle est demandée ; pas en première version.
 d'appels par utilisateur et par jour civil (fuseau du serveur), résumés et
 traductions confondus, **compté seulement quand la clé admin paie**. Avec sa
 propre clé, l'utilisateur dépense son argent : pas de plafond. Dépassé : 429
-avec `{ error: 'ai_daily_cap', resetAt }`, et le panneau affiche « 50 sur 50
+avec `{ error: 'ai_daily_cap', cap, resetAt }` (`resetAt` : ISO du prochain
+minuit local du serveur), et le panneau affiche « 50 sur 50
 aujourd'hui ». Compteur dans une table `ai_usage (user_id, day, count)`.
 
-**Cache** : clé `article id + opération + fournisseur + langue cible + version
-de consigne`, valeur le texte et `lang`. Redis quand `REDIS_URL` est là
+**Cache** : clé `article id + opération + fournisseur + modèle + langue cible +
+version de consigne + hash du titre et du texte`, valeur le texte et `lang`. Redis quand `REDIS_URL` est là
 (`server/cache.ts`, TTL 30 jours), sinon une table SQLite `ai_cache` avec
 purge au-delà de 10 000 entrées. Un résumé payé n'est jamais repayé, y compris
 depuis un autre appareil ; « Résumer avec… » un fournisseur déjà en cache est

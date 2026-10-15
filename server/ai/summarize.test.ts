@@ -101,6 +101,20 @@ describe('summarize', () => {
     await summarize({ ...base, html: '<p>' + 'autre '.repeat(60) + '</p>', available: [A(1, 'A')] }, { call });
     expect(call).toHaveBeenCalledTimes(2);
   });
+  it('does not share a cache entry between two titles for the same body', async () => {
+    const call = ok();
+    await summarize({ ...base, title: 'Premier titre', available: [A(1, 'A')] }, { call });
+    await summarize({ ...base, title: 'Second titre', available: [A(1, 'A')] }, { call });
+    expect(call).toHaveBeenCalledTimes(2);
+  });
+  it('does not serve a summary cached under another model of the same provider', async () => {
+    const call = ok();
+    await summarize({ ...base, available: [A(1, 'A')] }, { call });
+    const other = { ...A(1, 'A'), provider: { ...P(1, 'A'), model: 'm2' } };
+    const r = await summarize({ ...base, available: [other] }, { call });
+    expect(r.fromCache).toBe(false);
+    expect(call).toHaveBeenCalledTimes(2);
+  });
   it('wraps a non-AiError with a fixed message, falls back, and logs only strings', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {

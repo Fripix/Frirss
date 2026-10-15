@@ -10,6 +10,14 @@ export interface BackupPayload {
   servers: Row[];
   preferences: Row[];
   settings: Row[];
+  /**
+   * Fournisseurs IA et clés personnelles. Optionnels : une sauvegarde d'avant
+   * les résumés par IA ne les porte pas et doit se restaurer quand même. Les
+   * clés voyagent chiffrées, comme `servers.freshrss_token` : `encryption_key`
+   * part dans `settings`, donc elles restent lisibles après restauration.
+   */
+  ai_providers?: Row[];
+  ai_user_keys?: Row[];
   environment: Record<string, string>;
 }
 
@@ -67,6 +75,8 @@ export function collectBackup(): BackupPayload {
     servers: db.prepare('SELECT * FROM servers ORDER BY id').all() as Row[],
     preferences: db.prepare('SELECT * FROM preferences ORDER BY user_id, key').all() as Row[],
     settings: db.prepare('SELECT * FROM settings ORDER BY key').all() as Row[],
+    ai_providers: db.prepare('SELECT * FROM ai_providers ORDER BY id').all() as Row[],
+    ai_user_keys: db.prepare('SELECT * FROM ai_user_keys ORDER BY user_id, provider_id').all() as Row[],
     environment: collectEnvironment(),
   };
 }
@@ -86,6 +96,8 @@ export function summarizeBackup(payload: unknown): {
 }
 
 const TABLES = ['users', 'servers', 'preferences', 'settings'] as const;
+/** Tables arrivées après le format : absentes d'une sauvegarde ancienne, jamais mal formées. */
+const OPTIONAL_TABLES = ['ai_providers', 'ai_user_keys'] as const;
 
 /**
  * Réglages sans lesquels l'instance restaurée serait irrécupérable :
@@ -103,6 +115,9 @@ function assertPayload(payload: unknown): asserts payload is BackupPayload {
   if (!p || typeof p !== 'object') throw new Error('Malformed backup payload');
   for (const t of TABLES) {
     if (!Array.isArray(p[t])) throw new Error(`Malformed backup payload: ${t}`);
+  }
+  for (const t of OPTIONAL_TABLES) {
+    if (p[t] !== undefined && !Array.isArray(p[t])) throw new Error(`Malformed backup payload: ${t}`);
   }
   const settingsKeys = new Set((p.settings as Row[]).map((s) => s.key as string));
   for (const key of REQUIRED_SETTINGS) {
@@ -166,6 +181,10 @@ export function applyBackup(payload: unknown): void {
   const run = db.transaction((p: BackupPayload) => {
     // Purge, enfants d'abord — les clés étrangères sont actives.
     db.prepare('DELETE FROM sessions').run();
+    // Les fournisseurs IA partent aussi quand la sauvegarde n'en porte pas :
+    // leurs clés admin sont chiffrées sous la clé qu'on s'apprête à remplacer.
+    db.prepare('DELETE FROM ai_user_keys').run();
+    db.prepare('DELETE FROM ai_providers').run();
     db.prepare('DELETE FROM preferences').run();
     db.prepare('DELETE FROM servers').run();
     db.prepare('DELETE FROM users').run();
@@ -176,6 +195,8 @@ export function applyBackup(payload: unknown): void {
     insertRows('servers', p.servers);
     insertRows('preferences', p.preferences);
     insertRows('settings', p.settings);
+    insertRows('ai_providers', p.ai_providers ?? []);
+    insertRows('ai_user_keys', p.ai_user_keys ?? []);
   });
 
   run(payload);

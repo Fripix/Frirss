@@ -36,12 +36,12 @@ export async function callProvider(provider: AiProvider, key: string | null, cal
       timeoutMs: TIMEOUT_MS, followRedirects: false, trustedHosts: [host],
     });
   } catch (err) {
-    throw new AiError('technical', (err as Error).message);
+    throw new AiError('technical', redact(String((err as Error)?.message ?? err), key));
   }
   if (!resp.ok) {
-    const detail = (await resp.text().catch(() => '')).slice(0, 300);
-    const safe = key ? detail.split(key).join('***') : detail;
-    throw new AiError(classifyStatus(resp.status), `${provider.name}: HTTP ${resp.status} ${safe}`, resp.status);
+    // Masquer AVANT de couper : une coupe au milieu de la clé en laisserait un morceau que `split` ne reconnaît plus.
+    const detail = redact(await resp.text().catch(() => ''), key).slice(0, 300);
+    throw new AiError(classifyStatus(resp.status), `${provider.name}: HTTP ${resp.status} ${detail}`, resp.status);
   }
   let json: unknown;
   try { json = await resp.json(); } catch { throw new AiError('technical', `${provider.name}: non-JSON response`); }
@@ -49,6 +49,10 @@ export async function callProvider(provider: AiProvider, key: string | null, cal
   if (parsed.refused) throw new AiError('refused', `${provider.name} declined the content`);
   if (!parsed.text.trim()) throw new AiError('technical', `${provider.name}: empty answer`);
   return { text: parsed.text, model: parsed.model || provider.model, inputTokens: parsed.inputTokens, outputTokens: parsed.outputTokens, durationMs: Date.now() - started };
+}
+
+function redact(text: string, key: string | null): string {
+  return key ? text.split(key).join('***') : text;
 }
 
 interface Req { url: string; headers: Record<string, string>; body: unknown }
@@ -59,11 +63,16 @@ function anthropicRequest(p: AiProvider, key: string | null, c: AiCall): Req {
     body: { model: p.model, max_tokens: c.maxTokens ?? DEFAULT_MAX_TOKENS, system: c.system, messages: [{ role: 'user', content: c.user }] },
   };
 }
+/**
+ * Pas de `max_tokens` : les modèles de raisonnement d'OpenAI le refusent (ils
+ * veulent `max_completion_tokens`) et Ollama l'ignore. Le plafond par défaut du
+ * fournisseur suffit pour un résumé ; `c.maxTokens` ne sert qu'à Anthropic, qui l'exige.
+ */
 function openaiRequest(p: AiProvider, key: string | null, c: AiCall): Req {
   return {
     url: `${p.baseUrl}/v1/chat/completions`,
     headers: key ? { Authorization: `Bearer ${key}` } : {},
-    body: { model: p.model, max_tokens: c.maxTokens ?? DEFAULT_MAX_TOKENS, messages: [{ role: 'system', content: c.system }, { role: 'user', content: c.user }] },
+    body: { model: p.model, messages: [{ role: 'system', content: c.system }, { role: 'user', content: c.user }] },
   };
 }
 
