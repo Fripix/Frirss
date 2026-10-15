@@ -75,8 +75,9 @@ Appels bruts, **sans SDK** : chaque API est un `POST` JSON. L'adaptateur
 Anthropic envoie `max_tokens`, `system`, `messages` ; pas de `thinking` ni
 d'`effort` explicites, les valeurs par défaut du modèle suffisent pour un
 résumé. L'adaptateur OpenAI envoie `messages` avec un rôle `system`, **sans**
-`max_tokens` (refusé par les modèles de raisonnement d'OpenAI, ignoré par
-Ollama). Les erreurs HTTP sont classées en trois familles, parce que le
+`max_tokens` (refusé par les modèles de raisonnement d'OpenAI, qui attendent
+`max_completion_tokens` ; Ollama l'honorerait mais reçoit le même corps, par
+simplicité). Les erreurs HTTP sont classées en trois familles, parce que le
 repli en dépend : `auth` (401/403), `quota` (429, 402), `technical` (réseau,
 délai, 5xx, réponse non JSON). Un refus de contenu (réponse 200 dont le modèle
 décline) est `refused` et ne déclenche **jamais** de repli.

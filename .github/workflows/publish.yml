@@ -42,7 +42,9 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       # Compute image tags. Always :sha-xxxxxxx. main → :latest (stable),
-      # dev → :dev (testing), git tag vX.Y.Z → :X.Y.Z and :X.Y (releases).
+      # dev → :dev (testing), git tag vX.Y.Z → :X.Y.Z and :X.Y (releases),
+      # any other branch (manual run) → :<branch>, name sanitised to
+      # [A-Za-z0-9._-]; amd64 only.
       - name: Compute image tags
         id: tags
         env:
@@ -58,6 +60,10 @@ jobs:
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             VER="${GITHUB_REF#refs/tags/v}"
             TAGS="$TAGS,$IMAGE:$VER,$IMAGE:${VER%.*}"
+          elif [[ "${GITHUB_REF}" == refs/heads/* ]]; then
+            BR="${GITHUB_REF#refs/heads/}"
+            BR="${BR//[^A-Za-z0-9._-]/-}"
+            TAGS="$TAGS,$IMAGE:$BR"
           fi
           echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
           echo "Tags: $TAGS"

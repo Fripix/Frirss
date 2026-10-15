@@ -1823,9 +1823,11 @@ le plan 3.
   sous le champ le dit (`ai.admin.baseUrlHint`).
 - **Corps des requêtes** : `anthropic` envoie `max_tokens` (exigé, 4096 ; 16
   pour le bouton de test) ; `openai` **n'envoie pas** `max_tokens` — les
-  modèles de raisonnement d'OpenAI le refusent (ils veulent
-  `max_completion_tokens`) et Ollama l'ignore : le plafond par défaut du
-  fournisseur s'applique, bouton de test compris. L'adresse de l'API est celle du fournisseur
+  modèles de raisonnement d'OpenAI le refusent (ils attendent
+  `max_completion_tokens`) : la longueur est tenue par la consigne, et le
+  plafond par défaut du fournisseur s'applique, bouton de test compris. Ollama
+  l'honorerait (son point d'accès compatible OpenAI le traduit en
+  `num_predict`) mais reçoit le même corps, par simplicité. L'adresse de l'API est celle du fournisseur
   (`https://api.example.com`), ou `http://10.0.0.5:11434` pour un Ollama local.
 - **Clés** : chiffrées en base (`server/crypto.ts`, comme les jetons FreshRSS),
   jamais renvoyées par l'API (`hasAdminKey` / `hasUserKey`) et rédigées (`***`)
@@ -1872,6 +1874,12 @@ le plan 3.
   minuit local du serveur, `nextUsageReset`). ⚠️ **Le contrôle n'est pas atomique** (lecture avant l'appel,
   incrément après) : N requêtes parallèles peuvent dépasser le plafond de N−1.
   Assumé : c'est un garde-fou de coût, pas un quota comptable.
+- **Consigne** (`prompts.ts`, version 2) : l'article part entre les balises
+  `<article>` / `</article>` (`summaryUserMessage`) et la consigne dit qu'il
+  n'est **pas adressé au modèle** — sans cela, un article à la première
+  personne recevait une réponse de conversation. Texte brut seulement (ni
+  markdown, ni titres, ni gras, ni émoji), même langue que l'article, première
+  ligne `lang: <BCP 47>`.
 - **Cache** : clé = article + opération + fournisseur + **modèle** (changer de
   modèle ne resert pas le résumé de l'ancien) + langue cible (`-` pour un
   résumé, réservée à la traduction du plan 3) + version de consigne
@@ -3462,6 +3470,9 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
   à l'exécution — `publish.yml` la passe en argument de build, le `Dockerfile`
   en fait une variable d'environnement de l'étape builder, et `vite.config.js`
   la fige dans le bundle via `define`. Vide sur les images de production.
+- **Branches de travail** : un lancement manuel du workflow sur une autre
+  branche publie `:sha-…` et `:<branche>` (nom assaini en `[A-Za-z0-9._-]`),
+  en amd64 seulement.
 
 ---
 
