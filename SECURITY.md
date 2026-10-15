@@ -93,6 +93,36 @@ provider and sign in as anyone through the e-mail link-up). If you would rather
 keep the issuer under the rule, nothing is lost: `PROXY_INTERNAL_HOSTS` still
 works and the exemption adds no host you did not configure yourself.
 
+### AI providers: admin-set endpoints, encrypted keys
+
+AI summaries (off by default) call a provider the **administrator** declared.
+Its host is trusted by the anti-SSRF guard exactly like the OIDC issuer, and
+only that host: a model on the LAN (Ollama) works without
+`PROXY_INTERNAL_HOSTS`, and a redirect towards any other internal host is still
+refused. Redirects are never followed at all (a 3xx is a technical error), so an
+API key is never sent to a host the admin did not type. Users never set an
+endpoint.
+
+API keys are encrypted at rest with the instance key and never returned by any
+route; the part of a provider's error body that is logged or shown is cut to 300
+characters and has the key redacted. The article text leaves the instance for
+the provider the admin chose, which is the point of the feature and also its
+privacy cost: leave it off, or point it at a local model, if articles must not
+leave the network.
+
+Two limits are deliberate. The cost cap is a guard, not an accounting quota: it
+only limits what the admin's shared key pays for, the day follows the container
+timezone, and the check is not atomic, so parallel requests can overshoot it
+slightly. The summary cache key includes a hash of the article text, because the
+article id is client-supplied and would otherwise let one user read or poison
+another user's cached summary.
+
+What the exemption costs is the same as for the issuer: an attacker holding an
+**admin** account can point a provider at an internal host and make the server
+send it a JSON POST and read back a short error detail (the test button
+returns it). That is a limited probe, and a minor one next to what an admin
+account already grants.
+
 ### The anti-SSRF guard does not pin the resolved address
 
 Before fetching a client-supplied target, the proxy resolves its hostname and

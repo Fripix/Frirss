@@ -1783,6 +1783,126 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   cette barre (pas de libellé à coucher) ; ils rétrécissent quand même dans le
   repli compact (classe `.toolbar-icon-btn`) pour tenir dans le même budget.
 
+### Résumés par IA
+Une pastille « Résumé IA » dans le volet de lecture envoie le texte de
+l'article à un fournisseur de modèle de langage et affiche le résumé au-dessus
+de l'article. **Éteint d'origine** : tant que l'admin n'a pas activé la
+fonctionnalité (Préférences → IA → Fournisseurs), rien n'est visible pour un
+utilisateur, pas même la section ; l'admin la voit toujours. Spec :
+`docs/superpowers/specs/2026-10-15-ai-summaries-design.md` ; plan :
+`docs/superpowers/plans/2026-10-15-ai-summaries-core.md`. Demandé dans la
+discussion #22. Ce cycle livre le socle (plan 1) : les blocs « Résumés » et les
+clés personnelles de la section IA viennent avec le plan 2, la traduction avec
+le plan 3.
+
+- **Où** : serveur `server/ai/` — `text.ts` (HTML → texte, comptage de mots),
+  `errors.ts` (`AiError` : `auth` / `quota` / `technical` / `refused`),
+  `lang.ts`, `prompts.ts` (`PROMPT_VERSION`), `store.ts` (fournisseurs, clés,
+  usage, cache), `providers.ts` (adaptateurs), `resolve.ts` (disponibilité et
+  résolution, pures), `summarize.ts` (orchestration) ; routes
+  `server/routes/ai.ts` (utilisateur) et `server/routes/adminAi.ts` (admin).
+  Client `src/stores/aiStore.ts`, `src/components/ReadingPane/AiSummary.tsx`,
+  `src/components/Preferences/AiTab.tsx`. Tests : `server/ai/*.test.ts`,
+  `server/test/ai.test.ts`, `src/stores/aiStore.test.ts`,
+  `ReadingPane/{AiSummary,ReadingPane.ai}.test.tsx`,
+  `Preferences/{AiTab,Preferences.ai}.test.tsx`. Traductions : famille `ai`.
+- **Deux adaptateurs, jamais plus** : `anthropic` (Messages API) et `openai`
+  (`/v1/chat/completions`), qui couvre OpenAI, Ollama, LM Studio, Mistral,
+  Groq, DeepSeek, Grok, OpenRouter, Gemini. Ajouter un fournisseur = l'admin
+  saisit un nom, un type, une URL de base (`http(s)://`, sans le `/v1`), un
+  modèle et éventuellement une clé. Un service sans point d'accès compatible
+  OpenAI passe par OpenRouter. L'adresse de l'API est celle du fournisseur
+  (`https://api.example.com`), ou `http://10.0.0.5:11434` pour un Ollama local.
+- **Clés** : chiffrées en base (`server/crypto.ts`, comme les jetons FreshRSS),
+  jamais renvoyées par l'API (`hasAdminKey` / `hasUserKey`) et rédigées (`***`)
+  dans les 300 caractères de détail d'une erreur du fournisseur. Le serveur
+  sait lire une clé personnelle (`ai_user_keys`), mais **aucune route ni écran
+  ne permet encore d'en saisir une** (plan 2). Disponibilité d'un fournisseur
+  pour un utilisateur : clé personnelle > clé admin si le fournisseur est
+  « partagé » > indisponible ; un `openai` **sans aucune clé admin** (Ollama)
+  est disponible pour tous. Un **admin** se sert de la clé admin même d'un
+  fournisseur non partagé. Aucun écran ne permet encore d'**effacer** une clé
+  admin (l'API accepte `adminKey: null`) : plan 2.
+- **Appels sortants** : `fetchUpstream` avec `trustedHosts: [hôte du
+  fournisseur]` (même exemption que l'émetteur OIDC : URL fixée par l'admin ;
+  un littéral IPv6 est reconnu, crochets retirés), `followRedirects: false`,
+  délai 60 s. Un 3xx est une erreur `technical`, jamais suivi : la clé ne part
+  pas vers un hôte que l'admin n'a pas saisi. URL de base illisible →
+  `technical`. Les appels comptent dans le seau `FRIRSS_PROXY_RATE_LIMIT`
+  (`/api/ai` partage le limiteur de `/api/proxy`).
+- **Résolution** (`resolve.ts`, pure, testée) : forçage ponctuel (menu
+  « Résumer avec… ») > fournisseur du flux > de la catégorie > préféré de
+  l'utilisateur > défaut admin (`ai_default_provider`) > premier disponible. Un
+  étage muet ou indisponible est sauté. Les étages flux / catégorie / préféré
+  sont des paramètres de la requête : ils n'ont pas encore d'écran (plan 2).
+- **Repli** (`fallback`, vrai par défaut) : sur erreur `auth` / `quota` /
+  `technical` seulement, dans l'ordre de l'admin, **jamais** sur `refused`, un
+  seul tour ; la réponse dit d'où on vient (`fellBackFrom`). Une exception qui
+  n'est pas une `AiError` devient `provider_error` (`technical`, repli permis) ;
+  son message brut n'apparaît que dans le journal du serveur.
+- **Plafond** (`ai_daily_cap`, défaut 50, 0 = illimité) : par utilisateur et
+  par jour civil, **seulement quand la clé admin paie pour un utilisateur**. Un
+  admin en est exempt sur tout fournisseur dont la clé admin paie, partagé ou
+  non. Le jour civil suit le fuseau du conteneur (`TZ`). Un résumé servi par le
+  cache ne consomme rien et n'est pas bloqué par le plafond. **Plafond atteint
+  sur un candidat payé par l'admin, repli actif** : ce candidat est *sauté* et
+  on essaie le suivant non payé par l'admin (clé personnelle, Ollama sans clé) ;
+  `ai_daily_cap` (429) n'est levé que s'il n'en reste aucun. Repli coupé : 429
+  tout de suite. ⚠️ **Le contrôle n'est pas atomique** (lecture avant l'appel,
+  incrément après) : N requêtes parallèles peuvent dépasser le plafond de N−1.
+  Assumé : c'est un garde-fou de coût, pas un quota comptable.
+- **Cache** : clé = article + opération + fournisseur + langue cible (`-` pour
+  un résumé, réservée à la traduction du plan 3) + version de consigne
+  (`PROMPT_VERSION`) **+ sha1 (16 hex) du texte nettoyé**. Le hash
+  existe parce que l'`articleId` vient du client : sans lui, un utilisateur
+  pourrait lire ou empoisonner le résumé d'un autre ; deux contenus pour le même
+  identifiant donnent deux entrées. Redis si `REDIS_URL` (30 jours), sinon table
+  `ai_cache` purgée au-delà de 10 000 lignes. Une panne du cache n'empêche ni la
+  lecture ni l'écriture du résumé.
+- **Langue** : le résumé est dans la langue de l'article ; le modèle rend
+  `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) pour la
+  traduction (plan 3).
+- **Entrée** (`POST /api/ai/summary`) : `articleId` ≤ 512 caractères, `title`
+  tronqué à 500, `html` ≤ 200 Ko, sinon 400 `invalid_body` ; le texte est ensuite
+  borné à 200 000 caractères. Moins de **40 mots** (`article_too_short`) → 400
+  avant tout appel. Le comptage utilise `Intl.Segmenter` (mots réels,
+  `isWordLike`) : un article en chinois ou en japonais, sans espaces, n'est pas
+  rejeté comme trop court. IA éteinte → 404 `ai_disabled`.
+- **Erreurs** : `stop_reason: refusal` (Anthropic) / `finish_reason:
+  content_filter` (OpenAI) = `refused`, 422, pas de repli. Plafond 429
+  `ai_daily_cap`, aucun fournisseur 409 `no_provider`, tout le reste 502
+  `ai_failed` avec le `kind` (le détail reste dans le journal serveur). Le
+  volet traduit `error` / `kind` en message (`ai.errors.*` : plafond, trop court,
+  refusé, aucun fournisseur, clé refusée, quota, sinon « technique ») et ne
+  devine jamais une cause de plus.
+- **Administration** : `PUT /api/admin/ai/settings` valide **tout avant
+  d'écrire** (un 400 ne laisse aucune écriture partielle) ; booléens stricts
+  (`=== true`), `dailyCap` entier ≥ 0, `defaultProvider` nombre ou `null` d'un
+  fournisseur existant. `PUT …/providers/order` exige **exactement** l'ensemble
+  des identifiants existants. Un champ fourni mais vide est un 400, jamais un
+  effacement silencieux. Supprimer le fournisseur par défaut vide
+  `ai_default_provider`. `POST …/providers/:id/test` répond **200** avec
+  `{ ok:false, kind, message }` en cas d'échec (message ≤ 200 caractères) : un
+  test raté n'est pas une erreur HTTP.
+- **Interface** : section **« IA »** (un mot, comme les autres) des
+  Préférences ; aujourd'hui elle ne porte que le bloc admin « Fournisseurs »
+  (interrupteur, liste, éditeur, test, clé partagée, plafond, défaut) et, pour
+  un utilisateur, une ligne d'introduction. Après un enregistrement,
+  l'éditeur **reste ouvert** : clé effacée du champ, « Enregistré »,
+  « Fermer ». Le bloc de résumé est une région `aria-live="polite"`. Le menu
+  « Résumer avec… » est un popover en portail sur ordinateur et une feuille du
+  bas au tactile (même règle que les autres surfaces flottantes). La pastille
+  est **désactivée hors ligne**.
+- **Pièges** : le volet envoie le texte *affiché* (contenu complet extrait s'il
+  y en a un, sinon celui du flux) : résumer avant ou après l'extraction donne
+  deux entrées de cache ; ne jamais suivre un 3xx du fournisseur ; ne pas
+  confondre « payé par l'admin » (plafond, repli) et « clé admin utilisée »
+  (un admin n'est pas facturé) ; la clé de cache doit garder le hash du
+  contenu.
+- **Réglages serveur** (`settings`) : `ai_enabled`, `ai_user_keys_allowed`,
+  `ai_daily_cap`, `ai_default_provider`. Tables : `ai_providers`,
+  `ai_user_keys`, `ai_usage`, `ai_cache`.
+
 ### Extraction du contenu complet
 Pour les flux tronqués, récupération de l'article complet, avec cache à deux
 niveaux. **Par défaut global** (Préférences → Général → « Article complet par
@@ -3361,7 +3481,7 @@ Chaque famille correspond à une zone de l'interface :
 `app` · `sidebar` · `addFeed` · `articleList` · `articleRow` · `swipe` ·
 `emptyState` · `readingPane` · `preferences` · `login` · `admin` · `servers` ·
 `dates` · `time` · `shortcutBar` · `viewMode` · `connection` · `update` ·
-`refresh` · `saved` · `backup` · `toast` · `palette`
+`refresh` · `saved` · `backup` · `toast` · `palette` · `ai`
 
 ---
 

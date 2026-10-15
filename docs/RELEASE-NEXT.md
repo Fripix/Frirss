@@ -18,7 +18,14 @@ la release publiée.
 
 ## Fonctionnalités
 
-_(rien pour l'instant)_
+- **Résumés par IA** (discussion #22). Une pastille « Résumé IA » dans le volet
+  de lecture envoie l'article au fournisseur que l'admin a déclaré (Claude, ou
+  tout service compatible OpenAI dont Ollama) et affiche le résumé au-dessus de
+  l'article. Éteint d'origine ; nouvelle section « IA » des Préférences avec le
+  bloc admin « Fournisseurs » (interrupteur, fournisseurs, clé partagée, test de
+  connexion, plafond quotidien). Repli automatique entre fournisseurs, cache
+  des résumés, clés chiffrées, aucune dépendance nouvelle. Les clés
+  personnelles, les réglages par flux et la traduction viennent ensuite.
 
 ## Corrections et améliorations
 
