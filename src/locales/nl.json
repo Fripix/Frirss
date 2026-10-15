@@ -111,7 +111,11 @@
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Twee panelen",
     "threePanelLayout": "Drie panelen",
-    "wrapTitles": "Artikeltitels op 2 regels"
+    "wrapTitles": "Artikeltitels op 2 regels",
+    "rankingAlgorithm": "Algoritme",
+    "rankingAlgorithmRow": "Rangschikkingsalgoritme",
+    "rankingAlgorithmLabel": "Rangschikkingsalgoritme voor ‘Interessant’",
+    "rankingAlgorithmHint": "Kies het rangschikkingsalgoritme voor ‘Interessant’"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",

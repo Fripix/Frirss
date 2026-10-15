@@ -23,6 +23,11 @@ export interface Article {
   sourceId: string;
   /** Timestamp en millisecondes */
   published: number;
+  /**
+   * L'élément n'avait pas de date de publication : `published` vaut alors
+   * l'heure du chargement (repli d'affichage), pas une vraie date.
+   */
+  publishedMissing?: boolean;
   read: boolean;
   starred: boolean;
   /** IDs de labels (user/-/label/…) portés par l'article */

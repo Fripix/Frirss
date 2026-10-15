@@ -111,7 +111,11 @@
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Zwei Bereiche",
     "threePanelLayout": "Drei Bereiche",
-    "wrapTitles": "Artikeltitel umbrechen (2 Zeilen)"
+    "wrapTitles": "Artikeltitel umbrechen (2 Zeilen)",
+    "rankingAlgorithm": "Algorithmus",
+    "rankingAlgorithmRow": "Sortieralgorithmus",
+    "rankingAlgorithmLabel": "Sortieralgorithmus für „Interessant“",
+    "rankingAlgorithmHint": "Sortieralgorithmus für „Interessant“ wählen"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",

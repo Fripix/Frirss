@@ -111,7 +111,11 @@
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Two panels",
     "threePanelLayout": "Three panels",
-    "wrapTitles": "Wrap article titles (2 lines)"
+    "wrapTitles": "Wrap article titles (2 lines)",
+    "rankingAlgorithm": "Algorithm",
+    "rankingAlgorithmRow": "Ranking algorithm",
+    "rankingAlgorithmLabel": "Interesting ranking algorithm",
+    "rankingAlgorithmHint": "Choose the Interesting ranking algorithm"
   },
   "articleRow": {
     "markRead": "Mark as read",

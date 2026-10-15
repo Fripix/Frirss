@@ -2071,3 +2071,134 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
     expect(useFeedStore.getState().loading).toBe(false);
   });
 });
+
+describe('feedStore.loadSpecialCounts — saved-article snapshot for Intelligence Next', () => {
+  const item = (id: string, title: string, extra: string[] = []) => ({
+    id,
+    title,
+    summary: { content: `<p>${title} summary</p>` },
+    origin: { streamId: 'feed/saved', title: 'Saved' },
+    published: 1_700_000_000,
+    categories: extra,
+  });
+  const STARRED = 'user/-/state/com.google/starred';
+  const lists = (starred: unknown[], readLater: unknown[]) => {
+    vi.mocked(api.getStarredItems).mockResolvedValue({ items: starred, continuation: null } as never);
+    vi.mocked(api.getStreamContents).mockImplementation((streamId: string) =>
+      Promise.resolve({ items: streamId === READ_LATER_LABEL ? readLater : [], continuation: null } as never)
+    );
+  };
+
+  beforeEach(() => {
+    vi.mocked(api.getStarredItems).mockReset();
+    vi.mocked(api.getStreamContents).mockReset();
+    useFeedStore.setState({ savedArticleSignals: null, starredCount: 0, readLaterCount: 0 });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ savedArticleSignals: null, starredCount: 0, readLaterCount: 0 });
+  });
+
+  it('builds one entry per saved article from the lists already fetched for the counts', async () => {
+    lists(
+      [item('s1', 'Rust compiler internals', [STARRED]), item('both', 'Telescope mirrors', [STARRED])],
+      [item('r1', 'Sourdough starter'), item('both', 'Telescope mirrors', [STARRED])],
+    );
+    await useFeedStore.getState().loadSpecialCounts();
+    const s = useFeedStore.getState();
+    expect(s.starredCount).toBe(2);
+    expect(s.readLaterCount).toBe(2);
+    expect(s.savedArticleSignals!.map(({ id, starred, readLater }) => ({ id, starred, readLater }))).toEqual([
+      { id: 's1', starred: true, readLater: false },
+      { id: 'both', starred: true, readLater: true },
+      { id: 'r1', starred: false, readLater: true },
+    ]);
+    expect(s.savedArticleSignals![0]).toMatchObject({ title: 'Rust compiler internals', sourceId: 'feed/saved' });
+    // No extra request: still exactly the two count fetches.
+    expect(api.getStarredItems).toHaveBeenCalledTimes(1);
+    expect(api.getStreamContents).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the same array reference when a poll changed nothing (no needless re-rank)', async () => {
+    lists([item('s1', 'Rust compiler internals', [STARRED])], []);
+    await useFeedStore.getState().loadSpecialCounts();
+    const first = useFeedStore.getState().savedArticleSignals;
+    await useFeedStore.getState().loadSpecialCounts();
+    expect(useFeedStore.getState().savedArticleSignals).toBe(first);
+
+    lists([item('s1', 'Rust compiler internals', [STARRED]), item('s2', 'Kernel scheduling', [STARRED])], []);
+    await useFeedStore.getState().loadSpecialCounts();
+    expect(useFeedStore.getState().savedArticleSignals).not.toBe(first);
+    expect(useFeedStore.getState().savedArticleSignals).toHaveLength(2);
+  });
+
+  it('reports an empty snapshot as loaded, unlike one that never loaded', async () => {
+    vi.mocked(api.getStarredItems).mockRejectedValue(new Error('offline'));
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    await useFeedStore.getState().loadSpecialCounts();
+    expect(useFeedStore.getState().savedArticleSignals).toBeNull();
+    lists([], []);
+    await useFeedStore.getState().loadSpecialCounts();
+    expect(useFeedStore.getState().savedArticleSignals).toEqual([]);
+  });
+
+  it('keeps the previous snapshot when a list fails to load (counts behave as before)', async () => {
+    lists([item('s1', 'Rust compiler internals', [STARRED])], [item('r1', 'Sourdough starter')]);
+    await useFeedStore.getState().loadSpecialCounts();
+    const before = useFeedStore.getState().savedArticleSignals;
+
+    vi.mocked(api.getStarredItems).mockRejectedValue(new Error('offline'));
+    await useFeedStore.getState().loadSpecialCounts();
+    const s = useFeedStore.getState();
+    expect(s.starredCount).toBe(0);
+    expect(s.readLaterCount).toBe(1);
+    expect(s.savedArticleSignals).toBe(before);
+  });
+
+  it('skips a malformed saved item but keeps the counts and the other items', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    lists([item('s1', 'Rust compiler internals', [STARRED]), null, item('s2', 'Kernel scheduling', [STARRED])], [item('r1', 'Sourdough starter')]);
+    await useFeedStore.getState().loadSpecialCounts();
+    const s = useFeedStore.getState();
+    expect(s.starredCount).toBe(3);
+    expect(s.readLaterCount).toBe(1);
+    expect(s.savedArticleSignals!.map((saved) => saved.id)).toEqual(['s1', 's2', 'r1']);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('drops lists that come back after the active server changed', async () => {
+    const original = useAuthStore.getState().activeServerId;
+    let resolveStarred!: (value: unknown) => void;
+    vi.mocked(api.getStarredItems).mockReturnValue(new Promise((resolve) => { resolveStarred = resolve; }) as never);
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    const pending = useFeedStore.getState().loadSpecialCounts();
+    useAuthStore.setState({ activeServerId: 'other-server' });
+    resolveStarred({ items: [item('old', 'Old server article', [STARRED])], continuation: null });
+    await pending;
+    expect(useFeedStore.getState().savedArticleSignals).toBeNull();
+    expect(useFeedStore.getState().starredCount).toBe(0);
+    useAuthStore.setState({ activeServerId: original });
+  });
+});
+
+describe('feedStore — articles without a publication date', () => {
+  it('flags an item the server sent without a date, and only that one', async () => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([]);
+    vi.mocked(api.getStreamContents).mockResolvedValue({
+      items: [
+        { id: 'dated', published: 1_700_000_000, categories: [] },
+        { id: 'undated', categories: [] },
+      ],
+      continuation: null,
+    } as never);
+    useFeedStore.setState({ selectedFeed: { id: 'feed/1', title: 'F' } as unknown as Subscription, filter: 'all', articles: [] });
+    await useFeedStore.getState().loadArticles();
+    const byId = new Map(useFeedStore.getState().articles.map((article) => [article.id, article]));
+    expect(byId.get('dated')!.published).toBe(1_700_000_000_000);
+    expect(byId.get('dated')!.publishedMissing).toBeUndefined();
+    // Still shown at its load time, as before, but marked as undated.
+    expect(Number.isFinite(byId.get('undated')!.published)).toBe(true);
+    expect(byId.get('undated')!.publishedMissing).toBe(true);
+  });
+});

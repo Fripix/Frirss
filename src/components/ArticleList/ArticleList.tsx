@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useLatchedValue } from '../../hooks/useLatchedValue';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead, UNDO_CAP } from '../../lib/markAllRead';
 import { effectiveLayout } from '../../lib/effectiveLayout';
@@ -38,8 +39,28 @@ import { noFocusOnPointer } from '../../lib/pointerFocus';
 import { prefersReducedMotion } from '../../lib/reducedMotion';
 import { staggerIndexes, rememberStagger } from '../../lib/rowStagger';
 import type { Article, Filter } from '../../types';
-import { getArticleFeedback, type ArticleFeedback } from '../../api/intelligence';
-import { rankInterestingArticles, INTERESTING_ALGORITHMS } from '../../lib/intelligenceRanking';
+import { useIntelligenceFeedback } from '../../hooks/useIntelligenceFeedback';
+import { rankInterestingArticles, type IntelligenceContext } from '../../lib/intelligenceRanking';
+import { useInterestingAlgorithm } from '../../hooks/useInterestingAlgorithm';
+import InterestingAlgorithmSelect from './InterestingAlgorithmSelect';
+
+/** Algorithms other than Intelligence Next take no context; one shared object keeps their ranking memo stable. */
+const NO_INTELLIGENCE_CONTEXT: IntelligenceContext = {};
+interface IntelligenceContextInputs {
+  /** JSON of `[id, title, folder labels, feed URL, site URL]` per subscription; `'[]'` when none (or unused). */
+  subscriptionsKey: string;
+  /** `null` until the starred / read-later lists have loaded once. */
+  savedArticles: NonNullable<IntelligenceContext['savedArticles']> | null;
+}
+/**
+ * A context signal that was missing has arrived: use it now rather than at the
+ * next re-rank. A loaded but empty favourites snapshot is not missing, so the
+ * reader's first star waits like any other.
+ */
+const contextSignalArrived = (adopted: IntelligenceContextInputs, latest: IntelligenceContextInputs) =>
+  (adopted.subscriptionsKey === '[]' && latest.subscriptionsKey !== '[]')
+  || (adopted.savedArticles === null && latest.savedArticles !== null);
+const NO_RANKED_KEYS: string[] = [];
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
 // article in 2-panel desktop, or any re-mount of the list).
@@ -55,24 +76,8 @@ interface PullState {
 export default function ArticleList() {
   const { t } = useTranslation();
 
-  const [intelligenceFeedback, setIntelligenceFeedback] = useState<ArticleFeedback[]>([]);
-  const [interestingAlgorithm, setInterestingAlgorithm] = useState<import('../../lib/intelligenceRanking').InterestingAlgorithm>(() => {
-    const saved = localStorage.getItem('frirss_interesting_algorithm');
-    return saved === 'weighted-idf' || saved === 'synonyms' || saved === 'topics' || saved === 'combined' || saved === 'microsoft-news' || saved === 'personal-news' ? saved : 'current';
-  });
-  useEffect(() => { localStorage.setItem('frirss_interesting_algorithm', interestingAlgorithm); }, [interestingAlgorithm]);
-  useEffect(() => {
-    let active = true;
-    const refreshFeedback = () => {
-      getArticleFeedback().then((rows) => { if (active) setIntelligenceFeedback(rows); }).catch(() => {});
-    };
-    refreshFeedback();
-    window.addEventListener('frirss-intelligence-feedback-changed', refreshFeedback);
-    return () => {
-      active = false;
-      window.removeEventListener('frirss-intelligence-feedback-changed', refreshFeedback);
-    };
-  }, []);
+  const intelligenceFeedback = useIntelligenceFeedback();
+  const [interestingAlgorithm, setInterestingAlgorithm] = useInterestingAlgorithm();
 
   const {
     articles,
@@ -749,29 +754,75 @@ export default function ArticleList() {
   // the Interesting list stutter while scrolling. Rank by the fields that
   // actually influence relevance, then hydrate the ranked IDs from the live
   // store objects so read/star state stays current without rerunning the model.
+  // Only the Interesting view is ranked; other views skip the work entirely.
+  const isInterestingView = filter === 'interesting';
   const interestingRankingKey = useMemo(
-    () => articles.map((article) => [
+    () => (isInterestingView ? articles.map((article) => [
       article.id,
       article.title,
       article.summary,
       article.content,
-      article.published,
-    ].join('\\u001f')).join('\\u001e'),
-    [articles],
+      // An undated article's \`published\` is the time it was loaded, which a
+      // background reload renews; it must not count as a change of the list.
+      article.publishedMissing ? '' : article.published,
+    ].join('\\u001f')).join('\\u001e') : ''),
+    [articles, isInterestingView],
   );
+  // Intelligence Next also reads the subscriptions (id, title, folder labels,
+  // feed and site URL) and the starred / read-later snapshot. A refresh rebuilds the subscription
+  // array even when nothing changed, so the context is keyed by those fields
+  // only. Changes to either are not a reason to reshuffle the list the reader
+  // is looking at (the favourites are re-fetched on every poll), so they are
+  // adopted at the next re-rank that happens anyway — new or changed
+  // articles, a vote, another algorithm or view — or as soon as a signal
+  // first becomes available (e.g. subscriptions arriving after the articles).
+  const usesIntelligenceContext = isInterestingView && interestingAlgorithm === 'intelligence-next';
+  const rankingSubscriptionsKey = useMemo(
+    () => (usesIntelligenceContext
+      ? JSON.stringify(subscriptions.map((feed) => [
+        feed.id, feed.title, (feed.categories ?? []).map((category) => category?.label ?? ''), feed.url ?? '', feed.htmlUrl ?? '',
+      ]))
+      : '[]'),
+    [subscriptions, usesIntelligenceContext],
+  );
+  const savedArticleSignals = useFeedStore((s) => s.savedArticleSignals);
+  const latestContextInputs = useMemo<IntelligenceContextInputs>(
+    () => ({ subscriptionsKey: rankingSubscriptionsKey, savedArticles: savedArticleSignals }),
+    [rankingSubscriptionsKey, savedArticleSignals],
+  );
+  const contextInputs = useLatchedValue(
+    latestContextInputs,
+    [interestingRankingKey, intelligenceFeedback, interestingAlgorithm, isInterestingView],
+    contextSignalArrived,
+  );
+  const intelligenceContext = useMemo<IntelligenceContext>(() => {
+    if (!usesIntelligenceContext) return NO_INTELLIGENCE_CONTEXT;
+    const feeds = JSON.parse(contextInputs.subscriptionsKey) as Array<[string, string, string[], string, string]>;
+    return {
+      // The URLs tell Intelligence Next which feeds share a publisher (host).
+      subscriptions: feeds.map(([id, feedTitle, labels, url, htmlUrl]) => ({
+        id, title: feedTitle, categories: labels.map((label) => ({ id: label, label })),
+        ...(url ? { url } : {}), ...(htmlUrl ? { htmlUrl } : {}),
+      })),
+      savedArticles: contextInputs.savedArticles ?? [],
+    };
+  }, [usesIntelligenceContext, contextInputs]);
   const rankingIdentity = useCallback(
     (article: Article) => `${article.id}\\u001f${article.url}\\u001f${article.title}`,
     [],
   );
   const rankedArticleKeys = useMemo(
-    () => rankInterestingArticles(articles, intelligenceFeedback, Date.now(), interestingAlgorithm)
-      .map(rankingIdentity),
-    [interestingRankingKey, intelligenceFeedback, interestingAlgorithm, rankingIdentity],
+    () => (isInterestingView
+      ? rankInterestingArticles(articles, intelligenceFeedback, Date.now(), interestingAlgorithm, intelligenceContext)
+        .map(rankingIdentity)
+      : NO_RANKED_KEYS),
+    [interestingRankingKey, intelligenceFeedback, interestingAlgorithm, intelligenceContext, rankingIdentity, isInterestingView],
   );
   const rankedArticles = useMemo(() => {
+    if (!isInterestingView) return articles;
     const currentByKey = new Map(articles.map((article) => [rankingIdentity(article), article]));
     return rankedArticleKeys.map((key) => currentByKey.get(key)).filter((article): article is Article => !!article);
-  }, [articles, rankedArticleKeys, rankingIdentity]);
+  }, [articles, rankedArticleKeys, rankingIdentity, isInterestingView]);
   const groups = groupByDate(filter === 'interesting' ? rankedArticles : articles);
 
   // Une liste vide ne veut dire « il n'y a plus rien » que si le flux est
@@ -875,6 +926,13 @@ export default function ArticleList() {
                 <span className="text-sm font-semibold" style={{ color: 'var(--list-title)' }}>{t('articleList.viewOptions')}</span>
                 <button onClick={() => setOptionsOpen(false)} className="px-3 py-1.5 rounded-lg text-sm font-medium" style={{ color: 'var(--accent)', background: 'var(--accent-glow)' }}>Back to feed</button>
               </div>
+              {/* Same choice as the desktop toolbar; not per mobile/desktop profile, hence above that toggle. */}
+              {filter === 'interesting' && (
+                <>
+                  <InterestingAlgorithmSelect variant="sheet" value={interestingAlgorithm} onChange={setInterestingAlgorithm} />
+                  <SheetDivider />
+                </>
+              )}
               <div className="px-4 py-3">
                 <div className="text-[11px] font-semibold mb-2" style={{ color: 'var(--list-summary)' }}>{t('articleList.settingsFor')}</div>
                 <div className="flex gap-2">
@@ -976,18 +1034,7 @@ export default function ArticleList() {
               {filter === 'interesting' && (
                 <>
                   <ToolbarSep />
-                  <label className="flex items-center gap-1.5 px-1 flex-shrink-0" title="Choose the Interesting ranking algorithm">
-                    <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--list-summary)' }}>Algorithm</span>
-                    <select
-                      aria-label="Interesting ranking algorithm"
-                      value={interestingAlgorithm}
-                      onChange={(event) => setInterestingAlgorithm(event.target.value as import('../../lib/intelligenceRanking').InterestingAlgorithm)}
-                      className="max-w-[170px] rounded-md px-2 py-1 text-[11px] outline-none"
-                      style={{ background: 'var(--panel-bg)', color: 'var(--list-title)', border: '1px solid var(--panel-border)' }}
-                    >
-                      {INTERESTING_ALGORITHMS.map((algorithm) => <option key={algorithm.value} value={algorithm.value}>{algorithm.label}</option>)}
-                    </select>
-                  </label>
+                  <InterestingAlgorithmSelect value={interestingAlgorithm} onChange={setInterestingAlgorithm} />
                 </>
               )}
             </div>
@@ -1068,18 +1115,7 @@ export default function ArticleList() {
               {filter === 'interesting' && (
                 <>
                   <ToolbarSep />
-                  <label className="flex items-center gap-1.5 px-1 flex-shrink-0" title="Choose the Interesting ranking algorithm">
-                    <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--list-summary)' }}>Algorithm</span>
-                    <select
-                      aria-label="Interesting ranking algorithm"
-                      value={interestingAlgorithm}
-                      onChange={(event) => setInterestingAlgorithm(event.target.value as import('../../lib/intelligenceRanking').InterestingAlgorithm)}
-                      className="max-w-[170px] rounded-md px-2 py-1 text-[11px] outline-none"
-                      style={{ background: 'var(--panel-bg)', color: 'var(--list-title)', border: '1px solid var(--panel-border)' }}
-                    >
-                      {INTERESTING_ALGORITHMS.map((algorithm) => <option key={algorithm.value} value={algorithm.value}>{algorithm.label}</option>)}
-                    </select>
-                  </label>
+                  <InterestingAlgorithmSelect value={interestingAlgorithm} onChange={setInterestingAlgorithm} />
                 </>
               )}
             </div>

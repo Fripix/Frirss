@@ -115,7 +115,11 @@
     "desktopSettings": "Комп’ютер",
     "twoPanelLayout": "Дві панелі",
     "threePanelLayout": "Три панелі",
-    "wrapTitles": "Переносити заголовки (2 рядки)"
+    "wrapTitles": "Переносити заголовки (2 рядки)",
+    "rankingAlgorithm": "Алгоритм",
+    "rankingAlgorithmRow": "Алгоритм сортування",
+    "rankingAlgorithmLabel": "Алгоритм сортування для «Цікаве»",
+    "rankingAlgorithmHint": "Виберіть алгоритм сортування для «Цікаве»"
   },
   "articleRow": {
     "markRead": "Позначити прочитаним",

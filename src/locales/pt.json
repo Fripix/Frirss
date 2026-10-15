@@ -111,7 +111,11 @@
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Dois painéis",
     "threePanelLayout": "Três painéis",
-    "wrapTitles": "Quebrar títulos em 2 linhas"
+    "wrapTitles": "Quebrar títulos em 2 linhas",
+    "rankingAlgorithm": "Algoritmo",
+    "rankingAlgorithmRow": "Algoritmo de ordenação",
+    "rankingAlgorithmLabel": "Algoritmo de ordenação de «Interessante»",
+    "rankingAlgorithmHint": "Escolher o algoritmo de ordenação de «Interessante»"
   },
   "articleRow": {
     "markRead": "Marcar como lido",

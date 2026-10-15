@@ -111,7 +111,11 @@
     "desktopSettings": "Ordinateur",
     "twoPanelLayout": "Deux panneaux",
     "threePanelLayout": "Trois panneaux",
-    "wrapTitles": "Renvoyer les titres sur 2 lignes"
+    "wrapTitles": "Renvoyer les titres sur 2 lignes",
+    "rankingAlgorithm": "Algorithme",
+    "rankingAlgorithmRow": "Algorithme de classement",
+    "rankingAlgorithmLabel": "Algorithme de classement « Intéressant »",
+    "rankingAlgorithmHint": "Choisir l'algorithme de classement « Intéressant »"
   },
   "articleRow": {
     "markRead": "Marquer lu",

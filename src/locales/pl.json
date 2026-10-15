@@ -115,7 +115,11 @@
     "desktopSettings": "Komputer",
     "twoPanelLayout": "Dwa panele",
     "threePanelLayout": "Trzy panele",
-    "wrapTitles": "Zawijaj tytuły artykułów (2 wiersze)"
+    "wrapTitles": "Zawijaj tytuły artykułów (2 wiersze)",
+    "rankingAlgorithm": "Algorytm",
+    "rankingAlgorithmRow": "Algorytm sortowania",
+    "rankingAlgorithmLabel": "Algorytm sortowania widoku „Interesujące”",
+    "rankingAlgorithmHint": "Wybierz algorytm sortowania widoku „Interesujące”"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",

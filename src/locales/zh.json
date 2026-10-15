@@ -111,7 +111,11 @@
     "desktopSettings": "桌面",
     "twoPanelLayout": "双栏",
     "threePanelLayout": "三栏",
-    "wrapTitles": "文章标题换行（两行）"
+    "wrapTitles": "文章标题换行（两行）",
+    "rankingAlgorithm": "算法",
+    "rankingAlgorithmRow": "排序算法",
+    "rankingAlgorithmLabel": "“感兴趣”排序算法",
+    "rankingAlgorithmHint": "选择“感兴趣”的排序算法"
   },
   "articleRow": {
     "markRead": "标为已读",

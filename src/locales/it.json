@@ -111,7 +111,11 @@
     "desktopSettings": "Desktop",
     "twoPanelLayout": "Due pannelli",
     "threePanelLayout": "Tre pannelli",
-    "wrapTitles": "Titoli degli articoli su 2 righe"
+    "wrapTitles": "Titoli degli articoli su 2 righe",
+    "rankingAlgorithm": "Algoritmo",
+    "rankingAlgorithmRow": "Algoritmo di ordinamento",
+    "rankingAlgorithmLabel": "Algoritmo di ordinamento di «Interessanti»",
+    "rankingAlgorithmHint": "Scegli l'algoritmo di ordinamento di «Interessanti»"
   },
   "articleRow": {
     "markRead": "Segna come letto",

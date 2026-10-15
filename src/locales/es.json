@@ -111,7 +111,11 @@
     "desktopSettings": "Escritorio",
     "twoPanelLayout": "Dos paneles",
     "threePanelLayout": "Tres paneles",
-    "wrapTitles": "Ajustar títulos de artículos (2 líneas)"
+    "wrapTitles": "Ajustar títulos de artículos (2 líneas)",
+    "rankingAlgorithm": "Algoritmo",
+    "rankingAlgorithmRow": "Algoritmo de clasificación",
+    "rankingAlgorithmLabel": "Algoritmo de clasificación de «Interesante»",
+    "rankingAlgorithmHint": "Elegir el algoritmo de clasificación de «Interesante»"
   },
   "articleRow": {
     "markRead": "Marcar como leído",

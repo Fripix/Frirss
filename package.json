@@ -17,10 +17,11 @@
     "dev:client": "vite",
     "build": "vite build && tsc -p server/tsconfig.json",
     "build:server": "tsc -p server/tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p server/tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p server/tsconfig.json && tsc --noEmit -p evaluation/tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "eval:interesting": "tsx evaluation/interesting/evaluate.ts",
     "preview": "vite preview",
     "start": "NODE_ENV=production node server-dist/index.js"
   },

@@ -54,6 +54,8 @@ import { writeFailureNotice } from '../lib/writeFailureNotice';
 import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPagination';
 import { createWarmRunner } from '../lib/warmSchedule';
 import { startActualize, getActualizeStatus, getInfrequentFeedCache, saveInfrequentFeedCache, type ActualizeJob } from '../api/backend';
+import { buildSavedArticleSignals, sameSavedArticleSignals } from '../lib/savedArticleSignals';
+import type { SavedArticleSignal } from '../lib/intelligenceNext';
 import type {
   Article,
   Subscription,
@@ -658,6 +660,13 @@ export interface FeedState {
   categoryIds: string[];
   starredCount: number;
   readLaterCount: number;
+  /**
+   * Starred / read-later articles from the last counts refresh (≤ 200 each),
+   * a weak preference signal for Intelligence Next. `null` until the first
+   * successful load (and again after a server switch); same reference while
+   * nothing changed; may lag a star toggle until the next refresh.
+   */
+  savedArticleSignals: SavedArticleSignal[] | null;
   feedErrors: Record<string, number>;
   // True while the initial subscriptions load is in flight — drives the thin
   // top progress bar so the user sees the app is revalidating (esp. after a
@@ -913,6 +922,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   categoryIds: [],
   starredCount: 0,
   readLaterCount: 0,
+  savedArticleSignals: null,
   offlinePrep: null,
   syncing: false,
   feedErrors: {}, // { [feedId]: timestamp } — tracks feeds that errored on load
@@ -1106,16 +1116,35 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   loadSpecialCounts: async () => {
+    const serverId = useAuthStore.getState().activeServerId;
     try {
-      const empty: GReaderStream = { items: [], continuation: null };
       const [starred, readLater] = await Promise.all([
-        getStarredItems(200).catch(() => empty),
-        getStreamContents(READ_LATER_LABEL, 200, null).catch(() => empty),
+        getStarredItems(200).catch((): GReaderStream | null => null),
+        getStreamContents(READ_LATER_LABEL, 200, null).catch((): GReaderStream | null => null),
       ]);
-      set({
-        starredCount: starred?.items.length ?? 0,
-        readLaterCount: readLater?.items.length ?? 0,
-      });
+      // A failed list counts as empty (as before) but keeps the previous
+      // preference snapshot rather than wiping it. A malformed item is left
+      // out of the snapshot: the ranking signal must never cost the reader
+      // the sidebar counts, nor the rest of the snapshot.
+      let signals: SavedArticleSignal[] | null = null;
+      if (starred?.items && readLater?.items) {
+        let skipped = 0;
+        const normalizeSaved = (items: GReaderItem[]) => items.flatMap((raw) => {
+          try { return [normalizeArticle(raw)]; } catch { skipped++; return []; }
+        });
+        signals = buildSavedArticleSignals(normalizeSaved(starred.items), normalizeSaved(readLater.items));
+        if (skipped) console.warn(`[FriRSS] saved articles: skipped ${skipped} malformed item(s)`);
+      }
+      // Lists from the server we just left must not land on the new one (the
+      // saved snapshot would otherwise rank against the wrong account).
+      if (String(useAuthStore.getState().activeServerId) !== String(serverId)) return;
+      set((state) => ({
+        starredCount: starred?.items?.length ?? 0,
+        readLaterCount: readLater?.items?.length ?? 0,
+        savedArticleSignals: signals && !(state.savedArticleSignals && sameSavedArticleSignals(state.savedArticleSignals, signals))
+          ? signals
+          : state.savedArticleSignals,
+      }));
     } catch { /* ignore */ }
   },
 
@@ -2668,6 +2697,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       categoryIds: [],
       starredCount: 0,
       readLaterCount: 0,
+      savedArticleSignals: null,
       feedErrors: {},
       // A refresh in flight belongs to the server we are leaving; its loop
       // abandons itself. Clear its state here so the banner doesn't stay
@@ -2850,6 +2880,7 @@ function normalizeArticle(item: GReaderItem): Article {
     source: item.origin?.title || '',
     sourceId: item.origin?.streamId || '',
     published: item.published ? item.published * 1000 : Date.now(),
+    ...(item.published ? {} : { publishedMissing: true }),
     read: item.categories?.some((c) =>
       c.endsWith('/state/com.google/read')
     ) ?? false,
