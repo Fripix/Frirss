@@ -14,5 +14,7 @@ export const SUMMARY_SYSTEM = [
 
 /** The article travels as data, fenced by tags the system prompt names. */
 export function summaryUserMessage(title: string, text: string): string {
-  return `<article>\nTitle: ${title}\n\n${text}\n</article>`;
+  // The fence must not be closable (or reopenable) from inside the article.
+  const clean = (v: string) => v.replace(/<\/?article>/gi, '');
+  return `<article>\nTitle: ${clean(title)}\n\n${clean(text)}\n</article>\n\nSummarise the article above.`;
 }

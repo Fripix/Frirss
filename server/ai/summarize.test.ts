@@ -26,7 +26,7 @@ describe('summarize', () => {
     expect(call.mock.calls[0][2].user).toContain('mot mot');
     expect(call.mock.calls[0][2].user).toContain('Title: T');
     expect(call.mock.calls[0][2].user.startsWith('<article>')).toBe(true);
-    expect(call.mock.calls[0][2].user.endsWith('</article>')).toBe(true);
+    expect(call.mock.calls[0][2].user.endsWith('Summarise the article above.')).toBe(true);
   });
   it('serves the cache on the second call without calling the provider', async () => {
     const call = vi.fn().mockResolvedValue({ text: 'lang: fr\n\nRésumé.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 5 });
