@@ -77,7 +77,7 @@ describe('cache', () => {
     const k1 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 3, model: 'm' });
     const k2 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 4, model: 'm' });
     expect(k1).not.toBe(k2);
-    expect(k1).toContain(':v1:');
+    expect(k1).toContain(':v2:');
   });
   it('binds the key to the model', () => {
     const a = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'llama3' });
