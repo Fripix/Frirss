@@ -1,0 +1,62 @@
+// server/ai/summarize.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import db, { setSetting } from '../db.js';
+import { summarize } from './summarize.js';
+import { AiError } from './errors.js';
+import type { Availability } from './resolve.js';
+import type { AiProvider } from './store.js';
+
+const P = (id: number, name: string): AiProvider => ({ id, name, type: 'openai', baseUrl: 'https://x', model: 'm', hasAdminKey: false, shared: false, position: id });
+const A = (id: number, name: string, paidByAdmin = false): Availability => ({ provider: P(id, name), key: paidByAdmin ? 'admin' : null, paidByAdmin });
+const html = '<p>' + 'mot '.repeat(60) + '</p>';
+const base = { userId: 41, articleId: 'art-1', title: 'T', html, resolution: { adminDefault: 1 }, fallback: true };
+
+beforeEach(() => {
+  db.exec('DELETE FROM ai_usage; DELETE FROM ai_cache;');
+  db.prepare("INSERT OR IGNORE INTO users (id, username, role) VALUES (41, 'sum-user', 'user')").run();
+  setSetting('ai_daily_cap', '2');
+});
+
+describe('summarize', () => {
+  it('calls the resolved provider with the article text and strips the lang line', async () => {
+    const call = vi.fn().mockResolvedValue({ text: 'lang: fr\n\nRésumé.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 5 });
+    const r = await summarize({ ...base, available: [A(1, 'Ollama')] }, { call });
+    expect(r).toMatchObject({ text: 'Résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', fromCache: false });
+    expect(call.mock.calls[0][2].user).toContain('mot mot');
+    expect(call.mock.calls[0][2].user).toContain('T');
+  });
+  it('serves the cache on the second call without calling the provider', async () => {
+    const call = vi.fn().mockResolvedValue({ text: 'lang: fr\n\nRésumé.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 5 });
+    await summarize({ ...base, available: [A(1, 'Ollama')] }, { call });
+    const again = await summarize({ ...base, available: [A(1, 'Ollama')] }, { call });
+    expect(again.fromCache).toBe(true);
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+  it('falls back on a technical error and reports where it came from', async () => {
+    const call = vi.fn()
+      .mockRejectedValueOnce(new AiError('technical', 'down'))
+      .mockResolvedValueOnce({ text: 'lang: en\n\nOk.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 5 });
+    const r = await summarize({ ...base, available: [A(1, 'Claude'), A(2, 'Ollama')] }, { call });
+    expect(r.providerName).toBe('Ollama');
+    expect(r.fellBackFrom).toBe('Claude');
+  });
+  it('never falls back after a refusal, nor when fallback is off', async () => {
+    const refusing = vi.fn().mockRejectedValue(new AiError('refused', 'no'));
+    await expect(summarize({ ...base, available: [A(1, 'A'), A(2, 'B')] }, { call: refusing })).rejects.toMatchObject({ kind: 'refused' });
+    expect(refusing).toHaveBeenCalledTimes(1);
+    const failing = vi.fn().mockRejectedValue(new AiError('technical', 'down'));
+    await expect(summarize({ ...base, fallback: false, available: [A(1, 'A'), A(2, 'B')] }, { call: failing })).rejects.toMatchObject({ kind: 'technical' });
+    expect(failing).toHaveBeenCalledTimes(1);
+  });
+  it('counts the daily cap only when the admin key pays', async () => {
+    const call = vi.fn().mockResolvedValue({ text: 'lang: fr\n\nR.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+    for (const id of ['x1', 'x2']) await summarize({ ...base, articleId: id, available: [A(1, 'Paid', true)] }, { call });
+    await expect(summarize({ ...base, articleId: 'x3', available: [A(1, 'Paid', true)] }, { call })).rejects.toMatchObject({ kind: 'quota', message: 'ai_daily_cap' });
+    await expect(summarize({ ...base, articleId: 'x4', available: [A(2, 'Free')] }, { call })).resolves.toBeTruthy();
+  });
+  it('refuses a too-short article before any call', async () => {
+    const call = vi.fn();
+    await expect(summarize({ ...base, html: '<p>trop court</p>', available: [A(1, 'A')] }, { call })).rejects.toMatchObject({ message: 'article_too_short' });
+    expect(call).not.toHaveBeenCalled();
+  });
+});
