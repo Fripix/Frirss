@@ -784,7 +784,7 @@
     "status": {
       "none": "Not summarised yet"
     },
-    "hint": "Click Summarise to get a summary of this article.",
+    "hint": "Click “Summarise” to get a summary of this article.",
     "ratioHint": "Target length of the summary relative to the article. Never fewer than three sentences.",
     "user": {
       "title": "Summaries",

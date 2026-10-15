@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   SHIPPED_THEMES,
   DEFAULT_THEME_NAME,
   NIGHT_THEME_NAME,
+  CONTRAST_THEME_NAME,
   ensureShippedThemes,
   pickAutoTheme,
   useThemeStore,
@@ -45,6 +46,44 @@ describe('shipped themes', () => {
       expect(aiIsLight, `${theme.name}: ai-bg`).toBe(panelIsLight);
       expect(theme.colors['ai-bg'], `${theme.name}: ai-bg is a tint, not the panel itself`).not.toBe(theme.colors['panel-bg']);
     }
+  });
+
+  const withoutAi = (colors: Record<string, string>) => {
+    const c = { ...colors };
+    delete c['ai-bg'];
+    delete c['ai-border'];
+    return c;
+  };
+
+  it('fills a shipped preset saved before the AI colours with that preset\'s own values, not a derived mix', () => {
+    for (const name of [NIGHT_THEME_NAME, CONTRAST_THEME_NAME, DEFAULT_THEME_NAME]) {
+      const preset = SHIPPED_THEMES.find((t) => t.name === name)!;
+      useThemeStore.getState().applyServerPrefs({ theme: { name, colors: withoutAi(preset.colors), fontSizes: preset.fontSizes } });
+      const st = useThemeStore.getState();
+      expect(st.theme.colors['ai-bg'], name).toBe(preset.colors['ai-bg']);
+      expect(st.theme.colors['ai-border'], name).toBe(preset.colors['ai-border']);
+      expect(st.isColorModified('ai-bg'), name).toBe(false);
+      expect(st.isColorModified('ai-border'), name).toBe(false);
+    }
+  });
+
+  it('keeps an AI colour the user already customised on a shipped preset', () => {
+    const contrast = SHIPPED_THEMES.find((t) => t.name === CONTRAST_THEME_NAME)!;
+    useThemeStore.getState().applyServerPrefs({ theme: { name: CONTRAST_THEME_NAME, colors: { ...withoutAi(contrast.colors), 'ai-bg': '#fafafa' }, fontSizes: contrast.fontSizes } });
+    expect(useThemeStore.getState().theme.colors['ai-bg']).toBe('#fafafa');
+    expect(useThemeStore.getState().theme.colors['ai-border']).toBe(contrast.colors['ai-border']);
+  });
+
+  it('fills a stored shipped preset with its own AI colours on startup too', async () => {
+    const contrast = SHIPPED_THEMES.find((t) => t.name === CONTRAST_THEME_NAME)!;
+    localStorage.setItem('frirss_theme', JSON.stringify({ name: CONTRAST_THEME_NAME, colors: withoutAi(contrast.colors), fontSizes: contrast.fontSizes }));
+    vi.resetModules();
+    const fresh = await import('./themeStore');
+    const st = fresh.useThemeStore.getState();
+    expect(st.theme.colors['ai-border']).toBe(contrast.colors['ai-border']);
+    expect(st.isColorModified('ai-bg')).toBe(false);
+    expect(st.isColorModified('ai-border')).toBe(false);
+    localStorage.removeItem('frirss_theme');
   });
 
   it('derives the AI colours of a theme saved before they existed from its own panel and accent', () => {

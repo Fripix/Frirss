@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import AiSummary from './AiSummary';
 import { useUiStore } from '../../stores/uiStore';
 import type { AiProviderView, AiSummaryResult } from '../../api/backend';
@@ -27,6 +27,8 @@ const doneProps = { status: 'done' as const, result, error: null, providers, onS
 /** L'en-tête : son nom accessible commence par le titre, suivi du statut. */
 const TOGGLE = { name: /^ai\.summarize\s/ };
 const ACTION = { name: 'ai.summarizeAction' };
+/** Le statut de l'en-tête (la ligne invisible de la région vivante répète le même texte). */
+const headerText = (text: string) => within(screen.getByRole('button', TOGGLE)).getByText(text);
 
 describe('AiSummary — en-tête et repli', () => {
   it('the header is one button that toggles the panel and remembers it globally', () => {
@@ -42,14 +44,18 @@ describe('AiSummary — en-tête et repli', () => {
     expect(localStorage.getItem('frirss_aiPanelCollapsed')).toBe('true');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(queryByText('ai.hint')).toBeNull();
+    // aria-controls ne pointe jamais dans le vide : le corps reste monté, caché et vide.
+    expect(body!.isConnected).toBe(true);
+    expect(body!.hidden).toBe(true);
+    expect(body!.textContent).toBe('');
     fireEvent.click(toggle);
     expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
   });
   it('starts collapsed when the synced preference says so, the status still visible', () => {
     useUiStore.setState({ aiPanelCollapsed: true });
-    const { getByRole, getByText, queryByText } = render(<AiSummary {...doneProps} />);
+    const { getByRole, queryByText } = render(<AiSummary {...doneProps} />);
     expect(getByRole('button', TOGGLE).getAttribute('aria-expanded')).toBe('false');
-    expect(getByText('ai.by:Ollama')).toBeTruthy();
+    expect(headerText('ai.by:Ollama')).toBeTruthy();
     expect(queryByText('Premier.')).toBeNull();
   });
   it('the action lives outside the toggle: using it never folds the panel', () => {
@@ -74,11 +80,11 @@ describe('AiSummary — en-tête et repli', () => {
   });
   it('a summary arriving while collapsed does not open the panel', () => {
     useUiStore.setState({ aiPanelCollapsed: true, aiPanelAutoExpanded: true });
-    const { rerender, getByText, queryByText } = render(<AiSummary {...idleProps} status="loading" />);
+    const { rerender, queryByText } = render(<AiSummary {...idleProps} status="loading" />);
     rerender(<AiSummary {...doneProps} />);
     expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
     expect(queryByText('Premier.')).toBeNull();
-    expect(getByText('ai.by:Ollama')).toBeTruthy();
+    expect(headerText('ai.by:Ollama')).toBeTruthy();
   });
   it('the chevron turns with the panel', () => {
     const { getByRole } = render(<AiSummary {...idleProps} />);
@@ -111,7 +117,7 @@ describe('AiSummary — statut et action', () => {
     const onSummarize = vi.fn();
     const { getByText, getByRole, queryByText, queryByRole } = render(<AiSummary {...doneProps} onSummarize={onSummarize} />);
     const toggle = getByRole('button', TOGGLE);
-    expect(toggle.contains(getByText('ai.by:Ollama'))).toBe(true);
+    expect(toggle.contains(headerText('ai.by:Ollama'))).toBe(true);
     expect(getByText('ai.fellBack:Claude')).toBeTruthy();
     expect(queryByRole('button', ACTION)).toBeNull();
     expect(getByText('Premier.')).toBeTruthy();
@@ -136,10 +142,10 @@ describe('AiSummary — statut et action', () => {
     expect(queryByRole('alert')).toBeNull();
   });
   it('the status wraps instead of pushing the action out (320 px)', () => {
-    const { getByText } = render(<AiSummary {...doneProps} />);
-    const status = getByText('ai.by:Ollama').closest('[data-status]')!;
+    render(<AiSummary {...doneProps} />);
+    const status = headerText('ai.by:Ollama').closest('[data-status]')!;
     expect(status.className).toContain('break-words');
-    expect(getByText('ai.by:Ollama').closest('button')!.className).toContain('min-w-0');
+    expect(headerText('ai.by:Ollama').closest('button')!.className).toContain('min-w-0');
   });
 });
 
@@ -152,9 +158,10 @@ describe('AiSummary — corps', () => {
     expect(container.innerHTML).not.toContain('max-w-');
     expect(getByText('Premier.').className).toContain('whitespace-pre-line');
   });
-  it('error: the message is a role=alert under the header', () => {
+  it('error: the message is a role=alert, never nested in the status region', () => {
     const { getByRole } = render(<AiSummary {...idleProps} status="error" error="ai.errors.auth" />);
     expect(getByRole('alert').textContent).toBe('ai.errors.auth');
+    expect(getByRole('status').contains(getByRole('alert'))).toBe(false);
   });
   it('error while collapsed: the alert still shows, in place of the status', () => {
     useUiStore.setState({ aiPanelCollapsed: true });
@@ -170,14 +177,28 @@ describe('AiSummary — corps', () => {
     expect(summary.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(getByRole('button', { name: 'ai.withProvider' })).toBeTruthy();
   });
-  it('the summary lives in a polite live region that is mounted before the result arrives', () => {
-    const { getByRole, rerender, queryByLabelText } = render(<AiSummary {...idleProps} status="loading" />);
+  it('a polite live region, mounted before the result, announces the result only', () => {
+    const { getByRole, rerender, getByLabelText } = render(<AiSummary {...idleProps} status="loading" />);
     const region = getByRole('status');
     expect(region.getAttribute('aria-live')).toBe('polite');
-    expect(queryByLabelText('ai.summaryTitle')).toBeNull();
-    rerender(<AiSummary {...doneProps} />);
+    expect(region.textContent).toBe('');
+    rerender(<AiSummary {...doneProps} result={{ ...result, fromCache: true }} />);
     expect(getByRole('status')).toBe(region);
-    expect(region.contains(queryByLabelText('ai.summaryTitle'))).toBe(true);
+    expect(region.textContent).toContain('ai.by:Ollama');
+    expect(region.textContent).toContain('ai.fromCache');
+    expect(region.className).toContain('sr-only');
+    // Le corps n'est pas dans la région : déplier ou replier n'annonce rien.
+    expect(region.contains(getByLabelText('ai.summaryTitle'))).toBe(false);
+    const before = region.textContent;
+    fireEvent.click(getByRole('button', TOGGLE));
+    fireEvent.click(getByRole('button', TOGGLE));
+    expect(region.textContent).toBe(before);
+  });
+  it('announces a result that arrives while the panel is collapsed', () => {
+    useUiStore.setState({ aiPanelCollapsed: true, aiPanelAutoExpanded: true });
+    const { getByRole, rerender } = render(<AiSummary {...idleProps} status="loading" />);
+    rerender(<AiSummary {...doneProps} />);
+    expect(getByRole('status').textContent).toContain('ai.by:Ollama');
   });
   it('touch: header and action are 44 px tall', () => {
     breakpoint.mockImplementation(() => 'mobile');

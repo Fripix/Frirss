@@ -1974,12 +1974,18 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
     ligne simples gardés par `whitespace-pre-line` pour les listes à puces),
     **sans mesure bornée** (l'ancien `max-w-[68ch]` est parti) ; pendant une
     première demande, trois barres d'attente (pulsation coupée par
-    `prefers-reduced-motion`) ; sinon une ligne d'aide (« Cliquez sur Résumer
-    pour obtenir un résumé de cet article. »). L'erreur est un `role="alert"` ;
-    replié, elle prend la place du statut sous le titre — sans cela un échec ne
-    laisserait aucune trace. Une région `role="status" aria-live="polite"`,
-    **toujours montée** (même replié), entoure le corps. Le résumé reste
-    affiché pendant une nouvelle demande et après un échec.
+    `prefers-reduced-motion`) ; sinon une ligne d'aide (« Cliquez sur
+    « Résumer » pour obtenir un résumé de cet article. »). Replié, le corps
+    reste monté, `hidden` et vide : `aria-controls` ne pointe jamais dans le
+    vide. L'erreur est un `role="alert"` ; replié, elle prend la place du
+    statut sous le titre — sans cela un échec ne laisserait aucune trace. Le
+    résumé reste affiché pendant une nouvelle demande et après un échec.
+  - **Annonces** : une région `role="status" aria-live="polite"`, invisible
+    (`sr-only`) et **toujours montée**, ne contient qu'une ligne — « Résumé par
+    X, depuis le cache » — qui change à l'arrivée d'un résumé, panneau replié
+    compris. Le corps n'y est **pas** : il y était, et déplier ou replier
+    faisait relire tout le résumé. L'alerte d'erreur est hors de la région :
+    les deux ne s'imbriquent jamais.
   - **Mémoire du repli** : globale (pas par article) et synchronisée
     (`aiPanelCollapsed`). Qui replie le panneau le retrouve replié sur l'article
     suivant et sur ses autres appareils. Un résumé qui arrive panneau replié **ne
@@ -2501,7 +2507,7 @@ dans quelques composants partagés.
 
 **38 couleurs** en 6 groupes, **7 tailles** de police en 3 groupes, nom et logo
 de l'application, thèmes enregistrables, exportables en CSS, importables et
-partageables par lien. **Quatre thèmes sont livrés** et le thème peut suivre le
+partageables par lien. **Six thèmes sont livrés** et le thème peut suivre le
 réglage clair/sombre du système.
 
 - **Où** : `src/stores/themeStore.ts`, `src/components/Preferences/AppearanceTab.tsx`,
@@ -2518,11 +2524,15 @@ réglage clair/sombre du système.
   `themePresets.test.ts` vérifie que le fond tombe du même côté clair/sombre
   que `panel-bg`. **Piège** : un thème enregistré avant leur arrivée ne les
   porte pas, et la fusion avec le thème par défaut lui aurait donné sa teinte
-  CLAIRE — une plaque pâle dans un thème sombre. `withAiColors()` les
-  **dérive** alors du thème lui-même (accent mêlé au fond du panneau, 10 % pour
-  le fond, 32 % pour la bordure) au chargement, à l'hydratation serveur, à
-  l'import et pour les thèmes enregistrés ; une valeur présente n'est jamais
-  recalculée.
+  CLAIRE — une plaque pâle dans un thème sombre. `withAiColors(colors, name)`
+  les complète au chargement, à l'hydratation serveur, à l'import et pour les
+  thèmes enregistrés : un thème qui porte le **nom d'un préréglage livré**
+  reçoit les valeurs de ce préréglage (sinon « High Contrast » perdait sa
+  bordure pleine et « modifié » s'affichait sur deux couleurs jamais
+  touchées, la référence de réinitialisation portant les valeurs du
+  préréglage) ; un thème **personnel** les reçoit **dérivées** de lui-même
+  (accent mêlé au fond du panneau, 10 % pour le fond, 32 % pour la bordure).
+  Une valeur présente n'est jamais remplacée.
 - **Ordre des groupes de couleurs** : **Accent en premier**. C'est la couleur
   qui teinte toute l'interface — badges, liens, états actifs, anneau de focus —
   donc celle qu'on vient changer d'abord ; elle était en troisième position,

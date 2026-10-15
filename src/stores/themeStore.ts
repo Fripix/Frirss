@@ -106,13 +106,26 @@ function migrateColors(colors: Record<string, string>): Record<string, string> {
  * Les deux couleurs du panneau « Résumé IA » sont arrivées après coup. Un
  * thème enregistré avant elles ne les porte pas, et la fusion avec le thème
  * par défaut lui donnerait sa teinte CLAIRE — une plaque pâle au milieu d'un
- * thème sombre. Elles sont donc dérivées du thème lui-même : un voile de son
- * accent sur son fond de panneau (10 % pour le fond, 32 % pour la bordure).
- * Une valeur présente, choisie ou non, n'est jamais recalculée.
+ * thème sombre.
+ *
+ * - Thème LIVRÉ (nom d'un préréglage) : les valeurs du préréglage, choisies à
+ *   la main. Les dériver donnerait deux aspects pour un même thème, et
+ *   « modifié » affiché sur des couleurs que personne n'a touchées (la
+ *   référence de réinitialisation, elle, porte les valeurs du préréglage).
+ * - Thème PERSONNEL : dérivées du thème lui-même, un voile de son accent sur
+ *   son fond de panneau (10 % pour le fond, 32 % pour la bordure).
+ *
+ * Une valeur présente, choisie ou non, n'est jamais remplacée.
  */
-export function withAiColors(colors: Record<string, string> | undefined): Record<string, string> {
+export function withAiColors(colors: Record<string, string> | undefined, name?: string): Record<string, string> {
   const c = { ...(colors ?? {}) };
   if (c['ai-bg'] && c['ai-border']) return c;
+  const shipped = name ? SHIPPED_THEMES.find((t) => t.name === name) : undefined;
+  if (shipped) {
+    if (!c['ai-bg']) c['ai-bg'] = shipped.colors['ai-bg'];
+    if (!c['ai-border']) c['ai-border'] = shipped.colors['ai-border'];
+    return c;
+  }
   const hex = (v: string | undefined, fallback: string) => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : fallback);
   const accent = hex(c['accent'], defaultTheme.colors['accent']);
   const panel = hex(c['panel-bg'], defaultTheme.colors['panel-bg']);
@@ -464,7 +477,7 @@ export function ensureShippedThemes(list: Theme[] | null | undefined): Theme[] {
         // que l'utilisateur a réellement choisie n'est jamais touchée — les
         // migrations ne remplacent qu'un ancien défaut exact.
         .filter((t) => !RETIRED_THEME_NAMES.includes(t.name))
-        .map((t) => ({ ...t, colors: migrateColors(withAiColors(t.colors)) }))
+        .map((t) => ({ ...t, colors: migrateColors(withAiColors(t.colors, t.name)) }))
     : [];
   const shipped = SHIPPED_THEMES.map(
     (s) => ({ ...s, colors: { ...s.colors }, fontSizes: { ...s.fontSizes } })
@@ -514,7 +527,7 @@ function loadTheme(): Theme {
       return {
         ...defaultTheme,
         ...parsed,
-        colors: migrateColors({ ...defaultTheme.colors, ...withAiColors(parsed.colors) }),
+        colors: migrateColors({ ...defaultTheme.colors, ...withAiColors(parsed.colors, parsed.name) }),
         fontSizes: { ...defaultTheme.fontSizes, ...parsed.fontSizes },
       };
     }
@@ -987,7 +1000,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
         const merged: Theme & { logo?: string } = {
           ...defaultTheme,
           ...imported,
-          colors: { ...defaultTheme.colors, ...withAiColors(imported.colors) },
+          colors: { ...defaultTheme.colors, ...withAiColors(imported.colors, imported.name) },
           fontSizes: { ...defaultTheme.fontSizes, ...imported.fontSizes },
         };
         // Logo travels with the theme but lives in uiStore — not part of the theme object
@@ -1178,7 +1191,7 @@ export const useThemeStore = create<ThemeState>()((set, get) => {
         const merged: Theme = {
           ...defaultTheme,
           ...pt,
-          colors: migrateColors({ ...defaultTheme.colors, ...withAiColors(pt.colors) }),
+          colors: migrateColors({ ...defaultTheme.colors, ...withAiColors(pt.colors, pt.name) }),
           fontSizes: { ...defaultTheme.fontSizes, ...pt.fontSizes },
         };
         localStorage.setItem('frirss_theme', JSON.stringify(merged));

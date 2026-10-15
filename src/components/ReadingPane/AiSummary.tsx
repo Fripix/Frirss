@@ -91,6 +91,8 @@ export default function AiSummary({ status, result, error, providers, onSummariz
     ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, done.fellBackFrom ? t('ai.fellBack', { name: done.fellBackFrom }) : null].filter((x): x is string => !!x)
     : [t('ai.status.none')];
 
+  const announce = done ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null].filter(Boolean).join(', ') : '';
+
   const errorLine = failed && (
     <p role="alert" className="text-xs leading-snug" style={{ color: 'var(--danger)' }}>{error}</p>
   );
@@ -169,11 +171,11 @@ export default function AiSummary({ status, result, error, providers, onSummariz
       {/* Aligné sur le titre (marge du bouton + étincelle + écart). */}
       {collapsed && failed && <div className="pl-[42px] pr-3.5 pb-2.5 -mt-1">{errorLine}</div>}
 
-      {/* Région vivante toujours montée, même replié : une région insérée avec son
-          contenu n'est pas annoncée de façon fiable. */}
-      <div role="status" aria-live="polite">
+      {/* Le corps reste monté (caché, vide) quand le panneau est replié :
+          `aria-controls` ne doit jamais pointer dans le vide. */}
+      <div id={bodyId} hidden={collapsed} className="px-4 pt-3 pb-3.5" style={{ borderTop: '1px solid var(--ai-border)' }}>
         {!collapsed && (
-          <div id={bodyId} className="px-4 pt-3 pb-3.5" style={{ borderTop: '1px solid var(--ai-border)' }}>
+          <>
             {done ? (
               <section aria-label={t('ai.summaryTitle')}>
                 {done.text.split(/\n{2,}/).map((p, i) => (
@@ -188,9 +190,16 @@ export default function AiSummary({ status, result, error, providers, onSummariz
               <p className="text-[13px] leading-snug" style={{ color: 'var(--reading-meta)' }}>{t('ai.hint')}</p>
             ) : null}
             {failed && <div className={done ? 'mt-2.5' : ''}>{errorLine}</div>}
-          </div>
+          </>
         )}
       </div>
+
+      {/* Région vivante : une ligne invisible qui n'annonce QUE l'arrivée d'un
+          résumé (« Résumé par X, depuis le cache »), panneau replié compris.
+          Le corps n'y est pas : déplier ou replier n'annoncerait sinon tout le
+          texte. Toujours montée — une région insérée avec son contenu n'est
+          pas annoncée de façon fiable — et jamais parente de l'alerte d'erreur. */}
+      <div role="status" aria-live="polite" className="sr-only">{done ? announce : ''}</div>
 
       {menuShown && (touch
         ? <BottomSheet open onClose={closeMenu} title={t('ai.withProvider')}>{menuItems}</BottomSheet>

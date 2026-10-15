@@ -322,8 +322,10 @@ statut ; cibles de 44 pt sur les formats tactiles.
 
 **Corps, déplié.** Le résumé (pas de mesure bornée), ou l'erreur
 (`role="alert"`, une phrase et ce qu'il faut faire), ou une ligne d'aide
-« Cliquez sur Résumer pour obtenir un résumé de cet article. ». Une région
-`aria-live="polite"` toujours montée l'entoure.
+« Cliquez sur « Résumer » pour obtenir un résumé de cet article. ». Replié, le
+corps reste monté, caché et vide (cible d'`aria-controls`). Une région
+`aria-live="polite"` invisible et toujours montée n'annonce que l'arrivée d'un
+résumé (« Résumé par X ») ; ni le corps ni l'alerte d'erreur n'y sont.
 
 **Repli.** Mémoire globale et synchronisée (`aiPanelCollapsed`), pas par
 article. Un résumé qui arrive replié ne rouvre pas le panneau (le statut le
