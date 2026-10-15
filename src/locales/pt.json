@@ -270,7 +270,9 @@
       "danger-light": "Fundo de alerta",
       "code-bg": "Fundo de blocos de código",
       "scrollbar": "Barra de deslocamento",
-      "scrollbar-hover": "Barra de deslocamento (hover)"
+      "scrollbar-hover": "Barra de deslocamento (hover)",
+      "ai-bg": "Resumo IA, fundo",
+      "ai-border": "Resumo IA, contorno"
     },
     "fonts": {
       "resetFonts": "Repor os tamanhos"
@@ -728,7 +730,7 @@
     "fromCache": "da cache",
     "fellBack": "{{name}} indisponível",
     "withProvider": "Resumir com…",
-    "userIntro": "Os resumos IA estão prontos: abra um artigo e clique em «Resumo IA».",
+    "userIntro": "Os resumos IA estão prontos: abra um artigo e clique em «Resumir».",
     "errors": {
       "auth": "Chave recusada pelo fornecedor. Verifique-a em Preferências › IA.",
       "authUser": "Chave recusada pelo fornecedor. Avise o seu administrador.",
@@ -777,6 +779,16 @@
       "missingFields": "Nome, URL e modelo são obrigatórios.",
       "loadError": "Não foi possível carregar os fornecedores.",
       "saveError": "Não foi possível guardar. Tente novamente."
+    },
+    "summarizeAction": "Resumir",
+    "status": {
+      "none": "Ainda sem resumo"
+    },
+    "hint": "Clique em «Resumir» para obter um resumo deste artigo.",
+    "ratioHint": "Comprimento pretendido do resumo em relação ao artigo. Nunca menos de três frases.",
+    "user": {
+      "title": "Resumos",
+      "ratio": "Comprimento do resumo"
     }
   }
 }

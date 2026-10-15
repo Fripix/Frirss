@@ -270,7 +270,9 @@
       "danger-light": "Fond alerte",
       "code-bg": "Fond blocs de code",
       "scrollbar": "Scrollbar",
-      "scrollbar-hover": "Scrollbar (hover)"
+      "scrollbar-hover": "Scrollbar (hover)",
+      "ai-bg": "Résumé IA, fond",
+      "ai-border": "Résumé IA, bordure"
     },
     "fonts": {
       "resetFonts": "Réinitialiser les tailles"
@@ -728,7 +730,7 @@
     "fromCache": "depuis le cache",
     "fellBack": "{{name}} indisponible",
     "withProvider": "Résumer avec…",
-    "userIntro": "Les résumés IA sont prêts : ouvrez un article et cliquez « Résumé IA ».",
+    "userIntro": "Les résumés IA sont prêts : ouvrez un article et cliquez « Résumer ».",
     "errors": {
       "auth": "Clé refusée par le fournisseur. Vérifiez-la dans Préférences › IA.",
       "authUser": "Clé refusée par le fournisseur. Prévenez votre administrateur.",
@@ -777,6 +779,16 @@
       "missingFields": "Nom, URL et modèle sont obligatoires.",
       "loadError": "Impossible de charger les fournisseurs.",
       "saveError": "Enregistrement impossible. Réessayez."
+    },
+    "summarizeAction": "Résumer",
+    "status": {
+      "none": "Pas encore résumé"
+    },
+    "hint": "Cliquez sur Résumer pour obtenir un résumé de cet article.",
+    "ratioHint": "Longueur visée du résumé par rapport à l'article. Jamais moins de trois phrases.",
+    "user": {
+      "title": "Résumés",
+      "ratio": "Longueur du résumé"
     }
   }
 }

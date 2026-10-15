@@ -270,7 +270,9 @@
       "danger-light": "Waarschuwingsachtergrond",
       "code-bg": "Achtergrond codeblokken",
       "scrollbar": "Schuifbalk",
-      "scrollbar-hover": "Schuifbalk (hover)"
+      "scrollbar-hover": "Schuifbalk (hover)",
+      "ai-bg": "AI-samenvatting, achtergrond",
+      "ai-border": "AI-samenvatting, rand"
     },
     "fonts": {
       "resetFonts": "Groottes herstellen"
@@ -728,7 +730,7 @@
     "fromCache": "uit de cache",
     "fellBack": "{{name}} niet beschikbaar",
     "withProvider": "Samenvatten met…",
-    "userIntro": "AI-samenvattingen zijn klaar: open een artikel en klik op ‘AI-samenvatting’.",
+    "userIntro": "AI-samenvattingen zijn klaar: open een artikel en klik op ‘Samenvatten’.",
     "errors": {
       "auth": "Sleutel geweigerd door de aanbieder. Controleer hem in Voorkeuren › AI.",
       "authUser": "Sleutel geweigerd door de aanbieder. Laat het je beheerder weten.",
@@ -777,6 +779,16 @@
       "missingFields": "Naam, URL en model zijn verplicht.",
       "loadError": "De aanbieders konden niet worden geladen.",
       "saveError": "Opslaan mislukt. Probeer het opnieuw."
+    },
+    "summarizeAction": "Samenvatten",
+    "status": {
+      "none": "Nog niet samengevat"
+    },
+    "hint": "Klik op ‘Samenvatten’ voor een samenvatting van dit artikel.",
+    "ratioHint": "Beoogde lengte van de samenvatting ten opzichte van het artikel. Nooit minder dan drie zinnen.",
+    "user": {
+      "title": "Samenvattingen",
+      "ratio": "Lengte van de samenvatting"
     }
   }
 }

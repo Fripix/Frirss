@@ -270,7 +270,9 @@
       "danger-light": "Warnungs-Hintergrund",
       "code-bg": "Code-Block-Hintergrund",
       "scrollbar": "Scrollbalken",
-      "scrollbar-hover": "Scrollbalken (Hover)"
+      "scrollbar-hover": "Scrollbalken (Hover)",
+      "ai-bg": "KI-Zusammenfassung, Hintergrund",
+      "ai-border": "KI-Zusammenfassung, Rahmen"
     },
     "fonts": {
       "resetFonts": "Größen zurücksetzen"
@@ -728,7 +730,7 @@
     "fromCache": "aus dem Cache",
     "fellBack": "{{name}} nicht verfügbar",
     "withProvider": "Zusammenfassen mit…",
-    "userIntro": "KI-Zusammenfassungen sind bereit: Öffnen Sie einen Artikel und klicken Sie auf „KI-Zusammenfassung“.",
+    "userIntro": "KI-Zusammenfassungen sind bereit: Öffnen Sie einen Artikel und klicken Sie auf „Zusammenfassen“.",
     "errors": {
       "auth": "Der Anbieter hat den Schlüssel abgelehnt. Prüfen Sie ihn unter Einstellungen › KI.",
       "authUser": "Der Anbieter hat den Schlüssel abgelehnt. Informieren Sie Ihren Administrator.",
@@ -777,6 +779,16 @@
       "missingFields": "Name, URL und Modell sind erforderlich.",
       "loadError": "Die Anbieter konnten nicht geladen werden.",
       "saveError": "Speichern nicht möglich. Versuchen Sie es erneut."
+    },
+    "summarizeAction": "Zusammenfassen",
+    "status": {
+      "none": "Noch nicht zusammengefasst"
+    },
+    "hint": "Klicken Sie auf „Zusammenfassen“, um eine Zusammenfassung dieses Artikels zu erhalten.",
+    "ratioHint": "Angestrebte Länge der Zusammenfassung im Verhältnis zum Artikel. Nie weniger als drei Sätze.",
+    "user": {
+      "title": "Zusammenfassungen",
+      "ratio": "Länge der Zusammenfassung"
     }
   }
 }

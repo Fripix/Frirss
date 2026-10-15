@@ -270,7 +270,9 @@
       "danger-light": "Fondo de alerta",
       "code-bg": "Fondo de bloques de código",
       "scrollbar": "Barra de desplazamiento",
-      "scrollbar-hover": "Barra de desplazamiento (hover)"
+      "scrollbar-hover": "Barra de desplazamiento (hover)",
+      "ai-bg": "Resumen con IA, fondo",
+      "ai-border": "Resumen con IA, borde"
     },
     "fonts": {
       "resetFonts": "Restablecer los tamaños"
@@ -728,7 +730,7 @@
     "fromCache": "desde la caché",
     "fellBack": "{{name}} no disponible",
     "withProvider": "Resumir con…",
-    "userIntro": "Los resúmenes con IA están listos: abre un artículo y haz clic en «Resumen con IA».",
+    "userIntro": "Los resúmenes con IA están listos: abre un artículo y haz clic en «Resumir».",
     "errors": {
       "auth": "El proveedor ha rechazado la clave. Compruébala en Preferencias › IA.",
       "authUser": "El proveedor ha rechazado la clave. Avisa a tu administrador.",
@@ -777,6 +779,16 @@
       "missingFields": "El nombre, la URL y el modelo son obligatorios.",
       "loadError": "No se pudieron cargar los proveedores.",
       "saveError": "No se pudo guardar. Inténtalo de nuevo."
+    },
+    "summarizeAction": "Resumir",
+    "status": {
+      "none": "Aún sin resumir"
+    },
+    "hint": "Haz clic en «Resumir» para obtener un resumen de este artículo.",
+    "ratioHint": "Longitud deseada del resumen respecto al artículo. Nunca menos de tres frases.",
+    "user": {
+      "title": "Resúmenes",
+      "ratio": "Longitud del resumen"
     }
   }
 }

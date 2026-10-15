@@ -270,7 +270,9 @@
       "danger-light": "警示背景",
       "code-bg": "代码块背景",
       "scrollbar": "滚动条",
-      "scrollbar-hover": "滚动条（悬停）"
+      "scrollbar-hover": "滚动条（悬停）",
+      "ai-bg": "AI 摘要背景",
+      "ai-border": "AI 摘要边框"
     },
     "fonts": {
       "resetFonts": "重置字号"
@@ -728,7 +730,7 @@
     "fromCache": "来自缓存",
     "fellBack": "{{name}} 不可用",
     "withProvider": "使用以下服务生成摘要…",
-    "userIntro": "AI 摘要已就绪：打开一篇文章并点击“AI 摘要”。",
+    "userIntro": "AI 摘要已就绪：打开一篇文章并点击“生成摘要”。",
     "errors": {
       "auth": "服务商拒绝了该密钥。请在“偏好设置 › AI”中检查。",
       "authUser": "服务商拒绝了该密钥。请告知您的管理员。",
@@ -777,6 +779,16 @@
       "missingFields": "名称、URL 和模型为必填项。",
       "loadError": "无法加载服务商。",
       "saveError": "保存失败。请重试。"
+    },
+    "summarizeAction": "生成摘要",
+    "status": {
+      "none": "尚未生成摘要"
+    },
+    "hint": "点击“生成摘要”即可获取这篇文章的摘要。",
+    "ratioHint": "摘要相对于文章的目标长度。至少三句话。",
+    "user": {
+      "title": "摘要",
+      "ratio": "摘要长度"
     }
   }
 }

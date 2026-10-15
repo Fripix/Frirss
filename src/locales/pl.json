@@ -274,7 +274,9 @@
       "danger-light": "Tło ostrzeżenia",
       "code-bg": "Tło bloków kodu",
       "scrollbar": "Pasek przewijania",
-      "scrollbar-hover": "Pasek przewijania (najechanie)"
+      "scrollbar-hover": "Pasek przewijania (najechanie)",
+      "ai-bg": "Podsumowanie AI, tło",
+      "ai-border": "Podsumowanie AI, obramowanie"
     },
     "fonts": {
       "resetFonts": "Zresetuj rozmiary"
@@ -756,7 +758,7 @@
     "fromCache": "z pamięci podręcznej",
     "fellBack": "{{name}} niedostępny",
     "withProvider": "Podsumuj za pomocą…",
-    "userIntro": "Podsumowania AI są gotowe: otwórz artykuł i kliknij „Podsumowanie AI”.",
+    "userIntro": "Podsumowania AI są gotowe: otwórz artykuł i kliknij „Podsumuj”.",
     "errors": {
       "auth": "Dostawca odrzucił klucz. Sprawdź go w Preferencje › AI.",
       "authUser": "Dostawca odrzucił klucz. Powiadom administratora.",
@@ -805,6 +807,16 @@
       "missingFields": "Nazwa, adres URL i model są wymagane.",
       "loadError": "Nie udało się wczytać dostawców.",
       "saveError": "Nie udało się zapisać. Spróbuj ponownie."
+    },
+    "summarizeAction": "Podsumuj",
+    "status": {
+      "none": "Jeszcze bez podsumowania"
+    },
+    "hint": "Kliknij „Podsumuj”, aby otrzymać podsumowanie tego artykułu.",
+    "ratioHint": "Docelowa długość podsumowania względem artykułu. Nigdy mniej niż trzy zdania.",
+    "user": {
+      "title": "Podsumowania",
+      "ratio": "Długość podsumowania"
     }
   }
 }

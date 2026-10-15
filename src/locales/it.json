@@ -270,7 +270,9 @@
       "danger-light": "Sfondo avviso",
       "code-bg": "Sfondo blocchi di codice",
       "scrollbar": "Barra di scorrimento",
-      "scrollbar-hover": "Barra di scorrimento (hover)"
+      "scrollbar-hover": "Barra di scorrimento (hover)",
+      "ai-bg": "Riassunto IA, sfondo",
+      "ai-border": "Riassunto IA, bordo"
     },
     "fonts": {
       "resetFonts": "Reimposta le dimensioni"
@@ -728,7 +730,7 @@
     "fromCache": "dalla cache",
     "fellBack": "{{name}} non disponibile",
     "withProvider": "Riassumi con…",
-    "userIntro": "I riassunti IA sono pronti: apri un articolo e fai clic su «Riassunto IA».",
+    "userIntro": "I riassunti IA sono pronti: apri un articolo e fai clic su «Riassumi».",
     "errors": {
       "auth": "Chiave rifiutata dal fornitore. Controllala in Preferenze › IA.",
       "authUser": "Chiave rifiutata dal fornitore. Avvisa il tuo amministratore.",
@@ -777,6 +779,16 @@
       "missingFields": "Nome, URL e modello sono obbligatori.",
       "loadError": "Impossibile caricare i fornitori.",
       "saveError": "Salvataggio non riuscito. Riprova."
+    },
+    "summarizeAction": "Riassumi",
+    "status": {
+      "none": "Non ancora riassunto"
+    },
+    "hint": "Fai clic su «Riassumi» per ottenere un riassunto di questo articolo.",
+    "ratioHint": "Lunghezza desiderata del riassunto rispetto all'articolo. Mai meno di tre frasi.",
+    "user": {
+      "title": "Riassunti",
+      "ratio": "Lunghezza del riassunto"
     }
   }
 }
