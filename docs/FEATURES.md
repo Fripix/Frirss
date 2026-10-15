@@ -1784,16 +1784,16 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   repli compact (classe `.toolbar-icon-btn`) pour tenir dans le même budget.
 
 ### Résumés par IA
-Une pastille « Résumé IA » dans le volet de lecture envoie le texte de
-l'article à un fournisseur de modèle de langage et affiche le résumé au-dessus
-de l'article. **Éteint d'origine** : tant que l'admin n'a pas activé la
+Un panneau repliable « Résumé IA », en tête du volet de lecture, envoie le
+texte de l'article à un fournisseur de modèle de langage et affiche le résumé
+au-dessus de l'article. **Éteint d'origine** : tant que l'admin n'a pas activé la
 fonctionnalité (Préférences → IA → Fournisseurs), rien n'est visible pour un
 utilisateur, pas même la section ; l'admin la voit toujours. Spec :
 `docs/superpowers/specs/2026-10-15-ai-summaries-design.md` ; plan :
 `docs/superpowers/plans/2026-10-15-ai-summaries-core.md`. Demandé dans la
-discussion #22. Ce cycle livre le socle (plan 1) : les blocs « Résumés » et les
-clés personnelles de la section IA viennent avec le plan 2, la traduction avec
-le plan 3.
+discussion #22. Ce cycle livre le socle (plan 1) et le bloc utilisateur
+« Résumés » avec la longueur visée ; les clés personnelles et les choix de
+fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
 
 - **Où** : serveur `server/ai/` — `text.ts` (HTML → texte, comptage de mots),
   `errors.ts` (`AiError` : `auth` / `quota` / `technical` / `refused`),
@@ -1802,6 +1802,8 @@ le plan 3.
   résolution, pures), `summarize.ts` (orchestration) ; routes
   `server/routes/ai.ts` (utilisateur) et `server/routes/adminAi.ts` (admin).
   Client `src/stores/aiStore.ts`, `src/components/ReadingPane/AiSummary.tsx`,
+  réglages `aiPanelCollapsed` / `aiSummaryRatio` dans `src/stores/uiStore.ts`,
+  couleurs `ai-bg` / `ai-border` dans `src/stores/themeStore.ts`,
   `src/components/Preferences/AiTab.tsx`, `src/lib/aiPayload.ts` (HTML allégé
   avant envoi), `src/lib/aiErrorKey.ts` (réponse d'erreur → message). Tests :
   `server/ai/*.test.ts`, `server/test/ai.test.ts`, `server/backup.test.ts`,
@@ -1874,16 +1876,22 @@ le plan 3.
   minuit local du serveur, `nextUsageReset`). ⚠️ **Le contrôle n'est pas atomique** (lecture avant l'appel,
   incrément après) : N requêtes parallèles peuvent dépasser le plafond de N−1.
   Assumé : c'est un garde-fou de coût, pas un quota comptable.
-- **Consigne** (`prompts.ts`, version 2) : l'article part entre les balises
+- **Consigne** (`prompts.ts`, version 3) : l'article part entre les balises
   `<article>` / `</article>` (`summaryUserMessage`) et la consigne dit qu'il
   n'est **pas adressé au modèle** — sans cela, un article à la première
   personne recevait une réponse de conversation. Texte brut seulement (ni
   markdown, ni titres, ni gras, ni émoji), même langue que l'article, première
-  ligne `lang: <BCP 47>`.
+  ligne `lang: <BCP 47>`. La consigne système est une fonction de la longueur
+  visée, `summarySystem(ratio)` : « environ {ratio} % de la longueur de
+  l'article ; plus long seulement si le contenu l'exige ; jamais moins de trois
+  phrases ; aucune limite de mots ». La version 3 (ratio) a remplacé la
+  version 2 (« proportionner la longueur »), qui laissait le modèle seul juge et
+  donnait des résumés de longueur imprévisible.
 - **Cache** : clé = article + opération + fournisseur + **modèle** (changer de
   modèle ne resert pas le résumé de l'ancien) + langue cible (`-` pour un
-  résumé, réservée à la traduction du plan 3) + version de consigne
-  (`PROMPT_VERSION`) **+ sha1 (16 hex) du titre et du texte nettoyé**. Le hash
+  résumé, réservée à la traduction du plan 3) + **longueur visée** (segment
+  `r<ratio>` : deux réglages sont deux résumés, deux appels) + version de
+  consigne (`PROMPT_VERSION`) **+ sha1 (16 hex) du titre et du texte nettoyé**. Le hash
   existe parce que l'`articleId` vient du client : sans lui, un utilisateur
   pourrait lire ou empoisonner le résumé d'un autre ; deux contenus (ou deux
   titres, le titre fait partie du prompt) pour le même identifiant donnent deux
@@ -1895,7 +1903,9 @@ le plan 3.
   `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) pour la
   traduction (plan 3).
 - **Entrée** (`POST /api/ai/summary`) : `articleId` ≤ 512 caractères, `title`
-  tronqué à 500, `html` ≤ 200 Ko, sinon 400 `invalid_body` ; le texte est ensuite
+  tronqué à 500, `html` ≤ 200 Ko, sinon 400 `invalid_body` ; `ratio` entier de
+  5 à 50, sinon 20 — **jamais** un 400 pour ce champ, c'est un réglage de
+  confort (un client plus ancien ne l'envoie pas) ; le texte est ensuite
   borné à 200 000 caractères. La conversion HTML → texte (`text.ts`) est
   **linéaire** même sur une entrée hostile : 200 Ko d'espaces, de `<` ou de
   `<a` bloquaient la boucle d'événements 16 à 21 s avec les premiers motifs
@@ -1930,27 +1940,70 @@ le plan 3.
   `ai_default_provider`. `POST …/providers/:id/test` répond **200** avec
   `{ ok:false, kind, message }` en cas d'échec (message ≤ 200 caractères) : un
   test raté n'est pas une erreur HTTP.
-- **Interface** : section **« IA »** (un mot, comme les autres) des
-  Préférences ; aujourd'hui elle ne porte que le bloc admin « Fournisseurs »
-  (interrupteur, liste réordonnable par flèches haut / bas, éditeur, test, clé
-  partagée, plafond, défaut), un repli « Avancé » avec l'interrupteur « Les
-  utilisateurs peuvent saisir leur propre clé » (**inerte tant que le plan 2
-  n'a pas livré route ni écran de clé personnelle**) et, pour un utilisateur,
-  une ligne d'introduction. La section n'est montée que pour un admin ou quand
-  l'IA est activée. Après un enregistrement,
-  l'éditeur **reste ouvert** : clé effacée du champ, « Enregistré »,
-  « Fermer ». Le bloc de résumé est une région `aria-live="polite"`. Le menu
-  « Résumer avec… » est un popover en portail sur le format ordinateur et une
-  feuille du bas sur les formats tablette et smartphone (`useBreakpoint() !==
-  'desktop'`, le format est forçable manuellement : ce n'est pas la détection du
-  tactile). La pastille
-  est **désactivée hors ligne** (`useOnlineStatus`, qui suit les événements
-  `online` / `offline`) et **absente** quand aucun fournisseur n'est
-  disponible pour cet utilisateur (`providers.some(p => p.available)`) : elle ne
-  ferait que répondre « aucun fournisseur ». À 320 px, l'en-tête du résumé
-  passe à la ligne et tronque un nom de fournisseur trop long ; les paragraphes
-  gardent leurs retours à la ligne simples (`whitespace-pre-line`, listes à
-  puces).
+- **Interface — Préférences** : section **« IA »** (un mot, comme les autres)
+  des Préférences. En tête, pour tous (admin compris), le bloc **« Résumés »** :
+  un curseur « Longueur du résumé » (`type="range"`, 5 à 50 %, pas de 5, valeur
+  affichée à droite et annoncée par `aria-valuetext`, formatée par la langue —
+  « 20 % » en français, « 20% » en anglais — via `Intl.NumberFormat`, sans clé
+  de traduction) et son aide « Jamais moins de trois phrases » ; pour un
+  non-admin, la ligne d'introduction (`ai.userIntro`) y sert de texte d'aide.
+  Dessous, pour l'admin seul, le bloc « Fournisseurs » (interrupteur, liste
+  réordonnable par flèches haut / bas, éditeur, test, clé partagée, plafond,
+  défaut) et un repli « Avancé » avec l'interrupteur « Les utilisateurs peuvent
+  saisir leur propre clé » (**inerte tant que le plan 2 n'a pas livré route ni
+  écran de clé personnelle**). La section n'est montée que pour un admin ou
+  quand l'IA est activée. Après un enregistrement, l'éditeur **reste ouvert** :
+  clé effacée du champ, « Enregistré », « Fermer ».
+- **Interface — panneau** (`AiSummary.tsx`) : un panneau sur **toute la largeur
+  de la colonne de lecture**, au-dessus de l'article, sur une **surface teintée
+  réglable** (`--ai-bg` / `--ai-border`, voir « Apparence et thèmes »).
+  - **En-tête toujours visible** : à gauche, **un seul bouton** (`aria-expanded`,
+    `aria-controls`) qui replie ou déplie — étincelle, titre « Résumé IA »,
+    statut en petit dessous (« Pas encore résumé », « Résumé par X », « depuis
+    le cache », « X indisponible »), chevron qui tourne. À droite, **hors de ce
+    bouton** (un clic dessus ne replie rien) : l'action « Résumer » (pleine,
+    couleur d'accent) tant qu'il n'y a pas de résumé — désactivée, avec un
+    indicateur qui tourne et « Résumé en cours… », pendant la demande —, puis « Résumer
+    avec… » (discret) une fois un résumé affiché. Un seul chevron : celui du
+    repli ; les points de suspension de « Résumer avec… » disent déjà qu'un
+    choix suit. Le statut **passe à la ligne** au lieu d'être tronqué ; quand la
+    place manque (320 px), l'action descend sous le titre, alignée à droite
+    (`flex-wrap`), au lieu d'écraser le statut. Sur tablette et smartphone,
+    en-tête et action font 44 px.
+  - **Corps** (déplié) : les paragraphes du résumé (corps 15 px, retours à la
+    ligne simples gardés par `whitespace-pre-line` pour les listes à puces),
+    **sans mesure bornée** (l'ancien `max-w-[68ch]` est parti) ; pendant une
+    première demande, trois barres d'attente (pulsation coupée par
+    `prefers-reduced-motion`) ; sinon une ligne d'aide (« Cliquez sur Résumer
+    pour obtenir un résumé de cet article. »). L'erreur est un `role="alert"` ;
+    replié, elle prend la place du statut sous le titre — sans cela un échec ne
+    laisserait aucune trace. Une région `role="status" aria-live="polite"`,
+    **toujours montée** (même replié), entoure le corps. Le résumé reste
+    affiché pendant une nouvelle demande et après un échec.
+  - **Mémoire du repli** : globale (pas par article) et synchronisée
+    (`aiPanelCollapsed`). Qui replie le panneau le retrouve replié sur l'article
+    suivant et sur ses autres appareils. Un résumé qui arrive panneau replié **ne
+    le rouvre pas** : le statut passe à « Résumé par X ». Seule exception : le
+    **tout premier** « Résumer » lancé panneau replié le déplie, une fois par
+    appareil (`aiPanelAutoExpanded`, local), sinon on demanderait un résumé sans
+    jamais le voir.
+  - Le menu « Résumer avec… » ne liste que les fournisseurs disponibles ; c'est
+    un popover en portail sur le format ordinateur (Échap, Tab, flèches, clic
+    extérieur ; le focus revient au déclencheur) et une feuille du bas sur les
+    formats tablette et smartphone (`useBreakpoint() !== 'desktop'`, le format
+    est forçable manuellement : ce n'est pas la détection du tactile).
+  - L'action est **désactivée hors ligne** (`useOnlineStatus`, qui suit les
+    événements `online` / `offline`) ; le panneau est **absent** quand l'IA est
+    éteinte ou qu'aucun fournisseur n'est disponible pour cet utilisateur
+    (`providers.some(p => p.available)`) : il ne ferait que répondre « aucun
+    fournisseur ».
+- **Réglages** (utilisateur, synchronisés, `UI_SYNC_KEYS`) :
+  `aiPanelCollapsed` (booléen, défaut `false` ; seul un `true` explicite
+  replie) et `aiSummaryRatio` (pour cent, défaut 20 ; normalisé par
+  `normalizeAiSummaryRatio` au chargement comme à l'application des
+  préférences serveur : tout ce qui n'est pas un multiple de 5 entre 5 et 50
+  revient à 20). `aiPanelAutoExpanded` est local à l'appareil, pas une
+  préférence. Le volet envoie `ratio` avec chaque demande.
 - **Pièges** : le volet envoie le texte *affiché* (contenu complet extrait s'il
   y en a un, sinon celui du flux) : résumer avant ou après l'extraction donne
   deux entrées de cache. Il l'envoie **allégé** par `stripMediaForSummary`
@@ -1961,7 +2014,9 @@ le plan 3.
   confondre « payé par l'admin » (`paidByAdmin` ne pilote que le plafond et le
   décompte d'usage, pas l'éligibilité au repli) et « clé admin utilisée »
   (un admin n'est pas facturé) ; la clé de cache doit garder le hash du
-  contenu.
+  contenu et la longueur visée. Le serveur accepte tout entier de 5 à 50, le
+  client n'envoie que des multiples de 5 : un client trafiqué peut multiplier
+  les entrées de cache, pas les contourner.
 - **Réglages serveur** (`settings`) : `ai_enabled`, `ai_user_keys_allowed`,
   `ai_daily_cap`, `ai_default_provider`. Tables : `ai_providers`,
   `ai_user_keys`, `ai_usage`, `ai_cache`. La sauvegarde chiffrée emporte
@@ -2444,7 +2499,7 @@ dans quelques composants partagés.
 
 ## Apparence et thèmes
 
-**36 couleurs** en 6 groupes, **7 tailles** de police en 3 groupes, nom et logo
+**38 couleurs** en 6 groupes, **7 tailles** de police en 3 groupes, nom et logo
 de l'application, thèmes enregistrables, exportables en CSS, importables et
 partageables par lien. **Quatre thèmes sont livrés** et le thème peut suivre le
 réglage clair/sombre du système.
@@ -2452,8 +2507,22 @@ réglage clair/sombre du système.
 - **Où** : `src/stores/themeStore.ts`, `src/components/Preferences/AppearanceTab.tsx`,
   `src/components/Preferences/ThemePreview.tsx`, `src/components/Preferences/colorHighlight.ts`
 - **Section ouverte par défaut** : **Thème** (la galerie), pas Couleurs. C'est
-  le geste le plus courant et le seul qui change tout d'un coup ; les 36
+  le geste le plus courant et le seul qui change tout d'un coup ; les 38
   couleurs viennent après.
+- **Couleurs du panneau « Résumé IA »** (`ai-bg`, `ai-border`, rangées dans le
+  groupe **Lecture** — le panneau vit dans la colonne de lecture, une section à
+  deux couleurs aurait été plus bruyante qu'utile ; libellés « Résumé IA,
+  fond » / « Résumé IA, bordure ») : un voile clair de l'accent dans les thèmes
+  clairs, sombre dans les thèmes sombres, choisi à la main pour chaque
+  préréglage (bordure = l'accent plein dans « High Contrast »).
+  `themePresets.test.ts` vérifie que le fond tombe du même côté clair/sombre
+  que `panel-bg`. **Piège** : un thème enregistré avant leur arrivée ne les
+  porte pas, et la fusion avec le thème par défaut lui aurait donné sa teinte
+  CLAIRE — une plaque pâle dans un thème sombre. `withAiColors()` les
+  **dérive** alors du thème lui-même (accent mêlé au fond du panneau, 10 % pour
+  le fond, 32 % pour la bordure) au chargement, à l'hydratation serveur, à
+  l'import et pour les thèmes enregistrés ; une valeur présente n'est jamais
+  recalculée.
 - **Ordre des groupes de couleurs** : **Accent en premier**. C'est la couleur
   qui teinte toute l'interface — badges, liens, états actifs, anneau de focus —
   donc celle qu'on vient changer d'abord ; elle était en troisième position,
@@ -2534,7 +2603,7 @@ réglage clair/sombre du système.
   - **Leurs noms ne sont pas traduits.** Le nom est l'identifiant : le traduire
     casserait la correspondance au changement de langue. Cohérent avec
     `FriRSS Default`, qui l'était déjà.
-  - **Chaque préréglage définit les 36 couleurs.** `themePresets.test.ts` échoue
+  - **Chaque préréglage définit les 38 couleurs.** `themePresets.test.ts` échoue
     si l'un en oublie une — une clé absente laisserait sur `:root` la valeur du
     thème précédent, ce qui donne une interface à moitié sombre.
   - **Piège majeur, corrigé** : un préréglage livré suit désormais le **code**,
@@ -2577,7 +2646,8 @@ réglage clair/sombre du système.
   sélection). **Ne pas reteinter la surface de lecture.**
 - **Aides visuelles** : survoler une couleur **encadre l'élément réel** derrière le
   panneau, et **cercle la zone correspondante** dans un aperçu vivant qui se
-  recompose en direct. Couverture : 28 couleurs encadrables sur l'interface, 14
+  recompose en direct. Couverture : 30 couleurs encadrables sur l'interface (dont
+  les deux du panneau « Résumé IA », `.ai-summary`, quand il est affiché), 14
   avec une zone d'aperçu, **6 avec aucune des deux** — l'interface le dit au lieu
   de laisser attendre une mise en évidence qui n'arrivera pas.
 - **Piège majeur — l'accent n'est PAS lisible partout.** Il est réglé pour le

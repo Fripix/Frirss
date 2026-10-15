@@ -18,12 +18,19 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Résumés par IA** (discussion #22). Une pastille « Résumé IA » dans le volet
-  de lecture envoie l'article au fournisseur que l'admin a déclaré (Claude, ou
-  tout service compatible OpenAI dont Ollama) et affiche le résumé au-dessus de
-  l'article. Éteint d'origine ; nouvelle section « IA » des Préférences avec le
-  bloc admin « Fournisseurs » (interrupteur, fournisseurs, clé partagée, test de
-  connexion, plafond quotidien). Repli automatique entre fournisseurs, cache
+- **Résumés par IA** (discussion #22). Un panneau repliable « Résumé IA », en
+  tête du volet de lecture, envoie l'article au fournisseur que l'admin a
+  déclaré (Claude, ou tout service compatible OpenAI dont Ollama) et affiche le
+  résumé au-dessus de l'article, sur toute la largeur de la colonne. L'en-tête
+  dit l'état (« Pas encore résumé », « Résumé par X »…) et porte l'action
+  « Résumer », puis « Résumer avec… » ; replier le panneau est mémorisé pour
+  tous les articles et synchronisé entre appareils. Sa surface teintée se règle
+  dans Apparence → Couleurs → Lecture (« Résumé IA, fond » / « bordure »),
+  avec une teinte propre à chaque thème livré. Éteint d'origine ; nouvelle
+  section « IA » des Préférences avec un bloc « Résumés » pour chacun (longueur
+  visée du résumé, de 5 à 50 % de l'article, 20 % par défaut, jamais moins de
+  trois phrases) et le bloc admin « Fournisseurs » (interrupteur, fournisseurs,
+  clé partagée, test de connexion, plafond quotidien). Repli automatique entre fournisseurs, cache
   des résumés, clés chiffrées, aucune dépendance nouvelle ; la sauvegarde
   chiffrée emporte les fournisseurs et leurs clés. Les clés personnelles, les
   réglages par flux et la traduction viennent ensuite.

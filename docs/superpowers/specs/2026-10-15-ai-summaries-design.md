@@ -87,8 +87,11 @@ décline) est `refused` et ne déclenche **jamais** de repli.
 Une seule consigne système par opération, en anglais, versionnée dans
 `server/ai/prompts.ts` (la version fait partie de la clé de cache, voir §9).
 
-**Résumé.** Fidèle, dans **la langue de l'article**, proportionné à sa
-longueur, jamais moins de trois phrases, **sans plafond de mots** ; en
+**Résumé.** Fidèle, dans **la langue de l'article**, d'une longueur visée
+d'environ **{ratio} % de l'article** (réglage utilisateur, §10 ; 20 % par
+défaut), plus long seulement si le contenu l'exige, jamais moins de trois
+phrases, **sans plafond de mots** (consigne version 3, `summarySystem(ratio)` ;
+le ratio fait aussi partie de la clé de cache) ; en
 paragraphes, en puces seulement si l'article est lui-même une liste ; sans
 introduction du type « cet article parle de ». La réponse commence par une
 ligne `lang: <code BCP 47>` donnant la langue détectée de l'article, que le
@@ -252,7 +255,12 @@ Administration. Fichier `src/components/Preferences/AiTab.tsx`.
 
 Blocs, dans cet ordre, nommés par l'usage :
 
-**« Résumés »** (tout utilisateur) :
+**« Résumés »** (tout utilisateur, admin compris, en tête de la section ; pour
+un non-admin, la ligne d'introduction y sert d'aide) :
+- **Longueur du résumé** — *livré* : curseur de 5 à 50 % de l'article, pas de
+  5, défaut 20 %, valeur affichée formatée par la langue, aide « Longueur visée
+  du résumé par rapport à l'article. Jamais moins de trois phrases. » Préférence
+  synchronisée `aiSummaryRatio`, envoyée avec chaque demande (`ratio`).
 - Fournisseur préféré (liste des disponibles ; un fournisseur sans clé
   accessible est grisé avec « clé requise »).
 - Repli automatique (interrupteur, aide : « si votre fournisseur échoue, le
@@ -273,6 +281,8 @@ champ masqué, « Enregistrer » / « Effacer », état « clé enregistrée ».
 saisie n'est jamais réaffichée. L'usage du jour s'affiche ici quand un
 plafond s'applique.
 
+Les éléments ci-dessus autres que la longueur restent à livrer (plan 2).
+
 **« Fournisseurs »** (admin seul, en dernier) :
 - Interrupteur général « Activer les résumés IA » (éteint par défaut).
 - Liste ordonnée, réordonnable comme les catégories : nom, type, URL de base,
@@ -288,27 +298,40 @@ cibles tactiles de 44 pt, navigation clavier dans les sélecteurs.
 
 ## 11. Volet de lecture
 
-**Rangée de pastilles** au-dessus du contenu, là où « Article complet » vit
-déjà (`ReadingPane.tsx`, bloc `extractedContent`), identique sur les trois
-formats : « Article complet » · **« Résumé IA »** · « Traduire l'article »
-(étape B). Pas de nouvelle icône dans la barre d'outils du volet ni dans la
-feuille d'actions mobile ; le skill `frontend-design` est invoqué avant le
-premier JSX, en particulier pour que la pastille « Résumé IA » se **distingue**
-des autres sans crier (le propriétaire l'a demandé), et pour l'en-tête du
-résumé.
+> **Révisé le 2026-10-16** (décision du propriétaire) : la rangée de pastilles
+> et le bloc qui s'ouvrait dessous ont été remplacés par un **panneau
+> repliable**. La surface neutre prévue à l'origine est devenue une **teinte
+> réglable** : le résumé est du texte de la machine, il doit se distinguer de
+> l'article d'un coup d'œil.
 
-**États de la pastille** : repos ; en cours (spinner, « Résumé… ») ; produit
-(active, comme « Article complet » actif) ; erreur (une phrase, et ce qu'il
-faut faire : « Clé refusée — vérifiez-la dans Préférences › Résumés IA »).
+**Panneau « Résumé IA »** au-dessus du contenu, sur toute la largeur de la
+colonne de lecture, identique sur les trois formats
+(`src/components/ReadingPane/AiSummary.tsx`). Surface teintée réglable : deux
+couleurs de thème, `ai-bg` et `ai-border` (voile de l'accent, défini dans
+chaque préréglage, dérivé pour un thème enregistré avant leur arrivée).
 
-**Bloc résumé**, inséré entre la rangée et le contenu, repliable, fond
-légèrement distinct (surface neutre, pas une teinte : décision de 2026-08-31
-sur les surfaces teintées). En-tête : « Résumé par Ollama · 4 s », puis les
-actions discrètes **Traduire** (si `lang` ≠ cible), **Résumer avec…** (menu
-des fournisseurs disponibles), **Traduire en…**, **Traduire avec…**, **Masquer**.
-Les menus se rendent par portail sous `<body>` (règle du projet), en feuille
-du bas sur mobile (`BottomSheet`). Un appui long sur la pastille ouvre le menu
-« Résumer avec… » avant même qu'un résumé existe.
+**En-tête, toujours visible.** À gauche, un seul bouton (`aria-expanded`) qui
+replie ou déplie : étincelle, titre « Résumé IA », statut en petit (« Pas
+encore résumé », « Résumé par X », « depuis le cache », « X indisponible »),
+chevron. À droite, **hors du bouton** : « Résumer » tant qu'il n'y a pas de
+résumé (désactivé avec un indicateur qui tourne et « Résumé en cours… » pendant la demande,
+désactivé hors ligne), puis « Résumer avec… » (menu des fournisseurs
+disponibles, popover en portail sur ordinateur, `BottomSheet` sur tablette et
+smartphone). À 320 px, l'action passe sous le titre plutôt que d'écraser le
+statut ; cibles de 44 pt sur les formats tactiles.
+
+**Corps, déplié.** Le résumé (pas de mesure bornée), ou l'erreur
+(`role="alert"`, une phrase et ce qu'il faut faire), ou une ligne d'aide
+« Cliquez sur Résumer pour obtenir un résumé de cet article. ». Une région
+`aria-live="polite"` toujours montée l'entoure.
+
+**Repli.** Mémoire globale et synchronisée (`aiPanelCollapsed`), pas par
+article. Un résumé qui arrive replié ne rouvre pas le panneau (le statut le
+dit) ; seul le tout premier « Résumer » lancé replié le déplie, une fois par
+appareil. Remplace l'action « Masquer » prévue à l'origine.
+
+**Pas encore livré** : les actions de traduction (étape B) dans l'en-tête, et
+l'appui long qui ouvrirait « Résumer avec… » avant qu'un résumé existe.
 
 **Clavier** : un raccourci « Résumé IA » dans la palette de commandes et la
 table des raccourcis, dans la famille de « Article complet ».
