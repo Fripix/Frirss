@@ -40,11 +40,11 @@ function formatHours(minutes: number): string {
 function buildTopics(events: ArticleOpenEvent[], feedback: ArticleFeedback[], savedSignals: Array<{ title: string; summary: string; starred: boolean; readLater: boolean }> | null, start: number | null) {
   const weights = new Map<string, number>();
   const addText = (text: string, weight: number) => {
-    const words = text.toLocaleLowerCase().match(/[\\p{L}\\p{N}][\\p{L}\\p{N}-]{2,}/gu) || [];
-    const local = new Set(words.filter((w) => !STOP_WORDS.has(w) && !/^\\d+$/.test(w)));
+    const words = text.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}-]{2,}/gu) || [];
+    const local = new Set(words.filter((w) => !STOP_WORDS.has(w) && !/^\d+$/.test(w)));
     for (const word of local) weights.set(word, (weights.get(word) || 0) + weight);
     // Common two-word phrases add useful context without requiring AI.
-    const phraseWords = words.filter((w) => !STOP_WORDS.has(w) && !/^\\d+$/.test(w));
+    const phraseWords = words.filter((w) => !STOP_WORDS.has(w) && !/^\d+$/.test(w));
     for (let i = 0; i < phraseWords.length - 1; i++) {
       const phrase = phraseWords[i] + ' ' + phraseWords[i + 1];
       weights.set(phrase, (weights.get(phrase) || 0) + weight * 1.35);
