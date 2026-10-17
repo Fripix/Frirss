@@ -3120,11 +3120,12 @@ For the account-configured domain allowlist in Preferences → AI summaries, ope
 
 ## Intelligence and article feedback (MVP)
 
-An **Interesting** view ranks articles using per-user feedback while leaving FreshRSS as the source of truth for article content and read/unread state. A positive or negative vote can be toggled off; feedback is stored in FriRSS SQLite and is scoped to the signed-in FriRSS account. Ranking currently uses local lexical similarity over the available title, RSS summary and article content, plus a small freshness prior. It does **not** yet use semantic embeddings: related concepts expressed with different words may not match. Missing article content falls back to title and RSS summary, so ranking quality depends on the text available. No vote means unknown, not a negative signal.
+An **Interesting** view ranks articles using per-user feedback while leaving FreshRSS as the source of truth for article content and read/unread state. A positive or negative vote can be toggled off; feedback is stored in FriRSS SQLite and is scoped to the signed-in FriRSS account. Ranking offers several local models, including Intelligence Next, plus five opt-in external-signal experiments (GDELT coverage, GitHub repository traction, Hacker News engagement and Lobsters engagement). External lookups are authenticated, cached per article/source in SQLite, and unavailable providers are neutral. The external variants use Intelligence Next as their fixed base and blend rank-normalized scores at 75/25. GDELT measures recent seven-day coverage; GitHub uses repository stars and push recency, not historical star growth. The local models do **not** use semantic embeddings: related concepts expressed with different words may not match. Missing article content falls back to title and RSS summary, so ranking quality depends on the text available. No vote means unknown, not a negative signal.
 
 - **Où** : `server/routes/intelligence.ts`, `src/api/intelligence.ts`, `src/lib/intelligenceRanking.ts`, `src/components/ArticleList/IntelligenceFeedback.tsx`, `src/components/Sidebar/Sidebar.tsx`.
 - **Routes** :
   - GET `/api/intelligence/feedback`
   - PUT `/api/intelligence/feedback`
   - DELETE `/api/intelligence/feedback/:articleId`
+  - POST `/api/intelligence/external-signals`
 - **Limite connue** : lexical matching is a first implementation, not semantic understanding. Local embeddings and bounded background processing remain follow-up work; do not describe this version as embedding-based.

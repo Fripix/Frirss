@@ -21,6 +21,11 @@ const LABELS = [
   'MS NewsRec',
   'Personal News',
   'Intelligence Next',
+  'GDELT',
+  'GDELT + GH',
+  'GDELT + HN',
+  'HN + LOB',
+  'ALL FOUR',
 ];
 
 describe.each(['toolbar', 'sheet'] as const)('InterestingAlgorithmSelect (%s)', (variant) => {

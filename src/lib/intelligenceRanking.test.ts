@@ -291,13 +291,41 @@ describe('correctness fixes for the existing term models', () => {
 });
 
 describe('algorithm registry and selection contract', () => {
-  it('keeps the default and every existing algorithm, adding Intelligence Next last', () => {
+  it('keeps the default and all legacy algorithms, then lists external experiments', () => {
     expect(DEFAULT_INTERESTING_ALGORITHM).toBe('current');
     expect(INTERESTING_ALGORITHMS.map((a) => a.value)).toEqual([
       'current', 'weighted-idf', 'synonyms', 'topics', 'combined', 'microsoft-news', 'personal-news', 'intelligence-next',
+      'gdelt', 'gdelt-github', 'gdelt-hn', 'hn-lob', 'all-four',
     ]);
     expect(INTERESTING_ALGORITHMS.every((a) => isInterestingAlgorithm(a.value))).toBe(true);
     for (const value of ['', 'Current', 'intelligence', null, undefined, 3]) expect(isInterestingAlgorithm(value)).toBe(false);
+  });
+
+  it('uses Intelligence Next as the base and lets available external evidence change nearby ranks', () => {
+    const now = Date.UTC(2026, 9, 15);
+    const items = Array.from({ length: 10 }, (_, index) =>
+      article(String(index), `Article ${index}`, `Distinct topic ${index}`, now));
+    const baseline = rankInterestingArticles(items, [], now, 'intelligence-next').map((item) => item.id);
+    const boostedId = baseline[5];
+    const neighborId = baseline[4];
+    const signals = Object.fromEntries(items.map((item) => [item.url, {
+      gdelt: item.id === boostedId ? 1 : 0,
+      github: null,
+      hackerNews: null,
+      lobsters: null,
+    }]));
+    const ranked = rankInterestingArticles(items, [], now, 'gdelt', {}, signals).map((item) => item.id);
+    expect(ranked.indexOf(boostedId)).toBeLessThan(ranked.indexOf(neighborId));
+  });
+
+  it('treats unavailable external providers as neutral', () => {
+    const now = Date.UTC(2026, 9, 15);
+    const items = [article('a', 'First article', 'Topic A', now), article('b', 'Second article', 'Topic B', now)];
+    const baseline = rankInterestingArticles(items, [], now, 'intelligence-next').map((item) => item.id);
+    const signals = Object.fromEntries(items.map((item) => [item.url, {
+      gdelt: null, github: null, hackerNews: null, lobsters: null,
+    }]));
+    expect(rankInterestingArticles(items, [], now, 'all-four', {}, signals).map((item) => item.id)).toEqual(baseline);
   });
 
   it('existing algorithms ignore the Intelligence Next context entirely', () => {
@@ -316,7 +344,7 @@ describe('algorithm registry and selection contract', () => {
       savedArticles: [{ id: 's', title: 'Tomato garden tips', summary: '', content: '', sourceId: 'feed/2', starred: true, readLater: true }],
     };
     for (const { value } of INTERESTING_ALGORITHMS) {
-      if (value === 'intelligence-next') continue;
+      if (value === 'intelligence-next' || ['gdelt', 'gdelt-github', 'gdelt-hn', 'hn-lob', 'all-four'].includes(value)) continue;
       const without = rankInterestingArticles(items, votes, now, value).map((x) => x.id);
       expect(rankInterestingArticles(items, votes, now, value, context).map((x) => x.id), value).toEqual(without);
     }

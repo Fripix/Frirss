@@ -5,7 +5,18 @@ import { rankIntelligenceNext, type IntelligenceContext } from './intelligenceNe
 
 export type { IntelligenceContext, SavedArticleSignal } from './intelligenceNext';
 
-export type InterestingAlgorithm = 'current' | 'weighted-idf' | 'synonyms' | 'topics' | 'combined' | 'microsoft-news' | 'personal-news' | 'intelligence-next';
+export type ExternalSignalSource = 'gdelt' | 'github' | 'hackerNews' | 'lobsters';
+export interface ExternalArticleSignals {
+  /** Successful lookup with no meaningful coverage is 0; unavailable/not applicable is null. */
+  gdelt: number | null;
+  github: number | null;
+  hackerNews: number | null;
+  lobsters: number | null;
+}
+export type ExternalSignalsByUrl = Record<string, ExternalArticleSignals>;
+
+export type InterestingAlgorithm = 'current' | 'weighted-idf' | 'synonyms' | 'topics' | 'combined' | 'microsoft-news' | 'personal-news' | 'intelligence-next'
+  | 'gdelt' | 'gdelt-github' | 'gdelt-hn' | 'hn-lob' | 'all-four';
 
 export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label: string }> = [
   { value: 'current', label: 'Current' },
@@ -16,6 +27,11 @@ export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label:
   { value: 'microsoft-news', label: 'MS NewsRec' },
   { value: 'personal-news', label: 'Personal News' },
   { value: 'intelligence-next', label: 'Intelligence Next' },
+  { value: 'gdelt', label: 'GDELT' },
+  { value: 'gdelt-github', label: 'GDELT + GH' },
+  { value: 'gdelt-hn', label: 'GDELT + HN' },
+  { value: 'hn-lob', label: 'HN + LOB' },
+  { value: 'all-four', label: 'ALL FOUR' },
 ];
 
 /** The default; also the fallback for a missing or unknown saved choice. */
@@ -397,6 +413,53 @@ function rankMicrosoftNews(articles: Article[], feedback: ArticleFeedback[], now
 }
 
 /**
+ * External-signal experiments all use Intelligence Next as the fixed base.
+ * Both sides are converted to within-cohort rank scores before blending, since
+ * the legacy rankers do not share a common score scale. Missing/unavailable
+ * signals are neutral; a successful lookup with no popularity is a real zero.
+ */
+const EXTERNAL_SIGNAL_WEIGHTS: Partial<Record<InterestingAlgorithm, Partial<Record<ExternalSignalSource, number>>>> = {
+  gdelt: { gdelt: 1 },
+  'gdelt-github': { gdelt: 0.6, github: 0.4 },
+  'gdelt-hn': { gdelt: 0.6, hackerNews: 0.4 },
+  'hn-lob': { hackerNews: 0.6, lobsters: 0.4 },
+  'all-four': { gdelt: 0.4, github: 0.2, hackerNews: 0.24, lobsters: 0.16 },
+};
+export function externalSourcesForAlgorithm(algorithm: InterestingAlgorithm): ExternalSignalSource[] {
+  return Object.keys(EXTERNAL_SIGNAL_WEIGHTS[algorithm] ?? {}) as ExternalSignalSource[];
+}
+function rankWithExternalSignals(
+  articles: Article[],
+  feedback: ArticleFeedback[],
+  now: number,
+  algorithm: InterestingAlgorithm,
+  context: IntelligenceContext,
+  externalSignals: ExternalSignalsByUrl,
+): Article[] {
+  const base = rankIntelligenceNext(articles, feedback, now, context);
+  if (base.length < 2) return base;
+  const baseScore = new Map(base.map((article, index) => [article, (base.length - index - 1) / (base.length - 1)]));
+  const weights = EXTERNAL_SIGNAL_WEIGHTS[algorithm] ?? {};
+  return [...base].map((article, baseIndex) => {
+    const personal = baseScore.get(article) ?? 0;
+    const signals = externalSignals[article.url];
+    if (!signals) return { article, score: personal, baseIndex };
+    let weighted = 0;
+    let totalWeight = 0;
+    for (const [source, weight] of Object.entries(weights) as Array<[ExternalSignalSource, number]>) {
+      const value = signals[source];
+      if (value === null || value === undefined || !Number.isFinite(value)) continue;
+      weighted += weight * Math.max(0, Math.min(1, value));
+      totalWeight += weight;
+    }
+    // If every requested provider failed or was inapplicable, preserve the
+    // base rank exactly. Do not turn missing data into a popularity penalty.
+    const external = totalWeight > 0 ? weighted / totalWeight : personal;
+    return { article, score: 0.75 * personal + 0.25 * external, baseIndex };
+  }).sort((a, b) => b.score - a.score || a.baseIndex - b.baseIndex).map(({ article }) => article);
+}
+
+/**
  * Local deterministic ranking methods for the Interesting feed.
  * All lexical models use article text only; source identifiers are reserved for
  * diversification, where source identity is compared consistently.
@@ -408,7 +471,11 @@ export function rankInterestingArticles(
   now = Date.now(),
   algorithm: InterestingAlgorithm = DEFAULT_INTERESTING_ALGORITHM,
   context: IntelligenceContext = {},
+  externalSignals: ExternalSignalsByUrl = {},
 ): Article[] {
+  if (EXTERNAL_SIGNAL_WEIGHTS[algorithm]) {
+    return rankWithExternalSignals(articles, feedback, now, algorithm, context, externalSignals);
+  }
   if (algorithm === 'current') return rankCurrent(articles, feedback, now);
   if (algorithm === 'intelligence-next') return rankIntelligenceNext(articles, feedback, now, context);
   if (algorithm === 'weighted-idf') return rankByTermModel(articles, feedback, now, 'weighted-idf');

@@ -34,3 +34,35 @@ export async function setArticleFeedback(
 export async function removeArticleFeedback(articleId: string): Promise<void> {
   await backend.delete(`/feedback/${encodeURIComponent(articleId)}`);
 }
+
+export interface ExternalSignalArticle {
+  url: string;
+  title: string;
+  summary: string;
+  content: string;
+}
+export type ExternalSignalSource = 'gdelt' | 'github' | 'hackerNews' | 'lobsters';
+export interface ExternalArticleSignals {
+  gdelt: number | null;
+  github: number | null;
+  hackerNews: number | null;
+  lobsters: number | null;
+}
+export type ExternalSignalsByUrl = Record<string, ExternalArticleSignals>;
+
+/** Fetch cached server-side external scores for the currently loaded candidates. */
+export async function getExternalSignals(
+  articles: ExternalSignalArticle[],
+  sources: ExternalSignalSource[],
+): Promise<ExternalSignalsByUrl> {
+  const { data } = await backend.post<{ signals: ExternalSignalsByUrl }>('/external-signals', {
+    articles: articles.filter((article) => /^https?:\/\//i.test(article.url)).slice(0, 80).map((article) => ({
+      url: article.url,
+      title: article.title.slice(0, 2000),
+      summary: article.summary.slice(0, 10000),
+      content: article.content.slice(0, 12000),
+    })),
+    sources,
+  }, { timeout: 120000 });
+  return data.signals ?? {};
+}
