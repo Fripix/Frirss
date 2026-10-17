@@ -58,7 +58,8 @@ function buildTopics(events: ArticleOpenEvent[], feedback: ArticleFeedback[], sa
   for (const item of feedback) {
     const when = Date.parse(item.updatedAt || item.createdAt || '');
     if (start !== null && Number.isFinite(when) && when < start) continue;
-    addText(item.title, item.vote === 1 ? 3 : -2.5);
+    // Both vote types contribute topics; upvotes carry more weight, while downvoted articles remain visible as topics too.
+    addText(item.title, item.vote === 1 ? 3 : 1.5);
   }
   return [...weights.entries()]
     .filter(([, weight]) => weight > 0.5)
