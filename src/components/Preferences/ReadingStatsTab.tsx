@@ -14,7 +14,7 @@ const PERIODS: Array<{ value: Period; label: string; ms: number | null }> = [
   { value: 'all', label: 'All time', ms: null },
 ];
 
-const STOP_WORDS = new Set(('the and for with from that this have has was were are you your our into about after before over under more most than then they them their what when where which who how why will would could should not but all any each only also new says said say one two first last next now still just very much many some other use using used via per its out off get got make made based according their article articles news latest update updates report reports says said from bei und der die das den dem des ein eine einer eines einem einen ist sind war waren wie was mit von für auf aus über nach nicht auch mehr als bei zum zur im am an and or to of in on by as is it be we i a at'.split(/\s+/));
+const STOP_WORDS = new Set(('the and for with from that this have has was were are you your our into about after before over under more most than then they them their what when where which who how why will would could should not but all any each only also new says said say one two first last next now still just very much many some other use using used via per its out off get got make made based according their article articles news latest update updates report reports says said from bei und der die das den dem des ein eine einer eines einem einen ist sind war waren wie was mit von für auf aus über nach nicht auch mehr als bei zum zur im am an and or to of in on by as is it be we i a at'.split(/\s+/)));
 
 function periodStart(period: Period): number | null {
   const ms = PERIODS.find((p) => p.value === period)?.ms;
