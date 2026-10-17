@@ -433,7 +433,8 @@
       "offline": "离线",
       "admin": "管理",
       "layout": "操作图标",
-      "aiSummaries": "AI 摘要"
+      "aiSummaries": "AI 摘要",
+      "readingStats": "阅读统计"
     },
     "appearance": {
       "theme": "主题",
