@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal, flushSync } from 'react-dom';
 import { useFeedStore, READ_LATER_LABEL } from '../../stores/feedStore';
@@ -252,6 +252,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [readProgress, setReadProgress] = useState(0);
   const [readSettingsOpen, setReadSettingsOpen] = useState(false); // mobile text-size popover
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Preserve the feed article's position while linked pages temporarily reuse the reader.
+  const feedArticleScrollTopRef = useRef<number | null>(null);
+  const wasShowingLinkedPageRef = useRef(false);
   const articleRef = useRef<HTMLElement>(null);
   const slideDirRef = useRef<string | null>(null); // mirrors slideDir state for use in effects
 
@@ -305,7 +308,21 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     setLinkedPage(null);
     setLinkedPageStack([]);
     setLinkedPageLoading(false);
+    feedArticleScrollTopRef.current = null;
+    wasShowingLinkedPageRef.current = false;
   }, [selectedArticle?.id]);
+
+  // Restore after React has rendered the original article again. The reader
+  // container is reused, so restoring its scrollTop preserves the exact position.
+  useLayoutEffect(() => {
+    if (!linkedPage && wasShowingLinkedPageRef.current) {
+      const container = scrollContainerRef.current;
+      const savedScrollTop = feedArticleScrollTopRef.current;
+      if (container && savedScrollTop !== null) container.scrollTop = savedScrollTop;
+      feedArticleScrollTopRef.current = null;
+    }
+    wasShowingLinkedPageRef.current = !!linkedPage;
+  }, [linkedPage]);
 
   // Escape first returns from a linked page to its feed article. The global
   // keyboard handler then handles Escape normally on the next press.
@@ -1017,6 +1034,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       ]);
       // Ignore late extraction results if the user selected a different feed article meanwhile.
       if (useFeedStore.getState().selectedArticle?.id !== sourceArticleId) return;
+      // Capture the feed article position only when entering the linked-page
+      // stack. Nested linked pages must not overwrite the original position.
+      if (!linkedPage && feedArticleScrollTopRef.current === null) {
+        feedArticleScrollTopRef.current = scrollContainerRef.current?.scrollTop ?? 0;
+      }
       setLinkedPageStack((stack) => [...stack, ...(linkedPage ? [linkedPage] : [])]);
       setLinkedPage({ url: url.href, content });
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
