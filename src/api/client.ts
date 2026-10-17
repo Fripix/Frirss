@@ -10,6 +10,9 @@ const client = axios.create();
 // never reaches the client). Auth to our backend uses the JWT.
 client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const { serverUrl, activeServerId, backendToken } = useAuthStore.getState();
+  // Cloudflare Access uses this header to return a recognizable 401 for
+  // unauthenticated XHR requests instead of redirecting the request to HTML.
+  config.headers['X-Requested-With'] = 'XMLHttpRequest';
   if (serverUrl && config.url) {
     let fullUrl = config.url.startsWith('http')
       ? config.url
@@ -32,56 +35,67 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 /**
- * Cloudflare Access redirects unauthenticated XHR/fetch requests to its hosted
- * login page. Because that redirect crosses origins, the browser often exposes
- * it to Axios as a generic Network Error rather than a normal 302/401. Detect
- * the final response URL and send the TOP-LEVEL browser through the Access
- * login flow, returning to the current FriRSS page (not the API endpoint).
+ * Cloudflare Access can redirect unauthenticated XHR requests to its login
+ * page. Cross-origin redirects commonly surface as opaque Axios network
+ * errors, so detect the documented Access 401 fingerprint instead.
  */
-export function getCloudflareAccessLoginUrl(
-  responseUrl: string | undefined,
-  returnTo: string,
-): string | null {
-  if (!responseUrl) return null;
-  try {
-    const url = new URL(responseUrl);
-    if (
-      !url.hostname.endsWith('.cloudflareaccess.com') ||
-      !url.pathname.startsWith('/cdn-cgi/access/login/')
-    ) {
-      return null;
-    }
-    url.searchParams.set('redirect_url', returnTo || '/');
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
+const ACCESS_RELOAD_STORAGE_KEY = 'frirss:cloudflare-access-reload-at';
+const ACCESS_RELOAD_COOLDOWN_MS = 60_000;
+let accessReloadStarted = false;
 
-let accessRedirectStarted = false;
-
-type ResponseUrlCarrier = {
-  request?: { responseURL?: string };
-  response?: { request?: { responseURL?: string } };
-  config?: { url?: string };
+type HeaderCarrier = {
+  response?: {
+    status?: number;
+    headers?: Record<string, unknown> & { get?: (name: string) => unknown };
+  };
 };
 
-function redirectToCloudflareAccess(value: unknown): boolean {
-  if (typeof window === 'undefined' || accessRedirectStarted) return false;
-  const errorOrResponse = value as ResponseUrlCarrier;
-  const responseUrl =
-    errorOrResponse?.request?.responseURL ??
-    errorOrResponse?.response?.request?.responseURL ??
-    errorOrResponse?.config?.url;
-  const returnTo = window.location.pathname + window.location.search + window.location.hash;
-  const loginUrl = getCloudflareAccessLoginUrl(responseUrl, returnTo);
-  if (!loginUrl) return false;
+function isCloudflareAccessUnauthorized(value: unknown): boolean {
+  const response = (value as HeaderCarrier | null)?.response;
+  if (response?.status !== 401) return false;
+  const headers = response.headers;
+  const rawHeader =
+    typeof headers?.get === 'function'
+      ? headers.get('www-authenticate')
+      : headers?.['www-authenticate'] ?? headers?.['WWW-Authenticate'];
+  return typeof rawHeader === 'string' &&
+    rawHeader.trim().toLowerCase().startsWith('cloudflare-access');
+}
 
-  // Parallel API calls may all fail at once. Redirect only once per page load;
-  // the module guard resets naturally after the full-page Access login roundtrip.
-  accessRedirectStarted = true;
-  window.location.assign(loginUrl);
+function reloadForCloudflareAccess(value: unknown): boolean {
+  if (typeof window === 'undefined' || !isCloudflareAccessUnauthorized(value)) {
+    return false;
+  }
+  if (accessReloadStarted) return true;
+
+  const now = Date.now();
+  try {
+    const previous = Number(window.sessionStorage.getItem(ACCESS_RELOAD_STORAGE_KEY));
+    if (Number.isFinite(previous) && previous > 0 && now - previous < ACCESS_RELOAD_COOLDOWN_MS) {
+      // This is still an Access failure: suppress another reload, but do not
+      // let it fall through into FriRSS backend-authentication handling.
+      return true;
+    }
+    window.sessionStorage.setItem(ACCESS_RELOAD_STORAGE_KEY, String(now));
+  } catch {
+    // Storage can be unavailable in privacy modes; the in-memory guard still
+    // prevents concurrent failures from starting multiple reloads.
+  }
+
+  accessReloadStarted = true;
+  window.location.reload();
   return true;
+}
+
+function clearAccessReloadGuard(): void {
+  // Do not unlock the current page after it has started navigating. A fresh
+  // document gets a fresh module flag and can clear the cooldown on success.
+  if (accessReloadStarted || typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(ACCESS_RELOAD_STORAGE_KEY);
+  } catch {
+    // Ignore storage restrictions; successful API traffic still resets memory.
+  }
 }
 
 // Ne fermer la session FriRSS que sur NOTRE propre 401.
@@ -100,15 +114,11 @@ function redirectToCloudflareAccess(value: unknown): boolean {
 // rejeté normalement, sans toucher à la session.
 client.interceptors.response.use(
   (response) => {
-    // A redirected login HTML document must never be treated as a successful
-    // FreshRSS API response, even if the browser exposes it as HTTP 200.
-    if (redirectToCloudflareAccess(response)) {
-      return Promise.reject(new Error('Cloudflare Access authentication required'));
-    }
+    clearAccessReloadGuard();
     return response;
   },
   (error) => {
-    if (redirectToCloudflareAccess(error)) {
+    if (reloadForCloudflareAccess(error)) {
       return Promise.reject(new Error('Cloudflare Access authentication required'));
     }
     if (isBackendAuthFailure(error)) {
