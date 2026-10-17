@@ -40,32 +40,25 @@ function formatHours(minutes: number): string {
 function buildTopics(events: ArticleOpenEvent[], feedback: ArticleFeedback[], savedSignals: Array<{ title: string; summary: string; starred: boolean; readLater: boolean }> | null, start: number | null) {
   const weights = new Map<string, number>();
   const addText = (text: string, weight: number) => {
-    // Headlines and summaries can contain canonical URLs, tracking parameters, and AMP markup.
-    // Strip those before tokenization so URL fragments do not become apparent reading interests.
-    const cleanedText = text.toLocaleLowerCase()
-      .replace(/(?:https?:\/\/|www\.)[^\s<>()]+/giu, ' ')
-      .replace(/\b[\w-]+\.(?:com|org|net|io|co|de|uk|ai|news|tech|blog)\b(?:\/[^\s]*)?/giu, ' ')
-      .replace(/&(?:amp|quot|apos|lt|gt);/giu, ' ')
-      .replace(/[?&](?:utm_[a-z]+|amp|source|medium|rss1?)=[^\s&]*/giu, ' ');
-    const words = cleanedText.match(/\p{L}[\p{L}\p{N}-]{2,}/gu) || [];
-    const local = new Set(words.filter((w) => !STOP_WORDS.has(w) && !/^\d+$/.test(w)));
+    const words = text.toLocaleLowerCase().match(/[\\p{L}\\p{N}][\\p{L}\\p{N}-]{2,}/gu) || [];
+    const local = new Set(words.filter((w) => !STOP_WORDS.has(w) && !/^\\d+$/.test(w)));
     for (const word of local) weights.set(word, (weights.get(word) || 0) + weight);
     // Common two-word phrases add useful context without requiring AI.
-    const phraseWords = words.filter((w) => !STOP_WORDS.has(w) && !/^\d+$/.test(w));
+    const phraseWords = words.filter((w) => !STOP_WORDS.has(w) && !/^\\d+$/.test(w));
     for (let i = 0; i < phraseWords.length - 1; i++) {
       const phrase = phraseWords[i] + ' ' + phraseWords[i + 1];
       weights.set(phrase, (weights.get(phrase) || 0) + weight * 1.35);
     }
   };
-  for (const event of uniqueInPeriod(events, start)) addText(event.text || event.title, 0.35);
+  // Use article titles only. The stored event text also contains summaries and body excerpts.\n  for (const event of uniqueInPeriod(events, start)) addText(event.title, 0.35);
   for (const item of savedSignals || []) {
     const weight = (item.starred ? 1.3 : 0) + (item.readLater ? 1.0 : 0);
-    if (weight > 0) addText([item.title, item.summary].filter(Boolean).join(' '), weight);
+    if (weight > 0) addText(item.title, weight);
   }
   for (const item of feedback) {
     const when = Date.parse(item.updatedAt || item.createdAt || '');
     if (start !== null && Number.isFinite(when) && when < start) continue;
-    addText([item.title, item.summary].filter(Boolean).join(' '), item.vote === 1 ? 3 : -2.5);
+    addText(item.title, item.vote === 1 ? 3 : -2.5);
   }
   return [...weights.entries()]
     .filter(([, weight]) => weight > 0.5)
