@@ -433,7 +433,8 @@
       "offline": "Offline",
       "admin": "Amministrazione",
       "layout": "Layout",
-      "aiSummaries": "Riepiloghi AI"
+      "aiSummaries": "Riepiloghi AI",
+      "readingStats": "Statistiche di lettura"
     },
     "appearance": {
       "theme": "Tema",
