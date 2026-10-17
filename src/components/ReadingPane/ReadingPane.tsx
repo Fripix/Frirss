@@ -20,6 +20,8 @@ import { planHeroWarm, runHeroWarm } from '../../lib/heroWarm';
 import { rememberImageSize } from '../../lib/imageAspect';
 import { formatArticleDate } from '../../utils/dates';
 import { IMAGE_CACHE_NAME } from '../../lib/storageEstimate';
+import { recordArticleOpen } from '../../api/readingStats';
+import { useAuthStore } from '../../stores/authStore';
 import { getAiSummaryConfig, getCachedAiSummary, summarizeArticle, type AiSummaryConfig } from '../../api/backend';
 import { findTextRanges } from '../../lib/articleFind';
 import MarkdownSummary from './MarkdownSummary';
@@ -148,6 +150,8 @@ interface ReadingPaneProps {
 export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const { t } = useTranslation();
   const { selectedArticle, selectArticle, toggleRead, toggleStar, toggleReadLater, categoryIds, selectNextArticle, selectPrevArticle } = useFeedStore();
+  const activeServerId = useAuthStore((s) => s.activeServerId);
+  const lastTrackedArticleKey = useRef<string | null>(null);
   const theme = useThemeStore((s) => s.theme);
   const getLabelColor = useThemeStore((s) => s.getLabelColor);
   const setFontSize = useThemeStore((s) => s.setFontSize);
@@ -236,6 +240,18 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
   const slideDirRef = useRef<string | null>(null); // mirrors slideDir state for use in effects
+
+  // Record genuine reader opens locally. This is best-effort and never blocks rendering.
+  useEffect(() => {
+    if (!selectedArticle) {
+      lastTrackedArticleKey.current = null;
+      return;
+    }
+    const key = `${activeServerId ?? 'default'}:${selectedArticle.id}`;
+    if (lastTrackedArticleKey.current === key) return;
+    lastTrackedArticleKey.current = key;
+    recordArticleOpen(activeServerId, selectedArticle);
+  }, [selectedArticle, activeServerId]);
 
   // Reset extraction state when article changes. If we already have the
   // extracted content cached (e.g. returning to a previously-read article),

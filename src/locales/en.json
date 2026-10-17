@@ -433,7 +433,8 @@
       "offline": "Offline",
       "admin": "Administration",
       "layout": "Layout",
-      "aiSummaries": "AI Summaries"
+      "aiSummaries": "AI Summaries",
+      "readingStats": "Reading Stats"
     },
     "appearance": {
       "theme": "Theme",

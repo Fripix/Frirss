@@ -7,6 +7,7 @@ import FeedsTab from './FeedsTab';
 import AdminTab from './AdminTab';
 import OfflineTab from './OfflineTab';
 import AiSummariesTab from './AiSummariesTab';
+import ReadingStatsTab from './ReadingStatsTab';
 import LabelsTab from './LabelsTab';
 import GeneralTab from './GeneralTab';
 import AppearanceTab from './AppearanceTab';
@@ -92,8 +93,8 @@ export default function Preferences() {
   }
 
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
-  const SECTIONS = ['general', 'appearance', 'layout', 'labels', 'feeds', 'offline', 'aiSummaries'] as const;
-  const sections = SECTIONS.map((id) => ({ id, label: t(`preferences.sections.${id}`) }));
+  const SECTIONS = ['general', 'appearance', 'layout', 'labels', 'feeds', 'offline', 'aiSummaries', 'readingStats'] as const;
+  const sections = SECTIONS.map((id) => ({ id, label: id === 'readingStats' ? t('preferences.sections.readingStats', 'Reading Stats') : t(`preferences.sections.${id}`) }));
 
   return (
     <div
@@ -336,6 +337,7 @@ export default function Preferences() {
           )}
 
           {visited.has('aiSummaries') && <Pane id="aiSummaries" tab={tab}><AiSummariesTab active={tab === 'aiSummaries'} /></Pane>}
+          {visited.has('readingStats') && <Pane id="readingStats" tab={tab}><ReadingStatsTab active={tab === 'readingStats'} /></Pane>}
 
           {isAdmin && visited.has('admin') && (
             <Pane id="admin" tab={tab}><AdminTab active={tab === 'admin'} /></Pane>

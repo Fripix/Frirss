@@ -433,7 +433,8 @@
       "offline": "Hors-ligne",
       "admin": "Administration",
       "layout": "Mise en page",
-      "aiSummaries": "Résumés IA"
+      "aiSummaries": "Résumés IA",
+      "readingStats": "Statistiques de lecture"
     },
     "appearance": {
       "theme": "Thème",
