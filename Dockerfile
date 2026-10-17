@@ -1,5 +1,5 @@
 # ── Stage 1: Build frontend + compile native deps ───────────────────
-FROM public.ecr.aws/docker/library/node:24-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Build tools for native modules (better-sqlite3)
@@ -20,7 +20,7 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # ── Stage 2: Production (nginx + Express) ───────────────────────────
-FROM public.ecr.aws/docker/library/node:24-alpine
+FROM node:24-alpine
 WORKDIR /app
 
 # `apk upgrade` first: the base image is rebuilt on its own schedule, so the
