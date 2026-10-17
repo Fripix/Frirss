@@ -1,6 +1,7 @@
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
 import { useAuthStore } from '../stores/authStore';
+import { clearAccessReloadGuard, reloadForCloudflareAccess } from '../api/client';
 import { dropNonVideoIframes } from '../lib/youtube';
 import { absolutizeUrls } from './absolutizeUrls';
 
@@ -151,6 +152,22 @@ export class RateLimitedError extends Error {
   constructor() { super('RATE_LIMITED'); this.name = 'RateLimitedError'; }
 }
 
+/** A raw fetch bypasses the Axios interceptor, so handle Access 401s explicitly. */
+class CloudflareAccessAuthenticationError extends Error {
+  constructor() {
+    super('Cloudflare Access authentication required');
+    this.name = 'CloudflareAccessAuthenticationError';
+  }
+}
+
+function checkCloudflareAccessResponse(response: Response): void {
+  const accessFailure = reloadForCloudflareAccess({
+    response: { status: response.status, headers: response.headers },
+  });
+  if (accessFailure) throw new CloudflareAccessAuthenticationError();
+  if (response.ok) clearAccessReloadGuard();
+}
+
 /** Exécute `run` sous un signal d'abandon armé pour `timeoutMs`. */
 async function withTimeout<T>(timeoutMs: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const controller = new AbortController();
@@ -213,7 +230,11 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   // marqueur `RATE_LIMITED` sur un 429, `null` dans tous les autres cas (repli).
   const RATE_LIMITED = Symbol('rate-limited');
   const askServer = () => withTimeout(SERVER_EXTRACT_TIMEOUT_MS, async (signal) => {
-    const served = await fetch(`/api/extract?url=${encodeURIComponent(url)}`, { headers: auth, signal });
+    const served = await fetch(`/api/extract?url=${encodeURIComponent(url)}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest', ...auth },
+      signal,
+    });
+    checkCloudflareAccessResponse(served);
     if (served.status === 429) return { limited: RATE_LIMITED, wait: retryAfterMs(served.headers) } as const;
     if (!served.ok) return null;
     const data = (await served.json()) as Partial<ExtractedContent>;
@@ -259,7 +280,12 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
       }
     }
     if (served && !('limited' in served)) return served;
-  } catch { /* repli */ }
+  } catch (error) {
+    // An Access 401 requires a top-level re-authentication, not a second
+    // request to the same protected backend route.
+    if (error instanceof CloudflareAccessAuthenticationError) throw error;
+    /* repli */
+  }
 
   // Le seau est partagé avec `/api/proxy` : y aller après un 429 est un échec
   // certain, doublé d'un jeton gaspillé.
@@ -274,12 +300,14 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   const html = await withTimeout(FALLBACK_EXTRACT_TIMEOUT_MS, async (signal) => {
     const response = await fetch('/api/proxy', {
       headers: {
+        'X-Requested-With': 'XMLHttpRequest',
         'X-Proxy-Target': url,
         'X-Proxy-Accept': 'text/html',
         ...auth,
       },
       signal,
     });
+    checkCloudflareAccessResponse(response);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     // Le corps est lu SOUS le signal : sans cela le minuteur retomberait à
     // l'arrivée des en-têtes, et une page distillée octet par octet tiendrait

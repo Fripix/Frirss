@@ -62,7 +62,7 @@ function isCloudflareAccessUnauthorized(value: unknown): boolean {
     rawHeader.trim().toLowerCase().startsWith('cloudflare-access');
 }
 
-function reloadForCloudflareAccess(value: unknown): boolean {
+export function reloadForCloudflareAccess(value: unknown): boolean {
   if (typeof window === 'undefined' || !isCloudflareAccessUnauthorized(value)) {
     return false;
   }
@@ -87,7 +87,7 @@ function reloadForCloudflareAccess(value: unknown): boolean {
   return true;
 }
 
-function clearAccessReloadGuard(): void {
+export function clearAccessReloadGuard(): void {
   // Do not unlock the current page after it has started navigating. A fresh
   // document gets a fresh module flag and can clear the cooldown on success.
   if (accessReloadStarted || typeof window === 'undefined') return;

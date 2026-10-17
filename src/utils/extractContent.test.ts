@@ -24,14 +24,16 @@ afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('extractFullContent', () => {
   it('utilise la réponse du serveur quand elle arrive', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+    const fetchMock = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
       if (String(input).startsWith('/api/extract')) {
         return new Response(JSON.stringify(serverAnswer), { status: 200 });
       }
       throw new Error('le client ne doit pas aller chercher la page lui-même');
-    }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
     const out = await extractFullContent('https://example.com/a');
     expect(out.content).toContain('corps serveur');
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get('X-Requested-With')).toBe('XMLHttpRequest');
   });
 
   // La route rend du HTML BRUT, délibérément : `createDOMPurify` sur `linkedom`
@@ -146,13 +148,16 @@ describe('extractFullContent — repli local et URLs relatives', () => {
       Object.defineProperty(doc, 'baseURI', { value: 'https://frirss.example.com/', configurable: true });
       return doc;
     });
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+    const fetchMock = vi.fn(async (input: RequestInfo, init?: RequestInit) => {
       if (String(input).startsWith('/api/extract')) return new Response('', { status: 502 });
       return new Response(pageRelative, { status: 200 });
-    }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     const out = await extractFullContent('https://presse.example.fr/2026/avis/');
 
+    const proxyCall = fetchMock.mock.calls.find(([input]) => String(input) === '/api/proxy');
+    expect(new Headers(proxyCall?.[1]?.headers).get('X-Requested-With')).toBe('XMLHttpRequest');
     expect(out.content).toContain('https://presse.example.fr/img/a.png');
     expect(out.content).toContain('https://presse.example.fr/suite/');
     expect(out.content).not.toContain('frirss.example.com');
