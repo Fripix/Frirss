@@ -443,7 +443,8 @@
       "offline": "Офлайн",
       "admin": "Адміністрування",
       "layout": "Компонування",
-      "aiSummaries": "AI-зведення"
+      "aiSummaries": "AI-зведення",
+      "readingStats": "Статистика читання"
     },
     "appearance": {
       "theme": "Тема",
