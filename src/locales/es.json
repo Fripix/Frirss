@@ -433,7 +433,8 @@
       "offline": "Sin conexión",
       "admin": "Administración",
       "layout": "Diseño",
-      "aiSummaries": "Resúmenes de IA"
+      "aiSummaries": "Resúmenes de IA",
+      "readingStats": "Estadísticas de lectura"
     },
     "appearance": {
       "theme": "Tema",
