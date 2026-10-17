@@ -433,7 +433,8 @@
       "offline": "Offline",
       "admin": "Verwaltung",
       "layout": "Layout",
-      "aiSummaries": "KI-Zusammenfassungen"
+      "aiSummaries": "KI-Zusammenfassungen",
+      "readingStats": "Lesestatistik"
     },
     "appearance": {
       "theme": "Design",
