@@ -501,7 +501,14 @@
       "testOk": "Connessione riuscita.",
       "testFailed": "Verifica della connessione non riuscita.",
       "enabledHint": "Il riepilogo appare nella barra dell'articolo quando è abilitato e configurato.",
-      "error": "Impossibile generare il riepilogo."
+      "error": "Impossibile generare il riepilogo.",
+      "archiveDomainsTitle": "Domini con paywall (Archive.is)",
+      "archiveDomainsHint": "Quando apri un link di questi domini, FriRSS controlla Archive.is e apre la copia più recente che supera un controllo leggero delle pagine di verifica. Se nessuna è utilizzabile, apre l’originale. Inserisci un nome host per riga; sono inclusi anche i sottodomini. Lascia l’elenco vuoto per disattivare questa funzione.",
+      "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
+      "archiveDomainsSave": "Salva domini",
+      "archiveDomainsSaved": "Elenco dei domini archivio salvato.",
+      "archiveDomainsInvalid": "Inserisci nomi host validi, uno per riga, senza protocollo o percorso.",
+      "archiveDomainsError": "Impossibile salvare l’elenco dei domini Archive.is."
     },
     "fontFamilies": {
       "sidebar": "Carattere della barra laterale",

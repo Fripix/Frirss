@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { openArticleAtSource } from './openArticleAtSource';
-import * as openExternalModule from './openExternal';
+import * as archiveModule from './archive';
 import type { Article } from '../types';
 
-vi.mock('./openExternal', () => ({ openExternal: vi.fn() }));
+vi.mock('./archive', () => ({ openArchiveAware: vi.fn() }));
 
 afterEach(() => vi.clearAllMocks());
 
@@ -17,7 +17,7 @@ const article = (over: Partial<Article> = {}): Article => ({
 describe('openArticleAtSource', () => {
   it("ouvre l'URL de l'article", () => {
     openArticleAtSource(article(), vi.fn());
-    expect(openExternalModule.openExternal).toHaveBeenCalledWith('https://example.com/1');
+    expect(archiveModule.openArchiveAware).toHaveBeenCalledWith('https://example.com/1');
   });
 
   // Le comportement a changé : l'icône marquait lu, elle sélectionne. C'est
@@ -51,7 +51,7 @@ describe('openArticleAtSource', () => {
   ])("sans URL (%s) : n'ouvre rien ET ne sélectionne rien", (_label, url) => {
     const selectArticle = vi.fn();
     openArticleAtSource(article({ url } as Partial<Article>), selectArticle);
-    expect(openExternalModule.openExternal).not.toHaveBeenCalled();
+    expect(archiveModule.openArchiveAware).not.toHaveBeenCalled();
     // Le piège : `openExternal('')` ne fait rien, mais la suite partait quand
     // même — l'article changeait d'état sans que rien ne s'ouvre.
     expect(selectArticle).not.toHaveBeenCalled();

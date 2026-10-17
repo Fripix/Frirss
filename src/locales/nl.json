@@ -501,7 +501,14 @@
       "testOk": "Verbinding geslaagd.",
       "testFailed": "Verbindingstest mislukt.",
       "enabledHint": "De samenvatting verschijnt in de artikelbalk als deze functie is ingeschakeld en ingesteld.",
-      "error": "Samenvatting maken mislukt."
+      "error": "Samenvatting maken mislukt.",
+      "archiveDomainsTitle": "Domeinen met betaalmuur (Archive.is)",
+      "archiveDomainsHint": "Wanneer je een link van deze domeinen opent, controleert FriRSS Archive.is en opent het de nieuwste momentopname die een eenvoudige controle op challengepagina’s doorstaat. Als geen momentopname bruikbaar is, opent de oorspronkelijke pagina. Eén hostnaam per regel; subdomeinen tellen ook mee. Laat de lijst leeg om deze functie uit te schakelen.",
+      "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
+      "archiveDomainsSave": "Domeinen opslaan",
+      "archiveDomainsSaved": "Archiefdomeinenlijst opgeslagen.",
+      "archiveDomainsInvalid": "Voer geldige hostnamen in, één per regel, zonder protocol of pad.",
+      "archiveDomainsError": "De lijst met Archive.is-domeinen kon niet worden opgeslagen."
     },
     "fontFamilies": {
       "sidebar": "Lettertype van zijbalk",

@@ -3056,6 +3056,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | POST | `/api/setup/restore` | Idem, instance vierge uniquement |
 | ALL | `/api/proxy` | Passage vers FreshRSS ; extraction d'articles en repli |
 | GET | `/api/extract` | Article extrait côté serveur, depuis le cache partagé ou fraîchement |
+| GET | `/api/archive/resolve` | Résout le dernier instantané Archive.is utilisable pour un domaine autorisé, sinon renvoie un repli neutre |
 
 ---
 
@@ -3107,6 +3108,15 @@ Chaque famille correspond à une zone de l'interface :
 4. Consigner tout piège qui a coûté du temps. C'est la partie la plus utile du
    fichier, et celle qu'aucun outil ne peut reconstituer.
 
+
+## Archive.is fallback for paywalled publishers
+
+For the account-configured domain allowlist in Preferences → AI summaries, opening a publisher link checks Archive.is snapshots newest first. A lightweight, bounded HTML probe skips obvious challenge pages and selects the newest candidate that passes. FriRSS opens that direct snapshot in a separate tab; it does not embed or extract archived HTML. If lookup, validation, or Archive.is fails, the original publisher URL opens instead. The preference is account-scoped and synced across devices. Snapshot validation is heuristic and cannot guarantee article completeness.
+
+- **Where**: `src/lib/archiveDomains.ts`, `src/lib/archive.ts`, `src/components/Preferences/AiSummariesTab.tsx`, `server/routes/archive.ts`.
+- **Route**: GET `/api/archive/resolve`
+- **Default domains**: WSJ, FT, Bloomberg, The Economist, NYT, SPIEGEL, The Washington Post, and Süddeutsche Zeitung. The list can be edited or cleared in Preferences → AI summaries.
+- **Safety**: Archive HTML is only probed with a size and time limit and is never embedded in FriRSS. Requests use the existing outbound SSRF guard and redirect validation.
 
 ## Intelligence and article feedback (MVP)
 

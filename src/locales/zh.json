@@ -501,7 +501,14 @@
       "testOk": "连接成功。",
       "testFailed": "连接测试失败。",
       "enabledHint": "启用并配置后，文章工具栏中会显示摘要操作。",
-      "error": "无法生成摘要。"
+      "error": "无法生成摘要。",
+      "archiveDomainsTitle": "付费墙域名（Archive.is）",
+      "archiveDomainsHint": "打开这些域名的链接时，FriRSS 会查询 Archive.is，并打开通过简单挑战页检查的最新快照。如果没有可用快照，则打开原始页面。每行输入一个主机名；子域名也会匹配。清空列表即可停用此功能。",
+      "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
+      "archiveDomainsSave": "保存域名",
+      "archiveDomainsSaved": "已保存归档域名列表。",
+      "archiveDomainsInvalid": "请每行输入一个有效主机名，不要包含协议或路径。",
+      "archiveDomainsError": "无法保存 Archive.is 域名列表。"
     },
     "fontFamilies": {
       "sidebar": "侧边栏字体",

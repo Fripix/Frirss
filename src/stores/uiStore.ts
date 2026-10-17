@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
+import { DEFAULT_ARCHIVE_DOMAINS, normalizeArchiveDomains } from '../lib/archiveDomains';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -254,6 +255,9 @@ export interface UiState {
   setAppLogo: (dataUrl: string | null) => void;
   setLogoMode: (mode: 'small' | 'large') => void;
   setLayoutMode: (mode: 'auto' | 'desktop' | 'mobile') => void;
+  /** Account-synced domain allowlist for automatic Archive.is fallback. */
+  archiveDomains: string[];
+  setArchiveDomains: (domains: string[]) => void;
   shortcuts: Shortcuts;
   setShortcut: (action: string, key: string) => void;
   resetShortcuts: () => void;
@@ -662,9 +666,17 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ layoutMode: mode });
   },
 
+  // Per-user Archive.is allowlist; stored locally and synced with logical preferences.
+  archiveDomains: normalizeArchiveDomains(loadJson<unknown>('frirss_archiveDomains', DEFAULT_ARCHIVE_DOMAINS)),
+  setArchiveDomains: (domains) => {
+    const next = normalizeArchiveDomains(domains);
+    localStorage.setItem('frirss_archiveDomains', JSON.stringify(next));
+    set({ archiveDomains: next });
+  },
+
   // Keyboard shortcuts (configurable)
   // Merge defaults so newly added actions are available to existing saved configs.
-  shortcuts: mergeShortcutDefaults(loadJson<Shortcuts>('frirss_shortcuts', {})),
+  shortcuts: mergeShortcutDefaults(loadJson<Shortcuts>('frirss_shortcuts', {})), 
   setShortcut: (action, key) => {
     set((state) => {
       const next = { ...state.shortcuts, [action]: key };
@@ -764,13 +776,14 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
-      'rowActions',
+      'rowActions', 'archiveDomains',
     ];
     for (const k of jsonKeys) {
       if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
         // A preset synced from a device still on an older version can name a
         // preset we dropped — normalise it here too, not just on load.
         const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k])
+          : k === 'archiveDomains' ? normalizeArchiveDomains(prefs[k])
           : k === 'rowActions' ? normalizeRowActions(prefs[k])
           : k === 'unreadOnlyScope' ? normalizeUnreadScope(prefs[k])
           : k === 'unreadOnlyAll' ? prefs[k] === true
@@ -819,7 +832,7 @@ export const UI_SYNC_KEYS = [
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
-  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions',
+  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'archiveDomains',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

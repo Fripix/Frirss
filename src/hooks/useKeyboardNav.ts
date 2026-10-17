@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useFeedStore } from '../stores/feedStore';
 import { useUiStore } from '../stores/uiStore';
-import { openExternal } from '../lib/openExternal';
+import { openArchiveAware } from '../lib/archive';
 
 export function useKeyboardNav(): void {
   const shortcuts = useUiStore((s) => s.shortcuts);
@@ -83,7 +83,7 @@ export function useKeyboardNav(): void {
       } else if (key === shortcuts.openOriginal) {
         e.preventDefault();
         const linkedUrl = document.querySelector<HTMLElement>('[data-linked-page-url]')?.dataset.linkedPageUrl;
-        openExternal(linkedUrl || store.selectedArticle?.url);
+        openArchiveAware(linkedUrl || store.selectedArticle?.url);
       } else if (key === shortcuts.toggleSidebar) {
         e.preventDefault();
         toggleSidebar();

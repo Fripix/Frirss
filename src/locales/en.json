@@ -501,7 +501,14 @@
       "testOk": "Connection successful.",
       "testFailed": "Connection test failed.",
       "enabledHint": "Summaries are available in the article toolbar when enabled and configured.",
-      "error": "Could not generate a summary."
+      "error": "Could not generate a summary.",
+      "archiveDomainsTitle": "Paywalled domains (Archive.is)",
+      "archiveDomainsHint": "When you open a link from one of these domains, FriRSS checks Archive.is and opens the newest snapshot that passes a lightweight challenge-page check. If none passes, it opens the original. Enter hostnames one per line; subdomains match too. Leave the list empty to disable this behavior.",
+      "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
+      "archiveDomainsSave": "Save domains",
+      "archiveDomainsSaved": "Archive domain allowlist saved.",
+      "archiveDomainsInvalid": "Enter valid hostnames, one per line, without protocols or paths.",
+      "archiveDomainsError": "Could not save the Archive.is domain list."
     },
     "fontFamilies": {
       "sidebar": "Sidebar font family",

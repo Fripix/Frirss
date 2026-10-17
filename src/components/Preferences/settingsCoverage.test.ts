@@ -87,8 +87,8 @@ describe('couverture des réglages du panneau Préférences', () => {
 
   // The baseline now includes the dynamically registered pullFullArticle shortcut.
   // Keep the count assertion explicit so baseline changes are intentional.
-  it('locks the 234-setting baseline', () => {
-    expect(baseline).toHaveLength(234);
+  it('locks the 241-setting baseline', () => {
+    expect(baseline).toHaveLength(241);
   });
 
   it('référence encore chaque réglage du relevé', () => {

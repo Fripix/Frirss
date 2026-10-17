@@ -501,7 +501,14 @@
       "testOk": "Connexion réussie.",
       "testFailed": "Échec du test de connexion.",
       "enabledHint": "Le résumé apparaît dans la barre d'outils lorsque la fonction est activée et configurée.",
-      "error": "Impossible de générer le résumé."
+      "error": "Impossible de générer le résumé.",
+      "archiveDomainsTitle": "Sites payants (Archive.is)",
+      "archiveDomainsHint": "À l’ouverture d’un lien de ces domaines, FriRSS recherche les instantanés Archive.is et ouvre le plus récent qui passe un contrôle léger des pages de défi. Sinon, le site d’origine s’ouvre. Saisissez un nom d’hôte par ligne ; les sous-domaines sont également pris en compte. Laissez la liste vide pour désactiver cette fonction.",
+      "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
+      "archiveDomainsSave": "Enregistrer les domaines",
+      "archiveDomainsSaved": "Liste des domaines d’archives enregistrée.",
+      "archiveDomainsInvalid": "Saisissez un nom d’hôte valide par ligne, sans protocole ni chemin.",
+      "archiveDomainsError": "Impossible d’enregistrer la liste des domaines Archive.is."
     },
     "fontFamilies": {
       "sidebar": "Police de la barre latérale",

@@ -513,7 +513,14 @@
       "testOk": "Połączenie działa.",
       "testFailed": "Test połączenia nie powiódł się.",
       "enabledHint": "Podsumowanie pojawi się na pasku artykułu po włączeniu i konfiguracji funkcji.",
-      "error": "Nie udało się utworzyć podsumowania."
+      "error": "Nie udało się utworzyć podsumowania.",
+      "archiveDomainsTitle": "Domeny z płatnym dostępem (Archive.is)",
+      "archiveDomainsHint": "Podczas otwierania linku z tych domen FriRSS sprawdza Archive.is i otwiera najnowszą kopię, która przejdzie podstawową kontrolę stron z komunikatem weryfikacyjnym. Jeśli żadna nie jest odpowiednia, otwiera oryginał. Wpisz jedną nazwę hosta w każdym wierszu; subdomeny również są uwzględniane. Pusta lista wyłącza tę funkcję.",
+      "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
+      "archiveDomainsSave": "Zapisz domeny",
+      "archiveDomainsSaved": "Zapisano listę domen archiwalnych.",
+      "archiveDomainsInvalid": "Wpisz prawidłowe nazwy hostów, po jednej w wierszu, bez protokołu i ścieżki.",
+      "archiveDomainsError": "Nie udało się zapisać listy domen Archive.is."
     },
     "fontFamilies": {
       "sidebar": "Czcionka paska bocznego",

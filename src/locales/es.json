@@ -501,7 +501,14 @@
       "testOk": "Conexión correcta.",
       "testFailed": "La prueba de conexión ha fallado.",
       "enabledHint": "El resumen aparece en la barra del artículo cuando está activado y configurado.",
-      "error": "No se pudo generar el resumen."
+      "error": "No se pudo generar el resumen.",
+      "archiveDomainsTitle": "Dominios con muro de pago (Archive.is)",
+      "archiveDomainsHint": "Al abrir un enlace de estos dominios, FriRSS consulta Archive.is y abre la captura más reciente que supere una comprobación básica de páginas de desafío. Si ninguna sirve, abre el original. Introduce un nombre de host por línea; también se admiten subdominios. Deja la lista vacía para desactivar esta función.",
+      "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
+      "archiveDomainsSave": "Guardar dominios",
+      "archiveDomainsSaved": "Lista de dominios de archivo guardada.",
+      "archiveDomainsInvalid": "Introduce nombres de host válidos, uno por línea, sin protocolo ni ruta.",
+      "archiveDomainsError": "No se pudo guardar la lista de dominios de Archive.is."
     },
     "fontFamilies": {
       "sidebar": "Fuente de la barra lateral",

@@ -232,5 +232,12 @@
  "preferences.themes.share",
  "preferences.themes.themeName",
  "preferences.title",
- "preferences.shortcuts.pullFullArticle"
+ "preferences.shortcuts.pullFullArticle",
+ "preferences.aiSummaries.archiveDomainsTitle",
+ "preferences.aiSummaries.archiveDomainsHint",
+ "preferences.aiSummaries.archiveDomainsPlaceholder",
+ "preferences.aiSummaries.archiveDomainsSave",
+ "preferences.aiSummaries.archiveDomainsSaved",
+ "preferences.aiSummaries.archiveDomainsInvalid",
+ "preferences.aiSummaries.archiveDomainsError"
 ]

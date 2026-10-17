@@ -13,6 +13,7 @@ import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
+import { isArchiveEligibleUrl, openArchiveAware } from '../../lib/archive';
 import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import { readableTextOn } from '../../lib/readableText';
@@ -46,6 +47,18 @@ function shouldOpenLinkedUrlExternally(url: URL): boolean {
     || NON_ARTICLE_FILE_EXTENSIONS.test(url.pathname);
 }
 const ARTICLE_FIND_ACTIVE_HIGHLIGHT = 'frirss-article-find-active';
+
+function handleArchiveAnchorClick(event: ReactMouseEvent<HTMLAnchorElement>, url: string | undefined): void {
+  if (!url || !isArchiveEligibleUrl(url)) return;
+  event.preventDefault();
+  openArchiveAware(url);
+}
+
+function handleArchiveAnchorAuxClick(event: ReactMouseEvent<HTMLAnchorElement>, url: string | undefined): void {
+  if (event.button !== 1 || !url || !isArchiveEligibleUrl(url)) return;
+  event.preventDefault();
+  openArchiveAware(url);
+}
 
 type ArticleFindHighlightApi = {
   CSS?: { highlights?: { set: (name: string, value: unknown) => void; delete: (name: string) => boolean } };
@@ -958,10 +971,25 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     let url: URL;
     try { url = new URL(rawHref, linkedPage?.url || selectedArticle?.url || window.location.href); } catch { return; }
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+    const sameCurrentUrl = url.href === (linkedPage?.url || selectedArticle?.url);
+    const modifiedClick = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+    if (sameCurrentUrl && !modifiedClick) {
+      event.preventDefault();
+      return;
+    }
+
+    // Allowlisted publishers go straight to their newest usable Archive.is snapshot,
+    // without passing through FriRSS's full-text extraction pipeline.
+    if (isArchiveEligibleUrl(url.href)) {
+      event.preventDefault();
+      openArchiveAware(url.href);
+      return;
+    }
+
     // Keep modified clicks and explicit new-window links behaving like normal browser links.
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (modifiedClick) return;
     event.preventDefault();
-    if (url.href === (linkedPage?.url || selectedArticle?.url)) return;
+    if (sameCurrentUrl) return;
 
     // PDFs, media files, social networks and video platforms are not useful reader-mode targets.
     // Open synchronously from the click so browser popup blockers allow the new tab.
@@ -1003,6 +1031,21 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       setLinkedPageLoading(false);
     }
   }, [linkedPage, selectedArticle?.id, selectedArticle?.url]);
+
+  const handleReadingBodyAuxClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.button !== 1) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+    if (!anchor || anchor.hasAttribute('download')) return;
+    const rawHref = anchor.getAttribute('href');
+    if (!rawHref) return;
+    let url: URL;
+    try { url = new URL(rawHref, linkedPage?.url || selectedArticle?.url || window.location.href); } catch { return; }
+    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || !isArchiveEligibleUrl(url.href)) return;
+    event.preventDefault();
+    openArchiveAware(url.href);
+  }, [linkedPage?.url, selectedArticle?.url]);
 
   const handleExtract = useCallback(async () => {
     if (!selectedArticle?.url || extracting) return;
@@ -1334,6 +1377,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             href={linkedPage?.url || article.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(event) => handleArchiveAnchorClick(event, linkedPage?.url || article.url || undefined)}
+            onAuxClick={(event) => handleArchiveAnchorAuxClick(event, linkedPage?.url || article.url || undefined)}
             className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
             style={{
               color: 'var(--reading-meta)',
@@ -1558,13 +1603,13 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
           {/* Linked page title links to that page; feed article title links to its original. */}
           {linkedPage ? (
-            <a href={linkedPage.url} target="_blank" rel="noopener noreferrer" className="block mb-4 hover:underline" title={t('readingPane.openOriginal')}>
+            <a href={linkedPage.url} target="_blank" rel="noopener noreferrer" onClick={(event) => handleArchiveAnchorClick(event, linkedPage.url)} onAuxClick={(event) => handleArchiveAnchorAuxClick(event, linkedPage.url)} className="block mb-4 hover:underline" title={t('readingPane.openOriginal')}>
               <h1 dir="auto" className="font-bold leading-tight article-title-target" data-theme="reading-title" style={{ color: 'var(--reading-title)', fontSize: 'var(--fs-reading-title)' }}>
                 {linkedPage.content.title || article.title}
               </h1>
             </a>
           ) : article.url ? (
-            <a href={article.url} target="_blank" rel="noopener noreferrer" className="block mb-4 hover:underline" title={t('readingPane.openOriginal')}>
+            <a href={article.url} target="_blank" rel="noopener noreferrer" onClick={(event) => handleArchiveAnchorClick(event, article.url || undefined)} onAuxClick={(event) => handleArchiveAnchorAuxClick(event, article.url || undefined)} className="block mb-4 hover:underline" title={t('readingPane.openOriginal')}>
               <h1 dir="auto" className="font-bold leading-tight article-title-target" data-theme="reading-title" style={{ color: 'var(--reading-title)', fontSize: 'var(--fs-reading-title)' }}>{article.title}</h1>
             </a>
           ) : (
@@ -1580,7 +1625,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           {linkedPageErrorUrl && !linkedPageLoading && (
             <div className="mb-3 text-sm" style={{ color: 'var(--reading-meta)' }}>
               Could not load this linked article in the reader.{' '}
-              <a href={linkedPageErrorUrl} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--accent)' }}>
+              <a href={linkedPageErrorUrl} target="_blank" rel="noopener noreferrer" onClick={(event) => handleArchiveAnchorClick(event, linkedPageErrorUrl)} onAuxClick={(event) => handleArchiveAnchorAuxClick(event, linkedPageErrorUrl)} className="underline" style={{ color: 'var(--accent)' }}>
                 Open original page
               </a>
             </div>
@@ -1693,6 +1738,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             <div
               className="article-content"
               onClick={(event) => { handleVideoClick(event); void handleReadingBodyClick(event); }}
+              onAuxClick={(event) => handleReadingBodyAuxClick(event)}
               dangerouslySetInnerHTML={headFacadeProp}
             />
           )}
@@ -1714,6 +1760,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               data-theme="reading-text"
               style={{ color: 'var(--reading-text)', fontSize: 'var(--fs-reading-body)' }}
               onClick={(event) => { handleVideoClick(event); void handleReadingBodyClick(event); }}
+              onAuxClick={(event) => handleReadingBodyAuxClick(event)}
               dangerouslySetInnerHTML={bodyProp}
             />
           )}
@@ -1805,7 +1852,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             {(linkedPage?.url || article.url) && (
               <a
                 href={linkedPage?.url || article.url} target="_blank" rel="noopener noreferrer"
-                onClick={() => setReadSettingsOpen(false)}
+                onClick={(event) => {
+                  setReadSettingsOpen(false);
+                  handleArchiveAnchorClick(event, linkedPage?.url || article.url || undefined);
+                }}
+                onAuxClick={(event) => handleArchiveAnchorAuxClick(event, linkedPage?.url || article.url || undefined)}
                 className="sheet-row flex items-center gap-3 px-4 py-3"
                 style={{ color: 'var(--reading-text)' }}
               >

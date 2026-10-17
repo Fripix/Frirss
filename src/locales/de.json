@@ -501,7 +501,14 @@
       "testOk": "Verbindung erfolgreich.",
       "testFailed": "Verbindungstest fehlgeschlagen.",
       "enabledHint": "Bei aktivierter Konfiguration erscheint die Funktion in der Artikelleiste.",
-      "error": "Zusammenfassung konnte nicht erstellt werden."
+      "error": "Zusammenfassung konnte nicht erstellt werden.",
+      "archiveDomainsTitle": "Bezahlschranken-Domains (Archive.is)",
+      "archiveDomainsHint": "Beim Öffnen eines Links dieser Domains prüft FriRSS Archive.is und öffnet den neuesten Snapshot, der eine einfache Prüfung auf Challenge-Seiten besteht. Wenn keiner geeignet ist, wird die Originalseite geöffnet. Einen Hostnamen pro Zeile eingeben; Subdomains werden ebenfalls berücksichtigt. Eine leere Liste deaktiviert diese Funktion.",
+      "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
+      "archiveDomainsSave": "Domains speichern",
+      "archiveDomainsSaved": "Archiv-Domainliste gespeichert.",
+      "archiveDomainsInvalid": "Gültige Hostnamen ohne Protokoll oder Pfad eingeben, einen pro Zeile.",
+      "archiveDomainsError": "Die Archive.is-Domainliste konnte nicht gespeichert werden."
     },
     "fontFamilies": {
       "sidebar": "Schriftart der Seitenleiste",

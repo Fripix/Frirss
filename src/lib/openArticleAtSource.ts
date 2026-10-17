@@ -1,5 +1,5 @@
 import type { Article } from '../types';
-import { openExternal } from './openExternal';
+import { openArchiveAware } from './archive';
 
 /**
  * Ouvre l'article à sa source, puis le SÉLECTIONNE.
@@ -49,6 +49,6 @@ export function openArticleAtSource(
   selectArticle: (article: Article | null) => void,
 ): void {
   if (!article.url?.trim()) return;
-  openExternal(article.url);
+  openArchiveAware(article.url);
   selectArticle(article);
 }

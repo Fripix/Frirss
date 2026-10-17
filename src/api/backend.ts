@@ -236,6 +236,16 @@ export async function applyRestore(backup: unknown, passphrase: string, setup: b
 export default backend;
 
 
+// ── Archive.is article lookup ────────────────────────────────────────
+export type ArchiveResolveResult =
+  | { status: 'ok'; url: string; timestamp: string }
+  | { status: 'no_snapshot' | 'no_good_snapshot' | 'soft_block' | 'error' | 'not_allowed' };
+
+export async function resolveArchiveSnapshot(url: string): Promise<ArchiveResolveResult> {
+  const { data } = await backend.get<ArchiveResolveResult>('/archive/resolve', { params: { url } });
+  return data;
+}
+
 // ── AI article summaries ────────────────────────────────────────────
 export interface AiSummaryConfig {
   enabled: boolean;

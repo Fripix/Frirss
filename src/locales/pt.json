@@ -501,7 +501,14 @@
       "testOk": "Ligação bem-sucedida.",
       "testFailed": "O teste de ligação falhou.",
       "enabledHint": "O resumo aparece na barra do artigo quando a funcionalidade está ativa e configurada.",
-      "error": "Não foi possível gerar o resumo."
+      "error": "Não foi possível gerar o resumo.",
+      "archiveDomainsTitle": "Domínios com paywall (Archive.is)",
+      "archiveDomainsHint": "Ao abrir um link destes domínios, o FriRSS consulta o Archive.is e abre a captura mais recente que passe numa verificação simples de páginas de desafio. Se nenhuma for adequada, abre a página original. Introduza um nome de anfitrião por linha; os subdomínios também são incluídos. Deixe a lista vazia para desativar esta funcionalidade.",
+      "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
+      "archiveDomainsSave": "Guardar domínios",
+      "archiveDomainsSaved": "Lista de domínios de arquivo guardada.",
+      "archiveDomainsInvalid": "Introduza nomes de anfitrião válidos, um por linha, sem protocolo nem caminho.",
+      "archiveDomainsError": "Não foi possível guardar a lista de domínios do Archive.is."
     },
     "fontFamilies": {
       "sidebar": "Fonte da barra lateral",
