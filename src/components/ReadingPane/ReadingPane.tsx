@@ -221,6 +221,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   }, [selectedArticle, linkedPage]);
   const [linkedPageStack, setLinkedPageStack] = useState<Array<{ url: string; content: ExtractedContent }>>([]);
   const [linkedPageLoading, setLinkedPageLoading] = useState(false);
+  const [linkedPageErrorUrl, setLinkedPageErrorUrl] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [aiConfig, setAiConfig] = useState<AiSummaryConfig | null>(null);
@@ -970,19 +971,35 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }
 
     const sourceArticleId = selectedArticle?.id;
+    setLinkedPageErrorUrl(null);
     setLinkedPageLoading(true);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const { extractFullContent } = await import('../../utils/extractContent');
-      const content = await extractFullContent(url.href);
+      // A linked-page fetch must never leave the reader in a permanent loading state.
+      // Bound the whole extraction attempt, including a slow backend/proxy response.
+      const extraction = (async () => {
+        const { extractFullContent } = await import('../../utils/extractContent');
+        return extractFullContent(url.href);
+      })();
+      const content = await Promise.race([
+        extraction,
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('LINKED_ARTICLE_TIMEOUT')), 25000);
+        }),
+      ]);
       // Ignore late extraction results if the user selected a different feed article meanwhile.
       if (useFeedStore.getState().selectedArticle?.id !== sourceArticleId) return;
       setLinkedPageStack((stack) => [...stack, ...(linkedPage ? [linkedPage] : [])]);
       setLinkedPage({ url: url.href, content });
       if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
     } catch {
-      // Extraction failures should not strand the reader: open the source normally.
-      window.open(url.href, '_blank', 'noopener,noreferrer');
+      // Don't rely on window.open after an async wait: mobile browsers may block it.
+      // Offer a normal, user-initiated link instead, and always clear the spinner.
+      if (useFeedStore.getState().selectedArticle?.id === sourceArticleId) {
+        setLinkedPageErrorUrl(url.href);
+      }
     } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
       setLinkedPageLoading(false);
     }
   }, [linkedPage, selectedArticle?.id, selectedArticle?.url]);
@@ -1560,6 +1577,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </button>
           )}
           {linkedPageLoading && <div className="mb-3 text-xs" style={{ color: 'var(--reading-meta)' }}>Loading linked article…</div>}
+          {linkedPageErrorUrl && !linkedPageLoading && (
+            <div className="mb-3 text-sm" style={{ color: 'var(--reading-meta)' }}>
+              Could not load this linked article in the reader.{' '}
+              <a href={linkedPageErrorUrl} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--accent)' }}>
+                Open original page
+              </a>
+            </div>
+          )}
 
           {/* Tags & Labels */}
           {(() => {
