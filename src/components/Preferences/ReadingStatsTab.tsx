@@ -14,7 +14,7 @@ const PERIODS: Array<{ value: Period; label: string; ms: number | null }> = [
   { value: 'all', label: 'All time', ms: null },
 ];
 
-const STOP_WORDS = new Set(('the and for with from that this have has was were are you your our into about after before over under more most than then they them their what when where which who how why will would could should not but all any each only also new says said say one two first last next now still just very much many some other use using used via per its out off get got make made based according their article articles news latest update updates report reports says said from bei und der die das den dem des ein eine einer eines einem einen ist sind war waren wie was mit von für auf aus über nach nicht auch mehr als bei zum zur im am an and or to of in on by as is it be we i a at'.split(/\s+/)));
+const STOP_WORDS = new Set(('the and for with from that this have has was were are you your our into about after before over under more most than then they them their what when where which who how why will would could should not but all any each only also new says said say one two first last next now still just very much many some other use using used via per its out off get got make made based according their article articles news latest update updates report reports says said from bei und der die das den dem des ein eine einer eines einem einen ist sind war waren wie was mit von für auf aus über nach nicht auch mehr als bei zum zur im am an and or to of in on by as is it be we i a at http https www com org net html amp utm source medium campaign content term rss rss1 feed slashdot theverge blogspot wordpress'.split(/\s+/)));
 
 function periodStart(period: Period): number | null {
   const ms = PERIODS.find((p) => p.value === period)?.ms;
@@ -40,7 +40,14 @@ function formatHours(minutes: number): string {
 function buildTopics(events: ArticleOpenEvent[], feedback: ArticleFeedback[], savedSignals: Array<{ title: string; summary: string; starred: boolean; readLater: boolean }> | null, start: number | null) {
   const weights = new Map<string, number>();
   const addText = (text: string, weight: number) => {
-    const words = text.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}-]{2,}/gu) || [];
+    // Headlines and summaries can contain canonical URLs, tracking parameters, and AMP markup.
+    // Strip those before tokenization so URL fragments do not become apparent reading interests.
+    const cleanedText = text.toLocaleLowerCase()
+      .replace(/(?:https?:\/\/|www\.)[^\s<>()]+/giu, ' ')
+      .replace(/\b[\w-]+\.(?:com|org|net|io|co|de|uk|ai|news|tech|blog)\b(?:\/[^\s]*)?/giu, ' ')
+      .replace(/&(?:amp|quot|apos|lt|gt);/giu, ' ')
+      .replace(/[?&](?:utm_[a-z]+|amp|source|medium|rss1?)=[^\s&]*/giu, ' ');
+    const words = cleanedText.match(/\p{L}[\p{L}\p{N}-]{2,}/gu) || [];
     const local = new Set(words.filter((w) => !STOP_WORDS.has(w) && !/^\d+$/.test(w)));
     for (const word of local) weights.set(word, (weights.get(word) || 0) + weight);
     // Common two-word phrases add useful context without requiring AI.
