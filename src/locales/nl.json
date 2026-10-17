@@ -433,7 +433,8 @@
       "offline": "Offline",
       "admin": "Beheer",
       "layout": "Lay-out",
-      "aiSummaries": "AI-samenvattingen"
+      "aiSummaries": "AI-samenvattingen",
+      "readingStats": "Leesstatistieken"
     },
     "appearance": {
       "theme": "Thema",
