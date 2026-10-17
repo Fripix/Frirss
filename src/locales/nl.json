@@ -434,6 +434,7 @@
       "admin": "Beheer",
       "layout": "Lay-out",
       "aiSummaries": "AI-samenvattingen",
+      "paywalls": "Paywalls",
       "readingStats": "Leesstatistieken"
     },
     "appearance": {
@@ -502,7 +503,7 @@
       "testFailed": "Verbindingstest mislukt.",
       "enabledHint": "De samenvatting verschijnt in de artikelbalk als deze functie is ingeschakeld en ingesteld.",
       "error": "Samenvatting maken mislukt.",
-      "archiveDomainsTitle": "Domeinen met betaalmuur (Archive.is)",
+      "archiveDomainsTitle": "Paywalls",
       "archiveDomainsHint": "Wanneer je een link van deze domeinen opent, controleert FriRSS Archive.is en opent het de nieuwste momentopname die een eenvoudige controle op challengepagina’s doorstaat. Als geen momentopname bruikbaar is, opent de oorspronkelijke pagina. Eén hostnaam per regel; subdomeinen tellen ook mee. Laat de lijst leeg om deze functie uit te schakelen.",
       "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
       "archiveDomainsSave": "Domeinen opslaan",

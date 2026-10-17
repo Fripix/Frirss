@@ -434,6 +434,7 @@
       "admin": "Administración",
       "layout": "Diseño",
       "aiSummaries": "Resúmenes de IA",
+      "paywalls": "Muros de pago",
       "readingStats": "Estadísticas de lectura"
     },
     "appearance": {
@@ -502,7 +503,7 @@
       "testFailed": "La prueba de conexión ha fallado.",
       "enabledHint": "El resumen aparece en la barra del artículo cuando está activado y configurado.",
       "error": "No se pudo generar el resumen.",
-      "archiveDomainsTitle": "Dominios con muro de pago (Archive.is)",
+      "archiveDomainsTitle": "Muros de pago",
       "archiveDomainsHint": "Al abrir un enlace de estos dominios, FriRSS consulta Archive.is y abre la captura más reciente que supere una comprobación básica de páginas de desafío. Si ninguna sirve, abre el original. Introduce un nombre de host por línea; también se admiten subdominios. Deja la lista vacía para desactivar esta función.",
       "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
       "archiveDomainsSave": "Guardar dominios",

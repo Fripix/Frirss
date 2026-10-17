@@ -434,6 +434,7 @@
       "admin": "Verwaltung",
       "layout": "Layout",
       "aiSummaries": "KI-Zusammenfassungen",
+      "paywalls": "Paywalls",
       "readingStats": "Lesestatistik"
     },
     "appearance": {
@@ -502,7 +503,7 @@
       "testFailed": "Verbindungstest fehlgeschlagen.",
       "enabledHint": "Bei aktivierter Konfiguration erscheint die Funktion in der Artikelleiste.",
       "error": "Zusammenfassung konnte nicht erstellt werden.",
-      "archiveDomainsTitle": "Bezahlschranken-Domains (Archive.is)",
+      "archiveDomainsTitle": "Paywalls",
       "archiveDomainsHint": "Beim Öffnen eines Links dieser Domains prüft FriRSS Archive.is und öffnet den neuesten Snapshot, der eine einfache Prüfung auf Challenge-Seiten besteht. Wenn keiner geeignet ist, wird die Originalseite geöffnet. Einen Hostnamen pro Zeile eingeben; Subdomains werden ebenfalls berücksichtigt. Eine leere Liste deaktiviert diese Funktion.",
       "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
       "archiveDomainsSave": "Domains speichern",

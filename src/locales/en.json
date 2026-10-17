@@ -434,6 +434,7 @@
       "admin": "Administration",
       "layout": "Layout",
       "aiSummaries": "AI Summaries",
+      "paywalls": "Paywalls",
       "readingStats": "Reading Stats"
     },
     "appearance": {
@@ -502,7 +503,7 @@
       "testFailed": "Connection test failed.",
       "enabledHint": "Summaries are available in the article toolbar when enabled and configured.",
       "error": "Could not generate a summary.",
-      "archiveDomainsTitle": "Paywalled domains (Archive.is)",
+      "archiveDomainsTitle": "Paywalls",
       "archiveDomainsHint": "When you open a link from one of these domains, FriRSS checks Archive.is and opens the newest snapshot that passes a lightweight challenge-page check. If none passes, it opens the original. Enter hostnames one per line; subdomains match too. Leave the list empty to disable this behavior.",
       "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
       "archiveDomainsSave": "Save domains",

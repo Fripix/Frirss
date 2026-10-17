@@ -444,6 +444,7 @@
       "admin": "Administracja",
       "layout": "Układ",
       "aiSummaries": "Podsumowania AI",
+      "paywalls": "Paywalle",
       "readingStats": "Statystyki czytania"
     },
     "appearance": {
@@ -514,7 +515,7 @@
       "testFailed": "Test połączenia nie powiódł się.",
       "enabledHint": "Podsumowanie pojawi się na pasku artykułu po włączeniu i konfiguracji funkcji.",
       "error": "Nie udało się utworzyć podsumowania.",
-      "archiveDomainsTitle": "Domeny z płatnym dostępem (Archive.is)",
+      "archiveDomainsTitle": "Paywalle",
       "archiveDomainsHint": "Podczas otwierania linku z tych domen FriRSS sprawdza Archive.is i otwiera najnowszą kopię, która przejdzie podstawową kontrolę stron z komunikatem weryfikacyjnym. Jeśli żadna nie jest odpowiednia, otwiera oryginał. Wpisz jedną nazwę hosta w każdym wierszu; subdomeny również są uwzględniane. Pusta lista wyłącza tę funkcję.",
       "archiveDomainsPlaceholder": "wsj.com\nft.com\nbloomberg.com",
       "archiveDomainsSave": "Zapisz domeny",
