@@ -3,6 +3,7 @@ import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '.
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
 import { DEFAULT_ARCHIVE_DOMAINS, normalizeArchiveDomains } from '../lib/archiveDomains';
+import { DEFAULT_CUSTOM_INTERESTING_WEIGHTS, normalizeCustomInterestingWeights, type CustomInterestingWeights } from '../lib/intelligenceRanking';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -258,6 +259,9 @@ export interface UiState {
   /** Account-synced domain allowlist for automatic Archive.is fallback. */
   archiveDomains: string[];
   setArchiveDomains: (domains: string[]) => void;
+  /** Account-synced custom weights for the Interesting ranking experiment. */
+  interestingRankingWeights: CustomInterestingWeights;
+  setInterestingRankingWeights: (weights: CustomInterestingWeights) => void;
   shortcuts: Shortcuts;
   setShortcut: (action: string, key: string) => void;
   resetShortcuts: () => void;
@@ -668,6 +672,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
 
   // Per-user Archive.is allowlist; stored locally and synced with logical preferences.
   archiveDomains: normalizeArchiveDomains(loadJson<unknown>('frirss_archiveDomains', DEFAULT_ARCHIVE_DOMAINS)),
+  interestingRankingWeights: normalizeCustomInterestingWeights(loadJson<unknown>('frirss_interestingRankingWeights', DEFAULT_CUSTOM_INTERESTING_WEIGHTS)),
+  setInterestingRankingWeights: (weights) => {
+    const next = normalizeCustomInterestingWeights(weights);
+    localStorage.setItem('frirss_interestingRankingWeights', JSON.stringify(next));
+    set({ interestingRankingWeights: next });
+  },
   setArchiveDomains: (domains) => {
     const next = normalizeArchiveDomains(domains);
     localStorage.setItem('frirss_archiveDomains', JSON.stringify(next));
@@ -773,7 +783,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
     const jsonKeys = [
       'showFavicons', 'topbarVisible', 'categoryOrder', 'feedOrder',
       'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
-      'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
+      'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts', 'interestingRankingWeights',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions', 'archiveDomains',
@@ -832,7 +842,7 @@ export const UI_SYNC_KEYS = [
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
-  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'archiveDomains',
+  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'archiveDomains', 'interestingRankingWeights',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

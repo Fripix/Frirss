@@ -22,7 +22,7 @@ describe('useInterestingAlgorithm', () => {
     }
     expect(INTERESTING_ALGORITHMS.map((a) => a.value)).toEqual([
       'current', 'weighted-idf', 'synonyms', 'topics', 'combined', 'microsoft-news', 'personal-news', 'intelligence-next',
-      'gdelt', 'gdelt-github', 'gdelt-hn', 'hn-lob', 'all-four',
+      'gdelt', 'gdelt-github', 'gdelt-hn', 'hn-lob', 'all-four', 'custom',
     ]);
   });
 

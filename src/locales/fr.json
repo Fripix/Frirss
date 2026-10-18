@@ -436,7 +436,8 @@
       "layout": "Mise en page",
       "aiSummaries": "Résumés IA",
       "paywalls": "Paywalls",
-      "readingStats": "Statistiques de lecture"
+      "readingStats": "Statistiques de lecture",
+      "rankingWeights": "Pondération du classement"
     },
     "appearance": {
       "theme": "Thème",
@@ -530,6 +531,16 @@
       "roboto": "Roboto",
       "merriweather": "Merriweather",
       "helvetica": "Helvetica"
+    },
+    "rankingWeights": {
+      "title": "Pondération du classement",
+      "intro": "Réglez l’influence de l’attention externe sur la vue Intéressant. Ces paramètres s’appliquent à l’algorithme Personnalisé. Les préréglages existants restent inchangés.",
+      "externalInfluence": "Influence externe",
+      "externalInfluenceHelp": "Part du score final déterminée par les signaux externes.",
+      "sourcesTitle": "Pondération des sources externes",
+      "sourcesHelp": "Ces poids définissent la proportion relative des sources. Ils sont normalisés automatiquement et n’ont pas besoin de totaliser 100 %. Réglez une source sur 0 % pour l’exclure.",
+      "savedAutomatically": "Les modifications sont enregistrées automatiquement dans votre compte. Sélectionnez Personnalisé dans la vue Intéressant pour les utiliser.",
+      "reset": "Réinitialiser"
     }
   },
   "login": {

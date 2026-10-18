@@ -6,6 +6,30 @@ import { rankIntelligenceNext, type IntelligenceContext } from './intelligenceNe
 export type { IntelligenceContext, SavedArticleSignal } from './intelligenceNext';
 
 export type ExternalSignalSource = 'gdelt' | 'github' | 'hackerNews' | 'lobsters';
+export interface CustomInterestingWeights {
+  externalInfluence: number;
+  sources: Record<ExternalSignalSource, number>;
+}
+export const DEFAULT_CUSTOM_INTERESTING_WEIGHTS: CustomInterestingWeights = {
+  externalInfluence: 25,
+  sources: { gdelt: 40, github: 20, hackerNews: 25, lobsters: 15 },
+};
+export function normalizeCustomInterestingWeights(value: unknown): CustomInterestingWeights {
+  const input = value && typeof value === 'object' ? value as Partial<CustomInterestingWeights> : {};
+  const sources: Partial<Record<ExternalSignalSource, unknown>> = input.sources && typeof input.sources === 'object'
+    ? input.sources as Partial<Record<ExternalSignalSource, unknown>> : {};
+  const clamp = (v: unknown, fallback: number) => typeof v === 'number' && Number.isFinite(v)
+    ? Math.max(0, Math.min(100, Math.round(v))) : fallback;
+  return {
+    externalInfluence: clamp(input.externalInfluence, DEFAULT_CUSTOM_INTERESTING_WEIGHTS.externalInfluence),
+    sources: {
+      gdelt: clamp(sources.gdelt, DEFAULT_CUSTOM_INTERESTING_WEIGHTS.sources.gdelt),
+      github: clamp(sources.github, DEFAULT_CUSTOM_INTERESTING_WEIGHTS.sources.github),
+      hackerNews: clamp(sources.hackerNews, DEFAULT_CUSTOM_INTERESTING_WEIGHTS.sources.hackerNews),
+      lobsters: clamp(sources.lobsters, DEFAULT_CUSTOM_INTERESTING_WEIGHTS.sources.lobsters),
+    },
+  };
+}
 export interface ExternalArticleSignals {
   /** Successful lookup with no meaningful coverage is 0; unavailable/not applicable is null. */
   gdelt: number | null;
@@ -16,7 +40,7 @@ export interface ExternalArticleSignals {
 export type ExternalSignalsByUrl = Record<string, ExternalArticleSignals>;
 
 export type InterestingAlgorithm = 'current' | 'weighted-idf' | 'synonyms' | 'topics' | 'combined' | 'microsoft-news' | 'personal-news' | 'intelligence-next'
-  | 'gdelt' | 'gdelt-github' | 'gdelt-hn' | 'hn-lob' | 'all-four';
+  | 'gdelt' | 'gdelt-github' | 'gdelt-hn' | 'hn-lob' | 'all-four' | 'custom';
 
 export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label: string }> = [
   { value: 'current', label: 'Current' },
@@ -32,6 +56,7 @@ export const INTERESTING_ALGORITHMS: Array<{ value: InterestingAlgorithm; label:
   { value: 'gdelt-hn', label: 'GDELT + HN' },
   { value: 'hn-lob', label: 'HN + LOB' },
   { value: 'all-four', label: 'ALL FOUR' },
+  { value: 'custom', label: 'Custom' },
 ];
 
 /** The default; also the fallback for a missing or unknown saved choice. */
@@ -425,7 +450,8 @@ const EXTERNAL_SIGNAL_WEIGHTS: Partial<Record<InterestingAlgorithm, Partial<Reco
   'hn-lob': { hackerNews: 0.6, lobsters: 0.4 },
   'all-four': { gdelt: 0.4, github: 0.2, hackerNews: 0.24, lobsters: 0.16 },
 };
-export function externalSourcesForAlgorithm(algorithm: InterestingAlgorithm): ExternalSignalSource[] {
+export function externalSourcesForAlgorithm(algorithm: InterestingAlgorithm, customWeights: CustomInterestingWeights = DEFAULT_CUSTOM_INTERESTING_WEIGHTS): ExternalSignalSource[] {
+  if (algorithm === 'custom') return customWeights.externalInfluence === 0 ? [] : (Object.keys(customWeights.sources) as ExternalSignalSource[]).filter((source) => customWeights.sources[source] > 0);
   return Object.keys(EXTERNAL_SIGNAL_WEIGHTS[algorithm] ?? {}) as ExternalSignalSource[];
 }
 function rankWithExternalSignals(
@@ -435,11 +461,14 @@ function rankWithExternalSignals(
   algorithm: InterestingAlgorithm,
   context: IntelligenceContext,
   externalSignals: ExternalSignalsByUrl,
+  customWeights: CustomInterestingWeights = DEFAULT_CUSTOM_INTERESTING_WEIGHTS,
 ): Article[] {
   const base = rankIntelligenceNext(articles, feedback, now, context);
   if (base.length < 2) return base;
   const baseScore = new Map(base.map((article, index) => [article, (base.length - index - 1) / (base.length - 1)]));
-  const weights = EXTERNAL_SIGNAL_WEIGHTS[algorithm] ?? {};
+  const weights: Partial<Record<ExternalSignalSource, number>> = algorithm === 'custom'
+    ? customWeights.sources
+    : (EXTERNAL_SIGNAL_WEIGHTS[algorithm] ?? {});
   return [...base].map((article, baseIndex) => {
     const personal = baseScore.get(article) ?? 0;
     const signals = externalSignals[article.url];
@@ -455,7 +484,8 @@ function rankWithExternalSignals(
     // If every requested provider failed or was inapplicable, preserve the
     // base rank exactly. Do not turn missing data into a popularity penalty.
     const external = totalWeight > 0 ? weighted / totalWeight : personal;
-    return { article, score: 0.75 * personal + 0.25 * external, baseIndex };
+    const influence = algorithm === 'custom' ? customWeights.externalInfluence / 100 : 0.25;
+    return { article, score: (1 - influence) * personal + influence * external, baseIndex };
   }).sort((a, b) => b.score - a.score || a.baseIndex - b.baseIndex).map(({ article }) => article);
 }
 
@@ -472,9 +502,10 @@ export function rankInterestingArticles(
   algorithm: InterestingAlgorithm = DEFAULT_INTERESTING_ALGORITHM,
   context: IntelligenceContext = {},
   externalSignals: ExternalSignalsByUrl = {},
+  customWeights: CustomInterestingWeights = DEFAULT_CUSTOM_INTERESTING_WEIGHTS,
 ): Article[] {
-  if (EXTERNAL_SIGNAL_WEIGHTS[algorithm]) {
-    return rankWithExternalSignals(articles, feedback, now, algorithm, context, externalSignals);
+  if (EXTERNAL_SIGNAL_WEIGHTS[algorithm] || algorithm === 'custom') {
+    return rankWithExternalSignals(articles, feedback, now, algorithm, context, externalSignals, customWeights);
   }
   if (algorithm === 'current') return rankCurrent(articles, feedback, now);
   if (algorithm === 'intelligence-next') return rankIntelligenceNext(articles, feedback, now, context);

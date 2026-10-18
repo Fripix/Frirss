@@ -436,7 +436,8 @@
       "layout": "Disposição",
       "aiSummaries": "Resumos de IA",
       "paywalls": "Paywalls",
-      "readingStats": "Estatísticas de leitura"
+      "readingStats": "Estatísticas de leitura",
+      "rankingWeights": "Pesos de classificação"
     },
     "appearance": {
       "theme": "Tema",
@@ -530,6 +531,16 @@
       "roboto": "Roboto",
       "merriweather": "Merriweather",
       "helvetica": "Helvetica"
+    },
+    "rankingWeights": {
+      "title": "Pesos de classificação",
+      "intro": "Ajuste quanto a atenção externa influencia a vista Interessante. Estas definições aplicam-se ao algoritmo Personalizado. As predefinições existentes não são alteradas.",
+      "externalInfluence": "Influência externa",
+      "externalInfluenceHelp": "A parcela da pontuação final determinada por sinais externos.",
+      "sourcesTitle": "Pesos das fontes externas",
+      "sourcesHelp": "Estes pesos definem a proporção relativa entre fontes. São normalizados automaticamente e não precisam de somar 100%. Defina uma fonte como 0% para a excluir.",
+      "savedAutomatically": "As alterações são guardadas automaticamente na sua conta. Selecione Personalizado na vista Interessante para as utilizar.",
+      "reset": "Repor"
     }
   },
   "login": {

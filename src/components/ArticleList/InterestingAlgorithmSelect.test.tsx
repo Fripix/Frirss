@@ -26,6 +26,7 @@ const LABELS = [
   'GDELT + HN',
   'HN + LOB',
   'ALL FOUR',
+  'Custom',
 ];
 
 describe.each(['toolbar', 'sheet'] as const)('InterestingAlgorithmSelect (%s)', (variant) => {

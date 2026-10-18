@@ -436,7 +436,8 @@
       "layout": "Layout",
       "aiSummaries": "Riepiloghi AI",
       "paywalls": "Paywall",
-      "readingStats": "Statistiche di lettura"
+      "readingStats": "Statistiche di lettura",
+      "rankingWeights": "Pesi della classificazione"
     },
     "appearance": {
       "theme": "Tema",
@@ -530,6 +531,16 @@
       "roboto": "Roboto",
       "merriweather": "Merriweather",
       "helvetica": "Helvetica"
+    },
+    "rankingWeights": {
+      "title": "Pesi della classificazione",
+      "intro": "Regola quanto l’attenzione esterna influisce sulla vista Interessanti. Queste impostazioni si applicano all’algoritmo Personalizzato. I preset esistenti restano invariati.",
+      "externalInfluence": "Influenza esterna",
+      "externalInfluenceHelp": "Quota del punteggio finale determinata dai segnali esterni.",
+      "sourcesTitle": "Pesi delle fonti esterne",
+      "sourcesHelp": "Questi pesi definiscono la proporzione relativa tra le fonti. Vengono normalizzati automaticamente e non devono sommare al 100 %. Imposta una fonte su 0 % per escluderla.",
+      "savedAutomatically": "Le modifiche vengono salvate automaticamente nel tuo account. Seleziona Personalizzato nella vista Interessanti per usarle.",
+      "reset": "Ripristina"
     }
   },
   "login": {

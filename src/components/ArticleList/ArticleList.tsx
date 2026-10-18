@@ -79,6 +79,7 @@ export default function ArticleList() {
 
   const intelligenceFeedback = useIntelligenceFeedback();
   const [interestingAlgorithm, setInterestingAlgorithm] = useInterestingAlgorithm();
+  const interestingRankingWeights = useUiStore((s) => s.interestingRankingWeights);
   const [externalSignals, setExternalSignals] = useState<ExternalSignalsByUrl>({});
 
   const {
@@ -774,7 +775,7 @@ export default function ArticleList() {
   // External-signal variants fetch scores only when selected. The server caches
   // each article/source lookup; failures leave the current Intelligence Next
   // ordering intact rather than blocking the Interesting view.
-  const externalSignalSources = useMemo(() => externalSourcesForAlgorithm(interestingAlgorithm), [interestingAlgorithm]);
+  const externalSignalSources = useMemo(() => externalSourcesForAlgorithm(interestingAlgorithm, interestingRankingWeights), [interestingAlgorithm, interestingRankingWeights]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isInterestingView || externalSignalSources.length === 0) {
@@ -839,11 +840,11 @@ export default function ArticleList() {
   const rankedArticleKeys = useMemo(
     () => (isInterestingView
       ? (externalSignalSources.length > 0
-        ? rankInterestingArticles(articles, intelligenceFeedback, Date.now(), interestingAlgorithm, intelligenceContext, externalSignals)
+        ? rankInterestingArticles(articles, intelligenceFeedback, Date.now(), interestingAlgorithm, intelligenceContext, externalSignals, interestingRankingWeights)
         : rankInterestingArticles(articles, intelligenceFeedback, Date.now(), interestingAlgorithm, intelligenceContext))
         .map(rankingIdentity)
       : NO_RANKED_KEYS),
-    [interestingRankingKey, intelligenceFeedback, interestingAlgorithm, intelligenceContext, externalSignals, externalSignalSources, rankingIdentity, isInterestingView],
+    [interestingRankingKey, intelligenceFeedback, interestingAlgorithm, intelligenceContext, externalSignals, externalSignalSources, interestingRankingWeights, rankingIdentity, isInterestingView],
   );
   const rankedArticles = useMemo(() => {
     if (!isInterestingView) return articles;

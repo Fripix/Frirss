@@ -435,6 +435,7 @@
       "admin": "Administration",
       "layout": "Layout",
       "aiSummaries": "AI Summaries",
+      "rankingWeights": "Ranking Weights",
       "paywalls": "Paywalls",
       "readingStats": "Reading Stats"
     },
@@ -511,6 +512,16 @@
       "archiveDomainsSaved": "Archive domain allowlist saved.",
       "archiveDomainsInvalid": "Enter valid hostnames, one per line, without protocols or paths.",
       "archiveDomainsError": "Could not save the Archive.is domain list."
+    },
+    "rankingWeights": {
+      "title": "Interesting ranking weights",
+      "intro": "Tune how much external attention influences the Interesting view. These settings apply when the Custom algorithm is selected. Existing ranking presets are unchanged.",
+      "externalInfluence": "External influence",
+      "externalInfluenceHelp": "The share of the final ranking score driven by external signals.",
+      "sourcesTitle": "External source weights",
+      "sourcesHelp": "These weights set the relative mix between sources. They are normalized automatically, so they do not need to add up to 100%. Set a source to 0% to exclude it.",
+      "savedAutomatically": "Changes save automatically to your account. Select Custom in the Interesting view to use them.",
+      "reset": "Reset"
     },
     "fontFamilies": {
       "sidebar": "Sidebar font family",

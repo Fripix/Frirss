@@ -15,6 +15,34 @@ const feedback = (title: string, summary: string, vote: 1 | -1): ArticleFeedback
 });
 
 describe('rankInterestingArticles', () => {
+  it('recognizes the Custom algorithm', () => {
+    expect(isInterestingAlgorithm('custom')).toBe(true);
+    expect(INTERESTING_ALGORITHMS.some((item) => item.value === 'custom')).toBe(true);
+  });
+
+  it('keeps the Intelligence Next order when custom external influence is zero', () => {
+    const first = article('first', 'AI systems', 'Research on AI');
+    const second = article('second', 'Gardening', 'Growing vegetables');
+    const weights = { externalInfluence: 0, sources: { gdelt: 100, github: 0, hackerNews: 0, lobsters: 0 } };
+    const base = rankInterestingArticles([first, second], [], Date.now(), 'intelligence-next');
+    const custom = rankInterestingArticles([first, second], [], Date.now(), 'custom', {}, {
+      [first.url]: { gdelt: 0, github: null, hackerNews: null, lobsters: null },
+      [second.url]: { gdelt: 1, github: null, hackerNews: null, lobsters: null },
+    }, weights);
+    expect(custom.map((item) => item.id)).toEqual(base.map((item) => item.id));
+  });
+
+  it('allows external signals to fully determine the custom ranking at 100 percent', () => {
+    const first = article('first', 'AI systems', 'Research on AI');
+    const second = article('second', 'Gardening', 'Growing vegetables');
+    const weights = { externalInfluence: 100, sources: { gdelt: 100, github: 0, hackerNews: 0, lobsters: 0 } };
+    const custom = rankInterestingArticles([first, second], [], Date.now(), 'custom', {}, {
+      [first.url]: { gdelt: 0, github: null, hackerNews: null, lobsters: null },
+      [second.url]: { gdelt: 1, github: null, hackerNews: null, lobsters: null },
+    }, weights);
+    expect(custom[0].id).toBe('second');
+  });
+
   it('ranks content related to a positive vote above unrelated content', () => {
     const liked = article('liked', 'New chip design', 'Researchers improve AI accelerator efficiency');
     const unrelated = article('other', 'Gardening tips', 'How to grow tomatoes at home');
@@ -295,7 +323,7 @@ describe('algorithm registry and selection contract', () => {
     expect(DEFAULT_INTERESTING_ALGORITHM).toBe('current');
     expect(INTERESTING_ALGORITHMS.map((a) => a.value)).toEqual([
       'current', 'weighted-idf', 'synonyms', 'topics', 'combined', 'microsoft-news', 'personal-news', 'intelligence-next',
-      'gdelt', 'gdelt-github', 'gdelt-hn', 'hn-lob', 'all-four',
+      'gdelt', 'gdelt-github', 'gdelt-hn', 'hn-lob', 'all-four', 'custom',
     ]);
     expect(INTERESTING_ALGORITHMS.every((a) => isInterestingAlgorithm(a.value))).toBe(true);
     for (const value of ['', 'Current', 'intelligence', null, undefined, 3]) expect(isInterestingAlgorithm(value)).toBe(false);
@@ -344,7 +372,7 @@ describe('algorithm registry and selection contract', () => {
       savedArticles: [{ id: 's', title: 'Tomato garden tips', summary: '', content: '', sourceId: 'feed/2', starred: true, readLater: true }],
     };
     for (const { value } of INTERESTING_ALGORITHMS) {
-      if (value === 'intelligence-next' || ['gdelt', 'gdelt-github', 'gdelt-hn', 'hn-lob', 'all-four'].includes(value)) continue;
+      if (value === 'intelligence-next' || ['gdelt', 'gdelt-github', 'gdelt-hn', 'hn-lob', 'all-four', 'custom'].includes(value)) continue;
       const without = rankInterestingArticles(items, votes, now, value).map((x) => x.id);
       expect(rankInterestingArticles(items, votes, now, value, context).map((x) => x.id), value).toEqual(without);
     }

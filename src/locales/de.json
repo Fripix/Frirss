@@ -436,7 +436,8 @@
       "layout": "Layout",
       "aiSummaries": "KI-Zusammenfassungen",
       "paywalls": "Paywalls",
-      "readingStats": "Lesestatistik"
+      "readingStats": "Lesestatistik",
+      "rankingWeights": "Rangierungsgewichte"
     },
     "appearance": {
       "theme": "Design",
@@ -530,6 +531,16 @@
       "roboto": "Roboto",
       "merriweather": "Merriweather",
       "helvetica": "Helvetica"
+    },
+    "rankingWeights": {
+      "title": "Rangierungsgewichte",
+      "intro": "Stellen Sie ein, wie stark externe Aufmerksamkeit die Ansicht „Interessant“ beeinflusst. Diese Einstellungen gelten nur für den Algorithmus „Benutzerdefiniert“. Bestehende Voreinstellungen bleiben unverändert.",
+      "externalInfluence": "Externer Einfluss",
+      "externalInfluenceHelp": "Anteil des endgültigen Rankingscores, der durch externe Signale bestimmt wird.",
+      "sourcesTitle": "Gewichtung externer Quellen",
+      "sourcesHelp": "Diese Gewichte bestimmen das relative Verhältnis der Quellen. Sie werden automatisch normalisiert und müssen zusammen nicht 100 % ergeben. Setzen Sie eine Quelle auf 0 %, um sie auszuschließen.",
+      "savedAutomatically": "Änderungen werden automatisch in Ihrem Konto gespeichert. Wählen Sie in der Ansicht „Interessant“ den Algorithmus „Benutzerdefiniert“, um sie zu verwenden.",
+      "reset": "Zurücksetzen"
     }
   },
   "login": {

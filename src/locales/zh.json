@@ -436,7 +436,8 @@
       "layout": "操作图标",
       "aiSummaries": "AI 摘要",
       "paywalls": "付费墙",
-      "readingStats": "阅读统计"
+      "readingStats": "阅读统计",
+      "rankingWeights": "排序权重"
     },
     "appearance": {
       "theme": "主题",
@@ -530,6 +531,16 @@
       "roboto": "Roboto",
       "merriweather": "Merriweather",
       "helvetica": "Helvetica"
+    },
+    "rankingWeights": {
+      "title": "排序权重",
+      "intro": "调整外部关注度对“感兴趣”视图的影响。这些设置仅适用于自定义算法，现有预设保持不变。",
+      "externalInfluence": "外部影响",
+      "externalInfluenceHelp": "最终排序分数中由外部信号决定的比例。",
+      "sourcesTitle": "外部来源权重",
+      "sourcesHelp": "这些权重决定各来源的相对比例，并会自动归一化，因此总和无需达到 100%。将来源设为 0% 即可排除该来源。",
+      "savedAutomatically": "更改会自动保存到你的账户。选择“感兴趣”视图中的“自定义”算法即可使用。",
+      "reset": "重置"
     }
   },
   "login": {

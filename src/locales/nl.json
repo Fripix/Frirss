@@ -436,7 +436,8 @@
       "layout": "Lay-out",
       "aiSummaries": "AI-samenvattingen",
       "paywalls": "Paywalls",
-      "readingStats": "Leesstatistieken"
+      "readingStats": "Leesstatistieken",
+      "rankingWeights": "Rangschikkingsgewichten"
     },
     "appearance": {
       "theme": "Thema",
@@ -530,6 +531,16 @@
       "roboto": "Roboto",
       "merriweather": "Merriweather",
       "helvetica": "Helvetica"
+    },
+    "rankingWeights": {
+      "title": "Rangschikkingsgewichten",
+      "intro": "Bepaal hoeveel externe aandacht de weergave Interessant beïnvloedt. Deze instellingen gelden voor het algoritme Aangepast. Bestaande presets blijven ongewijzigd.",
+      "externalInfluence": "Externe invloed",
+      "externalInfluenceHelp": "Het aandeel van de uiteindelijke rangschikkingsscore dat door externe signalen wordt bepaald.",
+      "sourcesTitle": "Gewichten van externe bronnen",
+      "sourcesHelp": "Deze gewichten bepalen de relatieve verhouding tussen bronnen. Ze worden automatisch genormaliseerd en hoeven niet op 100 % uit te komen. Stel een bron in op 0 % om deze uit te sluiten.",
+      "savedAutomatically": "Wijzigingen worden automatisch opgeslagen in je account. Selecteer Aangepast in de weergave Interessant om ze te gebruiken.",
+      "reset": "Herstellen"
     }
   },
   "login": {

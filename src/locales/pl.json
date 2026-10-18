@@ -446,7 +446,8 @@
       "layout": "Układ",
       "aiSummaries": "Podsumowania AI",
       "paywalls": "Paywalle",
-      "readingStats": "Statystyki czytania"
+      "readingStats": "Statystyki czytania",
+      "rankingWeights": "Wagi rankingu"
     },
     "appearance": {
       "theme": "Motyw",
@@ -542,6 +543,16 @@
       "roboto": "Roboto",
       "merriweather": "Merriweather",
       "helvetica": "Helvetica"
+    },
+    "rankingWeights": {
+      "title": "Wagi rankingu",
+      "intro": "Dostosuj wpływ zewnętrznego zainteresowania na widok Interesujące. Ustawienia dotyczą algorytmu Niestandardowy. Istniejące presety pozostają bez zmian.",
+      "externalInfluence": "Wpływ zewnętrzny",
+      "externalInfluenceHelp": "Część końcowego wyniku rankingu wynikająca z sygnałów zewnętrznych.",
+      "sourcesTitle": "Wagi źródeł zewnętrznych",
+      "sourcesHelp": "Wagi określają względny udział źródeł. Są automatycznie normalizowane i nie muszą sumować się do 100%. Ustaw 0%, aby wykluczyć źródło.",
+      "savedAutomatically": "Zmiany są automatycznie zapisywane na koncie. Wybierz Niestandardowy w widoku Interesujące, aby ich użyć.",
+      "reset": "Resetuj"
     }
   },
   "login": {
