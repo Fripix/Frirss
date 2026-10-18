@@ -1069,6 +1069,40 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     openArchiveAware(url.href);
   }, [linkedPage?.url, selectedArticle?.url]);
 
+  // Some FreshRSS extensions (notably "Show entry URL") render their link
+  // adjacent to the HTML body rather than inside .article-content. Delegate
+  // Archive.is handling from the article container so those links are covered
+  // too. Links already handled by a child handler are skipped via defaultPrevented.
+  const handleArticleArchiveClick = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    if (event.defaultPrevented) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+    if (!anchor || anchor.hasAttribute('download')) return;
+    const rawHref = anchor.getAttribute('href');
+    if (!rawHref) return;
+    let url: URL;
+    try { url = new URL(rawHref, linkedPage?.url || selectedArticle?.url || window.location.href); } catch { return; }
+    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || !isArchiveEligibleUrl(url.href)) return;
+    event.preventDefault();
+    openArchiveAware(url.href);
+  }, [linkedPage?.url, selectedArticle?.url]);
+
+  const handleArticleArchiveAuxClick = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    if (event.defaultPrevented || event.button !== 1) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+    if (!anchor || anchor.hasAttribute('download')) return;
+    const rawHref = anchor.getAttribute('href');
+    if (!rawHref) return;
+    let url: URL;
+    try { url = new URL(rawHref, linkedPage?.url || selectedArticle?.url || window.location.href); } catch { return; }
+    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || !isArchiveEligibleUrl(url.href)) return;
+    event.preventDefault();
+    openArchiveAware(url.href);
+  }, [linkedPage?.url, selectedArticle?.url]);
+
   const handleExtract = useCallback(async () => {
     if (!selectedArticle?.url || extracting) return;
     const id = selectedArticle.id;
@@ -1587,6 +1621,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             data-linked-page-url={linkedPage?.url}
             ref={articleRef}
             className="article-enter px-4 py-4 md:px-8 md:py-6 lg:px-12 lg:py-8"
+            onClick={handleArticleArchiveClick}
+            onAuxClick={handleArticleArchiveAuxClick}
           >
           {/* Source / Author / Date / Reading time. Linked pages use their own metadata. */}
           {(() => {
