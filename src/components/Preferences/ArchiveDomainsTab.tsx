@@ -4,11 +4,16 @@ import { savePreferences } from '../../api/backend';
 import { useUiStore } from '../../stores/uiStore';
 import { parseArchiveDomains } from '../../lib/archiveDomains';
 
-export default function PaywallsTab() {
+export default function ArchiveDomainsTab({ active = true }: { active?: boolean }) {
   const { t } = useTranslation();
   const [domainsText, setDomainsText] = useState(() => useUiStore.getState().archiveDomains.join('\n'));
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
+
+  // Refresh from the store whenever this panel is first activated. The store
+  // is hydrated from account preferences at startup; saving updates it below.
+  const fieldClass = 'w-full rounded-lg px-3 py-2 text-sm outline-none';
+  const fieldStyle = { background: 'var(--panel-header-bg)', color: 'var(--list-title)', border: '1px solid var(--panel-border)' };
 
   async function saveDomains() {
     const parsed = parseArchiveDomains(domainsText);
@@ -30,12 +35,10 @@ export default function PaywallsTab() {
     }
   }
 
-  const fieldClass = 'w-full rounded-lg px-3 py-2 text-sm outline-none';
-  const fieldStyle = { background: 'var(--panel-header-bg)', color: 'var(--list-title)', border: '1px solid var(--panel-border)' };
   return (
     <div className="space-y-5 max-w-2xl">
       <div>
-        <h3 className="text-base font-bold" style={{ color: 'var(--list-title)' }}>{t('preferences.sections.paywalls', 'Paywalls')}</h3>
+        <h3 className="text-base font-bold" style={{ color: 'var(--list-title)' }}>{t('preferences.aiSummaries.archiveDomainsTitle')}</h3>
         <p className="mt-1 text-xs whitespace-pre-line" style={{ color: 'var(--list-summary)' }}>{t('preferences.aiSummaries.archiveDomainsHint')}</p>
       </div>
       <textarea
@@ -51,7 +54,7 @@ export default function PaywallsTab() {
         aria-label={t('preferences.aiSummaries.archiveDomainsTitle')}
       />
       {status && <p role="status" className="text-xs" style={{ color: status.error ? 'var(--danger)' : 'var(--accent)' }}>{status.text}</p>}
-      <button type="button" onClick={saveDomains} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" style={{ color: '#fff', background: 'var(--accent)' }}>{saving ? t('preferences.aiSummaries.saving') : t('preferences.aiSummaries.archiveDomainsSave')}</button>
+      <button type="button" onClick={saveDomains} disabled={saving || !active} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" style={{ color: '#fff', background: 'var(--accent)' }}>{saving ? t('preferences.aiSummaries.saving') : t('preferences.aiSummaries.archiveDomainsSave')}</button>
     </div>
   );
 }
