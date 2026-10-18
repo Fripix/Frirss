@@ -39,11 +39,15 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
       ? newCategory.trim()
       : categories.find((c) => c.id === category)?.label || '';
 
-    const ok = await addFeed(feedUrl.trim(), title.trim(), catId, catLabel);
+    const result = await addFeed(feedUrl.trim(), title.trim(), catId, catLabel);
 
     setLoading(false);
-    if (ok) {
+    if (result === 'added') {
       onClose();
+    } else if (result === 'already-subscribed') {
+      // The URL is already in the subscriptions — say so plainly instead of
+      // blaming the add (the incident-2026-10-16 "Error adding feed").
+      setError(t('addFeed.alreadySubscribed'));
     } else {
       setError(t('addFeed.error'));
     }

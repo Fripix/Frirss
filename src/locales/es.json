@@ -62,7 +62,8 @@
     "newCategoryPlaceholder": "Nombre de la categoría",
     "add": "Añadir",
     "adding": "Añadiendo…",
-    "error": "Error al añadir la fuente"
+    "error": "Error al añadir la fuente",
+    "alreadySubscribed": "Ya estás suscrito a esta fuente"
   },
   "articleList": {
     "allFeeds": "Todas las fuentes",

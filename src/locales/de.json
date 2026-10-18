@@ -62,7 +62,8 @@
     "newCategoryPlaceholder": "Kategoriename",
     "add": "Hinzufügen",
     "adding": "Wird hinzugefügt…",
-    "error": "Fehler beim Hinzufügen des Feeds"
+    "error": "Fehler beim Hinzufügen des Feeds",
+    "alreadySubscribed": "Feed bereits abonniert"
   },
   "articleList": {
     "allFeeds": "Alle Feeds",

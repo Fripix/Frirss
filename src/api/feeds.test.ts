@@ -13,6 +13,7 @@ import {
   markAllAsRead,
   unsubscribeFeed,
   renameTag,
+  subscribeFeed,
 } from './feeds';
 
 const get = vi.mocked(client.get);
@@ -122,5 +123,30 @@ describe('api/feeds — FreshRSS modified-today stream', () => {
     await getStreamContents('user/-/state/com.google/reading-list', 100);
     const [, config] = get.mock.calls[0] as [string, { params: Record<string, unknown> }];
     expect(config.params).not.toHaveProperty('ot');
+  });
+});
+
+describe('api/feeds — refus 400 à l’abonnement (URL déjà présente)', () => {
+  it('ne demande pas de jeton frais ni ne rejoue : un seul POST', async () => {
+    // Reproduction contrôlée 2026-10-18 : FreshRSS répond 400 « Bad Request! »
+    // pour un doublon. Tant que le 400 était classé « jeton périmé », le
+    // client rejouait — la paire POST→jeton→POST de l'incident 2026-10-16 —
+    // sans jamais réussir. Maintenant le refus part tel quel à l'appelant
+    // (`feedStore.addFeed` sait le lire), sans aller-retour jeton inutile.
+    const err = refused(400);
+    post.mockRejectedValue(err);
+    await expect(subscribeFeed('https://example.com/feed.xml')).rejects.toBe(err);
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledTimes(1); // un seul aller à /token, aucun rafraîchissement
+  });
+
+  it('écrit ac=subscribe sur s=feed/<url> — la cible exacte du refus dupliqué', async () => {
+    post.mockResolvedValue(undefined as never);
+    await subscribeFeed('https://example.com/feed.xml', 'Titre');
+    const body = post.mock.calls[0][1] as URLSearchParams;
+    expect(body.get('T')).toBe('T1');
+    expect(body.get('ac')).toBe('subscribe');
+    expect(body.get('s')).toBe('feed/https://example.com/feed.xml');
+    expect(body.get('t')).toBe('Titre');
   });
 });

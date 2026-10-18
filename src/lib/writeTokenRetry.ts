@@ -12,8 +12,15 @@
 //
 //  - **401** : la réponse canonique de l'API Google Reader pour un jeton
 //    refusé (FreshRSS émet alors l'en-tête `Google-Bad-Token`).
-//  - **403** / **400** : les variantes rencontrées selon la version de
-//    FreshRSS et le reverse-proxy placé devant.
+//  - **403** : la variante rencontrée selon la version de FreshRSS et le
+//    reverse-proxy placé devant — frontière floue, donc maintenue.
+//  - **400** : RETIRÉ (2026-10-18), sur preuve. Chez FreshRSS ce n'est pas un
+//    jeton mais un refus SÉMANTIQUE (`GReaderAPI::badRequest`, corps
+//    « Bad Request! ») — p. ex. s'abonner à une URL déjà présente. Le jeton
+//    n'y changeait rien : le rejeu transformait UN refus en paire
+//    POST→jeton→POST toujours 400 (incident du 2026-10-16), et la vraie cause
+//    se perdait sous « Error adding feed ». Reproduction contrôlée du
+//    2026-10-18 : doublon → 400 sans rejeu, URL neuve → 200.
 //  - **Aucune réponse** : c'est le hors-ligne. Un nouveau jeton n'y changerait
 //    rien, et une seconde tentative ne ferait que retarder la mise en file
 //    d'attente. `isNetworkFailure` (`src/lib/actionQueue.ts`) garde ce cas.
@@ -22,9 +29,10 @@
 //  - **Les autres 4xx** (404, 429…) : le jeton n'y est pour rien.
 //
 // Élargir cet ensemble coûte, au pire, un aller-retour supplémentaire sur une
-// écriture de toute façon perdue. Le rétrécir ramène le bug.
+// écriture de toute façon perdue ; le rétrécir au-delà du 401/403 remettrait
+// en cause le jeton périmé lui-même — d'où le 403 conservé, malgré le flou.
 
-const TOKEN_REJECTED_STATUSES = [400, 401, 403];
+const TOKEN_REJECTED_STATUSES = [401, 403];
 
 export function isStaleWriteTokenFailure(error: unknown): boolean {
   const status = (error as { response?: { status?: number } } | null)?.response?.status;

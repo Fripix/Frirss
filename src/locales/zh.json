@@ -62,7 +62,8 @@
     "newCategoryPlaceholder": "分类名称",
     "add": "添加",
     "adding": "添加中…",
-    "error": "添加订阅源失败"
+    "error": "添加订阅源失败",
+    "alreadySubscribed": "您已订阅该订阅源"
   },
   "articleList": {
     "allFeeds": "全部订阅源",

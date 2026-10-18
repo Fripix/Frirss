@@ -5,11 +5,19 @@ const withStatus = (status: number) => ({ response: { status } });
 
 describe('isStaleWriteTokenFailure', () => {
   it('reconnaît les refus que FreshRSS oppose à un jeton périmé', () => {
-    // 401 est la réponse canonique de greader (`Google-Bad-Token`) ; 403 et 400
-    // couvrent les variantes rencontrées selon la version et le proxy devant.
+    // 401 est la réponse canonique de greader (`Google-Bad-Token`) ; 403
+    // couvre la variante rencontrée selon la version et le proxy devant.
     expect(isStaleWriteTokenFailure(withStatus(401))).toBe(true);
     expect(isStaleWriteTokenFailure(withStatus(403))).toBe(true);
-    expect(isStaleWriteTokenFailure(withStatus(400))).toBe(true);
+  });
+
+  it('ne traite PAS le 400 comme un jeton refusé', () => {
+    // Preuve de terrain (reproduction contrôlée 2026-10-18) : FreshRSS répond
+    // 400 « Bad Request! » pour un refus SÉMANTIQUE — s'abonner à une URL déjà
+    // présente. Rejouer avec un jeton frais ne changeait rien : second POST 400
+    // (paire POST→jeton→POST de l'incident 2026-10-16), et le refus réel se
+    // perdait sous « Error adding feed ». Le 400 remonte tel quel à l'appelant.
+    expect(isStaleWriteTokenFailure(withStatus(400))).toBe(false);
   });
 
   it('laisse passer une absence de réponse — c’est le hors-ligne, pas un jeton', () => {

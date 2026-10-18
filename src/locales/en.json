@@ -62,7 +62,8 @@
     "newCategoryPlaceholder": "Category name",
     "add": "Add",
     "adding": "Adding…",
-    "error": "Error adding feed"
+    "error": "Error adding feed",
+    "alreadySubscribed": "This feed is already subscribed"
   },
   "articleList": {
     "allFeeds": "All feeds",

@@ -2236,3 +2236,62 @@ describe('feedStore — articles without a publication date', () => {
     expect(byId.get('undated')!.publishedMissing).toBe(true);
   });
 });
+
+describe('feedStore.addFeed — distinguer le doublon d’un échec réel', () => {
+  const feedUrl = 'https://example.com/feed.xml';
+  const badRequest = { response: { status: 400 } };
+
+  beforeEach(() => {
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([] as never);
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([] as never);
+  });
+
+  it("retourne 'added' quand FreshRSS accepte, puis recharge la liste", async () => {
+    vi.mocked(api.subscribeFeed).mockResolvedValue(undefined as never);
+    await expect(useFeedStore.getState().addFeed(feedUrl)).resolves.toBe('added');
+    expect(api.subscribeFeed).toHaveBeenCalledWith(feedUrl, undefined, undefined, undefined);
+    expect(api.getSubscriptionList).toHaveBeenCalled(); // rechargement post-ajout
+  });
+
+  it('détecte le doublon sur la liste VIVANTE quand FreshRSS refuse en 400', async () => {
+    // Le cœur du correctif 2026-10-18 : le 400 seul ne dit rien (FreshRSS ne
+    // distingue pas « déjà abonné » d'un autre refus sémantique) — c'est la
+    // liste re-fetched qui tranche, sur la même comparaison exacte d'URL que
+    // `FeedDAO::searchByUrl` côté FreshRSS.
+    vi.mocked(api.subscribeFeed).mockRejectedValue(badRequest);
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([
+      { id: `feed/${feedUrl}`, title: 'Déjà là' },
+    ] as never);
+    await expect(useFeedStore.getState().addFeed(feedUrl)).resolves.toBe('already-subscribed');
+    expect(api.getSubscriptionList).toHaveBeenCalledTimes(1);
+  });
+
+  it('reconnaît aussi le doublon sur le champ url quand l’id ne porte pas l’URL', async () => {
+    vi.mocked(api.subscribeFeed).mockRejectedValue(badRequest);
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([
+      { id: 'feed/https://autre.example/rss', title: 'Autre', url: feedUrl },
+    ] as never);
+    await expect(useFeedStore.getState().addFeed(feedUrl)).resolves.toBe('already-subscribed');
+  });
+
+  it("reste sur 'error' quand le 400 n'a aucun doublon correspondant", async () => {
+    vi.mocked(api.subscribeFeed).mockRejectedValue(badRequest);
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([
+      { id: 'feed/https://autre.example/rss', title: 'Autre' },
+    ] as never);
+    await expect(useFeedStore.getState().addFeed(feedUrl)).resolves.toBe('error');
+  });
+
+  it("reste sur 'error' quand la liste de contrôle est injoignable", async () => {
+    // L'échec du contrôle ne doit pas éclipser le refus d'origine.
+    vi.mocked(api.subscribeFeed).mockRejectedValue(badRequest);
+    vi.mocked(api.getSubscriptionList).mockRejectedValue(new Error('offline'));
+    await expect(useFeedStore.getState().addFeed(feedUrl)).resolves.toBe('error');
+  });
+
+  it('ne re-consulte pas la liste pour un refus qui n’est pas un 400', async () => {
+    vi.mocked(api.subscribeFeed).mockRejectedValue({ response: { status: 403 } });
+    await expect(useFeedStore.getState().addFeed(feedUrl)).resolves.toBe('error');
+    expect(api.getSubscriptionList).not.toHaveBeenCalled();
+  });
+});

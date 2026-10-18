@@ -62,7 +62,8 @@
     "newCategoryPlaceholder": "Categorienaam",
     "add": "Toevoegen",
     "adding": "Toevoegen…",
-    "error": "Fout bij het toevoegen van de feed"
+    "error": "Fout bij het toevoegen van de feed",
+    "alreadySubscribed": "Je bent al geabonneerd op deze feed"
   },
   "articleList": {
     "allFeeds": "Alle feeds",

@@ -654,6 +654,17 @@ export interface SearchScan {
   error: 'network' | 'rate-limit' | 'offline' | null;
 }
 
+/**
+ * Issue d'un ajout de flux (`addFeed`).
+ *
+ * - `added` : FreshRSS a accepté l'abonnement, la liste a été rechargée.
+ * - `already-subscribed` : FreshRSS a refusé (400) ET la liste vivante
+ *   confirme que l'URL y est déjà — le cas de l'incident 2026-10-16, qu'un
+ *   message générique (« Error adding feed ») rendait incompréhensible.
+ * - `error` : tout le reste, dont un 400 sans doublon correspondant.
+ */
+export type AddFeedResult = 'added' | 'already-subscribed' | 'error';
+
 export interface FeedState {
   subscriptions: Subscription[];
   unreadCounts: Record<string, number>;
@@ -765,7 +776,8 @@ export interface FeedState {
   renameCategory: (categoryId: string, newName: string) => Promise<boolean>;
   deleteCategory: (categoryId: string) => Promise<boolean>;
   moveFeedToCategory: (feedId: string, categoryName: string) => Promise<boolean>;
-  addFeed: (feedUrl: string, title?: string, categoryId?: string, categoryLabel?: string) => Promise<boolean>;
+  /** Trois issues mutuellement exclusives — voir `AddFeedResult`. */
+  addFeed: (feedUrl: string, title?: string, categoryId?: string, categoryLabel?: string) => Promise<AddFeedResult>;
   removeFeed: (feedId: string) => Promise<boolean>;
   selectNextArticle: () => void;
   selectPrevArticle: () => void;
@@ -2364,9 +2376,26 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     try {
       await subscribeFeed(feedUrl, title, categoryId, categoryLabel);
       await get().loadSubscriptions();
-      return true;
-    } catch {
-      return false;
+      return 'added';
+    } catch (err) {
+      // FreshRSS refuses an already-subscribed URL with a bare 400 and no
+      // discriminating body (`GReaderAPI::badRequest`, proven by controlled
+      // reproduction 2026-10-18). Its own duplicate check is an exact URL
+      // match (`FeedDAO::searchByUrl`), so the LIVE list — `getSubscriptionList`
+      // is never cached — answers the only question that separates the two
+      // cases: is this URL already in it?
+      const status = (err as { response?: { status?: number } } | null)?.response?.status;
+      if (status === 400) {
+        try {
+          const subs = await getSubscriptionList();
+          if (subs.some((s) => s.id === `feed/${feedUrl}` || s.url === feedUrl)) {
+            return 'already-subscribed';
+          }
+        } catch {
+          // The control fetch failed too — the original 400 stays the report.
+        }
+      }
+      return 'error';
     }
   },
 
