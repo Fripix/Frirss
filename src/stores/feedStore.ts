@@ -244,7 +244,9 @@ function medianInterval(times: number[]): number {
   return intervals.length % 2 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) / 2;
 }
 const INFREQUENT_SCAN_PAGE_SIZE = 25;
-const INFREQUENT_SCAN_MAX_PAGES = 4;
+// Scan adaptively through the 90-day window. Hitting this safety cap without
+// reaching the window boundary means the feed is inconclusive, not "not infrequent".
+const INFREQUENT_SCAN_MAX_PAGES = 12;
 let infrequentScanController: AbortController | null = null;
 
 async function fetchInfrequentArticles(
@@ -280,7 +282,10 @@ async function fetchInfrequentArticles(
         try {
           const times: number[] = [];
           let continuation: string | null = null;
-          for (let page = 0; page < INFREQUENT_SCAN_MAX_PAGES && shouldContinue(); page++) {
+          let reachedWindowBoundary = false;
+          let exhaustedFeed = false;
+          let page = 0;
+          for (; page < INFREQUENT_SCAN_MAX_PAGES && shouldContinue(); page++) {
             const result = await getStreamContents(
               feed.id, INFREQUENT_SCAN_PAGE_SIZE, continuation, null, { signal },
             );
@@ -288,7 +293,10 @@ async function fetchInfrequentArticles(
             // the current request; otherwise it keeps flooding FreshRSS while
             // the user opens another view.
             if (!shouldContinue()) return;
-            if (!result || !result.items.length) break;
+            if (!result || !result.items.length) {
+              exhaustedFeed = true;
+              break;
+            }
             let old = false;
             for (const item of result.items) {
               const published = (item.published || 0) * 1000;
@@ -296,10 +304,30 @@ async function fetchInfrequentArticles(
               if (published < cutoff) old = true; else times.push(published);
             }
             continuation = result.continuation;
-            if (!continuation || old) break;
+            if (!continuation) {
+              exhaustedFeed = true;
+              break;
+            }
+            if (old) {
+              reachedWindowBoundary = true;
+              break;
+            }
+          }
+
+          // A page cap is a safety valve, not evidence about publishing cadence.
+          // Likewise, a short history cannot establish a 30-day observation span.
+          // Treat either case as unknown and refuse to persist the global result.
+          if (!reachedWindowBoundary && !exhaustedFeed && continuation) {
+            scanHadErrors = true;
+            console.warn('[FriRSS] infrequent-sites: scan budget reached; classification inconclusive:', feed.id);
+            continue;
           }
           times.sort((a, b) => a - b);
-          if (times.length < 2 || times[times.length - 1] - times[0] < INFREQUENT_MIN_HISTORY_MS) continue;
+          if (times.length < 2 || times[times.length - 1] - times[0] < INFREQUENT_MIN_HISTORY_MS) {
+            scanHadErrors = true;
+            console.warn('[FriRSS] infrequent-sites: insufficient history; classification inconclusive:', feed.id);
+            continue;
+          }
           const intervals = times.slice(1).map((t, i) => t - times[i]);
           const mean = intervals.reduce((sum, n) => sum + n, 0) / intervals.length;
           if (mean >= INFREQUENT_MIN_INTERVAL_MS && medianInterval(times) >= INFREQUENT_MIN_INTERVAL_MS) eligible.push(feed.id);
@@ -313,8 +341,9 @@ async function fetchInfrequentArticles(
     await Promise.all(workers);
     // Do not cache a partial result if the user navigated away mid-scan.
     if (!shouldContinue()) return [];
-    // Never persist a partial classification. A transient FreshRSS/API error
-    // must not turn into a week-long empty or incomplete Infrequent sites view.
+    // Only persist when every subscription was classified conclusively.
+    // Unknown feeds (errors, insufficient history, or exhausted scan budget)
+    // must never turn a partial result into a persistent empty/incomplete view.
     if (!scanHadErrors) {
       try {
         await saveInfrequentFeedCache(subscriptionIds, eligible);

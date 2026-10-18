@@ -1978,7 +1978,21 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
 
   it('caches a successful empty classification', async () => {
     vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: false, feedIds: [] });
-    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const DAY_SECONDS = 24 * 60 * 60;
+    // An exhausted feed with a full 30-day history and a short publishing
+    // interval is conclusively NOT infrequent: the empty result is safe to
+    // persist, so the next visit reuses it instead of rescanning.
+    vi.mocked(api.getStreamContents).mockResolvedValue({
+      items: [0, 5, 10, 15, 20, 25, 30, 35].map((daysAgo) => ({
+        id: `entry-${daysAgo}`,
+        title: `Entry ${daysAgo}`,
+        published: nowSeconds - daysAgo * DAY_SECONDS,
+        origin: { streamId: 'feed/one', title: 'One' },
+        categories: [],
+      })),
+      continuation: null,
+    } as never);
     useFeedStore.setState({
       filter: 'infrequent',
       selectedFeed: null,
@@ -1991,6 +2005,26 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
       'feed/one', 25, null, null, { signal: expect.any(AbortSignal) },
     );
     expect(backendApi.saveInfrequentFeedCache).toHaveBeenCalledWith(['feed/one'], []);
+    expect(useFeedStore.getState().loading).toBe(false);
+  });
+
+  it('does not persist an inconclusive scan that produced no usable history', async () => {
+    vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: false, feedIds: [] });
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    useFeedStore.setState({
+      filter: 'infrequent',
+      selectedFeed: null,
+      subscriptions: [{ id: 'feed/one', title: 'One' }] as Subscription[],
+    });
+
+    await useFeedStore.getState().loadArticles();
+
+    // The scan ran, but an empty stream cannot establish a 30-day observation
+    // span — the classification is unknown, so nothing may be cached.
+    expect(api.getStreamContents).toHaveBeenCalledWith(
+      'feed/one', 25, null, null, { signal: expect.any(AbortSignal) },
+    );
+    expect(backendApi.saveInfrequentFeedCache).not.toHaveBeenCalled();
     expect(useFeedStore.getState().loading).toBe(false);
   });
 

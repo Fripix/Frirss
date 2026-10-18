@@ -22,7 +22,7 @@ db.exec(`
 `);
 
 const MAX_FEEDS = 5000;
-const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 function normalizeIds(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.length > MAX_FEEDS ||
