@@ -253,11 +253,58 @@ async function fetchInfrequentArticles(
   subscriptions: Subscription[],
   shouldContinue: () => boolean,
   signal: AbortSignal,
+  onArticles?: (articles: Article[], refreshedFeedId: string) => void,
 ): Promise<Article[]> {
   const cutoff = Date.now() - INFREQUENT_WINDOW_MS;
   const eligible: string[] = [];
+  const articles: Article[] = [];
+  const seenArticleIds = new Set<string>();
   const subscriptionIds = subscriptions.map((feed) => feed.id).sort();
   let cacheHit = false;
+  let classificationConclusive = false;
+
+  // Fetch and publish each qualifying feed as soon as it is classified. This
+  // keeps classification and article loading from becoming one blocking batch.
+  const publishFeedArticles = async (feedId: string): Promise<void> => {
+    try {
+      const feedArticles: Article[] = [];
+      let continuation: string | null = null;
+      for (let page = 0; page < 3 && shouldContinue(); page++) {
+        const result = await getStreamContents(
+          feedId, PAGE_SIZE, continuation,
+          'user/-/state/com.google/read', { signal },
+        );
+        if (!shouldContinue() || signal.aborted) return;
+        if (!result || !result.items.length) break;
+        for (const item of result.items) {
+          const article = normalizeArticle(item);
+          if (!article.read && article.published >= cutoff && article.sourceId === feedId) {
+            const index = feedArticles.findIndex((existing) => existing.id === article.id);
+            if (index >= 0) feedArticles[index] = article;
+            else feedArticles.push(article);
+          }
+        }
+        continuation = result.continuation;
+        if (!continuation || result.items.some((item) => item.published && item.published * 1000 < cutoff)) break;
+      }
+      if (shouldContinue()) {
+        for (const article of feedArticles) {
+          if (!seenArticleIds.has(article.id)) {
+            seenArticleIds.add(article.id);
+            articles.push(article);
+          } else {
+            const index = articles.findIndex((existing) => existing.id === article.id);
+            if (index >= 0) articles[index] = article;
+          }
+        }
+        onArticles?.([...feedArticles].sort((a, b) => b.published - a.published), feedId);
+      }
+    } catch (error) {
+      if (!shouldContinue() || signal.aborted) return;
+      console.warn('[FriRSS] infrequent-sites: unread fetch failed:', feedId, error);
+    }
+  };
+
   // Classification is persisted in the FriRSS SQLite DB, so all devices on
   // this instance can reuse it. The cache key includes a classifier version,
   // so a successful empty result is safe to reuse and older partial results
@@ -267,6 +314,7 @@ async function fetchInfrequentArticles(
     if (cached.cached) {
       eligible.push(...cached.feedIds.filter((id) => subscriptionIds.includes(id)));
       cacheHit = true;
+      classificationConclusive = true;
     }
   } catch (error) {
     console.warn('[FriRSS] infrequent-sites: cache lookup failed; rescanning', error);
@@ -284,14 +332,10 @@ async function fetchInfrequentArticles(
           let continuation: string | null = null;
           let reachedWindowBoundary = false;
           let exhaustedFeed = false;
-          let page = 0;
-          for (; page < INFREQUENT_SCAN_MAX_PAGES && shouldContinue(); page++) {
+          for (let page = 0; page < INFREQUENT_SCAN_MAX_PAGES && shouldContinue(); page++) {
             const result = await getStreamContents(
               feed.id, INFREQUENT_SCAN_PAGE_SIZE, continuation, null, { signal },
             );
-            // Navigation away from Infrequent sites must stop the scan after
-            // the current request; otherwise it keeps flooding FreshRSS while
-            // the user opens another view.
             if (!shouldContinue()) return;
             if (!result || !result.items.length) {
               exhaustedFeed = true;
@@ -314,9 +358,6 @@ async function fetchInfrequentArticles(
             }
           }
 
-          // A page cap is a safety valve, not evidence about publishing cadence.
-          // Likewise, a short history cannot establish a 30-day observation span.
-          // Treat either case as unknown and refuse to persist the global result.
           if (!reachedWindowBoundary && !exhaustedFeed && continuation) {
             scanHadErrors = true;
             console.warn('[FriRSS] infrequent-sites: scan budget reached; classification inconclusive:', feed.id);
@@ -329,8 +370,12 @@ async function fetchInfrequentArticles(
             continue;
           }
           const intervals = times.slice(1).map((t, i) => t - times[i]);
-          const mean = intervals.reduce((sum, n) => sum + n, 0) / intervals.length;
-          if (mean >= INFREQUENT_MIN_INTERVAL_MS && medianInterval(times) >= INFREQUENT_MIN_INTERVAL_MS) eligible.push(feed.id);
+          if (intervals.reduce((sum, n) => sum + n, 0) / intervals.length >= INFREQUENT_MIN_INTERVAL_MS &&
+              medianInterval(times) >= INFREQUENT_MIN_INTERVAL_MS) {
+            eligible.push(feed.id);
+            // Don't make the user wait for every other subscription to finish.
+            await publishFeedArticles(feed.id);
+          }
         } catch (error) {
           if (!shouldContinue() || signal.aborted) return;
           scanHadErrors = true;
@@ -339,11 +384,10 @@ async function fetchInfrequentArticles(
       }
     });
     await Promise.all(workers);
-    // Do not cache a partial result if the user navigated away mid-scan.
     if (!shouldContinue()) return [];
-    // Only persist when every subscription was classified conclusively.
-    // Unknown feeds (errors, insufficient history, or exhausted scan budget)
-    // must never turn a partial result into a persistent empty/incomplete view.
+    classificationConclusive = !scanHadErrors;
+    // Keep the existing complete-classification cache contract for now; the
+    // article snapshot below is persisted incrementally on the client.
     if (!scanHadErrors) {
       try {
         await saveInfrequentFeedCache(subscriptionIds, eligible);
@@ -351,44 +395,22 @@ async function fetchInfrequentArticles(
         console.warn('[FriRSS] infrequent-sites: cache save failed', error);
       }
     }
+  } else {
+    // Cached classifications are known immediately; fetch articles with bounded
+    // concurrency and publish each feed as soon as it completes.
+    let nextEligible = 0;
+    const workers = Array.from({ length: Math.min(2, eligible.length) }, async () => {
+      while (nextEligible < eligible.length && shouldContinue()) {
+        await publishFeedArticles(eligible[nextEligible++]);
+      }
+    });
+    await Promise.all(workers);
   }
 
-  // Fetch articles directly from the feeds classified as infrequent.
-  // Do not use the global unread stream here: its origin metadata can differ
-  // from feed IDs, allowing unrelated sources into this view.
-  if (eligible.length === 0 || !shouldContinue()) return [];
-
-  const articles: Article[] = [];
-  let nextEligible = 0;
-  const articleWorkers = Array.from({ length: Math.min(2, eligible.length) }, async () => {
-    while (nextEligible < eligible.length && shouldContinue()) {
-      const feedId = eligible[nextEligible++];
-      try {
-        let continuation: string | null = null;
-        for (let page = 0; page < 3 && shouldContinue(); page++) {
-          const result = await getStreamContents(
-            feedId,
-            PAGE_SIZE,
-            continuation,
-            'user/-/state/com.google/read',
-            { signal },
-          );
-          if (!shouldContinue() || signal.aborted) return;
-          if (!result || !result.items.length) break;
-          articles.push(...result.items.map(normalizeArticle).filter(
-            (article) => !article.read && article.published >= cutoff && article.sourceId === feedId,
-          ));
-          continuation = result.continuation;
-          if (!continuation || result.items.some((item) => item.published && item.published * 1000 < cutoff)) break;
-        }
-      } catch (error) {
-        if (!shouldContinue() || signal.aborted) return;
-        console.warn('[FriRSS] infrequent-sites: unread fetch failed:', feedId, error);
-      }
-    }
-  });
-  await Promise.all(articleWorkers);
   if (!shouldContinue()) return [];
+  // A definitive empty classification means the previous article snapshot is
+  // no longer relevant. Do not retain it indefinitely when no feed qualifies.
+  if (eligible.length === 0 && classificationConclusive) onArticles?.([], '__clear__');
   return articles.sort((a, b) => b.published - a.published);
 }
 
@@ -1372,10 +1394,78 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         get().filter === 'infrequent' &&
         !get().selectedFeed &&
         serverId === useAuthStore.getState().activeServerId;
-      set({ loading: true, loadingMore: false, revalidating: true, continuation: null, articles: [], selectedArticle: null });
+      const articleCacheKey = `frirss_infrequent_articles_v1_${serverId || 'default'}`;
+      let cachedArticles: Article[] = [];
       try {
-        const articles = await fetchInfrequentArticles(get().subscriptions, shouldContinue, controller.signal);
-        if (shouldContinue()) set({ articles, loading: false, revalidating: false, continuation: null });
+        const raw = localStorage.getItem(articleCacheKey);
+        if (raw) {
+          const parsed: unknown = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const subscriptionIds = new Set(get().subscriptions.map((feed) => feed.id));
+            cachedArticles = parsed.filter((item): item is Article =>
+              !!item && typeof item.id === 'string' && typeof item.sourceId === 'string' &&
+              subscriptionIds.has(item.sourceId) &&
+              typeof item.published === 'number' && typeof item.title === 'string'
+            );
+          }
+        }
+      } catch (error) {
+        console.warn('[FriRSS] infrequent-sites: local article cache unavailable', error);
+      }
+      set({
+        loading: cachedArticles.length === 0,
+        loadingMore: false,
+        revalidating: true,
+        continuation: null,
+        articles: cachedArticles,
+        selectedArticle: null,
+      });
+      const mergeArticles = (fresh: Article[], refreshedFeedId: string): Article[] => {
+        if (refreshedFeedId === '__clear__') return [];
+        const merged = new Map<string, Article>();
+        // Reconcile only the feed just refreshed. This removes stale/read/deleted
+        // items from that feed without losing cached articles for feeds still
+        // waiting to be scanned or temporarily unavailable.
+        for (const article of get().articles) {
+          if (article.sourceId !== refreshedFeedId) merged.set(article.id, article);
+        }
+        for (const article of fresh) merged.set(article.id, article);
+        return [...merged.values()].sort((a, b) => b.published - a.published);
+      };
+      const persistArticles = (articlesToSave: Article[]) => {
+        try {
+          // Keep a bounded, lightweight snapshot: enough for an instant list
+          // on the next visit without filling localStorage with article bodies.
+          const snapshot = articlesToSave.slice(0, 100).map((article) => ({
+            ...article,
+            summary: (article.summary || '').slice(0, 1800),
+            content: (article.content || '').slice(0, 1800),
+          }));
+          localStorage.setItem(articleCacheKey, JSON.stringify(snapshot));
+        } catch (error) {
+          console.warn('[FriRSS] infrequent-sites: local article cache save failed', error);
+        }
+      };
+      try {
+        await fetchInfrequentArticles(
+          get().subscriptions,
+          shouldContinue,
+          controller.signal,
+          (fresh, refreshedFeedId) => {
+            if (!shouldContinue()) return;
+            const merged = mergeArticles(fresh, refreshedFeedId);
+            persistArticles(merged);
+            set({ articles: merged, loading: false, revalidating: true, continuation: null });
+          },
+        );
+        if (shouldContinue()) {
+          // Every completed feed has already been merged and persisted by the
+          // progress callback. Do not replace that reconciled view with a
+          // whole-scan merge that would resurrect stale cached items.
+          const currentArticles = get().articles;
+          persistArticles(currentArticles);
+          set({ articles: currentArticles, loading: false, revalidating: false, continuation: null });
+        }
       } catch (error) {
         if (shouldContinue()) {
           console.error('[FriRSS] infrequent-sites scan failed:', error);
