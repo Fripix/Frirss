@@ -1082,7 +1082,11 @@ export default function ArticleList() {
                 <TopbarToggle />
               </div>
               {!gridLayout && <ViewModeSwitcher />}
-              {isDesktop && <LayoutToggle overridden={feedLayoutOverride} />}
+              {isDesktop && <LayoutToggle
+                  layout={activeDisplaySettings.layout || panelLayout}
+                  overridden={feedLayoutOverride}
+                  onChange={(mode) => setDeviceDisplaySetting(isMobile ? 'mobile' : 'desktop', 'layout', mode)}
+                />}
             </div>
           </div>
         ) : (
@@ -1122,7 +1126,11 @@ export default function ArticleList() {
                   <TopbarToggle />
                 </div>
                 <ViewModeSwitcher />
-                <LayoutToggle overridden={feedLayoutOverride} />
+                <LayoutToggle
+                  layout={activeDisplaySettings.layout || panelLayout}
+                  overridden={feedLayoutOverride}
+                  onChange={(mode) => setDeviceDisplaySetting(isMobile ? 'mobile' : 'desktop', 'layout', mode)}
+                />
               </div>
             </div>
 
@@ -2100,13 +2108,19 @@ function SourceToggle({ active, onClick, tooltip }: SourceToggleProps) {
   );
 }
 
-function LayoutToggle({ overridden }: { overridden?: boolean }) {
+function LayoutToggle({
+  layout,
+  overridden,
+  onChange,
+}: {
+  layout: string;
+  overridden?: boolean;
+  onChange: (layout: '2' | '3' | 'grid') => void;
+}) {
   const { t } = useTranslation();
-  const { panelLayout, setPanelLayout } = useUiStore();
 
-  // These buttons set the GLOBAL default; say so on every button (a tooltip on
-  // the group alone would never show, the buttons cover it). When the current
-  // feed overrides it, add why the view may not follow the click.
+  // The toolbar edits the active device's default layout. A feed override still
+  // wins for that feed, so explain why the visible layout may not follow a click.
   const tip = (name: string) =>
     `${name} — ${t('articleList.layoutScopeAll')}` +
     (overridden ? ` · ${t('articleList.layoutOverridden')}` : '');
@@ -2126,11 +2140,11 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
         />
       )}
       <button
-        onClick={() => setPanelLayout('2')}
+        onClick={() => onChange('2')}
         title={tip(t('articleList.listOnly'))}
         {...noFocusOnPointer}
         className={`p-1 rounded transition-all ${
-          panelLayout === '2'
+          layout === '2'
             ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'
             : 'text-[var(--list-summary)] hover:text-[var(--list-title)]'
         }`}
@@ -2142,11 +2156,11 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
         </svg>
       </button>
       <button
-        onClick={() => setPanelLayout('3')}
+        onClick={() => onChange('3')}
         title={tip(t('articleList.listAndReading'))}
         {...noFocusOnPointer}
         className={`p-1 rounded transition-all ${
-          panelLayout === '3'
+          layout === '3'
             ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'
             : 'text-[var(--list-summary)] hover:text-[var(--list-title)]'
         }`}
@@ -2159,11 +2173,11 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
         </svg>
       </button>
       <button
-        onClick={() => setPanelLayout('grid')}
+        onClick={() => onChange('grid')}
         title={tip(t('articleList.gridLayout'))}
         {...noFocusOnPointer}
         className={`p-1 rounded transition-all ${
-          panelLayout === 'grid'
+          layout === 'grid'
             ? 'bg-[var(--panel-bg)] shadow-sm text-[var(--accent)]'
             : 'text-[var(--list-summary)] hover:text-[var(--list-title)]'
         }`}
