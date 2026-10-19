@@ -2002,7 +2002,7 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
     await useFeedStore.getState().loadArticles();
 
     expect(api.getStreamContents).toHaveBeenCalledWith(
-      'feed/one', 25, null, null, { signal: expect.any(AbortSignal) },
+      'feed/one', 8, null, null, { signal: expect.any(AbortSignal) },
     );
     expect(backendApi.saveInfrequentFeedCache).toHaveBeenCalledWith(['feed/one'], []);
     expect(useFeedStore.getState().loading).toBe(false);
@@ -2022,10 +2022,40 @@ describe('feedStore.loadArticles — Infrequent sites classification cache', () 
     // The scan ran, but an empty stream cannot establish a 30-day observation
     // span — the classification is unknown, so nothing may be cached.
     expect(api.getStreamContents).toHaveBeenCalledWith(
-      'feed/one', 25, null, null, { signal: expect.any(AbortSignal) },
+      'feed/one', 8, null, null, { signal: expect.any(AbortSignal) },
     );
     expect(backendApi.saveInfrequentFeedCache).not.toHaveBeenCalled();
     expect(useFeedStore.getState().loading).toBe(false);
+  });
+
+  it('quickly excludes high-volume feeds without scanning their full history', async () => {
+    vi.mocked(backendApi.getInfrequentFeedCache).mockResolvedValueOnce({ cached: false, feedIds: [] });
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const DAY_SECONDS = 24 * 60 * 60;
+    // Eight articles spanning 21 days at 3-day intervals are enough to prove
+    // this feed is too frequent; continuation exists to verify early exit.
+    vi.mocked(api.getStreamContents).mockResolvedValueOnce({
+      items: [0, 3, 6, 9, 12, 15, 18, 21].map((daysAgo) => ({
+        id: `frequent-${daysAgo}`,
+        title: `Article ${daysAgo}`,
+        published: nowSeconds - daysAgo * DAY_SECONDS,
+        origin: { streamId: 'feed/frequent', title: 'Frequent' },
+        categories: [],
+      })),
+      continuation: 'more-history',
+    } as never);
+    useFeedStore.setState({
+      filter: 'infrequent',
+      selectedFeed: null,
+      subscriptions: [{ id: 'feed/frequent', title: 'Frequent' }] as Subscription[],
+      articles: [],
+    });
+
+    await useFeedStore.getState().loadArticles();
+
+    expect(api.getStreamContents).toHaveBeenCalledTimes(1);
+    expect(backendApi.saveInfrequentFeedCache).toHaveBeenCalledWith(['feed/frequent'], []);
+    expect(useFeedStore.getState().articles).toEqual([]);
   });
 
   it('fetches articles directly from eligible feeds only', async () => {

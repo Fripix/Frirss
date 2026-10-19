@@ -243,9 +243,12 @@ function medianInterval(times: number[]): number {
   const mid = Math.floor(intervals.length / 2);
   return intervals.length % 2 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) / 2;
 }
-const INFREQUENT_SCAN_PAGE_SIZE = 25;
-// Scan adaptively through the 90-day window. Hitting this safety cap without
-// reaching the window boundary means the feed is inconclusive, not "not infrequent".
+// Keep classification requests small: FreshRSS includes full article bodies
+// in stream/contents responses, so large scan pages waste bandwidth and delay first paint.
+const INFREQUENT_SCAN_PAGE_SIZE = 8;
+const INFREQUENT_ARTICLE_PAGE_SIZE = 12;
+// Bound deep scans, but reject clearly frequent feeds early based on a sustained
+// recent publishing cadence instead of paging through their entire history.
 const INFREQUENT_SCAN_MAX_PAGES = 12;
 let infrequentScanController: AbortController | null = null;
 
@@ -271,7 +274,7 @@ async function fetchInfrequentArticles(
       let continuation: string | null = null;
       for (let page = 0; page < 3 && shouldContinue(); page++) {
         const result = await getStreamContents(
-          feedId, PAGE_SIZE, continuation,
+          feedId, INFREQUENT_ARTICLE_PAGE_SIZE, continuation,
           'user/-/state/com.google/read', { signal },
         );
         if (!shouldContinue() || signal.aborted) return;
@@ -283,6 +286,11 @@ async function fetchInfrequentArticles(
             if (index >= 0) feedArticles[index] = article;
             else feedArticles.push(article);
           }
+        }
+        // First paint after the first page, not after up to three content-heavy
+        // requests. A later callback reconciles the complete feed snapshot.
+        if (page === 0 && feedArticles.length && shouldContinue()) {
+          onArticles?.([...feedArticles].sort((a, b) => b.published - a.published), feedId);
         }
         continuation = result.continuation;
         if (!continuation || result.items.some((item) => item.published && item.published * 1000 < cutoff)) break;
@@ -324,7 +332,7 @@ async function fetchInfrequentArticles(
     // Avoid flooding FreshRSS with one request per subscription at once.
     let next = 0;
     let scanHadErrors = false;
-    const workers = Array.from({ length: Math.min(2, subscriptions.length) }, async () => {
+    const workers = Array.from({ length: Math.min(6, subscriptions.length) }, async () => {
       while (next < subscriptions.length && shouldContinue()) {
         const feed = subscriptions[next++];
         try {
@@ -332,6 +340,7 @@ async function fetchInfrequentArticles(
           let continuation: string | null = null;
           let reachedWindowBoundary = false;
           let exhaustedFeed = false;
+          let definitelyFrequent = false;
           for (let page = 0; page < INFREQUENT_SCAN_MAX_PAGES && shouldContinue(); page++) {
             const result = await getStreamContents(
               feed.id, INFREQUENT_SCAN_PAGE_SIZE, continuation, null, { signal },
@@ -347,6 +356,23 @@ async function fetchInfrequentArticles(
               if (!published) continue;
               if (published < cutoff) old = true; else times.push(published);
             }
+
+            // Fast negative classification: once at least six recent articles
+            // span >=14 days but their mean AND median intervals are <7 days,
+            // the feed is demonstrably too frequent. This avoids deep scans of
+            // high-volume feeds (the most expensive case for FreshRSS/proxy).
+            const recentTimes = [...times].sort((a, b) => a - b);
+            if (recentTimes.length >= 6 &&
+                recentTimes[recentTimes.length - 1] - recentTimes[0] >= 14 * 24 * 60 * 60 * 1000) {
+              const intervals = recentTimes.slice(1).map((t, i) => t - recentTimes[i]);
+              const meanInterval = intervals.reduce((sum, n) => sum + n, 0) / intervals.length;
+              if (meanInterval < INFREQUENT_MIN_INTERVAL_MS &&
+                  medianInterval(recentTimes) < INFREQUENT_MIN_INTERVAL_MS) {
+                definitelyFrequent = true;
+                break;
+              }
+            }
+
             continuation = result.continuation;
             if (!continuation) {
               exhaustedFeed = true;
@@ -357,6 +383,9 @@ async function fetchInfrequentArticles(
               break;
             }
           }
+
+          // A conclusive frequent result needs no 30-day scan and is not an error.
+          if (definitelyFrequent) continue;
 
           if (!reachedWindowBoundary && !exhaustedFeed && continuation) {
             scanHadErrors = true;
