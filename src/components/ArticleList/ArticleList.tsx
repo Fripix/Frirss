@@ -112,6 +112,7 @@ export default function ArticleList() {
   const panelLayout = useUiStore((s) => s.panelLayout);
   const deviceDisplaySettings = useUiStore((s) => s.deviceDisplaySettings);
   const setDeviceDisplaySetting = useUiStore((s) => s.setDeviceDisplaySetting);
+  const setFeedLayout = useUiStore((s) => s.setFeedLayout);
   const setDeviceRowAction = useUiStore((s) => s.setDeviceRowAction);
   const [settingsProfile, setSettingsProfile] = useState<'mobile' | 'desktop'>('mobile');
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
@@ -140,6 +141,15 @@ export default function ArticleList() {
   const toggleTopbar = () => setDeviceDisplaySetting(isMobile ? 'mobile' : 'desktop', 'serverBar', !activeDisplaySettings.serverBar);
   const layout = effectiveLayout(activeDisplaySettings.layout || panelLayout, feedSettings, selectedFeed?.id);
   const feedLayoutOverride = !!(selectedFeed && feedSettings[selectedFeed.id]?.layout);
+  // A toolbar layout choice should always affect the layout currently shown.
+  // Feed overrides take precedence over the device default, so clear the active
+  // feed's override when the user explicitly chooses a layout here.
+  const changeLayout = (mode: '2' | '3' | 'grid') => {
+    if (selectedFeed && feedSettings[selectedFeed.id]?.layout) {
+      setFeedLayout(selectedFeed.id, '');
+    }
+    setDeviceDisplaySetting(isMobile ? 'mobile' : 'desktop', 'layout', mode);
+  };
   // Grid is a full-width layout: like 2-panel, the list body spans the whole
   // width and the reading pane replaces it on selection.
   const gridLayout = layout === 'grid';
@@ -1084,9 +1094,9 @@ export default function ArticleList() {
               </div>
               {!gridLayout && <ViewModeSwitcher />}
               {isDesktop && <LayoutToggle
-                  layout={activeDisplaySettings.layout || panelLayout}
+                  layout={layout}
                   overridden={feedLayoutOverride}
-                  onChange={(mode) => setDeviceDisplaySetting(isMobile ? 'mobile' : 'desktop', 'layout', mode)}
+                  onChange={changeLayout}
                 />}
             </div>
           </div>
@@ -1128,9 +1138,9 @@ export default function ArticleList() {
                 </div>
                 <ViewModeSwitcher />
                 <LayoutToggle
-                  layout={activeDisplaySettings.layout || panelLayout}
+                  layout={layout}
                   overridden={feedLayoutOverride}
-                  onChange={(mode) => setDeviceDisplaySetting(isMobile ? 'mobile' : 'desktop', 'layout', mode)}
+                  onChange={changeLayout}
                 />
               </div>
             </div>
