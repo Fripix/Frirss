@@ -47,6 +47,7 @@ export default function App() {
   const filter = useFeedStore((s) => s.filter);
   const preferencesOpen = useThemeStore((s) => s.preferencesOpen);
   const panelLayout = useUiStore((s) => s.panelLayout);
+  const deviceDisplaySettings = useUiStore((s) => s.deviceDisplaySettings);
   const feedSettings = useUiStore((s) => s.feedSettings);
   const sidebarVisible = useUiStore((s) => s.sidebarVisible);
   const readingFocus = useUiStore((s) => s.readingFocus);
@@ -418,7 +419,9 @@ export default function App() {
   // DESKTOP — 3-column (or 2-column) classic layout, unchanged
   // ═══════════════════════════════════════════════════════════════════
   // A feed can override the global layout (set from its sidebar context menu).
-  const layout = effectiveLayout(panelLayout, feedSettings, selectedFeedId);
+  // Keep the app shell in sync with ArticleList: the toolbar writes the active
+  // device profile, while the legacy panelLayout is only a fallback for older prefs.
+  const layout = effectiveLayout(deviceDisplaySettings.desktop.layout || panelLayout, feedSettings, selectedFeedId);
   const gridMode = layout === 'grid';
   // Grid layout uses the 2-panel path: the card grid spans full width, and the
   // reading pane replaces it on selection (the card opens a full-screen reader
