@@ -5,6 +5,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { clampToViewport } from '../../lib/clampToViewport';
 import BottomSheet from '../BottomSheet';
 import { useUiStore } from '../../stores/uiStore';
+import { expandOnFirstSummary } from './aiPanelExpand';
 import type { AiProviderView, AiSummaryResult } from '../../api/backend';
 
 export interface AiSummaryProps {
@@ -77,11 +78,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
   }, []);
 
   const summarize = () => {
-    const ui = useUiStore.getState();
-    if (ui.aiPanelCollapsed && !ui.aiPanelAutoExpanded) {
-      ui.setAiPanelCollapsed(false);
-      ui.markAiPanelAutoExpanded();
-    }
+    expandOnFirstSummary();
     onSummarize(undefined);
   };
 

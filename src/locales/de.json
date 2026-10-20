@@ -365,7 +365,8 @@
       "holdToFile": "Artikel in eine Kategorie einsortieren (Favorit / Später lesen)",
       "customize": "In den Einstellungen anpassen",
       "gestureHelp": "Dieses Fenster anzeigen",
-      "helpTitle": "Tastenkürzel"
+      "helpTitle": "Tastenkürzel",
+      "summarize": "Artikel zusammenfassen (KI)"
     },
     "offline": {
       "title": "Offline",

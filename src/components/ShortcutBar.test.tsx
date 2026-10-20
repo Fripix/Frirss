@@ -4,6 +4,7 @@ import { render, cleanup } from '@testing-library/react';
 import ShortcutBar from './ShortcutBar';
 import { useUiStore } from '../stores/uiStore';
 import { useFeedStore } from '../stores/feedStore';
+import { useAiStore } from '../stores/aiStore';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 // Desktop-only bar — force the breakpoint.
@@ -14,6 +15,7 @@ const article = { id: 'a1', title: 'T' } as never;
 beforeEach(() => {
   useUiStore.setState({ readingFocus: false, panelLayout: '3' });
   useFeedStore.setState({ selectedArticle: null });
+  useAiStore.setState({ config: null });
 });
 afterEach(cleanup);
 
@@ -41,5 +43,36 @@ describe('ShortcutBar — Escape hint', () => {
     useUiStore.setState({ panelLayout: 'grid' });
     const { queryByText } = render(<ShortcutBar />);
     expect(queryByText('preferences.shortcuts.escBackToGrid')).toBeNull();
+  });
+});
+
+describe('ShortcutBar — summarize hint', () => {
+  const provider = { id: 1, name: 'P', type: 'openai' as const, hasAdminKey: false, shared: false, hasUserKey: false, available: true };
+  const cfg = { enabled: true, providers: [provider], userKeysAllowed: false, dailyCap: 0, usageToday: 0, defaultProvider: 1 };
+
+  it('is hidden while AI is off or not loaded', () => {
+    useFeedStore.setState({ selectedArticle: article });
+    const { queryByText } = render(<ShortcutBar />);
+    expect(queryByText('preferences.shortcuts.summarize')).toBeNull();
+  });
+
+  it('is hidden while no provider is usable', () => {
+    useAiStore.setState({ config: { ...cfg, providers: [{ ...provider, available: false }] } });
+    useFeedStore.setState({ selectedArticle: article });
+    const { queryByText } = render(<ShortcutBar />);
+    expect(queryByText('preferences.shortcuts.summarize')).toBeNull();
+  });
+
+  it('shows next to the reading shortcuts once AI is usable', () => {
+    useAiStore.setState({ config: cfg });
+    useFeedStore.setState({ selectedArticle: article });
+    const { getByText } = render(<ShortcutBar />);
+    expect(getByText('preferences.shortcuts.summarize')).toBeTruthy();
+  });
+
+  it('stays out of the list context, where no article is open', () => {
+    useAiStore.setState({ config: cfg });
+    const { queryByText } = render(<ShortcutBar />);
+    expect(queryByText('preferences.shortcuts.summarize')).toBeNull();
   });
 });

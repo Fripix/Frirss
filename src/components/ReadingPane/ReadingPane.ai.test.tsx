@@ -361,4 +361,56 @@ describe('ReadingPane — Résumé IA', () => {
       expect(queryByText('Le résumé.')).toBeNull();
     });
   });
+
+  describe('summarize event (keyboard shortcut, palette)', () => {
+    const fire = () => act(() => { window.dispatchEvent(new CustomEvent('frirss:ai-summarize')); });
+    it('triggers a summary of the open article', async () => {
+      vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+      render(<ReadingPane />);
+      fire();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
+    });
+    it('does nothing when AI is unusable', () => {
+      useAiStore.setState({ config: { ...ON, providers: [{ ...ON.providers[0], available: false }] } });
+      render(<ReadingPane />);
+      fire();
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+    it('does nothing when AI is off', () => {
+      useAiStore.setState({ config: { ...ON, enabled: false } });
+      render(<ReadingPane />);
+      fire();
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+    it('does nothing while offline', () => {
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      render(<ReadingPane />);
+      fire();
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+    it('does not start a second request while one is running', async () => {
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      render(<ReadingPane />);
+      fire();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      fire();
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+    });
+    it('unfolds a folded panel once per device, like the button', async () => {
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      useUiStore.setState({ aiPanelCollapsed: true, aiPanelAutoExpanded: false });
+      render(<ReadingPane />);
+      fire();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
+      expect(useUiStore.getState().aiPanelAutoExpanded).toBe(true);
+    });
+    it('stops listening once the pane is gone', () => {
+      const { unmount } = render(<ReadingPane />);
+      unmount();
+      fire();
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+  });
 });

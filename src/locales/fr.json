@@ -365,7 +365,8 @@
       "holdToFile": "Ranger l’article dans une catégorie (Favori / À lire plus tard)",
       "customize": "Personnaliser dans les préférences",
       "gestureHelp": "Afficher cette fenêtre",
-      "helpTitle": "Raccourcis clavier"
+      "helpTitle": "Raccourcis clavier",
+      "summarize": "Résumer l'article (IA)"
     },
     "offline": {
       "title": "Hors-ligne",

@@ -365,7 +365,8 @@
       "holdToFile": "Artikel in een categorie opslaan (Favoriet / Later lezen)",
       "customize": "Aanpassen in de voorkeuren",
       "gestureHelp": "Dit venster tonen",
-      "helpTitle": "Sneltoetsen"
+      "helpTitle": "Sneltoetsen",
+      "summarize": "Artikel samenvatten (AI)"
     },
     "offline": {
       "title": "Offline",

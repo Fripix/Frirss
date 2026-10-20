@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useUiStore, shortcutGroups } from '../stores/uiStore';
 import { useFeedStore } from '../stores/feedStore';
+import { useAiStore, aiUsable } from '../stores/aiStore';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { commandKeyLabel } from '../lib/platformKeys';
 
@@ -27,13 +28,16 @@ export default function ShortcutBar() {
   const readingFocus = useUiStore((s) => s.readingFocus);
   const panelLayout = useUiStore((s) => s.panelLayout);
   const selectedArticle = useFeedStore((s) => s.selectedArticle);
+  const summarizeAvailable = useAiStore(aiUsable);
   const breakpoint = useBreakpoint();
 
   // No keyboard shortcuts bar on touch devices
   if (breakpoint !== 'desktop') return null;
 
   const context = selectedArticle ? 'reading' : 'list';
-  const actions = shortcutGroups[context] || shortcutGroups.list;
+  // Un raccourci pour une fonction éteinte n'est que du bruit.
+  const actions = (shortcutGroups[context] || shortcutGroups.list)
+    .filter((a) => a !== 'summarize' || summarizeAvailable);
 
   // Escape isn't a configurable shortcut; surface it contextually so users know
   // it exits Focus mode / returns from an open card to the grid.

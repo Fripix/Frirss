@@ -365,7 +365,8 @@
       "holdToFile": "Archivia l’articolo in una categoria (Preferito / Da leggere)",
       "customize": "Personalizza nelle preferenze",
       "gestureHelp": "Mostra questa finestra",
-      "helpTitle": "Scorciatoie da tastiera"
+      "helpTitle": "Scorciatoie da tastiera",
+      "summarize": "Riassumi l’articolo (IA)"
     },
     "offline": {
       "title": "Offline",

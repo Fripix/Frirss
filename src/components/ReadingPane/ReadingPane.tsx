@@ -24,6 +24,7 @@ import { IMAGE_CACHE_NAME } from '../../lib/storageEstimate';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 import BottomSheet from '../BottomSheet';
 import AiSummary from './AiSummary';
+import { expandOnFirstSummary } from './aiPanelExpand';
 import { useAiStore, aiEnabled } from '../../stores/aiStore';
 import { requestAiSummary, type AiSummaryResult, type AiProviderView } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
@@ -776,6 +777,20 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (aiInFlight.current === id) aiInFlight.current = null;
     }
   }, [selectedArticle, extractedContent, extractFor, t, isAdmin, aiRatio]);
+
+  // Raccourci clavier et palette : `useKeyboardNav` / `CommandPalette` diffusent
+  // l'événement, et c'est ici — où vivent l'état et la requête — qu'on y répond.
+  // Mêmes gardes que le bouton : IA utilisable, en ligne, un article ouvert.
+  // (`handleSummarize` ignore déjà une demande en cours pour cet article.)
+  useEffect(() => {
+    if (!aiUsable || !online || !selectedArticle) return;
+    const onSummarizeEvent = () => {
+      expandOnFirstSummary();
+      void handleSummarize();
+    };
+    window.addEventListener('frirss:ai-summarize', onSummarizeEvent);
+    return () => window.removeEventListener('frirss:ai-summarize', onSummarizeEvent);
+  }, [aiUsable, online, selectedArticle, handleSummarize]);
 
   // Résumé automatique à l'ouverture, une fois par article. Déclaré APRÈS les
   // effets de remise à zéro (IA et extraction) : dans la même passe ils

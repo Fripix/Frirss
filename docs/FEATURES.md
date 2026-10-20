@@ -489,6 +489,11 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   croire. Le libellé de la touche suit le clavier (`src/lib/platformKeys.ts`) :
   nommer ⌘ sur une machine qui n'a pas cette touche est la pire des deux
   erreurs.
+- **Résumer l'article (IA)** : `summarize`, touche `s` par défaut. Fonction
+  conditionnelle : ni la barre du bas ni l'aide-mémoire ne la montrent tant que
+  l'IA est éteinte ou inutilisable, et la touche est alors laissée au
+  navigateur. Détails dans « Résumés par IA ». Les raccourcis enregistrés avant
+  son ajout reçoivent sa valeur par défaut (`withDefaultShortcuts`).
 - **Aide-mémoire sur `?`** (1.4.5) : fenêtre listant **tous** les raccourcis
   configurables avec les touches **réellement configurées**, plus les gestes
   intégrés dans une section à part — les mélanger laisserait croire qu'on peut
@@ -2171,7 +2176,7 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   texte du flux est résumé. Un article **trop court** (`400 article_too_short`)
   ne dit rien et remet le statut à `idle` (personne n'a rien demandé) ; toute
   autre erreur s'affiche comme pour un clic. Un **panneau replié reste replié** :
-  la seule ouverture automatique est celle du premier clic manuel. La
+  la seule ouverture automatique est celle de la première demande manuelle (bouton, raccourci ou palette : `expandOnFirstSummary`, voir ci-dessous). La
   préparation hors-ligne n'ouvre aucun article dans le volet, elle ne peut donc
   pas déclencher de résumé. Test : `ReadingPane.ai.test.tsx` (« automatic
   summary on open »). Piège : l'appartenance est portée par un **état**, pas par
@@ -2180,6 +2185,36 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   précédent jusqu'au rendu suivant : la comparer à l'état appariait l'extrait
   de A à l'id de B, et le serveur le gardait en cache sous B. `settled` et
   `handleSummarize` comparent donc `extractFor` à l'article courant.
+- **Raccourci clavier et palette** : action configurable **`summarize`**,
+  touche **`s`** par défaut, réassignable comme les autres (Préférences →
+  Général ; libellé `preferences.shortcuts.summarize`, « Résumer l'article
+  (IA) »). `useKeyboardNav.ts` ne fait `preventDefault` et ne diffuse
+  l'événement de fenêtre `frirss:ai-summarize` (même mécanisme que
+  `frirss:open-search`) que si l'IA est **utilisable** (`aiUsable`, sélecteur
+  de `aiStore.ts` : fonction allumée ET un fournisseur `available`) et qu'un
+  article est ouvert ; sinon la touche passe, intacte, au navigateur. C'est
+  `ReadingPane.tsx` qui répond — il détient l'état et la requête — sous les
+  mêmes gardes que le bouton (IA utilisable, **en ligne**, article ouvert ;
+  `handleSummarize` ignore déjà une demande en cours pour cet article) : il
+  appelle `expandOnFirstSummary()` puis `handleSummarize()`. Cette fonction
+  (`ReadingPane/aiPanelExpand.ts`, partagée avec le bouton « Résumer ») porte
+  la règle « une fois par appareil, déplier un panneau replié » ; elle vit dans
+  un module à part parce qu'un fichier de composant ne doit exporter que des
+  composants (`react-refresh/only-export-components`). Le raccourci est
+  **masqué** de la barre du bas (contexte lecture seulement) et de
+  l'aide-mémoire `?` tant que l'IA est éteinte ou inutilisable : un raccourci
+  pour une fonction absente n'est que du bruit. La **palette** (⌘K) propose la
+  même commande, `action:aiSummarize`, avec le même libellé, seulement quand un
+  article est ouvert et que l'IA est utilisable ; la choisir referme la palette
+  puis diffuse le même événement. Aucune touche en dur ne s'y oppose : `s`
+  n'est utilisée nulle part ailleurs dans l'application. Piège : `shortcuts`
+  ne fusionnait pas les défauts — un objet enregistré (localStorage) ou
+  synchronisé **avant** l'ajout de `summarize` l'aurait perdu, donc sans
+  touche ; `withDefaultShortcuts()` (`uiStore.ts`) fusionne `{ ...défauts,
+  ...enregistré }` au chargement **et** dans `applyServerPrefs`. Tests :
+  `useKeyboardNav.summarize.test.tsx`, `CommandPalette.test.tsx`,
+  `ShortcutBar.test.tsx`, `ShortcutHelp.test.tsx`, `ReadingPane.ai.test.tsx`
+  (« summarize event »), `uiStore.test.ts`.
 - **Réglages** (utilisateur, synchronisés, `UI_SYNC_KEYS`) :
   `aiPanelCollapsed` (booléen, défaut `false` ; seul un `true` explicite
   replie) et `aiSummaryRatio` (pour cent, défaut 20 ; normalisé par
@@ -3585,7 +3620,8 @@ et le jetable de l'IA, `ai_usage` (compteur du jour) et `ai_cache`.
 
 Entrée unique sur **⌘K / Ctrl+K** : aller à un flux, une catégorie, une
 étiquette, une vue fixe, ou lancer une action (recherche, aide-mémoire des
-raccourcis, dispositions, sections de préférences).
+raccourcis, dispositions, sections de préférences, et — quand un article est
+ouvert et que l'IA est utilisable — « Résumer l'article (IA) »).
 
 - **Où** : `src/lib/commandPalette.ts` (recherche et classement, testés),
   `src/components/CommandPalette.tsx`
@@ -3593,6 +3629,11 @@ raccourcis, dispositions, sections de préférences).
   raccourcis, une recherche à périmètre, flux, catégories, étiquettes, sections
   de préférences — il manquait l'entrée unique. Avec soixante-et-onze flux,
   atteindre le bon demandait de dérouler la barre latérale et de lire.
+- **Résumer l'article (IA)** (`action:aiSummarize`) : entrée conditionnelle,
+  absente sans article ouvert ou tant que l'IA est éteinte ou inutilisable
+  (`aiUsable`). Elle diffuse `frirss:ai-summarize`, que `ReadingPane` écoute ;
+  son libellé est celui du raccourci (`preferences.shortcuts.summarize`).
+  Test : `CommandPalette.test.tsx`.
 - **Rien de nouveau n'est stocké** : la palette assemble ce que les stores
   contiennent déjà. Son état d'ouverture n'est ni persisté ni synchronisé.
 - **Accents repliés** : « securite » atteint « Sécurité ». Sans cela, la moitié

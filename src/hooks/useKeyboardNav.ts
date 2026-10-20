@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useFeedStore } from '../stores/feedStore';
+import { useAiStore, aiUsable } from '../stores/aiStore';
 import { useUiStore } from '../stores/uiStore';
 import { effectiveLayout } from '../lib/effectiveLayout';
 import { openExternal } from '../lib/openExternal';
@@ -100,6 +101,13 @@ export function useKeyboardNav(): void {
         // Ask the list to open its search. Focusing the input directly could
         // never work: it is only rendered once the search is already open.
         window.dispatchEvent(new CustomEvent('frirss:open-search'));
+      } else if (key === shortcuts.summarize
+          && store.selectedArticle
+          && aiUsable(useAiStore.getState())) {
+        // Pas de `else` nu : sans IA utilisable ou sans article, la touche
+        // n'appartient à personne et doit rester disponible au navigateur.
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('frirss:ai-summarize'));
       }
     }
 

@@ -22,3 +22,11 @@ export const useAiStore = create<AiState>()((set) => ({
 }));
 
 export const aiEnabled = (s: AiState): boolean => s.config?.enabled === true;
+
+/**
+ * Vrai si résumer est réellement possible pour cet utilisateur : la fonction est
+ * allumée ET au moins un fournisseur lui est utilisable. C'est la condition qui
+ * affiche la pastille de résumé ; le raccourci, la palette et leurs aide-mémoire
+ * s'y alignent — une commande pour une fonction éteinte n'est que du bruit.
+ */
+export const aiUsable = (s: AiState): boolean => aiEnabled(s) && (s.config?.providers.some((p) => p.available) ?? false);

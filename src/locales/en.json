@@ -365,7 +365,8 @@
       "holdToFile": "File the article into a category (Star / Read later)",
       "customize": "Customise in preferences",
       "gestureHelp": "Show this window",
-      "helpTitle": "Keyboard shortcuts"
+      "helpTitle": "Keyboard shortcuts",
+      "summarize": "Summarise the article (AI)"
     },
     "offline": {
       "title": "Offline",

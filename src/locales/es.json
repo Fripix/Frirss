@@ -365,7 +365,8 @@
       "holdToFile": "Guardar el artículo en una categoría (Favorito / Leer más tarde)",
       "customize": "Personalizar en las preferencias",
       "gestureHelp": "Mostrar esta ventana",
-      "helpTitle": "Atajos de teclado"
+      "helpTitle": "Atajos de teclado",
+      "summarize": "Resumir el artículo (IA)"
     },
     "offline": {
       "title": "Sin conexión",

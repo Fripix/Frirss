@@ -69,7 +69,19 @@ const defaultShortcuts: Shortcuts = {
   toggleSidebar: 'b',
   search: 'f',
   readLater: 'l',
+  summarize: 's',
 };
+
+/**
+ * Les raccourcis enregistrés (localStorage ou synchronisés d'un autre appareil)
+ * peuvent dater d'avant un raccourci ajouté depuis : sans cette fusion, l'action
+ * nouvelle n'aurait aucune touche. Les valeurs de l'utilisateur gagnent ; un
+ * objet qui n'en est pas un (valeur étrangère) retombe sur les défauts.
+ */
+function withDefaultShortcuts(stored: unknown): Shortcuts {
+  const own = stored && typeof stored === 'object' && !Array.isArray(stored) ? (stored as Shortcuts) : {};
+  return { ...defaultShortcuts, ...own };
+}
 
 export interface FeedSetting {
   autoExtract?: boolean;
@@ -779,7 +791,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   },
 
   // Keyboard shortcuts (configurable)
-  shortcuts: loadJson('frirss_shortcuts', defaultShortcuts),
+  shortcuts: withDefaultShortcuts(loadJson<Shortcuts | null>('frirss_shortcuts', null)),
   setShortcut: (action, key) => {
     set((state) => {
       const next = { ...state.shortcuts, [action]: key };
@@ -902,6 +914,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'aiPreferredProvider' ? normalizeAiProviderId(prefs[k])
           : k === 'aiCategoryProviders' ? normalizeAiCategoryProviders(prefs[k])
           // Like autoExtractDefault: a non-boolean leaves the current value alone.
+          : k === 'shortcuts' ? withDefaultShortcuts(prefs[k])
           : k === 'aiFallback' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiFallback)
           : k === 'aiAutoSummary' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiAutoSummary)
           : prefs[k];
@@ -942,11 +955,11 @@ export const UI_SYNC_KEYS = [
 export const shortcutActions = [
   'nextArticle', 'prevArticle', 'openArticle',
   'markRead', 'markUnread', 'toggleStar',
-  'openOriginal', 'toggleSidebar', 'search', 'readLater',
+  'openOriginal', 'toggleSidebar', 'search', 'readLater', 'summarize',
 ];
 
 // For the shortcut footer — only show contextual shortcuts
 export const shortcutGroups: Record<string, string[]> = {
   list: ['prevArticle', 'nextArticle', 'openArticle', 'markRead', 'markUnread', 'toggleStar', 'readLater', 'search'],
-  reading: ['prevArticle', 'nextArticle', 'markRead', 'markUnread', 'toggleStar', 'readLater', 'openOriginal'],
+  reading: ['prevArticle', 'nextArticle', 'markRead', 'markUnread', 'toggleStar', 'readLater', 'openOriginal', 'summarize'],
 };

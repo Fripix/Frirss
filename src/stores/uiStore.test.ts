@@ -19,6 +19,22 @@ describe('uiStore', () => {
    * `applyServerPrefs` qui s'en charge, et `uiStore.confirmDefault.test.ts`
    * qui le fige.
    */
+  it('summarize defaults to s and survives an older synced shortcuts object', () => {
+    expect(useUiStore.getState().shortcuts.summarize).toBe('s');
+    useUiStore.getState().applyServerPrefs({ shortcuts: { nextArticle: 'j' } });
+    expect(useUiStore.getState().shortcuts).toMatchObject({ nextArticle: 'j', summarize: 's' });
+    // applyServerPrefs also applies the legacy-account rule for the mark-all-read
+    // confirmation (any synced prefs without it turn it off): put the store back.
+    useUiStore.setState({ confirmMarkAllRead: true, shortcuts: { ...useUiStore.getState().shortcuts, nextArticle: 'ArrowDown' } });
+  });
+
+  it('summarize survives a locally stored shortcuts object that predates it', async () => {
+    localStorage.setItem('frirss_shortcuts', JSON.stringify({ nextArticle: 'j' }));
+    vi.resetModules();
+    const fresh = await import('./uiStore');
+    expect(fresh.useUiStore.getState().shortcuts).toMatchObject({ nextArticle: 'j', summarize: 's', search: 'f' });
+  });
+
   it('confirmMarkAllRead est activé par défaut, sans réglage stocké', () => {
     expect(useUiStore.getState().confirmMarkAllRead).toBe(true);
   });
