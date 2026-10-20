@@ -7,7 +7,8 @@ import {
   getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, reorderAiProviders, testAiProvider, updateAiSettings, listAiModels,
   type AiProviderAdmin, type AiAdminSettings, type AiProviderInput,
 } from '../../../api/backend';
-import { BlockTitle, inputClass, inputStyle, quietBtn } from './shared';
+import { BlockTitle } from './shared';
+import { inputClass, inputStyle, quietBtn } from './styles';
 
 const EMPTY: AiProviderInput = { name: '', type: 'openai', baseUrl: '', model: '', adminKey: '', shared: true };
 const NO_SETTINGS: AiAdminSettings = { enabled: false, userKeysAllowed: false, dailyCap: 50, defaultProvider: null };
