@@ -34,7 +34,7 @@ export async function callProvider(provider: AiProvider, key: string | null, cal
   }
   if (!resp.ok) {
     // Masquer AVANT de couper : une coupe au milieu de la clé en laisserait un morceau que `split` ne reconnaît plus.
-    const detail = redact(await resp.text().catch(() => ''), key).slice(0, 300);
+    const detail = redact(errorDetail(await resp.text().catch(() => '')), key).slice(0, 300);
     throw new AiError(classifyStatus(resp.status), `${provider.name}: HTTP ${resp.status} ${detail}`, resp.status);
   }
   let json: unknown;
@@ -117,7 +117,7 @@ async function getJson(url: string, headers: Record<string, string>, host: strin
     throw new AiError('technical', redact(String((err as Error)?.message ?? err), key));
   }
   if (!resp.ok) {
-    const detail = redact(await resp.text().catch(() => ''), key).slice(0, 300);
+    const detail = redact(errorDetail(await resp.text().catch(() => '')), key).slice(0, 300);
     throw new AiError(classifyStatus(resp.status), `models: HTTP ${resp.status} ${detail}`, resp.status);
   }
   try { return await resp.json(); } catch { throw new AiError('technical', 'models: non-JSON response'); }
@@ -130,6 +130,23 @@ function hostOf(baseUrl: string, label: string): string {
   } catch {
     throw new AiError('technical', `${label}: invalid base URL`);
   }
+}
+
+/**
+ * Le message lisible d'une erreur de fournisseur, sorti de son enveloppe JSON :
+ * `error.message` (OpenAI, Anthropic), `error` en chaîne (Ollama), `message`
+ * (Mistral). Sinon le corps brut. Le masquage de la clé vient après, la coupe à la fin.
+ */
+function errorDetail(body: string): string {
+  try {
+    const j = JSON.parse(body) as { error?: unknown; message?: unknown };
+    const e = j?.error;
+    const msg = typeof e === 'string' ? e
+      : typeof (e as { message?: unknown } | null)?.message === 'string' ? (e as { message: string }).message
+        : typeof j?.message === 'string' ? j.message : '';
+    if (msg.trim()) return msg.trim();
+  } catch { /* corps non JSON : brut */ }
+  return body;
 }
 
 function redact(text: string, key: string | null): string {

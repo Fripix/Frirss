@@ -103,10 +103,30 @@ describe('AiTab', () => {
   it('the test button reports the outcome', async () => {
     useAuthStore.setState({ backendUser: admin });
     vi.mocked(getAiProviders).mockResolvedValue({ providers: [{ id: 7, name: 'Ollama', type: 'openai', baseUrl: 'http://o', model: 'm', hasAdminKey: false, shared: false, position: 0 }], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
-    vi.mocked(testAiProvider).mockResolvedValue({ ok: false, kind: 'auth', message: 'HTTP 401' });
-    const { findByRole, findByText } = render(<AiTab active />);
-    fireEvent.click(await findByRole('button', { name: /ai\.admin\.test/ }));
-    expect(await findByText('ai.admin.testFailed')).toBeTruthy();
+    const { findByRole, findByText, getByText } = render(<AiTab active />);
+    const button = await findByRole('button', { name: /ai\.admin\.test/ });
+    // Une cause par message : jamais « vérifiez l'URL » pour un manque de crédits.
+    for (const [kind, key] of [['auth', 'ai.admin.testAuth'], ['quota', 'ai.admin.testQuota'], ['technical', 'ai.admin.testFailed'], ['refused', 'ai.admin.testFailed']] as const) {
+      vi.mocked(testAiProvider).mockResolvedValueOnce({ ok: false, kind, message: `detail ${kind}` });
+      fireEvent.click(button);
+      expect(await findByText(key)).toBeTruthy();
+      expect(getByText(`detail ${kind}`)).toBeTruthy();
+    }
+    vi.mocked(testAiProvider).mockRejectedValueOnce(new Error('network'));
+    fireEvent.click(button);
+    await waitFor(() => expect(getByText('ai.admin.testFailed')).toBeTruthy());
+    vi.mocked(testAiProvider).mockResolvedValueOnce({ ok: true, model: 'm', durationMs: 5 });
+    fireEvent.click(button);
+    expect(await findByText('ai.admin.testOk')).toBeTruthy();
+  });
+  it('the key badge sits outside the truncated line, after the model, so a narrow screen still shows it', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    vi.mocked(getAiProviders).mockResolvedValue({ providers: [{ id: 7, name: 'GPT', type: 'openai', baseUrl: 'https://api.example.com', model: 'gpt-6-sol', hasAdminKey: true, shared: true, position: 0 }], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+    const { findByText, getByText } = render(<AiTab active />);
+    const badge = await findByText('ai.admin.keySet');
+    expect(badge.closest('.truncate')).toBeNull();
+    const line = getByText((_, el) => el?.classList.contains('truncate') === true && el.textContent === 'gpt-6-sol / ai.admin.typeOpenai');
+    expect(line.getAttribute('title')).toBe('gpt-6-sol / ai.admin.typeOpenai');
   });
 
   it('reordering sends the full id list; the default provider goes out as a number', async () => {

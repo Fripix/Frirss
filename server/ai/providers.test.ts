@@ -118,3 +118,26 @@ describe('base URL handling', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('http://10.0.0.5:11434/v1/chat/completions');
   });
 });
+
+describe('error detail', () => {
+  it('keeps the provider message out of its JSON wrapper (OpenAI, Anthropic)', async () => {
+    stub(429, { error: { message: 'You have no credits remaining.', type: 'insufficient_quota', code: 'insufficient_quota' } });
+    const err = await callProvider(openai, 'k', call).catch((e: Error) => e);
+    expect(err).toMatchObject({ kind: 'quota' });
+    expect((err as Error).message).toBe('Ollama: HTTP 429 You have no credits remaining.');
+    stub(400, { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low.' } });
+    expect(((await callProvider(anthropic, 'k', call).catch((e: Error) => e)) as Error).message).toBe('Claude: HTTP 400 Your credit balance is too low.');
+  });
+  it('reads a string error (Ollama) and a top-level message (Mistral)', async () => {
+    stub(404, { error: 'model "x" not found, try pulling it first' });
+    expect(((await callProvider(openai, null, call).catch((e: Error) => e)) as Error).message).toBe('Ollama: HTTP 404 model "x" not found, try pulling it first');
+    stub(401, { object: 'error', message: 'Unauthorized', type: 'invalid_request_error' });
+    expect(((await callProvider(openai, 'k', call).catch((e: Error) => e)) as Error).message).toBe('Ollama: HTTP 401 Unauthorized');
+  });
+  it('redacts the key inside an extracted message too', async () => {
+    stub(401, { error: { message: 'Incorrect API key provided: sk-secret-123.' } });
+    const msg = ((await callProvider(openai, 'sk-secret-123', call).catch((e: Error) => e)) as Error).message;
+    expect(msg).not.toContain('sk-secret-123');
+    expect(msg).toContain('Incorrect API key provided');
+  });
+});

@@ -78,7 +78,9 @@ function SummariesBlock({ showIntro }: { showIntro: boolean }) {
   );
 }
 
-type TestState = { state: 'busy' } | { state: 'ok' } | { state: 'fail'; message?: string };
+type TestState = { state: 'busy' } | { state: 'ok' } | { state: 'fail'; kind?: string; message?: string };
+/** Une cause par message : un manque de crédits n'est pas une URL à vérifier. */
+const testFailKey = (kind?: string) => (kind === 'auth' ? 'ai.admin.testAuth' : kind === 'quota' ? 'ai.admin.testQuota' : 'ai.admin.testFailed');
 type ModelsState = { state: 'busy' } | { state: 'ok'; models: string[] } | { state: 'fail'; auth: boolean };
 /** Au-delà, la liste reçoit un champ de filtre (OpenAI en renvoie des dizaines, OpenRouter des centaines). */
 const FILTER_FROM = 12;
@@ -192,7 +194,7 @@ function AdminProviders({ active }: { active: boolean }) {
     setTests((m) => ({ ...m, [id]: { state: 'busy' } }));
     try {
       const r = await testAiProvider(id);
-      setTests((m) => ({ ...m, [id]: r.ok ? { state: 'ok' } : { state: 'fail', message: r.message } }));
+      setTests((m) => ({ ...m, [id]: r.ok ? { state: 'ok' } : { state: 'fail', kind: r.kind, message: r.message } }));
     } catch {
       setTests((m) => ({ ...m, [id]: { state: 'fail' } }));
     }
@@ -267,14 +269,17 @@ function AdminProviders({ active }: { active: boolean }) {
         <ul className="space-y-2">
           {providers.map((p, i) => {
             const res = tests[p.id];
+            const typeLabel = p.type === 'anthropic' ? t('ai.admin.typeAnthropic') : t('ai.admin.typeOpenai');
             return (
               <li key={p.id} className="rounded-lg px-3 py-2" style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <div className="min-w-0 flex-1 basis-40">
                     <div className="text-sm font-semibold truncate" style={{ color: 'var(--list-title)' }}>{p.name}</div>
-                    <div className="text-[11px] truncate" style={{ color: 'var(--list-summary)' }}>
-                      {p.type === 'anthropic' ? t('ai.admin.typeAnthropic') : t('ai.admin.typeOpenai')} / {p.model}
-                      {p.hasAdminKey && <span className="ml-2" style={{ color: 'var(--accent)' }}>{t('ai.admin.keySet')}</span>}
+                    {/* Le modèle d'abord, le type ensuite : c'est le type, long, que la coupe mange. La
+                        mention de clé reste hors de la coupe, sinon un écran étroit ne la montre jamais. */}
+                    <div className="flex items-baseline gap-2 text-[11px]" style={{ color: 'var(--list-summary)' }}>
+                      <span className="truncate min-w-0" title={`${p.model} / ${typeLabel}`}>{`${p.model} / ${typeLabel}`}</span>
+                      {p.hasAdminKey && <span className="flex-shrink-0 whitespace-nowrap" style={{ color: 'var(--accent)' }}>{t('ai.admin.keySet')}</span>}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-0.5 -mr-1.5" style={{ color: 'var(--list-title)' }}>
@@ -290,10 +295,10 @@ function AdminProviders({ active }: { active: boolean }) {
                   </div>
                 </div>
                 {res && (
-                  <p role="status" className="text-xs mt-1" style={{ color: res.state === 'fail' ? 'var(--danger)' : res.state === 'ok' ? 'var(--accent)' : 'var(--list-summary)' }}>
-                    <span>{res.state === 'busy' ? t('ai.admin.testing') : res.state === 'ok' ? t('ai.admin.testOk') : t('ai.admin.testFailed')}</span>
-                    {res.state === 'fail' && res.message && <span className="ml-2 opacity-80">{res.message}</span>}
-                  </p>
+                  <div role="status" className="text-xs mt-1" style={{ color: res.state === 'fail' ? 'var(--danger)' : res.state === 'ok' ? 'var(--accent)' : 'var(--list-summary)' }}>
+                    <p>{res.state === 'busy' ? t('ai.admin.testing') : res.state === 'ok' ? t('ai.admin.testOk') : t(testFailKey(res.kind))}</p>
+                    {res.state === 'fail' && res.message && <p className="mt-0.5 text-[11px] opacity-80 break-words">{res.message}</p>}
+                  </div>
                 )}
               </li>
             );

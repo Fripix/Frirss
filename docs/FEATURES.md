@@ -1833,7 +1833,11 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   (`https://api.example.com`), ou `http://10.0.0.5:11434` pour un Ollama local.
 - **Clés** : chiffrées en base (`server/crypto.ts`, comme les jetons FreshRSS),
   jamais renvoyées par l'API (`hasAdminKey` / `hasUserKey`) et rédigées (`***`)
-  dans le détail d'une erreur du fournisseur **avant** la coupe à 300
+  dans le détail d'une erreur du fournisseur — détail d'abord **sorti de son
+  enveloppe JSON** (`errorDetail` : `error.message` d'OpenAI et d'Anthropic,
+  `error` en chaîne d'Ollama, `message` de Mistral, sinon le corps brut), pour
+  qu'on lise « You have no credits remaining » et non `{ "error": { …` —
+  **avant** la coupe à 300
   caractères (couper d'abord laisserait un morceau de clé que la rédaction ne
   reconnaît plus), ainsi que dans le message d'une erreur de transport. Le serveur
   sait lire une clé personnelle (`ai_user_keys`), mais **aucune route ni écran
@@ -1971,7 +1975,15 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   `adminKey: ''` (comme `null`) est accepté et **efface** la clé. Supprimer le fournisseur par défaut vide
   `ai_default_provider`. `POST …/providers/:id/test` répond **200** avec
   `{ ok:false, kind, message }` en cas d'échec (message ≤ 200 caractères) : un
-  test raté n'est pas une erreur HTTP.
+  test raté n'est pas une erreur HTTP. L'écran en tire **un message par cause**
+  (`testFailKey`, `AiTab.tsx`) : `auth` → « Échec : clé refusée par le
+  fournisseur », `quota` (402 / 429) → « Échec : quota ou crédits épuisés chez
+  le fournisseur », tout le reste (technique, refus, réseau) → « Échec du test »,
+  sans hypothèse. Le détail du fournisseur suit sur sa propre ligne. *(Jusqu'au
+  2026-10-20, tout échec disait « vérifiez l'URL, le modèle et la clé » — y
+  compris une clé OpenAI sans crédits, dont l'URL, le modèle et la clé étaient
+  justes.)* ⚠️ Un abonnement ChatGPT ne donne **aucun** crédit d'API : une clé
+  d'un compte sans crédits prépayés liste les modèles mais répond 429 à tout appel.
 - **Interface — Préférences** : section **« IA »** (un mot, comme les autres)
   des Préférences. En tête, pour tous (admin compris), le bloc **« Résumés »** :
   un curseur « Longueur du résumé » (`type="range"`, 5 à 50 %, pas de 5, valeur
@@ -1986,7 +1998,11 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   saisir leur propre clé » (**inerte tant que le plan 2 n'a pas livré route ni
   écran de clé personnelle**). La section n'est montée que pour un admin ou
   quand l'IA est activée. Après un enregistrement, l'éditeur **reste ouvert** :
-  clé effacée du champ, « Enregistré », « Fermer ».
+  clé effacée du champ, « Enregistré », « Fermer ». Ligne d'un fournisseur : le
+  nom, puis « modèle / type » coupé au besoin (texte complet en `title`) — le
+  modèle d'abord, car c'est le libellé du type, long, que la coupe doit manger —
+  et la mention « clé enregistrée » **hors de la coupe** : à 320 px, quand elle
+  suivait le type dans la même ligne tronquée, elle n'était jamais visible.
 - **Interface — panneau** (`AiSummary.tsx`) : un panneau sur **toute la largeur
   de la colonne de lecture**, au-dessus de l'article, sur une **surface teintée
   réglable** (`--ai-bg` / `--ai-border`, voir « Apparence et thèmes »).
