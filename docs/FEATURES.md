@@ -2153,6 +2153,28 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     éteinte ou qu'aucun fournisseur n'est disponible pour cet utilisateur
     (`providers.some(p => p.available)`) : il ne ferait que répondre « aucun
     fournisseur ».
+- **Résumé automatique à l'ouverture** (`aiAutoSummary`, Préférences → IA →
+  « Résumés », **éteint d'origine**, avertissement de coût à l'activation) :
+  `ReadingPane.tsx` appelle `handleSummarize(undefined, { auto: true })` dès
+  qu'un article s'affiche, **une seule fois par article** (`autoSummarisedId`,
+  l'id du dernier article traité : en revenir à un article déjà résumé relance
+  la demande, que le cache serveur sert sans appeler le fournisseur). Condition :
+  réglage allumé, IA utilisable (`aiUsable`), **en ligne**, statut `idle`. Jamais
+  hors ligne : l'effet attend simplement le retour du réseau, tant que l'article
+  reste affiché. **Si l'extraction automatique s'applique à ce flux**
+  (`effectiveAutoExtract`, article avec URL), il **attend qu'elle ait abouti ou
+  échoué** pour CET article — `lastExtractedId` / `failedExtractId` disent à qui
+  appartient l'état affiché, car au rendu qui suit un changement d'article
+  `extractedContent` est encore celui du précédent. Échec d'extraction : le
+  texte du flux est résumé. Un article **trop court** (`400 article_too_short`)
+  ne dit rien et remet le statut à `idle` (personne n'a rien demandé) ; toute
+  autre erreur s'affiche comme pour un clic. Un **panneau replié reste replié** :
+  la seule ouverture automatique est celle du premier clic manuel. La
+  préparation hors-ligne n'ouvre aucun article dans le volet, elle ne peut donc
+  pas déclencher de résumé. Test : `ReadingPane.ai.test.tsx` (« automatic
+  summary on open »). Piège : `handleSummarize` ne prend l'extrait que si
+  `lastExtractedId` est l'article courant, sinon un résumé parti au rendu de
+  transition enverrait le texte du précédent.
 - **Réglages** (utilisateur, synchronisés, `UI_SYNC_KEYS`) :
   `aiPanelCollapsed` (booléen, défaut `false` ; seul un `true` explicite
   replie) et `aiSummaryRatio` (pour cent, défaut 20 ; normalisé par

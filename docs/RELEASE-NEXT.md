@@ -34,8 +34,13 @@ la release publiée.
   modèles » qui propose les noms disponibles avec la clé saisie, avant même
   d’enregistrer). Repli automatique entre fournisseurs, cache
   des résumés, clés chiffrées, aucune dépendance nouvelle ; la sauvegarde
-  chiffrée emporte les fournisseurs et leurs clés. Les clés personnelles, les
-  réglages par flux et la traduction viennent ensuite.
+  chiffrée emporte les fournisseurs et leurs clés. Chacun choisit son
+  fournisseur préféré et le repli, peut demander un résumé automatique à
+  l'ouverture de chaque article (éteint d'origine, avec un avertissement sur le
+  coût d'un appel par article), fixe un fournisseur par flux ou par catégorie
+  dans une vue d'ensemble, et saisit ses propres clés quand l'admin le permet ;
+  l'admin peut effacer la clé d'un fournisseur. Seule la traduction vient
+  ensuite.
 
 ## Corrections et améliorations
 

@@ -162,6 +162,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const lastExtractedId = useRef<string | null>(null);
+  // Article dont l'extraction a échoué : avec `lastExtractedId` (succès), c'est
+  // ce qui dit À QUEL article appartient l'état d'extraction affiché. Au rendu
+  // qui suit un changement d'article, `extractedContent` / `extractError` sont
+  // encore ceux du précédent — le résumé automatique ne doit pas les prendre
+  // pour les siens.
+  const failedExtractId = useRef<string | null>(null);
 
   // Résumé IA — un état par article affiché ; remis à zéro quand il change.
   const aiOn = useAiStore(aiEnabled);
@@ -171,6 +177,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [aiError, setAiError] = useState<string | null>(null);
   const aiInFlight = useRef<string | null>(null);
   const aiRatio = useUiStore((s) => s.aiSummaryRatio);
+  const aiAutoSummary = useUiStore((s) => s.aiAutoSummary);
+  const autoSummarisedId = useRef<string | null>(null);
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
   const online = useOnlineStatus();
   // Aucun fournisseur utilisable pour cet utilisateur : une pastille qui ne
@@ -718,21 +726,23 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       lastExtractedId.current = id;
       setExtractedContent(result);
     } catch {
-      if (stillCurrent()) setExtractError(t('readingPane.extractError'));
+      if (stillCurrent()) { failedExtractId.current = id; setExtractError(t('readingPane.extractError')); }
     } finally {
       setExtracting(false);
     }
   }, [selectedArticle, extracting, t]);
 
-  const handleSummarize = useCallback(async (providerId?: number) => {
+  const handleSummarize = useCallback(async (providerId?: number, opts?: { auto?: boolean }) => {
     if (!selectedArticle || aiInFlight.current === selectedArticle.id) return;
     const id = selectedArticle.id;
+    // L'extrait n'est celui de cet article que si l'extraction lui appartient.
+    const fullText = lastExtractedId.current === id ? extractedContent?.content : undefined;
     aiInFlight.current = id;
     setAiStatus('loading'); setAiError(null);
     try {
       const r = await requestAiSummary({
         articleId: id, title: selectedArticle.title,
-        html: stripMediaForSummary(extractedContent?.content ?? selectedArticle.content ?? ''),
+        html: stripMediaForSummary(fullText ?? selectedArticle.content ?? ''),
         provider: providerId,
         ratio: aiRatio,
         ...aiRouting(selectedArticle.sourceId, useFeedStore.getState().subscriptions, useUiStore.getState()),
@@ -742,6 +752,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     } catch (err) {
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
       const resp = axios.isAxiosError(err) ? err.response : undefined;
+      // Résumé automatique : un article trop court n'a rien à résumer, et
+      // personne n'a rien demandé — pas de message.
+      if (opts?.auto && resp?.status === 400 && (resp.data as { error?: string } | undefined)?.error === 'article_too_short') {
+        setAiStatus('idle');
+        return;
+      }
       // Le résumé déjà affiché (`aiResult`) reste : un « Résumer avec… » raté ne l'efface pas.
       setAiError(t(aiErrorKey(resp?.status, resp?.data as { error?: string; kind?: string } | undefined, isAdmin)));
       setAiStatus('error');
@@ -749,6 +765,31 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (aiInFlight.current === id) aiInFlight.current = null;
     }
   }, [selectedArticle, extractedContent, t, isAdmin, aiRatio]);
+
+  // Résumé automatique à l'ouverture, une fois par article. Déclaré APRÈS les
+  // effets de remise à zéro (IA et extraction) : dans la même passe ils
+  // s'exécutent dans l'ordre, et la remise à zéro ne doit pas écraser l'état
+  // « en cours » posé ici.
+  useEffect(() => {
+    const art = selectedArticle;
+    if (!art || !aiAutoSummary || !aiUsable || !online || aiStatus !== 'idle') return;
+    if (autoSummarisedId.current === art.id) return;
+    // Si l'extraction automatique s'applique à ce flux, on attend qu'elle ait
+    // abouti ou échoué POUR CET ARTICLE (et non pour le précédent, dont l'état
+    // reste visible un rendu). Avant son départ, rien n'est « terminé » : le
+    // résumé ne peut donc pas partir devant l'extraction.
+    const extractionApplies = !!art.url && !!art.sourceId
+      && effectiveAutoExtract(autoExtractDefault, feedSettings, art.sourceId);
+    if (extractionApplies) {
+      const settled = !extracting && (
+        (lastExtractedId.current === art.id && !!extractedContent)
+        || (failedExtractId.current === art.id && !!extractError)
+      );
+      if (!settled) return;
+    }
+    autoSummarisedId.current = art.id;
+    void handleSummarize(undefined, { auto: true });
+  }, [selectedArticle, aiAutoSummary, aiUsable, online, aiStatus, extracting, extractedContent, extractError, autoExtractDefault, feedSettings, handleSummarize]);
 
   // ── Corps de l'article ────────────────────────────────────────────────────
   // Mémoïsé, et il FAUT que ce soit avant le retour anticipé ci-dessous : les

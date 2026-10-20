@@ -26,6 +26,7 @@ vi.mock('../../lib/extractStore', () => ({
   dbSetPinned: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('../../i18n', () => ({ default: { t: (k: string) => k } }));
+vi.mock('../../utils/extractContent', () => ({ extractFullContent: vi.fn() }));
 
 import ReadingPane from './ReadingPane';
 import { useFeedStore } from '../../stores/feedStore';
@@ -33,6 +34,8 @@ import { useAiStore } from '../../stores/aiStore';
 import { requestAiSummary } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
+import { extractFullContent } from '../../utils/extractContent';
+import { putExtract } from '../../lib/extractCache';
 
 const article = (id: string) => ({
   id, title: 'Titre ' + id, summary: 's', source: 'Src', sourceId: 'feed/1',
@@ -46,15 +49,17 @@ beforeEach(() => {
   useAiStore.setState({ config: ON });
   useAuthStore.setState({ backendUser: { id: 2, username: 'u', role: 'user' } as never });
   useUiStore.setState({
-    aiPanelCollapsed: false, aiPanelAutoExpanded: false, aiSummaryRatio: 20,
+    aiPanelCollapsed: false, aiPanelAutoExpanded: false, aiSummaryRatio: 20, aiAutoSummary: false,
+    autoExtractDefault: false,
     feedSettings: {}, aiCategoryProviders: {}, aiPreferredProvider: null, aiFallback: true,
   });
   useFeedStore.setState({ subscriptions: [] });
   vi.mocked(requestAiSummary).mockReset();
+  vi.mocked(extractFullContent).mockReset();
 });
 const httpError = (status: number, data: unknown) =>
   Object.assign(new Error('http ' + status), { isAxiosError: true, response: { status, data } });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('ReadingPane — Résumé IA', () => {
   it('shows no panel when the feature is off', () => {
@@ -188,5 +193,134 @@ describe('ReadingPane — Résumé IA', () => {
     expect(action().disabled).toBe(true);
     act(() => { window.dispatchEvent(new Event('online')); });
     expect(action().disabled).toBe(false);
+  });
+  describe('automatic summary on open', () => {
+    const RESULT = { text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false };
+    const extracted = (content: string) => ({ title: 't', content, excerpt: '', byline: '', siteName: '', length: content.length });
+    // L'extraction automatique s'applique à ce flux ; chaque test d'extraction a
+    // son propre id, car le cache d'extraction est en mémoire pour tout le fichier.
+    const withAutoExtract = (id: string) => {
+      const a = article(id);
+      useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      useUiStore.setState({ aiAutoSummary: true, feedSettings: { 'feed/1': { autoExtract: true } } as never });
+    };
+
+    it('summarises on open when auto-summary is on', async () => {
+      useUiStore.setState({ aiAutoSummary: true });
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      const { findByText } = render(<ReadingPane />);
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
+      expect(await findByText('Le résumé.')).toBeTruthy();
+    });
+    it('does nothing on open when auto-summary is off', async () => {
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+    it('does nothing on open when the browser is offline', async () => {
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      useUiStore.setState({ aiAutoSummary: true });
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+    it('does nothing on open when no provider is usable', async () => {
+      useAiStore.setState({ config: { ...ON, providers: [{ ...ON.providers[0], available: false }] } });
+      useUiStore.setState({ aiAutoSummary: true });
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+    it('waits for the auto-extraction and summarises the full article', async () => {
+      withAutoExtract('x1');
+      let finish!: (v: unknown) => void;
+      vi.mocked(extractFullContent).mockReturnValue(new Promise((r) => { finish = r; }) as never);
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await waitFor(() => expect(extractFullContent).toHaveBeenCalledTimes(1));
+      expect(requestAiSummary).not.toHaveBeenCalled();
+      await act(async () => { finish(extracted('<p>' + 'complet '.repeat(80) + '</p>')); });
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining('complet') })));
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+    });
+    it('summarises the extraction already in the cache, without fetching', async () => {
+      withAutoExtract('x2');
+      await putExtract('x2', extracted('<p>' + 'complet '.repeat(80) + '</p>'));
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining('complet') })));
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      expect(extractFullContent).not.toHaveBeenCalled();
+    });
+    it('falls back to the feed text when the extraction fails', async () => {
+      withAutoExtract('x3');
+      vi.mocked(extractFullContent).mockRejectedValue(new Error('boom'));
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining('mot') })));
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+    });
+    it('does not use the previous article\'s extraction for the next one', async () => {
+      withAutoExtract('x4');
+      await putExtract('x4', extracted('<p>' + 'complet '.repeat(80) + '</p>'));
+      // « Trop court » laisse le statut à idle : c'est le seul cas où le rendu
+      // du changement d'article, qui porte encore l'extrait du précédent, peut
+      // déclencher un résumé.
+      vi.mocked(requestAiSummary)
+        .mockRejectedValueOnce(httpError(400, { error: 'article_too_short' }))
+        .mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+      useUiStore.setState({ feedSettings: {} });
+      act(() => { useFeedStore.setState({ selectedArticle: article('x5') }); });
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
+      const second = vi.mocked(requestAiSummary).mock.calls[1][0];
+      expect(second.articleId).toBe('x5');
+      expect(second.html).toContain('mot');
+      expect(second.html).not.toContain('complet');
+    });
+    it('stays quiet when the article is too short', async () => {
+      useUiStore.setState({ aiAutoSummary: true });
+      vi.mocked(requestAiSummary).mockRejectedValue(httpError(400, { error: 'article_too_short' }));
+      const { queryByRole, getByText } = render(<ReadingPane />);
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(queryByRole('alert')).toBeNull();
+      expect(getByText('ai.status.none')).toBeTruthy();
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+    });
+    it('still reports any other failure of an automatic summary', async () => {
+      useUiStore.setState({ aiAutoSummary: true });
+      vi.mocked(requestAiSummary).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
+      const { findByText } = render(<ReadingPane />);
+      expect(await findByText('ai.errors.technical')).toBeTruthy();
+    });
+    it('runs once per article, not again on re-render, and again for the next article', async () => {
+      useUiStore.setState({ aiAutoSummary: true });
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      const { rerender, findByText } = render(<ReadingPane />);
+      expect(await findByText('Le résumé.')).toBeTruthy();
+      rerender(<ReadingPane />);
+      act(() => { useUiStore.setState({ aiSummaryRatio: 30 }); });
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      act(() => { useFeedStore.setState({ selectedArticle: article('a2') }); });
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(requestAiSummary).mock.calls[1][0].articleId).toBe('a2');
+    });
+    it('leaves a folded panel folded when the summary arrives', async () => {
+      useUiStore.setState({ aiAutoSummary: true, aiPanelCollapsed: true });
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      const { getByRole, queryByText } = render(<ReadingPane />);
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(getByRole('button', { name: /^ai\.summarize\s/ }).getAttribute('aria-expanded')).toBe('false');
+      expect(queryByText('Le résumé.')).toBeNull();
+    });
   });
 });
