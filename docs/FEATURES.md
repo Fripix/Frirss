@@ -1917,9 +1917,9 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   les 60 s de nginx (504 au client) et le serveur appelait ensuite Claude,
   payant, compté et mis en cache, sans personne au bout. Le nginx du conteneur
   accorde **120 s** à `/api/` (`proxy_read_timeout`) ; ⚠️ un **reverse proxy en
-  amont** doit accorder **au moins 120 s** sur `/api/ai` (60 s par défaut sur
-  nginx comme sur Nginx Proxy Manager, qui suffisent tant que l'échéance de
-  50 s tient, sans marge). Une erreur de transport garde **sa cause** dans le message
+  amont** doit accorder **au moins 120 s** sur `/api/ai` : les 60 s par défaut
+  de nginx ou de Nginx Proxy Manager ne laissent que dix secondes de marge
+  au-dessus de l'échéance de 50 s. Une erreur de transport garde **sa cause** dans le message
   (`transportDetail`) : « Ollama: fetch failed (EHOSTUNREACH) », `ENOTFOUND`,
   `UND_ERR_CONNECT_TIMEOUT`, ou « timeout » pour un abandon ; `fetch` seul ne
   dit que « fetch failed », ce qui rendait une coupure entre conteneurs
