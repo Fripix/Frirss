@@ -354,6 +354,8 @@
       "keyEscape": "ESC",
       "keyEnter": "Enter",
       "keyDelete": "Del",
+      "keyReserved": "Deze toets wordt al gebruikt door de browser, het systeem of FriRSS. Kies een andere.",
+      "keyTaken": "Al toegewezen aan ‘{{action}}’. Kies een andere.",
       "escBackToGrid": "Terug naar raster",
       "escExitFocus": "Focusmodus verlaten",
       "builtInTitle": "Ingebouwde toetsen en gebaren",

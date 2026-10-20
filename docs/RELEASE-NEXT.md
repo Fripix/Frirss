@@ -28,6 +28,17 @@ _(rien pour l'instant)_
   navigateur — des valeurs par défaut après une déconnexion — sur tous les
   appareils. Un échec ne change plus rien : la lecture est retentée et la
   première réussie décide.
+- **Les raccourcis ne volent plus les touches du navigateur.** ⌘R / Ctrl+R
+  marquait l'article lu au lieu de recharger la page, et ⌘/Ctrl avec L, D, B,
+  O, U ou F (et Alt + lettre) déclenchait aussi une action FriRSS. Une touche
+  tenue avec ⌘, Ctrl ou Alt revient désormais au navigateur (seul ⌘K / Ctrl+K
+  ouvre toujours la palette), et une touche maintenue ne bascule plus favori,
+  « à lire plus tard » ou le panneau latéral à chaque répétition.
+- **L'éditeur de raccourcis refuse les touches réservées**, avec un message :
+  F1–F12, Tab, Espace, Entrée, un modificateur seul, `/` et `'` (recherche
+  rapide de Firefox), `?` (aide-mémoire), une combinaison avec ⌘, Ctrl ou Alt,
+  et une touche déjà attribuée à une autre action. Les flèches restent
+  permises.
 
 ## Sous le capot
 

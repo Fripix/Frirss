@@ -498,6 +498,27 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   configurables, sans quoi on pourrait le masquer en l'attribuant à une action.
   Échap y est capté en phase de capture, pour passer avant le gestionnaire
   global qui s'en sert pour quitter le mode Focus.
+- **Aucun raccourci ne reprend une touche du navigateur ou du système**
+  (règle du propriétaire, 1.6.2). Deux gardes :
+  - *à l'usage* (`useKeyboardNav.ts`) : une touche tenue avec ⌘, Ctrl ou Alt
+    n'est jamais traitée ni `preventDefault` — seul ⌘K / Ctrl+K (palette)
+    fait exception. Avant, ⌘R / Ctrl+R marquait lu au lieu de recharger, et
+    +L, +D, +B, +O, +U, +F étaient avalés de même ; ⌘F / Ctrl+F ouvrait la
+    recherche de la liste par ce seul effet de bord, jamais par choix. Une
+    touche **maintenue** (`e.repeat`) ne rejoue pas les actions non
+    idempotentes (favori, à lire plus tard, panneau latéral, ouvrir
+    l'original, `?`) ; les flèches, elles, continuent de défiler ;
+  - *dans l'éditeur* (`handleKeyCapture`, liste dans `src/lib/shortcutKeys.ts`) :
+    refus, avec un message sous la ligne, de F1–F12, Tab, Espace, Entrée, des
+    modificateurs pressés seuls, de `/` et `'` (recherche rapide de Firefox),
+    de `?` (aide-mémoire), de toute combinaison avec ⌘, Ctrl ou Alt (laissée
+    au navigateur) et d'une touche déjà attribuée à une autre action. La
+    capture reste ouverte pour essayer une autre touche ; Échap l'annule.
+  - **Les flèches restent permises et restent les défauts** (↑ ↓ →), bien
+    qu'elles servent aussi au défilement : décision du propriétaire, « elles
+    sont pratiques ». Ne pas les remettre en cause.
+  - Un raccourci réservé déjà enregistré avant 1.6.2 n'est pas migré : il
+    continue de fonctionner tel quel jusqu'à sa prochaine modification.
 
 ---
 

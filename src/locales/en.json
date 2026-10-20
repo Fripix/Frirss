@@ -354,6 +354,8 @@
       "keyEscape": "ESC",
       "keyEnter": "Enter",
       "keyDelete": "Del",
+      "keyReserved": "This key is used by the browser, the system or FriRSS. Choose another.",
+      "keyTaken": "Already assigned to “{{action}}”. Choose another.",
       "escBackToGrid": "Back to grid",
       "escExitFocus": "Exit focus mode",
       "builtInTitle": "Built-in keys & gestures",

@@ -354,6 +354,8 @@
       "keyEscape": "ESC",
       "keyEnter": "Intro",
       "keyDelete": "Supr",
+      "keyReserved": "El navegador, el sistema o FriRSS ya usa esta tecla. Elija otra.",
+      "keyTaken": "Ya asignada a «{{action}}». Elija otra.",
       "escBackToGrid": "Volver a la cuadrícula",
       "escExitFocus": "Salir del modo Enfoque",
       "builtInTitle": "Teclas y gestos integrados",

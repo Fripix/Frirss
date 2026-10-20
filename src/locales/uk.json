@@ -360,6 +360,8 @@
       "keyEscape": "ESC",
       "keyEnter": "Enter",
       "keyDelete": "Del",
+      "keyReserved": "Цю клавішу вже використовує браузер, система або FriRSS. Виберіть іншу.",
+      "keyTaken": "Уже призначено для «{{action}}». Виберіть іншу.",
       "escBackToGrid": "Назад до сітки",
       "escExitFocus": "Вийти з режиму фокус",
       "builtInTitle": "Вбудовані клавіші та жести",
