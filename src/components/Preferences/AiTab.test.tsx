@@ -155,6 +155,64 @@ describe('AiTab', () => {
     await waitFor(() => expect(updateAiProvider).toHaveBeenCalledWith(7, expect.objectContaining({ model: 'm2' })));
     expect(updateAiProvider).toHaveBeenCalledWith(7, expect.not.objectContaining({ adminKey: expect.anything() }));
   });
+  it('clears a saved admin key after confirmation, never without', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    const p = { id: 7, name: 'GPT', type: 'openai' as const, baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: true, position: 0 };
+    vi.mocked(getAiProviders).mockResolvedValue({ providers: [p], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+    vi.mocked(updateAiProvider).mockResolvedValue({ ...p, hasAdminKey: false });
+    const { findByRole, getByRole, queryByRole, queryByText } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: /ai\.admin\.edit/ }));
+    fireEvent.click(getByRole('button', { name: 'ai.admin.clearKey' }));
+    expect(updateAiProvider).not.toHaveBeenCalled();
+    const dialog = await findByRole('dialog');
+    // La boîte ignore les validations pendant sa période de grâce : on réessaie.
+    await waitFor(() => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'ai.admin.clearKey' }));
+      expect(updateAiProvider).toHaveBeenCalledWith(7, { adminKey: null });
+    });
+    await waitFor(() => expect(queryByText('ai.admin.keySet')).toBeNull());
+    expect(queryByRole('button', { name: 'ai.admin.clearKey' })).toBeNull();
+    expect(queryByRole('dialog')).toBeNull();
+  });
+  it('cancelling the confirmation leaves the key alone', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    const p = { id: 7, name: 'GPT', type: 'openai' as const, baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: true, position: 0 };
+    vi.mocked(getAiProviders).mockResolvedValue({ providers: [p], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+    const { findByRole, getByRole, getByText, queryByRole } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: /ai\.admin\.edit/ }));
+    fireEvent.click(getByRole('button', { name: 'ai.admin.clearKey' }));
+    fireEvent.click(within(await findByRole('dialog')).getByRole('button', { name: 'dialog.cancel' }));
+    await waitFor(() => expect(queryByRole('dialog')).toBeNull());
+    expect(updateAiProvider).not.toHaveBeenCalled();
+    expect(getByText('ai.admin.keySet')).toBeTruthy();
+  });
+  it('a failed clear keeps the key and says so', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    const p = { id: 7, name: 'GPT', type: 'openai' as const, baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: true, position: 0 };
+    vi.mocked(getAiProviders).mockResolvedValue({ providers: [p], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+    vi.mocked(updateAiProvider).mockRejectedValue(new Error('network'));
+    const { findByRole, getByRole, getByText } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: /ai\.admin\.edit/ }));
+    fireEvent.click(getByRole('button', { name: 'ai.admin.clearKey' }));
+    const dialog = await findByRole('dialog');
+    await waitFor(() => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'ai.admin.clearKey' }));
+      expect(updateAiProvider).toHaveBeenCalled();
+    });
+    expect((await findByRole('alert')).textContent).toBe('ai.admin.saveError');
+    expect(getByText('ai.admin.keySet')).toBeTruthy();
+  });
+  it('offers no clear button when there is no saved key, nor when adding a provider', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    const p = { id: 7, name: 'Ollama', type: 'openai' as const, baseUrl: 'http://o', model: 'm', hasAdminKey: false, shared: false, position: 0 };
+    vi.mocked(getAiProviders).mockResolvedValue({ providers: [p], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+    const { findByRole, queryByRole, getByRole } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: /ai\.admin\.edit/ }));
+    expect(queryByRole('button', { name: 'ai.admin.clearKey' })).toBeNull();
+    fireEvent.click(getByRole('button', { name: 'ai.admin.close' }));
+    fireEvent.click(getByRole('button', { name: 'ai.admin.add' }));
+    expect(queryByRole('button', { name: 'ai.admin.clearKey' })).toBeNull();
+  });
   it('deleting asks first, then removes the provider and falls back to « none »', async () => {
     useAuthStore.setState({ backendUser: admin });
     const mk = (id: number, name: string, position: number) => ({ id, name, type: 'openai' as const, baseUrl: 'http://o', model: 'm', hasAdminKey: false, shared: true, position });

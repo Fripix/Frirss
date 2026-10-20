@@ -31,6 +31,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
   const [advanced, setAdvanced] = useState(false);
   const [capDraft, setCapDraft] = useState('50');
   const [toDelete, setToDelete] = useState<AiProviderAdmin | null>(null);
+  const [toClearKey, setToClearKey] = useState<AiProviderAdmin | null>(null);
   const [error, setError] = useState('');
   const [loadFailed, setLoadFailed] = useState(false);
   const [models, setModels] = useState<ModelsState | null>(null);
@@ -104,6 +105,22 @@ export default function AdminProviders({ active }: { active: boolean }) {
     if (settings.defaultProvider === p.id) setSettings((s) => ({ ...s, defaultProvider: null }));
     if (editing?.id === p.id) setEditing(null);
     reloadConfig();
+  }
+
+  /** Efface la clé enregistrée (`adminKey: null`) ; ce que l'on a tapé dans le champ n'est pas touché. */
+  async function clearKey(p: AiProviderAdmin) {
+    setError('');
+    try {
+      const result = await updateAiProvider(p.id, { adminKey: null });
+      setProviders((list) => list.map((x) => (x.id === result.id ? result : x)));
+      // La liste de modèles a été demandée avec l'ancienne clé enregistrée.
+      dropModels();
+      reloadConfig();
+    } catch {
+      setError(t('ai.admin.saveError'));
+    } finally {
+      setToClearKey(null);
+    }
   }
 
   async function move(id: number, dir: -1 | 1) {
@@ -274,6 +291,14 @@ export default function AdminProviders({ active }: { active: boolean }) {
             />}
           </div>
           {textField('adminKey', t('ai.admin.key'), { type: 'password', autoComplete: 'new-password', placeholder: editedHasKey ? t('ai.admin.keyKeep') : undefined })}
+          {editedHasKey && (
+            <button
+              type="button" onClick={() => setToClearKey(providers.find((x) => x.id === editing?.id) ?? null)}
+              className={quietBtn} style={{ color: 'var(--danger)' }}
+            >
+              {t('ai.admin.clearKey')}
+            </button>
+          )}
           <label className="prefs-tap-row flex items-center gap-2 text-xs" style={{ color: 'var(--list-title)' }}>
             <input type="checkbox" checked={!!draft.shared} onChange={(e) => setDraft({ shared: e.target.checked })} />
             {t('ai.admin.shared')}
@@ -345,6 +370,14 @@ export default function AdminProviders({ active }: { active: boolean }) {
         confirmLabel={t('ai.admin.delete')}
         onConfirm={() => toDelete ? remove(toDelete) : undefined}
         onCancel={() => setToDelete(null)}
+      />
+      <ConfirmDialog
+        open={toClearKey !== null}
+        title={t('ai.admin.clearKeyTitle', { name: toClearKey?.name ?? '' })}
+        warning={t('ai.admin.clearKeyWarning')}
+        confirmLabel={t('ai.admin.clearKey')}
+        onConfirm={() => toClearKey ? clearKey(toClearKey) : undefined}
+        onCancel={() => setToClearKey(null)}
       />
     </section>
   );

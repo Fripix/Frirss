@@ -1858,8 +1858,18 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   pour un utilisateur : clé personnelle > clé admin si le fournisseur est
   « partagé » > indisponible ; un `openai` **sans aucune clé admin** (Ollama)
   est disponible pour tous. Un **admin** se sert de la clé admin même d'un
-  fournisseur non partagé. Aucun écran ne permet encore d'**effacer** une clé
-  admin (l'API accepte `adminKey: null`) : plan 2.
+  fournisseur non partagé. L'admin peut **effacer** une clé enregistrée : dans
+  l'éditeur d'un fournisseur (« Modifier »), un bouton « Effacer la clé »
+  (`ai.admin.clearKey`) n'apparaît que si `hasAdminKey` est vrai. Il ouvre
+  un `ConfirmDialog` qui nomme le fournisseur et prévient que les résumés
+  passant par cette clé s'arrêteront jusqu'à ce qu'une nouvelle soit saisie
+  (`clearKeyTitle`, `clearKeyWarning`) ; jamais d'effacement sans cette
+  confirmation. Confirmer envoie `updateAiProvider(id, { adminKey: null })`
+  (`clearKey`, `ai/AdminProviders.tsx`) : la ligne perd sa mention « clé
+  enregistrée », la config est rechargée, la liste de modèles affichée est
+  fermée (elle venait de l'ancienne clé). Une clé encore en cours de saisie
+  dans le champ n'est pas touchée ; en cas d'échec, la clé reste et l'erreur
+  d'enregistrement s'affiche.
 - **Appels sortants** : `fetchUpstream` avec `trustedHosts: [hôte du
   fournisseur]` (même exemption que l'émetteur OIDC : URL fixée par l'admin ;
   un littéral IPv6 est reconnu, crochets retirés), `followRedirects: false`,
