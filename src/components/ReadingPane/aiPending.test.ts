@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { sharedSummaryRequest, __resetPendingSummariesForTests } from './aiPending';
+import { sharedSummaryRequest, sharedTranslationRequest, __resetPendingSummariesForTests } from './aiPending';
 
 const RESULT = { text: 'R', lang: 'fr', providerId: 1, providerName: 'P', model: 'm', fromCache: false };
 
@@ -23,5 +23,22 @@ describe('sharedSummaryRequest', () => {
     await sharedSummaryRequest('f', failing).catch(() => {});
     await sharedSummaryRequest('f', failing).catch(() => {});
     expect(failing).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('sharedTranslationRequest', () => {
+  const TRANSLATION = { segments: ['T'], lang: 'en', same: false, providerId: 1, providerName: 'P', model: 'm', fromCache: false };
+  it('hands back the pending translation for the same key, apart from the summaries', async () => {
+    const start = vi.fn(() => Promise.resolve(TRANSLATION));
+    const a = sharedTranslationRequest('u:a1:en:', start);
+    expect(sharedTranslationRequest('u:a1:en:', start)).toBe(a);
+    void sharedTranslationRequest('u:a1:de:', start);
+    expect(start).toHaveBeenCalledTimes(2);
+    const summary = vi.fn(() => Promise.resolve(RESULT));
+    void sharedSummaryRequest('u:a1:en:', summary);
+    expect(summary).toHaveBeenCalledTimes(1);
+    await a;
+    await sharedTranslationRequest('u:a1:en:', start);
+    expect(start).toHaveBeenCalledTimes(3);
   });
 });

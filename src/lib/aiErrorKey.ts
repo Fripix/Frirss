@@ -10,8 +10,13 @@
  * Une clé refusée ne se corrige que là où elle a été saisie : l'admin la
  * vérifie lui-même, un utilisateur prévient l'admin
  * — sauf si la clé refusée est la sienne (`ownKey`) : il la corrige lui-même.
+ *
+ * Le repli neutre dit ce qui a échoué : « Le résumé a échoué » pour un résumé,
+ * « La traduction a échoué » pour une traduction (`op: 'translate'`).
  */
-export function aiErrorKey(status: number | undefined, data: { error?: string; kind?: string; ownKey?: boolean; detail?: string } | undefined, isAdmin: boolean): string {
+export interface AiErrorOptions { op?: 'summary' | 'translate' }
+
+export function aiErrorKey(status: number | undefined, data: { error?: string; kind?: string; ownKey?: boolean; detail?: string } | undefined, isAdmin: boolean, options: AiErrorOptions = {}): string {
   const error = data?.error;
   if (error === 'ai_daily_cap') return 'ai.errors.cap';
   if (status === 429) return 'ai.errors.rateLimited';
@@ -23,7 +28,7 @@ export function aiErrorKey(status: number | undefined, data: { error?: string; k
   if (error === 'ai_failed' && data?.detail === 'segments') return 'ai.errors.segments';
   if (data?.kind === 'auth') return isAdmin || data.ownKey === true ? 'ai.errors.auth' : 'ai.errors.authUser';
   if (data?.kind === 'quota') return 'ai.errors.quota';
-  return 'ai.errors.technical';
+  return options.op === 'translate' ? 'ai.errors.translateFailed' : 'ai.errors.technical';
 }
 
 export interface AiErrorMessage { key: string; params?: Record<string, string | number> }
@@ -41,8 +46,9 @@ export function aiErrorMessage(
   data: { error?: string; kind?: string; ownKey?: boolean; detail?: string; cap?: unknown; resetAt?: unknown } | undefined,
   isAdmin: boolean,
   language: string,
+  options: AiErrorOptions = {},
 ): AiErrorMessage {
-  const key = aiErrorKey(status, data, isAdmin);
+  const key = aiErrorKey(status, data, isAdmin, options);
   if (key !== 'ai.errors.cap') return { key };
   const cap = data?.cap;
   const reset = typeof data?.resetAt === 'string' ? new Date(data.resetAt) : null;

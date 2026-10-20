@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, screen, within } from '@testing-library/react';
-import AiSummary from './AiSummary';
+import AiSummary, { type AiSummaryProps } from './AiSummary';
 import { useUiStore } from '../../stores/uiStore';
 import type { AiProviderView, AiSummaryResult } from '../../api/backend';
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (o?.name ? `${k}:${o.name}` : k) }) }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (o?.name ? `${k}:${o.name}` : k), i18n: { language: 'fr' } }) }));
 const breakpoint = vi.fn<() => 'desktop' | 'tablet' | 'mobile'>(() => 'desktop');
 vi.mock('../../hooks/useBreakpoint', () => ({ useBreakpoint: () => breakpoint() }));
 beforeEach(() => {
@@ -21,8 +21,10 @@ const providers: AiProviderView[] = [
 ];
 const result: AiSummaryResult = { text: 'Premier.\n\nSecond.', lang: 'fr', providerId: 2, providerName: 'Ollama', model: 'm', fromCache: false, fellBackFrom: 'Claude' };
 const noop = () => {};
-const idleProps = { status: 'idle' as const, result: null, error: null, providers, onSummarize: noop };
-const doneProps = { status: 'done' as const, result, error: null, providers, onSummarize: noop };
+const noTranslation: AiSummaryProps['translation'] = { status: 'idle', text: null, lang: null, error: null };
+const translationProps = { translation: noTranslation, onTranslate: noop, onShowSource: noop, targetLang: 'en' as const };
+const idleProps = { status: 'idle' as const, result: null, error: null, providers, onSummarize: noop, ...translationProps };
+const doneProps = { status: 'done' as const, result, error: null, providers, onSummarize: noop, ...translationProps };
 
 /** L'en-tête : son nom accessible commence par le titre, suivi du statut. */
 const TOGGLE = { name: /^ai\.summarize\s/ };
@@ -289,5 +291,94 @@ describe('AiSummary — « Résumer avec… »', () => {
     expect(queryByRole('menu')).toBeNull();
     rerender(<AiSummary {...doneProps} />);
     expect(queryByRole('menu')).toBeNull();
+  });
+});
+
+describe('AiSummary — traduction du résumé', () => {
+  const TRANSLATE = { name: 'ai.translate' };
+  const MENU = { name: 'ai.translateMenu' };
+  const translated: AiSummaryProps['translation'] = { status: 'done', text: 'First.\n\nSecond one.', lang: 'en', providerId: 1, providerName: 'Claude', fellBackFrom: 'Mistral', error: null };
+
+  it('offers no translation when the summary is already in the target language', () => {
+    const { queryByRole } = render(<AiSummary {...doneProps} targetLang="fr" />);
+    expect(queryByRole('button', TRANSLATE)).toBeNull();
+    expect(queryByRole('button', MENU)).toBeNull();
+  });
+  it('offers no translation before there is a summary', () => {
+    const { queryByRole } = render(<AiSummary {...idleProps} />);
+    expect(queryByRole('button', TRANSLATE)).toBeNull();
+  });
+  it('a split action: « Traduire » asks for the target, the chevron opens the menu', () => {
+    const onTranslate = vi.fn();
+    const { getByRole } = render(<AiSummary {...doneProps} onTranslate={onTranslate} />);
+    const toggle = getByRole('button', TOGGLE);
+    const main = getByRole('button', TRANSLATE);
+    const chevron = getByRole('button', MENU);
+    expect(toggle.contains(main)).toBe(false);
+    expect(chevron.getAttribute('aria-haspopup')).toBe('menu');
+    expect(chevron.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(main);
+    expect(onTranslate).toHaveBeenCalledWith(undefined);
+    fireEvent.click(chevron);
+    expect(chevron.getAttribute('aria-expanded')).toBe('true');
+    const menu = getByRole('menu');
+    fireEvent.click(within(within(menu).getByRole('group', { name: 'ai.translateTo' })).getAllByRole('menuitem')[0]);
+    expect(onTranslate).toHaveBeenLastCalledWith({ lang: 'en' });
+    fireEvent.click(chevron);
+    fireEvent.click(within(getByRole('menu')).getByRole('menuitem', { name: 'Ollama' }));
+    expect(onTranslate).toHaveBeenLastCalledWith({ providerId: 2 });
+  });
+  it('touch: both halves are 44 px, the menu is a sheet', () => {
+    breakpoint.mockImplementation(() => 'mobile');
+    const { getByRole } = render(<AiSummary {...doneProps} />);
+    expect(getByRole('button', TRANSLATE).className).toContain('min-h-[44px]');
+    const chevron = getByRole('button', MENU);
+    expect(chevron.className).toContain('min-h-[44px]');
+    expect(chevron.className).toContain('min-w-[44px]');
+    fireEvent.click(chevron);
+    expect(getByRole('dialog', { name: 'ai.translateMenu' }).className).toContain('bottom-sheet');
+  });
+  it('loading: the action is disabled and says « Traduction… », the summary stays', () => {
+    const { getByRole, getByText } = render(<AiSummary {...doneProps} translation={{ ...noTranslation, status: 'loading' }} />);
+    const main = getByRole('button', { name: 'ai.translating' }) as HTMLButtonElement;
+    expect(main.disabled).toBe(true);
+    expect(main.getAttribute('aria-busy')).toBe('true');
+    expect((getByRole('button', MENU) as HTMLButtonElement).disabled).toBe(true);
+    expect(getByText('Premier.')).toBeTruthy();
+  });
+  it('done: the body shows the translation, the status says who translated it, the action turns into « Texte source »', () => {
+    const onShowSource = vi.fn();
+    const { getByRole, getByText, queryByText, queryByRole } = render(<AiSummary {...doneProps} translation={translated} onShowSource={onShowSource} />);
+    expect(getByText('First.')).toBeTruthy();
+    expect(getByText('Second one.')).toBeTruthy();
+    expect(queryByText('Premier.')).toBeNull();
+    expect(headerText('ai.by:Ollama')).toBeTruthy();
+    expect(headerText('ai.translatedBy:Claude')).toBeTruthy();
+    expect(headerText('ai.fellBack:Mistral')).toBeTruthy();
+    expect(queryByRole('button', TRANSLATE)).toBeNull();
+    fireEvent.click(getByRole('button', { name: 'ai.showSource' }));
+    expect(onShowSource).toHaveBeenCalled();
+    expect(getByRole('status').textContent).toContain('ai.translatedBy:Claude');
+  });
+  it('done while the summary is already in the target language: « Texte source » stays reachable', () => {
+    const { getByRole } = render(<AiSummary {...doneProps} targetLang="fr" translation={{ ...translated, lang: 'de' }} />);
+    expect(getByRole('button', { name: 'ai.showSource' })).toBeTruthy();
+  });
+  it('folded: a translation arriving does not unfold the panel', () => {
+    useUiStore.setState({ aiPanelCollapsed: true });
+    const onTranslate = vi.fn();
+    const { getByRole, rerender, queryByText } = render(<AiSummary {...doneProps} onTranslate={onTranslate} />);
+    fireEvent.click(getByRole('button', TRANSLATE));
+    rerender(<AiSummary {...doneProps} translation={{ ...noTranslation, status: 'loading' }} />);
+    rerender(<AiSummary {...doneProps} translation={translated} />);
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
+    expect(queryByText('First.')).toBeNull();
+    expect(headerText('ai.translatedBy:Claude')).toBeTruthy();
+  });
+  it('error: an alert under the summary, which stays', () => {
+    const { getByRole, getByText } = render(<AiSummary {...doneProps} translation={{ ...noTranslation, status: 'error', error: 'ai.errors.translateFailed' }} />);
+    expect(getByRole('alert').textContent).toBe('ai.errors.translateFailed');
+    expect(getByText('Premier.')).toBeTruthy();
+    expect(getByRole('button', TRANSLATE)).toBeTruthy();
   });
 });

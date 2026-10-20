@@ -745,7 +745,8 @@
       "noProvider": "Kein Anbieter verfügbar.",
       "technical": "Die Zusammenfassung ist fehlgeschlagen. Versuchen Sie es erneut.",
       "invalidLang": "Sprache nicht verfügbar.",
-      "segments": "Der Anbieter hat keine verwertbare Übersetzung geliefert. Versuchen Sie es erneut."
+      "segments": "Der Anbieter hat keine verwertbare Übersetzung geliefert. Versuchen Sie es erneut.",
+      "translateFailed": "Die Übersetzung ist fehlgeschlagen. Versuchen Sie es erneut."
     },
     "admin": {
       "title": "Anbieter",
@@ -858,7 +859,16 @@
       "language": "Zielsprache",
       "uiLanguage": "Sprache der Oberfläche ({{name}})",
       "provider": "Anbieter",
-      "sameAsSummary": "Wie bei der Zusammenfassung"
-    }
+      "sameAsSummary": "Wie bei der Zusammenfassung",
+      "alreadyTarget": "Bereits auf {{lang}}.",
+      "filter": "Sprachen filtern"
+    },
+    "translate": "Übersetzen",
+    "translating": "Wird übersetzt…",
+    "showSource": "Originaltext",
+    "translatedBy": "von {{name}} auf {{lang}} übersetzt",
+    "translateTo": "Übersetzen in…",
+    "translateWith": "Übersetzen mit…",
+    "translateMenu": "Übersetzungsoptionen"
   }
 }

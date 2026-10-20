@@ -2342,9 +2342,44 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     un popover en portail sur le format ordinateur (Échap, Tab, flèches, clic
     extérieur ; le focus revient au déclencheur) et une feuille du bas sur les
     formats tablette et smartphone (`useBreakpoint() !== 'desktop'`, le format
-    est forçable manuellement : ce n'est pas la détection du tactile).
+    est forçable manuellement : ce n'est pas la détection du tactile). Le
+    popover vit dans `ReadingPane/Popover.tsx`, partagé avec le menu de
+    traduction.
+  - **Traduire le résumé** : à côté de « Résumer avec… », un **bouton scindé**
+    cerclé du filet du panneau — « Traduire » (vers la langue cible : réglage
+    `aiTranslationLanguage`, ou `targetLanguage()` de la langue d'interface pour
+    `ui`) et un chevron (`aria-haspopup`, libellé « Options de traduction »).
+    Il n'apparaît que si le résumé n'est **pas déjà** dans la langue cible
+    (`sameLanguage(result.lang, cible)` ; une langue détectée inconnue le
+    laisse paraître), jamais pendant une demande de résumé. Pendant la
+    traduction, il est désactivé avec « Traduction… » et le statut ajoute
+    « Traduction… » — replié, c'est la seule trace. Le chevron ouvre
+    `TranslateMenu.tsx` : « Traduire en… » (la langue courante cochée en tête,
+    puis les 27 autres triées par leur nom `Intl.DisplayNames` dans la langue
+    d'interface, avec un champ « Filtrer les langues » au-delà de 12, comme la
+    liste des modèles ; liste bornée en hauteur pour que la seconde section
+    reste en vue) et « Traduire avec… » (fournisseurs `available`, celui de la
+    traduction affichée coché). Popover en portail sur ordinateur, feuille du
+    bas sur tablette et smartphone, comme « Résumer avec… ». « Traduire avec X »
+    vise la langue de la traduction affichée (sinon la cible) et **garde le
+    réglage de repli**, comme « Résumer avec X ». Traduit, le corps montre la
+    traduction, le statut ajoute « traduit en {langue} par Y » (et « X
+    indisponible » si le repli a joué), la région vivante l'annonce, et
+    « Traduire » devient **« Texte source »**, qui rend le résumé d'origine
+    sans requête. Une traduction qui arrive panneau replié ne le déplie pas.
+    Si le serveur répond `same` (le texte est déjà dans la langue demandée),
+    rien ne change dans le panneau et un toast bref dit « Déjà en {langue}. ».
+    Un échec s'affiche en alerte sous le résumé, qui reste ; sans cause connue,
+    il dit « La traduction a échoué. Réessayez. » (`aiErrorKey(…, { op:
+    'translate' })`), pas le message du résumé. La traduction est oubliée au
+    changement d'article et à l'arrivée d'un autre résumé ; une réponse
+    arrivée après coup est ignorée (`aiTranslationSeq`). Les demandes en vol
+    sont partagées comme celles du résumé (`aiPending.ts`, clé : compte,
+    article, texte du résumé, langue, fournisseur forcé) : revenir sur
+    l'article pendant la traduction ne la paie pas deux fois.
   - L'action est **désactivée hors ligne** (`useOnlineStatus`, qui suit les
-    événements `online` / `offline`) ; le panneau est **absent** quand l'IA est
+    événements `online` / `offline`) — « Traduire » et son chevron aussi ;
+    « Texte source », qui n'appelle rien, reste disponible ; le panneau est **absent** quand l'IA est
     éteinte ou qu'aucun fournisseur n'est disponible pour cet utilisateur
     (`providers.some(p => p.available)`) : il ne ferait que répondre « aucun
     fournisseur ».

@@ -23,15 +23,16 @@ import { formatArticleDate } from '../../utils/dates';
 import { IMAGE_CACHE_NAME } from '../../lib/storageEstimate';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 import BottomSheet from '../BottomSheet';
-import AiSummary from './AiSummary';
+import AiSummary, { type AiSummaryProps } from './AiSummary';
 import { expandOnFirstSummary } from './aiPanelExpand';
 import { useAiStore, aiEnabled } from '../../stores/aiStore';
-import { requestAiSummary, type AiSummaryResult, type AiProviderView } from '../../api/backend';
+import { requestAiSummary, requestAiTranslation, type AiSummaryResult, type AiProviderView } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { stripMediaForSummary, fitSummaryPayload } from '../../lib/aiPayload';
 import { aiErrorMessage } from '../../lib/aiErrorKey';
-import { sharedSummaryRequest } from './aiPending';
+import { sharedSummaryRequest, sharedTranslationRequest } from './aiPending';
+import { languageName, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import { aiRouting } from '../../lib/aiRouting';
 import axios from 'axios';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
@@ -39,6 +40,7 @@ import axios from 'axios';
 // Référence stable : un `?? []` dans le sélecteur zustand en créerait une neuve à
 // chaque lecture (config encore nulle) et boucle en « maximum update depth ».
 const NO_AI_PROVIDERS: AiProviderView[] = [];
+const NO_AI_TRANSLATION: AiSummaryProps['translation'] = { status: 'idle', text: null, lang: null, error: null };
 // Temps passé sur un article avant que son résumé automatique ne parte (spec
 // §8 : la demande est « annulée si l'article change »).
 const AUTO_SUMMARY_DELAY_MS = 1000;
@@ -192,6 +194,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const aiRatio = useUiStore((s) => s.aiSummaryRatio);
   const aiAutoSummary = useUiStore((s) => s.aiAutoSummary);
   const autoSummarisedId = useRef<string | null>(null);
+  // Traduction du résumé affiché. `aiTranslationSeq` désigne la demande dont
+  // la réponse est encore attendue : changer d'article, recevoir un autre
+  // résumé ou revenir au texte source l'incrémente, et une réponse d'une
+  // demande antérieure est ignorée.
+  const [aiTranslation, setAiTranslation] = useState<AiSummaryProps['translation']>(NO_AI_TRANSLATION);
+  const aiTranslationSeq = useRef(0);
+  const aiTranslationLanguage = useUiStore((s) => s.aiTranslationLanguage);
+  const aiTargetLang: AiLanguage = aiTranslationLanguage === 'ui' ? targetLanguage(i18n.language) : aiTranslationLanguage;
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
   const online = useOnlineStatus();
   // Aucun fournisseur utilisable pour cet utilisateur : une pastille qui ne
@@ -200,6 +210,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   useEffect(() => {
     setAiStatus('idle'); setAiResult(null); setAiError(null); aiInFlight.current = null;
+    setAiTranslation(NO_AI_TRANSLATION); aiTranslationSeq.current++;
     // Le résumé automatique est « une fois par VISITE » : le résumé qu'on vient
     // d'effacer doit pouvoir repartir si l'on revient sur cet article. Déclaré
     // avant l'effet de déclenchement, qui le repose dans la même passe.
@@ -788,6 +799,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       }));
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
       setAiResult(r); setAiStatus('done');
+      // La traduction était celle du résumé précédent.
+      setAiTranslation(NO_AI_TRANSLATION); aiTranslationSeq.current++;
     } catch (err) {
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
       const resp = axios.isAxiosError(err) ? err.response : undefined;
@@ -805,6 +818,49 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (aiInFlight.current === id) aiInFlight.current = null;
     }
   }, [selectedArticle, extractedContent, extractFor, t, i18n, isAdmin, aiRatio]);
+
+  // Traduire le résumé affiché. « Traduire » vise la langue cible ; « Traduire
+  // en… » une autre langue ; « Traduire avec… » force un fournisseur pour la
+  // langue de la traduction affichée (sinon la cible) et, comme « Résumer avec
+  // X », garde le réglage de repli : si X échoue, le statut dit « X
+  // indisponible ». Les demandes en vol sont partagées (`aiPending.ts`).
+  const handleTranslateSummary = useCallback(async (choice?: { lang?: AiLanguage; providerId?: number }) => {
+    if (!selectedArticle || !aiResult || aiTranslation.status === 'loading') return;
+    const id = selectedArticle.id;
+    const text = aiResult.text;
+    const shownLang = aiTranslation.status === 'done' ? aiTranslation.lang : null;
+    const lang = choice?.lang ?? (choice?.providerId !== undefined ? shownLang : null) ?? aiTargetLang;
+    const seq = ++aiTranslationSeq.current;
+    setAiTranslation({ ...NO_AI_TRANSLATION, status: 'loading' });
+    try {
+      const key = `${useAuthStore.getState().backendUser?.id ?? ''}:${id}:${lang}:${choice?.providerId ?? ''}:${text}`;
+      const r = await sharedTranslationRequest(key, () => requestAiTranslation({
+        articleId: id, scope: 'summary', targetLang: lang, segments: [text],
+        provider: choice?.providerId,
+        ...aiRouting(selectedArticle.sourceId, useFeedStore.getState().subscriptions, useUiStore.getState(), { op: 'translate' }),
+      }));
+      if (aiTranslationSeq.current !== seq) return;
+      if (r.same) {
+        setAiTranslation(NO_AI_TRANSLATION);
+        pushToast(t('ai.translation.alreadyTarget', { lang: languageName(lang, i18n.language) }));
+        return;
+      }
+      setAiTranslation({
+        status: 'done', text: r.segments.join('\n\n'), lang, error: null,
+        providerId: r.providerId, providerName: r.providerName, fellBackFrom: r.fellBackFrom,
+      });
+    } catch (err) {
+      if (aiTranslationSeq.current !== seq) return;
+      const resp = axios.isAxiosError(err) ? err.response : undefined;
+      const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], isAdmin, i18n.language, { op: 'translate' });
+      setAiTranslation({ ...NO_AI_TRANSLATION, status: 'error', error: t(msg.key, msg.params) });
+    }
+  }, [selectedArticle, aiResult, aiTranslation, aiTargetLang, isAdmin, t, i18n, pushToast]);
+
+  const showSummarySource = useCallback(() => {
+    aiTranslationSeq.current++;
+    setAiTranslation(NO_AI_TRANSLATION);
+  }, []);
 
   // Raccourci clavier et palette : `useKeyboardNav` / `CommandPalette` diffusent
   // l'événement, et c'est ici — où vivent l'état et la requête — qu'on y répond.
@@ -1393,6 +1449,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               status={aiStatus} result={aiResult} error={aiError} providers={aiProviders}
               onSummarize={handleSummarize}
               disabled={!online}
+              translation={aiTranslation} onTranslate={handleTranslateSummary}
+              onShowSource={showSummarySource} targetLang={aiTargetLang}
             />
           )}
 

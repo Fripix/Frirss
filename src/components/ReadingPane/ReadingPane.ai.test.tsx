@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, fireEvent, act, waitFor } from '@testing-library/react';
+import { render, cleanup, fireEvent, act, waitFor, within } from '@testing-library/react';
 import type { Article } from '../../types';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'fr' } }) }));
@@ -13,7 +13,7 @@ vi.mock('../../api/feeds', () => ({
   getTagList: vi.fn(), getStreamItemCount: vi.fn(), setArticleLabel: vi.fn(),
   renameTag: vi.fn(), deleteTag: vi.fn(), clearWriteToken: vi.fn(),
 }));
-vi.mock('../../api/backend', () => ({ startActualize: vi.fn(), getActualizeStatus: vi.fn(), getAiConfig: vi.fn(), requestAiSummary: vi.fn() }));
+vi.mock('../../api/backend', () => ({ startActualize: vi.fn(), getActualizeStatus: vi.fn(), getAiConfig: vi.fn(), requestAiSummary: vi.fn(), requestAiTranslation: vi.fn() }));
 vi.mock('../../lib/offlineStore', () => ({
   listGet: vi.fn(() => Promise.resolve(undefined)), listPut: vi.fn(() => Promise.resolve()),
   listEvictOlderThan: vi.fn(() => Promise.resolve()), subsGet: vi.fn(() => Promise.resolve(undefined)),
@@ -31,12 +31,13 @@ vi.mock('../../utils/extractContent', () => ({ extractFullContent: vi.fn() }));
 import ReadingPane from './ReadingPane';
 import { useFeedStore } from '../../stores/feedStore';
 import { useAiStore } from '../../stores/aiStore';
-import { requestAiSummary } from '../../api/backend';
+import { requestAiSummary, requestAiTranslation } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import { extractFullContent } from '../../utils/extractContent';
 import { putExtract } from '../../lib/extractCache';
 import { __resetPendingSummariesForTests } from './aiPending';
+import { languageName } from '../../lib/aiLanguages';
 
 const article = (id: string) => ({
   id, title: 'Titre ' + id, summary: 's', source: 'Src', sourceId: 'feed/1',
@@ -53,9 +54,11 @@ beforeEach(() => {
     aiPanelCollapsed: false, aiPanelAutoExpanded: false, aiSummaryRatio: 20, aiAutoSummary: false,
     autoExtractDefault: false,
     feedSettings: {}, aiCategoryProviders: {}, aiPreferredProvider: null, aiFallback: true,
+    aiTranslationLanguage: 'ui', aiTranslationProvider: null, toasts: [],
   });
   useFeedStore.setState({ subscriptions: [] });
   vi.mocked(requestAiSummary).mockReset();
+  vi.mocked(requestAiTranslation).mockReset();
   vi.mocked(extractFullContent).mockReset();
   __resetPendingSummariesForTests();
 });
@@ -589,5 +592,110 @@ describe('ReadingPane — Résumé IA', () => {
       fire();
       expect(requestAiSummary).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('ReadingPane — traduction du résumé', () => {
+  const TWO = { ...ON, providers: [...ON.providers, { id: 2, name: 'Claude', type: 'anthropic' as const, hasAdminKey: true, shared: true, hasUserKey: false, available: true }] };
+  const translation = (segments: string[], over: Record<string, unknown> = {}) =>
+    ({ segments, lang: 'fr', same: false, providerId: 2, providerName: 'Claude', model: 'm', fromCache: false, ...over });
+
+  async function summarized() {
+    vi.mocked(requestAiSummary).mockResolvedValue({ text: 'The summary.', lang: 'en', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+    const utils = render(<ReadingPane />);
+    fireEvent.click(utils.getByRole('button', { name: 'ai.summarizeAction' }));
+    await utils.findByText('The summary.');
+    return utils;
+  }
+
+  it('« Traduire » sends the summary, scope summary, to the interface language, then shows it', async () => {
+    useUiStore.setState({ aiTranslationProvider: 2 });
+    vi.mocked(requestAiTranslation).mockResolvedValue(translation(['Le résumé traduit.']));
+    const { getByRole, findByText, queryByText } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    expect(requestAiTranslation).toHaveBeenCalledWith(expect.objectContaining({
+      articleId: 'a1', scope: 'summary', targetLang: 'fr', segments: ['The summary.'], translationProvider: 2, fallback: true,
+    }));
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).not.toHaveProperty('provider', expect.anything());
+    expect(await findByText('Le résumé traduit.')).toBeTruthy();
+    expect(queryByText('The summary.')).toBeNull();
+    fireEvent.click(getByRole('button', { name: 'ai.showSource' }));
+    expect(await findByText('The summary.')).toBeTruthy();
+    expect(getByRole('button', { name: 'ai.translate' })).toBeTruthy();
+  });
+  it('uses the target language of the preferences when one is set', async () => {
+    useUiStore.setState({ aiTranslationLanguage: 'ja' });
+    vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+    const { getByRole } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ targetLang: 'ja' });
+  });
+  it('same: a short notice, the summary unchanged', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translation(['The summary.'], { same: true, lang: 'fr' }));
+    const { getByRole, getByText } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    await waitFor(() => expect(useUiStore.getState().toasts.map((x) => x.message)).toContain('ai.translation.alreadyTarget'));
+    expect(getByText('The summary.')).toBeTruthy();
+    expect(getByRole('button', { name: 'ai.translate' })).toBeTruthy();
+  });
+  it('« Traduire en… » sends the language picked', async () => {
+    vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+    const { getByRole } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
+    const langs = within(getByRole('group', { name: 'ai.translateTo' }));
+    fireEvent.click(langs.getByRole('menuitem', { name: languageName('de', 'fr') }));
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ scope: 'summary', targetLang: 'de' });
+  });
+  it('« Traduire avec… » forces the provider and keeps the fallback setting', async () => {
+    useAiStore.setState({ config: TWO });
+    useUiStore.setState({ aiFallback: false });
+    vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+    const { getByRole } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
+    fireEvent.click(within(getByRole('group', { name: 'ai.translateWith' })).getByRole('menuitem', { name: 'Claude' }));
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ provider: 2, targetLang: 'fr', fallback: false });
+  });
+  it('a failure with no known cause says the translation failed, and keeps the summary', async () => {
+    vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
+    const { getByRole, findByRole, getByText } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    expect((await findByRole('alert')).textContent).toBe('ai.errors.translateFailed');
+    expect(getByText('The summary.')).toBeTruthy();
+  });
+  it('forgets the translation on the next article, and ignores one that arrives late', async () => {
+    let resolve!: (v: unknown) => void;
+    vi.mocked(requestAiTranslation).mockReturnValue(new Promise((r) => { resolve = r; }) as never);
+    const { getByRole, queryByText, queryByRole } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    act(() => { useFeedStore.setState({ selectedArticle: article('a2') }); });
+    await act(async () => { resolve(translation(['Trop tard.'])); });
+    expect(queryByText('Trop tard.')).toBeNull();
+    expect(queryByRole('button', { name: 'ai.showSource' })).toBeNull();
+  });
+  it('reuses the translation still in flight when the user comes back to its article', async () => {
+    let resolve!: (v: unknown) => void;
+    vi.mocked(requestAiTranslation).mockReturnValue(new Promise((r) => { resolve = r; }) as never);
+    const { getByRole, findByText, findByRole } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    act(() => { useFeedStore.setState({ selectedArticle: article('a2') }); });
+    act(() => { useFeedStore.setState({ selectedArticle: article('a1') }); });
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    await findByText('The summary.');
+    fireEvent.click(await findByRole('button', { name: 'ai.translate' }));
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    await act(async () => { resolve(translation(['Le résumé traduit.'])); });
+    expect(await findByText('Le résumé traduit.')).toBeTruthy();
+  });
+  it('a new summary drops the translation of the previous one', async () => {
+    useAiStore.setState({ config: TWO });
+    vi.mocked(requestAiTranslation).mockResolvedValue(translation(['Le résumé traduit.']));
+    const { getByRole, findByText, findByRole } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    await findByText('Le résumé traduit.');
+    vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Another summary.', lang: 'en', providerId: 2, providerName: 'Claude', model: 'm', fromCache: false });
+    fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
+    fireEvent.click(getByRole('menuitem', { name: 'Claude' }));
+    expect(await findByText('Another summary.')).toBeTruthy();
+    expect(await findByRole('button', { name: 'ai.translate' })).toBeTruthy();
   });
 });

@@ -21,6 +21,14 @@ describe('aiErrorKey', () => {
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'auth' }, false)).toBe('ai.errors.authUser');
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'quota', ownKey: true }, false)).toBe('ai.errors.quota');
   });
+  it('a translation with no known cause says the translation failed, not the summary', () => {
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical' }, false, { op: 'translate' })).toBe('ai.errors.translateFailed');
+    expect(aiErrorKey(undefined, undefined, false, { op: 'translate' })).toBe('ai.errors.translateFailed');
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical' }, false)).toBe('ai.errors.technical');
+    expect(aiErrorKey(400, { error: 'invalid_lang' }, false, { op: 'translate' })).toBe('ai.errors.invalidLang');
+    expect(aiErrorMessage(502, { error: 'ai_failed' }, false, 'en', { op: 'translate' })).toEqual({ key: 'ai.errors.translateFailed' });
+    expect(aiErrorMessage(502, { error: 'ai_failed' }, false, 'en')).toEqual({ key: 'ai.errors.technical' });
+  });
   it('maps the translation errors', () => {
     expect(aiErrorKey(400, { error: 'invalid_lang' }, false)).toBe('ai.errors.invalidLang');
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'segments' }, false)).toBe('ai.errors.segments');

@@ -745,7 +745,8 @@
       "noProvider": "Ningún proveedor disponible.",
       "technical": "El resumen ha fallado. Inténtalo de nuevo.",
       "invalidLang": "Idioma no disponible.",
-      "segments": "El proveedor no devolvió una traducción utilizable. Inténtelo de nuevo."
+      "segments": "El proveedor no devolvió una traducción utilizable. Inténtelo de nuevo.",
+      "translateFailed": "La traducción ha fallado. Inténtalo de nuevo."
     },
     "admin": {
       "title": "Proveedores",
@@ -858,7 +859,16 @@
       "language": "Idioma de destino",
       "uiLanguage": "Idioma de la interfaz ({{name}})",
       "provider": "Proveedor",
-      "sameAsSummary": "El mismo que el resumen"
-    }
+      "sameAsSummary": "El mismo que el resumen",
+      "alreadyTarget": "Ya está en {{lang}}.",
+      "filter": "Filtrar idiomas"
+    },
+    "translate": "Traducir",
+    "translating": "Traduciendo…",
+    "showSource": "Texto original",
+    "translatedBy": "traducido al {{lang}} por {{name}}",
+    "translateTo": "Traducir a…",
+    "translateWith": "Traducir con…",
+    "translateMenu": "Opciones de traducción"
   }
 }

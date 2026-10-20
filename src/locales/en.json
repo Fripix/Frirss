@@ -745,7 +745,8 @@
       "noProvider": "No provider available.",
       "technical": "The summary failed. Try again.",
       "invalidLang": "Language not offered.",
-      "segments": "The provider did not return a usable translation. Try again."
+      "segments": "The provider did not return a usable translation. Try again.",
+      "translateFailed": "The translation failed. Try again."
     },
     "admin": {
       "title": "Providers",
@@ -858,7 +859,16 @@
       "language": "Target language",
       "uiLanguage": "Interface language ({{name}})",
       "provider": "Provider",
-      "sameAsSummary": "Same as the summary"
-    }
+      "sameAsSummary": "Same as the summary",
+      "alreadyTarget": "Already in {{lang}}.",
+      "filter": "Filter languages"
+    },
+    "translate": "Translate",
+    "translating": "Translating…",
+    "showSource": "Source text",
+    "translatedBy": "translated into {{lang}} by {{name}}",
+    "translateTo": "Translate into…",
+    "translateWith": "Translate with…",
+    "translateMenu": "Translation options"
   }
 }

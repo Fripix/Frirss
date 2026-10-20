@@ -1,12 +1,16 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback, useId, type ReactNode } from 'react';
+import { useState, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import { clampToViewport } from '../../lib/clampToViewport';
 import BottomSheet from '../BottomSheet';
+import Popover from './Popover';
+import TranslateMenu from './TranslateMenu';
 import { useUiStore } from '../../stores/uiStore';
 import { expandOnFirstSummary } from './aiPanelExpand';
+import { AI_LANGUAGES, languageName, sameLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import type { AiProviderView, AiSummaryResult } from '../../api/backend';
+
+const ALL_LANGUAGES = [...AI_LANGUAGES];
 
 export interface AiSummaryProps {
   status: 'idle' | 'loading' | 'done' | 'error';
@@ -15,6 +19,12 @@ export interface AiSummaryProps {
   providers: AiProviderView[];
   onSummarize: (providerId?: number) => void;
   disabled?: boolean;
+  /** La traduction du résumé affiché ; `providerId` sert à cocher le fournisseur dans le menu. */
+  translation: { status: 'idle' | 'loading' | 'done' | 'error'; text: string | null; lang: AiLanguage | null; providerId?: number; providerName?: string; fellBackFrom?: string; error: string | null };
+  onTranslate: (choice?: { lang?: AiLanguage; providerId?: number }) => void;
+  onShowSource: () => void;
+  /** Langue cible par défaut (réglage, ou langue de l'interface). */
+  targetLang: AiLanguage;
 }
 
 /**
@@ -47,9 +57,16 @@ export interface AiSummaryProps {
  *   points de suspension disent déjà qu'un choix suit ;
  * - « Résumer » est la seule action pleine (fond accent) ; « Résumer avec… »
  *   est rare, donc discrète.
+ *
+ * Traduction du résumé : un bouton scindé, cerclé du filet du panneau —
+ * « Traduire » (vers la langue cible) et un chevron qui ouvre « Traduire en… »
+ * / « Traduire avec… ». Il n'apparaît que si le résumé n'est pas déjà dans la
+ * langue cible. Traduit, le corps montre la traduction, le statut ajoute
+ * « traduit en X par Y », et « Traduire » devient « Texte source ». Comme le
+ * résumé, une traduction qui arrive panneau replié ne le rouvre pas.
  */
-export default function AiSummary({ status, result, error, providers, onSummarize, disabled }: AiSummaryProps) {
-  const { t } = useTranslation();
+export default function AiSummary({ status, result, error, providers, onSummarize, disabled, translation, onTranslate, onShowSource, targetLang }: AiSummaryProps) {
+  const { t, i18n } = useTranslation();
   const touch = useBreakpoint() !== 'desktop';
   const uid = useId();
   const bodyId = `${uid}-body`;
@@ -57,12 +74,25 @@ export default function AiSummary({ status, result, error, providers, onSummariz
   const setCollapsed = useUiStore((s) => s.setAiPanelCollapsed);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuAnchor = useRef<HTMLButtonElement>(null);
+  const [translateMenuOpen, setTranslateMenuOpen] = useState(false);
+  const translateAnchor = useRef<HTMLButtonElement>(null);
   const available = providers.filter((p) => p.available);
   const loading = status === 'loading';
   // Le résumé reste affiché pendant une nouvelle demande (« Résumer avec… ») et
   // après un échec : il n'est remplacé que par un autre résumé.
   const done = status !== 'idle' && result ? result : null;
   const failed = status === 'error' && !!error;
+  const translated = translation.status === 'done' && translation.text !== null && translation.lang !== null
+    ? { ...translation, text: translation.text, lang: translation.lang }
+    : null;
+  const translating = translation.status === 'loading';
+  const translateFailed = translation.status === 'error' && !!translation.error;
+  // « Texte source » reste atteignable même si la langue cible a changé entre-temps.
+  const translatable = !!done && !loading && available.length > 0 && (!!translated || !sameLanguage(done.lang, targetLang));
+  const translateMenuShown = translateMenuOpen && translatable && !translating;
+  if (translateMenuOpen && !translateMenuShown) setTranslateMenuOpen(false);
+  // Une seule alerte à la fois : celle du résumé prime.
+  const alertText = failed ? error : translateFailed ? translation.error : null;
 
   // Le menu n'existe que tant qu'un résumé est affiché et qu'aucune demande ne
   // tourne : si le statut change, il ne doit pas rester ouvert ni rouvrir.
@@ -76,6 +106,10 @@ export default function AiSummary({ status, result, error, providers, onSummariz
     setMenuOpen(false);
     menuAnchor.current?.focus();
   }, []);
+  const closeTranslateMenu = useCallback(() => {
+    setTranslateMenuOpen(false);
+    translateAnchor.current?.focus();
+  }, []);
 
   const summarize = () => {
     expandOnFirstSummary();
@@ -84,25 +118,31 @@ export default function AiSummary({ status, result, error, providers, onSummariz
 
   // Les éléments du statut sont des segments séparés : chacun garde sa
   // couleur, et la ligne passe à la ligne au lieu de pousser l'action dehors.
+  const translatedBy = translated ? t('ai.translatedBy', { lang: languageName(translated.lang, i18n.language), name: translated.providerName }) : null;
   const statusParts = done
-    ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, done.fellBackFrom ? t('ai.fellBack', { name: done.fellBackFrom }) : null].filter((x): x is string => !!x)
+    ? [
+      t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, done.fellBackFrom ? t('ai.fellBack', { name: done.fellBackFrom }) : null,
+      // Replié, c'est la seule trace d'une traduction en cours ou arrivée.
+      translating ? t('ai.translating') : translatedBy,
+      translated?.fellBackFrom ? t('ai.fellBack', { name: translated.fellBackFrom }) : null,
+    ].filter((x): x is string => !!x)
     // Pendant une demande, « Pas encore résumé » contredirait le bouton qui
     // dit « Résumé en cours… » — et, replié, ce statut est tout ce qu'on voit.
     : [t(loading ? 'ai.summarizing' : 'ai.status.none')];
 
-  const announce = done ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null].filter(Boolean).join(', ') : '';
+  const announce = done ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, translatedBy].filter(Boolean).join(', ') : '';
 
-  const errorLine = failed && (
-    <p role="alert" className="text-xs leading-snug" style={{ color: 'var(--danger)' }}>{error}</p>
+  const errorLine = alertText && (
+    <p role="alert" className="text-xs leading-snug" style={{ color: 'var(--danger)' }}>{alertText}</p>
   );
 
   const actionClass = `inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-opacity duration-150 disabled:cursor-default ${touch ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`;
 
-  const action = done && available.length > 0 && !loading ? (
+  const withProvider = done && available.length > 0 && !loading ? (
     <button
       ref={menuAnchor}
       type="button"
-      onClick={() => setMenuOpen((o) => !o)}
+      onClick={() => { setTranslateMenuOpen(false); setMenuOpen((o) => !o); }}
       disabled={disabled}
       aria-haspopup={touch ? 'dialog' : 'menu'}
       aria-expanded={menuShown}
@@ -111,6 +151,42 @@ export default function AiSummary({ status, result, error, providers, onSummariz
     >
       {t('ai.withProvider')}
     </button>
+  ) : null;
+
+  // Bouton scindé : deux boutons accolés, chacun avec son propre anneau de
+  // focus (pas d'`overflow-hidden` qui le rognerait).
+  const splitBorder = '1px solid var(--ai-border)';
+  const translate = translatable ? (
+    <div className="inline-flex">
+      <button
+        type="button"
+        onClick={translated ? onShowSource : () => onTranslate(undefined)}
+        disabled={translating || (disabled && !translated)}
+        aria-busy={translating}
+        className={`${actionClass} rounded-r-none hover:opacity-80 disabled:opacity-50`}
+        style={{ color: 'var(--reading-title)', border: splitBorder }}
+      >
+        {translating && <Spinner />}
+        <span>{translated ? t('ai.showSource') : translating ? t('ai.translating') : t('ai.translate')}</span>
+      </button>
+      <button
+        ref={translateAnchor}
+        type="button"
+        onClick={() => { setMenuOpen(false); setTranslateMenuOpen((o) => !o); }}
+        disabled={translating || disabled}
+        aria-label={t('ai.translateMenu')}
+        aria-haspopup={touch ? 'dialog' : 'menu'}
+        aria-expanded={translateMenuShown}
+        className={`inline-flex items-center justify-center rounded-md rounded-l-none hover:opacity-80 disabled:opacity-50 disabled:cursor-default ${touch ? 'min-h-[44px] min-w-[44px]' : 'h-8 w-7'}`}
+        style={{ color: 'var(--reading-meta)', border: splitBorder, borderLeft: 'none' }}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+      </button>
+    </div>
+  ) : null;
+
+  const action = done && !loading ? (
+    withProvider || translate ? <>{withProvider}{translate}</> : null
   ) : !done || loading ? (
     <button
       type="button"
@@ -154,7 +230,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
           <span className="flex-1 min-w-0">
             <span className="block text-[13px] font-semibold leading-tight" style={{ color: 'var(--reading-title)' }}>{t('ai.summarize')}</span>
             {/* Replié, une erreur prend la place du statut : sinon un échec ne laisserait aucune trace. */}
-            {collapsed && failed ? null : (
+            {collapsed && alertText ? null : (
               <span data-status className="block text-xs leading-snug mt-0.5 break-words">
                 {statusParts.map((part, i) => (
                   <span key={i} style={{ color: 'var(--reading-meta)' }}>{i > 0 ? ', ' : ''}<span>{part}</span></span>
@@ -164,11 +240,11 @@ export default function AiSummary({ status, result, error, providers, onSummariz
           </span>
           <svg data-chevron className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true" style={{ color: 'var(--reading-meta)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
         </button>
-        {action && <div className="py-1">{action}</div>}
+        {action && <div className="py-1 flex flex-wrap items-center justify-end gap-1.5">{action}</div>}
       </div>
 
       {/* Aligné sur le titre (marge du bouton + étincelle + écart). */}
-      {collapsed && failed && <div className="pl-[42px] pr-3.5 pb-2.5 -mt-1">{errorLine}</div>}
+      {collapsed && alertText && <div className="pl-[42px] pr-3.5 pb-2.5 -mt-1">{errorLine}</div>}
 
       {/* Le corps reste monté (caché, vide) quand le panneau est replié :
           `aria-controls` ne doit jamais pointer dans le vide. */}
@@ -177,7 +253,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
           <>
             {done ? (
               <section aria-label={t('ai.summaryTitle')}>
-                {done.text.split(/\n{2,}/).map((p, i) => (
+                {(translated ? translated.text : done.text).split(/\n{2,}/).map((p, i) => (
                   <p key={i} className="text-[15px] leading-[1.65] mb-2.5 last:mb-0 whitespace-pre-line" style={{ color: 'var(--reading-text)' }}>{p}</p>
                 ))}
               </section>
@@ -185,10 +261,10 @@ export default function AiSummary({ status, result, error, providers, onSummariz
               <div aria-hidden="true" className="space-y-2 py-1 animate-pulse motion-reduce:animate-none">
                 {['100%', '92%', '64%'].map((w) => <div key={w} className="h-2.5 rounded-full" style={{ width: w, background: 'var(--ai-border)' }} />)}
               </div>
-            ) : !failed ? (
+            ) : !alertText ? (
               <p className="text-[13px] leading-snug" style={{ color: 'var(--reading-meta)' }}>{t('ai.hint')}</p>
             ) : null}
-            {failed && <div className={done ? 'mt-2.5' : ''}>{errorLine}</div>}
+            {alertText && <div className={done ? 'mt-2.5' : ''}>{errorLine}</div>}
           </>
         )}
       </div>
@@ -203,60 +279,15 @@ export default function AiSummary({ status, result, error, providers, onSummariz
       {menuShown && (touch
         ? <BottomSheet open onClose={closeMenu} title={t('ai.withProvider')}>{menuItems}</BottomSheet>
         : createPortal(<Popover anchor={menuAnchor.current} onClose={closeMenu}>{menuItems}</Popover>, document.body))}
+
+      <TranslateMenu
+        open={translateMenuShown} anchor={translateAnchor.current} touch={touch} title={t('ai.translateMenu')}
+        languages={ALL_LANGUAGES} providers={providers}
+        current={{ lang: translated?.lang ?? targetLang, providerId: translated?.providerId ?? null }}
+        onPick={(choice) => { setTranslateMenuOpen(false); onTranslate(choice); }}
+        onClose={closeTranslateMenu}
+      />
     </div>
-  );
-}
-
-/** Menu ancré sous son déclencheur, ramené dans la fenêtre, fermé par Échap, Tab, clic extérieur ou redimensionnement. */
-function Popover({ anchor, onClose, children }: { anchor: HTMLElement | null; onClose: () => void; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ left: 0, top: 0 });
-
-  useLayoutEffect(() => {
-    const menu = ref.current;
-    if (!anchor || !menu) return;
-    const r = anchor.getBoundingClientRect();
-    const m = menu.getBoundingClientRect();
-    // Aligné sur le bord droit du déclencheur : il vit à droite de l'en-tête.
-    setPos(clampToViewport({
-      x: r.right - m.width, y: r.bottom + 4, w: m.width, h: m.height,
-      vw: window.innerWidth, vh: window.innerHeight,
-    }));
-    menu.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-  }, [anchor]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
-      if (e.key === 'Tab') { onClose(); return; }
-      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-      const items = Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
-      if (!items.length) return;
-      e.preventDefault();
-      const i = items.indexOf(document.activeElement as HTMLElement);
-      const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
-      items[next].focus();
-    };
-    document.addEventListener('keydown', onKey, true);
-    window.addEventListener('resize', onClose);
-    return () => {
-      document.removeEventListener('keydown', onKey, true);
-      window.removeEventListener('resize', onClose);
-    };
-  }, [onClose]);
-
-  return (
-    <>
-      <div className="fixed inset-0 z-[60]" onClick={onClose} aria-hidden="true" />
-      <div
-        ref={ref}
-        role="menu"
-        className="fixed z-[61] min-w-[180px] max-w-[min(280px,calc(100vw-16px))] rounded-lg p-1 shadow-xl"
-        style={{ top: pos.top, left: pos.left, background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-      >
-        {children}
-      </div>
-    </>
   );
 }
 

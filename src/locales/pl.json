@@ -773,7 +773,8 @@
       "noProvider": "Brak dostępnego dostawcy.",
       "technical": "Nie udało się utworzyć streszczenia. Spróbuj ponownie.",
       "invalidLang": "Język niedostępny.",
-      "segments": "Dostawca nie zwrócił użytecznego tłumaczenia. Spróbuj ponownie."
+      "segments": "Dostawca nie zwrócił użytecznego tłumaczenia. Spróbuj ponownie.",
+      "translateFailed": "Nie udało się przetłumaczyć. Spróbuj ponownie."
     },
     "admin": {
       "title": "Dostawcy",
@@ -890,7 +891,16 @@
       "language": "Język docelowy",
       "uiLanguage": "Język interfejsu ({{name}})",
       "provider": "Dostawca",
-      "sameAsSummary": "Ten sam co dla podsumowania"
-    }
+      "sameAsSummary": "Ten sam co dla podsumowania",
+      "alreadyTarget": "Tekst jest już w tym języku ({{lang}}).",
+      "filter": "Filtruj języki"
+    },
+    "translate": "Przetłumacz",
+    "translating": "Trwa tłumaczenie…",
+    "showSource": "Tekst źródłowy",
+    "translatedBy": "przetłumaczone na {{lang}} przez {{name}}",
+    "translateTo": "Przetłumacz na…",
+    "translateWith": "Przetłumacz za pomocą…",
+    "translateMenu": "Opcje tłumaczenia"
   }
 }

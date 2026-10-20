@@ -745,7 +745,8 @@
       "noProvider": "没有可用的服务商。",
       "technical": "摘要生成失败。请重试。",
       "invalidLang": "不支持该语言。",
-      "segments": "服务商未返回可用的翻译。请重试。"
+      "segments": "服务商未返回可用的翻译。请重试。",
+      "translateFailed": "翻译失败。请重试。"
     },
     "admin": {
       "title": "服务商",
@@ -858,7 +859,16 @@
       "language": "目标语言",
       "uiLanguage": "界面语言（{{name}}）",
       "provider": "服务商",
-      "sameAsSummary": "与摘要相同"
-    }
+      "sameAsSummary": "与摘要相同",
+      "alreadyTarget": "已是{{lang}}。",
+      "filter": "筛选语言"
+    },
+    "translate": "翻译",
+    "translating": "正在翻译…",
+    "showSource": "原文",
+    "translatedBy": "由 {{name}} 翻译为{{lang}}",
+    "translateTo": "翻译为…",
+    "translateWith": "使用以下服务商翻译…",
+    "translateMenu": "翻译选项"
   }
 }

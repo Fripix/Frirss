@@ -745,7 +745,8 @@
       "noProvider": "Geen aanbieder beschikbaar.",
       "technical": "De samenvatting is mislukt. Probeer het opnieuw.",
       "invalidLang": "Taal niet beschikbaar.",
-      "segments": "De aanbieder heeft geen bruikbare vertaling geleverd. Probeer het opnieuw."
+      "segments": "De aanbieder heeft geen bruikbare vertaling geleverd. Probeer het opnieuw.",
+      "translateFailed": "De vertaling is mislukt. Probeer het opnieuw."
     },
     "admin": {
       "title": "Aanbieders",
@@ -858,7 +859,16 @@
       "language": "Doeltaal",
       "uiLanguage": "Taal van de interface ({{name}})",
       "provider": "Aanbieder",
-      "sameAsSummary": "Dezelfde als voor de samenvatting"
-    }
+      "sameAsSummary": "Dezelfde als voor de samenvatting",
+      "alreadyTarget": "Al in het {{lang}}.",
+      "filter": "Talen filteren"
+    },
+    "translate": "Vertalen",
+    "translating": "Wordt vertaald…",
+    "showSource": "Oorspronkelijke tekst",
+    "translatedBy": "vertaald naar het {{lang}} door {{name}}",
+    "translateTo": "Vertalen naar…",
+    "translateWith": "Vertalen met…",
+    "translateMenu": "Vertaalopties"
   }
 }
