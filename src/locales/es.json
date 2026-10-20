@@ -734,7 +734,7 @@
     "errors": {
       "auth": "El proveedor ha rechazado la clave. Compruébala en Preferencias › IA.",
       "authUser": "El proveedor ha rechazado la clave. Avisa a tu administrador.",
-      "quota": "Se alcanzó la cuota del proveedor. Inténtalo de nuevo más tarde.",
+      "quota": "Cuota o créditos agotados en el proveedor.",
       "rateLimited": "Demasiadas solicitudes. Inténtalo de nuevo en un minuto.",
       "cap": "Se alcanzó el límite diario de resúmenes.",
       "tooShort": "Artículo demasiado corto para resumirlo.",

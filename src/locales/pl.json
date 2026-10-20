@@ -762,7 +762,7 @@
     "errors": {
       "auth": "Dostawca odrzucił klucz. Sprawdź go w Preferencje › AI.",
       "authUser": "Dostawca odrzucił klucz. Powiadom administratora.",
-      "quota": "Osiągnięto limit dostawcy. Spróbuj ponownie później.",
+      "quota": "Limit lub środki u dostawcy wyczerpane.",
       "rateLimited": "Zbyt wiele żądań. Spróbuj ponownie za minutę.",
       "cap": "Osiągnięto dzienny limit podsumowań.",
       "tooShort": "Artykuł jest zbyt krótki, by go podsumować.",

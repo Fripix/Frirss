@@ -734,7 +734,7 @@
     "errors": {
       "auth": "Chave recusada pelo fornecedor. Verifique-a em Preferências › IA.",
       "authUser": "Chave recusada pelo fornecedor. Avise o seu administrador.",
-      "quota": "Quota do fornecedor atingida. Tente novamente mais tarde.",
+      "quota": "Quota ou créditos esgotados no fornecedor.",
       "rateLimited": "Demasiados pedidos. Tente novamente dentro de um minuto.",
       "cap": "Limite diário de resumos atingido.",
       "tooShort": "Artigo demasiado curto para ser resumido.",

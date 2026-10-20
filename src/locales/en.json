@@ -734,7 +734,7 @@
     "errors": {
       "auth": "Key rejected by the provider. Check it in Preferences › AI.",
       "authUser": "Key rejected by the provider. Tell your administrator.",
-      "quota": "Provider quota reached. Try again later.",
+      "quota": "Quota or credits exhausted at the provider.",
       "rateLimited": "Too many requests, try again in a minute.",
       "cap": "Daily summary limit reached.",
       "tooShort": "Article too short to summarise.",

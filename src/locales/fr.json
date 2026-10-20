@@ -734,7 +734,7 @@
     "errors": {
       "auth": "Clé refusée par le fournisseur. Vérifiez-la dans Préférences › IA.",
       "authUser": "Clé refusée par le fournisseur. Prévenez votre administrateur.",
-      "quota": "Quota du fournisseur atteint. Réessayez plus tard.",
+      "quota": "Quota ou crédits épuisés chez le fournisseur.",
       "rateLimited": "Trop de requêtes, réessayez dans une minute.",
       "cap": "Limite quotidienne de résumés atteinte.",
       "tooShort": "Article trop court pour être résumé.",

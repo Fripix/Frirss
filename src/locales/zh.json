@@ -734,7 +734,7 @@
     "errors": {
       "auth": "服务商拒绝了该密钥。请在“偏好设置 › AI”中检查。",
       "authUser": "服务商拒绝了该密钥。请告知您的管理员。",
-      "quota": "已达到服务商的配额。请稍后再试。",
+      "quota": "服务商的配额或额度已用完。",
       "rateLimited": "请求过多，请一分钟后再试。",
       "cap": "已达到每日摘要上限。",
       "tooShort": "文章太短，无法生成摘要。",
@@ -757,8 +757,8 @@
       "testing": "正在测试…",
       "testOk": "连接成功",
       "testFailed": "测试失败",
-      "testAuth": "失败：提供商拒绝了该密钥",
-      "testQuota": "失败：提供商的配额或额度已用完",
+      "testAuth": "失败：服务商拒绝了该密钥",
+      "testQuota": "失败：服务商的配额或额度已用完",
       "name": "名称",
       "type": "类型",
       "typeOpenai": "兼容 OpenAI（OpenAI、Ollama、Mistral、OpenRouter…）",
@@ -790,7 +790,7 @@
         "empty": "使用此密钥未找到模型。",
         "noMatch": "没有匹配的模型。",
         "failed": "列表不可用：请检查 URL 和密钥。",
-        "authFailed": "提供商拒绝了该密钥。",
+        "authFailed": "服务商拒绝了该密钥。",
         "close": "隐藏列表"
       }
     },

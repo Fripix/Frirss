@@ -1963,7 +1963,10 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   « article trop long » ; trop court, refusé, aucun fournisseur ; `kind: auth`
   → « vérifiez la clé dans Préférences › IA » pour un **admin**, « prévenez
   votre administrateur » pour un utilisateur (`authUser`, rôle lu dans
-  `useAuthStore`) ; quota ; sinon « le résumé a échoué, réessayez » (neutre : la cause n'est pas connue).
+  `useAuthStore`) ; `kind: quota` → « quota ou crédits épuisés chez le
+  fournisseur », sans « réessayez plus tard » : un compte sans crédits ne se
+  rétablit pas en attendant *(corrigé le 2026-10-20, même cause que le message
+  de « Tester »)* ; sinon « le résumé a échoué, réessayez » (neutre : la cause n'est pas connue).
   Un « Résumer avec… » raté **garde le résumé déjà affiché**, l'erreur sous
   lui (`AiSummary` affiche `result` aussi en statut `error`).
 - **Administration** : `PUT /api/admin/ai/settings` valide **tout avant

@@ -734,7 +734,7 @@
     "errors": {
       "auth": "Der Anbieter hat den Schlüssel abgelehnt. Prüfen Sie ihn unter Einstellungen › KI.",
       "authUser": "Der Anbieter hat den Schlüssel abgelehnt. Informieren Sie Ihren Administrator.",
-      "quota": "Kontingent des Anbieters erreicht. Versuchen Sie es später erneut.",
+      "quota": "Kontingent oder Guthaben beim Anbieter aufgebraucht.",
       "rateLimited": "Zu viele Anfragen. Versuchen Sie es in einer Minute erneut.",
       "cap": "Tageslimit für Zusammenfassungen erreicht.",
       "tooShort": "Artikel zu kurz für eine Zusammenfassung.",

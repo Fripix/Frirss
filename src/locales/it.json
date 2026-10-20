@@ -734,7 +734,7 @@
     "errors": {
       "auth": "Chiave rifiutata dal fornitore. Controllala in Preferenze › IA.",
       "authUser": "Chiave rifiutata dal fornitore. Avvisa il tuo amministratore.",
-      "quota": "Quota del fornitore raggiunta. Riprova più tardi.",
+      "quota": "Quota o crediti esauriti presso il fornitore.",
       "rateLimited": "Troppe richieste, riprova tra un minuto.",
       "cap": "Limite giornaliero di riassunti raggiunto.",
       "tooShort": "Articolo troppo breve per essere riassunto.",

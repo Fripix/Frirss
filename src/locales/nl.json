@@ -734,7 +734,7 @@
     "errors": {
       "auth": "Sleutel geweigerd door de aanbieder. Controleer hem in Voorkeuren › AI.",
       "authUser": "Sleutel geweigerd door de aanbieder. Laat het je beheerder weten.",
-      "quota": "Limiet van de aanbieder bereikt. Probeer het later opnieuw.",
+      "quota": "Quotum of tegoed bij de aanbieder op.",
       "rateLimited": "Te veel verzoeken, probeer het over een minuut opnieuw.",
       "cap": "Dagelijkse samenvattingslimiet bereikt.",
       "tooShort": "Artikel te kort om samen te vatten.",
