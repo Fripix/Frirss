@@ -13,30 +13,36 @@ export interface Segmented {
 }
 
 const HAS_LETTER = /\p{L}/u;
-const BLOCK_OR_PRE = `${BLOCK_SELECTOR}, pre`;
+// Conteneurs sans texte propre garanti : on les parcourt, on ne les fond pas
+// dans une suite. Les éléments de SKIPPED ne sont jamais traduits.
+const CONTAINERS = 'div, section, article, main, aside, header, footer, nav, figure, details, form, center, address, hgroup, fieldset';
+const BREAKERS = `${BLOCK_SELECTOR}, pre, ${CONTAINERS}`;
+const SKIPPED = 'pre, script, style, noscript, template, textarea, svg, math';
 
 /** Un segment : un bloc feuille (son HTML interne), ou une suite de nœuds
- *  consécutifs hors bloc posée directement dans un bloc qui en contient
- *  d'autres (« Fruits » dans `<li>Fruits<ul>…</ul></li>`). */
+ *  consécutifs hors bloc posée directement dans un conteneur ou un bloc qui en
+ *  contient d'autres (« Fruits » dans `<li>Fruits<ul>…</ul></li>`, texte nu
+ *  d'un `div` ou de la racine). */
 type Unit = { kind: 'block'; el: Element } | { kind: 'run'; nodes: Node[] };
 
 function isElement(node: Node): node is Element {
   return node.nodeType === 1;
 }
 
-/** Sépare le texte des blocs (ou de `pre`) : ne fait jamais partie d'une suite. */
+/** Sépare le texte des blocs, conteneurs et éléments ignorés : ne fait jamais
+ *  partie d'une suite. */
 function isBreaker(node: Node): boolean {
-  return isElement(node) && (node.matches(BLOCK_OR_PRE) || node.querySelector(BLOCK_OR_PRE) !== null);
+  return isElement(node) && (node.matches(`${BREAKERS}, ${SKIPPED}`) || node.querySelector(BREAKERS) !== null);
 }
 
 function hasLetter(nodes: Node[]): boolean {
   return nodes.some((n) => (n.nodeType === 1 || n.nodeType === 3) && HAS_LETTER.test(n.textContent ?? ''));
 }
 
-/** Segments du document dans l'ordre de lecture. `pre` n'est jamais descendu. */
+/** Segments du document dans l'ordre de lecture. Les éléments SKIPPED ne sont jamais descendus. */
 function collectUnits(root: Element): Unit[] {
   const units: Unit[] = [];
-  const walk = (parent: Element, collectRuns: boolean) => {
+  const walk = (parent: Element) => {
     let run: Node[] = [];
     const flush = () => {
       if (run.length && hasLetter(run)) units.push({ kind: 'run', nodes: run });
@@ -44,21 +50,21 @@ function collectUnits(root: Element): Unit[] {
     };
     for (const node of Array.from(parent.childNodes)) {
       if (!isBreaker(node)) {
-        if (collectRuns) run.push(node);
+        run.push(node);
         continue;
       }
       flush();
       const el = node as Element;
-      if (el.matches('pre')) continue;
-      if (el.matches(BLOCK_SELECTOR) && !el.querySelector(BLOCK_OR_PRE)) {
+      if (el.matches(SKIPPED)) continue;
+      if (el.matches(BLOCK_SELECTOR) && !el.querySelector(BREAKERS)) {
         if (HAS_LETTER.test(el.textContent ?? '')) units.push({ kind: 'block', el });
       } else {
-        walk(el, el.matches(BLOCK_SELECTOR));
+        walk(el);
       }
     }
     flush();
   };
-  walk(root, false);
+  walk(root);
   return units;
 }
 

@@ -59,6 +59,35 @@ describe('segmentArticle', () => {
     expect(s.segments).toEqual(['T', 'Before', 'After', 'x1']);
   });
 
+  it('translates bare root text, keeping the br inside the run', () => {
+    const s = segmentArticle('T', 'Hello<br>World');
+    expect(s.segments).toEqual(['T', 'Hello<br>World']);
+    expect(s.apply(['T', 'Bonjour<br>Monde'], (h) => h)).toBe('Bonjour<br>Monde');
+  });
+
+  it('translates text around a paragraph inside a div', () => {
+    const s = segmentArticle('T', '<div>Intro<p>Body</p>Outro</div>');
+    expect(s.segments).toEqual(['T', 'Intro', 'Body', 'Outro']);
+    expect(s.apply(['T', 'A', 'B', 'C'], (h) => h)).toBe('<div>A<p>B</p>C</div>');
+  });
+
+  it('walks nested containers instead of joining them into a run', () => {
+    const s = segmentArticle('T', '<div><div>Deep</div></div>');
+    expect(s.segments).toEqual(['T', 'Deep']);
+    expect(s.apply(['T', 'Profond'], (h) => h)).toBe('<div><div>Profond</div></div>');
+  });
+
+  it('translates text around a pre in a div and leaves the pre alone', () => {
+    const s = segmentArticle('T', '<div>x<pre>c</pre>y</div>');
+    expect(s.segments).toEqual(['T', 'x', 'y']);
+    expect(s.apply(['T', 'X', 'Y'], (h) => h)).toBe('<div>X<pre>c</pre>Y</div>');
+  });
+
+  it('never segments script, style or svg content', () => {
+    const s = segmentArticle('T', '<style>p{color:red}</style>Text<script>var a=1</script><svg><text>lab</text></svg>');
+    expect(s.segments).toEqual(['T', 'Text']);
+  });
+
   it('apply never throws on bad model output and keeps the original block', () => {
     const s = segmentArticle('T', '<p>One</p><p>Two</p><p>Three</p><p>Four</p>');
     const bad = ['T', null, 42, ''] as unknown as string[];
