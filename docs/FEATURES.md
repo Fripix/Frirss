@@ -1815,6 +1815,10 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   `src/stores/aiStore.test.ts`, `src/lib/{aiPayload,aiErrorKey}.test.ts`,
   `ReadingPane/{AiSummary,ReadingPane.ai}.test.tsx`,
   `Preferences/{AiTab,Preferences.ai}.test.tsx`. Traductions : famille `ai`.
+  `aiStore` oublie la configuration IA à la déconnexion (abonnement à
+  `useAuthStore` : `backendToken` passe d'une valeur à `null`, y compris sur un
+  401) : le compte suivant sur le même navigateur ne doit voir ni les
+  fournisseurs ni la disponibilité du précédent.
 - **Deux adaptateurs, jamais plus** : `anthropic` (Messages API) et `openai`
   (`/v1/chat/completions`), qui couvre OpenAI, Ollama, LM Studio, Mistral,
   Groq, DeepSeek, Grok, OpenRouter. **Pas Gemini en direct** : sa couche

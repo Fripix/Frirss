@@ -1,9 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('../api/backend', () => ({ getAiConfig: vi.fn() }));
 import { getAiConfig } from '../api/backend';
 import { useAiStore, aiUsable } from './aiStore';
+import { useAuthStore } from './authStore';
 
-beforeEach(() => useAiStore.getState().reset());
+const ON = { enabled: true, providers: [], userKeysAllowed: false, dailyCap: 50, usageToday: 0, defaultProvider: null };
+
+beforeEach(() => {
+  useAuthStore.setState({ backendToken: null });
+  useAiStore.getState().reset();
+});
 
 describe('aiStore', () => {
   it('starts with no config and loads it', async () => {
@@ -28,5 +35,22 @@ describe('aiStore', () => {
     expect(aiUsable(useAiStore.getState())).toBe(false);
     useAiStore.setState({ config: { ...cfg, enabled: false, providers: [p(true)] } });
     expect(aiUsable(useAiStore.getState())).toBe(false);
+  });
+  describe('logout', () => {
+    beforeEach(() => { vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 }))); });
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    it('drops the AI config when the user logs out', () => {
+      useAuthStore.setState({ backendToken: 't' });
+      useAiStore.setState({ config: ON });
+      useAuthStore.getState().logoutBackend();
+      expect(useAiStore.getState().config).toBeNull();
+    });
+    it('keeps the AI config while the session token merely changes', () => {
+      useAuthStore.setState({ backendToken: 't' });
+      useAiStore.setState({ config: ON });
+      useAuthStore.setState({ backendToken: 'u' });
+      expect(useAiStore.getState().config).toBe(ON);
+    });
   });
 });

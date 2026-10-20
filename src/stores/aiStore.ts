@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getAiConfig, type AiConfig } from '../api/backend';
+import { useAuthStore } from './authStore';
 
 /**
  * Ce que le client sait de l'IA : rien tant que `load()` n'a pas répondu, et
@@ -20,6 +21,15 @@ export const useAiStore = create<AiState>()((set) => ({
   },
   reset: () => set({ config: null }),
 }));
+
+// Oublier la configuration à la déconnexion : le compte suivant sur ce navigateur
+// ne doit voir ni les fournisseurs ni la disponibilité du précédent. C'est ici
+// que l'on s'abonne, pas dans authStore, qui ne peut pas importer ce module
+// (api/backend importe authStore, et ce store importe api/backend). Le 401 qui
+// déconnecte passe par `logoutBackend()` : un seul chemin à surveiller.
+useAuthStore.subscribe((state, prev) => {
+  if (prev.backendToken && !state.backendToken) useAiStore.getState().reset();
+});
 
 export const aiEnabled = (s: AiState): boolean => s.config?.enabled === true;
 
