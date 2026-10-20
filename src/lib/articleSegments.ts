@@ -13,34 +13,111 @@ export interface Segmented {
 }
 
 const HAS_LETTER = /\p{L}/u;
+const BLOCK_OR_PRE = `${BLOCK_SELECTOR}, pre`;
 
-/** Blocs feuilles, en ordre du document : sans autre bloc dedans, hors `pre`,
- *  avec au moins une lettre. */
-function leafBlocks(root: Element): Element[] {
-  return Array.from(root.querySelectorAll(BLOCK_SELECTOR)).filter(
-    (el) => !el.closest('pre') && !el.querySelector(BLOCK_SELECTOR) && HAS_LETTER.test(el.textContent ?? ''),
-  );
+/** Un segment : un bloc feuille (son HTML interne), ou une suite de nœuds
+ *  consécutifs hors bloc posée directement dans un bloc qui en contient
+ *  d'autres (« Fruits » dans `<li>Fruits<ul>…</ul></li>`). */
+type Unit = { kind: 'block'; el: Element } | { kind: 'run'; nodes: Node[] };
+
+function isElement(node: Node): node is Element {
+  return node.nodeType === 1;
+}
+
+/** Sépare le texte des blocs (ou de `pre`) : ne fait jamais partie d'une suite. */
+function isBreaker(node: Node): boolean {
+  return isElement(node) && (node.matches(BLOCK_OR_PRE) || node.querySelector(BLOCK_OR_PRE) !== null);
+}
+
+function hasLetter(nodes: Node[]): boolean {
+  return nodes.some((n) => (n.nodeType === 1 || n.nodeType === 3) && HAS_LETTER.test(n.textContent ?? ''));
+}
+
+/** Segments du document dans l'ordre de lecture. `pre` n'est jamais descendu. */
+function collectUnits(root: Element): Unit[] {
+  const units: Unit[] = [];
+  const walk = (parent: Element, collectRuns: boolean) => {
+    let run: Node[] = [];
+    const flush = () => {
+      if (run.length && hasLetter(run)) units.push({ kind: 'run', nodes: run });
+      run = [];
+    };
+    for (const node of Array.from(parent.childNodes)) {
+      if (!isBreaker(node)) {
+        if (collectRuns) run.push(node);
+        continue;
+      }
+      flush();
+      const el = node as Element;
+      if (el.matches('pre')) continue;
+      if (el.matches(BLOCK_SELECTOR) && !el.querySelector(BLOCK_OR_PRE)) {
+        if (HAS_LETTER.test(el.textContent ?? '')) units.push({ kind: 'block', el });
+      } else {
+        walk(el, el.matches(BLOCK_SELECTOR));
+      }
+    }
+    flush();
+  };
+  walk(root, false);
+  return units;
+}
+
+function serialize(doc: Document, nodes: Node[]): string {
+  const box = doc.createElement('div');
+  nodes.forEach((n) => box.appendChild(n.cloneNode(true)));
+  return box.innerHTML;
 }
 
 export function segmentArticle(title: string, html: string): Segmented {
   const body = new DOMParser().parseFromString(html, 'text/html').body;
-  const segments = [title, ...leafBlocks(body).map((el) => el.innerHTML)];
+  const doc = body.ownerDocument;
+  const segments = [
+    title,
+    ...collectUnits(body).map((u) => (u.kind === 'block' ? u.el.innerHTML : serialize(doc, u.nodes))),
+  ];
   return {
     segments,
     apply(translated, sanitize) {
       const copy = body.cloneNode(true) as HTMLElement;
-      leafBlocks(copy).forEach((el, i) => {
-        const text = translated[i + 1];
-        if (text !== undefined) el.innerHTML = sanitize(text);
+      collectUnits(copy).forEach((unit, i) => {
+        // La sortie du modèle n'est pas fiable : tout ce qui n'est pas du
+        // texte, ou que le sanitiseur ne digère pas, laisse l'original en place.
+        const text: unknown = translated[i + 1];
+        if (typeof text !== 'string' || text.trim() === '') return;
+        let clean: string;
+        try {
+          clean = sanitize(text);
+        } catch {
+          return;
+        }
+        if (typeof clean !== 'string' || clean.trim() === '') return;
+        if (unit.kind === 'block') {
+          unit.el.innerHTML = clean;
+          return;
+        }
+        const box = doc.createElement('div');
+        box.innerHTML = clean;
+        const first = unit.nodes[0];
+        const parent = first.parentNode;
+        if (!parent) return;
+        while (box.firstChild) parent.insertBefore(box.firstChild, first);
+        unit.nodes.forEach((n) => n.parentNode?.removeChild(n));
       });
       return copy.innerHTML;
     },
   };
 }
 
+// Les écritures sans espaces (chinois, japonais, coréen, thaï) comptent pour un
+// mot par paire de caractères : sans cela un paragraphe entier vaudrait un mot.
+const SPACELESS = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}]/gu;
+
 export function wordCount(html: string): number {
-  const text = html.replace(/<[^>]*>/g, '').trim();
-  return text ? text.split(/\s+/).length : 0;
+  const text = html.replace(/<[^>]*>/g, ' ').trim();
+  if (!text) return 0;
+  const bySpace = text.split(/\s+/).length;
+  const spaceless = text.match(SPACELESS)?.length ?? 0;
+  return Math.max(bySpace, Math.ceil(spaceless / 2));
 }
 
 /** Regroupe des indices consécutifs en lots (mots ≤ maxWords, octets UTF-8 ≤

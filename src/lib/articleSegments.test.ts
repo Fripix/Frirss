@@ -36,6 +36,37 @@ describe('segmentArticle', () => {
     expect(s.apply(['T', 'Bonjour'], (h) => h)).toBe('<p>Bonjour</p><p>World</p>');
   });
 
+  it('translates text sitting next to a nested list, in place', () => {
+    const s = segmentArticle('T', '<ul><li>Fruits<ul><li>Apple</li></ul></li></ul>');
+    expect(s.segments).toEqual(['T', 'Fruits', 'Apple']);
+    expect(s.apply(['T', 'Fruits FR', 'Pomme'], (h) => h)).toBe('<ul><li>Fruits FR<ul><li>Pomme</li></ul></li></ul>');
+  });
+
+  it('translates the intro of a blockquote that holds paragraphs', () => {
+    const s = segmentArticle('T', '<blockquote>Intro <em>here</em><p>Body</p></blockquote>');
+    expect(s.segments).toEqual(['T', 'Intro <em>here</em>', 'Body']);
+    expect(s.apply(['T', 'Intro FR', 'Corps'], (h) => h)).toBe('<blockquote>Intro FR<p>Corps</p></blockquote>');
+  });
+
+  it('translates trailing text after a paragraph in a list item, in document order', () => {
+    const s = segmentArticle('T', '<ul><li>Lead<p>Para</p>trailing</li><li>Next</li></ul>');
+    expect(s.segments).toEqual(['T', 'Lead', 'Para', 'trailing', 'Next']);
+    expect(s.apply(['T', 'A', 'B', 'C', 'D'], (h) => h)).toBe('<ul><li>A<p>B</p>C</li><li>D</li></ul>');
+  });
+
+  it('does not segment text around a pre inside a block, and skips letterless runs', () => {
+    const s = segmentArticle('T', '<li>Before<pre>code</pre>After<ul><li>x1</li></ul> 12</li>');
+    expect(s.segments).toEqual(['T', 'Before', 'After', 'x1']);
+  });
+
+  it('apply never throws on bad model output and keeps the original block', () => {
+    const s = segmentArticle('T', '<p>One</p><p>Two</p><p>Three</p><p>Four</p>');
+    const bad = ['T', null, 42, ''] as unknown as string[];
+    expect(s.apply(bad, (h) => h)).toBe('<p>One</p><p>Two</p><p>Three</p><p>Four</p>');
+    const boom = () => { throw new Error('nope'); };
+    expect(s.apply(['T', 'Un', 'Deux'], boom)).toBe('<p>One</p><p>Two</p><p>Three</p><p>Four</p>');
+  });
+
   it('exposes the selector with the documented blocks', () => {
     expect(BLOCK_SELECTOR).toBe('p, li, h1, h2, h3, h4, h5, h6, blockquote, figcaption, td, th, dt, dd');
   });
@@ -45,6 +76,16 @@ describe('wordCount', () => {
   it('counts words of the text content, not of the markup', () => {
     expect(wordCount('Un <a href="/a b c">lien</a> <em>en</em> italique')).toBe(4);
     expect(wordCount('')).toBe(0);
+  });
+
+  it('treats a tag as a word boundary', () => {
+    expect(wordCount('a<br>b')).toBe(2);
+  });
+
+  it('weighs CJK, Hangul and Thai text by characters', () => {
+    expect(wordCount('日'.repeat(1000))).toBe(500);
+    expect(wordCount('가'.repeat(10))).toBe(5);
+    expect(wordCount('ก'.repeat(10))).toBe(5);
   });
 });
 
@@ -68,6 +109,11 @@ describe('batchSegments', () => {
 
   it('counts UTF-8 bytes, not characters', () => {
     expect(batchSegments(['é'.repeat(6)], 1000, 10)).toEqual([]);
+  });
+
+  it('splits a long CJK article into several batches', () => {
+    const segs = Array.from({ length: 10 }, () => '日'.repeat(1000));
+    expect(batchSegments(segs, 1200, 200_000)).toEqual([[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]);
   });
 
   it('returns no batch for no segment', () => {
