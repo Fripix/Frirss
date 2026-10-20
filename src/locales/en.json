@@ -778,7 +778,19 @@
       "dailyCapHint": "Counts only calls paid with your key. 0 = unlimited.",
       "missingFields": "Name, URL and model are required.",
       "loadError": "Could not load the providers.",
-      "saveError": "Could not save. Try again."
+      "saveError": "Could not save. Try again.",
+      "models": {
+        "list": "List models",
+        "loading": "Looking up models…",
+        "count_one": "{{count}} model",
+        "count_other": "{{count}} models",
+        "filter": "Filter models",
+        "empty": "No models found with this key.",
+        "noMatch": "No model matches.",
+        "failed": "List unavailable: check the URL and the key.",
+        "authFailed": "The provider refused the key.",
+        "close": "Hide list"
+      }
     },
     "summarizeAction": "Summarise",
     "status": {

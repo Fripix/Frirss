@@ -778,7 +778,19 @@
       "dailyCapHint": "Telt alleen aanroepen die met jouw sleutel worden betaald. 0 = onbeperkt.",
       "missingFields": "Naam, URL en model zijn verplicht.",
       "loadError": "De aanbieders konden niet worden geladen.",
-      "saveError": "Opslaan mislukt. Probeer het opnieuw."
+      "saveError": "Opslaan mislukt. Probeer het opnieuw.",
+      "models": {
+        "list": "Modellen tonen",
+        "loading": "Modellen zoeken…",
+        "count_one": "{{count}} model",
+        "count_other": "{{count}} modellen",
+        "filter": "Modellen filteren",
+        "empty": "Geen modellen gevonden met deze sleutel.",
+        "noMatch": "Geen enkel model komt overeen.",
+        "failed": "Lijst niet beschikbaar: controleer de URL en de sleutel.",
+        "authFailed": "De aanbieder heeft de sleutel geweigerd.",
+        "close": "Lijst verbergen"
+      }
     },
     "summarizeAction": "Samenvatten",
     "status": {

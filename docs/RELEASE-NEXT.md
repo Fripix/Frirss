@@ -30,7 +30,9 @@ la release publiée.
   section « IA » des Préférences avec un bloc « Résumés » pour chacun (longueur
   visée du résumé, de 5 à 50 % de l'article, 20 % par défaut, jamais moins de
   trois phrases) et le bloc admin « Fournisseurs » (interrupteur, fournisseurs,
-  clé partagée, test de connexion, plafond quotidien). Repli automatique entre fournisseurs, cache
+  clé partagée, test de connexion, plafond quotidien, et un bouton « Lister les
+  modèles » qui propose les noms disponibles avec la clé saisie, avant même
+  d’enregistrer). Repli automatique entre fournisseurs, cache
   des résumés, clés chiffrées, aucune dépendance nouvelle ; la sauvegarde
   chiffrée emporte les fournisseurs et leurs clés. Les clés personnelles, les
   réglages par flux et la traduction viennent ensuite.

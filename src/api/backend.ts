@@ -244,6 +244,15 @@ export async function testAiProvider(id: number): Promise<{ ok: boolean; model?:
   const { data } = await backend.post<{ ok: boolean; model?: string; durationMs?: number; kind?: string; message?: string }>(`/admin/ai/providers/${id}/test`);
   return data;
 }
+export interface AiModelsResult { ok: boolean; models?: string[]; kind?: string; message?: string }
+/**
+ * Les modèles disponibles pour un fournisseur, enregistré ou non. Sans clé
+ * saisie, le serveur reprend celle de `providerId` si l'URL et le type n'ont pas changé.
+ */
+export async function listAiModels(target: { type: 'anthropic' | 'openai'; baseUrl: string; adminKey?: string; providerId?: number }): Promise<AiModelsResult> {
+  const { data } = await backend.post<AiModelsResult>('/admin/ai/models', target);
+  return data;
+}
 export async function updateAiSettings(settings: Partial<AiAdminSettings>): Promise<void> {
   await backend.put('/admin/ai/settings', settings);
 }

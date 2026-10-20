@@ -778,7 +778,19 @@
       "dailyCapHint": "Zählt nur Aufrufe, die mit Ihrem Schlüssel bezahlt werden. 0 = unbegrenzt.",
       "missingFields": "Name, URL und Modell sind erforderlich.",
       "loadError": "Die Anbieter konnten nicht geladen werden.",
-      "saveError": "Speichern nicht möglich. Versuchen Sie es erneut."
+      "saveError": "Speichern nicht möglich. Versuchen Sie es erneut.",
+      "models": {
+        "list": "Modelle auflisten",
+        "loading": "Modelle werden gesucht…",
+        "count_one": "{{count}} Modell",
+        "count_other": "{{count}} Modelle",
+        "filter": "Modelle filtern",
+        "empty": "Mit diesem Schlüssel wurden keine Modelle gefunden.",
+        "noMatch": "Kein Modell passt.",
+        "failed": "Liste nicht verfügbar: Prüfen Sie URL und Schlüssel.",
+        "authFailed": "Der Anbieter hat den Schlüssel abgelehnt.",
+        "close": "Liste ausblenden"
+      }
     },
     "summarizeAction": "Zusammenfassen",
     "status": {

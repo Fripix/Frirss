@@ -778,7 +778,19 @@
       "dailyCapHint": "仅统计使用您的密钥付费的调用。0 = 不限。",
       "missingFields": "名称、URL 和模型为必填项。",
       "loadError": "无法加载服务商。",
-      "saveError": "保存失败。请重试。"
+      "saveError": "保存失败。请重试。",
+      "models": {
+        "list": "列出模型",
+        "loading": "正在查找模型…",
+        "count_one": "{{count}} 个模型",
+        "count_other": "{{count}} 个模型",
+        "filter": "筛选模型",
+        "empty": "使用此密钥未找到模型。",
+        "noMatch": "没有匹配的模型。",
+        "failed": "列表不可用：请检查 URL 和密钥。",
+        "authFailed": "提供商拒绝了该密钥。",
+        "close": "隐藏列表"
+      }
     },
     "summarizeAction": "生成摘要",
     "status": {

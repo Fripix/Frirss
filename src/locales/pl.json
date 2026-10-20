@@ -806,7 +806,21 @@
       "dailyCapHint": "Liczy tylko wywołania opłacone Twoim kluczem. 0 = bez limitu.",
       "missingFields": "Nazwa, adres URL i model są wymagane.",
       "loadError": "Nie udało się wczytać dostawców.",
-      "saveError": "Nie udało się zapisać. Spróbuj ponownie."
+      "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
+      "models": {
+        "list": "Pokaż modele",
+        "loading": "Wyszukiwanie modeli…",
+        "count_one": "{{count}} model",
+        "count_few": "{{count}} modele",
+        "count_many": "{{count}} modeli",
+        "count_other": "{{count}} modelu",
+        "filter": "Filtruj modele",
+        "empty": "Nie znaleziono modeli dla tego klucza.",
+        "noMatch": "Żaden model nie pasuje.",
+        "failed": "Lista niedostępna: sprawdź adres URL i klucz.",
+        "authFailed": "Dostawca odrzucił klucz.",
+        "close": "Ukryj listę"
+      }
     },
     "summarizeAction": "Podsumuj",
     "status": {

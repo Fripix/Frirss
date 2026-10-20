@@ -778,7 +778,19 @@
       "dailyCapHint": "Compte seulement les appels payés par votre clé. 0 = illimité.",
       "missingFields": "Nom, URL et modèle sont obligatoires.",
       "loadError": "Impossible de charger les fournisseurs.",
-      "saveError": "Enregistrement impossible. Réessayez."
+      "saveError": "Enregistrement impossible. Réessayez.",
+      "models": {
+        "list": "Lister les modèles",
+        "loading": "Recherche des modèles…",
+        "count_one": "{{count}} modèle",
+        "count_other": "{{count}} modèles",
+        "filter": "Filtrer les modèles",
+        "empty": "Aucun modèle trouvé avec cette clé.",
+        "noMatch": "Aucun modèle ne correspond.",
+        "failed": "Liste indisponible : vérifiez l’URL et la clé.",
+        "authFailed": "Clé refusée par le fournisseur.",
+        "close": "Masquer la liste"
+      }
     },
     "summarizeAction": "Résumer",
     "status": {

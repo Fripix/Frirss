@@ -1852,7 +1852,35 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   `/api/proxy` : le seau compte les **requêtes HTTP** vers `/api/ai`,
   `/config` comprise, pas les appels sortants — une requête de résumé avec
   repli peut en faire plusieurs vers les fournisseurs. Le bouton de test
-  (`/api/admin/ai/providers/:id/test`) n'est pas dans le seau.
+  (`/api/admin/ai/providers/:id/test`) n'est pas dans le seau, la liste des
+  modèles non plus.
+- **Liste des modèles** (`listModels`, `providers.ts` ; route
+  `POST /api/admin/ai/models`) : le bouton « Lister les modèles », à côté du
+  champ « Modèle » de l'éditeur, interroge `GET {baseUrl}/v1/models` avec ce
+  qui est **saisi dans le formulaire** (type, URL, clé) : il sert **avant**
+  d'enregistrer, contrairement à « Tester ». L'URL saisie est normalisée comme à
+  l'enregistrement. Clé : celle saisie prime ; champ vide en modification → le
+  serveur reprend la clé enregistrée, **seulement si l'URL normalisée et le
+  type n'ont pas changé** — une URL corrigée dans le formulaire ne reçoit
+  jamais la clé d'une autre. Même garde que l'appel de résumé (hôte de
+  confiance, redirection non suivie, clé masquée), délai **10 s**. Réponse
+  toujours 200 : `{ ok: true, models }` (1 000 au plus) ou
+  `{ ok: false, kind, message }`. Anthropic : ordre de l'API (le plus récent
+  d'abord), pagination `has_more` / `after_id` suivie sur **10 pages au
+  plus**. Compatible OpenAI : tri par `created` décroissant puis par nom,
+  doublons retirés, et **filtre des familles qui n'écrivent pas de texte**
+  (`NOT_TEXT` : embeddings, whisper, tts, dall-e, moderation, transcribe,
+  image, realtime, sora, babbage, davinci, ocr) plus `capabilities.completion_chat:
+  false` (Mistral). ⚠️ OpenAI ne dit pas quels modèles répondent à
+  `/chat/completions` : le filtre est une **heuristique**, une famille nouvelle
+  peut passer — « Tester » l'attrape. Côté écran (`ModelList`, `AiTab.tsx`) :
+  le champ « Modèle » **reste libre**, la liste aide sans contraindre ; nombre
+  de modèles, modèle actuel coché en accent (`aria-current`), un clic remplit
+  le champ et referme la liste, champ de filtre au-delà de **12** noms,
+  « Masquer la liste ». Changer le type, l'URL ou la clé jette la liste (et une
+  réponse arrivée après coup est ignorée). Échec : « Clé refusée par le
+  fournisseur » (`kind: auth`) ou « Liste indisponible : vérifiez l'URL et la
+  clé » ; liste vide : « Aucun modèle trouvé avec cette clé ».
 - **Résolution** (`resolve.ts`, pure, testée) : forçage ponctuel (menu
   « Résumer avec… ») > fournisseur du flux > de la catégorie > préféré de
   l'utilisateur > défaut admin (`ai_default_provider`) > premier disponible. Un
@@ -1948,7 +1976,8 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   de traduction) et son aide « Jamais moins de trois phrases » ; pour un
   non-admin, la ligne d'introduction (`ai.userIntro`) y sert de texte d'aide.
   Dessous, pour l'admin seul, le bloc « Fournisseurs » (interrupteur, liste
-  réordonnable par flèches haut / bas, éditeur, test, clé partagée, plafond,
+  réordonnable par flèches haut / bas, éditeur avec liste des modèles, test,
+  clé partagée, plafond,
   défaut) et un repli « Avancé » avec l'interrupteur « Les utilisateurs peuvent
   saisir leur propre clé » (**inerte tant que le plan 2 n'a pas livré route ni
   écran de clé personnelle**). La section n'est montée que pour un admin ou
@@ -3596,6 +3625,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | PUT | `/api/admin/ai/providers/:id` | Modifier un fournisseur |
 | DELETE | `/api/admin/ai/providers/:id` | Supprimer un fournisseur |
 | POST | `/api/admin/ai/providers/:id/test` | Appel d'essai |
+| POST | `/api/admin/ai/models` | Modèles disponibles pour un fournisseur saisi |
 | PUT | `/api/admin/ai/settings` | Interrupteur, politique des clés, plafond, défaut |
 | POST | `/api/admin/backup` | Produire la sauvegarde chiffrée |
 | POST | `/api/admin/restore/preview` | Déchiffrer et résumer, sans écrire |

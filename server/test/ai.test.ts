@@ -259,3 +259,57 @@ async function cfgUsage(token: string): Promise<number> {
   const cfg = await request(app).get('/api/ai/config').set('Authorization', `Bearer ${token}`);
   return cfg.body.usageToday as number;
 }
+
+describe('ai model listing', () => {
+  const auth = () => ({ Authorization: `Bearer ${adminToken}` });
+  const list = (body: object) => request(app).post('/api/admin/ai/models').set(auth()).send(body);
+  function stubModels(body: unknown = { data: [{ id: 'gpt-5-mini', created: 2 }, { id: 'text-embedding-3-small', created: 3 }, { id: 'gpt-5', created: 1 }] }, status = 200) {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: status < 300, status, headers: new Headers(), text: async () => JSON.stringify(body), json: async () => body });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+  const bearer = (m: ReturnType<typeof stubModels>) => ((m.mock.calls[0] as [string, RequestInit])[1].headers as Record<string, string>).Authorization;
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is closed to a plain user', async () => {
+    const res = await request(app).post('/api/admin/ai/models').set('Authorization', `Bearer ${userToken}`).send({ type: 'openai', baseUrl: 'https://api.example.com' });
+    expect(res.status).toBe(403);
+  });
+  it('refuses an unknown type or a URL that is not http(s)', async () => {
+    expect((await list({ type: 'gemini', baseUrl: 'https://api.example.com' })).status).toBe(400);
+    expect((await list({ type: 'openai', baseUrl: 'ftp://api.example.com' })).status).toBe(400);
+    expect((await list({ type: 'openai' })).status).toBe(400);
+  });
+  it('lists the text models of a draft with the key typed in the form', async () => {
+    const m = stubModels();
+    const res = await list({ type: 'openai', baseUrl: 'https://api.example.com/v1/', adminKey: 'typed-key' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, models: ['gpt-5-mini', 'gpt-5'] });
+    expect(m.mock.calls[0][0]).toBe('https://api.example.com/v1/models');
+    expect(bearer(m)).toBe('Bearer typed-key');
+  });
+  it('reuses the stored key for the saved URL only, and never returns it', async () => {
+    const created = await request(app).post('/api/admin/ai/providers').set(auth())
+      .send({ name: 'GPT', type: 'openai', baseUrl: 'https://api.example.com', model: 'gpt-5', adminKey: 'stored-key', shared: true });
+    const id = created.body.provider.id;
+    let m = stubModels();
+    const same = await list({ type: 'openai', baseUrl: 'https://api.example.com/', providerId: id });
+    expect(bearer(m)).toBe('Bearer stored-key');
+    expect(JSON.stringify(same.body)).not.toContain('stored-key');
+    // Une autre URL ou un autre type : la clé enregistrée ne part pas.
+    m = stubModels();
+    await list({ type: 'openai', baseUrl: 'https://elsewhere.example.com', providerId: id });
+    expect(bearer(m)).toBeUndefined();
+    m = stubModels({ data: [] });
+    await list({ type: 'anthropic', baseUrl: 'https://api.example.com', providerId: id });
+    expect(((m.mock.calls[0] as [string, RequestInit])[1].headers as Record<string, string>)['x-api-key']).toBeUndefined();
+    expect((await request(app).delete(`/api/admin/ai/providers/${id}`).set(auth())).status).toBe(200);
+  });
+  it('reports a refused key as ok:false kind:auth, without the key', async () => {
+    stubModels({ error: 'bad typed-key' }, 401);
+    const res = await list({ type: 'openai', baseUrl: 'https://api.example.com', adminKey: 'typed-key' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: false, kind: 'auth' });
+    expect(JSON.stringify(res.body)).not.toContain('typed-key');
+  });
+});

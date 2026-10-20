@@ -778,7 +778,19 @@
       "dailyCapHint": "Conta solo le chiamate pagate con la tua chiave. 0 = illimitato.",
       "missingFields": "Nome, URL e modello sono obbligatori.",
       "loadError": "Impossibile caricare i fornitori.",
-      "saveError": "Salvataggio non riuscito. Riprova."
+      "saveError": "Salvataggio non riuscito. Riprova.",
+      "models": {
+        "list": "Elenca i modelli",
+        "loading": "Ricerca dei modelli…",
+        "count_one": "{{count}} modello",
+        "count_other": "{{count}} modelli",
+        "filter": "Filtra i modelli",
+        "empty": "Nessun modello trovato con questa chiave.",
+        "noMatch": "Nessun modello corrisponde.",
+        "failed": "Elenco non disponibile: controlla URL e chiave.",
+        "authFailed": "Il fornitore ha rifiutato la chiave.",
+        "close": "Nascondi l’elenco"
+      }
     },
     "summarizeAction": "Riassumi",
     "status": {

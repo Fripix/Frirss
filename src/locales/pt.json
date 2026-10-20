@@ -778,7 +778,19 @@
       "dailyCapHint": "Conta apenas as chamadas pagas com a sua chave. 0 = ilimitado.",
       "missingFields": "Nome, URL e modelo são obrigatórios.",
       "loadError": "Não foi possível carregar os fornecedores.",
-      "saveError": "Não foi possível guardar. Tente novamente."
+      "saveError": "Não foi possível guardar. Tente novamente.",
+      "models": {
+        "list": "Listar modelos",
+        "loading": "A procurar modelos…",
+        "count_one": "{{count}} modelo",
+        "count_other": "{{count}} modelos",
+        "filter": "Filtrar modelos",
+        "empty": "Nenhum modelo encontrado com esta chave.",
+        "noMatch": "Nenhum modelo corresponde.",
+        "failed": "Lista indisponível: verifique o URL e a chave.",
+        "authFailed": "O fornecedor recusou a chave.",
+        "close": "Ocultar a lista"
+      }
     },
     "summarizeAction": "Resumir",
     "status": {

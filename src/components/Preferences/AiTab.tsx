@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useAiStore } from '../../stores/aiStore';
@@ -6,7 +6,7 @@ import { useUiStore } from '../../stores/uiStore';
 import ToggleSwitch from '../ToggleSwitch';
 import ConfirmDialog from '../ConfirmDialog';
 import {
-  getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, reorderAiProviders, testAiProvider, updateAiSettings,
+  getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, reorderAiProviders, testAiProvider, updateAiSettings, listAiModels,
   type AiProviderAdmin, type AiAdminSettings, type AiProviderInput,
 } from '../../api/backend';
 
@@ -79,6 +79,9 @@ function SummariesBlock({ showIntro }: { showIntro: boolean }) {
 }
 
 type TestState = { state: 'busy' } | { state: 'ok' } | { state: 'fail'; message?: string };
+type ModelsState = { state: 'busy' } | { state: 'ok'; models: string[] } | { state: 'fail'; auth: boolean };
+/** Au-delà, la liste reçoit un champ de filtre (OpenAI en renvoie des dizaines, OpenRouter des centaines). */
+const FILTER_FROM = 12;
 
 function AdminProviders({ active }: { active: boolean }) {
   const { t } = useTranslation();
@@ -94,6 +97,11 @@ function AdminProviders({ active }: { active: boolean }) {
   const [toDelete, setToDelete] = useState<AiProviderAdmin | null>(null);
   const [error, setError] = useState('');
   const [loadFailed, setLoadFailed] = useState(false);
+  const [models, setModels] = useState<ModelsState | null>(null);
+  const [modelFilter, setModelFilter] = useState('');
+  // Une réponse arrivée après un changement d'URL, de type ou de clé ne s'affiche pas.
+  const listSeq = useRef(0);
+  const dropModels = () => { listSeq.current++; setModels(null); setModelFilter(''); };
 
   // Dépend de `active` seul : `t` change d'identité au changement de langue, et
   // recharger alors écraserait une saisie en cours avec l'état du serveur.
@@ -120,6 +128,7 @@ function AdminProviders({ active }: { active: boolean }) {
   }
 
   function startEdit(p: AiProviderAdmin | null) {
+    dropModels();
     setSaved(false);
     setError('');
     setEditing(p
@@ -189,8 +198,40 @@ function AdminProviders({ active }: { active: boolean }) {
     }
   }
 
-  const setDraft = (patch: Partial<AiProviderInput>) =>
+  const setDraft = (patch: Partial<AiProviderInput>) => {
+    // La liste vaut pour une URL, un type et une clé : en changer la rend fausse.
+    if ('type' in patch || 'baseUrl' in patch || 'adminKey' in patch) dropModels();
     setEditing((ed) => ed && ({ ...ed, draft: { ...ed.draft, ...patch } }));
+  };
+
+  /**
+   * Interroge le fournisseur tel qu'il est saisi, enregistré ou non. Clé vide en
+   * modification : le serveur reprend la clé enregistrée, pour la même URL seulement.
+   */
+  async function fetchModels() {
+    if (!editing) return;
+    const d = editing.draft;
+    const seq = ++listSeq.current;
+    setModels({ state: 'busy' });
+    setModelFilter('');
+    try {
+      const r = await listAiModels({
+        type: d.type, baseUrl: d.baseUrl.trim(),
+        ...(d.adminKey ? { adminKey: d.adminKey } : {}),
+        ...(editing.id != null ? { providerId: editing.id } : {}),
+      });
+      if (seq !== listSeq.current) return;
+      setModels(r.ok ? { state: 'ok', models: r.models ?? [] } : { state: 'fail', auth: r.kind === 'auth' });
+    } catch {
+      if (seq === listSeq.current) setModels({ state: 'fail', auth: false });
+    }
+  }
+
+  function pickModel(id: string) {
+    setDraft({ model: id });
+    dropModels();
+    document.getElementById(`${uid}-model`)?.focus();
+  }
 
   const labelClass = 'block text-xs mb-1';
   const labelStyle = { color: 'var(--list-summary)' };
@@ -271,7 +312,28 @@ function AdminProviders({ active }: { active: boolean }) {
             </select>
           </div>
           {textField('baseUrl', t('ai.admin.baseUrl'), { type: 'url', hint: t('ai.admin.baseUrlHint') })}
-          {textField('model', t('ai.admin.model'))}
+          <div>
+            <label htmlFor={`${uid}-model`} className={labelClass} style={labelStyle}>{t('ai.admin.model')}</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                id={`${uid}-model`} type="text" value={draft.model} autoComplete="off" spellCheck={false}
+                onChange={(e) => setDraft({ model: e.target.value })}
+                className={`${inputClass} !w-auto flex-1 basis-40 min-w-0`} style={inputStyle}
+              />
+              <button
+                type="button" onClick={fetchModels} aria-controls={`${uid}-models`}
+                disabled={!draft.baseUrl.trim() || models?.state === 'busy'}
+                className="prefs-tap-btn px-3 py-1.5 min-h-[36px] text-xs font-semibold rounded-md cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-default"
+                style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
+              >
+                {t('ai.admin.models.list')}
+              </button>
+            </div>
+            {models && <ModelList
+              id={`${uid}-models`} state={models} current={draft.model.trim()} filter={modelFilter}
+              onFilter={setModelFilter} onPick={pickModel} onClose={dropModels}
+            />}
+          </div>
           {textField('adminKey', t('ai.admin.key'), { type: 'password', autoComplete: 'new-password', placeholder: editedHasKey ? t('ai.admin.keyKeep') : undefined })}
           <label className="prefs-tap-row flex items-center gap-2 text-xs" style={{ color: 'var(--list-title)' }}>
             <input type="checkbox" checked={!!draft.shared} onChange={(e) => setDraft({ shared: e.target.checked })} />
@@ -279,7 +341,7 @@ function AdminProviders({ active }: { active: boolean }) {
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={saveProvider} className="prefs-tap-btn px-4 py-1.5 text-xs font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
-            <button type="button" onClick={() => setEditing(null)} className={quietBtn} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
+            <button type="button" onClick={() => { dropModels(); setEditing(null); }} className={quietBtn} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
             {saved && <span role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t('ai.admin.saved')}</span>}
           </div>
         </div>
@@ -346,5 +408,64 @@ function AdminProviders({ active }: { active: boolean }) {
         onCancel={() => setToDelete(null)}
       />
     </section>
+  );
+}
+
+/**
+ * Les noms renvoyés par le fournisseur, à cliquer pour remplir le champ
+ * « Modèle ». Le champ reste libre : la liste aide, elle ne contraint pas.
+ */
+function ModelList({ id, state, current, filter, onFilter, onPick, onClose }: {
+  id: string; state: ModelsState; current: string; filter: string;
+  onFilter: (v: string) => void; onPick: (model: string) => void; onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const all = state.state === 'ok' ? state.models : [];
+  const needle = filter.trim().toLowerCase();
+  const shown = needle ? all.filter((m) => m.toLowerCase().includes(needle)) : all;
+  const muted = { color: 'var(--list-summary)' };
+  return (
+    <div id={id} className="mt-2 rounded-md" style={{ border: '1px solid var(--panel-border)' }}>
+      <div className="flex items-center justify-between gap-2 pl-3 pr-1.5 py-1" style={state.state === 'ok' && all.length ? { borderBottom: '1px solid var(--panel-border)' } : undefined}>
+        {state.state === 'busy' && <span role="status" className="text-xs" style={muted}>{t('ai.admin.models.loading')}</span>}
+        {state.state === 'fail' && <span role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{t(state.auth ? 'ai.admin.models.authFailed' : 'ai.admin.models.failed')}</span>}
+        {state.state === 'ok' && <span role="status" className="text-xs" style={muted}>{all.length ? t('ai.admin.models.count', { count: all.length }) : t('ai.admin.models.empty')}</span>}
+        {state.state !== 'busy' && (
+          <button type="button" onClick={onClose} className={quietBtn} style={{ color: 'var(--list-title)' }}>{t('ai.admin.models.close')}</button>
+        )}
+      </div>
+      {all.length > FILTER_FROM && (
+        <div className="px-2 pt-2">
+          <input
+            type="search" value={filter} onChange={(e) => onFilter(e.target.value)} autoComplete="off" spellCheck={false}
+            aria-label={t('ai.admin.models.filter')} placeholder={t('ai.admin.models.filter')}
+            className={inputClass} style={inputStyle}
+          />
+        </div>
+      )}
+      {all.length > 0 && (
+        shown.length ? (
+          <ul className="max-h-56 overflow-y-auto py-1">
+            {shown.map((m) => {
+              const isCurrent = m === current;
+              return (
+                <li key={m}>
+                  <button
+                    type="button" onClick={() => onPick(m)} aria-current={isCurrent ? 'true' : undefined}
+                    className="prefs-tap-row flex w-full items-center gap-2 px-3 py-1.5 text-sm text-left cursor-pointer break-all hover:bg-[var(--panel-header-bg)]"
+                    style={{ color: isCurrent ? 'var(--accent)' : 'var(--list-title)', fontWeight: isCurrent ? 600 : undefined }}
+                  >
+                    <span aria-hidden="true" className="w-3.5 flex-shrink-0">
+                      {isCurrent && <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                    </span>
+                    {m}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : <p className="px-3 py-2 text-xs" style={muted}>{t('ai.admin.models.noMatch')}</p>
+      )}
+    </div>
   );
 }

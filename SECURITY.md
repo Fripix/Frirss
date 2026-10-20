@@ -103,6 +103,12 @@ refused. Redirects are never followed at all (a 3xx is a technical error), so an
 API key is never sent to a host the admin did not type. Users never set an
 endpoint.
 
+The admin-only model list (`POST /api/admin/ai/models`) queries the URL typed in
+the provider form, before it is saved, under the same rules. When the key field
+is left empty it reuses a saved provider's key only if the typed URL and type
+are exactly the saved ones, so editing the URL never sends the stored key to the
+new host.
+
 API keys are encrypted at rest with the instance key and never returned by any
 route; the part of a provider's error body that is logged or shown has the key
 redacted first and is then cut to 300 characters (the other order could leave a

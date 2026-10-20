@@ -4,9 +4,9 @@ import { render, cleanup, fireEvent, waitFor, within } from '@testing-library/re
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'fr' } }) }));
 vi.mock('../../api/backend', () => ({
   getAiProviders: vi.fn(), createAiProvider: vi.fn(), updateAiProvider: vi.fn(), deleteAiProvider: vi.fn(),
-  reorderAiProviders: vi.fn(), testAiProvider: vi.fn(), updateAiSettings: vi.fn(), getAiConfig: vi.fn(),
+  reorderAiProviders: vi.fn(), testAiProvider: vi.fn(), updateAiSettings: vi.fn(), getAiConfig: vi.fn(), listAiModels: vi.fn(),
 }));
-import { getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, updateAiSettings, testAiProvider, reorderAiProviders } from '../../api/backend';
+import { getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, updateAiSettings, testAiProvider, reorderAiProviders, listAiModels } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import AiTab from './AiTab';
@@ -154,5 +154,91 @@ describe('AiTab', () => {
     await waitFor(() => expect(queryByText('Ollama')).toBeNull());
     expect((getByLabelText('ai.admin.defaultProvider') as HTMLSelectElement).value).toBe('');
     expect((await findAllByRole('option', { name: 'ai.admin.none' })).length).toBe(1);
+  });
+});
+
+describe('AiTab — model list', () => {
+  const saved = { id: 7, name: 'GPT', type: 'openai' as const, baseUrl: 'https://api.example.com', model: 'gpt-5-mini', hasAdminKey: true, shared: true, position: 0 };
+  async function openEditor() {
+    useAuthStore.setState({ backendUser: admin });
+    vi.mocked(getAiProviders).mockResolvedValue({ providers: [saved], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+    const r = render(<AiTab active />);
+    fireEvent.click(await r.findByRole('button', { name: 'ai.admin.edit — GPT' }));
+    return r;
+  }
+
+  it('lists with the saved provider, marks the current model, and a pick fills the field then closes', async () => {
+    vi.mocked(listAiModels).mockResolvedValue({ ok: true, models: ['gpt-5', 'gpt-5-mini'] });
+    const { getByRole, findByRole, getByLabelText, queryByRole } = await openEditor();
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.list' }));
+    await findByRole('button', { name: 'gpt-5' });
+    // Clé laissée vide : le serveur reprend la clé enregistrée.
+    expect(listAiModels).toHaveBeenCalledWith({ type: 'openai', baseUrl: 'https://api.example.com', providerId: 7 });
+    expect(getByRole('button', { name: 'gpt-5-mini' }).getAttribute('aria-current')).toBe('true');
+    expect(getByRole('button', { name: 'gpt-5' }).getAttribute('aria-current')).toBeNull();
+    fireEvent.click(getByRole('button', { name: 'gpt-5' }));
+    expect((getByLabelText('ai.admin.model') as HTMLInputElement).value).toBe('gpt-5');
+    expect(queryByRole('button', { name: 'gpt-5-mini' })).toBeNull();
+  });
+  it('sends the typed key, and a filter appears for a long list', async () => {
+    const many = Array.from({ length: 20 }, (_, i) => `model-${i}`).concat('special-one');
+    vi.mocked(listAiModels).mockResolvedValue({ ok: true, models: many });
+    const { getByRole, getByLabelText, findByLabelText, queryByRole, getByText } = await openEditor();
+    fireEvent.change(getByLabelText('ai.admin.key'), { target: { value: 'typed' } });
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.list' }));
+    const filter = await findByLabelText('ai.admin.models.filter');
+    expect(listAiModels).toHaveBeenCalledWith(expect.objectContaining({ adminKey: 'typed' }));
+    fireEvent.change(filter, { target: { value: 'SPECIAL' } });
+    expect(getByRole('button', { name: 'special-one' })).toBeTruthy();
+    expect(queryByRole('button', { name: 'model-3' })).toBeNull();
+    fireEvent.change(filter, { target: { value: 'zzz' } });
+    expect(getByText('ai.admin.models.noMatch')).toBeTruthy();
+  });
+  it('no filter for a short list', async () => {
+    vi.mocked(listAiModels).mockResolvedValue({ ok: true, models: ['a', 'b'] });
+    const { getByRole, findByRole, queryByLabelText } = await openEditor();
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.list' }));
+    await findByRole('button', { name: 'a' });
+    expect(queryByLabelText('ai.admin.models.filter')).toBeNull();
+  });
+  it('says why it failed: refused key, anything else, or nothing found', async () => {
+    const { getByRole, findByText } = await openEditor();
+    vi.mocked(listAiModels).mockResolvedValueOnce({ ok: false, kind: 'auth', message: 'HTTP 401' });
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.list' }));
+    expect((await findByText('ai.admin.models.authFailed')).closest('[role="alert"]')).toBeTruthy();
+    vi.mocked(listAiModels).mockResolvedValueOnce({ ok: false, kind: 'technical', message: 'HTTP 404' });
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.list' }));
+    expect(await findByText('ai.admin.models.failed')).toBeTruthy();
+    vi.mocked(listAiModels).mockRejectedValueOnce(new Error('network'));
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.list' }));
+    expect(await findByText('ai.admin.models.failed')).toBeTruthy();
+    vi.mocked(listAiModels).mockResolvedValueOnce({ ok: true, models: [] });
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.list' }));
+    expect(await findByText('ai.admin.models.empty')).toBeTruthy();
+  });
+  it('a changed URL, type or key drops a list that no longer applies', async () => {
+    vi.mocked(listAiModels).mockResolvedValue({ ok: true, models: ['gpt-5'] });
+    const { getByRole, findByRole, getByLabelText, queryByRole } = await openEditor();
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.list' }));
+    await findByRole('button', { name: 'gpt-5' });
+    fireEvent.change(getByLabelText('ai.admin.baseUrl'), { target: { value: 'https://other.example.com' } });
+    expect(queryByRole('button', { name: 'gpt-5' })).toBeNull();
+  });
+  it('the close button hides the list without changing the model', async () => {
+    vi.mocked(listAiModels).mockResolvedValue({ ok: true, models: ['gpt-5'] });
+    const { getByRole, findByRole, getByLabelText, queryByRole } = await openEditor();
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.list' }));
+    await findByRole('button', { name: 'gpt-5' });
+    fireEvent.click(getByRole('button', { name: 'ai.admin.models.close' }));
+    expect(queryByRole('button', { name: 'gpt-5' })).toBeNull();
+    expect((getByLabelText('ai.admin.model') as HTMLInputElement).value).toBe('gpt-5-mini');
+  });
+  it('the button waits for a base URL', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    const { findByRole, getByRole, getByLabelText } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
+    expect((getByRole('button', { name: 'ai.admin.models.list' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(getByLabelText('ai.admin.baseUrl'), { target: { value: 'https://api.example.com' } });
+    expect((getByRole('button', { name: 'ai.admin.models.list' }) as HTMLButtonElement).disabled).toBe(false);
   });
 });
