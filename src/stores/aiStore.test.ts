@@ -91,6 +91,15 @@ describe('aiStore', () => {
       expect(useUiStore.getState().aiAutoSummary).toBe(false);
       expect(localStorage.getItem('frirss_aiAutoSummary')).toBe('false');
     });
+    it('clears both cost confirmations when the user logs out', () => {
+      useAuthStore.setState({ backendToken: 't' });
+      useUiStore.getState().setAiAutoTranslateConfirmed(true);
+      useUiStore.getState().setAiAutoSummaryConfirmed(true);
+      useAuthStore.getState().logoutBackend();
+      expect(useUiStore.getState().aiAutoTranslateConfirmed).toBe(false);
+      expect(useUiStore.getState().aiAutoSummaryConfirmed).toBe(false);
+      expect(localStorage.getItem('frirss_aiAutoTranslateConfirmed')).toBe('false');
+    });
     it('keeps the AI config while the session token merely changes', () => {
       useAuthStore.setState({ backendToken: 't' });
       useAiStore.setState({ config: ON });

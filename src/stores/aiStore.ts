@@ -43,7 +43,8 @@ export const useAiStore = create<AiState>()((set) => ({
 // (api/backend importe authStore, et ce store importe api/backend). Le 401 qui
 // déconnecte passe par `logoutBackend()` : un seul chemin à surveiller.
 //
-// Le résumé automatique s'éteint aussi : il vit dans le localStorage, et le
+// Le résumé automatique s'éteint aussi, et les deux avertissements de coût
+// (traduction, résumé) se reposent : ils vivent dans le localStorage, et le
 // compte suivant l'hériterait sans avoir vu l'avertissement de coût (un compte
 // neuf pousse même ses réglages locaux au serveur). Le compte qui part ne le
 // perd pas : son jeton est déjà nul, et `stopSync()` (App, à la déconnexion)
@@ -53,6 +54,8 @@ useAuthStore.subscribe((state, prev) => {
   if (prev.backendToken && !state.backendToken) {
     useAiStore.getState().reset();
     useUiStore.getState().setAiAutoSummary(false);
+    useUiStore.getState().setAiAutoTranslateConfirmed(false);
+    useUiStore.getState().setAiAutoSummaryConfirmed(false);
   }
 });
 

@@ -3,6 +3,7 @@ import { normalizeArticleOrder, type ArticleOrder } from '../lib/effectiveOrder'
 import { normalizeStartupView, type StartupView } from '../lib/startupView';
 import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
+import { isAiLanguage, type AiLanguage } from '../lib/aiLanguages';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
 
 function loadJson<T>(key: string, fallback: T): T {
@@ -45,6 +46,26 @@ export function normalizeAiCategoryProviders(v: unknown): Record<string, number>
     if (name !== '' && valid !== null) out[name] = valid;
   }
   return out;
+}
+
+/**
+ * Réglages « tout ou rien » par catégorie : `{ nomDeCatégorie: true }`. Seul
+ * `true` est une valeur — « éteint » est l'absence d'entrée, donc rien à
+ * synchroniser pour une catégorie au repos. Tout le reste (non-objet, tableau,
+ * nom vide, valeur autre que `true`) est écarté.
+ */
+export function normalizeAiCategoryFlags(v: unknown): Record<string, true> {
+  const out: Record<string, true> = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [name, on] of Object.entries(v)) {
+    if (name !== '' && on === true) out[name] = true;
+  }
+  return out;
+}
+
+/** Langue cible de la traduction : `'ui'` (celle de l'interface) ou une langue de la liste fermée. */
+function normalizeAiTranslationLanguage(v: unknown): 'ui' | AiLanguage {
+  return isAiLanguage(v) ? v : 'ui';
 }
 
 /** Any preset value we no longer ship falls back to 'standard'. */
@@ -103,6 +124,14 @@ export interface FeedSetting {
    * "this feed is summarised by the local model" is a property of the feed.
    */
   aiProvider?: number;
+  /**
+   * Traduire / résumer automatiquement les articles de ce flux à l'ouverture.
+   * Absent = le flux suit sa catégorie ; `false` est un choix à part entière
+   * (un flux qui s'éteint sous une catégorie allumée). Synchronisé. À résoudre
+   * par `autoFor()` (src/lib/aiAuto.ts), jamais en lisant directement.
+   */
+  aiAutoTranslate?: boolean;
+  aiAutoSummary?: boolean;
 }
 
 /**
@@ -226,6 +255,27 @@ export interface UiState {
   setAiCategoryProvider: (name: string, id: number | null) => void;
   /** Set (or clear, with null) this feed's AI provider override. */
   setFeedAiProvider: (feedId: string, id: number | null) => void;
+  // Traduction. Langue cible : 'ui' (langue de l'interface) ou une langue de
+  // la liste fermée. Fournisseur : `null` = le même que le résumé. Synchronisé.
+  aiTranslationLanguage: 'ui' | AiLanguage;
+  setAiTranslationLanguage: (v: 'ui' | AiLanguage) => void;
+  aiTranslationProvider: number | null;
+  setAiTranslationProvider: (id: number | null) => void;
+  // Traduction / résumé automatiques par catégorie : { nom: true }. Le réglage
+  // d'un flux (feedSettings) prime ; lire par autoFor().
+  aiCategoryAutoTranslate: Record<string, true>;
+  setAiCategoryAutoTranslate: (name: string, on: boolean) => void;
+  aiCategoryAutoSummary: Record<string, true>;
+  setAiCategoryAutoSummary: (name: string, on: boolean) => void;
+  // L'avertissement de coût a été accepté, une fois par compte. Faux à la
+  // déconnexion et absent des préférences d'un autre compte (comme aiAutoSummary).
+  aiAutoTranslateConfirmed: boolean;
+  setAiAutoTranslateConfirmed: (v: boolean) => void;
+  aiAutoSummaryConfirmed: boolean;
+  setAiAutoSummaryConfirmed: (v: boolean) => void;
+  /** Set (or clear, with '') this feed's automatic translation / summary. */
+  setFeedAiAutoTranslate: (feedId: string, v: boolean | '') => void;
+  setFeedAiAutoSummary: (feedId: string, v: boolean | '') => void;
   // Favicons dans la LISTE d'articles. Réglage distinct de `showFavicons`, qui
   // gouverne la barre latérale : les couper dans la liste sans les perdre dans
   // la barre est une demande légitime, et partager un seul réglage rendrait le
@@ -341,7 +391,7 @@ export interface UiState {
  * disappears once it carries no setting at all, so a feed back on every
  * global default leaves no trace in the synced table.
  */
-function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProvider'>(
+function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProvider' | 'aiAutoTranslate' | 'aiAutoSummary'>(
   settings: Record<string, FeedSetting>,
   feedId: string,
   key: K,
@@ -553,6 +603,51 @@ export const useUiStore = create<UiState>()((set, get) => ({
   },
   setFeedAiProvider: (feedId, id) => {
     set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'aiProvider', id ?? '') }));
+  },
+
+  aiTranslationLanguage: normalizeAiTranslationLanguage(loadJson<unknown>('frirss_aiTranslationLanguage', 'ui')),
+  setAiTranslationLanguage: (v) => {
+    const value = normalizeAiTranslationLanguage(v);
+    localStorage.setItem('frirss_aiTranslationLanguage', JSON.stringify(value));
+    set({ aiTranslationLanguage: value });
+  },
+  aiTranslationProvider: normalizeAiProviderId(loadJson<unknown>('frirss_aiTranslationProvider', null)),
+  setAiTranslationProvider: (id) => {
+    const value = normalizeAiProviderId(id);
+    localStorage.setItem('frirss_aiTranslationProvider', JSON.stringify(value));
+    set({ aiTranslationProvider: value });
+  },
+  aiCategoryAutoTranslate: normalizeAiCategoryFlags(loadJson<unknown>('frirss_aiCategoryAutoTranslate', {})),
+  setAiCategoryAutoTranslate: (name, on) => {
+    const next = { ...get().aiCategoryAutoTranslate };
+    if (on) next[name] = true;
+    else delete next[name];
+    localStorage.setItem('frirss_aiCategoryAutoTranslate', JSON.stringify(next));
+    set({ aiCategoryAutoTranslate: next });
+  },
+  aiCategoryAutoSummary: normalizeAiCategoryFlags(loadJson<unknown>('frirss_aiCategoryAutoSummary', {})),
+  setAiCategoryAutoSummary: (name, on) => {
+    const next = { ...get().aiCategoryAutoSummary };
+    if (on) next[name] = true;
+    else delete next[name];
+    localStorage.setItem('frirss_aiCategoryAutoSummary', JSON.stringify(next));
+    set({ aiCategoryAutoSummary: next });
+  },
+  aiAutoTranslateConfirmed: loadJson<unknown>('frirss_aiAutoTranslateConfirmed', false) === true,
+  setAiAutoTranslateConfirmed: (v) => {
+    localStorage.setItem('frirss_aiAutoTranslateConfirmed', JSON.stringify(v));
+    set({ aiAutoTranslateConfirmed: v });
+  },
+  aiAutoSummaryConfirmed: loadJson<unknown>('frirss_aiAutoSummaryConfirmed', false) === true,
+  setAiAutoSummaryConfirmed: (v) => {
+    localStorage.setItem('frirss_aiAutoSummaryConfirmed', JSON.stringify(v));
+    set({ aiAutoSummaryConfirmed: v });
+  },
+  setFeedAiAutoTranslate: (feedId, v) => {
+    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'aiAutoTranslate', v) }));
+  },
+  setFeedAiAutoSummary: (feedId, v) => {
+    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'aiAutoSummary', v) }));
   },
 
   inlineVideos: loadJson('frirss_inlineVideos', true),
@@ -868,6 +963,13 @@ export const useUiStore = create<UiState>()((set, get) => ({
       localStorage.setItem('frirss_aiAutoSummary', 'false');
       next.aiAutoSummary = false;
     }
+    // Et les deux avertissements de coût : ils se confirment par compte.
+    for (const k of ['aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed'] as const) {
+      if (!has(k) && Object.keys(prefs).length > 0) {
+        localStorage.setItem(`frirss_${k}`, 'false');
+        next[k] = false;
+      }
+    }
 
     // Raw-string keys
     if (has('viewMode') && typeof prefs.viewMode === 'string') {
@@ -902,11 +1004,13 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
       'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
+      'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
+      'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed',
     ];
     for (const k of jsonKeys) {
       // `aiPreferredProvider: null` is a real value ("no preference"), not an absence:
       // a device that clears it must clear it everywhere.
-      if (has(k) && prefs[k] !== undefined && (prefs[k] !== null || k === 'aiPreferredProvider')) {
+      if (has(k) && prefs[k] !== undefined && (prefs[k] !== null || k === 'aiPreferredProvider' || k === 'aiTranslationProvider')) {
         // A preset synced from a device still on an older version can name a
         // preset we dropped — normalise it here too, not just on load.
         const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k])
@@ -922,10 +1026,15 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'aiSummaryRatio' ? normalizeAiSummaryRatio(prefs[k])
           : k === 'aiPreferredProvider' ? normalizeAiProviderId(prefs[k])
           : k === 'aiCategoryProviders' ? normalizeAiCategoryProviders(prefs[k])
+          : k === 'aiTranslationLanguage' ? normalizeAiTranslationLanguage(prefs[k])
+          : k === 'aiTranslationProvider' ? normalizeAiProviderId(prefs[k])
+          : k === 'aiCategoryAutoTranslate' || k === 'aiCategoryAutoSummary' ? normalizeAiCategoryFlags(prefs[k])
           // Like autoExtractDefault: a non-boolean leaves the current value alone.
           : k === 'shortcuts' ? withDefaultShortcuts(prefs[k])
           : k === 'aiFallback' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiFallback)
           : k === 'aiAutoSummary' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiAutoSummary)
+          : k === 'aiAutoTranslateConfirmed' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiAutoTranslateConfirmed)
+          : k === 'aiAutoSummaryConfirmed' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiAutoSummaryConfirmed)
           : prefs[k];
         localStorage.setItem(`frirss_${k}`, JSON.stringify(value));
         next[k] = value;
@@ -958,6 +1067,8 @@ export const UI_SYNC_KEYS = [
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
   'aiPanelCollapsed', 'aiSummaryRatio',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
+  'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
+  'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files
