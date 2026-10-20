@@ -2183,16 +2183,31 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   clé personnelle (sinon le plafond ne le concerne pas). Les trois réglages
   (`aiPreferredProvider`, `aiFallback`, `aiAutoSummary`) vivent dans
   `useUiStore` et se synchronisent ; `ToggleSwitch` accepte `describedBy` pour
-  relier chaque interrupteur à son aide. **`aiAutoSummary` ne s'hérite jamais
-  d'un autre compte** : il vit aussi dans le localStorage, que la déconnexion
-  ne vide pas. Deux gardes, pour qu'aucun compte ne l'ait allumé sans avoir vu
-  l'avertissement de coût : la déconnexion l'éteint (abonnement de
-  `aiStore.ts` à `useAuthStore` ; le compte qui part garde sa valeur serveur,
-  car le jeton est déjà nul et `stopSync()` annule l'envoi différé) — un
-  compte neuf, qui pousse ses réglages locaux au serveur, part donc éteint ;
-  et `applyServerPrefs` l'éteint quand des préférences serveur non vides n'ont
-  pas la clé (compte antérieur à la fonction ; même tri que
-  `confirmMarkAllRead`).
+  relier chaque interrupteur à son aide. **Aucun choix IA qui engage un coût
+  ne s'hérite d'un autre compte** : `aiAutoSummary`, les deux confirmations
+  de coût, les automatismes par catégorie (`aiCategoryAutoTranslate`,
+  `aiCategoryAutoSummary`), les fournisseurs par catégorie
+  (`aiCategoryProviders`) et, dans `feedSettings`, les réglages IA par flux
+  (`aiAutoTranslate`, `aiAutoSummary`, `aiProvider`). Ils vivent aussi dans
+  le localStorage, que la déconnexion ne vide pas. Deux gardes, pour
+  qu'aucun compte n'en hérite sans avoir vu l'avertissement de coût. **La
+  déconnexion les remet à zéro** (abonnement de `aiStore.ts` à
+  `useAuthStore` : global et confirmations éteints, puis
+  `forgetAiAccountChoices` de `uiStore.ts`, qui vide les trois tables par
+  catégorie et retire les clés IA de chaque flux — les autres réglages du
+  flux restent, une entrée vidée disparaît : `withoutAiFeedOverrides`) ; le
+  compte qui part garde ses valeurs serveur, car le jeton est déjà nul et
+  `stopSync()` annule l'envoi différé. C'est **la seule garde d'un compte
+  neuf** : avec des préférences serveur vides, il garde l'état local et le
+  pousse au serveur. Et **`applyServerPrefs` les force à éteint** quand des
+  préférences serveur non vides n'ont pas la clé (compte qui ne l'a jamais
+  réglée ; même tri que `confirmMarkAllRead`) : `aiAutoSummary` et les
+  confirmations à faux, les trois tables par catégorie à `{}` ; sans
+  `feedSettings`, les réglages IA par flux tombent et le reste demeure —
+  quand le serveur porte `feedSettings`, sa valeur l'emporte entièrement.
+  ⚠️ Le fournisseur préféré et celui de la traduction
+  (`aiPreferredProvider`, `aiTranslationProvider`) ne passent par aucune de
+  ces gardes.
   Sous « Résumés », pour tous, le bloc **« Traduction »**
   (`ai/TranslationBlock.tsx`) : deux `<select>` natifs. **« Langue cible »** :
   en tête « Langue de l'interface (X) » (valeur `'ui'`, X étant la langue que
@@ -2491,7 +2506,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   à l'activation) — `autoFor('summary', …)` de `lib/aiAuto.ts`, réglée dans
   « Par flux et catégorie » ; un flux éteint l'est même sous un global ou une
   catégorie allumés. `ReadingPane.tsx` appelle
-  `handleSummarize(undefined, { auto: true })` quand un article est resté affiché **une seconde** (`AUTO_SUMMARY_DELAY_MS`), **une
+  `handleSummarize(undefined, { auto: true })` quand un article est resté
+  affiché **une seconde** (`AUTO_SUMMARY_DELAY_MS`), **une
   seule fois par visite** (`autoSummarisedId`, posé au départ réel de la
   demande et remis à zéro avec le résumé à chaque changement d'article). Le
   délai porte la règle de la spec (§8, « annulée si l'article change ») : une

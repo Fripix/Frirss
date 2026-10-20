@@ -100,6 +100,35 @@ describe('aiStore', () => {
       expect(useUiStore.getState().aiAutoSummaryConfirmed).toBe(false);
       expect(localStorage.getItem('frirss_aiAutoTranslateConfirmed')).toBe('false');
     });
+    it('forgets the per-category and per-feed automations and provider choices when the user logs out', () => {
+      // Le compte suivant hériterait sinon des traductions et résumés
+      // automatiques du précédent, et de ses fournisseurs — peut-être payants.
+      useAuthStore.setState({ backendToken: 't' });
+      const ui = useUiStore.getState();
+      ui.setAiCategoryAutoTranslate('Tech', true);
+      ui.setAiCategoryAutoSummary('Dev', true);
+      ui.setAiCategoryProvider('Tech', 3);
+      ui.setFeedAiAutoTranslate('feed/1', true);
+      ui.setFeedAiAutoSummary('feed/1', false);
+      ui.setFeedAiProvider('feed/1', 3);
+      ui.setFeedLayout('feed/1', 'grid');
+      ui.setFeedAiProvider('feed/2', 4);
+      useAuthStore.getState().logoutBackend();
+      const n = useUiStore.getState();
+      expect(n.aiCategoryAutoTranslate).toEqual({});
+      expect(n.aiCategoryAutoSummary).toEqual({});
+      expect(n.aiCategoryProviders).toEqual({});
+      for (const entry of Object.values(n.feedSettings)) {
+        for (const k of ['aiAutoTranslate', 'aiAutoSummary', 'aiProvider']) expect(entry).not.toHaveProperty(k);
+      }
+      // Les autres réglages du flux restent ; une entrée vidée disparaît.
+      expect(n.feedSettings['feed/1']).toEqual({ layout: 'grid' });
+      expect(n.feedSettings).not.toHaveProperty('feed/2');
+      expect(JSON.parse(localStorage.getItem('frirss_feedSettings')!)).toEqual(n.feedSettings);
+      expect(JSON.parse(localStorage.getItem('frirss_aiCategoryAutoTranslate')!)).toEqual({});
+      expect(JSON.parse(localStorage.getItem('frirss_aiCategoryAutoSummary')!)).toEqual({});
+      expect(JSON.parse(localStorage.getItem('frirss_aiCategoryProviders')!)).toEqual({});
+    });
     it('keeps the AI config while the session token merely changes', () => {
       useAuthStore.setState({ backendToken: 't' });
       useAiStore.setState({ config: ON });

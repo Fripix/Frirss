@@ -276,6 +276,8 @@ export interface UiState {
   /** Set (or clear, with '') this feed's automatic translation / summary. */
   setFeedAiAutoTranslate: (feedId: string, v: boolean | '') => void;
   setFeedAiAutoSummary: (feedId: string, v: boolean | '') => void;
+  /** Oublie les automatismes et les fournisseurs par catégorie et par flux (déconnexion). */
+  forgetAiAccountChoices: () => void;
   // Favicons dans la LISTE d'articles. Réglage distinct de `showFavicons`, qui
   // gouverne la barre latérale : les couper dans la liste sans les perdre dans
   // la barre est une demande légitime, et partager un seul réglage rendrait le
@@ -407,6 +409,24 @@ function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProv
   if (Object.keys(entry).length === 0) delete next[feedId];
 
   localStorage.setItem('frirss_feedSettings', JSON.stringify(next));
+  return next;
+}
+
+/** Réglages IA d'un flux : ils engagent un coût et ne passent pas d'un compte à l'autre. */
+const AI_FEED_KEYS = ['aiProvider', 'aiAutoTranslate', 'aiAutoSummary'] as const;
+
+/**
+ * `settings` sans les réglages IA par flux. Les autres réglages du flux
+ * restent ; une entrée qui n'en porte plus aucun disparaît, comme avec
+ * `withFeedOverride`.
+ */
+export function withoutAiFeedOverrides(settings: Record<string, FeedSetting>): Record<string, FeedSetting> {
+  const next: Record<string, FeedSetting> = {};
+  for (const [id, entry] of Object.entries(settings)) {
+    const kept = { ...entry };
+    for (const k of AI_FEED_KEYS) delete kept[k];
+    if (Object.keys(kept).length > 0) next[id] = kept;
+  }
   return next;
 }
 
@@ -632,6 +652,14 @@ export const useUiStore = create<UiState>()((set, get) => ({
     else delete next[name];
     localStorage.setItem('frirss_aiCategoryAutoSummary', JSON.stringify(next));
     set({ aiCategoryAutoSummary: next });
+  },
+  forgetAiAccountChoices: () => {
+    const feedSettings = withoutAiFeedOverrides(get().feedSettings);
+    localStorage.setItem('frirss_feedSettings', JSON.stringify(feedSettings));
+    for (const k of ['aiCategoryAutoTranslate', 'aiCategoryAutoSummary', 'aiCategoryProviders']) {
+      localStorage.setItem(`frirss_${k}`, JSON.stringify({}));
+    }
+    set({ feedSettings, aiCategoryAutoTranslate: {}, aiCategoryAutoSummary: {}, aiCategoryProviders: {} });
   },
   aiAutoTranslateConfirmed: loadJson<unknown>('frirss_aiAutoTranslateConfirmed', false) === true,
   setAiAutoTranslateConfirmed: (v) => {
@@ -968,6 +996,26 @@ export const useUiStore = create<UiState>()((set, get) => ({
       if (!has(k) && Object.keys(prefs).length > 0) {
         localStorage.setItem(`frirss_${k}`, 'false');
         next[k] = false;
+      }
+    }
+    // Même règle pour les automatismes et les fournisseurs par catégorie et par
+    // flux : vides pour un compte qui ne les a jamais réglés. Les réglages de
+    // flux arrivent d'un bloc : si le serveur les porte, sa valeur l'emporte
+    // entièrement (boucle plus bas) ; sinon seuls leurs réglages IA tombent.
+    // Un compte NEUF (préférences vides) garde l'état local et le pousse au
+    // serveur : ce qui le protège, c'est la remise à zéro de la déconnexion
+    // (`forgetAiAccountChoices`, appelée par aiStore), pas ce tri.
+    if (Object.keys(prefs).length > 0) {
+      for (const k of ['aiCategoryAutoTranslate', 'aiCategoryAutoSummary', 'aiCategoryProviders'] as const) {
+        if (!has(k)) {
+          localStorage.setItem(`frirss_${k}`, JSON.stringify({}));
+          next[k] = {};
+        }
+      }
+      if (!has('feedSettings')) {
+        const feedSettings = withoutAiFeedOverrides(get().feedSettings);
+        localStorage.setItem('frirss_feedSettings', JSON.stringify(feedSettings));
+        next.feedSettings = feedSettings;
       }
     }
 

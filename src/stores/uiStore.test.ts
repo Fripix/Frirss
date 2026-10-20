@@ -491,6 +491,45 @@ describe('uiStore — traduction IA et automatismes par flux', () => {
     expect(useUiStore.getState().aiAutoSummaryConfirmed).toBe(true);
   });
 
+  // Navigateur partagé : la valeur locale peut venir d'un AUTRE compte. Un
+  // compte qui porte des préférences sans la clé ne l'a jamais réglée : elle
+  // repart éteinte. Un compte neuf (préférences vides) garde et pousse l'état
+  // local — c'est la remise à zéro de la déconnexion (aiStore) qui le protège.
+  for (const [key, lit] of [
+    ['aiCategoryAutoTranslate', { Tech: true }],
+    ['aiCategoryAutoSummary', { Tech: true }],
+    ['aiCategoryProviders', { Tech: 3 }],
+  ] as const) {
+    it(`clears a local ${key} for an account whose saved prefs lack it`, () => {
+      useUiStore.setState({ [key]: lit });
+      useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+      expect(useUiStore.getState()[key]).toEqual({});
+      expect(JSON.parse(localStorage.getItem(`frirss_${key}`)!)).toEqual({});
+    });
+    it(`keeps a local ${key} for a brand-new account (empty prefs)`, () => {
+      useUiStore.setState({ [key]: lit });
+      useUiStore.getState().applyServerPrefs({});
+      expect(useUiStore.getState()[key]).toEqual(lit);
+    });
+  }
+  it('strips the local per-feed AI overrides for an account whose saved prefs lack feedSettings', () => {
+    useUiStore.setState({ feedSettings: {
+      'feed/1': { aiAutoTranslate: true, aiAutoSummary: true, aiProvider: 3, layout: 'grid' },
+      'feed/2': { aiAutoTranslate: true },
+    } });
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+    expect(useUiStore.getState().feedSettings).toEqual({ 'feed/1': { layout: 'grid' } });
+    expect(JSON.parse(localStorage.getItem('frirss_feedSettings')!)).toEqual({ 'feed/1': { layout: 'grid' } });
+  });
+  it('takes the server feedSettings entirely when it has them, and keeps the local ones for a brand-new account', () => {
+    const local = { 'feed/1': { aiAutoTranslate: true, layout: 'grid' } };
+    useUiStore.setState({ feedSettings: local });
+    useUiStore.getState().applyServerPrefs({});
+    expect(useUiStore.getState().feedSettings).toEqual(local);
+    useUiStore.getState().applyServerPrefs({ feedSettings: { 'feed/2': { aiAutoSummary: true } } });
+    expect(useUiStore.getState().feedSettings).toEqual({ 'feed/2': { aiAutoSummary: true } });
+  });
+
   it('per-feed automatic translate/summary keep an explicit false and are cleared with the empty string', () => {
     useUiStore.getState().setFeedAiAutoTranslate('feed/1', false);
     expect(useUiStore.getState().feedSettings['feed/1']).toEqual({ aiAutoTranslate: false });

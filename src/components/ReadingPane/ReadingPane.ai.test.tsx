@@ -968,6 +968,25 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
       for (const region of getAllByRole('status')) expect(region.textContent).toBe('');
       expect(queryByText('ai.translation.nothing')).toBeNull();
     });
+    it('does not translate again when the body changes after an automatic translation', async () => {
+      // « Article complet » basculé : le corps change, la traduction revient à
+      // `idle` — la visite, elle, a déjà eu sa traduction automatique.
+      const a = article('tx3');
+      useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true } } });
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title', 'word word'], { lang: 'en' }));
+      const { container, getByRole } = render(<ReadingPane />);
+      await advance(1000);
+      await advance(0);
+      expect(getByRole('button', { name: 'ai.showSource' })).toBeTruthy();
+      expect(articleCalls()).toHaveLength(1);
+      await putExtract('tx3', extracted('<p>The full article, now in the reading pane.</p>'));
+      const extract = container.querySelector('[title="readingPane.fullContent"]') as HTMLElement;
+      await act(async () => { fireEvent.click(extract); await Promise.resolve(); });
+      expect(getByRole('button', { name: 'ai.translateArticle' })).toBeTruthy();
+      await advance(2000);
+      expect(articleCalls()).toHaveLength(1);
+    });
     it('runs once per visit, and again when the user comes back', async () => {
       useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true } } });
       vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
