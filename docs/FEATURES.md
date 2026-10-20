@@ -1836,7 +1836,12 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   figée à la valeur du démarrage. Un `load()` qui échoue **garde la
   configuration déjà chargée** ; seul un premier chargement raté (aucune
   configuration encore) retombe sur « éteint » : un rechargement perdu ne doit
-  pas faire disparaître l'IA d'une session qui l'avait.
+  pas faire disparaître l'IA d'une session qui l'avait. **Une réponse
+  n'appartient qu'à la session qui l'a demandée** : `load()` relève
+  `backendToken` avant l'attente et ignore sa réponse (réussite ou échec) si le
+  jeton a changé ou est nul — sinon un chargement parti avant la déconnexion
+  revenait après `reset()` et rendait au compte suivant les fournisseurs du
+  précédent. Le jeton ne change qu'à la connexion et à la déconnexion.
 - **Deux adaptateurs, jamais plus** : `anthropic` (Messages API) et `openai`
   (`/v1/chat/completions`), qui couvre OpenAI, Ollama, LM Studio, Mistral,
   Groq, DeepSeek, Grok, OpenRouter. **Pas Gemini en direct** : sa couche

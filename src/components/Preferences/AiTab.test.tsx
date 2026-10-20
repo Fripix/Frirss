@@ -28,8 +28,9 @@ afterEach(cleanup);
 describe('AiTab — fresh AI config on each visit', () => {
   const cfg = (usageToday: number): AiConfig =>
     ({ enabled: true, providers: [], userKeysAllowed: false, dailyCap: 50, usageToday, defaultProvider: null });
-  beforeEach(() => { useAuthStore.setState({ backendUser: user }); });
-  afterEach(() => useAiStore.setState({ config: null }));
+  // Une session ouverte : `load()` ignore une réponse arrivée sans jeton.
+  beforeEach(() => { useAuthStore.setState({ backendUser: user, backendToken: 'tok' }); });
+  afterEach(() => { useAiStore.setState({ config: null }); useAuthStore.setState({ backendToken: null }); });
 
   it('reloads the config each time the section becomes active, never while hidden', async () => {
     useAiStore.setState({ config: cfg(1) });

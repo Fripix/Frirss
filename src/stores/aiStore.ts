@@ -21,7 +21,18 @@ const OFF: AiConfig = { enabled: false, providers: [], userKeysAllowed: false, d
 export const useAiStore = create<AiState>()((set) => ({
   config: null,
   load: async () => {
-    try { set({ config: await getAiConfig() }); } catch { set((s) => ({ config: s.config ?? OFF })); }
+    // Une réponse n'appartient qu'à la session qui l'a demandée : partie avant
+    // une déconnexion, elle reviendrait APRÈS `reset()` et rendrait au compte
+    // suivant les fournisseurs du précédent. Le jeton ne change qu'à la
+    // connexion et à la déconnexion : un jeton différent est un autre compte.
+    const token = useAuthStore.getState().backendToken;
+    const stillOurs = () => !!token && useAuthStore.getState().backendToken === token;
+    try {
+      const config = await getAiConfig();
+      if (stillOurs()) set({ config });
+    } catch {
+      if (stillOurs()) set((s) => ({ config: s.config ?? OFF }));
+    }
   },
   reset: () => set({ config: null }),
 }));

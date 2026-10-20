@@ -11,6 +11,8 @@ const ON = { enabled: true, providers: [], userKeysAllowed: false, dailyCap: 50,
 beforeEach(() => {
   useAuthStore.setState({ backendToken: null });
   useAiStore.getState().reset();
+  // Une session ouverte : une réponse arrivée sans jeton est ignorée.
+  useAuthStore.setState({ backendToken: 'tok' });
 });
 
 describe('aiStore', () => {
@@ -42,6 +44,34 @@ describe('aiStore', () => {
     expect(aiUsable(useAiStore.getState())).toBe(false);
     useAiStore.setState({ config: { ...cfg, enabled: false, providers: [p(true)] } });
     expect(aiUsable(useAiStore.getState())).toBe(false);
+  });
+  describe('a load that outlives its session', () => {
+    it('is ignored when the user logged out while it was in flight', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+      let answer!: (v: unknown) => void;
+      vi.mocked(getAiConfig).mockReturnValue(new Promise((r) => { answer = r; }) as never);
+      const loading = useAiStore.getState().load();
+      useAuthStore.getState().logoutBackend();
+      answer(ON);
+      await loading;
+      vi.unstubAllGlobals();
+      expect(useAiStore.getState().config).toBeNull();
+    });
+    it('is ignored when another account signed in meanwhile, failure included', async () => {
+      let fail!: (e: unknown) => void;
+      vi.mocked(getAiConfig).mockReturnValue(new Promise((_r, reject) => { fail = reject; }) as never);
+      const loading = useAiStore.getState().load();
+      useAuthStore.setState({ backendToken: 'other' });
+      fail(new Error('network'));
+      await loading;
+      expect(useAiStore.getState().config).toBeNull();
+    });
+    it('is ignored when there was no session to begin with', async () => {
+      useAuthStore.setState({ backendToken: null });
+      vi.mocked(getAiConfig).mockResolvedValue(ON);
+      await useAiStore.getState().load();
+      expect(useAiStore.getState().config).toBeNull();
+    });
   });
   describe('logout', () => {
     beforeEach(() => { vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 }))); });
