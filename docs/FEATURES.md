@@ -1906,7 +1906,14 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   « Résumer avec… ») > fournisseur du flux > de la catégorie > préféré de
   l'utilisateur > défaut admin (`ai_default_provider`) > premier disponible. Un
   étage muet ou indisponible est sauté. Les étages flux / catégorie / préféré
-  sont des paramètres de la requête : ils n'ont pas encore d'écran (plan 2).
+  sont des paramètres de la requête, et le client les envoie avec chaque
+  demande depuis les réglages synchronisés de l'utilisateur (`lib/aiRouting.ts`,
+  appelé par `handleSummarize`) : un étage non réglé n'est pas envoyé. Les
+  identifiants sont revalidés à l'envoi (`"3"` ou `-1` ne partent pas), la
+  catégorie se cherche par clé propre (une catégorie nommée `constructor` ne
+  retrouve rien) et c'est la première catégorie du flux qui porte un
+  fournisseur qui l'emporte. Les écrans de réglage arrivent dans des tâches
+  suivantes.
 - **Repli** (`fallback`, vrai par défaut) : sur erreur `auth` / `quota` /
   `technical` seulement, dans l'ordre de l'admin, **jamais** sur `refused`, un
   seul tour ; la réponse dit d'où on vient (`fellBackFrom`). Une exception qui

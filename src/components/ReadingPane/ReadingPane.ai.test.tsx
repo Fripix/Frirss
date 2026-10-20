@@ -45,7 +45,11 @@ beforeEach(() => {
   useFeedStore.setState({ selectedArticle: article('a1'), articles: [article('a1'), article('a2')] });
   useAiStore.setState({ config: ON });
   useAuthStore.setState({ backendUser: { id: 2, username: 'u', role: 'user' } as never });
-  useUiStore.setState({ aiPanelCollapsed: false, aiPanelAutoExpanded: false, aiSummaryRatio: 20 });
+  useUiStore.setState({
+    aiPanelCollapsed: false, aiPanelAutoExpanded: false, aiSummaryRatio: 20,
+    feedSettings: {}, aiCategoryProviders: {}, aiPreferredProvider: null, aiFallback: true,
+  });
+  useFeedStore.setState({ subscriptions: [] });
   vi.mocked(requestAiSummary).mockReset();
 });
 const httpError = (status: number, data: unknown) =>
@@ -71,6 +75,29 @@ describe('ReadingPane — Résumé IA', () => {
     const { getByRole } = render(<ReadingPane />);
     fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ ratio: 35 }));
+  });
+  it('sends the routing stages and the fallback choice with the request', () => {
+    vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+    useFeedStore.setState({ subscriptions: [{ id: 'feed/1', title: 'F', categories: [{ id: 'user/-/label/Tech', label: 'Tech' }] }] } as never);
+    useUiStore.setState({ feedSettings: { 'feed/1': { aiProvider: 3 } }, aiCategoryProviders: { Tech: 1 }, aiPreferredProvider: 1, aiFallback: false });
+    const { getByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ feedProvider: 3, categoryProvider: 1, preferredProvider: 1, fallback: false }));
+  });
+  it('sends no feed provider for a stored value that is not a valid id', () => {
+    vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+    useFeedStore.setState({ subscriptions: [{ id: 'feed/1', title: 'F', categories: [] }] } as never);
+    useUiStore.setState({ feedSettings: { 'feed/1': { aiProvider: '3' } } as never });
+    const { getByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    expect(vi.mocked(requestAiSummary).mock.calls[0][0]).not.toHaveProperty('feedProvider');
+  });
+  it('sends no category provider for a category named after an Object.prototype member', () => {
+    vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+    useFeedStore.setState({ subscriptions: [{ id: 'feed/1', title: 'F', categories: [{ id: 'user/-/label/constructor', label: 'constructor' }] }] } as never);
+    const { getByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    expect(vi.mocked(requestAiSummary).mock.calls[0][0]).not.toHaveProperty('categoryProvider');
   });
   it('shows the panel above the article, with its status, while nothing was requested', () => {
     const { getByRole, getByText } = render(<ReadingPane />);

@@ -30,6 +30,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { stripMediaForSummary } from '../../lib/aiPayload';
 import { aiErrorKey } from '../../lib/aiErrorKey';
+import { aiRouting } from '../../lib/aiRouting';
 import axios from 'axios';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
@@ -734,6 +735,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         html: stripMediaForSummary(extractedContent?.content ?? selectedArticle.content ?? ''),
         provider: providerId,
         ratio: aiRatio,
+        ...aiRouting(selectedArticle.sourceId, useFeedStore.getState().subscriptions, useUiStore.getState()),
       });
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
       setAiResult(r); setAiStatus('done');

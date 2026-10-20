@@ -217,8 +217,16 @@ export async function getAiConfig(): Promise<AiConfig> {
   const { data } = await backend.get<AiConfig>('/ai/config');
   return data;
 }
-/** `ratio` : longueur visée en % de l'article (réglage `aiSummaryRatio`). */
-export async function requestAiSummary(body: { articleId: string; title: string; html: string; provider?: number; ratio?: number }): Promise<AiSummaryResult> {
+/**
+ * `ratio` : longueur visée en % de l'article (réglage `aiSummaryRatio`).
+ * `provider` force un fournisseur pour cet appel ; `feedProvider`, `categoryProvider`
+ * et `preferredProvider` sont les étages de routage de l'utilisateur ; `fallback`
+ * autorise le repli sur le fournisseur suivant (voir `lib/aiRouting.ts`).
+ */
+export async function requestAiSummary(body: {
+  articleId: string; title: string; html: string; provider?: number; ratio?: number;
+  feedProvider?: number; categoryProvider?: number; preferredProvider?: number; fallback?: boolean;
+}): Promise<AiSummaryResult> {
   const { data } = await backend.post<AiSummaryResult>('/ai/summary', body);
   return data;
 }
