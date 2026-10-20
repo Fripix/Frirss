@@ -495,6 +495,16 @@ describe('ReadingPane — Résumé IA', () => {
       fire();
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
     });
+    it('leaves a summary already on screen alone', async () => {
+      vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+      const { findByText } = render(<ReadingPane />);
+      fire();
+      expect(await findByText('Le résumé.')).toBeTruthy();
+      fire();
+      await act(async () => { await Promise.resolve(); });
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      expect(await findByText('Le résumé.')).toBeTruthy();
+    });
     it('unfolds a folded panel once per device, like the button', async () => {
       vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
       useUiStore.setState({ aiPanelCollapsed: true, aiPanelAutoExpanded: false });

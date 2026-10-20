@@ -790,15 +790,18 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // l'événement, et c'est ici — où vivent l'état et la requête — qu'on y répond.
   // Mêmes gardes que le bouton : IA utilisable, en ligne, un article ouvert.
   // (`handleSummarize` ignore déjà une demande en cours pour cet article.)
+  // Un résumé déjà affiché n'est pas redemandé : après « Résumer avec X », la
+  // touche le remplacerait par celui du fournisseur routé — peut-être un
+  // nouvel appel payant. Pour en changer, il y a « Résumer avec… ».
   useEffect(() => {
-    if (!aiUsable || !online || !selectedArticle) return;
+    if (!aiUsable || !online || !selectedArticle || aiResult) return;
     const onSummarizeEvent = () => {
       expandOnFirstSummary();
       void handleSummarize();
     };
     window.addEventListener('frirss:ai-summarize', onSummarizeEvent);
     return () => window.removeEventListener('frirss:ai-summarize', onSummarizeEvent);
-  }, [aiUsable, online, selectedArticle, handleSummarize]);
+  }, [aiUsable, online, selectedArticle, aiResult, handleSummarize]);
 
   // Résumé automatique à l'ouverture, une fois par visite. Déclaré APRÈS les
   // effets de remise à zéro (IA et extraction) : dans la même passe ils

@@ -2223,7 +2223,12 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   `ReadingPane.tsx` qui répond — il détient l'état et la requête — sous les
   mêmes gardes que le bouton (IA utilisable, **en ligne**, article ouvert ;
   `handleSummarize` ignore déjà une demande en cours pour cet article) : il
-  appelle `expandOnFirstSummary()` puis `handleSummarize()`. Cette fonction
+  appelle `expandOnFirstSummary()` puis `handleSummarize()`. Il **ne fait rien
+  quand un résumé est déjà affiché** (`aiResult`) : après « Résumer avec X »,
+  la touche le remplaçait par celui du fournisseur routé, peut-être au prix
+  d'un nouvel appel payant ; changer de fournisseur reste l'affaire du menu
+  « Résumer avec… ». La palette diffuse le même événement et suit donc la
+  même règle. `expandOnFirstSummary`
   (`ReadingPane/aiPanelExpand.ts`, partagée avec le bouton « Résumer ») porte
   la règle « une fois par appareil, déplier un panneau replié » ; elle vit dans
   un module à part parce qu'un fichier de composant ne doit exporter que des
