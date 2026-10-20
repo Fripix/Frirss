@@ -819,6 +819,16 @@
       "autoConfirmMessage": "Cada resumo automático é uma chamada ao seu fornecedor de IA. Consoante o fornecedor e a sua subscrição, pode ser-lhe cobrado. Um modelo local como o Ollama não custa nada.",
       "autoConfirm": "Ativar",
       "usage": "Resumos pagos hoje pela instância: {{used}} de {{cap}}"
+    },
+    "routing": {
+      "title": "Por feed e categoria",
+      "hint": "Um fornecedor escolhido aqui tem prioridade sobre o seu fornecedor preferido, e o de um feed sobre o da sua categoria.",
+      "default": "Predefinido",
+      "uncategorised": "Sem categoria",
+      "overrides_one": "{{count}} feed definido",
+      "overrides_other": "{{count}} feeds definidos",
+      "categorySelect": "Fornecedor para a categoria {{name}}",
+      "feedSelect": "Fornecedor para {{name}}"
     }
   }
 }

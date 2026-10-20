@@ -819,6 +819,16 @@
       "autoConfirmMessage": "Jede automatische Zusammenfassung ist ein Aufruf bei Ihrem KI-Anbieter. Je nach Anbieter und Tarif kann sie Ihnen in Rechnung gestellt werden. Ein lokales Modell wie Ollama kostet nichts.",
       "autoConfirm": "Aktivieren",
       "usage": "Heute von der Instanz bezahlte Zusammenfassungen: {{used}} von {{cap}}"
+    },
+    "routing": {
+      "title": "Nach Feed und Kategorie",
+      "hint": "Ein hier gewählter Anbieter hat Vorrang vor Ihrem bevorzugten Anbieter, und der eines Feeds vor dem seiner Kategorie.",
+      "default": "Standard",
+      "uncategorised": "Ohne Kategorie",
+      "overrides_one": "{{count}} Feed festgelegt",
+      "overrides_other": "{{count}} Feeds festgelegt",
+      "categorySelect": "Anbieter für die Kategorie {{name}}",
+      "feedSelect": "Anbieter für {{name}}"
     }
   }
 }

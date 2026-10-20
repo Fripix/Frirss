@@ -1922,8 +1922,8 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   identifiants sont revalidés à l'envoi (`"3"` ou `-1` ne partent pas), la
   catégorie se cherche par clé propre (une catégorie nommée `constructor` ne
   retrouve rien) et c'est la première catégorie du flux qui porte un
-  fournisseur qui l'emporte. Les écrans de réglage arrivent dans des tâches
-  suivantes.
+  fournisseur qui l'emporte. L'écran de réglage des étages flux et catégorie
+  est le bloc « Par flux et catégorie » (Préférences → IA).
 - **Repli** (`fallback`, vrai par défaut) : sur erreur `auth` / `quota` /
   `technical` seulement, dans l'ordre de l'admin, **jamais** sur `refused`, un
   seul tour ; la réponse dit d'où on vient (`fellBackFrom`). Une exception qui
@@ -2029,8 +2029,8 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   « Automatique » quand il n'y en a pas ; un fournisseur sans clé utilisable
   est grisé « (clé requise) » ; un choix qui désigne un fournisseur supprimé
   reste affiché « Fournisseur supprimé » au lieu de retomber en silence sur le
-  défaut — `ProviderOptions`, dans `ai/shared.tsx`, est conçu pour être
-  réutilisé par les réglages par flux et par catégorie) ; **« Repli automatique »**
+  défaut — `ProviderOptions`, dans `ai/shared.tsx`, sert aussi aux sélecteurs
+  du bloc « Par flux et catégorie ») ; **« Repli automatique »**
   (interrupteur, **activé** par défaut, aide « le suivant de la liste prend le
   relais ») ; **« Résumé automatique à l'ouverture »** (interrupteur, **éteint**
   par défaut) — l'allumer ouvre une confirmation de coût (chaque résumé est un
@@ -2055,6 +2055,28 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   modèle d'abord, car c'est le libellé du type, long, que la coupe doit manger —
   et la mention « clé enregistrée » **hors de la coupe** : à 320 px, quand elle
   suivait le type dans la même ligne tronquée, elle n'était jamais visible.
+- **Interface — « Par flux et catégorie »** (`ai/RoutingBlock.tsx`, juste sous
+  « Résumés », pour tous, admin compris) : l'aperçu de tous les choix de
+  fournisseur. Un titre, une aide (« un fournisseur choisi ici passe avant votre
+  fournisseur préféré, et celui d'un flux avant celui de sa catégorie »), puis
+  une ligne par catégorie dans l'ordre de `groupFeedsByCategory` : un bouton de
+  dépli (`aria-expanded`, `aria-controls`) qui porte le nom et, s'il y en a,
+  « N flux réglés », et à droite le sélecteur de la catégorie. **Tout est replié
+  à l'ouverture.** Dépliée, la catégorie liste ses flux, chacun avec son
+  sélecteur. Les flux sans catégorie forment un dernier groupe « Sans
+  catégorie », **sans sélecteur de groupe** (il n'y a pas de catégorie à
+  régler). Options : « Par défaut » (valeur vide, retire le réglage), puis les
+  fournisseurs via `ProviderOptions` (clé requise grisée, « Fournisseur
+  supprimé » si la valeur enregistrée n'existe plus). Précédence : **flux >
+  catégorie > fournisseur préféré** (voir « Résolution »). Les réglages vivent
+  dans `aiCategoryProviders` (par **nom** de catégorie) et
+  `feedSettings[id].aiProvider`, tous deux synchronisés ; ils sont relus par
+  `normalizeAiProviderId` (une valeur synchronisée corrompue vaut « par
+  défaut ») et la catégorie par clé propre (`Object.hasOwn`). Mobile : le nom
+  passe à la ligne, le sélecteur garde 8 rem au moins (`min-w-[8rem]`), cibles
+  de 44 pt. ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
+  puisqu'il est rangé sous son nom ; un flux déplacé dans une autre catégorie
+  suit celle-ci. Un flux rangé dans deux catégories apparaît sous chacune.
 - **Interface — panneau** (`AiSummary.tsx`) : un panneau sur **toute la largeur
   de la colonne de lecture**, au-dessus de l'article, sur une **surface teintée
   réglable** (`--ai-bg` / `--ai-border`, voir « Apparence et thèmes »).

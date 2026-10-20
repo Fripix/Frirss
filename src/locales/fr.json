@@ -819,6 +819,16 @@
       "autoConfirmMessage": "Chaque résumé automatique est un appel à votre fournisseur d'IA. Selon le fournisseur et votre abonnement, il peut vous être facturé. Un modèle local comme Ollama ne coûte rien.",
       "autoConfirm": "Activer",
       "usage": "Résumés payés par l'instance aujourd'hui : {{used}} sur {{cap}}"
+    },
+    "routing": {
+      "title": "Par flux et catégorie",
+      "hint": "Un fournisseur choisi ici passe avant votre fournisseur préféré, et celui d'un flux avant celui de sa catégorie.",
+      "default": "Par défaut",
+      "uncategorised": "Sans catégorie",
+      "overrides_one": "{{count}} flux réglé",
+      "overrides_other": "{{count}} flux réglés",
+      "categorySelect": "Fournisseur pour la catégorie {{name}}",
+      "feedSelect": "Fournisseur pour {{name}}"
     }
   }
 }

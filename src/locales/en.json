@@ -819,6 +819,16 @@
       "autoConfirmMessage": "Every automatic summary is a call to your AI provider. Depending on the provider and your plan, it may be billed to you. A local model such as Ollama costs nothing.",
       "autoConfirm": "Turn on",
       "usage": "Summaries paid by the instance today: {{used}} of {{cap}}"
+    },
+    "routing": {
+      "title": "By feed and category",
+      "hint": "A provider chosen here takes precedence over your preferred provider, and a feed's over its category's.",
+      "default": "Default",
+      "uncategorised": "Uncategorised",
+      "overrides_one": "{{count}} feed set",
+      "overrides_other": "{{count}} feeds set",
+      "categorySelect": "Provider for the {{name}} category",
+      "feedSelect": "Provider for {{name}}"
     }
   }
 }

@@ -819,6 +819,16 @@
       "autoConfirmMessage": "每次自动摘要都会调用您的 AI 服务商。根据服务商和您的订阅，可能会向您收费。像 Ollama 这样的本地模型不产生任何费用。",
       "autoConfirm": "启用",
       "usage": "今天由实例支付的摘要：{{used}} / {{cap}}"
+    },
+    "routing": {
+      "title": "按订阅源和分类",
+      "hint": "在此选择的服务商优先于您的首选服务商，订阅源的服务商优先于其所属分类的服务商。",
+      "default": "默认",
+      "uncategorised": "未分类",
+      "overrides_one": "已设置 {{count}} 个订阅源",
+      "overrides_other": "已设置 {{count}} 个订阅源",
+      "categorySelect": "分类 {{name}} 的服务商",
+      "feedSelect": "{{name}} 的服务商"
     }
   }
 }

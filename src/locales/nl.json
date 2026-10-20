@@ -819,6 +819,16 @@
       "autoConfirmMessage": "Elke automatische samenvatting is een aanroep naar uw AI-aanbieder. Afhankelijk van de aanbieder en uw abonnement kan dit in rekening worden gebracht. Een lokaal model zoals Ollama kost niets.",
       "autoConfirm": "Inschakelen",
       "usage": "Vandaag door de instantie betaalde samenvattingen: {{used}} van {{cap}}"
+    },
+    "routing": {
+      "title": "Per feed en categorie",
+      "hint": "Een hier gekozen aanbieder gaat voor op uw voorkeursaanbieder, en die van een feed gaat voor op die van zijn categorie.",
+      "default": "Standaard",
+      "uncategorised": "Zonder categorie",
+      "overrides_one": "{{count}} feed ingesteld",
+      "overrides_other": "{{count}} feeds ingesteld",
+      "categorySelect": "Aanbieder voor de categorie {{name}}",
+      "feedSelect": "Aanbieder voor {{name}}"
     }
   }
 }

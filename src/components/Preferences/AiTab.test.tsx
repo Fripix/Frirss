@@ -10,6 +10,7 @@ import { getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, u
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useAiStore } from '../../stores/aiStore';
+import { useFeedStore } from '../../stores/feedStore';
 import type { AiConfig, AiProviderView } from '../../api/backend';
 import AiTab from './AiTab';
 
@@ -418,5 +419,84 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
       expect(r.queryByText('ai.user.usage')).toBeNull();
       r.unmount();
     }
+  });
+});
+
+describe('AiTab — « Par flux et catégorie »', () => {
+  const cat = (label: string) => ({ id: `user/-/label/${label}`, label });
+  const sub = (n: number, categories: { id: string; label: string }[] = []) => ({ id: `feed/${n}`, title: `Flux ${n}`, categories });
+  const provider = (id: number, name: string): AiProviderView =>
+    ({ id, name, type: 'openai', hasAdminKey: true, shared: true, hasUserKey: false, available: true });
+  const reset = () => {
+    useUiStore.setState({ aiCategoryProviders: {}, feedSettings: {} });
+    useFeedStore.setState({ subscriptions: [] });
+  };
+  beforeEach(() => {
+    reset();
+    useAuthStore.setState({ backendUser: user });
+    useFeedStore.setState({ subscriptions: [sub(1, [cat('Tech')]), sub(2, [cat('Tech')]), sub(3)] });
+    useAiStore.setState({ config: { enabled: true, providers: [provider(1, 'Ollama')], userKeysAllowed: false, dailyCap: 0, usageToday: 0, defaultProvider: null } });
+  });
+  afterEach(() => {
+    reset();
+    useAiStore.setState({ config: null });
+  });
+
+  it('lists categories collapsed, with the number of tuned feeds, and sets a category provider', () => {
+    useUiStore.setState({ feedSettings: { 'feed/2': { aiProvider: 1 } } });
+    const { getByRole, getByText, getByLabelText, queryAllByLabelText } = render(<AiTab active />);
+    expect(getByText('ai.routing.title')).toBeTruthy();
+    expect(getByText('ai.routing.hint')).toBeTruthy();
+    const toggle = getByRole('button', { name: /Tech/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(getByText('ai.routing.overrides')).toBeTruthy();
+    // Replié : seul le sélecteur de la catégorie est là, aucun sélecteur de flux.
+    expect(queryAllByLabelText('ai.routing.feedSelect')).toHaveLength(0);
+    fireEvent.change(getByLabelText('ai.routing.categorySelect'), { target: { value: '1' } });
+    expect(useUiStore.getState().aiCategoryProviders).toEqual({ Tech: 1 });
+    fireEvent.change(getByLabelText('ai.routing.categorySelect'), { target: { value: '' } });
+    expect(useUiStore.getState().aiCategoryProviders).toEqual({});
+  });
+  it('a feed provider is set and set back to default from the expanded category', () => {
+    const { getByRole, getAllByLabelText } = render(<AiTab active />);
+    const toggle = getByRole('button', { name: /Tech/ });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(document.getElementById(toggle.getAttribute('aria-controls') as string)).toBeTruthy();
+    const feedSelects = getAllByLabelText('ai.routing.feedSelect') as HTMLSelectElement[];
+    expect(feedSelects).toHaveLength(2);
+    expect(feedSelects[0].options[0].textContent).toBe('ai.routing.default');
+    fireEvent.change(feedSelects[0], { target: { value: '1' } });
+    expect(useUiStore.getState().feedSettings['feed/1'].aiProvider).toBe(1);
+    fireEvent.change(feedSelects[0], { target: { value: '' } });
+    expect(useUiStore.getState().feedSettings['feed/1']).toBeUndefined();
+  });
+  it('keeps feeds without a category reachable, in their own group without a group selector', () => {
+    useFeedStore.setState({ subscriptions: [sub(3)] });
+    const { getByRole, getAllByLabelText, queryAllByLabelText } = render(<AiTab active />);
+    expect(queryAllByLabelText('ai.routing.categorySelect')).toHaveLength(0);
+    const toggle = getByRole('button', { name: /ai\.routing\.uncategorised/ });
+    expect(queryAllByLabelText('ai.routing.feedSelect')).toHaveLength(0);
+    fireEvent.click(toggle);
+    const selects = getAllByLabelText('ai.routing.feedSelect');
+    expect(selects).toHaveLength(1);
+    fireEvent.change(selects[0], { target: { value: '1' } });
+    expect(useUiStore.getState().feedSettings['feed/3'].aiProvider).toBe(1);
+  });
+  it('shows a deleted provider as such', () => {
+    useUiStore.setState({ aiCategoryProviders: { Tech: 42 } });
+    const { getByLabelText } = render(<AiTab active />);
+    const select = getByLabelText('ai.routing.categorySelect') as HTMLSelectElement;
+    expect(select.value).toBe('42');
+    expect(select.selectedOptions[0].textContent).toBe('ai.user.removedProvider');
+  });
+  it('reads a category named like an Object property as unset, and ignores a corrupt feed value', () => {
+    useFeedStore.setState({ subscriptions: [sub(1, [cat('constructor')]), sub(2, [cat('Tech')])] });
+    useUiStore.setState({ feedSettings: { 'feed/2': { aiProvider: '3' as unknown as number } } });
+    const { getAllByLabelText, getAllByRole, queryByText } = render(<AiTab active />);
+    for (const s of getAllByLabelText('ai.routing.categorySelect') as HTMLSelectElement[]) expect(s.value).toBe('');
+    expect(queryByText('ai.routing.overrides')).toBeNull();
+    fireEvent.click(getAllByRole('button', { name: /Tech/ })[0]);
+    expect((getAllByLabelText('ai.routing.feedSelect')[0] as HTMLSelectElement).value).toBe('');
   });
 });

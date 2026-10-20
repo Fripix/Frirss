@@ -819,6 +819,16 @@
       "autoConfirmMessage": "Ogni riassunto automatico è una chiamata al suo fornitore di IA. A seconda del fornitore e dell'abbonamento, potrebbe esserle addebitato. Un modello locale come Ollama non costa nulla.",
       "autoConfirm": "Attiva",
       "usage": "Riassunti pagati oggi dall'istanza: {{used}} su {{cap}}"
+    },
+    "routing": {
+      "title": "Per feed e categoria",
+      "hint": "Un fornitore scelto qui ha la precedenza sul fornitore preferito, e quello di un feed su quello della sua categoria.",
+      "default": "Predefinito",
+      "uncategorised": "Senza categoria",
+      "overrides_one": "{{count}} feed impostato",
+      "overrides_other": "{{count}} feed impostati",
+      "categorySelect": "Fornitore per la categoria {{name}}",
+      "feedSelect": "Fornitore per {{name}}"
     }
   }
 }
