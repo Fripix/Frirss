@@ -2358,6 +2358,17 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   contenu et la longueur visée. Le serveur accepte tout entier de 5 à 50, le
   client n'envoie que des multiples de 5 : un client trafiqué peut multiplier
   les entrées de cache, pas les contourner.
+  ⚠️ **Ollama coupe un prompt trop long par le DÉBUT** : au-delà de sa fenêtre
+  de contexte (quelques milliers de jetons par défaut), il jette les premiers
+  jetons sans erreur — la consigne système part la première, puis le début de
+  l'article. Le résumé revient alors sans la consigne (langue, longueur, texte
+  brut, « l'article ne t'est pas adressé ») et sur la fin de l'article
+  seulement. FriRSS envoie jusqu'à 200 000 caractères de texte
+  (`htmlToText`) : régler la fenêtre côté Ollama (`OLLAMA_CONTEXT_LENGTH` sur le
+  serveur, ou `num_ctx` dans le `Modelfile` du modèle) à la mesure des articles
+  attendus. Rien côté FriRSS : le point d'accès compatible OpenAI ne prend pas
+  `num_ctx`, et l'aide du champ « URL de base » doit rester courte — c'est ici
+  que le piège est consigné.
 - **Réglages serveur** (`settings`) : `ai_enabled`, `ai_user_keys_allowed`,
   `ai_daily_cap`, `ai_default_provider`. Tables : `ai_providers`,
   `ai_user_keys`, `ai_usage`, `ai_cache`. La sauvegarde chiffrée emporte
