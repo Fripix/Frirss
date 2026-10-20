@@ -38,6 +38,9 @@ import axios from 'axios';
 // Référence stable : un `?? []` dans le sélecteur zustand en créerait une neuve à
 // chaque lecture (config encore nulle) et boucle en « maximum update depth ».
 const NO_AI_PROVIDERS: AiProviderView[] = [];
+// Temps passé sur un article avant que son résumé automatique ne parte (spec
+// §8 : la demande est « annulée si l'article change »).
+const AUTO_SUMMARY_DELAY_MS = 1000;
 
 // Body placeholder shown while an auto-extract feed loads the full text.
 // La prop d'injection est un objet de MODULE, pas un littéral dans le JSX :
@@ -792,10 +795,18 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     return () => window.removeEventListener('frirss:ai-summarize', onSummarizeEvent);
   }, [aiUsable, online, selectedArticle, handleSummarize]);
 
-  // Résumé automatique à l'ouverture, une fois par article. Déclaré APRÈS les
+  // Résumé automatique à l'ouverture, une fois par visite. Déclaré APRÈS les
   // effets de remise à zéro (IA et extraction) : dans la même passe ils
   // s'exécutent dans l'ordre, et la remise à zéro ne doit pas écraser l'état
   // « en cours » posé ici.
+  //
+  // Il ne part qu'après AUTO_SUMMARY_DELAY_MS sur l'article : changer d'article
+  // n'annule que l'AFFICHAGE d'une réponse, pas l'appel au fournisseur, qui est
+  // facturé et compté dans le plafond. Sans ce délai, parcourir la liste à la
+  // flèche ou au balayage enverrait un appel par article survolé. Le minuteur
+  // est annulé par le nettoyage de l'effet : changement d'article, démontage
+  // ou garde qui bascule — rien ne part. L'article n'est marqué « résumé »
+  // qu'au départ réel de la demande.
   useEffect(() => {
     const art = selectedArticle;
     if (!art || !aiAutoSummary || !aiUsable || !online || aiStatus !== 'idle') return;
@@ -810,8 +821,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       const settled = !extracting && extractFor === art.id && (!!extractedContent || !!extractError);
       if (!settled) return;
     }
-    autoSummarisedId.current = art.id;
-    void handleSummarize(undefined, { auto: true });
+    const timer = setTimeout(() => {
+      autoSummarisedId.current = art.id;
+      void handleSummarize(undefined, { auto: true });
+    }, AUTO_SUMMARY_DELAY_MS);
+    return () => clearTimeout(timer);
   }, [selectedArticle, aiAutoSummary, aiUsable, online, aiStatus, extracting, extractedContent, extractError, extractFor, autoExtractDefault, feedSettings, handleSummarize]);
 
   // ── Corps de l'article ────────────────────────────────────────────────────

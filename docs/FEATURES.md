@@ -2164,12 +2164,23 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     fournisseur ».
 - **Résumé automatique à l'ouverture** (`aiAutoSummary`, Préférences → IA →
   « Résumés », **éteint d'origine**, avertissement de coût à l'activation) :
-  `ReadingPane.tsx` appelle `handleSummarize(undefined, { auto: true })` dès
-  qu'un article s'affiche, **une seule fois par visite** (`autoSummarisedId`,
-  remis à zéro avec le résumé à chaque changement d'article : revenir sur un
-  article relance la demande, que le cache serveur sert sans appeler le
-  fournisseur — y compris si l'on était parti avant que l'extraction de
-  l'article suivant n'ait abouti). Condition :
+  `ReadingPane.tsx` appelle `handleSummarize(undefined, { auto: true })` quand
+  un article est resté affiché **une seconde** (`AUTO_SUMMARY_DELAY_MS`), **une
+  seule fois par visite** (`autoSummarisedId`, posé au départ réel de la
+  demande et remis à zéro avec le résumé à chaque changement d'article). Le
+  délai porte la règle de la spec (§8, « annulée si l'article change ») : une
+  fois partie, une demande ne s'annule plus — changer d'article n'en jette que
+  la réponse, l'appel au fournisseur est facturé et compté dans le plafond.
+  Sans lui, parcourir la liste à la flèche ou au balayage envoyait un appel par
+  article survolé, et A → B → A avant la première réponse en envoyait deux pour
+  A. Le minuteur vit dans l'effet de déclenchement et son nettoyage l'annule :
+  changement d'article, démontage, ou n'importe quelle garde qui bascule —
+  aucune requête n'est partie ; tout changement de ses dépendances (l'article
+  marqué lu ou favori, par exemple) relance la seconde. Revenir plus tard sur
+  un article relance la demande : si la première réponse était arrivée, le
+  cache serveur la sert sans appeler le fournisseur ; si elle était encore en
+  route quand on est parti, le fournisseur est appelé une seconde fois (le
+  serveur ne regroupe pas les demandes en vol). Condition :
   réglage allumé, IA utilisable (`aiUsable`), **en ligne**, statut `idle`. Jamais
   hors ligne : l'effet attend simplement le retour du réseau, tant que l'article
   reste affiché. **Si l'extraction automatique s'applique à ce flux**

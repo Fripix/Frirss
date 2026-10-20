@@ -204,11 +204,19 @@ describe('ReadingPane — Résumé IA', () => {
       useFeedStore.setState({ selectedArticle: a, articles: [a] });
       useUiStore.setState({ aiAutoSummary: true, feedSettings: { 'feed/1': { autoExtract: true } } as never });
     };
+    // Le résumé automatique attend une seconde sur l'article avant de partir.
+    // Horloge simulée qui suit aussi le temps réel : `waitFor` et les attentes
+    // des tests continuent de fonctionner ; `passDelay` saute la seconde.
+    const AUTO_DELAY = 1000;
+    const passDelay = () => act(async () => { await vi.advanceTimersByTimeAsync(AUTO_DELAY); });
+    beforeEach(() => { vi.useFakeTimers({ shouldAdvanceTime: true }); });
+    afterEach(() => { vi.useRealTimers(); });
 
     it('summarises on open when auto-summary is on', async () => {
       useUiStore.setState({ aiAutoSummary: true });
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
       const { findByText } = render(<ReadingPane />);
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
       expect(await findByText('Le résumé.')).toBeTruthy();
@@ -216,7 +224,7 @@ describe('ReadingPane — Résumé IA', () => {
     it('does nothing on open when auto-summary is off', async () => {
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
       render(<ReadingPane />);
-      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      await passDelay();
       expect(requestAiSummary).not.toHaveBeenCalled();
     });
     it('does nothing on open when the browser is offline', async () => {
@@ -224,7 +232,7 @@ describe('ReadingPane — Résumé IA', () => {
       useUiStore.setState({ aiAutoSummary: true });
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
       render(<ReadingPane />);
-      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      await passDelay();
       expect(requestAiSummary).not.toHaveBeenCalled();
     });
     it('does nothing on open when no provider is usable', async () => {
@@ -232,7 +240,7 @@ describe('ReadingPane — Résumé IA', () => {
       useUiStore.setState({ aiAutoSummary: true });
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
       render(<ReadingPane />);
-      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      await passDelay();
       expect(requestAiSummary).not.toHaveBeenCalled();
     });
     it('waits for the auto-extraction and summarises the full article', async () => {
@@ -244,6 +252,7 @@ describe('ReadingPane — Résumé IA', () => {
       await waitFor(() => expect(extractFullContent).toHaveBeenCalledTimes(1));
       expect(requestAiSummary).not.toHaveBeenCalled();
       await act(async () => { finish(extracted('<p>' + 'complet '.repeat(80) + '</p>')); });
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining('complet') })));
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
     });
@@ -252,6 +261,7 @@ describe('ReadingPane — Résumé IA', () => {
       await putExtract('x2', extracted('<p>' + 'complet '.repeat(80) + '</p>'));
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
       render(<ReadingPane />);
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining('complet') })));
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
       expect(extractFullContent).not.toHaveBeenCalled();
@@ -261,6 +271,9 @@ describe('ReadingPane — Résumé IA', () => {
       vi.mocked(extractFullContent).mockRejectedValue(new Error('boom'));
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
       render(<ReadingPane />);
+      await waitFor(() => expect(extractFullContent).toHaveBeenCalledTimes(1));
+      await act(async () => { await Promise.resolve(); });
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining('mot') })));
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
     });
@@ -274,10 +287,12 @@ describe('ReadingPane — Résumé IA', () => {
         .mockRejectedValueOnce(httpError(400, { error: 'article_too_short' }))
         .mockResolvedValue(RESULT);
       render(<ReadingPane />);
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
       useUiStore.setState({ feedSettings: {} });
       act(() => { useFeedStore.setState({ selectedArticle: article('x5') }); });
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
       const second = vi.mocked(requestAiSummary).mock.calls[1][0];
       expect(second.articleId).toBe('x5');
@@ -295,9 +310,11 @@ describe('ReadingPane — Résumé IA', () => {
         .mockRejectedValueOnce(httpError(400, { error: 'article_too_short' }))
         .mockResolvedValue(RESULT);
       render(<ReadingPane />);
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
       act(() => { useFeedStore.setState({ selectedArticle: article('p5') }); });
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
       const second = vi.mocked(requestAiSummary).mock.calls[1][0];
       expect(second.articleId).toBe('p5');
@@ -312,13 +329,16 @@ describe('ReadingPane — Résumé IA', () => {
       vi.mocked(extractFullContent).mockReturnValue(new Promise(() => {}) as never);
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
       const { findByText } = render(<ReadingPane />);
+      await passDelay();
       expect(await findByText('Le résumé.')).toBeTruthy();
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
       // q2 : l'extraction ne se règle jamais, rien ne part.
       act(() => { useFeedStore.setState({ selectedArticle: second }); });
       await waitFor(() => expect(extractFullContent).toHaveBeenCalledTimes(1));
+      await passDelay();
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
       act(() => { useFeedStore.setState({ selectedArticle: first }); });
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
       expect(vi.mocked(requestAiSummary).mock.calls[1][0].articleId).toBe('q1');
     });
@@ -326,6 +346,7 @@ describe('ReadingPane — Résumé IA', () => {
       useUiStore.setState({ aiAutoSummary: true });
       vi.mocked(requestAiSummary).mockRejectedValue(httpError(400, { error: 'article_too_short' }));
       const { queryByRole, getByText } = render(<ReadingPane />);
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
       expect(queryByRole('alert')).toBeNull();
@@ -336,25 +357,78 @@ describe('ReadingPane — Résumé IA', () => {
       useUiStore.setState({ aiAutoSummary: true });
       vi.mocked(requestAiSummary).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
       const { findByText } = render(<ReadingPane />);
+      await passDelay();
       expect(await findByText('ai.errors.technical')).toBeTruthy();
     });
     it('runs once per article, not again on re-render, and again for the next article', async () => {
       useUiStore.setState({ aiAutoSummary: true });
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
       const { rerender, findByText } = render(<ReadingPane />);
+      await passDelay();
       expect(await findByText('Le résumé.')).toBeTruthy();
       rerender(<ReadingPane />);
       act(() => { useUiStore.setState({ aiSummaryRatio: 30 }); });
-      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      await passDelay();
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
       act(() => { useFeedStore.setState({ selectedArticle: article('a2') }); });
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
       expect(vi.mocked(requestAiSummary).mock.calls[1][0].articleId).toBe('a2');
+    });
+    describe('one second on the article before anything leaves', () => {
+      // Horloge entièrement simulée ici : les bornes se mesurent à la
+      // milliseconde, le temps réel ne doit pas s'en mêler.
+      beforeEach(() => {
+        vi.useRealTimers();
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        useUiStore.setState({ aiAutoSummary: true });
+        vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      });
+      const advance = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+      const select = (id: string) => act(() => { useFeedStore.setState({ selectedArticle: article(id) }); });
+
+      it('sends nothing before one second, and the request at one second', async () => {
+        render(<ReadingPane />);
+        await advance(999);
+        expect(requestAiSummary).not.toHaveBeenCalled();
+        await advance(1);
+        expect(requestAiSummary).toHaveBeenCalledTimes(1);
+        expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
+      });
+      it('sends nothing for an article left within the second, then waits its own second for the next', async () => {
+        render(<ReadingPane />);
+        await advance(500);
+        select('a2');
+        await advance(999);
+        expect(requestAiSummary).not.toHaveBeenCalled();
+        await advance(1);
+        expect(requestAiSummary).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(requestAiSummary).mock.calls[0][0].articleId).toBe('a2');
+      });
+      it('sends one request for A after A → B → A in quick succession', async () => {
+        render(<ReadingPane />);
+        await advance(300);
+        select('a2');
+        await advance(300);
+        select('a1');
+        await advance(1000);
+        await advance(3000);
+        expect(requestAiSummary).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(requestAiSummary).mock.calls[0][0].articleId).toBe('a1');
+      });
+      it('sends nothing when the pane goes away within the second', async () => {
+        const { unmount } = render(<ReadingPane />);
+        await advance(500);
+        unmount();
+        await advance(2000);
+        expect(requestAiSummary).not.toHaveBeenCalled();
+      });
     });
     it('leaves a folded panel folded when the summary arrives', async () => {
       useUiStore.setState({ aiAutoSummary: true, aiPanelCollapsed: true });
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
       const { getByRole, queryByText } = render(<ReadingPane />);
+      await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
       expect(getByRole('button', { name: /^ai\.summarize\s/ }).getAttribute('aria-expanded')).toBe('false');
