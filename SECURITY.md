@@ -130,9 +130,10 @@ the point of the feature and also its privacy cost: leave it off, or point it at
 a local model, if articles must not leave the network.
 
 Two limits are deliberate. The cost cap is a guard, not an accounting quota: it
-only limits what the admin's shared key pays for, the day follows the container
-timezone, and the check is not atomic, so parallel requests can overshoot it
-slightly. The summary cache key includes a hash of the article text, because the
+only limits what the admin's shared key pays for and the day follows the
+container timezone. Each paid call reserves its place before it leaves (one
+atomic increment in SQLite), so parallel requests cannot overshoot it; a call
+that fails gives its place back. The summary cache key includes a hash of the article text, because the
 article id is client-supplied and would otherwise let one user read or poison
 another user's cached summary.
 

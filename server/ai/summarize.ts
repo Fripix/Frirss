@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { callProvider } from './providers.js';
 import { AiError } from './errors.js';
 import { resolveProvider, fallbackOrder, type Availability } from './resolve.js';
-import { aiCacheKey, aiCacheGet, aiCacheSet, usageToday, bumpUsage, dailyCap } from './store.js';
+import { aiCacheKey, aiCacheGet, aiCacheSet, bumpUsage, refundUsage, dailyCap } from './store.js';
 import { summarySystem, summaryUserMessage, DEFAULT_SUMMARY_RATIO } from './prompts.js';
 import { splitLangLine } from './lang.js';
 import { htmlToText, countWords } from './text.js';
@@ -23,8 +23,8 @@ export interface SummaryResponse {
 
 /**
  * Spec §6 et §9. Ordre : taille de l'article, résolution, cache, plafond
- * (clé admin seulement), appel, repli (jamais sur `refused`, un seul tour),
- * usage, cache.
+ * (clé admin seulement, réservé avant l'appel et rendu s'il échoue), appel,
+ * repli (jamais sur `refused`, un seul tour), cache.
  *
  * - Un candidat plafonné est sauté, pas échoué : le repli passe au suivant
  *   (clé de l'utilisateur, fournisseur gratuit) et `fellBackFrom` reste vide.
@@ -52,18 +52,27 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
     try { cached = await aiCacheGet(key); } catch { /* cache illisible = absence */ }
     if (cached) return { ...cached, providerId: cand.provider.id, providerName: cand.provider.name, model: cand.provider.model, fromCache: true, fellBackFrom };
 
-    const cap = dailyCap();
-    if (cand.paidByAdmin && cap > 0 && usageToday(req.userId) >= cap) {
-      if (!req.fallback) throw new AiError('quota', 'ai_daily_cap');
-      capped = true;
-      console.warn('AI fallback:', cand.provider.name, 'quota', 'daily cap reached');
-      continue;
+    // Réservation AVANT l'appel : lire le compteur puis l'incrémenter après
+    // laissait N requêtes simultanées passer toutes la vérification. SQLite
+    // incrémente et rend le compte d'un seul geste ; au-delà du plafond, on
+    // rend la place et le candidat est plafonné.
+    if (cand.paidByAdmin) {
+      const cap = dailyCap();
+      if (bumpUsage(req.userId) > cap && cap > 0) {
+        refundUsage(req.userId);
+        if (!req.fallback) throw new AiError('quota', 'ai_daily_cap');
+        capped = true;
+        console.warn('AI fallback:', cand.provider.name, 'quota', 'daily cap reached');
+        continue;
+      }
     }
 
     let result;
     try {
       result = await call(cand.provider, cand.key, { system: summarySystem(ratio), user: summaryUserMessage(req.title, text) });
     } catch (err) {
+      // Un appel raté n'est pas payé : la place réservée est rendue.
+      if (cand.paidByAdmin) refundUsage(req.userId);
       // Que des chaînes : jamais l'objet d'erreur brut, qui peut porter la requête et ses en-têtes (donc la clé).
       if (!(err instanceof AiError)) console.error('AI provider error:', cand.provider.name, (err as Error)?.name, (err as Error)?.message);
       const e = err instanceof AiError ? err : new AiError('technical', 'provider_error');
@@ -77,8 +86,7 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
       fellBackFrom = fellBackFrom ?? cand.provider.name;
       continue;
     }
-    // Le résultat est payé : ni l'usage ni le cache ne doivent le perdre ou le faire passer pour un échec du fournisseur.
-    if (cand.paidByAdmin) bumpUsage(req.userId);
+    // Le résultat est payé (et déjà compté par la réservation) : le cache ne doit pas le faire passer pour un échec du fournisseur.
     const { lang, text: body } = splitLangLine(result.text);
     try { await aiCacheSet(key, { text: body, lang }); } catch { /* le résumé est servi, il ne sera juste pas mis en cache */ }
     return { text: body, lang, providerId: cand.provider.id, providerName: cand.provider.name, model: result.model, fromCache: false, fellBackFrom };

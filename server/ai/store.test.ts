@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import db from '../db.js';
 import {
   listProviders, createProvider, updateProvider, deleteProvider, reorderProviders,
-  adminKeyFor, setUserKey, userKeyFor, hasUserKey, usageToday, bumpUsage,
+  adminKeyFor, setUserKey, userKeyFor, hasUserKey, usageToday, bumpUsage, refundUsage,
   aiCacheKey, aiCacheGet, aiCacheSet, getProvider, normalizeBaseUrl, nextUsageReset,
 } from './store.js';
 
@@ -64,6 +64,13 @@ describe('usage', () => {
     expect(bumpUsage(41)).toBe(1);
     expect(bumpUsage(41)).toBe(2);
     expect(usageToday(41)).toBe(2);
+  });
+  it('gives a reservation back, never below zero', () => {
+    bumpUsage(41);
+    refundUsage(41);
+    expect(usageToday(41)).toBe(0);
+    refundUsage(41);
+    expect(usageToday(41)).toBe(0);
   });
   it('resets at the next local midnight', () => {
     const now = new Date(2026, 9, 15, 18, 30);

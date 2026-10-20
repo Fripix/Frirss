@@ -93,6 +93,13 @@ export function bumpUsage(userId: number): number {
   ).get(userId, today()) as { count: number };
   return r.count;
 }
+/**
+ * Rend une réservation de `bumpUsage` : appel refusé par le plafond ou échoué
+ * (un appel raté n'est pas payé). Jamais sous zéro.
+ */
+export function refundUsage(userId: number): void {
+  db.prepare('UPDATE ai_usage SET count = MAX(count - 1, 0) WHERE user_id = ? AND day = ?').run(userId, today());
+}
 /** Prochain minuit local du serveur : l'instant où le plafond quotidien se remet à zéro. */
 export function nextUsageReset(now = new Date()): string {
   const d = new Date(now);

@@ -1977,9 +1977,13 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   on essaie le suivant non payé par l'admin (clé personnelle, Ollama sans clé) ;
   `ai_daily_cap` (429) n'est levé que s'il n'en reste aucun. Repli coupé : 429
   tout de suite. Le corps du 429 porte `cap` et `resetAt` (ISO du prochain
-  minuit local du serveur, `nextUsageReset`). ⚠️ **Le contrôle n'est pas atomique** (lecture avant l'appel,
-  incrément après) : N requêtes parallèles peuvent dépasser le plafond de N−1.
-  Assumé : c'est un garde-fou de coût, pas un quota comptable.
+  minuit local du serveur, `nextUsageReset`). **Réservation avant l'appel** :
+  `bumpUsage` incrémente et rend le compte d'un seul geste (SQLite
+  `RETURNING`) ; au-delà du plafond la place est rendue (`refundUsage`, jamais
+  sous zéro) et le candidat est plafonné ; un appel qui échoue rend aussi la
+  sienne (un appel raté n'est pas payé). ⚠️ L'ancien contrôle lisait le compteur
+  avant l'appel et l'incrémentait après : N requêtes simultanées passaient
+  toutes, et le plafond se dépassait de N−1.
 - **Consigne** (`prompts.ts`, version 3) : l'article part entre les balises
   `<article>` / `</article>` (`summaryUserMessage`) et la consigne dit qu'il
   n'est **pas adressé au modèle** — sans cela, un article à la première

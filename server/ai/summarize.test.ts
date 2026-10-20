@@ -140,6 +140,34 @@ describe('summarize', () => {
     const call = vi.fn().mockRejectedValue(new AiError('technical', 'down'));
     await expect(summarize({ ...base, available: [A(1, 'Paid', true), A(2, 'Own')] }, { call })).rejects.toMatchObject({ message: 'down' });
   });
+  it('reserves the cap before the call: two concurrent requests with cap 1 make one paid call', async () => {
+    setSetting('ai_daily_cap', '1');
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const call = vi.fn(async () => { await gate; return { text: 'lang: fr\n\nR.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 }; });
+    const one = summarize({ ...base, articleId: 'c1', fallback: false, available: [A(1, 'Paid', true)] }, { call });
+    const two = summarize({ ...base, articleId: 'c2', fallback: false, available: [A(1, 'Paid', true)] }, { call });
+    const second = two.catch((e: unknown) => e);
+    await new Promise((r) => setTimeout(r, 10));
+    release();
+    await expect(one).resolves.toBeTruthy();
+    expect(await second).toMatchObject({ kind: 'quota', message: 'ai_daily_cap' });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(usageToday(41)).toBe(1);
+  });
+  it('leaves the usage unchanged when the paid call fails', async () => {
+    const failing = vi.fn().mockRejectedValue(new AiError('technical', 'down'));
+    await expect(summarize({ ...base, fallback: false, available: [A(1, 'Paid', true)] }, { call: failing })).rejects.toMatchObject({ message: 'down' });
+    expect(usageToday(41)).toBe(0);
+    const refusing = vi.fn().mockRejectedValue(new AiError('refused', 'no'));
+    await expect(summarize({ ...base, available: [A(1, 'Paid', true)] }, { call: refusing })).rejects.toMatchObject({ kind: 'refused' });
+    expect(usageToday(41)).toBe(0);
+  });
+  it('does not count a reservation that hit the cap', async () => {
+    reachCap();
+    await expect(summarize({ ...base, fallback: false, available: [A(1, 'Paid', true)] }, { call: ok() })).rejects.toMatchObject({ message: 'ai_daily_cap' });
+    expect(usageToday(41)).toBe(2);
+  });
   it('does not bump usage for an unpaid provider', async () => {
     await summarize({ ...base, available: [A(2, 'Own')] }, { call: ok() });
     expect(usageToday(41)).toBe(0);
