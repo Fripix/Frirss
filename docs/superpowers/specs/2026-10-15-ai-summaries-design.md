@@ -505,10 +505,22 @@ Boutons « Activer » / « Annuler » ; « Annuler » laisse l'interrupteur éte
 Pas d'interrupteur global « tout traduire » : il traduirait aussi les flux
 déjà dans la langue cible.
 
+**Résumé automatique par flux ou catégorie** (décision du 2026-10-20, par
+symétrie) : chaque ligne de « Par flux et catégorie » porte aussi un
+interrupteur **« Résumer »**, même mécanique que « Traduire » (valeur effective
+affichée, valeur propre `true`/`false` écrite au toucher, priorité flux >
+catégorie, « N flux réglés »). Priorité d'ensemble : réglage du flux >
+catégorie > interrupteur global « Résumé automatique à l'ouverture » (qui vaut
+« partout »). Préférences : `feedSettings[flux].aiAutoSummary?: boolean` et
+`aiCategoryAutoSummary: Record<nom, true>`. L'allumer passe par la même
+confirmation de coût que le réglage global, une fois par compte
+(`aiAutoSummary` confirmé = pas de seconde boîte).
+
 **Il n'y a pas de traduction automatique du résumé** : un résumé automatique
 dans un flux marqué « Traduire » est produit, puis l'article est traduit ; le
 résumé se traduit sur demande. (Un flux marqué « Traduire » a rarement besoin
-des deux.)
+des deux.) La **langue cible reste globale** (décision du 2026-10-20) : un
+besoin ponctuel passe par « Traduire en… ».
 
 ### 17.3 Mécanique
 
@@ -588,8 +600,8 @@ fournisseur n'a pas rendu une traduction exploitable. Réessayez. ».
 
 Préférences synchronisées nouvelles (`uiStore`, à plat comme les existantes) :
 `aiTranslationLanguage`, `aiTranslationProvider`, `aiCategoryAutoTranslate`,
-`aiAutoTranslateConfirmed`, et `FeedSetting.aiAutoTranslate` (`true` / `false`
-explicites). Rien côté
+`aiAutoTranslateConfirmed`, `aiCategoryAutoSummary`, et `FeedSetting.aiAutoTranslate`
+/ `FeedSetting.aiAutoSummary` (`true` / `false` explicites). Rien côté
 serveur : pas de table, pas de réglage admin nouveau. `src/lib/aiLanguages.ts`
 porte la liste des 28 codes, gardée par un test qui échoue si un code hors
 liste apparaît dans le code ou les locales.
