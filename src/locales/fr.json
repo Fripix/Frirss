@@ -737,8 +737,8 @@
       "authUser": "Clé refusée par le fournisseur. Prévenez votre administrateur.",
       "quota": "Quota ou crédits épuisés chez le fournisseur.",
       "rateLimited": "Trop de requêtes, réessayez dans une minute.",
-      "cap": "Limite quotidienne de résumés atteinte.",
-      "capDetail": "Limite quotidienne de résumés atteinte ({{used}} sur {{cap}}). Nouvelle journée à {{time}}.",
+      "cap": "Limite quotidienne d'appels IA atteinte.",
+      "capDetail": "Limite quotidienne d'appels IA atteinte ({{used}} sur {{cap}}). Nouvelle journée à {{time}}.",
       "tooShort": "Article trop court pour être résumé.",
       "tooLong": "Article trop long pour être résumé.",
       "refused": "Le fournisseur a refusé de résumer cet article.",
@@ -746,7 +746,9 @@
       "technical": "Le résumé a échoué. Réessayez.",
       "invalidLang": "Langue non proposée.",
       "segments": "Le fournisseur n'a pas rendu une traduction exploitable. Réessayez.",
-      "translateFailed": "La traduction a échoué. Réessayez."
+      "translateFailed": "La traduction a échoué. Réessayez.",
+      "translateRefused": "Le fournisseur a refusé de traduire cet article.",
+      "translateTooLong": "Texte trop long pour être traduit."
     },
     "admin": {
       "title": "Fournisseurs",
@@ -823,7 +825,7 @@
       "autoConfirmTitle": "Activer le résumé automatique ?",
       "autoConfirmMessage": "Chaque résumé automatique est un appel à votre fournisseur d'IA. Selon le fournisseur et votre abonnement, il peut vous être facturé. Un modèle local comme Ollama ne coûte rien.",
       "autoConfirm": "Activer",
-      "usage": "Résumés payés par l'instance aujourd'hui : {{used}} sur {{cap}}"
+      "usage": "Appels IA payés par l'instance aujourd'hui : {{used}} sur {{cap}}"
     },
     "routing": {
       "title": "Par flux et catégorie",

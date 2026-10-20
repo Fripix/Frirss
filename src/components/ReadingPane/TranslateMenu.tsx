@@ -31,16 +31,12 @@ export interface TranslateMenuProps {
  * Chaque choix est indépendant : une langue rend `{ lang }`, un fournisseur
  * `{ providerId }` ; c'est le volet qui complète l'autre moitié.
  */
-export default function TranslateMenu({ open, anchor, touch, title, onClose, ...rest }: TranslateMenuProps) {
-  if (!open) return null;
+export default function TranslateMenu(props: TranslateMenuProps) {
   // Le contenu est remonté à chaque ouverture : le filtre repart vide.
-  const body = <MenuSections touch={touch} {...rest} />;
-  return touch
-    ? <BottomSheet open onClose={onClose} title={title}>{body}</BottomSheet>
-    : createPortal(<Popover anchor={anchor} onClose={onClose}>{body}</Popover>, document.body);
+  return props.open ? <OpenMenu {...props} /> : null;
 }
 
-function MenuSections({ touch, languages, providers, current, onPick }: Omit<TranslateMenuProps, 'open' | 'anchor' | 'title' | 'onClose'>) {
+function OpenMenu({ anchor, touch, title, languages, providers, current, onPick, onClose }: TranslateMenuProps) {
   const { t, i18n } = useTranslation();
   const uid = useId();
   const [filter, setFilter] = useState('');
@@ -57,8 +53,16 @@ function MenuSections({ touch, languages, providers, current, onPick }: Omit<Tra
   const headingClass = `font-semibold ${touch ? 'px-4 pt-2 pb-1 text-xs' : 'px-3 pt-1.5 pb-1 text-[11px]'}`;
   const headingStyle = { color: 'var(--list-summary)' };
 
+  // Bureau : des `menuitemradio` cochés par `aria-checked` (une radio par
+  // section). Tactile : de simples boutons dans une feuille, `aria-current`
+  // pour le choix en cours. La coche visible reste décorative.
   const row = (key: string, label: string, checked: boolean, pick: () => void) => (
-    <button key={key} type="button" role={touch ? undefined : 'menuitem'} onClick={pick} className={rowClass} style={{ color: 'var(--list-title)' }}>
+    <button
+      key={key} type="button" onClick={pick} className={rowClass} style={{ color: 'var(--list-title)' }}
+      role={touch ? undefined : 'menuitemradio'}
+      aria-checked={touch ? undefined : checked}
+      aria-current={touch && checked ? 'true' : undefined}
+    >
       <span aria-hidden="true" className="w-3.5 flex-shrink-0">
         {checked && <svg data-check className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
       </span>
@@ -66,21 +70,23 @@ function MenuSections({ touch, languages, providers, current, onPick }: Omit<Tra
     </button>
   );
 
-  return (
+  // Hors du `role="menu"` : un champ de saisie n'en est pas un enfant permis.
+  const filterField = languages.length > FILTER_FROM ? (
+    <div className={touch ? 'px-4 pt-1 pb-1.5' : 'px-2 pt-1 pb-1'}>
+      <input
+        type="search" value={filter} onChange={(e) => setFilter(e.target.value)} autoComplete="off" spellCheck={false}
+        aria-label={t('ai.translation.filter')} placeholder={t('ai.translation.filter')}
+        // 16 px sur tactile : en dessous, iOS zoome la page à la saisie.
+        className={`w-full rounded-md px-2.5 ${touch ? 'min-h-[44px] text-[16px]' : 'h-7 text-xs'}`}
+        style={{ background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
+      />
+    </div>
+  ) : null;
+
+  const sections = (
     <>
       <div role="group" aria-labelledby={`${uid}-to`}>
         <p id={`${uid}-to`} className={headingClass} style={headingStyle}>{t('ai.translateTo')}</p>
-        {languages.length > FILTER_FROM && (
-          <div className={touch ? 'px-4 pb-1.5' : 'px-2 pb-1'}>
-            <input
-              type="search" value={filter} onChange={(e) => setFilter(e.target.value)} autoComplete="off" spellCheck={false}
-              aria-label={t('ai.translation.filter')} placeholder={t('ai.translation.filter')}
-              // 16 px sur tactile : en dessous, iOS zoome la page à la saisie.
-              className={`w-full rounded-md px-2.5 ${touch ? 'min-h-[44px] text-[16px]' : 'h-7 text-xs'}`}
-              style={{ background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
-            />
-          </div>
-        )}
         {/* Liste bornée : « Traduire avec… » reste en vue sous les 28 langues. */}
         <div className={`overflow-y-auto ${touch ? 'max-h-[40vh]' : 'max-h-60'}`}>
           {shown.map((l) => row(l.code, l.name, l.code === current.lang, () => onPick({ lang: l.code })))}
@@ -94,4 +100,8 @@ function MenuSections({ touch, languages, providers, current, onPick }: Omit<Tra
       )}
     </>
   );
+
+  return touch
+    ? <BottomSheet open onClose={onClose} title={title}>{filterField}{sections}</BottomSheet>
+    : createPortal(<Popover anchor={anchor} onClose={onClose} header={filterField} label={title}>{sections}</Popover>, document.body);
 }

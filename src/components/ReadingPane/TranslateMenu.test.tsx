@@ -34,20 +34,22 @@ const providerSection = (root: HTMLElement) => within(root).getByRole('group', {
 
 describe('TranslateMenu', () => {
   it('lists the target language first, then the 27 others by name, with a filter', () => {
-    const { getByRole } = setup();
+    const { getByRole, container } = setup();
     const menu = getByRole('menu');
-    expect(menu.parentElement).toBe(document.body);
-    const names = within(langSection(menu)).getAllByRole('menuitem').map((b) => b.textContent);
+    expect(container.contains(menu)).toBe(false);
+    expect(document.body.contains(menu)).toBe(true);
+    const names = within(langSection(menu)).getAllByRole('menuitemradio').map((b) => b.textContent);
     expect(names).toHaveLength(28);
     expect(names[0]).toBe(languageName('de', 'fr'));
     const others = languages.filter((c) => c !== 'de').map((c) => languageName(c, 'fr')).sort((a, b) => a.localeCompare(b, 'fr'));
     expect(names.slice(1)).toEqual(others);
-    expect(getByRole('searchbox', { name: 'ai.translation.filter' })).toBeTruthy();
+    // Un champ de saisie n'est pas un enfant permis d'un role=menu : il vit au-dessus.
+    expect(menu.contains(getByRole('searchbox', { name: 'ai.translation.filter' }))).toBe(false);
   });
   it('filters the languages by name, the target staying first when it matches', () => {
     const { getByRole } = setup();
     fireEvent.change(getByRole('searchbox', { name: 'ai.translation.filter' }), { target: { value: 'ALL' } });
-    const names = within(langSection(getByRole('menu'))).getAllByRole('menuitem').map((b) => b.textContent);
+    const names = within(langSection(getByRole('menu'))).getAllByRole('menuitemradio').map((b) => b.textContent);
     expect(names[0]).toBe(languageName('de', 'fr'));
     expect(names.every((n) => n!.toLowerCase().includes('all'))).toBe(true);
   });
@@ -57,22 +59,61 @@ describe('TranslateMenu', () => {
   });
   it('a language returns { lang }', () => {
     const { getByRole, onPick } = setup();
-    fireEvent.click(within(langSection(getByRole('menu'))).getByRole('menuitem', { name: languageName('it', 'fr') }));
+    fireEvent.click(within(langSection(getByRole('menu'))).getByRole('menuitemradio', { name: languageName('it', 'fr') }));
     expect(onPick).toHaveBeenCalledWith({ lang: 'it' });
   });
   it('lists only the available providers, and one returns { providerId }', () => {
     const { getByRole, onPick } = setup();
-    const items = within(providerSection(getByRole('menu'))).getAllByRole('menuitem');
+    const items = within(providerSection(getByRole('menu'))).getAllByRole('menuitemradio');
     expect(items.map((b) => b.textContent)).toEqual(['Claude', 'Ollama']);
     fireEvent.click(items[1]);
     expect(onPick).toHaveBeenCalledWith({ providerId: 2 });
   });
-  it('marks the current language and provider', () => {
+  it('marks the current language and provider as checked radio items, the check mark hidden', () => {
     const { getByRole } = setup({ current: { lang: 'de', providerId: 2 } });
     const menu = getByRole('menu');
-    expect(within(langSection(menu)).getAllByRole('menuitem')[0].querySelector('[data-check]')).toBeTruthy();
-    expect(within(langSection(menu)).getAllByRole('menuitem')[1].querySelector('[data-check]')).toBeNull();
-    expect(within(providerSection(menu)).getByRole('menuitem', { name: 'Ollama' }).querySelector('[data-check]')).toBeTruthy();
+    const langs = within(langSection(menu)).getAllByRole('menuitemradio');
+    expect(langs[0].getAttribute('aria-checked')).toBe('true');
+    expect(langs[0].querySelector('[data-check]')!.closest('[aria-hidden="true"]')).toBeTruthy();
+    expect(langs[1].getAttribute('aria-checked')).toBe('false');
+    expect(langs[1].querySelector('[data-check]')).toBeNull();
+    expect(within(providerSection(menu)).getByRole('menuitemradio', { name: 'Ollama' }).getAttribute('aria-checked')).toBe('true');
+    expect(within(providerSection(menu)).getByRole('menuitemradio', { name: 'Claude' }).getAttribute('aria-checked')).toBe('false');
+  });
+  it('keyboard: the filter has the focus on open, ArrowDown enters the list, ArrowUp from the first item comes back', () => {
+    const { getByRole, onClose } = setup();
+    const filter = getByRole('searchbox', { name: 'ai.translation.filter' });
+    const items = within(getByRole('menu')).getAllByRole('menuitemradio');
+    expect(document.activeElement).toBe(filter);
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(filter);
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[1]);
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(filter);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+  it('keyboard: Tab moves between the filter and the list instead of closing', () => {
+    const { getByRole, onClose } = setup();
+    const filter = getByRole('searchbox', { name: 'ai.translation.filter' });
+    const first = within(getByRole('menu')).getAllByRole('menuitemradio')[0];
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(filter);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalled();
+  });
+  it('keyboard without a filter: the first item has the focus, ArrowUp wraps to the last', () => {
+    const { getByRole } = setup({ languages: languages.slice(0, 3) });
+    const items = within(getByRole('menu')).getAllByRole('menuitemradio');
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(items[items.length - 1]);
   });
   it('Escape closes', () => {
     const { onClose } = setup();

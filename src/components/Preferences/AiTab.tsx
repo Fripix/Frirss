@@ -15,7 +15,7 @@ import AdminProviders from './ai/AdminProviders';
 export default function AiTab({ active = true }: { active?: boolean }) {
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
   // La configuration IA n'est chargée qu'à la connexion : sans ce rechargement,
-  // « Résumés payés par l'instance aujourd'hui » resterait figé à la valeur du
+  // « Appels IA payés par l'instance aujourd'hui » resterait figé à la valeur du
   // démarrage. À chaque affichage de la section, jamais pendant qu'elle est masquée.
   useEffect(() => {
     if (active) void useAiStore.getState().load();

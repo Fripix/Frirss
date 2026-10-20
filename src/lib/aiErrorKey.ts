@@ -11,24 +11,28 @@
  * vérifie lui-même, un utilisateur prévient l'admin
  * — sauf si la clé refusée est la sienne (`ownKey`) : il la corrige lui-même.
  *
- * Le repli neutre dit ce qui a échoué : « Le résumé a échoué » pour un résumé,
- * « La traduction a échoué » pour une traduction (`op: 'translate'`).
+ * Les messages qui nomment l'opération ont leur variante de traduction
+ * (`op: 'translate'`) : le repli neutre (« La traduction a échoué »), le refus
+ * du fournisseur et le texte trop long. Le plafond quotidien est un compteur
+ * commun aux résumés et aux traductions : son message ne nomme ni l'un ni
+ * l'autre.
  */
 export interface AiErrorOptions { op?: 'summary' | 'translate' }
 
 export function aiErrorKey(status: number | undefined, data: { error?: string; kind?: string; ownKey?: boolean; detail?: string } | undefined, isAdmin: boolean, options: AiErrorOptions = {}): string {
   const error = data?.error;
+  const translate = options.op === 'translate';
   if (error === 'ai_daily_cap') return 'ai.errors.cap';
   if (status === 429) return 'ai.errors.rateLimited';
-  if (error === 'invalid_body') return 'ai.errors.tooLong';
+  if (error === 'invalid_body') return translate ? 'ai.errors.translateTooLong' : 'ai.errors.tooLong';
   if (error === 'article_too_short') return 'ai.errors.tooShort';
-  if (error === 'ai_refused') return 'ai.errors.refused';
+  if (error === 'ai_refused') return translate ? 'ai.errors.translateRefused' : 'ai.errors.refused';
   if (error === 'no_provider') return 'ai.errors.noProvider';
   if (error === 'invalid_lang') return 'ai.errors.invalidLang';
   if (error === 'ai_failed' && data?.detail === 'segments') return 'ai.errors.segments';
   if (data?.kind === 'auth') return isAdmin || data.ownKey === true ? 'ai.errors.auth' : 'ai.errors.authUser';
   if (data?.kind === 'quota') return 'ai.errors.quota';
-  return options.op === 'translate' ? 'ai.errors.translateFailed' : 'ai.errors.technical';
+  return translate ? 'ai.errors.translateFailed' : 'ai.errors.technical';
 }
 
 export interface AiErrorMessage { key: string; params?: Record<string, string | number> }

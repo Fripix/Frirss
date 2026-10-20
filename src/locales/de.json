@@ -737,8 +737,8 @@
       "authUser": "Der Anbieter hat den Schlüssel abgelehnt. Informieren Sie Ihren Administrator.",
       "quota": "Kontingent oder Guthaben beim Anbieter aufgebraucht.",
       "rateLimited": "Zu viele Anfragen. Versuchen Sie es in einer Minute erneut.",
-      "cap": "Tageslimit für Zusammenfassungen erreicht.",
-      "capDetail": "Tageslimit für Zusammenfassungen erreicht ({{used}} von {{cap}}). Neuer Tag um {{time}}.",
+      "cap": "Tageslimit für KI-Aufrufe erreicht.",
+      "capDetail": "Tageslimit für KI-Aufrufe erreicht ({{used}} von {{cap}}). Neuer Tag um {{time}}.",
       "tooShort": "Artikel zu kurz für eine Zusammenfassung.",
       "tooLong": "Artikel zu lang für eine Zusammenfassung.",
       "refused": "Der Anbieter hat die Zusammenfassung dieses Artikels abgelehnt.",
@@ -746,7 +746,9 @@
       "technical": "Die Zusammenfassung ist fehlgeschlagen. Versuchen Sie es erneut.",
       "invalidLang": "Sprache nicht verfügbar.",
       "segments": "Der Anbieter hat keine verwertbare Übersetzung geliefert. Versuchen Sie es erneut.",
-      "translateFailed": "Die Übersetzung ist fehlgeschlagen. Versuchen Sie es erneut."
+      "translateFailed": "Die Übersetzung ist fehlgeschlagen. Versuchen Sie es erneut.",
+      "translateRefused": "Der Anbieter hat die Übersetzung dieses Artikels abgelehnt.",
+      "translateTooLong": "Text zu lang für eine Übersetzung."
     },
     "admin": {
       "title": "Anbieter",
@@ -823,7 +825,7 @@
       "autoConfirmTitle": "Automatische Zusammenfassung aktivieren?",
       "autoConfirmMessage": "Jede automatische Zusammenfassung ist ein Aufruf bei Ihrem KI-Anbieter. Je nach Anbieter und Tarif kann sie Ihnen in Rechnung gestellt werden. Ein lokales Modell wie Ollama kostet nichts.",
       "autoConfirm": "Aktivieren",
-      "usage": "Heute von der Instanz bezahlte Zusammenfassungen: {{used}} von {{cap}}"
+      "usage": "Heute von der Instanz bezahlte KI-Aufrufe: {{used}} von {{cap}}"
     },
     "routing": {
       "title": "Nach Feed und Kategorie",

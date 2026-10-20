@@ -737,8 +737,8 @@
       "authUser": "Sleutel geweigerd door de aanbieder. Laat het je beheerder weten.",
       "quota": "Quotum of tegoed bij de aanbieder op.",
       "rateLimited": "Te veel verzoeken, probeer het over een minuut opnieuw.",
-      "cap": "Dagelijkse samenvattingslimiet bereikt.",
-      "capDetail": "Dagelijkse samenvattingslimiet bereikt ({{used}} van {{cap}}). Nieuwe dag om {{time}}.",
+      "cap": "Dagelijkse limiet voor AI-aanroepen bereikt.",
+      "capDetail": "Dagelijkse limiet voor AI-aanroepen bereikt ({{used}} van {{cap}}). Nieuwe dag om {{time}}.",
       "tooShort": "Artikel te kort om samen te vatten.",
       "tooLong": "Artikel te lang om samen te vatten.",
       "refused": "De aanbieder weigerde dit artikel samen te vatten.",
@@ -746,7 +746,9 @@
       "technical": "De samenvatting is mislukt. Probeer het opnieuw.",
       "invalidLang": "Taal niet beschikbaar.",
       "segments": "De aanbieder heeft geen bruikbare vertaling geleverd. Probeer het opnieuw.",
-      "translateFailed": "De vertaling is mislukt. Probeer het opnieuw."
+      "translateFailed": "De vertaling is mislukt. Probeer het opnieuw.",
+      "translateRefused": "De aanbieder weigerde dit artikel te vertalen.",
+      "translateTooLong": "Tekst te lang om te vertalen."
     },
     "admin": {
       "title": "Aanbieders",
@@ -823,7 +825,7 @@
       "autoConfirmTitle": "Automatische samenvatting inschakelen?",
       "autoConfirmMessage": "Elke automatische samenvatting is een aanroep naar uw AI-aanbieder. Afhankelijk van de aanbieder en uw abonnement kan dit in rekening worden gebracht. Een lokaal model zoals Ollama kost niets.",
       "autoConfirm": "Inschakelen",
-      "usage": "Vandaag door de instantie betaalde samenvattingen: {{used}} van {{cap}}"
+      "usage": "Vandaag door de instantie betaalde AI-aanroepen: {{used}} van {{cap}}"
     },
     "routing": {
       "title": "Per feed en categorie",

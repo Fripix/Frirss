@@ -737,8 +737,8 @@
       "authUser": "服务商拒绝了该密钥。请告知您的管理员。",
       "quota": "服务商的配额或额度已用完。",
       "rateLimited": "请求过多，请一分钟后再试。",
-      "cap": "已达到每日摘要上限。",
-      "capDetail": "已达到每日摘要上限（{{used}} / {{cap}}）。将于 {{time}} 重置。",
+      "cap": "已达到每日 AI 调用上限。",
+      "capDetail": "已达到每日 AI 调用上限（{{used}} / {{cap}}）。将于 {{time}} 重置。",
       "tooShort": "文章太短，无法生成摘要。",
       "tooLong": "文章太长，无法生成摘要。",
       "refused": "服务商拒绝为这篇文章生成摘要。",
@@ -746,7 +746,9 @@
       "technical": "摘要生成失败。请重试。",
       "invalidLang": "不支持该语言。",
       "segments": "服务商未返回可用的翻译。请重试。",
-      "translateFailed": "翻译失败。请重试。"
+      "translateFailed": "翻译失败。请重试。",
+      "translateRefused": "服务商拒绝翻译这篇文章。",
+      "translateTooLong": "文本太长，无法翻译。"
     },
     "admin": {
       "title": "服务商",
@@ -823,7 +825,7 @@
       "autoConfirmTitle": "启用自动摘要？",
       "autoConfirmMessage": "每次自动摘要都会调用您的 AI 服务商。根据服务商和您的订阅，可能会向您收费。像 Ollama 这样的本地模型不产生任何费用。",
       "autoConfirm": "启用",
-      "usage": "今天由实例支付的摘要：{{used}} / {{cap}}"
+      "usage": "今天由实例支付的 AI 调用：{{used}} / {{cap}}"
     },
     "routing": {
       "title": "按订阅源和分类",

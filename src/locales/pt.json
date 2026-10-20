@@ -737,8 +737,8 @@
       "authUser": "Chave recusada pelo fornecedor. Avise o seu administrador.",
       "quota": "Quota ou créditos esgotados no fornecedor.",
       "rateLimited": "Demasiados pedidos. Tente novamente dentro de um minuto.",
-      "cap": "Limite diário de resumos atingido.",
-      "capDetail": "Limite diário de resumos atingido ({{used}} de {{cap}}). Reinicia às {{time}}.",
+      "cap": "Limite diário de pedidos à IA atingido.",
+      "capDetail": "Limite diário de pedidos à IA atingido ({{used}} de {{cap}}). Reinicia às {{time}}.",
       "tooShort": "Artigo demasiado curto para ser resumido.",
       "tooLong": "Artigo demasiado longo para ser resumido.",
       "refused": "O fornecedor recusou-se a resumir este artigo.",
@@ -746,7 +746,9 @@
       "technical": "O resumo falhou. Tente novamente.",
       "invalidLang": "Idioma não disponível.",
       "segments": "O fornecedor não devolveu uma tradução utilizável. Tente novamente.",
-      "translateFailed": "A tradução falhou. Tente novamente."
+      "translateFailed": "A tradução falhou. Tente novamente.",
+      "translateRefused": "O fornecedor recusou-se a traduzir este artigo.",
+      "translateTooLong": "Texto demasiado longo para ser traduzido."
     },
     "admin": {
       "title": "Fornecedores",
@@ -823,7 +825,7 @@
       "autoConfirmTitle": "Ativar o resumo automático?",
       "autoConfirmMessage": "Cada resumo automático é uma chamada ao seu fornecedor de IA. Consoante o fornecedor e a sua subscrição, pode ser-lhe cobrado. Um modelo local como o Ollama não custa nada.",
       "autoConfirm": "Ativar",
-      "usage": "Resumos pagos hoje pela instância: {{used}} de {{cap}}"
+      "usage": "Pedidos à IA pagos hoje pela instância: {{used}} de {{cap}}"
     },
     "routing": {
       "title": "Por feed e categoria",

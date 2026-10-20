@@ -737,8 +737,8 @@
       "authUser": "Chiave rifiutata dal fornitore. Avvisa il tuo amministratore.",
       "quota": "Quota o crediti esauriti presso il fornitore.",
       "rateLimited": "Troppe richieste, riprova tra un minuto.",
-      "cap": "Limite giornaliero di riassunti raggiunto.",
-      "capDetail": "Limite giornaliero di riassunti raggiunto ({{used}} su {{cap}}). Si azzera alle {{time}}.",
+      "cap": "Limite giornaliero di chiamate IA raggiunto.",
+      "capDetail": "Limite giornaliero di chiamate IA raggiunto ({{used}} su {{cap}}). Si azzera alle {{time}}.",
       "tooShort": "Articolo troppo breve per essere riassunto.",
       "tooLong": "Articolo troppo lungo per essere riassunto.",
       "refused": "Il fornitore ha rifiutato di riassumere questo articolo.",
@@ -746,7 +746,9 @@
       "technical": "Il riassunto non è riuscito. Riprova.",
       "invalidLang": "Lingua non disponibile.",
       "segments": "Il fornitore non ha restituito una traduzione utilizzabile. Riprova.",
-      "translateFailed": "La traduzione non è riuscita. Riprova."
+      "translateFailed": "La traduzione non è riuscita. Riprova.",
+      "translateRefused": "Il fornitore ha rifiutato di tradurre questo articolo.",
+      "translateTooLong": "Testo troppo lungo per essere tradotto."
     },
     "admin": {
       "title": "Fornitori",
@@ -823,7 +825,7 @@
       "autoConfirmTitle": "Attivare il riassunto automatico?",
       "autoConfirmMessage": "Ogni riassunto automatico è una chiamata al suo fornitore di IA. A seconda del fornitore e dell'abbonamento, potrebbe esserle addebitato. Un modello locale come Ollama non costa nulla.",
       "autoConfirm": "Attiva",
-      "usage": "Riassunti pagati oggi dall'istanza: {{used}} su {{cap}}"
+      "usage": "Chiamate IA pagate oggi dall'istanza: {{used}} su {{cap}}"
     },
     "routing": {
       "title": "Per feed e categoria",

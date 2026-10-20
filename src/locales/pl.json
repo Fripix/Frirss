@@ -765,8 +765,8 @@
       "authUser": "Dostawca odrzucił klucz. Powiadom administratora.",
       "quota": "Limit lub środki u dostawcy wyczerpane.",
       "rateLimited": "Zbyt wiele żądań. Spróbuj ponownie za minutę.",
-      "cap": "Osiągnięto dzienny limit podsumowań.",
-      "capDetail": "Osiągnięto dzienny limit podsumowań ({{used}} z {{cap}}). Nowy dzień o {{time}}.",
+      "cap": "Osiągnięto dzienny limit wywołań AI.",
+      "capDetail": "Osiągnięto dzienny limit wywołań AI ({{used}} z {{cap}}). Nowy dzień o {{time}}.",
       "tooShort": "Artykuł jest zbyt krótki, by go podsumować.",
       "tooLong": "Artykuł jest zbyt długi, by go podsumować.",
       "refused": "Dostawca odmówił podsumowania tego artykułu.",
@@ -774,7 +774,9 @@
       "technical": "Nie udało się utworzyć streszczenia. Spróbuj ponownie.",
       "invalidLang": "Język niedostępny.",
       "segments": "Dostawca nie zwrócił użytecznego tłumaczenia. Spróbuj ponownie.",
-      "translateFailed": "Nie udało się przetłumaczyć. Spróbuj ponownie."
+      "translateFailed": "Nie udało się przetłumaczyć. Spróbuj ponownie.",
+      "translateRefused": "Dostawca odmówił przetłumaczenia tego artykułu.",
+      "translateTooLong": "Tekst jest zbyt długi, by go przetłumaczyć."
     },
     "admin": {
       "title": "Dostawcy",
@@ -853,7 +855,7 @@
       "autoConfirmTitle": "Włączyć automatyczne podsumowania?",
       "autoConfirmMessage": "Każde automatyczne podsumowanie to wywołanie Twojego dostawcy AI. W zależności od dostawcy i abonamentu może to być płatne. Model lokalny, taki jak Ollama, nic nie kosztuje.",
       "autoConfirm": "Włącz",
-      "usage": "Podsumowania opłacone dziś przez instancję: {{used}} z {{cap}}"
+      "usage": "Wywołania AI opłacone dziś przez instancję: {{used}} z {{cap}}"
     },
     "routing": {
       "title": "Według kanału i kategorii",

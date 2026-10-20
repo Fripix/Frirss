@@ -643,7 +643,7 @@ describe('ReadingPane — traduction du résumé', () => {
     const { getByRole } = await summarized();
     fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
     const langs = within(getByRole('group', { name: 'ai.translateTo' }));
-    fireEvent.click(langs.getByRole('menuitem', { name: languageName('de', 'fr') }));
+    fireEvent.click(langs.getByRole('menuitemradio', { name: languageName('de', 'fr') }));
     expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ scope: 'summary', targetLang: 'de' });
   });
   it('« Traduire avec… » forces the provider and keeps the fallback setting', async () => {
@@ -652,7 +652,7 @@ describe('ReadingPane — traduction du résumé', () => {
     vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
     const { getByRole } = await summarized();
     fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
-    fireEvent.click(within(getByRole('group', { name: 'ai.translateWith' })).getByRole('menuitem', { name: 'Claude' }));
+    fireEvent.click(within(getByRole('group', { name: 'ai.translateWith' })).getByRole('menuitemradio', { name: 'Claude' }));
     expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ provider: 2, targetLang: 'fr', fallback: false });
   });
   it('a failure with no known cause says the translation failed, and keeps the summary', async () => {

@@ -2061,9 +2061,11 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   (`src/lib/aiErrorKey.ts`, pur, testé) et ne devine jamais une cause de plus :
   429 `ai_daily_cap` → plafond, **chiffré** quand le corps porte `cap` et
   `resetAt` (spec §9) : `aiErrorMessage` (même module) rend
-  `ai.errors.capDetail`, « Limite quotidienne de résumés atteinte (50 sur 50).
-  Nouvelle journée à 00:00. » — l'heure de `resetAt` en `Intl.DateTimeFormat`
-  court, langue de l'interface, fuseau du navigateur ; un champ absent ou
+  `ai.errors.capDetail`, « Limite quotidienne d'appels IA atteinte (50 sur 50).
+  Nouvelle journée à 00:00. » (« appels IA » et non « résumés » : le compteur
+  est commun aux résumés et aux traductions) — l'heure de `resetAt` en
+  `Intl.DateTimeFormat` court, langue de l'interface, fuseau du navigateur ; un
+  champ absent ou
   illisible retombe sur `ai.errors.cap`, sans chiffre inventé ;
   **429 sans `ai_daily_cap`** (le seau du proxy)
   → « trop de requêtes, réessayez dans une minute » ; 400 `invalid_body` →
@@ -2076,7 +2078,11 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   de « Tester »)* ; la traduction ajoute deux codes : 400 `invalid_lang` →
   `ai.errors.invalidLang` (« langue non proposée ») et 502 `ai_failed` avec
   `detail: 'segments'` (lot rendu inexploitable) → `ai.errors.segments`, lu
-  **avant** le `kind` : ce n'est ni la clé ni le quota ; sinon « le résumé a échoué, réessayez » (neutre : la cause n'est pas connue).
+  **avant** le `kind` : ce n'est ni la clé ni le quota ; sinon « le résumé a
+  échoué, réessayez » (neutre : la cause n'est pas connue).
+  Avec `{ op: 'translate' }`, refus, `invalid_body` et repli neutre parlent de
+  traduction (`translateRefused`, `translateTooLong`, `translateFailed`) ; le
+  chemin du résumé ne change pas.
   Un « Résumer avec… » raté **garde le résumé déjà affiché**, l'erreur sous
   lui (`AiSummary` affiche `result` aussi en statut `error`).
 - **Traduction — serveur** (`translate.ts`, route `POST /api/ai/translate`) :
@@ -2166,7 +2172,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   catégorie » et ne s'ouvre qu'**une fois par compte** : la confirmer, ici ou
   là, pose `aiAutoSummaryConfirmed`, après quoi rallumer le global (ou un
   « Résumer ») s'applique directement, sans boîte ;
-  enfin la ligne **« Résumés payés par l'instance aujourd'hui : N sur M »**
+  enfin la ligne **« Appels IA payés par l'instance aujourd'hui : N sur M »**
+  (résumés et traductions, un seul compteur)
   (N relu à chaque ouverture de la section, voir `aiStore` plus haut),
   affichée seulement pour un **non-admin**, avec un plafond journalier
   **> 0** et au moins un fournisseur `available` + clé admin + partagé + sans
@@ -2349,18 +2356,27 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     cerclé du filet du panneau — « Traduire » (vers la langue cible : réglage
     `aiTranslationLanguage`, ou `targetLanguage()` de la langue d'interface pour
     `ui`) et un chevron (`aria-haspopup`, libellé « Options de traduction »).
-    Il n'apparaît que si le résumé n'est **pas déjà** dans la langue cible
-    (`sameLanguage(result.lang, cible)` ; une langue détectée inconnue le
-    laisse paraître), jamais pendant une demande de résumé. Pendant la
-    traduction, il est désactivé avec « Traduction… » et le statut ajoute
-    « Traduction… » — replié, c'est la seule trace. Le chevron ouvre
-    `TranslateMenu.tsx` : « Traduire en… » (la langue courante cochée en tête,
-    puis les 27 autres triées par leur nom `Intl.DisplayNames` dans la langue
-    d'interface, avec un champ « Filtrer les langues » au-delà de 12, comme la
-    liste des modèles ; liste bornée en hauteur pour que la seconde section
-    reste en vue) et « Traduire avec… » (fournisseurs `available`, celui de la
-    traduction affichée coché). Popover en portail sur ordinateur, feuille du
-    bas sur tablette et smartphone, comme « Résumer avec… ». « Traduire avec X »
+    L'action « Traduire » apparaît quand un résumé est affiché, qu'un
+    fournisseur est disponible et que le résumé n'est **pas déjà** dans la
+    langue cible (`sameLanguage(result.lang, cible)` ; une langue détectée
+    inconnue la laisse paraître) — jamais pendant une demande de résumé ; tant
+    qu'une traduction est affichée, la même place montre « Texte source »,
+    quelle que soit la cible. Pendant la traduction, l'action est désactivée
+    avec « Traduction… » et le statut ajoute « Traduction… » — replié, c'est la
+    seule trace. Le chevron ouvre `TranslateMenu.tsx` : un champ « Filtrer les
+    langues » au-delà de 12 langues, comme la liste des modèles, posé
+    **au-dessus** du `role="menu"` (un champ de saisie n'en est pas un enfant
+    permis), puis « Traduire en… » (la langue courante en tête, puis les 27
+    autres triées par leur nom `Intl.DisplayNames` dans la langue d'interface ;
+    liste bornée en hauteur pour que la seconde section reste en vue) et
+    « Traduire avec… » (fournisseurs `available`). Chaque section est un
+    `role="group"` de `menuitemradio`, le choix courant en `aria-checked` (la
+    coche visible est décorative). Popover en portail sur ordinateur, feuille
+    du bas sur tablette et smartphone (`aria-current` sur le choix courant),
+    comme « Résumer avec… ». Clavier, sur ordinateur (`Popover.tsx`, option
+    `header`) : le focus part dans le filtre, Flèche bas entre dans la liste,
+    Flèche haut depuis le premier élément y revient, Tab passe du filtre à la
+    liste et retour au lieu de fermer, Échap ferme. « Traduire avec X »
     vise la langue de la traduction affichée (sinon la cible) et **garde le
     réglage de repli**, comme « Résumer avec X ». Traduit, le corps montre la
     traduction, le statut ajoute « traduit en {langue} par Y » (et « X
@@ -2369,9 +2385,11 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     sans requête. Une traduction qui arrive panneau replié ne le déplie pas.
     Si le serveur répond `same` (le texte est déjà dans la langue demandée),
     rien ne change dans le panneau et un toast bref dit « Déjà en {langue}. ».
-    Un échec s'affiche en alerte sous le résumé, qui reste ; sans cause connue,
-    il dit « La traduction a échoué. Réessayez. » (`aiErrorKey(…, { op:
-    'translate' })`), pas le message du résumé. La traduction est oubliée au
+    Un échec s'affiche en alerte sous le résumé, qui reste. Les messages qui
+    nomment l'opération ont leur variante (`aiErrorKey(…, { op: 'translate'
+    })`) : sans cause connue, « La traduction a échoué. Réessayez. » ; refus,
+    « Le fournisseur a refusé de traduire cet article. » ; `invalid_body`,
+    « Texte trop long pour être traduit. ». La traduction est oubliée au
     changement d'article et à l'arrivée d'un autre résumé ; une réponse
     arrivée après coup est ignorée (`aiTranslationSeq`). Les demandes en vol
     sont partagées comme celles du résumé (`aiPending.ts`, clé : compte,

@@ -322,10 +322,10 @@ describe('AiSummary — traduction du résumé', () => {
     fireEvent.click(chevron);
     expect(chevron.getAttribute('aria-expanded')).toBe('true');
     const menu = getByRole('menu');
-    fireEvent.click(within(within(menu).getByRole('group', { name: 'ai.translateTo' })).getAllByRole('menuitem')[0]);
+    fireEvent.click(within(within(menu).getByRole('group', { name: 'ai.translateTo' })).getAllByRole('menuitemradio')[0]);
     expect(onTranslate).toHaveBeenLastCalledWith({ lang: 'en' });
     fireEvent.click(chevron);
-    fireEvent.click(within(getByRole('menu')).getByRole('menuitem', { name: 'Ollama' }));
+    fireEvent.click(within(getByRole('menu')).getByRole('menuitemradio', { name: 'Ollama' }));
     expect(onTranslate).toHaveBeenLastCalledWith({ providerId: 2 });
   });
   it('touch: both halves are 44 px, the menu is a sheet', () => {

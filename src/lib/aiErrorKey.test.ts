@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { aiErrorKey, aiErrorMessage } from './aiErrorKey';
+import fr from '../locales/fr.json';
+import en from '../locales/en.json';
 
 describe('aiErrorKey', () => {
   it('tells the daily cap from the proxy rate limit, both 429', () => {
@@ -28,6 +30,20 @@ describe('aiErrorKey', () => {
     expect(aiErrorKey(400, { error: 'invalid_lang' }, false, { op: 'translate' })).toBe('ai.errors.invalidLang');
     expect(aiErrorMessage(502, { error: 'ai_failed' }, false, 'en', { op: 'translate' })).toEqual({ key: 'ai.errors.translateFailed' });
     expect(aiErrorMessage(502, { error: 'ai_failed' }, false, 'en')).toEqual({ key: 'ai.errors.technical' });
+  });
+  it('a refused or oversized translation says so, the summary keeps its own wording', () => {
+    expect(aiErrorKey(422, { error: 'ai_refused' }, false, { op: 'translate' })).toBe('ai.errors.translateRefused');
+    expect(aiErrorKey(422, { error: 'ai_refused' }, false, { op: 'summary' })).toBe('ai.errors.refused');
+    expect(aiErrorKey(422, { error: 'ai_refused' }, false)).toBe('ai.errors.refused');
+    expect(aiErrorKey(400, { error: 'invalid_body' }, false, { op: 'translate' })).toBe('ai.errors.translateTooLong');
+    expect(aiErrorKey(400, { error: 'invalid_body' }, false, { op: 'summary' })).toBe('ai.errors.tooLong');
+    expect(aiErrorKey(400, { error: 'invalid_body' }, false)).toBe('ai.errors.tooLong');
+    expect(aiErrorMessage(422, { error: 'ai_refused' }, false, 'en', { op: 'translate' })).toEqual({ key: 'ai.errors.translateRefused' });
+    expect(aiErrorMessage(400, { error: 'invalid_body' }, false, 'en', { op: 'translate' })).toEqual({ key: 'ai.errors.translateTooLong' });
+  });
+  it('the daily cap is the same message for both operations', () => {
+    expect(aiErrorKey(429, { error: 'ai_daily_cap' }, false, { op: 'translate' })).toBe('ai.errors.cap');
+    expect(aiErrorMessage(429, { error: 'ai_daily_cap', cap: 50, resetAt: '2026-10-22T00:00:00.000Z' }, false, 'en', { op: 'translate' }).key).toBe('ai.errors.capDetail');
   });
   it('maps the translation errors', () => {
     expect(aiErrorKey(400, { error: 'invalid_lang' }, false)).toBe('ai.errors.invalidLang');
@@ -66,5 +82,14 @@ describe('aiErrorMessage', () => {
   it('passes every other error through aiErrorKey, without params', () => {
     expect(aiErrorMessage(502, { error: 'ai_failed', kind: 'auth' }, false, 'fr')).toEqual({ key: 'ai.errors.authUser' });
     expect(aiErrorMessage(429, undefined, false, 'fr')).toEqual({ key: 'ai.errors.rateLimited' });
+  });
+});
+
+describe('daily cap wording', () => {
+  it('counts AI calls, not summaries: the counter is shared with translations', () => {
+    expect(fr.ai.errors.cap).toBe("Limite quotidienne d'appels IA atteinte.");
+    expect(fr.ai.errors.capDetail).toBe("Limite quotidienne d'appels IA atteinte ({{used}} sur {{cap}}). Nouvelle journée à {{time}}.");
+    expect(fr.ai.user.usage).toBe("Appels IA payés par l'instance aujourd'hui : {{used}} sur {{cap}}");
+    for (const s of [en.ai.errors.cap, en.ai.errors.capDetail, en.ai.user.usage]) expect(s.toLowerCase()).not.toContain('summar');
   });
 });
