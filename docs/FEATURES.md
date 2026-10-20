@@ -2240,8 +2240,12 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   marqué lu ou favori, par exemple) relance la seconde. Revenir plus tard sur
   un article relance la demande : si la première réponse était arrivée, le
   cache serveur la sert sans appeler le fournisseur ; si elle était encore en
-  route quand on est parti, le fournisseur est appelé une seconde fois (le
-  serveur ne regroupe pas les demandes en vol). Condition :
+  route, la **même** demande est reprise, sans second appel :
+  `ReadingPane/aiPending.ts` garde au niveau du module les demandes en vol, par
+  compte, article et fournisseur forcé, et les oublie dès qu'elles se règlent
+  (réussite ou échec). Vaut aussi pour « Résumer », le raccourci et la palette.
+  Le serveur, lui, ne regroupe pas les demandes en vol : deux onglets ou deux
+  appareils restent deux appels. Condition :
   réglage allumé, IA utilisable (`aiUsable`), **en ligne**, statut `idle`. Jamais
   hors ligne : l'effet attend simplement le retour du réseau, tant que l'article
   reste affiché. **Si l'extraction automatique s'applique à ce flux**

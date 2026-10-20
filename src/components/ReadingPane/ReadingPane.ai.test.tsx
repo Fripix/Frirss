@@ -36,6 +36,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import { extractFullContent } from '../../utils/extractContent';
 import { putExtract } from '../../lib/extractCache';
+import { __resetPendingSummariesForTests } from './aiPending';
 
 const article = (id: string) => ({
   id, title: 'Titre ' + id, summary: 's', source: 'Src', sourceId: 'feed/1',
@@ -56,6 +57,7 @@ beforeEach(() => {
   useFeedStore.setState({ subscriptions: [] });
   vi.mocked(requestAiSummary).mockReset();
   vi.mocked(extractFullContent).mockReset();
+  __resetPendingSummariesForTests();
 });
 const httpError = (status: number, data: unknown) =>
   Object.assign(new Error('http ' + status), { isAxiosError: true, response: { status, data } });
@@ -474,6 +476,24 @@ describe('ReadingPane — Résumé IA', () => {
         await advance(3000);
         expect(requestAiSummary).toHaveBeenCalledTimes(1);
         expect(vi.mocked(requestAiSummary).mock.calls[0][0].articleId).toBe('a1');
+      });
+      it('reuses the request still in flight when the user comes back to its article', async () => {
+        let finish!: (v: unknown) => void;
+        vi.mocked(requestAiSummary).mockReset();
+        vi.mocked(requestAiSummary).mockImplementation(((req: { articleId: string }) => (req.articleId === 'a1'
+          ? new Promise((r) => { finish = r; })
+          : new Promise(() => {}))) as never);
+        const { getByText } = render(<ReadingPane />);
+        await advance(1000);
+        expect(requestAiSummary).toHaveBeenCalledTimes(1);
+        select('a2');
+        await advance(300);
+        select('a1');
+        await advance(1000);
+        expect(vi.mocked(requestAiSummary).mock.calls.filter(([r]) => r.articleId === 'a1')).toHaveLength(1);
+        await act(async () => { finish(RESULT); });
+        await advance(0);
+        expect(getByText('Le résumé.')).toBeTruthy();
       });
       it('sends nothing when the pane goes away within the second', async () => {
         const { unmount } = render(<ReadingPane />);

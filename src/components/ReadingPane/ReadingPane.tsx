@@ -31,6 +31,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { stripMediaForSummary } from '../../lib/aiPayload';
 import { aiErrorKey } from '../../lib/aiErrorKey';
+import { sharedSummaryRequest } from './aiPending';
 import { aiRouting } from '../../lib/aiRouting';
 import axios from 'axios';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
@@ -774,7 +775,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     aiInFlight.current = id;
     setAiStatus('loading'); setAiError(null);
     try {
-      const r = await requestAiSummary({
+      const forced = providerId !== undefined;
+      const key = `${useAuthStore.getState().backendUser?.id ?? ''}:${id}:${providerId ?? ''}`;
+      const r = await sharedSummaryRequest(key, () => requestAiSummary({
         articleId: id, title: selectedArticle.title,
         html: stripMediaForSummary(fullText ?? selectedArticle.content ?? ''),
         provider: providerId,
@@ -783,8 +786,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         // « Résumer avec X » : l'utilisateur a choisi X. Un repli enverrait
         // l'article ailleurs, peut-être vers un fournisseur payant ; l'échec de
         // X s'affiche et le résumé précédent reste.
-        ...(providerId !== undefined ? { fallback: false } : {}),
-      });
+        ...(forced ? { fallback: false } : {}),
+      }));
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
       setAiResult(r); setAiStatus('done');
     } catch (err) {
