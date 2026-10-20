@@ -1,7 +1,7 @@
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
 import { useAuthStore } from '../stores/authStore';
-import { clearAccessReloadGuard, reloadForCloudflareAccess } from '../api/client';
+import { reloadForCloudflareAccess } from '../api/client';
 import { dropNonVideoIframes } from '../lib/youtube';
 import { absolutizeUrls } from './absolutizeUrls';
 
@@ -165,7 +165,6 @@ function checkCloudflareAccessResponse(response: Response): void {
     response: { status: response.status, headers: response.headers },
   });
   if (accessFailure) throw new CloudflareAccessAuthenticationError();
-  if (response.ok) clearAccessReloadGuard();
 }
 
 /** Exécute `run` sous un signal d'abandon armé pour `timeoutMs`. */

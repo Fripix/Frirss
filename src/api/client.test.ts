@@ -90,7 +90,7 @@ describe('Cloudflare Access redirect URL detection', () => {
 });
 
 describe('Cloudflare Access 401 handling', () => {
-  it('clears the persisted cooldown after successful API traffic', () => {
+  it('does not clear the Access recovery cooldown on unrelated successful API traffic', () => {
     const values = new Map<string, string>([['frirss:cloudflare-access-reload-at', '123']]);
     vi.stubGlobal('window', {
       location: { reload: vi.fn() },
@@ -101,7 +101,7 @@ describe('Cloudflare Access 401 handling', () => {
       },
     });
     fulfilled({ status: 200, data: {} });
-    expect(values.has('frirss:cloudflare-access-reload-at')).toBe(false);
+    expect(values.get('frirss:cloudflare-access-reload-at')).toBe('123');
   });
 
   it('reloads once for an Access fingerprint and not for ordinary backend 401s', async () => {

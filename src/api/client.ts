@@ -138,17 +138,6 @@ export function reloadForCloudflareAccess(value: unknown): boolean {
   return true;
 }
 
-export function clearAccessReloadGuard(): void {
-  // Do not unlock the current page after it has started navigating. A fresh
-  // document gets a fresh module flag and can clear the cooldown on success.
-  if (accessReloadStarted || typeof window === 'undefined') return;
-  try {
-    window.sessionStorage.removeItem(ACCESS_RELOAD_STORAGE_KEY);
-  } catch {
-    // Ignore storage restrictions; successful API traffic still resets memory.
-  }
-}
-
 // Ne fermer la session FriRSS que sur NOTRE propre 401.
 //
 // Deux couches d'authentification sans rapport passent par ce client : le
@@ -164,10 +153,7 @@ export function clearAccessReloadGuard(): void {
 // middleware pour rougir si les deux listes divergent. Tout autre 401 est
 // rejeté normalement, sans toucher à la session.
 client.interceptors.response.use(
-  (response) => {
-    clearAccessReloadGuard();
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (redirectToCloudflareAccess(error)) {
       return Promise.reject(new Error('Cloudflare Access authentication required'));
