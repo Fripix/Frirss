@@ -398,6 +398,28 @@ describe('ReadingPane — Résumé IA', () => {
       expect(third.html).toContain('complet');
       expect(container.textContent).toContain('complet');
     });
+    it('extracts and summarises the next article when the user leaves one still extracting', async () => {
+      const a = article('s1');
+      const b = article('s2');
+      useFeedStore.setState({ selectedArticle: a, articles: [a, b] });
+      useUiStore.setState({ aiAutoSummary: true, feedSettings: { 'feed/1': { autoExtract: true } } as never });
+      let finishA!: (v: unknown) => void;
+      vi.mocked(extractFullContent).mockImplementation((url: string) => (url.endsWith('/s1')
+        ? new Promise((r) => { finishA = r; })
+        : Promise.resolve(extracted('<p>' + 'second '.repeat(80) + '</p>'))) as never);
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await waitFor(() => expect(extractFullContent).toHaveBeenCalledTimes(1));
+      act(() => { useFeedStore.setState({ selectedArticle: b }); });
+      await act(async () => { finishA(extracted('<p>' + 'premier '.repeat(80) + '</p>')); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+      await waitFor(() => expect(extractFullContent).toHaveBeenCalledWith('https://example.com/s2'));
+      await passDelay();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      const sent = vi.mocked(requestAiSummary).mock.calls[0][0];
+      expect(sent.articleId).toBe('s2');
+      expect(sent.html).toContain('second');
+    });
 
     describe('one second on the article before anything leaves', () => {
       // Horloge entièrement simulée ici : les bornes se mesurent à la

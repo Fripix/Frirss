@@ -166,6 +166,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const lastExtractedId = useRef<string | null>(null);
+  // Article dont une extraction réseau est EN COURS. La garde de
+  // `handleExtract` le lit, pas l'état `extracting` : au rendu qui suit un
+  // changement d'article, la fermeture voit encore le `true` du précédent (sa
+  // remise à zéro n'arrive qu'au rendu d'après), et l'extraction automatique
+  // du nouvel article était ignorée sans retour — ni extrait, ni erreur, ni
+  // résumé automatique, qui attend l'une ou l'autre. Par article : l'arrivée
+  // tardive de A ne libère pas la garde de B.
+  const extractingId = useRef<string | null>(null);
   // Article auquel appartiennent `extractedContent` / `extractError`. EN ÉTAT,
   // posé dans le même lot que ce qu'il qualifie : au rendu qui suit un
   // changement d'article, ces deux-là sont encore ceux du précédent, et un
@@ -709,7 +717,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   }, [isMobileOrTablet, selectNextArticle, selectPrevArticle]);
 
   const handleExtract = useCallback(async () => {
-    if (!selectedArticle?.url || extracting) return;
+    if (!selectedArticle?.url || extractingId.current === selectedArticle.id) return;
     const id = selectedArticle.id;
     const stillCurrent = () => useFeedStore.getState().selectedArticle?.id === id;
     // 1) Memory hit → instant (e.g. swiping back, prefetched).
@@ -735,6 +743,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       return;
     }
     // 3) Live fetch + parse, then persist (memory + IndexedDB).
+    extractingId.current = id;
     setExtracting(true);
     try {
       // Dynamic import keeps Readability + DOMPurify out of the main bundle.
@@ -748,9 +757,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     } catch {
       if (stillCurrent()) { setExtractFor(id); setExtractError(t('readingPane.extractError')); }
     } finally {
-      setExtracting(false);
+      // Seule l'extraction en cours d'affichage éteint l'indicateur : celle
+      // d'un article quitté ne coupe pas celle du suivant.
+      if (extractingId.current === id) {
+        extractingId.current = null;
+        setExtracting(false);
+      }
     }
-  }, [selectedArticle, extracting, t]);
+  }, [selectedArticle, t]);
 
   const handleSummarize = useCallback(async (providerId?: number, opts?: { auto?: boolean }) => {
     if (!selectedArticle || aiInFlight.current === selectedArticle.id) return;
