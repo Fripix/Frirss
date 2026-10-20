@@ -738,6 +738,7 @@
       "quota": "Quotum of tegoed bij de aanbieder op.",
       "rateLimited": "Te veel verzoeken, probeer het over een minuut opnieuw.",
       "cap": "Dagelijkse samenvattingslimiet bereikt.",
+      "capDetail": "Dagelijkse samenvattingslimiet bereikt ({{used}} van {{cap}}). Nieuwe dag om {{time}}.",
       "tooShort": "Artikel te kort om samen te vatten.",
       "tooLong": "Artikel te lang om samen te vatten.",
       "refused": "De aanbieder weigerde dit artikel samen te vatten.",

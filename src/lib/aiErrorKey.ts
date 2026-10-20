@@ -20,3 +20,29 @@ export function aiErrorKey(status: number | undefined, data: { error?: string; k
   if (data?.kind === 'quota') return 'ai.errors.quota';
   return 'ai.errors.technical';
 }
+
+export interface AiErrorMessage { key: string; params?: Record<string, string | number> }
+
+/**
+ * Comme `aiErrorKey`, avec ce qu'il faut pour le plafond quotidien : le 429
+ * porte `cap` et `resetAt` (prochain minuit local du SERVEUR, en ISO), et la
+ * spec §9 veut « 50 sur 50 aujourd'hui ». L'heure est rendue dans la langue de
+ * l'interface et le fuseau du navigateur — c'est l'instant de la remise à
+ * zéro, vu d'ici. Un champ absent ou illisible : le message simple, rien
+ * d'inventé. Atteindre le plafond, c'est en avoir consommé `cap`.
+ */
+export function aiErrorMessage(
+  status: number | undefined,
+  data: { error?: string; kind?: string; ownKey?: boolean; cap?: unknown; resetAt?: unknown } | undefined,
+  isAdmin: boolean,
+  language: string,
+): AiErrorMessage {
+  const key = aiErrorKey(status, data, isAdmin);
+  if (key !== 'ai.errors.cap') return { key };
+  const cap = data?.cap;
+  const reset = typeof data?.resetAt === 'string' ? new Date(data.resetAt) : null;
+  if (typeof cap !== 'number' || !Number.isInteger(cap) || cap <= 0 || !reset || Number.isNaN(reset.getTime())) return { key };
+  let time: string;
+  try { time = new Intl.DateTimeFormat(language, { timeStyle: 'short' }).format(reset); } catch { return { key }; }
+  return { key: 'ai.errors.capDetail', params: { used: cap, cap, time } };
+}

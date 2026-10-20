@@ -766,6 +766,7 @@
       "quota": "Limit lub środki u dostawcy wyczerpane.",
       "rateLimited": "Zbyt wiele żądań. Spróbuj ponownie za minutę.",
       "cap": "Osiągnięto dzienny limit podsumowań.",
+      "capDetail": "Osiągnięto dzienny limit podsumowań ({{used}} z {{cap}}). Nowy dzień o {{time}}.",
       "tooShort": "Artykuł jest zbyt krótki, by go podsumować.",
       "tooLong": "Artykuł jest zbyt długi, by go podsumować.",
       "refused": "Dostawca odmówił podsumowania tego artykułu.",

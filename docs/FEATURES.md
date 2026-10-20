@@ -2053,7 +2053,13 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   `ai_failed` avec le `kind` (le détail reste dans le journal serveur). Le
   volet traduit statut / `error` / `kind` en message par `aiErrorKey`
   (`src/lib/aiErrorKey.ts`, pur, testé) et ne devine jamais une cause de plus :
-  429 `ai_daily_cap` → plafond ; **429 sans `ai_daily_cap`** (le seau du proxy)
+  429 `ai_daily_cap` → plafond, **chiffré** quand le corps porte `cap` et
+  `resetAt` (spec §9) : `aiErrorMessage` (même module) rend
+  `ai.errors.capDetail`, « Limite quotidienne de résumés atteinte (50 sur 50).
+  Nouvelle journée à 00:00. » — l'heure de `resetAt` en `Intl.DateTimeFormat`
+  court, langue de l'interface, fuseau du navigateur ; un champ absent ou
+  illisible retombe sur `ai.errors.cap`, sans chiffre inventé ;
+  **429 sans `ai_daily_cap`** (le seau du proxy)
   → « trop de requêtes, réessayez dans une minute » ; 400 `invalid_body` →
   « article trop long » ; trop court, refusé, aucun fournisseur ; `kind: auth`
   → « vérifiez la clé dans Préférences › IA » pour un **admin**, « prévenez

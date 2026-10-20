@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aiErrorKey } from './aiErrorKey';
+import { aiErrorKey, aiErrorMessage } from './aiErrorKey';
 
 describe('aiErrorKey', () => {
   it('tells the daily cap from the proxy rate limit, both 429', () => {
@@ -27,5 +27,29 @@ describe('aiErrorKey', () => {
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'quota' }, false)).toBe('ai.errors.quota');
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical' }, false)).toBe('ai.errors.technical');
     expect(aiErrorKey(undefined, undefined, false)).toBe('ai.errors.technical');
+  });
+});
+
+describe('aiErrorMessage', () => {
+  const resetAt = new Date(2026, 9, 21, 0, 0).toISOString();
+  it('says how many and when the day starts again when the cap carries its fields', () => {
+    const m = aiErrorMessage(429, { error: 'ai_daily_cap', cap: 50, resetAt }, false, 'fr');
+    expect(m.key).toBe('ai.errors.capDetail');
+    expect(m.params).toEqual({ used: 50, cap: 50, time: new Intl.DateTimeFormat('fr', { timeStyle: 'short' }).format(new Date(resetAt)) });
+    expect(m.params?.time).toBe('00:00');
+  });
+  it('formats the time in the interface language', () => {
+    const m = aiErrorMessage(429, { error: 'ai_daily_cap', cap: 5, resetAt }, false, 'en');
+    expect(m.params?.time).toBe(new Intl.DateTimeFormat('en', { timeStyle: 'short' }).format(new Date(resetAt)));
+  });
+  it('falls back to the plain cap message when a field is missing or unreadable', () => {
+    expect(aiErrorMessage(429, { error: 'ai_daily_cap', cap: 5 }, false, 'fr')).toEqual({ key: 'ai.errors.cap' });
+    expect(aiErrorMessage(429, { error: 'ai_daily_cap', resetAt }, false, 'fr')).toEqual({ key: 'ai.errors.cap' });
+    expect(aiErrorMessage(429, { error: 'ai_daily_cap', cap: 5, resetAt: 'demain' }, false, 'fr')).toEqual({ key: 'ai.errors.cap' });
+    expect(aiErrorMessage(429, { error: 'ai_daily_cap', cap: '5', resetAt } as never, false, 'fr')).toEqual({ key: 'ai.errors.cap' });
+  });
+  it('passes every other error through aiErrorKey, without params', () => {
+    expect(aiErrorMessage(502, { error: 'ai_failed', kind: 'auth' }, false, 'fr')).toEqual({ key: 'ai.errors.authUser' });
+    expect(aiErrorMessage(429, undefined, false, 'fr')).toEqual({ key: 'ai.errors.rateLimited' });
   });
 });

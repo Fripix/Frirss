@@ -738,6 +738,7 @@
       "quota": "Quota or credits exhausted at the provider.",
       "rateLimited": "Too many requests, try again in a minute.",
       "cap": "Daily summary limit reached.",
+      "capDetail": "Daily summary limit reached ({{used}} of {{cap}}). It resets at {{time}}.",
       "tooShort": "Article too short to summarise.",
       "tooLong": "Article too long to summarise.",
       "refused": "The provider declined to summarise this article.",

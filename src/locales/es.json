@@ -738,6 +738,7 @@
       "quota": "Cuota o créditos agotados en el proveedor.",
       "rateLimited": "Demasiadas solicitudes. Inténtalo de nuevo en un minuto.",
       "cap": "Se alcanzó el límite diario de resúmenes.",
+      "capDetail": "Se alcanzó el límite diario de resúmenes ({{used}} de {{cap}}). Se reinicia a las {{time}}.",
       "tooShort": "Artículo demasiado corto para resumirlo.",
       "tooLong": "Artículo demasiado largo para resumirlo.",
       "refused": "El proveedor se negó a resumir este artículo.",

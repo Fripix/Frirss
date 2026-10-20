@@ -30,7 +30,7 @@ import { requestAiSummary, type AiSummaryResult, type AiProviderView } from '../
 import { useAuthStore } from '../../stores/authStore';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { stripMediaForSummary } from '../../lib/aiPayload';
-import { aiErrorKey } from '../../lib/aiErrorKey';
+import { aiErrorMessage } from '../../lib/aiErrorKey';
 import { sharedSummaryRequest } from './aiPending';
 import { aiRouting } from '../../lib/aiRouting';
 import axios from 'axios';
@@ -124,7 +124,7 @@ interface ReadingPaneProps {
 }
 
 export default function ReadingPane({ showBack }: ReadingPaneProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { selectedArticle, selectArticle, toggleRead, toggleStar, toggleReadLater, categoryIds, selectNextArticle, selectPrevArticle } = useFeedStore();
   const theme = useThemeStore((s) => s.theme);
   const getLabelColor = useThemeStore((s) => s.getLabelColor);
@@ -800,12 +800,13 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         return;
       }
       // Le résumé déjà affiché (`aiResult`) reste : un « Résumer avec… » raté ne l'efface pas.
-      setAiError(t(aiErrorKey(resp?.status, resp?.data as { error?: string; kind?: string } | undefined, isAdmin)));
+      const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], isAdmin, i18n.language);
+      setAiError(t(msg.key, msg.params));
       setAiStatus('error');
     } finally {
       if (aiInFlight.current === id) aiInFlight.current = null;
     }
-  }, [selectedArticle, extractedContent, extractFor, t, isAdmin, aiRatio]);
+  }, [selectedArticle, extractedContent, extractFor, t, i18n, isAdmin, aiRatio]);
 
   // Raccourci clavier et palette : `useKeyboardNav` / `CommandPalette` diffusent
   // l'événement, et c'est ici — où vivent l'état et la requête — qu'on y répond.

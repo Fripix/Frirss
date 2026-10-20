@@ -738,6 +738,7 @@
       "quota": "Kontingent oder Guthaben beim Anbieter aufgebraucht.",
       "rateLimited": "Zu viele Anfragen. Versuchen Sie es in einer Minute erneut.",
       "cap": "Tageslimit für Zusammenfassungen erreicht.",
+      "capDetail": "Tageslimit für Zusammenfassungen erreicht ({{used}} von {{cap}}). Neuer Tag um {{time}}.",
       "tooShort": "Artikel zu kurz für eine Zusammenfassung.",
       "tooLong": "Artikel zu lang für eine Zusammenfassung.",
       "refused": "Der Anbieter hat die Zusammenfassung dieses Artikels abgelehnt.",

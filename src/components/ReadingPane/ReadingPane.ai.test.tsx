@@ -164,6 +164,12 @@ describe('ReadingPane — Résumé IA', () => {
     fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(await findByText('ai.errors.cap')).toBeTruthy();
   });
+  it('says how many summaries and when the day starts again when the cap answer carries them', async () => {
+    vi.mocked(requestAiSummary).mockRejectedValueOnce(httpError(429, { error: 'ai_daily_cap', cap: 50, resetAt: new Date(2026, 9, 21).toISOString() }));
+    const { getByRole, findByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    expect(await findByText('ai.errors.capDetail')).toBeTruthy();
+  });
   it('tells a plain user to warn the admin about a rejected key, and the admin to check it', async () => {
     vi.mocked(requestAiSummary).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'auth' }));
     const user = render(<ReadingPane />);

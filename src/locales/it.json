@@ -738,6 +738,7 @@
       "quota": "Quota o crediti esauriti presso il fornitore.",
       "rateLimited": "Troppe richieste, riprova tra un minuto.",
       "cap": "Limite giornaliero di riassunti raggiunto.",
+      "capDetail": "Limite giornaliero di riassunti raggiunto ({{used}} su {{cap}}). Si azzera alle {{time}}.",
       "tooShort": "Articolo troppo breve per essere riassunto.",
       "tooLong": "Articolo troppo lungo per essere riassunto.",
       "refused": "Il fornitore ha rifiutato di riassumere questo articolo.",
