@@ -86,7 +86,9 @@ export default function AiSummary({ status, result, error, providers, onSummariz
   // couleur, et la ligne passe à la ligne au lieu de pousser l'action dehors.
   const statusParts = done
     ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, done.fellBackFrom ? t('ai.fellBack', { name: done.fellBackFrom }) : null].filter((x): x is string => !!x)
-    : [t('ai.status.none')];
+    // Pendant une demande, « Pas encore résumé » contredirait le bouton qui
+    // dit « Résumé en cours… » — et, replié, ce statut est tout ce qu'on voit.
+    : [t(loading ? 'ai.summarizing' : 'ai.status.none')];
 
   const announce = done ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null].filter(Boolean).join(', ') : '';
 

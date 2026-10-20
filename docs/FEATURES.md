@@ -2184,8 +2184,10 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   réglable** (`--ai-bg` / `--ai-border`, voir « Apparence et thèmes »).
   - **En-tête toujours visible** : à gauche, **un seul bouton** (`aria-expanded`,
     `aria-controls`) qui replie ou déplie — étincelle, titre « Résumé IA »,
-    statut en petit dessous (« Pas encore résumé », « Résumé par X », « depuis
-    le cache », « X indisponible »), chevron qui tourne. À droite, **hors de ce
+    statut en petit dessous (« Pas encore résumé », « Résumé en cours… » pendant
+    une première demande — replié, c'est tout ce qu'on voit, et « Pas encore
+    résumé » y contredisait le bouton —, « Résumé par X », « depuis le cache »,
+    « X indisponible »), chevron qui tourne. À droite, **hors de ce
     bouton** (un clic dessus ne replie rien) : l'action « Résumer » (pleine,
     couleur d'accent) tant qu'il n'y a pas de résumé — désactivée, avec un
     indicateur qui tourne et « Résumé en cours… », pendant la demande —, puis « Résumer

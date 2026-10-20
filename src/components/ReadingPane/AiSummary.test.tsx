@@ -109,6 +109,18 @@ describe('AiSummary — statut et action', () => {
     expect(action.disabled).toBe(true);
     expect(action.getAttribute('aria-busy')).toBe('true');
   });
+  it('loading: the status reads the loading text, never « Pas encore résumé », folded or not', () => {
+    const { queryByText, getByRole } = render(<AiSummary {...idleProps} status="loading" />);
+    expect(headerText('ai.summarizing')).toBeTruthy();
+    expect(queryByText('ai.status.none')).toBeNull();
+    fireEvent.click(getByRole('button', TOGGLE));
+    expect(headerText('ai.summarizing')).toBeTruthy();
+    expect(queryByText('ai.status.none')).toBeNull();
+  });
+  it('loading again over a summary: the status still names who wrote the one shown', () => {
+    render(<AiSummary {...doneProps} status="loading" />);
+    expect(headerText('ai.by:Ollama')).toBeTruthy();
+  });
   it('offline: the action is disabled', () => {
     const { getByRole } = render(<AiSummary {...idleProps} disabled />);
     expect((getByRole('button', ACTION) as HTMLButtonElement).disabled).toBe(true);
