@@ -8,7 +8,7 @@ import type { Availability } from './resolve.js';
 import type { AiProvider } from './store.js';
 
 const P = (id: number, name: string): AiProvider => ({ id, name, type: 'openai', baseUrl: 'https://x', model: 'm', hasAdminKey: false, shared: false, position: id });
-const A = (id: number, name: string, paidByAdmin = false): Availability => ({ provider: P(id, name), key: paidByAdmin ? 'admin' : null, paidByAdmin });
+const A = (id: number, name: string, paidByAdmin = false, own = false): Availability => ({ provider: P(id, name), key: paidByAdmin ? 'admin' : null, paidByAdmin, own });
 const html = '<p>' + 'mot '.repeat(60) + '</p>';
 const base = { userId: 41, articleId: 'art-1', title: 'T', html, resolution: { adminDefault: 1 }, fallback: true };
 
@@ -61,6 +61,14 @@ describe('summarize', () => {
     const r = await summarize({ ...base, available: [A(1, 'Claude'), A(2, 'Ollama')] }, { call });
     expect(r.providerName).toBe('Ollama');
     expect(r.fellBackFrom).toBe('Claude');
+  });
+  it('tags the error with ownKey when the failing candidate used the personal key', async () => {
+    const refused = vi.fn().mockRejectedValue(new AiError('auth', 'HTTP 401', 401));
+    await expect(summarize({ ...base, fallback: false, available: [A(1, 'Mine', false, true)] }, { call: refused })).rejects.toMatchObject({ kind: 'auth', ownKey: true });
+    await expect(summarize({ ...base, fallback: false, available: [A(1, 'Shared', true, false)] }, { call: refused })).rejects.toMatchObject({ kind: 'auth', ownKey: false });
+    // Repli : c'est la dernière erreur retenue qui parle, avec la clé de son candidat.
+    const mixed = vi.fn().mockRejectedValue(new AiError('auth', 'HTTP 401', 401));
+    await expect(summarize({ ...base, available: [A(1, 'Shared', true, false), A(2, 'Mine', false, true)] }, { call: mixed })).rejects.toMatchObject({ ownKey: true });
   });
   it('never falls back after a refusal, nor when fallback is off', async () => {
     const refusing = vi.fn().mockRejectedValue(new AiError('refused', 'no'));

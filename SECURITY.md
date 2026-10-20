@@ -113,7 +113,9 @@ API keys are encrypted at rest with the instance key and never returned by any
 route; the part of a provider's error body that is logged or shown has the key
 redacted first and is then cut to 300 characters (the other order could leave a
 fragment of the key at the cut), and a transport error message is redacted the
-same way. The article text leaves the instance for
+same way. A personal key (`PUT /api/ai/keys/:providerId`) is encrypted the same
+way, never returned (the config only says whether one exists), and ignored, not
+deleted, while the admin does not allow personal keys. The article text leaves the instance for
 the provider the admin chose, which is the point of the feature and also its
 privacy cost: leave it off, or point it at a local model, if articles must not
 leave the network.

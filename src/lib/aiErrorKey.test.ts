@@ -15,6 +15,12 @@ describe('aiErrorKey', () => {
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'auth' }, true)).toBe('ai.errors.auth');
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'auth' }, false)).toBe('ai.errors.authUser');
   });
+  it('tells a user their own refused key is theirs to fix, whatever their role', () => {
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'auth', ownKey: true }, false)).toBe('ai.errors.auth');
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'auth', ownKey: true }, true)).toBe('ai.errors.auth');
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'auth' }, false)).toBe('ai.errors.authUser');
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'quota', ownKey: true }, false)).toBe('ai.errors.quota');
+  });
   it('keeps the other codes and falls back to technical', () => {
     expect(aiErrorKey(422, { error: 'ai_refused' }, false)).toBe('ai.errors.refused');
     expect(aiErrorKey(409, { error: 'no_provider' }, false)).toBe('ai.errors.noProvider');

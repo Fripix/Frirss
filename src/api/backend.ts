@@ -222,6 +222,11 @@ export async function requestAiSummary(body: { articleId: string; title: string;
   const { data } = await backend.post<AiSummaryResult>('/ai/summary', body);
   return data;
 }
+/** Enregistre (chaîne) ou efface (`null`) la clé personnelle de l'utilisateur pour un fournisseur ; la clé ne revient jamais. */
+export async function setAiUserKey(providerId: number, key: string | null): Promise<{ ok: true; hasUserKey: boolean }> {
+  const { data } = await backend.put<{ ok: true; hasUserKey: boolean }>(`/ai/keys/${providerId}`, { key });
+  return data;
+}
 export async function getAiProviders(): Promise<{ providers: AiProviderAdmin[]; settings: AiAdminSettings }> {
   const { data } = await backend.get<{ providers: AiProviderAdmin[]; settings: AiAdminSettings }>('/admin/ai/providers');
   return data;

@@ -1840,8 +1840,21 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   **avant** la coupe à 300
   caractères (couper d'abord laisserait un morceau de clé que la rédaction ne
   reconnaît plus), ainsi que dans le message d'une erreur de transport. Le serveur
-  sait lire une clé personnelle (`ai_user_keys`), mais **aucune route ni écran
-  ne permet encore d'en saisir une** (plan 2). Disponibilité d'un fournisseur
+  stocke une clé personnelle par utilisateur et fournisseur (`ai_user_keys`) ;
+  `PUT /api/ai/keys/:providerId` (corps `{ key }`, chaîne rognée ou `null`/vide
+  pour l'effacer, 4096 caractères au plus) répond `{ ok, hasUserKey }` et
+  refuse tant que l'IA est éteinte (`404 ai_disabled`) ou que l'admin ne permet
+  pas les clés personnelles (`403 user_keys_disabled`), sur un fournisseur
+  inconnu (`404 not_found`) ou une clé mal formée (`400 invalid_key`). **Aucun
+  écran ne permet encore de la saisir** (plan 2, suite). Règle « non permises =
+  **ignorées, pas effacées** » : tant que `userKeysAllowed` est faux, une clé
+  stockée ne sert pas au résumé et `hasUserKey` vaut `false` dans `/config` ;
+  elle revient intacte dès que l'admin les repermet. Quand un appel est refusé
+  (`auth`) alors qu'il partait avec la clé personnelle, la réponse 502 porte
+  `ownKey: true` (l'`AiError` est marquée par `summarize` d'après
+  `Availability.own`) et le client dit « votre clé » (`ai.errors.auth`) au lieu
+  d'envoyer l'utilisateur vers son admin (`authUser`) — c'est la seule clé qu'il
+  peut corriger lui-même. Disponibilité d'un fournisseur
   pour un utilisateur : clé personnelle > clé admin si le fournisseur est
   « partagé » > indisponible ; un `openai` **sans aucune clé admin** (Ollama)
   est disponible pour tous. Un **admin** se sert de la clé admin même d'un
@@ -3642,6 +3655,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | PUT | `/api/admin/settings` | Écrire les réglages du serveur |
 | GET | `/api/ai/config` | Ce que le client sait de l'IA (fournisseurs sans clés, plafond, usage) |
 | POST | `/api/ai/summary` | Résumer un article |
+| PUT | `/api/ai/keys/:providerId` | Clé personnelle (enregistrer ou effacer) |
 | GET | `/api/admin/ai/providers` | Lister fournisseurs et réglages IA |
 | POST | `/api/admin/ai/providers` | Créer un fournisseur |
 | PUT | `/api/admin/ai/providers/order` | Réordonner les fournisseurs |

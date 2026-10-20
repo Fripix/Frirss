@@ -2,6 +2,8 @@ export type AiErrorKind = 'auth' | 'quota' | 'technical' | 'refused';
 
 /** Une erreur d'appel à un fournisseur, classée pour que le repli sache quoi faire. */
 export class AiError extends Error {
+  /** Vrai si l'appel fautif partait avec la clé personnelle de l'utilisateur ; posé par `summarize`. */
+  ownKey?: boolean;
   constructor(public readonly kind: AiErrorKind, message: string, public readonly status?: number) {
     super(message);
     this.name = 'AiError';

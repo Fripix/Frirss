@@ -6,6 +6,11 @@ const P = (id: number, type: 'anthropic' | 'openai', hasAdminKey: boolean, share
   ({ id, name: `P${id}`, type, baseUrl: 'https://x', model: 'm', hasAdminKey, shared, position: id });
 
 describe('availableFor', () => {
+  it('flags own only for a personal key', () => {
+    const providers = [P(1, 'anthropic', true, true), P(2, 'anthropic', true, true), P(3, 'openai', false, false)];
+    const avail = availableFor(providers, { user: (id) => (id === 2 ? 'mine' : null), admin: (id) => `admin${id}` });
+    expect(avail.map((a) => [a.provider.id, a.own])).toEqual([[1, false], [2, true], [3, false]]);
+  });
   it('personal key beats the admin key; shared admin key serves everyone; none → unavailable', () => {
     const providers = [P(1, 'anthropic', true, true), P(2, 'anthropic', true, false), P(3, 'anthropic', false, false)];
     const avail = availableFor(providers, { user: (id) => (id === 2 ? 'mine' : null), admin: (id) => (id === 3 ? null : `admin${id}`) });
@@ -24,7 +29,7 @@ describe('availableFor', () => {
   it('an admin user can use their own admin key on an unshared provider, unpaid', () => {
     const providers = [P(5, 'anthropic', true, false)];
     const keys = { user: () => null, admin: () => 'admin5' };
-    expect(availableFor(providers, keys, { adminUser: true })).toEqual([{ provider: providers[0], key: 'admin5', paidByAdmin: false }]);
+    expect(availableFor(providers, keys, { adminUser: true })).toEqual([{ provider: providers[0], key: 'admin5', paidByAdmin: false, own: false }]);
     expect(availableFor(providers, keys)).toEqual([]);
   });
   it('an admin user is never paidByAdmin, even on a shared provider; a plain user is', () => {

@@ -1,8 +1,9 @@
 import type { AiProvider } from './store.js';
 
-export interface Availability { provider: AiProvider; key: string | null; paidByAdmin: boolean }
+export interface Availability { provider: AiProvider; key: string | null; paidByAdmin: boolean; own: boolean }
 
 /**
+ * `own` : vrai seulement pour une clé personnelle, pour dire à l'utilisateur de qui est la clé refusée.
  * Clé personnelle, sinon clé admin partagée ; `openai` sans clé reste utilisable (Ollama).
  * Un administrateur (`opts.adminUser`) se sert de la clé admin même non partagée, et n'est jamais
  * « payé par l'admin » : c'est sa propre clé, donc ni plafond quotidien ni facturation à un tiers.
@@ -15,11 +16,11 @@ export function availableFor(
   const out: Availability[] = [];
   for (const provider of providers) {
     const mine = keys.user(provider.id);
-    if (mine) { out.push({ provider, key: mine, paidByAdmin: false }); continue; }
+    if (mine) { out.push({ provider, key: mine, paidByAdmin: false, own: true }); continue; }
     // L'admin se sert de sa propre clé, partagée ou non — et ne se facture pas lui-même.
     const admin = provider.shared || opts.adminUser ? keys.admin(provider.id) : null;
-    if (admin) { out.push({ provider, key: admin, paidByAdmin: !opts.adminUser }); continue; }
-    if (provider.type === 'openai' && !provider.hasAdminKey) out.push({ provider, key: null, paidByAdmin: false });
+    if (admin) { out.push({ provider, key: admin, paidByAdmin: !opts.adminUser, own: false }); continue; }
+    if (provider.type === 'openai' && !provider.hasAdminKey) out.push({ provider, key: null, paidByAdmin: false, own: false });
   }
   return out;
 }

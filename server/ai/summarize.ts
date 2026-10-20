@@ -66,6 +66,7 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
       // Que des chaînes : jamais l'objet d'erreur brut, qui peut porter la requête et ses en-têtes (donc la clé).
       if (!(err instanceof AiError)) console.error('AI provider error:', cand.provider.name, (err as Error)?.name, (err as Error)?.message);
       const e = err instanceof AiError ? err : new AiError('technical', 'provider_error');
+      e.ownKey = cand.own;
       if (e.kind === 'refused' || !req.fallback) throw e;
       lastError = e;
       fellBackFrom = fellBackFrom ?? cand.provider.name;

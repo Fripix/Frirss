@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { proxyRateLimiter } from './proxy.js';
 import {
-  listProviders, adminKeyFor, userKeyFor, hasUserKey, usageToday, dailyCap, nextUsageReset, isAiEnabled, userKeysAllowed, defaultProviderId,
+  listProviders, getProvider, setUserKey, adminKeyFor, userKeyFor, hasUserKey, usageToday, dailyCap, nextUsageReset, isAiEnabled, userKeysAllowed, defaultProviderId,
 } from '../ai/store.js';
 import { availableFor } from '../ai/resolve.js';
 import { summarize } from '../ai/summarize.js';
@@ -22,7 +22,8 @@ const MAX_TITLE_CHARS = 500;
 function availability(user: { id: number; role: string }) {
   return availableFor(
     listProviders(),
-    { user: (id) => userKeyFor(user.id, id), admin: (id) => adminKeyFor(id) },
+    // Clés personnelles ignorées (pas effacées) tant que l'admin ne les permet pas.
+    { user: (id) => (userKeysAllowed() ? userKeyFor(user.id, id) : null), admin: (id) => adminKeyFor(id) },
     { adminUser: user.role === 'admin' },
   );
 }
@@ -34,13 +35,28 @@ router.get('/config', (req, res) => {
   const avail = new Set(availability(req.user).map((a) => a.provider.id));
   const providers = listProviders().map((p) => ({
     id: p.id, name: p.name, type: p.type, hasAdminKey: p.hasAdminKey, shared: p.shared,
-    hasUserKey: hasUserKey(req.user.id, p.id), available: avail.has(p.id),
+    hasUserKey: userKeysAllowed() && hasUserKey(req.user.id, p.id), available: avail.has(p.id),
   }));
   const def = defaultProviderId();
   res.json({
     enabled: true, providers, userKeysAllowed: userKeysAllowed(), dailyCap: dailyCap(), usageToday: usageToday(req.user.id),
     defaultProvider: def && providers.some((p) => p.id === def) ? def : null,
   });
+});
+
+const MAX_KEY_CHARS = 4096;
+
+router.put('/keys/:providerId', (req, res) => {
+  if (!isAiEnabled()) return res.status(404).json({ error: 'ai_disabled' });
+  if (!userKeysAllowed()) return res.status(403).json({ error: 'user_keys_disabled' });
+  const providerId = Number(req.params.providerId);
+  if (!Number.isInteger(providerId) || providerId <= 0 || !getProvider(providerId)) return res.status(404).json({ error: 'not_found' });
+  const { key } = req.body ?? {};
+  if (key !== null && typeof key !== 'string') return res.status(400).json({ error: 'invalid_key' });
+  const clean = key === null ? '' : key.trim();
+  if (clean.length > MAX_KEY_CHARS) return res.status(400).json({ error: 'invalid_key' });
+  setUserKey(req.user.id, providerId, clean || null);
+  res.json({ ok: true, hasUserKey: !!clean });
 });
 
 const asId = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
@@ -69,7 +85,7 @@ router.post('/summary', async (req, res) => {
     if (err.message === 'no_provider') return res.status(409).json({ error: 'no_provider' });
     if (err.kind === 'refused') return res.status(422).json({ error: 'ai_refused' });
     console.error('AI summary failed:', err.kind, err.message);
-    res.status(502).json({ error: 'ai_failed', kind: err.kind });
+    res.status(502).json({ error: 'ai_failed', kind: err.kind, ...(err.ownKey ? { ownKey: true } : {}) });
   }
 });
 

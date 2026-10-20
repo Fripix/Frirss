@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi, afterEach } from 'vitest';
 import request from 'supertest';
 import app from '../index.js';
 import db, { getSetting, setSetting } from '../db.js';
@@ -311,5 +311,105 @@ describe('ai model listing', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ ok: false, kind: 'auth' });
     expect(JSON.stringify(res.body)).not.toContain('typed-key');
+  });
+});
+
+describe('ai personal keys', () => {
+  const admin = () => ({ Authorization: `Bearer ${adminToken}` });
+  const user = () => ({ Authorization: `Bearer ${userToken}` });
+  const put = (providerId: number | string, body: unknown) => request(app).put(`/api/ai/keys/${providerId}`).set(user()).send(body as object);
+  const config = async () => (await request(app).get('/api/ai/config').set(user())).body;
+  const mine = async (id: number) => (await config()).providers.find((p: { id: number }) => p.id === id);
+  const allow = (userKeysAllowed: boolean) => request(app).put('/api/admin/ai/settings').set(admin()).send({ userKeysAllowed });
+  const summarise = (articleId: string) => request(app).post('/api/ai/summary').set(user())
+    .send({ articleId, title: 't', html: longHtml, fallback: false });
+  const bearer = (m: ReturnType<typeof stubProvider>) => ((m.mock.calls[0] as [string, RequestInit])[1].headers as Record<string, string>).Authorization;
+
+  let id: number;
+  let wasEnabled: boolean;
+  let wasAllowed: boolean;
+  let wasCap: string | null;
+  beforeAll(async () => {
+    const before = (await request(app).get('/api/admin/ai/providers').set(admin())).body.settings;
+    wasEnabled = before.enabled;
+    wasAllowed = before.userKeysAllowed;
+    wasCap = getSetting('ai_daily_cap');
+    // Plafond neutralisé : la clé admin est payante, ce qu'on teste ici est quelle clé part, pas le quota.
+    setSetting('ai_daily_cap', '0');
+    await request(app).put('/api/admin/ai/settings').set(admin()).send({ enabled: true, userKeysAllowed: false });
+    const created = await request(app).post('/api/admin/ai/providers').set(admin())
+      .send({ name: 'Perso', type: 'openai', baseUrl: 'https://personal.example.com', model: 'm', adminKey: 'admin-key', shared: true });
+    id = created.body.provider.id;
+  });
+  afterAll(async () => {
+    await request(app).delete(`/api/admin/ai/providers/${id}`).set(admin());
+    await request(app).put('/api/admin/ai/settings').set(admin()).send({ enabled: wasEnabled, userKeysAllowed: wasAllowed });
+    setSetting('ai_daily_cap', wasCap ?? '50');
+  });
+
+  it('refuses while user keys are not allowed, then stores, reports and clears a key', async () => {
+    expect((await put(id, { key: 'mine' })).status).toBe(403);
+    expect((await put(id, { key: 'mine' })).body).toEqual({ error: 'user_keys_disabled' });
+    await allow(true);
+    const ok = await put(id, { key: '  mine  ' });
+    expect(ok.body).toEqual({ ok: true, hasUserKey: true });
+    expect(JSON.stringify(ok.body)).not.toContain('mine');
+    expect((await mine(id)).hasUserKey).toBe(true);
+    expect(JSON.stringify(await config())).not.toContain('mine');
+    expect((await put(id, { key: null })).body).toEqual({ ok: true, hasUserKey: false });
+    expect((await mine(id)).hasUserKey).toBe(false);
+    await put(id, { key: 'mine' });
+    expect((await put(id, { key: '' })).body.hasUserKey).toBe(false);
+    await put(id, { key: 'mine' });
+    expect((await put(id, { key: '   ' })).body.hasUserKey).toBe(false);
+  });
+  it('validates the body and the provider', async () => {
+    await allow(true);
+    expect((await put(id, { key: 42 })).status).toBe(400);
+    expect((await put(id, { key: 42 })).body).toEqual({ error: 'invalid_key' });
+    expect((await put(id, {})).status).toBe(400);
+    expect((await put(id, { key: 'x'.repeat(4097) })).status).toBe(400);
+    expect((await put(id, { key: 'x'.repeat(4096) })).status).toBe(200);
+    await put(id, { key: null });
+    expect((await put(999999, { key: 'k' })).status).toBe(404);
+    expect((await put(999999, { key: 'k' })).body).toEqual({ error: 'not_found' });
+    expect((await put('abc', { key: 'k' })).status).toBe(404);
+  });
+  it('answers 404 ai_disabled while the feature is off', async () => {
+    await allow(true);
+    await request(app).put('/api/admin/ai/settings').set(admin()).send({ enabled: false });
+    const res = await put(id, { key: 'k' });
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'ai_disabled' });
+    await request(app).put('/api/admin/ai/settings').set(admin()).send({ enabled: true });
+  });
+  it('ignores stored personal keys while the admin disallows them, and restores them after', async () => {
+    await allow(true);
+    await put(id, { key: 'mine' });
+    await allow(false);
+    expect((await mine(id)).hasUserKey).toBe(false);
+    let m = stubProvider();
+    expect((await summarise('own-key-off')).status).toBe(200);
+    expect(bearer(m)).toBe('Bearer admin-key');
+    await allow(true);
+    expect((await mine(id)).hasUserKey).toBe(true);
+    m = stubProvider();
+    expect((await summarise('own-key-on')).status).toBe(200);
+    expect(bearer(m)).toBe('Bearer mine');
+    await put(id, { key: null });
+  });
+  it('says ownKey when the refused key was the user\'s own, and only then', async () => {
+    const refuse = () => vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, headers: new Headers(), text: async () => 'nope', json: async () => ({}) }));
+    await allow(true);
+    await put(id, { key: 'mine' });
+    refuse();
+    const own = await summarise('own-refused');
+    expect(own.status).toBe(502);
+    expect(own.body).toEqual({ error: 'ai_failed', kind: 'auth', ownKey: true });
+    await put(id, { key: null });
+    refuse();
+    const shared = await summarise('shared-refused');
+    expect(shared.status).toBe(502);
+    expect(shared.body).toEqual({ error: 'ai_failed', kind: 'auth' });
   });
 });
