@@ -512,6 +512,27 @@ describe('uiStore — traduction IA et automatismes par flux', () => {
       expect(useUiStore.getState()[key]).toEqual(lit);
     });
   }
+  for (const key of ['aiPreferredProvider', 'aiTranslationProvider'] as const) {
+    it(`resets a local ${key} for an account whose saved prefs lack it`, () => {
+      useUiStore.setState({ [key]: 3 });
+      useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+      expect(useUiStore.getState()[key]).toBeNull();
+      expect(localStorage.getItem(`frirss_${key}`)).toBe('null');
+    });
+    it(`keeps a local ${key} for a brand-new account (empty prefs), and the saved one otherwise`, () => {
+      useUiStore.setState({ [key]: 3 });
+      useUiStore.getState().applyServerPrefs({});
+      expect(useUiStore.getState()[key]).toBe(3);
+      useUiStore.getState().applyServerPrefs({ viewMode: 'compact', [key]: 5 });
+      expect(useUiStore.getState()[key]).toBe(5);
+    });
+  }
+  it('keeps the target language and the fallback for an account whose saved prefs lack them', () => {
+    useUiStore.setState({ aiTranslationLanguage: 'de', aiFallback: false });
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+    expect([useUiStore.getState().aiTranslationLanguage, useUiStore.getState().aiFallback]).toEqual(['de', false]);
+    useUiStore.setState({ aiFallback: true });
+  });
   it('strips the local per-feed AI overrides for an account whose saved prefs lack feedSettings', () => {
     useUiStore.setState({ feedSettings: {
       'feed/1': { aiAutoTranslate: true, aiAutoSummary: true, aiProvider: 3, layout: 'grid' },

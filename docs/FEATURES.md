@@ -2185,7 +2185,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   `useUiStore` et se synchronisent ; `ToggleSwitch` accepte `describedBy` pour
   relier chaque interrupteur à son aide. **Aucun choix IA qui engage un coût
   ne s'hérite d'un autre compte** : `aiAutoSummary`, les deux confirmations
-  de coût, les automatismes par catégorie (`aiCategoryAutoTranslate`,
+  de coût, le fournisseur préféré (`aiPreferredProvider`) et celui de la
+  traduction (`aiTranslationProvider`), les automatismes par catégorie (`aiCategoryAutoTranslate`,
   `aiCategoryAutoSummary`), les fournisseurs par catégorie
   (`aiCategoryProviders`) et, dans `feedSettings`, les réglages IA par flux
   (`aiAutoTranslate`, `aiAutoSummary`, `aiProvider`). Ils vivent aussi dans
@@ -2193,8 +2194,9 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   qu'aucun compte n'en hérite sans avoir vu l'avertissement de coût. **La
   déconnexion les remet à zéro** (abonnement de `aiStore.ts` à
   `useAuthStore` : global et confirmations éteints, puis
-  `forgetAiAccountChoices` de `uiStore.ts`, qui vide les trois tables par
-  catégorie et retire les clés IA de chaque flux — les autres réglages du
+  `forgetAiAccountChoices` de `uiStore.ts`, qui remet les deux fournisseurs
+  globaux à `null` (« par défaut », « même que le résumé »), vide les trois
+  tables par catégorie et retire les clés IA de chaque flux — les autres réglages du
   flux restent, une entrée vidée disparaît : `withoutAiFeedOverrides`) ; le
   compte qui part garde ses valeurs serveur, car le jeton est déjà nul et
   `stopSync()` annule l'envoi différé. C'est **la seule garde d'un compte
@@ -2202,12 +2204,14 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   pousse au serveur. Et **`applyServerPrefs` les force à éteint** quand des
   préférences serveur non vides n'ont pas la clé (compte qui ne l'a jamais
   réglée ; même tri que `confirmMarkAllRead`) : `aiAutoSummary` et les
-  confirmations à faux, les trois tables par catégorie à `{}` ; sans
+  confirmations à faux, les deux fournisseurs globaux à `null`, les trois
+  tables par catégorie à `{}` ; sans
   `feedSettings`, les réglages IA par flux tombent et le reste demeure —
   quand le serveur porte `feedSettings`, sa valeur l'emporte entièrement.
-  ⚠️ Le fournisseur préféré et celui de la traduction
-  (`aiPreferredProvider`, `aiTranslationProvider`) ne passent par aucune de
-  ces gardes.
+  Seules la langue cible (`aiTranslationLanguage`) et le repli
+  (`aiFallback`) restent sur un navigateur partagé, et c'est voulu : une
+  langue et un interrupteur de sécurité n'engagent aucun coût par
+  eux-mêmes.
   Sous « Résumés », pour tous, le bloc **« Traduction »**
   (`ai/TranslationBlock.tsx`) : deux `<select>` natifs. **« Langue cible »** :
   en tête « Langue de l'interface (X) » (valeur `'ui'`, X étant la langue que

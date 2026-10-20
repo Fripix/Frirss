@@ -129,6 +129,21 @@ describe('aiStore', () => {
       expect(JSON.parse(localStorage.getItem('frirss_aiCategoryAutoSummary')!)).toEqual({});
       expect(JSON.parse(localStorage.getItem('frirss_aiCategoryProviders')!)).toEqual({});
     });
+    it('forgets the preferred and translation providers, but keeps the target language and the fallback, when the user logs out', () => {
+      useAuthStore.setState({ backendToken: 't' });
+      const ui = useUiStore.getState();
+      ui.setAiPreferredProvider(3);
+      ui.setAiTranslationProvider(4);
+      ui.setAiTranslationLanguage('de');
+      ui.setAiFallback(false);
+      useAuthStore.getState().logoutBackend();
+      const n = useUiStore.getState();
+      expect([n.aiPreferredProvider, n.aiTranslationProvider]).toEqual([null, null]);
+      expect(localStorage.getItem('frirss_aiPreferredProvider')).toBe('null');
+      expect(localStorage.getItem('frirss_aiTranslationProvider')).toBe('null');
+      expect([n.aiTranslationLanguage, n.aiFallback]).toEqual(['de', false]);
+      ui.setAiFallback(true);
+    });
     it('keeps the AI config while the session token merely changes', () => {
       useAuthStore.setState({ backendToken: 't' });
       useAiStore.setState({ config: ON });

@@ -276,7 +276,7 @@ export interface UiState {
   /** Set (or clear, with '') this feed's automatic translation / summary. */
   setFeedAiAutoTranslate: (feedId: string, v: boolean | '') => void;
   setFeedAiAutoSummary: (feedId: string, v: boolean | '') => void;
-  /** Oublie les automatismes et les fournisseurs par catégorie et par flux (déconnexion). */
+  /** Oublie les automatismes et les choix de fournisseur, globaux, par catégorie et par flux (déconnexion). */
   forgetAiAccountChoices: () => void;
   // Favicons dans la LISTE d'articles. Réglage distinct de `showFavicons`, qui
   // gouverne la barre latérale : les couper dans la liste sans les perdre dans
@@ -653,13 +653,23 @@ export const useUiStore = create<UiState>()((set, get) => ({
     localStorage.setItem('frirss_aiCategoryAutoSummary', JSON.stringify(next));
     set({ aiCategoryAutoSummary: next });
   },
+  // Un choix de fournisseur peut désigner un fournisseur payant : il repart
+  // au défaut (`null` : le préféré « par défaut », la traduction « même que le
+  // résumé »). La langue cible et le repli restent : une langue et un
+  // interrupteur de sécurité n'engagent aucun coût par eux-mêmes.
   forgetAiAccountChoices: () => {
     const feedSettings = withoutAiFeedOverrides(get().feedSettings);
     localStorage.setItem('frirss_feedSettings', JSON.stringify(feedSettings));
     for (const k of ['aiCategoryAutoTranslate', 'aiCategoryAutoSummary', 'aiCategoryProviders']) {
       localStorage.setItem(`frirss_${k}`, JSON.stringify({}));
     }
-    set({ feedSettings, aiCategoryAutoTranslate: {}, aiCategoryAutoSummary: {}, aiCategoryProviders: {} });
+    for (const k of ['aiPreferredProvider', 'aiTranslationProvider']) {
+      localStorage.setItem(`frirss_${k}`, JSON.stringify(null));
+    }
+    set({
+      feedSettings, aiCategoryAutoTranslate: {}, aiCategoryAutoSummary: {}, aiCategoryProviders: {},
+      aiPreferredProvider: null, aiTranslationProvider: null,
+    });
   },
   aiAutoTranslateConfirmed: loadJson<unknown>('frirss_aiAutoTranslateConfirmed', false) === true,
   setAiAutoTranslateConfirmed: (v) => {
@@ -998,8 +1008,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
         next[k] = false;
       }
     }
-    // Même règle pour les automatismes et les fournisseurs par catégorie et par
-    // flux : vides pour un compte qui ne les a jamais réglés. Les réglages de
+    // Même règle pour les automatismes et les choix de fournisseur, globaux,
+    // par catégorie et par flux : au défaut pour un compte qui ne les a jamais
+    // réglés (la langue cible et le repli, sans coût propre, ne sont pas triés). Les réglages de
     // flux arrivent d'un bloc : si le serveur les porte, sa valeur l'emporte
     // entièrement (boucle plus bas) ; sinon seuls leurs réglages IA tombent.
     // Un compte NEUF (préférences vides) garde l'état local et le pousse au
@@ -1010,6 +1021,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
         if (!has(k)) {
           localStorage.setItem(`frirss_${k}`, JSON.stringify({}));
           next[k] = {};
+        }
+      }
+      for (const k of ['aiPreferredProvider', 'aiTranslationProvider'] as const) {
+        if (!has(k)) {
+          localStorage.setItem(`frirss_${k}`, JSON.stringify(null));
+          next[k] = null;
         }
       }
       if (!has('feedSettings')) {

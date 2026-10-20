@@ -44,8 +44,9 @@ export const useAiStore = create<AiState>()((set) => ({
 // déconnecte passe par `logoutBackend()` : un seul chemin à surveiller.
 //
 // Le résumé automatique s'éteint aussi, les deux avertissements de coût
-// (traduction, résumé) se reposent, et les automatismes et fournisseurs par
-// catégorie et par flux s'effacent (`forgetAiAccountChoices`) : ils vivent
+// (traduction, résumé) se reposent, et les automatismes et choix de
+// fournisseur — globaux, par catégorie et par flux — s'effacent
+// (`forgetAiAccountChoices` ; la langue cible et le repli restent) : ils vivent
 // dans le localStorage, et le compte suivant en hériterait sans avoir vu
 // l'avertissement de coût (un compte neuf pousse même ses réglages locaux au
 // serveur, et `applyServerPrefs` ne trie que les comptes déjà enregistrés). Le compte qui part ne le
