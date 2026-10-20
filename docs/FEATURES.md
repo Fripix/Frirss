@@ -1971,7 +1971,13 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   est le bloc « Par flux et catégorie » (Préférences → IA).
 - **Repli** (`fallback`, vrai par défaut) : sur erreur `auth` / `quota` /
   `technical` seulement, dans l'ordre de l'admin, **jamais** sur `refused`, un
-  seul tour ; la réponse dit d'où on vient (`fellBackFrom`). Une exception qui
+  seul tour ; la réponse dit d'où on vient (`fellBackFrom`). **Jamais non plus
+  depuis « Résumer avec X »** : la demande forcée part avec `fallback: false`,
+  quel que soit le réglage de l'utilisateur — il a choisi X, un repli
+  enverrait l'article ailleurs, peut-être vers un fournisseur payant ; l'échec
+  de X s'affiche (plafond compris) et le résumé précédent reste. `fellBackFrom`
+  ne concerne donc que « Résumer », le raccourci, la palette et le résumé
+  automatique. Une exception qui
   n'est pas une `AiError` devient `provider_error` (`technical`, repli permis) ;
   seul le journal du serveur en garde trace : nom du fournisseur, nom et
   message de l'erreur — jamais l'objet brut ni les en-têtes.
@@ -2051,8 +2057,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   fournisseur », sans « réessayez plus tard » : un compte sans crédits ne se
   rétablit pas en attendant *(corrigé le 2026-10-20, même cause que le message
   de « Tester »)* ; sinon « le résumé a échoué, réessayez » (neutre : la cause n'est pas connue).
-  Un « Résumer avec… » raté **garde le résumé déjà affiché**, l'erreur sous
-  lui (`AiSummary` affiche `result` aussi en statut `error`).
+  Un « Résumer avec… » raté (sans repli, voir « Repli ») **garde le résumé
+  déjà affiché**, l'erreur sous lui (`AiSummary` affiche `result` aussi en statut `error`).
 - **Administration** : `PUT /api/admin/ai/settings` valide **tout avant
   d'écrire** (un 400 ne laisse aucune écriture partielle) ; booléens stricts
   (`=== true`), `dailyCap` entier ≥ 0, `defaultProvider` nombre ou `null` d'un

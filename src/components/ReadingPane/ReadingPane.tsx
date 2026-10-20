@@ -780,6 +780,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         provider: providerId,
         ratio: aiRatio,
         ...aiRouting(selectedArticle.sourceId, useFeedStore.getState().subscriptions, useUiStore.getState()),
+        // « Résumer avec X » : l'utilisateur a choisi X. Un repli enverrait
+        // l'article ailleurs, peut-être vers un fournisseur payant ; l'échec de
+        // X s'affiche et le résumé précédent reste.
+        ...(providerId !== undefined ? { fallback: false } : {}),
       });
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
       setAiResult(r); setAiStatus('done');

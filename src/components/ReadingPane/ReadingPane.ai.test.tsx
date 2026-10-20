@@ -185,6 +185,19 @@ describe('ReadingPane — Résumé IA', () => {
     expect(await findByText('ai.errors.technical')).toBeTruthy();
     expect(getByText('Premier résumé.')).toBeTruthy();
   });
+  it('never falls back from a provider the user chose, and keeps the fallback setting otherwise', async () => {
+    vi.mocked(requestAiSummary).mockResolvedValueOnce({ text: 'Premier résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false })
+      .mockReturnValue(new Promise(() => {}) as never);
+    useUiStore.setState({ aiFallback: true });
+    const { getByRole, findByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    expect(vi.mocked(requestAiSummary).mock.calls[0][0]).toMatchObject({ fallback: true });
+    expect(vi.mocked(requestAiSummary).mock.calls[0][0]).not.toHaveProperty('provider', 1);
+    expect(await findByText('Premier résumé.')).toBeTruthy();
+    fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
+    fireEvent.click(getByRole('menuitem', { name: 'Ollama' }));
+    expect(vi.mocked(requestAiSummary).mock.calls[1][0]).toMatchObject({ provider: 1, fallback: false });
+  });
   it('disables the action when the browser goes offline', async () => {
     const { getByRole } = render(<ReadingPane />);
     const action = () => getByRole('button', { name: 'ai.summarizeAction' }) as HTMLButtonElement;
