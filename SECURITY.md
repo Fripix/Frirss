@@ -115,10 +115,19 @@ redacted first and is then cut to 300 characters (the other order could leave a
 fragment of the key at the cut), and a transport error message is redacted the
 same way. A personal key (`PUT /api/ai/keys/:providerId`) is encrypted the same
 way, never returned (the config only says whether one exists), and ignored, not
-deleted, while the admin does not allow personal keys. The article text leaves the instance for
-the provider the admin chose, which is the point of the feature and also its
-privacy cost: leave it off, or point it at a local model, if articles must not
-leave the network.
+deleted, while the admin does not allow personal keys.
+
+A personal key is only as private as the administrator is trusted: it is sent to
+whatever base URL the admin sets for that provider, and it is kept, not deleted,
+when the admin later changes that URL or the provider type, so an admin who
+repoints a provider receives a user's key with that user's next summary through
+it. An app admin can also decrypt it from an encrypted backup, which carries the
+instance key. That is the same trust users already give the admin for their
+FreshRSS credentials, stored and backed up the same way.
+
+The article text leaves the instance for the provider the admin chose, which is
+the point of the feature and also its privacy cost: leave it off, or point it at
+a local model, if articles must not leave the network.
 
 Two limits are deliberate. The cost cap is a guard, not an accounting quota: it
 only limits what the admin's shared key pays for, the day follows the container
