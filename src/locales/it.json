@@ -829,6 +829,18 @@
       "overrides_other": "{{count}} feed impostati",
       "categorySelect": "Fornitore per la categoria {{name}}",
       "feedSelect": "Fornitore per {{name}}"
+    },
+    "keys": {
+      "title": "Le mie chiavi",
+      "hint": "La tua chiave serve solo per i tuoi riassunti e ha la precedenza su quella dell'amministratore. Non viene mai mostrata di nuovo.",
+      "set": "chiave salvata",
+      "none": "nessuna chiave",
+      "field": "Chiave per {{name}}",
+      "save": "Salva",
+      "clear": "Cancella",
+      "saved": "Chiave salvata.",
+      "cleared": "Chiave cancellata.",
+      "error": "Salvataggio non riuscito. Riprova."
     }
   }
 }

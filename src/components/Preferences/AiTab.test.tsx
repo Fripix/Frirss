@@ -4,9 +4,9 @@ import { render, cleanup, fireEvent, waitFor, within } from '@testing-library/re
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'fr' } }) }));
 vi.mock('../../api/backend', () => ({
   getAiProviders: vi.fn(), createAiProvider: vi.fn(), updateAiProvider: vi.fn(), deleteAiProvider: vi.fn(),
-  reorderAiProviders: vi.fn(), testAiProvider: vi.fn(), updateAiSettings: vi.fn(), getAiConfig: vi.fn(), listAiModels: vi.fn(),
+  reorderAiProviders: vi.fn(), testAiProvider: vi.fn(), updateAiSettings: vi.fn(), getAiConfig: vi.fn(), listAiModels: vi.fn(), setAiUserKey: vi.fn(),
 }));
-import { getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, updateAiSettings, testAiProvider, reorderAiProviders, listAiModels } from '../../api/backend';
+import { getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, updateAiSettings, testAiProvider, reorderAiProviders, listAiModels, setAiUserKey, getAiConfig } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useAiStore } from '../../stores/aiStore';
@@ -510,5 +510,97 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(queryByText('ai.routing.overrides')).toBeNull();
     fireEvent.click(getAllByRole('button', { name: /Tech/ })[0]);
     expect((getAllByLabelText('ai.routing.feedSelect')[0] as HTMLSelectElement).value).toBe('');
+  });
+});
+
+describe('AiTab — « Mes clés »', () => {
+  const provider = (id: number, name: string, hasUserKey = false): AiProviderView =>
+    ({ id, name, type: 'openai', hasAdminKey: false, shared: false, hasUserKey, available: hasUserKey });
+  const config = (providers: AiProviderView[], userKeysAllowed = true): AiConfig =>
+    ({ enabled: true, providers, userKeysAllowed, dailyCap: 0, usageToday: 0, defaultProvider: null });
+  beforeEach(() => {
+    useAuthStore.setState({ backendUser: user });
+    vi.mocked(getAiConfig).mockResolvedValue(config([provider(1, 'Claude', true), provider(2, 'Ollama')]));
+    useAiStore.setState({ config: config([provider(1, 'Claude'), provider(2, 'Ollama')]) });
+  });
+  afterEach(() => useAiStore.setState({ config: null }));
+
+  it('is absent while personal keys are not allowed', () => {
+    useAiStore.setState({ config: config([provider(1, 'Claude')], false) });
+    const { queryByText } = render(<AiTab active />);
+    expect(queryByText('ai.keys.title')).toBeNull();
+  });
+  it('shows one row per provider, with its state and a password field', () => {
+    useAiStore.setState({ config: config([provider(1, 'Claude', true), provider(2, 'Ollama')]) });
+    const { getByText, getAllByLabelText, getAllByText, queryAllByRole } = render(<AiTab active />);
+    expect(getByText('ai.keys.title')).toBeTruthy();
+    expect(getByText('ai.keys.hint')).toBeTruthy();
+    expect(getAllByText('ai.keys.set')).toHaveLength(1);
+    expect(getAllByText('ai.keys.none')).toHaveLength(1);
+    const fields = getAllByLabelText('ai.keys.field') as HTMLInputElement[];
+    expect(fields).toHaveLength(2);
+    for (const f of fields) {
+      expect([f.type, f.autocomplete, f.value]).toEqual(['password', 'new-password', '']);
+    }
+    // « Effacer » n'existe que sur la ligne qui a une clé.
+    expect(queryAllByRole('button', { name: 'ai.keys.clear' })).toHaveLength(1);
+  });
+  it('keeps « Enregistrer » disabled while the field is empty', () => {
+    const { getAllByRole } = render(<AiTab active />);
+    for (const b of getAllByRole('button', { name: 'ai.keys.save' }) as HTMLButtonElement[]) expect(b.disabled).toBe(true);
+  });
+  it('saves a typed key, empties the field and reloads the config', async () => {
+    vi.mocked(setAiUserKey).mockResolvedValue({ ok: true, hasUserKey: true });
+    const { getAllByLabelText, getAllByRole, findByRole, queryByDisplayValue } = render(<AiTab active />);
+    fireEvent.change(getAllByLabelText('ai.keys.field')[0], { target: { value: 'sk-mine' } });
+    fireEvent.click(getAllByRole('button', { name: 'ai.keys.save' })[0]);
+    await waitFor(() => expect(setAiUserKey).toHaveBeenCalledWith(1, 'sk-mine'));
+    expect(((await findByRole('status')).textContent)).toBe('ai.keys.saved');
+    expect((getAllByLabelText('ai.keys.field')[0] as HTMLInputElement).value).toBe('');
+    expect(getAiConfig).toHaveBeenCalled();
+    // La clé tapée n'est répétée nulle part.
+    expect(queryByDisplayValue('sk-mine')).toBeNull();
+    expect(document.body.textContent).not.toContain('sk-mine');
+  });
+  it('keeps what was typed in another row while one row saves', async () => {
+    vi.mocked(setAiUserKey).mockResolvedValue({ ok: true, hasUserKey: true });
+    const { getAllByLabelText, getAllByRole } = render(<AiTab active />);
+    fireEvent.change(getAllByLabelText('ai.keys.field')[0], { target: { value: 'sk-one' } });
+    fireEvent.change(getAllByLabelText('ai.keys.field')[1], { target: { value: 'sk-two' } });
+    fireEvent.click(getAllByRole('button', { name: 'ai.keys.save' })[0]);
+    await waitFor(() => expect(setAiUserKey).toHaveBeenCalledWith(1, 'sk-one'));
+    await waitFor(() => expect((getAllByLabelText('ai.keys.field')[0] as HTMLInputElement).value).toBe(''));
+    expect((getAllByLabelText('ai.keys.field')[1] as HTMLInputElement).value).toBe('sk-two');
+  });
+  it('disables the row buttons while its request is in flight', async () => {
+    useAiStore.setState({ config: config([provider(1, 'Claude', true), provider(2, 'Ollama')]) });
+    let done: (v: { ok: true; hasUserKey: boolean }) => void = () => {};
+    vi.mocked(setAiUserKey).mockReturnValue(new Promise((r) => { done = r; }));
+    const { getAllByLabelText, getAllByRole } = render(<AiTab active />);
+    fireEvent.change(getAllByLabelText('ai.keys.field')[0], { target: { value: 'sk-mine' } });
+    fireEvent.click(getAllByRole('button', { name: 'ai.keys.save' })[0]);
+    expect((getAllByRole('button', { name: 'ai.keys.save' })[0] as HTMLButtonElement).disabled).toBe(true);
+    expect((getAllByRole('button', { name: 'ai.keys.clear' })[0] as HTMLButtonElement).disabled).toBe(true);
+    done({ ok: true, hasUserKey: true });
+    await waitFor(() => expect(getAiConfig).toHaveBeenCalled());
+  });
+  it('clears a saved key', async () => {
+    useAiStore.setState({ config: config([provider(1, 'Claude', true)]) });
+    vi.mocked(setAiUserKey).mockResolvedValue({ ok: true, hasUserKey: false });
+    const { getByRole, findByRole } = render(<AiTab active />);
+    fireEvent.click(getByRole('button', { name: 'ai.keys.clear' }));
+    await waitFor(() => expect(setAiUserKey).toHaveBeenCalledWith(1, null));
+    expect((await findByRole('status')).textContent).toBe('ai.keys.cleared');
+    expect(getAiConfig).toHaveBeenCalled();
+  });
+  it('says so when saving fails, and keeps the typed key for a retry', async () => {
+    vi.mocked(setAiUserKey).mockRejectedValue(new Error('boom'));
+    const { getAllByLabelText, getAllByRole, findByRole } = render(<AiTab active />);
+    fireEvent.change(getAllByLabelText('ai.keys.field')[0], { target: { value: 'sk-mine' } });
+    fireEvent.click(getAllByRole('button', { name: 'ai.keys.save' })[0]);
+    const alert = await findByRole('alert');
+    expect(alert.textContent).toBe('ai.keys.error');
+    expect((getAllByLabelText('ai.keys.field')[0] as HTMLInputElement).value).toBe('sk-mine');
+    expect(getAiConfig).not.toHaveBeenCalled();
   });
 });

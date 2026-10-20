@@ -829,6 +829,18 @@
       "overrides_other": "{{count}} feeds definidos",
       "categorySelect": "Fornecedor para a categoria {{name}}",
       "feedSelect": "Fornecedor para {{name}}"
+    },
+    "keys": {
+      "title": "As minhas chaves",
+      "hint": "A sua chave só serve para os seus resumos e tem prioridade sobre a do administrador. Nunca volta a ser apresentada.",
+      "set": "chave guardada",
+      "none": "sem chave",
+      "field": "Chave para {{name}}",
+      "save": "Guardar",
+      "clear": "Apagar",
+      "saved": "Chave guardada.",
+      "cleared": "Chave apagada.",
+      "error": "Não foi possível guardar. Tente novamente."
     }
   }
 }

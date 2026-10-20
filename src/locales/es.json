@@ -829,6 +829,18 @@
       "overrides_other": "{{count}} feeds configurados",
       "categorySelect": "Proveedor para la categoría {{name}}",
       "feedSelect": "Proveedor para {{name}}"
+    },
+    "keys": {
+      "title": "Mis claves",
+      "hint": "Su clave solo se usa para sus resúmenes y tiene prioridad sobre la del administrador. No se vuelve a mostrar nunca.",
+      "set": "clave guardada",
+      "none": "sin clave",
+      "field": "Clave para {{name}}",
+      "save": "Guardar",
+      "clear": "Borrar",
+      "saved": "Clave guardada.",
+      "cleared": "Clave borrada.",
+      "error": "No se pudo guardar. Inténtelo de nuevo."
     }
   }
 }

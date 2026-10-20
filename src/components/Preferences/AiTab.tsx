@@ -1,6 +1,7 @@
 import { useAuthStore } from '../../stores/authStore';
 import SummariesBlock from './ai/SummariesBlock';
 import RoutingBlock from './ai/RoutingBlock';
+import KeysBlock from './ai/KeysBlock';
 import AdminProviders from './ai/AdminProviders';
 
 /**
@@ -14,6 +15,7 @@ export default function AiTab({ active = true }: { active?: boolean }) {
     <div className="space-y-8 max-w-2xl">
       <SummariesBlock showIntro={!isAdmin} />
       <RoutingBlock />
+      <KeysBlock />
       {isAdmin && <AdminProviders active={active} />}
     </div>
   );

@@ -829,6 +829,18 @@
       "overrides_other": "{{count}} flux réglés",
       "categorySelect": "Fournisseur pour la catégorie {{name}}",
       "feedSelect": "Fournisseur pour {{name}}"
+    },
+    "keys": {
+      "title": "Mes clés",
+      "hint": "Votre clé ne sert qu'à vos résumés et passe avant celle de l'administrateur. Elle n'est jamais réaffichée.",
+      "set": "clé enregistrée",
+      "none": "aucune clé",
+      "field": "Clé pour {{name}}",
+      "save": "Enregistrer",
+      "clear": "Effacer",
+      "saved": "Clé enregistrée.",
+      "cleared": "Clé effacée.",
+      "error": "Enregistrement impossible. Réessayez."
     }
   }
 }

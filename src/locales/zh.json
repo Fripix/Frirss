@@ -829,6 +829,18 @@
       "overrides_other": "已设置 {{count}} 个订阅源",
       "categorySelect": "分类 {{name}} 的服务商",
       "feedSelect": "{{name}} 的服务商"
+    },
+    "keys": {
+      "title": "我的密钥",
+      "hint": "您的密钥仅用于您自己的摘要，并优先于管理员的密钥。它不会再次显示。",
+      "set": "密钥已保存",
+      "none": "无密钥",
+      "field": "{{name}} 的密钥",
+      "save": "保存",
+      "clear": "清除",
+      "saved": "密钥已保存。",
+      "cleared": "密钥已清除。",
+      "error": "无法保存，请重试。"
     }
   }
 }

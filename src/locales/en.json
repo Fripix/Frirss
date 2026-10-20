@@ -829,6 +829,18 @@
       "overrides_other": "{{count}} feeds set",
       "categorySelect": "Provider for the {{name}} category",
       "feedSelect": "Provider for {{name}}"
+    },
+    "keys": {
+      "title": "My keys",
+      "hint": "Your key is only used for your own summaries and takes precedence over the administrator's. It is never shown again.",
+      "set": "key saved",
+      "none": "no key",
+      "field": "Key for {{name}}",
+      "save": "Save",
+      "clear": "Clear",
+      "saved": "Key saved.",
+      "cleared": "Key cleared.",
+      "error": "Could not save. Try again."
     }
   }
 }

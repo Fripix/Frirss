@@ -829,6 +829,18 @@
       "overrides_other": "{{count}} feeds ingesteld",
       "categorySelect": "Aanbieder voor de categorie {{name}}",
       "feedSelect": "Aanbieder voor {{name}}"
+    },
+    "keys": {
+      "title": "Mijn sleutels",
+      "hint": "Je sleutel wordt alleen voor je eigen samenvattingen gebruikt en gaat voor die van de beheerder. Hij wordt nooit meer getoond.",
+      "set": "sleutel opgeslagen",
+      "none": "geen sleutel",
+      "field": "Sleutel voor {{name}}",
+      "save": "Opslaan",
+      "clear": "Wissen",
+      "saved": "Sleutel opgeslagen.",
+      "cleared": "Sleutel gewist.",
+      "error": "Opslaan mislukt. Probeer het opnieuw."
     }
   }
 }

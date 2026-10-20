@@ -829,6 +829,18 @@
       "overrides_other": "{{count}} Feeds festgelegt",
       "categorySelect": "Anbieter für die Kategorie {{name}}",
       "feedSelect": "Anbieter für {{name}}"
+    },
+    "keys": {
+      "title": "Meine Schlüssel",
+      "hint": "Ihr Schlüssel wird nur für Ihre Zusammenfassungen verwendet und hat Vorrang vor dem des Administrators. Er wird nie wieder angezeigt.",
+      "set": "Schlüssel gespeichert",
+      "none": "kein Schlüssel",
+      "field": "Schlüssel für {{name}}",
+      "save": "Speichern",
+      "clear": "Löschen",
+      "saved": "Schlüssel gespeichert.",
+      "cleared": "Schlüssel gelöscht.",
+      "error": "Speichern nicht möglich. Bitte erneut versuchen."
     }
   }
 }

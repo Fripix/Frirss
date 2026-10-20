@@ -861,6 +861,18 @@
       "overrides_other": "{{count}} kanału ustawionego",
       "categorySelect": "Dostawca dla kategorii {{name}}",
       "feedSelect": "Dostawca dla {{name}}"
+    },
+    "keys": {
+      "title": "Moje klucze",
+      "hint": "Twój klucz służy tylko do Twoich streszczeń i ma pierwszeństwo przed kluczem administratora. Nigdy nie jest wyświetlany ponownie.",
+      "set": "klucz zapisany",
+      "none": "brak klucza",
+      "field": "Klucz dla {{name}}",
+      "save": "Zapisz",
+      "clear": "Usuń",
+      "saved": "Klucz zapisany.",
+      "cleared": "Klucz usunięty.",
+      "error": "Nie udało się zapisać. Spróbuj ponownie."
     }
   }
 }

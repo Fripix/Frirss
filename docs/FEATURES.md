@@ -1792,8 +1792,8 @@ utilisateur, pas même la section ; l'admin la voit toujours. Spec :
 `docs/superpowers/specs/2026-10-15-ai-summaries-design.md` ; plan :
 `docs/superpowers/plans/2026-10-15-ai-summaries-core.md`. Demandé dans la
 discussion #22. Ce cycle livre le socle (plan 1) et le bloc utilisateur
-« Résumés » avec la longueur visée ; les clés personnelles et les choix de
-fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
+« Résumés » avec la longueur visée, les choix de fournisseur par flux et
+catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le plan 3.
 
 - **Où** : serveur `server/ai/` — `text.ts` (HTML → texte, comptage de mots),
   `errors.ts` (`AiError` : `auth` / `quota` / `technical` / `refused`),
@@ -1845,8 +1845,8 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   pour l'effacer, 4096 caractères au plus) répond `{ ok, hasUserKey }` et
   refuse tant que l'IA est éteinte (`404 ai_disabled`) ou que l'admin ne permet
   pas les clés personnelles (`403 user_keys_disabled`), sur un fournisseur
-  inconnu (`404 not_found`) ou une clé mal formée (`400 invalid_key`). **Aucun
-  écran ne permet encore de la saisir** (plan 2, suite). Règle « non permises =
+  inconnu (`404 not_found`) ou une clé mal formée (`400 invalid_key`). Le
+  bloc « Mes clés » des Préférences la saisit ou l'efface (voir plus bas). Règle « non permises =
   **ignorées, pas effacées** » : tant que `userKeysAllowed` est faux, une clé
   stockée ne sert pas au résumé et `hasUserKey` vaut `false` dans `/config` ;
   elle revient intacte dès que l'admin les repermet. Quand un appel est refusé
@@ -2047,14 +2047,39 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   réordonnable par flèches haut / bas, éditeur avec liste des modèles, test,
   clé partagée, plafond,
   défaut) et un repli « Avancé » avec l'interrupteur « Les utilisateurs peuvent
-  saisir leur propre clé » (**inerte tant que le plan 2 n'a pas livré route ni
-  écran de clé personnelle**). La section n'est montée que pour un admin ou
+  saisir leur propre clé » : éteint, la route des clés répond `403
+  user_keys_disabled` et le bloc « Mes clés » disparaît chez les utilisateurs.
+  La section n'est montée que pour un admin ou
   quand l'IA est activée. Après un enregistrement, l'éditeur **reste ouvert** :
   clé effacée du champ, « Enregistré », « Fermer ». Ligne d'un fournisseur : le
   nom, puis « modèle / type » coupé au besoin (texte complet en `title`) — le
   modèle d'abord, car c'est le libellé du type, long, que la coupe doit manger —
   et la mention « clé enregistrée » **hors de la coupe** : à 320 px, quand elle
   suivait le type dans la même ligne tronquée, elle n'était jamais visible.
+- **Interface — « Mes clés »** (`ai/KeysBlock.tsx`, sous « Par flux et
+  catégorie », pour tous, admin compris) : **rendu seulement si
+  `config.userKeysAllowed`** (réglage admin « Avancé »), sinon rien, pas même le
+  titre. Un titre, une aide (« votre clé ne sert qu'à vos résumés et passe
+  avant celle de l'administrateur ; elle n'est jamais réaffichée »), puis une
+  ligne par fournisseur de `config.providers` : son nom, son état (« clé
+  enregistrée » en accent, ou « aucune clé »), un champ `type="password"`
+  `autoComplete="new-password"`, **toujours vide**, et « Enregistrer »
+  (désactivé tant que le champ est vide) ; « Effacer » (en rouge) n'existe que
+  si une clé est enregistrée. Chaque ligne (`KeyRow`) porte son propre champ,
+  sa propre requête et son propre message : enregistrer une ligne ne vide pas
+  les autres, et ses boutons sont désactivés pendant son envoi. Appel :
+  `setAiUserKey(id, clé)` ou `(id, null)` ; au succès, champ vidé, `load()` du
+  `useAiStore` (l'état « clé enregistrée » et la disponibilité des
+  fournisseurs suivent) et un bref `role="status"` (« Clé enregistrée. » /
+  « Clé effacée. ») ; à l'échec, `role="alert"` « Enregistrement impossible.
+  Réessayez. » et le champ **garde** ce qui a été tapé pour un nouvel essai.
+  ⚠️ **La clé tapée ne sort jamais de l'état local de la ligne** : elle n'est
+  relue d'aucune route, ni répétée dans un message ni laissée dans le DOM après
+  l'enregistrement. Si l'admin retire la permission, les clés déjà stockées sont
+  **ignorées, pas supprimées** (règle du serveur ci-dessus) : le bloc disparaît
+  et elles reviennent intactes dès qu'il la rend. Mobile : nom et état sur une
+  ligne qui passe à la ligne, champ pleine largeur, boutons dessous (tient à
+  320 px), cibles de 44 pt.
 - **Interface — « Par flux et catégorie »** (`ai/RoutingBlock.tsx`, juste sous
   « Résumés », pour tous, admin compris) : l'aperçu de tous les choix de
   fournisseur. Un titre, une aide (« un fournisseur choisi ici passe avant votre
