@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'fr' } }) }));
+import { render, cleanup, fireEvent, waitFor, within, screen } from '@testing-library/react';
+// Le nom passé à `ai.user.preferredDefault` est ce que l'on vérifie : il est rendu après la clé.
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (k === 'ai.user.preferredDefault' ? `${k}:${String(o?.name)}` : k), i18n: { language: 'fr' } }) }));
 vi.mock('../../api/backend', () => ({
   getAiProviders: vi.fn(), createAiProvider: vi.fn(), updateAiProvider: vi.fn(), deleteAiProvider: vi.fn(),
   reorderAiProviders: vi.fn(), testAiProvider: vi.fn(), updateAiSettings: vi.fn(), getAiConfig: vi.fn(), listAiModels: vi.fn(), setAiUserKey: vi.fn(),
@@ -382,17 +383,28 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
     const { getByLabelText } = render(<AiTab active />);
     const select = getByLabelText('ai.user.preferred') as HTMLSelectElement;
     expect([...select.options].map((o) => [o.value, o.textContent, o.disabled])).toEqual([
-      ['', 'ai.user.preferredDefault', false], ['1', 'Ollama', false], ['2', 'ai.user.keyRequired', true],
+      ['', 'ai.user.preferredDefault:Ollama', false], ['1', 'Ollama', false], ['2', 'ai.user.keyRequired', true],
     ]);
     fireEvent.change(select, { target: { value: '1' } });
     expect(useUiStore.getState().aiPreferredProvider).toBe(1);
     fireEvent.change(select, { target: { value: '' } });
     expect(useUiStore.getState().aiPreferredProvider).toBeNull();
   });
-  it('says « automatic » when the admin set no default', () => {
-    setConfig({ providers: [view({ id: 1, name: 'Ollama' })], defaultProvider: null });
-    const { getByLabelText } = render(<AiTab active />);
-    expect((getByLabelText('ai.user.preferred') as HTMLSelectElement).options[0].textContent).toBe('ai.user.preferredAuto');
+  const firstOption = () => (screen.getByLabelText('ai.user.preferred') as HTMLSelectElement).options[0].textContent;
+  it('names the first available provider when the admin set no default', () => {
+    setConfig({ providers: [view({ id: 1, name: 'Claude', available: false }), view({ id: 2, name: 'Ollama' })], defaultProvider: null });
+    render(<AiTab active />);
+    expect(firstOption()).toBe('ai.user.preferredDefault:Ollama');
+  });
+  it('names the provider resolution will use, not an admin default this user cannot reach', () => {
+    setConfig({ providers: [view({ id: 1, name: 'Claude', available: false }), view({ id: 2, name: 'Ollama' })], defaultProvider: 1 });
+    render(<AiTab active />);
+    expect(firstOption()).toBe('ai.user.preferredDefault:Ollama');
+  });
+  it('says « automatic » when no provider is available to this user', () => {
+    setConfig({ providers: [view({ id: 1, name: 'Claude', available: false })], defaultProvider: 1 });
+    render(<AiTab active />);
+    expect(firstOption()).toBe('ai.user.preferredAuto');
   });
   it('shows a deleted preferred provider as such instead of falling back silently', () => {
     setConfig({ providers: [view({ id: 1, name: 'Ollama' })], defaultProvider: 1 });

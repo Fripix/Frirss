@@ -2098,8 +2098,11 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   de traduction) et son aide « Jamais moins de trois phrases » ; pour un
   non-admin, la ligne d'introduction (`ai.userIntro`) y sert de texte d'aide.
   Sous le curseur, dans cet ordre : **« Fournisseur préféré »** (`<select>`
-  natif ; l'option vide est « Par défaut (nom du défaut de l'admin) », ou
-  « Automatique » quand il n'y en a pas ; un fournisseur sans clé utilisable
+  natif ; l'option vide est « Par défaut (X) », X étant ce que la résolution
+  prendra vraiment sans préféré : le défaut de l'admin s'il est **disponible
+  pour ce lecteur**, sinon le premier disponible dans l'ordre de l'admin —
+  nommer un défaut hors de sa portée annonçait un fournisseur qui ne servirait
+  jamais ; « Automatique » quand aucun n'est disponible ; un fournisseur sans clé utilisable
   est grisé « (clé requise) » ; un choix qui désigne un fournisseur supprimé
   reste affiché « Fournisseur supprimé » au lieu de retomber en silence sur le
   défaut — `ProviderOptions`, dans `ai/shared.tsx`, sert aussi aux sélecteurs

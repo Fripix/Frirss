@@ -36,7 +36,12 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
   const auto = useUiStore((s) => s.aiAutoSummary);
   const setAuto = useUiStore((s) => s.setAiAutoSummary);
   const [confirmAuto, setConfirmAuto] = useState(false);
-  const defaultName = providers.find((p) => p.id === defaultProvider)?.name;
+  // « Par défaut (X) » nomme ce que la résolution du serveur prendra sans
+  // préféré : le défaut admin s'il est utilisable par CE lecteur, sinon le
+  // premier disponible (`resolveProvider`, ordre de l'admin). Nommer un défaut
+  // admin hors de sa portée annonçait un fournisseur qui ne servirait jamais.
+  const usable = providers.filter((p) => p.available);
+  const defaultName = (usable.find((p) => p.id === defaultProvider) ?? usable[0])?.name;
   const defaultLabel = defaultName ? t('ai.user.preferredDefault', { name: defaultName }) : t('ai.user.preferredAuto');
   // La consommation n'a de sens que si le plafond s'applique à ce lecteur : un
   // admin n'y est pas soumis, et une clé personnelle n'y compte pas.
