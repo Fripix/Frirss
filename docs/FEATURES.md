@@ -1804,7 +1804,7 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   Client `src/stores/aiStore.ts`, `src/components/ReadingPane/AiSummary.tsx`,
   réglages `aiPanelCollapsed` / `aiSummaryRatio` dans `src/stores/uiStore.ts`,
   couleurs `ai-bg` / `ai-border` dans `src/stores/themeStore.ts`,
-  `src/components/Preferences/AiTab.tsx`, `src/lib/aiPayload.ts` (HTML allégé
+  `src/components/Preferences/AiTab.tsx` (compose les blocs de `Preferences/ai/`), `src/lib/aiPayload.ts` (HTML allégé
   avant envoi), `src/lib/aiErrorKey.ts` (réponse d'erreur → message). Tests :
   `server/ai/*.test.ts`, `server/test/ai.test.ts`, `server/backup.test.ts`,
   `src/stores/aiStore.test.ts`, `src/lib/{aiPayload,aiErrorKey}.test.ts`,
@@ -1894,7 +1894,7 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   2026-10-20 sur une vraie clé : 83 noms listés, dont une vingtaine de ces
   familles. ⚠️ OpenAI ne dit pas quels modèles répondent à
   `/chat/completions` : le filtre est une **heuristique**, une famille nouvelle
-  peut passer — « Tester » l'attrape. Côté écran (`ModelList`, `AiTab.tsx`) :
+  peut passer — « Tester » l'attrape. Côté écran (`ModelList`, `ai/AdminProviders.tsx`) :
   le champ « Modèle » **reste libre**, la liste aide sans contraindre ; nombre
   de modèles, modèle actuel coché en accent (`aria-current`), un clic remplit
   le champ et referme la liste, champ de filtre au-delà de **12** noms,
@@ -1999,7 +1999,7 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   `ai_default_provider`. `POST …/providers/:id/test` répond **200** avec
   `{ ok:false, kind, message }` en cas d'échec (message ≤ 200 caractères) : un
   test raté n'est pas une erreur HTTP. L'écran en tire **un message par cause**
-  (`testFailKey`, `AiTab.tsx`) : `auth` → « Échec : clé refusée par le
+  (`testFailKey`, `ai/AdminProviders.tsx`) : `auth` → « Échec : clé refusée par le
   fournisseur », `quota` (402 / 429) → « Échec : quota ou crédits épuisés chez
   le fournisseur », tout le reste (technique, refus, réseau) → « Échec du test »,
   sans hypothèse. Le détail du fournisseur suit sur sa propre ligne. *(Jusqu'au
