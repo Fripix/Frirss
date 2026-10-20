@@ -2081,13 +2081,20 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   appel** : c'est le client qui découpe en lots d'environ 1 200 mots et les
   envoie en série. Format **strict** en entrée comme en sortie, chaque segment
   entre `<s n="N">…</s>` numérotés depuis 0 (`translateUserMessage`, qui retire
-  d'un segment tout marqueur `<s n=…>` forgé) ; la consigne
+  d'un segment tout marqueur `<s n=…>` forgé **avec le `</s>` qui le ferme**,
+  ainsi qu'un `</s>` qui ne ferme rien ; un vrai `<s>…</s>` barré reste
+  entier) ; la consigne
   (`translateSystem(cible)`) demande une traduction fidèle, sans résumé ni
   commentaire, les balises en ligne et les liens **tels quels**, seul le texte
-  traduit, et une première ligne `lang: <code source>`. `parseTranslation` lit
-  chaque segment de son marqueur au suivant (pas jusqu'au premier `</s>` :
-  `<s>` est aussi la balise HTML du texte barré) ; un numéro absent, en double
-  ou hors bornes invalide **le lot entier**, **rejoué une fois** sur le même
+  traduit, et une première ligne `lang: <code source>`. `parseTranslation` coupe
+  chaque segment de son marqueur au **dernier** `</s>` avant le marqueur
+  suivant — pas au premier, `<s>` étant aussi la balise HTML du texte barré ;
+  pas au marqueur suivant, sinon ce que le modèle écrit après une fermante
+  (« Hope this helps! », une clôture de bloc de code, une note entre deux
+  segments) partait dans l'article. Le texte avant le premier marqueur est
+  ignoré, une réponse entourée d'un bloc ```` ``` ```` est déballée avant de
+  lire `lang:`. Un numéro absent, en double ou hors bornes, ou un segment sans
+  `</s>`, invalide **le lot entier**, **rejoué une fois** sur le même
   fournisseur si l'échéance laisse au moins 2 s (`MIN_CALL_MS`), sinon
   `AiError('technical', 'segments')` — le repli peut alors passer au suivant,
   et la route répond 502 `ai_failed` avec `detail: 'segments'`. Source déjà

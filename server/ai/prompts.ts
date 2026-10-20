@@ -45,31 +45,53 @@ export const translateSystem = (targetLang: string): string => [
   'Otherwise, after the lang line, return every segment as <s n="N">translation</s>, with the same numbers, in the same order: never merge, split, drop or add a segment.',
 ].join('\n');
 
-/** Numbered from 0. A segment cannot forge a marker: one inside it is removed. */
+/**
+ * A segment cannot forge a marker: a `<s n=…>` inside it is removed together
+ * with the `</s>` that closes it, and so is a closer that opens nothing. A real
+ * strikethrough (`<s>…</s>`, no `n`) is kept whole. `[^<>]` keeps the scan
+ * linear on hostile input (see `text.ts`).
+ */
+function cleanSegment(v: string): string {
+  const open: boolean[] = []; // vrai = marqueur forgé
+  return v.replace(/<s\b[^<>]*>|<\/s\s*>/gi, (tag) => {
+    if (tag[1] === '/') return open.length && !open.pop() ? tag : '';
+    const forged = /^<s\s+n\s*=/i.test(tag);
+    open.push(forged);
+    return forged ? '' : tag;
+  });
+}
+
+/** Numbered from 0. */
 export function translateUserMessage(segments: string[]): string {
-  const clean = (v: string) => v.replace(/<s\s+n\s*=[^>]*>/gi, '');
-  return segments.map((s, i) => `<s n="${i}">${clean(s)}</s>`).join('\n');
+  return segments.map((s, i) => `<s n="${i}">${cleanSegment(s)}</s>`).join('\n');
 }
 
 /**
  * Reads the strict answer of `translateSystem`. `segments` is null when a number
- * is missing, repeated or out of range: the batch is unusable as a whole.
+ * is missing, repeated or out of range, or when a segment has no `</s>`: the
+ * batch is unusable as a whole, and replayed.
  *
- * Each segment runs from its marker to the next one (its last `</s>` dropped),
- * not to the first `</s>`: `<s>` is also the HTML strikethrough tag, and a
- * segment may carry one.
+ * Each segment is cut from its marker to the **last** `</s>` before the next
+ * marker: not the first one, because `<s>` is also the HTML strikethrough tag
+ * and a segment may carry one; and not the next marker, because whatever the
+ * model writes after a closer (« Hope this helps! », a code fence, a note
+ * between two segments) would otherwise be injected into the article. Text
+ * before the first marker is ignored, and a code fence around the whole answer
+ * is removed before the `lang:` line is read.
  */
 export function parseTranslation(text: string, count: number): { lang: string | null; same: boolean; segments: string[] | null } {
-  const { lang, text: body } = splitLangLine(text);
+  const unfenced = text.replace(/^\s*```[^\n]*\n/, '').replace(/\n\s*```\s*$/, '');
+  const { lang, text: body } = splitLangLine(unfenced);
   if (/^same\.?$/i.test(body)) return { lang, same: true, segments: null };
-  const marker = /<s\s+n\s*=\s*"(\d+)"\s*>/gi;
-  const marks = [...body.matchAll(marker)];
+  const marks = [...body.matchAll(/<s\s+n\s*=\s*"(\d+)"\s*>/gi)];
   const out: (string | undefined)[] = new Array(count).fill(undefined);
   for (const [i, m] of marks.entries()) {
     const n = Number(m[1]);
     if (n >= count || out[n] !== undefined) return { lang, same: false, segments: null };
     const end = i + 1 < marks.length ? marks[i + 1].index : body.length;
-    out[n] = body.slice(m.index + m[0].length, end).replace(/<\/s>\s*$/i, '').trim();
+    const closed = body.slice(m.index + m[0].length, end).match(/^([\s\S]*)<\/s\s*>/i);
+    if (!closed) return { lang, same: false, segments: null };
+    out[n] = closed[1].trim();
   }
   if (out.some((s) => s === undefined)) return { lang, same: false, segments: null };
   return { lang, same: false, segments: out as string[] };

@@ -466,20 +466,32 @@ describe('ai translate route', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
   it('says detail segments when the answer stays unusable', async () => {
-    stubProvider('Bonjour');
-    const res = await post(body({ articleId: 'tr-seg', translationProvider: id, fallback: false }));
-    expect(res.status).toBe(502);
-    expect(res.body).toEqual({ error: 'ai_failed', kind: 'technical', detail: 'segments' });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      stubProvider('Bonjour');
+      const res = await post(body({ articleId: 'tr-seg', translationProvider: id, fallback: false }));
+      expect(res.status).toBe(502);
+      expect(res.body).toEqual({ error: 'ai_failed', kind: 'technical', detail: 'segments' });
+      expect(err.mock.calls).toEqual([['AI translate failed:', 'technical', 'segments']]);
+    } finally {
+      err.mockRestore();
+    }
   });
   it('answers 429 ai_daily_cap to a capped plain user', async () => {
     db.exec('DELETE FROM ai_usage');
     setSetting('ai_daily_cap', '1');
     stubProvider('lang: en\n<s n="0">Bonjour</s>');
-    expect((await post(body({ articleId: 'tr-cap-1', translationProvider: id }))).status).toBe(200);
-    const capped = await post(body({ articleId: 'tr-cap-2', translationProvider: id }));
-    expect(capped.status).toBe(429);
-    expect(capped.body).toMatchObject({ error: 'ai_daily_cap', cap: 1 });
-    expect(typeof capped.body.resetAt).toBe('string');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect((await post(body({ articleId: 'tr-cap-1', translationProvider: id }))).status).toBe(200);
+      const capped = await post(body({ articleId: 'tr-cap-2', translationProvider: id }));
+      expect(capped.status).toBe(429);
+      expect(capped.body).toMatchObject({ error: 'ai_daily_cap', cap: 1 });
+      expect(typeof capped.body.resetAt).toBe('string');
+      expect(warn.mock.calls).toEqual([['AI fallback:', 'Translator', 'quota', 'daily cap reached']]);
+    } finally {
+      warn.mockRestore();
+    }
     db.exec('DELETE FROM ai_usage');
   });
   it('is 404 while the feature is off', async () => {
