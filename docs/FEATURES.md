@@ -502,7 +502,18 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   les deux écrans divergent. `?` est traité **avant** les raccourcis
   configurables, sans quoi on pourrait le masquer en l'attribuant à une action.
   Échap y est capté en phase de capture, pour passer avant le gestionnaire
-  global qui s'en sert pour quitter le mode Focus.
+  global qui s'en sert pour quitter le mode Focus. `?` la referme aussi, par
+  son propre gestionnaire : le global se tait tant qu'une boîte est ouverte.
+- **Ce qui fait taire les raccourcis** : un champ de saisie (`input`,
+  `textarea`, contenu éditable), un `<select>` qui a le focus (sa recherche
+  lettre par lettre tapait `s` dans « Fournisseur préféré » et lançait un
+  résumé, peut-être payant), et **toute boîte ouverte** (`[role="dialog"]` :
+  Préférences, confirmation, palette, feuille du bas, aide-mémoire). Sur
+  ordinateur le volet de lecture reste monté derrière les Préférences : sans
+  cette garde, `r`, `d`, `l` ou `s` agissaient sur l'article qu'elles
+  recouvrent. ⌘K est traité avant ces gardes, par convention. Un simple bouton
+  qui a le focus **ne** fait **pas** taire les raccourcis : après un clic dans
+  la barre d'outils le focus y reste (Chrome), et `j`/`k` doivent suivre.
 
 ---
 
@@ -2246,8 +2257,10 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   reste « Enregistrer » au lieu d'envoyer un appel peut-être payant) ni sur une
   répétition de touche maintenue (`e.repeat`, qui renverrait une demande à
   chaque répétition) ; dans tous ces cas la touche passe, intacte, au
-  navigateur. Cette garde ne vaut que pour `summarize` : les autres raccourcis
-  gardent leur comportement d'avant. C'est
+  navigateur. Cette garde ne vaut que pour `summarize`. En amont, communes à
+  tous les raccourcis : rien ne part d'un `<select>` qui a le focus ni tant
+  qu'une boîte est ouverte (Préférences comprises, derrière lesquelles le volet
+  reste monté) — voir « Raccourcis clavier ». C'est
   `ReadingPane.tsx` qui répond — il détient l'état et la requête — sous les
   mêmes gardes que le bouton (IA utilisable, **en ligne**, article ouvert ;
   `handleSummarize` ignore déjà une demande en cours pour cet article) : il

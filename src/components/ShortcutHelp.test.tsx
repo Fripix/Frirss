@@ -39,3 +39,11 @@ describe('ShortcutHelp — summarize entry', () => {
     useUiStore.getState().setShortcut('summarize', 's');
   });
 });
+
+describe('ShortcutHelp — closing', () => {
+  it.each(['Escape', '?'])('closes on %s', (key) => {
+    render(<ShortcutHelp />);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    expect(useUiStore.getState().shortcutHelpOpen).toBe(false);
+  });
+});

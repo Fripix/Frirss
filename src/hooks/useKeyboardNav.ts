@@ -20,10 +20,18 @@ export function useKeyboardNav(): void {
         return;
       }
 
-      // Ignore when typing in an input/textarea/contenteditable
+      // Ignore when typing in an input/textarea/contenteditable, or in a
+      // focused <select> (its type-ahead picks options letter by letter).
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+      // Une boîte ouverte (préférences, confirmation, palette, feuille du bas,
+      // aide-mémoire) possède le clavier : rien ne doit agir sur l'article
+      // qu'elle recouvre — surtout pas `s`, qui peut lancer un appel payant
+      // derrière les préférences, où le panneau de lecture reste monté. Un
+      // simple bouton hors boîte, lui, garde les raccourcis : après un clic
+      // dans la barre d'outils, le focus y reste, et j/k doivent suivre.
+      if (document.querySelector('[role="dialog"]')) return;
 
       // Escape leaves Reading Focus mode (only when active — otherwise let other
       // handlers, e.g. search / preferences, deal with Escape).

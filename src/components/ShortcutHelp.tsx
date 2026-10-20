@@ -44,8 +44,11 @@ export default function ShortcutHelp() {
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
+      // `?` la referme aussi : le gestionnaire global, qui l'ouvre, se tait
+      // tant qu'une boîte est ouverte — celle-ci comprise.
+      if (e.key === 'Escape' || e.key === '?') {
         e.stopPropagation();
+        e.preventDefault();
         setOpen(false);
       }
     }

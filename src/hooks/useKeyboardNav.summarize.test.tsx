@@ -69,6 +69,42 @@ describe('useKeyboardNav — summarize', () => {
     expect(heard).toHaveLength(0);
   });
 
+  it('ignores the key on a focused select (type-ahead in a list of providers)', () => {
+    renderHook(() => useKeyboardNav());
+    const select = document.createElement('select');
+    document.body.appendChild(select);
+    const e = press('s', select);
+    select.remove();
+    expect(heard).toHaveLength(0);
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it('ignores the key, and every other shortcut, while a dialog is open', () => {
+    renderHook(() => useKeyboardNav());
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    const selectNextArticle = useFeedStore.getState().selectNextArticle;
+    let moved = 0;
+    useFeedStore.setState({ selectNextArticle: () => { moved++; } } as never);
+    const e = press('s');
+    press(useUiStore.getState().shortcuts.nextArticle);
+    dialog.remove();
+    useFeedStore.setState({ selectNextArticle } as never);
+    expect(heard).toHaveLength(0);
+    expect(moved).toBe(0);
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it('still works from a focused toolbar button outside any dialog', () => {
+    renderHook(() => useKeyboardNav());
+    const button = document.createElement('button');
+    document.body.appendChild(button);
+    press('s', button);
+    button.remove();
+    expect(heard).toHaveLength(1);
+  });
+
   it('follows a reassigned key', () => {
     useUiStore.getState().setShortcut('summarize', 'z');
     renderHook(() => useKeyboardNav());
