@@ -38,6 +38,7 @@ import { extractFullContent } from '../../utils/extractContent';
 import { putExtract } from '../../lib/extractCache';
 import { __resetPendingSummariesForTests } from './aiPending';
 import { languageName } from '../../lib/aiLanguages';
+import { LONG_PRESS_MS } from '../../hooks/useLongPress';
 
 const article = (id: string) => ({
   id, title: 'Titre ' + id, summary: 's', source: 'Src', sourceId: 'feed/1',
@@ -778,6 +779,18 @@ describe('ReadingPane — traduction de l\'article', () => {
     fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
     expect(await findByText('ai.translation.alreadyTarget')).toBeTruthy();
   });
+  it('never injects hostile markup returned by the model', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated([
+      'Title <script>alert(0)</script>',
+      'Bonjour <img src=x onerror=alert(1)> <script>alert(2)</script><a href="javascript:alert(3)">lien</a><svg onload=alert(4)></svg> fin',
+    ]));
+    const { getByRole, findByRole, container } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    await findByRole('button', { name: 'ai.showSource' });
+    const html = container.querySelector('article')?.innerHTML ?? '';
+    expect(bodyText(container)).toContain('Bonjour');
+    for (const bad of ['onerror', '<script', 'javascript:', 'onload', 'alert(']) expect(html).not.toContain(bad);
+  });
   it('has nothing to translate in an article without text', () => {
     const a = { ...article('t4'), content: '<img src="https://example.com/a.png" alt="">' } as Article;
     useFeedStore.setState({ selectedArticle: a, articles: [a] });
@@ -797,6 +810,45 @@ describe('ReadingPane — traduction de l\'article', () => {
       fireEvent.click(sheet.getByRole('button', { name: 'ai.translateTo' }));
       const menu = within(getByRole('dialog', { name: 'ai.translateArticleMenu' }));
       expect(menu.getByRole('group', { name: 'ai.translateTo' })).toBeTruthy();
+    });
+    it('« Rien à traduire » is visible under the two sheet rows when there is no text', () => {
+      const a = { ...article('t5'), content: '<img src="https://example.com/a.png" alt="">' } as Article;
+      useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      const { getByRole } = render(<ReadingPane />);
+      fireEvent.click(getByRole('button', { name: 'readingPane.more' }));
+      const sheet = within(getByRole('dialog', { name: 'readingPane.more' }));
+      for (const name of ['ai.translateTo', 'ai.translateWith']) {
+        const row = sheet.getByRole('button', { name }) as HTMLButtonElement;
+        expect(row.disabled).toBe(true);
+        expect(within(row).getByText('ai.translation.nothing')).toBeTruthy();
+        expect(row.getAttribute('aria-describedby')).toBeTruthy();
+      }
+    });
+    describe('long press on the bar button', () => {
+      beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] }); });
+      afterEach(() => { vi.useRealTimers(); });
+      it('opens the translation menu and sends nothing', () => {
+        vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+        const { getByRole } = render(<ReadingPane />);
+        const btn = getByRole('button', { name: 'ai.translateArticle' });
+        fireEvent.touchStart(btn, { touches: [{ clientX: 10, clientY: 10 }] });
+        act(() => { vi.advanceTimersByTime(LONG_PRESS_MS); });
+        fireEvent.touchEnd(btn);
+        fireEvent.click(btn); // le clic de compatibilité qui suit le lever du doigt
+        expect(getByRole('dialog', { name: 'ai.translateArticleMenu' })).toBeTruthy();
+        expect(requestAiTranslation).not.toHaveBeenCalled();
+      });
+      it('a short tap translates', () => {
+        vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+        const { getByRole, queryByRole } = render(<ReadingPane />);
+        const btn = getByRole('button', { name: 'ai.translateArticle' });
+        fireEvent.touchStart(btn, { touches: [{ clientX: 10, clientY: 10 }] });
+        act(() => { vi.advanceTimersByTime(LONG_PRESS_MS / 5); });
+        fireEvent.touchEnd(btn);
+        fireEvent.click(btn);
+        expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+        expect(queryByRole('dialog', { name: 'ai.translateArticleMenu' })).toBeNull();
+      });
     });
     it('the bar button translates on a tap', async () => {
       vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));

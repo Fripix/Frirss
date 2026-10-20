@@ -75,6 +75,20 @@ const idle = (key: string): Snapshot => ({
 const HAS_LETTER = /\p{L}/u;
 const hasLetter = (html: string) => HAS_LETTER.test(html.replace(/<[^>]*>/g, ''));
 
+/**
+ * Estimation SANS analyse DOM : le corps porte-t-il du texte lisible ? Elle
+ * tourne à chaque article ouvert, IA ou pas ; le vrai découpage n'a lieu qu'à
+ * la demande (`translate`). Scripts, styles et entités (`&nbsp;`) ne comptent
+ * pas. Si le découpage ne trouve finalement rien (texte seulement dans un
+ * `<pre>`, par exemple), `canTranslate` repasse à faux pour ce corps.
+ */
+function hasReadableText(html: string): boolean {
+  return HAS_LETTER.test(html
+    .replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1\s*>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&[#\w]+;/g, ' '));
+}
+
 /** FNV-1a 32 bits : lie une traduction au corps qu'elle a traduit. */
 function hashOf(text: string): string {
   let h = 0x811c9dc5;
@@ -91,7 +105,6 @@ function plainText(html: string): string {
 }
 
 interface Prepared {
-  hash: string;
   segmented: Segmented;
   /** Ce qui part au fournisseur : le titre tel quel, chaque bloc passé au sanitiseur. */
   send: string[];
@@ -99,9 +112,11 @@ interface Prepared {
   batches: number[][];
   /** Segments écartés parce qu'aucune requête ne peut les porter (> 200 Ko à eux seuls). */
   skipped: number;
-  canTranslate: boolean;
+  /** Au moins un segment du corps part. */
+  hasBody: boolean;
 }
 
+/** Coûteux (DOMParser, DOMPurify par bloc) : seulement dans `translate()`. */
 function prepare(title: string, bodyHtml: string): Prepared {
   const segmented = segmentArticle(title, bodyHtml);
   const send = segmented.segments.map((s, i) => (i === 0 ? s : sanitizeHtml(s)));
@@ -111,10 +126,9 @@ function prepare(title: string, bodyHtml: string): Prepared {
   const batches = batchSegments(candidates.map((i) => send[i])).map((b) => b.map((j) => candidates[j]));
   const sent = batches.reduce((n, b) => n + b.length, 0);
   return {
-    hash: hashOf(`${title}\u0000${bodyHtml}`),
     segmented, send, batches,
     skipped: candidates.length - sent,
-    canTranslate: candidates.some((i) => i > 0),
+    hasBody: batches.some((b) => b.some((i) => i > 0)),
   };
 }
 
@@ -141,10 +155,21 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
   const { t, i18n } = useTranslation();
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
   const { articleId, title, bodyHtml } = input;
-  const prepared = useMemo(() => prepare(title, bodyHtml), [title, bodyHtml]);
-  const key = `${articleId ?? ''}:${prepared.hash}`;
+  // Seul le hash et l'estimation sont calculés au rendu : le découpage et le
+  // sanitiseur par bloc coûtent plusieurs fois la chaîne d'affichage du corps,
+  // et ce volet s'ouvre à chaque article, IA allumée ou non.
+  const source = useMemo(
+    () => ({ hash: hashOf(`${title}\u0000${bodyHtml}`), readable: hasReadableText(bodyHtml) }),
+    [title, bodyHtml],
+  );
+  const key = `${articleId ?? ''}:${source.hash}`;
   const [snap, setSnap] = useState<Snapshot>(() => idle(key));
   const current = snap.key === key ? snap : idle(key);
+  // Corps dont le découpage n'a rien trouvé à traduire.
+  const [nothingFor, setNothingFor] = useState<string | null>(null);
+  const canTranslate = source.readable && nothingFor !== key;
+  // Découpage du corps courant, gardé tant qu'il ne change pas.
+  const preparedFor = useRef<{ key: string; prepared: Prepared } | null>(null);
 
   // Désigne la boucle de lots dont les réponses comptent encore : un nouveau
   // corps, un autre article ou une nouvelle demande l'incrémente.
@@ -154,15 +179,15 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     setSnap((s) => (s.key === key ? s : idle(key)));
   }, [key]);
 
-  const latest = useRef({ input, prepared, key, current, t, language: i18n.language, isAdmin });
+  const latest = useRef({ input, hash: source.hash, key, current, canTranslate, t, language: i18n.language, isAdmin });
   useEffect(() => {
-    latest.current = { input, prepared, key, current, t, language: i18n.language, isAdmin };
+    latest.current = { input, hash: source.hash, key, current, canTranslate, t, language: i18n.language, isAdmin };
   });
 
   const translate = useCallback((choice?: TranslateChoice) => {
-    const { input: inp, prepared: prep, key: k, current: cur, t: tr, language, isAdmin: admin } = latest.current;
+    const { input: inp, hash, key: k, current: cur, canTranslate: can, t: tr, language, isAdmin: admin } = latest.current;
     const id = inp.articleId;
-    if (!inp.enabled || !id || !prep.canTranslate || cur.state === 'loading') return;
+    if (!inp.enabled || !id || !can || cur.state === 'loading') return;
     const held = cur.state === 'done' && cur.html !== null ? cur : null;
     // « Traduire avec X » garde la langue de la traduction affichée, sinon la cible.
     const keptLang = choice?.providerId !== undefined ? held?.lang : null;
@@ -170,6 +195,12 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     // La traduction tenue répond déjà à la demande : la remontrer, sans appel.
     if (held && held.lang === lang && (choice?.providerId === undefined || choice.providerId === held.providerId)) {
       setSnap((s) => (s.key === k ? { ...s, showing: 'translation' } : s));
+      return;
+    }
+    if (preparedFor.current?.key !== k) preparedFor.current = { key: k, prepared: prepare(inp.title, inp.bodyHtml) };
+    const prep = preparedFor.current.prepared;
+    if (!prep.hasBody) {
+      setNothingFor(k);
       return;
     }
     const mine = ++seq.current;
@@ -189,7 +220,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
         for (let b = 0; b < total; b++) {
           const indices = prep.batches[b];
           const r = await sharedTranslationRequest(
-            `article:${user}:${id}:${lang}:${choice?.providerId ?? ''}:${prep.hash}:${b}`,
+            `article:${user}:${id}:${lang}:${choice?.providerId ?? ''}:${hash}:${b}`,
             () => requestAiTranslation({
               articleId: id, scope: 'article', targetLang: lang, segments: indices.map((i) => prep.send[i]),
               provider: choice?.providerId, ...routing,
@@ -242,7 +273,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     providerName: current.providerName,
     fellBackFrom: current.fellBackFrom,
     error: current.error,
-    canTranslate: prepared.canTranslate,
+    canTranslate,
     translate,
     showSource,
     showTranslation,

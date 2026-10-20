@@ -1781,17 +1781,30 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 <span className="font-medium">{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
               </button>
             )}
-            {aiUsable && [t('ai.translateTo'), t('ai.translateWith')].map((label) => (
+            {/* Au doigt, une infobulle ne se voit pas : « Rien à traduire » est
+                écrit sous la rangée, qui garde son libellé pour nom accessible. */}
+            {aiUsable && (['to', 'with'] as const).map((which) => (
               <button
-                key={label}
+                key={which}
                 type="button"
                 onClick={() => { setReadSettingsOpen(false); setTranslateMenuOpen(true); }}
                 disabled={!translateMenuAllowed}
-                className="sheet-row w-full flex items-center gap-3 px-4 py-3 text-left disabled:opacity-40"
+                aria-labelledby={`translate-${which}-label`}
+                aria-describedby={tr.canTranslate ? undefined : `translate-${which}-help`}
+                className="sheet-row w-full flex items-center gap-3 px-4 py-3 text-left disabled:cursor-default"
                 style={{ color: 'var(--reading-text)', borderTop: '1px solid var(--panel-border)' }}
               >
-                <TranslateIcon className="w-5 h-5 flex-shrink-0" strokeWidth={1.6} />
-                <span className="font-medium">{label}</span>
+                <TranslateIcon className={`w-5 h-5 flex-shrink-0 ${translateMenuAllowed ? '' : 'opacity-40'}`} strokeWidth={1.6} />
+                <span className="min-w-0">
+                  <span id={`translate-${which}-label`} className={`block font-medium ${translateMenuAllowed ? '' : 'opacity-40'}`}>
+                    {which === 'to' ? t('ai.translateTo') : t('ai.translateWith')}
+                  </span>
+                  {!tr.canTranslate && (
+                    <span id={`translate-${which}-help`} className="block text-xs mt-0.5" style={{ color: 'var(--list-summary)' }}>
+                      {t('ai.translation.nothing')}
+                    </span>
+                  )}
+                </span>
               </button>
             ))}
             <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: '1px solid var(--panel-border)' }}>

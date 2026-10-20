@@ -4,11 +4,17 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'fr' } }) }));
 vi.mock('../../api/backend', () => ({ requestAiTranslation: vi.fn() }));
+// Le vrai découpage, espionné : il ne doit tourner qu'à la demande.
+vi.mock('../../lib/articleSegments', async (importOriginal) => {
+  const m = await importOriginal<typeof import('../../lib/articleSegments')>();
+  return { ...m, segmentArticle: vi.fn(m.segmentArticle) };
+});
 
 import { useArticleTranslation, type ArticleTranslationInput } from './useArticleTranslation';
 import { requestAiTranslation, type AiTranslationResult } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { __resetPendingSummariesForTests } from './aiPending';
+import { segmentArticle } from '../../lib/articleSegments';
 
 const words = (w: string, n: number) => Array.from({ length: n }, () => w).join(' ');
 // Deux paragraphes de 1 000 mots : le titre et le premier tiennent dans un lot
@@ -32,6 +38,7 @@ const base: ArticleTranslationInput = {
 
 beforeEach(() => {
   vi.mocked(requestAiTranslation).mockReset();
+  vi.mocked(segmentArticle).mockClear();
   useAuthStore.setState({ backendUser: { id: 2, username: 'u', role: 'user' } as never });
   __resetPendingSummariesForTests();
 });
@@ -197,5 +204,36 @@ describe('useArticleTranslation', () => {
     const { result: hook } = renderHook(() => useArticleTranslation({ ...base, enabled: false }));
     act(() => { hook.current.translate(); });
     expect(requestAiTranslation).not.toHaveBeenCalled();
+  });
+
+  it('does no segmentation work while disabled, whatever the article', () => {
+    const { result: hook, rerender } = renderHook((p: ArticleTranslationInput) => useArticleTranslation(p), { initialProps: { ...base, enabled: false } });
+    rerender({ ...base, enabled: false, articleId: 'a2', bodyHtml: '<p>Another article.</p>' });
+    expect(hook.current.canTranslate).toBe(true);
+    act(() => { hook.current.translate(); });
+    expect(segmentArticle).not.toHaveBeenCalled();
+  });
+
+  it('segments lazily: nothing at render, once for a translate() call', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(result(['Titre', 'Bonjour']));
+    const { result: hook, rerender } = renderHook((p: ArticleTranslationInput) => useArticleTranslation(p), { initialProps: { ...base, bodyHtml: '<p>Hello</p>' } });
+    rerender({ ...base, bodyHtml: '<p>Hello there</p>' });
+    expect(segmentArticle).not.toHaveBeenCalled();
+    await act(async () => { hook.current.translate(); });
+    await waitFor(() => expect(hook.current.state).toBe('done'));
+    expect(segmentArticle).toHaveBeenCalledTimes(1);
+  });
+
+  it('a script or a style is not text to translate', () => {
+    const { result: hook } = renderHook(() => useArticleTranslation({ ...base, bodyHtml: '<script>var x = 1;</script><style>p { color: red }</style><p>42</p>' }));
+    expect(hook.current.canTranslate).toBe(false);
+  });
+
+  it('when the segmentation finds nothing after all, nothing leaves and translate becomes unavailable', () => {
+    const { result: hook } = renderHook(() => useArticleTranslation({ ...base, bodyHtml: '<pre>const answer = 42;</pre>' }));
+    expect(hook.current.canTranslate).toBe(true);
+    act(() => { hook.current.translate(); });
+    expect(requestAiTranslation).not.toHaveBeenCalled();
+    expect(hook.current.canTranslate).toBe(false);
   });
 });

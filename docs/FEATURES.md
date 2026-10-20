@@ -2408,9 +2408,22 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   câblée dans `ReadingPane.tsx` ; découpage `src/lib/articleSegments.ts`) :
   - **Ce qui est traduit** : le titre (segment 0) et le corps **affiché**
     (`displayedHtml` : extrait ou flux, image d'en-tête réinjectée), découpé
-    en segments par `segmentArticle`. Chaque bloc passe au **sanitiseur avant
-    de partir** ; un segment vide ou sans lettre (titre vide, bloc vidé par le
-    sanitiseur) ne part pas. Le HTML traduit est rebâti par `apply` (sortie du
+    en segments par `segmentArticle`. Le titre part en texte brut ; chaque
+    **bloc** passe au **sanitiseur avant de partir** ; un segment vide ou sans
+    lettre (titre vide, bloc vidé par le sanitiseur) ne part pas.
+    ⚠️ Piège : une vidéo (`<iframe>`) posée **dans** un bloc de texte est
+    retirée par ce passage au sanitiseur ; le bloc traduit la perd (la façade
+    vidéo de tête, hors du corps, ne change pas).
+  - **Coût au rendu** : le découpage et le sanitiseur par bloc coûtent
+    plusieurs fois la chaîne d'affichage du corps (33–65 ms mesurés sur un
+    article de 150 paragraphes, contre 6–11 ms pour `buildArticleBody`), et
+    le volet s'ouvre à chaque article. Ils ne tournent donc **qu'à la
+    demande**, dans `translate()` (et seulement IA utilisable et en ligne),
+    une fois par corps. Au rendu, seuls un hash FNV-1a et une estimation par
+    expression régulière (`hasReadableText` : une lettre hors balises,
+    scripts, styles et entités) — c'est elle qui donne `canTranslate`. Si le
+    découpage ne trouve finalement rien (texte seulement dans un `<pre>`),
+    rien ne part et `canTranslate` repasse à faux pour ce corps. Le HTML traduit est rebâti par `apply` (sortie du
     modèle passée au sanitiseur), puis **repasse par `buildArticleBody`** comme
     l'original : façades vidéo, sanitiseur, images différées, `dir="auto"`. Le
     corps affiché est `showing === 'translation' ? traduit : source`, dans le
@@ -2436,19 +2449,26 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     ouvre le menu en feuille ; la feuille « … » gagne « Traduire en… » et
     « Traduire avec… », qui la ferment et ouvrent le même menu (le chemin
     visible sans appui long). Le bouton principal **remontre** une traduction
-    déjà tenue sans requête ; le menu suit les règles du résumé (« Traduire
-    avec X » garde la langue affichée et le réglage de repli).
+    déjà tenue sans requête **seulement si sa langue est la cible** : après
+    « Traduire en → allemand » puis « Texte source », il envoie une nouvelle
+    demande dans la langue cible. Le menu suit les règles du résumé
+    (« Traduire avec X » garde la langue affichée et le réglage de repli).
   - **Notice** au-dessus du corps, gabarit de l'avis d'extraction, sur les
     trois formats, dans une région `role="status"` toujours montée : « Lot
     {n} sur {m}… » pendant l'attente (« Traduction… » pour un seul lot),
     « Traduit en {langue} par Y » (+ « , X indisponible » si un lot a basculé ;
-    Y = fournisseur du dernier lot), « Traduit en partie ({n} lots sur {m}) »
+    Y = fournisseur du **dernier** lot, spec §17.3, même si c'est un lot
+    antérieur qui a basculé), « Traduit en partie ({n} lots sur {m}) »
     sous la précédente, « Déjà en {langue}. ». Les erreurs (mêmes messages que
     la traduction du résumé, `op: 'translate'`) sont une **alerte** à part,
     gabarit de l'erreur d'extraction ; la source reste affichée. La notice
-    disparaît quand on revient au texte source.
-  - **Rien à traduire** (aucun segment de corps) : bouton désactivé, infobulle
-    « Rien à traduire dans cet article. ». **Hors ligne** : bouton, chevron et
+    disparaît quand on revient au texte source. L'avis d'extraction et la
+    notice de traduction peuvent se montrer ensemble (extraction d'abord,
+    traduction dessous) ; de même les deux alertes — assumé, pas arbitré.
+  - **Rien à traduire** (aucun texte de corps) : bouton désactivé, infobulle
+    « Rien à traduire dans cet article. » ; au doigt, où une infobulle ne se
+    voit pas, la même phrase est écrite sous les deux rangées désactivées de
+    la feuille « … » (`aria-describedby`). **Hors ligne** : bouton, chevron et
     rangées désactivés ; une traduction affichée reste, et « Texte source »
     reste possible.
   - **Corps changé** : la traduction est liée au hash (FNV-1a) du titre et du
