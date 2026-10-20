@@ -10,7 +10,9 @@ import {
 import { BlockTitle } from './shared';
 import { inputClass, inputStyle, quietBtn } from './styles';
 
-const EMPTY: AiProviderInput = { name: '', type: 'openai', baseUrl: '', model: '', adminKey: '', shared: true };
+// `shared` éteint d'origine : partager une clé admin, c'est faire payer
+// l'instance pour tous les utilisateurs — une case cochée exprès, pas un défaut.
+const EMPTY: AiProviderInput = { name: '', type: 'openai', baseUrl: '', model: '', adminKey: '', shared: false };
 const NO_SETTINGS: AiAdminSettings = { enabled: false, userKeysAllowed: false, dailyCap: 50, defaultProvider: null };
 
 type TestState = { state: 'busy' } | { state: 'ok' } | { state: 'fail'; kind?: string; message?: string };

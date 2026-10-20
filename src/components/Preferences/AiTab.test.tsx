@@ -104,6 +104,18 @@ describe('AiTab', () => {
     expect(await findByText('Ollama')).toBeTruthy();
     expect((getByLabelText('ai.admin.key') as HTMLInputElement).value).toBe('');
   });
+  it('a new provider is not shared until the admin ticks it: sharing a paid key is deliberate', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    vi.mocked(createAiProvider).mockResolvedValue({ id: 8, name: 'GPT', type: 'openai', baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: false, position: 0 });
+    const { findByRole, getByLabelText } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
+    expect((getByLabelText('ai.admin.shared') as HTMLInputElement).checked).toBe(false);
+    fireEvent.change(getByLabelText('ai.admin.name'), { target: { value: 'GPT' } });
+    fireEvent.change(getByLabelText('ai.admin.baseUrl'), { target: { value: 'https://api.example.com' } });
+    fireEvent.change(getByLabelText('ai.admin.model'), { target: { value: 'm' } });
+    fireEvent.click(await findByRole('button', { name: 'ai.admin.save' }));
+    await waitFor(() => expect(createAiProvider).toHaveBeenCalledWith(expect.objectContaining({ shared: false })));
+  });
   it('the base URL field explains to leave out the trailing /v1', async () => {
     useAuthStore.setState({ backendUser: admin });
     const { findByRole, getByLabelText, getByText } = render(<AiTab active />);

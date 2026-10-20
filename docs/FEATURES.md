@@ -1888,7 +1888,9 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   d'envoyer l'utilisateur vers son admin (`authUser`) — c'est la seule clé qu'il
   peut corriger lui-même. Disponibilité d'un fournisseur
   pour un utilisateur : clé personnelle > clé admin si le fournisseur est
-  « partagé » > indisponible ; un `openai` **sans aucune clé admin** (Ollama)
+  « partagé » > indisponible (« Partager cette clé avec les utilisateurs » est **décochée** à la
+  création d'un fournisseur : partager une clé payante se coche exprès) ; un
+  `openai` **sans aucune clé admin** (Ollama)
   est disponible pour tous. Un **admin** se sert de la clé admin même d'un
   fournisseur non partagé. L'admin peut **effacer** une clé enregistrée : dans
   l'éditeur d'un fournisseur (« Modifier »), un bouton « Effacer la clé »
