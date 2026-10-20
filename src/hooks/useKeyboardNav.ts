@@ -102,10 +102,14 @@ export function useKeyboardNav(): void {
         // never work: it is only rendered once the search is already open.
         window.dispatchEvent(new CustomEvent('frirss:open-search'));
       } else if (key === shortcuts.summarize
+          && !e.metaKey && !e.ctrlKey && !e.altKey && !e.repeat
           && store.selectedArticle
           && aiUsable(useAiStore.getState())) {
         // Pas de `else` nu : sans IA utilisable ou sans article, la touche
         // n'appartient à personne et doit rester disponible au navigateur.
+        // Les modificateurs aussi : ⌘S / Ctrl+S est « Enregistrer » et ne doit
+        // ni être bloqué ni déclencher un appel (peut-être payant). Une touche
+        // maintenue (`repeat`) n'en relance pas un à chaque répétition.
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('frirss:ai-summarize'));
       }

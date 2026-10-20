@@ -22,8 +22,8 @@ beforeEach(() => {
 });
 afterEach(() => { window.removeEventListener('frirss:ai-summarize', listener); cleanup(); });
 
-function press(key: string, target: EventTarget = document.body): KeyboardEvent {
-  const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+function press(key: string, target: EventTarget = document.body, init: KeyboardEventInit = {}): KeyboardEvent {
+  const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
   target.dispatchEvent(e);
   return e;
 }
@@ -76,5 +76,23 @@ describe('useKeyboardNav — summarize', () => {
     expect(heard).toHaveLength(0);
     press('z');
     expect(heard).toHaveLength(1);
+  });
+
+  it.each([
+    ['Cmd+S', { metaKey: true }],
+    ['Ctrl+S', { ctrlKey: true }],
+    ['Alt+S', { altKey: true }],
+  ] as const)('leaves %s to the browser: no summary, no preventDefault', (_label, init) => {
+    renderHook(() => useKeyboardNav());
+    const e = press('s', document.body, init);
+    expect(heard).toHaveLength(0);
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it('ignores an auto-repeated keydown (key held down)', () => {
+    renderHook(() => useKeyboardNav());
+    const e = press('s', document.body, { repeat: true });
+    expect(heard).toHaveLength(0);
+    expect(e.defaultPrevented).toBe(false);
   });
 });

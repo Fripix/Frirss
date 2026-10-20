@@ -2196,7 +2196,12 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   l'événement de fenêtre `frirss:ai-summarize` (même mécanisme que
   `frirss:open-search`) que si l'IA est **utilisable** (`aiUsable`, sélecteur
   de `aiStore.ts` : fonction allumée ET un fournisseur `available`) et qu'un
-  article est ouvert ; sinon la touche passe, intacte, au navigateur. C'est
+  article est ouvert, et **jamais** avec ⌘, Ctrl ou Alt enfoncé (⌘S / Ctrl+S
+  reste « Enregistrer » au lieu d'envoyer un appel peut-être payant) ni sur une
+  répétition de touche maintenue (`e.repeat`, qui renverrait une demande à
+  chaque répétition) ; dans tous ces cas la touche passe, intacte, au
+  navigateur. Cette garde ne vaut que pour `summarize` : les autres raccourcis
+  gardent leur comportement d'avant. C'est
   `ReadingPane.tsx` qui répond — il détient l'état et la requête — sous les
   mêmes gardes que le bouton (IA utilisable, **en ligne**, article ouvert ;
   `handleSummarize` ignore déjà une demande en cours pour cet article) : il
