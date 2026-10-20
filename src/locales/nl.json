@@ -805,7 +805,20 @@
     "ratioHint": "Beoogde lengte van de samenvatting ten opzichte van het artikel. Nooit minder dan drie zinnen.",
     "user": {
       "title": "Samenvattingen",
-      "ratio": "Lengte van de samenvatting"
+      "ratio": "Lengte van de samenvatting",
+      "preferred": "Voorkeursaanbieder",
+      "preferredDefault": "Standaard ({{name}})",
+      "preferredAuto": "Automatisch",
+      "keyRequired": "{{name}} (sleutel vereist)",
+      "removedProvider": "Aanbieder verwijderd",
+      "fallback": "Automatisch terugvallen",
+      "fallbackHint": "Als uw aanbieder uitvalt, neemt de volgende in de lijst het over.",
+      "auto": "Automatisch samenvatten bij openen",
+      "autoHint": "Elk geopend artikel wordt zonder klik samengevat.",
+      "autoConfirmTitle": "Automatische samenvatting inschakelen?",
+      "autoConfirmMessage": "Elke automatische samenvatting is een aanroep naar uw AI-aanbieder. Afhankelijk van de aanbieder en uw abonnement kan dit in rekening worden gebracht. Een lokaal model zoals Ollama kost niets.",
+      "autoConfirm": "Inschakelen",
+      "usage": "Vandaag door de instantie betaalde samenvattingen: {{used}} van {{cap}}"
     }
   }
 }

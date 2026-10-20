@@ -805,7 +805,20 @@
     "ratioHint": "Angestrebte Länge der Zusammenfassung im Verhältnis zum Artikel. Nie weniger als drei Sätze.",
     "user": {
       "title": "Zusammenfassungen",
-      "ratio": "Länge der Zusammenfassung"
+      "ratio": "Länge der Zusammenfassung",
+      "preferred": "Bevorzugter Anbieter",
+      "preferredDefault": "Standard ({{name}})",
+      "preferredAuto": "Automatisch",
+      "keyRequired": "{{name}} (Schlüssel erforderlich)",
+      "removedProvider": "Anbieter entfernt",
+      "fallback": "Automatischer Wechsel",
+      "fallbackHint": "Fällt Ihr Anbieter aus, übernimmt der nächste in der Liste.",
+      "auto": "Beim Öffnen automatisch zusammenfassen",
+      "autoHint": "Jeder geöffnete Artikel wird ohne Klick zusammengefasst.",
+      "autoConfirmTitle": "Automatische Zusammenfassung aktivieren?",
+      "autoConfirmMessage": "Jede automatische Zusammenfassung ist ein Aufruf bei Ihrem KI-Anbieter. Je nach Anbieter und Tarif kann sie Ihnen in Rechnung gestellt werden. Ein lokales Modell wie Ollama kostet nichts.",
+      "autoConfirm": "Aktivieren",
+      "usage": "Heute von der Instanz bezahlte Zusammenfassungen: {{used}} von {{cap}}"
     }
   }
 }

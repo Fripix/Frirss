@@ -805,7 +805,20 @@
     "ratioHint": "Lunghezza desiderata del riassunto rispetto all'articolo. Mai meno di tre frasi.",
     "user": {
       "title": "Riassunti",
-      "ratio": "Lunghezza del riassunto"
+      "ratio": "Lunghezza del riassunto",
+      "preferred": "Fornitore preferito",
+      "preferredDefault": "Predefinito ({{name}})",
+      "preferredAuto": "Automatico",
+      "keyRequired": "{{name}} (chiave richiesta)",
+      "removedProvider": "Fornitore rimosso",
+      "fallback": "Ripiego automatico",
+      "fallbackHint": "Se il suo fornitore non risponde, subentra il successivo dell'elenco.",
+      "auto": "Riassumi automaticamente all'apertura",
+      "autoHint": "Ogni articolo aperto viene riassunto senza un clic.",
+      "autoConfirmTitle": "Attivare il riassunto automatico?",
+      "autoConfirmMessage": "Ogni riassunto automatico è una chiamata al suo fornitore di IA. A seconda del fornitore e dell'abbonamento, potrebbe esserle addebitato. Un modello locale come Ollama non costa nulla.",
+      "autoConfirm": "Attiva",
+      "usage": "Riassunti pagati oggi dall'istanza: {{used}} su {{cap}}"
     }
   }
 }

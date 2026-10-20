@@ -805,7 +805,20 @@
     "ratioHint": "Target length of the summary relative to the article. Never fewer than three sentences.",
     "user": {
       "title": "Summaries",
-      "ratio": "Summary length"
+      "ratio": "Summary length",
+      "preferred": "Preferred provider",
+      "preferredDefault": "Default ({{name}})",
+      "preferredAuto": "Automatic",
+      "keyRequired": "{{name}} (key required)",
+      "removedProvider": "Provider removed",
+      "fallback": "Automatic fallback",
+      "fallbackHint": "If your provider fails, the next one in the list takes over.",
+      "auto": "Summarise automatically on open",
+      "autoHint": "Every article you open is summarised without a click.",
+      "autoConfirmTitle": "Turn on automatic summaries?",
+      "autoConfirmMessage": "Every automatic summary is a call to your AI provider. Depending on the provider and your plan, it may be billed to you. A local model such as Ollama costs nothing.",
+      "autoConfirm": "Turn on",
+      "usage": "Summaries paid by the instance today: {{used}} of {{cap}}"
     }
   }
 }

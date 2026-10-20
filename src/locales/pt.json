@@ -805,7 +805,20 @@
     "ratioHint": "Comprimento pretendido do resumo em relação ao artigo. Nunca menos de três frases.",
     "user": {
       "title": "Resumos",
-      "ratio": "Comprimento do resumo"
+      "ratio": "Comprimento do resumo",
+      "preferred": "Fornecedor preferido",
+      "preferredDefault": "Predefinido ({{name}})",
+      "preferredAuto": "Automático",
+      "keyRequired": "{{name}} (chave necessária)",
+      "removedProvider": "Fornecedor removido",
+      "fallback": "Recurso automático",
+      "fallbackHint": "Se o seu fornecedor falhar, o seguinte da lista assume.",
+      "auto": "Resumir automaticamente ao abrir",
+      "autoHint": "Cada artigo aberto é resumido sem clicar.",
+      "autoConfirmTitle": "Ativar o resumo automático?",
+      "autoConfirmMessage": "Cada resumo automático é uma chamada ao seu fornecedor de IA. Consoante o fornecedor e a sua subscrição, pode ser-lhe cobrado. Um modelo local como o Ollama não custa nada.",
+      "autoConfirm": "Ativar",
+      "usage": "Resumos pagos hoje pela instância: {{used}} de {{cap}}"
     }
   }
 }

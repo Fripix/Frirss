@@ -805,7 +805,20 @@
     "ratioHint": "Longueur visée du résumé par rapport à l'article. Jamais moins de trois phrases.",
     "user": {
       "title": "Résumés",
-      "ratio": "Longueur du résumé"
+      "ratio": "Longueur du résumé",
+      "preferred": "Fournisseur préféré",
+      "preferredDefault": "Par défaut ({{name}})",
+      "preferredAuto": "Automatique",
+      "keyRequired": "{{name}} (clé requise)",
+      "removedProvider": "Fournisseur supprimé",
+      "fallback": "Repli automatique",
+      "fallbackHint": "Si votre fournisseur échoue, le suivant de la liste prend le relais.",
+      "auto": "Résumé automatique à l'ouverture",
+      "autoHint": "Chaque article ouvert est résumé sans clic.",
+      "autoConfirmTitle": "Activer le résumé automatique ?",
+      "autoConfirmMessage": "Chaque résumé automatique est un appel à votre fournisseur d'IA. Selon le fournisseur et votre abonnement, il peut vous être facturé. Un modèle local comme Ollama ne coûte rien.",
+      "autoConfirm": "Activer",
+      "usage": "Résumés payés par l'instance aujourd'hui : {{used}} sur {{cap}}"
     }
   }
 }

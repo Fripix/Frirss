@@ -2024,6 +2024,25 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   « 20 % » en français, « 20% » en anglais — via `Intl.NumberFormat`, sans clé
   de traduction) et son aide « Jamais moins de trois phrases » ; pour un
   non-admin, la ligne d'introduction (`ai.userIntro`) y sert de texte d'aide.
+  Sous le curseur, dans cet ordre : **« Fournisseur préféré »** (`<select>`
+  natif ; l'option vide est « Par défaut (nom du défaut de l'admin) », ou
+  « Automatique » quand il n'y en a pas ; un fournisseur sans clé utilisable
+  est grisé « (clé requise) » ; un choix qui désigne un fournisseur supprimé
+  reste affiché « Fournisseur supprimé » au lieu de retomber en silence sur le
+  défaut — `ProviderOptions`, dans `ai/shared.tsx`, est conçu pour être
+  réutilisé par les réglages par flux et par catégorie) ; **« Repli automatique »**
+  (interrupteur, **activé** par défaut, aide « le suivant de la liste prend le
+  relais ») ; **« Résumé automatique à l'ouverture »** (interrupteur, **éteint**
+  par défaut) — l'allumer ouvre une confirmation de coût (chaque résumé est un
+  appel facturable au fournisseur de l'utilisateur ; un modèle local ne coûte
+  rien), et **Annuler le laisse éteint** ; l'éteindre ne demande jamais rien ;
+  enfin la ligne **« Résumés payés par l'instance aujourd'hui : N sur M »**,
+  affichée seulement pour un **non-admin**, avec un plafond journalier
+  **> 0** et au moins un fournisseur `available` + clé admin + partagé + sans
+  clé personnelle (sinon le plafond ne le concerne pas). Les trois réglages
+  (`aiPreferredProvider`, `aiFallback`, `aiAutoSummary`) vivent dans
+  `useUiStore` et se synchronisent ; `ToggleSwitch` accepte `describedBy` pour
+  relier chaque interrupteur à son aide.
   Dessous, pour l'admin seul, le bloc « Fournisseurs » (interrupteur, liste
   réordonnable par flèches haut / bas, éditeur avec liste des modèles, test,
   clé partagée, plafond,

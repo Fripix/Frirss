@@ -835,7 +835,20 @@
     "ratioHint": "Docelowa długość podsumowania względem artykułu. Nigdy mniej niż trzy zdania.",
     "user": {
       "title": "Podsumowania",
-      "ratio": "Długość podsumowania"
+      "ratio": "Długość podsumowania",
+      "preferred": "Preferowany dostawca",
+      "preferredDefault": "Domyślny ({{name}})",
+      "preferredAuto": "Automatycznie",
+      "keyRequired": "{{name}} (wymagany klucz)",
+      "removedProvider": "Dostawca usunięty",
+      "fallback": "Automatyczne przełączanie",
+      "fallbackHint": "Jeśli Twój dostawca zawiedzie, przejmuje następny z listy.",
+      "auto": "Podsumowuj automatycznie po otwarciu",
+      "autoHint": "Każdy otwarty artykuł jest podsumowywany bez klikania.",
+      "autoConfirmTitle": "Włączyć automatyczne podsumowania?",
+      "autoConfirmMessage": "Każde automatyczne podsumowanie to wywołanie Twojego dostawcy AI. W zależności od dostawcy i abonamentu może to być płatne. Model lokalny, taki jak Ollama, nic nie kosztuje.",
+      "autoConfirm": "Włącz",
+      "usage": "Podsumowania opłacone dziś przez instancję: {{used}} z {{cap}}"
     }
   }
 }

@@ -9,6 +9,8 @@ vi.mock('../../api/backend', () => ({
 import { getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, updateAiSettings, testAiProvider, reorderAiProviders, listAiModels } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useAiStore } from '../../stores/aiStore';
+import type { AiConfig, AiProviderView } from '../../api/backend';
 import AiTab from './AiTab';
 
 const admin = { id: 1, username: 'root', role: 'admin' as const };
@@ -318,5 +320,103 @@ describe('AiTab — model list', () => {
     expect((getByRole('button', { name: 'ai.admin.models.list' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.change(getByLabelText('ai.admin.baseUrl'), { target: { value: 'https://api.example.com' } });
     expect((getByRole('button', { name: 'ai.admin.models.list' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+describe('AiTab — routing and usage in the « Résumés » block', () => {
+  const view = (o: Partial<AiProviderView> & { id: number; name: string }): AiProviderView =>
+    ({ type: 'openai', hasAdminKey: true, shared: true, hasUserKey: false, available: true, ...o });
+  const setConfig = (o: Partial<AiConfig> = {}) =>
+    useAiStore.setState({ config: { enabled: true, providers: [], userKeysAllowed: false, dailyCap: 0, usageToday: 0, defaultProvider: null, ...o } });
+  beforeEach(() => {
+    useAuthStore.setState({ backendUser: user });
+    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false });
+    setConfig();
+  });
+  afterEach(() => {
+    useAiStore.setState({ config: null });
+    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false });
+  });
+
+  it('lists available providers, greys the ones without a key, and stores the choice', () => {
+    setConfig({ providers: [view({ id: 1, name: 'Ollama' }), view({ id: 2, name: 'Claude', available: false })], defaultProvider: 1 });
+    const { getByLabelText } = render(<AiTab active />);
+    const select = getByLabelText('ai.user.preferred') as HTMLSelectElement;
+    expect([...select.options].map((o) => [o.value, o.textContent, o.disabled])).toEqual([
+      ['', 'ai.user.preferredDefault', false], ['1', 'Ollama', false], ['2', 'ai.user.keyRequired', true],
+    ]);
+    fireEvent.change(select, { target: { value: '1' } });
+    expect(useUiStore.getState().aiPreferredProvider).toBe(1);
+    fireEvent.change(select, { target: { value: '' } });
+    expect(useUiStore.getState().aiPreferredProvider).toBeNull();
+  });
+  it('says « automatic » when the admin set no default', () => {
+    setConfig({ providers: [view({ id: 1, name: 'Ollama' })], defaultProvider: null });
+    const { getByLabelText } = render(<AiTab active />);
+    expect((getByLabelText('ai.user.preferred') as HTMLSelectElement).options[0].textContent).toBe('ai.user.preferredAuto');
+  });
+  it('shows a deleted preferred provider as such instead of falling back silently', () => {
+    setConfig({ providers: [view({ id: 1, name: 'Ollama' })], defaultProvider: 1 });
+    useUiStore.setState({ aiPreferredProvider: 42 });
+    const { getByLabelText } = render(<AiTab active />);
+    const select = getByLabelText('ai.user.preferred') as HTMLSelectElement;
+    expect(select.value).toBe('42');
+    expect(select.selectedOptions[0].textContent).toBe('ai.user.removedProvider');
+  });
+  it('fallback is a switch, on by default, described by its hint', () => {
+    const { getByRole, getByText } = render(<AiTab active />);
+    const sw = getByRole('switch', { name: 'ai.user.fallback' });
+    expect(sw.getAttribute('aria-checked')).toBe('true');
+    expect(sw.getAttribute('aria-describedby')).toContain(getByText('ai.user.fallbackHint').id);
+    fireEvent.click(sw);
+    expect(useUiStore.getState().aiFallback).toBe(false);
+  });
+  it('auto-summary asks for confirmation before turning on, and turns off without asking', async () => {
+    const { getByRole, queryByRole } = render(<AiTab active />);
+    fireEvent.click(getByRole('switch', { name: 'ai.user.auto' }));
+    expect(useUiStore.getState().aiAutoSummary).toBe(false);
+    const dialog = getByRole('dialog');
+    expect(within(dialog).getByText('ai.user.autoConfirmMessage')).toBeTruthy();
+    await waitFor(() => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'ai.user.autoConfirm' }));
+      expect(useUiStore.getState().aiAutoSummary).toBe(true);
+    });
+    expect(queryByRole('dialog')).toBeNull();
+    expect(getByRole('switch', { name: 'ai.user.auto' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(getByRole('switch', { name: 'ai.user.auto' }));
+    expect(useUiStore.getState().aiAutoSummary).toBe(false);
+    expect(queryByRole('dialog')).toBeNull();
+  });
+  it('cancelling the confirmation leaves auto-summary off', async () => {
+    const { getByRole, queryByRole } = render(<AiTab active />);
+    fireEvent.click(getByRole('switch', { name: 'ai.user.auto' }));
+    fireEvent.click(within(getByRole('dialog')).getByRole('button', { name: 'dialog.cancel' }));
+    await waitFor(() => expect(queryByRole('dialog')).toBeNull());
+    expect(useUiStore.getState().aiAutoSummary).toBe(false);
+  });
+  it('shows today\'s usage only when a cap applies to an instance-paid provider', () => {
+    const paid = view({ id: 1, name: 'Ollama' });
+    setConfig({ providers: [paid], dailyCap: 50, usageToday: 3 });
+    const first = render(<AiTab active />);
+    expect(first.getByText('ai.user.usage')).toBeTruthy();
+    first.unmount();
+    // Un administrateur ne voit pas de plafond qui ne le concerne pas.
+    useAuthStore.setState({ backendUser: admin });
+    const second = render(<AiTab active />);
+    expect(second.queryByText('ai.user.usage')).toBeNull();
+    second.unmount();
+    useAuthStore.setState({ backendUser: user });
+    for (const cfg of [
+      { providers: [paid], dailyCap: 0 },
+      { providers: [view({ id: 1, name: 'Ollama', hasUserKey: true })], dailyCap: 50 },
+      { providers: [view({ id: 1, name: 'Ollama', shared: false })], dailyCap: 50 },
+      { providers: [view({ id: 1, name: 'Ollama', available: false })], dailyCap: 50 },
+      { providers: [], dailyCap: 50 },
+    ]) {
+      setConfig(cfg);
+      const r = render(<AiTab active />);
+      expect(r.queryByText('ai.user.usage')).toBeNull();
+      r.unmount();
+    }
   });
 });

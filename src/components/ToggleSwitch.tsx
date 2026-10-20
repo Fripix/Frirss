@@ -4,19 +4,22 @@ interface ToggleSwitchProps {
   /** Accessible name (used when the visible label is separate). */
   ariaLabel?: string;
   disabled?: boolean;
+  /** Id of the element holding the hint text. */
+  describedBy?: string;
 }
 
 /**
  * Small sliding on/off switch, matching the toggle used in the Admin settings
  * (registrations / SSO). Self-contained button — place it next to its label.
  */
-export default function ToggleSwitch({ checked, onChange, ariaLabel, disabled }: ToggleSwitchProps) {
+export default function ToggleSwitch({ checked, onChange, ariaLabel, disabled, describedBy }: ToggleSwitchProps) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={ariaLabel}
+      aria-describedby={describedBy}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className="toggle-switch rounded-full relative transition-colors flex-shrink-0 disabled:opacity-50 cursor-pointer"

@@ -805,7 +805,20 @@
     "ratioHint": "摘要相对于文章的目标长度。至少三句话。",
     "user": {
       "title": "摘要",
-      "ratio": "摘要长度"
+      "ratio": "摘要长度",
+      "preferred": "首选服务商",
+      "preferredDefault": "默认（{{name}}）",
+      "preferredAuto": "自动",
+      "keyRequired": "{{name}}（需要密钥）",
+      "removedProvider": "服务商已删除",
+      "fallback": "自动切换",
+      "fallbackHint": "如果您的服务商出错，将由列表中的下一个接替。",
+      "auto": "打开时自动生成摘要",
+      "autoHint": "每篇打开的文章都会自动生成摘要，无需点击。",
+      "autoConfirmTitle": "启用自动摘要？",
+      "autoConfirmMessage": "每次自动摘要都会调用您的 AI 服务商。根据服务商和您的订阅，可能会向您收费。像 Ollama 这样的本地模型不产生任何费用。",
+      "autoConfirm": "启用",
+      "usage": "今天由实例支付的摘要：{{used}} / {{cap}}"
     }
   }
 }
