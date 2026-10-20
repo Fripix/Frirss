@@ -10,7 +10,7 @@ vi.mock('../../lib/articleSegments', async (importOriginal) => {
   return { ...m, segmentArticle: vi.fn(m.segmentArticle) };
 });
 
-import { useArticleTranslation, type ArticleTranslationInput } from './useArticleTranslation';
+import { useArticleTranslation, hasReadableText, type ArticleTranslationInput } from './useArticleTranslation';
 import { requestAiTranslation, type AiTranslationResult } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { __resetPendingSummariesForTests } from './aiPending';
@@ -235,5 +235,46 @@ describe('useArticleTranslation', () => {
     act(() => { hook.current.translate(); });
     expect(requestAiTranslation).not.toHaveBeenCalled();
     expect(hook.current.canTranslate).toBe(false);
+  });
+
+  it('a segmentation that throws ends in the error state, nothing sent', () => {
+    vi.mocked(segmentArticle).mockImplementationOnce(() => { throw new Error('parser'); });
+    const { result: hook } = renderHook(() => useArticleTranslation({ ...base, bodyHtml: '<p>Hello</p>' }));
+    act(() => { hook.current.translate(); });
+    expect(hook.current.state).toBe('error');
+    expect(hook.current.error).toBe('ai.errors.translateFailed');
+    expect(requestAiTranslation).not.toHaveBeenCalled();
+  });
+});
+
+describe('hasReadableText', () => {
+  const timed = (html: string) => {
+    const start = performance.now();
+    const value = hasReadableText(html);
+    return { value, ms: performance.now() - start };
+  };
+  it('stays linear on malformed input: 100 KB of « < »', () => {
+    const r = timed('<'.repeat(100_000));
+    expect(r.value).toBe(false);
+    expect(r.ms).toBeLessThan(200);
+  });
+  it('stays linear on malformed input: 160 KB of unclosed « <script »', () => {
+    const r = timed('<script '.repeat(20_000));
+    expect(r.value).toBe(false);
+    expect(r.ms).toBeLessThan(200);
+  });
+  it('finds the one paragraph of text in a 1 MB body', () => {
+    const r = timed(`<div>${' '.repeat(1_000_000)}<p>Hello</p></div>`);
+    expect(r.value).toBe(true);
+    expect(r.ms).toBeLessThan(200);
+  });
+  it('keeps the semantics: tags, scripts, styles and entities are not text; a letter in a text node is', () => {
+    expect(hasReadableText('<p>42 &nbsp; &#233; &amp;</p><img alt="photo" src="a.png">')).toBe(false);
+    expect(hasReadableText('<SCRIPT>var x;</SCRIPT><style>p{color:red}</style><noscript>No</noscript><template>T</template>')).toBe(false);
+    expect(hasReadableText('<!-- note --><p>1</p>')).toBe(false);
+    expect(hasReadableText('<p>1 < 2</p><p>é</p>')).toBe(true);
+    expect(hasReadableText('<p>3 &lt; 4 and</p>')).toBe(true);
+    expect(hasReadableText('Bare text')).toBe(true);
+    expect(hasReadableText('<p>日本</p>')).toBe(true);
   });
 });

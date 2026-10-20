@@ -75,18 +75,94 @@ const idle = (key: string): Snapshot => ({
 const HAS_LETTER = /\p{L}/u;
 const hasLetter = (html: string) => HAS_LETTER.test(html.replace(/<[^>]*>/g, ''));
 
+const RAW_TEXT_TAGS = new Set(['script', 'style', 'noscript', 'template']);
+const isAsciiLetter = (c: number) => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+const isEntityChar = (c: number) => isAsciiLetter(c) || (c >= 48 && c <= 57) || c === 35; // lettre, chiffre, #
+/** Plus longue entité nommée HTML (`&CounterClockwiseContourIntegral;`, 33). */
+const MAX_ENTITY = 34;
+
 /**
  * Estimation SANS analyse DOM : le corps porte-t-il du texte lisible ? Elle
  * tourne à chaque article ouvert, IA ou pas ; le vrai découpage n'a lieu qu'à
- * la demande (`translate`). Scripts, styles et entités (`&nbsp;`) ne comptent
- * pas. Si le découpage ne trouve finalement rien (texte seulement dans un
- * `<pre>`, par exemple), `canTranslate` repasse à faux pour ce corps.
+ * la demande (`translate`).
+ *
+ * Un seul passage, l'index ne recule jamais : aucune expression régulière sur
+ * le corps entier. Celles d'avant étaient quadratiques sur du HTML malformé
+ * (chaque `<` sans `>` relançait un balayage jusqu'à la fin : 100 Ko de `<`
+ * prenaient 5 s) — et ce HTML vient des flux, donc de n'importe qui.
+ *
+ * - Une balise (`<` suivi d'une lettre, `/`, `!` ou `?`) est sautée jusqu'à
+ *   son `>` ; sans `>`, tout le reste est dans la balise : pas de texte. Un
+ *   `<` suivi d'autre chose est du texte, comme pour le navigateur.
+ * - Le contenu de `script`, `style`, `noscript`, `template` est sauté jusqu'à
+ *   sa balise fermante ; un commentaire jusqu'à `-->`.
+ * - Une entité (`&nbsp;`, `&#233;`) ne compte pas comme lettre.
+ * - Première lettre (`\p{L}`) dans le texte : vrai.
+ *
+ * Si le découpage ne trouve finalement rien (texte seulement dans un `<pre>`,
+ * par exemple), `canTranslate` repasse à faux pour ce corps.
  */
-function hasReadableText(html: string): boolean {
-  return HAS_LETTER.test(html
-    .replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1\s*>/gi, ' ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&[#\w]+;/g, ' '));
+export function hasReadableText(html: string): boolean {
+  const n = html.length;
+  // Balise fermante `</name` (casse indifférente) à partir de `from`, ou -1.
+  // Pas de `toLowerCase()` du corps : certaines lettres changent de longueur
+  // en minuscules (« İ »), et les index ne correspondraient plus.
+  const closingTag = (name: string, from: number) => {
+    let at = html.indexOf('</', from);
+    while (at !== -1 && html.slice(at + 2, at + 2 + name.length).toLowerCase() !== name) at = html.indexOf('</', at + 2);
+    return at;
+  };
+  let i = 0;
+  while (i < n) {
+    const c = html.charCodeAt(i);
+    if (c === 60 /* < */) {
+      const next = html.charCodeAt(i + 1);
+      if (isAsciiLetter(next) || next === 47 /* / */ || next === 33 /* ! */ || next === 63 /* ? */) {
+        if (html.startsWith('<!--', i)) {
+          const close = html.indexOf('-->', i + 4);
+          if (close === -1) return false;
+          i = close + 3;
+          continue;
+        }
+        const end = html.indexOf('>', i + 1);
+        if (end === -1) return false;
+        let nameEnd = i + 1;
+        while (nameEnd < end && isAsciiLetter(html.charCodeAt(nameEnd))) nameEnd++;
+        const name = html.slice(i + 1, nameEnd).toLowerCase();
+        i = end + 1;
+        if (RAW_TEXT_TAGS.has(name) && html.charCodeAt(end - 1) !== 47 /* / */) {
+          const close = closingTag(name, i);
+          if (close === -1) return false;
+          const closeEnd = html.indexOf('>', close);
+          if (closeEnd === -1) return false;
+          i = closeEnd + 1;
+        }
+        continue;
+      }
+      i++;
+      continue;
+    }
+    if (c === 38 /* & */) {
+      let j = i + 1;
+      const limit = Math.min(n, i + MAX_ENTITY);
+      while (j < limit && isEntityChar(html.charCodeAt(j))) j++;
+      if (j > i + 1 && html.charCodeAt(j) === 59 /* ; */) {
+        i = j + 1;
+        continue;
+      }
+      i++;
+      continue;
+    }
+    if (c < 128) {
+      if (isAsciiLetter(c)) return true;
+      i++;
+      continue;
+    }
+    const cp = html.codePointAt(i) ?? c;
+    if (HAS_LETTER.test(String.fromCodePoint(cp))) return true;
+    i += cp > 0xffff ? 2 : 1;
+  }
+  return false;
 }
 
 /** FNV-1a 32 bits : lie une traduction au corps qu'elle a traduit. */
@@ -197,7 +273,20 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       setSnap((s) => (s.key === k ? { ...s, showing: 'translation' } : s));
       return;
     }
-    if (preparedFor.current?.key !== k) preparedFor.current = { key: k, prepared: prepare(inp.title, inp.bodyHtml) };
+    const failed = () => {
+      const msg = aiErrorMessage(undefined, undefined, admin, language, { op: 'translate' });
+      setSnap({ ...idle(k), state: 'error', error: tr(msg.key, msg.params) });
+    };
+    // Le découpage analyse du HTML venu du flux : une exception finit en
+    // erreur affichée, jamais en exception non rattrapée dans le clic.
+    if (preparedFor.current?.key !== k) {
+      try {
+        preparedFor.current = { key: k, prepared: prepare(inp.title, inp.bodyHtml) };
+      } catch {
+        failed();
+        return;
+      }
+    }
     const prep = preparedFor.current.prepared;
     if (!prep.hasBody) {
       setNothingFor(k);

@@ -2419,9 +2419,15 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     article de 150 paragraphes, contre 6–11 ms pour `buildArticleBody`), et
     le volet s'ouvre à chaque article. Ils ne tournent donc **qu'à la
     demande**, dans `translate()` (et seulement IA utilisable et en ligne),
-    une fois par corps. Au rendu, seuls un hash FNV-1a et une estimation par
-    expression régulière (`hasReadableText` : une lettre hors balises,
-    scripts, styles et entités) — c'est elle qui donne `canTranslate`. Si le
+    une fois par corps. Au rendu, seuls un hash FNV-1a et une estimation
+    (`hasReadableText` : une lettre hors balises, scripts, styles,
+    commentaires et entités) — c'est elle qui donne `canTranslate`. ⚠️ Elle
+    est écrite en **un seul passage**, l'index ne reculant jamais : la
+    première version, en expressions régulières sur le corps entier, était
+    quadratique sur du HTML malformé (100 Ko de `<` : 5 s ; 160 Ko de
+    `<script ` non fermés : 1,7 s), et ce HTML vient des flux. Ne pas y
+    remettre de regex globale ; les tests de durée la gardent. Une exception
+    du découpage finit en erreur affichée. Si le
     découpage ne trouve finalement rien (texte seulement dans un `<pre>`),
     rien ne part et `canTranslate` repasse à faux pour ce corps. Le HTML traduit est rebâti par `apply` (sortie du
     modèle passée au sanitiseur), puis **repasse par `buildArticleBody`** comme
