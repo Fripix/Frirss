@@ -2270,10 +2270,9 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   « Résumer / Traduire automatiquement les articles de X », décrits par
   l'aide du bloc ; tout le `<label>` est la cible du doigt. Allumé, chaque
   article de la ligne doit être résumé ou traduit **à l'ouverture**.
-  ⚠️ **Pas encore branché côté lecture** : pour l'instant seul cet écran lit
-  ces réglages (`autoFor` n'a pas d'autre appelant) et le résumé automatique
-  du lecteur ne suit que l'interrupteur global ; le déclencheur par flux et
-  catégorie reste à brancher. Une catégorie
+  Le volet de lecture applique la même règle (`autoFor`) : voir « Résumé
+  automatique à l'ouverture » et « Traduction automatique à l'ouverture »
+  plus bas. Une catégorie
   affiche et écrit son propre drapeau (`aiCategoryAutoSummary` /
   `aiCategoryAutoTranslate`, `{ nom: true }`, rangés par nom comme les
   fournisseurs). Un flux affiche sa **valeur effective** (`autoFor` de
@@ -2465,7 +2464,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     « Traduit en {langue} par Y » (+ « , X indisponible » si un lot a basculé ;
     Y = fournisseur du **dernier** lot, spec §17.3, même si c'est un lot
     antérieur qui a basculé), « Traduit en partie ({n} lots sur {m}) »
-    sous la précédente, « Déjà en {langue}. ». Les erreurs (mêmes messages que
+    sous la précédente, « Déjà en {langue}. » (sauf après une traduction
+    automatique, qui le tait). Les erreurs (mêmes messages que
     la traduction du résumé, `op: 'translate'`) sont une **alerte** à part,
     gabarit de l'erreur d'extraction ; la source reste affichée. La notice
     disparaît quand on revient au texte source. L'avis d'extraction et la
@@ -2485,10 +2485,13 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     (clé : `article`, compte, article, langue, fournisseur forcé, hash du
     corps, rang du lot) : revenir sur l'article et relancer reprend le lot en
     vol au lieu de le repayer ; le cache serveur sert les lots déjà traduits.
-- **Résumé automatique à l'ouverture** (`aiAutoSummary`, Préférences → IA →
-  « Résumés », **éteint d'origine**, avertissement de coût à l'activation) :
-  `ReadingPane.tsx` appelle `handleSummarize(undefined, { auto: true })` quand
-  un article est resté affiché **une seconde** (`AUTO_SUMMARY_DELAY_MS`), **une
+- **Résumé automatique à l'ouverture** : la règle est celle du flux, sinon
+  d'une de ses catégories, sinon de l'interrupteur global (`aiAutoSummary`,
+  Préférences → IA → « Résumés », **éteint d'origine**, avertissement de coût
+  à l'activation) — `autoFor('summary', …)` de `lib/aiAuto.ts`, réglée dans
+  « Par flux et catégorie » ; un flux éteint l'est même sous un global ou une
+  catégorie allumés. `ReadingPane.tsx` appelle
+  `handleSummarize(undefined, { auto: true })` quand un article est resté affiché **une seconde** (`AUTO_SUMMARY_DELAY_MS`), **une
   seule fois par visite** (`autoSummarisedId`, posé au départ réel de la
   demande et remis à zéro avec le résumé à chaque changement d'article). Le
   délai porte la règle de la spec (§8, « annulée si l'article change ») : une
@@ -2508,13 +2511,14 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   (réussite ou échec). Vaut aussi pour « Résumer », le raccourci et la palette.
   Le serveur, lui, ne regroupe pas les demandes en vol : deux onglets ou deux
   appareils restent deux appels. Condition :
-  réglage allumé, IA utilisable (`aiUsable`), **en ligne**, statut `idle`. Jamais
+  règle allumée pour ce flux, IA utilisable (`aiUsable`), **en ligne**, statut `idle`. Jamais
   hors ligne : l'effet attend simplement le retour du réseau, tant que l'article
   reste affiché. **Si l'extraction automatique s'applique à ce flux**
   (`effectiveAutoExtract`, article avec URL), il **attend qu'elle ait abouti ou
   échoué** pour CET article — l'état `extractFor`, posé dans le même lot que
   `extractedContent` / `extractError`, dit à qui ils appartiennent, car au rendu
-  qui suit un changement d'article ils sont encore ceux du précédent. Échec d'extraction : le
+  qui suit un changement d'article ils sont encore ceux du précédent (calcul
+  `autoSettled`, partagé avec la traduction automatique). Échec d'extraction : le
   texte du flux est résumé. Un article **trop court** (`400 article_too_short`)
   ne dit rien et remet le statut à `idle` (personne n'a rien demandé) ; toute
   autre erreur s'affiche comme pour un clic. Un **panneau replié reste replié** :
@@ -2534,6 +2538,28 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   jamais. La branche « rien en mémoire pour ce nouvel article » remet donc
   `lastExtractedId` à `null` : le prochain passage sur A repart de la mémoire
   ou relance l'extraction.
+- **Traduction automatique à l'ouverture** : règle `autoFor('translate', …)`
+  — le flux, sinon une de ses catégories ; **pas de réglage global**, éteinte
+  sans réglage (interrupteurs « Traduire » de « Par flux et catégorie », avec
+  leur confirmation de coût). Même forme que le résumé automatique et
+  indépendante de lui (les deux peuvent partir sur le même article) : second
+  effet de `ReadingPane.tsx`, après `useArticleTranslation`, qui appelle
+  `translate(undefined, { automatic: true })` quand l'article est resté
+  affiché **une seconde** (`AUTO_SUMMARY_DELAY_MS`), **une fois par visite**
+  (`autoTranslatedId`, posé au départ et remis à zéro à chaque changement
+  d'article), IA utilisable, **en ligne**, traduction `idle`. Elle **attend
+  l'extraction** quand celle-ci s'applique (`autoSettled`) : la traduction est
+  liée au hash du corps, et partir sur l'aperçu du flux la ferait jeter à
+  l'arrivée de l'extrait — c'est donc l'extrait qui est traduit. Vers la
+  langue cible des préférences, fournisseur routé (`aiRouting`, `op:
+  'translate'`). **Rien à traduire** (`canTranslate` faux) : rien ne part et
+  rien ne s'affiche. **Déjà dans la langue** (`same`) : la demande est marquée
+  `automatic` dans l'état du hook et le volet **tait** « Déjà en … » — personne
+  n'a rien demandé ; un clic ensuite le dit. **Erreur** : affichée dans
+  l'alerte, comme pour un clic — une bascule ou un échec chez un fournisseur
+  payant doit se voir ; de même la notice « Traduit en … par X » d'une
+  réussite. Test : `ReadingPane.ai.test.tsx` (« déclencheurs automatiques par
+  flux et catégorie »).
 - **Raccourci clavier et palette** : action configurable **`summarize`**,
   touche **`s`** par défaut, réassignable comme les autres (Préférences →
   Général ; libellé `preferences.shortcuts.summarize`, « Résumer l'article

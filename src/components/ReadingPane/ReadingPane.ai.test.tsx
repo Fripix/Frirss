@@ -858,3 +858,163 @@ describe('ReadingPane — traduction de l\'article', () => {
     });
   });
 });
+
+describe('ReadingPane — déclencheurs automatiques par flux et catégorie', () => {
+  const SUMMARY = { text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false };
+  const translated = (segments: string[], over: Record<string, unknown> = {}) =>
+    ({ segments, lang: 'fr', same: false, providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false, ...over });
+  const extracted = (content: string) => ({ title: 't', content, excerpt: '', byline: '', siteName: '', length: content.length });
+  const inTech = () => useFeedStore.setState({ subscriptions: [{ id: 'feed/1', title: 'F', categories: [{ id: 'user/-/label/Tech', label: 'Tech' }] }] } as never);
+  const articleCalls = () => vi.mocked(requestAiTranslation).mock.calls.filter(([r]) => r.scope === 'article');
+  // Horloge entièrement simulée : les bornes se mesurent à la milliseconde.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    useUiStore.setState({ aiCategoryAutoSummary: {}, aiCategoryAutoTranslate: {} });
+  });
+  afterEach(() => { vi.useRealTimers(); });
+  const advance = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+  const select = (id: string) => act(() => { useFeedStore.setState({ selectedArticle: article(id) }); });
+
+  describe('automatic translation', () => {
+    it('a feed set to translate sends one article request after one second', async () => {
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true } } });
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      render(<ReadingPane />);
+      await advance(999);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+      await advance(1);
+      expect(articleCalls()).toHaveLength(1);
+      expect(articleCalls()[0][0]).toMatchObject({ articleId: 'a1', scope: 'article', segments: ['Titre a1', expect.stringContaining('mot')] });
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+    it('waits for the auto-extraction and translates the extracted body', async () => {
+      const a = article('tx1');
+      useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true, autoExtract: true } } });
+      let finish!: (v: unknown) => void;
+      vi.mocked(extractFullContent).mockReturnValue(new Promise((r) => { finish = r; }) as never);
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      render(<ReadingPane />);
+      await advance(200); // l'extraction automatique part après 100 ms
+      expect(extractFullContent).toHaveBeenCalledTimes(1);
+      await advance(3000);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+      await act(async () => { finish(extracted('<p>' + 'complet '.repeat(80) + '</p>')); });
+      await advance(1000);
+      expect(articleCalls()).toHaveLength(1);
+      expect(articleCalls()[0][0].segments[1]).toContain('complet');
+    });
+    it('a feed set to off under a lit category sends nothing', async () => {
+      inTech();
+      useUiStore.setState({ aiCategoryAutoTranslate: { Tech: true }, feedSettings: { 'feed/1': { aiAutoTranslate: false } } });
+      render(<ReadingPane />);
+      await advance(3000);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+    });
+    it('a lit category translates a feed without its own setting', async () => {
+      inTech();
+      useUiStore.setState({ aiCategoryAutoTranslate: { Tech: true } });
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      render(<ReadingPane />);
+      await advance(1000);
+      expect(articleCalls()).toHaveLength(1);
+    });
+    it('sends nothing for an article left within the second', async () => {
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true } } });
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      render(<ReadingPane />);
+      await advance(500);
+      select('a2');
+      await advance(999);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+      await advance(1);
+      expect(articleCalls()).toHaveLength(1);
+      expect(articleCalls()[0][0].articleId).toBe('a2');
+    });
+    it('« same » on an automatic run says nothing', async () => {
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true } } });
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated([], { same: true }));
+      const { queryByText, queryByRole } = render(<ReadingPane />);
+      await advance(1000);
+      await advance(0);
+      expect(articleCalls()).toHaveLength(1);
+      expect(queryByText('ai.translation.alreadyTarget')).toBeNull();
+      expect(queryByRole('alert')).toBeNull();
+    });
+    it('an error on an automatic run shows in the alert', async () => {
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true } } });
+      vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
+      const { getByRole } = render(<ReadingPane />);
+      await advance(1000);
+      await advance(0);
+      expect(getByRole('alert').textContent).toContain('ai.errors.translateFailed');
+    });
+    it('the notice of an automatic translation names the provider', async () => {
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true } } });
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word'], { lang: 'en' }));
+      const { getByText } = render(<ReadingPane />);
+      await advance(1000);
+      await advance(0);
+      expect(getByText('ai.translation.done')).toBeTruthy();
+    });
+    it('an article with nothing to translate sends nothing and shows nothing', async () => {
+      const a = { ...article('tx2'), content: '<img src="https://example.com/a.png" alt="">' } as Article;
+      useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true } } });
+      const { queryByRole, getAllByRole, queryByText } = render(<ReadingPane />);
+      await advance(3000);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+      expect(queryByRole('alert')).toBeNull();
+      for (const region of getAllByRole('status')) expect(region.textContent).toBe('');
+      expect(queryByText('ai.translation.nothing')).toBeNull();
+    });
+    it('runs once per visit, and again when the user comes back', async () => {
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: true } } });
+      vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
+      render(<ReadingPane />);
+      await advance(1000);
+      await advance(3000);
+      expect(articleCalls()).toHaveLength(1);
+      select('a2');
+      await advance(1000);
+      select('a1');
+      await advance(1000);
+      expect(articleCalls().map(([r]) => r.articleId)).toEqual(['a1', 'a2', 'a1']);
+    });
+  });
+
+  describe('automatic summary', () => {
+    it('a feed set to summarise does so with the global switch off', async () => {
+      useUiStore.setState({ aiAutoSummary: false, feedSettings: { 'feed/1': { aiAutoSummary: true } } });
+      vi.mocked(requestAiSummary).mockResolvedValue(SUMMARY);
+      render(<ReadingPane />);
+      await advance(1000);
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
+    });
+    it('a feed set to off sends nothing with the global switch on', async () => {
+      useUiStore.setState({ aiAutoSummary: true, feedSettings: { 'feed/1': { aiAutoSummary: false } } });
+      vi.mocked(requestAiSummary).mockResolvedValue(SUMMARY);
+      render(<ReadingPane />);
+      await advance(3000);
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+    it('a lit category summarises a feed without its own setting', async () => {
+      inTech();
+      useUiStore.setState({ aiAutoSummary: false, aiCategoryAutoSummary: { Tech: true } });
+      vi.mocked(requestAiSummary).mockResolvedValue(SUMMARY);
+      render(<ReadingPane />);
+      await advance(1000);
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+    });
+    it('summary and translation both run on the same article', async () => {
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoSummary: true, aiAutoTranslate: true } } });
+      vi.mocked(requestAiSummary).mockResolvedValue(SUMMARY);
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      render(<ReadingPane />);
+      await advance(1000);
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      expect(articleCalls()).toHaveLength(1);
+    });
+  });
+});

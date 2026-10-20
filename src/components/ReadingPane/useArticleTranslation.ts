@@ -26,6 +26,11 @@ export interface ArticleTranslationInput {
 
 export type ArticleTranslationState = 'idle' | 'loading' | 'done' | 'error' | 'same';
 export interface TranslateChoice { lang?: AiLanguage; providerId?: number }
+export interface TranslateOptions {
+  /** Demande partie seule (traduction automatique du flux ou de la catégorie) :
+   *  un `same` n'affiche rien ; une erreur, si (une bascule payante doit se voir). */
+  automatic?: boolean;
+}
 
 export interface ArticleTranslation {
   state: ArticleTranslationState;
@@ -47,7 +52,9 @@ export interface ArticleTranslation {
   error: string | null;
   /** Faux quand le corps n'a aucun segment à traduire (« Rien à traduire dans cet article. »). */
   canTranslate: boolean;
-  translate: (choice?: TranslateChoice) => void;
+  /** L'état affiché vient d'une demande automatique : un `same` ne se dit pas. */
+  automatic: boolean;
+  translate: (choice?: TranslateChoice, options?: TranslateOptions) => void;
   showSource: () => void;
   showTranslation: () => void;
   showing: 'source' | 'translation';
@@ -65,11 +72,12 @@ interface Snapshot {
   providerName?: string;
   fellBackFrom?: string;
   error: string | null;
+  automatic: boolean;
   showing: 'source' | 'translation';
 }
 
 const idle = (key: string): Snapshot => ({
-  key, state: 'idle', html: null, title: null, progress: null, partialOf: null, lang: null, error: null, showing: 'source',
+  key, state: 'idle', html: null, title: null, progress: null, partialOf: null, lang: null, error: null, automatic: false, showing: 'source',
 });
 
 const HAS_LETTER = /\p{L}/u;
@@ -226,6 +234,9 @@ function prepare(title: string, bodyHtml: string): Prepared {
  *   l'article et relancer ne paie pas deux fois le lot déjà demandé.
  * - « Traduire avec X » (`providerId`) garde le réglage de repli ; si un lot
  *   bascule, `fellBackFrom` le dit et `providerName` nomme le dernier.
+ * - Une demande automatique (`{ automatic: true }`) est marquée dans l'état
+ *   (`automatic`) : le volet tait alors un `same`, mais montre une erreur.
+ *   Sans rien à traduire, elle ne part pas, comme une demande à la main.
  */
 export function useArticleTranslation(input: ArticleTranslationInput): ArticleTranslation {
   const { t, i18n } = useTranslation();
@@ -260,7 +271,8 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     latest.current = { input, hash: source.hash, key, current, canTranslate, t, language: i18n.language, isAdmin };
   });
 
-  const translate = useCallback((choice?: TranslateChoice) => {
+  const translate = useCallback((choice?: TranslateChoice, options?: TranslateOptions) => {
+    const automatic = options?.automatic === true;
     const { input: inp, hash, key: k, current: cur, canTranslate: can, t: tr, language, isAdmin: admin } = latest.current;
     const id = inp.articleId;
     if (!inp.enabled || !id || !can || cur.state === 'loading') return;
@@ -297,7 +309,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     const total = prep.batches.length;
     const routing = inp.routing();
     const user = useAuthStore.getState().backendUser?.id ?? '';
-    setSnap((s) => ({ ...(s.key === k ? s : idle(k)), state: 'loading', progress: { done: 0, total }, error: null }));
+    setSnap((s) => ({ ...(s.key === k ? s : idle(k)), state: 'loading', progress: { done: 0, total }, error: null, automatic }));
 
     void (async () => {
       // Une chaîne vide laisse le segment d'origine en place (`apply`).
@@ -317,7 +329,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
           );
           if (!stillCurrent()) return;
           if (r.same && b === 0) {
-            setSnap({ ...idle(k), state: 'same', lang });
+            setSnap({ ...idle(k), state: 'same', lang, automatic });
             return;
           }
           // Un lot plus loin déjà dans la langue (article mêlé) : ses segments restent.
@@ -363,6 +375,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     fellBackFrom: current.fellBackFrom,
     error: current.error,
     canTranslate,
+    automatic: current.automatic,
     translate,
     showSource,
     showTranslation,

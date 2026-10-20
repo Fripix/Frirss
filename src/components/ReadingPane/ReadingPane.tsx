@@ -34,6 +34,7 @@ import { aiErrorMessage } from '../../lib/aiErrorKey';
 import { sharedSummaryRequest, sharedTranslationRequest } from './aiPending';
 import { AI_LANGUAGES, languageName, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import { aiRouting } from '../../lib/aiRouting';
+import { autoFor } from '../../lib/aiAuto';
 import { useArticleTranslation } from './useArticleTranslation';
 import TranslateMenu from './TranslateMenu';
 import { useLongPress } from '../../hooks/useLongPress';
@@ -198,7 +199,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const aiInFlight = useRef<string | null>(null);
   const aiRatio = useUiStore((s) => s.aiSummaryRatio);
   const aiAutoSummary = useUiStore((s) => s.aiAutoSummary);
+  const aiCategoryAutoSummary = useUiStore((s) => s.aiCategoryAutoSummary);
+  const aiCategoryAutoTranslate = useUiStore((s) => s.aiCategoryAutoTranslate);
+  const subscriptions = useFeedStore((s) => s.subscriptions);
   const autoSummarisedId = useRef<string | null>(null);
+  const autoTranslatedId = useRef<string | null>(null);
   // Traduction du résumé affiché. `aiTranslationSeq` désigne la demande dont
   // la réponse est encore attendue : changer d'article, recevoir un autre
   // résumé ou revenir au texte source l'incrémente, et une réponse d'une
@@ -218,8 +223,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     setAiTranslation(NO_AI_TRANSLATION); aiTranslationSeq.current++;
     // Le résumé automatique est « une fois par VISITE » : le résumé qu'on vient
     // d'effacer doit pouvoir repartir si l'on revient sur cet article. Déclaré
-    // avant l'effet de déclenchement, qui le repose dans la même passe.
+    // avant l'effet de déclenchement, qui le repose dans la même passe. Même
+    // règle pour la traduction automatique.
     autoSummarisedId.current = null;
+    autoTranslatedId.current = null;
   }, [selectedArticle?.id]);
 
   // Reading progress
@@ -884,6 +891,21 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     return () => window.removeEventListener('frirss:ai-summarize', onSummarizeEvent);
   }, [aiUsable, online, selectedArticle, aiResult, handleSummarize]);
 
+  // Résumé et traduction automatiques : la règle du flux, sinon d'une de ses
+  // catégories, sinon (résumé seulement) le réglage global — `autoFor`.
+  const autoPrefs = { feedSettings, aiCategoryAutoSummary, aiCategoryAutoTranslate, aiAutoSummary };
+  const autoSummary = !!selectedArticle && autoFor('summary', selectedArticle.sourceId, subscriptions, autoPrefs);
+  const autoTranslate = !!selectedArticle && autoFor('translate', selectedArticle.sourceId, subscriptions, autoPrefs);
+  // Si l'extraction automatique s'applique à ce flux, on attend qu'elle ait
+  // abouti ou échoué POUR CET ARTICLE (et non pour le précédent, dont l'état
+  // reste visible un rendu). Avant son départ, rien n'est « terminé » : rien
+  // d'automatique ne peut donc partir devant l'extraction — la traduction, liée
+  // au corps, porterait sinon sur l'aperçu du flux.
+  const autoExtractApplies = !!selectedArticle?.url && !!selectedArticle.sourceId
+    && effectiveAutoExtract(autoExtractDefault, feedSettings, selectedArticle.sourceId);
+  const autoSettled = !autoExtractApplies
+    || (!extracting && extractFor === selectedArticle?.id && (!!extractedContent || !!extractError));
+
   // Résumé automatique à l'ouverture, une fois par visite. Déclaré APRÈS les
   // effets de remise à zéro (IA et extraction) : dans la même passe ils
   // s'exécutent dans l'ordre, et la remise à zéro ne doit pas écraser l'état
@@ -898,24 +920,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // qu'au départ réel de la demande.
   useEffect(() => {
     const art = selectedArticle;
-    if (!art || !aiAutoSummary || !aiUsable || !online || aiStatus !== 'idle') return;
+    if (!art || !autoSummary || !aiUsable || !online || aiStatus !== 'idle' || !autoSettled) return;
     if (autoSummarisedId.current === art.id) return;
-    // Si l'extraction automatique s'applique à ce flux, on attend qu'elle ait
-    // abouti ou échoué POUR CET ARTICLE (et non pour le précédent, dont l'état
-    // reste visible un rendu). Avant son départ, rien n'est « terminé » : le
-    // résumé ne peut donc pas partir devant l'extraction.
-    const extractionApplies = !!art.url && !!art.sourceId
-      && effectiveAutoExtract(autoExtractDefault, feedSettings, art.sourceId);
-    if (extractionApplies) {
-      const settled = !extracting && extractFor === art.id && (!!extractedContent || !!extractError);
-      if (!settled) return;
-    }
     const timer = setTimeout(() => {
       autoSummarisedId.current = art.id;
       void handleSummarize(undefined, { auto: true });
     }, AUTO_SUMMARY_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [selectedArticle, aiAutoSummary, aiUsable, online, aiStatus, extracting, extractedContent, extractError, extractFor, autoExtractDefault, feedSettings, handleSummarize]);
+  }, [selectedArticle, autoSummary, aiUsable, online, aiStatus, autoSettled, handleSummarize]);
 
   // ── Corps de l'article ────────────────────────────────────────────────────
   // Mémoïsé, et il FAUT que ce soit avant le retour anticipé ci-dessous : les
@@ -962,6 +974,23 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     articleId: selectedArticle?.id ?? null, title: selectedArticle?.title ?? '', bodyHtml: sourceHtml,
     targetLang: aiTargetLang, routing: articleRouting, enabled: aiUsable && online,
   });
+  // Traduction automatique à l'ouverture : même forme que le résumé (délai,
+  // extraction réglée, une fois par visite), indépendante de lui — les deux
+  // peuvent partir sur le même article. Elle ne part pas sans rien à traduire,
+  // ni quand une traduction est déjà là ou en cours ; un `same` reste muet
+  // (`automatic`), une erreur s'affiche.
+  const { translate: translateArticle, state: articleTranslationState, canTranslate: articleCanTranslate } = articleTranslation;
+  useEffect(() => {
+    const art = selectedArticle;
+    if (!art || !autoTranslate || !aiUsable || !online || !autoSettled) return;
+    if (articleTranslationState !== 'idle' || !articleCanTranslate) return;
+    if (autoTranslatedId.current === art.id) return;
+    const timer = setTimeout(() => {
+      autoTranslatedId.current = art.id;
+      translateArticle(undefined, { automatic: true });
+    }, AUTO_SUMMARY_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [selectedArticle, autoTranslate, aiUsable, online, autoSettled, articleTranslationState, articleCanTranslate, translateArticle]);
   const translatedBody = useMemo(
     () => (articleTranslation.html === null ? null : buildArticleBody({
       rssHtml: articleTranslation.html,
@@ -1041,7 +1070,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     trNotice = tr.progress && tr.progress.total > 1
       ? t('ai.translation.batch', { n: tr.progress.done + 1, m: tr.progress.total })
       : t('ai.translating');
-  } else if (tr.state === 'same') {
+  } else if (tr.state === 'same' && !tr.automatic) {
     trNotice = t('ai.translation.alreadyTarget', { lang: trLangName });
   } else if (tr.state === 'done' && showTranslatedBody) {
     trNotice = [
