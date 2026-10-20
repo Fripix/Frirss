@@ -1,5 +1,5 @@
 // server/routes/ai.ts
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { proxyRateLimiter } from './proxy.js';
 import {
@@ -7,6 +7,8 @@ import {
 } from '../ai/store.js';
 import { availableFor } from '../ai/resolve.js';
 import { summarize } from '../ai/summarize.js';
+import { translate } from '../ai/translate.js';
+import { isAiLanguage } from '../ai/languages.js';
 import { AiError } from '../ai/errors.js';
 import { DEFAULT_SUMMARY_RATIO } from '../ai/prompts.js';
 
@@ -18,6 +20,8 @@ if (proxyRateLimiter) router.use(proxyRateLimiter);
 const MAX_HTML_BYTES = 200 * 1024;
 const MAX_ID_CHARS = 512;
 const MAX_TITLE_CHARS = 500;
+/** Total des segments d'un lot (spec §17.3) ; le client coupe sous la borne et dit « traduit en partie ». */
+const MAX_SEGMENTS_BYTES = 200_000;
 
 function availability(user: { id: number; role: string }) {
   return availableFor(
@@ -79,13 +83,49 @@ router.post('/summary', async (req, res) => {
     });
     res.json(out);
   } catch (err) {
-    if (!(err instanceof AiError)) { console.error('AI summary error:', err); return res.status(500).json({ error: 'ai_failed' }); }
-    if (err.message === 'article_too_short') return res.status(400).json({ error: 'article_too_short' });
-    if (err.message === 'ai_daily_cap') return res.status(429).json({ error: 'ai_daily_cap', cap: dailyCap(), resetAt: nextUsageReset() });
-    if (err.message === 'no_provider') return res.status(409).json({ error: 'no_provider' });
-    if (err.kind === 'refused') return res.status(422).json({ error: 'ai_refused' });
-    console.error('AI summary failed:', err.kind, err.message);
-    res.status(502).json({ error: 'ai_failed', kind: err.kind, ...(err.ownKey ? { ownKey: true } : {}) });
+    sendAiError(res, err, 'summary');
+  }
+});
+
+/** Même traduction des erreurs pour le résumé et la traduction ; le détail reste dans le journal. */
+function sendAiError(res: Response, err: unknown, op: 'summary' | 'translate') {
+  if (!(err instanceof AiError)) { console.error(`AI ${op} error:`, err); return res.status(500).json({ error: 'ai_failed' }); }
+  if (err.message === 'article_too_short') return res.status(400).json({ error: 'article_too_short' });
+  if (err.message === 'ai_daily_cap') return res.status(429).json({ error: 'ai_daily_cap', cap: dailyCap(), resetAt: nextUsageReset() });
+  if (err.message === 'no_provider') return res.status(409).json({ error: 'no_provider' });
+  if (err.kind === 'refused') return res.status(422).json({ error: 'ai_refused' });
+  console.error(`AI ${op} failed:`, err.kind, err.message);
+  res.status(502).json({
+    error: 'ai_failed', kind: err.kind,
+    ...(err.ownKey ? { ownKey: true } : {}),
+    ...(err.message === 'segments' ? { detail: 'segments' } : {}),
+  });
+}
+
+const isSegments = (v: unknown): v is string[] =>
+  Array.isArray(v) && v.length > 0 && v.every((s) => typeof s === 'string')
+  && v.reduce((n: number, s: string) => n + Buffer.byteLength(s), 0) <= MAX_SEGMENTS_BYTES;
+
+router.post('/translate', async (req, res) => {
+  if (!isAiEnabled()) return res.status(404).json({ error: 'ai_disabled' });
+  const { articleId, scope, targetLang, segments, provider, translationProvider, feedProvider, categoryProvider, preferredProvider, fallback } = req.body ?? {};
+  if (typeof articleId !== 'string' || !articleId || articleId.length > MAX_ID_CHARS || (scope !== 'summary' && scope !== 'article') || !isSegments(segments)) {
+    return res.status(400).json({ error: 'invalid_body' });
+  }
+  if (!isAiLanguage(targetLang)) return res.status(400).json({ error: 'invalid_lang' });
+  try {
+    const out = await translate({
+      userId: req.user.id, articleId, scope, targetLang, segments,
+      resolution: {
+        force: asId(provider), translation: asId(translationProvider), feed: asId(feedProvider), category: asId(categoryProvider),
+        preferred: asId(preferredProvider), adminDefault: defaultProviderId(),
+      },
+      available: availability(req.user),
+      fallback: fallback !== false,
+    });
+    res.json(out);
+  } catch (err) {
+    sendAiError(res, err, 'translate');
   }
 });
 

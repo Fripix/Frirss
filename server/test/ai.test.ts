@@ -413,3 +413,80 @@ describe('ai personal keys', () => {
     expect(shared.body).toEqual({ error: 'ai_failed', kind: 'auth' });
   });
 });
+
+describe('ai translate route', () => {
+  const admin = () => ({ Authorization: `Bearer ${adminToken}` });
+  const user = () => ({ Authorization: `Bearer ${userToken}` });
+  const post = (body: object) => request(app).post('/api/ai/translate').set(user()).send(body);
+  const body = (over: object = {}) => ({ articleId: 'tr-route', scope: 'article', targetLang: 'fr', segments: ['Hello'], ...over });
+
+  let id: number;
+  let wasEnabled: boolean;
+  let wasCap: string | null;
+  beforeAll(async () => {
+    wasEnabled = (await request(app).get('/api/admin/ai/providers').set(admin())).body.settings.enabled;
+    wasCap = getSetting('ai_daily_cap');
+    await request(app).put('/api/admin/ai/settings').set(admin()).send({ enabled: true });
+    const created = await request(app).post('/api/admin/ai/providers').set(admin())
+      .send({ name: 'Translator', type: 'openai', baseUrl: 'https://translate.example.com', model: 'm', adminKey: 'k-tr', shared: true });
+    id = created.body.provider.id;
+  });
+  afterAll(async () => {
+    await request(app).delete(`/api/admin/ai/providers/${id}`).set(admin());
+    await request(app).put('/api/admin/ai/settings').set(admin()).send({ enabled: wasEnabled });
+    setSetting('ai_daily_cap', wasCap ?? '50');
+  });
+
+  it('refuses a language off the list with invalid_lang', async () => {
+    const res = await post(body({ targetLang: 'ru' }));
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'invalid_lang' });
+  });
+  it('bounds the body: segments, scope and articleId', async () => {
+    for (const bad of [
+      body({ segments: [] }), body({ segments: 'Hello' }), body({ segments: ['ok', 3] }),
+      body({ segments: ['a'.repeat(200_001)] }), body({ scope: 'title' }), body({ articleId: 'x'.repeat(513) }), body({ articleId: '' }),
+    ]) {
+      const res = await post(bad);
+      expect(res.status, JSON.stringify(bad).slice(0, 80)).toBe(400);
+      expect(res.body.error).toBe('invalid_body');
+    }
+  });
+  it('translates with the strict format, then serves the cache', async () => {
+    setSetting('ai_daily_cap', '0');
+    const fetchMock = stubProvider('lang: en\n<s n="0">Bonjour</s>');
+    const first = await post(body({ translationProvider: id }));
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ segments: ['Bonjour'], lang: 'en', same: false, providerId: id, providerName: 'Translator', fromCache: false });
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sent.messages[1].content).toBe('<s n="0">Hello</s>');
+    expect(sent.max_tokens).toBeUndefined();
+    const second = await post(body({ translationProvider: id }));
+    expect(second.body.fromCache).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('says detail segments when the answer stays unusable', async () => {
+    stubProvider('Bonjour');
+    const res = await post(body({ articleId: 'tr-seg', translationProvider: id, fallback: false }));
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({ error: 'ai_failed', kind: 'technical', detail: 'segments' });
+  });
+  it('answers 429 ai_daily_cap to a capped plain user', async () => {
+    db.exec('DELETE FROM ai_usage');
+    setSetting('ai_daily_cap', '1');
+    stubProvider('lang: en\n<s n="0">Bonjour</s>');
+    expect((await post(body({ articleId: 'tr-cap-1', translationProvider: id }))).status).toBe(200);
+    const capped = await post(body({ articleId: 'tr-cap-2', translationProvider: id }));
+    expect(capped.status).toBe(429);
+    expect(capped.body).toMatchObject({ error: 'ai_daily_cap', cap: 1 });
+    expect(typeof capped.body.resetAt).toBe('string');
+    db.exec('DELETE FROM ai_usage');
+  });
+  it('is 404 while the feature is off', async () => {
+    await request(app).put('/api/admin/ai/settings').set(admin()).send({ enabled: false });
+    const res = await post(body());
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('ai_disabled');
+    await request(app).put('/api/admin/ai/settings').set(admin()).send({ enabled: true });
+  });
+});

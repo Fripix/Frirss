@@ -25,18 +25,24 @@ export function availableFor(
   return out;
 }
 
-/** Spec §6 : forçage > flux > catégorie > préféré > défaut admin ; un étage muet ou indisponible est sauté. */
+/**
+ * Spec §6 et §17.3 : forçage > traduction > flux > catégorie > préféré > défaut admin ;
+ * un étage muet ou indisponible est sauté. `translation` (réglage « fournisseur
+ * des traductions ») n'est envoyé que par la route de traduction.
+ */
 export function resolveProvider(
-  input: { force?: number | null; feed?: number | null; category?: number | null; preferred?: number | null; adminDefault?: number | null },
+  input: { force?: number | null; translation?: number | null; feed?: number | null; category?: number | null; preferred?: number | null; adminDefault?: number | null },
   available: Availability[],
 ): Availability | null {
-  for (const id of [input.force, input.feed, input.category, input.preferred, input.adminDefault]) {
+  for (const id of [input.force, input.translation, input.feed, input.category, input.preferred, input.adminDefault]) {
     if (!id) continue;
     const hit = available.find((a) => a.provider.id === id);
     if (hit) return hit;
   }
   return available[0] ?? null;
 }
+
+export type ResolutionInput = Parameters<typeof resolveProvider>[0];
 
 export function fallbackOrder(first: Availability, available: Availability[]): Availability[] {
   const seen = new Set<number>([first.provider.id]);

@@ -1815,7 +1815,9 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   `errors.ts` (`AiError` : `auth` / `quota` / `technical` / `refused`),
   `lang.ts`, `prompts.ts` (`PROMPT_VERSION`), `store.ts` (fournisseurs, clés,
   usage, cache), `providers.ts` (adaptateurs), `resolve.ts` (disponibilité et
-  résolution, pures), `summarize.ts` (orchestration) ; routes
+  résolution, pures), `attempt.ts` (boucle commune cache → échéance → plafond
+  → appel → repli, `runWithFallback`), `summarize.ts` et `translate.ts`
+  (orchestration), `languages.ts` (langues cibles) ; routes
   `server/routes/ai.ts` (utilisateur) et `server/routes/adminAi.ts` (admin).
   Client `src/stores/aiStore.ts`, `src/components/ReadingPane/AiSummary.tsx`,
   réglages `aiPanelCollapsed` / `aiSummaryRatio` dans `src/stores/uiStore.ts`,
@@ -1883,7 +1885,7 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   stockée ne sert pas au résumé et `hasUserKey` vaut `false` dans `/config` ;
   elle revient intacte dès que l'admin les repermet. Quand un appel est refusé
   (`auth`) alors qu'il partait avec la clé personnelle, la réponse 502 porte
-  `ownKey: true` (l'`AiError` est marquée par `summarize` d'après
+  `ownKey: true` (l'`AiError` est marquée par `runWithFallback` d'après
   `Availability.own`) et le client dit « votre clé » (`ai.errors.auth`) au lieu
   d'envoyer l'utilisateur vers son admin (`authUser`) — c'est la seule clé qu'il
   peut corriger lui-même. Disponibilité d'un fournisseur
@@ -1909,8 +1911,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   un littéral IPv6 est reconnu, crochets retirés), `followRedirects: false`,
   délai 60 s par appel (`TIMEOUT_MS`, lecture du corps comprise : le délai de
   `fetchUpstream` s'arrête aux en-têtes, `callProvider` borne aussi la suite).
-  **Échéance unique de la demande de résumé** : `SUMMARY_DEADLINE_MS` = 50 s
-  pour **tous** les candidats, repli compris ; chacun reçoit
+  **Échéance unique de la demande de résumé** (et de chaque lot de traduction) :
+  `SUMMARY_DEADLINE_MS` = 50 s (`attempt.ts`) pour **tous** les candidats, repli compris ; chacun reçoit
   `min(TIMEOUT_MS, reste)` (`AiCall.timeoutMs`), et sous 2 s de reste on n'en
   lance plus — la dernière erreur remonte, ou `technical` « deadline ». Les
   candidats s'essaient en série : avec 60 s chacun, un Ollama lent atteignait
@@ -1965,7 +1967,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   fournisseur » (`kind: auth`) ou « Liste indisponible : vérifiez l'URL et la
   clé » ; liste vide : « Aucun modèle trouvé avec cette clé ».
 - **Résolution** (`resolve.ts`, pure, testée) : forçage ponctuel (menu
-  « Résumer avec… ») > fournisseur du flux > de la catégorie > préféré de
+  « Résumer avec… ») > fournisseur des traductions (étage `translation`,
+  envoyé par la seule route de traduction) > fournisseur du flux > de la catégorie > préféré de
   l'utilisateur > défaut admin (`ai_default_provider`) > premier disponible. Un
   étage muet ou indisponible est sauté. Les étages flux / catégorie / préféré
   sont des paramètres de la requête, et le client les envoie avec chaque
@@ -2020,7 +2023,7 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   donnait des résumés de longueur imprévisible.
 - **Cache** : clé = article + opération + fournisseur + **modèle** (changer de
   modèle ne resert pas le résumé de l'ancien) + langue cible (`-` pour un
-  résumé, réservée à la traduction du plan 3) + **longueur visée** (segment
+  résumé, la cible pour une traduction) + **longueur visée** (segment
   `r<ratio>` : deux réglages sont deux résumés, deux appels) + version de
   consigne (`PROMPT_VERSION`) **+ sha1 (16 hex) du titre et du texte nettoyé**. Le hash
   existe parce que l'`articleId` vient du client : sans lui, un utilisateur
@@ -2070,6 +2073,40 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   de « Tester »)* ; sinon « le résumé a échoué, réessayez » (neutre : la cause n'est pas connue).
   Un « Résumer avec… » raté **garde le résumé déjà affiché**, l'erreur sous
   lui (`AiSummary` affiche `result` aussi en statut `error`).
+- **Traduction — serveur** (`translate.ts`, route `POST /api/ai/translate`) :
+  corps `{ articleId, scope: 'summary' | 'article', targetLang, segments,
+  provider?, translationProvider?, feedProvider?, categoryProvider?,
+  preferredProvider?, fallback? }` → `{ segments, lang, same, providerId,
+  providerName, model, fromCache, fellBackFrom? }`. **Une requête = un lot = un
+  appel** : c'est le client qui découpe en lots d'environ 1 200 mots et les
+  envoie en série. Format **strict** en entrée comme en sortie, chaque segment
+  entre `<s n="N">…</s>` numérotés depuis 0 (`translateUserMessage`, qui retire
+  d'un segment tout marqueur `<s n=…>` forgé) ; la consigne
+  (`translateSystem(cible)`) demande une traduction fidèle, sans résumé ni
+  commentaire, les balises en ligne et les liens **tels quels**, seul le texte
+  traduit, et une première ligne `lang: <code source>`. `parseTranslation` lit
+  chaque segment de son marqueur au suivant (pas jusqu'au premier `</s>` :
+  `<s>` est aussi la balise HTML du texte barré) ; un numéro absent, en double
+  ou hors bornes invalide **le lot entier**, **rejoué une fois** sur le même
+  fournisseur si l'échéance laisse au moins 2 s (`MIN_CALL_MS`), sinon
+  `AiError('technical', 'segments')` — le repli peut alors passer au suivant,
+  et la route répond 502 `ai_failed` avec `detail: 'segments'`. Source déjà
+  dans la cible : le modèle répond `lang: <code>` puis `same`, le serveur rend
+  `{ segments: [], same: true }` et le **met en cache** tel quel (coût
+  d'entrée seul, une fois). Cache : une entrée par lot, clé `op: translate` +
+  fournisseur + modèle + **langue cible** + article + sha1 (16 hex) du scope et
+  des segments du lot ; la valeur (`AiCacheValue`) porte le lot en JSON dans
+  `text` et la langue source dans `lang`. Plafond : **une unité par lot**
+  (le rejeu ne compte pas double), réservée avant, rendue si le lot échoue ;
+  un article de quatre lots compte quatre. Anthropic reçoit `maxTokens: 8192`,
+  OpenAI rien. Même échéance de 50 s par requête que le résumé. Bornes :
+  `articleId` ≤ 512 caractères, `segments` tableau non vide de chaînes
+  totalisant ≤ 200 000 octets, `scope` connu, sinon 400 `invalid_body` ;
+  `targetLang` hors des 28 langues de `languages.ts` (`AI_LANGUAGES`, ni `ru`
+  ni `he`) → 400 `invalid_lang`. Les autres erreurs sont celles du résumé
+  (même fonction `sendAiError`) : 404 `ai_disabled`, 429 `ai_daily_cap` avec
+  `cap` / `resetAt`, 409 `no_provider`, 422 `ai_refused`, 502 avec `kind` et
+  `ownKey`.
 - **Administration** : `PUT /api/admin/ai/settings` valide **tout avant
   d'écrire** (un 400 ne laisse aucune écriture partielle) ; booléens stricts
   (`=== true`), `dailyCap` entier ≥ 0, `defaultProvider` nombre ou `null` d'un
@@ -3944,6 +3981,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | PUT | `/api/admin/settings` | Écrire les réglages du serveur |
 | GET | `/api/ai/config` | Ce que le client sait de l'IA (fournisseurs sans clés, plafond, usage) |
 | POST | `/api/ai/summary` | Résumer un article |
+| POST | `/api/ai/translate` | Traduire un lot de segments (résumé ou article) |
 | PUT | `/api/ai/keys/:providerId` | Clé personnelle (enregistrer ou effacer) |
 | GET | `/api/admin/ai/providers` | Lister fournisseurs et réglages IA |
 | POST | `/api/admin/ai/providers` | Créer un fournisseur |

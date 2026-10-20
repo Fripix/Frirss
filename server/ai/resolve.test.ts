@@ -64,6 +64,11 @@ describe('resolveProvider', () => {
   it('a skipped stage lets the next stage win, not just the first available', () => {
     expect(resolveProvider({ feed: 42, preferred: 3 }, avail)!.provider.id).toBe(3);
   });
+  it('the translation stage comes after force and before feed', () => {
+    expect(resolveProvider({ force: null, translation: 2, feed: 1 }, avail)!.provider.id).toBe(2);
+    expect(resolveProvider({ translation: 42, feed: 1 }, avail)!.provider.id).toBe(1);
+    expect(resolveProvider({ force: 3, translation: 2, feed: 1 }, avail)!.provider.id).toBe(3);
+  });
 });
 
 describe('fallbackOrder', () => {
