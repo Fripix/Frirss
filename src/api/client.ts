@@ -39,6 +39,49 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
  * page. Cross-origin redirects commonly surface as opaque Axios network
  * errors, so detect the documented Access 401 fingerprint instead.
  */
+/** Build a safe top-level Access login URL when an XHR was redirected
+ * to Cloudflare's hosted login page. Cross-origin redirects can otherwise
+ * appear to Axios as an unhelpful "Network Error". */
+export function getCloudflareAccessLoginUrl(
+  responseUrl: string | undefined,
+  returnTo: string,
+): string | null {
+  if (!responseUrl) return null;
+  try {
+    const url = new URL(responseUrl);
+    if (
+      !url.hostname.endsWith('.cloudflareaccess.com') ||
+      !url.pathname.startsWith('/cdn-cgi/access/login/')
+    ) {
+      return null;
+    }
+    url.searchParams.set('redirect_url', returnTo || '/');
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+type ResponseUrlCarrier = {
+  request?: { responseURL?: string };
+  response?: { request?: { responseURL?: string } };
+  config?: { url?: string };
+};
+
+function redirectToCloudflareAccess(value: unknown): boolean {
+  if (typeof window === 'undefined') return false;
+  const error = value as ResponseUrlCarrier | null;
+  const responseUrl =
+    error?.request?.responseURL ??
+    error?.response?.request?.responseURL ??
+    error?.config?.url;
+  const returnTo = window.location.pathname + window.location.search + window.location.hash;
+  const loginUrl = getCloudflareAccessLoginUrl(responseUrl, returnTo);
+  if (!loginUrl) return false;
+  window.location.assign(loginUrl);
+  return true;
+}
+
 const ACCESS_RELOAD_STORAGE_KEY = 'frirss:cloudflare-access-reload-at';
 const ACCESS_RELOAD_COOLDOWN_MS = 60_000;
 let accessReloadStarted = false;
@@ -72,8 +115,16 @@ export function reloadForCloudflareAccess(value: unknown): boolean {
   try {
     const previous = Number(window.sessionStorage.getItem(ACCESS_RELOAD_STORAGE_KEY));
     if (Number.isFinite(previous) && previous > 0 && now - previous < ACCESS_RELOAD_COOLDOWN_MS) {
-      // This is still an Access failure: suppress another reload, but do not
-      // let it fall through into FriRSS backend-authentication handling.
+      // A prior reload did not restore API access. Do not silently leave the
+      // SPA stranded: navigate through Access' login endpoint at this app host,
+      // then return to the exact page the user was viewing.
+      const returnTo = window.location.pathname + window.location.search + window.location.hash;
+      const loginUrl = new URL(
+        `/cdn-cgi/access/login/${window.location.host}`,
+        window.location.origin,
+      );
+      loginUrl.searchParams.set('redirect_url', returnTo || '/');
+      window.location.assign(loginUrl.toString());
       return true;
     }
     window.sessionStorage.setItem(ACCESS_RELOAD_STORAGE_KEY, String(now));
@@ -118,6 +169,9 @@ client.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (redirectToCloudflareAccess(error)) {
+      return Promise.reject(new Error('Cloudflare Access authentication required'));
+    }
     if (reloadForCloudflareAccess(error)) {
       return Promise.reject(new Error('Cloudflare Access authentication required'));
     }

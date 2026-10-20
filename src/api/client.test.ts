@@ -10,7 +10,7 @@ vi.mock('../stores/authStore', () => ({
 }));
 
 import { BACKEND_AUTH_MARKERS } from '../lib/loginErrors';
-import client from './client';
+import client, { getCloudflareAccessLoginUrl } from './client';
 
 const handlers = (client.interceptors.response as unknown as {
   handlers: {
@@ -62,6 +62,33 @@ describe('client response interceptor: independent authentication layers', () =>
   });
 });
 
+describe('Cloudflare Access redirect URL detection', () => {
+  it('returns to the current FriRSS route after an Access redirect', () => {
+    const login = getCloudflareAccessLoginUrl(
+      'https://wasserburg.cloudflareaccess.com/cdn-cgi/access/login/rss.lindau.li?redirect_url=%2Fapi%2Fproxy',
+      '/?view=interesting#article-123',
+    );
+    expect(login).not.toBeNull();
+    const url = new URL(login!);
+    expect(url.hostname).toBe('wasserburg.cloudflareaccess.com');
+    expect(url.pathname).toBe('/cdn-cgi/access/login/rss.lindau.li');
+    expect(url.searchParams.get('redirect_url')).toBe('/?view=interesting#article-123');
+  });
+
+  it('rejects unrelated or untrusted redirect URLs', () => {
+    expect(getCloudflareAccessLoginUrl('https://evil.example/login', '/')).toBeNull();
+    expect(getCloudflareAccessLoginUrl(
+      'https://wasserburg.cloudflareaccess.com.evil.example/cdn-cgi/access/login/rss.lindau.li',
+      '/',
+    )).toBeNull();
+    expect(getCloudflareAccessLoginUrl(
+      'https://wasserburg.cloudflareaccess.com/anything-else',
+      '/',
+    )).toBeNull();
+    expect(getCloudflareAccessLoginUrl(undefined, '/')).toBeNull();
+  });
+});
+
 describe('Cloudflare Access 401 handling', () => {
   it('clears the persisted cooldown after successful API traffic', () => {
     const values = new Map<string, string>([['frirss:cloudflare-access-reload-at', '123']]);
@@ -81,7 +108,7 @@ describe('Cloudflare Access 401 handling', () => {
     const reload = vi.fn();
     const values = new Map<string, string>();
     const fakeWindow = {
-      location: { reload },
+      location: { reload, assign: vi.fn(), origin: 'https://rss.example.test', host: 'rss.example.test', pathname: '/?view=all', search: '', hash: '' },
       sessionStorage: {
         getItem: (key: string) => values.get(key) ?? null,
         setItem: (key: string, value: string) => { values.set(key, value); },
@@ -97,6 +124,40 @@ describe('Cloudflare Access 401 handling', () => {
       'www-authenticate': 'Cloudflare-Access realm="example"',
     }))).rejects.toThrow('Cloudflare Access authentication required');
     expect(reload).toHaveBeenCalledTimes(1);
+
+    // If a reload already happened but Access still rejects API traffic,
+    // navigate through the Access login endpoint instead of silently stalling.
+    const loginValues = new Map<string, string>([['frirss:cloudflare-access-reload-at', String(Date.now())]]);
+    const assign = vi.fn();
+    vi.stubGlobal('window', {
+      location: {
+        reload: vi.fn(),
+        assign,
+        origin: 'https://rss.example.test',
+        host: 'rss.example.test',
+        pathname: '/',
+        search: '?view=all',
+        hash: '#article-123',
+      },
+      sessionStorage: {
+        getItem: (key: string) => loginValues.get(key) ?? null,
+        setItem: (key: string, value: string) => { loginValues.set(key, value); },
+        removeItem: (key: string) => { loginValues.delete(key); },
+      },
+    });
+    // Load a fresh module to model the document after the first reload.
+    vi.resetModules();
+    const freshClient = (await import('./client')).default;
+    const freshRejected = (freshClient.interceptors.response as unknown as {
+      handlers: { rejected: (error: unknown) => Promise<unknown> }[];
+    }).handlers[0].rejected;
+    await expect(freshRejected(proxyError(401, 'Unauthorized', {
+      'www-authenticate': 'Cloudflare-Access',
+    }))).rejects.toThrow('Cloudflare Access authentication required');
+    expect(assign).toHaveBeenCalledTimes(1);
+    const loginUrl = new URL(assign.mock.calls[0][0]);
+    expect(loginUrl.pathname).toBe('/cdn-cgi/access/login/rss.example.test');
+    expect(loginUrl.searchParams.get('redirect_url')).toBe('/?view=all#article-123');
 
     // An ordinary application/backend 401 must not trigger another reload.
     await reject(proxyError(401, { error: 'Unauthorized' }, {
