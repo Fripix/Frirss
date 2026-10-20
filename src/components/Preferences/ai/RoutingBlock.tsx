@@ -86,7 +86,7 @@ export default function RoutingBlock() {
                   style={{ color: 'var(--list-title)' }}
                 >
                   <Chevron open={expanded} />
-                  <span className="min-w-0 break-words">
+                  <span className="min-w-0 [overflow-wrap:anywhere]">
                     <span className="font-semibold">{group.label}</span>
                     {count > 0 && (
                       <span className="block text-[11px] font-normal" style={{ color: 'var(--list-summary)' }}>
@@ -111,7 +111,7 @@ export default function RoutingBlock() {
                   const name = feed.title || feed.id;
                   return (
                     <li key={feed.id} className="flex items-center gap-2">
-                      <span className="prefs-tap-row flex flex-1 min-w-0 items-center text-sm break-words" style={{ color: 'var(--list-title)' }}>{name}</span>
+                      <span className="flex-1 min-w-0 py-2 text-sm [overflow-wrap:anywhere]" style={{ color: 'var(--list-title)' }}>{name}</span>
                       <select
                         aria-label={t('ai.routing.feedSelect', { name })}
                         value={feedProvider === null ? '' : String(feedProvider)} className={selectClass} style={inputStyle}

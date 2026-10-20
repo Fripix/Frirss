@@ -490,6 +490,18 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(select.value).toBe('42');
     expect(select.selectedOptions[0].textContent).toBe('ai.user.removedProvider');
   });
+  it('lets a long unbroken feed name wrap anywhere instead of pushing the select out', () => {
+    const url = 'https://example.com/a-very-long-feed-address-without-any-space/feed.xml';
+    useFeedStore.setState({ subscriptions: [{ ...sub(1, [cat('Tech')]), title: url }] });
+    const { getByRole, getByText } = render(<AiTab active />);
+    fireEvent.click(getByRole('button', { name: /Tech/ }));
+    // jsdom n'a pas de mise en page : on fige la classe qui permet de rétrécir, et l'absence de flex
+    // (un conteneur flex rendrait le texte en élément flex anonyme, qui ne rétrécit pas sous son mot le plus long).
+    const name = getByText(url);
+    expect(name.className).toContain('[overflow-wrap:anywhere]');
+    expect(name.className).toContain('min-w-0');
+    expect(name.className).not.toMatch(/(^|\s)(flex|inline-flex)(\s|$)/);
+  });
   it('reads a category named like an Object property as unset, and ignores a corrupt feed value', () => {
     useFeedStore.setState({ subscriptions: [sub(1, [cat('constructor')]), sub(2, [cat('Tech')])] });
     useUiStore.setState({ feedSettings: { 'feed/2': { aiProvider: '3' as unknown as number } } });

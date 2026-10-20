@@ -2073,8 +2073,10 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   `feedSettings[id].aiProvider`, tous deux synchronisés ; ils sont relus par
   `normalizeAiProviderId` (une valeur synchronisée corrompue vaut « par
   défaut ») et la catégorie par clé propre (`Object.hasOwn`). Mobile : le nom
-  passe à la ligne, le sélecteur garde 8 rem au moins (`min-w-[8rem]`), cibles
-  de 44 pt. ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
+  passe à la ligne — **n'importe où** (`[overflow-wrap:anywhere]`, sur un `span`
+  non flex) : un titre de flux sans espace, souvent l'URL, ne rétrécit pas sous
+  son mot le plus long avec `break-word` et débordait sur le sélecteur à 320 px —,
+  le sélecteur garde 8 rem au moins (`min-w-[8rem]`), cibles de 44 pt. ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
   puisqu'il est rangé sous son nom ; un flux déplacé dans une autre catégorie
   suit celle-ci. Un flux rangé dans deux catégories apparaît sous chacune.
 - **Interface — panneau** (`AiSummary.tsx`) : un panneau sur **toute la largeur
