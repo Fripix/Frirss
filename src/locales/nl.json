@@ -863,7 +863,12 @@
       "provider": "Aanbieder",
       "sameAsSummary": "Dezelfde als voor de samenvatting",
       "alreadyTarget": "Al in het {{lang}}.",
-      "filter": "Talen filteren"
+      "filter": "Talen filteren",
+      "batch": "Deel {{n}} van {{m}}…",
+      "done": "Vertaald naar het {{lang}} door {{name}}",
+      "partial_one": "Gedeeltelijk vertaald ({{count}} deel van {{m}})",
+      "partial_other": "Gedeeltelijk vertaald ({{count}} delen van {{m}})",
+      "nothing": "Niets te vertalen in dit artikel."
     },
     "translate": "Vertalen",
     "translating": "Wordt vertaald…",
@@ -871,6 +876,8 @@
     "translatedBy": "vertaald naar het {{lang}} door {{name}}",
     "translateTo": "Vertalen naar…",
     "translateWith": "Vertalen met…",
-    "translateMenu": "Vertaalopties"
+    "translateMenu": "Vertaalopties",
+    "translateArticle": "Artikel vertalen",
+    "translateArticleMenu": "Vertaalopties voor het artikel"
   }
 }

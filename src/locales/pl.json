@@ -895,7 +895,14 @@
       "provider": "Dostawca",
       "sameAsSummary": "Ten sam co dla podsumowania",
       "alreadyTarget": "Tekst jest już w tym języku ({{lang}}).",
-      "filter": "Filtruj języki"
+      "filter": "Filtruj języki",
+      "batch": "Część {{n}} z {{m}}…",
+      "done": "Przetłumaczone na {{lang}} przez {{name}}",
+      "partial_one": "Przetłumaczono częściowo ({{count}} część z {{m}})",
+      "partial_few": "Przetłumaczono częściowo ({{count}} części z {{m}})",
+      "partial_many": "Przetłumaczono częściowo ({{count}} części z {{m}})",
+      "partial_other": "Przetłumaczono częściowo ({{count}} części z {{m}})",
+      "nothing": "W tym artykule nie ma nic do przetłumaczenia."
     },
     "translate": "Przetłumacz",
     "translating": "Trwa tłumaczenie…",
@@ -903,6 +910,8 @@
     "translatedBy": "przetłumaczone na {{lang}} przez {{name}}",
     "translateTo": "Przetłumacz na…",
     "translateWith": "Przetłumacz za pomocą…",
-    "translateMenu": "Opcje tłumaczenia"
+    "translateMenu": "Opcje tłumaczenia",
+    "translateArticle": "Przetłumacz artykuł",
+    "translateArticleMenu": "Opcje tłumaczenia artykułu"
   }
 }

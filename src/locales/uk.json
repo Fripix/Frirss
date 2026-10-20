@@ -895,7 +895,14 @@
       "provider": "Постачальник",
       "sameAsSummary": "Той самий, що й для підсумку",
       "alreadyTarget": "Текст уже цією мовою ({{lang}}).",
-      "filter": "Фільтр мов"
+      "filter": "Фільтр мов",
+      "batch": "Частина {{n}} з {{m}}…",
+      "done": "Переклад ({{lang}}): {{name}}",
+      "partial_one": "Перекладено частково ({{count}} частина з {{m}})",
+      "partial_few": "Перекладено частково ({{count}} частини з {{m}})",
+      "partial_many": "Перекладено частково ({{count}} частин з {{m}})",
+      "partial_other": "Перекладено частково ({{count}} частини з {{m}})",
+      "nothing": "У цій статті немає чого перекладати."
     },
     "translate": "Перекласти",
     "translating": "Переклад…",
@@ -903,6 +910,8 @@
     "translatedBy": "переклад ({{lang}}): {{name}}",
     "translateTo": "Перекласти на…",
     "translateWith": "Перекласти через…",
-    "translateMenu": "Параметри перекладу"
+    "translateMenu": "Параметри перекладу",
+    "translateArticle": "Перекласти статтю",
+    "translateArticleMenu": "Параметри перекладу статті"
   }
 }

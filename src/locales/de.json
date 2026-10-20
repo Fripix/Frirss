@@ -863,7 +863,12 @@
       "provider": "Anbieter",
       "sameAsSummary": "Wie bei der Zusammenfassung",
       "alreadyTarget": "Bereits auf {{lang}}.",
-      "filter": "Sprachen filtern"
+      "filter": "Sprachen filtern",
+      "batch": "Teil {{n}} von {{m}}…",
+      "done": "Von {{name}} auf {{lang}} übersetzt",
+      "partial_one": "Teilweise übersetzt ({{count}} Teil von {{m}})",
+      "partial_other": "Teilweise übersetzt ({{count}} Teile von {{m}})",
+      "nothing": "In diesem Artikel gibt es nichts zu übersetzen."
     },
     "translate": "Übersetzen",
     "translating": "Wird übersetzt…",
@@ -871,6 +876,8 @@
     "translatedBy": "von {{name}} auf {{lang}} übersetzt",
     "translateTo": "Übersetzen in…",
     "translateWith": "Übersetzen mit…",
-    "translateMenu": "Übersetzungsoptionen"
+    "translateMenu": "Übersetzungsoptionen",
+    "translateArticle": "Artikel übersetzen",
+    "translateArticleMenu": "Übersetzungsoptionen für den Artikel"
   }
 }

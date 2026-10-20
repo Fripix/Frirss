@@ -32,8 +32,11 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { stripMediaForSummary, fitSummaryPayload } from '../../lib/aiPayload';
 import { aiErrorMessage } from '../../lib/aiErrorKey';
 import { sharedSummaryRequest, sharedTranslationRequest } from './aiPending';
-import { languageName, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
+import { AI_LANGUAGES, languageName, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import { aiRouting } from '../../lib/aiRouting';
+import { useArticleTranslation } from './useArticleTranslation';
+import TranslateMenu from './TranslateMenu';
+import { useLongPress } from '../../hooks/useLongPress';
 import axios from 'axios';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
@@ -44,6 +47,8 @@ const NO_AI_TRANSLATION: AiSummaryProps['translation'] = { status: 'idle', text:
 // Temps passé sur un article avant que son résumé automatique ne parte (spec
 // §8 : la demande est « annulée si l'article change »).
 const AUTO_SUMMARY_DELAY_MS = 1000;
+// Les 28 langues de « Traduire en… », dans l'ordre de la liste (le menu les trie).
+const TRANSLATE_LANGUAGES = [...AI_LANGUAGES];
 
 // Body placeholder shown while an auto-extract feed loads the full text.
 // La prop d'injection est un objet de MODULE, pas un littéral dans le JSX :
@@ -938,7 +943,51 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }),
     [selectedArticle?.content, extractedContent?.content, inlineVideos, videoPlayLabel, videoOpenLabel],
   );
-  const bodyProp = useMemo(() => ({ __html: body.html }), [body.html]);
+
+  // Traduction de l'article (spec §17.1, §17.3). Elle porte sur le corps
+  // affiché AVANT la chaîne d'affichage — extrait ou flux, image d'en-tête
+  // réinjectée —, et le HTML traduit repasse par `buildArticleBody` : façades
+  // vidéo, sanitiseur, images différées et direction par bloc, comme
+  // l'original. Le corps traduit garde l'identité stable de `bodyProp`.
+  const sourceHtml = useMemo(
+    () => displayedHtml(selectedArticle?.content, extractedContent?.content ?? null),
+    [selectedArticle?.content, extractedContent?.content],
+  );
+  const translationSourceId = selectedArticle?.sourceId;
+  const articleRouting = useCallback(
+    () => aiRouting(translationSourceId, useFeedStore.getState().subscriptions, useUiStore.getState(), { op: 'translate' }),
+    [translationSourceId],
+  );
+  const articleTranslation = useArticleTranslation({
+    articleId: selectedArticle?.id ?? null, title: selectedArticle?.title ?? '', bodyHtml: sourceHtml,
+    targetLang: aiTargetLang, routing: articleRouting, enabled: aiUsable && online,
+  });
+  const translatedBody = useMemo(
+    () => (articleTranslation.html === null ? null : buildArticleBody({
+      rssHtml: articleTranslation.html,
+      extractedHtml: null,
+      inlineVideos,
+      videoLabels: { play: videoPlayLabel, open: videoOpenLabel },
+    })),
+    [articleTranslation.html, inlineVideos, videoPlayLabel, videoOpenLabel],
+  );
+  const showTranslatedBody = articleTranslation.showing === 'translation' && translatedBody !== null;
+  const shownBodyHtml = showTranslatedBody ? translatedBody.html : body.html;
+  const bodyProp = useMemo(() => ({ __html: shownBodyHtml }), [shownBodyHtml]);
+
+  // Le menu « Traduire en… / avec… » de l'article : chevron sur ordinateur,
+  // appui long sur le bouton de la barre et rangées de la feuille « … » au
+  // doigt. Il n'existe que si une traduction peut partir.
+  const [translateMenuOpen, setTranslateMenuOpen] = useState(false);
+  const translateChevron = useRef<HTMLButtonElement>(null);
+  const translateMenuAllowed = aiUsable && online && articleTranslation.canTranslate && articleTranslation.state !== 'loading';
+  const translateMenuShown = translateMenuOpen && translateMenuAllowed;
+  if (translateMenuOpen && !translateMenuShown) setTranslateMenuOpen(false);
+  const closeTranslateMenu = useCallback(() => {
+    setTranslateMenuOpen(false);
+    translateChevron.current?.focus();
+  }, []);
+  const translatePress = useLongPress(() => { if (translateMenuAllowed) setTranslateMenuOpen(true); });
 
   // Un article de flux YouTube EST la vidéo : on la montre en tête, sauf si le
   // corps porte déjà la même (l'injection ci-dessus l'a alors transformée en
@@ -974,6 +1023,33 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   const article = selectedArticle;
   const date = formatArticleDate(article.published);
+
+  // Traduction de l'article : le bouton (barre d'outils, barre du bas), son
+  // libellé et la notice au-dessus du corps.
+  const tr = articleTranslation;
+  const trLoading = tr.state === 'loading';
+  const shownTitle = showTranslatedBody && tr.title ? tr.title : article.title;
+  const translateLabel = showTranslatedBody ? t('ai.showSource') : trLoading ? t('ai.translating') : t('ai.translateArticle');
+  // « Texte source » reste possible hors ligne : la traduction est déjà là.
+  const translateDisabled = showTranslatedBody ? false : !online || !tr.canTranslate || trLoading;
+  const translateTitle = !showTranslatedBody && !tr.canTranslate ? t('ai.translation.nothing') : translateLabel;
+  const translateAction = showTranslatedBody ? tr.showSource : () => tr.translate();
+  const trLangName = tr.lang ? languageName(tr.lang, i18n.language) : '';
+  let trNotice: string | null = null;
+  let trPartial: string | null = null;
+  if (trLoading) {
+    trNotice = tr.progress && tr.progress.total > 1
+      ? t('ai.translation.batch', { n: tr.progress.done + 1, m: tr.progress.total })
+      : t('ai.translating');
+  } else if (tr.state === 'same') {
+    trNotice = t('ai.translation.alreadyTarget', { lang: trLangName });
+  } else if (tr.state === 'done' && showTranslatedBody) {
+    trNotice = [
+      t('ai.translation.done', { lang: trLangName, name: tr.providerName ?? '' }),
+      tr.fellBackFrom ? t('ai.fellBack', { name: tr.fellBackFrom }) : null,
+    ].filter(Boolean).join(', ');
+    if (tr.partialOf) trPartial = t('ai.translation.partial', { count: tr.partialOf.translated, m: tr.partialOf.total });
+  }
 
   function decreaseFont() {
     if (bodySize > 10) setFontSize('reading-body', String(bodySize - 1));
@@ -1177,6 +1253,55 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </button>
         )}
 
+        {/* Traduire l'article — bouton scindé : l'action, et un chevron qui
+            ouvre « Traduire en… » / « Traduire avec… ». */}
+        {aiUsable && (
+          <div className="action-split inline-flex items-center flex-shrink-0">
+            <button
+              type="button"
+              onClick={translateAction}
+              disabled={translateDisabled}
+              aria-busy={trLoading}
+              className="action-btn flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-l-full text-[11px] font-semibold transition-all duration-200"
+              style={{
+                color: showTranslatedBody ? 'var(--accent)' : 'var(--reading-meta)',
+                background: showTranslatedBody ? 'var(--accent-glow)' : 'transparent',
+                border: showTranslatedBody ? '1.5px solid color-mix(in srgb, var(--accent) 30%, transparent)' : '1.5px solid transparent',
+              }}
+              title={translateTitle}
+              aria-label={translateLabel}
+            >
+              {trLoading ? <SpinIcon className="w-4 h-4" /> : <TranslateIcon className="w-4 h-4" />}
+              <span className="toolbar-label">{translateLabel}</span>
+            </button>
+            <button
+              ref={translateChevron}
+              type="button"
+              onClick={() => setTranslateMenuOpen((o) => !o)}
+              disabled={!translateMenuAllowed}
+              aria-label={t('ai.translateArticleMenu')}
+              title={t('ai.translateArticleMenu')}
+              aria-haspopup="menu"
+              aria-expanded={translateMenuShown}
+              className="action-btn flex items-center pl-1 pr-2 py-1.5 rounded-r-full transition-all duration-200"
+              style={{
+                color: showTranslatedBody ? 'var(--accent)' : 'var(--reading-meta)',
+                background: showTranslatedBody ? 'var(--accent-glow)' : 'transparent',
+                // Pas de filet à gauche : celui de la moitié principale sépare.
+                // Propriétés détaillées : `border` + `borderLeft` mêlés se
+                // contredisent quand le style change (React le signale).
+                borderStyle: 'solid',
+                borderWidth: '1.5px 1.5px 1.5px 0',
+                borderColor: showTranslatedBody ? 'color-mix(in srgb, var(--accent) 30%, transparent)' : 'transparent',
+              }}
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Open original */}
         {article.url && (
           <a
@@ -1374,7 +1499,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 data-theme="reading-title"
                 style={{ color: 'var(--reading-title)', fontSize: 'var(--fs-reading-title)' }}
               >
-                {article.title}
+                {shownTitle}
               </h1>
             </a>
           ) : (
@@ -1384,7 +1509,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               data-theme="reading-title"
               style={{ color: 'var(--reading-title)', fontSize: 'var(--fs-reading-title)' }}
             >
-              {article.title}
+              {shownTitle}
             </h1>
           )}
 
@@ -1482,6 +1607,40 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </div>
           )}
 
+          {/* Traduction de l'article — même gabarit que l'avis d'extraction, sur
+              les trois formats : une bascule vers un fournisseur payant doit
+              se voir. La région vivante reste montée (une région insérée avec
+              son contenu n'est pas annoncée de façon fiable) ; l'erreur est une
+              alerte à part. */}
+          {aiUsable && (
+            <div role="status" aria-live="polite">
+              {trNotice && (
+                <div
+                  className="mb-4 px-4 py-2.5 rounded-lg text-xs flex items-center gap-2"
+                  style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
+                >
+                  {trLoading ? <SpinIcon className="w-3.5 h-3.5 flex-shrink-0" /> : <TranslateIcon className="w-3.5 h-3.5 flex-shrink-0" />}
+                  <span className="min-w-0 break-words">
+                    {trNotice}
+                    {trPartial && <span className="block mt-0.5">{trPartial}</span>}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          {tr.state === 'error' && tr.error && (
+            <div
+              role="alert"
+              className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center gap-2"
+              style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              {tr.error}
+            </div>
+          )}
+
           {/* Corps — le contenu disponible tout de suite ; squelette seulement
               s'il n'y a rien à montrer (voir `lib/readingBody.ts`) */}
           {/* Video first for a YouTube-feed article — the video IS the article */}
@@ -1576,6 +1735,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </BarBtn>
           )}
 
+          {/* Traduire l'article : un appui = l'action, un appui long = le menu
+              (aussi dans la feuille « … »). */}
+          {aiUsable && (
+            <BarBtn active={showTranslatedBody} activeColor="var(--accent)" label={translateLabel} title={translateTitle}
+              disabled={translateDisabled} onClick={translateAction} press={translatePress}>
+              {trLoading ? <SpinIcon className="w-5 h-5" /> : <TranslateIcon className="w-5 h-5" strokeWidth={1.6} />}
+            </BarBtn>
+          )}
+
           <BarBtn active={readSettingsOpen} activeColor="var(--accent)" label={t('readingPane.more')}
             onClick={() => setReadSettingsOpen((o) => !o)}>
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -1613,6 +1781,19 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 <span className="font-medium">{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
               </button>
             )}
+            {aiUsable && [t('ai.translateTo'), t('ai.translateWith')].map((label) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => { setReadSettingsOpen(false); setTranslateMenuOpen(true); }}
+                disabled={!translateMenuAllowed}
+                className="sheet-row w-full flex items-center gap-3 px-4 py-3 text-left disabled:opacity-40"
+                style={{ color: 'var(--reading-text)', borderTop: '1px solid var(--panel-border)' }}
+              >
+                <TranslateIcon className="w-5 h-5 flex-shrink-0" strokeWidth={1.6} />
+                <span className="font-medium">{label}</span>
+              </button>
+            ))}
             <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: '1px solid var(--panel-border)' }}>
               <span className="font-medium" style={{ color: 'var(--reading-text)' }}>{t('readingPane.textSize')}</span>
               <div className="flex items-center gap-2">
@@ -1635,6 +1816,16 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         </div>
       )}
 
+      {aiUsable && (
+        <TranslateMenu
+          open={translateMenuShown} anchor={translateChevron.current} touch={isMobileOrTablet} title={t('ai.translateArticleMenu')}
+          languages={TRANSLATE_LANGUAGES} providers={aiProviders}
+          current={{ lang: tr.state === 'done' && tr.lang ? tr.lang : aiTargetLang, providerId: tr.state === 'done' ? tr.providerId ?? null : null }}
+          onPick={(choice) => { setTranslateMenuOpen(false); tr.translate(choice); }}
+          onClose={closeTranslateMenu}
+        />
+      )}
+
       {/* Category picker — portalled, so the toolbar never clips it */}
       {filing && (
         <SavedCategoryPicker
@@ -1651,22 +1842,54 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 interface BarBtnProps {
   children: ReactNode;
   label: string;
+  /** Infobulle, quand elle dit autre chose que le libellé (une aide). */
+  title?: string;
   active?: boolean;
   activeColor: string;
+  disabled?: boolean;
   onClick: () => void;
+  /** Appui long (`useLongPress`) : ouvre un menu sans voler le tap. */
+  press?: ReturnType<typeof useLongPress>;
 }
 
-function BarBtn({ children, label, active, activeColor, onClick }: BarBtnProps) {
+function BarBtn({ children, label, title, active, activeColor, disabled, onClick, press }: BarBtnProps) {
+  const pressProps = press
+    ? {
+        onTouchStart: press.onTouchStart, onTouchMove: press.onTouchMove, onTouchEnd: press.onTouchEnd,
+        onTouchCancel: press.onTouchCancel, onClickCapture: press.onClickCapture,
+        // Chrome Android émet `contextmenu` sur un appui long : pas de menu du navigateur.
+        onContextMenu: (e: ReactMouseEvent) => e.preventDefault(),
+      }
+    : {};
   return (
     <button
+      type="button"
+      {...pressProps}
       onClick={onClick}
-      title={label}
+      disabled={disabled}
+      title={title ?? label}
       aria-label={label}
-      className="flex-1 flex items-center justify-center py-2 transition-colors active:bg-black/5"
+      className="flex-1 flex items-center justify-center py-2 transition-colors active:bg-black/5 disabled:opacity-40"
       style={{ color: active ? activeColor : 'var(--reading-meta)' }}
     >
       {children}
     </button>
+  );
+}
+
+function TranslateIcon({ className, strokeWidth = 1.5 }: { className: string; strokeWidth?: number }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 01-3.827-5.802" />
+    </svg>
+  );
+}
+
+function SpinIcon({ className }: { className: string }) {
+  return (
+    <svg className={`${className} animate-spin motion-reduce:animate-none`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+    </svg>
   );
 }
 

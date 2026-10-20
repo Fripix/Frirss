@@ -863,7 +863,12 @@
       "provider": "Fornecedor",
       "sameAsSummary": "O mesmo do resumo",
       "alreadyTarget": "Já está em {{lang}}.",
-      "filter": "Filtrar idiomas"
+      "filter": "Filtrar idiomas",
+      "batch": "Lote {{n}} de {{m}}…",
+      "done": "Traduzido para {{lang}} por {{name}}",
+      "partial_one": "Traduzido em parte ({{count}} lote de {{m}})",
+      "partial_other": "Traduzido em parte ({{count}} lotes de {{m}})",
+      "nothing": "Nada a traduzir neste artigo."
     },
     "translate": "Traduzir",
     "translating": "A traduzir…",
@@ -871,6 +876,8 @@
     "translatedBy": "traduzido para {{lang}} por {{name}}",
     "translateTo": "Traduzir para…",
     "translateWith": "Traduzir com…",
-    "translateMenu": "Opções de tradução"
+    "translateMenu": "Opções de tradução",
+    "translateArticle": "Traduzir o artigo",
+    "translateArticleMenu": "Opções de tradução do artigo"
   }
 }

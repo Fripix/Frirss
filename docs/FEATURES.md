@@ -1697,6 +1697,9 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 - **Pastille « x min »** : affichée dès qu'il y a un corps, sur le contenu
   **montré** ; sa valeur grandit donc quand l'extraction arrive. Elle n'était
   auparavant cachée que parce qu'il n'y avait rien à mesurer sous le squelette.
+- **Traduction** : le titre et le corps peuvent être remplacés par leur
+  traduction, rebâtie par la même chaîne (`buildArticleBody`) — voir
+  « Résumés par IA », « Traduction de l'article ».
 - **Fabrication du corps** (1.4.10) : `src/lib/articleBody.ts` tient toute la
   chaîne — contenu choisi (extrait ou flux, image d'en-tête du flux réinjectée
   si l'extraction l'a perdue), façades vidéo, assainissement, `aspect-ratio`
@@ -2401,6 +2404,61 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     éteinte ou qu'aucun fournisseur n'est disponible pour cet utilisateur
     (`providers.some(p => p.available)`) : il ne ferait que répondre « aucun
     fournisseur ».
+- **Traduction de l'article** (`src/components/ReadingPane/useArticleTranslation.ts`,
+  câblée dans `ReadingPane.tsx` ; découpage `src/lib/articleSegments.ts`) :
+  - **Ce qui est traduit** : le titre (segment 0) et le corps **affiché**
+    (`displayedHtml` : extrait ou flux, image d'en-tête réinjectée), découpé
+    en segments par `segmentArticle`. Chaque bloc passe au **sanitiseur avant
+    de partir** ; un segment vide ou sans lettre (titre vide, bloc vidé par le
+    sanitiseur) ne part pas. Le HTML traduit est rebâti par `apply` (sortie du
+    modèle passée au sanitiseur), puis **repasse par `buildArticleBody`** comme
+    l'original : façades vidéo, sanitiseur, images différées, `dir="auto"`. Le
+    corps affiché est `showing === 'translation' ? traduit : source`, dans le
+    même `bodyProp` mémoïsé (identité stable) ; le `<h1>` montre le titre
+    traduit (rendu en texte). La pastille « x min » reste celle de la source.
+  - **Lots** : `batchSegments` (≈ 1 200 mots, ≤ 200 000 octets), envoyés **en
+    série**, une requête `POST /api/ai/translate` (`scope: 'article'`) par
+    lot. Le numéro de lot ne part pas au serveur : il sert la notice. Une
+    erreur à **n'importe quel** lot donne une erreur et rien n'est remplacé ;
+    `same` au premier lot arrête tout (« Déjà en {langue}. ») ; un lot suivant
+    `same` (article mêlé) garde ses segments d'origine. Un segment à lui seul
+    plus lourd que 200 000 octets n'entre dans aucun lot et reste dans la
+    source : la traduction est alors **partielle**, et la notice compte les
+    lots envoyés sur ceux qu'il aurait fallu (un par segment écarté).
+  - **Bouton** : dans la barre d'outils, après « Article complet », présent
+    quand le panneau IA l'est (`aiUsable`). Ordinateur : bouton scindé
+    `action-btn` (« Traduire l'article », accent quand la traduction est
+    affichée et qu'il devient « Texte source ») + chevron accolé (« Options de
+    traduction de l'article », distinct du chevron du résumé) qui ouvre
+    `TranslateMenu`. Les deux moitiés sont dans `.action-split`, qui retire le
+    soulèvement au survol (elles se décollaient). Tactile : un `BarBtn` dans la
+    barre du bas — un appui = l'action, un **appui long** (`useLongPress`)
+    ouvre le menu en feuille ; la feuille « … » gagne « Traduire en… » et
+    « Traduire avec… », qui la ferment et ouvrent le même menu (le chemin
+    visible sans appui long). Le bouton principal **remontre** une traduction
+    déjà tenue sans requête ; le menu suit les règles du résumé (« Traduire
+    avec X » garde la langue affichée et le réglage de repli).
+  - **Notice** au-dessus du corps, gabarit de l'avis d'extraction, sur les
+    trois formats, dans une région `role="status"` toujours montée : « Lot
+    {n} sur {m}… » pendant l'attente (« Traduction… » pour un seul lot),
+    « Traduit en {langue} par Y » (+ « , X indisponible » si un lot a basculé ;
+    Y = fournisseur du dernier lot), « Traduit en partie ({n} lots sur {m}) »
+    sous la précédente, « Déjà en {langue}. ». Les erreurs (mêmes messages que
+    la traduction du résumé, `op: 'translate'`) sont une **alerte** à part,
+    gabarit de l'erreur d'extraction ; la source reste affichée. La notice
+    disparaît quand on revient au texte source.
+  - **Rien à traduire** (aucun segment de corps) : bouton désactivé, infobulle
+    « Rien à traduire dans cet article. ». **Hors ligne** : bouton, chevron et
+    rangées désactivés ; une traduction affichée reste, et « Texte source »
+    reste possible.
+  - **Corps changé** : la traduction est liée au hash (FNV-1a) du titre et du
+    corps. Extraction arrivée, « Article complet » basculé ou autre article →
+    retour à `idle` et à la source, sans retraduction ; la boucle de lots en
+    cours s'arrête et ses réponses sont ignorées (séquence `stillCurrent`).
+  - **Demandes partagées** : chaque lot passe par `sharedTranslationRequest`
+    (clé : `article`, compte, article, langue, fournisseur forcé, hash du
+    corps, rang du lot) : revenir sur l'article et relancer reprend le lot en
+    vol au lieu de le repayer ; le cache serveur sert les lots déjà traduits.
 - **Résumé automatique à l'ouverture** (`aiAutoSummary`, Préférences → IA →
   « Résumés », **éteint d'origine**, avertissement de coût à l'activation) :
   `ReadingPane.tsx` appelle `handleSummarize(undefined, { auto: true })` quand

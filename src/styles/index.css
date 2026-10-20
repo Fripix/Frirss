@@ -471,6 +471,20 @@ html {
   transform: scale(0.95) translateY(0);
   transition-duration: 80ms;
 }
+/* Bouton scindé (« Traduire l'article » + chevron) : deux moitiés accolées
+   qui ne doivent pas se décoller l'une de l'autre au survol ou à l'appui. */
+.action-split .action-btn:hover,
+.action-split .action-btn:active {
+  transform: none;
+}
+.action-split .action-btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.action-split .action-btn:disabled:hover {
+  background: transparent !important;
+  color: var(--reading-meta) !important;
+}
 
 /* ── Article appear animation ─────────────────────────────────────── */
 /* Le passage d'un article à l'autre sur desktop n'était qu'un fondu

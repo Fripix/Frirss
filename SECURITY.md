@@ -129,7 +129,9 @@ The article text leaves the instance for the provider the admin chose, which is
 the point of the feature and also its privacy cost: leave it off, or point it at
 a local model, if articles must not leave the network. Translation follows the
 same key, redirect, redaction and fallback rules as summaries; for a whole
-article, its text leaves the instance in batches, one provider call per batch.
+article, its text leaves the instance in batches, one provider call per batch:
+the title and the displayed text blocks, each passed through the HTML sanitiser
+first, under the same rule as a summary.
 
 Two limits are deliberate. The cost cap is a guard, not an accounting quota: it
 only limits what the admin's shared key pays for and the day follows the

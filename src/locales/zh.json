@@ -863,7 +863,12 @@
       "provider": "服务商",
       "sameAsSummary": "与摘要相同",
       "alreadyTarget": "已是{{lang}}。",
-      "filter": "筛选语言"
+      "filter": "筛选语言",
+      "batch": "第 {{n}} 批，共 {{m}} 批…",
+      "done": "由 {{name}} 翻译为{{lang}}",
+      "partial_one": "部分已翻译（{{count}} 批，共 {{m}} 批）",
+      "partial_other": "部分已翻译（{{count}} 批，共 {{m}} 批）",
+      "nothing": "这篇文章没有可翻译的内容。"
     },
     "translate": "翻译",
     "translating": "正在翻译…",
@@ -871,6 +876,8 @@
     "translatedBy": "由 {{name}} 翻译为{{lang}}",
     "translateTo": "翻译为…",
     "translateWith": "使用以下服务商翻译…",
-    "translateMenu": "翻译选项"
+    "translateMenu": "翻译选项",
+    "translateArticle": "翻译文章",
+    "translateArticleMenu": "文章翻译选项"
   }
 }

@@ -699,3 +699,110 @@ describe('ReadingPane — traduction du résumé', () => {
     expect(await findByRole('button', { name: 'ai.translate' })).toBeTruthy();
   });
 });
+
+describe('ReadingPane — traduction de l\'article', () => {
+  const translated = (segments: string[], over: Record<string, unknown> = {}) =>
+    ({ segments, lang: 'en', same: false, providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false, ...over });
+  const bodyText = (container: HTMLElement) => container.querySelector('.article-content[data-theme="reading-text"]')?.textContent ?? '';
+
+  it('« Traduire l\'article » sends the title and body, then shows the translation, its notice and « Texte source »', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+    const { getByRole, findByRole, getByText, container } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    expect(requestAiTranslation).toHaveBeenCalledWith(expect.objectContaining({
+      articleId: 'a1', scope: 'article', targetLang: 'fr', fallback: true,
+      segments: ['Titre a1', expect.stringContaining('mot mot')],
+    }));
+    expect(await findByRole('button', { name: 'ai.showSource' })).toBeTruthy();
+    expect(bodyText(container)).toBe('word word');
+    expect(getByRole('heading', { level: 1 }).textContent).toBe('Title a1');
+    expect(getByText('ai.translation.done')).toBeTruthy();
+  });
+  it('« Texte source » switches back without any request', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+    const { getByRole, findByRole, container, queryByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    fireEvent.click(await findByRole('button', { name: 'ai.showSource' }));
+    expect(bodyText(container)).toContain('mot mot');
+    expect(getByRole('heading', { level: 1 }).textContent).toBe('Titre a1');
+    expect(queryByText('ai.translation.done')).toBeNull();
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    expect(bodyText(container)).toBe('word word');
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+  });
+  it('an extraction arriving after a manual translation brings the source back', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+    const a = article('t3');
+    useFeedStore.setState({ selectedArticle: a, articles: [a] });
+    const { getByRole, findByRole, container } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    await findByRole('button', { name: 'ai.showSource' });
+    // Le cache mémoire répond sans réseau : « Article complet » l'applique tout de suite.
+    await putExtract('t3', { title: 't', content: '<p>The full article.</p>', excerpt: '', byline: '', siteName: '', length: 20 });
+    const extract = container.querySelector('[title="readingPane.fullContent"]') as HTMLElement;
+    await act(async () => { fireEvent.click(extract); await Promise.resolve(); });
+    expect(bodyText(container)).toContain('The full article.');
+    expect(getByRole('button', { name: 'ai.translateArticle' })).toBeTruthy();
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+  });
+  it('is disabled offline, and a translation already shown stays', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+    const { getByRole, findByRole, container } = render(<ReadingPane />);
+    act(() => { window.dispatchEvent(new Event('offline')); });
+    expect((getByRole('button', { name: 'ai.translateArticle' }) as HTMLButtonElement).disabled).toBe(true);
+    act(() => { window.dispatchEvent(new Event('online')); });
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    await findByRole('button', { name: 'ai.showSource' });
+    act(() => { window.dispatchEvent(new Event('offline')); });
+    expect(bodyText(container)).toBe('word word');
+    expect((getByRole('button', { name: 'ai.showSource' }) as HTMLButtonElement).disabled).toBe(false);
+    act(() => { window.dispatchEvent(new Event('online')); });
+  });
+  it('the desktop chevron opens « Traduire en… » and sends the language picked', async () => {
+    vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+    const { getByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticleMenu' }));
+    fireEvent.click(within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('de', 'fr') }));
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ scope: 'article', targetLang: 'de' });
+  });
+  it('shows the error in an alert, with the source still on screen', async () => {
+    vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
+    const { getByRole, findByRole, container } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    expect((await findByRole('alert')).textContent).toContain('ai.errors.translateFailed');
+    expect(bodyText(container)).toContain('mot mot');
+  });
+  it('says « Déjà en … » when the article is already in the language', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated([], { same: true, lang: 'fr' }));
+    const { getByRole, findByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    expect(await findByText('ai.translation.alreadyTarget')).toBeTruthy();
+  });
+  it('has nothing to translate in an article without text', () => {
+    const a = { ...article('t4'), content: '<img src="https://example.com/a.png" alt="">' } as Article;
+    useFeedStore.setState({ selectedArticle: a, articles: [a] });
+    const { getByRole } = render(<ReadingPane />);
+    const btn = getByRole('button', { name: 'ai.translateArticle' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.title).toBe('ai.translation.nothing');
+  });
+  describe('touch', () => {
+    beforeEach(() => { useUiStore.setState({ layoutMode: 'mobile' } as never); });
+    afterEach(() => { useUiStore.setState({ layoutMode: 'auto' } as never); });
+    it('the « … » sheet offers « Traduire en… » and « Traduire avec… », which open the translation menu', () => {
+      const { getByRole } = render(<ReadingPane />);
+      fireEvent.click(getByRole('button', { name: 'readingPane.more' }));
+      const sheet = within(getByRole('dialog', { name: 'readingPane.more' }));
+      expect(sheet.getByRole('button', { name: 'ai.translateWith' })).toBeTruthy();
+      fireEvent.click(sheet.getByRole('button', { name: 'ai.translateTo' }));
+      const menu = within(getByRole('dialog', { name: 'ai.translateArticleMenu' }));
+      expect(menu.getByRole('group', { name: 'ai.translateTo' })).toBeTruthy();
+    });
+    it('the bar button translates on a tap', async () => {
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+      const { getByRole, findByRole } = render(<ReadingPane />);
+      fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+      expect(await findByRole('button', { name: 'ai.showSource' })).toBeTruthy();
+    });
+  });
+});
