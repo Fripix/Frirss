@@ -29,7 +29,7 @@ import { useAiStore, aiEnabled } from '../../stores/aiStore';
 import { requestAiSummary, type AiSummaryResult, type AiProviderView } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
-import { stripMediaForSummary } from '../../lib/aiPayload';
+import { stripMediaForSummary, fitSummaryPayload } from '../../lib/aiPayload';
 import { aiErrorMessage } from '../../lib/aiErrorKey';
 import { sharedSummaryRequest } from './aiPending';
 import { aiRouting } from '../../lib/aiRouting';
@@ -779,7 +779,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       const key = `${useAuthStore.getState().backendUser?.id ?? ''}:${id}:${providerId ?? ''}`;
       const r = await sharedSummaryRequest(key, () => requestAiSummary({
         articleId: id, title: selectedArticle.title,
-        html: stripMediaForSummary(fullText ?? selectedArticle.content ?? ''),
+        html: fitSummaryPayload(stripMediaForSummary(fullText ?? selectedArticle.content ?? '')),
         provider: providerId,
         ratio: aiRatio,
         ...aiRouting(selectedArticle.sourceId, useFeedStore.getState().subscriptions, useUiStore.getState()),

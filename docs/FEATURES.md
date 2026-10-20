@@ -2340,7 +2340,13 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   (`src/lib/aiPayload.ts`, testé) : `<img>`, `<svg>`, `<video>`, `<audio>`,
   `<iframe>`, `<picture>` et tout attribut en `data:` partent, sans quoi une
   seule image base64 dépassait les 200 Ko et l'article « trop long » faisait dix
-  lignes ; ne jamais suivre un 3xx du fournisseur ; ne pas
+  lignes. Puis **coupé** par `fitSummaryPayload` (même module) s'il dépasse
+  encore 200 000 octets UTF-8 (sous les 200 Kio du serveur) : jamais au milieu
+  d'un caractère, jamais dans une balise (on recule à son `<`), mais là où elle
+  tombe si c'est du texte — reculer au dernier `<` viderait un article d'un seul
+  paragraphe. « Article trop long » ne vient donc plus d'un long HTML envoyé
+  par l'interface : c'est le **texte** que le serveur borne (il le tronque),
+  et `invalid_body` ne reste que pour un client qui ne coupe pas ; ne jamais suivre un 3xx du fournisseur ; ne pas
   confondre « payé par l'admin » (`paidByAdmin` ne pilote que le plafond et le
   décompte d'usage, pas l'éligibilité au repli) et « clé admin utilisée »
   (un admin n'est pas facturé) ; la clé de cache doit garder le hash du

@@ -149,6 +149,16 @@ describe('ReadingPane — Résumé IA', () => {
     expect(sent).not.toContain('<svg');
     expect(sent).not.toContain('data:');
   });
+  it('sends a very long article cut under the server limit instead of having it refused', () => {
+    vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+    const long = { ...article('a1'), content: ('<p>' + 'mot '.repeat(100) + '</p>').repeat(700) } as Article;
+    useFeedStore.setState({ selectedArticle: long, articles: [long] });
+    const { getByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    const sent = vi.mocked(requestAiSummary).mock.calls[0][0].html;
+    expect(new TextEncoder().encode(sent).length).toBeLessThanOrEqual(200_000);
+    expect(sent.length).toBeGreaterThan(190_000);
+  });
   it('maps 400 invalid_body to "too long"', async () => {
     vi.mocked(requestAiSummary).mockRejectedValue(httpError(400, { error: 'invalid_body' }));
     const { getByRole, findByText } = render(<ReadingPane />);
