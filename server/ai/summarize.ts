@@ -56,6 +56,7 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
     if (cand.paidByAdmin && cap > 0 && usageToday(req.userId) >= cap) {
       if (!req.fallback) throw new AiError('quota', 'ai_daily_cap');
       capped = true;
+      console.warn('AI fallback:', cand.provider.name, 'quota', 'daily cap reached');
       continue;
     }
 
@@ -68,6 +69,10 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
       const e = err instanceof AiError ? err : new AiError('technical', 'provider_error');
       e.ownKey = cand.own;
       if (e.kind === 'refused' || !req.fallback) throw e;
+      // Sans cette ligne, une bascule rattrapée ne laisse aucune trace : une coupure
+      // réseau vers Ollama a ainsi basculé vers Claude (payant) sans rien dire.
+      // Chaînes seulement ; le message est déjà masqué (clé) et coupé par l'adaptateur.
+      console.warn('AI fallback:', cand.provider.name, e.kind, e.message);
       lastError = e;
       fellBackFrom = fellBackFrom ?? cand.provider.name;
       continue;

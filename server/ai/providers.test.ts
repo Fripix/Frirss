@@ -141,3 +141,26 @@ describe('error detail', () => {
     expect(msg).toContain('Incorrect API key provided');
   });
 });
+
+describe('transport error cause', () => {
+  const netErr = (cause: Record<string, unknown>) => Object.assign(new TypeError('fetch failed'), { cause });
+  it('names the provider and keeps the cause code, so the log says what really failed', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(netErr({ code: 'EHOSTUNREACH', message: 'connect EHOSTUNREACH 10.0.0.5:11434' })));
+    const err = await callProvider(openai, null, call).catch((e: Error) => e);
+    expect(err).toMatchObject({ kind: 'technical' });
+    expect((err as Error).message).toBe('Ollama: fetch failed (EHOSTUNREACH)');
+  });
+  it('says timeout when the call was aborted', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })));
+    expect(((await callProvider(openai, null, call).catch((e: Error) => e)) as Error).message).toBe('Ollama: This operation was aborted (timeout)');
+  });
+  it('keeps the plain message when there is no cause', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('boom')));
+    expect(((await callProvider(openai, null, call).catch((e: Error) => e)) as Error).message).toBe('Ollama: boom');
+  });
+  it('never leaks the key through the cause', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(netErr({ code: 'sk-secret-123' })));
+    const msg = ((await callProvider(openai, 'sk-secret-123', call).catch((e: Error) => e)) as Error).message;
+    expect(msg).not.toContain('sk-secret-123');
+  });
+});

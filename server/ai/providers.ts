@@ -30,7 +30,7 @@ export async function callProvider(provider: AiProvider, key: string | null, cal
       timeoutMs: TIMEOUT_MS, followRedirects: false, trustedHosts: [host],
     });
   } catch (err) {
-    throw new AiError('technical', redact(String((err as Error)?.message ?? err), key));
+    throw new AiError('technical', redact(`${provider.name}: ${transportDetail(err)}`, key));
   }
   if (!resp.ok) {
     // Masquer AVANT de couper : une coupe au milieu de la clé en laisserait un morceau que `split` ne reconnaît plus.
@@ -114,7 +114,7 @@ async function getJson(url: string, headers: Record<string, string>, host: strin
   try {
     resp = await fetchUpstream(url, { method: 'GET', headers, timeoutMs: LIST_TIMEOUT_MS, followRedirects: false, trustedHosts: [host] });
   } catch (err) {
-    throw new AiError('technical', redact(String((err as Error)?.message ?? err), key));
+    throw new AiError('technical', redact(`models: ${transportDetail(err)}`, key));
   }
   if (!resp.ok) {
     const detail = redact(errorDetail(await resp.text().catch(() => '')), key).slice(0, 300);
@@ -147,6 +147,22 @@ function errorDetail(body: string): string {
     if (msg.trim()) return msg.trim();
   } catch { /* corps non JSON : brut */ }
   return body;
+}
+
+/**
+ * Une erreur de transport, avec sa cause réelle : `fetch` ne dit que « fetch
+ * failed » et range le code (`EHOSTUNREACH`, `ENOTFOUND`,
+ * `UND_ERR_CONNECT_TIMEOUT`…) dans `cause`. Sans lui, une coupure réseau
+ * entre conteneurs ne laissait aucune trace exploitable. Un abandon pour délai
+ * dépassé se lit « timeout ». La clé est masquée par l'appelant.
+ */
+function transportDetail(err: unknown): string {
+  const e = err as { message?: unknown; name?: unknown; code?: unknown; cause?: { code?: unknown } } | null;
+  const message = typeof e?.message === 'string' ? e.message : String(err);
+  const code = typeof e?.cause?.code === 'string' ? e.cause.code
+    : typeof e?.code === 'string' ? e.code
+      : e?.name === 'AbortError' || e?.name === 'TimeoutError' ? 'timeout' : '';
+  return code ? `${message} (${code})` : message;
 }
 
 function redact(text: string, key: string | null): string {

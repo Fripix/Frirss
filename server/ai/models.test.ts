@@ -121,3 +121,10 @@ describe('listModels — failures', () => {
     expect((err as Error).message).not.toContain('sk-secret-123');
   });
 });
+
+describe('listModels — transport error cause', () => {
+  it('keeps the cause code', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } })));
+    expect(((await listModels(oai, 'k').catch((e: Error) => e)) as Error).message).toBe('models: fetch failed (ENOTFOUND)');
+  });
+});

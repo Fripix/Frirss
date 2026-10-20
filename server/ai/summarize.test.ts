@@ -62,6 +62,34 @@ describe('summarize', () => {
     expect(r.providerName).toBe('Ollama');
     expect(r.fellBackFrom).toBe('Claude');
   });
+  it('logs each switch to the next provider, with the reason and never the key', async () => {
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const call = vi.fn()
+        .mockRejectedValueOnce(new AiError('technical', 'Claude: fetch failed (EHOSTUNREACH)'))
+        .mockResolvedValueOnce({ text: 'lang: en\n\nOk.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 5 });
+      await summarize({ ...base, available: [{ ...A(1, 'Claude'), key: 'sk-123' }, A(2, 'Ollama')] }, { call });
+      expect(spy.mock.calls).toEqual([['AI fallback:', 'Claude', 'technical', 'Claude: fetch failed (EHOSTUNREACH)']]);
+      expect(JSON.stringify(spy.mock.calls)).not.toContain('sk-123');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+  it('logs a capped provider skipped for the next one, and nothing when the first provider answers', async () => {
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      bumpUsage(41); bumpUsage(41);
+      const call = vi.fn().mockResolvedValue({ text: 'lang: en\n\nOk.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 5 });
+      await summarize({ ...base, available: [A(1, 'Paid', true), A(2, 'Free')] }, { call });
+      expect(spy.mock.calls).toEqual([['AI fallback:', 'Paid', 'quota', 'daily cap reached']]);
+      spy.mockClear();
+      db.exec('DELETE FROM ai_usage; DELETE FROM ai_cache;');
+      await summarize({ ...base, articleId: 'art-2', available: [A(2, 'Free')] }, { call });
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
   it('tags the error with ownKey when the failing candidate used the personal key', async () => {
     const refused = vi.fn().mockRejectedValue(new AiError('auth', 'HTTP 401', 401));
     await expect(summarize({ ...base, fallback: false, available: [A(1, 'Mine', false, true)] }, { call: refused })).rejects.toMatchObject({ kind: 'auth', ownKey: true });

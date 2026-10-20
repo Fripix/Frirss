@@ -1889,7 +1889,13 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
 - **Appels sortants** : `fetchUpstream` avec `trustedHosts: [hôte du
   fournisseur]` (même exemption que l'émetteur OIDC : URL fixée par l'admin ;
   un littéral IPv6 est reconnu, crochets retirés), `followRedirects: false`,
-  délai 60 s. Un 3xx est une erreur `technical`, jamais suivi : la clé ne part
+  délai 60 s. Une erreur de transport garde **sa cause** dans le message
+  (`transportDetail`) : « Ollama: fetch failed (EHOSTUNREACH) », `ENOTFOUND`,
+  `UND_ERR_CONNECT_TIMEOUT`, ou « timeout » pour un abandon ; `fetch` seul ne
+  dit que « fetch failed », ce qui rendait une coupure entre conteneurs
+  indiagnosticable (cause réelle du 2026-10-20 : adresses MAC en double sur le
+  réseau Docker). Même chose pour la liste des modèles.
+  Un 3xx est une erreur `technical`, jamais suivi : la clé ne part
   pas vers un hôte que l'admin n'a pas saisi. URL de base illisible →
   `technical`. `/api/ai` partage le seau `FRIRSS_PROXY_RATE_LIMIT` de
   `/api/proxy` : le seau compte les **requêtes HTTP** vers `/api/ai`,
@@ -1946,6 +1952,11 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   n'est pas une `AiError` devient `provider_error` (`technical`, repli permis) ;
   seul le journal du serveur en garde trace : nom du fournisseur, nom et
   message de l'erreur — jamais l'objet brut ni les en-têtes.
+  **Chaque bascule est journalisée** (`console.warn`, une ligne `AI fallback:`
+  avec le fournisseur, le type d'erreur et le message déjà masqué et coupé),
+  ainsi que le saut d'un fournisseur plafonné (`quota`, `daily cap reached`) :
+  avant le 2026-10-20, une bascule rattrapée ne laissait aucune trace, et des
+  coupures réseau vers Ollama passaient vers Claude sans que rien le dise.
 - **Plafond** (`ai_daily_cap`, défaut 50, 0 = illimité) : par utilisateur et
   par jour civil, **seulement quand la clé admin paie pour un utilisateur**. Un
   admin en est exempt sur tout fournisseur dont la clé admin paie, partagé ou
