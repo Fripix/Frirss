@@ -162,12 +162,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const lastExtractedId = useRef<string | null>(null);
-  // Article dont l'extraction a échoué : avec `lastExtractedId` (succès), c'est
-  // ce qui dit À QUEL article appartient l'état d'extraction affiché. Au rendu
-  // qui suit un changement d'article, `extractedContent` / `extractError` sont
-  // encore ceux du précédent — le résumé automatique ne doit pas les prendre
-  // pour les siens.
-  const failedExtractId = useRef<string | null>(null);
+  // Article auquel appartiennent `extractedContent` / `extractError`. EN ÉTAT,
+  // posé dans le même lot que ce qu'il qualifie : au rendu qui suit un
+  // changement d'article, ces deux-là sont encore ceux du précédent, et un
+  // `useRef` (`lastExtractedId`) a déjà pris l'avance. Le résumé automatique
+  // ne doit pas apparier l'extrait de A avec l'id de B.
+  const [extractFor, setExtractFor] = useState<string | null>(null);
 
   // Résumé IA — un état par article affiché ; remis à zéro quand il change.
   const aiOn = useAiStore(aiEnabled);
@@ -187,6 +187,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   useEffect(() => {
     setAiStatus('idle'); setAiResult(null); setAiError(null); aiInFlight.current = null;
+    // Le résumé automatique est « une fois par VISITE » : le résumé qu'on vient
+    // d'effacer doit pouvoir repartir si l'on revient sur cet article. Déclaré
+    // avant l'effet de déclenchement, qui le repose dans la même passe.
+    autoSummarisedId.current = null;
   }, [selectedArticle?.id]);
 
   // Reading progress
@@ -206,8 +210,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     if (cached) {
       lastExtractedId.current = id;
       setExtractedContent(cached);
+      setExtractFor(id);
     } else {
       setExtractedContent(null);
+      setExtractFor(null);
     }
     setExtractError(null);
     setExtracting(false);
@@ -574,9 +580,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             if (cached && t.adj) {
               lastExtractedId.current = t.adj.id;
               setExtractedContent(cached);
+              setExtractFor(t.adj.id);
               seededFromCache = true;
             } else {
               setExtractedContent(null);
+              setExtractFor(null);
             }
             setExtractError(null);
             if (t.adj) useFeedStore.getState().selectArticle(t.adj);
@@ -701,6 +709,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       lastExtractedId.current = id;
       setExtractError(null);
       setExtractedContent(inMem);
+      setExtractFor(id);
       revalidateIfStale(id, selectedArticle.url).catch(() => {}); // SWR refresh
       return;
     }
@@ -712,6 +721,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (!stillCurrent()) return;
       lastExtractedId.current = id;
       setExtractedContent(fromDb);
+      setExtractFor(id);
       revalidateIfStale(id, selectedArticle.url).catch(() => {}); // SWR refresh
       return;
     }
@@ -725,8 +735,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (!stillCurrent()) return;
       lastExtractedId.current = id;
       setExtractedContent(result);
+      setExtractFor(id);
     } catch {
-      if (stillCurrent()) { failedExtractId.current = id; setExtractError(t('readingPane.extractError')); }
+      if (stillCurrent()) { setExtractFor(id); setExtractError(t('readingPane.extractError')); }
     } finally {
       setExtracting(false);
     }
@@ -736,7 +747,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     if (!selectedArticle || aiInFlight.current === selectedArticle.id) return;
     const id = selectedArticle.id;
     // L'extrait n'est celui de cet article que si l'extraction lui appartient.
-    const fullText = lastExtractedId.current === id ? extractedContent?.content : undefined;
+    const fullText = extractFor === id ? extractedContent?.content : undefined;
     aiInFlight.current = id;
     setAiStatus('loading'); setAiError(null);
     try {
@@ -764,7 +775,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     } finally {
       if (aiInFlight.current === id) aiInFlight.current = null;
     }
-  }, [selectedArticle, extractedContent, t, isAdmin, aiRatio]);
+  }, [selectedArticle, extractedContent, extractFor, t, isAdmin, aiRatio]);
 
   // Résumé automatique à l'ouverture, une fois par article. Déclaré APRÈS les
   // effets de remise à zéro (IA et extraction) : dans la même passe ils
@@ -781,15 +792,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     const extractionApplies = !!art.url && !!art.sourceId
       && effectiveAutoExtract(autoExtractDefault, feedSettings, art.sourceId);
     if (extractionApplies) {
-      const settled = !extracting && (
-        (lastExtractedId.current === art.id && !!extractedContent)
-        || (failedExtractId.current === art.id && !!extractError)
-      );
+      const settled = !extracting && extractFor === art.id && (!!extractedContent || !!extractError);
       if (!settled) return;
     }
     autoSummarisedId.current = art.id;
     void handleSummarize(undefined, { auto: true });
-  }, [selectedArticle, aiAutoSummary, aiUsable, online, aiStatus, extracting, extractedContent, extractError, autoExtractDefault, feedSettings, handleSummarize]);
+  }, [selectedArticle, aiAutoSummary, aiUsable, online, aiStatus, extracting, extractedContent, extractError, extractFor, autoExtractDefault, feedSettings, handleSummarize]);
 
   // ── Corps de l'article ────────────────────────────────────────────────────
   // Mémoïsé, et il FAUT que ce soit avant le retour anticipé ci-dessous : les

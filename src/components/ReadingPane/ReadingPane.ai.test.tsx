@@ -284,6 +284,44 @@ describe('ReadingPane — Résumé IA', () => {
       expect(second.html).toContain('mot');
       expect(second.html).not.toContain('complet');
     });
+    it('does not pair the next article\'s cached extract with the previous article\'s text', async () => {
+      withAutoExtract('p4');
+      await putExtract('p4', extracted('<p>' + 'complet '.repeat(80) + '</p>'));
+      await putExtract('p5', extracted('<p>' + 'suivant '.repeat(80) + '</p>'));
+      // Premier article « trop court » : statut idle au changement d'article, et
+      // le suivant est déjà en mémoire (préchargé) — la passe de transition
+      // tient alors l'extrait de p4 avec l'id de p5.
+      vi.mocked(requestAiSummary)
+        .mockRejectedValueOnce(httpError(400, { error: 'article_too_short' }))
+        .mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+      act(() => { useFeedStore.setState({ selectedArticle: article('p5') }); });
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
+      const second = vi.mocked(requestAiSummary).mock.calls[1][0];
+      expect(second.articleId).toBe('p5');
+      expect(second.html).toContain('suivant');
+      expect(second.html).not.toContain('complet');
+    });
+    it('summarises an article again when the user comes back to it after an unsettled one', async () => {
+      const first = { ...article('q1'), sourceId: 'feed/1' } as Article;
+      const second = { ...article('q2'), sourceId: 'feed/2' } as Article;
+      useFeedStore.setState({ selectedArticle: first, articles: [first, second] });
+      useUiStore.setState({ aiAutoSummary: true, feedSettings: { 'feed/2': { autoExtract: true } } as never });
+      vi.mocked(extractFullContent).mockReturnValue(new Promise(() => {}) as never);
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      const { findByText } = render(<ReadingPane />);
+      expect(await findByText('Le résumé.')).toBeTruthy();
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      // q2 : l'extraction ne se règle jamais, rien ne part.
+      act(() => { useFeedStore.setState({ selectedArticle: second }); });
+      await waitFor(() => expect(extractFullContent).toHaveBeenCalledTimes(1));
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      act(() => { useFeedStore.setState({ selectedArticle: first }); });
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(requestAiSummary).mock.calls[1][0].articleId).toBe('q1');
+    });
     it('stays quiet when the article is too short', async () => {
       useUiStore.setState({ aiAutoSummary: true });
       vi.mocked(requestAiSummary).mockRejectedValue(httpError(400, { error: 'article_too_short' }));
