@@ -2059,7 +2059,16 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   clé personnelle (sinon le plafond ne le concerne pas). Les trois réglages
   (`aiPreferredProvider`, `aiFallback`, `aiAutoSummary`) vivent dans
   `useUiStore` et se synchronisent ; `ToggleSwitch` accepte `describedBy` pour
-  relier chaque interrupteur à son aide.
+  relier chaque interrupteur à son aide. **`aiAutoSummary` ne s'hérite jamais
+  d'un autre compte** : il vit aussi dans le localStorage, que la déconnexion
+  ne vide pas. Deux gardes, pour qu'aucun compte ne l'ait allumé sans avoir vu
+  l'avertissement de coût : la déconnexion l'éteint (abonnement de
+  `aiStore.ts` à `useAuthStore` ; le compte qui part garde sa valeur serveur,
+  car le jeton est déjà nul et `stopSync()` annule l'envoi différé) — un
+  compte neuf, qui pousse ses réglages locaux au serveur, part donc éteint ;
+  et `applyServerPrefs` l'éteint quand des préférences serveur non vides n'ont
+  pas la clé (compte antérieur à la fonction ; même tri que
+  `confirmMarkAllRead`).
   Dessous, pour l'admin seul, le bloc « Fournisseurs » (interrupteur, liste
   réordonnable par flèches haut / bas, éditeur avec liste des modèles, test,
   clé partagée, plafond,

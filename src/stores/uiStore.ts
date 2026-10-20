@@ -860,6 +860,15 @@ export const useUiStore = create<UiState>()((set, get) => ({
       next.confirmMarkAllRead = false;
     }
 
+    // Même tri pour le résumé automatique, mais vers « éteint » dans tous les
+    // cas : la valeur locale peut venir d'un AUTRE compte sur ce navigateur, et
+    // celui-ci n'a jamais vu l'avertissement de coût qui conditionne son
+    // activation. Un compte qui l'a allumé porte la clé, et la garde.
+    if (!has('aiAutoSummary') && Object.keys(prefs).length > 0) {
+      localStorage.setItem('frirss_aiAutoSummary', 'false');
+      next.aiAutoSummary = false;
+    }
+
     // Raw-string keys
     if (has('viewMode') && typeof prefs.viewMode === 'string') {
       localStorage.setItem('frirss_viewMode', prefs.viewMode);

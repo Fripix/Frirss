@@ -4,6 +4,7 @@ vi.mock('../api/backend', () => ({ getAiConfig: vi.fn() }));
 import { getAiConfig } from '../api/backend';
 import { useAiStore, aiUsable } from './aiStore';
 import { useAuthStore } from './authStore';
+import { useUiStore } from './uiStore';
 
 const ON = { enabled: true, providers: [], userKeysAllowed: false, dailyCap: 50, usageToday: 0, defaultProvider: null };
 
@@ -51,6 +52,14 @@ describe('aiStore', () => {
       useAiStore.setState({ config: ON });
       useAuthStore.getState().logoutBackend();
       expect(useAiStore.getState().config).toBeNull();
+    });
+    it('turns auto-summary off when the user logs out', () => {
+      // Le compte suivant sur ce navigateur n'a pas vu l'avertissement de coût.
+      useAuthStore.setState({ backendToken: 't' });
+      useUiStore.getState().setAiAutoSummary(true);
+      useAuthStore.getState().logoutBackend();
+      expect(useUiStore.getState().aiAutoSummary).toBe(false);
+      expect(localStorage.getItem('frirss_aiAutoSummary')).toBe('false');
     });
     it('keeps the AI config while the session token merely changes', () => {
       useAuthStore.setState({ backendToken: 't' });

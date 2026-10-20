@@ -375,6 +375,23 @@ describe('uiStore — routage des fournisseurs IA', () => {
     expect([n.aiPreferredProvider, n.aiFallback, n.aiAutoSummary, n.aiCategoryProviders]).toEqual([null, true, true, { A: 2 }]);
   });
 
+  it('turns auto-summary off for an account whose saved prefs predate it', () => {
+    // Navigateur partagé : la valeur locale vient d'un autre compte, qui a vu
+    // l'avertissement de coût ; celui-ci ne l'a jamais vu.
+    useUiStore.getState().setAiAutoSummary(true);
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+    expect(useUiStore.getState().aiAutoSummary).toBe(false);
+    expect(localStorage.getItem('frirss_aiAutoSummary')).toBe('false');
+  });
+
+  it('keeps auto-summary as the account saved it, and leaves it alone for an empty prefs object', () => {
+    useUiStore.getState().setAiAutoSummary(true);
+    useUiStore.getState().applyServerPrefs({});
+    expect(useUiStore.getState().aiAutoSummary).toBe(true);
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact', aiAutoSummary: true });
+    expect(useUiStore.getState().aiAutoSummary).toBe(true);
+  });
+
   it('persists the preferred provider, fallback and auto-summary through their setters', () => {
     const s = useUiStore.getState();
     s.setAiPreferredProvider(9); s.setAiFallback(false); s.setAiAutoSummary(true);

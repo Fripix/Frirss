@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getAiConfig, type AiConfig } from '../api/backend';
 import { useAuthStore } from './authStore';
+import { useUiStore } from './uiStore';
 
 /**
  * Ce que le client sait de l'IA : rien tant que `load()` n'a pas répondu, et
@@ -30,8 +31,18 @@ export const useAiStore = create<AiState>()((set) => ({
 // que l'on s'abonne, pas dans authStore, qui ne peut pas importer ce module
 // (api/backend importe authStore, et ce store importe api/backend). Le 401 qui
 // déconnecte passe par `logoutBackend()` : un seul chemin à surveiller.
+//
+// Le résumé automatique s'éteint aussi : il vit dans le localStorage, et le
+// compte suivant l'hériterait sans avoir vu l'avertissement de coût (un compte
+// neuf pousse même ses réglages locaux au serveur). Le compte qui part ne le
+// perd pas : son jeton est déjà nul, et `stopSync()` (App, à la déconnexion)
+// annule l'envoi différé avant qu'il ne parte — sa valeur serveur reste, et
+// revient à sa prochaine connexion. uiStore n'importe rien qui mène ici.
 useAuthStore.subscribe((state, prev) => {
-  if (prev.backendToken && !state.backendToken) useAiStore.getState().reset();
+  if (prev.backendToken && !state.backendToken) {
+    useAiStore.getState().reset();
+    useUiStore.getState().setAiAutoSummary(false);
+  }
 });
 
 export const aiEnabled = (s: AiState): boolean => s.config?.enabled === true;
