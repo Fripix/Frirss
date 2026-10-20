@@ -812,7 +812,7 @@
       "preferredAuto": "Automático",
       "keyRequired": "{{name}} (chave necessária)",
       "removedProvider": "Fornecedor removido",
-      "fallback": "Recurso automático",
+      "fallback": "Alternativa automática",
       "fallbackHint": "Se o seu fornecedor falhar, o seguinte da lista assume.",
       "auto": "Resumir automaticamente ao abrir",
       "autoHint": "Cada artigo aberto é resumido sem clicar.",
