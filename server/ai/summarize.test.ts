@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import db, { setSetting } from '../db.js';
 import { usageToday, bumpUsage } from './store.js';
-import { summarize } from './summarize.js';
+import { summarize, SUMMARY_DEADLINE_MS } from './summarize.js';
 import { AiError } from './errors.js';
 import type { Availability } from './resolve.js';
 import type { AiProvider } from './store.js';
@@ -218,5 +218,47 @@ describe('summarize', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  describe('one deadline for the whole request', () => {
+    // Horloge simulée : chaque appel « dure » ce que le test lui fait avancer.
+    const clock = () => { let t = 1_000_000; return { now: () => t, advance: (ms: number) => { t += ms; } }; };
+    const spy = () => vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    it('is 50 s, below the 60 s of a default reverse proxy', () => {
+      expect(SUMMARY_DEADLINE_MS).toBe(50_000);
+    });
+    it('gives the first candidate the whole budget and the next one only what is left', async () => {
+      const w = spy();
+      const c = clock();
+      const call = vi.fn()
+        .mockImplementationOnce(async () => { c.advance(20_000); throw new AiError('technical', 'slow'); })
+        .mockResolvedValueOnce({ text: 'lang: fr\n\nR.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+      const r = await summarize({ ...base, available: [A(1, 'Ollama'), A(2, 'Claude')] }, { call, now: c.now });
+      w.mockRestore();
+      expect(r.providerName).toBe('Claude');
+      expect(call.mock.calls[0][2].timeoutMs).toBe(50_000);
+      expect(call.mock.calls[1][2].timeoutMs).toBe(30_000);
+    });
+    it('does not call the next candidate when the first one used up the budget', async () => {
+      const w = spy();
+      const c = clock();
+      const call = vi.fn()
+        .mockImplementationOnce(async () => { c.advance(49_000); throw new AiError('technical', 'Ollama: timeout'); })
+        .mockResolvedValue({ text: 'lang: fr\n\nR.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+      await expect(summarize({ ...base, available: [A(1, 'Ollama'), A(2, 'Claude', true)] }, { call, now: c.now }))
+        .rejects.toMatchObject({ kind: 'technical', message: 'Ollama: timeout' });
+      w.mockRestore();
+      expect(call).toHaveBeenCalledTimes(1);
+      expect(usageToday(41)).toBe(0);
+    });
+    it('says deadline when no candidate failed but the time ran out', async () => {
+      // Premier relevé : l'échéance est fixée ; le suivant la trouve dépassée.
+      const reads = [0, SUMMARY_DEADLINE_MS];
+      const call = ok();
+      await expect(summarize({ ...base, available: [A(1, 'A')] }, { call, now: () => reads.shift() ?? SUMMARY_DEADLINE_MS }))
+        .rejects.toMatchObject({ kind: 'technical', message: 'deadline' });
+      expect(call).not.toHaveBeenCalled();
+    });
   });
 });

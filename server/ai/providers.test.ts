@@ -164,3 +164,27 @@ describe('transport error cause', () => {
     expect(msg).not.toContain('sk-secret-123');
   });
 });
+
+describe('per-call timeout', () => {
+  afterEach(() => { vi.useRealTimers(); });
+  // Un fetch qui ne répond jamais et ne s'arrête que sur abandon, comme le vrai.
+  const hanging = () => vi.fn((_url: string, init: RequestInit) => new Promise((_r, reject) => {
+    init.signal?.addEventListener('abort', () => reject(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })));
+  }));
+  it('gives up after the timeout the caller passed, not the default 60 s', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', hanging());
+    const pending = callProvider(openai, null, { ...call, timeoutMs: 5_000 }).catch((e: Error) => e);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(await pending).toMatchObject({ kind: 'technical', message: 'Ollama: This operation was aborted (timeout)' });
+  });
+  it('bounds the reading of an answer whose headers came but whose body never does', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: new Headers(), text: () => new Promise(() => {}), json: () => new Promise(() => {}),
+    }));
+    const pending = callProvider(openai, null, { ...call, timeoutMs: 5_000 }).catch((e: Error) => e);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(await pending).toMatchObject({ kind: 'technical', message: 'Ollama: answer not received in time (timeout)' });
+  });
+});

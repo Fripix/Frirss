@@ -3,10 +3,14 @@ import { fetchUpstream } from '../routes/proxy.js';
 import { AiError, classifyStatus } from './errors.js';
 import type { AiProvider } from './store.js';
 
-export interface AiCall { system: string; user: string; maxTokens?: number }
+export interface AiCall {
+  system: string; user: string; maxTokens?: number;
+  /** Délai de CET appel ; `summarize` le réduit à ce qui reste de son échéance. */
+  timeoutMs?: number;
+}
 export interface AiResult { text: string; model: string; inputTokens: number; outputTokens: number; durationMs: number }
 
-const TIMEOUT_MS = 60_000;      // un modèle local sur un long article dépasse les 30 s du proxy
+export const TIMEOUT_MS = 60_000;      // un modèle local sur un long article dépasse les 30 s du proxy
 const DEFAULT_MAX_TOKENS = 4096;
 
 /**
@@ -18,6 +22,7 @@ const DEFAULT_MAX_TOKENS = 4096;
  */
 export async function callProvider(provider: AiProvider, key: string | null, call: AiCall): Promise<AiResult> {
   const started = Date.now();
+  const timeoutMs = call.timeoutMs ?? TIMEOUT_MS;
   const host = hostOf(provider.baseUrl, provider.name);
   const { url, headers, body } = provider.type === 'anthropic'
     ? anthropicRequest(provider, key, call)
@@ -27,18 +32,26 @@ export async function callProvider(provider: AiProvider, key: string | null, cal
   try {
     resp = await fetchUpstream(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body),
-      timeoutMs: TIMEOUT_MS, followRedirects: false, trustedHosts: [host],
+      timeoutMs, followRedirects: false, trustedHosts: [host],
     });
   } catch (err) {
     throw new AiError('technical', redact(`${provider.name}: ${transportDetail(err)}`, key));
   }
+  // Le délai de `fetchUpstream` s'arrête aux en-têtes : un corps qui ne vient
+  // jamais tiendrait la demande au-delà de son échéance. Même borne, comptée
+  // depuis le départ de l'appel.
+  const inTime = <T>(p: Promise<T>): Promise<T> => withTimeout(p, Math.max(0, started + timeoutMs - Date.now()),
+    () => new AiError('technical', `${provider.name}: answer not received in time (timeout)`));
   if (!resp.ok) {
     // Masquer AVANT de couper : une coupe au milieu de la clé en laisserait un morceau que `split` ne reconnaît plus.
-    const detail = redact(errorDetail(await resp.text().catch(() => '')), key).slice(0, 300);
+    const detail = redact(errorDetail(await inTime(resp.text()).catch(() => '')), key).slice(0, 300);
     throw new AiError(classifyStatus(resp.status), `${provider.name}: HTTP ${resp.status} ${detail}`, resp.status);
   }
   let json: unknown;
-  try { json = await resp.json(); } catch { throw new AiError('technical', `${provider.name}: non-JSON response`); }
+  try { json = await inTime(resp.json()); } catch (err) {
+    if (err instanceof AiError) throw err;
+    throw new AiError('technical', `${provider.name}: non-JSON response`);
+  }
   const parsed = provider.type === 'anthropic' ? parseAnthropic(json) : parseOpenai(json);
   if (parsed.refused) throw new AiError('refused', `${provider.name} declined the content`);
   if (!parsed.text.trim()) throw new AiError('technical', `${provider.name}: empty answer`);
@@ -163,6 +176,12 @@ function transportDetail(err: unknown): string {
     : typeof e?.code === 'string' ? e.code
       : e?.name === 'AbortError' || e?.name === 'TimeoutError' ? 'timeout' : '';
   return code ? `${message} (${code})` : message;
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: () => Error): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_r, reject) => { timer = setTimeout(() => reject(onTimeout()), ms); });
+  return Promise.race([p, expired]).finally(() => clearTimeout(timer));
 }
 
 function redact(text: string, key: string | null): string {

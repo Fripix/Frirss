@@ -1900,7 +1900,19 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
 - **Appels sortants** : `fetchUpstream` avec `trustedHosts: [hôte du
   fournisseur]` (même exemption que l'émetteur OIDC : URL fixée par l'admin ;
   un littéral IPv6 est reconnu, crochets retirés), `followRedirects: false`,
-  délai 60 s. Une erreur de transport garde **sa cause** dans le message
+  délai 60 s par appel (`TIMEOUT_MS`, lecture du corps comprise : le délai de
+  `fetchUpstream` s'arrête aux en-têtes, `callProvider` borne aussi la suite).
+  **Échéance unique de la demande de résumé** : `SUMMARY_DEADLINE_MS` = 50 s
+  pour **tous** les candidats, repli compris ; chacun reçoit
+  `min(TIMEOUT_MS, reste)` (`AiCall.timeoutMs`), et sous 2 s de reste on n'en
+  lance plus — la dernière erreur remonte, ou `technical` « deadline ». Les
+  candidats s'essaient en série : avec 60 s chacun, un Ollama lent atteignait
+  les 60 s de nginx (504 au client) et le serveur appelait ensuite Claude,
+  payant, compté et mis en cache, sans personne au bout. Le nginx du conteneur
+  accorde **120 s** à `/api/` (`proxy_read_timeout`) ; ⚠️ un **reverse proxy en
+  amont** doit accorder **au moins 120 s** sur `/api/ai` (60 s par défaut sur
+  nginx comme sur Nginx Proxy Manager, qui suffisent tant que l'échéance de
+  50 s tient, sans marge). Une erreur de transport garde **sa cause** dans le message
   (`transportDetail`) : « Ollama: fetch failed (EHOSTUNREACH) », `ENOTFOUND`,
   `UND_ERR_CONNECT_TIMEOUT`, ou « timeout » pour un abandon ; `fetch` seul ne
   dit que « fetch failed », ce qui rendait une coupure entre conteneurs
@@ -3518,6 +3530,10 @@ divergentes).
   et `express.raw`. Le défaut nginx (1 Mo) rendait le conteneur plus strict que
   le backend qu'il sert. Vérifié par le job `docker` de `ci.yml`, qui exige
   qu'un corps de 2 Mo atteigne Express.
+- **Délai de lecture** : `proxy_read_timeout 120s` sur `/api/`. Un résumé IA
+  tient jusqu'à 50 s (voir « Résumés par IA », appels sortants) ; au défaut de
+  60 s, le proxy coupait une demande que le serveur tenait encore. Un reverse
+  proxy en amont doit en accorder autant sur `/api/ai`.
 - **Piège majeur — `/sw.js` ne doit JAMAIS recevoir de CSP.** Un service worker
   hérite de la CSP livrée avec son propre script et l'applique à ses `fetch()`
   internes. Or il intercepte toutes les requêtes d'images (`CacheFirst`, voir

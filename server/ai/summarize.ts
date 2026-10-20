@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { callProvider } from './providers.js';
+import { callProvider, TIMEOUT_MS } from './providers.js';
 import { AiError } from './errors.js';
 import { resolveProvider, fallbackOrder, type Availability } from './resolve.js';
 import { aiCacheKey, aiCacheGet, aiCacheSet, bumpUsage, refundUsage, dailyCap } from './store.js';
@@ -8,6 +8,18 @@ import { splitLangLine } from './lang.js';
 import { htmlToText, countWords } from './text.js';
 
 export const MIN_WORDS = 40;
+/**
+ * Échéance de TOUTE la demande, repli compris. Les candidats s'essaient l'un
+ * après l'autre : avec 60 s chacun, un premier fournisseur lent atteignait les
+ * 60 s de nginx (504 au client) et le serveur appelait ensuite le suivant —
+ * peut-être payant, compté, mis en cache — sans que personne attende. 50 s
+ * tiennent sous un reverse proxy réglé par défaut ; le nginx du conteneur en
+ * accorde 120 à `/api/`, pour ne jamais couper une demande que le serveur tient
+ * encore.
+ */
+export const SUMMARY_DEADLINE_MS = 50_000;
+/** Sous ce reste, un appel n'a aucune chance d'aboutir : on n'en lance plus. */
+const MIN_CALL_MS = 2_000;
 
 export interface SummaryRequest {
   userId: number; articleId: string; title: string; html: string;
@@ -31,8 +43,10 @@ export interface SummaryResponse {
  * - La clé de cache porte un hash du contenu : `articleId` vient du client, sans
  *   lui un utilisateur pourrait lire ou empoisonner le résumé d'un autre.
  */
-export async function summarize(req: SummaryRequest, deps: { call?: typeof callProvider } = {}): Promise<SummaryResponse> {
+export async function summarize(req: SummaryRequest, deps: { call?: typeof callProvider; now?: () => number } = {}): Promise<SummaryResponse> {
   const call = deps.call ?? callProvider;
+  const now = deps.now ?? Date.now;
+  const deadline = now() + SUMMARY_DEADLINE_MS;
   const text = htmlToText(req.html);
   if (countWords(text) < MIN_WORDS) throw new AiError('technical', 'article_too_short');
 
@@ -52,6 +66,12 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
     try { cached = await aiCacheGet(key); } catch { /* cache illisible = absence */ }
     if (cached) return { ...cached, providerId: cand.provider.id, providerName: cand.provider.name, model: cand.provider.model, fromCache: true, fellBackFrom };
 
+    const remaining = deadline - now();
+    if (remaining < MIN_CALL_MS) {
+      if (lastError) throw lastError;
+      throw new AiError('technical', 'deadline');
+    }
+
     // Réservation AVANT l'appel : lire le compteur puis l'incrémenter après
     // laissait N requêtes simultanées passer toutes la vérification. SQLite
     // incrémente et rend le compte d'un seul geste ; au-delà du plafond, on
@@ -69,7 +89,10 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
 
     let result;
     try {
-      result = await call(cand.provider, cand.key, { system: summarySystem(ratio), user: summaryUserMessage(req.title, text) });
+      result = await call(cand.provider, cand.key, {
+        system: summarySystem(ratio), user: summaryUserMessage(req.title, text),
+        timeoutMs: Math.min(TIMEOUT_MS, remaining),
+      });
     } catch (err) {
       // Un appel raté n'est pas payé : la place réservée est rendue.
       if (cand.paidByAdmin) refundUsage(req.userId);
