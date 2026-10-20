@@ -83,6 +83,17 @@ describe('ReadingPane — Résumé IA', () => {
     fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ ratio: 35 }));
   });
+  it('a forced « Résumer avec X » keeps the user\'s fallback setting, so a failing X falls back too', async () => {
+    useUiStore.setState({ aiFallback: true });
+    vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+    const { getByRole, findByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    await findByRole('button', { name: 'ai.withProvider' });
+    fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
+    fireEvent.click(getByRole('menuitem', { name: 'Ollama' }));
+    await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(requestAiSummary).mock.calls[1][0]).toMatchObject({ provider: 1, fallback: true });
+  });
   it('sends the routing stages and the fallback choice with the request', () => {
     vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
     useFeedStore.setState({ subscriptions: [{ id: 'feed/1', title: 'F', categories: [{ id: 'user/-/label/Tech', label: 'Tech' }] }] } as never);
@@ -202,19 +213,6 @@ describe('ReadingPane — Résumé IA', () => {
     fireEvent.click(getByRole('menuitem', { name: 'Ollama' }));
     expect(await findByText('ai.errors.technical')).toBeTruthy();
     expect(getByText('Premier résumé.')).toBeTruthy();
-  });
-  it('never falls back from a provider the user chose, and keeps the fallback setting otherwise', async () => {
-    vi.mocked(requestAiSummary).mockResolvedValueOnce({ text: 'Premier résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false })
-      .mockReturnValue(new Promise(() => {}) as never);
-    useUiStore.setState({ aiFallback: true });
-    const { getByRole, findByText } = render(<ReadingPane />);
-    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
-    expect(vi.mocked(requestAiSummary).mock.calls[0][0]).toMatchObject({ fallback: true });
-    expect(vi.mocked(requestAiSummary).mock.calls[0][0]).not.toHaveProperty('provider', 1);
-    expect(await findByText('Premier résumé.')).toBeTruthy();
-    fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
-    fireEvent.click(getByRole('menuitem', { name: 'Ollama' }));
-    expect(vi.mocked(requestAiSummary).mock.calls[1][0]).toMatchObject({ provider: 1, fallback: false });
   });
   it('disables the action when the browser goes offline', async () => {
     const { getByRole } = render(<ReadingPane />);
