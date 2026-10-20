@@ -818,7 +818,7 @@
       "fallback": "Automatisch terugvallen",
       "fallbackHint": "Als uw aanbieder uitvalt, neemt de volgende in de lijst het over.",
       "auto": "Automatisch samenvatten bij openen",
-      "autoHint": "Elk geopend artikel wordt zonder klik samengevat.",
+      "autoHint": "Elk geopend artikel wordt zonder klik samengevat, tenzij een feed of categorie anders is ingesteld.",
       "autoConfirmTitle": "Automatische samenvatting inschakelen?",
       "autoConfirmMessage": "Elke automatische samenvatting is een aanroep naar uw AI-aanbieder. Afhankelijk van de aanbieder en uw abonnement kan dit in rekening worden gebracht. Een lokaal model zoals Ollama kost niets.",
       "autoConfirm": "Inschakelen",
@@ -832,7 +832,14 @@
       "overrides_one": "{{count}} feed ingesteld",
       "overrides_other": "{{count}} feeds ingesteld",
       "categorySelect": "Aanbieder voor de categorie {{name}}",
-      "feedSelect": "Aanbieder voor {{name}}"
+      "feedSelect": "Aanbieder voor {{name}}",
+      "autoSummary": "Samenvatten",
+      "autoTranslate": "Vertalen",
+      "autoHint": "De artikelen van deze regel bij openen samenvatten of vertalen. Een feed gaat voor op zijn categorie.",
+      "autoSummaryFor": "Artikelen van {{name}} automatisch samenvatten",
+      "autoTranslateFor": "Artikelen van {{name}} automatisch vertalen",
+      "translateConfirmTitle": "Automatisch vertalen?",
+      "translateConfirmMessage": "Een volledig artikel vertalen kost vijf tot vijftien keer zoveel als een samenvatting, en elk artikel van deze feed wordt bij openen vertaald. Afhankelijk van de aanbieder en uw abonnement kan dit in rekening worden gebracht. Een lokaal model zoals Ollama kost niets."
     },
     "keys": {
       "title": "Mijn sleutels",
@@ -845,6 +852,13 @@
       "saved": "Sleutel opgeslagen.",
       "cleared": "Sleutel gewist.",
       "error": "Opslaan mislukt. Probeer het opnieuw."
+    },
+    "translation": {
+      "title": "Vertaling",
+      "language": "Doeltaal",
+      "uiLanguage": "Taal van de interface ({{name}})",
+      "provider": "Aanbieder",
+      "sameAsSummary": "Dezelfde als voor de samenvatting"
     }
   }
 }

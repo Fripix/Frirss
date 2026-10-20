@@ -818,7 +818,7 @@
       "fallback": "Respaldo automático",
       "fallbackHint": "Si su proveedor falla, el siguiente de la lista toma el relevo.",
       "auto": "Resumir automáticamente al abrir",
-      "autoHint": "Cada artículo abierto se resume sin hacer clic.",
+      "autoHint": "Cada artículo abierto se resume sin hacer clic, salvo que un feed o una categoría indique lo contrario.",
       "autoConfirmTitle": "¿Activar el resumen automático?",
       "autoConfirmMessage": "Cada resumen automático es una llamada a su proveedor de IA. Según el proveedor y su suscripción, es posible que se le facture. Un modelo local como Ollama no cuesta nada.",
       "autoConfirm": "Activar",
@@ -832,7 +832,14 @@
       "overrides_one": "{{count}} feed configurado",
       "overrides_other": "{{count}} feeds configurados",
       "categorySelect": "Proveedor para la categoría {{name}}",
-      "feedSelect": "Proveedor para {{name}}"
+      "feedSelect": "Proveedor para {{name}}",
+      "autoSummary": "Resumir",
+      "autoTranslate": "Traducir",
+      "autoHint": "Resumir o traducir al abrirlos los artículos de esta fila. Un feed tiene prioridad sobre su categoría.",
+      "autoSummaryFor": "Resumir automáticamente los artículos de {{name}}",
+      "autoTranslateFor": "Traducir automáticamente los artículos de {{name}}",
+      "translateConfirmTitle": "¿Traducir automáticamente?",
+      "translateConfirmMessage": "Traducir un artículo entero cuesta de cinco a quince veces lo que un resumen, y cada artículo de este feed se traducirá al abrirlo. Según el proveedor y su suscripción, es posible que se le facture. Un modelo local como Ollama no cuesta nada."
     },
     "keys": {
       "title": "Mis claves",
@@ -845,6 +852,13 @@
       "saved": "Clave guardada.",
       "cleared": "Clave borrada.",
       "error": "No se pudo guardar. Inténtelo de nuevo."
+    },
+    "translation": {
+      "title": "Traducción",
+      "language": "Idioma de destino",
+      "uiLanguage": "Idioma de la interfaz ({{name}})",
+      "provider": "Proveedor",
+      "sameAsSummary": "El mismo que el resumen"
     }
   }
 }

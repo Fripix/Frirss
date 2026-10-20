@@ -818,7 +818,7 @@
       "fallback": "Alternativa automática",
       "fallbackHint": "Se o seu fornecedor falhar, o seguinte da lista assume.",
       "auto": "Resumir automaticamente ao abrir",
-      "autoHint": "Cada artigo aberto é resumido sem clicar.",
+      "autoHint": "Cada artigo aberto é resumido sem clicar, salvo definição em contrário por feed ou categoria.",
       "autoConfirmTitle": "Ativar o resumo automático?",
       "autoConfirmMessage": "Cada resumo automático é uma chamada ao seu fornecedor de IA. Consoante o fornecedor e a sua subscrição, pode ser-lhe cobrado. Um modelo local como o Ollama não custa nada.",
       "autoConfirm": "Ativar",
@@ -832,7 +832,14 @@
       "overrides_one": "{{count}} feed definido",
       "overrides_other": "{{count}} feeds definidos",
       "categorySelect": "Fornecedor para a categoria {{name}}",
-      "feedSelect": "Fornecedor para {{name}}"
+      "feedSelect": "Fornecedor para {{name}}",
+      "autoSummary": "Resumir",
+      "autoTranslate": "Traduzir",
+      "autoHint": "Resumir ou traduzir ao abrir os artigos desta linha. Um feed tem prioridade sobre a sua categoria.",
+      "autoSummaryFor": "Resumir automaticamente os artigos de {{name}}",
+      "autoTranslateFor": "Traduzir automaticamente os artigos de {{name}}",
+      "translateConfirmTitle": "Traduzir automaticamente?",
+      "translateConfirmMessage": "Traduzir um artigo inteiro custa cinco a quinze vezes mais do que um resumo, e cada artigo deste feed será traduzido ao abrir. Consoante o fornecedor e a sua subscrição, pode ser-lhe cobrado. Um modelo local como o Ollama não custa nada."
     },
     "keys": {
       "title": "As minhas chaves",
@@ -845,6 +852,13 @@
       "saved": "Chave guardada.",
       "cleared": "Chave apagada.",
       "error": "Não foi possível guardar. Tente novamente."
+    },
+    "translation": {
+      "title": "Tradução",
+      "language": "Idioma de destino",
+      "uiLanguage": "Idioma da interface ({{name}})",
+      "provider": "Fornecedor",
+      "sameAsSummary": "O mesmo do resumo"
     }
   }
 }

@@ -818,7 +818,7 @@
       "fallback": "Automatischer Wechsel",
       "fallbackHint": "Fällt Ihr Anbieter aus, übernimmt der nächste in der Liste.",
       "auto": "Beim Öffnen automatisch zusammenfassen",
-      "autoHint": "Jeder geöffnete Artikel wird ohne Klick zusammengefasst.",
+      "autoHint": "Jeder geöffnete Artikel wird ohne Klick zusammengefasst, sofern kein Feed und keine Kategorie etwas anderes festlegt.",
       "autoConfirmTitle": "Automatische Zusammenfassung aktivieren?",
       "autoConfirmMessage": "Jede automatische Zusammenfassung ist ein Aufruf bei Ihrem KI-Anbieter. Je nach Anbieter und Tarif kann sie Ihnen in Rechnung gestellt werden. Ein lokales Modell wie Ollama kostet nichts.",
       "autoConfirm": "Aktivieren",
@@ -832,7 +832,14 @@
       "overrides_one": "{{count}} Feed festgelegt",
       "overrides_other": "{{count}} Feeds festgelegt",
       "categorySelect": "Anbieter für die Kategorie {{name}}",
-      "feedSelect": "Anbieter für {{name}}"
+      "feedSelect": "Anbieter für {{name}}",
+      "autoSummary": "Zusammenfassen",
+      "autoTranslate": "Übersetzen",
+      "autoHint": "Die Artikel dieser Zeile beim Öffnen zusammenfassen oder übersetzen. Ein Feed hat Vorrang vor seiner Kategorie.",
+      "autoSummaryFor": "Artikel von {{name}} automatisch zusammenfassen",
+      "autoTranslateFor": "Artikel von {{name}} automatisch übersetzen",
+      "translateConfirmTitle": "Automatisch übersetzen?",
+      "translateConfirmMessage": "Einen ganzen Artikel zu übersetzen kostet fünf- bis fünfzehnmal so viel wie eine Zusammenfassung, und jeder Artikel dieses Feeds wird beim Öffnen übersetzt. Je nach Anbieter und Tarif kann Ihnen das in Rechnung gestellt werden. Ein lokales Modell wie Ollama kostet nichts."
     },
     "keys": {
       "title": "Meine Schlüssel",
@@ -845,6 +852,13 @@
       "saved": "Schlüssel gespeichert.",
       "cleared": "Schlüssel gelöscht.",
       "error": "Speichern nicht möglich. Bitte erneut versuchen."
+    },
+    "translation": {
+      "title": "Übersetzung",
+      "language": "Zielsprache",
+      "uiLanguage": "Sprache der Oberfläche ({{name}})",
+      "provider": "Anbieter",
+      "sameAsSummary": "Wie bei der Zusammenfassung"
     }
   }
 }

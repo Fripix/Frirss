@@ -5,8 +5,7 @@ import { useAiStore } from '../../../stores/aiStore';
 import { useAuthStore } from '../../../stores/authStore';
 import type { AiProviderView } from '../../../api/backend';
 import ToggleSwitch from '../../ToggleSwitch';
-import ConfirmDialog from '../../ConfirmDialog';
-import { BlockTitle, ProviderOptions } from './shared';
+import { AutoSummaryConfirm, BlockTitle, ProviderOptions } from './shared';
 import { inputClass, inputStyle } from './styles';
 
 /** Référence stable : un `?? []` dans le sélecteur ferait rerendre sans fin. */
@@ -16,7 +15,8 @@ const NO_PROVIDERS: AiProviderView[] = [];
  * Bloc « Résumés » : la longueur visée, en pour cent de l'article (formatée par
  * la langue — « 20 % » en français, « 20% » en anglais —, sans clé de
  * traduction), puis le fournisseur préféré, le repli, le résumé automatique
- * (qu'on n'active qu'après une confirmation de coût) et, quand l'instance
+ * (qu'on n'active qu'après une confirmation de coût, partagée avec les
+ * interrupteurs « Résumer » de « Par flux et catégorie ») et, quand l'instance
  * paie sous plafond, la consommation du jour.
  */
 export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
@@ -35,6 +35,7 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
   const setFallback = useUiStore((s) => s.setAiFallback);
   const auto = useUiStore((s) => s.aiAutoSummary);
   const setAuto = useUiStore((s) => s.setAiAutoSummary);
+  const setAutoConfirmed = useUiStore((s) => s.setAiAutoSummaryConfirmed);
   const [confirmAuto, setConfirmAuto] = useState(false);
   // « Par défaut (X) » nomme ce que la résolution du serveur prendra sans
   // préféré : le défaut admin s'il est utilisable par CE lecteur, sinon le
@@ -101,12 +102,9 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
         <p className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.user.usage', { used: usageToday, cap: dailyCap })}</p>
       )}
 
-      <ConfirmDialog
+      <AutoSummaryConfirm
         open={confirmAuto}
-        title={t('ai.user.autoConfirmTitle')}
-        message={t('ai.user.autoConfirmMessage')}
-        confirmLabel={t('ai.user.autoConfirm')}
-        onConfirm={() => { setAuto(true); setConfirmAuto(false); }}
+        onConfirm={() => { setAuto(true); setAutoConfirmed(true); setConfirmAuto(false); }}
         onCancel={() => setConfirmAuto(false)}
       />
     </section>

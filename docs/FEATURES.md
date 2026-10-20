@@ -2157,9 +2157,14 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   du bloc « Par flux et catégorie ») ; **« Repli automatique »**
   (interrupteur, **activé** par défaut, aide « le suivant de la liste prend le
   relais ») ; **« Résumé automatique à l'ouverture »** (interrupteur, **éteint**
-  par défaut) — l'allumer ouvre une confirmation de coût (chaque résumé est un
-  appel facturable au fournisseur de l'utilisateur ; un modèle local ne coûte
-  rien), et **Annuler le laisse éteint** ; l'éteindre ne demande jamais rien ;
+  par défaut ; il vaut « partout », et son aide le dit : « sauf réglage
+  contraire par flux ou catégorie ») — l'allumer ouvre une confirmation de coût
+  (chaque résumé est un appel facturable au fournisseur de l'utilisateur ; un
+  modèle local ne coûte rien), et **Annuler le laisse éteint** ; l'éteindre ne
+  demande jamais rien. Cette boîte (`AutoSummaryConfirm`, dans `ai/shared.tsx`)
+  est la même que celle des interrupteurs « Résumer » de « Par flux et
+  catégorie » ; la confirmer, ici ou là, pose `aiAutoSummaryConfirmed` (une
+  fois par compte) ;
   enfin la ligne **« Résumés payés par l'instance aujourd'hui : N sur M »**
   (N relu à chaque ouverture de la section, voir `aiStore` plus haut),
   affichée seulement pour un **non-admin**, avec un plafond journalier
@@ -2177,6 +2182,18 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   et `applyServerPrefs` l'éteint quand des préférences serveur non vides n'ont
   pas la clé (compte antérieur à la fonction ; même tri que
   `confirmMarkAllRead`).
+  Sous « Résumés », pour tous, le bloc **« Traduction »**
+  (`ai/TranslationBlock.tsx`) : deux `<select>` natifs. **« Langue cible »** :
+  en tête « Langue de l'interface (X) » (valeur `'ui'`, X étant la langue que
+  `targetLanguage` tire de la langue d'interface — `en` pour une langue hors
+  liste), puis les 28 langues de `AI_LANGUAGES`, **nommées par
+  `Intl.DisplayNames` dans la langue d'interface** (aucune clé de traduction)
+  et triées par ce nom. **« Fournisseur »** : « Même que le résumé » (valeur
+  vide, `null`), puis `ProviderOptions` (clé requise grisée, fournisseur
+  supprimé gardé visible). Préférences synchronisées `aiTranslationLanguage`
+  et `aiTranslationProvider`. Pas d'interrupteur global « tout traduire » : il
+  traduirait aussi les flux déjà dans la langue cible ; la traduction
+  automatique ne se règle que par flux ou catégorie.
   Dessous, pour l'admin seul, le bloc « Fournisseurs » (interrupteur, liste
   réordonnable par flèches haut / bas, éditeur avec liste des modèles, test,
   clé partagée, plafond,
@@ -2215,12 +2232,16 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   ligne qui passe à la ligne, champ pleine largeur, boutons dessous (tient à
   320 px), cibles de 44 pt.
 - **Interface — « Par flux et catégorie »** (`ai/RoutingBlock.tsx`, juste sous
-  « Résumés », pour tous, admin compris) : l'aperçu de tous les choix de
-  fournisseur. Un titre, une aide (« un fournisseur choisi ici passe avant votre
-  fournisseur préféré, et celui d'un flux avant celui de sa catégorie »), puis
+  « Traduction », pour tous, admin compris) : l'aperçu de tous les choix de
+  fournisseur et des automatismes. Un titre, deux aides (« un fournisseur choisi
+  ici passe avant votre fournisseur préféré, et celui d'un flux avant celui de
+  sa catégorie » ; « résumer ou traduire à l'ouverture les articles de cette
+  ligne, un flux prime sur sa catégorie »), puis
   une ligne par catégorie dans l'ordre de `groupFeedsByCategory` : un bouton de
   dépli (`aria-expanded`, `aria-controls`) qui porte le nom et, s'il y en a,
-  « N flux réglés », et à droite le sélecteur de la catégorie. **Tout est replié
+  « N flux réglés » — un flux compte dès qu'il porte un fournisseur **ou** une
+  valeur propre de résumé ou de traduction automatique —, et à droite le
+  sélecteur de la catégorie puis les interrupteurs. **Tout est replié
   à l'ouverture.** Dépliée, la catégorie liste ses flux, chacun avec son
   sélecteur. Les flux sans catégorie forment un dernier groupe « Sans
   catégorie », **sans sélecteur de groupe** (il n'y a pas de catégorie à
@@ -2231,11 +2252,48 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   dans `aiCategoryProviders` (par **nom** de catégorie) et
   `feedSettings[id].aiProvider`, tous deux synchronisés ; ils sont relus par
   `normalizeAiProviderId` (une valeur synchronisée corrompue vaut « par
-  défaut ») et la catégorie par clé propre (`Object.hasOwn`). Mobile : le nom
+  défaut ») et la catégorie par clé propre (`Object.hasOwn`).
+  **Interrupteurs « Résumer » et « Traduire »** : chaque ligne de catégorie et
+  de flux (pas l'en-tête « Sans catégorie ») en porte deux après son
+  sélecteur, mot court visible (masqué aux lecteurs d'écran) et nom accessible
+  « Résumer / Traduire automatiquement les articles de X », décrits par
+  l'aide du bloc ; tout le `<label>` est la cible du doigt. Allumé, chaque
+  article de la ligne doit être résumé ou traduit **à l'ouverture**.
+  ⚠️ **Pas encore branché côté lecture** : pour l'instant seul cet écran lit
+  ces réglages (`autoFor` n'a pas d'autre appelant) et le résumé automatique
+  du lecteur ne suit que l'interrupteur global ; le déclencheur par flux et
+  catégorie reste à brancher. Une catégorie
+  affiche et écrit son propre drapeau (`aiCategoryAutoSummary` /
+  `aiCategoryAutoTranslate`, `{ nom: true }`, rangés par nom comme les
+  fournisseurs). Un flux affiche sa **valeur effective** (`autoFor` de
+  `lib/aiAuto.ts` : la sienne, sinon allumé dès qu'**une** de ses catégories
+  l'est, sinon — résumé seulement — le réglage global ; « hérité » n'est pas
+  un état visible, la ligne de catégorie suffit à le dire) et le toucher
+  écrit **toujours** une valeur propre, `true` ou `false`
+  (`feedSettings[id].aiAutoSummary` / `.aiAutoTranslate`) : éteindre un flux
+  sous une catégorie allumée tient. Priorité : **flux > catégorie > global**
+  (le global ne vaut que pour le résumé). Aucune remise à « hérité » depuis
+  l'écran : une valeur propre reste jusqu'à ce qu'on la change.
+  **Confirmations, une fois par compte** : allumer « Traduire » sans
+  `aiAutoTranslateConfirmed` ouvre « Traduire automatiquement ? » (« Traduire
+  un article entier coûte cinq à quinze fois un résumé, et chaque article de
+  ce flux sera traduit à l'ouverture… »), même texte pour une catégorie ;
+  « Activer » écrit la valeur **et** pose le drapeau, « Annuler » ne change
+  rien. Allumer « Résumer » quand le résumé automatique global est éteint et
+  que `aiAutoSummaryConfirmed` est faux ouvre la boîte du global
+  (`AutoSummaryConfirm`), avec le même effet. Éteindre ne demande jamais rien.
+  Les deux drapeaux sont synchronisés. ⚠️ Une catégorie sous un global allumé
+  s'affiche éteinte alors que ses flux sont résumés (le global vaut
+  partout) : ses flux, eux, montrent la valeur effective. Mobile : le nom
   passe à la ligne — **n'importe où** (`[overflow-wrap:anywhere]`, sur un `span`
   non flex) : un titre de flux sans espace, souvent l'URL, ne rétrécit pas sous
   son mot le plus long avec `break-word` et débordait sur le sélecteur à 320 px —,
-  le sélecteur garde 8 rem au moins (`min-w-[8rem]`), cibles de 44 pt. ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
+  le sélecteur garde 8 rem au moins (`min-w-[8rem]`), cibles de 44 pt. La
+  ligne est en `flex-wrap`, le nom a une base de 40 % (`grow basis-[40%]`) et
+  la paire d'interrupteurs est poussée à droite (`ml-auto`) : quand la largeur
+  manque (320 px), la paire **passe sous le sélecteur**, calée à droite, au
+  lieu d'écraser le nom ; elle se replie elle-même sur deux lignes si un mot
+  est long (« Zusammenfassen »). ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
   puisqu'il est rangé sous son nom ; un flux déplacé dans une autre catégorie
   suit celle-ci. Un flux rangé dans deux catégories apparaît sous chacune.
 - **Interface — panneau** (`AiSummary.tsx`) : un panneau sur **toute la largeur

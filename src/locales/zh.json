@@ -818,7 +818,7 @@
       "fallback": "自动切换",
       "fallbackHint": "如果您的服务商出错，将由列表中的下一个接替。",
       "auto": "打开时自动生成摘要",
-      "autoHint": "每篇打开的文章都会自动生成摘要，无需点击。",
+      "autoHint": "每篇打开的文章都会自动生成摘要，无需点击，除非订阅源或分类另有设置。",
       "autoConfirmTitle": "启用自动摘要？",
       "autoConfirmMessage": "每次自动摘要都会调用您的 AI 服务商。根据服务商和您的订阅，可能会向您收费。像 Ollama 这样的本地模型不产生任何费用。",
       "autoConfirm": "启用",
@@ -832,7 +832,14 @@
       "overrides_one": "已设置 {{count}} 个订阅源",
       "overrides_other": "已设置 {{count}} 个订阅源",
       "categorySelect": "分类 {{name}} 的服务商",
-      "feedSelect": "{{name}} 的服务商"
+      "feedSelect": "{{name}} 的服务商",
+      "autoSummary": "摘要",
+      "autoTranslate": "翻译",
+      "autoHint": "打开时为此行的文章生成摘要或翻译。订阅源的设置优先于其所属分类。",
+      "autoSummaryFor": "自动为 {{name}} 的文章生成摘要",
+      "autoTranslateFor": "自动翻译 {{name}} 的文章",
+      "translateConfirmTitle": "自动翻译？",
+      "translateConfirmMessage": "翻译整篇文章的费用是摘要的五到十五倍，且此订阅源的每篇文章都会在打开时被翻译。根据服务商和您的订阅，可能会向您收费。像 Ollama 这样的本地模型不产生任何费用。"
     },
     "keys": {
       "title": "我的密钥",
@@ -845,6 +852,13 @@
       "saved": "密钥已保存。",
       "cleared": "密钥已清除。",
       "error": "无法保存，请重试。"
+    },
+    "translation": {
+      "title": "翻译",
+      "language": "目标语言",
+      "uiLanguage": "界面语言（{{name}}）",
+      "provider": "服务商",
+      "sameAsSummary": "与摘要相同"
     }
   }
 }

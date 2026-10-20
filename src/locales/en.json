@@ -818,7 +818,7 @@
       "fallback": "Automatic fallback",
       "fallbackHint": "If your provider fails, the next one in the list takes over.",
       "auto": "Summarise automatically on open",
-      "autoHint": "Every article you open is summarised without a click.",
+      "autoHint": "Every article you open is summarised without a click, unless a feed or category says otherwise.",
       "autoConfirmTitle": "Turn on automatic summaries?",
       "autoConfirmMessage": "Every automatic summary is a call to your AI provider. Depending on the provider and your plan, it may be billed to you. A local model such as Ollama costs nothing.",
       "autoConfirm": "Turn on",
@@ -832,7 +832,14 @@
       "overrides_one": "{{count}} feed set",
       "overrides_other": "{{count}} feeds set",
       "categorySelect": "Provider for the {{name}} category",
-      "feedSelect": "Provider for {{name}}"
+      "feedSelect": "Provider for {{name}}",
+      "autoSummary": "Summarise",
+      "autoTranslate": "Translate",
+      "autoHint": "Summarise or translate this row's articles when you open them. A feed takes precedence over its category.",
+      "autoSummaryFor": "Summarise articles from {{name}} automatically",
+      "autoTranslateFor": "Translate articles from {{name}} automatically",
+      "translateConfirmTitle": "Translate automatically?",
+      "translateConfirmMessage": "Translating a whole article costs five to fifteen times as much as a summary, and every article in this feed will be translated when you open it. Depending on the provider and your plan, it may be billed to you. A local model such as Ollama costs nothing."
     },
     "keys": {
       "title": "My keys",
@@ -845,6 +852,13 @@
       "saved": "Key saved.",
       "cleared": "Key cleared.",
       "error": "Could not save. Try again."
+    },
+    "translation": {
+      "title": "Translation",
+      "language": "Target language",
+      "uiLanguage": "Interface language ({{name}})",
+      "provider": "Provider",
+      "sameAsSummary": "Same as the summary"
     }
   }
 }

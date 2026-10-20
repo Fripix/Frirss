@@ -818,7 +818,7 @@
       "fallback": "Ripiego automatico",
       "fallbackHint": "Se il suo fornitore non risponde, subentra il successivo dell'elenco.",
       "auto": "Riassumi automaticamente all'apertura",
-      "autoHint": "Ogni articolo aperto viene riassunto senza un clic.",
+      "autoHint": "Ogni articolo aperto viene riassunto senza un clic, salvo impostazione diversa per feed o categoria.",
       "autoConfirmTitle": "Attivare il riassunto automatico?",
       "autoConfirmMessage": "Ogni riassunto automatico è una chiamata al suo fornitore di IA. A seconda del fornitore e dell'abbonamento, potrebbe esserle addebitato. Un modello locale come Ollama non costa nulla.",
       "autoConfirm": "Attiva",
@@ -832,7 +832,14 @@
       "overrides_one": "{{count}} feed impostato",
       "overrides_other": "{{count}} feed impostati",
       "categorySelect": "Fornitore per la categoria {{name}}",
-      "feedSelect": "Fornitore per {{name}}"
+      "feedSelect": "Fornitore per {{name}}",
+      "autoSummary": "Riassumi",
+      "autoTranslate": "Traduci",
+      "autoHint": "Riassumere o tradurre all'apertura gli articoli di questa riga. Un feed ha la precedenza sulla sua categoria.",
+      "autoSummaryFor": "Riassumi automaticamente gli articoli di {{name}}",
+      "autoTranslateFor": "Traduci automaticamente gli articoli di {{name}}",
+      "translateConfirmTitle": "Tradurre automaticamente?",
+      "translateConfirmMessage": "Tradurre un intero articolo costa da cinque a quindici volte un riassunto, e ogni articolo di questo feed verrà tradotto all'apertura. A seconda del fornitore e dell'abbonamento, potrebbe esserle addebitato. Un modello locale come Ollama non costa nulla."
     },
     "keys": {
       "title": "Le mie chiavi",
@@ -845,6 +852,13 @@
       "saved": "Chiave salvata.",
       "cleared": "Chiave cancellata.",
       "error": "Salvataggio non riuscito. Riprova."
+    },
+    "translation": {
+      "title": "Traduzione",
+      "language": "Lingua di destinazione",
+      "uiLanguage": "Lingua dell'interfaccia ({{name}})",
+      "provider": "Fornitore",
+      "sameAsSummary": "Lo stesso del riassunto"
     }
   }
 }

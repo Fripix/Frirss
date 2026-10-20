@@ -818,7 +818,7 @@
       "fallback": "Repli automatique",
       "fallbackHint": "Si votre fournisseur échoue, le suivant de la liste prend le relais.",
       "auto": "Résumé automatique à l'ouverture",
-      "autoHint": "Chaque article ouvert est résumé sans clic.",
+      "autoHint": "Chaque article ouvert est résumé sans clic, sauf réglage contraire par flux ou catégorie.",
       "autoConfirmTitle": "Activer le résumé automatique ?",
       "autoConfirmMessage": "Chaque résumé automatique est un appel à votre fournisseur d'IA. Selon le fournisseur et votre abonnement, il peut vous être facturé. Un modèle local comme Ollama ne coûte rien.",
       "autoConfirm": "Activer",
@@ -832,7 +832,14 @@
       "overrides_one": "{{count}} flux réglé",
       "overrides_other": "{{count}} flux réglés",
       "categorySelect": "Fournisseur pour la catégorie {{name}}",
-      "feedSelect": "Fournisseur pour {{name}}"
+      "feedSelect": "Fournisseur pour {{name}}",
+      "autoSummary": "Résumer",
+      "autoTranslate": "Traduire",
+      "autoHint": "Résumer ou traduire à l'ouverture les articles de cette ligne. Un flux prime sur sa catégorie.",
+      "autoSummaryFor": "Résumer automatiquement les articles de {{name}}",
+      "autoTranslateFor": "Traduire automatiquement les articles de {{name}}",
+      "translateConfirmTitle": "Traduire automatiquement ?",
+      "translateConfirmMessage": "Traduire un article entier coûte cinq à quinze fois un résumé, et chaque article de ce flux sera traduit à l'ouverture. Selon le fournisseur et votre abonnement, cela peut vous être facturé. Un modèle local comme Ollama ne coûte rien."
     },
     "keys": {
       "title": "Mes clés",
@@ -845,6 +852,13 @@
       "saved": "Clé enregistrée.",
       "cleared": "Clé effacée.",
       "error": "Enregistrement impossible. Réessayez."
+    },
+    "translation": {
+      "title": "Traduction",
+      "language": "Langue cible",
+      "uiLanguage": "Langue de l'interface ({{name}})",
+      "provider": "Fournisseur",
+      "sameAsSummary": "Même que le résumé"
     }
   }
 }

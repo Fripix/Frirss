@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, waitFor, within, screen } from '@testing-library/react';
-// Le nom passé à `ai.user.preferredDefault` est ce que l'on vérifie : il est rendu après la clé.
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (k === 'ai.user.preferredDefault' ? `${k}:${String(o?.name)}` : k), i18n: { language: 'fr' } }) }));
+// Le nom passé à ces clés est ce que l'on vérifie : il est rendu après la clé.
+const NAMED = new Set(['ai.user.preferredDefault', 'ai.translation.uiLanguage', 'ai.routing.autoSummaryFor', 'ai.routing.autoTranslateFor']);
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (NAMED.has(k) ? `${k}:${String(o?.name)}` : k), i18n: { language: 'fr' } }) }));
 vi.mock('../../api/backend', () => ({
   getAiProviders: vi.fn(), createAiProvider: vi.fn(), updateAiProvider: vi.fn(), deleteAiProvider: vi.fn(),
   reorderAiProviders: vi.fn(), testAiProvider: vi.fn(), updateAiSettings: vi.fn(), getAiConfig: vi.fn(), listAiModels: vi.fn(), setAiUserKey: vi.fn(),
@@ -13,6 +14,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useAiStore } from '../../stores/aiStore';
 import { useFeedStore } from '../../stores/feedStore';
 import type { AiConfig, AiProviderView } from '../../api/backend';
+import { AI_LANGUAGES, languageName } from '../../lib/aiLanguages';
 import AiTab from './AiTab';
 
 const admin = { id: 1, username: 'root', role: 'admin' as const };
@@ -370,12 +372,12 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
     useAiStore.setState({ config: { enabled: true, providers: [], userKeysAllowed: false, dailyCap: 0, usageToday: 0, defaultProvider: null, ...o } });
   beforeEach(() => {
     useAuthStore.setState({ backendUser: user });
-    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false });
+    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false, aiAutoSummaryConfirmed: false });
     setConfig();
   });
   afterEach(() => {
     useAiStore.setState({ config: null });
-    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false });
+    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false, aiAutoSummaryConfirmed: false });
   });
 
   it('lists available providers, greys the ones without a key, and stores the choice', () => {
@@ -432,6 +434,8 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'ai.user.autoConfirm' }));
       expect(useUiStore.getState().aiAutoSummary).toBe(true);
     });
+    // Confirmée ici, la boîte ne revient pas pour un interrupteur « Résumer » de flux ou de catégorie.
+    expect(useUiStore.getState().aiAutoSummaryConfirmed).toBe(true);
     expect(queryByRole('dialog')).toBeNull();
     expect(getByRole('switch', { name: 'ai.user.auto' }).getAttribute('aria-checked')).toBe('true');
     fireEvent.click(getByRole('switch', { name: 'ai.user.auto' }));
@@ -472,15 +476,67 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
   });
 });
 
+describe('AiTab — « Traduction »', () => {
+  const provider = (id: number, name: string): AiProviderView =>
+    ({ id, name, type: 'openai', hasAdminKey: true, shared: true, hasUserKey: false, available: true });
+  beforeEach(() => {
+    useAuthStore.setState({ backendUser: user });
+    useUiStore.setState({ aiTranslationLanguage: 'ui', aiTranslationProvider: null });
+    useAiStore.setState({ config: { enabled: true, providers: [provider(1, 'Ollama')], userKeysAllowed: false, dailyCap: 0, usageToday: 0, defaultProvider: null } });
+  });
+  afterEach(() => {
+    useAiStore.setState({ config: null });
+    useUiStore.setState({ aiTranslationLanguage: 'ui', aiTranslationProvider: null });
+  });
+
+  it('sits between « Résumés » and « Par flux et catégorie »', () => {
+    const { getByText } = render(<AiTab active />);
+    const title = getByText('ai.translation.title');
+    expect(getByText('ai.user.title').compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(title.compareDocumentPosition(getByText('ai.routing.title')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it('the translation block offers the UI language first, then the 28 languages named in the UI language', () => {
+    const { getByLabelText } = render(<AiTab active />);
+    const select = getByLabelText('ai.translation.language') as HTMLSelectElement;
+    const options = [...select.options];
+    expect(options).toHaveLength(29);
+    expect([options[0].value, options[0].textContent]).toEqual(['ui', `ai.translation.uiLanguage:${languageName('fr', 'fr')}`]);
+    const rest = options.slice(1);
+    expect(rest.map((o) => o.value).sort()).toEqual([...AI_LANGUAGES].sort());
+    for (const o of rest) expect(o.textContent).toBe(languageName(o.value as typeof AI_LANGUAGES[number], 'fr'));
+    const names = rest.map((o) => o.textContent as string);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'fr')));
+    expect(select.value).toBe('ui');
+    fireEvent.change(select, { target: { value: 'ja' } });
+    expect(useUiStore.getState().aiTranslationLanguage).toBe('ja');
+    fireEvent.change(select, { target: { value: 'ui' } });
+    expect(useUiStore.getState().aiTranslationLanguage).toBe('ui');
+  });
+  it('the translation provider defaults to « same as the summary » and stores a choice', () => {
+    const { getByLabelText } = render(<AiTab active />);
+    const select = getByLabelText('ai.translation.provider') as HTMLSelectElement;
+    expect([...select.options].map((o) => [o.value, o.textContent])).toEqual([['', 'ai.translation.sameAsSummary'], ['1', 'Ollama']]);
+    fireEvent.change(select, { target: { value: '1' } });
+    expect(useUiStore.getState().aiTranslationProvider).toBe(1);
+    fireEvent.change(select, { target: { value: '' } });
+    expect(useUiStore.getState().aiTranslationProvider).toBeNull();
+  });
+});
+
 describe('AiTab — « Par flux et catégorie »', () => {
   const cat = (label: string) => ({ id: `user/-/label/${label}`, label });
   const sub = (n: number, categories: { id: string; label: string }[] = []) => ({ id: `feed/${n}`, title: `Flux ${n}`, categories });
   const provider = (id: number, name: string): AiProviderView =>
     ({ id, name, type: 'openai', hasAdminKey: true, shared: true, hasUserKey: false, available: true });
   const reset = () => {
-    useUiStore.setState({ aiCategoryProviders: {}, feedSettings: {} });
+    useUiStore.setState({
+      aiCategoryProviders: {}, feedSettings: {}, aiCategoryAutoTranslate: {}, aiCategoryAutoSummary: {},
+      aiAutoSummary: false, aiAutoSummaryConfirmed: false, aiAutoTranslateConfirmed: false,
+    });
     useFeedStore.setState({ subscriptions: [] });
   };
+  const sw = (kind: 'Summary' | 'Translate', name: string) => screen.getByRole('switch', { name: `ai.routing.auto${kind}For:${name}` });
+  const checked = (kind: 'Summary' | 'Translate', name: string) => sw(kind, name).getAttribute('aria-checked');
   beforeEach(() => {
     reset();
     useAuthStore.setState({ backendUser: user });
@@ -560,6 +616,113 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(queryByText('ai.routing.overrides')).toBeNull();
     fireEvent.click(getAllByRole('button', { name: /Tech/ })[0]);
     expect((getAllByLabelText('ai.routing.feedSelect')[0] as HTMLSelectElement).value).toBe('');
+  });
+  it('a category translate switch asks for confirmation once, then not again', async () => {
+    useFeedStore.setState({ subscriptions: [sub(1, [cat('Tech')]), sub(2, [cat('Science')])] });
+    render(<AiTab active />);
+    fireEvent.click(sw('Translate', 'Tech'));
+    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({});
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('ai.routing.translateConfirmTitle')).toBeTruthy();
+    expect(within(dialog).getByText('ai.routing.translateConfirmMessage')).toBeTruthy();
+    await waitFor(() => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'ai.user.autoConfirm' }));
+      expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ Tech: true });
+    });
+    expect(useUiStore.getState().aiAutoTranslateConfirmed).toBe(true);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(checked('Translate', 'Tech')).toBe('true');
+    fireEvent.click(sw('Translate', 'Science'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ Tech: true, Science: true });
+    // Éteindre ne demande rien.
+    fireEvent.click(sw('Translate', 'Tech'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ Science: true });
+  });
+  it('cancelling leaves the switch off', async () => {
+    render(<AiTab active />);
+    fireEvent.click(sw('Translate', 'Tech'));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'dialog.cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({});
+    expect(useUiStore.getState().aiAutoTranslateConfirmed).toBe(false);
+    expect(checked('Translate', 'Tech')).toBe('false');
+  });
+  it('a feed switch shows the inherited value and writes an explicit false when turned off', () => {
+    useUiStore.setState({ aiCategoryAutoTranslate: { Tech: true } });
+    render(<AiTab active />);
+    expect(screen.queryByText('ai.routing.overrides')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Tech/ }));
+    expect(checked('Translate', 'Flux 1')).toBe('true');
+    expect(checked('Translate', 'Flux 2')).toBe('true');
+    fireEvent.click(sw('Translate', 'Flux 1'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().feedSettings['feed/1'].aiAutoTranslate).toBe(false);
+    expect(checked('Translate', 'Flux 1')).toBe('false');
+    expect(checked('Translate', 'Flux 2')).toBe('true');
+    // Une valeur propre compte comme un réglage, au même titre qu'un fournisseur.
+    expect(screen.getByText('ai.routing.overrides')).toBeTruthy();
+  });
+  it('a feed summary switch opens the global confirmation when never confirmed', async () => {
+    render(<AiTab active />);
+    fireEvent.click(screen.getByRole('button', { name: /Tech/ }));
+    expect(checked('Summary', 'Flux 1')).toBe('false');
+    fireEvent.click(sw('Summary', 'Flux 1'));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('ai.user.autoConfirmMessage')).toBeTruthy();
+    expect(useUiStore.getState().feedSettings['feed/1']).toBeUndefined();
+    await waitFor(() => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'ai.user.autoConfirm' }));
+      expect(useUiStore.getState().feedSettings['feed/1'].aiAutoSummary).toBe(true);
+    });
+    expect(useUiStore.getState().aiAutoSummaryConfirmed).toBe(true);
+    // Le réglage global n'est pas touché : seul ce flux est résumé.
+    expect(useUiStore.getState().aiAutoSummary).toBe(false);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(sw('Summary', 'Tech'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
+  });
+  it('no summary confirmation while the global auto-summary is on; feeds show it as inherited', () => {
+    useUiStore.setState({ aiAutoSummary: true });
+    render(<AiTab active />);
+    fireEvent.click(screen.getByRole('button', { name: /Tech/ }));
+    expect(checked('Summary', 'Flux 1')).toBe('true');
+    fireEvent.click(sw('Summary', 'Tech'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
+  });
+  it('every switch is described by the shared hint; the uncategorised group has none of its own', () => {
+    const { getByText, getAllByRole } = render(<AiTab active />);
+    const hint = getByText('ai.routing.autoHint');
+    fireEvent.click(screen.getByRole('button', { name: /ai\.routing\.uncategorised/ }));
+    const switches = getAllByRole('switch').filter((s) => /^ai\.routing\.auto/.test(s.getAttribute('aria-label') ?? ''));
+    // Tech (catégorie) + Flux 3 (sans catégorie) : deux lignes, deux interrupteurs chacune.
+    expect(switches.map((s) => s.getAttribute('aria-label'))).toEqual([
+      'ai.routing.autoSummaryFor:Tech', 'ai.routing.autoTranslateFor:Tech',
+      'ai.routing.autoSummaryFor:Flux 3', 'ai.routing.autoTranslateFor:Flux 3',
+    ]);
+    for (const s of switches) expect(s.getAttribute('aria-describedby')).toBe(hint.id);
+  });
+  it('the visible word toggles its switch too, exactly once', () => {
+    useUiStore.setState({ aiAutoSummary: true });
+    const { getAllByText } = render(<AiTab active />);
+    fireEvent.click(getAllByText('ai.routing.autoSummary')[0]);
+    expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
+    fireEvent.click(sw('Summary', 'Tech'));
+    expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({});
+  });
+  it('lets the switch pair wrap under the select on a narrow screen', () => {
+    render(<AiTab active />);
+    // jsdom n'a pas de mise en page : on fige les classes qui produisent le retour à la ligne
+    // (ligne en flex-wrap, nom avec une base de 40 %, paire poussée à droite).
+    const pair = sw('Translate', 'Tech').closest('[data-auto-switches]') as HTMLElement;
+    expect(pair).toBeTruthy();
+    expect(pair.className).toContain('ml-auto');
+    const row = pair.parentElement as HTMLElement;
+    expect(row.className).toContain('flex-wrap');
+    expect(row.querySelector('select')).toBeTruthy();
   });
 });
 
