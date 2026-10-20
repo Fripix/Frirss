@@ -2199,7 +2199,14 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   (article suivant déjà en mémoire) alors que `extractedContent` reste celui du
   précédent jusqu'au rendu suivant : la comparer à l'état appariait l'extrait
   de A à l'id de B, et le serveur le gardait en cache sous B. `settled` et
-  `handleSummarize` comparent donc `extractFor` à l'article courant.
+  `handleSummarize` comparent donc `extractFor` à l'article courant. Second
+  piège, sur la même référence : elle restait sur A quand on passait à un
+  article B sans extrait en mémoire, et au retour sur A l'effet de remise à
+  zéro sortait en tête (« déjà extrait ») — ni extrait affiché, ni extraction
+  relancée, et le résumé automatique, qui attend l'extraction, ne partait
+  jamais. La branche « rien en mémoire pour ce nouvel article » remet donc
+  `lastExtractedId` à `null` : le prochain passage sur A repart de la mémoire
+  ou relance l'extraction.
 - **Raccourci clavier et palette** : action configurable **`summarize`**,
   touche **`s`** par défaut, réassignable comme les autres (Préférences →
   Général ; libellé `preferences.shortcuts.summarize`, « Résumer l'article

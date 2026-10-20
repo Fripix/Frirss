@@ -375,6 +375,30 @@ describe('ReadingPane — Résumé IA', () => {
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
       expect(vi.mocked(requestAiSummary).mock.calls[1][0].articleId).toBe('a2');
     });
+    it('shows the extraction and summarises again when coming back from an article without one', async () => {
+      const a = article('m1');
+      const b = { ...article('m2'), sourceId: 'feed/2' } as Article;
+      useFeedStore.setState({ selectedArticle: a, articles: [a, b] });
+      useUiStore.setState({ aiAutoSummary: true, feedSettings: { 'feed/1': { autoExtract: true } } as never });
+      await putExtract('m1', extracted('<p>' + 'complet '.repeat(80) + '</p>'));
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      const { container } = render(<ReadingPane />);
+      await passDelay();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      expect(container.textContent).toContain('complet');
+      // m2 : flux sans extraction automatique, rien en mémoire pour lui.
+      act(() => { useFeedStore.setState({ selectedArticle: b }); });
+      await passDelay();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
+      act(() => { useFeedStore.setState({ selectedArticle: a }); });
+      await passDelay();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(3));
+      const third = vi.mocked(requestAiSummary).mock.calls[2][0];
+      expect(third.articleId).toBe('m1');
+      expect(third.html).toContain('complet');
+      expect(container.textContent).toContain('complet');
+    });
+
     describe('one second on the article before anything leaves', () => {
       // Horloge entièrement simulée ici : les bornes se mesurent à la
       // milliseconde, le temps réel ne doit pas s'en mêler.

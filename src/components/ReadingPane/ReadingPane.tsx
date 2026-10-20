@@ -218,6 +218,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     } else {
       setExtractedContent(null);
       setExtractFor(null);
+      // L'extrait affiché vient d'être effacé : `lastExtractedId` ne désigne
+      // plus rien à l'écran. Le garder ferait sortir ce même effet en tête au
+      // retour sur cet article (A → B sans extrait → A) : ni extrait affiché,
+      // ni extraction relancée, ni résumé automatique, qui attend l'extraction.
+      lastExtractedId.current = null;
     }
     setExtractError(null);
     setExtracting(false);
