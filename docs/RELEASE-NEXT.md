@@ -22,7 +22,12 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Une connexion ratée n'écrase plus les préférences synchronisées.** Si la
+  lecture des préférences échouait à la connexion (réseau, erreur 5xx), FriRSS
+  prenait le compte pour un compte neuf et y écrivait l'état local du
+  navigateur — des valeurs par défaut après une déconnexion — sur tous les
+  appareils. Un échec ne change plus rien : la lecture est retentée et la
+  première réussie décide.
 
 ## Sous le capot
 

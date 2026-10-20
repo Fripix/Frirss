@@ -3010,6 +3010,22 @@ Stockage clé/valeur par utilisateur (`preferences`), poussé en un lot par
 - **Piège** : tout le lot est validé **avant** la moindre écriture. Valider au
   fil de l'insertion laisserait derrière soi les clés qui précédaient la
   fautive, sur une requête pourtant refusée.
+- **Côté client** (`hydratePrefs()`, à la connexion et au démarrage) : la
+  réponse du serveur est appliquée aux magasins, puis l'écriture différée
+  démarre (800 ms, instantané **complet**). Un `200` sans aucune clé
+  synchronisée = compte neuf : le serveur est amorcé avec l'état local.
+- **Piège — une lecture en échec n'est PAS un compte vide** (1.6.2). Jusqu'à la
+  1.6.1, une erreur réseau ou un 5xx retombait sur `{}`, donc sur l'amorçage :
+  l'état local de ce navigateur — souvent des valeurs par défaut, remises par
+  une déconnexion — écrasait toutes les préférences du compte, sur tous les
+  appareils. Désormais un échec n'applique rien, n'écrit rien et **ne démarre
+  pas** l'écriture différée (elle pousse l'instantané complet : le moindre
+  changement local aurait le même effet). La lecture est retentée (5 s, puis
+  doublée jusqu'à 60 s) et la première réussie décide ; un changement fait
+  entre-temps reste local et cède devant le serveur. Pas de nouvel essai après
+  un 401 (l'intercepteur a déjà déconnecté) ; `stopSync()` annule l'essai en
+  attente, et une lecture partie avant la déconnexion n'applique plus rien.
+  Test : `src/lib/prefsSync.test.ts`.
 
 ### Scripts opérateur
 - `scripts/backup-db.js` — instantané atomique horodaté

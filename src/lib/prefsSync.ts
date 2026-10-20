@@ -10,6 +10,11 @@
 //   • write-through  — debounced push to the server when a synced field changes
 //
 // A `hydrating` guard prevents the hydration writes from re-triggering a push.
+//
+// A failed read is NOT an empty account: on any error the stores are left
+// alone, nothing is written, and write-through stays off (it pushes the full
+// snapshot, so it would overwrite the account just the same). The read is
+// retried with backoff; the first successful one decides.
 // ═══════════════════════════════════════════════════════════════════════
 import { getPreferences, savePreferences } from '../api/backend';
 import { useUiStore, UI_SYNC_KEYS } from '../stores/uiStore';
@@ -20,6 +25,19 @@ let started = false;
 let unsubUi: (() => void) | null = null;
 let unsubTheme: (() => void) | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryDelay = 0;
+// Bumped by stopSync() and by every new hydration, so a read still in flight
+// from an older session can no longer apply, seed or start anything.
+let generation = 0;
+
+const RETRY_FIRST_MS = 5_000;
+const RETRY_MAX_MS = 60_000;
+
+function clearRetry(): void {
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
+}
 
 // Build the full set of synced prefs from the current store state.
 function collectPrefs(): Record<string, unknown> {
@@ -76,15 +94,28 @@ function startSync(): void {
 }
 
 // Pull preferences from the server and apply them; then start write-through.
-// On a brand-new account (nothing stored server-side), seed the server with
-// whatever is currently local so future devices inherit it.
+// On a brand-new account (the server answered, with nothing stored), seed the
+// server with whatever is currently local so future devices inherit it.
 export async function hydratePrefs(): Promise<void> {
-  let serverPrefs: Record<string, unknown> = {};
+  clearRetry();
+  const gen = ++generation;
+
+  let serverPrefs: Record<string, unknown>;
   try {
     serverPrefs = await getPreferences();
-  } catch {
-    serverPrefs = {};
+  } catch (err) {
+    if (gen !== generation) return;
+    // A 401 has already logged the user out (backend interceptor): no retry.
+    if ((err as { response?: { status?: number } })?.response?.status === 401) return;
+    retryDelay = retryDelay ? Math.min(retryDelay * 2, RETRY_MAX_MS) : RETRY_FIRST_MS;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      void hydratePrefs();
+    }, retryDelay);
+    return;
   }
+  if (gen !== generation) return;
+  retryDelay = 0;
 
   const syncedKeys = [...UI_SYNC_KEYS, ...THEME_SYNC_KEYS];
   const hasAny =
@@ -121,6 +152,9 @@ export function stopSync(): void {
   unsubUi = null;
   unsubTheme = null;
   started = false;
+  generation++;
+  clearRetry();
+  retryDelay = 0;
   if (timer) {
     clearTimeout(timer);
     timer = null;
