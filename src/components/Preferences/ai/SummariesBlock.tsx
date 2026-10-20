@@ -15,8 +15,9 @@ const NO_PROVIDERS: AiProviderView[] = [];
  * Bloc « Résumés » : la longueur visée, en pour cent de l'article (formatée par
  * la langue — « 20 % » en français, « 20% » en anglais —, sans clé de
  * traduction), puis le fournisseur préféré, le repli, le résumé automatique
- * (qu'on n'active qu'après une confirmation de coût, partagée avec les
- * interrupteurs « Résumer » de « Par flux et catégorie ») et, quand l'instance
+ * (qu'on n'active qu'après une confirmation de coût, une fois par compte,
+ * partagée avec les interrupteurs « Résumer » de « Par flux et catégorie ») et,
+ * quand l'instance
  * paie sous plafond, la consommation du jour.
  */
 export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
@@ -35,6 +36,7 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
   const setFallback = useUiStore((s) => s.setAiFallback);
   const auto = useUiStore((s) => s.aiAutoSummary);
   const setAuto = useUiStore((s) => s.setAiAutoSummary);
+  const autoConfirmed = useUiStore((s) => s.aiAutoSummaryConfirmed);
   const setAutoConfirmed = useUiStore((s) => s.setAiAutoSummaryConfirmed);
   const [confirmAuto, setConfirmAuto] = useState(false);
   // « Par défaut (X) » nomme ce que la résolution du serveur prendra sans
@@ -93,7 +95,7 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
       <div>
         <div className="prefs-tap-row flex items-center justify-between gap-3">
           <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.user.auto')}</span>
-          <ToggleSwitch checked={auto} onChange={(on) => (on ? setConfirmAuto(true) : setAuto(false))} ariaLabel={t('ai.user.auto')} describedBy={`${uid}-auto-hint`} />
+          <ToggleSwitch checked={auto} onChange={(on) => (on && !autoConfirmed ? setConfirmAuto(true) : setAuto(on))} ariaLabel={t('ai.user.auto')} describedBy={`${uid}-auto-hint`} />
         </div>
         <p id={`${uid}-auto-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.autoHint')}</p>
       </div>

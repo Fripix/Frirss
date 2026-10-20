@@ -442,6 +442,16 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
     expect(useUiStore.getState().aiAutoSummary).toBe(false);
     expect(queryByRole('dialog')).toBeNull();
   });
+  it('the global auto-summary switch does not ask again once confirmed', () => {
+    useUiStore.setState({ aiAutoSummaryConfirmed: true });
+    const { getByRole, queryByRole } = render(<AiTab active />);
+    fireEvent.click(getByRole('switch', { name: 'ai.user.auto' }));
+    expect(queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiAutoSummary).toBe(true);
+    fireEvent.click(getByRole('switch', { name: 'ai.user.auto' }));
+    expect(queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiAutoSummary).toBe(false);
+  });
   it('cancelling the confirmation leaves auto-summary off', async () => {
     const { getByRole, queryByRole } = render(<AiTab active />);
     fireEvent.click(getByRole('switch', { name: 'ai.user.auto' }));

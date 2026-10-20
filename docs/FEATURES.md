@@ -2163,8 +2163,9 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   modèle local ne coûte rien), et **Annuler le laisse éteint** ; l'éteindre ne
   demande jamais rien. Cette boîte (`AutoSummaryConfirm`, dans `ai/shared.tsx`)
   est la même que celle des interrupteurs « Résumer » de « Par flux et
-  catégorie » ; la confirmer, ici ou là, pose `aiAutoSummaryConfirmed` (une
-  fois par compte) ;
+  catégorie » et ne s'ouvre qu'**une fois par compte** : la confirmer, ici ou
+  là, pose `aiAutoSummaryConfirmed`, après quoi rallumer le global (ou un
+  « Résumer ») s'applique directement, sans boîte ;
   enfin la ligne **« Résumés payés par l'instance aujourd'hui : N sur M »**
   (N relu à chaque ouverture de la section, voir `aiStore` plus haut),
   affichée seulement pour un **non-admin**, avec un plafond journalier
