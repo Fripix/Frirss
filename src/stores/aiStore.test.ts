@@ -25,6 +25,12 @@ describe('aiStore', () => {
     expect(useAiStore.getState().config).not.toBeNull();
     expect(useAiStore.getState().config?.enabled).toBe(false);
   });
+  it('a failed reload keeps the config already loaded', async () => {
+    useAiStore.setState({ config: ON });
+    vi.mocked(getAiConfig).mockRejectedValue(new Error('network'));
+    await expect(useAiStore.getState().load()).resolves.toBeUndefined();
+    expect(useAiStore.getState().config).toBe(ON);
+  });
   it('aiUsable needs the feature on AND at least one available provider', () => {
     const p = (available: boolean) => ({ id: 1, name: 'P', type: 'openai' as const, hasAdminKey: false, shared: false, hasUserKey: false, available });
     const cfg = { userKeysAllowed: false, dailyCap: 0, usageToday: 0, defaultProvider: null };

@@ -1818,7 +1818,14 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   `aiStore` oublie la configuration IA à la déconnexion (abonnement à
   `useAuthStore` : `backendToken` passe d'une valeur à `null`, y compris sur un
   401) : le compte suivant sur le même navigateur ne doit voir ni les
-  fournisseurs ni la disponibilité du précédent.
+  fournisseurs ni la disponibilité du précédent. `load()` est appelé à la
+  connexion (`prefsSync.ts`) et **à chaque affichage de la section IA des
+  préférences** (`AiTab`, à chaque passage de `active` à vrai, jamais pendant
+  qu'elle est masquée) — sans quoi la ligne de consommation du jour restait
+  figée à la valeur du démarrage. Un `load()` qui échoue **garde la
+  configuration déjà chargée** ; seul un premier chargement raté (aucune
+  configuration encore) retombe sur « éteint » : un rechargement perdu ne doit
+  pas faire disparaître l'IA d'une session qui l'avait.
 - **Deux adaptateurs, jamais plus** : `anthropic` (Messages API) et `openai`
   (`/v1/chat/completions`), qui couvre OpenAI, Ollama, LM Studio, Mistral,
   Groq, DeepSeek, Grok, OpenRouter. **Pas Gemini en direct** : sa couche
@@ -2045,7 +2052,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   par défaut) — l'allumer ouvre une confirmation de coût (chaque résumé est un
   appel facturable au fournisseur de l'utilisateur ; un modèle local ne coûte
   rien), et **Annuler le laisse éteint** ; l'éteindre ne demande jamais rien ;
-  enfin la ligne **« Résumés payés par l'instance aujourd'hui : N sur M »**,
+  enfin la ligne **« Résumés payés par l'instance aujourd'hui : N sur M »**
+  (N relu à chaque ouverture de la section, voir `aiStore` plus haut),
   affichée seulement pour un **non-admin**, avec un plafond journalier
   **> 0** et au moins un fournisseur `available` + clé admin + partagé + sans
   clé personnelle (sinon le plafond ne le concerne pas). Les trois réglages

@@ -4,8 +4,11 @@ import { useAuthStore } from './authStore';
 
 /**
  * Ce que le client sait de l'IA : rien tant que `load()` n'a pas répondu, et
- * « éteint » si la requête échoue — un réseau en panne ne doit pas faire
- * apparaître de pastille. Rechargé après chaque connexion (prefsSync).
+ * « éteint » si la PREMIÈRE requête échoue — un réseau en panne ne doit pas
+ * faire apparaître de pastille. Un rechargement raté garde la configuration
+ * déjà connue : il ne doit pas faire disparaître l'IA d'une session qui
+ * l'avait. Rechargé après chaque connexion (prefsSync) et à chaque affichage
+ * de la section IA des préférences (consommation du jour à jour).
  */
 interface AiState {
   config: AiConfig | null;
@@ -17,7 +20,7 @@ const OFF: AiConfig = { enabled: false, providers: [], userKeysAllowed: false, d
 export const useAiStore = create<AiState>()((set) => ({
   config: null,
   load: async () => {
-    try { set({ config: await getAiConfig() }); } catch { set({ config: OFF }); }
+    try { set({ config: await getAiConfig() }); } catch { set((s) => ({ config: s.config ?? OFF })); }
   },
   reset: () => set({ config: null }),
 }));
