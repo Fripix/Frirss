@@ -69,6 +69,15 @@ describe('listModels — openai-compatible', () => {
     stubSeq({ status: 200, body: { data: ids.map((id) => ({ id })) } });
     expect(await listModels(oai, 'k')).toEqual(['gpt-5-mini', 'mistral-small-latest']);
   });
+  it('on api.openai.com, drops the models that only answer the Responses or legacy Completions API', async () => {
+    const ids = ['gpt-5', 'gpt-5-codex', 'gpt-5.1-codex-mini', 'gpt-5-pro', 'gpt-5.5-pro-2026-04-23', 'o1-pro', 'gpt-3.5-turbo-instruct', 'gpt-5-search-api', 'gpt-audio'];
+    stubSeq({ status: 200, body: { data: ids.map((id) => ({ id })) } });
+    expect(await listModels(oai, 'k')).toEqual(['gpt-5', 'gpt-5-search-api', 'gpt-audio']);
+  });
+  it('keeps those names on any other host (OpenRouter serves gemini-2.5-pro over chat)', async () => {
+    stubSeq({ status: 200, body: { data: [{ id: 'google/gemini-2.5-pro' }, { id: 'openai/gpt-5-codex' }] } });
+    expect(await listModels({ type: 'openai', baseUrl: 'https://openrouter.ai/api' }, 'k')).toEqual(['google/gemini-2.5-pro', 'openai/gpt-5-codex']);
+  });
   it('drops a model whose capabilities say it cannot chat (Mistral)', async () => {
     stubSeq({ status: 200, body: { data: [{ id: 'a', capabilities: { completion_chat: true } }, { id: 'b', capabilities: { completion_chat: false } }] } });
     expect(await listModels(oai, 'k')).toEqual(['a']);

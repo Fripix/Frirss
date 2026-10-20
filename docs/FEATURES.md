@@ -1871,7 +1871,11 @@ fournisseur par flux viennent avec le plan 2, la traduction avec le plan 3.
   doublons retirés, et **filtre des familles qui n'écrivent pas de texte**
   (`NOT_TEXT` : embeddings, whisper, tts, dall-e, moderation, transcribe,
   image, realtime, sora, babbage, davinci, ocr) plus `capabilities.completion_chat:
-  false` (Mistral). ⚠️ OpenAI ne dit pas quels modèles répondent à
+  false` (Mistral). Sur `api.openai.com` seulement, `OPENAI_NOT_CHAT` écarte
+  aussi codex, « -pro » (API Responses) et instruct (ancienne API Completions) :
+  sur un autre hôte, OpenRouter sert `gemini-2.5-pro` en chat. Constaté le
+  2026-10-20 sur une vraie clé : 83 noms listés, dont une vingtaine de ces
+  familles. ⚠️ OpenAI ne dit pas quels modèles répondent à
   `/chat/completions` : le filtre est une **heuristique**, une famille nouvelle
   peut passer — « Tester » l'attrape. Côté écran (`ModelList`, `AiTab.tsx`) :
   le champ « Modèle » **reste libre**, la liste aide sans contraindre ; nombre

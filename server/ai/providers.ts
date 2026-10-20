@@ -56,6 +56,12 @@ const MAX_PAGES = 10;
  * pas le faire. Une famille nouvelle peut passer, « Tester » l'attrape alors.
  */
 const NOT_TEXT = /embed|whisper|tts|dall-e|moderation|transcribe|image|realtime|sora|babbage|davinci|ocr/i;
+/**
+ * Chez OpenAI seulement : modèles qui écrivent du texte mais ne répondent pas à
+ * `/v1/chat/completions` (codex et « pro » : API Responses ; instruct : ancienne
+ * API Completions). Limité à cet hôte : OpenRouter sert `gemini-2.5-pro` en chat.
+ */
+const OPENAI_NOT_CHAT = /codex|-pro(-|$)|instruct/i;
 
 /**
  * Les noms de modèles qu'une clé permet d'utiliser (`GET /v1/models`), pour
@@ -82,7 +88,7 @@ export async function listModels(target: ModelTarget, key: string | null): Promi
   const j = await getJson(`${base}/v1/models`, key ? { Authorization: `Bearer ${key}` } : {}, host, key);
   const seen = new Set<string>();
   return entries(j)
-    .filter((e) => !NOT_TEXT.test(e.id) && e.chat !== false)
+    .filter((e) => !NOT_TEXT.test(e.id) && e.chat !== false && !(host === 'api.openai.com' && OPENAI_NOT_CHAT.test(e.id)))
     .sort((a, b) => (b.created - a.created) || a.id.localeCompare(b.id))
     .map((e) => e.id)
     .filter((id) => (seen.has(id) ? false : (seen.add(id), true)));
