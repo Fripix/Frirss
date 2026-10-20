@@ -216,6 +216,7 @@ réglage « article complet par défaut » déclenche l'extraction, avec les mê
 gardes : jamais hors ligne, jamais pendant la préparation hors-ligne, une seule
 requête en vol par article, annulée si l'article change avant la réponse. Une
 surcharge par flux viendra si elle est demandée ; pas en première version.
+*(Demandée le 2026-10-20 : voir §17.)*
 
 ## 9. Plafond, cache, hors ligne
 
@@ -402,3 +403,209 @@ Tant que la branche n'est pas fusionnée : la supprimer. Après fusion : la
 fonctionnalité tient dans `server/ai/`, quatre tables, un onglet, un bloc du
 volet et une famille i18n ; éteinte par l'admin, elle est invisible. Le tag
 `v1.6.1` reste l'état de référence d'avant.
+
+## 17. Révision traduction — 2026-10-20 (plan 3)
+
+> Cette section **remplace** §7, le volet traduction de §8, le bloc
+> « Traduction » de §10 et la mention « pas encore livré » de §11. Validée en
+> conversation le 2026-10-20 ; décisions nouvelles du propriétaire : la
+> **traduction automatique par flux ou catégorie** entre en première version,
+> et le **repli entre fournisseurs joue aussi sur un forçage** (« Traduire
+> avec X » comme « Résumer avec X »), toujours avec la mention « X indisponible ».
+
+### 17.1 Ce que l'utilisateur voit
+
+**Deux actions, deux endroits, même mécanique.**
+
+- **Le résumé.** Dans l'en-tête du panneau « Résumé IA », à côté de « Résumer
+  avec… », une action **« Traduire »** apparaît quand un résumé est affiché et
+  que sa langue détectée (`lang`, §4) diffère de la langue cible. Elle traduit
+  le résumé **en place** ; le statut devient « Résumé par X, traduit en
+  français par Y » et l'action devient **« Texte source »**, qui rend le
+  résumé d'origine sans appel. Un résumé replié se traduit sans se déplier.
+- **L'article.** Dans la barre d'outils de l'article, à côté de « Article
+  complet », un bouton **« Traduire l'article »** (icône de traduction, même
+  gabarit `BarBtn`). Il traduit le corps affiché (contenu RSS passé par le
+  sanitiseur, ou article extrait) : l'article traduit **remplace** l'original,
+  images, liens, titres et structure intacts ; le bouton devient **« Texte
+  source »** et bascule sans appel. Le titre de l'article est traduit avec le
+  corps (segment 0).
+- **Forçage ponctuel.** Chacun des deux boutons est **scindé** : la partie
+  principale fait l'action avec la langue et le fournisseur réglés ; un petit
+  chevron ouvre le menu **« Traduire en… »** (liste des 28 langues, la cible
+  en tête, filtrable à la frappe) et **« Traduire avec… »** (fournisseurs
+  disponibles, comme « Résumer avec… »). Popover en portail sur ordinateur,
+  `BottomSheet` sur tactile ; cibles de 44 pt. Un forçage ne change pas les
+  réglages.
+- **Repli.** Si le fournisseur échoue (forcé ou non), le suivant répond et le
+  statut dit « X indisponible » — règle de §6, inchangée, décision du
+  propriétaire du 2026-10-20.
+- **Hors ligne.** Les deux actions sont désactivées ; une traduction déjà
+  affichée reste affichée.
+
+**Sur tactile**, le bouton de la barre n'a pas de chevron : un appui =
+l'action par défaut, un **appui long** ouvre le menu, et les deux entrées
+« Traduire en… » / « Traduire avec… » figurent aussi dans le **menu contextuel
+de l'article** (le « … » existant), qui est le chemin visible sans appui long.
+Pour le résumé, le chevron du panneau reste sur les trois formats (il tient à
+320 px à côté de « Résumer avec… », qui passe déjà sous le titre).
+
+**Statut et erreurs de l'article.** Une **ligne de notice** au-dessus du corps
+de l'article, même gabarit que l'avis d'extraction, présente sur les **trois
+formats** : « Traduit en français par Y », « Traduit en français par Y,
+X indisponible », « Traduit en partie (3 lots sur 4) », « Lot 2 sur 4… »
+pendant l'attente, et les erreurs (`role="alert"`). Une traduction
+automatique affiche les mêmes mentions : une bascule vers un fournisseur
+payant doit se voir, même sans clic (§1).
+
+### 17.2 Réglages (section « IA » des Préférences)
+
+Bloc **« Traduction »**, placé **sous « Résumés »** et au-dessus de « Par flux
+et catégorie » :
+
+- **Langue cible** : sélecteur « Langue de l'interface » (défaut) ou l'une des
+  28 langues de §7, noms via `Intl.DisplayNames` dans la langue de l'interface
+  (aucune clé i18n pour les noms de langues). Préférence synchronisée
+  `aiTranslationLanguage` (`'ui'` ou code BCP 47 de la liste ; toute autre
+  valeur revient à `'ui'`).
+- **Fournisseur** : « Même que le résumé » (défaut) ou un fournisseur ;
+  `aiTranslationProvider` (`null` = même que le résumé, sinon id). Les
+  fournisseurs sans clé accessible sont grisés « clé requise » (composant
+  `ProviderOptions` existant).
+
+Bloc **« Par flux et catégorie »** (existant) : chaque ligne, catégorie comme
+flux, gagne à côté du sélecteur de fournisseur un **interrupteur « Traduire »**
+(libellé accessible « Traduire automatiquement les articles de {{name}} »).
+Allumé, chaque article de ce flux (ou de cette catégorie, sauf réglage
+contraire du flux) est traduit **à l'ouverture**, comme le résumé automatique :
+même délai d'une seconde, mêmes gardes (en ligne, IA utilisable, une seule
+demande par article, annulée si l'article change avant). Préférences :
+`feedSettings[flux].aiAutoTranslate?: boolean` (synchronisé, `''` retire) et
+`aiCategoryAutoTranslate: Record<nom, true>`. Priorité : réglage du flux
+(vrai **ou faux explicite**) > catégorie ; un flux dans plusieurs catégories
+est traduit dès qu'**une** l'est. L'interrupteur d'un flux affiche sa valeur
+**effective** (héritée de la catégorie s'il n'a rien en propre) ; le toucher
+écrit toujours une valeur propre (`true` ou `false`), de sorte qu'éteindre
+un flux sous une catégorie allumée tient. « Hérité » n'est pas une valeur
+visible : la ligne de catégorie suffit à le dire. Le compteur de la ligne de
+catégorie dit « N flux réglés » dès qu'un flux porte un fournisseur ou une
+valeur propre de traduction.
+
+**Avertissement de coût**, à la **première activation** d'un interrupteur
+« Traduire » par ce compte — **une fois par compte**, préférence synchronisée
+`aiAutoTranslateConfirmed` (booléen, remis à faux à la déconnexion et absent
+des préférences d'un autre compte comme `aiAutoSummary`) :
+
+> Traduire un article entier coûte cinq à quinze fois un résumé, et chaque
+> article de ce flux sera traduit à l'ouverture. Selon le fournisseur et votre
+> abonnement, cela peut vous être facturé. Un modèle local comme Ollama ne
+> coûte rien.
+
+Boutons « Activer » / « Annuler » ; « Annuler » laisse l'interrupteur éteint.
+Pas d'interrupteur global « tout traduire » : il traduirait aussi les flux
+déjà dans la langue cible.
+
+**Il n'y a pas de traduction automatique du résumé** : un résumé automatique
+dans un flux marqué « Traduire » est produit, puis l'article est traduit ; le
+résumé se traduit sur demande. (Un flux marqué « Traduire » a rarement besoin
+des deux.)
+
+### 17.3 Mécanique
+
+**Langue source et « déjà dans la bonne langue ».** La consigne de traduction
+(§4) demande au modèle de répondre d'abord `lang: <code>` (langue source), puis
+le texte traduit ; si la source **est déjà** la langue cible, le modèle répond
+`lang: <code>` puis la ligne `same`. Le serveur renvoie alors `{ same: true,
+lang }` sans texte : le client ne remplace rien et, pour une traduction
+automatique, n'affiche rien. Ce coût (entrée seule) évite de traduire un flux
+français vers le français. Pour le résumé, la langue détectée au résumé
+suffit : le bouton « Traduire » n'apparaît pas si elle est la cible.
+
+**Découpage côté client.** Le client découpe le corps affiché avec le DOM du
+navigateur : les éléments de bloc porteurs de texte (`p`, `li`, `h1`–`h6`,
+`blockquote`, `figcaption`, `td`, `th`, `dt`, `dd`, `pre` exclu) deviennent des
+segments numérotés, leur **HTML interne** (liens et mises en forme en ligne
+conservés) ; le titre est le segment 0. Le serveur reçoit `segments: string[]`
+et renvoie `segments: string[]` de même longueur ; le client réinjecte chaque
+segment dans son élément d'origine, **après le sanitiseur** (le modèle peut
+renvoyer n'importe quoi). Un segment vide ou sans lettre n'est pas envoyé. Les
+blocs non texte (images, vidéos, code) ne bougent pas.
+
+**Lots.** Le **client** découpe les segments en lots d'environ **1 200 mots**
+(la sortie d'un lot reste sous ~2 000 jetons, loin des 4 096 de `maxTokens`
+et de l'échéance de 50 s ; la traduction passe `maxTokens: 8192` à
+Anthropic). **Une requête HTTP = un lot = un appel fournisseur.** Format
+strict `<s n="12">…</s>` en entrée comme en sortie ; un segment absent ou en
+trop invalide le lot, **rejoué une fois** dans la même requête si l'échéance
+le permet, sinon erreur `technical` « segments » et le client peut relancer.
+Les lots partent **en série** depuis le client (`batch: n` sur `m`, la
+notice dit « Lot 2 sur 4… ») ; chaque lot a sa **propre entrée de cache** (clé
+: article + scope + langue + fournisseur + modèle + hash des segments du lot)
+et sa propre unité de plafond, de sorte qu'une relance après un échec au lot 3
+ne repaie pas les lots 1 et 2. Le fournisseur est résolu à chaque lot avec les
+mêmes entrées, donc le même en temps normal ; si un lot bascule, la notice le
+dit (« X indisponible ») et nomme le fournisseur du dernier lot. Tant qu'un
+lot manque, rien n'est remplacé : la traduction s'affiche **entière ou pas du
+tout** ; « Traduit en partie » ne concerne que la coupe à 200 Ko.
+
+**Route.** `POST /api/ai/translate` `{ articleId, scope: 'summary' | 'article',
+targetLang, provider?, feedProvider?, categoryProvider?, preferredProvider?,
+translationProvider?, fallback?, segments }` → `{ segments, lang, same?,
+providerId, providerName, model, fromCache, fellBackFrom? }`. Bornes : 512
+caractères d'`articleId`, **200 Ko** de segments au total (le client coupe au
+dernier segment entier sous la borne et le dit dans le statut : « traduit en
+partie »), 400 `invalid_body` sinon ; `targetLang` hors liste → 400
+`invalid_lang`. Résolution du fournisseur : forçage > `translationProvider`
+(réglage, si non `null`) > flux > catégorie > préféré > défaut admin > premier
+disponible — la même fonction que le résumé, avec l'étage `translation`
+inséré après le forçage (§6). Repli : règle de §6, forçage compris. Plafond :
+**un appel = une unité**, réservé avant chaque lot, remboursé si le lot
+échoue ; un article de quatre lots compte quatre. Cache : clé
+`articleId + op:'translate' + scope + targetLang + providerId + model + hash
+du contenu` ; un article traduit vaut une entrée par (langue, fournisseur).
+Délai : même échéance globale de **50 s par requête HTTP**, donc par lot.
+
+**Le corps change.** Une traduction est liée au corps qu'elle a traduit (hash).
+Si ce corps change — « Article complet » basculé, extrait RSS remplacé par
+l'article extrait —, la vue revient au **texte source** et le bouton redevient
+« Traduire l'article » ; rien n'est retraduit sans clic, sauf traduction
+automatique, qui **attend que l'extraction ait abouti ou échoué** (comme le
+résumé automatique) avant de partir : l'extrait d'un flux à extraction
+automatique n'est jamais payé pour rien. « Résumer avec… » ne touche pas à la
+traduction de l'article.
+
+**Chinois et variantes.** `'ui'` avec une interface `zh` vise `zh-Hans`.
+Deux langues sont « les mêmes » quand leur sous-étiquette principale est la
+même (`zh`, `zh-CN`, `zh-Hans` ⇔ `zh-Hans`), sauf `zh-Hant` qui reste
+distinct de `zh-Hans` quand les deux sont connus ; `src/lib/aiLanguages.ts`
+porte cette comparaison, testée.
+
+**Erreurs** : mêmes codes et mêmes messages que le résumé (`aiErrorKey`),
+plus `invalid_lang` → « Langue non proposée » et « segments » → « Le
+fournisseur n'a pas rendu une traduction exploitable. Réessayez. ».
+
+### 17.4 Données
+
+Préférences synchronisées nouvelles (`uiStore`, à plat comme les existantes) :
+`aiTranslationLanguage`, `aiTranslationProvider`, `aiCategoryAutoTranslate`,
+`aiAutoTranslateConfirmed`, et `FeedSetting.aiAutoTranslate` (`true` / `false`
+explicites). Rien côté
+serveur : pas de table, pas de réglage admin nouveau. `src/lib/aiLanguages.ts`
+porte la liste des 28 codes, gardée par un test qui échoue si un code hors
+liste apparaît dans le code ou les locales.
+
+### 17.5 Tests et vérification
+
+- Serveur : découpage en lots, format strict et rejeu, `same`, bornes,
+  résolution avec l'étage `translation`, plafond par lot, cache par
+  (scope, langue, fournisseur), repli sur forçage.
+- Client : découpage DOM (segments, titre, blocs exclus, réinjection après
+  sanitiseur, liens conservés), bouton scindé et menus, « Texte source »,
+  statut, automatique par flux/catégorie (priorité flux > catégorie, délai,
+  annulation, confirmation une fois), interrupteurs dans la vue d'ensemble.
+- Trois formats à 320 px : bouton scindé dans la barre d'outils, menus,
+  interrupteurs dans « Par flux et catégorie ».
+- Sur `frirss-dev` : un article anglais traduit avec Ollama, un flux marqué
+  « Traduire », un forçage vers un fournisseur en panne qui replie, puis le
+  **test complet de la fonction résumé** (demande du propriétaire) avant
+  toute fusion.
