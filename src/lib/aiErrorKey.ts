@@ -1,6 +1,9 @@
 /**
  * Réponse d'erreur de `POST /api/ai/summary` → clé `ai.errors.*`.
  *
+ * Sert aussi à `POST /api/ai/translate` : `invalid_lang` (langue hors liste) et
+ * `ai_failed` + `detail: 'segments'` (lot rendu inexploitable) ont leur clé.
+ *
  * Ne devine jamais une cause : chaque branche correspond à un code que le
  * serveur envoie vraiment. Deux 429 ne se confondent pas — le plafond
  * quotidien porte `error: 'ai_daily_cap'`, le seau du proxy n'en porte pas.
@@ -8,7 +11,7 @@
  * vérifie lui-même, un utilisateur prévient l'admin
  * — sauf si la clé refusée est la sienne (`ownKey`) : il la corrige lui-même.
  */
-export function aiErrorKey(status: number | undefined, data: { error?: string; kind?: string; ownKey?: boolean } | undefined, isAdmin: boolean): string {
+export function aiErrorKey(status: number | undefined, data: { error?: string; kind?: string; ownKey?: boolean; detail?: string } | undefined, isAdmin: boolean): string {
   const error = data?.error;
   if (error === 'ai_daily_cap') return 'ai.errors.cap';
   if (status === 429) return 'ai.errors.rateLimited';
@@ -16,6 +19,8 @@ export function aiErrorKey(status: number | undefined, data: { error?: string; k
   if (error === 'article_too_short') return 'ai.errors.tooShort';
   if (error === 'ai_refused') return 'ai.errors.refused';
   if (error === 'no_provider') return 'ai.errors.noProvider';
+  if (error === 'invalid_lang') return 'ai.errors.invalidLang';
+  if (error === 'ai_failed' && data?.detail === 'segments') return 'ai.errors.segments';
   if (data?.kind === 'auth') return isAdmin || data.ownKey === true ? 'ai.errors.auth' : 'ai.errors.authUser';
   if (data?.kind === 'quota') return 'ai.errors.quota';
   return 'ai.errors.technical';
@@ -33,7 +38,7 @@ export interface AiErrorMessage { key: string; params?: Record<string, string | 
  */
 export function aiErrorMessage(
   status: number | undefined,
-  data: { error?: string; kind?: string; ownKey?: boolean; cap?: unknown; resetAt?: unknown } | undefined,
+  data: { error?: string; kind?: string; ownKey?: boolean; detail?: string; cap?: unknown; resetAt?: unknown } | undefined,
   isAdmin: boolean,
   language: string,
 ): AiErrorMessage {

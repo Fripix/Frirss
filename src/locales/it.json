@@ -743,7 +743,9 @@
       "tooLong": "Articolo troppo lungo per essere riassunto.",
       "refused": "Il fornitore ha rifiutato di riassumere questo articolo.",
       "noProvider": "Nessun fornitore disponibile.",
-      "technical": "Il riassunto non è riuscito. Riprova."
+      "technical": "Il riassunto non è riuscito. Riprova.",
+      "invalidLang": "Lingua non disponibile.",
+      "segments": "Il fornitore non ha restituito una traduzione utilizzabile. Riprova."
     },
     "admin": {
       "title": "Fornitori",

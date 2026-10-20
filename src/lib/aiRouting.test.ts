@@ -6,13 +6,13 @@ import type { Subscription } from '../types';
 const subs: Subscription[] = [
   { id: 'feed/1', title: 'A', categories: [{ id: 'user/-/label/Tech', label: 'Tech' }, { id: 'user/-/label/Dev', label: 'Dev' }] },
 ];
-const none = { feedSettings: {}, aiCategoryProviders: {}, aiPreferredProvider: null, aiFallback: true };
+const none = { feedSettings: {}, aiCategoryProviders: {}, aiPreferredProvider: null, aiTranslationProvider: null, aiFallback: true };
 
 describe('aiRouting', () => {
   it('sends each stage that is set, and only those', () => {
     expect(aiRouting('feed/1', subs, none)).toEqual({ fallback: true });
     expect(aiRouting('feed/1', subs, {
-      feedSettings: { 'feed/1': { aiProvider: 4 } }, aiCategoryProviders: { Dev: 2 }, aiPreferredProvider: 9, aiFallback: false,
+      feedSettings: { 'feed/1': { aiProvider: 4 } }, aiCategoryProviders: { Dev: 2 }, aiPreferredProvider: 9, aiTranslationProvider: null, aiFallback: false,
     })).toEqual({ feedProvider: 4, categoryProvider: 2, preferredProvider: 9, fallback: false });
   });
   it("takes the first of the feed's categories that carries a provider", () => {
@@ -44,5 +44,15 @@ describe('aiRouting', () => {
   });
   it('drops an invalid preferred provider', () => {
     expect(aiRouting('feed/1', subs, { ...none, aiPreferredProvider: -3 })).toEqual({ fallback: true });
+  });
+  it('sends the translation stage only for a translation, and only when valid', () => {
+    const prefs = { ...none, aiTranslationProvider: 3 };
+    expect(aiRouting('feed/1', subs, prefs, { op: 'translate' })).toEqual({ translationProvider: 3, fallback: true });
+    expect(aiRouting('feed/1', subs, prefs, { op: 'summary' })).toEqual({ fallback: true });
+    expect(aiRouting('feed/1', subs, prefs)).toEqual({ fallback: true });
+    for (const bad of ['3', -1, 0, null, NaN]) {
+      const synced = { ...none, aiTranslationProvider: bad } as never;
+      expect(aiRouting('feed/1', subs, synced, { op: 'translate' })).toEqual({ fallback: true });
+    }
   });
 });

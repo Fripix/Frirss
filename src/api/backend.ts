@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
+import type { AiLanguage } from '../lib/aiLanguages';
 import type {
   User,
   ServerConnection,
@@ -209,6 +210,7 @@ export async function updateAdminSettings(settings: Record<string, unknown>): Pr
 export interface AiProviderView { id: number; name: string; type: 'anthropic' | 'openai'; hasAdminKey: boolean; shared: boolean; hasUserKey: boolean; available: boolean }
 export interface AiConfig { enabled: boolean; providers: AiProviderView[]; userKeysAllowed: boolean; dailyCap: number; usageToday: number; defaultProvider: number | null }
 export interface AiSummaryResult { text: string; lang: string | null; providerId: number; providerName: string; model: string; fromCache: boolean; fellBackFrom?: string }
+export interface AiTranslationResult { segments: string[]; lang: string | null; same: boolean; providerId: number; providerName: string; model: string; fromCache: boolean; fellBackFrom?: string }
 export interface AiProviderAdmin { id: number; name: string; type: 'anthropic' | 'openai'; baseUrl: string; model: string; hasAdminKey: boolean; shared: boolean; position: number }
 export interface AiAdminSettings { enabled: boolean; userKeysAllowed: boolean; dailyCap: number; defaultProvider: number | null }
 export interface AiProviderInput { name: string; type: 'anthropic' | 'openai'; baseUrl: string; model: string; adminKey?: string | null; shared?: boolean }
@@ -228,6 +230,19 @@ export async function requestAiSummary(body: {
   feedProvider?: number; categoryProvider?: number; preferredProvider?: number; fallback?: boolean;
 }): Promise<AiSummaryResult> {
   const { data } = await backend.post<AiSummaryResult>('/ai/summary', body);
+  return data;
+}
+/**
+ * Traduit un lot de segments (`scope` : le résumé ou l'article entier). Mêmes
+ * étages de routage que le résumé, plus `translationProvider` (voir
+ * `lib/aiRouting.ts`, `op: 'translate'`).
+ */
+export async function requestAiTranslation(body: {
+  articleId: string; scope: 'summary' | 'article'; targetLang: AiLanguage; segments: string[];
+  provider?: number; translationProvider?: number; feedProvider?: number; categoryProvider?: number;
+  preferredProvider?: number; fallback?: boolean;
+}): Promise<AiTranslationResult> {
+  const { data } = await backend.post<AiTranslationResult>('/ai/translate', body);
   return data;
 }
 /** Enregistre (chaîne) ou efface (`null`) la clé personnelle de l'utilisateur pour un fournisseur ; la clé ne revient jamais. */

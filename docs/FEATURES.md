@@ -1973,7 +1973,10 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   étage muet ou indisponible est sauté. Les étages flux / catégorie / préféré
   sont des paramètres de la requête, et le client les envoie avec chaque
   demande depuis les réglages synchronisés de l'utilisateur (`lib/aiRouting.ts`,
-  appelé par `handleSummarize`) : un étage non réglé n'est pas envoyé. Les
+  appelé par `handleSummarize`) : un étage non réglé n'est pas envoyé. L'étage
+  « traductions » (`translationProvider`) est le seul à dépendre de l'appel :
+  `aiRouting(…, { op: 'translate' })` l'ajoute, un résumé ne le porte jamais
+  (`requestAiTranslation` de `api/backend.ts` est le client de la route). Les
   identifiants sont revalidés à l'envoi (`"3"` ou `-1` ne partent pas), la
   catégorie se cherche par clé propre (une catégorie nommée `constructor` ne
   retrouve rien) et c'est la première catégorie du flux qui porte un
@@ -2070,7 +2073,10 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   `useAuthStore`) ; `kind: quota` → « quota ou crédits épuisés chez le
   fournisseur », sans « réessayez plus tard » : un compte sans crédits ne se
   rétablit pas en attendant *(corrigé le 2026-10-20, même cause que le message
-  de « Tester »)* ; sinon « le résumé a échoué, réessayez » (neutre : la cause n'est pas connue).
+  de « Tester »)* ; la traduction ajoute deux codes : 400 `invalid_lang` →
+  `ai.errors.invalidLang` (« langue non proposée ») et 502 `ai_failed` avec
+  `detail: 'segments'` (lot rendu inexploitable) → `ai.errors.segments`, lu
+  **avant** le `kind` : ce n'est ni la clé ni le quota ; sinon « le résumé a échoué, réessayez » (neutre : la cause n'est pas connue).
   Un « Résumer avec… » raté **garde le résumé déjà affiché**, l'erreur sous
   lui (`AiSummary` affiche `result` aussi en statut `error`).
 - **Traduction — serveur** (`translate.ts`, route `POST /api/ai/translate`) :

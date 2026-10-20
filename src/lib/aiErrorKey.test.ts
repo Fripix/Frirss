@@ -21,6 +21,13 @@ describe('aiErrorKey', () => {
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'auth' }, false)).toBe('ai.errors.authUser');
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'quota', ownKey: true }, false)).toBe('ai.errors.quota');
   });
+  it('maps the translation errors', () => {
+    expect(aiErrorKey(400, { error: 'invalid_lang' }, false)).toBe('ai.errors.invalidLang');
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'segments' }, false)).toBe('ai.errors.segments');
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'auth', detail: 'segments' }, true)).toBe('ai.errors.segments');
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'other' }, false)).toBe('ai.errors.technical');
+    expect(aiErrorMessage(502, { error: 'ai_failed', detail: 'segments' }, false, 'en')).toEqual({ key: 'ai.errors.segments' });
+  });
   it('keeps the other codes and falls back to technical', () => {
     expect(aiErrorKey(422, { error: 'ai_refused' }, false)).toBe('ai.errors.refused');
     expect(aiErrorKey(409, { error: 'no_provider' }, false)).toBe('ai.errors.noProvider');

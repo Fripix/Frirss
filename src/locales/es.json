@@ -743,7 +743,9 @@
       "tooLong": "Artículo demasiado largo para resumirlo.",
       "refused": "El proveedor se negó a resumir este artículo.",
       "noProvider": "Ningún proveedor disponible.",
-      "technical": "El resumen ha fallado. Inténtalo de nuevo."
+      "technical": "El resumen ha fallado. Inténtalo de nuevo.",
+      "invalidLang": "Idioma no disponible.",
+      "segments": "El proveedor no devolvió una traducción utilizable. Inténtelo de nuevo."
     },
     "admin": {
       "title": "Proveedores",

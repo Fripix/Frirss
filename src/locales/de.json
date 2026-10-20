@@ -743,7 +743,9 @@
       "tooLong": "Artikel zu lang für eine Zusammenfassung.",
       "refused": "Der Anbieter hat die Zusammenfassung dieses Artikels abgelehnt.",
       "noProvider": "Kein Anbieter verfügbar.",
-      "technical": "Die Zusammenfassung ist fehlgeschlagen. Versuchen Sie es erneut."
+      "technical": "Die Zusammenfassung ist fehlgeschlagen. Versuchen Sie es erneut.",
+      "invalidLang": "Sprache nicht verfügbar.",
+      "segments": "Der Anbieter hat keine verwertbare Übersetzung geliefert. Versuchen Sie es erneut."
     },
     "admin": {
       "title": "Anbieter",
