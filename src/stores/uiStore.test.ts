@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useUiStore, UI_SYNC_KEYS, normalizeAiSummaryRatio } from './uiStore';
+import {
+  useUiStore, UI_SYNC_KEYS, normalizeAiSummaryRatio, normalizeAiProviderId, normalizeAiCategoryProviders,
+} from './uiStore';
 import { isUnreadOnly } from './uiStore';
 
 describe('uiStore', () => {
@@ -324,5 +326,63 @@ describe('uiStore — longueur des résumés IA', () => {
     useUiStore.getState().applyServerPrefs({ aiSummaryRatio: 999 });
     expect(useUiStore.getState().aiSummaryRatio).toBe(20);
     expect(localStorage.getItem('frirss_aiSummaryRatio')).toBe('20');
+  });
+});
+
+describe('uiStore — routage des fournisseurs IA', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiStore.setState({
+      aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false, aiCategoryProviders: {}, feedSettings: {},
+    });
+  });
+
+  it('normalises a provider id to a positive integer, null otherwise', () => {
+    expect(normalizeAiProviderId(7)).toBe(7);
+    for (const bad of [0, -1, 1.5, '7', null, undefined, NaN, Infinity]) expect(normalizeAiProviderId(bad), String(bad)).toBeNull();
+  });
+
+  it('keeps only non-empty names mapped to a valid provider id', () => {
+    expect(normalizeAiCategoryProviders({ A: 2, B: -1, '': 3, C: 'x' })).toEqual({ A: 2 });
+    for (const bad of [null, undefined, 'x', 4, [1, 2]]) expect(normalizeAiCategoryProviders(bad), String(bad)).toEqual({});
+  });
+
+  it('AI routing prefs: defaults, persistence, sync and normalisation', () => {
+    const s = useUiStore.getState();
+    expect([s.aiPreferredProvider, s.aiFallback, s.aiAutoSummary, s.aiCategoryProviders]).toEqual([null, true, false, {}]);
+    for (const k of ['aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders']) expect(UI_SYNC_KEYS).toContain(k);
+    s.setAiCategoryProvider('Tech', 3); s.setAiCategoryProvider('News', 4); s.setAiCategoryProvider('News', null);
+    expect(useUiStore.getState().aiCategoryProviders).toEqual({ Tech: 3 });
+    expect(JSON.parse(localStorage.getItem('frirss_aiCategoryProviders')!)).toEqual({ Tech: 3 });
+    s.applyServerPrefs({ aiPreferredProvider: '7', aiFallback: 'no', aiAutoSummary: true, aiCategoryProviders: { A: 2, B: -1, '': 3, C: 'x' } });
+    const n = useUiStore.getState();
+    expect([n.aiPreferredProvider, n.aiFallback, n.aiAutoSummary, n.aiCategoryProviders]).toEqual([null, true, true, { A: 2 }]);
+  });
+
+  it('persists the preferred provider, fallback and auto-summary through their setters', () => {
+    const s = useUiStore.getState();
+    s.setAiPreferredProvider(9); s.setAiFallback(false); s.setAiAutoSummary(true);
+    const n = useUiStore.getState();
+    expect([n.aiPreferredProvider, n.aiFallback, n.aiAutoSummary]).toEqual([9, false, true]);
+    expect(localStorage.getItem('frirss_aiPreferredProvider')).toBe('9');
+    expect(localStorage.getItem('frirss_aiFallback')).toBe('false');
+    expect(localStorage.getItem('frirss_aiAutoSummary')).toBe('true');
+    // A setter fed a bad id stores "no preference", not garbage.
+    s.setAiPreferredProvider(-3);
+    expect(useUiStore.getState().aiPreferredProvider).toBeNull();
+  });
+
+  it('clearing the preferred provider on one device reaches the others', () => {
+    useUiStore.getState().setAiPreferredProvider(9);
+    useUiStore.getState().applyServerPrefs({ aiPreferredProvider: null });
+    expect(useUiStore.getState().aiPreferredProvider).toBeNull();
+    expect(localStorage.getItem('frirss_aiPreferredProvider')).toBe('null');
+  });
+
+  it('per-feed AI provider is set and cleared through feedSettings', () => {
+    useUiStore.getState().setFeedAiProvider('feed/1', 5);
+    expect(useUiStore.getState().feedSettings['feed/1'].aiProvider).toBe(5);
+    useUiStore.getState().setFeedAiProvider('feed/1', null);
+    expect(useUiStore.getState().feedSettings['feed/1']).toBeUndefined();
   });
 });

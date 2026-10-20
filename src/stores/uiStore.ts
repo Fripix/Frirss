@@ -23,6 +23,30 @@ export function normalizeAiSummaryRatio(v: unknown): number {
   return typeof v === 'number' && Number.isInteger(v) && v >= 5 && v <= 50 && v % 5 === 0 ? v : 20;
 }
 
+/**
+ * Identifiant d'un fournisseur d'IA : un entier strictement positif, sinon
+ * « pas de préférence » (`null`). Une valeur trafiquée ou venue d'un client
+ * étranger ne doit jamais désigner un fournisseur au hasard.
+ */
+export function normalizeAiProviderId(v: unknown): number | null {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null;
+}
+
+/**
+ * Fournisseur d'IA par catégorie : `{ nomDeCatégorie: idFournisseur }`. Ne garde
+ * que les noms non vides dont l'identifiant est valide ; tout le reste (non-objet,
+ * tableau, entrée corrompue) est écarté plutôt que de faire échouer le chargement.
+ */
+export function normalizeAiCategoryProviders(v: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [name, id] of Object.entries(v)) {
+    const valid = normalizeAiProviderId(id);
+    if (name !== '' && valid !== null) out[name] = valid;
+  }
+  return out;
+}
+
 /** Any preset value we no longer ship falls back to 'standard'. */
 function normalizeImagePreset(v: unknown): OfflineImagePreset {
   return v === 'none' || v === 'light' || v === 'standard' || v === 'max' ? v : 'standard';
@@ -61,6 +85,12 @@ export interface FeedSetting {
    * property of the feed. Resolve through `effectiveOrder()` only.
    */
   order?: ArticleOrder;
+  /**
+   * Per-feed AI provider override (id of a provider). Absent means the feed
+   * follows its category, then the preferred provider. Synced, like `layout`:
+   * "this feed is summarised by the local model" is a property of the feed.
+   */
+  aiProvider?: number;
 }
 
 /**
@@ -167,6 +197,23 @@ export interface UiState {
   // Longueur visée des résumés IA, en % de l'article (5…50, pas de 5). Synchronisé.
   aiSummaryRatio: number;
   setAiSummaryRatio: (v: number) => void;
+  // Routage des fournisseurs d'IA. Synchronisé, jamais une clé : seulement des
+  // identifiants de fournisseurs. `null` = aucune préférence (le premier de la
+  // liste). Résolution : flux > catégorie > préféré.
+  aiPreferredProvider: number | null;
+  setAiPreferredProvider: (id: number | null) => void;
+  // Si le fournisseur échoue, le suivant de la liste prend le relais.
+  aiFallback: boolean;
+  setAiFallback: (on: boolean) => void;
+  // Résumer sans clic à l'ouverture d'un article. Désactivé par défaut : chaque
+  // résumé est un appel (éventuellement facturé) au fournisseur.
+  aiAutoSummary: boolean;
+  setAiAutoSummary: (on: boolean) => void;
+  // Fournisseur par catégorie : { nom de catégorie: id }. `null` retire l'entrée.
+  aiCategoryProviders: Record<string, number>;
+  setAiCategoryProvider: (name: string, id: number | null) => void;
+  /** Set (or clear, with null) this feed's AI provider override. */
+  setFeedAiProvider: (feedId: string, id: number | null) => void;
   // Favicons dans la LISTE d'articles. Réglage distinct de `showFavicons`, qui
   // gouverne la barre latérale : les couper dans la liste sans les perdre dans
   // la barre est une demande légitime, et partager un seul réglage rendrait le
@@ -282,7 +329,7 @@ export interface UiState {
  * disappears once it carries no setting at all, so a feed back on every
  * global default leaves no trace in the synced table.
  */
-function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract'>(
+function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProvider'>(
   settings: Record<string, FeedSetting>,
   feedId: string,
   key: K,
@@ -465,6 +512,35 @@ export const useUiStore = create<UiState>()((set, get) => ({
     const value = normalizeAiSummaryRatio(v);
     localStorage.setItem('frirss_aiSummaryRatio', JSON.stringify(value));
     set({ aiSummaryRatio: value });
+  },
+
+  aiPreferredProvider: normalizeAiProviderId(loadJson<unknown>('frirss_aiPreferredProvider', null)),
+  setAiPreferredProvider: (id) => {
+    const value = normalizeAiProviderId(id);
+    localStorage.setItem('frirss_aiPreferredProvider', JSON.stringify(value));
+    set({ aiPreferredProvider: value });
+  },
+  aiFallback: loadJson<unknown>('frirss_aiFallback', true) !== false,
+  setAiFallback: (on) => {
+    localStorage.setItem('frirss_aiFallback', JSON.stringify(on));
+    set({ aiFallback: on });
+  },
+  aiAutoSummary: loadJson<unknown>('frirss_aiAutoSummary', false) === true,
+  setAiAutoSummary: (on) => {
+    localStorage.setItem('frirss_aiAutoSummary', JSON.stringify(on));
+    set({ aiAutoSummary: on });
+  },
+  aiCategoryProviders: normalizeAiCategoryProviders(loadJson<unknown>('frirss_aiCategoryProviders', {})),
+  setAiCategoryProvider: (name, id) => {
+    const next = { ...get().aiCategoryProviders };
+    const value = normalizeAiProviderId(id);
+    if (value === null) delete next[name];
+    else next[name] = value;
+    localStorage.setItem('frirss_aiCategoryProviders', JSON.stringify(next));
+    set({ aiCategoryProviders: next });
+  },
+  setFeedAiProvider: (feedId, id) => {
+    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'aiProvider', id ?? '') }));
   },
 
   inlineVideos: loadJson('frirss_inlineVideos', true),
@@ -804,9 +880,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
+      'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
     ];
     for (const k of jsonKeys) {
-      if (has(k) && prefs[k] !== undefined && prefs[k] !== null) {
+      // `aiPreferredProvider: null` is a real value ("no preference"), not an absence:
+      // a device that clears it must clear it everywhere.
+      if (has(k) && prefs[k] !== undefined && (prefs[k] !== null || k === 'aiPreferredProvider')) {
         // A preset synced from a device still on an older version can name a
         // preset we dropped — normalise it here too, not just on load.
         const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k])
@@ -820,6 +899,11 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'showNewArticlesPill' ? prefs[k] !== false
           : k === 'aiPanelCollapsed' ? prefs[k] === true
           : k === 'aiSummaryRatio' ? normalizeAiSummaryRatio(prefs[k])
+          : k === 'aiPreferredProvider' ? normalizeAiProviderId(prefs[k])
+          : k === 'aiCategoryProviders' ? normalizeAiCategoryProviders(prefs[k])
+          // Like autoExtractDefault: a non-boolean leaves the current value alone.
+          : k === 'aiFallback' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiFallback)
+          : k === 'aiAutoSummary' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiAutoSummary)
           : prefs[k];
         localStorage.setItem(`frirss_${k}`, JSON.stringify(value));
         next[k] = value;
@@ -851,6 +935,7 @@ export const UI_SYNC_KEYS = [
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
   'aiPanelCollapsed', 'aiSummaryRatio',
+  'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files
