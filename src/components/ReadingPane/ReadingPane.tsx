@@ -775,7 +775,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     aiInFlight.current = id;
     setAiStatus('loading'); setAiError(null);
     try {
-      const forced = providerId !== undefined;
       const key = `${useAuthStore.getState().backendUser?.id ?? ''}:${id}:${providerId ?? ''}`;
       const r = await sharedSummaryRequest(key, () => requestAiSummary({
         articleId: id, title: selectedArticle.title,
