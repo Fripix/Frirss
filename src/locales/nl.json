@@ -732,7 +732,7 @@
     "fromCache": "uit de cache",
     "fellBack": "{{name}} niet beschikbaar",
     "withProvider": "Samenvatten met…",
-    "userIntro": "AI-samenvattingen zijn klaar: open een artikel en klik op ‘Samenvatten’.",
+    "userIntro": "AI is klaar: open een artikel en klik op ‘Samenvatten’ of ‘Artikel vertalen’.",
     "errors": {
       "auth": "Sleutel geweigerd door de aanbieder. Controleer hem in Voorkeuren › AI.",
       "authUser": "Sleutel geweigerd door de aanbieder. Laat het je beheerder weten.",
@@ -753,7 +753,7 @@
     },
     "admin": {
       "title": "Aanbieders",
-      "enable": "AI-samenvattingen inschakelen",
+      "enable": "AI inschakelen (samenvattingen en vertalingen)",
       "add": "Aanbieder toevoegen",
       "edit": "Bewerken",
       "delete": "Verwijderen",
@@ -778,7 +778,7 @@
       "keyKeep": "Laat leeg om de huidige sleutel te behouden",
       "clearKey": "Sleutel wissen",
       "clearKeyTitle": "Sleutel van {{name}} wissen?",
-      "clearKeyWarning": "Samenvattingen die deze sleutel gebruiken stoppen totdat een nieuwe is ingevoerd.",
+      "clearKeyWarning": "Samenvattingen en vertalingen die deze sleutel gebruiken stoppen totdat een nieuwe is ingevoerd.",
       "keySet": "sleutel opgeslagen",
       "shared": "Deze sleutel delen met gebruikers",
       "defaultProvider": "Standaardaanbieder",
@@ -847,7 +847,7 @@
     },
     "keys": {
       "title": "Mijn sleutels",
-      "hint": "Je sleutel wordt alleen voor je eigen samenvattingen gebruikt en gaat voor die van de beheerder. Hij wordt nooit meer getoond.",
+      "hint": "Je sleutel wordt gebruikt voor je eigen samenvattingen en vertalingen en gaat voor die van de beheerder. Hij wordt nooit meer getoond.",
       "set": "sleutel opgeslagen",
       "none": "geen sleutel",
       "field": "Sleutel voor {{name}}",

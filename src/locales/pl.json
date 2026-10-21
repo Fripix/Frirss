@@ -760,7 +760,7 @@
     "fromCache": "z pamięci podręcznej",
     "fellBack": "{{name}} niedostępny",
     "withProvider": "Podsumuj za pomocą…",
-    "userIntro": "Podsumowania AI są gotowe: otwórz artykuł i kliknij „Podsumuj”.",
+    "userIntro": "AI jest gotowa: otwórz artykuł i kliknij „Podsumuj” lub „Przetłumacz artykuł”.",
     "errors": {
       "auth": "Dostawca odrzucił klucz. Sprawdź go w Preferencje › AI.",
       "authUser": "Dostawca odrzucił klucz. Powiadom administratora.",
@@ -781,7 +781,7 @@
     },
     "admin": {
       "title": "Dostawcy",
-      "enable": "Włącz podsumowania AI",
+      "enable": "Włącz AI (podsumowania i tłumaczenia)",
       "add": "Dodaj dostawcę",
       "edit": "Edytuj",
       "delete": "Usuń",
@@ -806,7 +806,7 @@
       "keyKeep": "Pozostaw puste, aby zachować obecny klucz",
       "clearKey": "Wyczyść klucz",
       "clearKeyTitle": "Wyczyścić klucz dostawcy {{name}}?",
-      "clearKeyWarning": "Podsumowania korzystające z tego klucza przestaną działać, dopóki nie zostanie wprowadzony nowy.",
+      "clearKeyWarning": "Podsumowania i tłumaczenia korzystające z tego klucza przestaną działać, dopóki nie zostanie wprowadzony nowy.",
       "keySet": "klucz zapisany",
       "shared": "Udostępnij ten klucz użytkownikom",
       "defaultProvider": "Domyślny dostawca",
@@ -879,7 +879,7 @@
     },
     "keys": {
       "title": "Moje klucze",
-      "hint": "Twój klucz służy tylko do Twoich streszczeń i ma pierwszeństwo przed kluczem administratora. Nigdy nie jest wyświetlany ponownie.",
+      "hint": "Twój klucz służy do Twoich podsumowań i tłumaczeń i ma pierwszeństwo przed kluczem administratora. Nigdy nie jest wyświetlany ponownie.",
       "set": "klucz zapisany",
       "none": "brak klucza",
       "field": "Klucz dla {{name}}",

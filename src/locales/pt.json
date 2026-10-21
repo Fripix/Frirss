@@ -732,7 +732,7 @@
     "fromCache": "da cache",
     "fellBack": "{{name}} indisponível",
     "withProvider": "Resumir com…",
-    "userIntro": "Os resumos IA estão prontos: abra um artigo e clique em «Resumir».",
+    "userIntro": "A IA está pronta: abra um artigo e clique em «Resumir» ou «Traduzir o artigo».",
     "errors": {
       "auth": "Chave recusada pelo fornecedor. Verifique-a em Preferências › IA.",
       "authUser": "Chave recusada pelo fornecedor. Avise o seu administrador.",
@@ -753,7 +753,7 @@
     },
     "admin": {
       "title": "Fornecedores",
-      "enable": "Ativar os resumos IA",
+      "enable": "Ativar a IA (resumos e traduções)",
       "add": "Adicionar um fornecedor",
       "edit": "Editar",
       "delete": "Eliminar",
@@ -778,7 +778,7 @@
       "keyKeep": "Deixe vazio para manter a chave atual",
       "clearKey": "Apagar a chave",
       "clearKeyTitle": "Apagar a chave de {{name}}?",
-      "clearKeyWarning": "Os resumos que usam esta chave deixarão de funcionar até ser introduzida uma nova.",
+      "clearKeyWarning": "Os resumos e as traduções que usam esta chave deixarão de funcionar até ser introduzida uma nova.",
       "keySet": "chave guardada",
       "shared": "Partilhar esta chave com os utilizadores",
       "defaultProvider": "Fornecedor predefinido",
@@ -847,7 +847,7 @@
     },
     "keys": {
       "title": "As minhas chaves",
-      "hint": "A sua chave só serve para os seus resumos e tem prioridade sobre a do administrador. Nunca volta a ser apresentada.",
+      "hint": "A sua chave serve para os seus resumos e traduções e tem prioridade sobre a do administrador. Nunca volta a ser apresentada.",
       "set": "chave guardada",
       "none": "sem chave",
       "field": "Chave para {{name}}",

@@ -732,7 +732,7 @@
     "fromCache": "dalla cache",
     "fellBack": "{{name}} non disponibile",
     "withProvider": "Riassumi con…",
-    "userIntro": "I riassunti IA sono pronti: apri un articolo e fai clic su «Riassumi».",
+    "userIntro": "L'IA è pronta: apri un articolo e fai clic su «Riassumi» o «Traduci l'articolo».",
     "errors": {
       "auth": "Chiave rifiutata dal fornitore. Controllala in Preferenze › IA.",
       "authUser": "Chiave rifiutata dal fornitore. Avvisa il tuo amministratore.",
@@ -753,7 +753,7 @@
     },
     "admin": {
       "title": "Fornitori",
-      "enable": "Attiva i riassunti IA",
+      "enable": "Attiva l'IA (riassunti e traduzioni)",
       "add": "Aggiungi un fornitore",
       "edit": "Modifica",
       "delete": "Elimina",
@@ -778,7 +778,7 @@
       "keyKeep": "Lascia vuoto per mantenere la chiave attuale",
       "clearKey": "Cancella la chiave",
       "clearKeyTitle": "Cancellare la chiave di {{name}}?",
-      "clearKeyWarning": "I riassunti che usano questa chiave si fermeranno finché non ne verrà inserita una nuova.",
+      "clearKeyWarning": "I riassunti e le traduzioni che usano questa chiave si fermeranno finché non ne verrà inserita una nuova.",
       "keySet": "chiave salvata",
       "shared": "Condividi questa chiave con gli utenti",
       "defaultProvider": "Fornitore predefinito",
@@ -847,7 +847,7 @@
     },
     "keys": {
       "title": "Le mie chiavi",
-      "hint": "La tua chiave serve solo per i tuoi riassunti e ha la precedenza su quella dell'amministratore. Non viene mai mostrata di nuovo.",
+      "hint": "La tua chiave serve per i tuoi riassunti e le tue traduzioni e ha la precedenza su quella dell'amministratore. Non viene mai mostrata di nuovo.",
       "set": "chiave salvata",
       "none": "nessuna chiave",
       "field": "Chiave per {{name}}",

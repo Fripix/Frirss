@@ -732,7 +732,7 @@
     "fromCache": "depuis le cache",
     "fellBack": "{{name}} indisponible",
     "withProvider": "Résumer avec…",
-    "userIntro": "Les résumés IA sont prêts : ouvrez un article et cliquez « Résumer ».",
+    "userIntro": "L'IA est prête : ouvrez un article et cliquez « Résumer » ou « Traduire l'article ».",
     "errors": {
       "auth": "Clé refusée par le fournisseur. Vérifiez-la dans Préférences › IA.",
       "authUser": "Clé refusée par le fournisseur. Prévenez votre administrateur.",
@@ -753,7 +753,7 @@
     },
     "admin": {
       "title": "Fournisseurs",
-      "enable": "Activer les résumés IA",
+      "enable": "Activer l'IA (résumés et traductions)",
       "add": "Ajouter un fournisseur",
       "edit": "Modifier",
       "delete": "Supprimer",
@@ -778,7 +778,7 @@
       "keyKeep": "Laisser vide pour conserver la clé actuelle",
       "clearKey": "Effacer la clé",
       "clearKeyTitle": "Effacer la clé de {{name}} ?",
-      "clearKeyWarning": "Les résumés qui passent par cette clé s'arrêteront jusqu'à ce qu'une nouvelle soit saisie.",
+      "clearKeyWarning": "Les résumés et traductions qui passent par cette clé s'arrêteront jusqu'à ce qu'une nouvelle soit saisie.",
       "keySet": "clé enregistrée",
       "shared": "Partager cette clé avec les utilisateurs",
       "defaultProvider": "Fournisseur par défaut",
@@ -847,7 +847,7 @@
     },
     "keys": {
       "title": "Mes clés",
-      "hint": "Votre clé ne sert qu'à vos résumés et passe avant celle de l'administrateur. Elle n'est jamais réaffichée.",
+      "hint": "Votre clé sert à vos résumés et traductions et passe avant celle de l'administrateur. Elle n'est jamais réaffichée.",
       "set": "clé enregistrée",
       "none": "aucune clé",
       "field": "Clé pour {{name}}",

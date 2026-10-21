@@ -732,7 +732,7 @@
     "fromCache": "aus dem Cache",
     "fellBack": "{{name}} nicht verfügbar",
     "withProvider": "Zusammenfassen mit…",
-    "userIntro": "KI-Zusammenfassungen sind bereit: Öffnen Sie einen Artikel und klicken Sie auf „Zusammenfassen“.",
+    "userIntro": "Die KI ist bereit: Öffnen Sie einen Artikel und klicken Sie auf „Zusammenfassen“ oder „Artikel übersetzen“.",
     "errors": {
       "auth": "Der Anbieter hat den Schlüssel abgelehnt. Prüfen Sie ihn unter Einstellungen › KI.",
       "authUser": "Der Anbieter hat den Schlüssel abgelehnt. Informieren Sie Ihren Administrator.",
@@ -753,7 +753,7 @@
     },
     "admin": {
       "title": "Anbieter",
-      "enable": "KI-Zusammenfassungen aktivieren",
+      "enable": "KI aktivieren (Zusammenfassungen und Übersetzungen)",
       "add": "Anbieter hinzufügen",
       "edit": "Bearbeiten",
       "delete": "Löschen",
@@ -778,7 +778,7 @@
       "keyKeep": "Leer lassen, um den aktuellen Schlüssel zu behalten",
       "clearKey": "Schlüssel löschen",
       "clearKeyTitle": "Schlüssel von {{name}} löschen?",
-      "clearKeyWarning": "Zusammenfassungen, die diesen Schlüssel verwenden, stoppen, bis ein neuer eingegeben wird.",
+      "clearKeyWarning": "Zusammenfassungen und Übersetzungen, die diesen Schlüssel verwenden, stoppen, bis ein neuer eingegeben wird.",
       "keySet": "Schlüssel gespeichert",
       "shared": "Diesen Schlüssel mit den Benutzern teilen",
       "defaultProvider": "Standardanbieter",
@@ -847,7 +847,7 @@
     },
     "keys": {
       "title": "Meine Schlüssel",
-      "hint": "Ihr Schlüssel wird nur für Ihre Zusammenfassungen verwendet und hat Vorrang vor dem des Administrators. Er wird nie wieder angezeigt.",
+      "hint": "Ihr Schlüssel wird für Ihre Zusammenfassungen und Übersetzungen verwendet und hat Vorrang vor dem des Administrators. Er wird nie wieder angezeigt.",
       "set": "Schlüssel gespeichert",
       "none": "kein Schlüssel",
       "field": "Schlüssel für {{name}}",

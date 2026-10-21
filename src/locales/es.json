@@ -732,7 +732,7 @@
     "fromCache": "desde la caché",
     "fellBack": "{{name}} no disponible",
     "withProvider": "Resumir con…",
-    "userIntro": "Los resúmenes con IA están listos: abre un artículo y haz clic en «Resumir».",
+    "userIntro": "La IA está lista: abre un artículo y haz clic en «Resumir» o «Traducir el artículo».",
     "errors": {
       "auth": "El proveedor ha rechazado la clave. Compruébala en Preferencias › IA.",
       "authUser": "El proveedor ha rechazado la clave. Avisa a tu administrador.",
@@ -753,7 +753,7 @@
     },
     "admin": {
       "title": "Proveedores",
-      "enable": "Activar los resúmenes con IA",
+      "enable": "Activar la IA (resúmenes y traducciones)",
       "add": "Añadir un proveedor",
       "edit": "Editar",
       "delete": "Eliminar",
@@ -778,7 +778,7 @@
       "keyKeep": "Déjalo vacío para conservar la clave actual",
       "clearKey": "Borrar la clave",
       "clearKeyTitle": "¿Borrar la clave de {{name}}?",
-      "clearKeyWarning": "Los resúmenes que usan esta clave se detendrán hasta que se introduzca una nueva.",
+      "clearKeyWarning": "Los resúmenes y traducciones que usan esta clave se detendrán hasta que se introduzca una nueva.",
       "keySet": "clave guardada",
       "shared": "Compartir esta clave con los usuarios",
       "defaultProvider": "Proveedor predeterminado",
@@ -847,7 +847,7 @@
     },
     "keys": {
       "title": "Mis claves",
-      "hint": "Su clave solo se usa para sus resúmenes y tiene prioridad sobre la del administrador. No se vuelve a mostrar nunca.",
+      "hint": "Su clave se usa para sus resúmenes y traducciones y tiene prioridad sobre la del administrador. No se vuelve a mostrar nunca.",
       "set": "clave guardada",
       "none": "sin clave",
       "field": "Clave para {{name}}",

@@ -732,7 +732,7 @@
     "fromCache": "from cache",
     "fellBack": "{{name}} unavailable",
     "withProvider": "Summarise with…",
-    "userIntro": "AI summaries are ready: open an article and click “Summarise”.",
+    "userIntro": "AI is ready: open an article and click “Summarise” or “Translate article”.",
     "errors": {
       "auth": "Key rejected by the provider. Check it in Preferences › AI.",
       "authUser": "Key rejected by the provider. Tell your administrator.",
@@ -753,7 +753,7 @@
     },
     "admin": {
       "title": "Providers",
-      "enable": "Enable AI summaries",
+      "enable": "Enable AI (summaries and translations)",
       "add": "Add a provider",
       "edit": "Edit",
       "delete": "Delete",
@@ -778,7 +778,7 @@
       "keyKeep": "Leave empty to keep the current key",
       "clearKey": "Clear the key",
       "clearKeyTitle": "Clear the key for {{name}}?",
-      "clearKeyWarning": "Summaries that use this key will stop until a new one is entered.",
+      "clearKeyWarning": "Summaries and translations that use this key will stop until a new one is entered.",
       "keySet": "key set",
       "shared": "Share this key with users",
       "defaultProvider": "Default provider",
@@ -847,7 +847,7 @@
     },
     "keys": {
       "title": "My keys",
-      "hint": "Your key is only used for your own summaries and takes precedence over the administrator's. It is never shown again.",
+      "hint": "Your key is used for your own summaries and translations and takes precedence over the administrator's. It is never shown again.",
       "set": "key saved",
       "none": "no key",
       "field": "Key for {{name}}",

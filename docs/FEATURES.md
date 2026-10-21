@@ -1921,11 +1921,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   fournisseur non partagé. L'admin peut **effacer** une clé enregistrée : dans
   l'éditeur d'un fournisseur (« Modifier »), un bouton « Effacer la clé »
   (`ai.admin.clearKey`) n'apparaît que si `hasAdminKey` est vrai. Il ouvre
-  un `ConfirmDialog` qui nomme le fournisseur et prévient que les résumés
-  passant par cette clé s'arrêteront jusqu'à ce qu'une nouvelle soit saisie
-  (`clearKeyTitle`, `clearKeyWarning` — libellé d'avant la traduction : les
-  traductions qui passent par cette clé s'arrêtent aussi) ; jamais d'effacement sans cette
-  confirmation. Confirmer envoie `updateAiProvider(id, { adminKey: null })`
+  un `ConfirmDialog` qui nomme le fournisseur et prévient que les résumés et
+  traductions passant par cette clé s'arrêteront jusqu'à ce qu'une nouvelle
+  soit saisie (`clearKeyTitle`, `clearKeyWarning`) ; jamais d'effacement sans
+  cette confirmation. Confirmer envoie `updateAiProvider(id, { adminKey: null })`
   (`clearKey`, `ai/AdminProviders.tsx`) : la ligne perd sa mention « clé
   enregistrée », la config est rechargée, la liste de modèles affichée est
   fermée (elle venait de l'ancienne clé). Une clé encore en cours de saisie
@@ -2265,10 +2264,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 - **Interface — « Mes clés »** (`ai/KeysBlock.tsx`, sous « Par flux et
   catégorie », pour tous, admin compris) : **rendu seulement si
   `config.userKeysAllowed`** (réglage admin « Avancé »), sinon rien, pas même le
-  titre. Un titre, une aide (« votre clé ne sert qu'à vos résumés et passe
-  avant celle de l'administrateur ; elle n'est jamais réaffichée » — libellé
-  d'avant la traduction : la clé sert aussi aux traductions), puis une
-  ligne par fournisseur de `config.providers` : son nom, son état (« clé
+  titre. Un titre, une aide (« votre clé sert à vos résumés et traductions et
+  passe avant celle de l'administrateur ; elle n'est jamais réaffichée »), puis
+  une ligne par fournisseur de `config.providers` : son nom, son état (« clé
   enregistrée » en accent, ou « aucune clé »), un champ `type="password"`
   `autoComplete="new-password"`, **toujours vide**, et « Enregistrer »
   (désactivé tant que le champ est vide) ; « Effacer » (en rouge) n'existe que
