@@ -748,7 +748,7 @@
       "noProvider": "Geen aanbieder beschikbaar.",
       "technical": "De samenvatting is mislukt. Probeer het opnieuw.",
       "invalidLang": "Taal niet beschikbaar.",
-      "segments": "De aanbieder heeft geen bruikbare vertaling geleverd. Probeer het opnieuw.",
+      "segments": "De aanbieder leverde geen bruikbare vertaling (tekst ongewijzigd teruggestuurd of afgebroken). Probeer het opnieuw of kies een andere aanbieder via ‘Vertalen met…’.",
       "translateFailed": "De vertaling is mislukt. Probeer het opnieuw.",
       "translateRefused": "De aanbieder weigerde dit artikel te vertalen.",
       "translateTooLong": "Tekst te lang om te vertalen.",

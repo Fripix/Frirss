@@ -748,7 +748,7 @@
       "noProvider": "Nessun fornitore disponibile.",
       "technical": "Il riassunto non è riuscito. Riprova.",
       "invalidLang": "Lingua non disponibile.",
-      "segments": "Il fornitore non ha restituito una traduzione utilizzabile. Riprova.",
+      "segments": "Il fornitore non ha restituito una traduzione utilizzabile (testo ricopiato o troncato). Riprova, oppure scegli un altro fornitore da «Traduci con…».",
       "translateFailed": "La traduzione non è riuscita. Riprova.",
       "translateRefused": "Il fornitore ha rifiutato di tradurre questo articolo.",
       "translateTooLong": "Testo troppo lungo per essere tradotto.",

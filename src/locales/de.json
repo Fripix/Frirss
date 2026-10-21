@@ -748,7 +748,7 @@
       "noProvider": "Kein Anbieter verfügbar.",
       "technical": "Die Zusammenfassung ist fehlgeschlagen. Versuchen Sie es erneut.",
       "invalidLang": "Sprache nicht verfügbar.",
-      "segments": "Der Anbieter hat keine verwertbare Übersetzung geliefert. Versuchen Sie es erneut.",
+      "segments": "Der Anbieter hat keine brauchbare Übersetzung geliefert (Text unverändert zurückgegeben oder abgeschnitten). Versuchen Sie es erneut oder wählen Sie über „Übersetzen mit…“ einen anderen Anbieter.",
       "translateFailed": "Die Übersetzung ist fehlgeschlagen. Versuchen Sie es erneut.",
       "translateRefused": "Der Anbieter hat die Übersetzung dieses Artikels abgelehnt.",
       "translateTooLong": "Text zu lang für eine Übersetzung.",

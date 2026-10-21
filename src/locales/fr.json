@@ -748,7 +748,7 @@
       "noProvider": "Aucun fournisseur disponible.",
       "technical": "Le résumé a échoué. Réessayez.",
       "invalidLang": "Langue non proposée.",
-      "segments": "Le fournisseur n'a pas rendu une traduction exploitable. Réessayez.",
+      "segments": "Le fournisseur n'a pas rendu une traduction exploitable (texte recopié ou coupé). Réessayez, ou choisissez un autre fournisseur via « Traduire avec… ».",
       "translateFailed": "La traduction a échoué. Réessayez.",
       "translateRefused": "Le fournisseur a refusé de traduire cet article.",
       "translateTooLong": "Texte trop long pour être traduit.",

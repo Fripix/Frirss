@@ -748,7 +748,7 @@
       "noProvider": "没有可用的服务商。",
       "technical": "摘要生成失败。请重试。",
       "invalidLang": "不支持该语言。",
-      "segments": "服务商未返回可用的翻译。请重试。",
+      "segments": "服务商未返回可用的翻译（原文被原样返回或被截断）。请重试，或通过“使用以下服务商翻译…”选择其他服务商。",
       "translateFailed": "翻译失败。请重试。",
       "translateRefused": "服务商拒绝翻译这篇文章。",
       "translateTooLong": "文本太长，无法翻译。",

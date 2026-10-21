@@ -748,7 +748,7 @@
       "noProvider": "No provider available.",
       "technical": "The summary failed. Try again.",
       "invalidLang": "Language not offered.",
-      "segments": "The provider did not return a usable translation. Try again.",
+      "segments": "The provider did not return a usable translation (text copied back or cut short). Try again, or pick another provider via “Translate with…”.",
       "translateFailed": "The translation failed. Try again.",
       "translateRefused": "The provider declined to translate this article.",
       "translateTooLong": "Text too long to translate.",

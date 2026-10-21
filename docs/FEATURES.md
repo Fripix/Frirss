@@ -2273,7 +2273,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   rétablit pas en attendant *(corrigé le 2026-10-20, même cause que le message
   de « Tester »)* ; la traduction ajoute deux codes : 400 `invalid_lang` →
   `ai.errors.invalidLang` (« langue non proposée ») et 502 `ai_failed` avec
-  `detail: 'segments'` (lot rendu inexploitable) → `ai.errors.segments`, lu
+  `detail: 'segments'` (lot rendu inexploitable) → `ai.errors.segments` (« Le
+  fournisseur n'a pas rendu une traduction exploitable (texte recopié ou
+  coupé). Réessayez, ou choisissez un autre fournisseur via « Traduire
+  avec… ». » : le message dit quoi faire, puisque ce cas ne replie jamais
+  vers un autre fournisseur), lu
   **avant** le `kind` : ce n'est ni la clé ni le quota ; 502 `ai_failed`
   avec `detail: 'deadline'` (le temps a manqué ; `isAiDeadline`) garde le
   message neutre de l'opération — la traduction de l'article a déjà rejoué le

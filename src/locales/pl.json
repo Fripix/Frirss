@@ -776,7 +776,7 @@
       "noProvider": "Brak dostępnego dostawcy.",
       "technical": "Nie udało się utworzyć streszczenia. Spróbuj ponownie.",
       "invalidLang": "Język niedostępny.",
-      "segments": "Dostawca nie zwrócił użytecznego tłumaczenia. Spróbuj ponownie.",
+      "segments": "Dostawca nie zwrócił użytecznego tłumaczenia (tekst przepisany bez zmian lub ucięty). Spróbuj ponownie lub wybierz innego dostawcę w „Przetłumacz za pomocą…”.",
       "translateFailed": "Nie udało się przetłumaczyć. Spróbuj ponownie.",
       "translateRefused": "Dostawca odmówił przetłumaczenia tego artykułu.",
       "translateTooLong": "Tekst jest zbyt długi, by go przetłumaczyć.",
