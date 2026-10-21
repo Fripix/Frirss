@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { htmlToText, countWords } from './text.js';
+import { htmlToText, countWords, isEcho } from './text.js';
 
 describe('htmlToText', () => {
   it('drops tags, scripts and styles, keeps paragraph breaks', () => {
@@ -62,5 +62,37 @@ describe('countWords', () => {
   });
   it('counts words in scripts without spaces', () => {
     expect(countWords('汉字'.repeat(1000))).toBeGreaterThan(40);
+  });
+});
+
+describe('isEcho', () => {
+  const ten = Array.from({ length: 10 }, (_, i) => `The quick brown fox number ${i} jumps`);
+  const fr = (s: string) => s.replace('The quick brown fox', 'Le rapide renard brun').replace('jumps', 'saute');
+
+  it('is true for an output identical to its input', () => {
+    expect(isEcho(ten, [...ten])).toBe(true);
+  });
+  it('is true at 90 % (one significant segment out of ten translated)', () => {
+    expect(isEcho(ten, ten.map((s, i) => (i === 0 ? fr(s) : s)))).toBe(true);
+  });
+  it('is false at 70 % (three out of ten translated)', () => {
+    expect(isEcho(ten, ten.map((s, i) => (i < 3 ? fr(s) : s)))).toBe(false);
+  });
+  it('ignores short identical segments (names, URLs): they are not judged', () => {
+    const input = ['Linus Torvalds', 'https://example.com/a', 'The quick brown fox jumps over', 'A lazy dog sleeps in the sun'];
+    const output = ['Linus Torvalds', 'https://example.com/a', 'Le rapide renard brun saute', 'Un chien paresseux dort au soleil'];
+    expect(isEcho(input, output)).toBe(false);
+  });
+  it('counts a segment differing only by case, whitespace or tags as identical', () => {
+    const input = ['<p>The quick <b>brown</b> fox jumps</p>', 'A lazy dog sleeps in the sun'];
+    const output = ['  the QUICK brown   fox jumps ', '<em>A lazy dog</em> sleeps\n in the sun'];
+    expect(isEcho(input, output)).toBe(true);
+  });
+  it('is false when no segment is significant (nothing to judge)', () => {
+    expect(isEcho(['Hello', 'Linus Torvalds'], ['Hello', 'Linus Torvalds'])).toBe(false);
+    expect(isEcho([], [])).toBe(false);
+  });
+  it('is false for a shorter output array', () => {
+    expect(isEcho(ten, ten.slice(0, 9))).toBe(false);
   });
 });

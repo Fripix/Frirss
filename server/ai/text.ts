@@ -94,3 +94,28 @@ export function segmentWordCount(html: string): number {
   const spaceless = text.match(SPACELESS)?.length ?? 0;
   return Math.max(bySpace, Math.ceil(spaceless / 2));
 }
+
+/** Un segment de moins de 4 mots (nom propre, URL, légende) n'est pas jugé : il peut légitimement rester tel quel. */
+const ECHO_MIN_WORDS = 4;
+
+const echoNormal = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/**
+ * La « traduction » recopie-t-elle sa source ? Un 7b local (Ollama qwen2.5)
+ * renvoie parfois les segments tels quels, au bon format, avec une langue
+ * source différente de la cible. Écho : au moins 80 % des segments
+ * significatifs (≥ 4 mots) identiques à l'entrée, à la casse, aux espaces et
+ * aux balises près. Un seul segment identique sur beaucoup (nom, adresse,
+ * code) n'en est pas un ; un lot sans segment significatif non plus.
+ */
+export function isEcho(input: string[], output: string[]): boolean {
+  if (output.length !== input.length) return false;
+  let judged = 0;
+  let same = 0;
+  input.forEach((s, i) => {
+    if (segmentWordCount(s) < ECHO_MIN_WORDS) return;
+    judged++;
+    if (echoNormal(s) === echoNormal(output[i])) same++;
+  });
+  return judged > 0 && same * 5 >= judged * 4;
+}

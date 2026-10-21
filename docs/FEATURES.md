@@ -2317,7 +2317,21 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   local au contexte trop court **tronque** sa réponse sur un gros lot, et le
   repli envoyait le lot au fournisseur suivant — Claude, payant — sans que
   personne l'ait choisi (trois lots payés en un seul essai). Les vraies pannes
-  (réseau, erreur HTTP, échéance) gardent le repli. Source déjà
+  (réseau, erreur HTTP, échéance) gardent le repli. **Un écho est aussi une
+  réponse inexploitable** (`isEcho` de `text.ts`) : des segments au bon
+  format, mais recopiés de la source, alors que la langue source annoncée est
+  **connue** et **n'est pas** la cible. Écho = au moins **80 %** des segments
+  *significatifs* (≥ 4 mots, `segmentWordCount`) identiques à l'entrée, à la
+  casse, aux espaces et aux balises près ; un segment plus court (nom propre,
+  URL, légende) n'est pas jugé, un lot sans segment significatif n'est jamais
+  un écho, et un seul segment identique sur beaucoup (adresse, extrait de
+  code) ne fait pas basculer le lot. Même chemin que le format cassé : rejeu
+  une fois, puis `segments` sans repli, **rien en cache**. Une langue inconnue
+  ne permet rien de conclure (le lot passe) ; égale à la cible, c'est la règle
+  `same` ci-dessous qui joue. Raison : sur « Retraduire », un 7b local
+  (Ollama qwen2.5) a renvoyé l'anglais tel quel avec `lang: en` ; FriRSS
+  l'affichait « Traduit en français », le mettait en cache et le servait
+  ensuite. Source déjà
   dans la cible : le modèle répond `lang: <code>` puis `same`, le serveur rend
   `{ segments: [], same: true }` et le **met en cache** tel quel (coût
   d'entrée seul, une fois). Une langue source **annoncée égale à la cible**
@@ -2726,8 +2740,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     testés par `worthSplitting`) : le serveur répond 502 `ai_failed` avec
     `detail: 'deadline'` (`isAiDeadline`, échéance serveur) ; le serveur
     répond 502 `ai_failed` avec `detail: 'segments'` (`isAiMalformed` :
-    réponse inexploitable après le rejeu serveur, que le serveur ne fait plus
-    passer au fournisseur suivant) ; ou un **reverse proxy en amont** a coupé la requête
+    réponse inexploitable après le rejeu serveur — format cassé ou **écho**
+    de la source —, que le serveur ne fait plus passer au fournisseur
+    suivant) ; ou un **reverse proxy en amont** a coupé la requête
     (`isUpstreamCut`) — **après au moins 30 s d'attente**
     (`UPSTREAM_CUT_MIN_MS` ; la durée de la requête est posée sur son erreur,
     `elapsedMs`), un 502 ou 504 dont le corps n'est pas celui du serveur
@@ -3015,7 +3030,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   **4 096 jetons** par défaut tronque la réponse (502 `segments`, mesuré sur
   l'instance de test). `OLLAMA_CONTEXT_LENGTH=16384` est recommandé ; sans
   lui, le rejeu coupé en deux (« Lot coupé ou réponse inexploitable ») permet
-  encore à un Ollama réglé par défaut de traduire, par moitiés de 600 mots. Rien côté FriRSS : le point d'accès compatible OpenAI ne prend pas
+  encore à un Ollama réglé par défaut de traduire, par moitiés de 600 mots.
+  Autre travers d'un petit modèle (7b) : **renvoyer la source telle quelle**,
+  au bon format ; le serveur le traite comme une réponse inexploitable
+  (« Traduction — serveur », écho). Rien côté FriRSS : le point d'accès compatible OpenAI ne prend pas
   `num_ctx`, et l'aide du champ « URL de base » doit rester courte — c'est ici
   que le piège est consigné.
 - **Réglages serveur** (`settings`) : `ai_enabled`, `ai_user_keys_allowed`,

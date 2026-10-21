@@ -163,6 +163,53 @@ describe('translate', () => {
   });
 });
 
+describe('echo: a translation identical to its source is malformed', () => {
+  // Un 7b (Ollama qwen2.5) a renvoyé les segments anglais tels quels, au bon
+  // format, avec « lang: en » : affiché comme traduit, mis en cache.
+  const src = ['The quick brown fox jumps over', 'A lazy dog sleeps in the sun'];
+  const echo = answer('lang: en\n<s n="0">The quick brown fox jumps over</s>\n<s n="1">A lazy dog sleeps in the sun</s>');
+  const translated = answer('lang: en\n<s n="0">Le rapide renard brun saute</s>\n<s n="1">Un chien paresseux dort au soleil</s>');
+
+  it('replays once an echo and returns the translated replay', async () => {
+    const call = vi.fn().mockResolvedValueOnce(echo).mockResolvedValueOnce(translated);
+    const r = await translate({ ...base, articleId: 'echo-1', segments: src, available: [A(1, 'Ollama')] }, { call });
+    expect(r).toMatchObject({ same: false, segments: ['Le rapide renard brun saute', 'Un chien paresseux dort au soleil'], lang: 'en' });
+    expect(call).toHaveBeenCalledTimes(2);
+  });
+  it('fails with segments after two echoes: no fallback, nothing cached, cap refunded', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const call = vi.fn().mockResolvedValueOnce(echo).mockResolvedValueOnce(echo).mockResolvedValueOnce(translated);
+      await expect(translate({ ...base, articleId: 'echo-2', segments: src, available: [A(1, 'A', true), A(2, 'B')] }, { call }))
+        .rejects.toMatchObject({ kind: 'technical', message: 'segments', noFallback: true });
+      expect(call.mock.calls.map((c) => c[0].name)).toEqual(['A', 'A']);
+      expect(db.prepare('SELECT COUNT(*) AS n FROM ai_cache').get()).toEqual({ n: 0 });
+      expect(usageToday(44)).toBe(0);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+  it('leaves an echo reported in the target language to the same rule', async () => {
+    const fr = ['Le rapide renard brun saute', 'Un chien paresseux dort au soleil'];
+    const call = vi.fn().mockResolvedValue(answer('lang: fr\n<s n="0">Le rapide renard brun saute</s>\n<s n="1">Un chien paresseux dort au soleil</s>'));
+    const r = await translate({ ...base, articleId: 'echo-fr', segments: fr, available: [A(1, 'A')] }, { call });
+    expect(r).toMatchObject({ same: true, segments: [], lang: 'fr' });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+  it('concludes nothing when the source language is unknown', async () => {
+    const call = vi.fn().mockResolvedValue(answer('<s n="0">The quick brown fox jumps over</s>\n<s n="1">A lazy dog sleeps in the sun</s>'));
+    const r = await translate({ ...base, articleId: 'echo-null', segments: src, available: [A(1, 'A')] }, { call });
+    expect(r).toMatchObject({ same: false, segments: src, lang: null });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+  it('leaves a normal translation unchanged', async () => {
+    const call = vi.fn().mockResolvedValue(translated);
+    const r = await translate({ ...base, articleId: 'echo-ok', segments: src, available: [A(1, 'A')] }, { call });
+    expect(r).toMatchObject({ same: false, segments: ['Le rapide renard brun saute', 'Un chien paresseux dort au soleil'], fromCache: false });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('translate deadline, proportional to the batch', () => {
   const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(' ');
   // Un lot de n mots, réparti sur plusieurs segments (avec du balisage, qui ne compte pas).

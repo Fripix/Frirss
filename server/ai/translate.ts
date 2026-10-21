@@ -7,7 +7,7 @@ import { translateSystem, translateUserMessage, parseTranslation } from './promp
 import { runWithFallback, MIN_CALL_MS } from './attempt.js';
 import { shareInflight, inflightKey } from './inflight.js';
 import { sameLanguage, type AiLanguage } from './languages.js';
-import { segmentWordCount } from './text.js';
+import { segmentWordCount, isEcho } from './text.js';
 
 /** Un lot d'environ 1 200 mots rend ~2 000 jetons ; Anthropic exige un plafond, on lui laisse de la marge. */
 const ANTHROPIC_MAX_TOKENS = 8192;
@@ -71,6 +71,10 @@ function decodeCached(v: AiCacheValue, count: number): Pick<Translated, 'same' |
  *   « segments », **sans repli** (`noFallback`) : un Ollama local au contexte
  *   trop court tronque sa sortie, et le candidat suivant pouvait être payant.
  *   Le client rejoue alors le lot coupé en deux (`useArticleTranslation`).
+ * - **Écho** (`isEcho`) : des segments recopiés tels quels alors que la langue
+ *   source annoncée est connue et n'est pas la cible sont une réponse
+ *   inexploitable, même chemin (rejeu, puis « segments » sans repli), jamais
+ *   mise en cache.
  * - `same` (source déjà dans la langue cible) : `{ segments: [], same: true }`,
  *   mis en cache comme tel. Une langue source annoncée égale à la cible
  *   (`sameLanguage`) vaut `same` même si le modèle a traduit quand même.
@@ -93,14 +97,20 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
       cacheKeyFor: (cand) => aiCacheKey({ articleId: req.articleId, op: 'translate', providerId: cand.provider.id, model: cand.provider.model, lang: req.targetLang, contentHash }),
       call: async (cand, timeoutMs) => {
         const opts: AiCall = { system, user, timeoutMs, ...(cand.provider.type === 'anthropic' ? { maxTokens: ANTHROPIC_MAX_TOKENS } : {}) };
+        // Inexploitable : format cassé, ou écho (segments recopiés alors que la
+        // langue source annoncée, connue, n'est pas la cible). Une langue
+        // inconnue ne permet rien de conclure ; égale à la cible, c'est `same`.
+        const unusable = (p: ReturnType<typeof parseTranslation>) => p.segments
+          ? p.lang !== null && !sameLanguage(p.lang, req.targetLang) && isEcho(req.segments, p.segments)
+          : !p.same;
         let result = await call(cand.provider, cand.key, opts);
         let parsed = parseTranslation(result.text, count);
-        if (!parsed.same && !parsed.segments) {
+        if (unusable(parsed)) {
           const remaining = deadline - now();
           if (remaining < MIN_CALL_MS) throw malformed();
           result = await call(cand.provider, cand.key, { ...opts, timeoutMs: remaining });
           parsed = parseTranslation(result.text, count);
-          if (!parsed.same && !parsed.segments) throw malformed();
+          if (unusable(parsed)) throw malformed();
         }
         // Un petit modèle peut annoncer « lang: fr » puis traduire du français
         // en français malgré la consigne : la langue annoncée fait foi.
