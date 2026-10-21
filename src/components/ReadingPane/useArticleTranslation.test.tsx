@@ -743,4 +743,64 @@ describe('useArticleTranslation: per-device memory of a shown translation', () =
     expect(hook.current.state).toBe('idle');
     expect(hook.current.error).toBeNull();
   });
+
+  describe('a translation that was split in two when paid is cached as two halves', () => {
+    const big = { ...base, bodyHtml: '<p>One</p><p>Two</p><p>Three</p>' };
+    const http = (status: number, data: unknown) => Object.assign(new Error(`http ${status}`), { isAxiosError: true, response: { status, data } });
+
+    async function showBig() {
+      vi.mocked(requestAiTranslation).mockResolvedValueOnce(result(['T', 'a', 'b', 'c'], { providerId: 7 }));
+      const first = renderHook(() => useArticleTranslation(big));
+      await act(async () => { first.result.current.translate(); });
+      await waitFor(() => expect(first.result.current.state).toBe('done'));
+      first.unmount();
+      vi.mocked(requestAiTranslation).mockReset();
+    }
+    const sent = () => vi.mocked(requestAiTranslation).mock.calls.map(([r]) => r);
+
+    it('a split translation is replayed from its two cached halves', async () => {
+      await showBig();
+      vi.mocked(requestAiTranslation)
+        .mockRejectedValueOnce(http(404, { error: 'not_cached' }))
+        .mockResolvedValueOnce(result(['Titre', 'A'], { providerId: 7, fromCache: true }))
+        .mockResolvedValueOnce(result(['B', 'C'], { providerId: 7, fromCache: true }));
+      const { result: hook } = renderHook(() => useArticleTranslation(big));
+      await waitFor(() => expect(hook.current.state).toBe('done'));
+      expect(sent()).toHaveLength(3);
+      expect(sent().every((r) => r.cacheOnly === true && r.provider === 7)).toBe(true);
+      expect(sent()[0].segments).toHaveLength(4);
+      expect(sent()[1].segments).toEqual(sent()[0].segments.slice(0, 2));
+      expect(sent()[2].segments).toEqual(sent()[0].segments.slice(2));
+      expect(hook.current.showing).toBe('translation');
+      expect(hook.current.title).toBe('Titre');
+      expect(hook.current.html).toBe('<p>A</p><p>B</p><p>C</p>');
+      expect(hook.current.error).toBeNull();
+      expect(memory().a1).toMatchObject({ lang: 'fr', providerId: 7 });
+    });
+
+    it('a half not cached ends the replay silently: no further split, memory forgotten', async () => {
+      await showBig();
+      vi.mocked(requestAiTranslation)
+        .mockRejectedValueOnce(http(404, { error: 'not_cached' }))
+        .mockResolvedValueOnce(result(['Titre', 'A']))
+        .mockRejectedValueOnce(http(404, { error: 'not_cached' }));
+      const { result: hook } = renderHook(() => useArticleTranslation(big));
+      await waitFor(() => expect(memory().a1).toBeUndefined());
+      expect(requestAiTranslation).toHaveBeenCalledTimes(3);
+      expect(hook.current.state).toBe('idle');
+      expect(hook.current.error).toBeNull();
+      expect(hook.current.html).toBeNull();
+      expect(hook.current.showing).toBe('source');
+    });
+
+    it('a 409 on the whole batch does not split', async () => {
+      await showBig();
+      vi.mocked(requestAiTranslation).mockRejectedValue(http(409, { error: 'no_provider' }));
+      const { result: hook } = renderHook(() => useArticleTranslation(big));
+      await waitFor(() => expect(memory().a1).toBeUndefined());
+      expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+      expect(hook.current.state).toBe('idle');
+      expect(hook.current.error).toBeNull();
+    });
+  });
 });

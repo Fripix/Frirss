@@ -2953,22 +2953,34 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     « Traduire » qui remontre la traduction tenue, `showTranslation`) et se
     rafraîchit à chaque rejeu réussi. Au changement d'article ou de corps,
     `useArticleTranslation` rappelle l'entrée (même hash seulement) et lance
-    `translate({ lang, providerId }, { cacheOnly: true })` — avant la
-    traduction automatique du volet, que son délai de 1 s fait partir après :
-    elle trouve l'état `loading` et ne double rien. **Garantie : un rejeu ne
-    peut rien coûter.** Chaque lot part avec `cacheOnly: true` (le serveur ne
-    lit que son cache : 404 `not_cached` sans entrée, jamais d'appel au
-    fournisseur ni d'unité du plafond), fournisseur forcé à celui mémorisé
-    pour retomber sur la même clé de cache, **jamais coupé en deux**
-    (`worthSplitting` ignoré). **Toute** réponse non 200 (404, 409
-    `no_provider` si le fournisseur n'est plus disponible, 5xx, réseau) comme
-    un `same` laisse l'article en source, **sans notice ni erreur**, et
-    efface la mémoire. Autres oublis : « Texte source » (`showSource`), un
-    hash différent (corps changé : l'entrée reste mais n'est pas rejouée, puis
-    est écrasée à la prochaine traduction affichée). Pendant le rejeu l'état
-    est `loading` (notice « Traduction… »). Piège : un test qui monte le volet
-    doit vider le `localStorage` entre deux cas, la mémoire se fait passer
-    pour une traduction demandée.
+    `translate({ lang, providerId }, { cacheOnly: true })`. **Passage à la
+    traduction automatique** (`ReadingPane`) : le rejeu pose `loading` avant que
+    le minuteur de 1 s ne parte, et ce rendu efface le minuteur ; si le rejeu
+    réussit, l'article est déjà traduit et rien ne part. S'il finit `idle` (404,
+    409, 5xx, `same`), le minuteur se **réarme** : sur un flux dont la
+    traduction automatique est allumée, une traduction **payante** part donc 1 s
+    après un rejeu raté — assumé (le réglage est opt-in, elle serait partie de
+    toute façon). **Garantie : un rejeu ne peut rien coûter.** Chaque lot part
+    avec `cacheOnly: true` (le serveur ne lit que son cache : 404 `not_cached`
+    sans entrée, jamais d'appel au fournisseur ni d'unité du plafond),
+    fournisseur forcé à celui mémorisé pour retomber sur la même clé de cache.
+    **Lot coupé en deux : rejoué depuis ses deux moitiés en cache.** Un lot payé
+    que la boucle avait rejoué en deux moitiés (délai, réponse inexploitable,
+    coupure amont) n'est en cache que sous ses moitiés ; sur un 404
+    `not_cached` d'un lot de 2 segments ou plus, le rejeu demande les deux
+    moitiés (même coupe `ceil(n/2)` que le chemin payant), elles aussi en
+    `cacheOnly`, et les recolle (`joinHalves`) — jamais plus loin que cette
+    coupe. Les autres codes sur le lot entier (409, 5xx, réseau) ne coupent
+    pas. Tout échec qui reste (lot d'un seul segment, moitié absente du cache,
+    409 `no_provider` si le fournisseur n'est plus disponible, 5xx, réseau),
+    comme un `same`, laisse l'article en source, **sans notice ni erreur**, et
+    efface la mémoire. Les oublis, en tout : « Texte source » (`showSource`),
+    cache absent, fournisseur disparu, `same`, toute autre erreur du rejeu, et
+    un hash différent (corps changé : l'entrée reste mais n'est pas rejouée,
+    puis est écrasée à la prochaine traduction affichée). Pendant le rejeu
+    l'état est `loading` (notice « Traduction… »). Piège : un test qui monte le
+    volet doit vider le `localStorage` entre deux cas, la mémoire se fait
+    passer pour une traduction demandée.
 - **Résumé automatique à l'ouverture** : la règle est celle du flux, sinon
   d'une de ses catégories, sinon de l'interrupteur global (`aiAutoSummary`,
   Préférences → IA → « Résumés », **éteint d'origine**, avertissement de coût

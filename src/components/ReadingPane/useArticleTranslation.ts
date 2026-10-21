@@ -130,6 +130,12 @@ function worthSplitting(err: unknown): boolean {
     || (axios.isAxiosError(err) && isUpstreamCut(resp?.status, resp?.data, elapsedOf(err) ?? 0));
 }
 
+/** Rejeu sans entrée de cache pour ce lot : 404 `not_cached`. */
+function isNotCached(err: unknown): boolean {
+  const resp = axios.isAxiosError(err) ? err.response : undefined;
+  return resp?.status === 404 && (resp.data as { error?: string } | undefined)?.error === 'not_cached';
+}
+
 const HAS_LETTER = /\p{L}/u;
 const hasLetter = (html: string) => HAS_LETTER.test(html.replace(/<[^>]*>/g, ''));
 
@@ -310,9 +316,15 @@ function prepare(title: string, bodyHtml: string): Prepared {
  * - Mémoire par appareil (`lib/aiShownTranslations`) : quand une traduction est
  *   affichée, langue, fournisseur et hash sont gardés ; au retour sur l'article
  *   (même hash), `translate(…, { cacheOnly: true })` la rejoue depuis le cache
- *   serveur seulement — jamais coupée en deux, clé partagée à part, aucune
- *   notice : toute réponse non 200 ou un `same` laisse la source et efface la
- *   mémoire. « Texte source » l'efface aussi.
+ *   serveur seulement (gratuit par garantie du serveur), clé partagée à part,
+ *   aucune notice. Un lot payé qui avait été coupé en deux n'est en cache que
+ *   sous ses deux moitiés : sur un 404 `not_cached` d'un lot de 2 segments ou
+ *   plus, le rejeu demande les deux moitiés, elles aussi en `cacheOnly`, et les
+ *   recolle (`joinHalves`) ; jamais plus loin. Toute autre réponse non 200
+ *   (409, 5xx, réseau), une moitié absente ou un `same` laisse la source et
+ *   efface la mémoire. « Texte source » l'efface aussi. Pendant le rejeu l'état
+ *   est `loading` : le minuteur de traduction automatique du volet s'efface ;
+ *   quand le rejeu finit `idle`, il se réarme (voir `ReadingPane`).
  */
 export function useArticleTranslation(input: ArticleTranslationInput): ArticleTranslation {
   const { t, i18n } = useTranslation();
@@ -433,11 +445,16 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
           try {
             return await request(indices);
           } catch (err) {
-            if (cacheOnly || indices.length < 2 || !worthSplitting(err)) throw err;
+            // Un rejeu ne se coupe que sur un cache manquant : un lot payé en
+            // deux moitiés n'est en cache que sous ses moitiés. Tout autre
+            // échec (409, 5xx, réseau) n'y change rien.
+            const split = cacheOnly ? isNotCached(err) : worthSplitting(err);
+            if (indices.length < 2 || !split) throw err;
           }
-          // Coupé faute de temps ou rendu inexploitable : rejoué une fois, en
-          // deux moitiés, en série. Une moitié qui échoue à son tour finit en
-          // erreur, sans autre découpe.
+          // Coupé faute de temps ou rendu inexploitable (ou, au rejeu, lot
+          // entier absent du cache) : rejoué une fois, en deux moitiés, en
+          // série. Une moitié qui échoue à son tour finit en erreur, sans autre
+          // découpe — au rejeu, une moitié absente du cache met fin au rejeu.
           if (!wanted()) throw new Abandoned();
           const mid = Math.ceil(indices.length / 2);
           const first = await request(indices.slice(0, mid));
