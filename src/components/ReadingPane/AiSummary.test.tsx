@@ -152,10 +152,10 @@ describe('AiSummary — panneau vide', () => {
 });
 
 describe('AiSummary — statut et action', () => {
-  it('idle: « Pas encore résumé » and the « Résumer » action, no help line', () => {
-    const { getByText, getByRole, queryByRole, queryByText } = render(<AiSummary {...idleProps} />);
+  it('idle: « Pas encore résumé » and the « Résumer » action, no body', () => {
+    const { container, getByText, getByRole, queryByRole } = render(<AiSummary {...idleProps} />);
     expect(getByText('ai.status.none')).toBeTruthy();
-    expect(queryByText('ai.hint')).toBeNull();
+    expect(container.querySelector('[id$="-body"]')).toBeNull();
     expect(getByRole('button', ACTION)).toBeTruthy();
     expect(queryByRole('button', { name: 'ai.withProvider' })).toBeNull();
   });
@@ -373,10 +373,10 @@ describe('AiSummary — traduction du résumé', () => {
   const MENU = { name: 'ai.translateMenu' };
   const translated: AiSummaryProps['translation'] = { status: 'done', text: 'First.\n\nSecond one.', lang: 'en', providerId: 1, providerName: 'Claude', fellBackFrom: 'Mistral', error: null };
 
-  it('offers no translation when the summary is already in the target language', () => {
-    const { queryByRole } = render(<AiSummary {...doneProps} targetLang="fr" />);
-    expect(queryByRole('button', TRANSLATE)).toBeNull();
-    expect(queryByRole('button', MENU)).toBeNull();
+  it('affiche « Traduire » même quand le résumé est déjà dans la langue cible', () => {
+    const { getByRole } = render(<AiSummary {...doneProps} targetLang="fr" />);
+    expect(getByRole('button', TRANSLATE)).toBeTruthy();
+    expect(getByRole('button', MENU)).toBeTruthy();
   });
   it('offers no translation before there is a summary', () => {
     const { queryByRole } = render(<AiSummary {...idleProps} />);

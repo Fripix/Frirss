@@ -149,11 +149,11 @@ describe('ReadingPane — Résumé IA', () => {
     expect(vi.mocked(requestAiSummary).mock.calls[0][0]).not.toHaveProperty('categoryProvider');
   });
   it('shows the panel above the article, with its status, while nothing was requested', () => {
-    const { getByRole, getByText, queryByRole, queryByText } = render(<ReadingPane />);
-    // Rien à montrer : une simple ligne d'en-tête, sans bouton de repli ni aide.
+    const { container, getByRole, getByText, queryByRole } = render(<ReadingPane />);
+    // Rien à montrer : une simple ligne d'en-tête, sans bouton de repli ni corps.
     expect(queryByRole('button', { name: /^ai\.summarize\s/ })).toBeNull();
     expect(getByText('ai.status.none')).toBeTruthy();
-    expect(queryByText('ai.hint')).toBeNull();
+    expect(container.querySelector('[id$="-body"]')).toBeNull();
     expect(getByRole('button', { name: 'ai.summarizeAction' })).toBeTruthy();
   });
   it('keeps the panel folded on the next article when the user folded it', async () => {
@@ -683,6 +683,27 @@ describe('ReadingPane — traduction du résumé', () => {
     await waitFor(() => expect(useUiStore.getState().toasts.map((x) => x.message)).toContain('ai.translation.alreadyTarget'));
     expect(getByText('The summary.')).toBeTruthy();
     expect(getByRole('button', { name: 'ai.translate' })).toBeTruthy();
+  });
+  it('un résumé déjà en français : « Traduire » dit « Déjà en français » sans appeler /ai/translate', async () => {
+    vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+    const { getByRole, findByText, getByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    await findByText('Le résumé.');
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    await waitFor(() => expect(useUiStore.getState().toasts.map((x) => x.message)).toContain('ai.translation.alreadyTarget'));
+    expect(requestAiTranslation).not.toHaveBeenCalled();
+    expect(getByText('Le résumé.')).toBeTruthy();
+    expect(getByRole('button', { name: 'ai.translate' })).toBeTruthy();
+  });
+  it('« Traduire en… » une autre langue part toujours, même quand le résumé est déjà dans la langue cible', async () => {
+    vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+    vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+    const { getByRole, findByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    await findByText('Le résumé.');
+    fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
+    fireEvent.click(within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('de', 'fr') }));
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ scope: 'summary', targetLang: 'de' });
   });
   it('« Traduire en… » sends the language picked', async () => {
     vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);

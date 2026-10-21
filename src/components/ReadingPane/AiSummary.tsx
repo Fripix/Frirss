@@ -7,7 +7,7 @@ import Popover from './Popover';
 import TranslateMenu from './TranslateMenu';
 import { useUiStore } from '../../stores/uiStore';
 import { expandOnFirstSummary } from './aiPanelExpand';
-import { AI_LANGUAGES, languageName, sameLanguage, type AiLanguage } from '../../lib/aiLanguages';
+import { AI_LANGUAGES, languageName, type AiLanguage } from '../../lib/aiLanguages';
 import type { AiProviderView, AiSummaryResult } from '../../api/backend';
 
 const ALL_LANGUAGES = [...AI_LANGUAGES];
@@ -49,11 +49,10 @@ export interface AiSummaryProps {
  *
  * Le repli est une mémoire GLOBALE et synchronisée (`aiPanelCollapsed`), pas
  * un état par article : qui replie le panneau le retrouve replié partout (dès
- * qu'il a quelque chose à replier). Un
- * résumé qui arrive panneau replié ne le rouvre pas — le statut dit « Résumé
- * par X ». Seule exception, une fois par appareil : le tout premier « Résumer »
- * lancé panneau replié le déplie, sinon on demanderait un résumé sans jamais
- * le voir.
+ * qu'il a quelque chose à replier). Un résumé qui arrive panneau replié ne le
+ * rouvre pas — le statut dit « Résumé par X ». Seule exception, une fois par
+ * appareil : le tout premier « Résumer » lancé panneau replié le déplie, sinon
+ * on demanderait un résumé sans jamais le voir.
  *
  * Choix visuels :
  * - la surface est une teinte de l'accent, réglable (`--ai-bg`, `--ai-border`) :
@@ -69,8 +68,9 @@ export interface AiSummaryProps {
  *
  * Traduction du résumé : un bouton scindé, cerclé du filet du panneau —
  * « Traduire » (vers la langue cible) et un chevron qui ouvre « Traduire en… »
- * / « Traduire avec… ». Il n'apparaît que si le résumé n'est pas déjà dans la
- * langue cible. Traduit, le corps montre la traduction, le statut ajoute
+ * / « Traduire avec… ». Il est toujours là dès qu'il y a un résumé : si ce
+ * dernier est déjà dans la langue cible, « Traduire » ne part pas, un message
+ * le dit. Traduit, le corps montre la traduction, le statut ajoute
  * « traduit en X par Y », et « Traduire » devient « Texte source ». Comme le
  * résumé, une traduction qui arrive panneau replié ne le rouvre pas.
  *
@@ -106,8 +106,11 @@ export default function AiSummary({ status, result, error, providers, onSummariz
     : null;
   const translating = translation.status === 'loading';
   const translateFailed = translation.status === 'error' && !!translation.error;
-  // « Texte source » reste atteignable même si la langue cible a changé entre-temps.
-  const translatable = !!done && !loading && available.length > 0 && (!!translated || !sameLanguage(done.lang, targetLang));
+  // « Traduire » reste là même quand le résumé est déjà dans la langue cible :
+  // un bouton qui apparaît et disparaît selon la langue du texte déroute, et le
+  // cas se règle sans appel (« Déjà en X », côté `ReadingPane`). « Traduire en… »
+  // et « Texte source » restent atteignables dans tous les cas.
+  const translatable = !!done && !loading && available.length > 0;
   const translateMenuShown = translateMenuOpen && translatable && !translating;
   if (translateMenuOpen && !translateMenuShown) setTranslateMenuOpen(false);
   // Une seule alerte à la fois : celle du résumé prime.

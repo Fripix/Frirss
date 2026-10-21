@@ -50,9 +50,10 @@ la release publiée.
   revenir à l'original sans nouvel appel. Un chevron (un appui long au doigt,
   ou la feuille « … ») ouvre « Traduire en… » — 28 langues, filtrables — et
   « Traduire avec… », qui force un fournisseur sans couper le repli. Un résumé
-  déjà dans la langue cible ne propose pas « Traduire » ; un article déjà dans
-  la langue le dit (« Déjà en français. ») après un seul appel, même si le
-  modèle l'a traduit quand même, ensuite servi par le cache. Un passage trop
+  déjà dans la langue cible garde « Traduire », qui répond « Déjà en français. »
+  sans rien envoyer ; un article déjà dans la langue le dit (« Déjà en
+  français. ») après un seul appel, même si le modèle l'a traduit quand même,
+  ensuite servi par le cache. Un passage trop
   lourd pour un lot reste dans la langue d'origine, et la notice le dit (« Traduit en partie (n lots sur m) »). Un lot a le temps que demande sa longueur (jusqu'à 110 s), et un lot coupé faute de temps a une seconde chance, en deux moitiés — y compris quand c'est un reverse proxy en amont qui le coupe ; si une moitié l'est encore, un message dit d'accorder au moins 120 s à /api/ai (le README donne les deux lignes à ajouter). Une réponse inexploitable (un Ollama au contexte trop court tronque un gros lot) ne bascule plus vers un autre fournisseur, peut-être payant : le lot est rejoué en deux moitiés sur le même (le README recommande `OLLAMA_CONTEXT_LENGTH=16384`) ; une « traduction » qui recopie la source (un petit modèle renvoie parfois l'anglais tel quel) est traitée de même, au lieu d'être affichée comme traduite et mise en cache. Les segments voyagent entre des balises `<seg>`, qu'aucun modèle ne prend pour sa fin de séquence : un 7b d'Ollama (Qwen, Llama) traduit le lot entier au lieu de s'arrêter au premier segment. Les
   échecs ont leurs propres messages : « La traduction a échoué. Réessayez. »,
   « Le fournisseur a refusé de traduire cet article. », « Texte trop long pour

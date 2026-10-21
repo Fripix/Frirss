@@ -32,7 +32,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { stripMediaForSummary, fitSummaryPayload } from '../../lib/aiPayload';
 import { aiErrorMessage } from '../../lib/aiErrorKey';
 import { sharedSummaryRequest, sharedTranslationRequest, summaryRequestKey, summaryTranslationKey } from './aiPending';
-import { AI_LANGUAGES, languageName, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
+import { AI_LANGUAGES, languageName, sameLanguage, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import { aiRouting } from '../../lib/aiRouting';
 import { autoFor } from '../../lib/aiAuto';
 import { useArticleTranslation, plainText } from './useArticleTranslation';
@@ -845,6 +845,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // indisponible ». Les demandes en vol sont partagées (`aiPending.ts`).
   // « Retraduire » passe la langue et le fournisseur affichés avec
   // `regenerate` : le serveur ignore son cache et le remplace.
+  // « Traduire » (sans choix) sur un résumé déjà dans la langue cible ne
+  // lance rien : « Déjà en X », sans appel ni unité du plafond. Un choix
+  // explicite (« Traduire en… ») part toujours.
   const handleTranslateSummary = useCallback(async (choice?: { lang?: AiLanguage; providerId?: number; regenerate?: boolean }) => {
     if (!selectedArticle || !aiResult || aiTranslation.status === 'loading') return;
     const id = selectedArticle.id;
@@ -854,6 +857,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     const shownLang = shown?.lang ?? null;
     const lang = choice?.lang ?? (choice?.providerId !== undefined ? shownLang : null) ?? aiTargetLang;
     const regenerate = choice?.regenerate === true;
+    if (!regenerate && choice?.lang === undefined && !shown && sameLanguage(aiResult.lang, lang)) {
+      pushToast(t('ai.translation.alreadyTarget', { lang: languageName(lang, i18n.language) }));
+      return;
+    }
     // « Retraduire » garde la traduction à l'écran pendant la demande et,
     // en cas d'échec, l'alerte s'y ajoute — comme pour l'article.
     const held = regenerate ? shown : null;

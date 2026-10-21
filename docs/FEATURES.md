@@ -2233,7 +2233,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 - **Langue** : le résumé est dans la langue de l'article ; le modèle rend
   `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) : c'est
   elle qui dit si le résumé est déjà dans la langue cible, auquel cas
-  « Traduire » ne paraît pas (voir « Traduire le résumé »).
+  « Traduire » répond « Déjà en {langue} » sans rien envoyer (voir « Traduire
+  le résumé »).
 - **Entrée** (`POST /api/ai/summary`) : `articleId` ≤ 512 caractères, `title`
   tronqué à 500, `html` ≤ 200 Ko, `regenerate` absent ou booléen, sinon 400
   `invalid_body` ; `ratio` entier de
@@ -2652,15 +2653,17 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     place manque (320 px), l'action descend sous le titre, alignée à droite
     (`flex-wrap`), au lieu d'écraser le statut. Sur tablette et smartphone,
     en-tête et action font 44 px.
-  - **Corps** (déplié, et seulement avec un résumé, une demande ou une erreur) : les paragraphes du résumé (corps 15 px, retours à la
-    ligne simples gardés par `whitespace-pre-line` pour les listes à puces),
+  - **Corps** (déplié, et seulement avec un résumé, une demande ou une
+    erreur) : les paragraphes du résumé (corps 15 px, retours à la ligne
+    simples gardés par `whitespace-pre-line` pour les listes à puces),
     **sans mesure bornée** (l'ancien `max-w-[68ch]` est parti) ; pendant une
     première demande, trois barres d'attente (pulsation coupée par
     `prefers-reduced-motion`) ; sinon l'erreur. Replié, le corps reste monté,
     `hidden` et vide : `aria-controls` ne pointe jamais dans le vide (panneau
-    vide, il n'y a ni corps ni `aria-controls`). L'erreur est un `role="alert"` ; replié, elle prend la place du
-    statut sous le titre — sans cela un échec ne laisserait aucune trace. Le
-    résumé reste affiché pendant une nouvelle demande et après un échec.
+    vide, il n'y a ni corps ni `aria-controls`). L'erreur est un
+    `role="alert"` ; replié, elle prend la place du statut sous le titre —
+    sans cela un échec ne laisserait aucune trace. Le résumé reste affiché
+    pendant une nouvelle demande et après un échec.
   - **Annonces** : une région `role="status" aria-live="polite"`, invisible
     (`sr-only`) et **toujours montée**, ne contient qu'une ligne — « Résumé par
     X, depuis le cache » — qui change à l'arrivée d'un résumé, panneau replié
@@ -2669,10 +2672,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     les deux ne s'imbriquent jamais.
   - **Mémoire du repli** : globale (pas par article) et synchronisée
     (`aiPanelCollapsed`). Qui replie le panneau le retrouve replié sur l'article
-    suivant et sur ses autres appareils — **mais elle ne joue qu'à partir du
-    premier résumé** : un article sans résumé montre l'en-tête seul, replié ou
-    non, et la valeur attend (le résumé qui arrive se montre replié si
-    l'utilisateur l'avait replié). Un résumé qui arrive panneau replié **ne
+    suivant et sur ses autres appareils — **mais elle ne joue que dès qu'une
+    demande part** (une première demande, un résumé, une erreur) : un article
+    sans rien à montrer garde l'en-tête seul, replié ou non, et la valeur
+    attend (le résumé qui arrive se montre replié si l'utilisateur l'avait
+    replié). Un résumé qui arrive panneau replié **ne
     le rouvre pas** : le statut passe à « Résumé par X ». Seule exception : le
     **tout premier** « Résumer » lancé panneau replié le déplie, une fois par
     appareil (`aiPanelAutoExpanded`, local), sinon on demanderait un résumé sans
@@ -2689,12 +2693,16 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     cerclé du filet du panneau — « Traduire » (vers la langue cible : réglage
     `aiTranslationLanguage`, ou `targetLanguage()` de la langue d'interface pour
     `ui`) et un chevron (`aria-haspopup`, libellé « Options de traduction »).
-    L'action « Traduire » apparaît quand un résumé est affiché, qu'un
-    fournisseur est disponible et que le résumé n'est **pas déjà** dans la
-    langue cible (`sameLanguage(result.lang, cible)` ; une langue détectée
-    inconnue la laisse paraître) — jamais pendant une demande de résumé ; tant
-    qu'une traduction est affichée, la même place montre « Texte source »,
-    quelle que soit la cible. Pendant la traduction, l'action est désactivée
+    L'action « Traduire » est là dès qu'un résumé est affiché et qu'un
+    fournisseur est disponible — jamais pendant une demande de résumé, et
+    **même quand le résumé est déjà dans la langue cible** (il ne
+    paraît ni ne disparaît plus selon la langue du texte). Dans ce cas
+    (`sameLanguage(result.lang, cible)`), `handleTranslateSummary` ne lance
+    rien : un toast « Déjà en {langue}. », **sans appel** ni unité du plafond.
+    Seul « Traduire » sans choix est court-circuité : « Traduire en… »,
+    « Traduire avec… » et « Retraduire » partent toujours. Tant qu'une
+    traduction est affichée, la même place montre « Texte source », quelle que
+    soit la cible. Pendant la traduction, l'action est désactivée
     avec « Traduction… » et le statut ajoute « Traduction… » — replié, c'est la
     seule trace. Le chevron ouvre `TranslateMenu.tsx` : un champ « Filtrer les
     langues » au-delà de 12 langues, comme la liste des modèles, posé
@@ -2721,8 +2729,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     indisponible » si le repli a joué), la région vivante l'annonce, et
     « Traduire » devient **« Texte source »**, qui rend le résumé d'origine
     sans requête. Une traduction qui arrive panneau replié ne le déplie pas.
-    Si le serveur répond `same` (le texte est déjà dans la langue demandée),
-    le panneau revient au résumé d'origine (une traduction affichée
+    Si le serveur répond `same` (la langue détectée du résumé était fausse ou
+    absente, ou c'est un choix explicite vers sa propre langue), le panneau
+    revient au résumé d'origine (une traduction affichée
     disparaît) et un toast bref dit « Déjà en {langue}. ».
     Un échec s'affiche en alerte sous le résumé, qui reste (après un
     « Retraduire » raté, sous la traduction, qui reste aussi). Les messages qui
