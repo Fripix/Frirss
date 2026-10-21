@@ -3,6 +3,8 @@
  *
  * Sert aussi à `POST /api/ai/translate` : `invalid_lang` (langue hors liste) et
  * `ai_failed` + `detail: 'segments'` (lot rendu inexploitable) ont leur clé.
+ * `detail: 'deadline'` (le temps a manqué) garde le message neutre de
+ * l'opération : le client a déjà rejoué le lot coupé en deux (`isAiDeadline`).
  *
  * Ne devine jamais une cause : chaque branche correspond à un code que le
  * serveur envoie vraiment. Deux 429 ne se confondent pas — le plafond
@@ -30,9 +32,19 @@ export function aiErrorKey(status: number | undefined, data: { error?: string; k
   if (error === 'no_provider') return 'ai.errors.noProvider';
   if (error === 'invalid_lang') return 'ai.errors.invalidLang';
   if (error === 'ai_failed' && data?.detail === 'segments') return 'ai.errors.segments';
+  if (isAiDeadline(status, data)) return translate ? 'ai.errors.translateFailed' : 'ai.errors.technical';
   if (data?.kind === 'auth') return isAdmin || data.ownKey === true ? 'ai.errors.auth' : 'ai.errors.authUser';
   if (data?.kind === 'quota') return 'ai.errors.quota';
   return translate ? 'ai.errors.translateFailed' : 'ai.errors.technical';
+}
+
+/**
+ * Le serveur a abandonné la demande faute de temps (502 `ai_failed` +
+ * `detail: 'deadline'`). Seulement ce code-là : un 504 d'un reverse proxy en
+ * amont n'a pas de corps du serveur, et rien n'y est deviné.
+ */
+export function isAiDeadline(status: number | undefined, data: { error?: string; kind?: string; detail?: string } | undefined): boolean {
+  return status === 502 && data?.error === 'ai_failed' && data.detail === 'deadline';
 }
 
 export interface AiErrorMessage { key: string; params?: Record<string, string | number> }

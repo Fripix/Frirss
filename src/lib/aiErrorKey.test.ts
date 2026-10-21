@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aiErrorKey, aiErrorMessage } from './aiErrorKey';
+import { aiErrorKey, aiErrorMessage, isAiDeadline } from './aiErrorKey';
 import fr from '../locales/fr.json';
 import en from '../locales/en.json';
 
@@ -51,6 +51,18 @@ describe('aiErrorKey', () => {
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'auth', detail: 'segments' }, true)).toBe('ai.errors.segments');
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'other' }, false)).toBe('ai.errors.technical');
     expect(aiErrorMessage(502, { error: 'ai_failed', detail: 'segments' }, false, 'en')).toEqual({ key: 'ai.errors.segments' });
+  });
+  it('a batch that ran out of time says the neutral failure of its operation', () => {
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'deadline' }, false, { op: 'translate' })).toBe('ai.errors.translateFailed');
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'deadline' }, true)).toBe('ai.errors.technical');
+  });
+  it('recognises the deadline only from the code the server sends', () => {
+    expect(isAiDeadline(502, { error: 'ai_failed', kind: 'technical', detail: 'deadline' })).toBe(true);
+    expect(isAiDeadline(502, { error: 'ai_failed', kind: 'technical' })).toBe(false);
+    expect(isAiDeadline(502, { error: 'ai_failed', detail: 'segments' })).toBe(false);
+    // Un 504 d'un reverse proxy en amont n'a pas de corps du serveur : rien n'est deviné.
+    expect(isAiDeadline(504, undefined)).toBe(false);
+    expect(isAiDeadline(undefined, undefined)).toBe(false);
   });
   it('keeps the other codes and falls back to technical', () => {
     expect(aiErrorKey(422, { error: 'ai_refused' }, false)).toBe('ai.errors.refused');

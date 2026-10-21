@@ -2160,7 +2160,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   de « Tester »)* ; la traduction ajoute deux codes : 400 `invalid_lang` →
   `ai.errors.invalidLang` (« langue non proposée ») et 502 `ai_failed` avec
   `detail: 'segments'` (lot rendu inexploitable) → `ai.errors.segments`, lu
-  **avant** le `kind` : ce n'est ni la clé ni le quota ; sinon « le résumé a
+  **avant** le `kind` : ce n'est ni la clé ni le quota ; 502 `ai_failed`
+  avec `detail: 'deadline'` (le temps a manqué ; `isAiDeadline`) garde le
+  message neutre de l'opération — la traduction de l'article a déjà rejoué le
+  lot coupé en deux ; sinon « le résumé a
   échoué, réessayez » (neutre : la cause n'est pas connue).
   Avec `{ op: 'translate' }`, refus, `invalid_body` et repli neutre parlent de
   traduction (`translateRefused`, `translateTooLong`, `translateFailed`) ; le
@@ -2580,6 +2583,21 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     plus lourd que 200 000 octets n'entre dans aucun lot et reste dans la
     source : la traduction est alors **partielle**, et la notice compte les
     lots envoyés sur ceux qu'il aurait fallu (un par segment écarté).
+  - **Lot coupé faute de temps** : chaque lot a une échéance serveur
+    proportionnelle à sa longueur (20 s + 75 ms par mot, plafond 110 s ; voir
+    « Traduction — serveur »). Quand le serveur répond quand même 502
+    `ai_failed` avec `detail: 'deadline'` (reconnu par `isAiDeadline` de
+    `lib/aiErrorKey.ts`, sur ce code seul : un 504 d'un reverse proxy en
+    amont, sans corps du serveur, n'est pas deviné) et que le lot porte plus
+    d'un segment, il est **rejoué une fois, coupé en deux** — moitiés en
+    série, chacune sa clé de partage (rang `b.0`, `b.1`), `stillCurrent`
+    vérifié entre elles. Une moitié qui expire à son tour échoue comme
+    n'importe quel lot (pas de seconde découpe) ; un lot d'un seul segment qui
+    expire échoue aussitôt ; les autres erreurs ne sont jamais rejouées. Un
+    lot déjà réussi ne repart jamais. La notice garde le compte des lots
+    d'origine (« Lot 1 sur 2… » pendant les deux moitiés du premier) ; le
+    message d'erreur reste le neutre « La traduction a échoué. Réessayez. ».
+    Rien n'est propre à un fournisseur ni réglable.
   - **Bouton** : dans la barre d'outils, après « Article complet », présent
     quand le panneau IA l'est (`aiUsable`). Ordinateur : bouton scindé
     `action-btn` (« Traduire l'article », accent quand la traduction est
@@ -2637,7 +2655,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     et gardé par le cache serveur.
   - **Demandes partagées** : chaque lot passe par `sharedTranslationRequest`
     (clé : `article`, compte, article, langue, fournisseur forcé, hash du
-    corps, rang du lot) : revenir sur l'article et relancer reprend le lot en
+    corps, rang du lot — ou de la moitié d'un lot rejoué) : revenir sur l'article et relancer reprend le lot en
     vol au lieu de le repayer ; le cache serveur sert les lots déjà traduits.
 - **Résumé automatique à l'ouverture** : la règle est celle du flux, sinon
   d'une de ses catégories, sinon de l'interrupteur global (`aiAutoSummary`,
@@ -2825,6 +2843,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `ai_user_keys`, `ai_usage`, `ai_cache`. La sauvegarde chiffrée emporte
   `ai_providers` et `ai_user_keys` (voir « Sauvegarde et restauration ») ;
   `ai_usage` et `ai_cache` sont du jetable.
+- **Évolution envisagée** (non planifiée) : diffuser la sortie du modèle au
+  fil de l'eau (streaming) — affichage progressif de la traduction, plus
+  d'échéance totale à tenir, même coût. Ce cycle s'en tient aux requêtes
+  entières, avec l'échéance proportionnelle et le rejeu coupé en deux.
 
 ### Extraction du contenu complet
 Pour les flux tronqués, récupération de l'article complet, avec cache à deux

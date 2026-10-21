@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { requestAiTranslation } from '../../api/backend';
+import { requestAiTranslation, type AiTranslationResult } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { segmentArticle, batchSegments, type Segmented } from '../../lib/articleSegments';
-import { aiErrorMessage } from '../../lib/aiErrorKey';
+import { aiErrorMessage, isAiDeadline } from '../../lib/aiErrorKey';
 import type { AiRouting } from '../../lib/aiRouting';
 import type { AiLanguage } from '../../lib/aiLanguages';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
@@ -79,6 +79,12 @@ interface Snapshot {
 const idle = (key: string): Snapshot => ({
   key, state: 'idle', html: null, title: null, progress: null, partialOf: null, lang: null, error: null, automatic: false, showing: 'source',
 });
+
+/** Le serveur a coupé le lot faute de temps (`detail: 'deadline'`). */
+function ranOutOfTime(err: unknown): boolean {
+  const resp = axios.isAxiosError(err) ? err.response : undefined;
+  return isAiDeadline(resp?.status, resp?.data as Parameters<typeof isAiDeadline>[1]);
+}
 
 const HAS_LETTER = /\p{L}/u;
 const hasLetter = (html: string) => HAS_LETTER.test(html.replace(/<[^>]*>/g, ''));
@@ -225,6 +231,11 @@ function prepare(title: string, bodyHtml: string): Prepared {
  *   (`batchSegments`) ; les lots partent
  *   **en série**, une requête par lot. `progress` sert la notice ; le numéro
  *   de lot ne part pas au serveur.
+ * - Un lot que le serveur a coupé faute de temps (502 `detail: 'deadline'`)
+ *   et qui porte plus d'un segment est **rejoué une fois, coupé en deux**,
+ *   moitiés en série (chacune sa clé de partage) ; une moitié qui expire à
+ *   son tour échoue comme n'importe quel lot. `progress` garde le compte des
+ *   lots d'origine. Un lot réussi ne repart jamais.
  * - Tant qu'un lot manque, rien n'est remplacé : une erreur à n'importe quel
  *   lot donne `error` sans corps traduit — ou, quand une traduction était déjà
  *   tenue (autre langue, autre fournisseur), la garde (`done`) et y ajoute
@@ -334,27 +345,51 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       let providerId: number | undefined;
       let providerName: string | undefined;
       let fellBackFrom: string | undefined;
+      // `part` : rang du lot, ou `b.h` pour la moitié h d'un lot rejoué.
+      const send = (indices: number[], part: string) => sharedTranslationRequest(
+        `article:${user}:${id}:${lang}:${choice?.providerId ?? ''}:${hash}:${part}`,
+        () => requestAiTranslation({
+          articleId: id, scope: 'article', targetLang: lang, segments: indices.map((i) => prep.send[i]),
+          provider: choice?.providerId, ...routing,
+        }),
+      );
+      // Faux quand la boucle s'arrête là (`same` dès la première réponse).
+      const record = (indices: number[], r: AiTranslationResult, first: boolean): boolean => {
+        if (r.same && first) {
+          setSnap({ ...idle(k), state: 'same', lang, automatic });
+          return false;
+        }
+        // Un lot plus loin déjà dans la langue (article mêlé) : ses segments restent.
+        if (!r.same) indices.forEach((i, n) => { out[i] = r.segments[n]; });
+        providerId = r.providerId;
+        providerName = r.providerName;
+        if (r.fellBackFrom) fellBackFrom = r.fellBackFrom;
+        return true;
+      };
       try {
         for (let b = 0; b < total; b++) {
           if (!stillCurrent()) return;
           const indices = prep.batches[b];
-          const r = await sharedTranslationRequest(
-            `article:${user}:${id}:${lang}:${choice?.providerId ?? ''}:${hash}:${b}`,
-            () => requestAiTranslation({
-              articleId: id, scope: 'article', targetLang: lang, segments: indices.map((i) => prep.send[i]),
-              provider: choice?.providerId, ...routing,
-            }),
-          );
-          if (!stillCurrent()) return;
-          if (r.same && b === 0) {
-            setSnap({ ...idle(k), state: 'same', lang, automatic });
-            return;
+          let r: AiTranslationResult | null = null;
+          try {
+            r = await send(indices, String(b));
+          } catch (err) {
+            if (indices.length < 2 || !ranOutOfTime(err)) throw err;
           }
-          // Un lot plus loin déjà dans la langue (article mêlé) : ses segments restent.
-          if (!r.same) indices.forEach((i, n) => { out[i] = r.segments[n]; });
-          providerId = r.providerId;
-          providerName = r.providerName;
-          if (r.fellBackFrom) fellBackFrom = r.fellBackFrom;
+          if (!stillCurrent()) return;
+          if (r) {
+            if (!record(indices, r, b === 0)) return;
+          } else {
+            // Coupé faute de temps : rejoué une fois, en deux moitiés, en série.
+            // Une moitié qui expire à son tour finit en erreur, sans autre découpe.
+            const mid = Math.ceil(indices.length / 2);
+            const halves = [indices.slice(0, mid), indices.slice(mid)];
+            for (let h = 0; h < halves.length; h++) {
+              const half = await send(halves[h], `${b}.${h}`);
+              if (!stillCurrent()) return;
+              if (!record(halves[h], half, b === 0 && h === 0)) return;
+            }
+          }
           if (b + 1 < total) setSnap((s) => (s.key === k ? { ...s, progress: { done: b + 1, total } } : s));
         }
         const html = prep.segmented.apply(out, sanitizeHtml);

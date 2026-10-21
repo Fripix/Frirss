@@ -257,6 +257,88 @@ describe('useArticleTranslation', () => {
     expect(requestAiTranslation).toHaveBeenCalledTimes(2);
   });
 
+  describe('a batch that ran out of time', () => {
+    const httpError = (data: Record<string, unknown>) =>
+      Object.assign(new Error('http 502'), { isAxiosError: true, response: { status: 502, data } });
+    const timedOut = () => httpError({ error: 'ai_failed', kind: 'technical', detail: 'deadline' });
+    const sent = () => vi.mocked(requestAiTranslation).mock.calls.map(([body]) => body.segments);
+
+    it('is replayed once, split in two, then the next batch goes: four requests, the body assembled', async () => {
+      const firstHalf = deferred<AiTranslationResult>();
+      const secondHalf = deferred<AiTranslationResult>();
+      vi.mocked(requestAiTranslation)
+        .mockRejectedValueOnce(timedOut())
+        .mockReturnValueOnce(firstHalf.promise)
+        .mockReturnValueOnce(secondHalf.promise)
+        .mockResolvedValueOnce(result([words('deux', 1000)]));
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      // Les moitiés partent en série, et la notice garde le numéro du lot d'origine.
+      expect(sent()).toEqual([['Hello world', words('one', 1000)], ['Hello world']]);
+      expect(hook.current.state).toBe('loading');
+      expect(hook.current.progress).toEqual({ done: 0, total: 2 });
+      await act(async () => { firstHalf.resolve(result(['Bonjour le monde'])); });
+      expect(sent()).toHaveLength(3);
+      expect(sent()[2]).toEqual([words('one', 1000)]);
+      expect(hook.current.progress).toEqual({ done: 0, total: 2 });
+      await act(async () => { secondHalf.resolve(result([words('un', 1000)])); });
+      await waitFor(() => expect(hook.current.state).toBe('done'));
+      expect(sent()).toEqual([
+        ['Hello world', words('one', 1000)], ['Hello world'], [words('one', 1000)], [words('two', 1000)],
+      ]);
+      expect(hook.current.title).toBe('Bonjour le monde');
+      expect(hook.current.html).toContain(words('un', 1000));
+      expect(hook.current.html).toContain(words('deux', 1000));
+      expect(hook.current.html).not.toContain(words('one', 1000));
+    });
+
+    it('a half that runs out of time again is an error: no further split, nothing replaced', async () => {
+      vi.mocked(requestAiTranslation)
+        .mockRejectedValueOnce(timedOut())
+        .mockRejectedValueOnce(timedOut());
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('error'));
+      expect(sent()).toEqual([['Hello world', words('one', 1000)], ['Hello world']]);
+      expect(hook.current.error).toBe('ai.errors.translateFailed');
+      expect(hook.current.html).toBeNull();
+      expect(hook.current.title).toBeNull();
+      expect(hook.current.showing).toBe('source');
+    });
+
+    it('another failure is not split', async () => {
+      vi.mocked(requestAiTranslation).mockRejectedValueOnce(httpError({ error: 'ai_failed', kind: 'technical' }));
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('error'));
+      expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    });
+
+    it('a one-segment batch that runs out of time is an error, the batch before it is not resent', async () => {
+      vi.mocked(requestAiTranslation)
+        .mockResolvedValueOnce(result(['Bonjour le monde', words('un', 1000)]))
+        .mockRejectedValueOnce(timedOut());
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('error'));
+      expect(sent()).toEqual([['Hello world', words('one', 1000)], [words('two', 1000)]]);
+      expect(hook.current.error).toBe('ai.errors.translateFailed');
+      expect(hook.current.html).toBeNull();
+    });
+
+    it('stops between the halves once the article changed', async () => {
+      const firstHalf = deferred<AiTranslationResult>();
+      vi.mocked(requestAiTranslation).mockRejectedValueOnce(timedOut()).mockReturnValueOnce(firstHalf.promise);
+      const { result: hook, rerender } = renderHook((p: ArticleTranslationInput) => useArticleTranslation(p), { initialProps: base });
+      await act(async () => { hook.current.translate(); });
+      expect(requestAiTranslation).toHaveBeenCalledTimes(2);
+      rerender({ ...base, articleId: 'a2' });
+      await act(async () => { firstHalf.resolve(result(['Bonjour le monde'])); });
+      expect(requestAiTranslation).toHaveBeenCalledTimes(2);
+      expect(hook.current.state).toBe('idle');
+    });
+  });
+
   it('does nothing while disabled', () => {
     const { result: hook } = renderHook(() => useArticleTranslation({ ...base, enabled: false }));
     act(() => { hook.current.translate(); });
