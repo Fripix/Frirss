@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import db, { setSetting } from '../db.js';
 import { usageToday } from './store.js';
 import { translate, translateDeadlineMs, TRANSLATE_DEADLINE_MAX_MS } from './translate.js';
+import { inflightSize } from './inflight.js';
 import { SUMMARY_DEADLINE_MS } from './summarize.js';
 import { AiError } from './errors.js';
 import type { Availability } from './resolve.js';
@@ -241,3 +242,37 @@ describe('translate deadline, proportional to the batch', () => {
     expect(call.mock.calls.map((c) => c[2].timeoutMs)).toEqual([110_000, 80_000]);
   });
 });
+
+describe('identical batches in flight are shared', () => {
+  it('makes one provider call and reserves one cap unit for two concurrent identical batches', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const call = vi.fn(async () => { await gate; return answer('lang: en\n<s n="0">Bonjour</s>'); });
+    const one = translate({ ...base, articleId: 'tsh-1', available: [A(1, 'Paid', true)] }, { call });
+    const two = translate({ ...base, articleId: 'tsh-1', available: [A(1, 'Paid', true)] }, { call });
+    await new Promise((r) => setTimeout(r, 10));
+    release();
+    const [a, b] = await Promise.all([one, two]);
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(usageToday(44)).toBe(1);
+    expect(a).toMatchObject({ segments: ['Bonjour'], fromCache: false });
+    expect(b).toEqual({ ...a, fromCache: true });
+    expect(inflightSize()).toBe(0);
+  });
+  it('does not share two target languages or two users', async () => {
+    db.prepare("INSERT OR IGNORE INTO users (id, username, role) VALUES (45, 'tr-user-2', 'user')").run();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const call = vi.fn(async () => { await gate; return answer('lang: en\n<s n="0">Hallo</s>'); });
+    const runs = [
+      translate({ ...base, articleId: 'tsh-2', available: [A(1, 'A')] }, { call }),
+      translate({ ...base, articleId: 'tsh-2', targetLang: 'de', available: [A(1, 'A')] }, { call }),
+      translate({ ...base, userId: 45, articleId: 'tsh-2', available: [A(1, 'A')] }, { call }),
+    ];
+    await new Promise((r) => setTimeout(r, 10));
+    release();
+    await Promise.all(runs);
+    expect(call).toHaveBeenCalledTimes(3);
+  });
+});
+

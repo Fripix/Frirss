@@ -5,6 +5,7 @@ import type { Availability, ResolutionInput } from './resolve.js';
 import { aiCacheKey, type AiCacheValue } from './store.js';
 import { translateSystem, translateUserMessage, parseTranslation } from './prompts.js';
 import { runWithFallback, MIN_CALL_MS } from './attempt.js';
+import { shareInflight, inflightKey } from './inflight.js';
 import { sameLanguage, type AiLanguage } from './languages.js';
 import { segmentWordCount } from './text.js';
 
@@ -84,33 +85,41 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
   const system = translateSystem(req.targetLang);
   const user = translateUserMessage(req.segments);
 
-  const out = await runWithFallback<Translated>({
-    userId: req.userId, resolution: req.resolution, available: req.available, fallback: req.fallback, deadline, maxCallMs: budget, now,
-    cacheKeyFor: (cand) => aiCacheKey({ articleId: req.articleId, op: 'translate', providerId: cand.provider.id, model: cand.provider.model, lang: req.targetLang, contentHash }),
-    call: async (cand, timeoutMs) => {
-      const opts: AiCall = { system, user, timeoutMs, ...(cand.provider.type === 'anthropic' ? { maxTokens: ANTHROPIC_MAX_TOKENS } : {}) };
-      let result = await call(cand.provider, cand.key, opts);
-      let parsed = parseTranslation(result.text, count);
-      if (!parsed.same && !parsed.segments) {
-        const remaining = deadline - now();
-        if (remaining < MIN_CALL_MS) throw malformed();
-        result = await call(cand.provider, cand.key, { ...opts, timeoutMs: remaining });
-        parsed = parseTranslation(result.text, count);
-        if (!parsed.same && !parsed.segments) throw malformed();
-      }
-      // Un petit modèle peut annoncer « lang: fr » puis traduire du français
-      // en français malgré la consigne : la langue annoncée fait foi.
-      if (sameLanguage(parsed.lang, req.targetLang)) return { lang: parsed.lang, same: true, segments: [], model: result.model };
-      return { lang: parsed.lang, same: parsed.same, segments: parsed.segments ?? [], model: result.model };
-    },
-    onSuccess: async (_cand, r) => ({ text: JSON.stringify({ same: r.same, segments: r.segments }), lang: r.lang }),
-  });
-  const { cand, fellBackFrom } = out;
-  const named = { providerId: cand.provider.id, providerName: cand.provider.name, fellBackFrom };
-  if (out.fromCache) {
-    const cached = out.result as AiCacheValue;
-    return { ...decodeCached(cached, count), lang: cached.lang, ...named, model: cand.provider.model, fromCache: true };
-  }
-  const r = out.result as Translated;
-  return { segments: r.segments, lang: r.lang, same: r.same, ...named, model: r.model, fromCache: false };
+  const generate = async (): Promise<TranslateResponse> => {
+    const out = await runWithFallback<Translated>({
+      userId: req.userId, resolution: req.resolution, available: req.available, fallback: req.fallback, deadline, maxCallMs: budget, now,
+      cacheKeyFor: (cand) => aiCacheKey({ articleId: req.articleId, op: 'translate', providerId: cand.provider.id, model: cand.provider.model, lang: req.targetLang, contentHash }),
+      call: async (cand, timeoutMs) => {
+        const opts: AiCall = { system, user, timeoutMs, ...(cand.provider.type === 'anthropic' ? { maxTokens: ANTHROPIC_MAX_TOKENS } : {}) };
+        let result = await call(cand.provider, cand.key, opts);
+        let parsed = parseTranslation(result.text, count);
+        if (!parsed.same && !parsed.segments) {
+          const remaining = deadline - now();
+          if (remaining < MIN_CALL_MS) throw malformed();
+          result = await call(cand.provider, cand.key, { ...opts, timeoutMs: remaining });
+          parsed = parseTranslation(result.text, count);
+          if (!parsed.same && !parsed.segments) throw malformed();
+        }
+        // Un petit modèle peut annoncer « lang: fr » puis traduire du français
+        // en français malgré la consigne : la langue annoncée fait foi.
+        if (sameLanguage(parsed.lang, req.targetLang)) return { lang: parsed.lang, same: true, segments: [], model: result.model };
+        return { lang: parsed.lang, same: parsed.same, segments: parsed.segments ?? [], model: result.model };
+      },
+      onSuccess: async (_cand, r) => ({ text: JSON.stringify({ same: r.same, segments: r.segments }), lang: r.lang }),
+    });
+    const { cand, fellBackFrom } = out;
+    const named = { providerId: cand.provider.id, providerName: cand.provider.name, fellBackFrom };
+    if (out.fromCache) {
+      const cached = out.result as AiCacheValue;
+      return { ...decodeCached(cached, count), lang: cached.lang, ...named, model: cand.provider.model, fromCache: true };
+    }
+    const r = out.result as Translated;
+    return { segments: r.segments, lang: r.lang, same: r.same, ...named, model: r.model, fromCache: false };
+  };
+
+  // Un lot identique à un lot en cours s'y rattache (`inflight.ts`) : même
+  // compte, même contenu (scope et segments), même langue cible, même routage.
+  const key = inflightKey(req.userId, 'translate', { articleId: req.articleId, contentHash, lang: req.targetLang, resolution: req.resolution, fallback: req.fallback });
+  const { value, shared } = await shareInflight(key, generate);
+  return shared ? { ...value, fromCache: true } : value;
 }

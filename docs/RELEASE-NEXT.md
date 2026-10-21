@@ -69,6 +69,11 @@ la release publiée.
   masqué tant que l'IA est inutilisable) et la palette ⌘K traduisent l'article
   ouvert. Aucun choix IA qui engage un coût ne passe d'un compte à l'autre sur
   un navigateur partagé.
+- **Deux onglets, un seul appel IA.** Quand le même résumé ou le même lot de
+  traduction est demandé pendant qu'il est en cours de génération — depuis un
+  autre onglet ou un autre appareil du même compte —, le serveur rattache la
+  seconde demande à la première au lieu de rappeler le modèle : un seul appel
+  payé, une seule unité du plafond, la réponse s'affiche « depuis le cache ».
 
 ## Corrections et améliorations
 

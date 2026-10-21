@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import db, { setSetting } from '../db.js';
 import { usageToday, bumpUsage } from './store.js';
 import { summarize, SUMMARY_DEADLINE_MS } from './summarize.js';
+import { inflightSize } from './inflight.js';
 import { AiError } from './errors.js';
 import type { Availability } from './resolve.js';
 import type { AiProvider } from './store.js';
@@ -259,6 +260,51 @@ describe('summarize', () => {
       await expect(summarize({ ...base, available: [A(1, 'A')] }, { call, now: () => reads.shift() ?? SUMMARY_DEADLINE_MS }))
         .rejects.toMatchObject({ kind: 'technical', message: 'deadline' });
       expect(call).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('identical generations in flight are shared', () => {
+    const held = () => {
+      let release!: () => void;
+      const gate = new Promise<void>((r) => { release = r; });
+      const call = vi.fn(async () => { await gate; return { text: 'lang: fr\n\nPartagé.', model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 }; });
+      return { call, release };
+    };
+    it('makes one provider call and reserves one cap unit for two concurrent identical requests', async () => {
+      const { call, release } = held();
+      const one = summarize({ ...base, articleId: 'sh-1', available: [A(1, 'Paid', true)] }, { call });
+      const two = summarize({ ...base, articleId: 'sh-1', available: [A(1, 'Paid', true)] }, { call });
+      await new Promise((r) => setTimeout(r, 10));
+      release();
+      const [a, b] = await Promise.all([one, two]);
+      expect(call).toHaveBeenCalledTimes(1);
+      expect(usageToday(41)).toBe(1);
+      expect(a).toMatchObject({ text: 'Partagé.', fromCache: false });
+      expect(b).toEqual({ ...a, fromCache: true });
+      expect(inflightSize()).toBe(0);
+    });
+    it('does not share between two users', async () => {
+      db.prepare("INSERT OR IGNORE INTO users (id, username, role) VALUES (42, 'sum-user-2', 'user')").run();
+      const { call, release } = held();
+      const one = summarize({ ...base, articleId: 'sh-2', available: [A(1, 'A')] }, { call });
+      const two = summarize({ ...base, userId: 42, articleId: 'sh-2', available: [A(1, 'A')] }, { call });
+      await new Promise((r) => setTimeout(r, 10));
+      release();
+      await Promise.all([one, two]);
+      expect(call).toHaveBeenCalledTimes(2);
+    });
+    it('rejects both callers on failure and caches nothing', async () => {
+      let fail!: (e: Error) => void;
+      const call = vi.fn(() => new Promise<never>((_r, j) => { fail = j; }));
+      const one = summarize({ ...base, articleId: 'sh-3', fallback: false, available: [A(1, 'A')] }, { call }).catch((e: unknown) => e);
+      const two = summarize({ ...base, articleId: 'sh-3', fallback: false, available: [A(1, 'A')] }, { call }).catch((e: unknown) => e);
+      await new Promise((r) => setTimeout(r, 10));
+      fail(new AiError('technical', 'down'));
+      expect(await one).toMatchObject({ message: 'down' });
+      expect(await two).toMatchObject({ message: 'down' });
+      expect(call).toHaveBeenCalledTimes(1);
+      expect((db.prepare('SELECT COUNT(*) AS n FROM ai_cache').get() as { n: number }).n).toBe(0);
+      expect(inflightSize()).toBe(0);
     });
   });
 });

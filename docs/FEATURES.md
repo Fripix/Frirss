@@ -1895,8 +1895,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `lang.ts`, `prompts.ts` (`PROMPT_VERSION`), `store.ts` (fournisseurs, clés,
   usage, cache), `providers.ts` (adaptateurs), `resolve.ts` (disponibilité et
   résolution, pures), `attempt.ts` (boucle commune cache → échéance → plafond
-  → appel → repli, `runWithFallback`), `summarize.ts` et `translate.ts`
-  (orchestration), `languages.ts` (langues cibles) ; routes
+  → appel → repli, `runWithFallback`), `inflight.ts` (générations en cours
+  partagées), `summarize.ts` et `translate.ts` (orchestration),
+  `languages.ts` (langues cibles) ; routes
   `server/routes/ai.ts` (utilisateur) et `server/routes/adminAi.ts` (admin).
   Client `src/stores/aiStore.ts`, `src/components/ReadingPane/AiSummary.tsx`,
   traduction de l'article `ReadingPane/useArticleTranslation.ts` (état, lots)
@@ -2108,7 +2109,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   admin en est exempt sur tout fournisseur dont la clé admin paie, partagé ou
   non. Le jour civil suit le fuseau du conteneur (`TZ`). Résumés et lots de
   traduction partagent ce compteur. Un résultat servi par le cache ne consomme
-  rien et n'est pas bloqué par le plafond. **Plafond atteint
+  rien et n'est pas bloqué par le plafond ; une demande rattachée à une
+  génération en cours non plus (voir « Demandes partagées, côté serveur »). **Plafond atteint
   sur un candidat payé par l'admin, repli actif** : ce candidat est *sauté* et
   on essaie le suivant non payé par l'admin (clé personnelle, Ollama sans clé) ;
   `ai_daily_cap` (429) n'est levé que s'il n'en reste aucun. Repli coupé : 429
@@ -2147,6 +2149,22 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   (`created_at`, puis `rowid` pour départager une même seconde). Une panne du
   cache n'empêche ni de lire ni d'écrire le résultat ; une valeur Redis
   illisible est une absence.
+- **Demandes partagées, côté serveur** (`inflight.ts`, résumé et traduction) :
+  une demande identique à une génération **en cours** se rattache à sa
+  promesse au lieu de rappeler le modèle — deux onglets, deux appareils ou un
+  double clic du même compte ne paient qu'un appel. Clé : compte + opération +
+  article + hash du contenu (comme la clé de cache) + longueur visée (résumé)
+  ou langue cible (traduction) + **tout le routage** (forçage, étages flux,
+  catégorie, préféré, traduction, défaut admin) et le réglage de repli — plus
+  large que « le fournisseur forcé » seul : deux demandes qui pourraient
+  résoudre deux fournisseurs différents ne se partagent jamais. Deux comptes
+  ne se partagent rien. Le rattaché **ne réserve aucune unité** du plafond
+  (le premier l'a déjà réservée) et reçoit la même réponse avec
+  `fromCache: true` : **« depuis le cache » couvre aussi « partagé avec une
+  génération en cours »**. Un échec rejette tous les rattachés, rien n'est mis
+  en cache ; l'entrée disparaît dès que la génération se règle. La table est
+  en mémoire, propre au processus. S'ajoute au partage du navigateur
+  (`aiPending.ts`), qui évite déjà la seconde requête HTTP dans un même onglet.
 - **Langue** : le résumé est dans la langue de l'article ; le modèle rend
   `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) : c'est
   elle qui dit si le résumé est déjà dans la langue cible, auquel cas
@@ -2491,7 +2509,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     `aria-controls`) qui replie ou déplie — étincelle, titre « Résumé IA »,
     statut en petit dessous (« Pas encore résumé », « Résumé en cours… » pendant
     une première demande — replié, c'est tout ce qu'on voit, et « Pas encore
-    résumé » y contredisait le bouton —, « Résumé par X », « depuis le cache »,
+    résumé » y contredisait le bouton —, « Résumé par X », « depuis le cache »
+    — aussi quand le serveur a rattaché la demande à une génération en cours —,
     « X indisponible »), chevron qui tourne. À droite, **hors de ce
     bouton** (un clic dessus ne replie rien) : l'action « Résumer » (pleine,
     couleur d'accent) tant qu'il n'y a pas de résumé — désactivée, avec un
@@ -2737,7 +2756,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     (clé : `article`, compte, article, langue, fournisseur forcé, hash du
     corps, rang du lot ; un lot rejoué en deux moitiés reste **une seule**
     demande partagée) : revenir sur l'article et relancer reprend le lot en
-    vol — moitiés comprises — au lieu de le repayer ; le cache serveur sert les lots déjà traduits.
+    vol — moitiés comprises — au lieu de le repayer ; le cache serveur sert les lots déjà traduits,
+    et un lot identique demandé depuis un autre onglet pendant qu'il court se
+    rattache côté serveur (« Demandes partagées, côté serveur »).
 - **Résumé automatique à l'ouverture** : la règle est celle du flux, sinon
   d'une de ses catégories, sinon de l'interrupteur global (`aiAutoSummary`,
   Préférences → IA → « Résumés », **éteint d'origine**, avertissement de coût
@@ -2763,8 +2784,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `ReadingPane/aiPending.ts` garde au niveau du module les demandes en vol, par
   compte, article et fournisseur forcé, et les oublie dès qu'elles se règlent
   (réussite ou échec). Vaut aussi pour « Résumer », le raccourci et la palette.
-  Le serveur, lui, ne regroupe pas les demandes en vol : deux onglets ou deux
-  appareils restent deux appels. Condition :
+  Deux onglets ou deux appareils, eux, envoient deux requêtes : c'est le
+  serveur qui les regroupe en un seul appel (« Demandes partagées, côté
+  serveur »). Condition :
   règle allumée pour ce flux, IA utilisable (`aiUsable`), **en ligne**, statut `idle`. Jamais
   hors ligne : l'effet attend simplement le retour du réseau, tant que l'article
   reste affiché. **Si l'extraction automatique s'applique à ce flux**
