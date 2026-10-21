@@ -4,7 +4,7 @@ import axios from 'axios';
 import { requestAiTranslation, type AiTranslationResult } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { segmentArticle, batchSegments, type Segmented } from '../../lib/articleSegments';
-import { aiErrorMessage, isAiDeadline } from '../../lib/aiErrorKey';
+import { aiErrorMessage, isAiDeadline, isUpstreamCut } from '../../lib/aiErrorKey';
 import type { AiRouting } from '../../lib/aiRouting';
 import type { AiLanguage } from '../../lib/aiLanguages';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
@@ -99,10 +99,17 @@ function joinHalves(a: AiTranslationResult, aSize: number, b: AiTranslationResul
   };
 }
 
-/** Le serveur a coupé le lot faute de temps (`detail: 'deadline'`). */
+/** Durée d'une requête de lot, posée sur son erreur : `isUpstreamCut` en a besoin. */
+const elapsedOf = (err: unknown): number | undefined => (err as { elapsedMs?: number } | null)?.elapsedMs;
+
+/**
+ * Le lot a manqué de temps : le serveur l'a coupé (`detail: 'deadline'`), ou
+ * un reverse proxy en amont a coupé la requête (`isUpstreamCut`).
+ */
 function ranOutOfTime(err: unknown): boolean {
   const resp = axios.isAxiosError(err) ? err.response : undefined;
-  return isAiDeadline(resp?.status, resp?.data as Parameters<typeof isAiDeadline>[1]);
+  return isAiDeadline(resp?.status, resp?.data as Parameters<typeof isAiDeadline>[1])
+    || (axios.isAxiosError(err) && isUpstreamCut(resp?.status, resp?.data, elapsedOf(err) ?? 0));
 }
 
 const HAS_LETTER = /\p{L}/u;
@@ -255,8 +262,11 @@ function prepare(title: string, bodyHtml: string): Prepared {
  *   moitiés en série, **dans la même demande partagée que le lot** : revenir
  *   sur l'article pendant une moitié s'y rattache au lieu de renvoyer le lot
  *   entier. La seconde moitié ne part que si un appelant attend encore
- *   (`wanted`). Une moitié qui expire à son tour échoue comme n'importe quel
- *   lot. `progress` garde le compte des lots d'origine. Un lot réussi ne
+ *   (`wanted`). Une coupure par un reverse proxy en amont (`isUpstreamCut` :
+ *   502/504 sans notre corps, ou plus de réponse après 30 s) est traitée de
+ *   même ; une moitié — ou un lot d'un seul segment — coupée ainsi affiche
+ *   `ai.errors.proxyTimeout`, qui dit quoi régler. Une moitié qui expire à
+ *   son tour échoue comme n'importe quel lot. `progress` garde le compte des lots d'origine. Un lot réussi ne
  *   repart jamais.
  * - Tant qu'un lot manque, rien n'est remplacé : une erreur à n'importe quel
  *   lot donne `error` sans corps traduit — ou, quand une traduction était déjà
@@ -367,10 +377,18 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       let providerId: number | undefined;
       let providerName: string | undefined;
       let fellBackFrom: string | undefined;
-      const request = (indices: number[]) => requestAiTranslation({
-        articleId: id, scope: 'article', targetLang: lang, segments: indices.map((i) => prep.send[i]),
-        provider: choice?.providerId, ...routing,
-      });
+      const request = async (indices: number[]) => {
+        const started = Date.now();
+        try {
+          return await requestAiTranslation({
+            articleId: id, scope: 'article', targetLang: lang, segments: indices.map((i) => prep.send[i]),
+            provider: choice?.providerId, ...routing,
+          });
+        } catch (err) {
+          if (err && typeof err === 'object') Object.assign(err, { elapsedMs: Date.now() - started });
+          throw err;
+        }
+      };
       // Un lot = une demande partagée, rejeu en deux moitiés compris : un
       // retour sur l'article pendant une moitié s'y rattache.
       const sendBatch = (b: number) => sharedTranslationRequest(
@@ -422,7 +440,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       } catch (err) {
         if (!stillCurrent()) return;
         const resp = axios.isAxiosError(err) ? err.response : undefined;
-        const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], admin, language, { op: 'translate' });
+        const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], admin, language, { op: 'translate', elapsedMs: elapsedOf(err) });
         // Une traduction déjà tenue (payée) reste affichée, l'erreur s'ajoute.
         setSnap(held ? { ...held, error: tr(msg.key, msg.params) } : { ...idle(k), state: 'error', error: tr(msg.key, msg.params) });
       }

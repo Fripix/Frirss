@@ -777,7 +777,8 @@
       "segments": "Dostawca nie zwrócił użytecznego tłumaczenia. Spróbuj ponownie.",
       "translateFailed": "Nie udało się przetłumaczyć. Spróbuj ponownie.",
       "translateRefused": "Dostawca odmówił przetłumaczenia tego artykułu.",
-      "translateTooLong": "Tekst jest zbyt długi, by go przetłumaczyć."
+      "translateTooLong": "Tekst jest zbyt długi, by go przetłumaczyć.",
+      "proxyTimeout": "Serwer pośredniczący przerwał odpowiedź przed końcem: zezwól na co najmniej 120 s dla /api/ai (zobacz dokumentację)."
     },
     "admin": {
       "title": "Dostawcy",

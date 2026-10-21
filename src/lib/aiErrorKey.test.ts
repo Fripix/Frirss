@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aiErrorKey, aiErrorMessage, isAiDeadline } from './aiErrorKey';
+import { aiErrorKey, aiErrorMessage, isAiDeadline, isUpstreamCut } from './aiErrorKey';
 import fr from '../locales/fr.json';
 import en from '../locales/en.json';
 
@@ -63,6 +63,32 @@ describe('aiErrorKey', () => {
     // Un 504 d'un reverse proxy en amont n'a pas de corps du serveur : rien n'est deviné.
     expect(isAiDeadline(504, undefined)).toBe(false);
     expect(isAiDeadline(undefined, undefined)).toBe(false);
+  });
+  it('recognises a reverse proxy that cut the request', () => {
+    // 504 sans corps (nginx, Nginx Proxy Manager à 60 s), ou un corps qui n'est pas le nôtre.
+    expect(isUpstreamCut(504, '', 0)).toBe(true);
+    expect(isUpstreamCut(504, undefined, 0)).toBe(true);
+    expect(isUpstreamCut(504, '<html>504 Gateway Time-out</html>', 60_000)).toBe(true);
+    expect(isUpstreamCut(502, '<html>502 Bad Gateway</html>', 60_000)).toBe(true);
+    // Les 502 du serveur FriRSS ne sont pas une coupure amont.
+    expect(isUpstreamCut(502, { error: 'ai_failed', kind: 'technical', detail: 'deadline' }, 60_000)).toBe(false);
+    expect(isUpstreamCut(502, { error: 'ai_failed', kind: 'technical' }, 60_000)).toBe(false);
+    // Erreur réseau (pas de réponse) : coupure seulement après une longue attente.
+    expect(isUpstreamCut(undefined, undefined, 5_000)).toBe(false);
+    expect(isUpstreamCut(undefined, undefined, 30_000)).toBe(true);
+    expect(isUpstreamCut(undefined, undefined, 61_000)).toBe(true);
+    // Autres statuts : non.
+    expect(isUpstreamCut(500, '', 60_000)).toBe(false);
+    expect(isUpstreamCut(429, '', 60_000)).toBe(false);
+  });
+  it('says the reverse proxy cut a translation, and only a translation', () => {
+    expect(aiErrorKey(504, undefined, false, { op: 'translate', elapsedMs: 60_000 })).toBe('ai.errors.proxyTimeout');
+    expect(aiErrorKey(undefined, undefined, false, { op: 'translate', elapsedMs: 61_000 })).toBe('ai.errors.proxyTimeout');
+    expect(aiErrorKey(undefined, undefined, false, { op: 'translate', elapsedMs: 5_000 })).toBe('ai.errors.translateFailed');
+    expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'deadline' }, false, { op: 'translate', elapsedMs: 60_000 })).toBe('ai.errors.translateFailed');
+    expect(aiErrorKey(504, undefined, false)).toBe('ai.errors.technical');
+    expect(fr.ai.errors.proxyTimeout).toBe("Le serveur intermédiaire a coupé la réponse avant la fin : autorisez au moins 120 s sur /api/ai (voir la documentation).");
+    expect(en.ai.errors.proxyTimeout).toContain('/api/ai');
   });
   it('keeps the other codes and falls back to technical', () => {
     expect(aiErrorKey(422, { error: 'ai_refused' }, false)).toBe('ai.errors.refused');

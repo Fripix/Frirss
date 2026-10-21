@@ -749,7 +749,8 @@
       "segments": "The provider did not return a usable translation. Try again.",
       "translateFailed": "The translation failed. Try again.",
       "translateRefused": "The provider declined to translate this article.",
-      "translateTooLong": "Text too long to translate."
+      "translateTooLong": "Text too long to translate.",
+      "proxyTimeout": "The intermediate server cut the response off before the end: allow at least 120 s on /api/ai (see the documentation)."
     },
     "admin": {
       "title": "Providers",

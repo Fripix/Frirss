@@ -749,7 +749,8 @@
       "segments": "De aanbieder heeft geen bruikbare vertaling geleverd. Probeer het opnieuw.",
       "translateFailed": "De vertaling is mislukt. Probeer het opnieuw.",
       "translateRefused": "De aanbieder weigerde dit artikel te vertalen.",
-      "translateTooLong": "Tekst te lang om te vertalen."
+      "translateTooLong": "Tekst te lang om te vertalen.",
+      "proxyTimeout": "De tussenliggende server heeft het antwoord vroegtijdig afgebroken: sta minstens 120 s toe op /api/ai (zie de documentatie)."
     },
     "admin": {
       "title": "Aanbieders",

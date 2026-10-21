@@ -749,7 +749,8 @@
       "segments": "Der Anbieter hat keine verwertbare Übersetzung geliefert. Versuchen Sie es erneut.",
       "translateFailed": "Die Übersetzung ist fehlgeschlagen. Versuchen Sie es erneut.",
       "translateRefused": "Der Anbieter hat die Übersetzung dieses Artikels abgelehnt.",
-      "translateTooLong": "Text zu lang für eine Übersetzung."
+      "translateTooLong": "Text zu lang für eine Übersetzung.",
+      "proxyTimeout": "Der vorgeschaltete Server hat die Antwort vorzeitig abgebrochen: Erlauben Sie mindestens 120 s für /api/ai (siehe Dokumentation)."
     },
     "admin": {
       "title": "Anbieter",

@@ -749,7 +749,8 @@
       "segments": "Le fournisseur n'a pas rendu une traduction exploitable. Réessayez.",
       "translateFailed": "La traduction a échoué. Réessayez.",
       "translateRefused": "Le fournisseur a refusé de traduire cet article.",
-      "translateTooLong": "Texte trop long pour être traduit."
+      "translateTooLong": "Texte trop long pour être traduit.",
+      "proxyTimeout": "Le serveur intermédiaire a coupé la réponse avant la fin : autorisez au moins 120 s sur /api/ai (voir la documentation)."
     },
     "admin": {
       "title": "Fournisseurs",

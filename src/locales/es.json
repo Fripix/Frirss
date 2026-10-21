@@ -749,7 +749,8 @@
       "segments": "El proveedor no devolvió una traducción utilizable. Inténtalo de nuevo.",
       "translateFailed": "La traducción ha fallado. Inténtalo de nuevo.",
       "translateRefused": "El proveedor se negó a traducir este artículo.",
-      "translateTooLong": "Texto demasiado largo para traducirlo."
+      "translateTooLong": "Texto demasiado largo para traducirlo.",
+      "proxyTimeout": "El servidor intermedio cortó la respuesta antes del final: permite al menos 120 s en /api/ai (consulta la documentación)."
     },
     "admin": {
       "title": "Proveedores",

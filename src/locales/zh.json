@@ -749,7 +749,8 @@
       "segments": "服务商未返回可用的翻译。请重试。",
       "translateFailed": "翻译失败。请重试。",
       "translateRefused": "服务商拒绝翻译这篇文章。",
-      "translateTooLong": "文本太长，无法翻译。"
+      "translateTooLong": "文本太长，无法翻译。",
+      "proxyTimeout": "中间服务器在响应完成前将其中断：请为 /api/ai 允许至少 120 秒（参见文档）。"
     },
     "admin": {
       "title": "服务商",

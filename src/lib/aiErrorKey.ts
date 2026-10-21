@@ -5,6 +5,8 @@
  * `ai_failed` + `detail: 'segments'` (lot rendu inexploitable) ont leur clé.
  * `detail: 'deadline'` (le temps a manqué) garde le message neutre de
  * l'opération : le client a déjà rejoué le lot coupé en deux (`isAiDeadline`).
+ * Une traduction coupée par un reverse proxy en amont (`isUpstreamCut`) a son
+ * message, `ai.errors.proxyTimeout`, qui dit quoi régler.
  *
  * Ne devine jamais une cause : chaque branche correspond à un code que le
  * serveur envoie vraiment. Deux 429 ne se confondent pas — le plafond
@@ -19,7 +21,11 @@
  * commun aux résumés et aux traductions : son message ne nomme ni l'un ni
  * l'autre.
  */
-export interface AiErrorOptions { op?: 'summary' | 'translate' }
+export interface AiErrorOptions {
+  op?: 'summary' | 'translate';
+  /** Durée de la requête qui a échoué : une erreur réseau après une longue attente est une coupure amont (`isUpstreamCut`). */
+  elapsedMs?: number;
+}
 
 export function aiErrorKey(status: number | undefined, data: { error?: string; kind?: string; ownKey?: boolean; detail?: string } | undefined, isAdmin: boolean, options: AiErrorOptions = {}): string {
   const error = data?.error;
@@ -33,6 +39,7 @@ export function aiErrorKey(status: number | undefined, data: { error?: string; k
   if (error === 'invalid_lang') return 'ai.errors.invalidLang';
   if (error === 'ai_failed' && data?.detail === 'segments') return 'ai.errors.segments';
   if (isAiDeadline(status, data)) return translate ? 'ai.errors.translateFailed' : 'ai.errors.technical';
+  if (translate && isUpstreamCut(status, data, options.elapsedMs ?? 0)) return 'ai.errors.proxyTimeout';
   if (data?.kind === 'auth') return isAdmin || data.ownKey === true ? 'ai.errors.auth' : 'ai.errors.authUser';
   if (data?.kind === 'quota') return 'ai.errors.quota';
   return translate ? 'ai.errors.translateFailed' : 'ai.errors.technical';
@@ -45,6 +52,23 @@ export function aiErrorKey(status: number | undefined, data: { error?: string; k
  */
 export function isAiDeadline(status: number | undefined, data: { error?: string; kind?: string; detail?: string } | undefined): boolean {
   return status === 502 && data?.error === 'ai_failed' && data.detail === 'deadline';
+}
+
+/** Une requête attendue au moins ce temps puis perdue sans réponse : coupée en route. */
+export const UPSTREAM_CUT_MIN_MS = 30_000;
+
+/**
+ * Un reverse proxy devant FriRSS (nginx, Nginx Proxy Manager : 60 s par
+ * défaut) a coupé la requête : 502 / 504 dont le corps n'est pas celui du
+ * serveur FriRSS (`{ error: 'ai_failed', … }`), ou aucune réponse après au
+ * moins 30 s d'attente. Une erreur réseau rapide n'en est pas une.
+ */
+export function isUpstreamCut(status: number | undefined, data: unknown, elapsedMs: number): boolean {
+  if (status === 502 || status === 504) {
+    const ours = typeof data === 'object' && data !== null && (data as { error?: unknown }).error === 'ai_failed';
+    return !ours;
+  }
+  return status === undefined && elapsedMs >= UPSTREAM_CUT_MIN_MS;
 }
 
 export interface AiErrorMessage { key: string; params?: Record<string, string | number> }

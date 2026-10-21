@@ -1988,10 +1988,15 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   les 60 s de nginx (504 au client) et le serveur appelait ensuite Claude,
   payant, compté et mis en cache, sans personne au bout. Le nginx du conteneur
   accorde **120 s** à `/api/` (`proxy_read_timeout`) ; ⚠️ un **reverse proxy en
-  amont** doit accorder **au moins 120 s** sur `/api/ai` : les 60 s par défaut
-  de nginx ou de Nginx Proxy Manager ne laissent que dix secondes de marge
-  au-dessus de l'échéance de 50 s du résumé, et **coupent** un gros lot de
-  traduction, qui peut tenir 110 s. Une erreur de transport garde **sa cause** dans le message
+  amont** devrait accorder **au moins 120 s** sur `/api/ai`
+  (`proxy_read_timeout` et `proxy_send_timeout`, voir le README) : les 60 s
+  par défaut de nginx ou de Nginx Proxy Manager ne laissent que dix secondes
+  de marge au-dessus de l'échéance de 50 s du résumé, et **coupent** un gros
+  lot de traduction, qui peut tenir 110 s. FriRSS **s'y adapte** au lieu de
+  l'exiger : la traduction de l'article rejoue un lot coupé en deux moitiés
+  (voir « Lot coupé faute de temps »), et ne dit « autorisez au moins 120 s
+  sur /api/ai » (`ai.errors.proxyTimeout`) que si une moitié est coupée à
+  son tour. Une erreur de transport garde **sa cause** dans le message
   (`transportDetail`) : « Ollama: fetch failed (EHOSTUNREACH) », `ENOTFOUND`,
   `UND_ERR_CONNECT_TIMEOUT`, ou « timeout » pour un abandon ; `fetch` seul ne
   dit que « fetch failed », ce qui rendait une coupure entre conteneurs
@@ -2163,7 +2168,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   **avant** le `kind` : ce n'est ni la clé ni le quota ; 502 `ai_failed`
   avec `detail: 'deadline'` (le temps a manqué ; `isAiDeadline`) garde le
   message neutre de l'opération — la traduction de l'article a déjà rejoué le
-  lot coupé en deux ; sinon « le résumé a
+  lot coupé en deux ; une traduction coupée par un reverse proxy en amont
+  (`isUpstreamCut`, avec la durée de la requête : `elapsedMs`) →
+  `ai.errors.proxyTimeout` ; sinon « le résumé a
   échoué, réessayez » (neutre : la cause n'est pas connue).
   Avec `{ op: 'translate' }`, refus, `invalid_body` et repli neutre parlent de
   traduction (`translateRefused`, `translateTooLong`, `translateFailed`) ; le
@@ -2593,11 +2600,15 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     lots envoyés sur ceux qu'il aurait fallu (un par segment écarté).
   - **Lot coupé faute de temps** : chaque lot a une échéance serveur
     proportionnelle à sa longueur (30 s + 75 ms par mot, plafond 110 s ; voir
-    « Traduction — serveur »). Quand le serveur répond quand même 502
-    `ai_failed` avec `detail: 'deadline'` (reconnu par `isAiDeadline` de
-    `lib/aiErrorKey.ts`, sur ce code seul : un 504 d'un reverse proxy en
-    amont, sans corps du serveur, n'est pas deviné) et que le lot porte plus
-    d'un segment, il est **rejoué une fois, coupé en deux** — moitiés en
+    « Traduction — serveur »). Deux signaux, et eux seuls (`lib/aiErrorKey.ts`) :
+    le serveur répond 502 `ai_failed` avec `detail: 'deadline'`
+    (`isAiDeadline`) ; ou un **reverse proxy en amont** a coupé la requête
+    (`isUpstreamCut`) — 502 ou 504 dont le corps n'est pas celui du serveur
+    FriRSS (`{ error: 'ai_failed', … }`), ou plus aucune réponse après au
+    moins 30 s d'attente (`UPSTREAM_CUT_MIN_MS` ; la durée de la requête est
+    posée sur son erreur, `elapsedMs`) ; une erreur réseau rapide n'en est
+    pas une. Quand le lot porte plus d'un segment, il est **rejoué une fois,
+    coupé en deux** — moitiés en
     série, **dans la même demande partagée que le lot** (clé du rang `b`,
     voir « Demandes partagées ») : revenir sur l'article pendant une moitié
     s'y rattache au lieu de renvoyer le lot entier. La moitié suivante ne
@@ -2610,12 +2621,21 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     n'importe quel lot (pas de seconde découpe) ; un lot d'un seul segment qui
     expire échoue aussitôt ; les autres erreurs ne sont jamais rejouées. Un
     lot déjà réussi ne repart jamais. La notice garde le compte des lots
-    d'origine (« Lot 1 sur 2… » pendant les deux moitiés du premier) ; le
-    message d'erreur reste le neutre « La traduction a échoué. Réessayez. ».
-    Coût : chaque moitié compte une unité du plafond (l'appel abandonné est
-    rendu), donc un article de quatre lots dont un rejoué en compte cinq ; et
-    un fournisseur payant peut facturer l'appel abandonné. Rien n'est propre
-    à un fournisseur ni réglable.
+    d'origine (« Lot 1 sur 2… » pendant les deux moitiés du premier). Le
+    message d'erreur reste le neutre « La traduction a échoué. Réessayez. »
+    après une échéance serveur ; après une **coupure amont** d'une moitié, ou
+    d'un lot d'un seul segment, c'est `ai.errors.proxyTimeout` : « Le serveur
+    intermédiaire a coupé la réponse avant la fin : autorisez au moins 120 s
+    sur /api/ai (voir la documentation). » — traduction seulement, le résumé
+    garde son message. Coût : chaque moitié compte une unité du plafond
+    (l'appel abandonné est rendu), donc un article de quatre lots dont un
+    rejoué en compte cinq ; et un fournisseur payant peut facturer l'appel
+    abandonné. ⚠️ Une coupure **amont** coûte davantage : le serveur FriRSS
+    n'en sait rien, il termine l'appel du lot entier (payé, compté, mis en
+    cache sous la clé du lot entier) pendant que les deux moitiés partent ;
+    sur un Ollama local, elles attendent même derrière lui. Régler le proxy
+    reste donc la vraie correction ; le rejeu évite seulement l'échec. Rien
+    n'est propre à un fournisseur ni réglable.
   - **Bouton** : dans la barre d'outils, après « Article complet », présent
     quand le panneau IA l'est (`aiUsable`). Ordinateur : bouton scindé
     `action-btn` (« Traduire l'article », accent quand la traduction est
@@ -4072,7 +4092,10 @@ divergentes).
   proportionnelle au lot, plafonnée 10 s sous ce délai ; voir « Résumés et
   traductions par IA », appels sortants et « Traduction — serveur ») ; au
   défaut de 60 s, le proxy coupait une demande que le serveur tenait encore.
-  Un reverse proxy en amont doit en accorder autant sur `/api/ai`.
+  Un reverse proxy en amont devrait en accorder autant sur `/api/ai` (lignes
+  à copier dans le README) ; sans cela, la traduction de l'article rejoue un
+  lot coupé en deux moitiés et ne le signale (`ai.errors.proxyTimeout`) que
+  si cela ne suffit pas.
 - **Piège majeur — `/sw.js` ne doit JAMAIS recevoir de CSP.** Un service worker
   hérite de la CSP livrée avec son propre script et l'applique à ses `fetch()`
   internes. Or il intercepte toutes les requêtes d'images (`CacheFirst`, voir
