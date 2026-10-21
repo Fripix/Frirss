@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { Fragment, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, normalizeAiProviderId } from '../../../stores/uiStore';
 import { useAiStore } from '../../../stores/aiStore';
@@ -19,8 +19,17 @@ const UNCATEGORISED = '__uncategorised';
 
 type AutoKind = 'summary' | 'translate';
 
-/** Un sélecteur de fournisseur : au moins 8 rem, quitte à faire passer le nom à la ligne. */
-const selectClass = 'prefs-tap-row min-w-[8rem] max-w-[50%] flex-shrink-0 px-2 py-1.5 text-sm rounded-md min-h-[36px]';
+/** Le sélecteur de fournisseur : il remplit sa colonne de la grille (7 à 12 rem). */
+const selectClass = 'prefs-tap-row w-full min-w-0 px-2 py-1.5 text-sm rounded-md min-h-[36px]';
+/**
+ * Colonnes de la grille unique du bloc : nom, fournisseur, résumé, traduction.
+ * Étroit (< 640 px), la cellule du nom prend toute la ligne (`col-span-3`) et
+ * les trois contrôles passent dessous, sous les en-têtes.
+ */
+const gridClass = 'grid items-center gap-x-3 gap-y-1 grid-cols-[minmax(7rem,1fr)_max-content_max-content] '
+  + 'sm:grid-cols-[minmax(0,1fr)_minmax(7rem,12rem)_max-content_max-content]';
+const nameCell = 'col-span-3 sm:col-span-1 min-w-0';
+const headerClass = 'text-[11px] leading-tight';
 
 function Chevron({ open }: { open: boolean }) {
   return (
@@ -35,30 +44,19 @@ function Chevron({ open }: { open: boolean }) {
 }
 
 /**
- * La paire « Résumer » / « Traduire » d'une ligne. Le mot visible, masqué aux
- * lecteurs d'écran, figure dans le nom accessible, qui dit en plus la ligne
- * concernée ; tout le `<label>` se touche. `ml-auto` : quand la
- * ligne n'a plus la place (320 px), la paire passe dessous, calée à droite,
- * sous le sélecteur.
+ * Un interrupteur de la grille, centré sous son en-tête. Le mot « Résumer » /
+ * « Traduire » est celui de la colonne ; le nom accessible dit en plus la ligne.
  */
-function AutoSwitches({ name, summary, translate, onChange, hintId }: {
-  name: string; summary: boolean; translate: boolean; hintId: string;
-  onChange: (kind: AutoKind, on: boolean) => void;
+function AutoSwitch({ kind, name, checked, hintId, onChange }: {
+  kind: AutoKind; name: string; checked: boolean; hintId: string; onChange: (on: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const item = (kind: AutoKind, checked: boolean) => (
-    <label className="prefs-tap-row inline-flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--list-summary)' }}>
-      <span aria-hidden="true">{t(kind === 'summary' ? 'ai.routing.autoSummary' : 'ai.routing.autoTranslate')}</span>
+  return (
+    <span className="prefs-tap-btn inline-flex items-center justify-center justify-self-center">
       <ToggleSwitch
-        checked={checked} onChange={(on) => onChange(kind, on)} describedBy={hintId}
+        checked={checked} onChange={onChange} describedBy={hintId}
         ariaLabel={t(kind === 'summary' ? 'ai.routing.autoSummaryFor' : 'ai.routing.autoTranslateFor', { name })}
       />
-    </label>
-  );
-  return (
-    <span data-auto-switches="" className="ml-auto flex flex-wrap items-center justify-end gap-x-3">
-      {item('summary', summary)}
-      {item('translate', translate)}
     </span>
   );
 }
@@ -70,7 +68,9 @@ function AutoSwitches({ name, summary, translate, onChange, hintId }: {
  * dernier groupe, sans sélecteur de groupe. Un flux l'emporte sur sa catégorie,
  * qui l'emporte sur le fournisseur préféré.
  *
- * Chaque ligne de catégorie ou de flux porte aussi « Résumer » et « Traduire »
+ * Tout le bloc est une seule grille (en-têtes, catégories, flux dépliés) : les
+ * colonnes « Fournisseur », « Résumer » et « Traduire » s'alignent d'une ligne à
+ * l'autre. Chaque ligne de catégorie ou de flux porte « Résumer » et « Traduire »
  * à l'ouverture. Un flux affiche sa valeur effective (`autoFor` : la sienne,
  * sinon celle de ses catégories, sinon — résumé seulement — le réglage
  * global) et le toucher écrit toujours une valeur propre, pour qu'éteindre un
@@ -154,31 +154,34 @@ export default function RoutingBlock() {
         <p>{t('ai.routing.hint')}</p>
         <p id={autoHintId}>{t('ai.routing.autoHint')}</p>
       </div>
-      <div className="space-y-1">
-        {groups.map((group, i) => {
+      <div data-routing-grid="" className={gridClass}>
+        <span aria-hidden="true" className="hidden sm:block" />
+        <span className={`${headerClass} sm:col-start-2`} style={{ color: 'var(--list-summary)' }}>{t('ai.translation.provider')}</span>
+        <span className={`${headerClass} justify-self-center`} style={{ color: 'var(--list-summary)' }}>{t('ai.routing.autoSummary')}</span>
+        <span className={`${headerClass} justify-self-center`} style={{ color: 'var(--list-summary)' }}>{t('ai.routing.autoTranslate')}</span>
+        {groups.map((group) => {
           const expanded = open.has(group.key);
-          const panelId = `${uid}-group-${i}`;
           const count = tuned(group.feeds);
           const value = group.category ? categoryValue(group.label) : null;
           return (
-            <div key={group.key}>
-              <div className="flex flex-wrap items-center gap-x-2">
-                <button
-                  type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => toggle(group.key)}
-                  className="prefs-tap-row flex grow basis-[40%] min-w-0 items-center gap-2 text-left text-sm cursor-pointer"
-                  style={{ color: 'var(--list-title)' }}
-                >
-                  <Chevron open={expanded} />
-                  <span className="min-w-0 [overflow-wrap:anywhere]">
-                    <span className="font-semibold">{group.label}</span>
-                    {count > 0 && (
-                      <span className="block text-[11px] font-normal" style={{ color: 'var(--list-summary)' }}>
-                        {t('ai.routing.overrides', { count })}
-                      </span>
-                    )}
-                  </span>
-                </button>
-                {group.category && (
+            <Fragment key={group.key}>
+              <button
+                type="button" aria-expanded={expanded} onClick={() => toggle(group.key)}
+                className={`prefs-tap-row ${nameCell} flex items-center gap-2 text-left text-sm cursor-pointer`}
+                style={{ color: 'var(--list-title)' }}
+              >
+                <Chevron open={expanded} />
+                <span className="min-w-0 [overflow-wrap:anywhere]">
+                  <span className="font-semibold">{group.label}</span>
+                  {count > 0 && (
+                    <span className="block text-[11px] font-normal" style={{ color: 'var(--list-summary)' }}>
+                      {t('ai.routing.overrides', { count })}
+                    </span>
+                  )}
+                </span>
+              </button>
+              {group.category ? (
+                <>
                   <select
                     aria-label={t('ai.routing.categorySelect', { name: group.label })}
                     value={value === null ? '' : String(value)} className={selectClass} style={inputStyle}
@@ -186,42 +189,46 @@ export default function RoutingBlock() {
                   >
                     <ProviderOptions providers={providers} value={value} defaultLabel={t('ai.routing.default')} />
                   </select>
-                )}
-                {group.category && (
-                  <AutoSwitches
-                    name={group.label} hintId={autoHintId}
-                    summary={categoryAuto('summary', group.label)} translate={categoryAuto('translate', group.label)}
-                    onChange={(kind, on) => switchAuto(kind, on, (v) =>
-                      (kind === 'summary' ? setCategoryAutoSummary : setCategoryAutoTranslate)(group.label, v))}
-                  />
-                )}
-              </div>
-              <ul id={panelId} hidden={!expanded} className="ml-5 pl-3 space-y-1 border-l" style={{ borderColor: 'var(--panel-border)' }}>
-                {expanded && group.feeds.map((feed) => {
-                  const feedProvider = feedValue(feed.id);
-                  const name = feed.title || feed.id;
-                  return (
-                    <li key={feed.id} className="flex flex-wrap items-center gap-x-2">
-                      <span className="grow basis-[40%] min-w-0 py-2 text-sm [overflow-wrap:anywhere]" style={{ color: 'var(--list-title)' }}>{name}</span>
-                      <select
-                        aria-label={t('ai.routing.feedSelect', { name })}
-                        value={feedProvider === null ? '' : String(feedProvider)} className={selectClass} style={inputStyle}
-                        onChange={(e) => setFeedProvider(feed.id, e.target.value ? Number(e.target.value) : null)}
-                      >
-                        <ProviderOptions providers={providers} value={feedProvider} defaultLabel={t('ai.routing.default')} />
-                      </select>
-                      <AutoSwitches
-                        name={name} hintId={autoHintId}
-                        summary={autoFor('summary', feed.id, subscriptions, autoPrefs)}
-                        translate={autoFor('translate', feed.id, subscriptions, autoPrefs)}
-                        onChange={(kind, on) => switchAuto(kind, on, (v) =>
+                  {(['summary', 'translate'] as const).map((kind) => (
+                    <AutoSwitch
+                      key={kind} kind={kind} name={group.label} hintId={autoHintId} checked={categoryAuto(kind, group.label)}
+                      onChange={(on) => switchAuto(kind, on, (v) =>
+                        (kind === 'summary' ? setCategoryAutoSummary : setCategoryAutoTranslate)(group.label, v))}
+                    />
+                  ))}
+                </>
+              ) : (
+                // Le groupe « Sans catégorie » n'a pas de réglage propre : des cellules vides tiennent la grille.
+                <>
+                  <span aria-hidden="true" className="hidden sm:block" />
+                  <span aria-hidden="true" className="hidden sm:block" />
+                  <span aria-hidden="true" className="hidden sm:block" />
+                </>
+              )}
+              {expanded && group.feeds.map((feed) => {
+                const feedProvider = feedValue(feed.id);
+                const name = feed.title || feed.id;
+                return (
+                  <Fragment key={feed.id}>
+                    <span className={`${nameCell} py-2 pl-6 text-sm [overflow-wrap:anywhere]`} style={{ color: 'var(--list-title)' }}>{name}</span>
+                    <select
+                      aria-label={t('ai.routing.feedSelect', { name })}
+                      value={feedProvider === null ? '' : String(feedProvider)} className={selectClass} style={inputStyle}
+                      onChange={(e) => setFeedProvider(feed.id, e.target.value ? Number(e.target.value) : null)}
+                    >
+                      <ProviderOptions providers={providers} value={feedProvider} defaultLabel={t('ai.routing.default')} />
+                    </select>
+                    {(['summary', 'translate'] as const).map((kind) => (
+                      <AutoSwitch
+                        key={kind} kind={kind} name={name} hintId={autoHintId} checked={autoFor(kind, feed.id, subscriptions, autoPrefs)}
+                        onChange={(on) => switchAuto(kind, on, (v) =>
                           (kind === 'summary' ? setFeedAutoSummary : setFeedAutoTranslate)(feed.id, v))}
                       />
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+                    ))}
+                  </Fragment>
+                );
+              })}
+            </Fragment>
           );
         })}
       </div>

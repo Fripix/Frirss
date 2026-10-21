@@ -2420,9 +2420,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   d'un compte sans crédits prépayés liste les modèles mais répond 429 à tout appel.
 - **Interface — Préférences** : section **« IA »** (un mot, comme les autres)
   des Préférences. **Pour l'admin seul, le bloc « Fournisseurs » ouvre la
-  section** (voir plus bas) ; viennent ensuite, pour tous (admin compris), le
-  bloc **« Résumés »** :
-  un curseur « Longueur du résumé » (`type="range"`, 5 à 50 %, pas de 5, valeur
+  section** (voir plus bas). Viennent ensuite, pour tous (admin compris), le
+  bloc **« Résumés »**, qui porte un curseur « Longueur du résumé »
+  (`type="range"`, 5 à 50 %, pas de 5, valeur
   affichée à droite et annoncée par `aria-valuetext`, formatée par la langue —
   « 20 % » en français, « 20% » en anglais — via `Intl.NumberFormat`, sans clé
   de traduction) et son aide « Jamais moins de trois phrases » ; pour un
@@ -2516,8 +2516,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   suivait le type dans la même ligne tronquée, elle n'était jamais visible.
 - **Interface — « Mes clés »** (`ai/KeysBlock.tsx`, sous « Par flux et
   catégorie », pour tous, admin compris) : **rendu seulement si
-  `config.userKeysAllowed`** (réglage admin « Les utilisateurs peuvent saisir leur propre clé », dans « Fournisseurs »), sinon rien, pas même le
-  titre. Un titre, une aide (« votre clé sert à vos résumés et traductions et
+  `config.userKeysAllowed`** (réglage admin « Les utilisateurs peuvent saisir
+  leur propre clé », dans « Fournisseurs »), sinon rien, pas même le titre.
+  Un titre, une aide (« votre clé sert à vos résumés et traductions et
   passe avant celle de l'administrateur ; elle n'est jamais réaffichée »), puis
   une ligne par fournisseur de `config.providers` : son nom, son état (« clé
   enregistrée » en accent, ou « aucune clé »), un champ `type="password"`
@@ -2543,14 +2544,25 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   fournisseur et des automatismes. Un titre, deux aides (« un fournisseur choisi
   ici passe avant votre fournisseur préféré, et celui d'un flux avant celui de
   sa catégorie » ; « résumer ou traduire à l'ouverture les articles de cette
-  ligne, un flux prime sur sa catégorie »), puis
-  une ligne par catégorie dans l'ordre de `groupFeedsByCategory` : un bouton de
-  dépli (`aria-expanded`, `aria-controls`) qui porte le nom et, s'il y en a,
-  « N flux réglés » — un flux compte dès qu'il porte un fournisseur **ou** une
-  valeur propre de résumé ou de traduction automatique —, et à droite le
-  sélecteur de la catégorie puis les interrupteurs. **Tout est replié
-  à l'ouverture.** Dépliée, la catégorie liste ses flux, chacun avec son
-  sélecteur. Les flux sans catégorie forment un dernier groupe « Sans
+  ligne, un flux prime sur sa catégorie »), puis **une seule grille** (une
+  `div` en `display: grid`, repérée `data-routing-grid`) qui porte les
+  en-têtes, les catégories et les flux dépliés : les colonnes s'alignent d'une
+  ligne à l'autre. Colonnes, au large (≥ 640 px, `sm:`) : le nom
+  (`minmax(0,1fr)`), le fournisseur (`minmax(7rem,12rem)`), « Résumer » et
+  « Traduire » (`max-content`). Une ligne d'en-têtes ouvre la grille — texte
+  de 11 px en `--list-summary`, mots « Fournisseur », « Résumer », « Traduire »
+  (clés `ai.translation.provider`, `ai.routing.autoSummary`,
+  `ai.routing.autoTranslate`, réutilisées, rien de nouveau) ; la colonne du nom
+  n'a pas d'en-tête. Puis une ligne par catégorie dans l'ordre de
+  `groupFeedsByCategory` : un bouton de dépli (`aria-expanded` seul, plus
+  d'`aria-controls` : les flux sont des cellules de la même grille, sans
+  conteneur à désigner) qui porte le nom en gras et, s'il y en a, « N flux
+  réglés » — un flux compte dès qu'il porte un fournisseur **ou** une valeur
+  propre de résumé ou de traduction automatique —, puis le sélecteur de la
+  catégorie et ses deux interrupteurs. **Tout est replié à l'ouverture.**
+  Dépliée, la catégorie insère ses flux dans la grille, juste dessous : le nom
+  en retrait (`pl-6`, poids normal), son sélecteur et ses interrupteurs, dans
+  les mêmes colonnes. Les flux sans catégorie forment un dernier groupe « Sans
   catégorie », **sans sélecteur de groupe** (il n'y a pas de catégorie à
   régler). Options : « Par défaut » (valeur vide, retire le réglage), puis les
   fournisseurs via `ProviderOptions` (clé requise grisée, « Fournisseur
@@ -2561,10 +2573,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `normalizeAiProviderId` (une valeur synchronisée corrompue vaut « par
   défaut ») et la catégorie par clé propre (`Object.hasOwn`).
   **Interrupteurs « Résumer » et « Traduire »** : chaque ligne de catégorie et
-  de flux (pas l'en-tête « Sans catégorie ») en porte deux après son
-  sélecteur, mot court visible (masqué aux lecteurs d'écran) et nom accessible
-  « Résumer / Traduire automatiquement les articles de X », décrits par
-  l'aide du bloc ; tout le `<label>` est la cible du doigt. Allumé, chaque
+  de flux (pas l'en-tête « Sans catégorie », dont les trois autres cellules
+  sont vides) en porte deux, centrés sous leur en-tête de colonne. **Le mot
+  n'est plus répété par ligne** : c'est l'en-tête qui le porte, chaque
+  interrupteur gardant le nom accessible « Résumer / Traduire automatiquement
+  les articles de X », décrit par l'aide du bloc. La cible du doigt est
+  l'interrupteur et sa cellule (44 pt sur mobile). Allumé, chaque
   article de la ligne doit être résumé ou traduit **à l'ouverture**.
   Le volet de lecture applique la même règle (`autoFor`) : voir « Résumé
   automatique à l'ouverture » et « Traduction automatique à l'ouverture »
@@ -2594,12 +2608,17 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   passe à la ligne — **n'importe où** (`[overflow-wrap:anywhere]`, sur un `span`
   non flex) : un titre de flux sans espace, souvent l'URL, ne rétrécit pas sous
   son mot le plus long avec `break-word` et débordait sur le sélecteur à 320 px —,
-  le sélecteur garde 8 rem au moins (`min-w-[8rem]`), cibles de 44 pt. La
-  ligne est en `flex-wrap`, le nom a une base de 40 % (`grow basis-[40%]`) et
-  la paire d'interrupteurs est poussée à droite (`ml-auto`) : quand la largeur
-  manque (320 px), la paire **passe sous le sélecteur**, calée à droite, au
-  lieu d'écraser le nom ; elle se replie elle-même sur deux lignes si un mot
-  est long (« Zusammenfassen »). ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
+  cibles de 44 pt. **Étroit (< 640 px)**, la grille passe à trois colonnes
+  (`minmax(7rem,1fr)` et deux `max-content`) : la cellule du nom prend toute
+  la ligne (`col-span-3`) et le sélecteur et les deux interrupteurs suivent
+  sur la ligne du dessous, toujours alignés sous les en-têtes ; la cellule
+  d'en-tête du nom est alors masquée (`hidden sm:block`), tout comme les
+  cellules vides du groupe « Sans catégorie », pour ne pas laisser de ligne
+  creuse. Le sélecteur garde donc 7 rem au moins, sans que le nom ni la paire
+  d'interrupteurs ne se disputent la ligne (l'ancienne ligne en `flex-wrap`,
+  où la paire se poussait à droite par `ml-auto` et passait sous le sélecteur
+  quand la place manquait, a disparu).
+  ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
   puisqu'il est rangé sous son nom ; un flux déplacé dans une autre catégorie
   suit celle-ci. Un flux rangé dans deux catégories apparaît sous chacune.
 - **Interface — panneau** (`AiSummary.tsx`) : un panneau sur **toute la largeur

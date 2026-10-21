@@ -61,7 +61,9 @@ la release publiée.
   Préférences → IA : langue cible (celle de l'interface par défaut) et
   fournisseur des traductions (« Même que le résumé » par défaut). La vue
   « Par flux et catégorie » gagne deux interrupteurs par ligne, « Résumer » et
-  « Traduire » à l'ouverture, un flux primant sur sa catégorie ; allumer la
+  « Traduire » à l'ouverture, un flux primant sur sa catégorie, rangés en une
+  grille alignée sous des en-têtes de colonne (le nom passe sur sa propre ligne
+  sur un écran étroit) ; allumer la
   traduction automatique demande une confirmation, une fois par compte, qui
   rappelle qu'un article entier coûte cinq à quinze fois un résumé. Le plafond
   quotidien compte les « appels IA », résumés et traductions ensemble (un par
