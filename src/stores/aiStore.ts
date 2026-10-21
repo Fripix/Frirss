@@ -66,9 +66,11 @@ useAuthStore.subscribe((state, prev) => {
 export const aiEnabled = (s: AiState): boolean => s.config?.enabled === true;
 
 /**
- * Vrai si résumer est réellement possible pour cet utilisateur : la fonction est
+ * Vrai si l'IA est réellement utilisable pour cet utilisateur : la fonction est
  * allumée ET au moins un fournisseur lui est utilisable. C'est la condition qui
- * affiche la pastille de résumé ; le raccourci, la palette et leurs aide-mémoire
- * s'y alignent — une commande pour une fonction éteinte n'est que du bruit.
+ * affiche le panneau de résumé et le bouton « Traduire l'article », et qui
+ * autorise le résumé et la traduction automatiques ; les raccourcis `s` et `t`,
+ * la palette et leurs aide-mémoire s'y alignent — une commande pour une
+ * fonction éteinte n'est que du bruit.
  */
 export const aiUsable = (s: AiState): boolean => aiEnabled(s) && (s.config?.providers.some((p) => p.available) ?? false);

@@ -49,20 +49,26 @@ la release publiée.
   (« Lot 2 sur 4… », « Traduit en anglais par X ») et « Texte source » pour
   revenir à l'original sans nouvel appel. Un chevron (un appui long au doigt,
   ou la feuille « … ») ouvre « Traduire en… » — 28 langues, filtrables — et
-  « Traduire avec… », qui force un fournisseur sans couper le repli. Un texte
-  déjà dans la langue le dit (« Déjà en français. ») au lieu de payer un
-  appel. Nouveau bloc « Traduction » dans Préférences → IA : langue cible
-  (celle de l'interface par défaut) et fournisseur des traductions (« Même
-  que le résumé » par défaut). La vue « Par flux et catégorie » gagne deux
-  interrupteurs par ligne, « Résumer » et « Traduire » à l'ouverture, un flux
-  primant sur sa catégorie ; allumer la traduction automatique demande une
-  confirmation, une fois par compte, qui rappelle qu'un article entier coûte
-  cinq à quinze fois un résumé. Le plafond quotidien compte désormais les
-  « appels IA », résumés et traductions ensemble (un par lot traduit), et
-  ses messages le disent. Le raccourci `t` (réassignable, masqué tant que
-  l'IA est inutilisable) et la palette ⌘K traduisent l'article ouvert. Aucun
-  choix IA qui engage un coût ne passe d'un compte à l'autre sur un
-  navigateur partagé.
+  « Traduire avec… », qui force un fournisseur sans couper le repli. Un résumé
+  déjà dans la langue cible ne propose pas « Traduire » ; un article déjà dans
+  la langue le dit (« Déjà en français. ») après un seul appel, ensuite servi
+  par le cache. Un passage trop lourd pour un lot reste dans la langue
+  d'origine, et la notice le dit (« Traduit en partie (n lots sur m) »). Les
+  échecs ont leurs propres messages : « La traduction a échoué. Réessayez. »,
+  « Le fournisseur a refusé de traduire cet article. », « Texte trop long pour
+  être traduit. », « Le fournisseur n'a pas rendu une traduction exploitable.
+  Réessayez. » et « Langue non proposée. ». Nouveau bloc « Traduction » dans
+  Préférences → IA : langue cible (celle de l'interface par défaut) et
+  fournisseur des traductions (« Même que le résumé » par défaut). La vue
+  « Par flux et catégorie » gagne deux interrupteurs par ligne, « Résumer » et
+  « Traduire » à l'ouverture, un flux primant sur sa catégorie ; allumer la
+  traduction automatique demande une confirmation, une fois par compte, qui
+  rappelle qu'un article entier coûte cinq à quinze fois un résumé. Le plafond
+  quotidien compte les « appels IA », résumés et traductions ensemble (un par
+  lot traduit), et ses messages le disent. Le raccourci `t` (réassignable,
+  masqué tant que l'IA est inutilisable) et la palette ⌘K traduisent l'article
+  ouvert. Aucun choix IA qui engage un coût ne passe d'un compte à l'autre sur
+  un navigateur partagé.
 
 ## Corrections et améliorations
 

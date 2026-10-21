@@ -498,9 +498,10 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
 - **Traduire l'article (IA)** : `translate`, touche `t` par défaut. Même
   condition et même garde que `summarize` (la même ligne de
   `useKeyboardNav.ts` : ni ⌘T / Ctrl+T, ni Alt, ni touche maintenue). Elle
-  traduit l'article ouvert, ou remontre sa traduction tenue, et ne fait rien
-  quand la traduction est déjà affichée. Même rattrapage des raccourcis
-  enregistrés avant son ajout.
+  traduit l'article ouvert, ou remontre sans requête sa traduction tenue si
+  elle est dans la langue cible (dans une autre langue, une nouvelle demande
+  part), et ne fait rien quand la traduction est déjà affichée. Même
+  rattrapage des raccourcis enregistrés avant son ajout.
 - **Aide-mémoire sur `?`** (1.4.5) : fenêtre listant **tous** les raccourcis
   configurables avec les touches **réellement configurées**, plus les gestes
   intégrés dans une section à part — les mélanger laisserait croire qu'on peut
@@ -1813,7 +1814,8 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
 Un panneau repliable « Résumé IA », en tête du volet de lecture, envoie le
 texte de l'article à un fournisseur de modèle de langage et affiche le résumé
 au-dessus de l'article. Le résumé et l'article entier se **traduisent** vers une
-langue cible, à la demande ou automatiquement par flux ou catégorie.
+langue cible à la demande ; l'article, aussi automatiquement par flux ou
+catégorie.
 **Éteint d'origine** : tant que l'admin n'a pas activé la fonctionnalité
 (Préférences → IA → Fournisseurs), rien n'est visible pour un utilisateur, pas
 même la section ; l'admin la voit toujours. Spec :
@@ -1850,6 +1852,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `src/stores/aiStore.test.ts`,
   `src/lib/{aiPayload,aiErrorKey,aiLanguages,aiRouting,aiAuto,articleSegments}.test.ts`,
   `ReadingPane/{AiSummary,ReadingPane.ai,TranslateMenu,useArticleTranslation}.test.tsx`,
+  `ReadingPane/aiPending.test.ts`,
   `Preferences/{AiTab,Preferences.ai}.test.tsx`. Traductions : famille `ai`.
   `aiStore` oublie la configuration IA à la déconnexion (abonnement à
   `useAuthStore` : `backendToken` passe d'une valeur à `null`, y compris sur un
@@ -1955,8 +1958,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   pas vers un hôte que l'admin n'a pas saisi. URL de base illisible →
   `technical`. `/api/ai` partage le seau `FRIRSS_PROXY_RATE_LIMIT` de
   `/api/proxy` : le seau compte les **requêtes HTTP** vers `/api/ai`,
-  `/config` comprise, pas les appels sortants — une requête de résumé ou un
-  lot de traduction avec repli peut en faire plusieurs vers les fournisseurs. Le bouton de test
+  `/config` comprise, pas les appels sortants — une requête de résumé avec
+  repli, ou un lot de traduction avec repli ou avec un rejeu de lot, peut en
+  faire plusieurs vers les fournisseurs. Le bouton de test
   (`/api/admin/ai/providers/:id/test`) n'est pas dans le seau, la liste des
   modèles non plus.
 - **Liste des modèles** (`listModels`, `providers.ts` ; route
@@ -2010,8 +2014,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 - **Repli** (`fallback`, vrai par défaut) : sur erreur `auth` / `quota` /
   `technical` seulement, dans l'ordre de l'admin, **jamais** sur `refused`, un
   seul tour ; la réponse dit d'où on vient (`fellBackFrom`). **Y compris
-  depuis « Résumer avec X »** : si le fournisseur choisi échoue, le suivant
-  répond et l'en-tête dit « X indisponible » — décision du propriétaire du
+  depuis « Résumer avec X » et « Traduire avec X »** : si le fournisseur
+  choisi échoue, le suivant répond et l'en-tête (ou la notice) dit « X
+  indisponible » — décision du propriétaire du
   2026-10-20, revenant sur une version qui envoyait la demande forcée avec
   `fallback: false`. Une exception qui
   n'est pas une `AiError` devient `provider_error` (`technical`, repli permis) ;
@@ -2055,14 +2060,17 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   modèle ne resert pas le résumé de l'ancien) + langue cible (`-` pour un
   résumé, la cible pour une traduction) + **longueur visée** (segment
   `r<ratio>` : deux réglages sont deux résumés, deux appels) + version de
-  consigne (`PROMPT_VERSION`) **+ sha1 (16 hex) du titre et du texte nettoyé**. Le hash
-  existe parce que l'`articleId` vient du client : sans lui, un utilisateur
-  pourrait lire ou empoisonner le résumé d'un autre ; deux contenus (ou deux
-  titres, le titre fait partie du prompt) pour le même identifiant donnent deux
-  entrées. Redis si `REDIS_URL` (30 jours), sinon table `ai_cache` purgée au-delà
-  de 10 000 lignes, les plus anciennes d'abord (`created_at`, puis `rowid` pour
-  départager une même seconde). Une panne du cache n'empêche ni de lire ni
-  d'écrire le résultat ; une valeur Redis illisible est une absence.
+  consigne (`PROMPT_VERSION`) **+ sha1 (16 hex) du titre et du texte nettoyé**.
+  Cette composition est celle du résumé : une traduction porte `-` à la place
+  de la longueur visée et hache `[scope, segments]` du lot (voir « Traduction
+  — serveur »). Le hash existe parce que l'`articleId` vient du client : sans
+  lui, un utilisateur pourrait lire ou empoisonner le résumé d'un autre ; deux
+  contenus (ou deux titres, le titre fait partie du prompt) pour le même
+  identifiant donnent deux entrées. Redis si `REDIS_URL` (30 jours), sinon
+  table `ai_cache` purgée au-delà de 10 000 lignes, les plus anciennes d'abord
+  (`created_at`, puis `rowid` pour départager une même seconde). Une panne du
+  cache n'empêche ni de lire ni d'écrire le résultat ; une valeur Redis
+  illisible est une absence.
 - **Langue** : le résumé est dans la langue de l'article ; le modèle rend
   `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) : c'est
   elle qui dit si le résumé est déjà dans la langue cible, auquel cas
@@ -2248,7 +2256,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   et `aiTranslationProvider`. Pas d'interrupteur global « tout traduire » : il
   traduirait aussi les flux déjà dans la langue cible ; la traduction
   automatique ne se règle que par flux ou catégorie.
-  Dessous, pour l'admin seul, le bloc « Fournisseurs » (interrupteur, liste
+  Tout en bas, sous « Mes clés » (ordre : « Résumés », « Traduction », « Par
+  flux et catégorie », « Mes clés », « Fournisseurs »), pour l'admin seul, le
+  bloc « Fournisseurs » (interrupteur, liste
   réordonnable par flèches haut / bas, éditeur avec liste des modèles, test,
   clé partagée, plafond,
   défaut) et un repli « Avancé » avec l'interrupteur « Les utilisateurs peuvent
@@ -2429,7 +2439,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     « Traduire » devient **« Texte source »**, qui rend le résumé d'origine
     sans requête. Une traduction qui arrive panneau replié ne le déplie pas.
     Si le serveur répond `same` (le texte est déjà dans la langue demandée),
-    rien ne change dans le panneau et un toast bref dit « Déjà en {langue}. ».
+    le panneau revient au résumé d'origine (une traduction affichée
+    disparaît) et un toast bref dit « Déjà en {langue}. ».
     Un échec s'affiche en alerte sous le résumé, qui reste. Les messages qui
     nomment l'opération ont leur variante (`aiErrorKey(…, { op: 'translate'
     })`) : sans cause connue, « La traduction a échoué. Réessayez. » ; refus,
@@ -2678,7 +2689,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   catégorie »).
 - **Pièges** : le volet envoie le texte *affiché* (contenu complet extrait s'il
   y en a un, sinon celui du flux) : résumer (ou traduire) avant ou après
-  l'extraction donne deux entrées de cache. Il l'envoie **allégé** par `stripMediaForSummary`
+  l'extraction donne deux entrées de cache. Pour le résumé, il l'envoie
+  **allégé** par `stripMediaForSummary`
   (`src/lib/aiPayload.ts`, testé) : `<img>`, `<svg>`, `<video>`, `<audio>`,
   `<iframe>`, `<picture>` et tout attribut en `data:` partent, sans quoi une
   seule image base64 dépassait les 200 Ko et l'article « trop long » faisait dix
@@ -2688,7 +2700,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   tombe si c'est du texte — reculer au dernier `<` viderait un article d'un seul
   paragraphe. « Article trop long » ne vient donc plus d'un long HTML envoyé
   par l'interface : c'est le **texte** que le serveur borne (il le tronque),
-  et `invalid_body` ne reste que pour un client qui ne coupe pas ; ne jamais suivre un 3xx du fournisseur ; ne pas
+  et `invalid_body` ne reste que pour un client qui ne coupe pas. La
+  traduction ne passe pas par `aiPayload.ts` : elle envoie des segments
+  passés au sanitiseur, en lots de 200 000 octets au plus, et laisse dans la
+  source un segment trop lourd pour un lot (voir « Traduction de l'article »).
+  Ne jamais suivre un 3xx du fournisseur ; ne pas
   confondre « payé par l'admin » (`paidByAdmin` ne pilote que le plafond et le
   décompte d'usage, pas l'éligibilité au repli) et « clé admin utilisée »
   (un admin n'est pas facturé) ; la clé de cache doit garder le hash du

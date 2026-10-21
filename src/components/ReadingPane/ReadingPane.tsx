@@ -1004,9 +1004,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   // Raccourci `t` et palette : mêmes gardes que le bouton « Traduire
   // l'article » (IA utilisable, en ligne, du texte à traduire, rien en cours).
-  // Une traduction tenue après « Texte source » est remontrée sans appel. Une
-  // traduction déjà affichée, elle, laisse l'événement sans effet : la touche
-  // ne fait qu'une chose et ne revient jamais au texte source.
+  // Une traduction tenue après « Texte source » est remontrée sans appel si
+  // elle est dans la langue cible ; dans une autre langue, une nouvelle demande
+  // part (la règle de `translate()`). Une traduction déjà affichée, elle,
+  // laisse l'événement sans effet : la touche ne fait qu'une chose et ne
+  // revient jamais au texte source.
   useEffect(() => {
     if (!aiUsable || !online || !selectedArticle || showTranslatedBody) return;
     if (!articleCanTranslate || articleTranslationState === 'loading') return;
