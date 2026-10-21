@@ -530,7 +530,7 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   la barre d'outils le focus y reste (Chrome), et `j`/`k` doivent suivre.
   global qui s'en sert pour quitter le mode Focus.
 - **Aucun raccourci ne reprend une touche du navigateur ou du système**
-  (règle du propriétaire, 1.6.2). Deux gardes :
+  (règle du propriétaire, 1.7.0). Deux gardes :
   - *à l'usage* (`useKeyboardNav.ts`) : une touche tenue avec ⌘, Ctrl ou Alt
     n'est jamais traitée ni `preventDefault` — seul ⌘K / Ctrl+K (palette)
     fait exception. Avant, ⌘R / Ctrl+R marquait lu au lieu de recharger, et
@@ -548,7 +548,7 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   - **Les flèches restent permises et restent les défauts** (↑ ↓ →), bien
     qu'elles servent aussi au défilement : décision du propriétaire, « elles
     sont pratiques ». Ne pas les remettre en cause.
-  - Un raccourci réservé déjà enregistré avant 1.6.2 n'est pas migré : il
+  - Un raccourci réservé déjà enregistré avant 1.7.0 n'est pas migré : il
     continue de fonctionner tel quel jusqu'à sa prochaine modification.
 
 ---
@@ -1767,7 +1767,7 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   `blockDir: false` : format réservé et paragraphes vides, sans chargement
   différé ni `dir`, comme avant. Un corps sans aucune balise sort désormais
   sérialisé (`&` → `&amp;`), au lieu d'être rendu tel quel ; le rendu est le
-  même. Pièges corrigés en 1.6.2 : c'étaient des motifs sur le HTML sérialisé.
+  même. Pièges corrigés en 1.7.0 : c'étaient des motifs sur le HTML sérialisé.
   Ceux de `dir`/`loading` n'avaient pas de borne après le nom de balise —
   `<pre>` devenait `<p dir="auto"re>` et `<picture>` `<p dir="auto"icture>`
   depuis la 1.4.0. Tous trouvaient aussi `<p` ou `<img` dans une valeur
@@ -4198,7 +4198,7 @@ Stockage clé/valeur par utilisateur (`preferences`), poussé en un lot par
   réponse du serveur est appliquée aux magasins, puis l'écriture différée
   démarre (800 ms, instantané **complet**). Un `200` sans aucune clé
   synchronisée = compte neuf : le serveur est amorcé avec l'état local.
-- **Piège — une lecture en échec n'est PAS un compte vide** (1.6.2). Jusqu'à la
+- **Piège — une lecture en échec n'est PAS un compte vide** (1.7.0). Jusqu'à la
   1.6.1, une erreur réseau ou un 5xx retombait sur `{}`, donc sur l'amorçage :
   l'état local de ce navigateur — souvent des valeurs par défaut, remises par
   une déconnexion — écrasait toutes les préférences du compte, sur tous les
