@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { segmentArticle, batchSegments, wordCount, BLOCK_SELECTOR } from './articleSegments';
+import { segmentArticle, batchSegments, wordCount, strikeToDel, BLOCK_SELECTOR } from './articleSegments';
 import { segmentWordCount } from '../../server/ai/text.js';
 
 describe('segmentArticle', () => {
@@ -169,5 +169,32 @@ describe('batchSegments', () => {
 
   it('takes the segment cap as a parameter', () => {
     expect(batchSegments(['a', 'b', 'c', 'd', 'e'], 1000, 10_000, 2)).toEqual([[0, 1], [2, 3], [4]]);
+  });
+});
+
+describe('strikeToDel', () => {
+  it('rewrites <s> and </s> as <del>, keeping the attributes', () => {
+    expect(strikeToDel('a <s class="x">b</s> c')).toBe('a <del class="x">b</del> c');
+  });
+
+  it('is case-insensitive and tolerates a space before the closing bracket', () => {
+    expect(strikeToDel('<S>a</S >')).toBe('<del>a</del>');
+    expect(strikeToDel('<s\tid="1">a</s\n>')).toBe('<del\tid="1">a</del>');
+  });
+
+  it('leaves every other tag starting with s alone', () => {
+    const html = '<span>a</span><strong>b</strong><small>c</small><source><svg></svg><style></style><sup>d</sup>';
+    expect(strikeToDel(html)).toBe(html);
+  });
+
+  it('leaves no stop string behind', () => {
+    expect(strikeToDel('<s>a</s><s>b</s>')).not.toMatch(/<\/?s[\s>]/i);
+  });
+
+  it('stays linear on hostile input', () => {
+    const t = Date.now();
+    strikeToDel('<s' + ' '.repeat(100_000) + 'x'.repeat(100_000));
+    strikeToDel('</s' + ' '.repeat(100_000));
+    expect(Date.now() - t).toBeLessThan(500);
   });
 });

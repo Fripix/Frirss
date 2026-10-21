@@ -82,6 +82,18 @@ describe('useArticleTranslation', () => {
     expect(hook.current.partial).toBe(false);
   });
 
+  it('never sends a strikethrough <s> to the model: it goes as <del>, and the translation keeps <del>', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValueOnce(result(['Bonjour', 'Prix <del>10</del> 5 francs']));
+    const { result: hook } = renderHook((p: ArticleTranslationInput) => useArticleTranslation(p), {
+      initialProps: { ...base, bodyHtml: '<p>Price <s>10</s> 5 francs</p>' },
+    });
+    await act(async () => { hook.current.translate(); });
+    const sent = vi.mocked(requestAiTranslation).mock.calls[0][0].segments;
+    expect(sent).toEqual(['Hello world', 'Price <del>10</del> 5 francs']);
+    expect(sent.join('')).not.toMatch(/<\/?s[\s>]/i);
+    expect(hook.current.html).toContain('<del>10</del>');
+  });
+
   it('a failure at the second batch is an error, and nothing is replaced', async () => {
     vi.mocked(requestAiTranslation)
       .mockResolvedValueOnce(result(['Bonjour le monde', words('un', 1000)]))

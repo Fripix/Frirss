@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { requestAiTranslation, type AiTranslationResult } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
-import { segmentArticle, batchSegments, type Segmented } from '../../lib/articleSegments';
+import { segmentArticle, batchSegments, strikeToDel, type Segmented } from '../../lib/articleSegments';
 import { aiErrorMessage, isAiDeadline, isAiMalformed, isUpstreamCut } from '../../lib/aiErrorKey';
 import type { AiRouting } from '../../lib/aiRouting';
 import type { AiLanguage } from '../../lib/aiLanguages';
@@ -241,7 +241,8 @@ export function plainText(html: string): string {
 
 interface Prepared {
   segmented: Segmented;
-  /** Ce qui part au fournisseur : le titre tel quel, chaque bloc passé au sanitiseur. */
+  /** Ce qui part au fournisseur : le titre tel quel, chaque bloc passé au sanitiseur,
+   *  le tout avec `<s>` réécrit en `<del>` (jamais de `</s>` vers le modèle). */
   send: string[];
   /** Indices (dans `send`) groupés par lot. */
   batches: number[][];
@@ -254,7 +255,7 @@ interface Prepared {
 /** Coûteux (DOMParser, DOMPurify par bloc) : seulement dans `translate()`. */
 function prepare(title: string, bodyHtml: string): Prepared {
   const segmented = segmentArticle(title, bodyHtml);
-  const send = segmented.segments.map((s, i) => (i === 0 ? s : sanitizeHtml(s)));
+  const send = segmented.segments.map((s, i) => strikeToDel(i === 0 ? s : sanitizeHtml(s)));
   // Un segment vide ou sans lettre ne part pas (un titre vide, un bloc que le
   // sanitiseur a vidé) : le fournisseur pourrait l'omettre et invalider le lot.
   const candidates = send.map((_, i) => i).filter((i) => (i === 0 ? HAS_LETTER.test(send[0]) : hasLetter(send[i])));

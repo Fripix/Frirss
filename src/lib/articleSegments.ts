@@ -158,3 +158,15 @@ export function batchSegments(segments: string[], maxWords = 1200, maxBytes = 20
   if (current.length) batches.push(current);
   return batches;
 }
+
+// `[^<>]*` (jamais `.*`) : chaque `<s` ne parcourt que jusqu'au prochain `<` ou
+// `>`, donc le coût reste linéaire sur une entrée hostile.
+const STRIKE_TAG = /<(\/?)s(?=[\s>])([^<>]*)>/gi;
+
+/** `</s>` est la chaîne de fin de séquence des tokeniseurs Llama/Qwen : un
+ *  modèle qui la lit ou doit la réécrire peut s'arrêter net. Un texte barré
+ *  légitime (`<s>`) part donc en `<del>`, au rendu identique. On ne reconvertit
+ *  pas au retour : la traduction garde `<del>`. */
+export function strikeToDel(html: string): string {
+  return html.replace(STRIKE_TAG, (_m, close: string, rest: string) => (close ? '</del>' : `<del${rest}>`));
+}

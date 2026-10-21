@@ -2299,8 +2299,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   octets, 120 segments au plus) et les envoie en série. Format **strict** en entrée comme en sortie, chaque segment
   entre `<seg n="N">…</seg>` numérotés depuis 0 (`translateUserMessage`, qui
   retire d'un segment toute balise `<seg…>` ou `</seg>` — `seg` n'est pas un
-  élément HTML, un article n'en porte donc aucune de légitime ; un `<s>…</s>`
-  barré est du HTML en ligne comme un autre et reste entier) ; la consigne
+  élément HTML, un article n'en porte donc aucune de légitime ; les autres
+  balises en ligne restent entières, et un texte barré arrive déjà en `<del>`,
+  voir le ⚠️ ci-dessous) ; la consigne
   (`translateSystem(cible)`) demande une traduction fidèle, sans résumé ni
   commentaire, les balises en ligne et les liens **tels quels**, seul le texte
   traduit, et une première ligne `lang: <code source>`. `parseTranslation` coupe
@@ -2322,9 +2323,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   17/17 à 600, 4/4 à 150, bien formés. Toutes les « réponses inexploitables »
   observées avant ce changement avaient cette cause. Un test
   (`prompts.test.ts`) refuse toute balise `<s>` / `</s>` dans la consigne et
-  l'enveloppe. Cas restant, non mesuré : un article qui porte un vrai texte
-  barré (`<s>…</s>`) met encore un `</s>` dans le segment, donc dans la
-  réponse attendue. Un numéro absent, en double ou hors bornes, ou un segment sans
+  l'enveloppe. Le cas d'un article qui porte un vrai texte barré (`<s>…</s>`,
+  gardé par le sanitiseur) est fermé **côté client** : `strikeToDel` réécrit
+  `<s>` / `</s>` en `<del>` / `</del>` avant l'envoi, donc aucun segment ne
+  porte plus de `</s>` et le modèle n'a rien à réécrire (« Traduction de
+  l'article »). Le serveur, lui, ne réécrit rien : un autre client qui
+  enverrait un `<s>` le ferait passer tel quel. Un numéro absent, en double ou hors bornes, ou un segment sans
   `</seg>`, invalide **le lot entier**, **rejoué une fois** sur le même
   fournisseur si l'échéance laisse au moins 2 s (`MIN_CALL_MS`), sinon
   `AiError('technical', 'segments')` marquée `noFallback` : **pas de repli**
@@ -2778,6 +2782,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     en segments par `segmentArticle`. Le titre part en texte brut ; chaque
     **bloc** passe au **sanitiseur avant de partir** ; un segment vide ou sans
     lettre (titre vide, bloc vidé par le sanitiseur) ne part pas.
+    **Texte barré** : `strikeToDel` (`articleSegments.ts`, pur, linéaire)
+    réécrit `<s …>` / `</s>` en `<del …>` / `</del>` (attributs gardés, casse
+    ignorée) sur les segments **envoyés**, titre compris — `</s>` est la chaîne
+    de fin de séquence des tokeniseurs Llama/Qwen (« Traduction — serveur »,
+    ⚠️). Le rendu est identique, et la traduction **garde `<del>`** : `apply`
+    ne reconvertit pas (assumé, rien à y gagner).
     ⚠️ Piège : une vidéo (`<iframe>`) posée **dans** un bloc de texte est
     retirée par ce passage au sanitiseur ; le bloc traduit la perd (la façade
     vidéo de tête, hors du corps, ne change pas).
