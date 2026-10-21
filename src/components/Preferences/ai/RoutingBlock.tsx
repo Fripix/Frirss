@@ -44,7 +44,8 @@ function Chevron({ open }: { open: boolean }) {
 }
 
 /**
- * Un interrupteur de la grille, centré sous son en-tête. Le mot « Résumer » /
+ * Un interrupteur de la grille, centré sous son en-tête, dans un `<label>` qui
+ * transmet au bouton les touchers de toute la cellule de 44 pt. Le mot « Résumer » /
  * « Traduire » est celui de la colonne ; le nom accessible dit en plus la ligne.
  */
 function AutoSwitch({ kind, name, checked, hintId, onChange }: {
@@ -52,12 +53,12 @@ function AutoSwitch({ kind, name, checked, hintId, onChange }: {
 }) {
   const { t } = useTranslation();
   return (
-    <span className="prefs-tap-btn inline-flex items-center justify-center justify-self-center">
+    <label className="prefs-tap-btn inline-flex items-center justify-center justify-self-center cursor-pointer">
       <ToggleSwitch
         checked={checked} onChange={onChange} describedBy={hintId}
         ariaLabel={t(kind === 'summary' ? 'ai.routing.autoSummaryFor' : 'ai.routing.autoTranslateFor', { name })}
       />
-    </span>
+    </label>
   );
 }
 

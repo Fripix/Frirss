@@ -2577,8 +2577,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   sont vides) en porte deux, centrés sous leur en-tête de colonne. **Le mot
   n'est plus répété par ligne** : c'est l'en-tête qui le porte, chaque
   interrupteur gardant le nom accessible « Résumer / Traduire automatiquement
-  les articles de X », décrit par l'aide du bloc. La cible du doigt est
-  l'interrupteur et sa cellule (44 pt sur mobile). Allumé, chaque
+  les articles de X », décrit par l'aide du bloc. Chaque interrupteur est
+  enveloppé dans un `<label>` : un toucher n'importe où dans la cellule (44 pt
+  de haut sur mobile) bascule l'interrupteur, une seule fois. Allumé, chaque
   article de la ligne doit être résumé ou traduit **à l'ouverture**.
   Le volet de lecture applique la même règle (`autoFor`) : voir « Résumé
   automatique à l'ouverture » et « Traduction automatique à l'ouverture »

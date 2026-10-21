@@ -602,10 +602,22 @@ describe('AiTab — « Par flux et catégorie »', () => {
     // Une seule grille pour les catégories et les flux dépliés : les colonnes s'alignent.
     const grid = sw('Summary', 'Tech').closest('[data-routing-grid]') as HTMLElement;
     expect(grid).toBeTruthy();
-    expect(grid.className).toContain('grid');
+    expect(grid.classList.contains('grid')).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: /Tech/ }));
     expect(grid.contains(sw('Summary', 'Flux 1'))).toBe(true);
     expect(grid.contains(screen.getAllByLabelText('ai.routing.feedSelect')[0])).toBe(true);
+  });
+  it('a tap anywhere on a switch cell toggles that switch, exactly once', () => {
+    useUiStore.setState({ aiAutoSummary: true });
+    render(<AiTab active />);
+    const cell = sw('Summary', 'Tech').closest('label') as HTMLElement;
+    expect(cell).toBeTruthy();
+    expect(cell.contains(sw('Translate', 'Tech'))).toBe(false);
+    fireEvent.click(cell);
+    expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
+    // Le bouton lui-même ne déclenche pas non plus deux fois (clic remonté jusqu'au label).
+    fireEvent.click(sw('Summary', 'Tech'));
+    expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({});
   });
   it('a feed provider is set and set back to default from the expanded category', () => {
     const { getByRole, getAllByLabelText } = render(<AiTab active />);
@@ -752,22 +764,22 @@ describe('AiTab — « Par flux et catégorie »', () => {
     render(<AiTab active />);
     // jsdom n'a pas de mise en page : on fige les classes qui produisent la disposition.
     const grid = sw('Translate', 'Tech').closest('[data-routing-grid]') as HTMLElement;
-    expect(grid.className).toContain('grid-cols-[minmax(7rem,1fr)_max-content_max-content]');
-    expect(grid.className).toContain('sm:grid-cols-[minmax(0,1fr)_minmax(7rem,12rem)_max-content_max-content]');
+    expect(grid.classList.contains('grid-cols-[minmax(7rem,1fr)_max-content_max-content]')).toBe(true);
+    expect(grid.classList.contains('sm:grid-cols-[minmax(0,1fr)_minmax(7rem,12rem)_max-content_max-content]')).toBe(true);
     // Nom de catégorie : une ligne entière à l'étroit, une colonne au large.
     const name = screen.getByRole('button', { name: /Tech/ });
-    expect(name.className).toContain('col-span-3');
-    expect(name.className).toContain('sm:col-span-1');
+    expect(name.classList.contains('col-span-3')).toBe(true);
+    expect(name.classList.contains('sm:col-span-1')).toBe(true);
     // La colonne du nom n'a pas d'en-tête à l'étroit : sa cellule d'en-tête est masquée.
     const headers = Array.from(grid.children).slice(0, 4) as HTMLElement[];
-    expect(headers[0].className).toContain('hidden');
-    expect(headers[0].className).toContain('sm:block');
+    expect(headers[0].classList.contains('hidden')).toBe(true);
+    expect(headers[0].classList.contains('sm:block')).toBe(true);
     expect(headers.map((h) => h.textContent)).toEqual(['', 'ai.translation.provider', 'ai.routing.autoSummary', 'ai.routing.autoTranslate']);
     // Les cellules vides du groupe « Sans catégorie » ne créent pas de ligne vide à l'étroit.
     fireEvent.click(screen.getByRole('button', { name: /ai\.routing\.uncategorised/ }));
     const empty = Array.from(grid.querySelectorAll(':scope > span[aria-hidden="true"]')).slice(1) as HTMLElement[];
     expect(empty).toHaveLength(3);
-    for (const e of empty) expect(e.className).toContain('hidden');
+    for (const e of empty) expect(e.classList.contains('hidden')).toBe(true);
   });
 });
 
