@@ -929,17 +929,22 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const autoPrefs = { feedSettings, aiCategoryAutoSummary, aiCategoryAutoTranslate, aiAutoSummary };
   // Le panneau « Résumé IA » : toujours là, ou seulement avec une demande ou un
   // résumé (flux > catégories > réglage global — `panelFor`). Il ne conditionne
-  // QUE son rendu : la touche, la palette et l'icône de la barre vont chercher
+  // QUE son rendu : la touche, la palette et le bouton « Résumer » vont chercher
   // le résumé sans lui, et c'est leur demande qui le fait apparaître. L'état
   // repart à zéro à l'article suivant, et le panneau avec lui.
   const panelAlwaysHere = panelFor(selectedArticle?.sourceId, subscriptions, { ...autoPrefs, aiCategoryPanel, aiPanelAlways });
   const showAiPanel = aiUsable && (aiStatus !== 'idle' || aiResult !== null || panelAlwaysHere);
-  // Panneau masqué par réglage et rien demandé : un bouton « Résumer » de la
-  // barre en tient lieu (sur un téléphone, ni `s` ni le panneau ne sont là). Il
-  // disparaît dès que la demande part — le panneau prend alors le relais.
-  const showSummarizeBarBtn = aiUsable && !showAiPanel;
-  const summarizeFromBar = () => { expandOnFirstSummary(); void handleSummarize(); };
   const autoSummary = !!selectedArticle && autoFor('summary', selectedArticle.sourceId, subscriptions, autoPrefs);
+  // Panneau masqué par réglage et rien demandé : « Résumer » en tient lieu —
+  // bouton de la barre d'outils au bureau, première rangée de la feuille « … »
+  // au doigt (ni `s` ni la palette ne sont à portée d'un téléphone). Il
+  // disparaît dès que la demande part : le panneau prend alors le relais. Pas
+  // non plus quand un résumé automatique va partir pour cet article (mêmes
+  // entrées que l'effet plus bas) : il clignoterait pendant le délai à chaque
+  // article.
+  const autoSummaryPending = autoSummary && online && autoSummarisedId.current !== selectedArticle?.id;
+  const showSummarizeBarBtn = aiUsable && !showAiPanel && !autoSummaryPending;
+  const summarizeFromBar = () => { expandOnFirstSummary(); void handleSummarize(); };
   const autoTranslate = !!selectedArticle && autoFor('translate', selectedArticle.sourceId, subscriptions, autoPrefs);
   // Si l'extraction automatique s'applique à ce flux, on attend qu'elle ait
   // abouti ou échoué POUR CET ARTICLE (et non pour le précédent, dont l'état
@@ -1881,12 +1886,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </BarBtn>
           )}
 
-          {showSummarizeBarBtn && (
-            <BarBtn activeColor="var(--accent)" label={t('ai.summarizeAction')} disabled={!online} onClick={summarizeFromBar}>
-              <SummarizeIcon className="w-5 h-5" strokeWidth={1.6} />
-            </BarBtn>
-          )}
-
           {/* Traduire l'article : un appui = l'action, un appui long = le menu
               (aussi dans la feuille « … »). */}
           {aiUsable && (
@@ -1908,6 +1907,20 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             onClose={() => setReadSettingsOpen(false)}
             title={t('readingPane.more')}
           >
+            {/* Panneau masqué : « Résumer » ouvre la feuille « … » au doigt — la
+                barre du bas est déjà pleine à 320 px (cibles sous 44 pt). */}
+            {showSummarizeBarBtn && (
+              <button
+                type="button"
+                onClick={() => { setReadSettingsOpen(false); summarizeFromBar(); }}
+                disabled={!online}
+                className="sheet-row w-full flex items-center gap-3 px-4 py-3 text-left disabled:cursor-default disabled:opacity-40"
+                style={{ color: 'var(--reading-text)', borderBottom: article.url ? '1px solid var(--panel-border)' : undefined }}
+              >
+                <SummarizeIcon className="w-5 h-5 flex-shrink-0" strokeWidth={1.6} />
+                <span className="font-medium">{t('ai.summarizeAction')}</span>
+              </button>
+            )}
             {article.url && (
               <a
                 href={article.url} target="_blank" rel="noopener noreferrer"

@@ -216,18 +216,51 @@ describe('ReadingPane — Résumé IA', () => {
       expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
       expect(await findByText('Le résumé.')).toBeTruthy();
     });
-    it('the bottom bar of a phone has the button too, and it asks for the summary', async () => {
+    it('on a phone, « Résumer » is the first row of the « … » sheet: it closes the sheet and asks for the summary', async () => {
       const width = window.innerWidth;
       window.innerWidth = 375;
       try {
         useUiStore.setState({ aiPanelAlways: false });
         vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
-        const { getAllByRole } = render(<ReadingPane />);
-        const buttons = getAllByRole('button', { name: 'ai.summarizeAction' });
-        expect(buttons.length).toBe(1);
-        expect(buttons[0].classList.contains('action-btn')).toBe(false);
-        fireEvent.click(buttons[0]);
+        const { getByRole, queryAllByRole, getAllByRole } = render(<ReadingPane />);
+        // Rien dans la barre du bas : elle est déjà pleine.
+        expect(queryAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(0);
+        fireEvent.click(getByRole('button', { name: 'readingPane.more' }));
+        const row = getByRole('button', { name: 'ai.summarizeAction' });
+        expect(row.classList.contains('sheet-row')).toBe(true);
+        // Première rangée : avant « Ouvrir l'original ».
+        const original = getByRole('link', { name: 'readingPane.openOriginal' });
+        expect(row.compareDocumentPosition(original) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(row.previousElementSibling?.tagName).toBe('H3');
+        fireEvent.click(row);
         expect(requestAiSummary).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(queryAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(0));
+        expect(getAllByRole('button', { name: 'readingPane.more' }).length).toBeGreaterThan(0);
+      } finally {
+        window.innerWidth = width;
+      }
+    });
+    it('on a phone, the sheet row is disabled offline', () => {
+      const width = window.innerWidth;
+      window.innerWidth = 375;
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        useUiStore.setState({ aiPanelAlways: false });
+        const { getByRole } = render(<ReadingPane />);
+        fireEvent.click(getByRole('button', { name: 'readingPane.more' }));
+        expect((getByRole('button', { name: 'ai.summarizeAction' }) as HTMLButtonElement).disabled).toBe(true);
+      } finally {
+        window.innerWidth = width;
+      }
+    });
+    it('on a phone with the panel visible, the sheet has no « Résumer » row', () => {
+      const width = window.innerWidth;
+      window.innerWidth = 375;
+      try {
+        const { getByRole, getAllByRole } = render(<ReadingPane />);
+        fireEvent.click(getByRole('button', { name: 'readingPane.more' }));
+        // Seul le bouton du panneau.
+        expect(getAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(1);
       } finally {
         window.innerWidth = width;
       }
@@ -418,6 +451,21 @@ describe('ReadingPane — Résumé IA', () => {
       await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       expect(await findByText('Le résumé.')).toBeTruthy();
+    });
+    it('automatic summary on and panel hidden: no « Résumer » button, not even during the delay', async () => {
+      useUiStore.setState({ aiAutoSummary: true, aiPanelAlways: false });
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      const { queryAllByRole } = render(<ReadingPane />);
+      expect(queryAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(0);
+      await passDelay();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      expect(queryAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(0);
+    });
+    it('automatic summary on, panel hidden, but offline: the button is there for the manual request', () => {
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      useUiStore.setState({ aiAutoSummary: true, aiPanelAlways: false });
+      const { queryAllByRole } = render(<ReadingPane />);
+      expect(queryAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(1);
     });
     it('does nothing on open when auto-summary is off', async () => {
       vi.mocked(requestAiSummary).mockResolvedValue(RESULT);

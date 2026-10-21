@@ -2513,12 +2513,13 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   (voir « Interface — panneau ») : `aiPanelAlways`, `aiCategoryPanel`
   (`{ nom: true | false }`, normalisé par `normalizeAiCategoryBooleans` : ici
   « faux » est une valeur, pas l'absence) et `feedSettings[id].aiPanel`. Ces
-  trois-là ne coûtent rien et suivent donc la règle inverse des choix de
-  coût : la déconnexion (`forgetAiAccountChoices`) vide `aiCategoryPanel` et
-  retire `aiPanel` de chaque flux (`AI_FEED_KEYS`), mais laisse
-  `aiPanelAlways` ; `applyServerPrefs` force `aiPanelAlways` à **vrai** (et
-  non à faux comme `aiAutoSummary`) et vide `aiCategoryPanel` quand des
-  préférences serveur non vides n'ont pas la clé — un compte d'avant le
+  trois-là ne coûtent rien, mais `aiCategoryPanel` et les `aiPanel` de flux
+  suivent **la même règle que les choix de coût** : la déconnexion
+  (`forgetAiAccountChoices`) vide `aiCategoryPanel` et retire `aiPanel` de
+  chaque flux (`AI_FEED_KEYS`), et `applyServerPrefs` les vide quand des
+  préférences serveur non vides n'ont pas la clé. Seul `aiPanelAlways`
+  diffère : la déconnexion le **laisse**, et `applyServerPrefs` le force à
+  **vrai** (et non à faux comme `aiAutoSummary`) — un compte d'avant le
   réglage retrouve le panneau qu'il a toujours eu — ; `ToggleSwitch` accepte `describedBy` pour
   relier chaque interrupteur à son aide. **Aucun choix IA qui engage un coût
   ne s'hérite d'un autre compte** : `aiAutoSummary`, les deux confirmations
@@ -2706,13 +2707,17 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     FriRSS a toujours montré le panneau). Éteint et sans demande, il est
     **absent** — pas même l'en-tête —, et ce qui lance un résumé ne dépend pas
     de lui (leurs gardes — `aiUsable`, en ligne, article ouvert — ne regardent
-    pas le panneau) : la touche `s`, la palette, et un **bouton « Résumer » de
-    la barre d'outils** qui en tient lieu (`showSummarizeBarBtn` : IA utilisable,
-    panneau non visible — donc ni réglage « toujours visible » pour cet article,
-    ni demande en cours, ni résumé —, désactivé hors ligne). Ordinateur : un
-    `action-btn` après « Article complet » et avant « Traduire » ; tactile : un
-    `BarBtn` de la barre du bas, à côté de « Traduire » — sans lui, un
-    téléphone n'aurait que la palette. Le bouton appelle le même chemin que `s`
+    pas le panneau) : la touche `s`, la palette, et un **bouton « Résumer »**
+    qui en tient lieu (`showSummarizeBarBtn` : IA utilisable, panneau non
+    visible — donc ni réglage « toujours visible » pour cet article, ni demande
+    en cours, ni résumé —, **ni résumé automatique sur le point de partir**
+    pour cet article, sans quoi il clignoterait pendant le délai d'une seconde
+    à chaque article ; désactivé hors ligne). Ordinateur : un `action-btn`
+    de la barre d'outils, après « Article complet » et avant « Traduire ».
+    Tactile : **première rangée de la feuille « … »** (`sheet-row`, étincelle),
+    qui ferme la feuille puis lance la demande — la barre du bas n'a pas la
+    place d'un bouton de plus (sept `flex-1` à 320 px, ≈ 38 px chacun, sous les
+    44 pt), et sans lui un téléphone n'aurait que la palette. Le bouton appelle le même chemin que `s`
     (`expandOnFirstSummary` + `handleSummarize`) et **disparaît dès que la
     demande part** : le panneau apparaît (statut `loading`), avec son résumé ou
     son erreur. Il repart avec l'état à l'article suivant, comme le résumé. Le résumé automatique
@@ -2961,9 +2966,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   - **Bouton** : dans la barre d'outils, après « Article complet », présent
     quand le panneau IA l'est (`aiUsable`). Quand le panneau est masqué par
     réglage (voir « Interface — panneau »), un bouton **« Résumer »** (étincelle
-    du panneau) s'insère juste avant lui — après « Article complet » —, sur
-    ordinateur (`action-btn`) comme sur tactile (`BarBtn` du bas, à côté de
-    « Traduire »). Ordinateur : bouton scindé
+    du panneau) s'insère juste avant lui — après « Article complet » — sur
+    ordinateur (`action-btn`) ; sur tactile c'est la première rangée de la
+    feuille « … », pas un bouton de la barre du bas. Ordinateur : bouton scindé
     `action-btn` (« Traduire » — court, comme le bouton du panneau, le
     contexte de la barre dit déjà qu'il s'agit de l'article —, accent quand la
     traduction est affichée et qu'il devient « Texte source ») + chevron accolé (« Options de

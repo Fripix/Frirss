@@ -89,7 +89,8 @@ la release publiée.
   **Panneau « Résumé IA » facultatif.** Un interrupteur « Panneau Résumé IA
   toujours visible » (Préférences → IA → Résumés, allumé d'origine) permet de ne
   le montrer qu'avec une demande ou un résumé : un bouton « Résumer » prend
-  sa place dans la barre d'outils (ordinateur et barre du bas tactile), et la
+  sa place dans la barre d'outils (sur téléphone et tablette tactile : première
+  rangée de la feuille « … »), et la
   touche `s` ou la palette le font apparaître comme lui ; le panneau disparaît
   à l'article suivant.
   Le réglage est synchronisé ; il se précise par flux et par catégorie
