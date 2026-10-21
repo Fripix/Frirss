@@ -746,7 +746,7 @@
       "noProvider": "Ningún proveedor disponible.",
       "technical": "El resumen ha fallado. Inténtalo de nuevo.",
       "invalidLang": "Idioma no disponible.",
-      "segments": "El proveedor no devolvió una traducción utilizable. Inténtelo de nuevo.",
+      "segments": "El proveedor no devolvió una traducción utilizable. Inténtalo de nuevo.",
       "translateFailed": "La traducción ha fallado. Inténtalo de nuevo.",
       "translateRefused": "El proveedor se negó a traducir este artículo.",
       "translateTooLong": "Texto demasiado largo para traducirlo."
