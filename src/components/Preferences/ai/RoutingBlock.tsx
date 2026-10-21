@@ -26,10 +26,10 @@ const selectClass = 'prefs-tap-row w-full min-w-0 px-2 py-1.5 text-sm rounded-md
  * Étroit (< 640 px), la cellule du nom prend toute la ligne (`col-span-3`) et
  * les trois contrôles passent dessous, sous les en-têtes.
  */
-const gridClass = 'grid items-center gap-x-3 gap-y-1 grid-cols-[minmax(7rem,1fr)_max-content_max-content] '
-  + 'sm:grid-cols-[minmax(0,1fr)_minmax(7rem,12rem)_max-content_max-content]';
+const gridClass = 'grid items-center gap-x-3 gap-y-1 grid-cols-[minmax(7rem,1fr)_minmax(2.75rem,auto)_minmax(2.75rem,auto)] '
+  + 'sm:grid-cols-[minmax(0,1fr)_minmax(7rem,12rem)_minmax(2.75rem,auto)_minmax(2.75rem,auto)]';
 const nameCell = 'col-span-3 sm:col-span-1 min-w-0';
-const headerClass = 'text-[11px] leading-tight';
+const headerClass = 'min-w-0 text-[11px] leading-tight [overflow-wrap:anywhere]';
 
 function Chevron({ open }: { open: boolean }) {
   return (
@@ -158,8 +158,8 @@ export default function RoutingBlock() {
       <div data-routing-grid="" className={gridClass}>
         <span aria-hidden="true" className="hidden sm:block" />
         <span className={`${headerClass} sm:col-start-2`} style={{ color: 'var(--list-summary)' }}>{t('ai.translation.provider')}</span>
-        <span className={`${headerClass} justify-self-center`} style={{ color: 'var(--list-summary)' }}>{t('ai.routing.autoSummary')}</span>
-        <span className={`${headerClass} justify-self-center`} style={{ color: 'var(--list-summary)' }}>{t('ai.routing.autoTranslate')}</span>
+        <span className={`${headerClass} text-center`} style={{ color: 'var(--list-summary)' }}>{t('ai.routing.autoSummary')}</span>
+        <span className={`${headerClass} text-center`} style={{ color: 'var(--list-summary)' }}>{t('ai.routing.autoTranslate')}</span>
         {groups.map((group) => {
           const expanded = open.has(group.key);
           const count = tuned(group.feeds);

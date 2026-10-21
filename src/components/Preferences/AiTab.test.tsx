@@ -764,8 +764,8 @@ describe('AiTab — « Par flux et catégorie »', () => {
     render(<AiTab active />);
     // jsdom n'a pas de mise en page : on fige les classes qui produisent la disposition.
     const grid = sw('Translate', 'Tech').closest('[data-routing-grid]') as HTMLElement;
-    expect(grid.classList.contains('grid-cols-[minmax(7rem,1fr)_max-content_max-content]')).toBe(true);
-    expect(grid.classList.contains('sm:grid-cols-[minmax(0,1fr)_minmax(7rem,12rem)_max-content_max-content]')).toBe(true);
+    expect(grid.classList.contains('grid-cols-[minmax(7rem,1fr)_minmax(2.75rem,auto)_minmax(2.75rem,auto)]')).toBe(true);
+    expect(grid.classList.contains('sm:grid-cols-[minmax(0,1fr)_minmax(7rem,12rem)_minmax(2.75rem,auto)_minmax(2.75rem,auto)]')).toBe(true);
     // Nom de catégorie : une ligne entière à l'étroit, une colonne au large.
     const name = screen.getByRole('button', { name: /Tech/ });
     expect(name.classList.contains('col-span-3')).toBe(true);
@@ -775,6 +775,11 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(headers[0].classList.contains('hidden')).toBe(true);
     expect(headers[0].classList.contains('sm:block')).toBe(true);
     expect(headers.map((h) => h.textContent)).toEqual(['', 'ai.translation.provider', 'ai.routing.autoSummary', 'ai.routing.autoTranslate']);
+    // Les mots d'en-tête longs (« Zusammenfassen ») se replient au lieu d'élargir la colonne.
+    for (const h of headers.slice(2)) {
+      expect(h.classList.contains('min-w-0')).toBe(true);
+      expect(h.classList.contains('[overflow-wrap:anywhere]')).toBe(true);
+    }
     // Les cellules vides du groupe « Sans catégorie » ne créent pas de ligne vide à l'étroit.
     fireEvent.click(screen.getByRole('button', { name: /ai\.routing\.uncategorised/ }));
     const empty = Array.from(grid.querySelectorAll(':scope > span[aria-hidden="true"]')).slice(1) as HTMLElement[];

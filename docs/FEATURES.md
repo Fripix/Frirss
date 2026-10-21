@@ -2401,7 +2401,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   « Traduction de l'article »). Bornes :
   `articleId` ≤ 512 caractères, `segments` tableau de 1 à 1 000 chaînes non
   vides totalisant ≤ 200 000 octets (sans borne sur le nombre, des centaines
-  de milliers de segments d'un octet, chacun enveloppé dans `<s n="…">`,
+  de milliers de segments d'un octet, chacun enveloppé dans `<seg n="…">`,
   gonflaient le prompt pour une seule unité du plafond), `scope` connu,
   `regenerate` et `cacheOnly` absents ou booléens, sinon 400 `invalid_body`
   (les deux à `true` ensemble aussi : relire sans cache et ne lire que le
@@ -2635,13 +2635,18 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   non flex) : un titre de flux sans espace, souvent l'URL, ne rétrécit pas sous
   son mot le plus long avec `break-word` et débordait sur le sélecteur à 320 px —,
   cibles de 44 pt. **Étroit (< 640 px)**, la grille passe à trois colonnes
-  (`minmax(7rem,1fr)` et deux `max-content`) : la cellule du nom prend toute
-  la ligne (`col-span-3`) et le sélecteur et les deux interrupteurs suivent
-  sur la ligne du dessous, toujours alignés sous les en-têtes ; la cellule
-  d'en-tête du nom est alors masquée (`hidden sm:block`), tout comme les
-  cellules vides du groupe « Sans catégorie », pour ne pas laisser de ligne
-  creuse. Le sélecteur garde donc 7 rem au moins, sans que le nom ni la paire
-  d'interrupteurs ne se disputent la ligne (l'ancienne ligne en `flex-wrap`,
+  (`minmax(7rem,1fr)` et deux `minmax(2.75rem,auto)`, soit la cible de 44 pt
+  au plus juste) : la cellule du nom prend toute la ligne (`col-span-3`) et
+  le sélecteur et les deux interrupteurs suivent sur la ligne du dessous,
+  toujours alignés sous les en-têtes ; la cellule d'en-tête du nom est alors
+  masquée (`hidden sm:block`), tout comme les cellules vides du groupe « Sans
+  catégorie », pour ne pas laisser de ligne creuse. Le sélecteur garde donc
+  7 rem au moins, sans que le nom ni la paire d'interrupteurs ne se disputent
+  la ligne. Les deux en-têtes d'interrupteur **se replient sur les mots
+  longs** (`min-w-0`, `[overflow-wrap:anywhere]`, centrés) au lieu d'élargir
+  leur colonne : avec `max-content`, « Zusammenfassen » (de) ou
+  « Підсумовувати » (uk) portaient les colonnes à 88 et 55 px et la grille
+  débordait de 1 à 3 px à 320 px (l'ancienne ligne en `flex-wrap`,
   où la paire se poussait à droite par `ml-auto` et passait sous le sélecteur
   quand la place manquait, a disparu).
   ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
@@ -2723,8 +2728,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     paraît ni ne disparaît plus selon la langue du texte). Dans ce cas
     (`sameLanguage(result.lang, cible)`), `handleTranslateSummary` ne lance
     rien : un toast « Déjà en {langue}. », **sans appel** ni unité du plafond.
-    Seul « Traduire » sans choix est court-circuité : « Traduire en… »,
-    « Traduire avec… » et « Retraduire » partent toujours. Tant qu'une
+    Est court-circuité tout appel **sans langue choisie** et sans traduction
+    affichée, donc aussi « Traduire avec X », qui n'envoie qu'un fournisseur :
+    sur un résumé déjà dans la langue cible, il dit « Déjà en {langue} » sans
+    appel. « Traduire en… » (une langue explicite) et « Retraduire » partent
+    toujours. Tant qu'une
     traduction est affichée, la même place montre « Texte source », quelle que
     soit la cible. Pendant la traduction, l'action est désactivée
     avec « Traduction… » et le statut ajoute « Traduction… » — replié, c'est la
@@ -2971,9 +2979,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     moitiés (même coupe `ceil(n/2)` que le chemin payant), elles aussi en
     `cacheOnly`, et les recolle (`joinHalves`) — jamais plus loin que cette
     coupe. Les autres codes sur le lot entier (409, 5xx, réseau) ne coupent
-    pas. Tout échec qui reste (lot d'un seul segment, moitié absente du cache,
-    409 `no_provider` si le fournisseur n'est plus disponible, 5xx, réseau),
-    comme un `same`, laisse l'article en source, **sans notice ni erreur**, et
+    pas. Un fournisseur mémorisé qui a disparu ne donne pas de 409 : le serveur
+    retombe sur le routage normal (404 `not_cached`, ou une entrée de cache
+    d'un autre fournisseur) ; le 409 `no_provider` n'arrive que si plus aucun
+    fournisseur n'est disponible. Tout échec qui reste (lot d'un seul segment,
+    moitié absente du cache, 5xx, réseau), comme un `same`, laisse l'article en source, **sans notice ni erreur**, et
     efface la mémoire. Les oublis, en tout : « Texte source » (`showSource`),
     cache absent, fournisseur disparu, `same`, toute autre erreur du rejeu, et
     un hash différent (corps changé : l'entrée reste mais n'est pas rejouée,

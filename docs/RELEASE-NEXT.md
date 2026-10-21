@@ -57,8 +57,9 @@ la release publiée.
   lourd pour un lot reste dans la langue d'origine, et la notice le dit (« Traduit en partie (n lots sur m) »). Un lot a le temps que demande sa longueur (jusqu'à 110 s), et un lot coupé faute de temps a une seconde chance, en deux moitiés — y compris quand c'est un reverse proxy en amont qui le coupe ; si une moitié l'est encore, un message dit d'accorder au moins 120 s à /api/ai (le README donne les deux lignes à ajouter). Une réponse inexploitable (un Ollama au contexte trop court tronque un gros lot) ne bascule plus vers un autre fournisseur, peut-être payant : le lot est rejoué en deux moitiés sur le même (le README recommande `OLLAMA_CONTEXT_LENGTH=16384`) ; une « traduction » qui recopie la source (un petit modèle renvoie parfois l'anglais tel quel) est traitée de même, au lieu d'être affichée comme traduite et mise en cache — et le message dit alors quoi faire (réessayer, ou choisir un autre fournisseur via « Traduire avec… »). Les segments voyagent entre des balises `<seg>`, qu'aucun modèle ne prend pour sa fin de séquence : un 7b d'Ollama (Qwen, Llama) traduit le lot entier au lieu de s'arrêter au premier segment. Les
   échecs ont leurs propres messages : « La traduction a échoué. Réessayez. »,
   « Le fournisseur a refusé de traduire cet article. », « Texte trop long pour
-  être traduit. », « Le fournisseur n'a pas rendu une traduction exploitable.
-  Réessayez. » et « Langue non proposée. ». Nouveau bloc « Traduction » dans
+  être traduit. », « Le fournisseur n'a pas rendu une traduction exploitable (texte recopié ou
+  coupé). Réessayez, ou choisissez un autre fournisseur via « Traduire
+  avec… ». » et « Langue non proposée. ». Nouveau bloc « Traduction » dans
   Préférences → IA : langue cible (celle de l'interface par défaut) et
   fournisseur des traductions (« Même que le résumé » par défaut). La vue
   « Par flux et catégorie » gagne deux interrupteurs par ligne, « Résumer » et
@@ -74,6 +75,14 @@ la release publiée.
   un navigateur partagé. Une traduction d'article affichée revient quand on
   rouvre l'article sur le même appareil, sans rien coûter (elle vient du cache
   du serveur ; « Texte source » l'oublie).
+
+  **Préférences › IA.** Pour l'admin, le bloc « Fournisseurs » ouvre la
+  section, avant « Résumés » (sans fournisseur, rien d'autre ne marche) ;
+  « Les utilisateurs peuvent saisir leur propre clé » et le plafond quotidien
+  par utilisateur sont affichés à plat, sous le fournisseur par défaut. Le
+  panneau « Résumé IA » se réduit à son en-tête (étincelle, titre, « Pas
+  encore résumé », « Résumer ») tant qu'il n'y a ni résumé, ni demande en
+  cours, ni erreur ; le repli mémorisé joue dès la première demande.
 - **Deux onglets, un seul appel IA.** Quand le même résumé ou le même lot de
   traduction est demandé pendant qu'il est en cours de génération — depuis un
   autre onglet ou un autre appareil du même compte —, le serveur rattache la
@@ -89,21 +98,7 @@ la release publiée.
   ce fournisseur est encore disponible, et un « Retraduire » raté laisse la
   traduction affichée, avec le message d'erreur.
 
-- **Préférences › IA : « Fournisseurs » passe en tête, et le repli « Avancé »
-  disparaît.** Pour l'admin, le bloc « Fournisseurs » ouvre désormais la
-  section, avant « Résumés » : sans fournisseur, rien d'autre ne marche. Les
-  deux réglages qui se cachaient derrière « Avancé » — « Les utilisateurs
-  peuvent saisir leur propre clé » et le plafond quotidien par utilisateur —
-  sont affichés à plat, sous le fournisseur par défaut. Rien ne change pour
-  un utilisateur.
-
 ## Corrections et améliorations
-
-- **Le panneau « Résumé IA » se réduit à son en-tête tant qu'il n'y a rien à
-  montrer.** Sans résumé, sans demande en cours et sans erreur, il n'a plus de
-  corps ni de chevron — l'ancienne ligne « Cliquez sur « Résumer »… » est
-  retirée — : étincelle, titre, « Pas encore résumé » et « Résumer » à droite.
-  Le repli mémorisé ne joue qu'à partir du premier résumé.
 
 - **Les blocs `<pre>` et `<picture>` étaient cassés par l'ajout de
   `dir="auto"` depuis la 1.4.0.** Le motif qui donne sa direction à chaque
@@ -142,6 +137,10 @@ la release publiée.
 
 ## Sous le capot
 
+- **Le texte barré part au modèle en `<del>`, pas en `<s>`.** `</s>` est une
+  chaîne de fin de séquence pour les tokenizers Llama et Qwen : un article qui
+  portait du texte barré pouvait faire s'arrêter un modèle Ollama au milieu du
+  lot. Le barré voyage donc en `<del>` et reste `<del>` dans la traduction.
 - **Image de branche** : un lancement manuel du workflow de publication sur une branche autre que `main` et `dev` publie `:sha-…` et `:<branche>` (nom assaini), en amd64 seulement.
 
 ## Actions requises à la mise à jour

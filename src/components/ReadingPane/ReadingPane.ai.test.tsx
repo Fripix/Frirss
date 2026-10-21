@@ -697,6 +697,17 @@ describe('ReadingPane — traduction du résumé', () => {
     expect(getByText('Le résumé.')).toBeTruthy();
     expect(getByRole('button', { name: 'ai.translate' })).toBeTruthy();
   });
+  it('« Traduire avec X » sans langue choisie : un résumé déjà dans la langue cible dit « Déjà en » sans appel', async () => {
+    useAiStore.setState({ config: TWO });
+    vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+    const { getByRole, findByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    await findByText('Le résumé.');
+    fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
+    fireEvent.click(within(getByRole('group', { name: 'ai.translateWith' })).getByRole('menuitemradio', { name: 'Claude' }));
+    await waitFor(() => expect(useUiStore.getState().toasts.map((x) => x.message)).toContain('ai.translation.alreadyTarget'));
+    expect(requestAiTranslation).not.toHaveBeenCalled();
+  });
   it('« Traduire en… » une autre langue part toujours, même quand le résumé est déjà dans la langue cible', async () => {
     vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
     vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
