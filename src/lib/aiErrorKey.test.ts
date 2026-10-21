@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aiErrorKey, aiErrorMessage, isAiDeadline, isUpstreamCut } from './aiErrorKey';
+import { aiErrorKey, aiErrorMessage, isAiDeadline, isAiMalformed, isUpstreamCut } from './aiErrorKey';
 import fr from '../locales/fr.json';
 import en from '../locales/en.json';
 
@@ -63,6 +63,13 @@ describe('aiErrorKey', () => {
     // Un 504 d'un reverse proxy en amont n'a pas de corps du serveur : rien n'est deviné.
     expect(isAiDeadline(504, undefined)).toBe(false);
     expect(isAiDeadline(undefined, undefined)).toBe(false);
+  });
+  it('recognises a malformed answer only from the code the server sends', () => {
+    expect(isAiMalformed(502, { error: 'ai_failed', kind: 'technical', detail: 'segments' })).toBe(true);
+    expect(isAiMalformed(502, { error: 'ai_failed', kind: 'technical', detail: 'deadline' })).toBe(false);
+    expect(isAiMalformed(502, { error: 'ai_failed', kind: 'technical' })).toBe(false);
+    expect(isAiMalformed(504, undefined)).toBe(false);
+    expect(isAiMalformed(undefined, undefined)).toBe(false);
   });
   it('recognises a reverse proxy that cut the request', () => {
     // 504 sans corps (nginx, Nginx Proxy Manager à 60 s), ou un corps qui n'est pas le nôtre.

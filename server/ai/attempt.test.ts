@@ -92,6 +92,19 @@ describe('runWithFallback', () => {
     }
     expect(call).toHaveBeenCalledTimes(1);
   });
+  it('throws a noFallback error at once: no next candidate, no fallback line, the reservation refunded', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const call = vi.fn().mockRejectedValueOnce(Object.assign(new AiError('technical', 'segments'), { noFallback: true })).mockResolvedValueOnce('ok');
+      await expect(runWithFallback(attempt({ call, available: [A(1, 'Paid', true), A(2, 'Two')] })))
+        .rejects.toMatchObject({ kind: 'technical', message: 'segments', ownKey: false });
+      expect(call).toHaveBeenCalledTimes(1);
+      expect(usageToday(43)).toBe(0);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
   it('says no_provider when nothing is available', async () => {
     await expect(runWithFallback(attempt({ available: [] }))).rejects.toMatchObject({ kind: 'technical', message: 'no_provider' });
   });

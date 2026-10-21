@@ -1994,7 +1994,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   de marge au-dessus de l'échéance de 50 s du résumé, et **coupent** un gros
   lot de traduction, qui peut tenir 110 s. FriRSS **s'y adapte** au lieu de
   l'exiger : la traduction de l'article rejoue un lot coupé en deux moitiés
-  (voir « Lot coupé faute de temps »), et ne dit « autorisez au moins 120 s
+  (voir « Lot coupé ou réponse inexploitable »), et ne dit « autorisez au moins 120 s
   sur /api/ai » (`ai.errors.proxyTimeout`) que si une moitié est coupée à
   son tour. Une erreur de transport garde **sa cause** dans le message
   (`transportDetail`) : « Ollama: fetch failed (EHOSTUNREACH) », `ENOTFOUND`,
@@ -2064,7 +2064,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   fournisseur qui l'emporte. L'écran de réglage des étages flux et catégorie
   est le bloc « Par flux et catégorie » (Préférences → IA).
 - **Repli** (`fallback`, vrai par défaut) : sur erreur `auth` / `quota` /
-  `technical` seulement, dans l'ordre de l'admin, **jamais** sur `refused`, un
+  `technical` seulement, dans l'ordre de l'admin, **jamais** sur `refused` ni
+  sur une erreur marquée `noFallback` (`AiError`, posée seulement sur une
+  traduction inexploitable, « segments » : voir « Traduction — serveur »), un
   seul tour ; la réponse dit d'où on vient (`fellBackFrom`). **Y compris
   depuis « Résumer avec X » et « Traduire avec X »** : si le fournisseur
   choisi échoue, le suivant répond et l'en-tête (ou la notice) dit « X
@@ -2200,8 +2202,16 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   lire `lang:`. Un numéro absent, en double ou hors bornes, ou un segment sans
   `</s>`, invalide **le lot entier**, **rejoué une fois** sur le même
   fournisseur si l'échéance laisse au moins 2 s (`MIN_CALL_MS`), sinon
-  `AiError('technical', 'segments')` — le repli peut alors passer au suivant,
-  et la route répond 502 `ai_failed` avec `detail: 'segments'`. Source déjà
+  `AiError('technical', 'segments')` marquée `noFallback` : **pas de repli**
+  vers le candidat suivant (`runWithFallback` la lève aussitôt, rend la
+  réservation du plafond, et seule la ligne `AI translate failed: technical
+  segments` est journalisée, aucune `AI fallback:`), et la route répond 502
+  `ai_failed` avec `detail: 'segments'` ; le client rejoue alors le lot coupé
+  en deux (voir « Lot coupé ou réponse inexploitable »). Raison : un Ollama
+  local au contexte trop court **tronque** sa réponse sur un gros lot, et le
+  repli envoyait le lot au fournisseur suivant — Claude, payant — sans que
+  personne l'ait choisi (trois lots payés en un seul essai). Les vraies pannes
+  (réseau, erreur HTTP, échéance) gardent le repli. Source déjà
   dans la cible : le modèle répond `lang: <code>` puis `same`, le serveur rend
   `{ segments: [], same: true }` et le **met en cache** tel quel (coût
   d'entrée seul, une fois). Une langue source **annoncée égale à la cible**
@@ -2598,11 +2608,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     plus lourd que 200 000 octets n'entre dans aucun lot et reste dans la
     source : la traduction est alors **partielle**, et la notice compte les
     lots envoyés sur ceux qu'il aurait fallu (un par segment écarté).
-  - **Lot coupé faute de temps** : chaque lot a une échéance serveur
+  - **Lot coupé ou réponse inexploitable** : chaque lot a une échéance serveur
     proportionnelle à sa longueur (30 s + 75 ms par mot, plafond 110 s ; voir
-    « Traduction — serveur »). Deux signaux, et eux seuls (`lib/aiErrorKey.ts`) :
-    le serveur répond 502 `ai_failed` avec `detail: 'deadline'`
-    (`isAiDeadline`) ; ou un **reverse proxy en amont** a coupé la requête
+    « Traduction — serveur »). Trois signaux, et eux seuls (`lib/aiErrorKey.ts`,
+    testés par `worthSplitting`) : le serveur répond 502 `ai_failed` avec
+    `detail: 'deadline'` (`isAiDeadline`, échéance serveur) ; le serveur
+    répond 502 `ai_failed` avec `detail: 'segments'` (`isAiMalformed` :
+    réponse inexploitable après le rejeu serveur, que le serveur ne fait plus
+    passer au fournisseur suivant) ; ou un **reverse proxy en amont** a coupé la requête
     (`isUpstreamCut`) — **après au moins 30 s d'attente**
     (`UPSTREAM_CUT_MIN_MS` ; la durée de la requête est posée sur son erreur,
     `elapsedMs`), un 502 ou 504 dont le corps n'est pas celui du serveur
@@ -2619,9 +2632,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     appelant n'applique la réponse que si sa propre boucle l'est encore. Une
     première moitié du premier lot déjà dans la langue arrête tout (`same`),
     comme un premier lot ; une moitié `same` plus loin garde ses segments
-    d'origine. Une moitié qui expire à son tour échoue comme
-    n'importe quel lot (pas de seconde découpe) ; un lot d'un seul segment qui
-    expire échoue aussitôt ; les autres erreurs ne sont jamais rejouées. Un
+    d'origine. Une moitié qui échoue à son tour (échéance, coupure ou réponse
+    inexploitable) échoue comme n'importe quel lot (pas de seconde découpe) ;
+    un lot d'un seul segment échoue aussitôt ; les autres erreurs ne sont
+    jamais rejouées. Après une réponse inexploitable, d'une moitié ou d'un lot
+    d'un seul segment, le message est `ai.errors.segments` (« Le fournisseur
+    n'a pas rendu une traduction exploitable. Réessayez. »), rien n'est
+    remplacé. La traduction d'un **résumé** (un seul segment) n'est jamais
+    coupée : elle affiche ce message directement. Un
     lot déjà réussi ne repart jamais. La notice garde le compte des lots
     d'origine (« Lot 1 sur 2… » pendant les deux moitiés du premier). Le
     message d'erreur reste le neutre « La traduction a échoué. Réessayez. »
@@ -2876,7 +2894,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   seulement. FriRSS envoie jusqu'à 200 000 caractères de texte
   (`htmlToText`) : régler la fenêtre côté Ollama (`OLLAMA_CONTEXT_LENGTH` sur le
   serveur, ou `num_ctx` dans le `Modelfile` du modèle) à la mesure des articles
-  attendus. Rien côté FriRSS : le point d'accès compatible OpenAI ne prend pas
+  attendus. En **traduction**, la sortie s'ajoute à l'entrée : un lot de
+  1 200 mots fait environ **3 300 jetons d'entrée**, et la fenêtre de
+  **4 096 jetons** par défaut tronque la réponse (502 `segments`, mesuré sur
+  l'instance de test). `OLLAMA_CONTEXT_LENGTH=16384` est recommandé ; sans
+  lui, le rejeu coupé en deux (« Lot coupé ou réponse inexploitable ») permet
+  encore à un Ollama réglé par défaut de traduire, par moitiés de 600 mots. Rien côté FriRSS : le point d'accès compatible OpenAI ne prend pas
   `num_ctx`, et l'aide du champ « URL de base » doit rester courte — c'est ici
   que le piège est consigné.
 - **Réglages serveur** (`settings`) : `ai_enabled`, `ai_user_keys_allowed`,

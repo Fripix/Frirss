@@ -38,6 +38,9 @@ export function translateDeadlineMs(words: number): number {
   return Math.min(TRANSLATE_DEADLINE_MAX_MS, TRANSLATE_DEADLINE_BASE_MS + TRANSLATE_DEADLINE_PER_WORD_MS * words);
 }
 
+/** Réponse inexploitable : erreur finale, sans repli vers le candidat suivant (`AiError.noFallback`). */
+const malformed = () => Object.assign(new AiError('technical', 'segments'), { noFallback: true });
+
 interface Translated { lang: string | null; same: boolean; segments: string[]; model: string }
 
 /** Valeur de cache : `text` porte le lot en JSON, `lang` la langue source. */
@@ -62,7 +65,9 @@ function decodeCached(v: AiCacheValue, count: number): Pick<Translated, 'same' |
  * - Format strict `<s n="N">…</s>` : un segment absent, en double ou en trop
  *   invalide le lot, **rejoué une fois** sur le même fournisseur si l'échéance
  *   le permet (même réservation : c'est le même lot), sinon `technical`
- *   « segments » — et le repli peut passer au suivant.
+ *   « segments », **sans repli** (`noFallback`) : un Ollama local au contexte
+ *   trop court tronque sa sortie, et le candidat suivant pouvait être payant.
+ *   Le client rejoue alors le lot coupé en deux (`useArticleTranslation`).
  * - `same` (source déjà dans la langue cible) : `{ segments: [], same: true }`,
  *   mis en cache comme tel. Une langue source annoncée égale à la cible
  *   (`sameLanguage`) vaut `same` même si le modèle a traduit quand même.
@@ -88,10 +93,10 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
       let parsed = parseTranslation(result.text, count);
       if (!parsed.same && !parsed.segments) {
         const remaining = deadline - now();
-        if (remaining < MIN_CALL_MS) throw new AiError('technical', 'segments');
+        if (remaining < MIN_CALL_MS) throw malformed();
         result = await call(cand.provider, cand.key, { ...opts, timeoutMs: remaining });
         parsed = parseTranslation(result.text, count);
-        if (!parsed.same && !parsed.segments) throw new AiError('technical', 'segments');
+        if (!parsed.same && !parsed.segments) throw malformed();
       }
       // Un petit modèle peut annoncer « lang: fr » puis traduire du français
       // en français malgré la consigne : la langue annoncée fait foi.

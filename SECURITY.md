@@ -128,7 +128,9 @@ FreshRSS credentials, stored and backed up the same way.
 The article text leaves the instance for the provider the admin chose, which is
 the point of the feature and also its privacy cost: leave it off, or point it at
 a local model, if articles must not leave the network. Translation follows the
-same key, redirect, redaction and fallback rules as summaries; for a whole
+same key, redirect, redaction and fallback rules as summaries, with one
+exception: an unusable translation answer never falls back to the next provider
+(which may be paid), it is retried in two halves on the same one; for a whole
 article, its text leaves the instance in batches, one provider call per batch,
 under the same rule as a summary: the title as plain text, and the displayed
 text blocks, each block passed through the HTML sanitiser first.

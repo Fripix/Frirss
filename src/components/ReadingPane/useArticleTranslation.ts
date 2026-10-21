@@ -4,7 +4,7 @@ import axios from 'axios';
 import { requestAiTranslation, type AiTranslationResult } from '../../api/backend';
 import { useAuthStore } from '../../stores/authStore';
 import { segmentArticle, batchSegments, type Segmented } from '../../lib/articleSegments';
-import { aiErrorMessage, isAiDeadline, isUpstreamCut } from '../../lib/aiErrorKey';
+import { aiErrorMessage, isAiDeadline, isAiMalformed, isUpstreamCut } from '../../lib/aiErrorKey';
 import type { AiRouting } from '../../lib/aiRouting';
 import type { AiLanguage } from '../../lib/aiLanguages';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
@@ -103,12 +103,15 @@ function joinHalves(a: AiTranslationResult, aSize: number, b: AiTranslationResul
 const elapsedOf = (err: unknown): number | undefined => (err as { elapsedMs?: number } | null)?.elapsedMs;
 
 /**
- * Le lot a manqué de temps : le serveur l'a coupé (`detail: 'deadline'`), ou
- * un reverse proxy en amont a coupé la requête (`isUpstreamCut`).
+ * Le lot vaut d'être rejoué coupé en deux : le serveur l'a coupé faute de
+ * temps (`detail: 'deadline'`), un reverse proxy en amont a coupé la requête
+ * (`isUpstreamCut`), ou le fournisseur a rendu une réponse inexploitable
+ * (`detail: 'segments'` : un Ollama au contexte trop court tronque un gros lot).
  */
-function ranOutOfTime(err: unknown): boolean {
+function worthSplitting(err: unknown): boolean {
   const resp = axios.isAxiosError(err) ? err.response : undefined;
-  return isAiDeadline(resp?.status, resp?.data as Parameters<typeof isAiDeadline>[1])
+  const data = resp?.data as Parameters<typeof isAiDeadline>[1];
+  return isAiDeadline(resp?.status, data) || isAiMalformed(resp?.status, data)
     || (axios.isAxiosError(err) && isUpstreamCut(resp?.status, resp?.data, elapsedOf(err) ?? 0));
 }
 
@@ -265,9 +268,12 @@ function prepare(title: string, bodyHtml: string): Prepared {
  *   (`wanted`). Une coupure par un reverse proxy en amont (`isUpstreamCut` :
  *   après au moins 30 s, 502/504 sans notre corps ou plus de réponse) est traitée de
  *   même ; une moitié — ou un lot d'un seul segment — coupée ainsi affiche
- *   `ai.errors.proxyTimeout`, qui dit quoi régler. Une moitié qui expire à
- *   son tour échoue comme n'importe quel lot. `progress` garde le compte des lots d'origine. Un lot réussi ne
- *   repart jamais.
+ *   `ai.errors.proxyTimeout`, qui dit quoi régler. Une réponse inexploitable
+ *   (502 `detail: 'segments'`, que le serveur ne fait plus passer au
+ *   fournisseur suivant) est traitée de même ; une moitié — ou un lot d'un
+ *   seul segment — inexploitable affiche `ai.errors.segments`. Une moitié qui
+ *   échoue à son tour échoue comme n'importe quel lot. `progress` garde le
+ *   compte des lots d'origine. Un lot réussi ne repart jamais.
  * - Tant qu'un lot manque, rien n'est remplacé : une erreur à n'importe quel
  *   lot donne `error` sans corps traduit — ou, quand une traduction était déjà
  *   tenue (autre langue, autre fournisseur), la garde (`done`) et y ajoute
@@ -398,10 +404,11 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
           try {
             return await request(indices);
           } catch (err) {
-            if (indices.length < 2 || !ranOutOfTime(err)) throw err;
+            if (indices.length < 2 || !worthSplitting(err)) throw err;
           }
-          // Coupé faute de temps : rejoué une fois, en deux moitiés, en série.
-          // Une moitié qui expire à son tour finit en erreur, sans autre découpe.
+          // Coupé faute de temps ou rendu inexploitable : rejoué une fois, en
+          // deux moitiés, en série. Une moitié qui échoue à son tour finit en
+          // erreur, sans autre découpe.
           if (!wanted()) throw new Abandoned();
           const mid = Math.ceil(indices.length / 2);
           const first = await request(indices.slice(0, mid));

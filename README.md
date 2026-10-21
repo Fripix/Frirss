@@ -158,6 +158,12 @@ The first launch generates the JWT secret and the token-encryption key and store
 > Without them, a long translation batch cut by the proxy is split in two and
 > sent again automatically; if that is not enough, the app says the
 > intermediate server cut the response.
+>
+> **With a local Ollama**, start it with `OLLAMA_CONTEXT_LENGTH=16384`: a
+> translation batch of about 1 200 words needs some 3 300 input tokens, and
+> the default 4 096-token context truncates the answer (FriRSS then retries
+> it in two halves rather than sending it to another, possibly paid,
+> provider).
 
 ## Configuration
 

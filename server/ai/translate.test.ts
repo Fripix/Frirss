@@ -56,16 +56,33 @@ describe('translate', () => {
       .rejects.toMatchObject({ kind: 'technical', message: 'segments' });
     expect(bad).toHaveBeenCalledTimes(1);
   });
-  it('falls back to the next provider after two malformed answers', async () => {
+  it('does not fall back after two malformed answers: segments, two calls, no call to the next, cap refunded', async () => {
+    // Un Ollama local au contexte trop court tronque sa réponse : le lot suivant
+    // ne doit pas partir en silence vers un fournisseur payant.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const call = vi.fn()
         .mockResolvedValueOnce(answer('x'))
         .mockResolvedValueOnce(answer('y'))
         .mockResolvedValueOnce(answer('lang: en\n<s n="0">Bonjour</s>'));
-      const r = await translate({ ...base, available: [A(1, 'A'), A(2, 'B')] }, { call });
+      await expect(translate({ ...base, articleId: 'tr-nofb', available: [A(1, 'A', true), A(2, 'B')] }, { call }))
+        .rejects.toMatchObject({ kind: 'technical', message: 'segments' });
+      expect(call.mock.calls.map((c) => c[0].name)).toEqual(['A', 'A']);
+      expect(usageToday(44)).toBe(0);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+  it('still falls back on a network error', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const call = vi.fn()
+        .mockRejectedValueOnce(new AiError('technical', 'A: fetch failed'))
+        .mockResolvedValueOnce(answer('lang: en\n<s n="0">Bonjour</s>'));
+      const r = await translate({ ...base, articleId: 'tr-net', available: [A(1, 'A'), A(2, 'B')] }, { call });
       expect(r).toMatchObject({ providerName: 'B', fellBackFrom: 'A', segments: ['Bonjour'] });
-      expect(warn.mock.calls).toEqual([['AI fallback:', 'A', 'technical', 'segments']]);
+      expect(warn.mock.calls).toEqual([['AI fallback:', 'A', 'technical', 'A: fetch failed']]);
     } finally {
       warn.mockRestore();
     }

@@ -44,7 +44,7 @@ export interface Attempt<T> {
  * Spec §6 et §9 : la boucle commune au résumé et à la traduction. Ordre :
  * résolution, puis pour chaque candidat cache, échéance, plafond (clé admin
  * seulement, réservé avant l'appel et rendu s'il échoue), appel, repli (jamais
- * sur `refused`, un seul tour), cache.
+ * sur `refused` ni sur une erreur `noFallback`, un seul tour), cache.
  *
  * - Un candidat plafonné est sauté, pas échoué : le repli passe au suivant
  *   (clé de l'utilisateur, fournisseur gratuit) et `fellBackFrom` reste vide.
@@ -96,7 +96,7 @@ export async function runWithFallback<T>(a: Attempt<T>): Promise<{ result: T | A
       if (!(err instanceof AiError)) console.error('AI provider error:', cand.provider.name, (err as Error)?.name, (err as Error)?.message);
       const e = err instanceof AiError ? err : new AiError('technical', 'provider_error');
       e.ownKey = cand.own;
-      if (e.kind === 'refused' || !a.fallback) throw e;
+      if (e.kind === 'refused' || e.noFallback || !a.fallback) throw e;
       // Sans cette ligne, une bascule rattrapée ne laisse aucune trace : une coupure
       // réseau vers Ollama a ainsi basculé vers Claude (payant) sans rien dire.
       // Chaînes seulement ; le message est déjà masqué (clé) et coupé par l'adaptateur.

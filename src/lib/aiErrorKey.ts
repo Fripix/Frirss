@@ -4,7 +4,8 @@
  * Sert aussi à `POST /api/ai/translate` : `invalid_lang` (langue hors liste) et
  * `ai_failed` + `detail: 'segments'` (lot rendu inexploitable) ont leur clé.
  * `detail: 'deadline'` (le temps a manqué) garde le message neutre de
- * l'opération : le client a déjà rejoué le lot coupé en deux (`isAiDeadline`).
+ * l'opération : le client a déjà rejoué le lot coupé en deux (`isAiDeadline`),
+ * comme pour `segments` (`isAiMalformed`).
  * Une traduction coupée par un reverse proxy en amont (`isUpstreamCut`) a son
  * message, `ai.errors.proxyTimeout`, qui dit quoi régler.
  *
@@ -52,6 +53,15 @@ export function aiErrorKey(status: number | undefined, data: { error?: string; k
  */
 export function isAiDeadline(status: number | undefined, data: { error?: string; kind?: string; detail?: string } | undefined): boolean {
   return status === 502 && data?.error === 'ai_failed' && data.detail === 'deadline';
+}
+
+/**
+ * Le fournisseur a rendu une traduction inexploitable, deux fois (502
+ * `ai_failed` + `detail: 'segments'`) ; le serveur ne passe pas au fournisseur
+ * suivant, le client rejoue le lot coupé en deux. Seulement ce code-là.
+ */
+export function isAiMalformed(status: number | undefined, data: { error?: string; kind?: string; detail?: string } | undefined): boolean {
+  return status === 502 && data?.error === 'ai_failed' && data.detail === 'segments';
 }
 
 /** Une requête attendue au moins ce temps puis perdue sans réponse : coupée en route. */

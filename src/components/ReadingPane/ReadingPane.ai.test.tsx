@@ -673,6 +673,14 @@ describe('ReadingPane — traduction du résumé', () => {
     expect((await findByRole('alert')).textContent).toBe('ai.errors.translateFailed');
     expect(getByText('The summary.')).toBeTruthy();
   });
+  it('a malformed answer says so in one request: the summary is one segment, never split', async () => {
+    vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical', detail: 'segments' }));
+    const { getByRole, findByRole, getByText } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    expect((await findByRole('alert')).textContent).toBe('ai.errors.segments');
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    expect(getByText('The summary.')).toBeTruthy();
+  });
   it('forgets the translation on the next article, and ignores one that arrives late', async () => {
     let resolve!: (v: unknown) => void;
     vi.mocked(requestAiTranslation).mockReturnValue(new Promise((r) => { resolve = r; }) as never);

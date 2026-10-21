@@ -11,6 +11,14 @@ export class AiError extends Error {
    * Marqué ici plutôt que lu dans le message : le texte peut changer.
    */
   timedOut?: boolean;
+  /**
+   * Vrai si l'échec ne doit PAS passer au candidat suivant : `runWithFallback`
+   * le lève aussitôt. Posé seulement sur une réponse de traduction
+   * inexploitable (« segments ») : un Ollama local au contexte trop court
+   * tronque sa sortie, et le repli enverrait le lot à un fournisseur payant
+   * sans que personne l'ait choisi. Le client rejoue plutôt le lot coupé en deux.
+   */
+  noFallback?: boolean;
   constructor(public readonly kind: AiErrorKind, message: string, public readonly status?: number) {
     super(message);
     this.name = 'AiError';

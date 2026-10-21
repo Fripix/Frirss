@@ -457,6 +457,52 @@ describe('useArticleTranslation', () => {
       expect(hook.current.error).toBe('ai.errors.translateFailed');
     });
 
+    const malformed = () => httpError({ error: 'ai_failed', kind: 'technical', detail: 'segments' });
+
+    it('a malformed answer is replayed once, split in two, then the next batch goes: four requests, the body assembled', async () => {
+      vi.mocked(requestAiTranslation)
+        .mockRejectedValueOnce(malformed())
+        .mockResolvedValueOnce(result(['Bonjour le monde']))
+        .mockResolvedValueOnce(result([words('un', 1000)]))
+        .mockResolvedValueOnce(result([words('deux', 1000)]));
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('done'));
+      expect(sent()).toEqual([
+        ['Hello world', words('one', 1000)], ['Hello world'], [words('one', 1000)], [words('two', 1000)],
+      ]);
+      expect(hook.current.title).toBe('Bonjour le monde');
+      expect(hook.current.html).toContain(words('un', 1000));
+      expect(hook.current.html).toContain(words('deux', 1000));
+      expect(hook.current.html).not.toContain(words('one', 1000));
+    });
+
+    it('a malformed half says so: nothing replaced, no further split', async () => {
+      vi.mocked(requestAiTranslation)
+        .mockRejectedValueOnce(malformed())
+        .mockRejectedValueOnce(malformed());
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('error'));
+      expect(sent()).toEqual([['Hello world', words('one', 1000)], ['Hello world']]);
+      expect(hook.current.error).toBe('ai.errors.segments');
+      expect(hook.current.html).toBeNull();
+      expect(hook.current.title).toBeNull();
+      expect(hook.current.showing).toBe('source');
+    });
+
+    it('a malformed one-segment batch says so at once, the batch before it is not resent', async () => {
+      vi.mocked(requestAiTranslation)
+        .mockResolvedValueOnce(result(['Bonjour le monde', words('un', 1000)]))
+        .mockRejectedValueOnce(malformed());
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('error'));
+      expect(sent()).toEqual([['Hello world', words('one', 1000)], [words('two', 1000)]]);
+      expect(hook.current.error).toBe('ai.errors.segments');
+      expect(hook.current.html).toBeNull();
+    });
+
     it('stops between the halves once the article changed', async () => {
       const firstHalf = deferred<AiTranslationResult>();
       vi.mocked(requestAiTranslation).mockRejectedValueOnce(timedOut()).mockReturnValueOnce(firstHalf.promise);
