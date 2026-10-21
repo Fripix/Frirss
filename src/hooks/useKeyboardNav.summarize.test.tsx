@@ -96,6 +96,37 @@ describe('useKeyboardNav — summarize', () => {
     expect(e.defaultPrevented).toBe(false);
   });
 
+  // Le menu « Traduire en… » / « Résumer avec… » est un `role="menu"`, pas
+  // une boîte : `t` y lançait une traduction payante derrière le menu, `s` un
+  // résumé, et j/k changeaient l'article sous le menu ouvert.
+  it('stays silent, every shortcut included, while focus is on an item of an open menu', () => {
+    renderHook(() => useKeyboardNav());
+    let translated = 0;
+    const onTranslate = () => { translated++; };
+    window.addEventListener('frirss:ai-translate', onTranslate);
+    useUiStore.setState({ shortcuts: { ...useUiStore.getState().shortcuts, translate: 't' } });
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    const item = document.createElement('button');
+    item.setAttribute('role', 'menuitem');
+    menu.appendChild(item);
+    document.body.appendChild(menu);
+    const selectNextArticle = useFeedStore.getState().selectNextArticle;
+    let moved = 0;
+    useFeedStore.setState({ selectNextArticle: () => { moved++; } } as never);
+    const s = press('s', item);
+    const t = press('t', item);
+    press(useUiStore.getState().shortcuts.nextArticle, item);
+    menu.remove();
+    useFeedStore.setState({ selectNextArticle } as never);
+    window.removeEventListener('frirss:ai-translate', onTranslate);
+    expect(heard).toHaveLength(0);
+    expect(translated).toBe(0);
+    expect(moved).toBe(0);
+    expect(s.defaultPrevented).toBe(false);
+    expect(t.defaultPrevented).toBe(false);
+  });
+
   it('still works from a focused toolbar button outside any dialog', () => {
     renderHook(() => useKeyboardNav());
     const button = document.createElement('button');

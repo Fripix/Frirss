@@ -32,6 +32,10 @@ export function useKeyboardNav(): void {
       // simple bouton hors boîte, lui, garde les raccourcis : après un clic
       // dans la barre d'outils, le focus y reste, et j/k doivent suivre.
       if (document.querySelector('[role="dialog"]')) return;
+      // Un menu (« Traduire en… », « Résumer avec… ») n'est pas une boîte,
+      // mais quand le focus est sur une de ses entrées, il possède le clavier
+      // lui aussi : `t` y lançait une traduction payante derrière le menu.
+      if (target?.closest?.('[role="menu"]')) return;
 
       // Escape leaves Reading Focus mode (only when active — otherwise let other
       // handlers, e.g. search / preferences, deal with Escape).

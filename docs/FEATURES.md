@@ -516,10 +516,13 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   `textarea`, contenu éditable), un `<select>` qui a le focus (sa recherche
   lettre par lettre tapait `s` dans « Fournisseur préféré » et lançait un
   résumé, peut-être payant), et **toute boîte ouverte** (`[role="dialog"]` :
-  Préférences, confirmation, palette, feuille du bas, aide-mémoire). Sur
-  ordinateur le volet de lecture reste monté derrière les Préférences : sans
-  cette garde, `r`, `d`, `l` ou `s` agissaient sur l'article qu'elles
-  recouvrent. ⌘K est traité avant ces gardes, par convention. Un simple bouton
+  Préférences, confirmation, palette, feuille du bas, aide-mémoire), et le
+  focus posé **dans un menu** (`[role="menu"]` : « Traduire en… »,
+  « Résumer avec… » sur ordinateur — après une flèche, `t` y lançait une
+  traduction payante derrière le menu et `j`/`k` changeaient l'article
+  dessous). Sur ordinateur le volet de lecture reste monté derrière les
+  Préférences : sans cette garde, `r`, `d`, `l` ou `s` agissaient sur
+  l'article qu'elles recouvrent. ⌘K est traité avant ces gardes, par convention. Un simple bouton
   qui a le focus **ne** fait **pas** taire les raccourcis : après un clic dans
   la barre d'outils le focus y reste (Chrome), et `j`/`k` doivent suivre.
 
