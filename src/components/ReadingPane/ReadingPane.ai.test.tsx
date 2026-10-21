@@ -624,6 +624,15 @@ describe('ReadingPane — traduction du résumé', () => {
     expect(await findByText('The summary.')).toBeTruthy();
     expect(getByRole('button', { name: 'ai.translate' })).toBeTruthy();
   });
+  it('shows the translated summary as text: entities decoded, tags dropped, never literal', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translation(['Caf&eacute; &amp; <em>th&eacute;</em> <script>alert(1)</script>.\n\nSecond &quot;point&quot;.']));
+    const { getByRole, findByText, container } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    expect(await findByText('Café & thé .')).toBeTruthy();
+    expect(await findByText('Second "point".')).toBeTruthy();
+    const text = container.textContent ?? '';
+    for (const literal of ['&amp;', '&quot;', '<em>', 'alert(1)']) expect(text).not.toContain(literal);
+  });
   it('uses the target language of the preferences when one is set', async () => {
     useUiStore.setState({ aiTranslationLanguage: 'ja' });
     vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);

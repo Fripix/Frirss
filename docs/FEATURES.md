@@ -2449,7 +2449,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     liste et retour au lieu de fermer, Échap ferme. « Traduire avec X »
     vise la langue de la traduction affichée (sinon la cible) et **garde le
     réglage de repli**, comme « Résumer avec X ». Traduit, le corps montre la
-    traduction, le statut ajoute « traduit en {langue} par Y » (et « X
+    traduction **en texte** : le résumé part comme un segment HTML (le format
+    de `/api/ai/translate`), donc chaque segment rendu passe par `plainText()`
+    (sanitiseur puis `textContent`) — sans quoi un `&amp;` ou un `<em>` du
+    modèle s'affichait tel quel. Le statut ajoute « traduit en {langue} par Y » (et « X
     indisponible » si le repli a joué), la région vivante l'annonce, et
     « Traduire » devient **« Texte source »**, qui rend le résumé d'origine
     sans requête. Une traduction qui arrive panneau replié ne le déplie pas.

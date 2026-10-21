@@ -183,8 +183,9 @@ function hashOf(text: string): string {
   return (h >>> 0).toString(16);
 }
 
-/** Le modèle peut rendre du balisage ou des entités : le titre s'affiche en texte. */
-function plainText(html: string): string {
+/** Le modèle peut rendre du balisage ou des entités (les segments voyagent en
+ *  HTML) : le titre et le résumé traduits s'affichent en texte. */
+export function plainText(html: string): string {
   return new DOMParser().parseFromString(sanitizeHtml(html), 'text/html').body.textContent?.trim() ?? '';
 }
 

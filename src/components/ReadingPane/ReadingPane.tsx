@@ -35,7 +35,7 @@ import { sharedSummaryRequest, sharedTranslationRequest } from './aiPending';
 import { AI_LANGUAGES, languageName, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import { aiRouting } from '../../lib/aiRouting';
 import { autoFor } from '../../lib/aiAuto';
-import { useArticleTranslation } from './useArticleTranslation';
+import { useArticleTranslation, plainText } from './useArticleTranslation';
 import TranslateMenu from './TranslateMenu';
 import { useLongPress } from '../../hooks/useLongPress';
 import axios from 'axios';
@@ -857,8 +857,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         pushToast(t('ai.translation.alreadyTarget', { lang: languageName(lang, i18n.language) }));
         return;
       }
+      // Le résumé part comme un segment HTML : `&amp;` ou `<em>` rendus par le
+      // modèle s'afficheraient tels quels dans un résumé rendu en texte.
       setAiTranslation({
-        status: 'done', text: r.segments.join('\n\n'), lang, error: null,
+        status: 'done', text: r.segments.map(plainText).join('\n\n'), lang, error: null,
         providerId: r.providerId, providerName: r.providerName, fellBackFrom: r.fellBackFrom,
       });
     } catch (err) {
