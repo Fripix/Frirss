@@ -78,6 +78,36 @@ describe('translate', () => {
     expect(again).toMatchObject({ same: true, segments: [], lang: 'fr', fromCache: true });
     expect(call).toHaveBeenCalledTimes(1);
   });
+  it('treats as same a source the model reports in the target language, even if it translated anyway', async () => {
+    const call = vi.fn().mockResolvedValue(answer('lang: fr\n<s n="0">Bonjour</s>\n<s n="1">le monde</s>'));
+    const req = { ...base, articleId: 'tr-same', segments: ['Bonjour', 'le monde'], available: [A(1, 'A')] };
+    const r = await translate(req, { call });
+    expect(r).toMatchObject({ same: true, segments: [], lang: 'fr', fromCache: false });
+    const cached = db.prepare('SELECT text FROM ai_cache').all() as { text: string }[];
+    expect(cached).toHaveLength(1);
+    expect(cached[0].text).toContain('"same":true');
+    const again = await translate(req, { call });
+    expect(again).toMatchObject({ same: true, segments: [], lang: 'fr', fromCache: true });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+  it('treats a region-tagged source language as the target, scripts apart', async () => {
+    const regional = vi.fn().mockResolvedValue(answer('lang: fr-CH\n<s n="0">Bonjour</s>'));
+    expect(await translate({ ...base, articleId: 'tr-ch', available: [A(1, 'A')] }, { call: regional }))
+      .toMatchObject({ same: true, segments: [], lang: 'fr-CH' });
+    const traditional = vi.fn().mockResolvedValue(answer('lang: zh-TW\n<s n="0">你好</s>'));
+    expect(await translate({ ...base, articleId: 'tr-tw', targetLang: 'zh-Hant', available: [A(1, 'A')] }, { call: traditional }))
+      .toMatchObject({ same: true, segments: [] });
+    expect(await translate({ ...base, articleId: 'tr-tw', targetLang: 'zh-Hans', available: [A(1, 'A')] }, { call: traditional }))
+      .toMatchObject({ same: false, segments: ['你好'] });
+  });
+  it('returns the segments when the source language differs from the target or is unknown', async () => {
+    const other = vi.fn().mockResolvedValue(answer('lang: en\n<s n="0">Bonjour</s>'));
+    expect(await translate({ ...base, articleId: 'tr-en', available: [A(1, 'A')] }, { call: other }))
+      .toMatchObject({ same: false, segments: ['Bonjour'], lang: 'en' });
+    const unknown = vi.fn().mockResolvedValue(answer('<s n="0">Bonjour</s>'));
+    expect(await translate({ ...base, articleId: 'tr-null', available: [A(1, 'A')] }, { call: unknown }))
+      .toMatchObject({ same: false, segments: ['Bonjour'], lang: null });
+  });
   it('passes maxTokens 8192 to an anthropic provider only', async () => {
     const call = ok();
     await translate({ ...base, available: [A(1, 'Claude', false, 'anthropic')] }, { call });

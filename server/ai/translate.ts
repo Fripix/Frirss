@@ -5,7 +5,7 @@ import type { Availability, ResolutionInput } from './resolve.js';
 import { aiCacheKey, type AiCacheValue } from './store.js';
 import { translateSystem, translateUserMessage, parseTranslation } from './prompts.js';
 import { runWithFallback, SUMMARY_DEADLINE_MS, MIN_CALL_MS } from './attempt.js';
-import type { AiLanguage } from './languages.js';
+import { sameLanguage, type AiLanguage } from './languages.js';
 
 /** Un lot d'environ 1 200 mots rend ~2 000 jetons ; Anthropic exige un plafond, on lui laisse de la marge. */
 const ANTHROPIC_MAX_TOKENS = 8192;
@@ -43,7 +43,8 @@ function decodeCached(v: AiCacheValue, count: number): Pick<Translated, 'same' |
  *   le permet (même réservation : c'est le même lot), sinon `technical`
  *   « segments » — et le repli peut passer au suivant.
  * - `same` (source déjà dans la langue cible) : `{ segments: [], same: true }`,
- *   mis en cache comme tel.
+ *   mis en cache comme tel. Une langue source annoncée égale à la cible
+ *   (`sameLanguage`) vaut `same` même si le modèle a traduit quand même.
  * - La clé de cache porte la langue cible et un hash du scope et des segments :
  *   `articleId` vient du client, comme pour le résumé.
  */
@@ -70,6 +71,9 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
         parsed = parseTranslation(result.text, count);
         if (!parsed.same && !parsed.segments) throw new AiError('technical', 'segments');
       }
+      // Un petit modèle peut annoncer « lang: fr » puis traduire du français
+      // en français malgré la consigne : la langue annoncée fait foi.
+      if (sameLanguage(parsed.lang, req.targetLang)) return { lang: parsed.lang, same: true, segments: [], model: result.model };
       return { lang: parsed.lang, same: parsed.same, segments: parsed.segments ?? [], model: result.model };
     },
     onSuccess: async (_cand, r) => ({ text: JSON.stringify({ same: r.same, segments: r.segments }), lang: r.lang }),

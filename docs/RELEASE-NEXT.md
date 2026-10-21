@@ -51,9 +51,9 @@ la release publiée.
   ou la feuille « … ») ouvre « Traduire en… » — 28 langues, filtrables — et
   « Traduire avec… », qui force un fournisseur sans couper le repli. Un résumé
   déjà dans la langue cible ne propose pas « Traduire » ; un article déjà dans
-  la langue le dit (« Déjà en français. ») après un seul appel, ensuite servi
-  par le cache. Un passage trop lourd pour un lot reste dans la langue
-  d'origine, et la notice le dit (« Traduit en partie (n lots sur m) »). Les
+  la langue le dit (« Déjà en français. ») après un seul appel, même si le
+  modèle l'a traduit quand même, ensuite servi par le cache. Un passage trop
+  lourd pour un lot reste dans la langue d'origine, et la notice le dit (« Traduit en partie (n lots sur m) »). Les
   échecs ont leurs propres messages : « La traduction a échoué. Réessayez. »,
   « Le fournisseur a refusé de traduire cet article. », « Texte trop long pour
   être traduit. », « Le fournisseur n'a pas rendu une traduction exploitable.

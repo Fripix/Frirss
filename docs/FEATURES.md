@@ -2186,7 +2186,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   et la route répond 502 `ai_failed` avec `detail: 'segments'`. Source déjà
   dans la cible : le modèle répond `lang: <code>` puis `same`, le serveur rend
   `{ segments: [], same: true }` et le **met en cache** tel quel (coût
-  d'entrée seul, une fois). Cache : une entrée par lot, clé `op: translate` +
+  d'entrée seul, une fois). Une langue source **annoncée égale à la cible**
+  (`sameLanguage` de `languages.ts`, même règle que le client — un test de
+  parité le vérifie : sous-étiquette principale, région ignorée, `zh-Hant` et
+  `zh-Hans` distingués) vaut aussi `same`, **même si le modèle a traduit
+  quand même** : les petits modèles (Ollama) ignorent la consigne et
+  traduisaient du français en français. L'appel est alors fait et payé une
+  fois (sortie comprise), puis le `same` est mis en cache comme un vrai.
+  Cache : une entrée par lot, clé `op: translate` +
   fournisseur + modèle + **langue cible** + article + sha1 (16 hex) du scope et
   des segments du lot ; la valeur (`AiCacheValue`) porte le lot en JSON dans
   `text` et la langue source dans `lang`. Plafond : **une unité par lot**
