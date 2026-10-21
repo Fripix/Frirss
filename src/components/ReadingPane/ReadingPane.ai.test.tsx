@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, act, waitFor, within } from '@testing-library/react';
 import type { Article } from '../../types';
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'fr' } }) }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string, o?: { name?: string }) => (k === 'ai.translation.by' ? `${k}:${o?.name}` : k), i18n: { language: 'fr' } }) }));
 vi.mock('../../api/feeds', () => ({
   getSubscriptionList: vi.fn(), getUnreadCounts: vi.fn(), getStreamContents: vi.fn(),
   getStarredItems: vi.fn(), markAsRead: vi.fn(() => Promise.resolve()),
@@ -1028,7 +1028,49 @@ describe('ReadingPane — traduction de l\'article', () => {
     expect(await findByRole('button', { name: 'ai.showSource' })).toBeTruthy();
     expect(bodyText(container)).toBe('word word');
     expect(getByRole('heading', { level: 1 }).textContent).toBe('Title a1');
+    expect(getByText('ai.translation.by:Ollama')).toBeTruthy();
+  });
+  it('a translation on screen puts « Traduit par … » in the metadata and no banner', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+    const { getByRole, findByRole, getByText, queryByText, getAllByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    await findByRole('button', { name: 'ai.showSource' });
+    expect(queryByText('ai.translation.done')).toBeNull();
+    for (const region of getAllByRole('status')) expect(region.textContent).toBe('');
+    // Dans la ligne des métadonnées, à côté du temps de lecture — pas dans la région vivante.
+    const chip = getByText('ai.translation.by:Ollama');
+    expect(chip.closest('[role="status"]')).toBeNull();
+    expect(chip.parentElement?.querySelector('svg')).toBeTruthy();
+  });
+  it('the compact metadata line carries « Traduit par … » too', async () => {
+    useUiStore.setState({ layoutMode: 'mobile' } as never);
+    try {
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+      const { getByRole, findByRole, getByText, queryByText } = render(<ReadingPane />);
+      fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+      await findByRole('button', { name: 'ai.showSource' });
+      expect(getByText('ai.translation.by:Ollama')).toBeTruthy();
+      expect(queryByText('ai.translation.done')).toBeNull();
+    } finally {
+      useUiStore.setState({ layoutMode: 'auto' } as never);
+    }
+  });
+  it('a partial translation keeps its banner, with the language and the provider in it', async () => {
+    const a = { ...article('tp'), content: `<p>${'x'.repeat(200_001)}</p><p>End of the text here</p>` } as Article;
+    useFeedStore.setState({ selectedArticle: a, articles: [a] });
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title tp', 'Fin']));
+    const { getByRole, findByRole, getByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    await findByRole('button', { name: 'ai.showSource' });
     expect(getByText('ai.translation.done')).toBeTruthy();
+    expect(getByText('ai.translation.partial')).toBeTruthy();
+  });
+  it('a fallback keeps its banner', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word'], { fellBackFrom: 'Claude' }));
+    const { getByRole, findByRole, getByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    await findByRole('button', { name: 'ai.showSource' });
+    expect(getByText(/ai\.translation\.done, ai\.fellBack/)).toBeTruthy();
   });
   it('« Texte source » switches back without any request', async () => {
     vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
@@ -1038,6 +1080,7 @@ describe('ReadingPane — traduction de l\'article', () => {
     expect(bodyText(container)).toContain('mot mot');
     expect(getByRole('heading', { level: 1 }).textContent).toBe('Titre a1');
     expect(queryByText('ai.translation.done')).toBeNull();
+    expect(queryByText('ai.translation.by:Ollama')).toBeNull();
     fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
     expect(bodyText(container)).toBe('word word');
     expect(requestAiTranslation).toHaveBeenCalledTimes(1);
@@ -1124,7 +1167,9 @@ describe('ReadingPane — traduction de l\'article', () => {
     const { getByRole, findByRole } = render(<ReadingPane />);
     fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
     const alert = await findByRole('alert');
-    fireEvent.click(within(alert).getByRole('button', { name: 'ai.retryWith' }));
+    // Le bouton est sous l'alerte, pas dedans : la région vivante ne lit que le message.
+    expect(within(alert).queryByRole('button')).toBeNull();
+    fireEvent.click(getByRole('button', { name: 'ai.retryWith' }));
     await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
     expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'article', provider: 2 });
   });
@@ -1154,7 +1199,7 @@ describe('ReadingPane — traduction de l\'article', () => {
       expect((await findByRole('alert')).textContent).toContain('ai.errors.translateFailed');
       expect(bodyText(container)).toBe('word word');
       expect(getByRole('heading', { level: 1 }).textContent).toBe('Title a1');
-      expect(getByText('ai.translation.done')).toBeTruthy();
+      expect(getByText('ai.translation.by:Ollama')).toBeTruthy();
       expect((getByRole('button', { name: 'ai.showSource' }) as HTMLButtonElement).disabled).toBe(false);
     });
   });
@@ -1445,7 +1490,7 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
       const { getByText } = render(<ReadingPane />);
       await advance(1000);
       await advance(0);
-      expect(getByText('ai.translation.done')).toBeTruthy();
+      expect(getByText('ai.translation.by:Ollama')).toBeTruthy();
     });
     it('an article with nothing to translate sends nothing and shows nothing', async () => {
       const a = { ...article('tx2'), content: '<img src="https://example.com/a.png" alt="">' } as Article;

@@ -875,6 +875,7 @@
       "filter": "Talen filteren",
       "batch": "Deel {{n}} van {{m}}…",
       "done": "Vertaald naar het {{lang}} door {{name}}",
+      "by": "Vertaald door {{name}}",
       "partial_one": "Gedeeltelijk vertaald ({{count}} deel van {{m}})",
       "partial_other": "Gedeeltelijk vertaald ({{count}} delen van {{m}})",
       "nothing": "Niets te vertalen in dit artikel."

@@ -875,6 +875,7 @@
       "filter": "筛选语言",
       "batch": "第 {{n}} 批，共 {{m}} 批…",
       "done": "由 {{name}} 翻译为{{lang}}",
+      "by": "由 {{name}} 翻译",
       "partial_one": "部分已翻译（{{count}} 批，共 {{m}} 批）",
       "partial_other": "部分已翻译（{{count}} 批，共 {{m}} 批）",
       "nothing": "这篇文章没有可翻译的内容。"

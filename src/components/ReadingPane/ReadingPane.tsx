@@ -1168,13 +1168,28 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       : t('ai.translating');
   } else if (tr.state === 'same' && !tr.automatic) {
     trNotice = t('ai.translation.alreadyTarget', { lang: trLangName });
-  } else if (tr.state === 'done' && showTranslatedBody) {
+  } else if (tr.state === 'done' && showTranslatedBody && (tr.partialOf || tr.fellBackFrom)) {
+    // Une traduction qui s'est déroulée comme prévu n'a pas de bandeau : sa
+    // mention vit dans les métadonnées (`translatedChip`). Le bandeau ne reste
+    // que pour ce qui doit se voir — une bascule (décision du 2026-10-20) et
+    // une traduction partielle, qui garde « Traduit en {langue} par Y ».
     trNotice = [
       t('ai.translation.done', { lang: trLangName, name: tr.providerName ?? '' }),
       tr.fellBackFrom ? t('ai.fellBack', { name: tr.fellBackFrom }) : null,
     ].filter(Boolean).join(', ');
     if (tr.partialOf) trPartial = t('ai.translation.partial', { count: tr.partialOf.translated, m: tr.partialOf.total });
   }
+  // « Traduit par Y », à côté du temps de lecture : même gabarit de puce, mais
+  // en teintes neutres — c'est un état, pas une alerte.
+  const translatedChip = showTranslatedBody && tr.providerName ? (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium min-w-0"
+      style={{ color: 'var(--reading-meta)', background: 'var(--list-active)', border: '1px solid var(--panel-border)' }}
+    >
+      <TranslateIcon className="w-3 h-3 flex-shrink-0" />
+      <span className="truncate">{t('ai.translation.by', { name: tr.providerName })}</span>
+    </span>
+  ) : null;
 
   function decreaseFont() {
     if (bodySize > 10) setFontSize('reading-body', String(bodySize - 1));
@@ -1576,6 +1591,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                   {article.author ? `${article.author} · ` : ''}{date}
                 </div>
               </div>
+              {translatedChip && (
+                <div className="flex items-center min-w-0 max-w-[45%] flex-shrink">{translatedChip}</div>
+              )}
               {showReadingTime && (
                 <span
                   className="flex items-center gap-1 px-2.5 rounded-lg text-[11px] font-medium flex-shrink-0"
@@ -1607,6 +1625,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               )}
               <span style={{ color: 'var(--reading-meta)' }}>·</span>
               <span className="text-xs" style={{ color: 'var(--reading-meta)' }}>{date}</span>
+              {translatedChip}
               {showReadingTime && (
                 <span
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
@@ -1769,21 +1788,24 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </div>
           )}
           {tr.error && (
-            <div
-              role="alert"
-              className="mb-4 px-4 py-3 rounded-lg text-sm flex flex-wrap items-center gap-2"
-              style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
-            >
-              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-              </svg>
-              <span className="min-w-0 flex-1 basis-48 break-words">{tr.error}</span>
+            <div className="mb-4">
+              <div
+                role="alert"
+                className="px-4 py-3 rounded-lg text-sm flex items-center gap-2"
+                style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
+              >
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                <span className="min-w-0 flex-1 break-words">{tr.error}</span>
+              </div>
+              {/* Sous l'alerte, pas dedans : la région vivante lit le message, pas le bouton. */}
               {retryNext && (
                 <button
                   type="button"
                   onClick={() => tr.translate({ providerId: retryNext.id })}
                   disabled={!online}
-                  className={`ml-auto flex-shrink-0 inline-flex items-center justify-center rounded-md text-xs font-semibold whitespace-nowrap hover:opacity-80 disabled:opacity-50 disabled:cursor-default ${isMobileOrTablet ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`}
+                  className={`mt-2 inline-flex items-center justify-center rounded-md text-xs font-semibold whitespace-nowrap hover:opacity-80 disabled:opacity-50 disabled:cursor-default ${isMobileOrTablet ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`}
                   style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: 'transparent' }}
                 >
                   {t('ai.retryWith', { name: retryNext.name })}

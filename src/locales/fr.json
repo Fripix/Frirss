@@ -875,6 +875,7 @@
       "filter": "Filtrer les langues",
       "batch": "Lot {{n}} sur {{m}}…",
       "done": "Traduit en {{lang}} par {{name}}",
+      "by": "Traduit par {{name}}",
       "partial_one": "Traduit en partie ({{count}} lot sur {{m}})",
       "partial_other": "Traduit en partie ({{count}} lots sur {{m}})",
       "nothing": "Rien à traduire dans cet article."

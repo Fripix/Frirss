@@ -2119,10 +2119,16 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   le fautif **dans l'ordre de l'admin**, la liste rebouclant sur son début,
   `null` s'il n'y en a pas d'autre. Cela couvre ce que le repli ne rejoue
   jamais (réponse inexploitable `segments`, refus `refused`) et, repli éteint,
-  toute panne ; avec le repli allumé, une panne a déjà basculé toute seule et
-  l'en-tête le dit. Le clic relance comme « Résumer avec X » / « Traduire avec
-  X » (`onSummarize(id)`, `onTranslate({ providerId })`, `tr.translate({
-  providerId })`) : il garde donc le réglage de repli. Une erreur qui ne nomme
+  toute panne ; avec le repli allumé, une panne a le plus souvent déjà basculé
+  toute seule et l'en-tête le dit — **sauf quand tous les fournisseurs ont
+  échoué** : le bouton se montre quand même, et peut nommer un fournisseur déjà
+  essayé (`nextProvider` ne connaît que le fautif nommé par l'erreur, pas la
+  suite des tentatives du repli). Le clic relance comme « Résumer avec X » /
+  « Traduire avec X » (`onSummarize(id)`, `onTranslate({ providerId })`,
+  `tr.translate({ providerId })`) : il garde donc le réglage de repli. **Repli
+  allumé, une relance forcée sur le suivant repasse donc par le repli** : si ce
+  suivant échoue à son tour, la demande peut rebasculer vers celui qui vient
+  d'échouer — comportement accepté, pas un défaut à corriger. Une erreur qui ne nomme
   aucun fournisseur (plafond, texte trop long, réseau, aucun fournisseur) n'en
   propose aucun : il n'y a pas de « suivant » à désigner.
 - **Plafond** (`ai_daily_cap`, défaut 50, 0 = illimité) : par utilisateur et
@@ -2994,23 +3000,32 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     — jamais le chevron de la barre d'outils, qui n'y est pas rendu. Le
     raccourci `t` et la palette lancent la même action, sans jamais revenir au
     texte source (voir « Raccourcis clavier et palette » plus bas).
-  - **Notice** au-dessus du corps, gabarit de l'avis d'extraction, sur les
-    trois formats, dans une région `role="status"` toujours montée : « Lot
-    {n} sur {m}… » pendant l'attente (« Traduction… » pour un seul lot),
-    « Traduit en {langue} par Y » (+ « , X indisponible » si un lot a basculé ;
-    Y = fournisseur du **dernier** lot, spec §17.3, même si c'est un lot
-    antérieur qui a basculé), « Traduit en partie ({n} lots sur {m}) »
-    sous la précédente, « Déjà en {langue}. » (sauf après une traduction
-    automatique, qui le tait). Les erreurs (mêmes messages que
+  - **Notice et mention** — le bandeau au-dessus du corps (gabarit de l'avis
+    d'extraction, sur les trois formats, dans une région `role="status"`
+    toujours montée) ne sert plus que pour ce qui doit se voir : « Lot {n} sur
+    {m}… » pendant l'attente (« Traduction… » pour un seul lot), « Déjà en
+    {langue}. » (sauf après une traduction automatique, qui le tait), et une
+    traduction **qui n'a pas été toute simple** — « Traduit en {langue} par Y »
+    + « , X indisponible » si un lot a basculé (une bascule doit se voir,
+    décision du 2026-10-20 ; Y = fournisseur du **dernier** lot, spec §17.3,
+    même si c'est un lot antérieur qui a basculé), « Traduit en partie ({n}
+    lots sur {m}) » sous la précédente. Une traduction réussie sans incident n'a
+    **plus de bandeau** : la ligne de métadonnées (bureau **et** compacte,
+    `translatedChip` dans `ReadingPane.tsx`) porte une puce « Traduit par Y »
+    (`ai.translation.by`, icône `TranslateIcon` 12 px, `--reading-meta` sur
+    `--list-active` avec un filet `--panel-border`, à côté de la puce du temps de
+    lecture), tant que la traduction est affichée ; elle disparaît avec « Texte
+    source » et n'est pas dans la région vivante (elle ne s'annonce pas). Les erreurs (mêmes messages que
     la traduction du résumé, `op: 'translate'`) sont une **alerte** à part,
     gabarit de l'erreur d'extraction ; ce qui était affiché le reste (la
     source, ou la traduction précédente). Quand le serveur a nommé le
     fournisseur fautif (`errorProvider` du hook, posé aussi sur une
     traduction tenue que « Traduire en… » a laissée en alerte, effacé à la
     demande suivante) et qu'un autre est disponible, l'alerte porte le bouton
-    « Réessayer avec {X} » → `tr.translate({ providerId })` (retour à la
-    ligne sur un écran étroit, 44 px au doigt, grisé hors ligne). La notice
-    disparaît quand on revient au texte source. L'avis d'extraction et la
+    « Réessayer avec {X} » → `tr.translate({ providerId })` (44 px au
+    doigt, grisé hors ligne) ; il est rendu **sous** l'alerte, pas dedans, pour que la région `role="alert"` ne
+    lise que le message (comme `AiSummary`). Le bandeau (quand il y en a un)
+    et la puce disparaissent quand on revient au texte source. L'avis d'extraction et la
     notice de traduction peuvent se montrer ensemble (extraction d'abord,
     traduction dessous) ; de même les deux alertes — assumé, pas arbitré.
   - **Rien à traduire** (aucun texte de corps) : bouton désactivé, infobulle
@@ -3156,8 +3171,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `automatic` dans l'état du hook et le volet **tait** « Déjà en … » — personne
   n'a rien demandé ; un clic ensuite le dit. **Erreur** : affichée dans
   l'alerte, comme pour un clic — une bascule ou un échec chez un fournisseur
-  payant doit se voir ; de même la notice « Traduit en … par X » d'une
-  réussite. Test : `ReadingPane.ai.test.tsx` (« déclencheurs automatiques par
+  payant doit se voir ; de même la mention « Traduit par X » d'une
+  réussite (puce des métadonnées, voir « Notice et mention »). Test : `ReadingPane.ai.test.tsx` (« déclencheurs automatiques par
   flux et catégorie »).
 - **Raccourcis clavier et palette** : deux actions configurables,
   **`summarize`** (touche **`s`** par défaut, « Résumer l'article (IA) ») et

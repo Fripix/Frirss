@@ -875,6 +875,7 @@
       "filter": "Sprachen filtern",
       "batch": "Teil {{n}} von {{m}}…",
       "done": "Von {{name}} auf {{lang}} übersetzt",
+      "by": "Übersetzt von {{name}}",
       "partial_one": "Teilweise übersetzt ({{count}} Teil von {{m}})",
       "partial_other": "Teilweise übersetzt ({{count}} Teile von {{m}})",
       "nothing": "In diesem Artikel gibt es nichts zu übersetzen."

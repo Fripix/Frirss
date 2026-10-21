@@ -49,7 +49,9 @@ la release publiée.
   **Traductions.** « Traduire », à côté de « Résumer avec… », traduit le
   résumé vers la langue cible ; « Traduire », dans la barre
   d'outils, traduit le titre et le corps affiché, par lots, avec une notice
-  (« Lot 2 sur 4… », « Traduit en anglais par X ») et « Texte source » pour
+  pendant l'attente (« Lot 2 sur 4… »), puis une discrète puce « Traduit par X » dans les
+  métadonnées de l'article (le bandeau ne reste que pour une bascule ou une traduction
+  partielle) et « Texte source » pour
   revenir à l'original sans nouvel appel. Un chevron (un appui long au doigt,
   ou la feuille « … ») ouvre « Traduire en… » — 28 langues, filtrables — et
   « Traduire avec… », qui force un fournisseur sans couper le repli. Un résumé

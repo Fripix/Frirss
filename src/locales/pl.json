@@ -907,6 +907,7 @@
       "filter": "Filtruj języki",
       "batch": "Część {{n}} z {{m}}…",
       "done": "Przetłumaczone na {{lang}} przez {{name}}",
+      "by": "Przetłumaczone przez {{name}}",
       "partial_one": "Przetłumaczono częściowo ({{count}} część z {{m}})",
       "partial_few": "Przetłumaczono częściowo ({{count}} części z {{m}})",
       "partial_many": "Przetłumaczono częściowo ({{count}} części z {{m}})",
