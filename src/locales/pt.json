@@ -827,7 +827,7 @@
       "auto": "Resumir automaticamente ao abrir",
       "autoHint": "Cada artigo aberto é resumido sem clicar, salvo definição em contrário por feed ou categoria.",
       "panel": "Painel de resumo IA sempre visível",
-      "panelHint": "Desligado, o painel só aparece com um resumo; um botão «Resumir» ocupa o lugar dele na barra de ferramentas (a tecla s e a paleta também funcionam). Ajustável por feed e categoria mais abaixo.",
+      "panelHint": "Desligado, o painel só aparece com um resumo; «Resumir» ocupa o lugar dele na barra de ferramentas (na folha «…» no smartphone). Ajustável por feed e categoria mais abaixo.",
       "autoConfirmTitle": "Ativar o resumo automático?",
       "autoConfirmMessage": "Cada resumo automático é uma chamada ao seu fornecedor de IA. Consoante o fornecedor e a sua subscrição, pode ser-lhe cobrado. Um modelo local como o Ollama não custa nada.",
       "autoConfirm": "Ativar",

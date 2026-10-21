@@ -827,7 +827,7 @@
       "auto": "Résumé automatique à l'ouverture",
       "autoHint": "Chaque article ouvert est résumé sans clic, sauf réglage contraire par flux ou catégorie.",
       "panel": "Panneau Résumé IA toujours visible",
-      "panelHint": "Éteint, le panneau n'apparaît qu'avec un résumé ; un bouton « Résumer » prend sa place dans la barre d'outils (touche s et palette aussi). Réglable par flux et catégorie plus bas.",
+      "panelHint": "Éteint, le panneau n'apparaît qu'avec un résumé ; « Résumer » prend sa place dans la barre d'outils (dans la feuille « … » sur smartphone). Réglable par flux et catégorie plus bas.",
       "autoConfirmTitle": "Activer le résumé automatique ?",
       "autoConfirmMessage": "Chaque résumé automatique est un appel à votre fournisseur d'IA. Selon le fournisseur et votre abonnement, il peut vous être facturé. Un modèle local comme Ollama ne coûte rien.",
       "autoConfirm": "Activer",

@@ -531,6 +531,13 @@ describe('AiSummary — « Réessayer avec… » dans l\'alerte', () => {
     expect(onTranslate).toHaveBeenCalledWith({ providerId: 2 });
     expect(onSummarize).not.toHaveBeenCalled();
   });
+  it('la traduction du résumé raté est rejouée dans la langue qui a échoué', () => {
+    const onTranslate = vi.fn();
+    const translation = { ...noTranslation, status: 'error' as const, error: 'ai.errors.translateFailed', errorProviderId: 1, errorLang: 'de' as const };
+    const { getByRole } = render(<AiSummary {...doneProps} translation={translation} onTranslate={onTranslate} />);
+    fireEvent.click(getByRole('button', RETRY('Ollama')));
+    expect(onTranslate).toHaveBeenCalledWith({ lang: 'de', providerId: 2 });
+  });
   it('l\'alerte du résumé prime : le bouton relance le résumé, pas la traduction', () => {
     const onTranslate = vi.fn();
     const onSummarize = vi.fn();

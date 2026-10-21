@@ -2500,14 +2500,16 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   (chaque résumé est un appel facturable au fournisseur de l'utilisateur ; un
   modèle local ne coûte rien), et **Annuler le laisse éteint** ; l'éteindre ne
   demande jamais rien. Cette boîte (`AutoSummaryConfirm`, dans `ai/shared.tsx`)
-  est la même que celle des interrupteurs « Résumer » de « Par flux et
+  est la même que celle des pastilles « Résumer » de « Par flux et
   catégorie » et ne s'ouvre qu'**une fois par compte** : la confirmer, ici ou
   là, pose `aiAutoSummaryConfirmed`, après quoi rallumer le global (ou un
   « Résumer ») s'applique directement, sans boîte ; puis **« Panneau Résumé IA
   toujours visible »** (interrupteur, **allumé** par défaut, `aiPanelAlways` ;
-  son aide dit qu'éteint, le panneau n'apparaît qu'avec un résumé, qu'un
-  bouton « Résumer » prend sa place dans la barre d'outils (touche `s` et
-  palette aussi) et que le réglage se refait par flux et catégorie plus bas) : il ne coûte rien, donc aucune confirmation ;
+  son aide dit qu'éteint, le panneau n'apparaît qu'avec un résumé, que
+  « Résumer » prend sa place dans la barre d'outils (dans la feuille « … » sur
+  smartphone — la touche `s` et la palette, elles, ne se trouvent que sur
+  ordinateur) et que le réglage se refait par flux et catégorie plus bas) : il
+  ne coûte rien, donc aucune confirmation ;
   enfin la ligne **« Appels IA payés par l'instance aujourd'hui : N sur M »**
   (résumés et traductions, un seul compteur ; N relu à chaque ouverture de la
   section, voir `aiStore` plus haut),
@@ -2853,7 +2855,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     « Retraduire » raté, sous la traduction, qui reste aussi), avec le bouton
     « Réessayer avec… » du panneau quand le fournisseur fautif est connu
     (`aiTranslation.errorProviderId`, que « Retraduire » raté garde lui
-    aussi). Les messages qui
+    aussi). Ce bouton rejoue **la même demande, langue comprise** : la langue
+    qui a échoué est gardée avec le fournisseur (`aiTranslation.errorLang`) et
+    repart dans `onTranslate({ lang, providerId })` — un « Traduire en
+    allemand » raté se réessaie en allemand, pas dans la langue cible par
+    défaut. Les messages qui
     nomment l'opération ont leur variante (`aiErrorKey(…, { op: 'translate'
     })`) : sans cause connue, « La traduction a échoué. Réessayez. » ; refus,
     « Le fournisseur a refusé de traduire cet article. » ; `invalid_body`,
@@ -3011,19 +3017,35 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     même si c'est un lot antérieur qui a basculé), « Traduit en partie ({n}
     lots sur {m}) » sous la précédente. Une traduction réussie sans incident n'a
     **plus de bandeau** : la ligne de métadonnées (bureau **et** compacte,
-    `translatedChip` dans `ReadingPane.tsx`) porte une puce « Traduit par Y »
+    `translatedChipFor` dans `ReadingPane.tsx`) porte une puce « Traduit par Y »
     (`ai.translation.by`, icône `TranslateIcon` 12 px, `--reading-meta` sur
-    `--list-active` avec un filet `--panel-border`, à côté de la puce du temps de
-    lecture), tant que la traduction est affichée ; elle disparaît avec « Texte
-    source » et n'est pas dans la région vivante (elle ne s'annonce pas). Les erreurs (mêmes messages que
+    `--list-active` avec un filet `--panel-border`), tant que la traduction est
+    affichée ; elle disparaît avec « Texte source ». Sur ordinateur elle suit la
+    date, avant la puce du temps de lecture, et **ne se tronque jamais** : c'est
+    la ligne d'auteur (souvent une adresse e-mail) qui s'abrège (`min-w-0
+    truncate`, `title` = l'auteur entier). En variante compacte elle a **sa
+    propre ligne**, sous celle de source et date et sur toute la largeur — à côté
+    d'elles, à 320 px, elle ne laissait que 69 px à la colonne de gauche et
+    coupait la date — et ne se tronque que si elle dépasse cette ligne. `title`
+    porte son texte entier dans les deux variantes. Elle est hors de la région
+    vivante : pour que la fin d'une traduction ne soit pas muette au lecteur
+    d'écran, la région garde une ligne `sr-only` « Traduit en {langue} par Y »
+    (`ai.translation.done`) dès qu'une traduction est affichée sans bandeau
+    visible (comme `AiSummary` pour les résumés). Les erreurs (mêmes messages que
     la traduction du résumé, `op: 'translate'`) sont une **alerte** à part,
     gabarit de l'erreur d'extraction ; ce qui était affiché le reste (la
     source, ou la traduction précédente). Quand le serveur a nommé le
     fournisseur fautif (`errorProvider` du hook, posé aussi sur une
     traduction tenue que « Traduire en… » a laissée en alerte, effacé à la
     demande suivante) et qu'un autre est disponible, l'alerte porte le bouton
-    « Réessayer avec {X} » → `tr.translate({ providerId })` (44 px au
-    doigt, grisé hors ligne) ; il est rendu **sous** l'alerte, pas dedans, pour que la région `role="alert"` ne
+    « Réessayer avec {X} » → `tr.translate({ lang: tr.errorLang, providerId })`
+    (44 px au doigt, grisé hors ligne). Il rejoue **la même demande, langue
+    comprise** : le hook garde la langue qui a échoué (`errorLang`, posée avec
+    `errorProvider`, effacée à la demande suivante) parce que la traduction
+    tenue peut être dans une autre — un « Traduire en allemand » raté se
+    réessaie en allemand, et un « Traduire en espagnol » raté par-dessus une
+    traduction allemande se réessaie en espagnol, l'allemande restant à l'écran
+    jusqu'à ce que l'espagnole réussisse. Le bouton est rendu **sous** l'alerte, pas dedans, pour que la région `role="alert"` ne
     lise que le message (comme `AiSummary`). Le bandeau (quand il y en a un)
     et la puce disparaissent quand on revient au texte source. L'avis d'extraction et la
     notice de traduction peuvent se montrer ensemble (extraction d'abord,

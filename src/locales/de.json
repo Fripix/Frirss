@@ -827,7 +827,7 @@
       "auto": "Beim Öffnen automatisch zusammenfassen",
       "autoHint": "Jeder geöffnete Artikel wird ohne Klick zusammengefasst, sofern kein Feed und keine Kategorie etwas anderes festlegt.",
       "panel": "KI-Zusammenfassungsfeld immer sichtbar",
-      "panelHint": "Ausgeschaltet erscheint das Feld nur mit einer Zusammenfassung; eine Schaltfläche „Zusammenfassen“ ersetzt es in der Werkzeugleiste (auch Taste s und Palette). Unten pro Feed und Kategorie einstellbar.",
+      "panelHint": "Ausgeschaltet erscheint das Feld nur mit einer Zusammenfassung; „Zusammenfassen“ ersetzt es in der Werkzeugleiste (auf dem Smartphone im „…“-Blatt). Unten pro Feed und Kategorie einstellbar.",
       "autoConfirmTitle": "Automatische Zusammenfassung aktivieren?",
       "autoConfirmMessage": "Jede automatische Zusammenfassung ist ein Aufruf bei Ihrem KI-Anbieter. Je nach Anbieter und Tarif kann sie Ihnen in Rechnung gestellt werden. Ein lokales Modell wie Ollama kostet nichts.",
       "autoConfirm": "Aktivieren",

@@ -827,7 +827,7 @@
       "auto": "Riassumi automaticamente all'apertura",
       "autoHint": "Ogni articolo aperto viene riassunto senza un clic, salvo impostazione diversa per feed o categoria.",
       "panel": "Pannello Riassunto IA sempre visibile",
-      "panelHint": "Se disattivato, il pannello compare solo con un riassunto; un pulsante «Riassumi» ne prende il posto nella barra degli strumenti (anche il tasto s e la tavolozza). Regolabile per feed e categoria più sotto.",
+      "panelHint": "Se disattivato, il pannello compare solo con un riassunto; «Riassumi» ne prende il posto nella barra degli strumenti (nel foglio «…» su smartphone). Regolabile per feed e categoria più sotto.",
       "autoConfirmTitle": "Attivare il riassunto automatico?",
       "autoConfirmMessage": "Ogni riassunto automatico è una chiamata al suo fornitore di IA. A seconda del fornitore e dell'abbonamento, potrebbe esserle addebitato. Un modello locale come Ollama non costa nulla.",
       "autoConfirm": "Attiva",

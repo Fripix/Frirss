@@ -24,7 +24,7 @@ export interface AiSummaryProps {
   onSummarize: (providerId?: number, opts?: { regenerate?: boolean }) => void;
   disabled?: boolean;
   /** La traduction du résumé affiché ; `providerId` sert à cocher le fournisseur dans le menu. */
-  translation: { status: 'idle' | 'loading' | 'done' | 'error'; text: string | null; lang: AiLanguage | null; providerId?: number; providerName?: string; fellBackFrom?: string; error: string | null; errorProviderId?: number };
+  translation: { status: 'idle' | 'loading' | 'done' | 'error'; text: string | null; lang: AiLanguage | null; providerId?: number; providerName?: string; fellBackFrom?: string; error: string | null; errorProviderId?: number; errorLang?: AiLanguage };
   onTranslate: (choice?: { lang?: AiLanguage; providerId?: number; regenerate?: boolean }) => void;
   onShowSource: () => void;
   /** Langue cible par défaut (réglage, ou langue de l'interface). */
@@ -179,7 +179,7 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
   const retry = () => {
     if (!retryNext) return;
     if (failed) onSummarize(retryNext.id);
-    else onTranslate({ providerId: retryNext.id });
+    else onTranslate({ lang: translation.errorLang, providerId: retryNext.id });
   };
   const errorLine = alertText && (
     <div className="flex flex-col items-start gap-1.5">

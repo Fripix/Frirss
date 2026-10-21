@@ -120,6 +120,34 @@ describe('useArticleTranslation', () => {
     expect(hook.current.errorProvider).toBeUndefined();
   });
 
+  it('une erreur garde la langue demandée, même par-dessus une traduction tenue dans une autre', async () => {
+    const fail = () => Object.assign(new Error('http 502'), { isAxiosError: true, response: { status: 502, data: { error: 'ai_failed', kind: 'technical', provider: { id: 1, name: 'Ollama' } } } });
+    vi.mocked(requestAiTranslation)
+      .mockRejectedValueOnce(fail())
+      .mockResolvedValueOnce(result(['Titel', 'Hallo'], { lang: 'de' }))
+      .mockRejectedValueOnce(fail())
+      .mockReturnValueOnce(new Promise(() => {}) as never);
+    const { result: hook } = renderHook(() => useArticleTranslation({ ...base, bodyHtml: '<p>Hello</p>' }));
+    // Sans traduction tenue : « Traduire en allemand » raté.
+    await act(async () => { hook.current.translate({ lang: 'de' }); });
+    await waitFor(() => expect(hook.current.state).toBe('error'));
+    expect(hook.current.errorLang).toBe('de');
+    // Avec une traduction allemande tenue : « Traduire en espagnol » raté.
+    await act(async () => { hook.current.translate({ lang: 'de' }); });
+    await waitFor(() => expect(hook.current.state).toBe('done'));
+    expect(hook.current.errorLang).toBeUndefined();
+    await act(async () => { hook.current.translate({ lang: 'es' }); });
+    await waitFor(() => expect(hook.current.error).toBe('ai.errors.translateFailed'));
+    expect(hook.current.state).toBe('done');
+    expect(hook.current.lang).toBe('de');
+    expect(hook.current.errorLang).toBe('es');
+    // Rejouée avec { lang: errorLang, providerId } : la demande suivante efface l'erreur et sa langue.
+    await act(async () => { hook.current.translate({ lang: hook.current.errorLang, providerId: 2 }); });
+    expect(vi.mocked(requestAiTranslation).mock.calls[3][0]).toMatchObject({ targetLang: 'es', provider: 2 });
+    expect(hook.current.errorLang).toBeUndefined();
+    expect(hook.current.html).not.toBeNull();
+  });
+
   it('une erreur sans fournisseur (réseau, 409) n\'en garde aucun', async () => {
     vi.mocked(requestAiTranslation).mockRejectedValueOnce(Object.assign(new Error('http 409'), { isAxiosError: true, response: { status: 409, data: { error: 'no_provider' } } }));
     const { result: hook } = renderHook(() => useArticleTranslation({ ...base, bodyHtml: '<p>Hello</p>' }));

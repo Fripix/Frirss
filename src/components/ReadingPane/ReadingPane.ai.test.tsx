@@ -959,6 +959,19 @@ describe('ReadingPane — traduction du résumé', () => {
     expect(await findByText('Le résumé traduit.')).toBeTruthy();
     expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'summary', provider: 2 });
   });
+  it('« Réessayer avec… » rejoue la langue qui a échoué, pas la langue cible', async () => {
+    useAiStore.setState({ config: TWO });
+    vi.mocked(requestAiTranslation)
+      .mockRejectedValueOnce(httpError(502, { error: 'ai_failed', kind: 'technical', provider: { id: 1, name: 'Ollama' } }))
+      .mockResolvedValueOnce(translation(['Die Zusammenfassung.'], { lang: 'de' }));
+    const { getByRole, findByRole, findByText } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
+    fireEvent.click(within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('de', 'fr') }));
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ scope: 'summary', targetLang: 'de' });
+    fireEvent.click(await findByRole('button', { name: 'ai.retryWith' }));
+    expect(await findByText('Die Zusammenfassung.')).toBeTruthy();
+    expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'summary', targetLang: 'de', provider: 2 });
+  });
   it('a failure with no known cause says the translation failed, and keeps the summary', async () => {
     vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
     const { getByRole, findByRole, getByText } = await summarized();
@@ -1035,22 +1048,38 @@ describe('ReadingPane — traduction de l\'article', () => {
     const { getByRole, findByRole, getByText, queryByText, getAllByRole } = render(<ReadingPane />);
     fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
     await findByRole('button', { name: 'ai.showSource' });
-    expect(queryByText('ai.translation.done')).toBeNull();
-    for (const region of getAllByRole('status')) expect(region.textContent).toBe('');
+    // Aucun bandeau visible : la fin de la traduction ne s'annonce que dans la
+    // région vivante, par une ligne invisible (sinon elle passerait de
+    // « Traduction… » à vide, en silence).
+    const announced = getByText('ai.translation.done');
+    expect(announced.className).toContain('sr-only');
+    expect(announced.closest('[role="status"]')).not.toBeNull();
     // Dans la ligne des métadonnées, à côté du temps de lecture — pas dans la région vivante.
     const chip = getByText('ai.translation.by:Ollama');
     expect(chip.closest('[role="status"]')).toBeNull();
     expect(chip.parentElement?.querySelector('svg')).toBeTruthy();
+    // Le texte entier de la puce, en infobulle (variante bureau : jamais tronquée).
+    expect(chip.parentElement?.getAttribute('title')).toBe('ai.translation.by:Ollama');
+    expect(chip.className).not.toContain('truncate');
+    expect(getAllByRole('status').some((r) => r.textContent === 'ai.translation.done')).toBe(true);
+    expect(queryByText('ai.translation.partial')).toBeNull();
   });
   it('the compact metadata line carries « Traduit par … » too', async () => {
     useUiStore.setState({ layoutMode: 'mobile' } as never);
     try {
       vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
-      const { getByRole, findByRole, getByText, queryByText } = render(<ReadingPane />);
+      const { getByRole, findByRole, getByText } = render(<ReadingPane />);
       fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
       await findByRole('button', { name: 'ai.showSource' });
-      expect(getByText('ai.translation.by:Ollama')).toBeTruthy();
-      expect(queryByText('ai.translation.done')).toBeNull();
+      const chip = getByText('ai.translation.by:Ollama');
+      // Sa propre ligne, sous source et date (elle ne se serre pas contre la date), et en infobulle en entier.
+      expect(chip.parentElement?.getAttribute('title')).toBe('ai.translation.by:Ollama');
+      expect(chip.parentElement?.className).toContain('max-w-full');
+      expect(chip.className).toContain('truncate');
+      const line = chip.parentElement?.parentElement;
+      expect(line?.className).not.toContain('flex');
+      expect(line?.previousElementSibling?.textContent).toContain('Src');
+      expect(chip.closest('[role="status"]')).toBeNull();
     } finally {
       useUiStore.setState({ layoutMode: 'auto' } as never);
     }
@@ -1172,6 +1201,38 @@ describe('ReadingPane — traduction de l\'article', () => {
     fireEvent.click(getByRole('button', { name: 'ai.retryWith' }));
     await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
     expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'article', provider: 2 });
+  });
+  it('« Réessayer avec… » rejoue la langue qui a échoué, pas la langue cible', async () => {
+    useAiStore.setState({ config: { ...ON, providers: [...ON.providers, { id: 2, name: 'Claude', type: 'anthropic' as const, hasAdminKey: true, shared: true, hasUserKey: false, available: true }] } });
+    vi.mocked(requestAiTranslation)
+      .mockRejectedValueOnce(httpError(502, { error: 'ai_failed', kind: 'technical', provider: { id: 1, name: 'Ollama' } }))
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const { getByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticleMenu' }));
+    fireEvent.click(within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('de', 'fr') }));
+    await waitFor(() => expect(getByRole('button', { name: 'ai.retryWith' })).toBeTruthy());
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ scope: 'article', targetLang: 'de' });
+    fireEvent.click(getByRole('button', { name: 'ai.retryWith' }));
+    await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'article', targetLang: 'de', provider: 2 });
+  });
+  it('« Réessayer avec… » over a displayed translation replays the failed language, and the shown one stays until it succeeds', async () => {
+    useAiStore.setState({ config: { ...ON, providers: [...ON.providers, { id: 2, name: 'Claude', type: 'anthropic' as const, hasAdminKey: true, shared: true, hasUserKey: false, available: true }] } });
+    vi.mocked(requestAiTranslation)
+      .mockResolvedValueOnce(translated(['Title a1', 'Der Text'], { lang: 'de' }))
+      .mockRejectedValueOnce(httpError(502, { error: 'ai_failed', kind: 'technical', provider: { id: 1, name: 'Ollama' } }))
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const { getByRole, findByRole, container } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticleMenu' }));
+    fireEvent.click(within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('de', 'fr') }));
+    await findByRole('button', { name: 'ai.showSource' });
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticleMenu' }));
+    fireEvent.click(within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('es', 'fr') }));
+    fireEvent.click(await findByRole('button', { name: 'ai.retryWith' }));
+    await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(3));
+    expect(vi.mocked(requestAiTranslation).mock.calls[2][0]).toMatchObject({ scope: 'article', targetLang: 'es', provider: 2 });
+    // L'allemand reste à l'écran tant que l'espagnol n'est pas arrivé.
+    expect(bodyText(container)).toBe('Der Text');
   });
   describe('re-translating into another language over a displayed translation', () => {
     async function shownThenGerman() {

@@ -62,6 +62,9 @@ export interface ArticleTranslation {
   /** Avec `error` : le fournisseur que le serveur dit avoir échoué ou refusé
    *  (502 `ai_failed`, 422 `ai_refused`), pour « Réessayer avec… ». */
   errorProvider?: number;
+  /** Avec `error` : la langue demandée qui a échoué. « Réessayer avec… » la
+   *  rejoue telle quelle — la traduction tenue peut être dans une autre. */
+  errorLang?: AiLanguage;
   /** Faux quand le corps n'a aucun segment à traduire (« Rien à traduire dans cet article. »). */
   canTranslate: boolean;
   /** L'état affiché vient d'une demande automatique : un `same` ne se dit pas. */
@@ -85,6 +88,7 @@ interface Snapshot {
   fellBackFrom?: string;
   error: string | null;
   errorProvider?: number;
+  errorLang?: AiLanguage;
   automatic: boolean;
   showing: 'source' | 'translation';
 }
@@ -418,7 +422,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     };
     const stillCurrent = () => seq.current === mine && sameAccount();
     const shownFor = accountKey();
-    setSnap((s) => ({ ...(s.key === k ? s : idle(k)), state: 'loading', progress: { done: 0, total }, error: null, errorProvider: undefined, automatic }));
+    setSnap((s) => ({ ...(s.key === k ? s : idle(k)), state: 'loading', progress: { done: 0, total }, error: null, errorProvider: undefined, errorLang: undefined, automatic }));
 
     void (async () => {
       // Une chaîne vide laisse le segment d'origine en place (`apply`).
@@ -516,8 +520,8 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
         const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], admin, language, { op: 'translate', elapsedMs: elapsedOf(err) });
         // Une traduction déjà tenue (payée) reste affichée, l'erreur s'ajoute.
         setSnap(held
-          ? { ...held, error: tr(msg.key, msg.params), errorProvider: msg.providerId }
-          : { ...idle(k), state: 'error', error: tr(msg.key, msg.params), errorProvider: msg.providerId });
+          ? { ...held, error: tr(msg.key, msg.params), errorProvider: msg.providerId, errorLang: lang }
+          : { ...idle(k), state: 'error', error: tr(msg.key, msg.params), errorProvider: msg.providerId, errorLang: lang });
       }
     })();
   }, []);
@@ -564,6 +568,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     fellBackFrom: current.fellBackFrom,
     error: current.error,
     errorProvider: current.errorProvider,
+    errorLang: current.errorLang,
     canTranslate,
     automatic: current.automatic,
     translate,

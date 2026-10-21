@@ -871,7 +871,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     // en cas d'échec, l'alerte s'y ajoute — comme pour l'article.
     const held = regenerate ? shown : null;
     const seq = ++aiTranslationSeq.current;
-    setAiTranslation(held ? { ...held, status: 'loading', error: null, errorProviderId: undefined } : { ...NO_AI_TRANSLATION, status: 'loading' });
+    setAiTranslation(held ? { ...held, status: 'loading', error: null, errorProviderId: undefined, errorLang: undefined } : { ...NO_AI_TRANSLATION, status: 'loading' });
     try {
       const key = summaryTranslationKey({ user: useAuthStore.getState().backendUser?.id, articleId: id, lang, providerId: choice?.providerId, text, regenerate });
       const r = await sharedTranslationRequest(key, () => requestAiTranslation({
@@ -897,8 +897,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       const resp = axios.isAxiosError(err) ? err.response : undefined;
       const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], isAdmin, i18n.language, { op: 'translate' });
       setAiTranslation(held
-        ? { ...held, status: 'error', error: t(msg.key, msg.params), errorProviderId: msg.providerId }
-        : { ...NO_AI_TRANSLATION, status: 'error', error: t(msg.key, msg.params), errorProviderId: msg.providerId });
+        ? { ...held, status: 'error', error: t(msg.key, msg.params), errorProviderId: msg.providerId, errorLang: lang }
+        : { ...NO_AI_TRANSLATION, status: 'error', error: t(msg.key, msg.params), errorProviderId: msg.providerId, errorLang: lang });
     }
   }, [selectedArticle, aiResult, aiTranslation, aiTargetLang, isAdmin, t, i18n, pushToast]);
 
@@ -1170,7 +1170,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     trNotice = t('ai.translation.alreadyTarget', { lang: trLangName });
   } else if (tr.state === 'done' && showTranslatedBody && (tr.partialOf || tr.fellBackFrom)) {
     // Une traduction qui s'est déroulée comme prévu n'a pas de bandeau : sa
-    // mention vit dans les métadonnées (`translatedChip`). Le bandeau ne reste
+    // mention vit dans les métadonnées (`translatedChipFor`). Le bandeau ne reste
     // que pour ce qui doit se voir — une bascule (décision du 2026-10-20) et
     // une traduction partielle, qui garde « Traduit en {langue} par Y ».
     trNotice = [
@@ -1179,17 +1179,26 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     ].filter(Boolean).join(', ');
     if (tr.partialOf) trPartial = t('ai.translation.partial', { count: tr.partialOf.translated, m: tr.partialOf.total });
   }
-  // « Traduit par Y », à côté du temps de lecture : même gabarit de puce, mais
-  // en teintes neutres — c'est un état, pas une alerte.
-  const translatedChip = showTranslatedBody && tr.providerName ? (
-    <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium min-w-0"
-      style={{ color: 'var(--reading-meta)', background: 'var(--list-active)', border: '1px solid var(--panel-border)' }}
-    >
-      <TranslateIcon className="w-3 h-3 flex-shrink-0" />
-      <span className="truncate">{t('ai.translation.by', { name: tr.providerName })}</span>
-    </span>
-  ) : null;
+  // « Traduit par Y » dans les métadonnées : même gabarit de puce que le temps
+  // de lecture, mais en teintes neutres — c'est un état, pas une alerte. Jamais
+  // tronquée en dessous de son texte (c'est la ligne d'auteur qui cède, sur
+  // ordinateur) ; en variante compacte elle a sa propre ligne et ne se tronque
+  // que si elle dépasse celle-ci. `title` porte le texte entier dans les deux.
+  const translatedChipFor = (compact: boolean) => {
+    if (!showTranslatedBody || !tr.providerName) return null;
+    const label = t('ai.translation.by', { name: tr.providerName });
+    return (
+      <span
+        title={label}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${compact ? 'max-w-full' : 'flex-shrink-0'}`}
+        style={{ color: 'var(--reading-meta)', background: 'var(--list-active)', border: '1px solid var(--panel-border)' }}
+      >
+        <TranslateIcon className="w-3 h-3 flex-shrink-0" />
+        <span className={compact ? 'min-w-0 truncate' : ''}>{label}</span>
+      </span>
+    );
+  };
+  const chipCompact = translatedChipFor(true);
 
   function decreaseFont() {
     if (bodySize > 10) setFontSize('reading-body', String(bodySize - 1));
@@ -1579,7 +1588,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           {/* Source / Author / Date / Reading time */}
           {isMobileOrTablet ? (
             /* ── Mobile: 2-line — left: source+meta, right: reading time ── */
-            <div className="flex items-stretch gap-3 mb-3">
+            <>
+            <div className={`flex items-stretch gap-3 ${chipCompact ? 'mb-1.5' : 'mb-3'}`}>
               <div className="flex-1 min-w-0">
                 <div
                   className="text-xs font-semibold uppercase tracking-wide truncate"
@@ -1591,9 +1601,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                   {article.author ? `${article.author} · ` : ''}{date}
                 </div>
               </div>
-              {translatedChip && (
-                <div className="flex items-center min-w-0 max-w-[45%] flex-shrink">{translatedChip}</div>
-              )}
               {showReadingTime && (
                 <span
                   className="flex items-center gap-1 px-2.5 rounded-lg text-[11px] font-medium flex-shrink-0"
@@ -1606,29 +1613,36 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 </span>
               )}
             </div>
+            {/* Sa propre ligne, sous source et date, sur toute la largeur : à
+                côté, à 320 px, elle ne laissait que 69 px à la colonne de
+                gauche et coupait la date. Elle ne se tronque que si elle
+                dépasse la ligne. */}
+            {chipCompact && <div className="mb-3 min-w-0">{chipCompact}</div>}
+            </>
           ) : (
             /* ── Desktop: single-line layout ── */
             <div className="flex items-center gap-2 mb-3">
               <span
-                className="text-xs font-semibold uppercase tracking-wide"
+                className="text-xs font-semibold uppercase tracking-wide min-w-0 truncate"
                 style={{ color: 'var(--list-source)' }}
               >
                 {article.source}
               </span>
               {article.author && (
                 <>
-                  <span style={{ color: 'var(--reading-meta)' }}>·</span>
-                  <span className="text-xs" style={{ color: 'var(--reading-meta)' }}>
+                  <span className="flex-shrink-0" style={{ color: 'var(--reading-meta)' }}>·</span>
+                  {/* C'est l'auteur (souvent une adresse e-mail) qui cède la place. */}
+                  <span className="text-xs min-w-0 truncate" title={article.author} style={{ color: 'var(--reading-meta)' }}>
                     {article.author}
                   </span>
                 </>
               )}
-              <span style={{ color: 'var(--reading-meta)' }}>·</span>
-              <span className="text-xs" style={{ color: 'var(--reading-meta)' }}>{date}</span>
-              {translatedChip}
+              <span className="flex-shrink-0" style={{ color: 'var(--reading-meta)' }}>·</span>
+              <span className="text-xs flex-shrink-0 whitespace-nowrap" style={{ color: 'var(--reading-meta)' }}>{date}</span>
+              {translatedChipFor(false)}
               {showReadingTime && (
                 <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium flex-shrink-0 whitespace-nowrap"
                   style={{
                     color: 'var(--accent)',
                     background: 'var(--accent-glow)',
@@ -1773,6 +1787,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               alerte à part. */}
           {aiUsable && (
             <div role="status" aria-live="polite">
+              {/* Une traduction réussie n'a pas de bandeau (sa mention vit dans la
+                  puce des métadonnées, hors de la région) : sans cette ligne, la
+                  région passerait de « Traduction… » à vide et finirait en silence. */}
+              {!trNotice && showTranslatedBody && tr.state === 'done' && (
+                <span className="sr-only">{t('ai.translation.done', { lang: trLangName, name: tr.providerName ?? '' })}</span>
+              )}
               {trNotice && (
                 <div
                   className="mb-4 px-4 py-2.5 rounded-lg text-xs flex items-center gap-2"
@@ -1803,7 +1823,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               {retryNext && (
                 <button
                   type="button"
-                  onClick={() => tr.translate({ providerId: retryNext.id })}
+                  onClick={() => tr.translate({ lang: tr.errorLang, providerId: retryNext.id })}
                   disabled={!online}
                   className={`mt-2 inline-flex items-center justify-center rounded-md text-xs font-semibold whitespace-nowrap hover:opacity-80 disabled:opacity-50 disabled:cursor-default ${isMobileOrTablet ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`}
                   style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: 'transparent' }}
