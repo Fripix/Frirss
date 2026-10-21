@@ -734,6 +734,7 @@
     "fromCache": "desde la caché",
     "fellBack": "{{name}} no disponible",
     "withProvider": "Resumir con…",
+    "retryWith": "Reintentar con {{name}}",
     "userIntro": "La IA está lista: abre un artículo y haz clic en «Resumir» o «Traducir el artículo».",
     "errors": {
       "auth": "El proveedor ha rechazado la clave. Compruébala en Preferencias › IA.",
@@ -821,7 +822,8 @@
       "keyRequired": "{{name}} (clave necesaria)",
       "removedProvider": "Proveedor eliminado",
       "fallback": "Respaldo automático",
-      "fallbackHint": "Si su proveedor falla, el siguiente de la lista toma el relevo.",
+      "fallbackHint": "Si su proveedor está caído (inaccesible, clave rechazada, cuota, tiempo agotado), el siguiente de la lista toma el relevo y el encabezado lo indica.",
+      "fallbackManualHint": "Una respuesta inutilizable o una negativa nunca cambia de proveedor por sí sola: el artículo ofrece entonces «Reintentar con…», para confirmarlo allí. Con el ajuste desactivado, ocurre lo mismo ante cualquier fallo.",
       "auto": "Resumir automáticamente al abrir",
       "autoHint": "Cada artículo abierto se resume sin hacer clic, salvo que un feed o una categoría indique lo contrario.",
       "autoConfirmTitle": "¿Activar el resumen automático?",

@@ -734,6 +734,7 @@
     "fromCache": "uit de cache",
     "fellBack": "{{name}} niet beschikbaar",
     "withProvider": "Samenvatten met…",
+    "retryWith": "Opnieuw proberen met {{name}}",
     "userIntro": "AI is klaar: open een artikel en klik op ‘Samenvatten’ of ‘Artikel vertalen’.",
     "errors": {
       "auth": "Sleutel geweigerd door de aanbieder. Controleer hem in Voorkeuren › AI.",
@@ -821,7 +822,8 @@
       "keyRequired": "{{name}} (sleutel vereist)",
       "removedProvider": "Aanbieder verwijderd",
       "fallback": "Automatisch terugvallen",
-      "fallbackHint": "Als uw aanbieder uitvalt, neemt de volgende in de lijst het over.",
+      "fallbackHint": "Als uw aanbieder uitvalt (onbereikbaar, sleutel geweigerd, quotum, time-out), neemt de volgende in de lijst het over en staat dat in de kop.",
+      "fallbackManualHint": "Een onbruikbaar antwoord of een weigering schakelt nooit zelf over naar een andere aanbieder: het artikel biedt dan „Opnieuw proberen met…” aan, om daar te bevestigen. Staat de instelling uit, dan geldt dat ook voor elke storing.",
       "auto": "Automatisch samenvatten bij openen",
       "autoHint": "Elk geopend artikel wordt zonder klik samengevat, tenzij een feed of categorie anders is ingesteld.",
       "autoConfirmTitle": "Automatische samenvatting inschakelen?",

@@ -83,7 +83,13 @@ export function isUpstreamCut(status: number | undefined, data: unknown, elapsed
   return status === undefined;
 }
 
-export interface AiErrorMessage { key: string; params?: Record<string, string | number> }
+/**
+ * `providerId` : le fournisseur qui a échoué ou refusé, quand le serveur le
+ * nomme (`provider: { id, name }` dans les 502 `ai_failed` et 422
+ * `ai_refused`, jamais dans les autres) — de quoi proposer « Réessayer avec
+ * le suivant » (`nextProvider`).
+ */
+export interface AiErrorMessage { key: string; params?: Record<string, string | number>; providerId?: number }
 
 /**
  * Comme `aiErrorKey`, avec ce qu'il faut pour le plafond quotidien : le 429
@@ -95,13 +101,16 @@ export interface AiErrorMessage { key: string; params?: Record<string, string | 
  */
 export function aiErrorMessage(
   status: number | undefined,
-  data: { error?: string; kind?: string; ownKey?: boolean; detail?: string; cap?: unknown; resetAt?: unknown } | undefined,
+  data: { error?: string; kind?: string; ownKey?: boolean; detail?: string; cap?: unknown; resetAt?: unknown; provider?: { id?: unknown; name?: unknown } } | undefined,
   isAdmin: boolean,
   language: string,
   options: AiErrorOptions = {},
 ): AiErrorMessage {
   const key = aiErrorKey(status, data, isAdmin, options);
-  if (key !== 'ai.errors.cap') return { key };
+  const id = data?.provider?.id;
+  const providerId = typeof id === 'number' && Number.isInteger(id) ? id : undefined;
+  const withProvider = (m: AiErrorMessage): AiErrorMessage => (providerId === undefined ? m : { ...m, providerId });
+  if (key !== 'ai.errors.cap') return withProvider({ key });
   const cap = data?.cap;
   const reset = typeof data?.resetAt === 'string' ? new Date(data.resetAt) : null;
   if (typeof cap !== 'number' || !Number.isInteger(cap) || cap <= 0 || !reset || Number.isNaN(reset.getTime())) return { key };

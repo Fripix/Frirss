@@ -31,6 +31,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { stripMediaForSummary, fitSummaryPayload } from '../../lib/aiPayload';
 import { aiErrorMessage } from '../../lib/aiErrorKey';
+import { nextProvider } from '../../lib/aiRetry';
 import { sharedSummaryRequest, sharedTranslationRequest, summaryRequestKey, summaryTranslationKey } from './aiPending';
 import { AI_LANGUAGES, languageName, sameLanguage, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import { aiRouting } from '../../lib/aiRouting';
@@ -197,6 +198,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [aiResult, setAiResult] = useState<AiSummaryResult | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  // Le fournisseur que le serveur nomme dans l'erreur du résumé : « Réessayer avec… ».
+  const [aiErrorProvider, setAiErrorProvider] = useState<number | undefined>(undefined);
   const aiInFlight = useRef<string | null>(null);
   const aiRatio = useUiStore((s) => s.aiSummaryRatio);
   const aiAutoSummary = useUiStore((s) => s.aiAutoSummary);
@@ -220,7 +223,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const aiUsable = aiOn && aiProviders.some((p) => p.available);
 
   useEffect(() => {
-    setAiStatus('idle'); setAiResult(null); setAiError(null); aiInFlight.current = null;
+    setAiStatus('idle'); setAiResult(null); setAiError(null); setAiErrorProvider(undefined); aiInFlight.current = null;
     setAiTranslation(NO_AI_TRANSLATION); aiTranslationSeq.current++;
     // Le résumé automatique est « une fois par VISITE » : le résumé qu'on vient
     // d'effacer doit pouvoir repartir si l'on revient sur cet article. Déclaré
@@ -801,7 +804,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     // L'extrait n'est celui de cet article que si l'extraction lui appartient.
     const fullText = extractFor === id ? extractedContent?.content : undefined;
     aiInFlight.current = id;
-    setAiStatus('loading'); setAiError(null);
+    setAiStatus('loading'); setAiError(null); setAiErrorProvider(undefined);
     try {
       const regenerate = opts?.regenerate === true;
       const key = summaryRequestKey({ user: useAuthStore.getState().backendUser?.id, articleId: id, providerId, regenerate });
@@ -832,6 +835,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       // Le résumé déjà affiché (`aiResult`) reste : un « Résumer avec… » raté ne l'efface pas.
       const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], isAdmin, i18n.language);
       setAiError(t(msg.key, msg.params));
+      setAiErrorProvider(msg.providerId);
       setAiStatus('error');
     } finally {
       if (aiInFlight.current === id) aiInFlight.current = null;
@@ -865,7 +869,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     // en cas d'échec, l'alerte s'y ajoute — comme pour l'article.
     const held = regenerate ? shown : null;
     const seq = ++aiTranslationSeq.current;
-    setAiTranslation(held ? { ...held, status: 'loading', error: null } : { ...NO_AI_TRANSLATION, status: 'loading' });
+    setAiTranslation(held ? { ...held, status: 'loading', error: null, errorProviderId: undefined } : { ...NO_AI_TRANSLATION, status: 'loading' });
     try {
       const key = summaryTranslationKey({ user: useAuthStore.getState().backendUser?.id, articleId: id, lang, providerId: choice?.providerId, text, regenerate });
       const r = await sharedTranslationRequest(key, () => requestAiTranslation({
@@ -890,7 +894,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (aiTranslationSeq.current !== seq) return;
       const resp = axios.isAxiosError(err) ? err.response : undefined;
       const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], isAdmin, i18n.language, { op: 'translate' });
-      setAiTranslation(held ? { ...held, status: 'error', error: t(msg.key, msg.params) } : { ...NO_AI_TRANSLATION, status: 'error', error: t(msg.key, msg.params) });
+      setAiTranslation(held
+        ? { ...held, status: 'error', error: t(msg.key, msg.params), errorProviderId: msg.providerId }
+        : { ...NO_AI_TRANSLATION, status: 'error', error: t(msg.key, msg.params), errorProviderId: msg.providerId });
     }
   }, [selectedArticle, aiResult, aiTranslation, aiTargetLang, isAdmin, t, i18n, pushToast]);
 
@@ -1130,6 +1136,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // « Texte source » reste possible hors ligne : la traduction est déjà là.
   const translateDisabled = trLoading || (!showTranslatedBody && (!online || !tr.canTranslate));
   const translateTitle = !showTranslatedBody && !tr.canTranslate ? t('ai.translation.nothing') : translateLabel;
+  // « Réessayer avec… » sous l'erreur de traduction : seulement quand le serveur
+  // a nommé le fournisseur fautif (502 / 422) — le suivant, dans l'ordre de l'admin.
+  const retryNext = tr.error && tr.errorProvider !== undefined ? nextProvider(aiProviders, tr.errorProvider) : null;
   const translateAction = showTranslatedBody ? tr.showSource : () => tr.translate();
   const trLangName = tr.lang ? languageName(tr.lang, i18n.language) : '';
   let trNotice: string | null = null;
@@ -1668,7 +1677,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
           {aiUsable && (
             <AiSummary
-              status={aiStatus} result={aiResult} error={aiError} providers={aiProviders}
+              status={aiStatus} result={aiResult} error={aiError} errorProviderId={aiErrorProvider} providers={aiProviders}
               onSummarize={handleSummarize}
               disabled={!online}
               translation={aiTranslation} onTranslate={handleTranslateSummary}
@@ -1728,13 +1737,24 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           {tr.error && (
             <div
               role="alert"
-              className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center gap-2"
+              className="mb-4 px-4 py-3 rounded-lg text-sm flex flex-wrap items-center gap-2"
               style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
             >
               <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
-              {tr.error}
+              <span className="min-w-0 flex-1 basis-48 break-words">{tr.error}</span>
+              {retryNext && (
+                <button
+                  type="button"
+                  onClick={() => tr.translate({ providerId: retryNext.id })}
+                  disabled={!online}
+                  className={`ml-auto flex-shrink-0 inline-flex items-center justify-center rounded-md text-xs font-semibold whitespace-nowrap hover:opacity-80 disabled:opacity-50 disabled:cursor-default ${isMobileOrTablet ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`}
+                  style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: 'transparent' }}
+                >
+                  {t('ai.retryWith', { name: retryNext.name })}
+                </button>
+              )}
             </div>
           )}
 

@@ -142,3 +142,16 @@ describe('daily cap wording', () => {
     for (const s of [en.ai.errors.cap, en.ai.errors.capDetail, en.ai.user.usage]) expect(s.toLowerCase()).not.toContain('summar');
   });
 });
+
+describe('aiErrorMessage — le fournisseur fautif', () => {
+  it('rend l\'identifiant du fournisseur que le serveur nomme (502 ai_failed, 422 ai_refused)', () => {
+    expect(aiErrorMessage(502, { error: 'ai_failed', provider: { id: 4, name: 'Ollama' } }, false, 'en')).toEqual({ key: 'ai.errors.technical', providerId: 4 });
+    expect(aiErrorMessage(422, { error: 'ai_refused', provider: { id: 2, name: 'Claude' } }, false, 'en', { op: 'translate' })).toEqual({ key: 'ai.errors.translateRefused', providerId: 2 });
+  });
+  it('n\'invente rien : absent ou illisible, pas de providerId', () => {
+    expect(aiErrorMessage(502, { error: 'ai_failed' }, false, 'en')).toEqual({ key: 'ai.errors.technical' });
+    expect(aiErrorMessage(502, { error: 'ai_failed', provider: { id: '4', name: 'x' } }, false, 'en')).toEqual({ key: 'ai.errors.technical' });
+    expect(aiErrorMessage(409, { error: 'no_provider' }, false, 'en')).toEqual({ key: 'ai.errors.noProvider' });
+  });
+});
+

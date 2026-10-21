@@ -734,6 +734,7 @@
     "fromCache": "depuis le cache",
     "fellBack": "{{name}} indisponible",
     "withProvider": "Résumer avec…",
+    "retryWith": "Réessayer avec {{name}}",
     "userIntro": "L'IA est prête : ouvrez un article et cliquez « Résumer » ou « Traduire l'article ».",
     "errors": {
       "auth": "Clé refusée par le fournisseur. Vérifiez-la dans Préférences › IA.",
@@ -821,7 +822,8 @@
       "keyRequired": "{{name}} (clé requise)",
       "removedProvider": "Fournisseur supprimé",
       "fallback": "Repli automatique",
-      "fallbackHint": "Si votre fournisseur échoue, le suivant de la liste prend le relais.",
+      "fallbackHint": "Si votre fournisseur est en panne (injoignable, clé refusée, quota, délai), le suivant de la liste prend le relais et l'en-tête le dit.",
+      "fallbackManualHint": "Une réponse inexploitable ou un refus ne bascule jamais tout seul : l'article propose alors « Réessayer avec… », à valider là. Réglage éteint, c'est aussi le cas pour toute panne.",
       "auto": "Résumé automatique à l'ouverture",
       "autoHint": "Chaque article ouvert est résumé sans clic, sauf réglage contraire par flux ou catégorie.",
       "autoConfirmTitle": "Activer le résumé automatique ?",

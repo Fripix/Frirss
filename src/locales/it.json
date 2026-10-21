@@ -734,6 +734,7 @@
     "fromCache": "dalla cache",
     "fellBack": "{{name}} non disponibile",
     "withProvider": "Riassumi con…",
+    "retryWith": "Riprova con {{name}}",
     "userIntro": "L'IA è pronta: apri un articolo e fai clic su «Riassumi» o «Traduci l'articolo».",
     "errors": {
       "auth": "Chiave rifiutata dal fornitore. Controllala in Preferenze › IA.",
@@ -821,7 +822,8 @@
       "keyRequired": "{{name}} (chiave richiesta)",
       "removedProvider": "Fornitore rimosso",
       "fallback": "Ripiego automatico",
-      "fallbackHint": "Se il suo fornitore non risponde, subentra il successivo dell'elenco.",
+      "fallbackHint": "Se il suo fornitore non funziona (irraggiungibile, chiave rifiutata, quota, tempo scaduto), subentra il successivo dell'elenco e l'intestazione lo indica.",
+      "fallbackManualHint": "Una risposta inutilizzabile o un rifiuto non cambia mai fornitore da sé: l'articolo propone allora «Riprova con…», da confermare lì. Con l'impostazione disattivata vale anche per qualsiasi guasto.",
       "auto": "Riassumi automaticamente all'apertura",
       "autoHint": "Ogni articolo aperto viene riassunto senza un clic, salvo impostazione diversa per feed o categoria.",
       "autoConfirmTitle": "Attivare il riassunto automatico?",

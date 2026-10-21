@@ -437,8 +437,11 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
     const sw = getByRole('switch', { name: 'ai.user.fallback' });
     expect(sw.getAttribute('aria-checked')).toBe('true');
     expect(sw.getAttribute('aria-describedby')).toContain(getByText('ai.user.fallbackHint').id);
+    // La seconde aide (ce que le repli ne fait pas : « Réessayer avec… ») est toujours là.
+    expect(sw.getAttribute('aria-describedby')).toContain(getByText('ai.user.fallbackManualHint').id);
     fireEvent.click(sw);
     expect(useUiStore.getState().aiFallback).toBe(false);
+    expect(getByText('ai.user.fallbackManualHint')).toBeTruthy();
   });
   it('auto-summary asks for confirmation before turning on, and turns off without asking', async () => {
     const { getByRole, queryByRole } = render(<AiTab active />);

@@ -734,6 +734,7 @@
     "fromCache": "aus dem Cache",
     "fellBack": "{{name}} nicht verfügbar",
     "withProvider": "Zusammenfassen mit…",
+    "retryWith": "Erneut mit {{name}} versuchen",
     "userIntro": "Die KI ist bereit: Öffnen Sie einen Artikel und klicken Sie auf „Zusammenfassen“ oder „Artikel übersetzen“.",
     "errors": {
       "auth": "Der Anbieter hat den Schlüssel abgelehnt. Prüfen Sie ihn unter Einstellungen › KI.",
@@ -821,7 +822,8 @@
       "keyRequired": "{{name}} (Schlüssel erforderlich)",
       "removedProvider": "Anbieter entfernt",
       "fallback": "Automatischer Wechsel",
-      "fallbackHint": "Fällt Ihr Anbieter aus, übernimmt der nächste in der Liste.",
+      "fallbackHint": "Ist Ihr Anbieter ausgefallen (nicht erreichbar, Schlüssel abgelehnt, Kontingent, Zeitlimit), übernimmt der nächste in der Liste, und die Kopfzeile sagt es.",
+      "fallbackManualHint": "Eine unbrauchbare Antwort oder eine Ablehnung wechselt nie von selbst den Anbieter: Der Artikel bietet dann „Erneut mit … versuchen“ an, dort zu bestätigen. Bei ausgeschalteter Einstellung gilt das auch für jeden Ausfall.",
       "auto": "Beim Öffnen automatisch zusammenfassen",
       "autoHint": "Jeder geöffnete Artikel wird ohne Klick zusammengefasst, sofern kein Feed und keine Kategorie etwas anderes festlegt.",
       "autoConfirmTitle": "Automatische Zusammenfassung aktivieren?",

@@ -244,6 +244,26 @@ describe('ReadingPane — Résumé IA', () => {
     fireEvent.click(admin.getByRole('button', { name: 'ai.summarizeAction' }));
     expect(await admin.findByText('ai.errors.auth')).toBeTruthy();
   });
+  it('« Réessayer avec… » relance /ai/summary chez le fournisseur suivant de l\'admin', async () => {
+    useAiStore.setState({ config: { ...ON, providers: [...ON.providers, { id: 2, name: 'Claude', type: 'anthropic' as const, hasAdminKey: true, shared: true, hasUserKey: false, available: true }] } });
+    vi.mocked(requestAiSummary)
+      .mockRejectedValueOnce(httpError(502, { error: 'ai_failed', kind: 'technical', provider: { id: 1, name: 'Ollama' } }))
+      .mockResolvedValueOnce({ text: 'Le résumé.', lang: 'fr', providerId: 2, providerName: 'Claude', model: 'm', fromCache: false });
+    const { getByRole, findByRole, findByText, queryByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    fireEvent.click(await findByRole('button', { name: 'ai.retryWith' }));
+    expect(await findByText('Le résumé.')).toBeTruthy();
+    expect(vi.mocked(requestAiSummary).mock.calls[1][0]).toMatchObject({ provider: 2 });
+    expect(queryByRole('button', { name: 'ai.retryWith' })).toBeNull();
+  });
+  it('une erreur sans fournisseur nommé (plafond, trop long) ne propose pas de relance', async () => {
+    useAiStore.setState({ config: { ...ON, providers: [...ON.providers, { id: 2, name: 'Claude', type: 'anthropic' as const, hasAdminKey: true, shared: true, hasUserKey: false, available: true }] } });
+    vi.mocked(requestAiSummary).mockRejectedValue(httpError(400, { error: 'invalid_body' }));
+    const { getByRole, findByText, queryByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    await findByText('ai.errors.tooLong');
+    expect(queryByRole('button', { name: 'ai.retryWith' })).toBeNull();
+  });
   it('keeps the summary on screen when a later attempt fails', async () => {
     vi.mocked(requestAiSummary)
       .mockResolvedValueOnce({ text: 'Premier résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false })
@@ -773,6 +793,17 @@ describe('ReadingPane — traduction du résumé', () => {
     expect(getByRole('menu')).toBeTruthy();
     expect(queryByRole('menuitem', { name: 'ai.retranslate' })).toBeNull();
   });
+  it('« Réessayer avec… » relance la traduction du résumé chez le fournisseur suivant', async () => {
+    useAiStore.setState({ config: TWO });
+    vi.mocked(requestAiTranslation)
+      .mockRejectedValueOnce(httpError(502, { error: 'ai_failed', kind: 'technical', provider: { id: 1, name: 'Ollama' } }))
+      .mockResolvedValueOnce(translation(['Le résumé traduit.']));
+    const { getByRole, findByRole, findByText } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    fireEvent.click(await findByRole('button', { name: 'ai.retryWith' }));
+    expect(await findByText('Le résumé traduit.')).toBeTruthy();
+    expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'summary', provider: 2 });
+  });
   it('a failure with no known cause says the translation failed, and keeps the summary', async () => {
     vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
     const { getByRole, findByRole, getByText } = await summarized();
@@ -929,6 +960,18 @@ describe('ReadingPane — traduction de l\'article', () => {
     fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
     expect((await findByRole('alert')).textContent).toContain('ai.errors.translateFailed');
     expect(bodyText(container)).toContain('mot mot');
+  });
+  it('« Réessayer avec… » relance la traduction de l\'article chez le fournisseur suivant', async () => {
+    useAiStore.setState({ config: { ...ON, providers: [...ON.providers, { id: 2, name: 'Claude', type: 'anthropic' as const, hasAdminKey: true, shared: true, hasUserKey: false, available: true }] } });
+    vi.mocked(requestAiTranslation)
+      .mockRejectedValueOnce(httpError(502, { error: 'ai_failed', kind: 'technical', provider: { id: 1, name: 'Ollama' } }))
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const { getByRole, findByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    const alert = await findByRole('alert');
+    fireEvent.click(within(alert).getByRole('button', { name: 'ai.retryWith' }));
+    await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'article', provider: 2 });
   });
   describe('re-translating into another language over a displayed translation', () => {
     async function shownThenGerman() {

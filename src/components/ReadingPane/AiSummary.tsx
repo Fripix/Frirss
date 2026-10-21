@@ -8,6 +8,7 @@ import TranslateMenu from './TranslateMenu';
 import { useUiStore } from '../../stores/uiStore';
 import { expandOnFirstSummary } from './aiPanelExpand';
 import { AI_LANGUAGES, languageName, type AiLanguage } from '../../lib/aiLanguages';
+import { nextProvider } from '../../lib/aiRetry';
 import type { AiProviderView, AiSummaryResult } from '../../api/backend';
 
 const ALL_LANGUAGES = [...AI_LANGUAGES];
@@ -16,12 +17,14 @@ export interface AiSummaryProps {
   status: 'idle' | 'loading' | 'done' | 'error';
   result: AiSummaryResult | null;
   error: string | null;
+  /** Avec `error` : le fournisseur que le serveur dit avoir échoué ou refusé (« Réessayer avec… »). */
+  errorProviderId?: number;
   providers: AiProviderView[];
   /** `regenerate` : « Régénérer », le serveur ignore son cache et le remplace. */
   onSummarize: (providerId?: number, opts?: { regenerate?: boolean }) => void;
   disabled?: boolean;
   /** La traduction du résumé affiché ; `providerId` sert à cocher le fournisseur dans le menu. */
-  translation: { status: 'idle' | 'loading' | 'done' | 'error'; text: string | null; lang: AiLanguage | null; providerId?: number; providerName?: string; fellBackFrom?: string; error: string | null };
+  translation: { status: 'idle' | 'loading' | 'done' | 'error'; text: string | null; lang: AiLanguage | null; providerId?: number; providerName?: string; fellBackFrom?: string; error: string | null; errorProviderId?: number };
   onTranslate: (choice?: { lang?: AiLanguage; providerId?: number; regenerate?: boolean }) => void;
   onShowSource: () => void;
   /** Langue cible par défaut (réglage, ou langue de l'interface). */
@@ -81,7 +84,7 @@ export interface AiSummaryProps {
  * plafond, toujours sur un clic. Ce sont des `menuitem` : des actions, pas
  * des choix.
  */
-export default function AiSummary({ status, result, error, providers, onSummarize, disabled, translation, onTranslate, onShowSource, targetLang }: AiSummaryProps) {
+export default function AiSummary({ status, result, error, errorProviderId, providers, onSummarize, disabled, translation, onTranslate, onShowSource, targetLang }: AiSummaryProps) {
   const { t, i18n } = useTranslation();
   const touch = useBreakpoint() !== 'desktop';
   const uid = useId();
@@ -164,11 +167,36 @@ export default function AiSummary({ status, result, error, providers, onSummariz
 
   const announce = done ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, translatedBy].filter(Boolean).join(', ') : '';
 
-  const errorLine = alertText && (
-    <p role="alert" className="text-xs leading-snug" style={{ color: 'var(--danger)' }}>{alertText}</p>
-  );
-
   const actionClass = `inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-opacity duration-150 disabled:cursor-default ${touch ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`;
+
+  // « Réessayer avec X » : seulement quand le serveur a nommé le fournisseur
+  // fautif (502 / 422) — le repli n'a pas joué, ou l'utilisateur l'a éteint ;
+  // X est le suivant de la liste, dans l'ordre de l'admin. Une erreur sans
+  // fournisseur (plafond, texte trop long, réseau) n'en propose aucun. L'alerte
+  // qui s'affiche est celle du résumé, sinon celle de la traduction.
+  const retryOf = failed ? errorProviderId : translateFailed ? translation.errorProviderId : undefined;
+  const retryNext = alertText && retryOf !== undefined ? nextProvider(providers, retryOf) : null;
+  const retry = () => {
+    if (!retryNext) return;
+    if (failed) onSummarize(retryNext.id);
+    else onTranslate({ providerId: retryNext.id });
+  };
+  const errorLine = alertText && (
+    <div className="flex flex-col items-start gap-1.5">
+      <p role="alert" className="text-xs leading-snug" style={{ color: 'var(--danger)' }}>{alertText}</p>
+      {retryNext && (
+        <button
+          type="button"
+          onClick={retry}
+          disabled={disabled}
+          className={`${actionClass} border hover:opacity-80 disabled:opacity-50`}
+          style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
+        >
+          {t('ai.retryWith', { name: retryNext.name })}
+        </button>
+      )}
+    </div>
+  );
 
   const withProvider = done && available.length > 0 && !loading ? (
     <button

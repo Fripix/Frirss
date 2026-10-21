@@ -734,6 +734,7 @@
     "fromCache": "from cache",
     "fellBack": "{{name}} unavailable",
     "withProvider": "Summarise with…",
+    "retryWith": "Retry with {{name}}",
     "userIntro": "AI is ready: open an article and click “Summarise” or “Translate article”.",
     "errors": {
       "auth": "Key rejected by the provider. Check it in Preferences › AI.",
@@ -821,7 +822,8 @@
       "keyRequired": "{{name}} (key required)",
       "removedProvider": "Provider removed",
       "fallback": "Automatic fallback",
-      "fallbackHint": "If your provider fails, the next one in the list takes over.",
+      "fallbackHint": "If your provider is down (unreachable, key rejected, quota, timeout), the next one in the list takes over and the header says so.",
+      "fallbackManualHint": "An unusable answer or a refusal never switches provider on its own: the article then offers “Retry with…”, for you to confirm there. With the setting off, the same goes for any outage.",
       "auto": "Summarise automatically on open",
       "autoHint": "Every article you open is summarised without a click, unless a feed or category says otherwise.",
       "autoConfirmTitle": "Turn on automatic summaries?",

@@ -734,6 +734,7 @@
     "fromCache": "da cache",
     "fellBack": "{{name}} indisponível",
     "withProvider": "Resumir com…",
+    "retryWith": "Tentar novamente com {{name}}",
     "userIntro": "A IA está pronta: abra um artigo e clique em «Resumir» ou «Traduzir o artigo».",
     "errors": {
       "auth": "Chave recusada pelo fornecedor. Verifique-a em Preferências › IA.",
@@ -821,7 +822,8 @@
       "keyRequired": "{{name}} (chave necessária)",
       "removedProvider": "Fornecedor removido",
       "fallback": "Alternativa automática",
-      "fallbackHint": "Se o seu fornecedor falhar, o seguinte da lista assume.",
+      "fallbackHint": "Se o seu fornecedor estiver em baixo (inacessível, chave recusada, quota, tempo esgotado), o seguinte da lista assume e o cabeçalho di-lo.",
+      "fallbackManualHint": "Uma resposta inutilizável ou uma recusa nunca muda de fornecedor sozinha: o artigo propõe então «Tentar novamente com…», a confirmar aí. Com a opção desativada, o mesmo vale para qualquer falha.",
       "auto": "Resumir automaticamente ao abrir",
       "autoHint": "Cada artigo aberto é resumido sem clicar, salvo definição em contrário por feed ou categoria.",
       "autoConfirmTitle": "Ativar o resumo automático?",

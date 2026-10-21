@@ -41,7 +41,10 @@ la release publiée.
   dans une vue d'ensemble, et saisit ses propres clés quand l'admin le permet ;
   l'admin peut effacer la clé d'un fournisseur. Le raccourci `s`
   (réassignable, masqué tant que l'IA est inutilisable) et la palette ⌘K
-  résument l'article ouvert.
+  résument l'article ouvert. Quand le repli n'a pas joué (réponse inexploitable,
+  refus, ou repli éteint), l'alerte propose « Réessayer avec X », le
+  fournisseur suivant de la liste, et le réglage du repli dit ce qu'il fait et
+  ne fait pas.
 
   **Traductions.** « Traduire », à côté de « Résumer avec… », traduit le
   résumé vers la langue cible ; « Traduire », dans la barre

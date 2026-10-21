@@ -1903,7 +1903,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   traduction de l'article `ReadingPane/useArticleTranslation.ts` (état, lots)
   et `src/lib/articleSegments.ts` (découpage), menu de traduction
   `ReadingPane/TranslateMenu.tsx`, langues `src/lib/aiLanguages.ts`, étages de
-  fournisseur `src/lib/aiRouting.ts`, automatismes `src/lib/aiAuto.ts` ;
+  fournisseur `src/lib/aiRouting.ts`, « Réessayer avec… » `src/lib/aiRetry.ts`,
+  automatismes `src/lib/aiAuto.ts` ;
   réglages IA (repli du panneau, longueur, langue et fournisseur de
   traduction, choix par flux et catégorie) dans `src/stores/uiStore.ts`,
   couleurs `ai-bg` / `ai-border` dans `src/stores/themeStore.ts`,
@@ -1912,7 +1913,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `src/lib/aiErrorKey.ts` (réponse d'erreur → message). Tests :
   `server/ai/*.test.ts`, `server/test/ai.test.ts`, `server/backup.test.ts`,
   `src/stores/aiStore.test.ts`,
-  `src/lib/{aiPayload,aiErrorKey,aiLanguages,aiRouting,aiAuto,articleSegments}.test.ts`,
+  `src/lib/{aiPayload,aiErrorKey,aiLanguages,aiRouting,aiRetry,aiAuto,articleSegments}.test.ts`,
   `ReadingPane/{AiSummary,ReadingPane.ai,TranslateMenu,useArticleTranslation}.test.tsx`,
   `ReadingPane/aiPending.test.ts`,
   `Preferences/{AiTab,Preferences.ai}.test.tsx`. Traductions : famille `ai`.
@@ -2111,6 +2112,19 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   ainsi que le saut d'un fournisseur plafonné (`quota`, `daily cap reached`) :
   avant le 2026-10-20, une bascule rattrapée ne laissait aucune trace, et des
   coupures réseau vers Ollama passaient vers Claude sans que rien le dise.
+  **Quand le repli n'a pas joué, le client le propose à la main** : l'alerte
+  d'une erreur qui nomme son fournisseur (`provider.id` du 502 / 422, voir
+  « Erreurs ») offre « Réessayer avec {X} » — X est `nextProvider`
+  (`lib/aiRetry.ts`, pur, testé) : le premier fournisseur *disponible* qui suit
+  le fautif **dans l'ordre de l'admin**, la liste rebouclant sur son début,
+  `null` s'il n'y en a pas d'autre. Cela couvre ce que le repli ne rejoue
+  jamais (réponse inexploitable `segments`, refus `refused`) et, repli éteint,
+  toute panne ; avec le repli allumé, une panne a déjà basculé toute seule et
+  l'en-tête le dit. Le clic relance comme « Résumer avec X » / « Traduire avec
+  X » (`onSummarize(id)`, `onTranslate({ providerId })`, `tr.translate({
+  providerId })`) : il garde donc le réglage de repli. Une erreur qui ne nomme
+  aucun fournisseur (plafond, texte trop long, réseau, aucun fournisseur) n'en
+  propose aucun : il n'y a pas de « suivant » à désigner.
 - **Plafond** (`ai_daily_cap`, défaut 50, 0 = illimité) : par utilisateur et
   par jour civil, **seulement quand la clé admin paie pour un utilisateur**. Un
   admin en est exempt sur tout fournisseur dont la clé admin paie, partagé ou
@@ -2469,8 +2483,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   reste affiché « Fournisseur supprimé » au lieu de retomber en silence sur le
   défaut — `ProviderOptions`, dans `ai/shared.tsx`, sert aussi aux sélecteurs
   du bloc « Par flux et catégorie ») ; **« Repli automatique »**
-  (interrupteur, **activé** par défaut, aide « le suivant de la liste prend le
-  relais ») ; **« Résumé automatique à l'ouverture »** (interrupteur, **éteint**
+  (interrupteur, **activé** par défaut ; deux aides, toujours affichées et
+  toutes deux liées à l'interrupteur : la première dit qu'une panne
+  (injoignable, clé refusée, quota, délai) passe au suivant et que l'en-tête le
+  dit, la seconde (`fallbackManualHint`) que ni une réponse inexploitable ni
+  un refus ne basculent seuls — l'article propose alors « Réessayer avec… » —
+  et que, réglage éteint, c'est vrai de toute panne) ; **« Résumé automatique à l'ouverture »** (interrupteur, **éteint**
   par défaut ; il vaut « partout », et son aide le dit : « sauf réglage
   contraire par flux ou catégorie ») — l'allumer ouvre une confirmation de coût
   (chaque résumé est un appel facturable au fournisseur de l'utilisateur ; un
@@ -2698,8 +2716,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     `hidden` et vide : `aria-controls` ne pointe jamais dans le vide (panneau
     vide, il n'y a ni corps ni `aria-controls`). L'erreur est un
     `role="alert"` ; replié, elle prend la place du statut sous le titre —
-    sans cela un échec ne laisserait aucune trace. Le résumé reste affiché
-    pendant une nouvelle demande et après un échec.
+    sans cela un échec ne laisserait aucune trace. Sous le message, quand le
+    serveur a nommé le fournisseur fautif (`errorProviderId`, ou
+    `translation.errorProviderId` pour l'alerte de traduction, le résumé
+    primant) et qu'il en reste un autre de disponible : un bouton discret
+    « Réessayer avec {X} » (bordure `--danger`, 44 px au doigt, grisé hors
+    ligne), **hors** de l'alerte — son texte ne se mêle pas à ce qu'elle
+    annonce ; voir « Repli ». Le résumé reste affiché pendant une nouvelle
+    demande et après un échec.
   - **Annonces** : une région `role="status" aria-live="polite"`, invisible
     (`sr-only`) et **toujours montée**, ne contient qu'une ligne — « Résumé par
     X, depuis le cache » — qui change à l'arrivée d'un résumé, panneau replié
@@ -2773,7 +2797,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     revient au résumé d'origine (une traduction affichée
     disparaît) et un toast bref dit « Déjà en {langue}. ».
     Un échec s'affiche en alerte sous le résumé, qui reste (après un
-    « Retraduire » raté, sous la traduction, qui reste aussi). Les messages qui
+    « Retraduire » raté, sous la traduction, qui reste aussi), avec le bouton
+    « Réessayer avec… » du panneau quand le fournisseur fautif est connu
+    (`aiTranslation.errorProviderId`, que « Retraduire » raté garde lui
+    aussi). Les messages qui
     nomment l'opération ont leur variante (`aiErrorKey(…, { op: 'translate'
     })`) : sans cause connue, « La traduction a échoué. Réessayez. » ; refus,
     « Le fournisseur a refusé de traduire cet article. » ; `invalid_body`,
@@ -2926,7 +2953,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     automatique, qui le tait). Les erreurs (mêmes messages que
     la traduction du résumé, `op: 'translate'`) sont une **alerte** à part,
     gabarit de l'erreur d'extraction ; ce qui était affiché le reste (la
-    source, ou la traduction précédente). La notice
+    source, ou la traduction précédente). Quand le serveur a nommé le
+    fournisseur fautif (`errorProvider` du hook, posé aussi sur une
+    traduction tenue que « Traduire en… » a laissée en alerte, effacé à la
+    demande suivante) et qu'un autre est disponible, l'alerte porte le bouton
+    « Réessayer avec {X} » → `tr.translate({ providerId })` (retour à la
+    ligne sur un écran étroit, 44 px au doigt, grisé hors ligne). La notice
     disparaît quand on revient au texte source. L'avis d'extraction et la
     notice de traduction peuvent se montrer ensemble (extraction d'abord,
     traduction dessous) ; de même les deux alertes — assumé, pas arbitré.

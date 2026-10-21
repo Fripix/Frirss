@@ -87,9 +87,10 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
       <div>
         <div className="prefs-tap-row flex items-center justify-between gap-3">
           <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.user.fallback')}</span>
-          <ToggleSwitch checked={fallback} onChange={setFallback} ariaLabel={t('ai.user.fallback')} describedBy={`${uid}-fallback-hint`} />
+          <ToggleSwitch checked={fallback} onChange={setFallback} ariaLabel={t('ai.user.fallback')} describedBy={`${uid}-fallback-hint ${uid}-fallback-manual-hint`} />
         </div>
         <p id={`${uid}-fallback-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallbackHint')}</p>
+        <p id={`${uid}-fallback-manual-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.fallbackManualHint')}</p>
       </div>
 
       <div>

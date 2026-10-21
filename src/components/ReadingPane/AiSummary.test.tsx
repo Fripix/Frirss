@@ -492,3 +492,59 @@ describe('AiSummary — traduction du résumé', () => {
     expect(onTranslate).toHaveBeenCalledWith({ lang: 'en', providerId: 1, regenerate: true });
   });
 });
+
+describe('AiSummary — « Réessayer avec… » dans l\'alerte', () => {
+  const RETRY = (name: string) => ({ name: `ai.retryWith:${name}` });
+  const failedSummary = { ...doneProps, status: 'error' as const, error: 'ai.errors.technical' };
+  const oneProvider: AiProviderView[] = [providers[0]];
+
+  it('une erreur de résumé propose Réessayer avec Claude, et le clic relance chez lui', () => {
+    const onSummarize = vi.fn();
+    // Ollama (2) a échoué : les indisponibles sont sautés, la liste reboucle sur Claude.
+    const { getByRole } = render(<AiSummary {...failedSummary} errorProviderId={2} onSummarize={onSummarize} />);
+    expect(getByRole('alert').textContent).toBe('ai.errors.technical');
+    fireEvent.click(getByRole('button', RETRY('Claude')));
+    expect(onSummarize).toHaveBeenCalledWith(1);
+  });
+  it('le fournisseur suivant suit l\'ordre de la liste', () => {
+    const { getByRole } = render(<AiSummary {...failedSummary} errorProviderId={1} />);
+    expect(getByRole('button', RETRY('Ollama'))).toBeTruthy();
+  });
+  it('sans fournisseur suivant, pas de bouton', () => {
+    const { queryByRole } = render(<AiSummary {...failedSummary} providers={oneProvider} errorProviderId={1} />);
+    expect(queryByRole('button', { name: /^ai\.retryWith/ })).toBeNull();
+  });
+  it('une erreur qui ne nomme aucun fournisseur (plafond, trop long, réseau) n\'en propose pas', () => {
+    const { queryByRole } = render(<AiSummary {...failedSummary} />);
+    expect(queryByRole('button', { name: /^ai\.retryWith/ })).toBeNull();
+  });
+  it('sans erreur, pas de bouton, même avec un fournisseur fautif mémorisé', () => {
+    const { queryByRole } = render(<AiSummary {...doneProps} errorProviderId={2} />);
+    expect(queryByRole('button', { name: /^ai\.retryWith/ })).toBeNull();
+  });
+  it('une erreur de traduction du résumé relance la traduction chez le suivant', () => {
+    const onTranslate = vi.fn();
+    const onSummarize = vi.fn();
+    const translation = { ...noTranslation, status: 'error' as const, error: 'ai.errors.translateFailed', errorProviderId: 1 };
+    const { getByRole } = render(<AiSummary {...doneProps} translation={translation} onTranslate={onTranslate} onSummarize={onSummarize} />);
+    fireEvent.click(getByRole('button', RETRY('Ollama')));
+    expect(onTranslate).toHaveBeenCalledWith({ providerId: 2 });
+    expect(onSummarize).not.toHaveBeenCalled();
+  });
+  it('l\'alerte du résumé prime : le bouton relance le résumé, pas la traduction', () => {
+    const onTranslate = vi.fn();
+    const onSummarize = vi.fn();
+    const translation = { ...noTranslation, status: 'error' as const, error: 'ai.errors.translateFailed', errorProviderId: 2 };
+    const { getByRole } = render(<AiSummary {...failedSummary} errorProviderId={1} translation={translation} onTranslate={onTranslate} onSummarize={onSummarize} />);
+    fireEvent.click(getByRole('button', RETRY('Ollama')));
+    expect(onSummarize).toHaveBeenCalledWith(2);
+    expect(onTranslate).not.toHaveBeenCalled();
+  });
+  it('au doigt le bouton fait 44 px, et il reste là panneau replié', () => {
+    breakpoint.mockImplementation(() => 'mobile');
+    useUiStore.setState({ aiPanelCollapsed: true });
+    const { getByRole } = render(<AiSummary {...failedSummary} errorProviderId={2} />);
+    expect(getByRole('button', RETRY('Claude')).className).toContain('min-h-[44px]');
+  });
+});
+
