@@ -41,6 +41,13 @@ export interface Attempt<T> {
    * un autre, et son résultat est écrit sous la même clé : il remplace l'ancien.
    */
   skipCacheRead?: boolean;
+  /**
+   * Rejeu d'un résultat déjà montré : le cache seulement. Aucun appel, aucune
+   * unité de plafond, aucune échéance en jeu ; sans entrée pour aucun candidat,
+   * `technical` « not_cached ». Incompatible avec `skipCacheRead` (la route
+   * refuse la paire).
+   */
+  cacheOnly?: boolean;
   /** Ce qu'il faut mettre en cache pour ce résultat ; `null` = rien. */
   onSuccess?: (cand: Availability, result: T) => Promise<AiCacheValue | null>;
 }
@@ -71,6 +78,8 @@ export async function runWithFallback<T>(a: Attempt<T>): Promise<{ result: T | A
       try { cached = await aiCacheGet(key); } catch { /* cache illisible = absence */ }
     }
     if (cached) return { result: cached, cand, fromCache: true, fellBackFrom };
+    // Rejeu : rien d'autre que le cache, ni échéance ni réservation ni appel.
+    if (a.cacheOnly) continue;
 
     const remaining = a.deadline - a.now();
     if (remaining < MIN_CALL_MS) {
@@ -119,6 +128,7 @@ export async function runWithFallback<T>(a: Attempt<T>): Promise<{ result: T | A
     } catch { /* le résultat est servi, il ne sera juste pas mis en cache */ }
     return { result, cand, fromCache: false, fellBackFrom };
   }
+  if (a.cacheOnly) throw new AiError('technical', 'not_cached');
   if (lastError) throw lastError;
   throw new AiError(capped ? 'quota' : 'technical', capped ? 'ai_daily_cap' : 'no_provider');
 }

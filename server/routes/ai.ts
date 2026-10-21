@@ -121,8 +121,8 @@ const isSegments = (v: unknown): v is string[] =>
 
 router.post('/translate', async (req, res) => {
   if (!isAiEnabled()) return res.status(404).json({ error: 'ai_disabled' });
-  const { articleId, scope, targetLang, segments, provider, translationProvider, feedProvider, categoryProvider, preferredProvider, fallback, regenerate } = req.body ?? {};
-  if (typeof articleId !== 'string' || !articleId || articleId.length > MAX_ID_CHARS || (scope !== 'summary' && scope !== 'article') || !isSegments(segments) || badFlag(regenerate)) {
+  const { articleId, scope, targetLang, segments, provider, translationProvider, feedProvider, categoryProvider, preferredProvider, fallback, regenerate, cacheOnly } = req.body ?? {};
+  if (typeof articleId !== 'string' || !articleId || articleId.length > MAX_ID_CHARS || (scope !== 'summary' && scope !== 'article') || !isSegments(segments) || badFlag(regenerate) || badFlag(cacheOnly) || (regenerate === true && cacheOnly === true)) {
     return res.status(400).json({ error: 'invalid_body' });
   }
   if (!isAiLanguage(targetLang)) return res.status(400).json({ error: 'invalid_lang' });
@@ -136,9 +136,12 @@ router.post('/translate', async (req, res) => {
       available: availability(req.user),
       fallback: fallback !== false,
       regenerate: regenerate === true,
+      cacheOnly: cacheOnly === true,
     });
     res.json(out);
   } catch (err) {
+    // Rejeu sans entrée de cache : pas une panne, une absence que le client attend.
+    if (err instanceof AiError && err.message === 'not_cached') return res.status(404).json({ error: 'not_cached' });
     sendAiError(res, err, 'translate');
   }
 });

@@ -513,6 +513,29 @@ describe('ai translate route', () => {
     expect(bad.status).toBe(400);
     expect(bad.body.error).toBe('invalid_body');
   });
+  it('cacheOnly without a cache entry is 404 not_cached, with no call and no cap unit; with one it is the cache hit', async () => {
+    setSetting('ai_daily_cap', '0');
+    const fetchMock = stubProvider('lang: en\n<seg n="0">Bonjour</seg>');
+    const miss = await post(body({ articleId: 'tr-co', translationProvider: id, cacheOnly: true }));
+    expect(miss.status).toBe(404);
+    expect(miss.body).toEqual({ error: 'not_cached' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    await post(body({ articleId: 'tr-co', translationProvider: id }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const hit = await post(body({ articleId: 'tr-co', translationProvider: id, cacheOnly: true }));
+    expect(hit.status).toBe(200);
+    expect(hit.body).toMatchObject({ segments: ['Bonjour'], fromCache: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('cacheOnly + regenerate is 400, and a non-boolean cacheOnly is 400', async () => {
+    const fetchMock = stubProvider('lang: en\n<seg n="0">Bonjour</seg>');
+    for (const extra of [{ cacheOnly: true, regenerate: true }, { cacheOnly: 'yes' }]) {
+      const res = await post(body({ translationProvider: id, ...extra }));
+      expect(res.status, JSON.stringify(extra)).toBe(400);
+      expect(res.body.error).toBe('invalid_body');
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it('says detail segments when the answer stays unusable', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {

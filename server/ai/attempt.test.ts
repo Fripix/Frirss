@@ -72,6 +72,33 @@ describe('runWithFallback', () => {
     const again = await runWithFallback(attempt({ call, available: [A(1, 'Paid', true)] }));
     expect(again).toMatchObject({ result: { text: 'new' }, fromCache: true });
   });
+  it('cacheOnly: without a cache entry, throws not_cached without calling or reserving', async () => {
+    const call = vi.fn();
+    await expect(runWithFallback(attempt({ call, cacheOnly: true, available: [A(1, 'Paid', true), A(2, 'Other', true)] })))
+      .rejects.toMatchObject({ kind: 'technical', message: 'not_cached' });
+    expect(call).not.toHaveBeenCalled();
+    expect(usageToday(43)).toBe(0);
+  });
+  it('cacheOnly: with a cache entry on the second candidate, serves it without a call', async () => {
+    await aiCacheSet('attempt-test:2', { text: 'cached', lang: 'fr' });
+    const call = vi.fn();
+    const r = await runWithFallback(attempt({ call, cacheOnly: true, available: [A(1, 'Paid', true), A(2, 'Other', true)] }));
+    expect(r).toMatchObject({ result: { text: 'cached', lang: 'fr' }, fromCache: true });
+    expect(r.cand.provider.name).toBe('Other');
+    expect(call).not.toHaveBeenCalled();
+    expect(usageToday(43)).toBe(0);
+  });
+  it('cacheOnly: an exhausted deadline or a reached cap does not change the answer', async () => {
+    bumpUsage(43); bumpUsage(43);
+    const call = vi.fn();
+    await expect(runWithFallback(attempt({ call, cacheOnly: true, deadline: Date.now() - 1, available: [A(1, 'Paid', true)] })))
+      .rejects.toMatchObject({ message: 'not_cached' });
+    await aiCacheSet('attempt-test:1', { text: 'cached', lang: 'fr' });
+    const r = await runWithFallback(attempt({ call, cacheOnly: true, deadline: Date.now() - 1, available: [A(1, 'Paid', true)] }));
+    expect(r.fromCache).toBe(true);
+    expect(usageToday(43)).toBe(2);
+    expect(call).not.toHaveBeenCalled();
+  });
   it('throws the first error when fallback is off', async () => {
     const call = vi.fn().mockRejectedValue(new AiError('auth', 'HTTP 401', 401));
     await expect(runWithFallback(attempt({ call, fallback: false }))).rejects.toMatchObject({ kind: 'auth', message: 'HTTP 401', ownKey: false });

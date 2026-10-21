@@ -19,6 +19,13 @@ export interface TranslateRequest {
   fallback: boolean;
   /** « Régénérer » / « Retraduire » : ni cache lu, ni génération en cours partagée ; le résultat remplace le cache. */
   regenerate?: boolean;
+  /**
+   * Rejeu d'une traduction déjà montrée : le cache serveur seulement. Jamais
+   * d'appel, jamais d'unité de plafond, et pas de génération partagée (un rejeu
+   * ne doit ni en créer une ni s'y rattacher : un vrai appel qui s'y joindrait
+   * recevrait `not_cached`). Sans entrée : `technical` « not_cached ».
+   */
+  cacheOnly?: boolean;
 }
 export interface TranslateResponse {
   segments: string[]; lang: string | null; same: boolean; providerId: number; providerName: string; model: string; fromCache: boolean; fellBackFrom?: string;
@@ -93,7 +100,7 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
 
   const generate = async (): Promise<TranslateResponse> => {
     const out = await runWithFallback<Translated>({
-      userId: req.userId, resolution: req.resolution, available: req.available, fallback: req.fallback, deadline, maxCallMs: budget, now, skipCacheRead: req.regenerate,
+      userId: req.userId, resolution: req.resolution, available: req.available, fallback: req.fallback, deadline, maxCallMs: budget, now, skipCacheRead: req.regenerate, cacheOnly: req.cacheOnly,
       cacheKeyFor: (cand) => aiCacheKey({ articleId: req.articleId, op: 'translate', providerId: cand.provider.id, model: cand.provider.model, lang: req.targetLang, contentHash }),
       call: async (cand, timeoutMs) => {
         const opts: AiCall = { system, user, timeoutMs, ...(cand.provider.type === 'anthropic' ? { maxTokens: ANTHROPIC_MAX_TOKENS } : {}) };
@@ -131,8 +138,9 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
 
   // Un lot identique à un lot en cours s'y rattache (`inflight.ts`) : même
   // compte, même contenu (scope et segments), même langue cible, même routage.
-  // Une retraduction n'y passe pas : elle demande un NOUVEL appel.
-  if (req.regenerate) return generate();
+  // Une retraduction n'y passe pas : elle demande un NOUVEL appel. Un rejeu
+  // `cacheOnly` non plus : il ne génère rien, il ne doit rien rejoindre.
+  if (req.regenerate || req.cacheOnly) return generate();
   const key = inflightKey(req.userId, 'translate', { articleId: req.articleId, contentHash, lang: req.targetLang, resolution: req.resolution, fallback: req.fallback });
   const { value, shared } = await shareInflight(key, generate);
   return shared ? { ...value, fromCache: true } : value;

@@ -2293,7 +2293,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 - **Traduction — serveur** (`translate.ts`, route `POST /api/ai/translate`) :
   corps `{ articleId, scope: 'summary' | 'article', targetLang, segments,
   provider?, translationProvider?, feedProvider?, categoryProvider?,
-  preferredProvider?, fallback?, regenerate? }` → `{ segments, lang, same, providerId,
+  preferredProvider?, fallback?, regenerate?, cacheOnly? }` → `{ segments, lang, same, providerId,
   providerName, model, fromCache, fellBackFrom? }`. **Une requête = un lot = un
   appel** : c'est le client qui découpe en lots (≈ 1 200 mots, 200 000
   octets, 120 segments au plus) et les envoie en série. Format **strict** en entrée comme en sortie, chaque segment
@@ -2399,12 +2399,28 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   vides totalisant ≤ 200 000 octets (sans borne sur le nombre, des centaines
   de milliers de segments d'un octet, chacun enveloppé dans `<s n="…">`,
   gonflaient le prompt pour une seule unité du plafond), `scope` connu,
-  `regenerate` absent ou booléen, sinon 400 `invalid_body` ;
-  `targetLang` hors des 28 langues de `languages.ts` (`AI_LANGUAGES`, ni `ru`
+  `regenerate` et `cacheOnly` absents ou booléens, sinon 400 `invalid_body`
+  (les deux à `true` ensemble aussi : relire sans cache et ne lire que le
+  cache se contredisent) ; `targetLang` hors des 28 langues de `languages.ts` (`AI_LANGUAGES`, ni `ru`
   ni `he`) → 400 `invalid_lang`. Les autres erreurs sont celles du résumé
   (même fonction `sendAiError`) : 404 `ai_disabled`, 429 `ai_daily_cap` avec
   `cap` / `resetAt`, 409 `no_provider`, 422 `ai_refused`, 502 avec `kind` et
   `ownKey`.
+  **`cacheOnly: true`** (rejeu d'une traduction déjà montrée) : le serveur ne
+  lit que son cache (`Attempt.cacheOnly` de `runWithFallback`, pour chaque
+  candidat dans l'ordre du repli). **Garantie, tenue côté serveur et non par
+  la bonne conduite du client : aucun appel au fournisseur, aucune unité du
+  plafond** — la sortie `not_cached` précède la réservation, l'échéance et
+  l'appel, donc ni un plafond atteint ni une échéance dépensée ne changent la
+  réponse. Une entrée trouvée répond comme tout succès du cache
+  (`fromCache: true`). Aucune entrée pour aucun candidat → **404
+  `{ error: 'not_cached' }`**, traité dans la route avant `sendAiError` (une
+  absence que le client attend, pas une panne : rien dans le journal, pas de 502).
+  Le rejeu **ne passe pas par la génération partagée** (`shareInflight`) : il
+  n'en crée pas et ne s'y rattache pas — un rejeu qui se rattacherait à un
+  vrai appel en cours le ferait répondre `not_cached`, et un vrai appel qui se
+  rattacherait à un rejeu hériterait de ce refus. Tests : `attempt.test.ts`,
+  `translate.test.ts`, `server/test/ai.test.ts`.
 - **Administration** : `PUT /api/admin/ai/settings` valide **tout avant
   d'écrire** (un 400 ne laisse aucune écriture partielle) ; booléens stricts
   (`=== true`), `dailyCap` entier ≥ 0, `defaultProvider` nombre ou `null` d'un
@@ -4716,7 +4732,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | PUT | `/api/admin/settings` | Écrire les réglages du serveur |
 | GET | `/api/ai/config` | Ce que le client sait de l'IA (fournisseurs sans clés, plafond, usage) |
 | POST | `/api/ai/summary` | Résumer un article |
-| POST | `/api/ai/translate` | Traduire un lot de segments (résumé ou article ; 1 à 1 000 segments non vides, ≤ 200 000 octets) |
+| POST | `/api/ai/translate` | Traduire un lot de segments (résumé ou article ; 1 à 1 000 segments non vides, ≤ 200 000 octets) ; `cacheOnly` = relire le cache sans appel (404 `not_cached`) |
 | PUT | `/api/ai/keys/:providerId` | Clé personnelle (enregistrer ou effacer) |
 | GET | `/api/admin/ai/providers` | Lister fournisseurs et réglages IA |
 | POST | `/api/admin/ai/providers` | Créer un fournisseur |

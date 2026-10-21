@@ -338,3 +338,42 @@ describe('regenerate', () => {
     expect(call).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('cacheOnly', () => {
+  it('reads only the cache: a hit is served, a miss is not_cached, with no call and no cap unit', async () => {
+    const call = ok();
+    await expect(translate({ ...base, articleId: 'trc-1', cacheOnly: true, available: [A(1, 'Paid', true)] }, { call }))
+      .rejects.toMatchObject({ kind: 'technical', message: 'not_cached' });
+    expect(call).not.toHaveBeenCalled();
+    expect(usageToday(44)).toBe(0);
+    await translate({ ...base, articleId: 'trc-1', available: [A(1, 'Paid', true)] }, { call });
+    const replay = await translate({ ...base, articleId: 'trc-1', cacheOnly: true, available: [A(1, 'Paid', true)] }, { call });
+    expect(replay).toMatchObject({ segments: ['Bonjour'], fromCache: true });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(usageToday(44)).toBe(1);
+  });
+  it('does not go through the shared generation: a real call running alongside still calls the provider', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const call = vi.fn(async () => { await gate; return answer('lang: en\n<seg n="0">Bonjour</seg>'); });
+    const avail = [A(1, 'Ollama')];
+    const replay = translate({ ...base, articleId: 'trc-2', cacheOnly: true, available: avail }, { call });
+    const real = translate({ ...base, articleId: 'trc-2', available: avail }, { call });
+    await expect(replay).rejects.toMatchObject({ message: 'not_cached' });
+    release();
+    await expect(real).resolves.toMatchObject({ segments: ['Bonjour'], fromCache: false });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(inflightSize()).toBe(0);
+  });
+  it('does not join a generation in progress either', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const call = vi.fn(async () => { await gate; return answer('lang: en\n<seg n="0">Bonjour</seg>'); });
+    const avail = [A(1, 'Ollama')];
+    const real = translate({ ...base, articleId: 'trc-3', available: avail }, { call });
+    await expect(translate({ ...base, articleId: 'trc-3', cacheOnly: true, available: avail }, { call })).rejects.toMatchObject({ message: 'not_cached' });
+    release();
+    await expect(real).resolves.toMatchObject({ fromCache: false });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+});

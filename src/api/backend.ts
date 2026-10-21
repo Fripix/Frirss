@@ -245,6 +245,8 @@ export async function requestAiTranslation(body: {
   preferredProvider?: number; fallback?: boolean;
   /** « Retraduire » : le serveur ignore son cache et le remplace (une unité du plafond par lot). */
   regenerate?: boolean;
+  /** Rejeu : le cache serveur seulement (404 `not_cached` sans entrée), jamais d'appel ni d'unité de plafond. Incompatible avec `regenerate`. */
+  cacheOnly?: boolean;
 }): Promise<AiTranslationResult> {
   const { data } = await backend.post<AiTranslationResult>('/ai/translate', body);
   return data;
