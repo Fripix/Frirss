@@ -827,7 +827,7 @@
       "auto": "Automatisch samenvatten bij openen",
       "autoHint": "Elk geopend artikel wordt zonder klik samengevat, tenzij een feed of categorie anders is ingesteld.",
       "panel": "AI-samenvattingspaneel altijd zichtbaar",
-      "panelHint": "Uitgeschakeld verschijnt het paneel alleen met een samenvatting: toets s, palet of pictogram in de werkbalk. Hieronder per feed en categorie in te stellen.",
+      "panelHint": "Uitgeschakeld verschijnt het paneel alleen met een samenvatting; een knop ‘Samenvatten’ neemt zijn plaats in de werkbalk in (toets s en palet werken ook). Hieronder per feed en categorie in te stellen.",
       "autoConfirmTitle": "Automatische samenvatting inschakelen?",
       "autoConfirmMessage": "Elke automatische samenvatting is een aanroep naar uw AI-aanbieder. Afhankelijk van de aanbieder en uw abonnement kan dit in rekening worden gebracht. Een lokaal model zoals Ollama kost niets.",
       "autoConfirm": "Inschakelen",

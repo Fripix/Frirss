@@ -2499,11 +2499,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   là, pose `aiAutoSummaryConfirmed`, après quoi rallumer le global (ou un
   « Résumer ») s'applique directement, sans boîte ; puis **« Panneau Résumé IA
   toujours visible »** (interrupteur, **allumé** par défaut, `aiPanelAlways` ;
-  son aide dit qu'éteint, le panneau n'apparaît qu'avec un résumé — « touche s,
-  palette ou icône de la barre » — et que le réglage se refait par flux et
-  catégorie plus bas ; ⚠️ **il n'existe pas d'icône « Résumer » dans la barre
-  d'outils** : seuls `s` et la palette lancent un résumé panneau masqué, et
-  l'aide cite une icône qui reste à livrer) : il ne coûte rien, donc aucune confirmation ;
+  son aide dit qu'éteint, le panneau n'apparaît qu'avec un résumé, qu'un
+  bouton « Résumer » prend sa place dans la barre d'outils (touche `s` et
+  palette aussi) et que le réglage se refait par flux et catégorie plus bas) : il ne coûte rien, donc aucune confirmation ;
   enfin la ligne **« Appels IA payés par l'instance aujourd'hui : N sur M »**
   (résumés et traductions, un seul compteur ; N relu à chaque ouverture de la
   section, voir `aiStore` plus haut),
@@ -2706,13 +2704,18 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     qu'une est explicitement fausse — un panneau voulu quelque part n'est pas
     masqué par une autre catégorie) > `aiPanelAlways` (**vrai** d'origine :
     FriRSS a toujours montré le panneau). Éteint et sans demande, il est
-    **absent** — pas même l'en-tête —, et la touche `s` et la palette (leurs
-    gardes, `aiUsable`, en ligne, article ouvert, ne regardent pas le panneau)
-    ne dépendent pas de lui : leur demande le fait apparaître (statut
-    `loading`), avec son résumé ou son erreur. Aucun bouton de la barre
-    d'outils ne résume : panneau masqué, un téléphone sans clavier n'a que la
-    palette. Il repart
-    avec l'état à l'article suivant, comme le résumé. Le résumé automatique
+    **absent** — pas même l'en-tête —, et ce qui lance un résumé ne dépend pas
+    de lui (leurs gardes — `aiUsable`, en ligne, article ouvert — ne regardent
+    pas le panneau) : la touche `s`, la palette, et un **bouton « Résumer » de
+    la barre d'outils** qui en tient lieu (`showSummarizeBarBtn` : IA utilisable,
+    panneau non visible — donc ni réglage « toujours visible » pour cet article,
+    ni demande en cours, ni résumé —, désactivé hors ligne). Ordinateur : un
+    `action-btn` après « Article complet » et avant « Traduire » ; tactile : un
+    `BarBtn` de la barre du bas, à côté de « Traduire » — sans lui, un
+    téléphone n'aurait que la palette. Le bouton appelle le même chemin que `s`
+    (`expandOnFirstSummary` + `handleSummarize`) et **disparaît dès que la
+    demande part** : le panneau apparaît (statut `loading`), avec son résumé ou
+    son erreur. Il repart avec l'état à l'article suivant, comme le résumé. Le résumé automatique
     (`autoFor`) est indépendant : il part panneau masqué et le fait
     apparaître de même. Réglé dans Préférences → IA → « Résumés » (global) ;
     la pastille « Panneau » de « Par flux et catégorie » n'est pas encore
@@ -2956,7 +2959,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     reste donc la vraie correction ; le rejeu évite seulement l'échec. Rien
     n'est propre à un fournisseur ni réglable.
   - **Bouton** : dans la barre d'outils, après « Article complet », présent
-    quand le panneau IA l'est (`aiUsable`). Ordinateur : bouton scindé
+    quand le panneau IA l'est (`aiUsable`). Quand le panneau est masqué par
+    réglage (voir « Interface — panneau »), un bouton **« Résumer »** (étincelle
+    du panneau) s'insère juste avant lui — après « Article complet » —, sur
+    ordinateur (`action-btn`) comme sur tactile (`BarBtn` du bas, à côté de
+    « Traduire »). Ordinateur : bouton scindé
     `action-btn` (« Traduire » — court, comme le bouton du panneau, le
     contexte de la barre dit déjà qu'il s'agit de l'article —, accent quand la
     traduction est affichée et qu'il devient « Texte source ») + chevron accolé (« Options de

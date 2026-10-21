@@ -88,8 +88,10 @@ la release publiée.
   cours, ni erreur ; le repli mémorisé joue dès la première demande.
   **Panneau « Résumé IA » facultatif.** Un interrupteur « Panneau Résumé IA
   toujours visible » (Préférences → IA → Résumés, allumé d'origine) permet de ne
-  le montrer qu'avec une demande ou un résumé : la touche `s` ou la palette le
-  font apparaître, et il disparaît à l'article suivant.
+  le montrer qu'avec une demande ou un résumé : un bouton « Résumer » prend
+  sa place dans la barre d'outils (ordinateur et barre du bas tactile), et la
+  touche `s` ou la palette le font apparaître comme lui ; le panneau disparaît
+  à l'article suivant.
   Le réglage est synchronisé ; il se précise par flux et par catégorie
   (un flux prime sur ses catégories, qui priment sur le global).
 - **Deux onglets, un seul appel IA.** Quand le même résumé ou le même lot de

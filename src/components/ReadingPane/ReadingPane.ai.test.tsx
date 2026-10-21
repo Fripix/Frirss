@@ -181,9 +181,9 @@ describe('ReadingPane — Résumé IA', () => {
     const fire = () => act(() => { window.dispatchEvent(new CustomEvent('frirss:ai-summarize')); });
     it('hides the panel while the setting is off and nothing was asked', () => {
       useUiStore.setState({ aiPanelAlways: false });
-      const { queryByText, queryByRole } = render(<ReadingPane />);
+      const { container, queryByText } = render(<ReadingPane />);
       expect(queryByText('ai.status.none')).toBeNull();
-      expect(queryByRole('button', { name: 'ai.summarizeAction' })).toBeNull();
+      expect(container.querySelector('.ai-summary')).toBeNull();
     });
     it('« s » makes it appear with the request, and the summary stays', async () => {
       useUiStore.setState({ aiPanelAlways: false });
@@ -203,6 +203,60 @@ describe('ReadingPane — Résumé IA', () => {
       act(() => { useFeedStore.setState({ selectedArticle: article('a2') }); });
       expect(queryByText('Le résumé.')).toBeNull();
       expect(queryByText('ai.status.none')).toBeNull();
+    });
+    it('panel hidden: « Résumer » sits in the toolbars and asks for the summary', async () => {
+      useUiStore.setState({ aiPanelAlways: false });
+      vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+      const { getAllByRole, findByText } = render(<ReadingPane />);
+      // Barre d'outils du bureau : le panneau n'est pas là, ce bouton en tient lieu.
+      const buttons = getAllByRole('button', { name: 'ai.summarizeAction' });
+      expect(buttons.length).toBe(1);
+      expect(buttons[0].closest('.ai-summary')).toBeNull();
+      fireEvent.click(buttons[0]);
+      expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
+      expect(await findByText('Le résumé.')).toBeTruthy();
+    });
+    it('the bottom bar of a phone has the button too, and it asks for the summary', async () => {
+      const width = window.innerWidth;
+      window.innerWidth = 375;
+      try {
+        useUiStore.setState({ aiPanelAlways: false });
+        vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+        const { getAllByRole } = render(<ReadingPane />);
+        const buttons = getAllByRole('button', { name: 'ai.summarizeAction' });
+        expect(buttons.length).toBe(1);
+        expect(buttons[0].classList.contains('action-btn')).toBe(false);
+        fireEvent.click(buttons[0]);
+        expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      } finally {
+        window.innerWidth = width;
+      }
+    });
+    it('panel hidden: the toolbar button is disabled offline', () => {
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      useUiStore.setState({ aiPanelAlways: false });
+      const { getAllByRole } = render(<ReadingPane />);
+      for (const b of getAllByRole('button', { name: 'ai.summarizeAction' })) expect((b as HTMLButtonElement).disabled).toBe(true);
+    });
+    it('panel visible: no « Résumer » in the toolbars, only the panel one', () => {
+      const { getAllByRole } = render(<ReadingPane />);
+      const buttons = getAllByRole('button', { name: 'ai.summarizeAction' });
+      expect(buttons.length).toBe(1);
+      expect(buttons[0].closest('.ai-summary')).not.toBeNull();
+    });
+    it('once the summary is asked for, the toolbar button is gone', async () => {
+      useUiStore.setState({ aiPanelAlways: false });
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      const { getAllByRole, queryAllByRole } = render(<ReadingPane />);
+      fireEvent.click(getAllByRole('button', { name: 'ai.summarizeAction' })[0]);
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      expect(queryAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(0);
+    });
+    it('no toolbar button when AI is unusable', () => {
+      useUiStore.setState({ aiPanelAlways: false });
+      useAiStore.setState({ config: { ...ON, enabled: false, providers: [] } });
+      const { queryAllByRole } = render(<ReadingPane />);
+      expect(queryAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(0);
     });
     it('a feed set to always shows it under a global off; a feed set to off hides it under a global on', () => {
       useUiStore.setState({ aiPanelAlways: false, feedSettings: { 'feed/1': { aiPanel: true } } });

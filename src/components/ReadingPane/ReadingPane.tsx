@@ -932,10 +932,13 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // QUE son rendu : la touche, la palette et l'icône de la barre vont chercher
   // le résumé sans lui, et c'est leur demande qui le fait apparaître. L'état
   // repart à zéro à l'article suivant, et le panneau avec lui.
-  const showAiPanel = aiUsable && (
-    aiStatus !== 'idle' || aiResult !== null
-    || panelFor(selectedArticle?.sourceId, subscriptions, { ...autoPrefs, aiCategoryPanel, aiPanelAlways })
-  );
+  const panelAlwaysHere = panelFor(selectedArticle?.sourceId, subscriptions, { ...autoPrefs, aiCategoryPanel, aiPanelAlways });
+  const showAiPanel = aiUsable && (aiStatus !== 'idle' || aiResult !== null || panelAlwaysHere);
+  // Panneau masqué par réglage et rien demandé : un bouton « Résumer » de la
+  // barre en tient lieu (sur un téléphone, ni `s` ni le panneau ne sont là). Il
+  // disparaît dès que la demande part — le panneau prend alors le relais.
+  const showSummarizeBarBtn = aiUsable && !showAiPanel;
+  const summarizeFromBar = () => { expandOnFirstSummary(); void handleSummarize(); };
   const autoSummary = !!selectedArticle && autoFor('summary', selectedArticle.sourceId, subscriptions, autoPrefs);
   const autoTranslate = !!selectedArticle && autoFor('translate', selectedArticle.sourceId, subscriptions, autoPrefs);
   // Si l'extraction automatique s'applique à ce flux, on attend qu'elle ait
@@ -1367,6 +1370,21 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               </svg>
             )}
             <span className="toolbar-label">{extracting ? t('readingPane.extracting') : extractedContent ? t('readingPane.showRss') : t('readingPane.fullContent')}</span>
+          </button>
+        )}
+
+        {showSummarizeBarBtn && (
+          <button
+            type="button"
+            onClick={summarizeFromBar}
+            disabled={!online}
+            className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
+            style={{ color: 'var(--reading-meta)', background: 'transparent', border: '1.5px solid transparent' }}
+            title={t('ai.summarizeAction')}
+            aria-label={t('ai.summarizeAction')}
+          >
+            <SummarizeIcon className="w-4 h-4" />
+            <span className="toolbar-label">{t('ai.summarizeAction')}</span>
           </button>
         )}
 
@@ -1863,6 +1881,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </BarBtn>
           )}
 
+          {showSummarizeBarBtn && (
+            <BarBtn activeColor="var(--accent)" label={t('ai.summarizeAction')} disabled={!online} onClick={summarizeFromBar}>
+              <SummarizeIcon className="w-5 h-5" strokeWidth={1.6} />
+            </BarBtn>
+          )}
+
           {/* Traduire l'article : un appui = l'action, un appui long = le menu
               (aussi dans la feuille « … »). */}
           {aiUsable && (
@@ -1982,6 +2006,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         />
       )}
     </div>
+  );
+}
+
+/** Étincelle du panneau « Résumé IA », pour le bouton « Résumer » de la barre. */
+function SummarizeIcon({ className, strokeWidth = 1.5 }: { className: string; strokeWidth?: number }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+    </svg>
   );
 }
 
