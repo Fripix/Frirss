@@ -165,13 +165,6 @@ function errorDetail(body: string): string {
 }
 
 /**
- * Une erreur de transport, avec sa cause réelle : `fetch` ne dit que « fetch
- * failed » et range le code (`EHOSTUNREACH`, `ENOTFOUND`,
- * `UND_ERR_CONNECT_TIMEOUT`…) dans `cause`. Sans lui, une coupure réseau
- * entre conteneurs ne laissait aucune trace exploitable. Un abandon pour délai
- * dépassé se lit « timeout ». La clé est masquée par l'appelant.
- */
-/**
  * Abandon par le minuteur de `fetchUpstream` : `callProvider` ne lui passe
  * aucun signal à lui, seul le délai de l'appel peut donc l'abandonner. Un
  * code de cause (`UND_ERR_CONNECT_TIMEOUT`…) n'en est pas un : c'est le
@@ -183,6 +176,13 @@ function isAbort(err: unknown): boolean {
   return e?.name === 'AbortError' || e?.name === 'TimeoutError';
 }
 
+/**
+ * Une erreur de transport, avec sa cause réelle : `fetch` ne dit que « fetch
+ * failed » et range le code (`EHOSTUNREACH`, `ENOTFOUND`,
+ * `UND_ERR_CONNECT_TIMEOUT`…) dans `cause`. Sans lui, une coupure réseau
+ * entre conteneurs ne laissait aucune trace exploitable. Un abandon pour délai
+ * dépassé se lit « timeout ». La clé est masquée par l'appelant.
+ */
 function transportDetail(err: unknown): string {
   const e = err as { message?: unknown; name?: unknown; code?: unknown; cause?: { code?: unknown } } | null;
   const message = typeof e?.message === 'string' ? e.message : String(err);

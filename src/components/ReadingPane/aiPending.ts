@@ -14,15 +14,26 @@ import type { AiSummaryResult, AiTranslationResult } from '../../api/backend';
  * traductions du résumé (compte, article, texte du résumé, langue, fournisseur
  * forcé — le texte en fait partie : « Résumer avec Y » change ce qu'il y a à
  * traduire).
+ *
+ * Une demande en plusieurs temps (lot de traduction rejoué en deux moitiés)
+ * demande à `wanted()` avant chaque appel suivant : vrai tant qu'un des
+ * appelants rattachés est encore courant (`isCurrent`, absent = toujours).
+ * Un lecteur parti n'en fait plus payer la suite ; revenu, il se rattache et
+ * la suite part pour lui.
  */
 function pendingTable<T>() {
-  const pending = new Map<string, Promise<T>>();
-  const share = (key: string, start: () => Promise<T>): Promise<T> => {
+  const pending = new Map<string, { promise: Promise<T>; checks: Array<() => boolean> }>();
+  const always = () => true;
+  const share = (key: string, start: (wanted: () => boolean) => Promise<T>, isCurrent: () => boolean = always): Promise<T> => {
     const existing = pending.get(key);
-    if (existing) return existing;
-    const p = start();
-    pending.set(key, p);
-    const clear = () => { if (pending.get(key) === p) pending.delete(key); };
+    if (existing) {
+      existing.checks.push(isCurrent);
+      return existing.promise;
+    }
+    const checks = [isCurrent];
+    const p = start(() => checks.some((check) => check()));
+    pending.set(key, { promise: p, checks });
+    const clear = () => { if (pending.get(key)?.promise === p) pending.delete(key); };
     p.then(clear, clear);
     return p;
   };

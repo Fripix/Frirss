@@ -41,4 +41,28 @@ describe('sharedTranslationRequest', () => {
     await sharedTranslationRequest('u:a1:en:', start);
     expect(start).toHaveBeenCalledTimes(3);
   });
+  it('tells the running request whether any caller still waits for it', async () => {
+    let wanted: () => boolean = () => false;
+    let release!: () => void;
+    const start = vi.fn((w: () => boolean) => { wanted = w; return new Promise<typeof TRANSLATION>((res) => { release = () => res(TRANSLATION); }); });
+    let first = true;
+    let second = false;
+    const a = sharedTranslationRequest('w', start, () => first);
+    expect(wanted()).toBe(true);
+    first = false;
+    expect(wanted()).toBe(false);
+    // Un appelant revenu entre-temps se rattache : la demande reste voulue.
+    expect(sharedTranslationRequest('w', start, () => second)).toBe(a);
+    second = true;
+    expect(wanted()).toBe(true);
+    expect(start).toHaveBeenCalledTimes(1);
+    release();
+    await a;
+  });
+  it('a caller without a check always wants the request', async () => {
+    let wanted: () => boolean = () => false;
+    const p = sharedTranslationRequest('n', (w) => { wanted = w; return Promise.resolve(TRANSLATION); });
+    expect(wanted()).toBe(true);
+    await p;
+  });
 });

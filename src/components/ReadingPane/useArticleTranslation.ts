@@ -80,6 +80,25 @@ const idle = (key: string): Snapshot => ({
   key, state: 'idle', html: null, title: null, progress: null, partialOf: null, lang: null, error: null, automatic: false, showing: 'source',
 });
 
+/** Une moitié de lot rejoué n'est plus attendue par personne : la suite ne part pas. */
+class Abandoned extends Error {}
+
+/**
+ * Les deux moitiés d'un lot rejoué, recollées en une réponse du lot entier.
+ * Une moitié déjà dans la langue (`same`) rend des chaînes vides : ses
+ * segments restent ceux d'origine (`apply`). Fournisseur : celui de la
+ * dernière moitié, comme pour les lots.
+ */
+function joinHalves(a: AiTranslationResult, aSize: number, b: AiTranslationResult, bSize: number): AiTranslationResult {
+  if (a.same && b.same) return { ...b, segments: [] };
+  const part = (r: AiTranslationResult, size: number) => (r.same ? new Array<string>(size).fill('') : r.segments);
+  return {
+    ...b, same: false, lang: b.lang ?? a.lang, fromCache: a.fromCache && b.fromCache,
+    fellBackFrom: a.fellBackFrom ?? b.fellBackFrom,
+    segments: [...part(a, aSize), ...part(b, bSize)],
+  };
+}
+
 /** Le serveur a coupé le lot faute de temps (`detail: 'deadline'`). */
 function ranOutOfTime(err: unknown): boolean {
   const resp = axios.isAxiosError(err) ? err.response : undefined;
@@ -233,9 +252,12 @@ function prepare(title: string, bodyHtml: string): Prepared {
  *   de lot ne part pas au serveur.
  * - Un lot que le serveur a coupé faute de temps (502 `detail: 'deadline'`)
  *   et qui porte plus d'un segment est **rejoué une fois, coupé en deux**,
- *   moitiés en série (chacune sa clé de partage) ; une moitié qui expire à
- *   son tour échoue comme n'importe quel lot. `progress` garde le compte des
- *   lots d'origine. Un lot réussi ne repart jamais.
+ *   moitiés en série, **dans la même demande partagée que le lot** : revenir
+ *   sur l'article pendant une moitié s'y rattache au lieu de renvoyer le lot
+ *   entier. La seconde moitié ne part que si un appelant attend encore
+ *   (`wanted`). Une moitié qui expire à son tour échoue comme n'importe quel
+ *   lot. `progress` garde le compte des lots d'origine. Un lot réussi ne
+ *   repart jamais.
  * - Tant qu'un lot manque, rien n'est remplacé : une erreur à n'importe quel
  *   lot donne `error` sans corps traduit — ou, quand une traduction était déjà
  *   tenue (autre langue, autre fournisseur), la garde (`done`) et y ajoute
@@ -345,51 +367,49 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       let providerId: number | undefined;
       let providerName: string | undefined;
       let fellBackFrom: string | undefined;
-      // `part` : rang du lot, ou `b.h` pour la moitié h d'un lot rejoué.
-      const send = (indices: number[], part: string) => sharedTranslationRequest(
-        `article:${user}:${id}:${lang}:${choice?.providerId ?? ''}:${hash}:${part}`,
-        () => requestAiTranslation({
-          articleId: id, scope: 'article', targetLang: lang, segments: indices.map((i) => prep.send[i]),
-          provider: choice?.providerId, ...routing,
-        }),
+      const request = (indices: number[]) => requestAiTranslation({
+        articleId: id, scope: 'article', targetLang: lang, segments: indices.map((i) => prep.send[i]),
+        provider: choice?.providerId, ...routing,
+      });
+      // Un lot = une demande partagée, rejeu en deux moitiés compris : un
+      // retour sur l'article pendant une moitié s'y rattache.
+      const sendBatch = (b: number) => sharedTranslationRequest(
+        `article:${user}:${id}:${lang}:${choice?.providerId ?? ''}:${hash}:${b}`,
+        async (wanted) => {
+          const indices = prep.batches[b];
+          try {
+            return await request(indices);
+          } catch (err) {
+            if (indices.length < 2 || !ranOutOfTime(err)) throw err;
+          }
+          // Coupé faute de temps : rejoué une fois, en deux moitiés, en série.
+          // Une moitié qui expire à son tour finit en erreur, sans autre découpe.
+          if (!wanted()) throw new Abandoned();
+          const mid = Math.ceil(indices.length / 2);
+          const first = await request(indices.slice(0, mid));
+          // Première réponse du premier lot déjà dans la langue : tout s'arrête là.
+          if (first.same && b === 0) return first;
+          if (!wanted()) throw new Abandoned();
+          const second = await request(indices.slice(mid));
+          return joinHalves(first, mid, second, indices.length - mid);
+        },
+        stillCurrent,
       );
-      // Faux quand la boucle s'arrête là (`same` dès la première réponse).
-      const record = (indices: number[], r: AiTranslationResult, first: boolean): boolean => {
-        if (r.same && first) {
-          setSnap({ ...idle(k), state: 'same', lang, automatic });
-          return false;
-        }
-        // Un lot plus loin déjà dans la langue (article mêlé) : ses segments restent.
-        if (!r.same) indices.forEach((i, n) => { out[i] = r.segments[n]; });
-        providerId = r.providerId;
-        providerName = r.providerName;
-        if (r.fellBackFrom) fellBackFrom = r.fellBackFrom;
-        return true;
-      };
       try {
         for (let b = 0; b < total; b++) {
           if (!stillCurrent()) return;
           const indices = prep.batches[b];
-          let r: AiTranslationResult | null = null;
-          try {
-            r = await send(indices, String(b));
-          } catch (err) {
-            if (indices.length < 2 || !ranOutOfTime(err)) throw err;
-          }
+          const r = await sendBatch(b);
           if (!stillCurrent()) return;
-          if (r) {
-            if (!record(indices, r, b === 0)) return;
-          } else {
-            // Coupé faute de temps : rejoué une fois, en deux moitiés, en série.
-            // Une moitié qui expire à son tour finit en erreur, sans autre découpe.
-            const mid = Math.ceil(indices.length / 2);
-            const halves = [indices.slice(0, mid), indices.slice(mid)];
-            for (let h = 0; h < halves.length; h++) {
-              const half = await send(halves[h], `${b}.${h}`);
-              if (!stillCurrent()) return;
-              if (!record(halves[h], half, b === 0 && h === 0)) return;
-            }
+          if (r.same && b === 0) {
+            setSnap({ ...idle(k), state: 'same', lang, automatic });
+            return;
           }
+          // Un lot plus loin déjà dans la langue (article mêlé) : ses segments restent.
+          if (!r.same) indices.forEach((i, n) => { out[i] = r.segments[n]; });
+          providerId = r.providerId;
+          providerName = r.providerName;
+          if (r.fellBackFrom) fellBackFrom = r.fellBackFrom;
           if (b + 1 < total) setSnap((s) => (s.key === k ? { ...s, progress: { done: b + 1, total } } : s));
         }
         const html = prep.segmented.apply(out, sanitizeHtml);

@@ -153,9 +153,12 @@ describe('translate deadline, proportional to the batch', () => {
 
   it('is base + per word, capped at 110 s (nginx gives /api/ 120 s)', () => {
     expect(TRANSLATE_DEADLINE_MAX_MS).toBe(110_000);
-    expect(translateDeadlineMs(0)).toBe(20_000);
-    expect(translateDeadlineMs(300)).toBe(42_500);
+    expect(translateDeadlineMs(0)).toBe(30_000);
+    expect(translateDeadlineMs(300)).toBe(52_500);
+    expect(translateDeadlineMs(1_066)).toBe(109_950);
     expect(translateDeadlineMs(1_200)).toBe(110_000);
+    // Un résumé d'une centaine de mots traduit en un segment : environ 40 s.
+    expect(translateDeadlineMs(130)).toBe(39_750);
     expect(translateDeadlineMs(5_000)).toBe(110_000);
   });
   it('gives a 1 200-word batch 110 s for its call, beyond the 60 s default', async () => {
@@ -163,15 +166,15 @@ describe('translate deadline, proportional to the batch', () => {
     await translate({ ...base, articleId: 'dl-1200', segments: batch(1_200), available: [A(1, 'Ollama')] }, { call, now: fixed(0) });
     expect(call.mock.calls[0][2].timeoutMs).toBe(110_000);
   });
-  it('gives a 300-word batch 42.5 s', async () => {
+  it('gives a 300-word batch 52.5 s', async () => {
     const call = vi.fn().mockResolvedValue(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
     await translate({ ...base, articleId: 'dl-300', segments: batch(300), available: [A(1, 'Ollama')] }, { call, now: fixed(0) });
-    expect(call.mock.calls[0][2].timeoutMs).toBe(42_500);
+    expect(call.mock.calls[0][2].timeoutMs).toBe(52_500);
   });
   it('counts a spaceless script by pairs of characters, like the client', async () => {
     const call = vi.fn().mockResolvedValue(answer('lang: zh\n<s n="0">a</s>'));
     await translate({ ...base, articleId: 'dl-zh', segments: ['日'.repeat(1_000)], available: [A(1, 'Ollama')] }, { call, now: fixed(0) });
-    expect(call.mock.calls[0][2].timeoutMs).toBe(20_000 + 500 * 75);
+    expect(call.mock.calls[0][2].timeoutMs).toBe(30_000 + 500 * 75);
   });
   it('shrinks the next candidate\'s timeout to what is left of the budget', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -195,7 +198,7 @@ describe('translate deadline, proportional to the batch', () => {
         .mockResolvedValueOnce(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
       const r = await translate({ ...base, articleId: 'dl-fast', segments: batch(300), available: [A(1, 'A'), A(2, 'B')] }, { call, now: fixed(0) });
       expect(r).toMatchObject({ providerName: 'B', fellBackFrom: 'A' });
-      expect(call.mock.calls.map((c) => c[2].timeoutMs)).toEqual([42_500, 42_500]);
+      expect(call.mock.calls.map((c) => c[2].timeoutMs)).toEqual([52_500, 52_500]);
     } finally {
       warn.mockRestore();
     }
@@ -204,7 +207,7 @@ describe('translate deadline, proportional to the batch', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       let t = 0;
-      const call = vi.fn(async () => { t += 41_000; throw new AiError('technical', 'A: aborted (timeout)'); });
+      const call = vi.fn(async () => { t += 51_000; throw new AiError('technical', 'A: aborted (timeout)'); });
       await expect(translate({ ...base, articleId: 'dl-floor', segments: batch(300), available: [A(1, 'A'), A(2, 'B')] }, { call, now: () => t }))
         .rejects.toMatchObject({ message: 'A: aborted (timeout)' });
       expect(call).toHaveBeenCalledTimes(1);

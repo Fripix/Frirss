@@ -26,10 +26,11 @@ export interface TranslateResponse {
  * traduction est aussi longue que son entrée, et les 50 s du résumé ne
  * suffisaient pas à un Ollama local sur un lot de 1 200 mots (502 « timeout »,
  * sans repli : l'échéance était déjà dépensée). Rien de propre à un
- * fournisseur, rien à régler. Plafond 110 s : le nginx du conteneur accorde
+ * fournisseur, rien à régler. Un lot court a moins que les 50 s du résumé, et
+ * c'est voulu (un résumé traduit, une centaine de mots : ~40 s). Plafond 110 s : le nginx du conteneur accorde
  * 120 s à `/api/` (`proxy_read_timeout`), on garde 10 s de marge.
  */
-export const TRANSLATE_DEADLINE_BASE_MS = 20_000;
+export const TRANSLATE_DEADLINE_BASE_MS = 30_000;
 export const TRANSLATE_DEADLINE_PER_WORD_MS = 75;
 export const TRANSLATE_DEADLINE_MAX_MS = 110_000;
 

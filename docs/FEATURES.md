@@ -2207,13 +2207,21 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   Cache : une entrée par lot, clé `op: translate` +
   fournisseur + modèle + **langue cible** + article + sha1 (16 hex) du scope et
   des segments du lot ; la valeur (`AiCacheValue`) porte le lot en JSON dans
-  `text` et la langue source dans `lang`. Plafond : **une unité par lot**
-  (le rejeu ne compte pas double), réservée avant, rendue si le lot échoue ;
-  un article de quatre lots compte quatre. Anthropic reçoit `maxTokens: 8192`,
+  `text` et la langue source dans `lang`. Plafond : **une unité par requête**
+  (le rejeu d'une réponse inexploitable ne compte pas double), réservée
+  avant, rendue si la requête échoue ; un article de quatre lots compte
+  quatre. Un lot **coupé en deux** faute de temps (côté client, voir
+  « Traduction de l'article ») compte **une unité par moitié** — l'appel
+  abandonné est rendu —, donc un article de quatre lots dont un rejoué
+  compte cinq. ⚠️ Rendre l'unité ne rend pas l'argent : un fournisseur payant
+  peut facturer l'appel que FriRSS a abandonné (jetons déjà produits). Anthropic reçoit `maxTokens: 8192`,
   OpenAI rien. **Échéance proportionnelle au lot** (`translateDeadlineMs`) :
-  20 s + 75 ms par mot du lot (`TRANSLATE_DEADLINE_BASE_MS`,
+  30 s + 75 ms par mot du lot (`TRANSLATE_DEADLINE_BASE_MS`,
   `TRANSLATE_DEADLINE_PER_WORD_MS`), plafonnée à **110 s**
-  (`TRANSLATE_DEADLINE_MAX_MS`) — 300 mots : 42,5 s ; 1 200 mots : 110 s.
+  (`TRANSLATE_DEADLINE_MAX_MS`) — 300 mots : 52,5 s ; 1 200 mots : 110 s.
+  La traduction d'un résumé (un segment d'une centaine de mots) a donc
+  environ 40 s : un lot court a **moins** que les 50 s du résumé, et c'est
+  voulu — l'échéance suit le travail.
   Le plafond garde 10 s de marge sous les 120 s que le nginx du conteneur
   accorde à `/api/`. Les mots se comptent comme les compte le client qui
   découpe les lots (`segmentWordCount` de `text.ts`, copie de `wordCount` :
@@ -2584,20 +2592,30 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     source : la traduction est alors **partielle**, et la notice compte les
     lots envoyés sur ceux qu'il aurait fallu (un par segment écarté).
   - **Lot coupé faute de temps** : chaque lot a une échéance serveur
-    proportionnelle à sa longueur (20 s + 75 ms par mot, plafond 110 s ; voir
+    proportionnelle à sa longueur (30 s + 75 ms par mot, plafond 110 s ; voir
     « Traduction — serveur »). Quand le serveur répond quand même 502
     `ai_failed` avec `detail: 'deadline'` (reconnu par `isAiDeadline` de
     `lib/aiErrorKey.ts`, sur ce code seul : un 504 d'un reverse proxy en
     amont, sans corps du serveur, n'est pas deviné) et que le lot porte plus
     d'un segment, il est **rejoué une fois, coupé en deux** — moitiés en
-    série, chacune sa clé de partage (rang `b.0`, `b.1`), `stillCurrent`
-    vérifié entre elles. Une moitié qui expire à son tour échoue comme
+    série, **dans la même demande partagée que le lot** (clé du rang `b`,
+    voir « Demandes partagées ») : revenir sur l'article pendant une moitié
+    s'y rattache au lieu de renvoyer le lot entier. La moitié suivante ne
+    part que si un appelant rattaché est encore courant (`wanted()` de
+    `aiPending.ts`, qui interroge le `stillCurrent` de chacun) ; chaque
+    appelant n'applique la réponse que si sa propre boucle l'est encore. Une
+    première moitié du premier lot déjà dans la langue arrête tout (`same`),
+    comme un premier lot ; une moitié `same` plus loin garde ses segments
+    d'origine. Une moitié qui expire à son tour échoue comme
     n'importe quel lot (pas de seconde découpe) ; un lot d'un seul segment qui
     expire échoue aussitôt ; les autres erreurs ne sont jamais rejouées. Un
     lot déjà réussi ne repart jamais. La notice garde le compte des lots
     d'origine (« Lot 1 sur 2… » pendant les deux moitiés du premier) ; le
     message d'erreur reste le neutre « La traduction a échoué. Réessayez. ».
-    Rien n'est propre à un fournisseur ni réglable.
+    Coût : chaque moitié compte une unité du plafond (l'appel abandonné est
+    rendu), donc un article de quatre lots dont un rejoué en compte cinq ; et
+    un fournisseur payant peut facturer l'appel abandonné. Rien n'est propre
+    à un fournisseur ni réglable.
   - **Bouton** : dans la barre d'outils, après « Article complet », présent
     quand le panneau IA l'est (`aiUsable`). Ordinateur : bouton scindé
     `action-btn` (« Traduire l'article », accent quand la traduction est
@@ -2655,8 +2673,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     et gardé par le cache serveur.
   - **Demandes partagées** : chaque lot passe par `sharedTranslationRequest`
     (clé : `article`, compte, article, langue, fournisseur forcé, hash du
-    corps, rang du lot — ou de la moitié d'un lot rejoué) : revenir sur l'article et relancer reprend le lot en
-    vol au lieu de le repayer ; le cache serveur sert les lots déjà traduits.
+    corps, rang du lot ; un lot rejoué en deux moitiés reste **une seule**
+    demande partagée) : revenir sur l'article et relancer reprend le lot en
+    vol — moitiés comprises — au lieu de le repayer ; le cache serveur sert les lots déjà traduits.
 - **Résumé automatique à l'ouverture** : la règle est celle du flux, sinon
   d'une de ses catégories, sinon de l'interrupteur global (`aiAutoSummary`,
   Préférences → IA → « Résumés », **éteint d'origine**, avertissement de coût
