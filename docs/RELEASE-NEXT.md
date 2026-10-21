@@ -89,6 +89,23 @@ la release publiée.
   et un paragraphe « vide » pouvait avaler l'image et le texte qui le
   suivaient. Les deux se font désormais sur l'arbre assaini, y compris pour
   l'aperçu de l'article voisin pendant un balayage.
+- **Une connexion ratée n'écrase plus les préférences synchronisées.** Si la
+  lecture des préférences échouait à la connexion (réseau, erreur 5xx), FriRSS
+  prenait le compte pour un compte neuf et y écrivait l'état local du
+  navigateur — des valeurs par défaut après une déconnexion — sur tous les
+  appareils. Un échec ne change plus rien : la lecture est retentée et la
+  première réussie décide.
+- **Les raccourcis ne volent plus les touches du navigateur.** ⌘R / Ctrl+R
+  marquait l'article lu au lieu de recharger la page, et ⌘/Ctrl avec L, D, B,
+  O, U ou F (et Alt + lettre) déclenchait aussi une action FriRSS. Une touche
+  tenue avec ⌘, Ctrl ou Alt revient désormais au navigateur (seul ⌘K / Ctrl+K
+  ouvre toujours la palette), et une touche maintenue ne bascule plus favori,
+  « à lire plus tard » ou le panneau latéral à chaque répétition.
+- **L'éditeur de raccourcis refuse les touches réservées**, avec un message :
+  F1–F12, Tab, Espace, Entrée, un modificateur seul, `/` et `'` (recherche
+  rapide de Firefox), `?` (aide-mémoire), une combinaison avec ⌘, Ctrl ou Alt,
+  et une touche déjà attribuée à une autre action. Les flèches restent
+  permises.
 
 ## Sous le capot
 

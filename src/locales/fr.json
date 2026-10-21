@@ -356,6 +356,8 @@
       "keyEscape": "ESC",
       "keyEnter": "Entrée",
       "keyDelete": "Suppr",
+      "keyReserved": "Touche déjà utilisée par le navigateur, le système ou FriRSS. Choisissez-en une autre.",
+      "keyTaken": "Déjà attribuée à « {{action}} ». Choisissez-en une autre.",
       "escBackToGrid": "Retour à la grille",
       "escExitFocus": "Quitter le mode Focus",
       "builtInTitle": "Gestes et touches intégrés",

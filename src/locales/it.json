@@ -356,6 +356,8 @@
       "keyEscape": "ESC",
       "keyEnter": "Invio",
       "keyDelete": "Canc",
+      "keyReserved": "Tasto già usato dal browser, dal sistema o da FriRSS. Scegline un altro.",
+      "keyTaken": "Già assegnato a «{{action}}». Scegline un altro.",
       "escBackToGrid": "Torna alla griglia",
       "escExitFocus": "Esci dalla modalità Focus",
       "builtInTitle": "Tasti e gesti integrati",

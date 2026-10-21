@@ -356,6 +356,8 @@
       "keyEscape": "ESC",
       "keyEnter": "Eingabe",
       "keyDelete": "Entf",
+      "keyReserved": "Diese Taste wird vom Browser, vom System oder von FriRSS verwendet. Wählen Sie eine andere.",
+      "keyTaken": "Bereits „{{action}}“ zugewiesen. Wählen Sie eine andere.",
       "escBackToGrid": "Zurück zum Raster",
       "escExitFocus": "Fokusmodus verlassen",
       "builtInTitle": "Integrierte Tasten & Gesten",

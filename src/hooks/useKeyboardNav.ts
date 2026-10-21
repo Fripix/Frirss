@@ -5,6 +5,9 @@ import { useUiStore } from '../stores/uiStore';
 import { effectiveLayout } from '../lib/effectiveLayout';
 import { openExternal } from '../lib/openExternal';
 
+// Actions qui ne sont pas idempotentes : les rejouer défait ou multiplie.
+const TOGGLE_ACTIONS = ['toggleStar', 'readLater', 'toggleSidebar', 'openOriginal'];
+
 export function useKeyboardNav(): void {
   const shortcuts = useUiStore((s) => s.shortcuts);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
@@ -56,16 +59,27 @@ export function useKeyboardNav(): void {
         return;
       }
 
+      // Une touche tenue avec ⌘, Ctrl ou Alt appartient au navigateur ou au
+      // système (⌘R recharge, Ctrl+L va à la barre d'adresse…) : on la laisse
+      // passer sans `preventDefault`. Seul ⌘K, plus haut, fait exception.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
       const key = e.key;
 
       // Aide-mémoire des raccourcis. Placé avant les raccourcis configurables :
       // `?` n'est pas réassignable, et le laisser en dernier permettrait de le
       // masquer en l'attribuant à une action.
       if (key === '?') {
+        if (e.repeat) return;
         e.preventDefault();
         useUiStore.getState().setShortcutHelpOpen(!useUiStore.getState().shortcutHelpOpen);
         return;
       }
+
+      // Une touche maintenue se répète : les flèches doivent continuer de
+      // défiler, mais une bascule ou une ouverture d'onglet ne doit pas se
+      // rejouer à chaque répétition.
+      if (e.repeat && TOGGLE_ACTIONS.some((a) => shortcuts[a] === key)) return;
 
       const store = useFeedStore.getState();
 

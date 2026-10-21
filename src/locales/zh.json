@@ -356,6 +356,8 @@
       "keyEscape": "Esc",
       "keyEnter": "回车",
       "keyDelete": "Del",
+      "keyReserved": "此按键已被浏览器、系统或 FriRSS 占用，请另选一个。",
+      "keyTaken": "已分配给“{{action}}”，请另选一个。",
       "escBackToGrid": "返回网格视图",
       "escExitFocus": "退出专注模式",
       "builtInTitle": "内置按键与手势",

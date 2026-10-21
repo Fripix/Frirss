@@ -362,6 +362,8 @@
       "keyEscape": "ESC",
       "keyEnter": "Enter",
       "keyDelete": "Del",
+      "keyReserved": "Ten klawisz jest używany przez przeglądarkę, system lub FriRSS. Wybierz inny.",
+      "keyTaken": "Już przypisany do „{{action}}”. Wybierz inny.",
       "escBackToGrid": "Powrót do siatki",
       "escExitFocus": "Wyjdź z trybu skupienia",
       "builtInTitle": "Wbudowane klawisze i gesty",

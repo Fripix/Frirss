@@ -528,6 +528,28 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   l'article qu'elles recouvrent. ⌘K est traité avant ces gardes, par convention. Un simple bouton
   qui a le focus **ne** fait **pas** taire les raccourcis : après un clic dans
   la barre d'outils le focus y reste (Chrome), et `j`/`k` doivent suivre.
+  global qui s'en sert pour quitter le mode Focus.
+- **Aucun raccourci ne reprend une touche du navigateur ou du système**
+  (règle du propriétaire, 1.6.2). Deux gardes :
+  - *à l'usage* (`useKeyboardNav.ts`) : une touche tenue avec ⌘, Ctrl ou Alt
+    n'est jamais traitée ni `preventDefault` — seul ⌘K / Ctrl+K (palette)
+    fait exception. Avant, ⌘R / Ctrl+R marquait lu au lieu de recharger, et
+    +L, +D, +B, +O, +U, +F étaient avalés de même ; ⌘F / Ctrl+F ouvrait la
+    recherche de la liste par ce seul effet de bord, jamais par choix. Une
+    touche **maintenue** (`e.repeat`) ne rejoue pas les actions non
+    idempotentes (favori, à lire plus tard, panneau latéral, ouvrir
+    l'original, `?`) ; les flèches, elles, continuent de défiler ;
+  - *dans l'éditeur* (`handleKeyCapture`, liste dans `src/lib/shortcutKeys.ts`) :
+    refus, avec un message sous la ligne, de F1–F12, Tab, Espace, Entrée, des
+    modificateurs pressés seuls, de `/` et `'` (recherche rapide de Firefox),
+    de `?` (aide-mémoire), de toute combinaison avec ⌘, Ctrl ou Alt (laissée
+    au navigateur) et d'une touche déjà attribuée à une autre action. La
+    capture reste ouverte pour essayer une autre touche ; Échap l'annule.
+  - **Les flèches restent permises et restent les défauts** (↑ ↓ →), bien
+    qu'elles servent aussi au défilement : décision du propriétaire, « elles
+    sont pratiques ». Ne pas les remettre en cause.
+  - Un raccourci réservé déjà enregistré avant 1.6.2 n'est pas migré : il
+    continue de fonctionner tel quel jusqu'à sa prochaine modification.
 
 ---
 
@@ -4172,6 +4194,22 @@ Stockage clé/valeur par utilisateur (`preferences`), poussé en un lot par
 - **Piège** : tout le lot est validé **avant** la moindre écriture. Valider au
   fil de l'insertion laisserait derrière soi les clés qui précédaient la
   fautive, sur une requête pourtant refusée.
+- **Côté client** (`hydratePrefs()`, à la connexion et au démarrage) : la
+  réponse du serveur est appliquée aux magasins, puis l'écriture différée
+  démarre (800 ms, instantané **complet**). Un `200` sans aucune clé
+  synchronisée = compte neuf : le serveur est amorcé avec l'état local.
+- **Piège — une lecture en échec n'est PAS un compte vide** (1.6.2). Jusqu'à la
+  1.6.1, une erreur réseau ou un 5xx retombait sur `{}`, donc sur l'amorçage :
+  l'état local de ce navigateur — souvent des valeurs par défaut, remises par
+  une déconnexion — écrasait toutes les préférences du compte, sur tous les
+  appareils. Désormais un échec n'applique rien, n'écrit rien et **ne démarre
+  pas** l'écriture différée (elle pousse l'instantané complet : le moindre
+  changement local aurait le même effet). La lecture est retentée (5 s, puis
+  doublée jusqu'à 60 s) et la première réussie décide ; un changement fait
+  entre-temps reste local et cède devant le serveur. Pas de nouvel essai après
+  un 401 (l'intercepteur a déjà déconnecté) ; `stopSync()` annule l'essai en
+  attente, et une lecture partie avant la déconnexion n'applique plus rien.
+  Test : `src/lib/prefsSync.test.ts`.
 
 ### Scripts opérateur
 - `scripts/backup-db.js` — instantané atomique horodaté

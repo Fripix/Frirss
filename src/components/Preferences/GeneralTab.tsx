@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { loadLanguage } from '../../i18n';
 import { useUiStore, shortcutActions } from '../../stores/uiStore';
 import ToggleSwitch from '../ToggleSwitch';
+import { shortcutRefusal, type ShortcutRefusal } from '../../lib/shortcutKeys';
 import { useFeedStore } from '../../stores/feedStore';
 
 export default function GeneralTab() {
@@ -25,23 +26,40 @@ export default function GeneralTab() {
   const setAutoExtractDefault = useUiStore((s) => s.setAutoExtractDefault);
   const { shortcuts, setShortcut, resetShortcuts } = useUiStore();
   const [editing, setEditing] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<ShortcutRefusal | null>(null);
 
   const handleKeyCapture = useCallback(
     (e: ReactKeyboardEvent) => {
       if (!editing) return;
+      // Avec ⌘, Ctrl ou Alt, la combinaison est celle du navigateur ou du
+      // système, et le raccourci ne réagirait de toute façon jamais : on la
+      // refuse sans `preventDefault`, le navigateur garde sa touche.
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        setRefusal({ reason: 'reserved' });
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
 
       const key = e.key;
       if (key === 'Escape') {
         setEditing(null);
+        setRefusal(null);
+        return;
+      }
+
+      // Refusée : la capture reste ouverte pour essayer une autre touche.
+      const refused = shortcutRefusal(key, editing, shortcuts);
+      if (refused) {
+        setRefusal(refused);
         return;
       }
 
       setShortcut(editing, key);
       setEditing(null);
+      setRefusal(null);
     },
-    [editing, setShortcut]
+    [editing, shortcuts, setShortcut]
   );
 
   function formatKey(key: string) {
@@ -353,30 +371,38 @@ export default function GeneralTab() {
 
         <div className="space-y-1">
           {shortcutActions.map((action) => (
-            <div
-              key={action}
-              className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-black/[.03]"
-            >
-              <span className="text-xs" style={{ color: 'var(--reading-text)' }}>
-                {t(`preferences.shortcuts.${action}`)}
-              </span>
-              <button
-                onClick={() => setEditing(action)}
-                onKeyDown={editing === action ? handleKeyCapture : undefined}
-                className={`min-w-[60px] text-center text-xs font-mono px-3 py-1 rounded-md transition-all ${
-                  editing === action
-                    ? 'ring-2 ring-[var(--accent)] bg-[var(--accent-glow)]'
-                    : 'hover:bg-black/5'
-                }`}
-                style={{
-                  border: '1px solid var(--panel-border)',
-                  color: editing === action ? 'var(--accent)' : 'var(--list-title)',
-                  background: editing === action ? 'var(--accent-glow)' : 'var(--panel-header-bg)',
-                }}
-                autoFocus={editing === action}
+            <div key={action}>
+              <div
+                className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-black/[.03]"
               >
-                {editing === action ? '...' : formatKey(shortcuts[action])}
-              </button>
+                <span className="text-xs" style={{ color: 'var(--reading-text)' }}>
+                  {t(`preferences.shortcuts.${action}`)}
+                </span>
+                <button
+                  onClick={() => { setEditing(action); setRefusal(null); }}
+                  onKeyDown={editing === action ? handleKeyCapture : undefined}
+                  className={`min-w-[60px] text-center text-xs font-mono px-3 py-1 rounded-md transition-all ${
+                    editing === action
+                      ? 'ring-2 ring-[var(--accent)] bg-[var(--accent-glow)]'
+                      : 'hover:bg-black/5'
+                  }`}
+                  style={{
+                    border: '1px solid var(--panel-border)',
+                    color: editing === action ? 'var(--accent)' : 'var(--list-title)',
+                    background: editing === action ? 'var(--accent-glow)' : 'var(--panel-header-bg)',
+                  }}
+                  autoFocus={editing === action}
+                >
+                  {editing === action ? '...' : formatKey(shortcuts[action])}
+                </button>
+              </div>
+              {editing === action && refusal && (
+                <p role="alert" className="text-[11px] px-2 pb-1 text-right" style={{ color: 'var(--danger)' }}>
+                  {refusal.reason === 'taken'
+                    ? t('preferences.shortcuts.keyTaken', { action: t(`preferences.shortcuts.${refusal.action}`) })
+                    : t('preferences.shortcuts.keyReserved')}
+                </p>
+              )}
             </div>
           ))}
         </div>
