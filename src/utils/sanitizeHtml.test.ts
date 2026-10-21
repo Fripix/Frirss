@@ -74,3 +74,23 @@ describe('sanitizeArticleBody', () => {
       .toBe('<img src="1.jpg"><img src="2.jpg"><img loading="lazy" src="3.jpg">');
   });
 });
+
+// Le fantôme de balayage (`ReadingPane`) passe par la même passe sur l'arbre :
+// format réservé et paragraphes vides retirés, mais sans chargement différé
+// ni `dir` — ce qu'il faisait déjà quand c'étaient des motifs.
+describe('sanitizeArticleBody — fantôme de balayage', () => {
+  const ghost = (html: string) => sanitizeArticleBody(html, Infinity, { blockDir: false });
+
+  it('reserves the aspect, drops empty paragraphs, and adds nothing else', () => {
+    expect(ghost('<p> </p><img src="1.jpg" width="4" height="3"><img src="2.jpg"><img src="3.jpg"><p>x</p>'))
+      .toBe('<img src="1.jpg" width="4" height="3" style="aspect-ratio:4/3"><img src="2.jpg"><img src="3.jpg"><p>x</p>');
+  });
+
+  it('never touches the inside of an attribute value', () => {
+    const out = ghost('<p><a title="<img width=1 height=1 onmouseover=alert(1) x" href="https://example.com/">t</a></p><p><img alt="<p" src="https://example.com/a.jpg">  </p><p>keep me</p>');
+    const doc = new DOMParser().parseFromString(out, 'text/html');
+    expect([...doc.querySelector('a')!.attributes].map((x) => x.name).sort()).toEqual(['href', 'title']);
+    expect(doc.querySelector('img')!.getAttribute('src')).toBe('https://example.com/a.jpg');
+    expect([...doc.querySelectorAll('p')].map((p) => p.textContent)).toContain('keep me');
+  });
+});

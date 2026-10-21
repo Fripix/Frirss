@@ -1719,27 +1719,42 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   si l'extraction l'a perdue), façades vidéo, assainissement, `aspect-ratio`
   réservé, chargement différé au-delà des deux premières images, direction par
   bloc. Elle vivait dans le composant et tournait à **chaque rendu**.
-  `reserveImgAspect()` tire ses dimensions des attributs de la balise, puis —
-  depuis la 1.4.10 — des mesures relevées par le réchauffage en avant
-  (`imageAspect.ts`). Sans l'une ni l'autre, la balise ressort intacte.
-  Chargement différé et `dir="auto"` (sur `p`, `h1`–`h6`, `li`, `blockquote`,
-  `figcaption` sans `dir`) sont posés **sur l'arbre** que DOMPurify vient
-  d'assainir, avant son unique sérialisation (`sanitizeArticleBody`, hook
-  `afterSanitizeAttributes` actif le temps de cet appel seulement). Un simple
-  `setAttribute` : l'attribut s'ajoute **après** les autres, et un
-  `loading="eager"` (ou toute autre valeur) d'une image au-delà des deux
-  premières est remplacé par `lazy` à sa place. La passe ne retire ni ne
-  repose **jamais** un attribut existant : DOMPurify garde des noms `data-*`
-  que le parseur HTML accepte mais que la vérification de nom XML refuse
-  (`data-a×b`), et les reposer (`setAttributeNS`, pour garder `dir` en tête)
-  levait `InvalidCharacterError` sur les moteurs à l'ancienne règle (jsdom,
-  Safari et Chrome anciens) — l'exception remontait jusqu'à la seule frontière
-  d'erreur de l'application, un article de flux la faisait tomber. Piège
-  corrigé en 1.6.2 : c'étaient des motifs sur le HTML sérialisé, sans borne
-  après le nom de balise — `<pre>` devenait `<p dir="auto"re>` et `<picture>`
-  `<p dir="auto"icture>` depuis la 1.4.0 — et qui trouvaient aussi `<p` ou
-  `<img` dans une valeur d'attribut. Ne pas y revenir. Tests :
-  `articleBody.test.ts`, `sanitizeHtml.test.ts`.
+  `reserveImgAspect()` (`imageAspect.ts`) tire ses dimensions des attributs
+  `width`/`height` de l'image, puis — depuis la 1.4.10 — des mesures relevées
+  par le réchauffage en avant. Sans l'une ni l'autre, l'image ressort intacte.
+  **Toute la passe tourne sur l'arbre** que DOMPurify vient d'assainir, avant
+  son unique sérialisation (`sanitizeArticleBody`, `RETURN_DOM` puis
+  `innerHTML`) : chargement différé, `dir="auto"` (sur `p`, `h1`–`h6`, `li`,
+  `blockquote`, `figcaption` sans `dir`) et `aspect-ratio` dans le hook
+  `afterSanitizeAttributes`, actif le temps de cet appel seulement ; puis
+  retrait des paragraphes vides (blancs, `&nbsp;`, `<br>`) et des `<br>` /
+  blancs de tête. **Plus aucun motif sur le HTML après l'assainisseur.** La
+  passe ne crée que `style`, `dir` et `loading`, par un simple `setAttribute`
+  : l'attribut s'ajoute **après** les autres (le `style` d'une image venait
+  avant en tête), un `style` existant est complété sur place
+  (`border:0;aspect-ratio:4/3`), et un `loading="eager"` (ou toute autre
+  valeur) d'une image au-delà des deux premières est remplacé par `lazy` à sa
+  place. Elle ne retire ni ne repose **jamais** un attribut existant :
+  DOMPurify garde des noms `data-*` que le parseur HTML accepte mais que la
+  vérification de nom XML refuse (`data-a×b`), et les reposer
+  (`setAttributeNS`, pour garder `dir` en tête) levait `InvalidCharacterError`
+  sur les moteurs à l'ancienne règle (jsdom, Safari et Chrome anciens) —
+  l'exception remontait jusqu'à la seule frontière d'erreur de l'application,
+  un article de flux la faisait tomber. Le fantôme de balayage
+  (`ReadingPane`) prend la même passe avec `eagerImages: Infinity` et
+  `blockDir: false` : format réservé et paragraphes vides, sans chargement
+  différé ni `dir`, comme avant. Un corps sans aucune balise sort désormais
+  sérialisé (`&` → `&amp;`), au lieu d'être rendu tel quel ; le rendu est le
+  même. Pièges corrigés en 1.6.2 : c'étaient des motifs sur le HTML sérialisé.
+  Ceux de `dir`/`loading` n'avaient pas de borne après le nom de balise —
+  `<pre>` devenait `<p dir="auto"re>` et `<picture>` `<p dir="auto"icture>`
+  depuis la 1.4.0. Tous trouvaient aussi `<p` ou `<img` dans une valeur
+  d'attribut, là où le sérialiseur n'échappe pas `<` (jsdom, navigateurs
+  d'avant 2025) : le `style="…"` posé sur un `<img` écrit dans un `title`
+  refermait la valeur et faisait d'un `onmouseover=` un vrai attribut du lien,
+  après DOMPurify ; le ménage des paragraphes vides se refermait sur le `<p`
+  d'un `alt` et avalait le `src` et le balisage suivant. Ne pas y revenir.
+  Tests : `articleBody.test.ts`, `sanitizeHtml.test.ts`, `imageAspect.test.ts`.
 - **Piège majeur — l'objet `dangerouslySetInnerHTML` doit garder son identité**
   (1.4.10). React 19 n'écarte une prop que si `nextProp === lastProp`, puis
   réaffecte `innerHTML` **sans comparer `__html`**. Un littéral

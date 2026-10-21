@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { buildArticleBody, displayedHtml, reserveImgAspect, readingMinutes } from './articleBody';
+import { buildArticleBody, displayedHtml, readingMinutes } from './articleBody';
 import { rememberImageSize, forgetMeasuredSizes } from './imageAspect';
 
 const labels = { play: 'Lire', open: 'Ouvrir' };
@@ -42,24 +42,39 @@ describe('displayedHtml', () => {
   });
 });
 
-describe('reserveImgAspect', () => {
+// La réservation du format se fait sur l'arbre assaini (`reserveImgAspect`,
+// `imageAspect.ts`), dans la même passe que le reste : on l'observe donc sur
+// le corps construit.
+describe('réservation du format des images', () => {
+  const body = (html: string) => build(html).html;
+
   it('déclare aspect-ratio quand l’image annonce ses dimensions', () => {
-    expect(reserveImgAspect('<img src="a.jpg" width="800" height="450">'))
-      .toContain('style="aspect-ratio:800/450"');
+    expect(body('<img src="a.jpg" width="800" height="450">'))
+      .toBe('<img src="a.jpg" width="800" height="450" style="aspect-ratio:800/450">');
   });
 
   it('complète un style existant au lieu de l’écraser', () => {
-    const out = reserveImgAspect('<img style="border:0" src="a.jpg" width="4" height="3">');
-    expect(out).toContain('border:0;aspect-ratio:4/3');
+    expect(body('<img style="border:0" src="a.jpg" width="4" height="3">'))
+      .toBe('<img style="border:0;aspect-ratio:4/3" src="a.jpg" width="4" height="3">');
   });
 
   it('laisse l’image intacte sans dimensions utilisables', () => {
-    expect(reserveImgAspect('<img src="a.jpg" width="0" height="10">'))
+    expect(body('<img src="a.jpg" width="0" height="10">'))
       .toBe('<img src="a.jpg" width="0" height="10">');
   });
 
   it('retire les paragraphes vides autour de l’image d’en-tête', () => {
-    expect(reserveImgAspect('<p> </p><p>texte</p>')).toBe('<p>texte</p>');
+    expect(body('<p> </p><p>texte</p>')).toBe('<p dir="auto">texte</p>');
+    expect(body('<p>&nbsp;<br></p><img src="a.jpg"><p><br/></p><p>texte</p>'))
+      .toBe('<img src="a.jpg"><p dir="auto">texte</p>');
+  });
+
+  it('retire les <br> et blancs de tête', () => {
+    expect(body('<br>&nbsp; <br/>  début <p>texte</p>')).toBe('début <p dir="auto">texte</p>');
+  });
+
+  it('garde un paragraphe qui porte autre chose que des blancs', () => {
+    expect(body('<p><img src="a.jpg"></p>')).toBe('<p dir="auto"><img src="a.jpg"></p>');
   });
 
   // Beaucoup de flux n'annoncent pas les dimensions. Le réchauffage en avant
@@ -70,25 +85,35 @@ describe('reserveImgAspect', () => {
 
     it('réserve la place d’une image sans attributs, une fois mesurée', () => {
       rememberImageSize('https://ex.com/hero.jpg', 1200, 800);
-      expect(reserveImgAspect('<img src="https://ex.com/hero.jpg">'))
-        .toContain('style="aspect-ratio:1200/800"');
+      expect(body('<img src="https://ex.com/hero.jpg">'))
+        .toBe('<img src="https://ex.com/hero.jpg" style="aspect-ratio:1200/800">');
     });
 
-    it('retrouve la mesure malgré l’échappement de l’assainisseur', () => {
+    it('retrouve la mesure malgré l’échappement du flux', () => {
       rememberImageSize('https://ex.com/h.jpg?w=1&h=2', 800, 600);
-      expect(reserveImgAspect('<img src="https://ex.com/h.jpg?w=1&amp;h=2">'))
+      expect(body('<img src="https://ex.com/h.jpg?w=1&amp;h=2">'))
         .toContain('aspect-ratio:800/600');
     });
 
     it('laisse les attributs de la balise l’emporter', () => {
       rememberImageSize('https://ex.com/hero.jpg', 1200, 800);
-      expect(reserveImgAspect('<img src="https://ex.com/hero.jpg" width="4" height="3">'))
+      expect(body('<img src="https://ex.com/hero.jpg" width="4" height="3">'))
         .toContain('aspect-ratio:4/3');
     });
 
     it('ne touche à rien tant que l’image n’a pas été mesurée', () => {
-      expect(reserveImgAspect('<img src="https://ex.com/jamais-vue.jpg">'))
+      expect(body('<img src="https://ex.com/jamais-vue.jpg">'))
         .toBe('<img src="https://ex.com/jamais-vue.jpg">');
+    });
+
+    // Le motif d'avant posait `style="…"` sur un `<img` écrit DANS une valeur
+    // d'attribut : le guillemet refermait la valeur, après DOMPurify.
+    it('ne réserve rien pour un <img> écrit dans une valeur d’attribut', () => {
+      rememberImageSize('https://ex.com/q.jpg', 4, 3);
+      const html = body('<p><a title="<img src=\'https://ex.com/q.jpg\' onmouseover=alert(1) x" href="https://example.com/">t</a></p>');
+      const a = new DOMParser().parseFromString(html, 'text/html').querySelector('a')!;
+      expect([...a.attributes].map((x) => x.name).sort()).toEqual(['href', 'title']);
+      expect(html).not.toContain('aspect-ratio');
     });
   });
 });
@@ -154,6 +179,25 @@ describe('buildArticleBody', () => {
     const imgTrap = build('<img src="1.jpg"><img src="2.jpg"><img src="3.jpg"><a title="<img onmouseover=alert(1) x" href="https://example.com/">t</a>').html;
     expect(attrsOf(imgTrap, 'a')).toEqual(['href', 'title']);
     expect(new DOMParser().parseFromString(imgTrap, 'text/html').querySelector('a')!.title).toBe('<img onmouseover=alert(1) x');
+  });
+
+  // La réservation de format et le ménage des paragraphes vides étaient eux
+  // aussi des motifs sur le HTML sérialisé, APRÈS DOMPurify : `<img` dans un
+  // `title` recevait un `style="…"` dont le guillemet refermait la valeur, et
+  // le paragraphe « vide » se refermait sur le `<p` d'un `alt`.
+  it('réserve le format sans toucher l’intérieur d’une valeur d’attribut', () => {
+    const html = build('<p><a title="<img width=1 height=1 onmouseover=alert(1) x" href="https://example.com/">t</a></p>').html;
+    const a = new DOMParser().parseFromString(html, 'text/html').querySelector('a')!;
+    expect([...a.attributes].map((x) => x.name).sort()).toEqual(['href', 'title']);
+    expect(a.title).toBe('<img width=1 height=1 onmouseover=alert(1) x');
+  });
+
+  it('retire les paragraphes vides sans avaler le balisage qui suit', () => {
+    const html = build('<p><img alt="<p" src="https://example.com/a.jpg">  </p><p>keep me</p>').html;
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    expect(doc.querySelector('img')!.getAttribute('src')).toBe('https://example.com/a.jpg');
+    expect(doc.querySelector('img')!.getAttribute('alt')).toBe('<p');
+    expect([...doc.querySelectorAll('p')].map((p) => p.textContent)).toContain('keep me');
   });
 
   it('compte les mots du contenu affiché, pas du balisage', () => {

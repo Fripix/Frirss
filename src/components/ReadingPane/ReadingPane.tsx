@@ -6,9 +6,9 @@ import { useFeedStore, READ_LATER_LABEL } from '../../stores/feedStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import { buildArticleBody, displayedHtml, reserveImgAspect, readingMinutes } from '../../lib/articleBody';
+import { buildArticleBody, displayedHtml, readingMinutes } from '../../lib/articleBody';
 import { readingBodyKind, showsSkeleton, showsReadingTime } from '../../lib/readingBody';
-import { sanitizeHtml } from '../../utils/sanitizeHtml';
+import { sanitizeArticleBody } from '../../utils/sanitizeHtml';
 import { readProgressPercent } from '../../lib/readProgress';
 import type { Article } from '../../types';
 import type { ExtractedContent } from '../../utils/extractContent';
@@ -547,7 +547,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 (adjKind === 'skeleton'
                   ? SKELETON_HTML
                   : '<div class="article-content leading-relaxed" style="color:var(--reading-text);font-size:var(--fs-reading-body)">' +
-                      reserveImgAspect(sanitizeHtml(adjHtml)) +
+                      // Même passe sur l'arbre que le rendu (format réservé,
+                      // paragraphes vides), sans chargement différé ni `dir`.
+                      sanitizeArticleBody(adjHtml, Infinity, { blockDir: false }) +
                     '</div>') +
               '</div>';
             contentWrapperRef.current.appendChild(preview);

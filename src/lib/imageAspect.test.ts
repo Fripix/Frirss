@@ -1,9 +1,9 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   normalizeImageUrl,
-  imgTagSrc,
   aspectDecl,
-  withAspect,
+  reserveImgAspect,
   rememberImageSize,
   measuredImageSize,
   forgetMeasuredSizes,
@@ -11,6 +11,13 @@ import {
 } from './imageAspect';
 
 beforeEach(() => forgetMeasuredSizes());
+
+/** Un élément tel que l'arbre assaini le présente à la passe. */
+const el = (html: string): Element => {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  return t.content.firstElementChild!;
+};
 
 describe('normalizeImageUrl', () => {
   it('décode l’esperluette échappée d’un attribut HTML', () => {
@@ -28,54 +35,68 @@ describe('normalizeImageUrl', () => {
   });
 });
 
-describe('imgTagSrc', () => {
-  it('lit le src d’une balise, guillemets simples ou doubles', () => {
-    expect(imgTagSrc('<img src="https://ex.com/a.jpg">')).toBe('https://ex.com/a.jpg');
-    expect(imgTagSrc("<img alt='x' src='https://ex.com/b.jpg'>")).toBe('https://ex.com/b.jpg');
-  });
-
-  it('normalise l’URL au passage', () => {
-    expect(imgTagSrc('<img src="https://ex.com/a.jpg?a=1&amp;b=2">'))
-      .toBe('https://ex.com/a.jpg?a=1&b=2');
-  });
-
-  it('renvoie null sans src', () => {
-    expect(imgTagSrc('<img alt="rien">')).toBeNull();
-  });
-});
-
 describe('aspectDecl', () => {
   it('préfère les attributs de la balise', () => {
-    expect(aspectDecl('<img width="800" height="450">', { width: 10, height: 10 }))
+    expect(aspectDecl(el('<img width="800" height="450">'), { width: 10, height: 10 }))
       .toBe('aspect-ratio:800/450');
   });
 
+  it('lit les chiffres de tête, comme avant (`800px`)', () => {
+    expect(aspectDecl(el('<img width="800px" height=450>'), null)).toBe('aspect-ratio:800/450');
+  });
+
+  it('ne prend pas un data-width pour un width', () => {
+    expect(aspectDecl(el('<img data-width="800" data-height="450">'), null)).toBeNull();
+  });
+
   it('retombe sur la mesure quand les attributs manquent', () => {
-    expect(aspectDecl('<img src="a.jpg">', { width: 1200, height: 800 }))
+    expect(aspectDecl(el('<img src="a.jpg">'), { width: 1200, height: 800 }))
       .toBe('aspect-ratio:1200/800');
   });
 
   it('retombe sur la mesure quand les attributs sont dégénérés', () => {
-    expect(aspectDecl('<img width="0" height="10">', { width: 4, height: 3 }))
+    expect(aspectDecl(el('<img width="0" height="10">'), { width: 4, height: 3 }))
       .toBe('aspect-ratio:4/3');
   });
 
   it('ne devine jamais : sans mesure utilisable, rien', () => {
-    expect(aspectDecl('<img src="a.jpg">', null)).toBeNull();
-    expect(aspectDecl('<img src="a.jpg">', { width: 0, height: 600 })).toBeNull();
-    expect(aspectDecl('<img src="a.jpg">', { width: 600, height: 0 })).toBeNull();
+    expect(aspectDecl(el('<img src="a.jpg">'), null)).toBeNull();
+    expect(aspectDecl(el('<img src="a.jpg">'), { width: 0, height: 600 })).toBeNull();
+    expect(aspectDecl(el('<img src="a.jpg">'), { width: 600, height: 0 })).toBeNull();
   });
 });
 
-describe('withAspect', () => {
-  it('ajoute un style quand la balise n’en a pas', () => {
-    expect(withAspect('<img src="a.jpg">', 'aspect-ratio:4/3'))
-      .toBe('<img style="aspect-ratio:4/3" src="a.jpg">');
+describe('reserveImgAspect', () => {
+  it('ajoute un style quand l’image n’en a pas', () => {
+    const img = el('<img src="a.jpg" width="4" height="3">');
+    reserveImgAspect(img);
+    expect(img.outerHTML).toBe('<img src="a.jpg" width="4" height="3" style="aspect-ratio:4/3">');
   });
 
-  it('complète un style existant au lieu de l’écraser', () => {
-    expect(withAspect('<img style="border:0" src="a.jpg">', 'aspect-ratio:4/3'))
-      .toContain('border:0;aspect-ratio:4/3');
+  it('complète un style existant au lieu de l’écraser, à sa place', () => {
+    const img = el('<img style="border:0" src="a.jpg" width="4" height="3">');
+    reserveImgAspect(img);
+    expect(img.outerHTML).toBe('<img style="border:0;aspect-ratio:4/3" src="a.jpg" width="4" height="3">');
+  });
+
+  it('retrouve la mesure par le src de l’élément, déjà décodé', () => {
+    rememberImageSize('https://ex.com/a.jpg?a=1&amp;b=2', 1200, 800);
+    const img = el('<img src="https://ex.com/a.jpg?a=1&amp;b=2">');
+    reserveImgAspect(img);
+    expect(img.getAttribute('style')).toBe('aspect-ratio:1200/800');
+  });
+
+  it('laisse l’image intacte sans dimensions ni mesure', () => {
+    const img = el('<img alt="rien" src="a.jpg">');
+    reserveImgAspect(img);
+    expect(img.outerHTML).toBe('<img alt="rien" src="a.jpg">');
+  });
+
+  it('ne touche pas la vignette d’une façade vidéo', () => {
+    rememberImageSize('https://i.ytimg.com/vi/x/hqdefault.jpg', 480, 360);
+    const img = el('<img class="yt-facade__thumb" src="https://i.ytimg.com/vi/x/hqdefault.jpg">');
+    reserveImgAspect(img);
+    expect(img.hasAttribute('style')).toBe(false);
   });
 });
 

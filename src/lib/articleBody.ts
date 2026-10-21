@@ -18,7 +18,6 @@
 
 import { sanitizeArticleBody } from '../utils/sanitizeHtml';
 import { injectVideoFacades, type FacadeLabels } from './youtube';
-import { aspectDecl, withAspect, imgTagSrc, measuredImageSize } from './imageAspect';
 
 /** Combien d'images du début échappent au chargement différé. Les premières
  *  doivent être là *avant* la transition de balayage, pas après. */
@@ -44,54 +43,6 @@ export interface ArticleBody {
   videoIds: string[];
   /** Mots du contenu affiché — base de la durée de lecture. */
   words: number;
-}
-
-/**
- * Réserver la place verticale des images, via `aspect-ratio` — pour que le
- * texte sous une image d'en-tête ne saute pas pendant qu'elle charge (très
- * visible pendant la transition de balayage).
- *
- * Deux sources de dimensions, dans cet ordre : les attributs `width`/`height`
- * de la balise, puis — pour les nombreux flux qui ne les écrivent pas — la
- * mesure relevée par le réchauffage en avant (`heroWarm.ts`), retenue par
- * `imageAspect.ts`. Sans l'une ni l'autre, la balise ressort **intacte** :
- * deviner un format déplacerait le texte deux fois au lieu d'une.
- *
- * ⚠️ Ce n'est donc plus une fonction pure : son résultat dépend de ce qui a
- * été mesuré. Le contrat de stabilité du module tient quand même — les
- * mesures arrivent AVANT que l'article ne soit ouvert, précisément parce que
- * le réchauffage travaille en avance, si bien que le corps mémoïsé de
- * l'article en cours n'a aucune raison d'être recalculé.
- */
-export function reserveImgAspect(html: string): string {
-  // On retire au passage les paragraphes vides et les <br> égarés que
-  // certains flux ajoutent autour de l'image d'en-tête : ils creusent un
-  // écart au-dessus du texte que le contenu extrait n'a pas, et la mise en
-  // page saute quand l'extraction automatique remplace le corps.
-  html = html
-    .replace(/<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi, '')
-    .replace(/^(?:\s|&nbsp;|<br\s*\/?>)+/i, '');
-  return html.replace(/<img\b[^>]*>/gi, (tag) => {
-    // La vignette d'une façade vidéo est NOTRE balisage, pas celui du flux.
-    // Sa place est déjà réservée par le `aspect-ratio: 16/9` de `.yt-facade`,
-    // et elle remplit sa boîte en `object-fit: cover` : réserver un format par
-    // dessus ne décrit rien de vrai.
-    //
-    // Le cas se présente vraiment : `youtubeThumbnail()` réutilise l'URL
-    // `hqdefault.jpg` que le réchauffage en avant a déjà mesurée comme image
-    // d'en-tête du même article, donc la mesure existe et un
-    // `aspect-ratio:480/360` — du 4:3 — se posait sur une boîte 16:9.
-    //
-    // Sans effet visible aujourd'hui, la CSS fixant les deux dimensions : ce
-    // n'est PAS ce qui causait le rectangle vert (voir `.yt-facade__thumb`
-    // dans `src/styles/index.css`, c'était une affaire de spécificité). On
-    // s'abstient quand même — un mécanisme prévu pour les images d'un flux n'a
-    // rien à faire sur du balisage que nous produisons nous-mêmes.
-    if (/\byt-facade__thumb\b/.test(tag)) return tag;
-    const src = imgTagSrc(tag);
-    const decl = aspectDecl(tag, src ? measuredImageSize(src) : null);
-    return decl ? withAspect(tag, decl) : tag;
-  });
 }
 
 /**
@@ -123,10 +74,10 @@ export function readingMinutes(words: number): number {
  *     invisibles sans cette étape ;
  *  3. assainir (scripts, gestionnaires d'événements, `javascript:`) et, sur
  *     l'arbre assaini, différer le chargement de toutes les images sauf les
- *     deux premières et donner sa direction à chaque bloc : un paragraphe
+ *     deux premières, donner sa direction à chaque bloc — un paragraphe
  *     arabe ou hébreu se lit de droite à gauche même dans un article qui, lui,
- *     va de gauche à droite ;
- *  4. réserver la place des images.
+ *     va de gauche à droite —, réserver la place des images
+ *     (`reserveImgAspect`, `imageAspect.ts`) et retirer les paragraphes vides.
  */
 export function buildArticleBody(input: ArticleBodyInput): ArticleBody {
   const displayed = displayedHtml(input.rssHtml, input.extractedHtml);
@@ -136,9 +87,10 @@ export function buildArticleBody(input: ArticleBodyInput): ArticleBody {
     ? injectVideoFacades(displayed, input.videoLabels)
     : { html: displayed, ids: [] as string[] };
 
-  // Images différées et `dir="auto"` sont posés sur l'arbre assaini, pas par
-  // motif sur la chaîne (voir `sanitizeArticleBody`).
-  const html = reserveImgAspect(sanitizeArticleBody(withVideos.html, EAGER_IMAGES));
+  // Images différées, `dir="auto"`, format réservé et paragraphes vides : tout
+  // se fait sur l'arbre assaini, rien par motif sur la chaîne (voir
+  // `sanitizeArticleBody`).
+  const html = sanitizeArticleBody(withVideos.html, EAGER_IMAGES);
 
   return { html, videoIds: withVideos.ids, words };
 }

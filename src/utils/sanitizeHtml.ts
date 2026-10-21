@@ -1,10 +1,11 @@
 import DOMPurify from 'dompurify';
+import { reserveImgAspect } from '../lib/imageAspect';
 
 /** Blocs qui reçoivent `dir="auto"` dans le corps d'un article. */
 const DIR_AUTO_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'FIGCAPTION']);
 
 /** Passe « corps d'article » en cours (`sanitizeArticleBody`), sinon `null`. */
-let bodyPass: { eagerImages: number; images: number } | null = null;
+let bodyPass: { eagerImages: number; images: number; blockDir: boolean } | null = null;
 
 // Registered once at module load (DOMPurify hooks are global).
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
@@ -22,10 +23,16 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   // d'erreur de l'application : un seul article faisait tomber l'app.
   if (node.tagName === 'IMG') {
     if (++bodyPass.images > bodyPass.eagerImages) node.setAttribute('loading', 'lazy');
-  } else if (DIR_AUTO_TAGS.has(node.tagName) && !node.hasAttribute('dir')) {
+    reserveImgAspect(node);
+  } else if (bodyPass.blockDir && DIR_AUTO_TAGS.has(node.tagName) && !node.hasAttribute('dir')) {
     node.setAttribute('dir', 'auto');
   }
 });
+
+const CONFIG = {
+  USE_PROFILES: { html: true },
+  ADD_ATTR: ['target', 'loading'],
+};
 
 /**
  * Sanitize untrusted article HTML before injecting it via dangerouslySetInnerHTML.
@@ -34,20 +41,50 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
  */
 export function sanitizeHtml(html: string | null | undefined): string {
   if (!html) return '';
-  return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    ADD_ATTR: ['target', 'loading'],
-  });
+  return DOMPurify.sanitize(html, CONFIG);
+}
+
+/** Un nœud qui ne montre rien : blancs (`&nbsp;` compris) ou `<br>`. */
+const isBlank = (n: Node): boolean =>
+  n.nodeType === Node.TEXT_NODE ? /^\s*$/.test(n.nodeValue ?? '') : n.nodeName === 'BR';
+
+/**
+ * Retirer les paragraphes vides et les `<br>` / blancs de tête que certains
+ * flux ajoutent autour de l'image d'en-tête : ils creusent un écart au-dessus
+ * du texte que le contenu extrait n'a pas, et la mise en page sautait quand
+ * l'extraction automatique remplaçait le corps.
+ */
+function dropBlankLead(body: Element): void {
+  for (const p of Array.from(body.querySelectorAll('p'))) {
+    if (Array.from(p.childNodes).every(isBlank)) p.remove();
+  }
+  for (let n = body.firstChild; n; ) {
+    const next = n.nextSibling;
+    if (n.nodeType === Node.TEXT_NODE) {
+      const rest = (n.nodeValue ?? '').replace(/^\s+/, '');
+      if (rest) {
+        n.nodeValue = rest;
+        break;
+      }
+    } else if (n.nodeName !== 'BR') {
+      break;
+    }
+    n.remove();
+    n = next;
+  }
 }
 
 /**
- * `sanitizeHtml` pour le corps d'un article, avec deux retouches faites sur
+ * `sanitizeHtml` pour le corps d'un article, avec les retouches faites sur
  * l'arbre que DOMPurify vient d'assainir, avant son unique sérialisation :
  *
  * - chargement différé (`loading="lazy"`) de toutes les images après les
- *   `eagerImages` premières ;
+ *   `eagerImages` premières (`Infinity` : aucune) ;
  * - `dir="auto"` sur `p`, `h1`–`h6`, `li`, `blockquote`, `figcaption` qui n'ont
- *   pas déjà de `dir`.
+ *   pas déjà de `dir` (sauf `blockDir: false`) ;
+ * - `aspect-ratio` réservé dans le `style` des images aux dimensions connues
+ *   (`reserveImgAspect`, `imageAspect.ts`) ;
+ * - paragraphes vides et blancs de tête retirés.
  *
  * ⚠️ Pas de motif sur le HTML sérialisé. Ceux d'avant n'avaient pas de borne
  * après le nom (`<pre>` → `<p dir="auto"re>`, `<picture>` → `<p dir="auto"icture>`)
@@ -56,10 +93,17 @@ export function sanitizeHtml(html: string | null | undefined): string {
  * et la suite devenait des attributs, après DOMPurify. Sur l'arbre, un nœud est
  * un élément ou il n'est pas.
  */
-export function sanitizeArticleBody(html: string | null | undefined, eagerImages: number): string {
-  bodyPass = { eagerImages, images: 0 };
+export function sanitizeArticleBody(
+  html: string | null | undefined,
+  eagerImages: number,
+  { blockDir = true }: { blockDir?: boolean } = {},
+): string {
+  if (!html) return '';
+  bodyPass = { eagerImages, images: 0, blockDir };
   try {
-    return sanitizeHtml(html);
+    const body = DOMPurify.sanitize(html, { ...CONFIG, RETURN_DOM: true }) as Element;
+    dropBlankLead(body);
+    return body.innerHTML;
   } finally {
     bodyPass = null;
   }

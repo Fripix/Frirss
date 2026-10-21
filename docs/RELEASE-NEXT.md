@@ -80,6 +80,15 @@ la release publiée.
   chargement différé des images sont désormais posés sur l'arbre assaini, plus
   par motif sur le HTML : ils ne peuvent plus toucher l'intérieur d'une valeur
   d'attribut.
+- **La réservation de place des images et le ménage des paragraphes vides
+  pouvaient réécrire le balisage après l'assainissement.** Eux aussi
+  travaillaient par motif sur le HTML déjà assaini : un `<img` écrit dans la
+  valeur d'un attribut (un `title`, un `alt`) recevait un `style` dont le
+  guillemet refermait la valeur — de quoi faire d'un `onmouseover` un vrai
+  attribut sur les navigateurs qui n'échappent pas `<` dans les attributs —,
+  et un paragraphe « vide » pouvait avaler l'image et le texte qui le
+  suivaient. Les deux se font désormais sur l'arbre assaini, y compris pour
+  l'aperçu de l'article voisin pendant un balayage.
 
 ## Sous le capot
 
