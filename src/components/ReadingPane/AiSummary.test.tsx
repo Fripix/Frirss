@@ -328,6 +328,15 @@ describe('AiSummary — traduction du résumé', () => {
     fireEvent.click(within(getByRole('menu')).getByRole('menuitemradio', { name: 'Ollama' }));
     expect(onTranslate).toHaveBeenLastCalledWith({ providerId: 2 });
   });
+  it('a pick returns focus to the chevron that opened the menu', () => {
+    const { getByRole } = render(<AiSummary {...doneProps} />);
+    const chevron = getByRole('button', MENU);
+    fireEvent.click(chevron);
+    const item = within(getByRole('menu')).getAllByRole('menuitemradio')[0];
+    item.focus();
+    fireEvent.click(item);
+    expect(document.activeElement).toBe(chevron);
+  });
   it('touch: both halves are 44 px, the menu is a sheet', () => {
     breakpoint.mockImplementation(() => 'mobile');
     const { getByRole } = render(<AiSummary {...doneProps} />);

@@ -2531,7 +2531,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     traduction affichée**, il dit « Traduction… » et est désactivé (sinon il
     restait « Texte source » et la vue rebasculait à l'arrivée des lots). Le
     menu suit les règles du résumé
-    (« Traduire avec X » garde la langue affichée et le réglage de repli). Le
+    (« Traduire avec X » garde la langue affichée et le réglage de repli).
+    Après un choix comme à la fermeture, le focus revient à l'ouvreur : le
+    chevron (sur ordinateur, et celui du résumé partout) ; au doigt, l'élément
+    qui l'avait à l'ouverture s'il est encore là, sinon le bouton de la barre
+    — jamais le chevron de la barre d'outils, qui n'y est pas rendu. Le
     raccourci `t` et la palette lancent la même action, sans jamais revenir au
     texte source (voir « Raccourcis clavier et palette » plus bas).
   - **Notice** au-dessus du corps, gabarit de l'avis d'extraction, sur les

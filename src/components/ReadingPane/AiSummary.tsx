@@ -284,7 +284,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
         open={translateMenuShown} anchor={translateAnchor.current} touch={touch} title={t('ai.translateMenu')}
         languages={ALL_LANGUAGES} providers={providers}
         current={{ lang: translated?.lang ?? targetLang, providerId: translated?.providerId ?? null }}
-        onPick={(choice) => { setTranslateMenuOpen(false); onTranslate(choice); }}
+        onPick={(choice) => { closeTranslateMenu(); onTranslate(choice); }}
         onClose={closeTranslateMenu}
       />
     </div>

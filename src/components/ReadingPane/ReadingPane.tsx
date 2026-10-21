@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type Ref, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { effectiveAutoExtract } from '../../lib/effectiveAutoExtract';
 import { useTranslation } from 'react-i18next';
 import { createPortal, flushSync } from 'react-dom';
@@ -1027,11 +1027,31 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const translateMenuAllowed = aiUsable && online && articleTranslation.canTranslate && articleTranslation.state !== 'loading';
   const translateMenuShown = translateMenuOpen && translateMenuAllowed;
   if (translateMenuOpen && !translateMenuShown) setTranslateMenuOpen(false);
+  // Le focus revient à ce qui a ouvert le menu, après un choix comme après une
+  // fermeture : le chevron sur ordinateur ; au doigt, où le chevron n'est pas
+  // rendu, l'élément qui avait le focus à l'ouverture s'il est encore là (une
+  // rangée de la feuille « … » ne l'est plus), sinon le bouton de la barre.
+  const translateBarBtn = useRef<HTMLButtonElement>(null);
+  const translateOpener = useRef<Element | null>(null);
+  const openTranslateMenuFromTouch = () => {
+    translateOpener.current = document.activeElement;
+    setTranslateMenuOpen(true);
+  };
+  const returnTranslateFocus = useCallback(() => {
+    if (!isMobileOrTablet) {
+      translateChevron.current?.focus();
+      return;
+    }
+    const opener = translateOpener.current;
+    translateOpener.current = null;
+    const target = opener instanceof HTMLElement && opener !== document.body && opener.isConnected ? opener : translateBarBtn.current;
+    target?.focus();
+  }, [isMobileOrTablet]);
   const closeTranslateMenu = useCallback(() => {
     setTranslateMenuOpen(false);
-    translateChevron.current?.focus();
-  }, []);
-  const translatePress = useLongPress(() => { if (translateMenuAllowed) setTranslateMenuOpen(true); });
+    returnTranslateFocus();
+  }, [returnTranslateFocus]);
+  const translatePress = useLongPress(() => { if (translateMenuAllowed) openTranslateMenuFromTouch(); });
 
   // Un article de flux YouTube EST la vidéo : on la montre en tête, sauf si le
   // corps porte déjà la même (l'injection ci-dessus l'a alors transformée en
@@ -1785,7 +1805,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           {/* Traduire l'article : un appui = l'action, un appui long = le menu
               (aussi dans la feuille « … »). */}
           {aiUsable && (
-            <BarBtn active={showTranslatedBody} activeColor="var(--accent)" label={translateLabel} title={translateTitle}
+            <BarBtn buttonRef={translateBarBtn} active={showTranslatedBody} activeColor="var(--accent)" label={translateLabel} title={translateTitle}
               disabled={translateDisabled} onClick={translateAction} press={translatePress}>
               {trLoading ? <SpinIcon className="w-5 h-5" /> : <TranslateIcon className="w-5 h-5" strokeWidth={1.6} />}
             </BarBtn>
@@ -1834,7 +1854,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               <button
                 key={which}
                 type="button"
-                onClick={() => { setReadSettingsOpen(false); setTranslateMenuOpen(true); }}
+                onClick={() => { setReadSettingsOpen(false); openTranslateMenuFromTouch(); }}
                 disabled={!translateMenuAllowed}
                 aria-labelledby={`translate-${which}-label`}
                 aria-describedby={tr.canTranslate ? undefined : `translate-${which}-help`}
@@ -1881,7 +1901,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           open={translateMenuShown} anchor={translateChevron.current} touch={isMobileOrTablet} title={t('ai.translateArticleMenu')}
           languages={TRANSLATE_LANGUAGES} providers={aiProviders}
           current={{ lang: tr.state === 'done' && tr.lang ? tr.lang : aiTargetLang, providerId: tr.state === 'done' ? tr.providerId ?? null : null }}
-          onPick={(choice) => { setTranslateMenuOpen(false); tr.translate(choice); }}
+          onPick={(choice) => { setTranslateMenuOpen(false); returnTranslateFocus(); tr.translate(choice); }}
           onClose={closeTranslateMenu}
         />
       )}
@@ -1910,9 +1930,11 @@ interface BarBtnProps {
   onClick: () => void;
   /** Appui long (`useLongPress`) : ouvre un menu sans voler le tap. */
   press?: ReturnType<typeof useLongPress>;
+  /** Pour y rendre le focus à la fermeture d'un menu ouvert depuis ce bouton. */
+  buttonRef?: Ref<HTMLButtonElement>;
 }
 
-function BarBtn({ children, label, title, active, activeColor, disabled, onClick, press }: BarBtnProps) {
+function BarBtn({ children, label, title, active, activeColor, disabled, onClick, press, buttonRef }: BarBtnProps) {
   const pressProps = press
     ? {
         onTouchStart: press.onTouchStart, onTouchMove: press.onTouchMove, onTouchEnd: press.onTouchEnd,
@@ -1923,6 +1945,7 @@ function BarBtn({ children, label, title, active, activeColor, disabled, onClick
     : {};
   return (
     <button
+      ref={buttonRef}
       type="button"
       {...pressProps}
       onClick={onClick}

@@ -766,6 +766,16 @@ describe('ReadingPane — traduction de l\'article', () => {
     fireEvent.click(within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('de', 'fr') }));
     expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ scope: 'article', targetLang: 'de' });
   });
+  it('a pick in the desktop menu returns focus to the chevron', () => {
+    vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+    const { getByRole } = render(<ReadingPane />);
+    const chevron = getByRole('button', { name: 'ai.translateArticleMenu' });
+    fireEvent.click(chevron);
+    const item = within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('de', 'fr') });
+    item.focus();
+    fireEvent.click(item);
+    expect(document.activeElement).toBe(chevron);
+  });
   it('shows the error in an alert, with the source still on screen', async () => {
     vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
     const { getByRole, findByRole, container } = render(<ReadingPane />);
@@ -902,6 +912,31 @@ describe('ReadingPane — traduction de l\'article', () => {
       fireEvent.click(sheet.getByRole('button', { name: 'ai.translateTo' }));
       const menu = within(getByRole('dialog', { name: 'ai.translateArticleMenu' }));
       expect(menu.getByRole('group', { name: 'ai.translateTo' })).toBeTruthy();
+    });
+    it('closing the menu opened from the « … » sheet returns focus to the bar button, not to an unrendered chevron', () => {
+      const { getByRole, queryByRole } = render(<ReadingPane />);
+      expect(queryByRole('button', { name: 'ai.translateArticleMenu' })).toBeNull();
+      fireEvent.click(getByRole('button', { name: 'readingPane.more' }));
+      const row = within(getByRole('dialog', { name: 'readingPane.more' })).getByRole('button', { name: 'ai.translateTo' });
+      row.focus();
+      fireEvent.click(row);
+      getByRole('dialog', { name: 'ai.translateArticleMenu' });
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(queryByRole('dialog', { name: 'ai.translateArticleMenu' })).toBeNull();
+      expect(document.activeElement).toBe(getByRole('button', { name: 'ai.translateArticle' }));
+    });
+    it('a pick in the touch sheet returns focus to the bar button', () => {
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      const { getByRole } = render(<ReadingPane />);
+      fireEvent.click(getByRole('button', { name: 'readingPane.more' }));
+      fireEvent.click(within(getByRole('dialog', { name: 'readingPane.more' })).getByRole('button', { name: 'ai.translateTo' }));
+      const menu = within(getByRole('dialog', { name: 'ai.translateArticleMenu' }));
+      const pick = menu.getByRole('button', { name: languageName('de', 'fr') });
+      pick.focus();
+      const bar = getByRole('button', { name: 'ai.translateArticle' });
+      fireEvent.click(pick);
+      expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ targetLang: 'de' });
+      expect(document.activeElement).toBe(bar);
     });
     it('« Rien à traduire » is visible under the two sheet rows when there is no text', () => {
       const a = { ...article('t5'), content: '<img src="https://example.com/a.png" alt="">' } as Article;
