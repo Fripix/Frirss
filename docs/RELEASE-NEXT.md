@@ -44,7 +44,7 @@ la release publiée.
   résument l'article ouvert.
 
   **Traductions.** « Traduire », à côté de « Résumer avec… », traduit le
-  résumé vers la langue cible ; « Traduire l'article », dans la barre
+  résumé vers la langue cible ; « Traduire », dans la barre
   d'outils, traduit le titre et le corps affiché, par lots, avec une notice
   (« Lot 2 sur 4… », « Traduit en anglais par X ») et « Texte source » pour
   revenir à l'original sans nouvel appel. Un chevron (un appui long au doigt,

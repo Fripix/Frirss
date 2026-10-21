@@ -2885,8 +2885,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     n'est propre à un fournisseur ni réglable.
   - **Bouton** : dans la barre d'outils, après « Article complet », présent
     quand le panneau IA l'est (`aiUsable`). Ordinateur : bouton scindé
-    `action-btn` (« Traduire l'article », accent quand la traduction est
-    affichée et qu'il devient « Texte source ») + chevron accolé (« Options de
+    `action-btn` (« Traduire » — court, comme le bouton du panneau, le
+    contexte de la barre dit déjà qu'il s'agit de l'article —, accent quand la
+    traduction est affichée et qu'il devient « Texte source ») + chevron accolé (« Options de
     traduction de l'article », distinct du chevron du résumé) qui ouvre
     `TranslateMenu`. Les deux moitiés sont dans `.action-split`, qui retire le
     soulèvement au survol (elles se décollaient). Tactile : un `BarBtn` dans la
@@ -3099,8 +3100,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     panneau replié » ; elle vit dans un module à part parce qu'un fichier de
     composant ne doit exporter que des composants
     (`react-refresh/only-export-components`).
-  - **Traduire l'article** : sous les mêmes gardes que le bouton « Traduire
-    l'article » (IA utilisable, **en ligne**, du texte à traduire —
+  - **Traduire l'article** : sous les mêmes gardes que le bouton « Traduire »
+    de la barre d'outils (IA utilisable, **en ligne**, du texte à traduire —
     `canTranslate` —, aucune traduction en cours), il appelle `translate()` de
     `useArticleTranslation`, comme le bouton : une traduction tenue dans la
     langue cible, cachée par « Texte source », est **remontrée sans requête**.
