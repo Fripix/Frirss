@@ -79,3 +79,18 @@ export function countWords(text: string): number {
   for (const seg of new Intl.Segmenter(undefined, { granularity: 'word' }).segment(text)) if (seg.isWordLike) n++;
   return n;
 }
+
+// Copie de `wordCount` (`src/lib/articleSegments.ts`), qui découpe les lots
+// côté client : l'échéance d'un lot de traduction doit compter les mots comme
+// lui. Le serveur ne peut pas importer `src/` (`rootDir`) ; un test de parité
+// (`src/lib/articleSegments.test.ts`) garde les deux en phase.
+const SPACELESS = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}]/gu;
+
+/** Mots d'un segment HTML : par espaces, ou une paire de caractères pour une écriture sans espaces. */
+export function segmentWordCount(html: string): number {
+  const text = html.replace(/<[^>]*>/g, ' ').trim();
+  if (!text) return 0;
+  const bySpace = text.split(/\s+/).length;
+  const spaceless = text.match(SPACELESS)?.length ?? 0;
+  return Math.max(bySpace, Math.ceil(spaceless / 2));
+}

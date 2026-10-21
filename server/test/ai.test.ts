@@ -488,6 +488,21 @@ describe('ai translate route', () => {
       err.mockRestore();
     }
   });
+  it('says detail deadline when the batch ran out of time', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })));
+      const res = await post(body({ articleId: 'tr-deadline', translationProvider: id, fallback: false }));
+      expect(res.status).toBe(502);
+      expect(res.body).toEqual({ error: 'ai_failed', kind: 'technical', detail: 'deadline' });
+      // Une autre panne technique ne porte pas ce détail.
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('boom')));
+      const other = await post(body({ articleId: 'tr-other', translationProvider: id, fallback: false }));
+      expect(other.body).toEqual({ error: 'ai_failed', kind: 'technical' });
+    } finally {
+      err.mockRestore();
+    }
+  });
   it('answers 429 ai_daily_cap to a capped plain user', async () => {
     db.exec('DELETE FROM ai_usage');
     setSetting('ai_daily_cap', '1');

@@ -35,13 +35,15 @@ export async function callProvider(provider: AiProvider, key: string | null, cal
       timeoutMs, followRedirects: false, trustedHosts: [host],
     });
   } catch (err) {
-    throw new AiError('technical', redact(`${provider.name}: ${transportDetail(err)}`, key));
+    const e = new AiError('technical', redact(`${provider.name}: ${transportDetail(err)}`, key));
+    if (isAbort(err)) e.timedOut = true;
+    throw e;
   }
   // Le délai de `fetchUpstream` s'arrête aux en-têtes : un corps qui ne vient
   // jamais tiendrait la demande au-delà de son échéance. Même borne, comptée
   // depuis le départ de l'appel.
   const inTime = <T>(p: Promise<T>): Promise<T> => withTimeout(p, Math.max(0, started + timeoutMs - Date.now()),
-    () => new AiError('technical', `${provider.name}: answer not received in time (timeout)`));
+    () => Object.assign(new AiError('technical', `${provider.name}: answer not received in time (timeout)`), { timedOut: true }));
   if (!resp.ok) {
     // Masquer AVANT de couper : une coupe au milieu de la clé en laisserait un morceau que `split` ne reconnaît plus.
     const detail = redact(errorDetail(await inTime(resp.text()).catch(() => '')), key).slice(0, 300);
@@ -169,6 +171,18 @@ function errorDetail(body: string): string {
  * entre conteneurs ne laissait aucune trace exploitable. Un abandon pour délai
  * dépassé se lit « timeout ». La clé est masquée par l'appelant.
  */
+/**
+ * Abandon par le minuteur de `fetchUpstream` : `callProvider` ne lui passe
+ * aucun signal à lui, seul le délai de l'appel peut donc l'abandonner. Un
+ * code de cause (`UND_ERR_CONNECT_TIMEOUT`…) n'en est pas un : c'est le
+ * réseau qui a échoué, pas le temps accordé qui a manqué.
+ */
+function isAbort(err: unknown): boolean {
+  const e = err as { name?: unknown; code?: unknown; cause?: { code?: unknown } } | null;
+  if (typeof e?.cause?.code === 'string' || typeof e?.code === 'string') return false;
+  return e?.name === 'AbortError' || e?.name === 'TimeoutError';
+}
+
 function transportDetail(err: unknown): string {
   const e = err as { message?: unknown; name?: unknown; code?: unknown; cause?: { code?: unknown } } | null;
   const message = typeof e?.message === 'string' ? e.message : String(err);

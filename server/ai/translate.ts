@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
-import { callProvider, TIMEOUT_MS, type AiCall } from './providers.js';
+import { callProvider, type AiCall } from './providers.js';
 import { AiError } from './errors.js';
 import type { Availability, ResolutionInput } from './resolve.js';
 import { aiCacheKey, type AiCacheValue } from './store.js';
 import { translateSystem, translateUserMessage, parseTranslation } from './prompts.js';
-import { runWithFallback, SUMMARY_DEADLINE_MS, MIN_CALL_MS } from './attempt.js';
+import { runWithFallback, MIN_CALL_MS } from './attempt.js';
 import { sameLanguage, type AiLanguage } from './languages.js';
+import { segmentWordCount } from './text.js';
 
 /** Un lot d'environ 1 200 mots rend ~2 000 jetons ; Anthropic exige un plafond, on lui laisse de la marge. */
 const ANTHROPIC_MAX_TOKENS = 8192;
@@ -18,6 +19,22 @@ export interface TranslateRequest {
 }
 export interface TranslateResponse {
   segments: string[]; lang: string | null; same: boolean; providerId: number; providerName: string; model: string; fromCache: boolean; fellBackFrom?: string;
+}
+
+/**
+ * Échéance d'un lot, proportionnelle à son nombre de mots : la sortie d'une
+ * traduction est aussi longue que son entrée, et les 50 s du résumé ne
+ * suffisaient pas à un Ollama local sur un lot de 1 200 mots (502 « timeout »,
+ * sans repli : l'échéance était déjà dépensée). Rien de propre à un
+ * fournisseur, rien à régler. Plafond 110 s : le nginx du conteneur accorde
+ * 120 s à `/api/` (`proxy_read_timeout`), on garde 10 s de marge.
+ */
+export const TRANSLATE_DEADLINE_BASE_MS = 20_000;
+export const TRANSLATE_DEADLINE_PER_WORD_MS = 75;
+export const TRANSLATE_DEADLINE_MAX_MS = 110_000;
+
+export function translateDeadlineMs(words: number): number {
+  return Math.min(TRANSLATE_DEADLINE_MAX_MS, TRANSLATE_DEADLINE_BASE_MS + TRANSLATE_DEADLINE_PER_WORD_MS * words);
 }
 
 interface Translated { lang: string | null; same: boolean; segments: string[]; model: string }
@@ -36,7 +53,10 @@ function decodeCached(v: AiCacheValue, count: number): Pick<Translated, 'same' |
 
 /**
  * Spec §17.3. **Un lot = un appel** (le client découpe en lots) : une unité de
- * plafond, une entrée de cache, la même échéance de 50 s que le résumé.
+ * plafond, une entrée de cache, une échéance proportionnelle au lot
+ * (`translateDeadlineMs`) pour tous les candidats, repli compris. Le premier
+ * appel peut la prendre entière (au-delà des 60 s de `TIMEOUT_MS`) ; le
+ * suivant reçoit ce qui reste.
  *
  * - Format strict `<s n="N">…</s>` : un segment absent, en double ou en trop
  *   invalide le lot, **rejoué une fois** sur le même fournisseur si l'échéance
@@ -51,14 +71,15 @@ function decodeCached(v: AiCacheValue, count: number): Pick<Translated, 'same' |
 export async function translate(req: TranslateRequest, deps: { call?: typeof callProvider; now?: () => number } = {}): Promise<TranslateResponse> {
   const call = deps.call ?? callProvider;
   const now = deps.now ?? Date.now;
-  const deadline = now() + SUMMARY_DEADLINE_MS;
+  const budget = translateDeadlineMs(req.segments.reduce((n, s) => n + segmentWordCount(s), 0));
+  const deadline = now() + budget;
   const count = req.segments.length;
   const contentHash = createHash('sha1').update(JSON.stringify([req.scope, req.segments])).digest('hex').slice(0, 16);
   const system = translateSystem(req.targetLang);
   const user = translateUserMessage(req.segments);
 
   const out = await runWithFallback<Translated>({
-    userId: req.userId, resolution: req.resolution, available: req.available, fallback: req.fallback, deadline, now,
+    userId: req.userId, resolution: req.resolution, available: req.available, fallback: req.fallback, deadline, maxCallMs: budget, now,
     cacheKeyFor: (cand) => aiCacheKey({ articleId: req.articleId, op: 'translate', providerId: cand.provider.id, model: cand.provider.model, lang: req.targetLang, contentHash }),
     call: async (cand, timeoutMs) => {
       const opts: AiCall = { system, user, timeoutMs, ...(cand.provider.type === 'anthropic' ? { maxTokens: ANTHROPIC_MAX_TOKENS } : {}) };
@@ -67,7 +88,7 @@ export async function translate(req: TranslateRequest, deps: { call?: typeof cal
       if (!parsed.same && !parsed.segments) {
         const remaining = deadline - now();
         if (remaining < MIN_CALL_MS) throw new AiError('technical', 'segments');
-        result = await call(cand.provider, cand.key, { ...opts, timeoutMs: Math.min(TIMEOUT_MS, remaining) });
+        result = await call(cand.provider, cand.key, { ...opts, timeoutMs: remaining });
         parsed = parseTranslation(result.text, count);
         if (!parsed.same && !parsed.segments) throw new AiError('technical', 'segments');
       }

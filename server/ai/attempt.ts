@@ -10,7 +10,9 @@ import { aiCacheGet, aiCacheSet, bumpUsage, refundUsage, dailyCap, type AiCacheV
  * peut-être payant, compté, mis en cache — sans que personne attende. 50 s
  * tiennent sous un reverse proxy réglé par défaut ; le nginx du conteneur en
  * accorde 120 à `/api/`, pour ne jamais couper une demande que le serveur tient
- * encore. Résumé et traduction (un lot par requête) partagent la même.
+ * encore. C'est celle du résumé ; la traduction a la sienne, proportionnelle
+ * au lot (`translateDeadlineMs`, `translate.ts`) : sa sortie est aussi longue
+ * que son entrée.
  */
 export const SUMMARY_DEADLINE_MS = 50_000;
 /** Sous ce reste, un appel n'a aucune chance d'aboutir : on n'en lance plus. */
@@ -23,6 +25,12 @@ export interface Attempt<T> {
   fallback: boolean;
   /** Instant (selon `now`) au-delà duquel plus aucun appel ne part. */
   deadline: number;
+  /**
+   * Plafond d'UN appel, avant l'échéance : chaque candidat reçoit
+   * `min(maxCallMs, reste)`. Défaut `TIMEOUT_MS` (60 s) ; la traduction passe
+   * son échéance entière, qui peut dépasser 60 s pour un gros lot.
+   */
+  maxCallMs?: number;
   now: () => number;
   /** Clé de cache propre au candidat : le fournisseur et le modèle en font partie. */
   cacheKeyFor: (cand: Availability) => string;
@@ -80,7 +88,7 @@ export async function runWithFallback<T>(a: Attempt<T>): Promise<{ result: T | A
 
     let result: T;
     try {
-      result = await a.call(cand, Math.min(TIMEOUT_MS, remaining));
+      result = await a.call(cand, Math.min(a.maxCallMs ?? TIMEOUT_MS, remaining));
     } catch (err) {
       // Un appel raté n'est pas payé : la place réservée est rendue.
       if (cand.paidByAdmin) refundUsage(a.userId);

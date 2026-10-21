@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { segmentArticle, batchSegments, wordCount, BLOCK_SELECTOR } from './articleSegments';
+import { segmentWordCount } from '../../server/ai/text.js';
 
 describe('segmentArticle', () => {
   it('segments leaf blocks, keeps inline markup, skips blocks without letters and pre', () => {
@@ -115,6 +116,13 @@ describe('wordCount', () => {
     expect(wordCount('日'.repeat(1000))).toBe(500);
     expect(wordCount('가'.repeat(10))).toBe(5);
     expect(wordCount('ก'.repeat(10))).toBe(5);
+  });
+
+  // Le serveur en garde une copie pour l'échéance d'un lot de traduction.
+  it('counts exactly like the server copy', () => {
+    for (const html of ['', '   ', 'Un <a href="/a b c">lien</a> <em>en</em> italique', 'a<br>b', '日'.repeat(1001), 'Hello 世界 你好', '가'.repeat(10), 'ก'.repeat(7), '<p>\n  deux\tmots </p>']) {
+      expect(segmentWordCount(html), JSON.stringify(html)).toBe(wordCount(html));
+    }
   });
 });
 

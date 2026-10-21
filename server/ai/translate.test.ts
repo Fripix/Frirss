@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import db, { setSetting } from '../db.js';
 import { usageToday } from './store.js';
-import { translate } from './translate.js';
+import { translate, translateDeadlineMs, TRANSLATE_DEADLINE_MAX_MS } from './translate.js';
 import { SUMMARY_DEADLINE_MS } from './summarize.js';
 import { AiError } from './errors.js';
 import type { Availability } from './resolve.js';
@@ -142,5 +142,82 @@ describe('translate', () => {
     const call = ok();
     const r = await translate({ ...base, resolution: { translation: 2, feed: 1 }, available: [A(1, 'A'), A(2, 'B')] }, { call });
     expect(r.providerName).toBe('B');
+  });
+});
+
+describe('translate deadline, proportional to the batch', () => {
+  const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(' ');
+  // Un lot de n mots, réparti sur plusieurs segments (avec du balisage, qui ne compte pas).
+  const batch = (n: number) => [words(n / 2), `<em>${words(n / 2)}</em>`];
+  const fixed = (t: number) => () => t;
+
+  it('is base + per word, capped at 110 s (nginx gives /api/ 120 s)', () => {
+    expect(TRANSLATE_DEADLINE_MAX_MS).toBe(110_000);
+    expect(translateDeadlineMs(0)).toBe(20_000);
+    expect(translateDeadlineMs(300)).toBe(42_500);
+    expect(translateDeadlineMs(1_200)).toBe(110_000);
+    expect(translateDeadlineMs(5_000)).toBe(110_000);
+  });
+  it('gives a 1 200-word batch 110 s for its call, beyond the 60 s default', async () => {
+    const call = vi.fn().mockResolvedValue(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+    await translate({ ...base, articleId: 'dl-1200', segments: batch(1_200), available: [A(1, 'Ollama')] }, { call, now: fixed(0) });
+    expect(call.mock.calls[0][2].timeoutMs).toBe(110_000);
+  });
+  it('gives a 300-word batch 42.5 s', async () => {
+    const call = vi.fn().mockResolvedValue(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+    await translate({ ...base, articleId: 'dl-300', segments: batch(300), available: [A(1, 'Ollama')] }, { call, now: fixed(0) });
+    expect(call.mock.calls[0][2].timeoutMs).toBe(42_500);
+  });
+  it('counts a spaceless script by pairs of characters, like the client', async () => {
+    const call = vi.fn().mockResolvedValue(answer('lang: zh\n<s n="0">a</s>'));
+    await translate({ ...base, articleId: 'dl-zh', segments: ['日'.repeat(1_000)], available: [A(1, 'Ollama')] }, { call, now: fixed(0) });
+    expect(call.mock.calls[0][2].timeoutMs).toBe(20_000 + 500 * 75);
+  });
+  it('shrinks the next candidate\'s timeout to what is left of the budget', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      let t = 0;
+      const call = vi.fn()
+        .mockImplementationOnce(async () => { t += 70_000; throw new AiError('technical', 'slow'); })
+        .mockResolvedValueOnce(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+      const r = await translate({ ...base, articleId: 'dl-shrink', segments: batch(1_200), available: [A(1, 'A'), A(2, 'B')] }, { call, now: () => t });
+      expect(r).toMatchObject({ providerName: 'B', fellBackFrom: 'A' });
+      expect(call.mock.calls.map((c) => c[2].timeoutMs)).toEqual([110_000, 40_000]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+  it('still falls back when the first provider fails fast, with the whole budget', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const call = vi.fn()
+        .mockRejectedValueOnce(new AiError('technical', 'down'))
+        .mockResolvedValueOnce(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+      const r = await translate({ ...base, articleId: 'dl-fast', segments: batch(300), available: [A(1, 'A'), A(2, 'B')] }, { call, now: fixed(0) });
+      expect(r).toMatchObject({ providerName: 'B', fellBackFrom: 'A' });
+      expect(call.mock.calls.map((c) => c[2].timeoutMs)).toEqual([42_500, 42_500]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+  it('stops below the 2 s floor: the timed-out error comes back, no further call', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      let t = 0;
+      const call = vi.fn(async () => { t += 41_000; throw new AiError('technical', 'A: aborted (timeout)'); });
+      await expect(translate({ ...base, articleId: 'dl-floor', segments: batch(300), available: [A(1, 'A'), A(2, 'B')] }, { call, now: () => t }))
+        .rejects.toMatchObject({ message: 'A: aborted (timeout)' });
+      expect(call).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+  it('bounds the malformed-answer replay by the same budget', async () => {
+    let t = 0;
+    const call = vi.fn()
+      .mockImplementationOnce(async () => { t += 30_000; return answer('nope'); })
+      .mockResolvedValueOnce(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+    await translate({ ...base, articleId: 'dl-replay', segments: batch(1_200), available: [A(1, 'A')] }, { call, now: () => t });
+    expect(call.mock.calls.map((c) => c[2].timeoutMs)).toEqual([110_000, 80_000]);
   });
 });

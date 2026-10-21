@@ -106,6 +106,9 @@ function sendAiError(res: Response, err: unknown, op: 'summary' | 'translate') {
     error: 'ai_failed', kind: err.kind,
     ...(err.ownKey ? { ownKey: true } : {}),
     ...(err.message === 'segments' ? { detail: 'segments' } : {}),
+    // Le temps a manqué (appel abandonné, ou échéance dépensée avant tout
+    // appel) : le client rejoue alors un lot de traduction coupé en deux.
+    ...(err.timedOut || err.message === 'deadline' ? { detail: 'deadline' } : {}),
   });
 }
 

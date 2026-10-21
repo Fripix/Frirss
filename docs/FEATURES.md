@@ -1977,22 +1977,30 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   un littéral IPv6 est reconnu, crochets retirés), `followRedirects: false`,
   délai 60 s par appel (`TIMEOUT_MS`, lecture du corps comprise : le délai de
   `fetchUpstream` s'arrête aux en-têtes, `callProvider` borne aussi la suite).
-  **Échéance unique de la demande de résumé** (et de chaque lot de traduction) :
+  **Échéance unique de la demande de résumé** :
   `SUMMARY_DEADLINE_MS` = 50 s (`attempt.ts`) pour **tous** les candidats, repli compris ; chacun reçoit
   `min(TIMEOUT_MS, reste)` (`AiCall.timeoutMs`), et sous 2 s de reste on n'en
-  lance plus — la dernière erreur remonte, ou `technical` « deadline ». Les
+  lance plus — la dernière erreur remonte, ou `technical` « deadline ». Un
+  **lot de traduction** a sa propre échéance, proportionnelle au lot (voir
+  « Traduction — serveur ») : `runWithFallback` reçoit l'instant limite
+  (`deadline`) et le plafond d'un appel (`maxCallMs`, défaut `TIMEOUT_MS`). Les
   candidats s'essaient en série : avec 60 s chacun, un Ollama lent atteignait
   les 60 s de nginx (504 au client) et le serveur appelait ensuite Claude,
   payant, compté et mis en cache, sans personne au bout. Le nginx du conteneur
   accorde **120 s** à `/api/` (`proxy_read_timeout`) ; ⚠️ un **reverse proxy en
   amont** doit accorder **au moins 120 s** sur `/api/ai` : les 60 s par défaut
   de nginx ou de Nginx Proxy Manager ne laissent que dix secondes de marge
-  au-dessus de l'échéance de 50 s. Une erreur de transport garde **sa cause** dans le message
+  au-dessus de l'échéance de 50 s du résumé, et **coupent** un gros lot de
+  traduction, qui peut tenir 110 s. Une erreur de transport garde **sa cause** dans le message
   (`transportDetail`) : « Ollama: fetch failed (EHOSTUNREACH) », `ENOTFOUND`,
   `UND_ERR_CONNECT_TIMEOUT`, ou « timeout » pour un abandon ; `fetch` seul ne
   dit que « fetch failed », ce qui rendait une coupure entre conteneurs
   indiagnosticable (cause réelle du 2026-10-20 : adresses MAC en double sur le
-  réseau Docker). Même chose pour la liste des modèles.
+  réseau Docker). Même chose pour la liste des modèles. Un abandon faute de
+  temps (minuteur de l'appel, ou corps pas reçu à temps) est en plus
+  **marqué** sur l'erreur (`AiError.timedOut`, pas déduit du texte) ; un code
+  de cause comme `UND_ERR_CONNECT_TIMEOUT` n'en est pas un (le réseau a
+  échoué, pas le temps accordé).
   Un 3xx est une erreur `technical`, jamais suivi : la clé ne part
   pas vers un hôte que l'admin n'a pas saisi. URL de base illisible →
   `technical`. `/api/ai` partage le seau `FRIRSS_PROXY_RATE_LIMIT` de
@@ -2199,7 +2207,25 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `text` et la langue source dans `lang`. Plafond : **une unité par lot**
   (le rejeu ne compte pas double), réservée avant, rendue si le lot échoue ;
   un article de quatre lots compte quatre. Anthropic reçoit `maxTokens: 8192`,
-  OpenAI rien. Même échéance de 50 s par requête que le résumé. Bornes :
+  OpenAI rien. **Échéance proportionnelle au lot** (`translateDeadlineMs`) :
+  20 s + 75 ms par mot du lot (`TRANSLATE_DEADLINE_BASE_MS`,
+  `TRANSLATE_DEADLINE_PER_WORD_MS`), plafonnée à **110 s**
+  (`TRANSLATE_DEADLINE_MAX_MS`) — 300 mots : 42,5 s ; 1 200 mots : 110 s.
+  Le plafond garde 10 s de marge sous les 120 s que le nginx du conteneur
+  accorde à `/api/`. Les mots se comptent comme les compte le client qui
+  découpe les lots (`segmentWordCount` de `text.ts`, copie de `wordCount` :
+  une paire de caractères vaut un mot en chinois, japonais, coréen et thaï ;
+  test de parité dans `articleSegments.test.ts`). Le premier candidat peut
+  prendre l'échéance **entière**, au-delà des 60 s de `TIMEOUT_MS` ; le
+  suivant reçoit ce qui reste, et sous 2 s plus rien ne part ; le rejeu d'une
+  réponse inexploitable est borné par la même échéance. Raison : la sortie
+  d'une traduction est aussi longue que son entrée, et les 50 s du résumé
+  coupaient un lot de 1 200 mots sur un Ollama local (502 « timeout », et
+  aucun repli : l'échéance était dépensée). **Rien n'est propre à un
+  fournisseur ni réglable**. Un lot coupé faute de temps répond 502
+  `ai_failed` avec `detail: 'deadline'` (appel marqué `timedOut`, ou échéance
+  dépensée avant tout appel) ; le client le rejoue alors coupé en deux (voir
+  « Traduction de l'article »). Bornes :
   `articleId` ≤ 512 caractères, `segments` tableau de 1 à 1 000 chaînes non
   vides totalisant ≤ 200 000 octets (sans borne sur le nombre, des centaines
   de milliers de segments d'un octet, chacun enveloppé dans `<s n="…">`,
@@ -4000,11 +4026,12 @@ divergentes).
   et `express.raw`. Le défaut nginx (1 Mo) rendait le conteneur plus strict que
   le backend qu'il sert. Vérifié par le job `docker` de `ci.yml`, qui exige
   qu'un corps de 2 Mo atteigne Express.
-- **Délai de lecture** : `proxy_read_timeout 120s` sur `/api/`. Une demande
-  IA (résumé ou lot de traduction) tient jusqu'à 50 s (voir « Résumés et
-  traductions par IA », appels sortants) ; au défaut de
-  60 s, le proxy coupait une demande que le serveur tenait encore. Un reverse
-  proxy en amont doit en accorder autant sur `/api/ai`.
+- **Délai de lecture** : `proxy_read_timeout 120s` sur `/api/`. Un résumé IA
+  tient jusqu'à 50 s, un lot de traduction jusqu'à 110 s (échéance
+  proportionnelle au lot, plafonnée 10 s sous ce délai ; voir « Résumés et
+  traductions par IA », appels sortants et « Traduction — serveur ») ; au
+  défaut de 60 s, le proxy coupait une demande que le serveur tenait encore.
+  Un reverse proxy en amont doit en accorder autant sur `/api/ai`.
 - **Piège majeur — `/sw.js` ne doit JAMAIS recevoir de CSP.** Un service worker
   hérite de la CSP livrée avec son propre script et l'applique à ses `fetch()`
   internes. Or il intercepte toutes les requêtes d'images (`CacheFirst`, voir

@@ -4,6 +4,13 @@ export type AiErrorKind = 'auth' | 'quota' | 'technical' | 'refused';
 export class AiError extends Error {
   /** Vrai si l'appel fautif partait avec la clé personnelle de l'utilisateur ; posé par `runWithFallback`. */
   ownKey?: boolean;
+  /**
+   * Vrai si l'appel a été abandonné faute de temps (délai de l'appel ou
+   * échéance de la demande), posé par `callProvider` ; la route en tire
+   * `detail: 'deadline'`, et le client rejoue alors le lot coupé en deux.
+   * Marqué ici plutôt que lu dans le message : le texte peut changer.
+   */
+  timedOut?: boolean;
   constructor(public readonly kind: AiErrorKind, message: string, public readonly status?: number) {
     super(message);
     this.name = 'AiError';

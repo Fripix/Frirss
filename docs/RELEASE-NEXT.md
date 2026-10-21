@@ -53,7 +53,7 @@ la release publiée.
   déjà dans la langue cible ne propose pas « Traduire » ; un article déjà dans
   la langue le dit (« Déjà en français. ») après un seul appel, même si le
   modèle l'a traduit quand même, ensuite servi par le cache. Un passage trop
-  lourd pour un lot reste dans la langue d'origine, et la notice le dit (« Traduit en partie (n lots sur m) »). Les
+  lourd pour un lot reste dans la langue d'origine, et la notice le dit (« Traduit en partie (n lots sur m) »). Un lot a le temps que demande sa longueur (jusqu'à 110 s), si bien qu'un modèle local lent n'est plus coupé au milieu d'un long article. Les
   échecs ont leurs propres messages : « La traduction a échoué. Réessayez. »,
   « Le fournisseur a refusé de traduire cet article. », « Texte trop long pour
   être traduit. », « Le fournisseur n'a pas rendu une traduction exploitable.

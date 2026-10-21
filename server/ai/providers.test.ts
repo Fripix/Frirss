@@ -152,7 +152,15 @@ describe('transport error cause', () => {
   });
   it('says timeout when the call was aborted', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })));
-    expect(((await callProvider(openai, null, call).catch((e: Error) => e)) as Error).message).toBe('Ollama: This operation was aborted (timeout)');
+    const err = await callProvider(openai, null, call).catch((e: Error) => e);
+    expect((err as Error).message).toBe('Ollama: This operation was aborted (timeout)');
+    // Marqué, pas deviné d'après le texte : la route en tire `detail: 'deadline'`.
+    expect(err).toMatchObject({ timedOut: true });
+  });
+  it('does not mark as timed out a transport error that is not an abort', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(netErr({ code: 'UND_ERR_CONNECT_TIMEOUT' })));
+    const err = await callProvider(openai, null, call).catch((e: Error) => e);
+    expect((err as { timedOut?: boolean }).timedOut).toBeUndefined();
   });
   it('keeps the plain message when there is no cause', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('boom')));
@@ -185,6 +193,6 @@ describe('per-call timeout', () => {
     }));
     const pending = callProvider(openai, null, { ...call, timeoutMs: 5_000 }).catch((e: Error) => e);
     await vi.advanceTimersByTimeAsync(5_000);
-    expect(await pending).toMatchObject({ kind: 'technical', message: 'Ollama: answer not received in time (timeout)' });
+    expect(await pending).toMatchObject({ kind: 'technical', message: 'Ollama: answer not received in time (timeout)', timedOut: true });
   });
 });
