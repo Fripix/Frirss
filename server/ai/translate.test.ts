@@ -13,7 +13,7 @@ const P = (id: number, name: string, type: ProviderType = 'openai'): AiProvider 
 const A = (id: number, name: string, paidByAdmin = false, type: ProviderType = 'openai'): Availability => ({ provider: P(id, name, type), key: paidByAdmin ? 'admin' : null, paidByAdmin, own: false });
 const base = { userId: 44, articleId: 'tr-1', scope: 'article' as const, targetLang: 'fr' as const, segments: ['Hello'], resolution: { adminDefault: 1 }, fallback: true };
 const answer = (text: string) => ({ text, model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
-const ok = () => vi.fn().mockResolvedValue(answer('lang: en\n<s n="0">Bonjour</s>'));
+const ok = () => vi.fn().mockResolvedValue(answer('lang: en\n<seg n="0">Bonjour</seg>'));
 
 beforeEach(() => {
   db.exec('DELETE FROM ai_usage; DELETE FROM ai_cache;');
@@ -27,7 +27,7 @@ describe('translate', () => {
     const r = await translate({ ...base, available: [A(1, 'Ollama')] }, { call });
     expect(r).toMatchObject({ segments: ['Bonjour'], lang: 'en', same: false, providerId: 1, providerName: 'Ollama', fromCache: false });
     expect(call).toHaveBeenCalledTimes(1);
-    expect(call.mock.calls[0][2].user).toBe('<s n="0">Hello</s>');
+    expect(call.mock.calls[0][2].user).toBe('<seg n="0">Hello</seg>');
     expect(call.mock.calls[0][2].system).toMatch(/\bfr\b/);
     const keys = (db.prepare('SELECT key FROM ai_cache').all() as { key: string }[]).map((k) => k.key);
     expect(keys).toHaveLength(1);
@@ -39,8 +39,8 @@ describe('translate', () => {
   });
   it('replays once a malformed answer, then fails with segments', async () => {
     const call = vi.fn()
-      .mockResolvedValueOnce(answer('lang: en\n<s n="1">Monde</s>'))
-      .mockResolvedValueOnce(answer('lang: en\n<s n="0">Bonjour</s>\n<s n="1">Monde</s>'));
+      .mockResolvedValueOnce(answer('lang: en\n<seg n="1">Monde</seg>'))
+      .mockResolvedValueOnce(answer('lang: en\n<seg n="0">Bonjour</seg>\n<seg n="1">Monde</seg>'));
     const r = await translate({ ...base, segments: ['Hello', 'World'], available: [A(1, 'A')] }, { call });
     expect(r.segments).toEqual(['Bonjour', 'Monde']);
     expect(call).toHaveBeenCalledTimes(2);
@@ -65,7 +65,7 @@ describe('translate', () => {
       const call = vi.fn()
         .mockResolvedValueOnce(answer('x'))
         .mockResolvedValueOnce(answer('y'))
-        .mockResolvedValueOnce(answer('lang: en\n<s n="0">Bonjour</s>'));
+        .mockResolvedValueOnce(answer('lang: en\n<seg n="0">Bonjour</seg>'));
       await expect(translate({ ...base, articleId: 'tr-nofb', available: [A(1, 'A', true), A(2, 'B')] }, { call }))
         .rejects.toMatchObject({ kind: 'technical', message: 'segments' });
       expect(call.mock.calls.map((c) => c[0].name)).toEqual(['A', 'A']);
@@ -80,7 +80,7 @@ describe('translate', () => {
     try {
       const call = vi.fn()
         .mockRejectedValueOnce(new AiError('technical', 'A: fetch failed'))
-        .mockResolvedValueOnce(answer('lang: en\n<s n="0">Bonjour</s>'));
+        .mockResolvedValueOnce(answer('lang: en\n<seg n="0">Bonjour</seg>'));
       const r = await translate({ ...base, articleId: 'tr-net', available: [A(1, 'A'), A(2, 'B')] }, { call });
       expect(r).toMatchObject({ providerName: 'B', fellBackFrom: 'A', segments: ['Bonjour'] });
       expect(warn.mock.calls).toEqual([['AI fallback:', 'A', 'technical', 'A: fetch failed']]);
@@ -97,7 +97,7 @@ describe('translate', () => {
     expect(call).toHaveBeenCalledTimes(1);
   });
   it('treats as same a source the model reports in the target language, even if it translated anyway', async () => {
-    const call = vi.fn().mockResolvedValue(answer('lang: fr\n<s n="0">Bonjour</s>\n<s n="1">le monde</s>'));
+    const call = vi.fn().mockResolvedValue(answer('lang: fr\n<seg n="0">Bonjour</seg>\n<seg n="1">le monde</seg>'));
     const req = { ...base, articleId: 'tr-same', segments: ['Bonjour', 'le monde'], available: [A(1, 'A')] };
     const r = await translate(req, { call });
     expect(r).toMatchObject({ same: true, segments: [], lang: 'fr', fromCache: false });
@@ -109,20 +109,20 @@ describe('translate', () => {
     expect(call).toHaveBeenCalledTimes(1);
   });
   it('treats a region-tagged source language as the target, scripts apart', async () => {
-    const regional = vi.fn().mockResolvedValue(answer('lang: fr-CH\n<s n="0">Bonjour</s>'));
+    const regional = vi.fn().mockResolvedValue(answer('lang: fr-CH\n<seg n="0">Bonjour</seg>'));
     expect(await translate({ ...base, articleId: 'tr-ch', available: [A(1, 'A')] }, { call: regional }))
       .toMatchObject({ same: true, segments: [], lang: 'fr-CH' });
-    const traditional = vi.fn().mockResolvedValue(answer('lang: zh-TW\n<s n="0">你好</s>'));
+    const traditional = vi.fn().mockResolvedValue(answer('lang: zh-TW\n<seg n="0">你好</seg>'));
     expect(await translate({ ...base, articleId: 'tr-tw', targetLang: 'zh-Hant', available: [A(1, 'A')] }, { call: traditional }))
       .toMatchObject({ same: true, segments: [] });
     expect(await translate({ ...base, articleId: 'tr-tw', targetLang: 'zh-Hans', available: [A(1, 'A')] }, { call: traditional }))
       .toMatchObject({ same: false, segments: ['你好'] });
   });
   it('returns the segments when the source language differs from the target or is unknown', async () => {
-    const other = vi.fn().mockResolvedValue(answer('lang: en\n<s n="0">Bonjour</s>'));
+    const other = vi.fn().mockResolvedValue(answer('lang: en\n<seg n="0">Bonjour</seg>'));
     expect(await translate({ ...base, articleId: 'tr-en', available: [A(1, 'A')] }, { call: other }))
       .toMatchObject({ same: false, segments: ['Bonjour'], lang: 'en' });
-    const unknown = vi.fn().mockResolvedValue(answer('<s n="0">Bonjour</s>'));
+    const unknown = vi.fn().mockResolvedValue(answer('<seg n="0">Bonjour</seg>'));
     expect(await translate({ ...base, articleId: 'tr-null', available: [A(1, 'A')] }, { call: unknown }))
       .toMatchObject({ same: false, segments: ['Bonjour'], lang: null });
   });
@@ -137,7 +137,7 @@ describe('translate', () => {
     await translate({ ...base, articleId: 'b1', available: [A(1, 'Paid', true)] }, { call: ok() });
     expect(usageToday(44)).toBe(1);
     // Un rejeu ne compte pas double : c'est le même lot.
-    const replayed = vi.fn().mockResolvedValueOnce(answer('x')).mockResolvedValueOnce(answer('<s n="0">Bonjour</s>'));
+    const replayed = vi.fn().mockResolvedValueOnce(answer('x')).mockResolvedValueOnce(answer('<seg n="0">Bonjour</seg>'));
     await translate({ ...base, articleId: 'b2', available: [A(1, 'Paid', true)] }, { call: replayed });
     expect(usageToday(44)).toBe(2);
     setSetting('ai_daily_cap', '5');
@@ -167,8 +167,8 @@ describe('echo: a translation identical to its source is malformed', () => {
   // Un 7b (Ollama qwen2.5) a renvoyé les segments anglais tels quels, au bon
   // format, avec « lang: en » : affiché comme traduit, mis en cache.
   const src = ['The quick brown fox jumps over', 'A lazy dog sleeps in the sun'];
-  const echo = answer('lang: en\n<s n="0">The quick brown fox jumps over</s>\n<s n="1">A lazy dog sleeps in the sun</s>');
-  const translated = answer('lang: en\n<s n="0">Le rapide renard brun saute</s>\n<s n="1">Un chien paresseux dort au soleil</s>');
+  const echo = answer('lang: en\n<seg n="0">The quick brown fox jumps over</seg>\n<seg n="1">A lazy dog sleeps in the sun</seg>');
+  const translated = answer('lang: en\n<seg n="0">Le rapide renard brun saute</seg>\n<seg n="1">Un chien paresseux dort au soleil</seg>');
 
   it('replays once an echo and returns the translated replay', async () => {
     const call = vi.fn().mockResolvedValueOnce(echo).mockResolvedValueOnce(translated);
@@ -191,13 +191,13 @@ describe('echo: a translation identical to its source is malformed', () => {
   });
   it('leaves an echo reported in the target language to the same rule', async () => {
     const fr = ['Le rapide renard brun saute', 'Un chien paresseux dort au soleil'];
-    const call = vi.fn().mockResolvedValue(answer('lang: fr\n<s n="0">Le rapide renard brun saute</s>\n<s n="1">Un chien paresseux dort au soleil</s>'));
+    const call = vi.fn().mockResolvedValue(answer('lang: fr\n<seg n="0">Le rapide renard brun saute</seg>\n<seg n="1">Un chien paresseux dort au soleil</seg>'));
     const r = await translate({ ...base, articleId: 'echo-fr', segments: fr, available: [A(1, 'A')] }, { call });
     expect(r).toMatchObject({ same: true, segments: [], lang: 'fr' });
     expect(call).toHaveBeenCalledTimes(1);
   });
   it('concludes nothing when the source language is unknown', async () => {
-    const call = vi.fn().mockResolvedValue(answer('<s n="0">The quick brown fox jumps over</s>\n<s n="1">A lazy dog sleeps in the sun</s>'));
+    const call = vi.fn().mockResolvedValue(answer('<seg n="0">The quick brown fox jumps over</seg>\n<seg n="1">A lazy dog sleeps in the sun</seg>'));
     const r = await translate({ ...base, articleId: 'echo-null', segments: src, available: [A(1, 'A')] }, { call });
     expect(r).toMatchObject({ same: false, segments: src, lang: null });
     expect(call).toHaveBeenCalledTimes(1);
@@ -227,17 +227,17 @@ describe('translate deadline, proportional to the batch', () => {
     expect(translateDeadlineMs(5_000)).toBe(110_000);
   });
   it('gives a 1 200-word batch 110 s for its call, beyond the 60 s default', async () => {
-    const call = vi.fn().mockResolvedValue(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+    const call = vi.fn().mockResolvedValue(answer('lang: en\n<seg n="0">a</seg>\n<seg n="1">b</seg>'));
     await translate({ ...base, articleId: 'dl-1200', segments: batch(1_200), available: [A(1, 'Ollama')] }, { call, now: fixed(0) });
     expect(call.mock.calls[0][2].timeoutMs).toBe(110_000);
   });
   it('gives a 300-word batch 52.5 s', async () => {
-    const call = vi.fn().mockResolvedValue(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+    const call = vi.fn().mockResolvedValue(answer('lang: en\n<seg n="0">a</seg>\n<seg n="1">b</seg>'));
     await translate({ ...base, articleId: 'dl-300', segments: batch(300), available: [A(1, 'Ollama')] }, { call, now: fixed(0) });
     expect(call.mock.calls[0][2].timeoutMs).toBe(52_500);
   });
   it('counts a spaceless script by pairs of characters, like the client', async () => {
-    const call = vi.fn().mockResolvedValue(answer('lang: zh\n<s n="0">a</s>'));
+    const call = vi.fn().mockResolvedValue(answer('lang: zh\n<seg n="0">a</seg>'));
     await translate({ ...base, articleId: 'dl-zh', segments: ['日'.repeat(1_000)], available: [A(1, 'Ollama')] }, { call, now: fixed(0) });
     expect(call.mock.calls[0][2].timeoutMs).toBe(30_000 + 500 * 75);
   });
@@ -247,7 +247,7 @@ describe('translate deadline, proportional to the batch', () => {
       let t = 0;
       const call = vi.fn()
         .mockImplementationOnce(async () => { t += 70_000; throw new AiError('technical', 'slow'); })
-        .mockResolvedValueOnce(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+        .mockResolvedValueOnce(answer('lang: en\n<seg n="0">a</seg>\n<seg n="1">b</seg>'));
       const r = await translate({ ...base, articleId: 'dl-shrink', segments: batch(1_200), available: [A(1, 'A'), A(2, 'B')] }, { call, now: () => t });
       expect(r).toMatchObject({ providerName: 'B', fellBackFrom: 'A' });
       expect(call.mock.calls.map((c) => c[2].timeoutMs)).toEqual([110_000, 40_000]);
@@ -260,7 +260,7 @@ describe('translate deadline, proportional to the batch', () => {
     try {
       const call = vi.fn()
         .mockRejectedValueOnce(new AiError('technical', 'down'))
-        .mockResolvedValueOnce(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+        .mockResolvedValueOnce(answer('lang: en\n<seg n="0">a</seg>\n<seg n="1">b</seg>'));
       const r = await translate({ ...base, articleId: 'dl-fast', segments: batch(300), available: [A(1, 'A'), A(2, 'B')] }, { call, now: fixed(0) });
       expect(r).toMatchObject({ providerName: 'B', fellBackFrom: 'A' });
       expect(call.mock.calls.map((c) => c[2].timeoutMs)).toEqual([52_500, 52_500]);
@@ -284,7 +284,7 @@ describe('translate deadline, proportional to the batch', () => {
     let t = 0;
     const call = vi.fn()
       .mockImplementationOnce(async () => { t += 30_000; return answer('nope'); })
-      .mockResolvedValueOnce(answer('lang: en\n<s n="0">a</s>\n<s n="1">b</s>'));
+      .mockResolvedValueOnce(answer('lang: en\n<seg n="0">a</seg>\n<seg n="1">b</seg>'));
     await translate({ ...base, articleId: 'dl-replay', segments: batch(1_200), available: [A(1, 'A')] }, { call, now: () => t });
     expect(call.mock.calls.map((c) => c[2].timeoutMs)).toEqual([110_000, 80_000]);
   });
@@ -294,7 +294,7 @@ describe('identical batches in flight are shared', () => {
   it('makes one provider call and reserves one cap unit for two concurrent identical batches', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => { release = r; });
-    const call = vi.fn(async () => { await gate; return answer('lang: en\n<s n="0">Bonjour</s>'); });
+    const call = vi.fn(async () => { await gate; return answer('lang: en\n<seg n="0">Bonjour</seg>'); });
     const one = translate({ ...base, articleId: 'tsh-1', available: [A(1, 'Paid', true)] }, { call });
     const two = translate({ ...base, articleId: 'tsh-1', available: [A(1, 'Paid', true)] }, { call });
     await new Promise((r) => setTimeout(r, 10));
@@ -310,7 +310,7 @@ describe('identical batches in flight are shared', () => {
     db.prepare("INSERT OR IGNORE INTO users (id, username, role) VALUES (45, 'tr-user-2', 'user')").run();
     let release!: () => void;
     const gate = new Promise<void>((r) => { release = r; });
-    const call = vi.fn(async () => { await gate; return answer('lang: en\n<s n="0">Hallo</s>'); });
+    const call = vi.fn(async () => { await gate; return answer('lang: en\n<seg n="0">Hallo</seg>'); });
     const runs = [
       translate({ ...base, articleId: 'tsh-2', available: [A(1, 'A')] }, { call }),
       translate({ ...base, articleId: 'tsh-2', targetLang: 'de', available: [A(1, 'A')] }, { call }),
@@ -327,8 +327,8 @@ describe('identical batches in flight are shared', () => {
 describe('regenerate', () => {
   it('regenerate ignores the cached batch, calls the model and replaces the cache', async () => {
     const call = vi.fn()
-      .mockResolvedValueOnce(answer('lang: en\n<s n="0">Bonjour</s>'))
-      .mockResolvedValueOnce(answer('lang: en\n<s n="0">Salut</s>'));
+      .mockResolvedValueOnce(answer('lang: en\n<seg n="0">Bonjour</seg>'))
+      .mockResolvedValueOnce(answer('lang: en\n<seg n="0">Salut</seg>'));
     await translate({ ...base, articleId: 'trg-1', available: [A(1, 'Paid', true)] }, { call });
     const fresh = await translate({ ...base, articleId: 'trg-1', regenerate: true, available: [A(1, 'Paid', true)] }, { call });
     expect(fresh).toMatchObject({ segments: ['Salut'], fromCache: false });

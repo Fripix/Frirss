@@ -84,7 +84,8 @@ describe('cache', () => {
     const k1 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 3, model: 'm' });
     const k2 = aiCacheKey({ articleId: 'tag:google.com,2005:reader/item/1', op: 'summary', providerId: 4, model: 'm' });
     expect(k1).not.toBe(k2);
-    expect(k1).toContain(':v3:');
+    expect(k1).toContain(':v4:');
+    expect(aiCacheKey({ articleId: 'a', op: 'translate', providerId: 1, model: 'm', lang: 'fr', contentHash: 'h' })).toMatch(/^frirss:ai:v4:translate:/);
   });
   it('binds the key to the model', () => {
     const a = aiCacheKey({ articleId: 'a', op: 'summary', providerId: 1, model: 'llama3' });

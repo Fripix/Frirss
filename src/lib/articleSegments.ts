@@ -131,7 +131,7 @@ export function wordCount(html: string): number {
  *  maxBytes n'entre dans aucun lot (« traduit en partie »).
  *
  *  `maxSegments` : chaque segment coûte une dizaine de jetons de balisage
- *  (`<s n="N">…</s>`) en sortie. Un grand tableau ou une longue liste —
+ *  (`<seg n="N">…</seg>`) en sortie. Un grand tableau ou une longue liste —
  *  des centaines de cellules de deux mots — tenait sous 1 200 mots, et la
  *  réponse se tronquait (8 192 jetons chez Anthropic, la fenêtre d'Ollama) :
  *  rejouée, payée deux fois, puis « segments » à chaque nouvel essai. */

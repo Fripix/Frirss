@@ -25,7 +25,7 @@ const MAX_SEGMENTS_BYTES = 200_000;
 /**
  * Segments d'un lot. Le client en envoie au plus 120 ; sans borne, 5 Mo de
  * corps JSON portaient des centaines de milliers de segments d'un octet, chacun
- * enveloppé dans `<s n="…">` : un prompt plusieurs fois plus lourd pour une
+ * enveloppé dans `<seg n="…">` : un prompt plusieurs fois plus lourd pour une
  * seule unité du plafond.
  */
 const MAX_SEGMENTS = 1_000;

@@ -65,7 +65,7 @@ function decodeCached(v: AiCacheValue, count: number): Pick<Translated, 'same' |
  * appel peut la prendre entière (au-delà des 60 s de `TIMEOUT_MS`) ; le
  * suivant reçoit ce qui reste.
  *
- * - Format strict `<s n="N">…</s>` : un segment absent, en double ou en trop
+ * - Format strict `<seg n="N">…</seg>` : un segment absent, en double ou en trop
  *   invalide le lot, **rejoué une fois** sur le même fournisseur si l'échéance
  *   le permet (même réservation : c'est le même lot), sinon `technical`
  *   « segments », **sans repli** (`noFallback`) : un Ollama local au contexte

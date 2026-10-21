@@ -2292,21 +2292,35 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   providerName, model, fromCache, fellBackFrom? }`. **Une requête = un lot = un
   appel** : c'est le client qui découpe en lots (≈ 1 200 mots, 200 000
   octets, 120 segments au plus) et les envoie en série. Format **strict** en entrée comme en sortie, chaque segment
-  entre `<s n="N">…</s>` numérotés depuis 0 (`translateUserMessage`, qui retire
-  d'un segment tout marqueur `<s n=…>` forgé **avec le `</s>` qui le ferme**,
-  ainsi qu'un `</s>` qui ne ferme rien ; un vrai `<s>…</s>` barré reste
-  entier) ; la consigne
+  entre `<seg n="N">…</seg>` numérotés depuis 0 (`translateUserMessage`, qui
+  retire d'un segment toute balise `<seg…>` ou `</seg>` — `seg` n'est pas un
+  élément HTML, un article n'en porte donc aucune de légitime ; un `<s>…</s>`
+  barré est du HTML en ligne comme un autre et reste entier) ; la consigne
   (`translateSystem(cible)`) demande une traduction fidèle, sans résumé ni
   commentaire, les balises en ligne et les liens **tels quels**, seul le texte
   traduit, et une première ligne `lang: <code source>`. `parseTranslation` coupe
-  chaque segment de son marqueur au **dernier** `</s>` avant le marqueur
-  suivant — pas au premier, `<s>` étant aussi la balise HTML du texte barré ;
-  pas au marqueur suivant, sinon ce que le modèle écrit après une fermante
-  (« Hope this helps! », une clôture de bloc de code, une note entre deux
-  segments) partait dans l'article. Le texte avant le premier marqueur est
-  ignoré, une réponse entourée d'un bloc ```` ``` ```` est déballée avant de
-  lire `lang:`. Un numéro absent, en double ou hors bornes, ou un segment sans
-  `</s>`, invalide **le lot entier**, **rejoué une fois** sur le même
+  chaque segment de son marqueur au **dernier** `</seg>` avant le marqueur
+  suivant — pas au marqueur suivant, sinon ce que le modèle écrit après une
+  fermante (« Hope this helps! », une clôture de bloc de code, une note entre
+  deux segments) partait dans l'article. Le texte avant le premier marqueur
+  est ignoré, une réponse entourée d'un bloc ```` ``` ```` est déballée avant
+  de lire `lang:`. L'ancienne forme `<s n="N">…</s>` n'est **pas** lue : elle
+  est partie avec `PROMPT_VERSION` 4, qui change toutes les clés de cache
+  (résumés compris), donc aucune réponse en cache ne la porte plus.
+  ⚠️ **Jamais `<s>` / `</s>` — ni aucune chaîne qu'un tokenizer traite comme
+  jeton spécial — comme délimiteur dans un prompt.** `</s>` est la chaîne de
+  fin de séquence de la famille Llama/Qwen : le modèle qui l'écrit émet son
+  jeton de fin et s'arrête. Mesuré hors de l'app sur Ollama qwen2.5:7b avec
+  la consigne exacte : arrêt après le **premier** segment (65 jetons de
+  sortie, `finish_reason: stop`), ou dérive (segments en double, glissement
+  vers le chinois) ; avec `<seg>`, 31/31 segments sur un lot de 1 200 mots,
+  17/17 à 600, 4/4 à 150, bien formés. Toutes les « réponses inexploitables »
+  observées avant ce changement avaient cette cause. Un test
+  (`prompts.test.ts`) refuse toute balise `<s>` / `</s>` dans la consigne et
+  l'enveloppe. Cas restant, non mesuré : un article qui porte un vrai texte
+  barré (`<s>…</s>`) met encore un `</s>` dans le segment, donc dans la
+  réponse attendue. Un numéro absent, en double ou hors bornes, ou un segment sans
+  `</seg>`, invalide **le lot entier**, **rejoué une fois** sur le même
   fournisseur si l'échéance laisse au moins 2 s (`MIN_CALL_MS`), sinon
   `AiError('technical', 'segments')` marquée `noFallback` : **pas de repli**
   vers le candidat suivant (`runWithFallback` la lève aussitôt, rend la
@@ -2314,7 +2328,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   segments` est journalisée, aucune `AI fallback:`), et la route répond 502
   `ai_failed` avec `detail: 'segments'` ; le client rejoue alors le lot coupé
   en deux (voir « Lot coupé ou réponse inexploitable »). Raison : un Ollama
-  local au contexte trop court **tronque** sa réponse sur un gros lot, et le
+  local au contexte trop court **tronque** sa réponse sur un gros lot (et le
+  délimiteur `</s>`, avant `<seg>`, la coupait plus souvent encore), et le
   repli envoyait le lot au fournisseur suivant — Claude, payant — sans que
   personne l'ait choisi (trois lots payés en un seul essai). Les vraies pannes
   (réseau, erreur HTTP, échéance) gardent le repli. **Un écho est aussi une
@@ -2331,7 +2346,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `same` ci-dessous qui joue. Raison : sur « Retraduire », un 7b local
   (Ollama qwen2.5) a renvoyé l'anglais tel quel avec `lang: en` ; FriRSS
   l'affichait « Traduit en français », le mettait en cache et le servait
-  ensuite. Source déjà
+  ensuite. La cause principale était le délimiteur `</s>` (⚠️ ci-dessus),
+  corrigé ; le garde reste, un modèle peut encore recopier sa source. Source déjà
   dans la cible : le modèle répond `lang: <code>` puis `same`, le serveur rend
   `{ segments: [], same: true }` et le **met en cache** tel quel (coût
   d'entrée seul, une fois). Une langue source **annoncée égale à la cible**
@@ -2722,7 +2738,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     traduit (rendu en texte). La pastille « x min » reste celle de la source.
   - **Lots** : `batchSegments` (≈ 1 200 mots, ≤ 200 000 octets, ≤ 120
     segments — un grand tableau ou une longue liste de cellules de deux mots
-    tenait sous 1 200 mots, mais ses centaines de marqueurs `<s n="N">`
+    tenait sous 1 200 mots, mais ses centaines de marqueurs `<seg n="N">`
     tronquaient la réponse, rejouée puis en échec à chaque essai), envoyés **en
     série**, une requête `POST /api/ai/translate` (`scope: 'article'`) par
     lot. Le numéro de lot ne part pas au serveur : il sert la notice. Une
@@ -3026,14 +3042,16 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   (`htmlToText`) : régler la fenêtre côté Ollama (`OLLAMA_CONTEXT_LENGTH` sur le
   serveur, ou `num_ctx` dans le `Modelfile` du modèle) à la mesure des articles
   attendus. En **traduction**, la sortie s'ajoute à l'entrée : un lot de
-  1 200 mots fait environ **3 300 jetons d'entrée**, et la fenêtre de
-  **4 096 jetons** par défaut tronque la réponse (502 `segments`, mesuré sur
-  l'instance de test). `OLLAMA_CONTEXT_LENGTH=16384` est recommandé ; sans
-  lui, le rejeu coupé en deux (« Lot coupé ou réponse inexploitable ») permet
-  encore à un Ollama réglé par défaut de traduire, par moitiés de 600 mots.
-  Autre travers d'un petit modèle (7b) : **renvoyer la source telle quelle**,
-  au bon format ; le serveur le traite comme une réponse inexploitable
-  (« Traduction — serveur », écho). Rien côté FriRSS : le point d'accès compatible OpenAI ne prend pas
+  1 200 mots fait environ **3 300 jetons d'entrée**, autant en sortie, et la
+  fenêtre de **4 096 jetons** par défaut ne tient pas les deux.
+  `OLLAMA_CONTEXT_LENGTH=16384` est recommandé ; sans lui, le rejeu coupé en
+  deux (« Lot coupé ou réponse inexploitable ») permet encore à un Ollama
+  réglé par défaut de traduire, par moitiés de 600 mots. Les 502 `segments`
+  mesurés sur l'instance de test sur les gros lots, et un 7b qui
+  **renvoyait la source telle quelle** au bon format, avaient pour cause
+  principale le délimiteur `</s>`, que la famille Llama/Qwen lit comme fin de
+  séquence (« Traduction — serveur », ⚠️) — corrigé par `<seg>`. Le serveur
+  garde le contrôle d'écho pour un modèle qui recopierait encore sa source. Rien côté FriRSS : le point d'accès compatible OpenAI ne prend pas
   `num_ctx`, et l'aide du champ « URL de base » doit rester courte — c'est ici
   que le piège est consigné.
 - **Réglages serveur** (`settings`) : `ai_enabled`, `ai_user_keys_allowed`,

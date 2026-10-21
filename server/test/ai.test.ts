@@ -489,12 +489,12 @@ describe('ai translate route', () => {
   });
   it('translates with the strict format, then serves the cache', async () => {
     setSetting('ai_daily_cap', '0');
-    const fetchMock = stubProvider('lang: en\n<s n="0">Bonjour</s>');
+    const fetchMock = stubProvider('lang: en\n<seg n="0">Bonjour</seg>');
     const first = await post(body({ translationProvider: id }));
     expect(first.status).toBe(200);
     expect(first.body).toMatchObject({ segments: ['Bonjour'], lang: 'en', same: false, providerId: id, providerName: 'Translator', fromCache: false });
     const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(sent.messages[1].content).toBe('<s n="0">Hello</s>');
+    expect(sent.messages[1].content).toBe('<seg n="0">Hello</seg>');
     expect(sent.max_tokens).toBeUndefined();
     const second = await post(body({ translationProvider: id }));
     expect(second.body.fromCache).toBe(true);
@@ -502,7 +502,7 @@ describe('ai translate route', () => {
   });
   it('regenerate: true retranslates past the cache and replaces it; a non-boolean is 400', async () => {
     setSetting('ai_daily_cap', '0');
-    const fetchMock = stubProvider('lang: en\n<s n="0">Salut</s>');
+    const fetchMock = stubProvider('lang: en\n<seg n="0">Salut</seg>');
     const fresh = await post(body({ translationProvider: id, regenerate: true }));
     expect(fresh.status).toBe(200);
     expect(fresh.body).toMatchObject({ segments: ['Salut'], fromCache: false });
@@ -543,7 +543,7 @@ describe('ai translate route', () => {
   it('answers 429 ai_daily_cap to a capped plain user', async () => {
     db.exec('DELETE FROM ai_usage');
     setSetting('ai_daily_cap', '1');
-    stubProvider('lang: en\n<s n="0">Bonjour</s>');
+    stubProvider('lang: en\n<seg n="0">Bonjour</seg>');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       expect((await post(body({ articleId: 'tr-cap-1', translationProvider: id }))).status).toBe(200);
