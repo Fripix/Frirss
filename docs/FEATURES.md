@@ -2163,8 +2163,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   (le rejeu ne compte pas double), réservée avant, rendue si le lot échoue ;
   un article de quatre lots compte quatre. Anthropic reçoit `maxTokens: 8192`,
   OpenAI rien. Même échéance de 50 s par requête que le résumé. Bornes :
-  `articleId` ≤ 512 caractères, `segments` tableau non vide de chaînes
-  totalisant ≤ 200 000 octets, `scope` connu, sinon 400 `invalid_body` ;
+  `articleId` ≤ 512 caractères, `segments` tableau de 1 à 1 000 chaînes non
+  vides totalisant ≤ 200 000 octets (sans borne sur le nombre, des centaines
+  de milliers de segments d'un octet, chacun enveloppé dans `<s n="…">`,
+  gonflaient le prompt pour une seule unité du plafond), `scope` connu, sinon
+  400 `invalid_body` ;
   `targetLang` hors des 28 langues de `languages.ts` (`AI_LANGUAGES`, ni `ru`
   ni `he`) → 400 `invalid_lang`. Les autres erreurs sont celles du résumé
   (même fonction `sendAiError`) : 404 `ai_disabled`, 429 `ai_daily_cap` avec
@@ -4320,7 +4323,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | PUT | `/api/admin/settings` | Écrire les réglages du serveur |
 | GET | `/api/ai/config` | Ce que le client sait de l'IA (fournisseurs sans clés, plafond, usage) |
 | POST | `/api/ai/summary` | Résumer un article |
-| POST | `/api/ai/translate` | Traduire un lot de segments (résumé ou article) |
+| POST | `/api/ai/translate` | Traduire un lot de segments (résumé ou article ; 1 à 1 000 segments non vides, ≤ 200 000 octets) |
 | PUT | `/api/ai/keys/:providerId` | Clé personnelle (enregistrer ou effacer) |
 | GET | `/api/admin/ai/providers` | Lister fournisseurs et réglages IA |
 | POST | `/api/admin/ai/providers` | Créer un fournisseur |

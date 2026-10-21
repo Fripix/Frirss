@@ -22,6 +22,13 @@ const MAX_ID_CHARS = 512;
 const MAX_TITLE_CHARS = 500;
 /** Total des segments d'un lot (spec §17.3) ; le client coupe sous la borne et dit « traduit en partie ». */
 const MAX_SEGMENTS_BYTES = 200_000;
+/**
+ * Segments d'un lot. Le client en envoie au plus 120 ; sans borne, 5 Mo de
+ * corps JSON portaient des centaines de milliers de segments d'un octet, chacun
+ * enveloppé dans `<s n="…">` : un prompt plusieurs fois plus lourd pour une
+ * seule unité du plafond.
+ */
+const MAX_SEGMENTS = 1_000;
 
 function availability(user: { id: number; role: string }) {
   return availableFor(
@@ -103,7 +110,7 @@ function sendAiError(res: Response, err: unknown, op: 'summary' | 'translate') {
 }
 
 const isSegments = (v: unknown): v is string[] =>
-  Array.isArray(v) && v.length > 0 && v.every((s) => typeof s === 'string')
+  Array.isArray(v) && v.length > 0 && v.length <= MAX_SEGMENTS && v.every((s) => typeof s === 'string' && s.length > 0)
   && v.reduce((n: number, s: string) => n + Buffer.byteLength(s), 0) <= MAX_SEGMENTS_BYTES;
 
 router.post('/translate', async (req, res) => {

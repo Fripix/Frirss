@@ -452,6 +452,17 @@ describe('ai translate route', () => {
       expect(res.body.error).toBe('invalid_body');
     }
   });
+  it('bounds the segment count at 1 000 and refuses empty segments', async () => {
+    for (const bad of [
+      body({ segments: Array.from({ length: 1001 }, () => 'a') }),
+      body({ segments: ['Hello', ''] }),
+      body({ segments: [''] }),
+    ]) {
+      const res = await post(bad);
+      expect(res.status, JSON.stringify(bad).slice(0, 80)).toBe(400);
+      expect(res.body.error).toBe('invalid_body');
+    }
+  });
   it('translates with the strict format, then serves the cache', async () => {
     setSetting('ai_daily_cap', '0');
     const fetchMock = stubProvider('lang: en\n<s n="0">Bonjour</s>');
