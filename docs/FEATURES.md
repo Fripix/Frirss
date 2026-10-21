@@ -2535,8 +2535,15 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     reste possible.
   - **Corps changé** : la traduction est liée au hash (FNV-1a) du titre et du
     corps. Extraction arrivée, « Article complet » basculé ou autre article →
-    retour à `idle` et à la source, sans retraduction ; la boucle de lots en
-    cours s'arrête et ses réponses sont ignorées (séquence `stillCurrent`).
+    retour à `idle` et à la source, sans retraduction. La boucle de lots en
+    cours s'arrête (plus aucun lot ne part, les réponses en vol sont
+    ignorées, séquence `stillCurrent`) dans quatre cas : autre article, corps
+    changé, **volet démonté** (retour sur tablette, fermeture en deux
+    colonnes : le volet disparaît dans le même rendu que l'article) et
+    **compte changé** (jeton ou utilisateur différent de celui qui a lancé la
+    boucle — déconnexion, autre connexion : rien n'est écrit, aucun lot ne
+    part avec le jeton du compte suivant). Le lot déjà en vol, lui, est payé
+    et gardé par le cache serveur.
   - **Demandes partagées** : chaque lot passe par `sharedTranslationRequest`
     (clé : `article`, compte, article, langue, fournisseur forcé, hash du
     corps, rang du lot) : revenir sur l'article et relancer reprend le lot en

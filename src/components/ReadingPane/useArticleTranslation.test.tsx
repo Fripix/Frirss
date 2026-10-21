@@ -127,6 +127,43 @@ describe('useArticleTranslation', () => {
     expect(hook.current.state).toBe('idle');
   });
 
+  it('stops the batch loop when the reading pane unmounts (tablet back, desktop 2-panel close)', async () => {
+    const first = deferred<AiTranslationResult>();
+    vi.mocked(requestAiTranslation).mockReturnValueOnce(first.promise).mockResolvedValue(result([words('deux', 1000)]));
+    const { result: hook, unmount } = renderHook((p: ArticleTranslationInput) => useArticleTranslation(p), { initialProps: base });
+    act(() => { hook.current.translate(); });
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    unmount();
+    await act(async () => { first.resolve(result(['Bonjour le monde', words('un', 1000)])); });
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the batch loop silently when the account changes mid-flight (logout, another login)', async () => {
+    useAuthStore.setState({ backendToken: 'token-a', backendUser: { id: 2, username: 'a', role: 'user' } as never });
+    const first = deferred<AiTranslationResult>();
+    vi.mocked(requestAiTranslation).mockReturnValueOnce(first.promise).mockResolvedValue(result([words('deux', 1000)]));
+    const { result: hook } = renderHook((p: ArticleTranslationInput) => useArticleTranslation(p), { initialProps: base });
+    act(() => { hook.current.translate(); });
+    act(() => { useAuthStore.setState({ backendToken: 'token-b', backendUser: { id: 3, username: 'b', role: 'user' } as never }); });
+    await act(async () => { first.resolve(result(['Bonjour le monde', words('un', 1000)])); });
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    // Rien n'est écrit pour le compte suivant : ni erreur, ni progression avancée.
+    expect(hook.current.error).toBeNull();
+    expect(hook.current.html).toBeNull();
+    expect(hook.current.progress).toEqual({ done: 0, total: 2 });
+  });
+
+  it('stops the batch loop when the token alone changes mid-flight', async () => {
+    useAuthStore.setState({ backendToken: 'token-a', backendUser: { id: 2, username: 'a', role: 'user' } as never });
+    const first = deferred<AiTranslationResult>();
+    vi.mocked(requestAiTranslation).mockReturnValueOnce(first.promise).mockResolvedValue(result([words('deux', 1000)]));
+    const { result: hook } = renderHook((p: ArticleTranslationInput) => useArticleTranslation(p), { initialProps: base });
+    act(() => { hook.current.translate(); });
+    act(() => { useAuthStore.setState({ backendToken: null }); });
+    await act(async () => { first.resolve(result(['Bonjour le monde', words('un', 1000)])); });
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+  });
+
   it('nothing to translate: translate is unavailable and sends nothing', () => {
     const { result: hook } = renderHook(() => useArticleTranslation({ ...base, bodyHtml: '<img src="https://example.com/a.png" alt=""><p>123</p>' }));
     expect(hook.current.canTranslate).toBe(false);

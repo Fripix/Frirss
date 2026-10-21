@@ -229,7 +229,8 @@ function prepare(title: string, bodyHtml: string): Prepared {
  * - La traduction est liée au hash du titre et du corps : quand l'un change
  *   (extraction arrivée, « Article complet » basculé) ou que l'article change,
  *   l'état revient à `idle` et l'affichage à la source ; les lots encore en vol
- *   sont ignorés et la boucle s'arrête.
+ *   sont ignorés et la boucle s'arrête. Elle s'arrête aussi, sans rien écrire,
+ *   quand le volet se démonte et quand le compte change (déconnexion).
  * - Chaque lot en vol est partagé (`sharedTranslationRequest`) : revenir sur
  *   l'article et relancer ne paie pas deux fois le lot déjà demandé.
  * - « Traduire avec X » (`providerId`) garde le réglage de repli ; si un lot
@@ -259,12 +260,16 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
   const preparedFor = useRef<{ key: string; prepared: Prepared } | null>(null);
 
   // Désigne la boucle de lots dont les réponses comptent encore : un nouveau
-  // corps, un autre article ou une nouvelle demande l'incrémente.
+  // corps, un autre article, une nouvelle demande ou le démontage du volet
+  // l'incrémente. Le volet se démonte en même temps que l'article se vide sur
+  // tablette et en deux colonnes : sans ce démontage compté, la boucle
+  // continuerait d'envoyer des lots payants que personne ne verra.
   const seq = useRef(0);
   useEffect(() => {
     seq.current++;
     setSnap((s) => (s.key === key ? s : idle(key)));
   }, [key]);
+  useEffect(() => () => { seq.current++; }, []);
 
   const latest = useRef({ input, hash: source.hash, key, current, canTranslate, t, language: i18n.language, isAdmin });
   useEffect(() => {
@@ -305,10 +310,18 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       return;
     }
     const mine = ++seq.current;
-    const stillCurrent = () => seq.current === mine;
     const total = prep.batches.length;
     const routing = inp.routing();
-    const user = useAuthStore.getState().backendUser?.id ?? '';
+    const startedAs = useAuthStore.getState();
+    const user = startedAs.backendUser?.id ?? '';
+    const token = startedAs.backendToken;
+    // Une déconnexion ou un autre compte en cours de boucle : le lot suivant
+    // partirait avec le jeton du compte suivant, à son plafond ou sur sa clé.
+    const sameAccount = () => {
+      const now = useAuthStore.getState();
+      return now.backendToken === token && (now.backendUser?.id ?? '') === user;
+    };
+    const stillCurrent = () => seq.current === mine && sameAccount();
     setSnap((s) => ({ ...(s.key === k ? s : idle(k)), state: 'loading', progress: { done: 0, total }, error: null, automatic }));
 
     void (async () => {
@@ -319,6 +332,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       let fellBackFrom: string | undefined;
       try {
         for (let b = 0; b < total; b++) {
+          if (!stillCurrent()) return;
           const indices = prep.batches[b];
           const r = await sharedTranslationRequest(
             `article:${user}:${id}:${lang}:${choice?.providerId ?? ''}:${hash}:${b}`,
