@@ -112,6 +112,7 @@ export async function runWithFallback<T>(a: Attempt<T>): Promise<{ result: T | A
       if (!(err instanceof AiError)) console.error('AI provider error:', cand.provider.name, (err as Error)?.name, (err as Error)?.message);
       const e = err instanceof AiError ? err : new AiError('technical', 'provider_error');
       e.ownKey = cand.own;
+      e.provider = { id: cand.provider.id, name: cand.provider.name };
       if (e.kind === 'refused' || e.noFallback || !a.fallback) throw e;
       // Sans cette ligne, une bascule rattrapée ne laisse aucune trace : une coupure
       // réseau vers Ollama a ainsi basculé vers Claude (payant) sans rien dire.

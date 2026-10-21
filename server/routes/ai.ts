@@ -103,10 +103,12 @@ function sendAiError(res: Response, err: unknown, op: 'summary' | 'translate') {
   if (err.message === 'article_too_short') return res.status(400).json({ error: 'article_too_short' });
   if (err.message === 'ai_daily_cap') return res.status(429).json({ error: 'ai_daily_cap', cap: dailyCap(), resetAt: nextUsageReset() });
   if (err.message === 'no_provider') return res.status(409).json({ error: 'no_provider' });
-  if (err.kind === 'refused') return res.status(422).json({ error: 'ai_refused' });
+  // Le fournisseur fautif (id + nom donné par l'admin, jamais d'URL ni de clé) : seulement sur les 422 et 502, qui viennent d'un appel.
+  const provider = err.provider ? { provider: { id: err.provider.id, name: err.provider.name } } : {};
+  if (err.kind === 'refused') return res.status(422).json({ error: 'ai_refused', ...provider });
   console.error(`AI ${op} failed:`, err.kind, err.message);
   res.status(502).json({
-    error: 'ai_failed', kind: err.kind,
+    error: 'ai_failed', kind: err.kind, ...provider,
     ...(err.ownKey ? { ownKey: true } : {}),
     ...(err.message === 'segments' ? { detail: 'segments' } : {}),
     // Le temps a manqué (appel abandonné, ou échéance dépensée avant tout

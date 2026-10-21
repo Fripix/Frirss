@@ -104,6 +104,22 @@ describe('runWithFallback', () => {
     await expect(runWithFallback(attempt({ call, fallback: false }))).rejects.toMatchObject({ kind: 'auth', message: 'HTTP 401', ownKey: false });
     expect(call).toHaveBeenCalledTimes(1);
   });
+  it('names the last provider tried on the final error, and the first when there is no fallback', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const call = vi.fn().mockRejectedValueOnce(new AiError('technical', 'down')).mockRejectedValueOnce(new AiError('auth', 'HTTP 401', 401));
+      await expect(runWithFallback(attempt({ call }))).rejects.toMatchObject({ kind: 'auth', provider: { id: 2, name: 'Two' } });
+      const solo = vi.fn().mockRejectedValue(new AiError('technical', 'down'));
+      await expect(runWithFallback(attempt({ call: solo, fallback: false }))).rejects.toMatchObject({ provider: { id: 1, name: 'One' } });
+      const refused = vi.fn().mockRejectedValue(new AiError('refused', 'filter'));
+      await expect(runWithFallback(attempt({ call: refused }))).rejects.toMatchObject({ kind: 'refused', provider: { id: 1, name: 'One' } });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+  it('names no provider when none was called', async () => {
+    await expect(runWithFallback(attempt({ available: [] }))).rejects.toSatisfy((e: unknown) => (e as AiError).provider === undefined);
+  });
   it('stores what onSuccess returns under the candidate key, and keeps a paid call counted', async () => {
     const r = await runWithFallback(attempt({
       available: [A(1, 'Paid', true)],

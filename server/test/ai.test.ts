@@ -155,7 +155,7 @@ describe('ai admin + summary', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers(), text: async () => 'boom', json: async () => ({}) }));
     const fail = await post('art-502');
     expect(fail.status).toBe(502);
-    expect(fail.body).toMatchObject({ error: 'ai_failed', kind: 'technical' });
+    expect(fail.body).toMatchObject({ error: 'ai_failed', kind: 'technical', provider: { id: providerId, name: 'Ollama' } });
     vi.unstubAllGlobals();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true, status: 200, headers: new Headers(), text: async () => '',
@@ -163,7 +163,7 @@ describe('ai admin + summary', () => {
     }));
     const refused = await post('art-422');
     expect(refused.status).toBe(422);
-    expect(refused.body.error).toBe('ai_refused');
+    expect(refused.body).toEqual({ error: 'ai_refused', provider: { id: providerId, name: 'Ollama' } });
   });
   it('rejects invalid settings atomically and strictly', async () => {
     const put = (b: object) => request(app).put('/api/admin/ai/settings').set('Authorization', `Bearer ${adminToken}`).send(b);
@@ -429,12 +429,12 @@ describe('ai personal keys', () => {
     refuse();
     const own = await summarise('own-refused');
     expect(own.status).toBe(502);
-    expect(own.body).toEqual({ error: 'ai_failed', kind: 'auth', ownKey: true });
+    expect(own.body).toEqual({ error: 'ai_failed', kind: 'auth', ownKey: true, provider: { id, name: 'Perso' } });
     await put(id, { key: null });
     refuse();
     const shared = await summarise('shared-refused');
     expect(shared.status).toBe(502);
-    expect(shared.body).toEqual({ error: 'ai_failed', kind: 'auth' });
+    expect(shared.body).toEqual({ error: 'ai_failed', kind: 'auth', provider: { id, name: 'Perso' } });
   });
 });
 
@@ -542,7 +542,7 @@ describe('ai translate route', () => {
       stubProvider('Bonjour');
       const res = await post(body({ articleId: 'tr-seg', translationProvider: id, fallback: false }));
       expect(res.status).toBe(502);
-      expect(res.body).toEqual({ error: 'ai_failed', kind: 'technical', detail: 'segments' });
+      expect(res.body).toEqual({ error: 'ai_failed', kind: 'technical', detail: 'segments', provider: { id, name: 'Translator' } });
       expect(err.mock.calls).toEqual([['AI translate failed:', 'technical', 'segments']]);
     } finally {
       err.mockRestore();
@@ -554,11 +554,11 @@ describe('ai translate route', () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })));
       const res = await post(body({ articleId: 'tr-deadline', translationProvider: id, fallback: false }));
       expect(res.status).toBe(502);
-      expect(res.body).toEqual({ error: 'ai_failed', kind: 'technical', detail: 'deadline' });
+      expect(res.body).toEqual({ error: 'ai_failed', kind: 'technical', detail: 'deadline', provider: { id, name: 'Translator' } });
       // Une autre panne technique ne porte pas ce détail.
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('boom')));
       const other = await post(body({ articleId: 'tr-other', translationProvider: id, fallback: false }));
-      expect(other.body).toEqual({ error: 'ai_failed', kind: 'technical' });
+      expect(other.body).toEqual({ error: 'ai_failed', kind: 'technical', provider: { id, name: 'Translator' } });
     } finally {
       err.mockRestore();
     }

@@ -19,6 +19,14 @@ export class AiError extends Error {
    * sans que personne l'ait choisi. Le client rejoue plutôt le lot coupé en deux.
    */
   noFallback?: boolean;
+  /**
+   * Le fournisseur dont l'appel a échoué (le DERNIER essayé quand le repli en a
+   * parcouru plusieurs), posé par `runWithFallback` avant chaque `throw`. Le nom
+   * est celui que l'admin a donné : ni URL, ni clé. Absent quand aucun candidat
+   * n'a été appelé (`no_provider`, `ai_daily_cap`, `not_cached`, échéance
+   * dépensée avant tout appel). La route le met dans les corps 502 et 422.
+   */
+  provider?: { id: number; name: string };
   constructor(public readonly kind: AiErrorKind, message: string, public readonly status?: number) {
     super(message);
     this.name = 'AiError';

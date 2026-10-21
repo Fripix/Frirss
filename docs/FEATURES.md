@@ -1977,7 +1977,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `ownKey: true` (l'`AiError` est marquée par `runWithFallback` d'après
   `Availability.own`) et le client dit « votre clé » (`ai.errors.auth`) au lieu
   d'envoyer l'utilisateur vers son admin (`authUser`) — c'est la seule clé qu'il
-  peut corriger lui-même. Disponibilité d'un fournisseur
+  peut corriger lui-même. Les 502 et les 422 `ai_refused` portent aussi
+  `provider: { id, name }` : le fournisseur dont l'appel a échoué — le DERNIER
+  essayé quand le repli en a parcouru plusieurs (`runWithFallback` le pose sur
+  l'`AiError` avec `ownKey`, avant chaque `throw`, y compris l'erreur finale).
+  Le nom est celui que l'admin a donné : jamais d'URL ni de clé. Absent des
+  409 / 429 / 400 / 500 et chaque fois qu'aucun candidat n'a été appelé
+  (`no_provider`, `ai_daily_cap`, `not_cached`, échéance dépensée avant tout
+  appel). Disponibilité d'un fournisseur
   pour un utilisateur : clé personnelle > clé admin si le fournisseur est
   « partagé » > indisponible (« Partager cette clé avec les utilisateurs » est **décochée** à la
   création d'un fournisseur : partager une clé payante se coche exprès) ; un
@@ -2408,8 +2415,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   cache se contredisent) ; `targetLang` hors des 28 langues de `languages.ts` (`AI_LANGUAGES`, ni `ru`
   ni `he`) → 400 `invalid_lang`. Les autres erreurs sont celles du résumé
   (même fonction `sendAiError`) : 404 `ai_disabled`, 429 `ai_daily_cap` avec
-  `cap` / `resetAt`, 409 `no_provider`, 422 `ai_refused`, 502 avec `kind` et
-  `ownKey`.
+  `cap` / `resetAt`, 409 `no_provider`, 422 `ai_refused` (avec `provider`),
+  502 avec `kind`, `provider` et `ownKey`.
   **`cacheOnly: true`** (rejeu d'une traduction déjà montrée) : le serveur ne
   lit que son cache (`Attempt.cacheOnly` de `runWithFallback`, pour chaque
   candidat dans l'ordre du repli). **Garantie, tenue côté serveur et non par
