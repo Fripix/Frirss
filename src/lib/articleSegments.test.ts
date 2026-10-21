@@ -148,4 +148,18 @@ describe('batchSegments', () => {
   it('returns no batch for no segment', () => {
     expect(batchSegments([])).toEqual([]);
   });
+
+  // Un grand tableau ou une longue liste : des centaines de cellules de deux
+  // mots tiennent sous 1 200 mots, mais chaque segment coûte ~10 jetons de
+  // balisage en sortie, et la réponse se tronquait.
+  it('caps a batch at 120 segments by default, whatever the words', () => {
+    const cells = Array.from({ length: 300 }, () => 'two words');
+    const batches = batchSegments(cells);
+    expect(batches.map((b) => b.length)).toEqual([120, 120, 60]);
+    expect(batches.flat()).toEqual(cells.map((_, i) => i));
+  });
+
+  it('takes the segment cap as a parameter', () => {
+    expect(batchSegments(['a', 'b', 'c', 'd', 'e'], 1000, 10_000, 2)).toEqual([[0, 1], [2, 3], [4]]);
+  });
 });

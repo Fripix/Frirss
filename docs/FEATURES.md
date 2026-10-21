@@ -2134,8 +2134,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   provider?, translationProvider?, feedProvider?, categoryProvider?,
   preferredProvider?, fallback? }` → `{ segments, lang, same, providerId,
   providerName, model, fromCache, fellBackFrom? }`. **Une requête = un lot = un
-  appel** : c'est le client qui découpe en lots d'environ 1 200 mots et les
-  envoie en série. Format **strict** en entrée comme en sortie, chaque segment
+  appel** : c'est le client qui découpe en lots (≈ 1 200 mots, 200 000
+  octets, 120 segments au plus) et les envoie en série. Format **strict** en entrée comme en sortie, chaque segment
   entre `<s n="N">…</s>` numérotés depuis 0 (`translateUserMessage`, qui retire
   d'un segment tout marqueur `<s n=…>` forgé **avec le `</s>` qui le ferme**,
   ainsi qu'un `</s>` qui ne ferme rien ; un vrai `<s>…</s>` barré reste
@@ -2500,7 +2500,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     corps affiché est `showing === 'translation' ? traduit : source`, dans le
     même `bodyProp` mémoïsé (identité stable) ; le `<h1>` montre le titre
     traduit (rendu en texte). La pastille « x min » reste celle de la source.
-  - **Lots** : `batchSegments` (≈ 1 200 mots, ≤ 200 000 octets), envoyés **en
+  - **Lots** : `batchSegments` (≈ 1 200 mots, ≤ 200 000 octets, ≤ 120
+    segments — un grand tableau ou une longue liste de cellules de deux mots
+    tenait sous 1 200 mots, mais ses centaines de marqueurs `<s n="N">`
+    tronquaient la réponse, rejouée puis en échec à chaque essai), envoyés **en
     série**, une requête `POST /api/ai/translate` (`scope: 'article'`) par
     lot. Le numéro de lot ne part pas au serveur : il sert la notice. Une
     erreur à **n'importe quel** lot donne une erreur et rien n'est remplacé ;

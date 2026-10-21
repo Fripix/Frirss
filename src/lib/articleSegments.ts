@@ -127,9 +127,15 @@ export function wordCount(html: string): number {
 }
 
 /** Regroupe des indices consécutifs en lots (mots ≤ maxWords, octets UTF-8 ≤
- *  maxBytes). Un segment à lui seul plus lourd que maxBytes n'entre dans aucun
- *  lot (« traduit en partie »). */
-export function batchSegments(segments: string[], maxWords = 1200, maxBytes = 200_000): number[][] {
+ *  maxBytes, segments ≤ maxSegments). Un segment à lui seul plus lourd que
+ *  maxBytes n'entre dans aucun lot (« traduit en partie »).
+ *
+ *  `maxSegments` : chaque segment coûte une dizaine de jetons de balisage
+ *  (`<s n="N">…</s>`) en sortie. Un grand tableau ou une longue liste —
+ *  des centaines de cellules de deux mots — tenait sous 1 200 mots, et la
+ *  réponse se tronquait (8 192 jetons chez Anthropic, la fenêtre d'Ollama) :
+ *  rejouée, payée deux fois, puis « segments » à chaque nouvel essai. */
+export function batchSegments(segments: string[], maxWords = 1200, maxBytes = 200_000, maxSegments = 120): number[][] {
   const encoder = new TextEncoder();
   const batches: number[][] = [];
   let current: number[] = [];
@@ -139,7 +145,7 @@ export function batchSegments(segments: string[], maxWords = 1200, maxBytes = 20
     const w = wordCount(segment);
     const b = encoder.encode(segment).length;
     if (b > maxBytes) return;
-    if (current.length && (words + w > maxWords || bytes + b > maxBytes)) {
+    if (current.length && (words + w > maxWords || bytes + b > maxBytes || current.length >= maxSegments)) {
       batches.push(current);
       current = [];
       words = 0;

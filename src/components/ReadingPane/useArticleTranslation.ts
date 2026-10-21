@@ -220,7 +220,8 @@ function prepare(title: string, bodyHtml: string): Prepared {
  * Traduction de l'article affiché (spec §17.1, §17.3).
  *
  * - Le corps est découpé en segments (`segmentArticle`, titre = segment 0),
- *   groupés en lots d'environ 1 200 mots (`batchSegments`) ; les lots partent
+ *   groupés en lots d'environ 1 200 mots et 120 segments au plus
+ *   (`batchSegments`) ; les lots partent
  *   **en série**, une requête par lot. `progress` sert la notice ; le numéro
  *   de lot ne part pas au serveur.
  * - Tant qu'un lot manque, rien n'est remplacé : une erreur à n'importe quel
