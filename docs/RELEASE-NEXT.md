@@ -71,7 +71,9 @@ la release publiée.
   lot traduit), et ses messages le disent. Le raccourci `t` (réassignable,
   masqué tant que l'IA est inutilisable) et la palette ⌘K traduisent l'article
   ouvert. Aucun choix IA qui engage un coût ne passe d'un compte à l'autre sur
-  un navigateur partagé.
+  un navigateur partagé. Une traduction d'article affichée revient quand on
+  rouvre l'article sur le même appareil, sans rien coûter (elle vient du cache
+  du serveur ; « Texte source » l'oublie).
 - **Deux onglets, un seul appel IA.** Quand le même résumé ou le même lot de
   traduction est demandé pendant qu'il est en cours de génération — depuis un
   autre onglet ou un autre appareil du même compte —, le serveur rattache la

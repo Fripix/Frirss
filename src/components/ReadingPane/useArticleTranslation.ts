@@ -7,6 +7,7 @@ import { segmentArticle, batchSegments, type Segmented } from '../../lib/article
 import { aiErrorMessage, isAiDeadline, isAiMalformed, isUpstreamCut } from '../../lib/aiErrorKey';
 import type { AiRouting } from '../../lib/aiRouting';
 import type { AiLanguage } from '../../lib/aiLanguages';
+import { rememberShown, forgetShown, recallShown } from '../../lib/aiShownTranslations';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import { sharedTranslationRequest, articleBatchKey } from './aiPending';
 
@@ -34,6 +35,10 @@ export interface TranslateOptions {
    *  `regenerate` (le serveur ignore son cache et le remplace), dans une
    *  demande partagée à part (`articleBatchKey`). */
   regenerate?: boolean;
+  /** Rejeu d'une traduction mémorisée (`aiShownTranslations`) : chaque lot ne
+   *  lit que le cache serveur, jamais coupé en deux, jamais de notice — toute
+   *  erreur, comme un `same`, laisse l'article en source et efface la mémoire. */
+  cacheOnly?: boolean;
 }
 
 export interface ArticleTranslation {
@@ -79,6 +84,12 @@ interface Snapshot {
   automatic: boolean;
   showing: 'source' | 'translation';
 }
+
+/** Identifiant du compte pour la mémoire par appareil, ou `null` sans compte. */
+const accountKey = (): string | null => {
+  const id = useAuthStore.getState().backendUser?.id;
+  return id === undefined || id === null ? null : String(id);
+};
 
 const idle = (key: string): Snapshot => ({
   key, state: 'idle', html: null, title: null, progress: null, partialOf: null, lang: null, error: null, automatic: false, showing: 'source',
@@ -295,6 +306,12 @@ function prepare(title: string, bodyHtml: string): Prepared {
  * - Une demande automatique (`{ automatic: true }`) est marquée dans l'état
  *   (`automatic`) : le volet tait alors un `same`, mais montre une erreur.
  *   Sans rien à traduire, elle ne part pas, comme une demande à la main.
+ * - Mémoire par appareil (`lib/aiShownTranslations`) : quand une traduction est
+ *   affichée, langue, fournisseur et hash sont gardés ; au retour sur l'article
+ *   (même hash), `translate(…, { cacheOnly: true })` la rejoue depuis le cache
+ *   serveur seulement — jamais coupée en deux, clé partagée à part, aucune
+ *   notice : toute réponse non 200 ou un `same` laisse la source et efface la
+ *   mémoire. « Texte source » l'efface aussi.
  */
 export function useArticleTranslation(input: ArticleTranslationInput): ArticleTranslation {
   const { t, i18n } = useTranslation();
@@ -336,6 +353,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
   const translate = useCallback((choice?: TranslateChoice, options?: TranslateOptions) => {
     const automatic = options?.automatic === true;
     const regenerate = options?.regenerate === true;
+    const cacheOnly = options?.cacheOnly === true;
     const { input: inp, hash, key: k, current: cur, canTranslate: can, t: tr, language, isAdmin: admin } = latest.current;
     const id = inp.articleId;
     if (!inp.enabled || !id || !can || cur.state === 'loading') return;
@@ -346,6 +364,8 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     // La traduction tenue répond déjà à la demande : la remontrer, sans appel.
     if (!regenerate && held && held.lang === lang && (choice?.providerId === undefined || choice.providerId === held.providerId)) {
       setSnap((s) => (s.key === k ? { ...s, showing: 'translation' } : s));
+      const acct = accountKey();
+      if (acct && held.lang) rememberShown(acct, id, { lang: held.lang, providerId: held.providerId, hash });
       return;
     }
     const failed = () => {
@@ -380,6 +400,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       return now.backendToken === token && (now.backendUser?.id ?? '') === user;
     };
     const stillCurrent = () => seq.current === mine && sameAccount();
+    const shownFor = accountKey();
     setSnap((s) => ({ ...(s.key === k ? s : idle(k)), state: 'loading', progress: { done: 0, total }, error: null, automatic }));
 
     void (async () => {
@@ -395,6 +416,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
             articleId: id, scope: 'article', targetLang: lang, segments: indices.map((i) => prep.send[i]),
             provider: choice?.providerId, ...routing,
             ...(regenerate ? { regenerate: true } : {}),
+            ...(cacheOnly ? { cacheOnly: true } : {}),
           });
         } catch (err) {
           if (err && typeof err === 'object') Object.assign(err, { elapsedMs: Date.now() - started });
@@ -404,13 +426,13 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       // Un lot = une demande partagée, rejeu en deux moitiés compris : un
       // retour sur l'article pendant une moitié s'y rattache.
       const sendBatch = (b: number) => sharedTranslationRequest(
-        articleBatchKey({ user, articleId: id, lang, providerId: choice?.providerId, hash, batch: b, regenerate }),
+        articleBatchKey({ user, articleId: id, lang, providerId: choice?.providerId, hash, batch: b, regenerate, cacheOnly }),
         async (wanted) => {
           const indices = prep.batches[b];
           try {
             return await request(indices);
           } catch (err) {
-            if (indices.length < 2 || !worthSplitting(err)) throw err;
+            if (cacheOnly || indices.length < 2 || !worthSplitting(err)) throw err;
           }
           // Coupé faute de temps ou rendu inexploitable : rejoué une fois, en
           // deux moitiés, en série. Une moitié qui échoue à son tour finit en
@@ -433,7 +455,13 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
           const r = await sendBatch(b);
           if (!stillCurrent()) return;
           if (r.same && b === 0) {
-            setSnap({ ...idle(k), state: 'same', lang, automatic });
+            // Un rejeu n'a rien à montrer : la source, et plus de mémoire.
+            if (cacheOnly) {
+              setSnap({ ...idle(k) });
+              if (shownFor) forgetShown(shownFor, id);
+            } else {
+              setSnap({ ...idle(k), state: 'same', lang, automatic });
+            }
             return;
           }
           // Un lot plus loin déjà dans la langue (article mêlé) : ses segments restent.
@@ -450,8 +478,18 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
           partialOf: prep.skipped > 0 ? { translated: total, total: total + prep.skipped } : null,
           showing: 'translation',
         });
+        // Mémoire par appareil : le fournisseur de la traduction AFFICHÉE (le
+        // dernier lot), pour retomber sur la même entrée de cache au retour.
+        if (shownFor) rememberShown(shownFor, id, { lang, providerId, hash });
       } catch (err) {
         if (!stillCurrent()) return;
+        // Un rejeu qui échoue (cache absent, fournisseur disparu, serveur
+        // arrêté) n'a rien promis : source, sans message, et on oublie.
+        if (cacheOnly) {
+          setSnap({ ...idle(k) });
+          if (shownFor) forgetShown(shownFor, id);
+          return;
+        }
         const resp = axios.isAxiosError(err) ? err.response : undefined;
         const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], admin, language, { op: 'translate', elapsedMs: elapsedOf(err) });
         // Une traduction déjà tenue (payée) reste affichée, l'erreur s'ajoute.
@@ -462,10 +500,32 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
 
   const showSource = useCallback(() => {
     setSnap((s) => ({ ...s, showing: 'source' }));
+    // « Texte source » : on ne rejoue plus cette traduction au retour.
+    const acct = accountKey();
+    const id = latest.current.input.articleId;
+    if (acct && id) forgetShown(acct, id);
   }, []);
   const showTranslation = useCallback(() => {
     setSnap((s) => (s.html !== null ? { ...s, showing: 'translation' } : s));
+    const { input: inp, hash, current: cur } = latest.current;
+    const acct = accountKey();
+    if (acct && inp.articleId && cur.html !== null && cur.lang) {
+      rememberShown(acct, inp.articleId, { lang: cur.lang, providerId: cur.providerId, hash });
+    }
   }, []);
+
+  // Retour sur un article dont la traduction a été affichée : rejeu depuis le
+  // cache serveur. Après la mise à jour de `latest` (effet du dessus), et avant
+  // la traduction automatique du volet, que son délai fait partir après : elle
+  // trouve l'état `loading` et ne double rien.
+  useEffect(() => {
+    const id = latest.current.input.articleId;
+    const acct = accountKey();
+    if (!input.enabled || !id || !acct || latest.current.current.state !== 'idle') return;
+    const shown = recallShown(acct, id, source.hash);
+    if (shown) translate({ lang: shown.lang, providerId: shown.providerId }, { cacheOnly: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, input.enabled]);
 
   return {
     state: current.state,

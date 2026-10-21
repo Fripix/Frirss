@@ -39,6 +39,7 @@ const base: ArticleTranslationInput = {
 beforeEach(() => {
   vi.mocked(requestAiTranslation).mockReset();
   vi.mocked(segmentArticle).mockClear();
+  localStorage.clear();
   useAuthStore.setState({ backendUser: { id: 2, username: 'u', role: 'user' } as never });
   __resetPendingSummariesForTests();
 });
@@ -607,5 +608,127 @@ describe('hasReadableText', () => {
     expect(hasReadableText('<p>3 &lt; 4 and</p>')).toBe(true);
     expect(hasReadableText('Bare text')).toBe(true);
     expect(hasReadableText('<p>日本</p>')).toBe(true);
+  });
+});
+
+describe('useArticleTranslation: per-device memory of a shown translation', () => {
+  const small = { ...base, bodyHtml: '<p>Hello</p>' };
+  const notCached = () => Object.assign(new Error('http 404'), { isAxiosError: true, response: { status: 404, data: { error: 'not_cached' } } });
+  const memory = () => JSON.parse(localStorage.getItem('frirss_aiShown:2') ?? '{}') as Record<string, { lang: string; providerId?: number; hash: string }>;
+
+  async function showOnce() {
+    vi.mocked(requestAiTranslation).mockResolvedValueOnce(result(['Titre', 'Bonjour'], { providerId: 7 }));
+    const first = renderHook(() => useArticleTranslation(small));
+    await act(async () => { first.result.current.translate(); });
+    await waitFor(() => expect(first.result.current.state).toBe('done'));
+    first.unmount();
+    vi.mocked(requestAiTranslation).mockReset();
+  }
+
+  it('remembers the translation once it is shown', async () => {
+    await showOnce();
+    expect(memory().a1).toMatchObject({ lang: 'fr', providerId: 7 });
+  });
+
+  it('an article whose translation was shown is replayed from the cache on return', async () => {
+    await showOnce();
+    vi.mocked(requestAiTranslation).mockResolvedValue(result(['Titre', 'Bonjour'], { providerId: 7, fromCache: true }));
+    const { result: hook } = renderHook(() => useArticleTranslation(small));
+    await waitFor(() => expect(hook.current.state).toBe('done'));
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({
+      cacheOnly: true, provider: 7, targetLang: 'fr', articleId: 'a1',
+    });
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).not.toHaveProperty('regenerate');
+    expect(hook.current.showing).toBe('translation');
+    expect(hook.current.html).toBe('<p>Bonjour</p>');
+    expect(hook.current.title).toBe('Titre');
+    expect(hook.current.error).toBeNull();
+    expect(memory().a1).toMatchObject({ lang: 'fr', providerId: 7 });
+  });
+
+  it('shows the loading state while the replay runs', async () => {
+    await showOnce();
+    const d = deferred<AiTranslationResult>();
+    vi.mocked(requestAiTranslation).mockReturnValue(d.promise);
+    const { result: hook } = renderHook(() => useArticleTranslation(small));
+    await waitFor(() => expect(hook.current.state).toBe('loading'));
+    await act(async () => { d.resolve(result(['Titre', 'Bonjour'])); });
+    expect(hook.current.state).toBe('done');
+  });
+
+  it('nothing is replayed without a remembered translation, or when the AI is disabled', async () => {
+    const { result: hook } = renderHook(() => useArticleTranslation(small));
+    expect(hook.current.state).toBe('idle');
+    expect(requestAiTranslation).not.toHaveBeenCalled();
+    await showOnce();
+    renderHook(() => useArticleTranslation({ ...small, enabled: false }));
+    expect(requestAiTranslation).not.toHaveBeenCalled();
+  });
+
+  it('a body that changed since is not replayed', async () => {
+    await showOnce();
+    renderHook(() => useArticleTranslation({ ...small, bodyHtml: '<p>Hello, the full article.</p>' }));
+    expect(requestAiTranslation).not.toHaveBeenCalled();
+  });
+
+  it('a 404 not_cached ends idle with no message, and the memory is forgotten', async () => {
+    await showOnce();
+    vi.mocked(requestAiTranslation).mockRejectedValue(notCached());
+    const { result: hook } = renderHook(() => useArticleTranslation(small));
+    await waitFor(() => expect(memory().a1).toBeUndefined());
+    expect(hook.current.state).toBe('idle');
+    expect(hook.current.error).toBeNull();
+    expect(hook.current.showing).toBe('source');
+    expect(hook.current.html).toBeNull();
+  });
+
+  it('any other failure of a replay is silent too (provider gone, server down)', async () => {
+    await showOnce();
+    vi.mocked(requestAiTranslation).mockRejectedValue(
+      Object.assign(new Error('http 409'), { isAxiosError: true, response: { status: 409, data: { error: 'no_provider' } } }),
+    );
+    const { result: hook } = renderHook(() => useArticleTranslation(small));
+    await waitFor(() => expect(memory().a1).toBeUndefined());
+    expect(hook.current.state).toBe('idle');
+    expect(hook.current.error).toBeNull();
+  });
+
+  it('a replay already in the language ends idle and forgets', async () => {
+    await showOnce();
+    vi.mocked(requestAiTranslation).mockResolvedValue(result([], { same: true, lang: 'fr' }));
+    const { result: hook } = renderHook(() => useArticleTranslation(small));
+    await waitFor(() => expect(memory().a1).toBeUndefined());
+    expect(hook.current.state).toBe('idle');
+  });
+
+  it('"Source text" clears the memory', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(result(['Titre', 'Bonjour']));
+    const { result: hook } = renderHook(() => useArticleTranslation(small));
+    await act(async () => { hook.current.translate(); });
+    await waitFor(() => expect(hook.current.state).toBe('done'));
+    expect(memory().a1).toBeDefined();
+    act(() => { hook.current.showSource(); });
+    expect(memory().a1).toBeUndefined();
+    act(() => { hook.current.showTranslation(); });
+    expect(memory().a1).toMatchObject({ lang: 'fr' });
+  });
+
+  it('a replay never splits a batch in two: a deadline 502 is one call, silent', async () => {
+    const big = { ...small, bodyHtml: '<p>One</p><p>Two</p><p>Three</p>' };
+    vi.mocked(requestAiTranslation).mockResolvedValueOnce(result(['T', 'a', 'b', 'c'], { providerId: 7 }));
+    const first = renderHook(() => useArticleTranslation(big));
+    await act(async () => { first.result.current.translate(); });
+    await waitFor(() => expect(first.result.current.state).toBe('done'));
+    first.unmount();
+    vi.mocked(requestAiTranslation).mockReset();
+    vi.mocked(requestAiTranslation).mockRejectedValue(
+      Object.assign(new Error('http 502'), { isAxiosError: true, response: { status: 502, data: { error: 'ai_failed', detail: 'deadline' } } }),
+    );
+    const { result: hook } = renderHook(() => useArticleTranslation(big));
+    await waitFor(() => expect(memory().a1).toBeUndefined());
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    expect(hook.current.state).toBe('idle');
+    expect(hook.current.error).toBeNull();
   });
 });

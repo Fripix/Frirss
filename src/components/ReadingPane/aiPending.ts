@@ -18,7 +18,10 @@ import type { AiSummaryResult, AiTranslationResult } from '../../api/backend';
  * Une régénération (« Régénérer », « Retraduire ») a sa propre clé : elle ne
  * se rattache jamais à une demande ordinaire en cours, dont le serveur pourrait
  * servir le cache qu'on veut justement remplacer. Deux régénérations
- * identiques en vol, elles, se partagent. Les clés se construisent ici
+ * identiques en vol, elles, se partagent. Il en va de même du rejeu d'une
+ * traduction mémorisée (`cacheOnly`, cache serveur seulement) : une demande
+ * ordinaire ne se rattache jamais à lui (il peut finir en 404 sans rien payer),
+ * ni lui à elle. Les clés se construisent ici
  * (`summaryRequestKey`, `summaryTranslationKey`, `articleBatchKey`).
  *
  * Une demande en plusieurs temps (lot de traduction rejoué en deux moitiés)
@@ -58,8 +61,8 @@ export function summaryTranslationKey(k: { user: Id; articleId: string; lang: st
   return `${regen(k.regenerate)}${k.user ?? ''}:${k.articleId}:${k.lang}:${k.providerId ?? ''}:${k.text}`;
 }
 /** Lot de traduction de l'article : compte, article, langue, fournisseur forcé, hash du corps, rang du lot. */
-export function articleBatchKey(k: { user: Id; articleId: string; lang: string; providerId?: number; hash: string; batch: number; regenerate?: boolean }): string {
-  return `${regen(k.regenerate)}article:${k.user ?? ''}:${k.articleId}:${k.lang}:${k.providerId ?? ''}:${k.hash}:${k.batch}`;
+export function articleBatchKey(k: { user: Id; articleId: string; lang: string; providerId?: number; hash: string; batch: number; regenerate?: boolean; cacheOnly?: boolean }): string {
+  return `${regen(k.regenerate)}${k.cacheOnly ? 'cache:' : ''}article:${k.user ?? ''}:${k.articleId}:${k.lang}:${k.providerId ?? ''}:${k.hash}:${k.batch}`;
 }
 
 const summaries = pendingTable<AiSummaryResult>();

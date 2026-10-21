@@ -49,6 +49,8 @@ const article = (id: string) => ({
 const ON = { enabled: true, providers: [{ id: 1, name: 'Ollama', type: 'openai' as const, hasAdminKey: false, shared: false, hasUserKey: false, available: true }], userKeysAllowed: false, dailyCap: 0, usageToday: 0, defaultProvider: 1 };
 
 beforeEach(() => {
+  // La mémoire par appareil des traductions affichées ne passe pas d'un test à l'autre.
+  localStorage.clear();
   useFeedStore.setState({ selectedArticle: article('a1'), articles: [article('a1'), article('a2')] });
   useAiStore.setState({ config: ON });
   useAuthStore.setState({ backendUser: { id: 2, username: 'u', role: 'user' } as never });

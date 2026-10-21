@@ -87,4 +87,11 @@ describe('request keys: a regeneration never joins a normal request', () => {
     expect(articleBatchKey({ ...b, regenerate: true })).not.toBe(articleBatchKey(b));
     expect(articleBatchKey({ ...b, regenerate: true })).toBe(articleBatchKey({ ...b, regenerate: true }));
   });
+
+  it('a cache-only replay has its own key: it never joins nor is joined by a real batch', () => {
+    const b = { user: 2, articleId: 'a1', lang: 'de', providerId: 3, hash: 'h', batch: 0 };
+    expect(articleBatchKey({ ...b, cacheOnly: true })).not.toBe(articleBatchKey(b));
+    expect(articleBatchKey({ ...b, cacheOnly: true })).not.toBe(articleBatchKey({ ...b, regenerate: true }));
+    expect(articleBatchKey({ ...b, cacheOnly: true })).toBe(articleBatchKey({ ...b, cacheOnly: true }));
+  });
 });

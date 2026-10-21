@@ -2878,7 +2878,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     visible sans appui long). Le bouton principal **remontre** une traduction
     déjà tenue sans requête **seulement si sa langue est la cible** : après
     « Traduire en → allemand » puis « Texte source », il envoie une nouvelle
-    demande dans la langue cible. Pendant une demande, **même par-dessus une
+    demande dans la langue cible. « Texte source » efface aussi la mémoire par
+    appareil de l'article (voir plus bas). Pendant une demande, **même par-dessus une
     traduction affichée**, il dit « Traduction… » et est désactivé (sinon il
     restait « Texte source » et la vue rebasculait à l'arrivée des lots). Le
     menu suit les règles du résumé
@@ -2911,7 +2912,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     reste possible.
   - **Corps changé** : la traduction est liée au hash (FNV-1a) du titre et du
     corps. Extraction arrivée, « Article complet » basculé ou autre article →
-    retour à `idle` et à la source, sans retraduction. La boucle de lots en
+    retour à `idle` et à la source, sans retraduction (la mémoire par appareil
+    ci-dessous, liée au même hash, ne rejoue pas non plus un corps changé). La boucle de lots en
     cours s'arrête (plus aucun lot ne part, les réponses en vol sont
     ignorées, séquence `stillCurrent`) dans quatre cas : autre article, corps
     changé, **volet démonté** (retour sur tablette, fermeture en deux
@@ -2922,12 +2924,41 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     et gardé par le cache serveur.
   - **Demandes partagées** : chaque lot passe par `sharedTranslationRequest`
     (`articleBatchKey` — clé : `article`, compte, article, langue, fournisseur
-    forcé, hash du corps, rang du lot, `regen:` devant pour « Retraduire » ;
+    forcé, hash du corps, rang du lot, `regen:` devant pour « Retraduire »,
+    `cache:` devant pour le rejeu de la mémoire par appareil, qui ne rejoint
+    donc jamais une vraie demande ni n'est rejoint par elle ;
     un lot rejoué en deux moitiés reste **une seule**
     demande partagée) : revenir sur l'article et relancer reprend le lot en
     vol — moitiés comprises — au lieu de le repayer ; le cache serveur sert les lots déjà traduits,
     et un lot identique demandé depuis un autre onglet pendant qu'il court se
     rattache côté serveur (« Demandes partagées, côté serveur »).
+  - **Mémoire par appareil** : une traduction d'article **affichée** est
+    rejouée au retour sur l'article, au lieu de retomber sur la source.
+    `lib/aiShownTranslations.ts` garde, sous `frirss_aiShown:<compte>` dans le
+    `localStorage` de l'appareil, par article : langue, fournisseur de la
+    traduction affichée (celui du dernier lot), hash du corps et date — jamais
+    le texte. 200 articles au plus par compte, les plus anciens évincés ; tout
+    accès au stockage est sous `try/catch` (stockage refusé = on oublie).
+    Elle s'écrit quand la traduction s'affiche (fin de la boucle de lots,
+    « Traduire » qui remontre la traduction tenue, `showTranslation`) et se
+    rafraîchit à chaque rejeu réussi. Au changement d'article ou de corps,
+    `useArticleTranslation` rappelle l'entrée (même hash seulement) et lance
+    `translate({ lang, providerId }, { cacheOnly: true })` — avant la
+    traduction automatique du volet, que son délai de 1 s fait partir après :
+    elle trouve l'état `loading` et ne double rien. **Garantie : un rejeu ne
+    peut rien coûter.** Chaque lot part avec `cacheOnly: true` (le serveur ne
+    lit que son cache : 404 `not_cached` sans entrée, jamais d'appel au
+    fournisseur ni d'unité du plafond), fournisseur forcé à celui mémorisé
+    pour retomber sur la même clé de cache, **jamais coupé en deux**
+    (`worthSplitting` ignoré). **Toute** réponse non 200 (404, 409
+    `no_provider` si le fournisseur n'est plus disponible, 5xx, réseau) comme
+    un `same` laisse l'article en source, **sans notice ni erreur**, et
+    efface la mémoire. Autres oublis : « Texte source » (`showSource`), un
+    hash différent (corps changé : l'entrée reste mais n'est pas rejouée, puis
+    est écrasée à la prochaine traduction affichée). Pendant le rejeu l'état
+    est `loading` (notice « Traduction… »). Piège : un test qui monte le volet
+    doit vider le `localStorage` entre deux cas, la mémoire se fait passer
+    pour une traduction demandée.
 - **Résumé automatique à l'ouverture** : la règle est celle du flux, sinon
   d'une de ses catégories, sinon de l'interrupteur global (`aiAutoSummary`,
   Préférences → IA → « Résumés », **éteint d'origine**, avertissement de coût
