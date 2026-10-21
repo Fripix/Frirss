@@ -1716,6 +1716,15 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   `reserveImgAspect()` tire ses dimensions des attributs de la balise, puis —
   depuis la 1.4.10 — des mesures relevées par le réchauffage en avant
   (`imageAspect.ts`). Sans l'une ni l'autre, la balise ressort intacte.
+  Chargement différé et `dir="auto"` (sur `p`, `h1`–`h6`, `li`, `blockquote`,
+  `figcaption` sans `dir`) sont posés **sur l'arbre** que DOMPurify vient
+  d'assainir, avant son unique sérialisation (`sanitizeArticleBody`, hook
+  `afterSanitizeAttributes` actif le temps de cet appel seulement), attribut
+  placé en tête comme avant. Piège corrigé en 1.6.2 : c'étaient des motifs sur
+  le HTML sérialisé, sans borne après le nom de balise — `<pre>` devenait
+  `<p dir="auto"re>` et `<picture>` `<p dir="auto"icture>` depuis la 1.4.0 —
+  et qui trouvaient aussi `<p` ou `<img` dans une valeur d'attribut. Ne pas y
+  revenir. Test : `articleBody.test.ts`.
 - **Piège majeur — l'objet `dangerouslySetInnerHTML` doit garder son identité**
   (1.4.10). React 19 n'écarte une prop que si `nextProp === lastProp`, puis
   réaffecte `innerHTML` **sans comparer `__html`**. Un littéral

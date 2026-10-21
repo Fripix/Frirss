@@ -124,6 +124,38 @@ describe('buildArticleBody', () => {
     expect(build('<p dir="rtl">a</p>').html).toBe('<p dir="rtl">a</p>');
   });
 
+  it('donne sa direction aux citations et légendes, et à tous les titres', () => {
+    expect(build('<blockquote>a</blockquote><figure><figcaption>b</figcaption></figure><h1>c</h1><h6>d</h6>').html)
+      .toBe('<blockquote dir="auto">a</blockquote><figure><figcaption dir="auto">b</figcaption></figure><h1 dir="auto">c</h1><h6 dir="auto">d</h6>');
+  });
+
+  // Le motif d'avant n'avait pas de borne après le nom : `<pre>` devenait
+  // `<p dir="auto"re>` et `<picture>` `<p dir="auto"icture>`.
+  it('laisse intacts <pre> et <picture>', () => {
+    const html = build('<pre>x  y</pre><picture><source srcset="https://example.com/a.webp"><img src="https://example.com/a.jpg"></picture>').html;
+    expect(html).toContain('<pre>x  y</pre>');
+    expect(html).toContain('<picture><source srcset="https://example.com/a.webp"><img src="https://example.com/a.jpg"></picture>');
+    expect(html).not.toContain('dir="auto"re');
+    expect(html).not.toContain('dir="auto"icture');
+  });
+
+  // Un motif sur le HTML sérialisé trouve aussi `<p` ou `<img` DANS la valeur
+  // d'un attribut, là où le sérialiseur n'échappe pas `<` (jsdom, navigateurs
+  // d'avant 2025) : les guillemets ajoutés refermaient la valeur, et le reste
+  // devenait des attributs — un gestionnaire d'événement après DOMPurify.
+  it('ne touche jamais l’intérieur d’une valeur d’attribut', () => {
+    const attrsOf = (html: string, sel: string) => {
+      const el = new DOMParser().parseFromString(html, 'text/html').querySelector(sel)!;
+      return [...el.attributes].map((a) => a.name).sort();
+    };
+    const dirTrap = build('<p><a title="<p onmouseover=alert(1) x" href="https://example.com/">t</a></p>').html;
+    expect(attrsOf(dirTrap, 'a')).toEqual(['href', 'title']);
+    expect(new DOMParser().parseFromString(dirTrap, 'text/html').querySelector('a')!.title).toBe('<p onmouseover=alert(1) x');
+    const imgTrap = build('<img src="1.jpg"><img src="2.jpg"><img src="3.jpg"><a title="<img onmouseover=alert(1) x" href="https://example.com/">t</a>').html;
+    expect(attrsOf(imgTrap, 'a')).toEqual(['href', 'title']);
+    expect(new DOMParser().parseFromString(imgTrap, 'text/html').querySelector('a')!.title).toBe('<img onmouseover=alert(1) x');
+  });
+
   it('compte les mots du contenu affiché, pas du balisage', () => {
     expect(build('<p>un deux trois</p>', '<p>un deux trois quatre</p>').words).toBe(4);
   });

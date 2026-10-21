@@ -16,7 +16,7 @@
 // Le contrat de ce module : mêmes entrées → même résultat, et l'appelant
 // mémoïse. Rien ici ne connaît React.
 
-import { sanitizeHtml } from '../utils/sanitizeHtml';
+import { sanitizeArticleBody } from '../utils/sanitizeHtml';
 import { injectVideoFacades, type FacadeLabels } from './youtube';
 import { aspectDecl, withAspect, imgTagSrc, measuredImageSize } from './imageAspect';
 
@@ -121,12 +121,12 @@ export function readingMinutes(words: number): number {
  *  2. injecter les façades vidéo **avant** l'assainissement — DOMPurify
  *     supprime les <iframe>, c'est pour ça que les vidéos embarquées sont
  *     invisibles sans cette étape ;
- *  3. assainir (scripts, gestionnaires d'événements, `javascript:`) ;
- *  4. réserver la place des images, puis différer le chargement de toutes
- *     sauf les deux premières ;
- *  5. donner sa direction à chaque bloc : un paragraphe arabe ou hébreu se
- *     lit de droite à gauche même dans un article qui, lui, va de gauche à
- *     droite.
+ *  3. assainir (scripts, gestionnaires d'événements, `javascript:`) et, sur
+ *     l'arbre assaini, différer le chargement de toutes les images sauf les
+ *     deux premières et donner sa direction à chaque bloc : un paragraphe
+ *     arabe ou hébreu se lit de droite à gauche même dans un article qui, lui,
+ *     va de gauche à droite ;
+ *  4. réserver la place des images.
  */
 export function buildArticleBody(input: ArticleBodyInput): ArticleBody {
   const displayed = displayedHtml(input.rssHtml, input.extractedHtml);
@@ -136,10 +136,9 @@ export function buildArticleBody(input: ArticleBodyInput): ArticleBody {
     ? injectVideoFacades(displayed, input.videoLabels)
     : { html: displayed, ids: [] as string[] };
 
-  let imgIdx = 0;
-  const html = reserveImgAspect(sanitizeHtml(withVideos.html))
-    .replace(/<img(?!\s+loading=)/gi, (m) => (++imgIdx <= EAGER_IMAGES ? m : '<img loading="lazy"'))
-    .replace(/<(p|h[1-6]|li|blockquote|figcaption)(?![^>]*\bdir=)/gi, '<$1 dir="auto"');
+  // Images différées et `dir="auto"` sont posés sur l'arbre assaini, pas par
+  // motif sur la chaîne (voir `sanitizeArticleBody`).
+  const html = reserveImgAspect(sanitizeArticleBody(withVideos.html, EAGER_IMAGES));
 
   return { html, videoIds: withVideos.ids, words };
 }

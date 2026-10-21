@@ -1,10 +1,34 @@
 import DOMPurify from 'dompurify';
 
-// Harden links opened in a new tab against reverse-tabnabbing.
+/** Blocs qui reçoivent `dir="auto"` dans le corps d'un article. */
+const DIR_AUTO_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'FIGCAPTION']);
+
+/** Passe « corps d'article » en cours (`sanitizeArticleBody`), sinon `null`. */
+let bodyPass: { eagerImages: number; images: number } | null = null;
+
+/**
+ * Pose l'attribut en tête de la balise, comme le faisaient les motifs d'avant :
+ * la chaîne sérialisée reste celle que le volet a toujours reçue.
+ */
+function prependAttribute(el: Element, name: string, value: string): void {
+  const rest = [...el.attributes].filter((a) => a.name !== name).map((a) => [a.namespaceURI, a.name, a.value] as const);
+  while (el.attributes.length) el.removeAttributeNode(el.attributes[0]);
+  el.setAttribute(name, value);
+  for (const [ns, n, v] of rest) el.setAttributeNS(ns, n, v);
+}
+
 // Registered once at module load (DOMPurify hooks are global).
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-  if (node instanceof Element && node.tagName === 'A' && node.getAttribute('target')) {
+  if (!(node instanceof Element)) return;
+  // Harden links opened in a new tab against reverse-tabnabbing.
+  if (node.tagName === 'A' && node.getAttribute('target')) {
     node.setAttribute('rel', 'noopener noreferrer');
+  }
+  if (!bodyPass) return;
+  if (node.tagName === 'IMG') {
+    if (++bodyPass.images > bodyPass.eagerImages) prependAttribute(node, 'loading', 'lazy');
+  } else if (DIR_AUTO_TAGS.has(node.tagName) && !node.hasAttribute('dir')) {
+    prependAttribute(node, 'dir', 'auto');
   }
 });
 
@@ -19,4 +43,29 @@ export function sanitizeHtml(html: string | null | undefined): string {
     USE_PROFILES: { html: true },
     ADD_ATTR: ['target', 'loading'],
   });
+}
+
+/**
+ * `sanitizeHtml` pour le corps d'un article, avec deux retouches faites sur
+ * l'arbre que DOMPurify vient d'assainir, avant son unique sérialisation :
+ *
+ * - chargement différé (`loading="lazy"`) de toutes les images après les
+ *   `eagerImages` premières ;
+ * - `dir="auto"` sur `p`, `h1`–`h6`, `li`, `blockquote`, `figcaption` qui n'ont
+ *   pas déjà de `dir`.
+ *
+ * ⚠️ Pas de motif sur le HTML sérialisé. Ceux d'avant n'avaient pas de borne
+ * après le nom (`<pre>` → `<p dir="auto"re>`, `<picture>` → `<p dir="auto"icture>`)
+ * et trouvaient aussi `<p` ou `<img` à l'intérieur d'une valeur d'attribut, là
+ * où le sérialiseur n'échappe pas `<` : leurs guillemets refermaient la valeur
+ * et la suite devenait des attributs, après DOMPurify. Sur l'arbre, un nœud est
+ * un élément ou il n'est pas.
+ */
+export function sanitizeArticleBody(html: string | null | undefined, eagerImages: number): string {
+  bodyPass = { eagerImages, images: 0 };
+  try {
+    return sanitizeHtml(html);
+  } finally {
+    bodyPass = null;
+  }
 }

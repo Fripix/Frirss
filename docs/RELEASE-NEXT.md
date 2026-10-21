@@ -72,7 +72,14 @@ la release publiée.
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Les blocs `<pre>` et `<picture>` étaient cassés par l'ajout de
+  `dir="auto"` depuis la 1.4.0.** Le motif qui donne sa direction à chaque
+  bloc n'avait pas de borne après le nom de balise : un bloc de code devenait
+  un paragraphe (`<p dir="auto"re>`) et perdait sa mise en forme et ses
+  espaces, une `<picture>` perdait son conteneur. La direction par bloc et le
+  chargement différé des images sont désormais posés sur l'arbre assaini, plus
+  par motif sur le HTML : ils ne peuvent plus toucher l'intérieur d'une valeur
+  d'attribut.
 
 ## Sous le capot
 
