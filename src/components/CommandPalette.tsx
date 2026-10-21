@@ -9,6 +9,7 @@ import { useAuthStore } from '../stores/authStore';
 import { displayServers, hostnameOf } from '../lib/serverList';
 import { switchToServer } from '../lib/switchServer';
 import { rankCommands, type Command } from '../lib/commandPalette';
+import { translateWouldAct } from '../lib/aiTranslateProbe';
 
 /**
  * Entrée unique : aller à un flux, une étiquette, une vue, ou lancer une
@@ -123,10 +124,14 @@ export default function CommandPalette() {
     ];
     // Résumer ou traduire l'article ouvert : n'a de sens que s'il y en a un et
     // que l'IA est utilisable. Le libellé est celui du raccourci — c'est la
-    // même commande.
+    // même commande. Traduire, en plus, seulement si le volet ferait quelque
+    // chose (du texte à traduire, aucune traduction déjà affichée) : il le dit
+    // en répondant à une sonde (`aiTranslateProbe.ts`).
     if (hasOpenArticle && aiAvailable) {
       actions.push(['aiSummarize', t('preferences.shortcuts.summarize'), () => window.dispatchEvent(new CustomEvent('frirss:ai-summarize'))]);
-      actions.push(['aiTranslate', t('preferences.shortcuts.translate'), () => window.dispatchEvent(new CustomEvent('frirss:ai-translate'))]);
+      if (translateWouldAct()) {
+        actions.push(['aiTranslate', t('preferences.shortcuts.translate'), () => window.dispatchEvent(new CustomEvent('frirss:ai-translate'))]);
+      }
     }
     for (const [id, label, run] of actions) {
       out.push({ id: `action:${id}`, label, group: 'actions', run: () => { close(); run(); } });

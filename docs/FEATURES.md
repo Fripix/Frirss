@@ -501,7 +501,10 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   traduit l'article ouvert, ou remontre sans requête sa traduction tenue si
   elle est dans la langue cible (dans une autre langue, une nouvelle demande
   part), et ne fait rien quand la traduction est déjà affichée. Même
-  rattrapage des raccourcis enregistrés avant son ajout.
+  rattrapage des raccourcis enregistrés avant son ajout. Si l'utilisateur
+  avait déjà mis `t` sur une autre action, cette action-là gagne (sa branche
+  passe avant dans `useKeyboardNav.ts`) et l'aide-mémoire liste les deux
+  actions sur `t` : en réassigner une.
 - **Aide-mémoire sur `?`** (1.4.5) : fenêtre listant **tous** les raccourcis
   configurables avec les touches **réellement configurées**, plus les gestes
   intégrés dans une section à part — les mélanger laisserait croire qu'on peut
@@ -4165,9 +4168,15 @@ l'article (IA) »).
   ouvert ou tant que l'IA est éteinte ou inutilisable (`aiUsable`). Elles
   diffusent `frirss:ai-summarize` / `frirss:ai-translate`, que `ReadingPane`
   écoute ; leurs libellés sont ceux des raccourcis
-  (`preferences.shortcuts.summarize` / `.translate`). Une traduction déjà
-  affichée laisse « Traduire » sans effet (voir « Résumés et traductions par
-  IA »). Test : `CommandPalette.test.tsx`.
+  (`preferences.shortcuts.summarize` / `.translate`). « Traduire » n'est
+  proposé que si l'action ferait quelque chose — du texte à traduire, aucune
+  traduction déjà affichée, rien en cours, en ligne : à l'ouverture, la
+  palette diffuse la sonde **synchrone** `frirss:ai-translate-probe`
+  (`src/lib/aiTranslateProbe.ts`), à laquelle `ReadingPane` répond dans le
+  même effet, et sous les mêmes gardes, que son écoute de
+  `frirss:ai-translate` ; personne ne répond → pas d'entrée. Aucun état de
+  plus dans un store. Tests : `CommandPalette.test.tsx`,
+  `ReadingPane.ai.test.tsx` (« answers the palette probe »).
 - **Rien de nouveau n'est stocké** : la palette assemble ce que les stores
   contiennent déjà. Son état d'ouverture n'est ni persisté ni synchronisé.
 - **Accents repliés** : « securite » atteint « Sécurité ». Sans cela, la moitié

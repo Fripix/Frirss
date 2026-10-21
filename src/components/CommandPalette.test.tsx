@@ -5,6 +5,7 @@ import CommandPalette from './CommandPalette';
 import { useUiStore } from '../stores/uiStore';
 import { useFeedStore } from '../stores/feedStore';
 import { useAiStore } from '../stores/aiStore';
+import { AI_TRANSLATE_PROBE, answerTranslateProbe } from '../lib/aiTranslateProbe';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
@@ -59,10 +60,22 @@ describe('CommandPalette — summarize action', () => {
 
 describe('CommandPalette — translate action', () => {
   const TRANSLATE = 'preferences.shortcuts.translate';
+  // Le volet de lecture répond à la sonde tant que « Traduire l'article »
+  // ferait quelque chose (du texte à traduire, aucune traduction affichée).
+  beforeEach(() => { window.addEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe); });
+  afterEach(() => { window.removeEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe); });
 
-  it('is offered next to the summary when an article is open and AI is usable', () => {
+  it('is offered next to the summary when an article is open, AI is usable and the reading pane can translate', () => {
     const { getByText } = render(<CommandPalette />);
     expect(getByText(TRANSLATE)).toBeTruthy();
+  });
+
+  it('is not offered when the reading pane would do nothing (translation already shown, nothing to translate)', () => {
+    window.removeEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
+    const { queryByText, getByText } = render(<CommandPalette />);
+    expect(queryByText(TRANSLATE)).toBeNull();
+    // Le résumé, lui, reste proposé.
+    expect(getByText(LABEL)).toBeTruthy();
   });
 
   it.each([

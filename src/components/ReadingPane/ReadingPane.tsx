@@ -36,6 +36,7 @@ import { AI_LANGUAGES, languageName, targetLanguage, type AiLanguage } from '../
 import { aiRouting } from '../../lib/aiRouting';
 import { autoFor } from '../../lib/aiAuto';
 import { useArticleTranslation, plainText } from './useArticleTranslation';
+import { AI_TRANSLATE_PROBE, answerTranslateProbe } from '../../lib/aiTranslateProbe';
 import TranslateMenu from './TranslateMenu';
 import { useLongPress } from '../../hooks/useLongPress';
 import axios from 'axios';
@@ -1016,7 +1017,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     if (!articleCanTranslate || articleTranslationState === 'loading') return;
     const onTranslateEvent = () => translateArticle();
     window.addEventListener('frirss:ai-translate', onTranslateEvent);
-    return () => window.removeEventListener('frirss:ai-translate', onTranslateEvent);
+    // La palette ne propose l'entrée que si quelqu'un répond ici : mêmes gardes.
+    window.addEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
+    return () => {
+      window.removeEventListener('frirss:ai-translate', onTranslateEvent);
+      window.removeEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
+    };
   }, [aiUsable, online, selectedArticle, showTranslatedBody, articleCanTranslate, articleTranslationState, translateArticle]);
   const shownBodyHtml = showTranslatedBody ? translatedBody.html : body.html;
   const bodyProp = useMemo(() => ({ __html: shownBodyHtml }), [shownBodyHtml]);

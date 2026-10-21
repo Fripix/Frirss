@@ -39,6 +39,7 @@ import { putExtract } from '../../lib/extractCache';
 import { __resetPendingSummariesForTests } from './aiPending';
 import { languageName } from '../../lib/aiLanguages';
 import { LONG_PRESS_MS } from '../../hooks/useLongPress';
+import { translateWouldAct } from '../../lib/aiTranslateProbe';
 
 const article = (id: string) => ({
   id, title: 'Titre ' + id, summary: 's', source: 'Src', sourceId: 'feed/1',
@@ -908,6 +909,24 @@ describe('ReadingPane — traduction de l\'article', () => {
       unmount();
       fire();
       expect(requestAiTranslation).not.toHaveBeenCalled();
+    });
+    // La palette ne propose « Traduire l'article » que si l'action ferait
+    // quelque chose : elle le demande au volet par une sonde synchrone.
+    it('answers the palette probe only while the action would do something', async () => {
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+      const { findByRole, unmount } = render(<ReadingPane />);
+      expect(translateWouldAct()).toBe(true);
+      fire();
+      await findByRole('button', { name: 'ai.showSource' });
+      expect(translateWouldAct()).toBe(false);
+      unmount();
+      expect(translateWouldAct()).toBe(false);
+    });
+    it('does not answer the probe when there is nothing to translate', () => {
+      const a = { ...article('t7'), content: '<img src="https://example.com/a.png" alt="">' } as Article;
+      useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      render(<ReadingPane />);
+      expect(translateWouldAct()).toBe(false);
     });
   });
   describe('touch', () => {
