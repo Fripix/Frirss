@@ -37,11 +37,19 @@ export interface AiSummaryProps {
  *   bouton (titre, statut, chevron) qui replie ou déplie le panneau ;
  * - à droite, HORS de ce bouton, l'action : « Résumer » tant qu'il n'y a rien,
  *   puis « Résumer avec… » (popover sur bureau, feuille sur tactile) ;
- * - le CORPS, sur toute la largeur de la colonne : le résumé, l'erreur, ou une
- *   ligne d'aide.
+ * - le CORPS, sur toute la largeur de la colonne : le résumé, les barres
+ *   d'attente d'une demande, ou l'erreur.
+ *
+ * Tant qu'il n'y a RIEN à montrer (`empty` : ni résumé, ni demande en cours,
+ * ni erreur), le panneau se réduit à l'en-tête : étincelle, titre, « Pas encore
+ * résumé » et l'action à droite. Pas de corps (l'ancienne ligne d'aide a été
+ * retirée), pas de chevron, et la partie gauche est un `div` du même gabarit,
+ * pas un bouton — il n'y aurait rien à replier. Dès qu'une demande part, qu'un
+ * résumé arrive ou qu'une erreur s'affiche, le panneau redevient ce qui suit.
  *
  * Le repli est une mémoire GLOBALE et synchronisée (`aiPanelCollapsed`), pas
- * un état par article : qui replie le panneau le retrouve replié partout. Un
+ * un état par article : qui replie le panneau le retrouve replié partout (dès
+ * qu'il a quelque chose à replier). Un
  * résumé qui arrive panneau replié ne le rouvre pas — le statut dit « Résumé
  * par X ». Seule exception, une fois par appareil : le tout premier « Résumer »
  * lancé panneau replié le déplie, sinon on demanderait un résumé sans jamais
@@ -104,6 +112,10 @@ export default function AiSummary({ status, result, error, providers, onSummariz
   if (translateMenuOpen && !translateMenuShown) setTranslateMenuOpen(false);
   // Une seule alerte à la fois : celle du résumé prime.
   const alertText = failed ? error : translateFailed ? translation.error : null;
+  // Rien à montrer : ni résumé, ni demande en cours, ni erreur. Le panneau se
+  // réduit alors à son en-tête — pas de corps, pas de chevron, pas de bouton de
+  // repli (il n'y aurait rien à replier).
+  const empty = !done && !loading && !alertText;
 
   // « Régénérer » / « Retraduire » relancent chez le fournisseur qui a écrit ce
   // qui est affiché : s'il n'est plus disponible, la résolution du serveur en
@@ -256,12 +268,9 @@ export default function AiSummary({ status, result, error, providers, onSummariz
       {/* L'en-tête passe sur deux rangs quand la place manque (320 px) : l'action
           descend sous le titre, alignée à droite, au lieu d'écraser le statut. */}
       <div className="flex flex-wrap items-center justify-end gap-x-2 pr-2">
-        <button
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-          aria-expanded={!collapsed}
-          aria-controls={bodyId}
-          className={`flex grow basis-44 min-w-0 items-center gap-2.5 pl-3.5 pr-1 py-2 text-left rounded-lg cursor-pointer ${touch ? 'min-h-[44px]' : ''}`}
+        <HeaderLead
+          toggle={empty ? null : { onClick: () => setCollapsed(!collapsed), expanded: !collapsed, controls: bodyId }}
+          className={`flex grow basis-44 min-w-0 items-center gap-2.5 pl-3.5 pr-1 py-2 text-left rounded-lg ${empty ? '' : 'cursor-pointer'} ${touch ? 'min-h-[44px]' : ''}`}
         >
           <Sparkle />
           <span className="flex-1 min-w-0">
@@ -275,8 +284,8 @@ export default function AiSummary({ status, result, error, providers, onSummariz
               </span>
             )}
           </span>
-          <svg data-chevron className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true" style={{ color: 'var(--reading-meta)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-        </button>
+          {!empty && <svg data-chevron className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true" style={{ color: 'var(--reading-meta)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>}
+        </HeaderLead>
         {action && <div className="py-1 flex flex-wrap items-center justify-end gap-1.5">{action}</div>}
       </div>
 
@@ -285,7 +294,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
 
       {/* Le corps reste monté (caché, vide) quand le panneau est replié :
           `aria-controls` ne doit jamais pointer dans le vide. */}
-      <div id={bodyId} hidden={collapsed} className="px-4 pt-3 pb-3.5" style={{ borderTop: '1px solid var(--ai-border)' }}>
+      {!empty && <div id={bodyId} hidden={collapsed} className="px-4 pt-3 pb-3.5" style={{ borderTop: '1px solid var(--ai-border)' }}>
         {!collapsed && (
           <>
             {done ? (
@@ -298,13 +307,11 @@ export default function AiSummary({ status, result, error, providers, onSummariz
               <div aria-hidden="true" className="space-y-2 py-1 animate-pulse motion-reduce:animate-none">
                 {['100%', '92%', '64%'].map((w) => <div key={w} className="h-2.5 rounded-full" style={{ width: w, background: 'var(--ai-border)' }} />)}
               </div>
-            ) : !alertText ? (
-              <p className="text-[13px] leading-snug" style={{ color: 'var(--reading-meta)' }}>{t('ai.hint')}</p>
             ) : null}
             {alertText && <div className={done ? 'mt-2.5' : ''}>{errorLine}</div>}
           </>
         )}
-      </div>
+      </div>}
 
       {/* Région vivante : une ligne invisible qui n'annonce QUE l'arrivée d'un
           résumé (« Résumé par X, depuis le cache »), panneau replié compris.
@@ -327,6 +334,14 @@ export default function AiSummary({ status, result, error, providers, onSummariz
       />
     </div>
   );
+}
+
+/** La partie gauche de l'en-tête : un bouton de repli, ou — panneau vide, rien
+ *  à replier — un simple `div` du même gabarit. */
+function HeaderLead({ toggle, className, children }: { toggle: { onClick: () => void; expanded: boolean; controls: string } | null; className: string; children: React.ReactNode }) {
+  return toggle
+    ? <button type="button" onClick={toggle.onClick} aria-expanded={toggle.expanded} aria-controls={toggle.controls} className={className}>{children}</button>
+    : <div className={className}>{children}</div>;
 }
 
 function Spinner() {

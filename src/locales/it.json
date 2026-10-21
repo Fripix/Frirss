@@ -811,7 +811,6 @@
     "status": {
       "none": "Non ancora riassunto"
     },
-    "hint": "Fai clic su «Riassumi» per ottenere un riassunto di questo articolo.",
     "ratioHint": "Lunghezza desiderata del riassunto rispetto all'articolo. Mai meno di tre frasi.",
     "user": {
       "title": "Riassunti",

@@ -811,7 +811,6 @@
     "status": {
       "none": "Pas encore résumé"
     },
-    "hint": "Cliquez sur « Résumer » pour obtenir un résumé de cet article.",
     "ratioHint": "Longueur visée du résumé par rapport à l'article. Jamais moins de trois phrases.",
     "user": {
       "title": "Résumés",

@@ -34,18 +34,18 @@ const headerText = (text: string) => within(screen.getByRole('button', TOGGLE)).
 
 describe('AiSummary — en-tête et repli', () => {
   it('the header is one button that toggles the panel and remembers it globally', () => {
-    const { getByRole, queryByText } = render(<AiSummary {...idleProps} />);
+    const { getByRole, queryByText } = render(<AiSummary {...doneProps} />);
     const toggle = getByRole('button', TOGGLE);
     expect(toggle.getAttribute('type')).toBe('button');
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     const body = document.getElementById(toggle.getAttribute('aria-controls')!);
     expect(body).toBeTruthy();
-    expect(queryByText('ai.hint')).toBeTruthy();
+    expect(queryByText('Premier.')).toBeTruthy();
     fireEvent.click(toggle);
     expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
     expect(localStorage.getItem('frirss_aiPanelCollapsed')).toBe('true');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(queryByText('ai.hint')).toBeNull();
+    expect(queryByText('Premier.')).toBeNull();
     // aria-controls ne pointe jamais dans le vide : le corps reste monté, caché et vide.
     expect(body!.isConnected).toBe(true);
     expect(body!.hidden).toBe(true);
@@ -62,21 +62,26 @@ describe('AiSummary — en-tête et repli', () => {
   });
   it('the action lives outside the toggle: using it never folds the panel', () => {
     const onSummarize = vi.fn();
-    const { getByRole } = render(<AiSummary {...idleProps} onSummarize={onSummarize} />);
+    const { getByRole } = render(<AiSummary {...doneProps} onSummarize={onSummarize} />);
     const toggle = getByRole('button', TOGGLE);
-    const action = getByRole('button', ACTION);
+    const action = getByRole('button', { name: 'ai.withProvider' });
     expect(toggle.contains(action)).toBe(false);
     fireEvent.click(action);
-    expect(onSummarize).toHaveBeenCalledWith(undefined);
+    fireEvent.click(getByRole('menuitem', { name: 'Claude' }));
+    expect(onSummarize).toHaveBeenCalledWith(1);
     expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
   });
   it('the first « Résumer » on a collapsed panel opens it, once', () => {
     useUiStore.setState({ aiPanelCollapsed: true });
-    const { getByRole } = render(<AiSummary {...idleProps} />);
+    const { getByRole, rerender } = render(<AiSummary {...idleProps} />);
     fireEvent.click(getByRole('button', ACTION));
     expect(useUiStore.getState().aiPanelCollapsed).toBe(false);
     expect(useUiStore.getState().aiPanelAutoExpanded).toBe(true);
+    // La demande échoue : le panneau montre l'erreur, l'utilisateur le replie,
+    // et un second « Résumer » ne le rouvre plus.
+    rerender(<AiSummary {...idleProps} status="error" error="ai.errors.technical" />);
     fireEvent.click(getByRole('button', TOGGLE));
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
     fireEvent.click(getByRole('button', ACTION));
     expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
   });
@@ -89,7 +94,7 @@ describe('AiSummary — en-tête et repli', () => {
     expect(headerText('ai.by:Ollama')).toBeTruthy();
   });
   it('the chevron turns with the panel', () => {
-    const { getByRole } = render(<AiSummary {...idleProps} />);
+    const { getByRole } = render(<AiSummary {...doneProps} />);
     const chevron = getByRole('button', TOGGLE).querySelector('[data-chevron]')!;
     expect(chevron.getAttribute('class')).toContain('rotate-180');
     fireEvent.click(getByRole('button', TOGGLE));
@@ -97,11 +102,60 @@ describe('AiSummary — en-tête et repli', () => {
   });
 });
 
+describe('AiSummary — panneau vide', () => {
+  it('sans résumé, ne rend ni corps ni chevron : l\'en-tête n\'est pas un bouton', () => {
+    const { container } = render(<AiSummary {...idleProps} />);
+    expect(screen.queryByRole('button', TOGGLE)).toBeNull();
+    expect(container.querySelector('[data-chevron]')).toBeNull();
+    expect(container.querySelector('[id$="-body"]')).toBeNull();
+    expect(container.querySelector('[aria-expanded]')).toBeNull();
+    expect(screen.getByText('ai.summarize')).toBeTruthy();
+    expect(screen.getByText('ai.status.none')).toBeTruthy();
+    expect(screen.getByRole('button', ACTION)).toBeTruthy();
+  });
+  it('vide, la mémoire du repli ne change rien : ni corps, ni chevron, replié ou non', () => {
+    useUiStore.setState({ aiPanelCollapsed: true });
+    const { container } = render(<AiSummary {...idleProps} />);
+    expect(container.querySelector('[data-chevron]')).toBeNull();
+    expect(container.querySelector('[id$="-body"]')).toBeNull();
+    expect(screen.getByText('ai.status.none')).toBeTruthy();
+  });
+  it('vide, l\'en-tête garde son gabarit : deux rangs à 320 px et 44 px au doigt', () => {
+    breakpoint.mockImplementation(() => 'mobile');
+    render(<AiSummary {...idleProps} />);
+    const left = screen.getByText('ai.summarize').closest('div.grow') as HTMLElement;
+    expect(left.className).toContain('basis-44');
+    expect(left.className).toContain('min-w-0');
+    expect(left.className).toContain('min-h-[44px]');
+    expect(screen.getByRole('button', ACTION).className).toContain('min-h-[44px]');
+  });
+  it('vide, la région vivante reste montée', () => {
+    render(<AiSummary {...idleProps} />);
+    const region = screen.getByRole('status');
+    expect(region.textContent).toBe('');
+    expect(region.getAttribute('aria-live')).toBe('polite');
+  });
+  it('pendant la première demande, le corps (barres d\'attente) et le chevron reviennent', () => {
+    const { container, rerender } = render(<AiSummary {...idleProps} />);
+    rerender(<AiSummary {...idleProps} status="loading" />);
+    expect(container.querySelector('[data-chevron]')).not.toBeNull();
+    expect(screen.getByRole('button', TOGGLE).getAttribute('aria-expanded')).toBe('true');
+    const body = container.querySelector('[id$="-body"]') as HTMLElement;
+    expect(body.querySelector('.animate-pulse')).not.toBeNull();
+  });
+  it('une erreur sans résumé se lit sous le titre, le chevron et le corps reviennent', () => {
+    const { container } = render(<AiSummary {...idleProps} status="error" error="x" />);
+    expect(screen.getByRole('alert').textContent).toBe('x');
+    expect(container.querySelector('[data-chevron]')).not.toBeNull();
+    expect(container.querySelector('[id$="-body"]')).not.toBeNull();
+  });
+});
+
 describe('AiSummary — statut et action', () => {
-  it('idle: « Pas encore résumé », the « Résumer » action and the hint', () => {
-    const { getByText, getByRole, queryByRole } = render(<AiSummary {...idleProps} />);
+  it('idle: « Pas encore résumé » and the « Résumer » action, no help line', () => {
+    const { getByText, getByRole, queryByRole, queryByText } = render(<AiSummary {...idleProps} />);
     expect(getByText('ai.status.none')).toBeTruthy();
-    expect(getByText('ai.hint')).toBeTruthy();
+    expect(queryByText('ai.hint')).toBeNull();
     expect(getByRole('button', ACTION)).toBeTruthy();
     expect(queryByRole('button', { name: 'ai.withProvider' })).toBeNull();
   });
@@ -216,7 +270,7 @@ describe('AiSummary — corps', () => {
   });
   it('touch: header and action are 44 px tall', () => {
     breakpoint.mockImplementation(() => 'mobile');
-    const { getByRole } = render(<AiSummary {...idleProps} />);
+    const { getByRole } = render(<AiSummary {...idleProps} status="error" error="x" />);
     expect(getByRole('button', TOGGLE).className).toContain('min-h-[44px]');
     expect(getByRole('button', ACTION).className).toContain('min-h-[44px]');
   });

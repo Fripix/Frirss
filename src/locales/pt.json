@@ -811,7 +811,6 @@
     "status": {
       "none": "Ainda sem resumo"
     },
-    "hint": "Clique em «Resumir» para obter um resumo deste artigo.",
     "ratioHint": "Comprimento pretendido do resumo em relação ao artigo. Nunca menos de três frases.",
     "user": {
       "title": "Resumos",

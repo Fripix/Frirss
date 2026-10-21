@@ -96,6 +96,12 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Le panneau « Résumé IA » se réduit à son en-tête tant qu'il n'y a rien à
+  montrer.** Sans résumé, sans demande en cours et sans erreur, il n'a plus de
+  corps ni de chevron — l'ancienne ligne « Cliquez sur « Résumer »… » est
+  retirée — : étincelle, titre, « Pas encore résumé » et « Résumer » à droite.
+  Le repli mémorisé ne joue qu'à partir du premier résumé.
+
 - **Les blocs `<pre>` et `<picture>` étaient cassés par l'ajout de
   `dir="auto"` depuis la 1.4.0.** Le motif qui donne sa direction à chaque
   bloc n'avait pas de borne après le nom de balise : un bloc de code devenait

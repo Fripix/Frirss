@@ -841,7 +841,6 @@
     "status": {
       "none": "Jeszcze bez podsumowania"
     },
-    "hint": "Kliknij „Podsumuj”, aby otrzymać podsumowanie tego artykułu.",
     "ratioHint": "Docelowa długość podsumowania względem artykułu. Nigdy mniej niż trzy zdania.",
     "user": {
       "title": "Podsumowania",

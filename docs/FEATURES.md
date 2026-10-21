@@ -2625,8 +2625,19 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 - **Interface — panneau** (`AiSummary.tsx`) : un panneau sur **toute la largeur
   de la colonne de lecture**, au-dessus de l'article, sur une **surface teintée
   réglable** (`--ai-bg` / `--ai-border`, voir « Apparence et thèmes »).
+  - **Panneau vide = l'en-tête seul.** Tant qu'il n'y a rien à montrer
+    (`empty = !done && !loading && !alertText` : ni résumé, ni demande en cours,
+    ni erreur), le panneau se réduit à une ligne : étincelle, titre « Résumé
+    IA », « Pas encore résumé » et l'action « Résumer » à droite. **Pas de
+    corps, pas de chevron, et la partie gauche n'est pas un bouton** (un `div`
+    du même gabarit, `HeaderLead`) : il n'y a rien à replier. **La ligne d'aide
+    « Cliquez sur « Résumer »… » (`ai.hint`) a été retirée**, dans les dix
+    langues — retrait assumé : l'action à droite dit déjà quoi faire. Dès
+    qu'une demande part, qu'un résumé arrive ou qu'une erreur s'affiche, le
+    panneau redevient ce que décrivent les puces suivantes.
   - **En-tête toujours visible** : à gauche, **un seul bouton** (`aria-expanded`,
-    `aria-controls`) qui replie ou déplie — étincelle, titre « Résumé IA »,
+    `aria-controls`) qui replie ou déplie (dès qu'il y a quelque chose à
+    montrer) — étincelle, titre « Résumé IA »,
     statut en petit dessous (« Pas encore résumé », « Résumé en cours… » pendant
     une première demande — replié, c'est tout ce qu'on voit, et « Pas encore
     résumé » y contredisait le bouton —, « Résumé par X », « depuis le cache »
@@ -2641,14 +2652,13 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     place manque (320 px), l'action descend sous le titre, alignée à droite
     (`flex-wrap`), au lieu d'écraser le statut. Sur tablette et smartphone,
     en-tête et action font 44 px.
-  - **Corps** (déplié) : les paragraphes du résumé (corps 15 px, retours à la
+  - **Corps** (déplié, et seulement avec un résumé, une demande ou une erreur) : les paragraphes du résumé (corps 15 px, retours à la
     ligne simples gardés par `whitespace-pre-line` pour les listes à puces),
     **sans mesure bornée** (l'ancien `max-w-[68ch]` est parti) ; pendant une
     première demande, trois barres d'attente (pulsation coupée par
-    `prefers-reduced-motion`) ; sinon une ligne d'aide (« Cliquez sur
-    « Résumer » pour obtenir un résumé de cet article. »). Replié, le corps
-    reste monté, `hidden` et vide : `aria-controls` ne pointe jamais dans le
-    vide. L'erreur est un `role="alert"` ; replié, elle prend la place du
+    `prefers-reduced-motion`) ; sinon l'erreur. Replié, le corps reste monté,
+    `hidden` et vide : `aria-controls` ne pointe jamais dans le vide (panneau
+    vide, il n'y a ni corps ni `aria-controls`). L'erreur est un `role="alert"` ; replié, elle prend la place du
     statut sous le titre — sans cela un échec ne laisserait aucune trace. Le
     résumé reste affiché pendant une nouvelle demande et après un échec.
   - **Annonces** : une région `role="status" aria-live="polite"`, invisible
@@ -2659,7 +2669,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     les deux ne s'imbriquent jamais.
   - **Mémoire du repli** : globale (pas par article) et synchronisée
     (`aiPanelCollapsed`). Qui replie le panneau le retrouve replié sur l'article
-    suivant et sur ses autres appareils. Un résumé qui arrive panneau replié **ne
+    suivant et sur ses autres appareils — **mais elle ne joue qu'à partir du
+    premier résumé** : un article sans résumé montre l'en-tête seul, replié ou
+    non, et la valeur attend (le résumé qui arrive se montre replié si
+    l'utilisateur l'avait replié). Un résumé qui arrive panneau replié **ne
     le rouvre pas** : le statut passe à « Résumé par X ». Seule exception : le
     **tout premier** « Résumer » lancé panneau replié le déplie, une fois par
     appareil (`aiPanelAutoExpanded`, local), sinon on demanderait un résumé sans

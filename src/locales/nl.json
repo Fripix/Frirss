@@ -811,7 +811,6 @@
     "status": {
       "none": "Nog niet samengevat"
     },
-    "hint": "Klik op ‘Samenvatten’ voor een samenvatting van dit artikel.",
     "ratioHint": "Beoogde lengte van de samenvatting ten opzichte van het artikel. Nooit minder dan drie zinnen.",
     "user": {
       "title": "Samenvattingen",

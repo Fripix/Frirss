@@ -149,21 +149,30 @@ describe('ReadingPane — Résumé IA', () => {
     expect(vi.mocked(requestAiSummary).mock.calls[0][0]).not.toHaveProperty('categoryProvider');
   });
   it('shows the panel above the article, with its status, while nothing was requested', () => {
-    const { getByRole, getByText } = render(<ReadingPane />);
-    expect(getByRole('button', { name: /^ai\.summarize\s/ }).getAttribute('aria-expanded')).toBe('true');
+    const { getByRole, getByText, queryByRole, queryByText } = render(<ReadingPane />);
+    // Rien à montrer : une simple ligne d'en-tête, sans bouton de repli ni aide.
+    expect(queryByRole('button', { name: /^ai\.summarize\s/ })).toBeNull();
     expect(getByText('ai.status.none')).toBeTruthy();
-    expect(getByText('ai.hint')).toBeTruthy();
+    expect(queryByText('ai.hint')).toBeNull();
+    expect(getByRole('button', { name: 'ai.summarizeAction' })).toBeTruthy();
   });
   it('keeps the panel folded on the next article when the user folded it', async () => {
     vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
-    const { getByRole, findByText, queryByText } = render(<ReadingPane />);
+    const { getByRole, findByText, queryByText, queryByRole } = render(<ReadingPane />);
     fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     expect(await findByText('Le résumé.')).toBeTruthy();
     fireEvent.click(getByRole('button', { name: /^ai\.summarize\s/ }));
     expect(queryByText('Le résumé.')).toBeNull();
     act(() => { useFeedStore.setState({ selectedArticle: article('a2') }); });
-    expect(getByRole('button', { name: /^ai\.summarize\s/ }).getAttribute('aria-expanded')).toBe('false');
-    expect(queryByText('ai.hint')).toBeNull();
+    // Rien à montrer sur le nouvel article : l'en-tête seul, sans bouton de repli.
+    // La mémoire, elle, tient : le résumé de a2 arrive replié.
+    expect(queryByRole('button', { name: /^ai\.summarize\s/ })).toBeNull();
+    expect(useUiStore.getState().aiPanelCollapsed).toBe(true);
+    // L'exception du tout premier « Résumer » replié est consommée une fois par appareil.
+    act(() => { useUiStore.setState({ aiPanelAutoExpanded: true }); });
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    await waitFor(() => expect(getByRole('button', { name: /^ai\.summarize\s/ }).getAttribute('aria-expanded')).toBe('false'));
+    expect(queryByText('Le résumé.')).toBeNull();
   });
   it('ignores a summary that arrives after the article changed', async () => {
     let resolve!: (v: unknown) => void;
