@@ -816,7 +816,6 @@
       "none": "Brak",
       "moveUp": "W górę",
       "moveDown": "W dół",
-      "advanced": "Zaawansowane",
       "userKeysAllowed": "Użytkownicy mogą podać własny klucz",
       "dailyCap": "Dzienny limit na użytkownika",
       "dailyCapHint": "Liczy tylko wywołania opłacone Twoim kluczem. 0 = bez limitu.",

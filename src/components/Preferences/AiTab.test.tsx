@@ -75,13 +75,30 @@ describe('AiTab', () => {
     const shown = getByText('35 %');
     expect(range.getAttribute('aria-valuetext')).toBe(shown.textContent);
   });
-  it('the admin sees « Résumés » above « Fournisseurs »', async () => {
+  it('the admin sees « Fournisseurs » first, then the blocks every user has', async () => {
     useAuthStore.setState({ backendUser: admin });
-    const { findByText, getByText, queryByText } = render(<AiTab active />);
-    const providers = await findByText('ai.admin.title');
-    const summaries = getByText('ai.user.title');
-    expect(summaries.compareDocumentPosition(providers) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    useAiStore.setState({ config: { enabled: true, providers: [], userKeysAllowed: true, dailyCap: 0, usageToday: 0, defaultProvider: null } });
+    const { findByText, getAllByRole, queryByText } = render(<AiTab active />);
+    await findByText('ai.admin.title');
+    const titles = getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(titles).toEqual(['ai.admin.title', 'ai.user.title', 'ai.translation.title', 'ai.routing.title', 'ai.keys.title']);
     expect(queryByText('ai.userIntro')).toBeNull();
+    useAiStore.setState({ config: null });
+  });
+  it('a plain user keeps « Résumés » first and never gets « Fournisseurs »', async () => {
+    useAuthStore.setState({ backendUser: user });
+    useAiStore.setState({ config: { enabled: true, providers: [], userKeysAllowed: true, dailyCap: 0, usageToday: 0, defaultProvider: null } });
+    const { getAllByRole } = render(<AiTab active />);
+    const titles = getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(titles).toEqual(['ai.user.title', 'ai.translation.title', 'ai.routing.title', 'ai.keys.title']);
+    useAiStore.setState({ config: null });
+  });
+  it('shows the user-keys switch and the daily cap flat, with no « Avancé » fold', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    const { findByRole, getByLabelText, queryByRole } = render(<AiTab active />);
+    expect(await findByRole('switch', { name: 'ai.admin.userKeysAllowed' })).toBeTruthy();
+    expect(getByLabelText('ai.admin.dailyCap')).toBeTruthy();
+    expect(queryByRole('button', { name: /ai\.admin\.advanced/ })).toBeNull();
   });
   it('the admin toggles the feature on', async () => {
     useAuthStore.setState({ backendUser: admin });
@@ -130,9 +147,8 @@ describe('AiTab', () => {
     useAuthStore.setState({ backendUser: admin });
     vi.mocked(getAiProviders).mockResolvedValue({ providers: [], settings: { enabled: true, userKeysAllowed: false, dailyCap: 20, defaultProvider: null } });
     vi.mocked(updateAiSettings).mockResolvedValue();
-    const { findByRole, getByLabelText } = render(<AiTab active />);
-    fireEvent.click(await findByRole('button', { name: /ai\.admin\.advanced/ }));
-    const cap = getByLabelText('ai.admin.dailyCap') as HTMLInputElement;
+    const { findByLabelText } = render(<AiTab active />);
+    const cap = await findByLabelText('ai.admin.dailyCap') as HTMLInputElement;
     await waitFor(() => expect(cap.value).toBe('20'));
     for (const bad of ['', '-3', '2.5']) {
       fireEvent.change(cap, { target: { value: bad } });

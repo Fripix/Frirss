@@ -2419,7 +2419,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   justes.)* ⚠️ Un abonnement ChatGPT ne donne **aucun** crédit d'API : une clé
   d'un compte sans crédits prépayés liste les modèles mais répond 429 à tout appel.
 - **Interface — Préférences** : section **« IA »** (un mot, comme les autres)
-  des Préférences. En tête, pour tous (admin compris), le bloc **« Résumés »** :
+  des Préférences. **Pour l'admin seul, le bloc « Fournisseurs » ouvre la
+  section** (voir plus bas) ; viennent ensuite, pour tous (admin compris), le
+  bloc **« Résumés »** :
   un curseur « Longueur du résumé » (`type="range"`, 5 à 50 %, pas de 5, valeur
   affichée à droite et annoncée par `aria-valuetext`, formatée par la langue —
   « 20 % » en français, « 20% » en anglais — via `Intl.NumberFormat`, sans clé
@@ -2495,13 +2497,15 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   et `aiTranslationProvider`. Pas d'interrupteur global « tout traduire » : il
   traduirait aussi les flux déjà dans la langue cible ; la traduction
   automatique ne se règle que par flux ou catégorie.
-  Tout en bas, sous « Mes clés » (ordre : « Résumés », « Traduction », « Par
-  flux et catégorie », « Mes clés », « Fournisseurs »), pour l'admin seul, le
-  bloc « Fournisseurs » (interrupteur, liste
-  réordonnable par flèches haut / bas, éditeur avec liste des modèles, test,
-  clé partagée, plafond,
-  défaut) et un repli « Avancé » avec l'interrupteur « Les utilisateurs peuvent
-  saisir leur propre clé » : éteint, la route des clés répond `403
+  Tout en haut, avant « Résumés » (ordre pour l'admin : « Fournisseurs »,
+  « Résumés », « Traduction », « Par flux et catégorie », « Mes clés » ; pour
+  un utilisateur, les quatre derniers seuls), le bloc « Fournisseurs »,
+  réservé à l'admin (`AiTab.tsx` le rend en premier enfant) : interrupteur,
+  liste réordonnable par flèches haut / bas, éditeur avec liste des modèles,
+  test, clé partagée, fournisseur par défaut, puis, **à plat, au même niveau que
+  lui et sans repli**, l'interrupteur « Les utilisateurs peuvent
+  saisir leur propre clé » et le « Plafond quotidien par utilisateur ».
+  Interrupteur éteint, la route des clés répond `403
   user_keys_disabled` et le bloc « Mes clés » disparaît chez les utilisateurs.
   La section n'est montée que pour un admin ou
   quand l'IA est activée. Après un enregistrement, l'éditeur **reste ouvert** :
@@ -2512,7 +2516,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   suivait le type dans la même ligne tronquée, elle n'était jamais visible.
 - **Interface — « Mes clés »** (`ai/KeysBlock.tsx`, sous « Par flux et
   catégorie », pour tous, admin compris) : **rendu seulement si
-  `config.userKeysAllowed`** (réglage admin « Avancé »), sinon rien, pas même le
+  `config.userKeysAllowed`** (réglage admin « Les utilisateurs peuvent saisir leur propre clé », dans « Fournisseurs »), sinon rien, pas même le
   titre. Un titre, une aide (« votre clé sert à vos résumés et traductions et
   passe avant celle de l'administrateur ; elle n'est jamais réaffichée »), puis
   une ligne par fournisseur de `config.providers` : son nom, son état (« clé

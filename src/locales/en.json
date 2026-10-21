@@ -788,7 +788,6 @@
       "none": "None",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "advanced": "Advanced",
       "userKeysAllowed": "Users may enter their own key",
       "dailyCap": "Daily cap per user",
       "dailyCapHint": "Counts only calls paid with your key. 0 = unlimited.",

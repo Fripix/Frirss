@@ -31,7 +31,6 @@ export default function AdminProviders({ active }: { active: boolean }) {
   const [editing, setEditing] = useState<{ id: number | null; draft: AiProviderInput } | null>(null);
   const [saved, setSaved] = useState(false);
   const [tests, setTests] = useState<Record<number, TestState>>({});
-  const [advanced, setAdvanced] = useState(false);
   const [capDraft, setCapDraft] = useState('50');
   const [toDelete, setToDelete] = useState<AiProviderAdmin | null>(null);
   const [toClearKey, setToClearKey] = useState<AiProviderAdmin | null>(null);
@@ -331,39 +330,26 @@ export default function AdminProviders({ active }: { active: boolean }) {
         </div>
       )}
 
+      <div className="prefs-tap-row flex items-center justify-between gap-3">
+        <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.userKeysAllowed')}</span>
+        <ToggleSwitch checked={settings.userKeysAllowed} onChange={(v) => saveSettings({ userKeysAllowed: v })} ariaLabel={t('ai.admin.userKeysAllowed')} />
+      </div>
       <div>
-        <button
-          type="button" onClick={() => setAdvanced((a) => !a)} aria-expanded={advanced} aria-controls={`${uid}-advanced`}
-          className="prefs-tap-row flex items-center gap-1.5 text-xs font-semibold cursor-pointer" style={{ color: 'var(--list-summary)' }}
-        >
-          <svg className={`w-3 h-3 transition-transform ${advanced ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-          {t('ai.admin.advanced')}
-        </button>
-        {advanced && (
-          <div id={`${uid}-advanced`} className="mt-2 space-y-4 pl-4" style={{ borderLeft: '1px solid var(--panel-border)' }}>
-            <div className="prefs-tap-row flex items-center justify-between gap-3">
-              <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.userKeysAllowed')}</span>
-              <ToggleSwitch checked={settings.userKeysAllowed} onChange={(v) => saveSettings({ userKeysAllowed: v })} ariaLabel={t('ai.admin.userKeysAllowed')} />
-            </div>
-            <div>
-              <label htmlFor={`${uid}-cap`} className={labelClass} style={labelStyle}>{t('ai.admin.dailyCap')}</label>
-              <input
-                id={`${uid}-cap`} type="number" inputMode="numeric" min={0} value={capDraft} aria-describedby={`${uid}-cap-hint`}
-                onChange={(e) => setCapDraft(e.target.value)}
-                onBlur={() => {
-                  // Un champ vidé ou illisible n'est pas « 0 = illimité » : il revient à la valeur enregistrée.
-                  const raw = capDraft.trim();
-                  if (!/^\d+$/.test(raw)) { setCapDraft(String(settings.dailyCap)); return; }
-                  const n = parseInt(raw, 10);
-                  setCapDraft(String(n));
-                  if (n !== settings.dailyCap) void saveSettings({ dailyCap: n });
-                }}
-                className={`${inputClass} !w-32`} style={inputStyle}
-              />
-              <p id={`${uid}-cap-hint`} className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.dailyCapHint')}</p>
-            </div>
-          </div>
-        )}
+        <label htmlFor={`${uid}-cap`} className={labelClass} style={labelStyle}>{t('ai.admin.dailyCap')}</label>
+        <input
+          id={`${uid}-cap`} type="number" inputMode="numeric" min={0} value={capDraft} aria-describedby={`${uid}-cap-hint`}
+          onChange={(e) => setCapDraft(e.target.value)}
+          onBlur={() => {
+            // Un champ vidé ou illisible n'est pas « 0 = illimité » : il revient à la valeur enregistrée.
+            const raw = capDraft.trim();
+            if (!/^\d+$/.test(raw)) { setCapDraft(String(settings.dailyCap)); return; }
+            const n = parseInt(raw, 10);
+            setCapDraft(String(n));
+            if (n !== settings.dailyCap) void saveSettings({ dailyCap: n });
+          }}
+          className={`${inputClass} !w-32`} style={inputStyle}
+        />
+        <p id={`${uid}-cap-hint`} className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.dailyCapHint')}</p>
       </div>
 
       <ConfirmDialog

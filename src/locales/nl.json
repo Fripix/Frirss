@@ -788,7 +788,6 @@
       "none": "Geen",
       "moveUp": "Omhoog",
       "moveDown": "Omlaag",
-      "advanced": "Geavanceerd",
       "userKeysAllowed": "Gebruikers mogen hun eigen sleutel invoeren",
       "dailyCap": "Dagelijkse limiet per gebruiker",
       "dailyCapHint": "Telt alleen aanroepen die met jouw sleutel worden betaald. 0 = onbeperkt.",

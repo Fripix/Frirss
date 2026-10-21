@@ -788,7 +788,6 @@
       "none": "Aucun",
       "moveUp": "Monter",
       "moveDown": "Descendre",
-      "advanced": "Avancé",
       "userKeysAllowed": "Les utilisateurs peuvent saisir leur propre clé",
       "dailyCap": "Plafond quotidien par utilisateur",
       "dailyCapHint": "Compte seulement les appels payés par votre clé. 0 = illimité.",

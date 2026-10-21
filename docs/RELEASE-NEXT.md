@@ -84,6 +84,14 @@ la release publiée.
   ce fournisseur est encore disponible, et un « Retraduire » raté laisse la
   traduction affichée, avec le message d'erreur.
 
+- **Préférences › IA : « Fournisseurs » passe en tête, et le repli « Avancé »
+  disparaît.** Pour l'admin, le bloc « Fournisseurs » ouvre désormais la
+  section, avant « Résumés » : sans fournisseur, rien d'autre ne marche. Les
+  deux réglages qui se cachaient derrière « Avancé » — « Les utilisateurs
+  peuvent saisir leur propre clé » et le plafond quotidien par utilisateur —
+  sont affichés à plat, sous le fournisseur par défaut. Rien ne change pour
+  un utilisateur.
+
 ## Corrections et améliorations
 
 - **Les blocs `<pre>` et `<picture>` étaient cassés par l'ajout de

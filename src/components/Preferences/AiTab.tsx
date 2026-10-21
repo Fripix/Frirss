@@ -8,9 +8,11 @@ import KeysBlock from './ai/KeysBlock';
 import AdminProviders from './ai/AdminProviders';
 
 /**
- * Section « IA » (spec §10, §17.2). Les blocs « Résumés » et « Traduction »
- * (réglages de chacun) et le bloc « Par flux et catégorie » pour tous, puis, pour l'admin seul, le bloc « Fournisseurs ». Les routes admin
- * ne sont jamais appelées pour un non-admin : elles lui sont fermées.
+ * Section « IA » (spec §10, §17.2). Pour l'admin seul, le bloc « Fournisseurs »
+ * ouvre la section : sans fournisseur configuré, rien d'autre ne fonctionne, et
+ * c'est ce qu'il vient chercher ici. Suivent, pour tous, « Résumés » et
+ * « Traduction » (réglages de chacun), « Par flux et catégorie » et « Mes clés ».
+ * Les routes admin ne sont jamais appelées pour un non-admin : elles lui sont fermées.
  */
 export default function AiTab({ active = true }: { active?: boolean }) {
   const isAdmin = useAuthStore((s) => s.backendUser?.role === 'admin');
@@ -22,11 +24,11 @@ export default function AiTab({ active = true }: { active?: boolean }) {
   }, [active]);
   return (
     <div className="space-y-8 max-w-2xl">
+      {isAdmin && <AdminProviders active={active} />}
       <SummariesBlock showIntro={!isAdmin} />
       <TranslationBlock />
       <RoutingBlock />
       <KeysBlock />
-      {isAdmin && <AdminProviders active={active} />}
     </div>
   );
 }

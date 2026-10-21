@@ -788,7 +788,6 @@
       "none": "无",
       "moveUp": "上移",
       "moveDown": "下移",
-      "advanced": "高级",
       "userKeysAllowed": "允许用户输入自己的密钥",
       "dailyCap": "每位用户的每日上限",
       "dailyCapHint": "仅统计使用您的密钥付费的调用。0 = 不限。",

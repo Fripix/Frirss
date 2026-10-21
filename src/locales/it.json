@@ -788,7 +788,6 @@
       "none": "Nessuno",
       "moveUp": "Sposta su",
       "moveDown": "Sposta giù",
-      "advanced": "Avanzate",
       "userKeysAllowed": "Gli utenti possono inserire la propria chiave",
       "dailyCap": "Limite giornaliero per utente",
       "dailyCapHint": "Conta solo le chiamate pagate con la tua chiave. 0 = illimitato.",
