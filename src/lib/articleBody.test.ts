@@ -112,7 +112,7 @@ describe('buildArticleBody', () => {
   it('laisse les deux premières images se charger, diffère les suivantes', () => {
     const html = build('<img src="1.jpg"><img src="2.jpg"><img src="3.jpg">').html;
     expect(html.match(/loading="lazy"/g)).toHaveLength(1);
-    expect(html).toContain('<img loading="lazy" src="3.jpg">');
+    expect(html).toContain('<img src="3.jpg" loading="lazy">');
   });
 
   it('donne sa direction à chaque bloc', () => {

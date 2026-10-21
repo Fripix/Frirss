@@ -1725,12 +1725,21 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   Chargement différé et `dir="auto"` (sur `p`, `h1`–`h6`, `li`, `blockquote`,
   `figcaption` sans `dir`) sont posés **sur l'arbre** que DOMPurify vient
   d'assainir, avant son unique sérialisation (`sanitizeArticleBody`, hook
-  `afterSanitizeAttributes` actif le temps de cet appel seulement), attribut
-  placé en tête comme avant. Piège corrigé en 1.6.2 : c'étaient des motifs sur
-  le HTML sérialisé, sans borne après le nom de balise — `<pre>` devenait
-  `<p dir="auto"re>` et `<picture>` `<p dir="auto"icture>` depuis la 1.4.0 —
-  et qui trouvaient aussi `<p` ou `<img` dans une valeur d'attribut. Ne pas y
-  revenir. Test : `articleBody.test.ts`.
+  `afterSanitizeAttributes` actif le temps de cet appel seulement). Un simple
+  `setAttribute` : l'attribut s'ajoute **après** les autres, et un
+  `loading="eager"` (ou toute autre valeur) d'une image au-delà des deux
+  premières est remplacé par `lazy` à sa place. La passe ne retire ni ne
+  repose **jamais** un attribut existant : DOMPurify garde des noms `data-*`
+  que le parseur HTML accepte mais que la vérification de nom XML refuse
+  (`data-a×b`), et les reposer (`setAttributeNS`, pour garder `dir` en tête)
+  levait `InvalidCharacterError` sur les moteurs à l'ancienne règle (jsdom,
+  Safari et Chrome anciens) — l'exception remontait jusqu'à la seule frontière
+  d'erreur de l'application, un article de flux la faisait tomber. Piège
+  corrigé en 1.6.2 : c'étaient des motifs sur le HTML sérialisé, sans borne
+  après le nom de balise — `<pre>` devenait `<p dir="auto"re>` et `<picture>`
+  `<p dir="auto"icture>` depuis la 1.4.0 — et qui trouvaient aussi `<p` ou
+  `<img` dans une valeur d'attribut. Ne pas y revenir. Tests :
+  `articleBody.test.ts`, `sanitizeHtml.test.ts`.
 - **Piège majeur — l'objet `dangerouslySetInnerHTML` doit garder son identité**
   (1.4.10). React 19 n'écarte une prop que si `nextProp === lastProp`, puis
   réaffecte `innerHTML` **sans comparer `__html`**. Un littéral
