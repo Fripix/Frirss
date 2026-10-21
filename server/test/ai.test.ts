@@ -87,9 +87,15 @@ describe('ai admin + summary', () => {
     await expect(cfgUsage(userToken)).resolves.toBe(1);
   });
   it('regenerate: true ignores the cached summary and replaces it; a non-boolean is 400', async () => {
-    const fetchMock = stubProvider('lang: fr\n\nRésumé neuf.');
     const post = (b: object) => request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
-      .send({ articleId: 'art-route-1', title: 'Titre', html: longHtml, ...b });
+      .send({ articleId: 'art-route-regen', title: 'Titre', html: longHtml, ...b });
+    // Le cache est d'abord rempli, et vérifié servi, par la route elle-même.
+    const seedMock = stubProvider('lang: fr\n\nRésumé ancien.');
+    expect((await post({})).body).toMatchObject({ text: 'Résumé ancien.', fromCache: false });
+    expect((await post({})).body).toMatchObject({ text: 'Résumé ancien.', fromCache: true });
+    expect(seedMock).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+    const fetchMock = stubProvider('lang: fr\n\nRésumé neuf.');
     const fresh = await post({ regenerate: true });
     expect(fresh.status).toBe(200);
     expect(fresh.body).toMatchObject({ text: 'Résumé neuf.', fromCache: false });

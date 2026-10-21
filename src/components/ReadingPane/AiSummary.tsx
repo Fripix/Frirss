@@ -90,7 +90,10 @@ export default function AiSummary({ status, result, error, providers, onSummariz
   // après un échec : il n'est remplacé que par un autre résumé.
   const done = status !== 'idle' && result ? result : null;
   const failed = status === 'error' && !!error;
-  const translated = translation.status === 'done' && translation.text !== null && translation.lang !== null
+  // Une traduction tenue reste à l'écran pendant « Retraduire » (statut
+  // `loading`) et après son échec (`error`, l'alerte s'y ajoute) : le volet ne
+  // garde le texte que dans ce cas, une traduction ordinaire repart de rien.
+  const translated = translation.status !== 'idle' && translation.text !== null && translation.lang !== null
     ? { ...translation, text: translation.text, lang: translation.lang }
     : null;
   const translating = translation.status === 'loading';
@@ -101,6 +104,12 @@ export default function AiSummary({ status, result, error, providers, onSummariz
   if (translateMenuOpen && !translateMenuShown) setTranslateMenuOpen(false);
   // Une seule alerte à la fois : celle du résumé prime.
   const alertText = failed ? error : translateFailed ? translation.error : null;
+
+  // « Régénérer » / « Retraduire » relancent chez le fournisseur qui a écrit ce
+  // qui est affiché : s'il n'est plus disponible, la résolution du serveur en
+  // choisirait un autre (peut-être payant) sans que rien le dise. Pas d'entrée.
+  const canRegenerate = !!done && available.some((p) => p.id === done.providerId);
+  const canRetranslate = !!translated && available.some((p) => p.id === translated.providerId);
 
   // Le menu n'existe que tant qu'un résumé est affiché et qu'aucune demande ne
   // tourne : si le statut change, il ne doit pas rester ouvert ni rouvrir.
@@ -175,7 +184,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
         style={{ color: 'var(--reading-title)', border: splitBorder }}
       >
         {translating && <Spinner />}
-        <span>{translated ? t('ai.showSource') : translating ? t('ai.translating') : t('ai.translate')}</span>
+        <span>{translating ? t('ai.translating') : translated ? t('ai.showSource') : t('ai.translate')}</span>
       </button>
       <button
         ref={translateAnchor}
@@ -226,7 +235,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
       ))}
       {/* Le menu n'existe qu'avec un résumé affiché : « Régénérer » le relance
           chez le fournisseur qui l'a écrit, sans le cache du serveur. */}
-      {done && (
+      {done && canRegenerate && (
         <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--panel-border)' }}>
           <button
             type="button"
@@ -313,7 +322,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
         languages={ALL_LANGUAGES} providers={providers}
         current={{ lang: translated?.lang ?? targetLang, providerId: translated?.providerId ?? null }}
         onPick={(choice) => { closeTranslateMenu(); onTranslate(choice); }}
-        onRetranslate={translated ? () => { closeTranslateMenu(); onTranslate({ lang: translated.lang, providerId: translated.providerId, regenerate: true }); } : undefined}
+        onRetranslate={translated && canRetranslate ? () => { closeTranslateMenu(); onTranslate({ lang: translated.lang, providerId: translated.providerId, regenerate: true }); } : undefined}
         onClose={closeTranslateMenu}
       />
     </div>

@@ -73,13 +73,16 @@ la release publiée.
   traduction est demandé pendant qu'il est en cours de génération — depuis un
   autre onglet ou un autre appareil du même compte —, le serveur rattache la
   seconde demande à la première au lieu de rappeler le modèle : un seul appel
-  payé, une seule unité du plafond, la réponse s'affiche « depuis le cache ».
+  payé, une seule unité du plafond (un résumé ainsi partagé s'affiche
+  « depuis le cache » ; une traduction ne dit rien de plus).
 - **« Régénérer » et « Retraduire ».** Le menu « Résumer avec… » se termine par
   « Régénérer », et le menu de traduction (résumé et article) par
   « Retraduire » quand une traduction est affichée : la demande repart chez
   le même fournisseur (et dans la même langue), sans le cache, dont le
   nouveau résultat prend la place. Un clic, un appel payé, une unité du
-  plafond ; ni raccourci ni consigne libre.
+  plafond ; ni raccourci ni consigne libre. Les entrées n'apparaissent que si
+  ce fournisseur est encore disponible, et un « Retraduire » raté laisse la
+  traduction affichée, avec le message d'erreur.
 
 ## Corrections et améliorations
 

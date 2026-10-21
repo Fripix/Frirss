@@ -71,9 +71,9 @@ router.put('/keys/:providerId', (req, res) => {
 });
 
 const asId = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
-/** Réglage de confort, jamais une raison de refuser : hors bornes, c'est le défaut. */
 /** `regenerate` : absent ou booléen strict ; autre chose est un corps invalide. */
 const badFlag = (v: unknown): boolean => v !== undefined && typeof v !== 'boolean';
+/** Réglage de confort, jamais une raison de refuser : hors bornes, c'est le défaut. */
 const asRatio = (v: unknown): number => (typeof v === 'number' && Number.isInteger(v) && v >= 5 && v <= 50 ? v : DEFAULT_SUMMARY_RATIO);
 
 router.post('/summary', async (req, res) => {

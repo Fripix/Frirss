@@ -2163,7 +2163,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   ne se partagent rien. Le rattaché **ne réserve aucune unité** du plafond
   (le premier l'a déjà réservée) et reçoit la même réponse avec
   `fromCache: true` : **« depuis le cache » couvre aussi « partagé avec une
-  génération en cours »**. Un échec rejette tous les rattachés, rien n'est mis
+  génération en cours »** (seul l'en-tête du résumé l'affiche ; la traduction,
+  du résumé comme de l'article, ne montre pas `fromCache`). Un échec rejette
+  tous les rattachés, rien n'est mis
   en cache ; l'entrée disparaît dès que la génération se règle. La table est
   en mémoire, propre au processus. S'ajoute au partage du navigateur
   (`aiPending.ts`), qui évite déjà la seconde requête HTTP dans un même onglet.
@@ -2175,10 +2177,24 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   génération en cours** : il appelle le modèle, compte **une unité** du
   plafond comme un appel ordinaire (une par lot pour la traduction), et écrit
   le résultat sous la même clé de cache — il **remplace** l'ancien, que la
-  demande ordinaire suivante ne reverra plus. Une régénération ne s'inscrit
+  demande ordinaire suivante ne reverra plus. ⚠️ Le cache est **commun à
+  tous les comptes** (sa clé ne porte pas l'utilisateur, seulement l'article,
+  le fournisseur, le modèle, la longueur visée ou la langue, et le hash du
+  contenu) : une régénération remplace l'entrée que **tous** les comptes
+  lisent pour ce même article, fournisseur, modèle et longueur visée (ou
+  langue cible). Une régénération ne s'inscrit
   pas non plus dans la table des générations en cours : une demande ordinaire
   arrivée pendant ce temps lit le cache (l'ancien résultat, s'il y est) ou
   appelle à son tour. Le repli joue comme pour toute demande. Côté client :
+  - **Seulement chez un fournisseur encore disponible.** Les deux entrées ne
+    paraissent que si le fournisseur qui a produit ce qui est affiché figure
+    parmi les fournisseurs `available` de l'utilisateur
+    (`providers.some(p => p.available && p.id === providerId)`, avec le
+    `providerId` du résumé, ou de la traduction). Sinon la résolution du
+    serveur, faute de pouvoir forcer un fournisseur absent, en choisirait un
+    autre — peut-être payant — sans que le statut dise « X indisponible » :
+    toute bascule doit se voir (règle du propriétaire). Pas d'entrée plutôt
+    qu'une bascule muette.
   - **« Régénérer »** (`ai.regenerate`), **dernier** du menu « Résumer avec… »
     (popover bureau et feuille tactile), sous un filet — le menu n'existe
     qu'avec un résumé affiché. Il relance le résumé chez le fournisseur qui
@@ -2193,8 +2209,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     traduction affichée, celui du dernier lot pour l'article) — avec
     `regenerate: true` ; pour l'article, `translate(choix, { regenerate:
     true })` saute la remontrée sans requête de la traduction tenue, et
-    chaque lot part avec le champ. Un échec garde la traduction affichée,
-    l'alerte s'y ajoute (règle existante).
+    chaque lot part avec le champ. **Pour le résumé comme pour l'article, la
+    traduction tenue reste à l'écran** pendant la demande (l'action dit
+    « Traduction… », désactivée) **et après un échec**, l'alerte s'y
+    ajoutant ; « Texte source » reste possible. Pour l'article, c'est la
+    règle existante ; pour le résumé, `handleTranslateSummary` garde l'état
+    affiché (statut `loading` puis `error`, le texte conservé) seulement
+    quand `regenerate` est posé — une traduction ordinaire vers une autre
+    langue repart toujours de rien.
   - Ce sont des `menuitem` (une action, pas un choix : jamais `aria-checked`)
     sur ordinateur, des rangées de feuille (`sheet-row`, 48 px) au doigt, dans
     le même portail que leur menu. En **dernier** : le premier élément
@@ -2635,7 +2657,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     Si le serveur répond `same` (le texte est déjà dans la langue demandée),
     le panneau revient au résumé d'origine (une traduction affichée
     disparaît) et un toast bref dit « Déjà en {langue}. ».
-    Un échec s'affiche en alerte sous le résumé, qui reste. Les messages qui
+    Un échec s'affiche en alerte sous le résumé, qui reste (après un
+    « Retraduire » raté, sous la traduction, qui reste aussi). Les messages qui
     nomment l'opération ont leur variante (`aiErrorKey(…, { op: 'translate'
     })`) : sans cause connue, « La traduction a échoué. Réessayez. » ; refus,
     « Le fournisseur a refusé de traduire cet article. » ; `invalid_body`,

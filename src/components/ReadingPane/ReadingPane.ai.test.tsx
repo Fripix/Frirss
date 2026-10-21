@@ -112,6 +112,14 @@ describe('ReadingPane — Résumé IA', () => {
     expect(vi.mocked(requestAiSummary).mock.calls[1][0]).toMatchObject({ provider: 1, regenerate: true });
     expect(await findByText('Le nouveau résumé.')).toBeTruthy();
   });
+  it('offers no « Régénérer » when the provider that wrote the summary is no longer available', async () => {
+    vi.mocked(requestAiSummary).mockResolvedValueOnce({ text: 'Le résumé.', lang: 'fr', providerId: 9, providerName: 'Parti', model: 'm', fromCache: true });
+    const { getByRole, findByRole, queryByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    fireEvent.click(await findByRole('button', { name: 'ai.withProvider' }));
+    expect(getByRole('menuitem', { name: 'Ollama' })).toBeTruthy();
+    expect(queryByRole('menuitem', { name: 'ai.regenerate' })).toBeNull();
+  });
   it('offers no « Régénérer » before there is a summary', () => {
     const { queryByRole, queryByText } = render(<ReadingPane />);
     expect(queryByRole('button', { name: 'ai.withProvider' })).toBeNull();
@@ -695,6 +703,33 @@ describe('ReadingPane — traduction du résumé', () => {
     await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
     expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'summary', targetLang: 'fr', provider: 2, regenerate: true });
   });
+  it('a failed « Retraduire » keeps the translation on screen, during the request and after it, with the alert', async () => {
+    useAiStore.setState({ config: TWO });
+    vi.mocked(requestAiTranslation).mockResolvedValueOnce(translation(['Le résumé traduit.']));
+    const { getByRole, findByText, findByRole, getByText, queryByText } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    await findByText('Le résumé traduit.');
+    let fail!: (e: unknown) => void;
+    vi.mocked(requestAiTranslation).mockReturnValueOnce(new Promise((_r, j) => { fail = j; }) as never);
+    fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
+    fireEvent.click(getByRole('menuitem', { name: 'ai.retranslate' }));
+    await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
+    expect(getByText('Le résumé traduit.')).toBeTruthy();
+    expect(queryByText('The summary.')).toBeNull();
+    await act(async () => { fail(httpError(502, { error: 'ai_failed', kind: 'technical' })); });
+    expect((await findByRole('alert')).textContent).toBe('ai.errors.translateFailed');
+    expect(getByText('Le résumé traduit.')).toBeTruthy();
+    expect(getByRole('button', { name: 'ai.showSource' })).toBeTruthy();
+  });
+  it('offers no « Retraduire » of the summary when the provider of the translation is no longer available', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translation(['Le résumé traduit.'], { providerId: 9, providerName: 'Parti' }));
+    const { getByRole, findByText, queryByRole } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    await findByText('Le résumé traduit.');
+    fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
+    expect(getByRole('menu')).toBeTruthy();
+    expect(queryByRole('menuitem', { name: 'ai.retranslate' })).toBeNull();
+  });
   it('a failure with no known cause says the translation failed, and keeps the summary', async () => {
     vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
     const { getByRole, findByRole, getByText } = await summarized();
@@ -825,6 +860,15 @@ describe('ReadingPane — traduction de l\'article', () => {
     fireEvent.click(getByRole('menuitem', { name: 'ai.retranslate' }));
     await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
     expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'article', targetLang: 'fr', provider: 1, regenerate: true });
+  });
+  it('offers no « Retraduire » of the article when the provider of the translation is no longer available', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word'], { providerId: 9, providerName: 'Parti' }));
+    const { getByRole, findByRole, queryByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    await findByRole('button', { name: 'ai.showSource' });
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticleMenu' }));
+    expect(getByRole('menu')).toBeTruthy();
+    expect(queryByRole('menuitem', { name: 'ai.retranslate' })).toBeNull();
   });
   it('a pick in the desktop menu returns focus to the chevron', () => {
     vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);

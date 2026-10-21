@@ -292,6 +292,12 @@ describe('AiSummary — « Résumer avec… »', () => {
     fireEvent.click(item);
     expect(onSummarize).toHaveBeenCalledWith(2, { regenerate: true });
   });
+  it('offers no « Régénérer » when the provider that wrote the summary is no longer available', () => {
+    const { getByRole, queryByRole } = render(<AiSummary {...doneProps} result={{ ...result, providerId: 3, providerName: 'Privé' }} />);
+    fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
+    expect(getByRole('menuitem', { name: 'Claude' })).toBeTruthy();
+    expect(queryByRole('menuitem', { name: 'ai.regenerate' })).toBeNull();
+  });
   it('touch: « Régénérer » is a sheet row in the bottom sheet', () => {
     breakpoint.mockImplementation(() => 'mobile');
     const { getByRole } = render(<AiSummary {...doneProps} />);
@@ -403,6 +409,22 @@ describe('AiSummary — traduction du résumé', () => {
     expect(getByRole('alert').textContent).toBe('ai.errors.translateFailed');
     expect(getByText('Premier.')).toBeTruthy();
     expect(getByRole('button', TRANSLATE)).toBeTruthy();
+  });
+  it('offers no « Retraduire » when the provider of the translation is no longer available', () => {
+    const { getByRole, queryByRole } = render(<AiSummary {...doneProps} targetLang="en" translation={{ ...translated, providerId: 3, providerName: 'Privé' }} />);
+    fireEvent.click(getByRole('button', MENU));
+    expect(getByRole('menu')).toBeTruthy();
+    expect(queryByRole('menuitem', { name: 'ai.retranslate' })).toBeNull();
+  });
+  it('a held translation stays on screen while it is asked again, and after a failure with the alert', () => {
+    const { getByText, queryByText, getByRole, rerender } = render(<AiSummary {...doneProps} targetLang="en" translation={{ ...translated, status: 'loading' }} />);
+    expect(getByText('First.')).toBeTruthy();
+    expect(queryByText('Premier.')).toBeNull();
+    expect((getByRole('button', { name: 'ai.translating' }) as HTMLButtonElement).disabled).toBe(true);
+    rerender(<AiSummary {...doneProps} targetLang="en" translation={{ ...translated, status: 'error', error: 'ai.errors.translateFailed' }} />);
+    expect(getByText('First.')).toBeTruthy();
+    expect(getByRole('alert').textContent).toBe('ai.errors.translateFailed');
+    expect(getByRole('button', { name: 'ai.showSource' })).toBeTruthy();
   });
   it('« Retraduire » appears only with a translation on screen, and asks again in its language with its provider', () => {
     const onTranslate = vi.fn();

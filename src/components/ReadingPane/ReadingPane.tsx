@@ -849,12 +849,17 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     if (!selectedArticle || !aiResult || aiTranslation.status === 'loading') return;
     const id = selectedArticle.id;
     const text = aiResult.text;
-    const shownLang = aiTranslation.status === 'done' ? aiTranslation.lang : null;
+    // Une traduction affichée (réussie, ou gardée après un « Retraduire » raté).
+    const shown = aiTranslation.text !== null && aiTranslation.lang !== null ? aiTranslation : null;
+    const shownLang = shown?.lang ?? null;
     const lang = choice?.lang ?? (choice?.providerId !== undefined ? shownLang : null) ?? aiTargetLang;
+    const regenerate = choice?.regenerate === true;
+    // « Retraduire » garde la traduction à l'écran pendant la demande et,
+    // en cas d'échec, l'alerte s'y ajoute — comme pour l'article.
+    const held = regenerate ? shown : null;
     const seq = ++aiTranslationSeq.current;
-    setAiTranslation({ ...NO_AI_TRANSLATION, status: 'loading' });
+    setAiTranslation(held ? { ...held, status: 'loading', error: null } : { ...NO_AI_TRANSLATION, status: 'loading' });
     try {
-      const regenerate = choice?.regenerate === true;
       const key = summaryTranslationKey({ user: useAuthStore.getState().backendUser?.id, articleId: id, lang, providerId: choice?.providerId, text, regenerate });
       const r = await sharedTranslationRequest(key, () => requestAiTranslation({
         articleId: id, scope: 'summary', targetLang: lang, segments: [text],
@@ -878,7 +883,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (aiTranslationSeq.current !== seq) return;
       const resp = axios.isAxiosError(err) ? err.response : undefined;
       const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], isAdmin, i18n.language, { op: 'translate' });
-      setAiTranslation({ ...NO_AI_TRANSLATION, status: 'error', error: t(msg.key, msg.params) });
+      setAiTranslation(held ? { ...held, status: 'error', error: t(msg.key, msg.params) } : { ...NO_AI_TRANSLATION, status: 'error', error: t(msg.key, msg.params) });
     }
   }, [selectedArticle, aiResult, aiTranslation, aiTargetLang, isAdmin, t, i18n, pushToast]);
 
@@ -1920,8 +1925,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           languages={TRANSLATE_LANGUAGES} providers={aiProviders}
           current={{ lang: tr.state === 'done' && tr.lang ? tr.lang : aiTargetLang, providerId: tr.state === 'done' ? tr.providerId ?? null : null }}
           onPick={(choice) => { setTranslateMenuOpen(false); returnTranslateFocus(); tr.translate(choice); }}
-          // « Retraduire » : seulement sur une traduction affichée, dans sa langue et chez son fournisseur.
-          onRetranslate={tr.state === 'done' && tr.showing === 'translation' && tr.lang
+          // « Retraduire » : seulement sur une traduction affichée, dans sa langue et chez son
+          // fournisseur — encore disponible, sinon le serveur en choisirait un autre sans le dire.
+          onRetranslate={tr.state === 'done' && tr.showing === 'translation' && tr.lang && aiProviders.some((p) => p.available && p.id === tr.providerId)
             ? () => { setTranslateMenuOpen(false); returnTranslateFocus(); tr.translate({ lang: tr.lang ?? undefined, providerId: tr.providerId }, { regenerate: true }); }
             : undefined}
           onClose={closeTranslateMenu}
