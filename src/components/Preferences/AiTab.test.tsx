@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, waitFor, within, screen } from '@testing-library/react';
 // Le nom passé à ces clés est ce que l'on vérifie : il est rendu après la clé.
-const NAMED = new Set(['ai.user.preferredDefault', 'ai.translation.uiLanguage', 'ai.routing.autoSummaryFor', 'ai.routing.autoTranslateFor']);
+const NAMED = new Set(['ai.user.preferredDefault', 'ai.translation.uiLanguage', 'ai.routing.autoSummaryFor', 'ai.routing.autoTranslateFor', 'ai.routing.panelFor']);
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (NAMED.has(k) ? `${k}:${String(o?.name)}` : k), i18n: { language: 'fr' } }) }));
 vi.mock('../../api/backend', () => ({
   getAiProviders: vi.fn(), createAiProvider: vi.fn(), updateAiProvider: vi.fn(), deleteAiProvider: vi.fn(),
@@ -572,13 +572,15 @@ describe('AiTab — « Par flux et catégorie »', () => {
     ({ id, name, type: 'openai', hasAdminKey: true, shared: true, hasUserKey: false, available: true });
   const reset = () => {
     useUiStore.setState({
-      aiCategoryProviders: {}, feedSettings: {}, aiCategoryAutoTranslate: {}, aiCategoryAutoSummary: {},
-      aiAutoSummary: false, aiAutoSummaryConfirmed: false, aiAutoTranslateConfirmed: false,
+      aiCategoryProviders: {}, feedSettings: {}, aiCategoryAutoTranslate: {}, aiCategoryAutoSummary: {}, aiCategoryPanel: {},
+      aiPanelAlways: true, aiAutoSummary: false, aiAutoSummaryConfirmed: false, aiAutoTranslateConfirmed: false,
     });
     useFeedStore.setState({ subscriptions: [] });
   };
-  const sw = (kind: 'Summary' | 'Translate', name: string) => screen.getByRole('switch', { name: `ai.routing.auto${kind}For:${name}` });
-  const checked = (kind: 'Summary' | 'Translate', name: string) => sw(kind, name).getAttribute('aria-checked');
+  const sw = (kind: 'Summary' | 'Translate' | 'Panel', name: string) => screen.getByRole('switch', {
+    name: kind === 'Panel' ? `ai.routing.panelFor:${name}` : `ai.routing.auto${kind}For:${name}`,
+  });
+  const checked = (kind: 'Summary' | 'Translate' | 'Panel', name: string) => sw(kind, name).getAttribute('aria-checked');
   beforeEach(() => {
     reset();
     useAuthStore.setState({ backendUser: user });
@@ -590,7 +592,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     useAiStore.setState({ config: null });
   });
 
-  it('lists categories collapsed, with the number of tuned feeds, and sets a category provider', () => {
+  it('lists categories collapsed, with the number of tuned feeds, and sets a category provider once expanded', () => {
     useUiStore.setState({ feedSettings: { 'feed/2': { aiProvider: 1 } } });
     const { getByRole, getByText, getByLabelText, queryAllByLabelText } = render(<AiTab active />);
     expect(getByText('ai.routing.title')).toBeTruthy();
@@ -598,36 +600,97 @@ describe('AiTab — « Par flux et catégorie »', () => {
     const toggle = getByRole('button', { name: /Tech/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(getByText('ai.routing.overrides')).toBeTruthy();
-    // Replié : seul le sélecteur de la catégorie est là, aucun sélecteur de flux.
+    // Replié : la ligne ne porte que ses pastilles ; ni sélecteur de catégorie, ni sélecteur de flux.
+    expect(queryAllByLabelText('ai.routing.categorySelect')).toHaveLength(0);
     expect(queryAllByLabelText('ai.routing.feedSelect')).toHaveLength(0);
+    fireEvent.click(toggle);
     fireEvent.change(getByLabelText('ai.routing.categorySelect'), { target: { value: '1' } });
     expect(useUiStore.getState().aiCategoryProviders).toEqual({ Tech: 1 });
     fireEvent.change(getByLabelText('ai.routing.categorySelect'), { target: { value: '' } });
     expect(useUiStore.getState().aiCategoryProviders).toEqual({});
   });
-  it('aligns the switches under column headers, with no word repeated on each row', () => {
-    useFeedStore.setState({ subscriptions: [sub(1, [cat('Tech')]), sub(2, [cat('Science')]), sub(3)] });
+  it('gives every category three named pills, with the word on the pill', () => {
+    useFeedStore.setState({ subscriptions: [sub(1, [cat('Actualités')]), sub(2)] });
     render(<AiTab active />);
-    // Les mots « Résumer » / « Traduire » ne figurent plus qu'une fois : dans l'en-tête de colonne.
-    expect(screen.getAllByText('ai.routing.autoSummary')).toHaveLength(1);
-    expect(screen.getAllByText('ai.routing.autoTranslate')).toHaveLength(1);
-    expect(screen.getAllByText('ai.translation.provider').length).toBeGreaterThanOrEqual(1);
-    // Chaque interrupteur garde son nom accessible, qui dit la ligne concernée.
-    expect(sw('Summary', 'Tech')).toBeTruthy();
-    expect(sw('Translate', 'Science')).toBeTruthy();
-    // Une seule grille pour les catégories et les flux dépliés : les colonnes s'alignent.
-    const grid = sw('Summary', 'Tech').closest('[data-routing-grid]') as HTMLElement;
-    expect(grid).toBeTruthy();
-    expect(grid.classList.contains('grid')).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: /Tech/ }));
-    expect(grid.contains(sw('Summary', 'Flux 1'))).toBe(true);
-    expect(grid.contains(screen.getAllByLabelText('ai.routing.feedSelect')[0])).toBe(true);
+    expect(sw('Summary', 'Actualités')).toBeTruthy();
+    expect(sw('Translate', 'Actualités')).toBeTruthy();
+    expect(sw('Panel', 'Actualités')).toBeTruthy();
+    // Le mot est sur la pastille, dans le <label> qui enveloppe l'interrupteur ; plus d'en-têtes de colonne.
+    const pill = sw('Panel', 'Actualités').closest('label') as HTMLElement;
+    expect(pill.textContent).toBe('ai.routing.panel');
+    expect(within(sw('Summary', 'Actualités').closest('label') as HTMLElement).getByText('ai.routing.autoSummary')).toBeTruthy();
+    expect(document.querySelector('[data-routing-grid]')).toBeNull();
+    // « Sans catégorie » n'a rien à régler au niveau du groupe : ni pastille, ni sélecteur.
+    const routing = screen.getAllByRole('switch').filter((x) => /^ai\.routing\./.test(x.getAttribute('aria-label') ?? ''));
+    expect(routing).toHaveLength(3);
   });
-  it('a tap anywhere on a switch cell toggles that switch, exactly once', () => {
+  it('truncates the name on one line and keeps the full name in a title', () => {
+    const url = 'https://example.com/a-very-long-feed-address-without-any-space/feed.xml';
+    useFeedStore.setState({ subscriptions: [{ ...sub(1, [cat('Une catégorie au nom vraiment très long, bien plus que la ligne')]), title: url }] });
+    render(<AiTab active />);
+    // jsdom n'a pas de mise en page : on fige les classes qui coupent le nom sur une ligne.
+    const label = screen.getByText('Une catégorie au nom vraiment très long, bien plus que la ligne');
+    expect(label.className).toContain('truncate');
+    expect(label.getAttribute('title')).toBe('Une catégorie au nom vraiment très long, bien plus que la ligne');
+    const toggle = screen.getByRole('button', { name: /Une catégorie/ });
+    expect(toggle.className).toContain('min-w-0');
+    fireEvent.click(toggle);
+    const feed = screen.getByText(url);
+    expect(feed.className).toContain('truncate');
+    expect(feed.getAttribute('title')).toBe(url);
+  });
+  it('expanding shows the category provider first, then the feeds', () => {
+    render(<AiTab active />);
+    expect(screen.queryByText('ai.routing.categoryProvider')).toBeNull();
+    const toggle = screen.getByRole('button', { name: /Tech/ });
+    fireEvent.click(toggle);
+    const heading = screen.getByText('ai.routing.categoryProvider');
+    const select = screen.getByLabelText('ai.routing.categorySelect');
+    const [first] = screen.getAllByLabelText('ai.routing.feedSelect');
+    expect(heading.compareDocumentPosition(select) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(select.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Les flux sont indentés sous la catégorie.
+    expect((first.closest('li') as HTMLElement).className).toContain('pl-6');
+    expect(toggle.getAttribute('aria-controls')).toBeTruthy();
+    expect(document.getElementById(toggle.getAttribute('aria-controls') as string)?.contains(select)).toBe(true);
+    fireEvent.click(toggle);
+    expect(screen.queryByText('ai.routing.categoryProvider')).toBeNull();
+    expect(toggle.getAttribute('aria-controls')).toBeNull();
+  });
+  it('a category Panel pill shows the global value until it has its own, and writes an explicit value', () => {
+    useUiStore.setState({ aiPanelAlways: false });
+    render(<AiTab active />);
+    expect(checked('Panel', 'Tech')).toBe('false');
+    fireEvent.click(sw('Panel', 'Tech'));
+    // Pas de confirmation de coût pour le panneau.
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiCategoryPanel).toEqual({ Tech: true });
+    expect(checked('Panel', 'Tech')).toBe('true');
+    fireEvent.click(sw('Panel', 'Tech'));
+    expect(useUiStore.getState().aiCategoryPanel).toEqual({ Tech: false });
+  });
+  it('a feed Panel pill writes feedSettings[id].aiPanel and shows the effective value', () => {
+    useUiStore.setState({ aiCategoryPanel: { Tech: false } });
+    render(<AiTab active />);
+    fireEvent.click(screen.getByRole('button', { name: /Tech/ }));
+    // Le flux hérite de sa catégorie éteinte (le global, lui, est allumé).
+    expect(checked('Panel', 'Flux 1')).toBe('false');
+    fireEvent.click(sw('Panel', 'Flux 1'));
+    expect(useUiStore.getState().feedSettings['feed/1'].aiPanel).toBe(true);
+    expect(checked('Panel', 'Flux 1')).toBe('true');
+    expect(checked('Panel', 'Flux 2')).toBe('false');
+    // Une valeur propre de panneau compte comme un flux réglé.
+    expect(screen.getByText('ai.routing.overrides')).toBeTruthy();
+    fireEvent.click(sw('Panel', 'Flux 1'));
+    expect(useUiStore.getState().feedSettings['feed/1'].aiPanel).toBe(false);
+  });
+  it('a tap anywhere on a pill toggles that switch, exactly once', () => {
     useUiStore.setState({ aiAutoSummary: true });
     render(<AiTab active />);
     const cell = sw('Summary', 'Tech').closest('label') as HTMLElement;
     expect(cell).toBeTruthy();
+    // Le mot de la pastille est dans le label : toucher le mot bascule aussi.
+    expect(cell.textContent).toBe('ai.routing.autoSummary');
     expect(cell.contains(sw('Translate', 'Tech'))).toBe(false);
     fireEvent.click(cell);
     expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
@@ -663,29 +726,18 @@ describe('AiTab — « Par flux et catégorie »', () => {
   it('shows a deleted provider as such', () => {
     useUiStore.setState({ aiCategoryProviders: { Tech: 42 } });
     const { getByLabelText } = render(<AiTab active />);
+    fireEvent.click(screen.getByRole('button', { name: /Tech/ }));
     const select = getByLabelText('ai.routing.categorySelect') as HTMLSelectElement;
     expect(select.value).toBe('42');
     expect(select.selectedOptions[0].textContent).toBe('ai.user.removedProvider');
-  });
-  it('lets a long unbroken feed name wrap anywhere instead of pushing the select out', () => {
-    const url = 'https://example.com/a-very-long-feed-address-without-any-space/feed.xml';
-    useFeedStore.setState({ subscriptions: [{ ...sub(1, [cat('Tech')]), title: url }] });
-    const { getByRole, getByText } = render(<AiTab active />);
-    fireEvent.click(getByRole('button', { name: /Tech/ }));
-    // jsdom n'a pas de mise en page : on fige la classe qui permet de rétrécir, et l'absence de flex
-    // (un conteneur flex rendrait le texte en élément flex anonyme, qui ne rétrécit pas sous son mot le plus long).
-    const name = getByText(url);
-    expect(name.className).toContain('[overflow-wrap:anywhere]');
-    expect(name.className).toContain('min-w-0');
-    expect(name.className).not.toMatch(/(^|\s)(flex|inline-flex)(\s|$)/);
   });
   it('reads a category named like an Object property as unset, and ignores a corrupt feed value', () => {
     useFeedStore.setState({ subscriptions: [sub(1, [cat('constructor')]), sub(2, [cat('Tech')])] });
     useUiStore.setState({ feedSettings: { 'feed/2': { aiProvider: '3' as unknown as number } } });
     const { getAllByLabelText, getAllByRole, queryByText } = render(<AiTab active />);
+    for (const b of getAllByRole('button', { name: /constructor|Tech/ })) fireEvent.click(b);
     for (const s of getAllByLabelText('ai.routing.categorySelect') as HTMLSelectElement[]) expect(s.value).toBe('');
     expect(queryByText('ai.routing.overrides')).toBeNull();
-    fireEvent.click(getAllByRole('button', { name: /Tech/ })[0]);
     expect((getAllByLabelText('ai.routing.feedSelect')[0] as HTMLSelectElement).value).toBe('');
   });
   it('a category translate switch asks for confirmation once, then not again', async () => {
@@ -764,43 +816,59 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
   });
-  it('every switch is described by the shared hint; the uncategorised group has none of its own', () => {
+  it('every pill is described by the legend; the uncategorised group has none of its own', () => {
     const { getByText, getAllByRole } = render(<AiTab active />);
-    const hint = getByText('ai.routing.autoHint');
+    const legend = getByText('ai.routing.legend');
     fireEvent.click(screen.getByRole('button', { name: /ai\.routing\.uncategorised/ }));
-    const switches = getAllByRole('switch').filter((s) => /^ai\.routing\.auto/.test(s.getAttribute('aria-label') ?? ''));
-    // Tech (catégorie) + Flux 3 (sans catégorie) : deux lignes, deux interrupteurs chacune.
+    const switches = getAllByRole('switch').filter((s) => /^ai\.routing\.(auto|panel)/.test(s.getAttribute('aria-label') ?? ''));
+    // Tech (catégorie) + Flux 3 (sans catégorie) : deux lignes, trois pastilles chacune.
     expect(switches.map((s) => s.getAttribute('aria-label'))).toEqual([
-      'ai.routing.autoSummaryFor:Tech', 'ai.routing.autoTranslateFor:Tech',
-      'ai.routing.autoSummaryFor:Flux 3', 'ai.routing.autoTranslateFor:Flux 3',
+      'ai.routing.autoSummaryFor:Tech', 'ai.routing.autoTranslateFor:Tech', 'ai.routing.panelFor:Tech',
+      'ai.routing.autoSummaryFor:Flux 3', 'ai.routing.autoTranslateFor:Flux 3', 'ai.routing.panelFor:Flux 3',
     ]);
-    for (const s of switches) expect(s.getAttribute('aria-describedby')).toBe(hint.id);
+    for (const s of switches) expect(s.getAttribute('aria-describedby')).toBe(legend.id);
   });
-  it('puts the name on its own row on a narrow screen, the three controls beneath the headers', () => {
+  it('puts the name on its own line on a narrow screen, the pills beneath and wrapping, never overflowing', () => {
     render(<AiTab active />);
     // jsdom n'a pas de mise en page : on fige les classes qui produisent la disposition.
-    const grid = sw('Translate', 'Tech').closest('[data-routing-grid]') as HTMLElement;
-    expect(grid.classList.contains('grid-cols-[minmax(7rem,1fr)_minmax(2.75rem,auto)_minmax(2.75rem,auto)]')).toBe(true);
-    expect(grid.classList.contains('sm:grid-cols-[minmax(0,1fr)_minmax(7rem,12rem)_minmax(2.75rem,auto)_minmax(2.75rem,auto)]')).toBe(true);
-    // Nom de catégorie : une ligne entière à l'étroit, une colonne au large.
-    const name = screen.getByRole('button', { name: /Tech/ });
-    expect(name.classList.contains('col-span-3')).toBe(true);
-    expect(name.classList.contains('sm:col-span-1')).toBe(true);
-    // La colonne du nom n'a pas d'en-tête à l'étroit : sa cellule d'en-tête est masquée.
-    const headers = Array.from(grid.children).slice(0, 4) as HTMLElement[];
-    expect(headers[0].classList.contains('hidden')).toBe(true);
-    expect(headers[0].classList.contains('sm:block')).toBe(true);
-    expect(headers.map((h) => h.textContent)).toEqual(['', 'ai.translation.provider', 'ai.routing.autoSummary', 'ai.routing.autoTranslate']);
-    // Les mots d'en-tête longs (« Zusammenfassen ») se replient au lieu d'élargir la colonne.
-    for (const h of headers.slice(2)) {
-      expect(h.classList.contains('min-w-0')).toBe(true);
-      expect(h.classList.contains('[overflow-wrap:anywhere]')).toBe(true);
-    }
-    // Les cellules vides du groupe « Sans catégorie » ne créent pas de ligne vide à l'étroit.
-    fireEvent.click(screen.getByRole('button', { name: /ai\.routing\.uncategorised/ }));
-    const empty = Array.from(grid.querySelectorAll(':scope > span[aria-hidden="true"]')).slice(1) as HTMLElement[];
-    expect(empty).toHaveLength(3);
-    for (const e of empty) expect(e.classList.contains('hidden')).toBe(true);
+    const toggle = screen.getByRole('button', { name: /Tech/ });
+    const row = toggle.parentElement as HTMLElement;
+    expect(row.classList.contains('flex')).toBe(true);
+    expect(row.classList.contains('flex-wrap')).toBe(true);
+    // Le nom prend toute la ligne à l'étroit, le reste de la place au large.
+    expect(toggle.classList.contains('basis-full')).toBe(true);
+    expect(toggle.classList.contains('sm:flex-1')).toBe(true);
+    expect(toggle.classList.contains('min-w-0')).toBe(true);
+    // Les pastilles se rangent à droite, passent à la ligne entre elles plutôt que de déborder.
+    const pills = sw('Summary', 'Tech').closest('label')?.parentElement as HTMLElement;
+    expect(pills.parentElement).toBe(row);
+    for (const c of ['flex', 'flex-wrap', 'justify-end', 'ml-auto', 'flex-shrink-0']) expect(pills.classList.contains(c)).toBe(true);
+    expect(pills.contains(sw('Translate', 'Tech'))).toBe(true);
+    expect(pills.contains(sw('Panel', 'Tech'))).toBe(true);
+    // Un flux : son nom sur sa ligne, puis sélecteur et pastilles dessous.
+    fireEvent.click(toggle);
+    const feedRow = screen.getAllByLabelText('ai.routing.feedSelect')[0].parentElement as HTMLElement;
+    expect(feedRow.classList.contains('flex-wrap')).toBe(true);
+    const name = screen.getByText('Flux 1');
+    expect(name.classList.contains('basis-full')).toBe(true);
+    expect(name.classList.contains('truncate')).toBe(true);
+    const select = screen.getAllByLabelText('ai.routing.feedSelect')[0];
+    expect(select.className).toContain('min-w-[7rem]');
+    expect(select.className).toContain('max-w-[11rem]');
+    // La pastille est de 32 px à la souris et de 44 px au doigt (`prefs-tap-btn`).
+    const pill = sw('Panel', 'Flux 1').closest('label') as HTMLElement;
+    expect(pill.classList.contains('prefs-tap-btn')).toBe(true);
+    expect(pill.classList.contains('min-h-[32px]')).toBe(true);
+    expect(pill.classList.contains('rounded-full')).toBe(true);
+  });
+  it('lights the pill (border and word) in the accent colour when it is on', () => {
+    useUiStore.setState({ aiCategoryAutoSummary: { Tech: true } });
+    render(<AiTab active />);
+    const on = sw('Summary', 'Tech').closest('label') as HTMLElement;
+    const off = sw('Translate', 'Tech').closest('label') as HTMLElement;
+    expect(on.style.borderColor).toBe('var(--accent)');
+    expect(on.style.color).toBe('var(--accent)');
+    expect(off.style.borderColor).toBe('var(--panel-border)');
   });
 });
 

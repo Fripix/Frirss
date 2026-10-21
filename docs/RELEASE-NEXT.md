@@ -65,10 +65,12 @@ la release publiée.
   avec… ». » et « Langue non proposée. ». Nouveau bloc « Traduction » dans
   Préférences → IA : langue cible (celle de l'interface par défaut) et
   fournisseur des traductions (« Même que le résumé » par défaut). La vue
-  « Par flux et catégorie » gagne deux interrupteurs par ligne, « Résumer » et
-  « Traduire » à l'ouverture, un flux primant sur sa catégorie, rangés en une
-  grille alignée sous des en-têtes de colonne (le nom passe sur sa propre ligne
-  sur un écran étroit) ; allumer la
+  « Par flux et catégorie » devient un accordéon : chaque catégorie (repliée
+  d'origine) porte trois pastilles nommées, « Résumer » et « Traduire » à
+  l'ouverture et « Panneau » (voir plus bas), un flux primant sur sa catégorie ;
+  dépliée, elle montre le fournisseur de la catégorie puis ses flux, chacun avec
+  son fournisseur et ses pastilles. Les noms sont tronqués sur une ligne, et sur
+  un écran étroit les pastilles passent sous le nom ; allumer la
   traduction automatique demande une confirmation, une fois par compte, qui
   rappelle qu'un article entier coûte cinq à quinze fois un résumé. Le plafond
   quotidien compte les « appels IA », résumés et traductions ensemble (un par
@@ -93,8 +95,9 @@ la release publiée.
   rangée de la feuille « … »), et la
   touche `s` ou la palette le font apparaître comme lui ; le panneau disparaît
   à l'article suivant.
-  Le réglage est synchronisé ; il se précise par flux et par catégorie
-  (un flux prime sur ses catégories, qui priment sur le global).
+  Le réglage est synchronisé ; il se précise par flux et par catégorie, avec la
+  pastille « Panneau » de « Par flux et catégorie » (un flux prime sur ses
+  catégories, qui priment sur le global).
 - **Deux onglets, un seul appel IA.** Quand le même résumé ou le même lot de
   traduction est demandé pendant qu'il est en cours de génération — depuis un
   autre onglet ou un autre appareil du même compte —, le serveur rattache la
