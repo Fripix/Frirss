@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { sharedSummaryRequest, sharedTranslationRequest, __resetPendingSummariesForTests } from './aiPending';
+import { sharedSummaryRequest, sharedTranslationRequest, summaryRequestKey, summaryTranslationKey, articleBatchKey, __resetPendingSummariesForTests } from './aiPending';
 
 const RESULT = { text: 'R', lang: 'fr', providerId: 1, providerName: 'P', model: 'm', fromCache: false };
 
@@ -64,5 +64,27 @@ describe('sharedTranslationRequest', () => {
     const p = sharedTranslationRequest('n', (w) => { wanted = w; return Promise.resolve(TRANSLATION); });
     expect(wanted()).toBe(true);
     await p;
+  });
+});
+
+describe('request keys: a regeneration never joins a normal request', () => {
+  it('summary: a regeneration has its own key, and two identical regenerations share theirs', async () => {
+    const normal = summaryRequestKey({ user: 2, articleId: 'a1', providerId: 1 });
+    const regen = summaryRequestKey({ user: 2, articleId: 'a1', providerId: 1, regenerate: true });
+    expect(regen).not.toBe(normal);
+    expect(summaryRequestKey({ user: 2, articleId: 'a1', providerId: 1, regenerate: true })).toBe(regen);
+    const start = vi.fn(() => new Promise<typeof RESULT>(() => {}));
+    void sharedSummaryRequest(normal, start);
+    const r1 = sharedSummaryRequest(regen, start);
+    expect(sharedSummaryRequest(regen, start)).toBe(r1);
+    expect(start).toHaveBeenCalledTimes(2);
+  });
+  it('translations: the summary and the article batches get a regeneration key of their own', () => {
+    const t = { user: 2, articleId: 'a1', lang: 'de', providerId: 3, text: 'R' };
+    expect(summaryTranslationKey({ ...t, regenerate: true })).not.toBe(summaryTranslationKey(t));
+    expect(summaryTranslationKey({ ...t, regenerate: true })).toBe(summaryTranslationKey({ ...t, regenerate: true }));
+    const b = { user: 2, articleId: 'a1', lang: 'de', providerId: 3, hash: 'h', batch: 0 };
+    expect(articleBatchKey({ ...b, regenerate: true })).not.toBe(articleBatchKey(b));
+    expect(articleBatchKey({ ...b, regenerate: true })).toBe(articleBatchKey({ ...b, regenerate: true }));
   });
 });

@@ -307,4 +307,31 @@ describe('summarize', () => {
       expect(inflightSize()).toBe(0);
     });
   });
+
+  describe('regenerate', () => {
+    const reply = (t: string) => ({ text: `lang: fr\n\n${t}`, model: 'm', inputTokens: 1, outputTokens: 1, durationMs: 1 });
+    it('ignores the cached summary, calls the model, counts one unit and replaces the cache', async () => {
+      const call = vi.fn().mockResolvedValueOnce(reply('Ancien.')).mockResolvedValueOnce(reply('Nouveau.'));
+      await summarize({ ...base, articleId: 'rg-1', available: [A(1, 'Paid', true)] }, { call });
+      const fresh = await summarize({ ...base, articleId: 'rg-1', regenerate: true, available: [A(1, 'Paid', true)] }, { call });
+      expect(fresh).toMatchObject({ text: 'Nouveau.', fromCache: false });
+      expect(call).toHaveBeenCalledTimes(2);
+      expect(usageToday(41)).toBe(2);
+      const after = await summarize({ ...base, articleId: 'rg-1', available: [A(1, 'Paid', true)] }, { call });
+      expect(after).toMatchObject({ text: 'Nouveau.', fromCache: true });
+      expect(call).toHaveBeenCalledTimes(2);
+    });
+    it('does not join a normal generation in flight', async () => {
+      let release!: () => void;
+      const gate = new Promise<void>((r) => { release = r; });
+      const call = vi.fn(async () => { await gate; return reply('R.'); });
+      const normal = summarize({ ...base, articleId: 'rg-2', available: [A(1, 'A')] }, { call });
+      const again = summarize({ ...base, articleId: 'rg-2', regenerate: true, available: [A(1, 'A')] }, { call });
+      await new Promise((r) => setTimeout(r, 10));
+      release();
+      const [, r] = await Promise.all([normal, again]);
+      expect(call).toHaveBeenCalledTimes(2);
+      expect(r.fromCache).toBe(false);
+    });
+  });
 });

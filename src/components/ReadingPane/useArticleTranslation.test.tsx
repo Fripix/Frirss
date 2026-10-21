@@ -208,6 +208,21 @@ describe('useArticleTranslation', () => {
     expect(requestAiTranslation).toHaveBeenCalledTimes(1);
   });
 
+  it('regenerate: asks again past the translation held, with regenerate on every batch, and its own shared key', async () => {
+    vi.mocked(requestAiTranslation)
+      .mockResolvedValueOnce(result(['Titre', 'Bonjour'], { providerId: 3 }))
+      .mockResolvedValueOnce(result(['Titre', 'Salut'], { providerId: 3 }));
+    const { result: hook } = renderHook(() => useArticleTranslation({ ...base, bodyHtml: '<p>Hello</p>' }));
+    await act(async () => { hook.current.translate({ lang: 'de', providerId: 3 }); });
+    await waitFor(() => expect(hook.current.state).toBe('done'));
+    expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).not.toHaveProperty('regenerate', true);
+    await act(async () => { hook.current.translate({ lang: 'de', providerId: 3 }, { regenerate: true }); });
+    await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ targetLang: 'de', provider: 3, regenerate: true });
+    await waitFor(() => expect(hook.current.html).toContain('Salut'));
+    expect(hook.current.showing).toBe('translation');
+  });
+
   it('a forced provider and language go with every batch, and a fallback is reported', async () => {
     vi.mocked(requestAiTranslation)
       .mockResolvedValueOnce(result(['Hallo Welt', words('eins', 1000)], { fellBackFrom: 'Claude' }))

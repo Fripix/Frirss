@@ -62,6 +62,16 @@ describe('runWithFallback', () => {
     expect(call).not.toHaveBeenCalled();
     expect(usageToday(43)).toBe(0);
   });
+  it('skips the cache read when asked, calls, counts, and replaces the cached value', async () => {
+    await aiCacheSet('attempt-test:1', { text: 'old', lang: 'fr' });
+    const call = vi.fn().mockResolvedValue('new');
+    const r = await runWithFallback(attempt({ call, available: [A(1, 'Paid', true)], skipCacheRead: true, onSuccess: async (_c, v) => ({ text: v, lang: 'fr' }) }));
+    expect(r).toMatchObject({ result: 'new', fromCache: false });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(usageToday(43)).toBe(1);
+    const again = await runWithFallback(attempt({ call, available: [A(1, 'Paid', true)] }));
+    expect(again).toMatchObject({ result: { text: 'new' }, fromCache: true });
+  });
   it('throws the first error when fallback is off', async () => {
     const call = vi.fn().mockRejectedValue(new AiError('auth', 'HTTP 401', 401));
     await expect(runWithFallback(attempt({ call, fallback: false }))).rejects.toMatchObject({ kind: 'auth', message: 'HTTP 401', ownKey: false });

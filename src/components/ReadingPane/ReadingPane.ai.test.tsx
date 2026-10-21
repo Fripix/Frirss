@@ -99,6 +99,24 @@ describe('ReadingPane — Résumé IA', () => {
     await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
     expect(vi.mocked(requestAiSummary).mock.calls[1][0]).toMatchObject({ provider: 1, fallback: true });
   });
+  it('« Régénérer » asks again with regenerate and the provider that wrote the summary', async () => {
+    vi.mocked(requestAiSummary)
+      .mockResolvedValueOnce({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: true })
+      .mockResolvedValueOnce({ text: 'Le nouveau résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+    const { getByRole, findByRole, findByText } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+    expect(vi.mocked(requestAiSummary).mock.calls[0][0]).not.toHaveProperty('regenerate', true);
+    fireEvent.click(await findByRole('button', { name: 'ai.withProvider' }));
+    fireEvent.click(getByRole('menuitem', { name: 'ai.regenerate' }));
+    await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(requestAiSummary).mock.calls[1][0]).toMatchObject({ provider: 1, regenerate: true });
+    expect(await findByText('Le nouveau résumé.')).toBeTruthy();
+  });
+  it('offers no « Régénérer » before there is a summary', () => {
+    const { queryByRole, queryByText } = render(<ReadingPane />);
+    expect(queryByRole('button', { name: 'ai.withProvider' })).toBeNull();
+    expect(queryByText('ai.regenerate')).toBeNull();
+  });
   it('sends the routing stages and the fallback choice with the request', () => {
     vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
     useFeedStore.setState({ subscriptions: [{ id: 'feed/1', title: 'F', categories: [{ id: 'user/-/label/Tech', label: 'Tech' }] }] } as never);
@@ -666,6 +684,17 @@ describe('ReadingPane — traduction du résumé', () => {
     fireEvent.click(within(getByRole('group', { name: 'ai.translateWith' })).getByRole('menuitemradio', { name: 'Claude' }));
     expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ provider: 2, targetLang: 'fr', fallback: false });
   });
+  it('« Retraduire » asks the summary translation again, same language and provider, with regenerate', async () => {
+    useAiStore.setState({ config: TWO });
+    vi.mocked(requestAiTranslation).mockResolvedValue(translation(['Le résumé traduit.']));
+    const { getByRole, findByText } = await summarized();
+    fireEvent.click(getByRole('button', { name: 'ai.translate' }));
+    await findByText('Le résumé traduit.');
+    fireEvent.click(getByRole('button', { name: 'ai.translateMenu' }));
+    fireEvent.click(getByRole('menuitem', { name: 'ai.retranslate' }));
+    await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'summary', targetLang: 'fr', provider: 2, regenerate: true });
+  });
   it('a failure with no known cause says the translation failed, and keeps the summary', async () => {
     vi.mocked(requestAiTranslation).mockRejectedValue(httpError(502, { error: 'ai_failed', kind: 'technical' }));
     const { getByRole, findByRole, getByText } = await summarized();
@@ -783,6 +812,19 @@ describe('ReadingPane — traduction de l\'article', () => {
     fireEvent.click(getByRole('button', { name: 'ai.translateArticleMenu' }));
     fireEvent.click(within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('de', 'fr') }));
     expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ scope: 'article', targetLang: 'de' });
+  });
+  it('« Retraduire » in the article menu, only over a translation on screen, asks again with regenerate', async () => {
+    vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word'], { providerId: 1 }));
+    const { getByRole, findByRole, queryByRole } = render(<ReadingPane />);
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticleMenu' }));
+    expect(queryByRole('menuitem', { name: 'ai.retranslate' })).toBeNull();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+    await findByRole('button', { name: 'ai.showSource' });
+    fireEvent.click(getByRole('button', { name: 'ai.translateArticleMenu' }));
+    fireEvent.click(getByRole('menuitem', { name: 'ai.retranslate' }));
+    await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ scope: 'article', targetLang: 'fr', provider: 1, regenerate: true });
   });
   it('a pick in the desktop menu returns focus to the chevron', () => {
     vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);

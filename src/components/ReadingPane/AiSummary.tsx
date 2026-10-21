@@ -17,11 +17,12 @@ export interface AiSummaryProps {
   result: AiSummaryResult | null;
   error: string | null;
   providers: AiProviderView[];
-  onSummarize: (providerId?: number) => void;
+  /** `regenerate` : « Régénérer », le serveur ignore son cache et le remplace. */
+  onSummarize: (providerId?: number, opts?: { regenerate?: boolean }) => void;
   disabled?: boolean;
   /** La traduction du résumé affiché ; `providerId` sert à cocher le fournisseur dans le menu. */
   translation: { status: 'idle' | 'loading' | 'done' | 'error'; text: string | null; lang: AiLanguage | null; providerId?: number; providerName?: string; fellBackFrom?: string; error: string | null };
-  onTranslate: (choice?: { lang?: AiLanguage; providerId?: number }) => void;
+  onTranslate: (choice?: { lang?: AiLanguage; providerId?: number; regenerate?: boolean }) => void;
   onShowSource: () => void;
   /** Langue cible par défaut (réglage, ou langue de l'interface). */
   targetLang: AiLanguage;
@@ -64,6 +65,13 @@ export interface AiSummaryProps {
  * langue cible. Traduit, le corps montre la traduction, le statut ajoute
  * « traduit en X par Y », et « Traduire » devient « Texte source ». Comme le
  * résumé, une traduction qui arrive panneau replié ne le rouvre pas.
+ *
+ * « Régénérer » (dernier du menu « Résumer avec… ») et « Retraduire » (dernier
+ * du menu de traduction, seulement quand une traduction est affichée)
+ * relancent ce qui est affiché — même fournisseur, même langue — en ignorant
+ * le cache du serveur, qu'ils remplacent : un appel payé, une unité du
+ * plafond, toujours sur un clic. Ce sont des `menuitem` : des actions, pas
+ * des choix.
  */
 export default function AiSummary({ status, result, error, providers, onSummarize, disabled, translation, onTranslate, onShowSource, targetLang }: AiSummaryProps) {
   const { t, i18n } = useTranslation();
@@ -201,18 +209,38 @@ export default function AiSummary({ status, result, error, providers, onSummariz
     </button>
   ) : null;
 
-  const menuItems = available.map((p) => (
-    <button
-      key={p.id}
-      type="button"
-      role={touch ? undefined : 'menuitem'}
-      onClick={() => { setMenuOpen(false); onSummarize(p.id); }}
-      className={`flex items-center w-full text-left rounded-md hover:bg-black/5 ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`}
-      style={{ color: 'var(--list-title)' }}
-    >
-      <span className="truncate">{p.name}</span>
-    </button>
-  ));
+  const menuRowClass = `flex items-center w-full text-left rounded-md hover:bg-black/5 ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`;
+  const menuItems = (
+    <>
+      {available.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          role={touch ? undefined : 'menuitem'}
+          onClick={() => { setMenuOpen(false); onSummarize(p.id); }}
+          className={menuRowClass}
+          style={{ color: 'var(--list-title)' }}
+        >
+          <span className="truncate">{p.name}</span>
+        </button>
+      ))}
+      {/* Le menu n'existe qu'avec un résumé affiché : « Régénérer » le relance
+          chez le fournisseur qui l'a écrit, sans le cache du serveur. */}
+      {done && (
+        <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--panel-border)' }}>
+          <button
+            type="button"
+            role={touch ? undefined : 'menuitem'}
+            onClick={() => { setMenuOpen(false); onSummarize(done.providerId, { regenerate: true }); }}
+            className={menuRowClass}
+            style={{ color: 'var(--list-title)' }}
+          >
+            <span className="truncate">{t('ai.regenerate')}</span>
+          </button>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="ai-summary mb-5 rounded-lg" style={{ background: 'var(--ai-bg)', border: '1px solid var(--ai-border)' }}>
@@ -285,6 +313,7 @@ export default function AiSummary({ status, result, error, providers, onSummariz
         languages={ALL_LANGUAGES} providers={providers}
         current={{ lang: translated?.lang ?? targetLang, providerId: translated?.providerId ?? null }}
         onPick={(choice) => { closeTranslateMenu(); onTranslate(choice); }}
+        onRetranslate={translated ? () => { closeTranslateMenu(); onTranslate({ lang: translated.lang, providerId: translated.providerId, regenerate: true }); } : undefined}
         onClose={closeTranslateMenu}
       />
     </div>

@@ -882,6 +882,8 @@
     "translateWith": "使用以下服务商翻译…",
     "translateMenu": "翻译选项",
     "translateArticle": "翻译文章",
-    "translateArticleMenu": "文章翻译选项"
+    "translateArticleMenu": "文章翻译选项",
+    "regenerate": "重新生成",
+    "retranslate": "重新翻译"
   }
 }

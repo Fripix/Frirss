@@ -17,6 +17,8 @@ export interface SummaryRequest {
   resolution: { force?: number | null; feed?: number | null; category?: number | null; preferred?: number | null; adminDefault?: number | null };
   available: Availability[];
   fallback: boolean;
+  /** « Régénérer » / « Retraduire » : ni cache lu, ni génération en cours partagée ; le résultat remplace le cache. */
+  regenerate?: boolean;
   /** Longueur visée en pour cent de l'article ; validée par la route. */
   ratio?: number;
 }
@@ -44,7 +46,7 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
 
   const generate = async (): Promise<SummaryResponse> => {
     const out = await runWithFallback({
-      userId: req.userId, resolution: req.resolution, available: req.available, fallback: req.fallback, deadline, now,
+      userId: req.userId, resolution: req.resolution, available: req.available, fallback: req.fallback, deadline, now, skipCacheRead: req.regenerate,
       cacheKeyFor: (cand) => aiCacheKey({ articleId: req.articleId, op: 'summary', providerId: cand.provider.id, model: cand.provider.model, ratio, contentHash }),
       call: async (cand, timeoutMs) => {
         const result = await call(cand.provider, cand.key, { system: summarySystem(ratio), user: summaryUserMessage(req.title, text), timeoutMs });
@@ -63,7 +65,9 @@ export async function summarize(req: SummaryRequest, deps: { call?: typeof callP
   };
 
   // Une demande identique à une génération en cours s'y rattache (`inflight.ts`) :
-  // même compte, même contenu, même longueur visée, même routage.
+  // même compte, même contenu, même longueur visée, même routage. Une
+  // régénération n'y passe pas : elle demande un NOUVEL appel.
+  if (req.regenerate) return generate();
   const key = inflightKey(req.userId, 'summary', { articleId: req.articleId, contentHash, ratio, resolution: req.resolution, fallback: req.fallback });
   const { value, shared } = await shareInflight(key, generate);
   return shared ? { ...value, fromCache: true } : value;

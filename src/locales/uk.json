@@ -916,6 +916,8 @@
     "translateWith": "Перекласти через…",
     "translateMenu": "Параметри перекладу",
     "translateArticle": "Перекласти статтю",
-    "translateArticleMenu": "Параметри перекладу статті"
+    "translateArticleMenu": "Параметри перекладу статті",
+    "regenerate": "Згенерувати знову",
+    "retranslate": "Перекласти знову"
   }
 }

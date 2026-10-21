@@ -36,6 +36,11 @@ export interface Attempt<T> {
   cacheKeyFor: (cand: Availability) => string;
   /** L'appel au fournisseur ; `timeoutMs` est déjà borné par l'échéance. */
   call: (cand: Availability, timeoutMs: number) => Promise<T>;
+  /**
+   * « Régénérer » : ne pas LIRE le cache. L'appel part, compte une unité comme
+   * un autre, et son résultat est écrit sous la même clé : il remplace l'ancien.
+   */
+  skipCacheRead?: boolean;
   /** Ce qu'il faut mettre en cache pour ce résultat ; `null` = rien. */
   onSuccess?: (cand: Availability, result: T) => Promise<AiCacheValue | null>;
 }
@@ -62,7 +67,9 @@ export async function runWithFallback<T>(a: Attempt<T>): Promise<{ result: T | A
   for (const cand of candidates) {
     const key = a.cacheKeyFor(cand);
     let cached = null;
-    try { cached = await aiCacheGet(key); } catch { /* cache illisible = absence */ }
+    if (!a.skipCacheRead) {
+      try { cached = await aiCacheGet(key); } catch { /* cache illisible = absence */ }
+    }
     if (cached) return { result: cached, cand, fromCache: true, fellBackFrom };
 
     const remaining = a.deadline - a.now();

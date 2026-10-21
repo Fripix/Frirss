@@ -882,6 +882,8 @@
     "translateWith": "Traduire avec…",
     "translateMenu": "Options de traduction",
     "translateArticle": "Traduire l'article",
-    "translateArticleMenu": "Options de traduction de l'article"
+    "translateArticleMenu": "Options de traduction de l'article",
+    "regenerate": "Régénérer",
+    "retranslate": "Retraduire"
   }
 }

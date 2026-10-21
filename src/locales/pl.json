@@ -916,6 +916,8 @@
     "translateWith": "Przetłumacz za pomocą…",
     "translateMenu": "Opcje tłumaczenia",
     "translateArticle": "Przetłumacz artykuł",
-    "translateArticleMenu": "Opcje tłumaczenia artykułu"
+    "translateArticleMenu": "Opcje tłumaczenia artykułu",
+    "regenerate": "Wygeneruj ponownie",
+    "retranslate": "Przetłumacz ponownie"
   }
 }

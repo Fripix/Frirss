@@ -2110,7 +2110,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   non. Le jour civil suit le fuseau du conteneur (`TZ`). Résumés et lots de
   traduction partagent ce compteur. Un résultat servi par le cache ne consomme
   rien et n'est pas bloqué par le plafond ; une demande rattachée à une
-  génération en cours non plus (voir « Demandes partagées, côté serveur »). **Plafond atteint
+  génération en cours non plus (voir « Demandes partagées, côté serveur »).
+  « Régénérer » / « Retraduire » compte comme un appel ordinaire. **Plafond atteint
   sur un candidat payé par l'admin, repli actif** : ce candidat est *sauté* et
   on essaie le suivant non payé par l'admin (clé personnelle, Ollama sans clé) ;
   `ai_daily_cap` (429) n'est levé que s'il n'en reste aucun. Repli coupé : 429
@@ -2148,7 +2149,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   table `ai_cache` purgée au-delà de 10 000 lignes, les plus anciennes d'abord
   (`created_at`, puis `rowid` pour départager une même seconde). Une panne du
   cache n'empêche ni de lire ni d'écrire le résultat ; une valeur Redis
-  illisible est une absence.
+  illisible est une absence. « Régénérer » / « Retraduire » ne lit pas le
+  cache et y **remplace** l'entrée (voir plus bas).
 - **Demandes partagées, côté serveur** (`inflight.ts`, résumé et traduction) :
   une demande identique à une génération **en cours** se rattache à sa
   promesse au lieu de rappeler le modèle — deux onglets, deux appareils ou un
@@ -2165,12 +2167,54 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   en cache ; l'entrée disparaît dès que la génération se règle. La table est
   en mémoire, propre au processus. S'ajoute au partage du navigateur
   (`aiPending.ts`), qui évite déjà la seconde requête HTTP dans un même onglet.
+- **Régénérer / Retraduire** (1.7.0) : champ `regenerate` des deux routes
+  (`POST /api/ai/summary`, `POST /api/ai/translate`), booléen strict — absent
+  ou `false` = demande ordinaire, toute autre valeur (`"yes"`, `1`, `null`) →
+  400 `invalid_body`. Avec `regenerate: true`, le serveur **ne lit pas le
+  cache** (`skipCacheRead` de `runWithFallback`) et **ne se rattache à aucune
+  génération en cours** : il appelle le modèle, compte **une unité** du
+  plafond comme un appel ordinaire (une par lot pour la traduction), et écrit
+  le résultat sous la même clé de cache — il **remplace** l'ancien, que la
+  demande ordinaire suivante ne reverra plus. Une régénération ne s'inscrit
+  pas non plus dans la table des générations en cours : une demande ordinaire
+  arrivée pendant ce temps lit le cache (l'ancien résultat, s'il y est) ou
+  appelle à son tour. Le repli joue comme pour toute demande. Côté client :
+  - **« Régénérer »** (`ai.regenerate`), **dernier** du menu « Résumer avec… »
+    (popover bureau et feuille tactile), sous un filet — le menu n'existe
+    qu'avec un résumé affiché. Il relance le résumé chez le fournisseur qui
+    l'a écrit (`provider` = `providerId` du résumé affiché, repli inchangé)
+    avec `regenerate: true` ; une traduction affichée est oubliée à l'arrivée
+    du nouveau résumé, comme après « Résumer avec X ».
+  - **« Retraduire »** (`ai.retranslate`), **dernier** de `TranslateMenu`
+    (résumé et article), sous un filet, **seulement quand une traduction est
+    affichée** (`onRetranslate`, que le volet ne passe qu'alors : pour
+    l'article, état `done` et `showing === 'translation'`). Il relance la
+    traduction courante — même langue, même fournisseur (`providerId` de la
+    traduction affichée, celui du dernier lot pour l'article) — avec
+    `regenerate: true` ; pour l'article, `translate(choix, { regenerate:
+    true })` saute la remontrée sans requête de la traduction tenue, et
+    chaque lot part avec le champ. Un échec garde la traduction affichée,
+    l'alerte s'y ajoute (règle existante).
+  - Ce sont des `menuitem` (une action, pas un choix : jamais `aria-checked`)
+    sur ordinateur, des rangées de feuille (`sheet-row`, 48 px) au doigt, dans
+    le même portail que leur menu. En **dernier** : le premier élément
+    focalisé à l'ouverture ne change pas, et le filtre des langues reste collé
+    à leur liste.
+  - Les demandes partagées du navigateur ont une **clé à part** pour une
+    régénération (`summaryRequestKey`, `summaryTranslationKey`,
+    `articleBatchKey` d'`aiPending.ts`, préfixe `regen:`) : elle ne se
+    rattache jamais à une demande ordinaire en cours, qui pourrait servir le
+    cache qu'on veut remplacer ; deux régénérations identiques en vol se
+    partagent.
+  - Aucun raccourci, aucune entrée de palette, aucun texte libre vers le
+    modèle : c'est une dépense explicite d'un clic (décision du propriétaire).
 - **Langue** : le résumé est dans la langue de l'article ; le modèle rend
   `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) : c'est
   elle qui dit si le résumé est déjà dans la langue cible, auquel cas
   « Traduire » ne paraît pas (voir « Traduire le résumé »).
 - **Entrée** (`POST /api/ai/summary`) : `articleId` ≤ 512 caractères, `title`
-  tronqué à 500, `html` ≤ 200 Ko, sinon 400 `invalid_body` ; `ratio` entier de
+  tronqué à 500, `html` ≤ 200 Ko, `regenerate` absent ou booléen, sinon 400
+  `invalid_body` ; `ratio` entier de
   5 à 50, sinon 20 — **jamais** un 400 pour ce champ, c'est un réglage de
   confort (un client plus ancien ne l'envoie pas) ; le texte est ensuite
   borné à 200 000 caractères. La conversion HTML → texte (`text.ts`) est
@@ -2222,7 +2266,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 - **Traduction — serveur** (`translate.ts`, route `POST /api/ai/translate`) :
   corps `{ articleId, scope: 'summary' | 'article', targetLang, segments,
   provider?, translationProvider?, feedProvider?, categoryProvider?,
-  preferredProvider?, fallback? }` → `{ segments, lang, same, providerId,
+  preferredProvider?, fallback?, regenerate? }` → `{ segments, lang, same, providerId,
   providerName, model, fromCache, fellBackFrom? }`. **Une requête = un lot = un
   appel** : c'est le client qui découpe en lots (≈ 1 200 mots, 200 000
   octets, 120 segments au plus) et les envoie en série. Format **strict** en entrée comme en sortie, chaque segment
@@ -2297,8 +2341,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `articleId` ≤ 512 caractères, `segments` tableau de 1 à 1 000 chaînes non
   vides totalisant ≤ 200 000 octets (sans borne sur le nombre, des centaines
   de milliers de segments d'un octet, chacun enveloppé dans `<s n="…">`,
-  gonflaient le prompt pour une seule unité du plafond), `scope` connu, sinon
-  400 `invalid_body` ;
+  gonflaient le prompt pour une seule unité du plafond), `scope` connu,
+  `regenerate` absent ou booléen, sinon 400 `invalid_body` ;
   `targetLang` hors des 28 langues de `languages.ts` (`AI_LANGUAGES`, ni `ru`
   ni `he`) → 400 `invalid_lang`. Les autres erreurs sont celles du résumé
   (même fonction `sendAiError`) : 404 `ai_disabled`, 429 `ai_daily_cap` avec
@@ -2550,7 +2594,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     formats tablette et smartphone (`useBreakpoint() !== 'desktop'`, le format
     est forçable manuellement : ce n'est pas la détection du tactile). Le
     popover vit dans `ReadingPane/Popover.tsx`, partagé avec le menu de
-    traduction.
+    traduction. Il se termine par « Régénérer » (voir « Régénérer /
+    Retraduire »).
   - **Traduire le résumé** : à côté de « Résumer avec… », un **bouton scindé**
     cerclé du filet du panneau — « Traduire » (vers la langue cible : réglage
     `aiTranslationLanguage`, ou `targetLanguage()` de la langue d'interface pour
@@ -2570,7 +2615,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     liste bornée en hauteur pour que la seconde section reste en vue) et
     « Traduire avec… » (fournisseurs `available`). Chaque section est un
     `role="group"` de `menuitemradio`, le choix courant en `aria-checked` (la
-    coche visible est décorative). Popover en portail sur ordinateur, feuille
+    coche visible est décorative) ; quand une traduction est affichée, un
+    `menuitem` « Retraduire » suit les deux sections (voir « Régénérer /
+    Retraduire »). Popover en portail sur ordinateur, feuille
     du bas sur tablette et smartphone (`aria-current` sur le choix courant),
     comme « Résumer avec… ». Clavier, sur ordinateur (`Popover.tsx`, option
     `header`) : le focus part dans le filtre, Flèche bas entre dans la liste,
@@ -2596,7 +2643,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     changement d'article et à l'arrivée d'un autre résumé ; une réponse
     arrivée après coup est ignorée (`aiTranslationSeq`). Les demandes en vol
     sont partagées comme celles du résumé (`aiPending.ts`, clé : compte,
-    article, texte du résumé, langue, fournisseur forcé) : revenir sur
+    article, texte du résumé, langue, fournisseur forcé, et `regen:` devant
+    pour « Retraduire ») : revenir sur
     l'article pendant la traduction ne la paie pas deux fois.
   - L'action est **désactivée hors ligne** (`useOnlineStatus`, qui suit les
     événements `online` / `offline`) — « Traduire » et son chevron aussi ;
@@ -2753,8 +2801,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     part avec le jeton du compte suivant). Le lot déjà en vol, lui, est payé
     et gardé par le cache serveur.
   - **Demandes partagées** : chaque lot passe par `sharedTranslationRequest`
-    (clé : `article`, compte, article, langue, fournisseur forcé, hash du
-    corps, rang du lot ; un lot rejoué en deux moitiés reste **une seule**
+    (`articleBatchKey` — clé : `article`, compte, article, langue, fournisseur
+    forcé, hash du corps, rang du lot, `regen:` devant pour « Retraduire » ;
+    un lot rejoué en deux moitiés reste **une seule**
     demande partagée) : revenir sur l'article et relancer reprend le lot en
     vol — moitiés comprises — au lieu de le repayer ; le cache serveur sert les lots déjà traduits,
     et un lot identique demandé depuis un autre onglet pendant qu'il court se

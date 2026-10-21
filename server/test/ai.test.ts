@@ -86,6 +86,24 @@ describe('ai admin + summary', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await expect(cfgUsage(userToken)).resolves.toBe(1);
   });
+  it('regenerate: true ignores the cached summary and replaces it; a non-boolean is 400', async () => {
+    const fetchMock = stubProvider('lang: fr\n\nRésumé neuf.');
+    const post = (b: object) => request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
+      .send({ articleId: 'art-route-1', title: 'Titre', html: longHtml, ...b });
+    const fresh = await post({ regenerate: true });
+    expect(fresh.status).toBe(200);
+    expect(fresh.body).toMatchObject({ text: 'Résumé neuf.', fromCache: false });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const after = await post({});
+    expect(after.body).toMatchObject({ text: 'Résumé neuf.', fromCache: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    for (const bad of ['yes', 1, null]) {
+      const res = await post({ regenerate: bad });
+      expect(res.status, String(bad)).toBe(400);
+      expect(res.body.error).toBe('invalid_body');
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   it('passes a valid ratio to the prompt and falls back to 20 for anything else, never 400', async () => {
     const fetchMock = stubProvider();
     const post = (articleId: string, ratio: unknown) => request(app).post('/api/ai/summary').set('Authorization', `Bearer ${userToken}`)
@@ -475,6 +493,19 @@ describe('ai translate route', () => {
     const second = await post(body({ translationProvider: id }));
     expect(second.body.fromCache).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('regenerate: true retranslates past the cache and replaces it; a non-boolean is 400', async () => {
+    setSetting('ai_daily_cap', '0');
+    const fetchMock = stubProvider('lang: en\n<s n="0">Salut</s>');
+    const fresh = await post(body({ translationProvider: id, regenerate: true }));
+    expect(fresh.status).toBe(200);
+    expect(fresh.body).toMatchObject({ segments: ['Salut'], fromCache: false });
+    const after = await post(body({ translationProvider: id }));
+    expect(after.body).toMatchObject({ segments: ['Salut'], fromCache: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const bad = await post(body({ translationProvider: id, regenerate: 'yes' }));
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toBe('invalid_body');
   });
   it('says detail segments when the answer stays unusable', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});

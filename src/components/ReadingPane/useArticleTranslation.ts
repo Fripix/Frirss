@@ -8,7 +8,7 @@ import { aiErrorMessage, isAiDeadline, isAiMalformed, isUpstreamCut } from '../.
 import type { AiRouting } from '../../lib/aiRouting';
 import type { AiLanguage } from '../../lib/aiLanguages';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
-import { sharedTranslationRequest } from './aiPending';
+import { sharedTranslationRequest, articleBatchKey } from './aiPending';
 
 export interface ArticleTranslationInput {
   articleId: string | null;
@@ -30,6 +30,10 @@ export interface TranslateOptions {
   /** Demande partie seule (traduction automatique du flux ou de la catégorie) :
    *  un `same` n'affiche rien ; une erreur, si (une bascule payante doit se voir). */
   automatic?: boolean;
+  /** « Retraduire » : jamais la traduction tenue, chaque lot part avec
+   *  `regenerate` (le serveur ignore son cache et le remplace), dans une
+   *  demande partagée à part (`articleBatchKey`). */
+  regenerate?: boolean;
 }
 
 export interface ArticleTranslation {
@@ -331,6 +335,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
 
   const translate = useCallback((choice?: TranslateChoice, options?: TranslateOptions) => {
     const automatic = options?.automatic === true;
+    const regenerate = options?.regenerate === true;
     const { input: inp, hash, key: k, current: cur, canTranslate: can, t: tr, language, isAdmin: admin } = latest.current;
     const id = inp.articleId;
     if (!inp.enabled || !id || !can || cur.state === 'loading') return;
@@ -339,7 +344,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
     const keptLang = choice?.providerId !== undefined ? held?.lang : null;
     const lang = choice?.lang ?? keptLang ?? inp.targetLang;
     // La traduction tenue répond déjà à la demande : la remontrer, sans appel.
-    if (held && held.lang === lang && (choice?.providerId === undefined || choice.providerId === held.providerId)) {
+    if (!regenerate && held && held.lang === lang && (choice?.providerId === undefined || choice.providerId === held.providerId)) {
       setSnap((s) => (s.key === k ? { ...s, showing: 'translation' } : s));
       return;
     }
@@ -389,6 +394,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
           return await requestAiTranslation({
             articleId: id, scope: 'article', targetLang: lang, segments: indices.map((i) => prep.send[i]),
             provider: choice?.providerId, ...routing,
+            ...(regenerate ? { regenerate: true } : {}),
           });
         } catch (err) {
           if (err && typeof err === 'object') Object.assign(err, { elapsedMs: Date.now() - started });
@@ -398,7 +404,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
       // Un lot = une demande partagée, rejeu en deux moitiés compris : un
       // retour sur l'article pendant une moitié s'y rattache.
       const sendBatch = (b: number) => sharedTranslationRequest(
-        `article:${user}:${id}:${lang}:${choice?.providerId ?? ''}:${hash}:${b}`,
+        articleBatchKey({ user, articleId: id, lang, providerId: choice?.providerId, hash, batch: b, regenerate }),
         async (wanted) => {
           const indices = prep.batches[b];
           try {

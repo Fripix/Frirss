@@ -133,4 +133,26 @@ describe('TranslateMenu', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
+  it('offers no « Retraduire » without a translation on screen', () => {
+    const { getByRole } = setup();
+    expect(within(getByRole('menu')).queryByRole('menuitem', { name: 'ai.retranslate' })).toBeNull();
+  });
+  it('« Retraduire »: a plain menuitem (not a choice), after the two sections, that calls onRetranslate', () => {
+    const onRetranslate = vi.fn();
+    const { getByRole, onPick } = setup({ onRetranslate });
+    const menu = getByRole('menu');
+    const item = within(menu).getByRole('menuitem', { name: 'ai.retranslate' });
+    expect(item.hasAttribute('aria-checked')).toBe(false);
+    expect(providerSection(menu).contains(item)).toBe(false);
+    expect(providerSection(menu).compareDocumentPosition(item) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(item);
+    expect(onRetranslate).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+  });
+  it('touch: « Retraduire » is a sheet row', () => {
+    const { getByRole } = setup({ touch: true, onRetranslate: vi.fn() });
+    const row = within(getByRole('dialog', { name: 'ai.translateMenu' })).getByText('ai.retranslate').closest('button')!;
+    expect(row.className).toContain('sheet-row');
+    expect(row.getAttribute('role')).toBeNull();
+  });
 });

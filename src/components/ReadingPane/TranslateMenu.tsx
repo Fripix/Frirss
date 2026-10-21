@@ -19,6 +19,12 @@ export interface TranslateMenuProps {
   current: { lang: AiLanguage; providerId: number | null };
   onPick: (choice: { lang?: AiLanguage; providerId?: number }) => void;
   onClose: () => void;
+  /**
+   * « Retraduire » : présent seulement quand une traduction est affichée (le
+   * volet ne le passe qu'alors). Relance la traduction courante — même
+   * langue, même fournisseur — sans cache : un appel payé, une unité.
+   */
+  onRetranslate?: () => void;
 }
 
 /**
@@ -30,13 +36,18 @@ export interface TranslateMenuProps {
  *
  * Chaque choix est indépendant : une langue rend `{ lang }`, un fournisseur
  * `{ providerId }` ; c'est le volet qui complète l'autre moitié.
+ *
+ * « Retraduire » (`onRetranslate`) vient après les deux sections, séparé d'un
+ * filet : c'est une action, pas un choix — un `menuitem`, jamais coché. En
+ * dernier, il laisse le filtre collé à la liste des langues et le premier
+ * élément focalisé inchangé.
  */
 export default function TranslateMenu(props: TranslateMenuProps) {
   // Le contenu est remonté à chaque ouverture : le filtre repart vide.
   return props.open ? <OpenMenu {...props} /> : null;
 }
 
-function OpenMenu({ anchor, touch, title, languages, providers, current, onPick, onClose }: TranslateMenuProps) {
+function OpenMenu({ anchor, touch, title, languages, providers, current, onPick, onClose, onRetranslate }: TranslateMenuProps) {
   const { t, i18n } = useTranslation();
   const uid = useId();
   const [filter, setFilter] = useState('');
@@ -96,6 +107,15 @@ function OpenMenu({ anchor, touch, title, languages, providers, current, onPick,
         <div role="group" aria-labelledby={`${uid}-with`} className="mt-1 pt-1" style={{ borderTop: '1px solid var(--panel-border)' }}>
           <p id={`${uid}-with`} className={headingClass} style={headingStyle}>{t('ai.translateWith')}</p>
           {available.map((p) => row(String(p.id), p.name, p.id === current.providerId, () => onPick({ providerId: p.id })))}
+        </div>
+      )}
+      {onRetranslate && (
+        <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--panel-border)' }}>
+          <button type="button" onClick={onRetranslate} className={rowClass} style={{ color: 'var(--list-title)' }} role={touch ? undefined : 'menuitem'}>
+            {/* Même colonne que la coche des choix : les libellés restent alignés. */}
+            <span aria-hidden="true" className="w-3.5 flex-shrink-0" />
+            <span className="truncate">{t('ai.retranslate')}</span>
+          </button>
         </div>
       )}
     </>

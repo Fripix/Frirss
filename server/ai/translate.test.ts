@@ -274,5 +274,20 @@ describe('identical batches in flight are shared', () => {
     await Promise.all(runs);
     expect(call).toHaveBeenCalledTimes(3);
   });
+
 });
 
+describe('regenerate', () => {
+  it('regenerate ignores the cached batch, calls the model and replaces the cache', async () => {
+    const call = vi.fn()
+      .mockResolvedValueOnce(answer('lang: en\n<s n="0">Bonjour</s>'))
+      .mockResolvedValueOnce(answer('lang: en\n<s n="0">Salut</s>'));
+    await translate({ ...base, articleId: 'trg-1', available: [A(1, 'Paid', true)] }, { call });
+    const fresh = await translate({ ...base, articleId: 'trg-1', regenerate: true, available: [A(1, 'Paid', true)] }, { call });
+    expect(fresh).toMatchObject({ segments: ['Salut'], fromCache: false });
+    expect(usageToday(44)).toBe(2);
+    const after = await translate({ ...base, articleId: 'trg-1', available: [A(1, 'Paid', true)] }, { call });
+    expect(after).toMatchObject({ segments: ['Salut'], fromCache: true });
+    expect(call).toHaveBeenCalledTimes(2);
+  });
+});

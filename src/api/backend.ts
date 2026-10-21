@@ -228,6 +228,8 @@ export async function getAiConfig(): Promise<AiConfig> {
 export async function requestAiSummary(body: {
   articleId: string; title: string; html: string; provider?: number; ratio?: number;
   feedProvider?: number; categoryProvider?: number; preferredProvider?: number; fallback?: boolean;
+  /** « Régénérer » : le serveur ignore son cache et le remplace (une unité du plafond). */
+  regenerate?: boolean;
 }): Promise<AiSummaryResult> {
   const { data } = await backend.post<AiSummaryResult>('/ai/summary', body);
   return data;
@@ -241,6 +243,8 @@ export async function requestAiTranslation(body: {
   articleId: string; scope: 'summary' | 'article'; targetLang: AiLanguage; segments: string[];
   provider?: number; translationProvider?: number; feedProvider?: number; categoryProvider?: number;
   preferredProvider?: number; fallback?: boolean;
+  /** « Retraduire » : le serveur ignore son cache et le remplace (une unité du plafond par lot). */
+  regenerate?: boolean;
 }): Promise<AiTranslationResult> {
   const { data } = await backend.post<AiTranslationResult>('/ai/translate', body);
   return data;

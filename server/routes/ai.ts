@@ -72,12 +72,14 @@ router.put('/keys/:providerId', (req, res) => {
 
 const asId = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
 /** Réglage de confort, jamais une raison de refuser : hors bornes, c'est le défaut. */
+/** `regenerate` : absent ou booléen strict ; autre chose est un corps invalide. */
+const badFlag = (v: unknown): boolean => v !== undefined && typeof v !== 'boolean';
 const asRatio = (v: unknown): number => (typeof v === 'number' && Number.isInteger(v) && v >= 5 && v <= 50 ? v : DEFAULT_SUMMARY_RATIO);
 
 router.post('/summary', async (req, res) => {
   if (!isAiEnabled()) return res.status(404).json({ error: 'ai_disabled' });
-  const { articleId, title, html, provider, feedProvider, categoryProvider, preferredProvider, fallback, ratio } = req.body ?? {};
-  if (typeof articleId !== 'string' || !articleId || articleId.length > MAX_ID_CHARS || typeof html !== 'string' || Buffer.byteLength(html) > MAX_HTML_BYTES) {
+  const { articleId, title, html, provider, feedProvider, categoryProvider, preferredProvider, fallback, ratio, regenerate } = req.body ?? {};
+  if (typeof articleId !== 'string' || !articleId || articleId.length > MAX_ID_CHARS || typeof html !== 'string' || Buffer.byteLength(html) > MAX_HTML_BYTES || badFlag(regenerate)) {
     return res.status(400).json({ error: 'invalid_body' });
   }
   try {
@@ -87,6 +89,7 @@ router.post('/summary', async (req, res) => {
       available: availability(req.user),
       fallback: fallback !== false,
       ratio: asRatio(ratio),
+      regenerate: regenerate === true,
     });
     res.json(out);
   } catch (err) {
@@ -118,8 +121,8 @@ const isSegments = (v: unknown): v is string[] =>
 
 router.post('/translate', async (req, res) => {
   if (!isAiEnabled()) return res.status(404).json({ error: 'ai_disabled' });
-  const { articleId, scope, targetLang, segments, provider, translationProvider, feedProvider, categoryProvider, preferredProvider, fallback } = req.body ?? {};
-  if (typeof articleId !== 'string' || !articleId || articleId.length > MAX_ID_CHARS || (scope !== 'summary' && scope !== 'article') || !isSegments(segments)) {
+  const { articleId, scope, targetLang, segments, provider, translationProvider, feedProvider, categoryProvider, preferredProvider, fallback, regenerate } = req.body ?? {};
+  if (typeof articleId !== 'string' || !articleId || articleId.length > MAX_ID_CHARS || (scope !== 'summary' && scope !== 'article') || !isSegments(segments) || badFlag(regenerate)) {
     return res.status(400).json({ error: 'invalid_body' });
   }
   if (!isAiLanguage(targetLang)) return res.status(400).json({ error: 'invalid_lang' });
@@ -132,6 +135,7 @@ router.post('/translate', async (req, res) => {
       },
       available: availability(req.user),
       fallback: fallback !== false,
+      regenerate: regenerate === true,
     });
     res.json(out);
   } catch (err) {

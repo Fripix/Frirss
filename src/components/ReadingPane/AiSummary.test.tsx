@@ -229,7 +229,7 @@ describe('AiSummary — « Résumer avec… »', () => {
     const menu = getByRole('menu');
     expect(menu.parentElement).toBe(document.body);
     expect(container.contains(menu)).toBe(false);
-    expect(getAllByRole('menuitem').map((b) => b.textContent)).toEqual(['Claude', 'Ollama']);
+    expect(getAllByRole('menuitem').map((b) => b.textContent)).toEqual(['Claude', 'Ollama', 'ai.regenerate']);
   });
   it('opening the menu does not fold the panel', () => {
     const { getByRole } = render(<AiSummary {...doneProps} />);
@@ -283,6 +283,20 @@ describe('AiSummary — « Résumer avec… »', () => {
     const { getByRole, getAllByRole } = render(<AiSummary {...doneProps} />);
     fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
     expect(getAllByRole('menuitem')[0].className).not.toContain('sheet-row');
+  });
+  it('« Régénérer », last in the menu, asks again with the provider that wrote the summary', () => {
+    const onSummarize = vi.fn();
+    const { getByRole } = render(<AiSummary {...doneProps} onSummarize={onSummarize} />);
+    fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
+    const item = getByRole('menuitem', { name: 'ai.regenerate' });
+    fireEvent.click(item);
+    expect(onSummarize).toHaveBeenCalledWith(2, { regenerate: true });
+  });
+  it('touch: « Régénérer » is a sheet row in the bottom sheet', () => {
+    breakpoint.mockImplementation(() => 'mobile');
+    const { getByRole } = render(<AiSummary {...doneProps} />);
+    fireEvent.click(getByRole('button', { name: 'ai.withProvider' }));
+    expect(within(getByRole('dialog')).getByText('ai.regenerate').closest('button')?.className).toContain('sheet-row');
   });
   it('the menu closes when the status leaves done, and does not reopen', () => {
     const { getByRole, queryByRole, rerender } = render(<AiSummary {...doneProps} />);
@@ -389,5 +403,16 @@ describe('AiSummary — traduction du résumé', () => {
     expect(getByRole('alert').textContent).toBe('ai.errors.translateFailed');
     expect(getByText('Premier.')).toBeTruthy();
     expect(getByRole('button', TRANSLATE)).toBeTruthy();
+  });
+  it('« Retraduire » appears only with a translation on screen, and asks again in its language with its provider', () => {
+    const onTranslate = vi.fn();
+    const { getByRole, queryByRole, rerender } = render(<AiSummary {...doneProps} targetLang="en" onTranslate={onTranslate} />);
+    fireEvent.click(getByRole('button', MENU));
+    expect(queryByRole('menuitem', { name: 'ai.retranslate' })).toBeNull();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    rerender(<AiSummary {...doneProps} targetLang="en" onTranslate={onTranslate} translation={translated} />);
+    fireEvent.click(getByRole('button', MENU));
+    fireEvent.click(getByRole('menuitem', { name: 'ai.retranslate' }));
+    expect(onTranslate).toHaveBeenCalledWith({ lang: 'en', providerId: 1, regenerate: true });
   });
 });

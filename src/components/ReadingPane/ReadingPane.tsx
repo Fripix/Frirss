@@ -31,7 +31,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { stripMediaForSummary, fitSummaryPayload } from '../../lib/aiPayload';
 import { aiErrorMessage } from '../../lib/aiErrorKey';
-import { sharedSummaryRequest, sharedTranslationRequest } from './aiPending';
+import { sharedSummaryRequest, sharedTranslationRequest, summaryRequestKey, summaryTranslationKey } from './aiPending';
 import { AI_LANGUAGES, languageName, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import { aiRouting } from '../../lib/aiRouting';
 import { autoFor } from '../../lib/aiAuto';
@@ -793,7 +793,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }
   }, [selectedArticle, t]);
 
-  const handleSummarize = useCallback(async (providerId?: number, opts?: { auto?: boolean }) => {
+  // `regenerate` : « Régénérer » — même fournisseur, sans le cache du serveur,
+  // dans une demande partagée à part (`summaryRequestKey`).
+  const handleSummarize = useCallback(async (providerId?: number, opts?: { auto?: boolean; regenerate?: boolean }) => {
     if (!selectedArticle || aiInFlight.current === selectedArticle.id) return;
     const id = selectedArticle.id;
     // L'extrait n'est celui de cet article que si l'extraction lui appartient.
@@ -801,12 +803,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     aiInFlight.current = id;
     setAiStatus('loading'); setAiError(null);
     try {
-      const key = `${useAuthStore.getState().backendUser?.id ?? ''}:${id}:${providerId ?? ''}`;
+      const regenerate = opts?.regenerate === true;
+      const key = summaryRequestKey({ user: useAuthStore.getState().backendUser?.id, articleId: id, providerId, regenerate });
       const r = await sharedSummaryRequest(key, () => requestAiSummary({
         articleId: id, title: selectedArticle.title,
         html: fitSummaryPayload(stripMediaForSummary(fullText ?? selectedArticle.content ?? '')),
         provider: providerId,
         ratio: aiRatio,
+        ...(regenerate ? { regenerate: true } : {}),
         ...aiRouting(selectedArticle.sourceId, useFeedStore.getState().subscriptions, useUiStore.getState()),
         // « Résumer avec X » replie comme les autres demandes (décision du
         // propriétaire, 2026-10-20) : si X échoue, le suivant répond et l'en-tête
@@ -839,7 +843,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // langue de la traduction affichée (sinon la cible) et, comme « Résumer avec
   // X », garde le réglage de repli : si X échoue, le statut dit « X
   // indisponible ». Les demandes en vol sont partagées (`aiPending.ts`).
-  const handleTranslateSummary = useCallback(async (choice?: { lang?: AiLanguage; providerId?: number }) => {
+  // « Retraduire » passe la langue et le fournisseur affichés avec
+  // `regenerate` : le serveur ignore son cache et le remplace.
+  const handleTranslateSummary = useCallback(async (choice?: { lang?: AiLanguage; providerId?: number; regenerate?: boolean }) => {
     if (!selectedArticle || !aiResult || aiTranslation.status === 'loading') return;
     const id = selectedArticle.id;
     const text = aiResult.text;
@@ -848,10 +854,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     const seq = ++aiTranslationSeq.current;
     setAiTranslation({ ...NO_AI_TRANSLATION, status: 'loading' });
     try {
-      const key = `${useAuthStore.getState().backendUser?.id ?? ''}:${id}:${lang}:${choice?.providerId ?? ''}:${text}`;
+      const regenerate = choice?.regenerate === true;
+      const key = summaryTranslationKey({ user: useAuthStore.getState().backendUser?.id, articleId: id, lang, providerId: choice?.providerId, text, regenerate });
       const r = await sharedTranslationRequest(key, () => requestAiTranslation({
         articleId: id, scope: 'summary', targetLang: lang, segments: [text],
         provider: choice?.providerId,
+        ...(regenerate ? { regenerate: true } : {}),
         ...aiRouting(selectedArticle.sourceId, useFeedStore.getState().subscriptions, useUiStore.getState(), { op: 'translate' }),
       }));
       if (aiTranslationSeq.current !== seq) return;
@@ -1912,6 +1920,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           languages={TRANSLATE_LANGUAGES} providers={aiProviders}
           current={{ lang: tr.state === 'done' && tr.lang ? tr.lang : aiTargetLang, providerId: tr.state === 'done' ? tr.providerId ?? null : null }}
           onPick={(choice) => { setTranslateMenuOpen(false); returnTranslateFocus(); tr.translate(choice); }}
+          // « Retraduire » : seulement sur une traduction affichée, dans sa langue et chez son fournisseur.
+          onRetranslate={tr.state === 'done' && tr.showing === 'translation' && tr.lang
+            ? () => { setTranslateMenuOpen(false); returnTranslateFocus(); tr.translate({ lang: tr.lang ?? undefined, providerId: tr.providerId }, { regenerate: true }); }
+            : undefined}
           onClose={closeTranslateMenu}
         />
       )}

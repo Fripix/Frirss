@@ -74,6 +74,12 @@ la release publiée.
   autre onglet ou un autre appareil du même compte —, le serveur rattache la
   seconde demande à la première au lieu de rappeler le modèle : un seul appel
   payé, une seule unité du plafond, la réponse s'affiche « depuis le cache ».
+- **« Régénérer » et « Retraduire ».** Le menu « Résumer avec… » se termine par
+  « Régénérer », et le menu de traduction (résumé et article) par
+  « Retraduire » quand une traduction est affichée : la demande repart chez
+  le même fournisseur (et dans la même langue), sans le cache, dont le
+  nouveau résultat prend la place. Un clic, un appel payé, une unité du
+  plafond ; ni raccourci ni consigne libre.
 
 ## Corrections et améliorations
 
