@@ -83,6 +83,7 @@ function redirectToCloudflareAccess(value: unknown): boolean {
 }
 
 const ACCESS_RELOAD_STORAGE_KEY = 'frirss:cloudflare-access-reload-at';
+const ACCESS_LOGIN_REDIRECT_STORAGE_KEY = 'frirss:cloudflare-access-login-redirect-at';
 const ACCESS_RELOAD_COOLDOWN_MS = 60_000;
 let accessReloadStarted = false;
 
@@ -105,7 +106,72 @@ function isCloudflareAccessUnauthorized(value: unknown): boolean {
     rawHeader.trim().toLowerCase().startsWith('cloudflare-access');
 }
 
-export function reloadForCloudflareAccess(value: unknown): boolean {
+function getAccessMetadataUrl(value: unknown): string | null {
+  const response = (value as HeaderCarrier | null)?.response;
+  const headers = response?.headers;
+  const rawHeader =
+    typeof headers?.get === 'function'
+      ? headers.get('www-authenticate')
+      : headers?.['www-authenticate'] ?? headers?.['WWW-Authenticate'];
+  if (typeof rawHeader !== 'string') return null;
+  const match = rawHeader.match(/resource_metadata="([^"]+)"/i);
+  if (!match || typeof window === 'undefined') return null;
+  try {
+    const metadataUrl = new URL(match[1]);
+    // Only fetch metadata from this app's own origin; never follow an arbitrary
+    // URL supplied in an authentication header.
+    if (metadataUrl.origin !== window.location.origin || metadataUrl.protocol !== 'https:') {
+      return null;
+    }
+    return metadataUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function getCloudflareAccessLoginUrlFromTeamDomain(
+  teamDomain: unknown,
+  appHost: string,
+  returnTo: string,
+): string | null {
+  if (typeof teamDomain !== 'string') return null;
+  try {
+    const teamUrl = new URL(teamDomain.includes('://') ? teamDomain : `https://${teamDomain}`);
+    if (
+      teamUrl.protocol !== 'https:' ||
+      !teamUrl.hostname.endsWith('.cloudflareaccess.com') ||
+      teamUrl.username ||
+      teamUrl.password
+    ) return null;
+    const loginUrl = new URL(
+      `/cdn-cgi/access/login/${encodeURIComponent(appHost)}`,
+      teamUrl.origin,
+    );
+    loginUrl.searchParams.set('redirect_url', returnTo || '/');
+    return loginUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function getMetadataBasedLoginUrl(value: unknown, returnTo: string): Promise<string | null> {
+  const metadataUrl = getAccessMetadataUrl(value);
+  if (!metadataUrl || typeof fetch !== 'function') return null;
+  try {
+    const response = await fetch(metadataUrl, { credentials: 'omit', cache: 'no-store' });
+    if (!response.ok) return null;
+    const metadata = await response.json() as { team_domain?: unknown };
+    return getCloudflareAccessLoginUrlFromTeamDomain(
+      metadata.team_domain,
+      window.location.host,
+      returnTo,
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function reloadForCloudflareAccess(value: unknown): Promise<boolean> {
   if (typeof window === 'undefined' || !isCloudflareAccessUnauthorized(value)) {
     return false;
   }
@@ -115,16 +181,26 @@ export function reloadForCloudflareAccess(value: unknown): boolean {
   try {
     const previous = Number(window.sessionStorage.getItem(ACCESS_RELOAD_STORAGE_KEY));
     if (Number.isFinite(previous) && previous > 0 && now - previous < ACCESS_RELOAD_COOLDOWN_MS) {
-      // A prior reload did not restore API access. Do not silently leave the
-      // SPA stranded: navigate through Access' login endpoint at this app host,
-      // then return to the exact page the user was viewing.
-      const returnTo = window.location.pathname + window.location.search + window.location.hash;
-      const loginUrl = new URL(
-        `/cdn-cgi/access/login/${window.location.host}`,
-        window.location.origin,
+      // A reload did not restore Access. Try the team-domain login endpoint
+      // discovered from Cloudflare's resource metadata, not an app-origin URL.
+      const loginRedirectAt = Number(
+        window.sessionStorage.getItem(ACCESS_LOGIN_REDIRECT_STORAGE_KEY),
       );
-      loginUrl.searchParams.set('redirect_url', returnTo || '/');
-      window.location.assign(loginUrl.toString());
+      if (
+        Number.isFinite(loginRedirectAt) &&
+        loginRedirectAt > 0 &&
+        now - loginRedirectAt < ACCESS_RELOAD_COOLDOWN_MS
+      ) {
+        return false;
+      }
+
+      // Set the circuit breaker before the asynchronous metadata request. If
+      // discovery fails, repeated 401s still cannot restart the flicker loop.
+      window.sessionStorage.setItem(ACCESS_LOGIN_REDIRECT_STORAGE_KEY, String(now));
+      const returnTo = window.location.pathname + window.location.search + window.location.hash;
+      const loginUrl = await getMetadataBasedLoginUrl(value, returnTo || '/');
+      if (!loginUrl) return false;
+      window.location.assign(loginUrl);
       return true;
     }
     window.sessionStorage.setItem(ACCESS_RELOAD_STORAGE_KEY, String(now));
@@ -154,11 +230,11 @@ export function reloadForCloudflareAccess(value: unknown): boolean {
 // rejeté normalement, sans toucher à la session.
 client.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (redirectToCloudflareAccess(error)) {
       return Promise.reject(new Error('Cloudflare Access authentication required'));
     }
-    if (reloadForCloudflareAccess(error)) {
+    if (await reloadForCloudflareAccess(error)) {
       return Promise.reject(new Error('Cloudflare Access authentication required'));
     }
     if (isBackendAuthFailure(error)) {

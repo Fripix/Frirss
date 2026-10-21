@@ -160,8 +160,8 @@ class CloudflareAccessAuthenticationError extends Error {
   }
 }
 
-function checkCloudflareAccessResponse(response: Response): void {
-  const accessFailure = reloadForCloudflareAccess({
+async function checkCloudflareAccessResponse(response: Response): Promise<void> {
+  const accessFailure = await reloadForCloudflareAccess({
     response: { status: response.status, headers: response.headers },
   });
   if (accessFailure) throw new CloudflareAccessAuthenticationError();
@@ -233,7 +233,7 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
       headers: { 'X-Requested-With': 'XMLHttpRequest', ...auth },
       signal,
     });
-    checkCloudflareAccessResponse(served);
+    await checkCloudflareAccessResponse(served);
     if (served.status === 429) return { limited: RATE_LIMITED, wait: retryAfterMs(served.headers) } as const;
     if (!served.ok) return null;
     const data = (await served.json()) as Partial<ExtractedContent>;
@@ -306,7 +306,7 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
       },
       signal,
     });
-    checkCloudflareAccessResponse(response);
+    await checkCloudflareAccessResponse(response);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     // Le corps est lu SOUS le signal : sans cela le minuteur retomberait à
     // l'arrivée des en-têtes, et une page distillée octet par octet tiendrait
