@@ -799,6 +799,67 @@ describe('ReadingPane — traduction de l\'article', () => {
     expect(btn.disabled).toBe(true);
     expect(btn.title).toBe('ai.translation.nothing');
   });
+  describe('translate event (keyboard shortcut, palette)', () => {
+    const fire = () => act(() => { window.dispatchEvent(new CustomEvent('frirss:ai-translate')); });
+    it('translates the open article: one article-scope request, then the translation on screen', async () => {
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+      const { findByRole, container } = render(<ReadingPane />);
+      fire();
+      expect(await findByRole('button', { name: 'ai.showSource' })).toBeTruthy();
+      expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(requestAiTranslation).mock.calls[0][0]).toMatchObject({ articleId: 'a1', scope: 'article', targetLang: 'fr' });
+      expect(bodyText(container)).toBe('word word');
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
+    it('does nothing more while the translation is on screen: no request, no switch to the source', async () => {
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+      const { findByRole, container } = render(<ReadingPane />);
+      fire();
+      await findByRole('button', { name: 'ai.showSource' });
+      fire();
+      await act(async () => { await Promise.resolve(); });
+      expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+      expect(bodyText(container)).toBe('word word');
+    });
+    it('shows again a translation held after « Texte source », without a request', async () => {
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+      const { findByRole, container } = render(<ReadingPane />);
+      fire();
+      fireEvent.click(await findByRole('button', { name: 'ai.showSource' }));
+      expect(bodyText(container)).toContain('mot mot');
+      fire();
+      expect(bodyText(container)).toBe('word word');
+      expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    });
+    it('does not start a second request while one is running', async () => {
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      render(<ReadingPane />);
+      fire();
+      await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(1));
+      fire();
+      expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    });
+    it.each([
+      ['AI is off', () => useAiStore.setState({ config: { ...ON, enabled: false } })],
+      ['no provider is usable', () => useAiStore.setState({ config: { ...ON, providers: [{ ...ON.providers[0], available: false }] } })],
+      ['offline', () => { vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false); }],
+      ['the article has no text', () => {
+        const a = { ...article('t6'), content: '<img src="https://example.com/a.png" alt="">' } as Article;
+        useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      }],
+    ] as const)('does nothing when %s', (_label, setup) => {
+      setup();
+      render(<ReadingPane />);
+      fire();
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+    });
+    it('stops listening once the pane is gone', () => {
+      const { unmount } = render(<ReadingPane />);
+      unmount();
+      fire();
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+    });
+  });
   describe('touch', () => {
     beforeEach(() => { useUiStore.setState({ layoutMode: 'mobile' } as never); });
     afterEach(() => { useUiStore.setState({ layoutMode: 'auto' } as never); });

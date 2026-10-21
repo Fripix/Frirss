@@ -366,7 +366,8 @@
       "customize": "Aanpassen in de voorkeuren",
       "gestureHelp": "Dit venster tonen",
       "helpTitle": "Sneltoetsen",
-      "summarize": "Artikel samenvatten (AI)"
+      "summarize": "Artikel samenvatten (AI)",
+      "translate": "Artikel vertalen (AI)"
     },
     "offline": {
       "title": "Offline",

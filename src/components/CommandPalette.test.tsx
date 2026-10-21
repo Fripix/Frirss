@@ -56,3 +56,36 @@ describe('CommandPalette — summarize action', () => {
     expect(useUiStore.getState().commandPaletteOpen).toBe(false);
   });
 });
+
+describe('CommandPalette — translate action', () => {
+  const TRANSLATE = 'preferences.shortcuts.translate';
+
+  it('is offered next to the summary when an article is open and AI is usable', () => {
+    const { getByText } = render(<CommandPalette />);
+    expect(getByText(TRANSLATE)).toBeTruthy();
+  });
+
+  it.each([
+    ['without an open article', () => useFeedStore.setState({ selectedArticle: null })],
+    ['while AI is off', () => useAiStore.setState({ config: { ...ON, enabled: false } })],
+    ['while no provider is usable', () => useAiStore.setState({ config: { ...ON, providers: [{ ...provider, available: false }] } })],
+  ] as const)('is not offered %s', (_label, setup) => {
+    setup();
+    const { queryByText } = render(<CommandPalette />);
+    expect(queryByText(TRANSLATE)).toBeNull();
+  });
+
+  it('closes the palette and broadcasts the translate event, not the summary one, when chosen', () => {
+    const translate = vi.fn();
+    const summarize = vi.fn();
+    window.addEventListener('frirss:ai-translate', translate);
+    window.addEventListener('frirss:ai-summarize', summarize);
+    const { getByText } = render(<CommandPalette />);
+    fireEvent.click(getByText(TRANSLATE));
+    window.removeEventListener('frirss:ai-translate', translate);
+    window.removeEventListener('frirss:ai-summarize', summarize);
+    expect(translate).toHaveBeenCalledTimes(1);
+    expect(summarize).not.toHaveBeenCalled();
+    expect(useUiStore.getState().commandPaletteOpen).toBe(false);
+  });
+});

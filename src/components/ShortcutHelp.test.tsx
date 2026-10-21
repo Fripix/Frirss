@@ -40,6 +40,23 @@ describe('ShortcutHelp — summarize entry', () => {
   });
 });
 
+describe('ShortcutHelp — translate entry', () => {
+  it('is hidden while AI is off or no provider is usable', () => {
+    render(<ShortcutHelp />);
+    expect(document.body.textContent).not.toContain('preferences.shortcuts.translate');
+    cleanup();
+    useAiStore.setState({ config: { ...cfg, providers: [{ ...provider, available: false }] } });
+    render(<ShortcutHelp />);
+    expect(document.body.textContent).not.toContain('preferences.shortcuts.translate');
+  });
+
+  it('is listed once AI is usable', () => {
+    useAiStore.setState({ config: cfg });
+    render(<ShortcutHelp />);
+    expect(document.body.textContent).toContain('preferences.shortcuts.translate');
+  });
+});
+
 describe('ShortcutHelp — closing', () => {
   it.each(['Escape', '?'])('closes on %s', (key) => {
     render(<ShortcutHelp />);

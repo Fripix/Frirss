@@ -492,8 +492,15 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
 - **Résumer l'article (IA)** : `summarize`, touche `s` par défaut. Fonction
   conditionnelle : ni la barre du bas ni l'aide-mémoire ne la montrent tant que
   l'IA est éteinte ou inutilisable, et la touche est alors laissée au
-  navigateur. Détails dans « Résumés par IA ». Les raccourcis enregistrés avant
-  son ajout reçoivent sa valeur par défaut (`withDefaultShortcuts`).
+  navigateur. Détails dans « Résumés et traductions par IA ». Les raccourcis
+  enregistrés avant son ajout reçoivent sa valeur par défaut
+  (`withDefaultShortcuts`).
+- **Traduire l'article (IA)** : `translate`, touche `t` par défaut. Même
+  condition et même garde que `summarize` (la même ligne de
+  `useKeyboardNav.ts` : ni ⌘T / Ctrl+T, ni Alt, ni touche maintenue). Elle
+  traduit l'article ouvert, ou remontre sa traduction tenue, et ne fait rien
+  quand la traduction est déjà affichée. Même rattrapage des raccourcis
+  enregistrés avant son ajout.
 - **Aide-mémoire sur `?`** (1.4.5) : fenêtre listant **tous** les raccourcis
   configurables avec les touches **réellement configurées**, plus les gestes
   intégrés dans une section à part — les mélanger laisserait croire qu'on peut
@@ -1699,7 +1706,7 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   auparavant cachée que parce qu'il n'y avait rien à mesurer sous le squelette.
 - **Traduction** : le titre et le corps peuvent être remplacés par leur
   traduction, rebâtie par la même chaîne (`buildArticleBody`) — voir
-  « Résumés par IA », « Traduction de l'article ».
+  « Résumés et traductions par IA », « Traduction de l'article ».
 - **Fabrication du corps** (1.4.10) : `src/lib/articleBody.ts` tient toute la
   chaîne — contenu choisi (extrait ou flux, image d'en-tête du flux réinjectée
   si l'extraction l'a perdue), façades vidéo, assainissement, `aspect-ratio`
@@ -1802,17 +1809,23 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   cette barre (pas de libellé à coucher) ; ils rétrécissent quand même dans le
   repli compact (classe `.toolbar-icon-btn`) pour tenir dans le même budget.
 
-### Résumés par IA
+### Résumés et traductions par IA
 Un panneau repliable « Résumé IA », en tête du volet de lecture, envoie le
 texte de l'article à un fournisseur de modèle de langage et affiche le résumé
-au-dessus de l'article. **Éteint d'origine** : tant que l'admin n'a pas activé la
-fonctionnalité (Préférences → IA → Fournisseurs), rien n'est visible pour un
-utilisateur, pas même la section ; l'admin la voit toujours. Spec :
-`docs/superpowers/specs/2026-10-15-ai-summaries-design.md` ; plan :
-`docs/superpowers/plans/2026-10-15-ai-summaries-core.md`. Demandé dans la
-discussion #22. Ce cycle livre le socle (plan 1) et le bloc utilisateur
-« Résumés » avec la longueur visée, les choix de fournisseur par flux et
-catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le plan 3.
+au-dessus de l'article. Le résumé et l'article entier se **traduisent** vers une
+langue cible, à la demande ou automatiquement par flux ou catégorie.
+**Éteint d'origine** : tant que l'admin n'a pas activé la fonctionnalité
+(Préférences → IA → Fournisseurs), rien n'est visible pour un utilisateur, pas
+même la section ; l'admin la voit toujours. Spec :
+`docs/superpowers/specs/2026-10-15-ai-summaries-design.md` (résumés et
+traductions ; révision de la traduction au §17) ; plans, dans
+`docs/superpowers/plans/` : `2026-10-15-ai-summaries-core.md` (plan 1),
+`2026-10-20-ai-summaries-user.md` (plan 2), `2026-10-20-ai-translation.md`
+(plan 3). Demandé dans la discussion #22. Ce cycle livre le socle (plan 1) ;
+le bloc utilisateur « Résumés » avec la longueur visée, les choix de
+fournisseur par flux et catégorie et le bloc « Mes clés » (plan 2) ; la
+traduction du résumé et de l'article, le bloc « Traduction », le résumé et la
+traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 
 - **Où** : serveur `server/ai/` — `text.ts` (HTML → texte, comptage de mots),
   `errors.ts` (`AiError` : `auth` / `quota` / `technical` / `refused`),
@@ -1823,13 +1836,20 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   (orchestration), `languages.ts` (langues cibles) ; routes
   `server/routes/ai.ts` (utilisateur) et `server/routes/adminAi.ts` (admin).
   Client `src/stores/aiStore.ts`, `src/components/ReadingPane/AiSummary.tsx`,
-  réglages `aiPanelCollapsed` / `aiSummaryRatio` dans `src/stores/uiStore.ts`,
+  traduction de l'article `ReadingPane/useArticleTranslation.ts` (état, lots)
+  et `src/lib/articleSegments.ts` (découpage), menu de traduction
+  `ReadingPane/TranslateMenu.tsx`, langues `src/lib/aiLanguages.ts`, étages de
+  fournisseur `src/lib/aiRouting.ts`, automatismes `src/lib/aiAuto.ts` ;
+  réglages IA (repli du panneau, longueur, langue et fournisseur de
+  traduction, choix par flux et catégorie) dans `src/stores/uiStore.ts`,
   couleurs `ai-bg` / `ai-border` dans `src/stores/themeStore.ts`,
-  `src/components/Preferences/AiTab.tsx` (compose les blocs de `Preferences/ai/`), `src/lib/aiPayload.ts` (HTML allégé
-  avant envoi), `src/lib/aiErrorKey.ts` (réponse d'erreur → message). Tests :
+  `src/components/Preferences/AiTab.tsx` (compose les blocs de
+  `Preferences/ai/`), `src/lib/aiPayload.ts` (HTML allégé avant envoi),
+  `src/lib/aiErrorKey.ts` (réponse d'erreur → message). Tests :
   `server/ai/*.test.ts`, `server/test/ai.test.ts`, `server/backup.test.ts`,
-  `src/stores/aiStore.test.ts`, `src/lib/{aiPayload,aiErrorKey}.test.ts`,
-  `ReadingPane/{AiSummary,ReadingPane.ai}.test.tsx`,
+  `src/stores/aiStore.test.ts`,
+  `src/lib/{aiPayload,aiErrorKey,aiLanguages,aiRouting,aiAuto,articleSegments}.test.ts`,
+  `ReadingPane/{AiSummary,ReadingPane.ai,TranslateMenu,useArticleTranslation}.test.tsx`,
   `Preferences/{AiTab,Preferences.ai}.test.tsx`. Traductions : famille `ai`.
   `aiStore` oublie la configuration IA à la déconnexion (abonnement à
   `useAuthStore` : `backendToken` passe d'une valeur à `null`, y compris sur un
@@ -1860,8 +1880,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   puis un `/v1` final — coller `http://ollama:11434/v1/` depuis une doc donne
   `http://ollama:11434`, sans quoi l'appel partirait vers `/v1/v1/…`. Une aide
   sous le champ le dit (`ai.admin.baseUrlHint`).
-- **Corps des requêtes** : `anthropic` envoie `max_tokens` (exigé, 4096 ; 16
-  pour le bouton de test) ; `openai` **n'envoie pas** `max_tokens` — les
+- **Corps des requêtes** : `anthropic` envoie `max_tokens` (exigé, 4096 ; 8192
+  pour un lot de traduction ; 16 pour le bouton de test) ; `openai` **n'envoie pas** `max_tokens` — les
   modèles de raisonnement d'OpenAI le refusent (ils attendent
   `max_completion_tokens`) : la longueur est tenue par la consigne, et le
   plafond par défaut du fournisseur s'applique, bouton de test compris. Ollama
@@ -1885,7 +1905,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   inconnu (`404 not_found`) ou une clé mal formée (`400 invalid_key`). Le
   bloc « Mes clés » des Préférences la saisit ou l'efface (voir plus bas). Règle « non permises =
   **ignorées, pas effacées** » : tant que `userKeysAllowed` est faux, une clé
-  stockée ne sert pas au résumé et `hasUserKey` vaut `false` dans `/config` ;
+  stockée ne sert ni au résumé ni à la traduction et `hasUserKey` vaut `false`
+  dans `/config` ;
   elle revient intacte dès que l'admin les repermet. Quand un appel est refusé
   (`auth`) alors qu'il partait avec la clé personnelle, la réponse 502 porte
   `ownKey: true` (l'`AiError` est marquée par `runWithFallback` d'après
@@ -1902,7 +1923,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   (`ai.admin.clearKey`) n'apparaît que si `hasAdminKey` est vrai. Il ouvre
   un `ConfirmDialog` qui nomme le fournisseur et prévient que les résumés
   passant par cette clé s'arrêteront jusqu'à ce qu'une nouvelle soit saisie
-  (`clearKeyTitle`, `clearKeyWarning`) ; jamais d'effacement sans cette
+  (`clearKeyTitle`, `clearKeyWarning` — libellé d'avant la traduction : les
+  traductions qui passent par cette clé s'arrêtent aussi) ; jamais d'effacement sans cette
   confirmation. Confirmer envoie `updateAiProvider(id, { adminKey: null })`
   (`clearKey`, `ai/AdminProviders.tsx`) : la ligne perd sa mention « clé
   enregistrée », la config est rechargée, la liste de modèles affichée est
@@ -1934,8 +1956,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   pas vers un hôte que l'admin n'a pas saisi. URL de base illisible →
   `technical`. `/api/ai` partage le seau `FRIRSS_PROXY_RATE_LIMIT` de
   `/api/proxy` : le seau compte les **requêtes HTTP** vers `/api/ai`,
-  `/config` comprise, pas les appels sortants — une requête de résumé avec
-  repli peut en faire plusieurs vers les fournisseurs. Le bouton de test
+  `/config` comprise, pas les appels sortants — une requête de résumé ou un
+  lot de traduction avec repli peut en faire plusieurs vers les fournisseurs. Le bouton de test
   (`/api/admin/ai/providers/:id/test`) n'est pas dans le seau, la liste des
   modèles non plus.
 - **Liste des modèles** (`listModels`, `providers.ts` ; route
@@ -1969,14 +1991,15 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   réponse arrivée après coup est ignorée). Échec : « Clé refusée par le
   fournisseur » (`kind: auth`) ou « Liste indisponible : vérifiez l'URL et la
   clé » ; liste vide : « Aucun modèle trouvé avec cette clé ».
-- **Résolution** (`resolve.ts`, pure, testée) : forçage ponctuel (menu
-  « Résumer avec… ») > fournisseur des traductions (étage `translation`,
+- **Résolution** (`resolve.ts`, pure, testée) : forçage ponctuel (menus
+  « Résumer avec… » et « Traduire avec… ») > fournisseur des traductions (étage `translation`,
   envoyé par la seule route de traduction) > fournisseur du flux > de la catégorie > préféré de
   l'utilisateur > défaut admin (`ai_default_provider`) > premier disponible. Un
   étage muet ou indisponible est sauté. Les étages flux / catégorie / préféré
   sont des paramètres de la requête, et le client les envoie avec chaque
   demande depuis les réglages synchronisés de l'utilisateur (`lib/aiRouting.ts`,
-  appelé par `handleSummarize`) : un étage non réglé n'est pas envoyé. L'étage
+  appelé par `handleSummarize` et par les deux traductions) : un étage non
+  réglé n'est pas envoyé. L'étage
   « traductions » (`translationProvider`) est le seul à dépendre de l'appel :
   `aiRouting(…, { op: 'translate' })` l'ajoute, un résumé ne le porte jamais
   (`requestAiTranslation` de `api/backend.ts` est le client de la route). Les
@@ -2003,8 +2026,9 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
 - **Plafond** (`ai_daily_cap`, défaut 50, 0 = illimité) : par utilisateur et
   par jour civil, **seulement quand la clé admin paie pour un utilisateur**. Un
   admin en est exempt sur tout fournisseur dont la clé admin paie, partagé ou
-  non. Le jour civil suit le fuseau du conteneur (`TZ`). Un résumé servi par le
-  cache ne consomme rien et n'est pas bloqué par le plafond. **Plafond atteint
+  non. Le jour civil suit le fuseau du conteneur (`TZ`). Résumés et lots de
+  traduction partagent ce compteur. Un résultat servi par le cache ne consomme
+  rien et n'est pas bloqué par le plafond. **Plafond atteint
   sur un candidat payé par l'admin, repli actif** : ce candidat est *sauté* et
   on essaie le suivant non payé par l'admin (clé personnelle, Ollama sans clé) ;
   `ai_daily_cap` (429) n'est levé que s'il n'en reste aucun. Repli coupé : 429
@@ -2016,7 +2040,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   sienne (un appel raté n'est pas payé). ⚠️ L'ancien contrôle lisait le compteur
   avant l'appel et l'incrémentait après : N requêtes simultanées passaient
   toutes, et le plafond se dépassait de N−1.
-- **Consigne** (`prompts.ts`, version 3) : l'article part entre les balises
+- **Consigne du résumé** (`prompts.ts`, version 3 ; celle de la traduction
+  est décrite sous « Traduction — serveur ») : l'article part entre les balises
   `<article>` / `</article>` (`summaryUserMessage`) et la consigne dit qu'il
   n'est **pas adressé au modèle** — sans cela, un article à la première
   personne recevait une réponse de conversation. Texte brut seulement (ni
@@ -2037,11 +2062,12 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   titres, le titre fait partie du prompt) pour le même identifiant donnent deux
   entrées. Redis si `REDIS_URL` (30 jours), sinon table `ai_cache` purgée au-delà
   de 10 000 lignes, les plus anciennes d'abord (`created_at`, puis `rowid` pour
-  départager une même seconde). Une panne du cache n'empêche ni la lecture ni
-  l'écriture du résumé ; une valeur Redis illisible est une absence.
+  départager une même seconde). Une panne du cache n'empêche ni de lire ni
+  d'écrire le résultat ; une valeur Redis illisible est une absence.
 - **Langue** : le résumé est dans la langue de l'article ; le modèle rend
-  `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) pour la
-  traduction (plan 3).
+  `lang: <code>` en première ligne, retirée et conservée (`lang.ts`) : c'est
+  elle qui dit si le résumé est déjà dans la langue cible, auquel cas
+  « Traduire » ne paraît pas (voir « Traduire le résumé »).
 - **Entrée** (`POST /api/ai/summary`) : `articleId` ≤ 512 caractères, `title`
   tronqué à 500, `html` ≤ 200 Ko, sinon 400 `invalid_body` ; `ratio` entier de
   5 à 50, sinon 20 — **jamais** un 400 pour ce champ, c'est un réglage de
@@ -2068,8 +2094,7 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   Nouvelle journée à 00:00. » (« appels IA » et non « résumés » : le compteur
   est commun aux résumés et aux traductions) — l'heure de `resetAt` en
   `Intl.DateTimeFormat` court, langue de l'interface, fuseau du navigateur ; un
-  champ absent ou
-  illisible retombe sur `ai.errors.cap`, sans chiffre inventé ;
+  champ absent ou illisible retombe sur `ai.errors.cap`, sans chiffre inventé ;
   **429 sans `ai_daily_cap`** (le seau du proxy)
   → « trop de requêtes, réessayez dans une minute » ; 400 `invalid_body` →
   « article trop long » ; trop court, refusé, aucun fournisseur ; `kind: auth`
@@ -2176,8 +2201,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   là, pose `aiAutoSummaryConfirmed`, après quoi rallumer le global (ou un
   « Résumer ») s'applique directement, sans boîte ;
   enfin la ligne **« Appels IA payés par l'instance aujourd'hui : N sur M »**
-  (résumés et traductions, un seul compteur)
-  (N relu à chaque ouverture de la section, voir `aiStore` plus haut),
+  (résumés et traductions, un seul compteur ; N relu à chaque ouverture de la
+  section, voir `aiStore` plus haut),
   affichée seulement pour un **non-admin**, avec un plafond journalier
   **> 0** et au moins un fournisseur `available` + clé admin + partagé + sans
   clé personnelle (sinon le plafond ne le concerne pas). Les trois réglages
@@ -2241,7 +2266,8 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   catégorie », pour tous, admin compris) : **rendu seulement si
   `config.userKeysAllowed`** (réglage admin « Avancé »), sinon rien, pas même le
   titre. Un titre, une aide (« votre clé ne sert qu'à vos résumés et passe
-  avant celle de l'administrateur ; elle n'est jamais réaffichée »), puis une
+  avant celle de l'administrateur ; elle n'est jamais réaffichée » — libellé
+  d'avant la traduction : la clé sert aussi aux traductions), puis une
   ligne par fournisseur de `config.providers` : son nom, son état (« clé
   enregistrée » en accent, ou « aucune clé »), un champ `type="password"`
   `autoComplete="new-password"`, **toujours vide**, et « Enregistrer »
@@ -2476,7 +2502,9 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
     déjà tenue sans requête **seulement si sa langue est la cible** : après
     « Traduire en → allemand » puis « Texte source », il envoie une nouvelle
     demande dans la langue cible. Le menu suit les règles du résumé
-    (« Traduire avec X » garde la langue affichée et le réglage de repli).
+    (« Traduire avec X » garde la langue affichée et le réglage de repli). Le
+    raccourci `t` et la palette lancent la même action, sans jamais revenir au
+    texte source (voir « Raccourcis clavier et palette » plus bas).
   - **Notice** au-dessus du corps, gabarit de l'avis d'extraction, sur les
     trois formats, dans une région `role="status"` toujours montée : « Lot
     {n} sur {m}… » pendant l'attente (« Traduction… » pour un seul lot),
@@ -2580,58 +2608,79 @@ catégorie et le bloc « Mes clés » (plan 2) ; la traduction vient avec le pla
   payant doit se voir ; de même la notice « Traduit en … par X » d'une
   réussite. Test : `ReadingPane.ai.test.tsx` (« déclencheurs automatiques par
   flux et catégorie »).
-- **Raccourci clavier et palette** : action configurable **`summarize`**,
-  touche **`s`** par défaut, réassignable comme les autres (Préférences →
-  Général ; libellé `preferences.shortcuts.summarize`, « Résumer l'article
-  (IA) »). `useKeyboardNav.ts` ne fait `preventDefault` et ne diffuse
-  l'événement de fenêtre `frirss:ai-summarize` (même mécanisme que
+- **Raccourcis clavier et palette** : deux actions configurables,
+  **`summarize`** (touche **`s`** par défaut, « Résumer l'article (IA) ») et
+  **`translate`** (touche **`t`**, « Traduire l'article (IA) »), réassignables
+  comme les autres (Préférences → Général ; libellés
+  `preferences.shortcuts.summarize` / `.translate`). `useKeyboardNav.ts` ne
+  fait `preventDefault` et ne diffuse l'événement de fenêtre
+  `frirss:ai-summarize` ou `frirss:ai-translate` (même mécanisme que
   `frirss:open-search`) que si l'IA est **utilisable** (`aiUsable`, sélecteur
   de `aiStore.ts` : fonction allumée ET un fournisseur `available`) et qu'un
   article est ouvert, et **jamais** avec ⌘, Ctrl ou Alt enfoncé (⌘S / Ctrl+S
-  reste « Enregistrer » au lieu d'envoyer un appel peut-être payant) ni sur une
-  répétition de touche maintenue (`e.repeat`, qui renverrait une demande à
-  chaque répétition) ; dans tous ces cas la touche passe, intacte, au
-  navigateur. Cette garde ne vaut que pour `summarize`. En amont, communes à
-  tous les raccourcis : rien ne part d'un `<select>` qui a le focus ni tant
-  qu'une boîte est ouverte (Préférences comprises, derrière lesquelles le volet
-  reste monté) — voir « Raccourcis clavier ». C'est
-  `ReadingPane.tsx` qui répond — il détient l'état et la requête — sous les
-  mêmes gardes que le bouton (IA utilisable, **en ligne**, article ouvert ;
-  `handleSummarize` ignore déjà une demande en cours pour cet article) : il
-  appelle `expandOnFirstSummary()` puis `handleSummarize()`. Il **ne fait rien
-  quand un résumé est déjà affiché** (`aiResult`) : après « Résumer avec X »,
-  la touche le remplaçait par celui du fournisseur routé, peut-être au prix
-  d'un nouvel appel payant ; changer de fournisseur reste l'affaire du menu
-  « Résumer avec… ». La palette diffuse le même événement et suit donc la
-  même règle. `expandOnFirstSummary`
-  (`ReadingPane/aiPanelExpand.ts`, partagée avec le bouton « Résumer ») porte
-  la règle « une fois par appareil, déplier un panneau replié » ; elle vit dans
-  un module à part parce qu'un fichier de composant ne doit exporter que des
-  composants (`react-refresh/only-export-components`). Le raccourci est
-  **masqué** de la barre du bas (contexte lecture seulement) et de
-  l'aide-mémoire `?` tant que l'IA est éteinte ou inutilisable : un raccourci
-  pour une fonction absente n'est que du bruit. La **palette** (⌘K) propose la
-  même commande, `action:aiSummarize`, avec le même libellé, seulement quand un
-  article est ouvert et que l'IA est utilisable ; la choisir referme la palette
-  puis diffuse le même événement. Aucune touche en dur ne s'y oppose : `s`
-  n'est utilisée nulle part ailleurs dans l'application. Piège : `shortcuts`
-  ne fusionnait pas les défauts — un objet enregistré (localStorage) ou
-  synchronisé **avant** l'ajout de `summarize` l'aurait perdu, donc sans
-  touche ; `withDefaultShortcuts()` (`uiStore.ts`) fusionne `{ ...défauts,
-  ...enregistré }` au chargement **et** dans `applyServerPrefs`. Tests :
-  `useKeyboardNav.summarize.test.tsx`, `CommandPalette.test.tsx`,
-  `ShortcutBar.test.tsx`, `ShortcutHelp.test.tsx`, `ReadingPane.ai.test.tsx`
-  (« summarize event »), `uiStore.test.ts`.
+  reste « Enregistrer », ⌘T / Ctrl+T « nouvel onglet », au lieu d'envoyer un
+  appel peut-être payant) ni sur une répétition de touche maintenue
+  (`e.repeat`, qui renverrait une demande à chaque répétition) ; dans tous ces
+  cas la touche passe, intacte, au navigateur. Cette garde est **une seule
+  condition** partagée par les deux raccourcis IA, et ne vaut que pour eux. En
+  amont, communes à tous les raccourcis : rien ne part d'un `<select>` qui a
+  le focus ni tant qu'une boîte est ouverte (Préférences comprises, derrière
+  lesquelles le volet reste monté) — voir « Raccourcis clavier ». C'est
+  `ReadingPane.tsx` qui répond — il détient l'état et la requête.
+  - **Résumer** : sous les mêmes gardes que le bouton (IA utilisable, **en
+    ligne**, article ouvert ; `handleSummarize` ignore déjà une demande en
+    cours pour cet article), il appelle `expandOnFirstSummary()` puis
+    `handleSummarize()`. Il **ne fait rien quand un résumé est déjà affiché**
+    (`aiResult`) : après « Résumer avec X », la touche le remplaçait par celui
+    du fournisseur routé, peut-être au prix d'un nouvel appel payant ; changer
+    de fournisseur reste l'affaire du menu « Résumer avec… ».
+    `expandOnFirstSummary` (`ReadingPane/aiPanelExpand.ts`, partagée avec le
+    bouton « Résumer ») porte la règle « une fois par appareil, déplier un
+    panneau replié » ; elle vit dans un module à part parce qu'un fichier de
+    composant ne doit exporter que des composants
+    (`react-refresh/only-export-components`).
+  - **Traduire l'article** : sous les mêmes gardes que le bouton « Traduire
+    l'article » (IA utilisable, **en ligne**, du texte à traduire —
+    `canTranslate` —, aucune traduction en cours), il appelle `translate()` de
+    `useArticleTranslation`, comme le bouton : une traduction tenue dans la
+    langue cible, cachée par « Texte source », est **remontrée sans requête**.
+    Il **ne fait rien quand la traduction est affichée** : la touche ne fait
+    qu'une chose et ne revient jamais au texte source — c'est le bouton qui
+    bascule. Changer de langue ou de fournisseur reste l'affaire du menu
+    « Traduire en… / avec… ».
+  - **Palette** (⌘K) : les mêmes commandes, `action:aiSummarize` et
+    `action:aiTranslate`, avec les mêmes libellés, seulement quand un article
+    est ouvert et que l'IA est utilisable ; en choisir une referme la palette
+    puis diffuse le même événement, qui suit donc la même règle.
+  - Les deux raccourcis sont **masqués** de la barre du bas (contexte lecture
+    seulement) et de l'aide-mémoire `?` tant que l'IA est éteinte ou
+    inutilisable (`AI_SHORTCUTS`, `uiStore.ts`) : un raccourci pour une
+    fonction absente n'est que du bruit. Préférences → Général les liste
+    toujours, pour qu'on puisse les réassigner. Aucune touche en dur ne s'y
+    oppose : `s` et `t` ne sont utilisées nulle part ailleurs dans
+    l'application, et `t` nu n'est une touche ni du navigateur ni du système.
+  - Piège : `shortcuts` ne fusionnait pas les défauts — un objet enregistré
+    (localStorage) ou synchronisé **avant** l'ajout de `summarize` ou de
+    `translate` l'aurait perdu, donc sans touche ; `withDefaultShortcuts()`
+    (`uiStore.ts`) fusionne `{ ...défauts, ...enregistré }` au chargement
+    **et** dans `applyServerPrefs`. Tests : `useKeyboardNav.summarize.test.tsx`
+    (les deux touches), `CommandPalette.test.tsx`, `ShortcutBar.test.tsx`,
+    `ShortcutHelp.test.tsx`, `ReadingPane.ai.test.tsx` (« summarize event »,
+    « translate event »), `uiStore.test.ts`.
 - **Réglages** (utilisateur, synchronisés, `UI_SYNC_KEYS`) :
   `aiPanelCollapsed` (booléen, défaut `false` ; seul un `true` explicite
   replie) et `aiSummaryRatio` (pour cent, défaut 20 ; normalisé par
   `normalizeAiSummaryRatio` au chargement comme à l'application des
   préférences serveur : tout ce qui n'est pas un multiple de 5 entre 5 et 50
   revient à 20). `aiPanelAutoExpanded` est local à l'appareil, pas une
-  préférence. Le volet envoie `ratio` avec chaque demande.
+  préférence. Le volet envoie `ratio` avec chaque demande. Les réglages de la
+  traduction (`aiTranslationLanguage`, `aiTranslationProvider`), du fournisseur
+  préféré et du repli, des automatismes et des choix par flux ou catégorie sont
+  décrits avec leurs blocs (« Interface — Préférences », « Par flux et
+  catégorie »).
 - **Pièges** : le volet envoie le texte *affiché* (contenu complet extrait s'il
-  y en a un, sinon celui du flux) : résumer avant ou après l'extraction donne
-  deux entrées de cache. Il l'envoie **allégé** par `stripMediaForSummary`
+  y en a un, sinon celui du flux) : résumer (ou traduire) avant ou après
+  l'extraction donne deux entrées de cache. Il l'envoie **allégé** par `stripMediaForSummary`
   (`src/lib/aiPayload.ts`, testé) : `<img>`, `<svg>`, `<video>`, `<audio>`,
   `<iframe>`, `<picture>` et tout attribut en `data:` partent, sans quoi une
   seule image base64 dépassait les 200 Ko et l'article « trop long » faisait dix
@@ -3865,8 +3914,9 @@ divergentes).
   et `express.raw`. Le défaut nginx (1 Mo) rendait le conteneur plus strict que
   le backend qu'il sert. Vérifié par le job `docker` de `ci.yml`, qui exige
   qu'un corps de 2 Mo atteigne Express.
-- **Délai de lecture** : `proxy_read_timeout 120s` sur `/api/`. Un résumé IA
-  tient jusqu'à 50 s (voir « Résumés par IA », appels sortants) ; au défaut de
+- **Délai de lecture** : `proxy_read_timeout 120s` sur `/api/`. Une demande
+  IA (résumé ou lot de traduction) tient jusqu'à 50 s (voir « Résumés et
+  traductions par IA », appels sortants) ; au défaut de
   60 s, le proxy coupait une demande que le serveur tenait encore. Un reverse
   proxy en amont doit en accorder autant sur `/api/ai`.
 - **Piège majeur — `/sw.js` ne doit JAMAIS recevoir de CSP.** Un service worker
@@ -4049,7 +4099,8 @@ et le jetable de l'IA, `ai_usage` (compteur du jour) et `ai_cache`.
 Entrée unique sur **⌘K / Ctrl+K** : aller à un flux, une catégorie, une
 étiquette, une vue fixe, ou lancer une action (recherche, aide-mémoire des
 raccourcis, dispositions, sections de préférences, et — quand un article est
-ouvert et que l'IA est utilisable — « Résumer l'article (IA) »).
+ouvert et que l'IA est utilisable — « Résumer l'article (IA) » et « Traduire
+l'article (IA) »).
 
 - **Où** : `src/lib/commandPalette.ts` (recherche et classement, testés),
   `src/components/CommandPalette.tsx`
@@ -4057,11 +4108,14 @@ ouvert et que l'IA est utilisable — « Résumer l'article (IA) »).
   raccourcis, une recherche à périmètre, flux, catégories, étiquettes, sections
   de préférences — il manquait l'entrée unique. Avec soixante-et-onze flux,
   atteindre le bon demandait de dérouler la barre latérale et de lire.
-- **Résumer l'article (IA)** (`action:aiSummarize`) : entrée conditionnelle,
-  absente sans article ouvert ou tant que l'IA est éteinte ou inutilisable
-  (`aiUsable`). Elle diffuse `frirss:ai-summarize`, que `ReadingPane` écoute ;
-  son libellé est celui du raccourci (`preferences.shortcuts.summarize`).
-  Test : `CommandPalette.test.tsx`.
+- **Résumer / Traduire l'article (IA)** (`action:aiSummarize`,
+  `action:aiTranslate`) : entrées conditionnelles, absentes sans article
+  ouvert ou tant que l'IA est éteinte ou inutilisable (`aiUsable`). Elles
+  diffusent `frirss:ai-summarize` / `frirss:ai-translate`, que `ReadingPane`
+  écoute ; leurs libellés sont ceux des raccourcis
+  (`preferences.shortcuts.summarize` / `.translate`). Une traduction déjà
+  affichée laisse « Traduire » sans effet (voir « Résumés et traductions par
+  IA »). Test : `CommandPalette.test.tsx`.
 - **Rien de nouveau n'est stocké** : la palette assemble ce que les stores
   contiennent déjà. Son état d'ouverture n'est ni persisté ni synchronisé.
 - **Accents repliés** : « securite » atteint « Sécurité ». Sans cela, la moitié

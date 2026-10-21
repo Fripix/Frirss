@@ -91,6 +91,7 @@ const defaultShortcuts: Shortcuts = {
   search: 'f',
   readLater: 'l',
   summarize: 's',
+  translate: 't',
 };
 
 /**
@@ -1140,11 +1141,16 @@ export const UI_SYNC_KEYS = [
 export const shortcutActions = [
   'nextArticle', 'prevArticle', 'openArticle',
   'markRead', 'markUnread', 'toggleStar',
-  'openOriginal', 'toggleSidebar', 'search', 'readLater', 'summarize',
+  'openOriginal', 'toggleSidebar', 'search', 'readLater', 'summarize', 'translate',
 ];
 
 // For the shortcut footer — only show contextual shortcuts
 export const shortcutGroups: Record<string, string[]> = {
   list: ['prevArticle', 'nextArticle', 'openArticle', 'markRead', 'markUnread', 'toggleStar', 'readLater', 'search'],
-  reading: ['prevArticle', 'nextArticle', 'markRead', 'markUnread', 'toggleStar', 'readLater', 'openOriginal', 'summarize'],
+  reading: ['prevArticle', 'nextArticle', 'markRead', 'markUnread', 'toggleStar', 'readLater', 'openOriginal', 'summarize', 'translate'],
 };
+
+// Raccourcis qui lancent un appel IA : masqués dans l'aide-mémoire et la barre
+// du bas tant que l'IA est inutilisable (leur garde clavier commune vit dans
+// `useKeyboardNav.ts`).
+export const AI_SHORTCUTS = ['summarize', 'translate'];

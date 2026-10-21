@@ -366,7 +366,8 @@
       "customize": "Personalizar nas preferências",
       "gestureHelp": "Mostrar esta janela",
       "helpTitle": "Atalhos de teclado",
-      "summarize": "Resumir o artigo (IA)"
+      "summarize": "Resumir o artigo (IA)",
+      "translate": "Traduzir o artigo (IA)"
     },
     "offline": {
       "title": "Offline",

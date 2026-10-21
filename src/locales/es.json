@@ -366,7 +366,8 @@
       "customize": "Personalizar en las preferencias",
       "gestureHelp": "Mostrar esta ventana",
       "helpTitle": "Atajos de teclado",
-      "summarize": "Resumir el artículo (IA)"
+      "summarize": "Resumir el artículo (IA)",
+      "translate": "Traducir el artículo (IA)"
     },
     "offline": {
       "title": "Sin conexión",

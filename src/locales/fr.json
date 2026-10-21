@@ -366,7 +366,8 @@
       "customize": "Personnaliser dans les préférences",
       "gestureHelp": "Afficher cette fenêtre",
       "helpTitle": "Raccourcis clavier",
-      "summarize": "Résumer l'article (IA)"
+      "summarize": "Résumer l'article (IA)",
+      "translate": "Traduire l'article (IA)"
     },
     "offline": {
       "title": "Hors-ligne",

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { useUiStore, shortcutGroups } from '../stores/uiStore';
+import { useUiStore, shortcutGroups, AI_SHORTCUTS } from '../stores/uiStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useAiStore, aiUsable } from '../stores/aiStore';
 
@@ -37,7 +37,7 @@ export default function ShortcutHelp() {
   const open = useUiStore((s) => s.shortcutHelpOpen);
   const setOpen = useUiStore((s) => s.setShortcutHelpOpen);
   const shortcuts = useUiStore((s) => s.shortcuts);
-  const summarizeAvailable = useAiStore(aiUsable);
+  const aiAvailable = useAiStore(aiUsable);
   const openPreferences = useThemeStore((s) => s.openPreferences);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -68,7 +68,7 @@ export default function ShortcutHelp() {
   const grouped = [...new Set([...shortcutGroups.list, ...shortcutGroups.reading])];
   const actions = [...grouped, ...Object.keys(shortcuts).filter((a) => !grouped.includes(a))]
     // Un raccourci pour une fonction éteinte n'est que du bruit.
-    .filter((a) => a !== 'summarize' || summarizeAvailable);
+    .filter((a) => !AI_SHORTCUTS.includes(a) || aiAvailable);
 
   // Libellés repris de la section « Gestes et touches intégrés » des
   // Préférences : les mêmes gestes, donc les mêmes chaînes. En dupliquer des

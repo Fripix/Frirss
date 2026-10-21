@@ -366,7 +366,8 @@
       "customize": "In den Einstellungen anpassen",
       "gestureHelp": "Dieses Fenster anzeigen",
       "helpTitle": "Tastenkürzel",
-      "summarize": "Artikel zusammenfassen (KI)"
+      "summarize": "Artikel zusammenfassen (KI)",
+      "translate": "Artikel übersetzen (KI)"
     },
     "offline": {
       "title": "Offline",

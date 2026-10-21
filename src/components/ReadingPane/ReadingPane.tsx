@@ -1001,6 +1001,19 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     [articleTranslation.html, inlineVideos, videoPlayLabel, videoOpenLabel],
   );
   const showTranslatedBody = articleTranslation.showing === 'translation' && translatedBody !== null;
+
+  // Raccourci `t` et palette : mêmes gardes que le bouton « Traduire
+  // l'article » (IA utilisable, en ligne, du texte à traduire, rien en cours).
+  // Une traduction tenue après « Texte source » est remontrée sans appel. Une
+  // traduction déjà affichée, elle, laisse l'événement sans effet : la touche
+  // ne fait qu'une chose et ne revient jamais au texte source.
+  useEffect(() => {
+    if (!aiUsable || !online || !selectedArticle || showTranslatedBody) return;
+    if (!articleCanTranslate || articleTranslationState === 'loading') return;
+    const onTranslateEvent = () => translateArticle();
+    window.addEventListener('frirss:ai-translate', onTranslateEvent);
+    return () => window.removeEventListener('frirss:ai-translate', onTranslateEvent);
+  }, [aiUsable, online, selectedArticle, showTranslatedBody, articleCanTranslate, articleTranslationState, translateArticle]);
   const shownBodyHtml = showTranslatedBody ? translatedBody.html : body.html;
   const bodyProp = useMemo(() => ({ __html: shownBodyHtml }), [shownBodyHtml]);
 

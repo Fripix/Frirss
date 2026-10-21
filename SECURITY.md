@@ -95,8 +95,8 @@ works and the exemption adds no host you did not configure yourself.
 
 ### AI providers: admin-set endpoints, encrypted keys
 
-AI summaries (off by default) call a provider the **administrator** declared.
-Its host is trusted by the anti-SSRF guard exactly like the OIDC issuer, and
+AI summaries and translations (off by default) call a provider the
+**administrator** declared. Its host is trusted by the anti-SSRF guard exactly like the OIDC issuer, and
 only that host: a model on the LAN (Ollama) works without
 `PROXY_INTERNAL_HOSTS`, and a redirect towards any other internal host is still
 refused. Redirects are never followed at all (a 3xx is a technical error), so an
@@ -120,8 +120,8 @@ deleted, while the admin does not allow personal keys.
 A personal key is only as private as the administrator is trusted: it is sent to
 whatever base URL the admin sets for that provider, and it is kept, not deleted,
 when the admin later changes that URL or the provider type, so an admin who
-repoints a provider receives a user's key with that user's next summary through
-it. An app admin can also decrypt it from an encrypted backup, which carries the
+repoints a provider receives a user's key with that user's next summary or
+translation through it. An app admin can also decrypt it from an encrypted backup, which carries the
 instance key. That is the same trust users already give the admin for their
 FreshRSS credentials, stored and backed up the same way.
 
@@ -135,11 +135,13 @@ text blocks, each block passed through the HTML sanitiser first.
 
 Two limits are deliberate. The cost cap is a guard, not an accounting quota: it
 only limits what the admin's shared key pays for and the day follows the
-container timezone. Each paid call reserves its place before it leaves (one
-atomic increment in SQLite), so parallel requests cannot overshoot it; a call
-that fails gives its place back. The summary cache key includes a hash of the article text, because the
-article id is client-supplied and would otherwise let one user read or poison
-another user's cached summary.
+container timezone; summaries and translations share it, one unit per summary
+and per translation batch. Each paid call reserves its place before it leaves
+(one atomic increment in SQLite), so parallel requests cannot overshoot it; a
+call that fails gives its place back. The cache key includes a hash of the text
+sent (the article text for a summary, the batch's segments for a translation),
+because the article id is client-supplied and would otherwise let one user read
+or poison another user's cached result.
 
 What the exemption costs is the same as for the issuer: an attacker holding an
 **admin** account can point a provider at an internal host and make the server

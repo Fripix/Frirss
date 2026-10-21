@@ -75,4 +75,14 @@ describe('ShortcutBar — summarize hint', () => {
     const { queryByText } = render(<ShortcutBar />);
     expect(queryByText('preferences.shortcuts.summarize')).toBeNull();
   });
+
+  it('the translate hint follows the same rule: reading context, AI usable', () => {
+    useFeedStore.setState({ selectedArticle: article });
+    const off = render(<ShortcutBar />);
+    expect(off.queryByText('preferences.shortcuts.translate')).toBeNull();
+    cleanup();
+    useAiStore.setState({ config: cfg });
+    const on = render(<ShortcutBar />);
+    expect(on.getByText('preferences.shortcuts.translate')).toBeTruthy();
+  });
 });

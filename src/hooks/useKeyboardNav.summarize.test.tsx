@@ -132,3 +132,79 @@ describe('useKeyboardNav — summarize', () => {
     expect(e.defaultPrevented).toBe(false);
   });
 });
+
+// `t` partage la garde de `s` : même appel peut-être payant, mêmes conflits
+// (⌘T / Ctrl+T ouvrent un onglet, et ne doivent ni être bloqués ni traduire).
+describe('useKeyboardNav — translate', () => {
+  let translated: Event[];
+  const onTranslate = (e: Event) => { translated.push(e); };
+  beforeEach(() => {
+    translated = [];
+    window.addEventListener('frirss:ai-translate', onTranslate);
+    useUiStore.setState({ shortcuts: { ...useUiStore.getState().shortcuts, translate: 't' } });
+  });
+  afterEach(() => { window.removeEventListener('frirss:ai-translate', onTranslate); });
+
+  it('broadcasts the translate event, and only it, when AI is usable and an article is open', () => {
+    renderHook(() => useKeyboardNav());
+    const e = press('t');
+    expect(translated).toHaveLength(1);
+    expect(heard).toHaveLength(0);
+    expect(e.defaultPrevented).toBe(true);
+  });
+
+  it.each([
+    ['AI off', () => useAiStore.setState({ config: { ...ON, enabled: false } })],
+    ['no usable provider', () => useAiStore.setState({ config: { ...ON, providers: [{ ...provider, available: false }] } })],
+    ['no open article', () => useFeedStore.setState({ selectedArticle: null })],
+  ] as const)('lets the key through untouched with %s', (_label, setup) => {
+    setup();
+    renderHook(() => useKeyboardNav());
+    const e = press('t');
+    expect(translated).toHaveLength(0);
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it.each([
+    ['Cmd+T', { metaKey: true }],
+    ['Ctrl+T', { ctrlKey: true }],
+    ['Alt+T', { altKey: true }],
+    ['a held key', { repeat: true }],
+  ] as const)('leaves %s alone: no translation, no preventDefault', (_label, init) => {
+    renderHook(() => useKeyboardNav());
+    const e = press('t', document.body, init);
+    expect(translated).toHaveLength(0);
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it.each(['input', 'textarea', 'select'])('ignores the key on a focused %s', (tag) => {
+    renderHook(() => useKeyboardNav());
+    const el = document.createElement(tag);
+    document.body.appendChild(el);
+    const e = press('t', el);
+    el.remove();
+    expect(translated).toHaveLength(0);
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it('ignores the key while a dialog is open', () => {
+    renderHook(() => useKeyboardNav());
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    const e = press('t');
+    dialog.remove();
+    expect(translated).toHaveLength(0);
+    expect(e.defaultPrevented).toBe(false);
+  });
+
+  it('follows a reassigned key', () => {
+    useUiStore.getState().setShortcut('translate', 'y');
+    renderHook(() => useKeyboardNav());
+    press('t');
+    expect(translated).toHaveLength(0);
+    press('y');
+    expect(translated).toHaveLength(1);
+    useUiStore.getState().setShortcut('translate', 't');
+  });
+});

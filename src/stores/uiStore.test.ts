@@ -36,6 +36,27 @@ describe('uiStore', () => {
     expect(fresh.useUiStore.getState().shortcuts).toMatchObject({ nextArticle: 'j', summarize: 's', search: 'f' });
   });
 
+  it('translate defaults to t and survives an older synced shortcuts object', () => {
+    expect(useUiStore.getState().shortcuts.translate).toBe('t');
+    useUiStore.getState().applyServerPrefs({ shortcuts: { nextArticle: 'j', summarize: 's' } });
+    expect(useUiStore.getState().shortcuts).toMatchObject({ nextArticle: 'j', summarize: 's', translate: 't' });
+    useUiStore.setState({ confirmMarkAllRead: true, shortcuts: { ...useUiStore.getState().shortcuts, nextArticle: 'ArrowDown' } });
+  });
+
+  it('translate survives a locally stored shortcuts object that predates it', async () => {
+    localStorage.setItem('frirss_shortcuts', JSON.stringify({ nextArticle: 'j', summarize: 's' }));
+    vi.resetModules();
+    const fresh = await import('./uiStore');
+    expect(fresh.useUiStore.getState().shortcuts).toMatchObject({ nextArticle: 'j', summarize: 's', translate: 't' });
+  });
+
+  it('translate is a reading shortcut, listed with the configurable ones', async () => {
+    const { shortcutActions, shortcutGroups } = await import('./uiStore');
+    expect(shortcutActions).toContain('translate');
+    expect(shortcutGroups.reading).toContain('translate');
+    expect(shortcutGroups.list).not.toContain('translate');
+  });
+
   it('confirmMarkAllRead est activé par défaut, sans réglage stocké', () => {
     expect(useUiStore.getState().confirmMarkAllRead).toBe(true);
   });

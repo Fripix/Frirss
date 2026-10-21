@@ -366,7 +366,8 @@
       "customize": "Personalizza nelle preferenze",
       "gestureHelp": "Mostra questa finestra",
       "helpTitle": "Scorciatoie da tastiera",
-      "summarize": "Riassumi l’articolo (IA)"
+      "summarize": "Riassumi l’articolo (IA)",
+      "translate": "Traduci l’articolo (IA)"
     },
     "offline": {
       "title": "Offline",

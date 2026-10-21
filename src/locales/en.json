@@ -366,7 +366,8 @@
       "customize": "Customise in preferences",
       "gestureHelp": "Show this window",
       "helpTitle": "Keyboard shortcuts",
-      "summarize": "Summarise the article (AI)"
+      "summarize": "Summarise the article (AI)",
+      "translate": "Translate the article (AI)"
     },
     "offline": {
       "title": "Offline",

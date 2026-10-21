@@ -372,7 +372,8 @@
       "customize": "Dostosuj w preferencjach",
       "gestureHelp": "Pokaż to okno",
       "helpTitle": "Skróty klawiszowe",
-      "summarize": "Podsumuj artykuł (AI)"
+      "summarize": "Podsumuj artykuł (AI)",
+      "translate": "Przetłumacz artykuł (AI)"
     },
     "offline": {
       "title": "Offline",

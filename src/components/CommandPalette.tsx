@@ -32,7 +32,7 @@ export default function CommandPalette() {
   const labels = useFeedStore((s) => s.labels);
   const unreadCounts = useFeedStore((s) => s.unreadCounts);
   const hasOpenArticle = useFeedStore((s) => !!s.selectedArticle);
-  const summarizeAvailable = useAiStore(aiUsable);
+  const aiAvailable = useAiStore(aiUsable);
 
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
@@ -121,17 +121,19 @@ export default function CommandPalette() {
       ['prefsAppearance', t('preferences.sections.appearance'), () => openPreferences('appearance')],
       ['prefsFeeds', t('preferences.sections.feeds'), () => openPreferences('feeds')],
     ];
-    // Résumer l'article ouvert : n'a de sens que s'il y en a un et que l'IA est
-    // utilisable. Le libellé est celui du raccourci — c'est la même commande.
-    if (hasOpenArticle && summarizeAvailable) {
+    // Résumer ou traduire l'article ouvert : n'a de sens que s'il y en a un et
+    // que l'IA est utilisable. Le libellé est celui du raccourci — c'est la
+    // même commande.
+    if (hasOpenArticle && aiAvailable) {
       actions.push(['aiSummarize', t('preferences.shortcuts.summarize'), () => window.dispatchEvent(new CustomEvent('frirss:ai-summarize'))]);
+      actions.push(['aiTranslate', t('preferences.shortcuts.translate'), () => window.dispatchEvent(new CustomEvent('frirss:ai-translate'))]);
     }
     for (const [id, label, run] of actions) {
       out.push({ id: `action:${id}`, label, group: 'actions', run: () => { close(); run(); } });
     }
 
     return out;
-  }, [open, subscriptions, labels, unreadCounts, servers, activeServerId, serverUrl, hasOpenArticle, summarizeAvailable, t, setOpen, setPanelLayout, openPreferences]);
+  }, [open, subscriptions, labels, unreadCounts, servers, activeServerId, serverUrl, hasOpenArticle, aiAvailable, t, setOpen, setPanelLayout, openPreferences]);
 
   const results = useMemo(() => rankCommands(commands, query), [commands, query]);
 

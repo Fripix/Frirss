@@ -18,7 +18,7 @@ la release publiée.
 
 ## Fonctionnalités
 
-- **Résumés par IA** (discussion #22). Un panneau repliable « Résumé IA », en
+- **Résumés et traductions par IA** (discussion #22). Un panneau repliable « Résumé IA », en
   tête du volet de lecture, envoie l'article au fournisseur que l'admin a
   déclaré (Claude, ou tout service compatible OpenAI dont Ollama) et affiche le
   résumé au-dessus de l'article, sur toute la largeur de la colonne. L'en-tête
@@ -41,7 +41,28 @@ la release publiée.
   dans une vue d'ensemble, et saisit ses propres clés quand l'admin le permet ;
   l'admin peut effacer la clé d'un fournisseur. Le raccourci `s`
   (réassignable, masqué tant que l'IA est inutilisable) et la palette ⌘K
-  résument l'article ouvert. Seule la traduction vient ensuite.
+  résument l'article ouvert.
+
+  **Traductions.** « Traduire », à côté de « Résumer avec… », traduit le
+  résumé vers la langue cible ; « Traduire l'article », dans la barre
+  d'outils, traduit le titre et le corps affiché, par lots, avec une notice
+  (« Lot 2 sur 4… », « Traduit en anglais par X ») et « Texte source » pour
+  revenir à l'original sans nouvel appel. Un chevron (un appui long au doigt,
+  ou la feuille « … ») ouvre « Traduire en… » — 28 langues, filtrables — et
+  « Traduire avec… », qui force un fournisseur sans couper le repli. Un texte
+  déjà dans la langue le dit (« Déjà en français. ») au lieu de payer un
+  appel. Nouveau bloc « Traduction » dans Préférences → IA : langue cible
+  (celle de l'interface par défaut) et fournisseur des traductions (« Même
+  que le résumé » par défaut). La vue « Par flux et catégorie » gagne deux
+  interrupteurs par ligne, « Résumer » et « Traduire » à l'ouverture, un flux
+  primant sur sa catégorie ; allumer la traduction automatique demande une
+  confirmation, une fois par compte, qui rappelle qu'un article entier coûte
+  cinq à quinze fois un résumé. Le plafond quotidien compte désormais les
+  « appels IA », résumés et traductions ensemble (un par lot traduit), et
+  ses messages le disent. Le raccourci `t` (réassignable, masqué tant que
+  l'IA est inutilisable) et la palette ⌘K traduisent l'article ouvert. Aucun
+  choix IA qui engage un coût ne passe d'un compte à l'autre sur un
+  navigateur partagé.
 
 ## Corrections et améliorations
 
