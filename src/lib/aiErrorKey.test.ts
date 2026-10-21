@@ -66,8 +66,11 @@ describe('aiErrorKey', () => {
   });
   it('recognises a reverse proxy that cut the request', () => {
     // 504 sans corps (nginx, Nginx Proxy Manager à 60 s), ou un corps qui n'est pas le nôtre.
-    expect(isUpstreamCut(504, '', 0)).toBe(true);
-    expect(isUpstreamCut(504, undefined, 0)).toBe(true);
+    expect(isUpstreamCut(504, '', 61_000)).toBe(true);
+    expect(isUpstreamCut(504, undefined, 30_000)).toBe(true);
+    // Rapide, ce n'est pas une coupure faute de temps (backend arrêté, page de nginx).
+    expect(isUpstreamCut(504, '', 3_000)).toBe(false);
+    expect(isUpstreamCut(502, '<html>502 Bad Gateway</html>', 3_000)).toBe(false);
     expect(isUpstreamCut(504, '<html>504 Gateway Time-out</html>', 60_000)).toBe(true);
     expect(isUpstreamCut(502, '<html>502 Bad Gateway</html>', 60_000)).toBe(true);
     // Les 502 du serveur FriRSS ne sont pas une coupure amont.
@@ -87,6 +90,7 @@ describe('aiErrorKey', () => {
     expect(aiErrorKey(undefined, undefined, false, { op: 'translate', elapsedMs: 5_000 })).toBe('ai.errors.translateFailed');
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'deadline' }, false, { op: 'translate', elapsedMs: 60_000 })).toBe('ai.errors.translateFailed');
     expect(aiErrorKey(504, undefined, false)).toBe('ai.errors.technical');
+    expect(aiErrorKey(502, '<html>502 Bad Gateway</html>' as never, false, { op: 'translate', elapsedMs: 3_000 })).toBe('ai.errors.translateFailed');
     expect(fr.ai.errors.proxyTimeout).toBe("Le serveur intermédiaire a coupé la réponse avant la fin : autorisez au moins 120 s sur /api/ai (voir la documentation).");
     expect(en.ai.errors.proxyTimeout).toContain('/api/ai');
   });

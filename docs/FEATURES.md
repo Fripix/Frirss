@@ -2603,11 +2603,13 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     « Traduction — serveur »). Deux signaux, et eux seuls (`lib/aiErrorKey.ts`) :
     le serveur répond 502 `ai_failed` avec `detail: 'deadline'`
     (`isAiDeadline`) ; ou un **reverse proxy en amont** a coupé la requête
-    (`isUpstreamCut`) — 502 ou 504 dont le corps n'est pas celui du serveur
-    FriRSS (`{ error: 'ai_failed', … }`), ou plus aucune réponse après au
-    moins 30 s d'attente (`UPSTREAM_CUT_MIN_MS` ; la durée de la requête est
-    posée sur son erreur, `elapsedMs`) ; une erreur réseau rapide n'en est
-    pas une. Quand le lot porte plus d'un segment, il est **rejoué une fois,
+    (`isUpstreamCut`) — **après au moins 30 s d'attente**
+    (`UPSTREAM_CUT_MIN_MS` ; la durée de la requête est posée sur son erreur,
+    `elapsedMs`), un 502 ou 504 dont le corps n'est pas celui du serveur
+    FriRSS (`{ error: 'ai_failed', … }`), ou plus aucune réponse. Rapide, ce
+    n'est pas une coupure : un 502 de la page nginx quand le backend est
+    arrêté, ou une erreur réseau immédiate, suit le chemin d'erreur normal
+    (« La traduction a échoué. Réessayez. »), sans rejeu en moitiés. Quand le lot porte plus d'un segment, il est **rejoué une fois,
     coupé en deux** — moitiés en
     série, **dans la même demande partagée que le lot** (clé du rang `b`,
     voir « Demandes partagées ») : revenir sur l'article pendant une moitié

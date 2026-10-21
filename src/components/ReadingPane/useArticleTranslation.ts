@@ -263,7 +263,7 @@ function prepare(title: string, bodyHtml: string): Prepared {
  *   sur l'article pendant une moitié s'y rattache au lieu de renvoyer le lot
  *   entier. La seconde moitié ne part que si un appelant attend encore
  *   (`wanted`). Une coupure par un reverse proxy en amont (`isUpstreamCut` :
- *   502/504 sans notre corps, ou plus de réponse après 30 s) est traitée de
+ *   après au moins 30 s, 502/504 sans notre corps ou plus de réponse) est traitée de
  *   même ; une moitié — ou un lot d'un seul segment — coupée ainsi affiche
  *   `ai.errors.proxyTimeout`, qui dit quoi régler. Une moitié qui expire à
  *   son tour échoue comme n'importe quel lot. `progress` garde le compte des lots d'origine. Un lot réussi ne

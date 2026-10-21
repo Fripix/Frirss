@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'fr' } }) }));
@@ -261,7 +261,13 @@ describe('useArticleTranslation', () => {
     const httpError = (data: Record<string, unknown>) =>
       Object.assign(new Error('http 502'), { isAxiosError: true, response: { status: 502, data } });
     const timedOut = () => httpError({ error: 'ai_failed', kind: 'technical', detail: 'deadline' });
-    const proxyCut = () => Object.assign(new Error('http 504'), { isAxiosError: true, response: { status: 504, data: '' } });
+    const proxyError = (status: number, data: string) => Object.assign(new Error(`http ${status}`), { isAxiosError: true, response: { status, data } });
+    // Horloge factice : une coupure amont n'en est une qu'après une longue attente.
+    let clock = 1_000_000;
+    let nowSpy: ReturnType<typeof vi.spyOn> | null = null;
+    beforeEach(() => { clock = 1_000_000; nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => clock); });
+    afterEach(() => { nowSpy?.mockRestore(); });
+    const proxyCut = () => async () => { clock += 61_000; throw proxyError(504, ''); };
     const sent = () => vi.mocked(requestAiTranslation).mock.calls.map(([body]) => body.segments);
 
     it('is replayed once, split in two, then the next batch goes: four requests, the body assembled', async () => {
@@ -381,7 +387,7 @@ describe('useArticleTranslation', () => {
 
     it('a batch cut by a reverse proxy (504, no body) is replayed in two halves too', async () => {
       vi.mocked(requestAiTranslation)
-        .mockRejectedValueOnce(proxyCut())
+        .mockImplementationOnce(proxyCut())
         .mockResolvedValueOnce(result(['Bonjour le monde']))
         .mockResolvedValueOnce(result([words('un', 1000)]))
         .mockResolvedValueOnce(result([words('deux', 1000)]));
@@ -397,8 +403,8 @@ describe('useArticleTranslation', () => {
 
     it('a half cut by the reverse proxy says so: nothing replaced, no further request', async () => {
       vi.mocked(requestAiTranslation)
-        .mockRejectedValueOnce(proxyCut())
-        .mockRejectedValueOnce(proxyCut());
+        .mockImplementationOnce(proxyCut())
+        .mockImplementationOnce(proxyCut());
       const { result: hook } = renderHook(() => useArticleTranslation(base));
       await act(async () => { hook.current.translate(); });
       await waitFor(() => expect(hook.current.state).toBe('error'));
@@ -411,7 +417,7 @@ describe('useArticleTranslation', () => {
     it('a one-segment batch cut by the reverse proxy says so, the batch before it is not resent', async () => {
       vi.mocked(requestAiTranslation)
         .mockResolvedValueOnce(result(['Bonjour le monde', words('un', 1000)]))
-        .mockRejectedValueOnce(proxyCut());
+        .mockImplementationOnce(proxyCut());
       const { result: hook } = renderHook(() => useArticleTranslation(base));
       await act(async () => { hook.current.translate(); });
       await waitFor(() => expect(hook.current.state).toBe('error'));
@@ -421,21 +427,25 @@ describe('useArticleTranslation', () => {
     });
 
     it('a network error after a long wait is taken for a cut: the batch is split', async () => {
-      let clock = 1_000_000;
-      const now = vi.spyOn(Date, 'now').mockImplementation(() => clock);
-      try {
-        vi.mocked(requestAiTranslation)
-          .mockImplementationOnce(async () => { clock += 61_000; throw Object.assign(new Error('Network Error'), { isAxiosError: true }); })
-          .mockResolvedValueOnce(result(['Bonjour le monde']))
-          .mockResolvedValueOnce(result([words('un', 1000)]))
-          .mockResolvedValueOnce(result([words('deux', 1000)]));
-        const { result: hook } = renderHook(() => useArticleTranslation(base));
-        await act(async () => { hook.current.translate(); });
-        await waitFor(() => expect(hook.current.state).toBe('done'));
-        expect(requestAiTranslation).toHaveBeenCalledTimes(4);
-      } finally {
-        now.mockRestore();
-      }
+      vi.mocked(requestAiTranslation)
+        .mockImplementationOnce(async () => { clock += 61_000; throw Object.assign(new Error('Network Error'), { isAxiosError: true }); })
+        .mockResolvedValueOnce(result(['Bonjour le monde']))
+        .mockResolvedValueOnce(result([words('un', 1000)]))
+        .mockResolvedValueOnce(result([words('deux', 1000)]));
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('done'));
+      expect(requestAiTranslation).toHaveBeenCalledTimes(4);
+    });
+
+    it('a fast 502 page (backend down) is not a proxy cut: neutral error, one request, no replay', async () => {
+      vi.mocked(requestAiTranslation).mockImplementationOnce(async () => { clock += 200; throw proxyError(502, '<html>502 Bad Gateway</html>'); });
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('error'));
+      expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+      expect(hook.current.error).toBe('ai.errors.translateFailed');
+      expect(hook.current.html).toBeNull();
     });
 
     it('a quick network error is not taken for a cut: no split', async () => {

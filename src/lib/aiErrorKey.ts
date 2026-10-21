@@ -59,16 +59,18 @@ export const UPSTREAM_CUT_MIN_MS = 30_000;
 
 /**
  * Un reverse proxy devant FriRSS (nginx, Nginx Proxy Manager : 60 s par
- * défaut) a coupé la requête : 502 / 504 dont le corps n'est pas celui du
- * serveur FriRSS (`{ error: 'ai_failed', … }`), ou aucune réponse après au
- * moins 30 s d'attente. Une erreur réseau rapide n'en est pas une.
+ * défaut) a coupé la requête, **après au moins 30 s d'attente** : 502 / 504
+ * dont le corps n'est pas celui du serveur FriRSS (`{ error: 'ai_failed', … }`),
+ * ou aucune réponse. Rapide, ce n'est pas une coupure faute de temps : un
+ * 502 de nginx quand le backend est arrêté suit le chemin d'erreur normal.
  */
 export function isUpstreamCut(status: number | undefined, data: unknown, elapsedMs: number): boolean {
+  if (elapsedMs < UPSTREAM_CUT_MIN_MS) return false;
   if (status === 502 || status === 504) {
     const ours = typeof data === 'object' && data !== null && (data as { error?: unknown }).error === 'ai_failed';
     return !ours;
   }
-  return status === undefined && elapsedMs >= UPSTREAM_CUT_MIN_MS;
+  return status === undefined;
 }
 
 export interface AiErrorMessage { key: string; params?: Record<string, string | number> }
