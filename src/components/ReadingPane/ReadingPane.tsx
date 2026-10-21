@@ -1073,9 +1073,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const tr = articleTranslation;
   const trLoading = tr.state === 'loading';
   const shownTitle = showTranslatedBody && tr.title ? tr.title : article.title;
-  const translateLabel = showTranslatedBody ? t('ai.showSource') : trLoading ? t('ai.translating') : t('ai.translateArticle');
+  // Pendant une demande, même par-dessus une traduction affichée (« Traduire
+  // en → allemand » sur du français), le bouton dit « Traduction… » et attend :
+  // basculer sur la source le temps que les lots arrivent ne voulait rien dire.
+  const translateLabel = trLoading ? t('ai.translating') : showTranslatedBody ? t('ai.showSource') : t('ai.translateArticle');
   // « Texte source » reste possible hors ligne : la traduction est déjà là.
-  const translateDisabled = showTranslatedBody ? false : !online || !tr.canTranslate || trLoading;
+  const translateDisabled = trLoading || (!showTranslatedBody && (!online || !tr.canTranslate));
   const translateTitle = !showTranslatedBody && !tr.canTranslate ? t('ai.translation.nothing') : translateLabel;
   const translateAction = showTranslatedBody ? tr.showSource : () => tr.translate();
   const trLangName = tr.lang ? languageName(tr.lang, i18n.language) : '';
@@ -1672,7 +1675,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               )}
             </div>
           )}
-          {tr.state === 'error' && tr.error && (
+          {tr.error && (
             <div
               role="alert"
               className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center gap-2"

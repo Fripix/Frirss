@@ -2506,7 +2506,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     tronquaient la réponse, rejouée puis en échec à chaque essai), envoyés **en
     série**, une requête `POST /api/ai/translate` (`scope: 'article'`) par
     lot. Le numéro de lot ne part pas au serveur : il sert la notice. Une
-    erreur à **n'importe quel** lot donne une erreur et rien n'est remplacé ;
+    erreur à **n'importe quel** lot donne une erreur et rien n'est remplacé —
+    si une traduction était déjà affichée (« Traduire en → allemand » par-dessus
+    du français), elle **reste**, déjà payée, et l'alerte s'y ajoute ;
     `same` au premier lot arrête tout (« Déjà en {langue}. ») ; un lot suivant
     `same` (article mêlé) garde ses segments d'origine. Un segment à lui seul
     plus lourd que 200 000 octets n'entre dans aucun lot et reste dans la
@@ -2525,7 +2527,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     visible sans appui long). Le bouton principal **remontre** une traduction
     déjà tenue sans requête **seulement si sa langue est la cible** : après
     « Traduire en → allemand » puis « Texte source », il envoie une nouvelle
-    demande dans la langue cible. Le menu suit les règles du résumé
+    demande dans la langue cible. Pendant une demande, **même par-dessus une
+    traduction affichée**, il dit « Traduction… » et est désactivé (sinon il
+    restait « Texte source » et la vue rebasculait à l'arrivée des lots). Le
+    menu suit les règles du résumé
     (« Traduire avec X » garde la langue affichée et le réglage de repli). Le
     raccourci `t` et la palette lancent la même action, sans jamais revenir au
     texte source (voir « Raccourcis clavier et palette » plus bas).
@@ -2538,7 +2543,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     sous la précédente, « Déjà en {langue}. » (sauf après une traduction
     automatique, qui le tait). Les erreurs (mêmes messages que
     la traduction du résumé, `op: 'translate'`) sont une **alerte** à part,
-    gabarit de l'erreur d'extraction ; la source reste affichée. La notice
+    gabarit de l'erreur d'extraction ; ce qui était affiché le reste (la
+    source, ou la traduction précédente). La notice
     disparaît quand on revient au texte source. L'avis d'extraction et la
     notice de traduction peuvent se montrer ensemble (extraction d'abord,
     traduction dessous) ; de même les deux alertes — assumé, pas arbitré.

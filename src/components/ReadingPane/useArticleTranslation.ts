@@ -225,7 +225,9 @@ function prepare(title: string, bodyHtml: string): Prepared {
  *   **en série**, une requête par lot. `progress` sert la notice ; le numéro
  *   de lot ne part pas au serveur.
  * - Tant qu'un lot manque, rien n'est remplacé : une erreur à n'importe quel
- *   lot donne `error` sans corps traduit ; `same` au premier lot donne `same`
+ *   lot donne `error` sans corps traduit — ou, quand une traduction était déjà
+ *   tenue (autre langue, autre fournisseur), la garde (`done`) et y ajoute
+ *   `error` ; `same` au premier lot donne `same`
  *   (le texte est déjà dans la langue) sans autre requête.
  * - La traduction est liée au hash du titre et du corps : quand l'un change
  *   (extraction arrivée, « Article complet » basculé) ou que l'article change,
@@ -365,7 +367,8 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
         if (!stillCurrent()) return;
         const resp = axios.isAxiosError(err) ? err.response : undefined;
         const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], admin, language, { op: 'translate' });
-        setSnap({ ...idle(k), state: 'error', error: tr(msg.key, msg.params) });
+        // Une traduction déjà tenue (payée) reste affichée, l'erreur s'ajoute.
+        setSnap(held ? { ...held, error: tr(msg.key, msg.params) } : { ...idle(k), state: 'error', error: tr(msg.key, msg.params) });
       }
     })();
   }, []);

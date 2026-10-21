@@ -773,6 +773,37 @@ describe('ReadingPane — traduction de l\'article', () => {
     expect((await findByRole('alert')).textContent).toContain('ai.errors.translateFailed');
     expect(bodyText(container)).toContain('mot mot');
   });
+  describe('re-translating into another language over a displayed translation', () => {
+    async function shownThenGerman() {
+      vi.mocked(requestAiTranslation).mockResolvedValueOnce(translated(['Title a1', 'word word']));
+      const utils = render(<ReadingPane />);
+      fireEvent.click(utils.getByRole('button', { name: 'ai.translateArticle' }));
+      await utils.findByRole('button', { name: 'ai.showSource' });
+      let reject!: (e: unknown) => void;
+      vi.mocked(requestAiTranslation).mockReturnValueOnce(new Promise((_, rej) => { reject = rej; }) as never);
+      fireEvent.click(utils.getByRole('button', { name: 'ai.translateArticleMenu' }));
+      fireEvent.click(within(utils.getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('de', 'fr') }));
+      return { ...utils, reject: (e: unknown) => reject(e) };
+    }
+    it('the main button says « Traduction… » and is disabled while it loads', async () => {
+      const { getByRole, queryByRole, container } = await shownThenGerman();
+      expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ targetLang: 'de' });
+      const btn = getByRole('button', { name: 'ai.translating' }) as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+      expect(queryByRole('button', { name: 'ai.showSource' })).toBeNull();
+      expect(bodyText(container)).toBe('word word');
+    });
+    it('an error keeps the translation on screen and adds the alert', async () => {
+      const { getByRole, findByRole, container, getByText, reject } = await shownThenGerman();
+      await act(async () => { reject(httpError(502, { error: 'ai_failed', kind: 'technical' })); });
+      expect((await findByRole('alert')).textContent).toContain('ai.errors.translateFailed');
+      expect(bodyText(container)).toBe('word word');
+      expect(getByRole('heading', { level: 1 }).textContent).toBe('Title a1');
+      expect(getByText('ai.translation.done')).toBeTruthy();
+      expect((getByRole('button', { name: 'ai.showSource' }) as HTMLButtonElement).disabled).toBe(false);
+    });
+  });
+
   it('says « Déjà en … » when the article is already in the language', async () => {
     vi.mocked(requestAiTranslation).mockResolvedValue(translated([], { same: true, lang: 'fr' }));
     const { getByRole, findByText } = render(<ReadingPane />);

@@ -94,6 +94,26 @@ describe('useArticleTranslation', () => {
     expect(hook.current.showing).toBe('source');
   });
 
+  it('a failure while re-translating into another language keeps the translation already paid for, with the error', async () => {
+    vi.mocked(requestAiTranslation)
+      .mockResolvedValueOnce(result(['Titre', 'Bonjour']))
+      .mockRejectedValueOnce(Object.assign(new Error('http 502'), { isAxiosError: true, response: { status: 502, data: { error: 'ai_failed', kind: 'technical' } } }));
+    const { result: hook } = renderHook(() => useArticleTranslation({ ...base, bodyHtml: '<p>Hello</p>' }));
+    await act(async () => { hook.current.translate(); });
+    await waitFor(() => expect(hook.current.state).toBe('done'));
+    await act(async () => { hook.current.translate({ lang: 'de' }); });
+    await waitFor(() => expect(hook.current.error).toBe('ai.errors.translateFailed'));
+    expect(hook.current.state).toBe('done');
+    expect(hook.current.lang).toBe('fr');
+    expect(hook.current.html).toBe('<p>Bonjour</p>');
+    expect(hook.current.title).toBe('Titre');
+    expect(hook.current.showing).toBe('translation');
+    // L'erreur s'efface à la demande suivante.
+    vi.mocked(requestAiTranslation).mockReturnValueOnce(new Promise(() => {}) as never);
+    act(() => { hook.current.translate({ lang: 'de' }); });
+    expect(hook.current.error).toBeNull();
+  });
+
   it('same at the first batch: state same, no second request', async () => {
     vi.mocked(requestAiTranslation).mockResolvedValue(result([], { same: true, lang: 'fr' }));
     const { result: hook } = renderHook(() => useArticleTranslation(base));
