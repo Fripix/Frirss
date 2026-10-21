@@ -10,7 +10,7 @@ vi.mock('../stores/authStore', () => ({
 }));
 
 import { BACKEND_AUTH_MARKERS } from '../lib/loginErrors';
-import client, { getCloudflareAccessLoginUrl, getCloudflareAccessLoginUrlFromTeamDomain } from './client';
+import client, { getCloudflareAccessLoginUrl, getCloudflareAccessLoginUrlForAppOrigin } from './client';
 
 const handlers = (client.interceptors.response as unknown as {
   handlers: {
@@ -75,19 +75,19 @@ describe('Cloudflare Access redirect URL detection', () => {
     expect(url.searchParams.get('redirect_url')).toBe('/?view=interesting#article-123');
   });
 
-  it('builds login URLs only from a trusted Cloudflare Access team domain', () => {
-    const login = getCloudflareAccessLoginUrlFromTeamDomain(
-      'https://wasserburg.cloudflareaccess.com',
-      'rss.lindau.li',
+  it('builds login URLs on the protected app origin for wildcard Access apps', () => {
+    const login = getCloudflareAccessLoginUrlForAppOrigin(
+      'https://rss.example.test',
+      'rss.example.test',
       '/?view=interesting#article-123',
     );
     expect(login).not.toBeNull();
     const url = new URL(login!);
-    expect(url.hostname).toBe('wasserburg.cloudflareaccess.com');
-    expect(url.pathname).toBe('/cdn-cgi/access/login/rss.lindau.li');
+    expect(url.origin).toBe('https://rss.example.test');
+    expect(url.pathname).toBe('/cdn-cgi/access/login/rss.example.test');
     expect(url.searchParams.get('redirect_url')).toBe('/?view=interesting#article-123');
-    expect(getCloudflareAccessLoginUrlFromTeamDomain('https://evil.example', 'rss.lindau.li', '/')).toBeNull();
-    expect(getCloudflareAccessLoginUrlFromTeamDomain('http://wasserburg.cloudflareaccess.com', 'rss.lindau.li', '/')).toBeNull();
+    expect(getCloudflareAccessLoginUrlForAppOrigin('https://evil.example', 'rss.example.test', '/')).toBeNull();
+    expect(getCloudflareAccessLoginUrlForAppOrigin('http://rss.example.test', 'rss.example.test', '/')).toBeNull();
   });
 
   it('rejects unrelated or untrusted redirect URLs', () => {
@@ -140,8 +140,7 @@ describe('Cloudflare Access 401 handling', () => {
     }))).rejects.toThrow('Cloudflare Access authentication required');
     expect(reload).toHaveBeenCalledTimes(1);
 
-    // After reload, discover the team domain from the WWW-Authenticate
-    // resource_metadata URL and redirect to that domain's login endpoint.
+    // After reload, use the app-origin login endpoint, preserving wildcard app resolution.
     const loginValues = new Map<string, string>([['frirss:cloudflare-access-reload-at', String(Date.now())]]);
     const assign = vi.fn();
     vi.stubGlobal('window', {
@@ -160,12 +159,7 @@ describe('Cloudflare Access 401 handling', () => {
         removeItem: (key: string) => { loginValues.delete(key); },
       },
     });
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ team_domain: 'https://wasserburg.cloudflareaccess.com' }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    vi.resetModules();
+        vi.resetModules();
     const freshClient = (await import('./client')).default;
     const freshRejected = (freshClient.interceptors.response as unknown as {
       handlers: { rejected: (error: unknown) => Promise<unknown> }[];
@@ -173,10 +167,9 @@ describe('Cloudflare Access 401 handling', () => {
     await expect(freshRejected(proxyError(401, 'Unauthorized', {
       'www-authenticate': 'Cloudflare-Access resource_metadata="https://rss.example.test/.well-known/cloudflare-access-protected-resource/api/proxy"',
     }))).rejects.toThrow('Cloudflare Access authentication required');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(assign).toHaveBeenCalledTimes(1);
     const loginUrl = new URL(assign.mock.calls[0][0]);
-    expect(loginUrl.origin).toBe('https://wasserburg.cloudflareaccess.com');
+    expect(loginUrl.origin).toBe('https://rss.example.test');
     expect(loginUrl.pathname).toBe('/cdn-cgi/access/login/rss.example.test');
     expect(loginUrl.searchParams.get('redirect_url')).toBe('/?view=all#article-123');
 
@@ -187,7 +180,6 @@ describe('Cloudflare Access 401 handling', () => {
     });
     await expect(freshRejected(repeatedAccess401)).rejects.toBe(repeatedAccess401);
     expect(assign).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     // An ordinary application/backend 401 must not trigger another reload.
     await reject(proxyError(401, { error: 'Unauthorized' }, {

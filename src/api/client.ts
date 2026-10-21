@@ -129,23 +129,17 @@ function getAccessMetadataUrl(value: unknown): string | null {
   }
 }
 
-export function getCloudflareAccessLoginUrlFromTeamDomain(
-  teamDomain: unknown,
+export function getCloudflareAccessLoginUrlForAppOrigin(
+  appOrigin: string,
   appHost: string,
   returnTo: string,
 ): string | null {
-  if (typeof teamDomain !== 'string') return null;
   try {
-    const teamUrl = new URL(teamDomain.includes('://') ? teamDomain : `https://${teamDomain}`);
-    if (
-      teamUrl.protocol !== 'https:' ||
-      !teamUrl.hostname.endsWith('.cloudflareaccess.com') ||
-      teamUrl.username ||
-      teamUrl.password
-    ) return null;
+    const origin = new URL(appOrigin);
+    if (origin.protocol !== 'https:' || origin.host !== appHost) return null;
     const loginUrl = new URL(
       `/cdn-cgi/access/login/${encodeURIComponent(appHost)}`,
-      teamUrl.origin,
+      origin.origin,
     );
     loginUrl.searchParams.set('redirect_url', returnTo || '/');
     return loginUrl.toString();
@@ -155,20 +149,15 @@ export function getCloudflareAccessLoginUrlFromTeamDomain(
 }
 
 async function getMetadataBasedLoginUrl(value: unknown, returnTo: string): Promise<string | null> {
-  const metadataUrl = getAccessMetadataUrl(value);
-  if (!metadataUrl || typeof fetch !== 'function') return null;
-  try {
-    const response = await fetch(metadataUrl, { credentials: 'omit', cache: 'no-store' });
-    if (!response.ok) return null;
-    const metadata = await response.json() as { team_domain?: unknown };
-    return getCloudflareAccessLoginUrlFromTeamDomain(
-      metadata.team_domain,
-      window.location.host,
-      returnTo,
-    );
-  } catch {
-    return null;
-  }
+  // The metadata header is the Access 401 fingerprint. Keep the login flow on
+  // the protected app origin so wildcard Access applications resolve exactly
+  // as they did before; the team-domain endpoint can reject wildcard hosts.
+  if (!getAccessMetadataUrl(value)) return null;
+  return getCloudflareAccessLoginUrlForAppOrigin(
+    window.location.origin,
+    window.location.host,
+    returnTo,
+  );
 }
 
 export async function reloadForCloudflareAccess(value: unknown): Promise<boolean> {
@@ -181,8 +170,8 @@ export async function reloadForCloudflareAccess(value: unknown): Promise<boolean
   try {
     const previous = Number(window.sessionStorage.getItem(ACCESS_RELOAD_STORAGE_KEY));
     if (Number.isFinite(previous) && previous > 0 && now - previous < ACCESS_RELOAD_COOLDOWN_MS) {
-      // A reload did not restore Access. Try the team-domain login endpoint
-      // discovered from Cloudflare's resource metadata, not an app-origin URL.
+      // A reload did not restore Access. Retry through the app-origin login endpoint
+      // so Cloudflare can resolve the existing wildcard Access application.
       const loginRedirectAt = Number(
         window.sessionStorage.getItem(ACCESS_LOGIN_REDIRECT_STORAGE_KEY),
       );
