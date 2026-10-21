@@ -826,6 +826,8 @@
       "fallbackManualHint": "An unusable answer or a refusal never switches provider on its own: the article then offers “Retry with…”, for you to confirm there. With the setting off, the same goes for any outage.",
       "auto": "Summarise automatically on open",
       "autoHint": "Every article you open is summarised without a click, unless a feed or category says otherwise.",
+      "panel": "AI summary panel always visible",
+      "panelHint": "When off, the panel only appears with a summary: the s key, the palette or the toolbar icon. Can be set per feed and category below.",
       "autoConfirmTitle": "Turn on automatic summaries?",
       "autoConfirmMessage": "Every automatic summary is a call to your AI provider. Depending on the provider and your plan, it may be billed to you. A local model such as Ollama costs nothing.",
       "autoConfirm": "Turn on",

@@ -86,6 +86,12 @@ la release publiée.
   panneau « Résumé IA » se réduit à son en-tête (étincelle, titre, « Pas
   encore résumé », « Résumer ») tant qu'il n'y a ni résumé, ni demande en
   cours, ni erreur ; le repli mémorisé joue dès la première demande.
+  **Panneau « Résumé IA » facultatif.** Un interrupteur « Panneau Résumé IA
+  toujours visible » (Préférences → IA → Résumés, allumé d'origine) permet de ne
+  le montrer qu'avec une demande ou un résumé : la touche `s` ou la palette le
+  font apparaître, et il disparaît à l'article suivant.
+  Le réglage est synchronisé ; il se précise par flux et par catégorie
+  (un flux prime sur ses catégories, qui priment sur le global).
 - **Deux onglets, un seul appel IA.** Quand le même résumé ou le même lot de
   traduction est demandé pendant qu'il est en cours de génération — depuis un
   autre onglet ou un autre appareil du même compte —, le serveur rattache la

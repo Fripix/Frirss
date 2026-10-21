@@ -826,6 +826,8 @@
       "fallbackManualHint": "Eine unbrauchbare Antwort oder eine Ablehnung wechselt nie von selbst den Anbieter: Der Artikel bietet dann „Erneut mit … versuchen“ an, dort zu bestätigen. Bei ausgeschalteter Einstellung gilt das auch für jeden Ausfall.",
       "auto": "Beim Öffnen automatisch zusammenfassen",
       "autoHint": "Jeder geöffnete Artikel wird ohne Klick zusammengefasst, sofern kein Feed und keine Kategorie etwas anderes festlegt.",
+      "panel": "KI-Zusammenfassungsfeld immer sichtbar",
+      "panelHint": "Ausgeschaltet erscheint das Feld nur mit einer Zusammenfassung: Taste s, Palette oder Symbol in der Leiste. Unten pro Feed und Kategorie einstellbar.",
       "autoConfirmTitle": "Automatische Zusammenfassung aktivieren?",
       "autoConfirmMessage": "Jede automatische Zusammenfassung ist ein Aufruf bei Ihrem KI-Anbieter. Je nach Anbieter und Tarif kann sie Ihnen in Rechnung gestellt werden. Ein lokales Modell wie Ollama kostet nichts.",
       "autoConfirm": "Aktivieren",

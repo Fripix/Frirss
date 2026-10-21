@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   useUiStore, UI_SYNC_KEYS, normalizeAiSummaryRatio, normalizeAiProviderId, normalizeAiCategoryProviders,
-  normalizeAiCategoryFlags,
+  normalizeAiCategoryFlags, normalizeAiCategoryBooleans,
 } from './uiStore';
 import { isUnreadOnly } from './uiStore';
 
@@ -580,5 +580,79 @@ describe('uiStore — traduction IA et automatismes par flux', () => {
     useUiStore.getState().setFeedAiAutoTranslate('feed/1', '');
     useUiStore.getState().setFeedAiAutoSummary('feed/1', '');
     expect(useUiStore.getState().feedSettings['feed/1']).toBeUndefined();
+  });
+});
+
+describe('uiStore — panneau Résumé IA (toujours visible ou seulement avec un résumé)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiStore.setState({ aiPanelAlways: true, aiCategoryPanel: {}, feedSettings: {} });
+  });
+
+  it('normalises category booleans: both true and false are values, the rest is dropped', () => {
+    expect(normalizeAiCategoryBooleans({ A: true, B: false, C: 'x', '': true, D: 1 })).toEqual({ A: true, B: false });
+    for (const bad of [null, undefined, 'x', 4, [true]]) expect(normalizeAiCategoryBooleans(bad), String(bad)).toEqual({});
+  });
+
+  it('is visible by default, synced, and persisted through its setters', () => {
+    const s = useUiStore.getState();
+    expect([s.aiPanelAlways, s.aiCategoryPanel]).toEqual([true, {}]);
+    for (const k of ['aiPanelAlways', 'aiCategoryPanel']) expect(UI_SYNC_KEYS).toContain(k);
+    s.setAiPanelAlways(false);
+    s.setAiCategoryPanel('Tech', true); s.setAiCategoryPanel('News', false); s.setAiCategoryPanel('Old', true); s.setAiCategoryPanel('Old', null);
+    const n = useUiStore.getState();
+    expect([n.aiPanelAlways, n.aiCategoryPanel]).toEqual([false, { Tech: true, News: false }]);
+    expect(localStorage.getItem('frirss_aiPanelAlways')).toBe('false');
+    expect(JSON.parse(localStorage.getItem('frirss_aiCategoryPanel')!)).toEqual({ Tech: true, News: false });
+  });
+
+  it('normalises the prefs arriving from the server', () => {
+    useUiStore.getState().applyServerPrefs({ aiPanelAlways: false, aiCategoryPanel: { A: true, B: false, C: 'x' } });
+    expect(useUiStore.getState().aiPanelAlways).toBe(false);
+    expect(useUiStore.getState().aiCategoryPanel).toEqual({ A: true, B: false });
+    useUiStore.getState().applyServerPrefs({ aiPanelAlways: 'no' });
+    expect(useUiStore.getState().aiPanelAlways).toBe(false);
+  });
+
+  it('shows the panel again for an account whose saved prefs predate the setting', () => {
+    useUiStore.getState().setAiPanelAlways(false);
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+    expect(useUiStore.getState().aiPanelAlways).toBe(true);
+    expect(localStorage.getItem('frirss_aiPanelAlways')).toBe('true');
+  });
+
+  it('leaves the setting alone for a brand-new account (empty prefs)', () => {
+    useUiStore.getState().setAiPanelAlways(false);
+    useUiStore.getState().applyServerPrefs({});
+    expect(useUiStore.getState().aiPanelAlways).toBe(false);
+  });
+
+  it('clears the local category choices for an account whose saved prefs lack them, keeps them for a new one', () => {
+    useUiStore.setState({ aiCategoryPanel: { Tech: false } });
+    useUiStore.getState().applyServerPrefs({});
+    expect(useUiStore.getState().aiCategoryPanel).toEqual({ Tech: false });
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+    expect(useUiStore.getState().aiCategoryPanel).toEqual({});
+    expect(JSON.parse(localStorage.getItem('frirss_aiCategoryPanel')!)).toEqual({});
+  });
+
+  it('per-feed panel keeps an explicit false and is cleared with the empty string', () => {
+    useUiStore.getState().setFeedAiPanel('feed/1', false);
+    expect(useUiStore.getState().feedSettings['feed/1']).toEqual({ aiPanel: false });
+    useUiStore.getState().setFeedAiPanel('feed/1', true);
+    expect(useUiStore.getState().feedSettings['feed/1']).toEqual({ aiPanel: true });
+    useUiStore.getState().setFeedAiPanel('feed/1', '');
+    expect(useUiStore.getState().feedSettings['feed/1']).toBeUndefined();
+  });
+
+  it('strips the per-feed panel for an account whose saved prefs lack feedSettings, and on sign-out', () => {
+    useUiStore.setState({ feedSettings: { 'feed/1': { aiPanel: false, layout: 'grid' }, 'feed/2': { aiPanel: true } } });
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+    expect(useUiStore.getState().feedSettings).toEqual({ 'feed/1': { layout: 'grid' } });
+    useUiStore.setState({ feedSettings: { 'feed/1': { aiPanel: false, layout: 'grid' } }, aiCategoryPanel: { Tech: false } });
+    useUiStore.getState().forgetAiAccountChoices();
+    expect(useUiStore.getState().feedSettings).toEqual({ 'feed/1': { layout: 'grid' } });
+    expect(useUiStore.getState().aiCategoryPanel).toEqual({});
+    expect(JSON.parse(localStorage.getItem('frirss_aiCategoryPanel')!)).toEqual({});
   });
 });

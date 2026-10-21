@@ -2497,7 +2497,13 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   est la même que celle des interrupteurs « Résumer » de « Par flux et
   catégorie » et ne s'ouvre qu'**une fois par compte** : la confirmer, ici ou
   là, pose `aiAutoSummaryConfirmed`, après quoi rallumer le global (ou un
-  « Résumer ») s'applique directement, sans boîte ;
+  « Résumer ») s'applique directement, sans boîte ; puis **« Panneau Résumé IA
+  toujours visible »** (interrupteur, **allumé** par défaut, `aiPanelAlways` ;
+  son aide dit qu'éteint, le panneau n'apparaît qu'avec un résumé — « touche s,
+  palette ou icône de la barre » — et que le réglage se refait par flux et
+  catégorie plus bas ; ⚠️ **il n'existe pas d'icône « Résumer » dans la barre
+  d'outils** : seuls `s` et la palette lancent un résumé panneau masqué, et
+  l'aide cite une icône qui reste à livrer) : il ne coûte rien, donc aucune confirmation ;
   enfin la ligne **« Appels IA payés par l'instance aujourd'hui : N sur M »**
   (résumés et traductions, un seul compteur ; N relu à chaque ouverture de la
   section, voir `aiStore` plus haut),
@@ -2505,7 +2511,17 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   **> 0** et au moins un fournisseur `available` + clé admin + partagé + sans
   clé personnelle (sinon le plafond ne le concerne pas). Les trois réglages
   (`aiPreferredProvider`, `aiFallback`, `aiAutoSummary`) vivent dans
-  `useUiStore` et se synchronisent ; `ToggleSwitch` accepte `describedBy` pour
+  `useUiStore` et se synchronisent, tout comme la visibilité du panneau
+  (voir « Interface — panneau ») : `aiPanelAlways`, `aiCategoryPanel`
+  (`{ nom: true | false }`, normalisé par `normalizeAiCategoryBooleans` : ici
+  « faux » est une valeur, pas l'absence) et `feedSettings[id].aiPanel`. Ces
+  trois-là ne coûtent rien et suivent donc la règle inverse des choix de
+  coût : la déconnexion (`forgetAiAccountChoices`) vide `aiCategoryPanel` et
+  retire `aiPanel` de chaque flux (`AI_FEED_KEYS`), mais laisse
+  `aiPanelAlways` ; `applyServerPrefs` force `aiPanelAlways` à **vrai** (et
+  non à faux comme `aiAutoSummary`) et vide `aiCategoryPanel` quand des
+  préférences serveur non vides n'ont pas la clé — un compte d'avant le
+  réglage retrouve le panneau qu'il a toujours eu — ; `ToggleSwitch` accepte `describedBy` pour
   relier chaque interrupteur à son aide. **Aucun choix IA qui engage un coût
   ne s'hérite d'un autre compte** : `aiAutoSummary`, les deux confirmations
   de coût, le fournisseur préféré (`aiPreferredProvider`) et celui de la
@@ -2680,7 +2696,29 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
 - **Interface — panneau** (`AiSummary.tsx`) : un panneau sur **toute la largeur
   de la colonne de lecture**, au-dessus de l'article, sur une **surface teintée
   réglable** (`--ai-bg` / `--ai-border`, voir « Apparence et thèmes »).
-  - **Panneau vide = l'en-tête seul.** Tant qu'il n'y a rien à montrer
+  - **Visibilité : toujours là, ou seulement avec une demande.** Le panneau est
+    rendu quand l'IA est utilisable **et** que `showAiPanel` est vrai :
+    `aiStatus !== 'idle'` (une demande est partie, a échoué ou a abouti), ou un
+    résumé est affiché (`aiResult`), ou `panelFor()` (`lib/aiAuto.ts`) répond
+    vrai. `panelFor` : le réglage propre du flux (`feedSettings[id].aiPanel`,
+    **vrai ou faux explicite**) > les catégories du flux (`aiCategoryPanel` :
+    **vrai dès qu'une catégorie est explicitement vraie**, sinon faux dès
+    qu'une est explicitement fausse — un panneau voulu quelque part n'est pas
+    masqué par une autre catégorie) > `aiPanelAlways` (**vrai** d'origine :
+    FriRSS a toujours montré le panneau). Éteint et sans demande, il est
+    **absent** — pas même l'en-tête —, et la touche `s` et la palette (leurs
+    gardes, `aiUsable`, en ligne, article ouvert, ne regardent pas le panneau)
+    ne dépendent pas de lui : leur demande le fait apparaître (statut
+    `loading`), avec son résumé ou son erreur. Aucun bouton de la barre
+    d'outils ne résume : panneau masqué, un téléphone sans clavier n'a que la
+    palette. Il repart
+    avec l'état à l'article suivant, comme le résumé. Le résumé automatique
+    (`autoFor`) est indépendant : il part panneau masqué et le fait
+    apparaître de même. Réglé dans Préférences → IA → « Résumés » (global) ;
+    la pastille « Panneau » de « Par flux et catégorie » n'est pas encore
+    posée : le store (`setAiCategoryPanel`, `setFeedAiPanel`) est prêt, pas
+    l'écran.
+  - **Panneau vide = l'en-tête seul** (quand il est visible, voir ci-dessus). Tant qu'il n'y a rien à montrer
     (`empty = !done && !loading && !alertText` : ni résumé, ni demande en cours,
     ni erreur), le panneau se réduit à une ligne : étincelle, titre « Résumé
     IA », « Pas encore résumé » et l'action « Résumer » à droite. **Pas de

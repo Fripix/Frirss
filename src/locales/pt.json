@@ -826,6 +826,8 @@
       "fallbackManualHint": "Uma resposta inutilizável ou uma recusa nunca muda de fornecedor sozinha: o artigo propõe então «Tentar novamente com…», a confirmar aí. Com a opção desativada, o mesmo vale para qualquer falha.",
       "auto": "Resumir automaticamente ao abrir",
       "autoHint": "Cada artigo aberto é resumido sem clicar, salvo definição em contrário por feed ou categoria.",
+      "panel": "Painel de resumo IA sempre visível",
+      "panelHint": "Desligado, o painel só aparece com um resumo: tecla s, paleta ou ícone da barra. Ajustável por feed e categoria mais abaixo.",
       "autoConfirmTitle": "Ativar o resumo automático?",
       "autoConfirmMessage": "Cada resumo automático é uma chamada ao seu fornecedor de IA. Consoante o fornecedor e a sua subscrição, pode ser-lhe cobrado. Um modelo local como o Ollama não custa nada.",
       "autoConfirm": "Ativar",

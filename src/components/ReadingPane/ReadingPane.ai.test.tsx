@@ -56,6 +56,7 @@ beforeEach(() => {
   useAuthStore.setState({ backendUser: { id: 2, username: 'u', role: 'user' } as never });
   useUiStore.setState({
     aiPanelCollapsed: false, aiPanelAutoExpanded: false, aiSummaryRatio: 20, aiAutoSummary: false,
+    aiPanelAlways: true, aiCategoryPanel: {},
     autoExtractDefault: false,
     feedSettings: {}, aiCategoryProviders: {}, aiPreferredProvider: null, aiFallback: true,
     aiTranslationLanguage: 'ui', aiTranslationProvider: null, toasts: [],
@@ -175,6 +176,49 @@ describe('ReadingPane — Résumé IA', () => {
     fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
     await waitFor(() => expect(getByRole('button', { name: /^ai\.summarize\s/ }).getAttribute('aria-expanded')).toBe('false'));
     expect(queryByText('Le résumé.')).toBeNull();
+  });
+  describe('panel visibility setting', () => {
+    const fire = () => act(() => { window.dispatchEvent(new CustomEvent('frirss:ai-summarize')); });
+    it('hides the panel while the setting is off and nothing was asked', () => {
+      useUiStore.setState({ aiPanelAlways: false });
+      const { queryByText, queryByRole } = render(<ReadingPane />);
+      expect(queryByText('ai.status.none')).toBeNull();
+      expect(queryByRole('button', { name: 'ai.summarizeAction' })).toBeNull();
+    });
+    it('« s » makes it appear with the request, and the summary stays', async () => {
+      useUiStore.setState({ aiPanelAlways: false });
+      vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+      const { findByText, queryByText } = render(<ReadingPane />);
+      expect(queryByText('ai.status.none')).toBeNull();
+      fire();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      expect(await findByText('Le résumé.')).toBeTruthy();
+    });
+    it('goes away again on the next article', async () => {
+      useUiStore.setState({ aiPanelAlways: false });
+      vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+      const { findByText, queryByText } = render(<ReadingPane />);
+      fire();
+      expect(await findByText('Le résumé.')).toBeTruthy();
+      act(() => { useFeedStore.setState({ selectedArticle: article('a2') }); });
+      expect(queryByText('Le résumé.')).toBeNull();
+      expect(queryByText('ai.status.none')).toBeNull();
+    });
+    it('a feed set to always shows it under a global off; a feed set to off hides it under a global on', () => {
+      useUiStore.setState({ aiPanelAlways: false, feedSettings: { 'feed/1': { aiPanel: true } } });
+      const first = render(<ReadingPane />);
+      expect(first.getByText('ai.status.none')).toBeTruthy();
+      first.unmount();
+      useUiStore.setState({ aiPanelAlways: true, feedSettings: { 'feed/1': { aiPanel: false } } });
+      const second = render(<ReadingPane />);
+      expect(second.queryByText('ai.status.none')).toBeNull();
+    });
+    it('a category switched off hides it for its feeds', () => {
+      useFeedStore.setState({ subscriptions: [{ id: 'feed/1', title: 'F', categories: [{ id: 'user/-/label/Tech', label: 'Tech' }] }] } as never);
+      useUiStore.setState({ aiCategoryPanel: { Tech: false } });
+      const { queryByText } = render(<ReadingPane />);
+      expect(queryByText('ai.status.none')).toBeNull();
+    });
   });
   it('ignores a summary that arrives after the article changed', async () => {
     let resolve!: (v: unknown) => void;
@@ -310,6 +354,15 @@ describe('ReadingPane — Résumé IA', () => {
       await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
+      expect(await findByText('Le résumé.')).toBeTruthy();
+    });
+    it('brings a panel hidden by the setting up with the automatic summary', async () => {
+      useUiStore.setState({ aiAutoSummary: true, aiPanelAlways: false });
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      const { findByText, queryByText } = render(<ReadingPane />);
+      expect(queryByText('ai.status.none')).toBeNull();
+      await passDelay();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       expect(await findByText('Le résumé.')).toBeTruthy();
     });
     it('does nothing on open when auto-summary is off', async () => {

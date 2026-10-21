@@ -16,8 +16,9 @@ const NO_PROVIDERS: AiProviderView[] = [];
  * la langue — « 20 % » en français, « 20% » en anglais —, sans clé de
  * traduction), puis le fournisseur préféré, le repli, le résumé automatique
  * (qu'on n'active qu'après une confirmation de coût, une fois par compte,
- * partagée avec les interrupteurs « Résumer » de « Par flux et catégorie ») et,
- * quand l'instance
+ * partagée avec les interrupteurs « Résumer » de « Par flux et catégorie »),
+ * la visibilité du panneau « Résumé IA » dans la lecture (toujours là, ou
+ * seulement avec un résumé) et, quand l'instance
  * paie sous plafond, la consommation du jour.
  */
 export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
@@ -38,6 +39,8 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
   const setAuto = useUiStore((s) => s.setAiAutoSummary);
   const autoConfirmed = useUiStore((s) => s.aiAutoSummaryConfirmed);
   const setAutoConfirmed = useUiStore((s) => s.setAiAutoSummaryConfirmed);
+  const panelAlways = useUiStore((s) => s.aiPanelAlways);
+  const setPanelAlways = useUiStore((s) => s.setAiPanelAlways);
   const [confirmAuto, setConfirmAuto] = useState(false);
   // « Par défaut (X) » nomme ce que la résolution du serveur prendra sans
   // préféré : le défaut admin s'il est utilisable par CE lecteur, sinon le
@@ -99,6 +102,14 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
           <ToggleSwitch checked={auto} onChange={(on) => (on && !autoConfirmed ? setConfirmAuto(true) : setAuto(on))} ariaLabel={t('ai.user.auto')} describedBy={`${uid}-auto-hint`} />
         </div>
         <p id={`${uid}-auto-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.autoHint')}</p>
+      </div>
+
+      <div>
+        <div className="prefs-tap-row flex items-center justify-between gap-3">
+          <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.user.panel')}</span>
+          <ToggleSwitch checked={panelAlways} onChange={setPanelAlways} ariaLabel={t('ai.user.panel')} describedBy={`${uid}-panel-hint`} />
+        </div>
+        <p id={`${uid}-panel-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.panelHint')}</p>
       </div>
 
       {showUsage && (

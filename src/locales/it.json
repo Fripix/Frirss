@@ -826,6 +826,8 @@
       "fallbackManualHint": "Una risposta inutilizzabile o un rifiuto non cambia mai fornitore da sé: l'articolo propone allora «Riprova con…», da confermare lì. Con l'impostazione disattivata vale anche per qualsiasi guasto.",
       "auto": "Riassumi automaticamente all'apertura",
       "autoHint": "Ogni articolo aperto viene riassunto senza un clic, salvo impostazione diversa per feed o categoria.",
+      "panel": "Pannello Riassunto IA sempre visibile",
+      "panelHint": "Se disattivato, il pannello compare solo con un riassunto: tasto s, tavolozza o icona della barra. Regolabile per feed e categoria più sotto.",
       "autoConfirmTitle": "Attivare il riassunto automatico?",
       "autoConfirmMessage": "Ogni riassunto automatico è una chiamata al suo fornitore di IA. A seconda del fornitore e dell'abbonamento, potrebbe esserle addebitato. Un modello locale come Ollama non costa nulla.",
       "autoConfirm": "Attiva",

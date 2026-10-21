@@ -388,12 +388,12 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
     useAiStore.setState({ config: { enabled: true, providers: [], userKeysAllowed: false, dailyCap: 0, usageToday: 0, defaultProvider: null, ...o } });
   beforeEach(() => {
     useAuthStore.setState({ backendUser: user });
-    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false, aiAutoSummaryConfirmed: false });
+    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false, aiAutoSummaryConfirmed: false, aiPanelAlways: true });
     setConfig();
   });
   afterEach(() => {
     useAiStore.setState({ config: null });
-    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false, aiAutoSummaryConfirmed: false });
+    useUiStore.setState({ aiPreferredProvider: null, aiFallback: true, aiAutoSummary: false, aiAutoSummaryConfirmed: false, aiPanelAlways: true });
   });
 
   it('lists available providers, greys the ones without a key, and stores the choice', () => {
@@ -470,6 +470,19 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
     fireEvent.click(getByRole('switch', { name: 'ai.user.auto' }));
     expect(queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiAutoSummary).toBe(false);
+  });
+  it('panel visibility is a switch right after auto-summary, on by default, described by its hint', () => {
+    const { getByRole, getByText } = render(<AiTab active />);
+    const sw = getByRole('switch', { name: 'ai.user.panel' });
+    expect(sw.getAttribute('aria-checked')).toBe('true');
+    expect(sw.getAttribute('aria-describedby')).toContain(getByText('ai.user.panelHint').id);
+    const auto = getByRole('switch', { name: 'ai.user.auto' });
+    expect(auto.compareDocumentPosition(sw) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(sw);
+    expect(useUiStore.getState().aiPanelAlways).toBe(false);
+    expect(getByRole('switch', { name: 'ai.user.panel' }).getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(getByRole('switch', { name: 'ai.user.panel' }));
+    expect(useUiStore.getState().aiPanelAlways).toBe(true);
   });
   it('cancelling the confirmation leaves auto-summary off', async () => {
     const { getByRole, queryByRole } = render(<AiTab active />);

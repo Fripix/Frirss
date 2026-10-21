@@ -826,6 +826,8 @@
       "fallbackManualHint": "Une réponse inexploitable ou un refus ne bascule jamais tout seul : l'article propose alors « Réessayer avec… », à valider là. Réglage éteint, c'est aussi le cas pour toute panne.",
       "auto": "Résumé automatique à l'ouverture",
       "autoHint": "Chaque article ouvert est résumé sans clic, sauf réglage contraire par flux ou catégorie.",
+      "panel": "Panneau Résumé IA toujours visible",
+      "panelHint": "Éteint, le panneau n'apparaît qu'avec un résumé : touche s, palette ou icône de la barre. Réglable par flux et catégorie plus bas.",
       "autoConfirmTitle": "Activer le résumé automatique ?",
       "autoConfirmMessage": "Chaque résumé automatique est un appel à votre fournisseur d'IA. Selon le fournisseur et votre abonnement, il peut vous être facturé. Un modèle local comme Ollama ne coûte rien.",
       "autoConfirm": "Activer",

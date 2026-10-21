@@ -35,7 +35,7 @@ import { nextProvider } from '../../lib/aiRetry';
 import { sharedSummaryRequest, sharedTranslationRequest, summaryRequestKey, summaryTranslationKey } from './aiPending';
 import { AI_LANGUAGES, languageName, sameLanguage, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import { aiRouting } from '../../lib/aiRouting';
-import { autoFor } from '../../lib/aiAuto';
+import { autoFor, panelFor } from '../../lib/aiAuto';
 import { useArticleTranslation, plainText } from './useArticleTranslation';
 import { AI_TRANSLATE_PROBE, answerTranslateProbe } from '../../lib/aiTranslateProbe';
 import TranslateMenu from './TranslateMenu';
@@ -205,6 +205,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const aiAutoSummary = useUiStore((s) => s.aiAutoSummary);
   const aiCategoryAutoSummary = useUiStore((s) => s.aiCategoryAutoSummary);
   const aiCategoryAutoTranslate = useUiStore((s) => s.aiCategoryAutoTranslate);
+  const aiPanelAlways = useUiStore((s) => s.aiPanelAlways);
+  const aiCategoryPanel = useUiStore((s) => s.aiCategoryPanel);
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const autoSummarisedId = useRef<string | null>(null);
   const autoTranslatedId = useRef<string | null>(null);
@@ -925,6 +927,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // Résumé et traduction automatiques : la règle du flux, sinon d'une de ses
   // catégories, sinon (résumé seulement) le réglage global — `autoFor`.
   const autoPrefs = { feedSettings, aiCategoryAutoSummary, aiCategoryAutoTranslate, aiAutoSummary };
+  // Le panneau « Résumé IA » : toujours là, ou seulement avec une demande ou un
+  // résumé (flux > catégories > réglage global — `panelFor`). Il ne conditionne
+  // QUE son rendu : la touche, la palette et l'icône de la barre vont chercher
+  // le résumé sans lui, et c'est leur demande qui le fait apparaître. L'état
+  // repart à zéro à l'article suivant, et le panneau avec lui.
+  const showAiPanel = aiUsable && (
+    aiStatus !== 'idle' || aiResult !== null
+    || panelFor(selectedArticle?.sourceId, subscriptions, { ...autoPrefs, aiCategoryPanel, aiPanelAlways })
+  );
   const autoSummary = !!selectedArticle && autoFor('summary', selectedArticle.sourceId, subscriptions, autoPrefs);
   const autoTranslate = !!selectedArticle && autoFor('translate', selectedArticle.sourceId, subscriptions, autoPrefs);
   // Si l'extraction automatique s'applique à ce flux, on attend qu'elle ait
@@ -1675,7 +1686,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             );
           })()}
 
-          {aiUsable && (
+          {showAiPanel && (
             <AiSummary
               status={aiStatus} result={aiResult} error={aiError} errorProviderId={aiErrorProvider} providers={aiProviders}
               onSummarize={handleSummarize}
