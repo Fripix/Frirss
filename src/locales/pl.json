@@ -923,6 +923,7 @@
       "stateOff": "wyłączone",
       "stateInherited": "dziedziczone z kategorii",
       "stateGlobal": "dziedziczone z ustawienia globalnego",
+      "stateViaTranslate": "włączone przez „Tłumacz”",
       "autoSummaryFor": "Podsumowuj automatycznie artykuły z {{name}}",
       "autoTranslateFor": "Tłumacz automatycznie artykuły z {{name}}",
       "summaryTranslateFor": "Tłumacz automatycznie podsumowanie artykułów z {{name}}",

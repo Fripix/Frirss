@@ -32,6 +32,23 @@ type AutoKind = 'summary' | 'translate';
  */
 const rowClass = 'col-span-full grid grid-cols-subgrid items-center pl-2 pr-1.5';
 
+/**
+ * L'état affiché d'un interrupteur et, pour un héritage, sa source : le
+ * réglage global (`global`), la catégorie (ni l'un ni l'autre) ou, pour
+ * « Résumé FR », la colonne Traduire (`viaTranslate`).
+ */
+type RowState = { state: ToggleState; global?: boolean; viaTranslate?: boolean };
+
+/**
+ * « Résumé FR » sur une ligne dont l'article est traduit automatiquement : le
+ * volet de lecture traduit alors le résumé quoi que dise la colonne
+ * (`ReadingPane`, `autoTranslate || …`). Elle l'affiche donc cerclée de vert,
+ * « activé par Traduire » — sauf un « activé » propre, qui reste plein.
+ */
+function withTranslate(kind: ToggleKind, v: RowState, translateOn: boolean): RowState {
+  return kind === 'summaryTranslate' && translateOn && v.state !== 'on' ? { state: 'inherited', viaTranslate: true } : v;
+}
+
 function Chevron({ open }: { open: boolean }) {
   return (
     <svg
@@ -144,11 +161,12 @@ export default function RoutingBlock() {
    */
   const categoryValues = (kind: ToggleKind) => (kind === 'summary' ? categoryAutoSummary : kind === 'translate' ? categoryAutoTranslate
     : kind === 'summaryTranslate' ? categorySummaryTranslate : categoryPanel);
-  const categoryState = (name: string) => (kind: ToggleKind): { state: ToggleState; global?: boolean } => {
+  const categoryState = (name: string) => (kind: ToggleKind): RowState => {
+    const translateOn = Object.hasOwn(categoryAutoTranslate, name) && categoryAutoTranslate[name] === true;
     const values = categoryValues(kind);
-    if (Object.hasOwn(values, name) && typeof values[name] === 'boolean') return { state: values[name] ? 'on' : 'off' };
+    if (Object.hasOwn(values, name) && typeof values[name] === 'boolean') return withTranslate(kind, { state: values[name] ? 'on' : 'off' }, translateOn);
     const global = kind === 'summary' ? autoSummary : kind === 'panel' ? panelAlways : kind === 'summaryTranslate' ? summaryTranslate : false;
-    return { state: global ? 'inherited' : 'inheritedOff', global: true };
+    return withTranslate(kind, { state: global ? 'inherited' : 'inheritedOff', global: true }, translateOn);
   };
   // « N réglés » : un fournisseur ou une valeur propre de résumé / traduction / résumé traduit / panneau.
   const tuned = (feeds: Subscription[]) => feeds.filter((f) => {
@@ -185,7 +203,8 @@ export default function RoutingBlock() {
   const stateOn = t('ai.routing.stateOn');
   const stateOff = t('ai.routing.stateOff');
   /** « activé », « désactivé », ou pour un héritage sa source puis ce qu'elle donne : « hérité de la catégorie (activé) ». */
-  const stateWord = (v: { state: ToggleState; global?: boolean }) => {
+  const stateWord = (v: RowState) => {
+    if (v.viaTranslate) return t('ai.routing.stateViaTranslate');
     if (v.state === 'on') return stateOn;
     if (v.state === 'off') return stateOff;
     const source = v.global ? t('ai.routing.stateGlobal') : t('ai.routing.stateInherited');
@@ -200,7 +219,7 @@ export default function RoutingBlock() {
    * passe par la confirmation de coût ; Résumé traduit (un court appel, sur
    * un résumé déjà demandé) et Panneau non.
    */
-  const toggles = (name: string, value: (k: ToggleKind) => { state: ToggleState; global?: boolean }, write: Record<ToggleKind, (v: boolean | null) => void>) =>
+  const toggles = (name: string, value: (k: ToggleKind) => RowState, write: Record<ToggleKind, (v: boolean | null) => void>) =>
     columns.map((c) => {
       const v = value(c.kind);
       const next = nextRoutingValue(v.state);
@@ -218,15 +237,16 @@ export default function RoutingBlock() {
    * vert ou gris), et sa source : la catégorie si l'une d'elles porte une
    * valeur propre pour cette colonne, le réglage global sinon.
    */
-  const feedState = (feed: Subscription) => (kind: ToggleKind): { state: ToggleState; global?: boolean } => {
+  const feedState = (feed: Subscription) => (kind: ToggleKind): RowState => {
     const own = feedSettings[feed.id];
     const ownValue = kind === 'summary' ? own?.aiAutoSummary : kind === 'translate' ? own?.aiAutoTranslate
       : kind === 'summaryTranslate' ? own?.aiAutoSummaryTranslate : own?.aiPanel;
-    if (typeof ownValue === 'boolean') return { state: ownValue ? 'on' : 'off' };
+    const translateOn = kind === 'summaryTranslate' && autoFor('translate', feed.id, subscriptions, autoPrefs);
+    if (typeof ownValue === 'boolean') return withTranslate(kind, { state: ownValue ? 'on' : 'off' }, translateOn);
     const on = kind === 'panel' ? panelFor(feed.id, subscriptions, panelPrefs) : autoFor(kind, feed.id, subscriptions, autoPrefs);
     const values = categoryValues(kind);
     const fromCategory = (feed.categories ?? []).some((c) => !!c.label && Object.hasOwn(values, c.label) && typeof values[c.label] === 'boolean');
-    return { state: on ? 'inherited' : 'inheritedOff', global: !fromCategory };
+    return withTranslate(kind, { state: on ? 'inherited' : 'inheritedOff', global: !fromCategory }, translateOn);
   };
 
   const groups: { key: string; label: string; feeds: Subscription[]; category: boolean }[] = [

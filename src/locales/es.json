@@ -885,6 +885,7 @@
       "stateOff": "desactivado",
       "stateInherited": "heredado de la categoría",
       "stateGlobal": "heredado del ajuste global",
+      "stateViaTranslate": "activado por «Traducir»",
       "autoSummaryFor": "Resumir automáticamente los artículos de {{name}}",
       "autoTranslateFor": "Traducir automáticamente los artículos de {{name}}",
       "summaryTranslateFor": "Traducir automáticamente el resumen de los artículos de {{name}}",

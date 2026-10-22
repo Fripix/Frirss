@@ -885,6 +885,7 @@
       "stateOff": "uit",
       "stateInherited": "overgenomen van de categorie",
       "stateGlobal": "overgenomen van de algemene instelling",
+      "stateViaTranslate": "ingeschakeld via ‘Vertalen’",
       "autoSummaryFor": "Artikelen van {{name}} automatisch samenvatten",
       "autoTranslateFor": "Artikelen van {{name}} automatisch vertalen",
       "summaryTranslateFor": "De samenvatting van artikelen van {{name}} automatisch vertalen",

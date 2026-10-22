@@ -885,6 +885,7 @@
       "stateOff": "off",
       "stateInherited": "inherited from the category",
       "stateGlobal": "inherited from the global setting",
+      "stateViaTranslate": "on through “Translate”",
       "autoSummaryFor": "Summarise articles from {{name}} automatically",
       "autoTranslateFor": "Translate articles from {{name}} automatically",
       "summaryTranslateFor": "Translate the summary of articles from {{name}} automatically",

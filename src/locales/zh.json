@@ -885,6 +885,7 @@
       "stateOff": "已关闭",
       "stateInherited": "继承自分类",
       "stateGlobal": "继承自全局设置",
+      "stateViaTranslate": "由“翻译”开启",
       "autoSummaryFor": "自动为 {{name}} 的文章生成摘要",
       "autoTranslateFor": "自动翻译 {{name}} 的文章",
       "summaryTranslateFor": "自动翻译 {{name}} 文章的摘要",

@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, fireEvent, waitFor, within, screen } from '@testing-library/react';
+import { render, cleanup, fireEvent, waitFor, within, screen, act } from '@testing-library/react';
 // Le nom passé à ces clés est ce que l'on vérifie : il est rendu après la clé.
 const NAMED = new Set(['ai.user.preferredDefault', 'ai.translation.uiLanguage', 'ai.routing.autoSummaryFor', 'ai.routing.autoTranslateFor', 'ai.routing.summaryTranslateFor', 'ai.routing.panelFor', 'ai.routing.categoryProviderFor', 'ai.routing.feedProviderFor', 'ai.admin.editTitle']);
 // « Libellé — valeur » : les deux moitiés sont rendues, c'est leur assemblage qu'on vérifie.
@@ -950,6 +950,25 @@ describe('AiTab — « Par flux et catégorie »', () => {
       ['inherited', undefined], ['off', false], ['on', true], ['inherited', undefined], ['off', false],
     ]);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+  it('« Résumé FR » shows green-outlined, « activated by Translate », on a row whose article is translated automatically', () => {
+    useUiStore.setState({ aiCategoryAutoTranslate: { Tech: true }, aiCategoryAutoSummaryTranslate: {}, aiAutoSummaryTranslate: false });
+    render(<AiTab active />);
+    expect(state('SummaryTranslate', 'Tech')).toBe('inherited');
+    expect(checked('SummaryTranslate', 'Tech')).toBe('true');
+    expect(sw('SummaryTranslate', 'Tech').getAttribute('title')).toBe('ai.routing.summaryTranslate — ai.routing.stateViaTranslate');
+    fireEvent.click(screen.getByRole('button', { name: /^Tech/ }));
+    // Le flux hérite de « Traduire » par sa catégorie ; même un « désactivé » propre cède : le reader traduit quand même.
+    expect(state('SummaryTranslate', 'Flux 1')).toBe('inherited');
+    act(() => { useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoSummaryTranslate: false } } }); });
+    expect(state('SummaryTranslate', 'Flux 1')).toBe('inherited');
+    expect(sw('SummaryTranslate', 'Flux 1').getAttribute('title')).toBe('ai.routing.summaryTranslate — ai.routing.stateViaTranslate');
+    // Un « activé » propre reste plein.
+    act(() => { useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoSummaryTranslate: true } } }); });
+    expect(state('SummaryTranslate', 'Flux 1')).toBe('on');
+    // Traduire coupé sur le flux : la colonne retrouve son propre héritage.
+    act(() => { useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: false } } }); });
+    expect(state('SummaryTranslate', 'Flux 1')).toBe('inheritedOff');
   });
   it('from an inherited « off », one click turns the row on directly', () => {
     useUiStore.setState({ aiAutoSummaryTranslate: false });

@@ -2836,7 +2836,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   « Résumer — hérité de la catégorie (désactivé) » ; clés `stateOn`,
   `stateOff`, `stateInherited`, `stateGlobal`). Un flux hérite « de la
   catégorie » dès qu'une de ses catégories porte une valeur propre pour la
-  colonne, « du réglage général » sinon. Le nom accessible
+  colonne, « du réglage général » sinon. **« Résumé FR » suit aussi
+  « Traduire »** : sur une ligne dont l'article est traduit automatiquement
+  (catégorie à `true`, ou `autoFor('translate')` pour un flux), le volet de
+  lecture traduit le résumé quoi que dise la colonne ; elle s'affiche donc
+  cerclée de vert, `title` « activé par « Traduire » »
+  (`ai.routing.stateViaTranslate`, `withTranslate` dans `RoutingBlock.tsx`),
+  même par-dessus un « désactivé » propre — seul un « activé » propre reste
+  plein. Le clic garde son cycle sur la valeur propre. Le nom accessible
   dit la ligne — « Résumer / Traduire automatiquement les articles de X »,
   « Traduire automatiquement le résumé des articles de X »
   (`ai.routing.summaryTranslateFor`), « Panneau Résumé IA toujours visible

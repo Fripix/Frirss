@@ -885,6 +885,7 @@
       "stateOff": "aus",
       "stateInherited": "von der Kategorie geerbt",
       "stateGlobal": "von der globalen Einstellung geerbt",
+      "stateViaTranslate": "aktiviert durch „Übersetzen“",
       "autoSummaryFor": "Artikel von {{name}} automatisch zusammenfassen",
       "autoTranslateFor": "Artikel von {{name}} automatisch übersetzen",
       "summaryTranslateFor": "Die Zusammenfassung der Artikel von {{name}} automatisch übersetzen",
