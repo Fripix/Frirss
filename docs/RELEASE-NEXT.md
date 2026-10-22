@@ -130,6 +130,13 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Les pages en ISO-8859-1 ne ressortent plus criblées de « � » en
+  « Article complet ».** L'extraction côté serveur lisait toute page en UTF-8 :
+  un site qui déclare `charset=iso-8859-1` (developpez.com, avec en prime une
+  virgule à la place du point-virgule dans l'en-tête) donnait « a rapport� ».
+  Le jeu de caractères est maintenant lu dans l'en-tête, sinon dans la balise
+  `<meta>`, sinon UTF-8.
+
 - **Les liens d'un article s'ouvrent dans un nouvel onglet** (issue #24). Un
   clic sur un lien du corps remplaçait FriRSS par la page visée — et en app
   installée, sans barre d'adresse, il n'y avait plus de retour. Chaque lien du

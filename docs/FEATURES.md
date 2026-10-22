@@ -4399,6 +4399,21 @@ qu'elle rend (voir *Extraction du contenu complet*).
   qui tombe sur le cache serveur ne fait que repousser `cachedAt`. Décrit tel
   quel plutôt que corrigé : ajouter un contournement rouvrirait à chaque client
   le droit de faire ré-extraire une page à volonté.
+- **Jeu de caractères : la page est décodée selon sa déclaration, jamais en
+  UTF-8 d'office** (`server/charset.ts`, appelé en fin de `readBoundedText`).
+  Ordre des navigateurs : BOM UTF-8, puis `charset=` de l'en-tête
+  `Content-Type`, puis `<meta charset>` / `<meta http-equiv="content-type">`
+  dans les 2 048 premiers octets, puis UTF-8 ; `iso-8859-1` est lu comme
+  `windows-1252` (ce que font les navigateurs). Un libellé inconnu retombe sur
+  UTF-8.
+  ⚠️ **Piège — l'en-tête réel peut être mal formé** : developpez.com sert
+  `text/html, charset=iso-8859-1` (une virgule à la place du point-virgule) sans
+  aucune balise meta. Lu en UTF-8, chaque accent devenait U+FFFD (« a rapport� »,
+  330 occurrences sur un article) alors que la copie de FreshRSS du même article
+  était propre : le défaut venait de FriRSS. L'analyse du `charset=` accepte donc
+  `;` comme `,`, guillemets optionnels, casse libre. Et le décodage a lieu
+  **après** la lecture bornée : le plafond (5 Mo) et le délai portent sur des
+  octets, le jeu de caractères n'étant connu qu'une fois ceux-ci en main.
 - **Analyse bornée : une à la fois, cinq requêtes au plus dans la file**
   (une en cours, quatre en attente — `EXTRACT_MAX_PENDING`,
   `server/extract.ts`). `parseHTML` + `Readability` sont **synchrones** : de

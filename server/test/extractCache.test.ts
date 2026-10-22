@@ -111,6 +111,28 @@ describe('extract — cache', () => {
     expect(JSON.parse(body)).toEqual(res.body);
   });
 
+  // ── Jeu de caractères de la page ──────────────────────────────────
+  // developpez.com sert `Content-Type: text/html, charset=iso-8859-1` (virgule
+  // au lieu du point-virgule) et un corps latin-1 : lu en UTF-8, chaque accent
+  // devenait U+FFFD (« a rapport� »).
+  it('décode un corps latin-1 annoncé par un en-tête mal formé, sans U+FFFD', async () => {
+    cacheGet.mockResolvedValue(null);
+    const latin1Body = new ReadableStream<Uint8Array>({
+      start(c) { c.enqueue(Uint8Array.from(Buffer.from(ARTICLE.replace('suffisamment', 'rapporté et suffisamment'), 'latin1'))); c.close(); },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      headers: new Headers({ 'content-type': 'text/html, charset=iso-8859-1' }),
+      body: latin1Body,
+    }));
+
+    const res = await request(app).get('/api/extract').query({ url: URL_A });
+
+    expect(res.status).toBe(200);
+    expect(res.body.content).toContain('rapporté');
+    expect(res.body.content).not.toContain('\uFFFD');
+  });
+
   // ── Le refus de cible passe AVANT la lecture du cache ──────────────
   // La clé d'extraction est globale à l'instance : une entrée écrite du temps
   // où un hôte interne était autorisé (`PROXY_INTERNAL_HOSTS`,

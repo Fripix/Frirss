@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { assertTargetSafe, fetchUpstream, finishError, proxyRateLimiter, UnresolvedTargetError } from './proxy.js';
 import { cacheEnabled, cacheGet, cacheSet, extractKey } from '../cache.js';
+import { decodeBody } from '../charset.js';
 import { extractArticle, ExtractorBusyError, withExtractSlot } from '../extract.js';
 
 const router = Router();
@@ -70,11 +71,11 @@ function abortError(): Error {
  * rendraient le test du délai insupportablement lent.
  */
 export async function readBoundedText(resp: Response, maxBytes: number, timeoutMs: number): Promise<string> {
+  const contentType = resp.headers?.get('content-type') ?? undefined;
   // Réponse sans flux (204, ou un double de test minimal) : rien à borner.
-  if (!resp.body) return await resp.text();
+  if (!resp.body) return decodeBody(new Uint8Array(await resp.arrayBuffer()), contentType);
 
   const reader = resp.body.getReader();
-  const decoder = new TextDecoder('utf-8');
   let timedOut = false;
   const timer = setTimeout(() => {
     timedOut = true;
@@ -83,7 +84,7 @@ export async function readBoundedText(resp: Response, maxBytes: number, timeoutM
 
   try {
     let total = 0;
-    let out = '';
+    const chunks: Uint8Array[] = [];
     try {
       for (;;) {
         const { done, value } = await reader.read();
@@ -93,7 +94,7 @@ export async function readBoundedText(resp: Response, maxBytes: number, timeoutM
           await reader.cancel().catch(() => {});
           throw new BodyTooLargeError();
         }
-        out += decoder.decode(value, { stream: true });
+        chunks.push(value);
       }
     } catch (err) {
       // L'annulation par le minuteur termine la lecture en cours — selon
@@ -104,7 +105,10 @@ export async function readBoundedText(resp: Response, maxBytes: number, timeoutM
     // Sans ce contrôle, un corps tronqué par le minuteur passerait pour un
     // corps complet — et Readability extrairait un demi-article.
     if (timedOut) throw abortError();
-    return out + decoder.decode();
+    // Décodage APRÈS la lecture bornée : le plafond porte sur des octets, et le
+    // jeu de caractères (en-tête, sinon <meta> du début du corps) n'est connu
+    // qu'une fois ceux-ci en main. Voir `server/charset.ts`.
+    return decodeBody(Buffer.concat(chunks), contentType);
   } finally {
     clearTimeout(timer);
   }
