@@ -86,8 +86,15 @@ la release publiée.
 
   **Préférences › IA.** Pour l'admin, le bloc « Fournisseurs » ouvre la
   section, avant « Résumés » (sans fournisseur, rien d'autre ne marche) ;
-  « Les utilisateurs peuvent saisir leur propre clé » et le plafond quotidien
-  par utilisateur sont affichés à plat, sous le fournisseur par défaut. Le
+  une ligne par fournisseur dans une liste bordée — nom, badge « par défaut »,
+  type en étiquette courte, modèle et « clé enregistrée », puis « Tester »,
+  « Modifier » et un menu « ⋯ » (feuille du bas au doigt) qui porte Monter,
+  Descendre, Définir par défaut et Supprimer ; la liste déroulante
+  « Fournisseur par défaut » a disparu. L'éditeur s'ouvre sous la liste, titré
+  « Nouveau fournisseur » ou « Modifier X », ses champs sur deux colonnes dès
+  640 px, le partage de la clé en interrupteur. « Les utilisateurs peuvent
+  saisir leur propre clé » et le plafond quotidien par utilisateur sont
+  affichés à plat, sous l'éditeur. Le
   panneau « Résumé IA » se réduit à son en-tête (étincelle, titre, « Pas
   encore résumé », « Résumer ») tant qu'il n'y a ni résumé, ni demande en
   cours, ni erreur ; le repli mémorisé joue dès la première demande.

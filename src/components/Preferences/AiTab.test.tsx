@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, waitFor, within, screen } from '@testing-library/react';
 // Le nom passé à ces clés est ce que l'on vérifie : il est rendu après la clé.
-const NAMED = new Set(['ai.user.preferredDefault', 'ai.translation.uiLanguage', 'ai.routing.autoSummaryFor', 'ai.routing.autoTranslateFor', 'ai.routing.panelFor']);
+const NAMED = new Set(['ai.user.preferredDefault', 'ai.translation.uiLanguage', 'ai.routing.autoSummaryFor', 'ai.routing.autoTranslateFor', 'ai.routing.panelFor', 'ai.admin.editTitle']);
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (NAMED.has(k) ? `${k}:${String(o?.name)}` : k), i18n: { language: 'fr' } }) }));
 vi.mock('../../api/backend', () => ({
   getAiProviders: vi.fn(), createAiProvider: vi.fn(), updateAiProvider: vi.fn(), deleteAiProvider: vi.fn(),
@@ -124,12 +124,13 @@ describe('AiTab', () => {
     expect(await findByText('Ollama')).toBeTruthy();
     expect((getByLabelText('ai.admin.key') as HTMLInputElement).value).toBe('');
   });
-  it('a new provider is not shared until the admin ticks it: sharing a paid key is deliberate', async () => {
+  it('a new provider is not shared until the admin turns the switch on: sharing a paid key is deliberate', async () => {
     useAuthStore.setState({ backendUser: admin });
     vi.mocked(createAiProvider).mockResolvedValue({ id: 8, name: 'GPT', type: 'openai', baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: false, position: 0 });
-    const { findByRole, getByLabelText } = render(<AiTab active />);
+    const { findByRole, getByLabelText, getByRole } = render(<AiTab active />);
     fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
-    expect((getByLabelText('ai.admin.shared') as HTMLInputElement).checked).toBe(false);
+    const share = getByRole('switch', { name: 'ai.admin.shared' });
+    expect(share.getAttribute('aria-checked')).toBe('false');
     fireEvent.change(getByLabelText('ai.admin.name'), { target: { value: 'GPT' } });
     fireEvent.change(getByLabelText('ai.admin.baseUrl'), { target: { value: 'https://api.example.com' } });
     fireEvent.change(getByLabelText('ai.admin.model'), { target: { value: 'm' } });
@@ -179,14 +180,22 @@ describe('AiTab', () => {
     fireEvent.click(button);
     expect(await findByText('ai.admin.testOk')).toBeTruthy();
   });
-  it('the key badge sits outside the truncated line, after the model, so a narrow screen still shows it', async () => {
+  it('the key mention sits outside the truncated model, so a narrow screen still shows it; the type is a short tag', async () => {
     useAuthStore.setState({ backendUser: admin });
-    vi.mocked(getAiProviders).mockResolvedValue({ providers: [{ id: 7, name: 'GPT', type: 'openai', baseUrl: 'https://api.example.com', model: 'gpt-6-sol', hasAdminKey: true, shared: true, position: 0 }], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
-    const { findByText, getByText } = render(<AiTab active />);
+    vi.mocked(getAiProviders).mockResolvedValue({ providers: [
+      { id: 7, name: 'GPT', type: 'openai', baseUrl: 'https://api.example.com', model: 'gpt-6-sol', hasAdminKey: true, shared: true, position: 0 },
+      { id: 8, name: 'Claude', type: 'anthropic', baseUrl: 'https://api.anthropic.com', model: 'claude-haiku', hasAdminKey: false, shared: true, position: 1 },
+    ], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+    const { findByText, getByText, getAllByText } = render(<AiTab active />);
     const badge = await findByText('ai.admin.keySet');
     expect(badge.closest('.truncate')).toBeNull();
-    const line = getByText((_, el) => el?.classList.contains('truncate') === true && el.textContent === 'gpt-6-sol / ai.admin.typeOpenai');
-    expect(line.getAttribute('title')).toBe('gpt-6-sol / ai.admin.typeOpenai');
+    expect(getAllByText('ai.admin.keySet')).toHaveLength(1);
+    const model = getByText('gpt-6-sol');
+    expect(model.classList.contains('truncate')).toBe(true);
+    expect(model.getAttribute('title')).toBe('gpt-6-sol');
+    // L'étiquette de type est la forme courte, pas l'intitulé du choix de l'éditeur.
+    expect(getByText('ai.admin.typeOpenaiShort')).toBeTruthy();
+    expect(getByText('ai.admin.typeAnthropicShort')).toBeTruthy();
   });
 
   it('reordering sends the full id list; the default provider goes out as a number', async () => {
@@ -195,10 +204,12 @@ describe('AiTab', () => {
     vi.mocked(getAiProviders).mockResolvedValue({ providers: [mk(3, 'A', 0), mk(5, 'B', 1), mk(9, 'C', 2)], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: null } });
     vi.mocked(reorderAiProviders).mockResolvedValue();
     vi.mocked(updateAiSettings).mockResolvedValue();
-    const { findAllByRole, findByLabelText } = render(<AiTab active />);
-    fireEvent.click((await findAllByRole('button', { name: 'ai.admin.moveDown' }))[0]);
+    const { findByRole, getByRole } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: 'ai.admin.more — A' }));
+    fireEvent.click(getByRole('menuitem', { name: 'ai.admin.moveDown' }));
     await waitFor(() => expect(reorderAiProviders).toHaveBeenCalledWith([5, 3, 9]));
-    fireEvent.change(await findByLabelText('ai.admin.defaultProvider'), { target: { value: '9' } });
+    fireEvent.click(getByRole('button', { name: 'ai.admin.more — C' }));
+    fireEvent.click(getByRole('menuitem', { name: 'ai.admin.setDefault' }));
     await waitFor(() => expect(updateAiSettings).toHaveBeenCalledWith({ defaultProvider: 9 }));
   });
 
@@ -273,15 +284,16 @@ describe('AiTab', () => {
     fireEvent.click(getByRole('button', { name: 'ai.admin.add' }));
     expect(queryByRole('button', { name: 'ai.admin.clearKey' })).toBeNull();
   });
-  it('deleting asks first, then removes the provider and falls back to « none »', async () => {
+  it('deleting asks first, then removes the provider and its default badge', async () => {
     useAuthStore.setState({ backendUser: admin });
     const mk = (id: number, name: string, position: number) => ({ id, name, type: 'openai' as const, baseUrl: 'http://o', model: 'm', hasAdminKey: false, shared: true, position });
     vi.mocked(getAiProviders).mockResolvedValue({ providers: [mk(7, 'Ollama', 0), mk(8, 'Other', 1)], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
     vi.mocked(deleteAiProvider).mockResolvedValue();
-    const { findAllByRole, findByRole, getByLabelText, queryByText } = render(<AiTab active />);
-    expect((await findByRole('button', { name: 'ai.admin.delete — Ollama' }))).toBeTruthy();
-    expect((getByLabelText('ai.admin.defaultProvider') as HTMLSelectElement).value).toBe('7');
-    fireEvent.click(await findByRole('button', { name: 'ai.admin.delete — Ollama' }));
+    const { findByRole, getByRole, getByText, queryByText, queryByRole } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: 'ai.admin.more — Ollama' }));
+    expect(getByText('ai.admin.defaultBadge')).toBeTruthy();
+    fireEvent.click(getByRole('menuitem', { name: 'ai.admin.delete — Ollama' }));
+    expect(queryByRole('menu')).toBeNull();
     expect(deleteAiProvider).not.toHaveBeenCalled();
     const dialog = await findByRole('dialog');
     // La boîte ignore les validations pendant sa période de grâce : on réessaie.
@@ -290,8 +302,187 @@ describe('AiTab', () => {
       expect(deleteAiProvider).toHaveBeenCalledWith(7);
     });
     await waitFor(() => expect(queryByText('Ollama')).toBeNull());
-    expect((getByLabelText('ai.admin.defaultProvider') as HTMLSelectElement).value).toBe('');
-    expect((await findAllByRole('option', { name: 'ai.admin.none' })).length).toBe(1);
+    // Le défaut supprimé ne laisse aucun badge derrière lui.
+    expect(queryByText('ai.admin.defaultBadge')).toBeNull();
+  });
+
+  describe('the providers list', () => {
+    const mk = (id: number, name: string, position: number) => ({ id, name, type: 'openai' as const, baseUrl: 'http://o', model: `m${id}`, hasAdminKey: false, shared: true, position });
+    async function renderList(defaultProvider: number | null = 3) {
+      useAuthStore.setState({ backendUser: admin });
+      vi.mocked(getAiProviders).mockResolvedValue({ providers: [mk(3, 'A', 0), mk(5, 'B', 1), mk(9, 'C', 2)], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider } });
+      vi.mocked(updateAiSettings).mockResolvedValue();
+      vi.mocked(reorderAiProviders).mockResolvedValue();
+      const r = render(<AiTab active />);
+      await r.findByRole('button', { name: 'ai.admin.more — A' });
+      return r;
+    }
+    afterEach(() => { useUiStore.setState({ layoutMode: 'auto' }); });
+
+    it('one row per provider, with Test, Edit and More actions named after it', async () => {
+      const { getAllByRole, getByRole } = await renderList();
+      const rows = getAllByRole('listitem').filter((li) => li.querySelector('[aria-haspopup]'));
+      expect(rows).toHaveLength(3);
+      for (const name of ['A', 'B', 'C']) {
+        const row = rows.find((li) => within(li).queryByRole('button', { name: `ai.admin.more — ${name}` }))!;
+        expect(within(row).getByRole('button', { name: `ai.admin.test — ${name}` })).toBeTruthy();
+        expect(within(row).getByRole('button', { name: `ai.admin.edit — ${name}` })).toBeTruthy();
+        // Plus de boutons à la ligne pour monter, descendre ou supprimer : le menu les porte.
+        expect(within(row).queryByRole('button', { name: /moveUp|moveDown|delete/ })).toBeNull();
+      }
+      const more = getByRole('button', { name: 'ai.admin.more — A' });
+      expect(more.getAttribute('aria-haspopup')).toBe('menu');
+      expect(more.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('the name is bold, truncated and titled; only the default carries the badge', async () => {
+      const { getByText, getAllByText } = await renderList(5);
+      const name = getByText('B');
+      expect(name.classList.contains('truncate')).toBe(true);
+      expect(name.getAttribute('title')).toBe('B');
+      expect(getAllByText('ai.admin.defaultBadge')).toHaveLength(1);
+      expect(getByText('ai.admin.defaultBadge').parentElement?.textContent).toContain('B');
+    });
+
+    it('the menu offers Move up, Move down, Set as default and Delete, with impossible moves disabled', async () => {
+      const { getByRole } = await renderList(null);
+      const more = getByRole('button', { name: 'ai.admin.more — A' });
+      fireEvent.click(more);
+      const menu = getByRole('menu');
+      expect(more.getAttribute('aria-expanded')).toBe('true');
+      expect(within(menu).getAllByRole('menuitem').map((m) => m.textContent)).toEqual([
+        'ai.admin.moveUp', 'ai.admin.moveDown', 'ai.admin.setDefault', 'ai.admin.delete',
+      ]);
+      // Désactivés mais focalisables : les flèches du menu passent dessus.
+      expect(within(menu).getByRole('menuitem', { name: 'ai.admin.moveUp' }).getAttribute('aria-disabled')).toBe('true');
+      expect(within(menu).getByRole('menuitem', { name: 'ai.admin.moveDown' }).getAttribute('aria-disabled')).toBeNull();
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'ai.admin.moveUp' }));
+      expect(reorderAiProviders).not.toHaveBeenCalled();
+      expect(getByRole('menu')).toBeTruthy();
+    });
+
+    it('the last row cannot move down', async () => {
+      const { getByRole } = await renderList();
+      fireEvent.click(getByRole('button', { name: 'ai.admin.more — C' }));
+      expect(getByRole('menuitem', { name: 'ai.admin.moveDown' }).getAttribute('aria-disabled')).toBe('true');
+      expect(getByRole('menuitem', { name: 'ai.admin.moveUp' }).getAttribute('aria-disabled')).toBeNull();
+    });
+
+    it('Set as default saves defaultProvider and moves the badge; the default row says so instead', async () => {
+      const { getByRole, getByText, queryByRole } = await renderList(3);
+      fireEvent.click(getByRole('button', { name: 'ai.admin.more — A' }));
+      const current = getByRole('menuitem', { name: 'ai.admin.defaultProvider' });
+      expect(current.getAttribute('aria-disabled')).toBe('true');
+      expect(queryByRole('menuitem', { name: 'ai.admin.setDefault' })).toBeNull();
+      fireEvent.click(current);
+      expect(updateAiSettings).not.toHaveBeenCalled();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      fireEvent.click(getByRole('button', { name: 'ai.admin.more — B' }));
+      fireEvent.click(getByRole('menuitem', { name: 'ai.admin.setDefault' }));
+      await waitFor(() => expect(updateAiSettings).toHaveBeenCalledWith({ defaultProvider: 5 }));
+      expect(queryByRole('menu')).toBeNull();
+      expect(getByText('ai.admin.defaultBadge').parentElement?.textContent).toContain('B');
+    });
+
+    it('the « Fournisseur par défaut » select is gone', async () => {
+      const { queryByLabelText, getByRole } = await renderList();
+      expect(queryByLabelText('ai.admin.defaultProvider')).toBeNull();
+      // Les autres blocs ont leurs propres listes : seul « Fournisseurs » compte ici.
+      const block = getByRole('heading', { name: 'ai.admin.title' }).closest('section')!;
+      expect(within(block).queryAllByRole('combobox')).toHaveLength(0);
+    });
+
+    it('closing the menu, by Escape or after an action, gives the focus back to its button', async () => {
+      const { getByRole, queryByRole } = await renderList();
+      const more = getByRole('button', { name: 'ai.admin.more — B' });
+      fireEvent.click(more);
+      expect(document.activeElement).toBe(getByRole('menuitem', { name: 'ai.admin.moveUp' }));
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(queryByRole('menu')).toBeNull();
+      expect(document.activeElement).toBe(more);
+      fireEvent.click(more);
+      fireEvent.click(getByRole('menuitem', { name: 'ai.admin.moveUp' }));
+      await waitFor(() => expect(reorderAiProviders).toHaveBeenCalledWith([5, 3, 9]));
+      expect(queryByRole('menu')).toBeNull();
+      // La ligne a bougé ; son bouton est le même, et il garde le focus.
+      expect(document.activeElement).toBe(getByRole('button', { name: 'ai.admin.more — B' }));
+      // Redescendre déplace CE nœud-là dans le DOM. jsdom ne retire pas le focus
+      // d'un nœud déplacé (Chrome, si) : ceci fixe le résultat, pas la cause.
+      fireEvent.click(more);
+      fireEvent.click(getByRole('menuitem', { name: 'ai.admin.moveDown' }));
+      await waitFor(() => expect(reorderAiProviders).toHaveBeenLastCalledWith([3, 5, 9]));
+      expect(document.activeElement).toBe(more);
+    });
+
+    it('on touch the same actions open in a bottom sheet named after the provider', async () => {
+      useUiStore.setState({ layoutMode: 'mobile' });
+      const { getByRole, queryByRole } = await renderList();
+      const more = getByRole('button', { name: 'ai.admin.more — B' });
+      expect(more.getAttribute('aria-haspopup')).toBe('dialog');
+      fireEvent.click(more);
+      const sheet = getByRole('dialog', { name: 'B' });
+      expect(queryByRole('menu')).toBeNull();
+      for (const name of ['ai.admin.moveUp', 'ai.admin.moveDown', 'ai.admin.setDefault', 'ai.admin.delete']) {
+        expect(within(sheet).getByRole('button', { name: new RegExp(`^${name}`) })).toBeTruthy();
+      }
+      fireEvent.click(within(sheet).getByRole('button', { name: 'ai.admin.setDefault' }));
+      await waitFor(() => expect(updateAiSettings).toHaveBeenCalledWith({ defaultProvider: 5 }));
+      expect(queryByRole('dialog')).toBeNull();
+    });
+
+    it('a test result sits under its row, behind a coloured dot', async () => {
+      vi.mocked(testAiProvider).mockResolvedValue({ ok: true, model: 'm', durationMs: 5 });
+      const { getByRole, findByText } = await renderList();
+      fireEvent.click(getByRole('button', { name: 'ai.admin.test — B' }));
+      const ok = await findByText('ai.admin.testOk');
+      const status = ok.closest('[role="status"]')!;
+      expect(status.closest('li')?.textContent).toContain('m5');
+      const dot = status.querySelector('[aria-hidden="true"]') as HTMLElement;
+      expect(dot.style.background).toBe('var(--accent)');
+    });
+  });
+
+  describe('the editor', () => {
+    it('is titled « New provider » when adding and « Edit X » when editing', async () => {
+      useAuthStore.setState({ backendUser: admin });
+      const p = { id: 7, name: 'Ollama', type: 'openai' as const, baseUrl: 'http://o', model: 'm', hasAdminKey: false, shared: false, position: 0 };
+      vi.mocked(getAiProviders).mockResolvedValue({ providers: [p], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+      const { findByRole, getByRole, queryByRole } = render(<AiTab active />);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
+      expect(getByRole('group', { name: 'ai.admin.newTitle' })).toBeTruthy();
+      expect(getByRole('heading', { level: 4, name: 'ai.admin.newTitle' })).toBeTruthy();
+      fireEvent.click(getByRole('button', { name: 'ai.admin.close' }));
+      expect(queryByRole('group', { name: 'ai.admin.newTitle' })).toBeNull();
+      fireEvent.click(getByRole('button', { name: 'ai.admin.edit — Ollama' }));
+      expect(getByRole('group', { name: 'ai.admin.editTitle:Ollama' })).toBeTruthy();
+    });
+
+    it('lays the fields in two columns from 640 px and puts the clear-key button beside the key', async () => {
+      useAuthStore.setState({ backendUser: admin });
+      const p = { id: 7, name: 'GPT', type: 'openai' as const, baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: true, position: 0 };
+      vi.mocked(getAiProviders).mockResolvedValue({ providers: [p], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+      const { findByRole, getByLabelText, getByRole } = render(<AiTab active />);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.edit — GPT' }));
+      const grid = getByLabelText('ai.admin.name').closest('.grid')!;
+      expect(grid.className).toContain('sm:grid-cols-2');
+      for (const label of ['ai.admin.type', 'ai.admin.baseUrl', 'ai.admin.model']) expect(grid.contains(getByLabelText(label))).toBe(true);
+      expect(grid.contains(getByLabelText('ai.admin.key'))).toBe(false);
+      const keyRow = getByLabelText('ai.admin.key').parentElement!;
+      expect(keyRow.contains(getByRole('button', { name: 'ai.admin.clearKey' }))).toBe(true);
+      expect(getByRole('switch', { name: 'ai.admin.shared' }).getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('the share switch goes out with the provider', async () => {
+      useAuthStore.setState({ backendUser: admin });
+      const p = { id: 7, name: 'GPT', type: 'openai' as const, baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: false, position: 0 };
+      vi.mocked(getAiProviders).mockResolvedValue({ providers: [p], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+      vi.mocked(updateAiProvider).mockResolvedValue({ ...p, shared: true });
+      const { findByRole, getByRole } = render(<AiTab active />);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.edit — GPT' }));
+      fireEvent.click(getByRole('switch', { name: 'ai.admin.shared' }));
+      fireEvent.click(getByRole('button', { name: 'ai.admin.save' }));
+      await waitFor(() => expect(updateAiProvider).toHaveBeenCalledWith(7, expect.objectContaining({ shared: true })));
+    });
   });
 });
 

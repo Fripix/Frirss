@@ -1,8 +1,12 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useAiStore } from '../../../stores/aiStore';
 import ToggleSwitch from '../../ToggleSwitch';
 import ConfirmDialog from '../../ConfirmDialog';
+import BottomSheet from '../../BottomSheet';
+import Popover from '../../ReadingPane/Popover';
 import {
   getAiProviders, createAiProvider, updateAiProvider, deleteAiProvider, reorderAiProviders, testAiProvider, updateAiSettings, listAiModels,
   type AiProviderAdmin, type AiAdminSettings, type AiProviderInput,
@@ -41,6 +45,28 @@ export default function AdminProviders({ active }: { active: boolean }) {
   // Une réponse arrivée après un changement d'URL, de type ou de clé ne s'affiche pas.
   const listSeq = useRef(0);
   const dropModels = () => { listSeq.current++; setModels(null); setModelFilter(''); };
+
+  // Le menu « ⋯ » d'une ligne : un popover ancré à la souris, une feuille du
+  // bas au doigt — comme « Résumer avec… » dans le volet de lecture.
+  const touch = useBreakpoint() !== 'desktop';
+  const [menuFor, setMenuFor] = useState<number | null>(null);
+  const menuAnchor = useRef<HTMLButtonElement | null>(null);
+  const menuProvider = menuFor === null ? null : providers.find((p) => p.id === menuFor) ?? null;
+  // Ajustement pendant le rendu : le menu d'un fournisseur disparu ne rouvre pas.
+  if (menuFor !== null && !menuProvider) setMenuFor(null);
+  // Stable : le Popover s'abonne au clavier avec cette référence.
+  const closeMenu = useCallback(() => {
+    setMenuFor(null);
+    menuAnchor.current?.focus();
+  }, []);
+  // Monter ou descendre déplace la ligne dans le DOM, et un élément déplacé
+  // perd le focus : il revient au bouton « ⋯ » une fois la liste reposée.
+  const refocusAnchor = useRef(false);
+  useLayoutEffect(() => {
+    if (!refocusAnchor.current) return;
+    refocusAnchor.current = false;
+    menuAnchor.current?.focus();
+  }, [providers]);
 
   // Dépend de `active` seul : `t` change d'identité au changement de langue, et
   // recharger alors écraserait une saisie en cours avec l'état du serveur.
@@ -191,14 +217,13 @@ export default function AdminProviders({ active }: { active: boolean }) {
   const labelClass = 'block text-xs mb-1';
   const labelStyle = { color: 'var(--list-summary)' };
   const draft = editing?.draft;
-  const editedHasKey = editing?.id != null && providers.find((p) => p.id === editing.id)?.hasAdminKey;
+  const editedProvider = editing?.id != null ? providers.find((p) => p.id === editing.id) : undefined;
 
-  const textField = (key: 'name' | 'baseUrl' | 'model' | 'adminKey', label: string, opts: { type?: string; placeholder?: string; autoComplete?: string; hint?: string } = {}) => (
+  const textField = (key: 'name' | 'baseUrl', label: string, opts: { type?: string; hint?: string } = {}) => (
     <div>
       <label htmlFor={`${uid}-${key}`} className={labelClass} style={labelStyle}>{label}</label>
       <input
-        id={`${uid}-${key}`} type={opts.type ?? 'text'} value={(draft?.[key] as string) ?? ''}
-        placeholder={opts.placeholder} autoComplete={opts.autoComplete ?? 'off'} spellCheck={false}
+        id={`${uid}-${key}`} type={opts.type ?? 'text'} value={draft?.[key] ?? ''} autoComplete="off" spellCheck={false}
         aria-describedby={opts.hint ? `${uid}-${key}-hint` : undefined}
         onChange={(e) => setDraft({ [key]: e.target.value })}
         className={inputClass} style={inputStyle}
@@ -207,128 +232,152 @@ export default function AdminProviders({ active }: { active: boolean }) {
     </div>
   );
 
+  /**
+   * Les actions rares d'une ligne. Les impossibles (monter le premier,
+   * descendre le dernier, redéfinir le défaut) restent dans le menu,
+   * `aria-disabled` plutôt que `disabled` : les flèches du menu passent
+   * dessus au lieu de s'y arrêter, et la liste ne change pas de forme d'une
+   * ligne à l'autre. Le défaut se lit alors « Fournisseur par défaut », coché.
+   */
+  const menuItems = (p: AiProviderAdmin) => {
+    const i = providers.findIndex((x) => x.id === p.id);
+    const isDefault = settings.defaultProvider === p.id;
+    const row = `flex items-center gap-2.5 w-full text-left rounded-md cursor-pointer hover:bg-black/5 aria-disabled:opacity-40 aria-disabled:cursor-default aria-disabled:hover:bg-transparent ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`;
+    const item = (label: string, icon: ReactNode, run: () => void, opts: { disabled?: boolean; danger?: boolean; ariaLabel?: string; iconColor?: string } = {}) => (
+      <button
+        type="button" role={touch ? undefined : 'menuitem'} aria-disabled={opts.disabled || undefined} aria-label={opts.ariaLabel}
+        onClick={opts.disabled ? undefined : run}
+        className={row} style={{ color: opts.danger ? 'var(--danger)' : 'var(--list-title)' }}
+      >
+        <span aria-hidden="true" className="w-4 flex justify-center flex-shrink-0" style={opts.iconColor ? { color: opts.iconColor } : undefined}>{icon}</span>
+        <span className="truncate">{label}</span>
+      </button>
+    );
+    const moveTo = (dir: -1 | 1) => () => { refocusAnchor.current = true; closeMenu(); void move(p.id, dir); };
+    return (
+      <>
+        {item(t('ai.admin.moveUp'), <Icon d="M5 15l7-7 7 7" strokeWidth={2.5} />, moveTo(-1), { disabled: i <= 0 })}
+        {item(t('ai.admin.moveDown'), <Icon d="M19 9l-7 7-7-7" strokeWidth={2.5} />, moveTo(1), { disabled: i === providers.length - 1 })}
+        {item(
+          isDefault ? t('ai.admin.defaultProvider') : t('ai.admin.setDefault'),
+          <Icon d="M5 13l4 4L19 7" strokeWidth={isDefault ? 3 : 2} />,
+          () => { closeMenu(); void saveSettings({ defaultProvider: p.id }); },
+          { disabled: isDefault, iconColor: isDefault ? 'var(--accent)' : 'var(--list-summary)' },
+        )}
+        <div role={touch ? undefined : 'separator'} className="my-1 mx-2 h-px" style={{ background: 'var(--panel-border)' }} />
+        {item(
+          t('ai.admin.delete'),
+          <Icon d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4h6v3" />,
+          () => { closeMenu(); setToDelete(p); },
+          { danger: true, ariaLabel: `${t('ai.admin.delete')} — ${p.name}` },
+        )}
+      </>
+    );
+  };
+
   return (
     <section className="space-y-5">
-      <BlockTitle>{t('ai.admin.title')}</BlockTitle>
-
-      <div className="prefs-tap-row flex items-center justify-between gap-3">
-        <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.enable')}</span>
-        <ToggleSwitch checked={settings.enabled} onChange={(v) => saveSettings({ enabled: v })} ariaLabel={t('ai.admin.enable')} />
+      {/* L'interrupteur général vit sur la ligne du titre : il gouverne tout
+          le bloc. Trop long à 320 px, il passe dessous, aligné à droite. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <BlockTitle>{t('ai.admin.title')}</BlockTitle>
+        <div className="prefs-tap-row ml-auto flex items-center gap-3">
+          <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.enable')}</span>
+          <ToggleSwitch checked={settings.enabled} onChange={(v) => saveSettings({ enabled: v })} ariaLabel={t('ai.admin.enable')} />
+        </div>
       </div>
 
       {(error || loadFailed) && <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{error || t('ai.admin.loadError')}</p>}
 
-      {providers.length > 0 && (
-        <ul className="space-y-2">
-          {providers.map((p, i) => {
-            const res = tests[p.id];
-            const typeLabel = p.type === 'anthropic' ? t('ai.admin.typeAnthropic') : t('ai.admin.typeOpenai');
-            return (
-              <li key={p.id} className="rounded-lg px-3 py-2" style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <div className="min-w-0 flex-1 basis-40">
-                    <div className="text-sm font-semibold truncate" style={{ color: 'var(--list-title)' }}>{p.name}</div>
-                    {/* Le modèle d'abord, le type ensuite : c'est le type, long, que la coupe mange. La
-                        mention de clé reste hors de la coupe, sinon un écran étroit ne la montre jamais. */}
-                    <div className="flex items-baseline gap-2 text-[11px]" style={{ color: 'var(--list-summary)' }}>
-                      <span className="truncate min-w-0" title={`${p.model} / ${typeLabel}`}>{`${p.model} / ${typeLabel}`}</span>
-                      {p.hasAdminKey && <span className="flex-shrink-0 whitespace-nowrap" style={{ color: 'var(--accent)' }}>{t('ai.admin.keySet')}</span>}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-0.5 -mr-1.5" style={{ color: 'var(--list-title)' }}>
-                    <button type="button" aria-label={t('ai.admin.moveUp')} disabled={i === 0} onClick={() => move(p.id, -1)} className={quietBtn}>
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
-                    </button>
-                    <button type="button" aria-label={t('ai.admin.moveDown')} disabled={i === providers.length - 1} onClick={() => move(p.id, 1)} className={quietBtn}>
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                    </button>
-                    <button type="button" aria-label={`${t('ai.admin.test')} — ${p.name}`} onClick={() => test(p.id)} disabled={res?.state === 'busy'} className={quietBtn}>{t('ai.admin.test')}</button>
-                    <button type="button" aria-label={`${t('ai.admin.edit')} — ${p.name}`} onClick={() => startEdit(p)} className={quietBtn}>{t('ai.admin.edit')}</button>
-                    <button type="button" aria-label={`${t('ai.admin.delete')} — ${p.name}`} onClick={() => setToDelete(p)} className={quietBtn} style={{ color: 'var(--danger)' }}>{t('ai.admin.delete')}</button>
-                  </div>
-                </div>
-                {res && (
-                  <div role="status" className="text-xs mt-1" style={{ color: res.state === 'fail' ? 'var(--danger)' : res.state === 'ok' ? 'var(--accent)' : 'var(--list-summary)' }}>
-                    <p>{res.state === 'busy' ? t('ai.admin.testing') : res.state === 'ok' ? t('ai.admin.testOk') : t(testFailKey(res.kind))}</p>
-                    {res.state === 'fail' && res.message && <p className="mt-0.5 text-[11px] opacity-80 break-words">{res.message}</p>}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {draft ? (
-        <div className="space-y-3 rounded-lg p-3" style={{ border: '1px solid var(--panel-border)' }}>
-          {textField('name', t('ai.admin.name'))}
-          <div>
-            <label htmlFor={`${uid}-type`} className={labelClass} style={labelStyle}>{t('ai.admin.type')}</label>
-            <select id={`${uid}-type`} value={draft.type} onChange={(e) => setDraft({ type: e.target.value as 'anthropic' | 'openai' })} className={inputClass} style={inputStyle}>
-              <option value="openai">{t('ai.admin.typeOpenai')}</option>
-              <option value="anthropic">{t('ai.admin.typeAnthropic')}</option>
-            </select>
-          </div>
-          {textField('baseUrl', t('ai.admin.baseUrl'), { type: 'url', hint: t('ai.admin.baseUrlHint') })}
-          <div>
-            <label htmlFor={`${uid}-model`} className={labelClass} style={labelStyle}>{t('ai.admin.model')}</label>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                id={`${uid}-model`} type="text" value={draft.model} autoComplete="off" spellCheck={false}
-                onChange={(e) => setDraft({ model: e.target.value })}
-                className={`${inputClass} !w-auto flex-1 basis-40 min-w-0`} style={inputStyle}
+      <div className="space-y-3">
+        {providers.length > 0 && (
+          <ul className="rounded-lg" style={{ border: '1px solid var(--panel-border)' }}>
+            {providers.map((p, i) => (
+              <ProviderRow
+                key={p.id} provider={p} first={i === 0} isDefault={settings.defaultProvider === p.id} test={tests[p.id]}
+                menuOpen={menuFor === p.id} touch={touch}
+                onTest={() => test(p.id)} onEdit={() => startEdit(p)}
+                onMore={(el) => { menuAnchor.current = el; setMenuFor((cur) => (cur === p.id ? null : p.id)); }}
               />
-              <button
-                type="button" onClick={fetchModels} aria-controls={`${uid}-models`}
-                disabled={!draft.baseUrl.trim() || models?.state === 'busy'}
-                className="prefs-tap-btn px-3 py-1.5 min-h-[36px] text-xs font-semibold rounded-md cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-default"
-                style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
-              >
-                {t('ai.admin.models.list')}
-              </button>
-            </div>
-            {models && <ModelList
-              id={`${uid}-models`} state={models} current={draft.model.trim()} filter={modelFilter}
-              onFilter={setModelFilter} onPick={pickModel} onClose={dropModels}
-            />}
-          </div>
-          {textField('adminKey', t('ai.admin.key'), { type: 'password', autoComplete: 'new-password', placeholder: editedHasKey ? t('ai.admin.keyKeep') : undefined })}
-          {editedHasKey && (
-            <button
-              type="button" onClick={() => setToClearKey(providers.find((x) => x.id === editing?.id) ?? null)}
-              className={quietBtn} style={{ color: 'var(--danger)' }}
-            >
-              {t('ai.admin.clearKey')}
-            </button>
-          )}
-          <label className="prefs-tap-row flex items-center gap-2 text-xs" style={{ color: 'var(--list-title)' }}>
-            <input type="checkbox" checked={!!draft.shared} onChange={(e) => setDraft({ shared: e.target.checked })} />
-            {t('ai.admin.shared')}
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={saveProvider} className="prefs-tap-btn px-4 py-1.5 text-xs font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
-            <button type="button" onClick={() => { dropModels(); setEditing(null); }} className={quietBtn} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
-            {saved && <span role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t('ai.admin.saved')}</span>}
-          </div>
-        </div>
-      ) : (
-        <button type="button" onClick={() => startEdit(null)} className="prefs-tap-btn px-3 py-1.5 text-xs font-semibold rounded-md cursor-pointer" style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}>
-          {t('ai.admin.add')}
-        </button>
-      )}
+            ))}
+          </ul>
+        )}
 
-      {providers.length > 0 && (
-        <div>
-          <label htmlFor={`${uid}-default`} className={labelClass} style={labelStyle}>{t('ai.admin.defaultProvider')}</label>
-          <select
-            id={`${uid}-default`} value={settings.defaultProvider ?? ''} className={inputClass} style={inputStyle}
-            onChange={(e) => saveSettings({ defaultProvider: e.target.value ? Number(e.target.value) : null })}
-          >
-            <option value="">{t('ai.admin.none')}</option>
-            {providers.map((p) => <option key={p.id} value={p.id}>{`${p.name} (${p.model})`}</option>)}
-          </select>
-        </div>
-      )}
+        {draft ? (
+          <div role="group" aria-labelledby={`${uid}-editor`} className="space-y-4 rounded-lg p-3 sm:p-4" style={{ border: '1px solid var(--panel-border)' }}>
+            <h4 id={`${uid}-editor`} className="text-sm font-semibold" style={{ color: 'var(--list-title)' }}>
+              {editedProvider ? t('ai.admin.editTitle', { name: editedProvider.name }) : t('ai.admin.newTitle')}
+            </h4>
+            {/* Deux colonnes dès 640 px : Nom | Type, puis URL | Modèle. La
+                liste des modèles reprend toute la largeur sous les deux. */}
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-x-4">
+              {textField('name', t('ai.admin.name'))}
+              <div>
+                <label htmlFor={`${uid}-type`} className={labelClass} style={labelStyle}>{t('ai.admin.type')}</label>
+                <select id={`${uid}-type`} value={draft.type} onChange={(e) => setDraft({ type: e.target.value as 'anthropic' | 'openai' })} className={inputClass} style={inputStyle}>
+                  <option value="openai">{t('ai.admin.typeOpenai')}</option>
+                  <option value="anthropic">{t('ai.admin.typeAnthropic')}</option>
+                </select>
+              </div>
+              {textField('baseUrl', t('ai.admin.baseUrl'), { type: 'url', hint: t('ai.admin.baseUrlHint') })}
+              <div>
+                <label htmlFor={`${uid}-model`} className={labelClass} style={labelStyle}>{t('ai.admin.model')}</label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    id={`${uid}-model`} type="text" value={draft.model} autoComplete="off" spellCheck={false}
+                    onChange={(e) => setDraft({ model: e.target.value })}
+                    className={`${inputClass} !w-auto flex-1 basis-32 min-w-0`} style={inputStyle}
+                  />
+                  <button
+                    type="button" onClick={fetchModels} aria-controls={`${uid}-models`}
+                    disabled={!draft.baseUrl.trim() || models?.state === 'busy'}
+                    className="prefs-tap-btn px-3 py-1.5 min-h-[36px] text-xs font-semibold rounded-md cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-default"
+                    style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
+                  >
+                    {t('ai.admin.models.list')}
+                  </button>
+                </div>
+              </div>
+              {models && <div className="sm:col-span-2"><ModelList
+                id={`${uid}-models`} state={models} current={draft.model.trim()} filter={modelFilter}
+                onFilter={setModelFilter} onPick={pickModel} onClose={dropModels}
+              /></div>}
+            </div>
+            <div>
+              <label htmlFor={`${uid}-adminKey`} className={labelClass} style={labelStyle}>{t('ai.admin.key')}</label>
+              {/* « Effacer la clé » au bout du champ qu'elle vide : une action
+                  sur la clé enregistrée, pas sur le fournisseur. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  id={`${uid}-adminKey`} type="password" value={draft.adminKey ?? ''} autoComplete="new-password" spellCheck={false}
+                  placeholder={editedProvider?.hasAdminKey ? t('ai.admin.keyKeep') : undefined}
+                  onChange={(e) => setDraft({ adminKey: e.target.value })}
+                  className={`${inputClass} !w-auto flex-1 basis-48 min-w-0`} style={inputStyle}
+                />
+                {editedProvider?.hasAdminKey && (
+                  <button type="button" onClick={() => setToClearKey(editedProvider)} className={`${quietBtn} whitespace-nowrap hover:bg-black/5`} style={{ color: 'var(--danger)' }}>
+                    {t('ai.admin.clearKey')}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="prefs-tap-row flex items-center justify-between gap-3">
+              <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.shared')}</span>
+              <ToggleSwitch checked={!!draft.shared} onChange={(v) => setDraft({ shared: v })} ariaLabel={t('ai.admin.shared')} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button type="button" onClick={saveProvider} className="prefs-tap-btn px-4 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
+              <button type="button" onClick={() => { dropModels(); setEditing(null); }} className={`${quietBtn} min-h-[32px] hover:bg-black/5`} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
+              {saved && <span role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t('ai.admin.saved')}</span>}
+            </div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => startEdit(null)} className="prefs-tap-btn inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer hover:bg-black/5" style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" d="M12 5v14M5 12h14" /></svg>
+            {t('ai.admin.add')}
+          </button>
+        )}
+      </div>
 
       <div className="prefs-tap-row flex items-center justify-between gap-3">
         <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.userKeysAllowed')}</span>
@@ -368,7 +417,105 @@ export default function AdminProviders({ active }: { active: boolean }) {
         onConfirm={() => toClearKey ? clearKey(toClearKey) : undefined}
         onCancel={() => setToClearKey(null)}
       />
+
+      {menuProvider && (touch
+        ? <BottomSheet open onClose={closeMenu} title={menuProvider.name}>{menuItems(menuProvider)}</BottomSheet>
+        : createPortal(
+          <Popover anchor={menuAnchor.current} onClose={closeMenu} label={`${t('ai.admin.more')} — ${menuProvider.name}`}>{menuItems(menuProvider)}</Popover>,
+          document.body,
+        ))}
     </section>
+  );
+}
+
+const Icon = ({ d, strokeWidth = 2 }: { d: string; strokeWidth?: number }) => (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d={d} /></svg>
+);
+
+/**
+ * Le type d'un fournisseur en étiquette courte (« Compatible OpenAI »,
+ * « Anthropic ») : l'intitulé complet, avec sa liste d'exemples, sert au
+ * choix dans l'éditeur, pas à la lecture d'une ligne. Coupé au-delà de
+ * 8 rem sous 640 px (10 au-dessus) : à 320 px, il partage sa ligne avec le nom
+ * et le badge, et c'est le nom qui doit rester lisible.
+ */
+function TypeTag({ type, className = '' }: { type: AiProviderAdmin['type']; className?: string }) {
+  const { t } = useTranslation();
+  const label = type === 'anthropic' ? t('ai.admin.typeAnthropicShort') : t('ai.admin.typeOpenaiShort');
+  return (
+    <span
+      className={`inline-block max-w-[8rem] sm:max-w-[10rem] truncate px-1.5 rounded text-[11px] leading-[18px] ${className}`}
+      style={{ border: '1px solid var(--panel-border)', color: 'var(--list-summary)' }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/**
+ * Une ligne de la liste. Une grille de deux colonnes : à gauche le nom (et le
+ * badge « par défaut ») puis le modèle ; à droite l'étiquette de type puis les
+ * actions. Sous 640 px, le modèle et les actions prennent chacun toute la
+ * largeur — trois lignes, boutons alignés à droite, 44 px au doigt
+ * (`prefs-tap-btn`). Monter, descendre, définir par défaut et supprimer
+ * vivent dans le menu « ⋯ » : à la ligne, ils faisaient cinq boutons pour
+ * deux usages fréquents.
+ */
+function ProviderRow({ provider: p, first, isDefault, test: res, menuOpen, touch, onTest, onEdit, onMore }: {
+  provider: AiProviderAdmin; first: boolean; isDefault: boolean; test: TestState | undefined; menuOpen: boolean; touch: boolean;
+  onTest: () => void; onEdit: () => void; onMore: (anchor: HTMLButtonElement) => void;
+}) {
+  const { t } = useTranslation();
+  const muted = 'var(--list-summary)';
+  const resColor = !res ? muted : res.state === 'fail' ? 'var(--danger)' : res.state === 'ok' ? 'var(--accent)' : muted;
+  const rowBtn = `${quietBtn} min-h-[32px] hover:bg-black/5`;
+  return (
+    <li className="px-3 py-2.5" style={first ? undefined : { borderTop: '1px solid var(--panel-border)' }}>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 sm:gap-x-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold truncate" title={p.name} style={{ color: 'var(--list-title)' }}>{p.name}</span>
+          {isDefault && (
+            <span className="flex-shrink-0 whitespace-nowrap px-1.5 rounded-full text-[11px] leading-[18px] font-medium" style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+              {t('ai.admin.defaultBadge')}
+            </span>
+          )}
+        </div>
+        <TypeTag type={p.type} className="justify-self-end sm:justify-self-start" />
+        {/* Le modèle se coupe, la mention de clé jamais : sans cela un écran
+            étroit ne la montrerait pas. */}
+        <div className="col-span-2 sm:col-span-1 flex items-baseline gap-1 min-w-0 text-[11px]" style={{ color: muted }}>
+          <span className="truncate min-w-0" title={p.model}>{p.model}</span>
+          {p.hasAdminKey && (
+            <span className="flex-shrink-0 whitespace-nowrap">
+              <span aria-hidden="true">· </span>
+              <span style={{ color: 'var(--accent)' }}>{t('ai.admin.keySet')}</span>
+            </span>
+          )}
+        </div>
+        <div className="col-span-2 sm:col-span-1 flex items-center justify-end gap-1 -mr-1.5" style={{ color: 'var(--list-title)' }}>
+          <button type="button" aria-label={`${t('ai.admin.test')} — ${p.name}`} onClick={onTest} disabled={res?.state === 'busy'} className={rowBtn}>{t('ai.admin.test')}</button>
+          <button type="button" aria-label={`${t('ai.admin.edit')} — ${p.name}`} onClick={onEdit} className={rowBtn}>{t('ai.admin.edit')}</button>
+          <button
+            type="button" onClick={(e) => onMore(e.currentTarget)}
+            aria-label={`${t('ai.admin.more')} — ${p.name}`} aria-haspopup={touch ? 'dialog' : 'menu'} aria-expanded={menuOpen}
+            className="prefs-tap-btn inline-flex items-center justify-center w-8 h-8 rounded-md cursor-pointer hover:bg-black/5"
+            style={menuOpen ? { background: 'var(--panel-header-bg)' } : undefined}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.75" /><circle cx="12" cy="12" r="1.75" /><circle cx="19" cy="12" r="1.75" /></svg>
+          </button>
+        </div>
+      </div>
+      {res && (
+        <div role="status" className="mt-1.5 flex items-start gap-1.5 text-xs" style={{ color: resColor }}>
+          {/* La pastille dit l'issue d'un coup d'œil ; le texte, la cause. */}
+          <span aria-hidden="true" className="mt-[5px] w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: resColor }} />
+          <div className="min-w-0">
+            <p>{res.state === 'busy' ? t('ai.admin.testing') : res.state === 'ok' ? t('ai.admin.testOk') : t(testFailKey(res.kind))}</p>
+            {res.state === 'fail' && res.message && <p className="mt-0.5 text-[11px] opacity-80 break-words">{res.message}</p>}
+          </div>
+        </div>
+      )}
+    </li>
   );
 }
 

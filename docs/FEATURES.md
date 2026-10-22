@@ -1992,13 +1992,15 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   (`no_provider`, `ai_daily_cap`, `not_cached`, échéance dépensée avant tout
   appel). Disponibilité d'un fournisseur
   pour un utilisateur : clé personnelle > clé admin si le fournisseur est
-  « partagé » > indisponible (« Partager cette clé avec les utilisateurs » est **décochée** à la
-  création d'un fournisseur : partager une clé payante se coche exprès) ; un
+  « partagé » > indisponible (l'interrupteur « Partager cette clé avec les
+  utilisateurs » est **éteint** à la création d'un fournisseur : partager une
+  clé payante s'allume exprès) ; un
   `openai` **sans aucune clé admin** (Ollama)
   est disponible pour tous. Un **admin** se sert de la clé admin même d'un
   fournisseur non partagé. L'admin peut **effacer** une clé enregistrée : dans
   l'éditeur d'un fournisseur (« Modifier »), un bouton « Effacer la clé »
-  (`ai.admin.clearKey`) n'apparaît que si `hasAdminKey` est vrai. Il ouvre
+  (`ai.admin.clearKey`), au bout du champ de la clé, n'apparaît que si
+  `hasAdminKey` est vrai. Il ouvre
   un `ConfirmDialog` qui nomme le fournisseur et prévient que les résumés et
   traductions passant par cette clé s'arrêteront jusqu'à ce qu'une nouvelle
   soit saisie (`clearKeyTitle`, `clearKeyWarning`) ; jamais d'effacement sans
@@ -2578,20 +2580,65 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   Tout en haut, avant « Résumés » (ordre pour l'admin : « Fournisseurs »,
   « Résumés », « Traduction », « Par flux et catégorie », « Mes clés » ; pour
   un utilisateur, les quatre derniers seuls), le bloc « Fournisseurs »,
-  réservé à l'admin (`AiTab.tsx` le rend en premier enfant) : interrupteur,
-  liste réordonnable par flèches haut / bas, éditeur avec liste des modèles,
-  test, clé partagée, fournisseur par défaut, puis, **à plat, au même niveau que
-  lui et sans repli**, l'interrupteur « Les utilisateurs peuvent
-  saisir leur propre clé » et le « Plafond quotidien par utilisateur ».
-  Interrupteur éteint, la route des clés répond `403
-  user_keys_disabled` et le bloc « Mes clés » disparaît chez les utilisateurs.
-  La section n'est montée que pour un admin ou
-  quand l'IA est activée. Après un enregistrement, l'éditeur **reste ouvert** :
-  clé effacée du champ, « Enregistré », « Fermer ». Ligne d'un fournisseur : le
-  nom, puis « modèle / type » coupé au besoin (texte complet en `title`) — le
-  modèle d'abord, car c'est le libellé du type, long, que la coupe doit manger —
-  et la mention « clé enregistrée » **hors de la coupe** : à 320 px, quand elle
-  suivait le type dans la même ligne tronquée, elle n'était jamais visible.
+  réservé à l'admin (`AiTab.tsx` le rend en premier enfant ; détail
+  ci-dessous). La section n'est montée que pour un admin ou quand l'IA est
+  activée.
+- **Interface — « Fournisseurs »** (`ai/AdminProviders.tsx`, admin seul ;
+  refait le 2026-10-22 sur « ce n'est pas très joli, ni pratique ») :
+  - **Titre et interrupteur** « Activer l'IA » sur la même ligne ; à 320 px
+    l'interrupteur passe dessous, aligné à droite (`flex-wrap`, `ml-auto`).
+  - **Liste bordée, une ligne par fournisseur** (séparateurs
+    `--panel-border`, pas une carte par ligne). Grille de deux colonnes : à
+    gauche le nom (`font-semibold`, coupé, nom complet en `title`), suivi du
+    badge **« par défaut »** (`ai.admin.defaultBadge`, `text-[11px]`, fond
+    `--accent-glow`, texte `--accent`) sur le seul fournisseur par défaut, puis
+    le modèle (coupé, `title`) et « · clé enregistrée » en accent **hors de la
+    coupe** (à 320 px, quand la mention suivait un texte tronqué, elle n'était
+    jamais visible) ; à droite l'**étiquette de type** courte (`TypeTag` :
+    « Compatible OpenAI » / « Anthropic », `ai.admin.type{Openai,Anthropic}Short`,
+    contour fin, coupée au-delà de 8 rem sous 640 px, 10 au-dessus) — l'intitulé long, avec ses
+    exemples, reste celui du choix de l'éditeur — puis les actions
+    **« Tester »**, **« Modifier »** et **« ⋯ »**. Sous 640 px (`sm`), trois
+    lignes : nom + étiquette, modèle + clé, puis les trois boutons alignés à
+    droite, 44 px au format mobile (`prefs-tap-btn`). Noms accessibles :
+    « Tester — X », « Modifier — X », « Plus d'actions — X »
+    (`aria-haspopup` `menu`, ou `dialog` au doigt ; `aria-expanded`).
+  - **Menu « ⋯ »** : `Popover` du volet de lecture **par portail** sous
+    `<body>` à la souris (`role="menu"`, flèches, Échap), `BottomSheet` titrée
+    du nom au doigt (`useBreakpoint() !== 'desktop'`), comme « Résumer
+    avec… ». Entrées : **Monter**, **Descendre**, **Définir par défaut**
+    (`saveSettings({ defaultProvider })`), un séparateur, **Supprimer** (en
+    `--danger`, « Supprimer — X », ouvre la confirmation existante). Les
+    actions impossibles — monter le premier, descendre le dernier, redéfinir
+    le défaut — restent visibles en `aria-disabled` (focalisables, les flèches
+    passent dessus) ; sur le défaut, l'entrée se lit « Fournisseur par
+    défaut », cochée en accent. Toute action ferme le menu et **rend le focus
+    au bouton « ⋯ »**, y compris après un déplacement (un nœud déplacé dans le
+    DOM perd le focus : un `useLayoutEffect` sur la liste le lui rend). Le
+    menu d'un fournisseur supprimé ne reste pas ouvert.
+  - **Plus de liste déroulante « Fournisseur par défaut »** (ni d'option
+    « Aucun ») : le badge montre le défaut, le menu le change. Supprimer le
+    fournisseur par défaut retire le badge ; on ne revient plus à « aucun
+    défaut » depuis l'écran (le serveur résout alors dans l'ordre de la liste).
+  - **Résultat d'un test** sous sa ligne, inchangé, précédé d'une pastille ●
+    (accent si réussi, `--danger` si échec, gris pendant le test).
+  - **Éditeur** sous la liste (« + Ajouter un fournisseur » quand il est
+    fermé), cadre `--panel-border`, `role="group"` nommé par son titre
+    « Nouveau fournisseur » / « Modifier X » (`ai.admin.newTitle`,
+    `ai.admin.editTitle` — le nom enregistré, pas celui en cours de saisie).
+    Champs en **deux colonnes dès 640 px** (Nom | Type ; URL de base | Modèle
+    + « Lister les modèles »), une colonne en dessous ; la liste des modèles
+    prend toute la largeur sous la grille. La clé sur sa propre ligne, avec
+    « Effacer la clé » au bout du champ si une clé est enregistrée. « Partager
+    cette clé avec les utilisateurs » est une ligne à interrupteur
+    (`ToggleSwitch`), comme les autres réglages. En bas, « Enregistrer »
+    (accent), « Fermer », puis « Enregistré ». Après un enregistrement,
+    l'éditeur **reste ouvert** (clé effacée du champ) pour tester aussitôt.
+  - **Réglages du bloc**, à plat sous l'éditeur, sans repli :
+    l'interrupteur « Les utilisateurs peuvent saisir leur propre clé » et le
+    « Plafond quotidien par utilisateur ». Interrupteur éteint, la route des
+    clés répond `403 user_keys_disabled` et le bloc « Mes clés » disparaît
+    chez les utilisateurs.
 - **Interface — « Mes clés »** (`ai/KeysBlock.tsx`, sous « Par flux et
   catégorie », pour tous, admin compris) : **rendu seulement si
   `config.userKeysAllowed`** (réglage admin « Les utilisateurs peuvent saisir
