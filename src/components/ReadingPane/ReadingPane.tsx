@@ -1275,7 +1275,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   return (
     <div
-      className={`reading-pane h-full flex flex-col relative${showSummarizeBarBtn ? ' has-summarize' : ''}`}
+      className={`reading-pane h-full flex flex-col relative${aiUsable ? ' has-translate' : ''}${showSummarizeBarBtn ? ' has-summarize' : ''}`}
       style={{ background: 'var(--panel-bg)' }}
       onDoubleClick={(e) => { if (isFocusToggleTarget(e.target as Element)) toggleReadingFocus(); }}
     >

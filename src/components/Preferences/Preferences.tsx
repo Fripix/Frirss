@@ -102,10 +102,11 @@ export default function Preferences() {
     <div
       className="fixed inset-0 z-50 flex items-end justify-end"
       onClick={(e) => {
-        // Click outside modal → close
-        if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-          closePreferences();
-        }
+        // Click on the backdrop itself → close. Not « any target outside the
+        // panel »: React events bubble through portals, so a click inside a
+        // menu / sheet / confirmation rendered under <body> by a section
+        // would reach this handler with a target outside the panel's DOM.
+        if (e.target === e.currentTarget) closePreferences();
       }}
       onKeyDown={(e) => {
         // Escape closes the dialog. Shortcut-capture stops propagation, so it

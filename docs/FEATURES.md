@@ -1866,12 +1866,17 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   largeur naturelle mesurée 928-948px) et **560px** (rembourrage/icônes
   resserrés en plus, sinon les icônes seules débordaient encore à 320px de
   volet — colonne de liste élargie sur un petit écran ; plancher mesuré
-  ~260px, marge d'environ 55px à 320px). **Avec le bouton « Résumer » dans
-  la barre** (panneau IA masqué par réglage, rien demandé : `showSummarizeBarBtn`),
-  la barre compte un bouton de ~90px de plus ; `ReadingPane` pose alors
-  `.has-summarize` sur `.reading-pane` et un **seuil de 1100px** (+100px)
-  replie les libellés plus tôt (`.has-summarize .toolbar-label`). Sans lui,
-  un volet de ~1030px gardait ses libellés **et** débordait.
+  ~260px, marge d'environ 55px à 320px). **Avec l'IA utilisable**, la barre
+  compte en plus le bouton scindé « Traduire » : `ReadingPane` pose alors
+  `.has-translate` sur `.reading-pane` et un **seuil de 1120px** replie les
+  libellés plus tôt (`.has-translate .toolbar-label`). **Avec en plus le bouton
+  « Résumer » dans la barre** (panneau IA masqué par réglage, rien demandé :
+  `showSummarizeBarBtn`), `.has-summarize` porte le seuil à **1220px**. Largeurs
+  naturelles des libellés mesurées contre la feuille construite : FR 1064px
+  (Traduire seul) / 1164px (Traduire + Résumer), DE 1011 / 1160 ; sans IA, les
+  948px d'origine restent sous le seuil de 1000px. Le seuil IA seul avait été
+  laissé à la valeur d'avant « Traduire » : la barre débordait de 1101 à
+  1163px.
 - **Focus de lecture** et **taille du texte** sont déjà icônes seules dans
   cette barre (pas de libellé à coucher) ; ils rétrécissent quand même dans le
   repli compact (classe `.toolbar-icon-btn`) pour tenir dans le même budget.
@@ -2616,6 +2621,13 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     au bouton « ⋯ »**, y compris après un déplacement (un nœud déplacé dans le
     DOM perd le focus : un `useLayoutEffect` sur la liste le lui rend). Le
     menu d'un fournisseur supprimé ne reste pas ouvert.
+    ⚠️ **Le menu, la feuille et la confirmation vivent sous `<body>` mais les
+    événements React remontent à travers les portails** : la fermeture de
+    Préférences au clic dehors ne se déclenche donc que si la cible est le
+    **fond lui-même** (`e.target === e.currentTarget`), jamais sur « toute cible
+    hors du panneau » — sans quoi un clic dans le menu fermait tout le panneau
+    (Supprimer n'atteignait jamais sa confirmation). Test :
+    `Preferences.portal.test.tsx`.
   - **Plus de liste déroulante « Fournisseur par défaut »** (ni d'option
     « Aucun ») : le badge montre le défaut, le menu le change. Supprimer le
     fournisseur par défaut retire le badge ; on ne revient plus à « aucun
@@ -2626,9 +2638,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     fermé), cadre `--panel-border`, `role="group"` nommé par son titre
     « Nouveau fournisseur » / « Modifier X » (`ai.admin.newTitle`,
     `ai.admin.editTitle` — le nom enregistré, pas celui en cours de saisie).
-    Champs en **deux colonnes dès 640 px** (Nom | Type ; URL de base | Modèle
-    + « Lister les modèles »), une colonne en dessous ; la liste des modèles
-    prend toute la largeur sous la grille. La clé sur sa propre ligne, avec
+    Champs sur **une seule colonne** (Nom, Type, URL de base, Modèle +
+    « Lister les modèles », puis la liste des modèles) : la colonne de contenu
+    de Préférences fait 462 px au plus, et deux colonnes (point de rupture
+    `sm:` sur la fenêtre, puis envisagée en requête de conteneur) rognaient le
+    sélecteur de type et faisaient passer « Lister les modèles » à la ligne. La clé sur sa propre ligne, avec
     « Effacer la clé » au bout du champ si une clé est enregistrée. « Partager
     cette clé avec les utilisateurs » est une ligne à interrupteur
     (`ToggleSwitch`), comme les autres réglages. En bas, « Enregistrer »

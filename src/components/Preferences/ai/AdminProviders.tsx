@@ -308,9 +308,12 @@ export default function AdminProviders({ active }: { active: boolean }) {
             <h4 id={`${uid}-editor`} className="text-sm font-semibold" style={{ color: 'var(--list-title)' }}>
               {editedProvider ? t('ai.admin.editTitle', { name: editedProvider.name }) : t('ai.admin.newTitle')}
             </h4>
-            {/* Deux colonnes dès 640 px : Nom | Type, puis URL | Modèle. La
-                liste des modèles reprend toute la largeur sous les deux. */}
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-x-4">
+            {/* Une seule colonne, toujours : la colonne de contenu de Préférences
+                fait 462 px au plus, deux colonnes de 180-220 px rognaient le
+                sélecteur de type et faisaient passer « Lister les modèles » à
+                la ligne. Une requête de conteneur à 560 px ne s'y déclencherait
+                jamais ; un point de rupture sur la fenêtre (`sm:`) mentait. */}
+            <div className="grid gap-3">
               {textField('name', t('ai.admin.name'))}
               <div>
                 <label htmlFor={`${uid}-type`} className={labelClass} style={labelStyle}>{t('ai.admin.type')}</label>
@@ -338,7 +341,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
                   </button>
                 </div>
               </div>
-              {models && <div className="sm:col-span-2"><ModelList
+              {models && <div><ModelList
                 id={`${uid}-models`} state={models} current={draft.model.trim()} filter={modelFilter}
                 onFilter={setModelFilter} onPick={pickModel} onClose={dropModels}
               /></div>}

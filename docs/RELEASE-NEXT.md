@@ -91,13 +91,12 @@ la release publiée.
   « Modifier » et un menu « ⋯ » (feuille du bas au doigt) qui porte Monter,
   Descendre, Définir par défaut et Supprimer ; la liste déroulante
   « Fournisseur par défaut » a disparu. L'éditeur s'ouvre sous la liste, titré
-  « Nouveau fournisseur » ou « Modifier X », ses champs sur deux colonnes dès
-  640 px, le partage de la clé en interrupteur. « Les utilisateurs peuvent
+  « Nouveau fournisseur » ou « Modifier X », ses champs sur une colonne, le partage de la clé en interrupteur. « Les utilisateurs peuvent
   saisir leur propre clé » et le plafond quotidien par utilisateur sont
   affichés à plat, sous l'éditeur. Le
-  panneau « Résumé IA » se réduit à son en-tête (étincelle, titre, « Pas
-  encore résumé », « Résumer ») tant qu'il n'y a ni résumé, ni demande en
-  cours, ni erreur ; le repli mémorisé joue dès la première demande.
+  panneau « Résumé IA » tient sur une seule ligne compacte (titre et
+  « Résumer », aucun état) tant qu'il n'y a ni résumé, ni demande en cours,
+  ni erreur ; le repli mémorisé joue dès la première demande.
   **Panneau « Résumé IA » facultatif.** Un interrupteur « Panneau Résumé IA
   toujours visible » (Préférences → IA → Résumés, allumé d'origine) permet de ne
   le montrer qu'avec une demande ou un résumé : un bouton « Résumer » prend

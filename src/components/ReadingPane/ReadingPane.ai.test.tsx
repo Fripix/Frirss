@@ -227,6 +227,16 @@ describe('ReadingPane — Résumé IA', () => {
       fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
       await waitFor(() => expect(pane.classList.contains('has-summarize')).toBe(false));
     });
+    it('has-translate follows aiUsable: present with a usable provider, absent without', () => {
+      const first = render(<ReadingPane />);
+      expect((first.container.querySelector('.reading-pane') as HTMLElement).classList.contains('has-translate')).toBe(true);
+      first.unmount();
+      useAiStore.setState({ config: { ...ON, providers: [{ ...ON.providers[0], available: false }] } });
+      const second = render(<ReadingPane />);
+      const pane = second.container.querySelector('.reading-pane') as HTMLElement;
+      expect(pane.classList.contains('has-translate')).toBe(false);
+      expect(pane.classList.contains('has-summarize')).toBe(false);
+    });
     it('has-summarize is absent while the panel is shown', () => {
       const { container } = render(<ReadingPane />);
       expect((container.querySelector('.reading-pane') as HTMLElement).classList.contains('has-summarize')).toBe(false);

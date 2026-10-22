@@ -662,13 +662,14 @@ html {
    ANCÊTRE le plus proche) — posé sur `.reading-toolbar`, tout ce qui stylait
    la barre elle-même (repli compact ci-dessous) restait silencieusement
    sans effet ; seuls les DESCENDANTS de la barre en bénéficiaient.
-   Le bouton « Résumer » (panneau IA masqué par réglage, rien demandé) ajoute
-   à la barre un bouton de ~90px que la mesure ci-dessus ne comptait pas :
-   un volet de ~1030px gardait ses libellés ET débordait (barre de
-   défilement horizontale). `ReadingPane` pose alors `.has-summarize` sur
-   `.reading-pane` (l'élément qui porte le conteneur) et un second seuil, 1100px, replie les
-   libellés plus tôt : 948px + ~90px = ~1040px de largeur naturelle, soit
-   le seuil de 1000px relevé d'autant (+100px), toujours ~5 % de marge. */
+   Quand l'IA est utilisable, la barre compte en plus le bouton scindé
+   « Traduire » : `ReadingPane` pose `.has-translate` sur `.reading-pane`
+   (l'élément qui porte le conteneur) et un seuil de 1120px replie les
+   libellés plus tôt. Avec le bouton « Résumer » (panneau IA masqué par
+   réglage, rien demandé), `.has-summarize` porte le seuil à 1220px. Largeurs
+   naturelles mesurées contre cette feuille : FR 1064px (Traduire seul) /
+   1164px (Traduire + Résumer), DE 1011 / 1160 ; sans IA, 948px, sous le
+   seuil de 1000px. */
 .reading-pane {
   container-type: inline-size;
   container-name: reading-toolbar;
@@ -689,7 +690,20 @@ html {
     border: 0;
   }
 }
-@container reading-toolbar (max-width: 1100px) {
+@container reading-toolbar (max-width: 1120px) {
+  .has-translate .toolbar-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+@container reading-toolbar (max-width: 1220px) {
   .has-summarize .toolbar-label {
     position: absolute;
     width: 1px;

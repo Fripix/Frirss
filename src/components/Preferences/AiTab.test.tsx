@@ -457,14 +457,14 @@ describe('AiTab', () => {
       expect(getByRole('group', { name: 'ai.admin.editTitle:Ollama' })).toBeTruthy();
     });
 
-    it('lays the fields in two columns from 640 px and puts the clear-key button beside the key', async () => {
+    it('lays the fields in a single column (the content column is too narrow for two) and puts the clear-key button beside the key', async () => {
       useAuthStore.setState({ backendUser: admin });
       const p = { id: 7, name: 'GPT', type: 'openai' as const, baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: true, position: 0 };
       vi.mocked(getAiProviders).mockResolvedValue({ providers: [p], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
       const { findByRole, getByLabelText, getByRole } = render(<AiTab active />);
       fireEvent.click(await findByRole('button', { name: 'ai.admin.edit — GPT' }));
       const grid = getByLabelText('ai.admin.name').closest('.grid')!;
-      expect(grid.className).toContain('sm:grid-cols-2');
+      expect(grid.className).not.toMatch(/grid-cols-2/);
       for (const label of ['ai.admin.type', 'ai.admin.baseUrl', 'ai.admin.model']) expect(grid.contains(getByLabelText(label))).toBe(true);
       expect(grid.contains(getByLabelText('ai.admin.key'))).toBe(false);
       const keyRow = getByLabelText('ai.admin.key').parentElement!;
