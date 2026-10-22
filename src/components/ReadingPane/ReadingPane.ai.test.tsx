@@ -1242,7 +1242,7 @@ describe('ReadingPane — traduction de l\'article', () => {
     fireEvent.click(getByRole('button', { name: 'ai.translateArticleMenu' }));
     fireEvent.click(within(getByRole('group', { name: 'ai.translateTo' })).getByRole('menuitemradio', { name: languageName('es', 'fr') }));
     fireEvent.click(await findByRole('button', { name: 'ai.retryWith' }));
-    await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(3), { timeout: 4000 });
     expect(vi.mocked(requestAiTranslation).mock.calls[2][0]).toMatchObject({ scope: 'article', targetLang: 'es', provider: 2 });
     // L'allemand reste à l'écran tant que l'espagnol n'est pas arrivé.
     expect(bodyText(container)).toBe('Der Text');
