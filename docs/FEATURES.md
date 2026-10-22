@@ -4015,7 +4015,11 @@ réglage clair/sombre du système.
     entrée est une **liste** d'anciens défauts : une couleur peut en avoir eu
     plusieurs (`list-active` a été lilas, puis beige, puis gris neutre) et
     toutes doivent mener à la valeur du jour, sinon la moitié des installations
-    reste sur une teinte abandonnée selon la version d'où elle vient.
+    reste sur une teinte abandonnée selon la version d'où elle vient. Les
+    deux couleurs du panneau « Résumé IA » y passent aussi : la première
+    teinte livrée (`#eefaf5` / `#bfe9d8`, du 15 au 22 octobre 2026) était
+    trop pâle pour distinguer le résumé de l'article, elle suit le nouveau
+    défaut (`#e6f7ef` / `#a9e0cb`).
   - **Règle de hiérarchie** : la barre latérale reste *plus sombre* que les
     panneaux. En thème sombre elle descend sous eux (`#151410` contre
     `#201f1b`) ; l'inverse la fait flotter.

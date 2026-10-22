@@ -86,6 +86,15 @@ describe('shipped themes', () => {
     localStorage.removeItem('frirss_theme');
   });
 
+  it('migrates the first faint AI tint of the default theme to the stronger one', () => {
+    // #eefaf5 / #bfe9d8 étaient les valeurs livrées du 15 au 22 octobre 2026 :
+    // personne ne les a choisies, elles suivent le nouveau défaut.
+    useThemeStore.getState().applyServerPrefs({ theme: { name: 'Mon clair', colors: { ...base.colors, 'ai-bg': '#eefaf5', 'ai-border': '#bfe9d8' }, fontSizes: base.fontSizes } });
+    const got = useThemeStore.getState().theme.colors;
+    expect(got['ai-bg']).toBe('#e6f7ef');
+    expect(got['ai-border']).toBe('#a9e0cb');
+  });
+
   it('derives the AI colours of a theme saved before they existed from its own panel and accent', () => {
     const night = SHIPPED_THEMES.find((t) => t.name === NIGHT_THEME_NAME)!;
     const old = { ...night.colors };

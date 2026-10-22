@@ -91,6 +91,10 @@ const COLOR_DEFAULT_MIGRATIONS: Record<string, [string[], string]> = {
   // #f0f0f5 tirait au lilas, #eeebe2 au beige : les deux se voyaient. Gris
   // franc, qui ne penche d'aucun côté.
   'list-active': [['#f0f0f5', '#eeebe2'], '#f0f0f0'],
+  // Première teinte du panneau « Résumé IA » (15-22 octobre 2026), trop pâle
+  // pour distinguer le résumé de l'article : un cran plus marquée.
+  'ai-bg': [['#eefaf5'], '#e6f7ef'],
+  'ai-border': [['#bfe9d8'], '#a9e0cb'],
 };
 
 function migrateColors(colors: Record<string, string>): Record<string, string> {
