@@ -1322,6 +1322,12 @@ html {
    qu'environ 460 px à son contenu sur un ordinateur, où le nom du
    fournisseur tient très bien ; 420 px sépare le bureau du téléphone. */
 .ai-routing { container: ai-routing / inline-size; }
+/* Clé de la matrice : les trois états côte à côte, empilés quand le cadre est étroit (320 px). */
+.ai-routing__key { container: ai-routing-key / inline-size; }
+.ai-routing__states-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@container ai-routing-key (max-width: 459px) {
+  .ai-routing__states-list { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+}
 .ai-routing__grid {
   --cell: 32px;
   --indent: 20px;

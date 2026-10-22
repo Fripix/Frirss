@@ -2714,39 +2714,38 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   lignes par flux et répétait « Résumer / Traduire / Panneau IA » sur chacune,
   et une catégorie ressemblait à un flux).
   **Clé** (`ai/RoutingKey.tsx`, `data-routing-key`, au-dessus de la matrice, à
-  toutes les largeurs) : un cadre au filet `--panel-border`, **sans fond**,
-  12 px de côté, qui tient **un seul vrai `<table>`** (`border-collapse`,
-  texte **13 px**, sans ligne d'en-tête) de **sept lignes** de trois colonnes —
-  icône de 22 px (cellule `w-8`), nom en `<th scope="row">` (`font-semibold`,
-  `--list-title`, colonne fixe `w-28` : les descriptions s'alignent ; un nom
-  long passe à la ligne dans sa colonne), description courte en
-  `--list-title` à 75 % d'opacité (plus foncée que `--list-summary`), 8 px en
-  haut et en bas de chaque cellule. D'abord les **quatre colonnes** : Résumer
-  (`keySummary`), Traduire (`keyTranslate`), Panneau IA (`keyPanelName` /
-  `keyPanel`), IA (`providerColumn` / `keyProvider`) — les trois premières
-  icônes sont des carrés dessinés comme un interrupteur « réglé ici », celle
-  de l'IA la puce nue. Puis, après un **filet double** (`border-t-2`), les
-  **trois états** d'un interrupteur, chacun avec son échantillon : « Réglé
-  ici » (`keySet` / `keySetText`, « Choisi sur cette ligne. »), « Hérité »
-  (`keyInherited` / `keyInheritedText`, « Repris de la catégorie ou de vos
-  réglages généraux. »), « Éteint » (`keyOff` / `keyOffText`, « Ne se déclenche
-  pas. »). Un filet de 1 px (`border-t` posé sur chaque cellule, par ligne)
-  sépare les autres lignes. Sous le tableau, après un filet, la phrase de
-  priorité (`keyPrecedence`, 12 px, `--list-summary` : un flux l'emporte sur
-  sa catégorie, une catégorie sur les réglages généraux). Historique des
-  retours du propriétaire (2026-10-22) : un fond teinté et des carrés de 24 px
-  étaient « presque un peu trop envahissants » ; la version allégée qui a
-  suivi (12 px, gris, icônes de 20 px, états en rangée d'échantillons sous le
-  tableau) était devenue « moins claire / visible / lisible » — d'où la taille
-  et les couleurs actuelles, et les états devenus des lignes du tableau.
-  Échantillons et icônes passent par `toggleLook` (`src/lib/routingLook.ts`), le
-  code même des interrupteurs : la clé ne peut pas dériver de ce qu'elle
-  explique. Toute la clé est ce que chaque interrupteur désigne par
-  `aria-describedby`. Elle remplace les deux phrases d'aide d'avant
-  (`hint`, `legend`) et la légende à icônes de l'étroit (retrait assumé).
-  À 320 px (≈ 279 px de conteneur, 253 dans le cadre), il reste ≈ 109 px à la
-  description, qui passe à la ligne sous elle-même — raisonné sur les classes,
-  pas mesuré.
+  toutes les largeurs) : un cadre au filet `--panel-border`, texte **13 px**,
+  en **deux parties nettement séparées**. (1) **Ce que fait chaque colonne** :
+  un vrai `<table>` de **quatre lignes** sans ligne d'en-tête — icône de 22 px
+  (cellule `w-8`), nom en `<th scope="row">` (`font-semibold`, `--list-title`,
+  colonne fixe `w-28` : les descriptions s'alignent), description en
+  `--list-title` à 75 % : Résumer (`keySummary`), Traduire (`keyTranslate`),
+  Panneau IA (`keyPanelName` / `keyPanel`), IA (`providerColumn` /
+  `keyProvider`), un filet de 1 px entre les lignes. Les icônes y sont
+  **neutres** (couleur de titre, sans fond ni contour) : dans la matrice, la
+  couleur dit l'état, elle n'appartient qu'à la deuxième partie.
+  (2) **Ce que montre chaque bouton** (`data-routing-states`) : une bande au
+  fond `--panel-header-bg` sous un filet, titrée `keyStatesTitle` (12 px,
+  gris), avec les **trois états côte à côte** (`.ai-routing__states-list`,
+  grille de trois colonnes ; une seule sous 460 px de cadre, requête de
+  conteneur `ai-routing-key` — la clé vit hors de `.ai-routing`). Chaque état :
+  un échantillon de 24 px, son nom en gras, une phrase : « Activé »
+  (`keySet` / `keySetText`, choisi pour cette catégorie ou ce flux),
+  « Hérité » (`keyInherited` / `keyInheritedText`, activé par la catégorie ou
+  les réglages généraux), « Désactivé » (`keyOff` / `keyOffText`, ne
+  s'applique pas — y compris quand rien au-dessus ne l'active). La phrase de
+  priorité (`keyPrecedence`, 12 px, `--list-summary`) ferme la bande.
+  Historique des retours du propriétaire : un fond teinté sur toute la clé
+  était « presque un peu trop envahissant », la version en 12 px gris « moins
+  claire / lisible » (2026-10-22) ; puis le tableau unique de sept lignes, où
+  les états suivaient les colonnes, n'était « pas du tout clair », et
+  « Réglé ici » / « Éteint » ne disaient rien (2026-10-23) — d'où les deux
+  parties et les mots Activé / Hérité / Désactivé. Les échantillons passent
+  par `toggleLook` (`src/lib/routingLook.ts`), le code même des
+  interrupteurs : la clé ne peut pas dériver de ce qu'elle explique. Toute la
+  clé est ce que chaque interrupteur désigne par `aria-describedby`. Elle
+  remplace les deux phrases d'aide d'avant (`hint`, `legend`) et la légende à
+  icônes de l'étroit (retrait assumé).
   **Une seule grille pour tout le bloc** (`.ai-routing__grid`, `index.css`) :
   `minmax(0, 1fr)` pour le nom, puis trois colonnes d'interrupteurs
   `minmax(var(--cell), max-content)` et le fournisseur en `auto` (au large ;
