@@ -6,6 +6,9 @@ export interface AiAutoPrefs {
   aiCategoryAutoSummary: Record<string, boolean>;
   aiCategoryAutoTranslate: Record<string, boolean>;
   aiAutoSummary: boolean;
+  /** « Traduire le résumé » : absents chez un appelant plus ancien, ils valent éteint. */
+  aiCategoryAutoSummaryTranslate?: Record<string, boolean>;
+  aiAutoSummaryTranslate?: boolean;
 }
 
 /**
@@ -26,34 +29,38 @@ function fromCategories(sub: Subscription | undefined, values: Record<string, bo
 }
 
 /**
- * Faut-il résumer / traduire automatiquement les articles de ce flux ?
+ * Faut-il résumer / traduire / traduire le résumé automatiquement pour ce flux ?
  *
  * Même règle que `panelFor`, pour que les trois colonnes de « Par flux et
  * catégorie » héritent de la même façon : le réglage propre du flux (vrai OU
  * faux explicite — éteindre un flux sous une catégorie allumée doit tenir) >
  * les catégories (vrai dès qu'UNE est explicitement vraie, sinon faux dès
  * qu'une est explicitement fausse — une catégorie éteinte sous un résumé
- * global allumé tient) > le réglage global : `aiAutoSummary` pour le résumé ;
- * la traduction n'en a pas, elle est éteinte.
+ * global allumé tient) > le réglage global : `aiAutoSummary` pour le résumé,
+ * `aiAutoSummaryTranslate` pour la traduction du résumé ; la traduction de
+ * l'article n'en a pas, elle est éteinte.
  *
  * Les noms de catégorie, choisis par l'utilisateur, sont cherchés par clé
  * propre : une catégorie nommée `constructor` ne doit pas retrouver
  * `Object.prototype`. Un flux inconnu n'a pas de catégorie.
  */
 export function autoFor(
-  kind: 'summary' | 'translate',
+  kind: 'summary' | 'translate' | 'summaryTranslate',
   sourceId: string | undefined,
   subscriptions: Subscription[],
   prefs: AiAutoPrefs,
 ): boolean {
   const own = sourceId ? prefs.feedSettings[sourceId] : undefined;
-  const value = kind === 'summary' ? own?.aiAutoSummary : own?.aiAutoTranslate;
+  const value = kind === 'summary' ? own?.aiAutoSummary : kind === 'translate' ? own?.aiAutoTranslate : own?.aiAutoSummaryTranslate;
   if (typeof value === 'boolean') return value;
 
   const sub = sourceId ? subscriptions.find((s) => s.id === sourceId) : undefined;
-  const category = fromCategories(sub, kind === 'summary' ? prefs.aiCategoryAutoSummary : prefs.aiCategoryAutoTranslate);
+  const values = kind === 'summary' ? prefs.aiCategoryAutoSummary
+    : kind === 'translate' ? prefs.aiCategoryAutoTranslate
+    : prefs.aiCategoryAutoSummaryTranslate ?? {};
+  const category = fromCategories(sub, values);
   if (category !== null) return category;
-  return kind === 'summary' ? prefs.aiAutoSummary : false;
+  return kind === 'summary' ? prefs.aiAutoSummary : kind === 'summaryTranslate' ? prefs.aiAutoSummaryTranslate === true : false;
 }
 
 /**

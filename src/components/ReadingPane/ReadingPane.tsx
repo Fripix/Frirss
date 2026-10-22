@@ -206,11 +206,17 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const aiAutoSummary = useUiStore((s) => s.aiAutoSummary);
   const aiCategoryAutoSummary = useUiStore((s) => s.aiCategoryAutoSummary);
   const aiCategoryAutoTranslate = useUiStore((s) => s.aiCategoryAutoTranslate);
+  const aiAutoSummaryTranslate = useUiStore((s) => s.aiAutoSummaryTranslate);
+  const aiCategoryAutoSummaryTranslate = useUiStore((s) => s.aiCategoryAutoSummaryTranslate);
   const aiPanelAlways = useUiStore((s) => s.aiPanelAlways);
   const aiCategoryPanel = useUiStore((s) => s.aiCategoryPanel);
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const autoSummarisedId = useRef<string | null>(null);
   const autoTranslatedId = useRef<string | null>(null);
+  // Le dernier résumé traduit automatiquement : une fois par résumé reçu, si
+  // bien que « Texte source » ne relance rien, et qu'un nouveau résumé
+  // (« Résumer avec X », « Régénérer ») est traduit à son tour.
+  const autoSummaryTranslatedFor = useRef<AiSummaryResult | null>(null);
   // Traduction du résumé affiché. `aiTranslationSeq` désigne la demande dont
   // la réponse est encore attendue : changer d'article, recevoir un autre
   // résumé ou revenir au texte source l'incrémente, et une réponse d'une
@@ -854,8 +860,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // `regenerate` : le serveur ignore son cache et le remplace.
   // « Traduire » (sans choix) sur un résumé déjà dans la langue cible ne
   // lance rien : « Déjà en X », sans appel ni unité du plafond. Un choix
-  // explicite (« Traduire en… ») part toujours.
-  const handleTranslateSummary = useCallback(async (choice?: { lang?: AiLanguage; providerId?: number; regenerate?: boolean }) => {
+  // explicite (« Traduire en… ») part toujours. `automatic` (traduction du
+  // résumé à son arrivée) tait les « Déjà en X » : personne n'a rien demandé.
+  const handleTranslateSummary = useCallback(async (choice?: { lang?: AiLanguage; providerId?: number; regenerate?: boolean }, opts?: { automatic?: boolean }) => {
     if (!selectedArticle || !aiResult || aiTranslation.status === 'loading') return;
     const id = selectedArticle.id;
     const text = aiResult.text;
@@ -865,7 +872,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     const lang = choice?.lang ?? (choice?.providerId !== undefined ? shownLang : null) ?? aiTargetLang;
     const regenerate = choice?.regenerate === true;
     if (!regenerate && choice?.lang === undefined && !shown && sameLanguage(aiResult.lang, lang)) {
-      pushToast(t('ai.translation.alreadyTarget', { lang: languageName(lang, i18n.language) }));
+      if (!opts?.automatic) pushToast(t('ai.translation.alreadyTarget', { lang: languageName(lang, i18n.language) }));
       return;
     }
     // « Retraduire » garde la traduction à l'écran pendant la demande et,
@@ -884,7 +891,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (aiTranslationSeq.current !== seq) return;
       if (r.same) {
         setAiTranslation(NO_AI_TRANSLATION);
-        pushToast(t('ai.translation.alreadyTarget', { lang: languageName(lang, i18n.language) }));
+        if (!opts?.automatic) pushToast(t('ai.translation.alreadyTarget', { lang: languageName(lang, i18n.language) }));
         return;
       }
       // Le résumé part comme un segment HTML : `&amp;` ou `<em>` rendus par le
@@ -927,7 +934,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   // Résumé et traduction automatiques : la règle du flux, sinon d'une de ses
   // catégories, sinon (résumé seulement) le réglage global — `autoFor`.
-  const autoPrefs = { feedSettings, aiCategoryAutoSummary, aiCategoryAutoTranslate, aiAutoSummary };
+  const autoPrefs = { feedSettings, aiCategoryAutoSummary, aiCategoryAutoTranslate, aiAutoSummary, aiCategoryAutoSummaryTranslate, aiAutoSummaryTranslate };
   // Le panneau « Résumé IA » : toujours là, ou seulement avec une demande ou un
   // résumé (flux > catégories > réglage global — `panelFor`). Il ne conditionne
   // QUE son rendu : la touche, la palette et le bouton « Résumer » vont chercher
@@ -1042,6 +1049,21 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }, AUTO_SUMMARY_DELAY_MS);
     return () => clearTimeout(timer);
   }, [selectedArticle, autoTranslate, aiUsable, online, autoSettled, articleTranslationState, articleCanTranslate, translateArticle]);
+  // Traduction automatique du résumé : dès qu'un résumé arrive, s'il n'est pas
+  // dans la langue cible, quand la ligne le demande (« Traduire le résumé »,
+  // flux > catégorie > global) ou quand l'article lui-même est traduit
+  // automatiquement — un résumé anglais au-dessus d'un article traduit en
+  // français n'aurait pas de sens. Pas de délai : le résumé, lui, a déjà
+  // attendu (ou a été demandé). Une fois par résumé reçu.
+  const autoSummaryTranslate = !!selectedArticle
+    && (autoTranslate || autoFor('summaryTranslate', selectedArticle.sourceId, subscriptions, autoPrefs));
+  useEffect(() => {
+    if (!autoSummaryTranslate || !aiUsable || !online || aiStatus !== 'done' || !aiResult) return;
+    if (aiTranslation.status !== 'idle' || autoSummaryTranslatedFor.current === aiResult) return;
+    autoSummaryTranslatedFor.current = aiResult;
+    if (sameLanguage(aiResult.lang, aiTargetLang)) return;
+    void handleTranslateSummary(undefined, { automatic: true });
+  }, [autoSummaryTranslate, aiUsable, online, aiStatus, aiResult, aiTranslation.status, aiTargetLang, handleTranslateSummary]);
   const translatedBody = useMemo(
     () => (articleTranslation.html === null ? null : buildArticleBody({
       rssHtml: articleTranslation.html,

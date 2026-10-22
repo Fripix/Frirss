@@ -17,7 +17,8 @@ const NO_PROVIDERS: AiProviderView[] = [];
  * traduction), puis le fournisseur préféré, le repli, le résumé automatique
  * (qu'on n'active qu'après une confirmation de coût, une fois par compte,
  * partagée avec les interrupteurs « Résumer » de « Par flux et catégorie »),
- * la visibilité du panneau « Résumé IA » dans la lecture (toujours là, ou
+ * la traduction automatique du résumé (sans confirmation : un court appel
+ * sur un résumé déjà là), la visibilité du panneau « Résumé IA » dans la lecture (toujours là, ou
  * seulement avec un résumé) et, quand l'instance
  * paie sous plafond, la consommation du jour.
  */
@@ -39,6 +40,8 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
   const setAuto = useUiStore((s) => s.setAiAutoSummary);
   const autoConfirmed = useUiStore((s) => s.aiAutoSummaryConfirmed);
   const setAutoConfirmed = useUiStore((s) => s.setAiAutoSummaryConfirmed);
+  const summaryTranslate = useUiStore((s) => s.aiAutoSummaryTranslate);
+  const setSummaryTranslate = useUiStore((s) => s.setAiAutoSummaryTranslate);
   const panelAlways = useUiStore((s) => s.aiPanelAlways);
   const setPanelAlways = useUiStore((s) => s.setAiPanelAlways);
   const [confirmAuto, setConfirmAuto] = useState(false);
@@ -102,6 +105,14 @@ export default function SummariesBlock({ showIntro }: { showIntro: boolean }) {
           <ToggleSwitch checked={auto} onChange={(on) => (on && !autoConfirmed ? setConfirmAuto(true) : setAuto(on))} ariaLabel={t('ai.user.auto')} describedBy={`${uid}-auto-hint`} />
         </div>
         <p id={`${uid}-auto-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.autoHint')}</p>
+      </div>
+
+      <div>
+        <div className="prefs-tap-row flex items-center justify-between gap-3">
+          <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.user.summaryTranslate')}</span>
+          <ToggleSwitch checked={summaryTranslate} onChange={setSummaryTranslate} ariaLabel={t('ai.user.summaryTranslate')} describedBy={`${uid}-summary-translate-hint`} />
+        </div>
+        <p id={`${uid}-summary-translate-hint`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.user.summaryTranslateHint')}</p>
       </div>
 
       <div>

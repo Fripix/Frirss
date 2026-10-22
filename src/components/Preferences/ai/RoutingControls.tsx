@@ -8,7 +8,7 @@ import { providerChoices } from '../../../lib/aiProviderChoices';
 import { toggleLook } from '../../../lib/routingLook';
 
 /**
- * Les contrôles d'une ligne de « Par flux et catégorie » : les trois
+ * Les contrôles d'une ligne de « Par flux et catégorie » : les quatre
  * interrupteurs carrés et le bouton de fournisseur. Ils vivent dans la grille
  * du bloc (`RoutingBlock`), qui fixe la taille d'une cellule (`--cell` : 32 px
  * à la souris, 40 px au doigt).
@@ -34,7 +34,7 @@ const hitArea = "ai-routing__hit before:absolute before:-inset-0.5 before:conten
  * le réglage global, en contour s'il l'allume.
  */
 export type ToggleState = 'on' | 'inherited' | 'off';
-export type ToggleKind = 'summary' | 'translate' | 'panel';
+export type ToggleKind = 'summary' | 'translate' | 'summaryTranslate' | 'panel';
 
 export function RoutingToggle({ kind, state, ariaLabel, title, describedBy, touch, onToggle }: {
   kind: ToggleKind; state: ToggleState; ariaLabel: string; title: string; describedBy: string; touch: boolean; onToggle: (on: boolean) => void;
@@ -50,7 +50,7 @@ export function RoutingToggle({ kind, state, ariaLabel, title, describedBy, touc
       className={`relative min-h-0 justify-self-center inline-flex items-center justify-center rounded-md cursor-pointer transition-colors ${touch ? hitArea : ''}`}
       style={{ width: 'var(--cell)', height: 'var(--cell)', ...look }}
     >
-      {kind === 'summary' ? <SparkleIcon /> : kind === 'translate' ? <TranslateIcon /> : <PanelIcon />}
+      {kind === 'summary' ? <SparkleIcon /> : kind === 'translate' ? <TranslateIcon /> : kind === 'summaryTranslate' ? <SummaryTranslateIcon /> : <PanelIcon />}
     </button>
   );
 }
@@ -150,6 +150,15 @@ export function SparkleIcon() {
 /** L'icône « Traduire » de la barre d'outils du volet de lecture. */
 export function TranslateIcon() {
   return <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 01-3.827-5.802" /></svg>;
+}
+
+/**
+ * « Résumé traduit » : l'étincelle du résumé, en petit, au-dessus du « A » de
+ * l'icône « Traduire » — on lit « résumé » puis « langue », sans confusion
+ * possible avec la colonne Traduire voisine.
+ */
+export function SummaryTranslateIcon() {
+  return <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M7 2.5l.9 2.6a2.5 2.5 0 001.6 1.6l2.6.9-2.6.9a2.5 2.5 0 00-1.6 1.6L7 12.7l-.9-2.6a2.5 2.5 0 00-1.6-1.6L1.9 7.6l2.6-.9a2.5 2.5 0 001.6-1.6L7 2.5zM10.5 21l5.25-11.25L21 21m-9-3h7.5" /></svg>;
 }
 
 /** Une page coiffée d'un bandeau : le panneau « Résumé IA » posé en tête de l'article. */

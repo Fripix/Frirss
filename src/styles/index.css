@@ -1332,9 +1332,12 @@ html {
   --cell: 32px;
   --indent: 20px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(3, minmax(var(--cell), max-content)) auto;
+  grid-template-columns: minmax(0, 1fr) repeat(4, minmax(var(--cell), max-content)) auto;
   column-gap: 6px;
 }
+/* Les mots de l'en-tête : un mot de deux (« Résumé traduit ») passe à la ligne
+   plutôt que d'élargir sa colonne aux dépens du nom. */
+.ai-routing__col-word { max-width: 4.75rem; overflow-wrap: break-word; }
 .ai-routing__grid[data-touch] { --cell: 40px; }
 .ai-routing__feed-name { padding-left: var(--indent); }
 .ai-routing__cat-label {
@@ -1368,7 +1371,7 @@ html {
     --cell: 32px;
     --indent: 8px;
     column-gap: 2px;
-    grid-template-columns: minmax(0, 1fr) repeat(3, var(--cell)) var(--cell);
+    grid-template-columns: minmax(0, 1fr) repeat(4, var(--cell)) var(--cell);
   }
   .ai-routing__grid [data-routing-header] { display: none; }
   .ai-routing__grid [data-routing-row] { padding-left: 6px; padding-right: 4px; }

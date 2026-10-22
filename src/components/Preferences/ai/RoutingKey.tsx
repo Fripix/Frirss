@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toggleLook } from '../../../lib/routingLook';
-import { ChipIcon, PanelIcon, SparkleIcon, TranslateIcon, type ToggleState } from './RoutingControls';
+import { ChipIcon, PanelIcon, SparkleIcon, SummaryTranslateIcon, TranslateIcon, type ToggleState } from './RoutingControls';
 
 /**
  * La clé de « Par flux et catégorie », en deux parties dans un même cadre.
  *
- * 1. **Ce que fait chaque colonne** : une vraie `<table>` de quatre lignes
+ * 1. **Ce que fait chaque colonne** : une vraie `<table>` de cinq lignes
  *    (icône, nom en `<th scope="row">`, description), un filet entre les
  *    lignes. Les icônes y sont **neutres** — couleur de titre, sans fond ni
  *    contour — parce que la couleur a un sens dans la matrice : elle dit l'état.
@@ -72,6 +72,7 @@ export default function RoutingKey({ id }: { id: string }) {
           <tbody>
             <Row first icon={<SparkleIcon />} name={t('ai.routing.autoSummary')}>{t('ai.routing.keySummary')}</Row>
             <Row icon={<TranslateIcon />} name={t('ai.routing.autoTranslate')}>{t('ai.routing.keyTranslate')}</Row>
+            <Row icon={<SummaryTranslateIcon />} name={t('ai.routing.summaryTranslate')}>{t('ai.routing.keySummaryTranslate')}</Row>
             <Row icon={<PanelIcon />} name={t('ai.routing.keyPanelName')}>{t('ai.routing.keyPanel')}</Row>
             <Row icon={<ChipIcon />} name={t('ai.routing.providerColumn')}>{t('ai.routing.keyProvider')}</Row>
           </tbody>

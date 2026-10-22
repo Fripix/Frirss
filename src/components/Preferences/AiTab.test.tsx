@@ -4,7 +4,7 @@ import path from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, waitFor, within, screen } from '@testing-library/react';
 // Le nom passé à ces clés est ce que l'on vérifie : il est rendu après la clé.
-const NAMED = new Set(['ai.user.preferredDefault', 'ai.translation.uiLanguage', 'ai.routing.autoSummaryFor', 'ai.routing.autoTranslateFor', 'ai.routing.panelFor', 'ai.routing.categoryProviderFor', 'ai.routing.feedProviderFor', 'ai.admin.editTitle']);
+const NAMED = new Set(['ai.user.preferredDefault', 'ai.translation.uiLanguage', 'ai.routing.autoSummaryFor', 'ai.routing.autoTranslateFor', 'ai.routing.summaryTranslateFor', 'ai.routing.panelFor', 'ai.routing.categoryProviderFor', 'ai.routing.feedProviderFor', 'ai.admin.editTitle']);
 // « Libellé — valeur » : les deux moitiés sont rendues, c'est leur assemblage qu'on vérifie.
 const tMock = (k: string, o?: Record<string, unknown>) =>
   k === 'ai.routing.labelValue' ? `${String(o?.label)} — ${String(o?.value)}` : NAMED.has(k) ? `${k}:${String(o?.name)}` : k;
@@ -680,6 +680,22 @@ describe('AiTab — routing and usage in the « Résumés » block', () => {
     fireEvent.click(getByRole('switch', { name: 'ai.user.panel' }));
     expect(useUiStore.getState().aiPanelAlways).toBe(true);
   });
+  it('summary translation is a switch right after auto-summary, off by default, described by its hint, without a confirmation', () => {
+    useUiStore.setState({ aiAutoSummaryTranslate: false });
+    const { getByRole, getByText, queryByRole } = render(<AiTab active />);
+    const sw = getByRole('switch', { name: 'ai.user.summaryTranslate' });
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+    expect(sw.getAttribute('aria-describedby')).toContain(getByText('ai.user.summaryTranslateHint').id);
+    const auto = getByRole('switch', { name: 'ai.user.auto' });
+    const panel = getByRole('switch', { name: 'ai.user.panel' });
+    expect(auto.compareDocumentPosition(sw) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sw.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(sw);
+    expect(queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiAutoSummaryTranslate).toBe(true);
+    fireEvent.click(getByRole('switch', { name: 'ai.user.summaryTranslate' }));
+    expect(useUiStore.getState().aiAutoSummaryTranslate).toBe(false);
+  });
   it('cancelling the confirmation leaves auto-summary off', async () => {
     const { getByRole, queryByRole } = render(<AiTab active />);
     fireEvent.click(getByRole('switch', { name: 'ai.user.auto' }));
@@ -769,15 +785,17 @@ describe('AiTab — « Par flux et catégorie »', () => {
   const reset = () => {
     useUiStore.setState({
       aiCategoryProviders: {}, feedSettings: {}, aiCategoryAutoTranslate: {}, aiCategoryAutoSummary: {}, aiCategoryPanel: {},
+      aiCategoryAutoSummaryTranslate: {}, aiAutoSummaryTranslate: false,
       aiPanelAlways: true, aiAutoSummary: false, aiAutoSummaryConfirmed: false, aiAutoTranslateConfirmed: false, layoutMode: 'auto',
     });
     useFeedStore.setState({ subscriptions: [] });
   };
-  const sw = (kind: 'Summary' | 'Translate' | 'Panel', name: string) => screen.getByRole('switch', {
-    name: kind === 'Panel' ? `ai.routing.panelFor:${name}` : `ai.routing.auto${kind}For:${name}`,
+  type Kind = 'Summary' | 'Translate' | 'SummaryTranslate' | 'Panel';
+  const sw = (kind: Kind, name: string) => screen.getByRole('switch', {
+    name: kind === 'Panel' ? `ai.routing.panelFor:${name}` : kind === 'SummaryTranslate' ? `ai.routing.summaryTranslateFor:${name}` : `ai.routing.auto${kind}For:${name}`,
   });
-  const checked = (kind: 'Summary' | 'Translate' | 'Panel', name: string) => sw(kind, name).getAttribute('aria-checked');
-  const state = (kind: 'Summary' | 'Translate' | 'Panel', name: string) => sw(kind, name).getAttribute('data-state');
+  const checked = (kind: Kind, name: string) => sw(kind, name).getAttribute('aria-checked');
+  const state = (kind: Kind, name: string) => sw(kind, name).getAttribute('data-state');
   /** Le bouton de fournisseur d'une ligne : son nom dit la ligne ET la valeur, l'étiquette visible pouvant n'être qu'une icône. */
   const providerBtn = (name: string, category = false) => screen.getByRole('button', {
     name: new RegExp(`^ai\\.routing\\.${category ? 'category' : 'feed'}ProviderFor:${name} — `),
@@ -810,7 +828,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(headers).toHaveLength(1);
     expect(headers[0].getAttribute('aria-hidden')).toBe('true');
     expect(Array.from(headers[0].children).map((c) => c.textContent)).toEqual([
-      '', 'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.panel', 'ai.routing.providerColumn',
+      '', 'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.summaryTranslate', 'ai.routing.panel', 'ai.routing.providerColumn',
     ]);
     const tech = band(/^Tech/);
     expect(screen.getByRole('button', { name: /^Tech/ }).getAttribute('aria-expanded')).toBe('false');
@@ -847,16 +865,16 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(document.activeElement).toBe(button);
     expect(useUiStore.getState().aiCategoryProviders).toEqual({});
   });
-  it('gives every category band three named switches beside its provider; the uncategorised band has none', () => {
+  it('gives every category band four named switches beside its provider; the uncategorised band has none', () => {
     useFeedStore.setState({ subscriptions: [sub(1, [cat('Actualités')]), sub(2)] });
     render(<AiTab active />);
     const row = band(/^Actualités/);
-    for (const el of [sw('Summary', 'Actualités'), sw('Translate', 'Actualités'), sw('Panel', 'Actualités'), providerBtn('Actualités', true)]) {
+    for (const el of [sw('Summary', 'Actualités'), sw('Translate', 'Actualités'), sw('SummaryTranslate', 'Actualités'), sw('Panel', 'Actualités'), providerBtn('Actualités', true)]) {
       expect(el.parentElement).toBe(row);
     }
     // « Sans catégorie » n'a rien à régler au niveau du groupe : ni interrupteur, ni fournisseur.
     const routing = screen.getAllByRole('switch').filter((x) => /^ai\.routing\./.test(x.getAttribute('aria-label') ?? ''));
-    expect(routing).toHaveLength(3);
+    expect(routing).toHaveLength(4);
     expect(screen.queryAllByRole('button', { name: /^ai\.routing\.categoryProviderFor/ })).toHaveLength(1);
     expect(within(band(/^ai\.routing\.uncategorised/)).queryAllByRole('switch')).toHaveLength(0);
   });
@@ -875,7 +893,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(feed.className).toContain('truncate');
     expect(feed.getAttribute('title')).toBe(url);
   });
-  it('shows one row per feed: name, three switches and the provider are siblings in that single row', () => {
+  it('shows one row per feed: name, four switches and the provider are siblings in that single row', () => {
     render(<AiTab active />);
     const toggle = screen.getByRole('button', { name: /^Tech/ });
     fireEvent.click(toggle);
@@ -887,10 +905,10 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(row.classList.contains('flex-wrap')).toBe(false);
     const name = within(row).getByText('Flux 1');
     expect((name.closest('[data-routing-name]') as HTMLElement).parentElement).toBe(row);
-    for (const el of [sw('Summary', 'Flux 1'), sw('Translate', 'Flux 1'), sw('Panel', 'Flux 1'), providerBtn('Flux 1')]) {
+    for (const el of [sw('Summary', 'Flux 1'), sw('Translate', 'Flux 1'), sw('SummaryTranslate', 'Flux 1'), sw('Panel', 'Flux 1'), providerBtn('Flux 1')]) {
       expect(el.parentElement).toBe(row);
     }
-    expect(row.children).toHaveLength(5);
+    expect(row.children).toHaveLength(6);
     // Le corps déplié est désigné par le bouton tant qu'il existe.
     expect(document.getElementById(toggle.getAttribute('aria-controls') as string)?.contains(row)).toBe(true);
     fireEvent.click(toggle);
@@ -948,6 +966,31 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(state('Panel', 'Tech')).toBe('on');
     fireEvent.click(sw('Panel', 'Tech'));
     expect(useUiStore.getState().aiCategoryPanel).toEqual({ Tech: false });
+  });
+  it('« Résumé traduit » on a category: no cost confirmation, an explicit value, the global setting outlined until then', () => {
+    useUiStore.setState({ aiAutoSummaryTranslate: true });
+    render(<AiTab active />);
+    expect(state('SummaryTranslate', 'Tech')).toBe('inherited');
+    expect(sw('SummaryTranslate', 'Tech').getAttribute('title')).toBe('ai.routing.summaryTranslate — ai.routing.stateGlobal');
+    fireEvent.click(sw('SummaryTranslate', 'Tech'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiCategoryAutoSummaryTranslate).toEqual({ Tech: false });
+    expect(state('SummaryTranslate', 'Tech')).toBe('off');
+    fireEvent.click(sw('SummaryTranslate', 'Tech'));
+    expect(useUiStore.getState().aiCategoryAutoSummaryTranslate).toEqual({ Tech: true });
+    expect(state('SummaryTranslate', 'Tech')).toBe('on');
+  });
+  it('« Résumé traduit » on a feed writes feedSettings[id].aiAutoSummaryTranslate and counts as a tuned feed', () => {
+    useUiStore.setState({ aiCategoryAutoSummaryTranslate: { Tech: true } });
+    render(<AiTab active />);
+    fireEvent.click(screen.getByRole('button', { name: /^Tech/ }));
+    expect(state('SummaryTranslate', 'Flux 1')).toBe('inherited');
+    expect(sw('SummaryTranslate', 'Flux 1').getAttribute('title')).toBe('ai.routing.summaryTranslate — ai.routing.stateInherited');
+    fireEvent.click(sw('SummaryTranslate', 'Flux 1'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().feedSettings['feed/1'].aiAutoSummaryTranslate).toBe(false);
+    expect(state('SummaryTranslate', 'Flux 1')).toBe('off');
+    expect(screen.getByText('ai.routing.overrides')).toBeTruthy();
   });
   it('a feed Panel switch writes feedSettings[id].aiPanel and shows the effective value', () => {
     useUiStore.setState({ aiCategoryPanel: { Tech: false } });
@@ -1145,7 +1188,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     const narrow = css.slice(css.indexOf('@container ai-routing (max-width: 419px)'));
     const block = narrow.slice(0, narrow.indexOf('\n}\n'));
     expect(block).toContain('--cell: 32px;');
-    expect(block).toContain('grid-template-columns: minmax(0, 1fr) repeat(3, var(--cell)) var(--cell);');
+    expect(block).toContain('grid-template-columns: minmax(0, 1fr) repeat(4, var(--cell)) var(--cell);');
     expect(block).toContain('[data-routing-header] { display: none; }');
     expect(block).not.toContain('ai-routing__key');
     expect(block).toContain('[data-routing-row] { min-height: 44px; }');
@@ -1153,26 +1196,27 @@ describe('AiTab — « Par flux et catégorie »', () => {
   });
   it('titles each switch with its column and state, each column word with what it does', () => {
     render(<AiTab active />);
-    expect([sw('Summary', 'Tech'), sw('Translate', 'Tech'), sw('Panel', 'Tech')].map((s) => s.getAttribute('title'))).toEqual([
-      'ai.routing.autoSummary — ai.routing.stateOff', 'ai.routing.autoTranslate — ai.routing.stateOff', 'ai.routing.panel — ai.routing.stateGlobal',
+    expect([sw('Summary', 'Tech'), sw('Translate', 'Tech'), sw('SummaryTranslate', 'Tech'), sw('Panel', 'Tech')].map((s) => s.getAttribute('title'))).toEqual([
+      'ai.routing.autoSummary — ai.routing.stateOff', 'ai.routing.autoTranslate — ai.routing.stateOff',
+      'ai.routing.summaryTranslate — ai.routing.stateOff', 'ai.routing.panel — ai.routing.stateGlobal',
     ]);
     const header = document.querySelector('[data-routing-header]') as HTMLElement;
-    expect(Array.from(header.children).slice(1, 4).map((c) => c.getAttribute('title'))).toEqual([
-      'ai.routing.summaryTitle', 'ai.routing.translateTitle', 'ai.routing.panelTitle',
+    expect(Array.from(header.children).slice(1, 5).map((c) => c.getAttribute('title'))).toEqual([
+      'ai.routing.summaryTitle', 'ai.routing.translateTitle', 'ai.routing.summaryTranslateTitle', 'ai.routing.panelTitle',
     ]);
   });
-  it('key, part 1: a table of the four columns, with neutral icons (colour belongs to part 2)', () => {
+  it('key, part 1: a table of the five columns, with neutral icons (colour belongs to part 2)', () => {
     render(<AiTab active />);
     const box = document.querySelector('[data-routing-key]') as HTMLElement;
     const table = box.querySelector('table') as HTMLTableElement;
     expect(table.querySelector('thead')).toBeNull();
     const rows = Array.from(table.querySelectorAll('tr'));
-    expect(rows.map((r) => r.querySelector('th')?.getAttribute('scope'))).toEqual(Array(4).fill('row'));
+    expect(rows.map((r) => r.querySelector('th')?.getAttribute('scope'))).toEqual(Array(5).fill('row'));
     expect(rows.map((r) => r.querySelector('th')?.textContent)).toEqual([
-      'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.keyPanelName', 'ai.routing.providerColumn',
+      'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.summaryTranslate', 'ai.routing.keyPanelName', 'ai.routing.providerColumn',
     ]);
     expect(rows.map((r) => r.querySelectorAll('td')[1].textContent)).toEqual([
-      'ai.routing.keySummary', 'ai.routing.keyTranslate', 'ai.routing.keyPanel', 'ai.routing.keyProvider',
+      'ai.routing.keySummary', 'ai.routing.keyTranslate', 'ai.routing.keySummaryTranslate', 'ai.routing.keyPanel', 'ai.routing.keyProvider',
     ]);
     // Icônes neutres : ni fond ni contour d'accent, la couleur d'état ne se lit que dans la deuxième partie.
     for (const r of rows) {
@@ -1183,7 +1227,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     }
     // Un filet entre les lignes, aucun au-dessus de la première.
     const rule = (r: HTMLElement) => ((r.firstElementChild as HTMLElement).className.match(/\bborder-t\b/) ?? [''])[0];
-    expect(rows.map(rule)).toEqual(['', 'border-t', 'border-t', 'border-t']);
+    expect(rows.map(rule)).toEqual(['', 'border-t', 'border-t', 'border-t', 'border-t']);
     expect(table.className).toContain('text-[13px]');
     expect(screen.queryByText('ai.routing.hint')).toBeNull();
     expect(screen.queryByText('ai.routing.legend')).toBeNull();
@@ -1221,11 +1265,11 @@ describe('AiTab — « Par flux et catégorie »', () => {
     const box = document.querySelector('[data-routing-key]') as HTMLElement;
     expect(box.id).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /^ai\.routing\.uncategorised/ }));
-    const switches = screen.getAllByRole('switch').filter((s) => /^ai\.routing\.(auto|panel)/.test(s.getAttribute('aria-label') ?? ''));
-    // Tech (catégorie) + Flux 3 (sans catégorie) : deux lignes, trois interrupteurs chacune.
+    const switches = screen.getAllByRole('switch').filter((s) => /^ai\.routing\.(auto|panel|summaryTranslate)/.test(s.getAttribute('aria-label') ?? ''));
+    // Tech (catégorie) + Flux 3 (sans catégorie) : deux lignes, quatre interrupteurs chacune.
     expect(switches.map((s) => s.getAttribute('aria-label'))).toEqual([
-      'ai.routing.autoSummaryFor:Tech', 'ai.routing.autoTranslateFor:Tech', 'ai.routing.panelFor:Tech',
-      'ai.routing.autoSummaryFor:Flux 3', 'ai.routing.autoTranslateFor:Flux 3', 'ai.routing.panelFor:Flux 3',
+      'ai.routing.autoSummaryFor:Tech', 'ai.routing.autoTranslateFor:Tech', 'ai.routing.summaryTranslateFor:Tech', 'ai.routing.panelFor:Tech',
+      'ai.routing.autoSummaryFor:Flux 3', 'ai.routing.autoTranslateFor:Flux 3', 'ai.routing.summaryTranslateFor:Flux 3', 'ai.routing.panelFor:Flux 3',
     ]);
     for (const s of switches) expect(s.getAttribute('aria-describedby')).toBe(box.id);
   });

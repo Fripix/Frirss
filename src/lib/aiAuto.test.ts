@@ -52,6 +52,26 @@ describe('autoFor', () => {
   });
 });
 
+describe("autoFor('summaryTranslate') — traduire le résumé", () => {
+  it('inherits like the other columns: feed, then categories, then its own global setting', () => {
+    const on = { ...none, aiAutoSummaryTranslate: true };
+    expect(autoFor('summaryTranslate', 'feed/1', subs, none)).toBe(false);
+    expect(autoFor('summaryTranslate', 'feed/1', subs, on)).toBe(true);
+    expect(autoFor('summaryTranslate', 'feed/1', subs, { ...on, aiCategoryAutoSummaryTranslate: { Tech: false } })).toBe(false);
+    expect(autoFor('summaryTranslate', 'feed/1', subs, { ...none, aiCategoryAutoSummaryTranslate: { Tech: false, Dev: true } })).toBe(true);
+    const feedSettings = { 'feed/1': { aiAutoSummaryTranslate: false } };
+    expect(autoFor('summaryTranslate', 'feed/1', subs, { ...on, feedSettings, aiCategoryAutoSummaryTranslate: { Tech: true } })).toBe(false);
+  });
+  it('is independent of the summary and article-translation settings', () => {
+    const others = { ...none, aiAutoSummary: true, aiCategoryAutoTranslate: { Tech: true }, feedSettings: { 'feed/1': { aiAutoSummary: true } } };
+    expect(autoFor('summaryTranslate', 'feed/1', subs, others)).toBe(false);
+    expect(autoFor('summary', 'feed/1', subs, { ...none, aiAutoSummaryTranslate: true })).toBe(false);
+  });
+  it('treats missing new prefs (an older caller) as off', () => {
+    expect(autoFor('summaryTranslate', 'feed/2', subs, none)).toBe(false);
+  });
+});
+
 describe('panelFor', () => {
   const base = { ...none, aiCategoryPanel: {}, aiPanelAlways: true };
   it('falls back to the global setting when nothing more specific says', () => {

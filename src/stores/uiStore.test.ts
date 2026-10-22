@@ -655,3 +655,50 @@ describe('uiStore — panneau Résumé IA (toujours visible ou seulement avec un
     expect(JSON.parse(localStorage.getItem('frirss_aiCategoryPanel')!)).toEqual({});
   });
 });
+
+describe('uiStore — traduire le résumé automatiquement', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiStore.setState({ aiAutoSummaryTranslate: false, aiCategoryAutoSummaryTranslate: {}, feedSettings: {} });
+  });
+
+  it('is off by default, synced, and persisted through its setters', () => {
+    const s = useUiStore.getState();
+    expect([s.aiAutoSummaryTranslate, s.aiCategoryAutoSummaryTranslate]).toEqual([false, {}]);
+    for (const k of ['aiAutoSummaryTranslate', 'aiCategoryAutoSummaryTranslate']) expect(UI_SYNC_KEYS).toContain(k);
+    s.setAiAutoSummaryTranslate(true);
+    s.setAiCategoryAutoSummaryTranslate('Tech', true); s.setAiCategoryAutoSummaryTranslate('News', false);
+    s.setAiCategoryAutoSummaryTranslate('Old', true); s.setAiCategoryAutoSummaryTranslate('Old', null);
+    const n = useUiStore.getState();
+    expect([n.aiAutoSummaryTranslate, n.aiCategoryAutoSummaryTranslate]).toEqual([true, { Tech: true, News: false }]);
+    expect(localStorage.getItem('frirss_aiAutoSummaryTranslate')).toBe('true');
+    expect(JSON.parse(localStorage.getItem('frirss_aiCategoryAutoSummaryTranslate')!)).toEqual({ Tech: true, News: false });
+  });
+
+  it('normalises the prefs arriving from the server', () => {
+    useUiStore.getState().applyServerPrefs({ aiAutoSummaryTranslate: true, aiCategoryAutoSummaryTranslate: { A: true, B: false, C: 'x' } });
+    expect(useUiStore.getState().aiAutoSummaryTranslate).toBe(true);
+    expect(useUiStore.getState().aiCategoryAutoSummaryTranslate).toEqual({ A: true, B: false });
+    useUiStore.getState().applyServerPrefs({ aiAutoSummaryTranslate: 'yes' });
+    expect(useUiStore.getState().aiAutoSummaryTranslate).toBe(true);
+  });
+
+  it('turns off for an account whose saved prefs predate the setting (the value may be another account\'s)', () => {
+    useUiStore.getState().setAiAutoSummaryTranslate(true);
+    useUiStore.setState({ aiCategoryAutoSummaryTranslate: { Tech: true } });
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+    expect(useUiStore.getState().aiAutoSummaryTranslate).toBe(false);
+    expect(useUiStore.getState().aiCategoryAutoSummaryTranslate).toEqual({});
+  });
+
+  it('per-feed value keeps an explicit false, and is forgotten on sign-out', () => {
+    useUiStore.getState().setFeedAiAutoSummaryTranslate('feed/1', false);
+    expect(useUiStore.getState().feedSettings['feed/1']).toEqual({ aiAutoSummaryTranslate: false });
+    useUiStore.getState().setFeedAiAutoSummaryTranslate('feed/1', '');
+    expect(useUiStore.getState().feedSettings['feed/1']).toBeUndefined();
+    useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoSummaryTranslate: true, layout: 'grid' } }, aiCategoryAutoSummaryTranslate: { Tech: true } });
+    useUiStore.getState().forgetAiAccountChoices();
+    expect(useUiStore.getState().feedSettings).toEqual({ 'feed/1': { layout: 'grid' } });
+    expect(useUiStore.getState().aiCategoryAutoSummaryTranslate).toEqual({});
+  });
+});

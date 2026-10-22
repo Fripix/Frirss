@@ -142,6 +142,12 @@ export interface FeedSetting {
    * puis le réglage global. Synchronisé. À résoudre par `panelFor()`.
    */
   aiPanel?: boolean;
+  /**
+   * Traduire le résumé dès qu'il s'affiche (`true`) ou non (`false`). Absent =
+   * le flux suit sa catégorie, puis le réglage global. À résoudre par
+   * `autoFor('summaryTranslate')`.
+   */
+  aiAutoSummaryTranslate?: boolean;
 }
 
 /**
@@ -268,6 +274,13 @@ export interface UiState {
   // Par catégorie : { nom: true | false }, `null` retire l'entrée (suit le global).
   aiCategoryPanel: Record<string, boolean>;
   setAiCategoryPanel: (name: string, v: boolean | null) => void;
+  // Traduire le résumé dès qu'il s'affiche (vers la langue cible). Éteint par
+  // défaut : un court appel de plus par résumé. Flux > catégorie > global,
+  // lire par autoFor('summaryTranslate').
+  aiAutoSummaryTranslate: boolean;
+  setAiAutoSummaryTranslate: (on: boolean) => void;
+  aiCategoryAutoSummaryTranslate: Record<string, boolean>;
+  setAiCategoryAutoSummaryTranslate: (name: string, v: boolean | null) => void;
   // Fournisseur par catégorie : { nom de catégorie: id }. `null` retire l'entrée.
   aiCategoryProviders: Record<string, number>;
   setAiCategoryProvider: (name: string, id: number | null) => void;
@@ -297,6 +310,7 @@ export interface UiState {
   setFeedAiAutoSummary: (feedId: string, v: boolean | '') => void;
   /** Set (or clear, with '') this feed's always-visible AI panel choice. */
   setFeedAiPanel: (feedId: string, v: boolean | '') => void;
+  setFeedAiAutoSummaryTranslate: (feedId: string, v: boolean | '') => void;
   /** Oublie les automatismes et les choix de fournisseur, globaux, par catégorie et par flux (déconnexion). */
   forgetAiAccountChoices: () => void;
   // Favicons dans la LISTE d'articles. Réglage distinct de `showFavicons`, qui
@@ -414,7 +428,7 @@ export interface UiState {
  * disappears once it carries no setting at all, so a feed back on every
  * global default leaves no trace in the synced table.
  */
-function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProvider' | 'aiAutoTranslate' | 'aiAutoSummary' | 'aiPanel'>(
+function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProvider' | 'aiAutoTranslate' | 'aiAutoSummary' | 'aiPanel' | 'aiAutoSummaryTranslate'>(
   settings: Record<string, FeedSetting>,
   feedId: string,
   key: K,
@@ -434,7 +448,7 @@ function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProv
 }
 
 /** Réglages IA d'un flux : ils engagent un coût et ne passent pas d'un compte à l'autre. */
-const AI_FEED_KEYS = ['aiProvider', 'aiAutoTranslate', 'aiAutoSummary', 'aiPanel'] as const;
+const AI_FEED_KEYS = ['aiProvider', 'aiAutoTranslate', 'aiAutoSummary', 'aiPanel', 'aiAutoSummaryTranslate'] as const;
 
 /**
  * `settings` sans les réglages IA par flux. Les autres réglages du flux
@@ -648,6 +662,19 @@ export const useUiStore = create<UiState>()((set, get) => ({
     localStorage.setItem('frirss_aiCategoryPanel', JSON.stringify(next));
     set({ aiCategoryPanel: next });
   },
+  aiAutoSummaryTranslate: loadJson<unknown>('frirss_aiAutoSummaryTranslate', false) === true,
+  setAiAutoSummaryTranslate: (on) => {
+    localStorage.setItem('frirss_aiAutoSummaryTranslate', JSON.stringify(on));
+    set({ aiAutoSummaryTranslate: on });
+  },
+  aiCategoryAutoSummaryTranslate: normalizeAiCategoryBooleans(loadJson<unknown>('frirss_aiCategoryAutoSummaryTranslate', {})),
+  setAiCategoryAutoSummaryTranslate: (name, v) => {
+    const next = { ...get().aiCategoryAutoSummaryTranslate };
+    if (typeof v === 'boolean') next[name] = v;
+    else delete next[name];
+    localStorage.setItem('frirss_aiCategoryAutoSummaryTranslate', JSON.stringify(next));
+    set({ aiCategoryAutoSummaryTranslate: next });
+  },
   aiCategoryProviders: normalizeAiCategoryProviders(loadJson<unknown>('frirss_aiCategoryProviders', {})),
   setAiCategoryProvider: (name, id) => {
     const next = { ...get().aiCategoryProviders };
@@ -696,14 +723,14 @@ export const useUiStore = create<UiState>()((set, get) => ({
   forgetAiAccountChoices: () => {
     const feedSettings = withoutAiFeedOverrides(get().feedSettings);
     localStorage.setItem('frirss_feedSettings', JSON.stringify(feedSettings));
-    for (const k of ['aiCategoryAutoTranslate', 'aiCategoryAutoSummary', 'aiCategoryProviders', 'aiCategoryPanel']) {
+    for (const k of ['aiCategoryAutoTranslate', 'aiCategoryAutoSummary', 'aiCategoryProviders', 'aiCategoryPanel', 'aiCategoryAutoSummaryTranslate']) {
       localStorage.setItem(`frirss_${k}`, JSON.stringify({}));
     }
     for (const k of ['aiPreferredProvider', 'aiTranslationProvider']) {
       localStorage.setItem(`frirss_${k}`, JSON.stringify(null));
     }
     set({
-      feedSettings, aiCategoryAutoTranslate: {}, aiCategoryAutoSummary: {}, aiCategoryProviders: {}, aiCategoryPanel: {},
+      feedSettings, aiCategoryAutoTranslate: {}, aiCategoryAutoSummary: {}, aiCategoryProviders: {}, aiCategoryPanel: {}, aiCategoryAutoSummaryTranslate: {},
       aiPreferredProvider: null, aiTranslationProvider: null,
     });
   },
@@ -725,6 +752,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
   },
   setFeedAiPanel: (feedId, v) => {
     set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'aiPanel', v) }));
+  },
+  setFeedAiAutoSummaryTranslate: (feedId, v) => {
+    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'aiAutoSummaryTranslate', v) }));
   },
 
   inlineVideos: loadJson('frirss_inlineVideos', true),
@@ -1040,6 +1070,11 @@ export const useUiStore = create<UiState>()((set, get) => ({
       localStorage.setItem('frirss_aiAutoSummary', 'false');
       next.aiAutoSummary = false;
     }
+    // Même règle pour la traduction automatique du résumé : un appel de plus.
+    if (!has('aiAutoSummaryTranslate') && Object.keys(prefs).length > 0) {
+      localStorage.setItem('frirss_aiAutoSummaryTranslate', 'false');
+      next.aiAutoSummaryTranslate = false;
+    }
     // Le panneau « Résumé IA » : visible, comme il l'a toujours été, pour un
     // compte dont les préférences sont plus anciennes que ce réglage — la valeur
     // locale peut venir d'un autre compte de ce navigateur. Sans coût, donc
@@ -1064,7 +1099,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
     // serveur : ce qui le protège, c'est la remise à zéro de la déconnexion
     // (`forgetAiAccountChoices`, appelée par aiStore), pas ce tri.
     if (Object.keys(prefs).length > 0) {
-      for (const k of ['aiCategoryAutoTranslate', 'aiCategoryAutoSummary', 'aiCategoryProviders', 'aiCategoryPanel'] as const) {
+      for (const k of ['aiCategoryAutoTranslate', 'aiCategoryAutoSummary', 'aiCategoryProviders', 'aiCategoryPanel', 'aiCategoryAutoSummaryTranslate'] as const) {
         if (!has(k)) {
           localStorage.setItem(`frirss_${k}`, JSON.stringify({}));
           next[k] = {};
@@ -1118,6 +1153,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
       'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
       'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',
+      'aiAutoSummaryTranslate', 'aiCategoryAutoSummaryTranslate',
     ];
     for (const k of jsonKeys) {
       // `aiPreferredProvider: null` is a real value ("no preference"), not an absence:
@@ -1140,13 +1176,14 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'aiCategoryProviders' ? normalizeAiCategoryProviders(prefs[k])
           : k === 'aiTranslationLanguage' ? normalizeAiTranslationLanguage(prefs[k])
           : k === 'aiTranslationProvider' ? normalizeAiProviderId(prefs[k])
-          : k === 'aiCategoryAutoTranslate' || k === 'aiCategoryAutoSummary' || k === 'aiCategoryPanel'
+          : k === 'aiCategoryAutoTranslate' || k === 'aiCategoryAutoSummary' || k === 'aiCategoryPanel' || k === 'aiCategoryAutoSummaryTranslate'
             ? normalizeAiCategoryBooleans(prefs[k])
           : k === 'aiPanelAlways' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiPanelAlways)
           // Like autoExtractDefault: a non-boolean leaves the current value alone.
           : k === 'shortcuts' ? withDefaultShortcuts(prefs[k])
           : k === 'aiFallback' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiFallback)
           : k === 'aiAutoSummary' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiAutoSummary)
+          : k === 'aiAutoSummaryTranslate' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiAutoSummaryTranslate)
           : k === 'aiAutoTranslateConfirmed' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiAutoTranslateConfirmed)
           : k === 'aiAutoSummaryConfirmed' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiAutoSummaryConfirmed)
           : prefs[k];
@@ -1183,6 +1220,7 @@ export const UI_SYNC_KEYS = [
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
   'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
   'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',
+  'aiAutoSummaryTranslate', 'aiCategoryAutoSummaryTranslate',
 ];
 
 // Keys into preferences.shortcuts.* in the locale files

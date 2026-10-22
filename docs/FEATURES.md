@@ -2541,7 +2541,13 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   est la même que celle des interrupteurs « Résumer » de « Par flux et
   catégorie » et ne s'ouvre qu'**une fois par compte** : la confirmer, ici ou
   là, pose `aiAutoSummaryConfirmed`, après quoi rallumer le global (ou un
-  « Résumer ») s'applique directement, sans boîte ; puis **« Panneau Résumé IA
+  « Résumer ») s'applique directement, sans boîte ; puis **« Traduire le
+  résumé automatiquement »** (interrupteur, **éteint** par défaut,
+  `aiAutoSummaryTranslate`, aide `ai.user.summaryTranslateHint` : un résumé
+  dans une autre langue est traduit dès qu'il s'affiche, un court appel de
+  plus ; toujours le cas pour un article traduit automatiquement ; réglable
+  par flux et catégorie) — **sans confirmation** : il ne traduit qu'un résumé
+  déjà demandé, quelques phrases ; puis **« Panneau Résumé IA
   toujours visible »** (interrupteur, **allumé** par défaut, `aiPanelAlways` ;
   son aide dit qu'éteint, le panneau n'apparaît qu'avec un résumé, que
   « Résumer » prend sa place dans la barre d'outils (dans la feuille « … » sur
@@ -2570,28 +2576,29 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   relier chaque interrupteur à son aide. **Aucun choix IA qui engage un coût
   ne s'hérite d'un autre compte** : `aiAutoSummary`, les deux confirmations
   de coût, le fournisseur préféré (`aiPreferredProvider`) et celui de la
-  traduction (`aiTranslationProvider`), les automatismes par catégorie (`aiCategoryAutoTranslate`,
-  `aiCategoryAutoSummary`, `{ nom: true | false }` comme `aiCategoryPanel` et
+  traduction (`aiTranslationProvider`), la traduction automatique du résumé
+  (`aiAutoSummaryTranslate`), les automatismes par catégorie (`aiCategoryAutoTranslate`,
+  `aiCategoryAutoSummary`, `aiCategoryAutoSummaryTranslate`, `{ nom: true | false }` comme `aiCategoryPanel` et
   normalisés de même par `normalizeAiCategoryBooleans` — un `{ nom: true }`
   d'avant, quand seul `true` existait, reste valable), les fournisseurs par catégorie
   (`aiCategoryProviders`) et, dans `feedSettings`, les réglages IA par flux
-  (`aiAutoTranslate`, `aiAutoSummary`, `aiProvider`). Ils vivent aussi dans
+  (`aiAutoTranslate`, `aiAutoSummary`, `aiAutoSummaryTranslate`, `aiProvider`). Ils vivent aussi dans
   le localStorage, que la déconnexion ne vide pas. Deux gardes, pour
   qu'aucun compte n'en hérite sans avoir vu l'avertissement de coût. **La
   déconnexion les remet à zéro** (abonnement de `aiStore.ts` à
   `useAuthStore` : global et confirmations éteints, puis
   `forgetAiAccountChoices` de `uiStore.ts`, qui remet les deux fournisseurs
-  globaux à `null` (« par défaut », « même que le résumé »), vide les trois
-  tables par catégorie et retire les clés IA de chaque flux — les autres réglages du
+  globaux à `null` (« par défaut », « même que le résumé »), vide les quatre
+  tables d'automatismes par catégorie et retire les clés IA de chaque flux — les autres réglages du
   flux restent, une entrée vidée disparaît : `withoutAiFeedOverrides`) ; le
   compte qui part garde ses valeurs serveur, car le jeton est déjà nul et
   `stopSync()` annule l'envoi différé. C'est **la seule garde d'un compte
   neuf** : avec des préférences serveur vides, il garde l'état local et le
   pousse au serveur. Et **`applyServerPrefs` les force à éteint** quand des
   préférences serveur non vides n'ont pas la clé (compte qui ne l'a jamais
-  réglée ; même tri que `confirmMarkAllRead`) : `aiAutoSummary` et les
-  confirmations à faux, les deux fournisseurs globaux à `null`, les trois
-  tables par catégorie à `{}` ; sans
+  réglée ; même tri que `confirmMarkAllRead`) : `aiAutoSummary`,
+  `aiAutoSummaryTranslate` et les confirmations à faux, les deux fournisseurs
+  globaux à `null`, les tables par catégorie à `{}` ; sans
   `feedSettings`, les réglages IA par flux tombent et le reste demeure —
   quand le serveur porte `feedSettings`, sa valeur l'emporte entièrement.
   Seules la langue cible (`aiTranslationLanguage`) et le repli
@@ -2747,7 +2754,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   remplace les deux phrases d'aide d'avant (`hint`, `legend`) et la légende à
   icônes de l'étroit (retrait assumé).
   **Une seule grille pour tout le bloc** (`.ai-routing__grid`, `index.css`) :
-  `minmax(0, 1fr)` pour le nom, puis trois colonnes d'interrupteurs
+  `minmax(0, 1fr)` pour le nom, puis quatre colonnes d'interrupteurs
   `minmax(var(--cell), max-content)` et le fournisseur en `auto` (au large ;
   à l'étroit, voir plus bas). Chaque
   groupe, chaque bande et chaque ligne de flux reprend ces colonnes en
@@ -2758,14 +2765,17 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `data-touch` de la grille, posé quand `useBreakpoint() !== 'desktop'`), 32 px
   de nouveau à l'étroit. Au large, **une seule ligne d'en-tête**
   (`data-routing-header`, `aria-hidden` — chaque contrôle porte son nom
-  complet) : « Résumer », « Traduire », « Panneau », « IA » (anciennement
-  « Fournisseur », plus court et plus clair à la demande du propriétaire ;
-  `ai.routing.autoSummary` / `autoTranslate` / `panel` / `providerColumn`),
-  11 px, centrés sur leur colonne ; le `title` de chaque mot dit ce que fait
-  la colonne (`summaryTitle`, `translateTitle`, `panelTitle`). Les mots sont
-  courts dans les dix langues (« Resümee », « Підсумок ») : la colonne
-  s'élargit au mot plutôt que de le laisser mordre sur sa voisine, et c'est
-  le nom qui cède la place.
+  complet) : « Résumer », « Traduire », « Résumé traduit », « Panneau », « IA »
+  (anciennement « Fournisseur », plus court et plus clair à la demande du
+  propriétaire ; `ai.routing.autoSummary` / `autoTranslate` /
+  `summaryTranslate` / `panel` / `providerColumn`), 11 px, centrés sur leur
+  colonne et calés en bas (`!items-end`) ; le `title` de chaque mot dit ce que
+  fait la colonne (`summaryTitle`, `translateTitle`, `summaryTranslateTitle`,
+  `panelTitle`). Un mot de deux (« Résumé traduit », « Translated summary »)
+  **passe à la ligne** (`.ai-routing__col-word`, 4,75 rem au plus) plutôt que
+  d'élargir sa colonne ; les autres sont courts dans les dix langues
+  (« Resümee », « Підсумок ») : la colonne s'élargit au mot plutôt que de le
+  laisser mordre sur sa voisine, et c'est le nom qui cède la place.
   **Groupes** : chaque catégorie et ses flux dépliés sont cerclés (filet
   `--panel-border`, rayon 8 px), 8 px entre groupes. **Bande de catégorie**
   (dans l'ordre de `groupFeedsByCategory`, **tout est replié à
@@ -2776,20 +2786,21 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   complet), puis « N flux » (`ai.routing.feedCount`, 11 px, `--list-summary`)
   suivi, s'il y en a, de « , N réglés » en `--accent` (`ai.routing.overrides`,
   la virgule est dans la traduction) — un flux compte dès qu'il porte un
-  fournisseur **ou** une valeur propre de résumé, de traduction ou de
-  panneau. Le compte cède la place avant le nom (`shrink-[100]`). Puis, dans
-  les colonnes, les trois interrupteurs et le fournisseur **de la
+  fournisseur **ou** une valeur propre de résumé, de traduction, de
+  traduction du résumé ou de panneau. Le compte cède la place avant le nom (`shrink-[100]`). Puis, dans
+  les colonnes, les quatre interrupteurs et le fournisseur **de la
   catégorie**, visibles bande repliée. Le dernier groupe, « Sans catégorie »,
   n'a ni interrupteurs ni fournisseur : il n'y a pas de catégorie à régler,
   seulement ses flux.
   **Ligne de flux** (`data-routing-row="feed"`, surface ordinaire) : indentée
   (`--indent`, 20 px), favicon 14 px (`FeedFavicon`, repli sur la
-  pastille-lettre), nom 13 px **tronqué** (`title`), puis les trois
+  pastille-lettre), nom 13 px **tronqué** (`title`), puis les quatre
   interrupteurs et le fournisseur — tous frères dans la même ligne.
   **Interrupteurs** (`RoutingToggle`) : boutons carrés `role="switch"`
   `aria-checked`, `rounded-md`, icône 16 px — l'étincelle d'`AiSummary` pour
-  Résumer, l'icône « Traduire » du volet de lecture, une page coiffée d'un
-  bandeau pour Panneau. **Trois états** (`data-state`) : **on**, réglé ici —
+  Résumer, l'icône « Traduire » du volet de lecture, pour Résumé traduit une
+  petite étincelle au-dessus du « A » de cette icône (`SummaryTranslateIcon`),
+  une page coiffée d'un bandeau pour Panneau. **Trois états** (`data-state`) : **on**, réglé ici —
   fond `--accent`, icône `--on-accent` ; **inherited**, allumé sans valeur
   propre (par une catégorie ou le réglage global) — contour d'accent de
   1,5 px, icône `--accent`, fond transparent ; **off** — contour 1 px
@@ -2801,7 +2812,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   hérité du réglage général », « — activé », « — désactivé » ; clés
   `stateOn`, `stateOff`, `stateInherited`, `stateGlobal`). Le nom accessible
   dit la ligne — « Résumer / Traduire automatiquement les articles de X »,
-  « Panneau Résumé IA toujours visible pour X » (`ai.routing.panelFor`). Au
+  « Traduire automatiquement le résumé des articles de X »
+  (`ai.routing.summaryTranslateFor`), « Panneau Résumé IA toujours visible
+  pour X » (`ai.routing.panelFor`). Au
   doigt, **zone de toucher de 44 px** par un pseudo-élément transparent de
   2 px de part et d'autre (`before:`, même idiome que le « Résumer » compact
   d'`AiSummary`) ; à la souris, rien (les cellules voisines sont proches).
@@ -2825,19 +2838,22 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   sont relus par `normalizeAiProviderId` (une valeur synchronisée corrompue
   vaut « par défaut ») et la catégorie par clé propre (`Object.hasOwn`).
   « Résumer » et « Traduire » : allumé, chaque article de la ligne doit être
-  résumé ou traduit **à l'ouverture**. « Panneau » : allumé, le panneau
+  résumé ou traduit **à l'ouverture**. « Résumé traduit » : allumé, le résumé
+  est traduit dès qu'il s'affiche (voir « Traduction automatique du résumé »
+  plus bas). « Panneau » : allumé, le panneau
   « Résumé IA » reste visible même sans résumé ; éteint, il n'apparaît
   qu'avec une demande ou un résumé (voir « Interface — panneau »).
   Le volet de lecture applique les mêmes règles (`autoFor`, `panelFor` de
   `lib/aiAuto.ts`) : voir « Résumé automatique à l'ouverture » et
-  « Traduction automatique à l'ouverture » plus bas. **Les trois colonnes
+  « Traduction automatique à l'ouverture » plus bas. **Les quatre colonnes
   héritent de la même façon**, catégorie comprise (retour du propriétaire,
   2026-10-22 : « Panneau » d'une catégorie suivait le réglage général,
   « Résumer » non, et « Hérité » n'apparaissait jamais sur une catégorie).
   Une catégorie lit sa valeur propre (`aiCategoryAutoSummary` /
-  `aiCategoryAutoTranslate` / `aiCategoryPanel`, toutes trois
-  `{ nom: true | false }`, rangées par nom comme les fournisseurs), sinon le
-  réglage global — `aiAutoSummary` pour Résumer, `aiPanelAlways` pour
+  `aiCategoryAutoTranslate` / `aiCategoryAutoSummaryTranslate` /
+  `aiCategoryPanel`, toutes `{ nom: true | false }`, rangées par nom comme les
+  fournisseurs), sinon le réglage global — `aiAutoSummary` pour Résumer,
+  `aiAutoSummaryTranslate` pour Résumé traduit, `aiPanelAlways` pour
   Panneau, rien pour Traduire (éteinte) — qu'elle montre **en contour**
   (« hérité du réglage général ») quand il l'allume. Un flux affiche sa **valeur
   effective** (`autoFor` / `panelFor` : la sienne, sinon celle de ses
@@ -2845,7 +2861,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   qu'une est explicitement fausse —, sinon le réglage global) et
   **dit d'où elle vient** (plein / contour, `title`). Le toucher écrit
   **toujours** une valeur propre, l'inverse de ce qui se voit, `true` ou
-  `false` (`feedSettings[id].aiAutoSummary` / `.aiAutoTranslate` / `.aiPanel`,
+  `false` (`feedSettings[id].aiAutoSummary` / `.aiAutoTranslate` /
+  `.aiAutoSummaryTranslate` / `.aiPanel`,
   ou l'entrée de la catégorie) : éteindre un flux sous une catégorie allumée,
   ou une catégorie sous un réglage général allumé, tient. Priorité : **flux >
   catégorie > global** (le global ne vaut pas pour la traduction). Aucune
@@ -2860,7 +2877,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   rien. Allumer « Résumer » quand le résumé automatique global est éteint et
   que `aiAutoSummaryConfirmed` est faux ouvre la boîte du global
   (`AutoSummaryConfirm`), avec le même effet. Éteindre ne demande jamais rien,
-  et « Panneau » n'a **aucune** confirmation (il ne coûte rien).
+  et ni « Panneau » (il ne coûte rien) ni « Résumé traduit » (un court appel
+  sur un résumé déjà demandé) n'ont de confirmation.
   Les deux drapeaux sont synchronisés. Une catégorie sous un résumé global
   allumé s'affiche en contour (hérité) et ses flux aussi ; la toucher l'éteint
   explicitement (`false`, sans confirmation), et ses flux avec elle. ⚠️ Avant
@@ -2872,7 +2890,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   préférences ne laisse qu'environ 460 px à son contenu sur un ordinateur, où
   le nom du fournisseur tient) :
   - **Colonnes de EXACTEMENT `--cell` (32 px, au doigt aussi)** : `minmax(0,
-    1fr) repeat(3, var(--cell)) var(--cell)`. Avec l'ancienne règle
+    1fr) repeat(4, var(--cell)) var(--cell)`. Avec l'ancienne règle
     (`minmax(var(--cell), max-content)`), les mots de l'en-tête élargissaient
     les colonnes (56 / 45 / 40 px mesurés sur émulateur Android à 320 px, cases
     de 40) et un nom de flux n'avait plus que ≈ 55 px (« Barto… », « Zoo… »).
@@ -2895,10 +2913,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     ligne de 8 / 6 à 6 / 4 px ; « N flux » passe sous le nom de la catégorie
     (la bande fait 44 px au doigt, deux lignes y tiennent).
   - **Le compte** (grille de 279 px à 320 px d'écran) : 279 − 2 (filet du groupe)
-    − 10 (marges) − 4 × 32 − 4 × 2 = **131 px** pour la colonne du nom (74
-    avant) ; dans une ligne de flux, indentation 8 + favicon 14 + écart 6
-    retirés, ≈ **103 px de texte**, soit 13 à 14 caractères. Calculé, pas
-    encore mesuré dans un navigateur après ce changement.
+    − 10 (marges) − 5 × 32 − 5 × 2 = **97 px** pour la colonne du nom (131 avec
+    trois interrupteurs, 74 avant les colonnes fixes) ; dans une ligne de flux,
+    indentation 8 + favicon 14 + écart 6 retirés, ≈ **69 px de texte**, soit 9
+    à 10 caractères. La quatrième colonne (« Résumé traduit », 2026-10-23) a
+    coûté ces 34 px : le propriétaire a voulu l'essayer et juger sur pièce.
   ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
   puisqu'il est rangé sous son nom ; un flux déplacé dans une autre catégorie
   suit celle-ci. Un flux rangé dans deux catégories apparaît sous chacune.
@@ -3414,6 +3433,24 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   payant doit se voir ; de même la mention « Traduit par X » d'une
   réussite (puce des métadonnées, voir « Notice et mention »). Test : `ReadingPane.ai.test.tsx` (« déclencheurs automatiques par
   flux et catégorie »).
+- **Traduction automatique du résumé** (2026-10-23) : le résumé est écrit
+  dans la langue de l'article ; il est traduit **dès qu'il s'affiche**
+  (automatique ou demandé, `aiStatus` `done`) quand la ligne le demande —
+  `autoFor('summaryTranslate', …)` : flux > catégories >
+  `aiAutoSummaryTranslate`, colonne « Résumé traduit » et interrupteur
+  « Traduire le résumé automatiquement » — **ou quand l'article lui-même est
+  traduit automatiquement** (`autoTranslate`) : un résumé anglais au-dessus
+  d'un article traduit en français n'aurait pas de sens (décision du
+  propriétaire). Effet de `ReadingPane.tsx` qui appelle
+  `handleTranslateSummary(undefined, { automatic: true })` : même chemin
+  que le bouton « Traduire » du panneau (langue cible, `aiRouting` `op:
+  'translate'`, repli, cache, demandes partagées). **Une fois par résumé
+  reçu** (`autoSummaryTranslatedFor`, la référence du résultat) : « Texte
+  source » ne relance rien, un nouveau résumé (« Résumer avec X »,
+  « Régénérer ») est traduit à son tour. Pas de délai — le résumé a déjà
+  attendu le sien, ou a été demandé. Déjà dans la langue cible
+  (`sameLanguage`) : rien ne part ; une réponse `same` : rien ne s'affiche —
+  `automatic` tait les « Déjà en … ». Une erreur s'affiche, comme pour un clic.
 - **Raccourcis clavier et palette** : deux actions configurables,
   **`summarize`** (touche **`s`** par défaut, « Résumer l'article (IA) ») et
   **`translate`** (touche **`t`**, « Traduire l'article (IA) »), réassignables

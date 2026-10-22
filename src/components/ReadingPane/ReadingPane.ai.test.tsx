@@ -1653,4 +1653,85 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
       expect(articleCalls()).toHaveLength(1);
     });
   });
+  describe('automatic translation of the summary', () => {
+    const EN = { ...SUMMARY, text: 'The summary.', lang: 'en' };
+    const summaryCalls = () => vi.mocked(requestAiTranslation).mock.calls.filter(([r]) => r.scope === 'summary');
+    const summarize = async (utils: ReturnType<typeof render>) => {
+      fireEvent.click(utils.getByRole('button', { name: 'ai.summarizeAction' }));
+      await advance(0);
+    };
+    beforeEach(() => { useUiStore.setState({ aiAutoSummaryTranslate: false, aiCategoryAutoSummaryTranslate: {} }); });
+
+    it('translates a summary in another language as soon as it shows, without a click', async () => {
+      useUiStore.setState({ aiAutoSummaryTranslate: true });
+      vi.mocked(requestAiSummary).mockResolvedValue(EN);
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Le résumé traduit.']));
+      const utils = render(<ReadingPane />);
+      await summarize(utils);
+      expect(summaryCalls()).toHaveLength(1);
+      expect(summaryCalls()[0][0]).toMatchObject({ articleId: 'a1', scope: 'summary', targetLang: 'fr', segments: ['The summary.'] });
+      expect(utils.getByText('Le résumé traduit.')).toBeTruthy();
+      expect(useUiStore.getState().toasts).toEqual([]);
+    });
+    it('sends nothing, and says nothing, for a summary already in the target language', async () => {
+      useUiStore.setState({ aiAutoSummaryTranslate: true });
+      vi.mocked(requestAiSummary).mockResolvedValue(SUMMARY);
+      const utils = render(<ReadingPane />);
+      await summarize(utils);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+      expect(useUiStore.getState().toasts).toEqual([]);
+    });
+    it('a « same » answer leaves the summary as it is, silently', async () => {
+      useUiStore.setState({ aiAutoSummaryTranslate: true });
+      vi.mocked(requestAiSummary).mockResolvedValue(EN);
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated([], { same: true }));
+      const utils = render(<ReadingPane />);
+      await summarize(utils);
+      expect(summaryCalls()).toHaveLength(1);
+      expect(utils.getByText('The summary.')).toBeTruthy();
+      expect(useUiStore.getState().toasts).toEqual([]);
+    });
+    it('« Texte source » shows the original and does not translate it again', async () => {
+      useUiStore.setState({ aiAutoSummaryTranslate: true });
+      vi.mocked(requestAiSummary).mockResolvedValue(EN);
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Le résumé traduit.']));
+      const utils = render(<ReadingPane />);
+      await summarize(utils);
+      fireEvent.click(utils.getByRole('button', { name: 'ai.showSource' }));
+      await advance(3000);
+      expect(utils.getByText('The summary.')).toBeTruthy();
+      expect(summaryCalls()).toHaveLength(1);
+    });
+    it('a feed set to off under the global switch on sends nothing; a lit category translates', async () => {
+      inTech();
+      useUiStore.setState({ aiAutoSummaryTranslate: true, feedSettings: { 'feed/1': { aiAutoSummaryTranslate: false } } });
+      vi.mocked(requestAiSummary).mockResolvedValue(EN);
+      const utils = render(<ReadingPane />);
+      await summarize(utils);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+      cleanup(); __resetPendingSummariesForTests();
+      useUiStore.setState({ aiAutoSummaryTranslate: false, feedSettings: {}, aiCategoryAutoSummaryTranslate: { Tech: true } });
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Le résumé traduit.']));
+      const again = render(<ReadingPane />);
+      await summarize(again);
+      expect(summaryCalls()).toHaveLength(1);
+    });
+    it('an article translated automatically gets its summary translated too, without the summary setting', async () => {
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoSummary: true, aiAutoTranslate: true } } });
+      vi.mocked(requestAiSummary).mockResolvedValue(EN);
+      vi.mocked(requestAiTranslation).mockImplementation(((r: { scope: string }) =>
+        r.scope === 'summary' ? Promise.resolve(translated(['Le résumé traduit.'])) : new Promise(() => {})) as never);
+      render(<ReadingPane />);
+      await advance(1000);
+      expect(articleCalls()).toHaveLength(1);
+      expect(summaryCalls()).toHaveLength(1);
+    });
+    it('without either setting, a summary in another language stays as it is', async () => {
+      vi.mocked(requestAiSummary).mockResolvedValue(EN);
+      const utils = render(<ReadingPane />);
+      await summarize(utils);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+      expect(utils.getByText('The summary.')).toBeTruthy();
+    });
+  });
 });

@@ -53,7 +53,11 @@ la release publiée.
   pendant l'attente (« Lot 2 sur 4… »), puis une discrète puce « Traduit par X » dans les
   métadonnées de l'article (le bandeau ne reste que pour une bascule ou une traduction
   partielle) et « Texte source » pour
-  revenir à l'original sans nouvel appel. Un chevron (un appui long au doigt,
+  revenir à l'original sans nouvel appel. Le résumé peut aussi se traduire
+  tout seul dès qu'il s'affiche : interrupteur « Traduire le résumé
+  automatiquement » (éteint d'origine) et colonne « Résumé traduit » par flux
+  et catégorie ; c'est toujours le cas quand l'article lui-même est traduit
+  automatiquement. Un chevron (un appui long au doigt,
   ou la feuille « … ») ouvre « Traduire en… » — 28 langues, filtrables — et
   « Traduire avec… », qui force un fournisseur sans couper le repli. Un résumé
   déjà dans la langue cible garde « Traduire », qui répond « Déjà en français. »
@@ -86,7 +90,8 @@ la release publiée.
   Descendre, Définir par défaut et Supprimer ; la liste déroulante
   « Fournisseur par défaut » a disparu. « Par flux et catégorie » se lit
   comme un tableau : une ligne par catégorie et une ligne par flux, jamais
-  deux, sous un seul en-tête de colonnes (Résumer, Traduire, Panneau, IA),
+  deux, sous un seul en-tête de colonnes (Résumer, Traduire, Résumé traduit,
+  Panneau, IA),
   précédé d'une clé en deux parties : un petit tableau à filets qui donne
   pour chaque colonne son icône, son nom et ce qu'elle fait, puis, dans une
   bande à part, ce que montre chaque bouton — Activé (plein), Hérité
