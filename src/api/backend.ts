@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
+import { reloadForCloudflareAccess } from './client';
 import type {
   User,
   ServerConnection,
@@ -17,6 +18,11 @@ const backend = axios.create({
 
 // Attach JWT token to every request
 backend.interceptors.request.use((config) => {
+  // Cloudflare Access uses this header to return a recognizable 401 for
+  // unauthenticated XHR requests instead of a 302 redirect to its login page.
+  // Without it, an expired Access session surfaces as an opaque CORS network
+  // error (the browser follows the 302 cross-origin) and no recovery can run.
+  config.headers['X-Requested-With'] = 'XMLHttpRequest';
   const { backendToken } = useAuthStore.getState();
   if (backendToken) {
     config.headers.Authorization = `Bearer ${backendToken}`;
@@ -27,7 +33,13 @@ backend.interceptors.request.use((config) => {
 // On 401, clear backend auth
 backend.interceptors.response.use(
   (r) => r,
-  (error) => {
+  async (error) => {
+    // Two unrelated authentication layers pass through this client: the FriRSS
+    // JWT (/api/*) and Cloudflare Access in front of the whole origin. Access
+    // failures recover through a reload and must never end the FriRSS session.
+    if (await reloadForCloudflareAccess(error)) {
+      return Promise.reject(new Error('Cloudflare Access authentication required'));
+    }
     if (error.response?.status === 401) {
       useAuthStore.getState().logoutBackend();
     }
