@@ -21,6 +21,8 @@ import { providerChoices } from '../../../lib/aiProviderChoices';
  * atteint sans agrandir ce qui se voit ni la ligne — même idiome que le
  * bouton « Résumer » compact d'`AiSummary`. À la souris, rien : les cellules
  * de 32 px sont proches, une zone élargie mordrait sur la voisine.
+ * `min-h-0` : la règle globale `@media (pointer: coarse) button { min-height:
+ * 40px }` (index.css) étirait les carrés de 32 px en 32×40 (mesuré à 320 px).
  */
 const hitArea = "ai-routing__hit before:absolute before:-inset-0.5 before:content-['']";
 
@@ -48,7 +50,7 @@ export function RoutingToggle({ kind, state, ariaLabel, title, describedBy, touc
       aria-label={ariaLabel} aria-describedby={describedBy} title={title}
       // Le toucher écrit toujours une valeur propre, l'inverse de ce qui se voit.
       onClick={() => onToggle(!on)}
-      className={`relative justify-self-center inline-flex items-center justify-center rounded-md cursor-pointer transition-colors ${touch ? hitArea : ''}`}
+      className={`relative min-h-0 justify-self-center inline-flex items-center justify-center rounded-md cursor-pointer transition-colors ${touch ? hitArea : ''}`}
       style={{ width: 'var(--cell)', height: 'var(--cell)', ...look }}
     >
       {kind === 'summary' ? <SparkleIcon /> : kind === 'translate' ? <TranslateIcon /> : <PanelIcon />}
@@ -122,7 +124,7 @@ export function ProviderPicker({ menuLabel, providers, value, defaultLabel, touc
         ref={ref} type="button" aria-label={name} title={name}
         aria-haspopup={touch ? 'dialog' : 'menu'} aria-expanded={open}
         onClick={() => setOpen(true)}
-        className={`relative justify-self-end inline-flex items-center justify-center rounded-md text-xs cursor-pointer hover:bg-black/5 ${touch ? hitArea : ''}`}
+        className={`relative min-h-0 justify-self-end inline-flex items-center justify-center rounded-md text-xs cursor-pointer hover:bg-black/5 ${touch ? hitArea : ''}`}
         style={{ height: 'var(--cell)', minWidth: 'var(--cell)' }}
       >
         <span className="ai-routing__wide" style={{ color: value === null ? 'var(--list-summary)' : 'var(--list-title)' }}>
