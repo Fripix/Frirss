@@ -90,6 +90,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ── Unknown /api route → JSON 404 ───────────────────────────────────
+// Express's default would answer `Cannot GET /api/nope` as an HTML page. Must
+// stay after every /api router and before the static/SPA block below.
+app.use((req, res, next) => {
+  if (req.path === '/api' || req.path.startsWith('/api/')) {
+    res.status(404).json({ error: 'not_found' });
+  } else {
+    next();
+  }
+});
+
 // ── Production: serve static frontend ───────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist');
@@ -105,6 +116,20 @@ if (process.env.NODE_ENV === 'production') {
     }
   });
 }
+
+// ── Body-parser errors → JSON ───────────────────────────────────────
+// `express.json()` rejects a malformed or oversized body BEFORE any route runs,
+// and Express renders that as an HTML page. Anything else is left to Express.
+app.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const type = (err as { type?: string } | null)?.type;
+  if (type === 'entity.parse.failed') {
+    res.status(400).json({ error: 'invalid_json' });
+  } else if (type === 'entity.too.large') {
+    res.status(413).json({ error: 'payload_too_large' });
+  } else {
+    next(err);
+  }
+});
 
 // ── Start ───────────────────────────────────────────────────────────
 // Skip the listener under test — supertest binds its own ephemeral port.

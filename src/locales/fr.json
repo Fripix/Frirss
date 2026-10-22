@@ -6,6 +6,8 @@
   "sidebar": {
     "allFeeds": "Tous les flux",
     "unread": "Non lus",
+    "unreadCount_one": "{{count}} non lu",
+    "unreadCount_other": "{{count}} non lus",
     "starred": "Favoris",
     "readLater": "À lire plus tard",
     "labels": "Étiquettes",

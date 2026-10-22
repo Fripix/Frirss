@@ -6,6 +6,8 @@
   "sidebar": {
     "allFeeds": "Todas las fuentes",
     "unread": "No leídos",
+    "unreadCount_one": "{{count}} sin leer",
+    "unreadCount_other": "{{count}} sin leer",
     "starred": "Favoritos",
     "readLater": "Leer más tarde",
     "labels": "Etiquetas",

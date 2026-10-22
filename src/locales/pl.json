@@ -6,6 +6,10 @@
   "sidebar": {
     "allFeeds": "Wszystkie kanały",
     "unread": "Nieprzeczytane",
+    "unreadCount_one": "{{count}} nieprzeczytany",
+    "unreadCount_few": "{{count}} nieprzeczytane",
+    "unreadCount_many": "{{count}} nieprzeczytanych",
+    "unreadCount_other": "{{count}} nieprzeczytanego",
     "starred": "Ulubione",
     "readLater": "Do przeczytania później",
     "labels": "Etykiety",

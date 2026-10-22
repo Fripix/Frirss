@@ -130,6 +130,12 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Les erreurs de `/api` sont du JSON.** Une route inconnue donne `404 not_found`, un corps mal formé `400 invalid_json`, un corps trop gros `413 payload_too_large` — au lieu des pages HTML « Cannot GET » et « Bad Request » d'Express.
+
+- **`index.html` est servi en `no-cache`** : un déploiement est vu au chargement suivant, sans qu'un ancien document n'appelle des bundles disparus. Les ressources hachées restent en cache un an.
+
+- **Les compteurs de la barre latérale se lisent correctement au lecteur d'écran** : « Non lus, 3 673 non lus » au lieu de « Non lus3673 ». Aucun changement visuel.
+
 - **Les pages en ISO-8859-1 ne ressortent plus criblées de « � » en
   « Article complet ».** L'extraction côté serveur lisait toute page en UTF-8 :
   un site qui déclare `charset=iso-8859-1` (developpez.com, avec en prime une

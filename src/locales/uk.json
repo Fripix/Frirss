@@ -6,6 +6,10 @@
   "sidebar": {
     "allFeeds": "Усі стрічки",
     "unread": "Непрочитані",
+    "unreadCount_one": "{{count}} непрочитана",
+    "unreadCount_few": "{{count}} непрочитані",
+    "unreadCount_many": "{{count}} непрочитаних",
+    "unreadCount_other": "{{count}} непрочитаної",
     "starred": "Обране",
     "readLater": "Прочитати пізніше",
     "labels": "Мітки",

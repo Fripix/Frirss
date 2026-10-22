@@ -62,6 +62,35 @@ beforeAll(async () => {
   secondUserId = secondUserCreation.body.user?.id;
 });
 
+// ── Les erreurs de /api sont du JSON, jamais la page HTML d'Express ─────
+// Un client d'API (ou le front, qui lit `err.response.data.error`) recevait
+// « Cannot GET /api/nope » ou « Bad Request » en HTML.
+describe('api error responses', () => {
+  it('answers an unknown /api route with JSON 404', async () => {
+    const res = await request(app).get('/api/nope');
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body).toEqual({ error: 'not_found' });
+  });
+
+  it('answers an invalid JSON body with JSON 400', async () => {
+    const res = await request(app).post('/api/auth/login')
+      .set('Content-Type', 'application/json').send('{"username": ');
+    expect(res.status).toBe(400);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body).toEqual({ error: 'invalid_json' });
+  });
+
+  it('answers an oversized body with JSON 413', async () => {
+    const res = await request(app).post('/api/auth/login')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ username: 'x'.repeat(6 * 1024 * 1024) }));
+    expect(res.status).toBe(413);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body).toEqual({ error: 'payload_too_large' });
+  });
+});
+
 describe('health', () => {
   it('reports ok with db up', async () => {
     const res = await request(app).get('/api/health');

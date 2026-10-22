@@ -568,7 +568,7 @@ export default function Sidebar() {
                   {cat.label}
                 </button>
                 {catUnread > 0 && (
-                  <CategoryBadge count={catUnread} />
+                  <CategoryBadge count={catUnread} unread />
                 )}
               </div>
               {!collapsedCategories[cat.id] &&
@@ -1439,6 +1439,7 @@ function SpecialBadge({ count, color }: { count: number; color?: string }) {
  * `feed-new-pulse`, qui signale l'arrivée de contenu, dans l'autre sens.
  */
 function UnreadBadge({ count }: { count: number }) {
+  const { t } = useTranslation();
   const [bump, setBump] = useState(false);
   const prev = useRef(count);
 
@@ -1456,6 +1457,9 @@ function UnreadBadge({ count }: { count: number }) {
   return (
     <span
       {...(bump ? { 'data-bump': '' } : {})}
+      // Sans libellé, le chiffre se colle au nom de la ligne pour un lecteur
+      // d'écran (« Developpez.com70 ») : le badge dit lui-même ce qu'il compte.
+      aria-label={t('sidebar.unreadCount', { count })}
       className="unread-badge flex-shrink-0 min-w-[22px] h-[20px] px-[7px] flex items-center justify-center rounded-full text-[10px] font-bold tabular-nums"
       style={{
         // `--sidebar-badge-*` et non `--badge-*` : ces derniers sont réglés
@@ -1470,9 +1474,17 @@ function UnreadBadge({ count }: { count: number }) {
   );
 }
 
-function CategoryBadge({ count }: { count: number }) {
+/**
+ * `unread` : le chiffre est un compte de non-lus (catégorie de flux) et se lit
+ * comme tel. Les étiquettes n'en sont pas : leur compte vient d'un point de
+ * terminaison de dénombrement, sans garantie qu'il s'agisse de non-lus — on ne
+ * leur invente pas de libellé.
+ */
+function CategoryBadge({ count, unread }: { count: number; unread?: boolean }) {
+  const { t } = useTranslation();
   return (
     <span
+      aria-label={unread ? t('sidebar.unreadCount', { count }) : undefined}
       className="flex-shrink-0 text-[10px] font-semibold tabular-nums opacity-50"
       style={{ color: 'var(--sidebar-text)' }}
     >

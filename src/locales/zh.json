@@ -6,6 +6,8 @@
   "sidebar": {
     "allFeeds": "全部订阅源",
     "unread": "未读",
+    "unreadCount_one": "{{count}} 条未读",
+    "unreadCount_other": "{{count}} 条未读",
     "starred": "收藏",
     "readLater": "稍后阅读",
     "labels": "标签",

@@ -6,6 +6,8 @@
   "sidebar": {
     "allFeeds": "Alle feeds",
     "unread": "Ongelezen",
+    "unreadCount_one": "{{count}} ongelezen",
+    "unreadCount_other": "{{count}} ongelezen",
     "starred": "Favorieten",
     "readLater": "Later lezen",
     "labels": "Labels",

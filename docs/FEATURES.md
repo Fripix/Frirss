@@ -239,6 +239,13 @@ glisser-déposer, masquage des flux entièrement lus.
     l'appui long de classement d'un article, sans l'équivalent de la barre
     latérale pour le faire découvrir.
   - **Tests** : `src/components/Sidebar/FeedItem.longpress.test.tsx`.
+- **Les compteurs de non-lus se lisent avec leur nom** : le badge d'un flux, d'une
+  ligne spéciale (Non lus, Tous les flux) et d'une catégorie de flux porte un
+  `aria-label` pluriel (`sidebar.unreadCount`, « 3 673 non lus ») ; le lecteur
+  d'écran annonçait sinon « Non lus3673 », le chiffre collé au nom. Aucun effet
+  visuel. Les badges d'étiquettes n'ont pas de libellé : leur compte n'est pas
+  garanti être un compte de non-lus. Test :
+  `src/components/Sidebar/FeedItem.badge.test.tsx`.
   ⚠️ **Le menu s'ouvrait hors écran, et le geste paraissait donc inopérant.**
   `FeedContextMenu` portait le commentaire « keep menu in viewport » au-dessus
   d'un `left: x, top: y` brut : l'intention était écrite, jamais implémentée.
@@ -4661,6 +4668,12 @@ divergentes).
   fichier non versionné par un hash que sert le bloc statique, et le seul chemin
   par lequel une nouvelle version du worker atteint les clients. Il sort en
   `no-cache` : mise en cache autorisée, revalidation imposée.
+- **`index.html` sort aussi en `no-cache`.** Le document de l'application (`location /`,
+  repli SPA compris) n'est pas versionné par un hash, alors qu'il désigne les
+  bundles qui le sont : sans en-tête, le navigateur pouvait garder un ancien
+  `index.html` après un déploiement, pointant vers des fichiers disparus.
+  Revalidation à chaque chargement ; les ressources hachées restent
+  `public, immutable` un an. Non vérifié par le job `docker` de `ci.yml`.
 - **Garde-fou** : le job `docker` de `ci.yml` vérifie que `/sw.js` sort **sans**
   CSP et **sans** `immutable`, et que le document comme les fichiers statiques
   portent bien une CSP.
@@ -5058,6 +5071,16 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | POST | `/api/setup/restore` | Idem, instance vierge uniquement |
 | ALL | `/api/proxy` | Passage vers FreshRSS ; extraction d'articles en repli |
 | GET | `/api/extract` | Article extrait côté serveur, depuis le cache partagé ou fraîchement |
+
+**Les erreurs de `/api` sont du JSON, jamais la page HTML d'Express.** Une route
+inconnue sous `/api` répond `404 {"error":"not_found"}` (au lieu de « Cannot GET
+… »), un corps JSON mal formé `400 {"error":"invalid_json"}` et un corps
+au-delà de 5 Mo `413 {"error":"payload_too_large"}` (au lieu de « Bad Request »).
+Le 404 est posé après tous les routeurs `/api` et avant le repli SPA, qui ne
+touche toujours pas aux chemins `/api` ; le gestionnaire d'erreurs, en toute fin
+de `server/index.ts`, ne traite que ces deux erreurs de `express.json()` et
+laisse passer les autres. Tests : « api error responses » dans
+`server/test/api.test.ts`.
 
 ---
 
