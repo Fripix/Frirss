@@ -6,6 +6,8 @@ import { useFeedStore } from '../../../stores/feedStore';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { groupFeedsByCategory } from '../../../lib/feedCategories';
 import { autoFor, panelFor, type AiAutoPrefs } from '../../../lib/aiAuto';
+import { nextRoutingValue } from '../../../lib/routingLook';
+import { targetLanguage } from '../../../lib/aiLanguages';
 import type { AiProviderView } from '../../../api/backend';
 import type { Subscription } from '../../../types';
 import ConfirmDialog from '../../ConfirmDialog';
@@ -69,19 +71,23 @@ function Chevron({ open }: { open: boolean }) {
  * « Panneau » garde le panneau Résumé IA visible même sans résumé. Les quatre
  * colonnes héritent de la même façon. Un flux affiche sa
  * valeur effective (`autoFor` / `panelFor`), une catégorie la sienne ou le
- * réglage global, et chacun dit d'où elle vient : **plein**, réglé ici ;
- * **contour**, hérité (de la catégorie, ou du réglage global) ; **gris**,
- * éteint. Le toucher écrit toujours une valeur propre, pour qu'éteindre un
- * flux sous une catégorie allumée, ou une catégorie sous un réglage global
- * allumé, tienne. Allumer « Traduire »
+ * réglage global, et chacun dit d'où elle vient : **plein**, réglé ici (vert
+ * activé, gris désactivé) ; **cerclé**, hérité de la catégorie ou du réglage
+ * global (vert s'il active, gris sinon). Un clic passe à l'état suivant —
+ * désactivé → activé → hérité — si bien qu'une valeur propre se retire
+ * comme elle se pose, et qu'éteindre un flux sous une catégorie allumée, ou
+ * une catégorie sous un réglage global allumé, tient. Allumer « Traduire »
  * ou « Résumer » demande une fois par compte la confirmation de coût ;
  * « Résumé traduit » (un court appel de plus) et « Panneau » n'en ont pas.
  *
  * Les catégories sont réglées par **nom** : en renommer une perd son réglage.
  */
 export default function RoutingBlock() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const uid = useId();
+  const translationLanguage = useUiStore((s) => s.aiTranslationLanguage);
+  // « Résumé FR » : la langue cible, en code court, porte le mot de la colonne sur une ligne.
+  const targetCode = (translationLanguage === 'ui' ? targetLanguage(i18n?.language ?? 'fr') : translationLanguage).split('-')[0].toUpperCase();
   // Même partage que les menus du volet de lecture : souris au format bureau, doigt ailleurs.
   const touch = useBreakpoint() !== 'desktop';
   const providers = useAiStore((s) => s.config?.providers) ?? NO_PROVIDERS;
@@ -131,17 +137,18 @@ export default function RoutingBlock() {
   const panelPrefs = { ...autoPrefs, aiCategoryPanel: categoryPanel, aiPanelAlways: panelAlways };
   /**
    * L'état d'une catégorie, même règle pour les quatre colonnes : sa valeur
-   * propre (pleine allumée, grise éteinte), sinon le réglage global — en
-   * contour s'il l'allume (« hérité du réglage global »), gris sinon. La
-   * traduction de l'article n'a pas de réglage global : sans valeur propre,
-   * éteinte.
+   * propre (pleine : verte activée, grise désactivée), sinon le réglage global
+   * — cerclée de vert s'il l'active, de gris sinon (« hérité du réglage
+   * global »). La traduction de l'article n'a pas de réglage global : sans
+   * valeur propre, elle hérite d'un « désactivé ».
    */
+  const categoryValues = (kind: ToggleKind) => (kind === 'summary' ? categoryAutoSummary : kind === 'translate' ? categoryAutoTranslate
+    : kind === 'summaryTranslate' ? categorySummaryTranslate : categoryPanel);
   const categoryState = (name: string) => (kind: ToggleKind): { state: ToggleState; global?: boolean } => {
-    const values = kind === 'summary' ? categoryAutoSummary : kind === 'translate' ? categoryAutoTranslate
-      : kind === 'summaryTranslate' ? categorySummaryTranslate : categoryPanel;
+    const values = categoryValues(kind);
     if (Object.hasOwn(values, name) && typeof values[name] === 'boolean') return { state: values[name] ? 'on' : 'off' };
     const global = kind === 'summary' ? autoSummary : kind === 'panel' ? panelAlways : kind === 'summaryTranslate' ? summaryTranslate : false;
-    return global ? { state: 'inherited', global: true } : { state: 'off' };
+    return { state: global ? 'inherited' : 'inheritedOff', global: true };
   };
   // « N réglés » : un fournisseur ou une valeur propre de résumé / traduction / résumé traduit / panneau.
   const tuned = (feeds: Subscription[]) => feeds.filter((f) => {
@@ -149,11 +156,15 @@ export default function RoutingBlock() {
     return feedValue(f.id) !== null || typeof own?.aiAutoSummary === 'boolean' || typeof own?.aiAutoTranslate === 'boolean'
       || typeof own?.aiPanel === 'boolean' || typeof own?.aiAutoSummaryTranslate === 'boolean';
   }).length;
-  /** Éteindre s'applique tout de suite ; allumer passe d'abord, une fois par compte, par l'avertissement de coût. */
-  const switchAuto = (kind: AutoKind, on: boolean, apply: (on: boolean) => void) => {
-    const ask = on && (kind === 'translate' ? !translateConfirmed : !autoSummary && !summaryConfirmed);
+  /**
+   * Désactiver ou revenir à l'héritage s'applique tout de suite ; activer
+   * Résumer ou Traduire passe d'abord, une fois par compte, par
+   * l'avertissement de coût.
+   */
+  const switchAuto = (kind: AutoKind, value: boolean | null, apply: (v: boolean | null) => void) => {
+    const ask = value === true && (kind === 'translate' ? !translateConfirmed : !autoSummary && !summaryConfirmed);
     if (ask) setPending({ kind, apply: () => apply(true) });
-    else apply(on);
+    else apply(value);
   };
   const confirmPending = () => {
     if (!pending) return;
@@ -164,50 +175,58 @@ export default function RoutingBlock() {
   };
   const keyId = `${uid}-key`;
 
-  const columns: { kind: ToggleKind; word: string; title: string; aria: string }[] = [
+  // `label` : le nom de la colonne dans l'infobulle d'un interrupteur, en toutes lettres.
+  const columns: { kind: ToggleKind; word: string; title: string; aria: string; label?: string }[] = [
     { kind: 'summary', word: t('ai.routing.autoSummary'), title: t('ai.routing.summaryTitle'), aria: 'ai.routing.autoSummaryFor' },
     { kind: 'translate', word: t('ai.routing.autoTranslate'), title: t('ai.routing.translateTitle'), aria: 'ai.routing.autoTranslateFor' },
-    { kind: 'summaryTranslate', word: t('ai.routing.summaryTranslate'), title: t('ai.routing.summaryTranslateTitle'), aria: 'ai.routing.summaryTranslateFor' },
+    { kind: 'summaryTranslate', word: t('ai.routing.summaryTranslateShort', { lang: targetCode }), title: t('ai.routing.summaryTranslateTitle'), aria: 'ai.routing.summaryTranslateFor', label: t('ai.routing.summaryTranslate') },
     { kind: 'panel', word: t('ai.routing.panel'), title: t('ai.routing.panelTitle'), aria: 'ai.routing.panelFor' },
   ];
-  const stateWord: Record<ToggleState | 'global', string> = {
-    on: t('ai.routing.stateOn'), off: t('ai.routing.stateOff'),
-    inherited: t('ai.routing.stateInherited'), global: t('ai.routing.stateGlobal'),
+  const stateOn = t('ai.routing.stateOn');
+  const stateOff = t('ai.routing.stateOff');
+  /** « activé », « désactivé », ou pour un héritage sa source puis ce qu'elle donne : « hérité de la catégorie (activé) ». */
+  const stateWord = (v: { state: ToggleState; global?: boolean }) => {
+    if (v.state === 'on') return stateOn;
+    if (v.state === 'off') return stateOff;
+    const source = v.global ? t('ai.routing.stateGlobal') : t('ai.routing.stateInherited');
+    return `${source} (${v.state === 'inherited' ? stateOn : stateOff})`;
   };
 
   /**
    * Les quatre interrupteurs d'une ligne. `value` donne l'état affiché et,
    * pour un état hérité, d'où il vient (pour le `title`) ; `write` est
-   * l'écriture propre à la ligne. Résumer et Traduire passent par la
-   * confirmation de coût ; Résumé traduit (un court appel, sur un résumé déjà
-   * demandé) et Panneau non.
+   * l'écriture propre à la ligne — `null` retire la valeur propre. Un clic
+   * écrit l'état suivant (`nextRoutingValue`). Activer Résumer ou Traduire
+   * passe par la confirmation de coût ; Résumé traduit (un court appel, sur
+   * un résumé déjà demandé) et Panneau non.
    */
-  const toggles = (name: string, value: (k: ToggleKind) => { state: ToggleState; global?: boolean }, write: Record<ToggleKind, (on: boolean) => void>) =>
+  const toggles = (name: string, value: (k: ToggleKind) => { state: ToggleState; global?: boolean }, write: Record<ToggleKind, (v: boolean | null) => void>) =>
     columns.map((c) => {
       const v = value(c.kind);
-      const word = v.state === 'inherited' && v.global ? stateWord.global : stateWord[v.state];
+      const next = nextRoutingValue(v.state);
       return (
         <RoutingToggle
           key={c.kind} kind={c.kind} state={v.state} touch={touch} describedBy={keyId}
-          ariaLabel={t(c.aria, { name })} title={t('ai.routing.labelValue', { label: c.word.replace(/\s+/g, ' '), value: word })}
-          onToggle={(on) => (c.kind === 'summary' || c.kind === 'translate' ? switchAuto(c.kind, on, write[c.kind]) : write[c.kind](on))}
+          ariaLabel={t(c.aria, { name })} title={t('ai.routing.labelValue', { label: c.label ?? c.word, value: stateWord(v) })}
+          onNext={() => (c.kind === 'summary' || c.kind === 'translate' ? switchAuto(c.kind, next, write[c.kind]) : write[c.kind](next))}
         />
       );
     });
 
-  /** L'état d'un flux : sa valeur propre (pleine), sinon l'effective (contour si allumée), et sa source. */
+  /**
+   * L'état d'un flux : sa valeur propre (plein), sinon l'effective (cerclé,
+   * vert ou gris), et sa source : la catégorie si l'une d'elles porte une
+   * valeur propre pour cette colonne, le réglage global sinon.
+   */
   const feedState = (feed: Subscription) => (kind: ToggleKind): { state: ToggleState; global?: boolean } => {
     const own = feedSettings[feed.id];
     const ownValue = kind === 'summary' ? own?.aiAutoSummary : kind === 'translate' ? own?.aiAutoTranslate
       : kind === 'summaryTranslate' ? own?.aiAutoSummaryTranslate : own?.aiPanel;
     if (typeof ownValue === 'boolean') return { state: ownValue ? 'on' : 'off' };
     const on = kind === 'panel' ? panelFor(feed.id, subscriptions, panelPrefs) : autoFor(kind, feed.id, subscriptions, autoPrefs);
-    if (!on) return { state: 'off' };
-    // Hérité du global si, global éteint, rien ne l'allumerait : aucune catégorie ne le porte.
-    const fromCategory = kind === 'panel'
-      ? panelFor(feed.id, subscriptions, { ...panelPrefs, aiPanelAlways: false })
-      : autoFor(kind, feed.id, subscriptions, { ...autoPrefs, aiAutoSummary: false, aiAutoSummaryTranslate: false });
-    return { state: 'inherited', global: !fromCategory };
+    const values = categoryValues(kind);
+    const fromCategory = (feed.categories ?? []).some((c) => !!c.label && Object.hasOwn(values, c.label) && typeof values[c.label] === 'boolean');
+    return { state: on ? 'inherited' : 'inheritedOff', global: !fromCategory };
   };
 
   const groups: { key: string; label: string; feeds: Subscription[]; category: boolean }[] = [
@@ -223,10 +242,9 @@ export default function RoutingBlock() {
       <div className="ai-routing">
         <div data-routing-grid data-touch={touch ? '' : undefined} className="ai-routing__grid">
           {/* Les mots des colonnes, une fois. Décoratifs : chaque contrôle porte son nom complet ; le `title` dit ce que fait la colonne. */}
-          {/* `items-end` : un mot de deux lignes (« Résumé traduit ») pousse les autres sur la ligne du bas, au-dessus des cases. */}
-          <div data-routing-header aria-hidden="true" className={`${rowClass} !items-end pb-1 border-x border-transparent text-[11px] leading-tight`} style={{ color: 'var(--list-summary)' }}>
+          <div data-routing-header aria-hidden="true" className={`${rowClass} pb-1 border-x border-transparent text-[11px] leading-tight`} style={{ color: 'var(--list-summary)' }}>
             <span />
-            {columns.map((c) => <span key={c.kind} title={c.title} className="ai-routing__col-word text-center">{c.word}</span>)}
+            {columns.map((c) => <span key={c.kind} title={c.title} className="text-center whitespace-nowrap">{c.word}</span>)}
             <span className="text-center whitespace-nowrap"><span className="ai-routing__wide-text">{t('ai.routing.providerColumn')}</span></span>
           </div>
           <ul className="col-span-full grid grid-cols-subgrid gap-y-2">
@@ -283,10 +301,10 @@ export default function RoutingBlock() {
                               <span className="truncate text-[13px]" style={{ color: 'var(--list-title)' }} title={feedName}>{feedName}</span>
                             </div>
                             {toggles(feedName, feedState(feed), {
-                              summary: (v) => setFeedAutoSummary(feed.id, v),
-                              translate: (v) => setFeedAutoTranslate(feed.id, v),
-                              summaryTranslate: (v) => setFeedSummaryTranslate(feed.id, v),
-                              panel: (v) => setFeedPanel(feed.id, v),
+                              summary: (v) => setFeedAutoSummary(feed.id, v ?? ''),
+                              translate: (v) => setFeedAutoTranslate(feed.id, v ?? ''),
+                              summaryTranslate: (v) => setFeedSummaryTranslate(feed.id, v ?? ''),
+                              panel: (v) => setFeedPanel(feed.id, v ?? ''),
                             })}
                             <ProviderPicker
                               menuLabel={t('ai.routing.feedProviderFor', { name: feedName })} providers={providers} value={feedValue(feed.id)}

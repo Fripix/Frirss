@@ -11,9 +11,10 @@ import { ChipIcon, PanelIcon, SparkleIcon, SummaryTranslateIcon, TranslateIcon, 
  *    lignes. Les icônes y sont **neutres** — couleur de titre, sans fond ni
  *    contour — parce que la couleur a un sens dans la matrice : elle dit l'état.
  * 2. **Ce que montre chaque bouton** : une bande à part (fond d'en-tête de
- *    panneau, filet au-dessus), avec les trois états côte à côte — Activé,
- *    Hérité, Désactivé — chacun un échantillon dessiné par `toggleLook`, le
- *    code même des interrupteurs, puis la phrase de priorité.
+ *    panneau, filet au-dessus), avec les trois états dans l'ordre du clic —
+ *    Désactivé, Activé, Hérité — chacun avec son échantillon dessiné par
+ *    `toggleLook`, le code même des interrupteurs (deux pour Hérité : cerclé
+ *    vert, cerclé gris), puis la phrase du cycle et celle de priorité.
  *
  * Retour du propriétaire (2026-10-23) : mêler colonnes et états dans un seul
  * tableau de sept lignes n'était « pas du tout clair », et « Réglé ici » /
@@ -44,17 +45,24 @@ function Row({ icon, name, first, children }: { icon: ReactNode; name: string; f
   );
 }
 
-/** Un état d'interrupteur : l'échantillon en petit (24 px), le nom, ce qu'il veut dire. */
-function State({ state, name, children }: { state: ToggleState; name: string; children: string }) {
+/** Un échantillon d'interrupteur, en petit (24 px). */
+function Sample({ state }: { state: ToggleState }) {
+  return (
+    <span
+      aria-hidden="true" data-sample
+      className="inline-flex items-center justify-center rounded-md flex-shrink-0 [&_svg]:w-[13px] [&_svg]:h-[13px]"
+      style={{ width: 24, height: 24, ...toggleLook(state) }}
+    >
+      <SparkleIcon />
+    </span>
+  );
+}
+
+/** Un état d'interrupteur : son ou ses échantillons, le nom, ce qu'il veut dire. */
+function State({ state, samples, name, children }: { state: ToggleState; samples: ToggleState[]; name: string; children: string }) {
   return (
     <li data-routing-state={state} className="flex items-start gap-2.5 min-w-0">
-      <span
-        aria-hidden="true"
-        className="inline-flex items-center justify-center rounded-md flex-shrink-0 [&_svg]:w-[13px] [&_svg]:h-[13px]"
-        style={{ width: 24, height: 24, ...toggleLook(state) }}
-      >
-        <SparkleIcon />
-      </span>
+      <span className="flex gap-1 flex-shrink-0">{samples.map((s) => <Sample key={s} state={s} />)}</span>
       <div className="min-w-0">
         <strong className="block font-semibold leading-6" style={{ color: 'var(--list-title)' }}>{name}</strong>
         <p className="leading-snug" style={{ color: 'var(--list-title)', opacity: 0.75 }}>{children}</p>
@@ -87,11 +95,14 @@ export default function RoutingKey({ id }: { id: string }) {
           {t('ai.routing.keyStatesTitle')}
         </p>
         <ul className="ai-routing__states-list">
-          <State state="on" name={t('ai.routing.keySet')}>{t('ai.routing.keySetText')}</State>
-          <State state="inherited" name={t('ai.routing.keyInherited')}>{t('ai.routing.keyInheritedText')}</State>
-          <State state="off" name={t('ai.routing.keyOff')}>{t('ai.routing.keyOffText')}</State>
+          <State state="off" samples={['off']} name={t('ai.routing.keyOff')}>{t('ai.routing.keyOffText')}</State>
+          <State state="on" samples={['on']} name={t('ai.routing.keySet')}>{t('ai.routing.keySetText')}</State>
+          <State state="inherited" samples={['inherited', 'inheritedOff']} name={t('ai.routing.keyInherited')}>{t('ai.routing.keyInheritedText')}</State>
         </ul>
         <p className="text-xs mt-3 pt-2" style={{ color: 'var(--list-summary)', borderTop: '1px solid var(--panel-border)' }}>
+          {t('ai.routing.keyCycle')}
+        </p>
+        <p className="text-xs mt-1" style={{ color: 'var(--list-summary)' }}>
           {t('ai.routing.keyPrecedence')}
         </p>
       </div>

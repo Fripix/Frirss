@@ -828,7 +828,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(headers).toHaveLength(1);
     expect(headers[0].getAttribute('aria-hidden')).toBe('true');
     expect(Array.from(headers[0].children).map((c) => c.textContent)).toEqual([
-      '', 'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.summaryTranslate', 'ai.routing.panel', 'ai.routing.providerColumn',
+      '', 'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.summaryTranslateShort', 'ai.routing.panel', 'ai.routing.providerColumn',
     ]);
     const tech = band(/^Tech/);
     expect(screen.getByRole('button', { name: /^Tech/ }).getAttribute('aria-expanded')).toBe('false');
@@ -922,7 +922,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Tech/ }));
     expect(checked('Summary', 'Flux 1')).toBe('true');
     expect(state('Summary', 'Flux 1')).toBe('inherited');
-    expect(sw('Summary', 'Flux 1').getAttribute('title')).toBe('ai.routing.autoSummary — ai.routing.stateInherited');
+    expect(sw('Summary', 'Flux 1').getAttribute('title')).toBe('ai.routing.autoSummary — ai.routing.stateInherited (ai.routing.stateOn)');
     fireEvent.click(sw('Summary', 'Flux 1'));
     expect(useUiStore.getState().feedSettings['feed/1'].aiAutoSummary).toBe(false);
     expect(state('Summary', 'Flux 1')).toBe('off');
@@ -933,8 +933,35 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(state('Summary', 'Flux 1')).toBe('on');
     expect(sw('Summary', 'Flux 1').getAttribute('title')).toBe('ai.routing.autoSummary — ai.routing.stateOn');
     expect(state('Summary', 'Flux 2')).toBe('inherited');
+    // Troisième clic : la valeur propre disparaît, le flux hérite de nouveau.
+    fireEvent.click(sw('Summary', 'Flux 1'));
+    expect(useUiStore.getState().feedSettings['feed/1']).toBeUndefined();
+    expect(state('Summary', 'Flux 1')).toBe('inherited');
+    expect(screen.queryByText('ai.routing.overrides')).toBeNull();
   });
-  it('fills a switch set here, outlines an inherited one, leaves an off one neutral', () => {
+  it('one click, the next state: désactivé → activé → hérité, and back to an inherited value for a category too', () => {
+    useUiStore.setState({ aiAutoSummary: true, aiAutoSummaryConfirmed: true });
+    render(<AiTab active />);
+    const seen: [string | null, unknown][] = [];
+    const record = () => seen.push([state('Summary', 'Tech'), useUiStore.getState().aiCategoryAutoSummary.Tech]);
+    record();
+    for (let i = 0; i < 4; i++) { fireEvent.click(sw('Summary', 'Tech')); record(); }
+    expect(seen).toEqual([
+      ['inherited', undefined], ['off', false], ['on', true], ['inherited', undefined], ['off', false],
+    ]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+  it('from an inherited « off », one click turns the row on directly', () => {
+    useUiStore.setState({ aiAutoSummaryTranslate: false });
+    render(<AiTab active />);
+    expect(state('SummaryTranslate', 'Tech')).toBe('inheritedOff');
+    fireEvent.click(sw('SummaryTranslate', 'Tech'));
+    expect(state('SummaryTranslate', 'Tech')).toBe('on');
+    fireEvent.click(sw('SummaryTranslate', 'Tech'));
+    expect(state('SummaryTranslate', 'Tech')).toBe('inheritedOff');
+    expect(useUiStore.getState().aiCategoryAutoSummaryTranslate).toEqual({});
+  });
+  it('fills a switch set here (green on, grey off) and outlines an inherited one (green on, grey off)', () => {
     useUiStore.setState({ aiCategoryAutoTranslate: { Tech: true }, feedSettings: { 'feed/1': { aiAutoSummary: true } }, aiAutoSummaryConfirmed: true });
     render(<AiTab active />);
     fireEvent.click(screen.getByRole('button', { name: /^Tech/ }));
@@ -944,14 +971,18 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect([on.style.background, on.style.color]).toEqual(['var(--accent)', 'var(--on-accent)']);
     expect([inherited.style.background, inherited.style.color]).toEqual(['transparent', 'var(--accent)']);
     expect([off.style.background, off.style.color]).toEqual(['transparent', 'var(--list-summary)']);
+    expect(off.getAttribute('data-state')).toBe('inheritedOff');
+    fireEvent.click(sw('Translate', 'Flux 2'));
+    const setOff = sw('Translate', 'Flux 2');
+    expect([setOff.getAttribute('data-state'), setOff.style.background]).toEqual(['off', 'var(--panel-border)']);
   });
   it('says where an inherited value comes from: the category, or the global setting', () => {
     render(<AiTab active />);
     fireEvent.click(screen.getByRole('button', { name: /^ai\.routing\.uncategorised/ }));
     // Le panneau est allumé d'origine (aiPanelAlways) : Flux 3, sans catégorie, l'hérite du global.
     expect(state('Panel', 'Flux 3')).toBe('inherited');
-    expect(sw('Panel', 'Flux 3').getAttribute('title')).toBe('ai.routing.panel — ai.routing.stateGlobal');
-    expect(sw('Translate', 'Flux 3').getAttribute('title')).toBe('ai.routing.autoTranslate — ai.routing.stateOff');
+    expect(sw('Panel', 'Flux 3').getAttribute('title')).toBe('ai.routing.panel — ai.routing.stateGlobal (ai.routing.stateOn)');
+    expect(sw('Translate', 'Flux 3').getAttribute('title')).toBe('ai.routing.autoTranslate — ai.routing.stateGlobal (ai.routing.stateOff)');
   });
   it('a category Panel switch shows the global value until it has its own, and writes an explicit value', () => {
     useUiStore.setState({ aiPanelAlways: false });
@@ -964,14 +995,16 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(checked('Panel', 'Tech')).toBe('true');
     // Sa valeur propre est pleine ; avant, elle n'était qu'héritée (éteinte, donc grise).
     expect(state('Panel', 'Tech')).toBe('on');
+    // Second clic : la catégorie revient au réglage global (éteint ici).
     fireEvent.click(sw('Panel', 'Tech'));
-    expect(useUiStore.getState().aiCategoryPanel).toEqual({ Tech: false });
+    expect(useUiStore.getState().aiCategoryPanel).toEqual({});
+    expect(state('Panel', 'Tech')).toBe('inheritedOff');
   });
   it('« Résumé traduit » on a category: no cost confirmation, an explicit value, the global setting outlined until then', () => {
     useUiStore.setState({ aiAutoSummaryTranslate: true });
     render(<AiTab active />);
     expect(state('SummaryTranslate', 'Tech')).toBe('inherited');
-    expect(sw('SummaryTranslate', 'Tech').getAttribute('title')).toBe('ai.routing.summaryTranslate — ai.routing.stateGlobal');
+    expect(sw('SummaryTranslate', 'Tech').getAttribute('title')).toBe('ai.routing.summaryTranslate — ai.routing.stateGlobal (ai.routing.stateOn)');
     fireEvent.click(sw('SummaryTranslate', 'Tech'));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiCategoryAutoSummaryTranslate).toEqual({ Tech: false });
@@ -985,7 +1018,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     render(<AiTab active />);
     fireEvent.click(screen.getByRole('button', { name: /^Tech/ }));
     expect(state('SummaryTranslate', 'Flux 1')).toBe('inherited');
-    expect(sw('SummaryTranslate', 'Flux 1').getAttribute('title')).toBe('ai.routing.summaryTranslate — ai.routing.stateInherited');
+    expect(sw('SummaryTranslate', 'Flux 1').getAttribute('title')).toBe('ai.routing.summaryTranslate — ai.routing.stateInherited (ai.routing.stateOn)');
     fireEvent.click(sw('SummaryTranslate', 'Flux 1'));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().feedSettings['feed/1'].aiAutoSummaryTranslate).toBe(false);
@@ -1004,8 +1037,11 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(checked('Panel', 'Flux 2')).toBe('false');
     // Une valeur propre de panneau compte comme un flux réglé.
     expect(screen.getByText('ai.routing.overrides')).toBeTruthy();
+    // Clic suivant : le flux revient à sa catégorie (éteinte), sans valeur propre.
     fireEvent.click(sw('Panel', 'Flux 1'));
-    expect(useUiStore.getState().feedSettings['feed/1'].aiPanel).toBe(false);
+    expect(useUiStore.getState().feedSettings['feed/1']).toBeUndefined();
+    expect(state('Panel', 'Flux 1')).toBe('inheritedOff');
+    expect(sw('Panel', 'Flux 1').getAttribute('title')).toBe('ai.routing.panel — ai.routing.stateInherited (ai.routing.stateOff)');
   });
   it('a feed provider is set and set back to default from its row', () => {
     render(<AiTab active />);
@@ -1087,11 +1123,11 @@ describe('AiTab — « Par flux et catégorie »', () => {
     fireEvent.click(sw('Translate', 'Science'));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ Tech: true, Science: true });
-    // Éteindre ne demande rien, et écrit un `false` explicite, comme le panneau.
+    // Le clic suivant ne demande rien : la catégorie revient à « hérité » (éteint, rien d'activé au-dessus).
     fireEvent.click(sw('Translate', 'Tech'));
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ Tech: false, Science: true });
-    expect(state('Translate', 'Tech')).toBe('off');
+    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ Science: true });
+    expect(state('Translate', 'Tech')).toBe('inheritedOff');
   });
   it('a feed translate switch asks for the cost confirmation the first time too', () => {
     render(<AiTab active />);
@@ -1150,7 +1186,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Tech/ }));
     expect(checked('Summary', 'Flux 1')).toBe('true');
     expect(state('Summary', 'Flux 1')).toBe('inherited');
-    expect(sw('Summary', 'Flux 1').getAttribute('title')).toBe('ai.routing.autoSummary — ai.routing.stateGlobal');
+    expect(sw('Summary', 'Flux 1').getAttribute('title')).toBe('ai.routing.autoSummary — ai.routing.stateGlobal (ai.routing.stateOn)');
     // Éteinte puis rallumée : aucune confirmation, le global l'a déjà acceptée.
     fireEvent.click(sw('Summary', 'Tech'));
     fireEvent.click(sw('Summary', 'Tech'));
@@ -1165,8 +1201,8 @@ describe('AiTab — « Par flux et catégorie »', () => {
       expect(checked(kind, 'Tech')).toBe('true');
       expect(state(kind, 'Tech')).toBe('inherited');
     }
-    expect(sw('Summary', 'Tech').getAttribute('title')).toBe('ai.routing.autoSummary — ai.routing.stateGlobal');
-    expect(sw('Panel', 'Tech').getAttribute('title')).toBe('ai.routing.panel — ai.routing.stateGlobal');
+    expect(sw('Summary', 'Tech').getAttribute('title')).toBe('ai.routing.autoSummary — ai.routing.stateGlobal (ai.routing.stateOn)');
+    expect(sw('Panel', 'Tech').getAttribute('title')).toBe('ai.routing.panel — ai.routing.stateGlobal (ai.routing.stateOn)');
     const inherited = sw('Summary', 'Tech');
     expect([inherited.style.background, inherited.style.color]).toEqual(['transparent', 'var(--accent)']);
     // Le toucher écrit un `false` explicite : la catégorie s'éteint sous le global allumé, et ses flux avec elle.
@@ -1176,9 +1212,9 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(state('Summary', 'Tech')).toBe('off');
     expect(sw('Summary', 'Tech').style.color).toBe('var(--list-summary)');
     fireEvent.click(screen.getByRole('button', { name: /^Tech/ }));
-    expect(state('Summary', 'Flux 1')).toBe('off');
-    // Traduire n'a pas de réglage global : sans valeur propre, la catégorie est éteinte, grise.
-    expect(state('Translate', 'Tech')).toBe('off');
+    expect(state('Summary', 'Flux 1')).toBe('inheritedOff');
+    // Traduire n'a pas de réglage global : sans valeur propre, la catégorie hérite d'un « désactivé ».
+    expect(state('Translate', 'Tech')).toBe('inheritedOff');
   });
   it('narrow layout: the stylesheet pins 32 px cells and 44 px rows, and no inline icon key remains', () => {
     render(<AiTab active />);
@@ -1197,8 +1233,8 @@ describe('AiTab — « Par flux et catégorie »', () => {
   it('titles each switch with its column and state, each column word with what it does', () => {
     render(<AiTab active />);
     expect([sw('Summary', 'Tech'), sw('Translate', 'Tech'), sw('SummaryTranslate', 'Tech'), sw('Panel', 'Tech')].map((s) => s.getAttribute('title'))).toEqual([
-      'ai.routing.autoSummary — ai.routing.stateOff', 'ai.routing.autoTranslate — ai.routing.stateOff',
-      'ai.routing.summaryTranslate — ai.routing.stateOff', 'ai.routing.panel — ai.routing.stateGlobal',
+      'ai.routing.autoSummary — ai.routing.stateGlobal (ai.routing.stateOff)', 'ai.routing.autoTranslate — ai.routing.stateGlobal (ai.routing.stateOff)',
+      'ai.routing.summaryTranslate — ai.routing.stateGlobal (ai.routing.stateOff)', 'ai.routing.panel — ai.routing.stateGlobal (ai.routing.stateOn)',
     ]);
     const header = document.querySelector('[data-routing-header]') as HTMLElement;
     expect(Array.from(header.children).slice(1, 5).map((c) => c.getAttribute('title'))).toEqual([
@@ -1232,7 +1268,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(screen.queryByText('ai.routing.hint')).toBeNull();
     expect(screen.queryByText('ai.routing.legend')).toBeNull();
   });
-  it('key, part 2: a separate tinted band with the three button states side by side, then the precedence line', () => {
+  it('key, part 2: a separate tinted band with the three button states in click order, the cycle, then the precedence line', () => {
     render(<AiTab active />);
     const box = document.querySelector('[data-routing-key]') as HTMLElement;
     const band = box.querySelector('[data-routing-states]') as HTMLElement;
@@ -1243,22 +1279,26 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(band.style.borderTop).toContain('var(--panel-border)');
     expect(band.querySelector('[data-routing-states-title]')?.textContent).toBe('ai.routing.keyStatesTitle');
     const items = Array.from(band.querySelectorAll('[data-routing-state]')) as HTMLElement[];
-    expect(items.map((i) => i.dataset.routingState)).toEqual(['on', 'inherited', 'off']);
+    // L'ordre du clic : désactivé → activé → hérité.
+    expect(items.map((i) => i.dataset.routingState)).toEqual(['off', 'on', 'inherited']);
     expect(items.map((i) => i.querySelector('strong')?.textContent)).toEqual([
-      'ai.routing.keySet', 'ai.routing.keyInherited', 'ai.routing.keyOff',
+      'ai.routing.keyOff', 'ai.routing.keySet', 'ai.routing.keyInherited',
     ]);
     expect(items.map((i) => i.querySelector('p')?.textContent)).toEqual([
-      'ai.routing.keySetText', 'ai.routing.keyInheritedText', 'ai.routing.keyOffText',
+      'ai.routing.keyOffText', 'ai.routing.keySetText', 'ai.routing.keyInheritedText',
     ]);
-    // Les échantillons sont dessinés par le code des interrupteurs.
-    const samples = items.map((i) => i.querySelector('[aria-hidden="true"]') as HTMLElement);
-    expect(samples[0].style.background).toBe('var(--accent)');
-    expect(samples[1].style.boxShadow).toContain('1.5px var(--accent)');
-    expect(samples[2].style.boxShadow).toContain('var(--panel-border)');
+    // Les échantillons sont dessinés par le code des interrupteurs ; « hérité » en montre deux (activé, désactivé).
+    const samples = items.map((i) => Array.from(i.querySelectorAll('[data-sample]')) as HTMLElement[]);
+    expect(samples.map((x) => x.length)).toEqual([1, 1, 2]);
+    expect(samples[0][0].style.background).toBe('var(--panel-border)');
+    expect(samples[1][0].style.background).toBe('var(--accent)');
+    expect(samples[2][0].style.boxShadow).toContain('1.5px var(--accent)');
+    expect(samples[2][1].style.boxShadow).toContain('1px var(--panel-border)');
     expect(band.className).toContain('ai-routing__states');
-    // La phrase de priorité ferme la bande.
+    // La phrase du cycle, puis celle de priorité, ferment la bande.
     const last = band.lastElementChild as HTMLElement;
     expect(last.textContent).toBe('ai.routing.keyPrecedence');
+    expect((last.previousElementSibling as HTMLElement).textContent).toBe('ai.routing.keyCycle');
   });
   it('every switch is described by the key box', () => {
     render(<AiTab active />);

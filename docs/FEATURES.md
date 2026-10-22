@@ -2723,31 +2723,38 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   **Clé** (`ai/RoutingKey.tsx`, `data-routing-key`, au-dessus de la matrice, à
   toutes les largeurs) : un cadre au filet `--panel-border`, texte **13 px**,
   en **deux parties nettement séparées**. (1) **Ce que fait chaque colonne** :
-  un vrai `<table>` de **quatre lignes** sans ligne d'en-tête — icône de 22 px
+  un vrai `<table>` de **cinq lignes** sans ligne d'en-tête — icône de 22 px
   (cellule `w-8`), nom en `<th scope="row">` (`font-semibold`, `--list-title`,
   colonne fixe `w-28` : les descriptions s'alignent), description en
   `--list-title` à 75 % : Résumer (`keySummary`), Traduire (`keyTranslate`),
-  Panneau IA (`keyPanelName` / `keyPanel`), IA (`providerColumn` /
+  Résumé traduit (`summaryTranslate` / `keySummaryTranslate`), Panneau Résumé
+  (`keyPanelName` / `keyPanel` — « Panneau IA » jusqu'au 2026-10-23, le
+  propriétaire l'appelle panneau « Résumé »), IA (`providerColumn` /
   `keyProvider`), un filet de 1 px entre les lignes. Les icônes y sont
   **neutres** (couleur de titre, sans fond ni contour) : dans la matrice, la
   couleur dit l'état, elle n'appartient qu'à la deuxième partie.
   (2) **Ce que montre chaque bouton** (`data-routing-states`) : une bande au
   fond `--panel-header-bg` sous un filet, titrée `keyStatesTitle` (12 px,
-  gris), avec les **trois états côte à côte** (`.ai-routing__states-list`,
-  grille de trois colonnes ; une seule sous 460 px de cadre, requête de
-  conteneur `ai-routing-key` — la clé vit hors de `.ai-routing`). Chaque état :
-  un échantillon de 24 px, son nom en gras, une phrase : « Activé »
-  (`keySet` / `keySetText`, choisi pour cette catégorie ou ce flux),
-  « Hérité » (`keyInherited` / `keyInheritedText`, activé par la catégorie ou
-  les réglages généraux), « Désactivé » (`keyOff` / `keyOffText`, ne
-  s'applique pas — y compris quand rien au-dessus ne l'active). La phrase de
-  priorité (`keyPrecedence`, 12 px, `--list-summary`) ferme la bande.
+  gris), avec les **trois états dans l'ordre du clic**
+  (`.ai-routing__states-list`, grille de trois colonnes ; une seule sous
+  460 px de cadre, requête de conteneur `ai-routing-key` — la clé vit hors de
+  `.ai-routing`). Chaque état : son échantillon de 24 px (`data-sample`), son
+  nom en gras, une phrase : « Désactivé » (`keyOff` / `keyOffText`, plein
+  gris : coupé ici quoi que dise le réglage au-dessus), « Activé » (`keySet` /
+  `keySetText`, plein vert : allumé ici), « Hérité » (`keyInherited` /
+  `keyInheritedText`, **deux** échantillons, cerclé vert et cerclé gris : suit
+  la catégorie ou les réglages généraux). Puis la phrase du cycle
+  (`keyCycle` : « Chaque clic passe à l'état suivant : désactivé, activé,
+  hérité, puis de nouveau désactivé. ») et celle de priorité
+  (`keyPrecedence`), 12 px, `--list-summary`, ferment la bande.
   Historique des retours du propriétaire : un fond teinté sur toute la clé
   était « presque un peu trop envahissant », la version en 12 px gris « moins
   claire / lisible » (2026-10-22) ; puis le tableau unique de sept lignes, où
   les états suivaient les colonnes, n'était « pas du tout clair », et
   « Réglé ici » / « Éteint » ne disaient rien (2026-10-23) — d'où les deux
-  parties et les mots Activé / Hérité / Désactivé. Les échantillons passent
+  parties et les mots Activé / Hérité / Désactivé ; « hérité » qu'on ne
+  pouvait plus retrouver une fois une valeur posée a amené le cycle et le
+  « désactivé » plein (même jour). Les échantillons passent
   par `toggleLook` (`src/lib/routingLook.ts`), le code même des
   interrupteurs : la clé ne peut pas dériver de ce qu'elle explique. Toute la
   clé est ce que chaque interrupteur désigne par `aria-describedby`. Elle
@@ -2768,16 +2775,17 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   complet) : « Résumer », « Traduire », « Résumé traduit », « Panneau », « IA »
   (anciennement « Fournisseur », plus court et plus clair à la demande du
   propriétaire ; `ai.routing.autoSummary` / `autoTranslate` /
-  `summaryTranslate` / `panel` / `providerColumn`), 11 px, centrés sur leur
-  colonne et calés en bas (`!items-end`) ; le `title` de chaque mot dit ce que
-  fait la colonne (`summaryTitle`, `translateTitle`, `summaryTranslateTitle`,
-  `panelTitle`). « Résumé traduit » **tient sur deux lignes** : la coupure
-  est dans la traduction (`\n` dans `ai.routing.summaryTranslate`, rendu par
-  `white-space: pre-line` sur `.ai-routing__col-word` ; le `title` des
-  interrupteurs la remplace par une espace, la clé la rend comme une espace).
-  Une largeur maximale ne suffisait pas — le mot entier y tenait, la colonne
-  faisait ≈ 75 px au bureau et tronquait « Dev & Ope… » (mesuré) — et
-  `min-content` couperait le chinois à chaque caractère ; les autres sont courts dans les dix langues
+  `summaryTranslateShort` / `panel` / `providerColumn`), 11 px, centrés sur
+  leur colonne, une ligne chacun ; le `title` de chaque mot dit ce que fait
+  la colonne (`summaryTitle`, `translateTitle`, `summaryTranslateTitle`,
+  `panelTitle`). La quatrième colonne s'intitule **« Résumé FR »** — la
+  langue cible en code court (`ai.routing.summaryTranslateShort`, « Résumé
+  {{lang}} », `aiTranslationLanguage` ou la langue d'interface via
+  `targetLanguage`, sous-étiquette retirée : `zh-Hant` → « ZH ») ; ailleurs
+  (clé, infobulles) elle reste « Résumé traduit ». Historique : « Résumé
+  traduit » en en-tête faisait ≈ 75 px au bureau et tronquait « Dev & Ope… »
+  (mesuré), puis coupé sur deux lignes il déplaisait au propriétaire
+  (2026-10-23). Les autres mots sont courts dans les dix langues
   (« Resümee », « Підсумок ») : la colonne s'élargit au mot plutôt que de le
   laisser mordre sur sa voisine, et c'est le nom qui cède la place.
   **Groupes** : chaque catégorie et ses flux dépliés sont cerclés (filet
@@ -2804,17 +2812,31 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `aria-checked`, `rounded-md`, icône 16 px — l'étincelle d'`AiSummary` pour
   Résumer, l'icône « Traduire » du volet de lecture, pour Résumé traduit une
   petite étincelle au-dessus du « A » de cette icône (`SummaryTranslateIcon`),
-  une page coiffée d'un bandeau pour Panneau. **Trois états** (`data-state`) : **on**, réglé ici —
-  fond `--accent`, icône `--on-accent` ; **inherited**, allumé sans valeur
-  propre (par une catégorie ou le réglage global) — contour d'accent de
-  1,5 px, icône `--accent`, fond transparent ; **off** — contour 1 px
-  `--panel-border`, icône `--list-summary`. Les contours sont des ombres
-  intérieures : passer de 1 à 1,5 px ne décale rien. Une catégorie a les
-  mêmes trois états : sa valeur propre (plein ou gris), sinon le réglage
-  global en contour s'il l'allume. Le `title` dit la colonne et l'état
-  (`ai.routing.labelValue` : « Résumer — hérité de la catégorie », « Panneau —
-  hérité du réglage général », « — activé », « — désactivé » ; clés
-  `stateOn`, `stateOff`, `stateInherited`, `stateGlobal`). Le nom accessible
+  une page coiffée d'un bandeau pour Panneau. **Trois états, quatre aspects**
+  (`data-state`, `toggleLook`) : **on**, valeur propre vraie — fond
+  `--accent`, icône `--on-accent` ; **off**, valeur propre fausse — fond
+  `--panel-border`, icône `--list-summary` ; **inherited**, pas de valeur
+  propre et ce qu'elle hérite l'active — contour d'accent de 1,5 px, icône
+  `--accent`, fond transparent ; **inheritedOff**, pas de valeur propre et
+  rien ne l'active — contour 1 px `--panel-border`, icône `--list-summary`.
+  Plein = réglé ici, cerclé = hérité ; vert = s'applique, gris = non. Les
+  contours sont des ombres intérieures : passer de 1 à 1,5 px ne décale rien.
+  `aria-checked` dit ce qui s'applique (on, inherited). **Un clic passe à
+  l'état suivant** (`nextRoutingValue`, `lib/routingLook.ts`) dans l'ordre
+  demandé par le propriétaire : désactivé → activé → hérité (`null` : la
+  valeur propre est retirée, `''` pour un flux) → désactivé. Exception
+  voulue au sortir de « hérité » : le clic change toujours ce qui
+  s'applique — hériter d'un « activé » mène à « désactivé », hériter d'un
+  « désactivé » mène droit à « activé » (sinon allumer une ligne neuve
+  demanderait deux clics, le premier sans effet visible sur la lecture).
+  Une catégorie a les mêmes états : sa valeur propre, sinon le réglage
+  global. Le `title` dit la colonne et l'état (`ai.routing.labelValue` :
+  « Résumer — activé », « — désactivé », et pour un héritage sa source puis
+  ce qu'elle donne : « Panneau — hérité du réglage général (activé) »,
+  « Résumer — hérité de la catégorie (désactivé) » ; clés `stateOn`,
+  `stateOff`, `stateInherited`, `stateGlobal`). Un flux hérite « de la
+  catégorie » dès qu'une de ses catégories porte une valeur propre pour la
+  colonne, « du réglage général » sinon. Le nom accessible
   dit la ligne — « Résumer / Traduire automatiquement les articles de X »,
   « Traduire automatiquement le résumé des articles de X »
   (`ai.routing.summaryTranslateFor`), « Panneau Résumé IA toujours visible
@@ -2858,21 +2880,20 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `aiCategoryPanel`, toutes `{ nom: true | false }`, rangées par nom comme les
   fournisseurs), sinon le réglage global — `aiAutoSummary` pour Résumer,
   `aiAutoSummaryTranslate` pour Résumé traduit, `aiPanelAlways` pour
-  Panneau, rien pour Traduire (éteinte) — qu'elle montre **en contour**
-  (« hérité du réglage général ») quand il l'allume. Un flux affiche sa **valeur
+  Panneau, rien pour Traduire (désactivée) — qu'elle montre **cerclée**
+  (« hérité du réglage général »), verte s'il l'active, grise sinon. Un flux affiche sa **valeur
   effective** (`autoFor` / `panelFor` : la sienne, sinon celle de ses
   catégories — vraie dès qu'une est explicitement vraie, sinon fausse dès
   qu'une est explicitement fausse —, sinon le réglage global) et
-  **dit d'où elle vient** (plein / contour, `title`). Le toucher écrit
-  **toujours** une valeur propre, l'inverse de ce qui se voit, `true` ou
-  `false` (`feedSettings[id].aiAutoSummary` / `.aiAutoTranslate` /
-  `.aiAutoSummaryTranslate` / `.aiPanel`,
-  ou l'entrée de la catégorie) : éteindre un flux sous une catégorie allumée,
-  ou une catégorie sous un réglage général allumé, tient. Priorité : **flux >
-  catégorie > global** (le global ne vaut pas pour la traduction). Aucune
-  remise à « hérité » depuis l'écran : une valeur propre reste jusqu'à ce
-  qu'on la change (les setters de catégorie acceptent `null`, qui retire
-  l'entrée, mais l'écran ne l'écrit pas).
+  **dit d'où elle vient** (plein / cerclé, `title`). Le clic écrit l'état
+  suivant du cycle (`true`, `false`, ou le retrait de la valeur propre) dans
+  `feedSettings[id].aiAutoSummary` / `.aiAutoTranslate` /
+  `.aiAutoSummaryTranslate` / `.aiPanel`, ou l'entrée de la catégorie :
+  éteindre un flux sous une catégorie allumée, ou une catégorie sous un
+  réglage général allumé, tient, et **revenir à « hérité » se fait au clic**
+  (jusqu'au 2026-10-23, une valeur propre ne se retirait plus depuis
+  l'écran). Priorité : **flux > catégorie > global** (le global ne vaut pas
+  pour la traduction).
   **Confirmations, une fois par compte** : allumer « Traduire » sans
   `aiAutoTranslateConfirmed` ouvre « Traduire automatiquement ? » (« Traduire
   un article entier coûte cinq à quinze fois un résumé, et chaque article de

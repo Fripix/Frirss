@@ -28,25 +28,26 @@ import { toggleLook } from '../../../lib/routingLook';
 const hitArea = "ai-routing__hit before:absolute before:-inset-0.5 before:content-['']";
 
 /**
- * Trois états, pas deux : **on** (réglé ici, plein), **inherited** (allumé
- * par la catégorie ou le réglage global, sans valeur propre : contour
- * d'accent) et **off**. Une catégorie aussi : sans valeur propre, elle montre
- * le réglage global, en contour s'il l'allume.
+ * Quatre aspects pour trois états : **on** et **off**, la valeur propre de la
+ * ligne (pleins : vert, gris) ; **inherited** / **inheritedOff**, pas de
+ * valeur propre — la ligne suit sa catégorie ou le réglage global, cerclée
+ * de vert s'ils l'activent, de gris sinon. Un clic passe à l'état suivant
+ * (`nextRoutingValue`) : désactivé → activé → hérité.
  */
-export type ToggleState = 'on' | 'inherited' | 'off';
+export type ToggleState = 'on' | 'off' | 'inherited' | 'inheritedOff';
 export type ToggleKind = 'summary' | 'translate' | 'summaryTranslate' | 'panel';
 
-export function RoutingToggle({ kind, state, ariaLabel, title, describedBy, touch, onToggle }: {
-  kind: ToggleKind; state: ToggleState; ariaLabel: string; title: string; describedBy: string; touch: boolean; onToggle: (on: boolean) => void;
+export function RoutingToggle({ kind, state, ariaLabel, title, describedBy, touch, onNext }: {
+  kind: ToggleKind; state: ToggleState; ariaLabel: string; title: string; describedBy: string; touch: boolean; onNext: () => void;
 }) {
-  const on = state !== 'off';
+  // `aria-checked` dit ce qui s'applique ; d'où ça vient est dans le `title`.
+  const on = state === 'on' || state === 'inherited';
   const look = toggleLook(state);
   return (
     <button
       type="button" role="switch" aria-checked={on} data-state={state}
       aria-label={ariaLabel} aria-describedby={describedBy} title={title}
-      // Le toucher écrit toujours une valeur propre, l'inverse de ce qui se voit.
-      onClick={() => onToggle(!on)}
+      onClick={onNext}
       className={`relative min-h-0 justify-self-center inline-flex items-center justify-center rounded-md cursor-pointer transition-colors ${touch ? hitArea : ''}`}
       style={{ width: 'var(--cell)', height: 'var(--cell)', ...look }}
     >

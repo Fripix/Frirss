@@ -90,13 +90,15 @@ la release publiée.
   Descendre, Définir par défaut et Supprimer ; la liste déroulante
   « Fournisseur par défaut » a disparu. « Par flux et catégorie » se lit
   comme un tableau : une ligne par catégorie et une ligne par flux, jamais
-  deux, sous un seul en-tête de colonnes (Résumer, Traduire, Résumé traduit,
-  Panneau, IA),
+  deux, sous un seul en-tête de colonnes (Résumer, Traduire, Résumé FR — la
+  langue cible —, Panneau, IA),
   précédé d'une clé en deux parties : un petit tableau à filets qui donne
   pour chaque colonne son icône, son nom et ce qu'elle fait, puis, dans une
-  bande à part, ce que montre chaque bouton — Activé (plein), Hérité
-  (cerclé), Désactivé (gris) — et la règle de priorité (un flux l'emporte sur
-  sa catégorie, une catégorie sur les réglages généraux). Chaque catégorie est une bande grisée en gras, avec son
+  bande à part, ce que montre chaque bouton — Désactivé (plein gris), Activé
+  (plein vert), Hérité (cerclé) — et la règle de priorité (un flux l'emporte
+  sur sa catégorie, une catégorie sur les réglages généraux). Chaque clic
+  passe à l'état suivant, désactivé → activé → hérité : une catégorie ou un
+  flux retrouve l'héritage d'un clic. Chaque catégorie est une bande grisée en gras, avec son
   nombre de flux et, en couleur, combien ont leurs propres réglages ;
   dépliée, elle montre ses flux, en retrait, avec leur favicon. Les
   réglages sont des boutons à icône : plein quand le réglage est fait ici,
