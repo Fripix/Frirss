@@ -123,12 +123,24 @@ describe('AiSummary — panneau vide', () => {
     expect(action.className).toContain('h-8');
     expect((action.parentElement as HTMLElement).className).toContain('py-1');
   });
-  it('vide au doigt : le bouton garde 44 px, le conteneur se serre à py-0.5', () => {
+  it('vide au doigt : bouton visuel de 32 px, zone de toucher de 44 px par pseudo-élément, conteneurs sans marge', () => {
     breakpoint.mockImplementation(() => 'mobile');
     render(<AiSummary {...idleProps} />);
     const action = screen.getByRole('button', ACTION);
-    expect(action.className).toContain('min-h-[44px]');
-    expect((action.parentElement as HTMLElement).className).toContain('py-0.5');
+    expect(action.className).toContain('h-8');
+    expect(action.className).not.toContain('min-h-[44px]');
+    for (const c of ['relative', 'before:absolute', 'before:inset-x-0', 'before:-inset-y-1.5', "before:content-['']"]) expect(action.className).toContain(c);
+    const wrapper = action.parentElement as HTMLElement;
+    expect(wrapper.className).not.toMatch(/\bpy-/);
+    const lead = screen.getByText('ai.summarize').closest('div.grow') as HTMLElement;
+    expect(lead.className).not.toMatch(/\bpy-/);
+    expect(lead.className).not.toContain('min-h-[44px]');
+    expect(screen.getByText('ai.summarize').className).toContain('text-xs');
+  });
+  it('vide au bureau : pas de pseudo-élément, titre en 13 px', () => {
+    render(<AiSummary {...idleProps} />);
+    expect(screen.getByRole('button', ACTION).className).not.toContain('before:');
+    expect(screen.getByText('ai.summarize').className).toContain('text-[13px]');
   });
   it('en cours : le statut dit « Résumé en cours… »', () => {
     const { container } = render(<AiSummary {...idleProps} status="loading" />);
@@ -141,14 +153,20 @@ describe('AiSummary — panneau vide', () => {
     expect(container.querySelector('[id$="-body"]')).toBeNull();
     expect(container.querySelector('[data-status]')).toBeNull();
   });
-  it('vide, l\'en-tête garde son gabarit : deux rangs à 320 px et 44 px au doigt', () => {
+  it('vide, l\'en-tête garde deux rangs à 320 px (basis-44, min-w-0)', () => {
     breakpoint.mockImplementation(() => 'mobile');
     render(<AiSummary {...idleProps} />);
     const left = screen.getByText('ai.summarize').closest('div.grow') as HTMLElement;
     expect(left.className).toContain('basis-44');
     expect(left.className).toContain('min-w-0');
-    expect(left.className).toContain('min-h-[44px]');
-    expect(screen.getByRole('button', ACTION).className).toContain('min-h-[44px]');
+  });
+  it('dès qu\'il y a quelque chose à montrer, le doigt retrouve ses 44 px pleins', () => {
+    breakpoint.mockImplementation(() => 'mobile');
+    render(<AiSummary {...idleProps} status="loading" />);
+    expect(screen.getByRole('button', TOGGLE).className).toContain('min-h-[44px]');
+    const action = screen.getByRole('button', { name: 'ai.summarizing' });
+    expect(action.className).toContain('min-h-[44px]');
+    expect(action.className).not.toContain('before:');
   });
   it('vide, la région vivante reste montée', () => {
     render(<AiSummary {...idleProps} />);
@@ -243,9 +261,19 @@ describe('AiSummary — corps', () => {
     const { container, getByText } = render(<AiSummary {...doneProps} />);
     const panel = container.querySelector('.ai-summary') as HTMLElement;
     expect(panel.style.background).toBe('var(--ai-bg)');
-    expect(panel.style.border).toBe('1px solid var(--ai-border)');
     expect(container.innerHTML).not.toContain('max-w-');
     expect(getByText('Premier.').className).toContain('whitespace-pre-line');
+  });
+  it('stands out from the article: accent rule on the left, a smaller and tighter summary text', () => {
+    const { container, getByText } = render(<AiSummary {...doneProps} />);
+    const panel = container.querySelector('.ai-summary') as HTMLElement;
+    expect(panel.getAttribute('style')).toContain('border-left: 3px solid var(--accent)');
+    const p = getByText('Premier.');
+    expect(p.className).toContain('text-[14px]');
+    expect(p.className).toContain('leading-[1.6]');
+    expect(p.className).not.toContain('text-[15px]');
+    expect(p.style.color).toBe('var(--reading-text)');
+    expect((p.closest('section') as HTMLElement).className).toContain('pl-1');
   });
   it('error: the message is a role=alert, never nested in the status region', () => {
     const { getByRole } = render(<AiSummary {...idleProps} status="error" error="ai.errors.auth" />);

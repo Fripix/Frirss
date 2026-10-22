@@ -49,8 +49,8 @@ const defaultTheme: Theme = {
     'code-bg': '#f5f5f8',
     'scrollbar': '#d0d1da',
     'scrollbar-hover': '#b0b2c0',
-    'ai-bg': '#eefaf5',
-    'ai-border': '#bfe9d8',
+    'ai-bg': '#e6f7ef',
+    'ai-border': '#a9e0cb',
   },
   fontSizes: {
     'sidebar-feed': '14',
@@ -113,7 +113,7 @@ function migrateColors(colors: Record<string, string>): Record<string, string> {
  *   « modifié » affiché sur des couleurs que personne n'a touchées (la
  *   référence de réinitialisation, elle, porte les valeurs du préréglage).
  * - Thème PERSONNEL : dérivées du thème lui-même, un voile de son accent sur
- *   son fond de panneau (10 % pour le fond, 32 % pour la bordure).
+ *   son fond de panneau (14 % pour le fond, 38 % pour la bordure).
  *
  * Une valeur présente, choisie ou non, n'est jamais remplacée.
  */
@@ -134,8 +134,8 @@ export function withAiColors(colors: Record<string, string> | undefined, name?: 
     const p = parseInt(panel.slice(i, i + 2), 16);
     return Math.round(p + (a - p) * t).toString(16).padStart(2, '0');
   }).join('');
-  if (!c['ai-bg']) c['ai-bg'] = mix(0.1);
-  if (!c['ai-border']) c['ai-border'] = mix(0.32);
+  if (!c['ai-bg']) c['ai-bg'] = mix(0.14);
+  if (!c['ai-border']) c['ai-border'] = mix(0.38);
   return c;
 }
 

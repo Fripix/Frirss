@@ -1868,15 +1868,19 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   volet — colonne de liste élargie sur un petit écran ; plancher mesuré
   ~260px, marge d'environ 55px à 320px). **Avec l'IA utilisable**, la barre
   compte en plus le bouton scindé « Traduire » : `ReadingPane` pose alors
-  `.has-translate` sur `.reading-pane` et un **seuil de 1120px** replie les
+  `.has-translate` sur `.reading-pane` et un **seuil de 1080px** replie les
   libellés plus tôt (`.has-translate .toolbar-label`). **Avec en plus le bouton
   « Résumer » dans la barre** (panneau IA masqué par réglage, rien demandé :
-  `showSummarizeBarBtn`), `.has-summarize` porte le seuil à **1220px**. Largeurs
+  `showSummarizeBarBtn`), `.has-summarize` porte le seuil à **1180px**. Largeurs
   naturelles des libellés mesurées contre la feuille construite : FR 1064px
   (Traduire seul) / 1164px (Traduire + Résumer), DE 1011 / 1160 ; sans IA, les
-  948px d'origine restent sous le seuil de 1000px. Le seuil IA seul avait été
-  laissé à la valeur d'avant « Traduire » : la barre débordait de 1101 à
-  1163px.
+  948px d'origine restent sous le seuil de 1000px. Les seuils sont posés
+  **juste au-dessus de la mesure française** (marge d'environ 1,5 %) : à 1120 et
+  1220px, une fenêtre de 1759px (volet de lecture ≈ 1090px) perdait ses
+  libellés alors qu'ils tenaient. Une langue plus longue que le français peut
+  donc déborder : `overflow-x: auto` sur la barre reste le filet de sécurité.
+  Le seuil IA seul avait été laissé à la valeur d'avant « Traduire » : la barre
+  débordait de 1101 à 1163px.
 - **Focus de lecture** et **taille du texte** sont déjà icônes seules dans
   cette barre (pas de libellé à coucher) ; ils rétrécissent quand même dans le
   repli compact (classe `.toolbar-icon-btn`) pour tenir dans le même budget.
@@ -2775,7 +2779,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   suit celle-ci. Un flux rangé dans deux catégories apparaît sous chacune.
 - **Interface — panneau** (`AiSummary.tsx`) : un panneau sur **toute la largeur
   de la colonne de lecture**, au-dessus de l'article, sur une **surface teintée
-  réglable** (`--ai-bg` / `--ai-border`, voir « Apparence et thèmes »).
+  réglable** (`--ai-bg` / `--ai-border`, voir « Apparence et thèmes »),
+  **doublée d'un filet d'accent de 3 px à gauche** (`border-left` sur `--accent`,
+  bordure et coins arrondis inchangés ailleurs), et dont le **texte du résumé
+  est un cran plus petit et plus serré que l'article** (14 px / interligne 1,6,
+  `--reading-text`, section en retrait de 4 px) : le propriétaire voulait
+  distinguer d'un coup d'œil le texte de la machine de celui de l'article.
   - **Visibilité : toujours là, ou seulement avec une demande.** Le panneau est
     rendu quand l'IA est utilisable **et** que `showAiPanel` est vrai :
     `aiStatus !== 'idle'` (une demande est partie, a échoué ou a abouti), ou un
@@ -2811,9 +2820,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     ni erreur), le panneau se réduit à une ligne : étincelle, titre « Résumé
     IA » (13 px, semi-gras) et l'action « Résumer » à droite. **Pas de ligne de
     statut** (le « Pas encore résumé » d'avant n'apprenait rien et doublait la
-    hauteur), des marges serrées (`py-1` à gauche ; à droite `py-1`, ou `py-0.5`
-    au doigt où le bouton garde ses 44 px) : ≈ 40 px au bureau, 48 px sur
-    tablette et smartphone. **Pas de
+    hauteur), des marges serrées : `py-1` des deux côtés au bureau (≈ 40 px) ;
+    **au doigt, aucune marge**, le titre en `text-xs` et le bouton « Résumer »
+    à **32 px** (`h-8 px-3`) : ≈ 34 px au total, la ligne de 48 px étant encore
+    trop haute sur un iPhone à ~320 px. La zone de toucher y reste de **44 px**
+    grâce à un pseudo-élément transparent du bouton (`relative before:absolute
+    before:inset-x-0 before:-inset-y-1.5`) : un `min-h-[44px]` ou du
+    rembourrage aurait regrossi la ligne. Dès qu'il y a un corps, le bouton et
+    l'en-tête retrouvent leurs 44 px pleins. **Pas de
     corps, pas de chevron, et la partie gauche n'est pas un bouton** (un `div`
     du même gabarit, `HeaderLead`) : il n'y a rien à replier. **La ligne d'aide
     « Cliquez sur « Résumer »… » (`ai.hint`) a été retirée**, dans les dix
@@ -3886,8 +3900,10 @@ réglage clair/sombre du système.
 - **Couleurs du panneau « Résumé IA »** (`ai-bg`, `ai-border`, rangées dans le
   groupe **Lecture** — le panneau vit dans la colonne de lecture, une section à
   deux couleurs aurait été plus bruyante qu'utile ; libellés « Résumé IA,
-  fond » / « Résumé IA, bordure ») : un voile clair de l'accent dans les thèmes
-  clairs, sombre dans les thèmes sombres, choisi à la main pour chaque
+  fond » / « Résumé IA, bordure ») : un voile de l'accent dans les thèmes
+  clairs (défaut livré `#e6f7ef` / `#a9e0cb`, un cran plus marqué depuis que le
+  panneau doit se lire comme une carte ; un thème personnel sans valeurs les
+  dérive à 14 % / 38 % de l'accent sur son fond de panneau), sombre dans les thèmes sombres, choisi à la main pour chaque
   préréglage (bordure = l'accent plein dans « High Contrast »).
   `themePresets.test.ts` vérifie que le fond tombe du même côté clair/sombre
   que `panel-bg`. **Piège** : un thème enregistré avant leur arrivée ne les

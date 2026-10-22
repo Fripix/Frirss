@@ -95,8 +95,12 @@ la release publiée.
   saisir leur propre clé » et le plafond quotidien par utilisateur sont
   affichés à plat, sous l'éditeur. Le
   panneau « Résumé IA » tient sur une seule ligne compacte (titre et
-  « Résumer », aucun état) tant qu'il n'y a ni résumé, ni demande en cours,
-  ni erreur ; le repli mémorisé joue dès la première demande.
+  « Résumer », aucun état ; ≈ 34 px sur téléphone, avec une zone de toucher de
+  44 px) tant qu'il n'y a ni résumé, ni demande en cours, ni erreur ; le repli
+  mémorisé joue dès la première demande. Le panneau se distingue de l'article :
+  filet d'accent à gauche, texte du résumé un cran plus petit et plus serré,
+  teinte un peu plus marquée. Dans la barre d'outils, les libellés ne se
+  replient en icônes qu'en dessous de 1080 px (1180 px avec « Résumer »).
   **Panneau « Résumé IA » facultatif.** Un interrupteur « Panneau Résumé IA
   toujours visible » (Préférences → IA → Résumés, allumé d'origine) permet de ne
   le montrer qu'avec une demande ou un résumé : un bouton « Résumer » prend

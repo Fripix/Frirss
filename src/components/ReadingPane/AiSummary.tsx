@@ -47,12 +47,20 @@ export interface AiSummaryProps {
  * Tant qu'il n'y a RIEN à montrer (`empty` : ni résumé, ni demande en cours,
  * ni erreur), le panneau se réduit à UNE ligne : étincelle, titre et l'action
  * à droite — pas de statut (« Pas encore résumé » n'apprenait rien), des
- * marges serrées (`py-1`, `py-0.5` au doigt où le bouton garde ses 44 px) :
- * ≈ 40 px au bureau, 48 px au doigt. Pas de corps (l'ancienne ligne d'aide a
+ * marges serrées (`py-1` au bureau ; AUCUNE au doigt) : ≈ 40 px au bureau,
+ * ≈ 34 px au doigt. Pas de corps (l'ancienne ligne d'aide a
  * été retirée), pas de chevron, et la partie gauche est un `div` du même
  * gabarit, pas un bouton — il n'y aurait rien à replier. Dès qu'une demande
  * part, qu'un résumé arrive ou qu'une erreur s'affiche, le panneau redevient
  * ce qui suit (l'en-tête sur deux lignes, avec son statut).
+ *
+ * Au doigt, vide, le bouton « Résumer » ne fait que 32 px (`h-8`) pour que la
+ * ligne tienne en ≈ 34 px (32 + les deux filets) : un téléphone qui rapporte
+ * ~320 px la trouvait encore haute à 48. La règle des 44 px de toucher tient
+ * quand même, par un PSEUDO-ÉLÉMENT transparent (`before:` absolu, 6 px de part
+ * et d'autre) : il agrandit la zone qui reçoit le doigt sans agrandir ce qui
+ * se voit ni la ligne, ce qu'un `min-h-[44px]` ou du rembourrage ne peut pas
+ * faire. Dès qu'il y a un corps, le bouton retrouve ses 44 px pleins.
  *
  * Le repli est une mémoire GLOBALE et synchronisée (`aiPanelCollapsed`), pas
  * un état par article : qui replie le panneau le retrouve replié partout (dès
@@ -62,9 +70,11 @@ export interface AiSummaryProps {
  * on demanderait un résumé sans jamais le voir.
  *
  * Choix visuels :
- * - la surface est une teinte de l'accent, réglable (`--ai-bg`, `--ai-border`) :
- *   c'est le seul trait qui distingue le texte de la machine de celui de
- *   l'article, tout le reste du panneau reste sobre ;
+ * - la surface est une teinte de l'accent, réglable (`--ai-bg`, `--ai-border`),
+ *   doublée d'un filet d'accent de 3 px à gauche, et le texte du résumé est un
+ *   cran plus petit et plus serré (14 px / 1,6) que celui de l'article :
+ *   c'est ce qui distingue le texte de la machine de celui de l'article, tout
+ *   le reste du panneau reste sobre ;
  * - l'en-tête (hors panneau vide) est sur deux lignes (titre, puis statut en petit) : à 320 px,
  *   une seule ligne aurait réduit le statut à trois lettres. Le statut passe
  *   à la ligne plutôt que d'être tronqué : « X indisponible » doit se lire ;
@@ -171,7 +181,10 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
 
   const announce = done ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, translatedBy].filter(Boolean).join(', ') : '';
 
-  const actionClass = `inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-opacity duration-150 disabled:cursor-default ${touch ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`;
+  // Vide au doigt : le bouton ne FAIT que 32 px (`h-8`), sa zone de toucher
+  // en fait 44 grâce à un pseudo-élément transparent (6 px de part et d'autre).
+  const compactTouch = empty && touch;
+  const actionClass = `inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-opacity duration-150 disabled:cursor-default ${compactTouch ? "h-8 px-3 relative before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-['']" : touch ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`;
 
   // « Réessayer avec X » : seulement quand le serveur a nommé le fournisseur
   // fautif (502 / 422) — le repli n'a pas joué, ou l'utilisateur l'a éteint ;
@@ -299,17 +312,17 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
   );
 
   return (
-    <div className="ai-summary mb-5 rounded-lg" style={{ background: 'var(--ai-bg)', border: '1px solid var(--ai-border)' }}>
+    <div className="ai-summary mb-5 rounded-lg" style={{ background: 'var(--ai-bg)', border: '1px solid var(--ai-border)', borderLeft: '3px solid var(--accent)' }}>
       {/* L'en-tête passe sur deux rangs quand la place manque (320 px) : l'action
           descend sous le titre, alignée à droite, au lieu d'écraser le statut. */}
       <div className="flex flex-wrap items-center justify-end gap-x-2 pr-2">
         <HeaderLead
           toggle={empty ? null : { onClick: () => setCollapsed(!collapsed), expanded: !collapsed, controls: bodyId }}
-          className={`flex grow basis-44 min-w-0 items-center gap-2.5 pl-3.5 pr-1 ${empty ? 'py-1' : 'py-2 cursor-pointer'} text-left rounded-lg ${touch ? 'min-h-[44px]' : ''}`}
+          className={`flex grow basis-44 min-w-0 items-center gap-2.5 pl-3.5 pr-1 ${empty ? (touch ? '' : 'py-1') : 'py-2 cursor-pointer'} text-left rounded-lg ${touch && !empty ? 'min-h-[44px]' : ''}`}
         >
           <Sparkle />
           <span className="flex-1 min-w-0">
-            <span className="block text-[13px] font-semibold leading-tight" style={{ color: 'var(--reading-title)' }}>{t('ai.summarize')}</span>
+            <span className={`block ${compactTouch ? 'text-xs' : 'text-[13px]'} font-semibold leading-tight`} style={{ color: 'var(--reading-title)' }}>{t('ai.summarize')}</span>
             {/* Vide : pas de statut, « Pas encore résumé » n'apprend rien. Replié,
                 une erreur prend la place du statut : sinon un échec ne laisserait aucune trace. */}
             {empty || (collapsed && alertText) ? null : (
@@ -322,7 +335,7 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
           </span>
           {!empty && <svg data-chevron className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true" style={{ color: 'var(--reading-meta)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>}
         </HeaderLead>
-        {action && <div className={`${empty && touch ? 'py-0.5' : 'py-1'} flex flex-wrap items-center justify-end gap-1.5`}>{action}</div>}
+        {action && <div className={`${compactTouch ? '' : 'py-1'} flex flex-wrap items-center justify-end gap-1.5`}>{action}</div>}
       </div>
 
       {/* Aligné sur le titre (marge du bouton + étincelle + écart). */}
@@ -334,9 +347,9 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
         {!collapsed && (
           <>
             {done ? (
-              <section aria-label={t('ai.summaryTitle')}>
+              <section aria-label={t('ai.summaryTitle')} className="pl-1">
                 {(translated ? translated.text : done.text).split(/\n{2,}/).map((p, i) => (
-                  <p key={i} className="text-[15px] leading-[1.65] mb-2.5 last:mb-0 whitespace-pre-line" style={{ color: 'var(--reading-text)' }}>{p}</p>
+                  <p key={i} className="text-[14px] leading-[1.6] mb-2.5 last:mb-0 whitespace-pre-line" style={{ color: 'var(--reading-text)' }}>{p}</p>
                 ))}
               </section>
             ) : loading ? (

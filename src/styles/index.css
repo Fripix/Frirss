@@ -664,12 +664,16 @@ html {
    sans effet ; seuls les DESCENDANTS de la barre en bénéficiaient.
    Quand l'IA est utilisable, la barre compte en plus le bouton scindé
    « Traduire » : `ReadingPane` pose `.has-translate` sur `.reading-pane`
-   (l'élément qui porte le conteneur) et un seuil de 1120px replie les
+   (l'élément qui porte le conteneur) et un seuil de 1080px replie les
    libellés plus tôt. Avec le bouton « Résumer » (panneau IA masqué par
-   réglage, rien demandé), `.has-summarize` porte le seuil à 1220px. Largeurs
+   réglage, rien demandé), `.has-summarize` porte le seuil à 1180px. Largeurs
    naturelles mesurées contre cette feuille : FR 1064px (Traduire seul) /
    1164px (Traduire + Résumer), DE 1011 / 1160 ; sans IA, 948px, sous le
-   seuil de 1000px. */
+   seuil de 1000px. Seuils posés juste au-dessus de la mesure française
+   (1080 et 1180px, marge d'environ 1,5 %) : à 1120 et 1220px, une fenêtre de
+   1759px (volet de lecture ≈ 1090px) perdait ses libellés alors qu'ils
+   tenaient. Une langue plus longue peut dépasser : `overflow-x: auto` sur la
+   barre reste le filet de sécurité. */
 .reading-pane {
   container-type: inline-size;
   container-name: reading-toolbar;
@@ -690,7 +694,7 @@ html {
     border: 0;
   }
 }
-@container reading-toolbar (max-width: 1120px) {
+@container reading-toolbar (max-width: 1080px) {
   .has-translate .toolbar-label {
     position: absolute;
     width: 1px;
@@ -703,7 +707,7 @@ html {
     border: 0;
   }
 }
-@container reading-toolbar (max-width: 1220px) {
+@container reading-toolbar (max-width: 1180px) {
   .has-summarize .toolbar-label {
     position: absolute;
     width: 1px;
