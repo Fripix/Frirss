@@ -89,8 +89,24 @@ describe('sanitizeArticleBody — fantôme de balayage', () => {
   it('never touches the inside of an attribute value', () => {
     const out = ghost('<p><a title="<img width=1 height=1 onmouseover=alert(1) x" href="https://example.com/">t</a></p><p><img alt="<p" src="https://example.com/a.jpg">  </p><p>keep me</p>');
     const doc = new DOMParser().parseFromString(out, 'text/html');
-    expect([...doc.querySelector('a')!.attributes].map((x) => x.name).sort()).toEqual(['href', 'title']);
+    expect([...doc.querySelector('a')!.attributes].map((x) => x.name).sort()).toEqual(['href', 'rel', 'target', 'title']);
     expect(doc.querySelector('img')!.getAttribute('src')).toBe('https://example.com/a.jpg');
     expect([...doc.querySelectorAll('p')].map((p) => p.textContent)).toContain('keep me');
+  });
+});
+
+describe('sanitizeArticleBody — liens (issue #24)', () => {
+  it('ouvre chaque lien du corps dans un nouvel onglet, durci contre le reverse-tabnabbing', () => {
+    const out = sanitizeArticleBody('<p><a href="https://example.com/x">lien</a></p>', 0);
+    expect(out).toContain('target="_blank"');
+    expect(out).toContain('rel="noopener noreferrer"');
+  });
+  it('laisse une ancre interne naviguer dans la page', () => {
+    const out = sanitizeArticleBody('<p><a href="#notes">notes</a></p>', 0);
+    expect(out).not.toContain('target=');
+  });
+  it('ne touche pas aux liens hors corps d\'article', () => {
+    const out = sanitizeHtml('<a href="https://example.com">x</a>');
+    expect(out).not.toContain('target=');
   });
 });

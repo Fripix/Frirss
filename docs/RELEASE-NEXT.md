@@ -130,6 +130,12 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Les liens d'un article s'ouvrent dans un nouvel onglet** (issue #24). Un
+  clic sur un lien du corps remplaçait FriRSS par la page visée — et en app
+  installée, sans barre d'adresse, il n'y avait plus de retour. Chaque lien du
+  corps porte maintenant `target="_blank"` ; les ancres internes de
+  l'article restent dans la page.
+
 - **Les blocs `<pre>` et `<picture>` étaient cassés par l'ajout de
   `dir="auto"` depuis la 1.4.0.** Le motif qui donne sa direction à chaque
   bloc n'avait pas de borne après le nom de balise : un bloc de code devenait

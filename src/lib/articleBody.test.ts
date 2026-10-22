@@ -112,7 +112,8 @@ describe('réservation du format des images', () => {
       rememberImageSize('https://ex.com/q.jpg', 4, 3);
       const html = body('<p><a title="<img src=\'https://ex.com/q.jpg\' onmouseover=alert(1) x" href="https://example.com/">t</a></p>');
       const a = new DOMParser().parseFromString(html, 'text/html').querySelector('a')!;
-      expect([...a.attributes].map((x) => x.name).sort()).toEqual(['href', 'title']);
+      // `rel` et `target` sont posés exprès par le corps (nouvel onglet, issue #24) : seul le `title` doit rester intact.
+      expect([...a.attributes].map((x) => x.name).sort()).toEqual(['href', 'rel', 'target', 'title']);
       expect(html).not.toContain('aspect-ratio');
     });
   });
@@ -174,10 +175,10 @@ describe('buildArticleBody', () => {
       return [...el.attributes].map((a) => a.name).sort();
     };
     const dirTrap = build('<p><a title="<p onmouseover=alert(1) x" href="https://example.com/">t</a></p>').html;
-    expect(attrsOf(dirTrap, 'a')).toEqual(['href', 'title']);
+    expect(attrsOf(dirTrap, 'a')).toEqual(['href', 'rel', 'target', 'title']);
     expect(new DOMParser().parseFromString(dirTrap, 'text/html').querySelector('a')!.title).toBe('<p onmouseover=alert(1) x');
     const imgTrap = build('<img src="1.jpg"><img src="2.jpg"><img src="3.jpg"><a title="<img onmouseover=alert(1) x" href="https://example.com/">t</a>').html;
-    expect(attrsOf(imgTrap, 'a')).toEqual(['href', 'title']);
+    expect(attrsOf(imgTrap, 'a')).toEqual(['href', 'rel', 'target', 'title']);
     expect(new DOMParser().parseFromString(imgTrap, 'text/html').querySelector('a')!.title).toBe('<img onmouseover=alert(1) x');
   });
 
@@ -188,7 +189,7 @@ describe('buildArticleBody', () => {
   it('réserve le format sans toucher l’intérieur d’une valeur d’attribut', () => {
     const html = build('<p><a title="<img width=1 height=1 onmouseover=alert(1) x" href="https://example.com/">t</a></p>').html;
     const a = new DOMParser().parseFromString(html, 'text/html').querySelector('a')!;
-    expect([...a.attributes].map((x) => x.name).sort()).toEqual(['href', 'title']);
+    expect([...a.attributes].map((x) => x.name).sort()).toEqual(['href', 'rel', 'target', 'title']);
     expect(a.title).toBe('<img width=1 height=1 onmouseover=alert(1) x');
   });
 

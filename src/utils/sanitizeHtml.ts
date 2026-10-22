@@ -21,7 +21,16 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   // (`data-a×b`). Les reposer levait `InvalidCharacterError` sur les moteurs
   // à l'ancienne règle, et l'exception remontait jusqu'à la frontière
   // d'erreur de l'application : un seul article faisait tomber l'app.
-  if (node.tagName === 'IMG') {
+  // Un lien du corps s'ouvre dans un nouvel onglet (issue #24) : cliqué dans
+  // la page, il remplaçait FriRSS — et en app installée, il n'y avait plus de
+  // barre d'adresse pour revenir. Une ancre interne (`#…`) reste dans la page.
+  if (node.tagName === 'A') {
+    const href = node.getAttribute('href');
+    if (href && !href.startsWith('#')) {
+      node.setAttribute('target', '_blank');
+      node.setAttribute('rel', 'noopener noreferrer');
+    }
+  } else if (node.tagName === 'IMG') {
     if (++bodyPass.images > bodyPass.eagerImages) node.setAttribute('loading', 'lazy');
     reserveImgAspect(node);
   } else if (bodyPass.blockDir && DIR_AUTO_TAGS.has(node.tagName) && !node.hasAttribute('dir')) {

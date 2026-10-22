@@ -1699,7 +1699,11 @@ Cliquer une catégorie affiche les articles de tous ses flux.
 ## Volet de lecture
 
 Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
-**assaini**, liens en accent, blocs de code et citations stylés. Mode Focus
+**assaini**, liens en accent — chaque lien du corps s'ouvre dans un **nouvel
+onglet** (`target="_blank" rel="noopener noreferrer"`, posé par
+`sanitizeArticleBody` ; issue #24 : cliqué dans la page, il remplaçait FriRSS,
+sans barre d'adresse pour revenir en app installée ; une ancre interne `#…`
+reste dans la page) —, blocs de code et citations stylés. Mode Focus
 (plein écran) au double-clic. Contenu bidirectionnel rendu dans son sens propre.
 
 - **Où** : `src/components/ReadingPane/ReadingPane.tsx`, `src/utils/sanitizeHtml.ts`,
