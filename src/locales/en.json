@@ -870,7 +870,7 @@
       "keyOff": "Off",
       "keySetText": "Chosen on this row.",
       "keyInheritedText": "Taken from the category or your general settings.",
-      "keyOffText": "Doesn't run.",
+      "keyOffText": "Turned off for this row.",
       "keyPrecedence": "A feed takes precedence over its category, and a category over your general settings.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "on",

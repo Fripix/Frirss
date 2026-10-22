@@ -870,7 +870,7 @@
       "keyOff": "Aus",
       "keySetText": "In dieser Zeile gewählt.",
       "keyInheritedText": "Von der Kategorie oder Ihren allgemeinen Einstellungen übernommen.",
-      "keyOffText": "Wird nicht ausgelöst.",
+      "keyOffText": "Für diese Zeile ausgeschaltet.",
       "keyPrecedence": "Ein Feed hat Vorrang vor seiner Kategorie, eine Kategorie vor Ihren allgemeinen Einstellungen.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "an",

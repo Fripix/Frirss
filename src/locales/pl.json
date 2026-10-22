@@ -908,7 +908,7 @@
       "keyOff": "Wyłączone",
       "keySetText": "Wybrane w tym wierszu.",
       "keyInheritedText": "Przejęte z kategorii lub Twoich ustawień ogólnych.",
-      "keyOffText": "Nie uruchamia się.",
+      "keyOffText": "Wyłączone dla tego wiersza.",
       "keyPrecedence": "Kanał ma pierwszeństwo przed swoją kategorią, a kategoria przed Twoimi ustawieniami ogólnymi.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "włączone",

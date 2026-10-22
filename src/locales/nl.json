@@ -870,7 +870,7 @@
       "keyOff": "Uit",
       "keySetText": "Op deze rij gekozen.",
       "keyInheritedText": "Overgenomen van de categorie of uw algemene instellingen.",
-      "keyOffText": "Wordt niet uitgevoerd.",
+      "keyOffText": "Uitgeschakeld voor deze rij.",
       "keyPrecedence": "Een feed gaat voor op zijn categorie, een categorie op uw algemene instellingen.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "aan",

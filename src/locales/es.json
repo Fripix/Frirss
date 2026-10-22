@@ -870,7 +870,7 @@
       "keyOff": "Apagado",
       "keySetText": "Elegido en esta fila.",
       "keyInheritedText": "Tomado de la categoría o de sus ajustes generales.",
-      "keyOffText": "No se activa.",
+      "keyOffText": "Desactivado para esta fila.",
       "keyPrecedence": "Un feed tiene prioridad sobre su categoría, y una categoría sobre sus ajustes generales.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "activado",

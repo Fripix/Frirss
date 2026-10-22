@@ -870,7 +870,7 @@
       "keyOff": "关闭",
       "keySetText": "在此行设置。",
       "keyInheritedText": "沿用分类或您的常规设置。",
-      "keyOffText": "不会触发。",
+      "keyOffText": "此行已关闭。",
       "keyPrecedence": "订阅源优先于其所属分类，分类优先于您的常规设置。",
       "labelValue": "{{label}}：{{value}}",
       "stateOn": "已开启",

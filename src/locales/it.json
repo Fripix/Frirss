@@ -870,7 +870,7 @@
       "keyOff": "Spento",
       "keySetText": "Scelto su questa riga.",
       "keyInheritedText": "Ripreso dalla categoria o dalle impostazioni generali.",
-      "keyOffText": "Non si attiva.",
+      "keyOffText": "Disattivato per questa riga.",
       "keyPrecedence": "Un feed ha la precedenza sulla sua categoria, una categoria sulle impostazioni generali.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "attivo",
