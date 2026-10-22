@@ -129,7 +129,8 @@ describe('AiSummary — panneau vide', () => {
     const action = screen.getByRole('button', ACTION);
     expect(action.className).toContain('h-8');
     expect(action.className).not.toContain('min-h-[44px]');
-    for (const c of ['relative', 'before:absolute', 'before:inset-x-0', 'before:-inset-y-1.5', "before:content-['']"]) expect(action.className).toContain(c);
+    // `min-h-0` : sans lui, la règle globale `button { min-height: 40px }` au doigt rendait le bouton à 40 px (panneau à 50).
+    for (const c of ['min-h-0', 'relative', 'before:absolute', 'before:inset-x-0', 'before:-inset-y-1.5', "before:content-['']"]) expect(action.className).toContain(c);
     const wrapper = action.parentElement as HTMLElement;
     // De l'air autour du bouton (il ne touche ni le haut, ni le bas, ni le bord droit) ; le titre, lui, reste sans marge.
     expect(wrapper.className).toContain('py-1');

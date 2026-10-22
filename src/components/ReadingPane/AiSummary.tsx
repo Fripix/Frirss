@@ -188,8 +188,11 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
 
   // Vide au doigt : le bouton ne FAIT que 32 px (`h-8`), sa zone de toucher
   // en fait 44 grâce à un pseudo-élément transparent (6 px de part et d'autre).
+  // `min-h-0` : la règle globale `@media (pointer: coarse) button { min-height:
+  // 40px }` (index.css) l'emporterait sinon sur `h-8` — mesuré à 40 px, panneau
+  // à 50 au lieu de 42.
   const compactTouch = empty && touch;
-  const actionClass = `inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-opacity duration-150 disabled:cursor-default ${compactTouch ? "h-8 px-3 relative before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-['']" : touch ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`;
+  const actionClass = `inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition-opacity duration-150 disabled:cursor-default ${compactTouch ? "h-8 min-h-0 px-3 relative before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-['']" : touch ? 'min-h-[44px] px-3.5' : 'h-8 px-3'}`;
 
   // « Réessayer avec X » : seulement quand le serveur a nommé le fournisseur
   // fautif (502 / 422) — le repli n'a pas joué, ou l'utilisateur l'a éteint ;
