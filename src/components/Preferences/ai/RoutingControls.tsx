@@ -30,7 +30,8 @@ const hitArea = "ai-routing__hit before:absolute before:-inset-0.5 before:conten
 /**
  * Trois états, pas deux : **on** (réglé ici, plein), **inherited** (allumé
  * par la catégorie ou le réglage global, sans valeur propre : contour
- * d'accent) et **off**. Une catégorie ne connaît que on / off.
+ * d'accent) et **off**. Une catégorie aussi : sans valeur propre, elle montre
+ * le réglage global, en contour s'il l'allume.
  */
 export type ToggleState = 'on' | 'inherited' | 'off';
 export type ToggleKind = 'summary' | 'translate' | 'panel';

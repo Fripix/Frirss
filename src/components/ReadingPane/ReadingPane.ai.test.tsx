@@ -1635,6 +1635,14 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
       await advance(1000);
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
     });
+    it('a category set to off sends nothing with the global switch on', async () => {
+      inTech();
+      useUiStore.setState({ aiAutoSummary: true, aiCategoryAutoSummary: { Tech: false } });
+      vi.mocked(requestAiSummary).mockResolvedValue(SUMMARY);
+      render(<ReadingPane />);
+      await advance(3000);
+      expect(requestAiSummary).not.toHaveBeenCalled();
+    });
     it('summary and translation both run on the same article', async () => {
       useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoSummary: true, aiAutoTranslate: true } } });
       vi.mocked(requestAiSummary).mockResolvedValue(SUMMARY);

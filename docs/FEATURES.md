@@ -2571,7 +2571,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   ne s'hérite d'un autre compte** : `aiAutoSummary`, les deux confirmations
   de coût, le fournisseur préféré (`aiPreferredProvider`) et celui de la
   traduction (`aiTranslationProvider`), les automatismes par catégorie (`aiCategoryAutoTranslate`,
-  `aiCategoryAutoSummary`), les fournisseurs par catégorie
+  `aiCategoryAutoSummary`, `{ nom: true | false }` comme `aiCategoryPanel` et
+  normalisés de même par `normalizeAiCategoryBooleans` — un `{ nom: true }`
+  d'avant, quand seul `true` existait, reste valable), les fournisseurs par catégorie
   (`aiCategoryProviders`) et, dans `feedSettings`, les réglages IA par flux
   (`aiAutoTranslate`, `aiAutoSummary`, `aiProvider`). Ils vivent aussi dans
   le localStorage, que la déconnexion ne vide pas. Deux gardes, pour
@@ -2781,10 +2783,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   propre (par une catégorie ou le réglage global) — contour d'accent de
   1,5 px, icône `--accent`, fond transparent ; **off** — contour 1 px
   `--panel-border`, icône `--list-summary`. Les contours sont des ombres
-  intérieures : passer de 1 à 1,5 px ne décale rien. Une catégorie n'a pas
-  d'état hérité (on / off). Le `title` dit la colonne et l'état
+  intérieures : passer de 1 à 1,5 px ne décale rien. Une catégorie a les
+  mêmes trois états : sa valeur propre (plein ou gris), sinon le réglage
+  global en contour s'il l'allume. Le `title` dit la colonne et l'état
   (`ai.routing.labelValue` : « Résumer — hérité de la catégorie », « Panneau —
-  hérité du réglage global », « — activé », « — désactivé » ; clés
+  hérité du réglage général », « — activé », « — désactivé » ; clés
   `stateOn`, `stateOff`, `stateInherited`, `stateGlobal`). Le nom accessible
   dit la ligne — « Résumer / Traduire automatiquement les articles de X »,
   « Panneau Résumé IA toujours visible pour X » (`ai.routing.panelFor`). Au
@@ -2816,20 +2819,28 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   qu'avec une demande ou un résumé (voir « Interface — panneau »).
   Le volet de lecture applique les mêmes règles (`autoFor`, `panelFor` de
   `lib/aiAuto.ts`) : voir « Résumé automatique à l'ouverture » et
-  « Traduction automatique à l'ouverture » plus bas. Une catégorie affiche et
-  écrit son propre drapeau (`aiCategoryAutoSummary` / `aiCategoryAutoTranslate`,
-  `{ nom: true }`, et `aiCategoryPanel`, `{ nom: boolean }`, rangés par nom
-  comme les fournisseurs) ; son interrupteur « Panneau », sans valeur propre,
-  **montre le réglage global** (`aiPanelAlways`). Un flux affiche sa **valeur
+  « Traduction automatique à l'ouverture » plus bas. **Les trois colonnes
+  héritent de la même façon**, catégorie comprise (retour du propriétaire,
+  2026-10-22 : « Panneau » d'une catégorie suivait le réglage général,
+  « Résumer » non, et « Hérité » n'apparaissait jamais sur une catégorie).
+  Une catégorie lit sa valeur propre (`aiCategoryAutoSummary` /
+  `aiCategoryAutoTranslate` / `aiCategoryPanel`, toutes trois
+  `{ nom: true | false }`, rangées par nom comme les fournisseurs), sinon le
+  réglage global — `aiAutoSummary` pour Résumer, `aiPanelAlways` pour
+  Panneau, rien pour Traduire (éteinte) — qu'elle montre **en contour**
+  (« hérité du réglage général ») quand il l'allume. Un flux affiche sa **valeur
   effective** (`autoFor` / `panelFor` : la sienne, sinon celle de ses
-  catégories, sinon — résumé et panneau seulement — le réglage global) et
-  **dit d'où elle vient** (plein / contour, `title`) ; le toucher écrit
+  catégories — vraie dès qu'une est explicitement vraie, sinon fausse dès
+  qu'une est explicitement fausse —, sinon le réglage global) et
+  **dit d'où elle vient** (plein / contour, `title`). Le toucher écrit
   **toujours** une valeur propre, l'inverse de ce qui se voit, `true` ou
-  `false` (`feedSettings[id].aiAutoSummary` / `.aiAutoTranslate` / `.aiPanel`) :
-  éteindre un flux sous une catégorie allumée tient. Priorité : **flux >
+  `false` (`feedSettings[id].aiAutoSummary` / `.aiAutoTranslate` / `.aiPanel`,
+  ou l'entrée de la catégorie) : éteindre un flux sous une catégorie allumée,
+  ou une catégorie sous un réglage général allumé, tient. Priorité : **flux >
   catégorie > global** (le global ne vaut pas pour la traduction). Aucune
   remise à « hérité » depuis l'écran : une valeur propre reste jusqu'à ce
-  qu'on la change.
+  qu'on la change (les setters de catégorie acceptent `null`, qui retire
+  l'entrée, mais l'écran ne l'écrit pas).
   **Confirmations, une fois par compte** : allumer « Traduire » sans
   `aiAutoTranslateConfirmed` ouvre « Traduire automatiquement ? » (« Traduire
   un article entier coûte cinq à quinze fois un résumé, et chaque article de
@@ -2839,9 +2850,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   que `aiAutoSummaryConfirmed` est faux ouvre la boîte du global
   (`AutoSummaryConfirm`), avec le même effet. Éteindre ne demande jamais rien,
   et « Panneau » n'a **aucune** confirmation (il ne coûte rien).
-  Les deux drapeaux sont synchronisés. ⚠️ Une catégorie sous un global de
-  résumé allumé s'affiche éteinte alors que ses flux sont résumés (le global
-  vaut partout) : ses flux, eux, montrent la valeur effective, en contour.
+  Les deux drapeaux sont synchronisés. Une catégorie sous un résumé global
+  allumé s'affiche en contour (hérité) et ses flux aussi ; la toucher l'éteint
+  explicitement (`false`, sans confirmation), et ses flux avec elle. ⚠️ Avant
+  cette règle commune, elle s'affichait éteinte alors que ses flux étaient
+  résumés, et ne pouvait pas s'éteindre sous le global : seul `true` existait.
   **Étroit — jamais de débordement horizontal, une ligne par flux même à
   320 px, et un nom qui se lit.** Le bloc est un conteneur (`container:
   ai-routing`) ; sous **420 px** de conteneur (pas 640 : le panneau des
@@ -3313,7 +3326,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     volet doit vider le `localStorage` entre deux cas, la mémoire se fait
     passer pour une traduction demandée.
 - **Résumé automatique à l'ouverture** : la règle est celle du flux, sinon
-  d'une de ses catégories, sinon de l'interrupteur global (`aiAutoSummary`,
+  de ses catégories (une allumée l'emporte ; sinon une éteinte éteint, même
+  sous un global allumé), sinon de l'interrupteur global (`aiAutoSummary`,
   Préférences → IA → « Résumés », **éteint d'origine**, avertissement de coût
   à l'activation) — `autoFor('summary', …)` de `lib/aiAuto.ts`, réglée dans
   « Par flux et catégorie » ; un flux éteint l'est même sous un global ou une
@@ -3368,7 +3382,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `lastExtractedId` à `null` : le prochain passage sur A repart de la mémoire
   ou relance l'extraction.
 - **Traduction automatique à l'ouverture** : règle `autoFor('translate', …)`
-  — le flux, sinon une de ses catégories ; **pas de réglage global**, éteinte
+  — le flux, sinon ses catégories (même départage que le résumé) ; **pas de réglage global**, éteinte
   sans réglage (interrupteurs « Traduire » de « Par flux et catégorie », avec
   leur confirmation de coût). Même forme que le résumé automatique et
   indépendante de lui (les deux peuvent partir sur le même article) : second

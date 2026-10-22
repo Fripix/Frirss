@@ -49,26 +49,13 @@ export function normalizeAiCategoryProviders(v: unknown): Record<string, number>
 }
 
 /**
- * Réglages « tout ou rien » par catégorie : `{ nomDeCatégorie: true }`. Seul
- * `true` est une valeur — « éteint » est l'absence d'entrée, donc rien à
- * synchroniser pour une catégorie au repos. Tout le reste (non-objet, tableau,
- * nom vide, valeur autre que `true`) est écarté.
- */
-export function normalizeAiCategoryFlags(v: unknown): Record<string, true> {
-  const out: Record<string, true> = {};
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
-  for (const [name, on] of Object.entries(v)) {
-    if (name !== '' && on === true) out[name] = true;
-  }
-  return out;
-}
-
-/**
- * Réglages par catégorie où « faux » est une valeur à part entière :
- * `{ nomDeCatégorie: true | false }`. Contrairement à `normalizeAiCategoryFlags`,
- * l'absence d'entrée n'est pas « éteint » mais « suit le réglage global » : une
- * catégorie qui masque le panneau sous un réglage global allumé doit tenir.
- * Tout le reste (non-objet, tableau, nom vide, valeur non booléenne) est écarté.
+ * Réglages par catégorie (résumé, traduction, panneau) où « faux » est une
+ * valeur à part entière : `{ nomDeCatégorie: true | false }`. L'absence
+ * d'entrée n'est pas « éteint » mais « suit le réglage global » : une
+ * catégorie éteinte sous un réglage global allumé doit tenir. Les `{ nom: true }`
+ * d'avant (le résumé et la traduction ne connaissaient que `true`) restent
+ * valables tels quels. Tout le reste (non-objet, tableau, nom vide, valeur non
+ * booléenne) est écarté.
  */
 export function normalizeAiCategoryBooleans(v: unknown): Record<string, boolean> {
   const out: Record<string, boolean> = {};
@@ -292,12 +279,13 @@ export interface UiState {
   setAiTranslationLanguage: (v: 'ui' | AiLanguage) => void;
   aiTranslationProvider: number | null;
   setAiTranslationProvider: (id: number | null) => void;
-  // Traduction / résumé automatiques par catégorie : { nom: true }. Le réglage
+  // Traduction / résumé automatiques par catégorie : { nom: true | false },
+  // comme le panneau ; `null` retire l'entrée (suit le global). Le réglage
   // d'un flux (feedSettings) prime ; lire par autoFor().
-  aiCategoryAutoTranslate: Record<string, true>;
-  setAiCategoryAutoTranslate: (name: string, on: boolean) => void;
-  aiCategoryAutoSummary: Record<string, true>;
-  setAiCategoryAutoSummary: (name: string, on: boolean) => void;
+  aiCategoryAutoTranslate: Record<string, boolean>;
+  setAiCategoryAutoTranslate: (name: string, v: boolean | null) => void;
+  aiCategoryAutoSummary: Record<string, boolean>;
+  setAiCategoryAutoSummary: (name: string, v: boolean | null) => void;
   // L'avertissement de coût a été accepté, une fois par compte. Faux à la
   // déconnexion et absent des préférences d'un autre compte (comme aiAutoSummary).
   aiAutoTranslateConfirmed: boolean;
@@ -685,18 +673,18 @@ export const useUiStore = create<UiState>()((set, get) => ({
     localStorage.setItem('frirss_aiTranslationProvider', JSON.stringify(value));
     set({ aiTranslationProvider: value });
   },
-  aiCategoryAutoTranslate: normalizeAiCategoryFlags(loadJson<unknown>('frirss_aiCategoryAutoTranslate', {})),
-  setAiCategoryAutoTranslate: (name, on) => {
+  aiCategoryAutoTranslate: normalizeAiCategoryBooleans(loadJson<unknown>('frirss_aiCategoryAutoTranslate', {})),
+  setAiCategoryAutoTranslate: (name, v) => {
     const next = { ...get().aiCategoryAutoTranslate };
-    if (on) next[name] = true;
+    if (typeof v === 'boolean') next[name] = v;
     else delete next[name];
     localStorage.setItem('frirss_aiCategoryAutoTranslate', JSON.stringify(next));
     set({ aiCategoryAutoTranslate: next });
   },
-  aiCategoryAutoSummary: normalizeAiCategoryFlags(loadJson<unknown>('frirss_aiCategoryAutoSummary', {})),
-  setAiCategoryAutoSummary: (name, on) => {
+  aiCategoryAutoSummary: normalizeAiCategoryBooleans(loadJson<unknown>('frirss_aiCategoryAutoSummary', {})),
+  setAiCategoryAutoSummary: (name, v) => {
     const next = { ...get().aiCategoryAutoSummary };
-    if (on) next[name] = true;
+    if (typeof v === 'boolean') next[name] = v;
     else delete next[name];
     localStorage.setItem('frirss_aiCategoryAutoSummary', JSON.stringify(next));
     set({ aiCategoryAutoSummary: next });
@@ -1152,8 +1140,8 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'aiCategoryProviders' ? normalizeAiCategoryProviders(prefs[k])
           : k === 'aiTranslationLanguage' ? normalizeAiTranslationLanguage(prefs[k])
           : k === 'aiTranslationProvider' ? normalizeAiProviderId(prefs[k])
-          : k === 'aiCategoryAutoTranslate' || k === 'aiCategoryAutoSummary' ? normalizeAiCategoryFlags(prefs[k])
-          : k === 'aiCategoryPanel' ? normalizeAiCategoryBooleans(prefs[k])
+          : k === 'aiCategoryAutoTranslate' || k === 'aiCategoryAutoSummary' || k === 'aiCategoryPanel'
+            ? normalizeAiCategoryBooleans(prefs[k])
           : k === 'aiPanelAlways' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiPanelAlways)
           // Like autoExtractDefault: a non-boolean leaves the current value alone.
           : k === 'shortcuts' ? withDefaultShortcuts(prefs[k])

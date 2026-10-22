@@ -65,10 +65,13 @@ function Chevron({ open }: { open: boolean }) {
  *
  * « Résumer » et « Traduire » lancent l'action à l'ouverture de chaque article
  * de la ligne ; « Panneau » garde le panneau Résumé IA visible même sans
- * résumé. Un flux affiche sa valeur effective (`autoFor` / `panelFor`) et dit
- * d'où elle vient : **plein**, réglé ici ; **contour**, hérité de la catégorie
- * ou du réglage global. Le toucher écrit toujours une valeur propre, pour
- * qu'éteindre un flux sous une catégorie allumée tienne. Allumer « Traduire »
+ * résumé. Les trois colonnes héritent de la même façon. Un flux affiche sa
+ * valeur effective (`autoFor` / `panelFor`), une catégorie la sienne ou le
+ * réglage global, et chacun dit d'où elle vient : **plein**, réglé ici ;
+ * **contour**, hérité (de la catégorie, ou du réglage global) ; **gris**,
+ * éteint. Le toucher écrit toujours une valeur propre, pour qu'éteindre un
+ * flux sous une catégorie allumée, ou une catégorie sous un réglage global
+ * allumé, tienne. Allumer « Traduire »
  * ou « Résumer » demande une fois par compte la confirmation de coût ;
  * « Panneau » ne coûte rien et n'en a pas.
  *
@@ -119,12 +122,18 @@ export default function RoutingBlock() {
     feedSettings, aiCategoryAutoSummary: categoryAutoSummary, aiCategoryAutoTranslate: categoryAutoTranslate, aiAutoSummary: autoSummary,
   };
   const panelPrefs = { ...autoPrefs, aiCategoryPanel: categoryPanel, aiPanelAlways: panelAlways };
-  const categoryAuto = (kind: AutoKind, name: string) => {
-    const flags = kind === 'summary' ? categoryAutoSummary : categoryAutoTranslate;
-    return Object.hasOwn(flags, name) && flags[name] === true;
+  /**
+   * L'état d'une catégorie, même règle pour les trois colonnes : sa valeur
+   * propre (pleine allumée, grise éteinte), sinon le réglage global — en
+   * contour s'il l'allume (« hérité du réglage global »), gris sinon. La
+   * traduction n'a pas de réglage global : sans valeur propre, éteinte.
+   */
+  const categoryState = (name: string) => (kind: ToggleKind): { state: ToggleState; global?: boolean } => {
+    const values = kind === 'summary' ? categoryAutoSummary : kind === 'translate' ? categoryAutoTranslate : categoryPanel;
+    if (Object.hasOwn(values, name) && typeof values[name] === 'boolean') return { state: values[name] ? 'on' : 'off' };
+    const global = kind === 'summary' ? autoSummary : kind === 'panel' ? panelAlways : false;
+    return global ? { state: 'inherited', global: true } : { state: 'off' };
   };
-  // Une catégorie sans valeur propre montre le réglage global, comme le fait un flux sans catégorie réglée.
-  const categoryPanelOn = (name: string) => (Object.hasOwn(categoryPanel, name) ? categoryPanel[name] === true : panelAlways);
   // « N réglés » : un fournisseur ou une valeur propre de résumé / traduction / panneau.
   const tuned = (feeds: Subscription[]) => feeds.filter((f) => {
     const own = feedSettings[f.id];
@@ -237,9 +246,7 @@ export default function RoutingBlock() {
                     {/* « Sans catégorie » n'est pas une catégorie : rien à y régler, ses flux ont chacun les leurs. */}
                     {group.category && (
                       <>
-                        {toggles(name, (k) => ({
-                          state: (k === 'panel' ? categoryPanelOn(name) : categoryAuto(k, name)) ? 'on' : 'off',
-                        }), {
+                        {toggles(name, categoryState(name), {
                           summary: (v) => setCategoryAutoSummary(name, v),
                           translate: (v) => setCategoryAutoTranslate(name, v),
                           panel: (v) => setCategoryPanel(name, v),

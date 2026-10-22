@@ -96,7 +96,9 @@ la release publiée.
   dépliée, elle montre ses flux, en retrait, avec leur favicon. Les
   réglages sont des boutons à icône : plein quand le réglage est fait ici,
   cerclé quand il vient de la catégorie ou du réglage global, une infobulle
-  le dit. Le fournisseur se choisit dans un menu (une feuille du bas au
+  le dit. Les trois colonnes héritent de la même façon : une catégorie
+  sans réglage propre montre le réglage général (résumé automatique comme
+  panneau), et peut s'éteindre sous un réglage général allumé. Le fournisseur se choisit dans un menu (une feuille du bas au
   doigt) ; sur un téléphone, il se réduit à une icône, marquée d'un point
   quand la ligne a le sien, les colonnes sont réduites à leurs seules icônes
   pour que le nom d'un flux reste lisible, et chaque ligne garde 44 px de haut au doigt. Allumer Résumer ou Traduire demande toujours la

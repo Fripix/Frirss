@@ -11,7 +11,7 @@ const none = { feedSettings: {}, aiCategoryAutoSummary: {}, aiCategoryAutoTransl
 
 describe('autoFor', () => {
   it("lets the feed's own value win, an explicit false included", () => {
-    const prefs = { ...none, feedSettings: { 'feed/1': { aiAutoTranslate: false, aiAutoSummary: true } }, aiCategoryAutoTranslate: { Tech: true as const } };
+    const prefs = { ...none, feedSettings: { 'feed/1': { aiAutoTranslate: false, aiAutoSummary: true } }, aiCategoryAutoTranslate: { Tech: true } };
     expect(autoFor('translate', 'feed/1', subs, prefs)).toBe(false);
     expect(autoFor('summary', 'feed/1', subs, { ...prefs, aiAutoSummary: false })).toBe(true);
   });
@@ -25,6 +25,18 @@ describe('autoFor', () => {
     expect(autoFor('summary', 'feed/1', subs, { ...none, aiAutoSummary: true })).toBe(true);
     expect(autoFor('summary', 'feed/1', subs, none)).toBe(false);
     expect(autoFor('translate', 'feed/1', subs, { ...none, aiAutoSummary: true })).toBe(false);
+  });
+  it('lets a category explicitly off beat the global auto-summary, like the panel', () => {
+    expect(autoFor('summary', 'feed/1', subs, { ...none, aiAutoSummary: true, aiCategoryAutoSummary: { Tech: false } })).toBe(false);
+    // Une catégorie allumée l'emporte sur une autre éteinte ; le flux, lui, l'emporte sur les deux.
+    expect(autoFor('summary', 'feed/1', subs, { ...none, aiCategoryAutoSummary: { Tech: false, Dev: true } })).toBe(true);
+    expect(autoFor('translate', 'feed/1', subs, { ...none, aiCategoryAutoTranslate: { Tech: true, Dev: false } })).toBe(true);
+    const feedSettings = { 'feed/1': { aiAutoSummary: true } };
+    expect(autoFor('summary', 'feed/1', subs, { ...none, feedSettings, aiCategoryAutoSummary: { Tech: false, Dev: false } })).toBe(true);
+    // Toutes éteintes : éteint, quel que soit le global.
+    expect(autoFor('translate', 'feed/1', subs, { ...none, aiCategoryAutoTranslate: { Tech: false } })).toBe(false);
+    // Une catégorie sans valeur ne dit rien : le global décide.
+    expect(autoFor('summary', 'feed/1', subs, { ...none, aiAutoSummary: true, aiCategoryAutoSummary: { Other: false } })).toBe(true);
   });
   it('ignores a non-boolean feed value', () => {
     const feedSettings = { 'feed/1': { aiAutoTranslate: 'yes' } } as never;

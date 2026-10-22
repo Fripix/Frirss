@@ -944,7 +944,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiCategoryPanel).toEqual({ Tech: true });
     expect(checked('Panel', 'Tech')).toBe('true');
-    // Une catégorie n'a pas d'état « hérité » : allumée, elle est pleine.
+    // Sa valeur propre est pleine ; avant, elle n'était qu'héritée (éteinte, donc grise).
     expect(state('Panel', 'Tech')).toBe('on');
     fireEvent.click(sw('Panel', 'Tech'));
     expect(useUiStore.getState().aiCategoryPanel).toEqual({ Tech: false });
@@ -1044,10 +1044,11 @@ describe('AiTab — « Par flux et catégorie »', () => {
     fireEvent.click(sw('Translate', 'Science'));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ Tech: true, Science: true });
-    // Éteindre ne demande rien.
+    // Éteindre ne demande rien, et écrit un `false` explicite, comme le panneau.
     fireEvent.click(sw('Translate', 'Tech'));
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ Science: true });
+    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ Tech: false, Science: true });
+    expect(state('Translate', 'Tech')).toBe('off');
   });
   it('a feed translate switch asks for the cost confirmation the first time too', () => {
     render(<AiTab active />);
@@ -1106,9 +1107,35 @@ describe('AiTab — « Par flux et catégorie »', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Tech/ }));
     expect(checked('Summary', 'Flux 1')).toBe('true');
     expect(state('Summary', 'Flux 1')).toBe('inherited');
+    expect(sw('Summary', 'Flux 1').getAttribute('title')).toBe('ai.routing.autoSummary — ai.routing.stateGlobal');
+    // Éteinte puis rallumée : aucune confirmation, le global l'a déjà acceptée.
+    fireEvent.click(sw('Summary', 'Tech'));
     fireEvent.click(sw('Summary', 'Tech'));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
+  });
+  it('a category inherits the global summary and panel settings the same way, and can be turned off under them', () => {
+    // Retour du propriétaire : « Panneau » suivait le global, « Résumer » non, et « Hérité » ne se voyait jamais sur une catégorie.
+    useUiStore.setState({ aiAutoSummary: true, aiPanelAlways: true });
+    render(<AiTab active />);
+    for (const kind of ['Summary', 'Panel'] as const) {
+      expect(checked(kind, 'Tech')).toBe('true');
+      expect(state(kind, 'Tech')).toBe('inherited');
+    }
+    expect(sw('Summary', 'Tech').getAttribute('title')).toBe('ai.routing.autoSummary — ai.routing.stateGlobal');
+    expect(sw('Panel', 'Tech').getAttribute('title')).toBe('ai.routing.panel — ai.routing.stateGlobal');
+    const inherited = sw('Summary', 'Tech');
+    expect([inherited.style.background, inherited.style.color]).toEqual(['transparent', 'var(--accent)']);
+    // Le toucher écrit un `false` explicite : la catégorie s'éteint sous le global allumé, et ses flux avec elle.
+    fireEvent.click(sw('Summary', 'Tech'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: false });
+    expect(state('Summary', 'Tech')).toBe('off');
+    expect(sw('Summary', 'Tech').style.color).toBe('var(--list-summary)');
+    fireEvent.click(screen.getByRole('button', { name: /^Tech/ }));
+    expect(state('Summary', 'Flux 1')).toBe('off');
+    // Traduire n'a pas de réglage global : sans valeur propre, la catégorie est éteinte, grise.
+    expect(state('Translate', 'Tech')).toBe('off');
   });
   it('narrow layout: the stylesheet pins 32 px cells and 44 px rows, and no inline icon key remains', () => {
     render(<AiTab active />);
@@ -1127,7 +1154,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
   it('titles each switch with its column and state, each column word with what it does', () => {
     render(<AiTab active />);
     expect([sw('Summary', 'Tech'), sw('Translate', 'Tech'), sw('Panel', 'Tech')].map((s) => s.getAttribute('title'))).toEqual([
-      'ai.routing.autoSummary — ai.routing.stateOff', 'ai.routing.autoTranslate — ai.routing.stateOff', 'ai.routing.panel — ai.routing.stateOn',
+      'ai.routing.autoSummary — ai.routing.stateOff', 'ai.routing.autoTranslate — ai.routing.stateOff', 'ai.routing.panel — ai.routing.stateGlobal',
     ]);
     const header = document.querySelector('[data-routing-header]') as HTMLElement;
     expect(Array.from(header.children).slice(1, 4).map((c) => c.getAttribute('title'))).toEqual([

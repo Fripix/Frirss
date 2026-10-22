@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   useUiStore, UI_SYNC_KEYS, normalizeAiSummaryRatio, normalizeAiProviderId, normalizeAiCategoryProviders,
-  normalizeAiCategoryFlags, normalizeAiCategoryBooleans,
+  normalizeAiCategoryBooleans,
 } from './uiStore';
 import { isUnreadOnly } from './uiStore';
 
@@ -451,10 +451,6 @@ describe('uiStore — traduction IA et automatismes par flux', () => {
     });
   });
 
-  it('normalises category flags to names set to true', () => {
-    expect(normalizeAiCategoryFlags({ A: true, B: 'x', '': true, C: false })).toEqual({ A: true });
-    for (const bad of [null, undefined, 'x', 4, [true]]) expect(normalizeAiCategoryFlags(bad), String(bad)).toEqual({});
-  });
 
   it('defaults, persistence and sync of the translation prefs', () => {
     const s = useUiStore.getState();
@@ -463,15 +459,17 @@ describe('uiStore — traduction IA et automatismes par flux', () => {
     for (const k of ['aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
       'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed']) expect(UI_SYNC_KEYS).toContain(k);
     s.setAiTranslationLanguage('zh-Hant'); s.setAiTranslationProvider(4);
-    s.setAiCategoryAutoTranslate('Tech', true); s.setAiCategoryAutoTranslate('News', true); s.setAiCategoryAutoTranslate('News', false);
-    s.setAiCategoryAutoSummary('Dev', true);
+    // Comme le panneau : `false` est une valeur (éteint sous un global allumé), `null` retire l'entrée.
+    s.setAiCategoryAutoTranslate('Tech', true); s.setAiCategoryAutoTranslate('News', false);
+    s.setAiCategoryAutoTranslate('Old', true); s.setAiCategoryAutoTranslate('Old', null);
+    s.setAiCategoryAutoSummary('Dev', true); s.setAiCategoryAutoSummary('Off', false);
     s.setAiAutoTranslateConfirmed(true); s.setAiAutoSummaryConfirmed(true);
     const n = useUiStore.getState();
     expect([n.aiTranslationLanguage, n.aiTranslationProvider, n.aiCategoryAutoTranslate, n.aiCategoryAutoSummary,
-      n.aiAutoTranslateConfirmed, n.aiAutoSummaryConfirmed]).toEqual(['zh-Hant', 4, { Tech: true }, { Dev: true }, true, true]);
+      n.aiAutoTranslateConfirmed, n.aiAutoSummaryConfirmed]).toEqual(['zh-Hant', 4, { Tech: true, News: false }, { Dev: true, Off: false }, true, true]);
     expect(localStorage.getItem('frirss_aiTranslationLanguage')).toBe('"zh-Hant"');
     expect(localStorage.getItem('frirss_aiTranslationProvider')).toBe('4');
-    expect(JSON.parse(localStorage.getItem('frirss_aiCategoryAutoTranslate')!)).toEqual({ Tech: true });
+    expect(JSON.parse(localStorage.getItem('frirss_aiCategoryAutoTranslate')!)).toEqual({ Tech: true, News: false });
     expect(localStorage.getItem('frirss_aiAutoTranslateConfirmed')).toBe('true');
     s.setAiTranslationLanguage('ru' as never);
     expect(useUiStore.getState().aiTranslationLanguage).toBe('ui');
@@ -482,9 +480,10 @@ describe('uiStore — traduction IA et automatismes par flux', () => {
     expect(useUiStore.getState().aiTranslationLanguage).toBe('ui');
     useUiStore.getState().applyServerPrefs({ aiTranslationLanguage: 'de', aiTranslationProvider: '3' });
     expect([useUiStore.getState().aiTranslationLanguage, useUiStore.getState().aiTranslationProvider]).toEqual(['de', null]);
-    useUiStore.getState().applyServerPrefs({ aiCategoryAutoTranslate: { A: true, B: 'x' }, aiCategoryAutoSummary: { C: true, D: 1 } });
-    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ A: true });
-    expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ C: true });
+    // `false` survit (catégorie éteinte sous un global allumé) ; le reste tombe. Un `true` d'avant reste valable.
+    useUiStore.getState().applyServerPrefs({ aiCategoryAutoTranslate: { A: true, B: 'x', E: false }, aiCategoryAutoSummary: { C: true, D: 1, F: false } });
+    expect(useUiStore.getState().aiCategoryAutoTranslate).toEqual({ A: true, E: false });
+    expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ C: true, F: false });
   });
 
   it('clearing the translation provider on one device reaches the others', () => {

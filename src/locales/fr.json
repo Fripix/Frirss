@@ -873,7 +873,7 @@
       "stateOn": "activé",
       "stateOff": "désactivé",
       "stateInherited": "hérité de la catégorie",
-      "stateGlobal": "hérité du réglage global",
+      "stateGlobal": "hérité du réglage général",
       "autoSummaryFor": "Résumer automatiquement les articles de {{name}}",
       "autoTranslateFor": "Traduire automatiquement les articles de {{name}}",
       "panelFor": "Panneau Résumé IA toujours visible pour {{name}}",
