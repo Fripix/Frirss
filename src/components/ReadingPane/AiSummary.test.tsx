@@ -123,7 +123,7 @@ describe('AiSummary — panneau vide', () => {
     expect(action.className).toContain('h-8');
     expect((action.parentElement as HTMLElement).className).toContain('py-1');
   });
-  it('vide au doigt : bouton visuel de 32 px, zone de toucher de 44 px par pseudo-élément, conteneurs sans marge', () => {
+  it('vide au doigt : bouton visuel de 32 px, zone de toucher de 44 px par pseudo-élément, de l\'air autour du bouton', () => {
     breakpoint.mockImplementation(() => 'mobile');
     render(<AiSummary {...idleProps} />);
     const action = screen.getByRole('button', ACTION);
@@ -131,7 +131,9 @@ describe('AiSummary — panneau vide', () => {
     expect(action.className).not.toContain('min-h-[44px]');
     for (const c of ['relative', 'before:absolute', 'before:inset-x-0', 'before:-inset-y-1.5', "before:content-['']"]) expect(action.className).toContain(c);
     const wrapper = action.parentElement as HTMLElement;
-    expect(wrapper.className).not.toMatch(/\bpy-/);
+    // De l'air autour du bouton (il ne touche ni le haut, ni le bas, ni le bord droit) ; le titre, lui, reste sans marge.
+    expect(wrapper.className).toContain('py-1');
+    expect(wrapper.className).toContain('pr-1');
     const lead = screen.getByText('ai.summarize').closest('div.grow') as HTMLElement;
     expect(lead.className).not.toMatch(/\bpy-/);
     expect(lead.className).not.toContain('min-h-[44px]');

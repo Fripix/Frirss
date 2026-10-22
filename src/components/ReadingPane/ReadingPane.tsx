@@ -40,6 +40,7 @@ import { useArticleTranslation, plainText } from './useArticleTranslation';
 import { AI_TRANSLATE_PROBE, answerTranslateProbe } from '../../lib/aiTranslateProbe';
 import TranslateMenu from './TranslateMenu';
 import { useLongPress } from '../../hooks/useLongPress';
+import { useToolbarFold } from '../../hooks/useToolbarFold';
 import axios from 'axios';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
@@ -1118,6 +1119,17 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   }, [inlineVideos, selectedArticle?.url, body.videoIds, videoPlayLabel, videoOpenLabel]);
   const headFacadeProp = useMemo(() => ({ __html: headFacadeHtml }), [headFacadeHtml]);
 
+  // Repli des libellés de la barre d'outils par MESURE (voir `useToolbarFold` et
+  // le commentaire de `.toolbar-label` dans index.css). `deps` : tout ce qui
+  // change un libellé ou fait apparaître la barre. Avant le retour anticipé
+  // ci-dessous (règle des hooks) : d'où `selectedArticle?.` et non `article.`.
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  useToolbarFold(toolbarRef, [
+    !!selectedArticle, isMobileOrTablet, aiUsable, showSummarizeBarBtn,
+    articleTranslationState, showTranslatedBody, extracting, extractedContent,
+    selectedArticle?.read, selectedArticle?.starred, i18n.language,
+  ]);
+
   if (!selectedArticle) {
     return (
       <div className="h-full flex items-center justify-center" style={{ background: 'var(--panel-bg)' }}>
@@ -1275,7 +1287,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
   return (
     <div
-      className={`reading-pane h-full flex flex-col relative${aiUsable ? ' has-translate' : ''}${showSummarizeBarBtn ? ' has-summarize' : ''}`}
+      className="reading-pane h-full flex flex-col relative"
       style={{ background: 'var(--panel-bg)' }}
       onDoubleClick={(e) => { if (isFocusToggleTarget(e.target as Element)) toggleReadingFocus(); }}
     >
@@ -1291,6 +1303,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       {/* Sticky toolbar (desktop) */}
       {!isMobileOrTablet && (
       <div
+        ref={toolbarRef}
         className="reading-toolbar flex-shrink-0 px-2 md:px-4 py-1.5 flex items-center gap-1 relative overflow-x-auto min-h-[45px]"
         style={{
           background: 'var(--panel-header-bg)',
@@ -1482,7 +1495,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
             </svg>
-            <span className="toolbar-label">{t('readingPane.openOriginal')}</span>
+            <span className="toolbar-label toolbar-label-secondary">{t('readingPane.openOriginal')}</span>
           </a>
         )}
 
@@ -1498,7 +1511,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
             </svg>
-            <span className="toolbar-label">{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
+            <span className="toolbar-label toolbar-label-secondary">{canNativeShare ? t('readingPane.share') : t('readingPane.copyLink')}</span>
           </button>
         )}
 
@@ -2300,7 +2313,7 @@ function LabelMenu({ article, variant }: LabelMenuProps) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
       </svg>
-      <span className="toolbar-label">{t('readingPane.labels')}{hasLabels ? ` (${articleLabels.length})` : ''}</span>
+      <span className="toolbar-label toolbar-label-secondary">{t('readingPane.labels')}{hasLabels ? ` (${articleLabels.length})` : ''}</span>
     </button>
   );
 

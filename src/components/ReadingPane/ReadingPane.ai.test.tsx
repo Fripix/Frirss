@@ -216,30 +216,18 @@ describe('ReadingPane — Résumé IA', () => {
       expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
       expect(await findByText('Le résumé.')).toBeTruthy();
     });
-    it('la classe has-summarize suit le bouton Résumer de la barre', async () => {
-      // Panneau masqué : le bouton « Résumer » est dans la barre, qui est un bouton plus large.
-      useUiStore.setState({ aiPanelAlways: false });
-      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
-      const { container, getByRole } = render(<ReadingPane />);
-      const pane = container.querySelector('.reading-pane') as HTMLElement;
-      expect(pane.classList.contains('has-summarize')).toBe(true);
-      // La demande part : le panneau prend le relais, le bouton disparaît, la classe aussi.
-      fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
-      await waitFor(() => expect(pane.classList.contains('has-summarize')).toBe(false));
-    });
-    it('has-translate follows aiUsable: present with a usable provider, absent without', () => {
-      const first = render(<ReadingPane />);
-      expect((first.container.querySelector('.reading-pane') as HTMLElement).classList.contains('has-translate')).toBe(true);
-      first.unmount();
-      useAiStore.setState({ config: { ...ON, providers: [{ ...ON.providers[0], available: false }] } });
-      const second = render(<ReadingPane />);
-      const pane = second.container.querySelector('.reading-pane') as HTMLElement;
-      expect(pane.classList.contains('has-translate')).toBe(false);
-      expect(pane.classList.contains('has-summarize')).toBe(false);
-    });
-    it('has-summarize is absent while the panel is shown', () => {
+    it('les libellés secondaires de la barre (Étiquettes, Partager, Original) portent toolbar-label-secondary', () => {
       const { container } = render(<ReadingPane />);
-      expect((container.querySelector('.reading-pane') as HTMLElement).classList.contains('has-summarize')).toBe(false);
+      const toolbar = container.querySelector('.reading-toolbar') as HTMLElement;
+      const secondary = Array.from(toolbar.querySelectorAll('.toolbar-label-secondary')).map((e) => e.textContent);
+      expect(secondary).toEqual(expect.arrayContaining(['readingPane.openOriginal', 'readingPane.labels']));
+      expect(secondary.some((x) => x === 'readingPane.share' || x === 'readingPane.copyLink')).toBe(true);
+      expect(secondary.length).toBe(3);
+      // Les autres libellés restent des libellés ordinaires, repliés en second.
+      expect(toolbar.querySelectorAll('.toolbar-label').length).toBeGreaterThan(3);
+      // `data-fold` est posé par le hook, jamais par le JSX ; l'ancienne classe a disparu.
+      expect(toolbar.dataset.fold).toBe('0');
+      expect(container.querySelector('.has-translate, .has-summarize')).toBeNull();
     });
     it('on a phone, « Résumer » is the first row of the « … » sheet: it closes the sheet and asks for the summary', async () => {
       const width = window.innerWidth;

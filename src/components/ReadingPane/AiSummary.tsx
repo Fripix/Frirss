@@ -47,16 +47,21 @@ export interface AiSummaryProps {
  * Tant qu'il n'y a RIEN à montrer (`empty` : ni résumé, ni demande en cours,
  * ni erreur), le panneau se réduit à UNE ligne : étincelle, titre et l'action
  * à droite — pas de statut (« Pas encore résumé » n'apprenait rien), des
- * marges serrées (`py-1` au bureau ; AUCUNE au doigt) : ≈ 40 px au bureau,
- * ≈ 34 px au doigt. Pas de corps (l'ancienne ligne d'aide a
+ * marges serrées (`py-1` au bureau ; au doigt, le titre n'en a pas et seul le
+ * bouton « Résumer » a de l'air autour de lui) : ≈ 40 px au bureau,
+ * ≈ 42 px au doigt. Pas de corps (l'ancienne ligne d'aide a
  * été retirée), pas de chevron, et la partie gauche est un `div` du même
  * gabarit, pas un bouton — il n'y aurait rien à replier. Dès qu'une demande
  * part, qu'un résumé arrive ou qu'une erreur s'affiche, le panneau redevient
  * ce qui suit (l'en-tête sur deux lignes, avec son statut).
  *
  * Au doigt, vide, le bouton « Résumer » ne fait que 32 px (`h-8`) pour que la
- * ligne tienne en ≈ 34 px (32 + les deux filets) : un téléphone qui rapporte
- * ~320 px la trouvait encore haute à 48. La règle des 44 px de toucher tient
+ * ligne reste basse (≈ 42 px) : un téléphone qui rapporte ~320 px la trouvait
+ * encore haute à 48. Collé au haut, au bas et au bord droit du cadre (34 px
+ * pile, 32 + les deux filets), le bouton avait l'air d'être coincé : le
+ * conteneur de l'action prend donc `py-1 pr-1` (4 px en haut et en bas, 4 px à
+ * droite en plus des 8 px de la racine ≈ 12 px), soit ≈ 5-6 px de surface de
+ * part et d'autre une fois les filets comptés. La règle des 44 px de toucher tient
  * quand même, par un PSEUDO-ÉLÉMENT transparent (`before:` absolu, 6 px de part
  * et d'autre) : il agrandit la zone qui reçoit le doigt sans agrandir ce qui
  * se voit ni la ligne, ce qu'un `min-h-[44px]` ou du rembourrage ne peut pas
@@ -335,7 +340,7 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
           </span>
           {!empty && <svg data-chevron className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true" style={{ color: 'var(--reading-meta)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>}
         </HeaderLead>
-        {action && <div className={`${compactTouch ? '' : 'py-1'} flex flex-wrap items-center justify-end gap-1.5`}>{action}</div>}
+        {action && <div className={`${compactTouch ? 'py-1 pr-1' : 'py-1'} flex flex-wrap items-center justify-end gap-1.5`}>{action}</div>}
       </div>
 
       {/* Aligné sur le titre (marge du bouton + étincelle + écart). */}

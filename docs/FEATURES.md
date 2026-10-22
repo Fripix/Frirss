@@ -1850,37 +1850,38 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   `<svg>`**, silencieusement. Une icône SVG dans le HTML d'un article ressort
   vide — dessiner ces icônes en CSS. Ne **pas** élargir le profil : le HTML des
   articles vient de sources non fiables.
-- **Barre d'action (desktop) — libellés insécables, repli en icônes** : les
-  libellés des boutons (Non lu, Favori, Plus tard, Étiquettes, Article
-  complet, Original, Partager) ne se coupent jamais (`white-space: nowrap`,
-  classe `.toolbar-label`) ; quand la barre manque de place, ils disparaissent
-  visuellement mais restent dans l'arbre d'accessibilité (technique
-  `sr-only`) plutôt que de passer sur deux lignes. Piloté par une **requête de
-  conteneur**, pas un `ResizeObserver` : c'est la largeur de la barre
-  elle-même qui décide, pas celle de l'écran — la colonne de liste se
-  redimensionne. Le conteneur (`container-type`, nommé `reading-toolbar`) est
-  posé sur `.reading-pane`, le PARENT de la barre, pas sur la barre elle-même
-  : une règle ne peut pas interroger la taille de l'élément qu'elle stylise.
-  Deux seuils, mesurés en rendant le vrai balisage contre la feuille de style
-  construite (`getBoundingClientRect()`) : **1000px** (labels → icônes,
-  largeur naturelle mesurée 928-948px) et **560px** (rembourrage/icônes
-  resserrés en plus, sinon les icônes seules débordaient encore à 320px de
-  volet — colonne de liste élargie sur un petit écran ; plancher mesuré
-  ~260px, marge d'environ 55px à 320px). **Avec l'IA utilisable**, la barre
-  compte en plus le bouton scindé « Traduire » : `ReadingPane` pose alors
-  `.has-translate` sur `.reading-pane` et un **seuil de 1080px** replie les
-  libellés plus tôt (`.has-translate .toolbar-label`). **Avec en plus le bouton
-  « Résumer » dans la barre** (panneau IA masqué par réglage, rien demandé :
-  `showSummarizeBarBtn`), `.has-summarize` porte le seuil à **1180px**. Largeurs
-  naturelles des libellés mesurées contre la feuille construite : FR 1064px
-  (Traduire seul) / 1164px (Traduire + Résumer), DE 1011 / 1160 ; sans IA, les
-  948px d'origine restent sous le seuil de 1000px. Les seuils sont posés
-  **juste au-dessus de la mesure française** (marge d'environ 1,5 %) : à 1120 et
-  1220px, une fenêtre de 1759px (volet de lecture ≈ 1090px) perdait ses
-  libellés alors qu'ils tenaient. Une langue plus longue que le français peut
-  donc déborder : `overflow-x: auto` sur la barre reste le filet de sécurité.
-  Le seuil IA seul avait été laissé à la valeur d'avant « Traduire » : la barre
-  débordait de 1101 à 1163px.
+- **Barre d'action (desktop) — libellés insécables, repli en icônes mesuré**
+  : les libellés des boutons (Non lu, Favori, Plus tard, Étiquettes, Article
+  complet, Original, Partager, Résumer, Traduire) ne se coupent jamais
+  (`white-space: nowrap`, classe `.toolbar-label`). Quand la barre manque de
+  place, ils disparaissent visuellement mais restent dans l'arbre
+  d'accessibilité (technique `sr-only`) plutôt que de passer sur deux lignes.
+  **Le repli est mesuré, pas deviné** : `src/hooks/useToolbarFold.ts`, dans un
+  `useLayoutEffect` (relancé quand un libellé change, au `ResizeObserver` de la
+  barre et à `resize` de la fenêtre), compare `scrollWidth` et `clientWidth` de
+  la barre et écrit `data-fold` dessus **en deux étapes** : `"0"` tout tient ;
+  `"1"` la barre déborde, les libellés **secondaires** (`.toolbar-label-secondary`
+  : Étiquettes, Partager / Copier le lien, Original) passent en icônes ; `"2"`
+  ça déborde encore, **tous** les libellés passent en icônes (règles
+  `.reading-toolbar[data-fold="1"] .toolbar-label-secondary` et
+  `[data-fold="2"] .toolbar-label`). Non lu, Favori, Article complet, Résumer
+  et Traduire gardent donc leur texte le plus longtemps. **Piège** : les seuils
+  de largeur fixes qui précédaient (1000px, puis 1080 et 1180px avec
+  `.has-translate` / `.has-summarize`) étaient posés sur une mesure du français
+  et ont échoué deux fois — une autre langue, un compteur d'étiquettes ou un
+  bouton de plus les rendait faux ; ils ont été supprimés, ne pas les
+  réintroduire. `data-fold` est posé **impérativement**, jamais par le JSX ni
+  par un état : React n'a aucun rendu à refaire (pas de boucle de mesure) et ne
+  l'écrase pas ; la mesure est stable parce que la largeur de la barre ne
+  dépend pas de son contenu (pleine largeur, `overflow-x: auto`). Sans
+  `ResizeObserver` (jsdom) le hook se contente de la mesure initiale. Reste une
+  **requête de conteneur** pour le second palier compact : le conteneur
+  (`container-type`, nommé `reading-toolbar`) est posé sur `.reading-pane`, le
+  PARENT de la barre — une règle ne peut pas interroger la taille de l'élément
+  qu'elle stylise — et à **560px** le rembourrage et les icônes sont resserrés
+  en plus (classe `.toolbar-icon-btn`), sinon les icônes seules débordaient
+  encore à 320px de volet (plancher mesuré ~260px). `overflow-x: auto` sur la
+  barre reste le filet de sécurité si même les icônes ne tiennent pas.
 - **Focus de lecture** et **taille du texte** sont déjà icônes seules dans
   cette barre (pas de libellé à coucher) ; ils rétrécissent quand même dans le
   repli compact (classe `.toolbar-icon-btn`) pour tenir dans le même budget.
@@ -2821,9 +2822,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     IA » (13 px, semi-gras) et l'action « Résumer » à droite. **Pas de ligne de
     statut** (le « Pas encore résumé » d'avant n'apprenait rien et doublait la
     hauteur), des marges serrées : `py-1` des deux côtés au bureau (≈ 40 px) ;
-    **au doigt, aucune marge**, le titre en `text-xs` et le bouton « Résumer »
-    à **32 px** (`h-8 px-3`) : ≈ 34 px au total, la ligne de 48 px étant encore
-    trop haute sur un iPhone à ~320 px. La zone de toucher y reste de **44 px**
+    **au doigt, le titre n'a aucune marge** et le bouton « Résumer » est à
+    **32 px** (`h-8 px-3`) avec de l'air autour de lui (`py-1 pr-1` sur son
+    conteneur, ≈ 12 px à droite avec les 8 px de la racine) : ≈ 42 px au total,
+    la ligne de 48 px étant encore trop haute sur un iPhone à ~320 px. À 34 px
+    pile, le bouton touchait le haut, le bas et le bord droit du cadre. La zone de toucher y reste de **44 px**
     grâce à un pseudo-élément transparent du bouton (`relative before:absolute
     before:inset-x-0 before:-inset-y-1.5`) : un `min-h-[44px]` ou du
     rembourrage aurait regrossi la ligne. Dès qu'il y a un corps, le bouton et
