@@ -34,56 +34,46 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-/**
- * Cloudflare Access can redirect unauthenticated XHR requests to its login
- * page. Cross-origin redirects commonly surface as opaque Axios network
- * errors, so detect the documented Access 401 fingerprint instead.
- */
-/** Build a safe top-level Access login URL when an XHR was redirected
- * to Cloudflare's hosted login page. Cross-origin redirects can otherwise
- * appear to Axios as an unhelpful "Network Error". */
-export function getCloudflareAccessLoginUrl(
-  responseUrl: string | undefined,
-  returnTo: string,
-): string | null {
-  if (!responseUrl) return null;
-  try {
-    const url = new URL(responseUrl);
-    if (
-      !url.hostname.endsWith('.cloudflareaccess.com') ||
-      !url.pathname.startsWith('/cdn-cgi/access/login/')
-    ) {
-      return null;
-    }
-    url.searchParams.set('redirect_url', returnTo || '/');
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
-
+/** An XHR that Cloudflare redirected to its hosted login page surfaces as an
+ * opaque cross-origin network error; the final URL is the only fingerprint
+ * left. It is used for DETECTION only — FriRSS never navigates to it, and
+ * never builds its own login URL: such a URL works only with Cloudflare's
+ * signed `kid`+`meta` parameters (they carry the app identity, so no
+ * hostname lookup happens), and only Cloudflare can mint those. Without
+ * them, both the team-domain and the app-origin login endpoints answer
+ * 404 "Unable to find your Access application!" for wildcard applications.
+ * Cloudflare mints a working URL whenever an unauthenticated *document*
+ * request arrives — which is why reloading the page is the only safe
+ * recovery action. */
 type ResponseUrlCarrier = {
   request?: { responseURL?: string };
   response?: { request?: { responseURL?: string } };
   config?: { url?: string };
 };
 
-function redirectToCloudflareAccess(value: unknown): boolean {
-  if (typeof window === 'undefined') return false;
+function getResponseUrl(value: unknown): string | undefined {
   const error = value as ResponseUrlCarrier | null;
-  const responseUrl =
+  return (
     error?.request?.responseURL ??
     error?.response?.request?.responseURL ??
-    error?.config?.url;
-  const returnTo = window.location.pathname + window.location.search + window.location.hash;
-  const loginUrl = getCloudflareAccessLoginUrl(responseUrl, returnTo);
-  if (!loginUrl) return false;
-  window.location.assign(loginUrl);
-  return true;
+    error?.config?.url
+  );
+}
+
+function isCloudflareAccessLoginUrl(responseUrl: string | undefined): boolean {
+  if (!responseUrl) return false;
+  try {
+    const url = new URL(responseUrl);
+    return (
+      url.hostname.endsWith('.cloudflareaccess.com') &&
+      url.pathname.startsWith('/cdn-cgi/access/login/')
+    );
+  } catch {
+    return false;
+  }
 }
 
 const ACCESS_RELOAD_STORAGE_KEY = 'frirss:cloudflare-access-reload-at';
-const ACCESS_LOGIN_REDIRECT_STORAGE_KEY = 'frirss:cloudflare-access-login-redirect-at';
 const ACCESS_RELOAD_COOLDOWN_MS = 60_000;
 let accessReloadStarted = false;
 
@@ -106,62 +96,29 @@ function isCloudflareAccessUnauthorized(value: unknown): boolean {
     rawHeader.trim().toLowerCase().startsWith('cloudflare-access');
 }
 
-function getAccessMetadataUrl(value: unknown): string | null {
-  const response = (value as HeaderCarrier | null)?.response;
-  const headers = response?.headers;
-  const rawHeader =
-    typeof headers?.get === 'function'
-      ? headers.get('www-authenticate')
-      : headers?.['www-authenticate'] ?? headers?.['WWW-Authenticate'];
-  if (typeof rawHeader !== 'string') return null;
-  const match = rawHeader.match(/resource_metadata="([^"]+)"/i);
-  if (!match || typeof window === 'undefined') return null;
-  try {
-    const metadataUrl = new URL(match[1]);
-    // Only fetch metadata from this app's own origin; never follow an arbitrary
-    // URL supplied in an authentication header.
-    if (metadataUrl.origin !== window.location.origin || metadataUrl.protocol !== 'https:') {
-      return null;
-    }
-    return metadataUrl.toString();
-  } catch {
-    return null;
-  }
-}
-
-export function getCloudflareAccessLoginUrlForAppOrigin(
-  appOrigin: string,
-  appHost: string,
-  returnTo: string,
-): string | null {
-  try {
-    const origin = new URL(appOrigin);
-    if (origin.protocol !== 'https:' || origin.host !== appHost) return null;
-    const loginUrl = new URL(
-      `/cdn-cgi/access/login/${encodeURIComponent(appHost)}`,
-      origin.origin,
-    );
-    loginUrl.searchParams.set('redirect_url', returnTo || '/');
-    return loginUrl.toString();
-  } catch {
-    return null;
-  }
-}
-
-async function getMetadataBasedLoginUrl(value: unknown, returnTo: string): Promise<string | null> {
-  // The metadata header is the Access 401 fingerprint. Keep the login flow on
-  // the protected app origin so wildcard Access applications resolve exactly
-  // as they did before; the team-domain endpoint can reject wildcard hosts.
-  if (!getAccessMetadataUrl(value)) return null;
-  return getCloudflareAccessLoginUrlForAppOrigin(
-    window.location.origin,
-    window.location.host,
-    returnTo,
+function isCloudflareAccessFailure(value: unknown): boolean {
+  return (
+    isCloudflareAccessUnauthorized(value) ||
+    isCloudflareAccessLoginUrl(getResponseUrl(value))
   );
 }
 
+/**
+ * Single recovery entry point, shared by every FriRSS axios instance (the
+ * proxy client here and the backend client in src/api/backend.ts).
+ *
+ * Reloading the page is the ONLY safe recovery action: an unauthenticated
+ * document request is redirected by Cloudflare itself into its own login
+ * flow — carrying the signed `kid`+`meta` parameters that make wildcard
+ * Access applications resolve — and then back to the exact route the user
+ * was on. FriRSS must never navigate to a hand-built login URL: without
+ * those parameters every login endpoint answers 404 "Unable to find your
+ * Access application!" (verified live on both the team-domain and the
+ * app origin for *.lindau.li). If a reload did not restore Access, stop:
+ * any other navigation would mean minting a login URL ourselves.
+ */
 export async function reloadForCloudflareAccess(value: unknown): Promise<boolean> {
-  if (typeof window === 'undefined' || !isCloudflareAccessUnauthorized(value)) {
+  if (typeof window === 'undefined' || !isCloudflareAccessFailure(value)) {
     return false;
   }
   if (accessReloadStarted) return true;
@@ -170,27 +127,7 @@ export async function reloadForCloudflareAccess(value: unknown): Promise<boolean
   try {
     const previous = Number(window.sessionStorage.getItem(ACCESS_RELOAD_STORAGE_KEY));
     if (Number.isFinite(previous) && previous > 0 && now - previous < ACCESS_RELOAD_COOLDOWN_MS) {
-      // A reload did not restore Access. Retry through the app-origin login endpoint
-      // so Cloudflare can resolve the existing wildcard Access application.
-      const loginRedirectAt = Number(
-        window.sessionStorage.getItem(ACCESS_LOGIN_REDIRECT_STORAGE_KEY),
-      );
-      if (
-        Number.isFinite(loginRedirectAt) &&
-        loginRedirectAt > 0 &&
-        now - loginRedirectAt < ACCESS_RELOAD_COOLDOWN_MS
-      ) {
-        return false;
-      }
-
-      // Set the circuit breaker before the asynchronous metadata request. If
-      // discovery fails, repeated 401s still cannot restart the flicker loop.
-      window.sessionStorage.setItem(ACCESS_LOGIN_REDIRECT_STORAGE_KEY, String(now));
-      const returnTo = window.location.pathname + window.location.search + window.location.hash;
-      const loginUrl = await getMetadataBasedLoginUrl(value, returnTo || '/');
-      if (!loginUrl) return false;
-      window.location.assign(loginUrl);
-      return true;
+      return false;
     }
     window.sessionStorage.setItem(ACCESS_RELOAD_STORAGE_KEY, String(now));
   } catch {
@@ -220,9 +157,6 @@ export async function reloadForCloudflareAccess(value: unknown): Promise<boolean
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (redirectToCloudflareAccess(error)) {
-      return Promise.reject(new Error('Cloudflare Access authentication required'));
-    }
     if (await reloadForCloudflareAccess(error)) {
       return Promise.reject(new Error('Cloudflare Access authentication required'));
     }
