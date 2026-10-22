@@ -1347,12 +1347,11 @@ html {
   padding: 0 6px 0 8px;
 }
 .ai-routing__narrow { display: none; }
-.ai-routing__key { display: none; }
 @container ai-routing (max-width: 419px) {
   /* Le nom d'un flux doit se lire d'un coup d'œil. Quatre colonnes de
      EXACTEMENT `--cell` (32 px, au doigt aussi) : plus d'en-tête de mots dont
      la largeur élargissait les colonnes (56 / 45 / 40 mesurés à 320 px), les
-     mots passent dans la légende `.ai-routing__key`, avec leur icône.
+     mots sont portés par la clé au-dessus du bloc (`RoutingKey`).
      Compte, au plus étroit (grille de 279 px à 320 px d'écran) :
        279 − 2 (filet du groupe) − 10 (marges de ligne 6 + 4)
            − 4 × 32 (colonnes) − 4 × 2 (écarts) = 131 px pour la colonne du nom,
@@ -1367,7 +1366,6 @@ html {
   }
   .ai-routing__grid [data-routing-header] { display: none; }
   .ai-routing__grid [data-routing-row] { padding-left: 6px; padding-right: 4px; }
-  .ai-routing__key { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 8px; }
   /* Au doigt, la cellule fait 32 px mais la ligne 44 (`min-height` plutôt que
      `grid-auto-rows` : chaque ligne est un sous-grille, qui ne reprend que les
      COLONNES de la grille), cellules centrées (`items-center`). La zone de

@@ -2711,13 +2711,25 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   jamais deux** (refonte du 2026-10-22 : l'accordéon à pastilles faisait deux
   lignes par flux et répétait « Résumer / Traduire / Panneau IA » sur chacune,
   et une catégorie ressemblait à un flux).
-  **Aides** (`text-xs`, `--list-summary`, `max-w-prose`), deux lignes :
-  `ai.routing.hint` (« un fournisseur choisi ici passe avant votre fournisseur
-  préféré, et celui d'un flux avant celui de sa catégorie ») et la **légende**
-  `ai.routing.legend` (« Résumer et Traduire agissent à l'ouverture de chaque
-  article ; Panneau garde le panneau Résumé IA affiché. Plein : réglé ici.
-  Contour : hérité de la catégorie ou du réglage global. ») — c'est elle que
-  chaque interrupteur désigne par `aria-describedby`.
+  **Clé** (`ai/RoutingKey.tsx`, `data-routing-key`, au-dessus de la matrice, à
+  toutes les largeurs) : un cadre (filet `--panel-border`, fond
+  `--panel-header-bg`, 12 px de marge) en deux parties. **Un vrai `<table>`**,
+  sans ligne d'en-tête, quatre lignes de trois colonnes — icône, nom en
+  `<th scope="row">` (gras, sur une ligne), description qui passe à la ligne
+  sous elle-même (tient à 320 px) : Résumer (`keySummary`), Traduire
+  (`keyTranslate`), Panneau IA (`keyPanelName` / `keyPanel`), Fournisseur
+  (`providerColumn` / `keyProvider`). Les trois premières icônes sont des
+  carrés de 24 px dessinés comme un interrupteur « réglé ici » ; celle du
+  fournisseur est la puce nue. Puis, sous un filet, **les trois aspects d'un
+  interrupteur** : un échantillon de 20 px et son mot — plein « Réglé ici »
+  (`keySet`), contour d'accent « Hérité » (`keyInherited`), contour gris
+  « Éteint » (`keyOff`) — et une phrase de priorité (`keyPrecedence` : un flux
+  l'emporte sur sa catégorie, une catégorie sur les réglages généraux).
+  Échantillons et icônes passent par `toggleLook` (`src/lib/routingLook.ts`), le
+  code même des interrupteurs : la clé ne peut pas dériver de ce qu'elle
+  explique. Toute la clé est ce que chaque interrupteur désigne par
+  `aria-describedby`. Elle remplace les deux phrases d'aide d'avant
+  (`hint`, `legend`) et la légende à icônes de l'étroit (retrait assumé).
   **Une seule grille pour tout le bloc** (`.ai-routing__grid`, `index.css`) :
   `minmax(0, 1fr)` pour le nom, puis trois colonnes d'interrupteurs
   `minmax(var(--cell), max-content)` et le fournisseur en `auto` (au large ;
@@ -2837,12 +2849,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     les colonnes (56 / 45 / 40 px mesurés sur émulateur Android à 320 px, cases
     de 40) et un nom de flux n'avait plus que ≈ 55 px (« Barto… », « Zoo… »).
   - **L'en-tête de mots disparaît** (`display: none`, il reste dans le DOM) ; la
-    **légende à icônes** (`data-routing-key`, `aria-hidden`, au-dessus de la
-    grille, invisible au large) donne la correspondance : « [étincelle]
-    Résumer [traduction] Traduire [page] Panneau », avec les mêmes mots que
-    l'en-tête (`autoSummary` / `autoTranslate` / `panel`, aucune chaîne
-    nouvelle) et les icônes des interrupteurs (exportées de
-    `RoutingControls.tsx`). Elle revient à la ligne si une langue est longue.
+    **clé** (ci-dessus, visible à toutes les largeurs) donne la correspondance
+    icône → mot et ce que fait la colonne.
   - **Au doigt, lignes de 44 px, cases de 32 px centrées** : `min-height: 44px`
     sur chaque `[data-routing-row]` (pas `grid-auto-rows` : chaque ligne est un
     sous-grille, qui ne reprend que les colonnes). La zone de toucher

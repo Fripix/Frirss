@@ -5,6 +5,7 @@ import type { AiProviderView } from '../../../api/backend';
 import BottomSheet from '../../BottomSheet';
 import Popover from '../../ReadingPane/Popover';
 import { providerChoices } from '../../../lib/aiProviderChoices';
+import { toggleLook } from '../../../lib/routingLook';
 
 /**
  * Les contrôles d'une ligne de « Par flux et catégorie » : les trois
@@ -38,12 +39,7 @@ export function RoutingToggle({ kind, state, ariaLabel, title, describedBy, touc
   kind: ToggleKind; state: ToggleState; ariaLabel: string; title: string; describedBy: string; touch: boolean; onToggle: (on: boolean) => void;
 }) {
   const on = state !== 'off';
-  // Contour en ombre portée intérieure : passer de 1 à 1,5 px ne décale rien.
-  const look = state === 'on'
-    ? { background: 'var(--accent)', color: 'var(--on-accent)', boxShadow: 'none' }
-    : state === 'inherited'
-      ? { background: 'transparent', color: 'var(--accent)', boxShadow: 'inset 0 0 0 1.5px var(--accent)' }
-      : { background: 'transparent', color: 'var(--list-summary)', boxShadow: 'inset 0 0 0 1px var(--panel-border)' };
+  const look = toggleLook(state);
   return (
     <button
       type="button" role="switch" aria-checked={on} data-state={state}
@@ -161,7 +157,7 @@ export function PanelIcon() {
 }
 
 /** Une puce : « le modèle qui répond », sans nommer de fournisseur. */
-function ChipIcon() {
+export function ChipIcon() {
   return <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z" /></svg>;
 }
 

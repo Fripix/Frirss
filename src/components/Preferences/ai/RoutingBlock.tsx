@@ -11,7 +11,8 @@ import type { Subscription } from '../../../types';
 import ConfirmDialog from '../../ConfirmDialog';
 import FeedFavicon from '../../FeedFavicon';
 import { AutoSummaryConfirm, BlockTitle } from './shared';
-import { PanelIcon, ProviderPicker, RoutingToggle, SparkleIcon, TranslateIcon, type ToggleKind, type ToggleState } from './RoutingControls';
+import { ProviderPicker, RoutingToggle, type ToggleKind, type ToggleState } from './RoutingControls';
+import RoutingKey from './RoutingKey';
 
 /** Référence stable : un `?? []` dans le sélecteur ferait rerendre sans fin. */
 const NO_PROVIDERS: AiProviderView[] = [];
@@ -49,10 +50,12 @@ function Chevron({ open }: { open: boolean }) {
  * `--cell`, plus si le mot de l'en-tête est plus large) et le fournisseur.
  * Les mots des colonnes (« Résumer », « Traduire », « Panneau »,
  * « Fournisseur ») ne sont écrits qu'une fois, en tête : la ligne ne porte
- * que des icônes, et se lit d'un coup d'œil. À l'étroit (< 420 px de
+ * que des icônes, et se lit d'un coup d'œil. Au-dessus, la **clé**
+ * (`RoutingKey`) : un tableau icône / nom / description des quatre colonnes,
+ * puis les trois aspects d'un interrupteur. À l'étroit (< 420 px de
  * conteneur), l'en-tête de mots disparaît — ses mots élargissaient les
- * colonnes aux dépens du nom — et la légende à icônes (`data-routing-key`) les
- * porte à sa place ; la mise en page étroite vit dans `index.css`.
+ * colonnes aux dépens du nom — et la clé, toujours visible, les porte ; la
+ * mise en page étroite vit dans `index.css`.
  *
  * Chaque catégorie forme un groupe cerclé : sa **bande** (fond d'en-tête de
  * panneau, nom en gras, « N flux » et « , N réglés » en accent) puis, une fois
@@ -141,7 +144,7 @@ export default function RoutingBlock() {
     else setSummaryConfirmed(true);
     setPending(null);
   };
-  const legendId = `${uid}-legend`;
+  const keyId = `${uid}-key`;
 
   const columns: { kind: ToggleKind; word: string; title: string; aria: string }[] = [
     { kind: 'summary', word: t('ai.routing.autoSummary'), title: t('ai.routing.summaryTitle'), aria: 'ai.routing.autoSummaryFor' },
@@ -165,7 +168,7 @@ export default function RoutingBlock() {
       const word = v.state === 'inherited' && v.global ? stateWord.global : stateWord[v.state];
       return (
         <RoutingToggle
-          key={c.kind} kind={c.kind} state={v.state} touch={touch} describedBy={legendId}
+          key={c.kind} kind={c.kind} state={v.state} touch={touch} describedBy={keyId}
           ariaLabel={t(c.aria, { name })} title={t('ai.routing.labelValue', { label: c.word, value: word })}
           onToggle={(on) => (c.kind === 'panel' ? write.panel(on) : switchAuto(c.kind, on, write[c.kind]))}
         />
@@ -195,20 +198,8 @@ export default function RoutingBlock() {
   return (
     <section className="space-y-3">
       <BlockTitle>{t('ai.routing.title')}</BlockTitle>
-      <div className="space-y-1 text-xs max-w-prose" style={{ color: 'var(--list-summary)' }}>
-        <p>{t('ai.routing.hint')}</p>
-        <p id={legendId}>{t('ai.routing.legend')}</p>
-      </div>
+      <RoutingKey id={keyId} />
       <div className="ai-routing">
-        {/* À l'étroit, les mots de l'en-tête cèdent leur largeur au nom : la correspondance icône → mot se lit ici. Invisible au large, où l'en-tête porte les mots. */}
-        <p data-routing-key aria-hidden="true" className="ai-routing__key text-[11px] leading-tight" style={{ color: 'var(--list-summary)' }}>
-          {columns.map((c) => (
-            <span key={c.kind} className="inline-flex items-center gap-1 whitespace-nowrap">
-              {c.kind === 'summary' ? <SparkleIcon /> : c.kind === 'translate' ? <TranslateIcon /> : <PanelIcon />}
-              {c.word}
-            </span>
-          ))}
-        </p>
         <div data-routing-grid data-touch={touch ? '' : undefined} className="ai-routing__grid">
           {/* Les mots des colonnes, une fois. Décoratifs : chaque contrôle porte son nom complet ; le `title` dit ce que fait la colonne. */}
           <div data-routing-header aria-hidden="true" className={`${rowClass} pb-1 border-x border-transparent text-[11px] leading-tight`} style={{ color: 'var(--list-summary)' }}>

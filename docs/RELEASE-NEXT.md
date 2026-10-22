@@ -87,7 +87,11 @@ la release publiée.
   « Fournisseur par défaut » a disparu. « Par flux et catégorie » se lit
   comme un tableau : une ligne par catégorie et une ligne par flux, jamais
   deux, sous un seul en-tête de colonnes (Résumer, Traduire, Panneau,
-  Fournisseur). Chaque catégorie est une bande grisée en gras, avec son
+  Fournisseur), précédé d'une clé : un tableau qui donne, pour chaque
+  colonne, son icône, son nom et ce qu'elle fait, puis les trois aspects d'un
+  réglage (plein « réglé ici », cerclé « hérité », gris « éteint ») et la règle
+  de priorité (un flux l'emporte sur sa catégorie, une catégorie sur les
+  réglages généraux). Chaque catégorie est une bande grisée en gras, avec son
   nombre de flux et, en couleur, combien ont leurs propres réglages ;
   dépliée, elle montre ses flux, en retrait, avec leur favicon. Les
   réglages sont des boutons à icône : plein quand le réglage est fait ici,
@@ -95,8 +99,7 @@ la release publiée.
   le dit. Le fournisseur se choisit dans un menu (une feuille du bas au
   doigt) ; sur un téléphone, il se réduit à une icône, marquée d'un point
   quand la ligne a le sien, les colonnes sont réduites à leurs seules icônes
-  (les mots passent dans une légende au-dessus) pour que le nom d'un flux
-  reste lisible, et chaque ligne garde 44 px de haut au doigt. Allumer Résumer ou Traduire demande toujours la
+  pour que le nom d'un flux reste lisible, et chaque ligne garde 44 px de haut au doigt. Allumer Résumer ou Traduire demande toujours la
   confirmation de coût, une fois par compte. L'éditeur s'ouvre sous la liste, titré
   « Nouveau fournisseur » ou « Modifier X », ses champs sur une colonne, le partage de la clé en interrupteur. « Les utilisateurs peuvent
   saisir leur propre clé » et le plafond quotidien par utilisateur sont

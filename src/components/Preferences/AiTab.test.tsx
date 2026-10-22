@@ -1110,15 +1110,9 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
   });
-  it('narrow layout: an icon key carries the column words, the stylesheet pins 32 px cells and 44 px rows', () => {
+  it('narrow layout: the stylesheet pins 32 px cells and 44 px rows, and no inline icon key remains', () => {
     render(<AiTab active />);
-    // La légende à icônes : décorative, dans l'ordre des colonnes, une icône par mot.
-    const key = document.querySelector('[data-routing-key]') as HTMLElement;
-    expect(key.getAttribute('aria-hidden')).toBe('true');
-    expect(Array.from(key.children).map((c) => c.textContent)).toEqual([
-      'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.panel',
-    ]);
-    for (const c of Array.from(key.children)) expect(c.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+    expect(document.querySelector('.ai-routing [data-routing-key]')).toBeNull();
     // La feuille de style : jsdom ne la lit pas, on épingle donc le texte de la requête de conteneur.
     const css = fs.readFileSync(path.join(process.cwd(), 'src/styles/index.css'), 'utf8');
     const narrow = css.slice(css.indexOf('@container ai-routing (max-width: 419px)'));
@@ -1126,7 +1120,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(block).toContain('--cell: 32px;');
     expect(block).toContain('grid-template-columns: minmax(0, 1fr) repeat(3, var(--cell)) var(--cell);');
     expect(block).toContain('[data-routing-header] { display: none; }');
-    expect(block).toContain('.ai-routing__key { display: flex;');
+    expect(block).not.toContain('ai-routing__key');
     expect(block).toContain('[data-routing-row] { min-height: 44px; }');
     expect(block).toContain('.ai-routing__hit::before { inset: -6px -2px; }');
   });
@@ -1140,10 +1134,45 @@ describe('AiTab — « Par flux et catégorie »', () => {
       'ai.routing.summaryTitle', 'ai.routing.translateTitle', 'ai.routing.panelTitle',
     ]);
   });
-  it('every switch is described by the legend, under the precedence line', () => {
+  it('the key is a table: icon, name and what it does, for the four columns', () => {
     render(<AiTab active />);
-    expect(screen.getByText('ai.routing.hint')).toBeTruthy();
-    const legend = screen.getByText('ai.routing.legend');
+    const box = document.querySelector('[data-routing-key]') as HTMLElement;
+    const table = box.querySelector('table') as HTMLTableElement;
+    expect(table.querySelector('thead')).toBeNull();
+    const rows = Array.from(table.querySelectorAll('tr'));
+    expect(rows.map((r) => r.querySelector('th')?.getAttribute('scope'))).toEqual(['row', 'row', 'row', 'row']);
+    expect(rows.map((r) => r.querySelector('th')?.textContent)).toEqual([
+      'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.keyPanelName', 'ai.routing.providerColumn',
+    ]);
+    expect(rows.map((r) => r.querySelectorAll('td')[1].textContent)).toEqual([
+      'ai.routing.keySummary', 'ai.routing.keyTranslate', 'ai.routing.keyPanel', 'ai.routing.keyProvider',
+    ]);
+    // Une icône décorative par ligne ; les trois premières sont des carrés « réglé ici ».
+    for (const r of rows) expect(r.querySelector('td [aria-hidden="true"] svg')).toBeTruthy();
+    const squares = rows.slice(0, 3).map((r) => r.querySelector('td span') as HTMLElement);
+    for (const q of squares) expect(q.style.background).toBe('var(--accent)');
+    expect(rows[3].querySelector('td span')?.getAttribute('style')).not.toContain('--accent');
+  });
+  it('the key shows the three states drawn like the switches, then the precedence line', () => {
+    render(<AiTab active />);
+    const states = document.querySelector('[data-routing-states]') as HTMLElement;
+    expect(Array.from(states.children).map((c) => c.textContent)).toEqual([
+      'ai.routing.keySet', 'ai.routing.keyInherited', 'ai.routing.keyOff',
+    ]);
+    const [set, inherited, off] = Array.from(states.children).map((c) => (c.firstElementChild as HTMLElement));
+    for (const sample of [set, inherited, off]) expect(sample.getAttribute('aria-hidden')).toBe('true');
+    expect(set.style.background).toBe('var(--accent)');
+    expect(inherited.style.boxShadow).toContain('1.5px var(--accent)');
+    expect(off.style.boxShadow).toContain('var(--panel-border)');
+    expect(screen.getByText('ai.routing.keyPrecedence')).toBeTruthy();
+    // Les phrases d'aide d'avant ont disparu.
+    expect(screen.queryByText('ai.routing.hint')).toBeNull();
+    expect(screen.queryByText('ai.routing.legend')).toBeNull();
+  });
+  it('every switch is described by the key box', () => {
+    render(<AiTab active />);
+    const box = document.querySelector('[data-routing-key]') as HTMLElement;
+    expect(box.id).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /^ai\.routing\.uncategorised/ }));
     const switches = screen.getAllByRole('switch').filter((s) => /^ai\.routing\.(auto|panel)/.test(s.getAttribute('aria-label') ?? ''));
     // Tech (catégorie) + Flux 3 (sans catégorie) : deux lignes, trois interrupteurs chacune.
@@ -1151,7 +1180,7 @@ describe('AiTab — « Par flux et catégorie »', () => {
       'ai.routing.autoSummaryFor:Tech', 'ai.routing.autoTranslateFor:Tech', 'ai.routing.panelFor:Tech',
       'ai.routing.autoSummaryFor:Flux 3', 'ai.routing.autoTranslateFor:Flux 3', 'ai.routing.panelFor:Flux 3',
     ]);
-    for (const s of switches) expect(s.getAttribute('aria-describedby')).toBe(legend.id);
+    for (const s of switches) expect(s.getAttribute('aria-describedby')).toBe(box.id);
   });
   it('with a mouse: 32 px cells, no enlarged hit area', () => {
     render(<AiTab active />);
