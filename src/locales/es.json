@@ -857,7 +857,7 @@
       "feedProviderFor": "Proveedor para {{name}}",
       "autoSummary": "Resumir",
       "autoTranslate": "Traducir",
-      "summaryTranslate": "Resumen traducido",
+      "summaryTranslate": "Resumen\ntraducido",
       "panel": "Panel",
       "providerColumn": "IA",
       "summaryTitle": "Resumir cada artículo al abrirlo",

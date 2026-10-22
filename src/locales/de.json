@@ -857,7 +857,7 @@
       "feedProviderFor": "Anbieter für {{name}}",
       "autoSummary": "Resümee",
       "autoTranslate": "Übersetzen",
-      "summaryTranslate": "Resümee übersetzt",
+      "summaryTranslate": "Resümee\nübersetzt",
       "panel": "KI-Feld",
       "providerColumn": "KI",
       "summaryTitle": "Jeden Artikel beim Öffnen zusammenfassen",

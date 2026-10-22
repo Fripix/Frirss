@@ -895,7 +895,7 @@
       "feedProviderFor": "Постачальник для {{name}}",
       "autoSummary": "Підсумок",
       "autoTranslate": "Переклад",
-      "summaryTranslate": "Переклад підсумку",
+      "summaryTranslate": "Переклад\nпідсумку",
       "panel": "Панель",
       "providerColumn": "ШІ",
       "summaryTitle": "Підсумовувати кожну статтю під час відкриття",

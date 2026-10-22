@@ -895,7 +895,7 @@
       "feedProviderFor": "Dostawca dla {{name}}",
       "autoSummary": "Podsumuj",
       "autoTranslate": "Tłumacz",
-      "summaryTranslate": "Tłumaczenie podsumowania",
+      "summaryTranslate": "Tłumaczenie\npodsumowania",
       "panel": "Panel",
       "providerColumn": "AI",
       "summaryTitle": "Podsumowuj każdy artykuł po otwarciu",

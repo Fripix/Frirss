@@ -857,7 +857,7 @@
       "feedProviderFor": "Aanbieder voor {{name}}",
       "autoSummary": "Samenvatten",
       "autoTranslate": "Vertalen",
-      "summaryTranslate": "Vertaalde samenvatting",
+      "summaryTranslate": "Vertaalde\nsamenvatting",
       "panel": "Paneel",
       "providerColumn": "AI",
       "summaryTitle": "Elk artikel samenvatten bij het openen",

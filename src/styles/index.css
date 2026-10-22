@@ -1335,9 +1335,12 @@ html {
   grid-template-columns: minmax(0, 1fr) repeat(4, minmax(var(--cell), max-content)) auto;
   column-gap: 6px;
 }
-/* Les mots de l'en-tête : un mot de deux (« Résumé traduit ») passe à la ligne
-   plutôt que d'élargir sa colonne aux dépens du nom. */
-.ai-routing__col-word { max-width: 4.75rem; overflow-wrap: break-word; }
+/* Les mots de l'en-tête : « Résumé traduit » porte sa coupure dans la
+   traduction (`\n`, rendu par `pre-line`) et tient sur deux lignes plutôt que
+   d'élargir sa colonne aux dépens du nom. Une largeur maximale ne suffisait
+   pas (le mot entier y tenait), et `min-content` couperait le chinois à
+   chaque caractère. */
+.ai-routing__col-word { white-space: pre-line; }
 .ai-routing__grid[data-touch] { --cell: 40px; }
 .ai-routing__feed-name { padding-left: var(--indent); }
 .ai-routing__cat-label {

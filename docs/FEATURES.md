@@ -2771,9 +2771,13 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `summaryTranslate` / `panel` / `providerColumn`), 11 px, centrés sur leur
   colonne et calés en bas (`!items-end`) ; le `title` de chaque mot dit ce que
   fait la colonne (`summaryTitle`, `translateTitle`, `summaryTranslateTitle`,
-  `panelTitle`). Un mot de deux (« Résumé traduit », « Translated summary »)
-  **passe à la ligne** (`.ai-routing__col-word`, 4,75 rem au plus) plutôt que
-  d'élargir sa colonne ; les autres sont courts dans les dix langues
+  `panelTitle`). « Résumé traduit » **tient sur deux lignes** : la coupure
+  est dans la traduction (`\n` dans `ai.routing.summaryTranslate`, rendu par
+  `white-space: pre-line` sur `.ai-routing__col-word` ; le `title` des
+  interrupteurs la remplace par une espace, la clé la rend comme une espace).
+  Une largeur maximale ne suffisait pas — le mot entier y tenait, la colonne
+  faisait ≈ 75 px au bureau et tronquait « Dev & Ope… » (mesuré) — et
+  `min-content` couperait le chinois à chaque caractère ; les autres sont courts dans les dix langues
   (« Resümee », « Підсумок ») : la colonne s'élargit au mot plutôt que de le
   laisser mordre sur sa voisine, et c'est le nom qui cède la place.
   **Groupes** : chaque catégorie et ses flux dépliés sont cerclés (filet

@@ -189,7 +189,7 @@ export default function RoutingBlock() {
       return (
         <RoutingToggle
           key={c.kind} kind={c.kind} state={v.state} touch={touch} describedBy={keyId}
-          ariaLabel={t(c.aria, { name })} title={t('ai.routing.labelValue', { label: c.word, value: word })}
+          ariaLabel={t(c.aria, { name })} title={t('ai.routing.labelValue', { label: c.word.replace(/\s+/g, ' '), value: word })}
           onToggle={(on) => (c.kind === 'summary' || c.kind === 'translate' ? switchAuto(c.kind, on, write[c.kind]) : write[c.kind](on))}
         />
       );
