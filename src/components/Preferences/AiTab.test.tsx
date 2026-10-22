@@ -1152,6 +1152,10 @@ describe('AiTab — « Par flux et catégorie »', () => {
     const squares = rows.slice(0, 3).map((r) => r.querySelector('td span') as HTMLElement);
     for (const q of squares) expect(q.style.background).toBe('var(--accent)');
     expect(rows[3].querySelector('td span')?.getAttribute('style')).not.toContain('--accent');
+    // Un filet entre les lignes (retour du propriétaire) : la règle vit sur chaque ligne et vise la suivante.
+    for (const r of rows) expect(r.className).toContain('[&+tr>*]:border-t');
+    // Plus de fond teinté : la clé ne doit pas peser plus que la matrice qu'elle explique.
+    expect(box.style.background).toBe('');
   });
   it('the key shows the three states drawn like the switches, then the precedence line', () => {
     render(<AiTab active />);

@@ -86,9 +86,9 @@ la release publiée.
   Descendre, Définir par défaut et Supprimer ; la liste déroulante
   « Fournisseur par défaut » a disparu. « Par flux et catégorie » se lit
   comme un tableau : une ligne par catégorie et une ligne par flux, jamais
-  deux, sous un seul en-tête de colonnes (Résumer, Traduire, Panneau,
-  Fournisseur), précédé d'une clé : un tableau qui donne, pour chaque
-  colonne, son icône, son nom et ce qu'elle fait, puis les trois aspects d'un
+  deux, sous un seul en-tête de colonnes (Résumer, Traduire, Panneau, IA),
+  précédé d'une clé discrète : un petit tableau à filets qui donne, pour
+  chaque colonne, son icône, son nom et ce qu'elle fait, puis les trois aspects d'un
   réglage (plein « réglé ici », cerclé « hérité », gris « éteint ») et la règle
   de priorité (un flux l'emporte sur sa catégorie, une catégorie sur les
   réglages généraux). Chaque catégorie est une bande grisée en gras, avec son

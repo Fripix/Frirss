@@ -10,32 +10,44 @@ import { ChipIcon, PanelIcon, SparkleIcon, TranslateIcon, type ToggleState } fro
  * sens va de soi) — elle remplace, à toutes les largeurs, les deux phrases
  * d'aide et la légende à icônes de l'étroit.
  *
- * Les icônes sont des interrupteurs « réglé ici » en petit, dessinés par
- * `toggleLook` comme les vrais ; les échantillons d'état aussi. À 320 px les
- * trois colonnes tiennent (icône 32, nom sur une ligne, description qui passe
- * à la ligne sous elle-même). Les interrupteurs la désignent par
+ * Les icônes sont des interrupteurs « réglé ici » en petit (20 px), dessinés
+ * par `toggleLook` comme les vrais ; les échantillons d'état aussi. À 320 px
+ * les trois colonnes tiennent (icône 28, nom sur une ligne, description qui
+ * passe à la ligne sous elle-même). Les interrupteurs la désignent par
  * `aria-describedby` (`id`).
  */
 const SQUARE = 'inline-flex items-center justify-center rounded-md flex-shrink-0';
 /** Les icônes (16 px) rapetissent à 12 px dans l'échantillon de 20 px. */
 const SAMPLE = `${SQUARE} [&_svg]:w-3 [&_svg]:h-3`;
-/** Première ligne de 18 px décalée de 3 px : son milieu tombe sur celui de l'icône de 24 px. */
-const FIRST_LINE = 'pt-[3px] leading-[18px]';
+/** Les icônes de colonne, comme les échantillons, à 12 px dans un carré de 20. */
+const ICON = `${SQUARE} [&_svg]:w-3 [&_svg]:h-3`;
+/**
+ * Une ligne par colonne, séparée de la suivante par un filet : la clé se lit
+ * comme un petit tableau, sans fond ni gros carrés qui lui donneraient plus de
+ * poids que la matrice qu'elle explique (retour du propriétaire, 2026-10-22 :
+ * « presque un peu trop envahissant », « des séparateurs entre les lignes »).
+ * Cellules à 6 px de haut et de bas ; la première ligne de texte (16 px) a son
+ * milieu sur celui de l'icône de 20 px.
+ */
+const CELL = 'py-1.5 align-top';
+const FIRST_LINE = 'pt-[2px] leading-4';
 
 function Row({ icon, name, children }: { icon: ReactNode; name: string; children: string }) {
   return (
-    <tr>
-      <td className="w-8 align-top">{icon}</td>
-      <th scope="row" className={`align-top text-left font-semibold whitespace-nowrap pr-3 text-[13px] ${FIRST_LINE}`} style={{ color: 'var(--list-title)' }}>
-        {name}
+    <tr className="[&+tr>*]:border-t" style={{ borderColor: 'var(--panel-border)' }}>
+      <td className={`w-7 ${CELL}`} style={{ borderColor: 'inherit' }}>{icon}</td>
+      <th scope="row" className={`${CELL} text-left font-semibold whitespace-nowrap pr-3`} style={{ color: 'var(--list-title)', borderColor: 'inherit' }}>
+        <span className={`block ${FIRST_LINE}`}>{name}</span>
       </th>
-      <td className={`align-top text-xs ${FIRST_LINE}`} style={{ color: 'var(--list-summary)' }}>{children}</td>
+      <td className={CELL} style={{ color: 'var(--list-summary)', borderColor: 'inherit' }}>
+        <span className={`block ${FIRST_LINE}`}>{children}</span>
+      </td>
     </tr>
   );
 }
 
 function ColumnIcon({ children }: { children: ReactNode }) {
-  return <span aria-hidden="true" className={SQUARE} style={{ width: 24, height: 24, ...toggleLook('on') }}>{children}</span>;
+  return <span aria-hidden="true" className={ICON} style={{ width: 20, height: 20, ...toggleLook('on') }}>{children}</span>;
 }
 
 function Sample({ state, label }: { state: ToggleState; label: string }) {
@@ -51,30 +63,29 @@ export default function RoutingKey({ id }: { id: string }) {
   const { t } = useTranslation();
   return (
     <div
-      id={id} data-routing-key className="rounded-lg p-3 text-xs"
-      style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)' }}
+      id={id} data-routing-key className="rounded-lg px-3 py-1.5 text-xs"
+      style={{ border: '1px solid var(--panel-border)' }}
     >
-      {/* Les lignes sont espacées de 8 px ; la marge négative reprend celui du haut et du bas, que l'espacement de tableau ajoute aux bords. */}
-      <table className="w-full border-separate" style={{ borderSpacing: '0 8px', margin: '-8px 0' }}>
+      <table className="w-full border-collapse">
         <tbody>
           <Row icon={<ColumnIcon><SparkleIcon /></ColumnIcon>} name={t('ai.routing.autoSummary')}>{t('ai.routing.keySummary')}</Row>
           <Row icon={<ColumnIcon><TranslateIcon /></ColumnIcon>} name={t('ai.routing.autoTranslate')}>{t('ai.routing.keyTranslate')}</Row>
           <Row icon={<ColumnIcon><PanelIcon /></ColumnIcon>} name={t('ai.routing.keyPanelName')}>{t('ai.routing.keyPanel')}</Row>
           <Row
-            icon={<span aria-hidden="true" className={SQUARE} style={{ width: 24, height: 24, color: 'var(--list-title)' }}><ChipIcon /></span>}
+            icon={<span aria-hidden="true" className={ICON} style={{ width: 20, height: 20, color: 'var(--list-title)' }}><ChipIcon /></span>}
             name={t('ai.routing.providerColumn')}
           >
             {t('ai.routing.keyProvider')}
           </Row>
         </tbody>
       </table>
-      <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--panel-border)' }}>
-        <p data-routing-states className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px]" style={{ color: 'var(--list-title)' }}>
+      <div className="py-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
+        <p data-routing-states className="flex flex-wrap items-center gap-x-4 gap-y-1.5" style={{ color: 'var(--list-title)' }}>
           <Sample state="on" label={t('ai.routing.keySet')} />
           <Sample state="inherited" label={t('ai.routing.keyInherited')} />
           <Sample state="off" label={t('ai.routing.keyOff')} />
         </p>
-        <p className="mt-2" style={{ color: 'var(--list-summary)' }}>{t('ai.routing.keyPrecedence')}</p>
+        <p className="mt-1.5" style={{ color: 'var(--list-summary)' }}>{t('ai.routing.keyPrecedence')}</p>
       </div>
     </div>
   );

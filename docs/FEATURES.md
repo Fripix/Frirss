@@ -2712,15 +2712,18 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   lignes par flux et répétait « Résumer / Traduire / Panneau IA » sur chacune,
   et une catégorie ressemblait à un flux).
   **Clé** (`ai/RoutingKey.tsx`, `data-routing-key`, au-dessus de la matrice, à
-  toutes les largeurs) : un cadre (filet `--panel-border`, fond
-  `--panel-header-bg`, 12 px de marge) en deux parties. **Un vrai `<table>`**,
-  sans ligne d'en-tête, quatre lignes de trois colonnes — icône, nom en
-  `<th scope="row">` (gras, sur une ligne), description qui passe à la ligne
-  sous elle-même (tient à 320 px) : Résumer (`keySummary`), Traduire
-  (`keyTranslate`), Panneau IA (`keyPanelName` / `keyPanel`), Fournisseur
+  toutes les largeurs) : un cadre **léger** (filet `--panel-border`, **sans
+  fond**, 12 px de côté, 6 px en haut et en bas, texte 12 px) en deux parties
+  — le propriétaire le trouvait « presque un peu trop envahissant » avec un
+  fond teinté et des carrés de 24 px. **Un vrai `<table>`** (`border-collapse`),
+  sans ligne d'en-tête, quatre lignes de trois colonnes **séparées par un
+  filet** (`[&+tr>*]:border-t` sur chaque ligne, qui vise la suivante) — icône,
+  nom en `<th scope="row">` (gras, sur une ligne), description courte qui passe
+  à la ligne sous elle-même (tient à 320 px) : Résumer (`keySummary`),
+  Traduire (`keyTranslate`), Panneau IA (`keyPanelName` / `keyPanel`), IA
   (`providerColumn` / `keyProvider`). Les trois premières icônes sont des
-  carrés de 24 px dessinés comme un interrupteur « réglé ici » ; celle du
-  fournisseur est la puce nue. Puis, sous un filet, **les trois aspects d'un
+  carrés de 20 px dessinés comme un interrupteur « réglé ici » ; celle de l'IA
+  est la puce nue. Puis, sous un filet, **les trois aspects d'un
   interrupteur** : un échantillon de 20 px et son mot — plein « Réglé ici »
   (`keySet`), contour d'accent « Hérité » (`keyInherited`), contour gris
   « Éteint » (`keyOff`) — et une phrase de priorité (`keyPrecedence` : un flux
@@ -2742,8 +2745,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `data-touch` de la grille, posé quand `useBreakpoint() !== 'desktop'`), 32 px
   de nouveau à l'étroit. Au large, **une seule ligne d'en-tête**
   (`data-routing-header`, `aria-hidden` — chaque contrôle porte son nom
-  complet) : « Résumer », « Traduire », « Panneau », « Fournisseur »
-  (`ai.routing.autoSummary` / `autoTranslate` / `panel` / `providerColumn`),
+  complet) : « Résumer », « Traduire », « Panneau », « IA » (anciennement
+  « Fournisseur », plus court et plus clair à la demande du propriétaire ;
+  `ai.routing.autoSummary` / `autoTranslate` / `panel` / `providerColumn`),
   11 px, centrés sur leur colonne ; le `title` de chaque mot dit ce que fait
   la colonne (`summaryTitle`, `translateTitle`, `panelTitle`). Les mots sont
   courts dans les dix langues (« Resümee », « Підсумок ») : la colonne
