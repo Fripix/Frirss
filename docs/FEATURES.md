@@ -243,9 +243,11 @@ glisser-déposer, masquage des flux entièrement lus.
   ligne spéciale (Non lus, Tous les flux) et d'une catégorie de flux porte un
   `aria-label` pluriel (`sidebar.unreadCount`, « 3 673 non lus ») ; le lecteur
   d'écran annonçait sinon « Non lus3673 », le chiffre collé au nom. Aucun effet
-  visuel. Les badges d'étiquettes n'ont pas de libellé : leur compte n'est pas
-  garanti être un compte de non-lus. Test :
-  `src/components/Sidebar/FeedItem.badge.test.tsx`.
+  visuel. Le badge d'une étiquette (et celui d'un groupe d'étiquettes, qui en
+  additionne les enfants) se lit **« N articles »** (`sidebar.itemCount`), pas
+  « non lus » : `getStreamItemCount` interroge `/stream/items/ids` sans filtre
+  `xt`, donc le chiffre est le **total** de l'étiquette, lus compris. Tests :
+  `src/components/Sidebar/FeedItem.badge.test.tsx` et `LabelBadge.test.tsx`.
   ⚠️ **Le menu s'ouvrait hors écran, et le geste paraissait donc inopérant.**
   `FeedContextMenu` portait le commentaire « keep menu in viewport » au-dessus
   d'un `left: x, top: y` brut : l'intention était écrite, jamais implémentée.
@@ -435,6 +437,14 @@ d'adopter la disposition mobile.
   pousse une entrée d'historique ; un retour (geste depuis le bord, bouton
   Précédent) ferme la couche du dessus, Préférences avant tiroir avant
   article ; un retour sans couche ouverte quitte l'app, comme toute app.
+  Le tiroir **ne s'ouvre jamais seul** : `sidebarVisible` est la préférence de
+  la barre latérale du bureau (`true` par défaut), mais sous 1024 px elle pilote
+  aussi le tiroir, qui s'ouvrait donc au chargement sur téléphone et au
+  passage du bureau au téléphone. Le store démarre à `false` sous 1024 px et
+  `useDrawerOffDesktop` (`src/hooks/useDrawerOffDesktop.ts`, testé) le referme
+  hors bureau **sans persister** — la préférence du bureau reste intacte dans
+  `localStorage` et est relue au retour sur le bureau. Fermer ou ouvrir le
+  tiroir à la main, lui, persiste toujours (`setSidebarVisible`).
   Fermer depuis l'app (croix, bouton retour en bas à gauche) reprend l'entrée
   par un `history.back()` synthétique dont le `popstate` ne ferme rien.
   Avant la 1.6.0, le geste retour natif fermait l'app depuis un article
@@ -4668,6 +4678,16 @@ divergentes).
   fichier non versionné par un hash que sert le bloc statique, et le seul chemin
   par lequel une nouvelle version du worker atteint les clients. Il sort en
   `no-cache` : mise en cache autorisée, revalidation imposée.
+- **Le repli SPA ne sert que des routes, jamais un fichier absent.** Les routes de
+  l'application n'ont pas d'extension (le client ne pousse aucune URL dans
+  l'historique). `location /` retombe sur `@spa`, qui répond **404** si le
+  dernier segment contient un point ou si un segment commence par un point
+  (`/.env`, `/.git/HEAD`, `/x.js.map`), et réécrit sinon vers `/index.html`.
+  Avant, ces chemins répondaient 200 avec l'application. La réécriture (`rewrite …
+  last`) repasse par `location /` : le document garde ses en-têtes sans qu'on les
+  recopie dans `@spa`. Le job `docker` de `ci.yml` vérifie les 404 et que `/` et
+  une route d'application restent en 200 avec CSP. ⚠️ Une route de l'application
+  avec un point dans son dernier segment serait désormais un 404.
 - **`index.html` sort aussi en `no-cache`.** Le document de l'application (`location /`,
   repli SPA compris) n'est pas versionné par un hash, alors qu'il désigne les
   bundles qui le sont : sans en-tête, le navigateur pouvait garder un ancien

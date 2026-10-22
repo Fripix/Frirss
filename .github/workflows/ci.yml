@@ -137,6 +137,31 @@ jobs:
           fi
           echo "sw without CSP nor immutable, document and assets with CSP"
 
+      # Le repli SPA ne vaut que pour les routes de l'application (sans
+      # extension). Un fichier absent doit répondre 404, pas l'application en
+      # 200 : `/.env` et `/.git/HEAD` « existaient » pour tout scanner.
+      - name: Assert missing files answer 404, app routes still the document
+        run: |
+          for path in /.env /.git/HEAD /x.js.map /missing.txt; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8080$path")
+            if [ "$code" != "404" ]; then
+              echo "::error::$path answered $code instead of 404 (SPA fallback too wide)"
+              exit 1
+            fi
+          done
+          for path in / /some/app/route; do
+            hdrs=$(curl -sSI "http://localhost:8080$path")
+            if ! echo "$hdrs" | head -1 | grep -q ' 200'; then
+              echo "::error::$path no longer serves the app"
+              exit 1
+            fi
+            if ! echo "$hdrs" | grep -qi '^content-security-policy'; then
+              echo "::error::$path lost its CSP through the SPA fallback"
+              exit 1
+            fi
+          done
+          echo "missing files 404, app routes 200 with CSP"
+
       # Le conteneur ne doit pas être plus strict que le backend qu'il sert.
       # Avec le défaut nginx (1 Mo), une requête de 2 Mo mourait sur un 413
       # émis par nginx, alors qu'Express en accepte 5 — c'est la restauration

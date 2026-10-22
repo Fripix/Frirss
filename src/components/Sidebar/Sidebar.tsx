@@ -568,7 +568,7 @@ export default function Sidebar() {
                   {cat.label}
                 </button>
                 {catUnread > 0 && (
-                  <CategoryBadge count={catUnread} unread />
+                  <CategoryBadge count={catUnread} kind="unread" />
                 )}
               </div>
               {!collapsedCategories[cat.id] &&
@@ -1475,16 +1475,17 @@ function UnreadBadge({ count }: { count: number }) {
 }
 
 /**
- * `unread` : le chiffre est un compte de non-lus (catégorie de flux) et se lit
- * comme tel. Les étiquettes n'en sont pas : leur compte vient d'un point de
- * terminaison de dénombrement, sans garantie qu'il s'agisse de non-lus — on ne
- * leur invente pas de libellé.
+ * `kind` dit ce que le chiffre compte, pour que le lecteur d'écran le nomme :
+ * - `unread` : compte de non-lus (catégorie de flux) ;
+ * - `items` : nombre d'articles d'une étiquette. Il vient d'un point de
+ *   terminaison de dénombrement (`/stream/items/ids`) appelé sans filtre
+ *   « non lus » : c'est le TOTAL, lus compris — jamais un compte de non-lus.
  */
-function CategoryBadge({ count, unread }: { count: number; unread?: boolean }) {
+function CategoryBadge({ count, kind }: { count: number; kind: 'unread' | 'items' }) {
   const { t } = useTranslation();
   return (
     <span
-      aria-label={unread ? t('sidebar.unreadCount', { count }) : undefined}
+      aria-label={t(kind === 'unread' ? 'sidebar.unreadCount' : 'sidebar.itemCount', { count })}
       className="flex-shrink-0 text-[10px] font-semibold tabular-nums opacity-50"
       style={{ color: 'var(--sidebar-text)' }}
     >
@@ -1500,7 +1501,7 @@ interface LabelSectionProps {
   onArticleDrop: (article: Article, labelId: string) => void;
 }
 
-function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop }: LabelSectionProps) {
+export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop }: LabelSectionProps) {
   const { t } = useTranslation();
   const collapsed = useUiStore((s) => s.labelsCollapsed);
   const setCollapsed = useUiStore((s) => s.setLabelsCollapsed);
@@ -1724,7 +1725,7 @@ function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasParentTag, 
       />
       {/* Name */}
       <span className="truncate flex-1 text-left font-semibold">{name}</span>
-      {count !== undefined && <CategoryBadge count={count} />}
+      {count !== undefined && <CategoryBadge count={count} kind="items" />}
     </button>
   );
 }
@@ -1815,7 +1816,7 @@ function LabelDropItem({ labelId, name, isSelected, onClick, onArticleDrop, isPa
         }
       />
       <span className="truncate flex-1 text-left">{name}</span>
-      {!dragOver && count !== undefined && <CategoryBadge count={count} />}
+      {!dragOver && count !== undefined && <CategoryBadge count={count} kind="items" />}
       {dragOver && (
         <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

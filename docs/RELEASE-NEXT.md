@@ -130,6 +130,12 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Le tiroir des flux ne s'ouvre plus tout seul** au chargement sur téléphone ou tablette, ni en passant du bureau au téléphone. La préférence de la barre latérale du bureau n'est pas touchée.
+
+- **Un fichier absent répond 404**, plus l'application en 200 : `/.env`, `/.git/HEAD` ou `/x.js.map` ne ressemblent plus à des fichiers existants. Les routes de l'application, elles, n'ont pas changé.
+
+- **Les compteurs d'étiquettes se lisent au lecteur d'écran** : « 12 articles ». C'est le total de l'étiquette, lus compris — pas un compte de non-lus.
+
 - **Les erreurs de `/api` sont du JSON.** Une route inconnue donne `404 not_found`, un corps mal formé `400 invalid_json`, un corps trop gros `413 payload_too_large` — au lieu des pages HTML « Cannot GET » et « Bad Request » d'Express.
 
 - **`index.html` est servi en `no-cache`** : un déploiement est vu au chargement suivant, sans qu'un ancien document n'appelle des bundles disparus. Les ressources hachées restent en cache un an.

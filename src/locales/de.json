@@ -8,6 +8,8 @@
     "unread": "Ungelesen",
     "unreadCount_one": "{{count}} ungelesen",
     "unreadCount_other": "{{count}} ungelesen",
+    "itemCount_one": "{{count}} Artikel",
+    "itemCount_other": "{{count}} Artikel",
     "starred": "Favoriten",
     "readLater": "Später lesen",
     "labels": "Labels",

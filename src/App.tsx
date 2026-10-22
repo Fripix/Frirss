@@ -8,6 +8,7 @@ import { useKeyboardNav } from './hooks/useKeyboardNav';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { useAndroidBack } from './hooks/useAndroidBack';
 import { useAndroidViewportHeight } from './hooks/useAndroidViewportHeight';
+import { useDrawerOffDesktop } from './hooks/useDrawerOffDesktop';
 import { hydrateExtractCache } from './lib/extractCache';
 import { hydratePrefs, stopSync } from './lib/prefsSync';
 import { saveLastView, loadLastView } from './lib/lastView';
@@ -73,6 +74,8 @@ export default function App() {
     meta.setAttribute('content', statusBarColor({ topbarVisible, reading: !!selectedArticle }, themeColors));
   }, [breakpoint, topbarVisible, !!selectedArticle, themeColors]); // eslint-disable-line react-hooks/exhaustive-deps
   const isDesktop = breakpoint === 'desktop';
+  // Le tiroir ne s'ouvre jamais seul : voir le hook.
+  useDrawerOffDesktop(isDesktop);
 
   // Android back gesture: closes what covers the screen instead of leaving.
   // The article is a layer on phones only (tablets show it beside the list).

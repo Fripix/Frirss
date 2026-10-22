@@ -501,7 +501,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
   },
 
   // Sidebar visibility
-  sidebarVisible: loadJson('frirss_sidebarVisible', true),
+  // Sous 1024 px la valeur pilote le tiroir, qui ne doit pas s'ouvrir au
+  // chargement ; la préférence stockée reste intacte (`useDrawerOffDesktop`).
+  sidebarVisible: loadJson('frirss_sidebarVisible', true) && !(typeof window !== 'undefined' && window.innerWidth < 1024),
   toggleSidebar: () => {
     set((state) => {
       const next = !state.sidebarVisible;

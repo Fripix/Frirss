@@ -8,6 +8,8 @@
     "unread": "未读",
     "unreadCount_one": "{{count}} 条未读",
     "unreadCount_other": "{{count}} 条未读",
+    "itemCount_one": "{{count}} 篇文章",
+    "itemCount_other": "{{count}} 篇文章",
     "starred": "收藏",
     "readLater": "稍后阅读",
     "labels": "标签",
