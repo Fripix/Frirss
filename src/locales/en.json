@@ -739,7 +739,7 @@
     "fellBack": "{{name}} unavailable",
     "withProvider": "Summarise with…",
     "retryWith": "Retry with {{name}}",
-    "userIntro": "AI is ready: open an article and click “Summarise” or “Translate article”.",
+    "userIntro": "AI is ready: open an article and click “Summarise” or “Translate”.",
     "errors": {
       "auth": "Key rejected by the provider. Check it in Preferences › AI.",
       "authUser": "Key rejected by the provider. Tell your administrator.",
@@ -878,7 +878,7 @@
       "keySetText": "On for this category or feed, whatever the setting above says.",
       "keyInheritedText": "Follows the category or your general settings: green outline if they turn it on, grey otherwise.",
       "keyOffText": "Off for this category or feed, whatever the setting above says.",
-      "keyCycle": "Each click moves to the next state: off, on, inherited, then off again.",
+      "keyCycle": "Each click moves to the next state: off, on, inherited. A row that inherits “off” turns on directly.",
       "keyPrecedence": "A feed takes precedence over its category, and a category over your general settings.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "on",

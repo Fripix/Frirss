@@ -57,6 +57,7 @@ useAuthStore.subscribe((state, prev) => {
   if (prev.backendToken && !state.backendToken) {
     useAiStore.getState().reset();
     useUiStore.getState().setAiAutoSummary(false);
+    useUiStore.getState().setAiAutoSummaryTranslate(false);
     useUiStore.getState().setAiAutoTranslateConfirmed(false);
     useUiStore.getState().setAiAutoSummaryConfirmed(false);
     useUiStore.getState().forgetAiAccountChoices();

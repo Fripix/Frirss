@@ -91,6 +91,13 @@ describe('aiStore', () => {
       expect(useUiStore.getState().aiAutoSummary).toBe(false);
       expect(localStorage.getItem('frirss_aiAutoSummary')).toBe('false');
     });
+    it('turns the automatic summary translation off when the user logs out', () => {
+      useAuthStore.setState({ backendToken: 't' });
+      useUiStore.getState().setAiAutoSummaryTranslate(true);
+      useAuthStore.getState().logoutBackend();
+      expect(useUiStore.getState().aiAutoSummaryTranslate).toBe(false);
+      expect(localStorage.getItem('frirss_aiAutoSummaryTranslate')).toBe('false');
+    });
     it('clears both cost confirmations when the user logs out', () => {
       useAuthStore.setState({ backendToken: 't' });
       useUiStore.getState().setAiAutoTranslateConfirmed(true);

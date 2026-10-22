@@ -739,7 +739,7 @@
     "fellBack": "{{name}} non disponibile",
     "withProvider": "Riassumi con…",
     "retryWith": "Riprova con {{name}}",
-    "userIntro": "L'IA è pronta: apri un articolo e fai clic su «Riassumi» o «Traduci l'articolo».",
+    "userIntro": "L'IA è pronta: apri un articolo e fai clic su «Riassumi» o «Traduci».",
     "errors": {
       "auth": "Chiave rifiutata dal fornitore. Controllala in Preferenze › IA.",
       "authUser": "Chiave rifiutata dal fornitore. Avvisa il tuo amministratore.",
@@ -878,7 +878,7 @@
       "keySetText": "Attivato per questa categoria o questo feed, qualunque cosa dica l'impostazione superiore.",
       "keyInheritedText": "Segue la categoria o le impostazioni generali: contorno verde se lo attivano, grigio altrimenti.",
       "keyOffText": "Disattivato per questa categoria o questo feed, qualunque cosa dica l'impostazione superiore.",
-      "keyCycle": "Ogni clic passa allo stato successivo: disattivato, attivato, ereditato, poi di nuovo disattivato.",
+      "keyCycle": "Ogni clic passa allo stato successivo: disattivato, attivato, ereditato. Una riga che eredita «disattivato» si attiva direttamente.",
       "keyPrecedence": "Un feed ha la precedenza sulla sua categoria, una categoria sulle impostazioni generali.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "attivo",

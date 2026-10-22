@@ -970,6 +970,19 @@ describe('AiTab — « Par flux et catégorie »', () => {
     act(() => { useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoTranslate: false } } }); });
     expect(state('SummaryTranslate', 'Flux 1')).toBe('inheritedOff');
   });
+  it('« Résumé FR » forced by Translate still moves on a click: « activé » and back, never a hidden « désactivé »', () => {
+    useUiStore.setState({ aiCategoryAutoTranslate: { Tech: true }, aiCategoryAutoSummaryTranslate: {} });
+    render(<AiTab active />);
+    const seen: [string | null, unknown][] = [];
+    const record = () => seen.push([state('SummaryTranslate', 'Tech'), useUiStore.getState().aiCategoryAutoSummaryTranslate.Tech]);
+    record();
+    for (let i = 0; i < 3; i++) { fireEvent.click(sw('SummaryTranslate', 'Tech')); record(); }
+    expect(seen).toEqual([['inherited', undefined], ['on', true], ['inherited', undefined], ['on', true]]);
+    // Un « désactivé » propre resté d'avant (sans effet sous Traduire) se règle au premier clic.
+    act(() => { useUiStore.setState({ aiCategoryAutoSummaryTranslate: { Tech: false } }); });
+    fireEvent.click(sw('SummaryTranslate', 'Tech'));
+    expect(useUiStore.getState().aiCategoryAutoSummaryTranslate).toEqual({ Tech: true });
+  });
   it('from an inherited « off », one click turns the row on directly', () => {
     useUiStore.setState({ aiAutoSummaryTranslate: false });
     render(<AiTab active />);

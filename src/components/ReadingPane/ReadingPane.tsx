@@ -217,6 +217,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // bien que « Texte source » ne relance rien, et qu'un nouveau résumé
   // (« Résumer avec X », « Régénérer ») est traduit à son tour.
   const autoSummaryTranslatedFor = useRef<AiSummaryResult | null>(null);
+  // L'article auquel appartient `aiResult`. Au premier rendu après un
+  // changement d'article, le résumé affiché est encore celui de l'article
+  // quitté (sa remise à zéro n'est que programmée) : sans cette garde, la
+  // traduction automatique l'envoyait pour le nouvel article — un appel que
+  // personne n'avait demandé, et le texte de l'un affiché sur l'autre.
+  const aiResultFor = useRef<string | null>(null);
   // Traduction du résumé affiché. `aiTranslationSeq` désigne la demande dont
   // la réponse est encore attendue : changer d'article, recevoir un autre
   // résumé ou revenir au texte source l'incrémente, et une réponse d'une
@@ -829,7 +835,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         // dit « X indisponible ».
       }));
       if (useFeedStore.getState().selectedArticle?.id !== id) return;
-      setAiResult(r); setAiStatus('done');
+      setAiResult(r); setAiStatus('done'); aiResultFor.current = id;
       // La traduction était celle du résumé précédent.
       setAiTranslation(NO_AI_TRANSLATION); aiTranslationSeq.current++;
     } catch (err) {
@@ -1059,11 +1065,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     && (autoTranslate || autoFor('summaryTranslate', selectedArticle.sourceId, subscriptions, autoPrefs));
   useEffect(() => {
     if (!autoSummaryTranslate || !aiUsable || !online || aiStatus !== 'done' || !aiResult) return;
+    if (aiResultFor.current !== selectedArticle?.id) return;
     if (aiTranslation.status !== 'idle' || autoSummaryTranslatedFor.current === aiResult) return;
     autoSummaryTranslatedFor.current = aiResult;
     if (sameLanguage(aiResult.lang, aiTargetLang)) return;
     void handleTranslateSummary(undefined, { automatic: true });
-  }, [autoSummaryTranslate, aiUsable, online, aiStatus, aiResult, aiTranslation.status, aiTargetLang, handleTranslateSummary]);
+  }, [autoSummaryTranslate, aiUsable, online, aiStatus, aiResult, aiTranslation.status, aiTargetLang, handleTranslateSummary, selectedArticle?.id]);
   const translatedBody = useMemo(
     () => (articleTranslation.html === null ? null : buildArticleBody({
       rssHtml: articleTranslation.html,

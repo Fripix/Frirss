@@ -55,9 +55,11 @@ la release publiée.
   partielle) et « Texte source » pour
   revenir à l'original sans nouvel appel. Le résumé peut aussi se traduire
   tout seul dès qu'il s'affiche : interrupteur « Traduire le résumé
-  automatiquement » (éteint d'origine) et colonne « Résumé traduit » par flux
+  automatiquement » (éteint d'origine) et colonne « Résumé FR » par flux
   et catégorie ; c'est toujours le cas quand l'article lui-même est traduit
-  automatiquement. Un chevron (un appui long au doigt,
+  automatiquement — **y compris pour les flux et catégories déjà réglés sur
+  « Traduire »** : leurs résumés dans une autre langue partent désormais en
+  traduction, un court appel de plus par résumé, sans nouvelle confirmation. Un chevron (un appui long au doigt,
   ou la feuille « … ») ouvre « Traduire en… » — 28 langues, filtrables — et
   « Traduire avec… », qui force un fournisseur sans couper le repli. Un résumé
   déjà dans la langue cible garde « Traduire », qui répond « Déjà en français. »
@@ -108,8 +110,9 @@ la release publiée.
   panneau), et peut s'éteindre sous un réglage général allumé. Le fournisseur se choisit dans un menu (une feuille du bas au
   doigt) ; sur un téléphone, il se réduit à une icône, marquée d'un point
   quand la ligne a le sien, les colonnes sont réduites à leurs seules icônes
-  pour que le nom d'un flux reste lisible, et chaque ligne garde 44 px de haut au doigt. Allumer Résumer ou Traduire demande toujours la
-  confirmation de coût, une fois par compte. L'éditeur s'ouvre sous la liste, titré
+  pour que le nom d'un flux reste lisible, et chaque ligne garde 44 px de haut au doigt. Allumer Résumer ou Traduire demande la
+  confirmation de coût, une fois par compte (pas pour Résumer quand le résumé
+  automatique général est déjà allumé). L'éditeur s'ouvre sous la liste, titré
   « Nouveau fournisseur » ou « Modifier X », ses champs sur une colonne, le partage de la clé en interrupteur. « Les utilisateurs peuvent
   saisir leur propre clé » et le plafond quotidien par utilisateur sont
   affichés à plat, sous l'éditeur. Le
@@ -203,6 +206,16 @@ la release publiée.
   tenue avec ⌘, Ctrl ou Alt revient désormais au navigateur (seul ⌘K / Ctrl+K
   ouvre toujours la palette), et une touche maintenue ne bascule plus favori,
   « à lire plus tard » ou le panneau latéral à chaque répétition.
+- **Les raccourcis se taisent derrière une fenêtre, dans une liste et dans un
+  menu ouvert.** Au bureau, le volet de lecture reste monté derrière les
+  Préférences : `r`, `d`, `l` ou `s` agissaient sur l'article caché, et la
+  saisie rapide d'une liste déroulante pouvait déclencher `s` — un résumé,
+  peut-être payant. De même, `t` ou les flèches ne partent plus depuis « Traduire
+  en… » ou « Résumer avec… ». `?` referme aussi l'aide-mémoire.
+- **L'extraction automatique ne saute plus d'article.** Passer à l'article
+  suivant pendant qu'un « Article complet » se chargeait laissait le suivant
+  sans extraction (et donc sans résumé automatique) ; et revenir à un article
+  après en avoir lu un sans extrait n'affichait plus le sien.
 - **L'éditeur de raccourcis refuse les touches réservées**, avec un message :
   F1–F12, Tab, Espace, Entrée, un modificateur seul, `/` et `'` (recherche
   rapide de Firefox), `?` (aide-mémoire), une combinaison avec ⌘, Ctrl ou Alt,
@@ -215,6 +228,12 @@ la release publiée.
   chaîne de fin de séquence pour les tokenizers Llama et Qwen : un article qui
   portait du texte barré pouvait faire s'arrêter un modèle Ollama au milieu du
   lot. Le barré voyage donc en `<del>` et reste `<del>` dans la traduction.
+- **Sécurité des dépendances** : DOMPurify 3.4.17 (GHSA-cg2g-xh64-v4q7,
+  GHSA-mrv2-3pqr-j5jr, GHSA-c6gr-qvv4-5v3f — FriRSS n'utilise aucune des
+  options concernées, mise à jour par principe) et follow-redirects 1.16.1
+  (CVE-2026-111755, CVE-2026-111756). `npm audit --omit=dev` : 0.
+- **nginx du conteneur** : `proxy_read_timeout 120s` sur `/api/` (60 s par
+  défaut), pour qu'une longue demande à l'IA ne soit pas coupée en route.
 - **Image de branche** : un lancement manuel du workflow de publication sur une branche autre que `main` et `dev` publie `:sha-…` et `:<branche>` (nom assaini), en amd64 seulement.
 
 ## Actions requises à la mise à jour

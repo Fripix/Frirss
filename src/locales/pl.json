@@ -771,7 +771,7 @@
     "fellBack": "{{name}} niedostępny",
     "withProvider": "Podsumuj za pomocą…",
     "retryWith": "Spróbuj ponownie z {{name}}",
-    "userIntro": "AI jest gotowa: otwórz artykuł i kliknij „Podsumuj” lub „Przetłumacz artykuł”.",
+    "userIntro": "AI jest gotowa: otwórz artykuł i kliknij „Podsumuj” lub „Przetłumacz”.",
     "errors": {
       "auth": "Dostawca odrzucił klucz. Sprawdź go w Preferencje › AI.",
       "authUser": "Dostawca odrzucił klucz. Powiadom administratora.",
@@ -916,7 +916,7 @@
       "keySetText": "Włączone dla tej kategorii lub tego kanału, niezależnie od ustawienia wyżej.",
       "keyInheritedText": "Podąża za kategorią lub Twoimi ustawieniami ogólnymi: zielona obwódka, jeśli je włączają, szara w przeciwnym razie.",
       "keyOffText": "Wyłączone dla tej kategorii lub tego kanału, niezależnie od ustawienia wyżej.",
-      "keyCycle": "Każde kliknięcie przechodzi do następnego stanu: wyłączone, włączone, dziedziczone, potem znowu wyłączone.",
+      "keyCycle": "Każde kliknięcie przechodzi do następnego stanu: wyłączone, włączone, dziedziczone. Wiersz, który dziedziczy „wyłączone”, włącza się od razu.",
       "keyPrecedence": "Kanał ma pierwszeństwo przed swoją kategorią, a kategoria przed Twoimi ustawieniami ogólnymi.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "włączone",

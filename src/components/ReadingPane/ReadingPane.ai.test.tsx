@@ -1726,6 +1726,21 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
       expect(articleCalls()).toHaveLength(1);
       expect(summaryCalls()).toHaveLength(1);
     });
+    it('never translates the previous article\'s summary for the next one, whose feed asks for it', async () => {
+      // Au premier rendu après le changement d'article, le résumé affiché est encore celui de l'article quitté.
+      const a2 = { ...article('a2'), sourceId: 'feed/2' } as Article;
+      useFeedStore.setState({ articles: [article('a1'), a2] });
+      useUiStore.setState({ feedSettings: { 'feed/2': { aiAutoSummaryTranslate: true } } });
+      vi.mocked(requestAiSummary).mockResolvedValue({ ...EN, text: 'The summary of A.' });
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      const utils = render(<ReadingPane />);
+      await summarize(utils);
+      expect(utils.getByText('The summary of A.')).toBeTruthy();
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      await act(async () => { useFeedStore.setState({ selectedArticle: a2 }); });
+      await advance(0);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+    });
     it('without either setting, a summary in another language stays as it is', async () => {
       vi.mocked(requestAiSummary).mockResolvedValue(EN);
       const utils = render(<ReadingPane />);

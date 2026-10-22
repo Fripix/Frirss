@@ -2586,10 +2586,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   le localStorage, que la déconnexion ne vide pas. Deux gardes, pour
   qu'aucun compte n'en hérite sans avoir vu l'avertissement de coût. **La
   déconnexion les remet à zéro** (abonnement de `aiStore.ts` à
-  `useAuthStore` : global et confirmations éteints, puis
+  `useAuthStore` : résumé automatique, traduction automatique du résumé et
+  confirmations éteints, puis
   `forgetAiAccountChoices` de `uiStore.ts`, qui remet les deux fournisseurs
-  globaux à `null` (« par défaut », « même que le résumé »), vide les quatre
-  tables d'automatismes par catégorie et retire les clés IA de chaque flux — les autres réglages du
+  globaux à `null` (« par défaut », « même que le résumé »), vide les tables
+  par catégorie et retire les clés IA de chaque flux — les autres réglages du
   flux restent, une entrée vidée disparaît : `withoutAiFeedOverrides`) ; le
   compte qui part garde ses valeurs serveur, car le jeton est déjà nul et
   `stopSync()` annule l'envoi différé. C'est **la seule garde d'un compte
@@ -2745,7 +2746,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `keyInheritedText`, **deux** échantillons, cerclé vert et cerclé gris : suit
   la catégorie ou les réglages généraux). Puis la phrase du cycle
   (`keyCycle` : « Chaque clic passe à l'état suivant : désactivé, activé,
-  hérité, puis de nouveau désactivé. ») et celle de priorité
+  hérité. Une ligne qui hérite d'un « désactivé » s'active directement. » —
+  une première version promettait « puis de nouveau désactivé », faux depuis
+  un héritage désactivé, relevé en revue) et celle de priorité
   (`keyPrecedence`), 12 px, `--list-summary`, ferment la bande.
   Historique des retours du propriétaire : un fond teinté sur toute la clé
   était « presque un peu trop envahissant », la version en 12 px gris « moins
@@ -2843,7 +2846,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   cerclée de vert, `title` « activé par « Traduire » »
   (`ai.routing.stateViaTranslate`, `withTranslate` dans `RoutingBlock.tsx`),
   même par-dessus un « désactivé » propre — seul un « activé » propre reste
-  plein. Le clic garde son cycle sur la valeur propre. Le nom accessible
+  plein. Le clic n'y alterne qu'entre « activé » propre et héritage
+  (`next = true` quand `viaTranslate`) : calculé sur l'état affiché, le
+  cycle restait bloqué — « hérité » écrivait `false`, qui s'affichait encore
+  « hérité » (relevé en revue, 2026-10-23). Le nom accessible
   dit la ligne — « Résumer / Traduire automatiquement les articles de X »,
   « Traduire automatiquement le résumé des articles de X »
   (`ai.routing.summaryTranslateFor`), « Panneau Résumé IA toujours visible
@@ -3476,7 +3482,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   propriétaire). Effet de `ReadingPane.tsx` qui appelle
   `handleTranslateSummary(undefined, { automatic: true })` : même chemin
   que le bouton « Traduire » du panneau (langue cible, `aiRouting` `op:
-  'translate'`, repli, cache, demandes partagées). **Une fois par résumé
+  'translate'`, repli, cache, demandes partagées). **Seulement le résumé de
+  l'article ouvert** (`aiResultFor`, posé avec le résultat) : au premier
+  rendu après un changement d'article, `aiResult` est encore celui de
+  l'article quitté — sans cette garde, il partait traduire pour le nouvel
+  article (appel non demandé, texte de l'un affiché sur l'autre ; relevé en
+  revue, 2026-10-23). **Une fois par résumé
   reçu** (`autoSummaryTranslatedFor`, la référence du résultat) : « Texte
   source » ne relance rien, un nouveau résumé (« Résumer avec X »,
   « Régénérer ») est traduit à son tour. Pas de délai — le résumé a déjà

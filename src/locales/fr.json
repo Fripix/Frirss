@@ -739,7 +739,7 @@
     "fellBack": "{{name}} indisponible",
     "withProvider": "Résumer avec…",
     "retryWith": "Réessayer avec {{name}}",
-    "userIntro": "L'IA est prête : ouvrez un article et cliquez « Résumer » ou « Traduire l'article ».",
+    "userIntro": "L'IA est prête : ouvrez un article et cliquez « Résumer » ou « Traduire ».",
     "errors": {
       "auth": "Clé refusée par le fournisseur. Vérifiez-la dans Préférences › IA.",
       "authUser": "Clé refusée par le fournisseur. Prévenez votre administrateur.",
@@ -878,7 +878,7 @@
       "keySetText": "Allumé pour cette catégorie ou ce flux, quoi que dise le réglage au-dessus.",
       "keyInheritedText": "Suit la catégorie ou vos réglages généraux : cerclé de vert s'ils l'activent, de gris sinon.",
       "keyOffText": "Coupé pour cette catégorie ou ce flux, quoi que dise le réglage au-dessus.",
-      "keyCycle": "Chaque clic passe à l'état suivant : désactivé, activé, hérité, puis de nouveau désactivé.",
+      "keyCycle": "Chaque clic passe à l'état suivant : désactivé, activé, hérité. Une ligne qui hérite d'un « désactivé » s'active directement.",
       "keyPrecedence": "Un flux l'emporte sur sa catégorie, une catégorie sur vos réglages généraux.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "activé",

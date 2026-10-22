@@ -739,7 +739,7 @@
     "fellBack": "{{name}} niet beschikbaar",
     "withProvider": "Samenvatten met…",
     "retryWith": "Opnieuw proberen met {{name}}",
-    "userIntro": "AI is klaar: open een artikel en klik op ‘Samenvatten’ of ‘Artikel vertalen’.",
+    "userIntro": "AI is klaar: open een artikel en klik op ‘Samenvatten’ of ‘Vertalen’.",
     "errors": {
       "auth": "Sleutel geweigerd door de aanbieder. Controleer hem in Voorkeuren › AI.",
       "authUser": "Sleutel geweigerd door de aanbieder. Laat het je beheerder weten.",
@@ -878,7 +878,7 @@
       "keySetText": "Aan voor deze categorie of deze feed, wat de instelling erboven ook zegt.",
       "keyInheritedText": "Volgt de categorie of uw algemene instellingen: groen omrand als die het inschakelen, anders grijs.",
       "keyOffText": "Uit voor deze categorie of deze feed, wat de instelling erboven ook zegt.",
-      "keyCycle": "Elke klik gaat naar de volgende toestand: uitgeschakeld, ingeschakeld, overgenomen, dan weer uitgeschakeld.",
+      "keyCycle": "Elke klik gaat naar de volgende toestand: uitgeschakeld, ingeschakeld, overgenomen. Een rij die ‘uitgeschakeld’ overneemt, wordt direct ingeschakeld.",
       "keyPrecedence": "Een feed gaat voor op zijn categorie, een categorie op uw algemene instellingen.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "aan",

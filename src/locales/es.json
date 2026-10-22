@@ -739,7 +739,7 @@
     "fellBack": "{{name}} no disponible",
     "withProvider": "Resumir con…",
     "retryWith": "Reintentar con {{name}}",
-    "userIntro": "La IA está lista: abre un artículo y haz clic en «Resumir» o «Traducir el artículo».",
+    "userIntro": "La IA está lista: abre un artículo y haz clic en «Resumir» o «Traducir».",
     "errors": {
       "auth": "El proveedor ha rechazado la clave. Compruébala en Preferencias › IA.",
       "authUser": "El proveedor ha rechazado la clave. Avisa a tu administrador.",
@@ -878,7 +878,7 @@
       "keySetText": "Activado para esta categoría o este feed, diga lo que diga el ajuste superior.",
       "keyInheritedText": "Sigue la categoría o sus ajustes generales: contorno verde si lo activan, gris si no.",
       "keyOffText": "Desactivado para esta categoría o este feed, diga lo que diga el ajuste superior.",
-      "keyCycle": "Cada clic pasa al estado siguiente: desactivado, activado, heredado y de nuevo desactivado.",
+      "keyCycle": "Cada clic pasa al estado siguiente: desactivado, activado, heredado. Una fila que hereda «desactivado» se activa directamente.",
       "keyPrecedence": "Un feed tiene prioridad sobre su categoría, y una categoría sobre sus ajustes generales.",
       "labelValue": "{{label}} — {{value}}",
       "stateOn": "activado",

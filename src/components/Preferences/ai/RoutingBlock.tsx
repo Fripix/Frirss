@@ -43,7 +43,8 @@ type RowState = { state: ToggleState; global?: boolean; viaTranslate?: boolean }
  * « Résumé FR » sur une ligne dont l'article est traduit automatiquement : le
  * volet de lecture traduit alors le résumé quoi que dise la colonne
  * (`ReadingPane`, `autoTranslate || …`). Elle l'affiche donc cerclée de vert,
- * « activé par Traduire » — sauf un « activé » propre, qui reste plein.
+ * « activé par Traduire » — sauf un « activé » propre, qui reste plein. Le
+ * clic n'y alterne qu'entre ces deux-là (voir `toggles`).
  */
 function withTranslate(kind: ToggleKind, v: RowState, translateOn: boolean): RowState {
   return kind === 'summaryTranslate' && translateOn && v.state !== 'on' ? { state: 'inherited', viaTranslate: true } : v;
@@ -222,7 +223,11 @@ export default function RoutingBlock() {
   const toggles = (name: string, value: (k: ToggleKind) => RowState, write: Record<ToggleKind, (v: boolean | null) => void>) =>
     columns.map((c) => {
       const v = value(c.kind);
-      const next = nextRoutingValue(v.state);
+      // Forcé par Traduire, le seul choix qui change quelque chose est un
+      // « activé » propre (il tient si Traduire s'éteint) : le clic va et vient
+      // entre lui et l'héritage. Calculé sur l'état affiché, le cycle restait
+      // bloqué — « hérité » → `false`, qui s'affichait encore « hérité ».
+      const next = v.viaTranslate ? true : nextRoutingValue(v.state);
       return (
         <RoutingToggle
           key={c.kind} kind={c.kind} state={v.state} touch={touch} describedBy={keyId}
