@@ -1313,19 +1313,23 @@ html {
    colonnes tombent les unes sous les autres d'une catégorie à ses flux.
    Nom : `minmax(0, 1fr)`, il prend ce qui reste et se tronque — c'est ce qui
    empêche tout débordement horizontal à 320 px. Interrupteurs : au moins
-   `--cell` (posée par le composant : 32 px souris, 40 px doigt), plus si le
-   mot de l'en-tête est plus large, pour qu'il ne morde jamais sur la colonne
-   voisine. Fournisseur : `auto`, la largeur de son bouton (9 rem au plus).
+   `--cell` (32 px à la souris, 40 px au doigt — `data-touch` sur la grille),
+   plus si le mot de l'en-tête est plus large, pour qu'il ne morde jamais sur
+   la colonne voisine. Fournisseur : `auto`, la largeur de son bouton (9 rem
+   au plus). `--cell` vit ici et non en style en ligne : un style en ligne
+   l'emporterait sur la requête de conteneur ci-dessous.
    Le seuil étroit n'est PAS 640 px : le panneau des préférences ne laisse
    qu'environ 460 px à son contenu sur un ordinateur, où le nom du
    fournisseur tient très bien ; 420 px sépare le bureau du téléphone. */
 .ai-routing { container: ai-routing / inline-size; }
 .ai-routing__grid {
+  --cell: 32px;
   --indent: 20px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(3, minmax(var(--cell), max-content)) auto;
   column-gap: 6px;
 }
+.ai-routing__grid[data-touch] { --cell: 40px; }
 .ai-routing__feed-name { padding-left: var(--indent); }
 .ai-routing__cat-label {
   display: flex;
@@ -1343,12 +1347,37 @@ html {
   padding: 0 6px 0 8px;
 }
 .ai-routing__narrow { display: none; }
+.ai-routing__key { display: none; }
 @container ai-routing (max-width: 419px) {
-  /* 2 px entre colonnes : chaque pixel rendu va au nom. Au doigt, les zones
-     de toucher élargies (2 px de chaque côté) se chevauchent d'autant, sans
-     gêne : le bord touché appartient toujours à l'une des deux cellules. */
-  .ai-routing__grid { --indent: 12px; column-gap: 2px; }
-  /* Le compte passe sous le nom : la bande au doigt fait 44 px, deux lignes y tiennent. */
+  /* Le nom d'un flux doit se lire d'un coup d'œil. Quatre colonnes de
+     EXACTEMENT `--cell` (32 px, au doigt aussi) : plus d'en-tête de mots dont
+     la largeur élargissait les colonnes (56 / 45 / 40 mesurés à 320 px), les
+     mots passent dans la légende `.ai-routing__key`, avec leur icône.
+     Compte, au plus étroit (grille de 279 px à 320 px d'écran) :
+       279 − 2 (filet du groupe) − 10 (marges de ligne 6 + 4)
+           − 4 × 32 (colonnes) − 4 × 2 (écarts) = 131 px pour la colonne du nom,
+     contre 74 avant (colonnes de 56 / 45 / 40 + 40). Dans une ligne de flux,
+     indentation 8 + favicon 14 + écart 6 = 28 px, il reste ≈ 103 px de texte
+     (13 à 14 caractères), contre ≈ 42-55 avant. */
+  .ai-routing__grid, .ai-routing__grid[data-touch] {
+    --cell: 32px;
+    --indent: 8px;
+    column-gap: 2px;
+    grid-template-columns: minmax(0, 1fr) repeat(3, var(--cell)) var(--cell);
+  }
+  .ai-routing__grid [data-routing-header] { display: none; }
+  .ai-routing__grid [data-routing-row] { padding-left: 6px; padding-right: 4px; }
+  .ai-routing__key { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 8px; }
+  /* Au doigt, la cellule fait 32 px mais la ligne 44 (`min-height` plutôt que
+     `grid-auto-rows` : chaque ligne est un sous-grille, qui ne reprend que les
+     COLONNES de la grille), cellules centrées (`items-center`). La zone de
+     toucher fait 44 px de haut (6 px au-dessus et au-dessous des 32) : deux
+     lignes voisines se touchent sans jamais se recouvrir. Largeur 36 px
+     (2 px de part et d'autre) : les colonnes sont à 34 px, 2 px de chevauchement
+     horizontal, le bord touché reste à l'une des deux. */
+  .ai-routing__grid[data-touch] [data-routing-row] { min-height: 44px; }
+  .ai-routing__grid .ai-routing__hit::before { inset: -6px -2px; }
+  /* L'indentation et l'écart sont déjà serrés : le compte passe sous le nom, la bande fait 44 px au doigt. */
   .ai-routing__cat-label { flex-direction: column; align-items: flex-start; gap: 0; }
   .ai-routing__wide, .ai-routing__wide-text { display: none; }
   .ai-routing__narrow { display: inline-flex; }

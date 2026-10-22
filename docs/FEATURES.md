@@ -2720,12 +2720,15 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   chaque interrupteur désigne par `aria-describedby`.
   **Une seule grille pour tout le bloc** (`.ai-routing__grid`, `index.css`) :
   `minmax(0, 1fr)` pour le nom, puis trois colonnes d'interrupteurs
-  `minmax(var(--cell), max-content)` et le fournisseur en `auto`. Chaque
+  `minmax(var(--cell), max-content)` et le fournisseur en `auto` (au large ;
+  à l'étroit, voir plus bas). Chaque
   groupe, chaque bande et chaque ligne de flux reprend ces colonnes en
   `subgrid` : les interrupteurs d'une catégorie et de ses flux tombent
   exactement les uns sous les autres, quelle que soit la longueur des noms.
-  `--cell` est posée par le composant : **32 px à la souris, 40 px au doigt**
-  (`useBreakpoint() !== 'desktop'`). Au-dessus, **une seule ligne d'en-tête**
+  `--cell` vit dans la feuille de style (un style en ligne l'emporterait sur
+  la requête de conteneur) : **32 px à la souris, 40 px au doigt** (attribut
+  `data-touch` de la grille, posé quand `useBreakpoint() !== 'desktop'`), 32 px
+  de nouveau à l'étroit. Au large, **une seule ligne d'en-tête**
   (`data-routing-header`, `aria-hidden` — chaque contrôle porte son nom
   complet) : « Résumer », « Traduire », « Panneau », « Fournisseur »
   (`ai.routing.autoSummary` / `autoTranslate` / `panel` / `providerColumn`),
@@ -2824,19 +2827,42 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   résumé allumé s'affiche éteinte alors que ses flux sont résumés (le global
   vaut partout) : ses flux, eux, montrent la valeur effective, en contour.
   **Étroit — jamais de débordement horizontal, une ligne par flux même à
-  320 px.** Le nom (`minmax(0, 1fr)`) prend ce qui reste et se tronque ; rien
-  d'autre ne rétrécit. Le bloc est un conteneur (`container: ai-routing`) ;
-  sous **420 px** de conteneur (pas 640 : le panneau des préférences ne laisse
-  qu'environ 460 px à son contenu sur un ordinateur, où le nom du fournisseur
-  tient), le bouton de fournisseur ne montre plus qu'une **puce** (icône),
-  marquée d'un **point d'accent** quand la ligne a son propre fournisseur ; le
-  mot « Fournisseur » de l'en-tête disparaît ; l'écart entre colonnes passe
-  de 6 à 2 px et l'indentation des flux de 20 à 12 px ; « N flux » passe
-  sous le nom de la catégorie (la bande fait 44 px au doigt, deux lignes y
-  tiennent). Estimé par le calcul, pas mesuré dans un navigateur : à 320 px
-  (≈ 280 px de contenu), quatre colonnes de ~40-44 px laissent ≈ 85 px au nom
-  d'une catégorie et ≈ 55-60 px au nom d'un flux (sept à huit caractères), le
-  reste dans le `title`.
+  320 px, et un nom qui se lit.** Le bloc est un conteneur (`container:
+  ai-routing`) ; sous **420 px** de conteneur (pas 640 : le panneau des
+  préférences ne laisse qu'environ 460 px à son contenu sur un ordinateur, où
+  le nom du fournisseur tient) :
+  - **Colonnes de EXACTEMENT `--cell` (32 px, au doigt aussi)** : `minmax(0,
+    1fr) repeat(3, var(--cell)) var(--cell)`. Avec l'ancienne règle
+    (`minmax(var(--cell), max-content)`), les mots de l'en-tête élargissaient
+    les colonnes (56 / 45 / 40 px mesurés sur émulateur Android à 320 px, cases
+    de 40) et un nom de flux n'avait plus que ≈ 55 px (« Barto… », « Zoo… »).
+  - **L'en-tête de mots disparaît** (`display: none`, il reste dans le DOM) ; la
+    **légende à icônes** (`data-routing-key`, `aria-hidden`, au-dessus de la
+    grille, invisible au large) donne la correspondance : « [étincelle]
+    Résumer [traduction] Traduire [page] Panneau », avec les mêmes mots que
+    l'en-tête (`autoSummary` / `autoTranslate` / `panel`, aucune chaîne
+    nouvelle) et les icônes des interrupteurs (exportées de
+    `RoutingControls.tsx`). Elle revient à la ligne si une langue est longue.
+  - **Au doigt, lignes de 44 px, cases de 32 px centrées** : `min-height: 44px`
+    sur chaque `[data-routing-row]` (pas `grid-auto-rows` : chaque ligne est un
+    sous-grille, qui ne reprend que les colonnes). La zone de toucher
+    (`.ai-routing__hit`, le pseudo-élément `before:` des interrupteurs et du
+    bouton de fournisseur) passe à **44 px de haut sur 36 de large**
+    (`inset: -6px -2px`) : deux lignes voisines se touchent sans jamais
+    partager de zone ; horizontalement, 2 px se recouvrent entre colonnes de
+    34 px, le bord touché reste à l'une des deux. Au large (tablette), la zone
+    reste celle de 40 + 2 + 2 px.
+  - Le bouton de fournisseur ne montre plus qu'une **puce** (icône), marquée
+    d'un **point d'accent** quand la ligne a son propre fournisseur ; le mot
+    « Fournisseur » n'existe plus nulle part ; l'écart entre colonnes passe de
+    6 à 2 px, l'indentation des flux de 20 à 8 px, les marges latérales d'une
+    ligne de 8 / 6 à 6 / 4 px ; « N flux » passe sous le nom de la catégorie
+    (la bande fait 44 px au doigt, deux lignes y tiennent).
+  - **Le compte** (grille de 279 px à 320 px d'écran) : 279 − 2 (filet du groupe)
+    − 10 (marges) − 4 × 32 − 4 × 2 = **131 px** pour la colonne du nom (74
+    avant) ; dans une ligne de flux, indentation 8 + favicon 14 + écart 6
+    retirés, ≈ **103 px de texte**, soit 13 à 14 caractères. Calculé, pas
+    encore mesuré dans un navigateur après ce changement.
   ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
   puisqu'il est rangé sous son nom ; un flux déplacé dans une autre catégorie
   suit celle-ci. Un flux rangé dans deux catégories apparaît sous chacune.

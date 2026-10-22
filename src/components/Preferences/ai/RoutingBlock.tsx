@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type CSSProperties } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, normalizeAiProviderId } from '../../../stores/uiStore';
 import { useAiStore } from '../../../stores/aiStore';
@@ -11,7 +11,7 @@ import type { Subscription } from '../../../types';
 import ConfirmDialog from '../../ConfirmDialog';
 import FeedFavicon from '../../FeedFavicon';
 import { AutoSummaryConfirm, BlockTitle } from './shared';
-import { ProviderPicker, RoutingToggle, type ToggleKind, type ToggleState } from './RoutingControls';
+import { PanelIcon, ProviderPicker, RoutingToggle, SparkleIcon, TranslateIcon, type ToggleKind, type ToggleState } from './RoutingControls';
 
 /** Référence stable : un `?? []` dans le sélecteur ferait rerendre sans fin. */
 const NO_PROVIDERS: AiProviderView[] = [];
@@ -49,7 +49,10 @@ function Chevron({ open }: { open: boolean }) {
  * `--cell`, plus si le mot de l'en-tête est plus large) et le fournisseur.
  * Les mots des colonnes (« Résumer », « Traduire », « Panneau »,
  * « Fournisseur ») ne sont écrits qu'une fois, en tête : la ligne ne porte
- * que des icônes, et se lit d'un coup d'œil.
+ * que des icônes, et se lit d'un coup d'œil. À l'étroit (< 420 px de
+ * conteneur), l'en-tête de mots disparaît — ses mots élargissaient les
+ * colonnes aux dépens du nom — et la légende à icônes (`data-routing-key`) les
+ * porte à sa place ; la mise en page étroite vit dans `index.css`.
  *
  * Chaque catégorie forme un groupe cerclé : sa **bande** (fond d'en-tête de
  * panneau, nom en gras, « N flux » et « , N réglés » en accent) puis, une fois
@@ -187,7 +190,6 @@ export default function RoutingBlock() {
     ...categories.map((c) => ({ key: c.id, label: c.label, feeds: c.feeds, category: true })),
     ...(uncategorised.length ? [{ key: UNCATEGORISED, label: t('ai.routing.uncategorised'), feeds: uncategorised, category: false }] : []),
   ];
-  const gridStyle = { '--cell': touch ? '40px' : '32px' } as CSSProperties;
   const defaultLabel = t('ai.routing.default');
 
   return (
@@ -198,7 +200,16 @@ export default function RoutingBlock() {
         <p id={legendId}>{t('ai.routing.legend')}</p>
       </div>
       <div className="ai-routing">
-        <div data-routing-grid className="ai-routing__grid" style={gridStyle}>
+        {/* À l'étroit, les mots de l'en-tête cèdent leur largeur au nom : la correspondance icône → mot se lit ici. Invisible au large, où l'en-tête porte les mots. */}
+        <p data-routing-key aria-hidden="true" className="ai-routing__key text-[11px] leading-tight" style={{ color: 'var(--list-summary)' }}>
+          {columns.map((c) => (
+            <span key={c.kind} className="inline-flex items-center gap-1 whitespace-nowrap">
+              {c.kind === 'summary' ? <SparkleIcon /> : c.kind === 'translate' ? <TranslateIcon /> : <PanelIcon />}
+              {c.word}
+            </span>
+          ))}
+        </p>
+        <div data-routing-grid data-touch={touch ? '' : undefined} className="ai-routing__grid">
           {/* Les mots des colonnes, une fois. Décoratifs : chaque contrôle porte son nom complet ; le `title` dit ce que fait la colonne. */}
           <div data-routing-header aria-hidden="true" className={`${rowClass} pb-1 border-x border-transparent text-[11px] leading-tight`} style={{ color: 'var(--list-summary)' }}>
             <span />

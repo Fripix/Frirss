@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, fireEvent, waitFor, within, screen } from '@testing-library/react';
 // Le nom passé à ces clés est ce que l'on vérifie : il est rendu après la clé.
@@ -1108,6 +1110,26 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
   });
+  it('narrow layout: an icon key carries the column words, the stylesheet pins 32 px cells and 44 px rows', () => {
+    render(<AiTab active />);
+    // La légende à icônes : décorative, dans l'ordre des colonnes, une icône par mot.
+    const key = document.querySelector('[data-routing-key]') as HTMLElement;
+    expect(key.getAttribute('aria-hidden')).toBe('true');
+    expect(Array.from(key.children).map((c) => c.textContent)).toEqual([
+      'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.panel',
+    ]);
+    for (const c of Array.from(key.children)) expect(c.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+    // La feuille de style : jsdom ne la lit pas, on épingle donc le texte de la requête de conteneur.
+    const css = fs.readFileSync(path.join(process.cwd(), 'src/styles/index.css'), 'utf8');
+    const narrow = css.slice(css.indexOf('@container ai-routing (max-width: 419px)'));
+    const block = narrow.slice(0, narrow.indexOf('\n}\n'));
+    expect(block).toContain('--cell: 32px;');
+    expect(block).toContain('grid-template-columns: minmax(0, 1fr) repeat(3, var(--cell)) var(--cell);');
+    expect(block).toContain('[data-routing-header] { display: none; }');
+    expect(block).toContain('.ai-routing__key { display: flex;');
+    expect(block).toContain('[data-routing-row] { min-height: 44px; }');
+    expect(block).toContain('.ai-routing__hit::before { inset: -6px -2px; }');
+  });
   it('titles each switch with its column and state, each column word with what it does', () => {
     render(<AiTab active />);
     expect([sw('Summary', 'Tech'), sw('Translate', 'Tech'), sw('Panel', 'Tech')].map((s) => s.getAttribute('title'))).toEqual([
@@ -1134,18 +1156,21 @@ describe('AiTab — « Par flux et catégorie »', () => {
   it('with a mouse: 32 px cells, no enlarged hit area', () => {
     render(<AiTab active />);
     const grid = document.querySelector('[data-routing-grid]') as HTMLElement;
-    expect(grid.style.getPropertyValue('--cell')).toBe('32px');
+    // `--cell` vit dans la feuille de style (32 px, 40 px sous `data-touch`).
+    expect(grid.hasAttribute('data-touch')).toBe(false);
     expect(sw('Summary', 'Tech').className).not.toContain('before:');
   });
   it('on touch: 40 px cells with a 44 px hit area, and the provider list in a bottom sheet', () => {
     useUiStore.setState({ layoutMode: 'mobile' });
     render(<AiTab active />);
     const grid = document.querySelector('[data-routing-grid]') as HTMLElement;
-    expect(grid.style.getPropertyValue('--cell')).toBe('40px');
+    expect(grid.hasAttribute('data-touch')).toBe(true);
     // 40 px visibles, 2 px de pseudo-élément de part et d'autre : 44 px au doigt.
+    // `ai-routing__hit` : à l'étroit, la feuille de style la passe à 44 px de haut sur 36 de large.
     for (const el of [sw('Summary', 'Tech'), providerBtn('Tech', true)]) {
       expect(el.className).toContain('before:absolute');
       expect(el.className).toContain('before:-inset-0.5');
+      expect(el.classList.contains('ai-routing__hit')).toBe(true);
     }
     // Les mêmes bandes gardent 44 px de haut (`prefs-tap-row`) pour le bouton de dépli.
     expect(screen.getByRole('button', { name: /^Tech/ }).classList.contains('prefs-tap-row')).toBe(true);

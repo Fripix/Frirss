@@ -94,7 +94,9 @@ la release publiée.
   cerclé quand il vient de la catégorie ou du réglage global, une infobulle
   le dit. Le fournisseur se choisit dans un menu (une feuille du bas au
   doigt) ; sur un téléphone, il se réduit à une icône, marquée d'un point
-  quand la ligne a le sien. Allumer Résumer ou Traduire demande toujours la
+  quand la ligne a le sien, les colonnes sont réduites à leurs seules icônes
+  (les mots passent dans une légende au-dessus) pour que le nom d'un flux
+  reste lisible, et chaque ligne garde 44 px de haut au doigt. Allumer Résumer ou Traduire demande toujours la
   confirmation de coût, une fois par compte. L'éditeur s'ouvre sous la liste, titré
   « Nouveau fournisseur » ou « Modifier X », ses champs sur une colonne, le partage de la clé en interrupteur. « Les utilisateurs peuvent
   saisir leur propre clé » et le plafond quotidien par utilisateur sont

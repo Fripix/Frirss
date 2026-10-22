@@ -15,12 +15,14 @@ import { providerChoices } from '../../../lib/aiProviderChoices';
 
 /**
  * La zone de toucher de 44 px au doigt : un pseudo-élément transparent de
- * 2 px de part et d'autre de la cellule de 40 px. Il agrandit ce que le doigt
+ * 2 px de part et d'autre de la cellule de 40 px. À l'étroit (< 420 px de
+ * conteneur), la cellule tombe à 32 px et `.ai-routing__hit` (`index.css`)
+ * ré-étire la zone : 44 px de haut (6 px en haut et en bas), 36 de large. Il agrandit ce que le doigt
  * atteint sans agrandir ce qui se voit ni la ligne — même idiome que le
  * bouton « Résumer » compact d'`AiSummary`. À la souris, rien : les cellules
  * de 32 px sont proches, une zone élargie mordrait sur la voisine.
  */
-const hitArea = "before:absolute before:-inset-0.5 before:content-['']";
+const hitArea = "ai-routing__hit before:absolute before:-inset-0.5 before:content-['']";
 
 /**
  * Trois états, pas deux : **on** (réglé ici, plein), **inherited** (allumé
@@ -142,17 +144,17 @@ export function ProviderPicker({ menuLabel, providers, value, defaultLabel, touc
 }
 
 /** L'étincelle du panneau « Résumé IA » (`AiSummary`), en 16 px. */
-function SparkleIcon() {
+export function SparkleIcon() {
   return <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" /></svg>;
 }
 
 /** L'icône « Traduire » de la barre d'outils du volet de lecture. */
-function TranslateIcon() {
+export function TranslateIcon() {
   return <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 01-3.827-5.802" /></svg>;
 }
 
 /** Une page coiffée d'un bandeau : le panneau « Résumé IA » posé en tête de l'article. */
-function PanelIcon() {
+export function PanelIcon() {
   return <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 3.75h13.5a1.5 1.5 0 011.5 1.5v13.5a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V5.25a1.5 1.5 0 011.5-1.5zM3.75 9.75h16.5M7.5 13.5h9M7.5 16.5h6" /></svg>;
 }
 
