@@ -2525,8 +2525,8 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   jamais ; « Automatique » quand aucun n'est disponible ; un fournisseur sans clé utilisable
   est grisé « (clé requise) » ; un choix qui désigne un fournisseur supprimé
   reste affiché « Fournisseur supprimé » au lieu de retomber en silence sur le
-  défaut — `ProviderOptions`, dans `ai/shared.tsx`, sert aussi aux sélecteurs
-  du bloc « Par flux et catégorie ») ; **« Repli automatique »**
+  défaut — `ProviderOptions`, dans `ai/shared.tsx`, et le menu de fournisseur du bloc
+  « Par flux et catégorie » suivent la même règle, `providerChoices`) ; **« Repli automatique »**
   (interrupteur, **activé** par défaut ; deux aides, toujours affichées et
   toutes deux liées à l'interrupteur : la première dit qu'une panne
   (injoignable, clé refusée, quota, délai) passe au suivant et que l'en-tête le
@@ -2538,7 +2538,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   (chaque résumé est un appel facturable au fournisseur de l'utilisateur ; un
   modèle local ne coûte rien), et **Annuler le laisse éteint** ; l'éteindre ne
   demande jamais rien. Cette boîte (`AutoSummaryConfirm`, dans `ai/shared.tsx`)
-  est la même que celle des pastilles « Résumer » de « Par flux et
+  est la même que celle des interrupteurs « Résumer » de « Par flux et
   catégorie » et ne s'ouvre qu'**une fois par compte** : la confirmer, ici ou
   là, pose `aiAutoSummaryConfirmed`, après quoi rallumer le global (ou un
   « Résumer ») s'applique directement, sans boîte ; puis **« Panneau Résumé IA
@@ -2704,57 +2704,95 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   et elles reviennent intactes dès qu'il la rend. Mobile : nom et état sur une
   ligne qui passe à la ligne, champ pleine largeur, boutons dessous (tient à
   320 px), cibles de 44 pt.
-- **Interface — « Par flux et catégorie »** (`ai/RoutingBlock.tsx`, juste sous
-  « Traduction », pour tous, admin compris) : l'aperçu de tous les choix de
-  fournisseur et des trois automatismes, en **accordéon à pastilles**. Un
-  titre, deux aides en `--list-summary` (`max-w-prose`) : `ai.routing.hint`
-  (« un fournisseur choisi ici passe avant votre fournisseur préféré, et celui
-  d'un flux avant celui de sa catégorie ») et la **légende** `ai.routing.legend`
-  (« Résumer et Traduire lancent l'action à l'ouverture de chaque article de la
-  ligne ; Panneau garde le panneau Résumé IA visible même sans résumé. Un flux
-  prime sur sa catégorie » — elle remplace l'ancienne `ai.routing.autoHint`,
-  retirée des dix locales ; c'est elle que chaque interrupteur désigne par
-  `aria-describedby`). Plus de grille ni d'en-têtes de colonne : le mot est sur
-  chaque pastille.
-  **Ligne de catégorie** (dans l'ordre de `groupFeedsByCategory`, **tout est
-  replié à l'ouverture**) : un bouton de dépli (`aria-expanded` ;
-  `aria-controls` vers le corps, posé seulement tant qu'il est déplié) qui
-  prend toute la place libre (`min-w-0`), chevron, nom en gras **tronqué sur
-  une ligne** (`truncate`, `title` = nom complet) et, s'il y en a, « N flux
-  réglés » en petit dessous — un flux compte dès qu'il porte un fournisseur
-  **ou** une valeur propre de résumé, de traduction ou de panneau —, puis le
-  groupe de **trois pastilles** à droite. Le dernier groupe, « Sans
-  catégorie », n'a ni pastilles ni sélecteur : il n'y a pas de catégorie à
-  régler, seulement ses flux.
-  **Dépliée**, la catégorie montre d'abord une ligne « Fournisseur de la
-  catégorie » (`ai.routing.categoryProvider`) avec son sélecteur (pas pour
-  « Sans catégorie »), puis ses flux, indentés (`pl-6`) : le nom (`truncate`,
-  `title`), un sélecteur de fournisseur compact (`min-w-[7rem] max-w-[11rem]`)
-  et les trois pastilles. Le sélecteur de la catégorie n'existe donc plus dans
-  le DOM tant qu'elle est repliée. Options : « Par défaut » (valeur vide,
-  retire le réglage), puis les fournisseurs via `ProviderOptions` (clé requise
-  grisée, « Fournisseur supprimé » si la valeur enregistrée n'existe plus).
+- **Interface — « Par flux et catégorie »** (`ai/RoutingBlock.tsx`, contrôles
+  dans `ai/RoutingControls.tsx`, juste sous « Traduction », pour tous, admin
+  compris) : l'aperçu de tous les choix de fournisseur et des trois
+  automatismes, en **matrice — une ligne par catégorie, une ligne par flux,
+  jamais deux** (refonte du 2026-10-22 : l'accordéon à pastilles faisait deux
+  lignes par flux et répétait « Résumer / Traduire / Panneau IA » sur chacune,
+  et une catégorie ressemblait à un flux).
+  **Aides** (`text-xs`, `--list-summary`, `max-w-prose`), deux lignes :
+  `ai.routing.hint` (« un fournisseur choisi ici passe avant votre fournisseur
+  préféré, et celui d'un flux avant celui de sa catégorie ») et la **légende**
+  `ai.routing.legend` (« Résumer et Traduire agissent à l'ouverture de chaque
+  article ; Panneau garde le panneau Résumé IA affiché. Plein : réglé ici.
+  Contour : hérité de la catégorie ou du réglage global. ») — c'est elle que
+  chaque interrupteur désigne par `aria-describedby`.
+  **Une seule grille pour tout le bloc** (`.ai-routing__grid`, `index.css`) :
+  `minmax(0, 1fr)` pour le nom, puis trois colonnes d'interrupteurs
+  `minmax(var(--cell), max-content)` et le fournisseur en `auto`. Chaque
+  groupe, chaque bande et chaque ligne de flux reprend ces colonnes en
+  `subgrid` : les interrupteurs d'une catégorie et de ses flux tombent
+  exactement les uns sous les autres, quelle que soit la longueur des noms.
+  `--cell` est posée par le composant : **32 px à la souris, 40 px au doigt**
+  (`useBreakpoint() !== 'desktop'`). Au-dessus, **une seule ligne d'en-tête**
+  (`data-routing-header`, `aria-hidden` — chaque contrôle porte son nom
+  complet) : « Résumer », « Traduire », « Panneau », « Fournisseur »
+  (`ai.routing.autoSummary` / `autoTranslate` / `panel` / `providerColumn`),
+  11 px, centrés sur leur colonne ; le `title` de chaque mot dit ce que fait
+  la colonne (`summaryTitle`, `translateTitle`, `panelTitle`). Les mots sont
+  courts dans les dix langues (« Resümee », « Підсумок ») : la colonne
+  s'élargit au mot plutôt que de le laisser mordre sur sa voisine, et c'est
+  le nom qui cède la place.
+  **Groupes** : chaque catégorie et ses flux dépliés sont cerclés (filet
+  `--panel-border`, rayon 8 px), 8 px entre groupes. **Bande de catégorie**
+  (dans l'ordre de `groupFeedsByCategory`, **tout est replié à
+  l'ouverture**), fond `--panel-header-bg` : toute la zone du nom est le
+  bouton de dépli (`aria-expanded` ; `aria-controls` vers le corps, posé
+  seulement tant qu'il est déplié ; `prefs-tap-row`, 44 px au doigt) —
+  chevron, nom en gras 13 px **tronqué sur une ligne** (`title` = nom
+  complet), puis « N flux » (`ai.routing.feedCount`, 11 px, `--list-summary`)
+  suivi, s'il y en a, de « , N réglés » en `--accent` (`ai.routing.overrides`,
+  la virgule est dans la traduction) — un flux compte dès qu'il porte un
+  fournisseur **ou** une valeur propre de résumé, de traduction ou de
+  panneau. Le compte cède la place avant le nom (`shrink-[100]`). Puis, dans
+  les colonnes, les trois interrupteurs et le fournisseur **de la
+  catégorie**, visibles bande repliée. Le dernier groupe, « Sans catégorie »,
+  n'a ni interrupteurs ni fournisseur : il n'y a pas de catégorie à régler,
+  seulement ses flux.
+  **Ligne de flux** (`data-routing-row="feed"`, surface ordinaire) : indentée
+  (`--indent`, 20 px), favicon 14 px (`FeedFavicon`, repli sur la
+  pastille-lettre), nom 13 px **tronqué** (`title`), puis les trois
+  interrupteurs et le fournisseur — tous frères dans la même ligne.
+  **Interrupteurs** (`RoutingToggle`) : boutons carrés `role="switch"`
+  `aria-checked`, `rounded-md`, icône 16 px — l'étincelle d'`AiSummary` pour
+  Résumer, l'icône « Traduire » du volet de lecture, une page coiffée d'un
+  bandeau pour Panneau. **Trois états** (`data-state`) : **on**, réglé ici —
+  fond `--accent`, icône `--on-accent` ; **inherited**, allumé sans valeur
+  propre (par une catégorie ou le réglage global) — contour d'accent de
+  1,5 px, icône `--accent`, fond transparent ; **off** — contour 1 px
+  `--panel-border`, icône `--list-summary`. Les contours sont des ombres
+  intérieures : passer de 1 à 1,5 px ne décale rien. Une catégorie n'a pas
+  d'état hérité (on / off). Le `title` dit la colonne et l'état
+  (`ai.routing.labelValue` : « Résumer — hérité de la catégorie », « Panneau —
+  hérité du réglage global », « — activé », « — désactivé » ; clés
+  `stateOn`, `stateOff`, `stateInherited`, `stateGlobal`). Le nom accessible
+  dit la ligne — « Résumer / Traduire automatiquement les articles de X »,
+  « Panneau Résumé IA toujours visible pour X » (`ai.routing.panelFor`). Au
+  doigt, **zone de toucher de 44 px** par un pseudo-élément transparent de
+  2 px de part et d'autre (`before:`, même idiome que le « Résumer » compact
+  d'`AiSummary`) ; à la souris, rien (les cellules voisines sont proches).
+  **Fournisseur** (`ProviderPicker`) : un bouton compact (`text-xs`, 9 rem au
+  plus, tronqué, chevron) qui affiche « Par défaut » en `--list-summary` ou le
+  nom du fournisseur en `--list-title`. Il ouvre la liste **par portail** :
+  `Popover` (des `menuitemradio`) au format bureau, `BottomSheet` (de simples
+  boutons, `aria-current` sur le choix en cours, comme `TranslateMenu`)
+  ailleurs ; le focus revient au bouton à la fermeture, choix fait ou non
+  (Échap, clic extérieur). Les choix suivent `providerChoices`
+  (`lib/aiProviderChoices.ts`), **la même règle que `ProviderOptions`** :
+  « Par défaut » (retire le réglage), un fournisseur sans clé utilisable
+  listé mais **inerte** (`aria-disabled`, pas `disabled` : les flèches du
+  popover s'y bloqueraient), « Fournisseur supprimé » tant que la valeur
+  enregistrée n'existe plus. Le nom accessible et le `title` disent la ligne
+  **et** la valeur (`ai.routing.categoryProviderFor` / `feedProviderFor` +
+  `labelValue`), l'étiquette visible pouvant n'être qu'une icône.
   Précédence : **flux > catégorie > fournisseur préféré** (voir
   « Résolution »). Les réglages vivent dans `aiCategoryProviders` (par **nom**
   de catégorie) et `feedSettings[id].aiProvider`, tous deux synchronisés ; ils
   sont relus par `normalizeAiProviderId` (une valeur synchronisée corrompue
   vaut « par défaut ») et la catégorie par clé propre (`Object.hasOwn`).
-  **Pastilles « Résumer », « Traduire » et « Panneau IA »** (`Pill`, dans
-  `ai/shared.tsx`) : un `<label>` à contour fin de 1 px (`--panel-border`),
-  rayon plein, qui contient le mot (`text-xs`) et le `ToggleSwitch` ; **allumée,
-  le contour et le mot passent à l'`--accent`**. Hauteur 32 px à la souris,
-  44 px au doigt (`prefs-tap-btn`) ; un toucher sur le mot ou le bord bascule
-  l'interrupteur, **une seule fois** (le clic remonte au bouton). Le nom
-  accessible dit la ligne — « Résumer / Traduire automatiquement les articles
-  de X », « Panneau Résumé IA toujours visible pour X » (`ai.routing.panelFor`,
-  le mot court étant `ai.routing.panel`, « Panneau IA ») — et est décrit par
-  la légende. Chaque pastille porte aussi un `title` (prop optionnelle de
-  `Pill`) qui dit ce qu'elle fait — `ai.routing.summaryTitle`,
-  `translateTitle`, `panelTitle` : « Résumer chaque article à l'ouverture »,
-  etc. ; une infobulle n'est qu'un complément (invisible au doigt), la
-  légende reste.
   « Résumer » et « Traduire » : allumé, chaque article de la ligne doit être
-  résumé ou traduit **à l'ouverture**. « Panneau IA » : allumé, le panneau
+  résumé ou traduit **à l'ouverture**. « Panneau » : allumé, le panneau
   « Résumé IA » reste visible même sans résumé ; éteint, il n'apparaît
   qu'avec une demande ou un résumé (voir « Interface — panneau »).
   Le volet de lecture applique les mêmes règles (`autoFor`, `panelFor` de
@@ -2762,13 +2800,13 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   « Traduction automatique à l'ouverture » plus bas. Une catégorie affiche et
   écrit son propre drapeau (`aiCategoryAutoSummary` / `aiCategoryAutoTranslate`,
   `{ nom: true }`, et `aiCategoryPanel`, `{ nom: boolean }`, rangés par nom
-  comme les fournisseurs) ; sa pastille « Panneau IA », sans valeur propre,
+  comme les fournisseurs) ; son interrupteur « Panneau », sans valeur propre,
   **montre le réglage global** (`aiPanelAlways`). Un flux affiche sa **valeur
   effective** (`autoFor` / `panelFor` : la sienne, sinon celle de ses
-  catégories, sinon — résumé et panneau seulement — le réglage global ;
-  « hérité » n'est pas un état visible, la ligne de catégorie suffit à le
-  dire) et le toucher écrit **toujours** une valeur propre, `true` ou `false`
-  (`feedSettings[id].aiAutoSummary` / `.aiAutoTranslate` / `.aiPanel`) :
+  catégories, sinon — résumé et panneau seulement — le réglage global) et
+  **dit d'où elle vient** (plein / contour, `title`) ; le toucher écrit
+  **toujours** une valeur propre, l'inverse de ce qui se voit, `true` ou
+  `false` (`feedSettings[id].aiAutoSummary` / `.aiAutoTranslate` / `.aiPanel`) :
   éteindre un flux sous une catégorie allumée tient. Priorité : **flux >
   catégorie > global** (le global ne vaut pas pour la traduction). Aucune
   remise à « hérité » depuis l'écran : une valeur propre reste jusqu'à ce
@@ -2781,21 +2819,24 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   rien. Allumer « Résumer » quand le résumé automatique global est éteint et
   que `aiAutoSummaryConfirmed` est faux ouvre la boîte du global
   (`AutoSummaryConfirm`), avec le même effet. Éteindre ne demande jamais rien,
-  et « Panneau IA » n'a **aucune** confirmation (il ne coûte rien).
+  et « Panneau » n'a **aucune** confirmation (il ne coûte rien).
   Les deux drapeaux sont synchronisés. ⚠️ Une catégorie sous un global de
   résumé allumé s'affiche éteinte alors que ses flux sont résumés (le global
-  vaut partout) : ses flux, eux, montrent la valeur effective.
-  **Étroit (< 640 px) — jamais de débordement horizontal.** Chaque ligne est
-  un `flex-wrap` : le nom prend **toute sa ligne** (`basis-full`, tronqué) et
-  les pastilles passent **dessous**, alignées à droite (`ml-auto`) ; trois
-  pastilles de ~110 px ne tiennent pas à côté d'un nom à 320 px, et le groupe
-  de pastilles passe lui-même à la ligne (`flex-wrap`) plutôt que de déborder
-  — les mots longs (« Zusammenfassen », « Підсумовувати ») y ont leur place.
-  Pour un flux : le nom sur sa ligne, puis sélecteur et pastilles dessous. Au
-  large (`sm:`), le nom reprend la place libre (`sm:flex-1`, plancher de
-  6 rem) et le tout tient sur une ligne tant qu'il y a la place — la fenêtre
-  de préférences peut être plus étroite que 640 px, d'où le `flex-wrap`
-  partout.
+  vaut partout) : ses flux, eux, montrent la valeur effective, en contour.
+  **Étroit — jamais de débordement horizontal, une ligne par flux même à
+  320 px.** Le nom (`minmax(0, 1fr)`) prend ce qui reste et se tronque ; rien
+  d'autre ne rétrécit. Le bloc est un conteneur (`container: ai-routing`) ;
+  sous **420 px** de conteneur (pas 640 : le panneau des préférences ne laisse
+  qu'environ 460 px à son contenu sur un ordinateur, où le nom du fournisseur
+  tient), le bouton de fournisseur ne montre plus qu'une **puce** (icône),
+  marquée d'un **point d'accent** quand la ligne a son propre fournisseur ; le
+  mot « Fournisseur » de l'en-tête disparaît ; l'écart entre colonnes passe
+  de 6 à 2 px et l'indentation des flux de 20 à 12 px ; « N flux » passe
+  sous le nom de la catégorie (la bande fait 44 px au doigt, deux lignes y
+  tiennent). Estimé par le calcul, pas mesuré dans un navigateur : à 320 px
+  (≈ 280 px de contenu), quatre colonnes de ~40-44 px laissent ≈ 85 px au nom
+  d'une catégorie et ≈ 55-60 px au nom d'un flux (sept à huit caractères), le
+  reste dans le `title`.
   ⚠️ **Limite connue : une catégorie renommée perd son réglage**,
   puisqu'il est rangé sous son nom ; un flux déplacé dans une autre catégorie
   suit celle-ci. Un flux rangé dans deux catégories apparaît sous chacune.
@@ -2835,7 +2876,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     son erreur. Il repart avec l'état à l'article suivant, comme le résumé. Le résumé automatique
     (`autoFor`) est indépendant : il part panneau masqué et le fait
     apparaître de même. Réglé dans Préférences → IA → « Résumés » (global) ;
-    la pastille « Panneau IA » de « Par flux et catégorie » le précise pour un
+    l'interrupteur « Panneau » de « Par flux et catégorie » le précise pour un
     flux ou une catégorie.
   - **Panneau vide = une seule ligne compacte** (quand il est visible, voir ci-dessus). Tant qu'il n'y a rien à montrer
     (`empty = !done && !loading && !alertText` : ni résumé, ni demande en cours,
@@ -3290,7 +3331,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   ou relance l'extraction.
 - **Traduction automatique à l'ouverture** : règle `autoFor('translate', …)`
   — le flux, sinon une de ses catégories ; **pas de réglage global**, éteinte
-  sans réglage (pastilles « Traduire » de « Par flux et catégorie », avec
+  sans réglage (interrupteurs « Traduire » de « Par flux et catégorie », avec
   leur confirmation de coût). Même forme que le résumé automatique et
   indépendante de lui (les deux peuvent partir sur le même article) : second
   effet de `ReadingPane.tsx`, après `useArticleTranslation`, qui appelle

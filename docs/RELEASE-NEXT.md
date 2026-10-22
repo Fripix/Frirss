@@ -67,14 +67,8 @@ la release publiée.
   coupé). Réessayez, ou choisissez un autre fournisseur via « Traduire
   avec… ». » et « Langue non proposée. ». Nouveau bloc « Traduction » dans
   Préférences → IA : langue cible (celle de l'interface par défaut) et
-  fournisseur des traductions (« Même que le résumé » par défaut). La vue
-  « Par flux et catégorie » devient un accordéon : chaque catégorie (repliée
-  d'origine) porte trois pastilles nommées, « Résumer » et « Traduire » à
-  l'ouverture et « Panneau IA » (voir plus bas), chacune avec une infobulle, un flux primant sur sa catégorie ;
-  dépliée, elle montre le fournisseur de la catégorie puis ses flux, chacun avec
-  son fournisseur et ses pastilles. Les noms sont tronqués sur une ligne, et sur
-  un écran étroit les pastilles passent sous le nom ; allumer la
-  traduction automatique demande une confirmation, une fois par compte, qui
+  fournisseur des traductions (« Même que le résumé » par défaut). Allumer la
+  traduction automatique (« Par flux et catégorie », voir plus bas) demande une confirmation, une fois par compte, qui
   rappelle qu'un article entier coûte cinq à quinze fois un résumé. Le plafond
   quotidien compte les « appels IA », résumés et traductions ensemble (un par
   lot traduit), et ses messages le disent. Le raccourci `t` (réassignable,
@@ -90,7 +84,18 @@ la release publiée.
   type en étiquette courte, modèle et « clé enregistrée », puis « Tester »,
   « Modifier » et un menu « ⋯ » (feuille du bas au doigt) qui porte Monter,
   Descendre, Définir par défaut et Supprimer ; la liste déroulante
-  « Fournisseur par défaut » a disparu. L'éditeur s'ouvre sous la liste, titré
+  « Fournisseur par défaut » a disparu. « Par flux et catégorie » se lit
+  comme un tableau : une ligne par catégorie et une ligne par flux, jamais
+  deux, sous un seul en-tête de colonnes (Résumer, Traduire, Panneau,
+  Fournisseur). Chaque catégorie est une bande grisée en gras, avec son
+  nombre de flux et, en couleur, combien ont leurs propres réglages ;
+  dépliée, elle montre ses flux, en retrait, avec leur favicon. Les
+  réglages sont des boutons à icône : plein quand le réglage est fait ici,
+  cerclé quand il vient de la catégorie ou du réglage global, une infobulle
+  le dit. Le fournisseur se choisit dans un menu (une feuille du bas au
+  doigt) ; sur un téléphone, il se réduit à une icône, marquée d'un point
+  quand la ligne a le sien. Allumer Résumer ou Traduire demande toujours la
+  confirmation de coût, une fois par compte. L'éditeur s'ouvre sous la liste, titré
   « Nouveau fournisseur » ou « Modifier X », ses champs sur une colonne, le partage de la clé en interrupteur. « Les utilisateurs peuvent
   saisir leur propre clé » et le plafond quotidien par utilisateur sont
   affichés à plat, sous l'éditeur. Le
@@ -111,7 +116,7 @@ la release publiée.
   touche `s` ou la palette le font apparaître comme lui ; le panneau disparaît
   à l'article suivant.
   Le réglage est synchronisé ; il se précise par flux et par catégorie, avec la
-  pastille « Panneau IA » de « Par flux et catégorie » (un flux prime sur ses
+  colonne « Panneau » de « Par flux et catégorie » (un flux prime sur ses
   catégories, qui priment sur le global).
 - **Deux onglets, un seul appel IA.** Quand le même résumé ou le même lot de
   traduction est demandé pendant qu'il est en cours de génération — depuis un

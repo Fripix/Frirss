@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { AiProviderView } from '../../../api/backend';
+import { providerChoices } from '../../../lib/aiProviderChoices';
 import ConfirmDialog from '../../ConfirmDialog';
-import ToggleSwitch from '../../ToggleSwitch';
 
 export function BlockTitle({ children }: { children: string }) {
   return (
@@ -12,25 +12,14 @@ export function BlockTitle({ children }: { children: string }) {
   );
 }
 
-/**
- * Les `<option>` d'une liste de fournisseurs : l'option vide (`defaultLabel`),
- * un fournisseur par option — grisé et marqué « clé requise » s'il n'est pas
- * utilisable par cet utilisateur — et, si `value` désigne un fournisseur qui
- * n'existe plus, une option « Fournisseur supprimé » qui garde le choix visible
- * au lieu de retomber en silence sur le défaut.
- */
+/** Les `<option>` d'une liste de fournisseurs, selon `providerChoices`. */
 export function ProviderOptions({ providers, value, defaultLabel }: { providers: AiProviderView[]; value: number | null; defaultLabel: string }) {
   const { t } = useTranslation();
-  const removed = value !== null && !providers.some((p) => p.id === value);
   return (
     <>
-      <option value="">{defaultLabel}</option>
-      {providers.map((p) => (
-        <option key={p.id} value={p.id} disabled={!p.available}>
-          {p.available ? p.name : t('ai.user.keyRequired', { name: p.name })}
-        </option>
+      {providerChoices(providers, value, defaultLabel, t).map((c) => (
+        <option key={c.value ?? ''} value={c.value ?? ''} disabled={c.disabled}>{c.label}</option>
       ))}
-      {removed && <option value={value}>{t('ai.user.removedProvider')}</option>}
     </>
   );
 }
@@ -53,30 +42,5 @@ export function AutoSummaryConfirm({ open, onConfirm, onCancel }: { open: boolea
       onConfirm={onConfirm}
       onCancel={onCancel}
     />
-  );
-}
-
-/**
- * Une pastille de « Par flux et catégorie » : le mot (« Résumer », « Traduire »,
- * « Panneau IA ») et son interrupteur dans un même `<label>` à contour fin, de
- * sorte qu'un toucher sur le mot ou sur le bord bascule l'interrupteur, une
- * seule fois (le clic remonte au bouton, rien d'autre ne le reçoit). Allumée,
- * le contour et le mot prennent l'accent : l'état se lit sans regarder le
- * curseur. 32 px de haut à la souris, 44 px au doigt (`prefs-tap-btn`).
- * Le mot ne suffit pas à nommer l'interrupteur — il ne dit pas la ligne —, d'où
- * le `ariaLabel` complet ; `describedBy` pointe la légende du bloc.
- */
-export function Pill({ word, checked, ariaLabel, describedBy, title, onChange }: {
-  word: string; checked: boolean; ariaLabel: string; describedBy?: string; title?: string; onChange: (on: boolean) => void;
-}) {
-  return (
-    <label
-      title={title}
-      className="prefs-tap-btn inline-flex items-center gap-1.5 min-h-[32px] max-w-full pl-2.5 pr-1.5 border rounded-full text-xs whitespace-nowrap cursor-pointer"
-      style={{ borderColor: checked ? 'var(--accent)' : 'var(--panel-border)', color: checked ? 'var(--accent)' : 'var(--list-summary)' }}
-    >
-      {word}
-      <ToggleSwitch checked={checked} onChange={onChange} ariaLabel={ariaLabel} describedBy={describedBy} />
-    </label>
   );
 }

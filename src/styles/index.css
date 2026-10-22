@@ -1307,6 +1307,53 @@ html {
 }
 [data-layout="mobile"] .prefs-tap-swatch { width: 44px; height: 44px; }
 
+/* « Par flux et catégorie » (Préférences → IA, `ai/RoutingBlock.tsx`) : une
+   matrice, une ligne par catégorie et par flux. UNE grille pour tout le bloc,
+   reprise par chaque groupe et chaque ligne en `subgrid`, pour que les
+   colonnes tombent les unes sous les autres d'une catégorie à ses flux.
+   Nom : `minmax(0, 1fr)`, il prend ce qui reste et se tronque — c'est ce qui
+   empêche tout débordement horizontal à 320 px. Interrupteurs : au moins
+   `--cell` (posée par le composant : 32 px souris, 40 px doigt), plus si le
+   mot de l'en-tête est plus large, pour qu'il ne morde jamais sur la colonne
+   voisine. Fournisseur : `auto`, la largeur de son bouton (9 rem au plus).
+   Le seuil étroit n'est PAS 640 px : le panneau des préférences ne laisse
+   qu'environ 460 px à son contenu sur un ordinateur, où le nom du
+   fournisseur tient très bien ; 420 px sépare le bureau du téléphone. */
+.ai-routing { container: ai-routing / inline-size; }
+.ai-routing__grid {
+  --indent: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, minmax(var(--cell), max-content)) auto;
+  column-gap: 6px;
+}
+.ai-routing__feed-name { padding-left: var(--indent); }
+.ai-routing__cat-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.ai-routing__cat-label > * { max-width: 100%; }
+.ai-routing__wide {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 9rem;
+  padding: 0 6px 0 8px;
+}
+.ai-routing__narrow { display: none; }
+@container ai-routing (max-width: 419px) {
+  /* 2 px entre colonnes : chaque pixel rendu va au nom. Au doigt, les zones
+     de toucher élargies (2 px de chaque côté) se chevauchent d'autant, sans
+     gêne : le bord touché appartient toujours à l'une des deux cellules. */
+  .ai-routing__grid { --indent: 12px; column-gap: 2px; }
+  /* Le compte passe sous le nom : la bande au doigt fait 44 px, deux lignes y tiennent. */
+  .ai-routing__cat-label { flex-direction: column; align-items: flex-start; gap: 0; }
+  .ai-routing__wide, .ai-routing__wide-text { display: none; }
+  .ai-routing__narrow { display: inline-flex; }
+}
+
 /* Actions de ligne révélées au survol (remise à zéro d'une couleur, déplacer /
    renommer / supprimer une étiquette). `opacity: 0` ne retire pas le ciblage :
    au doigt ce sont des boutons invisibles mais actifs, dont un destructif, et
