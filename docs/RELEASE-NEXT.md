@@ -22,8 +22,9 @@ la release publiée.
   tête du volet de lecture, envoie l'article au fournisseur que l'admin a
   déclaré (Claude, ou tout service compatible OpenAI dont Ollama) et affiche le
   résumé au-dessus de l'article, sur toute la largeur de la colonne. L'en-tête
-  dit l'état (« Pas encore résumé », « Résumé par X »…) et porte l'action
-  « Résumer », puis « Résumer avec… » ; replier le panneau est mémorisé pour
+  dit l'état (« Résumé en cours… », « Résumé par X »…) et porte l'action
+  « Résumer », puis « Résumer avec… » ; tant qu'il n'y a rien à montrer, le
+  panneau tient sur une seule ligne compacte (titre et « Résumer ») ; replier le panneau est mémorisé pour
   tous les articles et synchronisé entre appareils. Sa surface teintée se règle
   dans Apparence → Couleurs → Lecture (« Résumé IA, fond » / « bordure »),
   avec une teinte propre à chaque thème livré. Éteint d'origine ; nouvelle

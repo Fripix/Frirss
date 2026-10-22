@@ -2745,10 +2745,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     apparaître de même. Réglé dans Préférences → IA → « Résumés » (global) ;
     la pastille « Panneau IA » de « Par flux et catégorie » le précise pour un
     flux ou une catégorie.
-  - **Panneau vide = l'en-tête seul** (quand il est visible, voir ci-dessus). Tant qu'il n'y a rien à montrer
+  - **Panneau vide = une seule ligne compacte** (quand il est visible, voir ci-dessus). Tant qu'il n'y a rien à montrer
     (`empty = !done && !loading && !alertText` : ni résumé, ni demande en cours,
     ni erreur), le panneau se réduit à une ligne : étincelle, titre « Résumé
-    IA », « Pas encore résumé » et l'action « Résumer » à droite. **Pas de
+    IA » (13 px, semi-gras) et l'action « Résumer » à droite. **Pas de ligne de
+    statut** (le « Pas encore résumé » d'avant n'apprenait rien et doublait la
+    hauteur), des marges serrées (`py-1` à gauche ; à droite `py-1`, ou `py-0.5`
+    au doigt où le bouton garde ses 44 px) : ≈ 40 px au bureau, 48 px sur
+    tablette et smartphone. **Pas de
     corps, pas de chevron, et la partie gauche n'est pas un bouton** (un `div`
     du même gabarit, `HeaderLead`) : il n'y a rien à replier. **La ligne d'aide
     « Cliquez sur « Résumer »… » (`ai.hint`) a été retirée**, dans les dix
@@ -2758,11 +2762,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   - **En-tête toujours visible** : à gauche, **un seul bouton** (`aria-expanded`,
     `aria-controls`) qui replie ou déplie (dès qu'il y a quelque chose à
     montrer) — étincelle, titre « Résumé IA »,
-    statut en petit dessous (« Pas encore résumé », « Résumé en cours… » pendant
+    statut en petit dessous (« Résumé en cours… » pendant
     une première demande — replié, c'est tout ce qu'on voit, et « Pas encore
     résumé » y contredisait le bouton —, « Résumé par X », « depuis le cache »
     — aussi quand le serveur a rattaché la demande à une génération en cours —,
-    « X indisponible »), chevron qui tourne. À droite, **hors de ce
+    « X indisponible » ; « Pas encore résumé » ne se lit plus que sous une
+    erreur sans résumé, déplié), chevron qui tourne. À droite, **hors de ce
     bouton** (un clic dessus ne replie rien) : l'action « Résumer » (pleine,
     couleur d'accent) tant qu'il n'y a pas de résumé — désactivée, avec un
     indicateur qui tourne et « Résumé en cours… », pendant la demande —, puis « Résumer

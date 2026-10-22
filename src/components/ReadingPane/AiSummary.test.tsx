@@ -110,15 +110,36 @@ describe('AiSummary — panneau vide', () => {
     expect(container.querySelector('[id$="-body"]')).toBeNull();
     expect(container.querySelector('[aria-expanded]')).toBeNull();
     expect(screen.getByText('ai.summarize')).toBeTruthy();
-    expect(screen.getByText('ai.status.none')).toBeTruthy();
     expect(screen.getByRole('button', ACTION)).toBeTruthy();
+  });
+  it('vide : aucun statut, titre et bouton seulement, sur une ligne compacte', () => {
+    const { container } = render(<AiSummary {...idleProps} />);
+    expect(container.querySelector('[data-status]')).toBeNull();
+    expect(screen.queryByText('ai.status.none')).toBeNull();
+    const lead = screen.getByText('ai.summarize').closest('div.grow') as HTMLElement;
+    expect(lead.className).toContain('py-1');
+    expect(lead.className).not.toContain('py-2');
+    const action = screen.getByRole('button', ACTION);
+    expect(action.className).toContain('h-8');
+    expect((action.parentElement as HTMLElement).className).toContain('py-1');
+  });
+  it('vide au doigt : le bouton garde 44 px, le conteneur se serre à py-0.5', () => {
+    breakpoint.mockImplementation(() => 'mobile');
+    render(<AiSummary {...idleProps} />);
+    const action = screen.getByRole('button', ACTION);
+    expect(action.className).toContain('min-h-[44px]');
+    expect((action.parentElement as HTMLElement).className).toContain('py-0.5');
+  });
+  it('en cours : le statut dit « Résumé en cours… »', () => {
+    const { container } = render(<AiSummary {...idleProps} status="loading" />);
+    expect(container.querySelector('[data-status]')?.textContent).toBe('ai.summarizing');
   });
   it('vide, la mémoire du repli ne change rien : ni corps, ni chevron, replié ou non', () => {
     useUiStore.setState({ aiPanelCollapsed: true });
     const { container } = render(<AiSummary {...idleProps} />);
     expect(container.querySelector('[data-chevron]')).toBeNull();
     expect(container.querySelector('[id$="-body"]')).toBeNull();
-    expect(screen.getByText('ai.status.none')).toBeTruthy();
+    expect(container.querySelector('[data-status]')).toBeNull();
   });
   it('vide, l\'en-tête garde son gabarit : deux rangs à 320 px et 44 px au doigt', () => {
     breakpoint.mockImplementation(() => 'mobile');
@@ -152,9 +173,9 @@ describe('AiSummary — panneau vide', () => {
 });
 
 describe('AiSummary — statut et action', () => {
-  it('idle: « Pas encore résumé » and the « Résumer » action, no body', () => {
-    const { container, getByText, getByRole, queryByRole } = render(<AiSummary {...idleProps} />);
-    expect(getByText('ai.status.none')).toBeTruthy();
+  it('idle: the « Résumer » action and no status line, no body', () => {
+    const { container, queryByText, getByRole, queryByRole } = render(<AiSummary {...idleProps} />);
+    expect(queryByText('ai.status.none')).toBeNull();
     expect(container.querySelector('[id$="-body"]')).toBeNull();
     expect(getByRole('button', ACTION)).toBeTruthy();
     expect(queryByRole('button', { name: 'ai.withProvider' })).toBeNull();
