@@ -816,6 +816,13 @@ describe('AiTab — « Par flux et catégorie »', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useUiStore.getState().aiCategoryAutoSummary).toEqual({ Tech: true });
   });
+  it('les pastilles portent un title explicatif', () => {
+    render(<AiTab active />);
+    const pillOf = (name: string) => sw('Summary', name).closest('label') as HTMLElement;
+    const row = pillOf('Tech').parentElement as HTMLElement;
+    const titles = Array.from(row.querySelectorAll('label')).map((l) => l.getAttribute('title'));
+    expect(titles).toEqual(['ai.routing.summaryTitle', 'ai.routing.translateTitle', 'ai.routing.panelTitle']);
+  });
   it('every pill is described by the legend; the uncategorised group has none of its own', () => {
     const { getByText, getAllByRole } = render(<AiTab active />);
     const legend = getByText('ai.routing.legend');

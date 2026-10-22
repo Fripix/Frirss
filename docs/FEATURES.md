@@ -1866,7 +1866,12 @@ Titre, méta (source, auteur, date), étiquettes en pastilles, corps HTML
   largeur naturelle mesurée 928-948px) et **560px** (rembourrage/icônes
   resserrés en plus, sinon les icônes seules débordaient encore à 320px de
   volet — colonne de liste élargie sur un petit écran ; plancher mesuré
-  ~260px, marge d'environ 55px à 320px).
+  ~260px, marge d'environ 55px à 320px). **Avec le bouton « Résumer » dans
+  la barre** (panneau IA masqué par réglage, rien demandé : `showSummarizeBarBtn`),
+  la barre compte un bouton de ~90px de plus ; `ReadingPane` pose alors
+  `.has-summarize` sur `.reading-pane` et un **seuil de 1100px** (+100px)
+  replie les libellés plus tôt (`.has-summarize .toolbar-label`). Sans lui,
+  un volet de ~1030px gardait ses libellés **et** débordait.
 - **Focus de lecture** et **taille du texte** sont déjà icônes seules dans
   cette barre (pas de libellé à coucher) ; ils rétrécissent quand même dans le
   repli compact (classe `.toolbar-icon-btn`) pour tenir dans le même budget.
@@ -2647,7 +2652,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   de catégorie) et `feedSettings[id].aiProvider`, tous deux synchronisés ; ils
   sont relus par `normalizeAiProviderId` (une valeur synchronisée corrompue
   vaut « par défaut ») et la catégorie par clé propre (`Object.hasOwn`).
-  **Pastilles « Résumer », « Traduire » et « Panneau »** (`Pill`, dans
+  **Pastilles « Résumer », « Traduire » et « Panneau IA »** (`Pill`, dans
   `ai/shared.tsx`) : un `<label>` à contour fin de 1 px (`--panel-border`),
   rayon plein, qui contient le mot (`text-xs`) et le `ToggleSwitch` ; **allumée,
   le contour et le mot passent à l'`--accent`**. Hauteur 32 px à la souris,
@@ -2655,9 +2660,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   l'interrupteur, **une seule fois** (le clic remonte au bouton). Le nom
   accessible dit la ligne — « Résumer / Traduire automatiquement les articles
   de X », « Panneau Résumé IA toujours visible pour X » (`ai.routing.panelFor`,
-  le mot court étant `ai.routing.panel`) — et est décrit par la légende.
+  le mot court étant `ai.routing.panel`, « Panneau IA ») — et est décrit par
+  la légende. Chaque pastille porte aussi un `title` (prop optionnelle de
+  `Pill`) qui dit ce qu'elle fait — `ai.routing.summaryTitle`,
+  `translateTitle`, `panelTitle` : « Résumer chaque article à l'ouverture »,
+  etc. ; une infobulle n'est qu'un complément (invisible au doigt), la
+  légende reste.
   « Résumer » et « Traduire » : allumé, chaque article de la ligne doit être
-  résumé ou traduit **à l'ouverture**. « Panneau » : allumé, le panneau
+  résumé ou traduit **à l'ouverture**. « Panneau IA » : allumé, le panneau
   « Résumé IA » reste visible même sans résumé ; éteint, il n'apparaît
   qu'avec une demande ou un résumé (voir « Interface — panneau »).
   Le volet de lecture applique les mêmes règles (`autoFor`, `panelFor` de
@@ -2665,7 +2675,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   « Traduction automatique à l'ouverture » plus bas. Une catégorie affiche et
   écrit son propre drapeau (`aiCategoryAutoSummary` / `aiCategoryAutoTranslate`,
   `{ nom: true }`, et `aiCategoryPanel`, `{ nom: boolean }`, rangés par nom
-  comme les fournisseurs) ; sa pastille « Panneau », sans valeur propre,
+  comme les fournisseurs) ; sa pastille « Panneau IA », sans valeur propre,
   **montre le réglage global** (`aiPanelAlways`). Un flux affiche sa **valeur
   effective** (`autoFor` / `panelFor` : la sienne, sinon celle de ses
   catégories, sinon — résumé et panneau seulement — le réglage global ;
@@ -2684,7 +2694,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   rien. Allumer « Résumer » quand le résumé automatique global est éteint et
   que `aiAutoSummaryConfirmed` est faux ouvre la boîte du global
   (`AutoSummaryConfirm`), avec le même effet. Éteindre ne demande jamais rien,
-  et « Panneau » n'a **aucune** confirmation (il ne coûte rien).
+  et « Panneau IA » n'a **aucune** confirmation (il ne coûte rien).
   Les deux drapeaux sont synchronisés. ⚠️ Une catégorie sous un global de
   résumé allumé s'affiche éteinte alors que ses flux sont résumés (le global
   vaut partout) : ses flux, eux, montrent la valeur effective.
@@ -2733,7 +2743,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     son erreur. Il repart avec l'état à l'article suivant, comme le résumé. Le résumé automatique
     (`autoFor`) est indépendant : il part panneau masqué et le fait
     apparaître de même. Réglé dans Préférences → IA → « Résumés » (global) ;
-    la pastille « Panneau » de « Par flux et catégorie » le précise pour un
+    la pastille « Panneau IA » de « Par flux et catégorie » le précise pour un
     flux ou une catégorie.
   - **Panneau vide = l'en-tête seul** (quand il est visible, voir ci-dessus). Tant qu'il n'y a rien à montrer
     (`empty = !done && !loading && !alertText` : ni résumé, ni demande en cours,

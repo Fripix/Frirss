@@ -216,6 +216,21 @@ describe('ReadingPane — Résumé IA', () => {
       expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'a1' }));
       expect(await findByText('Le résumé.')).toBeTruthy();
     });
+    it('la classe has-summarize suit le bouton Résumer de la barre', async () => {
+      // Panneau masqué : le bouton « Résumer » est dans la barre, qui est un bouton plus large.
+      useUiStore.setState({ aiPanelAlways: false });
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      const { container, getByRole } = render(<ReadingPane />);
+      const pane = container.querySelector('.reading-pane') as HTMLElement;
+      expect(pane.classList.contains('has-summarize')).toBe(true);
+      // La demande part : le panneau prend le relais, le bouton disparaît, la classe aussi.
+      fireEvent.click(getByRole('button', { name: 'ai.summarizeAction' }));
+      await waitFor(() => expect(pane.classList.contains('has-summarize')).toBe(false));
+    });
+    it('has-summarize is absent while the panel is shown', () => {
+      const { container } = render(<ReadingPane />);
+      expect((container.querySelector('.reading-pane') as HTMLElement).classList.contains('has-summarize')).toBe(false);
+    });
     it('on a phone, « Résumer » is the first row of the « … » sheet: it closes the sheet and asks for the summary', async () => {
       const width = window.innerWidth;
       window.innerWidth = 375;

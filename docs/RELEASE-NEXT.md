@@ -69,7 +69,7 @@ la release publiée.
   fournisseur des traductions (« Même que le résumé » par défaut). La vue
   « Par flux et catégorie » devient un accordéon : chaque catégorie (repliée
   d'origine) porte trois pastilles nommées, « Résumer » et « Traduire » à
-  l'ouverture et « Panneau » (voir plus bas), un flux primant sur sa catégorie ;
+  l'ouverture et « Panneau IA » (voir plus bas), chacune avec une infobulle, un flux primant sur sa catégorie ;
   dépliée, elle montre le fournisseur de la catégorie puis ses flux, chacun avec
   son fournisseur et ses pastilles. Les noms sont tronqués sur une ligne, et sur
   un écran étroit les pastilles passent sous le nom ; allumer la
@@ -98,7 +98,7 @@ la release publiée.
   touche `s` ou la palette le font apparaître comme lui ; le panneau disparaît
   à l'article suivant.
   Le réglage est synchronisé ; il se précise par flux et par catégorie, avec la
-  pastille « Panneau » de « Par flux et catégorie » (un flux prime sur ses
+  pastille « Panneau IA » de « Par flux et catégorie » (un flux prime sur ses
   catégories, qui priment sur le global).
 - **Deux onglets, un seul appel IA.** Quand le même résumé ou le même lot de
   traduction est demandé pendant qu'il est en cours de génération — depuis un

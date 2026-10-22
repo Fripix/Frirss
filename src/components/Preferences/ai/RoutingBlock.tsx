@@ -51,20 +51,20 @@ function Chevron({ open }: { open: boolean }) {
 /**
  * Bloc « Par flux et catégorie » : l'aperçu de tous les choix de fournisseur
  * et des trois automatismes. Un accordéon : une ligne par catégorie (repliée
- * d'origine), avec ses trois pastilles « Résumer », « Traduire » et « Panneau » ;
+ * d'origine), avec ses trois pastilles « Résumer », « Traduire » et « Panneau IA » ;
  * dépliée, elle montre d'abord le fournisseur de la catégorie, puis ses flux,
  * chacun avec son fournisseur et ses pastilles. Les flux sans catégorie
  * forment un dernier groupe, sans sélecteur ni pastilles de groupe. Un flux
  * l'emporte sur sa catégorie, qui l'emporte sur le réglage global.
  *
  * « Résumer » et « Traduire » lancent l'action à l'ouverture de chaque article
- * de la ligne ; « Panneau » garde le panneau Résumé IA visible même sans
+ * de la ligne ; « Panneau IA » garde le panneau Résumé IA visible même sans
  * résumé. Un flux affiche sa valeur effective (`autoFor` / `panelFor` : la
  * sienne, sinon celle de ses catégories, sinon le réglage global — la
  * traduction n'en a pas) et le toucher écrit toujours une valeur propre, pour
  * qu'éteindre un flux sous une catégorie allumée tienne. Allumer « Traduire »
  * ou « Résumer » demande une fois par compte la confirmation de coût ;
- * « Panneau » ne coûte rien et n'en a pas.
+ * « Panneau IA » ne coûte rien et n'en a pas.
  *
  * Les catégories sont réglées par **nom** : en renommer une perd son réglage.
  */
@@ -144,15 +144,15 @@ export default function RoutingBlock() {
   }) => (
     <div className={pillsClass}>
       <Pill
-        word={t('ai.routing.autoSummary')} checked={v.summary} describedBy={legendId}
+        word={t('ai.routing.autoSummary')} title={t('ai.routing.summaryTitle')} checked={v.summary} describedBy={legendId}
         ariaLabel={t('ai.routing.autoSummaryFor', { name })} onChange={(on) => switchAuto('summary', on, v.setSummary)}
       />
       <Pill
-        word={t('ai.routing.autoTranslate')} checked={v.translate} describedBy={legendId}
+        word={t('ai.routing.autoTranslate')} title={t('ai.routing.translateTitle')} checked={v.translate} describedBy={legendId}
         ariaLabel={t('ai.routing.autoTranslateFor', { name })} onChange={(on) => switchAuto('translate', on, v.setTranslate)}
       />
       <Pill
-        word={t('ai.routing.panel')} checked={v.panel} describedBy={legendId}
+        word={t('ai.routing.panel')} title={t('ai.routing.panelTitle')} checked={v.panel} describedBy={legendId}
         ariaLabel={t('ai.routing.panelFor', { name })} onChange={v.setPanel}
       />
     </div>

@@ -58,7 +58,7 @@ export function AutoSummaryConfirm({ open, onConfirm, onCancel }: { open: boolea
 
 /**
  * Une pastille de « Par flux et catégorie » : le mot (« Résumer », « Traduire »,
- * « Panneau ») et son interrupteur dans un même `<label>` à contour fin, de
+ * « Panneau IA ») et son interrupteur dans un même `<label>` à contour fin, de
  * sorte qu'un toucher sur le mot ou sur le bord bascule l'interrupteur, une
  * seule fois (le clic remonte au bouton, rien d'autre ne le reçoit). Allumée,
  * le contour et le mot prennent l'accent : l'état se lit sans regarder le
@@ -66,11 +66,12 @@ export function AutoSummaryConfirm({ open, onConfirm, onCancel }: { open: boolea
  * Le mot ne suffit pas à nommer l'interrupteur — il ne dit pas la ligne —, d'où
  * le `ariaLabel` complet ; `describedBy` pointe la légende du bloc.
  */
-export function Pill({ word, checked, ariaLabel, describedBy, onChange }: {
-  word: string; checked: boolean; ariaLabel: string; describedBy?: string; onChange: (on: boolean) => void;
+export function Pill({ word, checked, ariaLabel, describedBy, title, onChange }: {
+  word: string; checked: boolean; ariaLabel: string; describedBy?: string; title?: string; onChange: (on: boolean) => void;
 }) {
   return (
     <label
+      title={title}
       className="prefs-tap-btn inline-flex items-center gap-1.5 min-h-[32px] max-w-full pl-2.5 pr-1.5 border rounded-full text-xs whitespace-nowrap cursor-pointer"
       style={{ borderColor: checked ? 'var(--accent)' : 'var(--panel-border)', color: checked ? 'var(--accent)' : 'var(--list-summary)' }}
     >
