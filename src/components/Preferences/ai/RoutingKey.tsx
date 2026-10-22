@@ -4,57 +4,58 @@ import { toggleLook } from '../../../lib/routingLook';
 import { ChipIcon, PanelIcon, SparkleIcon, TranslateIcon, type ToggleState } from './RoutingControls';
 
 /**
- * La clé de « Par flux et catégorie » : ce que chaque colonne fait, puis ce
- * que disent les trois aspects d'un interrupteur. Une vraie `<table>` (le nom
- * est un `<th scope="row">`, sans ligne d'en-tête : trois colonnes dont le
- * sens va de soi) — elle remplace, à toutes les largeurs, les deux phrases
- * d'aide et la légende à icônes de l'étroit.
+ * La clé de « Par flux et catégorie » : un seul tableau de sept lignes — ce
+ * que fait chaque colonne (quatre), puis ce que dit chaque aspect d'un
+ * interrupteur (trois) — et la phrase de priorité dessous. Une vraie `<table>`
+ * (le nom est un `<th scope="row">`, sans ligne d'en-tête : trois colonnes
+ * dont le sens va de soi) ; elle remplace, à toutes les largeurs, les deux
+ * phrases d'aide et la légende à icônes de l'étroit.
  *
- * Les icônes sont des interrupteurs « réglé ici » en petit (20 px), dessinés
- * par `toggleLook` comme les vrais ; les échantillons d'état aussi. À 320 px
- * les trois colonnes tiennent (icône 28, nom sur une ligne, description qui
- * passe à la ligne sous elle-même). Les interrupteurs la désignent par
- * `aria-describedby` (`id`).
+ * Lisible sans peser (retours du propriétaire, 2026-10-22 : un fond teinté
+ * était « presque un peu trop envahissant », puis la version sans fond, en
+ * 12 px gris, « moins claire / visible / lisible ») : cadre au filet, sans
+ * fond ; texte 13 px ; noms en gras couleur de titre dans une colonne fixe
+ * (`w-28`, les descriptions s'alignent) ; descriptions couleur de titre à
+ * 75 %, plus foncées que le gris des résumés ; un filet entre les lignes,
+ * double entre les colonnes et les états. Les icônes (22 px) et les
+ * échantillons passent par `toggleLook`, le code même des interrupteurs : la
+ * clé ne peut pas dériver de ce qu'elle explique. Les interrupteurs la
+ * désignent par `aria-describedby` (`id`).
+ *
+ * À 320 px (≈ 279 px de conteneur, 253 dans le cadre) : icône 32, nom 112,
+ * reste ≈ 109 px pour la description, qui passe à la ligne sous elle-même ;
+ * un nom long (« Налаштовано тут ») passe à la ligne dans sa colonne plutôt
+ * que de l'élargir.
  */
 const SQUARE = 'inline-flex items-center justify-center rounded-md flex-shrink-0';
-/** Les icônes (16 px) rapetissent à 12 px dans l'échantillon de 20 px. */
-const SAMPLE = `${SQUARE} [&_svg]:w-3 [&_svg]:h-3`;
-/** Les icônes de colonne, comme les échantillons, à 12 px dans un carré de 20. */
-const ICON = `${SQUARE} [&_svg]:w-3 [&_svg]:h-3`;
-/**
- * Une ligne par colonne, séparée de la suivante par un filet : la clé se lit
- * comme un petit tableau, sans fond ni gros carrés qui lui donneraient plus de
- * poids que la matrice qu'elle explique (retour du propriétaire, 2026-10-22 :
- * « presque un peu trop envahissant », « des séparateurs entre les lignes »).
- * Cellules à 6 px de haut et de bas ; la première ligne de texte (16 px) a son
- * milieu sur celui de l'icône de 20 px.
- */
-const CELL = 'py-1.5 align-top';
-const FIRST_LINE = 'pt-[2px] leading-4';
+const ICON_SIZE = { width: 22, height: 22 };
+/** Cellules à 8 px de haut et de bas ; la première ligne de texte (20 px) a son milieu sur celui de l'icône de 22 px. */
+const CELL = 'py-2 align-top';
+const FIRST_LINE = 'block pt-px leading-5';
 
-function Row({ icon, name, children }: { icon: ReactNode; name: string; children: string }) {
+type Rule = 'none' | 'thin' | 'thick';
+const RULE: Record<Rule, string> = { none: '', thin: 'border-t', thick: 'border-t-2' };
+
+function Row({ icon, name, rule, children }: { icon: ReactNode; name: string; rule: Rule; children: string }) {
+  const border = { borderColor: 'var(--panel-border)' };
   return (
-    <tr className="[&+tr>*]:border-t" style={{ borderColor: 'var(--panel-border)' }}>
-      <td className={`w-7 ${CELL}`} style={{ borderColor: 'inherit' }}>{icon}</td>
-      <th scope="row" className={`${CELL} text-left font-semibold whitespace-nowrap pr-3`} style={{ color: 'var(--list-title)', borderColor: 'inherit' }}>
-        <span className={`block ${FIRST_LINE}`}>{name}</span>
+    <tr>
+      <td className={`w-8 ${CELL} ${RULE[rule]}`} style={border}>{icon}</td>
+      <th scope="row" className={`w-28 ${CELL} ${RULE[rule]} text-left font-semibold pr-3`} style={{ ...border, color: 'var(--list-title)' }}>
+        <span className={FIRST_LINE}>{name}</span>
       </th>
-      <td className={CELL} style={{ color: 'var(--list-summary)', borderColor: 'inherit' }}>
-        <span className={`block ${FIRST_LINE}`}>{children}</span>
+      <td className={`${CELL} ${RULE[rule]}`} style={{ ...border, color: 'var(--list-title)', opacity: 0.75 }}>
+        <span className={FIRST_LINE}>{children}</span>
       </td>
     </tr>
   );
 }
 
-function ColumnIcon({ children }: { children: ReactNode }) {
-  return <span aria-hidden="true" className={ICON} style={{ width: 20, height: 20, ...toggleLook('on') }}>{children}</span>;
-}
-
-function Sample({ state, label }: { state: ToggleState; label: string }) {
+/** Une icône de colonne, ou l'échantillon d'un état : un interrupteur en petit, icône à 13 px. */
+function Square({ state, children }: { state: ToggleState; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span aria-hidden="true" className={SAMPLE} style={{ width: 20, height: 20, ...toggleLook(state) }}><SparkleIcon /></span>
-      {label}
+    <span aria-hidden="true" className={`${SQUARE} [&_svg]:w-[13px] [&_svg]:h-[13px]`} style={{ ...ICON_SIZE, ...toggleLook(state) }}>
+      {children}
     </span>
   );
 }
@@ -62,31 +63,27 @@ function Sample({ state, label }: { state: ToggleState; label: string }) {
 export default function RoutingKey({ id }: { id: string }) {
   const { t } = useTranslation();
   return (
-    <div
-      id={id} data-routing-key className="rounded-lg px-3 py-1.5 text-xs"
-      style={{ border: '1px solid var(--panel-border)' }}
-    >
-      <table className="w-full border-collapse">
+    <div id={id} data-routing-key className="rounded-lg px-3" style={{ border: '1px solid var(--panel-border)' }}>
+      <table className="w-full border-collapse text-[13px]">
         <tbody>
-          <Row icon={<ColumnIcon><SparkleIcon /></ColumnIcon>} name={t('ai.routing.autoSummary')}>{t('ai.routing.keySummary')}</Row>
-          <Row icon={<ColumnIcon><TranslateIcon /></ColumnIcon>} name={t('ai.routing.autoTranslate')}>{t('ai.routing.keyTranslate')}</Row>
-          <Row icon={<ColumnIcon><PanelIcon /></ColumnIcon>} name={t('ai.routing.keyPanelName')}>{t('ai.routing.keyPanel')}</Row>
+          <Row rule="none" icon={<Square state="on"><SparkleIcon /></Square>} name={t('ai.routing.autoSummary')}>{t('ai.routing.keySummary')}</Row>
+          <Row rule="thin" icon={<Square state="on"><TranslateIcon /></Square>} name={t('ai.routing.autoTranslate')}>{t('ai.routing.keyTranslate')}</Row>
+          <Row rule="thin" icon={<Square state="on"><PanelIcon /></Square>} name={t('ai.routing.keyPanelName')}>{t('ai.routing.keyPanel')}</Row>
           <Row
-            icon={<span aria-hidden="true" className={ICON} style={{ width: 20, height: 20, color: 'var(--list-title)' }}><ChipIcon /></span>}
+            rule="thin"
+            icon={<span aria-hidden="true" className={`${SQUARE} [&_svg]:w-[13px] [&_svg]:h-[13px]`} style={{ ...ICON_SIZE, color: 'var(--list-title)' }}><ChipIcon /></span>}
             name={t('ai.routing.providerColumn')}
           >
             {t('ai.routing.keyProvider')}
           </Row>
+          <Row rule="thick" icon={<Square state="on"><SparkleIcon /></Square>} name={t('ai.routing.keySet')}>{t('ai.routing.keySetText')}</Row>
+          <Row rule="thin" icon={<Square state="inherited"><SparkleIcon /></Square>} name={t('ai.routing.keyInherited')}>{t('ai.routing.keyInheritedText')}</Row>
+          <Row rule="thin" icon={<Square state="off"><SparkleIcon /></Square>} name={t('ai.routing.keyOff')}>{t('ai.routing.keyOffText')}</Row>
         </tbody>
       </table>
-      <div className="py-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
-        <p data-routing-states className="flex flex-wrap items-center gap-x-4 gap-y-1.5" style={{ color: 'var(--list-title)' }}>
-          <Sample state="on" label={t('ai.routing.keySet')} />
-          <Sample state="inherited" label={t('ai.routing.keyInherited')} />
-          <Sample state="off" label={t('ai.routing.keyOff')} />
-        </p>
-        <p className="mt-1.5" style={{ color: 'var(--list-summary)' }}>{t('ai.routing.keyPrecedence')}</p>
-      </div>
+      <p className="text-xs py-2" style={{ color: 'var(--list-summary)', borderTop: '1px solid var(--panel-border)' }}>
+        {t('ai.routing.keyPrecedence')}
+      </p>
     </div>
   );
 }

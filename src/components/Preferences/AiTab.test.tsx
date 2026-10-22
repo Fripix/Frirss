@@ -1161,44 +1161,60 @@ describe('AiTab — « Par flux et catégorie »', () => {
       'ai.routing.summaryTitle', 'ai.routing.translateTitle', 'ai.routing.panelTitle',
     ]);
   });
-  it('the key is a table: icon, name and what it does, for the four columns', () => {
+  it('the key is one table: the four columns, then the three states, each with its icon, name and what it means', () => {
     render(<AiTab active />);
     const box = document.querySelector('[data-routing-key]') as HTMLElement;
     const table = box.querySelector('table') as HTMLTableElement;
     expect(table.querySelector('thead')).toBeNull();
     const rows = Array.from(table.querySelectorAll('tr'));
-    expect(rows.map((r) => r.querySelector('th')?.getAttribute('scope'))).toEqual(['row', 'row', 'row', 'row']);
+    expect(rows.map((r) => r.querySelector('th')?.getAttribute('scope'))).toEqual(Array(7).fill('row'));
     expect(rows.map((r) => r.querySelector('th')?.textContent)).toEqual([
       'ai.routing.autoSummary', 'ai.routing.autoTranslate', 'ai.routing.keyPanelName', 'ai.routing.providerColumn',
+      'ai.routing.keySet', 'ai.routing.keyInherited', 'ai.routing.keyOff',
     ]);
     expect(rows.map((r) => r.querySelectorAll('td')[1].textContent)).toEqual([
       'ai.routing.keySummary', 'ai.routing.keyTranslate', 'ai.routing.keyPanel', 'ai.routing.keyProvider',
+      'ai.routing.keySetText', 'ai.routing.keyInheritedText', 'ai.routing.keyOffText',
     ]);
-    // Une icône décorative par ligne ; les trois premières sont des carrés « réglé ici ».
-    for (const r of rows) expect(r.querySelector('td [aria-hidden="true"] svg')).toBeTruthy();
-    const squares = rows.slice(0, 3).map((r) => r.querySelector('td span') as HTMLElement);
-    for (const q of squares) expect(q.style.background).toBe('var(--accent)');
-    expect(rows[3].querySelector('td span')?.getAttribute('style')).not.toContain('--accent');
-    // Un filet entre les lignes (retour du propriétaire) : la règle vit sur chaque ligne et vise la suivante.
-    for (const r of rows) expect(r.className).toContain('[&+tr>*]:border-t');
-    // Plus de fond teinté : la clé ne doit pas peser plus que la matrice qu'elle explique.
+    // Une icône décorative de 22 px par ligne ; les trois premières sont des carrés « réglé ici ».
+    const icons = rows.map((r) => r.querySelector('td > [aria-hidden="true"]') as HTMLElement);
+    for (const icon of icons) {
+      expect(icon.querySelector('svg')).toBeTruthy();
+      expect([icon.style.width, icon.style.height]).toEqual(['22px', '22px']);
+    }
+    for (const q of icons.slice(0, 3)) expect(q.style.background).toBe('var(--accent)');
+    expect(icons[3].getAttribute('style')).not.toContain('--accent');
+    // Les échantillons d'état sont dessinés par le code des interrupteurs.
+    expect(icons[4].style.background).toBe('var(--accent)');
+    expect(icons[5].style.boxShadow).toContain('1.5px var(--accent)');
+    expect(icons[6].style.boxShadow).toContain('var(--panel-border)');
+    // Un filet entre les lignes, plus marqué entre les colonnes et les états ; aucun au-dessus de la première.
+    const rule = (r: HTMLElement) => Array.from(r.children).map((c) => (c.className.match(/\bborder-t(-2)?\b/) ?? [''])[0]);
+    expect(rows.map((r) => rule(r)[0])).toEqual(['', 'border-t', 'border-t', 'border-t', 'border-t-2', 'border-t', 'border-t']);
+    for (const r of rows) expect(new Set(rule(r)).size).toBe(1);
+    // Lisible sans peser : 13 px, noms en gras et colonne de noms fixe, descriptions plus foncées que le gris des résumés, pas de fond.
+    expect(table.className).toContain('text-[13px]');
+    for (const r of rows) {
+      const th = r.querySelector('th') as HTMLElement;
+      expect(th.className).toContain('font-semibold');
+      expect(th.className).toContain('w-28');
+      expect(th.style.color).toBe('var(--list-title)');
+      const desc = r.querySelectorAll('td')[1] as HTMLElement;
+      expect([desc.style.color, desc.style.opacity]).toEqual(['var(--list-title)', '0.75']);
+    }
     expect(box.style.background).toBe('');
   });
-  it('the key shows the three states drawn like the switches, then the precedence line', () => {
+  it('the precedence line follows the table, in small grey type', () => {
     render(<AiTab active />);
-    const states = document.querySelector('[data-routing-states]') as HTMLElement;
-    expect(Array.from(states.children).map((c) => c.textContent)).toEqual([
-      'ai.routing.keySet', 'ai.routing.keyInherited', 'ai.routing.keyOff',
-    ]);
-    const [set, inherited, off] = Array.from(states.children).map((c) => (c.firstElementChild as HTMLElement));
-    for (const sample of [set, inherited, off]) expect(sample.getAttribute('aria-hidden')).toBe('true');
-    expect(set.style.background).toBe('var(--accent)');
-    expect(inherited.style.boxShadow).toContain('1.5px var(--accent)');
-    expect(off.style.boxShadow).toContain('var(--panel-border)');
-    expect(screen.getByText('ai.routing.keyPrecedence')).toBeTruthy();
-    // Les phrases d'aide d'avant ont disparu.
+    const table = document.querySelector('[data-routing-key] table') as HTMLElement;
+    const line = table.nextElementSibling as HTMLElement;
+    expect(line.textContent).toBe('ai.routing.keyPrecedence');
+    expect(line.className).toContain('text-xs');
+    expect(line.style.color).toBe('var(--list-summary)');
+    // Les phrases d'aide d'avant ont disparu, et la rangée d'échantillons aussi : les états sont des lignes du tableau.
     expect(screen.queryByText('ai.routing.hint')).toBeNull();
     expect(screen.queryByText('ai.routing.legend')).toBeNull();
+    expect(document.querySelector('[data-routing-states]')).toBeNull();
   });
   it('every switch is described by the key box', () => {
     render(<AiTab active />);
