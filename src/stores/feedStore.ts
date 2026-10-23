@@ -2720,7 +2720,7 @@ function normalizeArticle(item: GReaderItem): Article {
     id: item.id,
     title: item.title || 'Sans titre',
     summary:
-      item.summary?.content?.replace(/<[^>]*>/g, '').slice(0, 200) || '',
+      item.summary?.content?.replace(/<[^<>]*>/g, '').slice(0, 200) || '',
     content: item.content?.content || item.summary?.content || '',
     author: item.author || '',
     url: item.canonical?.[0]?.href || item.alternate?.[0]?.href || '',

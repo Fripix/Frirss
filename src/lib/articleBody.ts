@@ -81,7 +81,7 @@ export function readingMinutes(words: number): number {
  */
 export function buildArticleBody(input: ArticleBodyInput): ArticleBody {
   const displayed = displayedHtml(input.rssHtml, input.extractedHtml);
-  const words = displayed.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
+  const words = displayed.replace(/<[^<>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
 
   const withVideos = input.inlineVideos
     ? injectVideoFacades(displayed, input.videoLabels)

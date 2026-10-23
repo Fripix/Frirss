@@ -198,3 +198,12 @@ describe('strikeToDel', () => {
     expect(Date.now() - t).toBeLessThan(500);
   });
 });
+
+describe('wordCount — linear time on hostile input', () => {
+  it('counts a long run of « < » without a « > » quickly, like the server copy', () => {
+    const hostile = '<'.repeat(200_000);
+    const t = performance.now();
+    expect(wordCount(hostile)).toBe(segmentWordCount(hostile));
+    expect(performance.now() - t).toBeLessThan(300);
+  });
+});

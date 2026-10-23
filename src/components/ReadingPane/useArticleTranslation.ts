@@ -145,7 +145,7 @@ function isNotCached(err: unknown): boolean {
 }
 
 const HAS_LETTER = /\p{L}/u;
-const hasLetter = (html: string) => HAS_LETTER.test(html.replace(/<[^>]*>/g, ''));
+const hasLetter = (html: string) => HAS_LETTER.test(html.replace(/<[^<>]*>/g, ''));
 
 const RAW_TEXT_TAGS = new Set(['script', 'style', 'noscript', 'template']);
 const isAsciiLetter = (c: number) => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);

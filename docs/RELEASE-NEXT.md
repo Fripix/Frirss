@@ -228,6 +228,12 @@ la release publiée.
   chaîne de fin de séquence pour les tokenizers Llama et Qwen : un article qui
   portait du texte barré pouvait faire s'arrêter un modèle Ollama au milieu du
   lot. Le barré voyage donc en `<del>` et reste `<del>` dans la traduction.
+- **Une requête piégée ne peut plus bloquer le serveur.** Le décompte des
+  mots d'un segment à traduire utilisait un motif quadratique sur une suite de
+  `<` sans `>` : 200 Ko envoyés à `/api/ai/translate` par n'importe quel
+  compte connecté figeaient le serveur ≈ 17 s, pour tout le monde. Le motif
+  est linéaire, côté serveur comme dans les copies du navigateur (un flux
+  hostile pouvait y figer l'onglet).
 - **Sécurité des dépendances** : DOMPurify 3.4.17 (GHSA-cg2g-xh64-v4q7,
   GHSA-mrv2-3pqr-j5jr, GHSA-c6gr-qvv4-5v3f — FriRSS n'utilise aucune des
   options concernées, mise à jour par principe) et follow-redirects 1.16.1

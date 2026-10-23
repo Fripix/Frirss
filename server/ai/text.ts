@@ -88,7 +88,9 @@ const SPACELESS = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Scrip
 
 /** Mots d'un segment HTML : par espaces, ou une paire de caractères pour une écriture sans espaces. */
 export function segmentWordCount(html: string): number {
-  const text = html.replace(/<[^>]*>/g, ' ').trim();
+  // `[^<>]` et non `[^>]` : sur une suite de `<` sans `>`, l'ancien motif était
+  // quadratique — 200 Ko reçus par /api/ai/translate bloquaient le serveur ≈ 17 s.
+  const text = html.replace(/<[^<>]*>/g, ' ').trim();
   if (!text) return 0;
   const bySpace = text.split(/\s+/).length;
   const spaceless = text.match(SPACELESS)?.length ?? 0;
@@ -98,7 +100,7 @@ export function segmentWordCount(html: string): number {
 /** Un segment de moins de 4 mots (nom propre, URL, légende) n'est pas jugé : il peut légitimement rester tel quel. */
 const ECHO_MIN_WORDS = 4;
 
-const echoNormal = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+const echoNormal = (html: string) => html.replace(/<[^<>]*>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 
 /**
  * La « traduction » recopie-t-elle sa source ? Un 7b local (Ollama qwen2.5)

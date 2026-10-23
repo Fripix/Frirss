@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { htmlToText, countWords, isEcho } from './text.js';
+import { htmlToText, countWords, isEcho, segmentWordCount } from './text.js';
 
 describe('htmlToText', () => {
   it('drops tags, scripts and styles, keeps paragraph breaks', () => {
@@ -94,5 +94,21 @@ describe('isEcho', () => {
   });
   it('is false for a shorter output array', () => {
     expect(isEcho(ten, ten.slice(0, 9))).toBe(false);
+  });
+});
+
+describe('linear time on hostile input (a request must never block the event loop)', () => {
+  // `/<[^>]*>/g` est quadratique sur une suite de `<` sans `>` : 200 Ko — la
+  // taille qu'accepte /api/ai/translate — bloquaient le serveur ≈ 17 s.
+  const hostile = '<'.repeat(200_000);
+  it('segmentWordCount', () => {
+    const t = performance.now();
+    segmentWordCount(hostile);
+    expect(performance.now() - t).toBeLessThan(300);
+  });
+  it('isEcho', () => {
+    const t = performance.now();
+    isEcho([hostile], [hostile]);
+    expect(performance.now() - t).toBeLessThan(300);
   });
 });

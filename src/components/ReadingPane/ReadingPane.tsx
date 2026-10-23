@@ -525,7 +525,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             const adjKind = readingBodyKind({ rssHtml: adj.content, extractedHtml: adjExtract, autoExtract: adjAuto });
             const adjHtml = adjKind === 'skeleton' ? '' : displayedHtml(adj.content, adjExtract);
             // Durée de lecture du contenu réellement montré, comme dans le rendu.
-            const wc = adjHtml.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
+            const wc = adjHtml.replace(/<[^<>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
             const rt = readingMinutes(wc);
             // Tags — use same Tailwind classes as React render
             const tags = adj.tags || [];

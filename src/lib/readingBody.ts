@@ -47,7 +47,7 @@ const VISUAL_TAG = /<(?:img|figure|picture|iframe|video|audio|embed|object|svg)\
 export function hasRenderableContent(html?: string | null): boolean {
   if (!html) return false;
   const text = html
-    .replace(/<[^>]*>/g, ' ')
+    .replace(/<[^<>]*>/g, ' ')
     .replace(/&nbsp;|&#160;|&#xa0;/gi, ' ')
     .trim();
   if (text.length > 0) return true;

@@ -119,7 +119,7 @@ export function segmentArticle(title: string, html: string): Segmented {
 const SPACELESS = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}]/gu;
 
 export function wordCount(html: string): number {
-  const text = html.replace(/<[^>]*>/g, ' ').trim();
+  const text = html.replace(/<[^<>]*>/g, ' ').trim();
   if (!text) return 0;
   const bySpace = text.split(/\s+/).length;
   const spaceless = text.match(SPACELESS)?.length ?? 0;
