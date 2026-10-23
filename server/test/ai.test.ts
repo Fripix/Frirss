@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi, afterEach } from 'vitest';
+import { adminKeyFor } from '../ai/store.js';
 import request from 'supertest';
 import app from '../index.js';
 import db, { getSetting, setSetting } from '../db.js';
@@ -180,6 +181,18 @@ describe('ai admin + summary', () => {
     expect(getSetting('ai_enabled')).toBe('false');
     expect((await put({ enabled: true })).status).toBe(200);
     expect(getSetting('ai_enabled')).toBe('true');
+  });
+  it('trims a pasted key; spaces alone keep the stored key, an empty string clears it', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const created = await request(app).post('/api/admin/ai/providers').set(auth)
+      .send({ name: 'Trim', type: 'openai', baseUrl: 'https://trim.example.com', model: 'm', adminKey: '  sk-trim \n' });
+    const id = created.body.provider.id as number;
+    expect(adminKeyFor(id)).toBe('sk-trim');
+    await request(app).put(`/api/admin/ai/providers/${id}`).set(auth).send({ adminKey: '   ' });
+    expect(adminKeyFor(id)).toBe('sk-trim');
+    await request(app).put(`/api/admin/ai/providers/${id}`).set(auth).send({ adminKey: '' });
+    expect(adminKeyFor(id)).toBeNull();
+    await request(app).delete(`/api/admin/ai/providers/${id}`).set(auth);
   });
   it('lists without keys, validates partial updates, reorders exactly the existing ids', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };

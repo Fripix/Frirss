@@ -129,6 +129,75 @@ describe('AiTab', () => {
     expect(await findByText('Ollama')).toBeTruthy();
     expect((getByLabelText('ai.admin.key') as HTMLInputElement).value).toBe('');
   });
+  it('a daily cap typed then left by closing the Preferences (Escape, no blur) is still saved; Enter saves it too', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    vi.mocked(updateAiSettings).mockResolvedValue();
+    const first = render(<AiTab active />);
+    const cap = await first.findByLabelText('ai.admin.dailyCap');
+    fireEvent.change(cap, { target: { value: '12' } });
+    first.unmount();
+    expect(updateAiSettings).toHaveBeenCalledWith({ dailyCap: 12 });
+    vi.mocked(updateAiSettings).mockClear();
+    const second = render(<AiTab active />);
+    const cap2 = await second.findByLabelText('ai.admin.dailyCap');
+    fireEvent.change(cap2, { target: { value: '30' } });
+    fireEvent.keyDown(cap2, { key: 'Enter' });
+    await waitFor(() => expect(updateAiSettings).toHaveBeenCalledWith({ dailyCap: 30 }));
+  });
+  describe('saving a provider', () => {
+    const fill = (getByLabelText: (l: string) => HTMLElement) => {
+      fireEvent.change(getByLabelText('ai.admin.name'), { target: { value: 'Ollama' } });
+      fireEvent.change(getByLabelText('ai.admin.baseUrl'), { target: { value: 'http://ollama:11434' } });
+      fireEvent.change(getByLabelText('ai.admin.model'), { target: { value: 'llama3' } });
+    };
+    it('a double click on « Enregistrer » creates one provider, not two', async () => {
+      useAuthStore.setState({ backendUser: admin });
+      vi.mocked(createAiProvider).mockReturnValue(new Promise(() => {}) as never);
+      const { findByRole, getByLabelText } = render(<AiTab active />);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
+      fill(getByLabelText);
+      const save = await findByRole('button', { name: 'ai.admin.save' });
+      fireEvent.click(save);
+      fireEvent.click(save);
+      expect(createAiProvider).toHaveBeenCalledTimes(1);
+    });
+    it('a slow save does not pull the editor back once the admin moved to another provider', async () => {
+      useAuthStore.setState({ backendUser: admin });
+      const a = { id: 1, name: 'A', type: 'openai' as const, baseUrl: 'http://a', model: 'm', hasAdminKey: false, shared: false, position: 0 };
+      const b = { id: 2, name: 'B', type: 'openai' as const, baseUrl: 'http://b', model: 'm', hasAdminKey: false, shared: false, position: 1 };
+      vi.mocked(getAiProviders).mockResolvedValue({ providers: [a, b], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 1 } });
+      let done!: (v: unknown) => void;
+      vi.mocked(updateAiProvider).mockReturnValue(new Promise((r) => { done = r; }) as never);
+      const { findByRole, getByLabelText, getByRole } = render(<AiTab active />);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.edit — A' }));
+      fireEvent.change(getByLabelText('ai.admin.model'), { target: { value: 'm2' } });
+      fireEvent.click(getByRole('button', { name: 'ai.admin.save' }));
+      fireEvent.click(getByRole('button', { name: 'ai.admin.edit — B' }));
+      await act(async () => { done({ ...a, model: 'm2' }); });
+      expect((getByLabelText('ai.admin.name') as HTMLInputElement).value).toBe('B');
+    });
+    it('« Enregistré » disappears as soon as the form is changed again', async () => {
+      useAuthStore.setState({ backendUser: admin });
+      vi.mocked(createAiProvider).mockResolvedValue({ id: 7, name: 'Ollama', type: 'openai', baseUrl: 'http://ollama:11434', model: 'llama3', hasAdminKey: false, shared: false, position: 0 });
+      const { findByRole, getByLabelText, findByText, queryByText } = render(<AiTab active />);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
+      fill(getByLabelText);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.save' }));
+      expect(await findByText('ai.admin.saved')).toBeTruthy();
+      fireEvent.change(getByLabelText('ai.admin.model'), { target: { value: 'llama4' } });
+      expect(queryByText('ai.admin.saved')).toBeNull();
+    });
+    it('a key typed with stray spaces is sent trimmed, and spaces alone keep the stored key', async () => {
+      useAuthStore.setState({ backendUser: admin });
+      vi.mocked(createAiProvider).mockResolvedValue({ id: 7, name: 'Ollama', type: 'openai', baseUrl: 'http://ollama:11434', model: 'llama3', hasAdminKey: true, shared: false, position: 0 });
+      const { findByRole, getByLabelText } = render(<AiTab active />);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
+      fill(getByLabelText);
+      fireEvent.change(getByLabelText('ai.admin.key'), { target: { value: '  sk-test \n' } });
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.save' }));
+      await waitFor(() => expect(createAiProvider).toHaveBeenCalledWith(expect.objectContaining({ adminKey: 'sk-test' })));
+    });
+  });
   it('a new provider is not shared until the admin turns the switch on: sharing a paid key is deliberate', async () => {
     useAuthStore.setState({ backendUser: admin });
     vi.mocked(createAiProvider).mockResolvedValue({ id: 8, name: 'GPT', type: 'openai', baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: false, position: 0 });

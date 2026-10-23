@@ -37,6 +37,13 @@ export default function AdminProviders({ active }: { active: boolean }) {
   const [settings, setSettings] = useState<AiAdminSettings>(NO_SETTINGS);
   const [editing, setEditing] = useState<{ id: number | null; draft: AiProviderInput } | null>(null);
   const [saved, setSaved] = useState(false);
+  // Un enregistrement en cours : un second clic (double-clic, double toucher)
+  // créait un second fournisseur identique.
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  // L'éditeur ouvert ; un enregistrement lent ne le ramène pas sur son
+  // fournisseur si l'admin est passé à un autre entre-temps.
+  const editSeq = useRef(0);
   const [tests, setTests] = useState<Record<number, TestState>>({});
   const [capDraft, setCapDraft] = useState('50');
   const [toDelete, setToDelete] = useState<AiProviderAdmin | null>(null);
@@ -81,6 +88,23 @@ export default function AdminProviders({ active }: { active: boolean }) {
   }, [active]);
 
   /** Écrit un réglage ; en cas d'échec, l'écran revient à ce que le serveur a gardé. */
+  /**
+   * Le plafond s'enregistre en quittant le champ, sur Entrée, ou quand la
+   * section disparaît : Échap ferme les Préférences sans `blur`, et la valeur
+   * tapée se perdait. Un champ vidé ou illisible n'est pas « 0 = illimité » :
+   * il revient à la valeur enregistrée.
+   */
+  function commitCap() {
+    const raw = capDraft.trim();
+    if (!/^\d+$/.test(raw)) { setCapDraft(String(settings.dailyCap)); return; }
+    const n = parseInt(raw, 10);
+    setCapDraft(String(n));
+    if (n !== settings.dailyCap) void saveSettings({ dailyCap: n });
+  }
+  const commitCapRef = useRef(commitCap);
+  commitCapRef.current = commitCap;
+  useEffect(() => () => commitCapRef.current(), []);
+
   async function saveSettings(patch: Partial<AiAdminSettings>) {
     const before = settings;
     setSettings({ ...settings, ...patch });
@@ -96,6 +120,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
   }
 
   function startEdit(p: AiProviderAdmin | null) {
+    editSeq.current++;
     dropModels();
     setSaved(false);
     setError('');
@@ -105,21 +130,31 @@ export default function AdminProviders({ active }: { active: boolean }) {
   }
 
   async function saveProvider() {
-    if (!editing) return;
+    if (!editing || savingRef.current) return;
     const d = editing.draft;
     if (!d.name.trim() || !d.baseUrl.trim() || !d.model.trim()) { setError(t('ai.admin.missingFields')); return; }
     setError('');
     // Une clé vide veut dire « ne pas y toucher » : elle n'est jamais préremplie.
-    const payload: Partial<AiProviderInput> = { ...d, adminKey: d.adminKey ? d.adminKey : undefined };
+    // Les espaces autour d'une clé collée sont retirés ; des espaces seuls ne
+    // remplacent pas la clé enregistrée.
+    const key = d.adminKey?.trim();
+    const payload: Partial<AiProviderInput> = { ...d, adminKey: key ? key : undefined };
+    const seq = editSeq.current;
+    savingRef.current = true;
+    setSaving(true);
     try {
       const result = editing.id === null ? await createAiProvider(payload as AiProviderInput) : await updateAiProvider(editing.id, payload);
       setProviders((list) => (editing.id === null ? [...list, result] : list.map((p) => (p.id === result.id ? result : p))));
+      reloadConfig();
+      if (editSeq.current !== seq) return;
       // L'éditeur reste ouvert sur le fournisseur enregistré, clé vidée : on peut le tester tout de suite.
       setEditing({ id: result.id, draft: { ...d, adminKey: '' } });
       setSaved(true);
-      reloadConfig();
     } catch {
-      setError(t('ai.admin.saveError'));
+      if (editSeq.current === seq) setError(t('ai.admin.saveError'));
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   }
 
@@ -185,6 +220,8 @@ export default function AdminProviders({ active }: { active: boolean }) {
   const setDraft = (patch: Partial<AiProviderInput>) => {
     // La liste vaut pour une URL, un type et une clé : en changer la rend fausse.
     if ('type' in patch || 'baseUrl' in patch || 'adminKey' in patch) dropModels();
+    // « Enregistré » ne vaut que pour ce qui l'a été.
+    setSaved(false);
     setEditing((ed) => ed && ({ ...ed, draft: { ...ed.draft, ...patch } }));
   };
 
@@ -380,7 +417,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
               <ToggleSwitch checked={!!draft.shared} onChange={(v) => setDraft({ shared: v })} ariaLabel={t('ai.admin.shared')} />
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <button type="button" onClick={saveProvider} className="prefs-tap-btn px-4 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
+              <button type="button" onClick={saveProvider} disabled={saving} className="prefs-tap-btn disabled:opacity-60 disabled:cursor-default px-4 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
               <button type="button" onClick={() => { dropModels(); setEditing(null); }} className={`${quietBtn} min-h-[32px] hover:bg-black/5`} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
               {saved && <span role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t('ai.admin.saved')}</span>}
             </div>
@@ -402,14 +439,8 @@ export default function AdminProviders({ active }: { active: boolean }) {
         <input
           id={`${uid}-cap`} type="number" inputMode="numeric" min={0} value={capDraft} aria-describedby={`${uid}-cap-hint`}
           onChange={(e) => setCapDraft(e.target.value)}
-          onBlur={() => {
-            // Un champ vidé ou illisible n'est pas « 0 = illimité » : il revient à la valeur enregistrée.
-            const raw = capDraft.trim();
-            if (!/^\d+$/.test(raw)) { setCapDraft(String(settings.dailyCap)); return; }
-            const n = parseInt(raw, 10);
-            setCapDraft(String(n));
-            if (n !== settings.dailyCap) void saveSettings({ dailyCap: n });
-          }}
+          onBlur={commitCap}
+          onKeyDown={(e) => { if (e.key === 'Enter') commitCap(); }}
           className={`${inputClass} !w-32`} style={inputStyle}
         />
         <p id={`${uid}-cap-hint`} className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.dailyCapHint')}</p>

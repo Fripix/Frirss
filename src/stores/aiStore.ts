@@ -18,7 +18,30 @@ interface AiState {
 }
 const OFF: AiConfig = { enabled: false, providers: [], userKeysAllowed: false, dailyCap: 0, usageToday: 0, defaultProvider: null };
 
-export const useAiStore = create<AiState>()((set) => ({
+/**
+ * Un PREMIER chargement raté (réseau instable au démarrage d'une PWA) laissait
+ * l'IA éteinte pour toute la session : il est retenté au retour du réseau
+ * (`online`) ou quand l'app revient au premier plan, jusqu'à une réponse.
+ */
+let retryArmed = false;
+function armRetry(load: () => Promise<void>) {
+  if (retryArmed || typeof window === 'undefined') return;
+  retryArmed = true;
+  const again = () => {
+    if (document.visibilityState === 'hidden') return;
+    disarm();
+    void load();
+  };
+  const disarm = () => {
+    retryArmed = false;
+    window.removeEventListener('online', again);
+    document.removeEventListener('visibilitychange', again);
+  };
+  window.addEventListener('online', again);
+  document.addEventListener('visibilitychange', again);
+}
+
+export const useAiStore = create<AiState>()((set, get) => ({
   config: null,
   load: async () => {
     // Une réponse n'appartient qu'à la session qui l'a demandée : partie avant
@@ -31,7 +54,10 @@ export const useAiStore = create<AiState>()((set) => ({
       const config = await getAiConfig();
       if (stillOurs()) set({ config });
     } catch {
-      if (stillOurs()) set((s) => ({ config: s.config ?? OFF }));
+      if (!stillOurs()) return;
+      const first = get().config === null || get().config === OFF;
+      set((s) => ({ config: s.config ?? OFF }));
+      if (first) armRetry(get().load);
     }
   },
   reset: () => set({ config: null }),

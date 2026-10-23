@@ -212,6 +212,20 @@ la release publiée.
   saisie rapide d'une liste déroulante pouvait déclencher `s` — un résumé,
   peut-être payant. De même, `t` ou les flèches ne partent plus depuis « Traduire
   en… » ou « Résumer avec… ». `?` referme aussi l'aide-mémoire.
+- **Préférences › IA, côté admin** : un double-clic sur « Enregistrer » ne
+  crée plus deux fournisseurs ; un enregistrement lent ne ramène plus
+  l'éditeur sur le fournisseur précédent ; « Enregistré » disparaît dès qu'on
+  modifie à nouveau ; une clé collée avec un espace ou un retour est nettoyée ;
+  le plafond quotidien tapé puis Préférences fermées à Échap n'est plus perdu
+  (Entrée l'enregistre aussi).
+- **L'IA ne disparaît plus pour la session** quand sa configuration n'a pas pu
+  être chargée au démarrage (réseau instable) : elle est redemandée au retour
+  du réseau ou de l'app.
+- **Les nouveaux raccourcis ne volent pas une touche déjà prise** : si vous
+  aviez donné `s` ou `t` à une autre action, « Résumer » ou « Traduire »
+  arrive sans touche, à régler, au lieu de rester muet.
+- **Le compte d'une catégorie se lit au lecteur d'écran** (« 70 non lus »,
+  plus seulement « 70 »).
 - **« Résumer » et « Traduire » attendent l'article complet.** Demandés
   pendant son extraction, ils partaient sur l'aperçu du flux — un résumé du
   chapô, ou une traduction jetée à l'arrivée de l'article : un appel perdu,

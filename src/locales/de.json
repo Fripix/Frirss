@@ -789,7 +789,7 @@
       "model": "Modell",
       "key": "API-Schlüssel",
       "keyKeep": "Leer lassen, um den aktuellen Schlüssel zu behalten",
-      "keyMoved": "Neue Adresse oder neuer Typ: Beim Speichern werden der gespeicherte Schlüssel und die Schlüssel aller Nutzer gelöscht, damit sie nie an einen anderen Host gehen. Geben Sie hier den Schlüssel des neuen Hosts ein.",
+      "keyMoved": "Neue Adresse oder neuer Typ: Beim Speichern werden der gespeicherte Schlüssel und die Schlüssel aller Benutzer gelöscht, damit sie nie an einen anderen Host gehen. Geben Sie hier den Schlüssel des neuen Hosts ein.",
       "clearKey": "Schlüssel löschen",
       "clearKeyTitle": "Schlüssel von {{name}} löschen?",
       "clearKeyWarning": "Zusammenfassungen und Übersetzungen, die diesen Schlüssel verwenden, stoppen, bis ein neuer eingegeben wird.",

@@ -192,6 +192,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // `useRef` (`lastExtractedId`) a déjà pris l'avance. Le résumé automatique
   // ne doit pas apparier l'extrait de A avec l'id de B.
   const [extractFor, setExtractFor] = useState<string | null>(null);
+  // L'article dont un « Article complet » a été demandé, posé dès la demande :
+  // `extracting` ne l'est qu'après la lecture du cache local, et un résumé
+  // automatique pouvait partir sur l'aperçu dans l'intervalle.
+  const [extractAskedFor, setExtractAskedFor] = useState<string | null>(null);
 
   // Résumé IA — un état par article affiché ; remis à zéro quand il change.
   const aiOn = useAiStore(aiEnabled);
@@ -227,10 +231,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // l'extrait (`waitingForBody`) : partie sur l'aperçu du flux, elle donnait un
   // résumé du chapô ou une traduction jetée à l'arrivée de l'extrait — un
   // appel perdu, peut-être payant. Elle est rejouée, une fois, avec les
-  // fonctions du rendu courant (`deferred`, vidé au changement d'article).
+  // fonctions du rendu courant. Une place par sorte — un résumé ET une
+  // traduction peuvent attendre ensemble —, vidées au changement d'article.
   const waitingForBodyRef = useRef(false);
-  type Deferred = { kind: 'summary'; providerId?: number; regenerate?: boolean } | { kind: 'translate'; choice?: TranslateChoice };
-  const deferred = useRef<Deferred | null>(null);
+  const deferredSummary = useRef<{ providerId?: number; regenerate?: boolean } | null>(null);
+  const deferredTranslate = useRef<{ choice?: TranslateChoice } | null>(null);
   const [translateQueued, setTranslateQueued] = useState(false);
   // Traduction du résumé affiché. `aiTranslationSeq` désigne la demande dont
   // la réponse est encore attendue : changer d'article, recevoir un autre
@@ -256,7 +261,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     autoSummarisedId.current = null;
     autoTranslatedId.current = null;
     aiResultFor.current = null;
-    deferred.current = null;
+    deferredSummary.current = null;
+    deferredTranslate.current = null;
     setTranslateQueued(false);
   }, [selectedArticle?.id]);
 
@@ -788,6 +794,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       return;
     }
     setExtractError(null);
+    setExtractAskedFor(id);
     // 2) Persistent store (IndexedDB) → near-instant, no network (survives
     //    reloads, works offline once cached).
     const fromDb = await getExtract(id);
@@ -827,10 +834,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // dans une demande partagée à part (`summaryRequestKey`).
   const handleSummarize = useCallback(async (providerId?: number, opts?: { auto?: boolean; regenerate?: boolean }) => {
     if (!selectedArticle || aiInFlight.current === selectedArticle.id) return;
-    // Le résumé automatique attend déjà l'extrait (`autoSettled`) ; une demande
-    // faite pendant l'extraction l'attend aussi, panneau sur « Résumé… ».
+    // Le résumé automatique ne part qu'une fois l'extrait réglé (`waitingForBody`
+    // dans son effet) ; une demande du lecteur faite pendant l'extraction
+    // l'attend aussi, panneau sur « Résumé… ».
     if (!opts?.auto && waitingForBodyRef.current) {
-      deferred.current = { kind: 'summary', providerId, regenerate: opts?.regenerate };
+      deferredSummary.current = { providerId, regenerate: opts?.regenerate };
       setAiStatus('loading'); setAiError(null); setAiErrorProvider(undefined);
       return;
     }
@@ -962,7 +970,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     window.addEventListener('frirss:ai-summarize', onSummarizeEvent);
     // La palette ne propose « Résumer » que si quelqu'un répond ici : mêmes
     // gardes, et rien en cours pour cet article.
-    const onProbe = (e: Event) => { if (aiInFlight.current !== selectedArticle.id) answerTranslateProbe(e); };
+    const onProbe = (e: Event) => { if (aiInFlight.current !== selectedArticle.id && !deferredSummary.current) answerTranslateProbe(e); };
     window.addEventListener(AI_SUMMARIZE_PROBE, onProbe);
     return () => {
       window.removeEventListener('frirss:ai-summarize', onSummarizeEvent);
@@ -1001,8 +1009,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     && effectiveAutoExtract(autoExtractDefault, feedSettings, selectedArticle.sourceId);
   const autoSettled = !autoExtractApplies
     || (!extracting && extractFor === selectedArticle?.id && (!!extractedContent || !!extractError));
-  // L'article complet arrive (extraction en cours, ou automatique pas encore réglée).
-  const waitingForBody = extracting || !autoSettled;
+  // L'article complet arrive : extraction en cours (automatique ou « Article
+  // complet »), ou demandée / automatique et pas encore réglée pour CET article. Pas
+  // `!autoSettled` : après « Contenu RSS », l'extrait est retiré mais rien ne
+  // repart — tout attendait alors pour toujours.
+  const waitingForBody = extracting
+    || ((autoExtractApplies || extractAskedFor === selectedArticle?.id) && extractFor !== selectedArticle?.id);
   waitingForBodyRef.current = waitingForBody;
 
   // Résumé automatique à l'ouverture, une fois par visite. Déclaré APRÈS les
@@ -1019,14 +1031,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // qu'au départ réel de la demande.
   useEffect(() => {
     const art = selectedArticle;
-    if (!art || !autoSummary || !aiUsable || !online || aiStatus !== 'idle' || !autoSettled) return;
+    if (!art || !autoSummary || !aiUsable || !online || aiStatus !== 'idle' || !autoSettled || waitingForBody) return;
     if (autoSummarisedId.current === art.id) return;
     const timer = setTimeout(() => {
       autoSummarisedId.current = art.id;
       void handleSummarize(undefined, { auto: true });
     }, AUTO_SUMMARY_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [selectedArticle, autoSummary, aiUsable, online, aiStatus, autoSettled, handleSummarize]);
+  }, [selectedArticle, autoSummary, aiUsable, online, aiStatus, autoSettled, waitingForBody, handleSummarize]);
 
   // ── Corps de l'article ────────────────────────────────────────────────────
   // Mémoïsé, et il FAUT que ce soit avant le retour anticipé ci-dessous : les
@@ -1082,7 +1094,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   /** « Traduire » demandé par le lecteur : attend l'extrait s'il arrive (voir `deferred`). */
   const translateWhenReady = useCallback((choice?: TranslateChoice) => {
     if (waitingForBodyRef.current) {
-      deferred.current = { kind: 'translate', choice };
+      deferredTranslate.current = { choice };
       setTranslateQueued(true);
       return;
     }
@@ -1090,19 +1102,20 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   }, [translateArticle]);
   // L'extrait est là (ou a échoué) : la demande en attente part, avec le corps à jour.
   useEffect(() => {
-    if (waitingForBody || !deferred.current) return;
-    const d = deferred.current;
-    deferred.current = null;
-    if (d.kind === 'summary') {
-      void handleSummarize(d.providerId, d.regenerate ? { regenerate: true } : undefined);
-    } else {
+    if (waitingForBody) return;
+    const summary = deferredSummary.current;
+    const translation = deferredTranslate.current;
+    deferredSummary.current = null;
+    deferredTranslate.current = null;
+    if (summary) void handleSummarize(summary.providerId, summary.regenerate ? { regenerate: true } : undefined);
+    if (translation) {
       setTranslateQueued(false);
-      translateArticle(d.choice);
+      translateArticle(translation.choice);
     }
   }, [waitingForBody, handleSummarize, translateArticle]);
   useEffect(() => {
     const art = selectedArticle;
-    if (!art || !autoTranslate || !aiUsable || !online || !autoSettled) return;
+    if (!art || !autoTranslate || !aiUsable || !online || !autoSettled || waitingForBody) return;
     if (articleTranslationState !== 'idle' || !articleCanTranslate) return;
     if (autoTranslatedId.current === art.id) return;
     const timer = setTimeout(() => {
@@ -1110,7 +1123,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       translateArticle(undefined, { automatic: true });
     }, AUTO_SUMMARY_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [selectedArticle, autoTranslate, aiUsable, online, autoSettled, articleTranslationState, articleCanTranslate, translateArticle]);
+  }, [selectedArticle, autoTranslate, aiUsable, online, autoSettled, waitingForBody, articleTranslationState, articleCanTranslate, translateArticle]);
   // Traduction automatique du résumé : dès qu'un résumé arrive, s'il n'est pas
   // dans la langue cible, quand la ligne le demande (« Traduire le résumé »,
   // flux > catégorie > global) ou quand l'article lui-même est traduit
@@ -1146,7 +1159,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // laisse l'événement sans effet : la touche ne fait qu'une chose et ne
   // revient jamais au texte source.
   useEffect(() => {
-    if (!aiUsable || !online || !selectedArticle || showTranslatedBody) return;
+    if (!aiUsable || !online || !selectedArticle || showTranslatedBody || translateQueued) return;
     if (!articleCanTranslate || articleTranslationState === 'loading') return;
     const onTranslateEvent = () => translateWhenReady();
     window.addEventListener('frirss:ai-translate', onTranslateEvent);
@@ -1156,7 +1169,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       window.removeEventListener('frirss:ai-translate', onTranslateEvent);
       window.removeEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
     };
-  }, [aiUsable, online, selectedArticle, showTranslatedBody, articleCanTranslate, articleTranslationState, translateWhenReady]);
+  }, [aiUsable, online, selectedArticle, showTranslatedBody, translateQueued, articleCanTranslate, articleTranslationState, translateWhenReady]);
   const shownBodyHtml = showTranslatedBody ? translatedBody.html : body.html;
   const bodyProp = useMemo(() => ({ __html: shownBodyHtml }), [shownBodyHtml]);
 

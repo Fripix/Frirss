@@ -40,7 +40,12 @@ function parseInput(body: unknown, partial: boolean): ProviderInput | null {
   if (type !== undefined) out.type = type as ProviderInput['type'];
   if (baseUrl !== undefined) out.baseUrl = baseUrl;
   if (model !== undefined) out.model = model;
-  if (b.adminKey !== undefined) out.adminKey = b.adminKey as string | null;
+  // Une clé collée garde parfois un espace ou un retour : retirés. Des espaces
+  // seuls ne remplacent pas la clé enregistrée ; `''` (et `null`) l'effacent.
+  if (typeof b.adminKey === 'string') {
+    const key = b.adminKey.trim();
+    if (key || b.adminKey === '') out.adminKey = key;
+  } else if (b.adminKey === null) out.adminKey = null;
   if (b.shared !== undefined) out.shared = b.shared === true;
   return out as ProviderInput;
 }

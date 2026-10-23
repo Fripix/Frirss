@@ -33,9 +33,16 @@ describe('compteur d\'une ligne d\'étiquette', () => {
     const c = render(
       <LabelSection labels={labels} selectedFeed={null} selectLabel={() => {}} onArticleDrop={() => {}} />,
     );
-    const labelled = Array.from(c.container.querySelectorAll('[aria-label]')).map((e) => e.getAttribute('aria-label'));
-    expect(labelled).toContain('sidebar.itemCount:12');
-    expect(labelled).toContain('sidebar.itemCount:3');
-    expect(labelled.some((l) => l?.includes('unreadCount'))).toBe(false);
+    // Le libellé est un texte masqué (`sr-only`), lu par tous les lecteurs
+    // d'écran : un `aria-label` sur un simple <span> sans rôle est ignoré par
+    // beaucoup d'entre eux, qui ne lisaient que « 12 ». Le chiffre visible est
+    // caché aux lecteurs, pour ne pas être lu deux fois.
+    const spoken = Array.from(c.container.querySelectorAll('.sr-only')).map((e) => e.textContent);
+    expect(spoken).toContain('sidebar.itemCount:12');
+    expect(spoken).toContain('sidebar.itemCount:3');
+    expect(spoken.some((l) => l?.includes('unreadCount'))).toBe(false);
+    const shown = Array.from(c.container.querySelectorAll('[aria-hidden="true"]')).map((e) => e.textContent);
+    expect(shown).toContain('12');
+    expect(c.container.querySelector('span[aria-label]')).toBeNull();
   });
 });

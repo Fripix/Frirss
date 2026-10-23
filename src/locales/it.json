@@ -772,8 +772,8 @@
       "close": "Chiudi",
       "newTitle": "Nuovo fornitore",
       "editTitle": "Modifica {{name}}",
-      "test": "Prova",
-      "testing": "Prova in corso…",
+      "test": "Testa",
+      "testing": "Test in corso…",
       "testOk": "Connessione riuscita",
       "testFailed": "Test non riuscito",
       "testAuth": "Non riuscito: il fornitore ha rifiutato la chiave",
@@ -834,7 +834,7 @@
       "keyRequired": "{{name}} (chiave richiesta)",
       "removedProvider": "Fornitore rimosso",
       "fallback": "Ripiego automatico",
-      "fallbackHint": "Se il suo fornitore non funziona (irraggiungibile, chiave rifiutata, quota, tempo scaduto), subentra il successivo dell'elenco e l'intestazione lo indica.",
+      "fallbackHint": "Se il tuo fornitore non funziona (irraggiungibile, chiave rifiutata, quota, tempo scaduto), subentra il successivo dell'elenco e l'intestazione lo indica.",
       "fallbackManualHint": "Una risposta inutilizzabile o un rifiuto non cambia mai fornitore da sé: l'articolo propone allora «Riprova con…», da confermare lì. Con l'impostazione disattivata vale anche per qualsiasi guasto.",
       "auto": "Riassumi automaticamente all'apertura",
       "autoHint": "Ogni articolo aperto viene riassunto senza un clic, salvo impostazione diversa per feed o categoria.",
@@ -843,7 +843,7 @@
       "panel": "Pannello Riassunto IA sempre visibile",
       "panelHint": "Se disattivato, il pannello compare solo con un riassunto; «Riassumi» ne prende il posto nella barra degli strumenti (nel foglio «…» su smartphone). Regolabile per feed e categoria più sotto.",
       "autoConfirmTitle": "Attivare il riassunto automatico?",
-      "autoConfirmMessage": "Ogni riassunto automatico è una chiamata al suo fornitore di IA. A seconda del fornitore e dell'abbonamento, potrebbe esserle addebitato. Un modello locale come Ollama non costa nulla.",
+      "autoConfirmMessage": "Ogni riassunto automatico è una chiamata al tuo fornitore di IA. A seconda del fornitore e dell'abbonamento, potrebbe esserti addebitato. Un modello locale come Ollama non costa nulla.",
       "autoConfirm": "Attiva",
       "usage": "Chiamate IA pagate oggi dall'istanza: {{used}} su {{cap}}"
     },
@@ -893,7 +893,7 @@
       "summaryTranslateFor": "Traduci automaticamente il riassunto degli articoli di {{name}}",
       "panelFor": "Pannello Riassunto IA sempre visibile per {{name}}",
       "translateConfirmTitle": "Tradurre automaticamente?",
-      "translateConfirmMessage": "Tradurre un intero articolo costa da cinque a quindici volte un riassunto, e ogni articolo di questo feed verrà tradotto all'apertura. A seconda del fornitore e dell'abbonamento, potrebbe esserle addebitato. Un modello locale come Ollama non costa nulla."
+      "translateConfirmMessage": "Tradurre un intero articolo costa da cinque a quindici volte un riassunto, e ogni articolo di questo feed verrà tradotto all'apertura. A seconda del fornitore e dell'abbonamento, potrebbe esserti addebitato. Un modello locale come Ollama non costa nulla."
     },
     "keys": {
       "title": "Le mie chiavi",

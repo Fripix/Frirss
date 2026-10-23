@@ -1734,6 +1734,42 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
       expect(articleCalls()).toHaveLength(1);
       expect(articleCalls()[0][0].segments[1]).toContain('complet');
     });
+    it('a summary AND a translation asked during the extraction both go out when it lands, nothing stuck', async () => {
+      const { finish } = setup();
+      vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      const utils = render(<ReadingPane />);
+      await advance(200);
+      act(() => { window.dispatchEvent(new CustomEvent('frirss:ai-summarize')); });
+      fireEvent.click(utils.getByRole('button', { name: 'ai.translateArticle' }));
+      await finish(extracted('<p>' + 'complet '.repeat(80) + '</p>'));
+      await advance(0);
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      expect(articleCalls()).toHaveLength(1);
+      expect(utils.getByText('Le résumé.')).toBeTruthy();
+    });
+    it('after « Afficher le RSS », a summary goes out at once, on the feed text: nothing waits forever', async () => {
+      const { finish } = setup();
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      const utils = render(<ReadingPane />);
+      await advance(200);
+      await finish(extracted('<p>' + 'complet '.repeat(80) + '</p>'));
+      await advance(0);
+      fireEvent.click(utils.getAllByRole('button', { name: /readingPane\.showRss/ })[0]);
+      await advance(0);
+      act(() => { window.dispatchEvent(new CustomEvent('frirss:ai-summarize')); });
+      await advance(0);
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(requestAiSummary).mock.calls[0][0].html).not.toContain('complet');
+    });
+    it('the palette is not offered « Résumer » while a summary waits for the extract', async () => {
+      setup();
+      render(<ReadingPane />);
+      await advance(200);
+      expect(summarizeWouldAct()).toBe(true);
+      act(() => { window.dispatchEvent(new CustomEvent('frirss:ai-summarize')); });
+      expect(summarizeWouldAct()).toBe(false);
+    });
     it('a request waiting for the extract is dropped when the reader leaves the article', async () => {
       setup();
       const utils = render(<ReadingPane />);
@@ -1743,6 +1779,26 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
 
       await advance(3000);
       expect(requestAiTranslation).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('automatic actions wait for a manual « Article complet » too', () => {
+    it('a feed set to summarise, without automatic extraction: « Article complet » clicked within the second makes the summary wait for it', async () => {
+      const a = article('man-ex-1');
+      useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      useUiStore.setState({ feedSettings: { 'feed/1': { aiAutoSummary: true } } });
+      let finish!: (v: unknown) => void;
+      vi.mocked(extractFullContent).mockReturnValue(new Promise((r) => { finish = r; }) as never);
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      const utils = render(<ReadingPane />);
+      await advance(300);
+      fireEvent.click(utils.getAllByRole('button', { name: /readingPane\.fullContent/ })[0]);
+      await advance(3000);
+      expect(requestAiSummary).not.toHaveBeenCalled();
+      await act(async () => { finish(extracted('<p>' + 'complet '.repeat(80) + '</p>')); });
+      await advance(1000);
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(requestAiSummary).mock.calls[0][0].html).toContain('complet');
     });
   });
 

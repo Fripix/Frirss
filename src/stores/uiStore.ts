@@ -105,7 +105,16 @@ const defaultShortcuts: Shortcuts = {
  */
 function withDefaultShortcuts(stored: unknown): Shortcuts {
   const own = stored && typeof stored === 'object' && !Array.isArray(stored) ? (stored as Shortcuts) : {};
-  return { ...defaultShortcuts, ...own };
+  // Une action ajoutée depuis ne reçoit sa touche par défaut que si l'utilisateur
+  // ne l'a pas déjà donnée à une autre : `s` (Résumer, 1.7.0) gardé par
+  // « Rechercher » aurait laissé le résumé muet, l'autre action passant avant.
+  // Sinon elle arrive sans touche (`''`, qui ne correspond à aucune), à régler.
+  const taken = new Set(Object.values(own));
+  const merged: Shortcuts = { ...own };
+  for (const [action, key] of Object.entries(defaultShortcuts)) {
+    if (!(action in own)) merged[action] = taken.has(key) ? '' : key;
+  }
+  return merged;
 }
 
 export interface FeedSetting {

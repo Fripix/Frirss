@@ -702,3 +702,15 @@ describe('uiStore — traduire le résumé automatiquement', () => {
     expect(useUiStore.getState().aiCategoryAutoSummaryTranslate).toEqual({});
   });
 });
+
+describe('uiStore — new default shortcuts never steal a key the user already gave away', () => {
+  it('a new action whose default key is taken comes unassigned; a free one gets its default', () => {
+    // Un compte de 1.6.1 avait pu donner `s` à « Rechercher » : `summarize`, nouveau, ne doit pas le lui disputer.
+    useUiStore.getState().applyServerPrefs({ shortcuts: { search: 's', markRead: 'r' } });
+    const sc = useUiStore.getState().shortcuts as Record<string, string>;
+    expect(sc.search).toBe('s');
+    expect(sc.summarize).toBe('');
+    expect(sc.translate).toBe('t');
+    expect(sc.markRead).toBe('r');
+  });
+});

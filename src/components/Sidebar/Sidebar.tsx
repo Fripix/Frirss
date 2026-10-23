@@ -1483,13 +1483,13 @@ function UnreadBadge({ count }: { count: number }) {
  */
 function CategoryBadge({ count, kind }: { count: number; kind: 'unread' | 'items' }) {
   const { t } = useTranslation();
+  // Le libellé en texte masqué, pas en `aria-label` : sur un simple <span> sans
+  // rôle (le compte d'une catégorie est hors de son bouton), beaucoup de
+  // lecteurs d'écran ignorent `aria-label` et ne lisaient que « 70 ».
   return (
-    <span
-      aria-label={t(kind === 'unread' ? 'sidebar.unreadCount' : 'sidebar.itemCount', { count })}
-      className="flex-shrink-0 text-[10px] font-semibold tabular-nums opacity-50"
-      style={{ color: 'var(--sidebar-text)' }}
-    >
-      {count}
+    <span className="flex-shrink-0 text-[10px] font-semibold tabular-nums opacity-50" style={{ color: 'var(--sidebar-text)' }}>
+      <span aria-hidden="true">{count}</span>
+      <span className="sr-only">{t(kind === 'unread' ? 'sidebar.unreadCount' : 'sidebar.itemCount', { count })}</span>
     </span>
   );
 }

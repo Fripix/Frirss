@@ -241,7 +241,11 @@ glisser-déposer, masquage des flux entièrement lus.
   - **Tests** : `src/components/Sidebar/FeedItem.longpress.test.tsx`.
 - **Les compteurs de non-lus se lisent avec leur nom** : le badge d'un flux, d'une
   ligne spéciale (Non lus, Tous les flux) et d'une catégorie de flux porte un
-  `aria-label` pluriel (`sidebar.unreadCount`, « 3 673 non lus ») ; le lecteur
+  libellé pluriel (`sidebar.unreadCount`, « 3 673 non lus ») — en
+  `aria-label` dans un bouton, en **texte masqué** (`sr-only`, chiffre visible
+  `aria-hidden`) pour le compte d'une catégorie ou d'une étiquette
+  (`CategoryBadge`) : hors d'un bouton, un `aria-label` sur un simple <span>
+  est ignoré par beaucoup de lecteurs d'écran, qui ne lisaient que « 70 » ; le lecteur
   d'écran annonçait sinon « Non lus3673 », le chiffre collé au nom. Aucun effet
   visuel. Le badge d'une étiquette (et celui d'un groupe d'étiquettes, qui en
   additionne les enfants) se lit **« N articles »** (`sidebar.itemCount`), pas
@@ -511,7 +515,9 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   l'IA est éteinte ou inutilisable, et la touche est alors laissée au
   navigateur. Détails dans « Résumés et traductions par IA ». Les raccourcis
   enregistrés avant son ajout reçoivent sa valeur par défaut
-  (`withDefaultShortcuts`).
+  (`withDefaultShortcuts`) — **sauf si l'utilisateur l'a déjà donnée à une
+  autre action** : elle arrive alors sans touche (`''`), à régler, plutôt que
+  de disputer `s` à « Rechercher », qui passait avant et la laissait muette.
 - **Traduire l'article (IA)** : `translate`, touche `t` par défaut. Même
   condition et même garde que `summarize` (la même ligne de
   `useKeyboardNav.ts` : ni ⌘T / Ctrl+T, ni Alt, ni touche maintenue). Elle
@@ -1966,7 +1972,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   figée à la valeur du démarrage. Un `load()` qui échoue **garde la
   configuration déjà chargée** ; seul un premier chargement raté (aucune
   configuration encore) retombe sur « éteint » : un rechargement perdu ne doit
-  pas faire disparaître l'IA d'une session qui l'avait. **Une réponse
+  pas faire disparaître l'IA d'une session qui l'avait. Ce premier échec **est
+  retenté** au retour du réseau (`online`) ou quand l'app revient au premier
+  plan (`visibilitychange`), jusqu'à une réponse (`armRetry`, 2026-10-23) :
+  une PWA démarrée sur un réseau instable perdait l'IA pour toute la session. **Une réponse
   n'appartient qu'à la session qui l'a demandée** : `load()` relève
   `backendToken` avant l'attente et ignore sa réponse (réussite ou échec) si le
   jeton a changé ou est nul — sinon un chargement parti avant la déconnexion
@@ -2702,6 +2711,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     (`ToggleSwitch`), comme les autres réglages. En bas, « Enregistrer »
     (accent), « Fermer », puis « Enregistré ». Après un enregistrement,
     l'éditeur **reste ouvert** (clé effacée du champ) pour tester aussitôt.
+    « Enregistrer » est **désactivé pendant la requête** (un double-clic
+    créait deux fournisseurs) ; un enregistrement lent ne ramène pas l'éditeur
+    sur son fournisseur si l'admin en a ouvert un autre entre-temps
+    (`editSeq`) ; « Enregistré » disparaît dès que le formulaire change. La
+    clé est envoyée sans les espaces qui l'entourent (client et serveur) ;
+    des espaces seuls ne remplacent pas la clé enregistrée.
   - **Réglages du bloc**, à plat sous l'éditeur, sans repli :
     l'interrupteur « Les utilisateurs peuvent saisir leur propre clé » et le
     « Plafond quotidien par utilisateur ». Interrupteur éteint, la route des
@@ -3467,13 +3482,22 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   texte du flux est résumé. **Une demande du lecteur attend aussi l'extrait**
   (2026-10-23) : « Résumer » (bouton, touche, palette, « Résumer avec X ») et
   « Traduire » (bouton, touche `t`, palette, « Traduire en… / avec… ») faits
-  pendant l'extraction (`waitingForBody` = extraction en cours, ou automatique
-  pas encore réglée) sont mis de côté (`deferred`) — panneau sur « Résumé… »,
-  bouton sur « Traduction… » désactivé (`translateQueued`) — puis rejoués une
-  fois, avec les fonctions du rendu courant, quand l'extrait arrive (ou
-  échoue). Partis sur l'aperçu du flux, ils donnaient un résumé du chapô ou
-  une traduction jetée à l'arrivée de l'extrait : un appel perdu. Changer
-  d'article abandonne la demande en attente. Un article **trop court** (`400 article_too_short`)
+  pendant l'extraction (`waitingForBody` = extraction en cours, ou demandée —
+  `extractAskedFor`, posé dès le clic, avant la lecture du cache local — ou
+  automatique, et pas encore réglée pour cet article : `extractFor`) sont mis
+  de côté, **une place par sorte** (`deferredSummary`, `deferredTranslate` :
+  un résumé et une traduction peuvent attendre ensemble ; une seule place
+  perdait le premier et figeait son « Résumé… ») — panneau sur « Résumé… »,
+  bouton sur « Traduction… » désactivé (`translateQueued`), et la palette ne
+  propose ni l'un ni l'autre pendant ce temps — puis rejoués une fois, avec
+  les fonctions du rendu courant, quand l'extrait arrive (ou échoue). Les
+  automatismes (résumé, traduction) attendent de même un « Article complet »
+  cliqué à la main (`waitingForBody` dans leurs effets). « Contenu RSS »
+  après un extrait ne fait rien attendre (une première version, sur
+  `!autoSettled`, faisait attendre toute demande pour toujours). Partis sur
+  l'aperçu du flux, ils donnaient un résumé du chapô ou une traduction jetée à
+  l'arrivée de l'extrait : un appel perdu. Changer d'article abandonne les
+  demandes en attente. Un article **trop court** (`400 article_too_short`)
   ne dit rien et remet le statut à `idle` (personne n'a rien demandé) ; toute
   autre erreur s'affiche comme pour un clic. Un **panneau replié reste replié** :
   la seule ouverture automatique est celle de la première demande manuelle (bouton, raccourci ou palette : `expandOnFirstSummary`, voir ci-dessous). La
@@ -3591,8 +3615,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   - Piège : `shortcuts` ne fusionnait pas les défauts — un objet enregistré
     (localStorage) ou synchronisé **avant** l'ajout de `summarize` ou de
     `translate` l'aurait perdu, donc sans touche ; `withDefaultShortcuts()`
-    (`uiStore.ts`) fusionne `{ ...défauts, ...enregistré }` au chargement
-    **et** dans `applyServerPrefs`. Tests : `useKeyboardNav.summarize.test.tsx`
+    (`uiStore.ts`) ajoute les actions manquantes au chargement **et** dans
+    `applyServerPrefs` — avec leur touche par défaut, ou sans touche si elle
+    est déjà prise par une autre action de l'utilisateur. Tests : `useKeyboardNav.summarize.test.tsx`
     (les deux touches), `CommandPalette.test.tsx`, `ShortcutBar.test.tsx`,
     `ShortcutHelp.test.tsx`, `ReadingPane.ai.test.tsx` (« summarize event »,
     « translate event »), `uiStore.test.ts`.

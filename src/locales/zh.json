@@ -372,7 +372,7 @@
       "customize": "可在偏好设置中自定义",
       "gestureHelp": "显示此窗口",
       "helpTitle": "键盘快捷键",
-      "summarize": "用 AI 总结文章",
+      "summarize": "用 AI 生成文章摘要",
       "translate": "用 AI 翻译文章"
     },
     "offline": {
@@ -737,7 +737,7 @@
     "by": "由 {{name}} 生成的摘要",
     "fromCache": "来自缓存",
     "fellBack": "{{name}} 不可用",
-    "withProvider": "使用以下服务生成摘要…",
+    "withProvider": "使用以下服务商生成摘要…",
     "retryWith": "使用{{name}}重试",
     "userIntro": "AI 已就绪：打开一篇文章并点击“生成摘要”或“翻译”。",
     "errors": {

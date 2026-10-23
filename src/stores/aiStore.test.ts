@@ -28,6 +28,19 @@ describe('aiStore', () => {
     expect(useAiStore.getState().config).not.toBeNull();
     expect(useAiStore.getState().config?.enabled).toBe(false);
   });
+  it('a failed FIRST load is retried when the network comes back or the app is shown again', async () => {
+    // Une PWA iOS qui démarre sur un réseau instable perdait l'IA pour toute la session.
+    vi.mocked(getAiConfig).mockRejectedValueOnce(new Error('network')).mockResolvedValue(ON);
+    await useAiStore.getState().load();
+    expect(useAiStore.getState().config?.enabled).toBe(false);
+    window.dispatchEvent(new Event('online'));
+    await vi.waitFor(() => expect(useAiStore.getState().config?.enabled).toBe(true));
+    // Une fois chargée, plus de nouvelle tentative sur ces événements.
+    const calls = vi.mocked(getAiConfig).mock.calls.length;
+    window.dispatchEvent(new Event('online'));
+    await Promise.resolve();
+    expect(vi.mocked(getAiConfig).mock.calls.length).toBe(calls);
+  });
   it('a failed reload keeps the config already loaded', async () => {
     useAiStore.setState({ config: ON });
     vi.mocked(getAiConfig).mockRejectedValue(new Error('network'));
