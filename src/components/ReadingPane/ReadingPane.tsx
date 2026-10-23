@@ -246,6 +246,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     // règle pour la traduction automatique.
     autoSummarisedId.current = null;
     autoTranslatedId.current = null;
+    aiResultFor.current = null;
   }, [selectedArticle?.id]);
 
   // Reading progress
@@ -932,6 +933,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   useEffect(() => {
     if (!aiUsable || !online || !selectedArticle || aiResult) return;
     const onSummarizeEvent = () => {
+      // L'écouteur n'est retiré qu'au passage des effets, juste APRÈS
+      // l'affichage du résumé : une touche dans cet intervalle relançait un
+      // second résumé (test intermittent sous charge). Le résumé de cet
+      // article déjà là, rien ne part.
+      if (aiResultFor.current === selectedArticle.id) return;
       expandOnFirstSummary();
       void handleSummarize();
     };

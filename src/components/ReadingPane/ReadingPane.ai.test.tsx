@@ -794,6 +794,23 @@ describe('ReadingPane — Résumé IA', () => {
       fire();
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
     });
+    it('a listener not yet removed when the summary shows does not start a second one', async () => {
+      // L'écouteur posé avant le résumé n'est retiré qu'au passage des effets :
+      // une touche dans cet intervalle partait encore (échec intermittent du test ci-dessous).
+      const listeners: EventListener[] = [];
+      const add = window.addEventListener.bind(window);
+      vi.spyOn(window, 'addEventListener').mockImplementation(((type: string, l: EventListener, o?: unknown) => {
+        if (type === 'frirss:ai-summarize') listeners.push(l);
+        return add(type, l, o as never);
+      }) as never);
+      vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+      const { findByText } = render(<ReadingPane />);
+      fire();
+      expect(await findByText('Le résumé.')).toBeTruthy();
+      const stale = listeners[0];
+      await act(async () => { stale(new CustomEvent('frirss:ai-summarize')); await Promise.resolve(); });
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+    });
     it('leaves a summary already on screen alone', async () => {
       vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
       const { findByText } = render(<ReadingPane />);
