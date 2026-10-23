@@ -757,7 +757,8 @@
       "translateFailed": "Die Übersetzung ist fehlgeschlagen. Versuchen Sie es erneut.",
       "translateRefused": "Der Anbieter hat die Übersetzung dieses Artikels abgelehnt.",
       "translateTooLong": "Text zu lang für eine Übersetzung.",
-      "proxyTimeout": "Der vorgeschaltete Server hat die Antwort vorzeitig abgebrochen: Erlauben Sie mindestens 120 s für /api/ai (siehe Dokumentation)."
+      "proxyTimeout": "Der vorgeschaltete Server hat die Antwort vorzeitig abgebrochen: Erlauben Sie mindestens 120 s für /api/ai (siehe Dokumentation).",
+      "connectionLost": "Die Verbindung wurde während der Übersetzung unterbrochen. Versuchen Sie es erneut: Bereits Übersetztes kommt ohne neue Anfrage aus dem Cache."
     },
     "admin": {
       "title": "Anbieter",
@@ -788,6 +789,7 @@
       "model": "Modell",
       "key": "API-Schlüssel",
       "keyKeep": "Leer lassen, um den aktuellen Schlüssel zu behalten",
+      "keyMoved": "Neue Adresse oder neuer Typ: Beim Speichern werden der gespeicherte Schlüssel und die Schlüssel aller Nutzer gelöscht, damit sie nie an einen anderen Host gehen. Geben Sie hier den Schlüssel des neuen Hosts ein.",
       "clearKey": "Schlüssel löschen",
       "clearKeyTitle": "Schlüssel von {{name}} löschen?",
       "clearKeyWarning": "Zusammenfassungen und Übersetzungen, die diesen Schlüssel verwenden, stoppen, bis ein neuer eingegeben wird.",

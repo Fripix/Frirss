@@ -17,6 +17,9 @@ import { inputClass, inputStyle, quietBtn } from './styles';
 // `shared` éteint d'origine : partager une clé admin, c'est faire payer
 // l'instance pour tous les utilisateurs — une case cochée exprès, pas un défaut.
 const EMPTY: AiProviderInput = { name: '', type: 'openai', baseUrl: '', model: '', adminKey: '', shared: false };
+
+/** Même règle que `normalizeBaseUrl` du serveur : `http://o:11434/v1/` est la même adresse que `http://o:11434`. */
+const sameHostUrl = (url: string) => url.trim().replace(/\/+$/, '').replace(/\/v1$/i, '').replace(/\/+$/, '');
 const NO_SETTINGS: AiAdminSettings = { enabled: false, userKeysAllowed: false, dailyCap: 50, defaultProvider: null };
 
 type TestState = { state: 'busy' } | { state: 'ok' } | { state: 'fail'; kind?: string; message?: string };
@@ -218,6 +221,10 @@ export default function AdminProviders({ active }: { active: boolean }) {
   const labelStyle = { color: 'var(--list-summary)' };
   const draft = editing?.draft;
   const editedProvider = editing?.id != null ? providers.find((p) => p.id === editing.id) : undefined;
+  // Une nouvelle adresse ou un nouveau type : le serveur efface à l'enregistrement
+  // la clé de l'admin et celles des utilisateurs (`updateProvider`) — le dire avant.
+  const keysMove = !!editedProvider && !!editing && (editing.draft.type !== editedProvider.type
+    || sameHostUrl(editing.draft.baseUrl) !== sameHostUrl(editedProvider.baseUrl));
 
   const textField = (key: 'name' | 'baseUrl', label: string, opts: { type?: string; hint?: string } = {}) => (
     <div>
@@ -353,16 +360,20 @@ export default function AdminProviders({ active }: { active: boolean }) {
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   id={`${uid}-adminKey`} type="password" value={draft.adminKey ?? ''} autoComplete="new-password" spellCheck={false}
-                  placeholder={editedProvider?.hasAdminKey ? t('ai.admin.keyKeep') : undefined}
+                  placeholder={editedProvider?.hasAdminKey && !keysMove ? t('ai.admin.keyKeep') : undefined}
+                  aria-describedby={keysMove ? `${uid}-keyMoved` : undefined}
                   onChange={(e) => setDraft({ adminKey: e.target.value })}
                   className={`${inputClass} !w-auto flex-1 basis-48 min-w-0`} style={inputStyle}
                 />
-                {editedProvider?.hasAdminKey && (
+                {editedProvider?.hasAdminKey && !keysMove && (
                   <button type="button" onClick={() => setToClearKey(editedProvider)} className={`${quietBtn} whitespace-nowrap hover:bg-black/5`} style={{ color: 'var(--danger)' }}>
                     {t('ai.admin.clearKey')}
                   </button>
                 )}
               </div>
+              {keysMove && (
+                <p id={`${uid}-keyMoved`} className="text-[11px] mt-1 max-w-prose" style={{ color: 'var(--danger)' }}>{t('ai.admin.keyMoved')}</p>
+              )}
             </div>
             <div className="prefs-tap-row flex items-center justify-between gap-3">
               <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.shared')}</span>

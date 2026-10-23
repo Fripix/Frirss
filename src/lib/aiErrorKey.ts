@@ -26,6 +26,8 @@ export interface AiErrorOptions {
   op?: 'summary' | 'translate';
   /** Durée de la requête qui a échoué : une erreur réseau après une longue attente est une coupure amont (`isUpstreamCut`). */
   elapsedMs?: number;
+  /** Une requête HTTP partie sans réponse (erreur axios sans `response`) — pas un échec local, qui n'a pas de statut non plus. */
+  noResponse?: boolean;
 }
 
 export function aiErrorKey(status: number | undefined, data: { error?: string; kind?: string; ownKey?: boolean; detail?: string } | undefined, isAdmin: boolean, options: AiErrorOptions = {}): string {
@@ -40,6 +42,10 @@ export function aiErrorKey(status: number | undefined, data: { error?: string; k
   if (error === 'invalid_lang') return 'ai.errors.invalidLang';
   if (error === 'ai_failed' && data?.detail === 'segments') return 'ai.errors.segments';
   if (isAiDeadline(status, data)) return translate ? 'ai.errors.translateFailed' : 'ai.errors.technical';
+  // Aucune réponse du tout : la connexion a été coupée (réseau perdu, téléphone
+  // en arrière-plan, ou un intermédiaire qui ferme sans répondre). Par quoi, on
+  // ne le voit pas : le message le constate sans accuser un proxy.
+  if (translate && options.noResponse === true) return 'ai.errors.connectionLost';
   if (translate && isUpstreamCut(status, data, options.elapsedMs ?? 0)) return 'ai.errors.proxyTimeout';
   if (data?.kind === 'auth') return isAdmin || data.ownKey === true ? 'ai.errors.auth' : 'ai.errors.authUser';
   if (data?.kind === 'quota') return 'ai.errors.quota';

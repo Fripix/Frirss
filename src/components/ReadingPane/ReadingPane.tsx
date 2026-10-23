@@ -910,7 +910,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     } catch (err) {
       if (aiTranslationSeq.current !== seq) return;
       const resp = axios.isAxiosError(err) ? err.response : undefined;
-      const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], isAdmin, i18n.language, { op: 'translate' });
+      const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], isAdmin, i18n.language, { op: 'translate', noResponse: axios.isAxiosError(err) && !err.response });
       setAiTranslation(held
         ? { ...held, status: 'error', error: t(msg.key, msg.params), errorProviderId: msg.providerId, errorLang: lang }
         : { ...NO_AI_TRANSLATION, status: 'error', error: t(msg.key, msg.params), errorProviderId: msg.providerId, errorLang: lang });

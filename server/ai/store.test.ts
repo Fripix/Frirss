@@ -25,6 +25,31 @@ describe('providers', () => {
     expect(updateProvider(p.id, { name: 'Y' })!.hasAdminKey).toBe(true);
     expect(updateProvider(p.id, { adminKey: '' })!.hasAdminKey).toBe(false);
   });
+  it('a new address or type forgets every stored key: they were given for the old host', () => {
+    // Sinon la clé de l'admin et celles des utilisateurs partaient vers le nouvel hôte.
+    const p = createProvider({ name: 'C', type: 'anthropic', baseUrl: 'https://api.anthropic.com', model: 'm', adminKey: 'sk-ant' });
+    setUserKey(41, p.id, 'user-key');
+    expect(updateProvider(p.id, { baseUrl: 'https://openrouter.ai/api' })!.hasAdminKey).toBe(false);
+    expect(adminKeyFor(p.id)).toBeNull();
+    expect(hasUserKey(41, p.id)).toBe(false);
+  });
+  it('a new address with a new key keeps that key only', () => {
+    const p = createProvider({ name: 'C', type: 'openai', baseUrl: 'https://api.openai.com', model: 'm', adminKey: 'old' });
+    setUserKey(41, p.id, 'user-key');
+    updateProvider(p.id, { baseUrl: 'https://gateway.example.com', adminKey: 'new' });
+    expect(adminKeyFor(p.id)).toBe('new');
+    expect(hasUserKey(41, p.id)).toBe(false);
+  });
+  it('a new type forgets the keys too; the same address written differently keeps them', () => {
+    const p = createProvider({ name: 'O', type: 'openai', baseUrl: 'http://ollama:11434', model: 'm', adminKey: 'k' });
+    setUserKey(41, p.id, 'user-key');
+    updateProvider(p.id, { baseUrl: 'http://ollama:11434/v1/', name: 'Ollama', model: 'm2' });
+    expect(adminKeyFor(p.id)).toBe('k');
+    expect(hasUserKey(41, p.id)).toBe(true);
+    updateProvider(p.id, { type: 'anthropic' });
+    expect(adminKeyFor(p.id)).toBeNull();
+    expect(hasUserKey(41, p.id)).toBe(false);
+  });
   it('normalises the base URL: trailing slashes, then a trailing /v1', () => {
     expect(normalizeBaseUrl('http://ollama:11434/v1/')).toBe('http://ollama:11434');
     expect(normalizeBaseUrl('https://api.openai.com/V1')).toBe('https://api.openai.com');

@@ -43,15 +43,28 @@ export function createProvider(input: ProviderInput): AiProvider {
     input.adminKey ? encrypt(input.adminKey) : null, input.shared ? 1 : 0, pos);
   return getProvider(Number(res.lastInsertRowid))!;
 }
+/**
+ * Une clé est confiée pour un hôte : changer l'adresse (normalisée) ou le
+ * type d'un fournisseur efface la clé de l'admin — sauf une nouvelle, saisie
+ * avec le changement — et toutes celles des utilisateurs. Sinon elles
+ * partaient vers le nouvel hôte au premier appel (un fournisseur Anthropic
+ * repointé vers une passerelle, une faute de frappe dans l'hôte).
+ */
 export function updateProvider(id: number, input: Partial<ProviderInput>): AiProvider | null {
   const cur = db.prepare('SELECT * FROM ai_providers WHERE id = ?').get(id) as Row | undefined;
   if (!cur) return null;
-  const adminKey = input.adminKey === undefined ? cur.admin_key
+  const baseUrl = normalizeBaseUrl(input.baseUrl ?? cur.base_url);
+  const type = input.type ?? cur.type;
+  const moved = baseUrl !== normalizeBaseUrl(cur.base_url) || type !== cur.type;
+  const adminKey = input.adminKey === undefined ? (moved ? null : cur.admin_key)
     : input.adminKey === '' || input.adminKey === null ? null : encrypt(input.adminKey);
-  db.prepare('UPDATE ai_providers SET name = ?, type = ?, base_url = ?, model = ?, admin_key = ?, shared = ? WHERE id = ?').run(
-    input.name ?? cur.name, input.type ?? cur.type, normalizeBaseUrl(input.baseUrl ?? cur.base_url),
-    input.model ?? cur.model, adminKey, input.shared === undefined ? cur.shared : (input.shared ? 1 : 0), id,
-  );
+  db.transaction(() => {
+    db.prepare('UPDATE ai_providers SET name = ?, type = ?, base_url = ?, model = ?, admin_key = ?, shared = ? WHERE id = ?').run(
+      input.name ?? cur.name, type, baseUrl,
+      input.model ?? cur.model, adminKey, input.shared === undefined ? cur.shared : (input.shared ? 1 : 0), id,
+    );
+    if (moved) db.prepare('DELETE FROM ai_user_keys WHERE provider_id = ?').run(id);
+  })();
   return getProvider(id);
 }
 export function deleteProvider(id: number): boolean {

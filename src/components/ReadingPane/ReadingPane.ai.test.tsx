@@ -1247,6 +1247,20 @@ describe('ReadingPane — traduction de l\'article', () => {
     // L'allemand reste à l'écran tant que l'espagnol n'est pas arrivé.
     expect(bodyText(container)).toBe('Der Text');
   });
+  it('after a change of target language, the shown translation stays; « Texte source » then « Traduire » goes to the new language', async () => {
+    // Décision du propriétaire (2026-10-23) : rien ne se retraduit tout seul, l'utilisateur relance.
+    vi.mocked(requestAiTranslation).mockResolvedValueOnce(translated(['Title a1', 'word word']));
+    const utils = render(<ReadingPane />);
+    fireEvent.click(utils.getByRole('button', { name: 'ai.translateArticle' }));
+    await utils.findByRole('button', { name: 'ai.showSource' });
+    act(() => { useUiStore.setState({ aiTranslationLanguage: 'de' }); });
+    expect(requestAiTranslation).toHaveBeenCalledTimes(1);
+    fireEvent.click(utils.getByRole('button', { name: 'ai.showSource' }));
+    vi.mocked(requestAiTranslation).mockReturnValueOnce(new Promise(() => {}) as never);
+    fireEvent.click(await utils.findByRole('button', { name: 'ai.translateArticle' }));
+    expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ targetLang: 'de' });
+  });
+
   describe('re-translating into another language over a displayed translation', () => {
     async function shownThenGerman() {
       vi.mocked(requestAiTranslation).mockResolvedValueOnce(translated(['Title a1', 'word word']));

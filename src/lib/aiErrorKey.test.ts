@@ -93,8 +93,11 @@ describe('aiErrorKey', () => {
   });
   it('says the reverse proxy cut a translation, and only a translation', () => {
     expect(aiErrorKey(504, undefined, false, { op: 'translate', elapsedMs: 60_000 })).toBe('ai.errors.proxyTimeout');
+    // Aucune réponse : la connexion a été coupée — par quoi, on ne le voit pas, rien n'est deviné.
+    expect(aiErrorKey(undefined, undefined, false, { op: 'translate', elapsedMs: 61_000, noResponse: true })).toBe('ai.errors.connectionLost');
+    expect(aiErrorKey(undefined, undefined, false, { op: 'translate', elapsedMs: 5_000, noResponse: true })).toBe('ai.errors.connectionLost');
+    // Sans `noResponse`, un statut absent est un échec local : rien n'est deviné.
     expect(aiErrorKey(undefined, undefined, false, { op: 'translate', elapsedMs: 61_000 })).toBe('ai.errors.proxyTimeout');
-    expect(aiErrorKey(undefined, undefined, false, { op: 'translate', elapsedMs: 5_000 })).toBe('ai.errors.translateFailed');
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'deadline' }, false, { op: 'translate', elapsedMs: 60_000 })).toBe('ai.errors.translateFailed');
     expect(aiErrorKey(504, undefined, false)).toBe('ai.errors.technical');
     expect(aiErrorKey(502, '<html>502 Bad Gateway</html>' as never, false, { op: 'translate', elapsedMs: 3_000 })).toBe('ai.errors.translateFailed');

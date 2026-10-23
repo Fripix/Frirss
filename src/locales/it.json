@@ -757,7 +757,8 @@
       "translateFailed": "La traduzione non è riuscita. Riprova.",
       "translateRefused": "Il fornitore ha rifiutato di tradurre questo articolo.",
       "translateTooLong": "Testo troppo lungo per essere tradotto.",
-      "proxyTimeout": "Il server intermedio ha interrotto la risposta prima della fine: consenti almeno 120 s su /api/ai (vedi la documentazione)."
+      "proxyTimeout": "Il server intermedio ha interrotto la risposta prima della fine: consenti almeno 120 s su /api/ai (vedi la documentazione).",
+      "connectionLost": "La connessione si è interrotta durante la traduzione. Riprova: ciò che era già tradotto torna dalla cache, senza nuova richiesta."
     },
     "admin": {
       "title": "Fornitori",
@@ -788,6 +789,7 @@
       "model": "Modello",
       "key": "Chiave API",
       "keyKeep": "Lascia vuoto per mantenere la chiave attuale",
+      "keyMoved": "Nuovo indirizzo o nuovo tipo: al salvataggio, la chiave salvata e quelle degli utenti verranno cancellate, perché non vadano mai a un altro host. Inserisci qui la chiave del nuovo host.",
       "clearKey": "Cancella la chiave",
       "clearKeyTitle": "Cancellare la chiave di {{name}}?",
       "clearKeyWarning": "I riassunti e le traduzioni che usano questa chiave si fermeranno finché non ne verrà inserita una nuova.",

@@ -475,8 +475,23 @@ describe('useArticleTranslation', () => {
       expect(hook.current.html).toContain(words('deux', 1000));
     });
 
-    it('a batch cut by a reverse proxy (504, no body) is replayed in two halves too', async () => {
+    it('a batch cut by a reverse proxy is first asked again whole: free (server cache or the generation in progress), no split', async () => {
       vi.mocked(requestAiTranslation)
+        .mockImplementationOnce(proxyCut())
+        .mockResolvedValueOnce(result(['Bonjour le monde', words('un', 1000)]))
+        .mockResolvedValueOnce(result([words('deux', 1000)]));
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('done'));
+      expect(sent()).toEqual([
+        ['Hello world', words('one', 1000)], ['Hello world', words('one', 1000)], [words('two', 1000)],
+      ]);
+      expect(hook.current.html).toContain(words('un', 1000));
+    });
+
+    it('a batch cut twice by a reverse proxy (504, no body) is then replayed in two halves', async () => {
+      vi.mocked(requestAiTranslation)
+        .mockImplementationOnce(proxyCut())
         .mockImplementationOnce(proxyCut())
         .mockResolvedValueOnce(result(['Bonjour le monde']))
         .mockResolvedValueOnce(result([words('un', 1000)]))
@@ -485,7 +500,7 @@ describe('useArticleTranslation', () => {
       await act(async () => { hook.current.translate(); });
       await waitFor(() => expect(hook.current.state).toBe('done'));
       expect(sent()).toEqual([
-        ['Hello world', words('one', 1000)], ['Hello world'], [words('one', 1000)], [words('two', 1000)],
+        ['Hello world', words('one', 1000)], ['Hello world', words('one', 1000)], ['Hello world'], [words('one', 1000)], [words('two', 1000)],
       ]);
       expect(hook.current.html).toContain(words('un', 1000));
       expect(hook.current.html).toContain(words('deux', 1000));
@@ -494,38 +509,69 @@ describe('useArticleTranslation', () => {
     it('a half cut by the reverse proxy says so: nothing replaced, no further request', async () => {
       vi.mocked(requestAiTranslation)
         .mockImplementationOnce(proxyCut())
+        .mockImplementationOnce(proxyCut())
         .mockImplementationOnce(proxyCut());
       const { result: hook } = renderHook(() => useArticleTranslation(base));
       await act(async () => { hook.current.translate(); });
       await waitFor(() => expect(hook.current.state).toBe('error'));
-      expect(requestAiTranslation).toHaveBeenCalledTimes(2);
+      expect(requestAiTranslation).toHaveBeenCalledTimes(3);
       expect(hook.current.error).toBe('ai.errors.proxyTimeout');
       expect(hook.current.html).toBeNull();
       expect(hook.current.title).toBeNull();
     });
 
-    it('a one-segment batch cut by the reverse proxy says so, the batch before it is not resent', async () => {
+    it('a one-segment batch cut by the reverse proxy is asked once more, then says so; the batch before it is not resent', async () => {
       vi.mocked(requestAiTranslation)
         .mockResolvedValueOnce(result(['Bonjour le monde', words('un', 1000)]))
+        .mockImplementationOnce(proxyCut())
         .mockImplementationOnce(proxyCut());
       const { result: hook } = renderHook(() => useArticleTranslation(base));
       await act(async () => { hook.current.translate(); });
       await waitFor(() => expect(hook.current.state).toBe('error'));
-      expect(sent()).toEqual([['Hello world', words('one', 1000)], [words('two', 1000)]]);
+      expect(sent()).toEqual([['Hello world', words('one', 1000)], [words('two', 1000)], [words('two', 1000)]]);
       expect(hook.current.error).toBe('ai.errors.proxyTimeout');
       expect(hook.current.html).toBeNull();
     });
 
-    it('a network error after a long wait is taken for a cut: the batch is split', async () => {
+    const lostAfter = (ms: number) => async () => { clock += ms; throw Object.assign(new Error('Network Error'), { isAxiosError: true }); };
+
+    it('an answer lost after a long wait (phone in the background, network switch) asks the same batch again, never two paid halves at once', async () => {
+      // Le serveur a fini et mis en cache, ou calcule encore : le même lot entier s'y rattache sans rien payer.
       vi.mocked(requestAiTranslation)
-        .mockImplementationOnce(async () => { clock += 61_000; throw Object.assign(new Error('Network Error'), { isAxiosError: true }); })
-        .mockResolvedValueOnce(result(['Bonjour le monde']))
-        .mockResolvedValueOnce(result([words('un', 1000)]))
+        .mockImplementationOnce(lostAfter(45_000))
+        .mockResolvedValueOnce(result(['Bonjour le monde', words('un', 1000)]))
         .mockResolvedValueOnce(result([words('deux', 1000)]));
       const { result: hook } = renderHook(() => useArticleTranslation(base));
       await act(async () => { hook.current.translate(); });
       await waitFor(() => expect(hook.current.state).toBe('done'));
-      expect(requestAiTranslation).toHaveBeenCalledTimes(4);
+      expect(sent()).toEqual([
+        ['Hello world', words('one', 1000)], ['Hello world', words('one', 1000)], [words('two', 1000)],
+      ]);
+    });
+
+    it('an answer lost twice says the connection was cut, never blames a proxy it cannot see', async () => {
+      vi.mocked(requestAiTranslation)
+        .mockResolvedValueOnce(result(['Bonjour le monde', words('un', 1000)]))
+        .mockImplementationOnce(lostAfter(45_000))
+        .mockImplementationOnce(lostAfter(45_000));
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(); });
+      await waitFor(() => expect(hook.current.state).toBe('error'));
+      expect(hook.current.error).toBe('ai.errors.connectionLost');
+    });
+
+    it('« Retraduire » is not asked again whole after a cut (the server skips its cache for it, it would pay twice): split as before', async () => {
+      vi.mocked(requestAiTranslation)
+        .mockImplementationOnce(proxyCut())
+        .mockResolvedValueOnce(result(['Bonjour le monde']))
+        .mockResolvedValueOnce(result([words('un', 1000)]))
+        .mockResolvedValueOnce(result([words('deux', 1000)]));
+      const { result: hook } = renderHook(() => useArticleTranslation(base));
+      await act(async () => { hook.current.translate(undefined, { regenerate: true }); });
+      await waitFor(() => expect(hook.current.state).toBe('done'));
+      expect(sent()).toEqual([
+        ['Hello world', words('one', 1000)], ['Hello world'], [words('one', 1000)], [words('two', 1000)],
+      ]);
     });
 
     it('a fast 502 page (backend down) is not a proxy cut: neutral error, one request, no replay', async () => {
@@ -544,7 +590,7 @@ describe('useArticleTranslation', () => {
       await act(async () => { hook.current.translate(); });
       await waitFor(() => expect(hook.current.state).toBe('error'));
       expect(requestAiTranslation).toHaveBeenCalledTimes(1);
-      expect(hook.current.error).toBe('ai.errors.translateFailed');
+      expect(hook.current.error).toBe('ai.errors.connectionLost');
     });
 
     const malformed = () => httpError({ error: 'ai_failed', kind: 'technical', detail: 'segments' });

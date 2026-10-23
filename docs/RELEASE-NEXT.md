@@ -66,7 +66,7 @@ la release publiée.
   sans rien envoyer ; un article déjà dans la langue le dit (« Déjà en
   français. ») après un seul appel, même si le modèle l'a traduit quand même,
   ensuite servi par le cache. Un passage trop
-  lourd pour un lot reste dans la langue d'origine, et la notice le dit (« Traduit en partie (n lots sur m) »). Un lot a le temps que demande sa longueur (jusqu'à 110 s), et un lot coupé faute de temps a une seconde chance, en deux moitiés — y compris quand c'est un reverse proxy en amont qui le coupe ; si une moitié l'est encore, un message dit d'accorder au moins 120 s à /api/ai (le README donne les deux lignes à ajouter). Une réponse inexploitable (un Ollama au contexte trop court tronque un gros lot) ne bascule plus vers un autre fournisseur, peut-être payant : le lot est rejoué en deux moitiés sur le même (le README recommande `OLLAMA_CONTEXT_LENGTH=16384`) ; une « traduction » qui recopie la source (un petit modèle renvoie parfois l'anglais tel quel) est traitée de même, au lieu d'être affichée comme traduite et mise en cache — et le message dit alors quoi faire (réessayer, ou choisir un autre fournisseur via « Traduire avec… »). Les segments voyagent entre des balises `<seg>`, qu'aucun modèle ne prend pour sa fin de séquence : un 7b d'Ollama (Qwen, Llama) traduit le lot entier au lieu de s'arrêter au premier segment. Les
+  lourd pour un lot reste dans la langue d'origine, et la notice le dit (« Traduit en partie (n lots sur m) »). Un lot a le temps que demande sa longueur (jusqu'à 110 s), et un lot coupé faute de temps a une seconde chance, en deux moitiés. Quand la réponse se perd en route (reverse proxy qui coupe, téléphone mis en arrière-plan, réseau qui change), le même lot est d'abord redemandé entier, sans rien payer de plus : le serveur, qui a continué, le sert de son cache ou y rattache la demande ; ce n'est qu'en cas de nouvel échec qu'il est coupé en deux. Si un proxy coupe encore, un message dit d'accorder au moins 120 s à /api/ai (le README donne les deux lignes à ajouter) ; si la connexion s'est simplement interrompue, le message le dit, sans accuser un proxy. Une réponse inexploitable (un Ollama au contexte trop court tronque un gros lot) ne bascule plus vers un autre fournisseur, peut-être payant : le lot est rejoué en deux moitiés sur le même (le README recommande `OLLAMA_CONTEXT_LENGTH=16384`) ; une « traduction » qui recopie la source (un petit modèle renvoie parfois l'anglais tel quel) est traitée de même, au lieu d'être affichée comme traduite et mise en cache — et le message dit alors quoi faire (réessayer, ou choisir un autre fournisseur via « Traduire avec… »). Les segments voyagent entre des balises `<seg>`, qu'aucun modèle ne prend pour sa fin de séquence : un 7b d'Ollama (Qwen, Llama) traduit le lot entier au lieu de s'arrêter au premier segment. Les
   échecs ont leurs propres messages : « La traduction a échoué. Réessayez. »,
   « Le fournisseur a refusé de traduire cet article. », « Texte trop long pour
   être traduit. », « Le fournisseur n'a pas rendu une traduction exploitable (texte recopié ou
@@ -237,6 +237,10 @@ la release publiée.
   compte connecté figeaient le serveur ≈ 17 s, pour tout le monde. Le motif
   est linéaire, côté serveur comme dans les copies du navigateur (un flux
   hostile pouvait y figer l'onglet).
+- **Une clé ne part jamais vers un autre hôte.** Changer l'adresse ou le type
+  d'un fournisseur efface sa clé enregistrée et celles des utilisateurs —
+  l'éditeur le dit avant d'enregistrer et demande la clé du nouvel hôte.
+  Avant, elles partaient vers la nouvelle adresse au premier appel.
 - **Sécurité des dépendances** : DOMPurify 3.4.17 (GHSA-cg2g-xh64-v4q7,
   GHSA-mrv2-3pqr-j5jr, GHSA-c6gr-qvv4-5v3f — FriRSS n'utilise aucune des
   options concernées, mise à jour par principe) et follow-redirects 1.16.1

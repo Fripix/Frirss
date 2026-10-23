@@ -757,7 +757,8 @@
       "translateFailed": "翻译失败。请重试。",
       "translateRefused": "服务商拒绝翻译这篇文章。",
       "translateTooLong": "文本太长，无法翻译。",
-      "proxyTimeout": "中间服务器在响应完成前将其中断：请为 /api/ai 允许至少 120 秒（参见文档）。"
+      "proxyTimeout": "中间服务器在响应完成前将其中断：请为 /api/ai 允许至少 120 秒（参见文档）。",
+      "connectionLost": "翻译过程中连接中断。请重试：已翻译的内容将从缓存返回，不会产生新的请求。"
     },
     "admin": {
       "title": "服务商",
@@ -788,6 +789,7 @@
       "model": "模型",
       "key": "API 密钥",
       "keyKeep": "留空以保留当前密钥",
+      "keyMoved": "新的地址或类型：保存时将清除已保存的密钥以及所有用户的密钥，以免它们被发送到其他主机。请在此输入新主机的密钥。",
       "clearKey": "清除密钥",
       "clearKeyTitle": "清除 {{name}} 的密钥？",
       "clearKeyWarning": "使用此密钥的摘要和翻译将停止工作，直到输入新的密钥。",

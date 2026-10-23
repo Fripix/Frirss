@@ -757,7 +757,8 @@
       "translateFailed": "De vertaling is mislukt. Probeer het opnieuw.",
       "translateRefused": "De aanbieder weigerde dit artikel te vertalen.",
       "translateTooLong": "Tekst te lang om te vertalen.",
-      "proxyTimeout": "De tussenliggende server heeft het antwoord vroegtijdig afgebroken: sta minstens 120 s toe op /api/ai (zie de documentatie)."
+      "proxyTimeout": "De tussenliggende server heeft het antwoord vroegtijdig afgebroken: sta minstens 120 s toe op /api/ai (zie de documentatie).",
+      "connectionLost": "De verbinding werd tijdens de vertaling onderbroken. Probeer het opnieuw: wat al vertaald was, komt uit de cache, zonder nieuw verzoek."
     },
     "admin": {
       "title": "Aanbieders",
@@ -788,6 +789,7 @@
       "model": "Model",
       "key": "API-sleutel",
       "keyKeep": "Laat leeg om de huidige sleutel te behouden",
+      "keyMoved": "Nieuw adres of nieuw type: bij opslaan worden de opgeslagen sleutel en die van alle gebruikers gewist, zodat ze nooit naar een andere host gaan. Voer hier de sleutel van de nieuwe host in.",
       "clearKey": "Sleutel wissen",
       "clearKeyTitle": "Sleutel van {{name}} wissen?",
       "clearKeyWarning": "Samenvattingen en vertalingen die deze sleutel gebruiken stoppen totdat een nieuwe is ingevoerd.",

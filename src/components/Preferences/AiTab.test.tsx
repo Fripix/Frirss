@@ -231,6 +231,22 @@ describe('AiTab', () => {
     await waitFor(() => expect(updateAiProvider).toHaveBeenCalledWith(7, expect.objectContaining({ model: 'm2' })));
     expect(updateAiProvider).toHaveBeenCalledWith(7, expect.not.objectContaining({ adminKey: expect.anything() }));
   });
+  it('editing: a new address or type warns that every stored key will be forgotten, the same address written differently does not', async () => {
+    useAuthStore.setState({ backendUser: admin });
+    const p = { id: 7, name: 'Ollama', type: 'openai' as const, baseUrl: 'http://o:11434', model: 'm', hasAdminKey: true, shared: false, position: 0 };
+    vi.mocked(getAiProviders).mockResolvedValue({ providers: [p], settings: { enabled: true, userKeysAllowed: false, dailyCap: 50, defaultProvider: 7 } });
+    const { findByRole, getByLabelText, queryByText, getByText } = render(<AiTab active />);
+    fireEvent.click(await findByRole('button', { name: /ai\.admin\.edit/ }));
+    expect(queryByText('ai.admin.keyMoved')).toBeNull();
+    fireEvent.change(getByLabelText('ai.admin.baseUrl'), { target: { value: 'http://o:11434/v1/' } });
+    expect(queryByText('ai.admin.keyMoved')).toBeNull();
+    fireEvent.change(getByLabelText('ai.admin.baseUrl'), { target: { value: 'https://gateway.example.com' } });
+    const warning = getByText('ai.admin.keyMoved');
+    const key = getByLabelText('ai.admin.key');
+    expect(key.getAttribute('aria-describedby')).toContain(warning.id);
+    // Plus de « Laisser vide pour conserver » : il n'y a plus rien à conserver.
+    expect(key.getAttribute('placeholder')).toBeNull();
+  });
   it('clears a saved admin key after confirmation, never without', async () => {
     useAuthStore.setState({ backendUser: admin });
     const p = { id: 7, name: 'GPT', type: 'openai' as const, baseUrl: 'https://api.example.com', model: 'm', hasAdminKey: true, shared: true, position: 0 };

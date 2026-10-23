@@ -757,7 +757,8 @@
       "translateFailed": "A tradução falhou. Tente novamente.",
       "translateRefused": "O fornecedor recusou-se a traduzir este artigo.",
       "translateTooLong": "Texto demasiado longo para ser traduzido.",
-      "proxyTimeout": "O servidor intermédio cortou a resposta antes do fim: permita pelo menos 120 s em /api/ai (consulte a documentação)."
+      "proxyTimeout": "O servidor intermédio cortou a resposta antes do fim: permita pelo menos 120 s em /api/ai (consulte a documentação).",
+      "connectionLost": "A ligação foi interrompida durante a tradução. Tente novamente: o que já foi traduzido volta da cache, sem novo pedido."
     },
     "admin": {
       "title": "Fornecedores",
@@ -788,6 +789,7 @@
       "model": "Modelo",
       "key": "Chave de API",
       "keyKeep": "Deixe vazio para manter a chave atual",
+      "keyMoved": "Novo endereço ou novo tipo: ao guardar, a chave guardada e as dos utilizadores serão apagadas, para nunca irem para outro host. Introduza aqui a chave do novo host.",
       "clearKey": "Apagar a chave",
       "clearKeyTitle": "Apagar a chave de {{name}}?",
       "clearKeyWarning": "Os resumos e as traduções que usam esta chave deixarão de funcionar até ser introduzida uma nova.",

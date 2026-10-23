@@ -757,7 +757,8 @@
       "translateFailed": "The translation failed. Try again.",
       "translateRefused": "The provider declined to translate this article.",
       "translateTooLong": "Text too long to translate.",
-      "proxyTimeout": "The intermediate server cut the response off before the end: allow at least 120 s on /api/ai (see the documentation)."
+      "proxyTimeout": "The intermediate server cut the response off before the end: allow at least 120 s on /api/ai (see the documentation).",
+      "connectionLost": "The connection was interrupted during the translation. Try again: what was already translated comes back from the cache, with no new request."
     },
     "admin": {
       "title": "Providers",
@@ -788,6 +789,7 @@
       "model": "Model",
       "key": "API key",
       "keyKeep": "Leave empty to keep the current key",
+      "keyMoved": "New address or type: on save, the stored key and every user's key will be erased, so they never go to another host. Enter the new host's key here.",
       "clearKey": "Clear the key",
       "clearKeyTitle": "Clear the key for {{name}}?",
       "clearKeyWarning": "Summaries and translations that use this key will stop until a new one is entered.",

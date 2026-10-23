@@ -453,11 +453,29 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
           try {
             return await request(indices);
           } catch (err) {
-            // Un rejeu ne se coupe que sur un cache manquant : un lot payé en
-            // deux moitiés n'est en cache que sous ses moitiés. Tout autre
-            // échec (409, 5xx, réseau) n'y change rien.
-            const split = cacheOnly ? isNotCached(err) : worthSplitting(err);
-            if (indices.length < 2 || !split) throw err;
+            // Réponse perdue après une longue attente (coupure par un proxy,
+            // réseau perdu, téléphone en arrière-plan) : le serveur, lui, a
+            // continué. Le même lot entier est redemandé une fois — gratuit :
+            // fini, il sort du cache ; en cours, la demande se rattache à la
+            // génération (`shareInflight`). Le couper d'emblée en deux payait
+            // deux moitiés pendant que le lot entier se payait déjà.
+            // « Retraduire » ignore cache et partage : il paierait deux fois.
+            const lost = !cacheOnly && !regenerate && axios.isAxiosError(err)
+              && isUpstreamCut(err.response?.status, err.response?.data, elapsedOf(err) ?? 0);
+            if (lost) {
+              if (!wanted()) throw new Abandoned();
+              try {
+                return await request(indices);
+              } catch (again) {
+                if (indices.length < 2 || !worthSplitting(again)) throw again;
+              }
+            } else {
+              // Un rejeu ne se coupe que sur un cache manquant : un lot payé en
+              // deux moitiés n'est en cache que sous ses moitiés. Tout autre
+              // échec (409, 5xx, réseau) n'y change rien.
+              const split = cacheOnly ? isNotCached(err) : worthSplitting(err);
+              if (indices.length < 2 || !split) throw err;
+            }
           }
           // Coupé faute de temps ou rendu inexploitable (ou, au rejeu, lot
           // entier absent du cache) : rejoué une fois, en deux moitiés, en
@@ -517,7 +535,7 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
           return;
         }
         const resp = axios.isAxiosError(err) ? err.response : undefined;
-        const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], admin, language, { op: 'translate', elapsedMs: elapsedOf(err) });
+        const msg = aiErrorMessage(resp?.status, resp?.data as Parameters<typeof aiErrorMessage>[1], admin, language, { op: 'translate', elapsedMs: elapsedOf(err), noResponse: axios.isAxiosError(err) && !err.response });
         // Une traduction déjà tenue (payée) reste affichée, l'erreur s'ajoute.
         setSnap(held
           ? { ...held, error: tr(msg.key, msg.params), errorProvider: msg.providerId, errorLang: lang }

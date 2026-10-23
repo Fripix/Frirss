@@ -789,7 +789,8 @@
       "translateFailed": "Nie udało się przetłumaczyć. Spróbuj ponownie.",
       "translateRefused": "Dostawca odmówił przetłumaczenia tego artykułu.",
       "translateTooLong": "Tekst jest zbyt długi, by go przetłumaczyć.",
-      "proxyTimeout": "Serwer pośredniczący przerwał odpowiedź przed końcem: zezwól na co najmniej 120 s dla /api/ai (zobacz dokumentację)."
+      "proxyTimeout": "Serwer pośredniczący przerwał odpowiedź przed końcem: zezwól na co najmniej 120 s dla /api/ai (zobacz dokumentację).",
+      "connectionLost": "Połączenie zostało przerwane podczas tłumaczenia. Spróbuj ponownie: to, co już przetłumaczono, wróci z pamięci podręcznej bez nowego zapytania."
     },
     "admin": {
       "title": "Dostawcy",
@@ -820,6 +821,7 @@
       "model": "Model",
       "key": "Klucz API",
       "keyKeep": "Pozostaw puste, aby zachować obecny klucz",
+      "keyMoved": "Nowy adres lub typ: przy zapisie zapisany klucz i klucze użytkowników zostaną usunięte, aby nigdy nie trafiły do innego hosta. Wpisz tutaj klucz nowego hosta.",
       "clearKey": "Wyczyść klucz",
       "clearKeyTitle": "Wyczyścić klucz dostawcy {{name}}?",
       "clearKeyWarning": "Podsumowania i tłumaczenia korzystające z tego klucza przestaną działać, dopóki nie zostanie wprowadzony nowy.",

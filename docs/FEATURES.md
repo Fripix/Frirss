@@ -2043,7 +2043,18 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   enregistrée », la config est rechargée, la liste de modèles affichée est
   fermée (elle venait de l'ancienne clé). Une clé encore en cours de saisie
   dans le champ n'est pas touchée ; en cas d'échec, la clé reste et l'erreur
-  d'enregistrement s'affiche.
+  d'enregistrement s'affiche. **Une clé est confiée pour un hôte** : changer
+  l'adresse (normalisée par `normalizeBaseUrl` — `http://o:11434/v1/` reste la
+  même) ou le type d'un fournisseur **efface à l'enregistrement** la clé de
+  l'admin (sauf une nouvelle saisie avec le changement) et **toutes les clés
+  personnelles des utilisateurs** pour ce fournisseur (`updateProvider`,
+  `server/ai/store.ts`, en une transaction). Avant, elles partaient vers le
+  nouvel hôte au premier appel (relevé en revue, 2026-10-23 ; décision du
+  propriétaire). L'éditeur le dit avant : dès que l'adresse ou le type diffère
+  de l'enregistré, le champ de la clé perd « Laisser vide pour conserver »,
+  « Effacer la clé » disparaît, et un avertissement en `--danger`
+  (`ai.admin.keyMoved`, relié au champ par `aria-describedby`) annonce
+  l'effacement et demande la clé du nouvel hôte.
 - **Appels sortants** : `fetchUpstream` avec `trustedHosts: [hôte du
   fournisseur]` (même exemption que l'émetteur OIDC : URL fixée par l'admin ;
   un littéral IPv6 est reconnu, crochets retirés), `followRedirects: false`,
@@ -3227,7 +3238,17 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     coupé en deux** — moitiés en
     série, **dans la même demande partagée que le lot** (clé du rang `b`,
     voir « Demandes partagées ») : revenir sur l'article pendant une moitié
-    s'y rattache au lieu de renvoyer le lot entier. La moitié suivante ne
+    s'y rattache au lieu de renvoyer le lot entier. **Avant toute découpe,
+    une réponse perdue est redemandée entière une fois** (coupure amont ou
+    plus aucune réponse, hors « Retraduire » et rejeu du cache) : le serveur,
+    qui ne voit pas la coupure, a continué — fini, le même lot sort de son
+    cache ; en cours, la demande se rattache à la génération
+    (`shareInflight`). C'est gratuit, et ça vaut aussi pour un téléphone mis
+    en arrière-plan ou un réseau qui change, qu'on prenait pour un proxy et
+    qu'on coupait en deux moitiés payées (relevé en revue, 2026-10-23). Ce
+    n'est qu'au second échec que le lot est coupé. « Retraduire » ignore
+    cache et partage : il serait payé deux fois, il garde la découpe directe.
+    La moitié suivante ne
     part que si un appelant rattaché est encore courant (`wanted()` de
     `aiPending.ts`, qui interroge le `stillCurrent` de chacun) ; chaque
     appelant n'applique la réponse que si sa propre boucle l'est encore. Une
@@ -3247,8 +3268,14 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     après une échéance serveur ; après une **coupure amont** d'une moitié, ou
     d'un lot d'un seul segment, c'est `ai.errors.proxyTimeout` : « Le serveur
     intermédiaire a coupé la réponse avant la fin : autorisez au moins 120 s
-    sur /api/ai (voir la documentation). » — traduction seulement, le résumé
-    garde son message. Coût : chaque moitié compte une unité du plafond
+    sur /api/ai (voir la documentation). » — seulement quand un 502 / 504
+    étranger est **arrivé** ; quand **aucune réponse** n'est arrivée (erreur
+    axios sans `response`, option `noResponse` d'`aiErrorKey` — un échec
+    local, sans statut lui non plus, n'en est pas un), c'est
+    `ai.errors.connectionLost` : « La connexion a été interrompue pendant la
+    traduction. Réessayez : ce qui a déjà été traduit revient du cache, sans
+    nouvel appel. » Ce qui a coupé, on ne le voit pas : rien n'est deviné.
+    Traduction seulement, le résumé garde son message. Coût : chaque moitié compte une unité du plafond
     (l'appel abandonné est rendu), donc un article de quatre lots dont un
     rejoué en compte cinq ; et un fournisseur payant peut facturer l'appel
     abandonné. ⚠️ Une coupure **amont** coûte davantage : le serveur FriRSS
