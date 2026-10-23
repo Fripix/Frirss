@@ -86,7 +86,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **At home on Android** — in the installed app, the back gesture closes what is on top (article, feed drawer, preferences) instead of leaving the app, and the status bar takes the colour of the surface beneath it.
 
 ### AI summaries and translations (optional)
-Off until an administrator turns it on in *Preferences → AI*, and it only ever sends the article you are reading to the provider you chose.
+FriRSS ships no AI of its own: no model, no service, nothing sent anywhere by default. If you want summaries and translations, connect the model of your choice — a local one or a cloud provider — in *Preferences → AI*. It stays off until an administrator does, and only ever sends the article you are reading to the provider you picked.
 
 - **Summaries** in a panel above the article — one click, the <kbd>s</kbd> key or the palette, or automatically when an article opens. The length is yours to set, *Summarise with…* picks another provider, *Regenerate* asks again.
 - **Translations** of the whole article — title and body, in batches, into any of 28 languages — and of its summary. *Show original* switches back without a new request; *Translate into…* and *Translate with…* choose the language and the provider.
