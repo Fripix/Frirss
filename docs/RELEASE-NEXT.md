@@ -212,6 +212,12 @@ la release publiée.
   saisie rapide d'une liste déroulante pouvait déclencher `s` — un résumé,
   peut-être payant. De même, `t` ou les flèches ne partent plus depuis « Traduire
   en… » ou « Résumer avec… ». `?` referme aussi l'aide-mémoire.
+- **« Résumer » et « Traduire » attendent l'article complet.** Demandés
+  pendant son extraction, ils partaient sur l'aperçu du flux — un résumé du
+  chapô, ou une traduction jetée à l'arrivée de l'article : un appel perdu,
+  peut-être payant. Ils attendent maintenant l'extrait (« Résumé… »,
+  « Traduction… ») puis partent d'eux-mêmes. La palette ne propose plus
+  « Résumer » quand un résumé est déjà affiché ou en cours, ni hors ligne.
 - **Une modale cachée dans un article ne coupe plus les raccourcis.** Un
   article (ou sa page extraite) qui embarque une fenêtre de newsletter en
   `role="dialog"` désactivait tous les raccourcis tant qu'il restait ouvert.

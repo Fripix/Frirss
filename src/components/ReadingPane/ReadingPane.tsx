@@ -36,8 +36,8 @@ import { sharedSummaryRequest, sharedTranslationRequest, summaryRequestKey, summ
 import { AI_LANGUAGES, languageName, sameLanguage, targetLanguage, type AiLanguage } from '../../lib/aiLanguages';
 import { aiRouting } from '../../lib/aiRouting';
 import { autoFor, panelFor } from '../../lib/aiAuto';
-import { useArticleTranslation, plainText } from './useArticleTranslation';
-import { AI_TRANSLATE_PROBE, answerTranslateProbe } from '../../lib/aiTranslateProbe';
+import { useArticleTranslation, plainText, type TranslateChoice } from './useArticleTranslation';
+import { AI_TRANSLATE_PROBE, AI_SUMMARIZE_PROBE, answerTranslateProbe } from '../../lib/aiTranslateProbe';
 import TranslateMenu from './TranslateMenu';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useToolbarFold } from '../../hooks/useToolbarFold';
@@ -223,6 +223,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // traduction automatique l'envoyait pour le nouvel article — un appel que
   // personne n'avait demandé, et le texte de l'un affiché sur l'autre.
   const aiResultFor = useRef<string | null>(null);
+  // Une demande faite pendant l'extraction de l'article complet attend
+  // l'extrait (`waitingForBody`) : partie sur l'aperçu du flux, elle donnait un
+  // résumé du chapô ou une traduction jetée à l'arrivée de l'extrait — un
+  // appel perdu, peut-être payant. Elle est rejouée, une fois, avec les
+  // fonctions du rendu courant (`deferred`, vidé au changement d'article).
+  const waitingForBodyRef = useRef(false);
+  type Deferred = { kind: 'summary'; providerId?: number; regenerate?: boolean } | { kind: 'translate'; choice?: TranslateChoice };
+  const deferred = useRef<Deferred | null>(null);
+  const [translateQueued, setTranslateQueued] = useState(false);
   // Traduction du résumé affiché. `aiTranslationSeq` désigne la demande dont
   // la réponse est encore attendue : changer d'article, recevoir un autre
   // résumé ou revenir au texte source l'incrémente, et une réponse d'une
@@ -247,6 +256,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     autoSummarisedId.current = null;
     autoTranslatedId.current = null;
     aiResultFor.current = null;
+    deferred.current = null;
+    setTranslateQueued(false);
   }, [selectedArticle?.id]);
 
   // Reading progress
@@ -816,6 +827,13 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // dans une demande partagée à part (`summaryRequestKey`).
   const handleSummarize = useCallback(async (providerId?: number, opts?: { auto?: boolean; regenerate?: boolean }) => {
     if (!selectedArticle || aiInFlight.current === selectedArticle.id) return;
+    // Le résumé automatique attend déjà l'extrait (`autoSettled`) ; une demande
+    // faite pendant l'extraction l'attend aussi, panneau sur « Résumé… ».
+    if (!opts?.auto && waitingForBodyRef.current) {
+      deferred.current = { kind: 'summary', providerId, regenerate: opts?.regenerate };
+      setAiStatus('loading'); setAiError(null); setAiErrorProvider(undefined);
+      return;
+    }
     const id = selectedArticle.id;
     // L'extrait n'est celui de cet article que si l'extraction lui appartient.
     const fullText = extractFor === id ? extractedContent?.content : undefined;
@@ -942,7 +960,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       void handleSummarize();
     };
     window.addEventListener('frirss:ai-summarize', onSummarizeEvent);
-    return () => window.removeEventListener('frirss:ai-summarize', onSummarizeEvent);
+    // La palette ne propose « Résumer » que si quelqu'un répond ici : mêmes
+    // gardes, et rien en cours pour cet article.
+    const onProbe = (e: Event) => { if (aiInFlight.current !== selectedArticle.id) answerTranslateProbe(e); };
+    window.addEventListener(AI_SUMMARIZE_PROBE, onProbe);
+    return () => {
+      window.removeEventListener('frirss:ai-summarize', onSummarizeEvent);
+      window.removeEventListener(AI_SUMMARIZE_PROBE, onProbe);
+    };
   }, [aiUsable, online, selectedArticle, aiResult, handleSummarize]);
 
   // Résumé et traduction automatiques : la règle du flux, sinon d'une de ses
@@ -976,6 +1001,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     && effectiveAutoExtract(autoExtractDefault, feedSettings, selectedArticle.sourceId);
   const autoSettled = !autoExtractApplies
     || (!extracting && extractFor === selectedArticle?.id && (!!extractedContent || !!extractError));
+  // L'article complet arrive (extraction en cours, ou automatique pas encore réglée).
+  const waitingForBody = extracting || !autoSettled;
+  waitingForBodyRef.current = waitingForBody;
 
   // Résumé automatique à l'ouverture, une fois par visite. Déclaré APRÈS les
   // effets de remise à zéro (IA et extraction) : dans la même passe ils
@@ -1051,6 +1079,27 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // ni quand une traduction est déjà là ou en cours ; un `same` reste muet
   // (`automatic`), une erreur s'affiche.
   const { translate: translateArticle, state: articleTranslationState, canTranslate: articleCanTranslate } = articleTranslation;
+  /** « Traduire » demandé par le lecteur : attend l'extrait s'il arrive (voir `deferred`). */
+  const translateWhenReady = useCallback((choice?: TranslateChoice) => {
+    if (waitingForBodyRef.current) {
+      deferred.current = { kind: 'translate', choice };
+      setTranslateQueued(true);
+      return;
+    }
+    translateArticle(choice);
+  }, [translateArticle]);
+  // L'extrait est là (ou a échoué) : la demande en attente part, avec le corps à jour.
+  useEffect(() => {
+    if (waitingForBody || !deferred.current) return;
+    const d = deferred.current;
+    deferred.current = null;
+    if (d.kind === 'summary') {
+      void handleSummarize(d.providerId, d.regenerate ? { regenerate: true } : undefined);
+    } else {
+      setTranslateQueued(false);
+      translateArticle(d.choice);
+    }
+  }, [waitingForBody, handleSummarize, translateArticle]);
   useEffect(() => {
     const art = selectedArticle;
     if (!art || !autoTranslate || !aiUsable || !online || !autoSettled) return;
@@ -1099,7 +1148,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   useEffect(() => {
     if (!aiUsable || !online || !selectedArticle || showTranslatedBody) return;
     if (!articleCanTranslate || articleTranslationState === 'loading') return;
-    const onTranslateEvent = () => translateArticle();
+    const onTranslateEvent = () => translateWhenReady();
     window.addEventListener('frirss:ai-translate', onTranslateEvent);
     // La palette ne propose l'entrée que si quelqu'un répond ici : mêmes gardes.
     window.addEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
@@ -1107,7 +1156,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       window.removeEventListener('frirss:ai-translate', onTranslateEvent);
       window.removeEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
     };
-  }, [aiUsable, online, selectedArticle, showTranslatedBody, articleCanTranslate, articleTranslationState, translateArticle]);
+  }, [aiUsable, online, selectedArticle, showTranslatedBody, articleCanTranslate, articleTranslationState, translateWhenReady]);
   const shownBodyHtml = showTranslatedBody ? translatedBody.html : body.html;
   const bodyProp = useMemo(() => ({ __html: shownBodyHtml }), [shownBodyHtml]);
 
@@ -1194,7 +1243,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // Traduction de l'article : le bouton (barre d'outils, barre du bas), son
   // libellé et la notice au-dessus du corps.
   const tr = articleTranslation;
-  const trLoading = tr.state === 'loading';
+  // Une demande qui attend l'extrait s'affiche comme partie : « Traduction… ».
+  const trLoading = tr.state === 'loading' || translateQueued;
   const shownTitle = showTranslatedBody && tr.title ? tr.title : article.title;
   // Pendant une demande, même par-dessus une traduction affichée (« Traduire
   // en → allemand » sur du français), le bouton dit « Traduction… » et attend :
@@ -1206,7 +1256,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // « Réessayer avec… » sous l'erreur de traduction : seulement quand le serveur
   // a nommé le fournisseur fautif (502 / 422) — le suivant, dans l'ordre de l'admin.
   const retryNext = tr.error && tr.errorProvider !== undefined ? nextProvider(aiProviders, tr.errorProvider) : null;
-  const translateAction = showTranslatedBody ? tr.showSource : () => tr.translate();
+  const translateAction = showTranslatedBody ? tr.showSource : () => translateWhenReady();
   const trLangName = tr.lang ? languageName(tr.lang, i18n.language) : '';
   let trNotice: string | null = null;
   let trPartial: string | null = null;
@@ -2090,7 +2140,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           open={translateMenuShown} anchor={translateChevron.current} touch={isMobileOrTablet} title={t('ai.translateArticleMenu')}
           languages={TRANSLATE_LANGUAGES} providers={aiProviders}
           current={{ lang: tr.state === 'done' && tr.lang ? tr.lang : aiTargetLang, providerId: tr.state === 'done' ? tr.providerId ?? null : null }}
-          onPick={(choice) => { setTranslateMenuOpen(false); returnTranslateFocus(); tr.translate(choice); }}
+          onPick={(choice) => { setTranslateMenuOpen(false); returnTranslateFocus(); translateWhenReady(choice); }}
           // « Retraduire » : seulement sur une traduction affichée, dans sa langue et chez son
           // fournisseur — encore disponible, sinon le serveur en choisirait un autre sans le dire.
           onRetranslate={tr.state === 'done' && tr.showing === 'translation' && tr.lang && aiProviders.some((p) => p.available && p.id === tr.providerId)

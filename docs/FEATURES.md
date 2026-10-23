@@ -3464,7 +3464,16 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   `extractedContent` / `extractError`, dit à qui ils appartiennent, car au rendu
   qui suit un changement d'article ils sont encore ceux du précédent (calcul
   `autoSettled`, partagé avec la traduction automatique). Échec d'extraction : le
-  texte du flux est résumé. Un article **trop court** (`400 article_too_short`)
+  texte du flux est résumé. **Une demande du lecteur attend aussi l'extrait**
+  (2026-10-23) : « Résumer » (bouton, touche, palette, « Résumer avec X ») et
+  « Traduire » (bouton, touche `t`, palette, « Traduire en… / avec… ») faits
+  pendant l'extraction (`waitingForBody` = extraction en cours, ou automatique
+  pas encore réglée) sont mis de côté (`deferred`) — panneau sur « Résumé… »,
+  bouton sur « Traduction… » désactivé (`translateQueued`) — puis rejoués une
+  fois, avec les fonctions du rendu courant, quand l'extrait arrive (ou
+  échoue). Partis sur l'aperçu du flux, ils donnaient un résumé du chapô ou
+  une traduction jetée à l'arrivée de l'extrait : un appel perdu. Changer
+  d'article abandonne la demande en attente. Un article **trop court** (`400 article_too_short`)
   ne dit rien et remet le statut à `idle` (personne n'a rien demandé) ; toute
   autre erreur s'affiche comme pour un clic. Un **panneau replié reste replié** :
   la seule ouverture automatique est celle de la première demande manuelle (bouton, raccourci ou palette : `expandOnFirstSummary`, voir ci-dessous). La
@@ -5115,9 +5124,13 @@ l'article (IA) »).
   palette diffuse la sonde **synchrone** `frirss:ai-translate-probe`
   (`src/lib/aiTranslateProbe.ts`), à laquelle `ReadingPane` répond dans le
   même effet, et sous les mêmes gardes, que son écoute de
-  `frirss:ai-translate` ; personne ne répond → pas d'entrée. Aucun état de
-  plus dans un store. Tests : `CommandPalette.test.tsx`,
-  `ReadingPane.ai.test.tsx` (« answers the palette probe »).
+  `frirss:ai-translate` ; personne ne répond → pas d'entrée. **« Résumer »
+  suit la même règle** depuis le 2026-10-23 (`frirss:ai-summarize-probe`,
+  `summarizeWouldAct`) : pas d'entrée quand un résumé est déjà là ou en cours
+  pour l'article (`aiInFlight`), hors ligne ou IA inutilisable — elle fermait
+  la palette sans rien faire. Aucun état de plus dans un store. Tests :
+  `CommandPalette.test.tsx`, `ReadingPane.ai.test.tsx` (« answers the palette
+  probe »).
 - **Rien de nouveau n'est stocké** : la palette assemble ce que les stores
   contiennent déjà. Son état d'ouverture n'est ni persisté ni synchronisé.
 - **Accents repliés** : « securite » atteint « Sécurité ». Sans cela, la moitié

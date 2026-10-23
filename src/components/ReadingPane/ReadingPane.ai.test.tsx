@@ -39,7 +39,7 @@ import { putExtract } from '../../lib/extractCache';
 import { __resetPendingSummariesForTests } from './aiPending';
 import { languageName } from '../../lib/aiLanguages';
 import { LONG_PRESS_MS } from '../../hooks/useLongPress';
-import { translateWouldAct } from '../../lib/aiTranslateProbe';
+import { translateWouldAct, summarizeWouldAct } from '../../lib/aiTranslateProbe';
 
 const article = (id: string) => ({
   id, title: 'Titre ' + id, summary: 's', source: 'Src', sourceId: 'feed/1',
@@ -810,6 +810,16 @@ describe('ReadingPane — Résumé IA', () => {
       const stale = listeners[0];
       await act(async () => { stale(new CustomEvent('frirss:ai-summarize')); await Promise.resolve(); });
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
+    });
+    it('answers the palette probe only while « Résumer » would do something', async () => {
+      vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+      const { findByText, unmount } = render(<ReadingPane />);
+      expect(summarizeWouldAct()).toBe(true);
+      fire();
+      expect(await findByText('Le résumé.')).toBeTruthy();
+      expect(summarizeWouldAct()).toBe(false);
+      unmount();
+      expect(summarizeWouldAct()).toBe(false);
     });
     it('leaves a summary already on screen alone', async () => {
       vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
@@ -1684,6 +1694,58 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
       expect(articleCalls()).toHaveLength(1);
     });
   });
+  describe('a summary or translation asked while the full article is being extracted', () => {
+    // Avant : la demande partait sur l'aperçu du flux — un appel jeté (traduction)
+    // ou un résumé du chapô — à l'arrivée de l'extrait. Elle attend maintenant l'extrait.
+    // Un article par test : l'extrait d'un test précédent sortirait du cache, sans attente.
+    let n = 0;
+    const setup = () => {
+      const a = article(`ex-wait-${++n}`);
+      useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      useUiStore.setState({ feedSettings: { 'feed/1': { autoExtract: true } } });
+      let finish!: (v: unknown) => void;
+      vi.mocked(extractFullContent).mockReturnValue(new Promise((r) => { finish = r; }) as never);
+      return { finish: (v: unknown) => act(async () => { finish(v); }) };
+    };
+    it('the summarize key waits for the extract, says it is coming, then summarises the extracted article', async () => {
+      const { finish } = setup();
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      const utils = render(<ReadingPane />);
+      await advance(200);
+      expect(extractFullContent).toHaveBeenCalledTimes(1);
+      act(() => { window.dispatchEvent(new CustomEvent('frirss:ai-summarize')); });
+      expect(requestAiSummary).not.toHaveBeenCalled();
+      expect(utils.getAllByText('ai.summarizing').length).toBeGreaterThan(0);
+      await finish(extracted('<p>' + 'complet '.repeat(80) + '</p>'));
+      await advance(0);
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(requestAiSummary).mock.calls[0][0].html).toContain('complet');
+    });
+    it('the translate button waits for the extract, then translates the extracted body, once', async () => {
+      const { finish } = setup();
+      vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+      const utils = render(<ReadingPane />);
+      await advance(200);
+      fireEvent.click(utils.getByRole('button', { name: 'ai.translateArticle' }));
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+      expect((utils.getByRole('button', { name: 'ai.translating' }) as HTMLButtonElement).disabled).toBe(true);
+      await finish(extracted('<p>' + 'complet '.repeat(80) + '</p>'));
+      await advance(0);
+      expect(articleCalls()).toHaveLength(1);
+      expect(articleCalls()[0][0].segments[1]).toContain('complet');
+    });
+    it('a request waiting for the extract is dropped when the reader leaves the article', async () => {
+      setup();
+      const utils = render(<ReadingPane />);
+      await advance(200);
+      fireEvent.click(utils.getByRole('button', { name: 'ai.translateArticle' }));
+      await act(async () => { useFeedStore.setState({ selectedArticle: article('a2') }); });
+
+      await advance(3000);
+      expect(requestAiTranslation).not.toHaveBeenCalled();
+    });
+  });
+
   describe('automatic translation of the summary', () => {
     const EN = { ...SUMMARY, text: 'The summary.', lang: 'en' };
     const summaryCalls = () => vi.mocked(requestAiTranslation).mock.calls.filter(([r]) => r.scope === 'summary');

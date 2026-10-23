@@ -5,7 +5,7 @@ import CommandPalette from './CommandPalette';
 import { useUiStore } from '../stores/uiStore';
 import { useFeedStore } from '../stores/feedStore';
 import { useAiStore } from '../stores/aiStore';
-import { AI_TRANSLATE_PROBE, answerTranslateProbe } from '../lib/aiTranslateProbe';
+import { AI_TRANSLATE_PROBE, AI_SUMMARIZE_PROBE, answerTranslateProbe } from '../lib/aiTranslateProbe';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
@@ -24,6 +24,16 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('CommandPalette — summarize action', () => {
+  // Le volet de lecture répond à la sonde tant que « Résumer » ferait quelque chose.
+  beforeEach(() => { window.addEventListener(AI_SUMMARIZE_PROBE, answerTranslateProbe); });
+  afterEach(() => { window.removeEventListener(AI_SUMMARIZE_PROBE, answerTranslateProbe); });
+
+  it('is not offered when the reading pane would not summarise (a summary already shown, offline)', () => {
+    window.removeEventListener(AI_SUMMARIZE_PROBE, answerTranslateProbe);
+    const { queryByText } = render(<CommandPalette />);
+    expect(queryByText(LABEL)).toBeNull();
+  });
+
   it('is offered when an article is open and AI is usable', () => {
     const { getByText } = render(<CommandPalette />);
     expect(getByText(LABEL)).toBeTruthy();
@@ -62,8 +72,14 @@ describe('CommandPalette — translate action', () => {
   const TRANSLATE = 'preferences.shortcuts.translate';
   // Le volet de lecture répond à la sonde tant que « Traduire l'article »
   // ferait quelque chose (du texte à traduire, aucune traduction affichée).
-  beforeEach(() => { window.addEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe); });
-  afterEach(() => { window.removeEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe); });
+  beforeEach(() => {
+    window.addEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
+    window.addEventListener(AI_SUMMARIZE_PROBE, answerTranslateProbe);
+  });
+  afterEach(() => {
+    window.removeEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
+    window.removeEventListener(AI_SUMMARIZE_PROBE, answerTranslateProbe);
+  });
 
   it('is offered next to the summary when an article is open, AI is usable and the reading pane can translate', () => {
     const { getByText } = render(<CommandPalette />);

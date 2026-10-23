@@ -24,3 +24,18 @@ export function answerTranslateProbe(e: Event): void {
   const detail = (e as CustomEvent<TranslateProbe | null>).detail;
   if (detail) detail.ready = true;
 }
+
+/**
+ * Même sonde pour « Résumer » : la palette ne propose plus une entrée qui ne
+ * ferait rien (un résumé déjà affiché ou en cours, hors ligne, IA
+ * inutilisable). Le volet y répond avec `answerTranslateProbe`, posé avec son
+ * écouteur de `frirss:ai-summarize`.
+ */
+export const AI_SUMMARIZE_PROBE = 'frirss:ai-summarize-probe';
+
+/** Côté palette : `frirss:ai-summarize` ferait-il quelque chose maintenant ? */
+export function summarizeWouldAct(): boolean {
+  const detail: TranslateProbe = { ready: false };
+  window.dispatchEvent(new CustomEvent<TranslateProbe>(AI_SUMMARIZE_PROBE, { detail }));
+  return detail.ready;
+}
