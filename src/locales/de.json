@@ -373,7 +373,8 @@
       "gestureHelp": "Dieses Fenster anzeigen",
       "helpTitle": "Tastenkürzel",
       "summarize": "Artikel zusammenfassen (KI)",
-      "translate": "Artikel übersetzen (KI)"
+      "translate": "Artikel übersetzen (KI)",
+      "unassigned": "Keine Taste"
     },
     "offline": {
       "title": "Offline",

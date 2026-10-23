@@ -130,7 +130,8 @@ describe('AiTab', () => {
     expect((getByLabelText('ai.admin.key') as HTMLInputElement).value).toBe('');
   });
   it('a daily cap typed then left by closing the Preferences (Escape, no blur) is still saved; Enter saves it too', async () => {
-    useAuthStore.setState({ backendUser: admin });
+    // Une session ouverte : sans jeton (déconnexion), la fermeture n'enregistre rien.
+    useAuthStore.setState({ backendUser: admin, backendToken: 'tok' });
     vi.mocked(updateAiSettings).mockResolvedValue();
     const first = render(<AiTab active />);
     const cap = await first.findByLabelText('ai.admin.dailyCap');
@@ -143,6 +144,15 @@ describe('AiTab', () => {
     fireEvent.change(cap2, { target: { value: '30' } });
     fireEvent.keyDown(cap2, { key: 'Enter' });
     await waitFor(() => expect(updateAiSettings).toHaveBeenCalledWith({ dailyCap: 30 }));
+    second.unmount();
+    // Déconnecté : la section qui disparaît n'envoie rien au nom du compte parti.
+    vi.mocked(updateAiSettings).mockClear();
+    useAuthStore.setState({ backendUser: admin, backendToken: 'tok' });
+    const third = render(<AiTab active />);
+    fireEvent.change(await third.findByLabelText('ai.admin.dailyCap'), { target: { value: '44' } });
+    useAuthStore.setState({ backendToken: null });
+    third.unmount();
+    expect(updateAiSettings).not.toHaveBeenCalled();
   });
   describe('saving a provider', () => {
     const fill = (getByLabelText: (l: string) => HTMLElement) => {
@@ -175,6 +185,31 @@ describe('AiTab', () => {
       fireEvent.click(getByRole('button', { name: 'ai.admin.edit — B' }));
       await act(async () => { done({ ...a, model: 'm2' }); });
       expect((getByLabelText('ai.admin.name') as HTMLInputElement).value).toBe('B');
+    });
+    it('« Fermer » during a slow save keeps the editor closed when the answer lands', async () => {
+      useAuthStore.setState({ backendUser: admin });
+      let done!: (v: unknown) => void;
+      vi.mocked(createAiProvider).mockReturnValue(new Promise((r) => { done = r; }) as never);
+      const { findByRole, getByLabelText, getByRole, queryByLabelText } = render(<AiTab active />);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
+      fill(getByLabelText);
+      fireEvent.click(getByRole('button', { name: 'ai.admin.save' }));
+      fireEvent.click(getByRole('button', { name: 'ai.admin.close' }));
+      await act(async () => { done({ id: 9, name: 'Ollama', type: 'openai', baseUrl: 'http://ollama:11434', model: 'llama3', hasAdminKey: false, shared: false, position: 0 }); });
+      expect(queryByLabelText('ai.admin.name')).toBeNull();
+    });
+    it('a field changed while the save runs keeps its new value, and is not marked « Enregistré »', async () => {
+      useAuthStore.setState({ backendUser: admin });
+      let done!: (v: unknown) => void;
+      vi.mocked(createAiProvider).mockReturnValue(new Promise((r) => { done = r; }) as never);
+      const { findByRole, getByLabelText, getByRole, queryByText } = render(<AiTab active />);
+      fireEvent.click(await findByRole('button', { name: 'ai.admin.add' }));
+      fill(getByLabelText);
+      fireEvent.click(getByRole('button', { name: 'ai.admin.save' }));
+      fireEvent.change(getByLabelText('ai.admin.model'), { target: { value: 'llama4' } });
+      await act(async () => { done({ id: 9, name: 'Ollama', type: 'openai', baseUrl: 'http://ollama:11434', model: 'llama3', hasAdminKey: false, shared: false, position: 0 }); });
+      expect((getByLabelText('ai.admin.model') as HTMLInputElement).value).toBe('llama4');
+      expect(queryByText('ai.admin.saved')).toBeNull();
     });
     it('« Enregistré » disappears as soon as the form is changed again', async () => {
       useAuthStore.setState({ backendUser: admin });

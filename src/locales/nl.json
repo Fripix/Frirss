@@ -373,7 +373,8 @@
       "gestureHelp": "Dit venster tonen",
       "helpTitle": "Sneltoetsen",
       "summarize": "Artikel samenvatten (AI)",
-      "translate": "Artikel vertalen (AI)"
+      "translate": "Artikel vertalen (AI)",
+      "unassigned": "Geen toets"
     },
     "offline": {
       "title": "Offline",

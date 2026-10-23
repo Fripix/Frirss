@@ -1802,6 +1802,29 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
     });
   });
 
+  describe('an « Article complet » left unfinished', () => {
+    it('leave while it extracts, it fails meanwhile, come back: a summary goes out, nothing waits forever', async () => {
+      const a = article('left-1'); const b = article('left-2');
+      useFeedStore.setState({ selectedArticle: a, articles: [a, b] });
+      let fail!: (e: unknown) => void;
+      vi.mocked(extractFullContent).mockReturnValue(new Promise((_, rej) => { fail = rej; }) as never);
+      vi.mocked(requestAiSummary).mockReturnValue(new Promise(() => {}) as never);
+      const utils = render(<ReadingPane />);
+      await advance(100);
+      fireEvent.click(utils.getAllByRole('button', { name: /readingPane\.fullContent/ })[0]);
+      await advance(0);
+      act(() => { useFeedStore.setState({ selectedArticle: b }); });
+      await advance(0);
+      await act(async () => { fail(new Error('x')); });
+      await advance(0);
+      act(() => { useFeedStore.setState({ selectedArticle: a }); });
+      await advance(500);
+      act(() => { window.dispatchEvent(new CustomEvent('frirss:ai-summarize')); });
+      await advance(5000);
+      expect(requestAiSummary).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('automatic translation of the summary', () => {
     const EN = { ...SUMMARY, text: 'The summary.', lang: 'en' };
     const summaryCalls = () => vi.mocked(requestAiTranslation).mock.calls.filter(([r]) => r.scope === 'summary');

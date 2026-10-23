@@ -116,3 +116,14 @@ describe('GeneralTab — éditeur de raccourcis', () => {
     expect(getByText('R')).toBeTruthy();
   });
 });
+
+describe('GeneralTab — a shortcut without a key', () => {
+  it('says so on its button, never an empty button', () => {
+    const before = useUiStore.getState().shortcuts;
+    useUiStore.setState({ shortcuts: { ...before, summarize: '' } });
+    const { getAllByText } = render(<GeneralTab />);
+    expect(getAllByText('preferences.shortcuts.unassigned').length).toBe(1);
+    useUiStore.setState({ shortcuts: before });
+    cleanup();
+  });
+});

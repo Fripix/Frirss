@@ -68,7 +68,9 @@ export default function ShortcutHelp() {
   const grouped = [...new Set([...shortcutGroups.list, ...shortcutGroups.reading])];
   const actions = [...grouped, ...Object.keys(shortcuts).filter((a) => !grouped.includes(a))]
     // Un raccourci pour une fonction éteinte n'est que du bruit.
-    .filter((a) => !AI_SHORTCUTS.includes(a) || aiAvailable);
+    .filter((a) => !AI_SHORTCUTS.includes(a) || aiAvailable)
+    // Une action sans touche (`''`) n'a rien à montrer : elle se règle dans les Préférences.
+    .filter((a) => !!shortcuts[a]);
 
   // Libellés repris de la section « Gestes et touches intégrés » des
   // Préférences : les mêmes gestes, donc les mêmes chaînes. En dupliquer des

@@ -373,7 +373,8 @@
       "gestureHelp": "Afficher cette fenêtre",
       "helpTitle": "Raccourcis clavier",
       "summarize": "Résumer l'article (IA)",
-      "translate": "Traduire l'article (IA)"
+      "translate": "Traduire l'article (IA)",
+      "unassigned": "Aucune touche"
     },
     "offline": {
       "title": "Hors-ligne",

@@ -30,6 +30,8 @@ function armRetry(load: () => Promise<void>) {
   const again = () => {
     if (document.visibilityState === 'hidden') return;
     disarm();
+    // Déconnecté entre-temps : rien à recharger (le compte suivant aura le sien).
+    if (!useAuthStore.getState().backendToken) return;
     void load();
   };
   const disarm = () => {

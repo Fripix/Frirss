@@ -37,7 +37,9 @@ export default function ShortcutBar() {
   const context = selectedArticle ? 'reading' : 'list';
   // Un raccourci pour une fonction éteinte n'est que du bruit.
   const actions = (shortcutGroups[context] || shortcutGroups.list)
-    .filter((a) => !AI_SHORTCUTS.includes(a) || aiAvailable);
+    .filter((a) => !AI_SHORTCUTS.includes(a) || aiAvailable)
+    // Une action sans touche (`''` : sa touche par défaut était déjà prise) n'a rien à montrer.
+    .filter((a) => !!shortcuts[a]);
 
   // Escape isn't a configurable shortcut; surface it contextually so users know
   // it exits Focus mode / returns from an open card to the grid.

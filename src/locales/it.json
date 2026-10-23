@@ -373,7 +373,8 @@
       "gestureHelp": "Mostra questa finestra",
       "helpTitle": "Scorciatoie da tastiera",
       "summarize": "Riassumi l’articolo (IA)",
-      "translate": "Traduci l’articolo (IA)"
+      "translate": "Traduci l’articolo (IA)",
+      "unassigned": "Nessun tasto"
     },
     "offline": {
       "title": "Offline",

@@ -223,7 +223,8 @@ la release publiée.
   du réseau ou de l'app.
 - **Les nouveaux raccourcis ne volent pas une touche déjà prise** : si vous
   aviez donné `s` ou `t` à une autre action, « Résumer » ou « Traduire »
-  arrive sans touche, à régler, au lieu de rester muet.
+  arrive sans touche (« Aucune touche » dans les Préférences, à régler) au lieu
+  de rester muet.
 - **Le compte d'une catégorie se lit au lecteur d'écran** (« 70 non lus »,
   plus seulement « 70 »).
 - **« Résumer » et « Traduire » attendent l'article complet.** Demandés

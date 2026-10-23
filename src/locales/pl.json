@@ -383,7 +383,8 @@
       "gestureHelp": "Pokaż to okno",
       "helpTitle": "Skróty klawiszowe",
       "summarize": "Podsumuj artykuł (AI)",
-      "translate": "Przetłumacz artykuł (AI)"
+      "translate": "Przetłumacz artykuł (AI)",
+      "unassigned": "Brak klawisza"
     },
     "offline": {
       "title": "Offline",

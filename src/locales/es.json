@@ -373,7 +373,8 @@
       "gestureHelp": "Mostrar esta ventana",
       "helpTitle": "Atajos de teclado",
       "summarize": "Resumir el artículo (IA)",
-      "translate": "Traducir el artículo (IA)"
+      "translate": "Traducir el artículo (IA)",
+      "unassigned": "Sin tecla"
     },
     "offline": {
       "title": "Sin conexión",

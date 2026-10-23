@@ -64,3 +64,16 @@ describe('ShortcutHelp — closing', () => {
     expect(useUiStore.getState().shortcutHelpOpen).toBe(false);
   });
 });
+
+describe('ShortcutHelp — an action without a key', () => {
+  it('is not listed: an empty key would be an empty box', () => {
+    const before = useUiStore.getState().shortcuts;
+    useAiStore.setState({ config: cfg });
+    useUiStore.setState({ shortcuts: { ...before, summarize: '' } });
+    render(<ShortcutHelp />);
+    expect(document.body.textContent).not.toContain('preferences.shortcuts.summarize');
+    expect(document.body.textContent).toContain('preferences.shortcuts.translate');
+    expect(Array.from(document.querySelectorAll('kbd')).some((k) => k.textContent === '')).toBe(false);
+    useUiStore.setState({ shortcuts: before });
+  });
+});

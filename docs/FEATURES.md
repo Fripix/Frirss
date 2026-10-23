@@ -244,8 +244,9 @@ glisser-déposer, masquage des flux entièrement lus.
   libellé pluriel (`sidebar.unreadCount`, « 3 673 non lus ») — en
   `aria-label` dans un bouton, en **texte masqué** (`sr-only`, chiffre visible
   `aria-hidden`) pour le compte d'une catégorie ou d'une étiquette
-  (`CategoryBadge`) : hors d'un bouton, un `aria-label` sur un simple <span>
-  est ignoré par beaucoup de lecteurs d'écran, qui ne lisaient que « 70 » ; le lecteur
+  (`CategoryBadge`) : celui d'une catégorie est hors de son bouton, et un
+  `aria-label` sur un simple <span> y est ignoré par beaucoup de lecteurs
+  d'écran, qui ne lisaient que « 70 » ; le lecteur
   d'écran annonçait sinon « Non lus3673 », le chiffre collé au nom. Aucun effet
   visuel. Le badge d'une étiquette (et celui d'un groupe d'étiquettes, qui en
   additionne les enfants) se lit **« N articles »** (`sidebar.itemCount`), pas
@@ -518,6 +519,9 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   (`withDefaultShortcuts`) — **sauf si l'utilisateur l'a déjà donnée à une
   autre action** : elle arrive alors sans touche (`''`), à régler, plutôt que
   de disputer `s` à « Rechercher », qui passait avant et la laissait muette.
+  Une action sans touche n'apparaît ni dans la barre du bas ni dans
+  l'aide-mémoire ; dans les Préférences, son bouton dit « Aucune touche »
+  (`preferences.shortcuts.unassigned`).
 - **Traduire l'article (IA)** : `translate`, touche `t` par défaut. Même
   condition et même garde que `summarize` (la même ligne de
   `useKeyboardNav.ts` : ni ⌘T / Ctrl+T, ni Alt, ni touche maintenue). Elle
@@ -2714,7 +2718,12 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     « Enregistrer » est **désactivé pendant la requête** (un double-clic
     créait deux fournisseurs) ; un enregistrement lent ne ramène pas l'éditeur
     sur son fournisseur si l'admin en a ouvert un autre entre-temps
-    (`editSeq`) ; « Enregistré » disparaît dès que le formulaire change. La
+    (`editSeq`, avancé aussi par « Fermer ») ; ce qui est tapé pendant la
+    requête est gardé, et « Enregistré » ne s'affiche que si rien n'a changé
+    depuis le clic (`draftRef`) — puis disparaît dès que le formulaire change.
+    Le plafond quotidien s'enregistre en quittant le champ, sur Entrée, ou
+    quand la section disparaît avec la session encore ouverte (Échap ferme les
+    Préférences sans `blur`). La
     clé est envoyée sans les espaces qui l'entourent (client et serveur) ;
     des espaces seuls ne remplacent pas la clé enregistrée.
   - **Réglages du bloc**, à plat sous l'éditeur, sans repli :
@@ -3484,7 +3493,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   « Traduire » (bouton, touche `t`, palette, « Traduire en… / avec… ») faits
   pendant l'extraction (`waitingForBody` = extraction en cours, ou demandée —
   `extractAskedFor`, posé dès le clic, avant la lecture du cache local — ou
-  automatique, et pas encore réglée pour cet article : `extractFor`) sont mis
+  automatique, et pas encore réglée pour cet article : `extractFor` ;
+  `extractAskedFor` est oublié en changeant d'article sauf si son extraction
+  tourne encore — ratée ou évincée du cache pendant qu'on lisait ailleurs,
+  elle faisait attendre pour toujours au retour) sont mis
   de côté, **une place par sorte** (`deferredSummary`, `deferredTranslate` :
   un résumé et une traduction peuvent attendre ensemble ; une seule place
   perdait le premier et figeait son « Résumé… ») — panneau sur « Résumé… »,

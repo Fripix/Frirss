@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useAiStore } from '../../../stores/aiStore';
+import { useAuthStore } from '../../../stores/authStore';
 import ToggleSwitch from '../../ToggleSwitch';
 import ConfirmDialog from '../../ConfirmDialog';
 import BottomSheet from '../../BottomSheet';
@@ -44,6 +45,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
   // L'éditeur ouvert ; un enregistrement lent ne le ramène pas sur son
   // fournisseur si l'admin est passé à un autre entre-temps.
   const editSeq = useRef(0);
+  const draftRef = useRef<AiProviderInput | null>(null);
   const [tests, setTests] = useState<Record<number, TestState>>({});
   const [capDraft, setCapDraft] = useState('50');
   const [toDelete, setToDelete] = useState<AiProviderAdmin | null>(null);
@@ -103,7 +105,9 @@ export default function AdminProviders({ active }: { active: boolean }) {
   }
   const commitCapRef = useRef(commitCap);
   commitCapRef.current = commitCap;
-  useEffect(() => () => commitCapRef.current(), []);
+  // À la fermeture seulement si la session est toujours là : une déconnexion
+  // qui démonte la section n'envoie rien au nom d'un compte parti.
+  useEffect(() => () => { if (useAuthStore.getState().backendToken) commitCapRef.current(); }, []);
 
   async function saveSettings(patch: Partial<AiAdminSettings>) {
     const before = settings;
@@ -147,9 +151,12 @@ export default function AdminProviders({ active }: { active: boolean }) {
       setProviders((list) => (editing.id === null ? [...list, result] : list.map((p) => (p.id === result.id ? result : p))));
       reloadConfig();
       if (editSeq.current !== seq) return;
-      // L'éditeur reste ouvert sur le fournisseur enregistré, clé vidée : on peut le tester tout de suite.
-      setEditing({ id: result.id, draft: { ...d, adminKey: '' } });
-      setSaved(true);
+      // L'éditeur reste ouvert sur le fournisseur enregistré, clé vidée : on peut
+      // le tester tout de suite. Ce qui a été tapé pendant la requête reste (le
+      // brouillon est relu, pas remplacé), et « Enregistré » ne s'affiche que
+      // s'il n'a pas changé depuis.
+      setEditing((ed) => ed && ({ id: result.id, draft: { ...ed.draft, adminKey: ed.draft === d ? '' : ed.draft.adminKey } }));
+      if (draftRef.current === d) setSaved(true);
     } catch {
       if (editSeq.current === seq) setError(t('ai.admin.saveError'));
     } finally {
@@ -258,6 +265,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
   const labelStyle = { color: 'var(--list-summary)' };
   const draft = editing?.draft;
   const editedProvider = editing?.id != null ? providers.find((p) => p.id === editing.id) : undefined;
+  draftRef.current = editing?.draft ?? null;
   // Une nouvelle adresse ou un nouveau type : le serveur efface à l'enregistrement
   // la clé de l'admin et celles des utilisateurs (`updateProvider`) — le dire avant.
   const keysMove = !!editedProvider && !!editing && (editing.draft.type !== editedProvider.type
@@ -418,7 +426,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <button type="button" onClick={saveProvider} disabled={saving} className="prefs-tap-btn disabled:opacity-60 disabled:cursor-default px-4 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
-              <button type="button" onClick={() => { dropModels(); setEditing(null); }} className={`${quietBtn} min-h-[32px] hover:bg-black/5`} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
+              <button type="button" onClick={() => { editSeq.current++; dropModels(); setEditing(null); }} className={`${quietBtn} min-h-[32px] hover:bg-black/5`} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
               {saved && <span role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t('ai.admin.saved')}</span>}
             </div>
           </div>

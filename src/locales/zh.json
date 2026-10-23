@@ -373,7 +373,8 @@
       "gestureHelp": "显示此窗口",
       "helpTitle": "键盘快捷键",
       "summarize": "用 AI 生成文章摘要",
-      "translate": "用 AI 翻译文章"
+      "translate": "用 AI 翻译文章",
+      "unassigned": "未设置按键"
     },
     "offline": {
       "title": "离线",

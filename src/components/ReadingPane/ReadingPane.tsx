@@ -295,6 +295,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }
     setExtractError(null);
     setExtracting(false);
+    // Une demande d'extrait ne vaut que tant que son extraction tourne : ratée
+    // ou évincée du cache pendant qu'on lisait ailleurs, elle faisait attendre
+    // pour toujours toute demande au retour (`waitingForBody`).
+    setExtractAskedFor(extractingId.current === id ? id : null);
   }, [selectedArticle?.id]);
 
   // Article change — fade animation on tap, no animation on swipe

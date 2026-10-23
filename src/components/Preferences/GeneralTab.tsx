@@ -393,7 +393,7 @@ export default function GeneralTab() {
                   }}
                   autoFocus={editing === action}
                 >
-                  {editing === action ? '...' : formatKey(shortcuts[action])}
+                  {editing === action ? '...' : shortcuts[action] ? formatKey(shortcuts[action]) : t('preferences.shortcuts.unassigned')}
                 </button>
               </div>
               {editing === action && refusal && (

@@ -373,7 +373,8 @@
       "gestureHelp": "Show this window",
       "helpTitle": "Keyboard shortcuts",
       "summarize": "Summarise the article (AI)",
-      "translate": "Translate the article (AI)"
+      "translate": "Translate the article (AI)",
+      "unassigned": "No key"
     },
     "offline": {
       "title": "Offline",

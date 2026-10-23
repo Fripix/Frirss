@@ -86,3 +86,15 @@ describe('ShortcutBar — summarize hint', () => {
     expect(on.getByText('preferences.shortcuts.translate')).toBeTruthy();
   });
 });
+
+describe('ShortcutBar — an action without a key', () => {
+  it('shows no empty key chip', () => {
+    const before = useUiStore.getState().shortcuts;
+    useUiStore.setState({ shortcuts: { ...before, markRead: '' } });
+    useFeedStore.setState({ selectedArticle: { id: 'a1' } as never });
+    const { container } = render(<ShortcutBar />);
+    expect(Array.from(container.querySelectorAll('kbd')).some((k) => k.textContent === '')).toBe(false);
+    expect(container.textContent).not.toContain('preferences.shortcuts.markRead');
+    useUiStore.setState({ shortcuts: before });
+  });
+});

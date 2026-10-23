@@ -41,6 +41,15 @@ describe('aiStore', () => {
     await Promise.resolve();
     expect(vi.mocked(getAiConfig).mock.calls.length).toBe(calls);
   });
+  it('the retry of a failed first load is dropped once the user is signed out', async () => {
+    vi.mocked(getAiConfig).mockReset();
+    vi.mocked(getAiConfig).mockRejectedValueOnce(new Error('network')).mockResolvedValue(ON);
+    await useAiStore.getState().load();
+    useAuthStore.setState({ backendToken: null });
+    window.dispatchEvent(new Event('online'));
+    await Promise.resolve();
+    expect(getAiConfig).toHaveBeenCalledTimes(1);
+  });
   it('a failed reload keeps the config already loaded', async () => {
     useAiStore.setState({ config: ON });
     vi.mocked(getAiConfig).mockRejectedValue(new Error('network'));
