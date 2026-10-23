@@ -291,4 +291,9 @@ _(aucune)_
 
 ## Documentation
 
-_(rien pour l'instant)_
+- **README** : une section « AI summaries and translations » (ce que fait
+  l'IA, les fournisseurs, les réglages par flux et catégorie, le cache) ;
+  douze raccourcis au lieu de dix ; **Redis fortement recommandé** (sans lui,
+  rien n'est préchargé et le cache IA vit dans SQLite, plafonné à 10 000
+  entrées) ; le paragraphe du reverse proxy dit que le lot coupé est d'abord
+  redemandé entier.

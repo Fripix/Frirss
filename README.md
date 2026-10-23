@@ -85,9 +85,18 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Resume where you left off** — your last feed and filter come back on reopen, or FriRSS always opens on *All feeds* or *Unread* if you say so (*Preferences → General → Startup view*). An unobtrusive offline / back-online indicator sits above the list.
 - **At home on Android** — in the installed app, the back gesture closes what is on top (article, feed drawer, preferences) instead of leaving the app, and the status bar takes the colour of the surface beneath it.
 
+### AI summaries and translations (optional)
+Off until an administrator turns it on in *Preferences → AI*, and it only ever sends the article you are reading to the provider you chose.
+
+- **Summaries** in a panel above the article — one click, the <kbd>s</kbd> key or the palette, or automatically when an article opens. The length is yours to set, *Summarise with…* picks another provider, *Regenerate* asks again.
+- **Translations** of the whole article — title and body, in batches, into any of 28 languages — and of its summary. *Show original* switches back without a new request; *Translate into…* and *Translate with…* choose the language and the provider.
+- **Your providers**: Anthropic (Claude) or anything that speaks the OpenAI API — OpenAI, a local **Ollama**, LM Studio, OpenRouter… *List models* fills in the model name. Keys are encrypted at rest and never sent to the browser; the admin decides which keys are shared, whether users may bring their own, and a daily cap per user. If a provider is down, the next one in the list takes over and the panel says so.
+- **Per feed and per category**: summarise on open, translate on open, translate the summary, keep the panel shown, and which AI to use — one row per category and per feed, each switch *on*, *off* or *inherited* from above.
+- Results are cached, so reopening an article — on any device — costs nothing. A local model costs nothing at all.
+
 ### Keyboard and reach
 - **A command palette** on <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>: jump to a feed, a category, a label, a view, switch FreshRSS server, or run an action. Accents are ignored, so *securite* finds *Sécurité*.
-- **Ten reassignable shortcuts**, and <kbd>?</kbd> opens a sheet listing them with the keys you actually configured.
+- **Twelve reassignable shortcuts** — <kbd>s</kbd> summarises and <kbd>t</kbd> translates when AI is on — and <kbd>?</kbd> opens a sheet listing them with the keys you actually configured. A shortcut never takes a key your browser or system already uses.
 - **Menus by long press on touch** — a feed in the sidebar opens its menu (rename, open site, full article, layout and order for this feed, unsubscribe), an article opens its own, with 44pt rows.
 - **Built to be used without a mouse** — a visible focus ring throughout, 44pt touch targets, screen-reader names on icon-only buttons, and *reduced motion* honored everywhere.
 
@@ -112,7 +121,7 @@ Almost everything is yours to tweak:
 - **Multi-server** — connect several FreshRSS instances and switch between them, from the top bar or the command palette.
 
 ### Self-hosting
-- Optional **Redis cache** (stale-while-revalidate) and a background pre-fetch worker for instant loads.
+- **Redis, strongly recommended** — optional, but it is what makes FriRSS fast and shared: article lists served instantly then refreshed (stale-while-revalidate), a background pre-fetch worker, extracted articles and AI results cached once for the whole instance and every device. Without it, everything still works, but nothing is warmed ahead and the AI cache lives in SQLite, capped at 10 000 entries. Point `REDIS_URL` at any Redis.
 - **Encrypted backup and restore** — one passphrase-protected file rebuilds a whole instance, including on a brand-new one.
 - FreshRSS tokens **encrypted at rest**; same-origin proxy (no CORS) with an anti-SSRF guard.
 - Ships as a single **Docker** image (nginx + Node) with SQLite storage, built for **amd64 and arm64** (Raspberry Pi, 64-bit OS).
@@ -155,9 +164,10 @@ The first launch generates the JWT secret and the token-encryption key and store
 > proxy_send_timeout 120s;
 > ```
 >
-> Without them, a long translation batch cut by the proxy is split in two and
-> sent again automatically; if that is not enough, the app says the
-> intermediate server cut the response.
+> Without them, a long translation batch cut by the proxy is first asked again
+> as a whole (the server kept working, so it comes back from its cache at no
+> extra cost), then split in two if it is cut again; if that is not enough,
+> the app says the intermediate server cut the response.
 >
 > **With a local Ollama**, start it with `OLLAMA_CONTEXT_LENGTH=16384`: a
 > translation batch of about 1 200 words needs some 3 300 input tokens, and
