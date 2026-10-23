@@ -32,7 +32,13 @@ WORKDIR /app
 #
 # Then nginx (static + /api proxy), tzdata (so TZ works on Alpine), and the
 # runtime lib for better-sqlite3.
-RUN apk upgrade --no-cache && apk add --no-cache nginx libstdc++ tzdata su-exec
+#
+# APK_REFRESH (the build day, set by publish.yml) re-runs this layer at least
+# once a day. Without it the CI build cache kept the layer as long as the base
+# image digest did not change: an image built on 2026-10-23 still carried
+# nginx 1.30.4 (six advisories) although Alpine had shipped 1.30.6.
+ARG APK_REFRESH=""
+RUN echo "apk refresh: ${APK_REFRESH}" && apk upgrade --no-cache && apk add --no-cache nginx libstdc++ tzdata su-exec
 
 # ── Unprivileged runtime ────────────────────────────────────────────
 # Node used to run as root: any code execution inside it owned the container,

@@ -277,6 +277,10 @@ la release publiée.
   à l'octet). Reste `braces` (via Tailwind 3), sans version corrigée : n'en
   sortir qu'avec Tailwind 4 ; il ne sert qu'à la construction, sur nos propres
   motifs. Rien de cela n'est dans l'image publiée.
+- **Paquets Alpine de l'image toujours à jour** : la couche `apk upgrade` est
+  refaite au moins une fois par jour (`APK_REFRESH`) ; le cache de build la
+  gardait tant que l'image de base ne changeait pas, et l'image portait encore
+  nginx 1.30.4 (six avis, dont trois élevés) alors qu'Alpine livrait la 1.30.6.
 - **nginx du conteneur** : `proxy_read_timeout 120s` sur `/api/` (60 s par
   défaut), pour qu'une longue demande à l'IA ne soit pas coupée en route.
 - **Image de branche** : un lancement manuel du workflow de publication sur une branche autre que `main` et `dev` publie `:sha-…` et `:<branche>` (nom assaini), en amd64 seulement.
