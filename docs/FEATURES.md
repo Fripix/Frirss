@@ -536,7 +536,10 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   `textarea`, contenu éditable), un `<select>` qui a le focus (sa recherche
   lettre par lettre tapait `s` dans « Fournisseur préféré » et lançait un
   résumé, peut-être payant), et **toute boîte ouverte** (`[role="dialog"]` :
-  Préférences, confirmation, palette, feuille du bas, aide-mémoire), et le
+  Préférences, confirmation, palette, feuille du bas, aide-mémoire — **hors
+  corps d'article** : un `role="dialog"` dans `.article-content`, modale de
+  newsletter que DOMPurify conserve, coupait tous les raccourcis tant que
+  l'article restait ouvert), et le
   focus posé **dans un menu** (`[role="menu"]` : « Traduire en… »,
   « Résumer avec… » sur ordinateur — après une flèche, `t` y lançait une
   traduction payante derrière le menu et `j`/`k` changeaient l'article
@@ -2292,7 +2295,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     `articleBatchKey` d'`aiPending.ts`, préfixe `regen:`) : elle ne se
     rattache jamais à une demande ordinaire en cours, qui pourrait servir le
     cache qu'on veut remplacer ; deux régénérations identiques en vol se
-    partagent.
+    partagent. La clé d'un résumé porte aussi **ce qui est résumé** : la
+    longueur visée et une empreinte (FNV-1a, avec la longueur) du texte
+    envoyé — sans elles, le résumé de l'aperçu du flux encore en vol se
+    rattachait à la demande faite après l'extraction et s'affichait sur
+    l'article complet.
   - Aucun raccourci, aucune entrée de palette, aucun texte libre vers le
     modèle : c'est une dépense explicite d'un clic (décision du propriétaire).
 - **Langue** : le résumé est dans la langue de l'article ; le modèle rend

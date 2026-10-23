@@ -34,7 +34,11 @@ export function useKeyboardNav(): void {
       // derrière les préférences, où le panneau de lecture reste monté. Un
       // simple bouton hors boîte, lui, garde les raccourcis : après un clic
       // dans la barre d'outils, le focus y reste, et j/k doivent suivre.
-      if (document.querySelector('[role="dialog"]')) return;
+      // Seules les boîtes de l'app comptent : le corps d'un article
+      // (`.article-content`, y compris l'aperçu du balayage) peut porter une
+      // modale de newsletter en `role="dialog"`, que DOMPurify conserve — elle
+      // coupait tous les raccourcis tant que l'article restait ouvert.
+      if (Array.from(document.querySelectorAll('[role="dialog"]')).some((d) => !d.closest('.article-content'))) return;
       // Un menu (« Traduire en… », « Résumer avec… ») n'est pas une boîte,
       // mais quand le focus est sur une de ses entrées, il possède le clavier
       // lui aussi : `t` y lançait une traduction payante derrière le menu.

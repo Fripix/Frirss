@@ -52,9 +52,24 @@ function pendingTable<T>() {
 type Id = number | string | undefined;
 const regen = (regenerate?: boolean) => (regenerate ? 'regen:' : '');
 
-/** Résumé : compte, article, fournisseur forcé. */
-export function summaryRequestKey(k: { user: Id; articleId: string; providerId?: number; regenerate?: boolean }): string {
-  return `${regen(k.regenerate)}${k.user ?? ''}:${k.articleId}:${k.providerId ?? ''}`;
+/** Empreinte courte d'un texte (FNV-1a 32 bits) : la clé n'embarque pas un article entier. */
+function fingerprint(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return `${text.length}.${(h >>> 0).toString(36)}`;
+}
+
+/**
+ * Résumé : compte, article, fournisseur forcé, et ce qui est résumé — le
+ * texte envoyé (son empreinte) et la longueur visée. Sans eux, un résumé de
+ * l'aperçu du flux encore en vol se rattachait à la demande faite après
+ * l'extraction, et s'affichait sur l'article complet.
+ */
+export function summaryRequestKey(k: { user: Id; articleId: string; providerId?: number; html: string; ratio: number; regenerate?: boolean }): string {
+  return `${regen(k.regenerate)}${k.user ?? ''}:${k.articleId}:${k.providerId ?? ''}:${k.ratio}:${fingerprint(k.html)}`;
 }
 /** Traduction du résumé : compte, article, langue, fournisseur forcé, texte du résumé. */
 export function summaryTranslationKey(k: { user: Id; articleId: string; lang: string; providerId?: number; text: string; regenerate?: boolean }): string {

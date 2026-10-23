@@ -67,12 +67,22 @@ describe('sharedTranslationRequest', () => {
   });
 });
 
+describe('summary key: what is summarised is part of the key', () => {
+  it('a teaser and the extracted article, or two lengths, never share a request', () => {
+    const base = { user: 2, articleId: 'a1', providerId: 1, html: '<p>teaser</p>', ratio: 20 };
+    const k = summaryRequestKey(base);
+    expect(summaryRequestKey({ ...base })).toBe(k);
+    expect(summaryRequestKey({ ...base, html: '<p>the whole extracted article</p>' })).not.toBe(k);
+    expect(summaryRequestKey({ ...base, ratio: 30 })).not.toBe(k);
+  });
+});
+
 describe('request keys: a regeneration never joins a normal request', () => {
   it('summary: a regeneration has its own key, and two identical regenerations share theirs', async () => {
-    const normal = summaryRequestKey({ user: 2, articleId: 'a1', providerId: 1 });
-    const regen = summaryRequestKey({ user: 2, articleId: 'a1', providerId: 1, regenerate: true });
+    const normal = summaryRequestKey({ user: 2, articleId: 'a1', providerId: 1, html: 'x', ratio: 20 });
+    const regen = summaryRequestKey({ user: 2, articleId: 'a1', providerId: 1, html: 'x', ratio: 20, regenerate: true });
     expect(regen).not.toBe(normal);
-    expect(summaryRequestKey({ user: 2, articleId: 'a1', providerId: 1, regenerate: true })).toBe(regen);
+    expect(summaryRequestKey({ user: 2, articleId: 'a1', providerId: 1, html: 'x', ratio: 20, regenerate: true })).toBe(regen);
     const start = vi.fn(() => new Promise<typeof RESULT>(() => {}));
     void sharedSummaryRequest(normal, start);
     const r1 = sharedSummaryRequest(regen, start);

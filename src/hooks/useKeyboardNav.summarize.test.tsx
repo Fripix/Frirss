@@ -96,6 +96,20 @@ describe('useKeyboardNav — summarize', () => {
     expect(e.defaultPrevented).toBe(false);
   });
 
+  it('keeps the shortcuts when the only « dialog » is markup inside an article body', () => {
+    // Un flux ou une page extraite peut porter une modale de newsletter en
+    // `<div role="dialog">` ; DOMPurify garde `role`. Ce n'est pas une boîte de l'app.
+    renderHook(() => useKeyboardNav());
+    const body = document.createElement('div');
+    body.className = 'article-content';
+    body.innerHTML = '<div role="dialog"><p>Abonnez-vous</p></div>';
+    document.body.appendChild(body);
+    const e = press('s');
+    body.remove();
+    expect(heard).toHaveLength(1);
+    expect(e.defaultPrevented).toBe(true);
+  });
+
   // Le menu « Traduire en… » / « Résumer avec… » est un `role="menu"`, pas
   // une boîte : `t` y lançait une traduction payante derrière le menu, `s` un
   // résumé, et j/k changeaient l'article sous le menu ouvert.

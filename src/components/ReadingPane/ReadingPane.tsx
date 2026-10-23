@@ -822,10 +822,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     setAiStatus('loading'); setAiError(null); setAiErrorProvider(undefined);
     try {
       const regenerate = opts?.regenerate === true;
-      const key = summaryRequestKey({ user: useAuthStore.getState().backendUser?.id, articleId: id, providerId, regenerate });
+      const html = fitSummaryPayload(stripMediaForSummary(fullText ?? selectedArticle.content ?? ''));
+      const key = summaryRequestKey({ user: useAuthStore.getState().backendUser?.id, articleId: id, providerId, html, ratio: aiRatio, regenerate });
       const r = await sharedSummaryRequest(key, () => requestAiSummary({
         articleId: id, title: selectedArticle.title,
-        html: fitSummaryPayload(stripMediaForSummary(fullText ?? selectedArticle.content ?? '')),
+        html,
         provider: providerId,
         ratio: aiRatio,
         ...(regenerate ? { regenerate: true } : {}),

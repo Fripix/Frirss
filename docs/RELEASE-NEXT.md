@@ -212,6 +212,9 @@ la release publiée.
   saisie rapide d'une liste déroulante pouvait déclencher `s` — un résumé,
   peut-être payant. De même, `t` ou les flèches ne partent plus depuis « Traduire
   en… » ou « Résumer avec… ». `?` referme aussi l'aide-mémoire.
+- **Une modale cachée dans un article ne coupe plus les raccourcis.** Un
+  article (ou sa page extraite) qui embarque une fenêtre de newsletter en
+  `role="dialog"` désactivait tous les raccourcis tant qu'il restait ouvert.
 - **L'extraction automatique ne saute plus d'article.** Passer à l'article
   suivant pendant qu'un « Article complet » se chargeait laissait le suivant
   sans extraction (et donc sans résumé automatique) ; et revenir à un article
