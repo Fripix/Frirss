@@ -214,6 +214,8 @@ export interface UiState {
   rowActions: RowActionSettings;
   setRowAction: (kind: RowActionKind, visible: boolean) => void;
   sidebarVisible: boolean;
+  /** Vrai sur le bureau : la barre latérale y est une préférence. Ailleurs, `sidebarVisible` pilote le tiroir et rien n'est enregistré. Posé par `useDrawerOffDesktop`. */
+  sidebarIsPreference: boolean;
   toggleSidebar: () => void;
   setSidebarVisible: (v: boolean) => void;
   // Reading Focus mode: hide the sidebar + article list, reading pane fills the
@@ -515,15 +517,19 @@ export const useUiStore = create<UiState>()((set, get) => ({
   // Sous 1024 px la valeur pilote le tiroir, qui ne doit pas s'ouvrir au
   // chargement ; la préférence stockée reste intacte (`useDrawerOffDesktop`).
   sidebarVisible: loadJson('frirss_sidebarVisible', true) && !(typeof window !== 'undefined' && window.innerWidth < 1024),
+  // Hors bureau, ouvrir ou fermer le tiroir ne touche pas la préférence du
+  // bureau : la fermer là-bas masquait la barre latérale au retour sur
+  // ordinateur (iPad qu'on tourne, fenêtre redimensionnée, disposition forcée).
+  sidebarIsPreference: !(typeof window !== 'undefined' && window.innerWidth < 1024),
   toggleSidebar: () => {
     set((state) => {
       const next = !state.sidebarVisible;
-      localStorage.setItem('frirss_sidebarVisible', JSON.stringify(next));
+      if (state.sidebarIsPreference) localStorage.setItem('frirss_sidebarVisible', JSON.stringify(next));
       return { sidebarVisible: next };
     });
   },
   setSidebarVisible: (v) => {
-    localStorage.setItem('frirss_sidebarVisible', JSON.stringify(v));
+    if (get().sidebarIsPreference) localStorage.setItem('frirss_sidebarVisible', JSON.stringify(v));
     set({ sidebarVisible: v });
   },
 

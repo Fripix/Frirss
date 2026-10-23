@@ -11,6 +11,9 @@ import { useUiStore } from '../stores/uiStore';
  * persiste, et fermer le tiroir effacerait la préférence du bureau. Au retour
  * sur le bureau, la préférence stockée est relue.
  *
+ * Hors bureau, `sidebarIsPreference` est faux : ouvrir ou fermer le tiroir
+ * (`toggleSidebar`, `setSidebarVisible`) n'enregistre rien.
+ *
  * Le store démarre déjà à `false` sous 1024 px (voir `uiStore`) : le premier
  * rendu n'ouvre pas le tiroir, ce qui évite à `useAndroidBack` d'empiler puis
  * de dépiler une couche d'historique pour rien. Ce hook couvre le reste — une
@@ -20,7 +23,7 @@ export function useDrawerOffDesktop(isDesktop: boolean): void {
   // Layout effect : la correction part avant la première peinture.
   useLayoutEffect(() => {
     if (!isDesktop) {
-      useUiStore.setState({ sidebarVisible: false });
+      useUiStore.setState({ sidebarVisible: false, sidebarIsPreference: false });
       return;
     }
     let stored = true;
@@ -28,6 +31,6 @@ export function useDrawerOffDesktop(isDesktop: boolean): void {
       const raw = localStorage.getItem('frirss_sidebarVisible');
       if (raw !== null) stored = JSON.parse(raw) !== false;
     } catch { /* stockage indisponible : la valeur par défaut */ }
-    useUiStore.setState({ sidebarVisible: stored });
+    useUiStore.setState({ sidebarVisible: stored, sidebarIsPreference: true });
   }, [isDesktop]);
 }

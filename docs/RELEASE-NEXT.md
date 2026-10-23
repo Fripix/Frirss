@@ -225,6 +225,11 @@ la release publiée.
   aviez donné `s` ou `t` à une autre action, « Résumer » ou « Traduire »
   arrive sans touche (« Aucune touche » dans les Préférences, à régler) au lieu
   de rester muet.
+- **Fermer le tiroir des flux sur téléphone ou tablette ne masque plus la
+  barre latérale de l'ordinateur** (iPad qu'on tourne, fenêtre redimensionnée,
+  disposition forcée).
+- **Espagnol : un seul registre.** L'interface vouvoyait et tutoyait selon les
+  écrans ; elle vouvoie partout (« usted »), comme le français.
 - **Le compte d'une catégorie se lit au lecteur d'écran** (« 70 non lus »,
   plus seulement « 70 »).
 - **« Résumer » et « Traduire » attendent l'article complet.** Demandés
@@ -266,6 +271,12 @@ la release publiée.
   GHSA-mrv2-3pqr-j5jr, GHSA-c6gr-qvv4-5v3f — FriRSS n'utilise aucune des
   options concernées, mise à jour par principe) et follow-redirects 1.16.1
   (CVE-2026-111755, CVE-2026-111756). `npm audit --omit=dev` : 0.
+- **Outils de développement à jour** : vitest 4.1.12 (avis sur vitest,
+  tinypool, esbuild, vite), correctifs mineurs de `npm audit fix`, et
+  `postcss-selector-parser` 7.1.7 forcé sous Tailwind 3 (CSS produit identique
+  à l'octet). Reste `braces` (via Tailwind 3), sans version corrigée : n'en
+  sortir qu'avec Tailwind 4 ; il ne sert qu'à la construction, sur nos propres
+  motifs. Rien de cela n'est dans l'image publiée.
 - **nginx du conteneur** : `proxy_read_timeout 120s` sur `/api/` (60 s par
   défaut), pour qu'une longue demande à l'IA ne soit pas coupée en route.
 - **Image de branche** : un lancement manuel du workflow de publication sur une branche autre que `main` et `dev` publie `:sha-…` et `:<branche>` (nom assaini), en amd64 seulement.

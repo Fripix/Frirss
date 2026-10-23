@@ -448,8 +448,12 @@ d'adopter la disposition mobile.
   passage du bureau au téléphone. Le store démarre à `false` sous 1024 px et
   `useDrawerOffDesktop` (`src/hooks/useDrawerOffDesktop.ts`, testé) le referme
   hors bureau **sans persister** — la préférence du bureau reste intacte dans
-  `localStorage` et est relue au retour sur le bureau. Fermer ou ouvrir le
-  tiroir à la main, lui, persiste toujours (`setSidebarVisible`).
+  `localStorage` et est relue au retour sur le bureau. Ouvrir ou fermer le
+  tiroir à la main ne la touche pas non plus (2026-10-23) : `toggleSidebar`
+  et `setSidebarVisible` n'enregistrent que si `sidebarIsPreference` est
+  vrai, ce que `useDrawerOffDesktop` pose sur le bureau seulement. Avant, un
+  tiroir fermé sur tablette masquait la barre latérale au retour sur
+  ordinateur (iPad qu'on tourne, fenêtre redimensionnée).
   Fermer depuis l'app (croix, bouton retour en bas à gauche) reprend l'entrée
   par un `history.back()` synthétique dont le `popstate` ne ferme rien.
   Avant la 1.6.0, le geste retour natif fermait l'app depuis un article

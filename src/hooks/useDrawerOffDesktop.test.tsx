@@ -40,3 +40,31 @@ describe('tiroir fermé hors bureau', () => {
     expect(useUiStore.getState().sidebarVisible).toBe(false);
   });
 });
+
+describe('le tiroir ne touche pas la préférence du bureau', () => {
+  beforeEach(() => {
+    localStorage.setItem('frirss_sidebarVisible', 'true');
+    useUiStore.setState({ sidebarVisible: true });
+  });
+
+  it('ouvrir puis fermer le tiroir sur téléphone, puis revenir au bureau : la barre latérale est toujours là', () => {
+    // iPad qu'on tourne, fenêtre redimensionnée, disposition forcée : le tiroir
+    // s'ouvre par `toggleSidebar` et se ferme par `setSidebarVisible(false)`.
+    const { rerender } = renderHook(({ d }) => useDrawerOffDesktop(d), { initialProps: { d: false } });
+    useUiStore.getState().toggleSidebar();
+    expect(useUiStore.getState().sidebarVisible).toBe(true);
+    useUiStore.getState().setSidebarVisible(false);
+    expect(localStorage.getItem('frirss_sidebarVisible')).toBe('true');
+    rerender({ d: true });
+    expect(useUiStore.getState().sidebarVisible).toBe(true);
+  });
+
+  it('sur le bureau, masquer la barre latérale reste une préférence enregistrée', () => {
+    renderHook(() => useDrawerOffDesktop(true));
+    useUiStore.getState().toggleSidebar();
+    expect(localStorage.getItem('frirss_sidebarVisible')).toBe('false');
+    useUiStore.getState().setSidebarVisible(true);
+    expect(localStorage.getItem('frirss_sidebarVisible')).toBe('true');
+  });
+});
+

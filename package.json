@@ -70,6 +70,9 @@
     "typescript-eslint": "^8.60.1",
     "vite": "^6.0.7",
     "vite-plugin-pwa": "^0.21.2",
-    "vitest": "^2.1.9"
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "postcss-selector-parser": "^7.1.7"
   }
 }
