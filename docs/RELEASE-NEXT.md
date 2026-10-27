@@ -26,13 +26,24 @@ _(rien pour l'instant)_
   pleine chasse « ， »** au lieu d'une virgule latine en dur (en-tête du
   panneau, annonce aux lecteurs d'écran, bandeau de traduction). Nouvelle clé
   `ai.separator` dans les dix locales.
+- **Lecteurs d'écran : l'annonce d'un résumé dit aussi la bascule de
+  fournisseur** (« X indisponible »), celle du résumé comme celle de sa
+  traduction. L'en-tête visible la montrait déjà ; l'annonce la taisait.
 
 ## Sous le capot
 
-- **Dépendances : body-parser 2.4.0 et qs 6.17.0** (embarqués par Express,
+- **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,
   donc présents dans l'image : avis DoS GHSA-27r3-jxmh-p828 et
   GHSA-6pq8-jhm2-2vcw) ; serialize-javascript 7.1.4 (outillage de build
-  seulement). `npm audit` à zéro.
+  seulement). `npm audit` à zéro. Le DoS de body-parser touchait bien le
+  `express.json` global ; qs n'est pas atteint (Express 5 lit les requêtes
+  avec son parseur `simple`, aucun `urlencoded`).
+- **qs épinglé en 6.16.1 par `overrides`** : la 6.17.0 (publiée le jour même
+  de la mise à jour) n'ajoute rien de sécuritaire à la 6.16.1, qui porte le
+  correctif. Épinglage de prudence, **à retirer au cycle suivant**.
+- body-parser 2.4.0 décompresse désormais les corps `Content-Encoding: zstd`
+  (avant : 415). Même limite de 5 Mo après décompression que gzip/br ; le
+  proxy ne retransmet pas `Content-Encoding`.
 
 ## Actions requises à la mise à jour
 
@@ -40,4 +51,5 @@ _(aucune)_
 
 ## Documentation
 
-_(rien pour l'instant)_
+- **README : FriRSS n'embarque aucune IA**, il se branche sur le modèle de
+  votre choix (déjà visible sur `main`).
