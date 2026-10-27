@@ -1288,15 +1288,12 @@ flux**.
 - **Piège — revenir à « Par flux » efface les choix par flux** : chaque flux
   repart de l'état global du moment. Voulu (les anciens choix ne doivent pas
   ressurgir), et irréversible sur l'appareil qui fait le changement.
-  ⚠️ **La synchronisation ne le garantit pas partout.** `collectPrefs()` pousse
-  TOUTES les clés synchronisées à chaque changement, et `hydratePrefs()` ne
-  relit le serveur qu'à la connexion ou au démarrage. Un appareil resté ouvert
-  depuis avant le changement — ou une version antérieure de FriRSS — réécrit sa
-  vieille table (et sa vieille portée) au prochain changement de n'importe
-  quelle préférence synchronisée, et les anciens choix reviennent partout au
-  chargement suivant. C'est une limite du modèle « instantané complet, dernier
-  écrivain gagne », antérieure à cette fonctionnalité ; la vraie correction
-  serait de ne pousser que les clés modifiées.
+  Les autres appareils le reçoivent à leur retour au premier plan : depuis la
+  1.7.1, la synchronisation n'envoie que les clés modifiées et relit le serveur
+  à ce moment-là (voir « Préférences serveur »). Un appareil resté ouvert ne
+  renvoie donc plus sa vieille table au premier changement d'un autre réglage.
+  ⚠️ **Reste une version antérieure à la 1.7.1** encore ouverte quelque part :
+  elle pousse toujours l'instantané complet, vieille table comprise.
 - **Non-régression** : tant que le mode global n'a jamais servi,
   `unreadOnlyAll` vaut `false` et la règle rend exactement l'ancienne
   expression. Changer de portée ne recharge jamais la vue affichée.
@@ -1454,9 +1451,11 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   le 2026-09-25) : une action irréversible ne s'arme pas toute seule sur une
   installation neuve.
   ⚠️ **Sans rien changer aux installations existantes**, et le tri ne peut pas
-  se faire sur la valeur : `prefsSync` envoie TOUT le jeu de clés dès la
-  première modification, donc côté serveur « jamais touché » et « explicitement
-  à faux » sont indiscernables pour un compte déjà utilisé. Le tri se fait sur
+  se faire sur la valeur : jusqu'à la 1.7.0, `prefsSync` envoyait TOUT le jeu
+  de clés dès la première modification, donc côté serveur « jamais touché » et
+  « explicitement à faux » sont indiscernables pour un compte déjà utilisé
+  (depuis, seules les clés modifiées partent : une clé jamais touchée reste
+  absente, et le tri continue de la régler). Le tri se fait sur
   la PRÉSENCE de la clé, dans `applyServerPrefs` : des préférences enregistrées
   **sans** `confirmMarkAllRead` = compte antérieur au changement, qui garde
   l'ancien comportement ; aucune préférence du tout = compte neuf, qui reçoit le
@@ -4991,29 +4990,67 @@ SQLite en WAL. Migrations **additives** uniquement (`PRAGMA table_info` +
   même serveur lancé) ou arrêter le conteneur et copier les trois fichiers.
 
 ### Préférences serveur
-Stockage clé/valeur par utilisateur (`preferences`), poussé en un lot par
-`src/lib/prefsSync.ts`.
+Stockage clé/valeur par utilisateur (`preferences`), fusionné clé par clé
+(`INSERT OR REPLACE`), alimenté par `src/lib/prefsSync.ts` qui n'envoie que
+les clés modifiées sur l'appareil.
 
 - **Où** : `server/routes/preferences.ts`
 - **Bornes** : clé ≤ 128 caractères, valeur ≤ 1 Mio, 200 clés par requête,
   500 clés stockées par utilisateur. Calibrées très au-dessus du client réel —
-  ~31 clés poussées d'un coup, la plus grosse étant `appLogo`, un PNG en data
-  URL redimensionné à 256×256 côté client. Sans elles, un compte authentifié
+  quelques clés par envoi, les ~61 synchronisées d'un coup seulement pour
+  amorcer un compte neuf ; la plus grosse est `appLogo`, un PNG en data URL
+  redimensionné à 256×256 côté client. Sans elles, un compte authentifié
   remplissait le volume SQLite 5 Mo à la fois.
 - **Piège** : tout le lot est validé **avant** la moindre écriture. Valider au
   fil de l'insertion laisserait derrière soi les clés qui précédaient la
   fautive, sur une requête pourtant refusée.
-- **Côté client** (`hydratePrefs()`, à la connexion et au démarrage) : la
-  réponse du serveur est appliquée aux magasins, puis l'écriture différée
-  démarre (800 ms, instantané **complet**). Un `200` sans aucune clé
-  synchronisée = compte neuf : le serveur est amorcé avec l'état local.
+- **Un refus propre à une clé la nomme** (1.7.1) : `key_too_long`,
+  `unserializable_value` et `value_too_large` répondent
+  `400 { error, code, key }`. Un refus du lot entier (`too_many_keys`,
+  `too_many_preferences`, `bad_payload`) n'a pas de `key`.
+- **Côté client — clés modifiées seulement** (1.7.1). `prefsSync` garde la
+  dernière valeur connue du serveur pour chaque clé (posée à la lecture et
+  après chaque envoi réussi) et la liste des clés modifiées sur l'appareil et
+  pas encore reçues (« sales »). L'envoi différé (800 ms) ne porte que les
+  clés sales dont la valeur diffère encore de la valeur connue (comparaison
+  JSON aux clés triées, `src/lib/prefsDiff.ts`). Avant, chaque changement
+  poussait l'instantané complet et le serveur n'était relu qu'au démarrage :
+  un appareil resté ouvert réécrivait toutes ses vieilles valeurs au premier
+  changement venu (reproduit le 2026-10-27 : le panneau IA replié sur Android,
+  rouvert par un navigateur resté ouvert qui repliait une catégorie).
+- **Relecture au premier plan** (`refreshPrefs()`, appelée par l'écouteur
+  `visibilitychange` d'`App.tsx` quand l'onglet redevient visible). L'envoi en
+  attente part d'abord ; puis s'appliquent les clés que le serveur porte, qui
+  ont changé depuis la valeur connue, et **qui ne sont pas sales ici** (une
+  modification faite pendant la lecture est protégée aussi). Elle passe
+  `applyServerPrefs(…, { onlyPresent: true })` : aucun défaut de compte ancien
+  n'est forcé pour une clé absente — ce tri ne vaut qu'au démarrage. Si
+  l'ordre de la liste affichée change (`articleOrder` ou l'ordre du flux
+  ouvert), la liste est rechargée ; `aiStore.load()` n'est relancé que si une
+  clé `ai*` a changé.
+- **Aucune modification perdue** : les valeurs connues
+  (`frirss_prefsKnown`) et les clés sales (`frirss_prefsDirty`) sont dans le
+  localStorage. Au démarrage, `hydratePrefs()` applique le serveur, puis
+  réapplique par-dessus les clés sales locales, qui repartent. Un envoi en
+  échec garde ses clés sales et est retenté au retour du réseau (`online`), au
+  retour au premier plan et par attente croissante (5 s, doublée jusqu'à
+  60 s). `stopSync()` (déconnexion) efface les deux.
+- **Clé refusée** : un `400` qui nomme une clé la sort du lot ; elle reprend la
+  valeur connue du serveur (ou garde la valeur locale si le serveur ne l'a
+  jamais eue, sans être renvoyée), et les autres repartent aussitôt. Une clé
+  invalide ne bloque jamais les valides.
+- **Non couvert, assumé** : `feedSettings` est un seul objet. Deux appareils
+  qui changent au même moment deux flux différents : le dernier gagne pour
+  toute la clé. Rare avec la relecture au premier plan.
+- **Amorçage** : un `200` sans aucune clé synchronisée = compte neuf ; toutes
+  les clés synchronisées sont marquées sales et partent, depuis l'état local.
 - **Piège — une lecture en échec n'est PAS un compte vide** (1.7.0). Jusqu'à la
   1.6.1, une erreur réseau ou un 5xx retombait sur `{}`, donc sur l'amorçage :
   l'état local de ce navigateur — souvent des valeurs par défaut, remises par
   une déconnexion — écrasait toutes les préférences du compte, sur tous les
   appareils. Désormais un échec n'applique rien, n'écrit rien et **ne démarre
-  pas** l'écriture différée (elle pousse l'instantané complet : le moindre
-  changement local aurait le même effet). La lecture est retentée (5 s, puis
+  pas** l'écriture différée (sans lecture réussie, aucune valeur connue : rien
+  ne dit ce qui a vraiment changé ici). La lecture est retentée (5 s, puis
   doublée jusqu'à 60 s) et la première réussie décide ; un changement fait
   entre-temps reste local et cède devant le serveur. Pas de nouvel essai après
   un 401 (l'intercepteur a déjà déconnecté) ; `stopSync()` annule l'essai en

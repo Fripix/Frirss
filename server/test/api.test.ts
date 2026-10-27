@@ -6,6 +6,7 @@ import { encrypt, decrypt } from '../crypto.js';
 import { cacheEnabled, cacheGet, trimStreamJson } from '../cache.js';
 import { BlockedTargetError, fetchUpstream, redactUrl } from '../routes/proxy.js';
 import { readBoundedText } from '../routes/extract.js';
+import { MAX_VALUE_BYTES } from '../routes/preferences.js';
 import { __settleJobs } from '../refreshJobs.js';
 import { getDiscovery, clearDiscoveryCache } from '../oidc.js';
 
@@ -916,6 +917,32 @@ describe('preferences — bornes', () => {
       .set('Authorization', `Bearer ${adminToken}`).send({ huge: 'x'.repeat(2 * 1024 * 1024) });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('value_too_large');
+  });
+
+  // Le client n'envoie plus que les clés modifiées, et une clé refusée doit
+  // sortir du lot sans bloquer les autres : il lui faut savoir laquelle.
+  it('names the refused key', async () => {
+    const res = await request(app).put('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ viewMode: 'compact', appLogo: 'x'.repeat(MAX_VALUE_BYTES + 1) });
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ code: 'value_too_large', key: 'appLogo' });
+  });
+
+  it('names the refused key on the single-key route too', async () => {
+    const res = await request(app).put('/api/preferences/appLogo')
+      .set('Authorization', `Bearer ${adminToken}`).send({ value: 'x'.repeat(MAX_VALUE_BYTES + 1) });
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ code: 'value_too_large', key: 'appLogo' });
+  });
+
+  it('a batch-level refusal names no key', async () => {
+    const prefs: Record<string, number> = {};
+    for (let i = 0; i < 300; i++) prefs[`bulk${i}`] = i;
+    const res = await request(app).put('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`).send(prefs);
+    expect(res.status).toBe(400);
+    expect(res.body.key).toBeUndefined();
   });
 
   it('rejects too many keys in one request', async () => {

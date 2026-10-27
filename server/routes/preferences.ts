@@ -14,8 +14,9 @@ router.use(requireAuth);
 // pouvait donc remplir le volume SQLite, 5 Mo par requête (la limite du
 // parseur JSON), autant de fois qu'il le voulait.
 //
-// Les plafonds sont calibrés très au-dessus du client réel, qui pousse en une
-// fois les ~31 clés de `UI_SYNC_KEYS` + `THEME_SYNC_KEYS` (src/lib/prefsSync.ts).
+// Les plafonds sont calibrés très au-dessus du client réel, qui ne pousse que
+// les clés modifiées, et toutes celles de `UI_SYNC_KEYS` + `THEME_SYNC_KEYS`
+// (~61) une seule fois, pour amorcer un compte neuf (src/lib/prefsSync.ts).
 // La plus grosse valeur de loin est `appLogo`, un PNG en data URL redimensionné
 // à 256×256 côté client (`AppearanceTab.tsx`) — quelques centaines de Kio au
 // pire. 1 Mio par valeur laisse une marge confortable sans laisser passer un
@@ -25,7 +26,10 @@ export const MAX_VALUE_BYTES = 1024 * 1024;
 export const MAX_KEYS_PER_REQUEST = 200;
 export const MAX_KEYS_PER_USER = 500;
 
-interface Rejection { code: string; error: string }
+// `key` nomme la clé fautive quand le refus lui est propre : le client, qui
+// n'envoie que les clés modifiées (src/lib/prefsSync.ts), la retire du lot et
+// renvoie les autres. Un refus du lot entier (trop de clés…) n'en porte pas.
+interface Rejection { code: string; error: string; key?: string }
 
 /**
  * Valide une entrée et rend sa forme sérialisée, ou le motif du refus.
@@ -36,14 +40,14 @@ interface Rejection { code: string; error: string }
  */
 function serializeEntry(key: string, value: unknown): { serialized: string } | Rejection {
   if (key.length > MAX_KEY_LENGTH) {
-    return { code: 'key_too_long', error: `Preference key exceeds ${MAX_KEY_LENGTH} characters` };
+    return { code: 'key_too_long', error: `Preference key exceeds ${MAX_KEY_LENGTH} characters`, key };
   }
   const serialized = JSON.stringify(value);
   if (serialized === undefined) {
-    return { code: 'unserializable_value', error: 'Preference value cannot be serialized' };
+    return { code: 'unserializable_value', error: 'Preference value cannot be serialized', key };
   }
   if (Buffer.byteLength(serialized, 'utf8') > MAX_VALUE_BYTES) {
-    return { code: 'value_too_large', error: `Preference value exceeds ${MAX_VALUE_BYTES} bytes` };
+    return { code: 'value_too_large', error: `Preference value exceeds ${MAX_VALUE_BYTES} bytes`, key };
   }
   return { serialized };
 }
@@ -65,7 +69,8 @@ function existingKeys(userId: number, keys: string[]): Set<string> {
   return new Set(rows.map((r) => r.key));
 }
 
-const reject = (res: Response, r: Rejection) => res.status(400).json({ error: r.error, code: r.code });
+// `key: undefined` disparaît à la sérialisation JSON : un refus du lot n'en porte pas.
+const reject = (res: Response, r: Rejection) => res.status(400).json({ error: r.error, code: r.code, key: r.key });
 
 // ── GET /api/preferences ────────────────────────────────────────────
 // Returns all preferences for the authenticated user as a flat object

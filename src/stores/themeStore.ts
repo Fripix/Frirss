@@ -874,7 +874,12 @@ export interface ThemeState {
   isColorModified: (key: string) => boolean;
   resetFontSizes: () => void;
   resetLabelColors: () => void;
-  applyServerPrefs: (prefs: Record<string, unknown> | null | undefined) => void;
+  /**
+   * Même signature que `uiStore.applyServerPrefs`. `onlyPresent` n'y change
+   * rien : ce store ne force aucun défaut pour une clé absente, il n'applique
+   * déjà que les clés présentes.
+   */
+  applyServerPrefs: (prefs: Record<string, unknown> | null | undefined, opts?: { onlyPresent?: boolean }) => void;
 
   /** Suivre le thème clair/sombre du système. */
   followSystem: boolean;

@@ -10,7 +10,7 @@ import { useAndroidBack } from './hooks/useAndroidBack';
 import { useAndroidViewportHeight } from './hooks/useAndroidViewportHeight';
 import { useDrawerOffDesktop } from './hooks/useDrawerOffDesktop';
 import { hydrateExtractCache } from './lib/extractCache';
-import { hydratePrefs, stopSync } from './lib/prefsSync';
+import { hydratePrefs, refreshPrefs, stopSync } from './lib/prefsSync';
 import { saveLastView, loadLastView } from './lib/lastView';
 import { startupAction } from './lib/startupView';
 import Login from './components/Login/Login';
@@ -329,9 +329,12 @@ export default function App() {
     }, 60_000);
 
     // When tab regains visibility → full silent refresh (cross-device scenario)
+    // — articles, and the preferences another device may have changed meanwhile
+    // (the pending push leaves first; a key still modified here is never overwritten).
     function handleVisibility() {
       if (document.visibilityState === 'visible') {
         silentRefresh();
+        if (useAuthStore.getState().backendToken) void refreshPrefs();
       }
     }
     document.addEventListener('visibilitychange', handleVisibility);

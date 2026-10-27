@@ -431,7 +431,12 @@ export interface UiState {
   /** The "enable feed refreshing" hint is offered once, then never again. */
   refreshHintDismissed: boolean;
   dismissRefreshHint: () => void;
-  applyServerPrefs: (prefs: Record<string, unknown> | null | undefined) => void;
+  /**
+   * `onlyPresent` : n'appliquer que les clés présentes, sans forcer le moindre
+   * défaut pour une clé absente — la relecture au premier plan
+   * (`prefsSync.refreshPrefs`). Le tri des comptes anciens ne vaut qu'au démarrage.
+   */
+  applyServerPrefs: (prefs: Record<string, unknown> | null | undefined, opts?: { onlyPresent?: boolean }) => void;
 }
 
 /**
@@ -1056,10 +1061,14 @@ export const useUiStore = create<UiState>()((set, get) => ({
   // Mirrors each value to localStorage in the format the store expects:
   // raw strings for viewMode/appTitle/appLogo, JSON for the rest.
   // Geometric prefs (panelLayout, sidebarVisible) are intentionally NOT synced.
-  applyServerPrefs: (prefs) => {
+  applyServerPrefs: (prefs, opts) => {
     if (!prefs || typeof prefs !== 'object') return;
     const has = (k: string) => Object.prototype.hasOwnProperty.call(prefs, k);
     const next: Record<string, unknown> = {};
+    // Les défauts forcés ci-dessous lisent l'ABSENCE d'une clé comme « compte
+    // d'avant ce réglage ». Ça ne vaut que pour la lecture complète du
+    // démarrage : la relecture au premier plan ne porte que ce qu'elle applique.
+    const legacyRules = !opts?.onlyPresent && Object.keys(prefs).length > 0;
 
     // La confirmation avant « tout marquer comme lu » est passée à ACTIVE par
     // défaut (issue #17). Elle ne doit rien changer à qui utilisait déjà
@@ -1068,11 +1077,13 @@ export const useUiStore = create<UiState>()((set, get) => ({
     // comportement. Un compte sans aucune préférence est neuf, et reçoit le
     // nouveau défaut.
     //
-    // Le tri se fait ICI parce que `prefsSync` envoie TOUT le jeu de clés dès
-    // la première modification : côté serveur, « jamais touché » et
+    // Le tri se fait ICI parce que `prefsSync` envoyait autrefois TOUT le jeu
+    // de clés dès la première modification : côté serveur, « jamais touché » et
     // « explicitement à faux » sont indiscernables pour les comptes existants,
-    // et seule l'absence complète de la clé distingue encore les deux.
-    if (!has('confirmMarkAllRead') && Object.keys(prefs).length > 0) {
+    // et seule l'absence complète de la clé distingue encore les deux. (Il
+    // n'envoie plus que les clés modifiées : une clé jamais touchée reste
+    // absente, et ce tri continue de la régler à chaque démarrage.)
+    if (!has('confirmMarkAllRead') && legacyRules) {
       localStorage.setItem('frirss_confirmMarkAllRead', 'false');
       next.confirmMarkAllRead = false;
     }
@@ -1081,12 +1092,12 @@ export const useUiStore = create<UiState>()((set, get) => ({
     // cas : la valeur locale peut venir d'un AUTRE compte sur ce navigateur, et
     // celui-ci n'a jamais vu l'avertissement de coût qui conditionne son
     // activation. Un compte qui l'a allumé porte la clé, et la garde.
-    if (!has('aiAutoSummary') && Object.keys(prefs).length > 0) {
+    if (!has('aiAutoSummary') && legacyRules) {
       localStorage.setItem('frirss_aiAutoSummary', 'false');
       next.aiAutoSummary = false;
     }
     // Même règle pour la traduction automatique du résumé : un appel de plus.
-    if (!has('aiAutoSummaryTranslate') && Object.keys(prefs).length > 0) {
+    if (!has('aiAutoSummaryTranslate') && legacyRules) {
       localStorage.setItem('frirss_aiAutoSummaryTranslate', 'false');
       next.aiAutoSummaryTranslate = false;
     }
@@ -1094,13 +1105,13 @@ export const useUiStore = create<UiState>()((set, get) => ({
     // compte dont les préférences sont plus anciennes que ce réglage — la valeur
     // locale peut venir d'un autre compte de ce navigateur. Sans coût, donc
     // « allumé » (le contraire du résumé automatique ci-dessus).
-    if (!has('aiPanelAlways') && Object.keys(prefs).length > 0) {
+    if (!has('aiPanelAlways') && legacyRules) {
       localStorage.setItem('frirss_aiPanelAlways', 'true');
       next.aiPanelAlways = true;
     }
     // Et les deux avertissements de coût : ils se confirment par compte.
     for (const k of ['aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed'] as const) {
-      if (!has(k) && Object.keys(prefs).length > 0) {
+      if (!has(k) && legacyRules) {
         localStorage.setItem(`frirss_${k}`, 'false');
         next[k] = false;
       }
@@ -1113,7 +1124,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
     // Un compte NEUF (préférences vides) garde l'état local et le pousse au
     // serveur : ce qui le protège, c'est la remise à zéro de la déconnexion
     // (`forgetAiAccountChoices`, appelée par aiStore), pas ce tri.
-    if (Object.keys(prefs).length > 0) {
+    if (legacyRules) {
       for (const k of ['aiCategoryAutoTranslate', 'aiCategoryAutoSummary', 'aiCategoryProviders', 'aiCategoryPanel', 'aiCategoryAutoSummaryTranslate'] as const) {
         if (!has(k)) {
           localStorage.setItem(`frirss_${k}`, JSON.stringify({}));

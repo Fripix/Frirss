@@ -84,6 +84,28 @@ describe('uiStore', () => {
     expect(useUiStore.getState().appTitle).toBe('Hello');
   });
 
+  // La relecture au premier plan (prefsSync.refreshPrefs) n'apporte que les
+  // clés que le serveur porte : une clé absente n'y veut pas dire « compte
+  // ancien », et ses défauts forcés écraseraient un réglage bien réel.
+  it('applyServerPrefs with onlyPresent forces no default for a missing key', () => {
+    useUiStore.setState({
+      aiAutoSummary: true, aiPanelAlways: false, confirmMarkAllRead: true, aiCategoryPanel: { c1: true },
+    });
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact' }, { onlyPresent: true });
+    const s = useUiStore.getState();
+    expect(s.viewMode).toBe('compact');
+    expect(s.aiAutoSummary).toBe(true);
+    expect(s.aiPanelAlways).toBe(false);
+    expect(s.confirmMarkAllRead).toBe(true);
+    expect(s.aiCategoryPanel).toEqual({ c1: true });
+
+    // Sans l'option (démarrage), la règle des comptes anciens s'applique toujours.
+    useUiStore.getState().applyServerPrefs({ viewMode: 'compact' });
+    expect(useUiStore.getState().aiAutoSummary).toBe(false);
+    expect(useUiStore.getState().confirmMarkAllRead).toBe(false);
+    useUiStore.setState({ confirmMarkAllRead: true });
+  });
+
   it('applyServerPrefs ignores non-object input', () => {
     const before = useUiStore.getState().viewMode;
     useUiStore.getState().applyServerPrefs(null);

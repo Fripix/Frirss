@@ -29,6 +29,16 @@ _(rien pour l'instant)_
 - **Lecteurs d'écran : l'annonce d'un résumé dit aussi la bascule de
   fournisseur** (« X indisponible »), celle du résumé comme celle de sa
   traduction. L'en-tête visible la montrait déjà ; l'annonce la taisait.
+- **Préférences : un appareil resté ouvert n'écrase plus les réglages changés
+  sur un autre.** Chaque changement renvoyait tous les réglages synchronisés,
+  et le serveur n'était relu qu'au démarrage : replier le panneau IA sur le
+  téléphone, puis replier une catégorie sur l'ordinateur resté ouvert, rouvrait
+  le panneau partout. Désormais seuls les réglages modifiés partent, et l'app
+  relit ceux des autres appareils en revenant au premier plan, sans
+  rechargement. Une modification qui n'a pas pu partir — réseau coupé en
+  cours de route, app fermée juste après — n'est plus perdue : elle repart au
+  retour du réseau, au retour dans l'app ou au démarrage suivant. Un réglage refusé par le serveur (logo trop lourd) n'empêche plus
+  les autres de s'enregistrer.
 
 ## Sous le capot
 
