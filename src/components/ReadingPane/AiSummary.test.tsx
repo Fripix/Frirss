@@ -254,7 +254,13 @@ describe('AiSummary — statut et action', () => {
   it('parts of the status are joined by the locale\'s separator (Chinese wants a full-width comma)', () => {
     const { container } = render(<AiSummary {...doneProps} result={{ ...result, fromCache: true }} />);
     expect(container.querySelector('[data-status]')?.textContent).toBe('ai.by:Ollamaai.separatorai.fromCacheai.separatorai.fellBack:Claude');
-    expect(container.querySelector('[role="status"]')?.textContent).toBe('ai.by:Ollamaai.separatorai.fromCache');
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('ai.by:Ollamaai.separatorai.fromCacheai.separatorai.fellBack:Claude');
+  });
+  it('the separator keeps its real values: a full-width comma in Chinese, comma and space elsewhere', async () => {
+    for (const lng of ['fr', 'en', 'de', 'es', 'it', 'nl', 'pl', 'pt', 'uk', 'zh']) {
+      const { default: locale } = await import(`../../locales/${lng}.json`);
+      expect(locale.ai.separator, lng).toBe(lng === 'zh' ? '，' : ', ');
+    }
   });
   it('the status wraps instead of pushing the action out (320 px)', () => {
     render(<AiSummary {...doneProps} />);

@@ -184,7 +184,12 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
     // dit « Résumé en cours… » — et, replié, ce statut est tout ce qu'on voit.
     : [t(loading ? 'ai.summarizing' : 'ai.status.none')];
 
-  const announce = done ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, translatedBy].filter(Boolean).join(t('ai.separator')) : '';
+  // Les résultats seulement (pas « Traduction en cours ») — mais une bascule
+  // en fait partie : elle se dit toujours (décision du 2026-10-20).
+  const announce = done ? [
+    t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, done.fellBackFrom ? t('ai.fellBack', { name: done.fellBackFrom }) : null,
+    translatedBy, translated?.fellBackFrom ? t('ai.fellBack', { name: translated.fellBackFrom }) : null,
+  ].filter(Boolean).join(t('ai.separator')) : '';
 
   // Vide au doigt : le bouton ne FAIT que 32 px (`h-8`), sa zone de toucher
   // en fait 44 grâce à un pseudo-élément transparent (6 px de part et d'autre).

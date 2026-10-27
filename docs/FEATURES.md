@@ -3101,8 +3101,11 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
     demande et après un échec.
   - **Annonces** : une région `role="status" aria-live="polite"`, invisible
     (`sr-only`) et **toujours montée**, ne contient qu'une ligne — « Résumé par
-    X, depuis le cache » — qui change à l'arrivée d'un résumé, panneau replié
-    compris. Le corps n'y est **pas** : il y était, et déplier ou replier
+    X, depuis le cache, Y indisponible, traduit par Z » : les résultats et
+    leurs bascules, jamais « Traduction en cours » — qui change à l'arrivée
+    d'un résumé, panneau replié compris. Ses morceaux, comme ceux du statut
+    visible et du bandeau de traduction, sont joints par `ai.separator`
+    (« , », virgule pleine chasse « ， » en chinois). Le corps n'y est **pas** : il y était, et déplier ou replier
     faisait relire tout le résumé. L'alerte d'erreur est hors de la région :
     les deux ne s'imbriquent jamais.
   - **Mémoire du repli** : globale (pas par article) et synchronisée
