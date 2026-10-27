@@ -933,6 +933,7 @@
     "translateArticle": "Übersetzen",
     "translateArticleMenu": "Übersetzungsoptionen für den Artikel",
     "regenerate": "Neu generieren",
-    "retranslate": "Neu übersetzen"
+    "retranslate": "Neu übersetzen",
+    "separator": ", "
   }
 }

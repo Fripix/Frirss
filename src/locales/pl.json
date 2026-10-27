@@ -973,6 +973,7 @@
     "translateArticle": "Przetłumacz",
     "translateArticleMenu": "Opcje tłumaczenia artykułu",
     "regenerate": "Wygeneruj ponownie",
-    "retranslate": "Przetłumacz ponownie"
+    "retranslate": "Przetłumacz ponownie",
+    "separator": ", "
   }
 }

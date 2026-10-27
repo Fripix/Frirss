@@ -184,7 +184,7 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
     // dit « Résumé en cours… » — et, replié, ce statut est tout ce qu'on voit.
     : [t(loading ? 'ai.summarizing' : 'ai.status.none')];
 
-  const announce = done ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, translatedBy].filter(Boolean).join(', ') : '';
+  const announce = done ? [t('ai.by', { name: done.providerName }), done.fromCache ? t('ai.fromCache') : null, translatedBy].filter(Boolean).join(t('ai.separator')) : '';
 
   // Vide au doigt : le bouton ne FAIT que 32 px (`h-8`), sa zone de toucher
   // en fait 44 grâce à un pseudo-élément transparent (6 px de part et d'autre).
@@ -336,7 +336,7 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
             {empty || (collapsed && alertText) ? null : (
               <span data-status className="block text-xs leading-snug mt-0.5 break-words">
                 {statusParts.map((part, i) => (
-                  <span key={i} style={{ color: 'var(--reading-meta)' }}>{i > 0 ? ', ' : ''}<span>{part}</span></span>
+                  <span key={i} style={{ color: 'var(--reading-meta)' }}>{i > 0 ? t('ai.separator') : ''}<span>{part}</span></span>
                 ))}
               </span>
             )}

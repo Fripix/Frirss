@@ -973,6 +973,7 @@
     "translateArticle": "Перекласти",
     "translateArticleMenu": "Параметри перекладу статті",
     "regenerate": "Згенерувати знову",
-    "retranslate": "Перекласти знову"
+    "retranslate": "Перекласти знову",
+    "separator": ", "
   }
 }

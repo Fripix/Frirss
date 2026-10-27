@@ -1291,7 +1291,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     trNotice = [
       t('ai.translation.done', { lang: trLangName, name: tr.providerName ?? '' }),
       tr.fellBackFrom ? t('ai.fellBack', { name: tr.fellBackFrom }) : null,
-    ].filter(Boolean).join(', ');
+    ].filter(Boolean).join(t('ai.separator'));
     if (tr.partialOf) trPartial = t('ai.translation.partial', { count: tr.partialOf.translated, m: tr.partialOf.total });
   }
   // « Traduit par Y » dans les métadonnées : même gabarit de puce que le temps

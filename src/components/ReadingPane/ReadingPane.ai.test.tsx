@@ -1139,7 +1139,7 @@ describe('ReadingPane — traduction de l\'article', () => {
     const { getByRole, findByRole, getByText } = render(<ReadingPane />);
     fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
     await findByRole('button', { name: 'ai.showSource' });
-    expect(getByText(/ai\.translation\.done, ai\.fellBack/)).toBeTruthy();
+    expect(getByText(/ai\.translation\.done.*ai\.separatorai\.fellBack/)).toBeTruthy();
   });
   it('« Texte source » switches back without any request', async () => {
     vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));

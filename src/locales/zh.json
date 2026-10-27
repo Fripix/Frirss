@@ -933,6 +933,7 @@
     "translateArticle": "翻译",
     "translateArticleMenu": "文章翻译选项",
     "regenerate": "重新生成",
-    "retranslate": "重新翻译"
+    "retranslate": "重新翻译",
+    "separator": "，"
   }
 }

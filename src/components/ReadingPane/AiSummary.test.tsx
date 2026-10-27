@@ -251,6 +251,11 @@ describe('AiSummary — statut et action', () => {
     expect((notice.parentElement as HTMLElement).style.color).toBe('var(--reading-meta)');
     expect(queryByRole('alert')).toBeNull();
   });
+  it('parts of the status are joined by the locale\'s separator (Chinese wants a full-width comma)', () => {
+    const { container } = render(<AiSummary {...doneProps} result={{ ...result, fromCache: true }} />);
+    expect(container.querySelector('[data-status]')?.textContent).toBe('ai.by:Ollamaai.separatorai.fromCacheai.separatorai.fellBack:Claude');
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('ai.by:Ollamaai.separatorai.fromCache');
+  });
   it('the status wraps instead of pushing the action out (320 px)', () => {
     render(<AiSummary {...doneProps} />);
     const status = headerText('ai.by:Ollama').closest('[data-status]')!;

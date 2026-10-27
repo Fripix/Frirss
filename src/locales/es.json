@@ -933,6 +933,7 @@
     "translateArticle": "Traducir",
     "translateArticleMenu": "Opciones de traducción del artículo",
     "regenerate": "Regenerar",
-    "retranslate": "Volver a traducir"
+    "retranslate": "Volver a traducir",
+    "separator": ", "
   }
 }

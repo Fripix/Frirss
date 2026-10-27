@@ -22,11 +22,17 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **Chinois : le statut des résumés et traductions IA se lit avec la virgule
+  pleine chasse « ， »** au lieu d'une virgule latine en dur (en-tête du
+  panneau, annonce aux lecteurs d'écran, bandeau de traduction). Nouvelle clé
+  `ai.separator` dans les dix locales.
 
 ## Sous le capot
 
-_(rien pour l'instant)_
+- **Dépendances : body-parser 2.4.0 et qs 6.17.0** (embarqués par Express,
+  donc présents dans l'image : avis DoS GHSA-27r3-jxmh-p828 et
+  GHSA-6pq8-jhm2-2vcw) ; serialize-javascript 7.1.4 (outillage de build
+  seulement). `npm audit` à zéro.
 
 ## Actions requises à la mise à jour
 

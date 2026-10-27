@@ -933,6 +933,7 @@
     "translateArticle": "Vertalen",
     "translateArticleMenu": "Vertaalopties voor het artikel",
     "regenerate": "Opnieuw genereren",
-    "retranslate": "Opnieuw vertalen"
+    "retranslate": "Opnieuw vertalen",
+    "separator": ", "
   }
 }
