@@ -496,7 +496,22 @@
     "resetThemeTooltip": "Undo the color and size changes made since the theme was last saved",
     "resetThemeTitle": "Reset the theme?",
     "resetThemeMessage": "Colors and sizes go back to the “{{name}}” theme as it was saved. The rest of your preferences doesn’t change.",
-    "resetThemeConfirm": "Reset"
+    "resetThemeConfirm": "Reset",
+    "account": {
+      "title": "Account",
+      "hint": "Changing the password closes your other open sessions: you’ll need to log in again on your other devices.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm the new password",
+      "submit": "Change password",
+      "saving": "Saving…",
+      "done": "Password changed. Your other sessions are closed.",
+      "tooShort": "The new password must be at least 6 characters long.",
+      "mismatch": "The two new password entries don’t match.",
+      "wrongCurrent": "The current password is incorrect.",
+      "tooMany": "Too many attempts. Try again in fifteen minutes.",
+      "failed": "The password couldn’t be changed."
+    }
   },
   "login": {
     "welcome": "Welcome to FriRSS",

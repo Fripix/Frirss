@@ -29,6 +29,11 @@ la release publiée.
   ne déborde jamais. Synchronisés entre
   appareils, indépendants du thème, remis aux défauts par « Réinitialiser les
   tailles ». Les défauts ne changent rien à la grille actuelle.
+- **Changer son mot de passe.** Préférences › Général, section « Compte » :
+  un compte local change lui-même son mot de passe (actuel, nouveau,
+  confirmation). Jusqu'ici, seul un administrateur pouvait le réinitialiser.
+  Les autres sessions du compte sont fermées, et les essais sont limités
+  comme à la connexion.
 
 ## Corrections et améliorations
 

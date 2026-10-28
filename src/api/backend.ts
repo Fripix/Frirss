@@ -72,6 +72,16 @@ export async function loginUser(username: string, password: string): Promise<Aut
 }
 
 
+/**
+ * Changer son propre mot de passe (compte local). Un mot de passe actuel faux
+ * répond 401 « Current password is incorrect » : ce n'est pas une session
+ * morte, l'intercepteur ne déconnecte pas (`isBackendAuthFailure`). Le serveur
+ * ferme les autres sessions du compte.
+ */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await backend.post('/auth/change-password', { currentPassword, newPassword });
+}
+
 /** `timeout` : le retour OIDC lit l'utilisateur avec un délai court (`OIDC_GETME_TIMEOUT_MS`). */
 export async function getMe(opts: { timeout?: number } = {}): Promise<User> {
   const { data } = await backend.get<{ user: User }>('/auth/me', opts.timeout ? { timeout: opts.timeout } : undefined);

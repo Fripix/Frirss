@@ -1210,3 +1210,44 @@ describe('extract', () => {
     });
   });
 });
+
+// ── Changer son mot de passe ─────────────────────────────────────────
+// La route existait sans écran depuis août ; l'écran revient en 1.8.0
+// (Préférences › Général). Ce bloc reste le DERNIER du fichier : ses essais
+// ratés entament la limite partagée avec la connexion, qui bloquerait
+// ensuite les connexions des blocs suivants. Il travaille sur le compte admin,
+// le seul qui existe encore ici (bob est supprimé plus haut), et lui rend son
+// mot de passe d'origine.
+describe('change-password', () => {
+  const change = (currentPassword: string, newPassword: string) => request(app).post('/api/auth/change-password')
+    .set('Authorization', `Bearer ${adminToken}`).send({ currentPassword, newPassword });
+
+  it('refuse un mot de passe actuel faux, en 401 qui ne ferme pas la session', async () => {
+    const res = await change('nope-nope', 'another123');
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('Current password is incorrect');
+    const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${adminToken}`);
+    expect(me.status).toBe(200);
+  });
+
+  it('refuse un nouveau mot de passe de moins de 6 caractères', async () => {
+    expect((await change('secret123', 'abc')).status).toBe(400);
+  });
+
+  it('change le mot de passe : l’ancien n’est plus reconnu, le nouveau oui', async () => {
+    expect((await change('secret123', 'changed123')).status).toBe(200);
+    expect((await change('secret123', 'other1234')).status).toBe(401);
+    // Remis à l'ancien.
+    expect((await change('changed123', 'secret123')).status).toBe(200);
+  });
+
+  // Avec un écran, deviner le mot de passe actuel d'une session restée ouverte
+  // devient un geste à portée de main : même plafond que la connexion.
+  it('est limitée comme la connexion', async () => {
+    let last = 0;
+    for (let i = 0; i < 12; i++) {
+      last = (await change(`wrong-${i}`, 'another123')).status;
+    }
+    expect(last).toBe(429);
+  });
+});

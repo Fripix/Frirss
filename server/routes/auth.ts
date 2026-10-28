@@ -24,6 +24,20 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts, please try again later' },
 });
 
+// Changer son mot de passe : un mot de passe actuel se devine depuis une
+// session restée ouverte, comme à la connexion. Même plafond, mais compté par
+// COMPTE (après `requireAuth`) : c'est lui qu'on protège, et un seau par
+// adresse serait partagé avec les connexions de tout le réseau local.
+const passwordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `user:${(req as { user?: { id?: number } }).user?.id ?? ''}`,
+  message: { error: 'Too many attempts, please try again later' },
+});
+
 // Basic email shape check (full RFC validation is intentionally out of scope)
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -170,7 +184,7 @@ router.get('/me', requireAuth, (req, res) => {
 });
 
 // ── POST /api/auth/change-password ──────────────────────────────────
-router.post('/change-password', requireAuth, async (req, res) => {
+router.post('/change-password', requireAuth, passwordLimiter, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 

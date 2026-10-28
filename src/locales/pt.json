@@ -496,7 +496,22 @@
     "resetThemeTooltip": "Anular as alterações de cores e tamanhos feitas desde que o tema foi guardado",
     "resetThemeTitle": "Repor o tema?",
     "resetThemeMessage": "As cores e os tamanhos voltam aos do tema «{{name}}» tal como foi guardado. As restantes preferências não mudam.",
-    "resetThemeConfirm": "Repor"
+    "resetThemeConfirm": "Repor",
+    "account": {
+      "title": "Conta",
+      "hint": "Mudar a palavra-passe fecha as suas outras sessões abertas: terá de voltar a iniciar sessão nos outros dispositivos.",
+      "current": "Palavra-passe atual",
+      "new": "Nova palavra-passe",
+      "confirm": "Confirmar a nova palavra-passe",
+      "submit": "Mudar a palavra-passe",
+      "saving": "A guardar…",
+      "done": "Palavra-passe alterada. As outras sessões foram fechadas.",
+      "tooShort": "A nova palavra-passe deve ter pelo menos 6 caracteres.",
+      "mismatch": "As duas entradas da nova palavra-passe não coincidem.",
+      "wrongCurrent": "A palavra-passe atual está incorreta.",
+      "tooMany": "Demasiadas tentativas. Tente novamente dentro de um quarto de hora.",
+      "failed": "Não foi possível mudar a palavra-passe."
+    }
   },
   "login": {
     "welcome": "Bem-vindo ao FriRSS",

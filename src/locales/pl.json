@@ -512,7 +512,22 @@
     "resetThemeTooltip": "Cofnij zmiany kolorów i rozmiarów od ostatniego zapisania motywu",
     "resetThemeTitle": "Zresetować motyw?",
     "resetThemeMessage": "Kolory i rozmiary wracają do motywu „{{name}}” w zapisanej postaci. Pozostałe preferencje się nie zmieniają.",
-    "resetThemeConfirm": "Resetuj"
+    "resetThemeConfirm": "Resetuj",
+    "account": {
+      "title": "Konto",
+      "hint": "Zmiana hasła zamyka pozostałe otwarte sesje: na innych urządzeniach trzeba będzie zalogować się ponownie.",
+      "current": "Obecne hasło",
+      "new": "Nowe hasło",
+      "confirm": "Potwierdź nowe hasło",
+      "submit": "Zmień hasło",
+      "saving": "Zapisywanie…",
+      "done": "Hasło zmienione. Pozostałe sesje zostały zamknięte.",
+      "tooShort": "Nowe hasło musi mieć co najmniej 6 znaków.",
+      "mismatch": "Oba wpisy nowego hasła nie są identyczne.",
+      "wrongCurrent": "Obecne hasło jest nieprawidłowe.",
+      "tooMany": "Zbyt wiele prób. Spróbuj ponownie za kwadrans.",
+      "failed": "Nie udało się zmienić hasła."
+    }
   },
   "login": {
     "welcome": "Witamy w FriRSS",

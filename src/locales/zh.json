@@ -496,7 +496,22 @@
     "resetThemeTooltip": "撤销自上次保存主题以来对颜色和尺寸的更改",
     "resetThemeTitle": "重置主题？",
     "resetThemeMessage": "颜色和尺寸将恢复为已保存的“{{name}}”主题。其他偏好设置不变。",
-    "resetThemeConfirm": "重置"
+    "resetThemeConfirm": "重置",
+    "account": {
+      "title": "账户",
+      "hint": "更改密码会关闭你的其他已打开会话：你需要在其他设备上重新登录。",
+      "current": "当前密码",
+      "new": "新密码",
+      "confirm": "确认新密码",
+      "submit": "更改密码",
+      "saving": "正在保存…",
+      "done": "密码已更改。其他会话已关闭。",
+      "tooShort": "新密码至少需要 6 个字符。",
+      "mismatch": "两次输入的新密码不一致。",
+      "wrongCurrent": "当前密码不正确。",
+      "tooMany": "尝试次数过多。请十五分钟后再试。",
+      "failed": "无法更改密码。"
+    }
   },
   "login": {
     "welcome": "欢迎使用 FriRSS",

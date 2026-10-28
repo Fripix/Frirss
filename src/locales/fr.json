@@ -496,7 +496,22 @@
     "resetThemeTooltip": "Annuler les modifications de couleurs et de tailles faites depuis le dernier enregistrement du thème",
     "resetThemeTitle": "Réinitialiser le thème ?",
     "resetThemeMessage": "Les couleurs et les tailles reviennent à celles du thème « {{name}} » tel qu’il a été enregistré. Le reste de vos préférences ne change pas.",
-    "resetThemeConfirm": "Réinitialiser"
+    "resetThemeConfirm": "Réinitialiser",
+    "account": {
+      "title": "Compte",
+      "hint": "Changer le mot de passe ferme vos autres sessions ouvertes : il faudra vous reconnecter sur vos autres appareils.",
+      "current": "Mot de passe actuel",
+      "new": "Nouveau mot de passe",
+      "confirm": "Confirmer le nouveau mot de passe",
+      "submit": "Changer le mot de passe",
+      "saving": "Enregistrement…",
+      "done": "Mot de passe changé. Vos autres sessions sont fermées.",
+      "tooShort": "Le nouveau mot de passe doit contenir au moins 6 caractères.",
+      "mismatch": "Les deux saisies du nouveau mot de passe ne sont pas identiques.",
+      "wrongCurrent": "Le mot de passe actuel est incorrect.",
+      "tooMany": "Trop d’essais. Réessayez dans un quart d’heure.",
+      "failed": "Le mot de passe n’a pas pu être changé."
+    }
   },
   "login": {
     "welcome": "Bienvenue sur FriRSS",

@@ -496,7 +496,22 @@
     "resetThemeTooltip": "Wijzigingen aan kleuren en groottes sinds het laatste opslaan van het thema ongedaan maken",
     "resetThemeTitle": "Thema opnieuw instellen?",
     "resetThemeMessage": "Kleuren en groottes keren terug naar het thema ‘{{name}}’ zoals het is opgeslagen. Uw overige voorkeuren blijven ongewijzigd.",
-    "resetThemeConfirm": "Opnieuw instellen"
+    "resetThemeConfirm": "Opnieuw instellen",
+    "account": {
+      "title": "Account",
+      "hint": "Het wachtwoord wijzigen sluit uw andere open sessies: u moet op uw andere apparaten opnieuw inloggen.",
+      "current": "Huidig wachtwoord",
+      "new": "Nieuw wachtwoord",
+      "confirm": "Nieuw wachtwoord bevestigen",
+      "submit": "Wachtwoord wijzigen",
+      "saving": "Opslaan…",
+      "done": "Wachtwoord gewijzigd. Uw andere sessies zijn gesloten.",
+      "tooShort": "Het nieuwe wachtwoord moet minstens 6 tekens lang zijn.",
+      "mismatch": "De twee invoeren van het nieuwe wachtwoord komen niet overeen.",
+      "wrongCurrent": "Het huidige wachtwoord is onjuist.",
+      "tooMany": "Te veel pogingen. Probeer het over een kwartier opnieuw.",
+      "failed": "Het wachtwoord kon niet worden gewijzigd."
+    }
   },
   "login": {
     "welcome": "Welkom bij FriRSS",

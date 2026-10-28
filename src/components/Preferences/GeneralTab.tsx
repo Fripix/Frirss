@@ -1,5 +1,6 @@
 import { useState, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import AccountSection from './AccountSection';
 import { loadLanguage } from '../../i18n';
 import { useUiStore, shortcutActions } from '../../stores/uiStore';
 import ToggleSwitch from '../ToggleSwitch';
@@ -299,6 +300,9 @@ export default function GeneralTab() {
           </span>
         </div>
       </div>
+
+      {/* Account — local accounts only */}
+      <AccountSection />
 
       {/* Language */}
       <div>

@@ -496,7 +496,22 @@
     "resetThemeTooltip": "Annulla le modifiche a colori e dimensioni fatte dall’ultimo salvataggio del tema",
     "resetThemeTitle": "Reimpostare il tema?",
     "resetThemeMessage": "Colori e dimensioni tornano a quelli del tema «{{name}}» come è stato salvato. Le altre preferenze non cambiano.",
-    "resetThemeConfirm": "Reimposta"
+    "resetThemeConfirm": "Reimposta",
+    "account": {
+      "title": "Account",
+      "hint": "Cambiare la password chiude le altre sessioni aperte: dovrai accedere di nuovo sugli altri dispositivi.",
+      "current": "Password attuale",
+      "new": "Nuova password",
+      "confirm": "Conferma la nuova password",
+      "submit": "Cambia la password",
+      "saving": "Salvataggio…",
+      "done": "Password cambiata. Le altre sessioni sono state chiuse.",
+      "tooShort": "La nuova password deve contenere almeno 6 caratteri.",
+      "mismatch": "Le due voci della nuova password non coincidono.",
+      "wrongCurrent": "La password attuale non è corretta.",
+      "tooMany": "Troppi tentativi. Riprova tra un quarto d’ora.",
+      "failed": "Impossibile cambiare la password."
+    }
   },
   "login": {
     "welcome": "Benvenuto su FriRSS",

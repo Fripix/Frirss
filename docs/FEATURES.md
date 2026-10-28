@@ -61,6 +61,20 @@ administrateur.
   mot de passe actuel au changement de mot de passe (« Current password is
   incorrect ») éjectait l'utilisateur. La déconnexion volontaire après une
   restauration (`BackupBlock.tsx`) reste, elle, explicite.
+- **Changer son mot de passe** (1.8.0) : Préférences › Général, section
+  « Compte » (`AccountSection.tsx`), **comptes locaux seulement** — un compte
+  SSO le change chez son fournisseur. Mot de passe actuel, nouveau,
+  confirmation ; le minimum (6) et l'égalité des deux saisies sont vérifiés
+  avant l'appel, et chaque refus a son message (`preferences.account.*` :
+  actuel faux = 401 qui ne déconnecte pas, trop d'essais = 429). Le serveur
+  ferme les **autres** sessions du compte, ce que l'aide annonce. La route
+  existait sans écran depuis 0d3d327 (août 2026, wrapper client retiré) :
+  seul un administrateur pouvait réinitialiser un mot de passe. Elle a sa
+  propre limite, **par compte** (`passwordLimiter`, 10 échecs / 15 min,
+  après `requireAuth`) : un mot de passe actuel se devine depuis une session
+  restée ouverte. Tests : `GeneralTab.password.test.tsx`, bloc
+  `change-password` de `server/test/api.test.ts` (dernier du fichier : ses
+  échecs entament la limite partagée de la connexion).
 
 ### SSO / OIDC
 Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la place**
@@ -5945,7 +5959,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | POST | `/api/auth/login` | Ouvrir une session |
 | POST | `/api/auth/logout` | Fermer la session |
 | GET | `/api/auth/me` | Utilisateur courant |
-| POST | `/api/auth/change-password` | Changer son mot de passe — **aucun écran ne l'appelle** depuis 0d3d327 (wrapper client retiré) |
+| POST | `/api/auth/change-password` | Changer son mot de passe (Préférences › Général › Compte ; limite par compte) |
 | GET | `/api/auth/status` | Inscriptions ouvertes, existence d'un compte |
 | GET | `/api/auth/oidc/config` | Configuration SSO exposée au client |
 | GET | `/api/auth/oidc/login` | Démarrer le flux OIDC |
