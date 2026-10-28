@@ -121,10 +121,14 @@ export function useLongPress(onLongPress: (point: PressPoint) => void, opts: Lon
     }, LONG_PRESS_MS);
   }, []);
 
-  /** Fin d'un contact : si l'appui avait abouti, la fenêtre d'écho repart d'ici. */
+  /**
+   * Fin d'un contact : si l'appui avait abouti, la fenêtre d'écho repart d'ici
+   * — une fois. Un `mouseleave` de compatibilité émis plus tard (iOS, en
+   * touchant ailleurs) ne la rallonge pas.
+   */
   const release = useCallback(() => {
     cancel();
-    if (fired.current) releasedAt.current = Date.now();
+    if (fired.current && releasedAt.current === null) releasedAt.current = Date.now();
   }, [cancel]);
 
   const onTouchStart = useCallback((e: ReactTouchEvent) => {

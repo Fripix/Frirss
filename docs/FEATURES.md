@@ -1306,8 +1306,9 @@ FreshRSS, où le titre est un vrai lien.
   dans le champ « nouvelle catégorie », un clic droit ou un clic molette sur le
   fond de fermeture du portail étaient captés par la ligne.
 - **Piège — Chrome Android émet `contextmenu` sur un appui long** : dans la
-  seconde qui suit un appui long abouti, il est absorbé sans rouvrir le menu
-  (`firedRecently()`).
+  seconde qui suit un appui long abouti (ou son relâchement), il est absorbé
+  sans rouvrir le menu (`firedRecently()`). Même règle pour le menu d'un
+  flux et le classement par catégorie.
 - **Piège — touche Menu** : `contextmenu` arrive avec `clientX = clientY = 0` ;
   le menu s'ouvre alors sous la ligne (`menuAnchor()`), pas dans le coin de la
   fenêtre.
@@ -1354,7 +1355,9 @@ FreshRSS, où le titre est un vrai lien.
   de capture sur la ligne — mais seulement s'il arrive dans la seconde qui
   suit le déclenchement **ou le relâchement** (`firedRecently()`) : un doigt
   gardé deux secondes, ou le clic d'une souris qui n'arrive qu'au
-  relâchement, sortaient sinon de la fenêtre.
+  relâchement, sortaient sinon de la fenêtre. Seul le relâchement qui termine
+  l'appui abouti la fait repartir : un `mouseleave` de compatibilité émis plus
+  tard (iOS, en touchant ailleurs) ne la rallonge pas.
 - **Piège — ce clic avalé perdait le tap suivant sur un bouton de la ligne** :
   aucun clic ne consommait la consigne « avaler » d'un appui abouti (le
   `touchend` qui la pose est `preventDefault()`), et un contact qui démarrait

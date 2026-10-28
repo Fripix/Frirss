@@ -280,6 +280,21 @@ describe('useLongPress', () => {
       expect(onLongPress).not.toHaveBeenCalled();
     });
 
+    it('only the release that ends the fired press opens the echo window, not a later stray mouseleave', () => {
+      // Sur téléphone, iOS émet des événements souris de compatibilité en
+      // touchant AILLEURS : un `mouseleave` tardif ne doit pas rallonger la
+      // fenêtre et avaler le clic suivant.
+      const { onClick, row } = setup({ mouse: true });
+      fireEvent.touchStart(row, at);
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      fireEvent.touchEnd(row);
+      vi.advanceTimersByTime(900);
+      fireEvent.mouseLeave(row);
+      vi.advanceTimersByTime(200);
+      fireEvent.click(row);
+      expect(onClick).toHaveBeenCalledTimes(1);
+    });
+
     it('a small mouse tremor does not cancel', () => {
       const { onLongPress, row } = setup({ mouse: true });
       fireEvent.mouseDown(row, { button: 0, clientX: 12, clientY: 34 });
