@@ -5000,8 +5000,8 @@ réglage clair/sombre du système.
   **en gardant la teinte**. **Toute couleur posée dans la barre latérale doit
   passer par là**, jamais par `--accent` ni `--badge-*`, qui appartiennent au
   panneau.
-- **Piège des couleurs en dur** : `--badge-bg` et `--badge-text` sont dérivés
-  de l'accent, mais le badge de non-lus de la barre latérale écrivait le menthe
+- **Piège des couleurs en dur** : `--badge-bg` est dérivé de l'accent
+  (`--badge-text`, jamais lu, a été retiré en 1.8.0), mais le badge de non-lus de la barre latérale écrivait le menthe
   à 15 % en dur — sur un thème dont l'accent change (« Paper », « High
   Contrast »), il restait vert. Corrigé en 1.4.5, en même temps que les trois
   surbrillances de glisser-déposer restées orange. **Aucune couleur de

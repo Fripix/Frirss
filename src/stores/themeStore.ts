@@ -598,11 +598,8 @@ function applyThemeToDOM(theme: Theme): void {
 
   // Derived values
   root.style.setProperty('--accent-glow', hexToGlow(theme.colors['accent']));
-  root.style.setProperty('--sidebar-hover', 'rgba(255, 255, 255, 0.05)');
-  root.style.setProperty('--sidebar-active', 'rgba(255, 255, 255, 0.08)');
   root.style.setProperty('--list-unread-bar', theme.colors['accent']);
   root.style.setProperty('--badge-bg', hexToGlow(theme.colors['accent']));
-  root.style.setProperty('--badge-text', theme.colors['accent']);
 
   // Badges de la BARRE LATÉRALE. Ils ne peuvent pas reprendre `--badge-*` :
   // ceux-là sont dérivés de l'accent, lequel est réglé pour le panneau. Dans

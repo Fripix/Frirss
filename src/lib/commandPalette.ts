@@ -8,6 +8,11 @@
  * latérale et de lire.
  */
 
+// Casse et accents repliés (« securite » atteint « Sécurité ») : la même
+// fonction que la recherche, pas une copie.
+import { normalizeForSearch } from './searchMatch';
+export { normalizeForSearch };
+
 export interface Command {
   id: string;
   label: string;
@@ -18,13 +23,6 @@ export interface Command {
   run: () => void;
 }
 
-/** Casse et accents repliés : « securite » doit atteindre « Sécurité ». */
-export function normalizeForSearch(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
-}
 
 /**
  * Score d'une correspondance, `null` si le texte ne contient pas la requête.

@@ -4,8 +4,6 @@
   --sidebar-header-bg: linear-gradient(135deg, #4cd4a1 0%, #38b888 100%);
   --sidebar-text: #6d6f6c;
   --sidebar-text-active: #e0e0dc;
-  --sidebar-hover: rgba(255, 255, 255, 0.05);
-  --sidebar-active: rgba(255, 255, 255, 0.08);
   --sidebar-category-text: #555753;
   --sidebar-divider: rgba(255, 255, 255, 0.06);
 
@@ -51,7 +49,6 @@
      ne servent qu'au tout premier rendu, avant que le JS ne tourne. */
   --on-accent: #1c1c1a;
   --on-danger: #1c1c1a;
-  --badge-text: #4cd4a1;
 
   /* Badges de la barre latérale — recalculés par applyThemeToDOM() pour rester
      lisibles sur `--sidebar-bg`, qui est sombre même en thème clair. */
@@ -64,6 +61,5 @@
   --radius-sm: 5px;
 
   /* Resizable */
-  --resize-handle: #e0e0e5;
   --resize-handle-hover: #4cd4a1;
 }

@@ -61,7 +61,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     localStorage.removeItem('frirss_backendToken');
     localStorage.removeItem('frirss_backendUser');
     localStorage.removeItem('frirss_serverUrl');
-    localStorage.removeItem('frirss_token'); // legacy cleanup (token no longer stored)
     localStorage.removeItem('frirss_activeServerId');
     set({
       backendToken: null,

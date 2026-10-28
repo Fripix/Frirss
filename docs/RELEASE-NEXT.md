@@ -396,6 +396,13 @@ la release publiée.
 
 ## Sous le capot
 
+- **Ménage (relecture 1.8.0)** : 332 lignes de CSS dupliquées à l'identique
+  depuis un artefact de fusion d'août (la feuille construite contient les
+  mêmes règles), la palette Tailwind personnalisée qui ne produisait aucune
+  classe, quatre variables CSS jamais lues, trois replis de variables jamais
+  définies remplacés par leur valeur, `@types/bcryptjs` (bcryptjs 3 porte ses
+  types), `public/icon.svg` jamais référencé mais précaché, un doublon de
+  `normalizeForSearch`, le nettoyage d'une clé que personne n'a jamais écrite.
 - **Code mort retiré**, après vérification qu'aucun écran, test ou script ne
   s'en servait : trois routes de préférences que le client n'appelait plus
   (écriture et effacement d'une clé seule, effacement de toutes), quatre
