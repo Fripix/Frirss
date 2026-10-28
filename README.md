@@ -75,30 +75,31 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
 - **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed — or, if you prefer, one choice applies to every feed (*Preferences → General → Unread filter*).
 - **Ticking an article read clears it from the unread list** — instantly, in every layout including the compact one. Opening an article leaves its row where it is, so you keep your place; only a deliberate tick removes one. If the server refuses the write, the row comes back and says so.
+- **Nothing destructive happens in one click.** Unsubscribing, deleting a tag, a category, a server or a saved theme, the *Reset* buttons and every admin action on an account ask first, in a dialog that names what will be lost — and a double click can never answer it for you. When the server refuses, the app says so instead of pretending.
 - **Mark everything as read — and take it back.** The button asks first, in a dialog that says how many articles and which view, so it is never mistaken for a filter next to it. Then a banner offers *Undo*, which puts back exactly the articles that were unread and nothing else, up to 25 000 of them, counting up as it works. Past that it says so beforehand rather than promising a safety net it cannot hold. The confirmation is on by default and can be turned off in *Preferences → General*.
 - **Open an article at its source** — an icon on each row opens the origin site in a new tab and selects the article, so it is marked read and keeps its place in the list. For the feeds you would rather read on the site itself.
-- **Right-click an article** — or long-press it on touch, or press the keyboard Menu key — for a menu: open at source, mark read or unread, mark everything above or below as read, favorite, read later, copy link. Entries carry icons and are grouped by what they do; the two range actions cover the whole view, loaded rows or not. On a phone it opens as a bottom sheet; a middle click opens the article at its source directly.
+- **Right-click an article** — or long-press it on touch, or press the keyboard Menu key — for a menu: open at source, mark read or unread, mark everything above or below as read, favorite, read later, copy link. Entries carry icons and are grouped by what they do; the two range actions cover the whole view, loaded rows or not. On a phone it opens as a bottom sheet. The title is a real link: a middle click, <kbd>⌘</kbd>-click or <kbd>Ctrl</kbd>-click opens the source in a background tab and marks the article read without leaving the one you are reading.
 - **Search that actually filters**, scoped to the view you are in: FriRSS scans that scope article by article in your browser — read ones included — and shows matches as they turn up, with a counter and a stop button while it works. **Every result says why it is one**: the term is highlighted in the title and summary, and when it only appears deep in the article, the row shows the passage that matched instead of the usual summary. The count stays on screen once the scan is done. FreshRSS's Google Reader API has no search parameter, so the filtering happens client-side; offline, it searches what your device already holds and says so. The last five queries are offered back, per server.
 - **Mark as read while scrolling**, optionally: an article is marked once it has left the top of the list. Off by default, never during a search. The last rows never leave the top, so a list ends with a *Mark all as read* button whenever unread rows remain — the same action as the toolbar's, confirmation and undo included.
 - **New articles announce themselves** — a banner at the top of the list counts what has arrived in the view you are looking at, and loads it in one click. Dismiss it and it comes back on the next arrival. The list never changes under you. Off in *Preferences → General* if you would rather it did not.
 - **Share an article or copy its link** from the reading pane — the system share sheet on mobile, the clipboard elsewhere.
-- **Resume where you left off** — your last feed and filter come back on reopen, or FriRSS always opens on *All feeds* or *Unread* if you say so (*Preferences → General → Startup view*). An unobtrusive offline / back-online indicator sits above the list.
+- **Resume where you left off** — your last feed and filter come back on reopen, or FriRSS always opens on *All feeds* or *Unread* if you say so (*Preferences → General → View at startup*). An unobtrusive offline / back-online indicator sits above the list.
 - **At home on Android** — in the installed app, the back gesture closes what is on top (article, feed drawer, preferences) instead of leaving the app, and the status bar takes the colour of the surface beneath it.
 
 ### AI summaries and translations (optional)
 FriRSS ships no AI of its own: no model, no service, nothing sent anywhere by default. If you want summaries and translations, connect the model of your choice — a local one or a cloud provider — in *Preferences → AI*. It stays off until an administrator does, and only ever sends the article you are reading to the provider you picked.
 
-- **Summaries** in a panel above the article — one click, the <kbd>s</kbd> key or the palette, or automatically when an article opens. The length is yours to set, *Summarise with…* picks another provider, *Regenerate* asks again.
-- **Translations** of the whole article — title and body, in batches, into any of 28 languages — and of its summary. *Show original* switches back without a new request; *Translate into…* and *Translate with…* choose the language and the provider.
+- **Summaries** in a panel above the article — one click, the <kbd>s</kbd> key or the palette, or automatically when an article opens. The length is yours to set, *Summarize with…* picks another provider, *Regenerate* asks again.
+- **Translations** of the whole article — title and body, in batches, into any of 28 languages — and of its summary. *Source text* switches back without a new request; *Translate into…* and *Translate with…* choose the language and the provider.
 - **Your providers**: Anthropic (Claude) or anything that speaks the OpenAI API — OpenAI, a local **Ollama**, LM Studio, OpenRouter… *List models* fills in the model name. Keys are encrypted at rest and never sent to the browser; the admin decides which keys are shared, whether users may bring their own, and a daily cap per user. If a provider is down, the next one in the list takes over and the panel says so.
-- **Per feed and per category**: summarise on open, translate on open, translate the summary, keep the panel shown, and which AI to use — one row per category and per feed, each switch *on*, *off* or *inherited* from above.
+- **Per feed and per category**: summarize on open, translate on open, translate the summary, keep the panel shown, and which AI to use — one row per category and per feed, each switch *on*, *off* or *inherited* from above.
 - Results are cached, so reopening an article — on any device — costs nothing. A local model costs nothing at all.
 
 ### Keyboard and reach
-- **A command palette** on <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>: jump to a feed, a category, a label, a view, switch FreshRSS server, or run an action. Accents are ignored, so *securite* finds *Sécurité*.
-- **Twelve reassignable shortcuts** — <kbd>s</kbd> summarises and <kbd>t</kbd> translates when AI is on — and <kbd>?</kbd> opens a sheet listing them with the keys you actually configured. A shortcut never takes a key your browser or system already uses.
+- **A command palette** on <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd>: jump to a feed, a category, a tag, a view, switch FreshRSS server, or run an action. Accents are ignored, so *securite* finds *Sécurité*.
+- **Twelve reassignable shortcuts** — <kbd>s</kbd> summarizes and <kbd>t</kbd> translates when AI is on — and <kbd>?</kbd> opens a sheet listing them with the keys you actually configured. A shortcut never takes a key your browser or system already uses.
 - **Menus by long press on touch** — a feed in the sidebar opens its menu (rename, open site, full article, layout and order for this feed, unsubscribe), an article opens its own, with 44pt rows.
-- **Built to be used without a mouse** — a visible focus ring throughout, 44pt touch targets, screen-reader names on icon-only buttons, and *reduced motion* honored everywhere.
+- **Built to be used without a mouse** — a visible focus ring throughout, menus you walk with the arrow keys that hand focus back when they close, 44pt touch targets, a name on every icon-only button and field, toggles that announce their state, messages that screen readers actually hear, and *reduced motion* honored everywhere.
 
 ### Make it yours
 Almost everything is yours to tweak:
@@ -107,16 +108,17 @@ Almost everything is yours to tweak:
 - **Themes are yours to make** — full control over all 38 colors and 7 font sizes; **create, save, export, import and share** your own.
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
+- **A grid view sized your way** — card width to the pixel (160–480 px), cards that fill the row or keep exactly that width, and a 16:9, 4:3 or 1:1 image ratio, in *Preferences → Appearance → Sizes*. On a phone the grid always fills the screen.
 - **Layout** — resizable columns, density and spacing, date separators, feed icons, toggles for the source label and top bar, and a desktop/mobile switch on tablets.
-- **Row action icons** — show or hide each of the four icons on an article row (favorite, read later, open at source, mark read), one by one, from the new *Layout* section.
+- **Row action icons** — show or hide each of the four icons on an article row (favorite, read later, open at source, mark read), one by one, from the *Layout* section.
 - **A sidebar that remembers** — collapsed sections stay collapsed, and feeds with nothing unread can be hidden to declutter long lists.
 - **Categories & feeds** — rename or delete a category and move feeds between categories, right from the preferences.
-- **Labels & sub-labels** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with per-label article counts.
+- **Tags & sub-tags** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with per-label article counts.
 - **Branding** — set your own app name and logo.
 - **10 languages** — the interface follows your browser language on first run.
 
 ### Accounts, SSO & multi-server
-- **Multi-user** with admin/user roles — each person keeps their own feeds and settings.
+- **Multi-user** with admin/user roles — each person keeps their own feeds and settings, and a local account changes its own password in *Preferences → General → Account* (other sessions are signed out).
 - **Single sign-on** via OIDC (tested with [Authentik](https://goauthentik.io)); existing accounts are linked by email, and passkeys work through your provider.
 - **Multi-server** — connect several FreshRSS instances and switch between them, from the top bar or the command palette.
 
@@ -265,12 +267,13 @@ scripts/reset-password.js` sets a new password from the terminal.
 
 FriRSS holds the credentials to your FreshRSS server, so a few things are not optional:
 
-- FreshRSS passwords and tokens are **encrypted at rest** and never reach the browser — not in a response, not in a URL, not in a log.
+- FreshRSS passwords and tokens are **encrypted at rest**. Once a server is added they never reach the browser again — not in a response, not in a URL, not in a log — and changing a server's address requires new credentials, so the stored tokens can never be pointed at another host.
 - All FreshRSS traffic goes through an authenticated **same-origin proxy** with an anti-SSRF guard: it rejects targets that *resolve* to a private address, and re-checks every redirect hop.
 - The app page **and its static assets** carry a **Content-Security-Policy** (`script-src 'self'`) along with `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy`.
 - The backend runs **unprivileged** in the container (`PUID`/`PGID`, 1000 by default): code execution inside Node no longer owns the data directory, where the JWT secret and the token-encryption key live. The data directory is adopted on start, so upgrading needs no action.
 - **Registration is closed by default.** Only the very first account — the administrator — can be created without someone opening sign-ups in *Preferences → Administration*.
-- Proxied requests are **rate-limited per user** (`FRIRSS_PROXY_RATE_LIMIT`), so an account cannot turn the backend into an open relay.
+- Proxied requests are **rate-limited per user** (`FRIRSS_PROXY_RATE_LIMIT`), so an account cannot turn the backend into an open relay, and each one is bounded in time. Behind a reverse proxy, the login limit counts each client separately, and changing your password is limited per account.
+- Article and feed links that are not `http`/`https` are never opened nor turned into links.
 - JWT verification is pinned to HS256, and the runtime image ships neither npm nor its dependency tree — nothing there is executed, and it was the source of most reported CVEs.
 
 Dependency and image scans run on every push and can be launched by hand; the current state is in [GitHub Actions](https://github.com/Fripix/Frirss/actions/workflows/security.yml).

@@ -1283,9 +1283,8 @@ describe('extract', () => {
 
 // ── Changer son mot de passe ─────────────────────────────────────────
 // La route existait sans écran depuis août ; l'écran revient en 1.8.0
-// (Préférences › Général). Ce bloc reste le DERNIER du fichier : ses essais
-// ratés entament la limite partagée avec la connexion, qui bloquerait
-// ensuite les connexions des blocs suivants. Il travaille sur le compte admin,
+// (Préférences › Général). Sa limite est propre au compte (`passwordLimiter`) :
+// ses essais ratés n'entament pas celle de la connexion. Il travaille sur le compte admin,
 // le seul qui existe encore ici (bob est supprimé plus haut), et lui rend son
 // mot de passe d'origine.
 describe('change-password', () => {

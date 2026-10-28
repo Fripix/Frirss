@@ -32,8 +32,10 @@ la release publiée.
 - **Changer son mot de passe.** Préférences › Général, section « Compte » :
   un compte local change lui-même son mot de passe (actuel, nouveau,
   confirmation). Jusqu'ici, seul un administrateur pouvait le réinitialiser.
-  Les autres sessions du compte sont fermées, et les essais sont limités
-  comme à la connexion.
+  Les autres sessions du compte sont fermées, et un mauvais mot de passe
+  actuel est dit sans déconnecter. La route existait sans écran et sans
+  limite : elle est désormais limitée à 10 échecs par quart d'heure, compte
+  par compte (voir Sécurité).
 
 ## Sécurité
 
@@ -90,7 +92,8 @@ la release publiée.
   l'appareil, où la taille du texte vient d'un réglage propre (celui des
   boutons A− / A+). Il règle désormais cette taille-là, et le dit. Ses bornes
   sont aussi celles des boutons (10 à 24 px sur ordinateur, 13 à 26 px au
-  doigt ; il s'arrêtait à 12-20).
+  doigt ; il s'arrêtait à 12-20). « Réinitialiser les tailles » remet aussi la
+  taille de l'appareil.
 - **Thèmes sombres : les survols se voient.** Une soixantaine de boutons et de
   rangées s'assombrissaient au survol, invisible sur Night ou Desk ; ceux de
   la barre latérale s'éclaircissaient, invisible sur une barre claire. Ils
@@ -193,7 +196,7 @@ la release publiée.
   arrière-plan.** Il s'ouvrait au premier plan et faisait quitter FriRSS. Le
   titre d'une ligne et d'une carte de la grille est désormais un vrai lien,
   comme dans FreshRSS : clic molette, ⌘-clic ou Ctrl-clic l'ouvrent en
-  arrière-plan, et l'article est marqué lu sans changer celui qu'on lit. Le
+  arrière-plan (Maj-clic dans une nouvelle fenêtre), et l'article est marqué lu sans changer celui qu'on lit. Le
   clic simple sélectionne toujours l'article, l'apparence du titre ne change
   pas, et l'appui long au doigt sur le titre ouvre toujours le menu. Ailleurs
   sur la ligne, le clic molette garde son comportement. Seules les adresses
@@ -222,11 +225,6 @@ la release publiée.
   ou voir sa session expirer — l'abandonne. Un réglage refusé par le serveur
   (logo trop lourd) n'empêche plus les autres de s'enregistrer.
 
-- **Une faute de frappe ne déconnecte plus.** Changer son mot de passe avec un
-  mauvais mot de passe actuel renvoyait un 401 que l'API FriRSS traitait comme
-  une session expirée : l'utilisateur était éjecté. Désormais, comme pour les
-  requêtes FreshRSS, seule une vraie session invalide (jeton absent, expiré ou
-  invalide) ferme la session.
 - **Retour SSO : une coupure réseau passagère ne renvoie plus à l'écran de
   connexion.** Si la lecture du profil échoue juste après la redirection, elle
   est réessayée jusqu'à quatre fois (1, 2, 4 puis 8 s), chaque essai
@@ -326,7 +324,7 @@ la release publiée.
   renommage.** Renommer une étiquette ou une catégorie, ou nommer une
   nouvelle catégorie, puis appuyer sur Échap fermait aussi tout le panneau.
 - **Texte lisible sur la couleur d'accent.** L'onglet actif des Préférences
-  et une quinzaine de boutons (Préparer le hors-ligne, Télécharger la
+  et dix-sept boutons (Préparer le hors-ligne, Télécharger la
   sauvegarde, Enregistrer…) écrivaient en blanc sur la couleur d'accent : sur
   la menthe par défaut, à peine lisible. Ils prennent désormais l'encre
   calculée pour l'accent, comme le reste de l'application.
@@ -347,6 +345,14 @@ la release publiée.
   italien, polonais, ukrainien), « Local + SSO » traduit, la touche Échap
   nommée comme dans les textes, et le mode Focus décrit en « pleine
   largeur » plutôt qu'en « plein écran », qu'il n'est pas.
+- **Un mot par notion, dans chaque langue.** Le vocabulaire des dix langues
+  est aligné sur le terme majoritaire. En anglais : « Tags » partout (au
+  lieu de « Labels » à certains endroits), « Favorite » (au lieu de « Star »),
+  orthographe américaine (« Summarize », « Colors »), « log in », « server
+  bar ». En espagnol, italien, portugais et ukrainien, un seul mot pour
+  « flux ». Les chemins d'écran s'écrivent avec `›` partout.
+- **Typographie française** : apostrophe typographique, espaces insécables
+  avant `? ! ; :` et dans les guillemets, « hors ligne » sans trait d'union.
 - **Une liste qui n'a pas pu se charger le dit.** Si le serveur ne
   répondait pas, la liste affichait « Tout est lu ! » ou « Ce flux est
   vide ». Elle affiche désormais que le chargement a échoué, avec un bouton
@@ -354,7 +360,7 @@ la release publiée.
 - **Toute action qui défait ou supprime se confirme dans une fenêtre**,
   comme « Tout marquer comme lu » — un double-clic ne peut plus valider à
   votre place. En Administration, donner ou retirer les droits
-  d'administrateur et désactiver un compte demandaient un seul clic sur une
+  d'administrateur, désactiver ou réactiver un compte demandaient un seul clic sur une
   pastille qui ressemblait à une étiquette ; supprimer un compte se validait
   au second clic d'un double-clic. Les boutons « Réinitialiser » des
   Préférences (thème, couleurs, tailles, couleurs des étiquettes) passent par
@@ -423,7 +429,8 @@ la release publiée.
   lien gardent l'adresse telle quelle (ils n'exécutent rien).
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,
   donc présents dans l'image : avis DoS GHSA-27r3-jxmh-p828 et
-  GHSA-6pq8-jhm2-2vcw) ; serialize-javascript 7.1.4 (outillage de build
+  GHSA-6pq8-jhm2-2vcw), avec leurs dépendances content-type 2.1.0 et
+  iconv-lite 0.7.3 ; serialize-javascript 7.1.4 (outillage de build
   seulement). `npm audit` à zéro. Le DoS de body-parser touchait bien le
   `express.json` global ; qs n'est pas atteint (Express 5 lit les requêtes
   avec son parseur `simple`, aucun `urlencoded`).
@@ -433,6 +440,12 @@ la release publiée.
 - body-parser 2.4.0 décompresse désormais les corps `Content-Encoding: zstd`
   (avant : 415). Même limite de 5 Mo après décompression que gzip/br ; le
   proxy ne retransmet pas `Content-Encoding`.
+- **API, ajouts compatibles** : les réponses de `/api/auth/login` et
+  `/api/auth/register` portent `auth_provider`, et un refus 400 de
+  `PUT /api/preferences` nomme la clé refusée (`key`).
+- **Proxy** : un client qui part en cours de lecture libère la requête vers
+  FreshRSS, et une écriture déjà partie (marquer lu, tout marquer lu) est
+  menée à terme même si le navigateur coupe la connexion.
 - **Ménage : `feedStore.selectFeed`, sans appelant, est supprimé** (toute
   navigation passe par `selectView`) ; ses tests sont migrés.
 
@@ -443,4 +456,11 @@ _(aucune)_
 ## Documentation
 
 - **README : FriRSS n'embarque aucune IA**, il se branche sur le modèle de
-  votre choix (déjà visible sur `main`).
+  votre choix (déjà visible sur `main`), et il compte 38 couleurs (pas 36).
+- **README à jour pour la 1.8.0** (sur `dev`, visible à la release) : vue
+  grille réglable, changement de mot de passe, confirmations généralisées,
+  accessibilité, titre devenu lien (le clic molette n'ouvre plus la source au
+  premier plan), nouvelles garanties de sécurité ; libellés alignés sur
+  l'interface (*Summarize with…*, *Source text*, *View at startup*, Tags). Et
+  une nuance : les jetons FreshRSS transitent une fois par le navigateur, à
+  l'ajout d'un serveur — le README disait « jamais ».

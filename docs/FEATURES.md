@@ -433,8 +433,8 @@ défaut 16:9). Les défauts reproduisent exactement la grille d'avant.
 - **Remplir la ligne, activé** (la grille d'origine) : la largeur est un
   minimum, les cartes s'élargissent pour remplir la ligne (`auto-fill` +
   `minmax`). ⚠️ Le curseur n'agit alors que **par paliers** : entre deux
-  nombres de colonnes, il ne change rien à l'écran (dans une liste de
-  1 011 px, 4 cartes de 242 px de 160 à 240, puis 3 de 327 à 250). C'est ce
+  nombres de colonnes, il ne change rien à l'écran (dans une grille de
+  1 011 px intérieurs, hors des 14 px de marge de chaque côté, 4 cartes de 242 px de 160 à 240, puis 3 de 327 à 250). C'est ce
   qu'a relevé le propriétaire au premier essai, et la raison de l'interrupteur.
 - **Remplir la ligne, désactivé** (`.article-grid--fixed`) : chaque carte
   mesure exactement la largeur choisie, la fenêtre ne décide que du nombre de
@@ -659,7 +659,7 @@ d'adopter la disposition mobile.
 
 ### Raccourcis clavier
 Navigation et actions au clavier, chaque raccourci réassignable. Gestes intégrés
-non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
+non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
 
 - **Où** : `src/hooks/useKeyboardNav.ts`, `src/components/ShortcutBar.tsx`,
   `src/components/ShortcutHelp.tsx`, Préférences → Général
@@ -1969,9 +1969,10 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   lignes lues ; `continuation` passe à `null`, sans quoi l'état vide dirait
   « d'autres pages ». Sous « Tous », les lignes restent, passées lues. Le
   retour en arrière recharge la liste (`restoreUnread` → `loadArticles`).
-- **Les marquages de plage gardent leur « Confirmer ? » en place** — ils sont
-  annulables — mais reçoivent le **même délai de grâce** : le double-clic les
-  traversait aussi.
+- **Les marquages de plage passent par la même boîte** (« au-dessus /
+  en dessous », `dialog.markAboveTitle`), avec le **même délai de grâce** : le
+  double-clic les traversait aussi. Leur ancien « Confirmer ? » posé dans le
+  menu a été retiré.
 - **Retour en arrière** (1.5.0) : les identifiants des articles **non lus** sont
   relevés AVANT l'appel (`getUnreadItemIds`, `stream/items/ids` avec `xt`), puis
   un bandeau propose « Annuler », qui les remet non lus par lots de
@@ -5027,14 +5028,16 @@ réglage clair/sombre du système.
 
 ⚠️ **L'en-tête doit garder sa croix de fermeture atteignable.** Le sélecteur de
 thème n'avait aucune contrainte de largeur : sur un écran étroit il poussait
-« Tout réinitialiser » à la ligne, puis la croix **hors du panneau** — plus
+« Tout réinitialiser » (aujourd'hui « Réinitialiser ») à la ligne, puis la
+croix **hors du panneau** — plus
 aucun moyen de sortir des préférences. Reproduit à 320 px de large (un iPhone
 avec le zoom d'affichage) : la croix tombait à 376 px. Le titre est
 `flex-shrink-0`, le sélecteur cède avant lui sans descendre sous 76 px, et le
 groupe de droite est `flex-shrink-0` pour ne jamais être poussé dehors.
 
 ⚠️ **Et ce minimum de 76 px ne suffisait pas.** À 320 px, l'en-tête a 280 px
-utiles : 141 pour « Tout réinitialiser » et la croix, 116 pour le titre et
+utiles : 141 pour « Tout réinitialiser » et la croix (mesures prises avec
+l'ancien libellé, plus long ; « Réinitialiser » n'a fait que gagner de la place), 116 pour le titre et
 l'espacement. Le sélecteur, même réduit, **chevauchait** le bouton — 54 px en
 français, 76 en allemand, mesuré avec `getBoundingClientRect()` sur le vrai
 balisage. Sur téléphone (`useBreakpoint() === 'mobile'`), le raccourci de thème
@@ -6068,8 +6071,24 @@ n'existe pas.
 ## Internationalisation
 
 **10 locales** : `fr` (repli), `en`, `de`, `es`, `it`, `nl`, `pl`, `pt`, `uk`,
-`zh`. 586 clés. i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
+`zh`. 901 clés (en français, 2026-10-29). i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
 `pl` et `uk`.
+
+**Règles de vocabulaire** (fixées en 1.8.0, passe fa728ed) — un mot par
+notion et par langue, aligné sur le terme majoritaire ; toute nouvelle chaîne
+les suit :
+- anglais **américain** (« Summarize », « Colors », « Uncategorized »),
+  « **Tags** » pour les étiquettes, « **Favorite** » pour l'étoile, « log in »,
+  « server bar » ;
+- espagnol, italien, portugais, ukrainien : **un seul mot pour « flux »** ;
+- chemins d'écran avec **`›`** (« FreshRSS › Settings › Profile ») ;
+- ne pas confondre **affichage** (densité, vue) et **disposition** (colonnes,
+  grille) ;
+- **typographie française** (2d9338d) : apostrophe `’`, espace fine insécable
+  (U+202F) avant `? ! ;`, insécable (U+00A0) avant `:` et dans « », « hors
+  ligne » sans trait d'union. Une règle typographique ne s'applique qu'au
+  français : une ponctuation partagée passe par `app.labelValue` /
+  `app.labelColon`, propres à chaque langue.
 
 Le chinois simplifié est arrivé par contribution externe (PR #12, zhhbinn,
 2026-09-07). Sa terminologie suit l'interface chinoise de FreshRSS.
@@ -6083,7 +6102,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 - **Règle** : toute chaîne visible va dans **les dix** fichiers. Vérifier la
   parité avec la commande du `CLAUDE.md` avant de livrer.
 - **`zh` n'a que `other` en CLDR**, mais `i18nCoverage.test.ts` exige la paire
-  `_one`/`_other` pour toute locale hors `pl`/`uk` : les neuf `_one` chinois
+  `_one`/`_other` pour toute locale hors `pl`/`uk` : les vingt `_one` chinois
   sont du poids mort **assumé**, pas un oubli à corriger.
 - **`<html lang>` suit la langue** : posé par `src/i18n.ts` à l'initialisation
   puis à chaque `languageChanged`. `index.html` fige `lang="fr"` — fichier
@@ -6158,7 +6177,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | POST | `/api/servers/:id/actualize` | Déclencher une relève réelle |
 | GET | `/api/servers/:id/actualize` | État de la relève en cours |
 | GET | `/api/preferences` | Lire les préférences synchronisées |
-| PUT | `/api/preferences` | Écrire l'ensemble des préférences |
+| PUT | `/api/preferences` | Écrire les clés envoyées (le client n'envoie que celles modifiées ; fusion côté serveur) |
 | GET | `/api/admin/users` | Lister les comptes |
 | POST | `/api/admin/users` | Créer un compte |
 | PUT | `/api/admin/users/:id` | Modifier un compte |
@@ -6231,7 +6250,7 @@ Chaque famille correspond à une zone de l'interface :
 
 `app` · `sidebar` · `addFeed` · `articleList` · `articleRow` · `swipe` ·
 `emptyState` · `readingPane` · `preferences` · `login` · `admin` · `servers` ·
-`dates` · `time` · `shortcutBar` · `viewMode` · `connection` · `update` ·
+`dates` · `time` · `viewMode` · `connection` · `update` ·
 `refresh` · `saved` · `backup` · `toast` · `palette` · `ai` · `dialog`
 
 ---
