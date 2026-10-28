@@ -1,6 +1,6 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../stores/authStore';
-import { isBackendAuthFailure } from '../lib/loginErrors';
+import { endsCurrentSession } from '../lib/loginErrors';
 import { TIMEOUT_DEFAULT_MS } from '../lib/requestTimeouts';
 
 // Borné au-dessus de l'échéance totale du proxy (`src/lib/requestTimeouts.ts`) :
@@ -48,12 +48,14 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 // `isBackendAuthFailure` (`src/lib/loginErrors.ts`) reconnaît les 401 de
 // `server/middleware/auth.ts` par leurs messages, et un test y relit le
 // middleware pour rougir si les deux listes divergent. Tout autre 401 est
-// rejeté normalement, sans toucher à la session.
+// rejeté normalement, sans toucher à la session. Et un 401 reçu pour un jeton
+// remplacé depuis ne ferme pas la session suivante (`endsCurrentSession`).
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (isBackendAuthFailure(error)) {
-      useAuthStore.getState().logout();
+    const auth = useAuthStore.getState();
+    if (endsCurrentSession(error, auth.backendToken)) {
+      auth.logout();
     }
     return Promise.reject(error);
   }

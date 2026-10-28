@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosHeaders } from 'axios';
 
 // L'intercepteur appelle `logoutBackend()` sur le store d'authentification ; on
 // ne veut ni sa persistance ni son vrai effet, seulement savoir s'il a été
 // appelé. Aucune requête n'est émise ici, seul le chemin d'erreur est exercé.
 const logoutBackend = vi.fn();
+let backendToken: string | null = null;
 vi.mock('../stores/authStore', () => ({
   useAuthStore: {
-    getState: () => ({ backendToken: null, logoutBackend }),
+    getState: () => ({ backendToken, logoutBackend }),
   },
 }));
 
@@ -70,6 +71,35 @@ describe('backend — l’intercepteur de réponse ne déconnecte que sur NOTRE 
 
   it('ne déconnecte pas sur une coupure réseau (pas de réponse)', async () => {
     await reject({ message: 'Network Error' });
+    expect(logoutBackend).not.toHaveBeenCalled();
+  });
+});
+
+// Une requête partie avec le jeton de A peut recevoir son 401 après qu'un
+// autre jeton a été posé (retour SSO pendant les réessais de `getMe`, jeton
+// renouvelé). Ce 401 parle de A : il ne ferme pas la session en place.
+describe('backend — un 401 ne ferme que la session à laquelle il répond', () => {
+  afterEach(() => { backendToken = null; });
+  const sentWith = (token: string | null, error: string) => ({
+    config: { headers: new AxiosHeaders(token ? { Authorization: `Bearer ${token}` } : {}) },
+    response: { status: 401, data: { error } },
+  });
+
+  it('déconnecte quand le 401 répond au jeton en place', async () => {
+    backendToken = 'A';
+    await reject(sentWith('A', 'Session expired'));
+    expect(logoutBackend).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignore le 401 d’une requête partie avec un jeton remplacé depuis', async () => {
+    backendToken = 'B';
+    await reject(sentWith('A', 'Session expired'));
+    expect(logoutBackend).not.toHaveBeenCalled();
+  });
+
+  it('ignore le 401 d’une requête partie sans jeton, une session ouverte depuis', async () => {
+    backendToken = 'B';
+    await reject(sentWith(null, 'Token required'));
     expect(logoutBackend).not.toHaveBeenCalled();
   });
 });

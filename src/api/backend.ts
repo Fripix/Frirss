@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import type { AiLanguage } from '../lib/aiLanguages';
-import { isBackendAuthFailure } from '../lib/loginErrors';
+import { endsCurrentSession } from '../lib/loginErrors';
 import { TIMEOUT_DEFAULT_MS, TIMEOUT_AI_MS, TIMEOUT_BACKUP_MS } from '../lib/requestTimeouts';
 import type {
   User,
@@ -37,12 +37,14 @@ backend.interceptors.request.use((config) => {
 // aussi 401, et éjectaient l'utilisateur pour une simple faute de frappe.
 // `isBackendAuthFailure` ne reconnaît que les messages de
 // `server/middleware/auth.ts` ; tout autre 401 est rejeté sans toucher à la
-// session.
+// session. Et seulement pour la session en place : un 401 reçu pour un jeton
+// remplacé depuis ne ferme pas la suivante (`endsCurrentSession`).
 backend.interceptors.response.use(
   (r) => r,
   (error) => {
-    if (isBackendAuthFailure(error)) {
-      useAuthStore.getState().logoutBackend();
+    const auth = useAuthStore.getState();
+    if (endsCurrentSession(error, auth.backendToken)) {
+      auth.logoutBackend();
     }
     return Promise.reject(error);
   }

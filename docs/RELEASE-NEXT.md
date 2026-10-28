@@ -132,7 +132,9 @@ la release publiée.
   suite ; après le dernier échec, l'écran de connexion dit que le serveur n'a
   pas répondu (clé existante `login.errorUnavailable`). Se déconnecter (ou se
   reconnecter autrement) pendant ces essais les arrête net, sans rouvrir ni
-  fermer de session.
+  fermer de session : la réponse tardive d'un essai, même refusée, ne ferme
+  plus la session ouverte entre-temps (plus généralement, un refus ne
+  déconnecte que s'il répond au jeton encore en place).
 
 - **Plus aucune requête n'attend indéfiniment.** Un serveur FreshRSS (ou une
   page) qui envoyait le début de sa réponse puis ne finissait jamais tenait

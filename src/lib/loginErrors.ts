@@ -66,6 +66,25 @@ export function isBackendAuthFailure(err: unknown): boolean {
   return BACKEND_AUTH_MARKERS.some((m) => body.includes(m));
 }
 
+/**
+ * Notre 401, ET pour la session en place : le jeton envoyé avec la requête
+ * est celui du store au moment de la réponse. Une requête partie avec le jeton
+ * de A peut répondre après qu'un autre a été posé (retour SSO pendant les
+ * réessais de `getMe`, jeton renouvelé) : ce 401 parle de A, pas de la
+ * session ouverte depuis, qu'il ne doit pas fermer.
+ */
+export function endsCurrentSession(err: unknown, currentToken: string | null): boolean {
+  return isBackendAuthFailure(err) && sentToken(err) === currentToken;
+}
+
+/** Le jeton porté par l'en-tête `Authorization` de la requête, ou `null`. */
+function sentToken(err: unknown): string | null {
+  const headers = (err as { config?: { headers?: unknown } })?.config?.headers as
+    { get?: (name: string) => unknown; Authorization?: unknown } | undefined;
+  const value = typeof headers?.get === 'function' ? headers.get('Authorization') : headers?.Authorization;
+  return typeof value === 'string' && value.startsWith('Bearer ') ? value.slice(7) : null;
+}
+
 /** Corps de réponse rendu en texte, que axios l'ait parsé ou non. */
 function bodyText(data: unknown): string {
   if (typeof data === 'string') return data;

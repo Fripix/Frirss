@@ -1,14 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AxiosError } from 'axios';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { AxiosError, AxiosHeaders } from 'axios';
 
 // L'intercepteur appelle `logout()` sur le store d'authentification ; on ne
 // veut ni sa persistance ni son vrai effet, seulement savoir s'il a été
 // appelé. Les champs lus par l'intercepteur de requête sont vides : aucune
 // requête n'est émise ici, seul le chemin d'erreur est exercé.
 const logout = vi.fn();
+let backendToken: string | null = null;
 vi.mock('../stores/authStore', () => ({
   useAuthStore: {
-    getState: () => ({ serverUrl: '', activeServerId: null, backendToken: null, logout }),
+    getState: () => ({ serverUrl: '', activeServerId: null, backendToken, logout }),
   },
 }));
 
@@ -86,6 +87,29 @@ describe('client — délai', () => {
 
   it('ne déconnecte pas sur un délai dépassé (ECONNABORTED)', async () => {
     await reject(new AxiosError(`timeout of ${TIMEOUT_DEFAULT_MS}ms exceeded`, AxiosError.ECONNABORTED));
+    expect(logout).not.toHaveBeenCalled();
+  });
+});
+
+// Même règle que `backend.ts` : un 401 reçu pour un jeton qui n'est plus celui
+// en place (requête partie avant un retour SSO ou un renouvellement) ne ferme
+// pas la session ouverte depuis.
+describe('client — un 401 ne ferme que la session à laquelle il répond', () => {
+  afterEach(() => { backendToken = null; });
+  const sentWith = (token: string, error: string) => ({
+    config: { headers: new AxiosHeaders({ Authorization: `Bearer ${token}` }) },
+    response: { status: 401, data: { error } },
+  });
+
+  it('déconnecte quand le 401 répond au jeton en place', async () => {
+    backendToken = 'A';
+    await reject(sentWith('A', 'Invalid token'));
+    expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignore le 401 d’une requête partie avec un jeton remplacé depuis', async () => {
+    backendToken = 'B';
+    await reject(sentWith('A', 'Invalid token'));
     expect(logout).not.toHaveBeenCalled();
   });
 });

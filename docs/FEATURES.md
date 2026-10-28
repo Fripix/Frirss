@@ -87,7 +87,11 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
   d'échec, le jeton du store doit être encore celui qu'on termine
   (`currentToken`) ; sinon (déconnexion ou autre connexion pendant les
   réessais) la boucle s'arrête sans rien toucher — elle ressuscitait la
-  session fermée, ou déconnectait celle d'un autre.
+  session fermée, ou déconnectait celle d'un autre. La garde ne suffisait pas
+  seule : le 401 d'un `getMe` parti avec l'ancien jeton passait d'abord par
+  l'intercepteur, qui fermait la session ouverte entre-temps. Depuis la 1.8.0,
+  les deux intercepteurs ne déconnectent que si le jeton envoyé est encore
+  celui du store (`endsCurrentSession`, `src/lib/loginErrors.ts`).
 - **Piège** (1.6.1, issue #23) : le callback lit les cookies de l'hôte avec un
   parseur maison (`server/cookies.ts`, `parseCookieHeader()`), et cet hôte
   porte aussi les cookies des **autres** services posés sur le même domaine
@@ -190,7 +194,11 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
     serveur ne passe donc pas du tout par l'intercepteur. Et depuis la 1.4.8,
     cet intercepteur ne déconnecte plus sur **tout** 401 : il n'agit que sur
     les nôtres (`isBackendAuthFailure`, même `BACKEND_AUTH_MARKERS`) — critère
-    repris par `src/api/backend.ts` depuis la 1.8.0. Un 401 de
+    repris par `src/api/backend.ts` depuis la 1.8.0, qui ajoute un troisième
+    verrou aux deux : le 401 doit répondre au jeton **encore en place**
+    (`endsCurrentSession` compare l'en-tête `Authorization` de la requête au
+    store) — une requête partie avant un retour SSO ou un renouvellement ne
+    ferme pas la session suivante. Un 401 de
     FreshRSS — session expirée là-bas, mot de passe d'API changé — traversait
     tout le reste de l'application (listes, favicons, extraction) et fermait la
     session FriRSS : une panne d'une couche déconnectait de l'autre. Un corps
