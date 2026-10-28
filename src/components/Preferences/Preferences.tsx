@@ -13,6 +13,7 @@ import LayoutTab from './LayoutTab';
 import AiTab from './AiTab';
 import { useAiStore, aiEnabled } from '../../stores/aiStore';
 import { COLOR_HIGHLIGHT_MAP } from './colorHighlight';
+import ConfirmDialog from '../ConfirmDialog';
 
 interface HighlightRect { top: number; left: number; width: number; height: number }
 
@@ -82,12 +83,11 @@ export default function Preferences() {
 
   const { t } = useTranslation();
 
-  function handleReset() {
-    if (!confirmReset) {
-      setConfirmReset(true);
-      setTimeout(() => setConfirmReset(false), 3000);
-      return;
-    }
+  // Par la boîte de confirmation : le bouton devenait « Confirmer ? » à la
+  // même place pendant 3 s, et un double-clic validait (le piège de l'issue
+  // #17). `resetToDefault` ne rétablit que le thème en cours — couleurs et
+  // tailles — tel qu'il a été chargé ou enregistré : rien d'autre.
+  function confirmResetTheme() {
     resetToDefault();
     setConfirmReset(false);
   }
@@ -234,16 +234,22 @@ export default function Preferences() {
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
-              onClick={handleReset}
+              onClick={() => setConfirmReset(true)}
               className="text-[10px] px-2 py-1 rounded-md transition-colors prefs-tap-btn"
-              style={{
-                color: confirmReset ? 'var(--on-danger)' : 'var(--danger)',
-                background: confirmReset ? 'var(--danger)' : 'transparent',
-              }}
-              title={t('preferences.resetAllTooltip')}
+              style={{ color: 'var(--danger)', background: 'transparent' }}
+              title={t('preferences.resetThemeTooltip')}
             >
-              {confirmReset ? t('preferences.confirm') : t('preferences.resetAll')}
+              {t('preferences.resetTheme')}
             </button>
+            <ConfirmDialog
+              open={confirmReset}
+              title={t('preferences.resetThemeTitle')}
+              message={t('preferences.resetThemeMessage', { name: theme.name })}
+              confirmLabel={t('preferences.resetThemeConfirm')}
+              danger
+              onConfirm={confirmResetTheme}
+              onCancel={() => setConfirmReset(false)}
+            />
             <button
               onClick={closePreferences}
               aria-label={t('app.close')}

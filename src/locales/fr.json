@@ -180,9 +180,6 @@
   },
   "preferences": {
     "title": "Préférences",
-    "resetAll": "Tout réinitialiser",
-    "confirm": "Confirmer ?",
-    "resetAllTooltip": "Réinitialiser toutes les préférences (couleurs, tailles, raccourcis…)",
     "general": {
       "title": "Général",
       "confirmMarkAllRead": "Confirmer avant de tout marquer comme lu",
@@ -231,7 +228,9 @@
     },
     "colors": {
       "resetColors": "Réinitialiser les couleurs",
-      "resetTooltip": "Réinitialiser cette couleur"
+      "resetTooltip": "Réinitialiser cette couleur",
+      "resetColorsTitle": "Réinitialiser les couleurs ?",
+      "resetColorsMessage": "Les couleurs reviennent à celles du thème tel qu’il a été enregistré. Les tailles ne changent pas."
     },
     "colorSections": {
       "sidebar": "Barre latérale",
@@ -282,7 +281,9 @@
       "ai-border": "Résumé IA, bordure"
     },
     "fonts": {
-      "resetFonts": "Réinitialiser les tailles"
+      "resetFonts": "Réinitialiser les tailles",
+      "resetFontsTitle": "Réinitialiser les tailles ?",
+      "resetFontsMessage": "Les tailles de texte reviennent à celles du thème enregistré, et la grille à ses réglages d’origine (240 px, remplissage, 16:9)."
     },
     "fontSections": {
       "sidebar": "Barre latérale",
@@ -321,7 +322,9 @@
       "noParent": "— Sans parent —",
       "choose": "Choisir…",
       "moveTooltip": "Déplacer vers un autre parent",
-      "showCounts": "Afficher le nombre d'articles"
+      "showCounts": "Afficher le nombre d'articles",
+      "resetColorsTitle": "Réinitialiser les couleurs des étiquettes ?",
+      "resetColorsMessage": "Toutes les étiquettes perdent leur couleur personnalisée."
     },
     "themes": {
       "presets": "Préréglages",
@@ -480,7 +483,12 @@
       "ratio": "Format d'image",
       "fill": "Remplir la ligne",
       "fillHint": "Les cartes s'élargissent pour occuper toute la ligne. Désactivé, elles gardent exactement la largeur choisie. Sur téléphone, la grille remplit toujours l'écran."
-    }
+    },
+    "resetTheme": "Réinitialiser",
+    "resetThemeTooltip": "Annuler les modifications de couleurs et de tailles faites depuis le dernier enregistrement du thème",
+    "resetThemeTitle": "Réinitialiser le thème ?",
+    "resetThemeMessage": "Les couleurs et les tailles reviennent à celles du thème « {{name}} » tel qu’il a été enregistré. Le reste de vos préférences ne change pas.",
+    "resetThemeConfirm": "Réinitialiser"
   },
   "login": {
     "welcome": "Bienvenue sur FriRSS",
@@ -590,7 +598,26 @@
     "redirectUriHint": "Ajoutez cette URL dans les « Redirect URIs » de votre fournisseur (Authentik, Authelia, Keycloak…).",
     "breakGlassUrl": "URL de secours (connexion locale)",
     "userCount_one": "{{count}} utilisateur",
-    "userCount_other": "{{count}} utilisateurs"
+    "userCount_other": "{{count}} utilisateurs",
+    "promoteUserName": "Donner les droits d’administrateur à {{name}}",
+    "demoteUserName": "Retirer les droits d’administrateur à {{name}}",
+    "deactivateUser": "Désactiver le compte de {{name}}",
+    "activateUser": "Réactiver le compte de {{name}}",
+    "deleteUserName": "Supprimer le compte de {{name}}",
+    "confirmPromoteTitle": "Donner les droits d’administrateur à {{name}} ?",
+    "confirmPromoteMessage": "{{name}} pourra gérer les comptes, les réglages de l’instance et les sauvegardes.",
+    "confirmPromote": "Promouvoir",
+    "confirmDemoteTitle": "Retirer les droits d’administrateur à {{name}} ?",
+    "confirmDemote": "Rétrograder",
+    "confirmActivateTitle": "Réactiver le compte de {{name}} ?",
+    "confirmActivate": "Réactiver",
+    "confirmDeactivateTitle": "Désactiver le compte de {{name}} ?",
+    "confirmDeactivateMessage": "{{name}} ne pourra plus se connecter tant que le compte reste désactivé.",
+    "confirmDeactivate": "Désactiver",
+    "confirmDeleteTitle": "Supprimer le compte de {{name}} ?",
+    "confirmDeleteWarning": "Le compte et les serveurs FreshRSS qui lui sont rattachés sont supprimés. Cette action ne peut pas être annulée.",
+    "confirmDelete": "Supprimer",
+    "errorLoad": "Impossible de charger les utilisateurs."
   },
   "servers": {
     "label": "Serveurs",

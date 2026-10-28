@@ -248,6 +248,20 @@ la release publiée.
   répondait pas, la liste affichait « Tout est lu ! » ou « Ce flux est
   vide ». Elle affiche désormais que le chargement a échoué, avec un bouton
   « Réessayer ».
+- **Toute action qui défait ou supprime se confirme dans une fenêtre**,
+  comme « Tout marquer comme lu » — un double-clic ne peut plus valider à
+  votre place. En Administration, donner ou retirer les droits
+  d'administrateur et désactiver un compte demandaient un seul clic sur une
+  pastille qui ressemblait à une étiquette ; supprimer un compte se validait
+  au second clic d'un double-clic. Les boutons « Réinitialiser » des
+  Préférences (thème, couleurs, tailles, couleurs des étiquettes) passent par
+  la même fenêtre, qui dit ce qui sera perdu.
+- **« Tout réinitialiser » devient « Réinitialiser »** : il promettait de tout
+  remettre à zéro (« couleurs, tailles, raccourcis… »), alors qu'il ne
+  rétablit que les couleurs et les tailles du thème en cours.
+- **Administration : un échec se dit.** Une liste d'utilisateurs qui n'a pas
+  pu se charger affichait « 0 utilisateur » ; une action refusée par le
+  serveur ne disait rien.
 - **Traduction : un clic sur « Réessayer avec… » dès son apparition n'est
   plus perdu.** Le volet lisait encore l'état « en cours » pendant un bref
   instant après l'affichage de l'erreur, et ignorait le clic.

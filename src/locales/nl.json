@@ -180,9 +180,6 @@
   },
   "preferences": {
     "title": "Voorkeuren",
-    "resetAll": "Alles herstellen",
-    "confirm": "Bevestigen?",
-    "resetAllTooltip": "Alle voorkeuren herstellen (kleuren, groottes, sneltoetsen…)",
     "general": {
       "title": "Algemeen",
       "confirmMarkAllRead": "Bevestigen voordat alles als gelezen wordt gemarkeerd",
@@ -231,7 +228,9 @@
     },
     "colors": {
       "resetColors": "Kleuren herstellen",
-      "resetTooltip": "Deze kleur herstellen"
+      "resetTooltip": "Deze kleur herstellen",
+      "resetColorsTitle": "Kleuren opnieuw instellen?",
+      "resetColorsMessage": "De kleuren keren terug naar die van het opgeslagen thema. De groottes blijven ongewijzigd."
     },
     "colorSections": {
       "sidebar": "Zijbalk",
@@ -282,7 +281,9 @@
       "ai-border": "AI-samenvatting, rand"
     },
     "fonts": {
-      "resetFonts": "Groottes herstellen"
+      "resetFonts": "Groottes herstellen",
+      "resetFontsTitle": "Groottes opnieuw instellen?",
+      "resetFontsMessage": "De tekstgroottes keren terug naar die van het opgeslagen thema en het raster naar zijn oorspronkelijke instellingen (240 px, vullen, 16:9)."
     },
     "fontSections": {
       "sidebar": "Zijbalk",
@@ -321,7 +322,9 @@
       "noParent": "— Geen bovenliggend —",
       "choose": "Kiezen…",
       "moveTooltip": "Naar een ander bovenliggend label verplaatsen",
-      "showCounts": "Aantal artikelen tonen"
+      "showCounts": "Aantal artikelen tonen",
+      "resetColorsTitle": "Labelkleuren opnieuw instellen?",
+      "resetColorsMessage": "Alle labels verliezen hun eigen kleur."
     },
     "themes": {
       "presets": "Voorinstellingen",
@@ -480,7 +483,12 @@
       "ratio": "Beeldverhouding",
       "fill": "Rij vullen",
       "fillHint": "Kaarten worden breder tot ze de hele rij vullen. Uitgeschakeld houden ze precies de gekozen breedte. Op een telefoon vult het raster altijd het scherm."
-    }
+    },
+    "resetTheme": "Opnieuw instellen",
+    "resetThemeTooltip": "Wijzigingen aan kleuren en groottes sinds het laatste opslaan van het thema ongedaan maken",
+    "resetThemeTitle": "Thema opnieuw instellen?",
+    "resetThemeMessage": "Kleuren en groottes keren terug naar het thema ‘{{name}}’ zoals het is opgeslagen. Uw overige voorkeuren blijven ongewijzigd.",
+    "resetThemeConfirm": "Opnieuw instellen"
   },
   "login": {
     "welcome": "Welkom bij FriRSS",
@@ -590,7 +598,26 @@
     "redirectUriHint": "Voeg deze URL toe aan de ‘Redirect URIs’ van je provider (Authentik, Authelia, Keycloak…).",
     "breakGlassUrl": "Nood-URL (lokaal inloggen)",
     "userCount_one": "{{count}} gebruiker",
-    "userCount_other": "{{count}} gebruikers"
+    "userCount_other": "{{count}} gebruikers",
+    "promoteUserName": "{{name}} beheerder maken",
+    "demoteUserName": "Beheerdersrechten van {{name}} intrekken",
+    "deactivateUser": "Account van {{name}} deactiveren",
+    "activateUser": "Account van {{name}} heractiveren",
+    "deleteUserName": "Account van {{name}} verwijderen",
+    "confirmPromoteTitle": "{{name}} beheerder maken?",
+    "confirmPromoteMessage": "{{name}} kan dan accounts, instellingen van de installatie en back-ups beheren.",
+    "confirmPromote": "Promoveren",
+    "confirmDemoteTitle": "Beheerdersrechten van {{name}} intrekken?",
+    "confirmDemote": "Degraderen",
+    "confirmActivateTitle": "Account van {{name}} heractiveren?",
+    "confirmActivate": "Heractiveren",
+    "confirmDeactivateTitle": "Account van {{name}} deactiveren?",
+    "confirmDeactivateMessage": "{{name}} kan niet meer inloggen zolang het account gedeactiveerd is.",
+    "confirmDeactivate": "Deactiveren",
+    "confirmDeleteTitle": "Account van {{name}} verwijderen?",
+    "confirmDeleteWarning": "Het account en de gekoppelde FreshRSS-servers worden verwijderd. Dit kan niet ongedaan worden gemaakt.",
+    "confirmDelete": "Verwijderen",
+    "errorLoad": "De gebruikers konden niet worden geladen."
   },
   "servers": {
     "label": "Servers",

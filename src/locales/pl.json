@@ -188,9 +188,6 @@
   },
   "preferences": {
     "title": "Preferencje",
-    "resetAll": "Zresetuj wszystko",
-    "confirm": "Potwierdzić?",
-    "resetAllTooltip": "Zresetuj wszystkie preferencje (kolory, rozmiary, skróty…)",
     "general": {
       "title": "Ogólne",
       "confirmMarkAllRead": "Potwierdź przed oznaczeniem wszystkiego jako przeczytane",
@@ -239,7 +236,9 @@
     },
     "colors": {
       "resetColors": "Zresetuj kolory",
-      "resetTooltip": "Zresetuj ten kolor"
+      "resetTooltip": "Zresetuj ten kolor",
+      "resetColorsTitle": "Zresetować kolory?",
+      "resetColorsMessage": "Kolory wracają do kolorów zapisanego motywu. Rozmiary się nie zmieniają."
     },
     "colorSections": {
       "sidebar": "Pasek boczny",
@@ -290,7 +289,9 @@
       "ai-border": "Podsumowanie AI, obramowanie"
     },
     "fonts": {
-      "resetFonts": "Zresetuj rozmiary"
+      "resetFonts": "Zresetuj rozmiary",
+      "resetFontsTitle": "Zresetować rozmiary?",
+      "resetFontsMessage": "Rozmiary tekstu wracają do zapisanego motywu, a siatka do ustawień początkowych (240 px, wypełnianie, 16:9)."
     },
     "fontSections": {
       "sidebar": "Pasek boczny",
@@ -329,7 +330,9 @@
       "noParent": "— Bez elementu nadrzędnego —",
       "choose": "Wybierz…",
       "moveTooltip": "Przenieś do innego elementu nadrzędnego",
-      "showCounts": "Pokaż liczbę artykułów"
+      "showCounts": "Pokaż liczbę artykułów",
+      "resetColorsTitle": "Zresetować kolory etykiet?",
+      "resetColorsMessage": "Wszystkie etykiety tracą swój własny kolor."
     },
     "themes": {
       "presets": "Gotowe motywy",
@@ -496,7 +499,12 @@
       "ratio": "Proporcje obrazu",
       "fill": "Wypełniaj wiersz",
       "fillHint": "Karty poszerzają się, aż wypełnią cały wiersz. Po wyłączeniu zachowują dokładnie wybraną szerokość. Na telefonie siatka zawsze wypełnia ekran."
-    }
+    },
+    "resetTheme": "Resetuj",
+    "resetThemeTooltip": "Cofnij zmiany kolorów i rozmiarów od ostatniego zapisania motywu",
+    "resetThemeTitle": "Zresetować motyw?",
+    "resetThemeMessage": "Kolory i rozmiary wracają do motywu „{{name}}” w zapisanej postaci. Pozostałe preferencje się nie zmieniają.",
+    "resetThemeConfirm": "Resetuj"
   },
   "login": {
     "welcome": "Witamy w FriRSS",
@@ -608,7 +616,26 @@
     "userCount_one": "{{count}} użytkownik",
     "userCount_few": "{{count}} użytkownicy",
     "userCount_many": "{{count}} użytkowników",
-    "userCount_other": "{{count}} użytkownika"
+    "userCount_other": "{{count}} użytkownika",
+    "promoteUserName": "Nadaj {{name}} uprawnienia administratora",
+    "demoteUserName": "Odbierz {{name}} uprawnienia administratora",
+    "deactivateUser": "Dezaktywuj konto {{name}}",
+    "activateUser": "Aktywuj ponownie konto {{name}}",
+    "deleteUserName": "Usuń konto {{name}}",
+    "confirmPromoteTitle": "Nadać {{name}} uprawnienia administratora?",
+    "confirmPromoteMessage": "{{name}} będzie mógł zarządzać kontami, ustawieniami instancji i kopiami zapasowymi.",
+    "confirmPromote": "Awansuj",
+    "confirmDemoteTitle": "Odebrać {{name}} uprawnienia administratora?",
+    "confirmDemote": "Zdegraduj",
+    "confirmActivateTitle": "Aktywować ponownie konto {{name}}?",
+    "confirmActivate": "Aktywuj ponownie",
+    "confirmDeactivateTitle": "Dezaktywować konto {{name}}?",
+    "confirmDeactivateMessage": "{{name}} nie będzie mógł się zalogować, dopóki konto pozostaje dezaktywowane.",
+    "confirmDeactivate": "Dezaktywuj",
+    "confirmDeleteTitle": "Usunąć konto {{name}}?",
+    "confirmDeleteWarning": "Konto i powiązane z nim serwery FreshRSS zostaną usunięte. Tej operacji nie można cofnąć.",
+    "confirmDelete": "Usuń",
+    "errorLoad": "Nie udało się wczytać użytkowników."
   },
   "servers": {
     "label": "Serwery",

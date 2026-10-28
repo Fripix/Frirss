@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup, screen } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent, act } from '@testing-library/react';
+import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
 
 const bp = vi.hoisted(() => {
   if (typeof window !== 'undefined' && !window.matchMedia) {
@@ -58,7 +59,24 @@ describe('Préférences — en-tête', () => {
     // Les thèmes restent tous accessibles dans la section Apparence.
     renderAt('mobile');
     expect(themeShortcut()).toBeNull();
-    expect(screen.getByText('preferences.resetAll')).toBeTruthy();
+    expect(screen.getByText('preferences.resetTheme')).toBeTruthy();
     expect(screen.getByLabelText('app.close')).toBeTruthy();
+  });
+
+  // « Tout réinitialiser » devenait « Confirmer ? » pendant 3 s à la même
+  // place : un double-clic validait. Et il promettait de tout remettre à zéro
+  // (« couleurs, tailles, raccourcis… ») alors qu'il ne rétablit que le thème.
+  it('réinitialiser le thème passe par une confirmation, qu’un double-clic ne valide pas', async () => {
+    renderAt('desktop');
+    const resetToDefault = vi.fn();
+    useThemeStore.setState({ resetToDefault });
+    const button = screen.getByText('preferences.resetTheme');
+    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button', { name: 'preferences.resetThemeConfirm' }));
+    expect(resetToDefault).not.toHaveBeenCalled();
+    expect(screen.getByText('preferences.resetThemeTitle')).toBeTruthy();
+    await act(async () => { await new Promise((r) => setTimeout(r, CONFIRM_GRACE_MS + 30)); });
+    fireEvent.click(screen.getByRole('button', { name: 'preferences.resetThemeConfirm' }));
+    expect(resetToDefault).toHaveBeenCalledTimes(1);
   });
 });

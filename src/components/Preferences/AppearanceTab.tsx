@@ -511,7 +511,12 @@ function ColorsSection({ shown, isFullScreen, setFocusedKey, pinnedKey, setPinne
           </div>
         </div>
       ))}
-      <TabResetButton label={t('preferences.colors.resetColors')} onReset={resetColors} />
+      <TabResetButton
+        label={t('preferences.colors.resetColors')}
+        title={t('preferences.colors.resetColorsTitle')}
+        message={t('preferences.colors.resetColorsMessage')}
+        onReset={resetColors}
+      />
     </div>
   );
 }
@@ -687,6 +692,8 @@ function SizesSection() {
       <GridCardsSection />
       <TabResetButton
         label={t('preferences.fonts.resetFonts')}
+        title={t('preferences.fonts.resetFontsTitle')}
+        message={t('preferences.fonts.resetFontsMessage')}
         onReset={() => {
           resetFontSizes();
           resetGridCards();

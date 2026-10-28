@@ -81,8 +81,11 @@ describe('couverture des réglages du panneau Préférences', () => {
     fs.readFileSync(path.join(DIR, 'settings-baseline.json'), 'utf8'),
   );
 
-  it('fige 232 réglages', () => {
-    expect(baseline).toHaveLength(232);
+  it('fige 231 réglages', () => {
+    // 232 jusqu'au 2026-10-28 : `preferences.confirm` (« Confirmer ? ») est
+    // parti avec le bouton qui se changeait en confirmation, remplacé par
+    // `ConfirmDialog` (décision du propriétaire). Retrait assumé dans FEATURES.md.
+    expect(baseline).toHaveLength(231);
   });
 
   it('référence encore chaque réglage du relevé', () => {

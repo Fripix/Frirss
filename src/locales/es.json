@@ -180,9 +180,6 @@
   },
   "preferences": {
     "title": "Preferencias",
-    "resetAll": "Restablecer todo",
-    "confirm": "¿Confirmar?",
-    "resetAllTooltip": "Restablecer todas las preferencias (colores, tamaños, atajos…)",
     "general": {
       "title": "General",
       "confirmMarkAllRead": "Confirmar antes de marcar todo como leído",
@@ -231,7 +228,9 @@
     },
     "colors": {
       "resetColors": "Restablecer los colores",
-      "resetTooltip": "Restablecer este color"
+      "resetTooltip": "Restablecer este color",
+      "resetColorsTitle": "¿Restablecer los colores?",
+      "resetColorsMessage": "Los colores vuelven a los del tema tal como se guardó. Los tamaños no cambian."
     },
     "colorSections": {
       "sidebar": "Barra lateral",
@@ -282,7 +281,9 @@
       "ai-border": "Resumen con IA, borde"
     },
     "fonts": {
-      "resetFonts": "Restablecer los tamaños"
+      "resetFonts": "Restablecer los tamaños",
+      "resetFontsTitle": "¿Restablecer los tamaños?",
+      "resetFontsMessage": "Los tamaños de texto vuelven a los del tema guardado y la cuadrícula a sus ajustes originales (240 px, rellenar, 16:9)."
     },
     "fontSections": {
       "sidebar": "Barra lateral",
@@ -321,7 +322,9 @@
       "noParent": "— Sin padre —",
       "choose": "Elegir…",
       "moveTooltip": "Mover a otro padre",
-      "showCounts": "Mostrar el número de artículos"
+      "showCounts": "Mostrar el número de artículos",
+      "resetColorsTitle": "¿Restablecer los colores de las etiquetas?",
+      "resetColorsMessage": "Todas las etiquetas pierden su color personalizado."
     },
     "themes": {
       "presets": "Preajustes",
@@ -480,7 +483,12 @@
       "ratio": "Formato de imagen",
       "fill": "Llenar la fila",
       "fillHint": "Las tarjetas se ensanchan hasta ocupar toda la fila. Desactivado, conservan exactamente el ancho elegido. En el móvil, la cuadrícula siempre ocupa toda la pantalla."
-    }
+    },
+    "resetTheme": "Restablecer",
+    "resetThemeTooltip": "Deshacer los cambios de colores y tamaños hechos desde que se guardó el tema",
+    "resetThemeTitle": "¿Restablecer el tema?",
+    "resetThemeMessage": "Los colores y tamaños vuelven a los del tema «{{name}}» tal como se guardó. El resto de tus preferencias no cambia.",
+    "resetThemeConfirm": "Restablecer"
   },
   "login": {
     "welcome": "Bienvenido a FriRSS",
@@ -590,7 +598,26 @@
     "redirectUriHint": "Añada esta URL a los «Redirect URIs» de su proveedor (Authentik, Authelia, Keycloak…).",
     "breakGlassUrl": "URL de emergencia (acceso local)",
     "userCount_one": "{{count}} usuario",
-    "userCount_other": "{{count}} usuarios"
+    "userCount_other": "{{count}} usuarios",
+    "promoteUserName": "Dar a {{name}} derechos de administrador",
+    "demoteUserName": "Quitar a {{name}} los derechos de administrador",
+    "deactivateUser": "Desactivar la cuenta de {{name}}",
+    "activateUser": "Reactivar la cuenta de {{name}}",
+    "deleteUserName": "Eliminar la cuenta de {{name}}",
+    "confirmPromoteTitle": "¿Dar a {{name}} derechos de administrador?",
+    "confirmPromoteMessage": "{{name}} podrá gestionar las cuentas, los ajustes de la instancia y las copias de seguridad.",
+    "confirmPromote": "Promover",
+    "confirmDemoteTitle": "¿Quitar a {{name}} los derechos de administrador?",
+    "confirmDemote": "Degradar",
+    "confirmActivateTitle": "¿Reactivar la cuenta de {{name}}?",
+    "confirmActivate": "Reactivar",
+    "confirmDeactivateTitle": "¿Desactivar la cuenta de {{name}}?",
+    "confirmDeactivateMessage": "{{name}} no podrá iniciar sesión mientras la cuenta siga desactivada.",
+    "confirmDeactivate": "Desactivar",
+    "confirmDeleteTitle": "¿Eliminar la cuenta de {{name}}?",
+    "confirmDeleteWarning": "Se eliminan la cuenta y los servidores FreshRSS vinculados. Esta acción no se puede deshacer.",
+    "confirmDelete": "Eliminar",
+    "errorLoad": "No se pudieron cargar los usuarios."
   },
   "servers": {
     "label": "Servidores",

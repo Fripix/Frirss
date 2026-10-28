@@ -180,9 +180,6 @@
   },
   "preferences": {
     "title": "Einstellungen",
-    "resetAll": "Alles zurücksetzen",
-    "confirm": "Bestätigen?",
-    "resetAllTooltip": "Alle Einstellungen zurücksetzen (Farben, Größen, Tastenkürzel…)",
     "general": {
       "title": "Allgemein",
       "confirmMarkAllRead": "Vor „Alles als gelesen markieren“ bestätigen",
@@ -231,7 +228,9 @@
     },
     "colors": {
       "resetColors": "Farben zurücksetzen",
-      "resetTooltip": "Diese Farbe zurücksetzen"
+      "resetTooltip": "Diese Farbe zurücksetzen",
+      "resetColorsTitle": "Farben zurücksetzen?",
+      "resetColorsMessage": "Die Farben kehren zu denen des gespeicherten Themes zurück. Die Größen bleiben unverändert."
     },
     "colorSections": {
       "sidebar": "Seitenleiste",
@@ -282,7 +281,9 @@
       "ai-border": "KI-Zusammenfassung, Rahmen"
     },
     "fonts": {
-      "resetFonts": "Größen zurücksetzen"
+      "resetFonts": "Größen zurücksetzen",
+      "resetFontsTitle": "Größen zurücksetzen?",
+      "resetFontsMessage": "Die Textgrößen kehren zu denen des gespeicherten Themes zurück, das Raster zu seinen ursprünglichen Einstellungen (240 px, Füllen, 16:9)."
     },
     "fontSections": {
       "sidebar": "Seitenleiste",
@@ -321,7 +322,9 @@
       "noParent": "— Ohne übergeordnetes —",
       "choose": "Wählen…",
       "moveTooltip": "Zu einem anderen übergeordneten Label verschieben",
-      "showCounts": "Artikelanzahl anzeigen"
+      "showCounts": "Artikelanzahl anzeigen",
+      "resetColorsTitle": "Label-Farben zurücksetzen?",
+      "resetColorsMessage": "Alle Labels verlieren ihre eigene Farbe."
     },
     "themes": {
       "presets": "Voreinstellungen",
@@ -480,7 +483,12 @@
       "ratio": "Bildformat",
       "fill": "Zeile ausfüllen",
       "fillHint": "Die Karten werden breiter, bis sie die ganze Zeile füllen. Ausgeschaltet behalten sie genau die gewählte Breite. Auf dem Smartphone füllt das Raster immer den Bildschirm."
-    }
+    },
+    "resetTheme": "Zurücksetzen",
+    "resetThemeTooltip": "Farb- und Größenänderungen seit dem letzten Speichern des Themes verwerfen",
+    "resetThemeTitle": "Theme zurücksetzen?",
+    "resetThemeMessage": "Farben und Größen kehren zum Theme „{{name}}“ zurück, wie es gespeichert wurde. Ihre übrigen Einstellungen bleiben unverändert.",
+    "resetThemeConfirm": "Zurücksetzen"
   },
   "login": {
     "welcome": "Willkommen bei FriRSS",
@@ -590,7 +598,26 @@
     "redirectUriHint": "Fügen Sie diese URL zu den „Redirect URIs“ Ihres Providers hinzu (Authentik, Authelia, Keycloak…).",
     "breakGlassUrl": "Notfall-URL (lokale Anmeldung)",
     "userCount_one": "{{count}} Benutzer",
-    "userCount_other": "{{count}} Benutzer"
+    "userCount_other": "{{count}} Benutzer",
+    "promoteUserName": "{{name}} zum Administrator machen",
+    "demoteUserName": "{{name}} die Administratorrechte entziehen",
+    "deactivateUser": "Konto von {{name}} deaktivieren",
+    "activateUser": "Konto von {{name}} reaktivieren",
+    "deleteUserName": "Konto von {{name}} löschen",
+    "confirmPromoteTitle": "{{name}} zum Administrator machen?",
+    "confirmPromoteMessage": "{{name}} kann dann Konten, Instanzeinstellungen und Sicherungen verwalten.",
+    "confirmPromote": "Befördern",
+    "confirmDemoteTitle": "{{name}} die Administratorrechte entziehen?",
+    "confirmDemote": "Zurückstufen",
+    "confirmActivateTitle": "Konto von {{name}} reaktivieren?",
+    "confirmActivate": "Reaktivieren",
+    "confirmDeactivateTitle": "Konto von {{name}} deaktivieren?",
+    "confirmDeactivateMessage": "{{name}} kann sich nicht mehr anmelden, solange das Konto deaktiviert ist.",
+    "confirmDeactivate": "Deaktivieren",
+    "confirmDeleteTitle": "Konto von {{name}} löschen?",
+    "confirmDeleteWarning": "Das Konto und die damit verbundenen FreshRSS-Server werden gelöscht. Das kann nicht rückgängig gemacht werden.",
+    "confirmDelete": "Löschen",
+    "errorLoad": "Die Benutzer konnten nicht geladen werden."
   },
   "servers": {
     "label": "Server",

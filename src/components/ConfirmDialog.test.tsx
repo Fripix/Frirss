@@ -32,6 +32,16 @@ function attendre(ms: number) {
 }
 
 describe('ConfirmDialog', () => {
+  // Les suppressions passent toutes par cette boîte : leur bouton se distingue
+  // d'une validation ordinaire (« Marquer lu ») par la couleur de danger.
+  it('marque le bouton d’une action destructive', () => {
+    ouvrir({ confirmLabel: 'Supprimer', danger: true });
+    expect(screen.getByRole('button', { name: 'Supprimer' }).className).toContain('confirm-dialog__confirm--danger');
+    cleanup();
+    ouvrir();
+    expect(screen.getByRole('button', { name: 'Marquer lu' }).className).not.toContain('--danger');
+  });
+
   it('annonce le titre et le périmètre', () => {
     ouvrir();
     expect(screen.getByText('Marquer 712 articles comme lus ?')).toBeTruthy();

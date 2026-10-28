@@ -180,9 +180,6 @@
   },
   "preferences": {
     "title": "Preferências",
-    "resetAll": "Repor tudo",
-    "confirm": "Confirmar?",
-    "resetAllTooltip": "Repor todas as preferências (cores, tamanhos, atalhos…)",
     "general": {
       "title": "Geral",
       "confirmMarkAllRead": "Confirmar antes de marcar tudo como lido",
@@ -231,7 +228,9 @@
     },
     "colors": {
       "resetColors": "Repor as cores",
-      "resetTooltip": "Repor esta cor"
+      "resetTooltip": "Repor esta cor",
+      "resetColorsTitle": "Repor as cores?",
+      "resetColorsMessage": "As cores voltam às do tema tal como foi guardado. Os tamanhos não mudam."
     },
     "colorSections": {
       "sidebar": "Barra lateral",
@@ -282,7 +281,9 @@
       "ai-border": "Resumo IA, contorno"
     },
     "fonts": {
-      "resetFonts": "Repor os tamanhos"
+      "resetFonts": "Repor os tamanhos",
+      "resetFontsTitle": "Repor os tamanhos?",
+      "resetFontsMessage": "Os tamanhos de texto voltam aos do tema guardado e a grelha às definições originais (240 px, preencher, 16:9)."
     },
     "fontSections": {
       "sidebar": "Barra lateral",
@@ -321,7 +322,9 @@
       "noParent": "— Sem elemento pai —",
       "choose": "Escolher…",
       "moveTooltip": "Mover para outro elemento pai",
-      "showCounts": "Mostrar o número de artigos"
+      "showCounts": "Mostrar o número de artigos",
+      "resetColorsTitle": "Repor as cores das etiquetas?",
+      "resetColorsMessage": "Todas as etiquetas perdem a sua cor personalizada."
     },
     "themes": {
       "presets": "Predefinições",
@@ -480,7 +483,12 @@
       "ratio": "Formato da imagem",
       "fill": "Preencher a linha",
       "fillHint": "Os cartões alargam-se até ocupar toda a linha. Desativado, mantêm exatamente a largura escolhida. No telemóvel, a grelha ocupa sempre o ecrã."
-    }
+    },
+    "resetTheme": "Repor",
+    "resetThemeTooltip": "Anular as alterações de cores e tamanhos feitas desde que o tema foi guardado",
+    "resetThemeTitle": "Repor o tema?",
+    "resetThemeMessage": "As cores e os tamanhos voltam aos do tema «{{name}}» tal como foi guardado. As restantes preferências não mudam.",
+    "resetThemeConfirm": "Repor"
   },
   "login": {
     "welcome": "Bem-vindo ao FriRSS",
@@ -590,7 +598,26 @@
     "redirectUriHint": "Adicione este URL aos «Redirect URIs» do seu fornecedor (Authentik, Authelia, Keycloak…).",
     "breakGlassUrl": "URL de emergência (início de sessão local)",
     "userCount_one": "{{count}} utilizador",
-    "userCount_other": "{{count}} utilizadores"
+    "userCount_other": "{{count}} utilizadores",
+    "promoteUserName": "Tornar {{name}} administrador",
+    "demoteUserName": "Retirar a {{name}} os direitos de administrador",
+    "deactivateUser": "Desativar a conta de {{name}}",
+    "activateUser": "Reativar a conta de {{name}}",
+    "deleteUserName": "Eliminar a conta de {{name}}",
+    "confirmPromoteTitle": "Tornar {{name}} administrador?",
+    "confirmPromoteMessage": "{{name}} poderá gerir as contas, as definições da instância e as cópias de segurança.",
+    "confirmPromote": "Promover",
+    "confirmDemoteTitle": "Retirar a {{name}} os direitos de administrador?",
+    "confirmDemote": "Despromover",
+    "confirmActivateTitle": "Reativar a conta de {{name}}?",
+    "confirmActivate": "Reativar",
+    "confirmDeactivateTitle": "Desativar a conta de {{name}}?",
+    "confirmDeactivateMessage": "{{name}} deixa de poder iniciar sessão enquanto a conta estiver desativada.",
+    "confirmDeactivate": "Desativar",
+    "confirmDeleteTitle": "Eliminar a conta de {{name}}?",
+    "confirmDeleteWarning": "A conta e os servidores FreshRSS associados são eliminados. Esta ação não pode ser anulada.",
+    "confirmDelete": "Eliminar",
+    "errorLoad": "Não foi possível carregar os utilizadores."
   },
   "servers": {
     "label": "Servidores",

@@ -188,9 +188,6 @@
   },
   "preferences": {
     "title": "Налаштування",
-    "resetAll": "Скинути все",
-    "confirm": "Підтвердити?",
-    "resetAllTooltip": "Скинути всі налаштування (кольори, розміри, скорочення…)",
     "general": {
       "title": "Загальне",
       "confirmMarkAllRead": "Підтверджувати перед позначенням усього як прочитане",
@@ -239,7 +236,9 @@
     },
     "colors": {
       "resetColors": "Скинути кольори",
-      "resetTooltip": "Скинути цей колір"
+      "resetTooltip": "Скинути цей колір",
+      "resetColorsTitle": "Скинути кольори?",
+      "resetColorsMessage": "Кольори повертаються до кольорів збереженої теми. Розміри не змінюються."
     },
     "colorSections": {
       "sidebar": "Бічна панель",
@@ -290,7 +289,9 @@
       "ai-border": "Підсумок від ШІ, рамка"
     },
     "fonts": {
-      "resetFonts": "Скинути розміри"
+      "resetFonts": "Скинути розміри",
+      "resetFontsTitle": "Скинути розміри?",
+      "resetFontsMessage": "Розміри тексту повертаються до збереженої теми, а сітка — до початкових налаштувань (240 px, заповнення, 16:9)."
     },
     "fontSections": {
       "sidebar": "Бічна панель",
@@ -329,7 +330,9 @@
       "noParent": "— Без батьківської —",
       "choose": "Вибрати…",
       "moveTooltip": "Перемістити до іншої батьківської мітки",
-      "showCounts": "Показувати кількість статей"
+      "showCounts": "Показувати кількість статей",
+      "resetColorsTitle": "Скинути кольори міток?",
+      "resetColorsMessage": "Усі мітки втрачають власний колір."
     },
     "themes": {
       "presets": "Готові теми",
@@ -496,7 +499,12 @@
       "ratio": "Пропорції зображення",
       "fill": "Заповнювати рядок",
       "fillHint": "Картки розширюються, щоб заповнити весь рядок. Якщо вимкнено, вони зберігають саме вибрану ширину. На телефоні сітка завжди заповнює екран."
-    }
+    },
+    "resetTheme": "Скинути",
+    "resetThemeTooltip": "Скасувати зміни кольорів і розмірів після останнього збереження теми",
+    "resetThemeTitle": "Скинути тему?",
+    "resetThemeMessage": "Кольори й розміри повертаються до теми «{{name}}» у збереженому вигляді. Решта налаштувань не змінюється.",
+    "resetThemeConfirm": "Скинути"
   },
   "login": {
     "welcome": "Ласкаво просимо до FriRSS",
@@ -608,7 +616,26 @@
     "userCount_one": "{{count}} користувач",
     "userCount_few": "{{count}} користувачі",
     "userCount_many": "{{count}} користувачів",
-    "userCount_other": "{{count}} користувача"
+    "userCount_other": "{{count}} користувача",
+    "promoteUserName": "Надати {{name}} права адміністратора",
+    "demoteUserName": "Забрати в {{name}} права адміністратора",
+    "deactivateUser": "Деактивувати обліковий запис {{name}}",
+    "activateUser": "Знову активувати обліковий запис {{name}}",
+    "deleteUserName": "Видалити обліковий запис {{name}}",
+    "confirmPromoteTitle": "Надати {{name}} права адміністратора?",
+    "confirmPromoteMessage": "{{name}} зможе керувати обліковими записами, налаштуваннями примірника та резервними копіями.",
+    "confirmPromote": "Підвищити",
+    "confirmDemoteTitle": "Забрати в {{name}} права адміністратора?",
+    "confirmDemote": "Понизити",
+    "confirmActivateTitle": "Знову активувати обліковий запис {{name}}?",
+    "confirmActivate": "Активувати",
+    "confirmDeactivateTitle": "Деактивувати обліковий запис {{name}}?",
+    "confirmDeactivateMessage": "{{name}} не зможе увійти, доки обліковий запис деактивовано.",
+    "confirmDeactivate": "Деактивувати",
+    "confirmDeleteTitle": "Видалити обліковий запис {{name}}?",
+    "confirmDeleteWarning": "Обліковий запис і пов’язані з ним сервери FreshRSS буде видалено. Цю дію не можна скасувати.",
+    "confirmDelete": "Видалити",
+    "errorLoad": "Не вдалося завантажити користувачів."
   },
   "servers": {
     "label": "Сервери",

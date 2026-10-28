@@ -20,6 +20,8 @@ interface Props {
   confirmLabel: string;
   /** Prévient que l'action ne pourra pas être défaite. */
   warning?: string;
+  /** Action destructive (supprimer, retirer un droit) : le bouton prend la couleur de danger. */
+  danger?: boolean;
   /** Peut rendre une promesse : la boîte montre alors que ça travaille jusqu'à ce qu'elle se règle. */
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
@@ -36,7 +38,7 @@ interface Props {
  * Le focus part sur ANNULER : dans une question dont une réponse est
  * irréversible, la touche Entrée réflexe doit tomber du côté qui ne casse rien.
  */
-export default function ConfirmDialog({ open, title, message, confirmLabel, warning, onConfirm, onCancel }: Props) {
+export default function ConfirmDialog({ open, title, message, confirmLabel, warning, danger, onConfirm, onCancel }: Props) {
   const { t } = useTranslation();
   const titleId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -95,7 +97,7 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
           </button>
           <button
             type="button"
-            className="confirm-dialog__confirm"
+            className={danger ? 'confirm-dialog__confirm confirm-dialog__confirm--danger' : 'confirm-dialog__confirm'}
             onClick={handleConfirm}
             disabled={busy}
             aria-busy={busy}

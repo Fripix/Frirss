@@ -1826,6 +1826,14 @@ Confirmation optionnelle avant de vider une vue entière, **par une boîte de
 dialogue**, et **retour en arrière** une fois l'action faite.
 
 - **Où** : `src/lib/markAllRead.ts`, `src/components/ConfirmDialog.tsx`
+- **La même boîte pour toute action qui défait ou supprime** (1.8.0,
+  décision du propriétaire) : réinitialiser le thème, les couleurs, les
+  tailles, les couleurs d'étiquettes (`TabResetButton`), les actions sur un
+  compte (Administration), les suppressions. Les anciens mécanismes — bouton
+  qui devient « Confirmer ? » pendant 3 s, croix qui devient « ? » pendant
+  5 s — validaient sur le second clic d'un double-clic, le piège de l'issue
+  #17. `danger` colore le bouton de validation en `--danger` /
+  `--on-danger` pour une action destructive.
 - **Le réglage est ACTIF par défaut** depuis la 1.5.0 (il ne l'était pas depuis
   le 2026-09-25) : une action irréversible ne s'arme pas toute seule sur une
   installation neuve.
@@ -4865,8 +4873,14 @@ pour les administrateurs.
 - **Où** : `src/components/Preferences/`
 - **Spec** : `docs/superpowers/specs/2026-08-21-preferences-rework-design.md`
 - **Garde-fou** : `src/components/Preferences/settingsCoverage.test.ts` fige un
-  relevé de **232 réglages** et échoue si l'un cesse d'être référencé. Ne jamais
-  modifier le relevé pour faire passer le test. Son parcours est **récursif**
+  relevé de **231 réglages** et échoue si l'un cesse d'être référencé. Ne jamais
+  modifier le relevé pour faire passer le test. Deux changements assumés le
+  2026-10-28 (1.8.0) : `preferences.resetAll` / `resetAllTooltip` deviennent
+  `resetTheme` / `resetThemeTooltip` (le bouton promettait de « tout »
+  réinitialiser, il ne rétablit que le thème en cours), et
+  `preferences.confirm` (« Confirmer ? ») sort du relevé avec le mécanisme du
+  bouton qui se changeait en confirmation, remplacé partout par
+  `ConfirmDialog` sur décision du propriétaire. Son parcours est **récursif**
   depuis le 2026-08-26 : à plat, il déclarait disparu tout réglage déplacé dans
   un sous-dossier du panneau.
 - **Montage des sections** : une section n'est montée qu'à sa **première
@@ -4934,6 +4948,18 @@ d'authentification, configuration OIDC, URL break-glass, ouverture des
 inscriptions, animation de connexion.
 
 - **Où** : `server/routes/admin.ts`, `src/components/Preferences/AdminTab.tsx`
+- **Chaque action sur un compte se confirme** (1.8.0, décision du
+  propriétaire) : donner ou retirer les droits d'administrateur, désactiver ou
+  réactiver, supprimer passent par `ConfirmDialog` (bouton rouge pour retirer,
+  désactiver, supprimer), qui nomme le compte. Avant, les pastilles « Admin »
+  et « Actif » — d'apparence de simples étiquettes — agissaient au premier
+  clic, et la croix devenait « ? » pendant 5 s : le second clic d'un
+  double-clic supprimait le compte. Les pastilles portent un nom accessible
+  qui dit l'action (`admin.demoteUserName`, `admin.deactivateUser`…).
+- **Un échec se dit** : un chargement en échec affiche `admin.errorLoad` (il
+  montrait « 0 utilisateur » comme une liste vide), une action refusée un
+  toast `admin.errorUpdate` — le compte n'est pas changé à l'écran. Test :
+  `AdminTab.confirm.test.tsx`.
 
 ---
 

@@ -180,9 +180,6 @@
   },
   "preferences": {
     "title": "Preferenze",
-    "resetAll": "Reimposta tutto",
-    "confirm": "Confermare?",
-    "resetAllTooltip": "Reimposta tutte le preferenze (colori, dimensioni, scorciatoie…)",
     "general": {
       "title": "Generale",
       "confirmMarkAllRead": "Conferma prima di segnare tutto come letto",
@@ -231,7 +228,9 @@
     },
     "colors": {
       "resetColors": "Reimposta i colori",
-      "resetTooltip": "Reimposta questo colore"
+      "resetTooltip": "Reimposta questo colore",
+      "resetColorsTitle": "Reimpostare i colori?",
+      "resetColorsMessage": "I colori tornano a quelli del tema come è stato salvato. Le dimensioni non cambiano."
     },
     "colorSections": {
       "sidebar": "Barra laterale",
@@ -282,7 +281,9 @@
       "ai-border": "Riassunto IA, bordo"
     },
     "fonts": {
-      "resetFonts": "Reimposta le dimensioni"
+      "resetFonts": "Reimposta le dimensioni",
+      "resetFontsTitle": "Reimpostare le dimensioni?",
+      "resetFontsMessage": "Le dimensioni del testo tornano a quelle del tema salvato e la griglia alle impostazioni originali (240 px, riempimento, 16:9)."
     },
     "fontSections": {
       "sidebar": "Barra laterale",
@@ -321,7 +322,9 @@
       "noParent": "— Senza genitore —",
       "choose": "Scegli…",
       "moveTooltip": "Sposta in un altro genitore",
-      "showCounts": "Mostra il numero di articoli"
+      "showCounts": "Mostra il numero di articoli",
+      "resetColorsTitle": "Reimpostare i colori delle etichette?",
+      "resetColorsMessage": "Tutte le etichette perdono il loro colore personalizzato."
     },
     "themes": {
       "presets": "Preimpostazioni",
@@ -480,7 +483,12 @@
       "ratio": "Formato immagine",
       "fill": "Riempi la riga",
       "fillHint": "Le schede si allargano fino a occupare tutta la riga. Se disattivato, mantengono esattamente la larghezza scelta. Sul telefono la griglia riempie sempre lo schermo."
-    }
+    },
+    "resetTheme": "Reimposta",
+    "resetThemeTooltip": "Annulla le modifiche a colori e dimensioni fatte dall’ultimo salvataggio del tema",
+    "resetThemeTitle": "Reimpostare il tema?",
+    "resetThemeMessage": "Colori e dimensioni tornano a quelli del tema «{{name}}» come è stato salvato. Le altre preferenze non cambiano.",
+    "resetThemeConfirm": "Reimposta"
   },
   "login": {
     "welcome": "Benvenuto su FriRSS",
@@ -590,7 +598,26 @@
     "redirectUriHint": "Aggiungi questo URL ai «Redirect URIs» del tuo provider (Authentik, Authelia, Keycloak…).",
     "breakGlassUrl": "URL di emergenza (accesso locale)",
     "userCount_one": "{{count}} utente",
-    "userCount_other": "{{count}} utenti"
+    "userCount_other": "{{count}} utenti",
+    "promoteUserName": "Rendi {{name}} amministratore",
+    "demoteUserName": "Togli a {{name}} i diritti di amministratore",
+    "deactivateUser": "Disattiva l’account di {{name}}",
+    "activateUser": "Riattiva l’account di {{name}}",
+    "deleteUserName": "Elimina l’account di {{name}}",
+    "confirmPromoteTitle": "Rendere {{name}} amministratore?",
+    "confirmPromoteMessage": "{{name}} potrà gestire gli account, le impostazioni dell’istanza e i backup.",
+    "confirmPromote": "Promuovi",
+    "confirmDemoteTitle": "Togliere a {{name}} i diritti di amministratore?",
+    "confirmDemote": "Retrocedi",
+    "confirmActivateTitle": "Riattivare l’account di {{name}}?",
+    "confirmActivate": "Riattiva",
+    "confirmDeactivateTitle": "Disattivare l’account di {{name}}?",
+    "confirmDeactivateMessage": "{{name}} non potrà più accedere finché l’account resta disattivato.",
+    "confirmDeactivate": "Disattiva",
+    "confirmDeleteTitle": "Eliminare l’account di {{name}}?",
+    "confirmDeleteWarning": "L’account e i server FreshRSS collegati vengono eliminati. L’azione non può essere annullata.",
+    "confirmDelete": "Elimina",
+    "errorLoad": "Impossibile caricare gli utenti."
   },
   "servers": {
     "label": "Server",

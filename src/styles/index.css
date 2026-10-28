@@ -1883,6 +1883,10 @@ summary:focus-visible,
   background: var(--accent);
   color: var(--on-accent);
 }
+.confirm-dialog__confirm--danger {
+  background: var(--danger);
+  color: var(--on-danger);
+}
 .confirm-dialog__actions button:disabled {
   /* Pendant le travail : l'action est partie, plus rien n'est à décider ici.
      L'opacité reste haute — ces boutons ne sont pas « indisponibles », ils

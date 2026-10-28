@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, act } from '@testing-library/react';
+import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
 import AppearanceTab from './AppearanceTab';
 import { useUiStore } from '../../stores/uiStore';
 
@@ -67,12 +68,14 @@ describe('Préférences › Apparence › Tailles — section Grille (#26)', () 
     expect(getByText('1:1').getAttribute('aria-checked')).toBe('true');
   });
 
-  it('« Réinitialiser les tailles » remet aussi la grille d’origine', () => {
+  it('« Réinitialiser les tailles » remet aussi la grille d’origine', async () => {
     useUiStore.setState({ gridCardWidth: 400, gridImageRatio: '4:3', gridCardFill: false });
     const { getByText } = openSizes();
     const reset = getByText('preferences.fonts.resetFonts');
     fireEvent.click(reset);
-    fireEvent.click(getByText('preferences.confirm'));
+    // La boîte de confirmation refuse un clic dans sa garde anti-double-clic.
+    await act(async () => { await new Promise((r) => setTimeout(r, CONFIRM_GRACE_MS + 30)); });
+    fireEvent.click(getByText('preferences.resetThemeConfirm'));
     expect(useUiStore.getState().gridCardWidth).toBe(240);
     expect(useUiStore.getState().gridImageRatio).toBe('16:9');
     expect(useUiStore.getState().gridCardFill).toBe(true);

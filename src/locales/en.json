@@ -180,9 +180,6 @@
   },
   "preferences": {
     "title": "Preferences",
-    "resetAll": "Reset all",
-    "confirm": "Confirm?",
-    "resetAllTooltip": "Reset all preferences (colors, sizes, shortcuts…)",
     "general": {
       "title": "General",
       "confirmMarkAllRead": "Confirm before marking all as read",
@@ -231,7 +228,9 @@
     },
     "colors": {
       "resetColors": "Reset colors",
-      "resetTooltip": "Reset this color"
+      "resetTooltip": "Reset this color",
+      "resetColorsTitle": "Reset the colors?",
+      "resetColorsMessage": "Colors go back to those of the theme as it was saved. Sizes don’t change."
     },
     "colorSections": {
       "sidebar": "Sidebar",
@@ -282,7 +281,9 @@
       "ai-border": "AI summary border"
     },
     "fonts": {
-      "resetFonts": "Reset sizes"
+      "resetFonts": "Reset sizes",
+      "resetFontsTitle": "Reset the sizes?",
+      "resetFontsMessage": "Text sizes go back to those of the saved theme, and the grid to its original settings (240 px, fill, 16:9)."
     },
     "fontSections": {
       "sidebar": "Sidebar",
@@ -321,7 +322,9 @@
       "noParent": "— No parent —",
       "choose": "Choose…",
       "moveTooltip": "Move to another parent",
-      "showCounts": "Show article count"
+      "showCounts": "Show article count",
+      "resetColorsTitle": "Reset the tag colors?",
+      "resetColorsMessage": "Every tag loses its custom color."
     },
     "themes": {
       "presets": "Presets",
@@ -480,7 +483,12 @@
       "ratio": "Image ratio",
       "fill": "Fill the row",
       "fillHint": "Cards widen to fill the whole row. When off, they keep exactly the chosen width. On phones, the grid always fills the screen."
-    }
+    },
+    "resetTheme": "Reset",
+    "resetThemeTooltip": "Undo the color and size changes made since the theme was last saved",
+    "resetThemeTitle": "Reset the theme?",
+    "resetThemeMessage": "Colors and sizes go back to the “{{name}}” theme as it was saved. The rest of your preferences doesn’t change.",
+    "resetThemeConfirm": "Reset"
   },
   "login": {
     "welcome": "Welcome to FriRSS",
@@ -590,7 +598,26 @@
     "redirectUriHint": "Add this URL to your provider’s “Redirect URIs” (Authentik, Authelia, Keycloak…).",
     "breakGlassUrl": "Fallback URL (local login)",
     "userCount_one": "{{count}} user",
-    "userCount_other": "{{count}} users"
+    "userCount_other": "{{count}} users",
+    "promoteUserName": "Make {{name}} an administrator",
+    "demoteUserName": "Remove {{name}}’s administrator rights",
+    "deactivateUser": "Deactivate {{name}}’s account",
+    "activateUser": "Reactivate {{name}}’s account",
+    "deleteUserName": "Delete {{name}}’s account",
+    "confirmPromoteTitle": "Make {{name}} an administrator?",
+    "confirmPromoteMessage": "{{name}} will be able to manage accounts, instance settings and backups.",
+    "confirmPromote": "Promote",
+    "confirmDemoteTitle": "Remove {{name}}’s administrator rights?",
+    "confirmDemote": "Demote",
+    "confirmActivateTitle": "Reactivate {{name}}’s account?",
+    "confirmActivate": "Reactivate",
+    "confirmDeactivateTitle": "Deactivate {{name}}’s account?",
+    "confirmDeactivateMessage": "{{name}} won’t be able to log in while the account stays deactivated.",
+    "confirmDeactivate": "Deactivate",
+    "confirmDeleteTitle": "Delete {{name}}’s account?",
+    "confirmDeleteWarning": "The account and the FreshRSS servers attached to it are deleted. This can’t be undone.",
+    "confirmDelete": "Delete",
+    "errorLoad": "Couldn’t load the users."
   },
   "servers": {
     "label": "Servers",

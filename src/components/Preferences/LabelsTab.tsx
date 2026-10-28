@@ -365,7 +365,12 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
 
       {/* Reset label colors */}
       {Object.keys(labelColors).length > 0 && (
-        <TabResetButton label={t('preferences.labels.resetColors')} onReset={resetLabelColors} />
+        <TabResetButton
+          label={t('preferences.labels.resetColors')}
+          title={t('preferences.labels.resetColorsTitle')}
+          message={t('preferences.labels.resetColorsMessage')}
+          onReset={resetLabelColors}
+        />
       )}
     </div>
   );

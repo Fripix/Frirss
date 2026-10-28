@@ -7,6 +7,8 @@ import {
 } from '../../api/backend';
 import type { User } from '../../types';
 import BackupBlock from './admin/BackupBlock';
+import ConfirmDialog from '../ConfirmDialog';
+import { useUiStore } from '../../stores/uiStore';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -92,7 +94,12 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
   const [users, setUsers] = useState<User[]>([]);
   const [settings, setSettings] = useState<AdminSettings>({});
   const [loading, setLoading] = useState(true);
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // L'action sur un compte en attente de confirmation. Les pastilles « Admin »
+  // et « Actif » agissaient au premier clic, et « Supprimer » validait au
+  // second clic d'un double-clic : tout passe désormais par `ConfirmDialog`.
+  const [pending, setPending] = useState<{ kind: 'promote' | 'demote' | 'activate' | 'deactivate' | 'delete'; user: User } | null>(null);
+  const pushToast = useUiStore((s) => s.pushToast);
   const [saved, setSaved] = useState(false);
   const [oidcForm, setOidcForm] = useState<Record<string, string>>({});
 
@@ -131,30 +138,34 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
           oidcClientSecret: '',
           oidcButtonLabel: (s.oidcButtonLabel as string) || 'Authentik',
         });
+        setLoadFailed(false);
       })
+      // Sans ce `catch`, un échec affichait « 0 utilisateur » comme une liste vide.
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }, [active]);
 
-  async function toggleActive(user: User) {
-    const updated = await updateAdminUser(user.id, { active: !user.active });
-    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-  }
-
-  async function toggleRole(user: User) {
-    const newRole = user.role === 'admin' ? 'user' : 'admin';
-    const updated = await updateAdminUser(user.id, { role: newRole });
-    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-  }
-
-  async function handleDelete(user: User) {
-    if (confirmDelete !== user.id) {
-      setConfirmDelete(user.id);
-      setTimeout(() => setConfirmDelete(null), 5000);
-      return;
+  // Appelée par la boîte de confirmation. Un échec le dit : le compte n'est
+  // pas changé, et rien ne doit laisser croire le contraire.
+  async function runPending() {
+    if (!pending) return;
+    const { kind, user } = pending;
+    try {
+      if (kind === 'delete') {
+        await deleteAdminUser(user.id);
+        setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      } else {
+        const patch = kind === 'promote' || kind === 'demote'
+          ? { role: kind === 'promote' ? 'admin' : 'user' }
+          : { active: kind === 'activate' };
+        const updated = await updateAdminUser(user.id, patch);
+        setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      }
+    } catch {
+      pushToast(t('admin.errorUpdate'), { tone: 'error' });
+    } finally {
+      setPending(null);
     }
-    await deleteAdminUser(user.id);
-    setUsers((prev) => prev.filter((u) => u.id !== user.id));
-    setConfirmDelete(null);
   }
 
   function togglePwEditor(user: User) {
@@ -316,6 +327,9 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
             </span>
           )}
         </h3>
+        {loadFailed && (
+          <p role="alert" className="text-xs mb-2" style={{ color: 'var(--danger)' }}>{t('admin.errorLoad')}</p>
+        )}
         <div className="space-y-1">
           {users.map((user) => {
             const isSelf = user.id === currentUser?.id;
@@ -345,10 +359,11 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                   </div>
                 </div>
 
-                {/* Role badge */}
+                {/* Role badge — bascule après confirmation */}
                 <button
-                  onClick={() => !isSelf && toggleRole(user)}
+                  onClick={() => !isSelf && setPending({ kind: user.role === 'admin' ? 'demote' : 'promote', user })}
                   disabled={isSelf}
+                  aria-label={isSelf ? undefined : t(user.role === 'admin' ? 'admin.demoteUserName' : 'admin.promoteUserName', { name: user.display_name || user.username })}
                   className="text-[10px] font-medium px-2 py-0.5 rounded-full"
                   style={{
                     background: user.role === 'admin' ? 'var(--accent)' : 'var(--panel-border)',
@@ -364,10 +379,12 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                 {/* Active toggle */}
                 {!isSelf && (
                   <button
-                    onClick={() => toggleActive(user)}
+                    onClick={() => setPending({ kind: user.active ? 'deactivate' : 'activate', user })}
+                    aria-label={t(user.active ? 'admin.deactivateUser' : 'admin.activateUser', { name: user.display_name || user.username })}
+                    title={t(user.active ? 'admin.deactivateUser' : 'admin.activateUser', { name: user.display_name || user.username })}
                     className="text-[10px] px-2 py-0.5 rounded-full"
                     style={{
-                      background: user.active ? 'rgba(45, 212, 191, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                      background: user.active ? 'var(--accent-glow)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
                       color: user.active ? 'var(--accent)' : 'var(--danger)',
                     }}
                   >
@@ -400,12 +417,13 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                 {/* Delete */}
                 {!isSelf && (
                   <button
-                    onClick={() => handleDelete(user)}
+                    onClick={() => setPending({ kind: 'delete', user })}
                     className="text-[10px] px-1.5 py-0.5 rounded"
                     style={{ color: 'var(--danger)' }}
                     title={t('admin.deleteUser')}
+                    aria-label={t('admin.deleteUserName', { name: user.display_name || user.username })}
                   >
-                    {confirmDelete === user.id ? '?' : '×'}
+                    ×
                   </button>
                 )}
               </div>
@@ -728,6 +746,29 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
       </div>
 
       <BackupBlock />
+
+      {pending && (() => {
+        const name = pending.user.display_name || pending.user.username;
+        const copy = {
+          promote: { title: 'admin.confirmPromoteTitle', message: 'admin.confirmPromoteMessage', confirm: 'admin.confirmPromote', danger: false },
+          demote: { title: 'admin.confirmDemoteTitle', message: undefined, confirm: 'admin.confirmDemote', danger: true },
+          activate: { title: 'admin.confirmActivateTitle', message: undefined, confirm: 'admin.confirmActivate', danger: false },
+          deactivate: { title: 'admin.confirmDeactivateTitle', message: 'admin.confirmDeactivateMessage', confirm: 'admin.confirmDeactivate', danger: true },
+          delete: { title: 'admin.confirmDeleteTitle', message: undefined, confirm: 'admin.confirmDelete', danger: true },
+        }[pending.kind];
+        return (
+          <ConfirmDialog
+            open
+            title={t(copy.title, { name })}
+            message={copy.message ? t(copy.message, { name }) : undefined}
+            warning={pending.kind === 'delete' ? t('admin.confirmDeleteWarning') : undefined}
+            confirmLabel={t(copy.confirm)}
+            danger={copy.danger}
+            onConfirm={runPending}
+            onCancel={() => setPending(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

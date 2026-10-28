@@ -180,9 +180,6 @@
   },
   "preferences": {
     "title": "偏好设置",
-    "resetAll": "重置全部",
-    "confirm": "确认？",
-    "resetAllTooltip": "重置全部偏好设置（颜色、字号、快捷键等）",
     "general": {
       "title": "通用",
       "confirmMarkAllRead": "全部标为已读前先确认",
@@ -231,7 +228,9 @@
     },
     "colors": {
       "resetColors": "重置颜色",
-      "resetTooltip": "重置此颜色"
+      "resetTooltip": "重置此颜色",
+      "resetColorsTitle": "重置颜色？",
+      "resetColorsMessage": "颜色将恢复为已保存主题的颜色。尺寸不变。"
     },
     "colorSections": {
       "sidebar": "侧边栏",
@@ -282,7 +281,9 @@
       "ai-border": "AI 摘要边框"
     },
     "fonts": {
-      "resetFonts": "重置字号"
+      "resetFonts": "重置字号",
+      "resetFontsTitle": "重置尺寸？",
+      "resetFontsMessage": "文字尺寸将恢复为已保存主题的尺寸，网格恢复为初始设置（240 px、填满、16:9）。"
     },
     "fontSections": {
       "sidebar": "侧边栏",
@@ -321,7 +322,9 @@
       "noParent": "— 无父标签 —",
       "choose": "选择…",
       "moveTooltip": "移动到其他父标签",
-      "showCounts": "显示文章数"
+      "showCounts": "显示文章数",
+      "resetColorsTitle": "重置标签颜色？",
+      "resetColorsMessage": "所有标签都会失去自定义颜色。"
     },
     "themes": {
       "presets": "预设",
@@ -480,7 +483,12 @@
       "ratio": "图片比例",
       "fill": "填满整行",
       "fillHint": "卡片会加宽以填满整行。关闭后，卡片保持所选宽度不变。在手机上，网格始终填满屏幕。"
-    }
+    },
+    "resetTheme": "重置",
+    "resetThemeTooltip": "撤销自上次保存主题以来对颜色和尺寸的更改",
+    "resetThemeTitle": "重置主题？",
+    "resetThemeMessage": "颜色和尺寸将恢复为已保存的“{{name}}”主题。其他偏好设置不变。",
+    "resetThemeConfirm": "重置"
   },
   "login": {
     "welcome": "欢迎使用 FriRSS",
@@ -590,7 +598,26 @@
     "redirectUriHint": "将此 URL 添加到你的身份提供方的“重定向 URI”（Authentik、Authelia、Keycloak 等）。",
     "breakGlassUrl": "备用登录地址（本地登录）",
     "userCount_one": "{{count}} 个用户",
-    "userCount_other": "{{count}} 个用户"
+    "userCount_other": "{{count}} 个用户",
+    "promoteUserName": "将 {{name}} 设为管理员",
+    "demoteUserName": "撤销 {{name}} 的管理员权限",
+    "deactivateUser": "停用 {{name}} 的账户",
+    "activateUser": "重新启用 {{name}} 的账户",
+    "deleteUserName": "删除 {{name}} 的账户",
+    "confirmPromoteTitle": "将 {{name}} 设为管理员？",
+    "confirmPromoteMessage": "{{name}} 将可以管理账户、实例设置和备份。",
+    "confirmPromote": "设为管理员",
+    "confirmDemoteTitle": "撤销 {{name}} 的管理员权限？",
+    "confirmDemote": "撤销权限",
+    "confirmActivateTitle": "重新启用 {{name}} 的账户？",
+    "confirmActivate": "重新启用",
+    "confirmDeactivateTitle": "停用 {{name}} 的账户？",
+    "confirmDeactivateMessage": "账户停用期间，{{name}} 将无法登录。",
+    "confirmDeactivate": "停用",
+    "confirmDeleteTitle": "删除 {{name}} 的账户？",
+    "confirmDeleteWarning": "将删除该账户及其关联的 FreshRSS 服务器。此操作无法撤销。",
+    "confirmDelete": "删除",
+    "errorLoad": "无法加载用户。"
   },
   "servers": {
     "label": "服务器",
