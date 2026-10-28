@@ -396,6 +396,11 @@ défaut 16:9). Les défauts reproduisent exactement la grille d'avant.
   réglage. **Rien par flux** non plus, pour ne pas alourdir le menu du flux.
 - **L'aperçu en haut de la page montre la liste, pas la grille** : la grille
   derrière le panneau sert d'aperçu.
+- **Curseurs nommés** (1.8.0) : tous ceux de la page Tailles (`FontRow`)
+  relient leur `<label>` à l'`input` (`useId`) et annoncent leur valeur avec
+  l'unité (`aria-valuetext`, « 240px ») ; le chiffre affiché à côté est
+  masqué aux lecteurs d'écran, qui le liraient deux fois. Avant, ils
+  annonçaient « curseur, 240 » sans dire lequel.
 
 ### Vue à l'ouverture
 Ce que FriRSS ouvre au lancement et au rechargement : **Dernière vue**

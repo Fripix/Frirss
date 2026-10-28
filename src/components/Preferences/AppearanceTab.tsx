@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, useId, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore, SHIPPED_THEMES } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -778,21 +778,25 @@ function GridCardsSection() {
 }
 
 function FontRow({ label, value, min, max, step, onChange }: { label: string; value: string; min: number; max: number; step?: number; onChange: (value: string) => void }) {
+  const id = useId();
   return (
     <div className="flex items-center gap-3">
-      <label className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
+      <label htmlFor={id} className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
         {label}
       </label>
       <input
+        id={id}
         type="range"
         min={min}
         max={max}
         step={step}
         value={value}
+        aria-valuetext={`${value}px`}
         onChange={(e) => onChange(e.target.value)}
         className="w-24 accent-[var(--accent)]"
       />
       <span
+        aria-hidden="true"
         className="text-[11px] font-mono w-10 text-right"
         style={{ color: 'var(--list-summary)' }}
       >

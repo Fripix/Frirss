@@ -205,6 +205,10 @@ la release publiée.
   se ferment à Échap quel que soit le focus : « Ajouter un serveur », ouverte
   depuis les Préférences, laissait passer la touche au panneau, qui se
   fermait tout entier en perdant les identifiants saisis.
+- **Lecteurs d'écran : les curseurs de la page Tailles disent ce qu'ils
+  règlent.** Taille du texte des titres, des résumés, de l'article, largeur
+  des cartes : chacun était annoncé « curseur, 240 », sans nom. Il porte
+  désormais celui de sa ligne et sa valeur en pixels.
 
 ## Sous le capot
 

@@ -49,6 +49,17 @@ describe('Préférences › Apparence › Tailles — section Grille (#26)', () 
     expect(getByText('357px')).toBeTruthy();
   });
 
+  // Le libellé était un <label> sans `htmlFor` : un lecteur d'écran annonçait
+  // « curseur, 240 » sans dire lequel.
+  it('chaque curseur de la page Tailles porte le nom de sa ligne et sa valeur en pixels', () => {
+    const { getByRole, container } = openSizes();
+    const width = getByRole('slider', { name: 'preferences.gridCards.width' });
+    expect(width.getAttribute('aria-valuetext')).toBe('240px');
+    const sliders = [...container.querySelectorAll<HTMLInputElement>('input[type="range"]')];
+    expect(sliders.length).toBeGreaterThan(1);
+    for (const s of sliders) expect(s.labels?.length, s.outerHTML).toBe(1);
+  });
+
   it('un format choisi est coché et enregistré', () => {
     const { getByText } = openSizes();
     fireEvent.click(getByText('1:1'));
