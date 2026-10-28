@@ -226,7 +226,10 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
 ### Barre latérale
 Catégories repliables, flux avec favicon et compteur de non-lus, entrées fixes
 (Tous, Non lus, Favoris, À lire plus tard), étiquettes, réordonnancement par
-glisser-déposer, masquage des flux entièrement lus.
+glisser-déposer, masquage des flux entièrement lus. Déposer un article de la
+liste sur une étiquette, une catégorie de favoris, Favoris ou « À lire plus
+tard » l'y classe — **à la souris seulement** (au doigt, l'appui long ouvre
+le menu ; voir *Menu d'un article*, piège Chrome Android).
 
 - **Où** : `src/components/Sidebar/Sidebar.tsx`, `src/stores/uiStore.ts`
 - **Menu d'un flux** — renommer, ouvrir le site, extraction automatique, se
@@ -1402,13 +1405,30 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
     abouti pendant ce contact, le `contextmenu` est absorbé, si tard qu'il
     arrive (délai d'accessibilité ≥ 1 s compris) ; `firedRecently()` ne
     compte en secondes qu'après le relâchement ;
-  - `onDragStart` de la ligne (`useArticleMenuGestures`) : un `dragstart`
-    pendant un contact **tactile** est annulé (`preventDefault()`) et fait
-    aboutir l'appui armé — celui de la ligne, ou celui de l'étoile / « À lire
-    plus tard » sous le doigt, via le registre de la ligne
-    (`claimTouchDrag()`). Le `touchcancel` qui suit ne défait pas un appui
-    abouti. Un drag à la **souris** n'est jamais réclamé : le glisser-déposer
-    vers la barre latérale est intact (`handleDragStart`, `ArticleList.tsx`).
+  - `onDragStart` de la ligne (`useArticleMenuGestures`) : **tout**
+    `dragstart` qui démarre pendant un contact **tactile** dans la ligne est
+    annulé (`preventDefault()`, aucun `setData`) — que l'appui soit armé, ait
+    abouti, ait été annulé par un mouvement de plus de 8 px, ou que le doigt
+    soit sur un bouton sans appui long. Le contact est suivi par la ligne
+    elle-même (`touchstart` → `touchend` sans doigt restant / `touchcancel` ;
+    un vrai `mousedown` le remet à zéro, pour qu'une fin de contact perdue ne
+    bloque pas la souris). Un appui armé — celui de la ligne, ou celui de
+    l'étoile / « À lire plus tard » sous le doigt, via le registre de la
+    ligne (`claimTouchDrag()`) — aboutit tout de suite. Le `touchcancel` qui
+    suit ne défait pas un appui abouti. Un drag à la **souris** n'est jamais
+    réclamé : le glisser-déposer vers la barre latérale reste
+    (`handleDragStart`, `ArticleList.tsx`) ; il annule en revanche les appuis
+    souris de la ligne (`presses.cancelAll()`) — pendant un drag le
+    navigateur n'émet plus ni `mousemove` ni `mouseup`, et un drag parti de
+    l'étoile ouvrait le sélecteur de catégorie à 500 ms, en plein drag.
+  - ⚠️ **Retrait assumé (1.7.1) : glisser un article sur une étiquette, une
+    catégorie, Favoris ou « À lire plus tard » de la barre latérale est
+    réservé à la souris.** Au doigt, l'appui long gagne toujours ; avant, un
+    doigt qui bougeait de quelques pixels pendant l'appui pouvait encore
+    lancer le drag natif de Chrome Android. Au doigt, on classe par le menu
+    de l'appui long (favori, à lire plus tard), par l'appui long sur
+    l'étoile / « À lire plus tard » (sélecteur de catégorie) ou par la liste
+    d'étiquettes du volet de lecture.
 - **Piège — touche Menu** : `contextmenu` arrive avec `clientX = clientY = 0` ;
   le menu s'ouvre alors sous la ligne (`menuAnchor()`), pas dans le coin de la
   fenêtre.

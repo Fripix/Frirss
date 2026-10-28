@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import { ArticleRow } from './ArticleList';
 import { DEFAULT_ROW_ACTIONS } from '../../lib/rowActions';
 import { LONG_PRESS_MS } from '../../hooks/useLongPress';
@@ -11,7 +11,9 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
 }));
 // Le rangement par catégorie ouvert par le clic droit sur l'étoile n'est pas sous test.
-vi.mock('./SavedCategoryPicker', () => ({ default: () => null, SavedCategoryPicker: () => null }));
+// Il se rend comme un simple témoin : un test vérifie qu'un drag souris ne
+// l'ouvre pas en cours de route.
+vi.mock('./SavedCategoryPicker', () => ({ default: () => <div data-testid="category-picker" />, SavedCategoryPicker: () => null }));
 
 const base = {
   id: 'a1', title: 'Hello World', summary: 'A short summary', source: 'The Verge',
@@ -112,6 +114,55 @@ for (const viewMode of ['compact', 'normal']) {
       expect(dataTransfer.setData).toHaveBeenCalledWith('application/frirss-article', 'a1');
       vi.advanceTimersByTime(LONG_PRESS_MS);
       expect(onOpenMenu).not.toHaveBeenCalled();
+    });
+
+    // L'appui long gagne au doigt, et de façon cohérente : le glisser-déposer
+    // d'un article vers la barre latérale est réservé à la souris. Un appui
+    // annulé par un mouvement de plus de 8 px ne rend pas le drag au doigt.
+    it('touch: a native drag after the press was cancelled by a move is still cancelled', () => {
+      const { onOpenMenu, row } = renderRow(viewMode);
+      fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 30 }] });
+      fireEvent.touchMove(row, { touches: [{ clientX: 32, clientY: 30 }] });
+      vi.advanceTimersByTime(200);
+      expect(fireEvent.dragStart(row, { dataTransfer })).toBe(false);
+      expect(dataTransfer.setData).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      expect(onOpenMenu).not.toHaveBeenCalled();
+    });
+
+    it('touch: a native drag from a row button that has no long press is cancelled too', () => {
+      const { row } = renderRow(viewMode);
+      const button = row.querySelector('button:not([title*="holdHint"])') as HTMLElement;
+      expect(button).not.toBeNull();
+      fireEvent.touchStart(button, { touches: [{ clientX: 5, clientY: 5 }] });
+      expect(fireEvent.dragStart(button, { dataTransfer })).toBe(false);
+      expect(dataTransfer.setData).not.toHaveBeenCalled();
+    });
+
+    it('after the finger lifts, a mouse drag files the article again', () => {
+      const { row } = renderRow(viewMode);
+      fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 30 }] });
+      fireEvent.touchEnd(row, { touches: [] });
+      fireEvent.mouseDown(row, { button: 0 });
+      expect(fireEvent.dragStart(row, { dataTransfer })).toBe(true);
+      expect(dataTransfer.setData).toHaveBeenCalledWith('application/frirss-article', 'a1');
+    });
+
+    it('a mouse drag started from the Star button does not open its category picker mid-drag', () => {
+      const { c } = renderRow(viewMode);
+      const star = c.getByTitle('articleRow.addStar — saved.holdHint');
+      fireEvent.mouseDown(star, { button: 0, clientX: 5, clientY: 5 });
+      expect(fireEvent.dragStart(star, { dataTransfer })).toBe(true);
+      act(() => { vi.advanceTimersByTime(LONG_PRESS_MS); });
+      expect(c.queryByTestId('category-picker')).toBeNull();
+    });
+
+    it('witness: a still mouse press on the Star button opens its category picker', () => {
+      const { c } = renderRow(viewMode);
+      const star = c.getByTitle('articleRow.addStar — saved.holdHint');
+      fireEvent.mouseDown(star, { button: 0, clientX: 5, clientY: 5 });
+      act(() => { vi.advanceTimersByTime(LONG_PRESS_MS); });
+      expect(c.queryByTestId('category-picker')).not.toBeNull();
     });
 
     it('a plain click still selects the article', () => {

@@ -41,11 +41,25 @@ _(rien pour l'instant)_
   s'ouvre aussitôt — de même pour le classement depuis l'étoile ou « À lire
   plus tard » de la ligne. Le glisser-déposer à la souris, au bureau, ne
   change pas.
+- **Retrait assumé : glisser un article sur une étiquette ou une catégorie
+  de la barre latérale se fait désormais à la souris seulement.** Au doigt,
+  l'appui long gagne toujours : un doigt qui bougeait un peu pendant l'appui
+  pouvait encore lancer un glisser à la place du menu. Au doigt, on classe
+  par le menu de l'appui long (favori, à lire plus tard), par l'appui long
+  sur l'étoile ou « À lire plus tard » (catégorie) ou par les étiquettes du
+  volet de lecture.
+- **Bureau : glisser un article depuis son étoile n'ouvre plus le classement
+  par catégorie en plein glisser.** Le bouton de la souris resté enfoncé
+  pendant le glisser armait l'appui long de l'étoile (ou de « À lire plus
+  tard »), qui ouvrait son sélecteur au bout d'une demi-seconde.
 - **Android : un seul menu, au même endroit, quel que soit l'ordre des
   événements.** Chrome envoie son propre signal de menu un peu AVANT les
   500 ms de l'appui long : sur un flux, le menu s'ouvrait au point du doigt
-  puis se rouvrait au bord de la ligne (il sautait sous le doigt) ; sur un
-  article, il s'ouvrait deux fois. L'appui aboutit maintenant dès ce signal,
+  puis se rouvrait au bord de la ligne (il sautait sous le doigt) ; sur une
+  carte de la grille et sur l'étoile ou « À lire plus tard » du volet de
+  lecture, il s'ouvrait deux fois. (Sur une ligne d'article, boutons compris,
+  le défaut était le glisser natif de l'entrée précédente.) L'appui aboutit
+  maintenant dès ce signal,
   une seule fois, et un signal tardif (délai d'appui long rallongé dans les
   réglages d'accessibilité) est ignoré tant que le doigt reste posé.
 - **Appui long sur un flux de la barre latérale : le même geste que sur un

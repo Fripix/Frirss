@@ -1,4 +1,4 @@
-import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
+import { useRef, type DragEvent as ReactDragEvent, type MouseEvent as ReactMouseEvent, type TouchEvent as ReactTouchEvent } from 'react';
 import { useLongPress, type PressPoint } from './useLongPress';
 import { useRegisterRowPress, type RowPressRegistry } from './rowPress';
 import { menuAnchor } from '../lib/articleMenu';
@@ -66,6 +66,12 @@ export function useArticleMenuGestures(
   const { presses = null, onDragStart } = opts;
   const longPress = useLongPress((point) => onOpenMenu?.(point));
   useRegisterRowPress(longPress.control, presses);
+  /**
+   * Un doigt est posé dans la ligne — quel que soit l'élément touché (ligne,
+   * titre, bouton), et même si l'appui a été annulé par un mouvement. Tout
+   * drag natif qui démarre pendant ce contact est annulé (`onDragStart`).
+   */
+  const touchContact = useRef(false);
 
   return {
     onContextMenu: (e: ReactMouseEvent<HTMLElement>) => {
@@ -79,6 +85,7 @@ export function useArticleMenuGestures(
     },
     onTouchStart: (e: ReactTouchEvent<HTMLElement>) => {
       if (!targetsElement(e)) return;
+      touchContact.current = true;
       // Efface la consigne « clic avalé » d'un appui abouti précédent pour
       // CHAQUE contact qui démarre dans la ligne — y compris ceux qu'un
       // bouton ou un champ va s'approprier ci-dessous — sans quoi le clic
@@ -95,10 +102,12 @@ export function useArticleMenuGestures(
     },
     onTouchEnd: (e: ReactTouchEvent<HTMLElement>) => {
       if (!targetsElement(e)) return;
+      if (!e.touches || e.touches.length === 0) touchContact.current = false;
       longPress.onTouchEnd(e);
     },
     onTouchCancel: (e: ReactTouchEvent<HTMLElement>) => {
       if (!targetsElement(e)) return;
+      touchContact.current = false;
       longPress.onTouchCancel();
     },
     onClickCapture: (e: ReactMouseEvent<HTMLElement>) => {
@@ -106,15 +115,29 @@ export function useArticleMenuGestures(
       longPress.onClickCapture(e);
     },
     // Drag natif : à la souris, celui de l'appelant (classer un article en le
-    // déposant sur la barre latérale). Pendant un contact TACTILE, c'est
-    // Chrome Android qui le démarre sur un appui long (~495 ms, puis
-    // `touchcancel`) : il est annulé et l'appui — de la ligne ou d'un de ses
-    // boutons — aboutit tout de suite. Sans quoi le menu ne s'ouvrait qu'une
-    // fois sur deux, quand le minuteur gagnait la course.
+    // déposant sur la barre latérale). Au doigt, l'appui long gagne, et sans
+    // exception : TOUT drag natif qui démarre pendant un contact tactile dans
+    // la ligne est annulé — y compris quand l'appui a été annulé par un
+    // mouvement de plus de 8 px ou que le doigt est sur un bouton sans appui
+    // long. Le glisser-déposer d'un article vers la barre latérale est donc
+    // réservé à la souris (retrait assumé, `FEATURES.md`). Chrome Android
+    // démarre ce drag sur un appui long (~495 ms, puis `touchcancel`) : un
+    // appui armé — de la ligne ou d'un de ses boutons — aboutit alors tout de
+    // suite. Sans quoi le menu ne s'ouvrait qu'une fois sur deux, quand le
+    // minuteur gagnait la course.
+    // À la souris, un drag parti de l'étoile ou de « À lire plus tard » laisse
+    // son appui souris armé (le navigateur n'émet plus ni `mousemove` ni
+    // `mouseup` pendant un drag) : il est annulé, sans quoi le sélecteur de
+    // catégorie s'ouvrait à 500 ms en plein drag.
     onDragStart: (e: ReactDragEvent<HTMLElement>) => {
-      if (targetsElement(e) && (longPress.claimTouchDrag() || !!presses?.claimTouchDrag())) {
-        e.preventDefault();
-        return;
+      if (targetsElement(e)) {
+        const claimed = longPress.claimTouchDrag() || !!presses?.claimTouchDrag();
+        if (claimed || touchContact.current) {
+          e.preventDefault();
+          return;
+        }
+        presses?.cancelAll();
+        longPress.cancel();
       }
       onDragStart?.(e);
     },
@@ -124,7 +147,14 @@ export function useArticleMenuGestures(
     // arrière-plan : ni `preventDefault`, ni `window.open` (qui, lui, ouvre
     // toujours au premier plan).
     onMouseDown: (e: ReactMouseEvent<HTMLElement>) => {
-      if (targetsElement(e) && e.button === 1 && !fromInteractive(e)) e.preventDefault();
+      if (!targetsElement(e)) return;
+      // Un vrai bouton de souris : un contact tactile dont la fin n'a pas
+      // atteint la ligne (cible retirée du DOM) ne doit pas bloquer le drag
+      // souris pour toujours. Les événements de compatibilité d'un toucher
+      // arrivent après `touchend` et se signalent par `firesTouchEvents`.
+      const caps = (e.nativeEvent as MouseEvent & { sourceCapabilities?: { firesTouchEvents?: boolean } }).sourceCapabilities;
+      if (!caps?.firesTouchEvents) touchContact.current = false;
+      if (e.button === 1 && !fromInteractive(e)) e.preventDefault();
     },
     // …puis, ailleurs sur la ligne, ouvrir à la source, exactement comme l'icône.
     onAuxClick: (e: ReactMouseEvent<HTMLElement>) => {
