@@ -53,6 +53,12 @@ describe('ArticleCard — menu', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it("clic droit sur le titre : le menu de l'article, pas le menu natif du lien", () => {
+    const { titleLink, onOpenMenu } = renderCard();
+    expect(fireEvent.contextMenu(titleLink!, { clientX: 12, clientY: 34 })).toBe(false);
+    expect(onOpenMenu).toHaveBeenCalledWith({ x: 12, y: 34 });
+  });
+
   it("appui long parti du titre (un lien) : le menu s'ouvre, le relâchement ne suit pas le lien", () => {
     vi.useFakeTimers();
     try {

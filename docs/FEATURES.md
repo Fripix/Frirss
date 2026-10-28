@@ -996,7 +996,8 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   DERNIER : c'est ce qui permet d'enchaîner des clics de marquage sans bouger
   la souris (issue #10, voir plus haut) — l'insérer avant l'aurait cassé.
   Les emplacements viennent de `rowActionSlots()` (`src/lib/rowActions.ts`),
-  qui distingue deux absences : un article **sans URL** laisse un emplacement
+  qui distingue deux absences : un article **sans URL** — ou dont l'URL n'est
+  pas en `http(s)` (`safeHref()`, voir « Le titre est un vrai lien ») — laisse un emplacement
   **réservé**, vide mais de la même taille qu'un bouton (sinon les icônes
   suivantes se décaleraient sur cette seule ligne) ; une icône masquée par
   réglage laisse un emplacement **retiré**, rien n'occupant sa place (la
@@ -1101,8 +1102,8 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   plutôt que par `selectArticle` directement : sans ce détour, le passage
   liste → volet en 2 panneaux et en grille se ferait d'un coup, alors que
   toute autre sélection l'anime avec la transition de morph du titre.
-  Sans URL, `openArticleAtSource()` ne fait **rien du tout** — ni ouverture, ni
-  sélection. La garde est dans le module et pas seulement dans l'affichage :
+  Sans URL `http(s)` (`safeHref()`), `openArticleAtSource()` ne fait **rien du
+  tout** — ni ouverture, ni sélection. La garde est dans le module et pas seulement dans l'affichage :
   aucun bouton ne mène là aujourd'hui (`rowActionSlots()` rend l'emplacement
   vide), mais un futur appelant qui ne consulterait pas les emplacements — un
   raccourci clavier, par exemple — changerait sinon l'état de l'article sans
@@ -1153,7 +1154,9 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
 - **Les actions sont celles des icônes** : « Ouvrir à la source » passe par
   `openArticleAtSource()` (sélection, la ligne garde sa place), « Marquer lu »
   par `toggleRead` (retrait sous « Non lus » compris). Sans URL, « Ouvrir à la
-  source » et « Copier le lien » disparaissent. **Le clic molette hors du
+  source » et « Copier le lien » disparaissent ; avec une URL qui n'est pas en
+  `http(s)`, seul « Ouvrir à la source » disparaît (il n'ouvrirait rien),
+  « Copier le lien » reste — copier n'exécute rien. **Le clic molette hors du
   titre ouvre l'onglet au premier plan** (`window.open` dans
   `openExternal()`, puis sélection, comme l'icône) : un navigateur n'ouvre en
   arrière-plan qu'un vrai lien cliqué par l'utilisateur, jamais un
@@ -1200,8 +1203,22 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
     ligne, qui sélectionne ;
   - **URL autre que `http(s)`** (`safeHref()`, `src/lib/safeHref.ts`, analyse
     par `URL`, donc `java\tscript:` compris) : pas de lien du tout, le titre
-    reste du texte et la ligne garde tous ses gestes. ⚠️ L'icône « ouvrir à la
-    source » et `openExternal()` ne filtrent toujours pas le schéma.
+    reste du texte et la ligne garde tous ses gestes.
+  **Règle (1.7.1) : toute URL venue d'un flux passe par `safeHref()` avant de
+  devenir un `href` ou un onglet.** Puits couverts : ce titre ; l'icône
+  « ouvrir à la source » (`OpenSourceButton` refuse lui-même, et
+  `rowActionSlots()` réserve l'emplacement) ; l'entrée « Ouvrir à la source »
+  du menu (`articleMenuItems()`) ; dans le volet de lecture, le bouton
+  « Original », le titre-lien et l'entrée de la feuille du bas
+  (`ReadingPane.tsx`) ; et `openExternal()`, qui renvoie `false` sans rien
+  ouvrir — par où passent l'icône, le clic molette de la ligne
+  (`openArticleAtSource()`), la touche `o` (`useKeyboardNav.ts`) et « ouvrir
+  le site » d'un flux (`Sidebar.tsx`, `feedSiteUrl`). Le refus est
+  silencieux, comme une URL vide. Restent volontairement bruts
+  `navigator.share` et le presse-papiers (« Copier le lien », « Partager ») :
+  ils n'exécutent rien. Le corps de l'article a sa propre garde (DOMPurify,
+  `sanitizeHtml.ts`). ⚠️ React 19 neutralise un `href` en `javascript:`, pas
+  un `data:`, et ne protège pas `window.open` : ne pas s'en remettre à lui.
   Le clic molette natif repose sur `auxclick`, comme celui de la ligne avant
   lui : un navigateur qui ne l'émettrait pas ouvrirait l'onglet sans marquer
   lu.

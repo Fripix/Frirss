@@ -21,4 +21,16 @@ describe('openExternal', () => {
     openExternal('   ');
     expect(open).not.toHaveBeenCalled();
   });
+
+  it("n'ouvre jamais un schéma autre que http(s), et le dit par son retour", () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    expect(openExternal('javascript:alert(1)')).toBe(false);
+    expect(openExternal(' JavaScript:alert(1)')).toBe(false);
+    expect(openExternal('data:text/html,<script>alert(1)</script>')).toBe(false);
+    expect(openExternal('file:///etc/passwd')).toBe(false);
+    expect(openExternal('')).toBe(false);
+    expect(open).not.toHaveBeenCalled();
+    expect(openExternal('https://example.com/a')).toBe(true);
+    expect(open).toHaveBeenCalledTimes(1);
+  });
 });

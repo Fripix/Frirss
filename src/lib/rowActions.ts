@@ -1,3 +1,5 @@
+import { safeHref } from './safeHref';
+
 /** Les quatre actions d'une ligne d'article, dans leur ordre d'affichage. */
 export type RowActionKind = 'star' | 'readLater' | 'openSource' | 'markRead';
 
@@ -58,7 +60,9 @@ export function rowActionSlots(
     .filter((kind) => settings[kind])
     .map((kind) => ({
       kind,
-      available: kind === 'openSource' ? !!article.url?.trim() : true,
+      // Une URL non `http(s)` (`safeHref`) vaut une URL absente : l'icône
+      // n'ouvrirait rien.
+      available: kind === 'openSource' ? !!safeHref(article.url) : true,
     }));
 }
 

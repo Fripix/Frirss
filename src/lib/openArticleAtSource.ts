@@ -1,5 +1,6 @@
 import type { Article } from '../types';
 import { openExternal } from './openExternal';
+import { safeHref } from './safeHref';
 
 /**
  * Ouvre l'article à sa source, puis le SÉLECTIONNE.
@@ -48,7 +49,9 @@ export function openArticleAtSource(
   article: Article,
   selectArticle: (article: Article | null) => void,
 ): void {
-  if (!article.url?.trim()) return;
+  // `safeHref` et non un simple « non vide » : une URL `javascript:` ou
+  // `data:`, que `openExternal` refuse, ne doit pas non plus sélectionner.
+  if (!safeHref(article.url)) return;
   openExternal(article.url);
   selectArticle(article);
 }

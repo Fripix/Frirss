@@ -2,6 +2,8 @@
  * Menu contextuel d'un article : ce qu'il contient, et où il s'ouvre.
  * Spec : docs/superpowers/specs/2026-09-13-article-context-menu-design.md
  */
+import { safeHref } from './safeHref';
+
 export type ArticleMenuKind =
   | 'openSource' | 'toggleRead' | 'markBelowRead' | 'markAboveRead'
   | 'toggleStar' | 'toggleReadLater' | 'copyLink';
@@ -44,7 +46,10 @@ export function articleMenuItems(
 ): ArticleMenuItem[] {
   const hasUrl = !!article.url?.trim();
   const items: ArticleMenuItem[] = [];
-  if (hasUrl) items.push({ kind: 'openSource', labelKey: 'articleRow.openSource', group: 1 });
+  // « Ouvrir à la source » exige une URL `http(s)` (`safeHref`) : ailleurs,
+  // `openExternal` refuserait, et l'entrée ne ferait rien. « Copier le lien »,
+  // lui, garde toute URL non vide : copier n'exécute rien.
+  if (safeHref(article.url)) items.push({ kind: 'openSource', labelKey: 'articleRow.openSource', group: 1 });
   items.push({
     kind: 'toggleRead',
     labelKey: article.read ? 'articleRow.markUnread' : 'articleRow.markRead',

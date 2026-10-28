@@ -64,6 +64,11 @@ export default function TitleLink({ url, onOpenedInBackground, children }: Title
       data-row-link=""
       className="article-title-link"
       onClick={(e) => {
+        // Le clic molette appartient au seul `onAuxClick` : un navigateur qui
+        // émettrait AUSSI `click` pour le bouton 1 marquerait deux fois. Ce
+        // clic-là n'est ni empêché (l'ouverture native suit) ni remonté (la
+        // ligne sélectionnerait).
+        if (e.button !== 0) { e.stopPropagation(); return; }
         if (titleClickIsNative(e)) {
           e.stopPropagation();
           onOpenedInBackground?.();

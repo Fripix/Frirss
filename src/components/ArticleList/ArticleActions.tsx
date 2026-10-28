@@ -6,6 +6,7 @@ import type { Article } from '../../types';
 import { rowActionSlots, type RowActionSettings } from '../../lib/rowActions';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useRegisterRowPress } from '../../hooks/rowPress';
+import { safeHref } from '../../lib/safeHref';
 
 /**
  * Classer un article dans une catégorie : un appui long — au doigt ou à la
@@ -166,8 +167,8 @@ function MarkReadButton({ read, onClick }: MarkReadButtonProps) {
 }
 
 interface OpenSourceButtonProps {
-  /** URL d'origine de l'article : portée par le `href`, jamais vide ici. */
-  href: string;
+  /** URL d'origine de l'article, brute : seule une URL `http(s)` devient le `href` (`safeHref`). */
+  href: string | undefined;
   onClick: (e: ReactMouseEvent) => void;
 }
 
@@ -187,12 +188,17 @@ interface OpenSourceButtonProps {
  *
  * Pas de geste d'appui long, contrairement à l'étoile et à « à lire plus
  * tard » : cette action n'a rien à classer.
+ *
+ * Le `href` passe par `safeHref` : une URL non `http(s)` laisse l'emplacement
+ * réservé en amont (`rowActionSlots`), et ce composant la refuse aussi de son
+ * côté — un second appelant qui ne consulterait pas les emplacements ne
+ * rendrait jamais un `javascript:` en lien.
  */
 export function OpenSourceButton({ href, onClick }: OpenSourceButtonProps) {
   const { t } = useTranslation();
   return (
     <a
-      href={href}
+      href={safeHref(href)}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => { e.preventDefault(); onClick(e); }}

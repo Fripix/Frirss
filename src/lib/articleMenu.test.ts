@@ -42,6 +42,12 @@ describe('articleMenuItems', () => {
     ]);
   });
 
+  it("sans URL http(s), pas d'« Ouvrir à la source » ; « Copier le lien » reste (copier n'exécute rien)", () => {
+    const kinds = articleMenuItems({ ...base, url: 'javascript:alert(1)' }, false, true).map((i) => i.kind);
+    expect(kinds).not.toContain('openSource');
+    expect(kinds).toContain('copyLink');
+  });
+
   it('garde les deux marquages de plage même sans URL — ils ne dépendent pas du lien', () => {
     expect(articleMenuItems({ ...base, url: '' }, false, true).map((i) => i.kind)).toEqual([
       'toggleRead', 'markAboveRead', 'markBelowRead', 'toggleStar', 'toggleReadLater',

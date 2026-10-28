@@ -48,6 +48,8 @@ describe('openArticleAtSource', () => {
     ['absente', undefined],
     ['nulle', null],
     ['blanche', '   '],
+    ['javascript:', 'javascript:alert(1)'],
+    ['data:', 'data:text/html,x'],
   ])("sans URL (%s) : n'ouvre rien ET ne sélectionne rien", (_label, url) => {
     const selectArticle = vi.fn();
     openArticleAtSource(article({ url } as Partial<Article>), selectArticle);

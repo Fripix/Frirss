@@ -35,6 +35,13 @@ describe("article sans URL source", () => {
     }
   });
 
+  it("traite une URL non http(s) comme absente : pas d'icône qui ne mènerait à rien", () => {
+    for (const url of ['javascript:alert(1)', 'data:text/html,x', '/relative']) {
+      const slot = rowActionSlots({ url }, all).find((s) => s.kind === 'openSource');
+      expect(slot!.available).toBe(false);
+    }
+  });
+
   it("laisse les trois autres disponibles", () => {
     const slots = rowActionSlots(noUrl, all).filter((s) => s.kind !== 'openSource');
     expect(slots.every((s) => s.available)).toBe(true);

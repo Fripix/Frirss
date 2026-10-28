@@ -168,6 +168,15 @@ _(rien pour l'instant)_
 
 ## Sous le capot
 
+- **Sécurité : une adresse d'article qui n'est pas `http`/`https` n'est plus
+  jamais ouverte ni rendue en lien.** Une adresse `javascript:` ou `data:`
+  fournie par un flux pouvait devenir un lien (icône « ouvrir à la source »,
+  « Original », titre du volet, feuille du bas) ou un onglet (`window.open`,
+  touche `o`, « ouvrir le site » d'un flux) ; React ne neutralisait que
+  `javascript:` dans les liens, rien dans `window.open`. Toutes ces entrées
+  passent désormais par un même filtre : l'élément n'est pas un lien, rien ne
+  s'ouvre, « Ouvrir à la source » disparaît du menu. Partager et copier le
+  lien gardent l'adresse telle quelle (ils n'exécutent rien).
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,
   donc présents dans l'image : avis DoS GHSA-27r3-jxmh-p828 et
   GHSA-6pq8-jhm2-2vcw) ; serialize-javascript 7.1.4 (outillage de build

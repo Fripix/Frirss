@@ -42,6 +42,7 @@ import TranslateMenu from './TranslateMenu';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useToolbarFold } from '../../hooks/useToolbarFold';
 import axios from 'axios';
+import { safeHref } from '../../lib/safeHref';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
 // Référence stable : un `?? []` dans le sélecteur zustand en créerait une neuve à
@@ -155,6 +156,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // dans la PWA iOS installée, envoyer un article à quelqu'un obligeait à
   // l'ouvrir d'abord dans Safari. `navigator.share` là où il existe, le
   // presse-papiers partout ailleurs.
+  // L'URL brute est partagée ou copiée telle quelle, sans `safeHref` : ni
+  // `navigator.share` ni le presse-papiers ne l'exécutent — ce sont un `href`
+  // et `window.open` qui le feraient, et ceux-là sont filtrés.
   const pushToast = useUiStore((s) => s.pushToast);
   const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const shareArticle = useCallback(async (article: Article) => {
@@ -1582,10 +1586,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </div>
         )}
 
-        {/* Open original */}
-        {article.url && (
+        {/* Open original — seulement une URL http(s) (`safeHref`) */}
+        {safeHref(article.url) && (
           <a
-            href={article.url}
+            href={safeHref(article.url)}
             target="_blank"
             rel="noopener noreferrer"
             className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
@@ -1773,10 +1777,11 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             </div>
           )}
 
-          {/* Title — links to the original article */}
-          {article.url ? (
+          {/* Title — links to the original article (URL http(s) seulement,
+              `safeHref` ; sinon le titre reste du texte) */}
+          {safeHref(article.url) ? (
             <a
-              href={article.url}
+              href={safeHref(article.url)}
               target="_blank"
               rel="noopener noreferrer"
               className="block mb-4 hover:underline"
@@ -2079,9 +2084,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 <span className="font-medium">{t('ai.summarizeAction')}</span>
               </button>
             )}
-            {article.url && (
+            {safeHref(article.url) && (
               <a
-                href={article.url} target="_blank" rel="noopener noreferrer"
+                href={safeHref(article.url)} target="_blank" rel="noopener noreferrer"
                 onClick={() => setReadSettingsOpen(false)}
                 className="sheet-row flex items-center gap-3 px-4 py-3"
                 style={{ color: 'var(--reading-text)' }}

@@ -169,6 +169,20 @@ for (const viewMode of ['compact', 'normal']) {
       expect(onSelect).not.toHaveBeenCalled();
     });
 
+    it("un navigateur qui émet AUSSI click (bouton 1) avant auxclick : un seul marquage, pas de sélection", () => {
+      const { titleLink, onSelect, onOpenedInBackground } = renderRow(viewMode);
+      expect(fireEvent.click(titleLink!, { button: 1 })).toBe(true); // ouverture native laissée
+      titleLink!.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }));
+      expect(onOpenedInBackground).toHaveBeenCalledTimes(1);
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("clic droit sur le titre : le menu de l'article, pas le menu natif du lien", () => {
+      const { titleLink, onOpenMenu } = renderRow(viewMode);
+      expect(fireEvent.contextMenu(titleLink!, { clientX: 12, clientY: 34 })).toBe(false);
+      expect(onOpenMenu).toHaveBeenCalledWith({ x: 12, y: 34 });
+    });
+
     it("clic molette ailleurs sur la ligne : comportement d'aujourd'hui (ouverture à la source)", () => {
       const { row, onOpenSource, onOpenedInBackground } = renderRow(viewMode);
       const time = row.querySelector('[data-theme="list-time"]') as HTMLElement;

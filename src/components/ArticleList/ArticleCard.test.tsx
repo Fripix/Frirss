@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import ArticleCard from './ArticleCard';
+import { OpenSourceButton } from './ArticleActions';
 import { DEFAULT_ROW_ACTIONS } from '../../lib/rowActions';
 import type { Article } from '../../types';
 
@@ -118,6 +119,23 @@ describe('ArticleCard', () => {
     expect(link.getAttribute('rel')).toContain('noopener');
   });
 
+  it("une URL javascript: ne devient aucun href : ni l'icône, ni le titre", () => {
+    const { container } = render(
+      <ArticleCard article={{ ...base, url: 'javascript:alert(1)' }} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
+        onSelect={noop} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
+    );
+    expect(container.querySelector('[href]')).toBeNull();
+    // L'emplacement reste réservé, comme pour un article sans URL.
+    const slot = container.querySelector('.article-card__actions')?.children[2] as HTMLElement;
+    expect(slot.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it("OpenSourceButton refuse lui-même un href non http(s) (défense en profondeur)", () => {
+    const { container } = render(<OpenSourceButton href="javascript:alert(1)" onClick={noop} />);
+    expect(container.querySelector('a')).not.toBeNull();
+    expect(container.querySelector('[href]')).toBeNull();
+  });
+
   it('masquer une icône par réglage RETIRE son emplacement, sans le réserver', () => {
     const { container } = render(
       <ArticleCard article={base} showSource rowActions={{ ...DEFAULT_ROW_ACTIONS, openSource: false }} active={false}
@@ -187,6 +205,14 @@ describe('ArticleCard', () => {
       link!.dispatchEvent(aux);
       expect(aux.defaultPrevented).toBe(false);
       expect(onOpenSource).not.toHaveBeenCalled();
+      expect(onOpenedInBackground).toHaveBeenCalledOnce();
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("click bouton 1 puis auxclick : un seul marquage, pas de sélection", () => {
+      const { link, onSelect, onOpenedInBackground } = renderTitle();
+      expect(fireEvent.click(link!, { button: 1 })).toBe(true);
+      link!.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }));
       expect(onOpenedInBackground).toHaveBeenCalledOnce();
       expect(onSelect).not.toHaveBeenCalled();
     });
