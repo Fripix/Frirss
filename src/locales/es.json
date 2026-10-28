@@ -120,7 +120,8 @@
     "scanRateLimited": "Demasiadas solicitudes — inténtelo de nuevo en un minuto",
     "endOfList": "Fin de la lista",
     "endOfListMarkRead": "Marcar todo como leído",
-    "clearSearch": "Borrar búsqueda"
+    "clearSearch": "Borrar búsqueda",
+    "searchHeading": "Búsqueda"
   },
   "articleRow": {
     "markRead": "Marcar como leído",

@@ -128,7 +128,8 @@
     "scanRateLimited": "Забагато запитів — спробуйте ще раз за хвилину",
     "endOfList": "Кінець списку",
     "endOfListMarkRead": "Позначити все як прочитане",
-    "clearSearch": "Очистити пошук"
+    "clearSearch": "Очистити пошук",
+    "searchHeading": "Пошук"
   },
   "articleRow": {
     "markRead": "Позначити прочитаним",

@@ -57,8 +57,10 @@ export default defineConfig({
             options: {
               cacheName: 'frirss-images',
               expiration: {
-                // Backstop only — the real budget is enforced in the app from
-                // storage estimates (opaque images have no readable size).
+                // Backstop only. The offline budget counts the bytes the
+                // preparation actually stored (proxied, readable responses);
+                // images cached here on display are often opaque (no readable
+                // size), and Chromium counts each one ~7 MB against the quota.
                 maxEntries: 6000,
                 maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
                 purgeOnQuotaError: true,

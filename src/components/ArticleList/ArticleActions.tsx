@@ -78,7 +78,7 @@ function StarButton({ starred, onClick, article }: StarButtonProps) {
       data-theme="star-color"
       className="p-1 rounded-full transition-colors hover-tint"
       style={{ color: starred ? 'var(--star-color)' : 'var(--star-inactive)' }}
-      aria-label={starred ? t('articleRow.removeStar') : t('articleRow.addStar')}
+      aria-label={t('readingPane.star')}
       aria-pressed={starred}
       title={
         (starred ? t('articleRow.removeStar') : t('articleRow.addStar'))
@@ -124,7 +124,7 @@ function ReadLaterButton({ active, onClick, article }: ReadLaterButtonProps) {
       data-theme="readlater-color"
       className="p-1 rounded-full transition-colors hover-tint"
       style={{ color: active ? 'var(--readlater-color)' : 'var(--star-inactive)' }}
-      aria-label={active ? t('articleRow.removeReadLater') : t('articleRow.addReadLater')}
+      aria-label={t('sidebar.readLater')}
       aria-pressed={!!active}
       title={
         (active ? t('articleRow.removeReadLater') : t('articleRow.addReadLater'))

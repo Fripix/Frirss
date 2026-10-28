@@ -53,8 +53,10 @@ export default function ShortcutBar() {
       {/* Une seule ligne : un raccourci qui ne tient pas passe à la ligne
           suivante, rognée, au lieu de faire défiler la barre (1280 px avec un
           article ouvert). L'ordre de shortcutGroups fait la priorité, après
-          Échap : la seule sortie du mode Focus ne doit pas être rognée. */}
-      <div data-shortcut-context className="flex-1 min-w-0 h-[18px] overflow-hidden flex flex-wrap items-center gap-x-3">
+          Échap : la seule sortie du mode Focus ne doit pas être rognée.
+          19 px : la touche en fait 18, plus son liseré d'1 px ; gap-y-2 pousse
+          la rangée suivante (dès 26 px) entièrement hors de la zone. */}
+      <div data-shortcut-context className="flex-1 min-w-0 h-[19px] overflow-hidden flex flex-wrap items-center gap-x-3 gap-y-2">
         {escLabel && (
           <div className="flex items-center gap-1 flex-shrink-0">
             <kbd

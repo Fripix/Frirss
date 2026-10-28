@@ -132,6 +132,7 @@ function ThemeSection() {
             value={theme.name}
             onChange={(e) => setThemeName(e.target.value)}
             placeholder={t('preferences.themes.themeName')}
+            aria-label={t('preferences.themes.themeName')}
             className="flex-1 px-3 py-1.5 text-sm rounded-md"
             style={{
               border: '1px solid var(--panel-border)',
@@ -607,8 +608,11 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
           </svg>
         </button>
         <div className="relative">
+          {/* Nommé par aria-label, pas par un <label htmlFor> : un clic sur le
+              libellé ouvrirait le sélecteur natif, alors que la ligne épingle. */}
           <input
             type="color"
+            aria-label={label}
             value={value?.startsWith('#') ? value : '#000000'}
             onChange={handlePickerChange}
             className="w-6 h-6 prefs-tap-swatch rounded cursor-pointer border-0 p-0"
@@ -622,6 +626,7 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
             onChange={handleHexChange}
             onBlur={() => setEditing(false)}
             onKeyDown={(e) => e.key === 'Enter' && setEditing(false)}
+            aria-label={label}
             autoFocus
             className="w-20 text-[11px] px-1.5 py-0.5 rounded font-mono"
             style={{
@@ -633,6 +638,7 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
         ) : (
           <button
             onClick={() => { setHex(value); setEditing(true); }}
+            aria-label={t('app.labelValue', { label, value })}
             className="text-[11px] font-mono px-1.5 py-0.5 rounded hover-tint transition-colors"
             style={{ color: 'var(--list-summary)' }}
           >
@@ -961,6 +967,7 @@ function IdentitySection() {
               onBlur={() => setAppTitle(titleDraft)}
               onKeyDown={(e) => { if (e.key === 'Enter') { setAppTitle(titleDraft); e.currentTarget.blur(); } }}
               placeholder="FriRSS"
+              aria-label={t('preferences.branding.appName')}
               maxLength={30}
               className="flex-1 text-sm px-3 py-2 rounded-lg border outline-none transition-colors"
               style={{
@@ -1075,6 +1082,7 @@ function IdentitySection() {
               onChange={(e) => setLogoUrlDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { applyLogoUrl(); e.currentTarget.blur(); } }}
               placeholder={t('preferences.branding.logoUrlPlaceholder')}
+              aria-label={t('preferences.branding.logo')}
               className="flex-1 text-sm px-3 py-2 rounded-lg border outline-none transition-colors"
               style={{
                 borderColor: 'var(--panel-border)',

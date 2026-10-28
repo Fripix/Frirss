@@ -32,7 +32,7 @@ describe('Préférences › Étiquettes — supprimer et renommer', () => {
   it('supprimer passe par la boîte de confirmation, qu’un double-clic ne valide pas', async () => {
     deleteLabel.mockResolvedValue(true);
     render(<LabelsTab resetLabelColors={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'preferences.labels.delete' }));
+    fireEvent.click(screen.getByTitle('preferences.labels.delete'));
     fireEvent.click(inDialog('preferences.labels.delete'));
     expect(deleteLabel).not.toHaveBeenCalled();
     await grace();
@@ -43,7 +43,7 @@ describe('Préférences › Étiquettes — supprimer et renommer', () => {
   it('une suppression refusée le dit', async () => {
     deleteLabel.mockResolvedValue(false);
     render(<LabelsTab resetLabelColors={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'preferences.labels.delete' }));
+    fireEvent.click(screen.getByTitle('preferences.labels.delete'));
     await grace();
     await act(async () => { fireEvent.click(inDialog('preferences.labels.delete')); });
     expect(useUiStore.getState().toasts.map((x) => x.message)).toContain('preferences.labels.deleteFailed');
@@ -52,7 +52,7 @@ describe('Préférences › Étiquettes — supprimer et renommer', () => {
   it('un renommage refusé le dit', async () => {
     renameLabel.mockResolvedValue(false);
     render(<LabelsTab resetLabelColors={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'preferences.labels.rename' }));
+    fireEvent.click(screen.getByTitle('preferences.labels.rename'));
     const field = screen.getByDisplayValue('Veille');
     fireEvent.change(field, { target: { value: 'Veille pro' } });
     await act(async () => { fireEvent.submit(field.closest('form')!); });

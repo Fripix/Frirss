@@ -14,6 +14,9 @@
 .hover-danger-tint:hover { background-color: color-mix(in srgb, var(--danger) 12%, transparent); }
 .text-danger { color: var(--danger); }
 .danger-note { color: var(--danger); background-color: color-mix(in srgb, var(--danger) 10%, transparent); }
+/* La carte de connexion est sombre et fixe, quel que soit le thème : son erreur
+   ne suit pas `--danger` (rouge foncé des thèmes clairs, 2,7:1 sur cette carte). */
+.login-error { color: #f87171; background-color: rgba(248, 113, 113, 0.1); }
 
 * {
   margin: 0;
@@ -318,9 +321,19 @@ html {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
+/* « ⋯ » d'une ligne de flux : rendu en permanence, montré à la place du compte
+   au seul survol d'un pointeur qui survole. Au doigt, le menu s'ouvre par
+   l'appui long. L'animation rejoue à chaque apparition (display none → flex). */
 .sidebar-feed-edit-btn {
+  display: none;
   opacity: 0;
-  animation: fadeSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@media (hover: hover) {
+  .sidebar-feed-item:hover .sidebar-feed-edit-btn {
+    display: flex;
+    animation: fadeSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .sidebar-feed-item:hover .sidebar-feed-count { visibility: hidden; }
 }
 
 @keyframes fadeSlideIn {
@@ -1496,6 +1509,7 @@ summary:focus-visible,
   .reading-skeleton,
   .article-enter,
   .sidebar-feed-edit-btn,
+  .sidebar-feed-item:hover .sidebar-feed-edit-btn,
   .update-overlay,
   .offline-banner {
     animation: none;

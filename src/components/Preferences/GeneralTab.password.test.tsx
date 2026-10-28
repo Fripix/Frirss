@@ -58,6 +58,29 @@ describe('Préférences › Général — changer son mot de passe', () => {
     expect((screen.getByLabelText('preferences.account.current') as HTMLInputElement).value).toBe('');
   });
 
+  // La confirmation était insérée avec son texte (souvent non annoncée), puis
+  // restait affichée pendant qu'on retapait un autre mot de passe.
+  it('annonce la réussite dans une région déjà montée, effacée dès qu’on retape', async () => {
+    vi.mocked(changePassword).mockResolvedValue(undefined);
+    render(<GeneralTab />);
+    const region = screen.getAllByRole('status').find((r) => r.closest('form'));
+    expect(region?.textContent).toBe('');
+    fill('old-secret', 'new-secret', 'new-secret');
+    await submit();
+    expect(region?.textContent).toBe('preferences.account.done');
+    fireEvent.change(screen.getByLabelText('preferences.account.current'), { target: { value: 'x' } });
+    expect(region?.textContent).toBe('');
+  });
+
+  // Sans champ identifiant, un gestionnaire de mots de passe ne sait pas à
+  // quel compte rattacher le nouveau mot de passe (Chrome le signale).
+  it('porte l’identifiant du compte pour les gestionnaires de mots de passe', () => {
+    const { container } = render(<GeneralTab />);
+    const user = container.querySelector('input[autocomplete="username"]') as HTMLInputElement | null;
+    expect(user?.value).toBe('root');
+    expect(user?.closest('form')).toBe(screen.getByLabelText('preferences.account.current').closest('form'));
+  });
+
   it('refuse deux saisies différentes sans appeler le serveur', async () => {
     render(<GeneralTab />);
     fill('old-secret', 'new-secret', 'new-secreT');

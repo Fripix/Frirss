@@ -37,11 +37,16 @@ interface Props {
  *
  * Le focus part sur ANNULER : dans une question dont une réponse est
  * irréversible, la touche Entrée réflexe doit tomber du côté qui ne casse rien.
+ * Et il REVIENT à ce qui l'avait avant l'ouverture : sans cela il tombait sur
+ * <body>, Tab repartait du haut de la page, et dans les Préférences Échap ne
+ * fermait plus le panneau. Seulement si le focus s'est perdu (sur <body> ou
+ * dans la boîte) et si le déclencheur existe encore.
  */
 export default function ConfirmDialog({ open, title, message, confirmLabel, warning, danger, onConfirm, onCancel }: Props) {
   const { t } = useTranslation();
   const titleId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
   // Lue par l'écouteur d'Échap, qui n'est posé qu'à l'ouverture.
@@ -50,9 +55,16 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
 
   useEffect(() => {
     if (!open) { setArmed(false); setBusy(false); return; }
+    const opener = document.activeElement as HTMLElement | null;
+    const root = rootRef.current;
     cancelRef.current?.focus();
     const timer = setTimeout(() => setArmed(true), CONFIRM_GRACE_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      const now = document.activeElement;
+      const lost = !now || now === document.body || !!root?.contains(now);
+      if (lost && opener && opener !== document.body && opener.isConnected) opener.focus({ preventScroll: true });
+    };
   }, [open]);
 
   useEffect(() => {
@@ -79,7 +91,9 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
   }
 
   return createPortal(
-    <div className="confirm-dialog-root" onClick={busy ? undefined : onCancel} role="presentation">
+    // Le fond est désarmé pendant la même grâce que la validation : le second
+    // clic d'un double-clic sur le déclencheur y tombait et annulait aussitôt.
+    <div ref={rootRef} className="confirm-dialog-root" onClick={busy || !armed ? undefined : onCancel} role="presentation">
       <div className="confirm-dialog__backdrop" />
       <div
         className="confirm-dialog"

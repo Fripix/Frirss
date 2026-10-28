@@ -101,6 +101,22 @@ la release publiée.
   article ouvert, elle débordait et poussait la palette et l'aide hors de vue.
   Les raccourcis qui ne tiennent pas sont masqués, la palette et l'aide
   restent toujours visibles, et « Échap » passe en tête en mode Focus.
+- **Les boîtes de confirmation rendent le focus** au bouton qui les a ouvertes
+  (il tombait sur la page, et Échap ne fermait plus les Préférences), et un
+  double-clic sur ce bouton ne les referme plus aussitôt.
+- **Compte d'un flux : il ne disparaît plus après un survol.** Le compte de
+  non-lus laissait la place au bouton « ⋯ » et restait parfois caché, la
+  souris partie ; sur tablette, le flux touché perdait son compte jusqu'à la
+  tape suivante.
+- **Écran de connexion : le message d'erreur est de nouveau lisible** avec les
+  thèmes Papier, Riso et Contraste (régression du cycle).
+- **Recherche** : Échap la ferme même après avoir cliqué la loupe, le focus
+  revient au bouton « Rechercher », l'en-tête dit « Recherche : … », et le
+  nombre de non-lus de la vue ne s'affiche plus à côté des résultats.
+- **Changer son mot de passe** : la réussite est annoncée de façon fiable,
+  s'efface dès qu'on retape, et les gestionnaires de mots de passe savent à
+  quel compte rattacher le nouveau.
+- **Barre des raccourcis** : les touches gardent leur relief.
 - **Accessibilité : clavier et lecteurs d'écran.** Les menus (article, flux,
   serveurs, étiquettes, traduction, résumé) se parcourent aux flèches et
   rendent le focus au bouton qui les a ouverts. Les boutons à icône seule ont
@@ -108,7 +124,14 @@ la release publiée.
   boutons à bascule disent leur état. Les libellés d'« Ajouter un flux »,
   « Ajouter un serveur » et de la sauvegarde sont reliés à leur champ. Le
   tiroir mobile fermé n'est plus atteignable à la tabulation. Les messages
-  (confirmations, hors ligne, relève) sont annoncés de façon fiable.
+  (confirmations, hors ligne, relève) sont annoncés de façon fiable. Les
+  boutons à bascule (favori, à lire plus tard, mode Focus, dispositions…)
+  gardent un nom fixe et disent leur état. Les champs encore sans nom en ont
+  un : couleurs du thème, nom du thème et de l'application, adresse du logo,
+  jeton maître, création de compte et SSO, touches des raccourcis. Les
+  boutons d'une étiquette disent laquelle ils visent, et les options du menu
+  d'un flux de quel réglage elles relèvent. Le formulaire de création de
+  compte ne propose plus les identifiants de l'administrateur.
 - **Titre de la liste écrasé : lisible au survol.** Avec un article ouvert,
   la barre d'outils le réduisait à « To… » ; l'infobulle donne le titre
   entier.

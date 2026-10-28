@@ -85,9 +85,13 @@ administrateur.
   seul un administrateur pouvait réinitialiser un mot de passe. Elle a sa
   propre limite, **par compte** (`passwordLimiter`, 10 échecs / 15 min,
   après `requireAuth`) : un mot de passe actuel se devine depuis une session
-  restée ouverte. Tests : `GeneralTab.password.test.tsx`, bloc
-  `change-password` de `server/test/api.test.ts` (dernier du fichier : ses
-  échecs entament la limite partagée de la connexion).
+  restée ouverte. La réussite s'annonce dans une région `role="status"`
+  montée en permanence (vide, `sr-only`, au repos) et s'efface dès qu'on
+  retape ; un champ `autocomplete="username"` caché porte le nom du compte,
+  pour que les gestionnaires de mots de passe sachent à quel compte rattacher
+  le nouveau. Tests : `GeneralTab.password.test.tsx`, bloc
+  `change-password` de `server/test/api.test.ts` (sa limite est propre au
+  compte, elle n'entame pas celle de la connexion).
 
 ### SSO / OIDC
 Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la place**
@@ -154,6 +158,10 @@ Trois étapes : compte FriRSS, puis serveur FreshRSS, puis identifiants FreshRSS
 Animation de connexion configurable (aucune / portail / scanline).
 
 - **Où** : `src/components/Login/` (`Login.tsx`, `LoginTransition.tsx`, `MatrixRain.tsx`)
+- **Couleur d'erreur fixe** (1.8.0) : `.login-error` (#f87171), pas
+  `--danger`. La carte est sombre quel que soit le thème, et le rouge foncé
+  des thèmes clairs (Papier, Riso, Contraste) y tombait à 2,7:1
+  (`loginErrorContrast.test.ts` exige 4,5:1).
 - **Voir le mot de passe** (1.4.5) : la bascule vit dans le composant partagé
   `InputField`, donc les quatre champs de mot de passe de l'écran l'ont d'un
   coup. `aria-pressed` porte l'état.
@@ -293,6 +301,14 @@ tard » l'y classe — **à la souris seulement** (au doigt, l'appui long ouvre
 le menu ; voir *Menu d'un article*, piège Chrome Android).
 
 - **Où** : `src/components/Sidebar/Sidebar.tsx`, `src/stores/uiStore.ts`
+- **Compte et « ⋯ » d'une ligne de flux échangés par le CSS** (1.8.0) : les
+  deux sont rendus, et `.sidebar-feed-item:hover` sous `@media (hover: hover)`
+  montre « ⋯ » à la place du compte. Un état JavaScript de survol
+  (`onMouseEnter` / `onMouseLeave`) se coinçait : un `mouseleave` perdu
+  cachait le compte pour de bon (vu : 111 non lus masqués, la souris
+  ailleurs), et au doigt une tape émet `mouseenter` sans `mouseleave` — sur
+  tablette, le flux touché perdait son compte. Au doigt, le menu s'ouvre par
+  l'appui long ; « ⋯ » n'y apparaît plus.
 - **Menu d'un flux** — renommer, ouvrir le site, extraction automatique, se
   désabonner. Trois chemins : le clic droit, le bouton ⋯ révélé au survol, et
   **un appui long de 500 ms au doigt** (`useLongPress`, le même que partout :
@@ -663,8 +679,9 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
 - **Une seule ligne, jamais de défilement** (1.8.0) : à 1280 px avec un
   article ouvert, la barre débordait (barre de défilement horizontale, palette
   et aide poussées hors de vue). Les raccourcis du contexte vivent dans une
-  zone d'une ligne (`data-shortcut-context`, `flex-wrap` + hauteur fixe +
-  `overflow: hidden`) : celui qui ne tient pas passe à la ligne suivante,
+  zone d'une ligne (`data-shortcut-context`, `flex-wrap` + 19 px de haut —
+  la touche en fait 18, plus son liseré — + `gap-y-2` qui pousse la rangée
+  suivante hors de vue + `overflow: hidden`) : celui qui ne tient pas passe à la ligne suivante,
   rognée. L'ordre de `shortcutGroups` fait la priorité, **après Échap**,
   placé en tête parce qu'il est la seule sortie du mode Focus. Les deux
   globales restent hors de la zone, donc toujours visibles. Pur CSS, aucune
@@ -1934,6 +1951,13 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   focus de départ va sur **Annuler**, et sa validation **ignore un clic qui
   suit l'ouverture de moins de `CONFIRM_GRACE_MS` (350 ms)** — même idée que la
   grâce du fond de `BottomSheet`, où le geste d'ouverture ne doit pas refermer.
+  Le **fond** est désarmé pendant la même grâce (1.8.0) : le second clic d'un
+  double-clic sur le déclencheur y tombait et annulait aussitôt. À la
+  fermeture, le focus **revient** à ce qui l'avait à l'ouverture (1.8.0), si
+  le focus s'est perdu (sur `<body>` ou dans la boîte) et que le déclencheur
+  existe encore : il tombait sur `<body>`, Tab repartait du haut de la page,
+  et dans les Préférences Échap ne fermait plus le panneau. Toutes les
+  confirmations destructives passent par cette boîte depuis 1.8.0.
   Le réglage `confirmMarkAllRead` la gouverne : désactivé, un clic agit
   immédiatement, exactement comme avant.
 - **Sous le filtre Non lus, « Tout lu » vide la vue** (1.6.0, discussion #19) :
@@ -2270,6 +2294,12 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   (ce qui est montré, et quand), `src/lib/imageAspect.ts` (réservation de la
   place des images), `src/lib/heroWarm.ts` (réchauffage des images en avant),
   `src/lib/readProgress.ts`
+- **Fermeture** (1.8.0) : Échap est écouté par le formulaire, pas par le seul
+  champ — après un envoi par la loupe, le focus y reste et Échap ne fermait
+  plus rien —, et le focus revient au bouton « Rechercher » (noté au premier
+  rendu de `SearchBar`). L'en-tête dit « Recherche : … » (`articleList.searchHeading`,
+  le nom ; « Rechercher » est le verbe du bouton) et la pastille de non-lus de
+  la vue se tait pendant une recherche.
 - **Ce que le volet montre** (1.4.10) : `src/lib/readingBody.ts`
   (`readingBodyKind`, `showsSkeleton`, `showsReadingTime`), testé à part.
   L'extraction si elle est là, **sinon le contenu du flux** — qui est déjà en
@@ -4735,10 +4765,21 @@ dans quelques composants partagés.
   `src/components` et refuse un `<button>` sans `aria-label` dont le contenu
   n'est qu'une icône (il suit les accolades : un `>` dans `size > MIN` ne
   termine pas la balise). Il a trouvé ses deux premiers oublis à sa création.
-  Les bascules portent `aria-pressed` (étoile, à lire plus tard, dispositions,
-  barre des serveurs, mode Focus, pastilles de couleur des étiquettes), les
-  boutons qui déplient un éditeur `aria-expanded`, le serveur actif
-  `aria-current`.
+  Les bascules portent `aria-pressed` avec un **nom fixe** — « Favori », pas
+  « Ajouter / Retirer des favoris », qui reste dans `title` : nom changeant
+  plus état disaient l'état deux fois, en sens contraires (étoile, à lire plus
+  tard, dispositions, barre des serveurs, séparateurs de date, mode Focus,
+  afficher le mot de passe, pastilles de couleur des étiquettes) ; le même
+  fichier refuse un `aria-label` à ternaire sur un bouton `aria-pressed`. Les
+  boutons qui déplient un éditeur portent `aria-expanded`, le serveur actif
+  `aria-current`, les groupes d'options du menu d'un flux un `role="group"`
+  nommé par leur réglage (les trois commencent par « Par défaut »), et les
+  boutons d'une étiquette (déplacer, renommer, supprimer) son nom. Champs
+  nommés (1.8.0) : couleurs du thème (`aria-label`, pas de `<label htmlFor>`
+  — un clic sur le libellé ouvrirait le sélecteur natif alors que la ligne
+  épingle), nom du thème, nom de l'application, adresse du logo, jeton
+  maître, création de compte (le texte d'exemple est aussi le nom) et SSO,
+  touches des raccourcis (« Article suivant : ↓ »).
 - **Menus au clavier** (1.8.0) : `src/hooks/useMenuKeys.ts`, branché dans le
   menu d'un article, celui d'un flux, le menu du sélecteur de serveurs, le
   menu d'étiquettes du volet, le choix de catégorie des favoris et

@@ -385,7 +385,12 @@ export default function GeneralTab() {
                     background: editing === action ? 'var(--accent-glow)' : 'var(--panel-header-bg)',
                   }}
                   autoFocus={editing === action}
-                  aria-label={editing === action ? t('preferences.shortcuts.pressKey') : undefined}
+                  // Sans nom, le bouton s'annonçait par la seule touche (« R, bouton ») :
+                  // l'action lue juste avant n'est pas son libellé.
+                  aria-label={editing === action ? t('preferences.shortcuts.pressKey') : t('app.labelValue', {
+                    label: t(`preferences.shortcuts.${action}`),
+                    value: shortcuts[action] ? formatKey(shortcuts[action]) : t('preferences.shortcuts.unassigned'),
+                  })}
                 >
                   {editing === action ? '...' : shortcuts[action] ? formatKey(shortcuts[action]) : t('preferences.shortcuts.unassigned')}
                 </button>

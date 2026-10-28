@@ -120,7 +120,8 @@
     "scanRateLimited": "请求过多 — 请一分钟后重试",
     "endOfList": "列表末尾",
     "endOfListMarkRead": "全部标为已读",
-    "clearSearch": "清除搜索"
+    "clearSearch": "清除搜索",
+    "searchHeading": "搜索"
   },
   "articleRow": {
     "markRead": "标为已读",

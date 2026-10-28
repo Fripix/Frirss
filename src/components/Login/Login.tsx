@@ -358,7 +358,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
           )}
 
           {error && (
-            <p className="danger-note text-xs text-center rounded-lg py-2 px-3">{error}</p>
+            <p className="login-error text-xs text-center rounded-lg py-2 px-3">{error}</p>
           )}
 
           <button
@@ -639,7 +639,7 @@ function ServerStep() {
           </details>
 
           {error && (
-            <p className="danger-note text-xs text-center rounded-lg py-2 px-3">{error}</p>
+            <p className="login-error text-xs text-center rounded-lg py-2 px-3">{error}</p>
           )}
 
           <button
@@ -715,7 +715,7 @@ function InputField({ id, label, type = 'text', value, onChange, placeholder, re
           <button
             type="button"
             onClick={() => setRevealed((r) => !r)}
-            aria-label={revealed ? t('login.hidePassword') : t('login.showPassword')}
+            aria-label={t('login.showPassword')}
             aria-pressed={revealed}
             title={revealed ? t('login.hidePassword') : t('login.showPassword')}
             className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-lg transition-colors"

@@ -19,6 +19,7 @@ export default function AccountSection() {
   // ne l'envoyaient pas avant la 1.8.0, et une session ouverte avant n'a pas
   // le champ ; le retour SSO lit l'utilisateur par /me, qui l'inclut toujours.
   const isLocal = useAuthStore((s) => !!s.backendUser && (s.backendUser.auth_provider ?? 'local') === 'local');
+  const username = useAuthStore((s) => s.backendUser?.username ?? '');
   const ids = { current: useId(), next: useId(), again: useId(), hint: useId() };
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -28,6 +29,9 @@ export default function AccountSection() {
   const [done, setDone] = useState(false);
 
   if (!isLocal) return null;
+
+  // Retaper efface « Mot de passe modifié », qui parlait de la saisie d'avant.
+  const edit = (set: (v: string) => void) => (e: { target: { value: string } }) => { set(e.target.value); setDone(false); };
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -63,23 +67,29 @@ export default function AccountSection() {
         <p id={ids.hint} className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.account.hint')}
         </p>
+        {/* Pour les gestionnaires de mots de passe : sans identifiant dans le
+            formulaire, ils ne savent pas à quel compte rattacher le nouveau
+            mot de passe. Caché, jamais saisi. */}
+        <input type="text" autoComplete="username" value={username} readOnly hidden />
         <div>
           <label htmlFor={ids.current} className={label} style={{ color: 'var(--list-summary)' }}>{t('preferences.account.current')}</label>
           <input id={ids.current} type="password" autoComplete="current-password" required value={current}
-            onChange={(e) => setCurrent(e.target.value)} className={field} style={fieldStyle} />
+            onChange={edit(setCurrent)} className={field} style={fieldStyle} />
         </div>
         <div>
           <label htmlFor={ids.next} className={label} style={{ color: 'var(--list-summary)' }}>{t('preferences.account.new')}</label>
           <input id={ids.next} type="password" autoComplete="new-password" required value={next}
-            onChange={(e) => setNext(e.target.value)} className={field} style={fieldStyle} />
+            onChange={edit(setNext)} className={field} style={fieldStyle} />
         </div>
         <div>
           <label htmlFor={ids.again} className={label} style={{ color: 'var(--list-summary)' }}>{t('preferences.account.confirm')}</label>
           <input id={ids.again} type="password" autoComplete="new-password" required value={again}
-            onChange={(e) => setAgain(e.target.value)} className={field} style={fieldStyle} />
+            onChange={edit(setAgain)} className={field} style={fieldStyle} />
         </div>
         {error && <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>}
-        {done && <p role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t('preferences.account.done')}</p>}
+        {/* Région montée en permanence, vide au repos : insérée avec son texte,
+            elle n'était souvent pas annoncée (liveRegions.test). */}
+        <p role="status" className={done ? 'text-xs' : 'sr-only'} style={{ color: 'var(--accent)' }}>{done ? t('preferences.account.done') : ''}</p>
         <button
           type="submit"
           disabled={busy}

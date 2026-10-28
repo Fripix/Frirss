@@ -113,7 +113,7 @@ describe('ShortcutBar — largeur insuffisante', () => {
     const context = container.querySelector('[data-shortcut-context]') as HTMLElement;
     expect(context.className).toMatch(/\bflex-wrap\b/);
     expect(context.className).toMatch(/\boverflow-hidden\b/);
-    expect(context.className).toMatch(/\bh-\[18px\]/);
+    expect(context.className).toMatch(/\bh-\[19px\]/);
     expect(context.contains(getByText('preferences.shortcuts.nextArticle'))).toBe(true);
     expect(context.contains(getByText('palette.title'))).toBe(false);
     expect(context.contains(getByText('preferences.shortcuts.helpTitle'))).toBe(false);

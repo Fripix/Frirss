@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
+import { useState } from 'react';
 import SearchBar from './SearchBar';
 
 vi.mock('react-i18next', () => ({
@@ -79,5 +80,36 @@ describe('SearchBar', () => {
   it('force 16 px sur mobile', () => {
     renderBar({ mobile: true });
     expect((screen.getByRole('textbox') as HTMLInputElement).style.fontSize).toBe('16px');
+  });
+});
+
+// Échap n'était écouté que par le champ : après un envoi par la loupe (le
+// focus y reste), Échap ne fermait plus la recherche. Et sa fermeture laissait
+// le focus sur <body> au lieu du bouton « Rechercher » qui l'avait ouverte.
+describe('SearchBar — Échap et focus', () => {
+  it('Échap ferme aussi quand le focus est sur la loupe', () => {
+    const onClose = vi.fn();
+    render(<SearchBar value="x" scope="Tous" mobile={false} onChange={() => {}} onSubmit={() => {}} onClose={onClose} />);
+    fireEvent.keyDown(screen.getByRole('button', { name: 'articleList.search' }), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('rend le focus au bouton qui l’a ouverte, à sa fermeture', () => {
+    function Host() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Ouvrir la recherche</button>
+          {open && <SearchBar value="" scope="Tous" mobile={false} onChange={() => {}} onSubmit={() => {}} onClose={() => setOpen(false)} />}
+        </>
+      );
+    }
+    render(<Host />);
+    const opener = screen.getByText('Ouvrir la recherche');
+    opener.focus();
+    fireEvent.click(opener);
+    (document.querySelector('[data-search-input]') as HTMLInputElement).focus();
+    fireEvent.click(screen.getByRole('button', { name: 'articleList.closeSearch' }));
+    expect(document.activeElement).toBe(opener);
   });
 });

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, act } from '@testing-library/react';
+import { useState } from 'react';
 import ConfirmDialog, { CONFIRM_GRACE_MS } from './ConfirmDialog';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -151,8 +152,9 @@ describe('ConfirmDialog', () => {
     expect(props.onCancel).toHaveBeenCalled();
   });
 
-  it('annule au clic sur le fond', () => {
+  it('annule au clic sur le fond, une fois la grâce passée', async () => {
     const { props } = ouvrir();
+    await franchirLaGrace();
     fireEvent.click(document.body.querySelector('.confirm-dialog-root')!);
     expect(props.onCancel).toHaveBeenCalled();
   });
@@ -160,5 +162,55 @@ describe('ConfirmDialog', () => {
   it('ne rend rien quand elle est fermée', () => {
     ouvrir({ open: false });
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  });
+});
+
+// Toutes les confirmations destructives passent par cette boîte depuis 1.8.0.
+// Elle ne rendait pas le focus : il tombait sur <body>, Tab repartait du haut
+// de la page, et dans les Préférences Échap ne fermait plus le panneau (son
+// écouteur ne voit que les touches nées à l'intérieur).
+describe('ConfirmDialog — focus rendu à la fermeture', () => {
+  function Host() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Supprimer</button>
+        <ConfirmDialog open={open} title="Sûr ?" confirmLabel="Oui" onConfirm={() => setOpen(false)} onCancel={() => setOpen(false)} />
+      </>
+    );
+  }
+
+  it('rend le focus au déclencheur après Annuler', () => {
+    render(<Host />);
+    const trigger = screen.getByText('Supprimer');
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(document.activeElement?.textContent).toBe('dialog.cancel');
+    fireEvent.click(screen.getByText('dialog.cancel'));
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('rend le focus au déclencheur après Échap', () => {
+    render(<Host />);
+    const trigger = screen.getByText('Supprimer');
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(document.activeElement).toBe(trigger);
+  });
+});
+
+// Le second clic d'un double-clic sur le déclencheur tombait sur le fond, là
+// où était le bouton, et annulait aussitôt : la boîte clignotait.
+describe('ConfirmDialog — fond désarmé pendant la grâce', () => {
+  it('ignore un clic sur le fond juste après l’ouverture, puis l’accepte', async () => {
+    const onCancel = vi.fn();
+    render(<ConfirmDialog open title="Sûr ?" confirmLabel="Oui" onConfirm={() => {}} onCancel={onCancel} />);
+    const root = document.querySelector('.confirm-dialog-root') as HTMLElement;
+    fireEvent.click(root);
+    expect(onCancel).not.toHaveBeenCalled();
+    await act(async () => { await new Promise((r) => setTimeout(r, CONFIRM_GRACE_MS + 30)); });
+    fireEvent.click(root);
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

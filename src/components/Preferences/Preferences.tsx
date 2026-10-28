@@ -216,6 +216,7 @@ export default function Preferences() {
             {!isMobile && savedThemes.length > 1 && (
               <select
                 value={theme.name}
+                aria-label={t('preferences.appearance.theme')}
                 onChange={(e) => loadSavedTheme(e.target.value)}
                 className="text-xs px-2 py-1 rounded-md appearance-none cursor-pointer pr-6 prefs-tap-row min-w-[76px] flex-shrink truncate"
                 style={{

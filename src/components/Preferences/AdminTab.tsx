@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useId, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import {
@@ -30,12 +30,19 @@ interface AdminInputProps {
   placeholder?: string;
   value: string;
   onChange: (value: string) => void;
+  autoComplete?: string;
 }
-function AdminInput({ type = 'text', placeholder, value, onChange }: AdminInputProps) {
+// L'exemple tient lieu de libellé visible dans ce formulaire serré : il est
+// aussi le nom du champ (sans quoi seul le placeholder le nommait, mal
+// annoncé). `autoComplete` : le compte qu'on CRÉE n'est pas celui de l'admin —
+// sans « new-password », le navigateur y proposait ses propres identifiants.
+function AdminInput({ type = 'text', placeholder, value, onChange, autoComplete }: AdminInputProps) {
   return (
     <input
       type={type}
       placeholder={placeholder}
+      aria-label={placeholder}
+      autoComplete={autoComplete}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className="w-full px-3 py-1.5 text-sm rounded-md"
@@ -52,13 +59,15 @@ function AdminInput({ type = 'text', placeholder, value, onChange }: AdminInputP
 function CopyField({ label, value, hint }: { label: string; value: string; hint?: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const id = useId();
   return (
     <div>
-      <label className="text-[10px] font-medium mb-0.5 block" style={{ color: 'var(--list-summary)' }}>
+      <label htmlFor={id} className="text-[10px] font-medium mb-0.5 block" style={{ color: 'var(--list-summary)' }}>
         {label}
       </label>
       <div className="flex items-center gap-2">
         <input
+          id={id}
           type="text"
           readOnly
           value={value}
@@ -102,6 +111,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
   const pushToast = useUiStore((s) => s.pushToast);
   const [saved, setSaved] = useState(false);
   const [oidcForm, setOidcForm] = useState<Record<string, string>>({});
+  const oidcIds = useId();
 
   // New-user form
   const emptyNewUser = { username: '', displayName: '', email: '', password: '', role: 'user' };
@@ -515,6 +525,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
         <form onSubmit={handleCreateUser} className="space-y-2 p-3 rounded-md" style={rowStyle}>
           <div className="grid grid-cols-2 gap-2">
             <AdminInput
+              autoComplete="off"
               placeholder={t('admin.fieldUsername')}
               value={newUser.username}
               onChange={(v) => setNewUser((u) => ({ ...u, username: v }))}
@@ -532,6 +543,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
             />
             <AdminInput
               type="password"
+              autoComplete="new-password"
               placeholder={t('admin.fieldPassword')}
               value={newUser.password}
               onChange={(v) => setNewUser((u) => ({ ...u, password: v }))}
@@ -667,10 +679,12 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
               { key: 'oidcButtonLabel', label: t('admin.oidcButtonLabel') },
             ].map((field) => (
               <div key={field.key}>
-                <label className="text-[10px] font-medium mb-0.5 block" style={{ color: 'var(--list-summary)' }}>
+                <label htmlFor={`${oidcIds}-${field.key}`} className="text-[10px] font-medium mb-0.5 block" style={{ color: 'var(--list-summary)' }}>
                   {field.label}
                 </label>
                 <input
+                  id={`${oidcIds}-${field.key}`}
+                  autoComplete={field.type === 'password' ? 'new-password' : 'off'}
                   type={field.type || 'text'}
                   value={oidcForm[field.key] || ''}
                   onChange={(e) => setOidcForm((f) => ({ ...f, [field.key]: e.target.value }))}

@@ -120,7 +120,8 @@
     "scanRateLimited": "Te veel aanvragen — probeer het over een minuut opnieuw",
     "endOfList": "Einde van de lijst",
     "endOfListMarkRead": "Alles als gelezen markeren",
-    "clearSearch": "Zoekopdracht wissen"
+    "clearSearch": "Zoekopdracht wissen",
+    "searchHeading": "Zoekopdracht"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",

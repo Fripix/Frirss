@@ -683,7 +683,10 @@ export default function ArticleList() {
     : feedName;
   // Écrasé par la barre d'outils quand le panneau de lecture est ouvert, le
   // titre se réduit à « To… » : l'infobulle le rend lisible en entier.
-  const heading = searchQuery ? t('app.labelValue', { label: t('articleList.search'), value: searchQuery }) : title;
+  // Le nom (« Recherche : … »), pas le verbe du bouton (« Rechercher : … »).
+  // Pendant une recherche, la pastille des non-lus de la vue se tait : à côté
+  // de « 471 résultats », son 4 973 ne parlait pas de ce qu'on voit.
+  const heading = searchQuery ? t('app.labelValue', { label: t('articleList.searchHeading'), value: searchQuery }) : title;
 
   const groups = groupByDate(articles);
 
@@ -772,7 +775,7 @@ export default function ArticleList() {
             <h2 className="text-[15px] font-bold truncate min-w-0" title={heading} style={{ color: 'var(--list-title)' }}>
               {heading}
             </h2>
-            <HeaderUnread count={headerUnread} />
+            {!searchQuery && <HeaderUnread count={headerUnread} />}
             <div className="flex-1 flex items-center">
               <ToolbarBtn flex1 iconOnly icon={<SearchIcon />} label={t('articleList.search')} onClick={() => setSearchOpen(true)} />
               <ToolbarBtn flex1 iconOnly icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
@@ -833,7 +836,7 @@ export default function ArticleList() {
             <h2 className="text-[16px] font-bold truncate min-w-0" title={heading} style={{ color: 'var(--list-title)' }}>
               {heading}
             </h2>
-            <HeaderUnread count={headerUnread} />
+            {!searchQuery && <HeaderUnread count={headerUnread} />}
 
             <div className="w-px h-4 mx-1 flex-shrink-0" style={{ background: 'var(--panel-border)' }} />
 
@@ -893,7 +896,7 @@ export default function ArticleList() {
                 <h2 className="text-[16px] font-bold truncate" title={heading} style={{ color: 'var(--list-title)' }}>
                   {heading}
                 </h2>
-                <HeaderUnread count={headerUnread} />
+                {!searchQuery && <HeaderUnread count={headerUnread} />}
               </div>
 
               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -1847,7 +1850,7 @@ function DateSepToggle({ active, onClick }: ToggleProps) {
     <button
       onClick={onClick}
       title={active ? t('articleList.hideDateSep') : t('articleList.showDateSep')}
-      aria-label={active ? t('articleList.hideDateSep') : t('articleList.showDateSep')}
+      aria-label={t('articleList.dateSeparators')}
       aria-pressed={active}
       {...noFocusOnPointer}
       className={`option-toggle ${active ? 'option-toggle--on' : ''}`}
@@ -1867,7 +1870,7 @@ function TopbarToggle() {
     <button
       onClick={toggleTopbar}
       title={topbarVisible ? t('articleList.hideTopbar') : t('articleList.showTopbar')}
-      aria-label={topbarVisible ? t('articleList.hideTopbar') : t('articleList.showTopbar')}
+      aria-label={t('articleList.serverBar')}
       aria-pressed={topbarVisible}
       {...noFocusOnPointer}
       className={`option-toggle ${topbarVisible ? 'option-toggle--on' : ''}`}

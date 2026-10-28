@@ -1,4 +1,4 @@
-import { forwardRef, type FormEvent } from 'react';
+import { forwardRef, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -31,6 +31,18 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
   { value, scope, mobile, onChange, onSubmit, onClose }, ref,
 ) {
   const { t } = useTranslation();
+  // Le bouton « Rechercher » qui a ouvert la barre, noté au premier rendu :
+  // à la fermeture, le focus lui revient au lieu de tomber sur <body>.
+  const [opener] = useState(() => document.activeElement as HTMLElement | null);
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const form = formRef.current;
+    return () => {
+      const now = document.activeElement;
+      const lost = !now || now === document.body || !!form?.contains(now);
+      if (lost && opener && opener !== document.body && opener.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, [opener]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -38,8 +50,12 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
   }
 
   return (
+    // Échap écouté par le formulaire, pas par le seul champ : après un envoi
+    // par la loupe, le focus y reste, et Échap ne fermait plus rien.
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
       className="px-3 py-1.5 flex items-center gap-1.5"
       style={{ borderTop: '1px solid var(--panel-border)' }}
     >
@@ -61,7 +77,6 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
           }}
           onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
           onBlur={(e) => e.target.style.borderColor = 'var(--panel-border)'}
-          onKeyDown={(e) => e.key === 'Escape' && onClose()}
         />
         <button
           type="submit"

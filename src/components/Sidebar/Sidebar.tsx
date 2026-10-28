@@ -713,13 +713,18 @@ interface FeedContextMenuProps {
  * buttons, same look as the toolbar's layout toggle so the two read as the
  * same control. '' = follow the global setting.
  */
-function OverridePicker({ value, onChange, options }: {
+function OverridePicker({ value, onChange, options, label }: {
   value: string;
   onChange: (v: string) => void;
   options: { id: string; title: string; icon: ReactNode }[];
+  /** Le réglage que le groupe choisit : les trois groupes du menu commencent
+   *  tous par « Par défaut », qui sans lui ne disait pas de quoi. */
+  label: string;
 }) {
   return (
     <div
+      role="group"
+      aria-label={label}
       data-theme="list-active"
       className="flex items-center gap-0.5 rounded-md p-0.5 flex-shrink-0"
       style={{ background: 'var(--list-active)' }}
@@ -750,7 +755,7 @@ function OverridePicker({ value, onChange, options }: {
 const RESET_ICON = <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />;
 
 /** Per-feed layout picker: default / list / side by side / grid. */
-function FeedLayoutPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function FeedLayoutPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   const { t } = useTranslation();
   const options = [
     { id: '', title: t('sidebar.feedLayoutDefault'), icon: RESET_ICON },
@@ -781,14 +786,14 @@ function FeedLayoutPicker({ value, onChange }: { value: string; onChange: (v: st
       icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5zm-10 10h6.5v6.5h-6.5v-6.5zm10 0h6.5v6.5h-6.5v-6.5z" />,
     },
   ];
-  return <OverridePicker value={value} onChange={onChange} options={options} />;
+  return <OverridePicker value={value} onChange={onChange} options={options} label={label} />;
 }
 
 /**
  * Per-feed full-article picker: default / yes / no. The document glyph,
  * filled for "yes", outlined for "no".
  */
-function FeedAutoExtractPicker({ value, onChange }: { value: boolean | undefined; onChange: (v: boolean | '') => void }) {
+function FeedAutoExtractPicker({ value, onChange, label }: { value: boolean | undefined; onChange: (v: boolean | '') => void; label: string }) {
   const { t } = useTranslation();
   const DOC = 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z';
   const options = [
@@ -797,7 +802,7 @@ function FeedAutoExtractPicker({ value, onChange }: { value: boolean | undefined
     { id: 'off', title: t('sidebar.autoExtractOff'), icon: <><path strokeLinecap="round" strokeLinejoin="round" d={DOC} /><path strokeLinecap="round" d="M4 4l16 16" /></> },
   ];
   const current = value === true ? 'on' : value === false ? 'off' : '';
-  return <OverridePicker value={current} onChange={(v) => onChange(v === 'on' ? true : v === 'off' ? false : '')} options={options} />;
+  return <OverridePicker value={current} onChange={(v) => onChange(v === 'on' ? true : v === 'off' ? false : '')} options={options} label={label} />;
 }
 
 /**
@@ -807,7 +812,7 @@ function FeedAutoExtractPicker({ value, onChange }: { value: boolean | undefined
  * it — at 14 px, which of two bars is the longer one is invisible, and the
  * pair read as the same icon.
  */
-function FeedOrderPicker({ value, onChange }: { value: ArticleOrder | ''; onChange: (v: ArticleOrder | '') => void }) {
+function FeedOrderPicker({ value, onChange, label }: { value: ArticleOrder | ''; onChange: (v: ArticleOrder | '') => void; label: string }) {
   const { t } = useTranslation();
   const options = [
     { id: '', title: t('sidebar.feedLayoutDefault'), icon: RESET_ICON },
@@ -822,7 +827,7 @@ function FeedOrderPicker({ value, onChange }: { value: ArticleOrder | ''; onChan
       icon: <path strokeLinecap="round" strokeLinejoin="round" d="m3 9 4-4 4 4M7 5v14M12 11h5M12 17h9" />,
     },
   ];
-  return <OverridePicker value={value} onChange={(v) => onChange(v as ArticleOrder | '')} options={options} />;
+  return <OverridePicker value={value} onChange={(v) => onChange(v as ArticleOrder | '')} options={options} label={label} />;
 }
 
 export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContextMenuProps) {
@@ -1010,6 +1015,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
           {t('sidebar.autoExtract')}
         </span>
         <FeedAutoExtractPicker
+          label={t('sidebar.autoExtract')}
           value={feedAutoExtract}
           onChange={(v) => {
             setFeedAutoExtract(feed.id, v);
@@ -1029,6 +1035,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
           {t('sidebar.feedLayoutThisFeed')}
         </span>
         <FeedLayoutPicker
+          label={t('sidebar.feedLayoutThisFeed')}
           value={feedLayout}
           onChange={(v) => {
             setFeedLayout(feed.id, v);
@@ -1044,6 +1051,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
           {t('sidebar.feedOrderThisFeed')}
         </span>
         <FeedOrderPicker
+          label={t('sidebar.feedOrderThisFeed')}
           value={feedOrder}
           onChange={(v) => {
             setFeedArticleOrder(feed.id, v);
@@ -1118,7 +1126,6 @@ interface FeedItemProps {
  */
 export function FeedItem({ feed, isSelected, unreadCount, showFavicons, organizeMode, onSelect, onContextMenu, onOpenMenu, onDragStart, onDragOver, onDrop }: FeedItemProps) {
   const { t } = useTranslation();
-  const [hovered, setHovered] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const feedErrors = useFeedStore((s) => s.feedErrors);
@@ -1157,8 +1164,8 @@ export function FeedItem({ feed, isSelected, unreadCount, showFavicons, organize
         if (press.claimContextMenu(e)) return;
         onContextMenu(e);
       }}
-      onMouseEnter={organizeMode ? undefined : () => { setHovered(true); hoverTimer.current = setTimeout(prefetch, 120); }}
-      onMouseLeave={organizeMode ? undefined : () => { setHovered(false); if (hoverTimer.current) clearTimeout(hoverTimer.current); }}
+      onMouseEnter={organizeMode ? undefined : () => { hoverTimer.current = setTimeout(prefetch, 120); }}
+      onMouseLeave={organizeMode ? undefined : () => { if (hoverTimer.current) clearTimeout(hoverTimer.current); }}
       draggable={organizeMode}
       onDragStart={organizeMode ? onDragStart : undefined}
       onDragOver={organizeMode ? onDragOver : undefined}
@@ -1206,9 +1213,13 @@ export function FeedItem({ feed, isSelected, unreadCount, showFavicons, organize
       {/* Right side: fixed height container to avoid layout shift */}
       {!organizeMode && (
         <span className="flex-shrink-0 w-6 h-5 flex items-center justify-center relative">
-          {hovered ? (
+          {/* Compte et « ⋯ » sont rendus tous deux ; c'est le CSS qui échange
+              l'un pour l'autre au survol, sous `(hover: hover)`. Un état
+              JavaScript de survol se coinçait (mouseleave perdu, ou une tape qui
+              émet mouseenter sans jamais mouseleave) et le compte disparaissait. */}
+          <>
             <span
-              className="absolute inset-0 flex items-center justify-center rounded-md sidebar-feed-edit-btn"
+              className="absolute inset-0 items-center justify-center rounded-md sidebar-feed-edit-btn"
               style={{ background: 'rgba(255,255,255,0.1)' }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -1223,9 +1234,8 @@ export function FeedItem({ feed, isSelected, unreadCount, showFavicons, organize
                 <circle cx="18" cy="12" r="1.5" />
               </svg>
             </span>
-          ) : (
-            unreadCount > 0 && <UnreadBadge count={unreadCount} />
-          )}
+            {unreadCount > 0 && <span className="sidebar-feed-count"><UnreadBadge count={unreadCount} /></span>}
+          </>
         </span>
       )}
     </button>

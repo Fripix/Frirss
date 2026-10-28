@@ -35,7 +35,7 @@ describe('Échap dans un champ édité en place des Préférences', () => {
 
   it('renommer une étiquette : annule, sans fermer le panneau', () => {
     const closePanel = inPanel(<LabelsTab resetLabelColors={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'preferences.labels.rename' }));
+    fireEvent.click(screen.getByTitle('preferences.labels.rename'));
     const field = screen.getByDisplayValue('Veille');
     fireEvent.keyDown(field, { key: 'Escape' });
     expect(screen.queryByDisplayValue('Veille')).toBeNull();

@@ -68,6 +68,42 @@ export function unnamedIconButtons(src: string): number[] {
   return lines;
 }
 
+/** Lignes des boutons à bascule (`aria-pressed`) dont le nom change avec l'état. */
+export function togglesWithChangingName(src: string): number[] {
+  const lines: number[] = [];
+  let from = 0;
+  for (;;) {
+    const start = src.indexOf('<button', from);
+    if (start < 0) break;
+    const end = openTagEnd(src, start);
+    if (end < 0) break;
+    from = end + 1;
+    const attrs = src.slice(start, end);
+    if (!/aria-pressed=/.test(attrs)) continue;
+    const label = attrs.match(/aria-label=\{([^}]*)\}/)?.[1] ?? '';
+    if (/\?/.test(label)) lines.push(src.slice(0, start).split('\n').length);
+  }
+  return lines;
+}
+
+describe('boutons à bascule', () => {
+  // « Retirer des favoris, bouton bascule, activé » : l'état dit deux fois, en
+  // sens contraires. Un bouton à bascule garde un nom fixe, `aria-pressed`
+  // porte l'état ; le libellé d'action reste dans `title`.
+  it('repère un nom qui change avec l’état', () => {
+    expect(togglesWithChangingName('<button aria-pressed={on} aria-label={on ? a : b}>x</button>')).toEqual([1]);
+    expect(togglesWithChangingName('<button aria-pressed={on} aria-label={t("x")}>x</button>')).toEqual([]);
+  });
+
+  it('aucun bouton à bascule ne change de nom', () => {
+    const hits: string[] = [];
+    for (const file of sources(ROOT)) {
+      for (const line of togglesWithChangingName(fs.readFileSync(file, 'utf8'))) hits.push(`${path.relative(ROOT, file)}:${line}`);
+    }
+    expect(hits).toEqual([]);
+  });
+});
+
 describe('boutons à icône seule', () => {
   it('le balayage repère un bouton sans nom, même avec un `>` dans ses attributs', () => {
     expect(unnamedIconButtons('<button onClick={() => { if (a > b) go(); }} title="x"><svg><text>A</text></svg></button>')).toEqual([1]);

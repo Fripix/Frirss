@@ -120,7 +120,8 @@
     "scanRateLimited": "Too many requests — try again in a minute",
     "endOfList": "End of the list",
     "endOfListMarkRead": "Mark all as read",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "searchHeading": "Search"
   },
   "articleRow": {
     "markRead": "Mark as read",

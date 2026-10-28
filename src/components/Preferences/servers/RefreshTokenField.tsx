@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { updateServer, startActualize, getActualizeStatus } from '../../../api/backend';
 import { useFeedStore } from '../../../stores/feedStore';
@@ -23,6 +23,7 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
   const setHasRefreshToken = useFeedStore((s) => s.setHasRefreshToken);
 
   const [token, setToken] = useState('');
+  const tokenId = useId();
   // Le champ est vide mais affiche des puces quand un jeton est stocké, ce qui
   // se lit comme pré-rempli. Save envoie ce que contient le champ, et le
   // backend traite '' comme un effacement explicite — un Save non touché
@@ -98,10 +99,11 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
+        <label htmlFor={tokenId} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.refresh.tokenLabel')}
         </label>
         <input
+          id={tokenId}
           type="password"
           autoComplete="new-password"
           value={token}

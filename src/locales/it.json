@@ -120,7 +120,8 @@
     "scanRateLimited": "Troppe richieste — riprova tra un minuto",
     "endOfList": "Fine dell'elenco",
     "endOfListMarkRead": "Segna tutto come letto",
-    "clearSearch": "Cancella ricerca"
+    "clearSearch": "Cancella ricerca",
+    "searchHeading": "Ricerca"
   },
   "articleRow": {
     "markRead": "Segna come letto",
