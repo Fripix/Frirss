@@ -276,6 +276,22 @@ export async function hydratePrefs(): Promise<void> {
   clearRetry();
   const gen = ++generation;
 
+  // Un autre compte que celui de l'état en mémoire (jeton remplacé sans
+  // déconnexion) : son envoi en attente ne part pas sous ce compte-ci, ni
+  // pendant la lecture (le jeton de B est déjà posé), ni après. Les clés
+  // sales persistées restent à leur compte ; celles de ce compte-ci sont
+  // relues du stockage une fois la lecture faite.
+  const me = currentOwner();
+  if (me !== owner) {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    clearPushRetry();
+    pushRetryDelay = 0;
+    dirty = new Set();
+  }
+
   let serverPrefs: Record<string, unknown>;
   try {
     serverPrefs = await getPreferences();
@@ -292,18 +308,6 @@ export async function hydratePrefs(): Promise<void> {
   }
   if (gen !== generation) return;
   retryDelay = 0;
-
-  // Un autre compte que celui de l'état en mémoire (jeton remplacé sans
-  // déconnexion) : son envoi en attente ne part pas sous ce compte-ci.
-  const me = currentOwner();
-  if (me !== owner) {
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
-    }
-    clearPushRetry();
-    pushRetryDelay = 0;
-  }
   owner = me;
   // L'état persisté n'est repris que s'il est prouvé de ce compte ; sans
   // compte identifiable, rien n'est repris.

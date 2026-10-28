@@ -341,6 +341,26 @@ describe('prefsSync — clés modifiées seulement', () => {
     expect(useUiStore.getState().viewMode).toBe('magazine');
   });
 
+  // Même cas, mais la lecture de B traîne : l'envoi différé de A (800 ms), son
+  // réessai ou le retour du réseau ne doivent pas partir pendant cette lecture,
+  // avec le jeton de B déjà posé.
+  it('a token switch drops the previous account’s push before B’s read answers', async () => {
+    fakeServer({ viewMode: 'normal' });
+    await hydratePrefs();
+    useUiStore.getState().setViewMode('compact'); // A, envoi différé en attente
+    let answer: (v: Record<string, unknown>) => void = () => {};
+    get.mockImplementation(() => new Promise((r) => { answer = r; }));
+    signIn(2);
+    const reading = hydratePrefs();
+    await vi.advanceTimersByTimeAsync(1000);
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(save).not.toHaveBeenCalled();
+    answer({ viewMode: 'magazine' });
+    await reading;
+    expect(useUiStore.getState().viewMode).toBe('magazine');
+  });
+
   // Deux retours au premier plan rapprochés : les réponses arrivent dans le
   // désordre. Seule la dernière relecture lancée applique. Le cas qui mord :
   // une clé passée ailleurs à « compact » puis revenue à « normal » ; la

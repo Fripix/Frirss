@@ -5521,7 +5521,11 @@ les clés modifiées sur l'appareil.
   par-dessus celui de A encore stocké, sans passer par la déconnexion : sans
   l'étiquette, `hydratePrefs()` relisait les clés sales de A et poussait ses
   réglages sur le compte de B. Un changement de compte dans la même page
-  annule aussi l'envoi différé ou le réessai en attente de A. Un jeton
+  annule aussi l'envoi différé ou le réessai en attente de A, et ses clés
+  sales en mémoire, **dès l'entrée** dans `hydratePrefs()` : avant la 1.8.0
+  ce tri attendait la réponse du serveur, et l'envoi différé de A (800 ms),
+  son réessai ou un retour du réseau pouvaient partir pendant la lecture,
+  avec le jeton de B déjà posé. Un jeton
   renouvelé du **même** compte garde les clés sales.
 - **Clé refusée** : un `400` qui nomme une clé la sort du lot ; elle reprend la
   valeur connue du serveur (ou garde la valeur locale si le serveur ne l'a

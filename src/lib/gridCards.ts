@@ -1,10 +1,11 @@
 /**
  * Taille des cartes et format de leur image en vue grille (issue #26).
  *
- * Deux réglages synchronisés, valables pour tous les thèmes : la largeur
- * MINIMALE d'une carte (les cartes s'élargissent toujours pour remplir la
- * ligne) et le recadrage de l'image. Les défauts reproduisent exactement la
- * grille d'avant : 240 px, 160 px sur téléphone, 16:9.
+ * Trois réglages synchronisés, valables pour tous les thèmes : la largeur
+ * d'une carte, « Remplir la ligne » (cette largeur est alors un minimum, les
+ * cartes s'élargissent ; sinon elle est exacte) et le recadrage de l'image.
+ * Les défauts reproduisent exactement la grille d'avant : 240 px en
+ * remplissage, 160 px sur téléphone, 16:9.
  */
 export const GRID_CARD_WIDTH_MIN = 160;
 export const GRID_CARD_WIDTH_MAX = 480;

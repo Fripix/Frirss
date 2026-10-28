@@ -114,7 +114,8 @@ la release publiée.
   cours de route, app fermée juste après — n'est plus perdue : elle repart au
   retour du réseau, au retour dans l'app ou au démarrage suivant. Elle reste
   attachée à son compte : si un autre compte se connecte sur le même
-  navigateur (SSO compris), elle ne part pas chez lui ; et se déconnecter —
+  navigateur (SSO compris), elle ne part pas chez lui, pas même pendant la
+  lecture de ses réglages ; et se déconnecter —
   ou voir sa session expirer — l'abandonne. Un réglage refusé par le serveur
   (logo trop lourd) n'empêche plus les autres de s'enregistrer.
 
