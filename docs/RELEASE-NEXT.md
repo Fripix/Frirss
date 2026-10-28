@@ -97,8 +97,10 @@ _(rien pour l'instant)_
   et le serveur n'était relu qu'au démarrage : replier le panneau IA sur le
   téléphone, puis replier une catégorie sur l'ordinateur resté ouvert, rouvrait
   le panneau partout. Désormais seuls les réglages modifiés partent, et l'app
-  relit ceux des autres appareils en revenant au premier plan, sans
-  rechargement. Une modification qui n'a pas pu partir — réseau coupé en
+  relit ceux des autres appareils sans rechargement : en revenant au premier
+  plan, quand sa fenêtre reprend le focus, et chaque minute tant qu'elle reste
+  affichée (un onglet laissé ouvert sur l'ordinateur ne passe jamais en
+  arrière-plan quand on prend le téléphone). Une modification qui n'a pas pu partir — réseau coupé en
   cours de route, app fermée juste après — n'est plus perdue : elle repart au
   retour du réseau, au retour dans l'app ou au démarrage suivant. Elle reste
   attachée à son compte : si un autre compte se connecte sur le même

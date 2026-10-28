@@ -1556,9 +1556,10 @@ flux**.
 - **Piège — revenir à « Par flux » efface les choix par flux** : chaque flux
   repart de l'état global du moment. Voulu (les anciens choix ne doivent pas
   ressurgir), et irréversible sur l'appareil qui fait le changement.
-  Les autres appareils le reçoivent à leur retour au premier plan : depuis la
-  1.7.1, la synchronisation n'envoie que les clés modifiées et relit le serveur
-  à ce moment-là (voir « Préférences serveur »). Un appareil resté ouvert ne
+  Les autres appareils le reçoivent à leur prochaine relecture (premier plan,
+  focus, ou dans la minute s'ils restent affichés) : depuis la 1.7.1, la
+  synchronisation n'envoie que les clés modifiées et relit le serveur à ces
+  moments-là (voir « Préférences serveur »). Un appareil resté ouvert ne
   renvoie donc plus sa vieille table au premier changement d'un autre réglage.
   ⚠️ **Reste une version antérieure à la 1.7.1** encore ouverte quelque part :
   elle pousse toujours l'instantané complet, vieille table comprise.
@@ -5431,8 +5432,17 @@ les clés modifiées sur l'appareil.
   un appareil resté ouvert réécrivait toutes ses vieilles valeurs au premier
   changement venu (reproduit le 2026-10-27 : le panneau IA replié sur Android,
   rouvert par un navigateur resté ouvert qui repliait une catégorie).
-- **Relecture au premier plan** (`refreshPrefs()`, appelée par l'écouteur
-  `visibilitychange` d'`App.tsx` quand l'onglet redevient visible). L'envoi en
+- **Relecture** (`refreshPrefs()`, déclenchée par
+  `src/lib/prefsRefreshTriggers.ts` depuis `App.tsx`) : au retour au premier
+  plan (`visibilitychange`), à la reprise du focus de la fenêtre, et toutes
+  les 60 s (`PREFS_POLL_MS`) tant que l'onglet reste affiché, jamais en
+  arrière-plan. Deux déclenchements à moins de 2 s n'en font qu'un (focus et
+  visibilité arrivent ensemble) et le minuteur repart de la dernière relecture.
+  ⚠️ **Le premier plan seul ne suffit pas** : un onglet desktop laissé affiché
+  ne passe jamais en arrière-plan quand on prend le téléphone. Le repli du
+  panneau IA fait sur l'iPhone n'arrivait donc jamais sur le Mac (test du
+  propriétaire, 2026-10-28) — la relecture périodique est ce qui le couvre.
+  L'envoi en
   attente part d'abord ; puis s'appliquent les clés que le serveur porte, qui
   ont changé depuis la valeur connue, et **qui ne sont pas sales ici** (une
   modification faite pendant la lecture est protégée aussi, même si son envoi
@@ -5475,7 +5485,7 @@ les clés modifiées sur l'appareil.
   invalide ne bloque jamais les valides.
 - **Non couvert, assumé** : `feedSettings` est un seul objet. Deux appareils
   qui changent au même moment deux flux différents : le dernier gagne pour
-  toute la clé. Rare avec la relecture au premier plan.
+  toute la clé. Rare avec la relecture périodique.
 - **Amorçage** : un `200` sans aucune clé synchronisée = compte neuf ; toutes
   les clés synchronisées sont marquées sales et partent, depuis l'état local.
 - **Piège — une lecture en échec n'est PAS un compte vide** (1.7.0). Jusqu'à la

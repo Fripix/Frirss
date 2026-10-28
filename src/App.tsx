@@ -11,6 +11,7 @@ import { useAndroidViewportHeight } from './hooks/useAndroidViewportHeight';
 import { useDrawerOffDesktop } from './hooks/useDrawerOffDesktop';
 import { hydrateExtractCache } from './lib/extractCache';
 import { hydratePrefs, refreshPrefs, stopSync } from './lib/prefsSync';
+import { installPrefsRefreshTriggers } from './lib/prefsRefreshTriggers';
 import { saveLastView, loadLastView } from './lib/lastView';
 import { startupAction } from './lib/startupView';
 import { completeOidcReturn } from './lib/oidcReturn';
@@ -337,20 +338,23 @@ export default function App() {
       syncCounts();
     }, 60_000);
 
-    // When tab regains visibility → full silent refresh (cross-device scenario)
-    // — articles, and the preferences another device may have changed meanwhile
-    // (the pending push leaves first; a key still modified here is never overwritten).
+    // When tab regains visibility → full silent refresh (cross-device scenario).
     function handleVisibility() {
-      if (document.visibilityState === 'visible') {
-        silentRefresh();
-        if (useAuthStore.getState().backendToken) void refreshPrefs();
-      }
+      if (document.visibilityState === 'visible') silentRefresh();
     }
     document.addEventListener('visibilitychange', handleVisibility);
+
+    // The preferences another device may have changed: on return to the
+    // foreground, on window focus, and every minute while the tab stays shown
+    // (the pending push leaves first; a key still modified here is never overwritten).
+    const stopPrefsTriggers = installPrefsRefreshTriggers(() => {
+      if (useAuthStore.getState().backendToken) void refreshPrefs();
+    });
 
     return () => {
       clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibility);
+      stopPrefsTriggers();
     };
   }, [isAuthenticated, syncCounts, silentRefresh]);
 
