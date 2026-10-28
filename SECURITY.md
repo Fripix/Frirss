@@ -118,10 +118,10 @@ way, never returned (the config only says whether one exists), and ignored, not
 deleted, while the admin does not allow personal keys.
 
 A personal key is only as private as the administrator is trusted: it is sent to
-whatever base URL the admin sets for that provider, and it is kept, not deleted,
-when the admin later changes that URL or the provider type, so an admin who
-repoints a provider receives a user's key with that user's next summary or
-translation through it. An app admin can also decrypt it from an encrypted backup, which carries the
+whatever base URL the admin sets for that provider. When the admin later changes
+that URL or the provider type, every personal key for that provider is deleted
+(as is the shared key, unless a new one is given in the same request), so a
+repointed provider never receives a key that was entered for another host. An app admin can also decrypt it from an encrypted backup, which carries the
 instance key. That is the same trust users already give the admin for their
 FreshRSS credentials, stored and backed up the same way.
 
@@ -171,11 +171,32 @@ option — re-implementing transparent decompression, streaming and abort
 handling in the single most security-sensitive function of the app.
 
 That rewrite is not worth its regression risk against what the gap actually
-costs here. Reaching it requires an account **and** a domain whose DNS the
-attacker controls; what comes back is a response from the internal network, to
-an authenticated user, on an instance whose accounts the operator chose.
+costs here. Reading a response back requires an account **and** a domain whose
+DNS the attacker controls; what comes back is a response from the internal
+network, to an authenticated user, on an instance whose accounts the operator
+chose.
+
+One path needs no account: some target URLs come from feed content, not from
+the user. Article links are fetched for full-text extraction (automatic for the
+feeds where it is on) and article images for offline reading, by the clients of
+everyone subscribed to that feed. A feed author who controls a rebinding domain
+can therefore make the container send blind GET requests to the internal
+network. They do not see the answers — unless they also hold an account, since
+the extraction cache is shared across the instance. Treat a feed you subscribe
+to as able to make your server issue GET requests on your network, and keep
+internal services authenticated.
 
 What would change the calculation: opening registration to strangers, or Node
 exposing a supported way to supply a resolver to `fetch`. The first is the one
 to watch. Registration ships closed, and the moment you open it this note stops
 being theoretical — anyone who signs up can aim the proxy.
+
+### "SSO only" hides the local form; it does not refuse passwords
+
+With SSO enabled and *SSO only* set, the login screen shows the SSO button
+alone, but `POST /api/auth/login` still accepts a local account's password. That
+is the escape hatch (`?local=1`) for an identity provider that is down or
+misconfigured, without which a broken SSO would lock every user out. It also
+means *SSO only* does not by itself enforce the provider's MFA: an account that
+still has a local password can sign in with it. To require SSO for an account,
+make it an SSO account rather than a local one.

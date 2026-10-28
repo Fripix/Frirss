@@ -12,7 +12,10 @@
 /** Étendue où l'on cherche la balise `<meta>` (la norme HTML en prescrit 1 024). */
 const META_SCAN_BYTES = 2048;
 
-const HEADER_CHARSET = /charset\s*=\s*["']?\s*([^\s"';,]+)/i;
+// Pas de `\s*` de part et d'autre d'un guillemet facultatif : deux étoiles
+// qui se disputent les mêmes blancs rendaient la recherche quadratique sur un
+// en-tête rempli d'espaces (150 ms pour 15 Ko, venus de l'amont).
+const HEADER_CHARSET = /charset\s*=\s*(?:["']\s*)?([^\s"';,]+)/i;
 const META_CHARSET = /<meta[^>]+charset\s*=\s*["']?\s*([^\s"';,>/]+)/i;
 
 /**

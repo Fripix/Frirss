@@ -35,6 +35,39 @@ la release publiée.
   Les autres sessions du compte sont fermées, et les essais sont limités
   comme à la connexion.
 
+## Sécurité
+
+- **Les jetons FreshRSS ne suivent plus une adresse changée.** Changer l'URL
+  ou le compte d'un serveur par l'API gardait les deux jetons, que FriRSS
+  envoyait ensuite au nouvel hôte : une session FriRSS suffisait à les faire
+  sortir. Il faut désormais fournir un nouveau jeton, et le jeton maître est
+  oublié. L'interface n'utilisait pas ce chemin.
+- **Derrière un reverse proxy, la limite de connexion vise enfin chaque
+  client.** Toutes les requêtes semblaient venir du proxy : dix mauvais mots de
+  passe envoyés par un inconnu bloquaient la connexion de tous les
+  utilisateurs pendant 15 minutes. L'image lit maintenant l'adresse réelle
+  transmise par un proxy du réseau privé, et relaie le schéma `https` (cookies
+  du SSO enfin `Secure`).
+- **SSO : l'adresse de retour ne dépend plus d'un en-tête du client**
+  (`X-Forwarded-Host`), quand `FRIRSS_BASE_URL` n'est pas défini.
+- **Administration : un admin ne peut plus se désactiver par l'API** avec une
+  valeur non booléenne, ce qui pouvait laisser l'instance sans administrateur.
+- **Connexion : la réponse ne trahit plus quels noms de compte existent** (même
+  délai, « compte désactivé » seulement après le bon mot de passe).
+- **Deux inscriptions simultanées sur une instance neuve** ne créent plus deux
+  administrateurs.
+- **Proxy : les adresses IPv6 qui embarquent une IPv4 privée** sous forme
+  hexadécimale (`[::ffff:7f00:1]`) ou NAT64 sont reconnues comme internes.
+- **Deux expressions régulières quadratiques** (jeu de caractères d'une page,
+  clôture d'une réponse de traduction) sont réécrites en temps linéaire.
+- **Le journal du retour SSO n'écrit plus l'adresse e-mail** de chaque
+  connexion.
+- **SECURITY.md** : la clé IA personnelle est bien supprimée quand l'admin
+  déplace un fournisseur (la note disait le contraire) ; un flux peut faire
+  émettre des requêtes vers le réseau interne sans compte (DNS rebinding) ; le
+  mode « SSO uniquement » masque le formulaire local sans refuser les mots de
+  passe.
+
 ## Corrections et améliorations
 
 - **Le curseur « Corps du panneau de lecture » agit enfin sur téléphone et

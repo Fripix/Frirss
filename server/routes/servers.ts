@@ -100,6 +100,23 @@ router.put('/:id', (req, res) => {
 
     const normalizedUrl = url ? url.replace(/\/+$/, '') : server.url;
 
+    // Les jetons appartiennent à un serveur précis. Changer l'origine (schéma,
+    // hôte, port) ou le compte FreshRSS en les gardant les aurait envoyés au
+    // nouvel hôte — le proxy y attache le jeton greader, la relève le jeton
+    // maître en clair dans l'URL : une session FriRSS suffisait à les en faire
+    // sortir. Il faut donc un nouveau jeton dans la même requête, et le jeton
+    // maître est oublié sauf s'il est fourni aussi. Un changement de chemin sur
+    // la même origine les garde.
+    const originOf = (u: string) => { try { return new URL(u).origin; } catch { return null; } };
+    const moved = originOf(normalizedUrl) !== originOf(server.url)
+      || (freshrssUser !== undefined && freshrssUser !== server.freshrss_user);
+    if (moved && freshrssToken === undefined) {
+      return res.status(400).json({ error: 'Changing the server address or user requires new credentials' });
+    }
+    const nextRefresh = refreshToken !== undefined
+      ? encrypt(refreshToken)
+      : (moved ? null : server.refresh_token);
+
     db.prepare(`
       UPDATE servers SET name = ?, url = ?, freshrss_user = ?, freshrss_token = ?, refresh_token = ?
       WHERE id = ? AND user_id = ?
@@ -108,7 +125,7 @@ router.put('/:id', (req, res) => {
       normalizedUrl,
       freshrssUser ?? server.freshrss_user,
       freshrssToken !== undefined ? encrypt(freshrssToken) : server.freshrss_token,
-      refreshToken !== undefined ? encrypt(refreshToken) : server.refresh_token,
+      nextRefresh,
       id,
       req.user.id
     );

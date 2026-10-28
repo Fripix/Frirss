@@ -208,6 +208,36 @@ describe('admin', () => {
     expect(login.status).toBe(200);
   });
 
+  // La garde « ne pas se désactiver soi-même » testait `active === false`
+  // alors que l'écriture désactivait pour toute valeur fausse : `{"active":0}`
+  // passait, et un admin seul rendait l'instance sans administrateur.
+  it('refuse des types inattendus pour active et role', async () => {
+    const me = firstRegistration.body.user.id;
+    for (const body of [{ active: 0 }, { active: 'no' }, { active: null }]) {
+      const res = await request(app).put(`/api/admin/users/${me}`)
+        .set('Authorization', `Bearer ${adminToken}`).send(body);
+      expect(res.status, JSON.stringify(body)).toBe(400);
+    }
+    const role = await request(app).put(`/api/admin/users/${secondUserId}`)
+      .set('Authorization', `Bearer ${adminToken}`).send({ role: 5 });
+    expect(role.status).toBe(400);
+    const status = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${adminToken}`);
+    expect(status.status).toBe(200);
+  });
+
+  // Un compte désactivé répondait 403 AVANT la vérification du mot de passe :
+  // n'importe qui apprenait qu'un nom existe et qu'il est désactivé.
+  it('ne dit « compte désactivé » qu’au bon mot de passe', async () => {
+    await request(app).put(`/api/admin/users/${secondUserId}`)
+      .set('Authorization', `Bearer ${adminToken}`).send({ active: false });
+    const wrong = await request(app).post('/api/auth/login').send({ username: 'bob', password: 'not-the-one' });
+    expect(wrong.status).toBe(401);
+    const right = await request(app).post('/api/auth/login').send({ username: 'bob', password: 'newsecret' });
+    expect(right.status).toBe(403);
+    await request(app).put(`/api/admin/users/${secondUserId}`)
+      .set('Authorization', `Bearer ${adminToken}`).send({ active: true });
+  });
+
   it('deletes a user', async () => {
     const res = await request(app).delete(`/api/admin/users/${secondUserId}`)
       .set('Authorization', `Bearer ${adminToken}`);
@@ -258,6 +288,57 @@ describe('servers', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     const row2 = list2.body.servers.find((s: { id: number }) => s.id === id);
     expect(row2.has_refresh_token).toBe(false);
+  });
+
+  // Une session FriRSS suffisait pour convertir les jetons FreshRSS en
+  // identifiants durables : changer l'URL gardait les deux jetons, que le
+  // proxy et la relève envoyaient ensuite au nouvel hôte.
+  describe('changer l’adresse d’un serveur', () => {
+    const tokens = async (id: number) => {
+      const list = await request(app).get('/api/servers').set('Authorization', `Bearer ${adminToken}`);
+      const row = list.body.servers.find((s: { id: number }) => s.id === id);
+      return { url: row.url, token: row.has_token, refresh: row.has_refresh_token, user: row.freshrss_user };
+    };
+    let n = 0;
+    const addOne = async () => {
+      n++;
+      const add = await request(app).post('/api/servers').set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: `Repoint ${n}`, url: `https://rss3.example.com/fresh${n}`, freshrssUser: 'admin', freshrssToken: 'tok' });
+      const id = add.body.server.id as number;
+      await request(app).put(`/api/servers/${id}`).set('Authorization', `Bearer ${adminToken}`).send({ refreshToken: 'master' });
+      return id;
+    };
+
+    it('refuse une autre origine sans nouveaux identifiants, et ne touche à rien', async () => {
+      const id = await addOne();
+      const res = await request(app).put(`/api/servers/${id}`).set('Authorization', `Bearer ${adminToken}`)
+        .send({ url: 'https://evil.example' });
+      expect(res.status).toBe(400);
+      expect(await tokens(id)).toEqual({ url: `https://rss3.example.com/fresh${n}`, token: true, refresh: true, user: 'admin' });
+    });
+
+    it('refuse un autre utilisateur FreshRSS sans nouveau jeton', async () => {
+      const id = await addOne();
+      const res = await request(app).put(`/api/servers/${id}`).set('Authorization', `Bearer ${adminToken}`)
+        .send({ freshrssUser: 'someone-else' });
+      expect(res.status).toBe(400);
+    });
+
+    it('accepte une autre origine avec un nouveau jeton, et oublie le jeton maître', async () => {
+      const id = await addOne();
+      const res = await request(app).put(`/api/servers/${id}`).set('Authorization', `Bearer ${adminToken}`)
+        .send({ url: `https://rss4.example.com/${n}`, freshrssToken: 'tok2' });
+      expect(res.status).toBe(200);
+      expect(await tokens(id)).toEqual({ url: `https://rss4.example.com/${n}`, token: true, refresh: false, user: 'admin' });
+    });
+
+    it('garde les jetons pour un simple changement de chemin sur la même origine', async () => {
+      const id = await addOne();
+      const res = await request(app).put(`/api/servers/${id}`).set('Authorization', `Bearer ${adminToken}`)
+        .send({ url: `https://rss3.example.com/other${n}/` });
+      expect(res.status).toBe(200);
+      expect(await tokens(id)).toEqual({ url: `https://rss3.example.com/other${n}`, token: true, refresh: true, user: 'admin' });
+    });
   });
 });
 

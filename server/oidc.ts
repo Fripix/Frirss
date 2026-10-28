@@ -124,7 +124,10 @@ export function getRedirectUri(req: Request): string {
     base = envBase.replace(/\/$/, '');
   } else {
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    // `Host` seulement : nginx le réécrit (`$host`), alors que
+    // `X-Forwarded-Host` arrive tel que le client l'a écrit — il dictait le
+    // `redirect_uri` signé (relecture de sécurité 1.8.0).
+    const host = req.headers.host;
     base = `${proto}://${host}`;
   }
   return `${base}/api/auth/oidc/callback`;

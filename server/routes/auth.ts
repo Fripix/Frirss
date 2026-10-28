@@ -11,6 +11,8 @@ import { parseCookieHeader } from '../cookies.js';
 
 const router = Router();
 const SALT_ROUNDS = 12;
+// Comparé quand le nom n'existe pas, pour que la réponse coûte le même temps.
+const DUMMY_HASH = bcrypt.hashSync('frirss-no-such-user', SALT_ROUNDS);
 const SESSION_DAYS = 30;
 
 // Throttle credential endpoints to slow down brute-force / credential-stuffing.
@@ -100,8 +102,19 @@ router.post('/register', authLimiter, async (req, res) => {
     // Hash password
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
 
+    // Recompté APRÈS le hachage, sans plus aucun `await` jusqu'à l'insertion :
+    // deux inscriptions simultanées sur une base vide lisaient toutes deux
+    // « zéro » avant de hacher, et devenaient toutes deux admin.
+    const countNow = userCount();
+    if (countNow > 0 && getSetting('registration_enabled') !== 'true') {
+      return res.status(403).json({ error: 'Registration is disabled' });
+    }
+    if (db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
+
     // First user = admin
-    const role = count === 0 ? 'admin' : 'user';
+    const role = countNow === 0 ? 'admin' : 'user';
 
     const result = db.prepare(`
       INSERT INTO users (username, email, password_hash, display_name, role, auth_provider)
@@ -120,7 +133,7 @@ router.post('/register', authLimiter, async (req, res) => {
       token,
       expiresAt,
       user,
-      isFirstUser: count === 0,
+      isFirstUser: countNow === 0,
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -142,16 +155,15 @@ router.post('/login', authLimiter, async (req, res) => {
       FROM users WHERE username = ? AND auth_provider = 'local'
     `).get(username) as LocalUserRow | undefined;
 
-    if (!user) {
+    // Même travail, que le nom existe ou non, et « compte désactivé » seulement
+    // après le bon mot de passe : sinon la réponse (et son délai, ~250 ms de
+    // bcrypt en moins) disait à n'importe qui quels noms existent.
+    const valid = await bcrypt.compare(password, user?.password_hash ?? DUMMY_HASH);
+    if (!user || !valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     if (!user.active) {
       return res.status(403).json({ error: 'Account disabled' });
-    }
-
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const { token, expiresAt } = createSession(user.id);
@@ -382,8 +394,10 @@ router.get('/oidc/callback', async (req, res) => {
       return res.redirect('/#oidc_error=no_sub');
     }
 
-    console.log('[oidc] callback sub=%s email=%s email_verified=%s',
-      sub, info.email ?? '(none)', info.email_verified);
+    // Pas l'adresse elle-même : une donnée personnelle par connexion dans les
+    // journaux, pour un diagnostic qui n'a besoin que de savoir si elle existe.
+    console.log('[oidc] callback sub=%s has_email=%s email_verified=%s',
+      sub, !!info.email, info.email_verified);
 
     // 1) Match by the OIDC subject (works for both auto-provisioned and
     //    email-linked accounts on subsequent logins).

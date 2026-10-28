@@ -240,8 +240,17 @@ export function isPrivateIp(ip: string): boolean {
   if (s === '::1' || s === '::') return true;              // loopback / unspecified
   if (s.startsWith('fc') || s.startsWith('fd')) return true; // unique local
   if (s.startsWith('fe80') || s.startsWith('fe9') || s.startsWith('fea') || s.startsWith('feb')) return true; // link-local
-  const mapped = s.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-  if (mapped) return isPrivateIp(mapped[1]);
+  if (/^fe[c-f]/.test(s)) return true;                     // site-local (déprécié, fec0::/10)
+  // Une IPv4 embarquée dans une IPv6 — mappée (::ffff:), compatible (::) ou
+  // NAT64 (64:ff9b::) — se juge comme l'IPv4 qu'elle porte, en notation
+  // pointée OU hexadécimale : `new URL()` normalise `[::ffff:127.0.0.1]` en
+  // `[::ffff:7f00:1]`, que seule la forme pointée était reconnue.
+  const embedded = s.match(/^(?:::ffff:|::|64:ff9b::)(?:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([0-9a-f]{1,4}):([0-9a-f]{1,4}))$/);
+  if (embedded) {
+    if (embedded[1]) return isPrivateIp(embedded[1]);
+    const hi = parseInt(embedded[2], 16), lo = parseInt(embedded[3], 16);
+    return isPrivateIp(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+  }
   return false;
 }
 

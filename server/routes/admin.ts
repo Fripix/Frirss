@@ -69,6 +69,16 @@ router.put('/users/:id', (req, res) => {
     return res.status(404).json({ error: 'User not found' });
   }
 
+  // Types stricts : la garde ci-dessous teste `active === false`, alors que
+  // l'écriture désactive pour toute valeur fausse — `{"active":0}` passait,
+  // et un admin seul rendait l'instance sans administrateur.
+  if (active !== undefined && typeof active !== 'boolean') {
+    return res.status(400).json({ error: 'active must be a boolean' });
+  }
+  if (role !== undefined && typeof role !== 'string') {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+
   // Prevent self-demotion from admin
   if (Number(id) === req.user.id && role && role !== 'admin') {
     return res.status(400).json({ error: 'Cannot remove your own admin role' });

@@ -79,7 +79,14 @@ export function translateUserMessage(segments: string[]): string {
  * is removed before the `lang:` line is read.
  */
 export function parseTranslation(text: string, count: number): { lang: string | null; same: boolean; segments: string[] | null } {
-  const unfenced = text.replace(/^\s*```[^\n]*\n/, '').replace(/\n\s*```\s*$/, '');
+  // Clôture finale retirée sans `/\n\s*```\s*$/` : sur une sortie faite de
+  // milliers de retours à la ligne, chaque `\n` relançait un `\s*` jusqu'au
+  // bout (quadratique, 576 ms pour 32 000 lignes).
+  const opened = text.replace(/^\s*```[^\n]*\n/, '');
+  const trimmed = opened.trimEnd();
+  const unfenced = trimmed.endsWith('```') && /\n[ \t]*```$/.test(trimmed)
+    ? trimmed.replace(/\n[ \t]*```$/, '')
+    : opened;
   const { lang, text: body } = splitLangLine(unfenced);
   if (/^same\.?$/i.test(body)) return { lang, same: true, segments: null };
   const marks = [...body.matchAll(/<seg\s+n\s*=\s*"(\d+)"\s*>/gi)];

@@ -39,6 +39,15 @@ Comptes locaux avec mot de passe, session par JWT conservé en `localStorage`
 administrateur.
 
 - **Où** : `server/routes/auth.ts`, `src/components/Login/Login.tsx`, `src/stores/authStore.ts`
+- **Connexion sans fuite de noms** (1.8.0) : un nom inconnu coûte le même
+  bcrypt qu'un nom connu (`DUMMY_HASH`), et « Account disabled » (403) n'est
+  répondu qu'après le BON mot de passe. Avant, la réponse et son délai (~250 ms
+  de moins) disaient à n'importe qui quels noms existent et lesquels sont
+  désactivés.
+- **Premier compte = un seul admin** (1.8.0) : le compte de comptes est relu
+  APRÈS le hachage, sans `await` jusqu'à l'insertion. Deux inscriptions
+  simultanées sur une base vide devenaient toutes deux admin
+  (`server/test/registerRace.test.ts`).
 - **Réglages** : inscriptions ouvertes/fermées (Préférences → Administration)
 - **Fermée par défaut** : depuis la 1.4.4, une instance neuve refuse les
   inscriptions. Le **premier** compte reste toujours autorisé (`count === 0` est
@@ -85,6 +94,13 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
 (mode « SSO uniquement »), auquel cas le formulaire local est masqué.
 
 - **Où** : `server/oidc.ts`, `server/routes/auth.ts` (`/oidc/*`), `src/lib/shouldHideLocalLogin.ts`
+- **`redirect_uri` sans `X-Forwarded-Host`** (1.8.0) : sans `FRIRSS_BASE_URL`,
+  l'hôte vient de `Host` seul, que nginx réécrit. `X-Forwarded-Host` arrivait
+  tel que le client l'écrivait et dictait le `redirect_uri` signé — selon la
+  tolérance du fournisseur, un code d'autorisation détourné. Le schéma vient de
+  `X-Forwarded-Proto`, que nginx relaie désormais depuis le proxy amont (voir
+  « nginx »). Le journal du retour SSO n'écrit plus l'adresse e-mail, seulement
+  si elle existe.
 - **Spec** : `docs/superpowers/specs/2026-08-15-sso-only-mode-design.md`
 - **Piège** : une URL « break-glass » permet de revenir au formulaire local si le
   SSO tombe. Sans elle, un OIDC cassé enferme dehors l'administrateur.
@@ -164,6 +180,15 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
   `src/components/Preferences/servers/` (gestion complète),
   `src/components/ServerSwitcher/` (sélecteur), `src/lib/serverList.ts`
   (logique partagée).
+- **Changer l'adresse ou le compte d'un serveur exige un nouveau jeton**
+  (1.8.0) : `PUT /api/servers/:id` refuse (400) une autre ORIGINE (schéma,
+  hôte, port) ou un autre `freshrssUser` sans `freshrssToken` dans la même
+  requête, et oublie alors le jeton maître sauf s'il est fourni aussi. Avant,
+  les deux jetons suivaient la nouvelle URL : le proxy y attachait le jeton
+  greader, la relève le jeton maître en clair dans l'URL — une session FriRSS
+  suffisait à les convertir en identifiants FreshRSS durables. Un changement de
+  chemin sur la même origine garde les jetons. Le client n'envoie jamais d'URL
+  par cette route (renommage et jeton maître seulement).
 - **Portée du jeton — piège** : le proxy n'attache le jeton greader qu'aux
   cibles dont l'**origine analysée** vaut celle du serveur, le chemin étant
   comparé avec une frontière explicite (`targetBelongsToServer`,
@@ -5057,6 +5082,11 @@ d'authentification, configuration OIDC, URL break-glass, ouverture des
 inscriptions, animation de connexion.
 
 - **Où** : `server/routes/admin.ts`, `src/components/Preferences/AdminTab.tsx`
+- **Types stricts sur `PUT /api/admin/users/:id`** (1.8.0) : `active` doit être
+  un booléen et `role` une chaîne. La garde « ne pas se désactiver soi-même »
+  testait `active === false` quand l'écriture désactivait pour toute valeur
+  fausse : `{"active":0}` passait, et un admin seul rendait l'instance sans
+  administrateur (seule issue : éditer SQLite).
 - **Chaque action sur un compte se confirme** (1.8.0, décision du
   propriétaire) : donner ou retirer les droits d'administrateur, désactiver ou
   réactiver, supprimer passent par `ConfirmDialog` (bouton rouge pour retirer,
@@ -5139,6 +5169,13 @@ mais seulement **en repli** depuis la 1.4.10 : le client demande d'abord
 répondu (voir *Extraction du contenu complet*).
 
 - **Où** : `server/routes/proxy.ts`
+- **IPv4 embarquées dans une IPv6** (1.8.0) : `isPrivateIp` juge les formes
+  mappée (`::ffff:`), compatible (`::`) et NAT64 (`64:ff9b::`) comme l'IPv4
+  qu'elles portent, en notation pointée OU hexadécimale, et refuse `fec0::/10`.
+  `new URL()` normalise `[::ffff:127.0.0.1]` en `[::ffff:7f00:1]` : la cible
+  n'était refusée que par accident (le DNS recevait l'hôte avec crochets).
+  Limite connue, non corrigée : la liste blanche interne (`PROXY_REWRITES`,
+  `PROXY_INTERNAL_HOSTS`) porte sur l'hôte, pas sur le port.
 - **Protection SSRF** : cibles internes bloquées par défaut, en littéral **et**
   après résolution DNS (ce qui défait `10.x.x.x.nip.io`), à chaque saut de
   redirection. `PROXY_INTERNAL_HOSTS` autorise explicitement des hôtes internes,
@@ -5541,6 +5578,16 @@ désactive délibérément la CSP de helmet pour ne pas entretenir deux politiqu
 divergentes).
 
 - **Où** : `nginx.conf`, `Dockerfile`, `docker-entrypoint.sh`
+- **Adresse et schéma du client réel** (1.8.0) : `set_real_ip_from` sur les
+  réseaux privés, `real_ip_header X-Forwarded-For` et `real_ip_recursive on`,
+  puis `X-Forwarded-For $remote_addr` vers Express. Derrière un reverse proxy,
+  `req.ip` était l'adresse du proxy pour TOUT le monde : les limites « par IP »
+  (connexion, sauvegarde) n'avaient qu'un seau, et dix mauvais mots de passe
+  d'un inconnu bloquaient la connexion de toute l'instance. Un client exposé en
+  direct (adresse publique) ne peut rien glisser dans l'en-tête. Et
+  `X-Forwarded-Proto` relaie celui du proxy amont (`map … $frirss_forwarded_proto`)
+  au lieu de `$scheme`, qui valait `http` derrière un proxy TLS. Validé par
+  `nginx -t` sur l'image ; garde-fou `server/test/hardening.test.ts`.
 - **Node sans privilèges** : Node tourne en `PUID:PGID` (1000:1000 par défaut).
   C'est lui qui exécute le code applicatif, analyse du contenu non fiable et
   détient la base — la moindre exécution de code y possédait le conteneur, donc
