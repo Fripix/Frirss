@@ -4655,7 +4655,7 @@ réglage clair/sombre du système.
   bordure pleine et « modifié » s'affichait sur deux couleurs jamais
   touchées, la référence de réinitialisation portant les valeurs du
   préréglage) ; un thème **personnel** les reçoit **dérivées** de lui-même
-  (accent mêlé au fond du panneau, 10 % pour le fond, 32 % pour la bordure).
+  (accent mêlé au fond du panneau, 14 % pour le fond, 38 % pour la bordure).
   Une valeur présente n'est jamais remplacée.
 - **Ordre des groupes de couleurs** : **Accent en premier**. C'est la couleur
   qui teinte toute l'interface — badges, liens, états actifs, anneau de focus —
@@ -4846,8 +4846,10 @@ Tablette et desktop le gardent. Test : `Preferences.header.test.tsx`.
 Panneau à navigation verticale : **Général** (langue, lecture, raccourcis),
 **Apparence** (thème, couleurs, tailles, identité), **Mise en page** (icônes
 d'action de la ligne d'article), **Étiquettes**, **Flux** (gestion des
-serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, plus
-**Administration** pour les administrateurs.
+serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, **IA**
+(fournisseurs, résumés, traduction, réglages par flux et catégorie ; montrée
+quand l'IA est activée ou pour un administrateur), plus **Administration**
+pour les administrateurs.
 
 - **Où** : `src/components/Preferences/`
 - **Spec** : `docs/superpowers/specs/2026-08-21-preferences-rework-design.md`
@@ -5892,11 +5894,12 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 
 | Méthode | Route | Rôle |
 |---------|-------|------|
+| GET | `/api/health` | Santé : version, base, uptime (HEALTHCHECK du Dockerfile ; `server/index.ts`, hors `server/routes/`) |
 | POST | `/api/auth/register` | Créer un compte |
 | POST | `/api/auth/login` | Ouvrir une session |
 | POST | `/api/auth/logout` | Fermer la session |
 | GET | `/api/auth/me` | Utilisateur courant |
-| POST | `/api/auth/change-password` | Changer son mot de passe |
+| POST | `/api/auth/change-password` | Changer son mot de passe — **aucun écran ne l'appelle** depuis 0d3d327 (wrapper client retiré) |
 | GET | `/api/auth/status` | Inscriptions ouvertes, existence d'un compte |
 | GET | `/api/auth/oidc/config` | Configuration SSO exposée au client |
 | GET | `/api/auth/oidc/login` | Démarrer le flux OIDC |
@@ -5986,7 +5989,7 @@ Chaque famille correspond à une zone de l'interface :
 `app` · `sidebar` · `addFeed` · `articleList` · `articleRow` · `swipe` ·
 `emptyState` · `readingPane` · `preferences` · `login` · `admin` · `servers` ·
 `dates` · `time` · `shortcutBar` · `viewMode` · `connection` · `update` ·
-`refresh` · `saved` · `backup` · `toast` · `palette` · `ai`
+`refresh` · `saved` · `backup` · `toast` · `palette` · `ai` · `dialog`
 
 ---
 

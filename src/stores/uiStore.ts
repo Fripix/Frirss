@@ -613,10 +613,10 @@ export const useUiStore = create<UiState>()((set, get) => ({
     });
   },
 
-  // Confirm before "Mark all as read". Off by default (decision, 2026-09-25):
-  // "Mark all as read" and both range entries act on the first click for
-  // anyone who never touched the setting. Whoever turned it on explicitly
-  // keeps their choice — the stored value wins.
+  // Confirm before "Mark all as read". On by default since the decision of
+  // 2026-09-30 (it was off from 2026-09-25): "Mark all as read" and both range
+  // entries ask first for anyone who never touched the setting. Whoever chose
+  // explicitly keeps their choice — the stored value wins.
   confirmMarkAllRead: loadJson('frirss_confirmMarkAllRead', true),
   setConfirmMarkAllRead: (v) => {
     localStorage.setItem('frirss_confirmMarkAllRead', JSON.stringify(v));
