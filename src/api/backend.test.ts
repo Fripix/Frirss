@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { AxiosError } from 'axios';
 
 // L'intercepteur appelle `logoutBackend()` sur le store d'authentification ; on
 // ne veut ni sa persistance ni son vrai effet, seulement savoir s'il a été
@@ -11,7 +12,11 @@ vi.mock('../stores/authStore', () => ({
 }));
 
 import { BACKEND_AUTH_MARKERS } from '../lib/loginErrors';
-import backend from './backend';
+import { TIMEOUT_DEFAULT_MS, TIMEOUT_AI_MS, TIMEOUT_BACKUP_MS } from '../lib/requestTimeouts';
+import backend, {
+  requestAiSummary, requestAiTranslation, testAiProvider, listAiModels,
+  createBackup, previewRestore, applyRestore, getAuthStatus,
+} from './backend';
 
 /** Le gestionnaire d'erreur de l'intercepteur de réponse, tel qu'axios le garde. */
 const rejected = (
@@ -65,6 +70,50 @@ describe('backend — l’intercepteur de réponse ne déconnecte que sur NOTRE 
 
   it('ne déconnecte pas sur une coupure réseau (pas de réponse)', async () => {
     await reject({ message: 'Network Error' });
+    expect(logoutBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe('backend — délais', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('borne tout appel par défaut', () => {
+    expect(backend.defaults.timeout).toBe(TIMEOUT_DEFAULT_MS);
+  });
+
+  it('un appel court garde le délai par défaut', async () => {
+    const get = vi.spyOn(backend, 'get').mockResolvedValue({ data: {} });
+    await getAuthStatus();
+    expect(get.mock.calls[0][1]?.timeout).toBeUndefined();
+  });
+
+  // Le serveur borne lui-même ses appels IA (résumé 50 s, traduction jusqu'à
+  // 110 s) et nginx coupe à 120 s : le client doit attendre plus longtemps
+  // qu'eux, sinon il abandonne avant la réponse et `isUpstreamCut` y lit une
+  // coupure amont.
+  it('accorde aux appels IA le délai long', async () => {
+    const post = vi.spyOn(backend, 'post').mockResolvedValue({ data: {} });
+    await requestAiSummary({ articleId: 'a', title: 't', html: '<p>x</p>' });
+    await requestAiTranslation({ articleId: 'a', scope: 'article', targetLang: 'fr', segments: ['x'] });
+    await testAiProvider(1);
+    await listAiModels({ type: 'openai', baseUrl: 'https://example.com' });
+    expect(post).toHaveBeenCalledTimes(4);
+    for (const c of post.mock.calls) expect(c[2]?.timeout, String(c[0])).toBe(TIMEOUT_AI_MS);
+  });
+
+  it('accorde à la sauvegarde et à la restauration le délai long', async () => {
+    const post = vi.spyOn(backend, 'post').mockResolvedValue({ data: { backup: {} } });
+    await createBackup('phrase');
+    await previewRestore({}, 'phrase', false);
+    await applyRestore({}, 'phrase', true);
+    expect(post).toHaveBeenCalledTimes(3);
+    for (const c of post.mock.calls) expect(c[2]?.timeout, String(c[0])).toBe(TIMEOUT_BACKUP_MS);
+  });
+
+  // Un délai dépassé n'a pas de réponse : ce n'est jamais un 401, jamais une
+  // raison de fermer la session.
+  it('ne déconnecte pas sur un délai dépassé (ECONNABORTED)', async () => {
+    await reject(new AxiosError(`timeout of ${TIMEOUT_DEFAULT_MS}ms exceeded`, AxiosError.ECONNABORTED));
     expect(logoutBackend).not.toHaveBeenCalled();
   });
 });

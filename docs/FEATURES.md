@@ -2104,7 +2104,10 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   (`proxy_read_timeout` et `proxy_send_timeout`, voir le README) : les 60 s
   par défaut de nginx ou de Nginx Proxy Manager ne laissent que dix secondes
   de marge au-dessus de l'échéance de 50 s du résumé, et **coupent** un gros
-  lot de traduction, qui peut tenir 110 s. FriRSS **s'y adapte** au lieu de
+  lot de traduction, qui peut tenir 110 s. Le navigateur, lui, attend
+  **150 s** (`TIMEOUT_AI_MS`, 1.7.1 ; avant, aucun délai) : toujours plus que
+  nginx, pour qu'une réponse — fût-ce le 504 d'un proxy — arrive avant qu'il
+  abandonne (voir *Proxy*, « Délais du navigateur »). FriRSS **s'y adapte** au lieu de
   l'exiger : la traduction de l'article rejoue un lot coupé en deux moitiés
   (voir « Lot coupé ou réponse inexploitable »), et ne dit « autorisez au moins 120 s
   sur /api/ai » (`ai.errors.proxyTimeout`) que si une moitié est coupée à
@@ -4621,6 +4624,45 @@ répondu (voir *Extraction du contenu complet*).
   réseau : troc refusé, exception écrite plutôt que tue.
 - **Réécritures** : `PROXY_REWRITES` remplace l'URL publique par une adresse
   interne — gros gain de latence quand FriRSS et FreshRSS partagent un réseau.
+- **Échéance totale** (1.7.1) : `PROXY_TOTAL_TIMEOUT_MS` = **60 s** par requête
+  `/api/proxy`, en-têtes **et** corps, tous les sauts de redirection et le
+  repli vers l'URL publique compris. Avant, seul `TIMEOUT_MS` (30 s) bornait un
+  appel, **par saut et jusqu'aux en-têtes** : un amont qui envoyait ses en-têtes
+  puis retenait son corps, ou six redirections de 20 s, n'étaient arrêtés que
+  par les 120 s de nginx. Elle vit dans la **route**, pas dans `fetchUpstream` :
+  le worker, l'OIDC, le rafraîchissement et l'IA gardent leurs propres bornes.
+  À l'échéance : avant les en-têtes, **`504 { error: 'Upstream timeout' }`**
+  (`finishError`) ; pendant une lecture bufferisée (lectures greader mises en
+  cache, `readBodyText`), 504 aussi, les en-têtes n'étant pas encore partis ;
+  pendant un corps **relayé en flux**, le statut amont est déjà parti, un 504
+  n'est plus exprimable — flux et connexion sont **coupés**, le client voit une
+  réponse tronquée plutôt qu'une attente sans fin. Un client qui s'en va avant
+  la fin libère aussi l'amont, au lieu de laisser un corps retenu tenir la
+  connexion. ⚠️ La résolution DNS d'un saut (`LOOKUP_TIMEOUT_MS`, 5 s)
+  n'écoute pas le signal : l'échéance est alors constatée au saut suivant, soit
+  **65 s au pire**. Vérifié par `server/test/proxyDeadline.test.ts`, contre un
+  vrai amont HTTP local et le vrai `fetch` de Node (minuteurs simulés).
+- **Délais du navigateur** (1.7.1, `src/lib/requestTimeouts.ts`). Règle : **le
+  serveur répond toujours avant que le client abandonne** — un abandon sans
+  réponse est lu par `isUpstreamCut` comme une coupure amont, et la traduction
+  rejouerait un lot coupé en deux pour rien. Chaque valeur dépasse donc le
+  budget serveur qu'elle couvre :
+  - `TIMEOUT_DEFAULT_MS` = **75 s**, sur les deux instances axios
+    (`src/api/client.ts`, `src/api/backend.ts`) et le ClientLogin d'axios nu
+    (`src/api/auth.ts`) : listes, compteurs, écritures lu / favori / étiquette,
+    préférences, favicons, images, préparation hors-ligne. Au-dessus des 65 s
+    au pire de l'échéance du proxy.
+  - `TIMEOUT_AI_MS` = **150 s** : résumé, traduction, test d'un fournisseur et
+    liste de ses modèles. Au-dessus des 120 s de nginx (le serveur se borne
+    déjà à 50 s et 110 s).
+  - `TIMEOUT_BACKUP_MS` = **150 s** : export, aperçu et restauration.
+  - L'extraction garde son délai propre (20 s, plus court), inchangé.
+  Des constantes et pas des variables d'environnement : ce sont des
+  conséquences des bornes serveur. `requestTimeouts.test.ts` relit
+  `PROXY_TOTAL_TIMEOUT_MS`, `LOOKUP_TIMEOUT_MS` et `proxy_read_timeout` dans
+  leurs fichiers et rougit si l'un d'eux rattrape un délai client. Un délai
+  dépassé (`ECONNABORTED`, sans réponse) n'est **jamais** lu comme un 401 :
+  aucune déconnexion (`client.test.ts`, `backend.test.ts`).
 - **Règle** : tout nouvel appel sortant passe par `fetchUpstream()`, jamais par
   `fetch()` directement, sous peine de contourner le garde SSRF.
 - **Redaction** : `redactUrl()` retire la valeur d'un paramètre `token` avant
@@ -4944,6 +4986,9 @@ divergentes).
   proportionnelle au lot, plafonnée 10 s sous ce délai ; voir « Résumés et
   traductions par IA », appels sortants et « Traduction — serveur ») ; au
   défaut de 60 s, le proxy coupait une demande que le serveur tenait encore.
+  Les délais du navigateur sont posés **au-dessus** de ces 120 s pour l'IA et
+  la sauvegarde (voir *Proxy*, « Délais du navigateur ») : `requestTimeouts.test.ts`
+  relit cette ligne de `nginx.conf`.
   Un reverse proxy en amont devrait en accorder autant sur `/api/ai` (lignes
   à copier dans le README) ; sans cela, la traduction de l'article rejoue un
   lot coupé en deux moitiés et ne le signale (`ai.errors.proxyTimeout`) que

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
+import { TIMEOUT_DEFAULT_MS } from '../lib/requestTimeouts';
 
 /**
  * FreshRSS ClientLogin — échange identifiants → token greader.
@@ -17,6 +18,8 @@ export async function login(
 
   const { backendToken } = useAuthStore.getState();
   const response = await axios.post('/api/proxy', params, {
+    // Hors des instances bornées : même délai qu'elles (`requestTimeouts.ts`).
+    timeout: TIMEOUT_DEFAULT_MS,
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'X-Proxy-Target': target,

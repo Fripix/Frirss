@@ -1,8 +1,12 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import { isBackendAuthFailure } from '../lib/loginErrors';
+import { TIMEOUT_DEFAULT_MS } from '../lib/requestTimeouts';
 
-const client = axios.create();
+// Borné au-dessus de l'échéance totale du proxy (`src/lib/requestTimeouts.ts`) :
+// le serveur répond toujours 504 avant que ce délai n'abandonne la requête.
+// Images et favicons passent par ici et héritent du même délai.
+const client = axios.create({ timeout: TIMEOUT_DEFAULT_MS });
 
 // All FreshRSS calls are routed through the same-origin backend proxy
 // (/api/proxy) to avoid cross-origin CORS/preflight. The target travels in a

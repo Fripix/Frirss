@@ -52,6 +52,14 @@ _(rien pour l'instant)_
   l'écran de connexion dit que le serveur n'a pas répondu (clé existante
   `login.errorUnavailable`).
 
+- **Plus aucune requête n'attend indéfiniment.** Un serveur FreshRSS (ou une
+  page) qui envoyait le début de sa réponse puis ne finissait jamais tenait
+  l'écran en attente jusqu'à deux minutes, sans fin bornée côté navigateur.
+  Le proxy de FriRSS borne désormais chaque requête à 60 s au total (504 clair
+  si rien n'est arrivé, réponse coupée sinon), et le navigateur attend
+  toujours plus longtemps que le serveur : 75 s pour les appels courants,
+  150 s pour l'IA et la sauvegarde. Un délai dépassé ne déconnecte jamais.
+
 ## Sous le capot
 
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,

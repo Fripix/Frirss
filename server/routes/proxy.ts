@@ -33,6 +33,65 @@ const router = Router();
 const TIMEOUT_MS = 30_000;
 
 /**
+ * Échéance TOTALE d'une requête `/api/proxy` : en-têtes ET corps, tous les
+ * sauts de redirection et le repli vers l'URL publique compris.
+ *
+ * `TIMEOUT_MS` ne borne qu'UN saut, et seulement jusqu'aux en-têtes : un amont
+ * qui envoie ses en-têtes puis retient son corps, ou qui enchaîne six
+ * redirections lentes, n'était arrêté que par le `proxy_read_timeout` de
+ * nginx (120 s). Or le client (`src/lib/requestTimeouts.ts`) doit TOUJOURS
+ * recevoir une réponse avant d'abandonner : un abandon sans réponse est lu
+ * comme une coupure amont (`isUpstreamCut`, `src/lib/aiErrorKey.ts`). Son
+ * délai par défaut (75 s) est donc posé au-dessus de celle-ci — un test relit
+ * cette ligne pour le vérifier.
+ *
+ * La garde par résolution d'un saut (`LOOKUP_TIMEOUT_MS`, 5 s) n'écoute pas le
+ * signal : au pire, l'échéance est constatée au saut suivant, 65 s après le
+ * départ. Toujours sous les 75 s du client.
+ *
+ * Elle appartient à la ROUTE, pas à `fetchUpstream` : le worker de
+ * synchronisation et les autres appelants gardent leurs propres bornes.
+ */
+export const PROXY_TOTAL_TIMEOUT_MS = 60_000;
+
+/** L'erreur que `finishError` traduit en 504 « Upstream timeout ». */
+function deadlineError(): Error {
+  return new DOMException('Proxy deadline reached', 'AbortError');
+}
+
+/**
+ * Lit tout le corps de `resp`, ou rejette avec une `AbortError` dès que
+ * `signal` tombe. `resp.arrayBuffer()` n'écoutait aucun signal : le délai par
+ * saut de `fetchUpstream` est levé aux en-têtes, un corps retenu attendait
+ * donc indéfiniment.
+ */
+async function readBodyText(resp: Response, signal: AbortSignal): Promise<string> {
+  if (!resp.body) return '';
+  const reader = resp.body.getReader();
+  // Annuler le lecteur règle la lecture en attente (`done`) et ferme la
+  // connexion amont : rien ne reste suspendu derrière la réponse 504.
+  const onAbort = () => { reader.cancel().catch(() => {}); };
+  if (signal.aborted) onAbort();
+  else signal.addEventListener('abort', onAbort, { once: true });
+  const chunks: Uint8Array[] = [];
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (signal.aborted) throw deadlineError();
+      if (done) break;
+      chunks.push(value);
+    }
+  } catch (err) {
+    // Selon l'implémentation, l'annulation termine la lecture OU la fait
+    // rejeter : dans les deux cas c'est l'échéance, donc un 504, pas un 502.
+    throw signal.aborted ? deadlineError() : err;
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+/**
  * Plafond de requêtes proxifiées, par utilisateur et par minute.
  *
  * Un compte authentifié peut faire émettre au backend autant de requêtes
@@ -635,15 +694,48 @@ router.all('/', async (req, res) => {
   }
 
   // ── Live request ──
+  // Échéance totale (voir `PROXY_TOTAL_TIMEOUT_MS`). Avant les en-têtes, le
+  // signal fait rejeter `fetchUpstream` (saut en cours, sauts suivants et
+  // repli compris) et `finishError` répond 504. Pendant une lecture
+  // bufferisée, `readBodyText` rejette de même : les en-têtes ne sont pas
+  // encore partis, le 504 reste possible. Pendant un corps relayé en flux, en
+  // revanche, le statut amont est DÉJÀ parti : un 504 n'est plus exprimable,
+  // on coupe donc le flux et la connexion — le client voit une réponse
+  // tronquée, ce qui vaut toujours mieux qu'une attente sans fin.
+  const deadline = new AbortController();
+  let relay: Readable | null = null;
+  const timer = setTimeout(() => {
+    deadline.abort(deadlineError());
+    if (!relay) return;
+    relay.destroy();
+    if (res.headersSent) res.destroy();
+    else finishError(res, deadlineError(), rawTarget);
+  }, PROXY_TOTAL_TIMEOUT_MS);
+  // `close` suit aussi une réponse terminée normalement : le minuteur est
+  // toujours levé. Un client parti en route libère l'amont au passage, au lieu
+  // de laisser un corps retenu tenir la connexion jusqu'à l'échéance.
+  res.on('close', () => {
+    clearTimeout(timer);
+    relay?.destroy();
+    if (!res.writableFinished) deadline.abort(deadlineError());
+  });
+
   let upstream: Response;
   try {
     upstream = await fetchUpstream(rawTarget, {
       method: req.method,
       headers,
       body: hasBody ? req.body : undefined,
+      signal: deadline.signal,
     });
   } catch (err) {
     return finishError(res, err, rawTarget);
+  }
+  if (deadline.signal.aborted) {
+    // En-têtes arrivés à l'instant même de l'échéance : le corps n'est pas lié
+    // au signal (le délai par saut s'arrête aux en-têtes), il faut le libérer.
+    upstream.body?.cancel().catch(() => {});
+    return finishError(res, deadlineError(), rawTarget);
   }
 
   const ctype = upstream.headers.get('content-type');
@@ -651,7 +743,12 @@ router.all('/', async (req, res) => {
 
   if (cacheable && upstream.ok) {
     // Buffer so we can store a trimmed copy; send the full response untouched.
-    const text = Buffer.from(await upstream.arrayBuffer()).toString('utf8');
+    let text: string;
+    try {
+      text = await readBodyText(upstream, deadline.signal);
+    } catch (err) {
+      return finishError(res, err, rawTarget);
+    }
     res.status(upstream.status).send(text);
     if (key) cacheSet(key, trimStreamJson(text)); // fire-and-forget
     return;
@@ -661,6 +758,7 @@ router.all('/', async (req, res) => {
   res.status(upstream.status);
   if (!upstream.body) { res.end(); return; }
   const stream = Readable.fromWeb(upstream.body as Parameters<typeof Readable.fromWeb>[0]);
+  relay = stream;
   stream.on('error', () => { if (!res.headersSent) res.sendStatus(502); res.destroy(); });
   stream.pipe(res);
 });

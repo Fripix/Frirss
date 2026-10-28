@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AxiosError } from 'axios';
 
 // L'intercepteur appelle `logout()` sur le store d'authentification ; on ne
 // veut ni sa persistance ni son vrai effet, seulement savoir s'il a été
@@ -12,6 +13,7 @@ vi.mock('../stores/authStore', () => ({
 }));
 
 import { BACKEND_AUTH_MARKERS } from '../lib/loginErrors';
+import { TIMEOUT_DEFAULT_MS } from '../lib/requestTimeouts';
 import client from './client';
 
 /**
@@ -71,6 +73,19 @@ describe('client — l’intercepteur de réponse et les deux couches d’authen
       await reject(proxyError(status, { error: 'Token required' }));
     }
     await reject(new Error('Network Error'));
+    expect(logout).not.toHaveBeenCalled();
+  });
+});
+
+describe('client — délai', () => {
+  // Tout passe par `/api/proxy`, dont l'échéance totale (60 s) répond 504 :
+  // le client attend plus longtemps, pour toujours recevoir cette réponse.
+  it('borne tout appel proxifié au délai par défaut', () => {
+    expect(client.defaults.timeout).toBe(TIMEOUT_DEFAULT_MS);
+  });
+
+  it('ne déconnecte pas sur un délai dépassé (ECONNABORTED)', async () => {
+    await reject(new AxiosError(`timeout of ${TIMEOUT_DEFAULT_MS}ms exceeded`, AxiosError.ECONNABORTED));
     expect(logout).not.toHaveBeenCalled();
   });
 });

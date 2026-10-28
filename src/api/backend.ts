@@ -2,6 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import type { AiLanguage } from '../lib/aiLanguages';
 import { isBackendAuthFailure } from '../lib/loginErrors';
+import { TIMEOUT_DEFAULT_MS, TIMEOUT_AI_MS, TIMEOUT_BACKUP_MS } from '../lib/requestTimeouts';
 import type {
   User,
   ServerConnection,
@@ -12,9 +13,12 @@ import type {
 } from '../types';
 
 // Client for the FriRSS backend API (/api/*)
+// Tout appel est borné (`src/lib/requestTimeouts.ts`) ; l'IA et la sauvegarde
+// passent un délai plus long, appel par appel.
 const backend = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
+  timeout: TIMEOUT_DEFAULT_MS,
 });
 
 // Attach JWT token to every request
@@ -239,7 +243,7 @@ export async function requestAiSummary(body: {
   /** « Régénérer » : le serveur ignore son cache et le remplace (une unité du plafond). */
   regenerate?: boolean;
 }): Promise<AiSummaryResult> {
-  const { data } = await backend.post<AiSummaryResult>('/ai/summary', body);
+  const { data } = await backend.post<AiSummaryResult>('/ai/summary', body, { timeout: TIMEOUT_AI_MS });
   return data;
 }
 /**
@@ -256,7 +260,7 @@ export async function requestAiTranslation(body: {
   /** Rejeu : le cache serveur seulement (404 `not_cached` sans entrée), jamais d'appel ni d'unité de plafond. Incompatible avec `regenerate`. */
   cacheOnly?: boolean;
 }): Promise<AiTranslationResult> {
-  const { data } = await backend.post<AiTranslationResult>('/ai/translate', body);
+  const { data } = await backend.post<AiTranslationResult>('/ai/translate', body, { timeout: TIMEOUT_AI_MS });
   return data;
 }
 /** Enregistre (chaîne) ou efface (`null`) la clé personnelle de l'utilisateur pour un fournisseur ; la clé ne revient jamais. */
@@ -283,7 +287,7 @@ export async function reorderAiProviders(ids: number[]): Promise<void> {
   await backend.put('/admin/ai/providers/order', { ids });
 }
 export async function testAiProvider(id: number): Promise<{ ok: boolean; model?: string; durationMs?: number; kind?: string; message?: string }> {
-  const { data } = await backend.post<{ ok: boolean; model?: string; durationMs?: number; kind?: string; message?: string }>(`/admin/ai/providers/${id}/test`);
+  const { data } = await backend.post<{ ok: boolean; model?: string; durationMs?: number; kind?: string; message?: string }>(`/admin/ai/providers/${id}/test`, undefined, { timeout: TIMEOUT_AI_MS });
   return data;
 }
 export interface AiModelsResult { ok: boolean; models?: string[]; kind?: string; message?: string }
@@ -292,7 +296,7 @@ export interface AiModelsResult { ok: boolean; models?: string[]; kind?: string;
  * saisie, le serveur reprend celle de `providerId` si l'URL et le type n'ont pas changé.
  */
 export async function listAiModels(target: { type: 'anthropic' | 'openai'; baseUrl: string; adminKey?: string; providerId?: number }): Promise<AiModelsResult> {
-  const { data } = await backend.post<AiModelsResult>('/admin/ai/models', target);
+  const { data } = await backend.post<AiModelsResult>('/admin/ai/models', target, { timeout: TIMEOUT_AI_MS });
   return data;
 }
 export async function updateAiSettings(settings: Partial<AiAdminSettings>): Promise<void> {
@@ -306,7 +310,7 @@ export async function updateAiSettings(settings: Partial<AiAdminSettings>): Prom
  * doit apparaître ni dans une URL, ni dans un journal d'accès.
  */
 export async function createBackup(passphrase: string): Promise<BackupEnvelope> {
-  const { data } = await backend.post<{ backup: BackupEnvelope }>('/admin/backup', { passphrase });
+  const { data } = await backend.post<{ backup: BackupEnvelope }>('/admin/backup', { passphrase }, { timeout: TIMEOUT_BACKUP_MS });
   return data.backup;
 }
 
@@ -319,12 +323,13 @@ export async function previewRestore(
   const { data } = await backend.post<RestoreSummary>(
     `${setup ? '/setup' : '/admin'}/restore/preview`,
     { backup, passphrase },
+    { timeout: TIMEOUT_BACKUP_MS },
   );
   return data;
 }
 
 export async function applyRestore(backup: unknown, passphrase: string, setup: boolean): Promise<void> {
-  await backend.post(`${setup ? '/setup' : '/admin'}/restore`, { backup, passphrase });
+  await backend.post(`${setup ? '/setup' : '/admin'}/restore`, { backup, passphrase }, { timeout: TIMEOUT_BACKUP_MS });
 }
 
 export default backend;
