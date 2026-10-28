@@ -208,10 +208,10 @@
       "language": "Langue",
       "preview": "Aperçu",
       "appName": "Nom de l'application",
-      "appNameReset": "Reset",
+      "appNameReset": "Réinitialiser",
       "appNameResetTooltip": "Remettre le nom par défaut",
       "logo": "Logo",
-      "logoHint": "Image PNG, JPG ou SVG. Le logo remplace le titre et l'icône dans le header.",
+      "logoHint": "Image PNG, JPG ou SVG. Le logo remplace le titre et l'icône dans l'en-tête de la barre latérale.",
       "chooseLogo": "Choisir un logo",
       "changeLogo": "Changer le logo",
       "resetLogo": "Réinitialiser",
@@ -231,7 +231,7 @@
       "resetTooltip": "Réinitialiser cette couleur"
     },
     "colorSections": {
-      "sidebar": "Sidebar",
+      "sidebar": "Barre latérale",
       "topbar": "Barre serveurs",
       "accent": "Accent",
       "articleList": "Liste d'articles",
@@ -240,8 +240,8 @@
     },
     "colorKeys": {
       "sidebar-bg": "Fond",
-      "sidebar-header-from": "Header dégradé début",
-      "sidebar-header-to": "Header dégradé fin",
+      "sidebar-header-from": "En-tête, dégradé (début)",
+      "sidebar-header-to": "En-tête, dégradé (fin)",
       "sidebar-text": "Texte",
       "sidebar-text-active": "Texte actif",
       "sidebar-category-text": "Catégories",
@@ -255,7 +255,7 @@
       "accent-dark": "Foncée",
       "panel-bg": "Fond",
       "panel-border": "Bordures",
-      "panel-header-bg": "Fond header",
+      "panel-header-bg": "Fond de l'en-tête",
       "list-source": "Nom du flux",
       "list-title": "Titre",
       "list-title-read": "Titre lu",
@@ -273,8 +273,8 @@
       "danger": "Actions dangereuses",
       "danger-light": "Fond alerte",
       "code-bg": "Fond blocs de code",
-      "scrollbar": "Scrollbar",
-      "scrollbar-hover": "Scrollbar (hover)",
+      "scrollbar": "Barre de défilement",
+      "scrollbar-hover": "Barre de défilement (survol)",
       "ai-bg": "Résumé IA, fond",
       "ai-border": "Résumé IA, bordure"
     },
@@ -282,7 +282,7 @@
       "resetFonts": "Réinitialiser les tailles"
     },
     "fontSections": {
-      "sidebar": "Sidebar",
+      "sidebar": "Barre latérale",
       "articleList": "Liste d'articles",
       "reading": "Lecture",
       "grid": "Grille"
@@ -322,7 +322,7 @@
     },
     "themes": {
       "presets": "Préréglages",
-      "presetsHint": "Un thème complet en un clic. Le charger remplace les 36 couleurs ; tout reste modifiable ensuite.",
+      "presetsHint": "Un thème complet en un clic. Le charger remplace les {{n}} couleurs ; tout reste modifiable ensuite.",
       "followSystem": "Suivre le thème du système",
       "followSystemHint": "Bascule entre les deux thèmes ci-dessous quand l’appareil passe en clair ou en sombre.",
       "lightTheme": "Thème clair",
@@ -354,7 +354,7 @@
       "markUnread": "Marquer non lu",
       "toggleStar": "Favori",
       "openOriginal": "Ouvrir l'original",
-      "toggleSidebar": "Afficher/masquer sidebar",
+      "toggleSidebar": "Afficher/masquer la barre latérale",
       "search": "Rechercher",
       "readLater": "À lire plus tard",
       "keySpace": "Espace",
@@ -379,7 +379,7 @@
     },
     "offline": {
       "title": "Hors-ligne",
-      "hint": "Télécharge les 30 derniers jours de tous les flux (textes + images) pour la lecture hors-ligne. Consomme du réseau — préfère le Wi-Fi.",
+      "hint": "Télécharge les 30 derniers jours de tous les flux (textes + images) pour la lecture hors-ligne. Consomme du réseau — privilégiez le Wi-Fi.",
       "button": "Préparer le hors-ligne (30 j)",
       "preparing": "Préparation…",
       "done": "Hors-ligne prêt",

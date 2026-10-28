@@ -281,7 +281,7 @@ function ThemePresets() {
         {t('preferences.themes.presets')}
       </h3>
       <p className="text-[11px] mb-2.5" style={{ color: 'var(--list-summary)' }}>
-        {t('preferences.themes.presetsHint')}
+        {t('preferences.themes.presetsHint', { n: Object.keys(SHIPPED_THEMES[0].colors).length })}
       </p>
       <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(116px, 1fr))' }}>
         {SHIPPED_THEMES.map((preset) => {

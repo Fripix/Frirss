@@ -322,7 +322,7 @@
     },
     "themes": {
       "presets": "Presets",
-      "presetsHint": "A complete theme in one click. Loading one replaces all 36 colours; everything stays editable afterwards.",
+      "presetsHint": "A complete theme in one click. Loading one replaces all {{n}} colours; everything stays editable afterwards.",
       "followSystem": "Follow the system theme",
       "followSystemHint": "Switches between the two themes below when the device turns light or dark.",
       "lightTheme": "Light theme",

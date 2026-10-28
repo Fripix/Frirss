@@ -322,7 +322,7 @@
     },
     "themes": {
       "presets": "预设",
-      "presetsHint": "一键应用完整主题。加载预设会替换全部 36 种颜色，之后仍可自由调整。",
+      "presetsHint": "一键应用完整主题。加载预设会替换全部 {{n}} 种颜色，之后仍可自由调整。",
       "followSystem": "跟随系统主题",
       "followSystemHint": "设备切换浅色/深色时，自动在下方两个主题间切换。",
       "lightTheme": "浅色主题",

@@ -235,6 +235,11 @@ la release publiée.
   pour la rouvrir), et la croix invisible qui supprimait une de leurs
   catégories, sur le serveur et sans confirmation, n'est plus active au
   toucher (la suppression reste possible dans Préférences › Étiquettes).
+- **Textes** : l'aide des préréglages de thème annonçait 36 couleurs, il y
+  en a 38 (le nombre vient désormais du thème lui-même) ; en français, les
+  derniers mots anglais des Préférences sont traduits (« Sidebar »,
+  « Header », « Scrollbar », « Reset ») et l'aide du hors-ligne vouvoie
+  comme le reste de l'application.
 - **Traduction : un clic sur « Réessayer avec… » dès son apparition n'est
   plus perdu.** Le volet lisait encore l'état « en cours » pendant un bref
   instant après l'affichage de l'erreur, et ignorait le clic.

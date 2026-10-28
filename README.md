@@ -104,7 +104,7 @@ FriRSS ships no AI of its own: no model, no service, nothing sent anywhere by de
 Almost everything is yours to tweak:
 
 - **Six themes ship with it** — Default, Riso, Paper and High Contrast in light, Night and Desk in dark — and FriRSS can **follow your system's light/dark setting**, switching between the two you pick.
-- **Themes are yours to make** — full control over all 36 colors and 7 font sizes; **create, save, export, import and share** your own.
+- **Themes are yours to make** — full control over all 38 colors and 7 font sizes; **create, save, export, import and share** your own.
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
 - **Layout** — resizable columns, density and spacing, date separators, feed icons, toggles for the source label and top bar, and a desktop/mobile switch on tablets.
