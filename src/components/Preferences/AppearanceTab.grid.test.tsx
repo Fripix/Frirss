@@ -30,14 +30,14 @@ describe('Préférences › Apparence › Tailles — section Grille (#26)', () 
     expect(radios[0].getAttribute('aria-checked')).toBe('true');
   });
 
-  it('le curseur règle la largeur par pas de 20 px', () => {
+  it('le curseur règle la largeur au pixel près', () => {
     const { getByText, container } = openSizes();
-    const slider = container.querySelector('input[type="range"][step="20"]') as HTMLInputElement;
-    expect(slider.min).toBe('160');
+    const slider = container.querySelector('input[type="range"][min="160"]') as HTMLInputElement;
     expect(slider.max).toBe('480');
-    fireEvent.change(slider, { target: { value: '360' } });
-    expect(useUiStore.getState().gridCardWidth).toBe(360);
-    expect(getByText('360px')).toBeTruthy();
+    expect(slider.step).toBe('1');
+    fireEvent.change(slider, { target: { value: '357' } });
+    expect(useUiStore.getState().gridCardWidth).toBe(357);
+    expect(getByText('357px')).toBeTruthy();
   });
 
   it('un format choisi est coché et enregistré', () => {

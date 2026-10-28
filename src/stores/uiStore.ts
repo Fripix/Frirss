@@ -266,7 +266,7 @@ export interface UiState {
   // Longueur visée des résumés IA, en % de l'article (5…50, pas de 5). Synchronisé.
   aiSummaryRatio: number;
   setAiSummaryRatio: (v: number) => void;
-  // Vue grille (#26) : largeur minimale des cartes (160…480, pas de 20) et
+  // Vue grille (#26) : largeur minimale des cartes (160…480 px, au pixel) et
   // format de leur image. Synchronisés, communs à tous les thèmes.
   gridCardWidth: number;
   setGridCardWidth: (v: number) => void;

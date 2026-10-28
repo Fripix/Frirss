@@ -8,7 +8,9 @@
  */
 export const GRID_CARD_WIDTH_MIN = 160;
 export const GRID_CARD_WIDTH_MAX = 480;
-export const GRID_CARD_WIDTH_STEP = 20;
+// Au pixel près : un pas plus grand saute des largeurs qui, sur un écran
+// donné, tombent pile sur le nombre de colonnes voulu.
+export const GRID_CARD_WIDTH_STEP = 1;
 export const GRID_CARD_WIDTH_DEFAULT = 240;
 
 // Pas de format « original » : des images de hauteurs différentes casseraient
@@ -16,10 +18,10 @@ export const GRID_CARD_WIDTH_DEFAULT = 240;
 export const GRID_IMAGE_RATIOS = ['16:9', '4:3', '1:1'] as const;
 export type GridImageRatio = (typeof GRID_IMAGE_RATIOS)[number];
 
-/** Un multiple du pas entre les bornes ; toute autre valeur rend le défaut. */
+/** Un entier entre les bornes ; toute autre valeur rend le défaut. */
 export function normalizeGridCardWidth(v: unknown): number {
   return typeof v === 'number' && Number.isInteger(v)
-    && v >= GRID_CARD_WIDTH_MIN && v <= GRID_CARD_WIDTH_MAX && v % GRID_CARD_WIDTH_STEP === 0
+    && v >= GRID_CARD_WIDTH_MIN && v <= GRID_CARD_WIDTH_MAX
     ? v : GRID_CARD_WIDTH_DEFAULT;
 }
 

@@ -349,7 +349,7 @@ globale, mais surchargeable **par flux**.
 ### Taille des cartes de la grille
 Deux réglages dans **Préférences › Apparence › Tailles**, section « Grille »,
 sous les tailles de texte (demandés dans l'issue #26) : **Largeur des cartes**
-(curseur de 160 à 480 px, pas de 20, défaut 240) et **Format d'image** (16:9,
+(curseur de 160 à 480 px, au pixel près, défaut 240) et **Format d'image** (16:9,
 4:3 ou 1:1, défaut 16:9). Les défauts reproduisent exactement la grille
 d'avant.
 

@@ -10,16 +10,16 @@ import {
 } from './gridCards';
 
 describe('normalizeGridCardWidth', () => {
-  it('garde un multiple de 20 entre 160 et 480', () => {
+  it('garde tout entier entre 160 et 480 : le réglage se fait au pixel', () => {
     expect(normalizeGridCardWidth(160)).toBe(160);
-    expect(normalizeGridCardWidth(320)).toBe(320);
+    expect(normalizeGridCardWidth(237)).toBe(237);
     expect(normalizeGridCardWidth(480)).toBe(480);
   });
 
   it('rend le défaut actuel, 240, pour toute autre valeur', () => {
     // Client plus ancien, chaîne, valeur trafiquée : jamais une grille cassée.
     expect(GRID_CARD_WIDTH_DEFAULT).toBe(240);
-    for (const v of [undefined, null, '300', 150, 500, 250, 240.5, NaN, Infinity]) {
+    for (const v of [undefined, null, '300', 159, 481, 240.5, NaN, Infinity]) {
       expect(normalizeGridCardWidth(v)).toBe(240);
     }
   });
