@@ -166,7 +166,7 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
         disabled={!envelope || passphrase === '' || phase === 'checking'}
         aria-busy={phase === 'checking'}
         className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
-        style={{ background: 'var(--accent)', color: '#fff' }}
+        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         {/* Le même compteur que le champ de jeton. `inline-flex items-center`
             sur le bouton, sans quoi le compteur s'empile AU-DESSUS du libellé

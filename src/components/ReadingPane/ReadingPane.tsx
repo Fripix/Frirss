@@ -2469,7 +2469,7 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
                   style={{
                     border: isActive ? 'none' : '1.5px solid var(--panel-border)',
                     background: isActive ? 'var(--accent)' : 'transparent',
-                    color: '#fff',
+                    color: 'var(--on-accent)',
                   }}
                 >
                   {isActive && (

@@ -62,7 +62,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
           onClick={() => prepareOffline()}
           disabled={offlinePrep?.running}
           className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-          style={{ background: 'var(--accent)', color: '#fff' }}
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           {offlinePrep?.running
             ? `${t('preferences.offline.preparing')} ${offlinePrep.done}/${offlinePrep.total || '…'}`

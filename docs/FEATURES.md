@@ -4409,6 +4409,10 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   Écrit une première fois sans elle.
 
 - **Où** : `src/components/Sidebar/AddFeedDialog.tsx`, `feedStore` (`addFeed`, `renameFeed`, `removeFeed`)
+- **Rendue par portail sous `<body>`** (1.8.0) : ouverte depuis la barre
+  latérale, donc dans le tiroir mobile (`fixed` + `transform` +
+  `overflow: hidden`), elle s'y ancrait et y était rognée. Test :
+  `AddFeedDialog.portal.test.tsx`.
 - **Note** : la découverte automatique du flux depuis l'URL d'un site est assurée
   par FreshRSS, pas par FriRSS.
 
@@ -4425,6 +4429,14 @@ noms créés par l'utilisateur vivent dans les préférences synchronisées
 (`savedCategoryNames`) et deviennent une vraie étiquette au premier article rangé.
 
 - **Où** : `src/lib/savedCategories.ts`, `src/utils/labels.ts`, `src/components/Preferences/LabelsTab.tsx`
+- **Dans la barre latérale** (`SavedCategoryList`, `FilterItem` de
+  `Sidebar.tsx`) : la croix qui supprime une catégorie est révélée au survol
+  et **n'existe pas au toucher** (`[@media(hover:none)]:hidden`, 1.8.0) :
+  invisible mais cliquable, un tap sur le bord droit de la ligne supprimait
+  l'étiquette sur le serveur sans confirmation. Au toucher, la suppression
+  passe par Préférences › Étiquettes, qui confirme. Le chevron de la section
+  repliée reste visible sans survol (il disparaissait : plus moyen de
+  rouvrir).
 - **Spec** : `docs/superpowers/specs/2026-08-20-saved-categories-design.md`
 - **Piège** : le préfixe est littéral et **en français** (`À lire plus tard/…`)
   quelle que soit la langue de l'interface, par cohérence avec l'identifiant déjà
@@ -4803,7 +4815,10 @@ réglage clair/sombre du système.
   jamais `text-white` — le blanc sur l'accent menthe par défaut ne donnait que
   1,9:1, et un accent pâle faisait disparaître le libellé de son propre bouton.
   Même fonction pour les pastilles d'étiquette et les pastilles-lettres, dont la
-  couleur vient de l'utilisateur ou d'un hachage.
+  couleur vient de l'utilisateur ou d'un hachage. La règle n'était pas tenue partout : en 1.8.0, 17 remplissages
+  d'accent écrivaient encore `#fff` en dur, dont l'onglet actif des
+  Préférences — le plus visible, dans le thème par défaut — et les boutons
+  principaux (Préparer le hors-ligne, Télécharger la sauvegarde, Enregistrer).
 - **Piège** : `--sidebar-header-from` / `--sidebar-header-to` sont des **clés de
   thème**, pas des variables CSS ; seul `--sidebar-header-bg` est publié.
 

@@ -116,7 +116,7 @@ export default function SavedCategoryPicker({ prefix, article, anchor, onClose }
             type="submit"
             disabled={!name.trim()}
             className="px-2 py-1 rounded text-xs disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
             +
           </button>

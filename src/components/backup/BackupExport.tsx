@@ -85,7 +85,7 @@ export default function BackupExport() {
         disabled={!ready || busy}
         aria-busy={busy}
         className="px-4 py-2 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
-        style={{ background: 'var(--accent)', color: '#fff' }}
+        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
       >
         {busy ? t('backup.preparing') : t('backup.download')}
       </button>

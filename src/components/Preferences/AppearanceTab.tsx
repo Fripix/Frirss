@@ -975,7 +975,7 @@ function IdentitySection() {
             className="px-4 py-2 text-xs font-medium rounded-lg transition-colors"
             style={{
               background: 'var(--accent)',
-              color: '#fff',
+              color: 'var(--on-accent)',
             }}
           >
             {appLogo ? t('preferences.branding.changeLogo') : t('preferences.branding.chooseLogo')}
@@ -1006,7 +1006,7 @@ function IdentitySection() {
                   className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
                   style={{
                     background: logoMode === m ? 'var(--accent)' : 'var(--panel-header-bg)',
-                    color: logoMode === m ? '#fff' : 'var(--list-title)',
+                    color: logoMode === m ? 'var(--on-accent)' : 'var(--list-title)',
                     border: logoMode === m ? '1px solid var(--accent)' : '1px solid var(--panel-border)',
                   }}
                 >
@@ -1043,7 +1043,7 @@ function IdentitySection() {
               onClick={applyLogoUrl}
               disabled={!logoUrlDraft.trim()}
               className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: '#fff' }}
+              style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             >
               {t('preferences.branding.applyLogoUrl')}
             </button>

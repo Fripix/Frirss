@@ -73,7 +73,7 @@ function CopyField({ label, value, hint }: { label: string; value: string; hint?
             }).catch(() => {});
           }}
           className="px-2.5 py-1.5 text-xs font-medium rounded-md flex-shrink-0 transition-colors"
-          style={{ background: copied ? 'var(--accent)' : 'var(--panel-border)', color: copied ? '#fff' : 'var(--list-title)' }}
+          style={{ background: copied ? 'var(--accent)' : 'var(--panel-border)', color: copied ? 'var(--on-accent)' : 'var(--list-title)' }}
         >
           {copied ? `✓ ${t('admin.copied')}` : t('admin.copy')}
         </button>
@@ -352,7 +352,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                   className="text-[10px] font-medium px-2 py-0.5 rounded-full"
                   style={{
                     background: user.role === 'admin' ? 'var(--accent)' : 'var(--panel-border)',
-                    color: user.role === 'admin' ? '#fff' : 'var(--list-title)',
+                    color: user.role === 'admin' ? 'var(--on-accent)' : 'var(--list-title)',
                     opacity: isSelf ? 0.5 : 1,
                     cursor: isSelf ? 'default' : 'pointer',
                   }}
@@ -429,7 +429,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                       onClick={() => saveProfile(user)}
                       disabled={editSaving}
                       className="text-[11px] font-medium px-3 py-1.5 rounded-md whitespace-nowrap"
-                      style={{ background: 'var(--accent)', color: '#fff', opacity: editSaving ? 0.6 : 1 }}
+                      style={{ background: 'var(--accent)', color: 'var(--on-accent)', opacity: editSaving ? 0.6 : 1 }}
                     >
                       {editSaving ? t('admin.saving') : t('admin.save')}
                     </button>
@@ -461,7 +461,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                       onClick={() => savePassword(user)}
                       disabled={pwSaving}
                       className="text-[11px] font-medium px-3 py-1.5 rounded-md whitespace-nowrap"
-                      style={{ background: 'var(--accent)', color: '#fff', opacity: pwSaving ? 0.6 : 1 }}
+                      style={{ background: 'var(--accent)', color: 'var(--on-accent)', opacity: pwSaving ? 0.6 : 1 }}
                     >
                       {pwSaving ? t('admin.saving') : t('admin.setPassword')}
                     </button>
@@ -590,7 +590,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                 className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
                 style={{
                   background: active ? 'var(--accent)' : 'var(--panel-header-bg)',
-                  color: active ? '#fff' : 'var(--list-title)',
+                  color: active ? 'var(--on-accent)' : 'var(--list-title)',
                   border: active ? '1px solid var(--accent)' : '1px solid var(--panel-border)',
                 }}
               >

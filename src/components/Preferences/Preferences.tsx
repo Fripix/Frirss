@@ -272,7 +272,7 @@ export default function Preferences() {
                 className={`flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row ${isMobile ? 'justify-between' : ''}`}
                 style={{
                   background: tab === s.id ? 'var(--accent)' : 'transparent',
-                  color: tab === s.id ? '#ffffff' : 'var(--list-title)',
+                  color: tab === s.id ? 'var(--on-accent)' : 'var(--list-title)',
                   fontWeight: tab === s.id ? 600 : 400,
                 }}
               >
@@ -292,7 +292,7 @@ export default function Preferences() {
                   className={`flex items-center text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors prefs-tap-row ${isMobile ? 'justify-between' : ''}`}
                   style={{
                     background: tab === 'admin' ? 'var(--accent)' : 'transparent',
-                    color: tab === 'admin' ? '#ffffff' : 'var(--list-title)',
+                    color: tab === 'admin' ? 'var(--on-accent)' : 'var(--list-title)',
                     fontWeight: tab === 'admin' ? 600 : 400,
                   }}
                 >

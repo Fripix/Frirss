@@ -222,6 +222,19 @@ la release publiée.
 - **Préférences : Échap pendant un renommage n'annule plus que le
   renommage.** Renommer une étiquette ou une catégorie, ou nommer une
   nouvelle catégorie, puis appuyer sur Échap fermait aussi tout le panneau.
+- **Texte lisible sur la couleur d'accent.** L'onglet actif des Préférences
+  et une quinzaine de boutons (Préparer le hors-ligne, Télécharger la
+  sauvegarde, Enregistrer…) écrivaient en blanc sur la couleur d'accent : sur
+  la menthe par défaut, à peine lisible. Ils prennent désormais l'encre
+  calculée pour l'accent, comme le reste de l'application.
+- **« Ajouter un flux » n'est plus rognée sur téléphone et tablette.**
+  Ouverte depuis la barre latérale, la fenêtre restait prise dans le tiroir
+  et y était coupée.
+- **Barre latérale au toucher** : la section Favoris ou À lire plus tard
+  repliée garde son chevron visible (il fallait viser une zone invisible
+  pour la rouvrir), et la croix invisible qui supprimait une de leurs
+  catégories, sur le serveur et sans confirmation, n'est plus active au
+  toucher (la suppression reste possible dans Préférences › Étiquettes).
 - **Traduction : un clic sur « Réessayer avec… » dès son apparition n'est
   plus perdu.** Le volet lisait encore l'état « en cours » pendant un bref
   instant après l'affichage de l'erreur, et ignorait le clic.

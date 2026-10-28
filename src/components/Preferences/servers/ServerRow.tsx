@@ -214,7 +214,7 @@ function Badge({ label, accent }: { label: string; accent?: boolean }) {
       className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded flex-shrink-0"
       style={
         accent
-          ? { background: 'var(--accent)', color: '#fff' }
+          ? { background: 'var(--accent)', color: 'var(--on-accent)' }
           : { border: '1px solid var(--panel-border)', color: 'var(--list-summary)' }
       }
     >

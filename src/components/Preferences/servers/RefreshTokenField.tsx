@@ -139,7 +139,7 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
           disabled={saving || !edited}
           aria-busy={saving}
           className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[44px]"
-          style={{ background: 'var(--accent)', color: '#fff' }}
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           {saving && (
             <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
