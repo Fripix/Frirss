@@ -291,7 +291,7 @@ export default function AiSummary({ status, result, error, errorProviderId, prov
     </button>
   ) : null;
 
-  const menuRowClass = `flex items-center w-full text-left rounded-md hover:bg-black/5 ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`;
+  const menuRowClass = `flex items-center w-full text-left rounded-md hover-tint ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`;
   const menuItems = (
     <>
       {available.map((p) => (

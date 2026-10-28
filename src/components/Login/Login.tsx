@@ -358,7 +358,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
           )}
 
           {error && (
-            <p className="text-red-400 text-xs text-center bg-red-400/10 rounded-lg py-2 px-3">{error}</p>
+            <p className="danger-note text-xs text-center rounded-lg py-2 px-3">{error}</p>
           )}
 
           <button
@@ -639,7 +639,7 @@ function ServerStep() {
           </details>
 
           {error && (
-            <p className="text-red-400 text-xs text-center bg-red-400/10 rounded-lg py-2 px-3">{error}</p>
+            <p className="danger-note text-xs text-center rounded-lg py-2 px-3">{error}</p>
           )}
 
           <button

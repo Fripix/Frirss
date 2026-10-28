@@ -43,6 +43,7 @@ import { useLongPress } from '../../hooks/useLongPress';
 import { useToolbarFold } from '../../hooks/useToolbarFold';
 import axios from 'axios';
 import { safeHref } from '../../lib/safeHref';
+import { clampReadingBody, READING_BODY_BOUNDS } from '../../lib/readingFontSize';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
 
 // Référence stable : un `?? []` dans le sélecteur zustand en créerait une neuve à
@@ -1320,17 +1321,16 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const chipCompact = translatedChipFor(true);
 
   function decreaseFont() {
-    if (bodySize > 10) setFontSize('reading-body', String(bodySize - 1));
+    setFontSize('reading-body', String(clampReadingBody(bodySize - 1, false)));
   }
   function increaseFont() {
-    if (bodySize < 24) setFontSize('reading-body', String(bodySize + 1));
+    setFontSize('reading-body', String(clampReadingBody(bodySize + 1, false)));
   }
 
   // Font control targets the mobile-specific size on touch, the (synced)
   // theme value on desktop — so adjusting on a phone never resizes desktop.
   const fontVal = isMobileOrTablet ? mobileReadingFontSize : bodySize;
-  const fontMin = isMobileOrTablet ? 13 : 10;
-  const fontMax = isMobileOrTablet ? 26 : 24;
+  const { min: fontMin, max: fontMax } = isMobileOrTablet ? READING_BODY_BOUNDS.touch : READING_BODY_BOUNDS.desktop;
   const decFont = () => (isMobileOrTablet ? setMobileReadingFontSize(mobileReadingFontSize - 1) : decreaseFont());
   const incFont = () => (isMobileOrTablet ? setMobileReadingFontSize(mobileReadingFontSize + 1) : increaseFont());
 
@@ -1421,7 +1421,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         {showBack && (
           <button
             onClick={() => selectArticle(null)}
-            className="toolbar-icon-btn p-1.5 rounded-lg transition-colors hover:bg-black/5 mr-1"
+            className="toolbar-icon-btn p-1.5 rounded-lg transition-colors hover-tint mr-1"
             style={{ color: 'var(--accent)' }}
             title={t('readingPane.back')}
             aria-label={t('readingPane.back')}
@@ -1628,7 +1628,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         {/* Reading Focus toggle (hide sidebar + list) */}
         <button
           onClick={toggleReadingFocus}
-          className="toolbar-icon-btn p-1.5 rounded-lg transition-colors hover:bg-black/5 flex-shrink-0"
+          className="toolbar-icon-btn p-1.5 rounded-lg transition-colors hover-tint flex-shrink-0"
           style={{ color: readingFocus ? 'var(--accent)' : 'var(--list-summary)' }}
           title={`${readingFocus ? t('readingPane.focusExit') : t('readingPane.focusEnter')} — ${t('readingPane.focusHint')}`}
           aria-pressed={readingFocus}
@@ -1646,7 +1646,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             onClick={decFont}
-            className="toolbar-icon-btn p-1 rounded transition-colors hover:bg-black/5"
+            className="toolbar-icon-btn p-1 rounded transition-colors hover-tint"
             style={{ color: 'var(--list-summary)' }}
             title={`${t('sidebar.reduceText')} (${fontVal}px)`}
             aria-label={`${t('sidebar.reduceText')} (${fontVal}px)`}
@@ -1664,7 +1664,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </span>
           <button
             onClick={incFont}
-            className="toolbar-icon-btn p-1 rounded transition-colors hover:bg-black/5"
+            className="toolbar-icon-btn p-1 rounded transition-colors hover-tint"
             style={{ color: 'var(--list-summary)' }}
             title={`${t('sidebar.enlargeText')} (${fontVal}px)`}
             aria-label={`${t('sidebar.enlargeText')} (${fontVal}px)`}
@@ -2004,7 +2004,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               onClick={() => selectArticle(null)}
               title={t('readingPane.back')}
               aria-label={t('readingPane.back')}
-              className="flex-shrink-0 flex items-center justify-center pl-3 pr-1.5 py-2 active:bg-black/5"
+              className="flex-shrink-0 flex items-center justify-center pl-3 pr-1.5 py-2 active-tint"
               style={{ color: 'var(--accent)' }}
             >
               <span
@@ -2140,14 +2140,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               <div className="flex items-center gap-2">
                 <button onClick={decFont} disabled={fontVal <= fontMin}
                   aria-label={t('sidebar.reduceText')}
-                  className="w-11 h-11 rounded-lg flex items-center justify-center hover:bg-black/5 disabled:opacity-30"
+                  className="w-11 h-11 rounded-lg flex items-center justify-center hover-tint disabled:opacity-30"
                   style={{ color: 'var(--reading-text)', border: '1px solid var(--panel-border)' }}>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" /></svg>
                 </button>
                 <span className="font-mono text-sm min-w-[40px] text-center" style={{ color: 'var(--reading-text)' }}>{fontVal}px</span>
                 <button onClick={incFont} disabled={fontVal >= fontMax}
                   aria-label={t('sidebar.enlargeText')}
-                  className="w-11 h-11 rounded-lg flex items-center justify-center hover:bg-black/5 disabled:opacity-30"
+                  className="w-11 h-11 rounded-lg flex items-center justify-center hover-tint disabled:opacity-30"
                   style={{ color: 'var(--reading-text)', border: '1px solid var(--panel-border)' }}>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 </button>
@@ -2228,7 +2228,7 @@ function BarBtn({ children, label, title, active, activeColor, disabled, onClick
       disabled={disabled}
       title={title ?? label}
       aria-label={label}
-      className="flex-1 flex items-center justify-center py-2 transition-colors active:bg-black/5 disabled:opacity-40"
+      className="flex-1 flex items-center justify-center py-2 transition-colors active-tint disabled:opacity-40"
       style={{ color: active ? activeColor : 'var(--reading-meta)' }}
     >
       {children}
@@ -2413,7 +2413,7 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
       onClick={() => setOpen(!open)}
       title={t('readingPane.labels')}
       aria-label={t('readingPane.labels')}
-      className="flex-1 flex items-center justify-center py-2 transition-colors active:bg-black/5"
+      className="flex-1 flex items-center justify-center py-2 transition-colors active-tint"
       style={{ color: hasLabels ? 'var(--accent)' : 'var(--reading-meta)' }}
     >
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
@@ -2461,7 +2461,7 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
               <button
                 key={tag.id}
                 onClick={() => toggleArticleLabel(article, tag.id)}
-                className={`w-full flex items-center gap-2 ${labelSize} transition-colors hover:bg-black/5`}
+                className={`w-full flex items-center gap-2 ${labelSize} transition-colors hover-tint`}
                 style={{ color: 'var(--list-title)' }}
               >
                 <span

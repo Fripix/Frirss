@@ -298,7 +298,8 @@
     "fonts": {
       "resetFonts": "Zresetuj rozmiary",
       "resetFontsTitle": "Zresetować rozmiary?",
-      "resetFontsMessage": "Rozmiary tekstu wracają do zapisanego motywu, a siatka do ustawień początkowych (240 px, wypełnianie, 16:9)."
+      "resetFontsMessage": "Rozmiary tekstu wracają do zapisanego motywu, a siatka do ustawień początkowych (240 px, wypełnianie, 16:9).",
+      "readingBodyDevice": "Tylko na tym urządzeniu: komputer zachowuje własny rozmiar."
     },
     "fontSections": {
       "sidebar": "Pasek boczny",

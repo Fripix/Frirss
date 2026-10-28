@@ -290,7 +290,8 @@
     "fonts": {
       "resetFonts": "Réinitialiser les tailles",
       "resetFontsTitle": "Réinitialiser les tailles ?",
-      "resetFontsMessage": "Les tailles de texte reviennent à celles du thème enregistré, et la grille à ses réglages d’origine (240 px, remplissage, 16:9)."
+      "resetFontsMessage": "Les tailles de texte reviennent à celles du thème enregistré, et la grille à ses réglages d’origine (240 px, remplissage, 16:9).",
+      "readingBodyDevice": "Propre à cet appareil : l’ordinateur garde sa propre taille."
     },
     "fontSections": {
       "sidebar": "Barre latérale",

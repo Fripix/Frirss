@@ -290,7 +290,8 @@
     "fonts": {
       "resetFonts": "重置字号",
       "resetFontsTitle": "重置尺寸？",
-      "resetFontsMessage": "文字尺寸将恢复为已保存主题的尺寸，网格恢复为初始设置（240 px、填满、16:9）。"
+      "resetFontsMessage": "文字尺寸将恢复为已保存主题的尺寸，网格恢复为初始设置（240 px、填满、16:9）。",
+      "readingBodyDevice": "仅限此设备：电脑保留自己的大小。"
     },
     "fontSections": {
       "sidebar": "侧边栏",

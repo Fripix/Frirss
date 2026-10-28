@@ -91,7 +91,7 @@ export function ProviderPicker({ menuLabel, providers, value, defaultLabel, touc
     close();
   };
 
-  const rowClass = `flex items-center gap-2 w-full text-left rounded-md ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs hover:bg-black/5'}`;
+  const rowClass = `flex items-center gap-2 w-full text-left rounded-md ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs hover-tint'}`;
   // Comme `TranslateMenu` : des `menuitemradio` dans le popover, de simples
   // boutons (`aria-current`) dans la feuille, qui est une boîte de dialogue.
   // Un choix inerte est `aria-disabled` et non `disabled` : il reste
@@ -122,7 +122,7 @@ export function ProviderPicker({ menuLabel, providers, value, defaultLabel, touc
         ref={ref} type="button" aria-label={name} title={name}
         aria-haspopup={touch ? 'dialog' : 'menu'} aria-expanded={open}
         onClick={() => setOpen(true)}
-        className={`relative min-h-0 justify-self-end inline-flex items-center justify-center rounded-md text-xs cursor-pointer hover:bg-black/5 ${touch ? hitArea : ''}`}
+        className={`relative min-h-0 justify-self-end inline-flex items-center justify-center rounded-md text-xs cursor-pointer hover-tint ${touch ? hitArea : ''}`}
         style={{ height: 'var(--cell)', minWidth: 'var(--cell)' }}
       >
         <span className="ai-routing__wide" style={{ color: value === null ? 'var(--list-summary)' : 'var(--list-title)' }}>

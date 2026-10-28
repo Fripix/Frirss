@@ -4,6 +4,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Teintes tirées de la couleur du texte : un survol `bg-black/5` ne se voit
+   pas sur un fond sombre, `bg-white/5` pas sur un fond clair. Celles-ci
+   restent visibles sur tous les thèmes (garde-fou : themeTints.test.ts). */
+.hover-tint:hover { background-color: color-mix(in srgb, currentColor 8%, transparent); }
+.hover-tint-strong:hover { background-color: color-mix(in srgb, currentColor 14%, transparent); }
+.active-tint:active { background-color: color-mix(in srgb, currentColor 10%, transparent); }
+.tint { background-color: color-mix(in srgb, currentColor 12%, transparent); }
+.hover-danger-tint:hover { background-color: color-mix(in srgb, var(--danger) 12%, transparent); }
+.text-danger { color: var(--danger); }
+.danger-note { color: var(--danger); background-color: color-mix(in srgb, var(--danger) 10%, transparent); }
+
 * {
   margin: 0;
   padding: 0;

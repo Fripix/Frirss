@@ -351,7 +351,7 @@ export default function GeneralTab() {
             onClick={resetShortcuts}
             aria-label={t('preferences.shortcuts.resetShortcuts')}
             title={t('preferences.shortcuts.resetShortcuts')}
-            className="text-[10px] px-2 py-1 rounded-md transition-colors hover:bg-black/5"
+            className="text-[10px] px-2 py-1 rounded-md transition-colors hover-tint"
             style={{ color: 'var(--accent)' }}
           >
             {t('preferences.shortcuts.reset')}
@@ -366,7 +366,7 @@ export default function GeneralTab() {
           {shortcutActions.map((action) => (
             <div key={action}>
               <div
-                className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-black/[.03]"
+                className="flex items-center justify-between py-1.5 px-2 rounded-md hover-tint"
               >
                 <span className="text-xs" style={{ color: 'var(--reading-text)' }}>
                   {t(`preferences.shortcuts.${action}`)}
@@ -377,7 +377,7 @@ export default function GeneralTab() {
                   className={`min-w-[60px] text-center text-xs font-mono px-3 py-1 rounded-md transition-all ${
                     editing === action
                       ? 'ring-2 ring-[var(--accent)] bg-[var(--accent-glow)]'
-                      : 'hover:bg-black/5'
+                      : 'hover-tint'
                   }`}
                   style={{
                     border: '1px solid var(--panel-border)',

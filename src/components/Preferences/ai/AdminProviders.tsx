@@ -294,7 +294,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
   const menuItems = (p: AiProviderAdmin) => {
     const i = providers.findIndex((x) => x.id === p.id);
     const isDefault = settings.defaultProvider === p.id;
-    const row = `flex items-center gap-2.5 w-full text-left rounded-md cursor-pointer hover:bg-black/5 aria-disabled:opacity-40 aria-disabled:cursor-default aria-disabled:hover:bg-transparent ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`;
+    const row = `flex items-center gap-2.5 w-full text-left rounded-md cursor-pointer hover-tint aria-disabled:opacity-40 aria-disabled:cursor-default aria-disabled:hover:bg-transparent ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`;
     const item = (label: string, icon: ReactNode, run: () => void, opts: { disabled?: boolean; danger?: boolean; ariaLabel?: string; iconColor?: string } = {}) => (
       <button
         type="button" role={touch ? undefined : 'menuitem'} aria-disabled={opts.disabled || undefined} aria-label={opts.ariaLabel}
@@ -411,7 +411,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
                   className={`${inputClass} !w-auto flex-1 basis-48 min-w-0`} style={inputStyle}
                 />
                 {editedProvider?.hasAdminKey && !keysMove && (
-                  <button type="button" onClick={() => setToClearKey(editedProvider)} className={`${quietBtn} whitespace-nowrap hover:bg-black/5`} style={{ color: 'var(--danger)' }}>
+                  <button type="button" onClick={() => setToClearKey(editedProvider)} className={`${quietBtn} whitespace-nowrap hover-tint`} style={{ color: 'var(--danger)' }}>
                     {t('ai.admin.clearKey')}
                   </button>
                 )}
@@ -426,12 +426,12 @@ export default function AdminProviders({ active }: { active: boolean }) {
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <button type="button" onClick={saveProvider} disabled={saving} className="prefs-tap-btn disabled:opacity-60 disabled:cursor-default px-4 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
-              <button type="button" onClick={() => { editSeq.current++; dropModels(); setEditing(null); }} className={`${quietBtn} min-h-[32px] hover:bg-black/5`} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
+              <button type="button" onClick={() => { editSeq.current++; dropModels(); setEditing(null); }} className={`${quietBtn} min-h-[32px] hover-tint`} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
               {saved && <span role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t('ai.admin.saved')}</span>}
             </div>
           </div>
         ) : (
-          <button type="button" onClick={() => startEdit(null)} className="prefs-tap-btn inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer hover:bg-black/5" style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}>
+          <button type="button" onClick={() => startEdit(null)} className="prefs-tap-btn inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer hover-tint" style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" d="M12 5v14M5 12h14" /></svg>
             {t('ai.admin.add')}
           </button>
@@ -521,7 +521,7 @@ function ProviderRow({ provider: p, first, isDefault, test: res, menuOpen, touch
   const { t } = useTranslation();
   const muted = 'var(--list-summary)';
   const resColor = !res ? muted : res.state === 'fail' ? 'var(--danger)' : res.state === 'ok' ? 'var(--accent)' : muted;
-  const rowBtn = `${quietBtn} min-h-[32px] hover:bg-black/5`;
+  const rowBtn = `${quietBtn} min-h-[32px] hover-tint`;
   return (
     <li className="px-3 py-2.5" style={first ? undefined : { borderTop: '1px solid var(--panel-border)' }}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 sm:gap-x-4">
@@ -551,7 +551,7 @@ function ProviderRow({ provider: p, first, isDefault, test: res, menuOpen, touch
           <button
             type="button" onClick={(e) => onMore(e.currentTarget)}
             aria-label={`${t('ai.admin.more')} — ${p.name}`} aria-haspopup={touch ? 'dialog' : 'menu'} aria-expanded={menuOpen}
-            className="prefs-tap-btn inline-flex items-center justify-center w-8 h-8 rounded-md cursor-pointer hover:bg-black/5"
+            className="prefs-tap-btn inline-flex items-center justify-center w-8 h-8 rounded-md cursor-pointer hover-tint"
             style={menuOpen ? { background: 'var(--panel-header-bg)' } : undefined}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.75" /><circle cx="12" cy="12" r="1.75" /><circle cx="19" cy="12" r="1.75" /></svg>

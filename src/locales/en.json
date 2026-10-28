@@ -290,7 +290,8 @@
     "fonts": {
       "resetFonts": "Reset sizes",
       "resetFontsTitle": "Reset the sizes?",
-      "resetFontsMessage": "Text sizes go back to those of the saved theme, and the grid to its original settings (240 px, fill, 16:9)."
+      "resetFontsMessage": "Text sizes go back to those of the saved theme, and the grid to its original settings (240 px, fill, 16:9).",
+      "readingBodyDevice": "This device only: the computer keeps its own size."
     },
     "fontSections": {
       "sidebar": "Sidebar",

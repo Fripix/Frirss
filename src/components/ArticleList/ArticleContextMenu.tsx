@@ -213,7 +213,7 @@ export default function ArticleContextMenu({
             <button
               type="button"
               onClick={() => run(item.kind)}
-              className="sheet-row w-full flex items-center gap-3 px-4 py-2.5 text-left font-medium transition-colors hover:bg-black/5"
+              className="sheet-row w-full flex items-center gap-3 px-4 py-2.5 text-left font-medium transition-colors hover-tint"
               style={{ color: 'var(--list-title)' }}
             >
               <span aria-hidden="true" style={{ ...ICON_COLUMN, color: iconColorFor(item) }}>
@@ -242,7 +242,7 @@ export default function ArticleContextMenu({
           <button
             type="button"
             onClick={() => run(item.kind)}
-            className="context-menu-item w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left transition-colors hover:bg-black/5"
+            className="context-menu-item w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left transition-colors hover-tint"
             style={{ color: 'var(--list-title)' }}
           >
             <span aria-hidden="true" style={{ ...ICON_COLUMN, color: iconColorFor(item) }}>

@@ -157,7 +157,7 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
           // jusqu'au Save, donc vérifier avant de valider était impossible.
           disabled={(!configured && token === '') || saving || test === 'testing'}
           aria-busy={test === 'testing'}
-          className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5 disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[44px]"
+          className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover-tint disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[44px]"
           style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
         >
           {test === 'testing' && (

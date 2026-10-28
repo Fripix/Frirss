@@ -76,7 +76,7 @@ function StarButton({ starred, onClick, article }: StarButtonProps) {
       {...handlers}
       onClick={onClick}
       data-theme="star-color"
-      className="p-1 rounded-full transition-colors hover:bg-black/5"
+      className="p-1 rounded-full transition-colors hover-tint"
       style={{ color: starred ? 'var(--star-color)' : 'var(--star-inactive)' }}
       title={
         (starred ? t('articleRow.removeStar') : t('articleRow.addStar'))
@@ -120,7 +120,7 @@ function ReadLaterButton({ active, onClick, article }: ReadLaterButtonProps) {
       {...handlers}
       onClick={onClick}
       data-theme="readlater-color"
-      className="p-1 rounded-full transition-colors hover:bg-black/5"
+      className="p-1 rounded-full transition-colors hover-tint"
       style={{ color: active ? 'var(--readlater-color)' : 'var(--star-inactive)' }}
       title={
         (active ? t('articleRow.removeReadLater') : t('articleRow.addReadLater'))
@@ -154,7 +154,7 @@ function MarkReadButton({ read, onClick }: MarkReadButtonProps) {
   return (
     <button
       onClick={onClick}
-      className="p-1 rounded transition-colors hover:bg-black/5"
+      className="p-1 rounded transition-colors hover-tint"
       style={{ color: read ? 'var(--star-inactive)' : 'var(--accent)' }}
       title={read ? t('articleRow.markUnread') : t('articleRow.markRead')}
       aria-label={read ? t('articleRow.markUnread') : t('articleRow.markRead')}
@@ -202,7 +202,7 @@ export function OpenSourceButton({ href, onClick }: OpenSourceButtonProps) {
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => { e.preventDefault(); onClick(e); }}
-      className="p-1 rounded inline-flex transition-colors hover:bg-black/5"
+      className="p-1 rounded inline-flex transition-colors hover-tint"
       style={{ color: 'var(--star-inactive)' }}
       title={t('articleRow.openSource')}
       aria-label={t('articleRow.openSource')}

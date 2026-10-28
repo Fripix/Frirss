@@ -167,7 +167,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
           )}
 
           {error && (
-            <p className="text-xs text-red-500">{error}</p>
+            <p className="text-xs text-danger">{error}</p>
           )}
 
           {/* Actions */}
@@ -175,7 +175,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm rounded-lg transition-colors hover:bg-black/5"
+              className="px-4 py-2 text-sm rounded-lg transition-colors hover-tint"
               style={{ color: 'var(--list-summary)' }}
             >
               {t('sidebar.cancel')}

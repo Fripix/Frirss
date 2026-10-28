@@ -77,7 +77,7 @@ export default function SavedCategoryPicker({ prefix, article, anchor, onClose }
             <button
               key={cat.id}
               onClick={() => file(cat.id)}
-              className="w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-black/5"
+              className="w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover-tint"
               style={{ color: inIt ? 'var(--accent)' : 'var(--list-title)' }}
             >
               <span className="w-3">{inIt ? '✓' : ''}</span>

@@ -512,7 +512,7 @@ function LabelRow({
           />
           <button
             type="submit"
-            className="p-0.5 rounded transition-colors hover:bg-black/5"
+            className="p-0.5 rounded transition-colors hover-tint"
             style={{ color: 'var(--accent)' }}
             title={t('preferences.labels.validate')}
             aria-label={t('preferences.labels.validate')}
@@ -524,7 +524,7 @@ function LabelRow({
           <button
             type="button"
             onClick={() => setMode(null)}
-            className="p-0.5 rounded transition-colors hover:bg-black/5"
+            className="p-0.5 rounded transition-colors hover-tint"
             style={{ color: 'var(--list-summary)' }}
             title={t('preferences.labels.cancel')}
             aria-label={t('preferences.labels.cancel')}
@@ -571,7 +571,7 @@ function LabelRow({
         </select>
         <button
           onClick={() => setMode(null)}
-          className="p-0.5 rounded transition-colors hover:bg-black/5"
+          className="p-0.5 rounded transition-colors hover-tint"
           style={{ color: 'var(--list-summary)' }}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -629,7 +629,7 @@ function LabelRow({
       {/* Row content */}
       <div
         className={`flex items-center gap-1.5 py-1.5 px-2 rounded-md group transition-all prefs-tap-row ${
-          isDragging ? 'opacity-30 scale-95' : isDropOnto ? 'ring-2' : 'hover:bg-black/[.03]'
+          isDragging ? 'opacity-30 scale-95' : isDropOnto ? 'ring-2' : 'hover-tint'
         }`}
         style={isDropOnto ? ({
           background: 'var(--accent-glow)',
@@ -688,7 +688,7 @@ function LabelRow({
             renommer une étiquette n'a pas d'autre point d'entrée. */}
         <button
           onClick={() => setMode('move')}
-          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-black/5"
+          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover-tint"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.moveTooltip')}
           aria-label={t('preferences.labels.moveTooltip')}
@@ -699,7 +699,7 @@ function LabelRow({
         </button>
         <button
           onClick={() => { setRenameValue(name); setMode('rename'); }}
-          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-black/5"
+          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover-tint"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.rename')}
           aria-label={t('preferences.labels.rename')}
@@ -710,7 +710,7 @@ function LabelRow({
         </button>
         <button
           onClick={() => setMode('confirmDelete')}
-          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover:bg-red-50"
+          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover-danger-tint"
           style={{ color: 'var(--danger, #ef4444)' }}
           title={t('preferences.labels.delete')}
           aria-label={t('preferences.labels.delete')}
@@ -832,7 +832,7 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
       {color && (
         <button
           onClick={() => { onRemoveColor(); setOpen(false); }}
-          className="p-0.5 rounded transition-colors hover:bg-black/10"
+          className="p-0.5 rounded transition-colors hover-tint-strong"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.removeColor')}
           aria-label={t('preferences.labels.removeColor')}

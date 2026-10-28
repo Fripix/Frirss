@@ -5,6 +5,7 @@ import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '.
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
 import { isAiLanguage, type AiLanguage } from '../lib/aiLanguages';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
+import { clampReadingBody, MOBILE_READING_DEFAULT } from '../lib/readingFontSize';
 import { GRID_CARD_WIDTH_DEFAULT, normalizeGridCardFill, normalizeGridCardWidth, normalizeGridImageRatio, type GridImageRatio } from '../lib/gridCards';
 
 function loadJson<T>(key: string, fallback: T): T {
@@ -501,9 +502,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
 
   // Reading-pane body font size on mobile/tablet — independent from the
   // desktop theme value (which is synced); defaults a notch bigger for touch.
-  mobileReadingFontSize: parseInt(localStorage.getItem('frirss_mobileReadingFontSize') ?? '', 10) || 17,
+  mobileReadingFontSize: parseInt(localStorage.getItem('frirss_mobileReadingFontSize') ?? '', 10) || MOBILE_READING_DEFAULT,
   setMobileReadingFontSize: (px) => {
-    const v = Math.max(13, Math.min(26, px));
+    const v = clampReadingBody(px, true);
     localStorage.setItem('frirss_mobileReadingFontSize', String(v));
     set({ mobileReadingFontSize: v });
   },

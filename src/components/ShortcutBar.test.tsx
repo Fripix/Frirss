@@ -98,3 +98,34 @@ describe('ShortcutBar — an action without a key', () => {
     useUiStore.setState({ shortcuts: before });
   });
 });
+
+// À 1280 px avec un article ouvert, la barre débordait : barre de défilement
+// horizontale et raccourcis du bout cachés, palette et aide comprises. Les
+// raccourcis du contexte tiennent sur une ligne et ceux qui ne tiennent pas
+// passent à la ligne suivante, rognée ; la palette et l'aide restent hors de
+// cette zone, donc toujours visibles.
+describe('ShortcutBar — largeur insuffisante', () => {
+  it('ne défile plus et garde la palette et l’aide hors de la zone rognée', () => {
+    useFeedStore.setState({ selectedArticle: article });
+    const { container, getByText } = render(<ShortcutBar />);
+    const bar = container.firstElementChild as HTMLElement;
+    expect(bar.className).not.toContain('overflow-x-auto');
+    const context = container.querySelector('[data-shortcut-context]') as HTMLElement;
+    expect(context.className).toMatch(/\bflex-wrap\b/);
+    expect(context.className).toMatch(/\boverflow-hidden\b/);
+    expect(context.className).toMatch(/\bh-\[18px\]/);
+    expect(context.contains(getByText('preferences.shortcuts.nextArticle'))).toBe(true);
+    expect(context.contains(getByText('palette.title'))).toBe(false);
+    expect(context.contains(getByText('preferences.shortcuts.helpTitle'))).toBe(false);
+  });
+});
+
+describe('ShortcutBar — priorité dans la zone rognée', () => {
+  it('Échap passe en tête : la sortie du mode Focus ne disparaît pas la première', () => {
+    useUiStore.setState({ readingFocus: true });
+    useFeedStore.setState({ selectedArticle: article });
+    const { container } = render(<ShortcutBar />);
+    const context = container.querySelector('[data-shortcut-context]') as HTMLElement;
+    expect(context.firstElementChild?.textContent).toContain('preferences.shortcuts.escExitFocus');
+  });
+});

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useId, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, useId, type ChangeEvent, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore, SHIPPED_THEMES } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -8,6 +8,7 @@ import ConfirmDialog from '../ConfirmDialog';
 import ThemePreview from './ThemePreview';
 import ToggleSwitch from '../ToggleSwitch';
 import { hasRealHighlight, PREVIEW_ZONES } from './colorHighlight';
+import { READING_BODY_BOUNDS, MOBILE_READING_DEFAULT } from '../../lib/readingFontSize';
 import { GRID_CARD_WIDTH_MAX, GRID_CARD_WIDTH_MIN, GRID_CARD_WIDTH_STEP, GRID_IMAGE_RATIOS } from '../../lib/gridCards';
 
 type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
@@ -234,7 +235,7 @@ function ThemeSection() {
         <div className="flex gap-2">
           <button
             onClick={exportTheme}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover-tint"
             style={{
               border: '1px solid var(--panel-border)',
               color: 'var(--list-title)',
@@ -247,7 +248,7 @@ function ThemeSection() {
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover:bg-black/5"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors hover-tint"
             style={{
               border: '1px solid var(--panel-border)',
               color: 'var(--list-title)',
@@ -267,7 +268,7 @@ function ThemeSection() {
           />
         </div>
         {importError && (
-          <p className="text-red-400 text-xs mt-1">{importError}</p>
+          <p className="text-danger text-xs mt-1">{importError}</p>
         )}
       </div>
     </div>
@@ -570,7 +571,7 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
 
   return (
     <div
-      className="group flex items-center gap-2 py-1 px-1.5 -mx-1.5 rounded-md transition-colors hover:bg-black/[.03] prefs-tap-row"
+      className="group flex items-center gap-2 py-1 px-1.5 -mx-1.5 rounded-md transition-colors hover-tint prefs-tap-row"
       style={{ background: pinned ? 'var(--accent-glow)' : undefined }}
       onMouseEnter={selectable ? () => onFocus(colorKey) : undefined}
       onMouseLeave={selectable ? () => onFocus(null) : undefined}
@@ -595,7 +596,7 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
           onClick={(e) => { e.stopPropagation(); onReset?.(); }}
           disabled={!isModified}
           className={`p-0.5 rounded transition-all ${
-            isModified ? 'opacity-60 hover:opacity-100 hover:bg-black/5' : 'opacity-20 cursor-default'
+            isModified ? 'opacity-60 hover:opacity-100 hover-tint' : 'opacity-20 cursor-default'
           }`}
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.colors.resetTooltip')}
@@ -632,7 +633,7 @@ function ColorRow({ label, value, onChange, colorKey, isModified, onReset, onFoc
         ) : (
           <button
             onClick={() => { setHex(value); setEditing(true); }}
-            className="text-[11px] font-mono px-1.5 py-0.5 rounded hover:bg-black/5 transition-colors"
+            className="text-[11px] font-mono px-1.5 py-0.5 rounded hover-tint transition-colors"
             style={{ color: 'var(--list-summary)' }}
           >
             {value}
@@ -666,7 +667,7 @@ const FONT_SECTIONS = [
     titleKey: 'reading',
     keys: [
       { key: 'reading-title', min: 18, max: 36 },
-      { key: 'reading-body', min: 12, max: 20 },
+      { key: 'reading-body', ...READING_BODY_BOUNDS.desktop },
     ],
   },
 ];
@@ -675,10 +676,17 @@ function SizesSection() {
   const { t } = useTranslation();
   const { theme, setFontSize, resetFontSizes } = useThemeStore();
   const resetGridCards = useUiStore((s) => s.resetGridCards);
+  // Sur un appareil tactile, le corps de lecture suit une taille propre à
+  // l'appareil (celle de A− / A+), pas celle du thème : le curseur la règle.
+  const touch = useBreakpoint() !== 'desktop';
+  const deviceBody = useUiStore((s) => s.mobileReadingFontSize);
+  const setDeviceBody = useUiStore((s) => s.setMobileReadingFontSize);
 
   return (
     <div className="space-y-5">
-      <ThemePreview focusedKey={null} />
+      <div style={touch ? ({ '--fs-reading-body': deviceBody + 'px' } as CSSProperties) : undefined}>
+        <ThemePreview focusedKey={null} />
+      </div>
       {FONT_SECTIONS.map((section) => (
         <div key={section.titleKey}>
           <h3
@@ -688,16 +696,31 @@ function SizesSection() {
             {t(`preferences.fontSections.${section.titleKey}`)}
           </h3>
           <div className="space-y-2">
-            {section.keys.map(({ key, min, max }) => (
-              <FontRow
-                key={key}
-                label={t(`preferences.fontKeys.${key}`)}
-                value={theme.fontSizes[key]}
-                min={min}
-                max={max}
-                onChange={(v) => setFontSize(key, v)}
-              />
-            ))}
+            {section.keys.map(({ key, min, max }) =>
+              touch && key === 'reading-body' ? (
+                <div key={key}>
+                  <FontRow
+                    label={t(`preferences.fontKeys.${key}`)}
+                    value={String(deviceBody)}
+                    min={READING_BODY_BOUNDS.touch.min}
+                    max={READING_BODY_BOUNDS.touch.max}
+                    onChange={(v) => setDeviceBody(Number(v))}
+                  />
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--list-summary)' }}>
+                    {t('preferences.fonts.readingBodyDevice')}
+                  </p>
+                </div>
+              ) : (
+                <FontRow
+                  key={key}
+                  label={t(`preferences.fontKeys.${key}`)}
+                  value={theme.fontSizes[key]}
+                  min={min}
+                  max={max}
+                  onChange={(v) => setFontSize(key, v)}
+                />
+              ),
+            )}
           </div>
         </div>
       ))}
@@ -709,6 +732,7 @@ function SizesSection() {
         onReset={() => {
           resetFontSizes();
           resetGridCards();
+          setDeviceBody(MOBILE_READING_DEFAULT);
         }}
       />
     </div>
@@ -948,7 +972,7 @@ function IdentitySection() {
             {titleDraft !== 'FriRSS' && (
               <button
                 onClick={() => { setTitleDraft('FriRSS'); setAppTitle('FriRSS'); }}
-                className="px-3 py-2 text-xs rounded-lg transition-colors hover:bg-black/5"
+                className="px-3 py-2 text-xs rounded-lg transition-colors hover-tint"
                 style={{ color: 'var(--list-summary)' }}
                 title={t('preferences.branding.appNameResetTooltip')}
               >
@@ -1002,7 +1026,7 @@ function IdentitySection() {
           {appLogo && (
             <button
               onClick={() => { setAppLogo(null); setLogoUrlDraft(''); }}
-              className="px-3 py-2 text-xs rounded-lg transition-colors hover:bg-black/5"
+              className="px-3 py-2 text-xs rounded-lg transition-colors hover-tint"
               style={{ color: 'var(--list-summary)' }}
               title={t('preferences.branding.resetLogoTooltip')}
             >

@@ -681,6 +681,9 @@ export default function ArticleList() {
   const title = !selectedFeed && filter === 'readlater'
     ? t('articleList.readLaterSuffix')
     : feedName;
+  // Écrasé par la barre d'outils quand le panneau de lecture est ouvert, le
+  // titre se réduit à « To… » : l'infobulle le rend lisible en entier.
+  const heading = searchQuery ? t('app.labelValue', { label: t('articleList.search'), value: searchQuery }) : title;
 
   const groups = groupByDate(articles);
 
@@ -756,7 +759,7 @@ export default function ArticleList() {
             {!sidebarVisible && (
               <button
                 onClick={toggleSidebar}
-                className="p-1.5 -ml-1 rounded transition-colors hover:bg-black/5 flex-shrink-0"
+                className="p-1.5 -ml-1 rounded transition-colors hover-tint flex-shrink-0"
                 style={{ color: 'var(--list-summary)' }}
                 title={t('sidebar.showSidebar')}
                 aria-label={t('sidebar.showSidebar')}
@@ -766,8 +769,8 @@ export default function ArticleList() {
                 </svg>
               </button>
             )}
-            <h2 className="text-[15px] font-bold truncate min-w-0" style={{ color: 'var(--list-title)' }}>
-              {searchQuery ? t('app.labelValue', { label: t('articleList.search'), value: searchQuery }) : title}
+            <h2 className="text-[15px] font-bold truncate min-w-0" title={heading} style={{ color: 'var(--list-title)' }}>
+              {heading}
             </h2>
             <HeaderUnread count={headerUnread} />
             <div className="flex-1 flex items-center">
@@ -816,7 +819,7 @@ export default function ArticleList() {
             {!sidebarVisible && (
               <button
                 onClick={toggleSidebar}
-                className="p-1.5 rounded transition-colors hover:bg-black/5 flex-shrink-0"
+                className="p-1.5 rounded transition-colors hover-tint flex-shrink-0"
                 style={{ color: 'var(--list-summary)' }}
                 title={t('sidebar.showSidebar')}
                 aria-label={t('sidebar.showSidebar')}
@@ -827,8 +830,8 @@ export default function ArticleList() {
               </button>
             )}
 
-            <h2 className="text-[16px] font-bold truncate min-w-0" style={{ color: 'var(--list-title)' }}>
-              {searchQuery ? t('app.labelValue', { label: t('articleList.search'), value: searchQuery }) : title}
+            <h2 className="text-[16px] font-bold truncate min-w-0" title={heading} style={{ color: 'var(--list-title)' }}>
+              {heading}
             </h2>
             <HeaderUnread count={headerUnread} />
 
@@ -875,7 +878,7 @@ export default function ArticleList() {
               {!sidebarVisible && (
                 <button
                   onClick={toggleSidebar}
-                  className="p-1.5 rounded transition-colors hover:bg-black/5 flex-shrink-0"
+                  className="p-1.5 rounded transition-colors hover-tint flex-shrink-0"
                   style={{ color: 'var(--list-summary)' }}
                   title={t('sidebar.showSidebar')}
                   aria-label={t('sidebar.showSidebar')}
@@ -887,8 +890,8 @@ export default function ArticleList() {
               )}
 
               <div className="min-w-0 flex-1 flex items-center gap-2">
-                <h2 className="text-[16px] font-bold truncate" style={{ color: 'var(--list-title)' }}>
-                  {searchQuery ? t('app.labelValue', { label: t('articleList.search'), value: searchQuery }) : title}
+                <h2 className="text-[16px] font-bold truncate" title={heading} style={{ color: 'var(--list-title)' }}>
+                  {heading}
                 </h2>
                 <HeaderUnread count={headerUnread} />
               </div>
@@ -995,7 +998,7 @@ export default function ArticleList() {
             </span>
             <button
               onClick={handleClearSearch}
-              className="p-0.5 rounded transition-colors hover:bg-black/5"
+              className="p-0.5 rounded transition-colors hover-tint"
               style={{ color: 'var(--accent)' }}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1269,7 +1272,7 @@ function ToolbarBtn({ icon, label, shortcut, onClick, active, iconOnly, flex1 }:
       className={`flex items-center justify-center gap-1 ${flex1 ? 'flex-1 py-2 [&_svg]:w-[19px] [&_svg]:h-[19px]' : iconOnly ? 'p-1.5' : 'px-2 py-1'} rounded-md text-[11px] transition-colors whitespace-nowrap ${
         active
           ? ''
-          : 'hover:bg-black/5'
+          : 'hover-tint'
       }`}
       style={{
         color: active ? 'var(--on-accent)' : 'var(--list-summary)',
@@ -1392,7 +1395,7 @@ function SheetRow({ icon, label, active, onClick }: SheetRowProps) {
   return (
     <button
       onClick={onClick}
-      className="sheet-row w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5"
+      className="sheet-row w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover-tint"
       style={{ color: active ? 'var(--accent)' : 'var(--list-title)' }}
     >
       <span className="flex-shrink-0">{icon}</span>

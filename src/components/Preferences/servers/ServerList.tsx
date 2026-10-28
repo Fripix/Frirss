@@ -152,7 +152,7 @@ export default function ServerList() {
           <button
             type="button"
             onClick={() => reload()}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] flex-shrink-0 transition-colors hover:bg-black/5"
+            className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] flex-shrink-0 transition-colors hover-tint"
             style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
           >
             {t('readingPane.retry')}

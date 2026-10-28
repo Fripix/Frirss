@@ -290,7 +290,8 @@
     "fonts": {
       "resetFonts": "Reimposta le dimensioni",
       "resetFontsTitle": "Reimpostare le dimensioni?",
-      "resetFontsMessage": "Le dimensioni del testo tornano a quelle del tema salvato e la griglia alle impostazioni originali (240 px, riempimento, 16:9)."
+      "resetFontsMessage": "Le dimensioni del testo tornano a quelle del tema salvato e la griglia alle impostazioni originali (240 px, riempimento, 16:9).",
+      "readingBodyDevice": "Solo su questo dispositivo: il computer mantiene la propria dimensione."
     },
     "fontSections": {
       "sidebar": "Barra laterale",

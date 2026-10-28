@@ -290,7 +290,8 @@
     "fonts": {
       "resetFonts": "Repor os tamanhos",
       "resetFontsTitle": "Repor os tamanhos?",
-      "resetFontsMessage": "Os tamanhos de texto voltam aos do tema guardado e a grelha às definições originais (240 px, preencher, 16:9)."
+      "resetFontsMessage": "Os tamanhos de texto voltam aos do tema guardado e a grelha às definições originais (240 px, preencher, 16:9).",
+      "readingBodyDevice": "Apenas neste dispositivo: o computador mantém o seu próprio tamanho."
     },
     "fontSections": {
       "sidebar": "Barra lateral",

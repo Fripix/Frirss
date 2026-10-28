@@ -44,51 +44,56 @@ export default function ShortcutBar() {
 
   return (
     <div
-      className="flex-shrink-0 flex items-center gap-3 px-3 py-1 overflow-x-auto"
+      className="flex-shrink-0 flex items-center gap-3 px-3 py-1"
       style={{
         background: 'var(--panel-header-bg)',
         borderTop: '1px solid var(--panel-border)',
       }}
     >
-      {actions.map((action) => (
-        <div key={action} className="flex items-center gap-1 flex-shrink-0">
-          <kbd
-            className="inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 text-[9px] font-mono font-medium rounded"
-            style={{
-              background: 'var(--panel-bg)',
-              border: '1px solid var(--panel-border)',
-              color: 'var(--list-title)',
-              boxShadow: '0 1px 0 var(--panel-border)',
-            }}
-          >
-            {keyLabel(shortcuts[action], t)}
-          </kbd>
-          <span className="text-[9px]" style={{ color: 'var(--list-summary)' }}>
-            {t(`preferences.shortcuts.${action}`)}
-          </span>
-        </div>
-      ))}
-      {escLabel && (
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <kbd
-            className="inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 text-[9px] font-mono font-medium rounded"
-            style={{
-              background: 'var(--panel-bg)',
-              border: '1px solid var(--panel-border)',
-              color: 'var(--list-title)',
-              boxShadow: '0 1px 0 var(--panel-border)',
-            }}
-          >
-            {keyLabel('Escape', t)}
-          </kbd>
-          <span className="text-[9px]" style={{ color: 'var(--list-summary)' }}>
-            {escLabel}
-          </span>
-        </div>
-      )}
+      {/* Une seule ligne : un raccourci qui ne tient pas passe à la ligne
+          suivante, rognée, au lieu de faire défiler la barre (1280 px avec un
+          article ouvert). L'ordre de shortcutGroups fait la priorité, après
+          Échap : la seule sortie du mode Focus ne doit pas être rognée. */}
+      <div data-shortcut-context className="flex-1 min-w-0 h-[18px] overflow-hidden flex flex-wrap items-center gap-x-3">
+        {escLabel && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <kbd
+              className="inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 text-[9px] font-mono font-medium rounded"
+              style={{
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--panel-border)',
+                color: 'var(--list-title)',
+                boxShadow: '0 1px 0 var(--panel-border)',
+              }}
+            >
+              {keyLabel('Escape', t)}
+            </kbd>
+            <span className="text-[9px]" style={{ color: 'var(--list-summary)' }}>
+              {escLabel}
+            </span>
+          </div>
+        )}
+        {actions.map((action) => (
+          <div key={action} className="flex items-center gap-1 flex-shrink-0">
+            <kbd
+              className="inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 text-[9px] font-mono font-medium rounded"
+              style={{
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--panel-border)',
+                color: 'var(--list-title)',
+                boxShadow: '0 1px 0 var(--panel-border)',
+              }}
+            >
+              {keyLabel(shortcuts[action], t)}
+            </kbd>
+            <span className="text-[9px]" style={{ color: 'var(--list-summary)' }}>
+              {t(`preferences.shortcuts.${action}`)}
+            </span>
+          </div>
+        ))}
+      </div>
 
-      {/* Séparateur puis les globales, poussées à droite. */}
-      <div className="flex-1 min-w-[12px]" />
+      {/* Les globales, poussées à droite et jamais rognées. */}
       <div
         className="flex items-center gap-3 flex-shrink-0 pl-3"
         style={{ borderLeft: '1px solid var(--panel-border)' }}

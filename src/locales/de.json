@@ -290,7 +290,8 @@
     "fonts": {
       "resetFonts": "Größen zurücksetzen",
       "resetFontsTitle": "Größen zurücksetzen?",
-      "resetFontsMessage": "Die Textgrößen kehren zu denen des gespeicherten Themes zurück, das Raster zu seinen ursprünglichen Einstellungen (240 px, Füllen, 16:9)."
+      "resetFontsMessage": "Die Textgrößen kehren zu denen des gespeicherten Themes zurück, das Raster zu seinen ursprünglichen Einstellungen (240 px, Füllen, 16:9).",
+      "readingBodyDevice": "Nur für dieses Gerät: Der Computer behält seine eigene Größe."
     },
     "fontSections": {
       "sidebar": "Seitenleiste",

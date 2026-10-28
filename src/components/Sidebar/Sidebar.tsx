@@ -316,7 +316,7 @@ export default function Sidebar() {
         <div className="layout-toggle items-center gap-0.5 mr-1">
           <button
             onClick={() => setLayoutMode('desktop')}
-            className="p-1.5 rounded transition-colors hover:bg-white/5"
+            className="p-1.5 rounded transition-colors hover-tint"
             style={{ color: breakpoint === 'desktop' ? 'var(--accent)' : 'var(--sidebar-text)' }}
             title={t('sidebar.layoutDesktop')}
             aria-label={t('sidebar.layoutDesktop')}
@@ -327,7 +327,7 @@ export default function Sidebar() {
           </button>
           <button
             onClick={() => setLayoutMode('mobile')}
-            className="p-1.5 rounded transition-colors hover:bg-white/5"
+            className="p-1.5 rounded transition-colors hover-tint"
             style={{ color: breakpoint !== 'desktop' ? 'var(--accent)' : 'var(--sidebar-text)' }}
             title={t('sidebar.layoutMobile')}
             aria-label={t('sidebar.layoutMobile')}
@@ -339,7 +339,7 @@ export default function Sidebar() {
         </div>
         <button
           onClick={toggleHideReadFeeds}
-          className="p-1.5 rounded transition-colors hover:bg-white/5"
+          className="p-1.5 rounded transition-colors hover-tint"
           style={{ color: hideReadFeeds ? 'var(--accent)' : 'var(--sidebar-text)' }}
           title={hideReadFeeds ? t('sidebar.showReadFeeds') : t('sidebar.hideReadFeeds')}
           aria-label={hideReadFeeds ? t('sidebar.showReadFeeds') : t('sidebar.hideReadFeeds')}
@@ -359,7 +359,7 @@ export default function Sidebar() {
           <>
             <button
               onClick={toggleFavicons}
-              className="p-1.5 rounded transition-colors hover:bg-white/5"
+              className="p-1.5 rounded transition-colors hover-tint"
               style={{ color: showFavicons ? 'var(--accent)' : 'var(--sidebar-text)' }}
               title={showFavicons ? t('sidebar.hideFavicons') : t('sidebar.showFavicons')}
               aria-label={showFavicons ? t('sidebar.hideFavicons') : t('sidebar.showFavicons')}
@@ -370,7 +370,7 @@ export default function Sidebar() {
             </button>
             <button
               onClick={() => setOrganizeMode(!organizeMode)}
-              className="p-1.5 rounded transition-colors hover:bg-white/5"
+              className="p-1.5 rounded transition-colors hover-tint"
               style={{ color: organizeMode ? 'var(--accent)' : 'var(--sidebar-text)' }}
               title={organizeMode ? t('sidebar.organizeEnd') : t('sidebar.organize')}
               aria-label={organizeMode ? t('sidebar.organizeEnd') : t('sidebar.organize')}
@@ -385,7 +385,7 @@ export default function Sidebar() {
               <button
                 onClick={() => { if (sidebarFontSize > SIDEBAR_FONT_MIN) setFontSize('sidebar-feed', String(sidebarFontSize - 1)); }}
                 disabled={sidebarFontSize <= SIDEBAR_FONT_MIN}
-                className="p-1 rounded transition-colors hover:bg-white/5 disabled:opacity-30"
+                className="p-1 rounded transition-colors hover-tint disabled:opacity-30"
                 style={{ color: 'var(--sidebar-text)' }}
                 title={t('sidebar.reduceText')}
               >
@@ -396,7 +396,7 @@ export default function Sidebar() {
               <button
                 onClick={() => { if (sidebarFontSize < SIDEBAR_FONT_MAX) setFontSize('sidebar-feed', String(sidebarFontSize + 1)); }}
                 disabled={sidebarFontSize >= SIDEBAR_FONT_MAX}
-                className="p-1 rounded transition-colors hover:bg-white/5 disabled:opacity-30"
+                className="p-1 rounded transition-colors hover-tint disabled:opacity-30"
                 style={{ color: 'var(--sidebar-text)' }}
                 title={t('sidebar.enlargeText')}
               >
@@ -416,7 +416,7 @@ export default function Sidebar() {
         <div className="flex-1" />
         <button
           onClick={() => setAddFeedOpen(true)}
-          className={`rounded transition-colors hover:bg-white/5 ${isMobile ? 'p-2' : 'p-1.5'}`}
+          className={`rounded transition-colors hover-tint ${isMobile ? 'p-2' : 'p-1.5'}`}
           style={{ color: 'var(--accent)' }}
           title={t('sidebar.addFeed')}
           aria-label={t('sidebar.addFeed')}
@@ -533,7 +533,7 @@ export default function Sidebar() {
             >
               <div
                 className={`w-full flex items-center gap-2 px-4 py-1.5 text-[11px] font-bold tracking-widest uppercase transition-colors ${
-                  organizeMode ? 'cursor-grab active:cursor-grabbing' : 'hover:bg-white/5'
+                  organizeMode ? 'cursor-grab active:cursor-grabbing' : 'hover-tint'
                 } ${selectedFeed?.id === cat.id ? 'sidebar-feed-active' : ''}`}
                 data-theme={selectedFeed?.id === cat.id ? 'sidebar-text-active' : 'sidebar-category-text'}
                 style={{
@@ -668,7 +668,7 @@ export default function Sidebar() {
         </a>
         <button
           onClick={() => useThemeStore.getState().openPreferences()}
-          className="p-1.5 rounded-md transition-colors hover:bg-white/10 flex-shrink-0"
+          className="p-1.5 rounded-md transition-colors hover-tint-strong flex-shrink-0"
           style={{ color: 'var(--sidebar-text-active)' }}
           title={t('sidebar.preferences')}
           aria-label={t('sidebar.preferences')}
@@ -922,7 +922,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
             <button
               type="button"
               onClick={onClose}
-              className="px-2.5 py-1 text-xs rounded-lg transition-colors hover:bg-black/5"
+              className="px-2.5 py-1 text-xs rounded-lg transition-colors hover-tint"
               style={{ color: 'var(--list-summary)' }}
             >
               {t('sidebar.cancel')}
@@ -1071,7 +1071,7 @@ function ContextMenuItem({ icon, label, onClick, danger }: ContextMenuItemProps)
   return (
     <button
       onClick={onClick}
-      className="context-menu-item w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors hover:bg-black/5"
+      className="context-menu-item w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors hover-tint"
       style={{ color: danger ? 'var(--danger)' : 'var(--list-title)' }}
     >
       {icon}
@@ -1277,7 +1277,7 @@ export function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }
             // invisible mais cliquable : un tap sur le bord droit de la ligne
             // supprimait l'étiquette sur le serveur, sans confirmation. Retirée
             // au toucher ; Préférences › Étiquettes supprime avec confirmation.
-            className="absolute right-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded hover:bg-white/10 [@media(hover:none)]:hidden"
+            className="absolute right-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded hover-tint-strong [@media(hover:none)]:hidden"
             style={{ color: 'var(--sidebar-text)' }}
             aria-label={t('saved.deleteCategory')}
           >
@@ -1401,7 +1401,7 @@ function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, on
         onClick={onClick}
         onContextMenu={onContextMenu}
         className={`flex-1 min-w-0 flex items-center gap-3 px-4 py-2 transition-all ${
-          dragOver ? 'drop-highlight' : active ? 'bg-white/10' : 'hover:bg-white/5'
+          dragOver ? 'drop-highlight' : active ? 'tint' : 'hover-tint'
         }`}
         style={{
           color: dragOver ? '#fff' : active ? 'var(--sidebar-text-active)' : 'var(--sidebar-text)',
@@ -1590,7 +1590,7 @@ export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop 
       <div className="flex items-center">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex-1 flex items-center gap-2 px-4 py-1.5 text-[11px] font-bold tracking-widest uppercase transition-colors hover:bg-white/5"
+          className="flex-1 flex items-center gap-2 px-4 py-1.5 text-[11px] font-bold tracking-widest uppercase transition-colors hover-tint"
           data-theme="sidebar-category-text"
           style={{ color: 'var(--sidebar-category-text)', fontSize: 'var(--fs-sidebar-category)' }}
         >
@@ -1609,7 +1609,7 @@ export function LabelSection({ labels, selectedFeed, selectLabel, onArticleDrop 
         </button>
         <button
           onClick={() => openPreferences('labels')}
-          className="p-1.5 mr-2 rounded transition-colors hover:bg-white/10"
+          className="p-1.5 mr-2 rounded transition-colors hover-tint-strong"
           style={{ color: 'var(--sidebar-text)' }}
           title={t('sidebar.manageLabels')}
           aria-label={t('sidebar.manageLabels')}
@@ -1738,7 +1738,7 @@ function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasParentTag, 
     >
       {/* Chevron — clickable independently to toggle collapse */}
       <span
-        className="flex-shrink-0 p-0.5 rounded hover:bg-white/10 transition-colors cursor-pointer"
+        className="flex-shrink-0 p-0.5 rounded hover-tint-strong transition-colors cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
           onToggle();

@@ -128,7 +128,7 @@ function ManageMenu({ x, y, onClose, onManage }: { x: number; y: number; onClose
     <div ref={ref} style={style} className="py-1" data-floating-surface>
       <button
         onClick={onManage}
-        className="w-full text-left px-3 py-2 text-xs transition-colors hover:bg-black/5"
+        className="w-full text-left px-3 py-2 text-xs transition-colors hover-tint"
         style={{ color: 'var(--list-title)' }}
       >
         {t('servers.manage')}

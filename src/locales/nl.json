@@ -290,7 +290,8 @@
     "fonts": {
       "resetFonts": "Groottes herstellen",
       "resetFontsTitle": "Groottes opnieuw instellen?",
-      "resetFontsMessage": "De tekstgroottes keren terug naar die van het opgeslagen thema en het raster naar zijn oorspronkelijke instellingen (240 px, vullen, 16:9)."
+      "resetFontsMessage": "De tekstgroottes keren terug naar die van het opgeslagen thema en het raster naar zijn oorspronkelijke instellingen (240 px, vullen, 16:9).",
+      "readingBodyDevice": "Alleen op dit apparaat: de computer houdt zijn eigen grootte."
     },
     "fontSections": {
       "sidebar": "Zijbalk",

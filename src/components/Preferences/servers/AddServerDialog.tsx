@@ -181,14 +181,14 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
           </details>
 
           {error && (
-            <p className="text-red-400 text-xs text-center bg-red-400/10 rounded-lg py-2 px-3">{error}</p>
+            <p className="danger-note text-xs text-center rounded-lg py-2 px-3">{error}</p>
           )}
 
           <div className="flex gap-2 justify-end pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-2 text-sm rounded-lg transition-colors hover:bg-black/5"
+              className="px-3 py-2 text-sm rounded-lg transition-colors hover-tint"
               style={{ color: 'var(--list-summary)' }}
             >
               {t('sidebar.cancel')}

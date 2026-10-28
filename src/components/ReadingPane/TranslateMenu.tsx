@@ -60,7 +60,7 @@ function OpenMenu({ anchor, touch, title, languages, providers, current, onPick,
   const shown = [...head, ...others].filter((l) => !needle || l.name.toLocaleLowerCase(ui).includes(needle) || l.code.toLowerCase().includes(needle));
   const available = providers.filter((p) => p.available);
 
-  const rowClass = `flex items-center gap-2 w-full text-left rounded-md hover:bg-black/5 ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`;
+  const rowClass = `flex items-center gap-2 w-full text-left rounded-md hover-tint ${touch ? 'sheet-row px-4 text-[15px]' : 'px-3 py-1.5 text-xs'}`;
   const headingClass = `font-semibold ${touch ? 'px-4 pt-2 pb-1 text-xs' : 'px-3 pt-1.5 pb-1 text-[11px]'}`;
   const headingStyle = { color: 'var(--list-summary)' };
 

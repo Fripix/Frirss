@@ -77,7 +77,7 @@ export default function ServerRow({
           onClick={isActive ? onToggle : onSwitch}
           disabled={!!server.synthetic}
           title={isActive ? undefined : t('servers.switchTo')}
-          className="flex-1 text-left px-3 py-2 min-h-[44px] flex flex-col justify-center gap-0.5 transition-colors hover:bg-black/5 disabled:hover:bg-transparent min-w-0"
+          className="flex-1 text-left px-3 py-2 min-h-[44px] flex flex-col justify-center gap-0.5 transition-colors hover-tint disabled:hover:bg-transparent min-w-0"
         >
           <span className="flex items-center gap-1.5 flex-wrap">
             <span className="text-sm font-medium truncate" style={{ color: 'var(--list-title)' }}>
@@ -99,7 +99,7 @@ export default function ServerRow({
             aria-expanded={expanded}
             aria-controls={panelId}
             aria-label={expanded ? t('servers.collapse') : t('servers.expand')}
-            className="w-11 flex-shrink-0 flex items-center justify-center transition-colors hover:bg-black/5"
+            className="w-11 flex-shrink-0 flex items-center justify-center transition-colors hover-tint"
             style={{ borderLeft: '1px solid var(--panel-border)', color: 'var(--list-summary)' }}
           >
             <svg
@@ -177,7 +177,7 @@ export default function ServerRow({
                   onClick={() => setConfirmDelete(true)}
                   disabled={busy || !canDelete}
                   title={canDelete ? undefined : t('servers.cannotDeleteLast')}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] transition-colors hover:bg-black/5 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] transition-colors hover-tint disabled:opacity-50"
                   style={{ border: '1px solid var(--danger)', color: 'var(--danger)' }}
                 >
                   {t('servers.delete')}
@@ -225,7 +225,7 @@ function RowAction({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] transition-colors hover:bg-black/5 disabled:opacity-50"
+      className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] transition-colors hover-tint disabled:opacity-50"
       style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
     >
       {label}

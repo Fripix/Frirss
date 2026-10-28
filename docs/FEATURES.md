@@ -635,6 +635,15 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   croire. Le libellé de la touche suit le clavier (`src/lib/platformKeys.ts`) :
   nommer ⌘ sur une machine qui n'a pas cette touche est la pire des deux
   erreurs.
+- **Une seule ligne, jamais de défilement** (1.8.0) : à 1280 px avec un
+  article ouvert, la barre débordait (barre de défilement horizontale, palette
+  et aide poussées hors de vue). Les raccourcis du contexte vivent dans une
+  zone d'une ligne (`data-shortcut-context`, `flex-wrap` + hauteur fixe +
+  `overflow: hidden`) : celui qui ne tient pas passe à la ligne suivante,
+  rognée. L'ordre de `shortcutGroups` fait la priorité, **après Échap**,
+  placé en tête parce qu'il est la seule sortie du mode Focus. Les deux
+  globales restent hors de la zone, donc toujours visibles. Pur CSS, aucune
+  mesure.
 - **Résumer l'article (IA)** : `summarize`, touche `s` par défaut. Fonction
   conditionnelle : ni la barre du bas ni l'aide-mémoire ne la montrent tant que
   l'IA est éteinte ou inutilisable, et la touche est alors laissée au
@@ -753,6 +762,11 @@ lignes, barre verticale pour les non-lus. Scroll infini paginé. En-têtes de
 groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grille.
 
 - **Où** : `src/components/ArticleList/`
+- **Titre de l'en-tête en infobulle** (1.8.0) : avec le volet de lecture ouvert à
+  1280 px, la barre d'outils écrase le titre (`truncate`) jusqu'à « To… », voire
+  à rien. Les trois variantes de l'en-tête portent `title={heading}`, le titre
+  entier (ou « Recherche : … »). Le titre n'a pas reçu de largeur minimale : la
+  barre d'outils l'aurait payée.
 - **Menus du format mobile** : `src/components/BottomSheet.tsx`. Le motif
   existait — le menu d'étiquettes du volet de lecture le posait à la main —
   mais les menus d'options s'ouvraient en liste ancrée sous leur icône, donc en
@@ -4700,6 +4714,22 @@ réglage clair/sombre du système.
 
 - **Où** : `src/stores/themeStore.ts`, `src/components/Preferences/AppearanceTab.tsx`,
   `src/components/Preferences/ThemePreview.tsx`, `src/components/Preferences/colorHighlight.ts`
+- **Curseur « Corps du panneau de lecture »** (1.8.0) : mêmes bornes que les
+  boutons A− / A+ du volet (`src/lib/readingFontSize.ts` : 10-24 px sur
+  ordinateur, 13-26 px au doigt ; le curseur s'arrêtait à 12-20). **Sur
+  téléphone et tablette, il règle la taille de l'appareil**
+  (`mobileReadingFontSize`, locale, défaut 17 px), celle que le volet utilise
+  vraiment là : avant, il changeait la valeur du thème, sans aucun effet
+  visible sur l'appareil. Une ligne le dit sous le curseur, l'aperçu suit la
+  même valeur, et « Réinitialiser » remet aussi la taille de l'appareil.
+- **Survols et erreurs suivent le thème** (1.8.0) : `hover-tint`,
+  `hover-tint-strong`, `active-tint`, `tint` (`index.css`) teintent à partir
+  de `currentColor` ; `hover:bg-black/5` ne se voyait pas sur Night ou Desk,
+  `hover:bg-white/5` pas sur une barre latérale claire. Les messages d'erreur
+  prennent `--danger` (`text-danger`, `danger-note`, `hover-danger-tint`) au
+  lieu des rouges Tailwind. Garde-fou : `src/lib/themeTints.test.ts` refuse
+  le retour des teintes fixes ; restent permis le voile noir sous une boîte et
+  le blanc posé sur l'accent du bandeau.
 - **Section ouverte par défaut** : **Thème** (la galerie), pas Couleurs. C'est
   le geste le plus courant et le seul qui change tout d'un coup ; les 38
   couleurs viennent après.

@@ -78,7 +78,7 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
       <button
         type="button"
         onClick={onClose}
-        className="p-1.5 rounded-lg transition-colors hover:bg-black/5"
+        className="p-1.5 rounded-lg transition-colors hover-tint"
         style={{ color: 'var(--list-summary)' }}
         title={t('articleList.closeSearch')}
         aria-label={t('articleList.closeSearch')}

@@ -37,6 +37,25 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Le curseur « Corps du panneau de lecture » agit enfin sur téléphone et
+  tablette.** Il changeait la taille de l'ordinateur, sans effet visible sur
+  l'appareil, où la taille du texte vient d'un réglage propre (celui des
+  boutons A− / A+). Il règle désormais cette taille-là, et le dit. Ses bornes
+  sont aussi celles des boutons (10 à 24 px sur ordinateur, 13 à 26 px au
+  doigt ; il s'arrêtait à 12-20).
+- **Thèmes sombres : les survols se voient.** Une soixantaine de boutons et de
+  rangées s'assombrissaient au survol, invisible sur Night ou Desk ; ceux de
+  la barre latérale s'éclaircissaient, invisible sur une barre claire. Ils
+  prennent maintenant une teinte tirée de la couleur du texte. Les messages
+  d'erreur (connexion, ajout d'un serveur ou d'un flux, import de thème)
+  prennent la couleur de danger du thème au lieu d'un rouge fixe.
+- **Barre des raccourcis : plus de défilement horizontal.** À 1280 px avec un
+  article ouvert, elle débordait et poussait la palette et l'aide hors de vue.
+  Les raccourcis qui ne tiennent pas sont masqués, la palette et l'aide
+  restent toujours visibles, et « Échap » passe en tête en mode Focus.
+- **Titre de la liste écrasé : lisible au survol.** Avec un article ouvert,
+  la barre d'outils le réduisait à « To… » ; l'infobulle donne le titre
+  entier.
 - **Appui long : un pouce qui tremble ouvre quand même le menu.** Le moindre
   mouvement du doigt annulait l'appui long d'un article (ligne, carte, bouton
   de traduction) ; un pouce posé sur un téléphone n'est jamais tout à fait

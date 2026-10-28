@@ -290,7 +290,8 @@
     "fonts": {
       "resetFonts": "Restablecer los tamaños",
       "resetFontsTitle": "¿Restablecer los tamaños?",
-      "resetFontsMessage": "Los tamaños de texto vuelven a los del tema guardado y la cuadrícula a sus ajustes originales (240 px, rellenar, 16:9)."
+      "resetFontsMessage": "Los tamaños de texto vuelven a los del tema guardado y la cuadrícula a sus ajustes originales (240 px, rellenar, 16:9).",
+      "readingBodyDevice": "Solo en este dispositivo: el ordenador conserva su propio tamaño."
     },
     "fontSections": {
       "sidebar": "Barra lateral",

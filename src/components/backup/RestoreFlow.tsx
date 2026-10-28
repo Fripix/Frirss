@@ -108,7 +108,7 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
-        className="w-full min-h-[44px] rounded-lg px-4 py-3 flex items-center gap-3 text-left transition-colors hover:bg-black/5"
+        className="w-full min-h-[44px] rounded-lg px-4 py-3 flex items-center gap-3 text-left transition-colors hover-tint"
         style={{
           border: `1px ${fileName ? 'solid' : 'dashed'} var(--panel-border)`,
           background: fileName ? 'var(--panel-header-bg)' : 'transparent',
@@ -219,7 +219,7 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
                   if (!clipboard) return;
                   clipboard.writeText(envText).then(() => setCopied(true)).catch(() => {});
                 }}
-                className="px-3 py-1.5 text-xs rounded-lg min-h-[44px] transition-colors hover:bg-black/5"
+                className="px-3 py-1.5 text-xs rounded-lg min-h-[44px] transition-colors hover-tint"
                 style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
               >
                 {copied ? t('backup.copied') : t('backup.copy')}
