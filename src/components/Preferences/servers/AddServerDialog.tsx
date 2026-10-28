@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactEventHandler } from 'react';
+import { useState, useId, type FormEvent, type ReactEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addServer as apiAddServer, updateServer } from '../../../api/backend';
 import { login as freshrssLogin } from '../../../api/auth';
@@ -23,6 +23,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
   const [refreshToken, setRefreshToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const titleId = useId();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -75,6 +76,9 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="w-full max-w-sm rounded-xl p-6 shadow-2xl"
         style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
         onClick={(e) => e.stopPropagation()}
@@ -85,7 +89,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
           if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
         }}
       >
-        <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--list-title)' }}>
+        <h2 id={titleId} className="text-lg font-bold mb-1" style={{ color: 'var(--list-title)' }}>
           {t('servers.addTitle')}
         </h2>
         <p className="text-xs mb-4" style={{ color: 'var(--list-summary)' }}>

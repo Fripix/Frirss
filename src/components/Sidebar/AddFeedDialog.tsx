@@ -1,4 +1,4 @@
-import { useState, useMemo, type FormEvent } from 'react';
+import { useState, useMemo, useEffect, useId, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../../stores/feedStore';
 
@@ -15,6 +15,18 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
   const [newCategory, setNewCategory] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const titleId = useId();
+
+  // Échap ferme. La boîte est `role="dialog"` : `useKeyboardNav` se tait tant
+  // qu'elle est ouverte, donc rien d'autre n'écouterait la touche. Capture +
+  // stopPropagation, comme les autres surfaces : un seul effet par pression.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+    }
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
 
   const categories = useMemo(() => {
     const map: Record<string, string | undefined> = {};
@@ -52,10 +64,13 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="w-full max-w-md rounded-xl shadow-2xl p-6"
         style={{ background: 'var(--panel-bg)' }}
       >
-        <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--list-title)' }}>
+        <h2 id={titleId} className="text-lg font-bold mb-4" style={{ color: 'var(--list-title)' }}>
           {t('addFeed.title')}
         </h2>
 

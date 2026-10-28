@@ -563,7 +563,9 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   `textarea`, contenu éditable), un `<select>` qui a le focus (sa recherche
   lettre par lettre tapait `s` dans « Fournisseur préféré » et lançait un
   résumé, peut-être payant), et **toute boîte ouverte** (`[role="dialog"]` :
-  Préférences, confirmation, palette, feuille du bas, aide-mémoire — **hors
+  Préférences, confirmation, palette, feuille du bas, aide-mémoire, « Ajouter
+  un flux » (`AddFeedDialog`) et « Ajouter un serveur » (`AddServerDialog`),
+  toutes deux `role="dialog"` `aria-modal` nommées par leur titre — **hors
   corps d'article** : un `role="dialog"` dans `.article-content`, modale de
   newsletter que DOMPurify conserve, coupait tous les raccourcis tant que
   l'article restait ouvert), et le
@@ -590,9 +592,8 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   `FeedContextMenu` (hors renommage), de `LabelMenu` et de `ManageMenu`
   avant ce correctif. **Toute nouvelle surface flottante** — en portail
   **ou** en `position: fixed` sans portail — doit porter l'attribut **et**
-  fermer à Échap. Hors périmètre, assumé : les fenêtres modales
-  (`AddFeedDialog`, `AddServerDialog`) et le tiroir mobile, qui ne sont pas
-  des menus ; la pastille de couleur de l'onglet Étiquettes vit sous les
+  fermer à Échap. Hors périmètre, assumé : le tiroir mobile, qui n'est pas un
+  menu ; la pastille de couleur de l'onglet Étiquettes vit sous les
   Préférences, déjà couvertes par `[role="dialog"]`.
   Sur ordinateur le volet de lecture reste monté derrière les
   Préférences : sans cette garde, `r`, `d`, `l` ou `s` agissaient sur
