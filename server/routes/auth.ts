@@ -113,7 +113,8 @@ router.post('/register', authLimiter, async (req, res) => {
     // Create session
     const { token, expiresAt } = createSession(userId);
 
-    const user = db.prepare('SELECT id, username, email, display_name, role FROM users WHERE id = ?').get(userId);
+    // `auth_provider` : le client en a besoin pour proposer « Changer le mot de passe ».
+    const user = db.prepare('SELECT id, username, email, display_name, role, auth_provider FROM users WHERE id = ?').get(userId);
 
     res.status(201).json({
       token,
@@ -164,6 +165,8 @@ router.post('/login', authLimiter, async (req, res) => {
         email: user.email,
         display_name: user.display_name,
         role: user.role,
+        // Le client en a besoin pour proposer « Changer le mot de passe ».
+        auth_provider: user.auth_provider,
       },
     });
   } catch (err) {

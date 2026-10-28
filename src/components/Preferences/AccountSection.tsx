@@ -15,7 +15,10 @@ const MIN_PASSWORD = 6;
  */
 export default function AccountSection() {
   const { t } = useTranslation();
-  const isLocal = useAuthStore((s) => s.backendUser?.auth_provider === 'local');
+  // Champ absent = connexion locale : les réponses de connexion et d'inscription
+  // ne l'envoyaient pas avant la 1.8.0, et une session ouverte avant n'a pas
+  // le champ ; le retour SSO lit l'utilisateur par /me, qui l'inclut toujours.
+  const isLocal = useAuthStore((s) => !!s.backendUser && (s.backendUser.auth_provider ?? 'local') === 'local');
   const ids = { current: useId(), next: useId(), again: useId(), hint: useId() };
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');

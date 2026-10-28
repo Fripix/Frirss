@@ -33,6 +33,15 @@ describe('Préférences › Général — changer son mot de passe', () => {
   });
   afterEach(cleanup);
 
+  // Les réponses de connexion locale n'envoyaient pas `auth_provider` : une
+  // session ouverte avant la 1.8.0 n'a pas le champ. Absent = connexion locale
+  // (le retour SSO lit l'utilisateur par /me, qui l'inclut toujours).
+  it('apparaît pour une session locale qui ne connaît pas encore son fournisseur', () => {
+    useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'user' } as never });
+    render(<GeneralTab />);
+    expect(screen.getByLabelText('preferences.account.current')).toBeTruthy();
+  });
+
   it('n’apparaît pas pour un compte SSO, qui n’a pas de mot de passe ici', () => {
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'user', auth_provider: 'oidc' } as never });
     render(<GeneralTab />);

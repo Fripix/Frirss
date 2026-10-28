@@ -67,7 +67,11 @@ administrateur.
   confirmation ; le minimum (6) et l'égalité des deux saisies sont vérifiés
   avant l'appel, et chaque refus a son message (`preferences.account.*` :
   actuel faux = 401 qui ne déconnecte pas, trop d'essais = 429). Le serveur
-  ferme les **autres** sessions du compte, ce que l'aide annonce. La route
+  ferme les **autres** sessions du compte, ce que l'aide annonce. **Piège** :
+  les réponses de connexion et d'inscription locales n'envoyaient pas
+  `auth_provider` (seul `/me`, lu au retour SSO, l'incluait) ; elles
+  l'envoient depuis la 1.8.0, et un champ **absent** est lu comme local —
+  une session ouverte avant ne l'a pas, et ne doit pas perdre la section. La route
   existait sans écran depuis 0d3d327 (août 2026, wrapper client retiré) :
   seul un administrateur pouvait réinitialiser un mot de passe. Elle a sa
   propre limite, **par compte** (`passwordLimiter`, 10 échecs / 15 min,

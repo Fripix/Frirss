@@ -124,6 +124,7 @@ describe('auth', () => {
   it('registers the first user as admin', () => {
     expect(firstRegistration.status).toBe(201);
     expect(firstRegistration.body.user.role).toBe('admin');
+    expect(firstRegistration.body.user.auth_provider).toBe('local');
     expect(firstRegistration.body.token).toBeTruthy();
   });
 
@@ -159,6 +160,8 @@ describe('auth', () => {
       .send({ username: 'admin', password: 'secret123' });
     expect(res.status).toBe(200);
     expect(res.body.token).toBeTruthy();
+    // Le client en a besoin pour proposer « Changer le mot de passe ».
+    expect(res.body.user.auth_provider).toBe('local');
   });
 
   it('rejects a wrong password', async () => {
