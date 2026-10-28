@@ -1266,7 +1266,11 @@ function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }: { pre
               if (labels.some((l) => l.id === cat.id)) deleteLabel(cat.id);
             }}
             title={t('saved.deleteCategory')}
-            className="absolute right-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded hover:bg-white/10"
+            // Révélée au survol seulement. Sans survol (toucher), elle restait
+            // invisible mais cliquable : un tap sur le bord droit de la ligne
+            // supprimait l'étiquette sur le serveur, sans confirmation. Retirée
+            // au toucher ; Préférences › Étiquettes supprime avec confirmation.
+            className="absolute right-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded hover:bg-white/10 [@media(hover:none)]:hidden"
             style={{ color: 'var(--sidebar-text)' }}
             aria-label={t('saved.deleteCategory')}
           >
@@ -1399,7 +1403,9 @@ function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, on
         <button
           onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
           className={`absolute left-0 top-0 bottom-0 w-4 flex items-center justify-center transition-opacity ${
-            collapsed ? 'opacity-0 group-hover/row:opacity-70 focus:opacity-100' : 'opacity-70'
+            // Sans survol (toucher), replié, il restait invisible : plus aucun
+            // moyen de rouvrir la section.
+            collapsed ? 'opacity-0 group-hover/row:opacity-70 focus:opacity-100 [@media(hover:none)]:opacity-70' : 'opacity-70'
           }`}
           style={{ color: 'var(--sidebar-text)' }}
           aria-label={collapsed ? t('sidebar.expandCategory') : t('sidebar.collapseCategory')}
