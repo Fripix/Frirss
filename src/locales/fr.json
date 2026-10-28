@@ -662,10 +662,6 @@
   "dates": {
     "today": "Aujourd’hui",
     "yesterday": "Hier",
-    "thisWeek": "Cette semaine",
-    "lastWeek": "La semaine dernière",
-    "thisMonth": "Ce mois-ci",
-    "older": "Plus ancien",
     "monday": "Lundi",
     "tuesday": "Mardi",
     "wednesday": "Mercredi",

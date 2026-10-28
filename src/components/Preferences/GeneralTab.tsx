@@ -362,6 +362,8 @@ export default function GeneralTab() {
           </h3>
           <button
             onClick={resetShortcuts}
+            aria-label={t('preferences.shortcuts.resetShortcuts')}
+            title={t('preferences.shortcuts.resetShortcuts')}
             className="text-[10px] px-2 py-1 rounded-md transition-colors hover:bg-black/5"
             style={{ color: 'var(--accent)' }}
           >
@@ -396,6 +398,7 @@ export default function GeneralTab() {
                     background: editing === action ? 'var(--accent-glow)' : 'var(--panel-header-bg)',
                   }}
                   autoFocus={editing === action}
+                  aria-label={editing === action ? t('preferences.shortcuts.pressKey') : undefined}
                 >
                   {editing === action ? '...' : shortcuts[action] ? formatKey(shortcuts[action]) : t('preferences.shortcuts.unassigned')}
                 </button>

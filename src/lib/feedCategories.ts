@@ -22,12 +22,6 @@ export interface GroupedFeeds {
   uncategorised: Subscription[];
 }
 
-/** Nom lisible d'un identifiant de flux catégorie (`user/-/label/Tech`). */
-export function categoryNameOf(id: string): string {
-  const at = id.lastIndexOf('/label/');
-  return at === -1 ? id : id.slice(at + '/label/'.length);
-}
-
 /** Comparaison sans casse ni accents, pour un tri qui se lit naturellement. */
 function sortKey(value: string): string {
   return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

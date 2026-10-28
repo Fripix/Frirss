@@ -133,45 +133,4 @@ router.put('/', (req, res) => {
   res.json({ ok: true });
 });
 
-// ── PUT /api/preferences/:key ───────────────────────────────────────
-// Set a single preference
-router.put('/:key', (req, res) => {
-  const { key } = req.params;
-  const { value } = req.body;
-
-  if (value === undefined) {
-    return res.status(400).json({ error: 'Value required', code: 'value_required' });
-  }
-
-  const out = serializeEntry(key, value);
-  if (isRejection(out)) return reject(res, out);
-
-  const isNew = existingKeys(req.user.id, [key]).size === 0;
-  if (isNew && storedKeyCount(req.user.id) + 1 > MAX_KEYS_PER_USER) {
-    return reject(res, { code: 'too_many_preferences', error: `At most ${MAX_KEYS_PER_USER} stored preferences per user` });
-  }
-
-  db.prepare(`
-    INSERT OR REPLACE INTO preferences (user_id, key, value) VALUES (?, ?, ?)
-  `).run(req.user.id, key, out.serialized);
-
-  res.json({ ok: true });
-});
-
-// ── DELETE /api/preferences/:key ────────────────────────────────────
-router.delete('/:key', (req, res) => {
-  const { key } = req.params;
-
-  db.prepare('DELETE FROM preferences WHERE user_id = ? AND key = ?').run(req.user.id, key);
-
-  res.json({ ok: true });
-});
-
-// ── DELETE /api/preferences ─────────────────────────────────────────
-// Reset all preferences for the user
-router.delete('/', (req, res) => {
-  db.prepare('DELETE FROM preferences WHERE user_id = ?').run(req.user.id);
-  res.json({ ok: true });
-});
-
 export default router;

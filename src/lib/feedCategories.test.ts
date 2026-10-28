@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupFeedsByCategory, categoryNameOf, isValidCategoryName } from './feedCategories';
+import { groupFeedsByCategory, isValidCategoryName } from './feedCategories';
 import type { Subscription } from '../types';
 
 const feed = (id: string, title: string, cats?: Array<[string, string]>): Subscription => ({
@@ -65,16 +65,6 @@ describe('groupFeedsByCategory', () => {
   });
 });
 
-describe('categoryNameOf', () => {
-  it('takes the readable name out of a stream id', () => {
-    expect(categoryNameOf(TECH)).toBe('Tech');
-    expect(categoryNameOf('user/-/label/Self-hosting')).toBe('Self-hosting');
-  });
-
-  it('returns the id untouched when it has no label segment', () => {
-    expect(categoryNameOf('feed/42')).toBe('feed/42');
-  });
-});
 
 describe('isValidCategoryName', () => {
   it('accepts an ordinary name', () => {

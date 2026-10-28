@@ -680,10 +680,6 @@
   "dates": {
     "today": "Сьогодні",
     "yesterday": "Учора",
-    "thisWeek": "Цього тижня",
-    "lastWeek": "Минулого тижня",
-    "thisMonth": "Цього місяця",
-    "older": "Давніше",
     "monday": "Понеділок",
     "tuesday": "Вівторок",
     "wednesday": "Середа",

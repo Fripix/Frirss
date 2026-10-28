@@ -30,7 +30,6 @@ export interface AuthState {
   isAuthenticated: boolean;
   setFreshrssAuth: (serverId: string | number, serverUrl: string) => void;
   logout: () => void;
-  readonly isBackendOnly: boolean;
 }
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
@@ -105,10 +104,5 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   logout: () => {
     // Full logout (both layers)
     get().logoutBackend();
-  },
-
-  // Logged into the backend but no FreshRSS server selected yet
-  get isBackendOnly() {
-    return !!get().backendToken && !get().activeServerId;
   },
 }));

@@ -279,6 +279,15 @@ la release publiée.
 
 ## Sous le capot
 
+- **Code mort retiré**, après vérification qu'aucun écran, test ou script ne
+  s'en servait : trois routes de préférences que le client n'appelait plus
+  (écriture et effacement d'une clé seule, effacement de toutes), quatre
+  textes de dates jamais affichés (dans les 10 langues), un accesseur, une
+  table et une fonction sans appelant, deux blocs de CSS orphelins. Deux
+  textes inutilisés ont trouvé leur place plutôt que de partir (noms
+  accessibles du bouton de réinitialisation des raccourcis et de la
+  capture d'une touche). Le lint signale désormais aussi les constantes en
+  majuscules inutilisées.
 - **Sécurité : une adresse d'article qui n'est pas `http`/`https` n'est plus
   jamais ouverte ni rendue en lien.** Une adresse `javascript:` ou `data:`
   fournie par un flux pouvait devenir un lien (icône « ouvrir à la source »,

@@ -5973,9 +5973,6 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | GET | `/api/servers/:id/actualize` | État de la relève en cours |
 | GET | `/api/preferences` | Lire les préférences synchronisées |
 | PUT | `/api/preferences` | Écrire l'ensemble des préférences |
-| PUT | `/api/preferences/:key` | Écrire une préférence |
-| DELETE | `/api/preferences/:key` | Effacer une préférence |
-| DELETE | `/api/preferences` | Tout effacer |
 | GET | `/api/admin/users` | Lister les comptes |
 | POST | `/api/admin/users` | Créer un compte |
 | PUT | `/api/admin/users/:id` | Modifier un compte |

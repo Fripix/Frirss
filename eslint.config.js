@@ -26,7 +26,9 @@ export default [
       ...js.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }],
+      // `^_` seulement : `^[A-Z_]` exemptait toute constante en majuscules, et
+      // une table morte (`RANGE_DIRECTION`) y a survécu sans un avertissement.
+      'no-unused-vars': ['warn', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
       'no-empty': ['warn', { allowEmptyCatch: true }],
     },
   },
@@ -56,7 +58,7 @@ export default [
       // TS rule supersedes the core one (handles types, enums, etc.)
       'no-unused-vars': 'off',
       'no-undef': 'off', // TypeScript resolves identifiers/types itself
-      '@typescript-eslint/no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['warn', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
       'no-empty': ['warn', { allowEmptyCatch: true }],
     },
   },

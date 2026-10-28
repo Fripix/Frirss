@@ -6,13 +6,6 @@ import BottomSheet from '../BottomSheet';
 import { articleMenuItems, type ArticleMenuItem, type ArticleMenuKind } from '../../lib/articleMenu';
 import { clampToViewport } from '../../lib/clampToViewport';
 
-/** Direction d'un marquage de plage, pour les deux seules entrées concernées. */
-type RangeDirection = 'above' | 'below';
-const RANGE_DIRECTION: Partial<Record<ArticleMenuKind, RangeDirection>> = {
-  markBelowRead: 'below',
-  markAboveRead: 'above',
-};
-
 /**
  * Icônes du menu — retouche visuelle décidée avec le propriétaire.
  *

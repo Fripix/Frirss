@@ -662,10 +662,6 @@
   "dates": {
     "today": "今天",
     "yesterday": "昨天",
-    "thisWeek": "本周",
-    "lastWeek": "上周",
-    "thisMonth": "本月",
-    "older": "更早",
     "monday": "周一",
     "tuesday": "周二",
     "wednesday": "周三",

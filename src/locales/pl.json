@@ -680,10 +680,6 @@
   "dates": {
     "today": "Dzisiaj",
     "yesterday": "Wczoraj",
-    "thisWeek": "W tym tygodniu",
-    "lastWeek": "W zeszłym tygodniu",
-    "thisMonth": "W tym miesiącu",
-    "older": "Starsze",
     "monday": "Poniedziałek",
     "tuesday": "Wtorek",
     "wednesday": "Środa",

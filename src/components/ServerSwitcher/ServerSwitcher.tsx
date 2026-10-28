@@ -4,7 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { getServers } from '../../api/backend';
-import { displayServers, type DisplayServer } from '../../lib/serverList';
+import { displayServers } from '../../lib/serverList';
 import { switchToServer } from '../../lib/switchServer';
 
 // ═════════════════════════════════════════════════════════════════════

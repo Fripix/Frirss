@@ -929,13 +929,6 @@ describe('preferences — bornes', () => {
     expect(res.body).toMatchObject({ code: 'value_too_large', key: 'appLogo' });
   });
 
-  it('names the refused key on the single-key route too', async () => {
-    const res = await request(app).put('/api/preferences/appLogo')
-      .set('Authorization', `Bearer ${adminToken}`).send({ value: 'x'.repeat(MAX_VALUE_BYTES + 1) });
-    expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ code: 'value_too_large', key: 'appLogo' });
-  });
-
   it('a batch-level refusal names no key', async () => {
     const prefs: Record<string, number> = {};
     for (let i = 0; i < 300; i++) prefs[`bulk${i}`] = i;
@@ -968,16 +961,9 @@ describe('preferences — bornes', () => {
     throw new Error('the per-user ceiling never triggered');
   });
 
-  it('applies the same bounds to the single-key route', async () => {
-    const res = await request(app).put('/api/preferences/single')
-      .set('Authorization', `Bearer ${adminToken}`).send({ value: 'x'.repeat(2 * 1024 * 1024) });
-    expect(res.status).toBe(400);
-    expect(res.body.code).toBe('value_too_large');
-  });
-
   it('leaves the stored preferences untouched when a request is rejected', async () => {
-    await request(app).put('/api/preferences/keeper')
-      .set('Authorization', `Bearer ${adminToken}`).send({ value: 'intact' });
+    await request(app).put('/api/preferences')
+      .set('Authorization', `Bearer ${adminToken}`).send({ keeper: 'intact' });
     await request(app).put('/api/preferences')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ keeper: 'clobbered', huge: 'x'.repeat(2 * 1024 * 1024) });
