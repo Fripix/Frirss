@@ -352,7 +352,7 @@ function memRemoveFromViews(articleId: string, filter: Filter): void {
 // dans leur état d'avant.
 // Identité de la vue affichée : le flux, le filtre, et la recherche en cours.
 // Le rollback d'un retrait optimiste s'en sert pour vérifier qu'il réinsère
-// bien dans la liste d'où la ligne vient — `selectFeed` remplace `articles` en
+// bien dans la liste d'où la ligne vient — `selectView` remplace `articles` en
 // bloc, et une recherche aussi. La clé du cache (`viewKey`) ne suffit pas : une
 // recherche ne change ni le flux ni le filtre, mais bien la liste à l'écran.
 function viewIdentity(s: FeedState): string {
@@ -649,7 +649,6 @@ export interface FeedState {
   prepareOffline: () => Promise<void>;
   prefetchView: (feed: Subscription) => Promise<void>;
   warmFeedLists: () => Promise<void>;
-  selectFeed: (feed: Subscription | null) => void;
   selectView: (feed: Subscription | null, filter?: Filter) => void;
   /** Entrée « Tous les flux » (barre latérale, palette). */
   selectHomeAll: () => void;
@@ -793,9 +792,8 @@ const IDLE_SCAN: SearchScan = { running: false, scanned: 0, done: false, stopped
  * Referme la recherche : périme un balayage en vol et remet la recherche à
  * son état neutre (requête, résultats, tranche visible, barre d'état).
  *
- * Appelée par les quatre actions de changement de vue (`setFilter`,
- * `selectFeed`, `selectView`, `selectCategory` — cette dernière via
- * `selectView`) et par `markAllAsRead` juste après `dropSearchCorpus()`.
+ * Appelée par les trois actions de changement de vue (`setFilter`,
+ * `selectView`, `selectCategory` — cette dernière via `selectView`) et par `markAllAsRead` juste après `dropSearchCorpus()`.
  * Sans ce geste, un balayage abandonné (`runScan` rend la main sur `stale()`
  * sans rien écrire) laissait `searchScan.running` bloqué à vrai pour
  * toujours — squelette sans fin dans `listBodyState`, ou barre d'état
@@ -905,13 +903,6 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (ui.unreadOnlyScope === 'all') ui.setUnreadOnlyAll(on);
     else ui.setFeedUnreadOnly(get().selectedFeed?.id ?? '', on);
     get().setFilter(on ? 'unread' : 'all');
-  },
-
-  selectFeed: (feed) => {
-    closeSearch(set);
-    const c = memGet(viewKey(feed, get().filter));
-    set({ selectedFeed: feed, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
-    get().loadArticles();
   },
 
   // Combined action: set feed + filter in one go, single loadArticles call.

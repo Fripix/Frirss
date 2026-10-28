@@ -6,7 +6,7 @@
 // était ». Entre le retrait et le refus, la liste a pu changer trois fois :
 //
 //  1. **La vue n'est plus la même.** Le ✓ part depuis le flux A, l'utilisateur
-//     ouvre le flux B pendant que l'écriture est en vol (`selectFeed` remplace
+//     ouvre le flux B pendant que l'écriture est en vol (`selectView` remplace
 //     `articles` en bloc). Réinsérer posait un article du flux A au milieu de
 //     la liste du flux B — et `persistCurrentView` l'écrivait aussitôt dans le
 //     cache de B, où il survivait au rechargement et au retour hors ligne.

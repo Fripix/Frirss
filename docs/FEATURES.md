@@ -786,7 +786,7 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     survit à aucune ; `planRowRestore()` (`src/lib/rollbackRow.ts`) les tranche
     toutes les trois :
     - **La vue n'est plus la même.** Le ✓ part du flux A, l'utilisateur ouvre
-      le flux B pendant que l'écriture est en vol (`selectFeed` remplace
+      le flux B pendant que l'écriture est en vol (`selectView` remplace
       `articles` en bloc) : réinsérer posait un article du flux A au milieu de
       la liste du flux B, et `persistCurrentView` l'écrivait aussitôt dans le
       cache de B, où il survivait au rechargement et au retour hors ligne. La
@@ -1863,7 +1863,7 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   navigateur. Un abonnement plutôt qu'un appel depuis `authStore` :
   `feedStore` importe déjà `authStore`, l'inverse fermerait un cycle.
 - **Changer de flux, de filtre, de catégorie ou de vue referme la
-  recherche** (`closeSearch`, appelée par `setFilter`, `selectFeed`,
+  recherche** (`closeSearch`, appelée par `setFilter`,
   `selectView`, `selectCategory` et par `markAllAsRead` après
   `dropSearchCorpus`) : le balayage en vol est périmé (`scanToken`),
   `searchQuery`/`searchResults`/`searchScan` reviennent à l'état neutre. Sans

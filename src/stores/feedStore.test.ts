@@ -1294,8 +1294,8 @@ describe('feedStore.toggleRead — le retrait survit au cache mémoire', () => {
     await useFeedStore.getState().toggleRead(useFeedStore.getState().articles[1]);
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
 
-    useFeedStore.getState().selectFeed(feed2);
-    useFeedStore.getState().selectFeed(feed1);
+    useFeedStore.getState().selectView(feed2, 'unread');
+    useFeedStore.getState().selectView(feed1, 'unread');
     // Peinture immédiate depuis le cache mémoire, avant toute réponse serveur.
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
   });
@@ -1309,8 +1309,8 @@ describe('feedStore.toggleRead — le retrait survit au cache mémoire', () => {
     await useFeedStore.getState().toggleRead(useFeedStore.getState().articles[1]);
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
 
-    useFeedStore.getState().selectFeed(feed2);
-    useFeedStore.getState().selectFeed(feed1);
+    useFeedStore.getState().selectView(feed2, 'unread');
+    useFeedStore.getState().selectView(feed1, 'unread');
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a1', 'a2']);
   });
 
@@ -1326,8 +1326,8 @@ describe('feedStore.toggleRead — le retrait survit au cache mémoire', () => {
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
     expect(useFeedStore.getState().pendingActions).toBe(1);
 
-    useFeedStore.getState().selectFeed(feed2);
-    useFeedStore.getState().selectFeed(feed1);
+    useFeedStore.getState().selectView(feed2, 'unread');
+    useFeedStore.getState().selectView(feed1, 'unread');
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a0', 'a2']);
   });
 });
@@ -1366,7 +1366,7 @@ describe('feedStore.toggleRead — le rollback ne réinsère qu’à bon escient
   });
 
   it('ne réinsère pas dans la liste d’un autre flux', async () => {
-    // `selectFeed` remplace `articles` en bloc : au retour du refus, la liste
+    // `selectView` remplace `articles` en bloc : au retour du refus, la liste
     // à l'écran est celle du flux B. Y replacer un article du flux A le posait
     // au milieu d'articles étrangers — et `persistCurrentView` l'écrivait
     // aussitôt dans le cache de B, où il survivait au rechargement.
@@ -1693,9 +1693,8 @@ describe('feedStore.toggleReadLater — le retrait survit au cache mémoire', ()
     await useFeedStore.getState().toggleReadLater(useFeedStore.getState().articles[0]);
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['l1']);
 
-    useFeedStore.getState().selectFeed(feedA);
-    useFeedStore.setState({ filter: 'readlater' });
-    useFeedStore.getState().selectFeed(feedB);
+    useFeedStore.getState().selectView(feedA, 'readlater');
+    useFeedStore.getState().selectView(feedB, 'readlater');
     useFeedStore.getState().selectView(null, 'readlater');
     // Peinture immédiate depuis le cache mémoire, avant toute réponse serveur.
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['l1']);
@@ -1983,7 +1982,7 @@ describe('feedStore.loadMore — changement de vue pendant que la page est en vo
     // Et le cache mémoire de A n'a pas été empoisonné : y revenir repeint
     // exactement ce qui y avait été chargé.
     vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
-    useFeedStore.getState().selectFeed(feedA);
+    useFeedStore.getState().selectView(feedA, 'all');
     expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(['a1']);
     expect(useFeedStore.getState().continuation).toBe('page-2');
   });

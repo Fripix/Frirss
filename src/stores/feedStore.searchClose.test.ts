@@ -57,13 +57,13 @@ beforeEach(() => {
 });
 
 describe('changer de vue referme la recherche', () => {
-  it('C1 — selectFeed pendant un balayage referme la barre d’état au lieu de la laisser tourner sans fin', async () => {
+  it('C1 — selectView pendant un balayage referme la barre d’état au lieu de la laisser tourner sans fin', async () => {
     // La page ne se règle jamais dans ce test : le balayage reste « en vol ».
     page.mockImplementationOnce(() => new Promise(() => {}));
     void useFeedStore.getState().search('moteur');
     await vi.waitFor(() => expect(useFeedStore.getState().searchScan.running).toBe(true));
 
-    useFeedStore.getState().selectFeed({ id: 'feed/2', title: 'Autre' });
+    useFeedStore.getState().selectView({ id: 'feed/2', title: 'Autre' }, 'all');
 
     const s = useFeedStore.getState();
     expect(s.searchQuery).toBe('');
@@ -112,7 +112,7 @@ describe('changer de vue referme la recherche', () => {
     expect(useFeedStore.getState().articles).toHaveLength(50);
 
     // L'utilisateur change de flux : la nouvelle vue est vide pour l'instant.
-    useFeedStore.getState().selectFeed({ id: 'feed/2', title: 'Autre' });
+    useFeedStore.getState().selectView({ id: 'feed/2', title: 'Autre' }, 'all');
     useFeedStore.setState({ articles: [], continuation: 'C-flux-2', loadingMore: false, revalidating: false } as never);
     streamContents.mockResolvedValueOnce({ items: [item('z', 'zêta')], continuation: null } as never);
 

@@ -189,6 +189,8 @@ _(rien pour l'instant)_
 - body-parser 2.4.0 décompresse désormais les corps `Content-Encoding: zstd`
   (avant : 415). Même limite de 5 Mo après décompression que gzip/br ; le
   proxy ne retransmet pas `Content-Encoding`.
+- **Ménage : `feedStore.selectFeed`, sans appelant, est supprimé** (toute
+  navigation passe par `selectView`) ; ses tests sont migrés.
 
 ## Actions requises à la mise à jour
 
