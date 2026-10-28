@@ -474,7 +474,9 @@
     },
     "gridCards": {
       "width": "Ancho de las tarjetas",
-      "ratio": "Formato de imagen"
+      "ratio": "Formato de imagen",
+      "fill": "Llenar la fila",
+      "fillHint": "Las tarjetas se ensanchan hasta ocupar toda la fila. Desactivado, conservan exactamente el ancho elegido. En el móvil, la cuadrícula siempre ocupa toda la pantalla."
     }
   },
   "login": {

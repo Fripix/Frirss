@@ -20,10 +20,13 @@ la release publiée.
 
 - **Grille : la taille des cartes et le format de leur image se règlent**
   (issue #26). Préférences › Apparence › Tailles, section « Grille » : un
-  curseur « Largeur des cartes » (160 à 480 px, 240 par défaut) et un choix
-  « Format d'image » (16:9, 4:3 ou 1:1). La largeur est un minimum, les cartes
-  remplissent toujours la ligne ; sur téléphone elle est réduite d'un tiers,
-  et une grande carte ne déborde jamais d'un écran étroit. Synchronisés entre
+  curseur « Largeur des cartes » (160 à 480 px, au pixel, 240 par défaut), un
+  interrupteur « Remplir la ligne » et un choix « Format d'image » (16:9, 4:3
+  ou 1:1). Activé (par défaut), les cartes s'élargissent pour remplir la ligne
+  et la largeur est un minimum ; désactivé, elles gardent exactement la
+  largeur choisie et la grille se centre. Sur téléphone, la largeur est
+  réduite d'un tiers, la grille remplit toujours l'écran, et une grande carte
+  ne déborde jamais. Synchronisés entre
   appareils, indépendants du thème, remis aux défauts par « Réinitialiser les
   tailles ». Les défauts ne changent rien à la grille actuelle.
 

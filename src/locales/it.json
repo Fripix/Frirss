@@ -474,7 +474,9 @@
     },
     "gridCards": {
       "width": "Larghezza delle schede",
-      "ratio": "Formato immagine"
+      "ratio": "Formato immagine",
+      "fill": "Riempi la riga",
+      "fillHint": "Le schede si allargano fino a occupare tutta la riga. Se disattivato, mantengono esattamente la larghezza scelta. Sul telefono la griglia riempie sempre lo schermo."
     }
   },
   "login": {

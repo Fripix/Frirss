@@ -1086,15 +1086,25 @@ html {
    (Préférences › Apparence › Tailles, #26) : `gridCardStyle()` pose les
    variables sur le conteneur. `min(…, 100%)` borne la colonne à la largeur
    disponible : une carte de 480 px (320 px sur téléphone) ne déborde jamais
-   d'une liste plus étroite qu'elle, elle occupe alors toute la ligne. */
+   d'une liste plus étroite qu'elle, elle occupe alors toute la ligne.
+   `--fixed` (« Remplir la ligne » désactivé) : la carte garde exactement la
+   largeur choisie, la place restante se partage des deux côtés. */
 .article-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(var(--grid-card-min, 240px), 100%), 1fr));
   gap: 14px;
   padding: 14px;
 }
+.article-grid--fixed {
+  grid-template-columns: repeat(auto-fill, min(var(--grid-card-min, 240px), 100%));
+  justify-content: center;
+}
+/* Téléphone : toujours remplir — une carte de taille exacte flotterait au
+   milieu d'un écran de 300 px. Après `--fixed`, pour l'emporter sur lui. */
 @media (max-width: 767px) {
-  .article-grid {
+  .article-grid,
+  .article-grid--fixed {
+    justify-content: normal;
     grid-template-columns: repeat(auto-fill, minmax(min(var(--grid-card-min-mobile, 160px), 100%), 1fr));
     gap: 10px;
     padding: 10px;

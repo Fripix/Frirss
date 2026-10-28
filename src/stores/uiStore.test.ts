@@ -740,7 +740,18 @@ describe('uiStore — new default shortcuts never steal a key the user already g
 describe('uiStore — cartes de la grille (#26)', () => {
   beforeEach(() => {
     localStorage.clear();
-    useUiStore.setState({ gridCardWidth: 240, gridImageRatio: '16:9' });
+    useUiStore.setState({ gridCardWidth: 240, gridImageRatio: '16:9', gridCardFill: true });
+  });
+
+  it('persists and syncs « Remplir la ligne », true unless explicitly false', () => {
+    useUiStore.getState().setGridCardFill(false);
+    expect(useUiStore.getState().gridCardFill).toBe(false);
+    expect(localStorage.getItem('frirss_gridCardFill')).toBe('false');
+    expect(UI_SYNC_KEYS).toContain('gridCardFill');
+    useUiStore.getState().applyServerPrefs({ gridCardFill: 'nope' });
+    expect(useUiStore.getState().gridCardFill).toBe(true);
+    useUiStore.getState().applyServerPrefs({ gridCardFill: false });
+    expect(useUiStore.getState().gridCardFill).toBe(false);
   });
 
   it('persists both settings and syncs them, normalised on apply', () => {
@@ -763,7 +774,9 @@ describe('uiStore — cartes de la grille (#26)', () => {
   it('resetGridCards returns both to the original grid', () => {
     useUiStore.getState().setGridCardWidth(400);
     useUiStore.getState().setGridImageRatio('4:3');
+    useUiStore.getState().setGridCardFill(false);
     useUiStore.getState().resetGridCards();
+    expect(useUiStore.getState().gridCardFill).toBe(true);
     expect(useUiStore.getState().gridCardWidth).toBe(240);
     expect(useUiStore.getState().gridImageRatio).toBe('16:9');
   });

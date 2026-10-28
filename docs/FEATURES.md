@@ -347,28 +347,41 @@ globale, mais surchargeable **par flux**.
 - **Spec** : `docs/superpowers/specs/2026-08-18-grid-view-design.md`
 
 ### Taille des cartes de la grille
-Deux réglages dans **Préférences › Apparence › Tailles**, section « Grille »,
+Trois réglages dans **Préférences › Apparence › Tailles**, section « Grille »,
 sous les tailles de texte (demandés dans l'issue #26) : **Largeur des cartes**
-(curseur de 160 à 480 px, au pixel près, défaut 240) et **Format d'image** (16:9,
-4:3 ou 1:1, défaut 16:9). Les défauts reproduisent exactement la grille
-d'avant.
+(curseur de 160 à 480 px, au pixel près, défaut 240), **Remplir la ligne**
+(interrupteur, activé par défaut) et **Format d'image** (16:9, 4:3 ou 1:1,
+défaut 16:9). Les défauts reproduisent exactement la grille d'avant.
 
 - **Où** : `src/lib/gridCards.ts` (bornes, normaliseurs, `gridCardStyle()`,
-  testés), `uiStore.gridCardWidth` / `gridImageRatio` / `resetGridCards`,
+  `gridClassName()`, testés), `uiStore.gridCardWidth` / `gridImageRatio` /
+  `gridCardFill` / `resetGridCards`,
   `GridCardsSection` dans `AppearanceTab.tsx`, les deux `.article-grid`
   d'`ArticleList.tsx`, `index.css`
-- **La largeur est un minimum** : les cartes s'élargissent toujours pour
-  remplir la ligne (`auto-fill` + `minmax`). Monter le curseur retire des
-  colonnes et agrandit les cartes.
+- **Remplir la ligne, activé** (la grille d'origine) : la largeur est un
+  minimum, les cartes s'élargissent pour remplir la ligne (`auto-fill` +
+  `minmax`). ⚠️ Le curseur n'agit alors que **par paliers** : entre deux
+  nombres de colonnes, il ne change rien à l'écran (dans une liste de
+  1 011 px, 4 cartes de 242 px de 160 à 240, puis 3 de 327 à 250). C'est ce
+  qu'a relevé le propriétaire au premier essai, et la raison de l'interrupteur.
+- **Remplir la ligne, désactivé** (`.article-grid--fixed`) : chaque carte
+  mesure exactement la largeur choisie, la fenêtre ne décide que du nombre de
+  colonnes, et la place restante se partage des deux côtés
+  (`justify-content: center`, moins d'une demi-carte de chaque côté). Le
+  curseur agit à chaque pixel.
 - **Un seul curseur pour tous les écrans** : sous 768 px, la largeur est
-  réduite d'un tiers (`--grid-card-min-mobile`, 240 → 160 comme avant).
+  réduite d'un tiers (`--grid-card-min-mobile`, 240 → 160 comme avant), et
+  la grille **remplit toujours** la largeur, interrupteur ou non : une carte de
+  taille exacte flotterait au milieu d'un écran de 300 px. La règle du média
+  vient après `--fixed` dans `index.css` pour l'emporter.
   `min(…, 100%)` borne en plus la colonne à la largeur disponible : à 480 px
   (320 sur téléphone), une liste plus étroite affiche une carte par ligne au
   lieu de déborder à l'horizontale.
 - **Synchronisés, communs à tous les thèmes** : ce sont des réglages de
   l'interface (`UI_SYNC_KEYS`), pas du thème, contrairement aux tailles de
   texte de la même page. Changer de thème ne les touche pas ;
-  « Réinitialiser les tailles » les remet aussi aux défauts. Toute valeur hors
+  « Réinitialiser les tailles » les remet aussi aux défauts (remplissage
+  compris). Toute valeur hors
   bornes (client ancien, valeur trafiquée) retombe sur le défaut.
 - **Pas de format « original »**, assumé : des images de hauteurs différentes
   casseraient l'alignement des rangées — ce serait une autre vue, pas un

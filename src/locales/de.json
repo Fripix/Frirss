@@ -474,7 +474,9 @@
     },
     "gridCards": {
       "width": "Kartenbreite",
-      "ratio": "Bildformat"
+      "ratio": "Bildformat",
+      "fill": "Zeile ausfüllen",
+      "fillHint": "Die Karten werden breiter, bis sie die ganze Zeile füllen. Ausgeschaltet behalten sie genau die gewählte Breite. Auf dem Smartphone füllt das Raster immer den Bildschirm."
     }
   },
   "login": {

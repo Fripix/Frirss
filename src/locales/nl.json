@@ -474,7 +474,9 @@
     },
     "gridCards": {
       "width": "Kaartbreedte",
-      "ratio": "Beeldverhouding"
+      "ratio": "Beeldverhouding",
+      "fill": "Rij vullen",
+      "fillHint": "Kaarten worden breder tot ze de hele rij vullen. Uitgeschakeld houden ze precies de gekozen breedte. Op een telefoon vult het raster altijd het scherm."
     }
   },
   "login": {

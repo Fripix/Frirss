@@ -474,7 +474,9 @@
     },
     "gridCards": {
       "width": "Largura dos cartões",
-      "ratio": "Formato da imagem"
+      "ratio": "Formato da imagem",
+      "fill": "Preencher a linha",
+      "fillHint": "Os cartões alargam-se até ocupar toda a linha. Desativado, mantêm exatamente a largura escolhida. No telemóvel, a grelha ocupa sempre o ecrã."
     }
   },
   "login": {

@@ -5,7 +5,7 @@ import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '.
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
 import { isAiLanguage, type AiLanguage } from '../lib/aiLanguages';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
-import { GRID_CARD_WIDTH_DEFAULT, normalizeGridCardWidth, normalizeGridImageRatio, type GridImageRatio } from '../lib/gridCards';
+import { GRID_CARD_WIDTH_DEFAULT, normalizeGridCardFill, normalizeGridCardWidth, normalizeGridImageRatio, type GridImageRatio } from '../lib/gridCards';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -272,6 +272,8 @@ export interface UiState {
   setGridCardWidth: (v: number) => void;
   gridImageRatio: GridImageRatio;
   setGridImageRatio: (v: GridImageRatio) => void;
+  gridCardFill: boolean;
+  setGridCardFill: (v: boolean) => void;
   resetGridCards: () => void;
   // Routage des fournisseurs d'IA. Synchronisé, jamais une clé : seulement des
   // identifiants de fournisseurs. `null` = aucune préférence (le premier de la
@@ -673,9 +675,16 @@ export const useUiStore = create<UiState>()((set, get) => ({
     localStorage.setItem('frirss_gridImageRatio', JSON.stringify(value));
     set({ gridImageRatio: value });
   },
+  gridCardFill: normalizeGridCardFill(loadJson<unknown>('frirss_gridCardFill', true)),
+  setGridCardFill: (v) => {
+    const value = normalizeGridCardFill(v);
+    localStorage.setItem('frirss_gridCardFill', JSON.stringify(value));
+    set({ gridCardFill: value });
+  },
   resetGridCards: () => {
     get().setGridCardWidth(GRID_CARD_WIDTH_DEFAULT);
     get().setGridImageRatio('16:9');
+    get().setGridCardFill(true);
   },
 
   aiPreferredProvider: normalizeAiProviderId(loadJson<unknown>('frirss_aiPreferredProvider', null)),
@@ -1201,7 +1210,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
-      'gridCardWidth', 'gridImageRatio',
+      'gridCardWidth', 'gridImageRatio', 'gridCardFill',
       'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
       'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
       'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',
@@ -1226,6 +1235,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'aiSummaryRatio' ? normalizeAiSummaryRatio(prefs[k])
           : k === 'gridCardWidth' ? normalizeGridCardWidth(prefs[k])
           : k === 'gridImageRatio' ? normalizeGridImageRatio(prefs[k])
+          : k === 'gridCardFill' ? normalizeGridCardFill(prefs[k])
           : k === 'aiPreferredProvider' ? normalizeAiProviderId(prefs[k])
           : k === 'aiCategoryProviders' ? normalizeAiCategoryProviders(prefs[k])
           : k === 'aiTranslationLanguage' ? normalizeAiTranslationLanguage(prefs[k])
@@ -1270,7 +1280,7 @@ export const UI_SYNC_KEYS = [
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
-  'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio',
+  'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio', 'gridCardFill',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
   'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
   'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',

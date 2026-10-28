@@ -490,7 +490,9 @@
     },
     "gridCards": {
       "width": "Szerokość kart",
-      "ratio": "Proporcje obrazu"
+      "ratio": "Proporcje obrazu",
+      "fill": "Wypełniaj wiersz",
+      "fillHint": "Karty poszerzają się, aż wypełnią cały wiersz. Po wyłączeniu zachowują dokładnie wybraną szerokość. Na telefonie siatka zawsze wypełnia ekran."
     }
   },
   "login": {

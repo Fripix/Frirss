@@ -44,7 +44,7 @@ import { noFocusOnPointer } from '../../lib/pointerFocus';
 import { prefersReducedMotion } from '../../lib/reducedMotion';
 import { staggerIndexes, rememberStagger } from '../../lib/rowStagger';
 import type { Article, Filter } from '../../types';
-import { gridCardStyle } from '../../lib/gridCards';
+import { gridCardStyle, gridClassName } from '../../lib/gridCards';
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
 // article in 2-panel desktop, or any re-mount of the list).
@@ -147,6 +147,7 @@ export default function ArticleList() {
   const gridDateSeparators = useUiStore((s) => s.gridDateSeparators);
   const gridCardWidth = useUiStore((s) => s.gridCardWidth);
   const gridImageRatio = useUiStore((s) => s.gridImageRatio);
+  const gridCardFill = useUiStore((s) => s.gridCardFill);
   const gridStyle = useMemo(
     () => gridCardStyle(gridCardWidth, gridImageRatio) as CSSProperties,
     [gridCardWidth, gridImageRatio],
@@ -1109,7 +1110,7 @@ export default function ArticleList() {
           />
         ) : gridLayout && !gridDateSeparators ? (
           /* Grid, default: one continuous gallery, no date bands. */
-          <div className="article-grid" style={gridStyle}>
+          <div className={gridClassName(gridCardFill)} style={gridStyle}>
             {articles.map(renderCard)}
           </div>
         ) : (
@@ -1123,7 +1124,7 @@ export default function ArticleList() {
                 <DateSeparator label={group.label} count={group.articles.length} />
               )}
               {gridLayout ? (
-                <div className="article-grid" style={gridStyle}>
+                <div className={gridClassName(gridCardFill)} style={gridStyle}>
                   {group.articles.map(renderCard)}
                 </div>
               ) : (

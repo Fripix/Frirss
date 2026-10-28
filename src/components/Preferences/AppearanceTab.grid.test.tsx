@@ -17,7 +17,16 @@ function openSizes() {
 describe('Préférences › Apparence › Tailles — section Grille (#26)', () => {
   beforeEach(() => {
     localStorage.clear();
-    useUiStore.setState({ gridCardWidth: 240, gridImageRatio: '16:9' });
+    useUiStore.setState({ gridCardWidth: 240, gridImageRatio: '16:9', gridCardFill: true });
+  });
+
+  it('« Remplir la ligne » est activé par défaut et se désactive', () => {
+    const { getByRole, getByText } = openSizes();
+    expect(getByText('preferences.gridCards.fillHint')).toBeTruthy();
+    const toggle = getByRole('switch', { name: 'preferences.gridCards.fill' });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(toggle);
+    expect(useUiStore.getState().gridCardFill).toBe(false);
   });
 
   it('montre le curseur de largeur et les trois formats, 16:9 coché par défaut', () => {
@@ -48,12 +57,13 @@ describe('Préférences › Apparence › Tailles — section Grille (#26)', () 
   });
 
   it('« Réinitialiser les tailles » remet aussi la grille d’origine', () => {
-    useUiStore.setState({ gridCardWidth: 400, gridImageRatio: '4:3' });
+    useUiStore.setState({ gridCardWidth: 400, gridImageRatio: '4:3', gridCardFill: false });
     const { getByText } = openSizes();
     const reset = getByText('preferences.fonts.resetFonts');
     fireEvent.click(reset);
     fireEvent.click(getByText('preferences.confirm'));
     expect(useUiStore.getState().gridCardWidth).toBe(240);
     expect(useUiStore.getState().gridImageRatio).toBe('16:9');
+    expect(useUiStore.getState().gridCardFill).toBe(true);
   });
 });

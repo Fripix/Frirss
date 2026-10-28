@@ -25,6 +25,21 @@ export function normalizeGridCardWidth(v: unknown): number {
     ? v : GRID_CARD_WIDTH_DEFAULT;
 }
 
+/**
+ * « Remplir la ligne » : activé, les cartes s'élargissent pour occuper toute
+ * la ligne et la largeur choisie est un minimum (la grille d'origine) ;
+ * désactivé, elles gardent exactement cette largeur et la grille est centrée.
+ * Seul un `false` explicite le désactive : le défaut doit gagner.
+ */
+export function normalizeGridCardFill(v: unknown): boolean {
+  return v !== false;
+}
+
+/** Sur téléphone, `index.css` remplit toujours la largeur, quelle que soit la classe. */
+export function gridClassName(fill: boolean): string {
+  return fill ? 'article-grid' : 'article-grid article-grid--fixed';
+}
+
 export function normalizeGridImageRatio(v: unknown): GridImageRatio {
   return (GRID_IMAGE_RATIOS as readonly unknown[]).includes(v) ? (v as GridImageRatio) : '16:9';
 }

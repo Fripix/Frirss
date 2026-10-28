@@ -705,6 +705,8 @@ function GridCardsSection() {
   const setWidth = useUiStore((s) => s.setGridCardWidth);
   const ratio = useUiStore((s) => s.gridImageRatio);
   const setRatio = useUiStore((s) => s.setGridImageRatio);
+  const fill = useUiStore((s) => s.gridCardFill);
+  const setFill = useUiStore((s) => s.setGridCardFill);
 
   return (
     <div>
@@ -723,6 +725,22 @@ function GridCardsSection() {
           step={GRID_CARD_WIDTH_STEP}
           onChange={(v) => setWidth(Number(v))}
         />
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-xs min-w-0" style={{ color: 'var(--reading-text)' }}>
+            {t('preferences.gridCards.fill')}
+            <span id="grid-card-fill-hint" className="block text-[11px] opacity-70 mt-0.5" style={{ color: 'var(--list-summary)' }}>
+              {t('preferences.gridCards.fillHint')}
+            </span>
+          </span>
+          <span className="mt-0.5 shrink-0">
+            <ToggleSwitch
+              checked={fill}
+              onChange={(v: boolean) => setFill(v)}
+              ariaLabel={t('preferences.gridCards.fill')}
+              describedBy="grid-card-fill-hint"
+            />
+          </span>
+        </div>
         <div className="flex items-center gap-3">
           <span id="grid-image-ratio-label" className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
             {t('preferences.gridCards.ratio')}

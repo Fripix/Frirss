@@ -474,7 +474,9 @@
     },
     "gridCards": {
       "width": "Card width",
-      "ratio": "Image ratio"
+      "ratio": "Image ratio",
+      "fill": "Fill the row",
+      "fillHint": "Cards widen to fill the whole row. When off, they keep exactly the chosen width. On phones, the grid always fills the screen."
     }
   },
   "login": {

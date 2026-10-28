@@ -474,7 +474,9 @@
     },
     "gridCards": {
       "width": "Largeur des cartes",
-      "ratio": "Format d'image"
+      "ratio": "Format d'image",
+      "fill": "Remplir la ligne",
+      "fillHint": "Les cartes s'élargissent pour occuper toute la ligne. Désactivé, elles gardent exactement la largeur choisie. Sur téléphone, la grille remplit toujours l'écran."
     }
   },
   "login": {

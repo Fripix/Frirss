@@ -5,6 +5,8 @@ import {
   GRID_CARD_WIDTH_MIN,
   GRID_IMAGE_RATIOS,
   gridCardStyle,
+  gridClassName,
+  normalizeGridCardFill,
   normalizeGridCardWidth,
   normalizeGridImageRatio,
 } from './gridCards';
@@ -59,5 +61,17 @@ describe('gridCardStyle', () => {
   it('écrit le format en syntaxe CSS', () => {
     expect(gridCardStyle(240, '4:3')['--grid-card-ratio']).toBe('4 / 3');
     expect(gridCardStyle(240, '1:1')['--grid-card-ratio']).toBe('1 / 1');
+  });
+});
+
+describe('remplissage de la ligne', () => {
+  it('activé par défaut : seul un false explicite le désactive', () => {
+    expect(normalizeGridCardFill(false)).toBe(false);
+    for (const v of [true, undefined, null, 'false', 0]) expect(normalizeGridCardFill(v)).toBe(true);
+  });
+
+  it('désactivé, la grille prend la classe des cartes à largeur exacte', () => {
+    expect(gridClassName(true)).toBe('article-grid');
+    expect(gridClassName(false)).toBe('article-grid article-grid--fixed');
   });
 });
