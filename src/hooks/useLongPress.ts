@@ -41,7 +41,8 @@ function farFrom(origin: PressPoint, x: number, y: number): boolean {
 
 /**
  * L'appui long de FriRSS : lignes et cartes d'article
- * (`useArticleMenuGestures`), bouton de traduction. 500 ms.
+ * (`useArticleMenuGestures`), lignes de flux (`FeedItem`), bouton de
+ * traduction. 500 ms.
  *
  * - un mouvement de plus de `LONG_PRESS_MOVE_TOLERANCE_PX` depuis le point de
  *   départ annule (défilement, balayage) ; un tremblement en deçà, non — un

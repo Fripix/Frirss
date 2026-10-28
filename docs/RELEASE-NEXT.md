@@ -32,6 +32,11 @@ _(rien pour l'instant)_
   glisser horizontal qui suivait marquait AUSSI l'article lu ou à lire plus
   tard. Les deux gestes s'excluent désormais : un balayage commencé annule
   l'appui long, un menu ouvert par l'appui long bloque le balayage.
+- **Appui long sur un flux de la barre latérale : le même geste que sur un
+  article.** Il tolère lui aussi un léger tremblement, s'annule quand un
+  second doigt se pose ou que le système interrompt le contact, et le menu
+  ne saute plus sous le doigt juste après s'être ouvert sur Android (Chrome
+  y envoie un second signal de menu, qui le rouvrait au point du doigt).
 - **Chinois : le statut des résumés et traductions IA se lit avec la virgule
   pleine chasse « ， »** au lieu d'une virgule latine en dur (en-tête du
   panneau, annonce aux lecteurs d'écran, bandeau de traduction). Nouvelle clé

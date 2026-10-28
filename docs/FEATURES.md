@@ -231,7 +231,8 @@ glisser-déposer, masquage des flux entièrement lus.
 - **Où** : `src/components/Sidebar/Sidebar.tsx`, `src/stores/uiStore.ts`
 - **Menu d'un flux** — renommer, ouvrir le site, extraction automatique, se
   désabonner. Trois chemins : le clic droit, le bouton ⋯ révélé au survol, et
-  **un appui long de 500 ms au doigt** (`FEED_LONG_PRESS_MS`). Ses entrées
+  **un appui long de 500 ms au doigt** (`useLongPress`, le même que partout :
+  voir *Menu d'un article*). Ses entrées
   (`ContextMenuItem`) font 44 pt de haut au doigt (`.context-menu-item`,
   comme celles du menu d'un article), contre 40 px avant.
   ⚠️ **L'appui long n'est pas un agrément, il était indispensable.** Jusqu'à la
@@ -244,10 +245,15 @@ glisser-déposer, masquage des flux entièrement lus.
   ici le ⋯ **occupe l'emplacement du compteur de non-lus** (un carré fixe de
   24×20 qui évite tout saut de mise en page). L'afficher en permanence
   masquerait le compteur — l'information la plus utile de la barre latérale.
-  - Le geste s'annule dès que le doigt bouge, sinon un défilement de la barre
-    ouvrirait un menu. Il est inerte en mode organisation, où la ligne se
-    glisse. Et le clic qui le termine est avalé, sans quoi le flux se
-    chargerait derrière le menu.
+  - Le geste s'annule dès que le doigt dépasse la tolérance de 8 px (sinon un
+    défilement de la barre ouvrirait un menu), sur `touchcancel` et sur un
+    second doigt ; un tremblement en deçà ne l'annule pas. Il est inerte en
+    mode organisation, où la ligne se glisse. Et le clic qui le termine est
+    avalé, sans quoi le flux se chargerait derrière le menu.
+  - ⚠️ **Le `contextmenu` d'écho de Chrome Android est absorbé**
+    (`firedRecently()`) : transmis au gestionnaire du clic droit, il rouvrait
+    le menu au point du doigt, qui sautait donc sous le doigt juste après
+    s'être ouvert (jusqu'à la 1.7.0).
   - **Faiblesse assumée** : rien ne signale le geste. Même situation que
     l'appui long de classement d'un article, sans l'équivalent de la barre
     latérale pour le faire découvrir.

@@ -12,6 +12,7 @@ import { homeUnreadTotal } from '../../lib/mainStream';
 import { homeEntryActive } from '../../lib/unreadScope';
 import { useThemeStore } from '../../stores/themeStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useLongPress } from '../../hooks/useLongPress';
 import AddFeedDialog from './AddFeedDialog';
 import type { Article, Subscription, Tag } from '../../types';
 import { groupLabels } from '../../utils/labels';
@@ -1087,8 +1088,9 @@ interface FeedItemProps {
 }
 
 /**
- * Durée d'appui qui ouvre le menu d'un flux au doigt.
+ * Ligne d'un flux.
  *
+ * L'appui long au doigt (`useLongPress`, 500 ms comme partout) ouvre le menu.
  * ⚠️ Ce geste n'est pas un agrément, c'est le SEUL chemin tactile vers les
  * quatre actions d'un flux — renommer, ouvrir le site, extraction automatique,
  * se désabonner. Le ⋯ ne paraît qu'au survol, et il occupe l'emplacement du
@@ -1097,20 +1099,12 @@ interface FeedItemProps {
  * n'existe pas au doigt. Sans cet appui long, ces quatre actions étaient
  * réservées au bureau — l'extraction automatique par flux comprise, alors
  * qu'elle se règle depuis un téléphone dans l'usage réel.
- *
- * 500 ms, comme le geste de classement d'un article (`ArticleActions.tsx`) :
- * un même délai pour un même type de geste.
  */
-export const FEED_LONG_PRESS_MS = 500;
-
 export function FeedItem({ feed, isSelected, unreadCount, showFavicons, organizeMode, onSelect, onContextMenu, onOpenMenu, onDragStart, onDragOver, onDrop }: FeedItemProps) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Un appui long vient d'ouvrir le menu : le clic qui le termine est avalé. */
-  const pressFired = useRef(false);
   const feedErrors = useFeedStore((s) => s.feedErrors);
   const hasError = !!feedErrors[feed.id];
   // Pulse this row when the last manual refresh brought new articles to it.
@@ -1119,37 +1113,32 @@ export function FeedItem({ feed, isSelected, unreadCount, showFavicons, organize
   // Prefetch this feed's first page so opening it is instant (dedup'd in-store).
   const prefetch = () => { useFeedStore.getState().prefetchView(feed); };
 
-  const cancelPress = () => {
-    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
-  };
   // Au doigt seulement : le bureau a déjà le clic droit et le ⋯, et armer le
-  // geste à la souris surprendrait qui maintient le bouton enfoncé.
-  const startPress = () => {
-    pressFired.current = false;
-    pressTimer.current = setTimeout(() => {
-      pressFired.current = true;
-      const rect = btnRef.current?.getBoundingClientRect();
-      if (rect) onOpenMenu(rect);
-    }, FEED_LONG_PRESS_MS);
-  };
-  // Le minuteur ne doit pas survivre à la ligne : une relève qui retire le flux
-  // pendant l'appui ouvrirait un menu sur un flux qui n'est plus là.
-  useEffect(() => cancelPress, []);
+  // geste à la souris surprendrait qui maintient le bouton enfoncé. Inerte en
+  // mode organisation, où la ligne se glisse.
+  const press = useLongPress(() => {
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) onOpenMenu(rect);
+  }, { enabled: !organizeMode });
 
   return (
     <button
       ref={btnRef}
-      onClick={organizeMode ? undefined : (e) => {
-        // Le clic qui termine un appui long ne doit pas charger le flux
-        // derrière le menu qui vient de s'ouvrir.
-        if (pressFired.current) { pressFired.current = false; e.preventDefault(); e.stopPropagation(); return; }
-        onSelect();
-      }}
-      onTouchStart={organizeMode ? undefined : startPress}
-      onTouchEnd={organizeMode ? undefined : cancelPress}
-      onTouchMove={organizeMode ? undefined : cancelPress}
+      onClick={organizeMode ? undefined : onSelect}
+      // Le clic qui termine un appui long ne doit pas charger le flux derrière
+      // le menu qui vient de s'ouvrir : avalé en capture.
+      onClickCapture={organizeMode ? undefined : press.onClickCapture}
+      onTouchStart={organizeMode ? undefined : press.onTouchStart}
+      onTouchEnd={organizeMode ? undefined : press.onTouchEnd}
+      onTouchMove={organizeMode ? undefined : press.onTouchMove}
+      onTouchCancel={organizeMode ? undefined : press.onTouchCancel}
       onPointerDown={organizeMode ? undefined : prefetch}
-      onContextMenu={organizeMode ? undefined : onContextMenu}
+      onContextMenu={organizeMode ? undefined : (e) => {
+        // Chrome Android émet `contextmenu` sur l'appui long qui vient
+        // d'ouvrir le menu : transmis, il le rouvrirait au point du doigt.
+        if (press.firedRecently()) { e.preventDefault(); return; }
+        onContextMenu(e);
+      }}
       onMouseEnter={organizeMode ? undefined : () => { setHovered(true); hoverTimer.current = setTimeout(prefetch, 120); }}
       onMouseLeave={organizeMode ? undefined : () => { setHovered(false); if (hoverTimer.current) clearTimeout(hoverTimer.current); }}
       draggable={organizeMode}
