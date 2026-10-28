@@ -39,8 +39,6 @@
     "rename": "Zmień nazwę",
     "renameFeed": "Zmień nazwę kanału",
     "cancel": "Anuluj",
-    "delete": "Usuń",
-    "deleteFeedConfirm": "Usunąć {{name}}?",
     "uncategorized": "Bez kategorii",
     "loadError": "Błąd ładowania",
     "collapse": "Zwiń",
@@ -56,7 +54,11 @@
     "expandCategory": "Rozwiń kategorię",
     "collapseCategory": "Zwiń kategorię",
     "starOnGithub": "Dodaj gwiazdkę na GitHubie",
-    "support": "Wesprzyj projekt"
+    "support": "Wesprzyj projekt",
+    "unsubscribeTitle": "Anulować subskrypcję „{{name}}”?",
+    "unsubscribeWarning": "Kanał i jego artykuły zostaną usunięte z FreshRSS. Tej operacji nie można cofnąć.",
+    "unsubscribeFailed": "Nie udało się anulować subskrypcji.",
+    "renameFailed": "Nie udało się zmienić nazwy kanału."
   },
   "addFeed": {
     "title": "Dodaj kanał RSS",
@@ -332,7 +334,10 @@
       "moveTooltip": "Przenieś do innego elementu nadrzędnego",
       "showCounts": "Pokaż liczbę artykułów",
       "resetColorsTitle": "Zresetować kolory etykiet?",
-      "resetColorsMessage": "Wszystkie etykiety tracą swój własny kolor."
+      "resetColorsMessage": "Wszystkie etykiety tracą swój własny kolor.",
+      "confirmDeleteMessage": "Artykuły z tą etykietą nie zostaną usunięte, stracą tylko tę etykietę.",
+      "deleteFailed": "Nie udało się usunąć etykiety.",
+      "renameFailed": "Nie udało się zmienić nazwy etykiety."
     },
     "themes": {
       "presets": "Gotowe motywy",
@@ -355,7 +360,9 @@
       "savedThemes_one": "Zapisany motyw ({{count}})",
       "savedThemes_few": "Zapisane motywy ({{count}})",
       "savedThemes_many": "Zapisanych motywów ({{count}})",
-      "savedThemes_other": "Zapisanego motywu ({{count}})"
+      "savedThemes_other": "Zapisanego motywu ({{count}})",
+      "deleteTitle": "Usunąć motyw „{{name}}”?",
+      "deleteMessage": "Zniknie z zapisanych motywów. Motywów dołączonych do FriRSS nie można usunąć."
     },
     "shortcuts": {
       "title": "Nawigacja klawiaturą",
@@ -484,7 +491,8 @@
       "renamed": "Zmieniono nazwę kategorii",
       "deleted": "Usunięto kategorię",
       "moved": "Przeniesiono kanał",
-      "failed": "Operacja się nie powiodła"
+      "failed": "Operacja się nie powiodła",
+      "deleteTitle": "Usunąć kategorię „{{name}}”?"
     },
     "layout": {
       "title": "Ikony akcji artykułu",
@@ -712,7 +720,9 @@
     "newCategory": "Nowa kategoria",
     "noCategory": "Brak kategorii — utwórz ją na pasku bocznym",
     "deleteCategory": "Usuń kategorię",
-    "holdHint": "przytrzymaj, aby zapisać"
+    "holdHint": "przytrzymaj, aby zapisać",
+    "deleteTitle": "Usunąć kategorię „{{name}}”?",
+    "deleteMessage": "Zapisane w niej artykuły nie zostaną usunięte, opuszczą tylko tę kategorię."
   },
   "backup": {
     "title": "Kopia zapasowa",

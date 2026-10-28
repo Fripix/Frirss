@@ -35,8 +35,6 @@
     "rename": "Renomear",
     "renameFeed": "Renomear o feed",
     "cancel": "Cancelar",
-    "delete": "Eliminar",
-    "deleteFeedConfirm": "Eliminar {{name}}?",
     "uncategorized": "Sem categoria",
     "loadError": "Erro de carregamento",
     "collapse": "Recolher",
@@ -52,7 +50,11 @@
     "expandCategory": "Expandir a categoria",
     "collapseCategory": "Recolher a categoria",
     "starOnGithub": "Dar uma estrela no GitHub",
-    "support": "Apoiar o projeto"
+    "support": "Apoiar o projeto",
+    "unsubscribeTitle": "Cancelar a subscrição de «{{name}}»?",
+    "unsubscribeWarning": "O feed e os seus artigos são retirados do FreshRSS. Esta ação não pode ser anulada.",
+    "unsubscribeFailed": "Não foi possível cancelar a subscrição.",
+    "renameFailed": "Não foi possível mudar o nome do feed."
   },
   "addFeed": {
     "title": "Adicionar um feed RSS",
@@ -324,7 +326,10 @@
       "moveTooltip": "Mover para outro elemento pai",
       "showCounts": "Mostrar o número de artigos",
       "resetColorsTitle": "Repor as cores das etiquetas?",
-      "resetColorsMessage": "Todas as etiquetas perdem a sua cor personalizada."
+      "resetColorsMessage": "Todas as etiquetas perdem a sua cor personalizada.",
+      "confirmDeleteMessage": "Os artigos que a têm não são eliminados: perdem apenas esta etiqueta.",
+      "deleteFailed": "Não foi possível eliminar a etiqueta.",
+      "renameFailed": "Não foi possível mudar o nome da etiqueta."
     },
     "themes": {
       "presets": "Predefinições",
@@ -345,7 +350,9 @@
       "importError": "Ficheiro de tema inválido",
       "delete": "Eliminar",
       "savedThemes_one": "Tema guardado ({{count}})",
-      "savedThemes_other": "Temas guardados ({{count}})"
+      "savedThemes_other": "Temas guardados ({{count}})",
+      "deleteTitle": "Eliminar o tema «{{name}}»?",
+      "deleteMessage": "Desaparece dos temas guardados. Os temas incluídos no FriRSS não podem ser eliminados."
     },
     "shortcuts": {
       "title": "Navegação por teclado",
@@ -468,7 +475,8 @@
       "renamed": "Categoria renomeada",
       "deleted": "Categoria eliminada",
       "moved": "Feed movido",
-      "failed": "A operação falhou"
+      "failed": "A operação falhou",
+      "deleteTitle": "Eliminar a categoria «{{name}}»?"
     },
     "layout": {
       "title": "Ícones de ação dos artigos",
@@ -688,7 +696,9 @@
     "newCategory": "Nova categoria",
     "noCategory": "Sem categorias — crie uma na barra lateral",
     "deleteCategory": "Eliminar a categoria",
-    "holdHint": "manter para arquivar"
+    "holdHint": "manter para arquivar",
+    "deleteTitle": "Eliminar a categoria «{{name}}»?",
+    "deleteMessage": "Os artigos guardados nela não são eliminados: saem apenas desta categoria."
   },
   "backup": {
     "title": "Cópia de segurança",

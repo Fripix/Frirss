@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, cleanup, fireEvent, waitFor, within, act } from '@testing-library/react';
+import { CONFIRM_GRACE_MS } from '../../ConfirmDialog';
 import ServerRow from './ServerRow';
 import type { DisplayServer } from '../../../lib/serverList';
 
@@ -152,5 +153,22 @@ describe('ServerRow — cannotDeleteLast', () => {
 
     const deleteButton = getByText('servers.delete').closest('button') as HTMLButtonElement;
     expect(deleteButton.disabled).toBe(true);
+  });
+});
+
+// La confirmation se faisait en place, et « Supprimer » s'y posait à l'endroit
+// du bouton qui l'ouvrait : un double-clic supprimait le serveur.
+describe('ServerRow — supprimer passe par la boîte de confirmation', () => {
+  it('ne supprime pas sur un double-clic, puis supprime après validation', async () => {
+    const props = baseProps();
+    const { getByText, getByRole } = render(<ServerRow {...props} onRename={vi.fn()} />);
+    fireEvent.click(getByText('servers.delete').closest('button') as HTMLButtonElement);
+    const dialog = getByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'servers.delete' });
+    fireEvent.click(confirm);
+    expect(props.onDelete).not.toHaveBeenCalled();
+    await act(async () => { await new Promise((r) => setTimeout(r, CONFIRM_GRACE_MS + 30)); });
+    await act(async () => { fireEvent.click(confirm); });
+    expect(props.onDelete).toHaveBeenCalledTimes(1);
   });
 });

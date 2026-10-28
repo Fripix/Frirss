@@ -255,7 +255,13 @@ la release publiée.
   pastille qui ressemblait à une étiquette ; supprimer un compte se validait
   au second clic d'un double-clic. Les boutons « Réinitialiser » des
   Préférences (thème, couleurs, tailles, couleurs des étiquettes) passent par
-  la même fenêtre, qui dit ce qui sera perdu.
+  la même fenêtre, qui dit ce qui sera perdu, de même que toutes les
+  suppressions : se désabonner d'un flux, supprimer une étiquette, une
+  catégorie, un serveur, un thème enregistré ou une catégorie de Favoris / À
+  lire plus tard (qui, elle, ne demandait rien).
+- **Un échec se dit.** Se désabonner, renommer un flux, renommer ou supprimer
+  une étiquette fermaient le menu comme si c'était fait quand le serveur
+  refusait ; un message le dit désormais.
 - **« Tout réinitialiser » devient « Réinitialiser »** : il promettait de tout
   remettre à zéro (« couleurs, tailles, raccourcis… »), alors qu'il ne
   rétablit que les couleurs et les tailles du thème en cours.

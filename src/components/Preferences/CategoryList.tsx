@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import ConfirmDialog from '../ConfirmDialog';
 import { useFeedStore } from '../../stores/feedStore';
 import { groupFeedsByCategory, isValidCategoryName, type CategoryGroup } from '../../lib/feedCategories';
 import { useUiStore } from '../../stores/uiStore';
@@ -90,7 +91,9 @@ export default function CategoryList() {
                   () => useFeedStore.getState().deleteCategory(group.id),
                   'preferences.categories.deleted'
                 );
-                if (ok) { setConfirming(null); setExpanded(null); }
+                // La boîte se ferme dans les deux cas : un échec est dit par le toast de `run`.
+                setConfirming(null);
+                if (ok) setExpanded(null);
               }}
               onMove={(feedId, name) =>
                 run(
@@ -242,32 +245,18 @@ function CategoryRow({
         </div>
       )}
 
-      {confirming && (
-        <div className="px-3 py-2.5 space-y-2" style={{ background: 'var(--danger-light)' }}>
-          {/* Dire ce qui arrive aux flux : c'est la question que pose toute
-              suppression de catégorie, et y répondre après coup est trop tard. */}
-          <p className="text-xs" style={{ color: 'var(--danger)' }}>
-            {t('preferences.categories.deleteWarning', { count: group.feeds.length })}
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={onDelete}
-              disabled={busy}
-              className="prefs-tap-btn px-2.5 py-1.5 text-xs font-medium rounded-md disabled:opacity-40"
-              style={{ background: 'var(--danger)', color: 'var(--on-danger)' }}
-            >
-              {t('preferences.categories.confirmDelete')}
-            </button>
-            <button
-              onClick={onCancelDelete}
-              className="prefs-tap-btn px-2.5 py-1.5 text-xs rounded-md"
-              style={{ color: 'var(--list-summary)' }}
-            >
-              {t('preferences.categories.cancel')}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Par la boîte de confirmation, plus en place sous la ligne. Elle dit ce
+          qui arrive aux flux : c'est la question que pose toute suppression de
+          catégorie, et y répondre après coup est trop tard. */}
+      <ConfirmDialog
+        open={!!confirming}
+        title={t('preferences.categories.deleteTitle', { name: group.label })}
+        message={t('preferences.categories.deleteWarning', { count: group.feeds.length })}
+        confirmLabel={t('preferences.categories.confirmDelete')}
+        danger
+        onConfirm={async () => { await onDelete?.(); }}
+        onCancel={() => onCancelDelete?.()}
+      />
 
       {expanded && (
         <div style={{ background: 'var(--panel-bg)' }}>

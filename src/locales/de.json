@@ -35,8 +35,6 @@
     "rename": "Umbenennen",
     "renameFeed": "Feed umbenennen",
     "cancel": "Abbrechen",
-    "delete": "Löschen",
-    "deleteFeedConfirm": "{{name}} löschen?",
     "uncategorized": "Ohne Kategorie",
     "loadError": "Ladefehler",
     "collapse": "Einklappen",
@@ -52,7 +50,11 @@
     "expandCategory": "Kategorie ausklappen",
     "collapseCategory": "Kategorie einklappen",
     "starOnGithub": "Auf GitHub mit einem Stern versehen",
-    "support": "Das Projekt unterstützen"
+    "support": "Das Projekt unterstützen",
+    "unsubscribeTitle": "„{{name}}“ abbestellen?",
+    "unsubscribeWarning": "Der Feed und seine Artikel werden aus FreshRSS entfernt. Das kann nicht rückgängig gemacht werden.",
+    "unsubscribeFailed": "Abbestellen fehlgeschlagen.",
+    "renameFailed": "Der Feed konnte nicht umbenannt werden."
   },
   "addFeed": {
     "title": "RSS-Feed hinzufügen",
@@ -324,7 +326,10 @@
       "moveTooltip": "Zu einem anderen übergeordneten Label verschieben",
       "showCounts": "Artikelanzahl anzeigen",
       "resetColorsTitle": "Label-Farben zurücksetzen?",
-      "resetColorsMessage": "Alle Labels verlieren ihre eigene Farbe."
+      "resetColorsMessage": "Alle Labels verlieren ihre eigene Farbe.",
+      "confirmDeleteMessage": "Artikel mit diesem Label werden nicht gelöscht, sie verlieren nur das Label.",
+      "deleteFailed": "Das Label konnte nicht gelöscht werden.",
+      "renameFailed": "Das Label konnte nicht umbenannt werden."
     },
     "themes": {
       "presets": "Voreinstellungen",
@@ -345,7 +350,9 @@
       "importError": "Ungültige Theme-Datei",
       "delete": "Löschen",
       "savedThemes_one": "Gespeichertes Theme ({{count}})",
-      "savedThemes_other": "Gespeicherte Themes ({{count}})"
+      "savedThemes_other": "Gespeicherte Themes ({{count}})",
+      "deleteTitle": "Theme „{{name}}“ löschen?",
+      "deleteMessage": "Es verschwindet aus den gespeicherten Themes. Die mit FriRSS gelieferten Themes lassen sich nicht löschen."
     },
     "shortcuts": {
       "title": "Tastaturnavigation",
@@ -468,7 +475,8 @@
       "renamed": "Kategorie umbenannt",
       "deleted": "Kategorie gelöscht",
       "moved": "Feed verschoben",
-      "failed": "Das hat nicht geklappt"
+      "failed": "Das hat nicht geklappt",
+      "deleteTitle": "Kategorie „{{name}}“ löschen?"
     },
     "layout": {
       "title": "Aktionssymbole für Artikel",
@@ -688,7 +696,9 @@
     "newCategory": "Neue Kategorie",
     "noCategory": "Keine Kategorie – in der Seitenleiste anlegen",
     "deleteCategory": "Kategorie löschen",
-    "holdHint": "halten zum Einsortieren"
+    "holdHint": "halten zum Einsortieren",
+    "deleteTitle": "Kategorie „{{name}}“ löschen?",
+    "deleteMessage": "Die darin abgelegten Artikel werden nicht gelöscht, sie verlassen nur diese Kategorie."
   },
   "backup": {
     "title": "Sicherung",

@@ -4,6 +4,7 @@ import { useThemeStore, SHIPPED_THEMES } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { TabResetButton } from './TabResetButton';
+import ConfirmDialog from '../ConfirmDialog';
 import ThemePreview from './ThemePreview';
 import ToggleSwitch from '../ToggleSwitch';
 import { hasRealHighlight, PREVIEW_ZONES } from './colorHighlight';
@@ -94,6 +95,8 @@ function ThemeSection() {
     importTheme,
   } = useThemeStore();
   const [importError, setImportError] = useState('');
+  // Le thème dont la suppression attend confirmation (elle se faisait d'un clic).
+  const [deleting, setDeleting] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleImport(e: ChangeEvent<HTMLInputElement>) {
@@ -197,8 +200,8 @@ function ThemeSection() {
                   )}
                   {!isDefault && (
                     <button
-                      onClick={() => deleteSavedTheme(st.name)}
-                      className="text-[10px] px-2 py-0.5 rounded hover:bg-red-50"
+                      onClick={() => setDeleting(st.name)}
+                      className="text-[10px] px-2 py-0.5 rounded hover:opacity-80"
                       style={{ color: 'var(--danger)' }}
                     >
                       {t('preferences.themes.deleteShort')}
@@ -208,6 +211,15 @@ function ThemeSection() {
               );
             })}
           </div>
+          <ConfirmDialog
+            open={deleting !== null}
+            title={t('preferences.themes.deleteTitle', { name: deleting ?? '' })}
+            message={t('preferences.themes.deleteMessage')}
+            confirmLabel={t('preferences.themes.delete')}
+            danger
+            onConfirm={() => { if (deleting) deleteSavedTheme(deleting); setDeleting(null); }}
+            onCancel={() => setDeleting(null)}
+          />
         </div>
       )}
 

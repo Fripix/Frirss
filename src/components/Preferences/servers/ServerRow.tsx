@@ -1,5 +1,6 @@
 import { useId, useState, useRef, useEffect, type FormEvent, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
+import ConfirmDialog from '../../ConfirmDialog';
 import { hostnameOf, type DisplayServer } from '../../../lib/serverList';
 import RefreshTokenField from './RefreshTokenField';
 
@@ -160,24 +161,17 @@ export default function ServerRow({
           />
 
           <div className="pt-1" style={{ borderTop: '1px solid var(--panel-border)' }}>
-            {confirmDelete ? (
-              <div className="flex items-center gap-2 flex-wrap pt-2">
-                <span className="text-xs" style={{ color: 'var(--list-title)' }}>
-                  {t('servers.confirmDelete', { name: server.name })}
-                </span>
-                <RowAction label={t('sidebar.cancel')} onClick={() => setConfirmDelete(false)} disabled={busy} />
-                <button
-                  type="button"
-                  onClick={() => run(onDelete)}
-                  disabled={busy}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg min-h-[44px] disabled:opacity-50"
-                  style={{ background: 'var(--danger)', color: 'var(--on-danger)' }}
-                >
-                  {t('servers.delete')}
-                </button>
-              </div>
-            ) : (
-              <div className="pt-2">
+            {/* Par la boîte de confirmation : en place, « Supprimer » se posait
+                là où était le bouton qui l'ouvrait, et un double-clic validait. */}
+            <ConfirmDialog
+              open={confirmDelete}
+              title={t('servers.confirmDelete', { name: server.name })}
+              confirmLabel={t('servers.delete')}
+              danger
+              onConfirm={async () => { await run(onDelete); setConfirmDelete(false); }}
+              onCancel={() => setConfirmDelete(false)}
+            />
+            <div className="pt-2">
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(true)}
@@ -193,8 +187,7 @@ export default function ServerRow({
                     {t('servers.cannotDeleteLast')}
                   </span>
                 )}
-              </div>
-            )}
+            </div>
           </div>
 
           {error && (

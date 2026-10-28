@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import ConfirmDialog from '../ConfirmDialog';
 import { useFeedStore, READ_LATER_LABEL, getSampleArticleUrl } from '../../stores/feedStore';
 import { feedSiteUrl } from '../../lib/feedSiteUrl';
 import { openExternal } from '../../lib/openExternal';
@@ -822,6 +823,11 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
   const [mode, setMode] = useState<'rename' | 'confirmDelete' | null>(null);
   const [renameValue, setRenameValue] = useState(feed.title);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Lu par l'écouteur de clic extérieur, posé une seule fois : pendant la
+  // confirmation, la boîte vit hors du menu, et un clic dedans ne le ferme pas.
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const pushToast = useUiStore((s) => s.pushToast);
   const feedSettings = useUiStore((s) => s.feedSettings);
   const setFeedAutoExtract = useUiStore((s) => s.setFeedAutoExtract);
   const setFeedLayout = useUiStore((s) => s.setFeedLayout);
@@ -835,6 +841,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
   // laissait le menu ouvert.
   useEffect(() => {
     function handleClick(e: Event) {
+      if (modeRef.current === 'confirmDelete') return;
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
     }
     // Échap ferme dans les trois états : la garde de `useKeyboardNav` se tait
@@ -887,7 +894,9 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
         <form onSubmit={async (e: FormEvent) => {
           e.preventDefault();
           if (renameValue.trim() && renameValue.trim() !== feed.title) {
-            await onRename(feed.id, renameValue.trim());
+            // Un échec se dit : le menu se fermait comme si le flux était renommé.
+            const ok = await onRename(feed.id, renameValue.trim());
+            if (!ok) pushToast(t('sidebar.renameFailed'), { tone: 'error' });
           }
           onClose();
         }}>
@@ -929,29 +938,24 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
   }
 
   if (mode === 'confirmDelete') {
-    return createPortal(
-      <div ref={menuRef} style={style} className="p-3" data-floating-surface>
-        <p className="text-xs mb-3" style={{ color: 'var(--list-title)' }}>
-          {t('sidebar.deleteFeedConfirm', { name: feed.title })}
-        </p>
-        <div className="flex gap-1.5 justify-end">
-          <button
-            onClick={onClose}
-            className="px-2.5 py-1 text-xs rounded-lg transition-colors hover:bg-black/5"
-            style={{ color: 'var(--list-summary)' }}
-          >
-            {t('sidebar.cancel')}
-          </button>
-          <button
-            onClick={async () => { await onDelete(feed.id); onClose(); }}
-            className="px-2.5 py-1 text-xs font-medium rounded-lg"
-            style={{ background: 'var(--danger)', color: 'var(--on-danger)' }}
-          >
-            {t('sidebar.delete')}
-          </button>
-        </div>
-      </div>
-      , document.body);
+    // La boîte de confirmation remplace le menu : la mini-confirmation posait
+    // son bouton à l'endroit de l'entrée qui l'ouvrait (double-clic = validé),
+    // et disait « Supprimer » pour l'action nommée « Se désabonner ».
+    return (
+      <ConfirmDialog
+        open
+        title={t('sidebar.unsubscribeTitle', { name: feed.title })}
+        warning={t('sidebar.unsubscribeWarning')}
+        confirmLabel={t('sidebar.unsubscribe')}
+        danger
+        onConfirm={async () => {
+          const ok = await onDelete(feed.id);
+          if (!ok) pushToast(t('sidebar.unsubscribeFailed'), { tone: 'error' });
+          onClose();
+        }}
+        onCancel={onClose}
+      />
+    );
   }
 
     return createPortal(
@@ -1221,7 +1225,7 @@ export function FeedItem({ feed, isSelected, unreadCount, showFavicons, organize
  * so each row is a plain FilterItem — which already accepts an article drop,
  * making drag-to-file work with no extra machinery.
  */
-function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }: { prefix: string; adding?: boolean; onAddingDone?: () => void }) {
+export function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }: { prefix: string; adding?: boolean; onAddingDone?: () => void }) {
   const { t } = useTranslation();
   const labels = useFeedStore((s) => s.labels);
   const selectedFeed = useFeedStore((s) => s.selectedFeed);
@@ -1235,6 +1239,10 @@ function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }: { pre
 
   const [selfAdding, setSelfAdding] = useState(false);
   const [name, setName] = useState('');
+  // La catégorie dont la suppression attend confirmation : la croix supprimait
+  // l'étiquette sur le serveur d'un seul clic.
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
+  const pushToast = useUiStore((s) => s.pushToast);
   const adding = selfAdding || !!forcedAdding;
   const stopAdding = () => { setSelfAdding(false); onAddingDone?.(); };
   const cats = useMemo(() => savedCategories(labels, prefix, names), [labels, prefix, names]);
@@ -1260,11 +1268,7 @@ function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }: { pre
             />
           </div>
           <button
-            onClick={() => {
-              removeSavedCategory(prefix, cat.name);
-              // Only labels the server knows about need deleting there.
-              if (labels.some((l) => l.id === cat.id)) deleteLabel(cat.id);
-            }}
+            onClick={() => setDeleting({ id: cat.id, name: cat.name })}
             title={t('saved.deleteCategory')}
             // Révélée au survol seulement. Sans survol (toucher), elle restait
             // invisible mais cliquable : un tap sur le bord droit de la ligne
@@ -1314,6 +1318,24 @@ function SavedCategoryList({ prefix, adding: forcedAdding, onAddingDone }: { pre
           <span className="text-left">{t('saved.newCategory')}</span>
         </button>
       )}
+      <ConfirmDialog
+        open={deleting !== null}
+        title={t('saved.deleteTitle', { name: deleting?.name ?? '' })}
+        message={t('saved.deleteMessage')}
+        confirmLabel={t('saved.deleteCategory')}
+        danger
+        onConfirm={async () => {
+          if (!deleting) return;
+          const target = deleting;
+          // Seules les étiquettes que le serveur connaît s'y suppriment ; un nom
+          // créé ici sans article rangé n'existe que dans les préférences.
+          const ok = labels.some((l) => l.id === target.id) ? await deleteLabel(target.id) : true;
+          if (ok) removeSavedCategory(prefix, target.name);
+          else pushToast(t('preferences.labels.deleteFailed'), { tone: 'error' });
+          setDeleting(null);
+        }}
+        onCancel={() => setDeleting(null)}
+      />
     </div>
   );
 }

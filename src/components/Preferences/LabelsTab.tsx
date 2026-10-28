@@ -6,6 +6,7 @@ import { useFeedStore } from '../../stores/feedStore';
 import ToggleSwitch from '../ToggleSwitch';
 import type { Tag } from '../../types';
 import { TabResetButton } from './TabResetButton';
+import ConfirmDialog from '../ConfirmDialog';
 
 // Label grouping item (Preferences labels tab)
 interface PrefLabelChild { tag: Tag; leafName: string; fullName: string }
@@ -475,6 +476,9 @@ function LabelRow({
   const { t } = useTranslation();
   const [mode, setMode] = useState<'rename' | 'confirmDelete' | 'move' | null>(null);
   const [renameValue, setRenameValue] = useState(name);
+  // Un échec se dit : sans message, la ligne revenait à l'ancien nom (ou
+  // gardait l'étiquette) comme si de rien n'était.
+  const pushToast = useUiStore((s) => s.pushToast);
   const displayColor = color || effectiveColor || 'var(--accent)';
   const isDragging = dragId === labelId;
   const isDropTarget = dropTarget?.id === labelId;
@@ -487,7 +491,8 @@ function LabelRow({
           onSubmit={async (e) => {
             e.preventDefault();
             if (renameValue.trim() && renameValue.trim() !== name) {
-              await onRename(labelId, renameValue.trim());
+              const ok = await onRename(labelId, renameValue.trim());
+              if (!ok) pushToast(t('preferences.labels.renameFailed'), { tone: 'error' });
             }
             setMode(null);
           }}
@@ -529,30 +534,6 @@ function LabelRow({
             </svg>
           </button>
         </form>
-      </div>
-    );
-  }
-
-  if (mode === 'confirmDelete') {
-    return (
-      <div className="flex items-center gap-2 py-1.5 px-2 rounded-md" style={{ background: 'var(--panel-header-bg)' }}>
-        <span className="text-xs flex-1" style={{ color: 'var(--danger)' }}>
-          {t('preferences.labels.confirmDelete', { name })}
-        </span>
-        <button
-          onClick={async () => { await onDelete(labelId); setMode(null); }}
-          className="px-2 py-0.5 rounded text-[10px] font-medium"
-          style={{ background: 'var(--danger)', color: 'var(--on-danger)' }}
-        >
-          {t('preferences.labels.delete')}
-        </button>
-        <button
-          onClick={() => setMode(null)}
-          className="px-2 py-0.5 rounded text-[10px]"
-          style={{ color: 'var(--list-summary)' }}
-        >
-          {t('preferences.labels.cancel')}
-        </button>
       </div>
     );
   }
@@ -747,6 +728,21 @@ function LabelRow({
           onRemoveColor={onRemoveColor}
         />
       </div>
+      {/* Par la boîte, plus en place sur la ligne : un double-clic sur la
+          corbeille tombait sur « Supprimer », posé au même endroit. */}
+      <ConfirmDialog
+        open={mode === 'confirmDelete'}
+        title={t('preferences.labels.confirmDelete', { name })}
+        message={t('preferences.labels.confirmDeleteMessage')}
+        confirmLabel={t('preferences.labels.delete')}
+        danger
+        onConfirm={async () => {
+          const ok = await onDelete(labelId);
+          if (!ok) pushToast(t('preferences.labels.deleteFailed'), { tone: 'error' });
+          setMode(null);
+        }}
+        onCancel={() => setMode(null)}
+      />
     </div>
   );
 }

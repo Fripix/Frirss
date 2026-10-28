@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup, screen, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent, act, within } from '@testing-library/react';
+import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
+import { useUiStore } from '../../stores/uiStore';
 import { FeedContextMenu } from './Sidebar';
 import type { Subscription } from '../../types';
 
@@ -48,5 +50,48 @@ describe('FeedContextMenu — un menu flottant hors du tiroir', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
     unmount();
+  });
+});
+
+// Le désabonnement se confirmait dans le menu lui-même, « Supprimer » posé à
+// l'endroit de l'entrée qui l'ouvrait ; et un échec fermait le menu comme si
+// le flux était parti.
+describe('FeedContextMenu — se désabonner et renommer', () => {
+  const grace = () => act(async () => { await new Promise((r) => setTimeout(r, CONFIRM_GRACE_MS + 30)); });
+
+  it('se désabonner passe par la boîte, que ni un double-clic ni un clic dedans ne referment', async () => {
+    const onDelete = vi.fn(async () => true);
+    const onClose = vi.fn();
+    render(<FeedContextMenu feed={feed} x={10} y={10} onRename={yes} onDelete={onDelete} onClose={onClose} />);
+    fireEvent.click(screen.getByText('sidebar.unsubscribe'));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.pointerDown(dialog);
+    const confirm = within(dialog).getByRole('button', { name: 'sidebar.unsubscribe' });
+    fireEvent.click(confirm);
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    await grace();
+    await act(async () => { fireEvent.click(confirm); });
+    expect(onDelete).toHaveBeenCalledWith('feed/1');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('un désabonnement refusé le dit', async () => {
+    useUiStore.setState({ toasts: [] });
+    render(<FeedContextMenu feed={feed} x={10} y={10} onRename={yes} onDelete={async () => false} onClose={() => {}} />);
+    fireEvent.click(screen.getByText('sidebar.unsubscribe'));
+    await grace();
+    await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'sidebar.unsubscribe' })); });
+    expect(useUiStore.getState().toasts.map((x) => x.message)).toContain('sidebar.unsubscribeFailed');
+  });
+
+  it('un renommage refusé le dit', async () => {
+    useUiStore.setState({ toasts: [] });
+    render(<FeedContextMenu feed={feed} x={10} y={10} onRename={async () => false} onDelete={yes} onClose={() => {}} />);
+    fireEvent.click(screen.getByText('sidebar.rename'));
+    const field = screen.getByDisplayValue('The Register');
+    fireEvent.change(field, { target: { value: 'El Reg' } });
+    await act(async () => { fireEvent.submit(field.closest('form')!); });
+    expect(useUiStore.getState().toasts.map((x) => x.message)).toContain('sidebar.renameFailed');
   });
 });

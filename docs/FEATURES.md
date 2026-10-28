@@ -1829,7 +1829,16 @@ dialogue**, et **retour en arrière** une fois l'action faite.
 - **La même boîte pour toute action qui défait ou supprime** (1.8.0,
   décision du propriétaire) : réinitialiser le thème, les couleurs, les
   tailles, les couleurs d'étiquettes (`TabResetButton`), les actions sur un
-  compte (Administration), les suppressions. Les anciens mécanismes — bouton
+  compte (Administration), et toutes les suppressions — se désabonner d'un
+  flux (menu du flux, `FeedContextMenu` : la boîte remplace le menu, dont le
+  clic extérieur est ignoré pendant la confirmation), une étiquette
+  (`LabelsTab`), une catégorie de flux (`CategoryList`, qui dit ce que
+  deviennent ses flux), un serveur (`ServerRow`), un thème enregistré, une
+  catégorie de Favoris / À lire plus tard (`SavedCategoryList`). **Un échec
+  se dit** partout (toast `tone: 'error'`) : se désabonner, renommer un flux,
+  renommer ou supprimer une étiquette fermaient le menu comme si c'était
+  fait. Tests : `*.confirm.test.tsx`, `FeedContextMenu.portal.test.tsx`,
+  `ServerRow.test.tsx`. Les anciens mécanismes — bouton
   qui devient « Confirmer ? » pendant 3 s, croix qui devient « ? » pendant
   5 s — validaient sur le second clic d'un double-clic, le piège de l'issue
   #17. `danger` colore le bouton de validation en `--danger` /

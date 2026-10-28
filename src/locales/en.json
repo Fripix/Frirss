@@ -35,8 +35,6 @@
     "rename": "Rename",
     "renameFeed": "Rename feed",
     "cancel": "Cancel",
-    "delete": "Delete",
-    "deleteFeedConfirm": "Delete {{name}}?",
     "uncategorized": "Uncategorized",
     "expandCategory": "Expand category",
     "collapseCategory": "Collapse category",
@@ -52,7 +50,11 @@
     "feedLayoutThisFeed": "Layout for this feed",
     "feedOrderThisFeed": "Order for this feed",
     "starOnGithub": "Star it on GitHub",
-    "support": "Support the project"
+    "support": "Support the project",
+    "unsubscribeTitle": "Unsubscribe from “{{name}}”?",
+    "unsubscribeWarning": "The feed and its articles are removed from FreshRSS. This can’t be undone.",
+    "unsubscribeFailed": "Couldn’t unsubscribe.",
+    "renameFailed": "Couldn’t rename the feed."
   },
   "addFeed": {
     "title": "Add an RSS feed",
@@ -324,7 +326,10 @@
       "moveTooltip": "Move to another parent",
       "showCounts": "Show article count",
       "resetColorsTitle": "Reset the tag colors?",
-      "resetColorsMessage": "Every tag loses its custom color."
+      "resetColorsMessage": "Every tag loses its custom color.",
+      "confirmDeleteMessage": "Articles that carry it aren’t deleted: they just lose this tag.",
+      "deleteFailed": "Couldn’t delete the tag.",
+      "renameFailed": "Couldn’t rename the tag."
     },
     "themes": {
       "presets": "Presets",
@@ -345,7 +350,9 @@
       "importError": "Invalid theme file",
       "delete": "Delete",
       "savedThemes_one": "Saved theme ({{count}})",
-      "savedThemes_other": "Saved themes ({{count}})"
+      "savedThemes_other": "Saved themes ({{count}})",
+      "deleteTitle": "Delete the “{{name}}” theme?",
+      "deleteMessage": "It disappears from the saved themes. The themes shipped with FriRSS can’t be deleted."
     },
     "shortcuts": {
       "title": "Keyboard navigation",
@@ -468,7 +475,8 @@
       "renamed": "Category renamed",
       "deleted": "Category deleted",
       "moved": "Feed moved",
-      "failed": "That did not work"
+      "failed": "That did not work",
+      "deleteTitle": "Delete the “{{name}}” category?"
     },
     "layout": {
       "title": "Article action icons",
@@ -688,7 +696,9 @@
     "newCategory": "New category",
     "noCategory": "No category — create one in the sidebar",
     "deleteCategory": "Delete category",
-    "holdHint": "hold to file"
+    "holdHint": "hold to file",
+    "deleteTitle": "Delete the “{{name}}” category?",
+    "deleteMessage": "Articles filed in it aren’t deleted: they just leave this category."
   },
   "backup": {
     "title": "Backup",

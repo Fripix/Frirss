@@ -35,8 +35,6 @@
     "rename": "Hernoemen",
     "renameFeed": "Feed hernoemen",
     "cancel": "Annuleren",
-    "delete": "Verwijderen",
-    "deleteFeedConfirm": "{{name}} verwijderen?",
     "uncategorized": "Zonder categorie",
     "loadError": "Laadfout",
     "collapse": "Inklappen",
@@ -52,7 +50,11 @@
     "expandCategory": "Categorie uitklappen",
     "collapseCategory": "Categorie inklappen",
     "starOnGithub": "Geef een ster op GitHub",
-    "support": "Steun het project"
+    "support": "Steun het project",
+    "unsubscribeTitle": "Uitschrijven van ‘{{name}}’?",
+    "unsubscribeWarning": "De feed en zijn artikelen worden uit FreshRSS verwijderd. Dit kan niet ongedaan worden gemaakt.",
+    "unsubscribeFailed": "Uitschrijven is mislukt.",
+    "renameFailed": "De feed kon niet worden hernoemd."
   },
   "addFeed": {
     "title": "Een RSS-feed toevoegen",
@@ -324,7 +326,10 @@
       "moveTooltip": "Naar een ander bovenliggend label verplaatsen",
       "showCounts": "Aantal artikelen tonen",
       "resetColorsTitle": "Labelkleuren opnieuw instellen?",
-      "resetColorsMessage": "Alle labels verliezen hun eigen kleur."
+      "resetColorsMessage": "Alle labels verliezen hun eigen kleur.",
+      "confirmDeleteMessage": "Artikelen met dit label worden niet verwijderd: ze verliezen alleen dit label.",
+      "deleteFailed": "Het label kon niet worden verwijderd.",
+      "renameFailed": "Het label kon niet worden hernoemd."
     },
     "themes": {
       "presets": "Voorinstellingen",
@@ -345,7 +350,9 @@
       "importError": "Ongeldig themabestand",
       "delete": "Verwijderen",
       "savedThemes_one": "Opgeslagen thema ({{count}})",
-      "savedThemes_other": "Opgeslagen thema’s ({{count}})"
+      "savedThemes_other": "Opgeslagen thema’s ({{count}})",
+      "deleteTitle": "Thema ‘{{name}}’ verwijderen?",
+      "deleteMessage": "Het verdwijnt uit de opgeslagen thema’s. De thema’s die met FriRSS meekomen, kunnen niet worden verwijderd."
     },
     "shortcuts": {
       "title": "Toetsenbordnavigatie",
@@ -468,7 +475,8 @@
       "renamed": "Categorie hernoemd",
       "deleted": "Categorie verwijderd",
       "moved": "Feed verplaatst",
-      "failed": "Dat is niet gelukt"
+      "failed": "Dat is niet gelukt",
+      "deleteTitle": "Categorie ‘{{name}}’ verwijderen?"
     },
     "layout": {
       "title": "Actiepictogrammen voor artikelen",
@@ -688,7 +696,9 @@
     "newCategory": "Nieuwe categorie",
     "noCategory": "Geen categorie — maak er een in de zijbalk",
     "deleteCategory": "Categorie verwijderen",
-    "holdHint": "houd vast om op te slaan"
+    "holdHint": "houd vast om op te slaan",
+    "deleteTitle": "Categorie ‘{{name}}’ verwijderen?",
+    "deleteMessage": "De opgeslagen artikelen worden niet verwijderd: ze verlaten alleen deze categorie."
   },
   "backup": {
     "title": "Back-up",

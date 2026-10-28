@@ -35,8 +35,6 @@
     "rename": "Renommer",
     "renameFeed": "Renommer le flux",
     "cancel": "Annuler",
-    "delete": "Supprimer",
-    "deleteFeedConfirm": "Supprimer {{name}} ?",
     "uncategorized": "Sans catégorie",
     "expandCategory": "Déplier la catégorie",
     "collapseCategory": "Replier la catégorie",
@@ -52,7 +50,11 @@
     "feedLayoutThisFeed": "Disposition de ce flux",
     "feedOrderThisFeed": "Ordre de ce flux",
     "starOnGithub": "Mettre une étoile sur GitHub",
-    "support": "Soutenir le projet"
+    "support": "Soutenir le projet",
+    "unsubscribeTitle": "Se désabonner de « {{name}} » ?",
+    "unsubscribeWarning": "Le flux et ses articles sont retirés de FreshRSS. Cette action ne peut pas être annulée.",
+    "unsubscribeFailed": "Le désabonnement a échoué.",
+    "renameFailed": "Le renommage du flux a échoué."
   },
   "addFeed": {
     "title": "Ajouter un flux RSS",
@@ -324,7 +326,10 @@
       "moveTooltip": "Déplacer vers un autre parent",
       "showCounts": "Afficher le nombre d’articles",
       "resetColorsTitle": "Réinitialiser les couleurs des étiquettes ?",
-      "resetColorsMessage": "Toutes les étiquettes perdent leur couleur personnalisée."
+      "resetColorsMessage": "Toutes les étiquettes perdent leur couleur personnalisée.",
+      "confirmDeleteMessage": "Les articles qui la portent ne sont pas supprimés : ils perdent seulement cette étiquette.",
+      "deleteFailed": "La suppression de l’étiquette a échoué.",
+      "renameFailed": "Le renommage de l’étiquette a échoué."
     },
     "themes": {
       "presets": "Préréglages",
@@ -345,7 +350,9 @@
       "importError": "Fichier de thème invalide",
       "delete": "Supprimer",
       "savedThemes_one": "Thème enregistré ({{count}})",
-      "savedThemes_other": "Thèmes enregistrés ({{count}})"
+      "savedThemes_other": "Thèmes enregistrés ({{count}})",
+      "deleteTitle": "Supprimer le thème « {{name}} » ?",
+      "deleteMessage": "Il disparaît de la liste des thèmes enregistrés. Les thèmes livrés avec FriRSS ne se suppriment pas."
     },
     "shortcuts": {
       "title": "Navigation clavier",
@@ -468,7 +475,8 @@
       "renamed": "Catégorie renommée",
       "deleted": "Catégorie supprimée",
       "moved": "Flux déplacé",
-      "failed": "L’opération a échoué"
+      "failed": "L’opération a échoué",
+      "deleteTitle": "Supprimer la catégorie « {{name}} » ?"
     },
     "layout": {
       "title": "Icônes d’action des articles",
@@ -688,7 +696,9 @@
     "newCategory": "Nouvelle catégorie",
     "noCategory": "Aucune catégorie — créez-en une dans la barre latérale",
     "deleteCategory": "Supprimer la catégorie",
-    "holdHint": "maintenir pour ranger"
+    "holdHint": "maintenir pour ranger",
+    "deleteTitle": "Supprimer la catégorie « {{name}} » ?",
+    "deleteMessage": "Les articles qui y sont rangés ne sont pas supprimés : ils sortent seulement de cette catégorie."
   },
   "backup": {
     "title": "Sauvegarde",

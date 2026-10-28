@@ -35,8 +35,6 @@
     "rename": "重命名",
     "renameFeed": "重命名订阅源",
     "cancel": "取消",
-    "delete": "删除",
-    "deleteFeedConfirm": "删除“{{name}}”？",
     "uncategorized": "未分类",
     "expandCategory": "展开分类",
     "collapseCategory": "收起分类",
@@ -52,7 +50,11 @@
     "feedLayoutThisFeed": "此订阅源的布局",
     "feedOrderThisFeed": "此订阅源的排序",
     "starOnGithub": "在 GitHub 上标星",
-    "support": "支持本项目"
+    "support": "支持本项目",
+    "unsubscribeTitle": "取消订阅“{{name}}”？",
+    "unsubscribeWarning": "该订阅源及其文章将从 FreshRSS 中移除。此操作无法撤销。",
+    "unsubscribeFailed": "无法取消订阅。",
+    "renameFailed": "无法重命名订阅源。"
   },
   "addFeed": {
     "title": "添加 RSS 订阅源",
@@ -324,7 +326,10 @@
       "moveTooltip": "移动到其他父标签",
       "showCounts": "显示文章数",
       "resetColorsTitle": "重置标签颜色？",
-      "resetColorsMessage": "所有标签都会失去自定义颜色。"
+      "resetColorsMessage": "所有标签都会失去自定义颜色。",
+      "confirmDeleteMessage": "带有此标签的文章不会被删除，只是失去这个标签。",
+      "deleteFailed": "无法删除标签。",
+      "renameFailed": "无法重命名标签。"
     },
     "themes": {
       "presets": "预设",
@@ -345,7 +350,9 @@
       "importError": "主题文件无效",
       "delete": "删除",
       "savedThemes_one": "已保存主题（{{count}}）",
-      "savedThemes_other": "已保存主题（{{count}}）"
+      "savedThemes_other": "已保存主题（{{count}}）",
+      "deleteTitle": "删除主题“{{name}}”？",
+      "deleteMessage": "它会从已保存的主题中消失。FriRSS 自带的主题无法删除。"
     },
     "shortcuts": {
       "title": "键盘导航",
@@ -468,7 +475,8 @@
       "renamed": "分类已重命名",
       "deleted": "分类已删除",
       "moved": "订阅源已移动",
-      "failed": "操作失败"
+      "failed": "操作失败",
+      "deleteTitle": "删除分类“{{name}}”？"
     },
     "layout": {
       "title": "文章操作图标",
@@ -688,7 +696,9 @@
     "newCategory": "新建分类",
     "noCategory": "未分类 — 可在侧边栏新建",
     "deleteCategory": "删除分类",
-    "holdHint": "长按归入"
+    "holdHint": "长按归入",
+    "deleteTitle": "删除分类“{{name}}”？",
+    "deleteMessage": "归入其中的文章不会被删除，只是离开这个分类。"
   },
   "backup": {
     "title": "备份",
