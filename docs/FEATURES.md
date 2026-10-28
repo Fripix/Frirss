@@ -78,6 +78,16 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
   4xx (jeton inutilisable), déconnecte tout de suite. Après le dernier échec,
   l'écran de connexion affiche `login.errorUnavailable` (via la prop `oidcError`
   de `Login`, valeur `unavailable`) ; toute autre valeur garde `login.errorSso`.
+  Chaque lecture y a son propre délai, court : **15 s**
+  (`OIDC_GETME_TIMEOUT_MS`), pas les 75 s par défaut — avec un serveur muet,
+  l'échec final tombait au bout de ≈ 6,5 min et déconnectait une session que
+  l'utilisateur avait pu poursuivre ; pire cas désormais 90 s. `/api/auth/me`
+  ne fait aucun appel amont, la règle « le serveur répond avant le client »
+  tient. **Garde de session** : avant `setAuth`, `logout` ou l'annonce
+  d'échec, le jeton du store doit être encore celui qu'on termine
+  (`currentToken`) ; sinon (déconnexion ou autre connexion pendant les
+  réessais) la boucle s'arrête sans rien toucher — elle ressuscitait la
+  session fermée, ou déconnectait celle d'un autre.
 - **Piège** (1.6.1, issue #23) : le callback lit les cookies de l'hôte avec un
   parseur maison (`server/cookies.ts`, `parseCookieHeader()`), et cet hôte
   porte aussi les cookies des **autres** services posés sur le même domaine

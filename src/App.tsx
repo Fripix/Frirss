@@ -187,6 +187,7 @@ export default function App() {
         logout: () => useAuthStore.getState().logoutBackend(),
         wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
         onUnavailable: () => setOidcError('unavailable'),
+        currentToken: () => useAuthStore.getState().backendToken,
       });
     } else if (error) {
       setOidcError(error);

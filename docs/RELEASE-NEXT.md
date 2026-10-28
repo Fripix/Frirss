@@ -113,10 +113,13 @@ _(rien pour l'instant)_
   invalide) ferme la session.
 - **Retour SSO : une coupure réseau passagère ne renvoie plus à l'écran de
   connexion.** Si la lecture du profil échoue juste après la redirection, elle
-  est réessayée jusqu'à quatre fois (1, 2, 4 puis 8 s). Seule une session
-  réellement refusée déconnecte tout de suite ; après le dernier échec,
-  l'écran de connexion dit que le serveur n'a pas répondu (clé existante
-  `login.errorUnavailable`).
+  est réessayée jusqu'à quatre fois (1, 2, 4 puis 8 s), chaque essai
+  abandonné au bout de 15 s : un serveur muet est constaté en une minute et
+  demie au plus. Seule une session réellement refusée déconnecte tout de
+  suite ; après le dernier échec, l'écran de connexion dit que le serveur n'a
+  pas répondu (clé existante `login.errorUnavailable`). Se déconnecter (ou se
+  reconnecter autrement) pendant ces essais les arrête net, sans rouvrir ni
+  fermer de session.
 
 - **Plus aucune requête n'attend indéfiniment.** Un serveur FreshRSS (ou une
   page) qui envoyait le début de sa réponse puis ne finissait jamais tenait

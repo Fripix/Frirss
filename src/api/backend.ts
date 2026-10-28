@@ -70,8 +70,9 @@ export async function loginUser(username: string, password: string): Promise<Aut
 }
 
 
-export async function getMe(): Promise<User> {
-  const { data } = await backend.get<{ user: User }>('/auth/me');
+/** `timeout` : le retour OIDC lit l'utilisateur avec un délai court (`OIDC_GETME_TIMEOUT_MS`). */
+export async function getMe(opts: { timeout?: number } = {}): Promise<User> {
+  const { data } = await backend.get<{ user: User }>('/auth/me', opts.timeout ? { timeout: opts.timeout } : undefined);
   return data.user;
 }
 
