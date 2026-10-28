@@ -1382,13 +1382,19 @@ mieux qu'avant mais encore trop discrète).
   renommage disparaissaient, le relevé suivant partant d'une base déjà
   relevée. Deux exceptions dans `loadSubscriptions` : **un flux que le store
   ne connaissait pas ne compte pas** (`ignoreUnknownFeeds` — ajouter un flux
-  de 30 non-lus n'annonce pas « 30 nouveaux articles » ; les flux déjà abonnés
-  sans compteur sont posés à 0 dans la base, pour que leurs vraies arrivées
-  comptent quand même), et **`refresh()` ne compte pas deux fois**
+  de 30 non-lus n'annonce pas « 30 nouveaux articles » ; un flux supprimé puis
+  réabonné en est un aussi, voulu : FreshRSS lui donne un nouvel id, son stock
+  n'est donc pas annoncé ; les flux déjà abonnés sans compteur sont posés à 0
+  dans la base, pour que leurs vraies arrivées comptent quand même), et **`refresh()` ne compte pas deux fois**
   (`loadSubscriptions({ countArrivals: false })` : son propre bandeau,
   `refreshResult`, annonce déjà ces arrivées, calculées depuis son `before`).
   La vue y est lue sur les nouveaux abonnements : un flux déplacé dans la
   catégorie affichée y compte, c'est ce que montrera le rechargement.
+  Comme `syncCounts` (Fix 3), un `loadSubscriptions` revenu après un
+  changement de serveur n'écrit **rien** — ni abonnements ni compteurs : il
+  donnerait sinon au nouveau serveur la base de l'ancien (les ids `feed/1`,
+  `feed/2`… se recouvrent), et son premier chargement annoncerait des
+  différences entre deux serveurs comme des arrivées.
   Un relevé lit le serveur APRÈS un aller-retour réseau : une écriture locale
   faite par l'app pendant ce vol (✓, tout marquer lu, une nouvelle vue) change
   le compteur local avant que le serveur ne le sache, et ressemblerait sinon à
@@ -1431,8 +1437,7 @@ mieux qu'avant mais encore trop discrète).
   pendant l'aller-retour) : il n'écrit alors ni la liste ni `newInView`.
 - **Limites** : un article marqué non lu sur un autre appareil compte comme une
   arrivée ; des arrivées et des lectures faites ailleurs dans le même
-  intervalle, sur le même flux, peuvent s'annuler. Un flux supprimé puis
-  réabonné passe pour un flux nouveau : son stock n'est pas annoncé.
+  intervalle, sur le même flux, peuvent s'annuler.
 - **Devenu un bandeau** (retouche visuelle — la pastille était jugée mieux
   qu'avant mais encore trop discrète) : pleine largeur de la colonne de liste,
   posé juste sous l'en-tête. L'emplacement (`.new-articles-slot`) reste

@@ -689,6 +689,42 @@ describe('feedStore.loadSubscriptions — arrivées du bandeau « nouveaux artic
     expect(useFeedStore.getState().refreshResult?.totalNew).toBe(3);
     expect(maxInView).toBe(0);
   });
+
+  // Fix 3 de `syncCounts`, appliqué à `loadSubscriptions` : un chargement
+  // parti sur le serveur A et revenu après le passage au serveur B ne doit
+  // rien écrire. Sinon la base de B serait celle de A (les ids `feed/1`,
+  // `feed/2`… se recouvrent d'un serveur à l'autre) et le premier
+  // chargement de B annoncerait des « arrivées » qui ne sont que des
+  // différences entre deux serveurs.
+  it('a load that lands after a server switch writes nothing', async () => {
+    const prevServer = useAuthStore.getState().activeServerId;
+    useAuthStore.setState({ activeServerId: '1' });
+    try {
+      let resolveSubs!: (v: unknown) => void;
+      let resolveCounts!: (v: unknown) => void;
+      vi.mocked(api.getSubscriptionList).mockReturnValueOnce(new Promise((r) => { resolveSubs = r; }) as never);
+      vi.mocked(api.getUnreadCounts).mockReturnValueOnce(new Promise((r) => { resolveCounts = r; }) as never);
+      const pendingA = useFeedStore.getState().loadSubscriptions();
+      // Passage au serveur B, comme `resetAndReload` : base vide.
+      useAuthStore.setState({ activeServerId: '2' });
+      useFeedStore.setState({ subscriptions: [], unreadCounts: {}, newInView: 0 });
+      resolveSubs([feedA, feedB]);
+      resolveCounts(counts({ 'feed/A': 2, 'feed/B': 1 }));
+      await pendingA;
+      expect(useFeedStore.getState().subscriptions).toEqual([]);
+      expect(useFeedStore.getState().unreadCounts).toEqual({});
+
+      // Le chargement de B, ensuite : ses compteurs n'ont aucune base à
+      // comparer, rien n'est annoncé.
+      vi.mocked(api.getSubscriptionList).mockResolvedValueOnce([feedA, feedB] as never);
+      vi.mocked(api.getUnreadCounts).mockResolvedValueOnce(counts({ 'feed/A': 9, 'feed/B': 7 }));
+      await useFeedStore.getState().loadSubscriptions();
+      expect(useFeedStore.getState().newInView).toBe(0);
+      expect(useFeedStore.getState().unreadCounts['feed/A']).toBe(9);
+    } finally {
+      useAuthStore.setState({ activeServerId: prevServer });
+    }
+  });
 });
 
 describe('pickPrefetchFeeds', () => {

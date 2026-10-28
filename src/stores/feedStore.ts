@@ -1016,6 +1016,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         getSubscriptionList(),
         getUnreadCounts(),
       ]);
+      // Fix 3 de `syncCounts`, appliqué ici : un chargement parti sur un autre
+      // serveur que l'actif n'écrit rien. Revenu après le `unreadCounts: {}`
+      // de `resetAndReload`, il donnerait au nouveau serveur la base de
+      // l'ancien (les ids `feed/1`, `feed/2`… se recouvrent d'un serveur à
+      // l'autre) et son premier chargement annoncerait des « arrivées » qui ne
+      // sont que des différences entre deux serveurs. Avant `applyZeroFloor` :
+      // les planchers zéro sont eux aussi ceux du nouveau serveur.
+      if (String(useAuthStore.getState().activeServerId) !== String(reading.serverId)) return;
       const serverUrl = useAuthStore.getState().serverUrl.replace(/\/$/, '');
       // Normalize favicon URLs — FreshRSS often returns internal Docker IPs
       // (e.g. http://10.0.0.10/f.php?h=abc) instead of the public URL.

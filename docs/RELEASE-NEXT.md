@@ -97,7 +97,9 @@ _(rien pour l'instant)_
   dans la minute précédente n'étaient jamais signalés. Ils le sont
   désormais. Ajouter un flux n'annonce pas pour autant tout son stock comme
   « nouveau », et Rafraîchir ne compte pas deux fois ce que sa propre
-  notification annonce déjà.
+  notification annonce déjà. Et un chargement des abonnements parti juste
+  avant un changement de serveur n'écrit plus les flux et les compteurs de
+  l'ancien serveur par-dessus ceux du nouveau.
 - **Le bandeau « nouveaux articles » ne cache plus le séparateur du jour.**
   Tant qu'il s'affiche, le libellé de date collé en haut de la liste (liste et
   grille) se place juste en dessous au lieu d'être recouvert.
