@@ -1274,6 +1274,30 @@ describe('ReadingPane — traduction de l\'article', () => {
     // L'allemand reste à l'écran tant que l'espagnol n'est pas arrivé.
     expect(bodyText(container)).toBe('Der Text');
   });
+  // Un clic arrivé dès que le bouton paraît, avant que React n'ait passé ses
+  // effets : le volet lisait encore l'état « en cours » et ignorait le clic
+  // (test ci-dessus instable sous charge, un essai sur huit environ).
+  it('« Réessayer avec… » clicked the instant it appears is not ignored', async () => {
+    useAiStore.setState({ config: { ...ON, providers: [...ON.providers, { id: 2, name: 'Claude', type: 'anthropic' as const, hasAdminKey: true, shared: true, hasUserKey: false, available: true }] } });
+    vi.mocked(requestAiTranslation)
+      .mockRejectedValueOnce(httpError(502, { error: 'ai_failed', kind: 'technical', provider: { id: 1, name: 'Ollama' } }))
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const { getByRole, container } = render(<ReadingPane />);
+    let clicked = false;
+    const watch = new MutationObserver(() => {
+      const retry = [...container.querySelectorAll('button')].find((b) => b.textContent === 'ai.retryWith');
+      if (retry && !clicked) { clicked = true; fireEvent.click(retry); }
+    });
+    watch.observe(container, { childList: true, subtree: true });
+    try {
+      fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
+      await waitFor(() => expect(clicked).toBe(true));
+      await waitFor(() => expect(requestAiTranslation).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(requestAiTranslation).mock.calls[1][0]).toMatchObject({ provider: 2 });
+    } finally {
+      watch.disconnect();
+    }
+  });
   it('after a change of target language, the shown translation stays; « Texte source » then « Traduire » goes to the new language', async () => {
     // Décision du propriétaire (2026-10-23) : rien ne se retraduit tout seul, l'utilisateur relance.
     vi.mocked(requestAiTranslation).mockResolvedValueOnce(translated(['Title a1', 'word word']));

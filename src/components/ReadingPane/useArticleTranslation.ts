@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { requestAiTranslation, type AiTranslationResult } from '../../api/backend';
@@ -367,7 +367,10 @@ export function useArticleTranslation(input: ArticleTranslationInput): ArticleTr
   useEffect(() => () => { seq.current++; }, []);
 
   const latest = useRef({ input, hash: source.hash, key, current, canTranslate, t, language: i18n.language, isAdmin });
-  useEffect(() => {
+  // Au moment du rendu validé, pas après : un clic arrivé entre l'affichage
+  // et les effets (« Réessayer avec… » dès qu'il paraît) lisait encore l'état
+  // « en cours » et était ignoré.
+  useLayoutEffect(() => {
     latest.current = { input, hash: source.hash, key, current, canTranslate, t, language: i18n.language, isAdmin };
   });
 

@@ -209,6 +209,9 @@ la release publiée.
   règlent.** Taille du texte des titres, des résumés, de l'article, largeur
   des cartes : chacun était annoncé « curseur, 240 », sans nom. Il porte
   désormais celui de sa ligne et sa valeur en pixels.
+- **Traduction : un clic sur « Réessayer avec… » dès son apparition n'est
+  plus perdu.** Le volet lisait encore l'état « en cours » pendant un bref
+  instant après l'affichage de l'erreur, et ignorait le clic.
 
 ## Sous le capot
 
