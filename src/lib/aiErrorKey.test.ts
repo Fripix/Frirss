@@ -101,7 +101,7 @@ describe('aiErrorKey', () => {
     expect(aiErrorKey(502, { error: 'ai_failed', kind: 'technical', detail: 'deadline' }, false, { op: 'translate', elapsedMs: 60_000 })).toBe('ai.errors.translateFailed');
     expect(aiErrorKey(504, undefined, false)).toBe('ai.errors.technical');
     expect(aiErrorKey(502, '<html>502 Bad Gateway</html>' as never, false, { op: 'translate', elapsedMs: 3_000 })).toBe('ai.errors.translateFailed');
-    expect(fr.ai.errors.proxyTimeout).toBe("Le serveur intermédiaire a coupé la réponse avant la fin : autorisez au moins 120 s sur /api/ai (voir la documentation).");
+    expect(fr.ai.errors.proxyTimeout).toBe("Le serveur intermédiaire a coupé la réponse avant la fin\u00a0: autorisez au moins 120 s sur /api/ai (voir la documentation).");
     expect(en.ai.errors.proxyTimeout).toContain('/api/ai');
   });
   it('keeps the other codes and falls back to technical', () => {
@@ -139,9 +139,9 @@ describe('aiErrorMessage', () => {
 
 describe('daily cap wording', () => {
   it('counts AI calls, not summaries: the counter is shared with translations', () => {
-    expect(fr.ai.errors.cap).toBe("Limite quotidienne d'appels IA atteinte.");
-    expect(fr.ai.errors.capDetail).toBe("Limite quotidienne d'appels IA atteinte ({{used}} sur {{cap}}). Nouvelle journée à {{time}}.");
-    expect(fr.ai.user.usage).toBe("Appels IA payés par l'instance aujourd'hui : {{used}} sur {{cap}}");
+    expect(fr.ai.errors.cap).toBe("Limite quotidienne d’appels IA atteinte.");
+    expect(fr.ai.errors.capDetail).toBe("Limite quotidienne d’appels IA atteinte ({{used}} sur {{cap}}). Nouvelle journée à {{time}}.");
+    expect(fr.ai.user.usage).toBe("Appels IA payés par l’instance aujourd’hui\u00a0: {{used}} sur {{cap}}");
     for (const s of [en.ai.errors.cap, en.ai.errors.capDetail, en.ai.user.usage]) expect(s.toLowerCase()).not.toContain('summar');
   });
 });
