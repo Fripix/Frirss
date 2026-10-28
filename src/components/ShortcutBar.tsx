@@ -4,23 +4,8 @@ import { useFeedStore } from '../stores/feedStore';
 import { useAiStore, aiUsable } from '../stores/aiStore';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { commandKeyLabel } from '../lib/platformKeys';
+import { keyLabel } from '../lib/keyLabel';
 
-const keyNames: Record<string, string> = {
-  ArrowUp: '↑',
-  ArrowDown: '↓',
-  ArrowLeft: '←',
-  ArrowRight: '→',
-  ' ': '␣',
-  Escape: 'Esc',
-  Enter: '↵',
-  Backspace: '⌫',
-  Delete: 'Suppr',
-  Tab: 'Tab',
-};
-
-function formatKey(key: string): string {
-  return keyNames[key] || key.toUpperCase();
-}
 
 export default function ShortcutBar() {
   const { t } = useTranslation();
@@ -76,7 +61,7 @@ export default function ShortcutBar() {
               boxShadow: '0 1px 0 var(--panel-border)',
             }}
           >
-            {formatKey(shortcuts[action])}
+            {keyLabel(shortcuts[action], t)}
           </kbd>
           <span className="text-[9px]" style={{ color: 'var(--list-summary)' }}>
             {t(`preferences.shortcuts.${action}`)}
@@ -94,7 +79,7 @@ export default function ShortcutBar() {
               boxShadow: '0 1px 0 var(--panel-border)',
             }}
           >
-            {formatKey('Escape')}
+            {keyLabel('Escape', t)}
           </kbd>
           <span className="text-[9px]" style={{ color: 'var(--list-summary)' }}>
             {escLabel}

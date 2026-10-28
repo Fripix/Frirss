@@ -1,7 +1,12 @@
 {
   "app": {
     "loading": "加载中…",
-    "close": "关闭"
+    "close": "关闭",
+    "errorTitle": "出现错误",
+    "errorBody": "应用遇到了意外问题。你可以重新加载页面。",
+    "errorReload": "重新加载",
+    "labelValue": "{{label}}：{{value}}",
+    "labelColon": "{{label}}："
   },
   "sidebar": {
     "allFeeds": "全部订阅源",
@@ -417,7 +422,10 @@
       "imagesReport": "找到 {{found}} 张图片，已存储 {{stored}} 张",
       "imagesBudgetStopped": "因达到存储配额而停止",
       "imagesFailed_one": "{{count}} 张图片无法获取——这很常见：部分站点会拒绝来自其他服务器的图片请求。",
-      "imagesFailed_other": "{{count}} 张图片无法获取——这很常见：部分站点会拒绝来自其他服务器的图片请求。"
+      "imagesFailed_other": "{{count}} 张图片无法获取——这很常见：部分站点会拒绝来自其他服务器的图片请求。",
+      "needsNetwork": "恢复联网后可用。",
+      "imagesClearTitle": "清空离线图片？",
+      "imagesClearMessage": "将删除保存在此设备上的图片。在下次准备之前，文章仍可离线阅读，但不含图片。"
     },
     "refresh": {
       "title": "刷新",

@@ -1,7 +1,12 @@
 {
   "app": {
     "loading": "Wird geladen…",
-    "close": "Schließen"
+    "close": "Schließen",
+    "errorTitle": "Ein Fehler ist aufgetreten",
+    "errorBody": "Die Anwendung ist auf ein unerwartetes Problem gestoßen. Sie können die Seite neu laden.",
+    "errorReload": "Neu laden",
+    "labelValue": "{{label}}: {{value}}",
+    "labelColon": "{{label}}:"
   },
   "sidebar": {
     "allFeeds": "Alle Feeds",
@@ -417,7 +422,10 @@
       "imagesReport": "{{found}} Bilder gefunden, {{stored}} gespeichert",
       "imagesBudgetStopped": "durch das Budget gestoppt",
       "imagesFailed_one": "{{count}} Bild konnte nicht geladen werden – das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab.",
-      "imagesFailed_other": "{{count}} Bilder konnten nicht geladen werden – das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab."
+      "imagesFailed_other": "{{count}} Bilder konnten nicht geladen werden – das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab.",
+      "needsNetwork": "Verfügbar, sobald die Verbindung zurück ist.",
+      "imagesClearTitle": "Offline-Bilder leeren?",
+      "imagesClearMessage": "Die auf diesem Gerät gespeicherten Bilder werden gelöscht. Artikel bleiben offline lesbar, ohne Bilder, bis zur nächsten Vorbereitung."
     },
     "refresh": {
       "title": "Abruf",

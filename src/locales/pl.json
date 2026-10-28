@@ -1,7 +1,12 @@
 {
   "app": {
     "loading": "Ładowanie…",
-    "close": "Zamknij"
+    "close": "Zamknij",
+    "errorTitle": "Wystąpił błąd",
+    "errorBody": "Aplikacja napotkała nieoczekiwany problem. Możesz odświeżyć stronę.",
+    "errorReload": "Odśwież",
+    "labelValue": "{{label}}: {{value}}",
+    "labelColon": "{{label}}:"
   },
   "sidebar": {
     "allFeeds": "Wszystkie kanały",
@@ -431,7 +436,10 @@
       "imagesFailed_one": "Nie udało się pobrać {{count}} obrazu — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
       "imagesFailed_other": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
       "imagesFailed_few": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
-      "imagesFailed_many": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera."
+      "imagesFailed_many": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
+      "needsNetwork": "Dostępne po przywróceniu połączenia.",
+      "imagesClearTitle": "Wyczyścić obrazy offline?",
+      "imagesClearMessage": "Obrazy zapisane na tym urządzeniu zostaną usunięte. Artykuły pozostaną czytelne offline, bez obrazów, do następnego przygotowania."
     },
     "refresh": {
       "title": "Odświeżanie",

@@ -1,5 +1,6 @@
 import { useState, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { keyLabel } from '../../lib/keyLabel';
 import AccountSection from './AccountSection';
 import { loadLanguage } from '../../i18n';
 import { useUiStore, shortcutActions } from '../../stores/uiStore';
@@ -63,21 +64,7 @@ export default function GeneralTab() {
     [editing, shortcuts, setShortcut]
   );
 
-  function formatKey(key: string) {
-    const names: Record<string, string> = {
-      ArrowUp: '↑',
-      ArrowDown: '↓',
-      ArrowLeft: '←',
-      ArrowRight: '→',
-      ' ': t('preferences.shortcuts.keySpace'),
-      Escape: t('preferences.shortcuts.keyEscape'),
-      Enter: t('preferences.shortcuts.keyEnter'),
-      Backspace: '⌫',
-      Delete: t('preferences.shortcuts.keyDelete'),
-      Tab: 'Tab',
-    };
-    return names[key] || key.toUpperCase();
-  }
+  const formatKey = (key: string) => keyLabel(key, t);
 
   return (
     <div className="space-y-5">

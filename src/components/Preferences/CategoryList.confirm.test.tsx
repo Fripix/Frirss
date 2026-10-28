@@ -8,7 +8,7 @@ import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
 import type { Subscription } from '../../types';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (k: string, o?: { name?: string }) => (o?.name ? `${k}:${o.name}` : k) }),
+  useTranslation: () => ({ t: (k: string, o?: { name?: string; label?: string; value?: string }) => (k === 'app.labelValue' ? `${o?.label} : ${o?.value}` : o?.name ? `${k}:${o.name}` : k) }),
   initReactI18next: { type: '3rdParty', init: () => {} },
 }));
 

@@ -9,6 +9,8 @@ import {
 } from '../../lib/offlineImages';
 import { getStorageEstimate, formatBytes, clearImageCache } from '../../lib/storageEstimate';
 import { countCachedImages } from '../../lib/imageCache';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import ConfirmDialog from '../ConfirmDialog';
 
 export default function OfflineTab({ active = true }: { active?: boolean }) {
   const { t } = useTranslation();
@@ -24,6 +26,10 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
   const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null);
   const [imageCount, setImageCount] = useState<number | null>(null);
   const [cleared, setCleared] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  // Hors ligne, `prepareOffline` ne fait rien : le bouton le dit au lieu de
+  // cliquer dans le vide.
+  const online = useOnlineStatus();
 
   const refreshEstimate = useCallback(() => {
     getStorageEstimate().then(setEstimate);
@@ -32,7 +38,9 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
   // Relu à chaque retour sur la section, pas seulement au montage : la
   // section reste montée une fois visitée, et l'espace disque comme le
   // nombre d'images changent entre deux visites.
-  useEffect(() => { if (active) refreshEstimate(); }, [active, refreshEstimate]);
+  // « Images supprimées » ne vaut que pour le vidage qu'on vient de faire : il
+  // restait affiché pour toujours, même une fois le cache rempli de nouveau.
+  useEffect(() => { if (active) { setCleared(false); refreshEstimate(); } }, [active, refreshEstimate]);
 
   const quota = estimate?.quota ?? 0;
   const imagesOff = offlineImagePreset === 'none';
@@ -60,7 +68,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
         </p>
         <button
           onClick={() => prepareOffline()}
-          disabled={offlinePrep?.running}
+          disabled={offlinePrep?.running || !online}
           className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
@@ -68,6 +76,11 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
             ? `${t('preferences.offline.preparing')} ${offlinePrep.done}/${offlinePrep.total || '…'}`
             : t('preferences.offline.button')}
         </button>
+        {!online && (
+          <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.offline.needsNetwork')}
+          </p>
+        )}
         {offlinePrep && !offlinePrep.running && offlinePrep.phase === 'done' && (
           <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.done')} ({offlinePrep.total})
@@ -200,7 +213,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
 
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={async () => { await clearImageCache(); setCleared(true); refreshEstimate(); }}
+            onClick={() => setConfirmClear(true)}
             className="px-3 py-1.5 text-xs rounded-lg transition-colors"
             style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
           >
@@ -216,6 +229,20 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
             </button>
           )}
         </div>
+        <ConfirmDialog
+          open={confirmClear}
+          title={t('preferences.offline.imagesClearTitle')}
+          message={t('preferences.offline.imagesClearMessage')}
+          confirmLabel={t('preferences.offline.imagesClear')}
+          danger
+          onConfirm={async () => {
+            await clearImageCache();
+            setCleared(true);
+            setConfirmClear(false);
+            refreshEstimate();
+          }}
+          onCancel={() => setConfirmClear(false)}
+        />
       </div>
     </div>
   );

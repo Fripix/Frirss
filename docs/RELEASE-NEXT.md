@@ -273,6 +273,19 @@ la release publiée.
 - **Administration : un échec se dit.** Une liste d'utilisateurs qui n'a pas
   pu se charger affichait « 0 utilisateur » ; une action refusée par le
   serveur ne disait rien.
+- **Hors ligne : le bouton « Préparer » dit pourquoi il ne répond pas** sans
+  réseau, « Vider les images » se confirme, et « Images supprimées » ne reste
+  plus affiché une fois le cache rempli de nouveau.
+- **La page d'erreur de l'application parle votre langue** (elle était en
+  français pour tout le monde) et tient la hauteur réelle de l'écran sur
+  Android en app installée.
+- **Ponctuation selon la langue** : « Recherche : … », les noms accessibles
+  « Renommer : Tech » et les détails d'une sauvegarde mettaient l'espace
+  française avant les deux-points dans toutes les langues (« Search : foo »).
+- **Les touches s'affichent pareil partout et dans votre langue** : la barre
+  des raccourcis écrivait « Suppr » en français pour toutes les langues, et
+  l'infobulle « Masquer la barre latérale (B) » gardait « B » même après une
+  réassignation.
 - **Traduction : un clic sur « Réessayer avec… » dès son apparition n'est
   plus perdu.** Le volet lisait encore l'état « en cours » pendant un bref
   instant après l'affichage de l'erreur, et ignorait le clic.

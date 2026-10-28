@@ -1,7 +1,12 @@
 {
   "app": {
     "loading": "Loading…",
-    "close": "Close"
+    "close": "Close",
+    "errorTitle": "Something went wrong",
+    "errorBody": "The app hit an unexpected problem. You can reload the page.",
+    "errorReload": "Reload",
+    "labelValue": "{{label}}: {{value}}",
+    "labelColon": "{{label}}:"
   },
   "sidebar": {
     "allFeeds": "All feeds",
@@ -417,7 +422,10 @@
       "imagesReport": "{{found}} images found, {{stored}} stored",
       "imagesBudgetStopped": "stopped by the budget",
       "imagesFailed_one": "{{count}} image could not be fetched — this is common: some sites refuse images requested from another server.",
-      "imagesFailed_other": "{{count}} images could not be fetched — this is common: some sites refuse images requested from another server."
+      "imagesFailed_other": "{{count}} images could not be fetched — this is common: some sites refuse images requested from another server.",
+      "needsNetwork": "Available once you’re back online.",
+      "imagesClearTitle": "Clear the offline images?",
+      "imagesClearMessage": "The images stored on this device are deleted. Articles stay readable offline, without their images, until the next preparation."
     },
     "refresh": {
       "title": "Refresh",

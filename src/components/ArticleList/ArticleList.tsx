@@ -767,7 +767,7 @@ export default function ArticleList() {
               </button>
             )}
             <h2 className="text-[15px] font-bold truncate min-w-0" style={{ color: 'var(--list-title)' }}>
-              {searchQuery ? `${t('articleList.search')} : ${searchQuery}` : title}
+              {searchQuery ? t('app.labelValue', { label: t('articleList.search'), value: searchQuery }) : title}
             </h2>
             <HeaderUnread count={headerUnread} />
             <div className="flex-1 flex items-center">
@@ -828,7 +828,7 @@ export default function ArticleList() {
             )}
 
             <h2 className="text-[16px] font-bold truncate min-w-0" style={{ color: 'var(--list-title)' }}>
-              {searchQuery ? `${t('articleList.search')} : ${searchQuery}` : title}
+              {searchQuery ? t('app.labelValue', { label: t('articleList.search'), value: searchQuery }) : title}
             </h2>
             <HeaderUnread count={headerUnread} />
 
@@ -888,7 +888,7 @@ export default function ArticleList() {
 
               <div className="min-w-0 flex-1 flex items-center gap-2">
                 <h2 className="text-[16px] font-bold truncate" style={{ color: 'var(--list-title)' }}>
-                  {searchQuery ? `${t('articleList.search')} : ${searchQuery}` : title}
+                  {searchQuery ? t('app.labelValue', { label: t('articleList.search'), value: searchQuery }) : title}
                 </h2>
                 <HeaderUnread count={headerUnread} />
               </div>
@@ -969,7 +969,7 @@ export default function ArticleList() {
                   type="button"
                   onClick={() => { forgetSearch(activeServerId, q); setHistory(loadSearchHistory(activeServerId)); }}
                   className="pr-2 pl-0.5 py-1 rounded-r-full opacity-50 hover:opacity-100 transition-opacity"
-                  aria-label={`${t('articleList.forgetSearch')} : ${q}`}
+                  aria-label={t('app.labelValue', { label: t('articleList.forgetSearch'), value: q })}
                   title={t('articleList.forgetSearch')}
                 >
                   <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>

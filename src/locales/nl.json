@@ -1,7 +1,12 @@
 {
   "app": {
     "loading": "Laden…",
-    "close": "Sluiten"
+    "close": "Sluiten",
+    "errorTitle": "Er is een fout opgetreden",
+    "errorBody": "De app liep tegen een onverwacht probleem aan. U kunt de pagina opnieuw laden.",
+    "errorReload": "Opnieuw laden",
+    "labelValue": "{{label}}: {{value}}",
+    "labelColon": "{{label}}:"
   },
   "sidebar": {
     "allFeeds": "Alle feeds",
@@ -417,7 +422,10 @@
       "imagesReport": "{{found}} afbeeldingen gevonden, {{stored}} opgeslagen",
       "imagesBudgetStopped": "gestopt door het budget",
       "imagesFailed_one": "{{count}} afbeelding kon niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd.",
-      "imagesFailed_other": "{{count}} afbeeldingen konden niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd."
+      "imagesFailed_other": "{{count}} afbeeldingen konden niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd.",
+      "needsNetwork": "Beschikbaar zodra de verbinding terug is.",
+      "imagesClearTitle": "Offline afbeeldingen wissen?",
+      "imagesClearMessage": "De afbeeldingen op dit apparaat worden verwijderd. Artikelen blijven offline leesbaar, zonder afbeeldingen, tot de volgende voorbereiding."
     },
     "refresh": {
       "title": "Ophalen",

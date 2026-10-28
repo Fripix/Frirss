@@ -4,22 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useUiStore, shortcutGroups, AI_SHORTCUTS } from '../stores/uiStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useAiStore, aiUsable } from '../stores/aiStore';
+import { keyLabel } from '../lib/keyLabel';
 
-const KEY_NAMES: Record<string, string> = {
-  ArrowUp: '↑',
-  ArrowDown: '↓',
-  ArrowLeft: '←',
-  ArrowRight: '→',
-  ' ': '␣',
-  Escape: 'Esc',
-  Enter: '↵',
-  Backspace: '⌫',
-  Tab: 'Tab',
-};
-
-function formatKey(key: string): string {
-  return KEY_NAMES[key] || key.toUpperCase();
-}
 
 /**
  * Aide-mémoire des raccourcis, sur `?`.
@@ -116,7 +102,7 @@ export default function ShortcutHelp() {
           <ul className="shortcut-help__list">
             {actions.map((action) => (
               <li key={action}>
-                <kbd>{formatKey(shortcuts[action])}</kbd>
+                <kbd>{keyLabel(shortcuts[action], t)}</kbd>
                 <span>{t(`preferences.shortcuts.${action}`)}</span>
               </li>
             ))}

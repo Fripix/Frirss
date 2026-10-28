@@ -8,7 +8,7 @@ import { useFeedStore } from '../../stores/feedStore';
 import type { Subscription, Tag } from '../../types';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
+  useTranslation: () => ({ t: (k: string, o?: { label?: string; value?: string }) => (k === 'app.labelValue' ? `${o?.label} : ${o?.value}` : k) }),
   initReactI18next: { type: '3rdParty', init: () => {} },
 }));
 

@@ -1,7 +1,12 @@
 {
   "app": {
     "loading": "A carregar…",
-    "close": "Fechar"
+    "close": "Fechar",
+    "errorTitle": "Ocorreu um erro",
+    "errorBody": "A aplicação encontrou um problema inesperado. Pode recarregar a página.",
+    "errorReload": "Recarregar",
+    "labelValue": "{{label}}: {{value}}",
+    "labelColon": "{{label}}:"
   },
   "sidebar": {
     "allFeeds": "Todos os feeds",
@@ -417,7 +422,10 @@
       "imagesReport": "{{found}} imagens encontradas, {{stored}} guardadas",
       "imagesBudgetStopped": "interrompido pelo orçamento",
       "imagesFailed_one": "Não foi possível obter {{count}} imagem — é comum: alguns sites recusam imagens pedidas a partir de outro servidor.",
-      "imagesFailed_other": "Não foi possível obter {{count}} imagens — é comum: alguns sites recusam imagens pedidas a partir de outro servidor."
+      "imagesFailed_other": "Não foi possível obter {{count}} imagens — é comum: alguns sites recusam imagens pedidas a partir de outro servidor.",
+      "needsNetwork": "Disponível quando a ligação voltar.",
+      "imagesClearTitle": "Esvaziar as imagens offline?",
+      "imagesClearMessage": "As imagens guardadas neste dispositivo são eliminadas. Os artigos continuam legíveis offline, sem as imagens, até à próxima preparação."
     },
     "refresh": {
       "title": "Atualização",

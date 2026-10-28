@@ -1,4 +1,20 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
+import i18n from '../i18n';
+
+/**
+ * Le texte du repli, dans la langue de l'interface. Par l'instance i18next et
+ * non par un hook : la frontière est une classe, et elle doit tenir même si
+ * l'erreur vient d'en dessous. Si la traduction elle-même échoue, le français
+ * de référence reste.
+ */
+function say(key: string, fallback: string): string {
+  try {
+    const out = i18n.t(key);
+    return out && out !== key ? out : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -34,7 +50,8 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       <div
         role="alert"
         style={{
-          minHeight: '100vh',
+          // `--app-height` sur Android (Chrome y fige le `100vh` de la feuille).
+          minHeight: 'var(--app-height, 100dvh)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -47,16 +64,16 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       >
         <div style={{ maxWidth: 420 }}>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-            Une erreur est survenue
+            {say('app.errorTitle', 'Une erreur est survenue')}
           </h1>
           <p style={{ fontSize: '0.875rem', opacity: 0.8, marginBottom: '1.25rem' }}>
-            L'application a rencontré un problème inattendu. Vous pouvez recharger la page.
+            {say('app.errorBody', 'L’application a rencontré un problème inattendu. Vous pouvez recharger la page.')}
           </p>
           <button
             onClick={() => window.location.reload()}
             style={{
               background: 'var(--accent, #4cd4a1)',
-              color: '#fff',
+              color: 'var(--on-accent, #1c1c1a)',
               border: 'none',
               padding: '0.6rem 1.2rem',
               borderRadius: 8,
@@ -65,7 +82,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
               cursor: 'pointer',
             }}
           >
-            Recharger
+            {say('app.errorReload', 'Recharger')}
           </button>
         </div>
       </div>

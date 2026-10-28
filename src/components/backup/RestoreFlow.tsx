@@ -197,10 +197,10 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
         >
           <p className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>{t('backup.previewTitle')}</p>
           <dl className="text-[11px] space-y-1" style={{ color: 'var(--list-summary)' }}>
-            <div><dt className="inline">{t('backup.createdAt')} : </dt><dd className="inline">{summary.createdAt ?? '—'}</dd></div>
-            <div><dt className="inline">{t('backup.producedBy')} : </dt><dd className="inline">{summary.appVersion ?? '—'}</dd></div>
-            <div><dt className="inline">{t('backup.usersCount')} : </dt><dd className="inline">{summary.summary.users}</dd></div>
-            <div><dt className="inline">{t('backup.serversCount')} : </dt><dd className="inline">{summary.summary.servers}</dd></div>
+            <div><dt className="inline">{t('app.labelColon', { label: t('backup.createdAt') })} </dt><dd className="inline">{summary.createdAt ?? '—'}</dd></div>
+            <div><dt className="inline">{t('app.labelColon', { label: t('backup.producedBy') })} </dt><dd className="inline">{summary.appVersion ?? '—'}</dd></div>
+            <div><dt className="inline">{t('app.labelColon', { label: t('backup.usersCount') })} </dt><dd className="inline">{summary.summary.users}</dd></div>
+            <div><dt className="inline">{t('app.labelColon', { label: t('backup.serversCount') })} </dt><dd className="inline">{summary.summary.servers}</dd></div>
           </dl>
 
           {envText && (

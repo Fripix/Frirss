@@ -618,6 +618,12 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
 
 - **Où** : `src/hooks/useKeyboardNav.ts`, `src/components/ShortcutBar.tsx`,
   `src/components/ShortcutHelp.tsx`, Préférences → Général
+- **Libellé d'une touche** : une seule fonction, `src/lib/keyLabel.ts`, pour
+  la barre, l'aide-mémoire, les Préférences et l'infobulle de la barre
+  latérale (1.8.0). Trois copies divergeaient : la barre écrivait « Suppr » en
+  français dans toutes les langues, l'aide-mémoire « Esc » quand les
+  Préférences disaient « Échap » ; et l'infobulle « Masquer la barre
+  latérale » écrivait « (B) » en dur, faux après une réassignation.
 - **Barre du bas** : les deux entrées globales — palette (⌘K / Ctrl+K) et
   aide-mémoire (`?`) — sont poussées à droite derrière un séparateur et leur
   touche est en accent. Elles ne sont ni réassignables ni contextuelles,
@@ -4563,6 +4569,12 @@ images consultés restent lisibles sans réseau.
   `src/components/OfflineBanner.tsx`, `src/components/UpdatePrompt.tsx`
 - **Réglages** : préparation manuelle, mise à jour à l'ouverture, budget d'images
   (aucune / légère / standard / maximale)
+- **Onglet Hors ligne** (1.8.0, `OfflineTab.test.tsx`) : sans réseau, le bouton
+  « Préparer » est inactif et le dit (`offline.needsNetwork`) —
+  `prepareOffline` ne fait rien hors ligne, le clic tombait dans le vide ;
+  « Vider les images » se confirme (`ConfirmDialog`) ; « Images supprimées »
+  ne vaut que pour le vidage qu'on vient de faire et s'efface au retour sur la
+  section (il restait affiché pour toujours).
 - **Le bandeau « Hors ligne » est une rangée de la coquille**, montée dans
   `App.tsx` sous la bande safe-area (les trois dispositions) : il pousse
   l'en-tête vers le bas. ⚠️ Il a été `position: fixed; top: 0` jusqu'en

@@ -1,7 +1,12 @@
 {
   "app": {
     "loading": "Chargement…",
-    "close": "Fermer"
+    "close": "Fermer",
+    "errorTitle": "Une erreur est survenue",
+    "errorBody": "L’application a rencontré un problème inattendu. Vous pouvez recharger la page.",
+    "errorReload": "Recharger",
+    "labelValue": "{{label}} : {{value}}",
+    "labelColon": "{{label}} :"
   },
   "sidebar": {
     "allFeeds": "Tous les flux",
@@ -417,7 +422,10 @@
       "imagesReport": "{{found}} images trouvées, {{stored}} enregistrées",
       "imagesBudgetStopped": "arrêté par le budget",
       "imagesFailed_one": "{{count}} image n’a pas pu être récupérée — c’est courant : certains sites refusent les images demandées depuis un autre serveur.",
-      "imagesFailed_other": "{{count}} images n’ont pas pu être récupérées — c’est courant : certains sites refusent les images demandées depuis un autre serveur."
+      "imagesFailed_other": "{{count}} images n’ont pas pu être récupérées — c’est courant : certains sites refusent les images demandées depuis un autre serveur.",
+      "needsNetwork": "Disponible une fois la connexion revenue.",
+      "imagesClearTitle": "Vider les images hors ligne ?",
+      "imagesClearMessage": "Les images enregistrées sur cet appareil sont supprimées. Les articles restent lisibles hors ligne, sans leurs images, jusqu’à la prochaine préparation."
     },
     "refresh": {
       "title": "Relève",

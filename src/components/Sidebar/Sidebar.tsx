@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, typ
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import ConfirmDialog from '../ConfirmDialog';
+import { keyLabel } from '../../lib/keyLabel';
 import { useFeedStore, READ_LATER_LABEL, getSampleArticleUrl } from '../../stores/feedStore';
 import { feedSiteUrl } from '../../lib/feedSiteUrl';
 import { openExternal } from '../../lib/openExternal';
@@ -76,6 +77,8 @@ export default function Sidebar() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint === 'mobile';
+  // La touche réellement configurée : « (B) » restait écrit en dur après une réassignation.
+  const sidebarKey = useUiStore((s) => s.shortcuts.toggleSidebar);
   const setLayoutMode = useUiStore((s) => s.setLayoutMode);
   const appTitle = useUiStore((s) => s.appTitle);
   const appLogo = useUiStore((s) => s.appLogo);
@@ -291,7 +294,7 @@ export default function Sidebar() {
           <button
             onClick={toggleSidebar}
             className={`flex-shrink-0 rounded transition-colors hover:bg-white/20 text-white/80 ${isMobile ? 'p-2' : 'p-1.5'}`}
-            title={t('sidebar.hideSidebar') + (isMobile ? '' : ' (B)')}
+            title={t('sidebar.hideSidebar') + (isMobile || !sidebarKey ? '' : ` (${keyLabel(sidebarKey, t)})`)}
           >
             {isMobile ? (
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
