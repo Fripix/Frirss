@@ -87,15 +87,15 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center px-4"
       style={{ background: 'rgba(0,0,0,0.5)' }}
-      onClick={onClose}
     >
+      {/* Pas de fermeture au clic sur le fond : elle perdait l'adresse,
+          l'identifiant et le mot de passe saisis. Annuler ou Échap ferment. */}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         className="w-full max-w-sm rounded-xl p-6 shadow-2xl"
         style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-        onClick={(e) => e.stopPropagation()}
       >
         <h2 id={titleId} className="text-lg font-bold mb-1" style={{ color: 'var(--list-title)' }}>
           {t('servers.addTitle')}

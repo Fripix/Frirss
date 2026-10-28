@@ -1229,11 +1229,14 @@ describe('change-password', () => {
 
   // Avec un écran, deviner le mot de passe actuel d'une session restée ouverte
   // devient un geste à portée de main : même plafond que la connexion.
+  // Onze essais pour un plafond de dix. Chaque refus passe par bcrypt, lent par
+  // conception : sous la charge de la suite complète, le délai par défaut
+  // coupait la série (« socket hang up »).
   it('est limitée comme la connexion', async () => {
     let last = 0;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 11; i++) {
       last = (await change(`wrong-${i}`, 'another123')).status;
     }
     expect(last).toBe(429);
-  });
+  }, 30_000);
 });

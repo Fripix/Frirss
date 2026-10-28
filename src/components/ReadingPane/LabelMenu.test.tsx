@@ -39,4 +39,14 @@ describe("LabelMenu — liste d'étiquettes sur bureau", () => {
     document.removeEventListener('keydown', outside);
     expect(outside).not.toHaveBeenCalled();
   });
+
+  // iOS n'émet pas `mousedown` pour un tap hors d'un élément cliquable : à
+  // l'écoute de `mousedown`, taper à côté laissait le menu ouvert sur iPad.
+  it('se ferme sur un appui à côté (pointerdown, comme un tap)', () => {
+    useFeedStore.setState({ labels: [], loadLabels: vi.fn() } as never);
+    render(<LabelMenu article={article} />);
+    fireEvent.click(screen.getByTitle('readingPane.labels'));
+    fireEvent.pointerDown(document.body);
+    expect(document.querySelector('[data-floating-surface]')).toBeNull();
+  });
 });

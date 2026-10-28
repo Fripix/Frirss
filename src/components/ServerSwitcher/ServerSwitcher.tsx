@@ -109,10 +109,10 @@ function ManageMenu({ x, y, onClose, onManage }: { x: number; y: number; onClose
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
     }
-    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('pointerdown', handleClick);
     document.addEventListener('keydown', handleKey, true);
     return () => {
-      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('pointerdown', handleClick);
       document.removeEventListener('keydown', handleKey, true);
     };
   }, [onClose]);

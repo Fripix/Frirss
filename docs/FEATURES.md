@@ -4457,6 +4457,14 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   Écrit une première fois sans elle.
 
 - **Où** : `src/components/Sidebar/AddFeedDialog.tsx`, `feedStore` (`addFeed`, `renameFeed`, `removeFeed`)
+- **Pas de fermeture au clic sur le fond**, ni pour « Ajouter un flux » ni
+  pour « Ajouter un serveur » (`AddServerDialog`, qui la permettait jusqu'en
+  1.8.0 et perdait l'adresse, l'identifiant et le mot de passe saisis) :
+  Annuler ou Échap ferment. Test : `AddServerDialog.test.tsx`.
+- **Clic extérieur des menus = `pointerdown`**, partout (menu des étiquettes
+  du volet de lecture, gestion des serveurs, couleurs d'étiquettes depuis la
+  1.8.0) : iOS n'émet pas `mousedown` pour un tap hors d'un élément
+  cliquable, et ces trois menus restaient ouverts sur iPad.
 - **Rendue par portail sous `<body>`** (1.8.0) : ouverte depuis la barre
   latérale, donc dans le tiroir mobile (`fixed` + `transform` +
   `overflow: hidden`), elle s'y ancrait et y était rognée. Test :

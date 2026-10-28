@@ -801,8 +801,8 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
         setOpen(false);
       }
     }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, [open]);
 
   function applyHex(v: string) {

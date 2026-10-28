@@ -286,6 +286,12 @@ la release publiée.
   des raccourcis écrivait « Suppr » en français pour toutes les langues, et
   l'infobulle « Masquer la barre latérale (B) » gardait « B » même après une
   réassignation.
+- **iPad : taper à côté ferme les menus** des étiquettes (volet de lecture),
+  de la gestion des serveurs et des couleurs d'étiquettes. Ils n'écoutaient
+  qu'un événement de souris qu'iOS n'émet pas pour un simple tap.
+- **« Ajouter un serveur » ne se ferme plus sur un clic à côté**, qui perdait
+  l'adresse, l'identifiant et le mot de passe saisis. Annuler ou Échap
+  ferment, comme pour « Ajouter un flux ».
 - **Traduction : un clic sur « Réessayer avec… » dès son apparition n'est
   plus perdu.** Le volet lisait encore l'état « en cours » pendant un bref
   instant après l'affichage de l'erreur, et ignorait le clic.

@@ -2379,10 +2379,10 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
     }
-    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('pointerdown', handleClick);
     document.addEventListener('keydown', handleKey, true);
     return () => {
-      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('pointerdown', handleClick);
       document.removeEventListener('keydown', handleKey, true);
     };
   }, [open, isMobile]);
