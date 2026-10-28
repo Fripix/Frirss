@@ -1311,7 +1311,22 @@ FreshRSS, où le titre est un vrai lien.
 - **Piège — touche Menu** : `contextmenu` arrive avec `clientX = clientY = 0` ;
   le menu s'ouvre alors sous la ligne (`menuAnchor()`), pas dans le coin de la
   fenêtre.
-- **Appui long** : 500 ms (`LONG_PRESS_MS`), annulé par un mouvement de plus
+- **Appui long — une seule implémentation** (`src/hooks/useLongPress.ts`,
+  depuis la 1.7.1) pour tous les appuis longs de l'app : lignes et cartes
+  d'article (`useArticleMenuGestures`), lignes de flux (`FeedItem`), étoile et
+  « À lire plus tard » de la liste (`useCategoryPicker`, `ArticleActions.tsx`)
+  et du volet de lecture (`ActionBtn`), bouton de traduction de la barre du
+  bas. Il y en avait quatre, chacune avec ses propres trous (pas de
+  `touchcancel` ici, pas de garde à deux doigts là, un minuteur qui survivait
+  au composant, un `contextmenu` d'écho qui rouvrait le menu d'un flux).
+  Option `mouse: true` (étoile et « À lire plus tard » seulement) : le bouton
+  **principal** maintenu arme aussi, un mouvement au-delà de la tolérance
+  annule ; le clic droit reste le gestionnaire `onContextMenu` de l'appelant,
+  qui absorbe l'écho par `firedRecently()`. Le minuteur est nettoyé au
+  démontage. **Tests** : `src/hooks/useLongPress.test.tsx`, plus ceux de
+  chaque appelant (`useArticleMenuGestures`, `FeedItem.longpress`,
+  `ArticleActions.longpress`, `ActionBtn.longpress`, `ReadingPane.ai`).
+- **Durée et annulation** : 500 ms (`LONG_PRESS_MS`), annulé par un mouvement de plus
   de 8 px **depuis le point de départ** (`LONG_PRESS_MOVE_TOLERANCE_PX`,
   distance euclidienne), par `touchend`, `touchcancel` et un second doigt
   (pincer, geste à deux doigts). Un tremblement en deçà de la tolérance ne
@@ -1350,8 +1365,6 @@ FreshRSS, où le titre est un vrai lien.
   contact n'a effacé est laissé passer plutôt que perdu indéfiniment.
 - **Sélection iOS** : sous `(hover: none)`, lignes et cartes coupent la sélection de texte d'iOS
   (`-webkit-touch-callout` ET `user-select`, comme `.sidebar-feed-item`).
-  Troisième implémentation d'un appui long, assumée — celle des flux et
-  `useFileGesture` n'ont pas été touchées ; leur unification est au backlog.
 - **Clavier** : le menu flottant (pas la feuille du bas) prend le focus sur sa
   première entrée à l'ouverture, et le rend à l'élément qui l'avait avant —
   sauf s'il l'a déjà perdu autrement (fermeture par clic ailleurs). Sans quoi

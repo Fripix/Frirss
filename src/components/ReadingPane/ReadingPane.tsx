@@ -2257,30 +2257,32 @@ interface ActionBtnProps {
   onFile?: (anchor: { x: number; y: number }) => void;
 }
 
-function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFile }: ActionBtnProps) {
+export function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFile }: ActionBtnProps) {
   const { t } = useTranslation();
-  // Same gesture as in the list: hold (finger or mouse) to file it away.
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const held = useRef(false);
+  // Même geste que dans la liste : maintenir (doigt ou souris) pour ranger.
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const anchorOf = () => {
     const r = btnRef.current?.getBoundingClientRect();
     return r ? { x: r.left + r.width / 2, y: r.bottom } : { x: 0, y: 0 };
   };
-  const startHold = () => {
-    if (!onFile) return;
-    held.current = false;
-    holdTimer.current = setTimeout(() => { held.current = true; onFile(anchorOf()); }, 500);
-  };
-  const cancelHold = () => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; } };
+  const press = useLongPress(() => onFile?.(anchorOf()), { mouse: true, enabled: !!onFile });
   const holdProps = onFile
     ? {
-        onTouchStart: startHold, onTouchEnd: cancelHold, onTouchMove: cancelHold,
-        onMouseDown: startHold, onMouseUp: cancelHold, onMouseLeave: cancelHold,
-        onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); onFile(anchorOf()); },
+        onTouchStart: press.onTouchStart, onTouchMove: press.onTouchMove,
+        onTouchEnd: press.onTouchEnd, onTouchCancel: press.onTouchCancel,
+        onMouseDown: press.onMouseDown, onMouseMove: press.onMouseMove,
+        onMouseUp: press.onMouseUp, onMouseLeave: press.onMouseLeave,
+        // Le clic qui termine un appui long ne bascule pas l'état en plus.
+        onClickCapture: press.onClickCapture,
+        onContextMenu: (e: ReactMouseEvent) => {
+          e.preventDefault();
+          // Chrome Android émet `contextmenu` sur l'appui long qui vient
+          // d'aboutir : on l'absorbe sans rouvrir le sélecteur.
+          if (press.firedRecently()) return;
+          onFile(anchorOf());
+        },
       }
     : {};
-  const handleClick = () => { if (held.current) { held.current = false; return; } onClick(); };
   // `highlight` buttons (favourite / read-later) carry their identity color:
   //  - inactive → outline pill (colored text + thin colored border) = "off"
   //  - active   → SOLID filled pill with dark text = unmistakably "on"
@@ -2311,7 +2313,7 @@ function ActionBtn({ icon, label, active, activeColor, highlight, onClick, onFil
     <button
       ref={btnRef}
       {...holdProps}
-      onClick={handleClick}
+      onClick={onClick}
       className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
       style={style}
       title={onFile ? `${label} — ${t('saved.holdHint')}` : label}

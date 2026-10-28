@@ -42,6 +42,11 @@ _(rien pour l'instant)_
   s'annule sur un second doigt ou une interruption du système, et à la souris
   seul le bouton principal maintenu l'arme (maintenir le bouton droit
   l'armait aussi, en plus du menu du clic droit).
+- **Volet de lecture (disposition bureau) : l'appui long sur « Favori » et
+  « À lire plus tard » suit la même règle** — même tolérance, même
+  annulation, et seul le bouton principal de la souris maintenu l'arme. Il
+  n'existe plus qu'une seule implémentation de l'appui long dans toute l'app,
+  au lieu de quatre.
 - **Chinois : le statut des résumés et traductions IA se lit avec la virgule
   pleine chasse « ， »** au lieu d'une virgule latine en dur (en-tête du
   panneau, annonce aux lecteurs d'écran, bandeau de traduction). Nouvelle clé
