@@ -498,7 +498,7 @@ function LabelRow({
               color: 'var(--list-title)',
               background: 'var(--panel-bg)',
             }}
-            onKeyDown={(e) => { if (e.key === 'Escape') setMode(null); }}
+            onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setMode(null); } }}
           />
           <button
             type="submit"

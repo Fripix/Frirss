@@ -219,6 +219,9 @@ la release publiée.
   et le serveur refusait. Et dans la grille, une image qui ne charge pas
   montre l'initiale du flux, comme une carte sans image, au lieu d'une case
   vide.
+- **Préférences : Échap pendant un renommage n'annule plus que le
+  renommage.** Renommer une étiquette ou une catégorie, ou nommer une
+  nouvelle catégorie, puis appuyer sur Échap fermait aussi tout le panneau.
 - **Traduction : un clic sur « Réessayer avec… » dès son apparition n'est
   plus perdu.** Le volet lisait encore l'état « en cours » pendant un bref
   instant après l'affichage de l'erreur, et ignorait le clic.

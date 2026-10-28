@@ -653,7 +653,11 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   + `stopPropagation` : ouverte depuis les Préférences, « Ajouter un serveur »
   laisse le focus sur le bouton qui l'a ouverte, hors de la boîte ; son
   ancien `onKeyDown` sur la boîte ne voyait pas la touche, qui fermait tout le
-  panneau avec les identifiants saisis) — **hors
+  panneau avec les identifiants saisis ; même règle pour les champs édités
+  en place — renommer une étiquette, une catégorie, nommer une nouvelle
+  catégorie, renommer un serveur : Échap y annule l'édition et s'arrête là,
+  au lieu de fermer aussi tout le panneau, corrigé en 1.8.0 pour les trois
+  premiers, `escapeInPlace.test.tsx`) — **hors
   corps d'article** : un `role="dialog"` dans `.article-content`, modale de
   newsletter que DOMPurify conserve, coupait tous les raccourcis tant que
   l'article restait ouvert), et le

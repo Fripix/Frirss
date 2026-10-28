@@ -218,7 +218,7 @@ function CategoryRow({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && isValidCategoryName(draft)) onRename?.(draft);
-              if (e.key === 'Escape') onCancelRename?.();
+              if (e.key === 'Escape') { e.stopPropagation(); onCancelRename?.(); }
             }}
             aria-label={t('preferences.categories.rename')}
             className="flex-1 min-w-0 px-2.5 py-1.5 text-sm rounded-md"
@@ -310,7 +310,7 @@ function FeedRow({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && isValidCategoryName(draft)) { onMove(feed.id, draft); setCreating(false); }
-              if (e.key === 'Escape') setCreating(false);
+              if (e.key === 'Escape') { e.stopPropagation(); setCreating(false); }
             }}
             placeholder={t('preferences.categories.newName')}
             aria-label={t('preferences.categories.newName')}
