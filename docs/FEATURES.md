@@ -4637,13 +4637,24 @@ répondu (voir *Extraction du contenu complet*).
   pendant un corps **relayé en flux**, le statut amont est déjà parti, un 504
   n'est plus exprimable — flux et connexion sont **coupés**, le client voit une
   réponse tronquée plutôt qu'une attente sans fin. Un client qui s'en va avant
-  la fin libère aussi l'amont, au lieu de laisser un corps retenu tenir la
-  connexion. ⚠️ La résolution DNS d'un saut (`LOOKUP_TIMEOUT_MS`, 5 s)
+  la fin d'une **lecture** (`GET`/`HEAD`) libère aussi l'amont, au lieu de
+  laisser un corps retenu tenir la connexion — et une lecture bufferisée ainsi
+  abandonnée **ne réchauffe pas le cache** (elle n'est pas lue jusqu'au bout).
+  ⚠️ **Une écriture, jamais** : un `edit-tag` ou un « tout marquer lu » que
+  FreshRSS traite encore est mené à terme même si le navigateur coupe (PWA iOS
+  passée en arrière-plan, bascule wifi → réseau mobile, juste après le geste) ;
+  l'échéance de 60 s reste la seule borne de ce cas. ⚠️ La résolution DNS d'un saut (`LOOKUP_TIMEOUT_MS`, 5 s)
   n'écoute pas le signal : l'échéance est alors constatée au saut suivant, soit
   **65 s au pire**. Vérifié par `server/test/proxyDeadline.test.ts`, contre un
   vrai amont HTTP local et le vrai `fetch` de Node (minuteurs simulés).
+  ⚠️ **Portée** : cette échéance est celle de `/api/proxy`, pas de toute route
+  qui appelle `fetchUpstream`. La découverte OIDC (`server/oidc.ts`), par
+  exemple, n'est bornée que **par saut** (`TIMEOUT_MS`, jusqu'aux en-têtes) ; la
+  règle « le serveur répond avant le client » n'est garantie que pour le proxy
+  et pour l'IA (qui a ses propres échéances).
 - **Délais du navigateur** (1.7.1, `src/lib/requestTimeouts.ts`). Règle : **le
-  serveur répond toujours avant que le client abandonne** — un abandon sans
+  serveur répond toujours avant que le client abandonne** (sur `/api/proxy` et
+  l'IA, voir la portée ci-dessus) — un abandon sans
   réponse est lu par `isUpstreamCut` comme une coupure amont, et la traduction
   rejouerait un lot coupé en deux pour rien. Chaque valeur dépasse donc le
   budget serveur qu'elle couvre :

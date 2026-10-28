@@ -55,7 +55,7 @@ _(rien pour l'instant)_
 - **Plus aucune requête n'attend indéfiniment.** Un serveur FreshRSS (ou une
   page) qui envoyait le début de sa réponse puis ne finissait jamais tenait
   l'écran en attente jusqu'à deux minutes, sans fin bornée côté navigateur.
-  Le proxy de FriRSS borne désormais chaque requête à 60 s au total (504 clair
+  Le proxy de FriRSS borne désormais chaque requête à environ une minute (504 clair
   si rien n'est arrivé, réponse coupée sinon), et le navigateur attend
   toujours plus longtemps que le serveur : 75 s pour les appels courants,
   150 s pour l'IA et la sauvegarde. Un délai dépassé ne déconnecte jamais.

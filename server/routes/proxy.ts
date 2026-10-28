@@ -711,13 +711,23 @@ router.all('/', async (req, res) => {
     if (res.headersSent) res.destroy();
     else finishError(res, deadlineError(), rawTarget);
   }, PROXY_TOTAL_TIMEOUT_MS);
-  // `close` suit aussi une réponse terminée normalement : le minuteur est
-  // toujours levé. Un client parti en route libère l'amont au passage, au lieu
-  // de laisser un corps retenu tenir la connexion jusqu'à l'échéance.
+  // `close` suit aussi une réponse terminée normalement : le minuteur est alors
+  // levé. Un client parti en route d'une LECTURE libère l'amont au passage, au
+  // lieu de laisser un corps retenu tenir la connexion jusqu'à l'échéance.
+  //
+  // Une ÉCRITURE, jamais : FreshRSS traite peut-être encore un `edit-tag` ou un
+  // « tout marquer lu », et le navigateur coupe souvent juste après le geste
+  // (PWA iOS passée en arrière-plan, bascule wifi → réseau mobile). Avant
+  // l'échéance totale, le serveur menait l'écriture à terme quoi qu'il arrive ;
+  // l'annuler ici la laisserait à moitié faite. Le minuteur reste armé : c'est
+  // lui qui borne ce cas.
+  const releasable = req.method === 'GET' || req.method === 'HEAD';
   res.on('close', () => {
+    if (res.writableFinished) { clearTimeout(timer); return; }
+    if (!releasable) return;
     clearTimeout(timer);
     relay?.destroy();
-    if (!res.writableFinished) deadline.abort(deadlineError());
+    deadline.abort(deadlineError());
   });
 
   let upstream: Response;

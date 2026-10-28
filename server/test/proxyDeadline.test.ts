@@ -51,6 +51,11 @@ const upstreamHit = (path: string) => new Promise<void>((resolve) => {
   else hitWaiters.push({ path, resolve });
 });
 
+// Écriture en cours côté amont : le test la libère quand il le décide, et
+// observe si la connexion amont a été coupée entre-temps.
+let releaseWrite: () => void = () => {};
+const writeSeen: { body: string; closedEarly: boolean; answered: boolean } = { body: '', closedEarly: false, answered: false };
+
 const upstream = http.createServer((req, res) => {
   const path = req.url ?? '';
   hits.push(path);
@@ -68,6 +73,22 @@ const upstream = http.createServer((req, res) => {
     return;
   }
   if (path === '/silent') return;  // ni en-têtes ni corps
+  if (path === '/write' && req.method === 'POST') {
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', (c: string) => { body += c; });
+    req.on('end', () => {
+      writeSeen.body = body;
+      req.socket.once('close', () => { if (!writeSeen.answered) writeSeen.closedEarly = true; });
+      hitWaiters.filter((w) => w.path === 'write-received').forEach((w) => w.resolve());
+      releaseWrite = () => {
+        writeSeen.answered = true;
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('OK');
+      };
+    });
+    return;
+  }
   const hop = /^\/hop\/(\d+)$/.exec(path);
   if (hop) {
     // Chaque saut répond à temps (20 s < 30 s), mais six sauts font 120 s.
@@ -215,6 +236,30 @@ describe('/api/proxy — échéance totale', () => {
     req.destroy();
     // Sans libération, la connexion amont resterait ouverte jusqu'au délai par saut (30 s).
     expect(await settledWithin(upstreamClosed, 2_000)).toBe(true);
+  });
+
+  // Une écriture (edit-tag, tout marquer lu) que FreshRSS traite encore ne
+  // doit pas être annulée parce que le navigateur est parti : une PWA iOS
+  // passée en arrière-plan, une bascule wifi → réseau mobile coupent la
+  // connexion juste après le geste. L'échéance totale borne déjà ce cas.
+  it('mène une écriture à terme même quand le client s’en va', async () => {
+    writeSeen.body = ''; writeSeen.closedEarly = false; writeSeen.answered = false;
+    const received = new Promise<void>((resolve) => hitWaiters.push({ path: 'write-received', resolve }));
+    const req = http.request({
+      host: '127.0.0.1', port: frontPort, path: '/api/proxy', method: 'POST',
+      headers: { 'X-Proxy-Target': `${upBase}/write`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    req.on('error', () => {});
+    req.end('a=user/-/state/com.google/read&i=42');
+    await received;
+    req.destroy();
+    await realDelay(300);          // laisser la fermeture se propager jusqu'au proxy
+    expect(writeSeen.closedEarly).toBe(false);
+    releaseWrite();
+    await realDelay(50);
+    expect(writeSeen.body).toBe('a=user/-/state/com.google/read&i=42');
+    expect(writeSeen.closedEarly).toBe(false);
+    expect(writeSeen.answered).toBe(true);
   });
 
   it('laisse passer une réponse normale, entière', async () => {
