@@ -2177,7 +2177,8 @@ onglet** (`target="_blank" rel="noopener noreferrer"`, posé par
 `sanitizeArticleBody` ; issue #24 : cliqué dans la page, il remplaçait FriRSS,
 sans barre d'adresse pour revenir en app installée ; une ancre interne `#…`
 reste dans la page) —, blocs de code et citations stylés. Mode Focus
-(plein écran) au double-clic. Contenu bidirectionnel rendu dans son sens propre.
+(pleine largeur : il masque la liste, sans plein écran du navigateur — les
+libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bidirectionnel rendu dans son sens propre.
 
 - **Où** : `src/components/ReadingPane/ReadingPane.tsx`, `src/utils/sanitizeHtml.ts`,
   `src/lib/articleBody.ts` (fabrication du corps), `src/lib/readingBody.ts`

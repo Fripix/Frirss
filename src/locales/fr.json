@@ -111,7 +111,7 @@
     "scanNetworkError": "Connexion perdue pendant le balayage",
     "scanRateLimited": "Trop de requêtes — réessayez dans une minute",
     "endOfList": "Fin de la liste",
-    "endOfListMarkRead": "Tout marquer lu"
+    "endOfListMarkRead": "Tout marquer comme lu"
   },
   "articleRow": {
     "markRead": "Marquer lu",
@@ -169,7 +169,7 @@
     "readingTime": "{{count}} min",
     "labels": "Étiquettes",
     "newLabel": "Nouvelle étiquette…",
-    "focusEnter": "Mode Focus (plein écran)",
+    "focusEnter": "Mode Focus (pleine largeur)",
     "focusExit": "Quitter le mode Focus",
     "focusHint": "double-clic sur l’article, Échap pour sortir",
     "videoPlay": "Lire la vidéo",
@@ -361,7 +361,7 @@
       "search": "Rechercher",
       "readLater": "À lire plus tard",
       "keySpace": "Espace",
-      "keyEscape": "ESC",
+      "keyEscape": "Échap",
       "keyEnter": "Entrée",
       "keyDelete": "Suppr",
       "keyReserved": "Touche déjà utilisée par le navigateur, le système ou FriRSS. Choisissez-en une autre.",
@@ -370,7 +370,7 @@
       "escExitFocus": "Quitter le mode Focus",
       "builtInTitle": "Gestes et touches intégrés",
       "keyDoubleClick": "Double-clic",
-      "doubleClickFocus": "Mode Focus (plein écran) sur l’article",
+      "doubleClickFocus": "Mode Focus (pleine largeur) sur l’article",
       "keyHold": "Clic prolongé",
       "holdToFile": "Ranger l’article dans une catégorie (Favori / À lire plus tard)",
       "customize": "Personnaliser dans les préférences",

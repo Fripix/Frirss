@@ -239,7 +239,11 @@ la release publiée.
   en a 38 (le nombre vient désormais du thème lui-même) ; en français, les
   derniers mots anglais des Préférences sont traduits (« Sidebar »,
   « Header », « Scrollbar », « Reset ») et l'aide du hors-ligne vouvoie
-  comme le reste de l'application.
+  comme le reste de l'application. Dans les autres langues : des aides qui
+  citaient un écran ou un libellé sous un autre nom que le vrai (allemand,
+  italien, polonais, ukrainien), « Local + SSO » traduit, la touche Échap
+  nommée comme dans les textes, et le mode Focus décrit en « pleine
+  largeur » plutôt qu'en « plein écran », qu'il n'est pas.
 - **Une liste qui n'a pas pu se charger le dit.** Si le serveur ne
   répondait pas, la liste affichait « Tout est lu ! » ou « Ce flux est
   vide ». Elle affiche désormais que le chargement a échoué, avec un bouton
