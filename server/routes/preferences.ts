@@ -16,7 +16,7 @@ router.use(requireAuth);
 //
 // Les plafonds sont calibrés très au-dessus du client réel, qui ne pousse que
 // les clés modifiées, et toutes celles de `UI_SYNC_KEYS` + `THEME_SYNC_KEYS`
-// (~61) une seule fois, pour amorcer un compte neuf (src/lib/prefsSync.ts).
+// une seule fois, pour amorcer un compte neuf (src/lib/prefsSync.ts).
 // La plus grosse valeur de loin est `appLogo`, un PNG en data URL redimensionné
 // à 256×256 côté client (`AppearanceTab.tsx`) — quelques centaines de Kio au
 // pire. 1 Mio par valeur laisse une marge confortable sans laisser passer un

@@ -21,7 +21,12 @@
 // Aucune modification perdue : `known` et `dirty` sont persistés
 // (localStorage) — un rechargement, l'app iOS tuée ou un envoi hors ligne
 // les retrouvent, et au démarrage une clé sale l'emporte sur le serveur et
-// repart. Un envoi en échec est retenté au retour du réseau (`online`), au
+// repart. Ils sont liés au compte (`frirss_prefsOwner`, l'id utilisateur lu
+// dans le jeton) : un retour OIDC qui pose le jeton de B par-dessus celui de
+// A, sans déconnexion, ne pousse pas les réglages de A sur le compte de B.
+// Un jeton renouvelé du même compte les garde. Exception assumée : un 401
+// sur un envoi déconnecte, et la déconnexion (`stopSync`) efface les clés pas
+// encore envoyées. Un envoi en échec est retenté au retour du réseau (`online`), au
 // retour au premier plan (`refreshPrefs`) et par attente croissante. Une clé
 // refusée par le serveur (400 qui la nomme) sort du lot, reprend la valeur
 // connue du serveur, et les autres repartent.
@@ -38,6 +43,8 @@ import { useUiStore, UI_SYNC_KEYS } from '../stores/uiStore';
 import { useThemeStore, THEME_SYNC_KEYS } from '../stores/themeStore';
 import { useAiStore } from '../stores/aiStore';
 import { useFeedStore } from '../stores/feedStore';
+import { useAuthStore } from '../stores/authStore';
+import { jwtUserId } from './jwtUserId';
 import { effectiveOrder } from './effectiveOrder';
 import { changedKeys, mergeForRelecture, pickKeys, type PrefsSnapshot } from './prefsDiff';
 
@@ -54,6 +61,10 @@ let inFlight: Promise<void> | null = null;
 // Bumped by stopSync() and by every new hydration, so a read still in flight
 // from an older session can no longer apply, seed or start anything.
 let generation = 0;
+// Relectures au premier plan : seule la dernière lancée applique sa réponse.
+let refreshSeq = 0;
+// Le compte auquel appartiennent `known` et `dirty` en mémoire.
+let owner: number | null = null;
 
 // Dernière valeur connue du serveur, clé par clé, et clés modifiées ici.
 let known: PrefsSnapshot = {};
@@ -61,6 +72,7 @@ let dirty = new Set<string>();
 
 const KNOWN_STORAGE = 'frirss_prefsKnown';
 const DIRTY_STORAGE = 'frirss_prefsDirty';
+const OWNER_STORAGE = 'frirss_prefsOwner';
 
 const RETRY_FIRST_MS = 5_000;
 const RETRY_MAX_MS = 60_000;
@@ -95,6 +107,15 @@ function writeStored(key: string, value: unknown): void {
   } catch {
     /* quota, mode privé : sans reprise après rechargement */
   }
+}
+
+/**
+ * Le compte de la session en cours : l'id du jeton (connu dès le retour OIDC,
+ * où `backendUser` est encore nul), sinon celui de l'utilisateur stocké.
+ */
+function currentOwner(): number | null {
+  const auth = useAuthStore.getState();
+  return jwtUserId(auth.backendToken) ?? auth.backendUser?.id ?? null;
 }
 
 const persistKnown = () => writeStored(KNOWN_STORAGE, known);
@@ -272,14 +293,31 @@ export async function hydratePrefs(): Promise<void> {
   if (gen !== generation) return;
   retryDelay = 0;
 
+  // Un autre compte que celui de l'état en mémoire (jeton remplacé sans
+  // déconnexion) : son envoi en attente ne part pas sous ce compte-ci.
+  const me = currentOwner();
+  if (me !== owner) {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    clearPushRetry();
+    pushRetryDelay = 0;
+  }
+  owner = me;
+  // L'état persisté n'est repris que s'il est prouvé de ce compte ; sans
+  // compte identifiable, rien n'est repris.
+  const mine = me !== null && readStored<number>(OWNER_STORAGE) === me;
+  writeStored(OWNER_STORAGE, me);
+
   const server = serverPrefs && typeof serverPrefs === 'object' ? pickKeys(serverPrefs, SYNCED_KEYS) : {};
   const hasAny = Object.keys(server).length > 0;
 
   // Clés modifiées ici lors d'une session précédente et jamais reçues par le
   // serveur. Une clé revenue depuis à la valeur alors connue n'a plus rien à dire.
   const local = collectPrefs();
-  const storedKnown = readStored<PrefsSnapshot>(KNOWN_STORAGE);
-  const storedDirty = readStored<string[]>(DIRTY_STORAGE);
+  const storedKnown = mine ? readStored<PrefsSnapshot>(KNOWN_STORAGE) : null;
+  const storedDirty = mine ? readStored<string[]>(DIRTY_STORAGE) : null;
   dirty = new Set(
     (Array.isArray(storedDirty) ? storedDirty : []).filter((k) =>
       SYNCED_KEYS.includes(k) && (!storedKnown || changedKeys({ [k]: local[k] }, storedKnown).length > 0)),
@@ -314,8 +352,9 @@ export async function hydratePrefs(): Promise<void> {
 export async function refreshPrefs(): Promise<void> {
   if (!started) return;
   const gen = generation;
+  const seq = ++refreshSeq;
   await pushNow();
-  if (gen !== generation) return;
+  if (gen !== generation || seq !== refreshSeq) return;
 
   // Un envoi peut aboutir pendant la lecture, lue côté serveur AVANT lui : la
   // réponse porterait l'ancienne valeur d'une clé qui n'est déjà plus sale.
@@ -327,7 +366,10 @@ export async function refreshPrefs(): Promise<void> {
   } catch {
     return; // rien de su : rien ne change, le prochain retour réessaiera
   }
-  if (gen !== generation || !serverPrefs || typeof serverPrefs !== 'object') return;
+  // Deux retours au premier plan rapprochés : les réponses peuvent arriver
+  // dans le désordre. Une relecture dépassée par une plus récente n'applique
+  // rien — ni réglage, ni valeur connue périmée.
+  if (gen !== generation || seq !== refreshSeq || !serverPrefs || typeof serverPrefs !== 'object') return;
 
   const server = pickKeys(serverPrefs, SYNCED_KEYS);
   const pushedMeanwhile = Object.keys(known).filter((k) =>
@@ -370,9 +412,11 @@ export function stopSync(): void {
   // valeurs connues du serveur de celui-ci.
   known = {};
   dirty = new Set();
+  owner = null;
   try {
     localStorage.removeItem(KNOWN_STORAGE);
     localStorage.removeItem(DIRTY_STORAGE);
+    localStorage.removeItem(OWNER_STORAGE);
   } catch {
     /* rien à effacer */
   }

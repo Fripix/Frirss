@@ -100,8 +100,11 @@ _(rien pour l'instant)_
   relit ceux des autres appareils en revenant au premier plan, sans
   rechargement. Une modification qui n'a pas pu partir — réseau coupé en
   cours de route, app fermée juste après — n'est plus perdue : elle repart au
-  retour du réseau, au retour dans l'app ou au démarrage suivant. Un réglage refusé par le serveur (logo trop lourd) n'empêche plus
-  les autres de s'enregistrer.
+  retour du réseau, au retour dans l'app ou au démarrage suivant. Elle reste
+  attachée à son compte : si un autre compte se connecte sur le même
+  navigateur (SSO compris), elle ne part pas chez lui ; et se déconnecter —
+  ou voir sa session expirer — l'abandonne. Un réglage refusé par le serveur
+  (logo trop lourd) n'empêche plus les autres de s'enregistrer.
 
 - **Une faute de frappe ne déconnecte plus.** Changer son mot de passe avec un
   mauvais mot de passe actuel renvoyait un 401 que l'API FriRSS traitait comme

@@ -5395,8 +5395,8 @@ les clés modifiées sur l'appareil.
 - **Où** : `server/routes/preferences.ts`
 - **Bornes** : clé ≤ 128 caractères, valeur ≤ 1 Mio, 200 clés par requête,
   500 clés stockées par utilisateur. Calibrées très au-dessus du client réel —
-  quelques clés par envoi, les ~61 synchronisées d'un coup seulement pour
-  amorcer un compte neuf ; la plus grosse est `appLogo`, un PNG en data URL
+  quelques clés par envoi, toutes les synchronisées (`UI_SYNC_KEYS` +
+  `THEME_SYNC_KEYS`) d'un coup seulement pour amorcer un compte neuf ; la plus grosse est `appLogo`, un PNG en data URL
   redimensionné à 256×256 côté client. Sans elles, un compte authentifié
   remplissait le volume SQLite 5 Mo à la fois.
 - **Piège** : tout le lot est validé **avant** la moindre écriture. Valider au
@@ -5422,19 +5422,38 @@ les clés modifiées sur l'appareil.
   ont changé depuis la valeur connue, et **qui ne sont pas sales ici** (une
   modification faite pendant la lecture est protégée aussi, même si son envoi
   aboutit avant la réponse : une clé dont la valeur connue a bougé pendant la
-  lecture est écartée, la réponse ayant pu être lue avant l'écriture). Elle passe
+  lecture est écartée, la réponse ayant pu être lue avant l'écriture). Deux
+  relectures rapprochées (bascules de visibilité) peuvent répondre dans le
+  désordre : seule la **dernière lancée** applique (`refreshSeq`) — une
+  réponse plus ancienne arrivée après reposait une valeur intermédiaire et
+  une valeur connue périmée (une clé passée ailleurs à B puis revenue à A
+  restait à B). Elle passe
   `applyServerPrefs(…, { onlyPresent: true })` : aucun défaut de compte ancien
   n'est forcé pour une clé absente — ce tri ne vaut qu'au démarrage. Si
   l'ordre de la liste affichée change (`articleOrder` ou l'ordre du flux
   ouvert), la liste est rechargée ; `aiStore.load()` n'est relancé que si une
   clé `ai*` a changé.
-- **Aucune modification perdue** : les valeurs connues
-  (`frirss_prefsKnown`) et les clés sales (`frirss_prefsDirty`) sont dans le
-  localStorage. Au démarrage, `hydratePrefs()` applique le serveur, puis
-  réapplique par-dessus les clés sales locales, qui repartent. Un envoi en
-  échec garde ses clés sales et est retenté au retour du réseau (`online`), au
-  retour au premier plan et par attente croissante (5 s, doublée jusqu'à
-  60 s). `stopSync()` (déconnexion) efface les deux.
+- **Aucune modification perdue — tant que la session dure** : les valeurs
+  connues (`frirss_prefsKnown`) et les clés sales (`frirss_prefsDirty`) sont
+  dans le localStorage. Au démarrage, `hydratePrefs()` applique le serveur,
+  puis réapplique par-dessus les clés sales locales, qui repartent. Un envoi
+  en échec garde ses clés sales et est retenté au retour du réseau
+  (`online`), au retour au premier plan et par attente croissante (5 s,
+  doublée jusqu'à 60 s). `stopSync()` (déconnexion) efface les deux : se
+  déconnecter abandonne les modifications pas encore envoyées, **y compris
+  quand c'est un envoi qui reçoit le 401** d'une session expirée
+  (l'intercepteur déconnecte, l'envoi n'est pas retenté).
+- **Liées au compte** (`frirss_prefsOwner`) : les deux sont étiquetées de
+  l'id utilisateur lu dans le jeton de session (`userId`, sans vérification
+  de signature : une étiquette, pas une preuve — `src/lib/jwtUserId.ts`),
+  connu dès le retour OIDC alors que `backendUser` est encore nul. L'état
+  persisté n'est repris que si l'étiquette est celle de la session en cours ;
+  sans id lisible, rien n'est repris. Un retour OIDC pose le jeton de B
+  par-dessus celui de A encore stocké, sans passer par la déconnexion : sans
+  l'étiquette, `hydratePrefs()` relisait les clés sales de A et poussait ses
+  réglages sur le compte de B. Un changement de compte dans la même page
+  annule aussi l'envoi différé ou le réessai en attente de A. Un jeton
+  renouvelé du **même** compte garde les clés sales.
 - **Clé refusée** : un `400` qui nomme une clé la sort du lot ; elle reprend la
   valeur connue du serveur (ou garde la valeur locale si le serveur ne l'a
   jamais eue, sans être renvoyée), et les autres repartent aussitôt. Une clé

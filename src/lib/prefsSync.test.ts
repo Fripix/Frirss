@@ -11,9 +11,22 @@ import { hydratePrefs, refreshPrefs, stopSync } from './prefsSync';
 import { useUiStore } from '../stores/uiStore';
 import { useFeedStore } from '../stores/feedStore';
 import { useAiStore } from '../stores/aiStore';
+import { useAuthStore } from '../stores/authStore';
 
 const get = vi.mocked(getPreferences);
 const save = vi.mocked(savePreferences);
+
+const b64url = (v: string) => btoa(v).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+let jtiSeq = 0;
+/** Un jeton de session FriRSS pour `userId` (chaque appel en donne un nouveau, comme un renouvellement). */
+const jwtFor = (userId: number) => `${b64url('{"alg":"HS256"}')}.${b64url(JSON.stringify({ userId, jti: `j${++jtiSeq}` }))}.sig`;
+/** Ouvre la session de `userId` dans ce navigateur (store + localStorage, relu par un module neuf). */
+function signIn(userId: number): string {
+  const token = jwtFor(userId);
+  localStorage.setItem('frirss_backendToken', token);
+  useAuthStore.setState({ backendToken: token, backendUser: null });
+  return token;
+}
 
 const http = (status: number) => Object.assign(new Error(`HTTP ${status}`), { response: { status } });
 
@@ -136,6 +149,7 @@ describe('prefsSync — clés modifiées seulement', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     localStorage.clear();
+    signIn(1);
     useUiStore.setState({ showFavicons: true, aiPanelCollapsed: false, viewMode: 'normal', collapsedCategories: {} });
   });
 
@@ -266,6 +280,94 @@ describe('prefsSync — clés modifiées seulement', () => {
     } finally {
       sync.stopSync();
     }
+  });
+
+  it('a renewed token for the same user keeps the dirty keys', async () => {
+    fakeServer({ viewMode: 'normal' });
+    await hydratePrefs();
+    save.mockRejectedValue(new Error('Network Error'));
+    useUiStore.getState().setViewMode('compact');
+    await vi.advanceTimersByTimeAsync(1000);
+    const server = fakeServer({ viewMode: 'normal' });
+    signIn(1); // nouveau jeton, même compte
+    await hydratePrefs();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(server.viewMode).toBe('compact');
+  });
+
+  // Retour OIDC : le jeton de B est posé par-dessus celui de A, encore
+  // stocké, sans passer par la déconnexion (donc sans `stopSync`). Les clés
+  // sales de A ne doivent ni s'appliquer ni partir sur le compte de B.
+  it('dirty keys of another account are never applied nor pushed', async () => {
+    fakeServer({ viewMode: 'normal' });
+    await hydratePrefs();
+    save.mockRejectedValue(new Error('Network Error'));
+    useUiStore.getState().setViewMode('compact'); // A, hors ligne
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(localStorage.getItem('frirss_prefsDirty')).toContain('viewMode');
+
+    // Rechargement sur le retour OIDC de B : la page d'avant meurt avec ses
+    // minuteurs (le réessai d'envoi de A).
+    vi.clearAllTimers();
+    vi.resetModules();
+    signIn(2);
+    const backend = await import('../api/backend');
+    const sync = await import('./prefsSync');
+    const { useUiStore: freshUi } = await import('../stores/uiStore');
+    const stateB: Record<string, unknown> = { viewMode: 'magazine', showFavicons: true };
+    vi.mocked(backend.getPreferences).mockImplementation(async () => structuredClone(stateB));
+    const saveB = vi.mocked(backend.savePreferences).mockReset().mockImplementation(async (p) => { Object.assign(stateB, p); });
+    try {
+      await sync.hydratePrefs();
+      expect(freshUi.getState().viewMode).toBe('magazine');
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(saveB.mock.calls).toEqual([]);
+      expect(stateB.viewMode).toBe('magazine');
+    } finally {
+      sync.stopSync();
+    }
+  });
+
+  it('a token switch in the same page drops the previous account’s pending push', async () => {
+    fakeServer({ viewMode: 'normal' });
+    await hydratePrefs();
+    useUiStore.getState().setViewMode('compact'); // A, envoi différé en attente
+    const stateB = fakeServer({ viewMode: 'magazine' });
+    signIn(2);
+    await hydratePrefs();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(save).not.toHaveBeenCalled();
+    expect(stateB.viewMode).toBe('magazine');
+    expect(useUiStore.getState().viewMode).toBe('magazine');
+  });
+
+  // Deux retours au premier plan rapprochés : les réponses arrivent dans le
+  // désordre. Seule la dernière relecture lancée applique. Le cas qui mord :
+  // une clé passée ailleurs à « compact » puis revenue à « normal » ; la
+  // relecture récente (« normal », rien à changer) répond d'abord, l'ancienne
+  // (« compact ») ensuite — elle reposait la valeur intermédiaire.
+  it('an older re-read answering last never overwrites a newer one', async () => {
+    fakeServer({ viewMode: 'normal' });
+    await hydratePrefs();
+    const releases: Array<(v: Record<string, unknown>) => void> = [];
+    get.mockImplementation(() => new Promise((r) => { releases.push(r); }));
+    const first = refreshPrefs();
+    await vi.advanceTimersByTimeAsync(0);
+    const second = refreshPrefs();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(releases).toHaveLength(2);
+    releases[1]({ viewMode: 'normal' }); // la plus récente répond d'abord
+    await second;
+    releases[0]({ viewMode: 'compact' }); // l'ancienne, périmée, ensuite
+    await first;
+    expect(useUiStore.getState().viewMode).toBe('normal');
+
+    // La valeur connue n'est pas la périmée : revenir à « compact » est bien
+    // un changement à envoyer.
+    save.mockReset().mockResolvedValue(undefined);
+    useUiStore.getState().setViewMode('compact');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(save).toHaveBeenCalledWith({ viewMode: 'compact' });
   });
 
   it('logging out forgets dirty keys and the known server values', async () => {
