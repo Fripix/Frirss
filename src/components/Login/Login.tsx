@@ -85,7 +85,14 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState(oidcError ? t('login.errorSso') : '');
+  // `oidcError === 'unavailable'` : le retour SSO a échoué faute de joindre le
+  // serveur (voir `completeOidcReturn`), pas parce que le SSO a refusé.
+  const oidcMessage = oidcError ? t(oidcError === 'unavailable' ? 'login.errorUnavailable' : 'login.errorSso') : '';
+  const [error, setError] = useState(oidcMessage);
+  // L'erreur peut arriver après le montage (réessais du retour SSO) : la suivre.
+  useEffect(() => {
+    if (oidcMessage) setError(oidcMessage);
+  }, [oidcMessage]);
   const [loading, setLoading] = useState(false);
   // Break-glass fallback: reach the local login form via ?local=1 or the
   // /local-login URL (no visible link — admins use the URL directly), so an

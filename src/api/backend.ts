@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import type { AiLanguage } from '../lib/aiLanguages';
+import { isBackendAuthFailure } from '../lib/loginErrors';
 import type {
   User,
   ServerConnection,
@@ -25,11 +26,18 @@ backend.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, clear backend auth
+// Ne fermer la session FriRSS que sur NOTRE 401 de session invalide — même
+// critère que `src/api/client.ts`. Un 401 de ce client n'est pas toujours une
+// session morte : changer son mot de passe avec un mauvais mot de passe actuel
+// (« Current password is incorrect ») ou des identifiants refusés répondent
+// aussi 401, et éjectaient l'utilisateur pour une simple faute de frappe.
+// `isBackendAuthFailure` ne reconnaît que les messages de
+// `server/middleware/auth.ts` ; tout autre 401 est rejeté sans toucher à la
+// session.
 backend.interceptors.response.use(
   (r) => r,
   (error) => {
-    if (error.response?.status === 401) {
+    if (isBackendAuthFailure(error)) {
       useAuthStore.getState().logoutBackend();
     }
     return Promise.reject(error);

@@ -40,6 +40,18 @@ _(rien pour l'instant)_
   retour du réseau, au retour dans l'app ou au démarrage suivant. Un réglage refusé par le serveur (logo trop lourd) n'empêche plus
   les autres de s'enregistrer.
 
+- **Une faute de frappe ne déconnecte plus.** Changer son mot de passe avec un
+  mauvais mot de passe actuel renvoyait un 401 que l'API FriRSS traitait comme
+  une session expirée : l'utilisateur était éjecté. Désormais, comme pour les
+  requêtes FreshRSS, seule une vraie session invalide (jeton absent, expiré ou
+  invalide) ferme la session.
+- **Retour SSO : une coupure réseau passagère ne renvoie plus à l'écran de
+  connexion.** Si la lecture du profil échoue juste après la redirection, elle
+  est réessayée jusqu'à quatre fois (1, 2, 4 puis 8 s). Seule une session
+  réellement refusée déconnecte tout de suite ; après le dernier échec,
+  l'écran de connexion dit que le serveur n'a pas répondu (clé existante
+  `login.errorUnavailable`).
+
 ## Sous le capot
 
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,

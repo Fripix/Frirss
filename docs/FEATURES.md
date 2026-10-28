@@ -53,10 +53,14 @@ administrateur.
   mise à jour.
 - **Piège — un 401 ne dit pas de quelle couche il vient.** Le compte FriRSS et
   le serveur FreshRSS rattaché sont deux authentifications indépendantes, et le
-  proxy relaie le statut amont tel quel. L'intercepteur de `src/api/client.ts`
-  ne déconnecte donc que sur les 401 de **notre** middleware, reconnus par
-  `isBackendAuthFailure` (`src/lib/loginErrors.ts`) — voir « Serveurs
-  FreshRSS ».
+  proxy relaie le statut amont tel quel. Les intercepteurs de **deux** clients,
+  `src/api/client.ts` (FreshRSS via le proxy) et `src/api/backend.ts` (API
+  FriRSS), ne déconnectent donc que sur les 401 de **notre** middleware,
+  reconnus par `isBackendAuthFailure` (`src/lib/loginErrors.ts`) — voir
+  « Serveurs FreshRSS ». `backend.ts` déconnectait avant sur tout 401 : un mauvais
+  mot de passe actuel au changement de mot de passe (« Current password is
+  incorrect ») éjectait l'utilisateur. La déconnexion volontaire après une
+  restauration (`BackupBlock.tsx`) reste, elle, explicite.
 
 ### SSO / OIDC
 Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la place**
@@ -66,6 +70,14 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
 - **Spec** : `docs/superpowers/specs/2026-08-15-sso-only-mode-design.md`
 - **Piège** : une URL « break-glass » permet de revenir au formulaire local si le
   SSO tombe. Sans elle, un OIDC cassé enferme dehors l'administrateur.
+- **Retour SSO tolérant aux pannes réseau** (`src/lib/oidcReturn.ts`,
+  `completeOidcReturn`, appelé par `App.tsx`) : après la redirection, le jeton
+  est posé puis `getMe()` lit l'utilisateur. Une erreur réseau ou un 5xx est
+  réessayé quatre fois (attentes de 1, 2, 4 puis 8 s) au lieu de renvoyer
+  aussitôt à l'écran de connexion ; notre 401 de session invalide, ou tout autre
+  4xx (jeton inutilisable), déconnecte tout de suite. Après le dernier échec,
+  l'écran de connexion affiche `login.errorUnavailable` (via la prop `oidcError`
+  de `Login`, valeur `unavailable`) ; toute autre valeur garde `login.errorSso`.
 - **Piège** (1.6.1, issue #23) : le callback lit les cookies de l'hôte avec un
   parseur maison (`server/cookies.ts`, `parseCookieHeader()`), et cet hôte
   porte aussi les cookies des **autres** services posés sur le même domaine
@@ -167,7 +179,8 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
     **axios nu**, pas le client de `src/api/client.ts` : le rattachement d'un
     serveur ne passe donc pas du tout par l'intercepteur. Et depuis la 1.4.8,
     cet intercepteur ne déconnecte plus sur **tout** 401 : il n'agit que sur
-    les nôtres (`isBackendAuthFailure`, même `BACKEND_AUTH_MARKERS`). Un 401 de
+    les nôtres (`isBackendAuthFailure`, même `BACKEND_AUTH_MARKERS`) — critère
+    repris par `src/api/backend.ts` depuis la 1.7.1. Un 401 de
     FreshRSS — session expirée là-bas, mot de passe d'API changé — traversait
     tout le reste de l'application (listes, favicons, extraction) et fermait la
     session FriRSS : une panne d'une couche déconnectait de l'autre. Un corps

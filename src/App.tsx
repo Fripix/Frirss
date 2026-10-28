@@ -13,6 +13,7 @@ import { hydrateExtractCache } from './lib/extractCache';
 import { hydratePrefs, refreshPrefs, stopSync } from './lib/prefsSync';
 import { saveLastView, loadLastView } from './lib/lastView';
 import { startupAction } from './lib/startupView';
+import { completeOidcReturn } from './lib/oidcReturn';
 import Login from './components/Login/Login';
 import LoginTransition from './components/Login/LoginTransition';
 import Sidebar from './components/Sidebar/Sidebar';
@@ -177,9 +178,16 @@ export default function App() {
     if (token) {
       // Seed the token so the API client can authenticate, then fetch the user
       setBackendAuth(token, null);
-      getMe()
-        .then((user) => setBackendAuth(token, user))
-        .catch(() => useAuthStore.getState().logoutBackend());
+      // Une panne réseau passagère ne doit pas renvoyer à l'écran de connexion :
+      // `completeOidcReturn` réessaie, et ne déconnecte que sur une vraie
+      // session invalide ou après le dernier échec (qu'il annonce alors).
+      void completeOidcReturn(token, {
+        getMe,
+        setAuth: setBackendAuth,
+        logout: () => useAuthStore.getState().logoutBackend(),
+        wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+        onUnavailable: () => setOidcError('unavailable'),
+      });
     } else if (error) {
       setOidcError(error);
     }
