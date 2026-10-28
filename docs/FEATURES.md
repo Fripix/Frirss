@@ -190,7 +190,7 @@ injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
     serveur ne passe donc pas du tout par l'intercepteur. Et depuis la 1.4.8,
     cet intercepteur ne déconnecte plus sur **tout** 401 : il n'agit que sur
     les nôtres (`isBackendAuthFailure`, même `BACKEND_AUTH_MARKERS`) — critère
-    repris par `src/api/backend.ts` depuis la 1.7.1. Un 401 de
+    repris par `src/api/backend.ts` depuis la 1.8.0. Un 401 de
     FreshRSS — session expirée là-bas, mot de passe d'API changé — traversait
     tout le reste de l'application (listes, favicons, extraction) et fermait la
     session FriRSS : une panne d'une couche déconnectait de l'autre. Un corps
@@ -1168,7 +1168,7 @@ touche Menu du clavier, ou **appui long** au doigt : un menu propose **Ouvrir
 à la source**, **Marquer lu / non lu**, **Tout lu au-dessus / en dessous**,
 **Favori**, **À lire plus tard** et **Copier le lien**. Le **clic molette**
 ouvre directement à la source. Demandé dans l'issue #11 : le réflexe vient de
-FreshRSS, où le titre est un vrai lien — et depuis 1.7.1, il l'est aussi dans
+FreshRSS, où le titre est un vrai lien — et depuis 1.8.0, il l'est aussi dans
 FriRSS (voir « Le titre est un vrai lien » plus bas).
 
 - **Où** : `src/components/ArticleList/ArticleContextMenu.tsx` (rendu,
@@ -1215,7 +1215,7 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
   arrière-plan qu'un vrai lien cliqué par l'utilisateur, jamais un
   `window.open`. Sur le titre, c'est désormais un lien natif, donc en
   arrière-plan (point suivant).
-- **Le titre est un vrai lien** (1.7.1, `TitleLink.tsx` dans
+- **Le titre est un vrai lien** (1.8.0, `TitleLink.tsx` dans
   `src/components/ArticleList/`, utilisé par les lignes normale, aperçu et
   compacte et par la carte de la grille) : `<a href target="_blank"
   rel="noopener noreferrer">` à l'intérieur de l'élément du titre, qui garde
@@ -1257,7 +1257,7 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
   - **URL autre que `http(s)`** (`safeHref()`, `src/lib/safeHref.ts`, analyse
     par `URL`, donc `java\tscript:` compris) : pas de lien du tout, le titre
     reste du texte et la ligne garde tous ses gestes.
-  **Règle (1.7.1) : toute URL venue d'un flux passe par `safeHref()` avant de
+  **Règle (1.8.0) : toute URL venue d'un flux passe par `safeHref()` avant de
   devenir un `href` ou un onglet.** Puits couverts : ce titre ; l'icône
   « ouvrir à la source » (`OpenSourceButton` refuse lui-même, et
   `rowActionSlots()` réserve l'emplacement) ; l'entrée « Ouvrir à la source »
@@ -1349,7 +1349,7 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
   arrivé depuis dans le corpus). Les résultats de la recherche affichée
   (`searchResults`) suivent le corpus, aller et retour, par le même critère
   (`inEntryRange`).
-- **Un marquage de plage se voit, et deux marquages se suivent** (1.7.1).
+- **Un marquage de plage se voit, et deux marquages se suivent** (1.8.0).
   *Progression* : la barre du haut (`feedStore.bulkWork`, `TopProgressBar`,
   la même que pour « Tout lu ») s'allume dès la demande, indéterminée ; en
   « au-dessus », elle se chiffre une fois le relevé des identifiants rendu
@@ -1466,7 +1466,7 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
     souris de la ligne (`presses.cancelAll()`) — pendant un drag le
     navigateur n'émet plus ni `mousemove` ni `mouseup`, et un drag parti de
     l'étoile ouvrait le sélecteur de catégorie à 500 ms, en plein drag.
-  - ⚠️ **Retrait assumé (1.7.1) : glisser un article sur une étiquette, une
+  - ⚠️ **Retrait assumé (1.8.0) : glisser un article sur une étiquette, une
     catégorie, Favoris ou « À lire plus tard » de la barre latérale est
     réservé à la souris.** Au doigt, l'appui long gagne toujours ; avant, un
     doigt qui bougeait de quelques pixels pendant l'appui pouvait encore
@@ -1478,7 +1478,7 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
   le menu s'ouvre alors sous la ligne (`menuAnchor()`), pas dans le coin de la
   fenêtre.
 - **Appui long — une seule implémentation** (`src/hooks/useLongPress.ts`,
-  depuis la 1.7.1) pour tous les appuis longs de l'app : lignes et cartes
+  depuis la 1.8.0) pour tous les appuis longs de l'app : lignes et cartes
   d'article (`useArticleMenuGestures`), lignes de flux (`FeedItem`), étoile et
   « À lire plus tard » de la liste (`useCategoryPicker`, `ArticleActions.tsx`)
   et du volet de lecture (`ActionBtn`), bouton de traduction de la barre du
@@ -1587,11 +1587,11 @@ flux**.
   repart de l'état global du moment. Voulu (les anciens choix ne doivent pas
   ressurgir), et irréversible sur l'appareil qui fait le changement.
   Les autres appareils le reçoivent à leur prochaine relecture (premier plan,
-  focus, ou dans la minute s'ils restent affichés) : depuis la 1.7.1, la
+  focus, ou dans la minute s'ils restent affichés) : depuis la 1.8.0, la
   synchronisation n'envoie que les clés modifiées et relit le serveur à ces
   moments-là (voir « Préférences serveur »). Un appareil resté ouvert ne
   renvoie donc plus sa vieille table au premier changement d'un autre réglage.
-  ⚠️ **Reste une version antérieure à la 1.7.1** encore ouverte quelque part :
+  ⚠️ **Reste une version antérieure à la 1.8.0** encore ouverte quelque part :
   elle pousse toujours l'instantané complet, vieille table comprise.
 - **Non-régression** : tant que le mode global n'a jamais servi,
   `unreadOnlyAll` vaut `false` et la règle rend exactement l'ancienne
@@ -2480,7 +2480,7 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   par défaut de nginx ou de Nginx Proxy Manager ne laissent que dix secondes
   de marge au-dessus de l'échéance de 50 s du résumé, et **coupent** un gros
   lot de traduction, qui peut tenir 110 s. Le navigateur, lui, attend
-  **150 s** (`TIMEOUT_AI_MS`, 1.7.1 ; avant, aucun délai) : toujours plus que
+  **150 s** (`TIMEOUT_AI_MS`, 1.8.0 ; avant, aucun délai) : toujours plus que
   nginx, pour qu'une réponse — fût-ce le 504 d'un proxy — arrive avant qu'il
   abandonne (voir *Proxy*, « Délais du navigateur »). FriRSS **s'y adapte** au lieu de
   l'exiger : la traduction de l'article rejoue un lot coupé en deux moitiés
@@ -5000,7 +5000,7 @@ répondu (voir *Extraction du contenu complet*).
   réseau : troc refusé, exception écrite plutôt que tue.
 - **Réécritures** : `PROXY_REWRITES` remplace l'URL publique par une adresse
   interne — gros gain de latence quand FriRSS et FreshRSS partagent un réseau.
-- **Échéance totale** (1.7.1) : `PROXY_TOTAL_TIMEOUT_MS` = **60 s** par requête
+- **Échéance totale** (1.8.0) : `PROXY_TOTAL_TIMEOUT_MS` = **60 s** par requête
   `/api/proxy`, en-têtes **et** corps, tous les sauts de redirection et le
   repli vers l'URL publique compris. Avant, seul `TIMEOUT_MS` (30 s) bornait un
   appel, **par saut et jusqu'aux en-têtes** : un amont qui envoyait ses en-têtes
@@ -5028,7 +5028,7 @@ répondu (voir *Extraction du contenu complet*).
   exemple, n'est bornée que **par saut** (`TIMEOUT_MS`, jusqu'aux en-têtes) ; la
   règle « le serveur répond avant le client » n'est garantie que pour le proxy
   et pour l'IA (qui a ses propres échéances).
-- **Délais du navigateur** (1.7.1, `src/lib/requestTimeouts.ts`). Règle : **le
+- **Délais du navigateur** (1.8.0, `src/lib/requestTimeouts.ts`). Règle : **le
   serveur répond toujours avant que le client abandonne** (sur `/api/proxy` et
   l'IA, voir la portée ci-dessus) — un abandon sans
   réponse est lu par `isUpstreamCut` comme une coupure amont, et la traduction
@@ -5449,11 +5449,11 @@ les clés modifiées sur l'appareil.
 - **Piège** : tout le lot est validé **avant** la moindre écriture. Valider au
   fil de l'insertion laisserait derrière soi les clés qui précédaient la
   fautive, sur une requête pourtant refusée.
-- **Un refus propre à une clé la nomme** (1.7.1) : `key_too_long`,
+- **Un refus propre à une clé la nomme** (1.8.0) : `key_too_long`,
   `unserializable_value` et `value_too_large` répondent
   `400 { error, code, key }`. Un refus du lot entier (`too_many_keys`,
   `too_many_preferences`, `bad_payload`) n'a pas de `key`.
-- **Côté client — clés modifiées seulement** (1.7.1). `prefsSync` garde la
+- **Côté client — clés modifiées seulement** (1.8.0). `prefsSync` garde la
   dernière valeur connue du serveur pour chaque clé (posée à la lecture et
   après chaque envoi réussi) et la liste des clés modifiées sur l'appareil et
   pas encore reçues (« sales »). L'envoi différé (800 ms) ne porte que les
