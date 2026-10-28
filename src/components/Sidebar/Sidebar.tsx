@@ -871,7 +871,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
 
   if (mode === 'rename') {
     return createPortal(
-      <div ref={menuRef} style={style} className="p-3">
+      <div ref={menuRef} style={style} className="p-3" data-floating-surface>
         <form onSubmit={async (e: FormEvent) => {
           e.preventDefault();
           if (renameValue.trim() && renameValue.trim() !== feed.title) {
@@ -918,7 +918,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
 
   if (mode === 'confirmDelete') {
     return createPortal(
-      <div ref={menuRef} style={style} className="p-3">
+      <div ref={menuRef} style={style} className="p-3" data-floating-surface>
         <p className="text-xs mb-3" style={{ color: 'var(--list-title)' }}>
           {t('sidebar.deleteFeedConfirm', { name: feed.title })}
         </p>
@@ -943,7 +943,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
   }
 
     return createPortal(
-    <div ref={menuRef} style={style} className="py-1">
+    <div ref={menuRef} style={style} className="py-1" data-floating-surface>
       {/* Feed name header — anchors every item below to this feed. */}
       <div
         className="px-3 pt-1 pb-1.5 text-[11px] font-semibold truncate"

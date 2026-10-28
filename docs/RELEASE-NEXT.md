@@ -103,6 +103,15 @@ _(rien pour l'instant)_
 - **Le bandeau « nouveaux articles » ne cache plus le séparateur du jour.**
   Tant qu'il s'affiche, le libellé de date collé en haut de la liste (liste et
   grille) se place juste en dessous au lieu d'être recouvert.
+- **Plus aucun raccourci n'agit derrière un menu ouvert.** Le menu
+  contextuel d'un article (clic droit sur ordinateur), le menu d'un flux, le
+  sélecteur de catégorie, les menus « Traduire en… » / « Résumer avec… » et la
+  liste d'étiquettes du volet de lecture coupent maintenant le clavier tant
+  qu'ils sont ouverts, même si le focus est ailleurs : `t` et `s` ne lancent
+  plus de traduction ou de résumé (peut-être payant) derrière eux, et les
+  flèches ne changent plus l'article dessous. Échap ferme toujours le menu ;
+  la liste d'étiquettes, qui ne l'écoutait pas, se ferme désormais aussi à
+  Échap.
 
 ## Sous le capot
 

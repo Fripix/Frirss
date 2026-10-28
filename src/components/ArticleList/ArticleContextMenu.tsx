@@ -242,7 +242,7 @@ export default function ArticleContextMenu({
   };
 
   return createPortal(
-    <div ref={menuRef} style={style} className="py-1">
+    <div ref={menuRef} style={style} className="py-1" data-floating-surface>
       {items.map((item, index) => (
         <Fragment key={item.kind}>
           {needsDividerBefore(item, index) && divider}

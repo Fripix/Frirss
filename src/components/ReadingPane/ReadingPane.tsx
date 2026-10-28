@@ -2340,7 +2340,7 @@ interface LabelMenuProps {
   variant?: string;
 }
 
-function LabelMenu({ article, variant }: LabelMenuProps) {
+export function LabelMenu({ article, variant }: LabelMenuProps) {
   const { t } = useTranslation();
   const { labels, loadLabels, toggleArticleLabel, categoryIds } = useFeedStore();
   const [open, setOpen] = useState(false);
@@ -2363,8 +2363,17 @@ function LabelMenu({ article, variant }: LabelMenuProps) {
       if (menuRef.current?.contains(node) || dropdownRef.current?.contains(node)) return;
       setOpen(false);
     }
+    // Échap ferme aussi : la liste coupe les raccourcis tant qu'elle est ouverte
+    // (`data-floating-surface`), donc plus rien d'autre n'écouterait la touche.
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, [open, isMobile]);
 
   // Lock body scroll when mobile sheet is open
@@ -2526,6 +2535,7 @@ function LabelMenu({ article, variant }: LabelMenuProps) {
       {open && createPortal(
         <div
           ref={dropdownRef}
+          data-floating-surface
           className="fixed w-56 rounded-xl shadow-xl z-[200] overflow-hidden"
           style={{
             background: 'var(--panel-bg)',

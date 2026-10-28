@@ -570,7 +570,20 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   focus posé **dans un menu** (`[role="menu"]` : « Traduire en… »,
   « Résumer avec… » sur ordinateur — après une flèche, `t` y lançait une
   traduction payante derrière le menu et `j`/`k` changeaient l'article
-  dessous). Sur ordinateur le volet de lecture reste monté derrière les
+  dessous), et **toute surface flottante ouverte, quel que soit le focus** :
+  chacune marque la racine de son portail `data-floating-surface` et la garde
+  est `document.querySelector('[data-floating-surface]')`. Les cinq : menu
+  contextuel d'article sur ordinateur (`ArticleContextMenu`, volontairement
+  sans `role`), menu d'un flux (`FeedContextMenu`, ses trois états), sélecteur
+  de catégorie (`SavedCategoryPicker`), `Popover` (« Traduire en… »,
+  « Résumer avec… », menus des Préférences IA) et la liste d'étiquettes du
+  volet de lecture (`LabelMenu`, qui se ferme désormais à Échap). Le test sur
+  `[role="menu"]` ne les voyait pas : le menu d'article n'en a pas, deux sont
+  des portails nus, et un Popover reste ouvert quand le focus est ailleurs —
+  `t` et `s` lançaient un appel d'IA payant derrière le menu. Échap reste à
+  chaque surface (la garde ne l'intercepte pas) ; **toute nouvelle surface
+  flottante doit porter l'attribut**, sinon elle laisse passer les raccourcis.
+  Sur ordinateur le volet de lecture reste monté derrière les
   Préférences : sans cette garde, `r`, `d`, `l` ou `s` agissaient sur
   l'article qu'elles recouvrent. ⌘K est traité avant ces gardes, par convention. Un simple bouton
   qui a le focus **ne** fait **pas** taire les raccourcis : après un clic dans

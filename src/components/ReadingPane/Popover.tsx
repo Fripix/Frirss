@@ -74,12 +74,12 @@ export default function Popover({ anchor, onClose, children, header, label }: {
     <>
       <div className="fixed inset-0 z-[60]" onClick={onClose} aria-hidden="true" />
       {header ? (
-        <div ref={ref} className={boxClass} style={boxStyle}>
+        <div ref={ref} className={boxClass} style={boxStyle} data-floating-surface>
           <div data-popover-header>{header}</div>
           <div role="menu" aria-label={label}>{children}</div>
         </div>
       ) : (
-        <div ref={ref} role="menu" aria-label={label} className={boxClass} style={boxStyle}>
+        <div ref={ref} role="menu" aria-label={label} className={boxClass} style={boxStyle} data-floating-surface>
           {children}
         </div>
       )}

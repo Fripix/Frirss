@@ -45,6 +45,7 @@ export default function SavedCategoryPicker({ prefix, article, anchor, onClose }
       <div className="fixed inset-0 z-[60]" onClick={(e) => { e.stopPropagation(); onClose(); }} />
       <div
         className="fixed z-[61] rounded-lg shadow-xl py-1"
+        data-floating-surface
         style={{
           left, top, width: WIDTH,
           background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',

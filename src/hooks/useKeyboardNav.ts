@@ -43,6 +43,16 @@ export function useKeyboardNav(): void {
       // mais quand le focus est sur une de ses entrées, il possède le clavier
       // lui aussi : `t` y lançait une traduction payante derrière le menu.
       if (target?.closest?.('[role="menu"]')) return;
+      // Une surface flottante ouverte (menu contextuel d'article ou de flux,
+      // sélecteur de catégorie, Popover) possède le clavier quel que soit le
+      // focus. Le test précédent ne la voit que si le focus est DANS un
+      // `role="menu"` : le menu d'article n'en a pas (boutons simples, voulu),
+      // les deux autres sont des portails nus, et un Popover reste ouvert quand
+      // le focus est ailleurs — `t` et `s` lançaient alors un appel d'IA payant
+      // derrière lui. Chaque surface marque la racine de son portail avec
+      // `data-floating-surface` ; Échap reste à elle (elle l'écoute elle-même).
+      // ⌘K, traité plus haut, garde son comportement.
+      if (document.querySelector('[data-floating-surface]')) return;
 
       // Escape leaves Reading Focus mode (only when active — otherwise let other
       // handlers, e.g. search / preferences, deal with Escape).
