@@ -22,6 +22,11 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
+- **Appui long : un pouce qui tremble ouvre quand même le menu.** Le moindre
+  mouvement du doigt annulait l'appui long d'un article (ligne, carte, bouton
+  de traduction) ; un pouce posé sur un téléphone n'est jamais tout à fait
+  immobile. Il faut désormais bouger de plus de 8 pixels pour l'annuler — un
+  défilement ou un balayage le font toujours.
 - **Chinois : le statut des résumés et traductions IA se lit avec la virgule
   pleine chasse « ， »** au lieu d'une virgule latine en dur (en-tête du
   panneau, annonce aux lecteurs d'écran, bandeau de traduction). Nouvelle clé

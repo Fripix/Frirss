@@ -65,7 +65,7 @@ export function useArticleMenuGestures(
     },
     onTouchMove: (e: ReactTouchEvent<HTMLElement>) => {
       if (!targetsElement(e)) return;
-      longPress.onTouchMove();
+      longPress.onTouchMove(e);
     },
     onTouchEnd: (e: ReactTouchEvent<HTMLElement>) => {
       if (!targetsElement(e)) return;

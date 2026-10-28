@@ -1298,14 +1298,21 @@ FreshRSS, où le titre est un vrai lien.
 - **Piège — touche Menu** : `contextmenu` arrive avec `clientX = clientY = 0` ;
   le menu s'ouvre alors sous la ligne (`menuAnchor()`), pas dans le coin de la
   fenêtre.
-- **Appui long** : 500 ms, annulé par `touchmove`, `touchend`, `touchcancel` et
-  un second doigt (pincer, geste à deux doigts).
+- **Appui long** : 500 ms (`LONG_PRESS_MS`), annulé par un mouvement de plus
+  de 8 px **depuis le point de départ** (`LONG_PRESS_MOVE_TOLERANCE_PX`,
+  distance euclidienne), par `touchend`, `touchcancel` et un second doigt
+  (pincer, geste à deux doigts). Un tremblement en deçà de la tolérance ne
+  l'annule pas : jusqu'à la 1.7.0, tout `touchmove` annulait, et un pouce posé
+  sur un téléphone en émet presque toujours un ou deux. Un `touchmove` sans
+  doigt mesurable annule, plutôt que de deviner.
 - **Piège — le clic de compatibilité après un appui long** : sur téléphone, la
   feuille du bas s'ouvre SOUS le doigt, et le clic émis au relâchement tombait
   sur son fond, qui la refermait aussitôt. Le `touchend` d'un appui abouti est
   donc `preventDefault()` ; le clic qui passerait quand même est avalé en phase
   de capture sur la ligne — mais seulement s'il arrive dans la seconde qui
-  suit (`firedRecently()`).
+  suit le déclenchement **ou le relâchement** (`firedRecently()`) : un doigt
+  gardé deux secondes, ou le clic d'une souris qui n'arrive qu'au
+  relâchement, sortaient sinon de la fenêtre.
 - **Piège — ce clic avalé perdait le tap suivant sur un bouton de la ligne** :
   aucun clic ne consommait la consigne « avaler » d'un appui abouti (le
   `touchend` qui la pose est `preventDefault()`), et un contact qui démarrait

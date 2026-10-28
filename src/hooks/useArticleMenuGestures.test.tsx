@@ -99,6 +99,19 @@ describe('useArticleMenuGestures', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('a few pixels of tremor on the row do not cancel the long press, a scroll does', () => {
+    const { onOpenMenu, row } = setup();
+    fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 30 }] });
+    fireEvent.touchMove(row, { touches: [{ clientX: 23, clientY: 34 }] });
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(onOpenMenu).toHaveBeenCalledTimes(1);
+    fireEvent.touchEnd(row);
+    fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 30 }] });
+    fireEvent.touchMove(row, { touches: [{ clientX: 20, clientY: 60 }] });
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(onOpenMenu).toHaveBeenCalledTimes(1);
+  });
+
   it('a long press that starts on a button belongs to that button', () => {
     const { onOpenMenu, button } = setup();
     fireEvent.touchStart(button, { touches: [{ clientX: 20, clientY: 30 }] });
