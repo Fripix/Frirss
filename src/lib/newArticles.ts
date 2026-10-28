@@ -47,3 +47,17 @@ export function countNewInView(newByFeed: Record<string, number>, feedIds: reado
   for (const id of feedIds) total += newByFeed[id] ?? 0;
   return total;
 }
+
+/**
+ * Décalage des séparateurs de date sous le bandeau « N nouveaux articles ».
+ * Le bandeau et les séparateurs collent tous deux en haut du conteneur
+ * défilant ; l'emplacement du bandeau garde sa hauteur nulle (il se pose
+ * par-dessus la première ligne, voulu), c'est donc le séparateur qui descend
+ * sous lui tant qu'il s'affiche. La hauteur vient de la même variable que
+ * celle du bandeau (`--new-articles-banner-height`, 40 px, 44 px sous
+ * `pointer: coarse`, `index.css`) : pas de second nombre à tenir à jour.
+ * À poser sur le conteneur défilant ; `.date-separator` le lit.
+ */
+export function newArticlesOffsetStyle(bannerShown: boolean): Record<string, string> {
+  return { '--new-articles-offset': bannerShown ? 'var(--new-articles-banner-height)' : '0px' };
+}

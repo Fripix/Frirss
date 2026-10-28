@@ -28,4 +28,21 @@ describe('computeRefreshDelta', () => {
     expect(r.totalNew).toBe(4);
     expect(r.newByFeed).toEqual({ 'feed/a': 4 });
   });
+
+  // `loadSubscriptions` (ajout d'un flux) : un flux que la base précédente ne
+  // connaissait pas apporte tout son stock, pas des arrivées.
+  it('with ignoreUnknownFeeds, a feed absent before does not count', () => {
+    const r = computeRefreshDelta(
+      { 'feed/a': 2 },
+      { 'feed/a': 3, 'feed/new': 30 },
+      { ignoreUnknownFeeds: true },
+    );
+    expect(r.totalNew).toBe(1);
+    expect(r.newByFeed).toEqual({ 'feed/a': 1 });
+  });
+
+  it('with ignoreUnknownFeeds, a feed known at zero still counts', () => {
+    const r = computeRefreshDelta({ 'feed/a': 0 }, { 'feed/a': 2 }, { ignoreUnknownFeeds: true });
+    expect(r.newByFeed).toEqual({ 'feed/a': 2 });
+  });
 });

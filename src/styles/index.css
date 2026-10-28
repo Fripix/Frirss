@@ -2426,6 +2426,15 @@ summary:focus-visible,
    et le voile dégradé de la pastille disparaissent avec elle : ils
    découpaient un petit objet du texte recouvert, un bandeau opaque pleine
    largeur n'en a plus besoin, une simple ombre portée suffit. */
+/* Une seule hauteur pour le bandeau ET pour le décalage des séparateurs de
+   date qui descendent sous lui (`newArticlesOffsetStyle`, `.date-separator`) :
+   40 px à la souris, 44 px au doigt. */
+:root {
+  --new-articles-banner-height: 40px;
+}
+@media (pointer: coarse) {
+  :root { --new-articles-banner-height: 44px; }
+}
 .new-articles-slot {
   position: sticky;
   top: 0;
@@ -2436,7 +2445,7 @@ summary:focus-visible,
   display: flex;
   align-items: stretch;
   width: 100%;
-  height: 40px;
+  height: var(--new-articles-banner-height);
   background: var(--accent);
   color: var(--on-accent);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
@@ -2449,8 +2458,19 @@ summary:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   .new-articles-banner { animation: none; }
 }
-@media (pointer: coarse) {
-  .new-articles-banner { height: 44px; }
+/* Séparateur de jour (`DateSeparator`, liste et grille) : collé en haut du
+   conteneur défilant comme le bandeau, il était recouvert par lui (z-index 10
+   sous 15, bandeau opaque). L'emplacement du bandeau garde sa hauteur nulle —
+   voulu, rien ne se décale — donc c'est le séparateur qui descend sous le
+   bandeau tant qu'il s'affiche : `--new-articles-offset` est posé sur le
+   conteneur défilant (`newArticlesOffsetStyle`), à 0 sinon. Il glisse au même
+   rythme que l'entrée du bandeau ; immobile sous « réduire les animations ». */
+.date-separator {
+  top: var(--new-articles-offset, 0px);
+  transition: top 0.3s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .date-separator { transition: none; }
 }
 /* Charge les nouveaux articles — toute la zone gauche, pas juste la flèche.
    `min-width: 0` + l'ellipse sur le libellé : sans eux, un compte très long

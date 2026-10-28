@@ -457,6 +457,71 @@ export function __resetNewArticlesStateForTests(): void {
   zeroUnreadFloor.clear();
 }
 
+// ── Décompte des arrivées, partagé par les deux relevés de compteurs ───────
+// `syncCounts` (toutes les 60 s) et `loadSubscriptions` (démarrage, renommage
+// ou suppression de catégorie, déplacement ou ajout de flux, rafraîchissement)
+// écrasent tous deux `unreadCounts` par les compteurs du serveur. Si seul le
+// premier comptait, les arrivées de la minute qui précède un renommage
+// disparaîtraient : le relevé suivant partirait d'une base déjà relevée.
+// Les deux passent donc par ici, avec les mêmes gardes.
+
+/** Ce qu'un relevé doit retenir AVANT son attente réseau. */
+interface CountsReading {
+  epoch: number;
+  serverId: string | number | null;
+  /** Un ✓/non-lu était en vol au démarrage (Important 1, voir plus haut). */
+  writeWasInFlight: boolean;
+}
+function beginCountsReading(): CountsReading {
+  return {
+    epoch: countsEpoch,
+    serverId: useAuthStore.getState().activeServerId,
+    writeWasInFlight: readWritesInFlight > 0,
+  };
+}
+
+/**
+ * Arrivées dans la vue entre `before` (compteurs du store au retour du relevé)
+ * et `next` (compteurs du serveur, plancher zéro appliqué). Rend 0 si une
+ * garde tient (voir la garde en tête de fichier et Fix 2 dans `syncCounts`),
+ * sans compteur connu (premier relevé : tout le stock passerait pour une
+ * arrivée), ou si la vue n'a pas de bandeau (`feedIds === null`).
+ *
+ * Consomme `skipNextArrivals` et vide `zeroFloorJustExpired` dans tous les
+ * cas : ce relevé a écrasé le compte local, ce qu'ils décrivaient est réglé.
+ * `skip` laisse l'appelant écarter ce relevé du décompte sans le priver de
+ * cette consommation (le rafraîchissement manuel, qui a son propre bandeau).
+ */
+function arrivalsInView(
+  reading: CountsReading,
+  before: Record<string, number>,
+  next: Record<string, number>,
+  feedIds: readonly string[] | null,
+  refreshPhase: RefreshPhase,
+  opts: { ignoreUnknownFeeds?: boolean; skip?: boolean } = {},
+): number {
+  const skipThisPoll = !!opts.skip
+    || reading.epoch !== countsEpoch
+    || reading.writeWasInFlight
+    || replayInFlight !== null
+    || refreshPhase === 'running'
+    || skipNextArrivals
+    || String(useAuthStore.getState().activeServerId) !== String(reading.serverId);
+  skipNextArrivals = false;
+  let arrived = 0;
+  if (!skipThisPoll && feedIds && Object.keys(before).length) {
+    const newByFeed = {
+      ...computeRefreshDelta(before, next, { ignoreUnknownFeeds: opts.ignoreUnknownFeeds }).newByFeed,
+    };
+    // Un flux qui vient de quitter son plancher zéro saute de 0 à son vrai
+    // compte : ce n'est pas une arrivée.
+    for (const id of zeroFloorJustExpired) delete newByFeed[id];
+    arrived = countNewInView(newByFeed, feedIds);
+  }
+  zeroFloorJustExpired.clear();
+  return arrived;
+}
+
 function memClear(): void {
   memCache.clear();
 }
@@ -590,7 +655,10 @@ export interface FeedState {
   selectHomeAll: () => void;
   selectCategory: (cat: FeedCategory) => void;
   selectArticle: (article: Article | null) => void;
-  loadSubscriptions: () => Promise<void>;
+  /** Recharge abonnements et compteurs, et compte les arrivées comme
+   *  `syncCounts`. `countArrivals: false` : ne rien ajouter à `newInView`
+   *  (le rafraîchissement manuel, qui a son propre bandeau). */
+  loadSubscriptions: (opts?: { countArrivals?: boolean }) => Promise<void>;
   /**
    * Instant paint from the offline snapshot of the subscriptions (structure
    * only; counts arrive with the live load). Resolves once applied, so the
@@ -935,12 +1003,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     }
   },
 
-  loadSubscriptions: async () => {
+  loadSubscriptions: async (opts) => {
     // Stale-while-revalidate: the snapshot paints the sidebar while FreshRSS
     // responds. Not awaited here — the startup effect awaits it itself,
     // before choosing the view (see `restoreSubscriptionsSnapshot`).
     void get().restoreSubscriptionsSnapshot();
     set({ syncing: true });
+    // Pris avant l'attente réseau, comme dans `syncCounts`.
+    const reading = beginCountsReading();
     try {
       const [subs, counts] = await Promise.all([
         getSubscriptionList(),
@@ -977,18 +1047,38 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           if (c.id && !catIds.includes(c.id)) catIds.push(c.id);
         });
       });
-      set({
-        subscriptions: normalizedSubs,
-        unreadCounts: applyZeroFloor(countMap),
-        categoryIds: catIds,
+      const next = applyZeroFloor(countMap);
+      // Arrivées depuis le dernier relevé (voir `arrivalsInView`). Un flux que
+      // le store ne connaissait pas (on vient de l'ajouter) apporte tout son
+      // stock, pas des arrivées : il est écarté (`ignoreUnknownFeeds`). Les
+      // flux déjà abonnés sont posés à 0 dans la base s'ils n'y ont pas de
+      // compteur, pour que leurs vraies arrivées comptent quand même. La vue
+      // est lue sur les NOUVEAUX abonnements : c'est ce que montrera le
+      // rechargement que propose le bandeau (un flux déplacé dans la
+      // catégorie affichée y apparaîtra).
+      const prev = get();
+      const before: Record<string, number> = {};
+      if (Object.keys(prev.unreadCounts).length) {
+        for (const sub of prev.subscriptions) before[sub.id] = 0;
+        Object.assign(before, prev.unreadCounts);
+      }
+      const feedIds = viewFeedIds(
+        { feedId: prev.selectedFeed?.id ?? null, filter: prev.filter, searching: !!prev.searchQuery },
+        normalizedSubs,
+      );
+      // `refresh()` passe `countArrivals: false` : son propre bandeau
+      // (`refreshResult`, calculé depuis `before`) annonce déjà ces arrivées,
+      // elles ne doivent pas l'être une seconde fois dans `newInView`.
+      const arrived = arrivalsInView(reading, before, next, feedIds, prev.refreshPhase, {
+        ignoreUnknownFeeds: true,
+        skip: opts?.countArrivals === false,
       });
-      // `applyZeroFloor` ci-dessus a pu noter des flux dont le plancher zéro
-      // vient d'expirer (`zeroFloorJustExpired`) : seul `syncCounts` sait
-      // quoi en faire (les exclure d'un décompte d'arrivées) ; ici, personne
-      // ne le consommera jamais. Le vider évite qu'un `syncCounts` ultérieur
-      // n'exclue à tort un flux dont le saut à son vrai compte remonte à ce
-      // chargement des abonnements, pas à son propre relevé.
-      zeroFloorJustExpired.clear();
+      set((st) => ({
+        subscriptions: normalizedSubs,
+        unreadCounts: next,
+        categoryIds: catIds,
+        newInView: st.newInView + arrived,
+      }));
       subsPut(normalizedSubs).catch(() => {}); // persist for offline
       // Auto-load user labels now that we know categories
       get().loadLabels();
@@ -2366,14 +2456,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // Pris AVANT l'attente réseau : comparés à leur valeur après, ils disent
     // si l'app a écrit `unreadCounts` (ou changé de serveur) pendant le vol —
     // voir la garde en tête de fichier.
-    const epoch = countsEpoch;
-    const serverId = useAuthStore.getState().activeServerId;
     // Important 1 (deuxième re-revue) : un ✓/non-lu déjà en vol AU DÉMARRAGE
     // de ce relevé a déjà bougé `unreadCounts` et déjà bumpé l'epoch — cette
     // comparaison avant/après n'y verra donc AUCUN écart si l'écriture ne se
-    // règle pas pendant l'attente ci-dessous. Seul ce drapeau, lu ici, le
-    // sait encore.
-    const writeWasInFlight = readWritesInFlight > 0;
+    // règle pas pendant l'attente ci-dessous. Seul `writeWasInFlight`, lu
+    // ici, le sait encore.
+    const reading = beginCountsReading();
     try {
       const counts = await getUnreadCounts();
       // Ce relevé appartient au serveur sur lequel il a démarré : un autre est
@@ -2383,7 +2471,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // (planchers zéro expirés, file changée) qui appartient lui aussi au
       // serveur qu'on vient de quitter — `resetAndReload` les videra encore
       // à l'arrivée sur le nouveau, mais rien ne doit rester d'ici là.
-      if (String(useAuthStore.getState().activeServerId) !== String(serverId)) {
+      if (String(useAuthStore.getState().activeServerId) !== String(reading.serverId)) {
         zeroFloorJustExpired.clear();
         skipNextArrivals = false;
         return;
@@ -2396,7 +2484,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // compteur à jour, elle ne produit donc aucune hausse ici. Sans compteur
       // connu (premier relevé), rien n'est compté : tout le stock passerait
       // pour une arrivée.
-      const { selectedFeed, filter, searchQuery, subscriptions, unreadCounts } = get();
+      const { selectedFeed, filter, searchQuery, subscriptions, unreadCounts, refreshPhase } = get();
       const feedIds = viewFeedIds(
         { feedId: selectedFeed?.id ?? null, filter, searching: !!searchQuery },
         subscriptions,
@@ -2409,7 +2497,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // pas pendant l'attente), un rejeu hors-ligne en cours, un
       // rafraîchissement manuel (qui a son propre bandeau et se termine par
       // `loadArticles`), ou une action mise en file/abandonnée depuis le
-      // relevé précédent (`skipNextArrivals`, consommée ici).
+      // relevé précédent (`skipNextArrivals`, consommée ici). Ces gardes
+      // vivent dans `arrivalsInView`, partagé avec `loadSubscriptions`.
       //
       // `pendingActions > 0` a été RETIRÉ : `replayQueue` ne tourne qu'au
       // montage de l'app et sur l'événement `online` (`App.tsx`), donc une
@@ -2418,21 +2507,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // ait déjà écrasé le compte local par celui du serveur. Seul LE relevé
       // qui suit la mise en file doit l'ignorer ; `skipNextArrivals` (posé
       // par `enqueueAction`) le fait déjà et se consomme en un seul coup.
-      const skipThisPoll = epoch !== countsEpoch
-        || writeWasInFlight
-        || replayInFlight !== null
-        || get().refreshPhase === 'running'
-        || skipNextArrivals;
-      if (skipNextArrivals) skipNextArrivals = false;
-      let arrived = 0;
-      if (!skipThisPoll && feedIds && Object.keys(unreadCounts).length) {
-        const newByFeed = { ...computeRefreshDelta(unreadCounts, next).newByFeed };
-        // Un flux qui vient de quitter son plancher zéro saute de 0 à son
-        // vrai compte : ce n'est pas une arrivée.
-        for (const id of zeroFloorJustExpired) delete newByFeed[id];
-        arrived = countNewInView(newByFeed, feedIds);
-      }
-      zeroFloorJustExpired.clear();
+      const arrived = arrivalsInView(reading, unreadCounts, next, feedIds, refreshPhase);
       set((s) => ({ unreadCounts: next, newInView: s.newInView + arrived }));
       // Also refresh starred & read-later counts
       get().loadSpecialCounts();
@@ -2523,7 +2598,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
     if (!wantsReal) {
       // Read-only sync: exactly the pre-existing behaviour.
-      await get().loadSubscriptions();
+      await get().loadSubscriptions({ countArrivals: false });
       await get().loadArticles();
       const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);
       set({ refreshResult: { totalNew, newByFeed, at: Date.now() } });
@@ -2547,7 +2622,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (!job) {
       if (noToken) set({ hasRefreshToken: false });
       // Fall back to a plain sync rather than leaving the user with nothing.
-      await get().loadSubscriptions();
+      await get().loadSubscriptions({ countArrivals: false });
       await get().loadArticles();
       const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);
       set({ refreshResult: { totalNew, newByFeed, at: Date.now() } });
@@ -2596,7 +2671,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     }
 
     // Final load once the job resolved, so the visible list matches the counters.
-    await get().loadSubscriptions();
+    await get().loadSubscriptions({ countArrivals: false });
     await get().loadArticles();
     if (!stillActive()) return;
     const { totalNew, newByFeed } = computeRefreshDelta(before, get().unreadCounts);

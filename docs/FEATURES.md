@@ -647,6 +647,9 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   **Chaque libellé porte une date**, pas seulement un mot : « MERCREDI » seul
   ne dit pas de quel mercredi il s'agit, et « Aujourd'hui » devient faux dès
   qu'on laisse l'onglet ouvert une nuit. Format : `AUJOURD'HUI · 31 AOÛT`.
+  Composant `DateSeparator` (`ArticleList.tsx`, liste et grille), classe
+  `.date-separator` : il **descend sous le bandeau « nouveaux articles »**
+  tant que celui-ci s'affiche (voir cette section), au lieu d'être recouvert.
 - **Apparition échelonnée** : les dix premières lignes se déposent avec 25 ms
   d'écart (`data-stagger`). La décision revient à `staggerIndexes()`
   (`src/lib/rowStagger.ts`) : **la position ne sert qu'à ATTRIBUER un retard,
@@ -1358,7 +1361,8 @@ Réglage « Signaler les nouveaux articles » (Préférences → Général, sync
 mieux qu'avant mais encore trop discrète).
 
 - **Où** : `src/lib/newArticles.ts` (`viewFeedIds`, `countNewInView`, testés),
-  `feedStore.newInView`, `loadNewArticles` (cumul dans `syncCounts`) et
+  `feedStore.newInView`, `loadNewArticles` (cumul dans `syncCounts` et
+  `loadSubscriptions`, par `arrivalsInView`) et
   `dismissNewArticles` (remet `newInView` à zéro sans charger, testée),
   `src/components/ArticleList/NewArticlesBanner.tsx`,
   `uiStore.showNewArticlesPill` (clé de réglage conservée telle quelle malgré
@@ -1366,10 +1370,25 @@ mieux qu'avant mais encore trop discrète).
 - **Spec** : `docs/superpowers/specs/2026-09-17-new-articles-pill-design.md`
   (nom d'origine, gardé — le document reste la spec de la fonctionnalité même
   si l'objet visuel a changé depuis)
-- **Le signal** : à chaque relevé des compteurs (60 s), `computeRefreshDelta()`
+- **Le signal** : à chaque relevé des compteurs, `computeRefreshDelta()`
   compare les compteurs du serveur à ceux du store ; seules les hausses des
   flux de la vue comptent. Au premier relevé, sans compteur connu, rien n'est
-  compté — tout le stock passerait pour une arrivée.
+  compté — tout le stock passerait pour une arrivée. **Deux relevés comptent,
+  avec les mêmes gardes** (`arrivalsInView`, `feedStore.ts`) : `syncCounts`
+  (toutes les 60 s) et `loadSubscriptions` (renommage ou suppression de
+  catégorie, déplacement ou ajout de flux ; au démarrage et au changement de
+  serveur, la base est vide, donc rien n'est compté). Jusqu'à la 1.7.0, `loadSubscriptions` reprenait les compteurs du
+  serveur sans rien compter : les arrivées de la minute qui précédait un
+  renommage disparaissaient, le relevé suivant partant d'une base déjà
+  relevée. Deux exceptions dans `loadSubscriptions` : **un flux que le store
+  ne connaissait pas ne compte pas** (`ignoreUnknownFeeds` — ajouter un flux
+  de 30 non-lus n'annonce pas « 30 nouveaux articles » ; les flux déjà abonnés
+  sans compteur sont posés à 0 dans la base, pour que leurs vraies arrivées
+  comptent quand même), et **`refresh()` ne compte pas deux fois**
+  (`loadSubscriptions({ countArrivals: false })` : son propre bandeau,
+  `refreshResult`, annonce déjà ces arrivées, calculées depuis son `before`).
+  La vue y est lue sur les nouveaux abonnements : un flux déplacé dans la
+  catégorie affichée y compte, c'est ce que montrera le rechargement.
   Un relevé lit le serveur APRÈS un aller-retour réseau : une écriture locale
   faite par l'app pendant ce vol (✓, tout marquer lu, une nouvelle vue) change
   le compteur local avant que le serveur ne le sache, et ressemblerait sinon à
@@ -1412,15 +1431,22 @@ mieux qu'avant mais encore trop discrète).
   pendant l'aller-retour) : il n'écrit alors ni la liste ni `newInView`.
 - **Limites** : un article marqué non lu sur un autre appareil compte comme une
   arrivée ; des arrivées et des lectures faites ailleurs dans le même
-  intervalle, sur le même flux, peuvent s'annuler. Et `loadSubscriptions`
-  (renommer ou déplacer une catégorie, ajouter un flux) reprend les compteurs
-  du serveur sans rien compter : les arrivées de la minute qui précède ces
-  actions ne sont pas signalées.
+  intervalle, sur le même flux, peuvent s'annuler. Un flux supprimé puis
+  réabonné passe pour un flux nouveau : son stock n'est pas annoncé.
 - **Devenu un bandeau** (retouche visuelle — la pastille était jugée mieux
   qu'avant mais encore trop discrète) : pleine largeur de la colonne de liste,
   posé juste sous l'en-tête. L'emplacement (`.new-articles-slot`) reste
   `sticky` et de hauteur nulle comme du temps de la pastille — rien ne se
   décale — et le bandeau se pose par-dessus le haut de la première ligne.
+  **Les séparateurs de date, eux, descendent sous lui** : collés en haut du
+  même conteneur défilant (z-index 10 sous 15), ils étaient entièrement
+  recouverts par le bandeau opaque tant qu'il s'affichait. Le conteneur porte
+  `--new-articles-offset` (`newArticlesOffsetStyle`, `src/lib/newArticles.ts`)
+  — la hauteur du bandeau quand il s'affiche, 0 sinon — et `.date-separator`
+  le lit comme `top`, avec une transition de 0,3 s calée sur l'entrée du
+  bandeau (aucune sous `prefers-reduced-motion`). La hauteur vient d'une seule
+  variable, `--new-articles-banner-height` (`:root`, `index.css`), lue par le
+  bandeau ET par le décalage : pas de second nombre à tenir à jour.
   40 px de haut (44 px sous `pointer: coarse`), fond `--accent`, texte
   `--on-accent`, 13 px, demi-gras. Une simple ombre portée (`box-shadow`,
   `src/styles/index.css`) le détache du texte recouvert ; le liseré

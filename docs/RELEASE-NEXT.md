@@ -91,6 +91,17 @@ _(rien pour l'instant)_
   part plus vers un autre serveur FreshRSS si l'on change de serveur (ou si
   l'on se déconnecte) entre-temps.
 
+- **Bandeau « nouveaux articles » : plus d'arrivées perdues après un
+  renommage.** Renommer ou supprimer une catégorie, déplacer ou ajouter un
+  flux rechargeait les compteurs sans rien compter : les articles arrivés
+  dans la minute précédente n'étaient jamais signalés. Ils le sont
+  désormais. Ajouter un flux n'annonce pas pour autant tout son stock comme
+  « nouveau », et Rafraîchir ne compte pas deux fois ce que sa propre
+  notification annonce déjà.
+- **Le bandeau « nouveaux articles » ne cache plus le séparateur du jour.**
+  Tant qu'il s'affiche, le libellé de date collé en haut de la liste (liste et
+  grille) se place juste en dessous au lieu d'être recouvert.
+
 ## Sous le capot
 
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,

@@ -24,6 +24,7 @@ import FeedFavicon from '../FeedFavicon';
 import BottomSheet from '../BottomSheet';
 import ArticleContextMenu from './ArticleContextMenu';
 import NewArticlesBanner from './NewArticlesBanner';
+import { newArticlesOffsetStyle } from '../../lib/newArticles';
 import SearchScanBar from './SearchScanBar';
 import SearchBar from './SearchBar';
 import ConfirmDialog from '../ConfirmDialog';
@@ -50,6 +51,36 @@ interface PullState {
   atTop?: boolean;
   pulling?: boolean;
   dist?: number;
+}
+
+/**
+ * Séparateur de jour (« Aujourd'hui  12 »), collé en haut de la liste en
+ * défilant — en liste comme en grille. Ces bandeaux sont les seuls repères de
+ * progression d'un scroll infini. Ils étaient à 10 px dans le gris le plus
+ * clair de la palette : plus décoratifs qu'utiles. Le compte du jour en fait
+ * un vrai repère. `.date-separator` (`index.css`) porte son `top` : il descend
+ * sous le bandeau « nouveaux articles » tant que celui-ci s'affiche, au lieu
+ * d'être recouvert (z-index 10 sous 15).
+ */
+export function DateSeparator({ label, count }: { label: string | null; count: number }) {
+  return (
+    <div
+      className="date-separator px-4 py-1.5 text-[11px] font-semibold uppercase tracking-widest sticky z-10 flex items-center gap-2"
+      style={{
+        color: 'var(--list-summary)',
+        background: 'var(--panel-header-bg)',
+        borderBottom: '1px solid var(--panel-border)',
+      }}
+    >
+      <span className="truncate">{label}</span>
+      <span
+        className="tabular-nums font-normal"
+        style={{ color: 'var(--list-time)' }}
+      >
+        {count}
+      </span>
+    </div>
+  );
 }
 
 export default function ArticleList() {
@@ -95,6 +126,12 @@ export default function ArticleList() {
   const newInView = useFeedStore((s) => s.newInView);
   const loadNewArticles = useFeedStore((s) => s.loadNewArticles);
   const dismissNewArticles = useFeedStore((s) => s.dismissNewArticles);
+  // Une recherche est en cours : le bandeau de la vue qu'elle recouvre ne doit
+  // pas rester visible au-dessus des résultats (Fix 1, revue finale) —
+  // `search()` a déjà remis `newInView` à zéro, mais rien ne la remet tant
+  // qu'on reste DANS la recherche.
+  const newArticlesBannerCount = searchQuery ? 0 : newInView;
+  const newArticlesBannerShown = showNewArticlesPill && newArticlesBannerCount > 0;
   const markReadOnScroll = useUiStore((s) => s.markReadOnScroll);
   const showSourceInAll = useUiStore((s) => s.showSourceInAll);
   const toggleShowSourceInFeed = useUiStore((s) => s.toggleShowSourceInFeed);
@@ -999,14 +1036,13 @@ export default function ArticleList() {
         ref={listRef}
         tabIndex={-1}
         className="flex-1 overflow-y-auto overflow-x-hidden nice-scroll relative outline-none"
+        // Les séparateurs de date descendent sous le bandeau tant qu'il
+        // s'affiche, au lieu d'être recouverts (`newArticlesOffsetStyle`).
+        style={newArticlesOffsetStyle(newArticlesBannerShown)}
       >
         <NewArticlesBanner
           enabled={showNewArticlesPill}
-          // Une recherche est en cours : le bandeau de la vue qu'elle
-          // recouvre ne doit pas rester visible au-dessus des résultats (Fix
-          // 1, revue finale) — `search()` a déjà remis `newInView` à zéro,
-          // mais rien ne la remet tant qu'on reste DANS la recherche.
-          count={searchQuery ? 0 : newInView}
+          count={newArticlesBannerCount}
           onClick={() => {
             void loadNewArticles();
             // Le bouton disparaît avec le clic : sans ce focus, le clavier
@@ -1073,26 +1109,7 @@ export default function ArticleList() {
           groups.map((group) => (
             <div key={group.key}>
               {dateSepActive && (
-                /* Ces bandeaux sont les seuls repères de progression d'un
-                   scroll infini. Ils étaient à 10 px dans le gris le plus
-                   clair de la palette : plus décoratifs qu'utiles. Le compte
-                   du jour en fait un vrai repère. */
-                <div
-                  className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-widest sticky top-0 z-10 flex items-center gap-2"
-                  style={{
-                    color: 'var(--list-summary)',
-                    background: 'var(--panel-header-bg)',
-                    borderBottom: '1px solid var(--panel-border)',
-                  }}
-                >
-                  <span className="truncate">{group.label}</span>
-                  <span
-                    className="tabular-nums font-normal"
-                    style={{ color: 'var(--list-time)' }}
-                  >
-                    {group.articles.length}
-                  </span>
-                </div>
+                <DateSeparator label={group.label} count={group.articles.length} />
               )}
               {gridLayout ? (
                 <div className="article-grid">

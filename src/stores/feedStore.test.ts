@@ -580,6 +580,117 @@ describe('feedStore — pastille « nouveaux articles »', () => {
   });
 });
 
+// `loadSubscriptions` relève lui aussi les compteurs du serveur : il doit
+// compter les arrivées comme `syncCounts`, sinon celles de la minute qui
+// précède un renommage, un déplacement ou un ajout disparaissent — le relevé
+// suivant part d'une base déjà relevée.
+describe('feedStore.loadSubscriptions — arrivées du bandeau « nouveaux articles »', () => {
+  const feedA = { id: 'feed/A', title: 'A', categories: [{ id: 'user/-/label/Tech', label: 'Tech' }] } as unknown as Subscription;
+  const feedB = { id: 'feed/B', title: 'B' } as unknown as Subscription;
+  const feedC = { id: 'feed/C', title: 'C' } as unknown as Subscription;
+  const counts = (m: Record<string, number>) => Object.entries(m).map(([id, count]) => ({ id, count })) as never;
+  const real = {
+    loadSpecialCounts: useFeedStore.getState().loadSpecialCounts,
+    loadArticles: useFeedStore.getState().loadArticles,
+  };
+
+  beforeEach(() => {
+    __resetNewArticlesStateForTests();
+    vi.mocked(api.getTagList).mockResolvedValue([] as never);
+    vi.mocked(api.renameTag).mockResolvedValue(undefined as never);
+    vi.mocked(api.editFeed).mockResolvedValue(undefined as never);
+    vi.mocked(api.subscribeFeed).mockResolvedValue(undefined as never);
+    useFeedStore.setState({
+      subscriptions: [feedA, feedB],
+      selectedFeed: null,
+      filter: 'all',
+      searchQuery: '',
+      unreadCounts: { 'feed/A': 2, 'feed/B': 1 },
+      newInView: 0,
+      refreshPhase: 'idle',
+      hasRefreshToken: false,
+      refreshResult: null,
+      loadSpecialCounts: vi.fn() as never,
+    });
+  });
+
+  afterEach(() => {
+    useFeedStore.setState({ ...real, selectedFeed: null, filter: 'all', newInView: 0, refreshResult: null });
+  });
+
+  it('loadSubscriptions after a rename keeps arrivals of the last minute', async () => {
+    const renamed = { ...feedA, categories: [{ id: 'user/-/label/Dev', label: 'Dev' }] } as unknown as Subscription;
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([renamed, feedB] as never);
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 5, 'feed/B': 1 }));
+    await useFeedStore.getState().renameCategory('user/-/label/Tech', 'Dev');
+    expect(useFeedStore.getState().newInView).toBe(3);
+    expect(useFeedStore.getState().unreadCounts['feed/A']).toBe(5);
+  });
+
+  it('moving a feed keeps the arrivals too', async () => {
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([feedA, feedB] as never);
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 2, 'feed/B': 3 }));
+    await useFeedStore.getState().moveFeedToCategory('feed/B', 'Tech');
+    expect(useFeedStore.getState().newInView).toBe(2);
+  });
+
+  it('adding a feed with 30 unread does not announce 30 new articles', async () => {
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([feedA, feedB, feedC] as never);
+    // Une vraie arrivée sur A (+1) ET le stock du flux ajouté (30).
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 3, 'feed/B': 1, 'feed/C': 30 }));
+    await useFeedStore.getState().addFeed('https://example.com/feed.xml');
+    expect(useFeedStore.getState().newInView).toBe(1);
+    expect(useFeedStore.getState().unreadCounts['feed/C']).toBe(30);
+  });
+
+  // Un flux déjà abonné mais absent des compteurs (aucun non-lu connu) n'est
+  // pas un flux inconnu : ses arrivées comptent.
+  it('a subscribed feed missing from the previous counts still counts its arrivals', async () => {
+    useFeedStore.setState({ unreadCounts: { 'feed/A': 2 } });
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([feedA, feedB] as never);
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 2, 'feed/B': 2 }));
+    await useFeedStore.getState().loadSubscriptions();
+    expect(useFeedStore.getState().newInView).toBe(2);
+  });
+
+  it('counts nothing on the very first load (startup)', async () => {
+    useFeedStore.setState({ unreadCounts: {}, subscriptions: [] });
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([feedA, feedB] as never);
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 5, 'feed/B': 1 }));
+    await useFeedStore.getState().loadSubscriptions();
+    expect(useFeedStore.getState().newInView).toBe(0);
+  });
+
+  it('a local write during the load counts nothing', async () => {
+    let resolve!: (v: unknown) => void;
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([feedA, feedB] as never);
+    vi.mocked(api.getUnreadCounts).mockReturnValueOnce(new Promise((r) => { resolve = r; }) as never);
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined);
+    const pending = useFeedStore.getState().loadSubscriptions();
+    // ✓ local pendant le vol : 2 → 1 ; le serveur répond encore avec 2.
+    await useFeedStore.getState().toggleRead({ id: 'x1', read: false, starred: false, sourceId: 'feed/A', title: 'x1' } as Article);
+    resolve(counts({ 'feed/A': 2, 'feed/B': 1 }));
+    await pending;
+    expect(useFeedStore.getState().newInView).toBe(0);
+  });
+
+  // `refresh()` a son propre bandeau (`refreshResult`, calculé depuis
+  // `before`) : son `loadSubscriptions` ne doit pas annoncer les mêmes
+  // arrivées une seconde fois dans `newInView`.
+  it('refresh() does not count arrivals twice', async () => {
+    const loadArticles = vi.fn().mockResolvedValue(undefined);
+    useFeedStore.setState({ loadArticles: loadArticles as never });
+    vi.mocked(api.getSubscriptionList).mockResolvedValue([feedA, feedB] as never);
+    vi.mocked(api.getUnreadCounts).mockResolvedValue(counts({ 'feed/A': 5, 'feed/B': 1 }));
+    let maxInView = 0;
+    const unsub = useFeedStore.subscribe((s) => { maxInView = Math.max(maxInView, s.newInView); });
+    await useFeedStore.getState().refresh();
+    unsub();
+    expect(useFeedStore.getState().refreshResult?.totalNew).toBe(3);
+    expect(maxInView).toBe(0);
+  });
+});
+
 describe('pickPrefetchFeeds', () => {
   const feed = (id: string) => ({ id } as unknown as Subscription);
   it('keeps only unread feeds, most-unread first', () => {
