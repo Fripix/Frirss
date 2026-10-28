@@ -1488,6 +1488,20 @@ describe('ReadingPane — traduction de l\'article', () => {
         expect(getByRole('dialog', { name: 'ai.translateArticleMenu' })).toBeTruthy();
         expect(requestAiTranslation).not.toHaveBeenCalled();
       });
+      it('a contextmenu arriving before the timer (Chrome Android) opens the menu right away', () => {
+        vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
+        const { getByRole, getAllByRole } = render(<ReadingPane />);
+        const btn = getByRole('button', { name: 'ai.translateArticle' });
+        fireEvent.touchStart(btn, { touches: [{ clientX: 10, clientY: 10 }] });
+        act(() => { vi.advanceTimersByTime(400); });
+        act(() => { fireEvent.contextMenu(btn); });
+        expect(getByRole('dialog', { name: 'ai.translateArticleMenu' })).toBeTruthy();
+        act(() => { vi.advanceTimersByTime(LONG_PRESS_MS); });
+        fireEvent.touchEnd(btn);
+        fireEvent.click(btn);
+        expect(getAllByRole('dialog', { name: 'ai.translateArticleMenu' })).toHaveLength(1);
+        expect(requestAiTranslation).not.toHaveBeenCalled();
+      });
       it('a short tap translates', () => {
         vi.mocked(requestAiTranslation).mockReturnValue(new Promise(() => {}) as never);
         const { getByRole, queryByRole } = render(<ReadingPane />);

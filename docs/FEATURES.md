@@ -250,10 +250,13 @@ glisser-déposer, masquage des flux entièrement lus.
     second doigt ; un tremblement en deçà ne l'annule pas. Il est inerte en
     mode organisation, où la ligne se glisse. Et le clic qui le termine est
     avalé, sans quoi le flux se chargerait derrière le menu.
-  - ⚠️ **Le `contextmenu` d'écho de Chrome Android est absorbé**
-    (`firedRecently()`) : transmis au gestionnaire du clic droit, il rouvrait
-    le menu au point du doigt, qui sautait donc sous le doigt juste après
-    s'être ouvert (jusqu'à la 1.7.0).
+  - ⚠️ **Chrome Android émet `contextmenu` AVANT le minuteur** (mesuré sur
+    émulateur, délai système 400 ms : à ~491 ms, trois fois sur trois) :
+    transmis au gestionnaire du clic droit, il ouvrait le menu au point du
+    doigt, puis le minuteur le rouvrait au rectangle de la ligne — le menu
+    sautait sous le doigt (jusqu'à la 1.7.0). Désormais `claimContextMenu()`
+    fait aboutir l'appui tout de suite, avec la même ancre que le minuteur, et
+    absorbe un `contextmenu` qui arriverait après (voir *Menu d'un article*).
   - **Faiblesse assumée** : rien ne signale le geste. Même situation que
     l'appui long de classement d'un article, sans l'équivalent de la barre
     latérale pour le faire découvrir.
@@ -1031,8 +1034,11 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   Le geste est l'appui long commun (`useLongPress` avec `mouse: true` : le
   bouton principal de la souris arme aussi, pas le droit ; voir *Menu d'un
   article*) ; `useCategoryPicker` ne porte que l'état du sélecteur et son
-  ancre, et son clic droit absorbe l'écho de Chrome Android
-  (`firedRecently()`). **Tests** du geste :
+  ancre, et son clic droit passe d'abord par `claimContextMenu()` (le
+  `contextmenu` de Chrome Android, émis avant le minuteur, fait aboutir
+  l'appui ; après, il est absorbé). Les deux boutons inscrivent leur appui
+  dans le registre de la ligne (`useRegisterRowPress`, `rowPress.ts`) : le
+  balayage et le drag natif de la ligne le voient. **Tests** du geste :
   `src/components/ArticleList/ArticleActions.longpress.test.tsx`.
   **Tests** : la carte de grille par `ArticleCard.test.tsx`, la ligne compacte
   par `ArticleRow.compact.test.tsx` (ordre des quatre icônes, emplacement
@@ -1305,10 +1311,30 @@ FreshRSS, où le titre est un vrai lien.
   (`currentTarget.contains(target)`) avant d'agir : sans elle, un appui long
   dans le champ « nouvelle catégorie », un clic droit ou un clic molette sur le
   fond de fermeture du portail étaient captés par la ligne.
-- **Piège — Chrome Android émet `contextmenu` sur un appui long** : dans la
-  seconde qui suit un appui long abouti (ou son relâchement), il est absorbé
-  sans rouvrir le menu (`firedRecently()`). Même règle pour le menu d'un
-  flux et le classement par catégorie.
+- **Piège — Chrome Android et l'appui long : l'ordre des événements, mesuré**
+  (émulateur Android 17, délai système d'appui long 400 ms, vrais contacts
+  tenus 1,5 s). Sur un élément **non déplaçable** (ligne de flux, boutons),
+  `contextmenu` arrive à ~491 ms, **avant** le minuteur de 500 ms — c'est le
+  cas normal, pas une course rare. Sur une ligne d'article (`draggable`, pour
+  le classement par glisser-déposer au bureau), c'est un **`dragstart`
+  natif** à ~495 ms, suivi d'un `touchcancel` vers 500-530 ms, et aucun
+  `contextmenu` : le `touchcancel` annulait l'appui, et le menu ne s'ouvrait
+  qu'une fois sur deux (quand le minuteur gagnait de quelques ms) jusqu'à la
+  1.7.0. L'écho est donc lié au **contact**, pas à une horloge :
+  - `claimContextMenu(e)` (en tête du `onContextMenu` de chaque appelant) :
+    pendant un contact tactile armé, l'appui aboutit **tout de suite**, au
+    même point que le minuteur (`fireNow()`) — le menu s'ouvre une fois, au
+    même endroit, quel que soit l'événement qui gagne ; si l'appui a déjà
+    abouti pendant ce contact, le `contextmenu` est absorbé, si tard qu'il
+    arrive (délai d'accessibilité ≥ 1 s compris) ; `firedRecently()` ne
+    compte en secondes qu'après le relâchement ;
+  - `onDragStart` de la ligne (`useArticleMenuGestures`) : un `dragstart`
+    pendant un contact **tactile** est annulé (`preventDefault()`) et fait
+    aboutir l'appui armé — celui de la ligne, ou celui de l'étoile / « À lire
+    plus tard » sous le doigt, via le registre de la ligne
+    (`claimTouchDrag()`). Le `touchcancel` qui suit ne défait pas un appui
+    abouti. Un drag à la **souris** n'est jamais réclamé : le glisser-déposer
+    vers la barre latérale est intact (`handleDragStart`, `ArticleList.tsx`).
 - **Piège — touche Menu** : `contextmenu` arrive avec `clientX = clientY = 0` ;
   le menu s'ouvre alors sous la ligne (`menuAnchor()`), pas dans le coin de la
   fenêtre.
@@ -1319,18 +1345,19 @@ FreshRSS, où le titre est un vrai lien.
   et du volet de lecture (`ActionBtn`), bouton de traduction de la barre du
   bas. Il y en avait quatre, chacune avec ses propres trous (pas de
   `touchcancel` ici, pas de garde à deux doigts là, un minuteur qui survivait
-  au composant, un `contextmenu` d'écho qui rouvrait le menu d'un flux).
+  au composant, un `contextmenu` qui rouvrait le menu d'un flux).
   Option `mouse: true` (étoile et « À lire plus tard » seulement) : le bouton
   **principal** maintenu arme aussi, un mouvement au-delà de la tolérance
   annule ; le clic droit reste le gestionnaire `onContextMenu` de l'appelant,
-  qui absorbe l'écho par `firedRecently()`. Le minuteur est nettoyé au
+  qui passe d'abord par `claimContextMenu()`. Le minuteur est nettoyé au
   démontage. **Tests** : `src/hooks/useLongPress.test.tsx`, plus ceux de
   chaque appelant (`useArticleMenuGestures`, `FeedItem.longpress`,
   `ArticleActions.longpress`, `ActionBtn.longpress`, `ReadingPane.ai`).
 - **Durée et annulation** : 500 ms (`LONG_PRESS_MS`), annulé par un mouvement de plus
   de 8 px **depuis le point de départ** (`LONG_PRESS_MOVE_TOLERANCE_PX`,
   distance euclidienne), par `touchend`, `touchcancel` et un second doigt
-  (pincer, geste à deux doigts). Un tremblement en deçà de la tolérance ne
+  (pincer, geste à deux doigts — y compris un second doigt posé sur un
+  bouton de la ligne). Un tremblement en deçà de la tolérance ne
   l'annule pas : jusqu'à la 1.7.0, tout `touchmove` annulait, et un pouce posé
   sur un téléphone en émet presque toujours un ou deux. Un `touchmove` sans
   doigt mesurable annule, plutôt que de deviner.
@@ -1339,24 +1366,31 @@ FreshRSS, où le titre est un vrai lien.
   `ArticleList.tsx`). Jusqu'à la 1.7.0, un doigt posé ouvrait le menu à 500 ms,
   puis le glisser horizontal qui suivait basculait AUSSI lu / à lire plus tard.
   Désormais la direction décidée (8 px sur un axe, le même seuil que la
-  tolérance de l'appui long, importé) annule l'appui long (`onSwipeDecided`),
-  et un appui long abouti bloque le balayage du même contact (`swipeBlocked`).
-  ⚠️ Le blocage lit `firedThisContact()`, pas `firedRecently()` : un doigt
-  resté posé deux secondes avant de glisser a dépassé la fenêtre d'écho, pas
-  le contact. Le contact suivant balaie normalement. La ligne remplit une ref
-  (`pressRef` → `useArticleMenuGestures`, `useImperativeHandle`) que le
-  balayage, son parent, interroge. **Tests** :
+  tolérance de l'appui long, importé) annule les appuis longs
+  (`onSwipeDecided`), et un appui long abouti pendant le contact en cours
+  bloque le balayage (`swipeBlocked`). « Les appuis », ce sont TOUS ceux de
+  la ligne : le sien (menu) et ceux de l'étoile et de « À lire plus tard »
+  (classement) — un appui long sur l'étoile puis un glisser basculait encore
+  l'article tant que seul l'appui de la ligne était consulté. Ils s'inscrivent
+  dans un registre (`src/hooks/rowPress.ts`, `RowPressContext`) fourni par
+  `MobileArticleRow` ; `ArticleRow` en crée un à lui hors balayage, pour le
+  drag natif. Un menu ouvert par le `contextmenu` précoce de Chrome Android
+  bloque le balayage dès cet instant (l'appui a abouti).
+  ⚠️ Le blocage lit `firedThisContact()` (vrai jusqu'à la fin du contact),
+  pas `firedRecently()` : un doigt resté posé deux secondes avant de glisser
+  a dépassé la fenêtre d'écho, pas le contact ; et l'étoile relâchée ne
+  bloque pas le contact suivant sur la ligne. **Tests** :
   `src/components/ArticleList/SwipeableArticleRow.test.tsx` (le balayage seul,
   et la vraie ligne enveloppée).
 - **Piège — le clic de compatibilité après un appui long** : sur téléphone, la
   feuille du bas s'ouvre SOUS le doigt, et le clic émis au relâchement tombait
   sur son fond, qui la refermait aussitôt. Le `touchend` d'un appui abouti est
   donc `preventDefault()` ; le clic qui passerait quand même est avalé en phase
-  de capture sur la ligne — mais seulement s'il arrive dans la seconde qui
-  suit le déclenchement **ou le relâchement** (`firedRecently()`) : un doigt
-  gardé deux secondes, ou le clic d'une souris qui n'arrive qu'au
-  relâchement, sortaient sinon de la fenêtre. Seul le relâchement qui termine
-  l'appui abouti la fait repartir : un `mouseleave` de compatibilité émis plus
+  de capture sur la ligne — mais seulement pendant le contact ou dans la
+  seconde qui suit **le relâchement** (`firedRecently()`) : un doigt gardé
+  deux secondes, ou le clic d'une souris qui n'arrive qu'au relâchement,
+  sortaient sinon d'une fenêtre comptée depuis le déclenchement. Seul le
+  relâchement qui termine l'appui abouti la fait partir : un `mouseleave` de compatibilité émis plus
   tard (iOS, en touchant ailleurs) ne la rallonge pas.
 - **Piège — ce clic avalé perdait le tap suivant sur un bouton de la ligne** :
   aucun clic ne consommait la consigne « avaler » d'un appui abouti (le

@@ -115,6 +115,22 @@ describe("appui long sur une ligne de flux", () => {
     expect(notPrevented).toBe(false);
   });
 
+  it("contextmenu de Chrome Android AVANT le minuteur (mesuré à ~491 ms) : un seul menu, à la place de la ligne", () => {
+    // Le cas normal sur Chrome Android, pas une course rare : le menu
+    // s'ouvrait au point du doigt puis le minuteur le rouvrait au rectangle
+    // de la ligne — il sautait sous le doigt.
+    const onOpenMenu = vi.fn();
+    const onContextMenu = vi.fn();
+    const c = renderRow({ onOpenMenu, onContextMenu });
+    fireEvent.touchStart(row(c), { touches: [{ clientX: 10, clientY: 10 }] });
+    vi.advanceTimersByTime(491);
+    expect(fireEvent.contextMenu(row(c), { clientX: 11, clientY: 11 })).toBe(false);
+    expect(onOpenMenu).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(onOpenMenu).toHaveBeenCalledTimes(1);
+    expect(onContextMenu).not.toHaveBeenCalled();
+  });
+
   it('laisse passer un vrai clic droit', () => {
     const onContextMenu = vi.fn();
     const c = renderRow({ onContextMenu });

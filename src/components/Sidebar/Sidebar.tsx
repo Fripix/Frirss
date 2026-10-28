@@ -1134,9 +1134,11 @@ export function FeedItem({ feed, isSelected, unreadCount, showFavicons, organize
       onTouchCancel={organizeMode ? undefined : press.onTouchCancel}
       onPointerDown={organizeMode ? undefined : prefetch}
       onContextMenu={organizeMode ? undefined : (e) => {
-        // Chrome Android émet `contextmenu` sur l'appui long qui vient
-        // d'ouvrir le menu : transmis, il le rouvrirait au point du doigt.
-        if (press.firedRecently()) { e.preventDefault(); return; }
+        // Chrome Android émet `contextmenu` pendant l'appui long — mesuré à
+        // ~491 ms, AVANT le minuteur. Transmis, il ouvrait le menu au point du
+        // doigt, puis le minuteur le rouvrait au rectangle de la ligne. Ici
+        // l'appui aboutit tout de suite (même ancre), ou son écho est absorbé.
+        if (press.claimContextMenu(e)) return;
         onContextMenu(e);
       }}
       onMouseEnter={organizeMode ? undefined : () => { setHovered(true); hoverTimer.current = setTimeout(prefetch, 120); }}

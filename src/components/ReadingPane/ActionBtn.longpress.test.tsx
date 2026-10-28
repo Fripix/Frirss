@@ -92,6 +92,19 @@ describe('reading pane Favourite / Read later — long press files the article',
     expect(onFile).toHaveBeenCalledTimes(2);
   });
 
+  it('a contextmenu arriving before the timer (Chrome Android) files once, at the button', () => {
+    const { onClick, onFile, btn } = setup();
+    fireEvent.touchStart(btn, at);
+    wait(491);
+    expect(fireEvent.contextMenu(btn)).toBe(false);
+    expect(onFile).toHaveBeenCalledTimes(1);
+    wait(LONG_PRESS_MS);
+    expect(fireEvent.touchEnd(btn)).toBe(false);
+    fireEvent.click(btn);
+    expect(onFile).toHaveBeenCalledTimes(1);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it('the timer does not outlive the button', () => {
     const { onFile, btn, unmount } = setup();
     fireEvent.touchStart(btn, at);

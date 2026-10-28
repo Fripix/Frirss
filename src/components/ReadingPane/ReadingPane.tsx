@@ -2209,8 +2209,9 @@ function BarBtn({ children, label, title, active, activeColor, disabled, onClick
     ? {
         onTouchStart: press.onTouchStart, onTouchMove: press.onTouchMove, onTouchEnd: press.onTouchEnd,
         onTouchCancel: press.onTouchCancel, onClickCapture: press.onClickCapture,
-        // Chrome Android émet `contextmenu` sur un appui long : pas de menu du navigateur.
-        onContextMenu: (e: ReactMouseEvent) => e.preventDefault(),
+        // Chrome Android émet `contextmenu` pendant un appui long, avant le
+        // minuteur : pas de menu du navigateur, et l'appui aboutit tout de suite.
+        onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); press.claimContextMenu(e); },
       }
     : {};
   return (
@@ -2276,9 +2277,10 @@ export function ActionBtn({ icon, label, active, activeColor, highlight, onClick
         onClickCapture: press.onClickCapture,
         onContextMenu: (e: ReactMouseEvent) => {
           e.preventDefault();
-          // Chrome Android émet `contextmenu` sur l'appui long qui vient
-          // d'aboutir : on l'absorbe sans rouvrir le sélecteur.
-          if (press.firedRecently()) return;
+          // Chrome Android émet `contextmenu` pendant l'appui long (mesuré
+          // AVANT le minuteur) : l'appui aboutit tout de suite, ou son écho
+          // est absorbé. Le sélecteur s'ouvre une fois.
+          if (press.claimContextMenu(e)) return;
           onFile(anchorOf());
         },
       }

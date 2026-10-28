@@ -40,7 +40,9 @@ function renderRow(viewMode: string, withMenu = true) {
   return { ...spies, c, row };
 }
 
-beforeEach(() => vi.useFakeTimers());
+const dataTransfer = { setData: vi.fn(), setDragImage: vi.fn(), effectAllowed: 'all' };
+
+beforeEach(() => { vi.useFakeTimers(); dataTransfer.setData.mockClear(); dataTransfer.setDragImage.mockClear(); });
 afterEach(() => { vi.useRealTimers(); cleanup(); });
 
 for (const viewMode of ['compact', 'normal']) {
@@ -73,6 +75,41 @@ for (const viewMode of ['compact', 'normal']) {
       fireEvent.click(row);
       expect(onOpenMenu).toHaveBeenCalledWith({ x: 20, y: 30 });
       expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('Chrome Android: an early contextmenu during the press opens the menu once, at the finger', () => {
+      const { onOpenMenu, row } = renderRow(viewMode);
+      fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 30 }] });
+      vi.advanceTimersByTime(491);
+      fireEvent.contextMenu(row, { clientX: 25, clientY: 35 });
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      expect(onOpenMenu).toHaveBeenCalledTimes(1);
+      expect(onOpenMenu).toHaveBeenCalledWith({ x: 20, y: 30 });
+    });
+
+    it('Chrome Android: the native drag of a touch press is cancelled and opens the menu, touchcancel does not undo it', () => {
+      // Mesuré : `dragstart` à ~495 ms puis `touchcancel` ; le menu ne
+      // s'ouvrait qu'une fois sur deux, quand le minuteur gagnait la course.
+      const { onOpenMenu, onSelect, row } = renderRow(viewMode);
+      fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 30 }] });
+      vi.advanceTimersByTime(495);
+      expect(fireEvent.dragStart(row, { dataTransfer })).toBe(false);
+      expect(dataTransfer.setData).not.toHaveBeenCalled();
+      fireEvent.touchCancel(row);
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      fireEvent.click(row);
+      expect(onOpenMenu).toHaveBeenCalledTimes(1);
+      expect(onOpenMenu).toHaveBeenCalledWith({ x: 20, y: 30 });
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('a mouse drag of the row (filing on desktop) is left alone and opens no menu', () => {
+      const { onOpenMenu, row } = renderRow(viewMode);
+      fireEvent.mouseDown(row, { button: 0 });
+      expect(fireEvent.dragStart(row, { dataTransfer })).toBe(true);
+      expect(dataTransfer.setData).toHaveBeenCalledWith('application/frirss-article', 'a1');
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      expect(onOpenMenu).not.toHaveBeenCalled();
     });
 
     it('a plain click still selects the article', () => {

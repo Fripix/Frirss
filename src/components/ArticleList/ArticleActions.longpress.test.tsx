@@ -112,6 +112,19 @@ describe('Star and Read later buttons — long press files the article', () => {
     expect(pickers()).toHaveLength(1);
   });
 
+  it('a contextmenu arriving before the timer (Chrome Android) opens the picker once', () => {
+    const { star, starBtn, pickers } = setup();
+    fireEvent.touchStart(starBtn, at);
+    act(() => { vi.advanceTimersByTime(491); });
+    expect(fireEvent.contextMenu(starBtn)).toBe(false);
+    expect(pickers()).toHaveLength(1);
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_MS); });
+    expect(fireEvent.touchEnd(starBtn)).toBe(false);
+    fireEvent.click(starBtn);
+    expect(pickers()).toHaveLength(1);
+    expect(star).not.toHaveBeenCalled();
+  });
+
   it('the contextmenu Chrome Android sends after a long press is absorbed', () => {
     const { starBtn, pickers } = setup();
     fireEvent.touchStart(starBtn, at);

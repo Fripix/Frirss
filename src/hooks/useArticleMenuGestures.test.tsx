@@ -112,6 +112,14 @@ describe('useArticleMenuGestures', () => {
     expect(onOpenMenu).toHaveBeenCalledTimes(1);
   });
 
+  it('a second finger landing on a button of the row cancels the row press', () => {
+    const { onOpenMenu, row, button } = setup();
+    fireEvent.touchStart(row, { touches: [{ clientX: 20, clientY: 30 }] });
+    fireEvent.touchStart(button, { touches: [{ clientX: 20, clientY: 30 }, { clientX: 200, clientY: 30 }] });
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(onOpenMenu).not.toHaveBeenCalled();
+  });
+
   it('a long press that starts on a button belongs to that button', () => {
     const { onOpenMenu, button } = setup();
     fireEvent.touchStart(button, { touches: [{ clientX: 20, clientY: 30 }] });

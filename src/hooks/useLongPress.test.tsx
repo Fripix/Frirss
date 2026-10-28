@@ -7,13 +7,15 @@ import {
 
 let firedRecently: () => boolean = () => false;
 let firedThisContact: () => boolean = () => false;
+let claimTouchDrag: () => boolean = () => false;
 
 interface Opts { mouse?: boolean; enabled?: boolean }
 
-function Harness({ onLongPress, onClick, opts }: { onLongPress: (p: PressPoint) => void; onClick: () => void; opts?: Opts }) {
+function Harness({ onLongPress, onClick, onContextMenu, opts }: { onLongPress: (p: PressPoint) => void; onClick: () => void; onContextMenu?: () => void; opts?: Opts }) {
   const lp = useLongPress(onLongPress, opts);
   firedRecently = lp.firedRecently;
   firedThisContact = lp.firedThisContact;
+  claimTouchDrag = lp.claimTouchDrag;
   return (
     <div
       role="button"
@@ -26,6 +28,7 @@ function Harness({ onLongPress, onClick, opts }: { onLongPress: (p: PressPoint) 
       onMouseUp={lp.onMouseUp}
       onMouseLeave={lp.onMouseLeave}
       onClickCapture={lp.onClickCapture}
+      onContextMenu={(e) => { if (!lp.claimContextMenu(e)) onContextMenu?.(); }}
       onClick={onClick}
     >
       row
@@ -36,8 +39,9 @@ function Harness({ onLongPress, onClick, opts }: { onLongPress: (p: PressPoint) 
 function setup(opts?: Opts) {
   const onLongPress = vi.fn();
   const onClick = vi.fn();
-  const c = render(<Harness onLongPress={onLongPress} onClick={onClick} opts={opts} />);
-  return { onLongPress, onClick, row: c.getByRole('button'), unmount: c.unmount };
+  const onContextMenu = vi.fn();
+  const c = render(<Harness onLongPress={onLongPress} onClick={onClick} onContextMenu={onContextMenu} opts={opts} />);
+  return { onLongPress, onClick, onContextMenu, row: c.getByRole('button'), unmount: c.unmount };
 }
 
 /** Le doigt, décalé de (dx, dy) depuis le point de départ `at`. */
@@ -176,13 +180,21 @@ describe('useLongPress', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('reports a recent press for the echo window only', () => {
+  it('reports a recent press while the contact lasts, then for the echo window after the release', () => {
+    // L'écho est lié au contact, pas à une horloge : avec un délai d'appui
+    // long d'accessibilité ≥ 1 s, le `contextmenu` de Chrome Android arrive
+    // plus d'une seconde après le déclenchement, doigt toujours posé.
     const { row } = setup();
     expect(firedRecently()).toBe(false);
     fireEvent.touchStart(row, at);
     vi.advanceTimersByTime(LONG_PRESS_MS);
     expect(firedRecently()).toBe(true);
-    vi.advanceTimersByTime(LONG_PRESS_ECHO_MS);
+    vi.advanceTimersByTime(LONG_PRESS_ECHO_MS * 2);
+    expect(firedRecently()).toBe(true);
+    fireEvent.touchEnd(row);
+    vi.advanceTimersByTime(LONG_PRESS_ECHO_MS - 1);
+    expect(firedRecently()).toBe(true);
+    vi.advanceTimersByTime(1);
     expect(firedRecently()).toBe(false);
   });
 
@@ -227,14 +239,78 @@ describe('useLongPress', () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it('firedThisContact holds from the press until the next contact starts', () => {
+  it('firedThisContact holds from the press until the contact ends', () => {
+    // Lié au contact : l'étoile d'une ligne, une fois relâchée, ne doit pas
+    // bloquer le balayage du contact suivant sur la ligne.
     const { row } = setup();
     fireEvent.touchStart(row, at);
     expect(firedThisContact()).toBe(false);
     vi.advanceTimersByTime(LONG_PRESS_MS + 3000);
     expect(firedThisContact()).toBe(true);
-    fireEvent.touchStart(row, at);
+    fireEvent.touchEnd(row);
     expect(firedThisContact()).toBe(false);
+  });
+
+  describe('Chrome Android: contextmenu, native drag and touchcancel arrive around the timer', () => {
+    it('a contextmenu during an armed touch press fires it now, once, at the touch point', () => {
+      // Mesuré sur l'émulateur : `contextmenu` à ~491 ms, AVANT le minuteur.
+      const { onLongPress, onContextMenu, row } = setup();
+      fireEvent.touchStart(row, at);
+      vi.advanceTimersByTime(491);
+      expect(fireEvent.contextMenu(row, { clientX: 99, clientY: 99 })).toBe(false);
+      expect(onLongPress).toHaveBeenCalledTimes(1);
+      expect(onLongPress).toHaveBeenCalledWith({ x: 12, y: 34 });
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      expect(onLongPress).toHaveBeenCalledTimes(1);
+      expect(onContextMenu).not.toHaveBeenCalled();
+      expect(firedThisContact()).toBe(true);
+    });
+
+    it('a contextmenu after the press fired, finger still down, is absorbed however late', () => {
+      const { onLongPress, onContextMenu, row } = setup();
+      fireEvent.touchStart(row, at);
+      vi.advanceTimersByTime(LONG_PRESS_MS + 1500);
+      expect(fireEvent.contextMenu(row)).toBe(false);
+      expect(onLongPress).toHaveBeenCalledTimes(1);
+      expect(onContextMenu).not.toHaveBeenCalled();
+    });
+
+    it('a contextmenu without any touch is the caller\'s (right-click)', () => {
+      const { onLongPress, onContextMenu, row } = setup();
+      expect(fireEvent.contextMenu(row)).toBe(true);
+      expect(onContextMenu).toHaveBeenCalledTimes(1);
+      expect(onLongPress).not.toHaveBeenCalled();
+    });
+
+    it('claimTouchDrag fires an armed touch press now, once; it refuses a mouse press or no contact', () => {
+      const { onLongPress, row } = setup({ mouse: true });
+      expect(claimTouchDrag()).toBe(false);
+      fireEvent.mouseDown(row, { button: 0, clientX: 12, clientY: 34 });
+      expect(claimTouchDrag()).toBe(false);
+      fireEvent.mouseUp(row, { button: 0 });
+      fireEvent.touchStart(row, at);
+      vi.advanceTimersByTime(495);
+      expect(claimTouchDrag()).toBe(true);
+      expect(onLongPress).toHaveBeenCalledTimes(1);
+      // Le drag natif peut se répéter ; l'appui a abouti, il le garde.
+      expect(claimTouchDrag()).toBe(true);
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      expect(onLongPress).toHaveBeenCalledTimes(1);
+    });
+
+    it('a touchcancel after the press fired does not undo it: the echo is still absorbed', () => {
+      // Mesuré : drag natif puis `touchcancel` à ~500 ms.
+      const { onClick, onContextMenu, row } = setup();
+      fireEvent.touchStart(row, at);
+      vi.advanceTimersByTime(495);
+      claimTouchDrag();
+      fireEvent.touchCancel(row);
+      expect(firedRecently()).toBe(true);
+      fireEvent.contextMenu(row);
+      expect(onContextMenu).not.toHaveBeenCalled();
+      fireEvent.click(row);
+      expect(onClick).not.toHaveBeenCalled();
+    });
   });
 
   it('ignores the mouse unless asked to', () => {
@@ -293,6 +369,22 @@ describe('useLongPress', () => {
       vi.advanceTimersByTime(200);
       fireEvent.click(row);
       expect(onClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('mouse events during a touch contact do not end it', () => {
+      // Un `mouseleave` / `mouseup` de compatibilité ne doit ni annuler l'appui
+      // au doigt ni clore son contact (balayage, drag natif, écho).
+      const { onLongPress, row } = setup({ mouse: true });
+      fireEvent.touchStart(row, at);
+      fireEvent.mouseDown(row, { button: 0, clientX: 300, clientY: 300 });
+      fireEvent.mouseLeave(row);
+      fireEvent.mouseUp(row, { button: 0 });
+      fireEvent.mouseMove(row, { clientX: 200, clientY: 200 });
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      expect(onLongPress).toHaveBeenCalledTimes(1);
+      expect(onLongPress).toHaveBeenCalledWith({ x: 12, y: 34 });
+      fireEvent.mouseLeave(row);
+      expect(firedThisContact()).toBe(true);
     });
 
     it('a small mouse tremor does not cancel', () => {

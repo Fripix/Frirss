@@ -31,19 +31,34 @@ _(rien pour l'instant)_
   téléphone, garder le doigt sur un article ouvrait son menu, puis le moindre
   glisser horizontal qui suivait marquait AUSSI l'article lu ou à lire plus
   tard. Les deux gestes s'excluent désormais : un balayage commencé annule
-  l'appui long, un menu ouvert par l'appui long bloque le balayage.
+  l'appui long, un menu ouvert par l'appui long bloque le balayage — y
+  compris l'appui long sur l'étoile ou « À lire plus tard » de la ligne, qui
+  ouvre le classement par catégorie.
+- **Android : l'appui long sur un article ouvre son menu à tous les coups.**
+  Chrome démarre un glisser-déposer natif de la ligne juste avant les 500 ms,
+  puis interrompt le contact : le menu ne s'ouvrait qu'environ une fois sur
+  deux (mesuré sur émulateur). Ce glisser est désormais annulé et le menu
+  s'ouvre aussitôt — de même pour le classement depuis l'étoile ou « À lire
+  plus tard » de la ligne. Le glisser-déposer à la souris, au bureau, ne
+  change pas.
+- **Android : un seul menu, au même endroit, quel que soit l'ordre des
+  événements.** Chrome envoie son propre signal de menu un peu AVANT les
+  500 ms de l'appui long : sur un flux, le menu s'ouvrait au point du doigt
+  puis se rouvrait au bord de la ligne (il sautait sous le doigt) ; sur un
+  article, il s'ouvrait deux fois. L'appui aboutit maintenant dès ce signal,
+  une seule fois, et un signal tardif (délai d'appui long rallongé dans les
+  réglages d'accessibilité) est ignoré tant que le doigt reste posé.
 - **Appui long sur un flux de la barre latérale : le même geste que sur un
-  article.** Il tolère lui aussi un léger tremblement, s'annule quand un
-  second doigt se pose ou que le système interrompt le contact, et le menu
-  ne saute plus sous le doigt juste après s'être ouvert sur Android (Chrome
-  y envoie un second signal de menu, qui le rouvrait au point du doigt).
+  article.** Il tolère lui aussi un léger tremblement et s'annule quand un
+  second doigt se pose ou que le système interrompt le contact avant
+  l'ouverture.
 - **Étoile et « À lire plus tard » de la liste : l'appui long qui range dans
   une catégorie suit la même règle.** Il tolère un léger tremblement,
   s'annule sur un second doigt ou une interruption du système, et à la souris
   seul le bouton principal maintenu l'arme (maintenir le bouton droit
   l'armait aussi, en plus du menu du clic droit).
-- **Volet de lecture (disposition bureau) : l'appui long sur « Favori » et
-  « À lire plus tard » suit la même règle** — même tolérance, même
+- **Volet de lecture : l'appui long sur « Favori » et « À lire plus tard »
+  suit la même règle** — même tolérance, même
   annulation, et seul le bouton principal de la souris maintenu l'arme. Il
   n'existe plus qu'une seule implémentation de l'appui long dans toute l'app,
   au lieu de quatre.

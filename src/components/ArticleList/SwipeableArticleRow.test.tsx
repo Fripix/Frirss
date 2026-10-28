@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import SwipeableArticleRow from './SwipeableArticleRow';
 import { ArticleRow, MobileArticleRow } from './ArticleList';
 import { DEFAULT_ROW_ACTIONS } from '../../lib/rowActions';
@@ -11,7 +11,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (k: string) => k }),
   initReactI18next: { type: '3rdParty', init: () => {} },
 }));
-vi.mock('./SavedCategoryPicker', () => ({ default: () => null, SavedCategoryPicker: () => null }));
+vi.mock('./SavedCategoryPicker', () => ({ default: () => <div data-testid="picker" /> }));
 
 const at = (x: number, y = 100) => ({ touches: [{ clientX: x, clientY: y }] });
 
@@ -105,29 +105,30 @@ describe('a list row on a phone: long press and swipe exclude each other', () =>
   function setup() {
     const spies = { left: vi.fn(), right: vi.fn(), onOpenMenu: vi.fn(), onSelect: vi.fn() };
     const c = render(
-      <MobileArticleRow
-        onSwipeLeft={spies.left}
-        onSwipeRight={spies.right}
-        renderRow={(pressRef) => (
-          <ArticleRow
-            article={article}
-            viewMode="normal"
-            showSource
-            rowActions={DEFAULT_ROW_ACTIONS}
-            active={false}
-            onSelect={spies.onSelect}
-            onToggleStar={() => {}}
-            onToggleRead={() => {}}
-            onToggleReadLater={() => {}}
-            onOpenSource={() => {}}
-            onOpenMenu={spies.onOpenMenu}
-            pressRef={pressRef}
-          />
-        )}
-      />,
+      <MobileArticleRow onSwipeLeft={spies.left} onSwipeRight={spies.right}>
+        <ArticleRow
+          article={article}
+          viewMode="normal"
+          showSource
+          rowActions={DEFAULT_ROW_ACTIONS}
+          active={false}
+          onSelect={spies.onSelect}
+          onToggleStar={() => {}}
+          onToggleRead={() => {}}
+          onToggleReadLater={() => {}}
+          onOpenSource={() => {}}
+          onOpenMenu={spies.onOpenMenu}
+        />
+      </MobileArticleRow>,
     );
     const row = c.container.querySelector('[data-article-id="a1"]') as HTMLElement;
-    return { ...spies, row };
+    return {
+      ...spies,
+      row,
+      star: c.getByTitle('articleRow.addStar — saved.holdHint'),
+      later: c.getByTitle('articleRow.addReadLater — saved.holdHint'),
+      pickers: () => c.queryAllByTestId('picker'),
+    };
   }
 
   it('once the menu opened, a horizontal drag of 100 px toggles neither read nor read-later', () => {
@@ -183,5 +184,67 @@ describe('a list row on a phone: long press and swipe exclude each other', () =>
     drag(row, 0);
     fireEvent.touchEnd(row);
     expect(left).toHaveBeenCalledTimes(1);
+  });
+
+  it('a long press on the Star button, then a 100 px drag: the picker opens, neither read nor read-later toggles', () => {
+    // `swipeBlocked` n'interrogeait que l'appui de la ligne, et un contact
+    // parti d'un bouton n'arme pas celui-là.
+    const { left, right, star, pickers } = setup();
+    fireEvent.touchStart(star, at(100));
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_MS); });
+    expect(pickers()).toHaveLength(1);
+    drag(star, 0);
+    fireEvent.touchEnd(star);
+    expect(left).not.toHaveBeenCalled();
+    expect(right).not.toHaveBeenCalled();
+  });
+
+  it('a swipe decided at the tolerance from the Read later button cancels its long press', () => {
+    const { later, pickers } = setup();
+    fireEvent.touchStart(later, at(100));
+    fireEvent.touchMove(later, at(108));
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_MS); });
+    expect(pickers()).toHaveLength(0);
+  });
+
+  it('a released Star press does not block the next swipe on the row', () => {
+    const { left, star, row } = setup();
+    fireEvent.touchStart(star, at(100));
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_MS); });
+    fireEvent.touchEnd(star);
+    fireEvent.touchStart(row, at(100));
+    drag(row, 0);
+    fireEvent.touchEnd(row);
+    expect(left).toHaveBeenCalledTimes(1);
+  });
+
+  it('Chrome Android: the menu opened by an early contextmenu blocks the swipe at once', () => {
+    // Entre le `contextmenu` (~491 ms) et le minuteur, l'appui n'avait pas
+    // abouti : un glisser dans cette fenêtre balayait sous le menu ouvert.
+    const { left, right, onOpenMenu, row } = setup();
+    fireEvent.touchStart(row, at(100));
+    vi.advanceTimersByTime(491);
+    fireEvent.contextMenu(row, { clientX: 100, clientY: 100 });
+    drag(row, 0);
+    fireEvent.touchEnd(row);
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(onOpenMenu).toHaveBeenCalledTimes(1);
+    expect(left).not.toHaveBeenCalled();
+    expect(right).not.toHaveBeenCalled();
+  });
+
+  it('Chrome Android: the native drag of a press on the Star button opens the picker, not a drag', () => {
+    // Le drag natif part de la ligne (`draggable`), ancêtre de l'étoile.
+    const { row, star, pickers } = setup();
+    const dataTransfer = { setData: vi.fn(), setDragImage: vi.fn(), effectAllowed: 'all' };
+    fireEvent.touchStart(star, at(100));
+    vi.advanceTimersByTime(495);
+    let notPrevented = true;
+    act(() => { notPrevented = fireEvent.dragStart(row, { dataTransfer }); });
+    fireEvent.touchCancel(star);
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_MS); });
+    expect(notPrevented).toBe(false);
+    expect(dataTransfer.setData).not.toHaveBeenCalled();
+    expect(pickers()).toHaveLength(1);
   });
 });

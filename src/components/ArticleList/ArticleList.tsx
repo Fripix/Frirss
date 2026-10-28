@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode, type RefObject, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores/feedStore';
@@ -32,7 +32,7 @@ import Highlighted from './Highlighted';
 import { resultSummary } from '../../lib/searchHighlight';
 import { parseQuery } from '../../lib/searchMatch';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
-import type { LongPressControl } from '../../hooks/useLongPress';
+import { RowPressContext, createRowPressRegistry } from '../../hooks/rowPress';
 import { copyLink } from '../../lib/copyLink';
 import { useAuthStore } from '../../stores/authStore';
 import { loadSearchHistory, rememberSearch, forgetSearch } from '../../lib/searchHistory';
@@ -1118,9 +1118,8 @@ export default function ArticleList() {
                 </div>
               ) : (
                 group.articles.map((article) => {
-                  const row = (pressRef?: RefObject<LongPressControl | null>) => (
+                  const row = (
                     <ArticleRow
-                      pressRef={pressRef}
                       article={article}
                       viewMode={viewMode}
                       showSource={showSource}
@@ -1163,12 +1162,13 @@ export default function ArticleList() {
                         swipeLeftColor={article.read ? '#3b82f6' : '#10b981'}
                         swipeRightLabel={isReadLater ? t('swipe.removeReadLater') : t('swipe.readLater')}
                         swipeRightColor="var(--readlater-color)"
-                        renderRow={row}
-                      />
+                      >
+                        {row}
+                      </MobileArticleRow>
                     );
                   }
 
-                  return <div key={article.id}>{row()}</div>;
+                  return <div key={article.id}>{row}</div>;
                 })
               )}
             </div>
@@ -1538,28 +1538,29 @@ function EmptyState({ filter, searchQuery, awaitingPage, loadMoreBusy, onLoadMor
 
 /* ── Article row ─────────────────────────────────────────────────── */
 
-type MobileArticleRowProps = Omit<ComponentProps<typeof SwipeableArticleRow>, 'children' | 'onSwipeDecided' | 'swipeBlocked'> & {
-  renderRow: (pressRef: RefObject<LongPressControl | null>) => ReactNode;
-};
+type MobileArticleRowProps = Omit<ComponentProps<typeof SwipeableArticleRow>, 'onSwipeDecided' | 'swipeBlocked'>;
 
 /**
  * Une ligne d'article au doigt : le balayage enveloppe la ligne, et les deux
  * gestes s'excluent. La direction décidée annule l'appui long (un balayage
  * n'ouvre jamais le menu) ; un appui long abouti bloque le balayage du même
- * contact (le glisser qui suit un menu ouvert ne bascule rien). L'appui long
- * vit dans la ligne (`useArticleMenuGestures`), le balayage autour : ce
- * composant n'existe que pour leur donner une ref commune.
+ * contact (le glisser qui suit un menu ouvert ne bascule rien). « L'appui
+ * long », ce sont TOUS ceux de la ligne : le sien (menu) et ceux de ses
+ * boutons Favori / À lire plus tard (classement), inscrits dans le registre
+ * fourni ici (`rowPress.ts`).
  */
-export function MobileArticleRow({ renderRow, ...swipe }: MobileArticleRowProps) {
-  const press = useRef<LongPressControl | null>(null);
+export function MobileArticleRow({ children, ...swipe }: MobileArticleRowProps) {
+  const [presses] = useState(createRowPressRegistry);
   return (
-    <SwipeableArticleRow
-      {...swipe}
-      onSwipeDecided={() => press.current?.cancel()}
-      swipeBlocked={() => press.current?.firedThisContact() ?? false}
-    >
-      {renderRow(press)}
-    </SwipeableArticleRow>
+    <RowPressContext.Provider value={presses}>
+      <SwipeableArticleRow
+        {...swipe}
+        onSwipeDecided={presses.cancelAll}
+        swipeBlocked={presses.firedThisContact}
+      >
+        {children}
+      </SwipeableArticleRow>
+    </RowPressContext.Provider>
   );
 }
 
@@ -1584,8 +1585,6 @@ interface ArticleRowProps {
   onOpenSource: (e: ReactMouseEvent) => void;
   /** Clic droit, touche Menu ou appui long : ouvre le menu de l'article. Absent, le navigateur garde son menu. */
   onOpenMenu?: (point: { x: number; y: number }) => void;
-  /** Rempli par l'appui long de la ligne, pour le balayage qui l'enveloppe (`MobileArticleRow`). */
-  pressRef?: RefObject<LongPressControl | null>;
 }
 
 /**
@@ -1595,9 +1594,16 @@ interface ArticleRowProps {
  * tenaient qu'à travers la carte de la vue grille. `ArticleList` reste
  * l'unique consommateur applicatif.
  */
-export function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu, pressRef }: ArticleRowProps) {
+export function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu }: ArticleRowProps) {
   const { t } = useTranslation();
-  const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource, pressRef);
+  // Les appuis longs de la ligne et de ses boutons : le registre du balayage
+  // qui l'enveloppe sur mobile, sinon le sien — le drag natif de la ligne
+  // (Chrome Android) doit les voir tous, quelle que soit la disposition.
+  const outerPresses = useContext(RowPressContext);
+  const [ownPresses] = useState(createRowPressRegistry);
+  const presses = outerPresses ?? ownPresses;
+  const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource, { presses, onDragStart: handleDragStart });
+  const provide = (node: ReactNode) => <RowPressContext.Provider value={presses}>{node}</RowPressContext.Provider>;
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = viewMode === 'preview' ? extractImageFromContent(article.content) : null;
   // Décalage d'apparition. Le seuil et le droit d'animer sont décidés en
@@ -1608,7 +1614,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
     ? { 'data-stagger': '', style: { animationDelay: `${staggerIndex * 25}ms` } }
     : null;
 
-  function handleDragStart(e: ReactDragEvent<HTMLDivElement>) {
+  function handleDragStart(e: ReactDragEvent<HTMLElement>) {
     e.dataTransfer.setData('application/frirss-article', article.id);
     e.dataTransfer.effectAllowed = 'link';
     e.dataTransfer.setData('application/frirss-article-json', JSON.stringify(article));
@@ -1630,12 +1636,11 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
   }
 
   if (viewMode === 'compact') {
-    return (
+    return provide(
       <div
         role="button"
         tabIndex={0}
         draggable
-        onDragStart={handleDragStart}
         {...gestures}
         onClick={onSelect}
         onKeyDown={(e) => e.key === 'Enter' && onSelect()}
@@ -1694,12 +1699,11 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
     );
   }
 
-  return (
+  return provide(
     <div
       role="button"
       tabIndex={0}
       draggable
-      onDragStart={handleDragStart}
       {...gestures}
       onClick={onSelect}
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}

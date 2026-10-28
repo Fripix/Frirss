@@ -5,6 +5,7 @@ import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import type { Article } from '../../types';
 import { rowActionSlots, type RowActionSettings } from '../../lib/rowActions';
 import { useLongPress } from '../../hooks/useLongPress';
+import { useRegisterRowPress } from '../../hooks/rowPress';
 
 /**
  * Classer un article dans une catégorie : un appui long — au doigt ou à la
@@ -27,6 +28,9 @@ function useCategoryPicker(enabled: boolean) {
     setPicking(true);
   };
   const press = useLongPress(() => open(btn.current), { mouse: true, enabled });
+  // Inscrit dans le registre de la ligne : le balayage et le drag natif de
+  // la ligne doivent voir cet appui aussi (`rowPress.ts`).
+  useRegisterRowPress(press.control);
 
   const handlers = enabled
     ? {
@@ -43,9 +47,10 @@ function useCategoryPicker(enabled: boolean) {
         onClickCapture: press.onClickCapture,
         onContextMenu: (e: ReactMouseEvent<HTMLElement>) => {
           e.preventDefault();
-          // Chrome Android émet `contextmenu` sur l'appui long qui vient
-          // d'ouvrir le sélecteur : on l'absorbe sans le rouvrir.
-          if (press.firedRecently()) return;
+          // Chrome Android émet `contextmenu` pendant l'appui long (mesuré
+          // AVANT le minuteur) : l'appui aboutit alors tout de suite, ou son
+          // écho est absorbé. Le sélecteur s'ouvre une fois.
+          if (press.claimContextMenu(e)) return;
           open(e.currentTarget);
         },
       }

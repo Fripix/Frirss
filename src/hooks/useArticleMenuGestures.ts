@@ -1,5 +1,6 @@
-import { useImperativeHandle, type MouseEvent as ReactMouseEvent, type Ref, type TouchEvent as ReactTouchEvent } from 'react';
-import { useLongPress, type LongPressControl, type PressPoint } from './useLongPress';
+import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
+import { useLongPress, type PressPoint } from './useLongPress';
+import { useRegisterRowPress, type RowPressRegistry } from './rowPress';
 import { menuAnchor } from '../lib/articleMenu';
 
 /** Un geste parti d'un élément interactif de la ligne lui appartient. */
@@ -38,26 +39,28 @@ function targetsElement<T extends HTMLElement>(e: { target: EventTarget | null; 
  * de texte, ou un clic droit / molette sur son fond de fermeture, seraient
  * captés par la ligne bien qu'ils visent le portail.
  *
- * `control` expose l'appui long au balayage qui enveloppe la ligne sur mobile
- * (`MobileArticleRow`) : il l'annule dès que sa direction est décidée, et ne
- * balaie plus quand l'appui a abouti.
+ * `presses` : le registre des appuis longs de la ligne (`rowPress.ts`), où
+ * celui-ci s'inscrit à côté de ceux de ses boutons. Le balayage qui enveloppe
+ * la ligne sur mobile les annule et les interroge tous ; le drag natif de la
+ * ligne (`onDragStart`, voir plus bas) aussi.
  */
 export function useArticleMenuGestures(
   onOpenMenu: ((point: PressPoint) => void) | undefined,
   onOpenSource: (e: ReactMouseEvent) => void,
-  control?: Ref<LongPressControl>,
+  opts: { presses?: RowPressRegistry | null; onDragStart?: (e: ReactDragEvent<HTMLElement>) => void } = {},
 ) {
+  const { presses = null, onDragStart } = opts;
   const longPress = useLongPress((point) => onOpenMenu?.(point));
-  const { cancel, firedThisContact } = longPress;
-  useImperativeHandle(control, () => ({ cancel, firedThisContact }), [cancel, firedThisContact]);
+  useRegisterRowPress(longPress.control, presses);
 
   return {
     onContextMenu: (e: ReactMouseEvent<HTMLElement>) => {
       if (!targetsElement(e) || !onOpenMenu || e.defaultPrevented) return;
       e.preventDefault();
-      // Chrome Android émet aussi `contextmenu` sur l'appui long qui vient
-      // d'ouvrir le menu : on l'absorbe sans rouvrir.
-      if (longPress.firedRecently()) return;
+      // Chrome Android émet `contextmenu` pendant l'appui long — mesuré AVANT
+      // le minuteur : l'appui aboutit alors tout de suite, au point du doigt ;
+      // après, il est absorbé. Le menu s'ouvre une fois, au même endroit.
+      if (longPress.claimContextMenu(e)) return;
       onOpenMenu(menuAnchor(e, e.currentTarget.getBoundingClientRect()));
     },
     onTouchStart: (e: ReactTouchEvent<HTMLElement>) => {
@@ -67,6 +70,8 @@ export function useArticleMenuGestures(
       // bouton ou un champ va s'approprier ci-dessous — sans quoi le clic
       // suivant sur ce bouton resterait avalé par la ligne (`onClickCapture`).
       longPress.reset();
+      // Un second doigt annule l'appui en cours, même posé sur un bouton.
+      if (e.touches.length > 1) { longPress.onTouchStart(e); return; }
       if (!onOpenMenu || fromInteractive(e)) return;
       longPress.onTouchStart(e);
     },
@@ -85,6 +90,19 @@ export function useArticleMenuGestures(
     onClickCapture: (e: ReactMouseEvent<HTMLElement>) => {
       if (!targetsElement(e)) return;
       longPress.onClickCapture(e);
+    },
+    // Drag natif : à la souris, celui de l'appelant (classer un article en le
+    // déposant sur la barre latérale). Pendant un contact TACTILE, c'est
+    // Chrome Android qui le démarre sur un appui long (~495 ms, puis
+    // `touchcancel`) : il est annulé et l'appui — de la ligne ou d'un de ses
+    // boutons — aboutit tout de suite. Sans quoi le menu ne s'ouvrait qu'une
+    // fois sur deux, quand le minuteur gagnait la course.
+    onDragStart: (e: ReactDragEvent<HTMLElement>) => {
+      if (targetsElement(e) && (longPress.claimTouchDrag() || !!presses?.claimTouchDrag())) {
+        e.preventDefault();
+        return;
+      }
+      onDragStart?.(e);
     },
     // Clic molette : empêcher le défilement automatique (Windows, Linux)…
     onMouseDown: (e: ReactMouseEvent<HTMLElement>) => {
