@@ -214,6 +214,11 @@ la release publiée.
   allongeaient la page bien au-delà de l'écran : une molette au-dessus d'une
   zone qui ne défile pas, ou l'ouverture des Préférences, faisait glisser
   toute l'application vers le haut, et elle y restait.
+- **Vignettes : les images de Reddit (et de tout flux qui échappe ses
+  adresses) s'affichent.** L'adresse de l'image partait avec ses `&amp;`
+  et le serveur refusait. Et dans la grille, une image qui ne charge pas
+  montre l'initiale du flux, comme une carte sans image, au lieu d'une case
+  vide.
 - **Traduction : un clic sur « Réessayer avec… » dès son apparition n'est
   plus perdu.** Le volet lisait encore l'état « en cours » pendant un bref
   instant après l'affichage de l'erreur, et ignorait le clic.

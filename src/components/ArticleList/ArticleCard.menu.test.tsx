@@ -76,3 +76,20 @@ describe('ArticleCard — menu', () => {
   });
 });
 
+
+// Une image qui ne charge pas (URL expirée, serveur qui refuse) laissait une
+// case vide, là où une carte sans image montre l'initiale du flux.
+describe('vignette en échec', () => {
+  it('montre l’initiale du flux, comme une carte sans image', () => {
+    const article = { ...base, content: '<img src="https://example.com/gone.jpg"><p>body</p>' } as Article;
+    const c = render(
+      <ArticleCard article={article} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
+        onSelect={() => {}} onToggleStar={() => {}} onToggleRead={() => {}} onToggleReadLater={() => {}} onOpenSource={() => {}} />,
+    );
+    const img = c.container.querySelector('.article-card__thumb img') as HTMLImageElement;
+    expect(img).toBeTruthy();
+    fireEvent.error(img);
+    expect(c.container.querySelector('.article-card__thumb img')).toBeNull();
+    expect(c.container.querySelector('.article-card__fallback')?.textContent).toBe('T');
+  });
+});

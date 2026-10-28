@@ -754,6 +754,13 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   existant. `ArticleList` construit une **carte** `sourceId → iconUrl` plutôt
   qu'un `find()` par ligne. **Pas dans la grille** : la carte a déjà sa
   vignette et son repli lettre, un favicon y ferait doublon.
+- **Vignette** (`src/lib/articleThumbnail.ts`) : première `<img>` du contenu,
+  lue par motif dans le HTML brut — donc avec ses entités, décodées par
+  `normalizeImageUrl` (1.8.0) : un `&amp;` partait tel quel au serveur, et
+  les vignettes signées de Reddit répondaient en erreur. Dans la grille, une
+  image qui ne charge pas prend le **même repli lettre** qu'une carte sans
+  image (il laissait une case vide), retenu par URL dans `ArticleCard` ; dans
+  la liste, la vignette en échec disparaît et le texte prend la place.
 - **En-tête** : titre à 15-16 px (il était à 14 px, noyé au milieu de huit
   icônes de même poids) et compte de non-lus de la vue à côté. Le compte n'est
   affiché que pour un flux et pour « tous les flux » : favoris, à lire plus

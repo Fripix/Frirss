@@ -14,6 +14,12 @@ describe('extractImageFromContent', () => {
   it('returns null for empty input', () => {
     expect(extractImageFromContent('')).toBeNull();
   });
+  // Lue dans le HTML brut, la valeur garde ses entités : `&amp;` partait tel
+  // quel au serveur, et les vignettes de Reddit (URL signée) ne chargeaient pas.
+  it('decodes the HTML entities of the src', () => {
+    const html = '<img src="https://preview.redd.it/a.jpeg?width=140&amp;height=87&amp;s=b36">';
+    expect(extractImageFromContent(html)).toBe('https://preview.redd.it/a.jpeg?width=140&height=87&s=b36');
+  });
 });
 
 describe('sourceInitial', () => {

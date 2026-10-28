@@ -1166,7 +1166,6 @@ html {
   overflow: hidden;
 }
 .article-card__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.article-card__thumb--failed img { display: none; }
 .article-card__fallback {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;

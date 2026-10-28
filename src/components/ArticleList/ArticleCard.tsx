@@ -1,4 +1,5 @@
 import type { MouseEvent as ReactMouseEvent } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Article } from '../../types';
 import { READ_LATER_LABEL } from '../../stores/feedStore';
@@ -37,6 +38,11 @@ export default function ArticleCard({
   const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource);
   const isReadLater = article.labels?.includes(READ_LATER_LABEL);
   const thumbnail = extractImageFromContent(article.content);
+  // Une image qui ne charge pas prend le même remplaçant qu'une carte sans
+  // image (l'initiale du flux), pas une case vide. Retenue par URL : un
+  // nouveau contenu (article complet extrait) retente sa propre image.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showImage = !!thumbnail && failedSrc !== thumbnail;
   const isVideo = !!extractYouTubeId(article.url || '');
 
   return (
@@ -51,15 +57,12 @@ export default function ArticleCard({
       className={`article-card ${active ? 'article-card--active' : ''} ${article.read ? 'article-card--read' : ''}`}
     >
       <div className="article-card__thumb">
-        {thumbnail ? (
+        {showImage ? (
           <img
             src={thumbnail}
             alt=""
             loading="lazy"
-            onError={(e) => {
-              const wrap = e.currentTarget.parentElement;
-              if (wrap) wrap.classList.add('article-card__thumb--failed');
-            }}
+            onError={() => setFailedSrc(thumbnail)}
           />
         ) : (
           <div className="article-card__fallback">
