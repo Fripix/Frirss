@@ -836,8 +836,19 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
     function handleClick(e: Event) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
     }
+    // Échap ferme dans les trois états : la garde de `useKeyboardNav` se tait
+    // tant que le menu est ouvert (`data-floating-surface`), et seul le champ
+    // de renommage écoutait la touche. Capture + stopPropagation : un seul
+    // effet par pression.
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+    }
     document.addEventListener('pointerdown', handleClick);
-    return () => document.removeEventListener('pointerdown', handleClick);
+    document.addEventListener('keydown', handleKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', handleClick);
+      document.removeEventListener('keydown', handleKey, true);
+    };
   }, [onClose]);
 
   // Position ramenée dans la fenêtre APRÈS mesure : la hauteur dépend du mode

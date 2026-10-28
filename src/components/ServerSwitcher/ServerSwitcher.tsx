@@ -104,8 +104,17 @@ function ManageMenu({ x, y, onClose, onManage }: { x: number; y: number; onClose
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     }
+    // Échap ferme : le menu coupe les raccourcis (`data-floating-surface`),
+    // rien d'autre n'écouterait la touche.
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+    }
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey, true);
+    };
   }, [onClose]);
 
   const style: CSSProperties = {
@@ -116,7 +125,7 @@ function ManageMenu({ x, y, onClose, onManage }: { x: number; y: number; onClose
   };
 
   return (
-    <div ref={ref} style={style} className="py-1">
+    <div ref={ref} style={style} className="py-1" data-floating-surface>
       <button
         onClick={onManage}
         className="w-full text-left px-3 py-2 text-xs transition-colors hover:bg-black/5"

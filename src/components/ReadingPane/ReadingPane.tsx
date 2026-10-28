@@ -2365,14 +2365,16 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
     }
     // Échap ferme aussi : la liste coupe les raccourcis tant qu'elle est ouverte
     // (`data-floating-surface`), donc plus rien d'autre n'écouterait la touche.
+    // Capture + stopPropagation, comme Popover : un seul effet par pression
+    // (Échap ne quitte pas aussi le mode Focus).
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
     }
     document.addEventListener('mousedown', handleClick);
-    document.addEventListener('keydown', handleKey);
+    document.addEventListener('keydown', handleKey, true);
     return () => {
       document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('keydown', handleKey, true);
     };
   }, [open, isMobile]);
 

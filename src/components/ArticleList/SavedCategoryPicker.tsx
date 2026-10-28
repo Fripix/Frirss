@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../../stores/feedStore';
@@ -32,6 +32,18 @@ export default function SavedCategoryPicker({ prefix, article, anchor, onClose }
     toggleArticleLabel(article, labelId);
     onClose();
   };
+
+  // Échap ferme : la garde de `useKeyboardNav` se tait tant que le sélecteur
+  // est ouvert (`data-floating-surface`), donc rien d'autre n'écouterait la
+  // touche. Capture + stopPropagation, comme ArticleContextMenu et Popover : un
+  // seul effet par pression (Échap ne quitte pas aussi le mode Focus).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+    }
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
 
   // A portal, not an inline popover: inside the toolbar it was clipped by the
   // surrounding flex row and pushed the buttons around.

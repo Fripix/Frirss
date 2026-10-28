@@ -571,18 +571,29 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   « Résumer avec… » sur ordinateur — après une flèche, `t` y lançait une
   traduction payante derrière le menu et `j`/`k` changeaient l'article
   dessous), et **toute surface flottante ouverte, quel que soit le focus** :
-  chacune marque la racine de son portail `data-floating-surface` et la garde
-  est `document.querySelector('[data-floating-surface]')`. Les cinq : menu
+  chacune marque la racine de sa surface `data-floating-surface` et la garde
+  est `document.querySelector('[data-floating-surface]')`. Les six : menu
   contextuel d'article sur ordinateur (`ArticleContextMenu`, volontairement
   sans `role`), menu d'un flux (`FeedContextMenu`, ses trois états), sélecteur
   de catégorie (`SavedCategoryPicker`), `Popover` (« Traduire en… »,
-  « Résumer avec… », menus des Préférences IA) et la liste d'étiquettes du
-  volet de lecture (`LabelMenu`, qui se ferme désormais à Échap). Le test sur
-  `[role="menu"]` ne les voyait pas : le menu d'article n'en a pas, deux sont
-  des portails nus, et un Popover reste ouvert quand le focus est ailleurs —
-  `t` et `s` lançaient un appel d'IA payant derrière le menu. Échap reste à
-  chaque surface (la garde ne l'intercepte pas) ; **toute nouvelle surface
-  flottante doit porter l'attribut**, sinon elle laisse passer les raccourcis.
+  « Résumer avec… », menus des Préférences IA), liste d'étiquettes du volet de
+  lecture (`LabelMenu`) et menu « Gérer » du sélecteur de serveur
+  (`ManageMenu`, dans `ServerSwitcher.tsx` : `position: fixed` **sans
+  portail**, donc invisible à une recherche de `createPortal`). Le test sur
+  `[role="menu"]` ne les voyait pas : le menu d'article n'a pas de rôle, trois
+  sont des portails ou des `fixed` nus, et un Popover reste ouvert quand le
+  focus est ailleurs — `t` et `s` lançaient un appel d'IA payant derrière le
+  menu. **Chacune ferme à Échap par son propre écouteur** (capture +
+  `stopPropagation`, un seul effet par pression) : la garde n'intercepte pas
+  la touche, donc une surface sans Échap laisserait tout le clavier mort
+  jusqu'à un clic — c'était le cas de `SavedCategoryPicker`, de
+  `FeedContextMenu` (hors renommage), de `LabelMenu` et de `ManageMenu`
+  avant ce correctif. **Toute nouvelle surface flottante** — en portail
+  **ou** en `position: fixed` sans portail — doit porter l'attribut **et**
+  fermer à Échap. Hors périmètre, assumé : les fenêtres modales
+  (`AddFeedDialog`, `AddServerDialog`) et le tiroir mobile, qui ne sont pas
+  des menus ; la pastille de couleur de l'onglet Étiquettes vit sous les
+  Préférences, déjà couvertes par `[role="dialog"]`.
   Sur ordinateur le volet de lecture reste monté derrière les
   Préférences : sans cette garde, `r`, `d`, `l` ou `s` agissaient sur
   l'article qu'elles recouvrent. ⌘K est traité avant ces gardes, par convention. Un simple bouton

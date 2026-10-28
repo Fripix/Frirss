@@ -28,4 +28,15 @@ describe("LabelMenu — liste d'étiquettes sur bureau", () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(document.querySelector('[data-floating-surface]')).toBeNull();
   });
+
+  it("n'abandonne pas l'événement : Échap ne quitte pas aussi le mode Focus", () => {
+    useFeedStore.setState({ labels: [], loadLabels: vi.fn() } as never);
+    const outside = vi.fn();
+    render(<LabelMenu article={article} />);
+    fireEvent.click(screen.getByTitle('readingPane.labels'));
+    document.addEventListener('keydown', outside);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    document.removeEventListener('keydown', outside);
+    expect(outside).not.toHaveBeenCalled();
+  });
 });

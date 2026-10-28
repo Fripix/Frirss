@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup, screen } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import { FeedContextMenu } from './Sidebar';
 import type { Subscription } from '../../types';
 
@@ -38,5 +38,15 @@ describe('FeedContextMenu — un menu flottant hors du tiroir', () => {
     expect(menu).not.toBeNull();
     expect(container.querySelector('[data-testid="drawer"]')!.contains(menu)).toBe(false);
     expect(document.body.contains(menu)).toBe(true);
+  });
+
+  it('se ferme à Échap', () => {
+    // La garde de `useKeyboardNav` se tait tant que le menu est ouvert : sans
+    // son propre Échap, le clavier restait mort jusqu'à un clic.
+    const onClose = vi.fn();
+    const { unmount } = render(<FeedContextMenu feed={feed} x={10} y={10} onRename={yes} onDelete={yes} onClose={onClose} />);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    unmount();
   });
 });
