@@ -186,8 +186,10 @@ _(rien pour l'instant)_
   apparaissait quand même dans le corps de l'article.
   Les fenêtres « Ajouter un flux » et « Ajouter un serveur » possédaient déjà
   l'écran mais pas le clavier : avec le focus sur un de leurs boutons, `t` et
-  `s` agissaient derrière elles. Elles le coupent désormais, et « Ajouter un
-  flux » se ferme aussi à Échap.
+  `s` agissaient derrière elles. Elles le coupent désormais, et toutes deux
+  se ferment à Échap quel que soit le focus : « Ajouter un serveur », ouverte
+  depuis les Préférences, laissait passer la touche au panneau, qui se
+  fermait tout entier en perdant les identifiants saisis.
 
 ## Sous le capot
 

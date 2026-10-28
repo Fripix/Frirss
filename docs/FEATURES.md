@@ -587,7 +587,12 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   résumé, peut-être payant), et **toute boîte ouverte** (`[role="dialog"]` :
   Préférences, confirmation, palette, feuille du bas, aide-mémoire, « Ajouter
   un flux » (`AddFeedDialog`) et « Ajouter un serveur » (`AddServerDialog`),
-  toutes deux `role="dialog"` `aria-modal` nommées par leur titre — **hors
+  toutes deux `role="dialog"` `aria-modal` nommées par leur titre, et qui
+  ferment à Échap **quel que soit le focus** (écouteur du document en capture
+  + `stopPropagation` : ouverte depuis les Préférences, « Ajouter un serveur »
+  laisse le focus sur le bouton qui l'a ouverte, hors de la boîte ; son
+  ancien `onKeyDown` sur la boîte ne voyait pas la touche, qui fermait tout le
+  panneau avec les identifiants saisis) — **hors
   corps d'article** : un `role="dialog"` dans `.article-content`, modale de
   newsletter que DOMPurify conserve, coupait tous les raccourcis tant que
   l'article restait ouvert), et le

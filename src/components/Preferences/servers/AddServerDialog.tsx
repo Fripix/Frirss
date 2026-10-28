@@ -1,4 +1,4 @@
-import { useState, useId, type FormEvent, type ReactEventHandler } from 'react';
+import { useState, useId, useEffect, type FormEvent, type ReactEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addServer as apiAddServer, updateServer } from '../../../api/backend';
 import { login as freshrssLogin } from '../../../api/auth';
@@ -24,6 +24,20 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const titleId = useId();
+
+  // Échap ferme cette boîte, et elle seule — quel que soit le focus. Ouverte
+  // depuis les Préférences, le focus reste sur le bouton qui l'a ouverte, hors
+  // de la boîte : un `onKeyDown` sur la boîte ne voyait pas la touche, qui
+  // atteignait le gestionnaire du panneau et le fermait, identifiants saisis
+  // compris. Écoute du document en capture + `stopPropagation`, comme
+  // `AddFeedDialog` : la touche ne descend plus jusqu'au panneau.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
+    }
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -82,12 +96,6 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
         className="w-full max-w-sm rounded-xl p-6 shadow-2xl"
         style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          // Escape here means "close this dialog", not "close Préférences"
-          // underneath it — without stopping propagation, the same key
-          // demounts the whole panel with a half-filled server form inside.
-          if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
-        }}
       >
         <h2 id={titleId} className="text-lg font-bold mb-1" style={{ color: 'var(--list-title)' }}>
           {t('servers.addTitle')}

@@ -78,4 +78,32 @@ describe.each([
     fireEvent.keyDown(button, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  // Ouverte depuis les Préférences, le focus reste sur le bouton qui l'a
+  // ouverte, HORS de la boîte : Échap atteignait le gestionnaire du panneau
+  // et fermait tout, identifiants saisis compris.
+  it('Échap avec le focus hors de la boîte la ferme, elle seule', () => {
+    const onClose = vi.fn();
+    const closePanel = vi.fn();
+    render(
+      <div onKeyDown={(e) => { if (e.key === 'Escape') closePanel(); }}>
+        <button>ouvrir</button>
+        <Harness />
+        {dialog(onClose)}
+      </div>,
+    );
+    const opener = screen.getByText('ouvrir');
+    opener.focus();
+    fireEvent.keyDown(opener, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(closePanel).not.toHaveBeenCalled();
+  });
+
+  it('Échap le focus sur la page (body) la ferme aussi', () => {
+    const onClose = vi.fn();
+    render(<>{dialog(onClose)}</>);
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
