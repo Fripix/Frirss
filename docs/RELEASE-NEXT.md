@@ -240,6 +240,10 @@ la release publiée.
   derniers mots anglais des Préférences sont traduits (« Sidebar »,
   « Header », « Scrollbar », « Reset ») et l'aide du hors-ligne vouvoie
   comme le reste de l'application.
+- **Une liste qui n'a pas pu se charger le dit.** Si le serveur ne
+  répondait pas, la liste affichait « Tout est lu ! » ou « Ce flux est
+  vide ». Elle affiche désormais que le chargement a échoué, avec un bouton
+  « Réessayer ».
 - **Traduction : un clic sur « Réessayer avec… » dès son apparition n'est
   plus perdu.** Le volet lisait encore l'état « en cours » pendant un bref
   instant après l'affichage de l'erreur, et ignorait le clic.

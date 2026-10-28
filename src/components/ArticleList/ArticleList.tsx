@@ -128,6 +128,7 @@ export default function ArticleList() {
   const pushToast = useUiStore((s) => s.pushToast);
   const showNewArticlesPill = useUiStore((s) => s.showNewArticlesPill);
   const newInView = useFeedStore((s) => s.newInView);
+  const listFailed = useFeedStore((s) => s.listFailed);
   const loadNewArticles = useFeedStore((s) => s.loadNewArticles);
   const dismissNewArticles = useFeedStore((s) => s.dismissNewArticles);
   // Une recherche est en cours : le bandeau de la vue qu'elle recouvre ne doit
@@ -697,6 +698,7 @@ export default function ArticleList() {
     hasContinuation,
     searching: !!searchQuery,
     scanning: searchScan.running,
+    failed: listFailed,
   });
   // Le bouton « charger la suite » de l'état vide neutre reste inactif tant
   // qu'un clic ne peut pas agir sans risque — page déjà en vol, ou vue encore
@@ -1100,10 +1102,12 @@ export default function ArticleList() {
               </div>
             ))}
           </div>
-        ) : bodyState === 'empty' || bodyState === 'empty-more' ? (
+        ) : bodyState === 'empty' || bodyState === 'empty-more' || bodyState === 'failed' ? (
           <EmptyState
             filter={filter}
             searchQuery={searchQuery}
+            failed={bodyState === 'failed'}
+            onRetry={() => { void useFeedStore.getState().loadArticles(); }}
             awaitingPage={bodyState === 'empty-more'}
             loadMoreBusy={loadMoreBusy}
             onLoadMore={loadMore}
@@ -1407,6 +1411,9 @@ function SheetRow({ icon, label, active, onClick }: SheetRowProps) {
 interface EmptyStateProps {
   filter: Filter;
   searchQuery: string;
+  /** Liste vide parce que le chargement a échoué — voir `listBodyState`. */
+  failed: boolean;
+  onRetry: () => void;
   /** Liste vide alors qu'une page reste promise — voir `listBodyState`. */
   awaitingPage: boolean;
   /** Le bouton « charger la suite » doit-il s'afficher occupé/inactif ?
@@ -1416,13 +1423,23 @@ interface EmptyStateProps {
   onLoadMore: () => void;
 }
 
-function EmptyState({ filter, searchQuery, awaitingPage, loadMoreBusy, onLoadMore }: EmptyStateProps) {
+function EmptyState({ filter, searchQuery, failed, onRetry, awaitingPage, loadMoreBusy, onLoadMore }: EmptyStateProps) {
   const { t } = useTranslation();
   let icon: ReactNode;
   let title: string;
   let subtitle: string;
 
-  if (awaitingPage) {
+  if (failed) {
+    // Le chargement a échoué et rien ne le remplace : ne surtout pas dire
+    // « Tout est lu ! » (c'était le cas), mais l'échec, et l'action qui le lève.
+    icon = (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+      </svg>
+    );
+    title = t('emptyState.loadFailed');
+    subtitle = t('emptyState.loadFailedHint');
+  } else if (awaitingPage) {
     // État neutre : la liste n'a plus de ligne à montrer mais le flux n'est
     // pas épuisé. Il n'affirme donc RIEN — ni « tout est lu », ni « aucun
     // favori » — et donne la seule action qui avance : charger la suite.
@@ -1476,7 +1493,7 @@ function EmptyState({ filter, searchQuery, awaitingPage, loadMoreBusy, onLoadMor
     subtitle = t('emptyState.noArticlesHint');
   }
 
-  const isSuccess = filter === 'unread' && !searchQuery && !awaitingPage;
+  const isSuccess = filter === 'unread' && !searchQuery && !awaitingPage && !failed;
 
   // Six états vides partagent un gabarit alors qu'ils ne disent pas la même
   // chose. « Tout est lu » est une réussite — le moment où l'application a fini
@@ -1484,7 +1501,9 @@ function EmptyState({ filter, searchQuery, awaitingPage, loadMoreBusy, onLoadMor
   // sortie. Un écran vide est une invitation à agir, pas un constat : celui-là
   // ne doit JAMAIS être une impasse (c'est ce qu'était le squelette sans fin).
   let action: { label: string; run: () => void; busy?: boolean } | null = null;
-  if (awaitingPage) {
+  if (failed) {
+    action = { label: t('emptyState.loadFailedAction'), run: onRetry };
+  } else if (awaitingPage) {
     action = {
       label: loadMoreBusy ? t('articleList.loading') : t('emptyState.morePagesAction'),
       run: onLoadMore,

@@ -1017,6 +1017,16 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     mais parce que l'état vide de recherche a déjà sa propre sortie
     (« chercher dans tous les flux »), plus utile là qu'un bouton de page
     suivante sur zéro résultat.
+  - **Un chargement en échec n'est pas une liste vide** (1.8.0). Sans liste de
+    secours (hors ligne), l'échec laissait `articles: []` : l'écran disait
+    « Tout est lu ! » en vert, ou « Ce flux est vide », et le seul indice était
+    un point rouge sur la ligne du flux — absent pour Tous / Non lus /
+    Favoris, invisible sur téléphone. `feedStore.listFailed` (levé dans le
+    `catch` de `loadArticles`, retombé à chaque nouveau chargement et au
+    changement de serveur) fait rendre l'état **`failed`** :
+    `emptyState.loadFailed` + bouton « Réessayer » qui relance
+    `loadArticles`. Des lignes déjà affichées (cache) gardent la priorité.
+    Tests : `listPagination.test.ts`, `feedStore.loadFailed.test.ts`.
   - **Le bouton « Charger la suite » ne doit jamais être un no-op silencieux
     (2026-09-02).** Trois manières dont il pouvait cliquer pour rien, sans un
     mot :

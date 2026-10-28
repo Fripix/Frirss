@@ -146,7 +146,10 @@
     "noResultsAction": "Search all feeds",
     "morePages": "Nothing on this page",
     "morePagesHint": "The next articles have not been loaded yet",
-    "morePagesAction": "Load more"
+    "morePagesAction": "Load more",
+    "loadFailed": "Couldn't load the articles",
+    "loadFailedHint": "The server didn't answer or refused the request.",
+    "loadFailedAction": "Try again"
   },
   "readingPane": {
     "noArticle": "Select an article to read",

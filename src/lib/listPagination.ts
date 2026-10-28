@@ -64,7 +64,9 @@ export type ListBodyState =
   /** Liste vide et rien de plus à charger : l'état vide, définitif. */
   | 'empty'
   /** Liste vide, mais une page reste promise : état vide neutre + « charger la suite ». */
-  | 'empty-more';
+  | 'empty-more'
+  /** Liste vide parce que le chargement a échoué : le dire, et proposer de réessayer. */
+  | 'failed';
 
 /**
  * Que montrer dans le corps de la liste ?
@@ -107,10 +109,13 @@ export function listBodyState(opts: {
   hasContinuation: boolean;
   searching: boolean;
   scanning?: boolean;
+  /** Le dernier chargement de la vue a échoué, sans liste de secours. */
+  failed?: boolean;
 }): ListBodyState {
   if (opts.loading) return 'skeleton';
   if (opts.searching && opts.scanning && opts.articleCount === 0) return 'skeleton';
   if (opts.articleCount > 0) return 'rows';
+  if (opts.failed) return 'failed';
   if (emptyListIsFinal({ articleCount: opts.articleCount, hasContinuation: opts.hasContinuation })) {
     return 'empty';
   }

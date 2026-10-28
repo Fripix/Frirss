@@ -154,7 +154,10 @@
     "noResultsAction": "Шукати в усіх стрічках",
     "morePages": "Нічого на цій сторінці",
     "morePagesHint": "Наступні статті ще не завантажені",
-    "morePagesAction": "Завантажити ще"
+    "morePagesAction": "Завантажити ще",
+    "loadFailed": "Не вдалося завантажити статті",
+    "loadFailedHint": "Сервер не відповів або відхилив запит.",
+    "loadFailedAction": "Спробувати ще раз"
   },
   "readingPane": {
     "noArticle": "Виберіть статтю для читання",

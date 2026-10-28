@@ -80,6 +80,20 @@ describe('listBodyState', () => {
     expect(listBodyState(base)).toBe('empty');
   });
 
+  // Un chargement en échec sans liste de secours laissait `articles` vide :
+  // l'écran disait « Tout est lu ! » ou « Ce flux est vide », un mensonge, et
+  // rien ne permettait de réessayer sans changer de vue.
+  it('dit l’échec du chargement au lieu de l’état vide', () => {
+    expect(listBodyState({ ...base, failed: true })).toBe('failed');
+    expect(listBodyState({ ...base, failed: true, hasContinuation: true })).toBe('failed');
+  });
+
+  it('garde les lignes et le squelette prioritaires sur l’échec', () => {
+    // Des lignes déjà là (cache) restent lisibles ; un nouvel essai en cours montre le squelette.
+    expect(listBodyState({ ...base, failed: true, articleCount: 2 })).toBe('rows');
+    expect(listBodyState({ ...base, failed: true, loading: true })).toBe('skeleton');
+  });
+
   // Le défaut corrigé : une liste vide avec une `continuation` non nulle
   // rendait le squelette de chargement, dans TOUTES les vues. Rien ne le
   // relançait jamais — la pagination ne repart que sur un `scroll`, et un

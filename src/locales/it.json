@@ -146,7 +146,10 @@
     "noResultsAction": "Cerca in tutti i feed",
     "morePages": "Niente in questa pagina",
     "morePagesHint": "I prossimi articoli non sono ancora stati caricati",
-    "morePagesAction": "Carica altri"
+    "morePagesAction": "Carica altri",
+    "loadFailed": "Impossibile caricare gli articoli",
+    "loadFailedHint": "Il server non ha risposto o ha rifiutato la richiesta.",
+    "loadFailedAction": "Riprova"
   },
   "readingPane": {
     "noArticle": "Seleziona un articolo da leggere",

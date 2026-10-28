@@ -146,7 +146,10 @@
     "noResultsAction": "搜索全部订阅源",
     "morePages": "本页没有更多内容",
     "morePagesHint": "后续文章尚未加载",
-    "morePagesAction": "加载更多"
+    "morePagesAction": "加载更多",
+    "loadFailed": "无法加载文章",
+    "loadFailedHint": "服务器没有响应或拒绝了请求。",
+    "loadFailedAction": "重试"
   },
   "readingPane": {
     "noArticle": "选择一篇文章开始阅读",

@@ -622,6 +622,9 @@ export interface FeedState {
   starredCount: number;
   readLaterCount: number;
   feedErrors: Record<string, number>;
+  // Le dernier chargement de la vue a échoué sans liste de secours : la liste
+  // vide n'est pas un « tout est lu », elle le dit (`listBodyState`).
+  listFailed: boolean;
   // True while the initial subscriptions load is in flight — drives the thin
   // top progress bar so the user sees the app is revalidating (esp. after a
   // service-worker update reload, when every in-memory cache is cold).
@@ -887,6 +890,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   offlinePrep: null,
   syncing: false,
   feedErrors: {}, // { [feedId]: timestamp } — tracks feeds that errored on load
+  listFailed: false,
 
   setFilter: (filter) => {
     closeSearch(set);
@@ -1313,7 +1317,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // `revalidating` covers the gap this leaves: the request below (2.) stays
     // in flight until it resolves, whether or not `cached` was set.
     // La liste repart du serveur : ce qui était signalé comme nouveau y sera.
-    set({ loading: !cached, revalidating: true, newInView: 0 });
+    set({ loading: !cached, revalidating: true, newInView: 0, listFailed: false });
 
     // 1. Server cache (SWR) — only when memory had nothing, for an instant-ish
     //    first paint (first visit this session / cross-device). Non-blocking.
@@ -1376,6 +1380,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       set((state) => ({
         loading: false,
         revalidating: false,
+        listFailed: true,
         feedErrors: selectedFeed
           ? { ...state.feedErrors, [selectedFeed.id]: Date.now() }
           : state.feedErrors,
@@ -2762,6 +2767,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       starredCount: 0,
       readLaterCount: 0,
       feedErrors: {},
+      listFailed: false,
       // A refresh in flight belongs to the server we are leaving; its loop
       // abandons itself. Clear its state here so the banner doesn't stay
       // pinned on the new server and the re-entrancy guard doesn't wedge the

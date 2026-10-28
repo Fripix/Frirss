@@ -154,7 +154,10 @@
     "noResultsAction": "Szukaj we wszystkich kanałach",
     "morePages": "Nic na tej stronie",
     "morePagesHint": "Kolejne artykuły nie zostały jeszcze wczytane",
-    "morePagesAction": "Wczytaj więcej"
+    "morePagesAction": "Wczytaj więcej",
+    "loadFailed": "Nie udało się wczytać artykułów",
+    "loadFailedHint": "Serwer nie odpowiedział lub odrzucił żądanie.",
+    "loadFailedAction": "Spróbuj ponownie"
   },
   "readingPane": {
     "noArticle": "Wybierz artykuł do przeczytania",
