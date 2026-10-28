@@ -87,7 +87,9 @@ _(rien pour l'instant)_
   non lues des lignes que le second venait de marquer, et la recherche
   pouvait montrer lus des articles que le serveur avait en non-lus pendant
   cinq minutes. Même chose quand on rafraîchit pendant qu'un marquage est en
-  vol dans une recherche.
+  vol dans une recherche. Un marquage en attente ne
+  part plus vers un autre serveur FreshRSS si l'on change de serveur (ou si
+  l'on se déconnecte) entre-temps.
 
 ## Sous le capot
 

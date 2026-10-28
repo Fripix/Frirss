@@ -1191,17 +1191,29 @@ FreshRSS, où le titre est un vrai lien.
   Aucun élément d'interface nouveau. Le champ est partagé par toutes les
   écritures de masse : un **compteur** (`bulkPending`, `beginBulk` /
   `endBulk`) ne l'éteint que quand la dernière est réglée — « Tout lu » et le
-  retour en arrière du bandeau s'y rangent aussi, sans quoi la première à
-  finir éteignait la barre des autres. *File* : `markReadRelative` se range
+  retour en arrière du bandeau (`restoreUnread`) comptent aussi dans
+  `bulkPending`, sans quoi la première à finir éteignait la barre des autres.
+  Comme le champ est unique, **des travaux simultanés se partagent une seule
+  barre dont les chiffres peuvent sauter** d'un total à l'autre (celui du
+  dernier lot rendu) ; elle ne dit jamais que « ça travaille encore ». *File* : `markReadRelative` se range
   derrière le marquage précédent (`rangeQueue`), réussi ou refusé, au lieu de
   le croiser ; une file vide part dans l'appel même (le ✓ optimiste se voit au
   clic). Un marquage qui attend montre déjà la barre. Croisés, deux marquages
   se marchaient dessus : le retour en arrière du premier repassait non lues des
   lignes que le second venait de marquer, et le corpus de recherche restait
-  optimiste. L'exécution calcule ce qu'elle touche **à son tour**, pas à la
-  demande, et si la vue a changé pendant l'attente le serveur reçoit quand même
-  l'ordre (le périmètre est figé au clic) mais aucune ligne affichée n'est
-  touchée. **« Tout lu » n'entre PAS dans cette file** : il agit sur la vue
+  optimiste. **Un marquage en attente ne coche ses lignes que quand son tour
+  vient** : il calcule ce qu'il touche à son exécution, pas à la demande (le ✓
+  optimiste n'apparaît donc pas au clic s'il y a déjà un marquage en vol), et
+  la boîte de confirmation (`ConfirmDialog`), qui attend la promesse de
+  l'action, reste occupée pendant l'attente puis pendant l'exécution. Si la
+  vue a changé pendant l'attente, le serveur reçoit quand même l'ordre (le
+  périmètre est figé au clic) mais aucune ligne affichée n'est touchée, et
+  le corpus de recherche n'est patché que s'il a le même flux et le même
+  serveur. **Si le serveur actif a changé, ou si la session FriRSS s'est
+  fermée, pendant l'attente ou entre deux lots d'un « au-dessus », plus rien
+  ne part** (`memeContexte`, comme la garde de `syncCounts`) : la requête
+  partirait vers le serveur actif au moment de l'envoi, pas vers celui du clic.
+  La promesse rendue ne rejette jamais (l'appelant fait `void …`). **« Tout lu » n'entre PAS dans cette file** : il agit sur la vue
   courante au moment où il s'exécute (son état local, sa fermeture de
   recherche), donc le différer l'appliquerait à un autre écran ; il partage
   seulement la barre. Un « Tout lu » qui passe pendant un marquage de plage en

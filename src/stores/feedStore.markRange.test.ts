@@ -7,6 +7,7 @@ vi.mock('../api/feeds', async () => {
     ...actual,
     markAllAsRead: vi.fn().mockResolvedValue(undefined),
     markAsRead: vi.fn().mockResolvedValue(undefined),
+    markAsUnread: vi.fn().mockResolvedValue(undefined),
     itemIdsNewerThanEntry: vi.fn().mockResolvedValue([]),
     getUnreadCounts: vi.fn().mockResolvedValue([]),
     getUnreadItemIds: vi.fn().mockResolvedValue({ ids: [], complete: true }),
@@ -19,7 +20,7 @@ vi.mock('../i18n', () => ({
   default: { t: (k: string) => k },
 }));
 
-import { markAllAsRead, markAsRead, itemIdsNewerThanEntry, getUnreadCounts, fetchStreamPage } from '../api/feeds';
+import { markAllAsRead, markAsRead, markAsUnread, getUnreadItemIds, itemIdsNewerThanEntry, getUnreadCounts, fetchStreamPage } from '../api/feeds';
 import { useFeedStore, __resetSearchStateForTests, __resetNewArticlesStateForTests } from './feedStore';
 import { useAuthStore } from './authStore';
 import { useUiStore } from './uiStore';
@@ -83,7 +84,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   __resetSearchStateForTests();
   useUiStore.setState({ toasts: [] });
-  useAuthStore.setState({ activeServerId: 7 } as never);
+  useAuthStore.setState({ activeServerId: 7, backendToken: null } as never);
   useFeedStore.setState({
     selectedFeed: { id: 'feed/1', title: 'Flux' },
     filter: 'all',
@@ -836,5 +837,114 @@ describe('markReadRelative — deux marquages qui se chevauchent', () => {
       expect(lu[frais]).toBe(false); // l'entrée arrivée entre-temps n'a jamais été touchée
       expect(lu[vieuxId]).toBe(false); // la ligne que CE marquage avait passée lue revient
     });
+  });
+});
+
+// Un marquage en attente a figé son périmètre (flux, borne) au clic, mais la
+// requête, elle, part vers le serveur ACTIF au moment de l'envoi : après un
+// changement de serveur ou une déconnexion, elle écrirait sur le mauvais
+// FreshRSS (un `feed/<id>` numérique peut y désigner un autre flux), sans
+// retour en arrière possible.
+describe('markReadRelative — le serveur ou la session change pendant l’attente', () => {
+  it('a queued mark sends nothing once the active server has changed', async () => {
+    const premier = differe();
+    vi.mocked(markAllAsRead).mockReturnValueOnce(premier.promesse);
+
+    const p1 = useFeedStore.getState().markReadRelative(pivot, 'below');
+    const p2 = useFeedStore.getState().markReadRelative(neuf, 'below');
+    useAuthStore.setState({ activeServerId: 8 } as never);
+    premier.resoudre();
+    await Promise.all([p1, p2]);
+
+    expect(markAllAsRead).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().bulkWork).toBeNull();
+  });
+
+  it('a queued mark sends nothing once the FriRSS session has closed', async () => {
+    useAuthStore.setState({ backendToken: 'jwt' } as never);
+    const premier = differe();
+    vi.mocked(markAllAsRead).mockReturnValueOnce(premier.promesse);
+
+    const p1 = useFeedStore.getState().markReadRelative(pivot, 'below');
+    const p2 = useFeedStore.getState().markReadRelative(neuf, 'below');
+    useAuthStore.setState({ backendToken: null } as never);
+    premier.resoudre();
+    await Promise.all([p1, p2]);
+
+    expect(markAllAsRead).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().bulkWork).toBeNull();
+  });
+
+  it('the remaining batches of an in-flight « above » stop when the server changes', async () => {
+    vi.mocked(itemIdsNewerThanEntry).mockResolvedValue(Array.from({ length: 250 }, (_, i) => `id${i}`));
+    vi.mocked(markAsRead).mockImplementation(async () => {
+      useAuthStore.setState({ activeServerId: 8 } as never); // pendant le premier lot
+    });
+
+    await useFeedStore.getState().markReadRelative(pivot, 'above');
+
+    expect(markAsRead).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().bulkWork).toBeNull();
+    vi.mocked(markAsRead).mockResolvedValue(undefined);
+  });
+});
+
+describe('markReadRelative — la barre partagée avec le retour en arrière de « tout lu »', () => {
+  it('a range mark finishing during an undo does not switch off the undo bar', async () => {
+    vi.mocked(getUnreadItemIds).mockResolvedValue({ ids: ['a', 'b'], complete: true });
+    const syncCounts = vi.spyOn(useFeedStore.getState(), 'syncCounts').mockResolvedValue(undefined);
+    const loadArticles = vi.spyOn(useFeedStore.getState(), 'loadArticles').mockResolvedValue(undefined);
+    await useFeedStore.getState().markAllAsRead();
+    const rendre = differe();
+    vi.mocked(markAsUnread).mockReturnValueOnce(rendre.promesse);
+
+    const annulation = useUiStore.getState().toasts.at(-1)!.action!.run();
+    await flushTout();
+    expect(useFeedStore.getState().bulkWork).not.toBeNull();
+
+    await useFeedStore.getState().markReadRelative(pivot, 'below'); // finit pendant la restauration
+    expect(useFeedStore.getState().bulkWork).not.toBeNull();
+
+    rendre.resoudre();
+    await annulation;
+    expect(useFeedStore.getState().bulkWork).toBeNull();
+    syncCounts.mockRestore();
+    loadArticles.mockRestore();
+  });
+});
+
+describe('markReadRelative — le corpus d’une autre recherche n’est pas le sien', () => {
+  it('a queued mark does not patch a search corpus of another scope', async () => {
+    const premier = differe();
+    vi.mocked(markAllAsRead).mockReturnValueOnce(premier.promesse);
+    const p1 = useFeedStore.getState().markReadRelative(neuf, 'below');
+    const p2 = useFeedStore.getState().markReadRelative(pivot, 'below'); // attend, flux feed/1
+
+    // Pendant l'attente : un autre flux, une recherche, un corpus à lui. Son
+    // article, plus ancien que `pivot`, est non lu et n'appartient pas à ce marquage.
+    useFeedStore.setState({ selectedFeed: { id: 'feed/2', title: 'Autre' } } as never);
+    const autreId = 'tag:google.com,2005:reader/item/00065a872a7551fe';
+    page.mockResolvedValueOnce({ items: [item(autreId, 'autre terme', 1)], continuation: null });
+    await useFeedStore.getState().search('terme');
+
+    premier.resoudre();
+    await Promise.all([p1, p2]);
+
+    page.mockClear();
+    await useFeedStore.getState().search('terme');
+    expect(page).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().searchResults.find((a) => a.id === autreId)!.read).toBe(false);
+  });
+});
+
+describe('markReadRelative — ne rejette jamais', () => {
+  it('resolves even when the follow-up count sync itself fails', async () => {
+    const syncCounts = vi.spyOn(useFeedStore.getState(), 'syncCounts').mockRejectedValue(new Error('boom'));
+    vi.mocked(markAllAsRead).mockRejectedValueOnce(refus);
+
+    await expect(useFeedStore.getState().markReadRelative(pivot, 'below')).resolves.toBeUndefined();
+
+    expect(useFeedStore.getState().bulkWork).toBeNull();
+    syncCounts.mockRestore();
   });
 });

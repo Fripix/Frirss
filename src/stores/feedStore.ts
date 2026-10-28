@@ -1843,10 +1843,24 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // l'ordre (le périmètre, lui, est figé ci-dessus), mais aucune ligne
     // affichée n'est touchée.
     const vueDemandee = viewIdentity(get());
+    // Le serveur et la session du clic. Le périmètre est figé, mais la requête
+    // part vers le serveur ACTIF au moment de l'envoi (`api/client.ts`) : après
+    // un changement de serveur ou une déconnexion pendant l'attente, elle
+    // écrirait sur un autre FreshRSS — où un `feed/<id>` numérique peut
+    // désigner un autre flux — sans retour en arrière possible. Même garde que
+    // `syncCounts`.
+    const serveurDemande = String(useAuthStore.getState().activeServerId ?? '');
+    const sessionDemandee = !!useAuthStore.getState().backendToken;
+    const memeContexte = () => {
+      const auth = useAuthStore.getState();
+      return String(auth.activeServerId ?? '') === serveurDemande && !(sessionDemandee && !auth.backendToken);
+    };
     // Visible dès la demande, y compris pour un marquage qui attend son tour.
     beginBulk();
 
     const executer = async () => {
+      // Le contexte a changé pendant l'attente : rien ne part, rien n'est touché.
+      if (!memeContexte()) return;
       const { articles } = get();
       const memeVue = viewIdentity(get()) === vueDemandee;
 
@@ -1879,10 +1893,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // alors, laissant les lignes lues dans le corpus jusqu'à cinq minutes.
       // Par identifiant, il défait ses lignes sur le corpus qui est là au
       // retour, quel qu'il soit, et ne touche à rien d'autre.
+      //
+      // Le corpus n'est le sien que s'il a le même périmètre et le même
+      // serveur : pendant l'attente, la vue a pu changer et une autre
+      // recherche poser son corpus, dont une plage d'identifiants d'entrée ne
+      // dit rien.
+      const corpusConcerne = () =>
+        !!searchCorpus && searchCorpus.streamId === streamId && searchCorpus.serverId === serveurDemande;
       const corpusModifie = new Set(
-        (searchCorpus?.entries ?? [])
-          .filter((e) => touche(e.article) && !e.article.read)
-          .map((e) => e.article.id)
+        corpusConcerne()
+          ? searchCorpus!.entries
+            .filter((e) => touche(e.article) && !e.article.read)
+            .map((e) => e.article.id)
+          : []
       );
 
       if (touchedIds.size) {
@@ -1896,7 +1919,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // critère est un identifiant d'entrée, donc le corpus de recherche reste
       // JUSTE : pas besoin de le jeter comme le fait « tout marquer comme lu »,
       // ce qui refermerait la recherche en cours de l'utilisateur.
-      patchSearchCorpusByEntry(bound, { read: true });
+      if (corpusConcerne()) patchSearchCorpusByEntry(bound, { read: true });
 
       // I1 (revue finale du 25/09) : la vue affichée au lancement. b91a246
       // l'avait posée pour garder un refus de repeindre l'écran d'un autre
@@ -1935,8 +1958,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // I3 : n'annule ni ce que le serveur a confirmé, ni ce que cette action
         // n'avait pas changé (déjà lu avant elle, ou arrivé depuis) — un simple
         // critère de plage ne sait distinguer aucun des deux.
-        patchSearchCorpusByEntry(bound, { read: false }, (id) =>
-          confirmed.has(versEspaceCommun(id)) || !corpusModifie.has(id));
+        if (corpusConcerne()) {
+          patchSearchCorpusByEntry(bound, { read: false }, (id) =>
+            confirmed.has(versEspaceCommun(id)) || !corpusModifie.has(id));
+        }
       };
 
       // I2 (revue finale) : posé AVANT l'appel réseau, levé dans le `finally`
@@ -1959,6 +1984,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             // suivants — pas la peine d'envoyer ce que le serveur vient de
             // refuser.
             for (let i = 0; i < ids.length; i += 100) {
+              // Les lots restants ne partent pas vers un autre serveur ni une
+              // session fermée ; rien à défaire, l'écran n'est plus le sien.
+              if (!memeContexte()) return;
               const lot = ids.slice(i, i + 100);
               await markAsRead(lot);
               lot.forEach((id) => confirmed.add(versEspaceCommun(id)));
@@ -1975,6 +2003,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // arrivée, la pastille n'y verra donc rien.
         await get().syncCounts();
       } catch (err) {
+        // Un échec qui arrive après un changement de serveur ou de session ne
+        // concerne plus l'écran ni le corpus : ni retour en arrière, ni message.
+        if (!memeContexte()) return;
         rollbackUnconfirmed();
         // Un lot accepté par le serveur avant l'échec d'un lot suivant reste lu
         // côté serveur : seul un relevé fait foi, quoi qu'il soit arrivé aux
@@ -1990,13 +2021,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // croiser. Croisés, chacun patchait le corpus et l'écran pendant que
     // l'autre était en vol, puis un retour en arrière repassait non lues des
     // lignes que l'autre avait marquées — et le corpus restait optimiste.
-    // `executer` ne rejette jamais (son `catch` avale tout) ; la barre est
-    // levée dans tous les cas.
+    // `executer` ne rejette jamais : son `catch` interne peut lui-même échouer
+    // (relevé de compteurs, message), et l'appelant fait `void markReadRelative(…)`
+    // — un rejet y serait une promesse non gérée. La barre est levée dans
+    // tous les cas.
     //
     // File vide : l'exécution part tout de suite, dans cet appel — le ✓
     // optimiste doit se voir au clic, pas un tour de boucle plus tard.
     const attente = rangeWaiting++ > 0;
-    const run = (attente ? rangeQueue.then(executer) : executer()).finally(() => {
+    const sansRejet = () => executer().catch(() => {});
+    const run = (attente ? rangeQueue.then(sansRejet) : sansRejet()).finally(() => {
       rangeWaiting--;
       endBulk();
     });
@@ -2759,6 +2793,9 @@ async function restoreUnread(ids: readonly string[], toastId: number): Promise<v
     action: undefined,
     progress: { done: 0, total },
   });
+  // Dans le compteur comme toute écriture de masse : sans quoi un marquage de
+  // plage qui se règle pendant la restauration éteindrait sa barre.
+  beginBulk();
   useFeedStore.setState({ bulkWork: { done: 0, total } });
   try {
     for (let i = 0; i < total; i += UNDO_BATCH) {
@@ -2786,8 +2823,8 @@ async function restoreUnread(ids: readonly string[], toastId: number): Promise<v
       });
     }
   } finally {
-    // Pas `bulkWork: null` en dur : un marquage de plage peut tourner encore.
-    refreshBulkDisplay();
+    // Pas `bulkWork: null` en dur : une autre écriture de masse peut tourner encore.
+    endBulk();
   }
 
   bumpCountsEpoch();
