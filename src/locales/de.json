@@ -47,7 +47,7 @@
     "hideReadFeeds": "Gelesene Feeds ausblenden",
     "showReadFeeds": "Alle Feeds anzeigen",
     "feedLayoutDefault": "Standard",
-    "feedLayoutThisFeed": "Ansicht für diesen Feed",
+    "feedLayoutThisFeed": "Layout für diesen Feed",
     "feedOrderThisFeed": "Reihenfolge für diesen Feed",
     "expandCategory": "Kategorie ausklappen",
     "collapseCategory": "Kategorie einklappen",
@@ -92,7 +92,7 @@
     "loading": "Wird geladen…",
     "searchIn": "In {{scope}} suchen",
     "gridLayout": "Raster",
-    "layoutOverridden": "Dieser Feed hat eine eigene Ansicht (Rechtsklick auf den Feed)",
+    "layoutOverridden": "Dieser Feed hat ein eigenes Layout (Rechtsklick auf den Feed)",
     "layoutScopeAll": "alle Feeds",
     "recentSearches": "Zuletzt",
     "forgetSearch": "Diese Suche vergessen",
@@ -242,8 +242,8 @@
     },
     "colorKeys": {
       "sidebar-bg": "Hintergrund",
-      "sidebar-header-from": "Header-Verlauf Anfang",
-      "sidebar-header-to": "Header-Verlauf Ende",
+      "sidebar-header-from": "Kopfzeilenverlauf Anfang",
+      "sidebar-header-to": "Kopfzeilenverlauf Ende",
       "sidebar-text": "Text",
       "sidebar-text-active": "Text aktiv",
       "sidebar-category-text": "Kategorien",
@@ -257,7 +257,7 @@
       "accent-dark": "Dunkel",
       "panel-bg": "Hintergrund",
       "panel-border": "Rahmen",
-      "panel-header-bg": "Header-Hintergrund",
+      "panel-header-bg": "Kopfzeilenhintergrund",
       "list-source": "Feed-Name",
       "list-title": "Titel",
       "list-title-read": "Titel gelesen",
@@ -319,7 +319,7 @@
       "nestHere": "hier verschachteln",
       "inherited": "geerbt",
       "moveTo": "Verschieben nach:",
-      "noParent": "— Ohne übergeordnetes —",
+      "noParent": "– Ohne übergeordnetes –",
       "choose": "Wählen…",
       "moveTooltip": "Zu einem anderen übergeordneten Label verschieben",
       "showCounts": "Artikelanzahl anzeigen",
@@ -329,7 +329,7 @@
     "themes": {
       "presets": "Voreinstellungen",
       "presetsHint": "Ein vollständiges Theme mit einem Klick. Das Laden ersetzt alle {{n}} Farben; danach bleibt alles änderbar.",
-      "followSystem": "Systemdesign folgen",
+      "followSystem": "System-Theme folgen",
       "followSystemHint": "Wechselt zwischen den beiden Themes unten, wenn das Gerät auf Hell oder Dunkel umschaltet.",
       "lightTheme": "Helles Theme",
       "darkTheme": "Dunkles Theme",
@@ -344,8 +344,8 @@
       "import": "Importieren",
       "importError": "Ungültige Theme-Datei",
       "delete": "Löschen",
-      "savedThemes_one": "Gespeichertes Thema ({{count}})",
-      "savedThemes_other": "Gespeicherte Themen ({{count}})"
+      "savedThemes_one": "Gespeichertes Theme ({{count}})",
+      "savedThemes_other": "Gespeicherte Themes ({{count}})"
     },
     "shortcuts": {
       "title": "Tastaturnavigation",
@@ -385,7 +385,7 @@
     },
     "offline": {
       "title": "Offline",
-      "hint": "Lädt die letzten 30 Tage aller Feeds (Text + Bilder) zum Offline-Lesen. Verbraucht Daten — am besten WLAN.",
+      "hint": "Lädt die letzten 30 Tage aller Feeds (Text + Bilder) zum Offline-Lesen. Verbraucht Daten – am besten WLAN.",
       "button": "Offline vorbereiten (30 Tage)",
       "preparing": "Wird vorbereitet…",
       "done": "Offline bereit",
@@ -399,7 +399,7 @@
       "imagesLightHint": "nur Vorschaubilder",
       "imagesUsage": "Belegter Speicher: ~{{used}}",
       "imagesQuota": "Ihr Browser erlaubt ~{{quota}} auf diesem Gerät",
-      "imagesOverQuota": "Diese Einstellung überschreitet das Gerätelimit — der Browser räumt automatisch auf.",
+      "imagesOverQuota": "Diese Einstellung überschreitet das Gerätelimit – der Browser räumt automatisch auf.",
       "imagesClear": "Bilder leeren",
       "imagesCleared": "Bilder entfernt",
       "imagesMb": "MB",
@@ -409,13 +409,13 @@
       "imagesCached_other": "{{count}} Bilder im Cache",
       "imagesReport": "{{found}} Bilder gefunden, {{stored}} gespeichert",
       "imagesBudgetStopped": "durch das Budget gestoppt",
-      "imagesFailed_one": "{{count}} Bild konnte nicht geladen werden — das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab.",
-      "imagesFailed_other": "{{count}} Bilder konnten nicht geladen werden — das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab."
+      "imagesFailed_one": "{{count}} Bild konnte nicht geladen werden – das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab.",
+      "imagesFailed_other": "{{count}} Bilder konnten nicht geladen werden – das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab."
     },
     "refresh": {
       "title": "Abruf",
       "tokenLabel": "Master-Authentifizierungs-Token",
-      "tokenHelp": "In FreshRSS unter Profil im Feld „Master-Authentifizierungs-Token\" anlegen. Leer lassen zum Deaktivieren.",
+      "tokenHelp": "In FreshRSS unter Profil im Feld „Master-Authentifizierungs-Token“ anlegen. Leer lassen zum Deaktivieren.",
       "scopeWarning": "Dieses Token erlaubt außerdem den passwortfreien Zugriff auf alle Ihre Artikel und Ihre Abonnementliste. FreshRSS akzeptiert diesen Aufruf nur als GET, daher erscheint das Token in den Zugriffsprotokollen Ihres FreshRSS-Servers. Wechseln Sie es, wenn diese Protokolle zugänglich sind.",
       "test": "Testen",
       "testOk": "Das Token funktioniert.",
@@ -425,7 +425,7 @@
     "sections": {
       "general": "Allgemein",
       "appearance": "Erscheinungsbild",
-      "labels": "Etiketten",
+      "labels": "Labels",
       "feeds": "Feeds",
       "offline": "Offline",
       "admin": "Verwaltung",
@@ -433,7 +433,7 @@
       "ai": "KI"
     },
     "appearance": {
-      "theme": "Design",
+      "theme": "Theme",
       "colors": "Farben",
       "sizes": "Größen",
       "identity": "Identität",
@@ -523,14 +523,14 @@
     "serverPlaceholder": "https://rss.example.com",
     "freshrssUser": "FreshRSS-Benutzer",
     "freshrssPassword": "API-Passwort",
-    "freshrssPasswordHint": "Konfiguriert in FreshRSS → Einstellungen → Profil",
+    "freshrssPasswordHint": "Konfiguriert in FreshRSS › Einstellungen › Profil",
     "serverName": "Name (optional)",
     "addServer": "Verbinden",
     "addingServer": "Verbindung…",
     "errorServer": "Verbindung zum FreshRSS-Server fehlgeschlagen.",
     "errorServerBlocked": "Diese Adresse zeigt in Ihr internes Netzwerk, deshalb hat FriRSS sie blockiert. Fügen Sie ihren Host zu PROXY_INTERNAL_HOSTS hinzu und starten Sie den Container neu.",
     "errorServerUnresolved": "FriRSS konnte die Adresse dieses Servers nicht auflösen: Der DNS-Resolver hat nicht geantwortet. Prüfen Sie den Hostnamen und versuchen Sie es erneut.",
-    "errorServerCredentials": "FreshRSS hat diese Zugangsdaten abgelehnt. Das API-Passwort wird getrennt vom Kontopasswort festgelegt, unter FreshRSS → Einstellungen → Profil.",
+    "errorServerCredentials": "FreshRSS hat diese Zugangsdaten abgelehnt. Das API-Passwort wird getrennt vom Kontopasswort festgelegt, unter FreshRSS › Einstellungen › Profil.",
     "restorePrompt": "Aus einer Sicherung wiederherstellen?",
     "errorTooMany": "Zu viele Versuche. Warten Sie einige Minuten.",
     "errorUnavailable": "Der Server hat nicht geantwortet. Das sagt nichts über Ihre Zugangsdaten aus.",
@@ -579,7 +579,7 @@
     "ssoConfig": "SSO-Konfiguration (Authentik)",
     "ssoEnabled": "SSO aktiviert",
     "ssoDisabled": "SSO deaktiviert",
-    "oidcIssuer": "Issuer-URL",
+    "oidcIssuer": "Issuer URL",
     "oidcClientId": "Client ID",
     "oidcClientSecret": "Client Secret",
     "oidcButtonLabel": "Text der SSO-Schaltfläche",
@@ -663,7 +663,7 @@
     "preview": "Vorschau"
   },
   "connection": {
-    "offline": "Offline — Lesen aus dem Cache",
+    "offline": "Offline – Lesen aus dem Cache",
     "backOnline": "Wieder online",
     "pending_one": "1 Aktion ausstehend",
     "pending_other": "{{count}} Aktionen ausstehend",
@@ -686,7 +686,7 @@
   "saved": {
     "fileInto": "Ablegen in",
     "newCategory": "Neue Kategorie",
-    "noCategory": "Keine Kategorie — in der Seitenleiste anlegen",
+    "noCategory": "Keine Kategorie – in der Seitenleiste anlegen",
     "deleteCategory": "Kategorie löschen",
     "holdHint": "halten zum Einsortieren"
   },
@@ -723,7 +723,7 @@
     "errGeneric": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.",
     "errSchema": "Die Sicherung enthält Daten, die diese FriRSS-Version nicht einordnen kann – vermutlich stammt sie von einer neueren Version. Es wurde nichts geändert.",
     "errTooMany": "Zu viele Versuche. Bitte später erneut versuchen.",
-    "errConfigured": "Diese Instanz hat bereits Konten – eine Wiederherstellung beim Erststart ist nicht mehr möglich. Nutzen Sie Einstellungen → Verwaltung."
+    "errConfigured": "Diese Instanz hat bereits Konten – eine Wiederherstellung beim Erststart ist nicht mehr möglich. Nutzen Sie Einstellungen › Verwaltung."
   },
   "toast": {
     "dismiss": "Schließen",
@@ -920,7 +920,7 @@
       "keyOffText": "Für diese Kategorie oder diesen Feed aus, egal was die Einstellung darüber sagt.",
       "keyCycle": "Jeder Klick wechselt zum nächsten Zustand: deaktiviert, aktiviert, geerbt. Eine Zeile, die „deaktiviert“ erbt, wird direkt aktiviert.",
       "keyPrecedence": "Ein Feed hat Vorrang vor seiner Kategorie, eine Kategorie vor Ihren allgemeinen Einstellungen.",
-      "labelValue": "{{label}} — {{value}}",
+      "labelValue": "{{label}} – {{value}}",
       "stateOn": "an",
       "stateOff": "aus",
       "stateInherited": "von der Kategorie geerbt",
