@@ -26,4 +26,10 @@ describe('sanitizeExtracted', () => {
   it('drops data attributes', () => {
     expect(sanitizeExtracted('<p data-x="1">a</p>')).not.toContain('data-x');
   });
+
+  // Le marqueur des surfaces flottantes couperait les raccourcis tant que
+  // l'article extrait (archivé tel quel) reste ouvert.
+  it('drops the floating-surface marker', () => {
+    expect(sanitizeExtracted('<div data-floating-surface>a</div>')).not.toContain('data-floating-surface');
+  });
 });

@@ -582,8 +582,13 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   « Résumer avec… » sur ordinateur — après une flèche, `t` y lançait une
   traduction payante derrière le menu et `j`/`k` changeaient l'article
   dessous), et **toute surface flottante ouverte, quel que soit le focus** :
-  chacune marque la racine de sa surface `data-floating-surface` et la garde
-  est `document.querySelector('[data-floating-surface]')`. Les six : menu
+  chacune marque la racine de sa surface `data-floating-surface`, et la garde
+  cherche un élément marqué **hors `.article-content`** (même piège que
+  `role="dialog"` : DOMPurify garde les `data-*`, et un article qui portait
+  l'attribut coupait j/k, `s`, `t` tant qu'il restait ouvert). En plus,
+  `sanitizeHtml` / `sanitizeArticleBody` retirent l'attribut
+  (`FORBID_ATTR`, `src/utils/sanitizeHtml.ts`) et `sanitizeExtracted` refuse
+  déjà tous les `data-*`. Les six : menu
   contextuel d'article sur ordinateur (`ArticleContextMenu`, volontairement
   sans `role`), menu d'un flux (`FeedContextMenu`, ses trois états), sélecteur
   de catégorie (`SavedCategoryPicker`), `Popover` (« Traduire en… »,
@@ -601,7 +606,8 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   `FeedContextMenu` (hors renommage), de `LabelMenu` et de `ManageMenu`
   avant ce correctif. **Toute nouvelle surface flottante** — en portail
   **ou** en `position: fixed` sans portail — doit porter l'attribut **et**
-  fermer à Échap. Hors périmètre, assumé : le tiroir mobile, qui n'est pas un
+  fermer à Échap ; et tout nouveau code qui **lit** le marqueur doit, comme
+  la garde, ignorer ce qui vit sous `.article-content`. Hors périmètre, assumé : le tiroir mobile, qui n'est pas un
   menu ; la pastille de couleur de l'onglet Étiquettes vit sous les
   Préférences, déjà couvertes par `[role="dialog"]`.
   Sur ordinateur le volet de lecture reste monté derrière les
@@ -609,7 +615,6 @@ non réassignables : `ESC`, double-clic (mode Focus), clic prolongé (ranger).
   l'article qu'elles recouvrent. ⌘K est traité avant ces gardes, par convention. Un simple bouton
   qui a le focus **ne** fait **pas** taire les raccourcis : après un clic dans
   la barre d'outils le focus y reste (Chrome), et `j`/`k` doivent suivre.
-  global qui s'en sert pour quitter le mode Focus.
 - **Aucun raccourci ne reprend une touche du navigateur ou du système**
   (règle du propriétaire, 1.7.0). Deux gardes :
   - *à l'usage* (`useKeyboardNav.ts`) : une touche tenue avec ⌘, Ctrl ou Alt

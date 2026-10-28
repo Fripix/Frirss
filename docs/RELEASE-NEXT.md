@@ -161,6 +161,9 @@ _(rien pour l'instant)_
   ou de résumé (peut-être payant) derrière eux, et les flèches ne changent
   plus l'article dessous. Tous se ferment à Échap (quatre d'entre eux ne
   l'écoutaient pas : sans cela le clavier serait resté mort jusqu'à un clic).
+  Le contenu d'un article ne peut pas se faire passer pour un de ces menus :
+  le marqueur qu'ils portent est retiré du HTML des flux, et ignoré s'il
+  apparaissait quand même dans le corps de l'article.
   Les fenêtres « Ajouter un flux » et « Ajouter un serveur » possédaient déjà
   l'écran mais pas le clavier : avec le focus sur un de leurs boutons, `t` et
   `s` agissaient derrière elles. Elles le coupent désormais, et « Ajouter un

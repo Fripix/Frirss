@@ -41,6 +41,14 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
 const CONFIG = {
   USE_PROFILES: { html: true },
   ADD_ATTR: ['target', 'loading'],
+  // `data-floating-surface` marque les surfaces flottantes de l'app (menus,
+  // Popover) : tant qu'un élément le porte, `useKeyboardNav` coupe les
+  // raccourcis. DOMPurify garde les `data-*` : venu du corps d'un article, il
+  // coupait j/k, `s`, `t` tant que l'article restait ouvert. La garde du
+  // clavier ignore aussi `.article-content` ; on retire en plus l'attribut ici,
+  // pour qu'aucun autre lecteur du marqueur n'ait à s'en souvenir.
+  // (`sanitizeExtracted` refuse déjà tous les `data-*`.)
+  FORBID_ATTR: ['data-floating-surface'],
 };
 
 /**

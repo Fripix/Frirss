@@ -40,6 +40,23 @@ describe('sanitizeHtml', () => {
 // refuse (`data-a;b`) ; les reposer levait `InvalidCharacterError` sur les
 // moteurs à l'ancienne règle, et l'exception remontait jusqu'à la seule
 // frontière d'erreur de l'application : un article de flux la faisait tomber.
+// `data-floating-surface` est le marqueur des surfaces flottantes de l'app :
+// tant qu'un élément le porte, les raccourcis clavier sont coupés. Venu du
+// corps d'un article, il les couperait tant que l'article reste ouvert.
+describe('marqueur de surface flottante', () => {
+  const html = '<div data-floating-surface data-keep="1">pub</div>';
+  it('sanitizeHtml le retire et garde les autres data-*', () => {
+    const out = sanitizeHtml(html);
+    expect(out).not.toContain('data-floating-surface');
+    expect(out).toContain('data-keep="1"');
+  });
+  it('sanitizeArticleBody le retire aussi', () => {
+    const out = sanitizeArticleBody(html, Infinity);
+    expect(out).not.toContain('data-floating-surface');
+    expect(out).toContain('data-keep="1"');
+  });
+});
+
 describe('sanitizeArticleBody', () => {
   // `data-a×b` : DOMPurify le garde (sa règle `data-*` admet U+00D7), le
   // parseur HTML aussi, mais `×` n'est pas un caractère de nom XML.

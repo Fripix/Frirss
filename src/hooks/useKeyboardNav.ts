@@ -51,8 +51,10 @@ export function useKeyboardNav(): void {
       // le focus est ailleurs — `t` et `s` lançaient alors un appel d'IA payant
       // derrière lui. Chaque surface marque la racine de son portail avec
       // `data-floating-surface` ; Échap reste à elle (elle l'écoute elle-même).
-      // ⌘K, traité plus haut, garde son comportement.
-      if (document.querySelector('[data-floating-surface]')) return;
+      // ⌘K, traité plus haut, garde son comportement. Comme pour les boîtes,
+      // seules celles de l'app comptent : le corps d'un article pourrait
+      // porter l'attribut (le sanitizer le retire, cette garde ne s'y fie pas).
+      if (Array.from(document.querySelectorAll('[data-floating-surface]')).some((el) => !el.closest('.article-content'))) return;
 
       // Escape leaves Reading Focus mode (only when active — otherwise let other
       // handlers, e.g. search / preferences, deal with Escape).

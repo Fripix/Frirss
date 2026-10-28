@@ -202,6 +202,23 @@ describe('useKeyboardNav — sous une surface flottante', () => {
     expect(closed.ai).toHaveLength(2);
   });
 
+  // Le corps d'un article peut porter l'attribut (DOMPurify garde les
+  // `data-*`) : il ne doit pas couper le clavier tant que l'article est
+  // ouvert — même piège que `role="dialog"` dans le corps.
+  it('ignore un data-floating-surface venu du corps de l\'article', () => {
+    const body = document.createElement('div');
+    body.className = 'article-content';
+    body.innerHTML = '<div data-floating-surface>pub</div>';
+    document.body.appendChild(body);
+    try {
+      const { next, ai } = pressAll();
+      expect(next).toBe(1);
+      expect(ai).toHaveLength(2);
+    } finally {
+      body.remove();
+    }
+  });
+
   it('garde ⌘K au-dessus des surfaces flottantes', () => {
     render(SURFACES['un Popover']());
     press({ key: 'k', metaKey: true });
