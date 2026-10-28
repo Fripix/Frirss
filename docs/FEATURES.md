@@ -291,7 +291,12 @@ le menu ; voir *Menu d'un article*, piège Chrome Android).
   `aria-label` sur un simple <span> y est ignoré par beaucoup de lecteurs
   d'écran, qui ne lisaient que « 70 » ; le lecteur
   d'écran annonçait sinon « Non lus3673 », le chiffre collé au nom. Aucun effet
-  visuel. Le badge d'une étiquette (et celui d'un groupe d'étiquettes, qui en
+  visuel — à condition que le badge soit **positionné** (`relative`) : le texte
+  masqué est en position absolue, et sans parent positionné il se rapportait
+  à la page, échappait au rognage de la barre latérale et allongeait le
+  document (2 649 px pour 747 de haut). La page entière devenait défilable :
+  une molette au-dessus d'une zone fixe ou l'ouverture des Préférences
+  remontait toute l'app, laissant une bande blanche (corrigé en 1.8.0). Le badge d'une étiquette (et celui d'un groupe d'étiquettes, qui en
   additionne les enfants) se lit **« N articles »** (`sidebar.itemCount`), pas
   « non lus » : `getStreamItemCount` interroge `/stream/items/ids` sans filtre
   `xt`, donc le chiffre est le **total** de l'étiquette, lus compris. Tests :

@@ -45,4 +45,19 @@ describe('compteur d\'une ligne d\'étiquette', () => {
     expect(shown).toContain('12');
     expect(c.container.querySelector('span[aria-label]')).toBeNull();
   });
+
+  // `sr-only` est en position absolue : sans parent positionné, il se place
+  // par rapport à la page, échappe au rognage de la barre latérale et allonge
+  // le document (2 649 px mesurés pour 747 de haut) — toute l'app pouvait
+  // alors défiler et remonter, laissant une bande blanche sous elle.
+  it('garde son texte masqué dans un parent positionné, jamais rapporté à la page', () => {
+    const labels = [{ id: 'user/-/label/Veille', type: 'tag' }] as Tag[];
+    useFeedStore.setState({ labelCounts: { 'user/-/label/Veille': 12 } });
+    const c = render(
+      <LabelSection labels={labels} selectedFeed={null} selectLabel={() => {}} onArticleDrop={() => {}} />,
+    );
+    const hidden = Array.from(c.container.querySelectorAll('.sr-only'));
+    expect(hidden.length).toBeGreaterThan(0);
+    for (const e of hidden) expect(e.parentElement?.className).toMatch(/\brelative\b/);
+  });
 });
