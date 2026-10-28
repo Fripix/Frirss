@@ -710,7 +710,8 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   couleur. Barre ajoutée en 1.4.5. Même idiome (`inset 3px`) que la ligne
   sélectionnée : quand une ligne est les deux, les barres ont la même couleur.
 - **Fonctions** : marquer lu au clic, favori, à lire plus tard, ouverture de
-  l'original, balayage sur mobile (`SwipeableArticleRow`), sélection multiple
+  l'original, balayage sur mobile (`SwipeableArticleRow`, exclusif de l'appui
+  long : voir *Menu d'un article*), sélection multiple
   via les actions de ligne
 - **Piège** : ouvrir un article marque lu **dans `selectArticle`**, pas dans
   `toggleRead`. Il y a **cinq** sites d'écriture dans `feedStore` (lecture via
@@ -1305,6 +1306,20 @@ FreshRSS, où le titre est un vrai lien.
   l'annule pas : jusqu'à la 1.7.0, tout `touchmove` annulait, et un pouce posé
   sur un téléphone en émet presque toujours un ou deux. Un `touchmove` sans
   doigt mesurable annule, plutôt que de deviner.
+- **Appui long et balayage s'excluent** (lignes sur mobile,
+  `SwipeableArticleRow` enveloppé par `MobileArticleRow` dans
+  `ArticleList.tsx`). Jusqu'à la 1.7.0, un doigt posé ouvrait le menu à 500 ms,
+  puis le glisser horizontal qui suivait basculait AUSSI lu / à lire plus tard.
+  Désormais la direction décidée (8 px sur un axe, le même seuil que la
+  tolérance de l'appui long, importé) annule l'appui long (`onSwipeDecided`),
+  et un appui long abouti bloque le balayage du même contact (`swipeBlocked`).
+  ⚠️ Le blocage lit `firedThisContact()`, pas `firedRecently()` : un doigt
+  resté posé deux secondes avant de glisser a dépassé la fenêtre d'écho, pas
+  le contact. Le contact suivant balaie normalement. La ligne remplit une ref
+  (`pressRef` → `useArticleMenuGestures`, `useImperativeHandle`) que le
+  balayage, son parent, interroge. **Tests** :
+  `src/components/ArticleList/SwipeableArticleRow.test.tsx` (le balayage seul,
+  et la vraie ligne enveloppée).
 - **Piège — le clic de compatibilité après un appui long** : sur téléphone, la
   feuille du bas s'ouvre SOUS le doigt, et le clic émis au relâchement tombait
   sur son fond, qui la refermait aussitôt. Le `touchend` d'un appui abouti est

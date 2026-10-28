@@ -1,5 +1,9 @@
 import { useRef, useState, useEffect, useCallback, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
+import { LONG_PRESS_MOVE_TOLERANCE_PX } from '../../hooks/useLongPress';
 
+/** Distance à partir de laquelle la direction du geste est décidée : la
+ *  tolérance de l'appui long, importée pour que les deux ne divergent jamais. */
+const DECIDE_PX = LONG_PRESS_MOVE_TOLERANCE_PX;
 const THRESHOLD = 80;
 const MAX_DRAG = 130;
 
@@ -18,6 +22,12 @@ interface SwipeableArticleRowProps {
   swipeRightLabel?: string;
   swipeLeftColor?: string;
   swipeRightColor?: string;
+  /** Appelé une fois, dès que la direction du geste est décidée (horizontale
+   *  ou verticale) : l'appelant y annule l'appui long en cours. */
+  onSwipeDecided?: () => void;
+  /** Vrai quand un appui long a abouti pendant ce contact : le menu est
+   *  ouvert, le balayage ne déclenche plus rien. */
+  swipeBlocked?: () => boolean;
 }
 
 /**
@@ -25,6 +35,11 @@ interface SwipeableArticleRowProps {
  * - Swipe left → action (e.g. toggle read/unread)
  * - Swipe right → action (e.g. read later)
  * Row content slides with finger, revealing colored action panel behind.
+ *
+ * L'appui long (menu de l'article) et le balayage s'excluent : la direction
+ * décidée annule l'appui long (`onSwipeDecided`), et un appui long abouti
+ * bloque le balayage (`swipeBlocked`). Sans quoi un doigt posé ouvrait le menu
+ * à 500 ms, puis le glisser qui suivait basculait AUSSI lu / à lire plus tard.
  */
 export default function SwipeableArticleRow({
   children,
@@ -34,11 +49,21 @@ export default function SwipeableArticleRow({
   swipeRightLabel = 'Plus tard',
   swipeLeftColor = '#10b981',
   swipeRightColor = 'var(--accent)',
+  onSwipeDecided,
+  swipeBlocked,
 }: SwipeableArticleRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const touchRef = useRef<RowTouch>({});
+  // Le gestionnaire natif ci-dessous est posé une fois : il lit les props
+  // courantes par ces refs.
+  const decidedRef = useRef(onSwipeDecided);
+  const blockedRef = useRef(swipeBlocked);
+  useEffect(() => {
+    decidedRef.current = onSwipeDecided;
+    blockedRef.current = swipeBlocked;
+  });
 
   // Native touchmove for passive:false (allows e.preventDefault)
   useEffect(() => {
@@ -54,8 +79,11 @@ export default function SwipeableArticleRow({
 
       // Decide gesture direction once
       if (!t.decided) {
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // not enough movement
+        if (Math.abs(dx) < DECIDE_PX && Math.abs(dy) < DECIDE_PX) return; // not enough movement
         t.decided = true;
+        decidedRef.current?.();
+        // Le menu de l'appui long est ouvert : ce contact ne balaie plus.
+        if (blockedRef.current?.()) { t.active = false; return; }
         t.active = Math.abs(dx) > Math.abs(dy) * 1.2;
         if (!t.active) return; // vertical → let browser scroll
         // horizontal → fall through to preventDefault on this same event
@@ -89,7 +117,10 @@ export default function SwipeableArticleRow({
   const handleTouchEnd = useCallback(() => {
     if (!dragging) { touchRef.current = {}; return; }
 
-    if (dragX < -THRESHOLD && onSwipeLeft) {
+    if (swipeBlocked?.()) {
+      // Filet : rien ne devrait arriver ici, la direction décidée ayant annulé
+      // l'appui long — mais un balayage ne doit jamais suivre un menu ouvert.
+    } else if (dragX < -THRESHOLD && onSwipeLeft) {
       onSwipeLeft();
     } else if (dragX > THRESHOLD && onSwipeRight) {
       onSwipeRight();
@@ -98,7 +129,7 @@ export default function SwipeableArticleRow({
     setDragX(0);
     setDragging(false);
     touchRef.current = {};
-  }, [dragging, dragX, onSwipeLeft, onSwipeRight]);
+  }, [dragging, dragX, onSwipeLeft, onSwipeRight, swipeBlocked]);
 
   const isLeft = dragX < 0;  // Swiping left — reveals right-side action
   const isRight = dragX > 0; // Swiping right — reveals left-side action

@@ -1,5 +1,5 @@
-import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
-import { useLongPress, type PressPoint } from './useLongPress';
+import { useImperativeHandle, type MouseEvent as ReactMouseEvent, type Ref, type TouchEvent as ReactTouchEvent } from 'react';
+import { useLongPress, type LongPressControl, type PressPoint } from './useLongPress';
 import { menuAnchor } from '../lib/articleMenu';
 
 /** Un geste parti d'un élément interactif de la ligne lui appartient. */
@@ -37,12 +37,19 @@ function targetsElement<T extends HTMLElement>(e: { target: EventTarget | null; 
  * hors de la ligne — sans cette containment DOM, un appui long dans son champ
  * de texte, ou un clic droit / molette sur son fond de fermeture, seraient
  * captés par la ligne bien qu'ils visent le portail.
+ *
+ * `control` expose l'appui long au balayage qui enveloppe la ligne sur mobile
+ * (`MobileArticleRow`) : il l'annule dès que sa direction est décidée, et ne
+ * balaie plus quand l'appui a abouti.
  */
 export function useArticleMenuGestures(
   onOpenMenu: ((point: PressPoint) => void) | undefined,
   onOpenSource: (e: ReactMouseEvent) => void,
+  control?: Ref<LongPressControl>,
 ) {
   const longPress = useLongPress((point) => onOpenMenu?.(point));
+  const { cancel, firedThisContact } = longPress;
+  useImperativeHandle(control, () => ({ cancel, firedThisContact }), [cancel, firedThisContact]);
 
   return {
     onContextMenu: (e: ReactMouseEvent<HTMLElement>) => {

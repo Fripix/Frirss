@@ -27,6 +27,11 @@ _(rien pour l'instant)_
   de traduction) ; un pouce posé sur un téléphone n'est jamais tout à fait
   immobile. Il faut désormais bouger de plus de 8 pixels pour l'annuler — un
   défilement ou un balayage le font toujours.
+- **Appui long puis glisser : le menu s'ouvre, et rien d'autre.** Sur
+  téléphone, garder le doigt sur un article ouvrait son menu, puis le moindre
+  glisser horizontal qui suivait marquait AUSSI l'article lu ou à lire plus
+  tard. Les deux gestes s'excluent désormais : un balayage commencé annule
+  l'appui long, un menu ouvert par l'appui long bloque le balayage.
 - **Chinois : le statut des résumés et traductions IA se lit avec la virgule
   pleine chasse « ， »** au lieu d'une virgule latine en dur (en-tête du
   panneau, annonce aux lecteurs d'écran, bandeau de traduction). Nouvelle clé
