@@ -346,6 +346,36 @@ globale, mais surchargeable **par flux**.
   (surcharge du flux ?? global), jamais en lisant `panelLayout` directement
 - **Spec** : `docs/superpowers/specs/2026-08-18-grid-view-design.md`
 
+### Taille des cartes de la grille
+Deux réglages dans **Préférences › Apparence › Tailles**, section « Grille »,
+sous les tailles de texte (demandés dans l'issue #26) : **Largeur des cartes**
+(curseur de 160 à 480 px, pas de 20, défaut 240) et **Format d'image** (16:9,
+4:3 ou 1:1, défaut 16:9). Les défauts reproduisent exactement la grille
+d'avant.
+
+- **Où** : `src/lib/gridCards.ts` (bornes, normaliseurs, `gridCardStyle()`,
+  testés), `uiStore.gridCardWidth` / `gridImageRatio` / `resetGridCards`,
+  `GridCardsSection` dans `AppearanceTab.tsx`, les deux `.article-grid`
+  d'`ArticleList.tsx`, `index.css`
+- **La largeur est un minimum** : les cartes s'élargissent toujours pour
+  remplir la ligne (`auto-fill` + `minmax`). Monter le curseur retire des
+  colonnes et agrandit les cartes.
+- **Un seul curseur pour tous les écrans** : sous 768 px, la largeur est
+  réduite d'un tiers (`--grid-card-min-mobile`, 240 → 160 comme avant).
+  `min(…, 100%)` borne en plus la colonne à la largeur disponible : à 480 px
+  (320 sur téléphone), une liste plus étroite affiche une carte par ligne au
+  lieu de déborder à l'horizontale.
+- **Synchronisés, communs à tous les thèmes** : ce sont des réglages de
+  l'interface (`UI_SYNC_KEYS`), pas du thème, contrairement aux tailles de
+  texte de la même page. Changer de thème ne les touche pas ;
+  « Réinitialiser les tailles » les remet aussi aux défauts. Toute valeur hors
+  bornes (client ancien, valeur trafiquée) retombe sur le défaut.
+- **Pas de format « original »**, assumé : des images de hauteurs différentes
+  casseraient l'alignement des rangées — ce serait une autre vue, pas un
+  réglage. **Rien par flux** non plus, pour ne pas alourdir le menu du flux.
+- **L'aperçu en haut de la page montre la liste, pas la grille** : la grille
+  derrière le panneau sert d'aperçu.
+
 ### Vue à l'ouverture
 Ce que FriRSS ouvre au lancement et au rechargement : **Dernière vue**
 (défaut — la vue quittée sur ce serveur, `lastView.ts`, locale à l'appareil),
@@ -4542,7 +4572,8 @@ dans quelques composants partagés.
 
 ## Apparence et thèmes
 
-**38 couleurs** en 6 groupes, **7 tailles** de police en 3 groupes, nom et logo
+**38 couleurs** en 6 groupes, **7 tailles** de police en 3 groupes (plus la
+taille des cartes de la grille, voir « Dispositions »), nom et logo
 de l'application, thèmes enregistrables, exportables en CSS, importables et
 partageables par lien. **Six thèmes sont livrés** et le thème peut suivre le
 réglage clair/sombre du système.

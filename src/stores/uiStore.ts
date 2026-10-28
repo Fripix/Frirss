@@ -5,6 +5,7 @@ import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '.
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
 import { isAiLanguage, type AiLanguage } from '../lib/aiLanguages';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
+import { GRID_CARD_WIDTH_DEFAULT, normalizeGridCardWidth, normalizeGridImageRatio, type GridImageRatio } from '../lib/gridCards';
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -265,6 +266,13 @@ export interface UiState {
   // Longueur visée des résumés IA, en % de l'article (5…50, pas de 5). Synchronisé.
   aiSummaryRatio: number;
   setAiSummaryRatio: (v: number) => void;
+  // Vue grille (#26) : largeur minimale des cartes (160…480, pas de 20) et
+  // format de leur image. Synchronisés, communs à tous les thèmes.
+  gridCardWidth: number;
+  setGridCardWidth: (v: number) => void;
+  gridImageRatio: GridImageRatio;
+  setGridImageRatio: (v: GridImageRatio) => void;
+  resetGridCards: () => void;
   // Routage des fournisseurs d'IA. Synchronisé, jamais une clé : seulement des
   // identifiants de fournisseurs. `null` = aucune préférence (le premier de la
   // liste). Résolution : flux > catégorie > préféré.
@@ -651,6 +659,23 @@ export const useUiStore = create<UiState>()((set, get) => ({
     const value = normalizeAiSummaryRatio(v);
     localStorage.setItem('frirss_aiSummaryRatio', JSON.stringify(value));
     set({ aiSummaryRatio: value });
+  },
+
+  gridCardWidth: normalizeGridCardWidth(loadJson<unknown>('frirss_gridCardWidth', GRID_CARD_WIDTH_DEFAULT)),
+  setGridCardWidth: (v) => {
+    const value = normalizeGridCardWidth(v);
+    localStorage.setItem('frirss_gridCardWidth', JSON.stringify(value));
+    set({ gridCardWidth: value });
+  },
+  gridImageRatio: normalizeGridImageRatio(loadJson<unknown>('frirss_gridImageRatio', '16:9')),
+  setGridImageRatio: (v) => {
+    const value = normalizeGridImageRatio(v);
+    localStorage.setItem('frirss_gridImageRatio', JSON.stringify(value));
+    set({ gridImageRatio: value });
+  },
+  resetGridCards: () => {
+    get().setGridCardWidth(GRID_CARD_WIDTH_DEFAULT);
+    get().setGridImageRatio('16:9');
   },
 
   aiPreferredProvider: normalizeAiProviderId(loadJson<unknown>('frirss_aiPreferredProvider', null)),
@@ -1176,6 +1201,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
+      'gridCardWidth', 'gridImageRatio',
       'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
       'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
       'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',
@@ -1198,6 +1224,8 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'showNewArticlesPill' ? prefs[k] !== false
           : k === 'aiPanelCollapsed' ? prefs[k] === true
           : k === 'aiSummaryRatio' ? normalizeAiSummaryRatio(prefs[k])
+          : k === 'gridCardWidth' ? normalizeGridCardWidth(prefs[k])
+          : k === 'gridImageRatio' ? normalizeGridImageRatio(prefs[k])
           : k === 'aiPreferredProvider' ? normalizeAiProviderId(prefs[k])
           : k === 'aiCategoryProviders' ? normalizeAiCategoryProviders(prefs[k])
           : k === 'aiTranslationLanguage' ? normalizeAiTranslationLanguage(prefs[k])
@@ -1242,7 +1270,7 @@ export const UI_SYNC_KEYS = [
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
-  'aiPanelCollapsed', 'aiSummaryRatio',
+  'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
   'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
   'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',

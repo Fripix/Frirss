@@ -284,7 +284,8 @@
     "fontSections": {
       "sidebar": "Seitenleiste",
       "articleList": "Artikelliste",
-      "reading": "Lesen"
+      "reading": "Lesen",
+      "grid": "Raster"
     },
     "fontKeys": {
       "sidebar-feed": "Feed-Name",
@@ -470,6 +471,10 @@
       "readLater": "Später lesen",
       "openSource": "An der Quelle öffnen",
       "markRead": "Als gelesen markieren"
+    },
+    "gridCards": {
+      "width": "Kartenbreite",
+      "ratio": "Bildformat"
     }
   },
   "login": {

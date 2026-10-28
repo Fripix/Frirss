@@ -736,3 +736,35 @@ describe('uiStore — new default shortcuts never steal a key the user already g
     expect(sc.markRead).toBe('r');
   });
 });
+
+describe('uiStore — cartes de la grille (#26)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useUiStore.setState({ gridCardWidth: 240, gridImageRatio: '16:9' });
+  });
+
+  it('persists both settings and syncs them, normalised on apply', () => {
+    useUiStore.getState().setGridCardWidth(360);
+    useUiStore.getState().setGridImageRatio('1:1');
+    expect(useUiStore.getState().gridCardWidth).toBe(360);
+    expect(useUiStore.getState().gridImageRatio).toBe('1:1');
+    expect(localStorage.getItem('frirss_gridCardWidth')).toBe('360');
+    expect(localStorage.getItem('frirss_gridImageRatio')).toBe('"1:1"');
+    expect(UI_SYNC_KEYS).toContain('gridCardWidth');
+    expect(UI_SYNC_KEYS).toContain('gridImageRatio');
+    useUiStore.getState().applyServerPrefs({ gridCardWidth: 200, gridImageRatio: '4:3' });
+    expect(useUiStore.getState().gridCardWidth).toBe(200);
+    expect(useUiStore.getState().gridImageRatio).toBe('4:3');
+    useUiStore.getState().applyServerPrefs({ gridCardWidth: 9999, gridImageRatio: 'original' });
+    expect(useUiStore.getState().gridCardWidth).toBe(240);
+    expect(useUiStore.getState().gridImageRatio).toBe('16:9');
+  });
+
+  it('resetGridCards returns both to the original grid', () => {
+    useUiStore.getState().setGridCardWidth(400);
+    useUiStore.getState().setGridImageRatio('4:3');
+    useUiStore.getState().resetGridCards();
+    expect(useUiStore.getState().gridCardWidth).toBe(240);
+    expect(useUiStore.getState().gridImageRatio).toBe('16:9');
+  });
+});

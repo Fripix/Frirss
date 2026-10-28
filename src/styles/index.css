@@ -1081,15 +1081,24 @@ html {
   .update-overlay-bar::before { animation-duration: 2.2s; }
 }
 
-/* ── Grid view: full-width card gallery (viewMode 'grid') ── */
+/* ── Grid view: full-width card gallery (viewMode 'grid') ──
+   La largeur minimale des cartes et le format de l'image sont réglables
+   (Préférences › Apparence › Tailles, #26) : `gridCardStyle()` pose les
+   variables sur le conteneur. `min(…, 100%)` borne la colonne à la largeur
+   disponible : une carte de 480 px (320 px sur téléphone) ne déborde jamais
+   d'une liste plus étroite qu'elle, elle occupe alors toute la ligne. */
 .article-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--grid-card-min, 240px), 100%), 1fr));
   gap: 14px;
   padding: 14px;
 }
 @media (max-width: 767px) {
-  .article-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 10px; }
+  .article-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--grid-card-min-mobile, 160px), 100%), 1fr));
+    gap: 10px;
+    padding: 10px;
+  }
 }
 
 .article-card {
@@ -1142,7 +1151,7 @@ html {
 
 .article-card__thumb {
   position: relative;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: var(--grid-card-ratio, 16 / 9);
   background: var(--list-hover);
   overflow: hidden;
 }

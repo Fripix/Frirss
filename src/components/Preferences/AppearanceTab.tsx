@@ -7,6 +7,7 @@ import { TabResetButton } from './TabResetButton';
 import ThemePreview from './ThemePreview';
 import ToggleSwitch from '../ToggleSwitch';
 import { hasRealHighlight, PREVIEW_ZONES } from './colorHighlight';
+import { GRID_CARD_WIDTH_MAX, GRID_CARD_WIDTH_MIN, GRID_CARD_WIDTH_STEP, GRID_IMAGE_RATIOS } from '../../lib/gridCards';
 
 type Sub = 'theme' | 'colors' | 'sizes' | 'identity';
 
@@ -656,6 +657,7 @@ const FONT_SECTIONS = [
 function SizesSection() {
   const { t } = useTranslation();
   const { theme, setFontSize, resetFontSizes } = useThemeStore();
+  const resetGridCards = useUiStore((s) => s.resetGridCards);
 
   return (
     <div className="space-y-5">
@@ -682,12 +684,82 @@ function SizesSection() {
           </div>
         </div>
       ))}
-      <TabResetButton label={t('preferences.fonts.resetFonts')} onReset={resetFontSizes} />
+      <GridCardsSection />
+      <TabResetButton
+        label={t('preferences.fonts.resetFonts')}
+        onReset={() => {
+          resetFontSizes();
+          resetGridCards();
+        }}
+      />
     </div>
   );
 }
 
-function FontRow({ label, value, min, max, onChange }: { label: string; value: string; min: number; max: number; onChange: (value: string) => void }) {
+/* Vue grille (#26) : réglages de l'appareil d'affichage, pas du thème — ils
+   restent quand on change de thème. Mêmes lignes que les tailles de texte : le
+   sélecteur de format occupe exactement la place du curseur et de sa valeur. */
+function GridCardsSection() {
+  const { t } = useTranslation();
+  const width = useUiStore((s) => s.gridCardWidth);
+  const setWidth = useUiStore((s) => s.setGridCardWidth);
+  const ratio = useUiStore((s) => s.gridImageRatio);
+  const setRatio = useUiStore((s) => s.setGridImageRatio);
+
+  return (
+    <div>
+      <h3
+        className="text-[11px] font-bold uppercase tracking-widest mb-2"
+        style={{ color: 'var(--list-summary)' }}
+      >
+        {t('preferences.fontSections.grid')}
+      </h3>
+      <div className="space-y-2">
+        <FontRow
+          label={t('preferences.gridCards.width')}
+          value={String(width)}
+          min={GRID_CARD_WIDTH_MIN}
+          max={GRID_CARD_WIDTH_MAX}
+          step={GRID_CARD_WIDTH_STEP}
+          onChange={(v) => setWidth(Number(v))}
+        />
+        <div className="flex items-center gap-3">
+          <span id="grid-image-ratio-label" className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
+            {t('preferences.gridCards.ratio')}
+          </span>
+          <div
+            className="flex gap-0.5 p-0.5 rounded-md w-[148px] shrink-0"
+            role="radiogroup"
+            aria-labelledby="grid-image-ratio-label"
+            style={{ background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' }}
+          >
+            {GRID_IMAGE_RATIOS.map((r) => {
+              const selected = ratio === r;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setRatio(r)}
+                  className="flex-1 py-1 text-[11px] font-mono rounded [@media(pointer:coarse)]:min-h-[36px] transition-colors"
+                  style={{
+                    background: selected ? 'var(--accent)' : 'transparent',
+                    color: selected ? 'var(--on-accent)' : 'var(--list-title)',
+                  }}
+                >
+                  {r}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FontRow({ label, value, min, max, step, onChange }: { label: string; value: string; min: number; max: number; step?: number; onChange: (value: string) => void }) {
   return (
     <div className="flex items-center gap-3">
       <label className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--reading-text)' }}>
@@ -697,12 +769,13 @@ function FontRow({ label, value, min, max, onChange }: { label: string; value: s
         type="range"
         min={min}
         max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-24 accent-[var(--accent)]"
       />
       <span
-        className="text-[11px] font-mono w-8 text-right"
+        className="text-[11px] font-mono w-10 text-right"
         style={{ color: 'var(--list-summary)' }}
       >
         {value}px

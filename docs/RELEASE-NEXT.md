@@ -18,7 +18,14 @@ la release publiée.
 
 ## Fonctionnalités
 
-_(rien pour l'instant)_
+- **Grille : la taille des cartes et le format de leur image se règlent**
+  (issue #26). Préférences › Apparence › Tailles, section « Grille » : un
+  curseur « Largeur des cartes » (160 à 480 px, 240 par défaut) et un choix
+  « Format d'image » (16:9, 4:3 ou 1:1). La largeur est un minimum, les cartes
+  remplissent toujours la ligne ; sur téléphone elle est réduite d'un tiers,
+  et une grande carte ne déborde jamais d'un écran étroit. Synchronisés entre
+  appareils, indépendants du thème, remis aux défauts par « Réinitialiser les
+  tailles ». Les défauts ne changent rien à la grille actuelle.
 
 ## Corrections et améliorations
 

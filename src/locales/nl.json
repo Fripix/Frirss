@@ -284,7 +284,8 @@
     "fontSections": {
       "sidebar": "Zijbalk",
       "articleList": "Artikellijst",
-      "reading": "Lezen"
+      "reading": "Lezen",
+      "grid": "Raster"
     },
     "fontKeys": {
       "sidebar-feed": "Feednaam",
@@ -470,6 +471,10 @@
       "readLater": "Later lezen",
       "openSource": "Bij de bron openen",
       "markRead": "Markeren als gelezen"
+    },
+    "gridCards": {
+      "width": "Kaartbreedte",
+      "ratio": "Beeldverhouding"
     }
   },
   "login": {

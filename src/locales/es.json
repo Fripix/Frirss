@@ -284,7 +284,8 @@
     "fontSections": {
       "sidebar": "Barra lateral",
       "articleList": "Lista de artículos",
-      "reading": "Lectura"
+      "reading": "Lectura",
+      "grid": "Cuadrícula"
     },
     "fontKeys": {
       "sidebar-feed": "Nombre de la fuente",
@@ -470,6 +471,10 @@
       "readLater": "Leer más tarde",
       "openSource": "Abrir en el origen",
       "markRead": "Marcar como leído"
+    },
+    "gridCards": {
+      "width": "Ancho de las tarjetas",
+      "ratio": "Formato de imagen"
     }
   },
   "login": {

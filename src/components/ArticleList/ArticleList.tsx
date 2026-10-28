@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores/feedStore';
@@ -44,6 +44,7 @@ import { noFocusOnPointer } from '../../lib/pointerFocus';
 import { prefersReducedMotion } from '../../lib/reducedMotion';
 import { staggerIndexes, rememberStagger } from '../../lib/rowStagger';
 import type { Article, Filter } from '../../types';
+import { gridCardStyle } from '../../lib/gridCards';
 
 // Per-view scroll position, kept across remounts (e.g. returning from an
 // article in 2-panel desktop, or any re-mount of the list).
@@ -144,6 +145,12 @@ export default function ArticleList() {
   const showDateSeparators = useUiStore((s) => s.showDateSeparators);
   const toggleDateSeparators = useUiStore((s) => s.toggleDateSeparators);
   const gridDateSeparators = useUiStore((s) => s.gridDateSeparators);
+  const gridCardWidth = useUiStore((s) => s.gridCardWidth);
+  const gridImageRatio = useUiStore((s) => s.gridImageRatio);
+  const gridStyle = useMemo(
+    () => gridCardStyle(gridCardWidth, gridImageRatio) as CSSProperties,
+    [gridCardWidth, gridImageRatio],
+  );
   const toggleGridDateSeparators = useUiStore((s) => s.toggleGridDateSeparators);
   const confirmMarkAllRead = useUiStore((s) => s.confirmMarkAllRead);
   const topbarVisible = useUiStore((s) => s.topbarVisible);
@@ -1102,7 +1109,7 @@ export default function ArticleList() {
           />
         ) : gridLayout && !gridDateSeparators ? (
           /* Grid, default: one continuous gallery, no date bands. */
-          <div className="article-grid">
+          <div className="article-grid" style={gridStyle}>
             {articles.map(renderCard)}
           </div>
         ) : (
@@ -1116,7 +1123,7 @@ export default function ArticleList() {
                 <DateSeparator label={group.label} count={group.articles.length} />
               )}
               {gridLayout ? (
-                <div className="article-grid">
+                <div className="article-grid" style={gridStyle}>
                   {group.articles.map(renderCard)}
                 </div>
               ) : (

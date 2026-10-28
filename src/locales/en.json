@@ -284,7 +284,8 @@
     "fontSections": {
       "sidebar": "Sidebar",
       "articleList": "Article list",
-      "reading": "Reading"
+      "reading": "Reading",
+      "grid": "Grid"
     },
     "fontKeys": {
       "sidebar-feed": "Feed name",
@@ -470,6 +471,10 @@
       "readLater": "Read later",
       "openSource": "Open at source",
       "markRead": "Mark as read"
+    },
+    "gridCards": {
+      "width": "Card width",
+      "ratio": "Image ratio"
     }
   },
   "login": {

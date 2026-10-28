@@ -292,7 +292,8 @@
     "fontSections": {
       "sidebar": "Бічна панель",
       "articleList": "Список статей",
-      "reading": "Читання"
+      "reading": "Читання",
+      "grid": "Сітка"
     },
     "fontKeys": {
       "sidebar-feed": "Назва стрічки",
@@ -486,6 +487,10 @@
       "readLater": "Прочитати пізніше",
       "openSource": "Відкрити в джерелі",
       "markRead": "Позначити прочитаним"
+    },
+    "gridCards": {
+      "width": "Ширина карток",
+      "ratio": "Пропорції зображення"
     }
   },
   "login": {

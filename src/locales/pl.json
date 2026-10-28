@@ -292,7 +292,8 @@
     "fontSections": {
       "sidebar": "Pasek boczny",
       "articleList": "Lista artykułów",
-      "reading": "Czytanie"
+      "reading": "Czytanie",
+      "grid": "Siatka"
     },
     "fontKeys": {
       "sidebar-feed": "Nazwa kanału",
@@ -486,6 +487,10 @@
       "readLater": "Do przeczytania później",
       "openSource": "Otwórz u źródła",
       "markRead": "Oznacz jako przeczytane"
+    },
+    "gridCards": {
+      "width": "Szerokość kart",
+      "ratio": "Proporcje obrazu"
     }
   },
   "login": {

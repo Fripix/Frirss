@@ -284,7 +284,8 @@
     "fontSections": {
       "sidebar": "侧边栏",
       "articleList": "文章列表",
-      "reading": "阅读"
+      "reading": "阅读",
+      "grid": "网格"
     },
     "fontKeys": {
       "sidebar-feed": "订阅源名称",
@@ -470,6 +471,10 @@
       "readLater": "稍后阅读",
       "openSource": "打开原文",
       "markRead": "标为已读"
+    },
+    "gridCards": {
+      "width": "卡片宽度",
+      "ratio": "图片比例"
     }
   },
   "login": {

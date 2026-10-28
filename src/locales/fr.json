@@ -284,7 +284,8 @@
     "fontSections": {
       "sidebar": "Sidebar",
       "articleList": "Liste d'articles",
-      "reading": "Lecture"
+      "reading": "Lecture",
+      "grid": "Grille"
     },
     "fontKeys": {
       "sidebar-feed": "Nom du flux",
@@ -470,6 +471,10 @@
       "readLater": "À lire plus tard",
       "openSource": "Ouvrir à la source",
       "markRead": "Marquer comme lu"
+    },
+    "gridCards": {
+      "width": "Largeur des cartes",
+      "ratio": "Format d'image"
     }
   },
   "login": {
