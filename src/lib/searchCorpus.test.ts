@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   CORPUS_TTL_MS,
   createCorpus,
   addPage,
   corpusIsUsable,
   corpusMatches,
+  matchPage,
+  newerEntries,
+  prependEntries,
   patchCorpusArticle,
   patchCorpusByEntry,
   type CorpusEntry,
@@ -75,6 +78,78 @@ describe('corpusIsUsable', () => {
 
   it('refuse un corpus absent', () => {
     expect(corpusIsUsable(null, 'feed/1', '7', 0)).toBe(false);
+  });
+});
+
+describe('addPage — index des identifiants', () => {
+  // Le `Set` des identifiants était reconstruit à CHAQUE page : à la dixième
+  // tranche de 1 000, 9 000 insertions pour en écarter quelques-unes.
+  it('dix tranches ne reconstruisent pas l’index : une insertion par article', () => {
+    const tranche = (n: number) => Array.from({ length: 100 }, (_, i) => entry(`p${n}-${i}`, 'titre'));
+    const add = vi.spyOn(Set.prototype, 'add');
+    try {
+      let c = createCorpus('feed/1', '7', 0);
+      for (let n = 0; n < 10; n++) c = addPage(c, tranche(n), n < 9 ? `C${n}` : null, 0);
+      expect(c.entries).toHaveLength(1_000);
+      expect(add.mock.calls.length).toBe(1_000);
+    } finally {
+      add.mockRestore();
+    }
+  });
+
+  it('écarte aussi un doublon à l’intérieur d’une même page', () => {
+    const c = addPage(createCorpus('feed/1', '7', 0), [entry('a', 'alpha'), entry('a', 'alpha')], null, 0);
+    expect(c.entries.map((e) => e.article.id)).toEqual(['a']);
+  });
+
+  // L'index est partagé entre versions successives : étendre une ANCIENNE
+  // version ne doit pas se croire déjà au courant d'articles qu'elle n'a pas.
+  it('reste juste quand on étend une version antérieure du corpus', () => {
+    const v1 = addPage(createCorpus('feed/1', '7', 0), [entry('a', 'alpha')], 'C1', 0);
+    addPage(v1, [entry('b', 'beta')], null, 0);
+    const branche = addPage(v1, [entry('b', 'beta')], null, 0);
+    expect(branche.entries.map((e) => e.article.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('matchPage', () => {
+  it('ne regarde que la tranche donnée', () => {
+    const page = [entry('a', 'alpha moteur'), entry('b', 'beta'), entry('c', 'gamma moteur')];
+    expect(matchPage(page, ['moteur']).map((a) => a.id)).toEqual(['a', 'c']);
+    expect(matchPage([], ['moteur'])).toEqual([]);
+  });
+});
+
+describe('newerEntries / prependEntries — compléter par le haut', () => {
+  const base = () => addPage(createCorpus('feed/1', '7', 0), [entry('a', 'alpha'), entry('b', 'beta')], null, 0);
+
+  it('prend le haut de la page jusqu’au premier article connu', () => {
+    const { fresh, reachedKnown } = newerEntries(base(), [entry('n1', 'neuf'), entry('n2', 'neuf'), entry('a', 'alpha'), entry('x', 'jamais')]);
+    expect(fresh.map((e) => e.article.id)).toEqual(['n1', 'n2']);
+    expect(reachedKnown).toBe(true);
+  });
+
+  it('signale une page entièrement nouvelle', () => {
+    const { fresh, reachedKnown } = newerEntries(base(), [entry('n1', 'neuf')]);
+    expect(fresh).toHaveLength(1);
+    expect(reachedKnown).toBe(false);
+  });
+
+  // Identifiants d'entrée réels : un article retiré du flux depuis le
+  // balayage ne doit pas faire croire que tout ce qui suit est nouveau.
+  it('s’arrête à un article plus ancien que le plus récent connu, même inconnu', () => {
+    const c = addPage(createCorpus('feed/1', '7', 0), [entry('1788386439680600', 't')], null, 0);
+    const { fresh, reachedKnown } = newerEntries(c, [entry('1788386439680700', 't'), entry('1788386439680550', 't')]);
+    expect(fresh.map((e) => e.article.id)).toEqual(['1788386439680700']);
+    expect(reachedKnown).toBe(true);
+  });
+
+  it('place les nouveaux en tête, sans doublon, et garde la date du balayage', () => {
+    const c0 = base();
+    const c = prependEntries(c0, [entry('n1', 'neuf'), entry('n1', 'neuf'), entry('a', 'alpha')]);
+    expect(c.entries.map((e) => e.article.id)).toEqual(['n1', 'a', 'b']);
+    expect(c.at).toBe(c0.at);
+    expect(c.complete).toBe(c0.complete);
   });
 });
 

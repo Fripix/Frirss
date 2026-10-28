@@ -1178,12 +1178,15 @@ FreshRSS, où le titre est un vrai lien.
   annulé de la même façon — **même quand aucune ligne de la plage n'est
   affichée**, puisque le corpus connaît des articles que la liste n'a jamais
   chargés. Ce qu'il épargne au retour : ce que le serveur a confirmé, et ce
-  qui était déjà lu avant l'action.
+  qui était déjà lu avant l'action. Les résultats de la recherche affichée
+  (`searchResults`) suivent le corpus, aller et retour, par le même critère
+  (`inEntryRange`).
 - **Limite connue — deux marquages de plage qui se chevauchent** : si un
   second « au-dessus »/« en dessous » part pendant qu'un premier est encore en
   vol, la garde du corpus de recherche gardé compare une RÉFÉRENCE d'objet
   (`corpusALancement`) — le second marquage en a construit une nouvelle en le
-  patchant à son tour, donc au retour le premier voit un corpus qui n'est plus
+  patchant à son tour (un ✓ ou un Rafraîchir qui complète la recherche en
+  construisent une aussi), donc au retour le premier voit un corpus qui n'est plus
   le sien et saute son annulation si le serveur le refuse. Une recherche
   ultérieure dans le même périmètre, servie depuis ce corpus gardé en mémoire
   plutôt que rechargée, peut alors montrer lus des articles que le serveur a
@@ -1595,7 +1598,12 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   du texte saisi.
 - **Balayage** (`feedStore.runScan`) : le périmètre est lu page par page via
   `fetchStreamPage` (tranches de `SCAN_PAGE` = 1 000, la continuation de chaque
-  page ouvrant la suivante), et chaque tranche est filtrée au passage. Mesuré
+  page ouvrant la suivante), et chaque tranche est filtrée au passage : **seule
+  la tranche nouvelle** (`matchPage`), ses correspondances s'ajoutant à
+  `searchResults`, et `addPage` écarte les doublons par un index
+  d'identifiants tenu au fil des pages. Jusqu'à la 1.7.0, chaque page refiltrait
+  le corpus entier et reconstruisait cet index — 1 000 + 2 000 + … + 10 000
+  tests pour une archive de 10 000 articles. Mesuré
   sur un compte réel : 1 000 articles en ~830 ms pour ~2 Mo, soit ~11 requêtes,
   ~21 Mo et une dizaine de secondes pour une archive de 10 000 articles ; un
   flux seul tient en une requête. Séquentiel par nature — une page ne peut pas
@@ -1604,9 +1612,15 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   `CORPUS_TTL_MS`), pour un seul périmètre à la fois : affiner une requête
   refiltre la mémoire sans toucher au réseau. Il est refusé — donc rebalayé —
   s'il est **incomplet** (un balayage interrompu ne prouve aucune absence),
-  périmé, d'un autre périmètre ou d'un autre serveur ; il tombe entièrement sur
-  « tout marquer comme lu » (`dropSearchCorpus`) et au changement de serveur
-  (`resetAndReload`).
+  périmé, d'un autre périmètre ou d'un autre serveur. Il **survit** à la
+  fermeture de la recherche et au changement de vue — c'est lui qui permet de
+  relancer une recherche sans réseau —, et tombe entièrement sur « tout
+  marquer comme lu » (`dropSearchCorpus`), au changement de serveur
+  (`resetAndReload`) et **à la fin de la session FriRSS** (déconnexion ou
+  jeton refusé : abonnement à `useAuthStore` en bas de `feedStore.ts`, qui
+  referme aussi la recherche affichée) — un autre compte peut ouvrir le même
+  navigateur. Un abonnement plutôt qu'un appel depuis `authStore` :
+  `feedStore` importe déjà `authStore`, l'inverse fermerait un cycle.
 - **Changer de flux, de filtre, de catégorie ou de vue referme la
   recherche** (`closeSearch`, appelée par `setFilter`, `selectFeed`,
   `selectView`, `selectCategory` et par `markAllAsRead` après
@@ -1614,12 +1628,30 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   `searchQuery`/`searchResults`/`searchScan` reviennent à l'état neutre. Sans
   ce geste, un balayage abandonné laissait `searchScan.running` bloqué à vrai
   pour toujours — squelette sans fin dans `listBodyState` — ou une barre
-  d'état flottant au-dessus d'un tout autre flux.
+  d'état flottant au-dessus d'un tout autre flux. **« Tout lu » pendant une
+  recherche** marque la vue NUE (son périmètre ignore la requête), referme la
+  recherche puis **recharge la vue nue** : la liste gardait les résultats sous
+  l'en-tête de la vue, avec une `continuation` restée à `null` (plus de
+  pagination). Sous Non lus, la vue est vidée comme hors recherche.
 - **Correspondance** (`src/lib/searchMatch.ts`) : tous les mots de la requête
   doivent être présents dans le titre ou le texte, sans distinction de casse ni
   d'accents (`election` trouve « élection » et l'inverse), HTML retiré et
   entités décodées avant comparaison. Les balises deviennent des espaces : sans
-  ça `<b>moteur</b><i>recherche</i>` donnerait « moteurrecherche ». Le texte
+  ça `<b>moteur</b><i>recherche</i>` donnerait « moteurrecherche ». Le contenu
+  des `<script>`/`<style>` part avec sa balise, refermée ou non. **Toutes** les
+  entités sont décodées (`decodeEntities`), par le décodeur du navigateur : un
+  `<textarea>` hors document, lu en RCDATA, où `innerHTML` ne crée jamais
+  d'élément. Jusqu'à la 1.7.0, six entités nommées seulement (`&eacute;` restait
+  tel quel) et `String.fromCodePoint`, qui **levait** sur une entité numérique
+  hors plage et faisait échouer tout le balayage ; hors plage donne désormais
+  U+FFFD, comme dans le navigateur. Méthode choisie sur mesure (Chrome, 10 000
+  articles de 2,7 Ko, texte cherchable complet) : ~400 ms, contre ~260 ms pour
+  une table d'entités embarquée (2 231 noms à tenir à jour) et ~900 ms pour
+  `DOMParser` (un document par article) — 150 ms d'écart sur un balayage qui
+  en passe ~10 000 sur le réseau. Sans DOM (Node), repli sur les entités de
+  base et les numériques, sans exception. ⚠️ Les expressions restent linéaires
+  (`[^<>]*` dans l'ouverture d'un `<script>`) : un test de balisage
+  pathologique le garde. Le texte
   cherchable de chaque article est calculé **une fois au balayage**, jamais à
   chaque frappe. Pas d'opérateurs, pas de classement par pertinence : l'ordre
   reste celui du flux, date décroissante.
@@ -1679,14 +1711,32 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   (`src/lib/listPagination.ts`), qui bascule sur `searchVisible <
   searchResults.length` pendant une recherche, une requête à 300
   correspondances en montrerait 50, définitivement.
+  « Afficher plus » **ajoute** la tranche suivante aux lignes affichées, il ne
+  les recopie pas depuis `searchResults` : une ligne sortie de la liste (✓ sous
+  Non lus) ne revient pas.
   ⚠️ **Piège** : `loadArticles` et `silentRefresh` se gardaient sur `viewKey`
   (flux + filtre), qui ignore `searchQuery` — contrairement à `runScan` et
   `loadMore`, gardés sur `viewIdentity`. Un retour d'onglet ou un
   tirer-pour-rafraîchir mobile pendant une recherche déjà terminée
   remplaçaient alors les résultats par le flux nu, sous un en-tête qui
-  annonçait toujours « Recherche : … ». Les deux renoncent désormais dès
-  qu'une recherche est en cours, avant et après leur propre aller-retour
-  réseau.
+  annonçait toujours « Recherche : … ». Ni l'un ni l'autre ne touche plus à la
+  vue nue pendant une recherche.
+- **Rafraîchir pendant une recherche** (bouton, tirer-pour-rafraîchir, retour
+  d'onglet) : le rafraîchissement fait son travail ordinaire (actualisation
+  FreshRSS, compteurs, bandeau) **et complète la recherche par le haut**
+  (`topUpSearch`) — des pages de `PAGE_SIZE` depuis le haut du flux jusqu'au
+  premier article déjà connu, ou plus ancien que le plus récent du corpus
+  (`newerEntries`), en pratique une requête. Les nouveaux qui correspondent
+  entrent en tête des résultats et de la liste, la tranche visible s'élargit
+  d'autant. Jamais de rebalayage complet. Au-delà de 20 pages (un millier
+  d'arrivées), rien n'est ajouté plutôt que de laisser un trou entre les
+  nouveaux et le balayage ; rien non plus pendant un balayage en cours, hors
+  ligne, ou sur un corpus vide et incomplet. `at` ne bouge pas : seul le haut
+  a été relu. ⚠️ **Avant**, `silentRefresh` renonçait sans rien faire (le
+  tirer-pour-rafraîchir tournait à vide), et `loadArticles` posait
+  `loading`/`revalidating` puis renonçait sans les relever — squelette et
+  spinner bloqués à vrai. Le même relevé vaut pour un chargement de vue en vol
+  qu'une recherche vient doubler.
 - **Hors ligne** : aucun balayage. On filtre ce qu'on détient — la liste en
   mémoire et la liste rangée pour cette vue (`listGet`) —, les doublons entre
   les deux sources sont écartés, et la barre d'état dit ce qui a réellement été
@@ -1697,10 +1747,14 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   emprunte le même chemin hors ligne (`retrySearch`, via `scanOffline`) : il
   ne relance jamais le réseau, et ne réécrit pas une coupure en panne
   « réseau » alors que la vraie cause est l'absence de connexion.
-- **Les écritures suivent le corpus** : cocher lu, mettre en favori ou en « à
-  lire plus tard » depuis un résultat met à jour l'article **gardé en mémoire**
-  comme la ligne affichée, rollback compris. Sans ça, la recherche suivante
-  ressortirait l'ancien état : un article coché qui redevient non lu.
+- **Les écritures suivent le corpus et les résultats** : cocher lu, mettre en
+  favori, en « à lire plus tard » ou poser une étiquette depuis un résultat
+  met à jour l'article **gardé en mémoire** et `searchResults` comme la ligne
+  affichée, rollback compris — un point unique, `patchSearchCorpus`. Sans le
+  corpus, la recherche suivante ressortirait l'ancien état (un article coché
+  qui redevient non lu) ; sans `searchResults`, « Afficher plus » recopiait les
+  résultats d'avant et la coche se défaisait à la tranche suivante. Les
+  étiquettes (`toggleArticleLabel`) ne suivaient pas le corpus jusqu'à la 1.7.0.
 - **Déclenchement** : la recherche part à la validation du champ (Entrée), pas à
   la frappe — un balayage par caractère tapé serait absurde.
   ⚠️ **Piège** : après un **Arrêter**, seul le bouton **Réessayer** reprend à la
@@ -1729,7 +1783,7 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
 - **Coût assumé** : le corpus d'une archive de 10 000 articles occupe quelques
   dizaines de mégaoctets en mémoire. Confortable sur ordinateur, à surveiller
   sur téléphone, où le navigateur peut décharger un onglet gourmand laissé en
-  arrière-plan. Si ça coince, ne garder que le texte normalisé et les articles
+  arrière-plan. Libéré à la déconnexion (voir plus haut). Si ça coince, ne garder que le texte normalisé et les articles
   correspondants divise la facture par trois.
 
 - **Specs** : `docs/superpowers/specs/2026-08-16-scoped-search-design.md`,

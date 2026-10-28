@@ -60,6 +60,24 @@ _(rien pour l'instant)_
   toujours plus longtemps que le serveur : 75 s pour les appels courants,
   150 s pour l'IA et la sauvegarde. Un délai dépassé ne déconnecte jamais.
 
+- **Recherche : ce qu'on fait sur les résultats y reste.** Un article coché lu
+  (ou mis en favori, à lire plus tard) dans les résultats redevenait non lu en
+  cliquant « Afficher plus », et une étiquette posée depuis un résultat
+  disparaissait à la recherche suivante.
+- **Recherche : Rafraîchir et tirer-pour-rafraîchir ajoutent les nouveaux
+  articles qui correspondent**, en tête des résultats, sans rebalayer tout le
+  flux. Le spinner tournait jusque-là sans effet, et la liste pouvait rester
+  bloquée sur son squelette de chargement.
+- **Recherche : « Tout lu » rend la vue du flux.** La liste gardait les
+  résultats sous l'en-tête du flux, sans pouvoir charger la suite.
+- **Recherche : les accents codés en entités sont trouvés** (« été » trouve
+  `&eacute;t&eacute;`, « l’avion » écrit avec `&rsquo;`…), le code des
+  `<script>` et `<style>` n'est plus cherché, et une entité numérique invalide
+  ne fait plus échouer tout le balayage.
+- **Recherche : balayage plus léger** sur les gros flux (chaque page n'est plus
+  refiltrée avec tout ce qui précède), et les articles gardés en mémoire pour
+  la recherche sont libérés à la déconnexion.
+
 ## Sous le capot
 
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,

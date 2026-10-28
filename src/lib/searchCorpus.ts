@@ -1,6 +1,6 @@
 import type { Article } from '../types';
 import { matchesTerms } from './searchMatch';
-import { isOlderEntry } from './entryId';
+import { entryIdUsec, isOlderEntry } from './entryId';
 
 /**
  * Le corpus d'un balayage : les articles d'un périmètre et leur texte
@@ -27,12 +27,37 @@ export interface Corpus {
   complete: boolean;
   /** Dernière écriture, pour la péremption. */
   at: number;
+  /**
+   * Index des identifiants de `entries`, tenu au fil des pages : il était
+   * reconstruit en entier à chaque tranche (9 000 insertions à la dixième
+   * pour en écarter quelques-unes). Partagé entre les versions successives
+   * du corpus et ne fait que grandir ; `addPage` le reconstruit s'il ne
+   * correspond plus à `entries` (une version antérieure étendue après coup).
+   */
+  ids: Set<string>;
 }
 
 export const CORPUS_TTL_MS = 5 * 60 * 1000;
 
 export function createCorpus(streamId: string, serverId: string, now: number): Corpus {
-  return { streamId, serverId, entries: [], continuation: null, complete: false, at: now };
+  return { streamId, serverId, entries: [], continuation: null, complete: false, at: now, ids: new Set() };
+}
+
+/** L'index à jour pour `corpus` : le sien, sauf s'il a été étendu par une autre version. */
+function idsOf(corpus: Corpus): Set<string> {
+  if (corpus.ids.size === corpus.entries.length) return corpus.ids;
+  return new Set(corpus.entries.map((e) => e.article.id));
+}
+
+/** Les entrées encore inconnues de `ids`, qu'elles y entrent au passage. */
+function admit(ids: Set<string>, entries: readonly CorpusEntry[]): CorpusEntry[] {
+  const fresh: CorpusEntry[] = [];
+  for (const e of entries) {
+    if (ids.has(e.article.id)) continue;
+    ids.add(e.article.id);
+    fresh.push(e);
+  }
+  return fresh;
 }
 
 /** Ajoute une page, en écartant les articles déjà vus (un flux bouge pendant le balayage). */
@@ -42,15 +67,60 @@ export function addPage(
   continuation: string | null,
   now: number,
 ): Corpus {
-  const seen = new Set(corpus.entries.map((e) => e.article.id));
-  const fresh = entries.filter((e) => !seen.has(e.article.id));
+  const ids = idsOf(corpus);
+  const fresh = admit(ids, entries);
   return {
     ...corpus,
-    entries: [...corpus.entries, ...fresh],
+    entries: fresh.length ? [...corpus.entries, ...fresh] : corpus.entries,
     continuation,
     complete: continuation === null,
     at: now,
+    ids,
   };
+}
+
+/**
+ * Le haut d'une page lue depuis le début du flux qui est plus récent que tout
+ * ce que le corpus contient — Rafraîchir pendant une recherche, sans
+ * rebalayer.
+ *
+ * On s'arrête au premier article déjà connu, ou au premier dont
+ * l'identifiant d'entrée n'est pas plus récent que le plus récent du corpus :
+ * un article retiré du flux depuis le balayage ne doit pas faire prendre tout
+ * le reste pour du neuf. `reachedKnown` faux : toute la page est neuve, il
+ * faut lire la suivante.
+ */
+export function newerEntries(
+  corpus: Corpus,
+  page: readonly CorpusEntry[],
+): { fresh: CorpusEntry[]; reachedKnown: boolean } {
+  const ids = idsOf(corpus);
+  const newest = corpus.entries.length ? entryIdUsec(corpus.entries[0].article.id) : null;
+  const notNewer = (id: string) => {
+    if (newest === null) return false;
+    const usec = entryIdUsec(id);
+    return usec !== null && BigInt(usec) <= BigInt(newest);
+  };
+  const fresh: CorpusEntry[] = [];
+  for (const e of page) {
+    if (ids.has(e.article.id) || notNewer(e.article.id)) return { fresh, reachedKnown: true };
+    fresh.push(e);
+  }
+  return { fresh, reachedKnown: false };
+}
+
+/**
+ * Place en tête des entrées plus récentes (`newerEntries`), doublons écartés.
+ *
+ * `at` ne bouge pas : seul le haut a été relu, le reste a l'âge du balayage,
+ * et rajeunir le corpus prolongerait la vie d'états de lecture que rien n'a
+ * revérifiés.
+ */
+export function prependEntries(corpus: Corpus, entries: readonly CorpusEntry[]): Corpus {
+  const ids = idsOf(corpus);
+  const fresh = admit(ids, entries);
+  if (!fresh.length) return corpus.ids === ids ? corpus : { ...corpus, ids };
+  return { ...corpus, entries: [...fresh, ...corpus.entries], ids };
 }
 
 /**
@@ -72,9 +142,17 @@ export function corpusIsUsable(
   return now - corpus.at <= CORPUS_TTL_MS;
 }
 
+/**
+ * Les correspondances d'une seule tranche. Le balayage les accumule page par
+ * page au lieu de refiltrer tout le corpus à chaque tranche.
+ */
+export function matchPage(page: readonly CorpusEntry[], terms: readonly string[]): Article[] {
+  return page.filter((e) => matchesTerms(e.haystack, terms)).map((e) => e.article);
+}
+
 /** Les articles correspondants, dans l'ordre du flux (date décroissante). */
 export function corpusMatches(corpus: Corpus, terms: readonly string[]): Article[] {
-  return corpus.entries.filter((e) => matchesTerms(e.haystack, terms)).map((e) => e.article);
+  return matchPage(corpus.entries, terms);
 }
 
 /**
@@ -90,6 +168,13 @@ export function patchCorpusArticle(corpus: Corpus, id: string, patch: Partial<Ar
     return { ...e, article: { ...e.article, ...patch } };
   });
   return touched ? { ...corpus, entries } : corpus;
+}
+
+/** `id` tombe-t-il dans la plage d'un marquage « en dessous / au-dessus » ? Le pivot n'y est jamais. */
+export function inEntryRange(bound: { direction: 'above' | 'below'; articleId: string }, id: string): boolean {
+  return bound.direction === 'below'
+    ? isOlderEntry(id, bound.articleId)
+    : isOlderEntry(bound.articleId, id);
 }
 
 /**
@@ -115,9 +200,7 @@ export function patchCorpusByEntry(
   patch: Partial<Article>,
   exclude?: (id: string) => boolean,
 ): Corpus {
-  const touche = (id: string) => (bound.direction === 'below'
-    ? isOlderEntry(id, bound.articleId)
-    : isOlderEntry(bound.articleId, id));
+  const touche = (id: string) => inEntryRange(bound, id);
   return {
     ...corpus,
     entries: corpus.entries.map((e) => (

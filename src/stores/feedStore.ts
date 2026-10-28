@@ -26,8 +26,9 @@ import { entryIdUsec, exclusiveOlderThanEntryId, isOlderEntry } from '../lib/ent
 import { articleHaystack, parseQuery, matchesTerms } from '../lib/searchMatch';
 import { scanErrorKind } from '../lib/scanError';
 import {
-  createCorpus, addPage, corpusIsUsable, corpusMatches, patchCorpusArticle, patchCorpusByEntry,
-  type Corpus,
+  createCorpus, addPage, corpusIsUsable, corpusMatches, matchPage, newerEntries, prependEntries,
+  patchCorpusArticle, patchCorpusByEntry, inEntryRange,
+  type Corpus, type CorpusEntry,
 } from '../lib/searchCorpus';
 import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
@@ -99,24 +100,46 @@ export function __resetSearchStateForTests(): void {
   scanTerms = [];
 }
 
-/** Le corpus n'appartient qu'au serveur qui l'a produit. */
+/**
+ * Le corpus n'appartient qu'au serveur qui l'a produit — et qu'à la session
+ * FriRSS qui l'a balayé : il est aussi libéré à la déconnexion (abonnement à
+ * `useAuthStore`, en bas de ce fichier), un autre compte pouvant ouvrir le
+ * même navigateur.
+ */
 export function dropSearchCorpus(): void {
   searchCorpus = null;
   scanToken++;
 }
 
-/** Répercute une écriture locale sur le corpus gardé. */
+/**
+ * Répercute une écriture locale (lu, favori, à lire plus tard, étiquette) sur
+ * le corpus gardé ET sur `searchResults` — le point unique pour les deux.
+ * Sans le second, « Afficher plus » recopiait les résultats d'avant l'écriture
+ * et une coche posée dans les résultats se défaisait à la tranche suivante.
+ */
 function patchSearchCorpus(id: string, patch: Partial<Article>): void {
   if (searchCorpus) searchCorpus = patchCorpusArticle(searchCorpus, id, patch);
+  const { searchResults } = useFeedStore.getState();
+  if (!searchResults.some((a) => a.id === id)) return;
+  useFeedStore.setState((s) => ({
+    searchResults: s.searchResults.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+  }));
 }
 
-/** Répercute un marquage de plage sur le corpus gardé, s'il y en a un. */
+/** Répercute un marquage de plage sur le corpus gardé, s'il y en a un, et sur ses résultats. */
 function patchSearchCorpusByEntry(
   bound: { direction: 'above' | 'below'; articleId: string },
   patch: Partial<Article>,
   exclude?: (id: string) => boolean,
 ): void {
-  if (searchCorpus) searchCorpus = patchCorpusByEntry(searchCorpus, bound, patch, exclude);
+  if (!searchCorpus) return;
+  searchCorpus = patchCorpusByEntry(searchCorpus, bound, patch, exclude);
+  // Les résultats sont des articles du corpus : même critère, même exclusion.
+  if (!useFeedStore.getState().searchResults.length) return;
+  const touche = (id: string) => inEntryRange(bound, id) && !exclude?.(id);
+  useFeedStore.setState((s) => ({
+    searchResults: s.searchResults.map((a) => (touche(a.id) ? { ...a, ...patch } : a)),
+  }));
 }
 
 // Lazy (dynamic) import of i18n, not a static one at the top of the file:
@@ -1175,6 +1198,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   loadArticles: async () => {
+    // Pendant une recherche, la liste affichée est celle des résultats :
+    // « recharger la liste » (Rafraîchir, la pastille des nouveaux, un retour
+    // en arrière), c'est la compléter par les articles arrivés depuis le
+    // balayage. Ce chemin posait `loading`/`revalidating` puis renonçait sur
+    // `sameView()` sans les relever : squelette et spinner restaient à vrai.
+    if (get().searchQuery) {
+      await topUpSearch();
+      return;
+    }
     bumpCountsEpoch(); // une vue qui repart de zéro n'est pas une arrivée
     const { selectedFeed, filter } = get();
     const key = viewKey(selectedFeed, filter);
@@ -1210,7 +1242,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // 2. Live request — authoritative; updates the view + memory cache.
     try {
       const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
-      if (!sameView()) return; // user switched away while loading
+      if (!sameView()) {
+        // Une recherche a pris la vue pendant le vol (même flux, même
+        // filtre) : personne d'autre ne relèvera les drapeaux posés plus
+        // haut. Un vrai changement de vue, lui, a son propre chargement qui
+        // les possède désormais.
+        if (viewKey(get().selectedFeed, get().filter) === key) set({ loading: false, revalidating: false });
+        return;
+      }
       if (!result) { set({ loading: false, revalidating: false }); return; }
       const articles = result.items.map(normalizeArticle);
       memSet(key, { articles, continuation: result.continuation });
@@ -1608,11 +1647,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   showMoreSearchResults: () => set((s) => {
     // Ne jamais reculer : si `searchResults` est momentanément plus court que
-    // `searchVisible` (une tranche vidée par une dédup en cours de balayage),
-    // `Math.min` seul ferait chuter la tranche affichée — et avec elle, tout
-    // ce qui avait déjà été montré.
+    // `searchVisible`, `Math.min` seul ferait chuter la tranche affichée — et
+    // avec elle, tout ce qui avait déjà été montré.
     const visible = Math.max(s.searchVisible, Math.min(s.searchVisible + PAGE_SIZE, s.searchResults.length));
-    return { searchVisible: visible, articles: s.searchResults.slice(0, visible) };
+    // La tranche suivante s'AJOUTE aux lignes affichées au lieu de les
+    // recopier depuis `searchResults` : une ligne sortie de la liste (✓ sous
+    // le filtre Non lus) ne revient pas, et rien de ce qui est à l'écran
+    // n'est réécrit.
+    return {
+      searchVisible: visible,
+      articles: [...s.articles, ...s.searchResults.slice(s.searchVisible, visible)],
+    };
   }),
 
   clearSearch: () => {
@@ -1667,8 +1712,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // tirer-pour-rafraîchir (discussion #19). Le cache mémoire et la liste
       // hors-ligne de la vue suivent, sans quoi un retour sur la vue
       // repeindrait les lignes lues. Le retour en arrière recharge la liste.
+      // Pendant une recherche, c'est la vue NUE qui a été marquée (le
+      // périmètre ci-dessus ignore la requête) : la recherche se referme plus
+      // bas et la vue nue est rechargée, vidée elle aussi sous Non lus.
       const { filter, searchQuery } = get();
-      const emptied = filter === 'unread' && !searchQuery;
+      const searching = !!searchQuery;
+      const emptied = filter === 'unread';
       if (emptied) {
         const key = viewKey(selectedFeed, filter);
         memCache.delete(key);
@@ -1705,6 +1754,18 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // lui (`stale()` dans `runScan` rend la main sans rien écrire) et
       // `searchScan.running` restait bloqué à vrai pour toujours.
       closeSearch(set);
+      if (searching) {
+        // La liste montrait encore les résultats, sous l'en-tête de la vue
+        // nue, et `continuation` restait à `null` (la recherche l'avait
+        // effacée) : plus de pagination. La vue nue repart de son cache
+        // mémoire — lu, puisqu'on vient de tout marquer — puis du serveur.
+        const cached = memGet(viewKey(selectedFeed, filter));
+        set({
+          articles: cached ? cached.articles.map((a) => ({ ...a, read: true })) : [],
+          continuation: cached?.continuation ?? null,
+        });
+        void get().loadArticles();
+      }
       // Le bandeau vit ICI et non dans la barre d'outils : c'est le store qui
       // sait combien d'articles étaient non lus (le relevé) et si le retour en
       // arrière est possible.
@@ -2036,6 +2097,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         ? updateLabels(state.selectedArticle)
         : null,
     }));
+    // Le corpus gardé suit l'optimisme, comme sur `toggleReadLater` : sans
+    // ce relais, la recherche suivante ressortait l'article sans l'étiquette.
+    patchSearchCorpus(article.id, { labels: updateLabels(article).labels });
     try {
       await setArticleLabel(article.id, labelId, !hasLabel);
       // Refresh labels list in case a new label was created
@@ -2062,6 +2126,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           ? rollbackLabels(state.selectedArticle)
           : null,
       }));
+      // Rollback : le corpus revient avec la ligne — l'étiquette d'origine.
+      patchSearchCorpus(article.id, { labels: article.labels || [] });
     }
   },
 
@@ -2310,11 +2376,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // balayage), sous un en-tête qui l'annonce toujours — `viewKey` l'ignore
     // (flux + filtre seulement). Un retour d'onglet ou un tirer-pour-
     // rafraîchir mobile déclenchent ce chemin PENDANT une recherche déjà
-    // terminée aussi bien qu'au démarrage : sans ce renoncement, le flux nu
-    // remplaçait les résultats sous l'en-tête « Recherche : … » (I1, revue
-    // finale). Revérifié après l'attente réseau : une recherche a pu
+    // terminée aussi bien qu'au démarrage : le flux nu remplaçait alors les
+    // résultats sous l'en-tête « Recherche : … » (I1, revue finale). Ce
+    // chemin complète donc la recherche par le haut au lieu de recharger la
+    // vue nue — il renonçait sans rien faire, et le tirer-pour-rafraîchir
+    // tournait à vide. Revérifié après l'attente réseau : une recherche a pu
     // démarrer pendant le vol.
-    if (get().searchQuery) return;
+    if (get().searchQuery) {
+      await topUpSearch();
+      return;
+    }
     // Silently reload current article list (no loading spinner)
     const { selectedFeed, filter } = get();
     // La vue affichée au moment de la requête — comme `loadArticles` avec
@@ -2559,20 +2630,6 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 }));
 
 /**
- * Balaye le périmètre page par page et filtre au passage.
- *
- * Séquentiel par nature : chaque page porte la continuation de la suivante. Les
- * résultats sont poussés à chaque tranche — une recherche qui n'a rien trouvé et
- * une recherche qui n'a pas fini se ressemblent trop pour attendre la fin.
- *
- * `view` est l'identité de la vue (`viewIdentity`) retenue à l'entrée : ni
- * `selectFeed`, ni `selectView`, ni `setFilter`, ni `selectCategory` ne
- * touchent `scanToken` ou le corpus, donc une page arrivée après un de ces
- * changements passerait la garde du jeton et écrirait les articles de
- * l'ancien flux dans la nouvelle vue. Revérifiée après CHAQUE `await`, comme
- * dans `loadMore`.
- */
-/**
  * Combien d'identifiants par écriture de retour en arrière.
  *
  * 100, la taille qu'emploie déjà le marquage de plage sans jamais avoir posé
@@ -2678,6 +2735,32 @@ async function restoreUnread(ids: readonly string[], toastId: number): Promise<v
   });
 }
 
+/** Une entrée de corpus : l'article et son texte cherchable, calculé une fois. */
+function toCorpusEntry(item: GReaderItem): CorpusEntry {
+  const article = normalizeArticle(item);
+  return { article, haystack: articleHaystack(article) };
+}
+
+/**
+ * Balaye le périmètre page par page et filtre au passage.
+ *
+ * Séquentiel par nature : chaque page porte la continuation de la suivante. Les
+ * résultats sont poussés à chaque tranche — une recherche qui n'a rien trouvé et
+ * une recherche qui n'a pas fini se ressemblent trop pour attendre la fin.
+ *
+ * Seule la tranche NOUVELLE est filtrée (`matchPage`) et ses correspondances
+ * s'ajoutent à celles de l'état : refiltrer tout le corpus à chaque page
+ * coûtait 1 000 + 2 000 + … + 10 000 tests pour un flux de 10 000 articles.
+ * Accumuler sur `searchResults` plutôt que sur une copie locale garde aussi
+ * ce qu'on a fait entre deux pages (une coche, une étiquette).
+ *
+ * `view` est l'identité de la vue (`viewIdentity`) retenue à l'entrée. Les
+ * changements de vue passent par `closeSearch`, qui avance `scanToken` ; la
+ * garde de vue reste en second filet, pour tout chemin qui changerait de flux
+ * ou de filtre sans passer par là — une page arrivée après coup écrirait
+ * sinon les articles de l'ancien flux dans la nouvelle vue. Revérifiée après
+ * CHAQUE `await`, comme dans `loadMore`.
+ */
 async function runScan(token: number, streamId: string, view: string): Promise<void> {
   const stale = () =>
     token !== scanToken || !searchCorpus || viewIdentity(useFeedStore.getState()) !== view;
@@ -2686,19 +2769,23 @@ async function runScan(token: number, streamId: string, view: string): Promise<v
       if (stale()) return;
       const result = await fetchStreamPage(streamId, SCAN_PAGE, searchCorpus!.continuation);
       if (stale()) return;
-      const entries = result.items.map((item) => {
-        const article = normalizeArticle(item);
-        return { article, haystack: articleHaystack(article) };
-      });
-      searchCorpus = addPage(searchCorpus!, entries, result.continuation, Date.now());
-      const hits = corpusMatches(searchCorpus, scanTerms);
+      const before = searchCorpus!.entries.length;
+      searchCorpus = addPage(searchCorpus!, result.items.map(toCorpusEntry), result.continuation, Date.now());
+      // `addPage` ajoute en queue, doublons écartés : la tranche nouvelle est
+      // exactement ce qui dépasse l'ancienne longueur.
+      const found = matchPage(searchCorpus.entries.slice(before), scanTerms);
       const complete = searchCorpus.complete;
       const scanned = searchCorpus.entries.length;
-      useFeedStore.setState((s) => ({
-        searchResults: hits,
-        articles: hits.slice(0, s.searchVisible),
-        searchScan: { running: !complete, scanned, done: complete, stopped: false, error: null },
-      }));
+      useFeedStore.setState((s) => {
+        // Les nouvelles lignes n'entrent à l'écran que dans la place encore
+        // libre de la tranche visible ; le reste attend « Afficher plus ».
+        const room = Math.max(0, s.searchVisible - s.searchResults.length);
+        return {
+          searchResults: found.length ? [...s.searchResults, ...found] : s.searchResults,
+          articles: room && found.length ? [...s.articles, ...found.slice(0, room)] : s.articles,
+          searchScan: { running: !complete, scanned, done: complete, stopped: false, error: null },
+        };
+      });
       if (complete) return;
     }
   } catch (err) {
@@ -2714,6 +2801,85 @@ async function runScan(token: number, streamId: string, view: string): Promise<v
     });
   }
 }
+
+/**
+ * Au-delà, le haut du flux a trop bougé pour être recousu au corpus : mieux
+ * vaut ne rien ajouter qu'ajouter des articles en laissant un trou entre eux
+ * et le balayage. 20 pages de `PAGE_SIZE`, soit un millier d'arrivées.
+ */
+const TOP_UP_MAX_PAGES = 20;
+
+/**
+ * Rafraîchir pendant une recherche : la compléter par le haut.
+ *
+ * Seules les entrées plus récentes que la plus récente du corpus sont lues
+ * (`newerEntries`) — des pages de `PAGE_SIZE` depuis le haut du flux jusqu'au
+ * premier article connu, en pratique une seule requête —, jamais un
+ * rebalayage complet (~10 s sur un gros flux). Celles qui correspondent
+ * entrent en tête des résultats et de la liste, et la tranche visible
+ * s'élargit d'autant : rien de ce qui était affiché ne disparaît.
+ *
+ * Ne fait rien sans corpus du périmètre courant, pendant un balayage (il lit
+ * déjà le flux), hors ligne, ou sur un corpus vide et incomplet (le balayage
+ * a échoué d'emblée : il n'y a rien à compléter, « Réessayer » s'en charge).
+ * Une erreur réseau est muette : la recherche reste ce qu'elle était.
+ */
+async function topUpSearch(): Promise<void> {
+  const s = useFeedStore.getState();
+  if (!s.searchQuery || s.searchScan.running || !searchCorpus) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  const streamId = resolveSearchStreamId(s.selectedFeed, s.filter, s.subscriptions);
+  const serverId = String(useAuthStore.getState().activeServerId ?? '');
+  if (searchCorpus.streamId !== streamId || searchCorpus.serverId !== serverId) return;
+  if (!searchCorpus.entries.length && !searchCorpus.complete) return;
+
+  const token = scanToken;
+  const view = viewIdentity(s);
+  const stale = () =>
+    token !== scanToken || !searchCorpus || viewIdentity(useFeedStore.getState()) !== view;
+  const fresh: CorpusEntry[] = [];
+  let continuation: string | null = null;
+  try {
+    for (let pages = 0; ; pages++) {
+      if (pages === TOP_UP_MAX_PAGES) return;
+      const result = await fetchStreamPage(streamId, PAGE_SIZE, continuation);
+      if (stale()) return;
+      const { fresh: newer, reachedKnown } = newerEntries(searchCorpus!, result.items.map(toCorpusEntry));
+      fresh.push(...newer);
+      if (reachedKnown || !result.continuation) break;
+      continuation = result.continuation;
+    }
+  } catch {
+    return;
+  }
+  if (stale() || !fresh.length) return;
+
+  const before = searchCorpus!.entries.length;
+  searchCorpus = prependEntries(searchCorpus!, fresh);
+  const found = matchPage(searchCorpus.entries.slice(0, searchCorpus.entries.length - before), scanTerms);
+  const scanned = searchCorpus.entries.length;
+  useFeedStore.setState((st) => ({
+    searchResults: found.length ? [...found, ...st.searchResults] : st.searchResults,
+    articles: found.length ? [...found, ...st.articles] : st.articles,
+    searchVisible: st.searchVisible + found.length,
+    searchScan: { ...st.searchScan, scanned },
+  }));
+}
+
+/**
+ * La session FriRSS se ferme (déconnexion, ou jeton refusé — les deux
+ * passent par `logoutBackend`) : le corpus balayé et les résultats affichés
+ * appartenaient à ce compte. Gardés en mémoire, ils resteraient lisibles par
+ * le compte suivant ouvert dans le même navigateur.
+ *
+ * Un abonnement plutôt qu'un appel depuis `authStore` : ce module importe
+ * déjà `authStore`, l'inverse fermerait un cycle d'imports.
+ */
+useAuthStore.subscribe((state, prev) => {
+  if (!prev.backendToken || state.backendToken) return;
+  dropSearchCorpus();
+  closeSearch(useFeedStore.setState);
+});
 
 function normalizeArticle(item: GReaderItem): Article {
   return {
