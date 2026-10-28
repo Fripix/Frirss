@@ -317,6 +317,10 @@ export async function refreshPrefs(): Promise<void> {
   await pushNow();
   if (gen !== generation) return;
 
+  // Un envoi peut aboutir pendant la lecture, lue côté serveur AVANT lui : la
+  // réponse porterait l'ancienne valeur d'une clé qui n'est déjà plus sale.
+  // Les clés dont la valeur connue a bougé entre-temps sont donc écartées.
+  const knownBefore = { ...known };
   let serverPrefs: Record<string, unknown>;
   try {
     serverPrefs = await getPreferences();
@@ -326,13 +330,16 @@ export async function refreshPrefs(): Promise<void> {
   if (gen !== generation || !serverPrefs || typeof serverPrefs !== 'object') return;
 
   const server = pickKeys(serverPrefs, SYNCED_KEYS);
+  const pushedMeanwhile = Object.keys(known).filter((k) =>
+    !Object.prototype.hasOwnProperty.call(knownBefore, k) || changedKeys({ [k]: known[k] }, knownBefore).length > 0);
   // `dirty` est lu APRÈS la lecture : une modification faite pendant qu'elle
-  // était en route est protégée elle aussi.
-  const incoming = mergeForRelecture(server, dirty);
+  // était en route est protégée elle aussi, envoyée ou non.
+  const incoming = mergeForRelecture(server, new Set([...dirty, ...pushedMeanwhile]));
   const changes = pickKeys(incoming, changedKeys(incoming, known));
   const orderBefore = shownOrder();
   if (Object.keys(changes).length) applyQuietly(changes, { onlyPresent: true });
-  known = server;
+  // La valeur envoyée pendant la lecture est plus récente que celle lue.
+  known = { ...server, ...pickKeys(known, pushedMeanwhile) };
   persistKnown();
 
   // Changer l'ordre ne recharge que là où l'interface le fait (Préférences,

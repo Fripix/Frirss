@@ -216,6 +216,31 @@ describe('prefsSync — clés modifiées seulement', () => {
     expect(server.viewMode).toBe('compact');
   });
 
+  // La relecture part, l'utilisateur change un réglage, son envoi (minuscule)
+  // aboutit AVANT la réponse de la lecture (qui transporte `appLogo`), lue côté
+  // serveur avant l'écriture : sa vieille valeur ne doit pas revenir.
+  it('a re-read that started before a successful push never undoes it', async () => {
+    const server = fakeServer({ viewMode: 'normal' });
+    await hydratePrefs();
+    const stale = structuredClone(server);
+    let release: () => void = () => {};
+    get.mockImplementationOnce(() => new Promise((r) => { release = () => r(stale); }));
+    const pending = refreshPrefs();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(get).toHaveBeenCalledTimes(2);
+    useUiStore.getState().setViewMode('compact');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(server.viewMode).toBe('compact'); // l'envoi a réussi
+    release();
+    await pending;
+    expect(useUiStore.getState().viewMode).toBe('compact');
+
+    // Et la valeur connue reste celle envoyée : rien ne repart, rien ne revient.
+    await refreshPrefs();
+    expect(useUiStore.getState().viewMode).toBe('compact');
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
   it('dirty keys survive a reload', async () => {
     fakeServer({ viewMode: 'normal', showFavicons: true });
     await hydratePrefs();

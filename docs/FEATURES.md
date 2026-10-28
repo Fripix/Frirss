@@ -5022,7 +5022,9 @@ les clés modifiées sur l'appareil.
   `visibilitychange` d'`App.tsx` quand l'onglet redevient visible). L'envoi en
   attente part d'abord ; puis s'appliquent les clés que le serveur porte, qui
   ont changé depuis la valeur connue, et **qui ne sont pas sales ici** (une
-  modification faite pendant la lecture est protégée aussi). Elle passe
+  modification faite pendant la lecture est protégée aussi, même si son envoi
+  aboutit avant la réponse : une clé dont la valeur connue a bougé pendant la
+  lecture est écartée, la réponse ayant pu être lue avant l'écriture). Elle passe
   `applyServerPrefs(…, { onlyPresent: true })` : aucun défaut de compte ancien
   n'est forcé pour une clé absente — ce tri ne vaut qu'au démarrage. Si
   l'ordre de la liste affichée change (`articleOrder` ou l'ordre du flux
