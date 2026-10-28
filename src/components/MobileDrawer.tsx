@@ -136,6 +136,7 @@ export default function MobileDrawer({ open, onClose, children, width = 280 }: M
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        inert={!open}
       >
         {children}
       </div>

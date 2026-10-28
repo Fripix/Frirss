@@ -53,6 +53,14 @@ la release publiée.
   article ouvert, elle débordait et poussait la palette et l'aide hors de vue.
   Les raccourcis qui ne tiennent pas sont masqués, la palette et l'aide
   restent toujours visibles, et « Échap » passe en tête en mode Focus.
+- **Accessibilité : clavier et lecteurs d'écran.** Les menus (article, flux,
+  serveurs, étiquettes, traduction, résumé) se parcourent aux flèches et
+  rendent le focus au bouton qui les a ouverts. Les boutons à icône seule ont
+  tous un nom (les « A » de la barre latérale s'annonçaient « A »), et les
+  boutons à bascule disent leur état. Les libellés d'« Ajouter un flux »,
+  « Ajouter un serveur » et de la sauvegarde sont reliés à leur champ. Le
+  tiroir mobile fermé n'est plus atteignable à la tabulation. Les messages
+  (confirmations, hors ligne, relève) sont annoncés de façon fiable.
 - **Titre de la liste écrasé : lisible au survol.** Avec un article ouvert,
   la barre d'outils le réduisait à « To… » ; l'infobulle donne le titre
   entier.

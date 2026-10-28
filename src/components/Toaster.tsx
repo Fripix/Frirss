@@ -15,11 +15,12 @@ const WITH_ACTION_MS = 6500;
  *
  * `aria-live="polite"` et non `assertive` : ce sont des confirmations, elles
  * ne doivent pas couper la lecture en cours d'un lecteur d'écran.
+ *
+ * La région reste montée, vide, quand il n'y a rien : montée en même temps que
+ * son premier message, elle n'était souvent pas annoncée (liveRegions.test).
  */
 export default function Toaster() {
   const toasts = useUiStore((s) => s.toasts);
-
-  if (!toasts.length) return null;
 
   return (
     <div className="toaster" role="status" aria-live="polite">

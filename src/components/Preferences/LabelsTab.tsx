@@ -571,6 +571,8 @@ function LabelRow({
         </select>
         <button
           onClick={() => setMode(null)}
+          aria-label={t('preferences.labels.cancel')}
+          title={t('preferences.labels.cancel')}
           className="p-0.5 rounded transition-colors hover-tint"
           style={{ color: 'var(--list-summary)' }}
         >
@@ -826,6 +828,8 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
           opacity: color ? 1 : 0.5,
         }}
         title={t('preferences.labels.chooseColor')}
+        aria-label={t('preferences.labels.chooseColor')}
+        aria-expanded={open}
       />
 
       {/* Remove color button */}
@@ -879,6 +883,8 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
                     : 'none',
                 }}
                 title={sw}
+                aria-label={sw}
+                aria-pressed={(color || effectiveColor || '') === sw}
               />
             ))}
           </div>

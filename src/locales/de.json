@@ -6,7 +6,8 @@
     "errorBody": "Die Anwendung ist auf ein unerwartetes Problem gestoßen. Sie können die Seite neu laden.",
     "errorReload": "Neu laden",
     "labelValue": "{{label}}: {{value}}",
-    "labelColon": "{{label}}:"
+    "labelColon": "{{label}}:",
+    "create": "Erstellen"
   },
   "sidebar": {
     "allFeeds": "Alle Feeds",
@@ -118,7 +119,8 @@
     "scanNetworkError": "Verbindung während des Suchlaufs verloren",
     "scanRateLimited": "Zu viele Anfragen – in einer Minute erneut versuchen",
     "endOfList": "Ende der Liste",
-    "endOfListMarkRead": "Alle als gelesen markieren"
+    "endOfListMarkRead": "Alle als gelesen markieren",
+    "clearSearch": "Suche löschen"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",

@@ -398,6 +398,8 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                   className="text-[11px] px-1.5 py-0.5 rounded"
                   style={{ color: editUserId === user.id ? 'var(--accent)' : 'var(--list-summary)' }}
                   title={t('admin.editUser')}
+                  aria-label={t('admin.editUser')}
+                  aria-expanded={editUserId === user.id}
                 >
                   ✏️
                 </button>
@@ -409,6 +411,8 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                     className="text-[11px] px-1.5 py-0.5 rounded"
                     style={{ color: pwUserId === user.id ? 'var(--accent)' : 'var(--list-summary)' }}
                     title={t('admin.resetPassword')}
+                    aria-label={t('admin.resetPassword')}
+                    aria-expanded={pwUserId === user.id}
                   >
                     🔑
                   </button>

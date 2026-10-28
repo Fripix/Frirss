@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBackup } from '../../api/backend';
 
@@ -9,6 +9,7 @@ export default function BackupExport() {
   const [passphrase, setPassphrase] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
+  const fieldId = useId();
   const [error, setError] = useState('');
 
   const tooShort = passphrase !== '' && passphrase.length < MIN_PASSPHRASE_LENGTH;
@@ -46,12 +47,13 @@ export default function BackupExport() {
       <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>{t('backup.whyPassphrase')}</p>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
+        <label htmlFor={`${fieldId}-pass`} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
           {t('backup.passphrase')}
         </label>
         <input
           type="password"
           autoComplete="new-password"
+          id={`${fieldId}-pass`}
           value={passphrase}
           onChange={(e) => setPassphrase(e.target.value)}
           className="w-full px-3 py-1.5 text-sm rounded-md"
@@ -61,12 +63,13 @@ export default function BackupExport() {
       </div>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
+        <label htmlFor={`${fieldId}-confirm`} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
           {t('backup.passphraseConfirm')}
         </label>
         <input
           type="password"
           autoComplete="new-password"
+          id={`${fieldId}-confirm`}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           className="w-full px-3 py-1.5 text-sm rounded-md"

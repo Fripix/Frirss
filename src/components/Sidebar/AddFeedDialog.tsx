@@ -17,6 +17,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const titleId = useId();
+  const fieldId = useId();
 
   // Échap ferme. La boîte est `role="dialog"` : `useKeyboardNav` se tait tant
   // qu'elle est ouverte, donc rien d'autre n'écouterait la touche. Capture +
@@ -81,10 +82,11 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* Feed URL */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
+            <label htmlFor={`${fieldId}-url`} className="block text-xs font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
               {t('addFeed.urlLabel')} *
             </label>
             <input
+              id={`${fieldId}-url`}
               type="url"
               value={feedUrl}
               onChange={(e) => setFeedUrl(e.target.value)}
@@ -103,10 +105,11 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
 
           {/* Title (optional) */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
+            <label htmlFor={`${fieldId}-name`} className="block text-xs font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
               {t('addFeed.nameLabel')}
             </label>
             <input
+              id={`${fieldId}-name`}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -124,10 +127,11 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
 
           {/* Category */}
           <div>
-            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
+            <label htmlFor={`${fieldId}-category`} className="block text-xs font-medium mb-1" style={{ color: 'var(--list-summary)' }}>
               {t('addFeed.categoryLabel')}
             </label>
             <select
+              id={`${fieldId}-category`}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full text-sm px-3 py-2 rounded-lg border outline-none"
@@ -151,6 +155,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
               <input
                 type="text"
                 value={newCategory}
+                aria-label={t('addFeed.newCategory')}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder={t('addFeed.newCategoryPlaceholder')}
                 className="w-full text-sm px-3 py-2 rounded-lg border outline-none transition-colors"

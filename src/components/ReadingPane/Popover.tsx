@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { clampToViewport } from '../../lib/clampToViewport';
+import { useMenuKeys } from '../../hooks/useMenuKeys';
 
 const ITEMS = '[role="menuitem"], [role="menuitemradio"]';
 
@@ -17,6 +18,9 @@ export default function Popover({ anchor, onClose, children, header, label }: {
   anchor: HTMLElement | null; onClose: () => void; children: ReactNode; header?: ReactNode; label?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Flèches et focus de départ : ceux de Popover (qui connaît son champ de
+  // filtre). Le hook n'ajoute que le retour du focus au déclencheur.
+  useMenuKeys(ref);
   const [pos, setPos] = useState({ left: 0, top: 0 });
 
   useLayoutEffect(() => {

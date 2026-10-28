@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useMenuKeys } from '../../hooks/useMenuKeys';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
@@ -61,6 +62,7 @@ export default function ServerSwitcher() {
               className={`server-seg ${isActive ? 'server-seg-active' : ''} flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap flex-shrink-0 ${isMobile ? 'px-3 py-0.5 text-[11px]' : 'px-3.5 py-1 text-xs'}`}
               style={{ color: isActive ? 'var(--topbar-text-active)' : 'var(--topbar-text)' }}
               title={server.url}
+              aria-current={isActive ? 'true' : undefined}
             >
               <span>{server.name}</span>
               {server.is_default ? (
@@ -99,6 +101,7 @@ export default function ServerSwitcher() {
 function ManageMenu({ x, y, onClose, onManage }: { x: number; y: number; onClose: () => void; onManage: () => void }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
+  useMenuKeys(ref);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

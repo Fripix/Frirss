@@ -998,6 +998,8 @@ export default function ArticleList() {
             </span>
             <button
               onClick={handleClearSearch}
+              aria-label={t('articleList.clearSearch')}
+              title={t('articleList.clearSearch')}
               className="p-0.5 rounded transition-colors hover-tint"
               style={{ color: 'var(--accent)' }}
             >
@@ -1865,6 +1867,7 @@ function TopbarToggle() {
     <button
       onClick={toggleTopbar}
       title={topbarVisible ? t('articleList.hideTopbar') : t('articleList.showTopbar')}
+      aria-label={topbarVisible ? t('articleList.hideTopbar') : t('articleList.showTopbar')}
       aria-pressed={topbarVisible}
       {...noFocusOnPointer}
       className={`option-toggle ${topbarVisible ? 'option-toggle--on' : ''}`}
@@ -1958,6 +1961,8 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
       <button
         onClick={() => setPanelLayout('2')}
         title={tip(t('articleList.listOnly'))}
+        aria-label={t('articleList.listOnly')}
+        aria-pressed={panelLayout === '2'}
         {...noFocusOnPointer}
         className={`p-1 rounded transition-all ${
           panelLayout === '2'
@@ -1974,6 +1979,8 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
       <button
         onClick={() => setPanelLayout('3')}
         title={tip(t('articleList.listAndReading'))}
+        aria-label={t('articleList.listAndReading')}
+        aria-pressed={panelLayout === '3'}
         {...noFocusOnPointer}
         className={`p-1 rounded transition-all ${
           panelLayout === '3'
@@ -1991,6 +1998,8 @@ function LayoutToggle({ overridden }: { overridden?: boolean }) {
       <button
         onClick={() => setPanelLayout('grid')}
         title={tip(t('articleList.gridLayout'))}
+        aria-label={t('articleList.gridLayout')}
+        aria-pressed={panelLayout === 'grid'}
         {...noFocusOnPointer}
         className={`p-1 rounded transition-all ${
           panelLayout === 'grid'

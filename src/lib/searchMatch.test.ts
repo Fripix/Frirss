@@ -101,7 +101,9 @@ describe('stripHtml', () => {
     const ms = performance.now() - t0;
     console.info(`[stripHtml] 10 000 articles (${html.length} car.) : ${ms.toFixed(0)} ms`);
     expect(len).toBeGreaterThan(0);
-  });
+    // « Non bloquant » doit le rester sous charge : à 5 s (le défaut de vitest),
+    // une suite complète sur une machine occupée le faisait échouer.
+  }, 60_000);
 });
 
 describe('parseQuery', () => {

@@ -6,7 +6,8 @@
     "errorBody": "The app hit an unexpected problem. You can reload the page.",
     "errorReload": "Reload",
     "labelValue": "{{label}}: {{value}}",
-    "labelColon": "{{label}}:"
+    "labelColon": "{{label}}:",
+    "create": "Create"
   },
   "sidebar": {
     "allFeeds": "All feeds",
@@ -118,7 +119,8 @@
     "scanNetworkError": "Connection lost during the scan",
     "scanRateLimited": "Too many requests — try again in a minute",
     "endOfList": "End of the list",
-    "endOfListMarkRead": "Mark all as read"
+    "endOfListMarkRead": "Mark all as read",
+    "clearSearch": "Clear search"
   },
   "articleRow": {
     "markRead": "Mark as read",

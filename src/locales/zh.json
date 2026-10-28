@@ -6,7 +6,8 @@
     "errorBody": "应用遇到了意外问题。你可以重新加载页面。",
     "errorReload": "重新加载",
     "labelValue": "{{label}}：{{value}}",
-    "labelColon": "{{label}}："
+    "labelColon": "{{label}}：",
+    "create": "创建"
   },
   "sidebar": {
     "allFeeds": "全部订阅源",
@@ -118,7 +119,8 @@
     "scanNetworkError": "扫描过程中连接中断",
     "scanRateLimited": "请求过多 — 请一分钟后重试",
     "endOfList": "列表末尾",
-    "endOfListMarkRead": "全部标为已读"
+    "endOfListMarkRead": "全部标为已读",
+    "clearSearch": "清除搜索"
   },
   "articleRow": {
     "markRead": "标为已读",

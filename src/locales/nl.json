@@ -6,7 +6,8 @@
     "errorBody": "De app liep tegen een onverwacht probleem aan. U kunt de pagina opnieuw laden.",
     "errorReload": "Opnieuw laden",
     "labelValue": "{{label}}: {{value}}",
-    "labelColon": "{{label}}:"
+    "labelColon": "{{label}}:",
+    "create": "Aanmaken"
   },
   "sidebar": {
     "allFeeds": "Alle feeds",
@@ -118,7 +119,8 @@
     "scanNetworkError": "Verbinding verloren tijdens het doorzoeken",
     "scanRateLimited": "Te veel aanvragen — probeer het over een minuut opnieuw",
     "endOfList": "Einde van de lijst",
-    "endOfListMarkRead": "Alles als gelezen markeren"
+    "endOfListMarkRead": "Alles als gelezen markeren",
+    "clearSearch": "Zoekopdracht wissen"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",

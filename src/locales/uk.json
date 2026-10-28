@@ -6,7 +6,8 @@
     "errorBody": "Застосунок натрапив на неочікувану проблему. Можна перезавантажити сторінку.",
     "errorReload": "Перезавантажити",
     "labelValue": "{{label}}: {{value}}",
-    "labelColon": "{{label}}:"
+    "labelColon": "{{label}}:",
+    "create": "Створити"
   },
   "sidebar": {
     "allFeeds": "Усі стрічки",
@@ -126,7 +127,8 @@
     "scanNetworkError": "З’єднання втрачено під час сканування",
     "scanRateLimited": "Забагато запитів — спробуйте ще раз за хвилину",
     "endOfList": "Кінець списку",
-    "endOfListMarkRead": "Позначити все як прочитане"
+    "endOfListMarkRead": "Позначити все як прочитане",
+    "clearSearch": "Очистити пошук"
   },
   "articleRow": {
     "markRead": "Позначити прочитаним",

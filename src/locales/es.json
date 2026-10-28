@@ -6,7 +6,8 @@
     "errorBody": "La aplicación encontró un problema inesperado. Puedes recargar la página.",
     "errorReload": "Recargar",
     "labelValue": "{{label}}: {{value}}",
-    "labelColon": "{{label}}:"
+    "labelColon": "{{label}}:",
+    "create": "Crear"
   },
   "sidebar": {
     "allFeeds": "Todas las fuentes",
@@ -118,7 +119,8 @@
     "scanNetworkError": "Conexión perdida durante el análisis",
     "scanRateLimited": "Demasiadas solicitudes — inténtelo de nuevo en un minuto",
     "endOfList": "Fin de la lista",
-    "endOfListMarkRead": "Marcar todo como leído"
+    "endOfListMarkRead": "Marcar todo como leído",
+    "clearSearch": "Borrar búsqueda"
   },
   "articleRow": {
     "markRead": "Marcar como leído",

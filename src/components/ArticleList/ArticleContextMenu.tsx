@@ -5,6 +5,7 @@ import type { Article } from '../../types';
 import BottomSheet from '../BottomSheet';
 import { articleMenuItems, type ArticleMenuItem, type ArticleMenuKind } from '../../lib/articleMenu';
 import { clampToViewport } from '../../lib/clampToViewport';
+import { useMenuKeys } from '../../hooks/useMenuKeys';
 
 /**
  * Icônes du menu — retouche visuelle décidée avec le propriétaire.
@@ -182,27 +183,10 @@ export default function ArticleContextMenu({
     }));
   }, [sheet, x, y, items.length]);
 
-  // Menu flottant seulement : ouvert au clavier (touche Menu), il doit rester
-  // utilisable au clavier. Focus sur la première entrée à l'ouverture, rendu à
-  // l'élément qui l'avait à la fermeture — sauf s'il a déjà perdu ce focus
-  // autrement (fermeture par clic ailleurs, qui a déjà déplacé le focus).
-  // `useLayoutEffect`, pas `useEffect` : le nettoyage doit encore pouvoir lire
-  // `menuRef` au démontage, avant que React ne détache le DOM.
-  useLayoutEffect(() => {
-    if (sheet) return;
-    const previouslyFocused = document.activeElement;
-    const menuEl = menuRef.current;
-    const firstButton = menuEl?.querySelector('button');
-    firstButton?.focus({ preventScroll: true });
-    return () => {
-      const active = document.activeElement;
-      const stillInMenu = active === document.body || active === null
-        || (menuEl?.contains(active) ?? false);
-      if (stillInMenu && previouslyFocused instanceof HTMLElement) {
-        previouslyFocused.focus({ preventScroll: true });
-      }
-    };
-  }, [sheet]);
+  // Menu flottant seulement (la feuille du bas n'a pas de `menuRef`) : ouvert
+  // au clavier (touche Menu), il doit rester utilisable au clavier — focus sur
+  // la première entrée, flèches, focus rendu à la fermeture (`useMenuKeys`).
+  useMenuKeys(menuRef);
 
   if (sheet) {
     return (

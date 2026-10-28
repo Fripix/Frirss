@@ -1,3 +1,4 @@
+import { useMenuKeys } from '../../hooks/useMenuKeys';
 import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -295,6 +296,7 @@ export default function Sidebar() {
             onClick={toggleSidebar}
             className={`flex-shrink-0 rounded transition-colors hover:bg-white/20 text-white/80 ${isMobile ? 'p-2' : 'p-1.5'}`}
             title={t('sidebar.hideSidebar') + (isMobile || !sidebarKey ? '' : ` (${keyLabel(sidebarKey, t)})`)}
+            aria-label={t('sidebar.hideSidebar')}
           >
             {isMobile ? (
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -388,6 +390,7 @@ export default function Sidebar() {
                 className="p-1 rounded transition-colors hover-tint disabled:opacity-30"
                 style={{ color: 'var(--sidebar-text)' }}
                 title={t('sidebar.reduceText')}
+                aria-label={t('sidebar.reduceText')}
               >
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <text x="3" y="20" fontSize="18" fontWeight="bold" fill="currentColor" stroke="none">A</text>
@@ -399,6 +402,7 @@ export default function Sidebar() {
                 className="p-1 rounded transition-colors hover-tint disabled:opacity-30"
                 style={{ color: 'var(--sidebar-text)' }}
                 title={t('sidebar.enlargeText')}
+                aria-label={t('sidebar.enlargeText')}
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <text x="3" y="20" fontSize="22" fontWeight="bold" fill="currentColor" stroke="none">A</text>
@@ -826,6 +830,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
   const [mode, setMode] = useState<'rename' | 'confirmDelete' | null>(null);
   const [renameValue, setRenameValue] = useState(feed.title);
   const menuRef = useRef<HTMLDivElement>(null);
+  useMenuKeys(menuRef);
   // Lu par l'écouteur de clic extérieur, posé une seule fois : pendant la
   // confirmation, la boîte vit hors du menu, et un clic dedans ne le ferme pas.
   const modeRef = useRef(mode);

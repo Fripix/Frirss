@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useMenuKeys } from '../../hooks/useMenuKeys';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../../stores/feedStore';
@@ -26,6 +27,8 @@ export default function SavedCategoryPicker({ prefix, article, anchor, onClose }
   const names = useUiStore((s) => s.savedCategoryNames[prefix]);
   const addSavedCategory = useUiStore((s) => s.addSavedCategory);
   const [name, setName] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
+  useMenuKeys(menuRef);
   const cats = savedCategories(labels, prefix, names);
 
   const file = (labelId: string) => {
@@ -56,6 +59,7 @@ export default function SavedCategoryPicker({ prefix, article, anchor, onClose }
       {/* Click-away layer */}
       <div className="fixed inset-0 z-[60]" onClick={(e) => { e.stopPropagation(); onClose(); }} />
       <div
+        ref={menuRef}
         className="fixed z-[61] rounded-lg shadow-xl py-1"
         data-floating-surface
         style={{
@@ -115,6 +119,7 @@ export default function SavedCategoryPicker({ prefix, article, anchor, onClose }
           <button
             type="submit"
             disabled={!name.trim()}
+            aria-label={t('app.create')}
             className="px-2 py-1 rounded text-xs disabled:opacity-40"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >

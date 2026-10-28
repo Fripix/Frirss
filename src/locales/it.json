@@ -6,7 +6,8 @@
     "errorBody": "L’applicazione ha incontrato un problema imprevisto. Puoi ricaricare la pagina.",
     "errorReload": "Ricarica",
     "labelValue": "{{label}}: {{value}}",
-    "labelColon": "{{label}}:"
+    "labelColon": "{{label}}:",
+    "create": "Crea"
   },
   "sidebar": {
     "allFeeds": "Tutti i feed",
@@ -118,7 +119,8 @@
     "scanNetworkError": "Connessione persa durante la scansione",
     "scanRateLimited": "Troppe richieste — riprova tra un minuto",
     "endOfList": "Fine dell'elenco",
-    "endOfListMarkRead": "Segna tutto come letto"
+    "endOfListMarkRead": "Segna tutto come letto",
+    "clearSearch": "Cancella ricerca"
   },
   "articleRow": {
     "markRead": "Segna come letto",

@@ -4701,6 +4701,38 @@ dans quelques composants partagés.
   casserait « Label in Name » au lieu de le corriger. Les composants partagés
   (`ToolbarBtn`, `ActionBtn`) le posent depuis leur prop `label`, celle-là même
   qu'ils affichent quand le contexte le permet.
+  **Garde-fou** (1.8.0) : `src/lib/iconButtonNames.test.ts` balaie
+  `src/components` et refuse un `<button>` sans `aria-label` dont le contenu
+  n'est qu'une icône (il suit les accolades : un `>` dans `size > MIN` ne
+  termine pas la balise). Il a trouvé ses deux premiers oublis à sa création.
+  Les bascules portent `aria-pressed` (étoile, à lire plus tard, dispositions,
+  barre des serveurs, mode Focus, pastilles de couleur des étiquettes), les
+  boutons qui déplient un éditeur `aria-expanded`, le serveur actif
+  `aria-current`.
+- **Menus au clavier** (1.8.0) : `src/hooks/useMenuKeys.ts`, branché dans le
+  menu d'un article, celui d'un flux, le menu du sélecteur de serveurs, le
+  menu d'étiquettes du volet, le choix de catégorie des favoris et
+  `Popover`. Focus sur la première entrée à l'ouverture (sauf si un champ
+  l'a déjà), flèches haut/bas et Début/Fin entre les éléments actifs (jamais
+  dans un champ), et **focus rendu au déclencheur à la fermeture** — sauf si
+  l'utilisateur l'a posé ailleurs entre-temps. Avant, la fermeture laissait le
+  focus sur `<body>`. `Popover` garde ses propres flèches (il connaît son
+  champ de filtre) : le hook laisse passer une touche `defaultPrevented`.
+  Piège : un menu qui pose le focus chez lui dans un effet de mise en page le
+  fait AVANT l'effet du hook ; le déclencheur est donc aussi noté au premier
+  rendu.
+- **Libellés reliés à leur champ** (1.8.0) : « Ajouter un flux », « Ajouter un
+  serveur » et la sauvegarde chiffrée posaient le libellé à côté du champ
+  sans `htmlFor` : un lecteur d'écran annonçait « champ de saisie » sans
+  dire lequel (`src/components/fieldLabels.test.tsx`).
+- **Tiroir mobile fermé inerte** (1.8.0) : `inert` tant qu'il est fermé. Il
+  n'était que poussé hors de l'écran : la tabulation entrait dedans.
+- **Régions annoncées montées en permanence** (1.8.0) : toasts, bandeau hors
+  ligne, bandeau de relève. Une région `aria-live` montée en même temps que
+  son texte n'est souvent pas annoncée ; elles restent montées, vides au
+  repos (`liveRegions.test.tsx`). Les deux bandeaux annoncent par une région
+  `sr-only` ; le bandeau visible n'est plus une région (celui de relève garde
+  ses boutons, son libellé est `aria-hidden`).
 
 ---
 

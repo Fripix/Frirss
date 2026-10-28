@@ -6,7 +6,8 @@
     "errorBody": "Aplikacja napotkała nieoczekiwany problem. Możesz odświeżyć stronę.",
     "errorReload": "Odśwież",
     "labelValue": "{{label}}: {{value}}",
-    "labelColon": "{{label}}:"
+    "labelColon": "{{label}}:",
+    "create": "Utwórz"
   },
   "sidebar": {
     "allFeeds": "Wszystkie kanały",
@@ -126,7 +127,8 @@
     "scanNetworkError": "Utracono połączenie podczas przeszukiwania",
     "scanRateLimited": "Zbyt wiele żądań — spróbuj ponownie za minutę",
     "endOfList": "Koniec listy",
-    "endOfListMarkRead": "Oznacz wszystko jako przeczytane"
+    "endOfListMarkRead": "Oznacz wszystko jako przeczytane",
+    "clearSearch": "Wyczyść wyszukiwanie"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",

@@ -33,23 +33,29 @@ export default function OfflineBanner() {
     }
   }, [online]);
 
-  if (online && !showBackOnline && !failed) return null;
+  const text = online
+    ? (failed
+        ? t('connection.syncFailed', { count: failed })
+        : showBackOnline ? t('connection.backOnline') : '')
+    : (pending
+        ? `${t('connection.offline')} — ${t('connection.pending', { count: pending })}`
+        : t('connection.offline'));
 
+  // La région annoncée reste montée, vide au repos : montée avec son texte,
+  // elle n'était souvent pas lue. Le bandeau visible ne fait que la doubler.
   return (
-    <div
-      className="offline-banner"
-      data-state={online ? 'online' : 'offline'}
-      role="status"
-      aria-live="polite"
-    >
-      <span className="offline-banner-dot" />
-      {online
-        ? (failed
-            ? t('connection.syncFailed', { count: failed })
-            : t('connection.backOnline'))
-        : (pending
-            ? `${t('connection.offline')} — ${t('connection.pending', { count: pending })}`
-            : t('connection.offline'))}
-    </div>
+    <>
+      <div className="sr-only" role="status" aria-live="polite">{text}</div>
+      {text && (
+        <div
+          className="offline-banner"
+          data-state={online ? 'online' : 'offline'}
+          aria-hidden="true"
+        >
+          <span className="offline-banner-dot" />
+          {text}
+        </div>
+      )}
+    </>
   );
 }

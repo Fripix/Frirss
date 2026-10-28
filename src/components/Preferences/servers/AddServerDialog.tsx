@@ -157,6 +157,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
                 value={refreshToken}
                 autoComplete="new-password"
                 placeholder={t('preferences.refresh.tokenLabel')}
+                aria-label={t('preferences.refresh.tokenLabel')}
                 onChange={(e) => setRefreshToken(e.target.value)}
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 transition-all"
                 style={{
@@ -219,14 +220,16 @@ interface FieldProps {
 }
 
 function Field({ label, type = 'text', value, onChange, placeholder, required, autoFocus }: FieldProps) {
+  const id = useId();
   const handleChange: ReactEventHandler<HTMLInputElement> = (e) =>
     onChange((e.target as HTMLInputElement).value);
   return (
     <div>
-      <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
+      <label htmlFor={id} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
         {label}
       </label>
       <input
+        id={id}
         type={type}
         placeholder={placeholder}
         value={value}
