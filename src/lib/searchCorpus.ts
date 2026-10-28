@@ -156,16 +156,35 @@ export function corpusMatches(corpus: Corpus, terms: readonly string[]): Article
 }
 
 /**
- * Répercute une écriture locale (lu, favori, à lire plus tard) sur l'article
- * gardé. Sans ça, la recherche suivante ressortirait l'ancien état depuis la
- * mémoire : un article coché qui redevient non lu.
+ * Un patch d'article : des valeurs fixes, ou calculées sur l'article COURANT —
+ * ce que demande un rollback d'étiquette, qui ne doit retirer que la sienne et
+ * non restaurer un instantané d'avant le clic (il emporterait une étiquette
+ * posée entre-temps).
  */
-export function patchCorpusArticle(corpus: Corpus, id: string, patch: Partial<Article>): Corpus {
+export type ArticlePatch = Partial<Article> | ((article: Article) => Partial<Article>);
+
+/** Applique un `ArticlePatch` à un article. */
+export function applyArticlePatch(article: Article, patch: ArticlePatch): Article {
+  return { ...article, ...(typeof patch === 'function' ? patch(article) : patch) };
+}
+
+/** Les étiquettes avec `labelId` posée (`on`) ou retirée, sans doublon ni effet sur les autres. */
+export function withLabel(labels: readonly string[] | undefined, labelId: string, on: boolean): string[] {
+  const others = (labels ?? []).filter((l) => l !== labelId);
+  return on ? [...others, labelId] : others;
+}
+
+/**
+ * Répercute une écriture locale (lu, favori, à lire plus tard, étiquette) sur
+ * l'article gardé. Sans ça, la recherche suivante ressortirait l'ancien état
+ * depuis la mémoire : un article coché qui redevient non lu.
+ */
+export function patchCorpusArticle(corpus: Corpus, id: string, patch: ArticlePatch): Corpus {
   let touched = false;
   const entries = corpus.entries.map((e) => {
     if (e.article.id !== id) return e;
     touched = true;
-    return { ...e, article: { ...e.article, ...patch } };
+    return { ...e, article: applyArticlePatch(e.article, patch) };
   });
   return touched ? { ...corpus, entries } : corpus;
 }

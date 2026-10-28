@@ -61,7 +61,11 @@ export function decodeEntities(text: string): string {
   decoder ??= document.createElement('textarea');
   decoder.innerHTML = text;
   const out = decoder.value;
-  decoder.textContent = ''; // ne pas garder en mémoire le dernier article
+  // Ne pas garder en mémoire le dernier article. ⚠️ `textContent`, JAMAIS
+  // `decoder.value = ''` : écrire `.value` lève le drapeau « dirty value » du
+  // `<textarea>`, et `.value` ne suivrait plus jamais `innerHTML` — chaque
+  // appel suivant rendrait la chaîne vide.
+  decoder.textContent = '';
   return out;
 }
 

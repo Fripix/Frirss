@@ -10,6 +10,7 @@ import {
   prependEntries,
   patchCorpusArticle,
   patchCorpusByEntry,
+  withLabel,
   type CorpusEntry,
 } from './searchCorpus';
 import type { Article } from '../types';
@@ -169,10 +170,28 @@ describe('patchCorpusArticle', () => {
     expect(c.entries[0].article.read).toBe(true);
   });
 
+  // Un rollback d'étiquette doit partir de l'état COURANT de l'entrée, pas
+  // d'un instantané d'avant le clic : sinon il défait aussi ce qui a été posé
+  // entre-temps.
+  it('accepte un patch calculé sur l’article courant', () => {
+    let c = addPage(createCorpus('feed/1', '7', 0), [entry('a', 'alpha', { labels: ['L1', 'L2'] })], null, 0);
+    c = patchCorpusArticle(c, 'a', (a) => ({ labels: withLabel(a.labels, 'L1', false) }));
+    expect(c.entries[0].article.labels).toEqual(['L2']);
+  });
+
   it('ignore un identifiant inconnu', () => {
     let c = createCorpus('feed/1', '7', 0);
     c = addPage(c, [entry('a', 'alpha')], null, 0);
     expect(patchCorpusArticle(c, 'zzz', { read: true }).entries[0].article.read).toBe(false);
+  });
+});
+
+describe('withLabel', () => {
+  it('pose ou retire une seule étiquette, sans doublon ni effet sur les autres', () => {
+    expect(withLabel(['A'], 'B', true)).toEqual(['A', 'B']);
+    expect(withLabel(['A', 'B'], 'B', true)).toEqual(['A', 'B']);
+    expect(withLabel(['A', 'B'], 'A', false)).toEqual(['B']);
+    expect(withLabel(undefined, 'A', true)).toEqual(['A']);
   });
 });
 

@@ -27,8 +27,8 @@ import { articleHaystack, parseQuery, matchesTerms } from '../lib/searchMatch';
 import { scanErrorKind } from '../lib/scanError';
 import {
   createCorpus, addPage, corpusIsUsable, corpusMatches, matchPage, newerEntries, prependEntries,
-  patchCorpusArticle, patchCorpusByEntry, inEntryRange,
-  type Corpus, type CorpusEntry,
+  patchCorpusArticle, patchCorpusByEntry, inEntryRange, applyArticlePatch, withLabel,
+  type Corpus, type CorpusEntry, type ArticlePatch,
 } from '../lib/searchCorpus';
 import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
@@ -117,12 +117,12 @@ export function dropSearchCorpus(): void {
  * Sans le second, « Afficher plus » recopiait les résultats d'avant l'écriture
  * et une coche posée dans les résultats se défaisait à la tranche suivante.
  */
-function patchSearchCorpus(id: string, patch: Partial<Article>): void {
+function patchSearchCorpus(id: string, patch: ArticlePatch): void {
   if (searchCorpus) searchCorpus = patchCorpusArticle(searchCorpus, id, patch);
   const { searchResults } = useFeedStore.getState();
   if (!searchResults.some((a) => a.id === id)) return;
   useFeedStore.setState((s) => ({
-    searchResults: s.searchResults.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+    searchResults: s.searchResults.map((a) => (a.id === id ? applyArticlePatch(a, patch) : a)),
   }));
 }
 
@@ -2032,11 +2032,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       };
     });
     persistCurrentView(get);
-    // Le corpus gardé suit l'optimisme, comme sur `toggleRead`.
-    const optimisticLabels = removing
-      ? (article.labels || []).filter((l) => l !== READ_LATER_LABEL)
-      : [...(article.labels || []), READ_LATER_LABEL];
-    patchSearchCorpus(article.id, { labels: optimisticLabels });
+    // Le corpus gardé suit l'optimisme, comme sur `toggleRead` — calculé sur
+    // l'entrée courante, comme le rollback ci-dessous.
+    patchSearchCorpus(article.id, (a) => ({ labels: withLabel(a.labels, READ_LATER_LABEL, !removing) }));
     try {
       await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
       // Le retrait vient APRÈS la confirmation, jamais avant : le rollback
@@ -2076,8 +2074,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         };
       });
       persistCurrentView(get);
-      // Rollback : le corpus revient avec la ligne — l'étiquette d'origine.
-      patchSearchCorpus(article.id, { labels: article.labels || [] });
+      // Rollback : le corpus revient avec la ligne — seule CETTE étiquette est
+      // annulée, sur l'état courant (une autre posée entre-temps reste).
+      patchSearchCorpus(article.id, (a) => ({ labels: withLabel(a.labels, READ_LATER_LABEL, !!removing) }));
     }
   },
 
@@ -2099,7 +2098,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     }));
     // Le corpus gardé suit l'optimisme, comme sur `toggleReadLater` : sans
     // ce relais, la recherche suivante ressortait l'article sans l'étiquette.
-    patchSearchCorpus(article.id, { labels: updateLabels(article).labels });
+    patchSearchCorpus(article.id, (a) => ({ labels: withLabel(a.labels, labelId, !hasLabel) }));
     try {
       await setArticleLabel(article.id, labelId, !hasLabel);
       // Refresh labels list in case a new label was created
@@ -2126,8 +2125,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           ? rollbackLabels(state.selectedArticle)
           : null,
       }));
-      // Rollback : le corpus revient avec la ligne — l'étiquette d'origine.
-      patchSearchCorpus(article.id, { labels: article.labels || [] });
+      // Rollback : seule CETTE étiquette est annulée, sur l'état courant de
+      // l'entrée — comme `rollbackLabels` sur la liste. Restaurer l'instantané
+      // d'avant le clic emportait une seconde étiquette posée entre-temps.
+      patchSearchCorpus(article.id, (a) => ({ labels: withLabel(a.labels, labelId, !!hasLabel) }));
     }
   },
 
@@ -2805,7 +2806,8 @@ async function runScan(token: number, streamId: string, view: string): Promise<v
 /**
  * Au-delà, le haut du flux a trop bougé pour être recousu au corpus : mieux
  * vaut ne rien ajouter qu'ajouter des articles en laissant un trou entre eux
- * et le balayage. 20 pages de `PAGE_SIZE`, soit un millier d'arrivées.
+ * et le balayage. Le corpus est alors jeté (la recherche suivante rebalaye).
+ * 20 pages de `PAGE_SIZE`, soit un millier d'arrivées.
  */
 const TOP_UP_MAX_PAGES = 20;
 
@@ -2820,14 +2822,20 @@ const TOP_UP_MAX_PAGES = 20;
  * s'élargit d'autant : rien de ce qui était affiché ne disparaît.
  *
  * Ne fait rien sans corpus du périmètre courant, pendant un balayage (il lit
- * déjà le flux), hors ligne, ou sur un corpus vide et incomplet (le balayage
- * a échoué d'emblée : il n'y a rien à compléter, « Réessayer » s'en charge).
+ * déjà le flux), hors ligne ou après une recherche faite hors ligne, ou sur
+ * un corpus vide et incomplet (le balayage a échoué d'emblée : il n'y a rien
+ * à compléter, « Réessayer » s'en charge).
  * Une erreur réseau est muette : la recherche reste ce qu'elle était.
  */
 async function topUpSearch(): Promise<void> {
   const s = useFeedStore.getState();
   if (!s.searchQuery || s.searchScan.running || !searchCorpus) return;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  // Une recherche faite hors ligne n'est pas adossée au corpus : elle a
+  // fouillé la liste en mémoire et la barre d'état le dit. La compléter
+  // depuis un corpus resté en mémoire, et réécrire `scanned` à sa taille,
+  // ferait mentir cette barre. Une nouvelle recherche, en ligne, rebalaye.
+  if (s.searchScan.error === 'offline') return;
   const streamId = resolveSearchStreamId(s.selectedFeed, s.filter, s.subscriptions);
   const serverId = String(useAuthStore.getState().activeServerId ?? '');
   if (searchCorpus.streamId !== streamId || searchCorpus.serverId !== serverId) return;
@@ -2841,7 +2849,13 @@ async function topUpSearch(): Promise<void> {
   let continuation: string | null = null;
   try {
     for (let pages = 0; ; pages++) {
-      if (pages === TOP_UP_MAX_PAGES) return;
+      if (pages === TOP_UP_MAX_PAGES) {
+        // Le corpus ne se recoud plus : le jeter, sans quoi chaque Rafraîchir
+        // ou retour d'onglet refaisait ces vingt requêtes pour rien. Les
+        // résultats affichés restent ; la recherche suivante rebalaye.
+        dropSearchCorpus();
+        return;
+      }
       const result = await fetchStreamPage(streamId, PAGE_SIZE, continuation);
       if (stale()) return;
       const { fresh: newer, reachedKnown } = newerEntries(searchCorpus!, result.items.map(toCorpusEntry));

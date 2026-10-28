@@ -1730,8 +1730,13 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   entrent en tête des résultats et de la liste, la tranche visible s'élargit
   d'autant. Jamais de rebalayage complet. Au-delà de 20 pages (un millier
   d'arrivées), rien n'est ajouté plutôt que de laisser un trou entre les
-  nouveaux et le balayage ; rien non plus pendant un balayage en cours, hors
-  ligne, ou sur un corpus vide et incomplet. `at` ne bouge pas : seul le haut
+  nouveaux et le balayage, et le corpus est jeté — sans quoi chaque
+  Rafraîchir suivant refaisait les vingt requêtes ; la recherche suivante
+  rebalaye. Rien non plus pendant un balayage en cours, hors ligne, **après
+  une recherche faite hors ligne** (elle n'a fouillé que la liste en mémoire,
+  et compléter depuis le corpus réécrivait « articles parcourus » à sa taille
+  sous un motif « hors ligne » resté affiché), ou sur un corpus vide et
+  incomplet. `at` ne bouge pas : seul le haut
   a été relu. ⚠️ **Avant**, `silentRefresh` renonçait sans rien faire (le
   tirer-pour-rafraîchir tournait à vide), et `loadArticles` posait
   `loading`/`revalidating` puis renonçait sans les relever — squelette et
@@ -1753,7 +1758,11 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   affichée, rollback compris — un point unique, `patchSearchCorpus`. Sans le
   corpus, la recherche suivante ressortirait l'ancien état (un article coché
   qui redevient non lu) ; sans `searchResults`, « Afficher plus » recopiait les
-  résultats d'avant et la coche se défaisait à la tranche suivante. Les
+  résultats d'avant et la coche se défaisait à la tranche suivante. Un patch
+  d'étiquette (« à lire plus tard » compris) est **calculé sur l'entrée
+  courante** (`withLabel`), à l'aller comme au rollback : restaurer
+  l'instantané d'avant le clic emportait une seconde étiquette posée
+  entre-temps. Les
   étiquettes (`toggleArticleLabel`) ne suivaient pas le corpus jusqu'à la 1.7.0.
 - **Déclenchement** : la recherche part à la validation du champ (Entrée), pas à
   la frappe — un balayage par caractère tapé serait absurde.

@@ -32,12 +32,13 @@ vi.mock('../lib/offlineStore', () => ({
 }));
 vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));
 
-import { fetchStreamPage, getStreamContents } from '../api/feeds';
+import { fetchStreamPage, getStreamContents, setArticleLabel } from '../api/feeds';
 import { useFeedStore, __resetSearchStateForTests } from './feedStore';
 import { useAuthStore } from './authStore';
 
 const page = vi.mocked(fetchStreamPage);
 const streamContents = vi.mocked(getStreamContents);
+const label = vi.mocked(setArticleLabel);
 
 const item = (id: string, title: string) => ({
   id, title, origin: { streamId: 'feed/1', title: 'Flux' }, published: 0, categories: [], summary: { content: '' },
@@ -50,6 +51,8 @@ beforeEach(() => {
   // `clearAllMocks` laisse les réponses « Once » non consommées : un test qui
   // échoue avant son appel les léguerait au suivant.
   page.mockReset();
+  label.mockReset();
+  label.mockResolvedValue(undefined);
   __resetSearchStateForTests();
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
   useAuthStore.setState({ activeServerId: 7, backendToken: 'jwt' } as never);
@@ -162,6 +165,73 @@ describe('la recherche reste vivante', () => {
     await useFeedStore.getState().silentRefresh();
 
     expect(ids(useFeedStore.getState().articles)).toEqual(['n1', 'a']);
+  });
+
+  // Revue, constat 1 : une recherche faite hors ligne dit ce qu'elle a
+  // fouillé (la liste en mémoire). Compléter un corpus resté en mémoire et
+  // réécrire `scanned` à sa taille faisait mentir la barre d'état.
+  it('ne complète pas une recherche faite hors ligne', async () => {
+    page.mockResolvedValueOnce({ items: [item('a', 'alpha moteur'), item('b', 'beta')], continuation: null });
+    await useFeedStore.getState().search('moteur');
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    useFeedStore.setState({ articles: [] } as never);
+    await useFeedStore.getState().search('moteur');
+    const avant = useFeedStore.getState().searchScan;
+    expect(avant.error).toBe('offline');
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    page.mockClear();
+    page.mockResolvedValue({ items: [item('n1', 'neuf moteur'), item('a', 'alpha moteur')], continuation: null });
+
+    await useFeedStore.getState().silentRefresh();
+
+    expect(page).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().searchScan).toEqual(avant);
+  });
+
+  // Revue, constat 2 : au plafond de pages, rien n'était ajouté ni noté, et
+  // chaque Rafraîchir suivant refaisait les mêmes vingt requêtes.
+  it('au plafond de pages, jette le corpus : pas de nouvelle boucle, la recherche suivante rebalaye', async () => {
+    page.mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: null });
+    await useFeedStore.getState().search('moteur');
+    let n = 0;
+    page.mockImplementation(async () => ({ items: [item(`flot${n++}`, 'neuf moteur')], continuation: `C${n}` }));
+    page.mockClear();
+
+    await useFeedStore.getState().silentRefresh();
+    const appels = page.mock.calls.length;
+    expect(appels).toBe(20);
+    expect(ids(useFeedStore.getState().articles)).toEqual(['a']);
+
+    await useFeedStore.getState().silentRefresh();
+    expect(page.mock.calls.length).toBe(appels);
+
+    page.mockReset();
+    page.mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: null });
+    await useFeedStore.getState().search('moteur');
+    expect(page).toHaveBeenCalledTimes(1);
+    expect(page.mock.calls[0][1]).toBe(1000);
+  });
+
+  // Revue, constat 3 : le rollback restaurait l'instantané d'avant le clic,
+  // emportant une seconde étiquette posée entre-temps.
+  it('le refus d’une étiquette n’emporte pas celle posée juste après', async () => {
+    page.mockResolvedValueOnce({ items: [item('a', 'alpha moteur')], continuation: null });
+    await useFeedStore.getState().search('moteur');
+    let refuse!: (e: unknown) => void;
+    label
+      .mockImplementationOnce(() => new Promise((_, r) => { refuse = r; }))
+      .mockResolvedValueOnce(undefined);
+
+    const premier = useFeedStore.getState().toggleArticleLabel(useFeedStore.getState().articles[0], 'user/-/label/L1');
+    await useFeedStore.getState().toggleArticleLabel(useFeedStore.getState().articles[0], 'user/-/label/L2');
+    refuse({ response: { status: 400 } });
+    await premier;
+
+    const s = useFeedStore.getState();
+    expect(s.articles[0].labels).toEqual(['user/-/label/L2']);
+    expect(s.searchResults[0].labels).toEqual(['user/-/label/L2']);
+    await useFeedStore.getState().search('alpha');
+    expect(useFeedStore.getState().searchResults[0].labels).toEqual(['user/-/label/L2']);
   });
 
   it('logout drops the corpus', async () => {
