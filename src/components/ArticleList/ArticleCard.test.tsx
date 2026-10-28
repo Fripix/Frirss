@@ -146,4 +146,64 @@ describe('ArticleCard', () => {
     );
     expect(container.querySelector('.article-card__actions')).toBeNull();
   });
+
+  describe('titre en lien', () => {
+    function renderTitle(article: Article = base) {
+      const spies = { onSelect: vi.fn(), onOpenSource: vi.fn(), onOpenedInBackground: vi.fn() };
+      const { container } = render(
+        <ArticleCard article={article} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
+          onSelect={spies.onSelect} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop}
+          onOpenSource={spies.onOpenSource} onOpenedInBackground={spies.onOpenedInBackground} />
+      );
+      return { ...spies, container, link: container.querySelector('.article-card__title a') as HTMLAnchorElement | null };
+    }
+
+    it("le titre est un vrai lien vers l'article, hors de l'ordre de tabulation", () => {
+      const { link } = renderTitle();
+      expect(link).not.toBeNull();
+      expect(link!.getAttribute('href')).toBe('https://x/1');
+      expect(link!.getAttribute('target')).toBe('_blank');
+      expect(link!.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(link!.getAttribute('tabindex')).toBe('-1');
+    });
+
+    it('clic gauche sur le titre : sélection, pas de navigation', () => {
+      const { link, onSelect, onOpenedInBackground } = renderTitle();
+      expect(fireEvent.click(link!)).toBe(false);
+      expect(onSelect).toHaveBeenCalledOnce();
+      expect(onOpenedInBackground).not.toHaveBeenCalled();
+    });
+
+    it('⌘-clic sur le titre : ouverture native, marqué lu, pas sélectionné', () => {
+      const { link, onSelect, onOpenedInBackground } = renderTitle();
+      expect(fireEvent.click(link!, { metaKey: true })).toBe(true);
+      expect(onOpenedInBackground).toHaveBeenCalledOnce();
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('clic molette sur le titre : ouverture native, pas de window.open, marqué lu', () => {
+      const { link, onSelect, onOpenSource, onOpenedInBackground } = renderTitle();
+      const aux = new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 });
+      link!.dispatchEvent(aux);
+      expect(aux.defaultPrevented).toBe(false);
+      expect(onOpenSource).not.toHaveBeenCalled();
+      expect(onOpenedInBackground).toHaveBeenCalledOnce();
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("clic molette ailleurs sur la carte : comportement d'aujourd'hui", () => {
+      const { container, onOpenSource, onOpenedInBackground } = renderTitle();
+      const summary = container.querySelector('.article-card__summary') as HTMLElement;
+      summary.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }));
+      expect(onOpenSource).toHaveBeenCalledOnce();
+      expect(onOpenedInBackground).not.toHaveBeenCalled();
+    });
+
+    it("sans URL http(s), le titre n'est pas un lien", () => {
+      const { link, container } = renderTitle({ ...base, url: 'javascript:alert(1)' } as Article);
+      expect(link).toBeNull();
+      expect(container.querySelector('.article-card__title')?.textContent).toBe('Hello World');
+    });
+  });
 });
+

@@ -1114,7 +1114,8 @@ touche Menu du clavier, ou **appui long** au doigt : un menu propose **Ouvrir
 à la source**, **Marquer lu / non lu**, **Tout lu au-dessus / en dessous**,
 **Favori**, **À lire plus tard** et **Copier le lien**. Le **clic molette**
 ouvre directement à la source. Demandé dans l'issue #11 : le réflexe vient de
-FreshRSS, où le titre est un vrai lien.
+FreshRSS, où le titre est un vrai lien — et depuis 1.7.1, il l'est aussi dans
+FriRSS (voir « Le titre est un vrai lien » plus bas).
 
 - **Où** : `src/components/ArticleList/ArticleContextMenu.tsx` (rendu,
   icônes, groupes), `src/hooks/useArticleMenuGestures.ts` (gestes),
@@ -1152,9 +1153,58 @@ FreshRSS, où le titre est un vrai lien.
 - **Les actions sont celles des icônes** : « Ouvrir à la source » passe par
   `openArticleAtSource()` (sélection, la ligne garde sa place), « Marquer lu »
   par `toggleRead` (retrait sous « Non lus » compris). Sans URL, « Ouvrir à la
-  source » et « Copier le lien » disparaissent. **Le clic molette ouvre
-  l'onglet au premier plan** (`window.open` dans `openExternal()`), à la
-  différence d'un lien natif du navigateur, qui l'ouvrirait en arrière-plan.
+  source » et « Copier le lien » disparaissent. **Le clic molette hors du
+  titre ouvre l'onglet au premier plan** (`window.open` dans
+  `openExternal()`, puis sélection, comme l'icône) : un navigateur n'ouvre en
+  arrière-plan qu'un vrai lien cliqué par l'utilisateur, jamais un
+  `window.open`. Sur le titre, c'est désormais un lien natif, donc en
+  arrière-plan (point suivant).
+- **Le titre est un vrai lien** (1.7.1, `TitleLink.tsx` dans
+  `src/components/ArticleList/`, utilisé par les lignes normale, aperçu et
+  compacte et par la carte de la grille) : `<a href target="_blank"
+  rel="noopener noreferrer">` à l'intérieur de l'élément du titre, qui garde
+  sa classe, sa couleur, sa graisse lu / non lu, l'ellipse ou la coupure à
+  deux lignes et les `<mark>` de la recherche — le lien hérite couleur et
+  décoration du préflight Tailwind, et `.article-title-link` coupe la bulle
+  d'aperçu et le flash gris d'iOS. **Seul le titre** : toute la surface en
+  lien (choix rejeté le 2026-10-28) aurait affiché l'URL au survol de chaque
+  ligne, glissé un lien et fait annoncer chaque ligne comme un lien.
+  Comportement (`titleClickIsNative()`, `markReadOnBackgroundOpen()`,
+  `src/lib/titleLink.ts`) :
+  - **clic gauche simple** : `preventDefault()`, le clic remonte à la ligne
+    qui sélectionne l'article — inchangé ;
+  - **clic molette, ⌘/Ctrl-clic, Maj-clic** : laissés au navigateur (onglet en
+    arrière-plan, ou fenêtre pour Maj). L'article est **marqué lu mais PAS
+    sélectionné** : ouvrir en arrière-plan, c'est garder sa place, le volet ne
+    change pas d'article. Le marquage passe par `toggleRead(article, {
+    implicit: true })` — jamais une bascule (rien sur un article déjà lu), et
+    implicite comme celui du défilement, donc la ligne **reste** sous « Non
+    lus » (`shouldLeaveList`), comme le gardait la sélection du clic molette
+    d'avant. Le clic ne remonte pas (sinon la ligne sélectionnerait), et le
+    clic molette n'atteint pas l'ouverture à la source de la ligne
+    (`useArticleMenuGestures` laisse à un lien le clic molette parti de lui) ;
+  - **Alt-clic** : traité comme un clic simple — Chrome et Firefox
+    téléchargeraient la page ;
+  - **appui long tactile** : reste celui de la ligne. `fromInteractive()`
+    reconnaît le titre (`data-row-link`) et ne le traite pas comme un lien pour
+    le toucher ; le menu natif de lien de Chrome Android tombe sous le
+    `preventDefault` du `contextmenu` de la ligne, le clic d'écho est avalé
+    navigation comprise (`onClickCapture`) ;
+  - **drag** : `draggable={false}` sur le lien, le navigateur remonte à la
+    ligne déplaçable, qui emporte l'article vers la barre latérale comme
+    avant au lieu de glisser l'URL ;
+  - **clavier** : `tabIndex={-1}`, pour ne pas doubler l'arrêt de tabulation
+    de la ligne. Le focus qu'un clic donne au lien est rendu à la ligne (sinon
+    la touche suivante allumait `a:focus-visible` autour du seul titre) ;
+    Entrée sur le lien, s'il l'a quand même, ne le suit pas et remonte à la
+    ligne, qui sélectionne ;
+  - **URL autre que `http(s)`** (`safeHref()`, `src/lib/safeHref.ts`, analyse
+    par `URL`, donc `java\tscript:` compris) : pas de lien du tout, le titre
+    reste du texte et la ligne garde tous ses gestes. ⚠️ L'icône « ouvrir à la
+    source » et `openExternal()` ne filtrent toujours pas le schéma.
+  Le clic molette natif repose sur `auxclick`, comme celui de la ligne avant
+  lui : un navigateur qui ne l'émettrait pas ouvrirait l'onglet sans marquer
+  lu.
 - **« Copier le lien » copie toujours**, même là où `navigator.share` existe :
   l'entrée dit « copier ». `navigator.clipboard` n'existe qu'en contexte
   sécurisé ; son absence est un échec annoncé (`toast.copyFailed`).
@@ -1302,7 +1352,9 @@ FreshRSS, où le titre est un vrai lien.
   prioritaire** : leur rangement par catégorie (`useCategoryPicker`) appelle
   `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou
   un clic molette partis d'un élément interactif (bouton, lien, champ,
-  `contenteditable`) lui appartiennent aussi.
+  `contenteditable`) lui appartiennent aussi — **sauf l'appui long parti du
+  titre-lien** (`data-row-link`), qui reste celui de la ligne : le titre en
+  occupe une bonne part, le menu ne doit pas cesser de s'y ouvrir.
 - **Piège — le contenu d'un portail est un enfant React de la ligne** :
   `SavedCategoryPicker` (rangement par catégorie) se rend dans un portail —
   son DOM vit hors de la ligne, mais les événements synthétiques React

@@ -3,9 +3,21 @@ import { useLongPress, type PressPoint } from './useLongPress';
 import { useRegisterRowPress, type RowPressRegistry } from './rowPress';
 import { menuAnchor } from '../lib/articleMenu';
 
-/** Un geste parti d'un élément interactif de la ligne lui appartient. */
-function fromInteractive(e: { target: EventTarget | null }): boolean {
-  return e.target instanceof Element && e.target.closest('button, a, input, textarea, select, [contenteditable]') !== null;
+const INTERACTIVE = 'button, a, input, textarea, select, [contenteditable]';
+
+/**
+ * Un geste parti d'un élément interactif de la ligne lui appartient.
+ *
+ * Exception, `rowLinkIsRow` : le titre-lien (`TitleLink.tsx`, marqué
+ * `data-row-link`) est un `<a>`, mais seuls le clic molette et le
+ * ⌘/Ctrl-clic lui reviennent. L'appui long tactile qui en part reste celui de
+ * la ligne : le titre occupe une bonne part de la ligne, le menu ne doit pas
+ * cesser de s'ouvrir là où le doigt se pose le plus souvent.
+ */
+function fromInteractive(e: { target: EventTarget | null }, { rowLinkIsRow = false } = {}): boolean {
+  if (!(e.target instanceof Element)) return false;
+  const hit = e.target.closest(INTERACTIVE);
+  return hit !== null && !(rowLinkIsRow && hit.matches('[data-row-link]'));
 }
 
 /**
@@ -23,7 +35,9 @@ function targetsElement<T extends HTMLElement>(e: { target: EventTarget | null; 
 
 /**
  * Gestes d'une ligne ou d'une carte d'article : clic droit, touche Menu et appui
- * long ouvrent le menu ; le clic molette ouvre l'article à sa source.
+ * long ouvrent le menu ; le clic molette ouvre l'article à sa source — sauf
+ * sur le titre, un vrai lien que le navigateur ouvre en arrière-plan
+ * (`TitleLink.tsx`).
  * Spec : docs/superpowers/specs/2026-09-13-article-context-menu-design.md
  *
  * ⚠️ Le clic droit des boutons Favori et À lire plus tard reste prioritaire :
@@ -72,7 +86,7 @@ export function useArticleMenuGestures(
       longPress.reset();
       // Un second doigt annule l'appui en cours, même posé sur un bouton.
       if (e.touches.length > 1) { longPress.onTouchStart(e); return; }
-      if (!onOpenMenu || fromInteractive(e)) return;
+      if (!onOpenMenu || fromInteractive(e, { rowLinkIsRow: true })) return;
       longPress.onTouchStart(e);
     },
     onTouchMove: (e: ReactTouchEvent<HTMLElement>) => {
@@ -105,10 +119,14 @@ export function useArticleMenuGestures(
       onDragStart?.(e);
     },
     // Clic molette : empêcher le défilement automatique (Windows, Linux)…
+    // Parti d'un lien — l'icône « ouvrir à la source » ou le titre
+    // (`TitleLink.tsx`) —, il appartient au navigateur, qui ouvre le lien en
+    // arrière-plan : ni `preventDefault`, ni `window.open` (qui, lui, ouvre
+    // toujours au premier plan).
     onMouseDown: (e: ReactMouseEvent<HTMLElement>) => {
       if (targetsElement(e) && e.button === 1 && !fromInteractive(e)) e.preventDefault();
     },
-    // …puis ouvrir à la source, exactement comme l'icône.
+    // …puis, ailleurs sur la ligne, ouvrir à la source, exactement comme l'icône.
     onAuxClick: (e: ReactMouseEvent<HTMLElement>) => {
       if (!targetsElement(e) || e.button !== 1 || fromInteractive(e)) return;
       e.preventDefault();

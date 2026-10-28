@@ -1128,6 +1128,18 @@ html {
   }
 }
 
+/* Le titre d'une ligne ou d'une carte est un vrai lien (`TitleLink.tsx`), pour
+   que le clic molette ouvre en arrière-plan. Il ne doit rien montrer de plus
+   qu'avant : couleur et soulignement sont hérités (préflight Tailwind), et
+   iOS ajoutait deux choses propres aux liens — la bulle d'aperçu à l'appui
+   long, qui passerait par-dessus le menu de l'article, et le flash gris au
+   toucher, que la ligne n'a pas. La ligne coupe déjà la bulle sous
+   `hover: none` ; sur le lien, la règle vaut sans condition de média. */
+.article-title-link {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .article-card__thumb {
   position: relative;
   aspect-ratio: 16 / 9;

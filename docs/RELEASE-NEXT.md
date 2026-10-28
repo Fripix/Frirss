@@ -62,6 +62,15 @@ _(rien pour l'instant)_
   annulation, et seul le bouton principal de la souris maintenu l'arme. Il
   n'existe plus qu'une seule implémentation de l'appui long dans toute l'app,
   au lieu de quatre.
+- **Clic molette sur le titre d'un article : l'onglet s'ouvre en
+  arrière-plan.** Il s'ouvrait au premier plan et faisait quitter FriRSS. Le
+  titre d'une ligne et d'une carte de la grille est désormais un vrai lien,
+  comme dans FreshRSS : clic molette, ⌘-clic ou Ctrl-clic l'ouvrent en
+  arrière-plan, et l'article est marqué lu sans changer celui qu'on lit. Le
+  clic simple sélectionne toujours l'article, l'apparence du titre ne change
+  pas, et l'appui long au doigt sur le titre ouvre toujours le menu. Ailleurs
+  sur la ligne, le clic molette garde son comportement. Seules les adresses
+  `http`/`https` deviennent un lien.
 - **Chinois : le statut des résumés et traductions IA se lit avec la virgule
   pleine chasse « ， »** au lieu d'une virgule latine en dur (en-tête du
   panneau, annonce aux lecteurs d'écran, bandeau de traduction). Nouvelle clé

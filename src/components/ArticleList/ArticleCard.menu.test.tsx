@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import ArticleCard from './ArticleCard';
 import { DEFAULT_ROW_ACTIONS } from '../../lib/rowActions';
+import { LONG_PRESS_MS } from '../../hooks/useLongPress';
 import type { Article } from '../../types';
 
 vi.mock('react-i18next', () => ({
@@ -35,7 +36,7 @@ function renderCard() {
       onOpenMenu={spies.onOpenMenu}
     />,
   );
-  return { ...spies, card: c.container.querySelector('[data-article-id="a1"]') as HTMLElement };
+  return { ...spies, card: c.container.querySelector('[data-article-id="a1"]') as HTMLElement, titleLink: c.container.querySelector('.article-card__title a') as HTMLAnchorElement | null };
 }
 
 describe('ArticleCard — menu', () => {
@@ -51,4 +52,21 @@ describe('ArticleCard — menu', () => {
     expect(onOpenSource).toHaveBeenCalledTimes(1);
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  it("appui long parti du titre (un lien) : le menu s'ouvre, le relâchement ne suit pas le lien", () => {
+    vi.useFakeTimers();
+    try {
+      const { titleLink, onOpenMenu, onSelect } = renderCard();
+      expect(titleLink).not.toBeNull();
+      fireEvent.touchStart(titleLink!, { touches: [{ clientX: 20, clientY: 30 }] });
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      fireEvent.touchEnd(titleLink!);
+      expect(fireEvent.click(titleLink!)).toBe(false);
+      expect(onOpenMenu).toHaveBeenCalledWith({ x: 20, y: 30 });
+      expect(onSelect).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
+

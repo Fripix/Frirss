@@ -19,11 +19,11 @@ const base = {
   read: false, starred: false, labels: [],
 } as unknown as Article;
 
-function renderRow(viewMode: string, withMenu = true) {
-  const spies = { onSelect: vi.fn(), onOpenSource: vi.fn(), onOpenMenu: vi.fn() };
+function renderRow(viewMode: string, withMenu = true, article: Article = base) {
+  const spies = { onSelect: vi.fn(), onOpenSource: vi.fn(), onOpenMenu: vi.fn(), onOpenedInBackground: vi.fn() };
   const c = render(
     <ArticleRow
-      article={base}
+      article={article}
       viewMode={viewMode}
       showSource
       rowActions={DEFAULT_ROW_ACTIONS}
@@ -34,10 +34,12 @@ function renderRow(viewMode: string, withMenu = true) {
       onToggleReadLater={() => {}}
       onOpenSource={spies.onOpenSource}
       onOpenMenu={withMenu ? spies.onOpenMenu : undefined}
+      onOpenedInBackground={spies.onOpenedInBackground}
     />,
   );
   const row = c.container.querySelector('[data-article-id="a1"]') as HTMLElement;
-  return { ...spies, c, row };
+  const titleLink = c.container.querySelector('.article-title a') as HTMLAnchorElement | null;
+  return { ...spies, c, row, titleLink };
 }
 
 const dataTransfer = { setData: vi.fn(), setDragImage: vi.fn(), effectAllowed: 'all' };
@@ -121,6 +123,104 @@ for (const viewMode of ['compact', 'normal']) {
     it('without onOpenMenu, the browser keeps its own menu', () => {
       const { row } = renderRow(viewMode, false);
       expect(fireEvent.contextMenu(row, { clientX: 40, clientY: 50 })).toBe(true);
+    });
+  });
+
+  describe(`ArticleRow (${viewMode}) — titre en lien`, () => {
+    it("le titre est un vrai lien vers l'article, hors de l'ordre de tabulation et non déplaçable", () => {
+      const { titleLink } = renderRow(viewMode);
+      expect(titleLink).not.toBeNull();
+      expect(titleLink!.getAttribute('href')).toBe('https://example.com/1');
+      expect(titleLink!.getAttribute('target')).toBe('_blank');
+      expect(titleLink!.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(titleLink!.getAttribute('tabindex')).toBe('-1');
+      expect(titleLink!.getAttribute('draggable')).toBe('false');
+      expect(titleLink!.textContent).toBe('Hello World');
+    });
+
+    it('clic gauche sur le titre : sélection, pas de navigation', () => {
+      const { titleLink, onSelect, onOpenedInBackground } = renderRow(viewMode);
+      expect(fireEvent.click(titleLink!)).toBe(false); // defaultPrevented
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(onOpenedInBackground).not.toHaveBeenCalled();
+    });
+
+    it('⌘-clic / Ctrl-clic sur le titre : ouverture native, marqué lu, PAS sélectionné', () => {
+      for (const mod of [{ metaKey: true }, { ctrlKey: true }]) {
+        const { titleLink, onSelect, onOpenedInBackground, onOpenSource, c } = renderRow(viewMode);
+        expect(fireEvent.click(titleLink!, mod)).toBe(true); // le navigateur ouvre l'onglet
+        expect(onOpenedInBackground).toHaveBeenCalledTimes(1);
+        expect(onSelect).not.toHaveBeenCalled();
+        expect(onOpenSource).not.toHaveBeenCalled();
+        c.unmount();
+      }
+    });
+
+    it('clic molette sur le titre : ouverture native (pas de window.open), marqué lu, pas sélectionné', () => {
+      const { titleLink, onSelect, onOpenSource, onOpenedInBackground } = renderRow(viewMode);
+      const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 1 });
+      titleLink!.dispatchEvent(down);
+      expect(down.defaultPrevented).toBe(false);
+      const aux = new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 });
+      titleLink!.dispatchEvent(aux);
+      expect(aux.defaultPrevented).toBe(false);
+      expect(onOpenSource).not.toHaveBeenCalled();
+      expect(onOpenedInBackground).toHaveBeenCalledTimes(1);
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("clic molette ailleurs sur la ligne : comportement d'aujourd'hui (ouverture à la source)", () => {
+      const { row, onOpenSource, onOpenedInBackground } = renderRow(viewMode);
+      const time = row.querySelector('[data-theme="list-time"]') as HTMLElement;
+      time.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }));
+      expect(onOpenSource).toHaveBeenCalledTimes(1);
+      expect(onOpenedInBackground).not.toHaveBeenCalled();
+    });
+
+    it("appui long parti du titre : le menu s'ouvre, le relâchement ne suit pas le lien", () => {
+      const { titleLink, onOpenMenu, onSelect } = renderRow(viewMode);
+      fireEvent.touchStart(titleLink!, { touches: [{ clientX: 20, clientY: 30 }] });
+      vi.advanceTimersByTime(LONG_PRESS_MS);
+      fireEvent.touchEnd(titleLink!);
+      expect(fireEvent.click(titleLink!)).toBe(false); // clic d'écho avalé, navigation empêchée
+      expect(onOpenMenu).toHaveBeenCalledWith({ x: 20, y: 30 });
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("Chrome Android : le drag natif d'un appui long sur le titre est annulé et ouvre le menu", () => {
+      const { titleLink, onOpenMenu } = renderRow(viewMode);
+      fireEvent.touchStart(titleLink!, { touches: [{ clientX: 20, clientY: 30 }] });
+      vi.advanceTimersByTime(495);
+      expect(fireEvent.dragStart(titleLink!, { dataTransfer })).toBe(false);
+      expect(dataTransfer.setData).not.toHaveBeenCalled();
+      expect(onOpenMenu).toHaveBeenCalledTimes(1);
+    });
+
+    it("un drag souris parti du titre emporte l'article, comme depuis le reste de la ligne", () => {
+      const { titleLink } = renderRow(viewMode);
+      fireEvent.mouseDown(titleLink!, { button: 0 });
+      expect(fireEvent.dragStart(titleLink!, { dataTransfer })).toBe(true);
+      expect(dataTransfer.setData).toHaveBeenCalledWith('application/frirss-article', 'a1');
+    });
+
+    it("le focus reçu par le titre (clic) revient à la ligne, comme avant le lien", () => {
+      const { titleLink, row } = renderRow(viewMode);
+      titleLink!.focus();
+      expect(document.activeElement).toBe(row);
+    });
+
+    it("Entrée sur le titre focalisé : une seule sélection, pas de navigation", () => {
+      const { titleLink, onSelect } = renderRow(viewMode);
+      expect(fireEvent.keyDown(titleLink!, { key: 'Enter' })).toBe(false);
+      expect(onSelect).toHaveBeenCalledTimes(1);
+    });
+
+    it("sans URL http(s), le titre n'est pas un lien et la ligne garde ses gestes", () => {
+      const { c, row, onOpenSource } = renderRow(viewMode, true, { ...base, url: 'javascript:alert(1)' } as Article);
+      expect(c.container.querySelector('.article-title a')).toBeNull();
+      const title = row.querySelector('.article-title') as HTMLElement;
+      title.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }));
+      expect(onOpenSource).toHaveBeenCalledTimes(1);
     });
   });
 }

@@ -14,11 +14,13 @@ import { shouldLoadMore, listBodyState, canLoadMore, searchAwareHasContinuation 
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { openArticleAtSource } from '../../lib/openArticleAtSource';
+import { markReadOnBackgroundOpen } from '../../lib/titleLink';
 import type { RowActionSettings } from '../../lib/rowActions';
 import { timeAgo } from '../../lib/timeAgo';
 import ViewModeSwitcher from './ViewModeSwitcher';
 import SwipeableArticleRow from './SwipeableArticleRow';
 import { ArticleRowActions } from './ArticleActions';
+import TitleLink from './TitleLink';
 import ArticleCard from './ArticleCard';
 import FeedFavicon from '../FeedFavicon';
 import BottomSheet from '../BottomSheet';
@@ -201,6 +203,7 @@ export default function ArticleList() {
         openArticleAtSource(article, selectArticleAtSource);
       }}
       onOpenMenu={(point) => setArticleMenu({ articleId: article.id, view: currentView, ...point })}
+      onOpenedInBackground={() => markReadOnBackgroundOpen(article, toggleRead)}
     />
   );
 
@@ -1148,6 +1151,9 @@ export default function ArticleList() {
                         openArticleAtSource(article, selectArticleAtSource);
                       }}
                       onOpenMenu={(point) => setArticleMenu({ articleId: article.id, view: currentView, ...point })}
+                      // Titre ouvert en arrière-plan : marqué lu, PAS sélectionné
+                      // — le volet garde l'article en cours (`titleLink.ts`).
+                      onOpenedInBackground={() => markReadOnBackgroundOpen(article, toggleRead)}
                     />
                   );
 
@@ -1585,6 +1591,8 @@ interface ArticleRowProps {
   onOpenSource: (e: ReactMouseEvent) => void;
   /** Clic droit, touche Menu ou appui long : ouvre le menu de l'article. Absent, le navigateur garde son menu. */
   onOpenMenu?: (point: { x: number; y: number }) => void;
+  /** Le titre-lien a été ouvert par le navigateur (clic molette, ⌘/Ctrl-clic) : marquer lu sans sélectionner. Voir `TitleLink`. */
+  onOpenedInBackground?: () => void;
 }
 
 /**
@@ -1594,7 +1602,7 @@ interface ArticleRowProps {
  * tenaient qu'à travers la carte de la vue grille. `ArticleList` reste
  * l'unique consommateur applicatif.
  */
-export function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu }: ArticleRowProps) {
+export function ArticleRow({ article, viewMode, showSource, rowActions, favicon, staggerIndex, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu, onOpenedInBackground }: ArticleRowProps) {
   const { t } = useTranslation();
   // Les appuis longs de la ligne et de ses boutons : le registre du balayage
   // qui l'enveloppe sur mobile, sinon le sien — le drag natif de la ligne
@@ -1674,7 +1682,9 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
           data-theme={article.read ? 'list-title-read' : 'list-title'}
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
         >
-          <Highlighted text={article.title} terms={searchTerms} />
+          <TitleLink url={article.url} onOpenedInBackground={onOpenedInBackground}>
+            <Highlighted text={article.title} terms={searchTerms} />
+          </TitleLink>
         </span>
         <span className="text-[10px] flex-shrink-0" data-theme="list-time" style={{ color: 'var(--list-time)' }}>
           {timeAgo(article.published, t)}
@@ -1756,7 +1766,9 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
           data-theme={article.read ? 'list-title-read' : 'list-title'}
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
         >
-          <Highlighted text={article.title} terms={searchTerms} />
+          <TitleLink url={article.url} onOpenedInBackground={onOpenedInBackground}>
+            <Highlighted text={article.title} terms={searchTerms} />
+          </TitleLink>
         </h3>
 
         {viewMode !== 'compact' && (

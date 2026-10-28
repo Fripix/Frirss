@@ -8,6 +8,7 @@ import { extractYouTubeId } from '../../lib/youtube';
 import type { RowActionSettings } from '../../lib/rowActions';
 import { ArticleRowActions } from './ArticleActions';
 import Highlighted from './Highlighted';
+import TitleLink from './TitleLink';
 import { resultSummary } from '../../lib/searchHighlight';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 
@@ -25,10 +26,12 @@ interface ArticleCardProps {
   onOpenSource: (e: ReactMouseEvent) => void;
   /** Clic droit, touche Menu ou appui long : ouvre le menu de l'article. Absent, le navigateur garde son menu. */
   onOpenMenu?: (point: { x: number; y: number }) => void;
+  /** Le titre-lien a été ouvert par le navigateur (clic molette, ⌘/Ctrl-clic) : marquer lu sans sélectionner. Voir `TitleLink`. */
+  onOpenedInBackground?: () => void;
 }
 
 export default function ArticleCard({
-  article, showSource, rowActions, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu,
+  article, showSource, rowActions, active, searchTerms, onSelect, onToggleStar, onToggleRead, onToggleReadLater, onOpenSource, onOpenMenu, onOpenedInBackground,
 }: ArticleCardProps) {
   const { t } = useTranslation();
   const gestures = useArticleMenuGestures(onOpenMenu, onOpenSource);
@@ -77,7 +80,9 @@ export default function ArticleCard({
           <span className="article-card__time">{timeAgo(article.published, t)}</span>
         </div>
         <h3 className="article-card__title article-title" dir="auto">
-          <Highlighted text={article.title} terms={searchTerms} />
+          <TitleLink url={article.url} onOpenedInBackground={onOpenedInBackground}>
+            <Highlighted text={article.title} terms={searchTerms} />
+          </TitleLink>
         </h3>
         <p className="article-card__summary" dir="auto">
           <Highlighted text={resultSummary(article, searchTerms ?? [])} terms={searchTerms} />
