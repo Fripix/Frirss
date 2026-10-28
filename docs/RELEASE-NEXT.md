@@ -78,6 +78,17 @@ _(rien pour l'instant)_
   refiltrée avec tout ce qui précède), et les articles gardés en mémoire pour
   la recherche sont libérés à la déconnexion.
 
+- **« Tout lu au-dessus / en dessous » : la barre de progression s'allume, et
+  deux marquages d'affilée se suivent.** Le marquage n'avait aucun signe à
+  l'écran ; il utilise désormais la barre du haut, comme « Tout lu » — chiffrée
+  (par lots de cent) en « au-dessus » une fois le total connu. Lancer un second
+  marquage avant la fin du premier le met en attente (la barre est déjà là)
+  au lieu de le croiser : avant, un premier marquage refusé pouvait repasser
+  non lues des lignes que le second venait de marquer, et la recherche
+  pouvait montrer lus des articles que le serveur avait en non-lus pendant
+  cinq minutes. Même chose quand on rafraîchit pendant qu'un marquage est en
+  vol dans une recherche.
+
 ## Sous le capot
 
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,

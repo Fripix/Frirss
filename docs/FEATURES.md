@@ -1177,22 +1177,41 @@ FreshRSS, où le titre est un vrai lien.
   l'aller INCONDITIONNELLEMENT (une plage dépasse ce qui est chargé), et
   annulé de la même façon — **même quand aucune ligne de la plage n'est
   affichée**, puisque le corpus connaît des articles que la liste n'a jamais
-  chargés. Ce qu'il épargne au retour : ce que le serveur a confirmé, et ce
-  qui était déjà lu avant l'action. Les résultats de la recherche affichée
+  chargés. Ce qu'il épargne au retour : ce que le serveur a confirmé, et tout
+  ce que CETTE action n'avait pas fait passer lu (déjà lu avant elle, ou
+  arrivé depuis dans le corpus). Les résultats de la recherche affichée
   (`searchResults`) suivent le corpus, aller et retour, par le même critère
   (`inEntryRange`).
-- **Limite connue — deux marquages de plage qui se chevauchent** : si un
-  second « au-dessus »/« en dessous » part pendant qu'un premier est encore en
-  vol, la garde du corpus de recherche gardé compare une RÉFÉRENCE d'objet
-  (`corpusALancement`) — le second marquage en a construit une nouvelle en le
-  patchant à son tour (un ✓ ou un Rafraîchir qui complète la recherche en
-  construisent une aussi), donc au retour le premier voit un corpus qui n'est plus
-  le sien et saute son annulation si le serveur le refuse. Une recherche
-  ultérieure dans le même périmètre, servie depuis ce corpus gardé en mémoire
-  plutôt que rechargée, peut alors montrer lus des articles que le serveur a
-  toujours en non-lus — jusqu'à cinq minutes, la durée de vie du corpus
-  (`CORPUS_TTL_MS`, `src/lib/searchCorpus.ts`), après quoi il expire et la
-  recherche suivante repart du serveur.
+- **Un marquage de plage se voit, et deux marquages se suivent** (1.7.1).
+  *Progression* : la barre du haut (`feedStore.bulkWork`, `TopProgressBar`,
+  la même que pour « Tout lu ») s'allume dès la demande, indéterminée ; en
+  « au-dessus », elle se chiffre une fois le relevé des identifiants rendu
+  (`total` = le nombre d'identifiants, `done` croît de cent en cent, à chaque
+  lot accepté). « En dessous » est un seul appel : elle reste indéterminée.
+  Aucun élément d'interface nouveau. Le champ est partagé par toutes les
+  écritures de masse : un **compteur** (`bulkPending`, `beginBulk` /
+  `endBulk`) ne l'éteint que quand la dernière est réglée — « Tout lu » et le
+  retour en arrière du bandeau s'y rangent aussi, sans quoi la première à
+  finir éteignait la barre des autres. *File* : `markReadRelative` se range
+  derrière le marquage précédent (`rangeQueue`), réussi ou refusé, au lieu de
+  le croiser ; une file vide part dans l'appel même (le ✓ optimiste se voit au
+  clic). Un marquage qui attend montre déjà la barre. Croisés, deux marquages
+  se marchaient dessus : le retour en arrière du premier repassait non lues des
+  lignes que le second venait de marquer, et le corpus de recherche restait
+  optimiste. L'exécution calcule ce qu'elle touche **à son tour**, pas à la
+  demande, et si la vue a changé pendant l'attente le serveur reçoit quand même
+  l'ordre (le périmètre est figé au clic) mais aucune ligne affichée n'est
+  touchée. **« Tout lu » n'entre PAS dans cette file** : il agit sur la vue
+  courante au moment où il s'exécute (son état local, sa fermeture de
+  recherche), donc le différer l'appliquerait à un autre écran ; il partage
+  seulement la barre. Un « Tout lu » qui passe pendant un marquage de plage en
+  vol n'est donc pas ordonné avec lui.
+  *Le corpus ne se compare plus par référence* : le retour en arrière défait
+  les identifiants que CE marquage avait fait passer de non lu à lu
+  (`corpusModifie`, relevé avant le patch), sur le corpus qui est là au
+  retour. Un Rafraîchir pendant une recherche (`topUpSearch`) réaffecte
+  `searchCorpus` ; l'ancienne garde par référence renonçait alors et
+  laissait les lignes lues jusqu'à cinq minutes (`CORPUS_TTL_MS`).
 - **Limite connue — une catégorie contenant un flux marqué « important »
   côté FreshRSS** : « au-dessus » marque quand même ces articles, puisqu'il
   passe par leurs identifiants un par un (`itemIdsNewerThanEntry` puis
@@ -1543,7 +1562,8 @@ dialogue**, et **retour en arrière** une fois l'action faite.
     pastille ouverte — même convention que `ConfirmDialog`.
   - **Le reste des écritures de masse se voit dans la barre du haut**
     (`feedStore.bulkWork`, `TopProgressBar`) : indéterminée pendant le relevé,
-    dont le total est inconnu, puis chiffrée. Elle couvre ce que le bandeau ne
+    dont le total est inconnu, puis chiffrée. Les marquages « au-dessus /
+    en dessous » s'y inscrivent aussi (voir leur entrée, plus haut). Elle couvre ce que le bandeau ne
     peut pas — le relevé qui précède le marquage, et le cas où l'on ferme le
     bandeau en cours de route.
   - **Si on valide avant la fin du relevé, la boîte RESTE et montre qu'elle

@@ -1702,7 +1702,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // rien à l'écran — « j'ai l'impression qu'il ne se passe parfois rien »
     // (2026-09-30). Le total n'est pas connu à cet instant : la barre dit
     // qu'on travaille, sans chiffrer ce qu'elle ignore.
-    set({ bulkWork: { done: 0, total: null } });
+    beginBulk();
     try {
       const avant = await (prepare?.streamId === streamId ? prepare.ids : snapshotUnread(streamId));
       await markAllAsRead(streamId);
@@ -1781,7 +1781,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         avant ? { action: { label: i18n.t('toast.undo'), run: () => restoreUnread(avant, toastId) } } : undefined,
       );
     } catch { /* ignore */ } finally {
-      set({ bulkWork: null });
+      endBulk();
     }
   },
 
@@ -1815,11 +1815,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
    *   pouvoir redevenir non lue si le serveur refuse : ce refus ne parle que
    *   de ce que CETTE action a changé. `touchedIds` exclut donc dès le
    *   départ ce qui était déjà lu, et le corpus de recherche suit la même
-   *   règle (I3) via `corpusDejaLus`.
+   *   règle (I3) via `corpusModifie`.
    */
-  markReadRelative: async (article: Article, direction: 'above' | 'below') => {
-    const { selectedFeed, filter, articles } = get();
-    if (!canMarkAllRead(filter)) return;
+  markReadRelative: (article: Article, direction: 'above' | 'below') => {
+    const { selectedFeed, filter } = get();
+    if (!canMarkAllRead(filter)) return Promise.resolve();
     const streamId = resolveSearchStreamId(selectedFeed, filter, get().subscriptions);
     const bound = { direction, articleId: article.id };
     const touche = (a: Article) => (direction === 'below'
@@ -1835,137 +1835,173 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // touche rien (`isOlderEntry` range tout identifiant illisible comme
     // « pas plus ancien »).
     const ts = direction === 'below' ? exclusiveOlderThanEntryId(article.id) : null;
-    if (direction === 'below' && ts === null) return;
+    if (direction === 'below' && ts === null) return Promise.resolve();
 
-    // Les lignes CHARGÉES que cette action fait passer lues, optimiste — le
-    // serveur en connaît sans doute d'autres, non chargées, qu'aucun marquage
-    // local ne peut anticiper. Seules les lignes ENCORE NON LUES entrent dans
-    // la plage touchée (C2) : une ligne déjà lue avant l'action n'a rien à y
-    // faire, sans quoi le rollback pourrait la repasser non lue à tort.
-    const touchedIds = new Set(articles.filter((a) => touche(a) && !a.read).map((a) => a.id));
+    // La vue où l'utilisateur a cliqué. L'exécution peut attendre la fin d'un
+    // marquage précédent : si la vue a changé entre-temps, `articles` n'est
+    // plus l'écran sur lequel il a demandé — le serveur reçoit quand même
+    // l'ordre (le périmètre, lui, est figé ci-dessus), mais aucune ligne
+    // affichée n'est touchée.
+    const vueDemandee = viewIdentity(get());
+    // Visible dès la demande, y compris pour un marquage qui attend son tour.
+    beginBulk();
 
-    // Le rollback compare des identifiants confirmés par le serveur à
-    // `touchedIds` : ces deux ensembles doivent vivre dans le MÊME espace
-    // (C1) — `touchedIds` porte la forme greader d'`Article.id`,
-    // `itemIdsNewerThanEntry` (« au-dessus ») le décimal nu de
-    // `stream/items/ids`. `entryIdUsec` ramène les deux au même décimal.
-    const versEspaceCommun = (id: string) => entryIdUsec(id) ?? id;
+    const executer = async () => {
+      const { articles } = get();
+      const memeVue = viewIdentity(get()) === vueDemandee;
 
-    // I3/C2 pour le corpus : quelles entrées, dans la plage, étaient DÉJÀ
-    // lues avant cette action ? Capturé ICI, avant tout patch optimiste —
-    // celui qui suit écrit `read: true` sur tout ce qu'il touche et
-    // effacerait la distinction entre « déjà lu » et « lu par cette action ».
-    const corpusDejaLus = new Set(
-      (searchCorpus?.entries ?? [])
-        .filter((e) => touche(e.article) && e.article.read)
-        .map((e) => e.article.id)
-    );
+      // Les lignes CHARGÉES que cette action fait passer lues, optimiste — le
+      // serveur en connaît sans doute d'autres, non chargées, qu'aucun marquage
+      // local ne peut anticiper. Seules les lignes ENCORE NON LUES entrent dans
+      // la plage touchée (C2) : une ligne déjà lue avant l'action n'a rien à y
+      // faire, sans quoi le rollback pourrait la repasser non lue à tort.
+      const touchedIds = new Set(
+        memeVue ? articles.filter((a) => touche(a) && !a.read).map((a) => a.id) : [],
+      );
 
-    if (touchedIds.size) {
-      set((s) => ({ articles: s.articles.map((a) => (touchedIds.has(a.id) ? { ...a, read: true } : a)) }));
-      bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
-    }
-    // I4 (régression de 85ac88f) : inconditionnel, contrairement au bloc
-    // ci-dessus — la plage dépasse ce qui est chargé localement (un balayage
-    // de recherche peut être allé plus loin qu'`articles`), donc
-    // `touchedIds` vide ne dit rien de ce que le corpus a à patcher. Le
-    // critère est un identifiant d'entrée, donc le corpus de recherche reste
-    // JUSTE : pas besoin de le jeter comme le fait « tout marquer comme lu »,
-    // ce qui refermerait la recherche en cours de l'utilisateur.
-    patchSearchCorpusByEntry(bound, { read: true });
+      // Le rollback compare des identifiants confirmés par le serveur à
+      // `touchedIds` : ces deux ensembles doivent vivre dans le MÊME espace
+      // (C1) — `touchedIds` porte la forme greader d'`Article.id`,
+      // `itemIdsNewerThanEntry` (« au-dessus ») le décimal nu de
+      // `stream/items/ids`. `entryIdUsec` ramène les deux au même décimal.
+      const versEspaceCommun = (id: string) => entryIdUsec(id) ?? id;
 
-    // Le corpus tel qu'on le laisse, PAR RÉFÉRENCE, juste après le patch
-    // ci-dessus. Chaque patch — et chaque nouvelle recherche — réaffecte
-    // `searchCorpus` à un nouvel objet : une inégalité au retour dit que ce
-    // n'est plus le même corpus, probablement celui d'une recherche démarrée
-    // entre-temps, dans un périmètre différent.
-    const corpusALancement = searchCorpus;
+      // I3/C2 pour le corpus : quelles entrées, dans la plage, CETTE action
+      // fait-elle passer de non lue à lue ? Capturé ICI, avant tout patch
+      // optimiste — celui qui suit écrit `read: true` sur tout ce qu'il touche
+      // et effacerait la distinction entre « déjà lu » et « lu par cette
+      // action ».
+      //
+      // C'est ce jeu d'identifiants — et non la référence du corpus — qui dit au
+      // retour en arrière ce qu'il a le droit de défaire. Une référence ne
+      // tenait pas : `topUpSearch` (Rafraîchir pendant une recherche) et chaque
+      // patch réaffectent `searchCorpus`, et le retour en arrière renonçait
+      // alors, laissant les lignes lues dans le corpus jusqu'à cinq minutes.
+      // Par identifiant, il défait ses lignes sur le corpus qui est là au
+      // retour, quel qu'il soit, et ne touche à rien d'autre.
+      const corpusModifie = new Set(
+        (searchCorpus?.entries ?? [])
+          .filter((e) => touche(e.article) && !e.article.read)
+          .map((e) => e.article.id)
+      );
 
-    // I1 (revue finale du 25/09) : la vue affichée au lancement. b91a246
-    // l'avait posée pour garder un refus de repeindre l'écran d'un autre
-    // flux ; 85ac88f l'a perdue en remplaçant l'instantané de LISTE
-    // (`avant`) par un recalcul sur `s.articles` — ce recalcul dit
-    // correctement CE QUI a été touché, mais ne dit rien de SUR QUEL ÉCRAN on
-    // le réécrit. Un identifiant peut réapparaître dans une autre vue,
-    // légitimement déjà lu pour des raisons qui lui sont propres : sans cette
-    // garde, le rollback d'une action périmée le repasserait non lu à tort.
-    // Seul le corpus (`corpusALancement`, juste au-dessus) avait gardé la
-    // sienne.
-    const vueALancement = viewIdentity(get());
-
-    // I1 (revue finale) : le retour en arrière ne restaure JAMAIS un
-    // instantané d'avant l'appel — il recalcule sur la liste TELLE QU'ELLE
-    // EST au moment du retour. Un ✓ posé ailleurs pendant le vol, ou une page
-    // arrivée depuis, ne doivent pas être défaits par cette action.
-    //
-    // I5 (revue finale) : seuls les identifiants qui n'ont PAS été confirmés
-    // par le serveur reviennent — les lots déjà acceptés restent lus.
-    const confirmed = new Set<string>();
-    const rollbackUnconfirmed = () => {
-      const unconfirmed = new Set([...touchedIds].filter((id) => !confirmed.has(versEspaceCommun(id))));
-      // ⚠️ Pas de sortie anticipée sur `unconfirmed` : le patch d'ALLER du
-      // corpus est inconditionnel (il porte sur une plage, pas sur la liste
-      // chargée), donc son annulation doit l'être aussi. Sans quoi une plage
-      // dont aucune ligne n'est à l'écran resterait marquée lue dans le corpus
-      // après un refus, et la recherche suivante — même périmètre, aucun
-      // réseau — ressortirait des articles lus que FreshRSS a en non-lus.
-      // La garde de vue (I1, ci-dessus), elle, ne s'applique qu'aux LIGNES :
-      // l'écran n'appartient plus à cette action si la vue a changé.
-      if (unconfirmed.size && viewIdentity(get()) === vueALancement) {
-        set((s) => ({
-          articles: s.articles.map((a) => (unconfirmed.has(a.id) && a.read ? { ...a, read: false } : a)),
-        }));
+      if (touchedIds.size) {
+        set((s) => ({ articles: s.articles.map((a) => (touchedIds.has(a.id) ? { ...a, read: true } : a)) }));
+        bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
       }
-      if (searchCorpus === corpusALancement) {
-        // I3 : n'annule ni ce que le serveur a confirmé, ni ce qui était déjà
-        // lu avant l'action — un simple critère de plage ne sait distinguer
-        // ni l'un ni l'autre.
+      // I4 (régression de 85ac88f) : inconditionnel, contrairement au bloc
+      // ci-dessus — la plage dépasse ce qui est chargé localement (un balayage
+      // de recherche peut être allé plus loin qu'`articles`), donc
+      // `touchedIds` vide ne dit rien de ce que le corpus a à patcher. Le
+      // critère est un identifiant d'entrée, donc le corpus de recherche reste
+      // JUSTE : pas besoin de le jeter comme le fait « tout marquer comme lu »,
+      // ce qui refermerait la recherche en cours de l'utilisateur.
+      patchSearchCorpusByEntry(bound, { read: true });
+
+      // I1 (revue finale du 25/09) : la vue affichée au lancement. b91a246
+      // l'avait posée pour garder un refus de repeindre l'écran d'un autre
+      // flux ; 85ac88f l'a perdue en remplaçant l'instantané de LISTE
+      // (`avant`) par un recalcul sur `s.articles` — ce recalcul dit
+      // correctement CE QUI a été touché, mais ne dit rien de SUR QUEL ÉCRAN on
+      // le réécrit. Un identifiant peut réapparaître dans une autre vue,
+      // légitimement déjà lu pour des raisons qui lui sont propres : sans cette
+      // garde, le rollback d'une action périmée le repasserait non lu à tort.
+      // Seul le corpus avait gardé la sienne (aujourd'hui `corpusModifie`).
+      const vueALancement = viewIdentity(get());
+
+      // I1 (revue finale) : le retour en arrière ne restaure JAMAIS un
+      // instantané d'avant l'appel — il recalcule sur la liste TELLE QU'ELLE
+      // EST au moment du retour. Un ✓ posé ailleurs pendant le vol, ou une page
+      // arrivée depuis, ne doivent pas être défaits par cette action.
+      //
+      // I5 (revue finale) : seuls les identifiants qui n'ont PAS été confirmés
+      // par le serveur reviennent — les lots déjà acceptés restent lus.
+      const confirmed = new Set<string>();
+      const rollbackUnconfirmed = () => {
+        const unconfirmed = new Set([...touchedIds].filter((id) => !confirmed.has(versEspaceCommun(id))));
+        // ⚠️ Pas de sortie anticipée sur `unconfirmed` : le patch d'ALLER du
+        // corpus est inconditionnel (il porte sur une plage, pas sur la liste
+        // chargée), donc son annulation doit l'être aussi. Sans quoi une plage
+        // dont aucune ligne n'est à l'écran resterait marquée lue dans le corpus
+        // après un refus, et la recherche suivante — même périmètre, aucun
+        // réseau — ressortirait des articles lus que FreshRSS a en non-lus.
+        // La garde de vue (I1, ci-dessus), elle, ne s'applique qu'aux LIGNES :
+        // l'écran n'appartient plus à cette action si la vue a changé.
+        if (unconfirmed.size && viewIdentity(get()) === vueALancement) {
+          set((s) => ({
+            articles: s.articles.map((a) => (unconfirmed.has(a.id) && a.read ? { ...a, read: false } : a)),
+          }));
+        }
+        // I3 : n'annule ni ce que le serveur a confirmé, ni ce que cette action
+        // n'avait pas changé (déjà lu avant elle, ou arrivé depuis) — un simple
+        // critère de plage ne sait distinguer aucun des deux.
         patchSearchCorpusByEntry(bound, { read: false }, (id) =>
-          confirmed.has(versEspaceCommun(id)) || corpusDejaLus.has(id));
+          confirmed.has(versEspaceCommun(id)) || !corpusModifie.has(id));
+      };
+
+      // I2 (revue finale) : posé AVANT l'appel réseau, levé dans le `finally`
+      // qui suit — comme `toggleRead`. Sans lui, un relevé de compteurs lancé
+      // pendant cette écriture ne la verrait pas et fabriquerait une fausse
+      // pastille « nouveaux articles » (voir la garde en tête de fichier).
+      readWritesInFlight++;
+      try {
+        try {
+          if (direction === 'below') {
+            await markAllAsRead(streamId, ts as string);
+            touchedIds.forEach((id) => confirmed.add(versEspaceCommun(id)));
+          } else {
+            const ids = await itemIdsNewerThanEntry(streamId, article.id);
+            // Le total n'est connu qu'ici : jusque-là la barre dit qu'on
+            // travaille sans chiffrer ce qu'elle ignore.
+            if (ids.length) set({ bulkWork: { done: 0, total: ids.length } });
+            // Par lots : `editTag` accepte un tableau, mais un millier de `i=`
+            // dans une URL ne passerait pas. Un lot refusé arrête les
+            // suivants — pas la peine d'envoyer ce que le serveur vient de
+            // refuser.
+            for (let i = 0; i < ids.length; i += 100) {
+              const lot = ids.slice(i, i + 100);
+              await markAsRead(lot);
+              lot.forEach((id) => confirmed.add(versEspaceCommun(id)));
+              set({ bulkWork: { done: i + lot.length, total: ids.length } });
+            }
+          }
+        } finally {
+          readWritesInFlight--;
+          bumpCountsEpoch(); // règlement (succès ou échec) — voir la garde en tête de fichier
+        }
+        // Combien d'articles le serveur a-t-il touché au-delà de ce qui est
+        // chargé ? Nous n'en savons rien, et nous ne le devinons pas : le
+        // relevé suivant rapporte le vrai compte. Une baisse n'est pas une
+        // arrivée, la pastille n'y verra donc rien.
+        await get().syncCounts();
+      } catch (err) {
+        rollbackUnconfirmed();
+        // Un lot accepté par le serveur avant l'échec d'un lot suivant reste lu
+        // côté serveur : seul un relevé fait foi, quoi qu'il soit arrivé aux
+        // lots.
+        await get().syncCounts();
+        // I3 (revue finale) : même décision que `toggleRead` — un refus ne se
+        // dit que si le serveur a répondu, le hors-ligne véritable reste muet.
+        await notifyRangeFailure(err);
       }
     };
 
-    // I2 (revue finale) : posé AVANT l'appel réseau, levé dans le `finally`
-    // qui suit — comme `toggleRead`. Sans lui, un relevé de compteurs lancé
-    // pendant cette écriture ne la verrait pas et fabriquerait une fausse
-    // pastille « nouveaux articles » (voir la garde en tête de fichier).
-    readWritesInFlight++;
-    try {
-      try {
-        if (direction === 'below') {
-          await markAllAsRead(streamId, ts as string);
-          touchedIds.forEach((id) => confirmed.add(versEspaceCommun(id)));
-        } else {
-          const ids = await itemIdsNewerThanEntry(streamId, article.id);
-          // Par lots : `editTag` accepte un tableau, mais un millier de `i=`
-          // dans une URL ne passerait pas. Un lot refusé arrête les
-          // suivants — pas la peine d'envoyer ce que le serveur vient de
-          // refuser.
-          for (let i = 0; i < ids.length; i += 100) {
-            const lot = ids.slice(i, i + 100);
-            await markAsRead(lot);
-            lot.forEach((id) => confirmed.add(versEspaceCommun(id)));
-          }
-        }
-      } finally {
-        readWritesInFlight--;
-        bumpCountsEpoch(); // règlement (succès ou échec) — voir la garde en tête de fichier
-      }
-      // Combien d'articles le serveur a-t-il touché au-delà de ce qui est
-      // chargé ? Nous n'en savons rien, et nous ne le devinons pas : le
-      // relevé suivant rapporte le vrai compte. Une baisse n'est pas une
-      // arrivée, la pastille n'y verra donc rien.
-      await get().syncCounts();
-    } catch (err) {
-      rollbackUnconfirmed();
-      // Un lot accepté par le serveur avant l'échec d'un lot suivant reste lu
-      // côté serveur : seul un relevé fait foi, quoi qu'il soit arrivé aux
-      // lots.
-      await get().syncCounts();
-      // I3 (revue finale) : même décision que `toggleRead` — un refus ne se
-      // dit que si le serveur a répondu, le hors-ligne véritable reste muet.
-      await notifyRangeFailure(err);
-    }
+    // En file : le second marquage attend la fin du premier au lieu de le
+    // croiser. Croisés, chacun patchait le corpus et l'écran pendant que
+    // l'autre était en vol, puis un retour en arrière repassait non lues des
+    // lignes que l'autre avait marquées — et le corpus restait optimiste.
+    // `executer` ne rejette jamais (son `catch` avale tout) ; la barre est
+    // levée dans tous les cas.
+    //
+    // File vide : l'exécution part tout de suite, dans cet appel — le ✓
+    // optimiste doit se voir au clic, pas un tour de boucle plus tard.
+    const attente = rangeWaiting++ > 0;
+    const run = (attente ? rangeQueue.then(executer) : executer()).finally(() => {
+      rangeWaiting--;
+      endBulk();
+    });
+    rangeQueue = run.then(() => {}, () => {});
+    return run;
   },
 
   // Labels / tags — exclude categories (which are used for feeds)
@@ -2631,6 +2667,43 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 }));
 
 /**
+ * La file des marquages de plage (« lu au-dessus / en dessous »).
+ *
+ * Chaînée plutôt que verrouillée : chaque demande se range derrière la
+ * précédente et son exécution part dès que celle-ci est réglée, réussie ou
+ * non. Voir `markReadRelative`.
+ */
+let rangeQueue: Promise<void> = Promise.resolve();
+/** Marquages de plage demandés et pas encore réglés : zéro = la file est vide, on part sans attendre. */
+let rangeWaiting = 0;
+
+/**
+ * Combien d'écritures de masse sont demandées ou en cours (marquages de
+ * plage, « tout lu »). `bulkWork` est UN seul champ que toutes se partagent :
+ * sans compte, la première à finir éteignait la barre de celles qui
+ * tournaient encore.
+ */
+let bulkPending = 0;
+
+/** Le champ `bulkWork` tel qu'il doit être quand rien ne le précise : allumé tant qu'une écriture est attendue. */
+function refreshBulkDisplay(): void {
+  useFeedStore.setState({ bulkWork: bulkPending > 0 ? { done: 0, total: null } : null });
+}
+
+/** Une écriture de masse est demandée : la barre s'allume tout de suite, indéterminée. */
+function beginBulk(): void {
+  bulkPending++;
+  // Ne pas écraser l'avancement chiffré d'une écriture déjà en cours.
+  if (!useFeedStore.getState().bulkWork) refreshBulkDisplay();
+}
+
+/** Elle est réglée. La barre ne s'éteint que s'il n'en reste aucune ; sinon elle repart indéterminée. */
+function endBulk(): void {
+  bulkPending = Math.max(0, bulkPending - 1);
+  refreshBulkDisplay();
+}
+
+/**
  * Combien d'identifiants par écriture de retour en arrière.
  *
  * 100, la taille qu'emploie déjà le marquage de plage sans jamais avoir posé
@@ -2713,7 +2786,8 @@ async function restoreUnread(ids: readonly string[], toastId: number): Promise<v
       });
     }
   } finally {
-    useFeedStore.setState({ bulkWork: null });
+    // Pas `bulkWork: null` en dur : un marquage de plage peut tourner encore.
+    refreshBulkDisplay();
   }
 
   bumpCountsEpoch();

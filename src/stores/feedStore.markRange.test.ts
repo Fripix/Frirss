@@ -9,6 +9,7 @@ vi.mock('../api/feeds', async () => {
     markAsRead: vi.fn().mockResolvedValue(undefined),
     itemIdsNewerThanEntry: vi.fn().mockResolvedValue([]),
     getUnreadCounts: vi.fn().mockResolvedValue([]),
+    getUnreadItemIds: vi.fn().mockResolvedValue({ ids: [], complete: true }),
     fetchStreamPage: vi.fn(),
   };
 });
@@ -226,7 +227,7 @@ describe('markReadRelative — périmètre refusé (C1)', () => {
 });
 
 // I1 (revue finale du 25/09) : le retour en arrière des LIGNES doit porter sa
-// propre garde de vue, comme le corpus porte la sienne (`corpusALancement`
+// propre garde de vue, comme le corpus porte la sienne (`corpusModifie`
 // plus bas) — b91a246 l'avait posée (`vueALancement`, capturée avant l'appel
 // réseau), mais 85ac88f l'a perdue en remplaçant l'instantané de liste par un
 // recalcul sur `s.articles` : ce recalcul protège CE QUI est touché, jamais
@@ -649,5 +650,191 @@ describe('markReadRelative — jamais redevenu non lu ce qui était déjà lu (C
 
     const parId = Object.fromEntries(useFeedStore.getState().articles.map((a) => [a.id, a.read]));
     expect(parId[vieuxId]).toBe(true);
+  });
+});
+
+// Un marquage de plage est un travail de plusieurs secondes : il le dit (la
+// barre du haut, comme « tout lu »), et deux marquages se suivent au lieu de
+// se croiser.
+const differe = <T = void>() => {
+  let resoudre!: (v: T) => void;
+  let rejeter!: (e: unknown) => void;
+  const promesse = new Promise<T>((res, rej) => { resoudre = res; rejeter = rej; });
+  return { promesse, resoudre, rejeter };
+};
+const flushTout = () => new Promise((r) => setTimeout(r, 0));
+
+describe('markReadRelative — la progression', () => {
+  beforeEach(() => {
+    useFeedStore.setState({ bulkWork: null } as never);
+  });
+
+  it('a range mark shows progress, batch by batch, and clears it afterwards', async () => {
+    vi.mocked(itemIdsNewerThanEntry).mockResolvedValue(Array.from({ length: 250 }, (_, i) => `id${i}`));
+    const echantillons: Array<{ done: number; total: number | null } | null> = [];
+    const desabonner = useFeedStore.subscribe((s, prev) => {
+      if (s.bulkWork !== prev.bulkWork) echantillons.push(s.bulkWork);
+    });
+
+    const promesse = useFeedStore.getState().markReadRelative(pivot, 'above');
+    // Visible dès la demande, avant même que le relevé ne réponde.
+    expect(useFeedStore.getState().bulkWork).not.toBeNull();
+    await promesse;
+    desabonner();
+
+    const vus = echantillons.filter((b): b is { done: number; total: number | null } => b !== null);
+    expect(vus).toContainEqual({ done: 0, total: 250 });
+    expect(vus).toContainEqual({ done: 100, total: 250 });
+    expect(vus).toContainEqual({ done: 200, total: 250 });
+    expect(vus).toContainEqual({ done: 250, total: 250 });
+    const dones = vus.filter((b) => b.total === 250).map((b) => b.done);
+    expect(dones).toEqual([...dones].sort((a, b) => a - b));
+    expect(useFeedStore.getState().bulkWork).toBeNull();
+  });
+
+  it('clears the progress when the server refuses', async () => {
+    vi.mocked(markAllAsRead).mockRejectedValueOnce(refus);
+    const promesse = useFeedStore.getState().markReadRelative(pivot, 'below');
+    expect(useFeedStore.getState().bulkWork).not.toBeNull();
+    await promesse;
+    expect(useFeedStore.getState().bulkWork).toBeNull();
+  });
+
+  it('a mark that waits for the previous one already shows it is waiting', async () => {
+    const premier = differe();
+    vi.mocked(markAllAsRead).mockReturnValueOnce(premier.promesse);
+
+    const p1 = useFeedStore.getState().markReadRelative(pivot, 'below');
+    const p2 = useFeedStore.getState().markReadRelative(neuf, 'below');
+    expect(useFeedStore.getState().bulkWork).not.toBeNull();
+
+    premier.resoudre();
+    await p1;
+    // Le premier a fini, le second attend/travaille encore : la barre ne s'éteint pas entre les deux.
+    expect(useFeedStore.getState().bulkWork).not.toBeNull();
+    await p2;
+    expect(useFeedStore.getState().bulkWork).toBeNull();
+  });
+
+  it('« tout lu » finishing does not switch off the bar of a range mark still running', async () => {
+    const plage = differe();
+    vi.mocked(markAllAsRead).mockReturnValueOnce(plage.promesse); // la plage, en vol
+
+    const p1 = useFeedStore.getState().markReadRelative(pivot, 'below');
+    await useFeedStore.getState().markAllAsRead(); // « tout lu » complet, pendant ce temps
+    expect(useFeedStore.getState().bulkWork).not.toBeNull();
+
+    plage.resoudre();
+    await p1;
+    expect(useFeedStore.getState().bulkWork).toBeNull();
+  });
+});
+
+describe('markReadRelative — deux marquages qui se chevauchent', () => {
+  it('two overlapping range marks run one after the other', async () => {
+    const premier = differe();
+    vi.mocked(markAllAsRead).mockReturnValueOnce(premier.promesse);
+    vi.mocked(itemIdsNewerThanEntry).mockResolvedValue(['9000000000000001']);
+
+    const p1 = useFeedStore.getState().markReadRelative(pivot, 'below');
+    const p2 = useFeedStore.getState().markReadRelative(pivot, 'above');
+    await flushTout();
+
+    // Le second n'a rien envoyé tant que le premier n'a pas répondu.
+    expect(markAllAsRead).toHaveBeenCalledTimes(1);
+    expect(itemIdsNewerThanEntry).not.toHaveBeenCalled();
+    expect(markAsRead).not.toHaveBeenCalled();
+
+    premier.resoudre();
+    await Promise.all([p1, p2]);
+
+    expect(itemIdsNewerThanEntry).toHaveBeenCalledTimes(1);
+    expect(markAsRead).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().articles.map((a) => [a.id, a.read])).toEqual([
+      [neufId, true], [pivotId, false], [vieuxId, true],
+    ]);
+  });
+
+  it('a failed first mark does not revert rows the second marked', async () => {
+    const premier = differe();
+    vi.mocked(markAllAsRead).mockReturnValueOnce(premier.promesse); // 2e appel : résolu d'emblée
+
+    // 1er : en dessous du pivot (marque `vieux`) ; 2e : en dessous de `neuf`
+    // (marque `pivot` ET `vieux`).
+    const p1 = useFeedStore.getState().markReadRelative(pivot, 'below');
+    const p2 = useFeedStore.getState().markReadRelative(neuf, 'below');
+    premier.rejeter(refus);
+    await Promise.all([p1, p2]);
+
+    // Le serveur a refusé le premier et accepté le second, qui couvre `vieux`.
+    expect(useFeedStore.getState().articles.map((a) => [a.id, a.read])).toEqual([
+      [neufId, false], [pivotId, true], [vieuxId, true],
+    ]);
+  });
+
+  describe('avec un corpus de recherche', () => {
+    const buildCorpus = async () => {
+      page.mockResolvedValueOnce({
+        items: [item(neufId, 'neuf terme', 3), item(pivotId, 'pivot terme', 2), item(vieuxId, 'vieux terme', 1)],
+        continuation: null,
+      });
+      await useFeedStore.getState().search('terme');
+      return useFeedStore.getState().searchResults;
+    };
+    const luDansLeCorpus = async () => {
+      page.mockClear();
+      await useFeedStore.getState().search('terme'); // même périmètre : rend le corpus, sans réseau
+      expect(page).not.toHaveBeenCalled();
+      return Object.fromEntries(useFeedStore.getState().searchResults.map((a) => [a.id, a.read]));
+    };
+
+    it('the corpus is never left optimistic after two marks', async () => {
+      const [neufHit, pivotHit] = await buildCorpus();
+      // Deux refus : rien n'a changé côté serveur, le corpus doit tout rendre non lu.
+      vi.mocked(markAllAsRead).mockRejectedValueOnce(refus).mockRejectedValueOnce(refus);
+
+      const p1 = useFeedStore.getState().markReadRelative(pivotHit, 'below');
+      const p2 = useFeedStore.getState().markReadRelative(neufHit, 'below');
+      await Promise.all([p1, p2]);
+
+      expect(await luDansLeCorpus()).toEqual({ [neufId]: false, [pivotId]: false, [vieuxId]: false });
+    });
+
+    it('the corpus keeps what the second mark confirmed when the first is refused', async () => {
+      const [neufHit, pivotHit] = await buildCorpus();
+      vi.mocked(markAllAsRead).mockRejectedValueOnce(refus).mockResolvedValueOnce(undefined);
+
+      await Promise.all([
+        useFeedStore.getState().markReadRelative(pivotHit, 'below'),
+        useFeedStore.getState().markReadRelative(neufHit, 'below'),
+      ]);
+
+      expect(await luDansLeCorpus()).toEqual({ [neufId]: false, [pivotId]: true, [vieuxId]: true });
+    });
+
+    // Rafraîchir pendant un marquage en vol : `topUpSearch` réaffecte le
+    // corpus (il y ajoute les entrées plus récentes). Un retour en arrière
+    // qui comparait le corpus PAR RÉFÉRENCE renonçait alors, et les lignes
+    // restaient lues dans le corpus jusqu'à cinq minutes.
+    it('a refresh during an in-flight mark does not strand the corpus as read', async () => {
+      const [, pivotHit] = await buildCorpus();
+      const enVol = differe();
+      vi.mocked(markAllAsRead).mockReturnValueOnce(enVol.promesse);
+
+      const promesse = useFeedStore.getState().markReadRelative(pivotHit, 'below');
+      const frais = 'tag:google.com,2005:reader/item/00065a872a7552ff'; // plus récent que `neuf`
+      page.mockResolvedValueOnce({
+        items: [item(frais, 'frais terme', 4), item(neufId, 'neuf terme', 3)],
+        continuation: null,
+      });
+      await useFeedStore.getState().loadArticles(); // topUpSearch : le corpus change d'objet
+
+      enVol.rejeter(refus);
+      await promesse;
+
+      const lu = await luDansLeCorpus();
+      expect(lu[frais]).toBe(false); // l'entrée arrivée entre-temps n'a jamais été touchée
+      expect(lu[vieuxId]).toBe(false); // la ligne que CE marquage avait passée lue revient
+    });
   });
 });
