@@ -856,7 +856,11 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
     // tant que le menu est ouvert (`data-floating-surface`), et seul le champ
     // de renommage écoutait la touche. Capture + stopPropagation : un seul
     // effet par pression.
+    // Pendant la confirmation, Échap appartient à la boîte : elle le refuse
+    // tant qu'elle travaille, et cet écouteur, posé avant le sien sur le même
+    // nœud, la refermait quand même en pleine requête.
     function handleKey(e: KeyboardEvent) {
+      if (modeRef.current === 'confirmDelete') return;
       if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
     }
     document.addEventListener('pointerdown', handleClick);

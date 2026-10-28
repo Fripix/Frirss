@@ -1888,6 +1888,11 @@ est marqué lu une seconde après être sorti par le **haut** de la liste.
 Confirmation optionnelle avant de vider une vue entière, **par une boîte de
 dialogue**, et **retour en arrière** une fois l'action faite.
 
+- **Garde serveur/session** (1.8.0) : la même que les marquages de plage
+  (`memeContexte`), vérifiée après le relevé des non-lus, après l'envoi, et
+  avant un retour en arrière. Basculer de serveur pendant le relevé envoyait
+  `mark-all-as-read feed/12` au serveur devenu actif, où les identifiants se
+  recouvrent (`feedStore.markAllServer.test.ts`).
 - **Où** : `src/lib/markAllRead.ts`, `src/components/ConfirmDialog.tsx`
 - **La même boîte pour toute action qui défait ou supprime** (1.8.0,
   décision du propriétaire) : réinitialiser le thème, les couleurs, les
@@ -5691,6 +5696,13 @@ Stockage clé/valeur par utilisateur (`preferences`), fusionné clé par clé
 (`INSERT OR REPLACE`), alimenté par `src/lib/prefsSync.ts` qui n'envoie que
 les clés modifiées sur l'appareil.
 
+- **Suivi dès la première lecture** (1.8.0) : les abonnements aux stores sont
+  posés dès le premier `hydratePrefs`, réussi ou non. Une modification faite
+  pendant une lecture en échec (PWA ouverte hors ligne) est retenue en mémoire
+  — rien n'est envoyé ni persisté avant une lecture réussie — puis gagne sur le
+  serveur et part. Avant, personne ne la suivait et la lecture finalement
+  réussie la recouvrait. `dirtyOwner` garde le compte de ces clés pendant les
+  réessais (`owner` n'est fixé qu'au succès : chaque réessai les aurait vidées).
 - **Où** : `server/routes/preferences.ts`
 - **Bornes** : clé ≤ 128 caractères, valeur ≤ 1 Mio, 200 clés par requête,
   500 clés stockées par utilisateur. Calibrées très au-dessus du client réel —

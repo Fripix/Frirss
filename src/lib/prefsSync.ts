@@ -65,6 +65,10 @@ let generation = 0;
 let refreshSeq = 0;
 // Le compte auquel appartiennent `known` et `dirty` en mémoire.
 let owner: number | null = null;
+// Le compte des clés retenues en mémoire PENDANT une lecture pas encore
+// réussie : `owner` n'est fixé qu'au succès, et chaque réessai aurait sinon
+// vidé ce qui avait été modifié entre-temps.
+let dirtyOwner: number | null = null;
 
 // Dernière valeur connue du serveur, clé par clé, et clés modifiées ici.
 let known: PrefsSnapshot = {};
@@ -254,18 +258,30 @@ function track(keys: readonly string[], state: unknown, prev: unknown): void {
       touched = true;
     }
   }
-  if (touched) {
+  // Avant la première lecture réussie, la clé est seulement retenue en
+  // mémoire : rien ne part (aucune valeur connue du serveur ne dit encore ce
+  // qui a changé), et rien n'est persisté sous un compte pas encore confirmé.
+  if (touched && started) {
     persistDirty();
     schedulePush();
   }
 }
 
-// Subscribe to both stores; push when any synced field changes by reference.
-function startSync(): void {
-  if (started) return;
-  started = true;
+// Suivre les deux stores. Posé dès la PREMIÈRE lecture, réussie ou non : une
+// modification faite pendant une panne (PWA ouverte hors ligne) n'était
+// suivie par personne, et la lecture finalement réussie la recouvrait de la
+// valeur du serveur, sans rien dire.
+function startTracking(): void {
+  if (unsubUi) return;
   unsubUi = useUiStore.subscribe((state, prev) => track(UI_SYNC_KEYS, state, prev));
   unsubTheme = useThemeStore.subscribe((state, prev) => track(THEME_SYNC_KEYS, state, prev));
+}
+
+// Write-through : à partir de la première lecture réussie.
+function startSync(): void {
+  startTracking();
+  if (started) return;
+  started = true;
   if (typeof window !== 'undefined') window.addEventListener('online', onOnline);
 }
 
@@ -282,7 +298,7 @@ export async function hydratePrefs(): Promise<void> {
   // sales persistées restent à leur compte ; celles de ce compte-ci sont
   // relues du stockage une fois la lecture faite.
   const me = currentOwner();
-  if (me !== owner) {
+  if (me !== owner && me !== dirtyOwner) {
     if (timer) {
       clearTimeout(timer);
       timer = null;
@@ -291,6 +307,9 @@ export async function hydratePrefs(): Promise<void> {
     pushRetryDelay = 0;
     dirty = new Set();
   }
+  dirtyOwner = me;
+
+  startTracking();
 
   let serverPrefs: Record<string, unknown>;
   try {
@@ -322,10 +341,14 @@ export async function hydratePrefs(): Promise<void> {
   const local = collectPrefs();
   const storedKnown = mine ? readStored<PrefsSnapshot>(KNOWN_STORAGE) : null;
   const storedDirty = mine ? readStored<string[]>(DIRTY_STORAGE) : null;
-  dirty = new Set(
-    (Array.isArray(storedDirty) ? storedDirty : []).filter((k) =>
+  // Les clés touchées ICI pendant l'attente de cette lecture (même compte :
+  // `dirty` a été vidé plus haut si le compte a changé) s'y ajoutent.
+  const meanwhile = dirty;
+  dirty = new Set([
+    ...(Array.isArray(storedDirty) ? storedDirty : []).filter((k) =>
       SYNCED_KEYS.includes(k) && (!storedKnown || changedKeys({ [k]: local[k] }, storedKnown).length > 0)),
-  );
+    ...meanwhile,
+  ]);
   const pending = pickKeys(local, [...dirty]);
 
   if (hasAny) applyQuietly(serverPrefs);
@@ -417,6 +440,7 @@ export function stopSync(): void {
   known = {};
   dirty = new Set();
   owner = null;
+  dirtyOwner = null;
   try {
     localStorage.removeItem(KNOWN_STORAGE);
     localStorage.removeItem(DIRTY_STORAGE);

@@ -64,6 +64,32 @@ describe('hydratePrefs — lecture en échec', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  // Une modification faite pendant la panne n'était suivie par personne : la
+  // lecture finalement réussie la recouvrait de la valeur du serveur, sans
+  // rien dire (PWA ouverte hors ligne). Elle gagne et repart.
+  it('une modification faite pendant la panne survit à la lecture qui réussit, puis part', async () => {
+    get.mockRejectedValueOnce(new Error('Network Error')).mockResolvedValue({ showFavicons: true, viewMode: 'list' });
+    await hydratePrefs();
+    useUiStore.setState({ showFavicons: false });
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(useUiStore.getState().showFavicons).toBe(false);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ showFavicons: false }));
+  });
+
+  it('… aussi avec un compte connecté et plusieurs réessais', async () => {
+    signIn(7);
+    get.mockRejectedValueOnce(new Error('Network Error')).mockRejectedValueOnce(new Error('Network Error'))
+      .mockResolvedValue({ showFavicons: true, viewMode: 'list' });
+    await hydratePrefs();
+    useUiStore.setState({ showFavicons: false });
+    await vi.advanceTimersByTimeAsync(5_500);   // premier réessai, encore en échec
+    await vi.advanceTimersByTimeAsync(10_500);  // second réessai, réussi
+    expect(get).toHaveBeenCalledTimes(3);
+    expect(useUiStore.getState().showFavicons).toBe(false);
+  });
+
   it('une erreur ne touche pas aux préférences locales', async () => {
     get.mockRejectedValue(http(503));
     await hydratePrefs();

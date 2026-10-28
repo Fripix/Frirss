@@ -1088,6 +1088,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // Load starred & read-later counts in background
       get().loadSpecialCounts();
     } catch {
+      // Même garde que le succès : un chargement parti sur un autre serveur
+      // n'écrit rien — la clé persistée est commune à tous les serveurs.
+      if (String(useAuthStore.getState().activeServerId) !== String(reading.serverId)) return;
       // Offline fallback: persisted subscriptions so the sidebar still works.
       const persisted = await subsGet();
       if (persisted && persisted.length) {
@@ -1101,7 +1104,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         get().loadLabels();
       }
     } finally {
-      set({ syncing: false });
+      // L'indicateur appartient au chargement du serveur actif : celui d'un
+      // serveur quitté ne l'éteint pas sous le chargement du suivant.
+      if (String(useAuthStore.getState().activeServerId) === String(reading.serverId)) set({ syncing: false });
     }
   },
 
@@ -1676,7 +1681,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // recouvre ne doit pas flotter au-dessus des résultats. `continuation`
     // appartenait à la vue nue qu'on quitte ; la laisser pendrait la
     // pagination locale des résultats à celle, périmée, du flux brut.
-    set({ searchQuery: trimmed, newInView: 0, searchVisible: PAGE_SIZE, loading: false, continuation: null });
+    // `listFailed: false` : l'échec de la vue nue ne dit rien de la recherche,
+    // et son « Réessayer » ne recharge pas la vue pendant qu'une recherche est ouverte.
+    set({ searchQuery: trimmed, newInView: 0, searchVisible: PAGE_SIZE, loading: false, continuation: null, listFailed: false });
 
     // Hors ligne : aucun balayage possible. On filtre ce qu'on détient — la
     // liste en mémoire et la liste rangée pour cette vue — et la barre d'état
@@ -1791,6 +1798,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // retirent seulement la proposition de défaire (issue #17).
     const prepare = undoSnapshot;
     undoSnapshot = null;
+    // Même garde que les marquages de plage : les identifiants de flux se
+    // recouvrent d'un FreshRSS à l'autre, donc un changement de serveur (ou une
+    // déconnexion) pendant le relevé aurait vidé `feed/12` sur un AUTRE
+    // serveur, puis mis son compteur à zéro dans sa vue.
+    const serveurDemande = String(useAuthStore.getState().activeServerId ?? '');
+    const sessionDemandee = !!useAuthStore.getState().backendToken;
+    const memeContexte = () => {
+      const auth = useAuthStore.getState();
+      return String(auth.activeServerId ?? '') === serveurDemande && !(sessionDemandee && !auth.backendToken);
+    };
     // Sans confirmation, le relevé se fait ICI, devant l'utilisateur : une
     // requête par millier d'articles, pendant lesquelles il ne se passait
     // rien à l'écran — « j'ai l'impression qu'il ne se passe parfois rien »
@@ -1799,7 +1816,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     beginBulk();
     try {
       const avant = await (prepare?.streamId === streamId ? prepare.ids : snapshotUnread(streamId));
+      if (!memeContexte()) return;
       await markAllAsRead(streamId);
+      if (!memeContexte()) return;
       // Sous le filtre Non lus, la vue se vide : le ✓ retire déjà sa ligne
       // sous ce filtre (issue #10), et des lignes lues qui restent à l'écran
       // laissaient croire que rien ne s'était passé jusqu'au prochain
@@ -1872,7 +1891,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
                 // `run` REND la promesse (la signature du toast l'autorise) : sans
         // cela, rien — ni un test, ni un appelant — ne peut attendre la fin de
         // la remise en non lus, qui se fait par lots successifs.
-        avant ? { action: { label: i18n.t('toast.undo'), run: () => restoreUnread(avant, toastId) } } : undefined,
+        avant ? { action: { label: i18n.t('toast.undo'), run: () => (memeContexte() ? restoreUnread(avant, toastId) : undefined) } } : undefined,
       );
     } catch { /* ignore */ } finally {
       endBulk();

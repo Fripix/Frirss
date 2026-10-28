@@ -70,6 +70,21 @@ la release publiée.
 
 ## Corrections et améliorations
 
+- **Un réglage changé hors ligne n'est plus perdu.** Ouverte sans réseau, l'app
+  attendait de joindre le serveur pour suivre les modifications : un réglage
+  changé entre-temps (thème, favicons, catégorie repliée…) était recouvert
+  par la valeur du serveur dès le retour du réseau. Il gagne désormais, et
+  part.
+- **« Tout lu » ne vise plus un autre serveur.** Basculer de serveur pendant
+  le relevé des non-lus envoyait le marquage au serveur devenu actif, où le
+  même numéro de flux désigne souvent un autre flux. Rien ne part si le
+  serveur ou la session a changé.
+- **Une recherche ne dit plus « Échec du chargement » à tort** quand c'est la
+  vue d'avant qui avait échoué.
+- **Changer de serveur pendant un chargement lent** n'affiche plus les
+  abonnements de l'ancien et n'éteint plus l'indicateur de synchronisation
+  du nouveau.
+- **Se désabonner : Échap ne referme plus la boîte pendant la requête.**
 - **Le curseur « Corps du panneau de lecture » agit enfin sur téléphone et
   tablette.** Il changeait la taille de l'ordinateur, sans effet visible sur
   l'appareil, où la taille du texte vient d'un réglage propre (celui des

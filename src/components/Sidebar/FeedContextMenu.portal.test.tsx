@@ -95,3 +95,21 @@ describe('FeedContextMenu — se désabonner et renommer', () => {
     expect(useUiStore.getState().toasts.map((x) => x.message)).toContain('sidebar.renameFailed');
   });
 });
+
+// L'Échap du menu, posé en capture avant celui de la boîte, refermait la
+// confirmation pendant que la requête tournait : la boîte refuse Échap tant
+// qu'elle travaille, mais `stopPropagation` n'arrête pas un autre écouteur du
+// même nœud.
+describe('FeedContextMenu — Échap pendant le désabonnement', () => {
+  it('ne ferme rien tant que la requête n’a pas répondu', async () => {
+    const onClose = vi.fn();
+    const pending = () => new Promise<boolean>(() => {});
+    render(<FeedContextMenu feed={feed} x={10} y={10} onRename={yes} onDelete={pending} onClose={onClose} />);
+    fireEvent.click(screen.getByText('sidebar.unsubscribe'));
+    await act(async () => { await new Promise((r) => setTimeout(r, CONFIRM_GRACE_MS + 30)); });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'sidebar.unsubscribe' }));
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+});
