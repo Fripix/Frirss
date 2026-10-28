@@ -26,7 +26,7 @@ function targetsElement<T extends HTMLElement>(e: { target: EventTarget | null; 
  * Spec : docs/superpowers/specs/2026-09-13-article-context-menu-design.md
  *
  * ⚠️ Le clic droit des boutons Favori et À lire plus tard reste prioritaire :
- * leur rangement par catégorie (`useFileGesture`) appelle déjà
+ * leur rangement par catégorie (`useCategoryPicker`, `ArticleActions.tsx`) appelle déjà
  * `preventDefault()`, et on sort sur `defaultPrevented` — les boutons ne sont
  * pas modifiés. Même règle pour l'appui long et le clic molette : un geste
  * parti d'un élément interactif (bouton, lien, champ, `contenteditable`) lui

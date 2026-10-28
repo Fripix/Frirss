@@ -1020,7 +1020,7 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   **Mise en page** (voir *Préférences* ci-dessous) — toutes visibles par
   défaut.
   ⚠️ **Masquer l'étoile ou « à lire plus tard » retire aussi un geste.**
-  `useFileGesture` vit DANS `StarButton` et `ReadLaterButton` : l'appui long
+  `useCategoryPicker` vit DANS `StarButton` et `ReadLaterButton` : l'appui long
   (ou le clic droit) qui ouvre `SavedCategoryPicker` disparaît avec le bouton,
   et avec lui la seule façon de classer un article dans une catégorie **depuis
   la liste** — le volet de lecture garde la sienne. Les balayages et les
@@ -1028,6 +1028,12 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   « Mise en page » (`preferences.layout.hint`) le dit, dans les dix langues :
   il a affirmé le contraire (« les gestes ne changent pas ») le temps d'un
   cycle.
+  Le geste est l'appui long commun (`useLongPress` avec `mouse: true` : le
+  bouton principal de la souris arme aussi, pas le droit ; voir *Menu d'un
+  article*) ; `useCategoryPicker` ne porte que l'état du sélecteur et son
+  ancre, et son clic droit absorbe l'écho de Chrome Android
+  (`firedRecently()`). **Tests** du geste :
+  `src/components/ArticleList/ArticleActions.longpress.test.tsx`.
   **Tests** : la carte de grille par `ArticleCard.test.tsx`, la ligne compacte
   par `ArticleRow.compact.test.tsx` (ordre des quatre icônes, emplacement
   réservé en 3ᵉ position sans URL, emplacement retiré par réglage, et le clic
@@ -1287,7 +1293,7 @@ FreshRSS, où le titre est un vrai lien.
   rien ne dit qu'elle est en cours ni où elle en est avant qu'elle échoue ou
   se termine.
 - **Piège — le clic droit des boutons Favori et À lire plus tard est
-  prioritaire** : leur rangement par catégorie (`useFileGesture`) appelle
+  prioritaire** : leur rangement par catégorie (`useCategoryPicker`) appelle
   `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou
   un clic molette partis d'un élément interactif (bouton, lien, champ,
   `contenteditable`) lui appartiennent aussi.

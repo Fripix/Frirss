@@ -37,6 +37,11 @@ _(rien pour l'instant)_
   second doigt se pose ou que le système interrompt le contact, et le menu
   ne saute plus sous le doigt juste après s'être ouvert sur Android (Chrome
   y envoie un second signal de menu, qui le rouvrait au point du doigt).
+- **Étoile et « À lire plus tard » de la liste : l'appui long qui range dans
+  une catégorie suit la même règle.** Il tolère un léger tremblement,
+  s'annule sur un second doigt ou une interruption du système, et à la souris
+  seul le bouton principal maintenu l'arme (maintenir le bouton droit
+  l'armait aussi, en plus du menu du clic droit).
 - **Chinois : le statut des résumés et traductions IA se lit avec la virgule
   pleine chasse « ， »** au lieu d'une virgule latine en dur (en-tête du
   panneau, annonce aux lecteurs d'écran, bandeau de traduction). Nouvelle clé

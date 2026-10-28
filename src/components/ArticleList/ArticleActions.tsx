@@ -4,60 +4,54 @@ import SavedCategoryPicker from './SavedCategoryPicker';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import type { Article } from '../../types';
 import { rowActionSlots, type RowActionSettings } from '../../lib/rowActions';
+import { useLongPress } from '../../hooks/useLongPress';
 
 /**
- * A long press — with a finger or with the mouse — opens the category picker,
- * while a plain click keeps its instant behaviour. Right-click does the same,
- * for whoever reaches for it. Discovery happens in the sidebar, where the
- * categories live: no affordance is added to these dense rows.
+ * Classer un article dans une catégorie : un appui long — au doigt ou à la
+ * souris (`useLongPress`, `mouse: true`) — ouvre `SavedCategoryPicker`, tandis
+ * qu'un clic simple garde son effet immédiat. Le clic droit fait de même, pour
+ * qui le cherche. La découverte se fait dans la barre latérale, où vivent les
+ * catégories : aucune affordance n'est ajoutée à ces lignes denses.
+ *
+ * Ce hook ne porte que l'état du sélecteur et son ancre ; le geste est
+ * l'appui long commun (tolérance, `touchcancel`, second doigt, écho).
  */
-function useFileGesture(enabled: boolean) {
+function useCategoryPicker(enabled: boolean) {
   const [picking, setPicking] = useState(false);
   const [anchor, setAnchor] = useState({ x: 0, y: 0 });
-  const btn = useRef<HTMLElement | null>(null);
-  /** Anchor under the button that was held, in viewport coordinates. */
-  const anchorFrom = (el: HTMLElement | null) => {
+  const btn = useRef<HTMLButtonElement | null>(null);
+  /** Ancre sous le bouton, en coordonnées de la fenêtre. */
+  const open = (el: HTMLElement | null) => {
     const r = el?.getBoundingClientRect();
     if (r) setAnchor({ x: r.left + r.width / 2, y: r.bottom });
+    setPicking(true);
   };
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fired = useRef(false);
-
-  const start = (e: { currentTarget: EventTarget & HTMLElement }) => {
-    if (!enabled) return;
-    btn.current = e.currentTarget;
-    fired.current = false;
-    timer.current = setTimeout(() => {
-      fired.current = true;
-      anchorFrom(btn.current);
-      setPicking(true);
-    }, 500);
-  };
-  const cancel = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
+  const press = useLongPress(() => open(btn.current), { mouse: true, enabled });
 
   const handlers = enabled
     ? {
-        onTouchStart: start,
-        onTouchEnd: cancel,
-        onTouchMove: cancel,
-        onMouseDown: start,
-        onMouseUp: cancel,
-        onMouseLeave: cancel,
+        ref: btn,
+        onTouchStart: press.onTouchStart,
+        onTouchMove: press.onTouchMove,
+        onTouchEnd: press.onTouchEnd,
+        onTouchCancel: press.onTouchCancel,
+        onMouseDown: press.onMouseDown,
+        onMouseMove: press.onMouseMove,
+        onMouseUp: press.onMouseUp,
+        onMouseLeave: press.onMouseLeave,
+        // Le clic qui termine un appui long ne bascule pas l'état en plus.
+        onClickCapture: press.onClickCapture,
         onContextMenu: (e: ReactMouseEvent<HTMLElement>) => {
           e.preventDefault();
-          anchorFrom(e.currentTarget);
-          setPicking(true);
+          // Chrome Android émet `contextmenu` sur l'appui long qui vient
+          // d'ouvrir le sélecteur : on l'absorbe sans le rouvrir.
+          if (press.firedRecently()) return;
+          open(e.currentTarget);
         },
       }
     : {};
 
-  /** Swallow the click that ends a long press, so it does not also toggle. */
-  const guardClick = (onClick: (e: ReactMouseEvent) => void) => (e: ReactMouseEvent) => {
-    if (fired.current) { fired.current = false; e.preventDefault(); e.stopPropagation(); return; }
-    onClick(e);
-  };
-
-  return { picking, setPicking, handlers, guardClick, anchor };
+  return { picking, setPicking, handlers, anchor };
 }
 
 interface StarButtonProps {
@@ -69,12 +63,12 @@ interface StarButtonProps {
 
 function StarButton({ starred, onClick, article }: StarButtonProps) {
   const { t } = useTranslation();
-  const { picking, setPicking, handlers, guardClick, anchor } = useFileGesture(!!article);
+  const { picking, setPicking, handlers, anchor } = useCategoryPicker(!!article);
   return (
     <span className="relative inline-flex">
     <button
       {...handlers}
-      onClick={guardClick(onClick)}
+      onClick={onClick}
       data-theme="star-color"
       className="p-1 rounded-full transition-colors hover:bg-black/5"
       style={{ color: starred ? 'var(--star-color)' : 'var(--star-inactive)' }}
@@ -113,12 +107,12 @@ interface ReadLaterButtonProps {
 
 function ReadLaterButton({ active, onClick, article }: ReadLaterButtonProps) {
   const { t } = useTranslation();
-  const { picking, setPicking, handlers, guardClick, anchor } = useFileGesture(!!article);
+  const { picking, setPicking, handlers, anchor } = useCategoryPicker(!!article);
   return (
     <span className="relative inline-flex">
     <button
       {...handlers}
-      onClick={guardClick(onClick)}
+      onClick={onClick}
       data-theme="readlater-color"
       className="p-1 rounded-full transition-colors hover:bg-black/5"
       style={{ color: active ? 'var(--readlater-color)' : 'var(--star-inactive)' }}
