@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useId, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../../stores/feedStore';
 
@@ -61,7 +62,10 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
     }
   }
 
-  return (
+  // Par portail sous <body> : ouverte depuis la barre latérale, donc dans le
+  // tiroir mobile (`fixed` + `transform` + `overflow: hidden`), elle s'y
+  // ancrait et y était rognée.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
         role="dialog"
@@ -187,6 +191,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
