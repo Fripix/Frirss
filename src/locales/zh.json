@@ -732,7 +732,8 @@
     "inProgress": "正在刷新订阅源…",
     "failed": "刷新失败",
     "incomplete": "刷新未完成",
-    "enable": "启用订阅源刷新"
+    "enable": "启用订阅源刷新",
+    "continuing": "FreshRSS 正在后台完成刷新"
   },
   "saved": {
     "fileInto": "归入",

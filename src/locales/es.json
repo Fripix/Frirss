@@ -729,7 +729,8 @@
     "inProgress": "Actualizando fuentes…",
     "failed": "La actualización falló",
     "incomplete": "Actualización incompleta",
-    "enable": "Activar la actualización de fuentes"
+    "enable": "Activar la actualización de fuentes",
+    "continuing": "FreshRSS termina la actualización en segundo plano"
   },
   "update": {
     "updating": "Actualizando…"

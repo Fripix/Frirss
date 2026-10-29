@@ -1,7 +1,7 @@
 // State machine for the client side of a real feed refresh.
 // Pure on purpose: the polling loop lives in the store, the decisions live here.
 
-export type RefreshPhase = 'idle' | 'running' | 'done' | 'failed' | 'timeout';
+export type RefreshPhase = 'idle' | 'running' | 'done' | 'continuing' | 'failed' | 'timeout';
 
 export const POLL_INTERVAL_MS = 3_000;
 
@@ -19,8 +19,12 @@ export function nextPhase(
   job: 'running' | 'done' | 'failed' | undefined,
   startedAt: number,
   now: number,
+  continuing = false,
 ): RefreshPhase {
-  if (job === 'done') return 'done';
+  // Le serveur web de FreshRSS a cessé d'attendre (504), FreshRSS termine :
+  // ni « à jour » ni « échec ». Les arrivées suivantes passent par le bandeau
+  // des nouveaux articles, à la relecture des compteurs.
+  if (job === 'done') return continuing ? 'continuing' : 'done';
   if (job === 'failed') return 'failed';
   if (now - startedAt >= POLL_CAP_MS) return 'timeout';
   return 'running';

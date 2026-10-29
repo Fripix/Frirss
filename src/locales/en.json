@@ -732,7 +732,8 @@
     "inProgress": "Refreshing feeds…",
     "failed": "The refresh failed",
     "incomplete": "Refresh unfinished",
-    "enable": "Enable feed refreshing"
+    "enable": "Enable feed refreshing",
+    "continuing": "FreshRSS is finishing the refresh in the background"
   },
   "saved": {
     "fileInto": "File into",

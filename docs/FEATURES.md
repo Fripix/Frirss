@@ -4694,6 +4694,16 @@ Délai réel entre la publication et le bandeau : la période du cron FreshRSS
     jeton apparaît par conséquent dans les journaux d'accès de FreshRSS ;
   - FreshRSS refuse de relever un flux plus d'une fois toutes les **20 minutes** :
     une relève peut légitimement ne rien ramener ;
+  - **504 = FreshRSS continue** (1.8.0) : le serveur web de FreshRSS cesse
+    d'attendre PHP au bout d'une minute sur l'image LinuxServer, mais PHP
+    termine la relève. Mesuré le 2026-10-29 sur l'instance de test : 504 à
+    60 s (`maxFeeds=1000`, 85 flux), puis le compte de non-lus est monté de
+    4 945 à 4 957 ; la même relève, la veille à 2 h, avait répondu 200 — la
+    durée dépend des sites relevés. Le travail se termine donc `done` avec
+    `continuing: true`, la phase client devient `continuing` et le bandeau
+    dit « FreshRSS termine la relève en arrière-plan ». Tout autre refus reste
+    un échec. Allonger le délai côté FreshRSS (`fastcgi_read_timeout` de son
+    nginx) supprime le 504 ;
   - le jeton maître donne aussi accès en **lecture** à tous les articles et à la
     liste d'abonnements. L'interface le dit avant la saisie ;
   - **`startJob` lance son travail SANS l'attendre** — voulu en production,

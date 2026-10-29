@@ -481,6 +481,12 @@ la release publiée.
 - **Le nom du flux ne se réduit plus à une lettre** en tête d'une liste
   étroite (trois colonnes) : les boutons d'affichage passent sur une seconde
   ligne quand la place manque.
+- **Une relève longue n'est plus annoncée en échec.** Quand FreshRSS met
+  plus d'une minute à relever tous les flux, son serveur web cesse d'attendre
+  et répond une erreur, alors que la relève se termine bel et bien : FriRSS
+  affichait « La relève a échoué ». Il dit désormais que FreshRSS termine la
+  relève en arrière-plan, et les nouveaux articles arrivent dans le bandeau
+  habituel.
 - **Échap ferme les Préférences après « Tester » ou « Enregistrer »** : ces
   boutons se désactivent pendant leur travail et faisaient perdre le focus,
   et la touche ne fermait plus le panneau.

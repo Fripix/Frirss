@@ -30,6 +30,9 @@ export interface RefreshJob {
   startedAt: number;
   finishedAt?: number;
   error?: string;
+  /** Done on our side, still running on FreshRSS's (its web server answered
+   *  504 while PHP carried on). */
+  continuing?: boolean;
 }
 
 /** Outgoing request budget. The client polling cap is aligned on this. */
@@ -66,7 +69,7 @@ export function getJob(
 export function startJob(
   userId: number,
   serverId: string | number,
-  run: (signal: AbortSignal) => Promise<void>,
+  run: (signal: AbortSignal) => Promise<void | 'continuing'>,
   secrets: string[] = [],
   kind: RefreshKind = 'refresh',
 ): RefreshJob {
@@ -82,7 +85,10 @@ export function startJob(
   timer.unref?.();
 
   const settled = Promise.resolve().then(() => run(ac.signal)).then(
-    () => { job.status = 'done'; },
+    (outcome) => {
+      job.status = 'done';
+      if (outcome === 'continuing') job.continuing = true;
+    },
     (err) => { job.status = 'failed'; job.error = sanitizeError(err, secrets); },
   ).finally(() => {
     clearTimeout(timer);

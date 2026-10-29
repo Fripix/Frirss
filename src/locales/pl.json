@@ -755,7 +755,8 @@
     "inProgress": "Odświeżanie kanałów…",
     "failed": "Odświeżanie nie powiodło się",
     "incomplete": "Odświeżanie niedokończone",
-    "enable": "Włącz odświeżanie kanałów"
+    "enable": "Włącz odświeżanie kanałów",
+    "continuing": "FreshRSS kończy odświeżanie w tle"
   },
   "update": {
     "updating": "Aktualizacja…"

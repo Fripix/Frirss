@@ -732,7 +732,8 @@
     "inProgress": "Relève en cours…",
     "failed": "La relève a échoué",
     "incomplete": "Relève inachevée",
-    "enable": "Activer la relève des flux"
+    "enable": "Activer la relève des flux",
+    "continuing": "FreshRSS termine la relève en arrière-plan"
   },
   "saved": {
     "fileInto": "Ranger dans",

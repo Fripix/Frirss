@@ -432,6 +432,44 @@ describe('servers actualize', () => {
     expect(status.body.job.status).toBe('done');
   });
 
+  // Le serveur web de FreshRSS cesse d'attendre PHP au bout d'une minute
+  // (504) quand la relève dure plus longtemps — mais PHP la termine. Mesuré le
+  // 2026-10-29 : 504 à 60 s, puis le compte de non-lus a monté. « La relève a
+  // échoué » était faux : le travail se termine en disant que FreshRSS continue.
+  it('reports a FreshRSS gateway timeout as a refresh continuing upstream, not a failure', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'SlowRefresh', url: 'https://rss-slow.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 504, body: null }));
+
+    await request(app).post(`/api/servers/${id}/actualize`).set('Authorization', `Bearer ${adminToken}`);
+    await tick();
+    const status = await request(app).get(`/api/servers/${id}/actualize`).set('Authorization', `Bearer ${adminToken}`);
+    expect(status.body.job.status).toBe('done');
+    expect(status.body.job.continuing).toBe(true);
+  });
+
+  it('still reports any other refusal as a failure', async () => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'RefusedRefresh', url: 'https://rss-refused.example.com', freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, body: null }));
+
+    await request(app).post(`/api/servers/${id}/actualize`).set('Authorization', `Bearer ${adminToken}`);
+    await tick();
+    const status = await request(app).get(`/api/servers/${id}/actualize`).set('Authorization', `Bearer ${adminToken}`);
+    expect(status.body.job.status).toBe('failed');
+    expect(status.body.job.continuing).toBeUndefined();
+  });
+
   it('forwards an AbortSignal to the outgoing request', async () => {
     const add = await request(app).post('/api/servers')
       .set('Authorization', `Bearer ${adminToken}`)

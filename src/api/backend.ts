@@ -161,6 +161,8 @@ export interface ActualizeJob {
   startedAt: number;
   finishedAt?: number;
   error?: string;
+  /** FreshRSS's web server stopped waiting (504); FreshRSS finishes the refresh. */
+  continuing?: boolean;
 }
 
 /**

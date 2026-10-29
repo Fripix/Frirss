@@ -729,7 +729,8 @@
     "inProgress": "A atualizar os feeds…",
     "failed": "A atualização falhou",
     "incomplete": "Atualização incompleta",
-    "enable": "Ativar a atualização dos feeds"
+    "enable": "Ativar a atualização dos feeds",
+    "continuing": "O FreshRSS termina a atualização em segundo plano"
   },
   "update": {
     "updating": "A atualizar…"

@@ -42,3 +42,12 @@ describe('shouldTriggerRealRefresh', () => {
     expect(shouldTriggerRealRefresh(true, undefined)).toBe(false);
   });
 });
+
+describe('nextPhase — FreshRSS continue la relève', () => {
+  // 504 du serveur web de FreshRSS : il a cessé d'attendre, PHP termine.
+  it('rend « continuing » pour un travail terminé dont FreshRSS poursuit la relève', () => {
+    expect(nextPhase('done', 0, 1000, true)).toBe('continuing');
+    expect(nextPhase('done', 0, 1000, false)).toBe('done');
+    expect(nextPhase('failed', 0, 1000, true)).toBe('failed');
+  });
+});

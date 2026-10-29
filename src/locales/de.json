@@ -729,7 +729,8 @@
     "inProgress": "Feeds werden abgerufen…",
     "failed": "Abruf fehlgeschlagen",
     "incomplete": "Abruf unvollständig",
-    "enable": "Feed-Abruf aktivieren"
+    "enable": "Feed-Abruf aktivieren",
+    "continuing": "FreshRSS schließt den Abruf im Hintergrund ab"
   },
   "update": {
     "updating": "Aktualisierung…"

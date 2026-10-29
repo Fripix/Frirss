@@ -38,6 +38,7 @@ export default function RefreshBanner() {
   if (!refreshResult) { /* rien à dire */ }
   else if (running) label = hasNew ? `${t('refresh.inProgress')} ${count}` : t('refresh.inProgress');
   else if (refreshPhase === 'failed') label = t('refresh.failed');
+  else if (refreshPhase === 'continuing') label = hasNew ? `${count} · ${t('refresh.continuing')}` : t('refresh.continuing');
   else if (refreshPhase === 'timeout') label = hasNew ? count : t('refresh.incomplete');
   else label = hasNew ? count : t('refresh.upToDate');
 

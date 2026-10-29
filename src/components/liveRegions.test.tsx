@@ -50,3 +50,13 @@ describe('régions annoncées montées en permanence', () => {
     expect(region.textContent).toContain('refresh.upToDate');
   });
 });
+
+// 504 du serveur web de FreshRSS : la relève continue de son côté. Ni « à
+// jour » (rien ne dit que c'est fini) ni « échec » (elle a eu lieu).
+describe('bandeau de relève — FreshRSS continue', () => {
+  it('dit que FreshRSS termine la relève', () => {
+    render(<RefreshBanner />);
+    act(() => { useFeedStore.setState({ refreshResult: { totalNew: 0 }, refreshPhase: 'continuing' } as never); });
+    expect(screen.getByRole('status').textContent).toBe('refresh.continuing');
+  });
+});

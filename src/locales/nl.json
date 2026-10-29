@@ -729,7 +729,8 @@
     "inProgress": "Feeds worden opgehaald…",
     "failed": "Het ophalen is mislukt",
     "incomplete": "Ophalen onvoltooid",
-    "enable": "Feeds ophalen inschakelen"
+    "enable": "Feeds ophalen inschakelen",
+    "continuing": "FreshRSS rondt het ophalen op de achtergrond af"
   },
   "update": {
     "updating": "Bijwerken…"

@@ -2728,7 +2728,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!stillActive()) return;
       const status = await getActualizeStatus(Number(serverId)).catch(() => null);
       if (!stillActive()) return;
-      phase = nextPhase(status?.status, startedAt, Date.now());
+      phase = nextPhase(status?.status, startedAt, Date.now(), !!status?.continuing);
       set({
         refreshPhase: phase,
         refreshResult: {
