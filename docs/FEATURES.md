@@ -4664,7 +4664,14 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   rechargé hors ligne réaffichait ses articles. Portée et clé de l'instantané
   sont relevées **avant** l'appel : après une bascule de serveur pendant
   l'attente, `feed/12` désigne un autre flux, que le reste retirait de la
-  barre latérale du nouveau serveur ; rien n'est alors touché localement.
+  barre latérale du nouveau serveur ; l'état affiché (celui du nouveau
+  serveur) n'est alors pas touché, mais l'instantané et les listes hors ligne
+  de l'**ancien** sont nettoyés, sous la portée et la clé relevées avant
+  l'appel — de retour hors ligne sur lui, l'accueil réaffichait le flux. Le
+  nettoyage des listes ne parcourt que les clés de la portée
+  (`IDBKeyRange.bound(prefix, prefix + '\uffff')`) : il parcourait toute la
+  table, toutes portées confondues, dans une transaction en écriture qui
+  retenait les lectures hors ligne (`offlineStore.range.test.ts`).
 - **Pas de fermeture au clic sur le fond**, ni pour « Ajouter un flux » ni
   pour « Ajouter un serveur » (`AddServerDialog`, qui la permettait jusqu'en
   1.8.0 et perdait l'adresse, l'identifiant et le mot de passe saisis) :
@@ -4805,6 +4812,16 @@ images consultés restent lisibles sans réseau.
   `src/components/OfflineBanner.tsx`, `src/components/UpdatePrompt.tsx`
 - **Réglages** : préparation manuelle, mise à jour à l'ouverture, budget d'images
   (aucune / légère / standard / maximale)
+- **Le bandeau dit quand FreshRSS refuse la file** (`OfflineBanner`,
+  `connection.refusedByServer`, état `replayRefusedByServer` du
+  `feedStore`) : « FreshRSS refuse les actions en attente. Vérifiez
+  l'utilisateur et le mot de passe d'API de ce serveur dans Préférences ›
+  Flux : elles repartiront au prochain chargement. » La phrase passe avant
+  « n actions n'ont pas pu être synchronisées » et reste jusqu'à un rejeu qui
+  fait passer une action, ou jusqu'à un changement de portée (le refus était
+  celui de l'autre serveur). Elle dit où regarder sans affirmer de cause : le
+  même 401 vient d'un mot de passe d'API changé comme d'un jeton périmé côté
+  FriRSS.
 - **Onglet Hors ligne** (1.8.0, `OfflineTab.test.tsx`) : sans réseau, le bouton
   « Préparer » est inactif et le dit (`offline.needsNetwork`) —
   `prepareOffline` ne fait rien hors ligne, le clic tombait dans le vide ;
@@ -4838,8 +4855,17 @@ images consultés restent lisibles sans réseau.
   cache d'affichage) aussi. Le balayage d'une portée retire seulement SA
   marque d'une image qu'une autre garde encore, et n'efface l'image que quand
   plus aucune portée ne la garde ; une image sans étiquette que personne n'a
-  reprise est effacée par n'importe quel balayage, comme avant. Une réécriture
-  refusée (appareil plein) laisse l'image telle quelle, jamais effacée.
+  reprise est effacée par n'importe quel balayage, comme avant. La marque
+  coûte une réécriture de l'entrée entière, corps compris : elle n'est pas
+  tentée sur un appareil déclaré plein (même règle que l'adoption), et un
+  refus de quota pendant la réécriture déclare l'appareil plein (`full`),
+  comme toute autre écriture ; dans les deux cas l'image reste telle quelle,
+  lisible et gardée. ⚠️ **Une fois après la mise à jour** : seules les images
+  qu'une portée **reprend** reçoivent une étiquette. Si le serveur 2 prépare
+  le premier, son balayage efface les images préparées en 1.7 pour le
+  serveur 1, encore sans étiquette, qu'il n'a pas reprises ; le serveur 1 les
+  retélécharge à sa préparation suivante. Seulement avec plusieurs serveurs
+  ou comptes sur le même navigateur.
   ⚠️ **Limites assumées** : les images d'une portée qui ne reviendra plus
   (serveur retiré, compte supprimé) ne sont plus balayées par personne —
   « Vider les images » les retire, il vide les deux caches entiers ; et le
@@ -5033,7 +5059,11 @@ mises en file et rejouées au retour.
   écrasée par la liste des restes.
 - **Le rejeu revérifie portée et session avant CHAQUE action**
   (`memeContexte()` dans `replayQueue`, comme `restoreUnread`) : jeton,
-  serveur actif et portée. Si l'un a changé, il s'arrête, et l'action en cours
+  serveur actif, portée et **génération de portée** (`scopeGeneration`,
+  incrémentée à chaque changement de portée — elle ferme l'aller-retour
+  1 → 2 → 1 pendant un envoi : les deux bouts voient le serveur 1, mais
+  `editTag` construit sa requête après avoir attendu le jeton d'écriture, et
+  l'écriture était partie au 2). Si l'un a changé, il s'arrête, et l'action en cours
   et les suivantes restent intactes, tentatives comprises. Une action dont
   l'envoi a vu le contexte changer est gardée même si l'appel a réussi : on ne
   sait pas quel serveur l'a reçue, et renvoyer le même état est sans danger.
@@ -5041,36 +5071,66 @@ mises en file et rejouées au retour.
   (le client lit le serveur actif à chaque requête), qui l'acceptait sans
   effet — sortie de la file, perdue pour le premier ; une déconnexion en plein
   rejeu faisait partir la suite brute, hors du proxy, 404, et tout était jeté.
-- **Quel 401 arrête le rejeu** : seulement le nôtre (`isBackendAuthFailure`).
-  Un 401 relayé de FreshRSS (mot de passe d'API changé) compte comme un
-  refus : l'action sort et `failedActions` le dit. Le garder bloquait la file
-  pour toujours sans rien annoncer, la session FriRSS restant ouverte.
+- **Un 401 arrête toujours le rejeu, et rien n'est jeté.** Le nôtre
+  (`isBackendAuthFailure`) déconnecte ; l'action et les suivantes restent pour
+  la session suivante. Un 401 relayé de FreshRSS (mot de passe d'API changé,
+  jeton périmé côté FriRSS) ne déconnecte pas FriRSS : le rejeu s'arrête à la
+  première action refusée, garde **toute** la file **sans consommer de
+  tentative**, et pose `replayRefusedByServer`, que le bandeau affiche. ⚠️
+  Traité comme un refus (premier tour de la relecture), ce 401 jetait TOUTE la
+  file en un rejeu — chaque action recevait le même : 50 gestes hors ligne,
+  50 abandons, et rien à renvoyer une fois le mot de passe corrigé. Gardé sans
+  rien dire (avant), il bloquait la file pour toujours sans explication.
 - **Le retour de la portée relance le rejeu** (abonnement à `authStore` en fin
   de `feedStore.ts`) : connexion, retour SSO, changement de serveur. Un rejeu
   encore en cours pour l'ancienne portée est attendu (il s'arrête seul), puis
   relancé. Avant, une action qui attendait son serveur n'était rejouée qu'au
   prochain rechargement ou événement `online`.
-- **Un geste direct réussi retire de la file** toute action en attente sur le
-  même article et le même attribut (lu, favori, à lire plus tard, une
-  étiquette donnée) : `settleAction`. Sans cela, l'action en attente écrasait
-  le dernier geste au rejeu suivant. Deux gardes complètent : un geste ancien
-  resté en vol, qui échoue APRÈS qu'un plus récent a réussi, n'entre pas en
-  file (`settledGestures`, comparé au numéro d'ordre du geste) ; et le rejeu
-  saute une action remplacée ou réglée depuis son départ (`at` comparé à la
-  file courante). ⚠️ Limite : « Tout marquer comme lu » ne règle pas la file
-  (ce n'est pas un geste d'article) — une action « non lu » en attente sur un
-  article de la plage le rendra non lu au rejeu.
-- **Actions sans portée (avant 1.8.0) : jamais rejouées automatiquement,
-  retirées à la première déconnexion** (`dropUnscopedActions`), et pas
-  comptées dans le bandeau. Rien ne dit sous quel compte elles ont été faites,
-  et la file survit aux déconnexions : elles partaient vers le compte suivant.
-  Coût assumé : une action faite hors ligne en 1.7.x et pas encore rejouée à
-  la mise à jour est perdue (dit dans les notes de version).
+- **Le numéro d'ordre du geste départage tout** (`gesture()`, `seq` porté par
+  l'action en file, en mémoire seulement : `loadQueue` le retire à la
+  relecture, donc une action relue est plus ancienne que tout geste de la
+  session) :
+  - **un geste direct réussi** retire de la file l'action en attente sur le
+    même article et le même attribut (lu, favori, à lire plus tard, une
+    étiquette donnée), **seulement si elle est plus ancienne que lui**
+    (`settleAction`). ⚠️ La première version retirait toute action de même
+    clé : un « lu » lent qui réussissait après un « non lu » mis en file sur
+    un 502 rapide retirait ce dernier, et le serveur restait sur « lu »
+    contre le dernier geste de l'utilisateur ;
+  - **un geste ancien qui échoue après un plus récent réussi** n'entre pas en
+    file (`settledGestures`) ;
+  - **un geste ancien qui échoue tard** n'écrase pas en file un geste plus
+    récent qui avait échoué avant lui (`mergeAction` compare les numéros,
+    `actionQueue.test.ts`) — défaut antérieur au lot.
+
+  Le rejeu saute enfin une action remplacée ou réglée depuis son départ (`at`
+  comparé à la file courante).
+- **Actions sans portée (avant 1.8.0) : elles adoptent la première portée
+  active au rejeu** (`adoptUnscopedActions`), et sont comptées dans le
+  bandeau dès avant (`pendingHere`). Le cas courant est un seul compte, et
+  les numéros d'article FreshRSS sont horodatés à la microseconde : une
+  collision d'un serveur à l'autre est très improbable, alors que ne plus les
+  rejouer les perdait sans un mot (décision du 2026-10-30, qui revient sur
+  celle de la première relecture). Une action de la portée sur le même
+  article est forcément plus récente : l'ancienne lui cède la place. Celles
+  qu'aucune portée n'a encore adoptées partent à la déconnexion
+  (`dropUnscopedActions`).
 - **Le bandeau ne compte que les actions de la portée active**
   (`pendingHere()`), recalculé au changement de portée. Il comptait celles des
   autres comptes, qui ne partiront pas sous celui-ci.
-- ⚠️ **Reste ouvert** : deux onglets ont chacun leur copie mémoire de la file,
-  et la dernière écriture (`queuePut`, qui remplace tout) gagne.
+- ⚠️ **Limites connues** (seconde relecture, non corrigées) :
+  - **chaque retour de portée relance un rejeu, qui consomme une
+    tentative** : un serveur qui répond 503 un moment, plus deux
+    allers-retours 1 → 2 → 1, épuisent les trois tentatives d'une action ;
+  - **les écritures en lot ne règlent pas la file** : « Tout marquer comme
+    lu », le marquage par plage et le retour en arrière de « Tout lu »
+    (`restoreUnread`) ne sont pas des gestes d'article ; une action « non
+    lu » en attente sur un article concerné le rendra non lu au rejeu ;
+  - **multi-onglet** : deux onglets ont chacun leur copie mémoire de la file,
+    et la dernière écriture (`queuePut`, qui remplace tout) gagne.
+    `settleAction` ne voit que la copie de son onglet : un geste direct
+    réussi dans B ne retire pas l'action mise en file dans A, dont le rejeu
+    écrase ensuite le geste de B.
 - **Spec** : `docs/superpowers/specs/2026-08-20-offline-action-queue-design.md`
 
 ### Jeton d'écriture (CSRF)

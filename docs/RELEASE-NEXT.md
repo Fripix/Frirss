@@ -520,7 +520,10 @@ la release publiée.
   préparées pour l'autre, même celles qu'ils partagent, et changer de serveur
   pendant une préparation effaçait les images du nouveau. Se déconnecter dans
   un onglet n'efface plus ce qui est gardé hors ligne pour le compte ouvert
-  dans un autre.
+  dans un autre. Une seule fois après la mise à jour, avec plusieurs
+  serveurs : le premier serveur préparé peut encore retirer les images
+  préparées pour l'autre avec la version précédente ; elles sont
+  retéléchargées à la préparation suivante de cet autre serveur.
 - **Les actions faites hors ligne ne se perdent plus, et n'écrasent plus vos
   gestes suivants.** Un favori ou un « lu » fait pendant que la file se
   rejouait (réseau instable) était oublié ; une action en attente était
@@ -530,10 +533,15 @@ la release publiée.
   attend désormais son compte et son serveur, et part dès qu'ils
   redeviennent actifs. Un article que vous marquez à nouveau, une fois le
   réseau revenu, garde votre dernier choix. Le nombre d'actions en attente
-  ne compte plus celles des autres comptes.
-- **Une action hors ligne refusée par FreshRSS est annoncée** au lieu de
-  bloquer la file en silence (par exemple après un changement du mot de passe
-  d'API FreshRSS).
+  ne compte plus celles des autres comptes. Une action faite avec la version
+  précédente, encore en attente au moment de la mise à jour, est envoyée
+  comme les autres.
+- **Quand FreshRSS refuse les actions en attente, elles ne sont plus
+  perdues.** Après un changement du mot de passe d'API FreshRSS, par exemple,
+  elles attendaient sans que rien ne dise pourquoi. Elles restent en attente,
+  toutes, et le bandeau dit quoi vérifier : l'utilisateur et le mot de passe
+  d'API du serveur, dans Préférences › Flux. Elles repartent au chargement
+  suivant.
 - **La préparation hors ligne automatique ne saute plus une heure** quand
   l'application se recharge juste après l'ouverture (après une mise à jour).
 - **Deux onglets, deux comptes : se déconnecter dans l'un ne déconnecte plus
@@ -687,10 +695,6 @@ la release publiée.
   navigation passe par `selectView`) ; ses tests sont migrés.
 
 ## Actions requises à la mise à jour
-
-- **Actions faites hors ligne avec une version précédente** : celles encore en
-  attente au moment de la mise à jour ne sont pas envoyées (rien ne dit sous
-  quel compte elles ont été faites). Refaites-les une fois en ligne.
 
 - **SSO** : un compte local qui n'a encore jamais été ouvert par le SSO ne
   s'y rattache plus tout seul. Son propriétaire se connecte avec son mot de
