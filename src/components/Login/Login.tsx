@@ -172,6 +172,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
     ssoOnly: !!oidc?.ssoOnly,
     hasUsers: !!status?.hasUsers,
     forceLocal,
+    linkRequired: oidcError === 'link_required',
   });
 
   return (

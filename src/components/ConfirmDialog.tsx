@@ -70,7 +70,11 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !busyRef.current) { e.stopPropagation(); onCancel(); }
+      // Pendant le travail, Échap ne ferme rien — ni la boîte, ni ce qui est
+      // derrière elle : la touche est retenue ici dans les deux cas.
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      if (!busyRef.current) onCancel();
     }
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);

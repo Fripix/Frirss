@@ -1210,102 +1210,113 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     set({ offlinePrep: { running: true, phase: 'lists', done: 0, total: 0 } });
-    const subs = get().subscriptions;
-    const collected: Article[] = [];
-    // Phase 1 — gather recent articles per feed + persist their lists.
-    for (const feed of subs) {
-      try {
-        let cont: string | null = null;
-        let pages = 0;
-        const feedArts: Article[] = [];
-        do {
-          const res = await getStreamContents(feed.id, PAGE_SIZE, cont, null, {});
-          if (!res) break;
-          const arts = res.items.map(normalizeArticle);
-          feedArts.push(...arts);
-          cont = res.continuation;
-          pages++;
-          if ((arts[arts.length - 1]?.published ?? 0) < cutoff) break; // past 30 days
-        } while (cont && pages < 8);
-        const recent = feedArts.filter((a) => a.published >= cutoff);
-        if (recent.length) {
-          await listPut(viewKey(feed, 'all'), recent.slice(0, PAGE_SIZE), null);
-          collected.push(...recent);
+    try {
+      const subs = get().subscriptions;
+      const collected: Article[] = [];
+      // Une préparation qui n'a pas vu toute la liste ne décide pas de ce qui ne
+      // sert plus (voir le retrait, en fin de fonction) : un flux sauté, ou pas
+      // d'abonnements du tout, et ses images passaient pour « sorties des 30
+      // jours » — FreshRSS en panne vidait ainsi tout le cache des préparées.
+      let interrupted = subs.length === 0;
+      // Phase 1 — gather recent articles per feed + persist their lists.
+      for (const feed of subs) {
+        try {
+          let cont: string | null = null;
+          let pages = 0;
+          const feedArts: Article[] = [];
+          do {
+            const res = await getStreamContents(feed.id, PAGE_SIZE, cont, null, {});
+            if (!res) { interrupted = true; break; }
+            const arts = res.items.map(normalizeArticle);
+            feedArts.push(...arts);
+            cont = res.continuation;
+            pages++;
+            if ((arts[arts.length - 1]?.published ?? 0) < cutoff) break; // past 30 days
+          } while (cont && pages < 8);
+          const recent = feedArts.filter((a) => a.published >= cutoff);
+          if (recent.length) {
+            await listPut(viewKey(feed, 'all'), recent.slice(0, PAGE_SIZE), null);
+            collected.push(...recent);
+          }
+        } catch { interrupted = true; /* skip this feed */ }
+      }
+      // Phase 2 — extract, cache, and prefetch images.
+      // Images are prefetched whether or not the extract was already cached (the
+      // two used to be coupled, which silently skipped images), in priority order,
+      // and stop as soon as the storage budget is reached.
+      const ui = useUiStore.getState();
+      const budget = imageBudget(ui.offlineImagePreset, ui.offlineImageSizes, (await getStorageEstimate())?.quota ?? 0);
+      const ordered = prioritizeForOffline(collected, READ_LATER_LABEL);
+      let budgetReached = budget.bytes <= 0;
+      let imagesFound = 0;
+      let imagesStored = 0;
+      let imagesBytes = 0;
+      let imagesFailed = 0;
+      let imagesError: string | undefined;
+      // Every image the prepared cache holds once this run is over: what it
+      // does not list is swept at the end.
+      const keptImages = new Set<string>();
+
+      set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });
+      const { extractFullContent } = await import('../utils/extractContent');
+      let done = 0;
+      for (const a of ordered) {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) { interrupted = true; break; }
+
+        let extracted: string | null = peekExtract(a.id)?.content ?? null;
+        if (a.url && !extracted) {
+          const stored = await getExtract(a.id);
+          extracted = stored?.content ?? null;
+          if (!extracted) {
+            try {
+              const content = await extractFullContent(a.url);
+              await putExtract(a.id, content);
+              extracted = content.content;
+            } catch { /* keep the RSS content */ }
+          }
         }
-      } catch { /* skip this feed */ }
-    }
-    // Phase 2 — extract, cache, and prefetch images.
-    // Images are prefetched whether or not the extract was already cached (the
-    // two used to be coupled, which silently skipped images), in priority order,
-    // and stop as soon as the storage budget is reached.
-    const ui = useUiStore.getState();
-    const budget = imageBudget(ui.offlineImagePreset, ui.offlineImageSizes, (await getStorageEstimate())?.quota ?? 0);
-    const ordered = prioritizeForOffline(collected, READ_LATER_LABEL);
-    let budgetReached = budget.bytes <= 0;
-    let imagesFound = 0;
-    let imagesStored = 0;
-    let imagesBytes = 0;
-    let imagesFailed = 0;
-    let imagesError: string | undefined;
-    // Every image the prepared cache holds once this run is over: what it
-    // does not list is swept at the end.
-    const keptImages = new Set<string>();
-    let interrupted = false;
 
-    set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });
-    const { extractFullContent } = await import('../utils/extractContent');
-    let done = 0;
-    for (const a of ordered) {
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) { interrupted = true; break; }
+        if (!budgetReached) {
+          const urls = articleImageUrls(a.content, extracted, budget.perArticle);
+          imagesFound += urls.length;
+          const res = await cacheImages(urls);
+          imagesStored += res.stored;
+          imagesBytes += res.bytes + res.reusedBytes;
+          imagesFailed += res.failed;
+          imagesError ??= res.error;
+          for (const url of res.kept) keptImages.add(url);
+          if (res.error?.startsWith('open:')) interrupted = true;
+          // Count the bytes actually held — stored now or kept from an earlier
+          // run, or the cache would outgrow the budget over successive runs. The
+          // previous guard watched the browser's storage estimate, which pads
+          // opaque entries so wildly that it was unusable; proxied responses
+          // give us the real size.
+          if (imagesBytes >= budget.bytes) budgetReached = true;
+        }
 
-      let extracted: string | null = peekExtract(a.id)?.content ?? null;
-      if (a.url && !extracted) {
-        const stored = await getExtract(a.id);
-        extracted = stored?.content ?? null;
-        if (!extracted) {
-          try {
-            const content = await extractFullContent(a.url);
-            await putExtract(a.id, content);
-            extracted = content.content;
-          } catch { /* keep the RSS content */ }
+        done++;
+        if (done % 5 === 0 || done === ordered.length) {
+          set({ offlinePrep: { running: true, phase: 'articles', done, total: ordered.length, imagesFound, imagesStored } });
         }
       }
-
-      if (!budgetReached) {
-        const urls = articleImageUrls(a.content, extracted, budget.perArticle);
-        imagesFound += urls.length;
-        const res = await cacheImages(urls);
-        imagesStored += res.stored;
-        imagesBytes += res.bytes + res.reusedBytes;
-        imagesFailed += res.failed;
-        imagesError ??= res.error;
-        for (const url of res.kept) keptImages.add(url);
-        if (res.error?.startsWith('open:')) interrupted = true;
-        // Count the bytes actually held — stored now or kept from an earlier
-        // run, or the cache would outgrow the budget over successive runs. The
-        // previous guard watched the browser's storage estimate, which pads
-        // opaque entries so wildly that it was unusable; proxied responses
-        // give us the real size.
-        if (imagesBytes >= budget.bytes) budgetReached = true;
-      }
-
-      done++;
-      if (done % 5 === 0 || done === ordered.length) {
-        set({ offlinePrep: { running: true, phase: 'articles', done, total: ordered.length, imagesFound, imagesStored } });
-      }
+      // Nothing else evicts prepared images. Only a run that saw the whole list
+      // may decide what is no longer wanted: not one cut short by the network or
+      // by an unopenable cache, and not one with images turned off (that keeps
+      // what was prepared rather than wiping it).
+      if (!interrupted && budget.bytes > 0) await pruneImages(keptImages);
+      set({
+        offlinePrep: {
+          running: false, phase: 'done', done, total: ordered.length,
+          imagesFound, imagesStored, imagesFailed,
+          budgetStopped: budgetReached && budget.bytes > 0, imagesError,
+        },
+      });
+    } finally {
+      // Une erreur imprévue (import dynamique introuvable après un déploiement,
+      // IndexedDB) laissait « Préparer » en cours jusqu'au rechargement.
+      const prep = get().offlinePrep;
+      if (prep?.running) set({ offlinePrep: { ...prep, running: false, phase: 'done' } });
     }
-    // Nothing else evicts prepared images. Only a run that saw the whole list
-    // may decide what is no longer wanted: not one cut short by the network or
-    // by an unopenable cache, and not one with images turned off (that keeps
-    // what was prepared rather than wiping it).
-    if (!interrupted && budget.bytes > 0) await pruneImages(keptImages);
-    set({
-      offlinePrep: {
-        running: false, phase: 'done', done, total: ordered.length,
-        imagesFound, imagesStored, imagesFailed,
-        budgetStopped: budgetReached && budget.bytes > 0, imagesError,
-      },
-    });
   },
 
   loadArticles: async () => {
@@ -1821,6 +1832,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const auth = useAuthStore.getState();
       return String(auth.activeServerId ?? '') === serveurDemande && !(sessionDemandee && !auth.backendToken);
     };
+    // Et la VUE : ouvrir un autre flux du même serveur pendant le relevé ne
+    // change rien au marquage demandé, mais la suite écrivait dans la vue
+    // devenue active — liste vidée, article ouvert affiché lu sans l'être,
+    // recherche refermée. Hors de la vue demandée, seuls ses compteurs et son
+    // cache suivent.
+    const filtreDemande = get().filter;
+    const rechercheDemandee = get().searchQuery;
+    const memeVue = () => {
+      const st = get();
+      return st.selectedFeed?.id === selectedFeed?.id && st.filter === filtreDemande && st.searchQuery === rechercheDemandee;
+    };
     // Sans confirmation, le relevé se fait ICI, devant l'utilisateur : une
     // requête par millier d'articles, pendant lesquelles il ne se passait
     // rien à l'écran — « j'ai l'impression qu'il ne se passe parfois rien »
@@ -1841,17 +1863,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // Pendant une recherche, c'est la vue NUE qui a été marquée (le
       // périmètre ci-dessus ignore la requête) : la recherche se referme plus
       // bas et la vue nue est rechargée, vidée elle aussi sous Non lus.
-      const { filter, searchQuery } = get();
-      const searching = !!searchQuery;
+      const filter = filtreDemande;
+      const searching = !!rechercheDemandee;
       const emptied = filter === 'unread';
+      const vueActive = memeVue();
       if (emptied) {
         const key = viewKey(selectedFeed, filter);
         memCache.delete(key);
         listPut(key, [], null).catch(() => {});
+      } else if (!vueActive) {
+        // La liste lue de cette vue n'est plus à l'écran : un retour sur elle
+        // la relira du serveur plutôt que de repeindre des lignes non lues.
+        memCache.delete(viewKey(selectedFeed, filter));
       }
       // Update local state
       set((state) => {
-        const updated = emptied ? [] : state.articles.map((a) => ({ ...a, read: true }));
         const newCounts = { ...state.unreadCounts };
         if (selectedFeed) {
           newCounts[selectedFeed.id] = 0;
@@ -1862,6 +1888,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // the poll reconciles them within the minute.
           for (const id of mainStreamFeedIds(subscriptions)) newCounts[id] = 0;
         }
+        if (!vueActive) return { unreadCounts: newCounts };
+        const updated = emptied ? [] : state.articles.map((a) => ({ ...a, read: true }));
         return {
           articles: updated,
           continuation: emptied ? null : state.continuation,
@@ -1873,14 +1901,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       });
       bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
       // Un « tout lu » touche trop d'articles pour être répercuté un par un ; le
-      // corpus gardé deviendrait faux en bloc.
-      dropSearchCorpus();
+      // corpus gardé deviendrait faux en bloc. Hors de la vue demandée, le
+      // corpus et la recherche sont ceux de la nouvelle vue : on n'y touche pas
+      // (le corps de la recherche tourne peut-être encore).
+      if (vueActive) dropSearchCorpus();
       // Même fermeture que sur un changement de vue (C1, revue finale) :
       // sans elle, un balayage en cours voyait son corpus disparaître sous
       // lui (`stale()` dans `runScan` rend la main sans rien écrire) et
       // `searchScan.running` restait bloqué à vrai pour toujours.
-      closeSearch(set);
-      if (searching) {
+      if (vueActive) closeSearch(set);
+      if (vueActive && searching) {
         // La liste montrait encore les résultats, sous l'en-tête de la vue
         // nue, et `continuation` restait à `null` (la recherche l'avait
         // effacée) : plus de pagination. La vue nue repart de son cache
@@ -2605,6 +2635,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           selectedArticle: updatedSelected,
           // La liste vient d'être rechargée : plus rien de nouveau à signaler.
           newInView: 0,
+          // … et plus d'échec à afficher, même si elle revient vide.
+          listFailed: false,
         };
       });
     } catch { /* ignore */ }

@@ -152,10 +152,14 @@ export async function pruneImages(
   openCache: () => Promise<Cache> = opener(PREPARED_IMAGE_CACHE_NAME),
 ): Promise<number> {
   let removed = 0;
+  // Les clés du cache sont normalisées (`Request.url`), les URL gardées sont
+  // telles que l'article les écrit : comparées brutes, une image avec un
+  // accent, une espace ou un hôte en majuscules était retirée à chaque fois.
+  const wanted = new Set([...keep].map((u) => { try { return new URL(u).href; } catch { return u; } }));
   try {
     const cache = await openCache();
     for (const req of await cache.keys()) {
-      if (keep.has(req.url)) continue;
+      if (wanted.has(req.url)) continue;
       if (await cache.delete(req)) removed++;
     }
   } catch { /* best effort */ }

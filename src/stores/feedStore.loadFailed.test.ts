@@ -65,6 +65,16 @@ describe('feedStore — chargement de la liste en échec', () => {
     await useFeedStore.getState().loadArticles();
     expect(useFeedStore.getState().listFailed).toBe(false);
   });
+
+  // La relecture silencieuse (minuteur, retour au premier plan) réussie et
+  // vide laissait « Le chargement a échoué » au lieu de « Tout est lu ».
+  it('le retombe aussi à une relecture silencieuse réussie', async () => {
+    useFeedStore.setState({ listFailed: true });
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([] as never);
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null });
+    await useFeedStore.getState().silentRefresh();
+    expect(useFeedStore.getState().listFailed).toBe(false);
+  });
 });
 
 // L'échec de la vue nue « collait » à une recherche lancée ensuite : une

@@ -15,7 +15,7 @@ import { installPrefsRefreshTriggers } from './lib/prefsRefreshTriggers';
 import { saveLastView, loadLastView } from './lib/lastView';
 import { startupAction } from './lib/startupView';
 import { completeOidcReturn } from './lib/oidcReturn';
-import { readOidcFragment } from './lib/oidcFragment';
+import { readOidcFragment, oidcErrorTarget } from './lib/oidcFragment';
 import i18n from './i18n';
 import Login from './components/Login/Login';
 import LoginTransition from './components/Login/LoginTransition';
@@ -207,7 +207,14 @@ export default function App() {
         currentToken: () => useAuthStore.getState().backendToken,
       });
     } else if (error) {
-      setOidcError(error);
+      // Session ouverte : un rattachement annulé ou refusé chez le
+      // fournisseur. Il ne se disait nulle part, puis ressortait à l'écran de
+      // connexion après une déconnexion.
+      if (oidcErrorTarget(!!useAuthStore.getState().backendToken) === 'linkToast') {
+        useUiStore.getState().pushToast(i18n.t('preferences.account.ssoLinkFailed'), { tone: 'error' });
+      } else {
+        setOidcError(error);
+      }
     }
 
     if (fragment) {

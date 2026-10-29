@@ -133,6 +133,19 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     expect(linkOidcAccount).toHaveBeenCalled();
   });
 
+  // Une session ouverte avant la 1.8.0 ne connaît pas `sso_linked` : un compte
+  // déjà lié voyait « Lier », et le 409 du serveur passait pour un échec.
+  it('un compte déjà lié (409) s’affiche lié, sans message d’échec', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
+    vi.mocked(linkOidcAccount).mockRejectedValueOnce(http(409, 'Account already linked'));
+    useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local' } as never });
+    render(<GeneralTab />);
+    const btn = await screen.findByRole('button', { name: 'preferences.account.ssoLink' });
+    await act(async () => { fireEvent.click(btn); });
+    expect(await screen.findByText('preferences.account.ssoLinked')).toBeTruthy();
+    expect(useAuthStore.getState().backendUser?.sso_linked).toBe(true);
+  });
+
   it('dit que le compte est lié, sans bouton', async () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never });

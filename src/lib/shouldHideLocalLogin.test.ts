@@ -35,4 +35,10 @@ describe('shouldHideLocalLogin', () => {
   it('keeps the local form when the ?local escape hatch is set', () => {
     expect(shouldHideLocalLogin({ ...base, forceLocal: true })).toBe(false);
   });
+
+  // `link_required` dit « connectez-vous avec votre mot de passe, puis liez
+  // le compte » : en mode SSO seul, le formulaire où le faire était masqué.
+  it('keeps the local form when the SSO return asks to link an existing account', () => {
+    expect(shouldHideLocalLogin({ ...base, linkRequired: true })).toBe(false);
+  });
 });

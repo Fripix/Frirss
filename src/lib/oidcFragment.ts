@@ -26,3 +26,13 @@ export function readOidcFragment(hash: string): OidcFragment | null {
   if (linkError) return { kind: 'linkError', error: linkError };
   return null;
 }
+
+/**
+ * Où dire une `oidc_error`. Le serveur ne la distingue pas selon le parcours
+ * quand l'état n'a pas pu être lu (fournisseur annulé, état expiré) : avec une
+ * session ouverte, c'est forcément un rattachement — on ne se connecte pas
+ * en étant connecté. Sans session, c'est l'écran de connexion.
+ */
+export function oidcErrorTarget(signedIn: boolean): 'linkToast' | 'loginScreen' {
+  return signedIn ? 'linkToast' : 'loginScreen';
+}

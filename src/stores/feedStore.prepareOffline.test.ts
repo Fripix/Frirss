@@ -91,4 +91,30 @@ describe('prepareOffline — images préparées', () => {
     expect(cacheImages).not.toHaveBeenCalled();
     expect(pruneImages).not.toHaveBeenCalled();
   });
+
+  // Un flux sauté (FreshRSS en panne, 429 du plafond, 504) n'a rien apporté à
+  // la liste : ses images n'étaient pas « hors des 30 jours ». Avec FreshRSS
+  // en panne, la liste était vide et tout le cache des préparées partait.
+  it('ne retire rien quand la liste d’un flux n’a pas pu être lue', async () => {
+    useFeedStore.setState({ subscriptions: [{ id: 'feed/1', title: 'F' } as never, { id: 'feed/2', title: 'G' } as never] });
+    vi.mocked(getStreamContents)
+      .mockResolvedValueOnce({ items: [item(1)], continuation: null } as never)
+      .mockRejectedValueOnce(new Error('503'));
+    vi.mocked(cacheImages).mockImplementation(async (urls) => result(urls, 10));
+    await useFeedStore.getState().prepareOffline();
+    expect(pruneImages).not.toHaveBeenCalled();
+  });
+
+  it('ne retire rien sans abonnements chargés', async () => {
+    useFeedStore.setState({ subscriptions: [] });
+    await useFeedStore.getState().prepareOffline();
+    expect(pruneImages).not.toHaveBeenCalled();
+  });
+
+  it('ne reste pas « en cours » après une erreur imprévue', async () => {
+    vi.mocked(cacheImages).mockRejectedValue(new Error('IndexedDB'));
+    await useFeedStore.getState().prepareOffline().catch(() => {});
+    expect(useFeedStore.getState().offlinePrep?.running).toBe(false);
+    expect(pruneImages).not.toHaveBeenCalled();
+  });
 });

@@ -4731,9 +4731,18 @@ images consultés restent lisibles sans réseau.
     dépassait le budget d'une préparation à l'autre.
   - **Retrait** : à la fin d'une préparation qui a vu **toute** la liste,
     `pruneImages` retire ce qu'elle n'a pas gardé (article sorti des 30 jours,
-    au-delà du budget). Jamais après une préparation coupée par le réseau ou
-    par un cache impossible à ouvrir, ni images désactivées (le réglage
-    retrouve ce qui était préparé). `feedStore.prepareOffline.test.ts`.
+    au-delà du budget). Jamais après une préparation coupée par le réseau, par
+    un cache impossible à ouvrir ou par une erreur, ni quand la liste d'un
+    flux n'a pas pu être lue (FreshRSS en panne, 429, 504 : le flux sauté
+    n'était pas « sorti des 30 jours », et une panne vidait tout), ni sans
+    abonnements chargés, ni images désactivées (le réglage retrouve ce qui
+    était préparé). ⚠️ Les clés du cache sont **normalisées** (`Request.url`) :
+    les URL gardées le sont aussi avant la comparaison, sinon une image avec un
+    accent, une espace ou un hôte en majuscules était retirée à chaque fois.
+    `feedStore.prepareOffline.test.ts`, `imageCache.test.ts`.
+  - **Jamais « en cours » pour toujours** : la préparation est enveloppée d'un
+    `finally` qui la clôt sur une erreur imprévue (import dynamique
+    introuvable après un déploiement, IndexedDB).
   - **Reprise des versions précédentes** : une image préparée restée dans
     `frirss-images` (lisible, sous l'URL d'un autre site) est **déplacée**
     sans retéléchargement quand une préparation la redemande.
@@ -5850,9 +5859,13 @@ les clés modifiées sur l'appareil.
 
 - **Suivi dès la première lecture** (1.8.0) : les abonnements aux stores sont
   posés dès le premier `hydratePrefs`, réussi ou non. Une modification faite
-  pendant une lecture en échec (PWA ouverte hors ligne) est retenue en mémoire
-  — rien n'est envoyé ni persisté avant une lecture réussie — puis gagne sur le
-  serveur et part. Avant, personne ne la suivait et la lecture finalement
+  pendant une lecture en échec (PWA ouverte hors ligne) n'est pas envoyée
+  avant une lecture réussie, mais elle est **persistée** si ce navigateur
+  connaît déjà ce compte (`frirss_prefsOwner`) : une PWA tuée avant le retour
+  du réseau la retrouve au démarrage suivant. Sous un compte pas encore
+  confirmé ici, elle reste en mémoire. Puis elle gagne sur le serveur et part.
+  Avant la première lecture réussie, le retour du réseau (`online`) relit
+  tout de suite au lieu d'attendre le réessai (jusqu'à 60 s). Avant, personne ne la suivait et la lecture finalement
   réussie la recouvrait. `dirtyOwner` garde le compte de ces clés pendant les
   réessais (`owner` n'est fixé qu'au succès : chaque réessai les aurait vidées).
 - **Où** : `server/routes/preferences.ts`

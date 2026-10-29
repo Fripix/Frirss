@@ -308,6 +308,55 @@ describe('prefsSync — clés modifiées seulement', () => {
     }
   });
 
+  // PWA ouverte sans réseau, réglage changé, puis l'app est tuée en arrière-
+  // plan (courant sur iOS) avant le retour du réseau : la clé sale ne vivait
+  // qu'en mémoire, et la lecture réussie du démarrage suivant recouvrait la
+  // valeur locale de celle du serveur.
+  it('une modification faite pendant une panne survit au rechargement avant le retour du réseau', async () => {
+    fakeServer({ viewMode: 'normal', showFavicons: true });
+    await hydratePrefs(); // une session précédente, réussie : le compte est connu ici
+
+    // Démarrage hors ligne : la lecture échoue, l'utilisateur change un réglage.
+    vi.clearAllTimers();
+    vi.resetModules();
+    const b1 = await import('../api/backend');
+    const s1 = await import('./prefsSync');
+    const { useUiStore: ui1 } = await import('../stores/uiStore');
+    vi.mocked(b1.getPreferences).mockReset().mockRejectedValue(new Error('Network Error'));
+    await s1.hydratePrefs();
+    ui1.getState().setViewMode('compact');
+
+    // L'app est tuée, puis rouverte avec le réseau.
+    vi.clearAllTimers();
+    vi.resetModules();
+    const b2 = await import('../api/backend');
+    const s2 = await import('./prefsSync');
+    const { useUiStore: ui2 } = await import('../stores/uiStore');
+    const state: Record<string, unknown> = { viewMode: 'normal', showFavicons: true };
+    vi.mocked(b2.getPreferences).mockReset().mockImplementation(async () => structuredClone(state));
+    vi.mocked(b2.savePreferences).mockReset().mockImplementation(async (q) => { Object.assign(state, q); });
+    try {
+      await s2.hydratePrefs();
+      expect(ui2.getState().viewMode).toBe('compact');
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(state.viewMode).toBe('compact');
+    } finally {
+      s1.stopSync();
+      s2.stopSync();
+    }
+  });
+
+  // Avant la première lecture réussie, le retour du réseau attendait le
+  // réessai suivant (jusqu'à 60 s) : personne n'écoutait `online`.
+  it('relit dès le retour du réseau, sans attendre le réessai', async () => {
+    get.mockReset().mockRejectedValueOnce(new Error('Network Error')).mockResolvedValue({ viewMode: 'normal' });
+    await hydratePrefs();
+    expect(get).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
   it('a renewed token for the same user keeps the dirty keys', async () => {
     fakeServer({ viewMode: 'normal' });
     await hydratePrefs();

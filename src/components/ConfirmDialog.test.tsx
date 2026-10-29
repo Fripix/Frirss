@@ -140,6 +140,24 @@ describe('ConfirmDialog', () => {
     await act(async () => { resoudre(); });
   });
 
+  // Échap pendant le travail ne fermait pas la boîte — mais la touche
+  // continuait son chemin et refermait le panneau qui l'ouvrait (Préférences),
+  // en plein milieu d'une suppression.
+  it('pendant le travail, Échap ne ferme ni la boîte ni ce qui est derrière', async () => {
+    let resoudre: () => void = () => {};
+    const props = { onConfirm: vi.fn(() => new Promise<void>((r) => { resoudre = r; })), onCancel: vi.fn() };
+    ouvrir(props);
+    await franchirLaGrace();
+    const behind = vi.fn();
+    window.addEventListener('keydown', behind);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Marquer lu' })); });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    window.removeEventListener('keydown', behind);
+    expect(props.onCancel).not.toHaveBeenCalled();
+    expect(behind).not.toHaveBeenCalled();
+    await act(async () => { resoudre(); });
+  });
+
   it('annule au clic sur Annuler', () => {
     const { props } = ouvrir();
     fireEvent.click(screen.getByRole('button', { name: 'dialog.cancel' }));

@@ -309,4 +309,16 @@ describe('pruneImages', () => {
   it('ne fait rien quand le cache est indisponible', async () => {
     expect(await pruneImages(new Set(), async () => { throw new Error('none'); })).toBe(0);
   });
+
+  // Le cache rend ses clés normalisées (`Request.url`), la préparation garde
+  // l'URL telle que l'article l'écrit : un accent, une espace, un hôte en
+  // majuscules et l'image, stockée, était retirée à chaque fin de préparation.
+  it('compare les URL sous leur forme normalisée', async () => {
+    const prepared = statsCache({
+      'https://cdn.example.com/caf%C3%A9%20noir.jpg': entry('default', 1),
+      'https://cdn.example.com/old.jpg': entry('default', 1),
+    });
+    await pruneImages(new Set(['https://CDN.example.com:443/café noir.jpg']), async () => prepared as never);
+    expect(Object.keys(prepared.entries)).toEqual(['https://cdn.example.com/caf%C3%A9%20noir.jpg']);
+  });
 });

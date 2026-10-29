@@ -70,8 +70,15 @@ export default function AccountSection() {
     setLinking(true);
     try {
       await linkOidcAccount(); // quitte la page vers le fournisseur
-    } catch {
+    } catch (err) {
       setLinking(false);
+      // 409 : déjà lié. Une session ouverte avant la 1.8.0 ne le savait pas
+      // (`sso_linked` absent) et proposait « Lier » à tort.
+      if ((err as { response?: { status?: number } })?.response?.status === 409) {
+        const user = useAuthStore.getState().backendUser;
+        if (user) useAuthStore.setState({ backendUser: { ...user, sso_linked: true } });
+        return;
+      }
       useUiStore.getState().pushToast(t('preferences.account.ssoLinkFailed'), { tone: 'error' });
     }
   }

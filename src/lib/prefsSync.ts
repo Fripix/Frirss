@@ -258,13 +258,26 @@ function track(keys: readonly string[], state: unknown, prev: unknown): void {
       touched = true;
     }
   }
-  // Avant la première lecture réussie, la clé est seulement retenue en
-  // mémoire : rien ne part (aucune valeur connue du serveur ne dit encore ce
-  // qui a changé), et rien n'est persisté sous un compte pas encore confirmé.
-  if (touched && started) {
+  if (!touched) return;
+  // Avant la première lecture réussie, rien ne part (aucune valeur connue du
+  // serveur ne dit encore ce qui a changé). Mais la clé est persistée si ce
+  // navigateur connaît déjà ce compte — sinon une PWA tuée avant le retour du
+  // réseau (courant sur iOS) la perdait, et la lecture du démarrage suivant
+  // recouvrait la valeur locale. Sous un compte pas encore confirmé ici, elle
+  // reste en mémoire : rien ne s'écrit au nom d'un compte inconnu.
+  if (started) {
     persistDirty();
     schedulePush();
+  } else {
+    const me = currentOwner();
+    if (me !== null && readStored<number>(OWNER_STORAGE) === me) persistDirty();
   }
+}
+
+// Avant la première lecture réussie, le retour du réseau relit tout de suite,
+// au lieu d'attendre le réessai suivant (jusqu'à une minute).
+function onOnlineBeforeSync(): void {
+  if (!started && retryTimer) void hydratePrefs();
 }
 
 // Suivre les deux stores. Posé dès la PREMIÈRE lecture, réussie ou non : une
@@ -273,6 +286,7 @@ function track(keys: readonly string[], state: unknown, prev: unknown): void {
 // valeur du serveur, sans rien dire.
 function startTracking(): void {
   if (unsubUi) return;
+  if (typeof window !== 'undefined') window.addEventListener('online', onOnlineBeforeSync);
   unsubUi = useUiStore.subscribe((state, prev) => track(UI_SYNC_KEYS, state, prev));
   unsubTheme = useThemeStore.subscribe((state, prev) => track(THEME_SYNC_KEYS, state, prev));
 }
@@ -423,7 +437,10 @@ export function stopSync(): void {
   if (unsubTheme) unsubTheme();
   unsubUi = null;
   unsubTheme = null;
-  if (typeof window !== 'undefined') window.removeEventListener('online', onOnline);
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('online', onOnline);
+    window.removeEventListener('online', onOnlineBeforeSync);
+  }
   started = false;
   generation++;
   clearRetry();

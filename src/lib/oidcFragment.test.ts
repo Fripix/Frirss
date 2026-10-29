@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readOidcFragment } from './oidcFragment';
+import { readOidcFragment, oidcErrorTarget } from './oidcFragment';
 
 // Ce que le serveur rend dans le fragment au retour du fournisseur SSO.
 describe('readOidcFragment', () => {
@@ -13,5 +13,19 @@ describe('readOidcFragment', () => {
   it('ne lit rien d’autre', () => {
     expect(readOidcFragment('')).toBeNull();
     expect(readOidcFragment('#feed=1')).toBeNull();
+  });
+});
+
+describe('oidcErrorTarget', () => {
+  // Le retour d'un rattachement annulé chez le fournisseur (ou refusé avant
+  // que le serveur ait lu l'état) arrive en `oidc_error`, comme un échec de
+  // connexion. Session ouverte, il ne s'affichait nulle part — puis
+  // réapparaissait à l'écran de connexion après une déconnexion.
+  it('session ouverte : un échec de rattachement, annoncé tout de suite', () => {
+    expect(oidcErrorTarget(true)).toBe('linkToast');
+  });
+
+  it('sans session : un échec de connexion, sur l’écran de connexion', () => {
+    expect(oidcErrorTarget(false)).toBe('loginScreen');
   });
 });

@@ -122,11 +122,14 @@ la release publiée.
   attendait de joindre le serveur pour suivre les modifications : un réglage
   changé entre-temps (thème, favicons, catégorie repliée…) était recouvert
   par la valeur du serveur dès le retour du réseau. Il gagne désormais, et
-  part.
+  part, même si l'app est fermée puis rouverte avant le retour du réseau ; et
+  ce retour est vu tout de suite.
 - **« Tout lu » ne vise plus un autre serveur.** Basculer de serveur pendant
   le relevé des non-lus envoyait le marquage au serveur devenu actif, où le
   même numéro de flux désigne souvent un autre flux. Rien ne part si le
-  serveur ou la session a changé.
+  serveur ou la session a changé. Et ouvrir un autre flux pendant le relevé
+  ne vide plus sa liste ni n'affiche lu son article ouvert : le flux demandé
+  est marqué, la vue devenue active n'est pas touchée.
 - **Une recherche ne dit plus « Échec du chargement » à tort** quand c'est la
   vue d'avant qui avait échoué.
 - **Changer de serveur pendant un chargement lent** n'affiche plus les
@@ -452,12 +455,28 @@ la release publiée.
   sans en connaître la taille : 6 000 pouvaient représenter plus de 40 Go
   comptés. Les articles lus récemment restent illustrés hors ligne ; pour les
   plus anciens, c'est la préparation qui garde les images.
+- **Hors ligne : une préparation ne retire plus d'images à tort.** Un flux
+  dont la liste n'a pas pu être lue (FreshRSS en panne, limite de requêtes)
+  voyait ses images préparées retirées en fin de préparation — toutes, si
+  FreshRSS était injoignable. Une image dont l'adresse contient un accent,
+  une espace ou des majuscules était retirée à chaque fois. Et une erreur
+  imprévue ne laisse plus « Préparer » en cours jusqu'au rechargement.
 - **Hors ligne : l'avertissement de budget dit vrai.** Un budget plus grand
   que ce que l'appareil autorise annonçait que « le navigateur purgera
   automatiquement » ; ce vidage ne touche plus les images préparées, et le
   message dit désormais que les images au-delà ne pourront pas être
   enregistrées. Une petite taille non nulle s'affiche « ~1 Mo », jamais
   « ~0 Mo ».
+- **SSO** : en mode « SSO uniquement », le formulaire local apparaît quand la
+  connexion SSO demande de rattacher un compte existant (il fallait s'y
+  connecter avec son mot de passe, mais le formulaire était masqué). Un
+  rattachement annulé chez le fournisseur le dit, au lieu de ressortir plus
+  tard à l'écran de connexion ; un compte déjà lié ouvert depuis une session
+  antérieure s'affiche lié au lieu d'un échec.
+- **Échap pendant une confirmation qui travaille** (suppression d'un
+  serveur, d'une étiquette…) ne referme plus les Préférences derrière elle.
+- **Après une panne, une liste relue vide dit « Tout est lu »** au lieu de
+  « Le chargement a échoué ».
 - **La palette ne propose plus « Résumer » sur un résumé déjà affiché**,
   même dans le court instant qui suit son apparition.
 - **La page d'erreur de l'application parle votre langue** (elle était en
