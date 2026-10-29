@@ -367,6 +367,8 @@
       "title": "Keyboard navigation",
       "hint": "Click a key to change it. Press Escape to cancel.",
       "reset": "Reset",
+      "resetConfirmTitle": "Reset the shortcuts?",
+      "resetConfirmMessage": "Every shortcut goes back to its default key; your custom keys will be lost.",
       "resetShortcuts": "Reset shortcuts",
       "pressKey": "Press a key…",
       "nextArticle": "Next article",
@@ -561,6 +563,8 @@
     "registrationDisabled": "Registration is disabled.",
     "errorLogin": "Invalid credentials.",
     "errorRegister": "Error creating account.",
+    "errorUsernameShort": "The username must be at least 3 characters long.",
+    "errorRegistrationClosed": "Registration is closed on this instance.",
     "errorUsernameTaken": "This username is already taken.",
     "errorPasswordShort": "Password must be at least 6 characters.",
     "errorPasswordMismatch": "Passwords do not match.",
@@ -734,7 +738,7 @@
     "failed": "The refresh failed",
     "incomplete": "Refresh unfinished",
     "enable": "Enable feed refreshing",
-    "continuing": "FreshRSS is finishing the refresh in the background"
+    "continuing": "FreshRSS didn’t answer in time: the refresh may still be running on its side"
   },
   "saved": {
     "fileInto": "File into",
@@ -996,6 +1000,8 @@
       "field": "Key for {{name}}",
       "save": "Save",
       "clear": "Clear",
+      "clearConfirmTitle": "Delete your {{name}} key?",
+      "clearConfirmMessage": "It will be removed from FriRSS: you will have to paste it again to use it.",
       "saved": "Key saved.",
       "cleared": "Key cleared.",
       "error": "Could not save. Try again."

@@ -72,7 +72,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
           {t('preferences.offline.hint')}
         </p>
         <button
-          onClick={() => prepareOffline()}
+          onClick={() => prepareOffline({ userInitiated: true })}
           disabled={offlinePrep?.running || !online}
           className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
           style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}

@@ -1267,18 +1267,18 @@ describe('extract', () => {
     expect(cancelled).toBe(true);
   });
 
-  // Une réponse SANS `Content-Type` tombe dans le refus 415, comme un type
-  // non-HTML : plus étroit que l'ancien chemin par le proxy, et assumé.
-  it('refuses a response with no Content-Type at all', async () => {
-    let cancelled = false;
-    const body = streamOf([new Uint8Array(1024)], () => { cancelled = true; });
+  // Une réponse SANS `Content-Type` est lue comme une page, dans le même
+  // plafond : le client ne se replie plus sur un 415 (une vidéo derrière
+  // l'adresse d'un article y passait en entier), donc le 415 doit rester
+  // réservé à un type ANNONCÉ qui n'est pas du HTML — sinon une vraie page
+  // servie sans type ne s'extrairait plus nulle part.
+  it('reads a response with no Content-Type as a page', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200, headers: new Headers(), body,
+      ok: true, status: 200, headers: new Headers(), body: htmlStream(ARTICLE),
     }));
     const res = await get('https://news.example.com/sans-type');
-    expect(res.status).toBe(415);
-    expect(res.body).toEqual({ error: 'Unsupported content type' });
-    expect(cancelled).toBe(true);
+    expect(res.status).toBe(200);
+    expect(res.body.content).toContain('premier paragraphe');
   });
 
   it('refuses a body larger than the cap', async () => {

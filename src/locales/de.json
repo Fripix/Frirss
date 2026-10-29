@@ -367,6 +367,8 @@
       "title": "Tastaturnavigation",
       "hint": "Klicken Sie auf eine Taste, um sie zu ändern. Drücken Sie Esc zum Abbrechen.",
       "reset": "Zurücksetzen",
+      "resetConfirmTitle": "Tastenkürzel zurücksetzen?",
+      "resetConfirmMessage": "Jedes Kürzel erhält wieder seine Standardtaste; Ihre eigenen Tasten gehen verloren.",
       "resetShortcuts": "Tastenkürzel zurücksetzen",
       "pressKey": "Taste drücken…",
       "nextArticle": "Nächster Artikel",
@@ -561,6 +563,8 @@
     "registrationDisabled": "Registrierungen sind deaktiviert.",
     "errorLogin": "Ungültige Anmeldedaten.",
     "errorRegister": "Fehler beim Erstellen des Kontos.",
+    "errorUsernameShort": "Der Benutzername muss mindestens 3 Zeichen lang sein.",
+    "errorRegistrationClosed": "Die Registrierung ist auf dieser Instanz geschlossen.",
     "errorUsernameTaken": "Dieser Benutzername ist bereits vergeben.",
     "errorPasswordShort": "Das Passwort muss mindestens 6 Zeichen lang sein.",
     "errorPasswordMismatch": "Die Passwörter stimmen nicht überein.",
@@ -731,7 +735,7 @@
     "failed": "Abruf fehlgeschlagen",
     "incomplete": "Abruf unvollständig",
     "enable": "Feed-Abruf aktivieren",
-    "continuing": "FreshRSS schließt den Abruf im Hintergrund ab"
+    "continuing": "FreshRSS hat nicht rechtzeitig geantwortet: Der Abruf läuft dort eventuell weiter"
   },
   "update": {
     "updating": "Aktualisierung…"
@@ -996,6 +1000,8 @@
       "field": "Schlüssel für {{name}}",
       "save": "Speichern",
       "clear": "Löschen",
+      "clearConfirmTitle": "Ihren {{name}}-Schlüssel löschen?",
+      "clearConfirmMessage": "Er wird aus FriRSS entfernt: Um ihn zu nutzen, müssen Sie ihn erneut einfügen.",
       "saved": "Schlüssel gespeichert.",
       "cleared": "Schlüssel gelöscht.",
       "error": "Speichern nicht möglich. Bitte erneut versuchen."

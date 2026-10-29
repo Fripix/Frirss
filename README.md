@@ -75,10 +75,10 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
 - **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed — or, if you prefer, one choice applies to every feed (*Preferences → General → Unread filter*).
 - **Ticking an article read clears it from the unread list** — instantly, in every layout including the compact one. Opening an article leaves its row where it is, so you keep your place; only a deliberate tick removes one. If the server refuses the write, the row comes back and says so.
-- **Nothing destructive happens in one click.** Unsubscribing, deleting a tag, a category, a server or a saved theme, the *Reset* buttons and every admin action on an account ask first, in a dialog that names what will be lost — and a double click can never answer it for you. When the server refuses, the app says so instead of pretending.
+- **Nothing destructive happens in one click.** Unsubscribing, deleting a tag, a category, a server or a saved theme, clearing your personal AI key, every *Reset* button (shortcuts included) and every admin action on an account ask first, in a dialog that names what will be lost — and a double click can never answer it for you. When the server refuses, the app says so instead of pretending.
 - **Mark everything as read — and take it back.** The button asks first, in a dialog that says how many articles and which view, so it is never mistaken for a filter next to it. Then a banner offers *Undo*, which puts back exactly the articles that were unread and nothing else, up to 25 000 of them, counting up as it works. Past that it says so beforehand rather than promising a safety net it cannot hold. The confirmation is on by default and can be turned off in *Preferences → General*.
 - **Open an article at its source** — an icon on each row opens the origin site in a new tab and selects the article, so it is marked read and keeps its place in the list. For the feeds you would rather read on the site itself.
-- **Right-click an article** — or long-press it on touch, or press the keyboard Menu key — for a menu: open at source, mark read or unread, mark everything above or below as read, favorite, read later, copy link. Entries carry icons and are grouped by what they do; the two range actions cover the whole view, loaded rows or not. On a phone it opens as a bottom sheet. The title is a real link: a middle click, <kbd>⌘</kbd>-click or <kbd>Ctrl</kbd>-click opens the source in a background tab and marks the article read without leaving the one you are reading.
+- **Right-click an article** — or long-press it on touch, or press the keyboard Menu key — for a menu: open at source, mark read or unread, mark everything above or below as read, favorite, read later, copy link. Entries carry icons and are grouped by what they do; the two range actions cover the whole view, loaded rows or not. On a phone it opens as a bottom sheet. The title is a real link: a middle click, <kbd>⌘</kbd>-click or <kbd>Ctrl</kbd>-click opens the source in a background tab and marks the article read without leaving the one you are reading. Elsewhere on the row, a middle click still opens the source directly.
 - **Search that actually filters**, scoped to the view you are in: FriRSS scans that scope article by article in your browser — read ones included — and shows matches as they turn up, with a counter and a stop button while it works. **Every result says why it is one**: the term is highlighted in the title and summary, and when it only appears deep in the article, the row shows the passage that matched instead of the usual summary. The count stays on screen once the scan is done. FreshRSS's Google Reader API has no search parameter, so the filtering happens client-side; offline, it searches what your device already holds and says so. The last five queries are offered back, per server.
 - **Mark as read while scrolling**, optionally: an article is marked once it has left the top of the list. Off by default, never during a search. The last rows never leave the top, so a list ends with a *Mark all as read* button whenever unread rows remain — the same action as the toolbar's, confirmation and undo included.
 - **New articles announce themselves** — a banner at the top of the list counts what has arrived in the view you are looking at, and loads it in one click. Dismiss it and it comes back on the next arrival. The list never changes under you. Off in *Preferences → General* if you would rather it did not.
@@ -113,7 +113,7 @@ Almost everything is yours to tweak:
 - **Row action icons** — show or hide each of the four icons on an article row (favorite, read later, open at source, mark read), one by one, from the *Layout* section.
 - **A sidebar that remembers** — collapsed sections stay collapsed, and feeds with nothing unread can be hidden to declutter long lists.
 - **Categories & feeds** — rename or delete a category and move feeds between categories, right from the preferences.
-- **Tags & sub-tags** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with per-label article counts.
+- **Tags & sub-tags** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with an article count on each tag.
 - **Branding** — set your own app name and logo.
 - **10 languages** — the interface follows your browser language on first run.
 
@@ -201,8 +201,9 @@ The first launch generates the JWT secret and the token-encryption key and store
 
 > Since 1.4.10 the **server** extracts article text: the browser asks
 > `GET /api/extract` first, and falls back to extracting the page itself only
-> when that route is missing (an older backend), refuses the page, is busy, or
-> cannot reach it. With `REDIS_URL` set the result is cached by URL rather than
+> when that route is missing (an older backend), cannot make an article of the
+> page, is busy, or cannot reach it — never when the address is not a page at
+> all (a video, a PDF), and never past 2 MB of HTML, the cap on both sides. With `REDIS_URL` set the result is cached by URL rather than
 > by account, so a page is extracted once for the whole instance instead of once
 > per device: a second device, or another user reading the same feed, gets it
 > instantly. Devices asking for the same cold page at the same moment are
@@ -211,7 +212,8 @@ The first launch generates the JWT secret and the token-encryption key and store
 > nothing, so the next device pays for the extraction again. Either way the work
 > now happens on the server rather than on every phone, so budget for it:
 > parsing a page blocks the single Node process that serves the whole instance
-> for tens of milliseconds up to about a second on the largest pages. That work
+> for tens of milliseconds up to about a second on the largest pages (2 MB,
+> the cap). That work
 > is bounded — one page is parsed at a time and at most five requests may be
 > in flight or waiting, beyond which the server says so and the browser extracts locally —
 > but the bound is a queue, not extra capacity: a busy instance is one where

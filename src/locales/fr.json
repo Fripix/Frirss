@@ -367,6 +367,8 @@
       "title": "Navigation clavier",
       "hint": "Cliquez sur une touche pour la modifier. Appuyez sur Échap pour annuler.",
       "reset": "Réinitialiser",
+      "resetConfirmTitle": "Réinitialiser les raccourcis ?",
+      "resetConfirmMessage": "Chaque raccourci reprend sa touche par défaut ; vos touches personnalisées seront perdues.",
       "resetShortcuts": "Réinitialiser les raccourcis",
       "pressKey": "Appuyez sur une touche…",
       "nextArticle": "Article suivant",
@@ -561,6 +563,8 @@
     "registrationDisabled": "Les inscriptions sont désactivées.",
     "errorLogin": "Identifiants incorrects.",
     "errorRegister": "Erreur lors de la création du compte.",
+    "errorUsernameShort": "Le nom d’utilisateur doit contenir au moins 3 caractères.",
+    "errorRegistrationClosed": "Les inscriptions sont fermées sur cette instance.",
     "errorUsernameTaken": "Ce nom d’utilisateur est déjà pris.",
     "errorPasswordShort": "Le mot de passe doit contenir au moins 6 caractères.",
     "errorPasswordMismatch": "Les mots de passe ne correspondent pas.",
@@ -734,7 +738,7 @@
     "failed": "La relève a échoué",
     "incomplete": "Relève inachevée",
     "enable": "Activer la relève des flux",
-    "continuing": "FreshRSS termine la relève en arrière-plan"
+    "continuing": "FreshRSS n’a pas répondu à temps : la relève peut continuer de son côté"
   },
   "saved": {
     "fileInto": "Ranger dans",
@@ -996,6 +1000,8 @@
       "field": "Clé pour {{name}}",
       "save": "Enregistrer",
       "clear": "Effacer",
+      "clearConfirmTitle": "Effacer votre clé {{name}} ?",
+      "clearConfirmMessage": "Elle sera supprimée de FriRSS : il faudra la coller de nouveau pour l’utiliser.",
       "saved": "Clé enregistrée.",
       "cleared": "Clé effacée.",
       "error": "Enregistrement impossible. Réessayez."

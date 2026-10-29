@@ -30,6 +30,9 @@ export function releaseDocument(doc: Document | null | undefined): void {
  */
 export function purifyToString(html: string, cfg: Config): string {
   if (!html) return '';
+  // Sans `<`, DOMPurify rend la chaîne sans l'analyser (aucun document) :
+  // passer par `RETURN_DOM` la réécrirait (`&` → `&amp;`).
+  if (!html.includes('<')) return DOMPurify.sanitize(html, cfg) as string;
   const body = DOMPurify.sanitize(html, { ...cfg, RETURN_DOM: true }) as HTMLElement;
   try {
     return body.innerHTML;

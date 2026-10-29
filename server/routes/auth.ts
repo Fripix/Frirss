@@ -269,9 +269,10 @@ router.get('/oidc/config', (req, res) => {
 /**
  * Prépare l'aller vers le fournisseur : cookies PKCE + nonce, état signé, et
  * l'URL d'autorisation. `link` (un id de compte) fait de ce passage un
- * RATTACHEMENT : au retour, l'identité SSO est posée sur ce compte au lieu
- * d'ouvrir une session. Le cookie PKCE lie le retour à CE navigateur : un
- * rattachement lancé ailleurs ne peut pas être terminé par quelqu'un d'autre.
+ * RATTACHEMENT : au retour, rien n'est posé ni aucune session ouverte — le
+ * retour remet un ticket que seule une session de ce compte valide
+ * (`POST /oidc/link/complete`). Les cookies PKCE ne suffisent pas à lier le
+ * retour au bon navigateur : un site voisin du même domaine peut les déposer.
  */
 async function authorizationUrl(req: Request, res: Response, link?: number): Promise<string> {
     const cfg = getOidcConfig();
@@ -352,8 +353,9 @@ router.post('/oidc/link', requireAuth, passwordLimiter, async (req, res) => {
 });
 
 // ── POST /api/auth/oidc/link/complete ───────────────────────────────
-// Valide le ticket remis par le retour du fournisseur, DEPUIS la session qui a
-// lancé la liaison. Le retour, lui, n'est lié au navigateur que par des
+// Valide le ticket remis par le retour du fournisseur, depuis une session du
+// compte qui a lancé la liaison (le ticket porte son id ; il vaut 5 minutes,
+// et une seconde validation trouve le compte déjà lié). Le retour, lui, n'est lié au navigateur que par des
 // cookies, qu'un site voisin du même domaine peut déposer : l'attaquant
 // lançait sa propre liaison, la victime revenait du fournisseur dans ce
 // navigateur, et l'identité de la victime allait sur le compte de l'attaquant.
@@ -388,7 +390,14 @@ router.post('/oidc/link/complete', requireAuth, (req, res) => {
 // n'aurait plus aucun moyen de s'ouvrir.
 router.delete('/oidc/link', requireAuth, (req, res) => {
   if (req.user.auth_provider !== 'local') return res.status(400).json({ error: 'Only a local account can be unlinked' });
-  db.prepare('UPDATE users SET oidc_sub = NULL WHERE id = ?').run(req.user.id);
+  // Les sessions ouvertes par cette identité se ferment avec elle — une
+  // identité rattachée à tort (par l'adresse e-mail, avant la 1.8.0) gardait
+  // sinon la sienne jusqu'à 30 jours. Rien ne dit quelle session vient du SSO :
+  // toutes les autres se ferment, comme au changement de mot de passe.
+  db.transaction(() => {
+    db.prepare('UPDATE users SET oidc_sub = NULL WHERE id = ?').run(req.user.id);
+    db.prepare('DELETE FROM sessions WHERE user_id = ? AND token != ?').run(req.user.id, req.token);
+  })();
   console.log('[oidc] account id=%s unlinked its SSO identity', req.user.id);
   res.json({ ok: true });
 });

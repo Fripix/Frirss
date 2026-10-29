@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { loginErrorKey, serverConnectErrorKey, isBackendAuthFailure, BLOCKED_TARGET_MARKER, UNRESOLVED_TARGET_MARKER, BACKEND_AUTH_MARKERS } from './loginErrors';
+import { loginErrorKey, registerErrorKey, REGISTER_ERROR_MESSAGES, serverConnectErrorKey, isBackendAuthFailure, BLOCKED_TARGET_MARKER, UNRESOLVED_TARGET_MARKER, BACKEND_AUTH_MARKERS } from './loginErrors';
 
 const httpError = (status: number) => ({ response: { status } });
 
@@ -193,5 +193,31 @@ describe('isBackendAuthFailure', () => {
     expect(isBackendAuthFailure(proxyError(500, { error: 'Token required' }))).toBe(false);
     expect(isBackendAuthFailure(new Error('Network Error'))).toBe(false);
     expect(isBackendAuthFailure(null)).toBe(false);
+  });
+});
+
+// L'inscription affichait le message ANGLAIS du serveur dans les dix langues.
+describe('registerErrorKey', () => {
+  const http = (status: number, error?: string) => ({ response: { status, data: error ? { error } : {} } });
+  it('traduit chaque refus connu du serveur', () => {
+    expect(registerErrorKey(http(409, 'Username already taken'))).toBe('login.errorUsernameTaken');
+    expect(registerErrorKey(http(403, 'Registration is disabled'))).toBe('login.errorRegistrationClosed');
+    expect(registerErrorKey(http(429))).toBe('login.errorTooMany');
+    expect(registerErrorKey(http(400, 'Username must be at least 3 characters'))).toBe('login.errorUsernameShort');
+    expect(registerErrorKey(http(400, 'Password must be at least 6 characters'))).toBe('login.errorPasswordShort');
+    expect(registerErrorKey(http(400, 'A valid email is required'))).toBe('login.errorEmailInvalid');
+  });
+  it('ne met pas le formulaire en cause sans réponse du serveur', () => {
+    expect(registerErrorKey(new Error('Network Error'))).toBe('login.errorUnavailable');
+  });
+  // Les refus se reconnaissent à leur texte : s'il change côté serveur, le
+  // message traduit retomberait en silence sur le générique.
+  it('reconnaît des textes que le serveur envoie vraiment', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../../server/routes/auth.ts'), 'utf8');
+    for (const m of Object.values(REGISTER_ERROR_MESSAGES)) expect(src).toContain(`'${m}'`);
+  });
+  it('garde le message générique pour le reste', () => {
+    expect(registerErrorKey(http(500, 'Internal server error'))).toBe('login.errorRegister');
+    expect(registerErrorKey(http(400, 'Username and password required'))).toBe('login.errorRegister');
   });
 });

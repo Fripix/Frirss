@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAiStore } from '../../../stores/aiStore';
 import { setAiUserKey, type AiProviderView } from '../../../api/backend';
 import { BlockTitle } from './shared';
+import ConfirmDialog from '../../ConfirmDialog';
 import { inputClass, inputStyle, quietBtn } from './styles';
 
 /** Référence stable : un `?? []` dans le sélecteur ferait rerendre sans fin. */
@@ -23,6 +24,8 @@ function KeyRow({ provider }: { provider: AiProviderView }) {
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  // Effacée, la clé est à recoller : l'effacement se confirme.
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const send = async (key: string | null, done: Outcome) => {
     setBusy(true);
@@ -65,7 +68,7 @@ function KeyRow({ provider }: { provider: AiProviderView }) {
         </button>
         {provider.hasUserKey && (
           <button
-            type="button" disabled={busy} onClick={() => send(null, 'cleared')}
+            type="button" disabled={busy} onClick={() => setConfirmClear(true)}
             className={quietBtn} style={{ color: 'var(--danger)' }}
           >
             {t('ai.keys.clear')}
@@ -75,6 +78,15 @@ function KeyRow({ provider }: { provider: AiProviderView }) {
           ? <span role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{t('ai.keys.error')}</span>
           : outcome && <span role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t(outcome === 'saved' ? 'ai.keys.saved' : 'ai.keys.cleared')}</span>}
       </div>
+      <ConfirmDialog
+        open={confirmClear}
+        title={t('ai.keys.clearConfirmTitle', { name: provider.name })}
+        message={t('ai.keys.clearConfirmMessage')}
+        confirmLabel={t('ai.keys.clear')}
+        danger
+        onConfirm={() => { setConfirmClear(false); void send(null, 'cleared'); }}
+        onCancel={() => setConfirmClear(false)}
+      />
     </li>
   );
 }

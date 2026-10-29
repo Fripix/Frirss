@@ -171,7 +171,13 @@ router.delete('/users/:id/sso', (req, res) => {
   const user = db.prepare('SELECT auth_provider FROM users WHERE id = ?').get(req.params.id) as { auth_provider: string } | undefined;
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (user.auth_provider !== 'local') return res.status(400).json({ error: 'Only a local account can be unlinked' });
-  db.prepare('UPDATE users SET oidc_sub = NULL WHERE id = ?').run(req.params.id);
+  // Toutes les sessions du compte se ferment (voir `DELETE /api/auth/oidc/link`) :
+  // rien ne distingue celles que l'identité déliée a ouvertes. Sauf celle de
+  // l'admin s'il délie son propre compte.
+  db.transaction(() => {
+    db.prepare('UPDATE users SET oidc_sub = NULL WHERE id = ?').run(req.params.id);
+    db.prepare('DELETE FROM sessions WHERE user_id = ? AND token != ?').run(req.params.id, req.token);
+  })();
   console.log('[oidc] admin id=%s unlinked the SSO identity of account id=%s', req.user.id, req.params.id);
   res.json({ ok: true });
 });

@@ -51,10 +51,11 @@ describe('régions annoncées montées en permanence', () => {
   });
 });
 
-// 504 du serveur web de FreshRSS : la relève continue de son côté. Ni « à
-// jour » (rien ne dit que c'est fini) ni « échec » (elle a eu lieu).
-describe('bandeau de relève — FreshRSS continue', () => {
-  it('dit que FreshRSS termine la relève', () => {
+// 504 : FreshRSS n'a pas répondu à temps. Ni « à jour » (rien ne dit que
+// c'est fini) ni « échec » (PHP termine souvent la relève derrière un 504) :
+// le bandeau dit ce qui s'est passé, sans en deviner la cause.
+describe('bandeau de relève — pas de réponse à temps', () => {
+  it('le dit, sans annoncer ni réussite ni échec', () => {
     render(<RefreshBanner />);
     act(() => { useFeedStore.setState({ refreshResult: { totalNew: 0 }, refreshPhase: 'continuing' } as never); });
     expect(screen.getByRole('status').textContent).toBe('refresh.continuing');

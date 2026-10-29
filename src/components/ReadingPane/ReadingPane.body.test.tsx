@@ -144,8 +144,9 @@ describe('ReadingPane — corps d’article', () => {
     const heroBefore = container.querySelector(`${BODY_SELECTOR} img`) as HTMLImageElement;
     expect(heroBefore.getAttribute('src')).toBe('https://example.com/hero.jpg');
     // La pastille de durée est là aussi : il y a du texte à mesurer.
-    // (Rendu desktop en jsdom : la pastille écrit « N min ».)
-    expect(container.textContent).toMatch(/\d+ min/);
+    // (Rendu desktop en jsdom ; la pastille passe par `readingPane.readingTime`
+    // — elle écrivait « N min » en dur sur ordinateur, dans toutes les langues.)
+    expect(container.textContent).toMatch(/readingPane\.readingTime/);
 
     // L'extraction arrive (le bouton « contenu complet » sert de déclencheur
     // synchrone : le cache mémoire répond sans réseau). Elle ne porte PAS
@@ -188,6 +189,6 @@ describe('ReadingPane — corps d’article', () => {
     expect(container.querySelector('.reading-skeleton')).toBeTruthy();
     expect(container.querySelector(BODY_SELECTOR)).toBeNull();
     // Rien à mesurer : pas de pastille de durée non plus.
-    expect(container.textContent).not.toMatch(/\d+ min/);
+    expect(container.textContent).not.toMatch(/readingPane\.readingTime/);
   });
 });

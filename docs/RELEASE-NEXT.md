@@ -33,7 +33,8 @@ la release publiée.
   un compte local change lui-même son mot de passe (actuel, nouveau,
   confirmation). Jusqu'ici, seul un administrateur pouvait le réinitialiser.
   Les autres sessions du compte sont fermées, et un mauvais mot de passe
-  actuel est dit sans déconnecter. La route existait sans écran et sans
+  actuel est dit sans déconnecter ; les gestionnaires de mots de passe savent
+  à quel compte rattacher le nouveau. La route existait sans écran et sans
   limite : elle est désormais limitée à 10 échecs par quart d'heure, compte
   par compte (voir Sécurité).
 
@@ -46,13 +47,16 @@ la release publiée.
   son compte. Le rattachement se fait désormais depuis le compte, connecté :
   Préférences › Général › Compte, « Lier à … », avec le mot de passe actuel :
   une session volée ne suffit plus. Le retour du fournisseur ne rattache rien
-  à lui seul, il remet un ticket que seule la session qui a lancé la liaison
-  valide — un cookie déposé par un site voisin du même domaine ne suffit pas.
+  à lui seul, il remet un ticket que seul le compte qui a lancé la liaison valide,
+  depuis l'une de ses sessions — un cookie déposé par un site voisin du même
+  domaine ne suffit pas. Délier ferme aussi les sessions ouvertes par cette
+  identité.
   Un compte se délie depuis la même section, ou par l'administrateur, qui voit
   désormais quels comptes sont liés (« Local + SSO »). Une connexion SSO qui
   tombe sur une adresse déjà utilisée explique la marche à suivre.
-- **Les jetons FreshRSS ne suivent plus une adresse changée.** Changer l'URL
-  ou le compte d'un serveur par l'API gardait les deux jetons, que FriRSS
+- **Les jetons FreshRSS ne suivent plus une adresse changée.** Changer l'hôte
+  (ou le port, ou le schéma) ou le compte d'un serveur par l'API gardait les
+  deux jetons, que FriRSS
   envoyait ensuite au nouvel hôte : une session FriRSS suffisait à les faire
   sortir. Il faut désormais fournir un nouveau jeton, et le jeton maître est
   oublié. L'interface n'utilisait pas ce chemin.
@@ -64,8 +68,9 @@ la release publiée.
   du SSO enfin `Secure`).
 - **SSO : l'adresse de retour ne dépend plus d'un en-tête du client**
   (`X-Forwarded-Host`), quand `FRIRSS_BASE_URL` n'est pas défini.
-- **Administration : un admin ne peut plus se désactiver par l'API** avec une
-  valeur non booléenne, ce qui pouvait laisser l'instance sans administrateur.
+- **Administration : l'instance ne peut plus se retrouver sans
+  administrateur par l'API** — un admin ne se désactive plus avec une valeur
+  non booléenne, et un rôle vide est refusé.
 - **Connexion : la réponse ne trahit plus quels noms de compte existent** (même
   délai, « compte désactivé » seulement après le bon mot de passe).
 - **Deux inscriptions simultanées sur une instance neuve** ne créent plus deux
@@ -74,10 +79,9 @@ la release publiée.
   hexadécimale (`[::ffff:7f00:1]`) ou NAT64 sont reconnues comme internes.
 - **Extraction d'article : pages de 2 Mo au plus** (5 Mo avant). Une page
   plate de 5 Mo, faite pour coûter cher, immobilisait le serveur ~3 s pour
-  tous les utilisateurs. Une page d'article réelle reste bien en dessous ; au
-  delà, l'extraction se replie sur le navigateur, comme avant.
-- **Deux expressions régulières quadratiques** (jeu de caractères d'une page,
-  clôture d'une réponse de traduction) sont réécrites en temps linéaire.
+  tous les utilisateurs. Une page d'article réelle reste bien en dessous ;
+  au-delà, elle n'est plus extraite (le navigateur ne la relit pas non plus),
+  et l'article garde le contenu de son flux.
 - **Le journal du retour SSO n'écrit plus l'adresse e-mail** de chaque
   connexion.
 - **SECURITY.md** : la clé IA personnelle est bien supprimée quand l'admin
@@ -99,16 +103,13 @@ la release publiée.
   quadratique sur un `@` suivi de points : une requête bloquait le serveur
   plus d'une minute (des heures au plafond de 5 Mo). Même défaut sur les
   barres finales de l'URL d'un serveur, rejoué à chaque requête une fois
-  l'URL enregistrée, et sur la lecture du jeu de caractères d'une page
-  extraite. Ces contrôles sont désormais linéaires, et l'URL d'un serveur doit
+  l'URL enregistrée, sur la lecture du jeu de caractères d'une page extraite
+  (en-tête et balise `<meta>`) et sur la clôture d'une réponse de traduction.
+  Ces cinq contrôles sont désormais linéaires, et l'URL d'un serveur doit
   être en http(s) et tenir en 2 048 caractères.
 - **La limite de tentatives de connexion ne se contourne plus en IPv6** : les
   adresses d'un même bloc /56 partagent leur compteur (connexion, inscription,
   sauvegardes).
-- **Un compte local sans mot de passe enregistré n'ouvre plus de session** avec
-  le mot de passe du contrôle factice de la connexion, public dans le dépôt.
-- **Administration** : un rôle vide est refusé (il pouvait laisser l'instance
-  sans administrateur).
 - **Cache des lectures (`REDIS_URL`) : une réponse démesurée ne remplit plus
   la mémoire.** Une lecture mise en cache s'arrête à 32 Mo, et seule une
   adresse dont le chemin est celui de l'API de FreshRSS est traitée comme
@@ -118,6 +119,8 @@ la release publiée.
   de quatre minutes.
 - **SSO derrière un proxy sur un port non standard** : l'adresse de retour
   garde son port (nginx transmettait l'hôte sans lui).
+- **Proxy : le jeton FreshRSS ne suit plus une redirection de `https` vers
+  `http`**, même sur le même hôte : il aurait voyagé en clair.
 - **Garde anti-SSRF** : toutes les adresses IPv6 lien-local (`fe80::/10`) sont
   refusées, et non plus seulement `fe80::` et `fe9…` à `feb…`.
 
@@ -127,22 +130,21 @@ la release publiée.
   attendait de joindre le serveur pour suivre les modifications : un réglage
   changé entre-temps (thème, favicons, catégorie repliée…) était recouvert
   par la valeur du serveur dès le retour du réseau. Il gagne désormais, et
-  part, même si l'app est fermée puis rouverte avant le retour du réseau ; et
-  ce retour est vu tout de suite.
+  part, même si l'app est fermée puis rouverte avant le retour du réseau, et
+  même après plusieurs modifications faites hors ligne ; et ce retour est vu
+  tout de suite.
 - **« Tout lu » ne vise plus un autre serveur.** Basculer de serveur pendant
   le relevé des non-lus envoyait le marquage au serveur devenu actif, où le
   même numéro de flux désigne souvent un autre flux. Rien ne part si le
   serveur ou la session a changé. Et ouvrir un autre flux pendant le relevé
   ne vide plus sa liste ni n'affiche lu son article ouvert : le flux demandé
   est marqué, la vue devenue active n'est pas touchée.
-- **Une recherche ne dit plus « Échec du chargement » à tort** quand c'est la
-  vue d'avant qui avait échoué.
 - **Changer de serveur pendant un chargement lent** n'affiche plus les
   abonnements de l'ancien et n'éteint plus l'indicateur de synchronisation
   du nouveau.
 - **Se désabonner : Échap ne referme plus la boîte pendant la requête.**
-- **Le curseur « Corps du panneau de lecture » agit enfin sur téléphone et
-  tablette.** Il changeait la taille de l'ordinateur, sans effet visible sur
+- **Le curseur « Corps » (Préférences › Apparence › Tailles, section
+  Lecture) agit enfin sur téléphone et tablette.** Il changeait la taille de l'ordinateur, sans effet visible sur
   l'appareil, où la taille du texte vient d'un réglage propre (celui des
   boutons A− / A+). Il règle désormais cette taille-là, et le dit. Ses bornes
   sont aussi celles des boutons (10 à 24 px sur ordinateur, 13 à 26 px au
@@ -165,15 +167,9 @@ la release publiée.
   non-lus laissait la place au bouton « ⋯ » et restait parfois caché, la
   souris partie ; sur tablette, le flux touché perdait son compte jusqu'à la
   tape suivante.
-- **Écran de connexion : le message d'erreur est de nouveau lisible** avec les
-  thèmes Papier, Riso et Contraste (régression du cycle).
 - **Recherche** : Échap la ferme même après avoir cliqué la loupe, le focus
   revient au bouton « Rechercher », l'en-tête dit « Recherche : … », et le
   nombre de non-lus de la vue ne s'affiche plus à côté des résultats.
-- **Changer son mot de passe** : la réussite est annoncée de façon fiable,
-  s'efface dès qu'on retape, et les gestionnaires de mots de passe savent à
-  quel compte rattacher le nouveau.
-- **Barre des raccourcis** : les touches gardent leur relief.
 - **Préférences : une seule typographie.** Les onglets IA et Administration
   avaient leurs propres titres (gras, précédés d'une barre colorée) et un texte
   plus grand ; ils prennent ceux des autres onglets.
@@ -304,7 +300,7 @@ la release publiée.
 
 - **Recherche : ce qu'on fait sur les résultats y reste.** Un article coché lu
   (ou mis en favori, à lire plus tard) dans les résultats redevenait non lu en
-  cliquant « Afficher plus », et une étiquette posée depuis un résultat
+  cliquant « Charger la suite », et une étiquette posée depuis un résultat
   disparaissait à la recherche suivante.
 - **Recherche : Rafraîchir et tirer-pour-rafraîchir ajoutent les nouveaux
   articles qui correspondent**, en tête des résultats, sans rebalayer tout le
@@ -380,9 +376,9 @@ la release publiée.
 - **Préférences : Échap pendant un renommage n'annule plus que le
   renommage.** Renommer une étiquette ou une catégorie, ou nommer une
   nouvelle catégorie, puis appuyer sur Échap fermait aussi tout le panneau.
-- **Texte lisible sur la couleur d'accent.** L'onglet actif des Préférences
-  et dix-sept boutons (Préparer le hors-ligne, Télécharger la
-  sauvegarde, Enregistrer…) écrivaient en blanc sur la couleur d'accent : sur
+- **Texte lisible sur la couleur d'accent.** Les onglets actifs (Préférences,
+  Administration) et une quinzaine de boutons et de pastilles (Préparer le
+  hors-ligne, Télécharger la sauvegarde, Enregistrer…) écrivaient en blanc sur la couleur d'accent : sur
   la menthe par défaut, à peine lisible. Ils prennent désormais l'encre
   calculée pour l'accent, comme le reste de l'application.
 - **« Ajouter un flux » n'est plus rognée sur téléphone et tablette.**
@@ -420,11 +416,12 @@ la release publiée.
   d'administrateur, désactiver ou réactiver un compte demandaient un seul clic sur une
   pastille qui ressemblait à une étiquette ; supprimer un compte se validait
   au second clic d'un double-clic. Les boutons « Réinitialiser » des
-  Préférences (thème, couleurs, tailles, couleurs des étiquettes) passent par
-  la même fenêtre, qui dit ce qui sera perdu, de même que toutes les
-  suppressions : se désabonner d'un flux, supprimer une étiquette, une
-  catégorie, un serveur, un thème enregistré ou une catégorie de Favoris / À
-  lire plus tard (qui, elle, ne demandait rien).
+  Préférences (thème, couleurs, tailles, couleurs des étiquettes, raccourcis
+  clavier) passent par la même fenêtre, qui dit ce qui sera perdu, de même que
+  toutes les suppressions : se désabonner d'un flux, supprimer une étiquette,
+  une catégorie, un serveur, un thème enregistré, effacer sa clé IA
+  personnelle ou une catégorie de Favoris / À lire plus tard (qui, elle, ne
+  demandait rien).
 - **Un échec se dit.** Se désabonner, renommer un flux, renommer ou supprimer
   une étiquette fermaient le menu comme si c'était fait quand le serveur
   refusait ; un message le dit désormais.
@@ -495,21 +492,16 @@ la release publiée.
   message dit désormais que les images au-delà ne pourront pas être
   enregistrées. Une petite taille non nulle s'affiche « ~1 Mo », jamais
   « ~0 Mo ».
-- **SSO** : en mode « SSO uniquement », le formulaire local apparaît quand la
-  connexion SSO demande de rattacher un compte existant (il fallait s'y
-  connecter avec son mot de passe, mais le formulaire était masqué). Un
-  rattachement annulé chez le fournisseur le dit, au lieu de ressortir plus
-  tard à l'écran de connexion ; un compte déjà lié ouvert depuis une session
-  antérieure s'affiche lié au lieu d'un échec.
 - **Le nom du flux ne se réduit plus à une lettre** en tête d'une liste
   étroite (trois colonnes) : les boutons d'affichage passent sur une seconde
   ligne quand la place manque.
 - **Une relève longue n'est plus annoncée en échec.** Quand FreshRSS met
   plus d'une minute à relever tous les flux, son serveur web cesse d'attendre
   et répond une erreur, alors que la relève se termine bel et bien : FriRSS
-  affichait « La relève a échoué ». Il dit désormais que FreshRSS termine la
-  relève en arrière-plan, et les nouveaux articles arrivent dans le bandeau
-  habituel.
+  affichait « La relève a échoué ». Il dit désormais que FreshRSS n'a pas
+  répondu à temps et que la relève peut continuer de son côté. Le bandeau
+  montre aussi une icône par état : il affichait une coche ✓ même sous « La
+  relève a échoué ».
 - **« Ajouter un flux » place le curseur dans le champ URL**, et le rend au
   bouton à la fermeture ; il restait derrière la fenêtre.
 - **Échap ferme les Préférences après « Tester » ou « Enregistrer »** : ces
@@ -517,8 +509,10 @@ la release publiée.
   et la touche ne fermait plus le panneau.
 - **Échap pendant une confirmation qui travaille** (suppression d'un
   serveur, d'une étiquette…) ne referme plus les Préférences derrière elle.
-- **Après une panne, une liste relue vide dit « Tout est lu »** au lieu de
-  « Le chargement a échoué ».
+- **Créer un compte : les refus du serveur sont traduits** (nom d'utilisateur
+  trop court, inscriptions fermées, nom déjà pris…) ; ils s'affichaient en
+  anglais dans toutes les langues. Le temps de lecture du volet, sur
+  ordinateur, écrit aussi son unité dans votre langue.
 - **La palette ne propose plus « Résumer » sur un résumé déjà affiché**,
   même dans le court instant qui suit son apparition.
 - **La page d'erreur de l'application parle votre langue** (elle était en
@@ -550,9 +544,8 @@ la release publiée.
   définies remplacés par leur valeur, `@types/bcryptjs` (bcryptjs 3 porte ses
   types), `public/icon.svg` jamais référencé mais précaché, un doublon de
   `normalizeForSearch`, le nettoyage d'une clé que personne n'a jamais écrite.
-- **Code mort retiré**, après vérification qu'aucun écran, test ou script ne
-  s'en servait : trois routes de préférences que le client n'appelait plus
-  (écriture et effacement d'une clé seule, effacement de toutes), quatre
+- **Code mort retiré**, après vérification qu'aucun écran, test ou script du
+  dépôt ne s'en servait : quatre
   textes de dates jamais affichés (dans les 10 langues), un accesseur, une
   table et une fonction sans appelant, deux blocs de CSS orphelins. Deux
   textes inutilisés ont trouvé leur place plutôt que de partir (noms
@@ -572,9 +565,22 @@ la release publiée.
 - **body-parser 2.4.0 décompresse aussi le zstd** : un corps
   `Content-Encoding: zstd` est accepté (avant : 415). Même limite de 5 Mo après décompression que gzip/br ; le
   proxy ne retransmet pas `Content-Encoding`.
-- **API, ajouts compatibles** : les réponses de `/api/auth/login` et
-  `/api/auth/register` portent `auth_provider`, et un refus 400 de
-  `PUT /api/preferences` nomme la clé refusée (`key`).
+- **API, ajouts compatibles** :
+  - les réponses de `/api/auth/login` et `/api/auth/register` portent
+    `auth_provider`, et celles de la connexion, de `/api/auth/me` et de
+    `/api/admin/users` portent `sso_linked` ;
+  - quatre routes : `POST /api/auth/oidc/link`, `POST /api/auth/oidc/link/complete`,
+    `DELETE /api/auth/oidc/link` et `DELETE /api/admin/users/:id/sso` ;
+  - le travail de relève porte `continuing` (504 de FreshRSS) ;
+  - un refus 400 de `PUT /api/preferences` nomme la clé refusée (`key`) ;
+  - nouveaux refus 400 : une URL de serveur qui n'est pas en http(s) ou dépasse
+    2 048 caractères (`Invalid server URL`), une adresse e-mail de plus de
+    254 caractères.
+- **API, retrait** : trois routes de préférences que le client n'appelait
+  plus répondent désormais 404 — `PUT /api/preferences/:key`,
+  `DELETE /api/preferences/:key` et `DELETE /api/preferences`. Un script qui
+  s'en servait passe par `PUT /api/preferences`, qui accepte une ou plusieurs
+  clés.
 - **Proxy** : un client qui part en cours de lecture libère la requête vers
   FreshRSS, et une écriture déjà partie (marquer lu, tout marquer lu) est
   menée à terme même si le navigateur coupe la connexion.
@@ -591,6 +597,13 @@ la release publiée.
   « Local + SSO » les comptes locaux qui s'ouvrent aussi par le SSO. Ceux qui
   l'ont été par l'ancien rattachement automatique par adresse e-mail le sont
   restés : si l'un ne devrait pas l'être, 🔗 le délie.
+- **Atteindre FriRSS par le reverse proxy, jamais en direct** : la limite de
+  connexion compte par adresse client, et l'image ne croit l'adresse transmise
+  que d'un proxy du réseau privé. Ne pas publier le port du conteneur en
+  direct (Docker Desktop, Docker sans root et certains montages IPv6 font
+  passer toutes les connexions par une seule adresse, qui partagerait alors un
+  compteur) ; un proxy à adresse publique n'est pas cru, et ses clients
+  partagent eux aussi un seul compteur. Voir SECURITY.md.
 - **SSO derrière un reverse proxy** : l'adresse de retour du SSO ne lit plus
   l'en-tête `X-Forwarded-Host` (un client pouvait la dicter), seulement
   `Host`. Un reverse proxy qui remplace `Host` par un nom interne fausserait

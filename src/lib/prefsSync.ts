@@ -269,8 +269,14 @@ function track(keys: readonly string[], state: unknown, prev: unknown): void {
     persistDirty();
     schedulePush();
   } else {
+    // Fusionnée avec la liste déjà stockée : une session précédente a pu
+    // laisser des clés en attente, que celle-ci ne connaît pas encore — les
+    // écraser rendait leur valeur au serveur à la lecture suivante.
     const me = currentOwner();
-    if (me !== null && readStored<number>(OWNER_STORAGE) === me) persistDirty();
+    if (me !== null && readStored<number>(OWNER_STORAGE) === me) {
+      const pending = readStored<string[]>(DIRTY_STORAGE);
+      writeStored(DIRTY_STORAGE, [...new Set([...(Array.isArray(pending) ? pending : []), ...dirty])]);
+    }
   }
 }
 

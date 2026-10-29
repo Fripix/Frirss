@@ -258,9 +258,11 @@ router.post('/:id/actualize', (req, res) => {
       timeoutMs: REFRESH_TIMEOUT_MS,
       followRedirects: false,
     });
-    // 504 : le serveur web de FreshRSS a cessé d'attendre PHP (une minute
-    // sur l'image LinuxServer), qui termine la relève. Mesuré le 2026-10-29 :
-    // 504 à 60 s, et les non-lus montaient ensuite. Ce n'est pas un échec.
+    // 504 : la passerelle a cessé d'attendre. Souvent le serveur web de
+    // FreshRSS qui lâche PHP au bout d'une minute (image LinuxServer), PHP
+    // terminant la relève — mesuré le 2026-10-29 : 504 à 60 s, puis les
+    // non-lus montaient. Mais un proxy devant un FreshRSS figé répond aussi
+    // 504 : le client dit « pas de réponse à temps », sans annoncer la suite.
     if (r.status === 504) {
       r.body?.cancel().catch(() => {});
       return 'continuing';

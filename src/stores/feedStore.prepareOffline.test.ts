@@ -118,22 +118,38 @@ describe('prepareOffline — images préparées', () => {
     expect(pruneImages).not.toHaveBeenCalled();
   });
 
-  it('arrête les images quand l’appareil est plein, et le dit', async () => {
+  // Appareil plein : rien de ce qui suit ne pourrait s'enregistrer (extraits
+  // compris), et le retrait final ôterait les images des articles suivants,
+  // encore dans le budget. La préparation s'arrête là, comme interrompue.
+  it('s’arrête quand l’appareil est plein, le dit, et ne retire rien', async () => {
     vi.mocked(cacheImages).mockImplementation(async (urls) => ({ ...result([], 0), failed: urls.length, full: true }));
     await useFeedStore.getState().prepareOffline();
     expect(cacheImages).toHaveBeenCalledTimes(1);
-    expect(useFeedStore.getState().offlinePrep?.deviceFull).toBe(true);
-    expect(useFeedStore.getState().offlinePrep?.running).toBe(false);
+    const prep = useFeedStore.getState().offlinePrep;
+    expect(prep?.deviceFull).toBe(true);
+    expect(prep?.running).toBe(false);
+    expect(prep?.done).toBeLessThan(prep?.total ?? 0);
+    expect(pruneImages).not.toHaveBeenCalled();
   });
 
   // Sans stockage protégé, le navigateur peut effacer tout le site quand
   // l'appareil manque de place — en pleine préparation.
-  it('demande un stockage protégé au lancement', async () => {
+  it('demande un stockage protégé quand l’utilisateur lance la préparation', async () => {
+    const persist = vi.fn(async () => true);
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: { persist } });
+    vi.mocked(cacheImages).mockImplementation(async (urls) => result(urls, 10));
+    await useFeedStore.getState().prepareOffline({ userInitiated: true });
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  // Firefox affiche une demande d'autorisation : jamais sans geste, donc pas
+  // depuis la préparation automatique de l'ouverture.
+  it('ne la demande pas pour la préparation automatique', async () => {
     const persist = vi.fn(async () => true);
     Object.defineProperty(navigator, 'storage', { configurable: true, value: { persist } });
     vi.mocked(cacheImages).mockImplementation(async (urls) => result(urls, 10));
     await useFeedStore.getState().prepareOffline();
-    expect(persist).toHaveBeenCalledTimes(1);
+    expect(persist).not.toHaveBeenCalled();
   });
 
   it('prépare quand même si le navigateur n’offre pas de stockage protégé', async () => {

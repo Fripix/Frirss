@@ -128,7 +128,7 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
   fournisseur, dont l'état signé porte `link: <id>`. **Le retour ne rattache
   rien** : il remet un ticket signé de 5 min (`#oidc_link_ticket=…`, `uid` +
   `sub`), que le client valide par `POST /api/auth/oidc/link/complete` depuis
-  la session qui a lancé la liaison (403 `link_mismatch` sinon, 409
+  une session du compte qui a lancé la liaison (403 `link_mismatch` sinon, 409
   `already_linked` si l'identité est liée ailleurs). Aucune session n'est
   ouverte. Pourquoi les deux (seconde relecture 1.8.0) : sans mot de passe,
   une session volée rattachait l'identité de l'attaquant, qui survivait au
@@ -138,7 +138,11 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
   son identité allait sur le compte de l'attaquant. **Délier** : le titulaire
   (« Délier », `DELETE /api/auth/oidc/link`) ou l'admin (🔗,
   `DELETE /api/admin/users/:id/sso`, après confirmation), comptes locaux
-  seulement — un compte qui n'a que le SSO se fermerait. La liste de
+  seulement — un compte qui n'a que le SSO se fermerait. **Délier ferme les
+  sessions** : toutes les autres du titulaire, toutes celles du compte pour
+  l'admin (sauf la sienne). Rien ne dit quelle session vient du SSO, et une
+  identité rattachée à tort (par l'e-mail, avant 1.8.0) gardait sinon la
+  sienne jusqu'à 30 jours (`oidcLink.test.ts`). La liste de
   l'administration montre « Local + SSO » (`sso_linked`). Un compte lié garde
   son mot de passe et `auth_provider = 'local'`. `sso_linked` (connexion,
   `/me`) dit s'il l'est. Le bloc SSO de la section Compte est séparé du
@@ -812,7 +816,7 @@ non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
   (`FORBID_ATTR`, `src/utils/sanitizeHtml.ts`) et `sanitizeExtracted` refuse
   déjà tous les `data-*`. Les six : menu
   contextuel d'article sur ordinateur (`ArticleContextMenu`, volontairement
-  sans `role`), menu d'un flux (`FeedContextMenu`, ses trois états), sélecteur
+  sans `role`), menu d'un flux (`FeedContextMenu`, ses deux états de menu ; le troisième, la confirmation du désabonnement, est un `ConfirmDialog`), sélecteur
   de catégorie (`SavedCategoryPicker`), `Popover` (« Traduire en… »,
   « Résumer avec… », menus des Préférences IA), liste d'étiquettes du volet de
   lecture (`LabelMenu`) et menu « Gérer » du sélecteur de serveur
@@ -4727,8 +4731,14 @@ Délai réel entre la publication et le bandeau : la période du cron FreshRSS
     4 945 à 4 957 ; la même relève, la veille à 2 h, avait répondu 200 — la
     durée dépend des sites relevés. Le travail se termine donc `done` avec
     `continuing: true`, la phase client devient `continuing` et le bandeau
-    dit « FreshRSS termine la relève en arrière-plan ». Tout autre refus reste
-    un échec. Allonger le délai côté FreshRSS (`fastcgi_read_timeout` de son
+    dit « FreshRSS n'a pas répondu à temps : la relève peut continuer de son
+    côté », avec une horloge. ⚠️ Pas « FreshRSS termine la relève » : un proxy
+    devant un FreshRSS figé répond aussi 504, et rien ne tourne alors — le
+    texte dit ce qui s'est passé, pas une cause devinée. Tout autre refus reste
+    un échec. **Une icône par état** (`RefreshBanner.tsx`, `ICONS`,
+    `RefreshBanner.test.tsx`) : ✓ à jour, + nouveaux articles, × échec,
+    horloge inachevée ou sans réponse à temps — la coche valait jusque-là pour
+    tout état non en cours, « La relève a échoué » compris. Allonger le délai côté FreshRSS (`fastcgi_read_timeout` de son
     nginx) supprime le 504 ;
   - le jeton maître donne aussi accès en **lecture** à tous les articles et à la
     liste d'abonnements. L'interface le dit avant la saisie ;
@@ -5899,7 +5909,10 @@ divergentes).
 - **Taille des corps** : `client_max_body_size 5m`, aligné sur `express.json`
   et `express.raw`. Le défaut nginx (1 Mo) rendait le conteneur plus strict que
   le backend qu'il sert. Vérifié par le job `docker` de `ci.yml`, qui exige
-  qu'un corps de 2 Mo atteigne Express.
+  qu'un corps de 2 Mo atteigne Express. **zstd** : depuis body-parser 2.4.0
+  (1.8.0), un corps `Content-Encoding: zstd` est décompressé comme gzip et br
+  (il répondait 415), sous la même limite de 5 Mo après décompression ; le
+  proxy ne retransmet pas `Content-Encoding`.
 - **Délai de lecture** : `proxy_read_timeout 120s` sur `/api/`. Un résumé IA
   tient jusqu'à 50 s, un lot de traduction jusqu'à 110 s (échéance
   proportionnelle au lot, plafonnée 10 s sous ce délai ; voir « Résumés et
@@ -6309,8 +6322,15 @@ n'existe pas.
 ## Internationalisation
 
 **10 locales** : `fr` (repli), `en`, `de`, `es`, `it`, `nl`, `pl`, `pt`, `uk`,
-`zh`. 912 clés (en français, 2026-10-29). i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
+`zh`. 929 clés (en français, 2026-10-29). i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
 `pl` et `uk`.
+
+**La page d'erreur de l'application est traduite** (`src/components/ErrorBoundary.tsx`,
+1.8.0, `ErrorBoundary.test.tsx`) : texte lu par l'instance i18next (`say`),
+pas par un hook — la frontière est une classe, et elle doit tenir si l'erreur
+vient d'en dessous ; une traduction qui échoue rend le français. Hauteur sur
+`--app-height` (voir `useAndroidViewportHeight`). Elle était en français pour
+toutes les langues.
 
 **Règles de vocabulaire** (fixées en 1.8.0, passe fa728ed) — un mot par
 notion et par langue, aligné sur le terme majoritaire ; toute nouvelle chaîne
@@ -6340,7 +6360,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 - **Règle** : toute chaîne visible va dans **les dix** fichiers. Vérifier la
   parité avec la commande du `CLAUDE.md` avant de livrer.
 - **`zh` n'a que `other` en CLDR**, mais `i18nCoverage.test.ts` exige la paire
-  `_one`/`_other` pour toute locale hors `pl`/`uk` : les vingt `_one` chinois
+  `_one`/`_other` pour toute locale hors `pl`/`uk` : les vingt et un `_one` chinois
   sont du poids mort **assumé**, pas un oubli à corriger.
 - **`<html lang>` suit la langue** : posé par `src/i18n.ts` à l'initialisation
   puis à chaque `languageChanged`. `index.html` fige `lang="fr"` — fichier
@@ -6408,7 +6428,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | GET | `/api/auth/oidc/login` | Démarrer le flux OIDC |
 | GET | `/api/auth/oidc/callback` | Retour du fournisseur OIDC (connexion, ou rattachement si l'état porte `link`) |
 | POST | `/api/auth/oidc/link` | Rattacher le compte local connecté à une identité SSO (mot de passe actuel ; rend l'URL du fournisseur) |
-| POST | `/api/auth/oidc/link/complete` | Valider le ticket du retour SSO, depuis la session qui a lancé la liaison |
+| POST | `/api/auth/oidc/link/complete` | Valider le ticket du retour SSO, depuis une session du compte qui a lancé la liaison |
 | DELETE | `/api/auth/oidc/link` | Délier son compte local de son identité SSO |
 | GET | `/api/servers` | Lister ses connexions FreshRSS |
 | POST | `/api/servers` | Ajouter une connexion |

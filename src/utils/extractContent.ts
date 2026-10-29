@@ -55,8 +55,9 @@ export function sanitizeExtracted(html: string): string {
  * au-dessus du plafond de corps du serveur (20 s) », donc qu'une page en cours
  * de lecture n'était jamais abandonnée : c'était faux. Le budget réel du
  * serveur additionne la résolution pré-cache (≤ 5 s, `LOOKUP_TIMEOUT_MS`), les
- * en-têtes (≤ 30 s par saut, `TIMEOUT_MS`) et le corps (≤ 20 s,
- * `BODY_TIMEOUT_MS`) — au moins 55 s sans redirection. Une page dont les
+ * en-têtes (≤ 30 s par saut, `TIMEOUT_MS`, et 45 s redirections comprises,
+ * `EXTRACT_FETCH_TIMEOUT_MS`) et le corps (≤ 20 s, `BODY_TIMEOUT_MS`) — de
+ * 55 s sans redirection à ~75 s au pire. Une page dont les
  * en-têtes arrivent à 8 s et dont le corps se déroule 18 s aboutissait côté
  * serveur vers 26 s, après que le client l'eut abandonnée. Aucun délai client
  * tenable ne couvre ce budget : le placer au-dessus reviendrait à laisser un
@@ -66,7 +67,7 @@ export function sanitizeExtracted(html: string): string {
  * la page, et il vaut mieux lui rendre le texte que son propre navigateur sait
  * extraire. Ce qu'il coûte, assumé : sur une page vraiment lente, le repli
  * repart chercher la MÊME origine, soit deux requêtes chez elle pour cet
- * article-là — c'est déjà le coût connu d'un repli sur 415, 422 ou 502.
+ * article-là — c'est déjà le coût connu d'un repli sur 422 ou 502 (un 415 ne se replie pas).
  * L'extraction serveur, elle, va au bout et remplit le cache : le prochain
  * appareil, lui, sera servi tout de suite.
  *

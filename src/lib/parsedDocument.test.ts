@@ -60,7 +60,9 @@ describe('releaseDocument', () => {
 });
 
 describe('purifyToString', () => {
-  const samples = [MEDIA, '<p onclick="x()">a <b>b</b></p><script>alert(1)</script>', 'texte & <i>entités</i>', ''];
+  // Sans `<`, DOMPurify rend le texte tel quel, sans l'analyser : « Tom &
+  // Jerry » ne doit pas devenir « Tom &amp; Jerry ».
+  const samples = [MEDIA, '<p onclick="x()">a <b>b</b></p><script>alert(1)</script>', 'texte & <i>entités</i>', '', 'Tom & Jerry', 'a > b'];
   it('rend ce que rendait DOMPurify.sanitize', () => {
     for (const s of samples) expect(purifyToString(s, {})).toBe(DOMPurify.sanitize(s, {}));
   });

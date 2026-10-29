@@ -61,12 +61,6 @@ function deadlineError(): Error {
 }
 
 /**
- * Lit tout le corps de `resp`, ou rejette avec une `AbortError` dès que
- * `signal` tombe. `resp.arrayBuffer()` n'écoutait aucun signal : le délai par
- * saut de `fetchUpstream` est levé aux en-têtes, un corps retenu attendait
- * donc indéfiniment.
- */
-/**
  * Octets qu'une lecture mise en cache peut accumuler. Elle est lue EN ENTIER
  * avant d'être renvoyée : sans borne, un amont rapide remplissait la mémoire de
  * l'unique processus pendant les 60 s de l'échéance. Une page de flux greader
@@ -89,11 +83,17 @@ export const MAX_PROXIED_IMAGE_BYTES = 25 * 1024 * 1024;
  * dont le type ne dit pas le contraire — des CDN servent leurs images sans
  * type ou en `application/octet-stream`.
  */
-export function isImageLikeType(ctype: string | null): boolean {
+function isImageLikeType(ctype: string | null): boolean {
   const t = (ctype ?? '').split(';')[0].trim().toLowerCase();
   return t === '' || t.startsWith('image/') || t === 'application/octet-stream' || t === 'binary/octet-stream';
 }
 
+/**
+ * Lit tout le corps de `resp`, ou rejette avec une `AbortError` dès que
+ * `signal` tombe. `resp.arrayBuffer()` n'écoutait aucun signal : le délai par
+ * saut de `fetchUpstream` est levé aux en-têtes, un corps retenu attendait
+ * donc indéfiniment.
+ */
 async function readBodyText(resp: Response, signal: AbortSignal, maxBytes = MAX_CACHED_BODY_BYTES): Promise<string> {
   if (!resp.body) return '';
   const reader = resp.body.getReader();
@@ -610,11 +610,11 @@ export async function fetchUpstream(
     // `TypeError` brut pour une URL malformée (`https://`, qui passe pourtant
     // le filtre `^https?://`), avant que `BlockedTargetError` puisse être
     // levée — l'appelant classait alors en 502 ce que le proxy classe en 403.
-    let startHost = '';
+    let startOrigin = '';
 
     for (let hop = 0; ; hop++) {
       await assertTargetSafe(url, trustedHosts);
-      if (hop === 0) startHost = new URL(url).host;
+      if (hop === 0) startOrigin = new URL(url).origin;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs ?? TIMEOUT_MS);
       // Combine the caller's signal into this hop's controller so a caller
@@ -635,11 +635,16 @@ export async function fetchUpstream(
       const loc = resp.status >= 300 && resp.status < 400 ? resp.headers.get('location') : null;
       if (!loc || hop >= MAX_REDIRECTS || !followRedirects) return resp;
 
+      // The redirect's own body is never read: cancel it, or undici holds the
+      // socket until garbage collection (see `routes/extract.ts`).
+      resp.body?.cancel().catch(() => {});
       const next = new URL(loc, url);
-      // Don't leak the FreshRSS token to a different origin on redirect.
-      if (next.host !== startHost) {
+      // Don't leak the FreshRSS token to a different ORIGIN on redirect —
+      // scheme and port included: comparing hosts let an https → http hop on
+      // the same host carry it in clear.
+      if (next.origin !== startOrigin) {
         delete curHeaders.Authorization;
-        startHost = next.host;
+        startOrigin = next.origin;
       }
       // Per fetch semantics: 303 (and 301/302 on a non-GET) → GET without body.
       if (resp.status === 303 || ((resp.status === 301 || resp.status === 302) && curMethod !== 'GET' && curMethod !== 'HEAD')) {
@@ -799,7 +804,13 @@ router.all('/', async (req, res) => {
   // Requête d'image : une image et rien d'autre, bornée (voir
   // `MAX_PROXIED_IMAGE_BYTES`). Refusée sur les en-têtes quand elle le permet,
   // pour ne pas tirer un octet de plus de l'amont.
-  const image = !!req.header('x-proxy-image') && upstream.ok;
+  const image = !!req.header('x-proxy-image');
+  if (image && !upstream.ok) {
+    // Le client n'a besoin que de l'échec : le corps d'une page d'erreur
+    // (parfois la même vidéo) n'est pas relayé, il serait gardé en mémoire.
+    upstream.body?.cancel().catch(() => {});
+    return res.status(upstream.status).end();
+  }
   if (image) {
     const declared = Number(upstream.headers.get('content-length'));
     const refusal = !isImageLikeType(ctype) ? 415 : declared > MAX_PROXIED_IMAGE_BYTES ? 413 : 0;

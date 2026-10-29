@@ -377,6 +377,8 @@
       "title": "Nawigacja klawiaturą",
       "hint": "Kliknij klawisz, aby go zmienić. Naciśnij Esc, aby anulować.",
       "reset": "Resetuj",
+      "resetConfirmTitle": "Przywrócić skróty?",
+      "resetConfirmMessage": "Każdy skrót wróci do domyślnego klawisza; własne klawisze zostaną utracone.",
       "resetShortcuts": "Zresetuj skróty",
       "pressKey": "Naciśnij klawisz…",
       "nextArticle": "Następny artykuł",
@@ -579,6 +581,8 @@
     "registrationDisabled": "Rejestracje są wyłączone.",
     "errorLogin": "Nieprawidłowe dane logowania.",
     "errorRegister": "Błąd podczas tworzenia konta.",
+    "errorUsernameShort": "Nazwa użytkownika musi mieć co najmniej 3 znaki.",
+    "errorRegistrationClosed": "Rejestracja na tej instancji jest zamknięta.",
     "errorUsernameTaken": "Ta nazwa użytkownika jest już zajęta.",
     "errorPasswordShort": "Hasło musi mieć co najmniej 6 znaków.",
     "errorPasswordMismatch": "Hasła nie są zgodne.",
@@ -757,7 +761,7 @@
     "failed": "Odświeżanie nie powiodło się",
     "incomplete": "Odświeżanie niedokończone",
     "enable": "Włącz odświeżanie kanałów",
-    "continuing": "FreshRSS kończy odświeżanie w tle"
+    "continuing": "FreshRSS nie odpowiedział na czas: odświeżanie może trwać dalej po jego stronie"
   },
   "update": {
     "updating": "Aktualizacja…"
@@ -1036,6 +1040,8 @@
       "field": "Klucz dla {{name}}",
       "save": "Zapisz",
       "clear": "Usuń",
+      "clearConfirmTitle": "Usunąć klucz {{name}}?",
+      "clearConfirmMessage": "Zostanie usunięty z FriRSS: aby go używać, trzeba będzie wkleić go ponownie.",
       "saved": "Klucz zapisany.",
       "cleared": "Klucz usunięty.",
       "error": "Nie udało się zapisać. Spróbuj ponownie."

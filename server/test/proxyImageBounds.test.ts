@@ -73,6 +73,14 @@ const upstream = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/octet-stream' });
     return res.end(Buffer.alloc(1024, 1));
   }
+  if (path === '/missing.mp4') {
+    // Une page d'erreur qui sert une vidéo sans fin : même risque qu'un 200.
+    res.writeHead(404, { 'Content-Type': 'video/mp4' });
+    written[path] = 0;
+    const pump = () => { while (written[path] < 4 * MAX_PROXIED_IMAGE_BYTES) { written[path] += CHUNK.length; if (!res.write(CHUNK)) { res.once('drain', pump); return; } } res.end(); };
+    pump();
+    return;
+  }
   if (path === '/page.mp4') {
     res.writeHead(200, { 'Content-Type': 'video/mp4' });
     return res.end(Buffer.alloc(4096, 1));
@@ -134,6 +142,12 @@ describe('requête d’image du proxy : une image, et bornée', () => {
     expect(res.bytes).toBeLessThanOrEqual(MAX_PROXIED_IMAGE_BYTES + CHUNK.length);
     expect(written['/stream.jpg']).toBeLessThan(4 * MAX_PROXIED_IMAGE_BYTES);
   }, 30_000);
+
+  it('ne relaie que le statut d’une réponse en erreur, pas son corps', async () => {
+    const res = await call('/missing.mp4');
+    expect(res.status).toBe(404);
+    expect(res.bytes).toBeLessThan(1024);
+  });
 
   it('relaie une image ordinaire en entier', async () => {
     expect(await call('/small.png')).toEqual({ status: 200, bytes: 2048 });

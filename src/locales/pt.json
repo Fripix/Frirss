@@ -367,6 +367,8 @@
       "title": "Navegação por teclado",
       "hint": "Clique numa tecla para a modificar. Prima Esc para cancelar.",
       "reset": "Repor",
+      "resetConfirmTitle": "Repor os atalhos?",
+      "resetConfirmMessage": "Cada atalho volta à tecla predefinida; as suas teclas personalizadas serão perdidas.",
       "resetShortcuts": "Repor os atalhos",
       "pressKey": "Prima uma tecla…",
       "nextArticle": "Artigo seguinte",
@@ -561,6 +563,8 @@
     "registrationDisabled": "Os registos estão desativados.",
     "errorLogin": "Credenciais incorretas.",
     "errorRegister": "Erro ao criar a conta.",
+    "errorUsernameShort": "O nome de utilizador deve ter pelo menos 3 caracteres.",
+    "errorRegistrationClosed": "O registo está fechado nesta instância.",
     "errorUsernameTaken": "Este nome de utilizador já está em uso.",
     "errorPasswordShort": "A palavra-passe deve ter pelo menos 6 caracteres.",
     "errorPasswordMismatch": "As palavras-passe não coincidem.",
@@ -731,7 +735,7 @@
     "failed": "A atualização falhou",
     "incomplete": "Atualização incompleta",
     "enable": "Ativar a atualização dos feeds",
-    "continuing": "O FreshRSS termina a atualização em segundo plano"
+    "continuing": "O FreshRSS não respondeu a tempo: a atualização pode continuar do lado dele"
   },
   "update": {
     "updating": "A atualizar…"
@@ -996,6 +1000,8 @@
       "field": "Chave para {{name}}",
       "save": "Guardar",
       "clear": "Apagar",
+      "clearConfirmTitle": "Apagar a sua chave {{name}}?",
+      "clearConfirmMessage": "Será removida do FriRSS: terá de a colar novamente para a usar.",
       "saved": "Chave guardada.",
       "cleared": "Chave apagada.",
       "error": "Não foi possível guardar. Tente novamente."

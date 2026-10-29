@@ -13,7 +13,7 @@ import {
   type OidcConfig,
 } from '../../api/backend';
 import { login as freshrssLogin } from '../../api/auth';
-import { loginErrorKey, serverConnectErrorKey } from '../../lib/loginErrors';
+import { loginErrorKey, registerErrorKey, serverConnectErrorKey } from '../../lib/loginErrors';
 import { useFeedStore } from '../../stores/feedStore';
 import MatrixRain from './MatrixRain';
 import RestoreFlow from '../backup/RestoreFlow';
@@ -123,7 +123,9 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
     setError('');
 
     if (mode === 'register') {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      // Même forme que le serveur (`server/validate.ts`), en temps linéaire :
+      // l'ancien motif revenait en arrière de façon quadratique.
+      if (email.length > 254 || !/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email)) {
         return setError(t('login.errorEmailInvalid'));
       }
       if (password.length < 6) {
@@ -145,13 +147,11 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
       setBackendAuth(data.token, data.user);
       onSuccess();
     } catch (err) {
-      const ax = err as { response?: { status?: number; data?: { error?: string } } };
-      const code = ax.response?.status;
-      const msg = ax.response?.data?.error;
-      if (code === 409) {
+      const code = (err as { response?: { status?: number } }).response?.status;
+      if (mode === 'register') {
+        setError(t(registerErrorKey(err)));
+      } else if (code === 409) {
         setError(t('login.errorUsernameTaken'));
-      } else if (mode === 'register') {
-        setError(msg || t('login.errorRegister'));
       } else {
         // Ne pas mettre les identifiants en cause sans preuve : un 429 ou une
         // coupure réseau disaient « incorrects » et envoyaient l'utilisateur

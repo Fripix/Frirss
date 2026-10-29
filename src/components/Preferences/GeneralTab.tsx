@@ -5,6 +5,7 @@ import AccountSection from './AccountSection';
 import { loadLanguage } from '../../i18n';
 import { useUiStore, shortcutActions } from '../../stores/uiStore';
 import ToggleSwitch from '../ToggleSwitch';
+import ConfirmDialog from '../ConfirmDialog';
 import { shortcutRefusal, type ShortcutRefusal } from '../../lib/shortcutKeys';
 import { useFeedStore } from '../../stores/feedStore';
 
@@ -29,6 +30,8 @@ export default function GeneralTab() {
   const { shortcuts, setShortcut, resetShortcuts } = useUiStore();
   const [editing, setEditing] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<ShortcutRefusal | null>(null);
+  // Les touches personnalisées se perdent : la réinitialisation se confirme.
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const handleKeyCapture = useCallback(
     (e: ReactKeyboardEvent) => {
@@ -348,7 +351,7 @@ export default function GeneralTab() {
             {t('preferences.shortcuts.title')}
           </h3>
           <button
-            onClick={resetShortcuts}
+            onClick={() => setConfirmReset(true)}
             aria-label={t('preferences.shortcuts.resetShortcuts')}
             title={t('preferences.shortcuts.resetShortcuts')}
             className="text-[10px] px-2 py-1 rounded-md transition-colors hover-tint"
@@ -357,6 +360,15 @@ export default function GeneralTab() {
             {t('preferences.shortcuts.reset')}
           </button>
         </div>
+        <ConfirmDialog
+          open={confirmReset}
+          title={t('preferences.shortcuts.resetConfirmTitle')}
+          message={t('preferences.shortcuts.resetConfirmMessage')}
+          confirmLabel={t('preferences.shortcuts.reset')}
+          danger
+          onConfirm={() => { resetShortcuts(); setConfirmReset(false); }}
+          onCancel={() => setConfirmReset(false)}
+        />
 
         <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.shortcuts.hint')}

@@ -14,11 +14,12 @@ vi.mock('../../api/backend', () => ({
   getOidcConfig: vi.fn().mockResolvedValue({ enabled: false }),
   linkOidcAccount: vi.fn().mockResolvedValue(undefined),
   unlinkOidcAccount: vi.fn().mockResolvedValue(undefined),
+  getMe: vi.fn().mockResolvedValue(undefined),
 }));
 
 import GeneralTab from './GeneralTab';
 import { useAuthStore } from '../../stores/authStore';
-import { changePassword, getOidcConfig, linkOidcAccount, unlinkOidcAccount } from '../../api/backend';
+import { changePassword, getOidcConfig, linkOidcAccount, unlinkOidcAccount, getMe } from '../../api/backend';
 
 const http = (status: number, error: string) => Object.assign(new Error(`HTTP ${status}`), { response: { status, data: { error } } });
 
@@ -179,6 +180,26 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     render(<GeneralTab />);
     expect(await screen.findByText('preferences.account.ssoLinked')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'preferences.account.ssoLink' })).toBeNull();
+  });
+
+  // L'état « lié » n'était écrit que dans le store : un rechargement rendait
+  // la valeur d'avant (« Lié » après avoir délié).
+  it('garde l’état délié après un rechargement', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
+    useAuthStore.setState({ backendToken: 'tok', backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never });
+    render(<GeneralTab />);
+    { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoUnlink' }); await act(async () => { fireEvent.click(btn); }); }
+    expect(JSON.parse(localStorage.getItem('frirss_backendUser') ?? 'null')?.sso_linked).toBe(false);
+  });
+
+  // Une session ouverte avant la 1.8.0 n'a pas `sso_linked` : l'écran
+  // proposait « Lier » à un compte déjà lié, à chaque ouverture.
+  it('relit l’état du compte quand le SSO est actif', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
+    vi.mocked(getMe).mockResolvedValueOnce({ id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never);
+    useAuthStore.setState({ backendToken: 'tok', backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local' } as never });
+    render(<GeneralTab />);
+    expect(await screen.findByText('preferences.account.ssoLinked')).toBeTruthy();
   });
 
   it('ne montre rien quand le SSO est éteint', async () => {

@@ -367,6 +367,8 @@
       "title": "键盘导航",
       "hint": "点击按键可修改。按 Esc 取消。",
       "reset": "重置",
+      "resetConfirmTitle": "重置快捷键？",
+      "resetConfirmMessage": "每个快捷键都会恢复默认按键；您的自定义按键将丢失。",
       "resetShortcuts": "重置快捷键",
       "pressKey": "按下按键…",
       "nextArticle": "下一篇文章",
@@ -561,6 +563,8 @@
     "registrationDisabled": "注册已关闭。",
     "errorLogin": "用户名或密码错误。",
     "errorRegister": "创建账户失败。",
+    "errorUsernameShort": "用户名至少需要 3 个字符。",
+    "errorRegistrationClosed": "此实例已关闭注册。",
     "errorUsernameTaken": "该用户名已被占用。",
     "errorPasswordShort": "密码至少需要 6 个字符。",
     "errorPasswordMismatch": "两次输入的密码不一致。",
@@ -734,7 +738,7 @@
     "failed": "刷新失败",
     "incomplete": "刷新未完成",
     "enable": "启用订阅源刷新",
-    "continuing": "FreshRSS 正在后台完成刷新"
+    "continuing": "FreshRSS 未及时响应：刷新可能仍在其一侧继续"
   },
   "saved": {
     "fileInto": "归入",
@@ -996,6 +1000,8 @@
       "field": "{{name}} 的密钥",
       "save": "保存",
       "clear": "清除",
+      "clearConfirmTitle": "删除您的 {{name}} 密钥？",
+      "clearConfirmMessage": "它将从 FriRSS 中移除：要再次使用，需要重新粘贴。",
       "saved": "密钥已保存。",
       "cleared": "密钥已清除。",
       "error": "无法保存，请重试。"

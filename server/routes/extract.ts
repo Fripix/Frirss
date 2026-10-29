@@ -53,7 +53,10 @@ const BODY_TIMEOUT_MS = 20_000;
  * Échéance des en-têtes, redirections comprises. Le délai par saut de
  * `fetchUpstream` (30 s) ne bornait qu'un saut : six redirections lentes
  * tenaient l'extraction ~230 s, après nginx (120 s) et le client (20 s).
- * Avec la lecture du corps, une extraction finit en 65 s au plus.
+ * S'y ajoutent la garde par résolution qui la précède (5 s au plus), une
+ * résolution en cours à l'échéance qui n'écoute pas le signal (5 s) et la
+ * lecture du corps (20 s) : ~75 s au pire, plus l'attente de la file. Le
+ * client, lui, abandonne au bout de 20 s.
  */
 export const EXTRACT_FETCH_TIMEOUT_MS = 45_000;
 
@@ -171,11 +174,13 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
     }
     // Le type est vérifié AVANT de lire quoi que ce soit : une vidéo ou un PDF
     // n'a pas d'article à extraire, et n'a donc aucune raison d'être avalé.
-    // Une réponse SANS `Content-Type` tombe dans le même refus (`|| ''` ne
-    // correspond à rien) : c'est plus étroit que l'ancien chemin par le proxy,
-    // et assumé — le client doit pouvoir se replier sur son extracteur local.
+    // Une réponse SANS `Content-Type` est lue comme une page, dans le même
+    // plafond. Le 415 reste réservé à un type ANNONCÉ qui n'est pas du HTML :
+    // le client ne se replie pas sur un 415 (1.8.0 — son repli lisait une
+    // vidéo entière), et une page servie sans type ne s'extrairait sinon plus
+    // nulle part.
     const ctype = upstream.headers.get('content-type') || '';
-    if (!HTML_TYPES.test(ctype)) {
+    if (ctype && !HTML_TYPES.test(ctype)) {
       upstream.body?.cancel().catch(() => {});
       return json(415, { error: 'Unsupported content type' });
     }

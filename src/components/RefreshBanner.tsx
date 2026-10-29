@@ -6,6 +6,15 @@ import { useUiStore } from '../stores/uiStore';
 
 const SHOW_MS = 5000;
 
+const ICONS = {
+  running: <path d="M21 12a9 9 0 1 1-6.2-8.6" />,
+  new: <path d="M12 3v18M3 12h18" />,
+  done: <path d="M5 13l4 4L19 7" />,
+  failed: <path d="M6 6l12 12M18 6L6 18" />,
+  // Une horloge : ni réussie ni échouée, la relève n'a pas dit comment elle finit.
+  pending: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+};
+
 /**
  * Transient banner shown after a refresh. While a real (server-side) refresh is
  * running it stays up and counts articles as they land; once the job resolves it
@@ -42,6 +51,13 @@ export default function RefreshBanner() {
   else if (refreshPhase === 'timeout') label = hasNew ? count : t('refresh.incomplete');
   else label = hasNew ? count : t('refresh.upToDate');
 
+  // Une icône par état : la coche valait aussi pour « La relève a échoué ».
+  const icon: keyof typeof ICONS = running ? 'running'
+    : refreshPhase === 'failed' ? 'failed'
+    : hasNew ? 'new'
+    : refreshPhase === 'timeout' || refreshPhase === 'continuing' ? 'pending'
+    : 'done';
+
   // La région annoncée reste montée, vide au repos : montée avec son texte,
   // elle n'était souvent pas lue (liveRegions.test). Le bandeau visible n'est
   // plus une région ; il garde ses boutons, son libellé ne fait que doubler.
@@ -54,6 +70,7 @@ export default function RefreshBanner() {
       <div className={`refresh-banner${running ? ' refresh-banner--running' : ''}`}>
         <svg
           className={`refresh-banner__icon${running ? ' refresh-banner__icon--spin' : ''}`}
+          data-icon={icon}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -62,13 +79,7 @@ export default function RefreshBanner() {
           strokeLinejoin="round"
           aria-hidden="true"
         >
-          {running ? (
-            <path d="M21 12a9 9 0 1 1-6.2-8.6" />
-          ) : hasNew ? (
-            <path d="M12 3v18M3 12h18" />
-          ) : (
-            <path d="M5 13l4 4L19 7" />
-          )}
+          {ICONS[icon]}
         </svg>
         <span aria-hidden="true">{label}</span>
         {showHint && (

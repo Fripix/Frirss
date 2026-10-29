@@ -1,11 +1,21 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
-import { changePassword, getOidcConfig, linkOidcAccount, unlinkOidcAccount, type OidcConfig } from '../../api/backend';
+import { changePassword, getMe, getOidcConfig, linkOidcAccount, unlinkOidcAccount, type OidcConfig } from '../../api/backend';
 import { useUiStore } from '../../stores/uiStore';
 
 /** Même minimum que le serveur (`server/routes/auth.ts`) et que la création de compte. */
 const MIN_PASSWORD = 6;
+
+/** Enregistre l'état « lié » avec la session : le store seul le perdait au
+ *  rechargement (« Lié » revenait après avoir délié). */
+function setLinked(linked: boolean): void {
+  const { backendToken, backendUser, setBackendAuth } = useAuthStore.getState();
+  if (!backendUser) return;
+  const user = { ...backendUser, sso_linked: linked };
+  if (backendToken) setBackendAuth(backendToken, user);
+  else useAuthStore.setState({ backendUser: user });
+}
 
 /**
  * Changer son propre mot de passe. Seulement pour un compte local : un compte
@@ -36,11 +46,18 @@ export default function AccountSection() {
   const [linkError, setLinkError] = useState('');
   const [unlinking, setUnlinking] = useState(false);
 
-  // Le rattachement au SSO n'a de sens que si l'instance en a un.
+  // Le rattachement au SSO n'a de sens que si l'instance en a un. L'état du
+  // compte est relu à ce moment : une session ouverte avant la 1.8.0 n'a pas
+  // `sso_linked`, et proposait « Lier » à un compte déjà lié.
   useEffect(() => {
     if (!isLocal) return;
     let live = true;
-    getOidcConfig().then((c) => { if (live) setOidc(c); }).catch(() => {});
+    getOidcConfig().then((c) => {
+      if (!live) return;
+      setOidc(c);
+      if (!c?.enabled) return;
+      getMe().then((me) => { if (live && me && typeof me.sso_linked === 'boolean') setLinked(me.sso_linked); }).catch(() => {});
+    }).catch(() => {});
     return () => { live = false; };
   }, [isLocal]);
 
@@ -70,10 +87,6 @@ export default function AccountSection() {
     }
   }
 
-  const setLinked = (linked: boolean) => {
-    const user = useAuthStore.getState().backendUser;
-    if (user) useAuthStore.setState({ backendUser: { ...user, sso_linked: linked } });
-  };
 
   // Le mot de passe actuel est demandé : une session volée suffisait sinon à
   // rattacher l'identité SSO d'un autre, qui survivait au changement de mot

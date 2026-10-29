@@ -8,12 +8,14 @@
 
 export interface CachedConnection {
   get(): Promise<IDBDatabase>;
-  /** Forget the connection: the next `get()` opens a new one. */
-  reset(): void;
+  /** Forget the connection — only `db` when given, so a failure on an old
+   *  connection never drops a fresh one: the next `get()` opens a new one. */
+  reset(db?: IDBDatabase): void;
 }
 
 export function cachedConnection(open: () => Promise<IDBDatabase>): CachedConnection {
   let current: Promise<IDBDatabase> | null = null;
+  let currentDb: IDBDatabase | null = null;
   const conn: CachedConnection = {
     get() {
       if (current) return current;
@@ -24,6 +26,7 @@ export function cachedConnection(open: () => Promise<IDBDatabase>): CachedConnec
           // another tab wants to upgrade — step aside, or it stays blocked.
           db.addEventListener('close', forget);
           db.addEventListener('versionchange', () => { db.close(); forget(); });
+          if (current === mine) currentDb = db;
           return db;
         },
         (err) => {
@@ -35,10 +38,19 @@ export function cachedConnection(open: () => Promise<IDBDatabase>): CachedConnec
       current = mine;
       return mine;
     },
-    reset() { current = null; },
+    reset(db) {
+      if (db && db !== currentDb) return;
+      current = null;
+      currentDb = null;
+    },
   };
   return conn;
 }
+
+/** Names under which a lost connection surfaces: `InvalidStateError`
+ *  (closed), and `UnknownError` on Safari ("Connection to Indexed Database
+ *  server lost", with no `close` event). */
+const LOST_CONNECTION = new Set(['InvalidStateError', 'UnknownError']);
 
 /**
  * `db.transaction(...)`, forgetting the connection when it is already closed:
@@ -54,7 +66,7 @@ export function transactionOn(
   try {
     return db.transaction(names, mode);
   } catch (err) {
-    if ((err as { name?: string })?.name === 'InvalidStateError') conn.reset();
+    if (LOST_CONNECTION.has((err as { name?: string })?.name ?? '')) conn.reset(db);
     throw err;
   }
 }

@@ -19,6 +19,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { useAiStore } from '../../stores/aiStore';
 import { useFeedStore } from '../../stores/feedStore';
 import type { AiConfig, AiProviderView } from '../../api/backend';
+import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
 import { AI_LANGUAGES, languageName } from '../../lib/aiLanguages';
 import AiTab from './AiTab';
 
@@ -1581,6 +1582,10 @@ describe('AiTab — « Mes clés »', () => {
     vi.mocked(setAiUserKey).mockResolvedValue({ ok: true, hasUserKey: false });
     const { getByRole, findByRole } = renderTab();
     fireEvent.click(getByRole('button', { name: 'ai.keys.clear' }));
+    // L'effacement se confirme (la clé serait à recoller).
+    const confirm = within(getByRole('dialog')).getByRole('button', { name: 'ai.keys.clear' });
+    await act(async () => { await new Promise((r) => setTimeout(r, CONFIRM_GRACE_MS + 30)); });
+    await act(async () => { fireEvent.click(confirm); });
     await waitFor(() => expect(setAiUserKey).toHaveBeenCalledWith(1, null));
     expect((await findByRole('status')).textContent).toBe('ai.keys.cleared');
     expect(getAiConfig).toHaveBeenCalled();

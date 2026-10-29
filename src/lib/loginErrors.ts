@@ -16,6 +16,32 @@ export function loginErrorKey(err: unknown): string {
 }
 
 /**
+ * Refus de `POST /api/auth/register` (`server/routes/auth.ts`), reconnus à
+ * leur texte. Le formulaire affichait ce texte ANGLAIS tel quel, dans les dix
+ * langues. Un test vérifie que le serveur les envoie toujours.
+ */
+export const REGISTER_ERROR_MESSAGES = {
+  usernameShort: 'Username must be at least 3 characters',
+  passwordShort: 'Password must be at least 6 characters',
+  emailInvalid: 'A valid email is required',
+} as const;
+
+/** Clé i18n de l'échec d'une inscription. */
+export function registerErrorKey(err: unknown): string {
+  const res = (err as { response?: { status?: number; data?: { error?: unknown } } })?.response;
+  const status = res?.status;
+  if (!status) return 'login.errorUnavailable';
+  if (status === 409) return 'login.errorUsernameTaken';
+  if (status === 403) return 'login.errorRegistrationClosed';
+  if (status === 429) return 'login.errorTooMany';
+  const msg = res?.data?.error;
+  if (msg === REGISTER_ERROR_MESSAGES.usernameShort) return 'login.errorUsernameShort';
+  if (msg === REGISTER_ERROR_MESSAGES.passwordShort) return 'login.errorPasswordShort';
+  if (msg === REGISTER_ERROR_MESSAGES.emailInvalid) return 'login.errorEmailInvalid';
+  return 'login.errorRegister';
+}
+
+/**
  * Marqueur renvoyé par la garde anti-SSRF du proxy quand elle refuse une
  * cible (`server/routes/proxy.ts`). Le corps est notre propre JSON, jamais
  * celui de FreshRSS : c'est ce qui permet de distinguer notre refus d'un 403

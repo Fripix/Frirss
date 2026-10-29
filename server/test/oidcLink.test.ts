@@ -36,7 +36,7 @@ import db, { setSetting } from '../db.js';
  * de l'attaquant, qui survivait au changement de mot de passe — le mot de
  * passe actuel est exigé ; (2) le retour du fournisseur rattachait sur la foi
  * des seuls cookies, qu'un site voisin du même domaine peut déposer — il ne
- * remet plus qu'un ticket, que seule la session qui a lancé la liaison valide ;
+ * remet plus qu’un ticket, que seule une session du compte qui a lancé la liaison valide ;
  * (3) aucun moyen de délier, rien de visible pour l'admin.
  */
 let ownerToken = '';
@@ -194,10 +194,38 @@ describe('rattacher une identité SSO depuis son compte', () => {
     const ssoOnly = db.prepare("SELECT id FROM users WHERE oidc_sub = 'sub-new'").get() as { id: number };
     const refused = await request(app).delete(`/api/admin/users/${ssoOnly.id}/sso`).set('Authorization', `Bearer ${ownerToken}`);
     expect(refused.status).toBe(400);
+    // Délier ferme les sessions du compte (voir plus bas) : Bob se reconnecte.
+    bobToken = (await request(app).post('/api/auth/login').send({ username: 'bob', password: 'secret123' })).body.token;
   });
 
   it('un non-admin ne délie pas le compte d’un autre', async () => {
     const res = await request(app).delete(`/api/admin/users/${ownerId}/sso`).set('Authorization', `Bearer ${bobToken}`);
     expect(res.status).toBe(403);
   });
+
+  // Une identité rattachée à tort (en 1.7.x, par l'adresse e-mail) a pu
+  // ouvrir des sessions : délier doit les fermer, comme un changement de mot
+  // de passe ferme les autres sessions.
+  const tokenOf = (res: request.Response) => decodeURIComponent(String(res.headers.location).split('oidc_token=')[1] ?? '');
+  const meStatus = async (token: string) => (await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`)).status;
+
+  it('délier son compte ferme les sessions ouvertes par le SSO, pas la sienne', async () => {
+    await link(bobToken, { sub: 'sub-bob-3' });
+    const ssoSession = tokenOf(await ssoLogin({ sub: 'sub-bob-3' }));
+    expect(await meStatus(ssoSession)).toBe(200);
+    expect((await request(app).delete('/api/auth/oidc/link').set('Authorization', `Bearer ${bobToken}`)).status).toBe(200);
+    expect(await meStatus(ssoSession)).toBe(401);
+    expect(await meStatus(bobToken)).toBe(200);
+  });
+
+  it('l’admin qui délie un compte en ferme toutes les sessions', async () => {
+    await link(bobToken, { sub: 'sub-bob-4' });
+    const ssoSession = tokenOf(await ssoLogin({ sub: 'sub-bob-4' }));
+    expect((await request(app).delete(`/api/admin/users/${bobId}/sso`).set('Authorization', `Bearer ${ownerToken}`)).status).toBe(200);
+    expect(await meStatus(ssoSession)).toBe(401);
+    expect(await meStatus(bobToken)).toBe(401);
+    expect(await meStatus(ownerToken)).toBe(200);
+    bobToken = (await request(app).post('/api/auth/login').send({ username: 'bob', password: 'secret123' })).body.token;
+  });
 });
+

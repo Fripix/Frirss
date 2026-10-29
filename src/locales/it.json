@@ -367,6 +367,8 @@
       "title": "Navigazione da tastiera",
       "hint": "Clicca su un tasto per modificarlo. Premi Esc per annullare.",
       "reset": "Reimposta",
+      "resetConfirmTitle": "Ripristinare le scorciatoie?",
+      "resetConfirmMessage": "Ogni scorciatoia torna al tasto predefinito; i tasti personalizzati andranno persi.",
       "resetShortcuts": "Reimposta le scorciatoie",
       "pressKey": "Premi un tasto…",
       "nextArticle": "Articolo successivo",
@@ -561,6 +563,8 @@
     "registrationDisabled": "Le registrazioni sono disattivate.",
     "errorLogin": "Credenziali errate.",
     "errorRegister": "Errore durante la creazione dell'account.",
+    "errorUsernameShort": "Il nome utente deve contenere almeno 3 caratteri.",
+    "errorRegistrationClosed": "Le registrazioni sono chiuse su questa istanza.",
     "errorUsernameTaken": "Questo nome utente è già in uso.",
     "errorPasswordShort": "La password deve contenere almeno 6 caratteri.",
     "errorPasswordMismatch": "Le password non corrispondono.",
@@ -731,7 +735,7 @@
     "failed": "Aggiornamento non riuscito",
     "incomplete": "Aggiornamento incompleto",
     "enable": "Attiva l'aggiornamento dei feed",
-    "continuing": "FreshRSS completa l’aggiornamento in background"
+    "continuing": "FreshRSS non ha risposto in tempo: l’aggiornamento potrebbe proseguire dal suo lato"
   },
   "update": {
     "updating": "Aggiornamento…"
@@ -996,6 +1000,8 @@
       "field": "Chiave per {{name}}",
       "save": "Salva",
       "clear": "Cancella",
+      "clearConfirmTitle": "Cancellare la tua chiave {{name}}?",
+      "clearConfirmMessage": "Verrà rimossa da FriRSS: dovrai incollarla di nuovo per usarla.",
       "saved": "Chiave salvata.",
       "cleared": "Chiave cancellata.",
       "error": "Salvataggio non riuscito. Riprova."

@@ -367,6 +367,8 @@
       "title": "Toetsenbordnavigatie",
       "hint": "Klik op een toets om deze te wijzigen. Druk op Esc om te annuleren.",
       "reset": "Herstellen",
+      "resetConfirmTitle": "Sneltoetsen herstellen?",
+      "resetConfirmMessage": "Elke sneltoets krijgt zijn standaardtoets terug; je eigen toetsen gaan verloren.",
       "resetShortcuts": "Sneltoetsen herstellen",
       "pressKey": "Druk op een toets…",
       "nextArticle": "Volgend artikel",
@@ -561,6 +563,8 @@
     "registrationDisabled": "Registraties zijn uitgeschakeld.",
     "errorLogin": "Onjuiste inloggegevens.",
     "errorRegister": "Fout bij het aanmaken van het account.",
+    "errorUsernameShort": "De gebruikersnaam moet minstens 3 tekens lang zijn.",
+    "errorRegistrationClosed": "Registreren is gesloten op deze instantie.",
     "errorUsernameTaken": "Deze gebruikersnaam is al in gebruik.",
     "errorPasswordShort": "Het wachtwoord moet minstens 6 tekens bevatten.",
     "errorPasswordMismatch": "De wachtwoorden komen niet overeen.",
@@ -731,7 +735,7 @@
     "failed": "Het ophalen is mislukt",
     "incomplete": "Ophalen onvoltooid",
     "enable": "Feeds ophalen inschakelen",
-    "continuing": "FreshRSS rondt het ophalen op de achtergrond af"
+    "continuing": "FreshRSS antwoordde niet op tijd: het ophalen loopt daar mogelijk nog door"
   },
   "update": {
     "updating": "Bijwerken…"
@@ -996,6 +1000,8 @@
       "field": "Sleutel voor {{name}}",
       "save": "Opslaan",
       "clear": "Wissen",
+      "clearConfirmTitle": "Je {{name}}-sleutel wissen?",
+      "clearConfirmMessage": "Hij wordt uit FriRSS verwijderd: je moet hem opnieuw plakken om hem te gebruiken.",
       "saved": "Sleutel opgeslagen.",
       "cleared": "Sleutel gewist.",
       "error": "Opslaan mislukt. Probeer het opnieuw."

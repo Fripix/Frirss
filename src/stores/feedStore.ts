@@ -651,7 +651,8 @@ export interface FeedState {
   setUnreadFilter: (on: boolean) => void;
   loadLabelCounts: () => Promise<void>;
   warmOfflineCache: () => Promise<void>;
-  prepareOffline: () => Promise<void>;
+  /** `userInitiated`: started by a click (asks for protected storage). */
+  prepareOffline: (opts?: { userInitiated?: boolean }) => Promise<void>;
   prefetchView: (feed: Subscription) => Promise<void>;
   warmFeedLists: () => Promise<void>;
   selectView: (feed: Subscription | null, filter?: Filter) => void;
@@ -1207,14 +1208,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   // last 30 days — persist their lists, extract + cache content, and prefetch
   // images into the service-worker cache (capped ~550 MB). Heavy and network-
   // intensive, hence on-demand. Progress is exposed via `offlinePrep`.
-  prepareOffline: async () => {
+  prepareOffline: async ({ userInitiated = false } = {}) => {
     if (get().offlinePrep?.running) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     // Protected storage: without it, a device short of space lets the browser
     // wipe the whole site (prepared images AND extracts) mid-preparation — seen
     // on Android. Chrome and Safari grant it silently to an installed app;
-    // Firefox asks. Not awaited: an unanswered prompt must not hold the run.
-    try { void navigator.storage?.persist?.().catch(() => {}); } catch { /* unsupported */ }
+    // Firefox asks — so only from a click, never from the run at app start.
+    // Not awaited: an unanswered prompt must not hold the run.
+    if (userInitiated) {
+      try { void navigator.storage?.persist?.().catch(() => {}); } catch { /* unsupported */ }
+    }
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     set({ offlinePrep: { running: true, phase: 'lists', done: 0, total: 0 } });
     try {
@@ -1294,7 +1298,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           imagesError ??= res.error;
           for (const url of res.kept) keptImages.add(url);
           if (res.error?.startsWith('open:')) interrupted = true;
-          if (res.full) { deviceFull = true; budgetReached = true; }
+          // Device full: nothing further could be stored (extracts included),
+          // and the final sweep would drop the images of later articles still
+          // within budget. Stop here, as an interrupted run.
+          if (res.full) { deviceFull = true; interrupted = true; done++; break; }
           // Count the bytes actually held — stored now or kept from an earlier
           // run, or the cache would outgrow the budget over successive runs. The
           // previous guard watched the browser's storage estimate, which pads
@@ -1317,7 +1324,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         offlinePrep: {
           running: false, phase: 'done', done, total: ordered.length,
           imagesFound, imagesStored, imagesFailed,
-          budgetStopped: budgetReached && budget.bytes > 0 && !deviceFull, deviceFull, imagesError,
+          budgetStopped: budgetReached && budget.bytes > 0, deviceFull, imagesError,
         },
       });
     } finally {

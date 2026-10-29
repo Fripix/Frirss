@@ -69,4 +69,32 @@ describe('transactionOn', () => {
     expect(() => transactionOn(conn, first, 'store', 'readonly')).toThrow();
     expect(await conn.get()).toBe(asDb(dbs[1]));
   });
+
+  // Safari signale la perte de la connexion (« Connection to Indexed Database
+  // server lost ») en `UnknownError`, sans événement `close`.
+  it('oublie aussi une connexion perdue sous iOS (UnknownError)', async () => {
+    const dbs = [new FakeDb(), new FakeDb()];
+    const open = vi.fn(async () => asDb(dbs[open.mock.calls.length - 1]));
+    const conn = cachedConnection(open);
+    const first = await conn.get();
+    (dbs[0] as unknown as { transaction: () => never }).transaction = () => { throw new DOMException('Connection to Indexed Database server lost.', 'UnknownError'); };
+    expect(() => transactionOn(conn, first, 'store', 'readonly')).toThrow();
+    expect(await conn.get()).toBe(asDb(dbs[1]));
+  });
+
+  // Une transaction lancée sur l'ancienne connexion peut échouer APRÈS la
+  // réouverture : elle ne doit pas jeter la neuve, restée saine.
+  it('n’oublie pas une connexion neuve à cause de l’ancienne', async () => {
+    const dbs = [new FakeDb(), new FakeDb()];
+    const open = vi.fn(async () => asDb(dbs[open.mock.calls.length - 1]));
+    const conn = cachedConnection(open);
+    const old = await conn.get();
+    dbs[0].closed = true;
+    dbs[0].dispatchEvent(new Event('close'));
+    const fresh = await conn.get();
+    expect(() => transactionOn(conn, old, 'store', 'readonly')).toThrow();
+    expect(await conn.get()).toBe(fresh);
+    expect(open).toHaveBeenCalledTimes(2);
+  });
 });
+

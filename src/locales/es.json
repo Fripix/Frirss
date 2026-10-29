@@ -367,6 +367,8 @@
       "title": "Navegación por teclado",
       "hint": "Haga clic en una tecla para modificarla. Pulse Esc para cancelar.",
       "reset": "Restablecer",
+      "resetConfirmTitle": "¿Restablecer los atajos?",
+      "resetConfirmMessage": "Cada atajo vuelve a su tecla predeterminada; se perderán tus teclas personalizadas.",
       "resetShortcuts": "Restablecer los atajos",
       "pressKey": "Pulse una tecla…",
       "nextArticle": "Artículo siguiente",
@@ -561,6 +563,8 @@
     "registrationDisabled": "Las inscripciones están desactivadas.",
     "errorLogin": "Credenciales incorrectas.",
     "errorRegister": "Error al crear la cuenta.",
+    "errorUsernameShort": "El nombre de usuario debe tener al menos 3 caracteres.",
+    "errorRegistrationClosed": "El registro está cerrado en esta instancia.",
     "errorUsernameTaken": "Este nombre de usuario ya está en uso.",
     "errorPasswordShort": "La contraseña debe tener al menos 6 caracteres.",
     "errorPasswordMismatch": "Las contraseñas no coinciden.",
@@ -731,7 +735,7 @@
     "failed": "La actualización falló",
     "incomplete": "Actualización incompleta",
     "enable": "Activar la actualización de fuentes",
-    "continuing": "FreshRSS termina la actualización en segundo plano"
+    "continuing": "FreshRSS no respondió a tiempo: la actualización puede seguir de su lado"
   },
   "update": {
     "updating": "Actualizando…"
@@ -996,6 +1000,8 @@
       "field": "Clave para {{name}}",
       "save": "Guardar",
       "clear": "Borrar",
+      "clearConfirmTitle": "¿Borrar tu clave de {{name}}?",
+      "clearConfirmMessage": "Se eliminará de FriRSS: tendrás que pegarla de nuevo para usarla.",
       "saved": "Clave guardada.",
       "cleared": "Clave borrada.",
       "error": "No se pudo guardar. Inténtelo de nuevo."
