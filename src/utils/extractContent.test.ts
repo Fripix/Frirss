@@ -5,6 +5,7 @@ import {
   retryAfterMs,
   RateLimitedError,
   FALLBACK_EXTRACT_TIMEOUT_MS,
+  FALLBACK_MAX_HTML_BYTES,
   RATE_LIMIT_MAX_WAIT_MS,
   SERVER_EXTRACT_TIMEOUT_MS,
 } from './extractContent';
@@ -18,6 +19,9 @@ const pageHtml = `<!doctype html><html><body><article>
 <p>Un paragraphe assez long pour que Readability retienne ce corps comme article, avec suffisamment de mots.</p>
 <p>Un second paragraphe, lui aussi fourni, pour dépasser le seuil de lisibilité.</p>
 </article></body></html>`;
+
+/** Ce que le proxy relaie d'une vraie page : son type d'origine compris. */
+const htmlPage = (body: string) => new Response(body, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 
 beforeEach(() => { vi.restoreAllMocks(); });
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -92,7 +96,7 @@ describe('extractFullContent', () => {
             init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
           });
         }
-        return Promise.resolve(new Response(pageHtml, { status: 200 }));
+        return Promise.resolve(htmlPage(pageHtml));
       }));
       const pending = extractFullContent('https://example.com/a');
       await vi.advanceTimersByTimeAsync(SERVER_EXTRACT_TIMEOUT_MS);
@@ -117,7 +121,7 @@ describe('extractFullContent', () => {
     it(`se replie sur l’extraction locale — ${label}`, async () => {
       vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
         if (String(input).startsWith('/api/extract')) return reply();
-        return new Response(pageHtml, { status: 200 });
+        return htmlPage(pageHtml);
       }));
       const out = await extractFullContent('https://example.com/a');
       expect(out.content).toContain('paragraphe');
@@ -148,7 +152,7 @@ describe('extractFullContent — repli local et URLs relatives', () => {
     });
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
       if (String(input).startsWith('/api/extract')) return new Response('', { status: 502 });
-      return new Response(pageRelative, { status: 200 });
+      return htmlPage(pageRelative);
     }));
 
     const out = await extractFullContent('https://presse.example.fr/2026/avis/');
@@ -275,7 +279,7 @@ describe('extractFullContent — cadence dépassée', () => {
       vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
         if (String(input).startsWith('/api/extract')) return tooMany('1');
         proxied++;
-        return new Response(pageHtml, { status: 200 });
+        return htmlPage(pageHtml);
       }));
 
       const pending = extractFullContent('https://example.com/a');
@@ -307,7 +311,7 @@ describe('extractFullContent — cadence dépassée', () => {
           throw new TypeError('Failed to fetch');
         }
         proxied++;
-        return new Response(pageHtml, { status: 200 });
+        return htmlPage(pageHtml);
       }));
 
       const pending = extractFullContent('https://example.com/a');
@@ -337,7 +341,7 @@ describe('extractFullContent — cadence dépassée', () => {
           return asked === 1 ? tooMany('1') : new Response('', { status: 502 });
         }
         proxied++;
-        return new Response(pageHtml, { status: 200 });
+        return htmlPage(pageHtml);
       }));
 
       const pending = extractFullContent('https://example.com/a');
@@ -378,5 +382,53 @@ describe('retryAfterMs', () => {
   it('ramène une date déjà passée à zéro', () => {
     const now = Date.parse('2026-09-04T10:00:00Z');
     expect(retryAfterMs(headers('Fri, 04 Sep 2026 09:59:00 GMT'), now)).toBe(0);
+  });
+});
+
+// ── Le repli ne lit qu'une page, et bornée ───────────────────────────
+// Un article dont l'adresse est une vidéo `.mp4` : le serveur répondait 415,
+// le client se repliait et lisait la vidéo ENTIÈRE par `/api/proxy` en texte.
+// Sur Android, l'onglet grossissait jusqu'à être tué, au même article à
+// chaque préparation hors ligne.
+describe('extractFullContent — le repli ne lit qu’une page bornée', () => {
+  /** Un corps sans fin, qui compte ce qu'on lui a tiré. */
+  function endless(type: string) {
+    const pulled = { bytes: 0 };
+    const chunk = new Uint8Array(64 * 1024).fill(0x61);
+    const body = new ReadableStream<Uint8Array>({
+      pull(c) { pulled.bytes += chunk.length; c.enqueue(chunk); },
+    });
+    return { pulled, response: new Response(body, { status: 200, headers: { 'Content-Type': type } }) };
+  }
+
+  it('ne se replie pas quand le serveur dit que ce n’est pas une page (415)', async () => {
+    const proxy = vi.fn();
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 415 });
+      proxy();
+      return htmlPage(pageHtml);
+    }));
+    await expect(extractFullContent('https://example.com/video.mp4')).rejects.toThrow();
+    expect(proxy).not.toHaveBeenCalled();
+  });
+
+  it('refuse un repli qui n’est pas du HTML sans en lire le corps', async () => {
+    const { pulled, response } = endless('video/mp4');
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
+      return response;
+    }));
+    await expect(extractFullContent('https://example.com/video.mp4')).rejects.toThrow();
+    expect(pulled.bytes).toBeLessThan(FALLBACK_MAX_HTML_BYTES);
+  });
+
+  it('coupe une page sans fin au plafond', async () => {
+    const { pulled, response } = endless('text/html');
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 502 });
+      return response;
+    }));
+    await expect(extractFullContent('https://example.com/flux')).rejects.toThrow();
+    expect(pulled.bytes).toBeLessThanOrEqual(FALLBACK_MAX_HTML_BYTES + 3 * 64 * 1024);
   });
 });

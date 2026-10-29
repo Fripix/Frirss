@@ -139,6 +139,50 @@ export class RateLimitedError extends Error {
   constructor() { super('RATE_LIMITED'); this.name = 'RateLimitedError'; }
 }
 
+/**
+ * Plafond du corps lu par le repli local : celui de la route serveur
+ * (`MAX_HTML_BYTES`, 2 Mo). Le repli lisait la réponse ENTIÈRE en texte : un
+ * article dont l'adresse est une vidéo `.mp4` y passait en entier, et Android
+ * tuait l'onglet au même article à chaque préparation hors ligne.
+ */
+export const FALLBACK_MAX_HTML_BYTES = 2_000_000;
+
+/** Les types qu'on lit comme une page — ceux de la route serveur. */
+const HTML_TYPES = /^(text\/html|application\/xhtml\+xml)\b/i;
+
+/** La cible n'est pas une page (vidéo, PDF, image…) : rien à extraire. */
+export class NotAPageError extends Error {
+  constructor() { super('NOT_A_PAGE'); this.name = 'NotAPageError'; }
+}
+
+/**
+ * Lit au plus `maxBytes` du corps d'une page. Un type annoncé qui n'est pas du
+ * HTML est refusé sans lire un octet ; un type absent est lu, borné.
+ */
+async function readPageText(response: Response, maxBytes: number): Promise<string> {
+  const ctype = response.headers.get('content-type');
+  if (ctype && !HTML_TYPES.test(ctype)) {
+    await response.body?.cancel().catch(() => {});
+    throw new NotAPageError();
+  }
+  if (!response.body) return response.text();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let seen = 0;
+  let text = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    seen += value.byteLength;
+    if (seen > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw new Error('Page too large');
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
 /** Exécute `run` sous un signal d'abandon armé pour `timeoutMs`. */
 async function withTimeout<T>(timeoutMs: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const controller = new AbortController();
@@ -181,8 +225,9 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   // l'instance et, quand Redis est là, partage le résultat entre appareils et
   // entre comptes. Toute réponse absente, en erreur, trop lente ou illisible
   // fait tomber sur l'extraction locale ci-dessous, qui reste le filet — la
-  // route peut manquer (serveur plus ancien), refuser la page (415, 422) ou
-  // échouer à la joindre (502, 504).
+  // route peut manquer (serveur plus ancien), ne pas savoir extraire la page
+  // (422) ou échouer à la joindre (502, 504). Sauf un 415 : la cible n'est pas
+  // une page, et le repli relirait la même réponse (`NotAPageError`).
   //
   // Ce repli ne couvre PAS l'absence de Redis : sans cache, la route extrait
   // quand même et répond 200 — elle ne garde simplement rien, et le prochain
@@ -203,6 +248,9 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   const askServer = () => withTimeout(SERVER_EXTRACT_TIMEOUT_MS, async (signal) => {
     const served = await fetch(`/api/extract?url=${encodeURIComponent(url)}`, { headers: auth, signal });
     if (served.status === 429) return { limited: RATE_LIMITED, wait: retryAfterMs(served.headers) } as const;
+    // 415 : le serveur a lu les en-têtes de la cible, ce n'est pas une page.
+    // Le repli relirait la même réponse — en entier, avant ce correctif.
+    if (served.status === 415) throw new NotAPageError();
     if (!served.ok) return null;
     const data = (await served.json()) as Partial<ExtractedContent>;
     // Champ par champ, exactement comme le chemin local plus bas. Un
@@ -246,7 +294,10 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
       }
     }
     if (served && !('limited' in served)) return served;
-  } catch { /* repli */ }
+  } catch (err) {
+    if (err instanceof NotAPageError) throw err;
+    /* repli */
+  }
 
   // Le seau est partagé avec `/api/proxy` : y aller après un 429 est un échec
   // certain, doublé d'un jeton gaspillé.
@@ -271,7 +322,7 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
     // Le corps est lu SOUS le signal : sans cela le minuteur retomberait à
     // l'arrivée des en-têtes, et une page distillée octet par octet tiendrait
     // encore la file.
-    return await response.text();
+    return await readPageText(response, FALLBACK_MAX_HTML_BYTES);
   });
 
   // Parse into a DOM document that Readability can work with

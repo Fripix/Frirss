@@ -4365,12 +4365,22 @@ serveur de développement en 1.4.4.)*
   anti-SSRF sur la cible), qui extrait une fois pour toute l'instance et — quand
   Redis est là — partage le résultat entre appareils et entre comptes.
   **Toute** réponse absente, en erreur (404 sur un serveur plus ancien, 422 page
-  non extractible, 403, 415, 502, 503, 504) ou illisible fait tomber sur
+  non extractible, 403, 502, 503, 504) ou illisible fait tomber sur
   l'extraction locale décrite ci-dessous — **sauf un 429**, qui est une question
-  de cadence et non de capacité : voir plus bas — page récupérée par `/api/proxy` (**JWT requis**,
+  de cadence et non de capacité : voir plus bas, **et sauf un 415** (la cible
+  n'est pas une page : `NotAPageError`, pas de repli) — page récupérée par `/api/proxy` (**JWT requis**,
   même garde anti-SSRF) puis Readability dans le navigateur. Ce repli n'est pas
   du code hérité : c'est ce qui tient quand le serveur n'a pas la route, ne sait
   pas lire la page, ou ne répond pas.
+  ⚠️ **Le repli ne lit qu'une page, et bornée** (`readPageText`,
+  `FALLBACK_MAX_HTML_BYTES` = 2 Mo, le plafond de la route) : un type annoncé
+  qui n'est pas `text/html`/XHTML est refusé sans lire le corps, un type absent
+  est lu jusqu'au plafond. Jusqu'en 1.8.0 il lisait la réponse ENTIÈRE par
+  `response.text()`, et le 415 le déclenchait : un article dont l'adresse est
+  une vidéo `.mp4` y passait en entier, la mémoire native de l'onglet montait
+  d'environ 50 Mo/s (tas JS stable) et Android le tuait au même article à
+  chaque préparation hors ligne — vu sur l'émulateur, et très probablement le
+  « navigateur d'Oya figé » de la même campagne.
   ⚠️ **Les URLs relatives du repli sont rendues absolues À LA MAIN**
   (`src/utils/absolutizeUrls.ts`, 1.5.0), avant Readability, contre l'URL de
   l'article — ou contre le `<base>` que la page distante porte elle-même.
@@ -4456,7 +4466,7 @@ serveur de développement en 1.4.4.)*
   `express-rate-limit` émet toujours un `Retry-After` d'au plus 60 s avec une
   fenêtre d'une minute. Rien n'ayant été mis en cache, le passage suivant
   reprend l'article.
-- **Ce que coûte un repli** : sur 415, 422, 502 ou 503 `Extractor busy`, le site
+- **Ce que coûte un repli** : sur 422, 502 ou 503 `Extractor busy`, le site
   d'origine est récupéré **deux fois** — une fois par le serveur, une fois par
   le navigateur — et deux jetons quittent le seau de cadence partagé. (Sur
   l'autre 503, `Target host unresolved`, le serveur n'a joint personne : le
@@ -4815,11 +4825,12 @@ images consultés restent lisibles sans réseau.
   `isImageLikeType`) : un type qui n'est ni `image/*` ni absent ni
   `application/octet-stream` répond 415, une longueur annoncée au-delà du
   plafond 413, et un corps sans longueur est coupé au plafond (le statut est
-  déjà parti). ⚠️ Le client garde chaque réponse ENTIÈRE en mémoire (blob
-  axios) avant le `cache.put()` : une `<img src>` vers une vidéo `.mp4`,
-  relayée pendant les 60 s de l'échéance totale, faisait tuer l'onglet par
-  Android au même article à chaque préparation (1.8.0, mesuré : ~50 Mo/s de
-  mémoire native, tas JS stable). `proxyImageBounds.test.ts`.
+  déjà parti). Le client garde chaque réponse ENTIÈRE en mémoire (blob axios)
+  avant le `cache.put()` : sans cette borne, une `<img src>` vers une vidéo ou
+  un flux de webcam remplissait l'onglet pendant les 60 s de l'échéance totale.
+  Protection posée en 1.8.0 à côté du correctif du repli d'extraction (même
+  mécanisme, voir « Extraction du contenu complet ») ; ce cas-ci n'a pas été
+  vu en direct. `proxyImageBounds.test.ts`.
 - **L'autre remplisseur ne passe pas par le backend** : la route Workbox
   elle-même, quand le navigateur charge une image. C'est vrai du rendu d'un
   article, et donc du réchauffage en avant (`heroWarm.ts`, 1.4.10), qui charge

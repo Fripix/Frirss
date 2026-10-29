@@ -466,13 +466,14 @@ la release publiée.
   FreshRSS était injoignable. Une image dont l'adresse contient un accent,
   une espace ou des majuscules était retirée à chaque fois. Et une erreur
   imprévue ne laisse plus « Préparer » en cours jusqu'au rechargement.
-- **Hors ligne : une vidéo glissée dans un article ne fait plus planter la
-  préparation.** Une image d'article qui pointait vers une vidéo était
-  téléchargée en entier comme une image, et le navigateur la gardait en
-  mémoire : sur Android, l'onglet grossissait d'environ 50 Mo par seconde
-  jusqu'à être fermé par le système, toujours au même article. Le serveur ne
-  relaie plus pour la préparation que des images, de 25 Mo au plus ; le reste
-  compte parmi les images en échec.
+- **Hors ligne : un article qui est une vidéo ne fait plus planter la
+  préparation.** Quand l'adresse d'un article menait à une vidéo, le serveur
+  refusait bien de l'extraire, mais le navigateur réessayait seul et
+  téléchargeait la vidéo entière en mémoire : sur Android, l'onglet était
+  fermé par le système, toujours au même article, et la préparation n'allait
+  jamais au bout. Le navigateur ne réessaie plus dans ce cas, et ne lit plus
+  que des pages, de 2 Mo au plus. Par précaution, le serveur ne relaie aussi
+  pour la préparation que des images, de 25 Mo au plus.
 - **Hors ligne : l'avertissement de budget dit vrai.** Un budget plus grand
   que ce que l'appareil autorise annonçait que « le navigateur purgera
   automatiquement » ; ce vidage ne touche plus les images préparées, et le
