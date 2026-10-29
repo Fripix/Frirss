@@ -22,8 +22,10 @@ mentionnée ici.
 Frontend React 18 + Vite, servi par nginx. Backend Express + SQLite
 (`better-sqlite3`), compilé par `tsc` vers `server-dist/`. Une seule image
 Docker embarque les deux. Tous les appels à FreshRSS passent par le proxy
-backend `/api/proxy` — même origine, donc pas de CORS, et les jetons ne
-touchent jamais le navigateur.
+backend `/api/proxy` — même origine, donc pas de CORS. Le jeton greader est
+obtenu une fois, à l'ajout du serveur (`ClientLogin` depuis le navigateur,
+`src/api/auth.ts`) ; une fois enregistré, il ne revient plus jamais au
+navigateur.
 
 FriRSS ne stocke aucun article : la source de vérité reste FreshRSS, interrogée
 via son **API Google Reader**. La base SQLite ne contient que des comptes, des
@@ -199,7 +201,8 @@ Animation de connexion configurable (aucune / portail / scanline).
 
 Plusieurs connexions FreshRSS par utilisateur, avec un serveur par défaut et un
 basculement rapide. Le jeton greader est **chiffré en base** (AES-256-GCM) et
-injecté côté serveur par le proxy ; il n'atteint jamais le navigateur.
+injecté côté serveur par le proxy ; une fois le serveur ajouté, il ne revient
+plus jamais au navigateur (seule sa présence est exposée, `has_token`).
 
 - **Où** : `server/routes/servers.ts`, `server/crypto.ts`,
   `src/components/Preferences/servers/` (gestion complète),
@@ -1316,7 +1319,8 @@ Clic droit sur une ligne (normale ou compacte) ou une carte de la grille,
 touche Menu du clavier, ou **appui long** au doigt : un menu propose **Ouvrir
 à la source**, **Marquer lu / non lu**, **Tout lu au-dessus / en dessous**,
 **Favori**, **À lire plus tard** et **Copier le lien**. Le **clic molette**
-ouvre directement à la source. Demandé dans l'issue #11 : le réflexe vient de
+sur le titre suit le lien natif (onglet en arrière-plan) ; ailleurs sur la
+ligne, il ouvre la source au premier plan (voir plus bas). Demandé dans l'issue #11 : le réflexe vient de
 FreshRSS, où le titre est un vrai lien — et depuis 1.8.0, il l'est aussi dans
 FriRSS (voir « Le titre est un vrai lien » plus bas).
 
@@ -6144,7 +6148,7 @@ n'existe pas.
 ## Internationalisation
 
 **10 locales** : `fr` (repli), `en`, `de`, `es`, `it`, `nl`, `pl`, `pt`, `uk`,
-`zh`. 901 clés (en français, 2026-10-29). i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
+`zh`. 912 clés (en français, 2026-10-29). i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
 `pl` et `uk`.
 
 **Règles de vocabulaire** (fixées en 1.8.0, passe fa728ed) — un mot par

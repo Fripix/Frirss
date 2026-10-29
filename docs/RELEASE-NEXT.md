@@ -80,6 +80,15 @@ la release publiée.
   émettre des requêtes vers le réseau interne sans compte (DNS rebinding) ; le
   mode « SSO uniquement » masque le formulaire local sans refuser les mots de
   passe.
+- **Une adresse d'article qui n'est pas `http`/`https` n'est plus
+  jamais ouverte ni rendue en lien.** Une adresse `javascript:` ou `data:`
+  fournie par un flux pouvait devenir un lien (icône « ouvrir à la source »,
+  « Original », titre du volet, feuille du bas) ou un onglet (`window.open`,
+  touche `o`, « ouvrir le site » d'un flux) ; React ne neutralisait que
+  `javascript:` dans les liens, rien dans `window.open`. Toutes ces entrées
+  passent désormais par un même filtre : l'élément n'est pas un lien, rien ne
+  s'ouvre, « Ouvrir à la source » disparaît du menu. Partager et copier le
+  lien gardent l'adresse telle quelle (ils n'exécutent rien).
 
 ## Corrections et améliorations
 
@@ -417,6 +426,14 @@ la release publiée.
   sans en connaître la taille : 6 000 pouvaient représenter plus de 40 Go
   comptés. Les articles lus récemment restent illustrés hors ligne ; pour les
   plus anciens, c'est la préparation qui garde les images.
+- **Hors ligne : l'avertissement de budget dit vrai.** Un budget plus grand
+  que ce que l'appareil autorise annonçait que « le navigateur purgera
+  automatiquement » ; ce vidage ne touche plus les images préparées, et le
+  message dit désormais que les images au-delà ne pourront pas être
+  enregistrées. Une petite taille non nulle s'affiche « ~1 Mo », jamais
+  « ~0 Mo ».
+- **La palette ne propose plus « Résumer » sur un résumé déjà affiché**,
+  même dans le court instant qui suit son apparition.
 - **La page d'erreur de l'application parle votre langue** (elle était en
   français pour tout le monde) et tient la hauteur réelle de l'écran sur
   Android en app installée.
@@ -455,15 +472,6 @@ la release publiée.
   accessibles du bouton de réinitialisation des raccourcis et de la
   capture d'une touche). Le lint signale désormais aussi les constantes en
   majuscules inutilisées.
-- **Sécurité : une adresse d'article qui n'est pas `http`/`https` n'est plus
-  jamais ouverte ni rendue en lien.** Une adresse `javascript:` ou `data:`
-  fournie par un flux pouvait devenir un lien (icône « ouvrir à la source »,
-  « Original », titre du volet, feuille du bas) ou un onglet (`window.open`,
-  touche `o`, « ouvrir le site » d'un flux) ; React ne neutralisait que
-  `javascript:` dans les liens, rien dans `window.open`. Toutes ces entrées
-  passent désormais par un même filtre : l'élément n'est pas un lien, rien ne
-  s'ouvre, « Ouvrir à la source » disparaît du menu. Partager et copier le
-  lien gardent l'adresse telle quelle (ils n'exécutent rien).
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,
   donc présents dans l'image : avis DoS GHSA-27r3-jxmh-p828 et
   GHSA-6pq8-jhm2-2vcw), avec leurs dépendances content-type 2.1.0 et
@@ -474,8 +482,8 @@ la release publiée.
 - **qs épinglé en 6.16.1 par `overrides`** : la 6.17.0 (publiée le jour même
   de la mise à jour) n'ajoute rien de sécuritaire à la 6.16.1, qui porte le
   correctif. Épinglage de prudence, **à retirer au cycle suivant**.
-- body-parser 2.4.0 décompresse désormais les corps `Content-Encoding: zstd`
-  (avant : 415). Même limite de 5 Mo après décompression que gzip/br ; le
+- **body-parser 2.4.0 décompresse aussi le zstd** : un corps
+  `Content-Encoding: zstd` est accepté (avant : 415). Même limite de 5 Mo après décompression que gzip/br ; le
   proxy ne retransmet pas `Content-Encoding`.
 - **API, ajouts compatibles** : les réponses de `/api/auth/login` et
   `/api/auth/register` portent `auth_provider`, et un refus 400 de
@@ -492,6 +500,11 @@ la release publiée.
   s'y rattache plus tout seul. Son propriétaire se connecte avec son mot de
   passe, puis clique « Lier à … » dans Préférences › Général › Compte. Les
   comptes déjà rattachés ne sont pas concernés.
+- **SSO derrière un reverse proxy** : l'adresse de retour du SSO ne lit plus
+  l'en-tête `X-Forwarded-Host` (un client pouvait la dicter), seulement
+  `Host`. Un reverse proxy qui remplace `Host` par un nom interne fausserait
+  donc cette adresse : définir `FRIRSS_BASE_URL` (l'URL publique de FriRSS)
+  la fixe dans tous les cas.
 
 ## Documentation
 

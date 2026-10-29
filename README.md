@@ -183,7 +183,7 @@ The first launch generates the JWT secret and the token-encryption key and store
 |---|---|---|
 | `PUID` | User id the Node process runs as (the data directory is adopted on start) | `1000` |
 | `PGID` | Group id for the same process | `1000` |
-| `FRIRSS_BASE_URL` | Public base URL — recommended behind a reverse proxy; fixes OIDC redirect URIs | derived |
+| `FRIRSS_BASE_URL` | Public base URL — recommended behind a reverse proxy; fixes OIDC redirect URIs. Without it, the redirect URI is built from the `Host` header alone | derived |
 | `FRIRSS_DATA_DIR` | SQLite database directory | `/app/data` |
 | `PROXY_REWRITES` | public→internal URL rewrites for the backend proxy (`from=to`, comma-separated) | — |
 | `PROXY_INTERNAL_HOSTS` | Anti-SSRF allowlist: private hosts the proxy may reach directly, comma-separated. Needed when FreshRSS sits on a LAN or Docker address. The OIDC issuer host is trusted automatically | — |

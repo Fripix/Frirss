@@ -175,7 +175,7 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
   // ── L'analyse passe par la file ───────────────────────────────────
   // `parseHTML` + `Readability` bloquent l'unique boucle d'événements de
   // l'instance, de quelques dizaines de millisecondes à ~1 s au plafond de
-  // 5 Mo. Le seau de cadence (600/min par compte) n'est pas une borne à cette
+  // 2 Mo (`MAX_HTML_BYTES`). Le seau de cadence (600/min par compte) n'est pas une borne à cette
   // échelle-là : voir `EXTRACT_MAX_PENDING`. Une file pleine se dit — et le
   // client se replie sur son propre extracteur, comme avant la 1.4.10.
   let article;
