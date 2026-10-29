@@ -470,6 +470,25 @@ describe('portées d’une image préparée', () => {
     expect(c.entries[URL1]?.headers.get(PREPARED_BYTES_HEADER)).toBe('10');
   });
 
+  // N5 : réécrire l'étiquette, c'est réécrire l'entrée entière (le corps
+  // compris). Sur un appareil déclaré plein, rien ne s'écrit — même règle que
+  // l'adoption —, et un refus de quota pendant la réécriture le déclare plein.
+  it('appareil plein (noFetch) : l’image est gardée sans être réécrite', async () => {
+    const c = statsCache({ [URL1]: tagged('1@1') });
+    const res = await cacheImages([URL1], { fetchImage: image(), openCache: async () => c as never, openBrowsingCache: empty, scope: '2@2', noFetch: true });
+    expect(res.kept).toEqual([URL1]);
+    expect(c.put).not.toHaveBeenCalled();
+  });
+
+  it('une réécriture refusée faute de place déclare l’appareil plein', async () => {
+    const c = statsCache({ [URL1]: tagged('1@1') });
+    c.put.mockRejectedValue(new DOMException('Quota exceeded', 'QuotaExceededError'));
+    const res = await cacheImages([URL1], { fetchImage: vi.fn(image()), openCache: async () => c as never, openBrowsingCache: empty, scope: '2@2' });
+    expect(res.full).toBe(true);
+    // Toujours là et lisible : gardée, comme sous `noFetch`.
+    expect(res.kept).toEqual([URL1]);
+  });
+
   it('garde le contenu de l’image quand il réécrit son étiquette', async () => {
     const real = new Response('octets', { headers: { [PREPARED_BYTES_HEADER]: '6', [PREPARED_SCOPE_HEADER]: '1@1' } });
     const store = new Map<string, Response>([[URL1, real]]);

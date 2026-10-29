@@ -187,7 +187,10 @@ export async function listsWithoutSource(scopePrefix: string, sourceId: string):
     const db = await openDB();
     await new Promise<void>((resolve) => {
       const t = transactionOn(conn, db, LISTS, 'readwrite');
-      const cur = t.objectStore(LISTS).openCursor();
+      // Les seules clés de la portée : parcourir toute la table désérialisait
+      // chaque liste de chaque compte (plusieurs Mo après une préparation),
+      // pendant que la transaction en écriture retenait les lectures.
+      const cur = t.objectStore(LISTS).openCursor(IDBKeyRange.bound(scopePrefix, `${scopePrefix}￿`));
       cur.onsuccess = () => {
         const c = cur.result;
         if (!c) return;

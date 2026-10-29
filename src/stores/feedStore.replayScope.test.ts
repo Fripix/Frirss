@@ -53,6 +53,9 @@ function deferred<T = void>() {
   return { promise, resolve };
 }
 const flush = () => new Promise((r) => setTimeout(r, 0));
+/** La connexion (changement de portée) lance un rejeu : il lit la file APRÈS
+ *  son chargement et rejouerait une action mise en file juste derrière. */
+const settled = async () => { await flush(); await flush(); };
 const act = (id: string, scope: string | undefined, at = 1) => ({
   key: scope ? `${scope}|${id}|read` : `${id}|read`, articleId: id, type: 'read', value: true, at, attempts: 0,
   ...(scope ? { scope } : {}),
@@ -118,14 +121,53 @@ describe('rejeu : la portée et la session sont revérifiées avant chaque actio
     expect(useFeedStore.getState().failedActions).toBe(0);
   });
 
-  it('un 401 relayé de FreshRSS compte comme un échec de l’action, la file ne reste pas bloquée (B6)', async () => {
+  // N4 : traité comme un refus, un 401 relayé jetait TOUTE la file en un
+  // rejeu (50 envois, 50 abandons) — le mot de passe d'API corrigé ensuite,
+  // les actions étaient perdues. Ce n'est pas plus la faute de l'action
+  // qu'une déconnexion : on s'arrête, on garde tout, et on le dit.
+  it('un 401 relayé de FreshRSS arrête le rejeu, garde toute la file sans consommer de tentative, et le signale (N4)', async () => {
     const { api, useFeedStore, useAuthStore } = await load();
     useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
-    idb.queue = [act('a', '7@1'), act('b', '7@1')];
+    idb.queue = Array.from({ length: 50 }, (_, i) => act(`a${i}`, '7@1', i + 1));
     vi.mocked(api.markAsRead).mockRejectedValue(Object.assign(new Error('401'), { response: { status: 401, data: 'Unauthorized!' } }));
     await useFeedStore.getState().replayQueue();
+    expect(api.markAsRead).toHaveBeenCalledTimes(1);
+    expect(idb.queue.length).toBe(50);
+    expect(idb.queue.every((a) => a.attempts === 0)).toBe(true);
+    expect(useFeedStore.getState().failedActions).toBe(0);
+    expect(useFeedStore.getState().replayRefusedByServer).toBe(true);
+    // Identifiants corrigés : le rejeu suivant passe, l'avertissement tombe.
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined as never);
+    await useFeedStore.getState().replayQueue();
     expect(idb.queue.length).toBe(0);
-    expect(useFeedStore.getState().failedActions).toBe(2);
+    expect(useFeedStore.getState().replayRefusedByServer).toBe(false);
+  });
+
+  // N3 : `memeContexte` ne comparait que les deux bouts de l'envoi. Le vrai
+  // `editTag` attend `ensureToken()` avant de construire sa requête : un
+  // aller-retour 1 → 2 → 1 pendant cette attente l'envoyait au serveur 2,
+  // puis le contrôle d'après envoi revoyait le 1 et sortait l'action.
+  it('aller-retour de serveur pendant un envoi : l’action est gardée (N3)', async () => {
+    const { api, useFeedStore, useAuthStore } = await load();
+    useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
+    idb.queue = [act('a', '7@1')];
+    const tokenFetch = deferred();
+    const landedOn: unknown[] = [];
+    vi.mocked(api.markAsRead).mockImplementation(async () => {
+      await tokenFetch.promise;
+      landedOn.push(useAuthStore.getState().activeServerId);
+      await flush();
+    });
+    const p = useFeedStore.getState().replayQueue();
+    await flush();
+    useAuthStore.getState().setFreshrssAuth('2', 'https://b.example');
+    tokenFetch.resolve();
+    await flush();
+    useAuthStore.getState().setFreshrssAuth('1', 'https://a.example');
+    await p;
+    await flush(); await flush();
+    expect(landedOn[0]).toBe('2');
+    expect(landedOn.includes('1') || idb.queue.length === 1, `envois : ${landedOn.join()}, file : ${idb.queue.length}`).toBe(true);
   });
 
   it('NOTRE 401 (jeton FriRSS refusé) garde l’action et les suivantes', async () => {
@@ -172,6 +214,7 @@ describe('mise en file : la portée est celle du geste', () => {
     const { api, useFeedStore, useAuthStore } = await load();
     idb.queue = [act('a1', '5@1'), act('a2', '5@1'), act('a3', '5@1')];
     useAuthStore.setState({ backendToken: 'jwtB', backendUser: { id: 9 } as never, activeServerId: '4', serverUrl: 'https://b.example', isAuthenticated: true });
+    await settled(); // le rejeu que lance la connexion
     useFeedStore.setState({ articles: [article('y')], selectedFeed: null, filter: 'all', searchQuery: '' });
     vi.mocked(api.markAsRead).mockRejectedValueOnce(netErr());
     await useFeedStore.getState().toggleRead(article('y'));
@@ -196,6 +239,7 @@ describe('attente de la portée, puis retour (M4)', () => {
   it('un geste direct réussi retire l’action en attente sur le même article', async () => {
     const { api, useFeedStore, useAuthStore } = await load();
     useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
+    await settled(); // le rejeu que lance la connexion
     useFeedStore.setState({ articles: [article('a')], selectedFeed: null, filter: 'all', searchQuery: '' });
     // A marqué lu hors ligne.
     vi.mocked(api.markAsRead).mockRejectedValueOnce(netErr());
@@ -226,6 +270,52 @@ describe('attente de la portée, puis retour (M4)', () => {
     expect(idb.queue.length).toBe(0);
   });
 
+  // N1 (régression du premier tour) : `settleAction` retirait toute action de
+  // même clé, y compris celle d'un geste PLUS RÉCENT que celui qui venait de
+  // réussir. Le serveur gardait « lu », l'écran « non lu », rien n'était rejoué.
+  it('un geste ancien qui réussit tard ne retire pas de la file le geste plus récent (N1)', async () => {
+    const { api, useFeedStore, useAuthStore } = await load();
+    useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
+    useFeedStore.setState({ articles: [article('a')], selectedFeed: null, filter: 'all', searchQuery: '' });
+    const slow = deferred();
+    vi.mocked(api.markAsRead).mockImplementationOnce(() => slow.promise as never);
+    const p1 = useFeedStore.getState().toggleRead(article('a', false)); // geste 1 : lu, lent
+    await flush();
+    vi.mocked(api.markAsUnread).mockRejectedValueOnce(Object.assign(new Error('502'), { response: { status: 502 } }));
+    await useFeedStore.getState().toggleRead(article('a', true)); // geste 2 : non lu, 502 → en file
+    expect(idb.queue.map((x) => x.value)).toEqual([false]);
+    slow.resolve();
+    await p1;
+    expect(idb.queue.map((x) => x.value), 'le geste le plus récent reste en file').toEqual([false]);
+  });
+
+  // N2 : `mergeAction` remplaçait sans comparer l'ordre des gestes.
+  it('un geste ancien qui échoue tard n’écrase pas en file le geste plus récent (N2)', async () => {
+    const { api, useFeedStore, useAuthStore } = await load();
+    useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
+    useFeedStore.setState({ articles: [article('a')], selectedFeed: null, filter: 'all', searchQuery: '' });
+    let fail!: () => void;
+    vi.mocked(api.markAsRead).mockImplementationOnce(() => new Promise((_, rej) => { fail = () => rej(Object.assign(new Error('503'), { response: { status: 503 } })); }));
+    const p1 = useFeedStore.getState().toggleRead(article('a', false)); // geste 1 : lu
+    await flush();
+    vi.mocked(api.markAsUnread).mockRejectedValueOnce(Object.assign(new Error('503'), { response: { status: 503 } }));
+    await useFeedStore.getState().toggleRead(article('a', true)); // geste 2 : non lu, échec rapide
+    fail(); // geste 1 : échec tardif
+    await p1;
+    expect(idb.queue.map((x) => x.value)).toEqual([false]);
+  });
+
+  it('une action relue depuis le stockage (sans numéro) est plus ancienne que tout geste de la session', async () => {
+    const { api, useFeedStore, useAuthStore } = await load();
+    useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
+    // Rangée lors d'une session précédente, avec un numéro qui n'a plus de sens ici.
+    idb.queue = [{ ...act('a', '7@1'), value: true, seq: 999 }];
+    useFeedStore.setState({ articles: [article('a', true)], selectedFeed: null, filter: 'all', searchQuery: '' });
+    vi.mocked(api.markAsUnread).mockResolvedValue(undefined as never);
+    await useFeedStore.getState().toggleRead(article('a', true));
+    expect(idb.queue.length).toBe(0);
+  });
+
   it('un geste direct pendant le rejeu : l’action remplacée n’est pas envoyée', async () => {
     const { api, useFeedStore, useAuthStore } = await load();
     useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
@@ -244,15 +334,45 @@ describe('attente de la portée, puis retour (M4)', () => {
   });
 });
 
-describe('actions sans portée (avant 1.8.0) — B12', () => {
-  it('ne sont jamais rejouées automatiquement, et partent avec le compte qui se déconnecte', async () => {
+// N7 (revient sur B12) : le cas courant est un seul compte, et les numéros
+// d'article FreshRSS sont horodatés à la microseconde — une collision d'un
+// serveur à l'autre est très improbable. Une action d'avant 1.8.0 adopte donc
+// la première portée active, comme avant ; ne plus la rejouer la perdait sans
+// un mot pour l'utilisateur à un seul compte.
+describe('actions sans portée (avant 1.8.0) — N7', () => {
+  it('adoptent la première portée active au rejeu : rejouées et comptées', async () => {
     const { api, useFeedStore, useAuthStore } = await load();
     useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
     idb.queue = [act('old', undefined), act('new', '7@1'), act('other', '9@3')];
-    vi.mocked(api.markAsRead).mockResolvedValue(undefined as never);
+    const gate = deferred();
+    vi.mocked(api.markAsRead).mockImplementation(async () => { await gate.promise; });
+    const p = useFeedStore.getState().replayQueue();
+    await flush();
+    expect(useFeedStore.getState().pendingActions, 'comptée dès l’adoption').toBe(2);
+    gate.resolve();
+    await p;
+    expect(vi.mocked(api.markAsRead).mock.calls.map((c) => c[0])).toEqual(['old', 'new']);
+    expect(idb.queue.map((a) => a.articleId)).toEqual(['other']);
+  });
+
+  it('une action adoptée cède la place à une action de la portée sur le même article', async () => {
+    const { api, useFeedStore, useAuthStore } = await load();
+    useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
+    idb.queue = [{ ...act('a', undefined), value: true }, { ...act('a', '7@1'), value: false }];
+    vi.mocked(api.markAsUnread).mockResolvedValue(undefined as never);
     await useFeedStore.getState().replayQueue();
-    expect(vi.mocked(api.markAsRead).mock.calls.map((c) => c[0])).toEqual(['new']);
-    expect(idb.queue.map((a) => a.articleId)).toEqual(['old', 'other']);
+    expect(api.markAsRead).not.toHaveBeenCalled();
+    expect(api.markAsUnread).toHaveBeenCalledWith('a');
+  });
+
+  it('celles qu’aucune portée n’a encore adoptées partent à la déconnexion', async () => {
+    const { useFeedStore, useAuthStore } = await load();
+    // Hors ligne : pas de rejeu, donc pas d'adoption.
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+    useAuthStore.setState({ backendToken: null, backendUser: null, activeServerId: null, serverUrl: '', isAuthenticated: false });
+    idb.queue = [act('old', undefined), act('other', '9@3')];
+    await useFeedStore.getState().replayQueue();
+    useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never });
     useAuthStore.getState().logoutBackend();
     await flush(); await flush();
     expect(idb.queue.map((a) => a.articleId), 'celle d’un autre compte reste pour lui').toEqual(['other']);
@@ -288,8 +408,12 @@ describe('se désabonner (B10)', () => {
     expect(await p).toBe(true);
     expect(useFeedStore.getState().subscriptions).toEqual([homonyme]);
     expect(useFeedStore.getState().articles.length).toBe(1);
-    expect(store.subsPut).not.toHaveBeenCalled();
-    expect(store.listsWithoutSource).not.toHaveBeenCalled();
+    // N9 : ce qui est gardé hors ligne pour l'ANCIEN serveur est quand même
+    // nettoyé, sous la portée et la clé relevées avant l'appel — sans quoi,
+    // de retour hors ligne sur le serveur 1, l'accueil réaffichait le flux.
+    expect(store.subsPut).toHaveBeenCalledWith('7@1|subscriptions', []);
+    expect(store.listsWithoutSource).toHaveBeenCalledWith('7@1|', 'feed/12');
+    expect(store.subsPut).not.toHaveBeenCalledWith(expect.stringMatching(/^7@2/), expect.anything());
   });
 
   it('retire les articles du flux des listes hors ligne de la portée', async () => {

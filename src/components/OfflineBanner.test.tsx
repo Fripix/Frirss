@@ -4,6 +4,7 @@ import path from 'path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import OfflineBanner from './OfflineBanner';
+import { useFeedStore } from '../stores/feedStore';
 
 // Translations aren't under test here — return the key so assertions are stable.
 vi.mock('react-i18next', () => ({
@@ -59,5 +60,18 @@ describe('OfflineBanner', () => {
     const rule = css.match(/\.offline-banner \{([^}]*)\}/)?.[1] ?? '';
     expect(rule).not.toMatch(/position:\s*fixed/);
     expect(rule).not.toMatch(/z-index/);
+  });
+
+  // N4 : un 401 relayé de FreshRSS arrête le rejeu et garde la file. Sans un
+  // mot, les actions attendaient sans que rien ne dise pourquoi ni quoi faire.
+  it('dit que FreshRSS refuse les actions en attente, et reste affiché', () => {
+    useFeedStore.setState({ replayRefusedByServer: true, failedActions: 0 });
+    const { container } = render(<OfflineBanner />);
+    const b = container.querySelector('.offline-banner');
+    expect(b?.textContent).toContain('connection.refusedByServer');
+    act(() => { vi.advanceTimersByTime(10_000); });
+    expect(container.querySelector('.offline-banner')?.textContent).toContain('connection.refusedByServer');
+    act(() => { useFeedStore.setState({ replayRefusedByServer: false }); });
+    expect(container.querySelector('.offline-banner')).toBeNull();
   });
 });

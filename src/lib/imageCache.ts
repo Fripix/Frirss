@@ -294,11 +294,18 @@ export async function cacheImages(
             const size = await preparedSize(typeof ready.clone === 'function' ? ready.clone() : ready);
             // Kept by this scope too, from now on: marked by another scope
             // only (or by none, before 1.8.0), its sweep removed an image
-            // this one still wanted. A refused rewrite (full device) keeps
-            // the image as it was.
+            // this one still wanted. The mark costs a rewrite of the whole
+            // entry, body included: not on a device declared full (the same
+            // rule as adopting, below), and a refusal for lack of space
+            // declares it full like any other write. Either way the image
+            // stays as it was, readable, and kept.
             const scopes = entryScopes(ready);
-            if (deps.scope && !scopes.includes(deps.scope)) {
-              await rewriteScopes(cache, url, ready, [...scopes, deps.scope], size).catch(() => {});
+            if (deps.scope && !scopes.includes(deps.scope) && !lookupOnly()) {
+              try {
+                await rewriteScopes(cache, url, ready, [...scopes, deps.scope], size);
+              } catch (e) {
+                if ((e as { name?: string })?.name === 'QuotaExceededError') full = true;
+              }
             }
             reusedBytes += size;
             keep(url, size);

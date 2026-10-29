@@ -726,7 +726,8 @@
     "pending_one": "1 azione in attesa",
     "pending_other": "{{count}} azioni in attesa",
     "syncFailed_one": "1 azione non è stata sincronizzata",
-    "syncFailed_other": "{{count}} azioni non sono state sincronizzate"
+    "syncFailed_other": "{{count}} azioni non sono state sincronizzate",
+    "refusedByServer": "FreshRSS rifiuta le azioni in attesa. Controlla l’utente FreshRSS e la password API di questo server in Preferenze › Feed: verranno inviate di nuovo al prossimo caricamento."
   },
   "refresh": {
     "newArticles_one": "{{count}} nuovo articolo",

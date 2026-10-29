@@ -14,9 +14,14 @@ export interface QueuedAction {
   /** Account and server it was made under (`user@server`), taken at the
    *  gesture, not at its failure: replayed only there — an article number
    *  names another article on another server. Absent on actions queued
-   *  before 1.8.0: never replayed (whose they are is unknown), dropped at
-   *  the next logout. */
+   *  before 1.8.0: they adopt the first active scope at replay (one account
+   *  is the common case, and FreshRSS article ids are microsecond stamps);
+   *  those no scope adopted yet go at the next logout. */
   scope?: string;
+  /** Order of the gesture within this session (`feedStore`), in memory
+   *  only: dropped when the queue is read back from storage, where every
+   *  action is older than any gesture of the new session. */
+  seq?: number;
 }
 
 export const MAX_ATTEMPTS = 3;
@@ -33,6 +38,10 @@ export function actionKey(articleId: string, type: QueuedActionType, labelId?: s
 export function mergeAction(queue: QueuedAction[], action: QueuedAction): QueuedAction[] {
   const i = queue.findIndex((a) => a.key === action.key);
   if (i === -1) return [...queue, action];
+  // An older gesture failing late (a 503 after 10 s) arrived after a newer
+  // one already queued (a 503 after 1 s) and overwrote it. An action read
+  // back from storage carries no number: older than anything of this session.
+  if ((queue[i].seq ?? 0) > (action.seq ?? 0)) return queue;
   const next = [...queue];
   // Superseded: the previous attempts counted against a state we no longer want.
   next[i] = { ...action, attempts: 0 };

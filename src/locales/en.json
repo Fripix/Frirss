@@ -726,7 +726,8 @@
     "pending_one": "1 action pending",
     "pending_other": "{{count}} actions pending",
     "syncFailed_one": "1 action could not be synced",
-    "syncFailed_other": "{{count}} actions could not be synced"
+    "syncFailed_other": "{{count}} actions could not be synced",
+    "refusedByServer": "FreshRSS is refusing the pending actions. Check this server’s FreshRSS username and API password in Preferences › Feeds: they will be sent again on the next load."
   },
   "update": {
     "updating": "Updating…"

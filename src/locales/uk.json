@@ -750,7 +750,8 @@
     "pending_few": "{{count}} дій очікує",
     "pending_many": "{{count}} дій очікує",
     "syncFailed_few": "Не вдалося синхронізувати {{count}} дій",
-    "syncFailed_many": "Не вдалося синхронізувати {{count}} дій"
+    "syncFailed_many": "Не вдалося синхронізувати {{count}} дій",
+    "refusedByServer": "FreshRSS відхиляє дії, що очікують. Перевірте користувача FreshRSS і пароль API цього сервера в Налаштування › Стрічки: їх буде надіслано знову під час наступного завантаження."
   },
   "refresh": {
     "newArticles_one": "{{count}} нова стаття",

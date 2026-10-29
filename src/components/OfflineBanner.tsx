@@ -16,6 +16,10 @@ export default function OfflineBanner() {
   // Pending / given-up actions made offline, so the user knows nothing is lost.
   const pending = useFeedStore((s) => s.pendingActions);
   const failed = useFeedStore((s) => s.failedActions);
+  // FreshRSS (pas FriRSS) a refusé le rejeu : la file attend, entière. Sans
+  // ce mot, rien ne disait pourquoi elle ne partait pas, ni quoi faire. La
+  // phrase dit ce qui se passe et où regarder, sans deviner la cause.
+  const refused = useFeedStore((s) => s.replayRefusedByServer);
   const wasOffline = useRef(!online);
 
   useEffect(() => {
@@ -34,9 +38,11 @@ export default function OfflineBanner() {
   }, [online]);
 
   const text = online
-    ? (failed
-        ? t('connection.syncFailed', { count: failed })
-        : showBackOnline ? t('connection.backOnline') : '')
+    ? (refused
+        ? t('connection.refusedByServer')
+        : failed
+          ? t('connection.syncFailed', { count: failed })
+          : showBackOnline ? t('connection.backOnline') : '')
     : (pending
         ? `${t('connection.offline')} — ${t('connection.pending', { count: pending })}`
         : t('connection.offline'));

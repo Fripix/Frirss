@@ -750,7 +750,8 @@
     "pending_few": "{{count}} akcji oczekuje",
     "pending_many": "{{count}} akcji oczekuje",
     "syncFailed_few": "Nie udało się zsynchronizować {{count}} akcji",
-    "syncFailed_many": "Nie udało się zsynchronizować {{count}} akcji"
+    "syncFailed_many": "Nie udało się zsynchronizować {{count}} akcji",
+    "refusedByServer": "FreshRSS odrzuca oczekujące akcje. Sprawdź użytkownika FreshRSS i hasło API tego serwera w Preferencje › Kanały: zostaną wysłane ponownie przy następnym wczytaniu."
   },
   "refresh": {
     "newArticles_one": "{{count}} nowy artykuł",

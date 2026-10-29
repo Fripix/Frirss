@@ -57,6 +57,19 @@ describe('mergeAction', () => {
     expect(q[0].value).toBe(false);
   });
 
+  // Un geste ancien qui échoue tard (503 au bout de 10 s) arrivait après un
+  // geste plus récent déjà en file (503 en 1 s) et l'écrasait.
+  it('never replaces a queued action with one from an older gesture', () => {
+    const q = mergeAction([act({ value: false, seq: 2 })], act({ value: true, seq: 1, at: 9 }));
+    expect(q).toHaveLength(1);
+    expect(q[0].value).toBe(false);
+  });
+
+  it('replaces one from a newer gesture, or one read back from storage (no number)', () => {
+    expect(mergeAction([act({ value: false, seq: 1 })], act({ value: true, seq: 2 }))[0].value).toBe(true);
+    expect(mergeAction([act({ value: false })], act({ value: true, seq: 1 }))[0].value).toBe(true);
+  });
+
   it('does not mutate the queue it is given', () => {
     const original = [act()];
     const copy = [...original];

@@ -726,7 +726,8 @@
     "pending_one": "1 Aktion ausstehend",
     "pending_other": "{{count}} Aktionen ausstehend",
     "syncFailed_one": "1 Aktion konnte nicht synchronisiert werden",
-    "syncFailed_other": "{{count}} Aktionen konnten nicht synchronisiert werden"
+    "syncFailed_other": "{{count}} Aktionen konnten nicht synchronisiert werden",
+    "refusedByServer": "FreshRSS lehnt die ausstehenden Aktionen ab. Prüfen Sie den FreshRSS-Benutzer und das API-Passwort dieses Servers unter Einstellungen › Feeds – beim nächsten Laden werden sie erneut gesendet."
   },
   "refresh": {
     "newArticles_one": "{{count}} neuer Artikel",

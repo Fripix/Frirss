@@ -765,6 +765,10 @@ export interface FeedState {
   pendingActions: number;
   /** Actions given up on after repeated failures, since the last replay. */
   failedActions: number;
+  /** FreshRSS answered the replay with its own 401 (not FriRSS's): the queue
+   *  is kept whole and waits; the banner says so. Cleared by the next replay
+   *  that gets an action through, or by a change of scope. */
+  replayRefusedByServer: boolean;
   replayQueue: () => Promise<void>;
 }
 
@@ -782,16 +786,46 @@ let queueLoaded = false;
  * même exécution.
  */
 let replayInFlight: Promise<void> | null = null;
+/** Incrémentée à chaque changement de portée (abonnement en fin de fichier) :
+ *  le rejeu la compare, pour qu'un aller-retour de serveur ne passe pas pour
+ *  « rien n'a changé ». */
+let scopeGeneration = 0;
+
+/**
+ * Les actions d'avant 1.8.0, sans portée, prennent `scope`. Une action de la
+ * portée sur le même article est forcément plus récente (faite après la mise
+ * à jour) : l'ancienne lui cède la place.
+ */
+async function adoptUnscopedActions(scope: string): Promise<void> {
+  if (!actionQueue.some((a) => !a.scope)) return;
+  const own = new Set(actionQueue.filter((a) => a.scope === scope).map((a) => a.key));
+  actionQueue = actionQueue.flatMap((a) => {
+    if (a.scope) return [a];
+    const key = `${scope}|${actionKey(a.articleId, a.type, a.labelId)}`;
+    if (own.has(key)) return [];
+    own.add(key);
+    return [{ ...a, key, scope }];
+  });
+  await queuePut(actionQueue);
+  useFeedStore.setState({ pendingActions: pendingHere() });
+}
 
 async function loadQueue(): Promise<QueuedAction[]> {
-  if (!queueLoaded) { actionQueue = await queueGet(); queueLoaded = true; }
+  if (!queueLoaded) {
+    // Le numéro d'ordre d'un geste ne vaut que dans sa session : relue, une
+    // action est plus ancienne que tout geste à venir (voir `Gesture`).
+    actionQueue = (await queueGet()).map(({ seq: _seq, ...a }) => a);
+    queueLoaded = true;
+  }
   return actionQueue;
 }
 
 /** Ce que le compteur du bandeau annonce : les actions qui partiront ICI.
  *  Celles d'un autre compte ou serveur attendent le leur, sans rien devoir
- *  à celui-ci ; les anciennes, sans portée, ne partent plus (voir le rejeu). */
-const pendingHere = (scope: string = offlineScope()) => actionQueue.filter((a) => a.scope === scope).length;
+ *  à celui-ci ; les anciennes, sans portée, partiront avec la première
+ *  portée active (voir le rejeu) — elles comptent donc ici. */
+const pendingHere = (scope: string = offlineScope()) =>
+  actionQueue.filter((a) => !a.scope || a.scope === scope).length;
 
 /**
  * Un geste d'article (lu, favori, étiquette), relevé AVANT son appel réseau.
@@ -800,8 +834,11 @@ const pendingHere = (scope: string = offlineScope()) => actionQueue.filter((a) =
  * plus tard (`TIMEOUT_DEFAULT_MS`), après un changement de serveur, et
  * l'action était alors rangée — puis rejouée — sous le serveur suivant, où
  * le même numéro désigne un autre article. Le numéro d'ordre départage deux
- * gestes sur le même article : un ancien qui échoue après qu'un plus récent
- * a réussi ne doit pas entrer en file.
+ * gestes sur le même article, dans les trois sens : un ancien qui échoue
+ * après qu'un plus récent a réussi n'entre pas en file ; un ancien qui
+ * réussit tard ne retire pas de la file un plus récent qui avait échoué
+ * (`settleAction`) ; un ancien qui échoue tard n'y écrase pas un plus récent
+ * (`mergeAction`). L'action en file garde ce numéro, en mémoire seulement.
  */
 interface Gesture { scope: string; seq: number }
 let gestureSeq = 0;
@@ -825,8 +862,13 @@ async function settleAction(
   const key = `${g.scope}|${actionKey(articleId, type, labelId)}`;
   if ((settledGestures.get(key) ?? 0) < g.seq) settledGestures.set(key, g.seq);
   await loadQueue();
-  if (!actionQueue.some((a) => a.key === key)) return;
-  actionQueue = actionQueue.filter((a) => a.key !== key);
+  // Seulement une action PLUS ANCIENNE que ce geste : le geste suivant, mis
+  // en file pendant que celui-ci traînait (un 502 rapide), est la dernière
+  // intention — le retirer laissait le serveur sur « lu » et l'écran sur
+  // « non lu », sans rien à rejouer.
+  const stale = (a: QueuedAction) => a.key === key && (a.seq ?? 0) < g.seq;
+  if (!actionQueue.some(stale)) return;
+  actionQueue = actionQueue.filter((a) => !stale(a));
   await queuePut(actionQueue);
   set({ pendingActions: pendingHere() });
 }
@@ -865,7 +907,7 @@ async function enqueueAction(
   if ((settledGestures.get(key) ?? 0) > g.seq) return;
   await loadQueue();
   actionQueue = mergeAction(actionQueue, {
-    key, articleId, type, value, labelId, at: Date.now(), attempts: 0, scope,
+    key, articleId, type, value, labelId, at: Date.now(), attempts: 0, scope, seq: g.seq,
   });
   await queuePut(actionQueue);
   set({ pendingActions: pendingHere() });
@@ -958,6 +1000,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   newInView: 0,
   refreshPhase: 'idle',
   hasRefreshToken: false,
+  replayRefusedByServer: false,
   pendingActions: 0,
   failedActions: 0,
   searchQuery: '',
@@ -2642,11 +2685,18 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // latérale du nouveau serveur et de son instantané.
     const scope = offlineScope();
     const subsKey = storedKey('subscriptions');
+    const subsBefore = get().subscriptions;
     try {
       await unsubscribeFeed(feedId);
-      // Le désabonnement a bien eu lieu sur l'ancien serveur ; il n'y a plus
-      // rien à retirer ici (la barre latérale de l'ancien se rechargera).
-      if (offlineScope() !== scope) return true;
+      // Le désabonnement a bien eu lieu sur l'ancien serveur : l'état affiché
+      // (celui du nouveau) n'est pas touché, mais ce qui est gardé hors ligne
+      // pour l'ANCIEN l'est, sous sa portée et sa clé — sans quoi, de retour
+      // hors ligne sur lui, l'accueil réaffichait le flux.
+      if (offlineScope() !== scope) {
+        subsPut(subsKey, subsBefore.filter((s) => s.id !== feedId)).catch(() => {});
+        listsWithoutSource(`${scope}|`, feedId).catch(() => {});
+        return true;
+      }
       const wasOpen = get().selectedFeed?.id === feedId;
       // Le flux part de partout, pas seulement de la barre latérale : ses
       // articles restaient affichés sous « Tous les flux », avec son compteur,
@@ -2933,16 +2983,23 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // 401 jetait toute la file, sans qu'aucune action ait été tentée.
     const auth = useAuthStore.getState();
     if (!auth.backendToken || !auth.activeServerId) return;
-    const queue = await loadQueue();
-    if (!queue.length) return;
+    // Relevés AVANT toute attente, comme la génération : le contrôle compare
+    // l'état d'entrée, pas celui d'après le chargement de la file.
+    const jeton = auth.backendToken;
+    const serveur = String(auth.activeServerId);
+    const generation = scopeGeneration;
+    await loadQueue();
+    if (!actionQueue.length) return;
 
     // Seules les actions du compte et du serveur actifs partent ; les autres
-    // attendent le leur. Une ancienne action, sans portée (avant 1.8.0), ne
-    // part plus du tout : rien ne dit sous quel compte elle a été faite, et la
-    // file survit aux déconnexions — elle partait vers le compte suivant. Elle
-    // est retirée avec la prochaine déconnexion (abonnement en fin de fichier).
+    // attendent le leur. Une ancienne action, sans portée (avant 1.8.0),
+    // adopte la portée active, comme avant 1.8.0 : le cas courant est un seul
+    // compte, et les numéros d'article FreshRSS sont horodatés à la
+    // microseconde — une collision d'un serveur à l'autre est très
+    // improbable, alors que ne plus la rejouer la perdait sans un mot.
     const scope = offlineScope();
-    const mine = queue.filter((a) => a.scope === scope);
+    await adoptUnscopedActions(scope);
+    const mine = actionQueue.filter((a) => a.scope === scope);
     if (!mine.length) return;
 
     // Revérifié avant CHAQUE action, comme `restoreUnread` : le rejeu peut
@@ -2950,17 +3007,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // envoyait les suivantes au nouveau (le client lit le serveur actif au
     // moment de la requête), qui les acceptait sans effet — sorties de la
     // file, perdues pour le premier. Après une déconnexion, elles partaient
-    // brutes, hors du proxy, recevaient un 404 et étaient jetées.
-    const jeton = auth.backendToken;
-    const serveur = String(auth.activeServerId);
+    // brutes, hors du proxy, recevaient un 404 et étaient jetées. La
+    // génération ferme l'aller-retour 1 → 2 → 1 pendant un envoi : les deux
+    // bouts voient le serveur 1, mais l'écriture, construite après l'attente
+    // du jeton d'écriture, est partie au 2.
     const memeContexte = () => {
       const now = useAuthStore.getState();
-      return now.backendToken === jeton && String(now.activeServerId ?? '') === serveur && offlineScope() === scope;
+      return now.backendToken === jeton && String(now.activeServerId ?? '') === serveur
+        && offlineScope() === scope && scopeGeneration === generation;
     };
 
     const remaining: QueuedAction[] = [];
     let failed = 0;
     let stopped = false;
+    let delivered = false;
+    let refused = false;
     for (const action of mine) {
       if (!stopped && !memeContexte()) stopped = true;
       // Arrêté : l'action et les suivantes restent, intactes, pour le retour
@@ -2983,6 +3044,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // La bascule a eu lieu PENDANT l'envoi : rien ne dit quel serveur
         // l'a reçue. Gardée — renvoyer le même état est sans danger.
         if (!memeContexte()) { stopped = true; remaining.push(action); }
+        else delivered = true;
       } catch (err) {
         // Le contexte a changé pendant l'envoi (déconnexion, autre serveur),
         // ou notre propre session est refusée : ni l'un ni l'autre n'est la
@@ -2992,10 +3054,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           remaining.push(action);
           continue;
         }
-        // Un 401 relayé de FreshRSS (mot de passe d'API changé) ne déconnecte
-        // pas FriRSS : traité comme le gardait la file — un refus, annoncé
-        // par `failedActions`. Le garder bloquait la file pour toujours, sans
-        // rien dire, puisque la session restait ouverte.
+        // Un 401 relayé de FreshRSS (mot de passe d'API changé, jeton
+        // périmé côté FriRSS) ne déconnecte pas FriRSS, et chaque action
+        // suivante recevrait le même : traité comme un refus, il jetait
+        // TOUTE la file en un rejeu. On s'arrête, on garde tout sans compter
+        // de tentative, et le bandeau le dit (`replayRefusedByServer`).
+        if ((err as { response?: { status?: number } })?.response?.status === 401) {
+          stopped = true;
+          refused = true;
+          remaining.push(action);
+          continue;
+        }
         const attempts = action.attempts + 1;
         // A refusal will never succeed; only keep what is worth retrying.
         if (isNetworkFailure(err) && shouldRetry(attempts)) remaining.push({ ...action, attempts });
@@ -3022,7 +3091,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       return again ? [again] : [];
     });
     await queuePut(actionQueue);
-    set({ pendingActions: pendingHere(), failedActions: failed });
+    set({
+      pendingActions: pendingHere(),
+      failedActions: failed,
+      // Refusé : l'avertissement reste jusqu'à un rejeu qui fait passer une
+      // action (identifiants corrigés, puis rechargement).
+      ...(refused ? { replayRefusedByServer: true } : delivered ? { replayRefusedByServer: false } : {}),
+    });
     })();
     replayInFlight = run;
     try {
@@ -3411,10 +3486,10 @@ useAuthStore.subscribe((state, prev) => {
 });
 
 /**
- * Les actions mises en file avant 1.8.0 ne portent pas de compte : elles ne
- * sont plus rejouées (voir `replayQueue`), et partent à la première
- * déconnexion — c'est le seul moment où l'on sait qu'elles ne seront plus
- * rattachées à rien de sûr.
+ * Les actions mises en file avant 1.8.0 ne portent pas de compte : le
+ * premier rejeu sous une session les adopte (`adoptUnscopedActions`). Celles
+ * qu'aucune portée n'a encore prises (hors ligne de bout en bout) partent à
+ * la déconnexion : le compte suivant n'a aucune raison de les recevoir.
  */
 async function dropUnscopedActions(): Promise<void> {
   await loadQueue();
@@ -3435,6 +3510,10 @@ async function dropUnscopedActions(): Promise<void> {
 useAuthStore.subscribe((state, prev) => {
   const scope = scopeOf(state);
   if (scope === scopeOf(prev)) return;
+  scopeGeneration++;
+  // Le refus de FreshRSS appartenait à l'autre portée : le rejeu de celle-ci
+  // le reposera s'il a lieu ici aussi.
+  useFeedStore.setState({ replayRefusedByServer: false });
   if (queueLoaded) useFeedStore.setState({ pendingActions: pendingHere(scope) });
   if (!state.backendToken || !state.activeServerId) return;
   void (replayInFlight ?? Promise.resolve())

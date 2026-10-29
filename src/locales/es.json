@@ -726,7 +726,8 @@
     "pending_one": "1 acción pendiente",
     "pending_other": "{{count}} acciones pendientes",
     "syncFailed_one": "No se pudo sincronizar 1 acción",
-    "syncFailed_other": "No se pudieron sincronizar {{count}} acciones"
+    "syncFailed_other": "No se pudieron sincronizar {{count}} acciones",
+    "refusedByServer": "FreshRSS rechaza las acciones pendientes. Compruebe el usuario de FreshRSS y la contraseña de la API de este servidor en Preferencias › Fuentes: se volverán a enviar en la próxima carga."
   },
   "refresh": {
     "newArticles_one": "{{count}} artículo nuevo",
