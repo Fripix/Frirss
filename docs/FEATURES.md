@@ -4755,6 +4755,17 @@ images consultés restent lisibles sans réseau.
   « Vider les images » se confirme (`ConfirmDialog`) ; « Images supprimées »
   ne vaut que pour le vidage qu'on vient de faire et s'efface au retour sur la
   section (il restait affiché pour toujours).
+- **Les deux bases IndexedDB (`frirss`, `frirss-offline`) se rouvrent seules**
+  (`src/lib/idbConnection.ts`, 1.8.0, `idbConnection.test.ts`) : la connexion
+  est oubliée sur `close` (le navigateur a effacé le stockage du site), sur
+  `versionchange` (un autre onglet migre), sur un échec d'ouverture et sur une
+  transaction refusée pour connexion fermée (`InvalidStateError`). ⚠️ Avant,
+  elle était gardée pour toujours : après un effacement, chaque lecture et
+  écriture échouait en silence jusqu'au rechargement — extraits non gardés,
+  **file des actions hors ligne perdue**. Vu sur Android : Chrome a effacé
+  caches ET bases du site (pas le `localStorage`) au milieu d'une préparation,
+  le disque de l'appareil étant presque plein ; le budget d'images, calculé
+  sur le quota annoncé (13,8 Go), dépassait l'espace réellement libre.
 - **Deux caches d'images** (1.8.0) :
   - `frirss-images` (`IMAGE_CACHE_NAME`) : ce que la route Workbox garde à
     l'affichage. **Plafonné à 500 entrées** et 30 jours, vidé en entier par

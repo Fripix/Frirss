@@ -3,6 +3,7 @@
 // instead of re-fetching + re-parsing every time. All methods degrade
 // gracefully (resolve to no-op / undefined) if IndexedDB is unavailable.
 import type { ExtractedContent } from '../utils/extractContent';
+import { cachedConnection, transactionOn } from './idbConnection';
 
 export interface ExtractRecord extends ExtractedContent {
   id: string; // article id (primary key)
@@ -14,31 +15,30 @@ const DB_NAME = 'frirss';
 const STORE = 'extracts';
 const VERSION = 1;
 
-let dbPromise: Promise<IDBDatabase> | null = null;
+// Reopened when the browser closes it (see `idbConnection.ts`).
+const conn = cachedConnection(() => new Promise<IDBDatabase>((resolve, reject) => {
+  if (typeof indexedDB === 'undefined') {
+    reject(new Error('IndexedDB unavailable'));
+    return;
+  }
+  const req = indexedDB.open(DB_NAME, VERSION);
+  req.onupgradeneeded = () => {
+    const db = req.result;
+    if (!db.objectStoreNames.contains(STORE)) {
+      const os = db.createObjectStore(STORE, { keyPath: 'id' });
+      os.createIndex('cachedAt', 'cachedAt'); // (booleans aren't valid keys → no pinned index)
+    }
+  };
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+}));
 
 function openDB(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    if (typeof indexedDB === 'undefined') {
-      reject(new Error('IndexedDB unavailable'));
-      return;
-    }
-    const req = indexedDB.open(DB_NAME, VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        const os = db.createObjectStore(STORE, { keyPath: 'id' });
-        os.createIndex('cachedAt', 'cachedAt'); // (booleans aren't valid keys → no pinned index)
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  return dbPromise;
+  return conn.get();
 }
 
 function store(db: IDBDatabase, mode: IDBTransactionMode): IDBObjectStore {
-  return db.transaction(STORE, mode).objectStore(STORE);
+  return transactionOn(conn, db, STORE, mode).objectStore(STORE);
 }
 
 export async function dbGet(id: string): Promise<ExtractRecord | undefined> {

@@ -4,6 +4,7 @@
 // Every method degrades gracefully (no-op / undefined) if IndexedDB is absent.
 import type { Article, Subscription } from '../types';
 import type { QueuedAction } from './actionQueue';
+import { cachedConnection, transactionOn } from './idbConnection';
 
 const DB_NAME = 'frirss-offline';
 const VERSION = 2;
@@ -18,37 +19,36 @@ export interface ListRecord {
   cachedAt: number;
 }
 
-let dbPromise: Promise<IDBDatabase> | null = null;
+// Reopened when the browser closes it (see `idbConnection.ts`).
+const conn = cachedConnection(() => new Promise<IDBDatabase>((resolve, reject) => {
+  if (typeof indexedDB === 'undefined') {
+    reject(new Error('IndexedDB unavailable'));
+    return;
+  }
+  const req = indexedDB.open(DB_NAME, VERSION);
+  req.onupgradeneeded = () => {
+    const db = req.result;
+    if (!db.objectStoreNames.contains(LISTS)) {
+      db.createObjectStore(LISTS, { keyPath: 'key' }).createIndex('cachedAt', 'cachedAt');
+    }
+    if (!db.objectStoreNames.contains(SUBS)) {
+      db.createObjectStore(SUBS, { keyPath: 'key' });
+    }
+    // Additive migration: the guards leave the existing stores untouched.
+    if (!db.objectStoreNames.contains(ACTIONS)) {
+      db.createObjectStore(ACTIONS, { keyPath: 'key' });
+    }
+  };
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+}));
 
 function openDB(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    if (typeof indexedDB === 'undefined') {
-      reject(new Error('IndexedDB unavailable'));
-      return;
-    }
-    const req = indexedDB.open(DB_NAME, VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(LISTS)) {
-        db.createObjectStore(LISTS, { keyPath: 'key' }).createIndex('cachedAt', 'cachedAt');
-      }
-      if (!db.objectStoreNames.contains(SUBS)) {
-        db.createObjectStore(SUBS, { keyPath: 'key' });
-      }
-      // Additive migration: the guards leave the existing stores untouched.
-      if (!db.objectStoreNames.contains(ACTIONS)) {
-        db.createObjectStore(ACTIONS, { keyPath: 'key' });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  return dbPromise;
+  return conn.get();
 }
 
 function tx(db: IDBDatabase, name: string, mode: IDBTransactionMode): IDBObjectStore {
-  return db.transaction(name, mode).objectStore(name);
+  return transactionOn(conn, db, name, mode).objectStore(name);
 }
 
 export async function listGet(key: string): Promise<ListRecord | undefined> {

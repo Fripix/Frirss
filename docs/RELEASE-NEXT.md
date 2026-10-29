@@ -474,6 +474,12 @@ la release publiée.
   jamais au bout. Le navigateur ne réessaie plus dans ce cas, et ne lit plus
   que des pages, de 2 Mo au plus. Par précaution, le serveur ne relaie aussi
   pour la préparation que des images, de 25 Mo au plus.
+- **Hors ligne : l'app se remet d'un stockage effacé par le navigateur.**
+  Quand le navigateur efface les données du site (manque de place sur
+  l'appareil, données effacées à la main), l'app n'arrivait plus à rien
+  enregistrer jusqu'au rechargement : les articles préparés n'étaient plus
+  gardés, et les actions faites hors ligne (lu, favori) pouvaient être
+  perdues. Elle rouvre maintenant son stockage d'elle-même.
 - **Hors ligne : l'avertissement de budget dit vrai.** Un budget plus grand
   que ce que l'appareil autorise annonçait que « le navigateur purgera
   automatiquement » ; ce vidage ne touche plus les images préparées, et le
