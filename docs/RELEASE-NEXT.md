@@ -49,8 +49,9 @@ la release publiée.
   une session volée ne suffit plus. Le retour du fournisseur ne rattache rien
   à lui seul, il remet un ticket que seul le compte qui a lancé la liaison valide,
   depuis l'une de ses sessions — un cookie déposé par un site voisin du même
-  domaine ne suffit pas. Délier ferme aussi les sessions ouvertes par cette
-  identité.
+  domaine ne suffit pas — et qui ne sert qu'une fois. Délier ferme toutes les
+  autres sessions du compte : rien ne dit lesquelles viennent du SSO, et une
+  identité rattachée à tort gardait sinon la sienne jusqu'à 30 jours.
   Un compte se délie depuis la même section, ou par l'administrateur, qui voit
   désormais quels comptes sont liés (« Local + SSO »). Une connexion SSO qui
   tombe sur une adresse déjà utilisée explique la marche à suivre.

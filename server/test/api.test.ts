@@ -973,6 +973,8 @@ describe('proxy — injection du jeton FreshRSS', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .set('X-Freshrss-Auth', 'attacker-chosen-token')
       .set('X-Proxy-Target', 'https://elsewhere.example.com/collect');
+    // Sans appel, l'assertion suivante passerait sur un objet vide.
+    expect(fetchMock).toHaveBeenCalled();
     const headers = (fetchMock.mock.calls[0]?.[1] as { headers?: Record<string, string> })?.headers ?? {};
     expect(headers.Authorization).toBeUndefined();
   });
@@ -1151,7 +1153,7 @@ describe('rate limiting', () => {
       if (res.status === 429) { got429 = true; break; }
     }
     expect(got429).toBe(true);
-  });
+  }, 30_000);
 });
 
 // ── /api/extract ─────────────────────────────────────────────────────

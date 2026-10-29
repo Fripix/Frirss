@@ -88,6 +88,7 @@ describe('chaque analyse de HTML de l’app vide son document', () => {
       try {
         const out = run();
         expect(out).toContain('<video');
+        expect(w.seen.size).toBeGreaterThan(0);
         expect(allReleased(w.seen)).toBe(true);
       } finally { w.stop(); }
     });

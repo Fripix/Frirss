@@ -19,6 +19,9 @@ describe('bandeau de relève — une icône par état', () => {
     ['failed', 0, 'failed'],
     ['timeout', 0, 'pending'],
     ['continuing', 0, 'pending'],
+    ['continuing', 2, 'new'],
+    ['timeout', 2, 'new'],
+    ['failed', 2, 'failed'],
     ['running', 0, 'running'],
   ] as const) {
     it(`${phase}, ${totalNew} nouveau(x) → ${icon}`, () => {

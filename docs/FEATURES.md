@@ -136,7 +136,8 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
   même plafond par compte que le changement de mot de passe) rend l'URL du
   fournisseur, dont l'état signé porte `link: <id>`. **Le retour ne rattache
   rien** : il remet un ticket signé de 5 min (`#oidc_link_ticket=…`, `uid` +
-  `sub`), que le client valide par `POST /api/auth/oidc/link/complete` depuis
+  `sub` + `jti`), à usage unique (`usedLinkTickets`, en mémoire : un
+  redémarrage l'oublie, l'échéance de 5 min reste), que le client valide par `POST /api/auth/oidc/link/complete` depuis
   une session du compte qui a lancé la liaison (403 `link_mismatch` sinon, 409
   `already_linked` si l'identité est liée ailleurs). Aucune session n'est
   ouverte. Pourquoi les deux (seconde relecture 1.8.0) : sans mot de passe,
@@ -5922,7 +5923,7 @@ qu'elle rend (voir *Extraction du contenu complet*).
   Avant de « rétablir » un assainissement serveur, **prouver qu'il filtre** —
   un test qui injecte un `onerror` et le voit disparaître.
 - **Plafonds de lecture** (`server/routes/extract.ts`) : la réponse doit être du
-  `text/html` (sinon 415, avant toute lecture — un PDF ou une vidéo n'a pas
+  `text/html` ou de l'`application/xhtml+xml` (sinon 415, avant toute lecture — un PDF ou une vidéo n'a pas
   d'article). Une réponse **sans en-tête `Content-Type`** est lue comme une
   page si elle en a l'air (`looksLikeMarkup` : un `<` en tête, aucun octet nul
   dans le premier Ko), sinon 415 — limite assumée : une vraie page sans type

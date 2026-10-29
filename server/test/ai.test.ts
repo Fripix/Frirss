@@ -357,7 +357,13 @@ describe('ai personal keys', () => {
   const put = (providerId: number | string, body: unknown) => request(app).put(`/api/ai/keys/${providerId}`).set(user()).send(body as object);
   const config = async () => (await request(app).get('/api/ai/config').set(user())).body;
   const mine = async (id: number) => (await config()).providers.find((p: { id: number }) => p.id === id);
-  const allow = (userKeysAllowed: boolean) => request(app).put('/api/admin/ai/settings').set(admin()).send({ userKeysAllowed });
+  // Les étapes de mise en place vérifient leur statut : sous charge, une requête
+  // perdue (ECONNRESET) faisait échouer plus loin une assertion sans rapport.
+  const allow = async (userKeysAllowed: boolean) => {
+    const res = await request(app).put('/api/admin/ai/settings').set(admin()).send({ userKeysAllowed });
+    expect(res.status).toBe(200);
+    return res;
+  };
   const summarise = (articleId: string) => request(app).post('/api/ai/summary').set(user())
     .send({ articleId, title: 't', html: longHtml, fallback: false });
   const bearer = (m: ReturnType<typeof stubProvider>) => ((m.mock.calls[0] as [string, RequestInit])[1].headers as Record<string, string>).Authorization;
@@ -395,9 +401,9 @@ describe('ai personal keys', () => {
     expect(JSON.stringify(await config())).not.toContain('mine');
     expect((await put(id, { key: null })).body).toEqual({ ok: true, hasUserKey: false });
     expect((await mine(id)).hasUserKey).toBe(false);
-    await put(id, { key: 'mine' });
+    expect((await put(id, { key: 'mine' })).status).toBe(200);
     expect((await put(id, { key: '' })).body.hasUserKey).toBe(false);
-    await put(id, { key: 'mine' });
+    expect((await put(id, { key: 'mine' })).status).toBe(200);
     expect((await put(id, { key: '   ' })).body.hasUserKey).toBe(false);
   });
   it('validates the body and the provider', async () => {
@@ -407,7 +413,7 @@ describe('ai personal keys', () => {
     expect((await put(id, {})).status).toBe(400);
     expect((await put(id, { key: 'x'.repeat(4097) })).status).toBe(400);
     expect((await put(id, { key: 'x'.repeat(4096) })).status).toBe(200);
-    await put(id, { key: null });
+    expect((await put(id, { key: null })).status).toBe(200);
     expect((await put(999999, { key: 'k' })).status).toBe(404);
     expect((await put(999999, { key: 'k' })).body).toEqual({ error: 'not_found' });
     expect((await put('abc', { key: 'k' })).status).toBe(404);
@@ -422,7 +428,7 @@ describe('ai personal keys', () => {
   });
   it('ignores stored personal keys while the admin disallows them, and restores them after', async () => {
     await allow(true);
-    await put(id, { key: 'mine' });
+    expect((await put(id, { key: 'mine' })).status).toBe(200);
     await allow(false);
     expect((await mine(id)).hasUserKey).toBe(false);
     let m = stubProvider();
@@ -433,17 +439,17 @@ describe('ai personal keys', () => {
     m = stubProvider();
     expect((await summarise('own-key-on')).status).toBe(200);
     expect(bearer(m)).toBe('Bearer mine');
-    await put(id, { key: null });
+    expect((await put(id, { key: null })).status).toBe(200);
   });
   it('says ownKey when the refused key was the user\'s own, and only then', async () => {
     const refuse = () => vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, headers: new Headers(), text: async () => 'nope', json: async () => ({}) }));
     await allow(true);
-    await put(id, { key: 'mine' });
+    expect((await put(id, { key: 'mine' })).status).toBe(200);
     refuse();
     const own = await summarise('own-refused');
     expect(own.status).toBe(502);
     expect(own.body).toEqual({ error: 'ai_failed', kind: 'auth', ownKey: true, provider: { id, name: 'Perso' } });
-    await put(id, { key: null });
+    expect((await put(id, { key: null })).status).toBe(200);
     refuse();
     const shared = await summarise('shared-refused');
     expect(shared.status).toBe(502);
