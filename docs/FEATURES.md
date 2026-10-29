@@ -4658,7 +4658,13 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   ses articles de la liste affichée, son compteur, le cache mémoire et
   l'instantané de la barre latérale gardé pour le hors ligne ; s'il était
   ouvert, la vue d'accueil se recharge. Ses articles restaient affichés sous
-  « Tous les flux », avec son compte.
+  « Tous les flux », avec son compte. Les **listes hors ligne de la portée**
+  aussi (`listsWithoutSource('7@1|', 'feed/12')` : les listes du flux sont
+  supprimées, ses articles retirés des autres — `withoutSource`) : un accueil
+  rechargé hors ligne réaffichait ses articles. Portée et clé de l'instantané
+  sont relevées **avant** l'appel : après une bascule de serveur pendant
+  l'attente, `feed/12` désigne un autre flux, que le reste retirait de la
+  barre latérale du nouveau serveur ; rien n'est alors touché localement.
 - **Pas de fermeture au clic sur le fond**, ni pour « Ajouter un flux » ni
   pour « Ajouter un serveur » (`AddServerDialog`, qui la permettait jusqu'en
   1.8.0 et perdait l'adresse, l'identifiant et le mot de passe saisis) :
@@ -4815,17 +4821,58 @@ images consultés restent lisibles sans réseau.
   servait hors ligne les listes d'un autre (`feed/12` y désigne un autre
   flux), et la réponse d'un serveur quitté s'affichait sur le nouveau et
   entrait dans ses caches. Les étiquettes et compteurs spéciaux se gardent de
-  même. **La déconnexion vide** listes et barre latérale (`clearOfflineViews`)
-  et le cache mémoire ; la file d'actions reste, rangée par compte. **Les
-  images préparées portent leur portée** (`X-FriRSS-Scope`) : le retrait final
-  d'un serveur ne touche plus celles d'un autre (il les retirait toutes).
+  même. **La déconnexion vide les listes et la barre latérale du compte qui
+  part** (`clearOfflineViews('7@')`, tous ses serveurs, `ownedByAccount`), plus
+  les clés sans portée d'avant 1.8.0, et le cache mémoire ; la file d'actions
+  reste, rangée par compte. ⚠️ Elle vidait tout : la base est commune à tous
+  les onglets, et un onglet resté sur un ancien compte effaçait en se
+  déconnectant les vues hors ligne du compte ouvert à côté. Le compte vient du
+  jeton d'abord (`jwtUserId`, comme `prefsSync`), puis de `backendUser` : au
+  retour SSO, `backendUser` est nul tant que `getMe` n'a pas abouti.
+  **Les images préparées portent la liste des portées qui les gardent**
+  (`X-FriRSS-Scope`, séparées par des virgules, chacune encodée par
+  `encodeURIComponent` ; une valeur simple `7@1` se lit pareil —
+  `entryScopes`). Une image déjà préparée qu'une préparation reprend reçoit la
+  portée de celle-ci (entrée réécrite, octets copiés tels quels,
+  `rewriteScopes`), une image sans étiquette (d'avant 1.8.0, ou reprise du
+  cache d'affichage) aussi. Le balayage d'une portée retire seulement SA
+  marque d'une image qu'une autre garde encore, et n'efface l'image que quand
+  plus aucune portée ne la garde ; une image sans étiquette que personne n'a
+  reprise est effacée par n'importe quel balayage, comme avant. Une réécriture
+  refusée (appareil plein) laisse l'image telle quelle, jamais effacée.
+  ⚠️ **Limites assumées** : les images d'une portée qui ne reviendra plus
+  (serveur retiré, compte supprimé) ne sont plus balayées par personne —
+  « Vider les images » les retire, il vide les deux caches entiers ; et le
+  budget ne compte que les images de la portée qui prépare : avec N portées,
+  le cache des préparées peut atteindre N × le budget.
+- **La préparation fige sa portée au départ** (`prepareOffline`,
+  `feedStore.prepareOffline.test.ts`) : une bascule de serveur ou une
+  déconnexion en cours de route l'interrompt comme une coupure de réseau
+  (`interrupted`) — pas de liste écrite sous une autre portée, pas de
+  balayage final, images étiquetées de la portée de départ. Relue en route,
+  la portée étiquetait les images suivantes du serveur 1 « serveur 2 », puis
+  le balayage tournait sous le serveur 2 avec la liste du 1 et effaçait toutes
+  les images préparées pour le 2.
 - **Un extrait épinglé perd son épingle** quand l'article n'est plus ni favori
-  ni à lire plus tard (1.8.0, `unpinExtractsExcept` / `dbUnpinExcept`, appelé
-  par `warmOfflineCache`, `feedStore.unpin.test.ts`) : il revient alors sous
-  la rétention normale de 30 jours. Rien ne désépinglait — un article sorti
-  des favoris gardait son extrait pour toujours. Seulement quand les deux
-  listes ont été lues en entier (au-delà de 100 favoris, la liste est
-  tronquée et désépinglerait ce qu'elle n'a pas vu).
+  ni à lire plus tard **pour la portée qui l'avait épinglé** (1.8.0,
+  `unpinExtractsExcept(keep, scope)` / `dbUnpinExcept`, appelé par
+  `warmOfflineCache`, `feedStore.unpin.test.ts`, `extractStore.test.ts`) : il
+  revient alors sous la rétention normale de 30 jours. Rien ne désépinglait —
+  un article sorti des favoris gardait son extrait pour toujours.
+  L'enregistrement porte `pinScopes`, la liste des portées qui l'épinglent
+  (`pinnedFor` / `unpinnedFor`) : il reste épinglé tant qu'une portée le
+  garde. ⚠️ Le magasin d'extraits est commun à tous les comptes et serveurs,
+  indexé par identifiant d'article : sans portée, le réchauffage d'un serveur
+  désépinglait les favoris de tous les autres, et le démarrage suivant
+  (`dbEvictOlderThan`) supprimait justement les plus anciens. Un épinglage
+  d'avant 1.8.0, sans portée, n'est jamais désépinglé ; la première portée qui
+  le réépingle l'adopte. Seulement quand les deux listes ont été lues en
+  entier (au-delà de 100 favoris, la liste est tronquée et désépinglerait ce
+  qu'elle n'a pas vu).
+- **Le réchauffage relève ses clés et sa portée avant ses attentes**
+  (`warmOfflineCache`) et n'écrit rien si la portée a changé entre-temps : les
+  favoris du serveur quitté étaient rangés sous le nouveau, ou sous `@` après
+  une déconnexion — réécrits après l'effacement des vues du compte parti.
 - **Les deux bases IndexedDB (`frirss`, `frirss-offline`) se rouvrent seules**
   (`src/lib/idbConnection.ts`, 1.8.0, `idbConnection.test.ts`) : la connexion
   est oubliée sur `close` (le navigateur a effacé le stockage du site), sur
@@ -4974,15 +5021,56 @@ mises en file et rejouées au retour.
   `online`. Sans garde, deux passes se chevauchaient, envoyaient chaque action
   deux fois, et la plus lente réécrivait la file de la plus rapide. Les appels
   concurrents attendent maintenant la même exécution (`replayInFlight`).
-- **Rangée par compte et par serveur** (1.8.0, `feedStore.scope.test.ts`) :
-  chaque action porte sa portée (`scope`, `user@serveur`, aussi dans sa clé)
-  et n'est rejouée que sous elle — le même numéro d'article désigne un autre
-  article ailleurs ; une action d'avant 1.8.0, sans portée, est réputée de la
-  portée active. **Pas de rejeu sans session** (écran de connexion, session
-  expirée), et un 401 arrête le rejeu sans rien jeter : la file entière
-  partait à la poubelle. **La file finale est fusionnée** avec la file
+- **Rangée par compte et par serveur** (1.8.0, `feedStore.scope.test.ts`,
+  `feedStore.replayScope.test.ts`) : chaque action porte sa portée (`scope`,
+  `user@serveur`, aussi dans sa clé) et n'est rejouée que sous elle — le même
+  numéro d'article désigne un autre article ailleurs. **La portée est celle du
+  geste**, relevée avant l'appel réseau (`gesture()`), pas celle de l'échec :
+  l'échec arrive jusqu'à 75 s plus tard, et une bascule entre-temps rangeait
+  l'action sous le serveur suivant. **Pas de rejeu sans session** (écran de
+  connexion, session expirée). **La file finale est fusionnée** avec la file
   actuelle : une action mise en file pendant le rejeu (réseau instable) était
   écrasée par la liste des restes.
+- **Le rejeu revérifie portée et session avant CHAQUE action**
+  (`memeContexte()` dans `replayQueue`, comme `restoreUnread`) : jeton,
+  serveur actif et portée. Si l'un a changé, il s'arrête, et l'action en cours
+  et les suivantes restent intactes, tentatives comprises. Une action dont
+  l'envoi a vu le contexte changer est gardée même si l'appel a réussi : on ne
+  sait pas quel serveur l'a reçue, et renvoyer le même état est sans danger.
+  ⚠️ Avant : une bascule en plein rejeu envoyait la suite au nouveau serveur
+  (le client lit le serveur actif à chaque requête), qui l'acceptait sans
+  effet — sortie de la file, perdue pour le premier ; une déconnexion en plein
+  rejeu faisait partir la suite brute, hors du proxy, 404, et tout était jeté.
+- **Quel 401 arrête le rejeu** : seulement le nôtre (`isBackendAuthFailure`).
+  Un 401 relayé de FreshRSS (mot de passe d'API changé) compte comme un
+  refus : l'action sort et `failedActions` le dit. Le garder bloquait la file
+  pour toujours sans rien annoncer, la session FriRSS restant ouverte.
+- **Le retour de la portée relance le rejeu** (abonnement à `authStore` en fin
+  de `feedStore.ts`) : connexion, retour SSO, changement de serveur. Un rejeu
+  encore en cours pour l'ancienne portée est attendu (il s'arrête seul), puis
+  relancé. Avant, une action qui attendait son serveur n'était rejouée qu'au
+  prochain rechargement ou événement `online`.
+- **Un geste direct réussi retire de la file** toute action en attente sur le
+  même article et le même attribut (lu, favori, à lire plus tard, une
+  étiquette donnée) : `settleAction`. Sans cela, l'action en attente écrasait
+  le dernier geste au rejeu suivant. Deux gardes complètent : un geste ancien
+  resté en vol, qui échoue APRÈS qu'un plus récent a réussi, n'entre pas en
+  file (`settledGestures`, comparé au numéro d'ordre du geste) ; et le rejeu
+  saute une action remplacée ou réglée depuis son départ (`at` comparé à la
+  file courante). ⚠️ Limite : « Tout marquer comme lu » ne règle pas la file
+  (ce n'est pas un geste d'article) — une action « non lu » en attente sur un
+  article de la plage le rendra non lu au rejeu.
+- **Actions sans portée (avant 1.8.0) : jamais rejouées automatiquement,
+  retirées à la première déconnexion** (`dropUnscopedActions`), et pas
+  comptées dans le bandeau. Rien ne dit sous quel compte elles ont été faites,
+  et la file survit aux déconnexions : elles partaient vers le compte suivant.
+  Coût assumé : une action faite hors ligne en 1.7.x et pas encore rejouée à
+  la mise à jour est perdue (dit dans les notes de version).
+- **Le bandeau ne compte que les actions de la portée active**
+  (`pendingHere()`), recalculé au changement de portée. Il comptait celles des
+  autres comptes, qui ne partiront pas sous celui-ci.
+- ⚠️ **Reste ouvert** : deux onglets ont chacun leur copie mémoire de la file,
+  et la dernière écriture (`queuePut`, qui remplace tout) gagne.
 - **Spec** : `docs/superpowers/specs/2026-08-20-offline-action-queue-design.md`
 
 ### Jeton d'écriture (CSRF)

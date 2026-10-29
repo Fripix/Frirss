@@ -50,9 +50,10 @@ function ToastRow({ toast }: { toast: Toast }) {
   // Un élément retiré sous le focus n'émet pas de blur : l'« Annuler » d'un
   // « Tout lu », retiré quand l'annulation affiche son résultat, laissait le
   // bandeau tenu pour toujours. Le focus n'est plus dedans : il est relâché.
+  // Le retrait vient d'une mise à jour du bandeau (`toast` change d'identité).
   useEffect(() => {
     if (focused && !rowRef.current?.contains(document.activeElement)) setFocused(false);
-  });
+  }, [focused, toast]);
 
   useEffect(() => {
     if (working || held) return;

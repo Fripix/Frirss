@@ -517,27 +517,41 @@ la release publiée.
   hors ligne, un serveur pouvait afficher les listes d'un autre, et une liste
   encore en chargement au moment de changer de serveur s'affichait sur le
   nouveau. Préparer le hors-ligne d'un serveur retirait aussi les images
-  préparées pour l'autre.
-- **Les actions faites hors ligne ne se perdent plus.** Un favori ou un « lu »
-  fait pendant que la file se rejouait (réseau instable) était oublié ; une
-  action en attente était envoyée au serveur actif même s'il n'était pas
-  celui où elle avait été faite, ou jetée toute entière si la session avait
-  expiré entre-temps. Elle attend désormais son compte et son serveur.
+  préparées pour l'autre, même celles qu'ils partagent, et changer de serveur
+  pendant une préparation effaçait les images du nouveau. Se déconnecter dans
+  un onglet n'efface plus ce qui est gardé hors ligne pour le compte ouvert
+  dans un autre.
+- **Les actions faites hors ligne ne se perdent plus, et n'écrasent plus vos
+  gestes suivants.** Un favori ou un « lu » fait pendant que la file se
+  rejouait (réseau instable) était oublié ; une action en attente était
+  envoyée au serveur actif même s'il n'était pas celui où elle avait été
+  faite, ou jetée toute entière si la session avait expiré — ou si l'on se
+  déconnectait, ou changeait de serveur, pendant qu'elle se rejouait. Elle
+  attend désormais son compte et son serveur, et part dès qu'ils
+  redeviennent actifs. Un article que vous marquez à nouveau, une fois le
+  réseau revenu, garde votre dernier choix. Le nombre d'actions en attente
+  ne compte plus celles des autres comptes.
+- **Une action hors ligne refusée par FreshRSS est annoncée** au lieu de
+  bloquer la file en silence (par exemple après un changement du mot de passe
+  d'API FreshRSS).
 - **La préparation hors ligne automatique ne saute plus une heure** quand
   l'application se recharge juste après l'ouverture (après une mise à jour).
 - **Deux onglets, deux comptes : se déconnecter dans l'un ne déconnecte plus
   l'autre.** Un onglet resté ouvert sur un ancien compte effaçait, en se
   déconnectant, la session et les réglages en attente du compte ouvert
   ailleurs.
-- **Se désabonner du flux ouvert retire ses articles de la liste** (ils
-  restaient affichés sous « Tous les flux », avec leur compteur).
+- **Se désabonner retire les articles du flux partout**, y compris de ce qui
+  est gardé hors ligne (ils réapparaissaient à l'ouverture sans réseau, et
+  restaient affichés sous « Tous les flux », avec leur compteur, quand le
+  flux était ouvert).
 - **« Tout lu » : le retour en arrière ne touche que ce qui vient d'être
   marqué.** Une question annulée laissait son relevé derrière elle, et un
   « Tout lu » ultérieur sur le même flux pouvait rendre non lus des articles
   lus à la main depuis. Le retour en arrière s'arrête aussi si l'on change
   de serveur pendant qu'il tourne.
 - **Les articles retirés des favoris ou de « À lire plus tard » libèrent leur
-  texte gardé hors ligne**, au lieu de le garder pour toujours.
+  texte gardé hors ligne**, au lieu de le garder pour toujours — sans toucher
+  aux favoris des autres comptes ou serveurs du même appareil.
 - **Les grosses sauvegardes se restaurent.** Au-delà de 5 Mo, une sauvegarde
   s'exportait mais était refusée à la restauration ; la limite est désormais
   de 64 Mo, et une sauvegarde plus grosse est refusée dès l'export, avec un
@@ -673,6 +687,10 @@ la release publiée.
   navigation passe par `selectView`) ; ses tests sont migrés.
 
 ## Actions requises à la mise à jour
+
+- **Actions faites hors ligne avec une version précédente** : celles encore en
+  attente au moment de la mise à jour ne sont pas envoyées (rien ne dit sous
+  quel compte elles ont été faites). Refaites-les une fois en ligne.
 
 - **SSO** : un compte local qui n'a encore jamais été ouvert par le SSO ne
   s'y rattache plus tout seul. Son propriétaire se connecte avec son mot de
