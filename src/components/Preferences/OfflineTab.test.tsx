@@ -86,4 +86,12 @@ describe('Préférences › Hors ligne', () => {
     await act(async () => { render(<OfflineTab />); });
     expect(screen.queryByText(/imagesPrepared/)).toBeNull();
   });
+
+  it('dit qu’une préparation s’est arrêtée faute de place, pas à cause du budget', async () => {
+    useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 3, total: 3, imagesFound: 9, imagesStored: 2, imagesFailed: 7, deviceFull: true } } as never);
+    await act(async () => { render(<OfflineTab />); });
+    expect(screen.getByText(/imagesDeviceFull/)).toBeTruthy();
+    expect(screen.queryByText(/imagesBudgetStopped/)).toBeNull();
+  });
 });
+

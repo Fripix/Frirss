@@ -425,6 +425,7 @@
       "imagesCached_other": "{{count}} images cached",
       "imagesReport": "{{found}} images found, {{stored}} stored",
       "imagesBudgetStopped": "stopped by the budget",
+      "imagesDeviceFull": "stopped: the device is out of space",
       "imagesFailed_one": "{{count}} image could not be fetched — this is common: some sites refuse images requested from another server.",
       "imagesFailed_other": "{{count}} images could not be fetched — this is common: some sites refuse images requested from another server.",
       "needsNetwork": "Available once you’re back online.",

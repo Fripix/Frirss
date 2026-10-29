@@ -479,7 +479,10 @@ la release publiée.
   l'appareil, données effacées à la main), l'app n'arrivait plus à rien
   enregistrer jusqu'au rechargement : les articles préparés n'étaient plus
   gardés, et les actions faites hors ligne (lu, favori) pouvaient être
-  perdues. Elle rouvre maintenant son stockage d'elle-même.
+  perdues. Elle rouvre maintenant son stockage d'elle-même. Une préparation
+  demande aussi au navigateur de protéger ce stockage (Firefox affiche une
+  demande d'autorisation), et s'arrête dès que l'appareil n'a plus de place
+  au lieu de le remplir : l'onglet Hors ligne le dit.
 - **Hors ligne : l'avertissement de budget dit vrai.** Un budget plus grand
   que ce que l'appareil autorise annonçait que « le navigateur purgera
   automatiquement » ; ce vidage ne touche plus les images préparées, et le

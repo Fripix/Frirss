@@ -4766,6 +4766,18 @@ images consultés restent lisibles sans réseau.
   caches ET bases du site (pas le `localStorage`) au milieu d'une préparation,
   le disque de l'appareil étant presque plein ; le budget d'images, calculé
   sur le quota annoncé (13,8 Go), dépassait l'espace réellement libre.
+- **Une préparation demande un stockage protégé et s'arrête sur disque plein**
+  (1.8.0, `feedStore.prepareOffline`, `imageCache.cacheImages`) :
+  `navigator.storage.persist()` au lancement, sans l'attendre — Chrome et
+  Safari l'accordent sans rien demander à une app installée, Firefox affiche
+  une demande ; un stockage protégé n'est pas effacé par le navigateur quand
+  l'appareil manque de place. Et la première écriture refusée pour
+  `QuotaExceededError` arrête les images (`full`, puis
+  `offlinePrep.deviceFull`, affiché « arrêté : plus de place sur l'appareil »,
+  `offline.imagesDeviceFull`, à la place de « arrêté par le budget ») : les
+  suivantes échoueraient aussi, après un téléchargement pour rien. Le budget
+  reste calculé sur le quota annoncé, qui peut dépasser l'espace libre réel :
+  ces deux mesures en limitent la conséquence, elles ne le corrigent pas.
 - **Deux caches d'images** (1.8.0) :
   - `frirss-images` (`IMAGE_CACHE_NAME`) : ce que la route Workbox garde à
     l'affichage. **Plafonné à 500 entrées** et 30 jours, vidé en entier par

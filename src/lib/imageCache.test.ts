@@ -17,6 +17,27 @@ function fakeCache(preloaded: string[] = []) {
 const image = (bytes = 1000) => async () => ({ response: { body: 'x' } as never, bytes });
 
 describe('cacheImages', () => {
+  // Disque plein : chaque image suivante échouerait aussi, après avoir été
+  // téléchargée pour rien. Et un appareil plein pousse le navigateur à effacer
+  // TOUT le stockage du site (vu sur Android) : on s'arrête à la première.
+  it('s’arrête à la première erreur « espace plein » et le signale', async () => {
+    const cache = fakeCache();
+    cache.put.mockRejectedValue(new DOMException('Quota exceeded', 'QuotaExceededError'));
+    const fetchImage = vi.fn(image());
+    const urls = Array.from({ length: 9 }, (_, i) => `https://a/${i}.jpg`);
+    const res = await cacheImages(urls, { fetchImage, openCache: async () => cache as never });
+    expect(res.full).toBe(true);
+    expect(res.stored).toBe(0);
+    expect(fetchImage.mock.calls.length).toBeLessThanOrEqual(4); // le premier lot, pas les suivants
+  });
+
+  it('ne signale pas « plein » pour une autre erreur d’écriture', async () => {
+    const cache = fakeCache();
+    cache.put.mockRejectedValue(new TypeError('bad body'));
+    const res = await cacheImages(['https://a/1.jpg'], { fetchImage: image(), openCache: async () => cache as never });
+    expect(res.full).toBeFalsy();
+  });
+
   it('stores every image in the cache, not just fetches it', async () => {
     const cache = fakeCache();
     const { stored } = await cacheImages(['https://a/1.jpg', 'https://a/2.jpg'], {

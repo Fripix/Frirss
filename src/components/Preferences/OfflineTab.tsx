@@ -96,6 +96,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
                   stored: offlinePrep.imagesStored ?? 0,
                 })}
                 {offlinePrep.budgetStopped && ` · ${t('preferences.offline.imagesBudgetStopped')}`}
+                {offlinePrep.deviceFull && ` · ${t('preferences.offline.imagesDeviceFull')}`}
               </span>
             )}
             {!!offlinePrep.imagesFailed && (

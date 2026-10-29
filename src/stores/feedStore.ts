@@ -640,6 +640,8 @@ export interface FeedState {
     imagesStored?: number;
     /** True when the budget guard cut image caching short. */
     budgetStopped?: boolean;
+    /** Images stopped because the device ran out of space. */
+    deviceFull?: boolean;
     /** Images that could not be fetched — a minority always fails. */
     imagesFailed?: number;
     /** First error met while caching images — a silent 0 is undiagnosable. */
@@ -1208,6 +1210,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   prepareOffline: async () => {
     if (get().offlinePrep?.running) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    // Protected storage: without it, a device short of space lets the browser
+    // wipe the whole site (prepared images AND extracts) mid-preparation — seen
+    // on Android. Chrome and Safari grant it silently to an installed app;
+    // Firefox asks. Not awaited: an unanswered prompt must not hold the run.
+    try { void navigator.storage?.persist?.().catch(() => {}); } catch { /* unsupported */ }
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     set({ offlinePrep: { running: true, phase: 'lists', done: 0, total: 0 } });
     try {
@@ -1248,6 +1255,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const budget = imageBudget(ui.offlineImagePreset, ui.offlineImageSizes, (await getStorageEstimate())?.quota ?? 0);
       const ordered = prioritizeForOffline(collected, READ_LATER_LABEL);
       let budgetReached = budget.bytes <= 0;
+      let deviceFull = false;
       let imagesFound = 0;
       let imagesStored = 0;
       let imagesBytes = 0;
@@ -1286,6 +1294,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           imagesError ??= res.error;
           for (const url of res.kept) keptImages.add(url);
           if (res.error?.startsWith('open:')) interrupted = true;
+          if (res.full) { deviceFull = true; budgetReached = true; }
           // Count the bytes actually held — stored now or kept from an earlier
           // run, or the cache would outgrow the budget over successive runs. The
           // previous guard watched the browser's storage estimate, which pads
@@ -1308,7 +1317,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         offlinePrep: {
           running: false, phase: 'done', done, total: ordered.length,
           imagesFound, imagesStored, imagesFailed,
-          budgetStopped: budgetReached && budget.bytes > 0, imagesError,
+          budgetStopped: budgetReached && budget.bytes > 0 && !deviceFull, deviceFull, imagesError,
         },
       });
     } finally {

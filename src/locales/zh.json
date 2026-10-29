@@ -425,6 +425,7 @@
       "imagesCached_other": "已缓存 {{count}} 张图片",
       "imagesReport": "找到 {{found}} 张图片，已存储 {{stored}} 张",
       "imagesBudgetStopped": "因达到存储配额而停止",
+      "imagesDeviceFull": "已停止：设备空间不足",
       "imagesFailed_one": "{{count}} 张图片无法获取——这很常见：部分站点会拒绝来自其他服务器的图片请求。",
       "imagesFailed_other": "{{count}} 张图片无法获取——这很常见：部分站点会拒绝来自其他服务器的图片请求。",
       "needsNetwork": "恢复联网后可用。",

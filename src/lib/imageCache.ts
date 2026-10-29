@@ -29,6 +29,9 @@ export interface CacheImagesResult {
   failed: number;
   /** First failure encountered, kept so a total failure can be diagnosed. */
   error?: string;
+  /** A write was refused for lack of space (`QuotaExceededError`): the rest
+   *  was not attempted, and the caller should stop storing images. */
+  full?: boolean;
 }
 
 const describe = (e: unknown): string =>
@@ -212,8 +215,12 @@ export async function cacheImages(
   // Keep the first failure: swallowing every error is what made a
   // 0-images-stored sweep impossible to diagnose.
   const note = (stage: string, e: unknown) => { failed++; error ??= `${stage}: ${describe(e)}`; };
+  // Device full: every later image would fail too, after a wasted download —
+  // and a full device is what makes the browser wipe the site's whole storage.
+  let full = false;
 
   for (let i = 0; i < urls.length; i += BATCH) {
+    if (full) { failed += urls.length - i; break; }
     await Promise.all(
       urls.slice(i, i + BATCH).map(async (url) => {
         let img: FetchedImage;
@@ -248,10 +255,11 @@ export async function cacheImages(
           bytes += img.bytes;
           kept.push(url);
         } catch (e) {
+          if ((e as { name?: string })?.name === 'QuotaExceededError') full = true;
           note('put', e);
         }
       }),
     );
   }
-  return { stored, bytes, reusedBytes, kept, failed, error };
+  return { stored, bytes, reusedBytes, kept, failed, error, ...(full ? { full } : {}) };
 }

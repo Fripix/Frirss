@@ -117,4 +117,29 @@ describe('prepareOffline — images préparées', () => {
     expect(useFeedStore.getState().offlinePrep?.running).toBe(false);
     expect(pruneImages).not.toHaveBeenCalled();
   });
+
+  it('arrête les images quand l’appareil est plein, et le dit', async () => {
+    vi.mocked(cacheImages).mockImplementation(async (urls) => ({ ...result([], 0), failed: urls.length, full: true }));
+    await useFeedStore.getState().prepareOffline();
+    expect(cacheImages).toHaveBeenCalledTimes(1);
+    expect(useFeedStore.getState().offlinePrep?.deviceFull).toBe(true);
+    expect(useFeedStore.getState().offlinePrep?.running).toBe(false);
+  });
+
+  // Sans stockage protégé, le navigateur peut effacer tout le site quand
+  // l'appareil manque de place — en pleine préparation.
+  it('demande un stockage protégé au lancement', async () => {
+    const persist = vi.fn(async () => true);
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: { persist } });
+    vi.mocked(cacheImages).mockImplementation(async (urls) => result(urls, 10));
+    await useFeedStore.getState().prepareOffline();
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it('prépare quand même si le navigateur n’offre pas de stockage protégé', async () => {
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: {} });
+    vi.mocked(cacheImages).mockImplementation(async (urls) => result(urls, 10));
+    await useFeedStore.getState().prepareOffline();
+    expect(useFeedStore.getState().offlinePrep?.phase).toBe('done');
+  });
 });

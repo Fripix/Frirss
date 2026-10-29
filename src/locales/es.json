@@ -425,6 +425,7 @@
       "imagesCached_other": "{{count}} imágenes en caché",
       "imagesReport": "{{found}} imágenes encontradas, {{stored}} guardadas",
       "imagesBudgetStopped": "detenido por el presupuesto",
+      "imagesDeviceFull": "detenido: el dispositivo no tiene espacio",
       "imagesFailed_one": "No se pudo recuperar {{count}} imagen — es habitual: algunos sitios rechazan las imágenes solicitadas desde otro servidor.",
       "imagesFailed_other": "No se pudieron recuperar {{count}} imágenes — es habitual: algunos sitios rechazan las imágenes solicitadas desde otro servidor.",
       "needsNetwork": "Disponible cuando vuelva la conexión.",
