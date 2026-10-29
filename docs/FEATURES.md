@@ -4812,6 +4812,15 @@ images consultés restent lisibles sans réseau.
   `src/components/OfflineBanner.tsx`, `src/components/UpdatePrompt.tsx`
 - **Réglages** : préparation manuelle, mise à jour à l'ouverture, budget d'images
   (aucune / légère / standard / maximale)
+- **Nouvelle version** (`UpdatePrompt`, `registerType: 'prompt'`) : un rideau
+  « Mise à jour… » (`update.updating`) s'affiche 700 ms, puis
+  `updateServiceWorker(true)` active le nouveau service worker et recharge.
+  **Filet de 5 s** (`UPDATE_RELOAD_FALLBACK_MS`, 1.8.0) : une page rechargée
+  pendant ces 700 ms pouvait trouver le nouveau service worker déjà actif,
+  l'événement attendu ne venait plus et le rideau restait pour toujours (vu
+  sur l'instance de test). Passé le délai, la page se recharge d'elle-même.
+  En test, `virtual:pwa-register/react` pointe sur `src/test/pwaRegisterStub.ts`
+  (alias de `vitest.config.js`).
 - **Le bandeau dit quand FreshRSS refuse la file** (`OfflineBanner`,
   `connection.refusedByServer`, état `replayRefusedByServer` du
   `feedStore`) : « FreshRSS refuse les actions en attente. Vérifiez

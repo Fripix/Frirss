@@ -8,6 +8,15 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 const REVEAL_MS = 700;
 
 /**
+ * Filet : le rechargement attend que le nouveau service worker prenne la main.
+ * Une page rechargée pendant `REVEAL_MS` peut trouver ce service worker déjà
+ * actif : l'événement attendu ne vient plus, et le rideau restait affiché pour
+ * toujours. Passé ce délai, la page se recharge d'elle-même ; le nouveau
+ * service worker la sert alors.
+ */
+export const UPDATE_RELOAD_FALLBACK_MS = 5000;
+
+/**
  * Service-worker update handler. With `registerType: 'prompt'`, a freshly
  * installed version surfaces via `needRefresh`; instead of prompting, we keep
  * FriRSS auto-updating but show a brief "Updating…" curtain and then reload
@@ -22,11 +31,13 @@ export default function UpdatePrompt() {
 
   useEffect(() => {
     if (!needRefresh) return;
+    let fallback: ReturnType<typeof setTimeout> | undefined;
     const id = setTimeout(() => {
       // skipWaiting → activate the new SW → reload to the new version.
-      updateServiceWorker(true);
+      void updateServiceWorker(true);
+      fallback = setTimeout(() => window.location.reload(), UPDATE_RELOAD_FALLBACK_MS);
     }, REVEAL_MS);
-    return () => clearTimeout(id);
+    return () => { clearTimeout(id); if (fallback) clearTimeout(fallback); };
   }, [needRefresh, updateServiceWorker]);
 
   if (!needRefresh) return null;

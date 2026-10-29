@@ -542,6 +542,10 @@ la release publiée.
   toutes, et le bandeau dit quoi vérifier : l'utilisateur et le mot de passe
   d'API du serveur, dans Préférences › Flux. Elles repartent au chargement
   suivant.
+- **L'écran « Mise à jour… » ne reste plus affiché.** Recharger la page au
+  moment précis où une nouvelle version s'installait pouvait laisser l'écran
+  de mise à jour indéfiniment, jusqu'à un nouveau rechargement manuel. La page
+  se recharge désormais d'elle-même après quelques secondes.
 - **La préparation hors ligne automatique ne saute plus une heure** quand
   l'application se recharge juste après l'ouverture (après une mise à jour).
 - **Deux onglets, deux comptes : se déconnecter dans l'un ne déconnecte plus

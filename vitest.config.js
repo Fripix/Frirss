@@ -22,6 +22,10 @@ function tsJsResolver() {
 
 export default defineConfig({
   plugins: [tsJsResolver()],
+  // Le module virtuel de vite-plugin-pwa n'existe qu'au build.
+  resolve: {
+    alias: { 'virtual:pwa-register/react': path.resolve('src/test/pwaRegisterStub.ts') },
+  },
   test: {
     environment: 'node', // default; frontend tests opt into jsdom via a docblock
     include: ['server/**/*.test.{js,ts}', 'src/**/*.test.{js,jsx,ts,tsx}'],
