@@ -425,7 +425,7 @@
       "imagesLightHint": "tylko miniatury",
       "imagesUsage": "Miejsce liczone przez przeglądarkę: ~{{used}}",
       "imagesQuota": "przeglądarka pozwala na ~{{quota}} na tym urządzeniu",
-      "imagesOverQuota": "To ustawienie przekracza limit urządzenia — przeglądarka automatycznie wyczyści dane.",
+      "imagesOverQuota": "To ustawienie przekracza limit urządzenia: obrazów ponad limit nie da się zapisać.",
       "imagesClear": "Wyczyść obrazy",
       "imagesCleared": "Obrazy usunięte",
       "imagesMb": "MB",

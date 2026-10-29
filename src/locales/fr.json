@@ -415,7 +415,7 @@
       "imagesLightHint": "vignettes seules",
       "imagesUsage": "Espace compté par le navigateur : ~{{used}}",
       "imagesQuota": "votre navigateur autorise ~{{quota}} sur cet appareil",
-      "imagesOverQuota": "Ce réglage dépasse ce que cet appareil autorise — le navigateur purgera automatiquement.",
+      "imagesOverQuota": "Ce réglage dépasse ce que cet appareil autorise : les images au-delà ne pourront pas être enregistrées.",
       "imagesClear": "Vider les images",
       "imagesCleared": "Images supprimées",
       "imagesMb": "Mo",

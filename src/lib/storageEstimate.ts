@@ -1,5 +1,11 @@
-/** Workbox runtime cache holding article images (see vite.config.js). */
+/** Workbox runtime cache holding article images kept on display (see
+ *  vite.config.js): capped, and purged by Workbox on a quota error. */
 export const IMAGE_CACHE_NAME = 'frirss-images';
+
+/** Images stored by the offline preparation, apart from the display cache so
+ *  its cap and purge never reach them. The service worker falls back to it;
+ *  the name is repeated as a literal in vite.config.js (serialized plugin). */
+export const PREPARED_IMAGE_CACHE_NAME = 'frirss-offline-images';
 
 const MB = 1024 * 1024;
 const GB = 1024 * MB;
@@ -33,10 +39,11 @@ export function formatBytes(
   return `${Math.round(bytes / MB).toLocaleString(locale)} ${units.mb}`;
 }
 
-/** Drop every cached image (the user-facing "empty the images" action). */
+/** Drop every cached image, prepared or kept on display (the user-facing
+ *  "empty the images" action). */
 export async function clearImageCache(): Promise<void> {
   try {
     if (typeof caches === 'undefined') return;
-    await caches.delete(IMAGE_CACHE_NAME);
+    await Promise.all([caches.delete(IMAGE_CACHE_NAME), caches.delete(PREPARED_IMAGE_CACHE_NAME)]);
   } catch { /* ignore */ }
 }

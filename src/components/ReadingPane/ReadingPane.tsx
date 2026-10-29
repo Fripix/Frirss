@@ -20,7 +20,7 @@ import { readableTextOn } from '../../lib/readableText';
 import { planHeroWarm, runHeroWarm } from '../../lib/heroWarm';
 import { rememberImageSize } from '../../lib/imageAspect';
 import { formatArticleDate } from '../../utils/dates';
-import { IMAGE_CACHE_NAME } from '../../lib/storageEstimate';
+import { IMAGE_CACHE_NAME, PREPARED_IMAGE_CACHE_NAME } from '../../lib/storageEstimate';
 import SavedCategoryPicker from '../ArticleList/SavedCategoryPicker';
 import BottomSheet from '../BottomSheet';
 import AiSummary, { type AiSummaryProps } from './AiSummary';
@@ -71,7 +71,8 @@ const SKELETON_HTML =
 const SKELETON_PROP = { __html: SKELETON_HTML };
 
 /**
- * L'image est-elle déjà dans le cache du service worker ?
+ * L'image est-elle déjà en cache — gardée à l'affichage ou préparée pour le
+ * hors ligne (les deux caches que lit la route d'images du service worker) ?
  *
  * `caches.match(url, { cacheName })` plutôt que `caches.open()` : la seconde
  * CRÉERAIT le cache s'il n'existe pas encore. `caches` est absent de jsdom et
@@ -80,7 +81,8 @@ const SKELETON_PROP = { __html: SKELETON_HTML };
 async function isImageCached(url: string): Promise<boolean> {
   try {
     if (typeof caches === 'undefined') return false;
-    return !!(await caches.match(url, { cacheName: IMAGE_CACHE_NAME }));
+    return !!(await caches.match(url, { cacheName: IMAGE_CACHE_NAME }))
+      || !!(await caches.match(url, { cacheName: PREPARED_IMAGE_CACHE_NAME }));
   } catch {
     return false;
   }

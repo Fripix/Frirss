@@ -415,7 +415,7 @@
       "imagesLightHint": "thumbnails only",
       "imagesUsage": "Space counted by the browser: ~{{used}}",
       "imagesQuota": "your browser allows ~{{quota}} on this device",
-      "imagesOverQuota": "This setting exceeds what this device allows — the browser will purge automatically.",
+      "imagesOverQuota": "This setting exceeds what this device allows: images beyond it cannot be stored.",
       "imagesClear": "Empty the images",
       "imagesCleared": "Images removed",
       "imagesMb": "MB",

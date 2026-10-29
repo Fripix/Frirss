@@ -415,7 +415,7 @@
       "imagesLightHint": "alleen miniaturen",
       "imagesUsage": "Door de browser geteld: ~{{used}}",
       "imagesQuota": "uw browser staat ~{{quota}} toe op dit apparaat",
-      "imagesOverQuota": "Deze instelling overschrijdt wat dit apparaat toestaat — de browser ruimt automatisch op.",
+      "imagesOverQuota": "Deze instelling overschrijdt wat dit apparaat toestaat: afbeeldingen daarboven kunnen niet worden opgeslagen.",
       "imagesClear": "Afbeeldingen wissen",
       "imagesCleared": "Afbeeldingen verwijderd",
       "imagesMb": "MB",

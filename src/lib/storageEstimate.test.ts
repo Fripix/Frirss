@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { formatBytes } from './storageEstimate';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { formatBytes, clearImageCache, IMAGE_CACHE_NAME, PREPARED_IMAGE_CACHE_NAME } from './storageEstimate';
 
 describe('formatBytes', () => {
   it('renders megabytes below a gigabyte', () => {
@@ -21,5 +21,20 @@ describe('formatBytes', () => {
     expect(formatBytes(1.25 * 1024 * 1024 * 1024, units, 'en')).toBe('1.3 GB');
     expect(formatBytes(340 * 1024 * 1024, units, 'en')).toBe('340 MB');
     expect(formatBytes(2 * 1024 * 1024 * 1024, { mb: 'МБ', gb: 'ГБ' }, 'uk')).toBe('2,0 ГБ');
+  });
+});
+
+describe('clearImageCache', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  // Les images préparées ont leur propre cache : « Vider les images » qui ne
+  // viderait que celui des images vues en ligne laisserait l'essentiel.
+  it('vide les deux caches d’images', async () => {
+    const del = vi.fn(async () => true);
+    vi.stubGlobal('caches', { delete: del });
+    await clearImageCache();
+    expect(del).toHaveBeenCalledWith(IMAGE_CACHE_NAME);
+    expect(del).toHaveBeenCalledWith(PREPARED_IMAGE_CACHE_NAME);
+    expect(PREPARED_IMAGE_CACHE_NAME).not.toBe(IMAGE_CACHE_NAME);
   });
 });

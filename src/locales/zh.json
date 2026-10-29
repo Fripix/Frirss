@@ -415,7 +415,7 @@
       "imagesLightHint": "仅缩略图",
       "imagesUsage": "浏览器统计的空间：约 {{used}}",
       "imagesQuota": "当前设备浏览器可用空间约 {{quota}}",
-      "imagesOverQuota": "该设置超出了此设备允许的范围，浏览器将自动清理。",
+      "imagesOverQuota": "该设置超出了此设备允许的范围：超出部分的图片将无法保存。",
       "imagesClear": "清空图片",
       "imagesCleared": "图片已移除",
       "imagesMb": "MB",

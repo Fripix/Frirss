@@ -48,7 +48,7 @@ import {
 } from '../lib/actionQueue';
 import { articleImageUrls, imageBudget, prioritizeForOffline } from '../lib/offlineImages';
 import { getStorageEstimate } from '../lib/storageEstimate';
-import { cacheImages } from '../lib/imageCache';
+import { cacheImages, pruneImages } from '../lib/imageCache';
 import { nextPhase, shouldTriggerRealRefresh, POLL_INTERVAL_MS, type RefreshPhase } from '../lib/refreshPolling';
 import { shouldLeaveList } from '../lib/removeOnRead';
 import { shouldTopUpAfterRemoval } from '../lib/listTopUp';
@@ -1247,12 +1247,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     let imagesBytes = 0;
     let imagesFailed = 0;
     let imagesError: string | undefined;
+    // Every image the prepared cache holds once this run is over: what it
+    // does not list is swept at the end.
+    const keptImages = new Set<string>();
+    let interrupted = false;
 
     set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });
     const { extractFullContent } = await import('../utils/extractContent');
     let done = 0;
     for (const a of ordered) {
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) { interrupted = true; break; }
 
       let extracted: string | null = peekExtract(a.id)?.content ?? null;
       if (a.url && !extracted) {
@@ -1272,12 +1276,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         imagesFound += urls.length;
         const res = await cacheImages(urls);
         imagesStored += res.stored;
-        imagesBytes += res.bytes;
+        imagesBytes += res.bytes + res.reusedBytes;
         imagesFailed += res.failed;
         imagesError ??= res.error;
-        // Count the bytes we actually stored. The previous guard watched the
-        // browser's storage estimate, which pads opaque entries so wildly that
-        // it was unusable; proxied responses give us the real size.
+        for (const url of res.kept) keptImages.add(url);
+        if (res.error?.startsWith('open:')) interrupted = true;
+        // Count the bytes actually held — stored now or kept from an earlier
+        // run, or the cache would outgrow the budget over successive runs. The
+        // previous guard watched the browser's storage estimate, which pads
+        // opaque entries so wildly that it was unusable; proxied responses
+        // give us the real size.
         if (imagesBytes >= budget.bytes) budgetReached = true;
       }
 
@@ -1286,6 +1294,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         set({ offlinePrep: { running: true, phase: 'articles', done, total: ordered.length, imagesFound, imagesStored } });
       }
     }
+    // Nothing else evicts prepared images. Only a run that saw the whole list
+    // may decide what is no longer wanted: not one cut short by the network or
+    // by an unopenable cache, and not one with images turned off (that keeps
+    // what was prepared rather than wiping it).
+    if (!interrupted && budget.bytes > 0) await pruneImages(keptImages);
     set({
       offlinePrep: {
         running: false, phase: 'done', done, total: ordered.length,

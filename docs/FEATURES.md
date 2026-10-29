@@ -4452,8 +4452,8 @@ serveur de développement en 1.4.4.)*
   une `new Image()` détachée. Même `destination === 'image'`, même route
   Workbox, **zéro octet par le backend**. C'est ce qui permet une fenêtre de
   dix là où la version proxifiée devait se rationner. Une image déjà présente
-  dans `frirss-images` (`caches.match`) est sautée : relire un flux ne coûte
-  rien.
+  dans `frirss-images` ou `frirss-offline-images` (`caches.match`) est
+  sautée : relire un flux ne coûte rien.
 - **Bénéfice second** : l'événement `load` donne `naturalWidth`/`naturalHeight`
   gratuitement. `src/lib/imageAspect.ts` les retient (carte bornée à 300
   entrées, éviction de la plus ancienne) et `reserveImgAspect()` s'en sert pour
@@ -4679,13 +4679,43 @@ images consultés restent lisibles sans réseau.
   « Vider les images » se confirme (`ConfirmDialog`) ; « Images supprimées »
   ne vaut que pour le vidage qu'on vient de faire et s'efface au retour sur la
   section (il restait affiché pour toujours).
+- **Deux caches d'images** (1.8.0) :
+  - `frirss-images` (`IMAGE_CACHE_NAME`) : ce que la route Workbox garde à
+    l'affichage. **Plafonné à 500 entrées** et 30 jours, vidé en entier par
+    Workbox sur une erreur de quota (`purgeOnQuotaError`). Réponses surtout
+    **opaques** : taille illisible, et Chromium en compte ~7 Mo chacune.
+    Le plafond était de 6 000 : 12 Go comptés pour 1 689 images.
+  - `frirss-offline-images` (`PREPARED_IMAGE_CACHE_NAME`) : les images de la
+    préparation, écrites par `cacheImages` seul. Ni plafond ni purge : le
+    **budget**, le **retrait de fin de préparation** (`pruneImages`) et
+    « Vider les images » (qui vide les deux) sont les seules sorties.
+  - La route lit son cache, puis **se replie** sur celui des préparées
+    (`preparedImageFallback`, `src/lib/swImageFallback.ts`, placé après le
+    plugin d'expiration dans `vite.config.js`). ⚠️ workbox-build recopie le
+    code de ce plugin dans `sw.js` : il ne doit rien importer, d'où le nom du
+    cache écrit en littéral — son test le compare à la constante.
+  - **Pourquoi la séparation** : avant, les deux vivaient dans
+    `frirss-images`. Workbox inscrit dans son suivi d'expiration toute entrée
+    qu'il SERT (`cachedResponseWillBeUsed` → `updateTimestamp`) : une image
+    préparée, affichée une fois en ligne, entrait dans le plafond et pouvait
+    être évincée par les suivantes ; et la purge sur quota emportait tout.
+  - **Budget** : les octets d'une image déjà préparée et gardée
+    (`reusedBytes`) comptent comme ceux d'une nouvelle, sinon le cache
+    dépassait le budget d'une préparation à l'autre.
+  - **Retrait** : à la fin d'une préparation qui a vu **toute** la liste,
+    `pruneImages` retire ce qu'elle n'a pas gardé (article sorti des 30 jours,
+    au-delà du budget). Jamais après une préparation coupée par le réseau ou
+    par un cache impossible à ouvrir, ni images désactivées (le réglage
+    retrouve ce qui était préparé). `feedStore.prepareOffline.test.ts`.
+  - **Reprise des versions précédentes** : une image préparée restée dans
+    `frirss-images` (lisible, sous l'URL d'un autre site) est **déplacée**
+    sans retéléchargement quand une préparation la redemande.
 - **Ce que l'onglet compte** (1.8.0, `cachedImageStats` dans
-  `imageCache.ts`) : le nombre d'images du cache `frirss-images`, dont les
-  **préparées** avec leur taille réelle. Une image préparée est lisible (ses
-  octets sont passés par le proxy) bien que rangée sous son URL d'origine ; sa
-  taille est écrite à la préparation dans l'en-tête `X-FriRSS-Bytes`, et lue
-  dans le corps pour une entrée plus ancienne. Le reste a été gardé à
-  l'affichage par le service worker : réponses **opaques**, taille illisible.
+  `imageCache.ts`) : le nombre d'images des deux caches, dont les
+  **préparées** avec leur taille réelle — écrite à la préparation dans
+  l'en-tête `X-FriRSS-Bytes`, lue dans le corps pour une entrée plus
+  ancienne. Les images préparées d'une version précédente, encore dans
+  `frirss-images`, y sont reconnues et comptées comme préparées.
   Le chiffre de `navigator.storage.estimate()` est présenté comme « Espace
   compté par le navigateur », avec une note dès qu'il y a des images opaques :
   Chromium compte environ 7 Mo par réponse opaque, d'où 12 Go annoncés pour
@@ -4700,9 +4730,9 @@ images consultés restent lisibles sans réseau.
   invisibles — discussion #19). « Cliquable au travers » ne sauvait rien :
   on ne clique pas ce qu'on ne voit pas. `OfflineBanner.test.tsx` vérifie
   que la feuille de style ne le refixe pas.
-- **Un seul remplisseur PROXIFIÉ du cache d'images** : la préparation manuelle
+- **Un seul remplisseur PROXIFIÉ, et un cache à lui** : la préparation
   (`feedStore.prepareOffline` → `imageCache.cacheImages`, seul `cache.put()`
-  explicite du projet). Le choix des images y vit dans `articleImageUrls()`,
+  explicite du projet, dans `frirss-offline-images`). Le choix des images y vit dans `articleImageUrls()`,
   exporté par `offlineImages.ts` et testé à part — c'était un helper privé du
   store. Le budget d'images (`imageBudget`) ne concerne que ce chemin-là.
 - **L'autre remplisseur ne passe pas par le backend** : la route Workbox

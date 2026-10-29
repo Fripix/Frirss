@@ -402,6 +402,21 @@ la release publiée.
   « Espace compté par le navigateur » et dit pourquoi il est plus grand. Les
   tailles s'écrivent aussi dans l'unité et avec la virgule de la langue
   (« 12,0 Go » s'affichait en anglais).
+- **Hors ligne : les images préparées ne disparaissent plus d'elles-mêmes.**
+  Elles partageaient le cache des images vues en ligne : une image préparée
+  puis affichée une fois entrait dans sa limite et pouvait en être chassée,
+  et un manque d'espace vidait tout. Elles ont désormais leur propre cache,
+  que seuls le budget choisi et « Vider les images » gouvernent. Une
+  préparation retire aussi ce qui ne sert plus (articles de plus de 30 jours,
+  au-delà du budget) et compte dans le budget les images déjà préparées : le
+  cache ne dépasse plus la taille réglée d'une préparation à l'autre. Les
+  images préparées par une version précédente sont reprises sans être
+  retéléchargées.
+- **Hors ligne : les images vues en ligne sont limitées aux 500 plus
+  récentes** (6 000 jusqu'ici). Le navigateur compte chacune plusieurs Mo
+  sans en connaître la taille : 6 000 pouvaient représenter plus de 40 Go
+  comptés. Les articles lus récemment restent illustrés hors ligne ; pour les
+  plus anciens, c'est la préparation qui garde les images.
 - **La page d'erreur de l'application parle votre langue** (elle était en
   français pour tout le monde) et tient la hauteur réelle de l'écran sur
   Android en app installée.

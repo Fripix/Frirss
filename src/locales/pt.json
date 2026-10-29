@@ -415,7 +415,7 @@
       "imagesLightHint": "apenas miniaturas",
       "imagesUsage": "Espaço contado pelo navegador: ~{{used}}",
       "imagesQuota": "o seu navegador permite ~{{quota}} neste dispositivo",
-      "imagesOverQuota": "Esta definição excede o que o dispositivo permite — o navegador irá purgar automaticamente.",
+      "imagesOverQuota": "Esta definição excede o que o dispositivo permite: as imagens além do limite não poderão ser guardadas.",
       "imagesClear": "Esvaziar as imagens",
       "imagesCleared": "Imagens removidas",
       "imagesMb": "MB",

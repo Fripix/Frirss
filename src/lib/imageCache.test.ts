@@ -2,7 +2,7 @@
 // jsdom is needed because this module now reaches the API client (for the
 // backend proxy), which pulls in a store that reads localStorage at load.
 import { describe, it, expect, vi } from 'vitest';
-import { cacheImages, cachedImageStats, PREPARED_BYTES_HEADER } from './imageCache';
+import { cacheImages, cachedImageStats, pruneImages, PREPARED_BYTES_HEADER } from './imageCache';
 
 /** Minimal stand-in for the Cache API, recording what gets stored. */
 function fakeCache(preloaded: string[] = []) {
@@ -120,25 +120,38 @@ describe('cacheImages', () => {
   it('does nothing for an empty list', async () => {
     const openCache = vi.fn();
     const res = await cacheImages([], { fetchImage: image(), openCache: openCache as never });
-    expect(res).toEqual({ stored: 0, bytes: 0, failed: 0 });
+    expect(res).toEqual({ stored: 0, bytes: 0, reusedBytes: 0, kept: [], failed: 0 });
     expect(openCache).not.toHaveBeenCalled();
   });
 });
 
 /** Une entrée de cache : une image d'un autre site gardée à l'affichage est
  *  opaque (taille illisible) ; une image préparée passe par le proxy. */
-const entry = (type: string, bytes: number, header?: number) => ({
-  type,
-  headers: new Headers(header === undefined ? {} : { [PREPARED_BYTES_HEADER]: String(header) }),
-  blob: vi.fn(async () => ({ size: type === 'opaque' ? 0 : bytes })),
-});
+const entry = (type: string, bytes: number, header?: number) => {
+  const e = {
+    type,
+    headers: new Headers(header === undefined ? {} : { [PREPARED_BYTES_HEADER]: String(header) }),
+    blob: vi.fn(async () => ({ size: type === 'opaque' ? 0 : bytes })),
+    clone: () => e,
+  };
+  return e;
+};
 
 function statsCache(entries: Record<string, ReturnType<typeof entry>>) {
   return {
     keys: async () => Object.keys(entries).map((url) => ({ url })),
-    match: async (req: { url: string }) => entries[req.url],
+    match: async (req: { url: string } | string) => entries[typeof req === 'string' ? req : req.url],
+    put: vi.fn(async (url: string, res: ReturnType<typeof entry>) => { entries[url] = res; }),
+    delete: vi.fn(async (req: { url: string } | string) => {
+      const url = typeof req === 'string' ? req : req.url;
+      const had = url in entries;
+      delete entries[url];
+      return had;
+    }),
+    entries,
   };
 }
+const empty = async () => statsCache({}) as never;
 
 describe('cachedImageStats', () => {
   const ORIGIN = 'https://frirss.example.com';
@@ -154,21 +167,21 @@ describe('cachedImageStats', () => {
       'https://d.example/4.jpg': entry('opaque', 0),
       'https://e.example/5.jpg': entry('opaque', 0),
     });
-    expect(await cachedImageStats(async () => cache as never, ORIGIN))
+    expect(await cachedImageStats(empty, async () => cache as never, ORIGIN))
       .toEqual({ total: 5, prepared: 2, preparedBytes: 3500, browsing: 3 });
   });
 
   it('lit la taille dans le corps quand une entrée ancienne n’a pas l’en-tête', async () => {
     const old = entry('default', 4200);
     const cache = statsCache({ 'https://a.example/1.jpg': old });
-    expect(await cachedImageStats(async () => cache as never, ORIGIN))
+    expect(await cachedImageStats(empty, async () => cache as never, ORIGIN))
       .toEqual({ total: 1, prepared: 1, preparedBytes: 4200, browsing: 0 });
     expect(old.blob).toHaveBeenCalled();
   });
 
   it('ne lit pas le corps quand l’en-tête donne la taille', async () => {
     const tagged = entry('default', 9999, 10);
-    await cachedImageStats(async () => statsCache({ 'https://a.example/1.jpg': tagged }) as never, ORIGIN);
+    await cachedImageStats(empty, async () => statsCache({ 'https://a.example/1.jpg': tagged }) as never, ORIGIN);
     expect(tagged.blob).not.toHaveBeenCalled();
   });
 
@@ -176,12 +189,124 @@ describe('cachedImageStats', () => {
   // préparée : la compter comme préparée gonflerait le chiffre.
   it('ne compte pas comme préparée une image lisible de la même origine', async () => {
     const cache = statsCache({ [`${ORIGIN}/api/proxy/x.png`]: entry('basic', 300) });
-    expect(await cachedImageStats(async () => cache as never, ORIGIN))
+    expect(await cachedImageStats(empty, async () => cache as never, ORIGIN))
       .toEqual({ total: 1, prepared: 0, preparedBytes: 0, browsing: 1 });
   });
 
   it('rend des zéros quand le cache est indisponible', async () => {
-    expect(await cachedImageStats(async () => { throw new Error('none'); }, ORIGIN))
+    expect(await cachedImageStats(async () => { throw new Error('none'); }, async () => { throw new Error('none'); }, ORIGIN))
       .toEqual({ total: 0, prepared: 0, preparedBytes: 0, browsing: 0 });
+  });
+
+  // Depuis la séparation, les images préparées ont leur propre cache : tout
+  // ce qu'il contient est préparé, même sans l'en-tête de taille.
+  it('compte tout le cache des images préparées comme préparé', async () => {
+    const prepared = statsCache({
+      'https://a.example/1.jpg': entry('default', 0, 700),
+      'https://b.example/2.jpg': entry('default', 300),
+    });
+    const browsing = statsCache({ 'https://c.example/3.jpg': entry('opaque', 0) });
+    expect(await cachedImageStats(async () => prepared as never, async () => browsing as never, ORIGIN))
+      .toEqual({ total: 3, prepared: 2, preparedBytes: 1000, browsing: 1 });
+  });
+});
+
+/*
+ * Images préparées et images gardées à l'affichage vivaient dans un même
+ * cache. Le service worker plafonne le second (images vues en ligne) ; une
+ * image préparée qui s'y trouvait entrait dans ce plafond dès son premier
+ * affichage, et le vidage pour manque d'espace (`purgeOnQuotaError`)
+ * emportait tout. Les préparées ont désormais leur cache, que seuls le budget
+ * et « Vider les images » gouvernent.
+ */
+describe('cacheImages — cache des images préparées', () => {
+  const tagged = (bytes: number) => entry('default', 0, bytes);
+
+  it('compte une image déjà préparée dans le budget sans la retélécharger', async () => {
+    const prepared = statsCache({ 'https://a/1.jpg': tagged(800) });
+    const fetchImage = vi.fn(image(100));
+    const res = await cacheImages(['https://a/1.jpg', 'https://a/2.jpg'], {
+      fetchImage: fetchImage as never,
+      openCache: async () => prepared as never,
+      openBrowsingCache: empty,
+    });
+    expect(fetchImage).toHaveBeenCalledTimes(1);
+    expect(res).toMatchObject({ stored: 1, bytes: 100, reusedBytes: 800 });
+    expect(res.kept.sort()).toEqual(['https://a/1.jpg', 'https://a/2.jpg']);
+  });
+
+  it('mesure une ancienne image sans en-tête avant de la déplacer', async () => {
+    const prepared = statsCache({});
+    const body = vi.fn(async () => ({ size: 640 }));
+    const legacy = { type: 'default', headers: new Headers(), blob: body, clone: () => ({ ...legacy, blob: body }) };
+    const browsing = statsCache({ 'https://a/1.jpg': legacy as never });
+    const res = await cacheImages(['https://a/1.jpg'], {
+      fetchImage: image(),
+      openCache: async () => prepared as never,
+      openBrowsingCache: async () => browsing as never,
+    });
+    expect(res.reusedBytes).toBe(640);
+  });
+
+  it('déplace une image préparée par une version précédente au lieu de la retélécharger', async () => {
+    const prepared = statsCache({});
+    const old = tagged(500);
+    const browsing = statsCache({ 'https://a/1.jpg': old });
+    const fetchImage = vi.fn(image());
+    const res = await cacheImages(['https://a/1.jpg'], {
+      fetchImage: fetchImage as never,
+      openCache: async () => prepared as never,
+      openBrowsingCache: async () => browsing as never,
+    });
+    expect(fetchImage).not.toHaveBeenCalled();
+    expect(prepared.entries['https://a/1.jpg']).toBe(old);
+    expect(browsing.entries['https://a/1.jpg']).toBeUndefined();
+    expect(res).toMatchObject({ stored: 0, reusedBytes: 500, kept: ['https://a/1.jpg'] });
+  });
+
+  // Une image gardée à l'affichage est opaque : sa taille est illisible et le
+  // plafond l'évincera. La préparer, c'est en prendre une copie lisible.
+  it('ne se contente pas d’une image opaque gardée à l’affichage', async () => {
+    const prepared = statsCache({});
+    const browsing = statsCache({ 'https://a/1.jpg': entry('opaque', 0) });
+    const fetchImage = vi.fn(image(250));
+    const res = await cacheImages(['https://a/1.jpg'], {
+      fetchImage: fetchImage as never,
+      openCache: async () => prepared as never,
+      openBrowsingCache: async () => browsing as never,
+    });
+    expect(fetchImage).toHaveBeenCalledTimes(1);
+    expect(res).toMatchObject({ stored: 1, bytes: 250, kept: ['https://a/1.jpg'] });
+  });
+
+  it('écrit la taille réelle dans l’en-tête de l’image préparée', async () => {
+    const prepared = statsCache({});
+    await cacheImages(['https://a/1.jpg'], {
+      fetchImage: async () => ({ response: new Response('abcd'), bytes: 4 }),
+      openCache: async () => prepared as never,
+      openBrowsingCache: empty,
+    });
+    const stored = prepared.entries['https://a/1.jpg'] as unknown as Response;
+    expect(stored.headers.get(PREPARED_BYTES_HEADER)).toBe('4');
+  });
+});
+
+describe('pruneImages', () => {
+  // Sans éviction automatique, le cache des préparées grossirait à chaque
+  // préparation : ce qu'elle n'a pas gardé (article sorti des 30 jours,
+  // au-delà du budget) est retiré.
+  it('retire les images que la dernière préparation n’a pas gardées', async () => {
+    const prepared = statsCache({
+      'https://a/1.jpg': entry('default', 1),
+      'https://a/2.jpg': entry('default', 1),
+      'https://a/3.jpg': entry('default', 1),
+    });
+    const removed = await pruneImages(new Set(['https://a/2.jpg']), async () => prepared as never);
+    expect(removed).toBe(2);
+    expect(Object.keys(prepared.entries)).toEqual(['https://a/2.jpg']);
+  });
+
+  it('ne fait rien quand le cache est indisponible', async () => {
+    expect(await pruneImages(new Set(), async () => { throw new Error('none'); })).toBe(0);
   });
 });

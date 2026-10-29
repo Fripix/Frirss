@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'node:fs';
+import { preparedImageFallback } from './src/lib/swImageFallback.ts';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
@@ -47,9 +48,10 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        // Cache article images for offline reading (CacheFirst). Sizes are not
-        // readable for opaque cross-origin responses, so maxEntries is only a
-        // backstop; the user-facing budget lives in the app preferences.
+        // Article images (CacheFirst). Two caches: this one keeps what is
+        // displayed online; the offline preparation writes to its own
+        // ('frirss-offline-images', see src/lib/imageCache.ts), which this
+        // route falls back to when it has nothing.
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'image',
@@ -57,15 +59,19 @@ export default defineConfig({
             options: {
               cacheName: 'frirss-images',
               expiration: {
-                // Backstop only. The offline budget counts the bytes the
-                // preparation actually stored (proxied, readable responses);
-                // images cached here on display are often opaque (no readable
-                // size), and Chromium counts each one ~7 MB against the quota.
-                maxEntries: 6000,
+                // Images kept on display are mostly opaque (no readable size),
+                // and Chromium counts each one ~7 MB against the quota: 6000
+                // had reached 12 GB counted. 500 keeps the recent reading
+                // available offline at ~3.5 GB counted at most. Prepared
+                // images live elsewhere, out of this cap and of the purge.
+                maxEntries: 500,
                 maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
                 purgeOnQuotaError: true,
               },
               cacheableResponse: { statuses: [0, 200] }, // 0 = opaque cross-origin
+              // After the expiration plugin (key order is plugin order), which
+              // answers null for a miss.
+              plugins: [preparedImageFallback],
             },
           },
         ],

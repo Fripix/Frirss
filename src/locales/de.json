@@ -415,7 +415,7 @@
       "imagesLightHint": "nur Vorschaubilder",
       "imagesUsage": "Vom Browser gezählter Speicher: ~{{used}}",
       "imagesQuota": "Ihr Browser erlaubt ~{{quota}} auf diesem Gerät",
-      "imagesOverQuota": "Diese Einstellung überschreitet das Gerätelimit – der Browser räumt automatisch auf.",
+      "imagesOverQuota": "Diese Einstellung überschreitet das Gerätelimit: Bilder darüber hinaus können nicht gespeichert werden.",
       "imagesClear": "Bilder leeren",
       "imagesCleared": "Bilder entfernt",
       "imagesMb": "MB",
