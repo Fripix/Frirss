@@ -528,11 +528,16 @@
       "tooMany": "Demasiadas tentativas. Tente novamente dentro de um quarto de hora.",
       "failed": "Não foi possível mudar a palavra-passe.",
       "ssoLink": "Associar a {{provider}}",
-      "ssoLinkHint": "Passa por {{provider}} e depois volta aqui. A partir daí, iniciar sessão com {{provider}} abre esta conta.",
+      "ssoLinkHint": "Confirme com a sua palavra-passe atual, passe por {{provider}} e depois volte aqui. A partir daí, iniciar sessão com {{provider}} também abre esta conta.",
       "ssoLinked": "Esta conta está associada a {{provider}}: iniciar sessão com {{provider}} abre-a.",
       "ssoLinkDone": "Conta associada ao SSO.",
       "ssoLinkFailed": "Não foi possível associar ao SSO.",
-      "ssoAlreadyLinked": "Esta identidade SSO já está associada a outra conta FriRSS."
+      "ssoAlreadyLinked": "Esta identidade SSO já está associada a outra conta FriRSS.",
+      "ssoTitle": "Início de sessão com {{provider}}",
+      "ssoPassword": "Palavra-passe atual",
+      "ssoUnlink": "Desassociar",
+      "ssoUnlinked": "Conta desassociada de {{provider}}.",
+      "ssoUnlinkFailed": "Não foi possível desassociar a conta."
     }
   },
   "login": {
@@ -663,7 +668,11 @@
     "confirmDeleteTitle": "Eliminar a conta de {{name}}?",
     "confirmDeleteWarning": "A conta e os servidores FreshRSS associados são eliminados. Esta ação não pode ser anulada.",
     "confirmDelete": "Eliminar",
-    "errorLoad": "Não foi possível carregar os utilizadores."
+    "errorLoad": "Não foi possível carregar os utilizadores.",
+    "unlinkSsoName": "Desassociar o SSO da conta de {{name}}",
+    "confirmUnlinkSsoTitle": "Desassociar o SSO da conta de {{name}}?",
+    "confirmUnlinkSsoMessage": "{{name}} deixará de poder abrir esta conta por SSO, apenas com a palavra-passe. A conta pode voltar a ser associada nas suas Preferências.",
+    "confirmUnlinkSso": "Desassociar"
   },
   "servers": {
     "label": "Servidores",

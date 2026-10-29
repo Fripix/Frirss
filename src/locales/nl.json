@@ -528,11 +528,16 @@
       "tooMany": "Te veel pogingen. Probeer het over een kwartier opnieuw.",
       "failed": "Het wachtwoord kon niet worden gewijzigd.",
       "ssoLink": "Koppelen aan {{provider}}",
-      "ssoLinkHint": "U gaat via {{provider}} en komt daarna hier terug. Vanaf dan opent inloggen met {{provider}} dit account.",
+      "ssoLinkHint": "Bevestig met uw huidige wachtwoord, ga via {{provider}} en kom daarna hier terug. Vanaf dan opent ook inloggen met {{provider}} dit account.",
       "ssoLinked": "Dit account is gekoppeld aan {{provider}}: inloggen met {{provider}} opent het.",
       "ssoLinkDone": "Account gekoppeld aan SSO.",
       "ssoLinkFailed": "Koppelen aan SSO is mislukt.",
-      "ssoAlreadyLinked": "Deze SSO-identiteit is al gekoppeld aan een ander FriRSS-account."
+      "ssoAlreadyLinked": "Deze SSO-identiteit is al gekoppeld aan een ander FriRSS-account.",
+      "ssoTitle": "Inloggen met {{provider}}",
+      "ssoPassword": "Huidig wachtwoord",
+      "ssoUnlink": "Ontkoppelen",
+      "ssoUnlinked": "Account ontkoppeld van {{provider}}.",
+      "ssoUnlinkFailed": "Het account kon niet worden ontkoppeld."
     }
   },
   "login": {
@@ -663,7 +668,11 @@
     "confirmDeleteTitle": "Account van {{name}} verwijderen?",
     "confirmDeleteWarning": "Het account en de gekoppelde FreshRSS-servers worden verwijderd. Dit kan niet ongedaan worden gemaakt.",
     "confirmDelete": "Verwijderen",
-    "errorLoad": "De gebruikers konden niet worden geladen."
+    "errorLoad": "De gebruikers konden niet worden geladen.",
+    "unlinkSsoName": "SSO ontkoppelen van het account van {{name}}",
+    "confirmUnlinkSsoTitle": "SSO ontkoppelen van het account van {{name}}?",
+    "confirmUnlinkSsoMessage": "{{name}} kan dit account dan niet meer via SSO openen, alleen met het wachtwoord. Het account kan opnieuw worden gekoppeld via de Voorkeuren.",
+    "confirmUnlinkSso": "Ontkoppelen"
   },
   "servers": {
     "label": "Servers",

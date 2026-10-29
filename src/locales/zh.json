@@ -528,11 +528,16 @@
       "tooMany": "尝试次数过多。请十五分钟后再试。",
       "failed": "无法更改密码。",
       "ssoLink": "关联到 {{provider}}",
-      "ssoLinkHint": "您将经过 {{provider}}，然后返回这里。此后，通过 {{provider}} 登录将打开此账户。",
+      "ssoLinkHint": "请用当前密码确认，经过 {{provider}}，然后返回这里。此后，通过 {{provider}} 登录也会打开此账户。",
       "ssoLinked": "此账户已关联到 {{provider}}：通过 {{provider}} 登录即可打开。",
       "ssoLinkDone": "账户已关联到 SSO。",
       "ssoLinkFailed": "关联到 SSO 失败。",
-      "ssoAlreadyLinked": "此 SSO 身份已关联到另一个 FriRSS 账户。"
+      "ssoAlreadyLinked": "此 SSO 身份已关联到另一个 FriRSS 账户。",
+      "ssoTitle": "通过 {{provider}} 登录",
+      "ssoPassword": "当前密码",
+      "ssoUnlink": "解除关联",
+      "ssoUnlinked": "账户已解除与 {{provider}} 的关联。",
+      "ssoUnlinkFailed": "无法解除账户关联。"
     }
   },
   "login": {
@@ -663,7 +668,11 @@
     "confirmDeleteTitle": "删除 {{name}} 的账户？",
     "confirmDeleteWarning": "将删除该账户及其关联的 FreshRSS 服务器。此操作无法撤销。",
     "confirmDelete": "删除",
-    "errorLoad": "无法加载用户。"
+    "errorLoad": "无法加载用户。",
+    "unlinkSsoName": "解除 {{name}} 账户的 SSO 关联",
+    "confirmUnlinkSsoTitle": "解除 {{name}} 账户的 SSO 关联？",
+    "confirmUnlinkSsoMessage": "{{name}} 将无法再通过 SSO 打开此账户，只能使用密码。可在其偏好设置中重新关联。",
+    "confirmUnlinkSso": "解除关联"
   },
   "servers": {
     "label": "服务器",

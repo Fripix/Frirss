@@ -110,11 +110,23 @@ export function startOidcLogin(): void {
 /**
  * Rattacher le compte connecté à une identité SSO. Un appel authentifié (le
  * jeton vit dans le navigateur, pas dans un cookie : une simple navigation ne
- * dirait pas quel compte lier) rend l'URL du fournisseur, où l'on part.
+ * dirait pas quel compte lier), avec le mot de passe actuel, rend l'URL du
+ * fournisseur, où l'on part. Le retour remet un ticket que
+ * `completeOidcLink` valide depuis cette même session.
  */
-export async function linkOidcAccount(): Promise<void> {
-  const { data } = await backend.post<{ url: string }>('/auth/oidc/link');
+export async function linkOidcAccount(password: string): Promise<void> {
+  const { data } = await backend.post<{ url: string }>('/auth/oidc/link', { password });
   window.location.href = data.url;
+}
+
+/** Valider le ticket du retour SSO : seule la session qui a lancé la liaison le peut. */
+export async function completeOidcLink(ticket: string): Promise<void> {
+  await backend.post('/auth/oidc/link/complete', { ticket });
+}
+
+/** Délier son propre compte de son identité SSO. */
+export async function unlinkOidcAccount(): Promise<void> {
+  await backend.delete('/auth/oidc/link');
 }
 
 // ── Servers (FreshRSS connections) ──────────────────────────────────
@@ -230,6 +242,10 @@ export async function setAdminUserPassword(id: number, password: string): Promis
 
 export async function deleteAdminUser(id: number): Promise<void> {
   await backend.delete(`/admin/users/${id}`);
+}
+
+export async function unlinkAdminUserSso(id: number): Promise<void> {
+  await backend.delete(`/admin/users/${id}/sso`);
 }
 
 export async function getAdminSettings(): Promise<Record<string, unknown>> {

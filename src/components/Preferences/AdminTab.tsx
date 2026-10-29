@@ -2,7 +2,7 @@ import { useState, useEffect, useId, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import {
-  getAdminUsers, createAdminUser, updateAdminUser, deleteAdminUser,
+  getAdminUsers, createAdminUser, updateAdminUser, deleteAdminUser, unlinkAdminUserSso,
   setAdminUserPassword, getAdminSettings, updateAdminSettings,
 } from '../../api/backend';
 import type { User } from '../../types';
@@ -107,7 +107,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
   // L'action sur un compte en attente de confirmation. Les pastilles « Admin »
   // et « Actif » agissaient au premier clic, et « Supprimer » validait au
   // second clic d'un double-clic : tout passe désormais par `ConfirmDialog`.
-  const [pending, setPending] = useState<{ kind: 'promote' | 'demote' | 'activate' | 'deactivate' | 'delete'; user: User } | null>(null);
+  const [pending, setPending] = useState<{ kind: 'promote' | 'demote' | 'activate' | 'deactivate' | 'delete' | 'unlinkSso'; user: User } | null>(null);
   const pushToast = useUiStore((s) => s.pushToast);
   const [saved, setSaved] = useState(false);
   const [oidcForm, setOidcForm] = useState<Record<string, string>>({});
@@ -164,6 +164,9 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
       if (kind === 'delete') {
         await deleteAdminUser(user.id);
         setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      } else if (kind === 'unlinkSso') {
+        await unlinkAdminUserSso(user.id);
+        setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, sso_linked: false } : u)));
       } else {
         const patch = kind === 'promote' || kind === 'demote'
           ? { role: kind === 'promote' ? 'admin' : 'user' }
@@ -360,10 +363,13 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                   <div className="text-[10px] flex gap-2 mt-0.5 flex-wrap" style={{ color: 'var(--list-summary)' }}>
                     <span>@{user.username}</span>
                     {user.email && <span>{user.email}</span>}
+                    {/* Un compte local lié s'ouvre aussi par le SSO : c'est ici que
+                        l'admin le voit (rattachement d'office d'avant 1.8.0,
+                        ou session volée). */}
                     <span style={{
-                      color: user.auth_provider === 'oidc' ? 'var(--accent)' : 'var(--list-time)',
+                      color: user.auth_provider === 'oidc' || user.sso_linked ? 'var(--accent)' : 'var(--list-time)',
                     }}>
-                      {user.auth_provider === 'oidc' ? t('admin.oidc') : t('admin.local')}
+                      {user.auth_provider === 'oidc' ? t('admin.oidc') : user.sso_linked ? t('admin.authModeLocalSso') : t('admin.local')}
                     </span>
                   </div>
                 </div>
@@ -424,6 +430,20 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
                     aria-expanded={pwUserId === user.id}
                   >
                     🔑
+                  </button>
+                )}
+
+                {/* Délier le SSO (compte local seulement : un compte qui n'a que le
+                    SSO n'aurait plus aucun moyen de s'ouvrir) */}
+                {user.auth_provider === 'local' && user.sso_linked && (
+                  <button
+                    onClick={() => setPending({ kind: 'unlinkSso', user })}
+                    className="text-[11px] px-1.5 py-0.5 rounded"
+                    style={{ color: 'var(--list-summary)' }}
+                    title={t('admin.unlinkSsoName', { name: user.display_name || user.username })}
+                    aria-label={t('admin.unlinkSsoName', { name: user.display_name || user.username })}
+                  >
+                    🔗
                   </button>
                 )}
 
@@ -768,6 +788,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
           activate: { title: 'admin.confirmActivateTitle', message: undefined, confirm: 'admin.confirmActivate', danger: false },
           deactivate: { title: 'admin.confirmDeactivateTitle', message: 'admin.confirmDeactivateMessage', confirm: 'admin.confirmDeactivate', danger: true },
           delete: { title: 'admin.confirmDeleteTitle', message: undefined, confirm: 'admin.confirmDelete', danger: true },
+          unlinkSso: { title: 'admin.confirmUnlinkSsoTitle', message: 'admin.confirmUnlinkSsoMessage', confirm: 'admin.confirmUnlinkSso', danger: false },
         }[pending.kind];
         return (
           <ConfirmDialog

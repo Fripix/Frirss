@@ -528,11 +528,16 @@
       "tooMany": "Troppi tentativi. Riprova tra un quarto d’ora.",
       "failed": "Impossibile cambiare la password.",
       "ssoLink": "Collega a {{provider}}",
-      "ssoLinkHint": "Passi da {{provider}}, poi torni qui. Da quel momento, l’accesso con {{provider}} apre questo account.",
+      "ssoLinkHint": "Conferma con la password attuale, passa da {{provider}}, poi torna qui. Da quel momento, anche l’accesso con {{provider}} apre questo account.",
       "ssoLinked": "Questo account è collegato a {{provider}}: l’accesso con {{provider}} lo apre.",
       "ssoLinkDone": "Account collegato al SSO.",
       "ssoLinkFailed": "Collegamento al SSO non riuscito.",
-      "ssoAlreadyLinked": "Questa identità SSO è già collegata a un altro account FriRSS."
+      "ssoAlreadyLinked": "Questa identità SSO è già collegata a un altro account FriRSS.",
+      "ssoTitle": "Accesso con {{provider}}",
+      "ssoPassword": "Password attuale",
+      "ssoUnlink": "Scollega",
+      "ssoUnlinked": "Account scollegato da {{provider}}.",
+      "ssoUnlinkFailed": "Impossibile scollegare l’account."
     }
   },
   "login": {
@@ -663,7 +668,11 @@
     "confirmDeleteTitle": "Eliminare l’account di {{name}}?",
     "confirmDeleteWarning": "L’account e i server FreshRSS collegati vengono eliminati. L’azione non può essere annullata.",
     "confirmDelete": "Elimina",
-    "errorLoad": "Impossibile caricare gli utenti."
+    "errorLoad": "Impossibile caricare gli utenti.",
+    "unlinkSsoName": "Scollega l’SSO dall’account di {{name}}",
+    "confirmUnlinkSsoTitle": "Scollegare l’SSO dall’account di {{name}}?",
+    "confirmUnlinkSsoMessage": "{{name}} non potrà più aprire questo account con l’SSO, solo con la sua password. L’account si può ricollegare dalle sue Preferenze.",
+    "confirmUnlinkSso": "Scollega"
   },
   "servers": {
     "label": "Server",

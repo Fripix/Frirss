@@ -8,6 +8,7 @@ describe('readOidcFragment', () => {
     expect(readOidcFragment('#oidc_error=link_required')).toEqual({ kind: 'error', error: 'link_required' });
     expect(readOidcFragment('#oidc_linked=1')).toEqual({ kind: 'linked' });
     expect(readOidcFragment('#oidc_link_error=already_linked')).toEqual({ kind: 'linkError', error: 'already_linked' });
+    expect(readOidcFragment('#oidc_link_ticket=a.b.c')).toEqual({ kind: 'linkTicket', ticket: 'a.b.c' });
   });
 
   it('ne lit rien d’autre', () => {

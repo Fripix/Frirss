@@ -44,8 +44,13 @@ la release publiée.
   même adresse, sans exiger qu'elle soit vérifiée : quelqu'un qui inscrivait
   l'adresse de l'administrateur dans son profil chez le fournisseur recevait
   son compte. Le rattachement se fait désormais depuis le compte, connecté :
-  Préférences › Général › Compte, « Lier à … ». Une connexion SSO qui tombe
-  sur une adresse déjà utilisée explique la marche à suivre.
+  Préférences › Général › Compte, « Lier à … », avec le mot de passe actuel :
+  une session volée ne suffit plus. Le retour du fournisseur ne rattache rien
+  à lui seul, il remet un ticket que seule la session qui a lancé la liaison
+  valide — un cookie déposé par un site voisin du même domaine ne suffit pas.
+  Un compte se délie depuis la même section, ou par l'administrateur, qui voit
+  désormais quels comptes sont liés (« Local + SSO »). Une connexion SSO qui
+  tombe sur une adresse déjà utilisée explique la marche à suivre.
 - **Les jetons FreshRSS ne suivent plus une adresse changée.** Changer l'URL
   ou le compte d'un serveur par l'API gardait les deux jetons, que FriRSS
   envoyait ensuite au nouvel hôte : une session FriRSS suffisait à les faire
@@ -545,6 +550,10 @@ la release publiée.
   s'y rattache plus tout seul. Son propriétaire se connecte avec son mot de
   passe, puis clique « Lier à … » dans Préférences › Général › Compte. Les
   comptes déjà rattachés ne sont pas concernés.
+- **Vérifier les comptes liés** : l'onglet Administration marque désormais
+  « Local + SSO » les comptes locaux qui s'ouvrent aussi par le SSO. Ceux qui
+  l'ont été par l'ancien rattachement automatique par adresse e-mail le sont
+  restés : si l'un ne devrait pas l'être, 🔗 le délie.
 - **SSO derrière un reverse proxy** : l'adresse de retour du SSO ne lit plus
   l'en-tête `X-Forwarded-Host` (un client pouvait la dicter), seulement
   `Host`. Un reverse proxy qui remplace `Host` par un nom interne fausserait

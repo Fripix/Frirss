@@ -13,11 +13,12 @@ vi.mock('../../api/backend', () => ({
   changePassword: vi.fn(),
   getOidcConfig: vi.fn().mockResolvedValue({ enabled: false }),
   linkOidcAccount: vi.fn().mockResolvedValue(undefined),
+  unlinkOidcAccount: vi.fn().mockResolvedValue(undefined),
 }));
 
 import GeneralTab from './GeneralTab';
 import { useAuthStore } from '../../stores/authStore';
-import { changePassword, getOidcConfig, linkOidcAccount } from '../../api/backend';
+import { changePassword, getOidcConfig, linkOidcAccount, unlinkOidcAccount } from '../../api/backend';
 
 const http = (status: number, error: string) => Object.assign(new Error(`HTTP ${status}`), { response: { status, data: { error } } });
 
@@ -130,7 +131,32 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     render(<GeneralTab />);
     const btn = await screen.findByRole('button', { name: 'preferences.account.ssoLink' });
     await act(async () => { fireEvent.click(btn); });
-    expect(linkOidcAccount).toHaveBeenCalled();
+    // Le mot de passe actuel d'abord : une session volée ne suffit plus.
+    expect(linkOidcAccount).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('preferences.account.ssoPassword'), { target: { value: 'secret123' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'preferences.account.ssoLink' })); });
+    expect(linkOidcAccount).toHaveBeenCalledWith('secret123');
+  });
+
+  it('dit que le mot de passe est faux, sans quitter la page', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
+    vi.mocked(linkOidcAccount).mockRejectedValueOnce(http(401, 'Current password is incorrect'));
+    useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: false } as never });
+    render(<GeneralTab />);
+    { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoLink' }); await act(async () => { fireEvent.click(btn); }); }
+    fireEvent.change(screen.getByLabelText('preferences.account.ssoPassword'), { target: { value: 'faux' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'preferences.account.ssoLink' })); });
+    expect(screen.getByRole('alert').textContent).toBe('preferences.account.wrongCurrent');
+  });
+
+  it('délie un compte lié', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
+    useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never });
+    render(<GeneralTab />);
+    { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoUnlink' }); await act(async () => { fireEvent.click(btn); }); }
+    expect(unlinkOidcAccount).toHaveBeenCalled();
+    expect(useAuthStore.getState().backendUser?.sso_linked).toBe(false);
+    expect(await screen.findByRole('button', { name: 'preferences.account.ssoLink' })).toBeTruthy();
   });
 
   // Une session ouverte avant la 1.8.0 ne connaît pas `sso_linked` : un compte
@@ -140,8 +166,9 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     vi.mocked(linkOidcAccount).mockRejectedValueOnce(http(409, 'Account already linked'));
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local' } as never });
     render(<GeneralTab />);
-    const btn = await screen.findByRole('button', { name: 'preferences.account.ssoLink' });
-    await act(async () => { fireEvent.click(btn); });
+    { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoLink' }); await act(async () => { fireEvent.click(btn); }); }
+    fireEvent.change(screen.getByLabelText('preferences.account.ssoPassword'), { target: { value: 'secret123' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'preferences.account.ssoLink' })); });
     expect(await screen.findByText('preferences.account.ssoLinked')).toBeTruthy();
     expect(useAuthStore.getState().backendUser?.sso_linked).toBe(true);
   });

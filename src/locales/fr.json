@@ -528,11 +528,16 @@
       "tooMany": "Trop d’essais. Réessayez dans un quart d’heure.",
       "failed": "Le mot de passe n’a pas pu être changé.",
       "ssoLink": "Lier à {{provider}}",
-      "ssoLinkHint": "Vous passez par {{provider}}, puis revenez ici. Ensuite, la connexion par {{provider}} ouvre ce compte.",
+      "ssoLinkHint": "Confirmez avec votre mot de passe actuel, passez par {{provider}}, puis revenez ici. Ensuite, la connexion par {{provider}} ouvre aussi ce compte.",
       "ssoLinked": "Ce compte est lié à {{provider}} : la connexion par {{provider}} l’ouvre.",
       "ssoLinkDone": "Compte lié au SSO.",
       "ssoLinkFailed": "La liaison au SSO a échoué.",
-      "ssoAlreadyLinked": "Cette identité SSO est déjà liée à un autre compte FriRSS."
+      "ssoAlreadyLinked": "Cette identité SSO est déjà liée à un autre compte FriRSS.",
+      "ssoTitle": "Connexion par {{provider}}",
+      "ssoPassword": "Mot de passe actuel",
+      "ssoUnlink": "Délier",
+      "ssoUnlinked": "Compte délié de {{provider}}.",
+      "ssoUnlinkFailed": "Le compte n’a pas pu être délié."
     }
   },
   "login": {
@@ -663,7 +668,11 @@
     "confirmDeleteTitle": "Supprimer le compte de {{name}} ?",
     "confirmDeleteWarning": "Le compte et les serveurs FreshRSS qui lui sont rattachés sont supprimés. Cette action ne peut pas être annulée.",
     "confirmDelete": "Supprimer",
-    "errorLoad": "Impossible de charger les utilisateurs."
+    "errorLoad": "Impossible de charger les utilisateurs.",
+    "unlinkSsoName": "Délier le SSO du compte de {{name}}",
+    "confirmUnlinkSsoTitle": "Délier le SSO du compte de {{name}} ?",
+    "confirmUnlinkSsoMessage": "{{name}} ne pourra plus ouvrir ce compte par le SSO, seulement avec son mot de passe. Le compte peut être lié de nouveau depuis ses Préférences.",
+    "confirmUnlinkSso": "Délier"
   },
   "servers": {
     "label": "Serveurs",

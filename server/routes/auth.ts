@@ -327,17 +327,70 @@ router.get('/oidc/login', async (req, res) => {
 // le rattachement d'office par adresse e-mail, qui ne l'exigeait pas vérifiée,
 // donnait le compte (admin compris) à qui inscrivait son adresse dans son
 // profil chez le fournisseur.
-router.post('/oidc/link', requireAuth, async (req, res) => {
+//
+// Le mot de passe actuel est exigé : une session volée (appareil partagé, XSS)
+// suffisait sinon à rattacher l'identité SSO de l'attaquant, qui ouvrait
+// ensuite le compte même après un changement de mot de passe. Même plafond
+// par compte que le changement de mot de passe.
+router.post('/oidc/link', requireAuth, passwordLimiter, async (req, res) => {
   try {
     if (!isOidcEnabled()) return res.status(404).json({ error: 'SSO not enabled' });
     if (req.user.auth_provider !== 'local') return res.status(400).json({ error: 'Only a local account can be linked' });
-    const row = db.prepare('SELECT oidc_sub FROM users WHERE id = ?').get(req.user.id) as { oidc_sub: string | null } | undefined;
-    if (row?.oidc_sub) return res.status(409).json({ error: 'Account already linked' });
+    const password = req.body?.password;
+    if (typeof password !== 'string' || !password) return res.status(400).json({ error: 'Current password required' });
+    const row = db.prepare('SELECT oidc_sub, password_hash FROM users WHERE id = ?')
+      .get(req.user.id) as { oidc_sub: string | null; password_hash: string | null } | undefined;
+    if (!row?.password_hash || !(await bcrypt.compare(password, row.password_hash))) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+    if (row.oidc_sub) return res.status(409).json({ error: 'Account already linked' });
     res.json({ url: await authorizationUrl(req, res, req.user.id) });
   } catch (err) {
     console.error('OIDC link error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ── POST /api/auth/oidc/link/complete ───────────────────────────────
+// Valide le ticket remis par le retour du fournisseur, DEPUIS la session qui a
+// lancé la liaison. Le retour, lui, n'est lié au navigateur que par des
+// cookies, qu'un site voisin du même domaine peut déposer : l'attaquant
+// lançait sa propre liaison, la victime revenait du fournisseur dans ce
+// navigateur, et l'identité de la victime allait sur le compte de l'attaquant.
+// Ici, il faudrait la session de l'attaquant dans le navigateur de la victime.
+router.post('/oidc/link/complete', requireAuth, (req, res) => {
+  const ticket = req.body?.ticket;
+  let decoded: { t?: string; uid?: number; sub?: string };
+  try {
+    if (typeof ticket !== 'string') throw new Error('no ticket');
+    decoded = jwt.verify(ticket, getJwtSecret(), { algorithms: ['HS256'] }) as typeof decoded;
+  } catch {
+    return res.status(400).json({ error: 'Invalid link ticket', code: 'invalid_ticket' });
+  }
+  if (decoded.t !== 'oidc_link_ticket' || typeof decoded.sub !== 'string' || !decoded.sub) {
+    return res.status(400).json({ error: 'Invalid link ticket', code: 'invalid_ticket' });
+  }
+  if (decoded.uid !== req.user.id) return res.status(403).json({ error: 'Link started from another account', code: 'link_mismatch' });
+  const holder = db.prepare('SELECT id FROM users WHERE oidc_sub = ?').get(decoded.sub) as { id: number } | undefined;
+  if (holder && holder.id !== req.user.id) return res.status(409).json({ error: 'Identity already linked', code: 'already_linked' });
+  if (!holder) {
+    const done = db.prepare(
+      "UPDATE users SET oidc_sub = ? WHERE id = ? AND active = 1 AND auth_provider = 'local' AND oidc_sub IS NULL",
+    ).run(decoded.sub, req.user.id);
+    if (!done.changes) return res.status(409).json({ error: 'Account cannot be linked', code: 'link_failed' });
+    console.log('[oidc] linked an SSO identity to account id=%s from its own session', req.user.id);
+  }
+  res.json({ ok: true });
+});
+
+// ── DELETE /api/auth/oidc/link ──────────────────────────────────────
+// Délier son propre compte. Local seulement : un compte qui n'a que le SSO
+// n'aurait plus aucun moyen de s'ouvrir.
+router.delete('/oidc/link', requireAuth, (req, res) => {
+  if (req.user.auth_provider !== 'local') return res.status(400).json({ error: 'Only a local account can be unlinked' });
+  db.prepare('UPDATE users SET oidc_sub = NULL WHERE id = ?').run(req.user.id);
+  console.log('[oidc] account id=%s unlinked its SSO identity', req.user.id);
+  res.json({ ok: true });
 });
 
 // ── GET /api/auth/oidc/callback ─────────────────────────────────────
@@ -437,19 +490,17 @@ router.get('/oidc/callback', async (req, res) => {
     console.log('[oidc] callback sub=%s has_email=%s email_verified=%s',
       sub, !!info.email, info.email_verified);
 
-    // Rattachement demandé depuis un compte connecté : l'identité va sur CE
-    // compte, aucune session n'est ouverte (celle du navigateur continue).
+    // Rattachement demandé depuis un compte connecté : rien n'est écrit ici.
+    // Le retour remet un ticket court, que seule la session qui a lancé la
+    // liaison valide (`/oidc/link/complete`) ; aucune session n'est ouverte.
     if (decoded.link) {
       const holder = db.prepare('SELECT id FROM users WHERE oidc_sub = ?').get(sub) as { id: number } | undefined;
       if (holder && holder.id !== decoded.link) return res.redirect('/#oidc_link_error=already_linked');
-      if (!holder) {
-        const done = db.prepare(
-          "UPDATE users SET oidc_sub = ? WHERE id = ? AND active = 1 AND auth_provider = 'local' AND oidc_sub IS NULL",
-        ).run(sub, decoded.link);
-        if (!done.changes) return res.redirect('/#oidc_link_error=link_failed');
-        console.log('[oidc] linked an SSO identity to account id=%s from its own session', decoded.link);
-      }
-      return res.redirect('/#oidc_linked=1');
+      if (holder) return res.redirect('/#oidc_linked=1');
+      const ticket = jwt.sign({ t: 'oidc_link_ticket', uid: decoded.link, sub }, getJwtSecret(), {
+        algorithm: 'HS256', expiresIn: '5m',
+      });
+      return res.redirect(`/#oidc_link_ticket=${encodeURIComponent(ticket)}`);
     }
 
     // Une identité déjà rattachée ouvre son compte.

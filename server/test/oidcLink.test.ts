@@ -31,6 +31,13 @@ import db, { setSetting } from '../db.js';
  * profil recevait une session admin. Le rattachement se fait désormais
  * seulement depuis le compte, connecté (Préférences › Général › Compte) :
  * il prouve qu'on tient les deux à la fois.
+ *
+ * Seconde relecture : (1) une session volée suffisait à rattacher l'identité
+ * de l'attaquant, qui survivait au changement de mot de passe — le mot de
+ * passe actuel est exigé ; (2) le retour du fournisseur rattachait sur la foi
+ * des seuls cookies, qu'un site voisin du même domaine peut déposer — il ne
+ * remet plus qu'un ticket, que seule la session qui a lancé la liaison valide ;
+ * (3) aucun moyen de délier, rien de visible pour l'admin.
  */
 let ownerToken = '';
 let ownerId = 0;
@@ -41,13 +48,22 @@ const cookiesOf = (res: request.Response) =>
   ((res.headers['set-cookie'] as unknown as string[] | undefined) ?? []).map((c) => c.split(';')[0]).join('; ');
 const stateOf = (url: string) => new URL(url).searchParams.get('state') ?? '';
 
-/** Lance le rattachement pour `token`, puis revient du fournisseur avec `userinfo`. */
-async function link(token: string, userinfo: Record<string, unknown>) {
-  const start = await request(app).post('/api/auth/oidc/link').set('Authorization', `Bearer ${token}`);
+/** Lance le rattachement pour `token`, revient du fournisseur avec `userinfo`, rend le ticket. */
+async function ticketFor(token: string, userinfo: Record<string, unknown>) {
+  const start = await request(app).post('/api/auth/oidc/link').set('Authorization', `Bearer ${token}`)
+    .send({ password: 'secret123' });
   expect(start.status).toBe(200);
   nextUserinfo = userinfo;
-  return request(app).get(`/api/auth/oidc/callback?code=c&state=${encodeURIComponent(stateOf(start.body.url))}`)
+  const back = await request(app).get(`/api/auth/oidc/callback?code=c&state=${encodeURIComponent(stateOf(start.body.url))}`)
     .set('Cookie', cookiesOf(start));
+  return { back, ticket: decodeURIComponent(String(back.headers.location).split('oidc_link_ticket=')[1] ?? '') };
+}
+const complete = (token: string, ticket: string) =>
+  request(app).post('/api/auth/oidc/link/complete').set('Authorization', `Bearer ${token}`).send({ ticket });
+/** Le parcours entier : lancer, revenir, valider depuis la même session. */
+async function link(token: string, userinfo: Record<string, unknown>) {
+  const { back, ticket } = await ticketFor(token, userinfo);
+  return ticket ? complete(token, ticket) : back;
 }
 
 /** Une connexion SSO ordinaire, qui revient avec `userinfo`. */
@@ -88,9 +104,35 @@ describe('rattacher une identité SSO depuis son compte', () => {
     expect((db.prepare("SELECT COUNT(*) AS n FROM users WHERE oidc_sub = 'sub-intrus'").get() as { n: number }).n).toBe(0);
   });
 
+  it('exige le mot de passe actuel pour lancer le rattachement', async () => {
+    const none = await request(app).post('/api/auth/oidc/link').set('Authorization', `Bearer ${ownerToken}`).send({});
+    expect(none.status).toBe(400);
+    const wrong = await request(app).post('/api/auth/oidc/link').set('Authorization', `Bearer ${ownerToken}`)
+      .send({ password: 'pas-le-bon' });
+    expect(wrong.status).toBe(401);
+  });
+
+  // Cookie déposé par un site voisin : l'attaquant lance SA liaison, la
+  // victime revient du fournisseur avec SON identité dans le navigateur où
+  // l'attaquant a posé ses cookies. Le retour ne rattache plus rien : il remet
+  // un ticket, qu'une autre session que celle de l'attaquant ne valide pas.
+  it('le retour du fournisseur ne rattache rien à lui seul', async () => {
+    const { back, ticket } = await ticketFor(bobToken, { sub: 'sub-victime' });
+    expect(String(back.headers.location)).toMatch(/^\/#oidc_link_ticket=/);
+    expect(subOf(bobId)).toBeNull();
+    const elsewhere = await complete(ownerToken, ticket);
+    expect(elsewhere.status).toBe(403);
+    expect(subOf(bobId)).toBeNull();
+    expect(subOf(ownerId)).toBeNull();
+  });
+
+  it('refuse un ticket forgé', async () => {
+    expect((await complete(bobToken, 'nimporte.quoi.ici')).status).toBe(400);
+  });
+
   it('rattache l’identité au compte connecté, admin compris, sans ouvrir de session', async () => {
     const res = await link(ownerToken, { sub: 'sub-owner', email: 'autre@example.com' });
-    expect(res.headers.location).toBe('/#oidc_linked=1');
+    expect(res.status).toBe(200);
     expect(subOf(ownerId)).toBe('sub-owner');
     const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${ownerToken}`);
     expect(me.body.user.sso_linked).toBe(true);
@@ -104,7 +146,8 @@ describe('rattacher une identité SSO depuis son compte', () => {
   });
 
   it('refuse un compte déjà rattaché', async () => {
-    const res = await request(app).post('/api/auth/oidc/link').set('Authorization', `Bearer ${ownerToken}`);
+    const res = await request(app).post('/api/auth/oidc/link').set('Authorization', `Bearer ${ownerToken}`)
+      .send({ password: 'secret123' });
     expect(res.status).toBe(409);
   });
 
@@ -112,6 +155,13 @@ describe('rattacher une identité SSO depuis son compte', () => {
     const res = await link(bobToken, { sub: 'sub-owner' });
     expect(res.headers.location).toBe('/#oidc_link_error=already_linked');
     expect(subOf(bobId)).toBeNull();
+  });
+
+  it('montre à l’admin quels comptes sont liés', async () => {
+    const res = await request(app).get('/api/admin/users').set('Authorization', `Bearer ${ownerToken}`);
+    const byName = Object.fromEntries(res.body.users.map((u: { username: string; sso_linked: unknown }) => [u.username, u.sso_linked]));
+    expect(byName.owner).toBe(true);
+    expect(byName.bob).toBe(false);
   });
 
   it('le dit à la connexion et à /me pour un compte non rattaché', async () => {
@@ -124,5 +174,30 @@ describe('rattacher une identité SSO depuis son compte', () => {
   it('une nouvelle identité sans compte correspondant crée toujours son compte', async () => {
     const res = await ssoLogin({ sub: 'sub-new', email: 'new@example.com', preferred_username: 'newbie' });
     expect(String(res.headers.location)).toMatch(/^\/#oidc_token=/);
+  });
+
+  it('le titulaire délie son compte, qui ne s’ouvre plus par cette identité', async () => {
+    await link(bobToken, { sub: 'sub-bob' });
+    expect(subOf(bobId)).toBe('sub-bob');
+    const res = await request(app).delete('/api/auth/oidc/link').set('Authorization', `Bearer ${bobToken}`);
+    expect(res.status).toBe(200);
+    expect(subOf(bobId)).toBeNull();
+    const back = await ssoLogin({ sub: 'sub-bob', email: 'bob@example.com' });
+    expect(back.headers.location).toBe('/#oidc_error=link_required');
+  });
+
+  it('l’admin délie un compte local, pas un compte qui n’a que le SSO', async () => {
+    await link(bobToken, { sub: 'sub-bob-2' });
+    const res = await request(app).delete(`/api/admin/users/${bobId}/sso`).set('Authorization', `Bearer ${ownerToken}`);
+    expect(res.status).toBe(200);
+    expect(subOf(bobId)).toBeNull();
+    const ssoOnly = db.prepare("SELECT id FROM users WHERE oidc_sub = 'sub-new'").get() as { id: number };
+    const refused = await request(app).delete(`/api/admin/users/${ssoOnly.id}/sso`).set('Authorization', `Bearer ${ownerToken}`);
+    expect(refused.status).toBe(400);
+  });
+
+  it('un non-admin ne délie pas le compte d’un autre', async () => {
+    const res = await request(app).delete(`/api/admin/users/${ownerId}/sso`).set('Authorization', `Bearer ${bobToken}`);
+    expect(res.status).toBe(403);
   });
 });

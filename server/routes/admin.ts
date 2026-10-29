@@ -51,11 +51,15 @@ router.post('/users', async (req, res) => {
 // ── GET /api/admin/users ────────────────────────────────────────────
 router.get('/users', (req, res) => {
   const users = db.prepare(`
-    SELECT id, username, email, display_name, role, active, auth_provider, created_at
+    SELECT id, username, email, display_name, role, active, auth_provider, created_at,
+      oidc_sub IS NOT NULL AS sso_linked
     FROM users ORDER BY created_at ASC
-  `).all();
+  `).all() as { sso_linked: number }[];
 
-  res.json({ users });
+  // Rattachements SSO visibles : sans cela, une identité rattachée à un compte
+  // (par l'ancien rattachement d'office, ou par une session volée) ne se
+  // voyait nulle part.
+  res.json({ users: users.map((u) => ({ ...u, sso_linked: !!u.sso_linked })) });
 });
 
 // ── PUT /api/admin/users/:id ────────────────────────────────────────
@@ -157,6 +161,18 @@ router.put('/users/:id/password', async (req, res) => {
     db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
   }
 
+  res.json({ ok: true });
+});
+
+// ── DELETE /api/admin/users/:id/sso ─────────────────────────────────
+// Délier l'identité SSO d'un compte local. Un compte qui n'a que le SSO n'a
+// pas de mot de passe : le délier le fermerait, il se supprime à la place.
+router.delete('/users/:id/sso', (req, res) => {
+  const user = db.prepare('SELECT auth_provider FROM users WHERE id = ?').get(req.params.id) as { auth_provider: string } | undefined;
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.auth_provider !== 'local') return res.status(400).json({ error: 'Only a local account can be unlinked' });
+  db.prepare('UPDATE users SET oidc_sub = NULL WHERE id = ?').run(req.params.id);
+  console.log('[oidc] admin id=%s unlinked the SSO identity of account id=%s', req.user.id, req.params.id);
   res.json({ ok: true });
 });
 

@@ -7,13 +7,16 @@
  * - `oidc_error` : connexion refusée (`link_required` : un compte local porte
  *   cette adresse, il se rattache depuis ses Préférences) ;
  * - `oidc_linked` / `oidc_link_error` : issue d'un rattachement lancé depuis
- *   Préférences › Général › Compte, session inchangée.
+ *   Préférences › Général › Compte, session inchangée ;
+ * - `oidc_link_ticket` : retour d'un rattachement, à valider depuis la session
+ *   qui l'a lancé (`completeOidcLink`) — le retour seul ne rattache rien.
  */
 export type OidcFragment =
   | { kind: 'token'; token: string }
   | { kind: 'error'; error: string }
   | { kind: 'linked' }
-  | { kind: 'linkError'; error: string };
+  | { kind: 'linkError'; error: string }
+  | { kind: 'linkTicket'; ticket: string };
 
 export function readOidcFragment(hash: string): OidcFragment | null {
   const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
@@ -24,6 +27,8 @@ export function readOidcFragment(hash: string): OidcFragment | null {
   if (params.get('oidc_linked')) return { kind: 'linked' };
   const linkError = params.get('oidc_link_error');
   if (linkError) return { kind: 'linkError', error: linkError };
+  const ticket = params.get('oidc_link_ticket');
+  if (ticket) return { kind: 'linkTicket', ticket };
   return null;
 }
 

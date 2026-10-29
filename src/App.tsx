@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAuthStore } from './stores/authStore';
-import { getMe, getAuthStatus, getServers } from './api/backend';
+import { getMe, getAuthStatus, getServers, completeOidcLink } from './api/backend';
 import { useFeedStore } from './stores/feedStore';
 import { useThemeStore } from './stores/themeStore';
 import { useUiStore, isUnreadOnly } from './stores/uiStore';
@@ -185,6 +185,29 @@ export default function App() {
         const current = useAuthStore.getState().backendToken;
         if (current) setBackendAuth(current, user);
       }).catch(() => {});
+    } else if (fragment?.kind === 'linkTicket') {
+      // Retour d'un rattachement : rien n'est encore écrit. Le ticket ne se
+      // valide que depuis la session qui a lancé la liaison — un cookie déposé
+      // par un site voisin ne suffit donc pas à rattacher une identité au
+      // compte d'un autre.
+      if (oidcErrorTarget(!!useAuthStore.getState().backendToken) === 'loginScreen') {
+        setOidcError('link_failed');
+      } else {
+        completeOidcLink(fragment.ticket)
+          .then(() => {
+            useUiStore.getState().pushToast(i18n.t('preferences.account.ssoLinkDone'));
+            return getMe().then((user) => {
+              const current = useAuthStore.getState().backendToken;
+              if (current) setBackendAuth(current, user);
+            });
+          })
+          .catch((err: { response?: { data?: { code?: string } } }) => {
+            useUiStore.getState().pushToast(
+              i18n.t(err?.response?.data?.code === 'already_linked' ? 'preferences.account.ssoAlreadyLinked' : 'preferences.account.ssoLinkFailed'),
+              { tone: 'error' },
+            );
+          });
+      }
     } else if (fragment?.kind === 'linkError') {
       useUiStore.getState().pushToast(
         i18n.t(fragment.error === 'already_linked' ? 'preferences.account.ssoAlreadyLinked' : 'preferences.account.ssoLinkFailed'),

@@ -546,11 +546,16 @@
       "tooMany": "Zbyt wiele prób. Spróbuj ponownie za kwadrans.",
       "failed": "Nie udało się zmienić hasła.",
       "ssoLink": "Połącz z {{provider}}",
-      "ssoLinkHint": "Przejdziesz przez {{provider}}, a potem wrócisz tutaj. Od tej chwili logowanie przez {{provider}} otwiera to konto.",
+      "ssoLinkHint": "Potwierdź obecnym hasłem, przejdź przez {{provider}}, a potem wróć tutaj. Od tej chwili także logowanie przez {{provider}} otwiera to konto.",
       "ssoLinked": "To konto jest połączone z {{provider}}: logowanie przez {{provider}} je otwiera.",
       "ssoLinkDone": "Konto połączone z SSO.",
       "ssoLinkFailed": "Nie udało się połączyć z SSO.",
-      "ssoAlreadyLinked": "Ta tożsamość SSO jest już połączona z innym kontem FriRSS."
+      "ssoAlreadyLinked": "Ta tożsamość SSO jest już połączona z innym kontem FriRSS.",
+      "ssoTitle": "Logowanie przez {{provider}}",
+      "ssoPassword": "Obecne hasło",
+      "ssoUnlink": "Odłącz",
+      "ssoUnlinked": "Konto odłączone od {{provider}}.",
+      "ssoUnlinkFailed": "Nie udało się odłączyć konta."
     }
   },
   "login": {
@@ -683,7 +688,11 @@
     "confirmDeleteTitle": "Usunąć konto {{name}}?",
     "confirmDeleteWarning": "Konto i powiązane z nim serwery FreshRSS zostaną usunięte. Tej operacji nie można cofnąć.",
     "confirmDelete": "Usuń",
-    "errorLoad": "Nie udało się wczytać użytkowników."
+    "errorLoad": "Nie udało się wczytać użytkowników.",
+    "unlinkSsoName": "Odłącz SSO od konta {{name}}",
+    "confirmUnlinkSsoTitle": "Odłączyć SSO od konta {{name}}?",
+    "confirmUnlinkSsoMessage": "{{name}} nie otworzy już tego konta przez SSO, tylko hasłem. Konto można ponownie połączyć w jego Preferencjach.",
+    "confirmUnlinkSso": "Odłącz"
   },
   "servers": {
     "label": "Serwery",

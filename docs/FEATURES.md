@@ -123,20 +123,39 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
 - **Rattacher un compte existant : depuis le compte seulement** (1.8.0,
   décision du propriétaire). Préférences › Général › Compte, « Lier à
   {fournisseur} » (comptes locaux, SSO actif, pas encore liés) :
-  `POST /api/auth/oidc/link` (authentifié) rend l'URL du fournisseur, dont
-  l'état signé porte `link: <id>` ; au retour, l'identité (`sub`) est posée sur
-  ce compte et **aucune session n'est ouverte** (`#oidc_linked=1` ; une
-  identité déjà liée ailleurs donne `#oidc_link_error=already_linked`). Le
-  cookie PKCE lie le retour au navigateur qui l'a lancé. Un compte lié garde
+  `POST /api/auth/oidc/link` (authentifié, **mot de passe actuel exigé**,
+  même plafond par compte que le changement de mot de passe) rend l'URL du
+  fournisseur, dont l'état signé porte `link: <id>`. **Le retour ne rattache
+  rien** : il remet un ticket signé de 5 min (`#oidc_link_ticket=…`, `uid` +
+  `sub`), que le client valide par `POST /api/auth/oidc/link/complete` depuis
+  la session qui a lancé la liaison (403 `link_mismatch` sinon, 409
+  `already_linked` si l'identité est liée ailleurs). Aucune session n'est
+  ouverte. Pourquoi les deux (seconde relecture 1.8.0) : sans mot de passe,
+  une session volée rattachait l'identité de l'attaquant, qui survivait au
+  changement de mot de passe ; et le retour n'est lié au navigateur que par
+  des cookies, qu'un site voisin du même domaine peut déposer — l'attaquant
+  lançait SA liaison, la victime revenait du fournisseur dans ce navigateur, et
+  son identité allait sur le compte de l'attaquant. **Délier** : le titulaire
+  (« Délier », `DELETE /api/auth/oidc/link`) ou l'admin (🔗,
+  `DELETE /api/admin/users/:id/sso`, après confirmation), comptes locaux
+  seulement — un compte qui n'a que le SSO se fermerait. La liste de
+  l'administration montre « Local + SSO » (`sso_linked`). Un compte lié garde
   son mot de passe et `auth_provider = 'local'`. `sso_linked` (connexion,
-  `/me`) dit s'il l'est. **Retiré** : le rattachement d'office, à la première
+  `/me`) dit s'il l'est. Le bloc SSO de la section Compte est séparé du
+  changement de mot de passe par un filet et son propre intitulé : à 320 px,
+  son aide se lisait comme la suite du mot de passe. **Retiré** : le rattachement d'office, à la première
   connexion SSO, au compte local qui portait la même adresse e-mail — sans
   exiger qu'elle soit vérifiée (Authentik envoie `email_verified=false` par
   défaut) : qui inscrivait l'adresse de l'admin dans son profil chez le
   fournisseur recevait une session admin. Une telle connexion répond
   désormais `#oidc_error=link_required` (« connectez-vous avec le mot de
-  passe, puis liez »), sans créer de doublon. Tests : `server/test/oidcLink.test.ts`
-  (fournisseur simulé), `GeneralTab.password.test.tsx`, `oidcFragment.test.ts`.
+  passe, puis liez »), sans créer de doublon ; en mode « SSO uniquement », le
+  formulaire local apparaît alors (`shouldHideLocalLogin`, `linkRequired`).
+  **Limite connue, assumée** : avec les inscriptions ouvertes, un compte local
+  créé avec l'adresse de quelqu'un qui viendra plus tard par SSO bloque sa
+  première connexion (`link_required`) ; l'admin débloque. Tests :
+  `server/test/oidcLink.test.ts` (fournisseur simulé), `GeneralTab.password.test.tsx`,
+  `AdminTab.confirm.test.tsx`, `oidcFragment.test.ts`.
 - **`redirect_uri` sans `X-Forwarded-Host`** (1.8.0) : sans `FRIRSS_BASE_URL`,
   l'hôte vient de `Host` seul, que nginx transmet avec son port
   (`$http_host` : `$host` perdait le port, et le SSO cassait derrière un proxy
@@ -238,8 +257,10 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   les deux jetons suivaient la nouvelle URL : le proxy y attachait le jeton
   greader, la relève le jeton maître en clair dans l'URL — une session FriRSS
   suffisait à les convertir en identifiants FreshRSS durables. Un changement de
-  chemin sur la même origine garde les jetons. Le client n'envoie jamais d'URL
-  par cette route (renommage et jeton maître seulement).
+  chemin sur la même origine garde les jetons — **limite connue, assumée**
+  (2026-10-29) : le jeton peut alors suivre un autre chemin du même hôte, qui
+  le recevait déjà. Le client n'envoie jamais d'URL par cette route
+  (renommage et jeton maître seulement).
 - **Portée du jeton — piège** : le proxy n'attache le jeton greader qu'aux
   cibles dont l'**origine analysée** vaut celle du serveur, le chemin étant
   comparé avec une frontière explicite (`targetBelongsToServer`,
@@ -5690,7 +5711,10 @@ qu'elle rend (voir *Extraction du contenu complet*).
   d'article ; une réponse **sans en-tête `Content-Type`** tombe dans le même
   refus, plus étroit que l'ancien chemin par le proxy : le client se replie
   alors sur son extracteur local, qui, lui, lit la page quand même), au plus
-  2 Mo (sinon 502 ; 5 Mo avant 1.8.0) et
+  2 Mo (sinon 502 ; 5 Mo avant 1.8.0 — mesuré le 2026-10-29 sur 133 pages
+  de vingt grands médias FR/EN du jeu de test : médiane 0,18 Mo, p99 1,09 Mo,
+  maximum 1,30 Mo (Clubic) ; les très longs articles de Bartosz Ciechanowski
+  font moins de 0,2 Mo) et
   lue en moins de 20 s (sinon 504). Les en-têtes, **redirections comprises**,
   doivent arriver en 45 s (`EXTRACT_FETCH_TIMEOUT_MS`, 1.8.0, sinon 504) :
   le délai par saut ne bornait qu'un saut, et six redirections lentes tenaient
@@ -6293,7 +6317,9 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | GET | `/api/auth/oidc/config` | Configuration SSO exposée au client |
 | GET | `/api/auth/oidc/login` | Démarrer le flux OIDC |
 | GET | `/api/auth/oidc/callback` | Retour du fournisseur OIDC (connexion, ou rattachement si l'état porte `link`) |
-| POST | `/api/auth/oidc/link` | Rattacher le compte local connecté à une identité SSO (rend l'URL du fournisseur) |
+| POST | `/api/auth/oidc/link` | Rattacher le compte local connecté à une identité SSO (mot de passe actuel ; rend l'URL du fournisseur) |
+| POST | `/api/auth/oidc/link/complete` | Valider le ticket du retour SSO, depuis la session qui a lancé la liaison |
+| DELETE | `/api/auth/oidc/link` | Délier son compte local de son identité SSO |
 | GET | `/api/servers` | Lister ses connexions FreshRSS |
 | POST | `/api/servers` | Ajouter une connexion |
 | PUT | `/api/servers/:id` | Modifier une connexion |
@@ -6307,6 +6333,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | POST | `/api/admin/users` | Créer un compte |
 | PUT | `/api/admin/users/:id` | Modifier un compte |
 | PUT | `/api/admin/users/:id/password` | Réinitialiser un mot de passe |
+| DELETE | `/api/admin/users/:id/sso` | Délier l'identité SSO d'un compte local |
 | DELETE | `/api/admin/users/:id` | Supprimer un compte |
 | GET | `/api/admin/settings` | Lire les réglages du serveur |
 | PUT | `/api/admin/settings` | Écrire les réglages du serveur |

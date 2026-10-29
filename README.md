@@ -119,7 +119,7 @@ Almost everything is yours to tweak:
 
 ### Accounts, SSO & multi-server
 - **Multi-user** with admin/user roles — each person keeps their own feeds and settings, and a local account changes its own password in *Preferences → General → Account* (other sessions are signed out).
-- **Single sign-on** via OIDC (tested with [Authentik](https://goauthentik.io)); an existing account links itself to SSO from *Preferences → General → Account* while signed in (never automatically by email address), and passkeys work through your provider.
+- **Single sign-on** via OIDC (tested with [Authentik](https://goauthentik.io)); an existing account links itself to SSO from *Preferences → General → Account* while signed in, confirming its current password (never automatically by email address), and unlinks the same way; admins see which accounts are linked and can unlink them. Passkeys work through your provider.
 - **Multi-server** — connect several FreshRSS instances and switch between them, from the top bar or the command palette.
 
 ### Self-hosting

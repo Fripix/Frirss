@@ -528,11 +528,16 @@
       "tooMany": "Too many attempts. Try again in fifteen minutes.",
       "failed": "The password couldn’t be changed.",
       "ssoLink": "Link to {{provider}}",
-      "ssoLinkHint": "You go through {{provider}}, then come back here. From then on, signing in with {{provider}} opens this account.",
+      "ssoLinkHint": "Confirm with your current password, go through {{provider}}, then come back here. From then on, signing in with {{provider}} also opens this account.",
       "ssoLinked": "This account is linked to {{provider}}: signing in with {{provider}} opens it.",
       "ssoLinkDone": "Account linked to SSO.",
       "ssoLinkFailed": "Linking to SSO failed.",
-      "ssoAlreadyLinked": "This SSO identity is already linked to another FriRSS account."
+      "ssoAlreadyLinked": "This SSO identity is already linked to another FriRSS account.",
+      "ssoTitle": "Sign-in with {{provider}}",
+      "ssoPassword": "Current password",
+      "ssoUnlink": "Unlink",
+      "ssoUnlinked": "Account unlinked from {{provider}}.",
+      "ssoUnlinkFailed": "The account could not be unlinked."
     }
   },
   "login": {
@@ -663,7 +668,11 @@
     "confirmDeleteTitle": "Delete {{name}}’s account?",
     "confirmDeleteWarning": "The account and the FreshRSS servers attached to it are deleted. This can’t be undone.",
     "confirmDelete": "Delete",
-    "errorLoad": "Couldn’t load the users."
+    "errorLoad": "Couldn’t load the users.",
+    "unlinkSsoName": "Unlink SSO from {{name}}’s account",
+    "confirmUnlinkSsoTitle": "Unlink SSO from {{name}}’s account?",
+    "confirmUnlinkSsoMessage": "{{name}} will no longer be able to open this account through SSO, only with their password. The account can be linked again from its Preferences.",
+    "confirmUnlinkSso": "Unlink"
   },
   "servers": {
     "label": "Servers",

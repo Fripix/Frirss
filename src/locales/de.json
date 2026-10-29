@@ -528,11 +528,16 @@
       "tooMany": "Zu viele Versuche. Versuchen Sie es in einer Viertelstunde erneut.",
       "failed": "Das Passwort konnte nicht geändert werden.",
       "ssoLink": "Mit {{provider}} verknüpfen",
-      "ssoLinkHint": "Sie gehen über {{provider}} und kehren dann hierher zurück. Danach öffnet die Anmeldung über {{provider}} dieses Konto.",
+      "ssoLinkHint": "Bestätigen Sie mit Ihrem aktuellen Passwort, gehen Sie über {{provider}} und kehren Sie dann hierher zurück. Danach öffnet auch die Anmeldung über {{provider}} dieses Konto.",
       "ssoLinked": "Dieses Konto ist mit {{provider}} verknüpft: Die Anmeldung über {{provider}} öffnet es.",
       "ssoLinkDone": "Konto mit SSO verknüpft.",
       "ssoLinkFailed": "Die Verknüpfung mit SSO ist fehlgeschlagen.",
-      "ssoAlreadyLinked": "Diese SSO-Identität ist bereits mit einem anderen FriRSS-Konto verknüpft."
+      "ssoAlreadyLinked": "Diese SSO-Identität ist bereits mit einem anderen FriRSS-Konto verknüpft.",
+      "ssoTitle": "Anmeldung über {{provider}}",
+      "ssoPassword": "Aktuelles Passwort",
+      "ssoUnlink": "Verknüpfung lösen",
+      "ssoUnlinked": "Verknüpfung mit {{provider}} gelöst.",
+      "ssoUnlinkFailed": "Die Verknüpfung konnte nicht gelöst werden."
     }
   },
   "login": {
@@ -663,7 +668,11 @@
     "confirmDeleteTitle": "Konto von {{name}} löschen?",
     "confirmDeleteWarning": "Das Konto und die damit verbundenen FreshRSS-Server werden gelöscht. Das kann nicht rückgängig gemacht werden.",
     "confirmDelete": "Löschen",
-    "errorLoad": "Die Benutzer konnten nicht geladen werden."
+    "errorLoad": "Die Benutzer konnten nicht geladen werden.",
+    "unlinkSsoName": "SSO-Verknüpfung des Kontos von {{name}} lösen",
+    "confirmUnlinkSsoTitle": "SSO-Verknüpfung des Kontos von {{name}} lösen?",
+    "confirmUnlinkSsoMessage": "{{name}} kann dieses Konto dann nicht mehr über SSO öffnen, nur noch mit dem Passwort. Das Konto lässt sich in seinen Einstellungen erneut verknüpfen.",
+    "confirmUnlinkSso": "Lösen"
   },
   "servers": {
     "label": "Server",

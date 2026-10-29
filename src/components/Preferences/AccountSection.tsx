@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
-import { changePassword, getOidcConfig, linkOidcAccount, type OidcConfig } from '../../api/backend';
+import { changePassword, getOidcConfig, linkOidcAccount, unlinkOidcAccount, type OidcConfig } from '../../api/backend';
 import { useUiStore } from '../../stores/uiStore';
 
 /** Même minimum que le serveur (`server/routes/auth.ts`) et que la création de compte. */
@@ -22,7 +22,7 @@ export default function AccountSection() {
   const isLocal = useAuthStore((s) => !!s.backendUser && (s.backendUser.auth_provider ?? 'local') === 'local');
   const username = useAuthStore((s) => s.backendUser?.username ?? '');
   const ssoLinked = useAuthStore((s) => !!s.backendUser?.sso_linked);
-  const ids = { current: useId(), next: useId(), again: useId(), hint: useId() };
+  const ids = { current: useId(), next: useId(), again: useId(), hint: useId(), sso: useId(), ssoPassword: useId() };
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [again, setAgain] = useState('');
@@ -31,6 +31,10 @@ export default function AccountSection() {
   const [done, setDone] = useState(false);
   const [oidc, setOidc] = useState<OidcConfig | null>(null);
   const [linking, setLinking] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkPassword, setLinkPassword] = useState('');
+  const [linkError, setLinkError] = useState('');
+  const [unlinking, setUnlinking] = useState(false);
 
   // Le rattachement au SSO n'a de sens que si l'instance en a un.
   useEffect(() => {
@@ -66,20 +70,43 @@ export default function AccountSection() {
     }
   }
 
-  async function link() {
+  const setLinked = (linked: boolean) => {
+    const user = useAuthStore.getState().backendUser;
+    if (user) useAuthStore.setState({ backendUser: { ...user, sso_linked: linked } });
+  };
+
+  // Le mot de passe actuel est demandé : une session volée suffisait sinon à
+  // rattacher l'identité SSO d'un autre, qui survivait au changement de mot
+  // de passe.
+  async function link(e: FormEvent) {
+    e.preventDefault();
+    setLinkError('');
     setLinking(true);
     try {
-      await linkOidcAccount(); // quitte la page vers le fournisseur
+      await linkOidcAccount(linkPassword); // quitte la page vers le fournisseur
     } catch (err) {
       setLinking(false);
+      const status = (err as { response?: { status?: number } })?.response?.status;
       // 409 : déjà lié. Une session ouverte avant la 1.8.0 ne le savait pas
       // (`sso_linked` absent) et proposait « Lier » à tort.
-      if ((err as { response?: { status?: number } })?.response?.status === 409) {
-        const user = useAuthStore.getState().backendUser;
-        if (user) useAuthStore.setState({ backendUser: { ...user, sso_linked: true } });
-        return;
-      }
-      useUiStore.getState().pushToast(t('preferences.account.ssoLinkFailed'), { tone: 'error' });
+      if (status === 409) { setLinked(true); setLinkOpen(false); return; }
+      setLinkError(t(status === 401 ? 'preferences.account.wrongCurrent'
+        : status === 429 ? 'preferences.account.tooMany'
+        : 'preferences.account.ssoLinkFailed'));
+    }
+  }
+
+  async function unlink() {
+    setUnlinking(true);
+    try {
+      await unlinkOidcAccount();
+      setLinked(false);
+      setLinkPassword('');
+      useUiStore.getState().pushToast(t('preferences.account.ssoUnlinked', { provider: oidc?.buttonLabel || 'SSO' }));
+    } catch {
+      useUiStore.getState().pushToast(t('preferences.account.ssoUnlinkFailed'), { tone: 'error' });
+    } finally {
+      setUnlinking(false);
     }
   }
 
@@ -129,32 +156,66 @@ export default function AccountSection() {
         </button>
       </form>
       {/* Seul chemin de rattachement au SSO (1.8.0) : connecté à ce compte,
-          on prouve qu'on tient les deux. Le rattachement d'office par adresse
-          e-mail, que le fournisseur ne garantit pas, est retiré. */}
-      {oidc?.enabled && (
-        <div className="mt-4 max-w-xs space-y-2">
-          {ssoLinked ? (
-            <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
-              {t('preferences.account.ssoLinked', { provider: oidc.buttonLabel || 'SSO' })}
-            </p>
-          ) : (
-            <>
-              <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
-                {t('preferences.account.ssoLinkHint', { provider: oidc.buttonLabel || 'SSO' })}
-              </p>
-              <button
-                type="button"
-                onClick={link}
-                disabled={linking}
-                className="px-4 py-2 text-xs font-medium rounded-lg disabled:opacity-50 prefs-tap-btn hover-tint"
-                style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
-              >
-                {t('preferences.account.ssoLink', { provider: oidc.buttonLabel || 'SSO' })}
-              </button>
-            </>
-          )}
-        </div>
-      )}
+          on prouve qu'on tient les deux, mot de passe compris. Le
+          rattachement d'office par adresse e-mail, que le fournisseur ne
+          garantit pas, est retiré. Bloc séparé par un filet : à 320 px, son
+          aide se lisait comme la suite du changement de mot de passe. */}
+      {oidc?.enabled && (() => {
+        const provider = oidc.buttonLabel || 'SSO';
+        const secondary = 'px-4 py-2 text-xs font-medium rounded-lg disabled:opacity-50 prefs-tap-btn hover-tint';
+        const secondaryStyle = { border: '1px solid var(--panel-border)', color: 'var(--list-title)' };
+        return (
+          <section aria-labelledby={ids.sso} className="mt-6 pt-4 max-w-xs space-y-2" style={{ borderTop: '1px solid var(--panel-border)' }}>
+            <h4 id={ids.sso} className="text-xs font-semibold" style={{ color: 'var(--list-title)' }}>
+              {t('preferences.account.ssoTitle', { provider })}
+            </h4>
+            {ssoLinked ? (
+              <>
+                <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+                  {t('preferences.account.ssoLinked', { provider })}
+                </p>
+                <button type="button" onClick={unlink} disabled={unlinking} className={secondary} style={secondaryStyle}>
+                  {t('preferences.account.ssoUnlink')}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+                  {t('preferences.account.ssoLinkHint', { provider })}
+                </p>
+                {linkOpen ? (
+                  <form onSubmit={link} className="space-y-2.5">
+                    <div>
+                      <label htmlFor={ids.ssoPassword} className={label} style={{ color: 'var(--list-summary)' }}>
+                        {t('preferences.account.ssoPassword')}
+                      </label>
+                      <input id={ids.ssoPassword} type="password" autoComplete="current-password" required autoFocus
+                        value={linkPassword} onChange={(e) => { setLinkPassword(e.target.value); setLinkError(''); }}
+                        className={field} style={fieldStyle} />
+                    </div>
+                    {linkError && <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{linkError}</p>}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button type="submit" disabled={linking}
+                        className="px-4 py-2 text-xs font-medium rounded-lg disabled:opacity-50 prefs-tap-btn"
+                        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>
+                        {t('preferences.account.ssoLink', { provider })}
+                      </button>
+                      <button type="button" onClick={() => { setLinkOpen(false); setLinkPassword(''); setLinkError(''); }}
+                        className="px-3 py-2 text-xs rounded-lg prefs-tap-btn hover-tint" style={{ color: 'var(--list-summary)' }}>
+                        {t('dialog.cancel')}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <button type="button" onClick={() => setLinkOpen(true)} className={secondary} style={secondaryStyle}>
+                    {t('preferences.account.ssoLink', { provider })}
+                  </button>
+                )}
+              </>
+            )}
+          </section>
+        );
+      })()}
     </div>
   );
 }

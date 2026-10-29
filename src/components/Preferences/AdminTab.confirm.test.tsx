@@ -5,7 +5,7 @@ import AdminTab from './AdminTab';
 import { useAuthStore } from '../../stores/authStore';
 import { useUiStore } from '../../stores/uiStore';
 import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
-import { getAdminUsers, getAdminSettings, updateAdminUser, deleteAdminUser } from '../../api/backend';
+import { getAdminUsers, getAdminSettings, updateAdminUser, deleteAdminUser, unlinkAdminUserSso } from '../../api/backend';
 import type { User } from '../../types';
 
 vi.mock('react-i18next', () => ({
@@ -14,6 +14,7 @@ vi.mock('react-i18next', () => ({
 vi.mock('../../api/backend', () => ({
   getAdminUsers: vi.fn(), getAdminSettings: vi.fn(), createAdminUser: vi.fn(),
   updateAdminUser: vi.fn(), deleteAdminUser: vi.fn(), setAdminUserPassword: vi.fn(), updateAdminSettings: vi.fn(),
+  unlinkAdminUserSso: vi.fn(),
 }));
 vi.mock('./admin/BackupBlock', () => ({ default: () => null }));
 
@@ -82,5 +83,27 @@ describe('Administration — les actions sur un compte se confirment', () => {
     vi.mocked(getAdminUsers).mockRejectedValue(new Error('HTTP 500'));
     render(<AdminTab />);
     expect(await screen.findByText('admin.errorLoad')).toBeTruthy();
+  });
+});
+
+// Un rattachement SSO ne se voyait nulle part : ni posé par l'ancien
+// rattachement d'office, ni posé depuis une session volée.
+describe('Administration — rattachements SSO', () => {
+  it('montre qu’un compte local est lié, et le délie après confirmation', async () => {
+    vi.mocked(getAdminUsers).mockResolvedValue([me, { ...bob, sso_linked: true } as User]);
+    render(<AdminTab />);
+    expect(await screen.findByText('admin.authModeLocalSso')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'admin.unlinkSsoName:Bob' }));
+    expect(unlinkAdminUserSso).not.toHaveBeenCalled();
+    vi.mocked(unlinkAdminUserSso).mockResolvedValue(undefined);
+    await confirmer('admin.confirmUnlinkSso');
+    expect(unlinkAdminUserSso).toHaveBeenCalledWith(2);
+    expect(screen.queryByRole('button', { name: 'admin.unlinkSsoName:Bob' })).toBeNull();
+  });
+
+  it('ne propose pas de délier un compte qui n’est pas lié', async () => {
+    render(<AdminTab />);
+    await screen.findByRole('button', { name: 'admin.deactivateUser:Bob' });
+    expect(screen.queryByRole('button', { name: 'admin.unlinkSsoName:Bob' })).toBeNull();
   });
 });
