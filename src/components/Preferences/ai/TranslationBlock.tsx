@@ -33,7 +33,7 @@ export default function TranslationBlock() {
     <section className="space-y-3">
       <BlockTitle>{t('ai.translation.title')}</BlockTitle>
       <div>
-        <label htmlFor={`${uid}-language`} className="block text-sm mb-1" style={{ color: 'var(--list-title)' }}>{t('ai.translation.language')}</label>
+        <label htmlFor={`${uid}-language`} className="block text-xs mb-1" style={{ color: 'var(--list-title)' }}>{t('ai.translation.language')}</label>
         <select
           id={`${uid}-language`} value={language} className={inputClass} style={inputStyle}
           onChange={(e) => setLanguage(isAiLanguage(e.target.value) ? e.target.value : 'ui')}
@@ -43,7 +43,7 @@ export default function TranslationBlock() {
         </select>
       </div>
       <div>
-        <label htmlFor={`${uid}-provider`} className="block text-sm mb-1" style={{ color: 'var(--list-title)' }}>{t('ai.translation.provider')}</label>
+        <label htmlFor={`${uid}-provider`} className="block text-xs mb-1" style={{ color: 'var(--list-title)' }}>{t('ai.translation.provider')}</label>
         <select
           id={`${uid}-provider`} value={provider === null ? '' : String(provider)} className={inputClass} style={inputStyle}
           onChange={(e) => setProvider(e.target.value ? Number(e.target.value) : null)}

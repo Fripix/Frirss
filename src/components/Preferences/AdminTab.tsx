@@ -304,7 +304,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
   }
 
   if (loading) {
-    return <p className="text-sm" style={{ color: 'var(--list-summary)' }}>{t('app.loading')}</p>;
+    return <p className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('app.loading')}</p>;
   }
 
   // Cinq groupes sans rapport entre eux : on vient ici pour l'un d'eux, jamais
@@ -321,15 +321,14 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
   // son contenu, et beaucoup d'air entre les groupes. Un seul repère visuel
   // s'y ajoute — un tiret accentué épais, une marque que le contenu ne fait
   // jamais, donc impossible à confondre avec une bordure d'encadré.
-  const sectionTitle = "flex items-center gap-2.5 text-sm font-bold mb-3";
+  const sectionTitle = "text-[11px] font-bold uppercase tracking-widest mb-2";
   const rowStyle = { background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' };
 
   return (
     <div className="space-y-10">
       {/* ── Users ──────────────────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
-          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
+        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
           {t('admin.users')} — {t('admin.userCount', { count: users.length })}
           {pwDone && (
             <span className="ml-2 normal-case tracking-normal font-normal" style={{ color: 'var(--accent)' }}>
@@ -518,8 +517,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Create user ────────────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
-          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
+        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
           {t('admin.createUser')}
         </h3>
         <form onSubmit={handleCreateUser} className="space-y-2 p-3 rounded-md" style={rowStyle}>
@@ -580,13 +578,12 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Registration toggle ────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
-          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
+        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
           {t('admin.registration')}
         </h3>
         <button
           onClick={toggleRegistration}
-          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm w-full"
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs w-full"
           style={rowStyle}
         >
           <div
@@ -606,8 +603,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── Login animation ────────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
-          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
+        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
           {t('admin.loginAnimation')}
         </h3>
         <div className="flex flex-wrap gap-1.5">
@@ -637,15 +633,14 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
 
       {/* ── SSO Configuration ──────────────────────────────── */}
       <div>
-        <h3 className={sectionTitle} style={{ color: 'var(--list-title)' }}>
-          <span aria-hidden="true" className="inline-block w-1 h-4 rounded-full flex-shrink-0" style={{ background: 'var(--accent)' }} />
+        <h3 className={sectionTitle} style={{ color: 'var(--list-summary)' }}>
           {t('admin.ssoConfig')}
         </h3>
 
         {/* SSO toggle */}
         <button
           onClick={toggleSso}
-          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm w-full mb-2"
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs w-full mb-2"
           style={rowStyle}
         >
           <div

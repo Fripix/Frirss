@@ -334,7 +334,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <BlockTitle>{t('ai.admin.title')}</BlockTitle>
         <div className="prefs-tap-row ml-auto flex items-center gap-3">
-          <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.enable')}</span>
+          <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.enable')}</span>
           <ToggleSwitch checked={settings.enabled} onChange={(v) => saveSettings({ enabled: v })} ariaLabel={t('ai.admin.enable')} />
         </div>
       </div>
@@ -421,7 +421,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
               )}
             </div>
             <div className="prefs-tap-row flex items-center justify-between gap-3">
-              <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.shared')}</span>
+              <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.shared')}</span>
               <ToggleSwitch checked={!!draft.shared} onChange={(v) => setDraft({ shared: v })} ariaLabel={t('ai.admin.shared')} />
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -439,7 +439,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
       </div>
 
       <div className="prefs-tap-row flex items-center justify-between gap-3">
-        <span className="text-sm" style={{ color: 'var(--list-title)' }}>{t('ai.admin.userKeysAllowed')}</span>
+        <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('ai.admin.userKeysAllowed')}</span>
         <ToggleSwitch checked={settings.userKeysAllowed} onChange={(v) => saveSettings({ userKeysAllowed: v })} ariaLabel={t('ai.admin.userKeysAllowed')} />
       </div>
       <div>

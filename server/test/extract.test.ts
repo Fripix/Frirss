@@ -56,7 +56,7 @@ describe('extractArticle', () => {
 
 // ── La file d'analyse ────────────────────────────────────────────────
 // `parseHTML` + `Readability` bloquent l'unique boucle d'événements qui sert
-// toute l'instance (des dizaines de ms à ~1 s au plafond de 5 Mo), et cette
+// toute l'instance (des dizaines de ms à ~1 s au plafond de 2 Mo), et cette
 // charge est NEUVE : elle vivait sur chaque téléphone avant la 1.4.10. Le seul
 // frein était le seau de cadence (600/min par compte), qui permet un ordre de
 // grandeur de plus que ce que la boucle absorbe.

@@ -5026,6 +5026,14 @@ réglage clair/sombre du système.
 
 ## Préférences
 
+**Une seule typographie pour tous les onglets** (1.8.0, décision du
+propriétaire) : titres de section en capitales de 11 px espacées
+(`text-[11px] font-bold uppercase tracking-widest`, couleur `--list-summary`),
+libellés en 12 px (`text-xs`, `--list-summary`), aides en 11 px. Les onglets IA
+et Administration (et la sauvegarde) avaient leur propre langage — titres gras
+de 14 px précédés d'une barre d'accent, libellés de 14 px plus foncés — qui se
+lisait comme un autre écran. Les champs, listes et boutons gardent leur taille.
+
 ⚠️ **L'en-tête doit garder sa croix de fermeture atteignable.** Le sélecteur de
 thème n'avait aucune contrainte de largeur : sur un écran étroit il poussait
 « Tout réinitialiser » (aujourd'hui « Réinitialiser ») à la ligne, puis la
@@ -5432,12 +5440,14 @@ qu'elle rend (voir *Extraction du contenu complet*).
   330 occurrences sur un article) alors que la copie de FreshRSS du même article
   était propre : le défaut venait de FriRSS. L'analyse du `charset=` accepte donc
   `;` comme `,`, guillemets optionnels, casse libre. Et le décodage a lieu
-  **après** la lecture bornée : le plafond (5 Mo) et le délai portent sur des
+  **après** la lecture bornée : le plafond (2 Mo) et le délai portent sur des
   octets, le jeu de caractères n'étant connu qu'une fois ceux-ci en main.
 - **Analyse bornée : une à la fois, cinq requêtes au plus dans la file**
   (une en cours, quatre en attente — `EXTRACT_MAX_PENDING`,
   `server/extract.ts`). `parseHTML` + `Readability` sont **synchrones** : de
-  ~20 ms pour 0,1 Mo à ~1 s au plafond de lecture (5 Mo), pendant lesquels
+  ~20 ms pour 0,1 Mo à ~1 s au plafond de lecture (2 Mo depuis 1.8.0 : une page
+  plate de 4,9 Mo construite pour coûter cher bloquait ~3 s sous l'ancien
+  plafond de 5 Mo), pendant lesquels
   l'unique processus Node qui sert toute l'instance ne fait rien d'autre — et
   cette charge est NEUVE, elle vivait sur chaque téléphone avant la 1.4.10. Le
   seau de cadence (600/min et par compte) permet un ordre de grandeur de plus
@@ -5576,7 +5586,7 @@ qu'elle rend (voir *Extraction du contenu complet*).
   d'article ; une réponse **sans en-tête `Content-Type`** tombe dans le même
   refus, plus étroit que l'ancien chemin par le proxy : le client se replie
   alors sur son extracteur local, qui, lui, lit la page quand même), au plus
-  5 Mo (sinon 502) et
+  2 Mo (sinon 502 ; 5 Mo avant 1.8.0) et
   lue en moins de 20 s (sinon 504). Le minuteur de `fetchUpstream` est désarmé
   à l'arrivée des en-têtes : il couvre la connexion, pas le corps. Sans ces
   bornes, une URL publique quelconque suffisait à faire avaler des Go au seul

@@ -92,7 +92,7 @@ export default function KeysBlock() {
   return (
     <section className="space-y-3">
       <BlockTitle>{t('ai.keys.title')}</BlockTitle>
-      <p className="text-sm max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.keys.hint')}</p>
+      <p className="text-xs max-w-prose" style={{ color: 'var(--list-summary)' }}>{t('ai.keys.hint')}</p>
       <ul className="space-y-4">
         {providers.map((p) => <KeyRow key={p.id} provider={p} />)}
       </ul>

@@ -60,6 +60,10 @@ la release publiée.
   administrateurs.
 - **Proxy : les adresses IPv6 qui embarquent une IPv4 privée** sous forme
   hexadécimale (`[::ffff:7f00:1]`) ou NAT64 sont reconnues comme internes.
+- **Extraction d'article : pages de 2 Mo au plus** (5 Mo avant). Une page
+  plate de 5 Mo, faite pour coûter cher, immobilisait le serveur ~3 s pour
+  tous les utilisateurs. Une page d'article réelle reste bien en dessous ; au
+  delà, l'extraction se replie sur le navigateur, comme avant.
 - **Deux expressions régulières quadratiques** (jeu de caractères d'une page,
   clôture d'une réponse de traduction) sont réécrites en temps linéaire.
 - **Le journal du retour SSO n'écrit plus l'adresse e-mail** de chaque
@@ -120,6 +124,9 @@ la release publiée.
   s'efface dès qu'on retape, et les gestionnaires de mots de passe savent à
   quel compte rattacher le nouveau.
 - **Barre des raccourcis** : les touches gardent leur relief.
+- **Préférences : une seule typographie.** Les onglets IA et Administration
+  avaient leurs propres titres (gras, précédés d'une barre colorée) et un texte
+  plus grand ; ils prennent ceux des autres onglets.
 - **Accessibilité : clavier et lecteurs d'écran.** Les menus (article, flux,
   serveurs, étiquettes, traduction, résumé) se parcourent aux flèches et
   rendent le focus au bouton qui les a ouverts. Les boutons à icône seule ont

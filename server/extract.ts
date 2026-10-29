@@ -17,9 +17,10 @@ export interface ExtractedArticle {
  * exécution, l'unique processus Node qui sert toute l'instance ne fait rien
  * d'autre. Mesuré avec les modules de ce dépôt : 20 ms pour 0,1 Mo, 113 ms pour
  * 1,6 Mo, 203 ms pour 3,2 Mo de HTML synthétique — et environ le double sur du
- * HTML réel, bien plus dense en balises (471 ms relevés pour 2,7 Mo). Au
- * plafond de lecture (5 Mo, `MAX_HTML_BYTES`), c'est de l'ordre de la seconde
- * d'immobilité pour TOUS les lecteurs. Et cette charge est neuve : elle vivait
+ * HTML réel, bien plus dense en balises (471 ms relevés pour 2,7 Mo) — et
+ * 2,96 s pour une page plate de 4,9 Mo construite pour coûter cher. D'où le
+ * plafond de lecture ramené à 2 Mo (`MAX_HTML_BYTES`) : de l'ordre de la
+ * seconde d'immobilité pour TOUS les lecteurs au pire cas. Et cette charge est neuve : elle vivait
  * auparavant sur chaque téléphone.
  *
  * Le seul frein existant était le seau de cadence (600/min par compte), qui

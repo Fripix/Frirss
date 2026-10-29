@@ -31,10 +31,12 @@ function loggableTarget(url: string): string {
  * `upstream.text()` mettait le corps entier dans une chaîne JS, sans plafond :
  * une URL publique quelconque suffisait à faire avaler plusieurs Go au seul
  * processus Node qui sert toute l'instance, puis à les passer à linkedom et
- * Readability. Une page d'article très riche pèse quelques centaines de Ko ;
- * 5 Mo laisse dix fois la marge et ferme la porte.
+ * Readability. Une page d'article très riche pèse quelques centaines de Ko.
+ * 2 Mo (5 Mo jusqu'en 1.8.0) : une page plate de 4,9 Mo, faite pour coûter
+ * cher, bloquait la boucle d'événements ~3 s pour toute l'instance ; à 2 Mo
+ * le pire cas tombe vers la seconde, et la marge reste de plusieurs fois.
  */
-const MAX_HTML_BYTES = 5_000_000;
+const MAX_HTML_BYTES = 2_000_000;
 
 /**
  * Temps maximal passé à lire le corps, en-têtes déjà reçus.

@@ -1244,7 +1244,7 @@ describe('extract', () => {
   });
 
   it('refuses a body larger than the cap', async () => {
-    // 1 Mo par morceau, 20 morceaux : le plafond (5 Mo) tombe bien avant.
+    // 1 Mo par morceau, 20 morceaux : le plafond (2 Mo) tombe bien avant.
     const chunks = Array.from({ length: 20 }, () => new Uint8Array(1_000_000).fill(0x20));
     stubUpstream(streamOf(chunks));
     const res = await get('https://news.example.com/enorme');
@@ -1252,7 +1252,18 @@ describe('extract', () => {
     expect(res.body).toEqual({ error: 'Upstream response too large' });
   });
 
-  // Bornes testées directement : les vraies valeurs (5 Mo / 20 s) rendraient
+  // Une page plate de 4,9 Mo bloquait la boucle d'événements ~3 s (mesuré,
+  // relecture de sécurité 1.8.0), pour tous les lecteurs de l'instance. Le
+  // plafond descend à 2 Mo : une page d'article réelle reste bien en dessous.
+  it('refuse une page de 3 Mo', async () => {
+    const chunks = Array.from({ length: 3 }, () => new Uint8Array(1_000_000).fill(0x20));
+    stubUpstream(streamOf(chunks));
+    const res = await get('https://news.example.com/trois-mo');
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({ error: 'Upstream response too large' });
+  });
+
+  // Bornes testées directement : les vraies valeurs (2 Mo / 20 s) rendraient
   // le test du délai insupportablement lent.
   describe('readBoundedText', () => {
     const respOf = (body: ReadableStream<Uint8Array>) =>
