@@ -487,6 +487,8 @@ la release publiée.
   affichait « La relève a échoué ». Il dit désormais que FreshRSS termine la
   relève en arrière-plan, et les nouveaux articles arrivent dans le bandeau
   habituel.
+- **« Ajouter un flux » place le curseur dans le champ URL**, et le rend au
+  bouton à la fermeture ; il restait derrière la fenêtre.
 - **Échap ferme les Préférences après « Tester » ou « Enregistrer »** : ces
   boutons se désactivent pendant leur travail et faisaient perdre le focus,
   et la touche ne fermait plus le panneau.

@@ -4617,6 +4617,10 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   latérale, donc dans le tiroir mobile (`fixed` + `transform` +
   `overflow: hidden`), elle s'y ancrait et y était rognée. Test :
   `AddFeedDialog.portal.test.tsx`.
+- **Focus** (1.8.0) : le champ URL le prend à l'ouverture (`autoFocus`), et
+  il revient au déclencheur à la fermeture — relevé au premier rendu, car
+  dans un effet `autoFocus` l'a déjà déplacé. Boîte modale, elle laissait le
+  focus derrière elle, sur « Ajouter un flux ».
 - **Note** : la découverte automatique du flux depuis l'URL d'un site est assurée
   par FreshRSS, pas par FriRSS.
 

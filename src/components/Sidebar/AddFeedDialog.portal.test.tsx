@@ -24,3 +24,19 @@ describe('AddFeedDialog — une boîte hors du tiroir', () => {
     host.remove();
   });
 });
+
+// Boîte modale (`aria-modal`), mais le focus restait sur « Ajouter un flux »,
+// derrière elle : au clavier, il fallait aller chercher le champ. Et à la
+// fermeture, il retombait sur la page.
+describe('AddFeedDialog — focus', () => {
+  it('donne le focus au champ URL, puis le rend au déclencheur', () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+    const view = render(<AddFeedDialog onClose={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByLabelText(/addFeed.urlLabel/));
+    view.unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+});

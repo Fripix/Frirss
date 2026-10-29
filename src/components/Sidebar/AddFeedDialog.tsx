@@ -22,6 +22,14 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
   // Échap ferme. La boîte est `role="dialog"` : `useKeyboardNav` se tait tant
   // qu'elle est ouverte, donc rien d'autre n'écouterait la touche. Capture +
   // stopPropagation, comme les autres surfaces : un seul effet par pression.
+  // Le focus revient au déclencheur à la fermeture (il retombait sur la
+  // page) ; à l'ouverture, le champ URL le prend (`autoFocus`). Relevé au
+  // premier rendu : dans un effet, `autoFocus` l'aurait déjà déplacé.
+  const [opener] = useState(() => (typeof document === 'undefined' ? null : document.activeElement as HTMLElement | null));
+  useEffect(() => () => {
+    if (opener && opener !== document.body && opener.isConnected) opener.focus({ preventScroll: true });
+  }, [opener]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
@@ -92,6 +100,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
               onChange={(e) => setFeedUrl(e.target.value)}
               placeholder={t('addFeed.urlPlaceholder')}
               required
+              autoFocus
               className="w-full text-sm px-3 py-2 rounded-lg border outline-none transition-colors"
               style={{
                 borderColor: 'var(--panel-border)',
