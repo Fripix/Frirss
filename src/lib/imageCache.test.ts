@@ -419,3 +419,70 @@ describe('pruneImages', () => {
     expect(Object.keys(prepared.entries)).toEqual(['https://cdn.example.com/caf%C3%A9%20noir.jpg']);
   });
 });
+
+/*
+ * Une image peut être voulue par plusieurs portées (un logo, un avatar commun
+ * à deux serveurs ; deux comptes sur le même FreshRSS). L'étiquette était
+ * celle de la première, jamais mise à jour : son balayage effaçait une image
+ * que l'autre gardait, et l'autre ne pouvait jamais l'enlever. Les images
+ * sans étiquette (préparées avant 1.8.0) ne recevaient la leur que
+ * retéléchargées : chaque serveur effaçait celles de l'autre.
+ */
+describe('portées d’une image préparée', () => {
+  const tagged = (...scopes: string[]) => {
+    const e = entry('default', 10, 10);
+    if (scopes.length) e.headers.set(PREPARED_SCOPE_HEADER, scopes.join(','));
+    return e;
+  };
+  const scopes = (c: ReturnType<typeof statsCache>, url: string) =>
+    (c.entries[url]?.headers.get(PREPARED_SCOPE_HEADER) ?? '').split(',').filter(Boolean).map(decodeURIComponent);
+  const URL1 = 'https://cdn.example/logo.png';
+
+  it('une image déjà préparée par A, gardée par B, porte les deux portées', async () => {
+    const c = statsCache({ [URL1]: tagged('1@1') });
+    const res = await cacheImages([URL1], { fetchImage: image(), openCache: async () => c as never, openBrowsingCache: empty, scope: '2@2' });
+    expect(res.kept).toEqual([URL1]);
+    expect(scopes(c, URL1).sort()).toEqual(['1@1', '2@2']);
+  });
+
+  it('n’est effacée que quand plus aucune portée ne la garde', async () => {
+    const c = statsCache({ [URL1]: tagged('1@1', encodeURIComponent('2@2')) });
+    expect(await pruneImages(new Set(), async () => c as never, '1@1')).toBe(0);
+    expect(scopes(c, URL1), 'B la garde encore').toEqual(['2@2']);
+    expect(await pruneImages(new Set(), async () => c as never, '2@2')).toBe(1);
+    expect(c.entries[URL1]).toBeUndefined();
+  });
+
+  it('une image sans étiquette, reprise par une préparation, reçoit la portée qui la reprend', async () => {
+    const c = statsCache({ [URL1]: tagged() });
+    await cacheImages([URL1], { fetchImage: image(), openCache: async () => c as never, openBrowsingCache: empty, scope: '7@1' });
+    expect(scopes(c, URL1)).toEqual(['7@1']);
+    // Le serveur 2 balaye ensuite : elle est au serveur 1, il n'y touche pas.
+    await pruneImages(new Set(), async () => c as never, '7@2');
+    expect(c.entries[URL1]).toBeDefined();
+  });
+
+  it('une image reprise du cache d’affichage est rangée avec sa portée', async () => {
+    const c = statsCache({});
+    const browsing = statsCache({ [URL1]: entry('default', 0, 10) });
+    await cacheImages([URL1], { fetchImage: image(), openCache: async () => c as never, openBrowsingCache: async () => browsing as never, scope: '7@1' });
+    expect(scopes(c, URL1)).toEqual(['7@1']);
+    expect(c.entries[URL1]?.headers.get(PREPARED_BYTES_HEADER)).toBe('10');
+  });
+
+  it('garde le contenu de l’image quand il réécrit son étiquette', async () => {
+    const real = new Response('octets', { headers: { [PREPARED_BYTES_HEADER]: '6', [PREPARED_SCOPE_HEADER]: '1@1' } });
+    const store = new Map<string, Response>([[URL1, real]]);
+    const c = {
+      keys: async () => [...store.keys()].map((url) => ({ url })),
+      match: async (r: string | { url: string }) => store.get(typeof r === 'string' ? r : r.url),
+      put: async (u: string, res: Response) => { store.set(u, res); },
+      delete: async (r: { url: string }) => store.delete(r.url),
+    };
+    await cacheImages([URL1], { fetchImage: image(), openCache: async () => c as never, openBrowsingCache: empty, scope: '2@2' });
+    expect(await store.get(URL1)!.clone().text()).toBe('octets');
+    await pruneImages(new Set(), async () => c as never, '2@2');
+    expect(await store.get(URL1)!.text()).toBe('octets');
+    expect(store.get(URL1)!.headers.get(PREPARED_SCOPE_HEADER)).toBe('1%401');
+  });
+});

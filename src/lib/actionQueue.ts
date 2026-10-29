@@ -11,9 +11,11 @@ export interface QueuedAction {
   labelId?: string;
   at: number;
   attempts: number;
-  /** Account and server it was made under (`user@server`): replayed only
-   *  there — an article number names another article on another server.
-   *  Absent on actions queued before 1.8.0, replayed under the current one. */
+  /** Account and server it was made under (`user@server`), taken at the
+   *  gesture, not at its failure: replayed only there — an article number
+   *  names another article on another server. Absent on actions queued
+   *  before 1.8.0: never replayed (whose they are is unknown), dropped at
+   *  the next logout. */
   scope?: string;
 }
 

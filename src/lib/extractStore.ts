@@ -9,6 +9,29 @@ export interface ExtractRecord extends ExtractedContent {
   id: string; // article id (primary key)
   cachedAt: number; // epoch ms — used for retention/eviction
   pinned: boolean; // favorites / read-later — never auto-evicted (used later)
+  /** Accounts and servers (`user@server`) that pinned it. The store is shared
+   *  by all of them and keyed by article id only: without this, warming one
+   *  server unpinned every other one's favorites. Absent on a record pinned
+   *  before 1.8.0 — never unpinned, adopted by the next scope to pin it. */
+  pinScopes?: string[];
+}
+
+/** `rec` pinned for `scope` too, or `null` when it already is. */
+export function pinnedFor(rec: ExtractRecord, scope: string): ExtractRecord | null {
+  const scopes = rec.pinScopes ?? [];
+  if (rec.pinned && scopes.includes(scope)) return null;
+  return { ...rec, pinned: true, pinScopes: [...scopes, scope] };
+}
+
+/**
+ * `rec` once `scope` no longer wants it (not in `keep`), or `null` when this
+ * changes nothing: another scope's pin, or one from before 1.8.0 — it is
+ * unknown whose it is, and unpinning it lets the next start evict it.
+ */
+export function unpinnedFor(rec: ExtractRecord, keep: ReadonlySet<string>, scope: string): ExtractRecord | null {
+  if (!rec.pinned || keep.has(rec.id) || !rec.pinScopes?.includes(scope)) return null;
+  const rest = rec.pinScopes.filter((s) => s !== scope);
+  return { ...rec, pinned: rest.length > 0, pinScopes: rest };
 }
 
 const DB_NAME = 'frirss';
@@ -90,9 +113,10 @@ export async function dbRecent(limit: number): Promise<ExtractRecord[]> {
   }
 }
 
-/** Unpin every pinned record whose id is not in `keep`: it falls back under
- *  the normal retention (`dbEvictOlderThan`). Nothing ever unpinned before. */
-export async function dbUnpinExcept(keep: ReadonlySet<string>): Promise<void> {
+/** Release `scope`'s pin on every record whose id is not in `keep`: once no
+ *  scope pins it, it falls back under the normal retention
+ *  (`dbEvictOlderThan`). Nothing ever unpinned before. */
+export async function dbUnpinExcept(keep: ReadonlySet<string>, scope: string): Promise<void> {
   try {
     const db = await openDB();
     await new Promise<void>((resolve) => {
@@ -101,8 +125,8 @@ export async function dbUnpinExcept(keep: ReadonlySet<string>): Promise<void> {
       cur.onsuccess = () => {
         const c = cur.result;
         if (c) {
-          const rec = c.value as ExtractRecord;
-          if (rec.pinned && !keep.has(rec.id)) c.update({ ...rec, pinned: false });
+          const next = unpinnedFor(c.value as ExtractRecord, keep, scope);
+          if (next) c.update(next);
           c.continue();
         } else {
           resolve();
@@ -139,10 +163,9 @@ export async function dbEvictOlderThan(ts: number): Promise<void> {
   }
 }
 
-export async function dbSetPinned(id: string, pinned: boolean): Promise<void> {
+/** Pin an existing record for `scope` (no-op when absent or already so). */
+export async function dbPinFor(id: string, scope: string): Promise<void> {
   const rec = await dbGet(id);
-  if (rec && rec.pinned !== pinned) {
-    rec.pinned = pinned;
-    await dbPut(rec);
-  }
+  const next = rec && pinnedFor(rec, scope);
+  if (next) await dbPut(next);
 }

@@ -51,8 +51,36 @@ const BATCH = 4;
 /** Real size of a prepared image, written at preparation so reading the
  *  stats never has to load the bodies. */
 export const PREPARED_BYTES_HEADER = 'X-FriRSS-Bytes';
-/** Account and server that prepared an entry: one browser, several servers. */
+/** Accounts and servers that keep an entry (`user@server`, comma-separated,
+ *  each URI-encoded): one browser, several servers, and an image — a logo,
+ *  an avatar — may be wanted by more than one of them. */
 export const PREPARED_SCOPE_HEADER = 'X-FriRSS-Scope';
+
+/** Scopes keeping an entry; empty for one prepared before 1.8.0. A single
+ *  plain `7@1` (the first form of the header) reads the same. */
+export function entryScopes(res: Response | undefined): string[] {
+  const raw = res?.headers?.get?.(PREPARED_SCOPE_HEADER);
+  if (!raw) return [];
+  return raw.split(',').map((s) => s.trim()).filter(Boolean).map((s) => {
+    try { return decodeURIComponent(s); } catch { return s; }
+  });
+}
+
+/**
+ * Rewrite an entry with another list of scopes. The bytes are copied as they
+ * are: the Cache API cannot change a stored response's headers in place.
+ * Reads a clone, so `res` itself stays usable.
+ */
+async function rewriteScopes(cache: Cache, url: string, res: Response, scopes: string[], size?: number): Promise<void> {
+  const copy = typeof res.clone === 'function' ? res.clone() : res;
+  const headers = new Headers(copy.headers ?? undefined);
+  headers.set(PREPARED_SCOPE_HEADER, scopes.map(encodeURIComponent).join(','));
+  if (size != null && !headers.has(PREPARED_BYTES_HEADER)) headers.set(PREPARED_BYTES_HEADER, String(size));
+  const body = typeof copy.arrayBuffer === 'function'
+    ? await copy.arrayBuffer()
+    : typeof copy.blob === 'function' ? await copy.blob() : null;
+  await cache.put(url, new Response(body, { headers }));
+}
 
 /**
  * Fetch an image through the backend proxy, exactly like feed favicons.
@@ -165,7 +193,11 @@ export async function pruneImages(
   keep: Set<string>,
   openCache: () => Promise<Cache> = opener(PREPARED_IMAGE_CACHE_NAME),
   /** Only this account and server's entries (and untagged older ones) go:
-   *  preparing server 2 removed every image prepared for server 1. */
+   *  preparing server 2 removed every image prepared for server 1. An entry
+   *  another scope also keeps only loses this one's mark — it goes when no
+   *  scope keeps it any more. What a scope that never comes back still
+   *  marks (a removed server) waits for "empty the images", which clears
+   *  them all. */
   scope?: string,
 ): Promise<number> {
   let removed = 0;
@@ -178,8 +210,16 @@ export async function pruneImages(
     for (const req of await cache.keys()) {
       if (wanted.has(req.url)) continue;
       if (scope) {
-        const tag = (await cache.match(req))?.headers?.get?.(PREPARED_SCOPE_HEADER);
-        if (tag && tag !== scope) continue;
+        const res = await cache.match(req);
+        const scopes = entryScopes(res);
+        if (scopes.length && !scopes.includes(scope)) continue;
+        const others = scopes.filter((s) => s !== scope);
+        if (others.length && res) {
+          // Encore voulue ailleurs : seule la marque de cette portée s'en va.
+          // Une réécriture refusée la laisse telle quelle, jamais effacée.
+          await rewriteScopes(cache, req.url, res, others).catch(() => {});
+          continue;
+        }
       }
       if (await cache.delete(req)) removed++;
     }
@@ -249,7 +289,17 @@ export async function cacheImages(
         try {
           const ready = await cache.match(url);
           if (ready) { // already offline-ready
-            const size = await preparedSize(ready);
+            // Measured on a copy: an older entry without the size header is
+            // measured by reading its body, which the rewrite below needs.
+            const size = await preparedSize(typeof ready.clone === 'function' ? ready.clone() : ready);
+            // Kept by this scope too, from now on: marked by another scope
+            // only (or by none, before 1.8.0), its sweep removed an image
+            // this one still wanted. A refused rewrite (full device) keeps
+            // the image as it was.
+            const scopes = entryScopes(ready);
+            if (deps.scope && !scopes.includes(deps.scope)) {
+              await rewriteScopes(cache, url, ready, [...scopes, deps.scope], size).catch(() => {});
+            }
             reusedBytes += size;
             keep(url, size);
             return;
@@ -262,7 +312,10 @@ export async function cacheImages(
           if (older && isLegacyPrepared(url, older, origin)) {
             // Measured on a copy first: `put` consumes the body.
             const size = await preparedSize(older.clone());
-            await cache.put(url, older);
+            // Adopted with this scope's mark, or the next sweep of any other
+            // scope would take it for an untagged leftover.
+            if (deps.scope) await rewriteScopes(cache, url, older, [deps.scope], size);
+            else await cache.put(url, older);
             await browsing?.delete(url);
             reusedBytes += size;
             keep(url, size);

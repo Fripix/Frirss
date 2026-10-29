@@ -27,7 +27,9 @@ vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));
 import { getStreamContents } from '../api/feeds';
 import { imageBudget } from '../lib/offlineImages';
 import { cacheImages, pruneImages } from '../lib/imageCache';
+import { listPut } from '../lib/offlineStore';
 import { useFeedStore } from './feedStore';
+import { useAuthStore } from './authStore';
 
 /*
  * Les images préparées ont leur propre cache, que rien n'évince seul : la
@@ -188,5 +190,48 @@ describe('prepareOffline — images préparées', () => {
     vi.mocked(cacheImages).mockImplementation(async (urls) => result(urls, 10));
     await useFeedStore.getState().prepareOffline();
     expect(useFeedStore.getState().offlinePrep?.phase).toBe('done');
+  });
+});
+
+/*
+ * La préparation dure plusieurs minutes et relisait la portée en route : une
+ * bascule vers le serveur 2 étiquetait ses images suivantes « serveur 2 »,
+ * puis le balayage final tournait sous le serveur 2 avec la liste du 1 — et
+ * effaçait toutes les images préparées pour le 2.
+ */
+describe('prepareOffline — la portée change en cours de route (M5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true });
+    vi.mocked(imageBudget).mockReturnValue({ bytes: 100000, perArticle: 1 });
+    vi.mocked(getStreamContents).mockResolvedValue({ items: [item(1), item(2), item(3)], continuation: null } as never);
+    useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
+    useFeedStore.setState({ offlinePrep: null, subscriptions: [{ id: 'feed/1', title: 'F' } as never, { id: 'feed/2', title: 'G' } as never] });
+  });
+
+  it('bascule en phase images : s’interrompt, sans balayage ni étiquette de l’autre serveur', async () => {
+    const scopes: string[] = [];
+    vi.mocked(cacheImages).mockImplementation(async (urls, deps) => {
+      scopes.push(String(deps?.scope));
+      if (scopes.length === 1) useAuthStore.getState().setFreshrssAuth('2', 'https://b.example');
+      return result(urls, 10);
+    });
+    await useFeedStore.getState().prepareOffline();
+    expect(scopes.every((s) => s === '7@1'), scopes.join()).toBe(true);
+    expect(scopes.length, 'arrêtée après la bascule').toBe(1);
+    expect(pruneImages).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().offlinePrep?.running).toBe(false);
+  });
+
+  it('bascule en phase listes : aucune liste rangée sous la nouvelle portée', async () => {
+    vi.mocked(cacheImages).mockImplementation(async (urls) => result(urls, 10));
+    vi.mocked(getStreamContents).mockImplementation(async () => {
+      useAuthStore.getState().setFreshrssAuth('2', 'https://b.example');
+      return { items: [item(1)], continuation: null } as never;
+    });
+    await useFeedStore.getState().prepareOffline();
+    const keys = vi.mocked(listPut).mock.calls.map((c) => String(c[0]));
+    expect(keys.filter((k) => !k.startsWith('7@1|')), keys.join()).toEqual([]);
+    expect(pruneImages).not.toHaveBeenCalled();
   });
 });

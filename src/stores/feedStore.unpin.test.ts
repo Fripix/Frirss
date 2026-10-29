@@ -17,8 +17,10 @@ vi.mock('../api/feeds', async () => {
 vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));
 
 import { getStarredItems, getStreamContents } from '../api/feeds';
-import { unpinExtractsExcept } from '../lib/extractCache';
+import { pinExtract, unpinExtractsExcept } from '../lib/extractCache';
+import { listPut } from '../lib/offlineStore';
 import { useFeedStore } from './feedStore';
+import { useAuthStore } from './authStore';
 
 /*
  * Un extrait est épinglé (jamais évincé) tant que l'article est en favori ou
@@ -31,13 +33,32 @@ describe('warmOfflineCache — épingles des extraits', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true });
+    useAuthStore.setState({ backendToken: 'jwt', backendUser: { id: 7 } as never, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
   });
 
-  it('désépingle ce qui n’est plus ni favori ni à lire plus tard', async () => {
+  it('désépingle ce qui n’est plus ni favori ni à lire plus tard — pour sa portée seulement', async () => {
     vi.mocked(getStarredItems).mockResolvedValue({ items: [item('s1')], continuation: null } as never);
     vi.mocked(getStreamContents).mockResolvedValue({ items: [item('r1')], continuation: null } as never);
     await useFeedStore.getState().warmOfflineCache();
-    expect(unpinExtractsExcept).toHaveBeenCalledWith(new Set(['s1', 'r1']));
+    // Le magasin d'extraits est commun : sans portée, le réchauffage d'un
+    // serveur désépinglait les favoris de tous les autres.
+    expect(unpinExtractsExcept).toHaveBeenCalledWith(new Set(['s1', 'r1']), '7@1');
+    expect(pinExtract).toHaveBeenCalledWith('s1', '7@1');
+  });
+
+  it('bascule de serveur pendant la lecture des favoris : rien n’est écrit sous la nouvelle portée (B7)', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    vi.mocked(getStarredItems).mockImplementation(async () => { await gate; return { items: [item('s1')], continuation: null } as never; });
+    vi.mocked(getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    const p = useFeedStore.getState().warmOfflineCache();
+    await new Promise((r) => setTimeout(r, 0));
+    useAuthStore.getState().setFreshrssAuth('2', 'https://b.example');
+    release();
+    await p;
+    expect(listPut).not.toHaveBeenCalled();
+    expect(unpinExtractsExcept).not.toHaveBeenCalled();
+    expect(pinExtract).not.toHaveBeenCalled();
   });
 
   it('ne désépingle rien quand une liste est tronquée ou n’a pas pu être lue', async () => {

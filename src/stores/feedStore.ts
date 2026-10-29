@@ -32,13 +32,15 @@ import {
 } from '../lib/searchCorpus';
 import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
+import { jwtUserId } from '../lib/jwtUserId';
+import { isBackendAuthFailure } from '../lib/loginErrors';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
 import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
 import { homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract, unpinExtractsExcept } from '../lib/extractCache';
-import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut, clearOfflineViews } from '../lib/offlineStore';
+import { listGet, listPut, listEvictOlderThan, listsWithoutSource, subsGet, subsPut, queueGet, queuePut, clearOfflineViews } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
 import { countNewInView, viewFeedIds } from '../lib/newArticles';
 import { isValidCategoryName } from '../lib/feedCategories';
@@ -277,9 +279,21 @@ const viewKey = (feed: Subscription | null, filter: Filter) =>
  * l'accueil du précédent, et un serveur servait les listes d'un autre.
  */
 function offlineScope(): string {
-  const { backendUser, activeServerId } = useAuthStore.getState();
-  return `${backendUser?.id ?? ''}@${activeServerId ?? ''}`;
+  return scopeOf(useAuthStore.getState());
 }
+/**
+ * Le compte vient du jeton d'abord, comme `prefsSync` : au retour SSO,
+ * `backendUser` reste nul tant que `getMe` n'a pas abouti — souvent pendant
+ * une panne, justement — et les actions mises en file sous `@1` ne passaient
+ * plus le filtre du rejeu une fois l'utilisateur connu (`7@1`).
+ */
+function accountOf(auth: Pick<AuthSnapshot, 'backendToken' | 'backendUser'>): string {
+  return String(jwtUserId(auth.backendToken) ?? auth.backendUser?.id ?? '');
+}
+function scopeOf(auth: AuthSnapshot): string {
+  return `${accountOf(auth)}@${auth.activeServerId ?? ''}`;
+}
+type AuthSnapshot = Pick<ReturnType<typeof useAuthStore.getState>, 'backendToken' | 'backendUser' | 'activeServerId'>;
 const storedKey = (key: string) => `${offlineScope()}|${key}`; // la barre latérale (les listes passent par `viewKey`)
 
 // A category is opened as its Google Reader label stream (user/-/label/Name).
@@ -774,12 +788,56 @@ async function loadQueue(): Promise<QueuedAction[]> {
   return actionQueue;
 }
 
+/** Ce que le compteur du bandeau annonce : les actions qui partiront ICI.
+ *  Celles d'un autre compte ou serveur attendent le leur, sans rien devoir
+ *  à celui-ci ; les anciennes, sans portée, ne partent plus (voir le rejeu). */
+const pendingHere = (scope: string = offlineScope()) => actionQueue.filter((a) => a.scope === scope).length;
+
+/**
+ * Un geste d'article (lu, favori, étiquette), relevé AVANT son appel réseau.
+ *
+ * La portée est celle du moment du geste : l'échec peut arriver jusqu'à 75 s
+ * plus tard (`TIMEOUT_DEFAULT_MS`), après un changement de serveur, et
+ * l'action était alors rangée — puis rejouée — sous le serveur suivant, où
+ * le même numéro désigne un autre article. Le numéro d'ordre départage deux
+ * gestes sur le même article : un ancien qui échoue après qu'un plus récent
+ * a réussi ne doit pas entrer en file.
+ */
+interface Gesture { scope: string; seq: number }
+let gestureSeq = 0;
+const gesture = (): Gesture => ({ scope: offlineScope(), seq: ++gestureSeq });
+/** Clé d'action → numéro du dernier geste confirmé en direct par le serveur. */
+const settledGestures = new Map<string, number>();
+
+/**
+ * Le serveur vient de confirmer un geste en direct : toute action en attente
+ * sur le même article et le même attribut est périmée. Laissée en file, elle
+ * écrasait ce geste au rejeu suivant — une action qui attend le retour de sa
+ * portée peut attendre longtemps.
+ */
+async function settleAction(
+  set: (partial: Partial<FeedState>) => void,
+  g: Gesture,
+  articleId: string,
+  type: QueuedActionType,
+  labelId?: string,
+): Promise<void> {
+  const key = `${g.scope}|${actionKey(articleId, type, labelId)}`;
+  if ((settledGestures.get(key) ?? 0) < g.seq) settledGestures.set(key, g.seq);
+  await loadQueue();
+  if (!actionQueue.some((a) => a.key === key)) return;
+  actionQueue = actionQueue.filter((a) => a.key !== key);
+  await queuePut(actionQueue);
+  set({ pendingActions: pendingHere() });
+}
+
 /**
  * Remember an action that failed for lack of network, so it can be replayed.
  * Business refusals never come here — see isNetworkFailure.
  */
 async function enqueueAction(
   set: (partial: Partial<FeedState>) => void,
+  g: Gesture,
   articleId: string,
   type: QueuedActionType,
   value: boolean,
@@ -800,14 +858,17 @@ async function enqueueAction(
   // qu'au montage et sur l'événement `online` : une action encore en attente
   // aurait sinon masqué la pastille pour toute une session).
   skipNextArrivals = true;
+  const { scope } = g;
+  const key = `${scope}|${actionKey(articleId, type, labelId)}`;
+  // Un geste plus récent sur le même article a déjà été confirmé : celui-ci,
+  // resté en vol jusqu'au délai d'attente, est dépassé.
+  if ((settledGestures.get(key) ?? 0) > g.seq) return;
   await loadQueue();
-  const scope = offlineScope();
   actionQueue = mergeAction(actionQueue, {
-    key: `${scope}|${actionKey(articleId, type, labelId)}`,
-    articleId, type, value, labelId, at: Date.now(), attempts: 0, scope,
+    key, articleId, type, value, labelId, at: Date.now(), attempts: 0, scope,
   });
   await queuePut(actionQueue);
-  set({ pendingActions: actionQueue.length });
+  set({ pendingActions: pendingHere() });
 }
 
 const IDLE_SCAN: SearchScan = { running: false, scanned: 0, done: false, stopped: false, error: null };
@@ -982,10 +1043,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // NOTE: reading an article goes through here, NOT through toggleRead —
     // this is the path that must survive being offline.
     readWritesInFlight++; // Important 1 — voir la garde en tête de fichier
-    markAsRead(article.id).catch((err) => {
+    const g = gesture();
+    // Le règlement de la file ne doit jamais passer pour un échec de l'écriture.
+    markAsRead(article.id).then(() => { settleAction(set, g, article.id, 'read').catch(() => {}); }).catch((err) => {
       // No network: keep it read and replay later. Only a refusal is reverted.
       if (isNetworkFailure(err)) {
-        enqueueAction(set, article.id, 'read', true);
+        enqueueAction(set, g, article.id, 'read', true);
         return;
       }
       set((state) => ({
@@ -1192,39 +1255,50 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   // offline. Also evicts cached lists older than the 30-day retention window.
   warmOfflineCache: async () => {
     listEvictOlderThan(Date.now() - 30 * 24 * 60 * 60 * 1000).catch(() => {});
+    // Clés et portée relevées AVANT les attentes : une bascule pendant la
+    // lecture des favoris rangeait ceux du serveur quitté sous le nouveau
+    // (servis hors ligne sur le mauvais serveur), ou sous `@` après une
+    // déconnexion — réécrits après l'effacement des vues du compte parti.
+    const scope = offlineScope();
+    const starredKey = viewKey(null, 'starred');
+    const readLaterKey = viewKey(null, 'readlater');
+    const sameScope = () => offlineScope() === scope;
     try {
       const [starred, readLater] = await Promise.all([
         getStarredItems(100).catch(() => null),
         getStreamContents(READ_LATER_LABEL, 100, null).catch(() => null),
       ]);
+      if (!sameScope()) return;
       const pinned: Article[] = [];
       if (starred?.items?.length) {
         const arts = starred.items.map(normalizeArticle);
-        await listPut(viewKey(null, 'starred'), arts, starred.continuation);
+        await listPut(starredKey, arts, starred.continuation);
         pinned.push(...arts);
       }
       if (readLater?.items?.length) {
         const arts = readLater.items.map(normalizeArticle);
-        await listPut(viewKey(null, 'readlater'), arts, readLater.continuation);
+        await listPut(readLaterKey, arts, readLater.continuation);
         pinned.push(...arts);
       }
-      // Both lists read whole: whatever else is pinned is no longer starred
-      // nor read-later — its extract goes back under the normal retention.
-      // Not on a truncated or failed list (it would unpin what it never saw).
+      // Both lists read whole: whatever else THIS scope pinned is no longer
+      // starred nor read-later — once no scope pins it, its extract goes back
+      // under the normal retention. Not on a truncated or failed list (it
+      // would unpin what it never saw).
       if (starred && readLater && starred.continuation == null && readLater.continuation == null) {
-        unpinExtractsExcept(new Set(pinned.map((a) => a.id))).catch(() => {});
+        unpinExtractsExcept(new Set(pinned.map((a) => a.id)), scope).catch(() => {});
       }
       // Extract + pin each (sequential, skip already cached) for offline reading.
       const { extractFullContent } = await import('../utils/extractContent');
       for (const a of pinned) {
+        if (!sameScope()) return; // le serveur quitté n'a plus rien à préparer ici
         if (!a.url) continue;
         if (peekExtract(a.id) || (await getExtract(a.id))) {
-          pinExtract(a.id).catch(() => {});
+          pinExtract(a.id, scope).catch(() => {});
           continue;
         }
         try {
           const content = await extractFullContent(a.url);
-          await putExtract(a.id, content, { pinned: true });
+          await putExtract(a.id, content, { pinned: true, scope });
         } catch { /* ignore */ }
       }
     } catch { /* ignore */ }
@@ -1246,6 +1320,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       try { void navigator.storage?.persist?.().catch(() => {}); } catch { /* unsupported */ }
     }
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    // Figée au départ : la préparation dure plusieurs minutes, et la relire en
+    // route étiquetait les images suivantes du nom du serveur où l'on venait
+    // de passer — puis le balayage final tournait sous ce serveur-là avec la
+    // liste de l'autre, et effaçait toutes ses images préparées. Une bascule
+    // (ou une déconnexion) interrompt la préparation, comme une coupure.
+    const scope = offlineScope();
+    const scopeLeft = () => offlineScope() !== scope;
     set({ offlinePrep: { running: true, phase: 'lists', done: 0, total: 0 } });
     try {
       const subs = get().subscriptions;
@@ -1257,6 +1338,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       let interrupted = subs.length === 0;
       // Phase 1 — gather recent articles per feed + persist their lists.
       for (const feed of subs) {
+        if (scopeLeft()) { interrupted = true; break; }
         try {
           let cont: string | null = null;
           let pages = 0;
@@ -1270,6 +1352,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             pages++;
             if ((arts[arts.length - 1]?.published ?? 0) < cutoff) break; // past 30 days
           } while (cont && pages < 8);
+          // Pas de liste rangée sous une autre portée que celle qui l'a lue.
+          if (scopeLeft()) { interrupted = true; break; }
           const recent = feedArts.filter((a) => a.published >= cutoff);
           if (recent.length) {
             await listPut(viewKey(feed, 'all'), recent.slice(0, PAGE_SIZE), null);
@@ -1300,6 +1384,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       let done = 0;
       for (const a of ordered) {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) { interrupted = true; break; }
+        if (scopeLeft()) { interrupted = true; break; }
 
         let extracted: string | null = peekExtract(a.id)?.content ?? null;
         if (a.url && !extracted) {
@@ -1322,7 +1407,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // Device full: nothing is downloaded any more, but the images already
           // prepared are still looked up — kept and counted in the budget — or
           // the final sweep, the only one that frees space, would drop them.
-          const res = await cacheImages(urls, { scope: offlineScope(), ...(deviceFull ? { noFetch: true } : {}) });
+          const res = await cacheImages(urls, { scope, ...(deviceFull ? { noFetch: true } : {}) });
           imagesStored += res.stored;
           imagesFailed += res.failed;
           imagesError ??= res.error;
@@ -1355,7 +1440,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // may decide what is no longer wanted: not one cut short by the network or
       // by an unopenable cache, and not one with images turned off (that keeps
       // what was prepared rather than wiping it).
-      if (!interrupted && budget.bytes > 0) await pruneImages(keptImages, undefined, offlineScope());
+      if (!interrupted && !scopeLeft() && budget.bytes > 0) await pruneImages(keptImages, undefined, scope);
       set({
         offlinePrep: {
           running: false, phase: 'done', done, total: ordered.length,
@@ -1528,6 +1613,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   toggleRead: async (article, opts) => {
     const newRead = !article.read;
+    const g = gesture(); // portée du geste, pas celle de l'échec — voir `Gesture`
     // Une seule page de rattrapage, décidée au moment du retrait et exécutée
     // APRÈS le `try` : un geste ⇒ au plus une requête, sans effet React pour
     // la relancer (voir `src/lib/listTopUp.ts` pour les deux emballements que
@@ -1591,6 +1677,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         readWritesInFlight--;
         bumpCountsEpoch(); // règlement (succès ou échec)
       }
+      await settleAction(set, g, article.id, 'read').catch(() => {});
       // La purge du cache MÉMOIRE des vues attend la confirmation : c'est le
       // seul cache qu'un refus n'a alors rien à défaire, la ligne réinsérée y
       // étant toujours. (Le cache durable, lui, est déjà réécrit d'avance par
@@ -1624,7 +1711,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // de temps. C'est le symptôme exact de l'issue #10, par le seul chemin
         // qui ne purgeait pas.
         if (leaving) memRemoveFromViews(article.id, 'unread');
-        await enqueueAction(set, article.id, 'read', newRead);
+        await enqueueAction(set, g, article.id, 'read', newRead);
         // La ligne reste partie alors que RIEN n'a été écrit. Hors ligne, le
         // bandeau global suffit ; en ligne — un 5xx de FreshRSS, une requête
         // restée sans réponse — plus rien ne le signalait.
@@ -1706,17 +1793,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     persistCurrentView(get);
     // Le corpus gardé suit l'optimisme, comme sur `toggleRead`.
     patchSearchCorpus(article.id, { starred: newStarred });
+    const g = gesture();
     try {
       if (newStarred) {
         await markAsStarred(article.id);
       } else {
         await removeStarred(article.id);
       }
+      await settleAction(set, g, article.id, 'star').catch(() => {});
     } catch (err) {
       // No network: keep the optimistic state and replay it later. Only a
       // server refusal is rolled back.
       if (isNetworkFailure(err)) {
-        await enqueueAction(set, article.id, 'star', newStarred);
+        await enqueueAction(set, g, article.id, 'star', newStarred);
         return;
       }
       // Rollback on failure — un simple `.map()` suffit désormais : plus rien
@@ -2322,8 +2411,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // Le corpus gardé suit l'optimisme, comme sur `toggleRead` — calculé sur
     // l'entrée courante, comme le rollback ci-dessous.
     patchSearchCorpus(article.id, (a) => ({ labels: withLabel(a.labels, READ_LATER_LABEL, !removing) }));
+    const g = gesture();
     try {
       await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
+      await settleAction(set, g, article.id, 'readLater').catch(() => {});
       // Le retrait vient APRÈS la confirmation, jamais avant : le rollback
       // ci-dessous ne fait qu'un `.map()` et ne saurait pas remettre une ligne
       // déjà sortie de la liste.
@@ -2342,7 +2433,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // No network: keep the optimistic state and replay it later. Only a
       // server refusal is rolled back.
       if (isNetworkFailure(err)) {
-        await enqueueAction(set, article.id, 'readLater', !hasLabel);
+        await enqueueAction(set, g, article.id, 'readLater', !hasLabel);
         return;
       }
       // Rollback on failure
@@ -2386,15 +2477,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // Le corpus gardé suit l'optimisme, comme sur `toggleReadLater` : sans
     // ce relais, la recherche suivante ressortait l'article sans l'étiquette.
     patchSearchCorpus(article.id, (a) => ({ labels: withLabel(a.labels, labelId, !hasLabel) }));
+    const g = gesture();
     try {
       await setArticleLabel(article.id, labelId, !hasLabel);
+      await settleAction(set, g, article.id, 'label', labelId).catch(() => {});
       // Refresh labels list in case a new label was created
       get().loadLabels();
     } catch (err) {
       // No network: keep the optimistic state and replay it later. Only a
       // server refusal is rolled back.
       if (isNetworkFailure(err)) {
-        await enqueueAction(set, article.id, 'label', !hasLabel, labelId);
+        await enqueueAction(set, g, article.id, 'label', !hasLabel, labelId);
         return;
       }
       console.error('[FriRSS] toggleArticleLabel failed:', err);
@@ -2544,8 +2637,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   removeFeed: async (feedId) => {
+    // Relevés AVANT l'appel : après une bascule de serveur pendant l'attente,
+    // `feed/12` désigne un autre flux, que le reste retirait de la barre
+    // latérale du nouveau serveur et de son instantané.
+    const scope = offlineScope();
+    const subsKey = storedKey('subscriptions');
     try {
       await unsubscribeFeed(feedId);
+      // Le désabonnement a bien eu lieu sur l'ancien serveur ; il n'y a plus
+      // rien à retirer ici (la barre latérale de l'ancien se rechargera).
+      if (offlineScope() !== scope) return true;
       const wasOpen = get().selectedFeed?.id === feedId;
       // Le flux part de partout, pas seulement de la barre latérale : ses
       // articles restaient affichés sous « Tous les flux », avec son compteur,
@@ -2562,7 +2663,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         };
       });
       memCache.clear();
-      subsPut(storedKey('subscriptions'), get().subscriptions).catch(() => {});
+      subsPut(subsKey, get().subscriptions).catch(() => {});
+      // Les listes gardées pour le hors ligne aussi : sans quoi l'accueil,
+      // rechargé hors ligne, réaffichait les articles du flux retiré.
+      listsWithoutSource(`${scope}|`, feedId).catch(() => {});
       if (wasOpen) void get().loadArticles();
       return true;
     } catch {
@@ -2832,17 +2936,40 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const queue = await loadQueue();
     if (!queue.length) return;
 
-    // Seules les actions du compte et du serveur actifs partent (une ancienne
-    // action, sans portée, est réputée d'ici) ; les autres attendent le leur.
+    // Seules les actions du compte et du serveur actifs partent ; les autres
+    // attendent le leur. Une ancienne action, sans portée (avant 1.8.0), ne
+    // part plus du tout : rien ne dit sous quel compte elle a été faite, et la
+    // file survit aux déconnexions — elle partait vers le compte suivant. Elle
+    // est retirée avec la prochaine déconnexion (abonnement en fin de fichier).
     const scope = offlineScope();
-    const mine = queue.filter((a) => !a.scope || a.scope === scope);
+    const mine = queue.filter((a) => a.scope === scope);
     if (!mine.length) return;
+
+    // Revérifié avant CHAQUE action, comme `restoreUnread` : le rejeu peut
+    // porter des dizaines d'écritures, et un changement de serveur en route
+    // envoyait les suivantes au nouveau (le client lit le serveur actif au
+    // moment de la requête), qui les acceptait sans effet — sorties de la
+    // file, perdues pour le premier. Après une déconnexion, elles partaient
+    // brutes, hors du proxy, recevaient un 404 et étaient jetées.
+    const jeton = auth.backendToken;
+    const serveur = String(auth.activeServerId);
+    const memeContexte = () => {
+      const now = useAuthStore.getState();
+      return now.backendToken === jeton && String(now.activeServerId ?? '') === serveur && offlineScope() === scope;
+    };
 
     const remaining: QueuedAction[] = [];
     let failed = 0;
     let stopped = false;
     for (const action of mine) {
+      if (!stopped && !memeContexte()) stopped = true;
+      // Arrêté : l'action et les suivantes restent, intactes, pour le retour
+      // de leur portée (qui relance le rejeu, voir l'abonnement plus bas).
       if (stopped) { remaining.push(action); continue; }
+      // Remplacée ou réglée par un geste direct depuis le début du rejeu :
+      // l'envoyer écraserait ce geste.
+      const current = actionQueue.find((a) => a.key === action.key);
+      if (!current || current.at !== action.at) continue;
       try {
         if (action.type === 'read') {
           await (action.value ? markAsRead(action.articleId) : markAsUnread(action.articleId));
@@ -2853,14 +2980,22 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         } else if (action.type === 'label' && action.labelId) {
           await setArticleLabel(action.articleId, action.labelId, action.value);
         }
+        // La bascule a eu lieu PENDANT l'envoi : rien ne dit quel serveur
+        // l'a reçue. Gardée — renvoyer le même état est sans danger.
+        if (!memeContexte()) { stopped = true; remaining.push(action); }
       } catch (err) {
-        // Session refused: not the action's fault. Keep it and the rest, stop
-        // here — the 401 logs out, and the next session replays them.
-        if ((err as { response?: { status?: number } })?.response?.status === 401) {
+        // Le contexte a changé pendant l'envoi (déconnexion, autre serveur),
+        // ou notre propre session est refusée : ni l'un ni l'autre n'est la
+        // faute de l'action. Elle et les suivantes restent.
+        if (!memeContexte() || isBackendAuthFailure(err)) {
           stopped = true;
           remaining.push(action);
           continue;
         }
+        // Un 401 relayé de FreshRSS (mot de passe d'API changé) ne déconnecte
+        // pas FriRSS : traité comme le gardait la file — un refus, annoncé
+        // par `failedActions`. Le garder bloquait la file pour toujours, sans
+        // rien dire, puisque la session restait ouverte.
         const attempts = action.attempts + 1;
         // A refusal will never succeed; only keep what is worth retrying.
         if (isNetworkFailure(err) && shouldRetry(attempts)) remaining.push({ ...action, attempts });
@@ -2887,7 +3022,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       return again ? [again] : [];
     });
     await queuePut(actionQueue);
-    set({ pendingActions: actionQueue.length, failedActions: failed });
+    set({ pendingActions: pendingHere(), failedActions: failed });
     })();
     replayInFlight = run;
     try {
@@ -3268,7 +3403,44 @@ useAuthStore.subscribe((state, prev) => {
   // barre latérale gardées pour le hors ligne ; la file d'actions, rangée par
   // compte, reste pour son retour).
   memCache.clear();
-  void clearOfflineViews();
+  // Les vues de CE compte seulement, tous serveurs confondus (`7@…|`) : la
+  // base est commune à tous les onglets, et un onglet resté sur un ancien
+  // compte effaçait, en se déconnectant, celles du compte ouvert à côté.
+  void clearOfflineViews(`${accountOf(prev)}@`);
+  void dropUnscopedActions();
+});
+
+/**
+ * Les actions mises en file avant 1.8.0 ne portent pas de compte : elles ne
+ * sont plus rejouées (voir `replayQueue`), et partent à la première
+ * déconnexion — c'est le seul moment où l'on sait qu'elles ne seront plus
+ * rattachées à rien de sûr.
+ */
+async function dropUnscopedActions(): Promise<void> {
+  await loadQueue();
+  if (!actionQueue.some((a) => !a.scope)) return;
+  actionQueue = actionQueue.filter((a) => a.scope);
+  await queuePut(actionQueue);
+  useFeedStore.setState({ pendingActions: pendingHere() });
+}
+
+/**
+ * La portée change (connexion, retour SSO, changement de serveur) : le
+ * compteur du bandeau suit, et les actions qui attendaient CETTE portée
+ * partent. Sans ce relais, elles n'étaient rejouées qu'au prochain
+ * rechargement ou retour du réseau — et écrasaient entre-temps les gestes
+ * faits en ligne sur les mêmes articles. Un rejeu en cours pour l'ancienne
+ * portée s'arrête de lui-même (`memeContexte`) : on l'attend, puis on relance.
+ */
+useAuthStore.subscribe((state, prev) => {
+  const scope = scopeOf(state);
+  if (scope === scopeOf(prev)) return;
+  if (queueLoaded) useFeedStore.setState({ pendingActions: pendingHere(scope) });
+  if (!state.backendToken || !state.activeServerId) return;
+  void (replayInFlight ?? Promise.resolve())
+    .catch(() => {})
+    .then(() => useFeedStore.getState().replayQueue())
+    .catch(() => {});
 });
 
 function normalizeArticle(item: GReaderItem): Article {

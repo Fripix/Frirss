@@ -3,7 +3,7 @@
 //   - backed by IndexedDB (persistent across reloads, survives offline).
 // Read order: memory → IndexedDB → (caller falls back to a live fetch).
 import type { ExtractedContent } from '../utils/extractContent';
-import { dbGet, dbPut, dbRecent, dbEvictOlderThan, dbSetPinned, dbUnpinExcept } from './extractStore';
+import { dbGet, dbPut, dbRecent, dbEvictOlderThan, dbPinFor, dbUnpinExcept, pinnedFor, type ExtractRecord } from './extractStore';
 
 const MEM_MAX = 80;
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -48,15 +48,24 @@ export async function getExtract(id: string): Promise<ExtractedContent | undefin
   return undefined;
 }
 
-/** Write-through: memory + IndexedDB. Preserves an existing pinned flag. */
-export async function putExtract(id: string, content: ExtractedContent, opts?: { pinned?: boolean }): Promise<void> {
+/** Write-through: memory + IndexedDB. Preserves an existing pin and the
+ *  scopes that hold it; `pinned` with a `scope` adds that scope. */
+export async function putExtract(
+  id: string,
+  content: ExtractedContent,
+  opts?: { pinned?: boolean; scope?: string },
+): Promise<void> {
   memSet(id, content);
-  let pinned = opts?.pinned ?? false;
-  if (!pinned) {
-    const existing = await dbGet(id);
-    if (existing?.pinned) pinned = true;
-  }
-  await dbPut({ ...content, id, cachedAt: Date.now(), pinned });
+  const existing = await dbGet(id);
+  const base: ExtractRecord = {
+    ...content, id, cachedAt: Date.now(),
+    pinned: existing?.pinned ?? false,
+    ...(existing?.pinScopes ? { pinScopes: existing.pinScopes } : {}),
+  };
+  const pinned = opts?.pinned && opts.scope
+    ? pinnedFor(base, opts.scope) ?? base
+    : { ...base, pinned: base.pinned || !!opts?.pinned };
+  await dbPut(pinned);
 }
 
 /** App start: evict content older than the retention window, then warm the
@@ -69,14 +78,16 @@ export async function hydrateExtractCache(): Promise<void> {
   }
 }
 
-export function pinExtract(id: string): Promise<void> {
-  return dbSetPinned(id, true);
+/** Pinned for this account and server (`user@server`). */
+export function pinExtract(id: string, scope: string): Promise<void> {
+  return dbPinFor(id, scope);
 }
 
-/** Articles no longer starred nor read-later lose their pin: their extract
- *  then ages out like any other. */
-export function unpinExtractsExcept(ids: ReadonlySet<string>): Promise<void> {
-  return dbUnpinExcept(ids);
+/** Articles no longer starred nor read-later for `scope` lose its pin: once
+ *  no scope pins them, their extract ages out like any other. Another
+ *  scope's favorites are left alone — the store is shared by all of them. */
+export function unpinExtractsExcept(ids: ReadonlySet<string>, scope: string): Promise<void> {
+  return dbUnpinExcept(ids, scope);
 }
 
 const REVALIDATE_AFTER_MS = 12 * 60 * 60 * 1000; // 12h

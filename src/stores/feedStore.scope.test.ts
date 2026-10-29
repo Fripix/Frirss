@@ -23,6 +23,7 @@ vi.mock('../lib/offlineStore', () => ({
   listGet: vi.fn(async (k: string) => idb.lists.get(k)),
   listPut: vi.fn(async (k: string, articles: unknown[], continuation: string | null) => { idb.lists.set(k, { articles, continuation }); }),
   listEvictOlderThan: vi.fn(async () => {}),
+  listsWithoutSource: vi.fn(async () => {}),
   subsGet: vi.fn(async (k: string) => idb.subs.get(k)),
   subsPut: vi.fn(async (k: string, s: unknown[]) => { idb.subs.set(k, s); }),
   clearOfflineViews: vi.fn(async () => { idb.lists.clear(); idb.subs.clear(); }),

@@ -127,18 +127,76 @@ export async function subsPut(key: string, subscriptions: Subscription[]): Promi
 }
 
 /**
- * Forget every cached list and subscriptions snapshot — on logout, so the next
- * account on this browser never sees the previous one's feeds and articles.
- * The action queue stays: each action names its account and server, and is
+ * Is this stored view the leaving account's? Keys start with the scope
+ * (`7@1|…`, see `feedStore`); an `accountPrefix` of `7@` covers every server
+ * of account 7. Keys without a scope (before 1.8.0) belong to no one any more
+ * and go with the first logout.
+ */
+export function ownedByAccount(key: string, accountPrefix: string): boolean {
+  return key.startsWith(accountPrefix) || !key.includes('|');
+}
+
+/**
+ * Forget the leaving account's cached lists and subscriptions snapshots — on
+ * logout, so the next account on this browser never sees its feeds and
+ * articles. Only that account's: the database is shared by every tab, and a
+ * stale tab logging out wiped the views of the account open next to it. The
+ * action queue stays: each action names its account and server, and is
  * replayed only under them.
  */
-export async function clearOfflineViews(): Promise<void> {
+export async function clearOfflineViews(accountPrefix: string): Promise<void> {
   try {
     const db = await openDB();
     await new Promise<void>((resolve) => {
       const t = transactionOn(conn, db, [LISTS, SUBS], 'readwrite');
-      t.objectStore(LISTS).clear();
-      t.objectStore(SUBS).clear();
+      for (const name of [LISTS, SUBS]) {
+        const cur = t.objectStore(name).openCursor();
+        cur.onsuccess = () => {
+          const c = cur.result;
+          if (!c) return;
+          if (ownedByAccount(String(c.primaryKey), accountPrefix)) c.delete();
+          c.continue();
+        };
+      }
+      t.oncomplete = () => resolve();
+      t.onerror = () => resolve();
+      t.onabort = () => resolve();
+    });
+  } catch { /* storage unavailable */ }
+}
+
+/**
+ * A stored list once a feed is gone: `null` when untouched, `'delete'` for
+ * the feed's own lists (`<scope>|feed/12:…`), otherwise the articles left.
+ */
+export function withoutSource(
+  record: Pick<ListRecord, 'key' | 'articles'>,
+  scopePrefix: string,
+  sourceId: string,
+): 'delete' | Article[] | null {
+  if (!record.key.startsWith(scopePrefix)) return null;
+  if (record.key.startsWith(`${scopePrefix}${sourceId}:`)) return 'delete';
+  if (!record.articles.some((a) => a.sourceId === sourceId)) return null;
+  return record.articles.filter((a) => a.sourceId !== sourceId);
+}
+
+/** Unsubscribed: the feed's articles leave every list kept for this scope —
+ *  the home view, reloaded offline, showed them again. */
+export async function listsWithoutSource(scopePrefix: string, sourceId: string): Promise<void> {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve) => {
+      const t = transactionOn(conn, db, LISTS, 'readwrite');
+      const cur = t.objectStore(LISTS).openCursor();
+      cur.onsuccess = () => {
+        const c = cur.result;
+        if (!c) return;
+        const rec = c.value as ListRecord;
+        const next = withoutSource(rec, scopePrefix, sourceId);
+        if (next === 'delete') c.delete();
+        else if (next) c.update({ ...rec, articles: next });
+        c.continue();
+      };
       t.oncomplete = () => resolve();
       t.onerror = () => resolve();
       t.onabort = () => resolve();
