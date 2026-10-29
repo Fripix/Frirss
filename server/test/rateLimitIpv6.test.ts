@@ -15,7 +15,9 @@ beforeAll(async () => {
 });
 
 describe('limite de connexion — IPv6', () => {
-  it('compte ensemble les adresses d’une même /56', async () => {
+  // Onze connexions, donc onze bcrypt de 12 tours : sous la charge de la suite
+  // complète, plus que les 5 s par défaut (échec intermittent du 2026-10-29).
+  it('compte ensemble les adresses d’une même /56', { timeout: 30_000 }, async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 11; i++) {
       const res = await request(app).post('/api/auth/login')
