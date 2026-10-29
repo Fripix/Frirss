@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import { reserveImgAspect } from '../lib/imageAspect';
+import { purifyToString, releaseDocument } from '../lib/parsedDocument';
 
 /** Blocs qui reçoivent `dir="auto"` dans le corps d'un article. */
 const DIR_AUTO_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'FIGCAPTION']);
@@ -58,7 +59,8 @@ const CONFIG = {
  */
 export function sanitizeHtml(html: string | null | undefined): string {
   if (!html) return '';
-  return DOMPurify.sanitize(html, CONFIG);
+  // Document interne vidé : voir `parsedDocument.ts` (vidéo, `<source media>`).
+  return purifyToString(html, CONFIG);
 }
 
 /** Un nœud qui ne montre rien : blancs (`&nbsp;` compris) ou `<br>`. */
@@ -119,8 +121,12 @@ export function sanitizeArticleBody(
   bodyPass = { eagerImages, images: 0, blockDir };
   try {
     const body = DOMPurify.sanitize(html, { ...CONFIG, RETURN_DOM: true }) as Element;
-    dropBlankLead(body);
-    return body.innerHTML;
+    try {
+      dropBlankLead(body);
+      return body.innerHTML;
+    } finally {
+      releaseDocument(body.ownerDocument); // voir `parsedDocument.ts`
+    }
   } finally {
     bodyPass = null;
   }

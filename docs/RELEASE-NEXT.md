@@ -483,6 +483,12 @@ la release publiée.
   demande aussi au navigateur de protéger ce stockage (Firefox affiche une
   demande d'autorisation), et s'arrête dès que l'appareil n'a plus de place
   au lieu de le remplir : l'onglet Hors ligne le dit.
+- **La mémoire ne grossit plus au fil de la lecture.** Chaque article
+  affiché, extrait ou traduit qui contenait une vidéo ou une image adaptée à
+  la taille de l'écran laissait une copie de sa page en mémoire, que le
+  navigateur ne libérait jamais : sur Android, plus de 400 pages gardées au
+  bout d'une préparation hors ligne complète. Elles sont maintenant libérées
+  dès qu'elles ont servi.
 - **Hors ligne : l'avertissement de budget dit vrai.** Un budget plus grand
   que ce que l'appareil autorise annonçait que « le navigateur purgera
   automatiquement » ; ce vidage ne touche plus les images préparées, et le

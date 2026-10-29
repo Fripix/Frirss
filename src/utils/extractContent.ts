@@ -1,8 +1,8 @@
 import { Readability } from '@mozilla/readability';
-import DOMPurify from 'dompurify';
 import { useAuthStore } from '../stores/authStore';
 import { dropNonVideoIframes } from '../lib/youtube';
 import { absolutizeUrls } from './absolutizeUrls';
+import { purifyToString, releaseDocument } from '../lib/parsedDocument';
 
 export interface ExtractedContent {
   title: string;
@@ -29,7 +29,7 @@ export interface ExtractedContent {
  * Un stockage qui correspond au contrat d'affichage ne dépend de personne.
  */
 export function sanitizeExtracted(html: string): string {
-  return dropNonVideoIframes(DOMPurify.sanitize(html, {
+  return dropNonVideoIframes(purifyToString(html, {
     ADD_TAGS: ['iframe'],
     ADD_ATTR: ['allow', 'allowfullscreen'],
     ALLOW_DATA_ATTR: false,
@@ -335,11 +335,14 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   // et l'échec n'apparaît que dans la console. Voir `absolutizeUrls`.
   absolutizeUrls(doc, url);
 
-  // Extract readable content
-  const reader = new Readability(doc, {
-    charThreshold: 50,
-  });
-  const result = reader.parse();
+  // Extract readable content. Le document est vidé ensuite : Chrome le
+  // garderait sinon en mémoire s'il porte une vidéo (`parsedDocument.ts`).
+  let result: ReturnType<Readability['parse']>;
+  try {
+    result = new Readability(doc, { charThreshold: 50 }).parse();
+  } finally {
+    releaseDocument(doc);
+  }
 
   if (!result || !result.content) {
     throw new Error('NO_CONTENT');

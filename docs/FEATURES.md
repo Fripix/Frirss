@@ -2407,6 +2407,18 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   `reserveImgAspect()` (`imageAspect.ts`) tire ses dimensions des attributs
   `width`/`height` de l'image, puis — depuis la 1.4.10 — des mesures relevées
   par le réchauffage en avant. Sans l'une ni l'autre, l'image ressort intacte.
+  ⚠️ **Chaque document analysé est vidé après usage** (`src/lib/parsedDocument.ts`,
+  1.8.0, `parsedDocument.test.ts`) : `releaseDocument` (jamais le document de
+  l'app) et `purifyToString` (DOMPurify en `RETURN_DOM`, `innerHTML`, puis
+  vidage), utilisés par les trois sanitiseurs, le repli d'extraction et la
+  traduction (`plainText`, `segmentArticle`, dont `apply` réanalyse le HTML au
+  lieu de garder le premier document). Chrome garde en mémoire tout document
+  analysé qui porte une `<video>` (lecture à distance) ou une
+  `<picture><source media>` (requête média), même sans plus aucune référence :
+  20 sur 20 retenus, 0 une fois vidés ; 434 documents et 365 000 nœuds au bout
+  d'une préparation hors ligne de 6 600 articles, un de plus à chaque
+  affichage d'un article à vidéo. Tout nouveau `DOMParser` ou
+  `DOMPurify.sanitize` en chaîne doit passer par là.
   **Toute la passe tourne sur l'arbre** que DOMPurify vient d'assainir, avant
   son unique sérialisation (`sanitizeArticleBody`, `RETURN_DOM` puis
   `innerHTML`) : chargement différé, `dir="auto"` (sur `p`, `h1`–`h6`, `li`,

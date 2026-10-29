@@ -9,6 +9,7 @@ import type { AiRouting } from '../../lib/aiRouting';
 import type { AiLanguage } from '../../lib/aiLanguages';
 import { rememberShown, forgetShown, recallShown } from '../../lib/aiShownTranslations';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
+import { releaseDocument } from '../../lib/parsedDocument';
 import { sharedTranslationRequest, articleBatchKey } from './aiPending';
 
 export interface ArticleTranslationInput {
@@ -250,7 +251,12 @@ function hashOf(text: string): string {
 /** Le modèle peut rendre du balisage ou des entités (les segments voyagent en
  *  HTML) : le titre et le résumé traduits s'affichent en texte. */
 export function plainText(html: string): string {
-  return new DOMParser().parseFromString(sanitizeHtml(html), 'text/html').body.textContent?.trim() ?? '';
+  const doc = new DOMParser().parseFromString(sanitizeHtml(html), 'text/html');
+  try {
+    return doc.body.textContent?.trim() ?? '';
+  } finally {
+    releaseDocument(doc); // voir `parsedDocument.ts`
+  }
 }
 
 interface Prepared {

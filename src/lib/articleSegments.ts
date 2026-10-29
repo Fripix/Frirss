@@ -1,6 +1,7 @@
 // Découpage d'un article en segments traduisibles, et réinjection des
 // traductions. Module pur (DOM du navigateur uniquement) : le serveur traduit
 // des segments numérotés, le client garde la main sur le DOM.
+import { releaseDocument } from './parsedDocument';
 
 export const BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, figcaption, td, th, dt, dd';
 
@@ -74,44 +75,60 @@ function serialize(doc: Document, nodes: Node[]): string {
   return box.innerHTML;
 }
 
+// Chaque analyse vide son document une fois finie : Chrome le garderait sinon
+// en mémoire s'il porte une vidéo (`parsedDocument.ts`). `apply` réanalyse le
+// même HTML plutôt que de garder le premier document vivant jusqu'à lui.
 export function segmentArticle(title: string, html: string): Segmented {
-  const body = new DOMParser().parseFromString(html, 'text/html').body;
-  const doc = body.ownerDocument;
-  const segments = [
-    title,
-    ...collectUnits(body).map((u) => (u.kind === 'block' ? u.el.innerHTML : serialize(doc, u.nodes))),
-  ];
+  const first = new DOMParser().parseFromString(html, 'text/html');
+  let segments: string[];
+  try {
+    segments = [
+      title,
+      ...collectUnits(first.body).map((u) => (u.kind === 'block' ? u.el.innerHTML : serialize(first, u.nodes))),
+    ];
+  } finally {
+    releaseDocument(first);
+  }
   return {
     segments,
     apply(translated, sanitize) {
-      const copy = body.cloneNode(true) as HTMLElement;
-      collectUnits(copy).forEach((unit, i) => {
-        // La sortie du modèle n'est pas fiable : tout ce qui n'est pas du
-        // texte, ou que le sanitiseur ne digère pas, laisse l'original en place.
-        const text: unknown = translated[i + 1];
-        if (typeof text !== 'string' || text.trim() === '') return;
-        let clean: string;
-        try {
-          clean = sanitize(text);
-        } catch {
-          return;
-        }
-        if (typeof clean !== 'string' || clean.trim() === '') return;
-        if (unit.kind === 'block') {
-          unit.el.innerHTML = clean;
-          return;
-        }
-        const box = doc.createElement('div');
-        box.innerHTML = clean;
-        const first = unit.nodes[0];
-        const parent = first.parentNode;
-        if (!parent) return;
-        while (box.firstChild) parent.insertBefore(box.firstChild, first);
-        unit.nodes.forEach((n) => n.parentNode?.removeChild(n));
-      });
-      return copy.innerHTML;
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      try {
+        return applyTranslation(doc, translated, sanitize);
+      } finally {
+        releaseDocument(doc);
+      }
     },
   };
+}
+
+function applyTranslation(doc: Document, translated: unknown[], sanitize: (html: string) => string): string {
+  const body = doc.body;
+  collectUnits(body).forEach((unit, i) => {
+    // La sortie du modèle n'est pas fiable : tout ce qui n'est pas du
+    // texte, ou que le sanitiseur ne digère pas, laisse l'original en place.
+    const text: unknown = translated[i + 1];
+    if (typeof text !== 'string' || text.trim() === '') return;
+    let clean: string;
+    try {
+      clean = sanitize(text);
+    } catch {
+      return;
+    }
+    if (typeof clean !== 'string' || clean.trim() === '') return;
+    if (unit.kind === 'block') {
+      unit.el.innerHTML = clean;
+      return;
+    }
+    const box = doc.createElement('div');
+    box.innerHTML = clean;
+    const first = unit.nodes[0];
+    const parent = first.parentNode;
+    if (!parent) return;
+    while (box.firstChild) parent.insertBefore(box.firstChild, first);
+    unit.nodes.forEach((n) => n.parentNode?.removeChild(n));
+  });
+  return body.innerHTML;
 }
 
 // Les écritures sans espaces (chinois, japonais, coréen, thaï) comptent pour un

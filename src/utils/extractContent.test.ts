@@ -432,3 +432,25 @@ describe('extractFullContent — le repli ne lit qu’une page bornée', () => {
     expect(pulled.bytes).toBeLessThanOrEqual(FALLBACK_MAX_HTML_BYTES + 3 * 64 * 1024);
   });
 });
+
+// Chrome retient tout document analysé qui contient une <video> ou une
+// <picture><source media> (voir `parsedDocument.ts`) : le repli vide le sien.
+describe('extractFullContent — le repli vide son document', () => {
+  it('vide le document de DOMParser une fois Readability passé', async () => {
+    const seen: Document[] = [];
+    const parse = DOMParser.prototype.parseFromString;
+    vi.spyOn(DOMParser.prototype, 'parseFromString').mockImplementation(function (this: DOMParser, ...a: Parameters<typeof parse>) {
+      const d = parse.apply(this, a);
+      seen.push(d);
+      return d;
+    });
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 404 });
+      return htmlPage(pageHtml.replace('</article>', '<video src="https://example.com/v.mp4"></video></article>'));
+    }));
+    const out = await extractFullContent('https://example.com/a');
+    expect(out.content).toContain('paragraphe');
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((d) => d.documentElement === null)).toBe(true);
+  });
+});
