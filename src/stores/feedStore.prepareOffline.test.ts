@@ -37,8 +37,10 @@ import { useFeedStore } from './feedStore';
  */
 const now = Math.floor(Date.now() / 1000);
 const item = (n: number) => ({ id: `i${n}`, published: now, content: { content: `https://img.example/${n}.jpg` } });
-const result = (urls: string[], bytes: number, reusedBytes = 0, error?: string) =>
-  ({ stored: urls.length, bytes, reusedBytes, kept: urls, failed: 0, error });
+const result = (urls: string[], bytes: number, reusedBytes = 0, error?: string) => ({
+  stored: urls.length, bytes, reusedBytes, kept: urls, failed: 0, error,
+  sizes: Object.fromEntries(urls.map((u) => [u, (bytes + reusedBytes) / urls.length])),
+});
 
 describe('prepareOffline — images préparées', () => {
   beforeEach(() => {
@@ -78,7 +80,7 @@ describe('prepareOffline — images préparées', () => {
   });
 
   it('ne retire rien quand le cache n’a pas pu s’ouvrir', async () => {
-    vi.mocked(cacheImages).mockImplementation(async () => ({ stored: 0, bytes: 0, reusedBytes: 0, kept: [], failed: 1, error: 'open: QuotaExceededError' }));
+    vi.mocked(cacheImages).mockImplementation(async () => ({ stored: 0, bytes: 0, reusedBytes: 0, kept: [], sizes: {}, failed: 1, error: 'open: QuotaExceededError' }));
     await useFeedStore.getState().prepareOffline();
     expect(pruneImages).not.toHaveBeenCalled();
   });
@@ -148,6 +150,19 @@ describe('prepareOffline — images préparées', () => {
     // relevé, et son image part au retrait comme au-delà de tout budget.
     expect(vi.mocked(cacheImages)).toHaveBeenCalledTimes(2);
     expect([...vi.mocked(pruneImages).mock.calls[0][0]]).toEqual(['https://img.example/2.jpg']);
+  });
+
+  // Une image commune à plusieurs articles (un logo, un avatar) ne pèse
+  // qu'une fois : comptée à chaque article, elle atteignait le budget trop
+  // tôt, et le retrait ôtait les images des articles suivants.
+  it('compte une seule fois une image commune à plusieurs articles', async () => {
+    vi.mocked(imageBudget).mockReturnValue({ bytes: 15, perArticle: 1 });
+    const shared = { content: { content: 'https://img.example/logo.jpg' } };
+    vi.mocked(getStreamContents).mockResolvedValue({ items: [1, 2, 3].map((n) => ({ ...item(n), ...shared })), continuation: null } as never);
+    vi.mocked(cacheImages).mockImplementation(async (urls) => result(urls, 0, 10));
+    await useFeedStore.getState().prepareOffline();
+    expect(cacheImages).toHaveBeenCalledTimes(3);
+    expect(useFeedStore.getState().offlinePrep?.budgetStopped).toBe(false);
   });
 
   it('demande un stockage protégé quand l’utilisateur lance la préparation', async () => {

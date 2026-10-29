@@ -1298,10 +1298,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // the final sweep, the only one that frees space, would drop them.
           const res = await cacheImages(urls, deviceFull ? { noFetch: true } : {});
           imagesStored += res.stored;
-          imagesBytes += res.bytes + res.reusedBytes;
           imagesFailed += res.failed;
           imagesError ??= res.error;
-          for (const url of res.kept) keptImages.add(url);
+          // Each image weighs once in the budget, even when several articles
+          // share it (a logo, an avatar): counted per article, it reached the
+          // budget early, and the sweep dropped the later articles' images.
+          for (const url of res.kept) {
+            if (keptImages.has(url)) continue;
+            keptImages.add(url);
+            imagesBytes += res.sizes?.[url] ?? 0;
+          }
           if (res.error?.startsWith('open:')) interrupted = true;
           // Device full: every later image would fail too, after a wasted
           // download. The run goes on, downloads and new extracts off.

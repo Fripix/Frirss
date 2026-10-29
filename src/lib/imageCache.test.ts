@@ -40,17 +40,50 @@ describe('cacheImages', () => {
     const urls = Array.from({ length: 7 }, (_, i) => `https://a/${i}.jpg`);
     const res = await cacheImages(urls, { fetchImage, openCache: async () => cache as never });
     expect(res.full).toBe(true);
-    expect(res.kept).toEqual(expect.arrayContaining(['https://a/5.jpg', 'https://a/6.jpg']));
+    expect([...res.kept].sort()).toEqual(['https://a/5.jpg', 'https://a/6.jpg']);
     expect(fetchImage.mock.calls.length).toBeLessThanOrEqual(4);
+    // Seules les images tentées comptent en échec : celles qu'on n'a pas
+    // tentées faute de place ne sont pas « refusées par le site ».
+    expect(res.failed).toBe(fetchImage.mock.calls.length);
+  });
+
+  it('un refus de quota en reprenant une ancienne image arrête aussi les téléchargements', async () => {
+    const cache = fakeCache();
+    cache.put.mockRejectedValue(new DOMException('Quota exceeded', 'QuotaExceededError'));
+    const legacy = { type: 'default', headers: new Headers({ [PREPARED_BYTES_HEADER]: '100' }), clone() { return this; } };
+    const browsing = { match: vi.fn(async (u: string) => (u.includes('/old') ? legacy : undefined)), delete: vi.fn() };
+    const fetchImage = vi.fn(image());
+    // Un premier lot fait d'anciennes images, puis des neuves : le refus en
+    // reprenant les anciennes doit suffire à ne rien télécharger ensuite.
+    const res = await cacheImages(['old1', 'old2', 'old3', 'old4', 'n1', 'n2', 'n3', 'n4'].map((n) => `https://a/${n}.jpg`), {
+      fetchImage, openCache: async () => cache as never, openBrowsingCache: async () => browsing as never,
+    });
+    expect(res.full).toBe(true);
+    expect(fetchImage).not.toHaveBeenCalled();
+  });
+
+  it('donne la taille de chaque image gardée', async () => {
+    const cache = fakeCache(['https://a/old.jpg']);
+    const res = await cacheImages(['https://a/old.jpg', 'https://a/new.jpg'], { fetchImage: image(700), openCache: async () => cache as never });
+    expect(res.sizes['https://a/new.jpg']).toBe(700);
+    expect(res.sizes).toHaveProperty(['https://a/old.jpg']);
   });
 
   it('sans téléchargement (`noFetch`), ne fait que retrouver ce qui est préparé', async () => {
     const cache = fakeCache(['https://a/1.jpg']);
+    // Une ancienne image du cache d'affichage : la reprendre demanderait une
+    // écriture, que l'appareil plein refuserait — elle n'est pas reprise.
+    const legacy = { type: 'default', headers: new Headers({ [PREPARED_BYTES_HEADER]: '100' }), clone() { return this; } };
+    const browsing = { match: vi.fn(async () => legacy), delete: vi.fn() };
     const fetchImage = vi.fn(image());
-    const res = await cacheImages(['https://a/1.jpg', 'https://a/2.jpg'], { fetchImage, openCache: async () => cache as never, noFetch: true });
+    const res = await cacheImages(['https://a/1.jpg', 'https://a/2.jpg'], {
+      fetchImage, openCache: async () => cache as never, openBrowsingCache: async () => browsing as never, noFetch: true,
+    });
     expect(fetchImage).not.toHaveBeenCalled();
+    expect(cache.put).not.toHaveBeenCalled();
     expect(res.kept).toEqual(['https://a/1.jpg']);
     expect(res.stored).toBe(0);
+    expect(res.failed).toBe(0);
   });
 
   it('ne signale pas « plein » pour une autre erreur d’écriture', async () => {
@@ -163,7 +196,7 @@ describe('cacheImages', () => {
   it('does nothing for an empty list', async () => {
     const openCache = vi.fn();
     const res = await cacheImages([], { fetchImage: image(), openCache: openCache as never });
-    expect(res).toEqual({ stored: 0, bytes: 0, reusedBytes: 0, kept: [], failed: 0 });
+    expect(res).toEqual({ stored: 0, bytes: 0, reusedBytes: 0, kept: [], sizes: {}, failed: 0 });
     expect(openCache).not.toHaveBeenCalled();
   });
 });

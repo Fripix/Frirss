@@ -4854,7 +4854,16 @@ images consultés restent lisibles sans réseau.
     introuvable après un déploiement, IndexedDB).
   - **Reprise des versions précédentes** : une image préparée restée dans
     `frirss-images` (lisible, sous l'URL d'un autre site) est **déplacée**
-    sans retéléchargement quand une préparation la redemande.
+    sans retéléchargement quand une préparation la redemande — sauf sur
+    appareil plein : déplacer est une écriture, que le quota refuserait ;
+    elle reste alors dans `frirss-images`. Un refus de quota pendant ce
+    déplacement arrête les téléchargements comme un autre (`full`).
+  - **Une image commune à plusieurs articles pèse une fois** dans le budget
+    (`sizes` du résultat de `cacheImages`, `keptImages` dans `prepareOffline`).
+    Comptée à chaque article (logo, avatar), elle atteignait le budget trop
+    tôt, et le retrait ôtait les images des articles suivants. Une image non
+    tentée faute de place n'est pas comptée en échec (« certains sites
+    refusent… » serait faux).
 - **Ce que l'onglet compte** (1.8.0, `cachedImageStats` dans
   `imageCache.ts`) : le nombre d'images des deux caches, dont les
   **préparées** avec leur taille réelle — écrite à la préparation dans

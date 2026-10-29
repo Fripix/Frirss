@@ -26,13 +26,17 @@ export interface CacheImagesResult {
   reusedBytes: number;
   /** Every URL now held in the prepared cache (new or already there). */
   kept: string[];
+  /** Size of each kept URL: an image shared by several articles (a logo)
+   *  must weigh once in the budget, which the caller can only do per URL. */
+  sizes: Record<string, number>;
   /** Images that could not be stored. A minority always fails: some hosts
    *  refuse hotlinked requests, others are momentarily unreachable. */
   failed: number;
   /** First failure encountered, kept so a total failure can be diagnosed. */
   error?: string;
   /** A write was refused for lack of space (`QuotaExceededError`): the rest
-   *  was not attempted, and the caller should stop storing images. */
+   *  was only looked up (not counted as failed), and the caller should stop
+   *  storing images. */
   full?: boolean;
 }
 
@@ -192,7 +196,7 @@ export async function cacheImages(
   urls: string[],
   deps: Partial<CacheImagesDeps> = {},
 ): Promise<CacheImagesResult> {
-  if (!urls.length) return { stored: 0, bytes: 0, reusedBytes: 0, kept: [], failed: 0 };
+  if (!urls.length) return { stored: 0, bytes: 0, reusedBytes: 0, kept: [], sizes: {}, failed: 0 };
 
   const fetchImage = deps.fetchImage ?? fetchViaProxy;
   const openCache = deps.openCache ?? opener(PREPARED_IMAGE_CACHE_NAME);
@@ -202,7 +206,7 @@ export async function cacheImages(
   try {
     cache = await openCache();
   } catch (e) {
-    return { stored: 0, bytes: 0, reusedBytes: 0, kept: [], failed: urls.length, error: `open: ${describe(e)}` };
+    return { stored: 0, bytes: 0, reusedBytes: 0, kept: [], sizes: {}, failed: urls.length, error: `open: ${describe(e)}` };
   }
   // Only used to adopt older prepared entries: its absence changes nothing else.
   const browsing = await openBrowsing().catch(() => null);
@@ -214,6 +218,8 @@ export async function cacheImages(
   let failed = 0;
   let error: string | undefined;
   const kept: string[] = [];
+  const sizes: Record<string, number> = {};
+  const keep = (url: string, size: number) => { kept.push(url); sizes[url] = size; };
   // Keep the first failure: swallowing every error is what made a
   // 0-images-stored sweep impossible to diagnose.
   const note = (stage: string, e: unknown) => { failed++; error ??= `${stage}: ${describe(e)}`; };
@@ -231,11 +237,15 @@ export async function cacheImages(
         try {
           const ready = await cache.match(url);
           if (ready) { // already offline-ready
-            reusedBytes += await preparedSize(ready);
-            kept.push(url);
+            const size = await preparedSize(ready);
+            reusedBytes += size;
+            keep(url, size);
             return;
           }
-          if (lookupOnly()) { if (full) failed++; return; }
+          // Not attempted, so not a failure: « some sites refuse images »
+          // would be the wrong explanation. Older entries are not adopted
+          // either — adopting takes a write, which a full device refuses.
+          if (lookupOnly()) return;
           const older = await browsing?.match(url);
           if (older && isLegacyPrepared(url, older, origin)) {
             // Measured on a copy first: `put` consumes the body.
@@ -243,11 +253,14 @@ export async function cacheImages(
             await cache.put(url, older);
             await browsing?.delete(url);
             reusedBytes += size;
-            kept.push(url);
+            keep(url, size);
             return;
           }
           img = await fetchImage(url);
         } catch (e) {
+          // Adopting an older entry writes too: a refusal there is the same
+          // full device as below.
+          if ((e as { name?: string })?.name === 'QuotaExceededError') { full = true; note('put', e); return; }
           note('fetch', e);
           return;
         }
@@ -258,7 +271,7 @@ export async function cacheImages(
           await cache.put(url, new Response(img.response.body ?? null, { headers }));
           stored++;
           bytes += img.bytes;
-          kept.push(url);
+          keep(url, img.bytes);
         } catch (e) {
           if ((e as { name?: string })?.name === 'QuotaExceededError') full = true;
           note('put', e);
@@ -266,5 +279,5 @@ export async function cacheImages(
       }),
     );
   }
-  return { stored, bytes, reusedBytes, kept, failed, error, ...(full ? { full } : {}) };
+  return { stored, bytes, reusedBytes, kept, sizes, failed, error, ...(full ? { full } : {}) };
 }
