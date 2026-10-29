@@ -877,7 +877,11 @@ export default function ArticleList() {
         ) : (
           /* ── 3-panel: compact two-row layout (title row + actions row) ── */
           <>
-            <div className="px-3 py-2 flex items-center gap-2">
+            {/* Le titre garde 8rem : dans une colonne de liste étroite (~340 px
+                à 1 280 px de large), les dix bascules prenaient toute la place
+                et « BleepingComputer » devenait « B ». Les bascules passent
+                alors sur une seconde ligne, alignées à droite. */}
+            <div className="px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
               {!sidebarVisible && (
                 <button
                   onClick={toggleSidebar}
@@ -892,14 +896,14 @@ export default function ArticleList() {
                 </button>
               )}
 
-              <div className="min-w-0 flex-1 flex items-center gap-2">
+              <div className="min-w-[8rem] flex-1 flex items-center gap-2">
                 <h2 className="text-[16px] font-bold truncate" title={heading} style={{ color: 'var(--list-title)' }}>
                   {heading}
                 </h2>
                 {!searchQuery && <HeaderUnread count={headerUnread} />}
               </div>
 
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
                 <div className="option-track">
                   <SourceToggle
                     active={showSource}

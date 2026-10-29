@@ -478,6 +478,9 @@ la release publiée.
   rattachement annulé chez le fournisseur le dit, au lieu de ressortir plus
   tard à l'écran de connexion ; un compte déjà lié ouvert depuis une session
   antérieure s'affiche lié au lieu d'un échec.
+- **Le nom du flux ne se réduit plus à une lettre** en tête d'une liste
+  étroite (trois colonnes) : les boutons d'affichage passent sur une seconde
+  ligne quand la place manque.
 - **Échap pendant une confirmation qui travaille** (suppression d'un
   serveur, d'une étiquette…) ne referme plus les Préférences derrière elle.
 - **Après une panne, une liste relue vide dit « Tout est lu »** au lieu de

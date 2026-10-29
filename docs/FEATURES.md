@@ -895,6 +895,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   la **seule couleur de l'icône** : le fond `--accent-glow` d'origine ressortait
   beaucoup plus sur le nouvel en-tête tiède que sur l'ancien blanc froid, et
   pesait plus que l'information ne le mérite.
+- **En-tête à trois colonnes, colonne étroite** (1.8.0) : le titre garde
+  8rem et la rangée passe à la ligne (`flex-wrap`, bascules en `ml-auto`).
+  Dans une liste d'environ 340 px (à 1 280 px de large), les dix bascules
+  prenaient toute la largeur et « BleepingComputer » se réduisait à « B ».
 - **Favicon du flux dans la ligne** (1.4.5) : `src/components/FeedFavicon.tsx`,
   extrait de la barre latérale où il ne servait qu'elle. La source n'était
   qu'un mot en majuscules de 10 px : repérer un flux dans une vue Tous les flux
