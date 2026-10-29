@@ -39,7 +39,7 @@ import { putExtract } from '../../lib/extractCache';
 import { __resetPendingSummariesForTests } from './aiPending';
 import { languageName } from '../../lib/aiLanguages';
 import { LONG_PRESS_MS } from '../../hooks/useLongPress';
-import { translateWouldAct, summarizeWouldAct } from '../../lib/aiTranslateProbe';
+import { translateWouldAct, summarizeWouldAct, AI_SUMMARIZE_PROBE } from '../../lib/aiTranslateProbe';
 
 const article = (id: string) => ({
   id, title: 'Titre ' + id, summary: 's', source: 'Src', sourceId: 'feed/1',
@@ -810,6 +810,24 @@ describe('ReadingPane — Résumé IA', () => {
       const stale = listeners[0];
       await act(async () => { stale(new CustomEvent('frirss:ai-summarize')); await Promise.resolve(); });
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
+    });
+    it('a probe listener not yet removed when the summary shows does not offer « Résumer »', async () => {
+      // Même fenêtre que l'écouteur de `frirss:ai-summarize` : la sonde n'est
+      // retirée qu'au passage des effets, et répondait « oui » entre-temps
+      // (échec intermittent du test ci-dessous, en CI).
+      const probes: EventListener[] = [];
+      const add = window.addEventListener.bind(window);
+      vi.spyOn(window, 'addEventListener').mockImplementation(((type: string, l: EventListener, o?: unknown) => {
+        if (type === AI_SUMMARIZE_PROBE) probes.push(l);
+        return add(type, l, o as never);
+      }) as never);
+      vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });
+      const { findByText } = render(<ReadingPane />);
+      fire();
+      expect(await findByText('Le résumé.')).toBeTruthy();
+      const detail = { ready: false };
+      probes[0](new CustomEvent(AI_SUMMARIZE_PROBE, { detail }));
+      expect(detail.ready).toBe(false);
     });
     it('answers the palette probe only while « Résumer » would do something', async () => {
       vi.mocked(requestAiSummary).mockResolvedValue({ text: 'Le résumé.', lang: 'fr', providerId: 1, providerName: 'Ollama', model: 'm', fromCache: false });

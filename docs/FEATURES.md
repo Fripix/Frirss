@@ -6066,9 +6066,12 @@ l'article (IA) »).
   suit la même règle** depuis le 2026-10-23 (`frirss:ai-summarize-probe`,
   `summarizeWouldAct`) : pas d'entrée quand un résumé est déjà là ou en cours
   pour l'article (`aiInFlight`), hors ligne ou IA inutilisable — elle fermait
-  la palette sans rien faire. Aucun état de plus dans un store. Tests :
-  `CommandPalette.test.tsx`, `ReadingPane.ai.test.tsx` (« answers the palette
-  probe »).
+  la palette sans rien faire. Aucun état de plus dans un store. ⚠️ Entre
+  l'affichage du résumé et le retrait de l'écouteur (au passage des effets),
+  la sonde répondait encore « oui » : elle vérifie `aiResultFor` comme
+  l'écouteur de `frirss:ai-summarize` (échec intermittent en CI, 1.8.0).
+  Tests : `CommandPalette.test.tsx`, `ReadingPane.ai.test.tsx` (« answers
+  the palette probe », « a probe listener not yet removed »).
 - **Rien de nouveau n'est stocké** : la palette assemble ce que les stores
   contiennent déjà. Son état d'ouverture n'est ni persisté ni synchronisé.
 - **Accents repliés** : « securite » atteint « Sécurité ». Sans cela, la moitié

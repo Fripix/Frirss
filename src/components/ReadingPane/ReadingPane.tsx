@@ -981,8 +981,13 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     };
     window.addEventListener('frirss:ai-summarize', onSummarizeEvent);
     // La palette ne propose « Résumer » que si quelqu'un répond ici : mêmes
-    // gardes, et rien en cours pour cet article.
-    const onProbe = (e: Event) => { if (aiInFlight.current !== selectedArticle.id && !deferredSummary.current) answerTranslateProbe(e); };
+    // gardes, rien en cours pour cet article, et pas de résumé déjà là — la
+    // même fenêtre qu'au-dessus, avant le retrait de l'écouteur.
+    const onProbe = (e: Event) => {
+      if (aiInFlight.current === selectedArticle.id || deferredSummary.current) return;
+      if (aiResultFor.current === selectedArticle.id) return;
+      answerTranslateProbe(e);
+    };
     window.addEventListener(AI_SUMMARIZE_PROBE, onProbe);
     return () => {
       window.removeEventListener('frirss:ai-summarize', onSummarizeEvent);
