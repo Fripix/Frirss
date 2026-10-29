@@ -9,11 +9,15 @@ vi.mock('../../i18n', () => ({ loadLanguage: vi.fn() }));
 vi.mock('../../stores/feedStore', () => ({
   useFeedStore: Object.assign(() => ({}), { getState: () => ({ loadArticles: () => {} }) }),
 }));
-vi.mock('../../api/backend', () => ({ changePassword: vi.fn() }));
+vi.mock('../../api/backend', () => ({
+  changePassword: vi.fn(),
+  getOidcConfig: vi.fn().mockResolvedValue({ enabled: false }),
+  linkOidcAccount: vi.fn().mockResolvedValue(undefined),
+}));
 
 import GeneralTab from './GeneralTab';
 import { useAuthStore } from '../../stores/authStore';
-import { changePassword } from '../../api/backend';
+import { changePassword, getOidcConfig, linkOidcAccount } from '../../api/backend';
 
 const http = (status: number, error: string) => Object.assign(new Error(`HTTP ${status}`), { response: { status, data: { error } } });
 
@@ -111,5 +115,37 @@ describe('Préférences › Général — changer son mot de passe', () => {
     fill('wrong', 'new-secret', 'new-secret');
     await submit();
     expect(screen.getByRole('alert').textContent).toBe('preferences.account.tooMany');
+  });
+});
+
+// Seul chemin de rattachement au SSO depuis 1.8.0 : depuis le compte, connecté.
+// Le rattachement d'office par adresse e-mail donnait le compte (admin compris)
+// à qui inscrivait cette adresse dans son profil chez le fournisseur.
+describe('Préférences › Général — lier son compte au SSO', () => {
+  afterEach(cleanup);
+
+  it('propose le rattachement quand le SSO est actif et le compte pas encore lié', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
+    useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: false } as never });
+    render(<GeneralTab />);
+    const btn = await screen.findByRole('button', { name: 'preferences.account.ssoLink' });
+    await act(async () => { fireEvent.click(btn); });
+    expect(linkOidcAccount).toHaveBeenCalled();
+  });
+
+  it('dit que le compte est lié, sans bouton', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
+    useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never });
+    render(<GeneralTab />);
+    expect(await screen.findByText('preferences.account.ssoLinked')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'preferences.account.ssoLink' })).toBeNull();
+  });
+
+  it('ne montre rien quand le SSO est éteint', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: false });
+    useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local' } as never });
+    render(<GeneralTab />);
+    await act(async () => {});
+    expect(screen.queryByRole('button', { name: 'preferences.account.ssoLink' })).toBeNull();
   });
 });

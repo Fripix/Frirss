@@ -1,7 +1,8 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
-import { changePassword } from '../../api/backend';
+import { changePassword, getOidcConfig, linkOidcAccount, type OidcConfig } from '../../api/backend';
+import { useUiStore } from '../../stores/uiStore';
 
 /** Même minimum que le serveur (`server/routes/auth.ts`) et que la création de compte. */
 const MIN_PASSWORD = 6;
@@ -20,6 +21,7 @@ export default function AccountSection() {
   // le champ ; le retour SSO lit l'utilisateur par /me, qui l'inclut toujours.
   const isLocal = useAuthStore((s) => !!s.backendUser && (s.backendUser.auth_provider ?? 'local') === 'local');
   const username = useAuthStore((s) => s.backendUser?.username ?? '');
+  const ssoLinked = useAuthStore((s) => !!s.backendUser?.sso_linked);
   const ids = { current: useId(), next: useId(), again: useId(), hint: useId() };
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -27,6 +29,16 @@ export default function AccountSection() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [oidc, setOidc] = useState<OidcConfig | null>(null);
+  const [linking, setLinking] = useState(false);
+
+  // Le rattachement au SSO n'a de sens que si l'instance en a un.
+  useEffect(() => {
+    if (!isLocal) return;
+    let live = true;
+    getOidcConfig().then((c) => { if (live) setOidc(c); }).catch(() => {});
+    return () => { live = false; };
+  }, [isLocal]);
 
   if (!isLocal) return null;
 
@@ -51,6 +63,16 @@ export default function AccountSection() {
         : 'preferences.account.failed'));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function link() {
+    setLinking(true);
+    try {
+      await linkOidcAccount(); // quitte la page vers le fournisseur
+    } catch {
+      setLinking(false);
+      useUiStore.getState().pushToast(t('preferences.account.ssoLinkFailed'), { tone: 'error' });
     }
   }
 
@@ -99,6 +121,33 @@ export default function AccountSection() {
           {busy ? t('preferences.account.saving') : t('preferences.account.submit')}
         </button>
       </form>
+      {/* Seul chemin de rattachement au SSO (1.8.0) : connecté à ce compte,
+          on prouve qu'on tient les deux. Le rattachement d'office par adresse
+          e-mail, que le fournisseur ne garantit pas, est retiré. */}
+      {oidc?.enabled && (
+        <div className="mt-4 max-w-xs space-y-2">
+          {ssoLinked ? (
+            <p className="text-xs" style={{ color: 'var(--list-summary)' }}>
+              {t('preferences.account.ssoLinked', { provider: oidc.buttonLabel || 'SSO' })}
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
+                {t('preferences.account.ssoLinkHint', { provider: oidc.buttonLabel || 'SSO' })}
+              </p>
+              <button
+                type="button"
+                onClick={link}
+                disabled={linking}
+                className="px-4 py-2 text-xs font-medium rounded-lg disabled:opacity-50 prefs-tap-btn hover-tint"
+                style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
+              >
+                {t('preferences.account.ssoLink', { provider: oidc.buttonLabel || 'SSO' })}
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

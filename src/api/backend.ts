@@ -107,6 +107,16 @@ export function startOidcLogin(): void {
   window.location.href = '/api/auth/oidc/login';
 }
 
+/**
+ * Rattacher le compte connecté à une identité SSO. Un appel authentifié (le
+ * jeton vit dans le navigateur, pas dans un cookie : une simple navigation ne
+ * dirait pas quel compte lier) rend l'URL du fournisseur, où l'on part.
+ */
+export async function linkOidcAccount(): Promise<void> {
+  const { data } = await backend.post<{ url: string }>('/auth/oidc/link');
+  window.location.href = data.url;
+}
+
 // ── Servers (FreshRSS connections) ──────────────────────────────────
 export async function getServers(): Promise<ServerConnection[]> {
   const { data } = await backend.get<{ servers: ServerConnection[] }>('/servers');

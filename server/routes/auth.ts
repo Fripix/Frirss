@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { Request, CookieOptions } from 'express';
+import type { Request, Response, CookieOptions } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomBytes, createHash } from 'crypto';
@@ -67,6 +67,7 @@ interface LocalUserRow {
   role: string;
   active: number;
   auth_provider: string;
+  oidc_sub: string | null;
 }
 
 // ── POST /api/auth/register ─────────────────────────────────────────
@@ -151,7 +152,7 @@ router.post('/login', authLimiter, async (req, res) => {
     }
 
     const user = db.prepare(`
-      SELECT id, username, email, display_name, password_hash, role, active, auth_provider
+      SELECT id, username, email, display_name, password_hash, role, active, auth_provider, oidc_sub
       FROM users WHERE username = ? AND auth_provider = 'local'
     `).get(username) as LocalUserRow | undefined;
 
@@ -179,6 +180,8 @@ router.post('/login', authLimiter, async (req, res) => {
         role: user.role,
         // Le client en a besoin pour proposer « Changer le mot de passe ».
         auth_provider: user.auth_provider,
+        // … et « Lier au SSO » à un compte qui ne l'est pas encore.
+        sso_linked: !!user.oidc_sub,
       },
     });
   } catch (err) {
@@ -195,7 +198,9 @@ router.post('/logout', requireAuth, (req, res) => {
 
 // ── GET /api/auth/me ────────────────────────────────────────────────
 router.get('/me', requireAuth, (req, res) => {
-  res.json({ user: req.user });
+  // `sso_linked` : le client propose « Lier au SSO » seulement s'il ne l'est pas.
+  const row = db.prepare('SELECT oidc_sub FROM users WHERE id = ?').get(req.user.id) as { oidc_sub: string | null } | undefined;
+  res.json({ user: { ...req.user, sso_linked: !!row?.oidc_sub } });
 });
 
 // ── POST /api/auth/change-password ──────────────────────────────────
@@ -258,13 +263,14 @@ router.get('/oidc/config', (req, res) => {
   });
 });
 
-// ── GET /api/auth/oidc/login ────────────────────────────────────────
-// Redirects the browser to the OIDC provider's authorization endpoint
-router.get('/oidc/login', async (req, res) => {
-  try {
-    if (!isOidcEnabled()) {
-      return res.status(404).json({ error: 'SSO not enabled' });
-    }
+/**
+ * Prépare l'aller vers le fournisseur : cookies PKCE + nonce, état signé, et
+ * l'URL d'autorisation. `link` (un id de compte) fait de ce passage un
+ * RATTACHEMENT : au retour, l'identité SSO est posée sur ce compte au lieu
+ * d'ouvrir une session. Le cookie PKCE lie le retour à CE navigateur : un
+ * rattachement lancé ailleurs ne peut pas être terminé par quelqu'un d'autre.
+ */
+async function authorizationUrl(req: Request, res: Response, link?: number): Promise<string> {
     const cfg = getOidcConfig();
     const disco = await getDiscovery();
     const redirectUri = getRedirectUri(req);
@@ -280,7 +286,7 @@ router.get('/oidc/login', async (req, res) => {
     res.cookie('oidc_nonce', nonce, opts);
 
     // Signed state (5 min) ties the callback to this request + carries the redirect URI
-    const state = jwt.sign({ t: 'oidc_state', redirectUri }, getJwtSecret(), {
+    const state = jwt.sign({ t: 'oidc_state', redirectUri, ...(link ? { link } : {}) }, getJwtSecret(), {
       expiresIn: '5m',
     });
 
@@ -295,10 +301,39 @@ router.get('/oidc/login', async (req, res) => {
       code_challenge_method: 'S256',
     });
 
-    res.redirect(`${disco.authorization_endpoint}?${params.toString()}`);
+    return `${disco.authorization_endpoint}?${params.toString()}`;
+}
+
+// ── GET /api/auth/oidc/login ────────────────────────────────────────
+// Redirects the browser to the OIDC provider's authorization endpoint
+router.get('/oidc/login', async (req, res) => {
+  try {
+    if (!isOidcEnabled()) {
+      return res.status(404).json({ error: 'SSO not enabled' });
+    }
+    res.redirect(await authorizationUrl(req, res));
   } catch (err) {
     console.error('OIDC login error:', err);
     res.redirect('/#oidc_error=login_failed');
+  }
+});
+
+// ── POST /api/auth/oidc/link ────────────────────────────────────────
+// Rattacher une identité SSO au compte LOCAL connecté. Rend l'URL du
+// fournisseur ; le client y navigue. Seul chemin de rattachement depuis 1.8.0 :
+// le rattachement d'office par adresse e-mail, qui ne l'exigeait pas vérifiée,
+// donnait le compte (admin compris) à qui inscrivait son adresse dans son
+// profil chez le fournisseur.
+router.post('/oidc/link', requireAuth, async (req, res) => {
+  try {
+    if (!isOidcEnabled()) return res.status(404).json({ error: 'SSO not enabled' });
+    if (req.user.auth_provider !== 'local') return res.status(400).json({ error: 'Only a local account can be linked' });
+    const row = db.prepare('SELECT oidc_sub FROM users WHERE id = ?').get(req.user.id) as { oidc_sub: string | null } | undefined;
+    if (row?.oidc_sub) return res.status(409).json({ error: 'Account already linked' });
+    res.json({ url: await authorizationUrl(req, res, req.user.id) });
+  } catch (err) {
+    console.error('OIDC link error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -320,9 +355,9 @@ router.get('/oidc/callback', async (req, res) => {
     }
 
     // Verify state
-    let decoded: { t?: string; redirectUri?: string };
+    let decoded: { t?: string; redirectUri?: string; link?: number };
     try {
-      decoded = jwt.verify(state, getJwtSecret(), { algorithms: ['HS256'] }) as { t?: string; redirectUri?: string };
+      decoded = jwt.verify(state, getJwtSecret(), { algorithms: ['HS256'] }) as { t?: string; redirectUri?: string; link?: number };
     } catch {
       return res.redirect('/#oidc_error=invalid_state');
     }
@@ -399,30 +434,38 @@ router.get('/oidc/callback', async (req, res) => {
     console.log('[oidc] callback sub=%s has_email=%s email_verified=%s',
       sub, !!info.email, info.email_verified);
 
-    // 1) Match by the OIDC subject (works for both auto-provisioned and
-    //    email-linked accounts on subsequent logins).
+    // Rattachement demandé depuis un compte connecté : l'identité va sur CE
+    // compte, aucune session n'est ouverte (celle du navigateur continue).
+    if (decoded.link) {
+      const holder = db.prepare('SELECT id FROM users WHERE oidc_sub = ?').get(sub) as { id: number } | undefined;
+      if (holder && holder.id !== decoded.link) return res.redirect('/#oidc_link_error=already_linked');
+      if (!holder) {
+        const done = db.prepare(
+          "UPDATE users SET oidc_sub = ? WHERE id = ? AND active = 1 AND auth_provider = 'local' AND oidc_sub IS NULL",
+        ).run(sub, decoded.link);
+        if (!done.changes) return res.redirect('/#oidc_link_error=link_failed');
+        console.log('[oidc] linked an SSO identity to account id=%s from its own session', decoded.link);
+      }
+      return res.redirect('/#oidc_linked=1');
+    }
+
+    // Une identité déjà rattachée ouvre son compte.
     let user = db
       .prepare(`SELECT id, active FROM users WHERE oidc_sub = ?`)
       .get(sub) as { id: number; active: number } | undefined;
     if (user) console.log('[oidc] matched an existing account by sub (id=%s)', user.id);
 
-    // 2) First SSO login: link to an existing account with the same email, so a
-    //    local (password) account also signs in via SSO/passkey without losing
-    //    its feeds/settings. Only targets accounts not already tied to another
-    //    SSO identity (oidc_sub IS NULL) — the IdP is the trust anchor here, the
-    //    same one already trusted to auto-provision accounts. (email_verified is
-    //    logged but not required: providers like authentik default it to false.)
+    // Plus de rattachement d'office par l'adresse e-mail (1.8.0) : le
+    // fournisseur ne la garantit pas (Authentik envoie email_verified=false par
+    // défaut), et la prendre pour preuve donnait le compte — admin compris — à
+    // qui l'inscrivait dans son profil. Un compte local qui porte cette adresse
+    // se rattache depuis Préférences › Général › Compte ; on ne crée pas de
+    // doublon à côté de lui.
     if (!user && info.email) {
       const existing = db
-        .prepare(`SELECT id, active FROM users WHERE email = ? COLLATE NOCASE AND oidc_sub IS NULL`)
-        .get(info.email) as { id: number; active: number } | undefined;
-      if (existing) {
-        db.prepare('UPDATE users SET oidc_sub = ? WHERE id = ?').run(sub, existing.id);
-        user = existing;
-        console.log('[oidc] linked SSO identity to existing account by email (id=%s)', existing.id);
-      } else {
-        console.log('[oidc] no unlinked local account with that email → will provision a new one');
-      }
+        .prepare(`SELECT id FROM users WHERE email = ? COLLATE NOCASE AND oidc_sub IS NULL`)
+        .get(info.email);
+      if (existing) return res.redirect('/#oidc_error=link_required');
     }
 
     if (user) {

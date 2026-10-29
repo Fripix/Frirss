@@ -39,6 +39,13 @@ la release publiée.
 
 ## Sécurité
 
+- **SSO : un compte existant ne se rattache plus tout seul par son adresse
+  e-mail.** La première connexion SSO prenait le compte local qui portait la
+  même adresse, sans exiger qu'elle soit vérifiée : quelqu'un qui inscrivait
+  l'adresse de l'administrateur dans son profil chez le fournisseur recevait
+  son compte. Le rattachement se fait désormais depuis le compte, connecté :
+  Préférences › Général › Compte, « Lier à … ». Une connexion SSO qui tombe
+  sur une adresse déjà utilisée explique la marche à suivre.
 - **Les jetons FreshRSS ne suivent plus une adresse changée.** Changer l'URL
   ou le compte d'un serveur par l'API gardait les deux jetons, que FriRSS
   envoyait ensuite au nouvel hôte : une session FriRSS suffisait à les faire
@@ -458,7 +465,10 @@ la release publiée.
 
 ## Actions requises à la mise à jour
 
-_(aucune)_
+- **SSO** : un compte local qui n'a encore jamais été ouvert par le SSO ne
+  s'y rattache plus tout seul. Son propriétaire se connecte avec son mot de
+  passe, puis clique « Lier à … » dans Préférences › Général › Compte. Les
+  comptes déjà rattachés ne sont pas concernés.
 
 ## Documentation
 

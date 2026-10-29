@@ -522,7 +522,13 @@
       "mismatch": "De twee invoeren van het nieuwe wachtwoord komen niet overeen.",
       "wrongCurrent": "Het huidige wachtwoord is onjuist.",
       "tooMany": "Te veel pogingen. Probeer het over een kwartier opnieuw.",
-      "failed": "Het wachtwoord kon niet worden gewijzigd."
+      "failed": "Het wachtwoord kon niet worden gewijzigd.",
+      "ssoLink": "Koppelen aan {{provider}}",
+      "ssoLinkHint": "U gaat via {{provider}} en komt daarna hier terug. Vanaf dan opent inloggen met {{provider}} dit account.",
+      "ssoLinked": "Dit account is gekoppeld aan {{provider}}: inloggen met {{provider}} opent het.",
+      "ssoLinkDone": "Account gekoppeld aan SSO.",
+      "ssoLinkFailed": "Koppelen aan SSO is mislukt.",
+      "ssoAlreadyLinked": "Deze SSO-identiteit is al gekoppeld aan een ander FriRSS-account."
     }
   },
   "login": {
@@ -572,7 +578,8 @@
     "tagline": "Een moderne lezer voor uw FreshRSS-server.",
     "showPassword": "Wachtwoord tonen",
     "hidePassword": "Wachtwoord verbergen",
-    "emailPlaceholder": "naam@example.com"
+    "emailPlaceholder": "naam@example.com",
+    "errorSsoLinkRequired": "Een FriRSS-account gebruikt dit e-mailadres al. Log in met het wachtwoord ervan en koppel het daarna aan SSO via Voorkeuren › Algemeen › Account."
   },
   "admin": {
     "users": "Gebruikers",

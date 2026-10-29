@@ -15,6 +15,8 @@ import { installPrefsRefreshTriggers } from './lib/prefsRefreshTriggers';
 import { saveLastView, loadLastView } from './lib/lastView';
 import { startupAction } from './lib/startupView';
 import { completeOidcReturn } from './lib/oidcReturn';
+import { readOidcFragment } from './lib/oidcFragment';
+import i18n from './i18n';
 import Login from './components/Login/Login';
 import LoginTransition from './components/Login/LoginTransition';
 import Sidebar from './components/Sidebar/Sidebar';
@@ -171,10 +173,24 @@ export default function App() {
   useEffect(() => {
     // The backend hands the OIDC result back via the URL fragment (#...),
     // which — unlike a query string — is never sent to the server or logged.
-    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
-    const params = new URLSearchParams(hash);
-    const token = params.get('oidc_token');
-    const error = params.get('oidc_error');
+    const fragment = readOidcFragment(window.location.hash);
+    const token = fragment?.kind === 'token' ? fragment.token : null;
+    const error = fragment?.kind === 'error' ? fragment.error : null;
+
+    if (fragment?.kind === 'linked') {
+      // Retour d'un rattachement lancé depuis Préférences › Général › Compte :
+      // la session n'a pas changé, l'utilisateur relu dit qu'il est lié.
+      useUiStore.getState().pushToast(i18n.t('preferences.account.ssoLinkDone'));
+      getMe().then((user) => {
+        const current = useAuthStore.getState().backendToken;
+        if (current) setBackendAuth(current, user);
+      }).catch(() => {});
+    } else if (fragment?.kind === 'linkError') {
+      useUiStore.getState().pushToast(
+        i18n.t(fragment.error === 'already_linked' ? 'preferences.account.ssoAlreadyLinked' : 'preferences.account.ssoLinkFailed'),
+        { tone: 'error' },
+      );
+    }
 
     if (token) {
       // Seed the token so the API client can authenticate, then fetch the user
@@ -194,7 +210,7 @@ export default function App() {
       setOidcError(error);
     }
 
-    if (token || error) {
+    if (fragment) {
       // Clean the URL (remove the fragment) without reloading
       window.history.replaceState({}, '', window.location.pathname);
     }

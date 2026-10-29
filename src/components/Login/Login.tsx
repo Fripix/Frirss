@@ -87,7 +87,11 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   // `oidcError === 'unavailable'` : le retour SSO a échoué faute de joindre le
   // serveur (voir `completeOidcReturn`), pas parce que le SSO a refusé.
-  const oidcMessage = oidcError ? t(oidcError === 'unavailable' ? 'login.errorUnavailable' : 'login.errorSso') : '';
+  // `link_required` : un compte local porte cette adresse ; le rattachement
+  // d'office par e-mail est retiré (1.8.0), il se fait depuis le compte.
+  const oidcMessage = oidcError
+    ? t(oidcError === 'unavailable' ? 'login.errorUnavailable' : oidcError === 'link_required' ? 'login.errorSsoLinkRequired' : 'login.errorSso')
+    : '';
   const [error, setError] = useState(oidcMessage);
   // L'erreur peut arriver après le montage (réessais du retour SSO) : la suivre.
   useEffect(() => {

@@ -110,6 +110,8 @@ export interface User {
   role: Role;
   active?: number | boolean;
   auth_provider?: AuthProvider;
+  /** Compte local rattaché à une identité SSO (1.8.0 ; absent avant = non). */
+  sso_linked?: boolean;
 }
 
 /** Connexion FreshRSS configurée (le token n'est jamais exposé au client). */

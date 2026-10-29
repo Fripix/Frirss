@@ -522,7 +522,13 @@
       "mismatch": "Les deux saisies du nouveau mot de passe ne sont pas identiques.",
       "wrongCurrent": "Le mot de passe actuel est incorrect.",
       "tooMany": "Trop d’essais. Réessayez dans un quart d’heure.",
-      "failed": "Le mot de passe n’a pas pu être changé."
+      "failed": "Le mot de passe n’a pas pu être changé.",
+      "ssoLink": "Lier à {{provider}}",
+      "ssoLinkHint": "Vous passez par {{provider}}, puis revenez ici. Ensuite, la connexion par {{provider}} ouvre ce compte.",
+      "ssoLinked": "Ce compte est lié à {{provider}} : la connexion par {{provider}} l’ouvre.",
+      "ssoLinkDone": "Compte lié au SSO.",
+      "ssoLinkFailed": "La liaison au SSO a échoué.",
+      "ssoAlreadyLinked": "Cette identité SSO est déjà liée à un autre compte FriRSS."
     }
   },
   "login": {
@@ -572,7 +578,8 @@
     "tagline": "Un lecteur moderne pour votre serveur FreshRSS.",
     "showPassword": "Afficher le mot de passe",
     "hidePassword": "Masquer le mot de passe",
-    "emailPlaceholder": "nom@example.com"
+    "emailPlaceholder": "nom@example.com",
+    "errorSsoLinkRequired": "Un compte FriRSS utilise déjà cette adresse e-mail. Connectez-vous avec son mot de passe, puis liez-le au SSO dans Préférences › Général › Compte."
   },
   "admin": {
     "users": "Utilisateurs",

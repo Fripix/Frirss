@@ -522,7 +522,13 @@
       "mismatch": "两次输入的新密码不一致。",
       "wrongCurrent": "当前密码不正确。",
       "tooMany": "尝试次数过多。请十五分钟后再试。",
-      "failed": "无法更改密码。"
+      "failed": "无法更改密码。",
+      "ssoLink": "关联到 {{provider}}",
+      "ssoLinkHint": "您将经过 {{provider}}，然后返回这里。此后，通过 {{provider}} 登录将打开此账户。",
+      "ssoLinked": "此账户已关联到 {{provider}}：通过 {{provider}} 登录即可打开。",
+      "ssoLinkDone": "账户已关联到 SSO。",
+      "ssoLinkFailed": "关联到 SSO 失败。",
+      "ssoAlreadyLinked": "此 SSO 身份已关联到另一个 FriRSS 账户。"
     }
   },
   "login": {
@@ -572,7 +578,8 @@
     "showPassword": "显示密码",
     "hidePassword": "隐藏密码",
     "errorServerUnresolved": "FriRSS 无法解析该服务器的地址：DNS 解析器没有响应。请检查主机名后重试。",
-    "emailPlaceholder": "name@example.com"
+    "emailPlaceholder": "name@example.com",
+    "errorSsoLinkRequired": "已有 FriRSS 账户使用此电子邮件地址。请用其密码登录，然后在 偏好设置 › 通用 › 账户 中将其关联到 SSO。"
   },
   "admin": {
     "users": "用户",

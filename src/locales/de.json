@@ -522,7 +522,13 @@
       "mismatch": "Die beiden Eingaben des neuen Passworts stimmen nicht überein.",
       "wrongCurrent": "Das aktuelle Passwort ist falsch.",
       "tooMany": "Zu viele Versuche. Versuchen Sie es in einer Viertelstunde erneut.",
-      "failed": "Das Passwort konnte nicht geändert werden."
+      "failed": "Das Passwort konnte nicht geändert werden.",
+      "ssoLink": "Mit {{provider}} verknüpfen",
+      "ssoLinkHint": "Sie gehen über {{provider}} und kehren dann hierher zurück. Danach öffnet die Anmeldung über {{provider}} dieses Konto.",
+      "ssoLinked": "Dieses Konto ist mit {{provider}} verknüpft: Die Anmeldung über {{provider}} öffnet es.",
+      "ssoLinkDone": "Konto mit SSO verknüpft.",
+      "ssoLinkFailed": "Die Verknüpfung mit SSO ist fehlgeschlagen.",
+      "ssoAlreadyLinked": "Diese SSO-Identität ist bereits mit einem anderen FriRSS-Konto verknüpft."
     }
   },
   "login": {
@@ -572,7 +578,8 @@
     "tagline": "Ein moderner Reader für Ihren FreshRSS-Server.",
     "showPassword": "Passwort anzeigen",
     "hidePassword": "Passwort verbergen",
-    "emailPlaceholder": "name@example.com"
+    "emailPlaceholder": "name@example.com",
+    "errorSsoLinkRequired": "Ein FriRSS-Konto verwendet diese E-Mail-Adresse bereits. Melden Sie sich mit seinem Passwort an und verknüpfen Sie es dann unter Einstellungen › Allgemein › Konto mit SSO."
   },
   "admin": {
     "users": "Benutzer",

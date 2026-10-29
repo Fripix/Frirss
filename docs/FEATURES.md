@@ -98,6 +98,23 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
 (mode « SSO uniquement »), auquel cas le formulaire local est masqué.
 
 - **Où** : `server/oidc.ts`, `server/routes/auth.ts` (`/oidc/*`), `src/lib/shouldHideLocalLogin.ts`
+- **Rattacher un compte existant : depuis le compte seulement** (1.8.0,
+  décision du propriétaire). Préférences › Général › Compte, « Lier à
+  {fournisseur} » (comptes locaux, SSO actif, pas encore liés) :
+  `POST /api/auth/oidc/link` (authentifié) rend l'URL du fournisseur, dont
+  l'état signé porte `link: <id>` ; au retour, l'identité (`sub`) est posée sur
+  ce compte et **aucune session n'est ouverte** (`#oidc_linked=1` ; une
+  identité déjà liée ailleurs donne `#oidc_link_error=already_linked`). Le
+  cookie PKCE lie le retour au navigateur qui l'a lancé. Un compte lié garde
+  son mot de passe et `auth_provider = 'local'`. `sso_linked` (connexion,
+  `/me`) dit s'il l'est. **Retiré** : le rattachement d'office, à la première
+  connexion SSO, au compte local qui portait la même adresse e-mail — sans
+  exiger qu'elle soit vérifiée (Authentik envoie `email_verified=false` par
+  défaut) : qui inscrivait l'adresse de l'admin dans son profil chez le
+  fournisseur recevait une session admin. Une telle connexion répond
+  désormais `#oidc_error=link_required` (« connectez-vous avec le mot de
+  passe, puis liez »), sans créer de doublon. Tests : `server/test/oidcLink.test.ts`
+  (fournisseur simulé), `GeneralTab.password.test.tsx`, `oidcFragment.test.ts`.
 - **`redirect_uri` sans `X-Forwarded-Host`** (1.8.0) : sans `FRIRSS_BASE_URL`,
   l'hôte vient de `Host` seul, que nginx réécrit. `X-Forwarded-Host` arrivait
   tel que le client l'écrivait et dictait le `redirect_uri` signé — selon la
@@ -6178,7 +6195,8 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 | GET | `/api/auth/status` | Inscriptions ouvertes, existence d'un compte |
 | GET | `/api/auth/oidc/config` | Configuration SSO exposée au client |
 | GET | `/api/auth/oidc/login` | Démarrer le flux OIDC |
-| GET | `/api/auth/oidc/callback` | Retour du fournisseur OIDC |
+| GET | `/api/auth/oidc/callback` | Retour du fournisseur OIDC (connexion, ou rattachement si l'état porte `link`) |
+| POST | `/api/auth/oidc/link` | Rattacher le compte local connecté à une identité SSO (rend l'URL du fournisseur) |
 | GET | `/api/servers` | Lister ses connexions FreshRSS |
 | POST | `/api/servers` | Ajouter une connexion |
 | PUT | `/api/servers/:id` | Modifier une connexion |
