@@ -36,7 +36,9 @@ export function formatBytes(
     const n = (bytes / GB).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     return `${n} ${units.gb}`;
   }
-  return `${Math.round(bytes / MB).toLocaleString(locale)} ${units.mb}`;
+  // A non-zero size never rounds down to 0: it would read as nothing stored.
+  const mb = bytes > 0 ? Math.max(1, Math.round(bytes / MB)) : 0;
+  return `${mb.toLocaleString(locale)} ${units.mb}`;
 }
 
 /** Drop every cached image, prepared or kept on display (the user-facing

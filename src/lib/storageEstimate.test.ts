@@ -8,8 +8,10 @@ describe('formatBytes', () => {
   it('renders gigabytes with one decimal', () => {
     expect(formatBytes(1.25 * 1024 * 1024 * 1024)).toBe('1,3 Go');
   });
-  it('renders small sizes as 0 Mo rather than a fraction', () => {
-    expect(formatBytes(1024)).toBe('0 Mo');
+  // « dont 1 préparée : ~0 Mo » disait qu'il n'y avait rien : une taille
+  // non nulle ne s'arrondit jamais à zéro.
+  it('renders a small but non-zero size as 1 Mo, never 0', () => {
+    expect(formatBytes(1024)).toBe('1 Mo');
   });
   it('handles zero', () => {
     expect(formatBytes(0)).toBe('0 Mo');
