@@ -21,7 +21,12 @@ export function cachedConnection(open: () => Promise<IDBDatabase>): CachedConnec
       if (current) return current;
       const mine: Promise<IDBDatabase> = open().then(
         (db) => {
-          const forget = () => { if (current === mine) current = null; };
+          // Both references go: a stale `currentDb` would let a failure on
+          // this closed connection drop the reopening already under way.
+          const forget = () => {
+            if (current === mine) current = null;
+            if (currentDb === db) currentDb = null;
+          };
           // `close`: closed by the browser (storage cleared). `versionchange`:
           // another tab wants to upgrade — step aside, or it stays blocked.
           db.addEventListener('close', forget);

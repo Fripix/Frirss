@@ -1272,6 +1272,16 @@ describe('extract', () => {
   // l'adresse d'un article y passait en entier), donc le 415 doit rester
   // réservé à un type ANNONCÉ qui n'est pas du HTML — sinon une vraie page
   // servie sans type ne s'extrairait plus nulle part.
+  // Sans type, seul ce qui ressemble à du HTML est lu comme une page : un
+  // binaire donnait un « article » de bruit, mis en cache pour l'instance.
+  it('refuses an untyped response that is not markup', async () => {
+    for (const body of [new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0x3c, 0x70]), new TextEncoder().encode('du texte brut, sans balise')]) {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, headers: new Headers(), body: streamOf([body]) }));
+      const res = await get('https://news.example.com/sans-type-binaire');
+      expect(res.status).toBe(415);
+    }
+  });
+
   it('reads a response with no Content-Type as a page', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true, status: 200, headers: new Headers(), body: htmlStream(ARTICLE),
@@ -1281,12 +1291,14 @@ describe('extract', () => {
     expect(res.body.content).toContain('premier paragraphe');
   });
 
+  // 413, pas 502 : le client ne se replie pas sur un 413 — son repli,
+  // plafonné lui aussi à 2 Mo, retéléchargeait la page pour échouer.
   it('refuses a body larger than the cap', async () => {
     // 1 Mo par morceau, 20 morceaux : le plafond (2 Mo) tombe bien avant.
     const chunks = Array.from({ length: 20 }, () => new Uint8Array(1_000_000).fill(0x20));
     stubUpstream(streamOf(chunks));
     const res = await get('https://news.example.com/enorme');
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(413);
     expect(res.body).toEqual({ error: 'Upstream response too large' });
   });
 
@@ -1297,7 +1309,7 @@ describe('extract', () => {
     const chunks = Array.from({ length: 3 }, () => new Uint8Array(1_000_000).fill(0x20));
     stubUpstream(streamOf(chunks));
     const res = await get('https://news.example.com/trois-mo');
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(413);
     expect(res.body).toEqual({ error: 'Upstream response too large' });
   });
 

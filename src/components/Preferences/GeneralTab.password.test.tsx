@@ -202,6 +202,28 @@ describe('Préférences › Général — lier son compte au SSO', () => {
     expect(await screen.findByText('preferences.account.ssoLinked')).toBeTruthy();
   });
 
+  // La relecture part à l'ouverture : si elle répond APRÈS un déliage, elle
+  // ne doit pas rendre « lié » (désormais gardé dans le localStorage).
+  it('une relecture tardive n’annule pas un déliage', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
+    let answer: (u: unknown) => void = () => {};
+    vi.mocked(getMe).mockReturnValueOnce(new Promise((r) => { answer = r; }) as never);
+    useAuthStore.setState({ backendToken: 'tok', backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true } as never });
+    render(<GeneralTab />);
+    { const btn = await screen.findByRole('button', { name: 'preferences.account.ssoUnlink' }); await act(async () => { fireEvent.click(btn); }); }
+    await act(async () => { answer({ id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: true }); });
+    expect(useAuthStore.getState().backendUser?.sso_linked).toBe(false);
+  });
+
+  it('ignore une relecture qui parle d’un autre compte', async () => {
+    vi.mocked(getOidcConfig).mockResolvedValue({ enabled: true, buttonLabel: 'Authentik' });
+    vi.mocked(getMe).mockResolvedValueOnce({ id: 2, username: 'autre', role: 'user', auth_provider: 'local', sso_linked: true } as never);
+    useAuthStore.setState({ backendToken: 'tok', backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local', sso_linked: false } as never });
+    render(<GeneralTab />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(useAuthStore.getState().backendUser?.sso_linked).toBe(false);
+  });
+
   it('ne montre rien quand le SSO est éteint', async () => {
     vi.mocked(getOidcConfig).mockResolvedValue({ enabled: false });
     useAuthStore.setState({ backendUser: { id: 1, username: 'root', role: 'admin', auth_provider: 'local' } as never });

@@ -118,22 +118,23 @@ describe('prepareOffline — images préparées', () => {
     expect(pruneImages).not.toHaveBeenCalled();
   });
 
-  // Appareil plein : rien de ce qui suit ne pourrait s'enregistrer (extraits
-  // compris), et le retrait final ôterait les images des articles suivants,
-  // encore dans le budget. La préparation s'arrête là, comme interrompue.
-  it('s’arrête quand l’appareil est plein, le dit, et ne retire rien', async () => {
+  // Appareil plein : plus aucune image n'est tentée, mais la préparation va
+  // au bout. Le retrait final est le seul qui libère de la place (articles de
+  // plus de 30 jours) ; il ne doit pas ôter les images des articles suivants,
+  // encore voulues — leurs adresses sont relevées sans rien télécharger.
+  it('appareil plein : arrête les images, garde celles des articles suivants, libère le reste', async () => {
     vi.mocked(cacheImages).mockImplementation(async (urls) => ({ ...result([], 0), failed: urls.length, full: true }));
     await useFeedStore.getState().prepareOffline();
     expect(cacheImages).toHaveBeenCalledTimes(1);
     const prep = useFeedStore.getState().offlinePrep;
     expect(prep?.deviceFull).toBe(true);
     expect(prep?.running).toBe(false);
-    expect(prep?.done).toBeLessThan(prep?.total ?? 0);
-    expect(pruneImages).not.toHaveBeenCalled();
+    expect(prep?.done).toBe(prep?.total);
+    expect(pruneImages).toHaveBeenCalledTimes(1);
+    expect([...vi.mocked(pruneImages).mock.calls[0][0]].sort())
+      .toEqual(['https://img.example/2.jpg', 'https://img.example/3.jpg']);
   });
 
-  // Sans stockage protégé, le navigateur peut effacer tout le site quand
-  // l'appareil manque de place — en pleine préparation.
   it('demande un stockage protégé quand l’utilisateur lance la préparation', async () => {
     const persist = vi.fn(async () => true);
     Object.defineProperty(navigator, 'storage', { configurable: true, value: { persist } });

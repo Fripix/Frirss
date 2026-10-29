@@ -227,5 +227,23 @@ describe('rattacher une identité SSO depuis son compte', () => {
     expect(await meStatus(ownerToken)).toBe(200);
     bobToken = (await request(app).post('/api/auth/login').send({ username: 'bob', password: 'secret123' })).body.token;
   });
+
+  // Un ticket ne sert qu'une fois : après un déliage, le même ticket (moins
+  // de 5 min) reliait l'identité qu'on venait d'écarter.
+  it('un ticket ne sert qu’une fois', async () => {
+    const { ticket } = await ticketFor(bobToken, { sub: 'sub-bob-5' });
+    expect((await complete(bobToken, ticket)).status).toBe(200);
+    expect((await request(app).delete('/api/auth/oidc/link').set('Authorization', `Bearer ${bobToken}`)).status).toBe(200);
+    expect((await complete(bobToken, ticket)).status).toBe(400);
+    expect(subOf(bobId)).toBeNull();
+  });
+
+  it('l’admin qui délie son propre compte garde sa session', async () => {
+    await link(ownerToken, { sub: 'sub-owner-2' }).catch(() => undefined);
+    // Le compte de l'admin est déjà lié (`sub-owner`) : on le délie par la route admin.
+    const res = await request(app).delete(`/api/admin/users/${ownerId}/sso`).set('Authorization', `Bearer ${ownerToken}`);
+    expect(res.status).toBe(200);
+    expect(await meStatus(ownerToken)).toBe(200);
+  });
 });
 

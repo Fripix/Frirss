@@ -67,7 +67,7 @@ export function sanitizeExtracted(html: string): string {
  * la page, et il vaut mieux lui rendre le texte que son propre navigateur sait
  * extraire. Ce qu'il coûte, assumé : sur une page vraiment lente, le repli
  * repart chercher la MÊME origine, soit deux requêtes chez elle pour cet
- * article-là — c'est déjà le coût connu d'un repli sur 422 ou 502 (un 415 ne se replie pas).
+ * article-là — c'est déjà le coût connu d'un repli sur 422 ou 502 (ni un 415 ni un 413 ne se replient).
  * L'extraction serveur, elle, va au bout et remplit le cache : le prochain
  * appareil, lui, sera servi tout de suite.
  *
@@ -151,7 +151,8 @@ export const FALLBACK_MAX_HTML_BYTES = 2_000_000;
 /** Les types qu'on lit comme une page — ceux de la route serveur. */
 const HTML_TYPES = /^(text\/html|application\/xhtml\+xml)\b/i;
 
-/** La cible n'est pas une page (vidéo, PDF, image…) : rien à extraire. */
+/** La cible n'est pas une page (vidéo, PDF, image…) ou dépasse 2 Mo : rien
+ *  à extraire, et aucun repli. */
 export class NotAPageError extends Error {
   constructor() { super('NOT_A_PAGE'); this.name = 'NotAPageError'; }
 }
@@ -227,8 +228,9 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   // entre comptes. Toute réponse absente, en erreur, trop lente ou illisible
   // fait tomber sur l'extraction locale ci-dessous, qui reste le filet — la
   // route peut manquer (serveur plus ancien), ne pas savoir extraire la page
-  // (422) ou échouer à la joindre (502, 504). Sauf un 415 : la cible n'est pas
-  // une page, et le repli relirait la même réponse (`NotAPageError`).
+  // (422) ou échouer à la joindre (502, 504). Sauf un 415 (la cible n'est pas
+  // une page) ou un 413 (plus de 2 Mo, le plafond du repli aussi) : le repli
+  // relirait la même réponse pour échouer (`NotAPageError`).
   //
   // Ce repli ne couvre PAS l'absence de Redis : sans cache, la route extrait
   // quand même et répond 200 — elle ne garde simplement rien, et le prochain
@@ -249,9 +251,10 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   const askServer = () => withTimeout(SERVER_EXTRACT_TIMEOUT_MS, async (signal) => {
     const served = await fetch(`/api/extract?url=${encodeURIComponent(url)}`, { headers: auth, signal });
     if (served.status === 429) return { limited: RATE_LIMITED, wait: retryAfterMs(served.headers) } as const;
-    // 415 : le serveur a lu les en-têtes de la cible, ce n'est pas une page.
-    // Le repli relirait la même réponse — en entier, avant ce correctif.
-    if (served.status === 415) throw new NotAPageError();
+    // 415 : le serveur a lu la cible, ce n'est pas une page. 413 : elle
+    // dépasse 2 Mo, le plafond du repli aussi. Le repli relirait la même
+    // réponse pour échouer — en entier, avant la 1.8.0.
+    if (served.status === 415 || served.status === 413) throw new NotAPageError();
     if (!served.ok) return null;
     const data = (await served.json()) as Partial<ExtractedContent>;
     // Champ par champ, exactement comme le chemin local plus bas. Un

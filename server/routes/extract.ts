@@ -63,7 +63,14 @@ export const EXTRACT_FETCH_TIMEOUT_MS = 45_000;
 /** Types de contenu dont il y a un article à extraire. */
 const HTML_TYPES = /^(text\/html|application\/xhtml\+xml)\b/i;
 
-/** Plafond dépassé : échec ordinaire, dont le client doit pouvoir se replier. */
+/** Le début d'un document HTML : un `<` après d'éventuels blancs (et BOM), et
+ *  aucun octet nul dans le premier Ko. */
+function looksLikeMarkup(text: string): boolean {
+  const head = text.slice(0, 1024);
+  return !head.includes('\0') && /^\uFEFF?\s*</.test(head);
+}
+
+/** Plafond dépassé (413) : le client ne se replie pas, son repli a le même plafond. */
 class BodyTooLargeError extends Error {}
 
 /**
@@ -185,10 +192,15 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
       return json(415, { error: 'Unsupported content type' });
     }
     html = await readBoundedText(upstream, MAX_HTML_BYTES, BODY_TIMEOUT_MS);
+    // Sans type, seul ce qui ressemble à du HTML est une page : un binaire
+    // (zip, gz…) donnait un « article » de bruit, mis en cache pour toute
+    // l'instance, et un texte brut faisait lever l'analyseur.
+    if (!ctype && !looksLikeMarkup(html)) return json(415, { error: 'Unsupported content type' });
   } catch (err) {
-    // Dépassement de taille : échec ordinaire, dont le client doit pouvoir se
-    // replier. Le reste remonte à l'appelant, qui le passe à `finishError`.
-    if (err instanceof BodyTooLargeError) return json(502, { error: 'Upstream response too large' });
+    // Dépassement de taille : 413, sur lequel le client ne se replie pas — son
+    // repli, plafonné au même 2 Mo, retéléchargeait la page pour échouer.
+    // Le reste remonte à l'appelant, qui le passe à `finishError`.
+    if (err instanceof BodyTooLargeError) return json(413, { error: 'Upstream response too large' });
     throw err;
   }
 

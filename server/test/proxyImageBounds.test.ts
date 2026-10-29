@@ -147,6 +147,9 @@ describe('requête d’image du proxy : une image, et bornée', () => {
     const res = await call('/missing.mp4');
     expect(res.status).toBe(404);
     expect(res.bytes).toBeLessThan(1024);
+    // Et le serveur a cessé de tirer l'amont (corps annulé).
+    await new Promise((r) => setTimeout(r, 100));
+    expect(written['/missing.mp4']).toBeLessThan(4 * MAX_PROXIED_IMAGE_BYTES);
   });
 
   it('relaie une image ordinaire en entier', async () => {

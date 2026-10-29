@@ -639,13 +639,16 @@ export async function fetchUpstream(
       // socket until garbage collection (see `routes/extract.ts`).
       resp.body?.cancel().catch(() => {});
       const next = new URL(loc, url);
-      // Don't leak the FreshRSS token to a different ORIGIN on redirect —
-      // scheme and port included: comparing hosts let an https → http hop on
-      // the same host carry it in clear.
-      if (next.origin !== startOrigin) {
-        delete curHeaders.Authorization;
-        startOrigin = next.origin;
-      }
+      // Don't leak the FreshRSS token on redirect. It follows the same origin,
+      // and the upgrade http → https on the same host and default ports (a
+      // server saved as http:// behind a proxy that redirects, as Caddy always
+      // does). Anything else drops it — an https → http hop on the same host
+      // included, which comparing hosts used to let through in clear.
+      const prev = new URL(startOrigin);
+      const upgrade = prev.protocol === 'http:' && next.protocol === 'https:'
+        && prev.hostname === next.hostname && prev.port === '' && next.port === '';
+      if (next.origin !== startOrigin && !upgrade) delete curHeaders.Authorization;
+      startOrigin = next.origin;
       // Per fetch semantics: 303 (and 301/302 on a non-GET) → GET without body.
       if (resp.status === 303 || ((resp.status === 301 || resp.status === 302) && curMethod !== 'GET' && curMethod !== 'HEAD')) {
         curMethod = 'GET';

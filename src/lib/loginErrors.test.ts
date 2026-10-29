@@ -213,8 +213,14 @@ describe('registerErrorKey', () => {
   // Les refus se reconnaissent à leur texte : s'il change côté serveur, le
   // message traduit retomberait en silence sur le générique.
   it('reconnaît des textes que le serveur envoie vraiment', () => {
+    // Dans la route d'inscription elle-même : « Password must be at least 6
+    // characters » figure aussi dans le changement de mot de passe.
     const src = fs.readFileSync(path.join(__dirname, '../../server/routes/auth.ts'), 'utf8');
-    for (const m of Object.values(REGISTER_ERROR_MESSAGES)) expect(src).toContain(`'${m}'`);
+    const start = src.indexOf("router.post('/register'");
+    const end = src.indexOf('router.', start + 10);
+    expect(start).toBeGreaterThan(-1);
+    const register = src.slice(start, end);
+    for (const m of Object.values(REGISTER_ERROR_MESSAGES)) expect(register).toContain(`'${m}'`);
   });
   it('garde le message générique pour le reste', () => {
     expect(registerErrorKey(http(500, 'Internal server error'))).toBe('login.errorRegister');

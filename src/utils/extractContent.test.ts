@@ -412,6 +412,17 @@ describe('extractFullContent — le repli ne lit qu’une page bornée', () => {
     expect(proxy).not.toHaveBeenCalled();
   });
 
+  it('ne se replie pas sur une page trop grosse (413) : le repli échouerait aussi', async () => {
+    const proxy = vi.fn();
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 413 });
+      proxy();
+      return htmlPage(pageHtml);
+    }));
+    await expect(extractFullContent('https://example.com/enorme')).rejects.toThrow();
+    expect(proxy).not.toHaveBeenCalled();
+  });
+
   it('refuse un repli qui n’est pas du HTML sans en lire le corps', async () => {
     const { pulled, response } = endless('video/mp4');
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {

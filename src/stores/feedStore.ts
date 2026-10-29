@@ -1279,7 +1279,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         if (a.url && !extracted) {
           const stored = await getExtract(a.id);
           extracted = stored?.content ?? null;
-          if (!extracted) {
+          // Device full: a new extract could not be kept — read what is
+          // already stored, fetch nothing.
+          if (!extracted && !deviceFull) {
             try {
               const content = await extractFullContent(a.url);
               await putExtract(a.id, content);
@@ -1288,7 +1290,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           }
         }
 
-        if (!budgetReached) {
+        if (deviceFull) {
+          // No image is attempted any more, but the later articles' images
+          // already prepared stay wanted: the final sweep, the only one that
+          // frees space (older than 30 days), must not drop them.
+          for (const url of articleImageUrls(a.content, extracted, budget.perArticle)) keptImages.add(url);
+        } else if (!budgetReached) {
           const urls = articleImageUrls(a.content, extracted, budget.perArticle);
           imagesFound += urls.length;
           const res = await cacheImages(urls);
@@ -1298,10 +1305,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           imagesError ??= res.error;
           for (const url of res.kept) keptImages.add(url);
           if (res.error?.startsWith('open:')) interrupted = true;
-          // Device full: nothing further could be stored (extracts included),
-          // and the final sweep would drop the images of later articles still
-          // within budget. Stop here, as an interrupted run.
-          if (res.full) { deviceFull = true; interrupted = true; done++; break; }
+          // Device full: every later image would fail too, after a wasted
+          // download. The run goes on (see above), images and new extracts off.
+          if (res.full) deviceFull = true;
           // Count the bytes actually held — stored now or kept from an earlier
           // run, or the cache would outgrow the budget over successive runs. The
           // previous guard watched the browser's storage estimate, which pads

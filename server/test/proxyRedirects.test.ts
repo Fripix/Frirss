@@ -36,6 +36,29 @@ describe('fetchUpstream — redirections', () => {
     expect(seen[1].Authorization).toBeUndefined();
   });
 
+  // Un serveur enregistré en http:// derrière un proxy qui redirige vers
+  // https (Caddy le fait toujours, en 308) : le jeton suit la montée en
+  // https sur le même hôte, comme en 1.7.0.
+  it('garde le jeton sur un saut http → https, même hôte', async () => {
+    const seen: Array<Record<string, string>> = [];
+    vi.stubGlobal('fetch', vi.fn(async (_u: string, init: { headers: Record<string, string> }) => {
+      seen.push({ ...init.headers });
+      return seen.length === 1 ? redirectTo('https://rss.example.org/a', () => {}) : new Response('ok');
+    }));
+    await fetchUpstream('http://rss.example.org/a', { headers: { Authorization: 'GoogleLogin auth=secret' } });
+    expect(seen[1].Authorization).toBe('GoogleLogin auth=secret');
+  });
+
+  it('retire le jeton vers un autre hôte, même en https', async () => {
+    const seen: Array<Record<string, string>> = [];
+    vi.stubGlobal('fetch', vi.fn(async (_u: string, init: { headers: Record<string, string> }) => {
+      seen.push({ ...init.headers });
+      return seen.length === 1 ? redirectTo('https://ailleurs.example.org/a', () => {}) : new Response('ok');
+    }));
+    await fetchUpstream('http://rss.example.org/a', { headers: { Authorization: 'GoogleLogin auth=secret' } });
+    expect(seen[1].Authorization).toBeUndefined();
+  });
+
   it('garde le jeton sur la même origine', async () => {
     const seen: Array<Record<string, string>> = [];
     vi.stubGlobal('fetch', vi.fn(async (_u: string, init: { headers: Record<string, string> }) => {

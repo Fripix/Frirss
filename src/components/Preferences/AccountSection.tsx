@@ -7,9 +7,14 @@ import { useUiStore } from '../../stores/uiStore';
 /** Même minimum que le serveur (`server/routes/auth.ts`) et que la création de compte. */
 const MIN_PASSWORD = 6;
 
+/** Compte les changements d'état « lié » : une relecture partie avant l'un
+ *  d'eux est périmée. */
+let linkChanges = 0;
+
 /** Enregistre l'état « lié » avec la session : le store seul le perdait au
  *  rechargement (« Lié » revenait après avoir délié). */
 function setLinked(linked: boolean): void {
+  linkChanges++;
   const { backendToken, backendUser, setBackendAuth } = useAuthStore.getState();
   if (!backendUser) return;
   const user = { ...backendUser, sso_linked: linked };
@@ -56,7 +61,15 @@ export default function AccountSection() {
       if (!live) return;
       setOidc(c);
       if (!c?.enabled) return;
-      getMe().then((me) => { if (live && me && typeof me.sso_linked === 'boolean') setLinked(me.sso_linked); }).catch(() => {});
+      // Ignorée si l'état a changé depuis (déliage pendant la requête) ou si
+      // elle parle d'un autre compte (session changée entre-temps).
+      const asked = linkChanges;
+      const id = useAuthStore.getState().backendUser?.id;
+      getMe().then((me) => {
+        if (!live || !me || typeof me.sso_linked !== 'boolean') return;
+        if (asked !== linkChanges || me.id !== id || useAuthStore.getState().backendUser?.id !== id) return;
+        setLinked(me.sso_linked);
+      }).catch(() => {});
     }).catch(() => {});
     return () => { live = false; };
   }, [isLocal]);

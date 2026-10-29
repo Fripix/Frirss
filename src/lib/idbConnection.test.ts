@@ -96,5 +96,20 @@ describe('transactionOn', () => {
     expect(await conn.get()).toBe(fresh);
     expect(open).toHaveBeenCalledTimes(2);
   });
+
+  // L'ancienne connexion fermée, une réouverture en cours : une transaction
+  // qui échoue alors sur l'ancienne ne doit pas jeter la réouverture.
+  it('ne jette pas une réouverture en cours à cause de l’ancienne connexion', async () => {
+    const dbs = [new FakeDb(), new FakeDb(), new FakeDb()];
+    const open = vi.fn(async () => asDb(dbs[open.mock.calls.length - 1]));
+    const conn = cachedConnection(open);
+    const old = await conn.get();
+    dbs[0].closed = true;
+    dbs[0].dispatchEvent(new Event('close'));
+    const reopening = conn.get();
+    expect(() => transactionOn(conn, old, 'store', 'readonly')).toThrow();
+    expect(await conn.get()).toBe(await reopening);
+    expect(open).toHaveBeenCalledTimes(2);
+  });
 });
 

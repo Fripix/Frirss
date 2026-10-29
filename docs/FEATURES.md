@@ -4383,8 +4383,9 @@ serveur de développement en 1.4.4.)*
   **Toute** réponse absente, en erreur (404 sur un serveur plus ancien, 422 page
   non extractible, 403, 502, 503, 504) ou illisible fait tomber sur
   l'extraction locale décrite ci-dessous — **sauf un 429**, qui est une question
-  de cadence et non de capacité : voir plus bas, **et sauf un 415** (la cible
-  n'est pas une page : `NotAPageError`, pas de repli) — page récupérée par `/api/proxy` (**JWT requis**,
+  de cadence et non de capacité : voir plus bas, **et sauf un 415 ou un 413**
+  (la cible n'est pas une page, ou dépasse 2 Mo, le plafond du repli aussi :
+  `NotAPageError`, pas de repli) — page récupérée par `/api/proxy` (**JWT requis**,
   même garde anti-SSRF) puis Readability dans le navigateur. Ce repli n'est pas
   du code hérité : c'est ce qui tient quand le serveur n'a pas la route, ne sait
   pas lire la page, ou ne répond pas.
@@ -4781,23 +4782,34 @@ images consultés restent lisibles sans réseau.
   (`src/lib/idbConnection.ts`, 1.8.0, `idbConnection.test.ts`) : la connexion
   est oubliée sur `close` (le navigateur a effacé le stockage du site), sur
   `versionchange` (un autre onglet migre), sur un échec d'ouverture et sur une
-  transaction refusée pour connexion fermée (`InvalidStateError`). ⚠️ Avant,
+  transaction refusée pour connexion fermée (`InvalidStateError`, ou
+  `UnknownError` sous Safari — « Connection to Indexed Database server lost »,
+  supposé d'après la littérature, non vu sur un iPhone). `reset(db)` n'oublie
+  que la connexion fautive : un échec sur l'ancienne ne jette pas une
+  réouverture déjà en cours. ⚠️ Avant,
   elle était gardée pour toujours : après un effacement, chaque lecture et
   écriture échouait en silence jusqu'au rechargement — extraits non gardés,
   **file des actions hors ligne perdue**. Vu sur Android : Chrome a effacé
   caches ET bases du site (pas le `localStorage`) au milieu d'une préparation,
   le disque de l'appareil étant presque plein ; le budget d'images, calculé
   sur le quota annoncé (13,8 Go), dépassait l'espace réellement libre.
-- **Une préparation demande un stockage protégé et s'arrête sur disque plein**
+- **Une préparation demande un stockage protégé et ménage un disque plein**
   (1.8.0, `feedStore.prepareOffline`, `imageCache.cacheImages`) :
-  `navigator.storage.persist()` au lancement, sans l'attendre — Chrome et
-  Safari l'accordent sans rien demander à une app installée, Firefox affiche
-  une demande ; un stockage protégé n'est pas effacé par le navigateur quand
-  l'appareil manque de place. Et la première écriture refusée pour
-  `QuotaExceededError` arrête les images (`full`, puis
-  `offlinePrep.deviceFull`, affiché « arrêté : plus de place sur l'appareil »,
-  `offline.imagesDeviceFull`, à la place de « arrêté par le budget ») : les
-  suivantes échoueraient aussi, après un téléchargement pour rien. Le budget
+  `navigator.storage.persist()` quand l'utilisateur clique « Préparer »
+  (`userInitiated`), sans l'attendre — jamais depuis la préparation
+  automatique de l'ouverture, car Firefox affiche une demande ; Chrome et
+  Safari l'accordent sans rien demander à une app installée, et une fois
+  accordé il vaut aussi pour les préparations automatiques. Un stockage
+  protégé n'est pas effacé par le navigateur quand l'appareil manque de
+  place. La première écriture refusée pour `QuotaExceededError` (`full`)
+  arrête les images ET les nouvelles extractions (rien ne s'enregistrerait),
+  mais la préparation va au bout : elle relève les images des articles
+  suivants sans les télécharger, pour que le retrait final — le seul qui
+  libère de la place, articles de plus de 30 jours — ne les ôte pas
+  (`offlinePrep.deviceFull`, affiché « arrêté : plus de place sur
+  l'appareil », `offline.imagesDeviceFull`). ⚠️ Un premier essai arrêtait toute
+  la préparation : sans retrait final, l'appareil restait plein, et la
+  préparation automatique butait au premier article chaque heure. Le budget
   reste calculé sur le quota annoncé, qui peut dépasser l'espace libre réel :
   ces deux mesures en limitent la conséquence, elles ne le corrigent pas.
 - **Deux caches d'images** (1.8.0) :
@@ -4870,7 +4882,10 @@ images consultés restent lisibles sans réseau.
   `isImageLikeType`) : un type qui n'est ni `image/*` ni absent ni
   `application/octet-stream` répond 415, une longueur annoncée au-delà du
   plafond 413, et un corps sans longueur est coupé au plafond (le statut est
-  déjà parti). Le client garde chaque réponse ENTIÈRE en mémoire (blob axios)
+  déjà parti). Une réponse en erreur ne relaie que son statut, sans corps. Les
+  redirections suivies par `fetchUpstream` libèrent leur corps, et le jeton
+  FreshRSS ne suit que la même origine ou la montée http → https sur le même
+  hôte (ports par défaut). Le client garde chaque réponse ENTIÈRE en mémoire (blob axios)
   avant le `cache.put()` : sans cette borne, une `<img src>` vers une vidéo ou
   un flux de webcam remplissait l'onglet pendant les 60 s de l'échéance totale.
   Protection posée en 1.8.0 à côté du correctif du repli d'extraction (même
@@ -5800,10 +5815,14 @@ qu'elle rend (voir *Extraction du contenu complet*).
   un test qui injecte un `onerror` et le voit disparaître.
 - **Plafonds de lecture** (`server/routes/extract.ts`) : la réponse doit être du
   `text/html` (sinon 415, avant toute lecture — un PDF ou une vidéo n'a pas
-  d'article ; une réponse **sans en-tête `Content-Type`** tombe dans le même
-  refus, plus étroit que l'ancien chemin par le proxy : le client se replie
-  alors sur son extracteur local, qui, lui, lit la page quand même), au plus
-  2 Mo (sinon 502 ; 5 Mo avant 1.8.0 — mesuré le 2026-10-29 sur 133 pages
+  d'article). Une réponse **sans en-tête `Content-Type`** est lue comme une
+  page si elle en a l'air (`looksLikeMarkup` : un `<` en tête, aucun octet nul
+  dans le premier Ko), sinon 415 — 1.8.0 : jusque-là tout refus sans type
+  envoyait le client à son repli, qui ne se replie plus sur un 415 ; et lue
+  sans contrôle, un binaire donnait un « article » de bruit mis en cache pour
+  l'instance. Au plus 2 Mo (sinon **413**, sur lequel le client ne se replie
+  pas non plus — 502 jusqu'en 1.8.0, et le repli retéléchargeait 2 Mo pour
+  échouer ; 5 Mo avant 1.8.0 — mesuré le 2026-10-29 sur 133 pages
   de vingt grands médias FR/EN du jeu de test : médiane 0,18 Mo, p99 1,09 Mo,
   maximum 1,30 Mo (Clubic) ; les très longs articles de Bartosz Ciechanowski
   font moins de 0,2 Mo) et

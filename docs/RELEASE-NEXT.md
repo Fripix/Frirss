@@ -476,10 +476,12 @@ la release publiée.
   l'appareil, données effacées à la main), l'app n'arrivait plus à rien
   enregistrer jusqu'au rechargement : les articles préparés n'étaient plus
   gardés, et les actions faites hors ligne (lu, favori) pouvaient être
-  perdues. Elle rouvre maintenant son stockage d'elle-même. Une préparation
+  perdues. Elle rouvre maintenant son stockage d'elle-même. « Préparer »
   demande aussi au navigateur de protéger ce stockage (Firefox affiche une
-  demande d'autorisation), et s'arrête dès que l'appareil n'a plus de place
-  au lieu de le remplir : l'onglet Hors ligne le dit.
+  demande d'autorisation ; une fois accordée, elle vaut aussi pour la
+  préparation automatique). Et dès que l'appareil n'a plus de place, la
+  préparation cesse de télécharger au lieu de le remplir, sans retirer les
+  images encore utiles : l'onglet Hors ligne le dit.
 - **La mémoire ne grossit plus au fil de la lecture.** Chaque article
   affiché, extrait ou traduit qui contenait une vidéo ou une image adaptée à
   la taille de l'écran laissait une copie de sa page en mémoire, que le

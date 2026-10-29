@@ -355,26 +355,36 @@ router.post('/oidc/link', requireAuth, passwordLimiter, async (req, res) => {
 // ── POST /api/auth/oidc/link/complete ───────────────────────────────
 // Valide le ticket remis par le retour du fournisseur, depuis une session du
 // compte qui a lancé la liaison (le ticket porte son id ; il vaut 5 minutes,
-// et une seconde validation trouve le compte déjà lié). Le retour, lui, n'est lié au navigateur que par des
+// et ne sert qu'une fois). Le retour, lui, n'est lié au navigateur que par des
 // cookies, qu'un site voisin du même domaine peut déposer : l'attaquant
 // lançait sa propre liaison, la victime revenait du fournisseur dans ce
 // navigateur, et l'identité de la victime allait sur le compte de l'attaquant.
 // Ici, il faudrait la session de l'attaquant dans le navigateur de la victime.
+// Tickets déjà servis (`jti` → fin de validité, ms). Un ticket ne sert qu'une
+// fois : après un déliage, le même ticket (moins de 5 min) reliait sinon
+// l'identité qu'on venait d'écarter. En mémoire : un seul processus, et un
+// redémarrage n'oublie que des tickets déjà proches de l'expiration.
+const usedLinkTickets = new Map<string, number>();
+
 router.post('/oidc/link/complete', requireAuth, (req, res) => {
   const ticket = req.body?.ticket;
-  let decoded: { t?: string; uid?: number; sub?: string };
+  let decoded: { t?: string; uid?: number; sub?: string; jti?: string; exp?: number };
   try {
     if (typeof ticket !== 'string') throw new Error('no ticket');
     decoded = jwt.verify(ticket, getJwtSecret(), { algorithms: ['HS256'] }) as typeof decoded;
   } catch {
     return res.status(400).json({ error: 'Invalid link ticket', code: 'invalid_ticket' });
   }
-  if (decoded.t !== 'oidc_link_ticket' || typeof decoded.sub !== 'string' || !decoded.sub) {
+  const now = Date.now();
+  for (const [id, until] of usedLinkTickets) if (until < now) usedLinkTickets.delete(id);
+  if (decoded.t !== 'oidc_link_ticket' || typeof decoded.sub !== 'string' || !decoded.sub
+    || typeof decoded.jti !== 'string' || usedLinkTickets.has(decoded.jti)) {
     return res.status(400).json({ error: 'Invalid link ticket', code: 'invalid_ticket' });
   }
   if (decoded.uid !== req.user.id) return res.status(403).json({ error: 'Link started from another account', code: 'link_mismatch' });
   const holder = db.prepare('SELECT id FROM users WHERE oidc_sub = ?').get(decoded.sub) as { id: number } | undefined;
   if (holder && holder.id !== req.user.id) return res.status(409).json({ error: 'Identity already linked', code: 'already_linked' });
+  usedLinkTickets.set(decoded.jti, (decoded.exp ?? now / 1000 + 300) * 1000);
   if (!holder) {
     const done = db.prepare(
       "UPDATE users SET oidc_sub = ? WHERE id = ? AND active = 1 AND auth_provider = 'local' AND oidc_sub IS NULL",
@@ -506,7 +516,7 @@ router.get('/oidc/callback', async (req, res) => {
       const holder = db.prepare('SELECT id FROM users WHERE oidc_sub = ?').get(sub) as { id: number } | undefined;
       if (holder && holder.id !== decoded.link) return res.redirect('/#oidc_link_error=already_linked');
       if (holder) return res.redirect('/#oidc_linked=1');
-      const ticket = jwt.sign({ t: 'oidc_link_ticket', uid: decoded.link, sub }, getJwtSecret(), {
+      const ticket = jwt.sign({ t: 'oidc_link_ticket', uid: decoded.link, sub, jti: randomBytes(16).toString('hex') }, getJwtSecret(), {
         algorithm: 'HS256', expiresIn: '5m',
       });
       return res.redirect(`/#oidc_link_ticket=${encodeURIComponent(ticket)}`);
