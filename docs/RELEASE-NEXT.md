@@ -481,6 +481,9 @@ la release publiée.
 - **Le nom du flux ne se réduit plus à une lettre** en tête d'une liste
   étroite (trois colonnes) : les boutons d'affichage passent sur une seconde
   ligne quand la place manque.
+- **Échap ferme les Préférences après « Tester » ou « Enregistrer »** : ces
+  boutons se désactivent pendant leur travail et faisaient perdre le focus,
+  et la touche ne fermait plus le panneau.
 - **Échap pendant une confirmation qui travaille** (suppression d'un
   serveur, d'une étiquette…) ne referme plus les Préférences derrière elle.
 - **Après une panne, une liste relue vide dit « Tout est lu »** au lieu de

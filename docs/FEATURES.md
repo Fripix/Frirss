@@ -5155,6 +5155,14 @@ et Administration (et la sauvegarde) avaient leur propre langage — titres gras
 de 14 px précédés d'une barre d'accent, libellés de 14 px plus foncés — qui se
 lisait comme un autre écran. Les champs, listes et boutons gardent leur taille.
 
+**Échap ferme le panneau même quand le focus est retombé sur la page**
+(1.8.0) : la touche est écoutée sur le panneau (`onKeyDown`) ET sur le
+document, mais là seulement quand `document.activeElement` est `<body>`. Un
+bouton qui se désactive pendant son travail (« Tester » le jeton maître,
+« Enregistrer ») perd le focus : Échap ne fermait alors plus rien. Un menu ou
+une boîte qui a le focus garde la main sur sa touche
+(`Preferences.portal.test.tsx`).
+
 ⚠️ **L'en-tête doit garder sa croix de fermeture atteignable.** Le sélecteur de
 thème n'avait aucune contrainte de largeur : sur un écran étroit il poussait
 « Tout réinitialiser » (aujourd'hui « Réinitialiser ») à la ligne, puis la

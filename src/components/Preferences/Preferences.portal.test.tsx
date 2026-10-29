@@ -75,3 +75,26 @@ describe('Préférences — surfaces rendues sous <body>', () => {
     expect(useThemeStore.getState().preferencesOpen).toBe(false);
   });
 });
+
+// Un bouton qui se désactive pendant son travail (« Tester », « Enregistrer »)
+// perd le focus, qui retombe sur <body> : Échap, écouté sur le panneau seul,
+// n'y arrivait plus et les Préférences restaient ouvertes.
+describe('Préférences — Échap quand le focus est retombé sur la page', () => {
+  it('ferme les Préférences', async () => {
+    render(<Preferences />);
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(useThemeStore.getState().preferencesOpen).toBe(false);
+  });
+
+  it('laisse Échap à ce qui a le focus ailleurs sur la page', async () => {
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    render(<Preferences />);
+    outside.focus();
+    fireEvent.keyDown(outside, { key: 'Escape' });
+    expect(useThemeStore.getState().preferencesOpen).toBe(true);
+    outside.remove();
+  });
+});

@@ -98,6 +98,22 @@ export default function Preferences() {
   const SECTIONS: readonly string[] = ['general', 'appearance', 'layout', 'labels', 'feeds', 'offline', ...(showAi ? ['ai'] : [])];
   const sections = SECTIONS.map((id) => ({ id, label: t(`preferences.sections.${id}`) }));
 
+  // Échap est écouté sur le panneau (`onKeyDown` plus bas), donc seulement
+  // quand le focus y est. Un bouton qui se désactive pendant son travail
+  // (« Tester », « Enregistrer ») le fait retomber sur <body> : Échap ne
+  // fermait plus rien. Ici, seulement dans ce cas — un menu ou une boîte qui
+  // a le focus garde la main sur sa touche.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const active = document.activeElement;
+      if (active && active !== document.body) return;
+      closePreferences();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [closePreferences]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-end"
