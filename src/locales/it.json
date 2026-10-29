@@ -413,7 +413,7 @@
       "imagesStandard": "Standard",
       "imagesMax": "Massimo",
       "imagesLightHint": "solo miniature",
-      "imagesUsage": "Spazio usato: ~{{used}}",
+      "imagesUsage": "Spazio conteggiato dal browser: ~{{used}}",
       "imagesQuota": "il browser consente ~{{quota}} su questo dispositivo",
       "imagesOverQuota": "Questa impostazione supera il limite del dispositivo: il browser eliminerà automaticamente.",
       "imagesClear": "Svuota le immagini",
@@ -429,7 +429,11 @@
       "imagesFailed_other": "{{count}} immagini non sono state recuperate — è normale: alcuni siti rifiutano le immagini richieste da un altro server.",
       "needsNetwork": "Disponibile quando torna la connessione.",
       "imagesClearTitle": "Svuotare le immagini offline?",
-      "imagesClearMessage": "Le immagini salvate su questo dispositivo vengono eliminate. Gli articoli restano leggibili offline, senza immagini, fino alla prossima preparazione."
+      "imagesClearMessage": "Le immagini salvate su questo dispositivo vengono eliminate. Gli articoli restano leggibili offline, senza immagini, fino alla prossima preparazione.",
+      "imagesGb": "GB",
+      "imagesPrepared_one": "di cui {{count}} preparata per l’offline: ~{{size}}",
+      "imagesPrepared_other": "di cui {{count}} preparate per l’offline: ~{{size}}",
+      "imagesUsageNote": "Questo valore è molto più alto dello spazio realmente occupato: il browser non conosce la dimensione delle immagini conservate durante la lettura e conta diversi MB per ciascuna."
     },
     "refresh": {
       "title": "Aggiornamento",

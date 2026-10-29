@@ -19,10 +19,18 @@ export async function getStorageEstimate(): Promise<{ usage: number; quota: numb
   }
 }
 
-/** Human size, rounded — never presented as exact. */
-export function formatBytes(bytes: number): string {
-  if (bytes >= GB) return `${(bytes / GB).toFixed(1).replace('.', ',')} Go`;
-  return `${Math.round(bytes / MB)} Mo`;
+/** Human size, rounded — never presented as exact. Units and decimal
+ *  separator come from the interface language. */
+export function formatBytes(
+  bytes: number,
+  units: { mb: string; gb: string } = { mb: 'Mo', gb: 'Go' },
+  locale = 'fr',
+): string {
+  if (bytes >= GB) {
+    const n = (bytes / GB).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return `${n} ${units.gb}`;
+  }
+  return `${Math.round(bytes / MB).toLocaleString(locale)} ${units.mb}`;
 }
 
 /** Drop every cached image (the user-facing "empty the images" action). */

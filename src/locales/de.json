@@ -413,7 +413,7 @@
       "imagesStandard": "Standard",
       "imagesMax": "Maximum",
       "imagesLightHint": "nur Vorschaubilder",
-      "imagesUsage": "Belegter Speicher: ~{{used}}",
+      "imagesUsage": "Vom Browser gezählter Speicher: ~{{used}}",
       "imagesQuota": "Ihr Browser erlaubt ~{{quota}} auf diesem Gerät",
       "imagesOverQuota": "Diese Einstellung überschreitet das Gerätelimit – der Browser räumt automatisch auf.",
       "imagesClear": "Bilder leeren",
@@ -429,7 +429,11 @@
       "imagesFailed_other": "{{count}} Bilder konnten nicht geladen werden – das ist üblich: Manche Seiten lehnen Bildanfragen von anderen Servern ab.",
       "needsNetwork": "Verfügbar, sobald die Verbindung zurück ist.",
       "imagesClearTitle": "Offline-Bilder leeren?",
-      "imagesClearMessage": "Die auf diesem Gerät gespeicherten Bilder werden gelöscht. Artikel bleiben offline lesbar, ohne Bilder, bis zur nächsten Vorbereitung."
+      "imagesClearMessage": "Die auf diesem Gerät gespeicherten Bilder werden gelöscht. Artikel bleiben offline lesbar, ohne Bilder, bis zur nächsten Vorbereitung.",
+      "imagesGb": "GB",
+      "imagesPrepared_one": "davon {{count}} für offline vorbereitet: ~{{size}}",
+      "imagesPrepared_other": "davon {{count}} für offline vorbereitet: ~{{size}}",
+      "imagesUsageNote": "Diese Zahl ist weit höher als der tatsächlich belegte Speicher: Der Browser kennt die Größe der beim Lesen gespeicherten Bilder nicht und rechnet für jedes mehrere MB."
     },
     "refresh": {
       "title": "Abruf",

@@ -4679,6 +4679,19 @@ images consultés restent lisibles sans réseau.
   « Vider les images » se confirme (`ConfirmDialog`) ; « Images supprimées »
   ne vaut que pour le vidage qu'on vient de faire et s'efface au retour sur la
   section (il restait affiché pour toujours).
+- **Ce que l'onglet compte** (1.8.0, `cachedImageStats` dans
+  `imageCache.ts`) : le nombre d'images du cache `frirss-images`, dont les
+  **préparées** avec leur taille réelle. Une image préparée est lisible (ses
+  octets sont passés par le proxy) bien que rangée sous son URL d'origine ; sa
+  taille est écrite à la préparation dans l'en-tête `X-FriRSS-Bytes`, et lue
+  dans le corps pour une entrée plus ancienne. Le reste a été gardé à
+  l'affichage par le service worker : réponses **opaques**, taille illisible.
+  Le chiffre de `navigator.storage.estimate()` est présenté comme « Espace
+  compté par le navigateur », avec une note dès qu'il y a des images opaques :
+  Chromium compte environ 7 Mo par réponse opaque, d'où 12 Go annoncés pour
+  1 689 images. **Ne jamais le présenter comme l'espace occupé.**
+  `formatBytes` prend l'unité (`imagesMb`, `imagesGb`) et le séparateur
+  décimal de la langue.
 - **Le bandeau « Hors ligne » est une rangée de la coquille**, montée dans
   `App.tsx` sous la bande safe-area (les trois dispositions) : il pousse
   l'en-tête vers le bas. ⚠️ Il a été `position: fixed; top: 0` jusqu'en

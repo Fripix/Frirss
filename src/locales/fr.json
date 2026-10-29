@@ -413,7 +413,7 @@
       "imagesStandard": "Standard",
       "imagesMax": "Maximum",
       "imagesLightHint": "vignettes seules",
-      "imagesUsage": "Espace utilisé : ~{{used}}",
+      "imagesUsage": "Espace compté par le navigateur : ~{{used}}",
       "imagesQuota": "votre navigateur autorise ~{{quota}} sur cet appareil",
       "imagesOverQuota": "Ce réglage dépasse ce que cet appareil autorise — le navigateur purgera automatiquement.",
       "imagesClear": "Vider les images",
@@ -429,7 +429,11 @@
       "imagesFailed_other": "{{count}} images n’ont pas pu être récupérées — c’est courant : certains sites refusent les images demandées depuis un autre serveur.",
       "needsNetwork": "Disponible une fois la connexion revenue.",
       "imagesClearTitle": "Vider les images hors ligne ?",
-      "imagesClearMessage": "Les images enregistrées sur cet appareil sont supprimées. Les articles restent lisibles hors ligne, sans leurs images, jusqu’à la prochaine préparation."
+      "imagesClearMessage": "Les images enregistrées sur cet appareil sont supprimées. Les articles restent lisibles hors ligne, sans leurs images, jusqu’à la prochaine préparation.",
+      "imagesGb": "Go",
+      "imagesPrepared_one": "dont {{count}} préparée pour le hors ligne : ~{{size}}",
+      "imagesPrepared_other": "dont {{count}} préparées pour le hors ligne : ~{{size}}",
+      "imagesUsageNote": "Ce chiffre est bien plus grand que l’espace réellement occupé : le navigateur ne connaît pas la taille des images gardées pendant la lecture, et compte plusieurs Mo pour chacune."
     },
     "refresh": {
       "title": "Relève",

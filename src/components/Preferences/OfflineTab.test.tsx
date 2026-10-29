@@ -2,17 +2,25 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, act, within } from '@testing-library/react';
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (k: string, o?: Record<string, unknown>) => (o ? `${k}${JSON.stringify(o)}` : k),
+    i18n: { language: 'fr' },
+  }),
+}));
 vi.mock('../../lib/storageEstimate', () => ({
-  getStorageEstimate: vi.fn(async () => ({ usage: 0, quota: 0 })),
+  getStorageEstimate: vi.fn(async () => ({ usage: 12 * 1024 ** 3, quota: 0 })),
   formatBytes: (n: number) => `${n}`,
   clearImageCache: vi.fn(async () => {}),
 }));
-vi.mock('../../lib/imageCache', () => ({ countCachedImages: vi.fn(async () => 12) }));
+vi.mock('../../lib/imageCache', () => ({
+  cachedImageStats: vi.fn(async () => ({ total: 12, prepared: 4, preparedBytes: 3000, browsing: 8 })),
+}));
 
 import OfflineTab from './OfflineTab';
 import { useFeedStore } from '../../stores/feedStore';
 import { clearImageCache } from '../../lib/storageEstimate';
+import { cachedImageStats } from '../../lib/imageCache';
 import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
 
 const setOnline = (v: boolean) => Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => v });
@@ -54,5 +62,28 @@ describe('Préférences › Hors ligne', () => {
     await act(async () => { view.rerender(<OfflineTab active={false} />); });
     await act(async () => { view.rerender(<OfflineTab active />); });
     expect(screen.queryByText('preferences.offline.imagesCleared')).toBeNull();
+  });
+
+  // « Espace utilisé : ~12 Go » pour quelques Mo d'images préparées : le
+  // navigateur compte large chaque image d'un autre site gardée à la lecture.
+  // L'onglet donne la taille réelle des images préparées, et dit pourquoi le
+  // chiffre du navigateur est plus grand.
+  it('donne la taille réelle des images préparées et explique le chiffre du navigateur', async () => {
+    await act(async () => { render(<OfflineTab />); });
+    expect(screen.getByText(/preferences\.offline\.imagesPrepared\{"count":4,"size":"3000"\}/)).toBeTruthy();
+    expect(screen.getByText(/preferences\.offline\.imagesUsage\{/)).toBeTruthy();
+    expect(screen.getByText('preferences.offline.imagesUsageNote')).toBeTruthy();
+  });
+
+  it('sans image gardée à la lecture, ni avertissement ni ligne vide', async () => {
+    vi.mocked(cachedImageStats).mockResolvedValueOnce({ total: 3, prepared: 3, preparedBytes: 10, browsing: 0 });
+    await act(async () => { render(<OfflineTab />); });
+    expect(screen.queryByText('preferences.offline.imagesUsageNote')).toBeNull();
+  });
+
+  it('sans image préparée, pas de ligne « 0 préparée »', async () => {
+    vi.mocked(cachedImageStats).mockResolvedValueOnce({ total: 5, prepared: 0, preparedBytes: 0, browsing: 5 });
+    await act(async () => { render(<OfflineTab />); });
+    expect(screen.queryByText(/imagesPrepared/)).toBeNull();
   });
 });

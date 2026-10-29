@@ -413,7 +413,7 @@
       "imagesStandard": "Standard",
       "imagesMax": "Maximum",
       "imagesLightHint": "thumbnails only",
-      "imagesUsage": "Space used: ~{{used}}",
+      "imagesUsage": "Space counted by the browser: ~{{used}}",
       "imagesQuota": "your browser allows ~{{quota}} on this device",
       "imagesOverQuota": "This setting exceeds what this device allows — the browser will purge automatically.",
       "imagesClear": "Empty the images",
@@ -429,7 +429,11 @@
       "imagesFailed_other": "{{count}} images could not be fetched — this is common: some sites refuse images requested from another server.",
       "needsNetwork": "Available once you’re back online.",
       "imagesClearTitle": "Clear the offline images?",
-      "imagesClearMessage": "The images stored on this device are deleted. Articles stay readable offline, without their images, until the next preparation."
+      "imagesClearMessage": "The images stored on this device are deleted. Articles stay readable offline, without their images, until the next preparation.",
+      "imagesGb": "GB",
+      "imagesPrepared_one": "{{count}} of them prepared for offline: ~{{size}}",
+      "imagesPrepared_other": "{{count}} of them prepared for offline: ~{{size}}",
+      "imagesUsageNote": "This figure is far larger than the space actually used: the browser cannot read the size of images kept while reading, and counts several MB for each."
     },
     "refresh": {
       "title": "Refresh",

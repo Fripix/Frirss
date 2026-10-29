@@ -413,7 +413,7 @@
       "imagesStandard": "标准",
       "imagesMax": "最大",
       "imagesLightHint": "仅缩略图",
-      "imagesUsage": "已用空间：约 {{used}}",
+      "imagesUsage": "浏览器统计的空间：约 {{used}}",
       "imagesQuota": "当前设备浏览器可用空间约 {{quota}}",
       "imagesOverQuota": "该设置超出了此设备允许的范围，浏览器将自动清理。",
       "imagesClear": "清空图片",
@@ -429,7 +429,11 @@
       "imagesFailed_other": "{{count}} 张图片无法获取——这很常见：部分站点会拒绝来自其他服务器的图片请求。",
       "needsNetwork": "恢复联网后可用。",
       "imagesClearTitle": "清空离线图片？",
-      "imagesClearMessage": "将删除保存在此设备上的图片。在下次准备之前，文章仍可离线阅读，但不含图片。"
+      "imagesClearMessage": "将删除保存在此设备上的图片。在下次准备之前，文章仍可离线阅读，但不含图片。",
+      "imagesGb": "GB",
+      "imagesPrepared_one": "其中 {{count}} 张已为离线阅读准备：约 {{size}}",
+      "imagesPrepared_other": "其中 {{count}} 张已为离线阅读准备：约 {{size}}",
+      "imagesUsageNote": "这个数字远大于实际占用的空间：浏览器无法得知阅读时保存的图片大小，每张都按数 MB 计算。"
     },
     "refresh": {
       "title": "刷新",

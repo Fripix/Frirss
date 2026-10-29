@@ -8,12 +8,17 @@ import {
   type OfflineImageSized,
 } from '../../lib/offlineImages';
 import { getStorageEstimate, formatBytes, clearImageCache } from '../../lib/storageEstimate';
-import { countCachedImages } from '../../lib/imageCache';
+import { cachedImageStats, type CachedImageStats } from '../../lib/imageCache';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import ConfirmDialog from '../ConfirmDialog';
 
 export default function OfflineTab({ active = true }: { active?: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const size = (bytes: number) => formatBytes(
+    bytes,
+    { mb: t('preferences.offline.imagesMb'), gb: t('preferences.offline.imagesGb') },
+    i18n.language,
+  );
   const offlinePrep = useFeedStore((s) => s.offlinePrep);
   const prepareOffline = useFeedStore((s) => s.prepareOffline);
   const autoOffline = useUiStore((s) => s.autoOffline);
@@ -24,7 +29,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
   const setOfflineImageSize = useUiStore((s) => s.setOfflineImageSize);
   const resetOfflineImageSizes = useUiStore((s) => s.resetOfflineImageSizes);
   const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null);
-  const [imageCount, setImageCount] = useState<number | null>(null);
+  const [images, setImages] = useState<CachedImageStats | null>(null);
   const [cleared, setCleared] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   // Hors ligne, `prepareOffline` ne fait rien : le bouton le dit au lieu de
@@ -33,7 +38,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
 
   const refreshEstimate = useCallback(() => {
     getStorageEstimate().then(setEstimate);
-    countCachedImages().then(setImageCount);
+    cachedImageStats().then(setImages);
   }, []);
   // Relu à chaque retour sur la section, pas seulement au montage : la
   // section reste montée une fois visitée, et l'espace disque comme le
@@ -190,18 +195,30 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
           })}
         </div>
 
-        {estimate && (
+        {/* The cache is otherwise invisible — this number is what tells apart
+            "nothing was stored" from "stored but not served". Prepared images
+            came through the proxy, so their real size is known. */}
+        {images && (
           <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
-            {t('preferences.offline.imagesUsage', { used: formatBytes(estimate.usage) })}
-            {estimate.quota > 0 && ` · ${t('preferences.offline.imagesQuota', { quota: formatBytes(estimate.quota) })}`}
+            {t('preferences.offline.imagesCached', { count: images.total })}
+            {images.prepared > 0 && (
+              <span className="block">
+                {t('preferences.offline.imagesPrepared', { count: images.prepared, size: size(images.preparedBytes) })}
+              </span>
+            )}
           </p>
         )}
 
-        {/* The cache is otherwise invisible — this number is what tells apart
-            "nothing was stored" from "stored but not served". */}
-        {imageCount !== null && (
+        {/* The browser's figure covers the whole origin and pads every opaque
+            image (kept on display, from another site) by several megabytes:
+            12 Go reported for a few hundred real Mo. Named for what it is. */}
+        {estimate && (
           <p className="text-[11px]" style={{ color: 'var(--list-summary)' }}>
-            {t('preferences.offline.imagesCached', { count: imageCount })}
+            {t('preferences.offline.imagesUsage', { used: size(estimate.usage) })}
+            {estimate.quota > 0 && ` · ${t('preferences.offline.imagesQuota', { quota: size(estimate.quota) })}`}
+            {(images?.browsing ?? 0) > 0 && (
+              <span className="block opacity-80">{t('preferences.offline.imagesUsageNote')}</span>
+            )}
           </p>
         )}
 

@@ -394,6 +394,14 @@ la release publiée.
 - **Hors ligne : le bouton « Préparer » dit pourquoi il ne répond pas** sans
   réseau, « Vider les images » se confirme, et « Images supprimées » ne reste
   plus affiché une fois le cache rempli de nouveau.
+- **Hors ligne : l'espace des images n'est plus gonflé.** « Espace utilisé »
+  pouvait annoncer 12 Go pour quelques centaines de Mo réels : le navigateur
+  compte plusieurs Mo pour chaque image d'un autre site gardée pendant la
+  lecture, dont il ne connaît pas la taille. L'onglet donne maintenant le
+  nombre et la taille réelle des images préparées, appelle l'autre chiffre
+  « Espace compté par le navigateur » et dit pourquoi il est plus grand. Les
+  tailles s'écrivent aussi dans l'unité et avec la virgule de la langue
+  (« 12,0 Go » s'affichait en anglais).
 - **La page d'erreur de l'application parle votre langue** (elle était en
   français pour tout le monde) et tient la hauteur réelle de l'écran sur
   Android en app installée.

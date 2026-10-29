@@ -2,7 +2,7 @@
 // jsdom is needed because this module now reaches the API client (for the
 // backend proxy), which pulls in a store that reads localStorage at load.
 import { describe, it, expect, vi } from 'vitest';
-import { cacheImages, countCachedImages } from './imageCache';
+import { cacheImages, cachedImageStats, PREPARED_BYTES_HEADER } from './imageCache';
 
 /** Minimal stand-in for the Cache API, recording what gets stored. */
 function fakeCache(preloaded: string[] = []) {
@@ -125,14 +125,63 @@ describe('cacheImages', () => {
   });
 });
 
-describe('countCachedImages', () => {
-  it('reports how many images are stored', async () => {
-    const cache = fakeCache(['https://a/1.jpg', 'https://a/2.jpg']);
-    const withKeys = { ...cache, keys: async () => [...cache.store.keys()] };
-    expect(await countCachedImages(async () => withKeys as never)).toBe(2);
+/** Une entrée de cache : une image d'un autre site gardée à l'affichage est
+ *  opaque (taille illisible) ; une image préparée passe par le proxy. */
+const entry = (type: string, bytes: number, header?: number) => ({
+  type,
+  headers: new Headers(header === undefined ? {} : { [PREPARED_BYTES_HEADER]: String(header) }),
+  blob: vi.fn(async () => ({ size: type === 'opaque' ? 0 : bytes })),
+});
+
+function statsCache(entries: Record<string, ReturnType<typeof entry>>) {
+  return {
+    keys: async () => Object.keys(entries).map((url) => ({ url })),
+    match: async (req: { url: string }) => entries[req.url],
+  };
+}
+
+describe('cachedImageStats', () => {
+  const ORIGIN = 'https://frirss.example.com';
+
+  // Le navigateur compte chaque image opaque plusieurs mégaoctets : sans
+  // séparer les deux familles, « Espace utilisé » annonçait 12 Go pour
+  // quelques centaines de Mo réels.
+  it('sépare les images préparées, de taille connue, des images gardées à la lecture', async () => {
+    const cache = statsCache({
+      'https://a.example/1.jpg': entry('default', 0, 1000),
+      'https://b.example/2.jpg': entry('default', 0, 2500),
+      'https://c.example/3.jpg': entry('opaque', 0),
+      'https://d.example/4.jpg': entry('opaque', 0),
+      'https://e.example/5.jpg': entry('opaque', 0),
+    });
+    expect(await cachedImageStats(async () => cache as never, ORIGIN))
+      .toEqual({ total: 5, prepared: 2, preparedBytes: 3500, browsing: 3 });
   });
 
-  it('reports 0 when the cache is unavailable', async () => {
-    expect(await countCachedImages(async () => { throw new Error('none'); })).toBe(0);
+  it('lit la taille dans le corps quand une entrée ancienne n’a pas l’en-tête', async () => {
+    const old = entry('default', 4200);
+    const cache = statsCache({ 'https://a.example/1.jpg': old });
+    expect(await cachedImageStats(async () => cache as never, ORIGIN))
+      .toEqual({ total: 1, prepared: 1, preparedBytes: 4200, browsing: 0 });
+    expect(old.blob).toHaveBeenCalled();
+  });
+
+  it('ne lit pas le corps quand l’en-tête donne la taille', async () => {
+    const tagged = entry('default', 9999, 10);
+    await cachedImageStats(async () => statsCache({ 'https://a.example/1.jpg': tagged }) as never, ORIGIN);
+    expect(tagged.blob).not.toHaveBeenCalled();
+  });
+
+  // Une image de la même origine (servie par FriRSS) se lit sans être
+  // préparée : la compter comme préparée gonflerait le chiffre.
+  it('ne compte pas comme préparée une image lisible de la même origine', async () => {
+    const cache = statsCache({ [`${ORIGIN}/api/proxy/x.png`]: entry('basic', 300) });
+    expect(await cachedImageStats(async () => cache as never, ORIGIN))
+      .toEqual({ total: 1, prepared: 0, preparedBytes: 0, browsing: 1 });
+  });
+
+  it('rend des zéros quand le cache est indisponible', async () => {
+    expect(await cachedImageStats(async () => { throw new Error('none'); }, ORIGIN))
+      .toEqual({ total: 0, prepared: 0, preparedBytes: 0, browsing: 0 });
   });
 });

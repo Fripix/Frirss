@@ -14,4 +14,12 @@ describe('formatBytes', () => {
   it('handles zero', () => {
     expect(formatBytes(0)).toBe('0 Mo');
   });
+  // L'unité et la virgule étaient écrites en dur : l'onglet affichait
+  // « 12,0 Go » en anglais comme en chinois.
+  it('prend l’unité et le séparateur décimal de la langue', () => {
+    const units = { mb: 'MB', gb: 'GB' };
+    expect(formatBytes(1.25 * 1024 * 1024 * 1024, units, 'en')).toBe('1.3 GB');
+    expect(formatBytes(340 * 1024 * 1024, units, 'en')).toBe('340 MB');
+    expect(formatBytes(2 * 1024 * 1024 * 1024, { mb: 'МБ', gb: 'ГБ' }, 'uk')).toBe('2,0 ГБ');
+  });
 });

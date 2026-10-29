@@ -423,7 +423,7 @@
       "imagesStandard": "Standardowy",
       "imagesMax": "Maksymalny",
       "imagesLightHint": "tylko miniatury",
-      "imagesUsage": "Zajęte miejsce: ~{{used}}",
+      "imagesUsage": "Miejsce liczone przez przeglądarkę: ~{{used}}",
       "imagesQuota": "przeglądarka pozwala na ~{{quota}} na tym urządzeniu",
       "imagesOverQuota": "To ustawienie przekracza limit urządzenia — przeglądarka automatycznie wyczyści dane.",
       "imagesClear": "Wyczyść obrazy",
@@ -443,7 +443,13 @@
       "imagesFailed_many": "Nie udało się pobrać {{count}} obrazów — to normalne: niektóre witryny odrzucają obrazy żądane z innego serwera.",
       "needsNetwork": "Dostępne po przywróceniu połączenia.",
       "imagesClearTitle": "Wyczyścić obrazy offline?",
-      "imagesClearMessage": "Obrazy zapisane na tym urządzeniu zostaną usunięte. Artykuły pozostaną czytelne offline, bez obrazów, do następnego przygotowania."
+      "imagesClearMessage": "Obrazy zapisane na tym urządzeniu zostaną usunięte. Artykuły pozostaną czytelne offline, bez obrazów, do następnego przygotowania.",
+      "imagesGb": "GB",
+      "imagesPrepared_one": "w tym {{count}} przygotowany do trybu offline: ~{{size}}",
+      "imagesPrepared_few": "w tym {{count}} przygotowane do trybu offline: ~{{size}}",
+      "imagesPrepared_many": "w tym {{count}} przygotowanych do trybu offline: ~{{size}}",
+      "imagesPrepared_other": "w tym {{count}} przygotowanego do trybu offline: ~{{size}}",
+      "imagesUsageNote": "Ta liczba jest znacznie większa niż faktycznie zajęte miejsce: przeglądarka nie zna rozmiaru obrazów zachowanych podczas czytania i liczy kilka MB na każdy."
     },
     "refresh": {
       "title": "Odświeżanie",

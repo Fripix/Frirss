@@ -28,6 +28,10 @@ const describe = (e: unknown): string =>
 
 const BATCH = 4;
 
+/** Real size of a prepared image, written at preparation so reading the
+ *  stats never has to load the bodies. */
+export const PREPARED_BYTES_HEADER = 'X-FriRSS-Bytes';
+
 /**
  * Fetch an image through the backend proxy, exactly like feed favicons.
  *
@@ -46,18 +50,41 @@ async function fetchViaProxy(url: string): Promise<FetchedImage> {
   });
   return {
     response: new Response(data, {
-      headers: { 'Content-Type': data.type || 'application/octet-stream' },
+      headers: {
+        'Content-Type': data.type || 'application/octet-stream',
+        [PREPARED_BYTES_HEADER]: String(data.size),
+      },
     }),
     bytes: data.size,
   };
 }
 
+export interface CachedImageStats {
+  total: number;
+  /** Stored by the offline preparation: readable, real size known. */
+  prepared: number;
+  preparedBytes: number;
+  /** Kept on display by the service worker. Mostly opaque cross-origin
+   *  responses: their size is unreadable, and the browser's storage estimate
+   *  pads each one by several megabytes. */
+  browsing: number;
+}
+
 /**
- * How many images are actually stored. Surfaced in the preferences: the cache
- * is otherwise invisible, and this number is what distinguishes "nothing was
- * ever stored" from "stored but not served".
+ * What the image cache holds, split by how it got there. Surfaced in the
+ * preferences: the cache is otherwise invisible, and the browser's own
+ * estimate — inflated by opaque entries — cannot say how much space the
+ * prepared images really take.
+ *
+ * A prepared image is keyed by its original (other-site) URL yet readable,
+ * because its bytes came through the proxy. A readable same-origin entry was
+ * kept on display, not prepared.
  */
-export async function countCachedImages(openCache?: () => Promise<Cache>): Promise<number> {
+export async function cachedImageStats(
+  openCache?: () => Promise<Cache>,
+  origin: string = typeof location === 'undefined' ? '' : location.origin,
+): Promise<CachedImageStats> {
+  const stats: CachedImageStats = { total: 0, prepared: 0, preparedBytes: 0, browsing: 0 };
   try {
     const open = openCache
       ?? (() => {
@@ -65,10 +92,24 @@ export async function countCachedImages(openCache?: () => Promise<Cache>): Promi
         return caches.open(IMAGE_CACHE_NAME);
       });
     const cache = await open();
-    return (await cache.keys()).length;
-  } catch {
-    return 0;
-  }
+    for (const req of await cache.keys()) {
+      const res = await cache.match(req);
+      if (!res) continue;
+      stats.total++;
+      let sameOrigin = false;
+      try { sameOrigin = new URL(req.url).origin === origin; } catch { /* keep false */ }
+      const tagged = res.headers.get(PREPARED_BYTES_HEADER);
+      if (tagged === null && (res.type === 'opaque' || sameOrigin)) {
+        stats.browsing++;
+        continue;
+      }
+      stats.prepared++;
+      // Entries stored before the header existed: read the size from the body.
+      const bytes = tagged !== null ? Number(tagged) : (await res.blob()).size;
+      stats.preparedBytes += Number.isFinite(bytes) ? bytes : 0;
+    }
+  } catch { /* unavailable: report what was counted */ }
+  return stats;
 }
 
 /**

@@ -413,7 +413,7 @@
       "imagesStandard": "Standaard",
       "imagesMax": "Maximum",
       "imagesLightHint": "alleen miniaturen",
-      "imagesUsage": "Gebruikte ruimte: ~{{used}}",
+      "imagesUsage": "Door de browser geteld: ~{{used}}",
       "imagesQuota": "uw browser staat ~{{quota}} toe op dit apparaat",
       "imagesOverQuota": "Deze instelling overschrijdt wat dit apparaat toestaat — de browser ruimt automatisch op.",
       "imagesClear": "Afbeeldingen wissen",
@@ -429,7 +429,11 @@
       "imagesFailed_other": "{{count}} afbeeldingen konden niet worden opgehaald — dat is gebruikelijk: sommige sites weigeren afbeeldingen die vanaf een andere server worden opgevraagd.",
       "needsNetwork": "Beschikbaar zodra de verbinding terug is.",
       "imagesClearTitle": "Offline afbeeldingen wissen?",
-      "imagesClearMessage": "De afbeeldingen op dit apparaat worden verwijderd. Artikelen blijven offline leesbaar, zonder afbeeldingen, tot de volgende voorbereiding."
+      "imagesClearMessage": "De afbeeldingen op dit apparaat worden verwijderd. Artikelen blijven offline leesbaar, zonder afbeeldingen, tot de volgende voorbereiding.",
+      "imagesGb": "GB",
+      "imagesPrepared_one": "waarvan {{count}} voorbereid voor offline: ~{{size}}",
+      "imagesPrepared_other": "waarvan {{count}} voorbereid voor offline: ~{{size}}",
+      "imagesUsageNote": "Dit getal is veel hoger dan de werkelijk gebruikte ruimte: de browser kent de grootte van tijdens het lezen bewaarde afbeeldingen niet en rekent voor elke afbeelding meerdere MB."
     },
     "refresh": {
       "title": "Ophalen",
