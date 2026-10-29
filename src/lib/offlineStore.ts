@@ -99,11 +99,12 @@ export async function listEvictOlderThan(ts: number): Promise<void> {
   }
 }
 
-export async function subsGet(): Promise<Subscription[] | undefined> {
+/** `key` carries the account and server (`feedStore`): one browser, several of each. */
+export async function subsGet(key: string): Promise<Subscription[] | undefined> {
   try {
     const db = await openDB();
     return await new Promise((resolve) => {
-      const r = tx(db, SUBS, 'readonly').get('subscriptions');
+      const r = tx(db, SUBS, 'readonly').get(key);
       r.onsuccess = () => resolve((r.result as { subscriptions: Subscription[] } | undefined)?.subscriptions);
       r.onerror = () => resolve(undefined);
     });
@@ -112,17 +113,37 @@ export async function subsGet(): Promise<Subscription[] | undefined> {
   }
 }
 
-export async function subsPut(subscriptions: Subscription[]): Promise<void> {
+export async function subsPut(key: string, subscriptions: Subscription[]): Promise<void> {
   try {
     const db = await openDB();
     await new Promise<void>((resolve) => {
-      const r = tx(db, SUBS, 'readwrite').put({ key: 'subscriptions', subscriptions, cachedAt: Date.now() });
+      const r = tx(db, SUBS, 'readwrite').put({ key, subscriptions, cachedAt: Date.now() });
       r.onsuccess = () => resolve();
       r.onerror = () => resolve();
     });
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Forget every cached list and subscriptions snapshot — on logout, so the next
+ * account on this browser never sees the previous one's feeds and articles.
+ * The action queue stays: each action names its account and server, and is
+ * replayed only under them.
+ */
+export async function clearOfflineViews(): Promise<void> {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve) => {
+      const t = transactionOn(conn, db, [LISTS, SUBS], 'readwrite');
+      t.objectStore(LISTS).clear();
+      t.objectStore(SUBS).clear();
+      t.oncomplete = () => resolve();
+      t.onerror = () => resolve();
+      t.onabort = () => resolve();
+    });
+  } catch { /* storage unavailable */ }
 }
 
 /** Actions made offline, waiting to be replayed. Empty when unavailable. */

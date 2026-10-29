@@ -288,8 +288,12 @@ export default function App() {
     if (useUiStore.getState().autoOffline && (typeof navigator === 'undefined' || navigator.onLine)) {
       const last = Number(localStorage.getItem('frirss_lastOfflinePrep') || 0);
       if (Date.now() - last > 60 * 60 * 1000) {
-        localStorage.setItem('frirss_lastOfflinePrep', String(Date.now()));
-        timers.push(setTimeout(() => useFeedStore.getState().prepareOffline(), 8000));
+        // Noté au lancement, pas avant : noté 8 s plus tôt, un rechargement
+        // entre-temps (celui qui suit une mise à jour) la sautait pour une heure.
+        timers.push(setTimeout(() => {
+          localStorage.setItem('frirss_lastOfflinePrep', String(Date.now()));
+          void useFeedStore.getState().prepareOffline();
+        }, 8000));
       }
     }
     return () => {

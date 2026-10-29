@@ -4778,6 +4778,20 @@ images consultés restent lisibles sans réseau.
   « Vider les images » se confirme (`ConfirmDialog`) ; « Images supprimées »
   ne vaut que pour le vidage qu'on vient de faire et s'efface au retour sur la
   section (il restait affiché pour toujours).
+- **Ce qui est gardé pour le hors ligne est rangé par compte et par serveur**
+  (1.8.0, `offlineScope` dans `feedStore.ts`, `feedStore.scope.test.ts`) :
+  `viewKey` et `viewIdentity` commencent par `user@serveur`, donc le cache
+  mémoire, les listes de `frirss-offline` et chaque garde « même vue » aussi ;
+  la barre latérale est rangée sous `user@serveur|subscriptions`. ⚠️ Jusque-là,
+  après une déconnexion, le compte suivant voyait les abonnements et
+  l'accueil du précédent (durablement s'il était hors ligne), un serveur
+  servait hors ligne les listes d'un autre (`feed/12` y désigne un autre
+  flux), et la réponse d'un serveur quitté s'affichait sur le nouveau et
+  entrait dans ses caches. Les étiquettes et compteurs spéciaux se gardent de
+  même. **La déconnexion vide** listes et barre latérale (`clearOfflineViews`)
+  et le cache mémoire ; la file d'actions reste, rangée par compte. **Les
+  images préparées portent leur portée** (`X-FriRSS-Scope`) : le retrait final
+  d'un serveur ne touche plus celles d'un autre (il les retirait toutes).
 - **Les deux bases IndexedDB (`frirss`, `frirss-offline`) se rouvrent seules**
   (`src/lib/idbConnection.ts`, 1.8.0, `idbConnection.test.ts`) : la connexion
   est oubliée sur `close` (le navigateur a effacé le stockage du site), sur
@@ -4926,6 +4940,15 @@ mises en file et rejouées au retour.
   `online`. Sans garde, deux passes se chevauchaient, envoyaient chaque action
   deux fois, et la plus lente réécrivait la file de la plus rapide. Les appels
   concurrents attendent maintenant la même exécution (`replayInFlight`).
+- **Rangée par compte et par serveur** (1.8.0, `feedStore.scope.test.ts`) :
+  chaque action porte sa portée (`scope`, `user@serveur`, aussi dans sa clé)
+  et n'est rejouée que sous elle — le même numéro d'article désigne un autre
+  article ailleurs ; une action d'avant 1.8.0, sans portée, est réputée de la
+  portée active. **Pas de rejeu sans session** (écran de connexion, session
+  expirée), et un 401 arrête le rejeu sans rien jeter : la file entière
+  partait à la poubelle. **La file finale est fusionnée** avec la file
+  actuelle : une action mise en file pendant le rejeu (réseau instable) était
+  écrasée par la liste des restes.
 - **Spec** : `docs/superpowers/specs/2026-08-20-offline-action-queue-design.md`
 
 ### Jeton d'écriture (CSRF)

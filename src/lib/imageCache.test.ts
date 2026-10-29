@@ -2,7 +2,7 @@
 // jsdom is needed because this module now reaches the API client (for the
 // backend proxy), which pulls in a store that reads localStorage at load.
 import { describe, it, expect, vi } from 'vitest';
-import { cacheImages, cachedImageStats, pruneImages, PREPARED_BYTES_HEADER } from './imageCache';
+import { cacheImages, cachedImageStats, pruneImages, PREPARED_BYTES_HEADER, PREPARED_SCOPE_HEADER } from './imageCache';
 
 /** Minimal stand-in for the Cache API, recording what gets stored. */
 function fakeCache(preloaded: string[] = []) {
@@ -384,6 +384,27 @@ describe('pruneImages', () => {
 
   it('ne fait rien quand le cache est indisponible', async () => {
     expect(await pruneImages(new Set(), async () => { throw new Error('none'); })).toBe(0);
+  });
+
+  // Un navigateur, deux serveurs : préparer le serveur 2 retirait toutes les
+  // images préparées du serveur 1, qu'il ne connaît pas.
+  it('ne retire que les images de sa propre portée (et les anciennes, sans portée)', async () => {
+    const tag = (scope: string) => { const e = entry('default', 1); e.headers.set(PREPARED_SCOPE_HEADER, scope); return e; };
+    const prepared = statsCache({
+      'https://a/s1.jpg': tag('u@1'),
+      'https://a/s2-old.jpg': tag('u@2'),
+      'https://a/legacy.jpg': entry('default', 1),
+    });
+    const removed = await pruneImages(new Set(), async () => prepared as never, 'u@2');
+    expect(removed).toBe(2);
+    expect(Object.keys(prepared.entries)).toEqual(['https://a/s1.jpg']);
+  });
+
+  it('étiquette chaque image préparée de sa portée', async () => {
+    const cache = fakeCache();
+    await cacheImages(['https://a/1.jpg'], { fetchImage: image(), openCache: async () => cache as never, scope: 'u@1' });
+    const stored = cache.store.get('https://a/1.jpg') as Response;
+    expect(stored.headers.get(PREPARED_SCOPE_HEADER)).toBe('u@1');
   });
 
   // Le cache rend ses clés normalisées (`Request.url`), la préparation garde

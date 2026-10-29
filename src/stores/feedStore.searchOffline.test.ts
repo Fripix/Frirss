@@ -12,6 +12,7 @@ vi.mock('../lib/offlineStore', () => ({
   subsPut: vi.fn(),
   queueGet: vi.fn(),
   queuePut: vi.fn(),
+  clearOfflineViews: vi.fn(() => Promise.resolve()),
   listEvictOlderThan: vi.fn(),
 }));
 

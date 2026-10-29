@@ -26,6 +26,7 @@ vi.mock('../lib/offlineStore', () => ({
   subsPut: vi.fn(() => Promise.resolve()),
   queueGet: vi.fn(() => Promise.resolve([])),
   queuePut: vi.fn(() => Promise.resolve()),
+  clearOfflineViews: vi.fn(() => Promise.resolve()),
 }));
 
 import { fetchStreamPage, getStreamContents } from '../api/feeds';

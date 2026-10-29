@@ -15,6 +15,9 @@ interface CacheImagesDeps {
   openBrowsingCache: () => Promise<Cache>;
   /** Download nothing: only find what is already prepared (device full). */
   noFetch: boolean;
+  /** Account and server preparing (`user@server`), written on each new entry
+   *  so that another server's sweep leaves it alone (`pruneImages`). */
+  scope: string;
 }
 
 export interface CacheImagesResult {
@@ -48,6 +51,8 @@ const BATCH = 4;
 /** Real size of a prepared image, written at preparation so reading the
  *  stats never has to load the bodies. */
 export const PREPARED_BYTES_HEADER = 'X-FriRSS-Bytes';
+/** Account and server that prepared an entry: one browser, several servers. */
+export const PREPARED_SCOPE_HEADER = 'X-FriRSS-Scope';
 
 /**
  * Fetch an image through the backend proxy, exactly like feed favicons.
@@ -159,6 +164,9 @@ export async function cachedImageStats(
 export async function pruneImages(
   keep: Set<string>,
   openCache: () => Promise<Cache> = opener(PREPARED_IMAGE_CACHE_NAME),
+  /** Only this account and server's entries (and untagged older ones) go:
+   *  preparing server 2 removed every image prepared for server 1. */
+  scope?: string,
 ): Promise<number> {
   let removed = 0;
   // Les clés du cache sont normalisées (`Request.url`), les URL gardées sont
@@ -169,6 +177,10 @@ export async function pruneImages(
     const cache = await openCache();
     for (const req of await cache.keys()) {
       if (wanted.has(req.url)) continue;
+      if (scope) {
+        const tag = (await cache.match(req))?.headers?.get?.(PREPARED_SCOPE_HEADER);
+        if (tag && tag !== scope) continue;
+      }
       if (await cache.delete(req)) removed++;
     }
   } catch { /* best effort */ }
@@ -268,6 +280,7 @@ export async function cacheImages(
           // The real size rides along, so reading the stats never loads bodies.
           const headers = new Headers(img.response.headers ?? undefined);
           headers.set(PREPARED_BYTES_HEADER, String(img.bytes));
+          if (deps.scope) headers.set(PREPARED_SCOPE_HEADER, deps.scope);
           await cache.put(url, new Response(img.response.body ?? null, { headers }));
           stored++;
           bytes += img.bytes;

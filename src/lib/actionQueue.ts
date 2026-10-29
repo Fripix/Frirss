@@ -11,6 +11,10 @@ export interface QueuedAction {
   labelId?: string;
   at: number;
   attempts: number;
+  /** Account and server it was made under (`user@server`): replayed only
+   *  there — an article number names another article on another server.
+   *  Absent on actions queued before 1.8.0, replayed under the current one. */
+  scope?: string;
 }
 
 export const MAX_ATTEMPTS = 3;

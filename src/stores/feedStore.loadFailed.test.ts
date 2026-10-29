@@ -30,6 +30,7 @@ vi.mock('../lib/offlineStore', () => ({
   subsPut: vi.fn(() => Promise.resolve()),
   queueGet: vi.fn(() => Promise.resolve([])),
   queuePut: vi.fn(() => Promise.resolve()),
+  clearOfflineViews: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('../api/backend', () => ({ startActualize: vi.fn(), getActualizeStatus: vi.fn() }));
 vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));

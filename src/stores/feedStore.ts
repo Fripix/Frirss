@@ -38,7 +38,7 @@ import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
 import { homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
-import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut } from '../lib/offlineStore';
+import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut, clearOfflineViews } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
 import { countNewInView, viewFeedIds } from '../lib/newArticles';
 import { isValidCategoryName } from '../lib/feedCategories';
@@ -262,10 +262,25 @@ function viewOrder(feed: Subscription | null): ArticleOrder {
   return effectiveOrder(ui.articleOrder, ui.feedSettings, feed?.id);
 }
 // The order is part of the view: the same feed read from the other end is
-// another list, in memory and in the offline store alike. The default order
-// keeps the historical key so existing offline lists stay readable.
+// another list, in memory and in the offline store alike. So are the account
+// and the server (`offlineScope`): `feed/12` names another feed elsewhere,
+// and a response from the server just left must not land in this one's view,
+// memory cache or offline store (relecture 1.8.0).
 const viewKey = (feed: Subscription | null, filter: Filter) =>
-  `${feed?.id || ''}:${filter}${viewOrder(feed) === 'oldest' ? ':oldest' : ''}`;
+  `${offlineScope()}|${feed?.id || ''}:${filter}${viewOrder(feed) === 'oldest' ? ':oldest' : ''}`;
+
+/**
+ * Compte et serveur actifs. Tout ce qui est gardé pour le hors ligne (listes,
+ * barre latérale) leur est rangé : un navigateur sert plusieurs comptes et
+ * plusieurs serveurs, et les numéros de flux (`feed/12`) se recouvrent d'un
+ * serveur à l'autre. Sans cela, le compte suivant voyait les abonnements et
+ * l'accueil du précédent, et un serveur servait les listes d'un autre.
+ */
+function offlineScope(): string {
+  const { backendUser, activeServerId } = useAuthStore.getState();
+  return `${backendUser?.id ?? ''}@${activeServerId ?? ''}`;
+}
+const storedKey = (key: string) => `${offlineScope()}|${key}`; // la barre latérale (les listes passent par `viewKey`)
 
 // A category is opened as its Google Reader label stream (user/-/label/Name).
 // When such a stream is the selected "feed", the view aggregates every feed in
@@ -356,7 +371,7 @@ function memRemoveFromViews(articleId: string, filter: Filter): void {
 // bloc, et une recherche aussi. La clé du cache (`viewKey`) ne suffit pas : une
 // recherche ne change ni le flux ni le filtre, mais bien la liste à l'écran.
 function viewIdentity(s: FeedState): string {
-  return `${s.selectedFeed?.id || ''}:${s.filter}:${s.searchQuery || ''}`;
+  return `${offlineScope()}|${s.selectedFeed?.id || ''}:${s.filter}:${s.searchQuery || ''}`;
 }
 function persistCurrentView(get: () => FeedState): void {
   const s = get();
@@ -784,9 +799,10 @@ async function enqueueAction(
   // aurait sinon masqué la pastille pour toute une session).
   skipNextArrivals = true;
   await loadQueue();
+  const scope = offlineScope();
   actionQueue = mergeAction(actionQueue, {
-    key: actionKey(articleId, type, labelId),
-    articleId, type, value, labelId, at: Date.now(), attempts: 0,
+    key: `${scope}|${actionKey(articleId, type, labelId)}`,
+    articleId, type, value, labelId, at: Date.now(), attempts: 0, scope,
   });
   await queuePut(actionQueue);
   set({ pendingActions: actionQueue.length });
@@ -994,7 +1010,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   restoreSubscriptionsSnapshot: async () => {
     if (get().subscriptions.length > 0) return;
     try {
-      const snap = await subsGet();
+      const snap = await subsGet(storedKey('subscriptions'));
       if (snap?.length && get().subscriptions.length === 0) set({ subscriptions: snap });
     } catch {
       // No snapshot (first launch, blocked storage): the live load fills in.
@@ -1085,7 +1101,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         categoryIds: catIds,
         newInView: st.newInView + arrived,
       }));
-      subsPut(normalizedSubs).catch(() => {}); // persist for offline
+      subsPut(storedKey('subscriptions'), normalizedSubs).catch(() => {}); // persist for offline
       // Auto-load user labels now that we know categories
       get().loadLabels();
       // Load starred & read-later counts in background
@@ -1095,7 +1111,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // n'écrit rien — la clé persistée est commune à tous les serveurs.
       if (String(useAuthStore.getState().activeServerId) !== String(reading.serverId)) return;
       // Offline fallback: persisted subscriptions so the sidebar still works.
-      const persisted = await subsGet();
+      const persisted = await subsGet(storedKey('subscriptions'));
       if (persisted && persisted.length) {
         const catIds: string[] = [];
         persisted.forEach((sub) => {
@@ -1114,12 +1130,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   loadSpecialCounts: async () => {
+    const scope = offlineScope(); // la réponse d'un serveur quitté n'a rien à dire ici
     try {
       const empty: GReaderStream = { items: [], continuation: null };
       const [starred, readLater] = await Promise.all([
         getStarredItems(200).catch(() => empty),
         getStreamContents(READ_LATER_LABEL, 200, null).catch(() => empty),
       ]);
+      if (offlineScope() !== scope) return;
       set({
         starredCount: starred?.items.length ?? 0,
         readLaterCount: readLater?.items.length ?? 0,
@@ -1296,7 +1314,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // Device full: nothing is downloaded any more, but the images already
           // prepared are still looked up — kept and counted in the budget — or
           // the final sweep, the only one that frees space, would drop them.
-          const res = await cacheImages(urls, deviceFull ? { noFetch: true } : {});
+          const res = await cacheImages(urls, { scope: offlineScope(), ...(deviceFull ? { noFetch: true } : {}) });
           imagesStored += res.stored;
           imagesFailed += res.failed;
           imagesError ??= res.error;
@@ -1329,7 +1347,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // may decide what is no longer wanted: not one cut short by the network or
       // by an unopenable cache, and not one with images turned off (that keeps
       // what was prepared rather than wiping it).
-      if (!interrupted && budget.bytes > 0) await pruneImages(keptImages);
+      if (!interrupted && budget.bytes > 0) await pruneImages(keptImages, undefined, offlineScope());
       set({
         offlinePrep: {
           running: false, phase: 'done', done, total: ordered.length,
@@ -2222,8 +2240,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   // Labels / tags — exclude categories (which are used for feeds)
   loadLabels: async () => {
+    const scope = offlineScope(); // la réponse d'un serveur quitté n'a rien à dire ici
     try {
       const tags = await getTagList();
+      if (offlineScope() !== scope) return;
       const { subscriptions } = get();
       // Collect all category IDs used by subscriptions
       const categoryIds = new Set<string>();
@@ -2245,6 +2265,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   loadLabelCounts: async () => {
     const { labels } = get();
     if (!labels.length) return;
+    const scope = offlineScope(); // la réponse d'un serveur quitté n'a rien à dire ici
     const counts: Record<string, number> = { ...get().labelCounts };
     const PARALLEL = 3;
     for (let i = 0; i < labels.length; i += PARALLEL) {
@@ -2253,6 +2274,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           try { counts[l.id] = await getStreamItemCount(l.id); } catch { /* skip this label */ }
         })
       );
+      if (offlineScope() !== scope) return;
     }
     set({ labelCounts: counts });
   },
@@ -2776,12 +2798,24 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (replayInFlight) return replayInFlight;
     const run = (async () => {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    // Sans session (écran de connexion, session expirée), rien ne part : un
+    // 401 jetait toute la file, sans qu'aucune action ait été tentée.
+    const auth = useAuthStore.getState();
+    if (!auth.backendToken || !auth.activeServerId) return;
     const queue = await loadQueue();
     if (!queue.length) return;
 
+    // Seules les actions du compte et du serveur actifs partent (une ancienne
+    // action, sans portée, est réputée d'ici) ; les autres attendent le leur.
+    const scope = offlineScope();
+    const mine = queue.filter((a) => !a.scope || a.scope === scope);
+    if (!mine.length) return;
+
     const remaining: QueuedAction[] = [];
     let failed = 0;
-    for (const action of queue) {
+    let stopped = false;
+    for (const action of mine) {
+      if (stopped) { remaining.push(action); continue; }
       try {
         if (action.type === 'read') {
           await (action.value ? markAsRead(action.articleId) : markAsUnread(action.articleId));
@@ -2793,6 +2827,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           await setArticleLabel(action.articleId, action.labelId, action.value);
         }
       } catch (err) {
+        // Session refused: not the action's fault. Keep it and the rest, stop
+        // here — the 401 logs out, and the next session replays them.
+        if ((err as { response?: { status?: number } })?.response?.status === 401) {
+          stopped = true;
+          remaining.push(action);
+          continue;
+        }
         const attempts = action.attempts + 1;
         // A refusal will never succeed; only keep what is worth retrying.
         if (isNetworkFailure(err) && shouldRetry(attempts)) remaining.push({ ...action, attempts });
@@ -2805,9 +2846,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // sans correspondant côté serveur : le prochain relevé de compteurs le
     // lirait comme une arrivée qui ne s'efface jamais.
     if (failed > 0) skipNextArrivals = true;
-    actionQueue = remaining;
-    await queuePut(remaining);
-    set({ pendingActions: remaining.length, failedActions: failed });
+    // Fusion avec la file ACTUELLE : une action mise en file pendant le rejeu
+    // (réseau instable) était écrasée par `remaining`. Une action rejouée
+    // sort de la file (ou y reste pour un nouvel essai) seulement si elle n'a
+    // pas été remplacée entre-temps par un geste plus récent sur le même
+    // article.
+    const replayed = new Map(mine.map((a) => [a.key, a]));
+    const retry = new Map(remaining.map((a) => [a.key, a]));
+    actionQueue = actionQueue.flatMap((a) => {
+      const sent = replayed.get(a.key);
+      if (!sent || sent.at !== a.at) return [a];
+      const again = retry.get(a.key);
+      return again ? [again] : [];
+    });
+    await queuePut(actionQueue);
+    set({ pendingActions: actionQueue.length, failedActions: failed });
     })();
     replayInFlight = run;
     try {
@@ -3174,6 +3227,11 @@ useAuthStore.subscribe((state, prev) => {
   if (!prev.backendToken || state.backendToken) return;
   dropSearchCorpus();
   closeSearch(useFeedStore.setState);
+  // Le compte suivant sur ce navigateur ne voit rien de celui-ci (listes et
+  // barre latérale gardées pour le hors ligne ; la file d'actions, rangée par
+  // compte, reste pour son retour).
+  memCache.clear();
+  void clearOfflineViews();
 });
 
 function normalizeArticle(item: GReaderItem): Article {

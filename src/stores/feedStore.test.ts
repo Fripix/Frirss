@@ -35,6 +35,7 @@ vi.mock('../lib/offlineStore', () => ({
   subsPut: vi.fn(() => Promise.resolve()),
   queueGet: vi.fn(() => Promise.resolve([])),
   queuePut: vi.fn(() => Promise.resolve()),
+  clearOfflineViews: vi.fn(() => Promise.resolve()),
 }));
 
 // The real-refresh backend calls (POST/GET .../actualize) — refresh()'s
@@ -62,6 +63,9 @@ const baseArticle = { id: 'a1', read: false, sourceId: 'feed/1' } as Article;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Une session : le rejeu de la file d'actions n'en part plus sans (un 401
+  // jetait toute la file, relecture 1.8.0).
+  useAuthStore.setState({ backendToken: 'test-jwt', activeServerId: useAuthStore.getState().activeServerId ?? '1' });
   // M2 (revue finale) : seul fichier de test à appeler `search()` sans
   // remettre à zéro l'état module-level qui la porte (`searchCorpus`,
   // `scanToken`) — un corpus complet y survivait à tous les tests suivants.

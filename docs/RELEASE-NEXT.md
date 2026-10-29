@@ -482,6 +482,20 @@ la release publiée.
   préparation automatique). Et dès que l'appareil n'a plus de place, la
   préparation cesse de télécharger au lieu de le remplir, sans retirer les
   images encore utiles : l'onglet Hors ligne le dit.
+- **Plusieurs comptes ou serveurs sur le même appareil : chacun ne voit que
+  ses données.** Après une déconnexion, le compte suivant voyait un moment —
+  durablement s'il était hors ligne — les flux et les articles du précédent ;
+  hors ligne, un serveur pouvait afficher les listes d'un autre, et une liste
+  encore en chargement au moment de changer de serveur s'affichait sur le
+  nouveau. Préparer le hors-ligne d'un serveur retirait aussi les images
+  préparées pour l'autre.
+- **Les actions faites hors ligne ne se perdent plus.** Un favori ou un « lu »
+  fait pendant que la file se rejouait (réseau instable) était oublié ; une
+  action en attente était envoyée au serveur actif même s'il n'était pas
+  celui où elle avait été faite, ou jetée toute entière si la session avait
+  expiré entre-temps. Elle attend désormais son compte et son serveur.
+- **La préparation hors ligne automatique ne saute plus une heure** quand
+  l'application se recharge juste après l'ouverture (après une mise à jour).
 - **La mémoire ne grossit plus au fil de la lecture.** Chaque article
   affiché, extrait ou traduit qui contenait une vidéo ou une image adaptée à
   la taille de l'écran laissait une copie de sa page en mémoire, que le
