@@ -81,6 +81,13 @@ describe('nginx.conf — adresse et schéma du client réel', () => {
 
   // `X-Forwarded-Proto $scheme` remplaçait le `https` du proxy amont par `http` :
   // cookies OIDC jamais `Secure`, redirect_uri calculé en http://.
+  // `$host` est l'en-tête Host SANS son port : derrière un proxy sur un port
+  // non standard, sans FRIRSS_BASE_URL, le redirect_uri du SSO perdait `:port`
+  // (le port arrivait avant par X-Forwarded-Host, qui n'est plus lu).
+  it('transmet l’hôte avec son port', () => {
+    expect(conf).toMatch(/proxy_set_header Host \$http_host;/);
+  });
+
   it('relaie le schéma annoncé par le proxy amont', () => {
     expect(conf).toMatch(/map \$http_x_forwarded_proto \$frirss_forwarded_proto/);
     expect(conf).toMatch(/proxy_set_header X-Forwarded-Proto \$frirss_forwarded_proto;/);

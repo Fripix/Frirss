@@ -66,7 +66,15 @@ function deadlineError(): Error {
  * saut de `fetchUpstream` est levé aux en-têtes, un corps retenu attendait
  * donc indéfiniment.
  */
-async function readBodyText(resp: Response, signal: AbortSignal): Promise<string> {
+/**
+ * Octets qu'une lecture mise en cache peut accumuler. Elle est lue EN ENTIER
+ * avant d'être renvoyée : sans borne, un amont rapide remplissait la mémoire de
+ * l'unique processus pendant les 60 s de l'échéance. Une page de flux greader
+ * pèse quelques Mo au plus.
+ */
+export const MAX_CACHED_BODY_BYTES = 32 * 1024 * 1024;
+
+async function readBodyText(resp: Response, signal: AbortSignal, maxBytes = MAX_CACHED_BODY_BYTES): Promise<string> {
   if (!resp.body) return '';
   const reader = resp.body.getReader();
   // Annuler le lecteur règle la lecture en attente (`done`) et ferme la
@@ -75,11 +83,17 @@ async function readBodyText(resp: Response, signal: AbortSignal): Promise<string
   if (signal.aborted) onAbort();
   else signal.addEventListener('abort', onAbort, { once: true });
   const chunks: Uint8Array[] = [];
+  let total = 0;
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (signal.aborted) throw deadlineError();
       if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        throw new Error('Upstream response too large');
+      }
       chunks.push(value);
     }
   } catch (err) {
@@ -523,10 +537,13 @@ export async function assertTargetSafe(rawUrl: string, trustedHosts: readonly st
 
 // A greader READ endpoint whose response is worth caching (article lists,
 // subscription list, unread counts, tag list). Excludes the CSRF write token.
+// Jugé sur le CHEMIN : la chaîne brute laissait passer toute URL publique qui
+// portait `/reader/api/0/` dans sa requête.
 function isCacheableRead(method: string, target: string): boolean {
-  return method === 'GET'
-    && target.includes('/reader/api/0/')
-    && !target.includes('/reader/api/0/token');
+  if (method !== 'GET') return false;
+  let path: string;
+  try { path = new URL(target).pathname; } catch { return false; }
+  return path.includes('/reader/api/0/') && !path.includes('/reader/api/0/token');
 }
 
 export interface FetchUpstreamOpts {

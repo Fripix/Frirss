@@ -124,9 +124,11 @@ export function getRedirectUri(req: Request): string {
     base = envBase.replace(/\/$/, '');
   } else {
     const proto = req.headers['x-forwarded-proto'] || req.protocol;
-    // `Host` seulement : nginx le réécrit (`$host`), alors que
-    // `X-Forwarded-Host` arrive tel que le client l'a écrit — il dictait le
-    // `redirect_uri` signé (relecture de sécurité 1.8.0).
+    // `Host` seulement, tel que nginx le transmet (`$http_host`, port
+    // compris). Il vient lui aussi du client : rien ici ne le rend sûr, c'est
+    // le fournisseur qui n'accepte que l'URI enregistrée. `X-Forwarded-Host`
+    // n'est plus lu (1.8.0) : il n'était qu'une seconde façon de la dicter.
+    // Derrière un reverse proxy, FRIRSS_BASE_URL fixe l'adresse.
     const host = req.headers.host;
     base = `${proto}://${host}`;
   }

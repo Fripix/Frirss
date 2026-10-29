@@ -49,6 +49,14 @@ const MAX_HTML_BYTES = 2_000_000;
  */
 const BODY_TIMEOUT_MS = 20_000;
 
+/**
+ * Échéance des en-têtes, redirections comprises. Le délai par saut de
+ * `fetchUpstream` (30 s) ne bornait qu'un saut : six redirections lentes
+ * tenaient l'extraction ~230 s, après nginx (120 s) et le client (20 s).
+ * Avec la lecture du corps, une extraction finit en 65 s au plus.
+ */
+export const EXTRACT_FETCH_TIMEOUT_MS = 45_000;
+
 /** Types de contenu dont il y a un article à extraire. */
 const HTML_TYPES = /^(text\/html|application\/xhtml\+xml)\b/i;
 
@@ -146,7 +154,14 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
     // `fetchUpstream` et pas `fetch` : c'est lui qui porte la garde anti-SSRF
     // et les réécritures PROXY_REWRITES. Un appel direct rouvrirait la porte
     // que le proxy ferme.
-    const upstream = await fetchUpstream(url, { headers: { Accept: 'text/html' } });
+    const deadline = new AbortController();
+    const timer = setTimeout(() => deadline.abort(), EXTRACT_FETCH_TIMEOUT_MS);
+    let upstream: Response;
+    try {
+      upstream = await fetchUpstream(url, { headers: { Accept: 'text/html' }, signal: deadline.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!upstream.ok) {
       // Corps annulé, comme pour un type refusé : sous undici la socket reste
       // retenue jusqu'au ramassage tant que le flux n'est ni lu ni annulé —

@@ -138,9 +138,12 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
   passe, puis liez »), sans créer de doublon. Tests : `server/test/oidcLink.test.ts`
   (fournisseur simulé), `GeneralTab.password.test.tsx`, `oidcFragment.test.ts`.
 - **`redirect_uri` sans `X-Forwarded-Host`** (1.8.0) : sans `FRIRSS_BASE_URL`,
-  l'hôte vient de `Host` seul, que nginx réécrit. `X-Forwarded-Host` arrivait
-  tel que le client l'écrivait et dictait le `redirect_uri` signé — selon la
-  tolérance du fournisseur, un code d'autorisation détourné. Le schéma vient de
+  l'hôte vient de `Host` seul, que nginx transmet avec son port
+  (`$http_host` : `$host` perdait le port, et le SSO cassait derrière un proxy
+  sur un port non standard). `Host` vient lui aussi du client : seule l'URI
+  enregistrée chez le fournisseur protège ; derrière un reverse proxy,
+  `FRIRSS_BASE_URL` fixe l'adresse. `X-Forwarded-Host` n'est plus lu : il
+  n'était qu'une seconde façon de dicter le `redirect_uri` signé. Le schéma vient de
   `X-Forwarded-Proto`, que nginx relaie désormais depuis le proxy amont (voir
   « nginx »). Le journal du retour SSO n'écrit plus l'adresse e-mail, seulement
   si elle existe.
@@ -5384,6 +5387,13 @@ répondu (voir *Extraction du contenu complet*).
   réseau : troc refusé, exception écrite plutôt que tue.
 - **Réécritures** : `PROXY_REWRITES` remplace l'URL publique par une adresse
   interne — gros gain de latence quand FriRSS et FreshRSS partagent un réseau.
+- **Lecture mise en cache bornée** (1.8.0) : avec `REDIS_URL`, une lecture
+  greader est lue en entier avant d'être renvoyée et mise en cache. Elle
+  s'arrête à `MAX_CACHED_BODY_BYTES` (32 Mo, 502 au-delà, rien en cache), et
+  « lecture greader » se juge sur le **chemin** de la cible : la chaîne brute
+  laissait passer toute URL publique portant `/reader/api/0/` dans sa requête,
+  et un amont rapide remplissait la mémoire du processus
+  (`server/test/proxyCacheBounds.test.ts`).
 - **Échéance totale** (1.8.0) : `PROXY_TOTAL_TIMEOUT_MS` = **60 s** par requête
   `/api/proxy`, en-têtes **et** corps, tous les sauts de redirection et le
   repli vers l'URL publique compris. Avant, seul `TIMEOUT_MS` (30 s) bornait un
@@ -5672,7 +5682,10 @@ qu'elle rend (voir *Extraction du contenu complet*).
   refus, plus étroit que l'ancien chemin par le proxy : le client se replie
   alors sur son extracteur local, qui, lui, lit la page quand même), au plus
   2 Mo (sinon 502 ; 5 Mo avant 1.8.0) et
-  lue en moins de 20 s (sinon 504). Le minuteur de `fetchUpstream` est désarmé
+  lue en moins de 20 s (sinon 504). Les en-têtes, **redirections comprises**,
+  doivent arriver en 45 s (`EXTRACT_FETCH_TIMEOUT_MS`, 1.8.0, sinon 504) :
+  le délai par saut ne bornait qu'un saut, et six redirections lentes tenaient
+  l'extraction ~230 s (`server/test/extractDeadline.test.ts`). Le minuteur de `fetchUpstream` est désarmé
   à l'arrivée des en-têtes : il couvre la connexion, pas le corps. Sans ces
   bornes, une URL publique quelconque suffisait à faire avaler des Go au seul
   processus Node, ou à lui faire tenir une socket indéfiniment.

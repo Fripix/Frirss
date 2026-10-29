@@ -104,6 +104,15 @@ la release publiée.
   le mot de passe du contrôle factice de la connexion, public dans le dépôt.
 - **Administration** : un rôle vide est refusé (il pouvait laisser l'instance
   sans administrateur).
+- **Cache des lectures (`REDIS_URL`) : une réponse démesurée ne remplit plus
+  la mémoire.** Une lecture mise en cache s'arrête à 32 Mo, et seule une
+  adresse dont le chemin est celui de l'API de FreshRSS est traitée comme
+  telle (une URL quelconque qui le portait dans sa requête l'était aussi).
+- **L'extraction d'un article a une échéance totale** : 45 s pour les
+  en-têtes, redirections comprises. Six redirections lentes la tenaient près
+  de quatre minutes.
+- **SSO derrière un proxy sur un port non standard** : l'adresse de retour
+  garde son port (nginx transmettait l'hôte sans lui).
 - **Garde anti-SSRF** : toutes les adresses IPv6 lien-local (`fe80::/10`) sont
   refusées, et non plus seulement `fe80::` et `fe9…` à `feb…`.
 
