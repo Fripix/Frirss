@@ -2,6 +2,7 @@ import db, { getSetting } from '../db.js';
 import { encrypt, decrypt } from '../crypto.js';
 import { cacheEnabled, cacheGet, cacheSet } from '../cache.js';
 import { PROMPT_VERSION } from './prompts.js';
+import { stripTrailingSlashes } from '../validate.js';
 
 export type ProviderType = 'anthropic' | 'openai';
 export interface AiProvider {
@@ -25,7 +26,7 @@ const toProvider = (r: Row): AiProvider => ({
  * sinon l'appel partirait vers `/v1/v1/chat/completions`.
  */
 export function normalizeBaseUrl(url: string): string {
-  return url.replace(/\/+$/, '').replace(/\/v1$/i, '').replace(/\/+$/, '');
+  return stripTrailingSlashes(stripTrailingSlashes(url).replace(/\/v1$/i, ''));
 }
 
 export function listProviders(): AiProvider[] {

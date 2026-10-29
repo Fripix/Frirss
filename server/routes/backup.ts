@@ -5,6 +5,7 @@ import { APP_VERSION } from '../version.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { collectBackup, applyBackup, summarizeBackup } from '../backup.js';
 import { sealBackup, openBackup, BackupError, MIN_PASSPHRASE_LENGTH, type BackupErrorCode } from '../backupCrypto.js';
+import { rateLimitIpKey } from '../validate.js';
 
 // Le déchiffrement d'une enveloppe est un oracle : sans limite de cadence,
 // il autorise un essai de phrase de passe par requête, indéfiniment.
@@ -14,6 +15,8 @@ const backupLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
+  // Une IPv6 par /56, comme à la connexion (`rateLimitIpKey`).
+  keyGenerator: (req) => rateLimitIpKey(req.ip),
   message: { error: 'Too many attempts, please try again later', code: 'rate_limited' },
 });
 

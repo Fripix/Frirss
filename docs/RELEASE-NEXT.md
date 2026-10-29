@@ -89,6 +89,23 @@ la release publiée.
   passent désormais par un même filtre : l'élément n'est pas un lien, rien ne
   s'ouvre, « Ouvrir à la source » disparaît du menu. Partager et copier le
   lien gardent l'adresse telle quelle (ils n'exécutent rien).
+- **Une seule inscription piégée ne gèle plus l'instance.** Le contrôle de
+  l'adresse e-mail, fait sans compte et même inscriptions fermées, devenait
+  quadratique sur un `@` suivi de points : une requête bloquait le serveur
+  plus d'une minute (des heures au plafond de 5 Mo). Même défaut sur les
+  barres finales de l'URL d'un serveur, rejoué à chaque requête une fois
+  l'URL enregistrée, et sur la lecture du jeu de caractères d'une page
+  extraite. Ces contrôles sont désormais linéaires, et l'URL d'un serveur doit
+  être en http(s) et tenir en 2 048 caractères.
+- **La limite de tentatives de connexion ne se contourne plus en IPv6** : les
+  adresses d'un même bloc /56 partagent leur compteur (connexion, inscription,
+  sauvegardes).
+- **Un compte local sans mot de passe enregistré n'ouvre plus de session** avec
+  le mot de passe du contrôle factice de la connexion, public dans le dépôt.
+- **Administration** : un rôle vide est refusé (il pouvait laisser l'instance
+  sans administrateur).
+- **Garde anti-SSRF** : toutes les adresses IPv6 lien-local (`fe80::/10`) sont
+  refusées, et non plus seulement `fe80::` et `fe9…` à `feb…`.
 
 ## Corrections et améliorations
 

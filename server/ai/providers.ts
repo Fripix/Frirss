@@ -2,6 +2,7 @@
 import { fetchUpstream } from '../routes/proxy.js';
 import { AiError, classifyStatus } from './errors.js';
 import type { AiProvider } from './store.js';
+import { stripTrailingSlashes } from '../validate.js';
 
 export interface AiCall {
   system: string; user: string; maxTokens?: number;
@@ -87,7 +88,7 @@ const OPENAI_NOT_CHAT = /codex|-pro(-|$)|instruct/i;
  */
 export async function listModels(target: ModelTarget, key: string | null): Promise<string[]> {
   const host = hostOf(target.baseUrl, 'models');
-  const base = target.baseUrl.replace(/\/+$/, '');
+  const base = stripTrailingSlashes(target.baseUrl);
   if (target.type === 'anthropic') {
     const ids: string[] = [];
     let after = '';

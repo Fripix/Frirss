@@ -3,10 +3,10 @@ import bcrypt from 'bcryptjs';
 import db, { getSetting, setSetting } from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { clearDiscoveryCache, getRedirectUri } from '../oidc.js';
+import { isValidEmail } from '../validate.js';
 
 const router = Router();
 const SALT_ROUNDS = 12;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // All routes require admin
 router.use(requireAuth, requireAdmin);
@@ -22,7 +22,7 @@ router.post('/users', async (req, res) => {
   if (!password || password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
-  if (!email || !EMAIL_RE.test(email)) {
+  if (!email || !isValidEmail(email)) {
     return res.status(400).json({ error: 'A valid email is required' });
   }
   if (role && !['admin', 'user'].includes(role)) {
@@ -79,8 +79,15 @@ router.put('/users/:id', (req, res) => {
     return res.status(400).json({ error: 'Invalid role' });
   }
 
+  // Un rôle fourni est l'un des deux, chaîne vide comprise : `role && …`
+  // laissait passer `""`, que `COALESCE` écrivait tel quel — l'admin seul
+  // retirait ainsi le dernier rôle d'administrateur.
+  if (role !== undefined && !['admin', 'user'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+
   // Prevent self-demotion from admin
-  if (Number(id) === req.user.id && role && role !== 'admin') {
+  if (Number(id) === req.user.id && role !== undefined && role !== 'admin') {
     return res.status(400).json({ error: 'Cannot remove your own admin role' });
   }
 
@@ -89,13 +96,8 @@ router.put('/users/:id', (req, res) => {
     return res.status(400).json({ error: 'Cannot disable your own account' });
   }
 
-  // Validate role
-  if (role && !['admin', 'user'].includes(role)) {
-    return res.status(400).json({ error: 'Invalid role' });
-  }
-
   // Validate email if provided (non-empty)
-  if (email !== undefined && email !== null && email !== '' && !EMAIL_RE.test(email)) {
+  if (email !== undefined && email !== null && email !== '' && !isValidEmail(email)) {
     return res.status(400).json({ error: 'A valid email is required' });
   }
 

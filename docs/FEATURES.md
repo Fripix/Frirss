@@ -45,7 +45,27 @@ administrateur.
   bcrypt qu'un nom connu (`DUMMY_HASH`), et « Account disabled » (403) n'est
   répondu qu'après le BON mot de passe. Avant, la réponse et son délai (~250 ms
   de moins) disaient à n'importe qui quels noms existent et lesquels sont
-  désactivés.
+  désactivés. Un compte local **sans hachage** passe aussi par le factice
+  (même délai) mais n'est jamais valide : le mot de passe du factice est
+  écrit en clair dans ce dépôt public, et il ouvrait la session.
+- **Valeurs du client en temps linéaire** (1.8.0, `server/validate.ts`,
+  `server/test/inputBounds.test.ts`) : `isValidEmail` (254 caractères au
+  plus, domaine découpé par ses points sans chevauchement) et
+  `stripTrailingSlashes` (une boucle) remplacent `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`
+  et `/\/+$/`, quadratiques : un `@` suivi de 300 000 points gelait
+  l'instance 72 s pour UNE inscription, sans compte ; une rafale de barres
+  dans l'URL d'un serveur gelait à l'enregistrement puis à chaque requête
+  proxifiée. L'URL d'un serveur doit en outre être en http(s) et tenir en
+  2 048 caractères (`normalizeServerUrl`, 400 sinon). **Ne pas réintroduire
+  de quantificateur suivi d'une ancre de fin sur une valeur venue du client.**
+- **Limites « par adresse » regroupées par /56 en IPv6** (1.8.0,
+  `rateLimitIpKey`) : connexion, inscription et sauvegardes. Depuis que nginx
+  transmet l'adresse réelle, un client IPv6 changeait d'adresse dans sa /64 à
+  chaque essai et recevait un seau neuf : force brute illimitée, et un bcrypt
+  par essai sur le thread principal (`server/test/rateLimitIpv6.test.ts`).
+- **Rôle d'un compte** : `admin` ou `user`, chaîne vide comprise — `""`
+  passait les gardes `role && …` et `COALESCE` l'écrivait, ce qui laissait
+  une instance sans administrateur.
 - **Premier compte = un seul admin** (1.8.0) : le compte de comptes est relu
   APRÈS le hachage, sans `await` jusqu'à l'insertion. Deux inscriptions
   simultanées sur une base vide devenaient toutes deux admin
@@ -5292,7 +5312,8 @@ répondu (voir *Extraction du contenu complet*).
 - **Où** : `server/routes/proxy.ts`
 - **IPv4 embarquées dans une IPv6** (1.8.0) : `isPrivateIp` juge les formes
   mappée (`::ffff:`), compatible (`::`) et NAT64 (`64:ff9b::`) comme l'IPv4
-  qu'elles portent, en notation pointée OU hexadécimale, et refuse `fec0::/10`.
+  qu'elles portent, en notation pointée OU hexadécimale, et refuse `fec0::/10`
+  ainsi que tout `fe80::/10` (`fe81::` à `fe8f::` passaient).
   `new URL()` normalise `[::ffff:127.0.0.1]` en `[::ffff:7f00:1]` : la cible
   n'était refusée que par accident (le DNS recevait l'hôte avec crochets).
   Limite connue, non corrigée : la liste blanche interne (`PROXY_REWRITES`,

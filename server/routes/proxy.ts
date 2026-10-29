@@ -8,6 +8,7 @@ import db from '../db.js';
 import { decrypt } from '../crypto.js';
 import { requireAuth } from '../middleware/auth.js';
 import { cacheEnabled, cacheGet, cacheSet, cacheKey, trimStreamJson } from '../cache.js';
+import { stripTrailingSlashes } from '../validate.js';
 
 const router = Router();
 
@@ -239,7 +240,7 @@ export function isPrivateIp(ip: string): boolean {
   }
   if (s === '::1' || s === '::') return true;              // loopback / unspecified
   if (s.startsWith('fc') || s.startsWith('fd')) return true; // unique local
-  if (s.startsWith('fe80') || s.startsWith('fe9') || s.startsWith('fea') || s.startsWith('feb')) return true; // link-local
+  if (/^fe[89ab]/.test(s)) return true;                    // link-local, fe80::/10 en entier
   if (/^fe[c-f]/.test(s)) return true;                     // site-local (déprécié, fec0::/10)
   // Une IPv4 embarquée dans une IPv6 — mappée (::ffff:), compatible (::) ou
   // NAT64 (64:ff9b::) — se juge comme l'IPv4 qu'elle porte, en notation
@@ -306,7 +307,7 @@ export function targetBelongsToServer(serverUrl: string, rawTarget: string): boo
     return false;
   }
   if (target.origin !== server.origin) return false;
-  const base = server.pathname.replace(/\/+$/, '');
+  const base = stripTrailingSlashes(server.pathname);
   return target.pathname === base || target.pathname.startsWith(`${base}/`);
 }
 

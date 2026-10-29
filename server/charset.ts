@@ -16,7 +16,10 @@ const META_SCAN_BYTES = 2048;
 // qui se disputent les mêmes blancs rendaient la recherche quadratique sur un
 // en-tête rempli d'espaces (150 ms pour 15 Ko, venus de l'amont).
 const HEADER_CHARSET = /charset\s*=\s*(?:["']\s*)?([^\s"';,]+)/i;
-const META_CHARSET = /<meta[^>]+charset\s*=\s*["']?\s*([^\s"';,>/]+)/i;
+// Même forme que l'en-tête, et un `[^>]*?` paresseux : `<meta[^>]+` suivi de
+// `\s*["']?\s*` revenait en arrière sur chaque `<meta` d'un début de page
+// piégé (~230 ms par extraction, hors de la file).
+const META_CHARSET = /<meta\b[^>]*?\bcharset\s*=\s*(?:["']\s*)?([^\s"';,>/]+)/i;
 
 /**
  * Normalise un libellé par `TextDecoder` ; `null` s'il est inconnu.

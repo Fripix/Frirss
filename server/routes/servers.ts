@@ -5,6 +5,7 @@ import { buildActualizeRequest, refreshMaxFeeds } from '../actualizeRequest.js';
 import { startJob, getJob, isRefreshKind, REFRESH_TIMEOUT_MS } from '../refreshJobs.js';
 import { requireAuth } from '../middleware/auth.js';
 import { fetchUpstream } from './proxy.js';
+import { stripTrailingSlashes } from '../validate.js';
 
 const router = Router();
 
@@ -13,6 +14,22 @@ const router = Router();
 // keeps an obviously-wrong client payload from being handed straight to the
 // outgoing request.
 const MAX_TEST_TOKEN_LENGTH = 1024;
+
+const MAX_URL_LENGTH = 2048;
+
+/**
+ * Adresse de serveur fournie par le client : http(s), bornée, barres finales
+ * retirées ; `null` sinon. Sans borne, une rafale de barres gelait le serveur
+ * à l'enregistrement (`/\/+$/`) puis à chaque requête proxifiée, puisque
+ * l'adresse stockée repassait par la même expression.
+ */
+function normalizeServerUrl(v: unknown): string | null {
+  if (typeof v !== 'string' || v.length > MAX_URL_LENGTH) return null;
+  let u: URL;
+  try { u = new URL(v); } catch { return null; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  return stripTrailingSlashes(v);
+}
 
 interface ServerRow {
   id: number;
@@ -56,8 +73,8 @@ router.post('/', (req, res) => {
       return res.status(400).json({ error: 'URL and FreshRSS username required' });
     }
 
-    // Normalize URL (remove trailing slash)
-    const normalizedUrl = url.replace(/\/+$/, '');
+    const normalizedUrl = normalizeServerUrl(url);
+    if (!normalizedUrl) return res.status(400).json({ error: 'Invalid server URL' });
 
     // Check duplicate
     const existing = db.prepare(
@@ -98,7 +115,8 @@ router.put('/:id', (req, res) => {
       return res.status(404).json({ error: 'Server not found' });
     }
 
-    const normalizedUrl = url ? url.replace(/\/+$/, '') : server.url;
+    const normalizedUrl = url ? normalizeServerUrl(url) : server.url;
+    if (!normalizedUrl) return res.status(400).json({ error: 'Invalid server URL' });
 
     // Les jetons appartiennent à un serveur précis. Changer l'origine (schéma,
     // hôte, port) ou le compte FreshRSS en les gardant les aurait envoyés au

@@ -21,6 +21,8 @@
 // the token must still never reach the browser or an application log — see
 // redactUrl() in routes/proxy.ts and sanitizeError() at the call site.
 
+import { stripTrailingSlashes } from './validate.js';
+
 export const DEFAULT_MAX_FEEDS = 1000;
 
 /** Operator-tunable batch size (FRIRSS_REFRESH_MAX_FEEDS); junk falls back to the default. */
@@ -43,7 +45,7 @@ export function buildActualizeRequest(opts: {
   token: string;
   maxFeeds?: number;
 }): ActualizeRequest {
-  const base = opts.serverUrl.replace(/\/+$/, '');
+  const base = stripTrailingSlashes(opts.serverUrl);
   const params = new URLSearchParams({
     c: 'feed',
     a: 'actualize',

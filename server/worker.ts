@@ -2,6 +2,7 @@ import db from './db.js';
 import { decrypt } from './crypto.js';
 import { cacheEnabled, cacheKey, cacheSet, trimStreamJson } from './cache.js';
 import { fetchUpstream } from './routes/proxy.js';
+import { stripTrailingSlashes } from './validate.js';
 
 // Optional background sync (Model B): periodically pre-fetch each active user's
 // main streams (All / Unread / Starred) from FreshRSS and store them in the
@@ -45,7 +46,7 @@ let running = false;
 async function syncUser(row: SyncRow): Promise<void> {
   const token = decrypt(row.freshrss_token);
   if (!token) return;
-  const serverUrl = row.url.replace(/\/+$/, '');
+  const serverUrl = stripTrailingSlashes(row.url);
   const headers = { Authorization: `GoogleLogin auth=${token}`, Accept: 'application/json' };
   for (const target of streamTargets(serverUrl)) {
     try {

@@ -8,6 +8,7 @@ import db, { getSetting, getJwtSecret, userCount } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getOidcConfig, getDiscovery, getRedirectUri, isOidcEnabled, oidcFetch } from '../oidc.js';
 import { parseCookieHeader } from '../cookies.js';
+import { isValidEmail, rateLimitIpKey } from '../validate.js';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -23,6 +24,8 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
+  // Une IPv6 par /56 : sinon chaque adresse de sa /64 donnait un seau neuf.
+  keyGenerator: (req) => rateLimitIpKey(req.ip),
   message: { error: 'Too many attempts, please try again later' },
 });
 
@@ -40,8 +43,6 @@ const passwordLimiter = rateLimit({
   message: { error: 'Too many attempts, please try again later' },
 });
 
-// Basic email shape check (full RFC validation is intentionally out of scope)
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ── OIDC PKCE / nonce helpers ───────────────────────────────────────
 const base64url = (buf: Buffer): string =>
@@ -84,7 +85,7 @@ router.post('/register', authLimiter, async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
-    if (!email || !EMAIL_RE.test(email)) {
+    if (!isValidEmail(email)) {
       return res.status(400).json({ error: 'A valid email is required' });
     }
 
@@ -159,8 +160,10 @@ router.post('/login', authLimiter, async (req, res) => {
     // Même travail, que le nom existe ou non, et « compte désactivé » seulement
     // après le bon mot de passe : sinon la réponse (et son délai, ~250 ms de
     // bcrypt en moins) disait à n'importe qui quels noms existent.
+    // Un compte sans hachage passe aussi par le factice, pour le même délai,
+    // mais n'est jamais valide : le mot de passe du factice est public.
     const valid = await bcrypt.compare(password, user?.password_hash ?? DUMMY_HASH);
-    if (!user || !valid) {
+    if (!user || !user.password_hash || !valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     if (!user.active) {
