@@ -5774,7 +5774,15 @@ divergentes).
   `req.ip` était l'adresse du proxy pour TOUT le monde : les limites « par IP »
   (connexion, sauvegarde) n'avaient qu'un seau, et dix mauvais mots de passe
   d'un inconnu bloquaient la connexion de toute l'instance. Un client exposé en
-  direct (adresse publique) ne peut rien glisser dans l'en-tête. Et
+  direct (adresse publique) ne peut rien glisser dans l'en-tête. **Limite
+  connue, assumée (2026-10-29)** : un client qui joint le conteneur depuis une
+  adresse privée — LAN, ou Internet quand Docker Desktop, Docker rootless ou un
+  hôte IPv6 font arriver les visiteurs par la passerelle — choisit son
+  `X-Forwarded-For` et contourne la limite de connexion. Une liste de proxys
+  de confiance réglable (`FRIRSS_TRUSTED_PROXIES`) a été écartée par le
+  propriétaire : difficile à expliquer, et une mauvaise valeur cassait la
+  limite pour tout le monde. La consigne est documentée (SECURITY.md, README) :
+  passer par le reverse proxy, ne pas publier le port en direct. Et
   `X-Forwarded-Proto` relaie celui du proxy amont (`map … $frirss_forwarded_proto`)
   au lieu de `$scheme`, qui valait `http` derrière un proxy TLS. Validé par
   `nginx -t` sur l'image ; garde-fou `server/test/hardening.test.ts`.

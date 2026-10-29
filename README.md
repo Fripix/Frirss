@@ -155,6 +155,8 @@ Then open `http://localhost:8080` and create the first account — it becomes th
 
 The first launch generates the JWT secret and the token-encryption key and stores them in the database, so backing up the data folder backs up everything — see [Backups](#backups).
 
+> **Reach FriRSS through your reverse proxy**, not by publishing its port straight to the internet: the login limit relies on the client address the proxy passes on (see [SECURITY.md](SECURITY.md)).
+
 > **Behind a reverse proxy** (Nginx Proxy Manager, nginx…), give FriRSS at
 > least 120 s: an AI translation batch can take up to 110 s, and the usual
 > default is 60 s. In Nginx Proxy Manager, paste these two lines under

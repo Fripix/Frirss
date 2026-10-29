@@ -28,6 +28,12 @@ FriRSS is self-hosted software: you are responsible for your deployment. A few
 basics that matter:
 
 - Put it behind HTTPS (a reverse proxy) and keep the image updated.
+- Reach it through that reverse proxy, not by publishing the container port
+  straight to the internet. To count login attempts per client, the bundled
+  nginx trusts the `X-Forwarded-For` header from private addresses — where a
+  reverse proxy sits. Docker Desktop, rootless Docker and some IPv6 setups make
+  direct visitors arrive from a private address too: they could then announce
+  any address and get past the login limit.
 - Back up the `/app/data` volume — it holds the database, the JWT secret and the
   token-encryption key (all generated on first launch).
 - The backend proxy blocks internal/private targets by default (anti-SSRF); only
