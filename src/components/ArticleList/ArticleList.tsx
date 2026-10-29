@@ -1046,7 +1046,10 @@ export default function ArticleList() {
           }
           setAsk(null);
         }}
-        onCancel={() => setAsk(null)}
+        onCancel={() => {
+          if (ask?.kind === 'all') useFeedStore.getState().cancelMarkAllUndo();
+          setAsk(null);
+        }}
       />
 
       <SearchScanBar

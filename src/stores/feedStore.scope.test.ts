@@ -209,3 +209,26 @@ describe('changement de serveur pendant un chargement', () => {
     expect(s.articles.map((a) => a.title), 'liste du serveur 2').not.toContain('Article du serveur 1');
   });
 });
+
+// Se désabonner du flux ouvert le retirait de la barre latérale, mais ses
+// articles restaient affichés sous « Tous les flux », avec son compteur.
+describe('se désabonner du flux ouvert', () => {
+  it('retire ses articles et son compte, et recharge la vue', async () => {
+    const f1 = { id: 'feed/1', title: 'Un', categories: [] } as unknown as Subscription;
+    const f2 = { id: 'feed/2', title: 'Deux', categories: [] } as unknown as Subscription;
+    vi.mocked(api.unsubscribeFeed).mockResolvedValue(undefined as never);
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [], continuation: null } as never);
+    useFeedStore.setState({
+      subscriptions: [f1, f2], selectedFeed: f1, filter: 'all', searchQuery: '',
+      articles: [art('a', { sourceId: 'feed/1' }), art('b', { sourceId: 'feed/2' })],
+      unreadCounts: { 'feed/1': 3, 'feed/2': 1 },
+    });
+    expect(await useFeedStore.getState().removeFeed('feed/1')).toBe(true);
+    await flush();
+    const s = useFeedStore.getState();
+    expect(s.selectedFeed).toBeNull();
+    expect(s.articles.some((a) => a.sourceId === 'feed/1')).toBe(false);
+    expect(s.unreadCounts['feed/1']).toBeUndefined();
+    expect(api.getStreamContents).toHaveBeenCalled();
+  });
+});

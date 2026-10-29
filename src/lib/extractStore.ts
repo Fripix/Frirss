@@ -90,6 +90,31 @@ export async function dbRecent(limit: number): Promise<ExtractRecord[]> {
   }
 }
 
+/** Unpin every pinned record whose id is not in `keep`: it falls back under
+ *  the normal retention (`dbEvictOlderThan`). Nothing ever unpinned before. */
+export async function dbUnpinExcept(keep: ReadonlySet<string>): Promise<void> {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve) => {
+      const os = store(db, 'readwrite');
+      const cur = os.openCursor();
+      cur.onsuccess = () => {
+        const c = cur.result;
+        if (c) {
+          const rec = c.value as ExtractRecord;
+          if (rec.pinned && !keep.has(rec.id)) c.update({ ...rec, pinned: false });
+          c.continue();
+        } else {
+          resolve();
+        }
+      };
+      cur.onerror = () => resolve();
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Delete non-pinned records cached before `ts`. */
 export async function dbEvictOlderThan(ts: number): Promise<void> {
   try {

@@ -58,10 +58,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
     // Drop the cached per-server CSRF write-token on logout
     clearWriteToken();
-    localStorage.removeItem('frirss_backendToken');
-    localStorage.removeItem('frirss_backendUser');
-    localStorage.removeItem('frirss_serverUrl');
-    localStorage.removeItem('frirss_activeServerId');
+    // Only this tab's own session: a tab left open on an older account (and
+    // logged out by a 401) erased the session another tab had opened since.
+    const stored = localStorage.getItem('frirss_backendToken');
+    if (!stored || stored === token) {
+      localStorage.removeItem('frirss_backendToken');
+      localStorage.removeItem('frirss_backendUser');
+      localStorage.removeItem('frirss_serverUrl');
+      localStorage.removeItem('frirss_activeServerId');
+    }
     set({
       backendToken: null,
       backendUser: null,

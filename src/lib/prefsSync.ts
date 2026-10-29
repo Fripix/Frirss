@@ -460,10 +460,15 @@ export function stopSync(): void {
   }
   // Le compte suivant sur ce navigateur n'hérite ni des clés sales ni des
   // valeurs connues du serveur de celui-ci.
+  // Seulement si ce qui est stocké est à ce compte : un onglet resté sur un
+  // ancien compte effaçait les réglages en attente du compte d'un autre onglet.
+  const stored = readStored<number>(OWNER_STORAGE);
+  const mine = stored == null || stored === owner;
   known = {};
   dirty = new Set();
   owner = null;
   dirtyOwner = null;
+  if (!mine) return;
   try {
     localStorage.removeItem(KNOWN_STORAGE);
     localStorage.removeItem(DIRTY_STORAGE);

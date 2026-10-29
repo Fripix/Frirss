@@ -19,6 +19,7 @@ vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));
 import { markAllAsRead as apiMarkAllAsRead, markAsUnread, getUnreadItemIds } from '../api/feeds';
 import { useFeedStore } from './feedStore';
 import { useUiStore } from './uiStore';
+import { useAuthStore } from './authStore';
 
 const ids = (n: number, prefix = 'id') => Array.from({ length: n }, (_, i) => `${prefix}${i}`);
 
@@ -130,6 +131,31 @@ describe('markAllAsRead — retour en arrière', () => {
     await useUiStore.getState().toasts.at(-1)!.action!.run();
 
     expect(markAsUnread).toHaveBeenCalledWith(['nouveau']);
+  });
+
+  // Annuler la boîte abandonne le relevé : gardé, il servait au « Tout lu »
+  // suivant du même flux (confirmation désactivée entre-temps), dont le
+  // retour en arrière rendait non lus des articles lus à la main depuis.
+  it('annuler la question abandonne le relevé préparé', async () => {
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ['ancien'], complete: true });
+    useFeedStore.getState().prepareMarkAllUndo();
+    useFeedStore.getState().cancelMarkAllUndo();
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ['actuel'], complete: true });
+    await useFeedStore.getState().markAllAsRead();
+    await useUiStore.getState().toasts.at(-1)!.action!.run();
+    expect(markAsUnread).toHaveBeenCalledWith(['actuel']);
+  });
+
+  // Le serveur change pendant la restauration : les lots suivants iraient au
+  // nouveau, où les mêmes numéros désignent d'autres articles.
+  it('arrête la restauration si le serveur change en route', async () => {
+    (getUnreadItemIds as ReturnType<typeof vi.fn>).mockResolvedValue({ ids: ids(250), complete: true });
+    useAuthStore.setState({ activeServerId: '1', backendToken: 't' });
+    await useFeedStore.getState().markAllAsRead();
+    (markAsUnread as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => { useAuthStore.setState({ activeServerId: '2' }); });
+    await useUiStore.getState().toasts.at(-1)!.action!.run();
+    expect(markAsUnread).toHaveBeenCalledTimes(1);
+    useAuthStore.setState({ activeServerId: '1' });
   });
 
   /**

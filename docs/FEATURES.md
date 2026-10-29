@@ -38,7 +38,11 @@ connexions serveur et des préférences (~68 Ko).
 ### Comptes FriRSS
 Comptes locaux avec mot de passe, session par JWT conservé en `localStorage`
 (décision documentée dans `SECURITY.md`). Le premier compte créé devient
-administrateur.
+administrateur. **Une déconnexion n'efface que la session de son onglet**
+(1.8.0, `authStore.multitab.test.ts`, et les réglages en attente dans
+`prefsSync.stopSync`) : un onglet resté sur un ancien compte, déconnecté par un
+401, effaçait le jeton, le serveur actif et les réglages en attente du compte
+qu'un autre onglet avait ouvert depuis.
 
 - **Où** : `server/routes/auth.ts`, `src/components/Login/Login.tsx`, `src/stores/authStore.ts`
 - **Connexion sans fuite de noms** (1.8.0) : un nom inconnu coûte le même
@@ -2073,7 +2077,11 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   - **Le relevé démarre à l'OUVERTURE de la boîte** (`prepareMarkAllUndo`), pas
     à la validation : une requête par millier d'articles, c'est du temps qui se
     dépense pendant que la question est lue. Annuler l'abandonne — il n'a rien
-    écrit. Mesuré sur l'instance de dev le 2026-09-28 :
+    écrit, et il est OUBLIÉ (`cancelMarkAllUndo`, 1.8.0) : gardé, il servait
+    au « Tout lu » suivant du même flux (confirmation désactivée entre-temps),
+    et le retour en arrière rendait non lus des articles lus à la main depuis.
+    La restauration revérifie serveur et session **avant chaque lot** : un
+    changement de serveur en route envoyait les lots suivants au nouveau. Mesuré sur l'instance de dev le 2026-09-28 :
     **1 020 non lus = 2 requêtes, ~1 s chacune**.
   - **L'annulation s'affiche DANS SON BANDEAU** : le bandeau cliqué ne
     disparaît pas, il devient l'avancement — « Annulation… 300/1 200 » et une
@@ -4632,6 +4640,11 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   Écrit une première fois sans elle.
 
 - **Où** : `src/components/Sidebar/AddFeedDialog.tsx`, `feedStore` (`addFeed`, `renameFeed`, `removeFeed`)
+- **Se désabonner retire le flux de partout** (1.8.0, `feedStore.scope.test.ts`) :
+  ses articles de la liste affichée, son compteur, le cache mémoire et
+  l'instantané de la barre latérale gardé pour le hors ligne ; s'il était
+  ouvert, la vue d'accueil se recharge. Ses articles restaient affichés sous
+  « Tous les flux », avec son compte.
 - **Pas de fermeture au clic sur le fond**, ni pour « Ajouter un flux » ni
   pour « Ajouter un serveur » (`AddServerDialog`, qui la permettait jusqu'en
   1.8.0 et perdait l'adresse, l'identifiant et le mot de passe saisis) :
@@ -4792,6 +4805,13 @@ images consultés restent lisibles sans réseau.
   et le cache mémoire ; la file d'actions reste, rangée par compte. **Les
   images préparées portent leur portée** (`X-FriRSS-Scope`) : le retrait final
   d'un serveur ne touche plus celles d'un autre (il les retirait toutes).
+- **Un extrait épinglé perd son épingle** quand l'article n'est plus ni favori
+  ni à lire plus tard (1.8.0, `unpinExtractsExcept` / `dbUnpinExcept`, appelé
+  par `warmOfflineCache`, `feedStore.unpin.test.ts`) : il revient alors sous
+  la rétention normale de 30 jours. Rien ne désépinglait — un article sorti
+  des favoris gardait son extrait pour toujours. Seulement quand les deux
+  listes ont été lues en entier (au-delà de 100 favoris, la liste est
+  tronquée et désépinglerait ce qu'elle n'a pas vu).
 - **Les deux bases IndexedDB (`frirss`, `frirss-offline`) se rouvrent seules**
   (`src/lib/idbConnection.ts`, 1.8.0, `idbConnection.test.ts`) : la connexion
   est oubliée sur `close` (le navigateur a effacé le stockage du site), sur

@@ -37,7 +37,7 @@ import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
 import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
 import { homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
-import { peekExtract, getExtract, putExtract, pinExtract } from '../lib/extractCache';
+import { peekExtract, getExtract, putExtract, pinExtract, unpinExtractsExcept } from '../lib/extractCache';
 import { listGet, listPut, listEvictOlderThan, subsGet, subsPut, queueGet, queuePut, clearOfflineViews } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
 import { countNewInView, viewFeedIds } from '../lib/newArticles';
@@ -702,6 +702,8 @@ export interface FeedState {
   markAllAsRead: () => Promise<void>;
   /** Prépare le retour en arrière pendant que la confirmation est à l'écran. */
   prepareMarkAllUndo: () => void;
+  /** La question de « Tout lu » annulée : son relevé est abandonné. */
+  cancelMarkAllUndo: () => void;
   /**
    * L'écriture de masse en cours, ou `null`. Elle existe pour être MONTRÉE :
    * un « tout lu » sur un gros flux et son annulation prennent plusieurs
@@ -1205,6 +1207,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         const arts = readLater.items.map(normalizeArticle);
         await listPut(viewKey(null, 'readlater'), arts, readLater.continuation);
         pinned.push(...arts);
+      }
+      // Both lists read whole: whatever else is pinned is no longer starred
+      // nor read-later — its extract goes back under the normal retention.
+      // Not on a truncated or failed list (it would unpin what it never saw).
+      if (starred && readLater && starred.continuation == null && readLater.continuation == null) {
+        unpinExtractsExcept(new Set(pinned.map((a) => a.id))).catch(() => {});
       }
       // Extract + pin each (sequential, skip already cached) for offline reading.
       const { extractFullContent } = await import('../utils/extractContent');
@@ -1851,6 +1859,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const streamId = selectedFeed ? selectedFeed.id : homeStreamId(subscriptions);
     undoSnapshot = { streamId, ids: snapshotUnread(streamId) };
   },
+
+  // La question annulée, son relevé l'est aussi : gardé, il servait au « Tout
+  // lu » suivant du même flux (confirmation désactivée entre-temps), et le
+  // retour en arrière rendait non lus des articles lus à la main depuis.
+  cancelMarkAllUndo: () => { undoSnapshot = null; },
 
   // Mark all as read
   markAllAsRead: async () => {
@@ -2533,10 +2546,24 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   removeFeed: async (feedId) => {
     try {
       await unsubscribeFeed(feedId);
-      set((state) => ({
-        subscriptions: state.subscriptions.filter((s) => s.id !== feedId),
-        selectedFeed: state.selectedFeed?.id === feedId ? null : state.selectedFeed,
-      }));
+      const wasOpen = get().selectedFeed?.id === feedId;
+      // Le flux part de partout, pas seulement de la barre latérale : ses
+      // articles restaient affichés sous « Tous les flux », avec son compteur,
+      // dans le cache mémoire et dans l'instantané gardé pour le hors ligne.
+      set((state) => {
+        const unreadCounts = { ...state.unreadCounts };
+        delete unreadCounts[feedId];
+        return {
+          subscriptions: state.subscriptions.filter((s) => s.id !== feedId),
+          selectedFeed: wasOpen ? null : state.selectedFeed,
+          selectedArticle: state.selectedArticle?.sourceId === feedId ? null : state.selectedArticle,
+          articles: state.articles.filter((a) => a.sourceId !== feedId),
+          unreadCounts,
+        };
+      });
+      memCache.clear();
+      subsPut(storedKey('subscriptions'), get().subscriptions).catch(() => {});
+      if (wasOpen) void get().loadArticles();
       return true;
     } catch {
       return false;
@@ -3006,6 +3033,15 @@ async function snapshotUnread(streamId: string): Promise<string[] | null> {
 async function restoreUnread(ids: readonly string[], toastId: number): Promise<void> {
   const total = ids.length;
   let rendus = 0;
+  // Vérifié avant CHAQUE lot, pas seulement au clic : un changement de
+  // serveur (ou une déconnexion) en route enverrait les lots suivants au
+  // nouveau, où les mêmes numéros désignent d'autres articles.
+  const serveur = String(useAuthStore.getState().activeServerId ?? '');
+  const jeton = useAuthStore.getState().backendToken;
+  const memeContexte = () => {
+    const auth = useAuthStore.getState();
+    return String(auth.activeServerId ?? '') === serveur && auth.backendToken === jeton;
+  };
   const { default: i18n } = await import('../i18n');
   const ui = useUiStore.getState();
   // Le bandeau qu'on vient de cliquer DEVIENT l'avancement : c'est là que le
@@ -3022,6 +3058,7 @@ async function restoreUnread(ids: readonly string[], toastId: number): Promise<v
   useFeedStore.setState({ bulkWork: { done: 0, total } });
   try {
     for (let i = 0; i < total; i += UNDO_BATCH) {
+      if (!memeContexte()) break;
       const lot = ids.slice(i, i + UNDO_BATCH) as string[];
       try {
         await markAsUnread(lot);

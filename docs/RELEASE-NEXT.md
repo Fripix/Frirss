@@ -496,6 +496,19 @@ la release publiée.
   expiré entre-temps. Elle attend désormais son compte et son serveur.
 - **La préparation hors ligne automatique ne saute plus une heure** quand
   l'application se recharge juste après l'ouverture (après une mise à jour).
+- **Deux onglets, deux comptes : se déconnecter dans l'un ne déconnecte plus
+  l'autre.** Un onglet resté ouvert sur un ancien compte effaçait, en se
+  déconnectant, la session et les réglages en attente du compte ouvert
+  ailleurs.
+- **Se désabonner du flux ouvert retire ses articles de la liste** (ils
+  restaient affichés sous « Tous les flux », avec leur compteur).
+- **« Tout lu » : le retour en arrière ne touche que ce qui vient d'être
+  marqué.** Une question annulée laissait son relevé derrière elle, et un
+  « Tout lu » ultérieur sur le même flux pouvait rendre non lus des articles
+  lus à la main depuis. Le retour en arrière s'arrête aussi si l'on change
+  de serveur pendant qu'il tourne.
+- **Les articles retirés des favoris ou de « À lire plus tard » libèrent leur
+  texte gardé hors ligne**, au lieu de le garder pour toujours.
 - **La mémoire ne grossit plus au fil de la lecture.** Chaque article
   affiché, extrait ou traduit qui contenait une vidéo ou une image adaptée à
   la taille de l'écran laissait une copie de sa page en mémoire, que le

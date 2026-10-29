@@ -477,6 +477,19 @@ describe('prefsSync — clés modifiées seulement', () => {
     expect(localStorage.getItem('frirss_prefsKnown')).toBeNull();
   });
 
+  // Deux onglets : celui resté sur l'ancien compte se déconnecte (un 401)
+  // après qu'un autre a ouvert un autre compte — il effaçait les réglages en
+  // attente de ce compte-là.
+  it('logging out leaves another account’s pending keys alone', async () => {
+    fakeServer({ viewMode: 'normal' });
+    await hydratePrefs();
+    localStorage.setItem('frirss_prefsOwner', '999');
+    localStorage.setItem('frirss_prefsDirty', '["showFavicons"]');
+    stopSync();
+    expect(localStorage.getItem('frirss_prefsDirty')).toBe('["showFavicons"]');
+    expect(localStorage.getItem('frirss_prefsOwner')).toBe('999');
+  });
+
   it('a refused key leaves the batch', async () => {
     const server = fakeServer({ appLogo: 'data:image/png;base64,OLD', viewMode: 'normal' });
     await hydratePrefs();

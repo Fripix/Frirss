@@ -3,7 +3,7 @@
 //   - backed by IndexedDB (persistent across reloads, survives offline).
 // Read order: memory → IndexedDB → (caller falls back to a live fetch).
 import type { ExtractedContent } from '../utils/extractContent';
-import { dbGet, dbPut, dbRecent, dbEvictOlderThan, dbSetPinned } from './extractStore';
+import { dbGet, dbPut, dbRecent, dbEvictOlderThan, dbSetPinned, dbUnpinExcept } from './extractStore';
 
 const MEM_MAX = 80;
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -71,6 +71,12 @@ export async function hydrateExtractCache(): Promise<void> {
 
 export function pinExtract(id: string): Promise<void> {
   return dbSetPinned(id, true);
+}
+
+/** Articles no longer starred nor read-later lose their pin: their extract
+ *  then ages out like any other. */
+export function unpinExtractsExcept(ids: ReadonlySet<string>): Promise<void> {
+  return dbUnpinExcept(ids);
 }
 
 const REVALIDATE_AFTER_MS = 12 * 60 * 60 * 1000; // 12h
