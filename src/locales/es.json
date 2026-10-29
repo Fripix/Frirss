@@ -791,6 +791,7 @@
     "errGeneric": "La operación ha fallado. Inténtelo de nuevo.",
     "errSchema": "La copia contiene un dato que esta versión de FriRSS no sabe clasificar, probablemente porque procede de una versión más reciente. No se ha modificado nada.",
     "errTooMany": "Demasiados intentos. Inténtelo de nuevo más tarde.",
+    "errBusy": "Ya hay una restauración en curso en este servidor. Espere a que termine y recargue la página antes de volver a intentarlo.",
     "errConfigured": "Esta instancia ya tiene cuentas: la restauración de primer arranque ya no es posible. Use Preferencias › Administración."
   },
   "toast": {

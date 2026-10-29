@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import request from 'supertest';
 import { brotliCompressSync } from 'node:zlib';
 import app from '../index.js';
-import { oneRestoreAtATime } from '../routes/backup.js';
+import { oneRestoreAtATime, MAX_BACKUP_BYTES } from '../routes/backup.js';
 
 /*
  * Les deux routes de restauration lisent jusqu'à `MAX_BACKUP_BYTES` : le
@@ -72,5 +72,25 @@ describe('restauration — les gardes passent avant la lecture', () => {
     oneRestoreAtATime({} as never, third as never, next);
     expect(next).toHaveBeenCalledTimes(2);
     third.emit('close');
+  });
+
+  // body-parser lit TOUT le corps annoncé avant de refuser par 413 : envoyé au
+  // goutte-à-goutte (sans nginx devant), un corps annoncé trop gros tenait le
+  // verrou jusqu'à 300 s. La longueur annoncée est jugée avant de le prendre.
+  it('refuse un corps annoncé trop gros sans prendre le verrou', () => {
+    const res = () => {
+      const r = new EventEmitter() as EventEmitter & { status: (n: number) => typeof r; json: (b: unknown) => void; statusCode?: number; body?: unknown };
+      r.status = (n: number) => { r.statusCode = n; return r; };
+      r.json = (b: unknown) => { r.body = b; };
+      return r;
+    };
+    const big = res(); const next = vi.fn();
+    oneRestoreAtATime({ headers: { 'content-length': String(MAX_BACKUP_BYTES + 1) } } as never, big as never, next);
+    expect(big.statusCode).toBe(413);
+    expect((big.body as { code: string }).code).toBe('too_large');
+    const ok = res();
+    oneRestoreAtATime({ headers: {} } as never, ok as never, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    ok.emit('close');
   });
 });

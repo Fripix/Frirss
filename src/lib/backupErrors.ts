@@ -21,6 +21,7 @@ export function backupErrorKey(err: unknown): string {
     case 'bad_passphrase': return 'backup.errPassphrase';
     case 'schema_mismatch': return 'backup.errSchema';
     case 'rate_limited': return 'backup.errTooMany';
+    case 'restore_in_progress': return 'backup.errBusy';
     case 'instance_configured': return 'backup.errConfigured';
     default: return 'backup.errGeneric';
   }

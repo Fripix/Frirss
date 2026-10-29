@@ -54,6 +54,13 @@ describe('backupErrorKey', () => {
   // Un 413 sans code ne vient pas de FriRSS (qui porte `too_large`) : de nginx
   // au-delà de 64 Mo, ou d'un proxy inverse placé devant, plafonné à 1 Mo par
   // défaut. « Allégez les logos » y était un faux remède.
+  // Deux administrateurs, ou deux onglets : « réessayez » ne disait pas
+  // qu'une restauration était déjà en cours — sur une instance qui vient
+  // peut-être d'être remplacée.
+  it('dit qu’une restauration est déjà en cours', () => {
+    expect(backupErrorKey(withCode('restore_in_progress'))).toBe('backup.errBusy');
+  });
+
   it('ne prête pas à FriRSS un 413 venu d’un intermédiaire', () => {
     expect(backupErrorKey({ response: { status: 413 } })).toBe('backup.errBodyRefused');
   });

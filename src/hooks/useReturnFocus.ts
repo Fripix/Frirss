@@ -2,7 +2,10 @@ import { useEffect, useRef } from 'react';
 
 interface OpenSurface {
   seq: number;
-  opener: { current: HTMLElement | null };
+  /** Le déclencheur relevé à l'ouverture (instantané, pas la ref). */
+  opener: HTMLElement | null;
+  /** Les surfaces ouvertes avant elle, la plus proche d'abord. */
+  chain: OpenSurface[];
 }
 
 /** Surfaces ouvertes, dans l'ordre d'ouverture. */
@@ -18,38 +21,42 @@ let nextSeq = 0;
  * elle (un `autoFocus` passe avant tout effet). Rendu à la fermeture, ou au
  * démontage pour une surface montée seulement ouverte (les Préférences).
  *
- * Une surface ouverte depuis une autre (la palette ouvre les Préférences, une
- * feuille en ouvre une autre) a pour déclencheur un élément qui disparaît avec
- * la première : elle garde aussi, en repli, celui qui avait ouvert la première.
+ * Une surface ouverte depuis une autre (⌘K → « Raccourcis » → « Configurer »,
+ * une feuille qui en ouvre une autre) a pour déclencheur un élément qui
+ * disparaît avec la précédente : elle garde la chaîne des surfaces ouvertes
+ * avant elle, et se replie sur le déclencheur de la plus proche qui est déjà
+ * FERMÉE. Jamais sur celui d'une surface encore ouverte : le focus partirait
+ * derrière elle (une feuille des Préférences renvoyait au bouton engrenage).
  */
 export function useReturnFocus(open: boolean): void {
   const opener = useRef<HTMLElement | null>(null);
-  const fallback = useRef<HTMLElement | null>(null);
-  const seq = useRef(0);
+  const chain = useRef<OpenSurface[]>([]);
+  const entry = useRef<OpenSurface | null>(null);
   const wasOpen = useRef(false);
   if (open && !wasOpen.current && typeof document !== 'undefined') {
     const active = document.activeElement;
     opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
-    fallback.current = openSurfaces.at(-1)?.opener.current ?? null;
+    const prev = openSurfaces.at(-1);
+    chain.current = prev ? [prev, ...prev.chain] : [];
   }
   wasOpen.current = open;
 
   useEffect(() => {
     if (!open) return;
-    const entry = { seq: ++nextSeq, opener };
-    seq.current = entry.seq;
-    openSurfaces.push(entry);
+    const e: OpenSurface = { seq: ++nextSeq, opener: opener.current, chain: chain.current };
+    entry.current = e;
+    openSurfaces.push(e);
     return () => {
-      const i = openSurfaces.indexOf(entry);
+      const i = openSurfaces.indexOf(e);
       if (i >= 0) openSurfaces.splice(i, 1);
     };
   }, [open]);
 
   useEffect(() => {
     if (open) return;
-    restore(opener, fallback, seq.current);
+    restore(entry);
   }, [open]);
-  useEffect(() => () => restore(opener, fallback, seq.current), []);
+  useEffect(() => () => restore(entry), []);
 }
 
 /**
@@ -59,20 +66,19 @@ export function useReturnFocus(open: boolean): void {
  * pas tant qu'une surface ouverte APRÈS celle-ci est là : c'est elle qui
  * rendra le focus en se fermant.
  */
-function restore(
-  opener: { current: HTMLElement | null },
-  fallback: { current: HTMLElement | null },
-  seq: number,
-): void {
-  const candidates = [opener.current, fallback.current];
-  opener.current = null;
-  fallback.current = null;
-  if (!candidates.some(Boolean)) return;
+function restore(entry: { current: OpenSurface | null }): void {
+  const e = entry.current;
+  entry.current = null;
+  if (!e) return;
   setTimeout(() => {
-    if (openSurfaces.some((s) => s.seq > seq)) return;
+    if (openSurfaces.some((s) => s.seq > e.seq)) return;
     const active = document.activeElement;
     if (active && active !== document.body) return;
-    const el = candidates.find((c) => c && c.isConnected && !c.hasAttribute('disabled'));
-    el?.focus({ preventScroll: true });
+    const usable = (el: HTMLElement | null) => !!el && el.isConnected && !el.hasAttribute('disabled');
+    if (usable(e.opener)) { e.opener!.focus({ preventScroll: true }); return; }
+    for (const prev of e.chain) {
+      if (openSurfaces.includes(prev)) return; // encore ouverte : rien derrière elle
+      if (usable(prev.opener)) { prev.opener!.focus({ preventScroll: true }); return; }
+    }
   }, 0);
 }

@@ -132,3 +132,74 @@ describe('useReturnFocus', () => {
     expect(document.activeElement).toBe(opener);
   });
 });
+
+function Surf({ open, label, children }: { open: boolean; label: string; children?: React.ReactNode }) {
+  useReturnFocus(open);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (open) ref.current?.focus(); }, [open]);
+  return open ? <div><input ref={ref} aria-label={label} />{children}</div> : null;
+}
+
+// ⌘K → « Raccourcis » → « Configurer » : trois surfaces, et les deux
+// premiers déclencheurs disparaissent. Le repli ne remontait que d'un niveau.
+// Et une feuille ouverte DANS les Préférences, dont le déclencheur a disparu,
+// renvoyait le focus au bouton qui avait ouvert les Préférences — derrière
+// elles, toujours ouvertes.
+describe('useReturnFocus — chaînes de surfaces', () => {
+  it('remonte sur plusieurs niveaux : palette → aide → Préférences', async () => {
+    function H() {
+      const [pal, setPal] = useState(false);
+      const [help, setHelp] = useState(false);
+      const [pref, setPref] = useState(false);
+      return (
+        <>
+          <button onClick={() => setPal(true)}>A</button>
+          <button onClick={() => setPref(false)}>fermerPrefs</button>
+          <Surf open={pal} label="palette"><button onClick={() => { setPal(false); setHelp(true); }}>aide</button></Surf>
+          <Surf open={help} label="help"><button onClick={() => { setHelp(false); setPref(true); }}>config</button></Surf>
+          {pref && <Surf open label="prefs" />}
+        </>
+      );
+    }
+    const c = render(<H />);
+    const a = c.getByText('A'); a.focus();
+    act(() => { a.click(); });
+    const b1 = c.getByText('aide'); b1.focus(); act(() => { b1.click(); });
+    await tick();
+    const b2 = c.getByText('config'); b2.focus(); act(() => { b2.click(); });
+    await tick();
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('prefs');
+    // fermer les Préférences sans passer par le bouton (le bouton prendrait le focus) :
+    act(() => { (document.activeElement as HTMLElement).blur(); });
+    act(() => { c.getByText('fermerPrefs').click(); (document.activeElement as HTMLElement)?.blur?.(); });
+    await tick();
+    expect(document.activeElement).toBe(a);
+  });
+
+  it('ne prend pas pour repli le déclencheur d’une surface encore ouverte', async () => {
+    function H() {
+      const [prefs, setPrefs] = useState(false);
+      const [sheet, setSheet] = useState(false);
+      const [gone, setGone] = useState(false);
+      return (
+        <>
+          <button onClick={() => setPrefs(true)}>engrenage</button>
+          <Surf open={prefs} label="prefs">
+            {!gone && <button onClick={() => setSheet(true)}>trois-points</button>}
+          </Surf>
+          {/* La ligne de la feuille retire son propre déclencheur (ligne supprimée). */}
+          <Surf open={sheet} label="sheet"><button onClick={() => { setSheet(false); setGone(true); }}>supprimer</button></Surf>
+        </>
+      );
+    }
+    const c = render(<H />);
+    const gear = c.getByText('engrenage'); gear.focus();
+    act(() => { gear.click(); });
+    const dots = c.getByText('trois-points'); dots.focus();
+    act(() => { dots.click(); });
+    const del = c.getByText('supprimer');
+    act(() => { del.click(); (document.activeElement as HTMLElement)?.blur?.(); });
+    await tick();
+    expect(document.activeElement).not.toBe(gear);
+  });
+});

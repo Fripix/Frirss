@@ -40,6 +40,7 @@ import Preferences from './Preferences';
 import { useThemeStore, SHIPPED_THEMES } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useAiStore } from '../../stores/aiStore';
+import { useUiStore } from '../../stores/uiStore';
 
 const mk = (id: number, name: string, position: number) => ({ id, name, type: 'openai' as const, baseUrl: 'http://o', model: 'm', hasAdminKey: false, shared: true, position });
 
@@ -89,6 +90,19 @@ describe('Préférences — Échap quand le focus est retombé sur la page', () 
     document.body.dispatchEvent(ev);
     expect(useThemeStore.getState().preferencesOpen).toBe(false);
     expect(ev.defaultPrevented).toBe(true);
+  });
+
+  // ⌘K s'ouvre par-dessus les Préférences. Leur écouteur, posé le premier,
+  // fermait les Préférences (dessous) et marquait la touche traitée : la
+  // palette restait ouverte au-dessus.
+  it('laisse Échap à la palette ouverte par-dessus', async () => {
+    useUiStore.setState({ commandPaletteOpen: true });
+    try {
+      render(<Preferences />);
+      (document.activeElement as HTMLElement | null)?.blur();
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      expect(useThemeStore.getState().preferencesOpen).toBe(true);
+    } finally { useUiStore.setState({ commandPaletteOpen: false }); }
   });
 
   it('laisse Échap à ce qui a le focus ailleurs sur la page', async () => {

@@ -5120,8 +5120,11 @@ dans quelques composants partagés.
     ouvre les articles (`LabelGroupHeader`) — un `<span onClick>`, introuvable
     au clavier. Son nom dit le groupe (« Replier Hardware », par
     `aria-labelledby` sur lui-même et le nom : aucune chaîne de plus). Un
-    double-clic replie sans ouvrir les articles : le second clic annule le
-    minuteur du premier, qu'il écrasait ;
+    double-clic replie sans ouvrir les articles : un nouveau clic annule le
+    minuteur du précédent, qu'il écrasait, et le second clic d'un vrai
+    double-clic (`detail` 2) n'en arme pas ; deux activations sans
+    `dblclick` (Entrée deux fois) ouvrent une fois. ⚠️ Un double-clic plus
+    lent que 250 ms ouvre les articles avant de replier ;
   - **bandeau à action** (`Toaster`) : il attend tant que la souris le survole
     ou que le focus y est (« Annuler » se perdait au clavier, WCAG 2.2.1), puis
     repart pour sa durée entière. Un bouton retiré sous le focus (l'« Annuler »
@@ -5133,8 +5136,12 @@ dans quelques composants partagés.
     Préférences, qui prennent le focus). Les surfaces ouvertes s'empilent :
     une surface ne rend rien tant qu'une autre, ouverte après elle, est là
     (une feuille qui en ouvre une autre), et une surface ouverte depuis une
-    autre garde en repli le déclencheur de la première, puisque le sien
-    disparaît avec elle (palette → Préférences → retour au bouton d'origine).
+    autre garde la chaîne des surfaces ouvertes avant elle : son déclencheur
+    disparu, elle se replie sur celui de la plus proche déjà FERMÉE, sur
+    autant de niveaux qu'il faut (⌘K → « Raccourcis » → « Configurer » →
+    retour au bouton d'origine) — jamais sur celui d'une surface encore
+    ouverte, ce qui mettrait le focus derrière elle (une feuille des
+    Préférences renvoyait au bouton engrenage).
     ⚠️ **Pas de piège de focus** dans ces
     boîtes : Tab peut en sortir vers la page derrière — reste connu ;
   - **Échap** : le tiroir mobile ignore une touche déjà traitée ou une boîte
@@ -5142,7 +5149,9 @@ dans quelques composants partagés.
     une pression fermait les deux) — mais pas un `aria-modal` du corps d'un
     article (`.article-content`, que DOMPurify laisse passer). Les Préférences
     et la palette ferment aussi sur Échap quand le focus est retombé sur
-    `<body>`, et marquent la touche traitée ;
+    `<body>`, et marquent la touche traitée ; les Préférences laissent la
+    touche à la palette ouverte par-dessus (⌘K), leur écouteur passant le
+    premier ;
   - **noms et unités** : le sélecteur de couleur d'étiquette nomme ses deux
     champs (`labels.customColor`, `labels.hexColor`) — ⚠️ ses pastilles restent
     à 20 px au doigt, reste connu ; l'infobulle d'« Original » donne la touche
@@ -6378,8 +6387,11 @@ l'instance est celle qu'on avait.
   60 Mio, et 64 requêtes anonymes faisaient tomber Node, donc le conteneur.
   `inflate: false` (un corps compressé reçoit 415 ; la limite de nginx porte,
   elle, sur le corps compressé), et **une seule restauration lue à la fois**
-  (`oneRestoreAtATime`, 429 `restore_in_progress`, libéré à la fin de la
-  réponse ou à la coupure). Le 413 de FriRSS sur ces chemins porte
+  (`oneRestoreAtATime`, 429 `restore_in_progress` → `backup.errBusy`, libéré
+  à la fin de la réponse ou à la coupure). Un `Content-Length` annoncé
+  au-delà de 64 Mio est refusé (413) AVANT de prendre le verrou : body-parser
+  lit tout le corps annoncé avant son 413, et un envoi au goutte-à-goutte
+  (sans nginx devant) le tenait jusqu'à 300 s. Le 413 de FriRSS sur ces chemins porte
   `code: 'too_large'` ; un 413 **sans** code vient d'avant FriRSS (nginx
   au-delà de 64 Mo, ou un proxy inverse placé devant, 1 Mo par défaut) et
   s'affiche `backup.errBodyRefused`, qui nomme les deux sans deviner.

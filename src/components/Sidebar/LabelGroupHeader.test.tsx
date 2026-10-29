@@ -43,12 +43,30 @@ describe('LabelGroupHeader — replier au clavier', () => {
       const p = { ...props, onToggle: vi.fn(), onViewArticles: vi.fn() };
       const c = render(<LabelGroupHeader {...p} />);
       const main = c.getByText('Hardware').closest('button')!;
-      fireEvent.click(main);
-      fireEvent.click(main);
-      fireEvent.doubleClick(main);
+      fireEvent.click(main, { detail: 1 });
+      fireEvent.click(main, { detail: 2 });
+      fireEvent.doubleClick(main, { detail: 2 });
       act(() => { vi.advanceTimersByTime(1000); });
       expect(p.onToggle).toHaveBeenCalledTimes(1);
       expect(p.onViewArticles).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  // Deux activations sans `dblclick` (Entrée deux fois, double-tape d'un
+  // navigateur tactile qui n'en émet pas) : le second clic annulait le premier
+  // et rien ne se passait. Seul le second clic d'un vrai double-clic
+  // (`detail` 2) annule l'ouverture.
+  it('deux activations au clavier ouvrent les articles une fois', () => {
+    vi.useFakeTimers();
+    try {
+      const p = { ...props, onToggle: vi.fn(), onViewArticles: vi.fn() };
+      const c = render(<LabelGroupHeader {...p} />);
+      const main = c.getByText('Hardware').closest('button')!;
+      fireEvent.click(main, { detail: 0 });
+      fireEvent.click(main, { detail: 0 });
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(p.onViewArticles).toHaveBeenCalledTimes(1);
+      expect(p.onToggle).not.toHaveBeenCalled();
     } finally { vi.useRealTimers(); }
   });
 });

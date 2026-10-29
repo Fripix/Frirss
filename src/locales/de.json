@@ -791,6 +791,7 @@
     "errGeneric": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.",
     "errSchema": "Die Sicherung enthält Daten, die diese FriRSS-Version nicht einordnen kann – vermutlich stammt sie von einer neueren Version. Es wurde nichts geändert.",
     "errTooMany": "Zu viele Versuche. Bitte später erneut versuchen.",
+    "errBusy": "Auf diesem Server läuft bereits eine Wiederherstellung. Warten Sie, bis sie abgeschlossen ist, und laden Sie die Seite neu, bevor Sie es erneut versuchen.",
     "errConfigured": "Diese Instanz hat bereits Konten – eine Wiederherstellung beim Erststart ist nicht mehr möglich. Nutzen Sie Einstellungen › Verwaltung."
   },
   "toast": {

@@ -1721,15 +1721,19 @@ export function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasPare
   const chevronId = useId();
   const nameId = useId();
 
-  function handleClick() {
+  function handleClick(e: ReactMouseEvent) {
     if (hasParentTag) {
-      // Second clic d'un double-clic : le premier attend encore. L'écraser sans
-      // l'annuler laissait partir l'ouverture des articles en plus du repli.
+      // Le premier clic attend encore : l'écraser sans l'annuler laissait
+      // partir une ouverture de plus. Second clic d'un vrai double-clic
+      // (`detail` 2) : rien, `handleDoubleClick` replie. Deux activations
+      // sans double-clic (Entrée deux fois, double-tape sans `dblclick`) :
+      // une seule ouverture. Limite : un double-clic plus lent que 250 ms
+      // ouvre les articles avant de replier.
       if (clickTimer.current) {
         clearTimeout(clickTimer.current);
         clickTimer.current = null;
-        return;
       }
+      if (e.detail >= 2) return;
       // Single click → view articles (delayed to distinguish from double-click)
       clickTimer.current = setTimeout(() => {
         clickTimer.current = null;

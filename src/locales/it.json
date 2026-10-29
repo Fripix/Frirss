@@ -791,6 +791,7 @@
     "errGeneric": "Operazione non riuscita. Riprova.",
     "errSchema": "Il backup contiene un dato che questa versione di FriRSS non sa gestire, probabilmente perché proviene da una versione più recente. Non è stato modificato nulla.",
     "errTooMany": "Troppi tentativi. Riprova più tardi.",
+    "errBusy": "Un ripristino è già in corso su questo server. Attendi che finisca, poi ricarica la pagina prima di riprovare.",
     "errConfigured": "Questa istanza ha già degli account: il ripristino al primo avvio non è più possibile. Usa Preferenze › Amministrazione."
   },
   "toast": {

@@ -791,6 +791,7 @@
     "errGeneric": "L’opération a échoué. Réessayez.",
     "errSchema": "La sauvegarde contient une donnée que cette version de FriRSS ne sait pas ranger, probablement parce qu’elle vient d’une version plus récente. Rien n’a été modifié.",
     "errTooMany": "Trop de tentatives. Réessayez plus tard.",
+    "errBusy": "Une restauration est déjà en cours sur ce serveur. Attendez qu’elle se termine, puis rechargez la page avant de recommencer.",
     "errConfigured": "Cette instance a déjà des comptes : la restauration au premier démarrage n’est plus possible. Passez par Préférences › Administration."
   },
   "toast": {

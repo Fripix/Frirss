@@ -791,6 +791,7 @@
     "errGeneric": "De bewerking is mislukt. Probeer het opnieuw.",
     "errSchema": "De back-up bevat gegevens die deze versie van FriRSS niet kan verwerken, waarschijnlijk omdat ze van een nieuwere versie komt. Er is niets gewijzigd.",
     "errTooMany": "Te veel pogingen. Probeer het later opnieuw.",
+    "errBusy": "Er loopt al een herstel op deze server. Wacht tot het klaar is en laad de pagina opnieuw voordat u het nogmaals probeert.",
     "errConfigured": "Deze installatie heeft al accounts: terugzetten bij eerste start kan niet meer. Gebruik Voorkeuren › Beheer."
   },
   "toast": {

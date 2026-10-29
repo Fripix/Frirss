@@ -152,7 +152,14 @@ let restoreBusy = false;
  * plusieurs fois 64 Mio en mémoire (le texte, puis l'objet analysé). Libéré à
  * la fin de la réponse, ou à la coupure de la connexion.
  */
-export function oneRestoreAtATime(_req: Request, res: Response, next: NextFunction) {
+export function oneRestoreAtATime(req: Request, res: Response, next: NextFunction) {
+  // body-parser lit tout le corps annoncé avant de refuser par 413 : envoyé au
+  // goutte-à-goutte (sans nginx devant), un corps trop gros tenait le verrou
+  // jusqu'au délai de Node (300 s). La longueur annoncée se juge avant.
+  const declared = Number(req.headers?.['content-length']);
+  if (Number.isFinite(declared) && declared > MAX_BACKUP_BYTES) {
+    return res.status(413).json({ error: 'payload_too_large', code: 'too_large' });
+  }
   if (restoreBusy) {
     return res.status(429).json({ error: 'A restore is already in progress', code: 'restore_in_progress' });
   }

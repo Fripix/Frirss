@@ -791,6 +791,7 @@
     "errGeneric": "A operação falhou. Tente novamente.",
     "errSchema": "A cópia contém um dado que esta versão do FriRSS não sabe guardar, provavelmente por vir de uma versão mais recente. Nada foi alterado.",
     "errTooMany": "Demasiadas tentativas. Tente novamente mais tarde.",
+    "errBusy": "Já está a decorrer um restauro neste servidor. Aguarde que termine e recarregue a página antes de tentar novamente.",
     "errConfigured": "Esta instância já tem contas: a reposição no primeiro arranque já não é possível. Use Preferências › Administração."
   },
   "toast": {

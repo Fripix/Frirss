@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import FeedsTab from './FeedsTab';
 import AdminTab from './AdminTab';
@@ -111,6 +112,9 @@ export default function Preferences() {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       const active = document.activeElement;
       if (active && active !== document.body) return;
+      // La palette (⌘K) s'ouvre par-dessus : la touche est à elle. Cet
+      // écouteur, posé le premier, fermait les Préférences dessous.
+      if (useUiStore.getState().commandPaletteOpen) return;
       // Traité : le tiroir mobile, ouvert derrière, ne se ferme pas aussi.
       e.preventDefault();
       closePreferences();

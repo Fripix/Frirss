@@ -791,6 +791,7 @@
     "errGeneric": "The operation failed. Try again.",
     "errSchema": "The backup contains data this version of FriRSS does not know how to store, probably because it comes from a newer version. Nothing was changed.",
     "errTooMany": "Too many attempts. Try again later.",
+    "errBusy": "A restore is already in progress on this server. Wait for it to finish, then reload the page before trying again.",
     "errConfigured": "This instance already has accounts, so first-boot restore no longer applies. Use Preferences › Administration instead."
   },
   "toast": {

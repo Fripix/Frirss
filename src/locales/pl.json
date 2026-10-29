@@ -821,6 +821,7 @@
     "errGeneric": "Operacja nie powiodła się. Spróbuj ponownie.",
     "errSchema": "Kopia zawiera dane, których ta wersja FriRSS nie potrafi zapisać — prawdopodobnie pochodzi z nowszej wersji. Nic nie zostało zmienione.",
     "errTooMany": "Zbyt wiele prób. Spróbuj ponownie później.",
+    "errBusy": "Na tym serwerze trwa już przywracanie. Poczekaj, aż się zakończy, a następnie odśwież stronę przed ponowną próbą.",
     "errConfigured": "Ta instancja ma już konta, więc odtwarzanie przy pierwszym uruchomieniu nie jest możliwe. Użyj Preferencje › Administracja."
   },
   "toast": {
