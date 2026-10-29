@@ -13,7 +13,7 @@ import proxyRoutes from './routes/proxy.js';
 import extractRoutes from './routes/extract.js';
 import aiRoutes from './routes/ai.js';
 import adminAiRoutes from './routes/adminAi.js';
-import { adminBackupRouter, setupBackupRouter, MAX_BACKUP_BYTES } from './routes/backup.js';
+import { adminBackupRouter, setupBackupRouter, RESTORE_PATH } from './routes/backup.js';
 import { migrateEncryptTokens } from './crypto.js';
 import { accessLog } from './accessLog.js';
 import { startBackgroundSync } from './worker.js';
@@ -50,12 +50,16 @@ if (process.env.CORS_ORIGIN) {
   app.use(cors({ origin: process.env.CORS_ORIGIN.split(','), credentials: true }));
 }
 
-// Les deux routes de restauration lisent une sauvegarde entière : leur propre
-// lecteur, plus large, passe AVANT le global (qui saute un corps déjà lu).
-// Sans lui, une sauvegarde de plus de 5 Mo s'exportait mais ne se restaurait
-// plus. `nginx.conf` porte la même limite pour ces chemins.
-app.use(['/api/admin/restore', '/api/setup/restore'], express.json({ limit: MAX_BACKUP_BYTES }));
-app.use(express.json({ limit: '5mb' })); // allow logo uploads
+// Les routes de restauration lisent une sauvegarde entière avec leur propre
+// lecteur, monté dans `routes/backup.ts` APRÈS leurs gardes : le global les
+// saute. Sans cela, une sauvegarde de plus de 5 Mo s'exportait mais ne se
+// restaurait plus ; monté ici, avant les gardes, ce lecteur-là était un déni
+// de service anonyme. `nginx.conf` porte la même limite pour ces chemins.
+// `inflate: false` : aucun client n'envoie de corps compressé, et un corps
+// compressé contourne toute limite de taille (32 octets en brotli donnaient
+// 4,9 Mo analysés).
+const json = express.json({ limit: '5mb', inflate: false }); // allow logo uploads
+app.use((req, res, next) => (RESTORE_PATH.test(req.path) ? next() : json(req, res, next)));
 
 // ── Request logging ──────────────────────────────────────────────────
 // Lightweight structured access log: method, path, status, duration.
@@ -125,12 +129,18 @@ if (process.env.NODE_ENV === 'production') {
 // ── Body-parser errors → JSON ───────────────────────────────────────
 // `express.json()` rejects a malformed or oversized body BEFORE any route runs,
 // and Express renders that as an HTML page. Anything else is left to Express.
-app.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
   const type = (err as { type?: string } | null)?.type;
   if (type === 'entity.parse.failed') {
     res.status(400).json({ error: 'invalid_json' });
   } else if (type === 'entity.too.large') {
-    res.status(413).json({ error: 'payload_too_large' });
+    // Le code dit que le refus vient de FriRSS : un 413 sans code vient d'un
+    // proxy placé devant, dont la limite est à relever (`backupErrors.ts`).
+    res.status(413).json(RESTORE_PATH.test(req.path)
+      ? { error: 'payload_too_large', code: 'too_large' }
+      : { error: 'payload_too_large' });
+  } else if (type === 'encoding.unsupported') {
+    res.status(415).json({ error: 'unsupported_encoding' });
   } else {
     next(err);
   }

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import db from '../db.js';
-import { requireEmptyInstance, backupErrorStatus, fail, checkBackupSize } from './backup.js';
+import { requireEmptyInstance, backupErrorStatus, fail, checkBackupSize, MAX_BACKUP_BYTES, MAX_EXPORT_BYTES } from './backup.js';
 import { BackupError, type BackupErrorCode } from '../backupCrypto.js';
 
 function fakeRes() {
@@ -89,6 +89,11 @@ describe('fail', () => {
 // route de restauration) se refuse à l'export : on l'apprenait le jour du
 // sinistre, par un 413.
 describe('checkBackupSize', () => {
+  // La restauration ajoute la phrase de passe à l'enveloppe : l'export garde
+  // de quoi la loger sous le plafond de la restauration.
+  it("garde une marge pour la phrase de passe de la restauration", () => {
+    expect(MAX_BACKUP_BYTES - MAX_EXPORT_BYTES).toBeGreaterThanOrEqual(4096);
+  });
   it('laisse passer ce que la restauration accepte', () => {
     expect(() => checkBackupSize('x'.repeat(100), 100)).not.toThrow();
   });

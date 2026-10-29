@@ -76,8 +76,12 @@ export async function cachePurgeAll(): Promise<void> {
   }
 }
 
-/** Motif SCAN des clés de listes d'un compte (`cacheKey`), et d'elles seules. */
-export function userCachePattern(userId: number | string): string {
+/**
+ * Motif SCAN des clés de listes d'un compte (`cacheKey`), et d'elles seules.
+ * Un nombre, pas la chaîne d'une URL : SQLite lit `'05'` comme 5 et supprime
+ * le compte 5, mais le motif `…:05:*` ne couvre pas ses clés `…:5:…`.
+ */
+export function userCachePattern(userId: number): string {
   return `${KEY_PREFIX}${userId}:*`;
 }
 
@@ -86,7 +90,7 @@ export function userCachePattern(userId: number | string): string {
  * sinon jusqu'à `CACHE_TTL` (24 h par défaut), une donnée personnelle qui
  * survivait à la suppression. Le cache partagé des extraits n'est pas touché.
  */
-export async function cachePurgeUser(userId: number | string): Promise<void> {
+export async function cachePurgeUser(userId: number): Promise<void> {
   if (!client) return;
   try {
     let cursor = '0';

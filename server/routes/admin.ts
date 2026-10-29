@@ -198,7 +198,8 @@ router.delete('/users/:id', (req, res) => {
 
   // CASCADE will remove sessions, servers, preferences
   db.prepare('DELETE FROM users WHERE id = ?').run(id);
-  void cachePurgeUser(id); // ses listes en cache partent avec lui
+  // L'identifiant lu en base, pas celui de l'URL (`05` supprime le compte 5).
+  void cachePurgeUser((user as { id: number }).id); // ses listes en cache partent avec lui
 
   res.json({ ok: true });
 });

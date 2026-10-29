@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { updateServer, startActualize, getActualizeStatus } from '../../../api/backend';
 import { useFeedStore } from '../../../stores/feedStore';
 
-type TestState = 'idle' | 'testing' | 'ok' | 'fail';
+type TestState = 'idle' | 'testing' | 'ok' | 'fail' | 'limited';
 
 interface RefreshTokenFieldProps {
   serverId: number;
@@ -91,8 +91,13 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
         }
       }
       setTest('fail');
-    } catch {
-      if (!unmounted.current) setTest('fail');
+    } catch (err) {
+      if (unmounted.current) return;
+      // Un 429 vient du seau de cadence partagé avec le proxy (une préparation
+      // hors ligne peut le vider) : le jeton n'a pas été éprouvé, il n'est pas
+      // « refusé ».
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setTest(status === 429 ? 'limited' : 'fail');
     }
   }
 
@@ -171,11 +176,13 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
         </button>
         {/* Une région montée en permanence, vide au repos (liveRegions.test). */}
         <span
-          className={test === 'ok' || test === 'fail' ? 'text-[11px]' : 'sr-only'}
+          className={test === 'ok' || test === 'fail' || test === 'limited' ? 'text-[11px]' : 'sr-only'}
           role="status"
-          style={{ color: test === 'fail' ? 'var(--danger)' : 'var(--accent)' }}
+          style={{ color: test === 'fail' ? 'var(--danger)' : test === 'limited' ? 'var(--list-summary)' : 'var(--accent)' }}
         >
-          {test === 'ok' ? t('preferences.refresh.testOk') : test === 'fail' ? t('preferences.refresh.testFail') : ''}
+          {test === 'ok' ? t('preferences.refresh.testOk')
+            : test === 'fail' ? t('preferences.refresh.testFail')
+            : test === 'limited' ? t('preferences.refresh.testRateLimited') : ''}
         </span>
       </div>
     </div>

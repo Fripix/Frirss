@@ -49,7 +49,13 @@ describe('backupErrorKey', () => {
   it('nomme la sauvegarde sans administrateur et la sauvegarde trop grosse', () => {
     expect(backupErrorKey(withCode('no_admin'))).toBe('backup.errNoAdmin');
     expect(backupErrorKey(withCode('too_large'))).toBe('backup.errTooLarge');
-    expect(backupErrorKey({ response: { status: 413 } })).toBe('backup.errTooLarge');
+  });
+
+  // Un 413 sans code ne vient pas de FriRSS (qui porte `too_large`) : de nginx
+  // au-delà de 64 Mo, ou d'un proxy inverse placé devant, plafonné à 1 Mo par
+  // défaut. « Allégez les logos » y était un faux remède.
+  it('ne prête pas à FriRSS un 413 venu d’un intermédiaire', () => {
+    expect(backupErrorKey({ response: { status: 413 } })).toBe('backup.errBodyRefused');
   });
 
   it('retombe sur le générique pour weak_passphrase (erreur de saisie, pas de fichier)', () => {

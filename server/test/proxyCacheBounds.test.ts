@@ -31,6 +31,7 @@ vi.mock('../cache.js', () => ({
 }));
 
 const { default: proxyRouter, MAX_CACHED_BODY_BYTES } = await import('../routes/proxy.js');
+const { default: db } = await import('../db.js');
 
 const CHUNK = Buffer.alloc(1024 * 1024, 0x61);
 const upstream = http.createServer((req, res) => {
@@ -63,7 +64,13 @@ beforeAll(async () => {
   await new Promise<void>((r) => front.listen(0, '127.0.0.1', r));
   upBase = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`;
   frontPort = (front.address() as AddressInfo).port;
+  // Le compte 1 et ses deux serveurs : l'amont local, et un autre hôte.
+  db.prepare("INSERT OR IGNORE INTO users (id, username, email, password_hash, role, active, auth_provider) VALUES (1, 'u1', 'u1@example.com', NULL, 'admin', 1, 'local')").run();
+  ownServer = Number(db.prepare("INSERT INTO servers (user_id, url, freshrss_user) VALUES (1, ?, 'u')").run(upBase).lastInsertRowid);
+  otherServer = Number(db.prepare("INSERT INTO servers (user_id, url, freshrss_user) VALUES (1, 'http://127.0.0.1:1', 'u')").run().lastInsertRowid);
 });
+let ownServer = 0;
+let otherServer = 0;
 afterAll(async () => {
   upstream.closeAllConnections();
   front.closeAllConnections();
@@ -72,11 +79,11 @@ afterAll(async () => {
 });
 beforeEach(() => { cacheSet.mockClear(); });
 
-function call(path: string): Promise<{ status: number; bytes: number }> {
+function call(path: string, serverId: number | null = ownServer): Promise<{ status: number; bytes: number }> {
   return new Promise((resolve) => {
     const req = http.request({
       host: '127.0.0.1', port: frontPort, path: '/api/proxy', method: 'GET',
-      headers: { 'X-Proxy-Target': `${upBase}${path}` },
+      headers: { 'X-Proxy-Target': `${upBase}${path}`, ...(serverId ? { 'X-Server-Id': String(serverId) } : {}) },
     }, (res) => {
       let bytes = 0;
       res.on('data', (c: Buffer) => { bytes += c.length; });
@@ -99,6 +106,16 @@ describe('/api/proxy — lectures mises en cache', () => {
     const res = await call('/reader/api/0/subscription/list?output=json');
     expect(res.status).toBe(200);
     expect(cacheSet).toHaveBeenCalledTimes(1);
+  });
+
+  // Le chemin seul décidait : n'importe quel hôte qui servait `/reader/api/0/`
+  // écrivait jusqu'à 32 Mio par URL dans le Redis partagé (122 Ko servis en
+  // gzip en faisaient écrire 120 Mio). Seule la lecture d'un serveur du compte
+  // est gardée.
+  it("ne met pas en cache la lecture d'un hôte qui n'est pas un serveur du compte", async () => {
+    expect((await call('/reader/api/0/subscription/list?output=json', null)).status).toBe(200);
+    expect((await call('/reader/api/0/subscription/list?output=json', otherServer)).status).toBe(200);
+    expect(cacheSet).not.toHaveBeenCalled();
   });
 
   it('ne prend pas pour une lecture greader une URL qui ne la porte que dans sa requête', async () => {

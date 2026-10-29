@@ -447,6 +447,7 @@
       "test": "测试",
       "testOk": "令牌可用。",
       "testFail": "令牌被拒绝。",
+      "testRateLimited": "当前请求过多：无法测试该令牌。请一分钟后重试。",
       "save": "保存"
     },
     "sections": {
@@ -786,6 +787,7 @@
     "errPassphrase": "口令错误，或文件已损坏。",
     "errNoAdmin": "此备份中没有任何活跃的管理员：无法恢复。",
     "errTooLarge": "此备份超过 64 MB：将无法恢复。请精简已保存的徽标和主题后重试。",
+    "errBodyRefused": "此次上传因大小在到达 FriRSS 之前被拒绝：要么备份超过 64 MB，要么 FriRSS 前面的反向代理限制了上传大小（nginx 默认 1 MB），需要调高该限制。",
     "errGeneric": "操作失败，请重试。",
     "errSchema": "备份包含当前版本 FriRSS 无法存储的数据，可能来自更新版本。未做任何改动。",
     "errTooMany": "尝试次数过多，请稍后再试。",

@@ -199,7 +199,9 @@ export const proxyRateLimiter = PROXY_RATE_LIMIT > 0
 if (proxyRateLimiter) router.use(proxyRateLimiter);
 
 // Capture the raw body for any content type (greader writes are urlencoded)
-router.use(express.raw({ type: '*/*', limit: '5mb' }));
+// `inflate: false`, comme le lecteur JSON global : un corps compressé
+// contourne la limite (elle porte sur le corps décompressé).
+router.use(express.raw({ type: '*/*', limit: '5mb', inflate: false }));
 
 // Optional public→internal target rewrites, so the backend reaches FreshRSS
 // directly over the Docker network (e.g. http://freshrss:80) instead of
@@ -680,6 +682,12 @@ export async function fetchUpstream(
       console.warn('Proxy rewrite unreachable (%s), falling back to public:', e.cause?.code || e.message, redactUrl(target));
       return await attempt(rawTarget);
     }
+    // Repli interdit (le jeton est dans l'URL de la relève) : sans cette ligne,
+    // l'opérateur ne voyait qu'un « fetch failed », sans savoir que l'adresse
+    // interne de `PROXY_REWRITES` en était la cause.
+    if (target !== rawTarget && e.name !== 'AbortError') {
+      console.warn('Proxy rewrite unreachable (%s), no public fallback for this request:', e.cause?.code || e.message, redactUrl(target));
+    }
     throw err;
   }
 }
@@ -709,10 +717,13 @@ router.all('/', async (req, res) => {
   // the target is that server's own URL, never an external article URL
   // (extraction), so the token can't leak to third-party sites.
   const serverId = req.header('x-server-id');
+  // La cible est-elle un serveur du compte ? Décide aussi de la mise en cache.
+  let ownServerTarget = false;
   if (serverId) {
     const srv = db.prepare('SELECT url, freshrss_token FROM servers WHERE id = ? AND user_id = ?')
       .get(serverId, req.user.id) as { url: string; freshrss_token: string | null } | undefined;
-    if (srv && srv.freshrss_token && targetBelongsToServer(srv.url, rawTarget)) {
+    ownServerTarget = !!srv && targetBelongsToServer(srv.url, rawTarget);
+    if (srv && srv.freshrss_token && ownServerTarget) {
       const tok = decrypt(srv.freshrss_token);
       if (tok) headers.Authorization = `GoogleLogin auth=${tok}`;
     }
@@ -735,7 +746,10 @@ router.all('/', async (req, res) => {
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD' && req.body && req.body.length;
   if (hasBody && ct) headers['Content-Type'] = ct;
 
-  const cacheable = cacheEnabled && isCacheableRead(req.method, rawTarget);
+  // Seule la lecture d'un serveur du compte : le chemin seul décidait, et
+  // n'importe quel hôte qui servait `/reader/api/0/` écrivait jusqu'à
+  // `MAX_CACHED_BODY_BYTES` par URL dans le Redis — partagé avec l'hôte.
+  const cacheable = cacheEnabled && ownServerTarget && isCacheableRead(req.method, rawTarget);
   const key = cacheable ? cacheKey(req.user.id, rawTarget) : null;
 
   // ── Cache-only read: instant paint, no FreshRSS round-trip ──

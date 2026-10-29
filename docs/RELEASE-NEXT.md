@@ -126,14 +126,25 @@ la release publiée.
   création du premier compte, n'importe qui pouvait y restaurer une
   sauvegarde sans administrateur : l'instance restait « vierge », mais réglée
   par lui (secret de session, SSO pointé vers son fournisseur). Une
-  sauvegarde sans administrateur actif est désormais refusée.
+  sauvegarde sans administrateur actif est désormais refusée. Jusqu'à la
+  création du premier compte, une instance neuve reste ouverte à qui la
+  trouve : créez-le sans attendre.
+- **Le serveur refuse les corps de requête compressés.** Avant toute
+  authentification, une trentaine d'octets en brotli devenaient 5 Mo à lire
+  et à analyser ; aucun client de FriRSS n'en envoie.
+- **Le cache des lectures (`REDIS_URL`) ne garde plus que celles des serveurs
+  FreshRSS du compte.** N'importe quelle adresse dont le chemin ressemblait à
+  l'API de FreshRSS y était écrite, jusqu'à 32 Mo par adresse : un compte
+  pouvait remplir le Redis, partagé avec le reste de l'hôte.
 - **La synchronisation en arrière-plan (`CACHE_SYNC_INTERVAL`) ne se bloque
   plus** sur un serveur qui ne termine jamais sa réponse (elle s'arrêtait
   pour tous les comptes jusqu'au redémarrage), et ne lit plus une réponse
   sans fin.
 - **Serveurs FreshRSS : nom, identifiant et jetons ont une taille maximale**,
   50 serveurs au plus par compte, et la relève compte dans la limite de
-  requêtes par minute.
+  requêtes par minute. Quand cette limite est atteinte (une préparation hors
+  ligne peut l'atteindre), « Tester » le dit au lieu d'annoncer le jeton
+  refusé.
 - **Avec `PROXY_REWRITES`, la relève ne se rabat plus sur l'adresse publique**
   quand l'adresse interne est injoignable : son URL porte le jeton maître, qui
   aurait fini dans le journal du reverse proxy public.
@@ -530,7 +541,10 @@ la release publiée.
 - **Les grosses sauvegardes se restaurent.** Au-delà de 5 Mo, une sauvegarde
   s'exportait mais était refusée à la restauration ; la limite est désormais
   de 64 Mo, et une sauvegarde plus grosse est refusée dès l'export, avec un
-  message qui le dit.
+  message qui le dit. Quand un proxy inverse placé devant FriRSS refuse
+  l'envoi (1 Mo par défaut avec nginx), le message le dit aussi, au lieu de
+  conseiller d'alléger la sauvegarde. L'aperçu d'une sauvegarde sans
+  administrateur actif la refuse déjà.
 - **Téléphone : un balayage interrompu par le système ne déclenche plus rien
   à la tape suivante.** Quand iOS reprenait le contact (appel, centre de
   notifications), la ligne, le tiroir ou l'article restaient décalés, et la
@@ -632,9 +646,10 @@ la release publiée.
 - **qs épinglé en 6.16.1 par `overrides`** : la 6.17.0 (publiée le jour même
   de la mise à jour) n'ajoute rien de sécuritaire à la 6.16.1, qui porte le
   correctif. Épinglage de prudence, **à retirer au cycle suivant**.
-- **body-parser 2.4.0 décompresse aussi le zstd** : un corps
-  `Content-Encoding: zstd` est accepté (avant : 415). Même limite de 5 Mo après décompression que gzip/br ; le
-  proxy ne retransmet pas `Content-Encoding`.
+- **Aucun corps de requête compressé n'est plus lu** (`inflate: false` sur
+  les lecteurs JSON et brut) : `Content-Encoding` gzip, br, deflate ou zstd
+  reçoit 415. body-parser 2.4.0 avait ajouté le zstd à la décompression ;
+  aucun client de FriRSS n'envoie de corps compressé.
 - **API, ajouts compatibles** :
   - les réponses de `/api/auth/login` et `/api/auth/register` portent
     `auth_provider`, et celles de la connexion, de `/api/auth/me` et de

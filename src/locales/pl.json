@@ -463,6 +463,7 @@
       "test": "Testuj",
       "testOk": "Token działa.",
       "testFail": "Token został odrzucony.",
+      "testRateLimited": "Zbyt wiele żądań w tej chwili: nie udało się sprawdzić tokenu. Spróbuj ponownie za minutę.",
       "save": "Zapisz"
     },
     "sections": {
@@ -816,6 +817,7 @@
     "errPassphrase": "Błędne hasło lub uszkodzony plik.",
     "errNoAdmin": "Ta kopia zapasowa nie zawiera aktywnego administratora: nie można jej przywrócić.",
     "errTooLarge": "Ta kopia zapasowa przekracza 64 MB: nie dałoby się jej przywrócić. Zmniejsz zapisane logo i motywy, a potem spróbuj ponownie.",
+    "errBodyRefused": "To przesłanie zostało odrzucone ze względu na rozmiar, zanim dotarło do FriRSS: albo kopia zapasowa przekracza 64 MB, albo serwer proxy przed FriRSS ogranicza rozmiar przesyłanych danych (domyślnie 1 MB w nginx) i trzeba podnieść jego limit.",
     "errGeneric": "Operacja nie powiodła się. Spróbuj ponownie.",
     "errSchema": "Kopia zawiera dane, których ta wersja FriRSS nie potrafi zapisać — prawdopodobnie pochodzi z nowszej wersji. Nic nie zostało zmienione.",
     "errTooMany": "Zbyt wiele prób. Spróbuj ponownie później.",

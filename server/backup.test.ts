@@ -106,6 +106,13 @@ describe('summarizeBackup', () => {
     expect(s).toMatchObject({ users: 1, servers: 1 });
   });
 
+  // L'aperçu affichait le résumé d'une sauvegarde que la restauration refuse.
+  it("refuse déjà, à l'aperçu, une sauvegarde sans administrateur actif", () => {
+    const sansAdmin = collectBackup();
+    sansAdmin.users = sansAdmin.users.map((u) => ({ ...u, role: 'user' }));
+    expect(() => summarizeBackup(sansAdmin)).toThrow(/administrator/);
+  });
+
   it("rend l'instantané d'environnement pour l'aperçu", () => {
     process.env.CACHE_TTL = '86400';
     try {
@@ -178,6 +185,11 @@ describe('applyBackup', () => {
     const simplesComptes = collectBackup();
     simplesComptes.users = simplesComptes.users.map((u) => ({ ...u, role: 'user' }));
     expect(() => applyBackup(simplesComptes)).toThrow(/administrator/);
+    // `active: null` explicite : inséré tel quel (pas de DEFAULT 1), refusé à la
+    // connexion. La garde lisait « null » comme « actif ».
+    const adminNul = collectBackup();
+    adminNul.users = adminNul.users.map((u) => ({ ...u, active: null }));
+    expect(() => applyBackup(adminNul)).toThrow(/administrator/);
     // Rien n'a été touché.
     expect(db.prepare('SELECT username FROM users').all()).toEqual([{ username: 'alice' }]);
   });

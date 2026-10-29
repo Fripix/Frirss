@@ -88,6 +88,11 @@ export function summarizeBackup(payload: unknown): {
   environment: Record<string, string>;
 } {
   const p = payload as Partial<BackupPayload> | null;
+  // L'aperçu dit déjà ce que la restauration refuserait, plutôt que d'afficher
+  // un résumé qu'elle rejettera ensuite.
+  if (Array.isArray(p?.users) && !(p.users as Row[]).some(isActiveAdmin)) {
+    throw new BackupError('no_admin', 'Backup holds no active administrator');
+  }
   return {
     users: Array.isArray(p?.users) ? p.users.length : 0,
     servers: Array.isArray(p?.servers) ? p.servers.length : 0,
@@ -128,9 +133,14 @@ function assertPayload(payload: unknown): asserts payload is BackupPayload {
   // et laissait l'instance « vierge », réglée par l'inconnu qui l'avait
   // envoyée (secret JWT, clé de chiffrement, SSO) — le propriétaire s'y
   // inscrivait ensuite comme admin. Par l'administration, elle aurait fermé
-  // l'instance à tout le monde.
-  const admin = (p.users as Row[]).some((u) => u.role === 'admin' && (u.active == null || Number(u.active) === 1));
-  if (!admin) throw new BackupError('no_admin', 'Backup holds no active administrator');
+  // l'instance à tout le monde. Une clé `active` ABSENTE reçoit le DEFAULT 1
+  // de la colonne ; un `null` explicite est inséré tel quel, et refusé à la
+  // connexion. Contrôle refait sur la base, dans la transaction (`applyBackup`).
+  if (!(p.users as Row[]).some(isActiveAdmin)) throw new BackupError('no_admin', 'Backup holds no active administrator');
+}
+
+function isActiveAdmin(u: Row): boolean {
+  return u.role === 'admin' && (!('active' in u) || Number(u.active) === 1);
 }
 
 /** Colonnes réellement présentes dans `table`, selon le schéma courant. */
@@ -205,6 +215,11 @@ export function applyBackup(payload: unknown): void {
     insertRows('settings', p.settings);
     insertRows('ai_providers', p.ai_providers ?? []);
     insertRows('ai_user_keys', p.ai_user_keys ?? []);
+    // Sur l'état réel, pas sur sa représentation : une valeur que la base
+    // convertit autrement que prévu ne doit pas laisser l'instance sans admin
+    // capable de se connecter. Lever ici annule toute la transaction.
+    const admins = db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND active = 1").get() as { n: number };
+    if (admins.n === 0) throw new BackupError('no_admin', 'Backup holds no active administrator');
   });
 
   run(payload);

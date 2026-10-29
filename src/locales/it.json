@@ -447,6 +447,7 @@
       "test": "Prova",
       "testOk": "Il token funziona.",
       "testFail": "Il token è stato rifiutato.",
+      "testRateLimited": "Troppe richieste in questo momento: non è stato possibile verificare il token. Riprova tra un minuto.",
       "save": "Salva"
     },
     "sections": {
@@ -786,6 +787,7 @@
     "errPassphrase": "Passphrase errata, o file danneggiato.",
     "errNoAdmin": "Questo backup non contiene alcun amministratore attivo: non può essere ripristinato.",
     "errTooLarge": "Questo backup supera i 64 MB: non potrebbe essere ripristinato. Alleggerisci loghi e temi salvati, poi riprova.",
+    "errBodyRefused": "Questo invio è stato rifiutato per le sue dimensioni prima di raggiungere FriRSS: o il backup supera i 64 MB, o un reverse proxy davanti a FriRSS limita la dimensione degli invii (1 MB predefinito con nginx) e il suo limite va alzato.",
     "errGeneric": "Operazione non riuscita. Riprova.",
     "errSchema": "Il backup contiene un dato che questa versione di FriRSS non sa gestire, probabilmente perché proviene da una versione più recente. Non è stato modificato nulla.",
     "errTooMany": "Troppi tentativi. Riprova più tardi.",

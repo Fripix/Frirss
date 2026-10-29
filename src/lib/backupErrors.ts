@@ -9,8 +9,10 @@
 export function backupErrorKey(err: unknown): string {
   const response = (err as { response?: { status?: number; data?: { code?: string } } })?.response;
   const code = response?.data?.code;
-  // Un 413 sans code vient de nginx ou du lecteur JSON : la même panne.
-  if (!code && response?.status === 413) return 'backup.errTooLarge';
+  // Le 413 de FriRSS porte `too_large`. Sans code, il vient d'avant : nginx
+  // au-delà de 64 Mo, ou un proxy inverse placé devant (1 Mo par défaut). Le
+  // message nomme les deux, sans deviner lequel.
+  if (!code && response?.status === 413) return 'backup.errBodyRefused';
   switch (code) {
     case 'no_admin': return 'backup.errNoAdmin';
     case 'too_large': return 'backup.errTooLarge';

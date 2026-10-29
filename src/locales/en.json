@@ -447,6 +447,7 @@
       "test": "Test",
       "testOk": "The token works.",
       "testFail": "The token was rejected.",
+      "testRateLimited": "Too many requests right now: the token could not be tested. Try again in a minute.",
       "save": "Save"
     },
     "sections": {
@@ -786,6 +787,7 @@
     "errPassphrase": "Wrong passphrase, or damaged file.",
     "errNoAdmin": "This backup holds no active administrator: it cannot be restored.",
     "errTooLarge": "This backup exceeds 64 MB: it could not be restored. Trim saved logos and themes, then try again.",
+    "errBodyRefused": "This upload was refused before it reached FriRSS because of its size: either the backup is over 64 MB, or a reverse proxy in front of FriRSS limits upload size (1 MB by default with nginx) and its limit needs raising.",
     "errGeneric": "The operation failed. Try again.",
     "errSchema": "The backup contains data this version of FriRSS does not know how to store, probably because it comes from a newer version. Nothing was changed.",
     "errTooMany": "Too many attempts. Try again later.",

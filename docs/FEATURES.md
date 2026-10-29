@@ -269,6 +269,9 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   seulement, 50 serveurs par compte (400 sinon) — cinq serveurs nommés de 4 Mo
   passaient. **La relève compte dans le seau par minute** du proxy
   (`FRIRSS_PROXY_RATE_LIMIT`) : elle y échappait, test du jeton maître compris.
+  Un 429 au test (`RefreshTokenField`) affiche
+  `preferences.refresh.testRateLimited` (« le jeton n'a pas pu être éprouvé ») :
+  il disait « Le jeton a été refusé » d'un bon jeton.
 - **Changer l'adresse ou le compte d'un serveur exige un nouveau jeton**
   (1.8.0) : `PUT /api/servers/:id` refuse (400) une autre ORIGINE (schéma,
   hôte, port) ou un autre `freshrssUser` sans `freshrssToken` dans la même
@@ -5653,14 +5656,20 @@ répondu (voir *Extraction du contenu complet*).
   Une cible interne injoignable est retentée à l'URL publique, **sauf pour la
   relève** (`publicFallback: false`, 1.8.0, `proxyRewriteFallback.test.ts`) :
   son URL porte le jeton maître, que le repli écrivait dans le journal du
-  reverse proxy public — ce que la réécriture existait pour éviter.
+  reverse proxy public — ce que la réécriture existait pour éviter. L'échec
+  sans repli laisse une ligne de journal (URL caviardée) : sans elle,
+  l'opérateur ne voyait qu'un « fetch failed ».
 - **Lecture mise en cache bornée** (1.8.0) : avec `REDIS_URL`, une lecture
   greader est lue en entier avant d'être renvoyée et mise en cache. Elle
   s'arrête à `MAX_CACHED_BODY_BYTES` (32 Mo, 502 au-delà, rien en cache), et
   « lecture greader » se juge sur le **chemin** de la cible : la chaîne brute
   laissait passer toute URL publique portant `/reader/api/0/` dans sa requête,
   et un amont rapide remplissait la mémoire du processus
-  (`server/test/proxyCacheBounds.test.ts`).
+  (`server/test/proxyCacheBounds.test.ts`). **Seule la lecture d'un serveur du
+  compte est mise en cache** (`X-Server-Id` du compte et
+  `targetBelongsToServer`) : le chemin seul décidait, et n'importe quel hôte
+  qui servait `/reader/api/0/` écrivait jusqu'à 32 Mo par URL dans le Redis
+  partagé (122 Ko servis en gzip en faisaient écrire 120 Mo).
 - **Échéance totale** (1.8.0) : `PROXY_TOTAL_TIMEOUT_MS` = **60 s** par requête
   `/api/proxy`, en-têtes **et** corps, tous les sauts de redirection et le
   repli vers l'URL publique compris. Avant, seul `TIMEOUT_MS` (30 s) bornait un
@@ -6059,10 +6068,13 @@ divergentes).
 - **Taille des corps** : `client_max_body_size 5m`, aligné sur `express.json`
   et `express.raw`. Le défaut nginx (1 Mo) rendait le conteneur plus strict que
   le backend qu'il sert. Vérifié par le job `docker` de `ci.yml`, qui exige
-  qu'un corps de 2 Mo atteigne Express. **zstd** : depuis body-parser 2.4.0
-  (1.8.0), un corps `Content-Encoding: zstd` est décompressé comme gzip et br
-  (il répondait 415), sous la même limite de 5 Mo après décompression ; le
-  proxy ne retransmet pas `Content-Encoding`.
+  qu'un corps de 2 Mo atteigne Express. **Aucun corps compressé n'est lu**
+  (1.8.0, `inflate: false` sur `express.json` et `express.raw`) : un
+  `Content-Encoding` gzip, br, deflate ou zstd reçoit 415
+  (`unsupported_encoding`). La limite portait sur le corps décompressé et
+  celle de nginx sur le corps compressé : une trentaine d'octets en brotli
+  devenaient 5 Mo analysés, avant toute authentification. Aucun client de
+  FriRSS n'envoie de corps compressé.
 - **Délai de lecture** : `proxy_read_timeout 120s` sur `/api/`. Un résumé IA
   tient jusqu'à 50 s, un lot de traduction jusqu'à 110 s (échéance
   proportionnelle au lot, plafonnée 10 s sous ce délai ; voir « Résumés et
@@ -6264,17 +6276,37 @@ client OIDC, toutes les préférences et tous les réglages d'instance, les
 chiffrées telles qu'en base : la clé d'instance part avec elles). Restaurée,
 l'instance est celle qu'on avait.
 
-- **Une restauration lit jusqu'à 64 Mio** (`MAX_BACKUP_BYTES`, son propre lecteur
-  JSON avant le global de 5 Mo dans `server/index.ts`, et un bloc `location` de
-  `nginx.conf`), **et l'export refuse ce qu'elle refuserait** (`checkBackupSize`,
-  code `too_large`, `backup.errTooLarge`) : une sauvegarde de plus de 5 Mo
-  s'exportait mais ne se restaurait plus — on l'apprenait le jour du sinistre.
+- **Une restauration lit jusqu'à 64 Mio** (`MAX_BACKUP_BYTES`, et un bloc
+  `location` de `nginx.conf`), **et l'export refuse ce qu'elle refuserait**
+  (`checkBackupSize` sous `MAX_EXPORT_BYTES`, 4 Kio de moins pour loger la
+  phrase de passe de la restauration ; code `too_large`, `backup.errTooLarge`) :
+  une sauvegarde de plus de 5 Mo s'exportait mais ne se restaurait plus — on
+  l'apprenait le jour du sinistre. ⚠️ **Le lecteur de 64 Mio (`restoreJson`)
+  vit dans les routes, APRÈS leurs gardes** (`requireAuth` + `requireAdmin`,
+  ou `requireEmptyInstance`), et le lecteur global de `server/index.ts` saute
+  ces chemins (`RESTORE_PATH`, insensible à la casse et au slash final, comme
+  le routage). Monté d'abord au niveau de l'app, il analysait 64 Mio avant
+  l'authentification et décompressait : 115 octets en brotli devenaient
+  60 Mio, et 64 requêtes anonymes faisaient tomber Node, donc le conteneur.
+  `inflate: false` (un corps compressé reçoit 415 ; la limite de nginx porte,
+  elle, sur le corps compressé), et **une seule restauration lue à la fois**
+  (`oneRestoreAtATime`, 429 `restore_in_progress`, libéré à la fin de la
+  réponse ou à la coupure). Le 413 de FriRSS sur ces chemins porte
+  `code: 'too_large'` ; un 413 **sans** code vient d'avant FriRSS (nginx
+  au-delà de 64 Mo, ou un proxy inverse placé devant, 1 Mo par défaut) et
+  s'affiche `backup.errBodyRefused`, qui nomme les deux sans deviner.
   `restoreBodyLimit.test.ts`.
 - **Une sauvegarde sans administrateur actif est refusée** (`no_admin`,
   `backup.errNoAdmin`, 1.8.0) : sur une instance neuve, `/api/setup/restore`
   ne demande aucun compte, et une telle sauvegarde laissait l'instance
   « vierge » mais réglée par l'inconnu qui l'avait envoyée (secret JWT, clé de
   chiffrement, SSO) — le propriétaire s'y inscrivait ensuite comme admin.
+  Une clé `active` absente compte comme active (la colonne a `DEFAULT 1`), un
+  `null` explicite non : il était inséré tel quel et refusé à la connexion.
+  Le contrôle est refait **sur la base**, dans la transaction, après les
+  insertions (un échec annule tout), et l'aperçu (`summarizeBackup`) refuse
+  déjà. Limite inhérente : jusqu'au premier compte, qui trouve l'instance peut
+  y restaurer une sauvegarde portant SON administrateur.
 
 Ne s'y trouvent pas : le **contenu FreshRSS** — articles, flux, états de lecture
 — qui vit dans FreshRSS ; `sessions`, faite de jetons porteurs qui expirent ;
@@ -6638,10 +6670,12 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 **Les erreurs de `/api` sont du JSON, jamais la page HTML d'Express.** Une route
 inconnue sous `/api` répond `404 {"error":"not_found"}` (au lieu de « Cannot GET
 … »), un corps JSON mal formé `400 {"error":"invalid_json"}` et un corps
-au-delà de 5 Mo `413 {"error":"payload_too_large"}` (au lieu de « Bad Request »).
+au-delà de 5 Mo `413 {"error":"payload_too_large"}` (au lieu de « Bad Request »),
+avec `code: 'too_large'` sur les chemins de restauration (au-delà de 64 Mio),
+et un corps compressé `415 {"error":"unsupported_encoding"}`.
 Le 404 est posé après tous les routeurs `/api` et avant le repli SPA, qui ne
 touche toujours pas aux chemins `/api` ; le gestionnaire d'erreurs, en toute fin
-de `server/index.ts`, ne traite que ces deux erreurs de `express.json()` et
+de `server/index.ts`, ne traite que ces trois erreurs des lecteurs de corps et
 laisse passer les autres. Tests : « api error responses » dans
 `server/test/api.test.ts`.
 

@@ -447,6 +447,7 @@
       "test": "Testen",
       "testOk": "Das Token funktioniert.",
       "testFail": "Das Token wurde abgelehnt.",
+      "testRateLimited": "Gerade zu viele Anfragen: Das Token konnte nicht geprüft werden. Versuchen Sie es in einer Minute erneut.",
       "save": "Speichern"
     },
     "sections": {
@@ -786,6 +787,7 @@
     "errPassphrase": "Falsche Passphrase oder beschädigte Datei.",
     "errNoAdmin": "Diese Sicherung enthält keinen aktiven Administrator: Sie kann nicht wiederhergestellt werden.",
     "errTooLarge": "Diese Sicherung ist größer als 64 MB: Sie ließe sich nicht wiederherstellen. Verkleinern Sie gespeicherte Logos und Themes und versuchen Sie es erneut.",
+    "errBodyRefused": "Diese Übertragung wurde wegen ihrer Größe abgelehnt, bevor sie FriRSS erreichte: Entweder ist die Sicherung größer als 64 MB, oder ein vorgeschalteter Reverse-Proxy begrenzt die Uploadgröße (bei nginx standardmäßig 1 MB) und sein Limit muss erhöht werden.",
     "errGeneric": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.",
     "errSchema": "Die Sicherung enthält Daten, die diese FriRSS-Version nicht einordnen kann – vermutlich stammt sie von einer neueren Version. Es wurde nichts geändert.",
     "errTooMany": "Zu viele Versuche. Bitte später erneut versuchen.",

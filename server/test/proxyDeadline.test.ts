@@ -39,6 +39,9 @@ vi.mock('../cache.js', () => ({
 }));
 
 const { default: proxyRouter, PROXY_TOTAL_TIMEOUT_MS } = await import('../routes/proxy.js');
+const { default: db } = await import('../db.js');
+// Seule la lecture d'un serveur du compte passe par la branche bufferisée.
+let serverId = 0;
 
 const realSetTimeout = globalThis.setTimeout;
 const realDelay = (ms: number) => new Promise<void>((r) => realSetTimeout(r, ms));
@@ -114,6 +117,8 @@ beforeAll(async () => {
   await new Promise<void>((r) => front.listen(0, '127.0.0.1', r));
   upBase = `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`;
   frontPort = (front.address() as AddressInfo).port;
+  db.prepare("INSERT OR IGNORE INTO users (id, username, email, password_hash, role, active, auth_provider) VALUES (1, 'u1', 'u1@example.com', NULL, 'admin', 1, 'local')").run();
+  serverId = Number(db.prepare("INSERT INTO servers (user_id, url, freshrss_user) VALUES (1, ?, 'u')").run(upBase).lastInsertRowid);
 });
 
 afterAll(async () => {
@@ -138,7 +143,7 @@ function call(path: string, onFirstChunk?: () => void): Promise<Outcome> {
     const out: Outcome = { body: '', complete: false };
     const req = http.request({
       host: '127.0.0.1', port: frontPort, path: '/api/proxy', method: 'GET',
-      headers: { 'X-Proxy-Target': `${upBase}${path}` },
+      headers: { 'X-Proxy-Target': `${upBase}${path}`, 'X-Server-Id': String(serverId) },
     }, (res) => {
       out.status = res.statusCode;
       res.setEncoding('utf8');

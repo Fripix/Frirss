@@ -37,4 +37,16 @@ describe('fetchUpstream — repli vers l’URL publique', () => {
     expect(f).toHaveBeenCalledTimes(1);
     expect(String(f.mock.calls[0][0])).toMatch(/^http:\/\/freshrss\.internal/);
   });
+
+  // L'opérateur ne voyait qu'un « fetch failed ». Une ligne le dit, sans le jeton.
+  it('le journalise, sans le secret de l’URL', async () => {
+    vi.stubGlobal('fetch', refusedInternally());
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await expect(fetchUpstream('https://rss.example.org/i/?c=feed&a=actualize&token=secret', { publicFallback: false })).rejects.toThrow();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(warn.mock.calls[0])).toContain('no public fallback');
+      expect(JSON.stringify(warn.mock.calls[0])).not.toContain('secret');
+    } finally { warn.mockRestore(); }
+  });
 });

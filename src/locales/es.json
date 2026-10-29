@@ -447,6 +447,7 @@
       "test": "Probar",
       "testOk": "El token funciona.",
       "testFail": "El token fue rechazado.",
+      "testRateLimited": "Demasiadas solicitudes en este momento: no se pudo probar el token. Inténtelo de nuevo dentro de un minuto.",
       "save": "Guardar"
     },
     "sections": {
@@ -786,6 +787,7 @@
     "errPassphrase": "Frase de contraseña incorrecta, o archivo dañado.",
     "errNoAdmin": "Esta copia de seguridad no contiene ningún administrador activo: no se puede restaurar.",
     "errTooLarge": "Esta copia de seguridad supera los 64 MB: no se podría restaurar. Reduce los logotipos y temas guardados y vuelve a intentarlo.",
+    "errBodyRefused": "Este envío se rechazó por su tamaño antes de llegar a FriRSS: o la copia de seguridad supera los 64 MB, o un proxy inverso situado delante de FriRSS limita el tamaño de los envíos (1 MB por defecto con nginx) y hay que aumentar su límite.",
     "errGeneric": "La operación ha fallado. Inténtelo de nuevo.",
     "errSchema": "La copia contiene un dato que esta versión de FriRSS no sabe clasificar, probablemente porque procede de una versión más reciente. No se ha modificado nada.",
     "errTooMany": "Demasiados intentos. Inténtelo de nuevo más tarde.",

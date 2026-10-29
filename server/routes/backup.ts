@@ -1,4 +1,4 @@
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import express, { Router, type Request, type Response, type NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import { userCount } from '../db.js';
 import { APP_VERSION } from '../version.js';
@@ -72,8 +72,16 @@ export function fail(res: Response, err: unknown) {
  */
 export const MAX_BACKUP_BYTES = 64 * 1024 * 1024;
 
+/**
+ * Plafond de l'export, sous celui de la restauration : la restauration envoie
+ * `{"backup":…,"passphrase":"…"}`, l'export ne mesure que `{"backup":…}`. Sans
+ * marge, un export à quelques octets du plafond passait et sa restauration
+ * finissait en 413.
+ */
+export const MAX_EXPORT_BYTES = MAX_BACKUP_BYTES - 4096;
+
 /** Une sauvegarde que la restauration refuserait est refusée dès l'export. */
-export function checkBackupSize(json: string, max = MAX_BACKUP_BYTES): void {
+export function checkBackupSize(json: string, max = MAX_EXPORT_BYTES): void {
   if (Buffer.byteLength(json, 'utf8') > max) {
     throw new BackupError('too_large', 'Backup too large to be restored');
   }
@@ -120,13 +128,49 @@ function handleRestore(req: Request, res: Response) {
 }
 
 // ── Deux montages, une seule implémentation ─────────────────────────
+/**
+ * Chemins dont le corps est lu par `restoreJson`, et que le lecteur global
+ * (`server/index.ts`) saute. Insensible à la casse et au slash final, comme le
+ * routage d'Express.
+ */
+export const RESTORE_PATH = /^\/api\/(admin|setup)\/restore(\/preview)?\/?$/i;
+
+/**
+ * Le lecteur d'une sauvegarde entière, monté dans les routes, APRÈS les gardes.
+ * Monté au niveau de l'app (1.8.0 en préparation), il lisait et analysait 64 Mio
+ * avant l'authentification et décompressait : 115 octets en brotli devenaient
+ * 60 Mio analysés, et quelques dizaines de requêtes anonymes faisaient tomber
+ * Node. `inflate: false` : le client n'envoie jamais de corps compressé, et la
+ * limite de nginx, elle, porte sur le corps compressé.
+ */
+const restoreJson = express.json({ limit: MAX_BACKUP_BYTES, inflate: false });
+
+let restoreBusy = false;
+/**
+ * Une seule sauvegarde lue à la fois : sur une instance neuve,
+ * `/api/setup/restore` est anonyme par nature, et chaque lecture peut tenir
+ * plusieurs fois 64 Mio en mémoire (le texte, puis l'objet analysé). Libéré à
+ * la fin de la réponse, ou à la coupure de la connexion.
+ */
+export function oneRestoreAtATime(_req: Request, res: Response, next: NextFunction) {
+  if (restoreBusy) {
+    return res.status(429).json({ error: 'A restore is already in progress', code: 'restore_in_progress' });
+  }
+  restoreBusy = true;
+  let released = false;
+  const release = () => { if (!released) { released = true; restoreBusy = false; } };
+  res.once('finish', release);
+  res.once('close', release);
+  next();
+}
+
 export const adminBackupRouter = Router();
 adminBackupRouter.use(requireAuth, requireAdmin);
 adminBackupRouter.post('/backup', backupLimiter, handleBackup);
-adminBackupRouter.post('/restore/preview', backupLimiter, handlePreview);
-adminBackupRouter.post('/restore', backupLimiter, handleRestore);
+adminBackupRouter.post('/restore/preview', oneRestoreAtATime, backupLimiter, restoreJson, handlePreview);
+adminBackupRouter.post('/restore', oneRestoreAtATime, backupLimiter, restoreJson, handleRestore);
 
 export const setupBackupRouter = Router();
 setupBackupRouter.use(requireEmptyInstance);
-setupBackupRouter.post('/restore/preview', backupLimiter, handlePreview);
-setupBackupRouter.post('/restore', backupLimiter, handleRestore);
+setupBackupRouter.post('/restore/preview', oneRestoreAtATime, backupLimiter, restoreJson, handlePreview);
+setupBackupRouter.post('/restore', oneRestoreAtATime, backupLimiter, restoreJson, handleRestore);
