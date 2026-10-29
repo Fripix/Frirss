@@ -4810,6 +4810,16 @@ images consultés restent lisibles sans réseau.
   explicite du projet, dans `frirss-offline-images`). Le choix des images y vit dans `articleImageUrls()`,
   exporté par `offlineImages.ts` et testé à part — c'était un helper privé du
   store. Le budget d'images (`imageBudget`) ne concerne que ce chemin-là.
+- **Une requête d'image du proxy (`X-Proxy-Image`) ne relaie qu'une image,
+  bornée** (`server/routes/proxy.ts`, `MAX_PROXIED_IMAGE_BYTES` = 25 Mio,
+  `isImageLikeType`) : un type qui n'est ni `image/*` ni absent ni
+  `application/octet-stream` répond 415, une longueur annoncée au-delà du
+  plafond 413, et un corps sans longueur est coupé au plafond (le statut est
+  déjà parti). ⚠️ Le client garde chaque réponse ENTIÈRE en mémoire (blob
+  axios) avant le `cache.put()` : une `<img src>` vers une vidéo `.mp4`,
+  relayée pendant les 60 s de l'échéance totale, faisait tuer l'onglet par
+  Android au même article à chaque préparation (1.8.0, mesuré : ~50 Mo/s de
+  mémoire native, tas JS stable). `proxyImageBounds.test.ts`.
 - **L'autre remplisseur ne passe pas par le backend** : la route Workbox
   elle-même, quand le navigateur charge une image. C'est vrai du rendu d'un
   article, et donc du réchauffage en avant (`heroWarm.ts`, 1.4.10), qui charge

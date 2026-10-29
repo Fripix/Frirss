@@ -74,6 +74,26 @@ function deadlineError(): Error {
  */
 export const MAX_CACHED_BODY_BYTES = 32 * 1024 * 1024;
 
+/**
+ * Plafond d'une image relayée pour la préparation hors ligne
+ * (`X-Proxy-Image`). Le client la garde ENTIÈRE en mémoire avant de
+ * l'enregistrer : une `<img>` qui pointait vers une vidéo, relayée en flux
+ * pendant l'échéance totale, faisait grossir l'onglet d'environ 50 Mo/s
+ * jusqu'à ce qu'Android le tue. Une vraie photo d'article en pèse rarement
+ * plus de quelques Mo ; un gros GIF animé tient encore sous ce plafond.
+ */
+export const MAX_PROXIED_IMAGE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Ce qu'une requête d'image accepte de relayer : une image, ou une réponse
+ * dont le type ne dit pas le contraire — des CDN servent leurs images sans
+ * type ou en `application/octet-stream`.
+ */
+export function isImageLikeType(ctype: string | null): boolean {
+  const t = (ctype ?? '').split(';')[0].trim().toLowerCase();
+  return t === '' || t.startsWith('image/') || t === 'application/octet-stream' || t === 'binary/octet-stream';
+}
+
 async function readBodyText(resp: Response, signal: AbortSignal, maxBytes = MAX_CACHED_BODY_BYTES): Promise<string> {
   if (!resp.body) return '';
   const reader = resp.body.getReader();
@@ -776,6 +796,18 @@ router.all('/', async (req, res) => {
   }
 
   const ctype = upstream.headers.get('content-type');
+  // Requête d'image : une image et rien d'autre, bornée (voir
+  // `MAX_PROXIED_IMAGE_BYTES`). Refusée sur les en-têtes quand elle le permet,
+  // pour ne pas tirer un octet de plus de l'amont.
+  const image = !!req.header('x-proxy-image') && upstream.ok;
+  if (image) {
+    const declared = Number(upstream.headers.get('content-length'));
+    const refusal = !isImageLikeType(ctype) ? 415 : declared > MAX_PROXIED_IMAGE_BYTES ? 413 : 0;
+    if (refusal) {
+      upstream.body?.cancel().catch(() => {});
+      return res.status(refusal).json({ error: refusal === 415 ? 'Not an image' : 'Image too large' });
+    }
+  }
   if (ctype) res.set('Content-Type', ctype);
 
   if (cacheable && upstream.ok) {
@@ -797,6 +829,15 @@ router.all('/', async (req, res) => {
   const stream = Readable.fromWeb(upstream.body as Parameters<typeof Readable.fromWeb>[0]);
   relay = stream;
   stream.on('error', () => { if (!res.headersSent) res.sendStatus(502); res.destroy(); });
+  if (image) {
+    // Sans longueur annoncée (flux de webcam, réponse en morceaux), on compte :
+    // le statut est déjà parti, couper la connexion est le seul refus possible.
+    let seen = 0;
+    stream.on('data', (chunk: Buffer) => {
+      seen += chunk.length;
+      if (seen > MAX_PROXIED_IMAGE_BYTES) { stream.destroy(); res.destroy(); }
+    });
+  }
   stream.pipe(res);
 });
 
