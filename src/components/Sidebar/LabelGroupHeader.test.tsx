@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { act } from 'react';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -19,7 +20,7 @@ describe('LabelGroupHeader — replier au clavier', () => {
   it('le chevron est un bouton qui dit son état et replie', () => {
     const p = { ...props, onToggle: vi.fn(), onViewArticles: vi.fn() };
     const c = render(<LabelGroupHeader {...p} />);
-    const chevron = c.getByRole('button', { name: 'sidebar.collapse' });
+    const chevron = c.getByRole('button', { name: 'sidebar.collapse Hardware' });
     expect(chevron.getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(chevron);
     expect(p.onToggle).toHaveBeenCalledTimes(1);
@@ -28,6 +29,26 @@ describe('LabelGroupHeader — replier au clavier', () => {
 
   it('replié, il le dit aussi', () => {
     const c = render(<LabelGroupHeader {...props} isCollapsed />);
-    expect(c.getByRole('button', { name: 'sidebar.expand' }).getAttribute('aria-expanded')).toBe('false');
+    expect(c.getByRole('button', { name: 'sidebar.expand Hardware' }).getAttribute('aria-expanded')).toBe('false');
+  });
+
+  // Un lecteur d'écran lisait N fois « Replier » sans savoir de quel groupe.
+  // Le nom vient de l'étiquette du groupe, sans nouvelle chaîne à traduire.
+
+  // Le premier clic armait un minuteur que le second écrasait sans l'annuler :
+  // un double-clic repliait ET ouvrait les articles.
+  it('un double-clic replie sans ouvrir les articles', () => {
+    vi.useFakeTimers();
+    try {
+      const p = { ...props, onToggle: vi.fn(), onViewArticles: vi.fn() };
+      const c = render(<LabelGroupHeader {...p} />);
+      const main = c.getByText('Hardware').closest('button')!;
+      fireEvent.click(main);
+      fireEvent.click(main);
+      fireEvent.doubleClick(main);
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(p.onToggle).toHaveBeenCalledTimes(1);
+      expect(p.onViewArticles).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
   });
 });

@@ -118,3 +118,18 @@ describe('CommandPalette — translate action', () => {
     expect(useUiStore.getState().commandPaletteOpen).toBe(false);
   });
 });
+
+// Un clic dans la liste (hors d'une ligne) pose le focus sur <body> : Échap,
+// écouté sur le seul champ, ne fermait plus la palette — et le tiroir se tait
+// désormais tant qu'une boîte modale est ouverte.
+describe('CommandPalette — Échap', () => {
+  it('se ferme aussi quand le focus est retombé sur la page', () => {
+    render(<CommandPalette />);
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(ev);
+    expect(useUiStore.getState().commandPaletteOpen).toBe(false);
+    expect(ev.defaultPrevented).toBe(true);
+  });
+});

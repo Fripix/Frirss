@@ -46,10 +46,12 @@ export default function MobileDrawer({ open, onClose, children, width = 280 }: M
     // Pas un Échap déjà traité : les Préférences s'ouvrent par-dessus le
     // tiroir sans le fermer, et une seule pression fermait les deux.
     // Ni une boîte modale ouverte au-dessus (son propre Échap la ferme, et son
-    // écouteur peut passer après celui-ci).
+    // écouteur peut passer après celui-ci). Pas celles du corps d'un article :
+    // DOMPurify garde `aria-modal`, et une newsletter embarquée suffisait.
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
-      if (document.querySelector('[aria-modal="true"]')) return;
+      const modals = document.querySelectorAll('[aria-modal="true"]');
+      if ([...modals].some((m) => !m.closest('.article-content'))) return;
       onClose();
     }
     document.addEventListener('keydown', onKey);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, type Toast } from '../stores/uiStore';
 
@@ -45,6 +45,14 @@ function ToastRow({ toast }: { toast: Toast }) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const held = hovered || focused;
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Un élément retiré sous le focus n'émet pas de blur : l'« Annuler » d'un
+  // « Tout lu », retiré quand l'annulation affiche son résultat, laissait le
+  // bandeau tenu pour toujours. Le focus n'est plus dedans : il est relâché.
+  useEffect(() => {
+    if (focused && !rowRef.current?.contains(document.activeElement)) setFocused(false);
+  });
 
   useEffect(() => {
     if (working || held) return;
@@ -61,6 +69,7 @@ function ToastRow({ toast }: { toast: Toast }) {
 
   return (
     <div
+      ref={rowRef}
       className="toast"
       data-tone={toast.tone}
       data-working={working ? '' : undefined}

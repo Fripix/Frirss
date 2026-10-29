@@ -49,9 +49,9 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     return (
       <div
         role="alert"
+        // La hauteur de la coque : voir `.screen-min-height` dans index.css.
+        className="screen-min-height"
         style={{
-          // `--app-height` sur Android (Chrome y fige le `100vh` de la feuille).
-          minHeight: 'var(--app-height, 100dvh)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

@@ -111,6 +111,8 @@ export default function Preferences() {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       const active = document.activeElement;
       if (active && active !== document.body) return;
+      // Traité : le tiroir mobile, ouvert derrière, ne se ferme pas aussi.
+      e.preventDefault();
       closePreferences();
     };
     document.addEventListener('keydown', onKey);

@@ -538,13 +538,15 @@ la release publiée.
 - **Accessibilité, suite.** Les boutons favori et à lire plus tard du volet de
   lecture disent leur état aux lecteurs d'écran, comme les options
   d'affichage et la liste des étiquettes ; un groupe d'étiquettes se replie au
-  clavier ; le bandeau « Annuler » attend tant qu'on le vise ; les
+  clavier et dit lequel il replie, et un double-clic ne l'ouvre plus en plus
+  de le replier ; le bandeau « Annuler » attend tant qu'on le vise ; les
   Préférences, la palette, l'aide et la feuille du bas rendent le focus en se
-  fermant ; une seule pression d'Échap ne ferme plus à la fois les
-  Préférences et le tiroir ; plusieurs messages « Enregistré » sont annoncés
-  de façon fiable.
+  fermant, y compris au bouton d'origine quand l'une a ouvert l'autre ; une
+  seule pression d'Échap ne ferme plus à la fois les Préférences et le
+  tiroir, et Échap ferme la palette même après un clic dans sa liste ;
+  plusieurs messages « Enregistré » sont annoncés de façon fiable.
 - **Petites finitions.** Le libellé révélé par le balayage d'un article est
-  lisible sur sa couleur ; l'infobulle d'« Original » donne la touche
+  plus lisible sur sa couleur ; l'infobulle d'« Original » donne la touche
   réellement choisie ; l'aperçu du balayage et le bandeau de relève parlent la
   langue de l'interface ; le menu « Gérer » des serveurs ne déborde plus de
   l'écran ; l'écran de connexion ne défile plus sur Android en app installée.

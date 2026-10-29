@@ -5020,22 +5020,38 @@ dans quelques composants partagés.
     suivante ;
   - **état des bascules** : `aria-pressed` sur favori et à lire plus tard du
     volet (`ActionBtn` en `highlight`, `BarBtn` en `toggle`, avec article
-    complet et traduction), les rangées de la feuille « Options d'affichage »
-    (`SheetRow`) et la liste des étiquettes du volet. Pas sur lu / non lu, dont
-    le libellé dit déjà l'état ;
+    complet), les rangées de la feuille « Options d'affichage » (`SheetRow`)
+    et la liste des étiquettes du volet. Pas sur lu / non lu ni sur Traduire,
+    dont le libellé change avec l'état (« Texte source » une fois traduit) :
+    un état enfoncé en plus dirait l'inverse du nom ;
   - **groupe d'étiquettes à parent** : le chevron est un vrai bouton
-    (`aria-expanded`, 28 px de haut), à côté du bouton qui ouvre les articles
-    (`LabelGroupHeader`) — un `<span onClick>`, introuvable au clavier ;
+    (`aria-expanded`, 28 × 28 px, 28 × 40 au doigt), à côté du bouton qui
+    ouvre les articles (`LabelGroupHeader`) — un `<span onClick>`, introuvable
+    au clavier. Son nom dit le groupe (« Replier Hardware », par
+    `aria-labelledby` sur lui-même et le nom : aucune chaîne de plus). Un
+    double-clic replie sans ouvrir les articles : le second clic annule le
+    minuteur du premier, qu'il écrasait ;
   - **bandeau à action** (`Toaster`) : il attend tant que la souris le survole
-    ou que le focus y est (« Annuler » se perdait au clavier, WCAG 2.2.1) ;
+    ou que le focus y est (« Annuler » se perdait au clavier, WCAG 2.2.1), puis
+    repart pour sa durée entière. Un bouton retiré sous le focus (l'« Annuler »
+    remplacé par le résultat de l'annulation) n'émet pas de `blur` : à chaque
+    rendu, le bandeau relâche sa prise si le focus n'est plus dedans ;
   - **focus rendu** à la fermeture des Préférences, de la palette, de l'aide
     et de la feuille du bas (`useReturnFocus`), au tour suivant et seulement
     s'il est retombé sur `<body>` (une commande de la palette peut ouvrir les
-    Préférences, qui prennent le focus). ⚠️ **Pas de piège de focus** dans ces
+    Préférences, qui prennent le focus). Les surfaces ouvertes s'empilent :
+    une surface ne rend rien tant qu'une autre, ouverte après elle, est là
+    (une feuille qui en ouvre une autre), et une surface ouverte depuis une
+    autre garde en repli le déclencheur de la première, puisque le sien
+    disparaît avec elle (palette → Préférences → retour au bouton d'origine).
+    ⚠️ **Pas de piège de focus** dans ces
     boîtes : Tab peut en sortir vers la page derrière — reste connu ;
   - **Échap** : le tiroir mobile ignore une touche déjà traitée ou une boîte
     modale ouverte au-dessus (les Préférences s'y ouvrent sans le fermer, et
-    une pression fermait les deux) ;
+    une pression fermait les deux) — mais pas un `aria-modal` du corps d'un
+    article (`.article-content`, que DOMPurify laisse passer). Les Préférences
+    et la palette ferment aussi sur Échap quand le focus est retombé sur
+    `<body>`, et marquent la touche traitée ;
   - **noms et unités** : le sélecteur de couleur d'étiquette nomme ses deux
     champs (`labels.customColor`, `labels.hexColor`) — ⚠️ ses pastilles restent
     à 20 px au doigt, reste connu ; l'infobulle d'« Original » donne la touche
@@ -5045,12 +5061,17 @@ dans quelques composants partagés.
   - **régions de statut montées en permanence** (enregistrement d'un
     fournisseur IA, liste des modèles, clé personnelle, test du jeton maître) ;
     la restauration réussie est une `alert`, puisqu'elle remplace le formulaire ;
-  - **libellé du balayage lisible sur sa couleur** : `--on-readlater` (calculée
+  - **libellé du balayage sur sa couleur** : `--on-readlater` (calculée
     comme `--on-accent`), accent pour « lu », bleu `#2563eb` (5,2:1) pour « non
-    lu » — blanc sur `#10b981` faisait 2,5:1 ;
+    lu » — blanc sur `#10b981` faisait 2,5:1. ⚠️ Le violet « à lire plus
+    tard » du thème par défaut (`#8b5cf6`) reste à 4,2:1 avec la meilleure des
+    deux encres, sous les 4,5:1 du texte de 12 px : le foncer change la
+    palette, c'est une décision de présentation, laissée ouverte ;
   - **menu « Gérer » du sélecteur de serveurs** recalé dans la fenêtre et
-    rendu par portail ; **écran de connexion** sur `--app-height` (il débordait
-    de 56 px sur Android en app installée).
+    rendu par portail ; **écran de connexion et écran d'erreur** sur
+    `.screen-min-height`, la même paire de règles que la coque : `--app-height`
+    sur Android (ils débordaient de 56 px en app installée), `100vh` en PWA
+    iOS (où `dvh` laisse une bande claire en bas).
 - **Focus clavier** : un anneau `:focus-visible` global (`index.css`). Chaque
   sélecteur est écrit en toutes lettres plutôt que dans un `:where()`, pour
   valoir 0-1-1 et l'emporter sur l'utilitaire `.outline-none` (0-1-0) quel que

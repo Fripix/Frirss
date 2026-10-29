@@ -263,6 +263,9 @@ describe('ReadingPane — Résumé IA', () => {
         const { getByRole } = render(<ReadingPane />);
         expect(getByRole('button', { name: 'readingPane.star' }).getAttribute('aria-pressed')).toBe('true');
         expect(getByRole('button', { name: 'readingPane.readLater' }).getAttribute('aria-pressed')).toBe('false');
+        // Traduire change de nom selon l'état (« Texte source » une fois
+        // traduit) : un état enfoncé en plus dirait l'inverse de son nom.
+        expect(getByRole('button', { name: 'ai.translateArticle' }).hasAttribute('aria-pressed')).toBe(false);
       } finally {
         window.innerWidth = width;
       }

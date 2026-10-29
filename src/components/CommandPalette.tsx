@@ -163,6 +163,22 @@ export default function CommandPalette() {
     listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [cursor]);
 
+  // Échap est écouté sur le champ. Un clic dans la liste, hors d'une ligne,
+  // pose le focus sur <body> : Échap ne fermait alors plus rien. Ici,
+  // seulement dans ce cas (comme les Préférences).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const active = document.activeElement;
+      if (active && active !== document.body) return;
+      e.preventDefault();
+      setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
+
   if (!open) return null;
 
   function onKeyDown(e: React.KeyboardEvent) {

@@ -20,7 +20,7 @@ describe('ErrorBoundary', () => {
     expect(alert.textContent).toContain('t:app.errorTitle');
     expect(alert.textContent).toContain('t:app.errorBody');
     expect(screen.getByRole('button').textContent).toBe('t:app.errorReload');
-    expect(alert.getAttribute('style')).toContain('var(--app-height');
+    expect(alert.classList.contains('screen-min-height')).toBe(true);
     expect(screen.getByRole('button').getAttribute('style')).toContain('var(--on-accent');
   });
 });

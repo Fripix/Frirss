@@ -2083,7 +2083,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           {/* Traduire l'article : un appui = l'action, un appui long = le menu
               (aussi dans la feuille « … »). */}
           {aiUsable && (
-            <BarBtn toggle buttonRef={translateBarBtn} active={showTranslatedBody} activeColor="var(--accent)" label={translateLabel} title={translateTitle}
+            <BarBtn buttonRef={translateBarBtn} active={showTranslatedBody} activeColor="var(--accent)" label={translateLabel} title={translateTitle}
               disabled={translateDisabled} onClick={translateAction} press={translatePress}>
               {trLoading ? <SpinIcon className="w-5 h-5" /> : <TranslateIcon className="w-5 h-5" strokeWidth={1.6} />}
             </BarBtn>

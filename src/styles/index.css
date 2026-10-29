@@ -46,8 +46,11 @@ body {
    installed app froze the stylesheet's 100vh 56 px past the real viewport, so
    the bottom of every list was unreachable. Unset elsewhere → the fallbacks. */
 .app-shell { height: var(--app-height, 100dvh); }
+/* Same rule for the full-screen pages outside the shell (login, error). */
+.screen-min-height { min-height: var(--app-height, 100dvh); }
 @media (display-mode: standalone) {
   .app-shell { height: var(--app-height, 100vh); }
+  .screen-min-height { min-height: var(--app-height, 100vh); }
   body { min-height: var(--app-height, 100vh); }
 }
 

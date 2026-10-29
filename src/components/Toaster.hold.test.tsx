@@ -35,10 +35,24 @@ describe('Toaster — un bandeau visé ne part pas', () => {
     const c = render(<Toaster />);
     push();
     const btn = c.getByRole('button', { name: 'Annuler' });
-    fireEvent.focus(btn);
+    act(() => { btn.focus(); });
     act(() => { vi.advanceTimersByTime(20_000); });
     expect(useUiStore.getState().toasts).toHaveLength(1);
-    fireEvent.blur(btn);
+    act(() => { btn.blur(); });
+    act(() => { vi.advanceTimersByTime(20_000); });
+    expect(useUiStore.getState().toasts).toHaveLength(0);
+  });
+
+  // « Annuler » au clavier : l'annulation retire le bouton du bandeau, qui
+  // affiche son résultat. Un élément retiré sous le focus n'émet pas de blur :
+  // le bandeau se croyait tenu et ne partait plus qu'à la croix.
+  it('repart quand le bouton qui avait le focus disparaît', () => {
+    const c = render(<Toaster />);
+    push();
+    const btn = c.getByRole('button', { name: 'Annuler' });
+    act(() => { btn.focus(); });
+    const id = useUiStore.getState().toasts[0].id;
+    act(() => { useUiStore.getState().updateToast(id, { message: 'annulé', action: undefined }); });
     act(() => { vi.advanceTimersByTime(20_000); });
     expect(useUiStore.getState().toasts).toHaveLength(0);
   });

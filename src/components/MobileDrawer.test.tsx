@@ -43,6 +43,15 @@ describe('MobileDrawer — Échap et balayage interrompu', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  // DOMPurify garde `role` et `aria-*` : un article qui embarque sa boîte de
+  // newsletter (`aria-modal`) rendait le tiroir sourd à Échap.
+  it('ne compte pas une « boîte » venue du corps d’un article', () => {
+    const onClose = vi.fn();
+    render(<><MobileDrawer open onClose={onClose}><button>Flux</button></MobileDrawer><div className="article-content"><div role="dialog" aria-modal="true" /></div></>);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   // iOS reprend le contact (`touchcancel`) : le tiroir restait à moitié tiré,
   // et la tape suivante dedans le refermait.
   it('revient en place après un balayage interrompu, sans se fermer à la tape suivante', () => {

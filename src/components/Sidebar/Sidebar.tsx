@@ -1,5 +1,5 @@
 import { useMenuKeys } from '../../hooks/useMenuKeys';
-import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, useId, type ReactNode, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import ConfirmDialog from '../ConfirmDialog';
@@ -1718,9 +1718,18 @@ interface LabelGroupHeaderProps {
 export function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasParentTag, onToggle, onViewArticles, labelColor }: LabelGroupHeaderProps) {
   const { t } = useTranslation();
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chevronId = useId();
+  const nameId = useId();
 
   function handleClick() {
     if (hasParentTag) {
+      // Second clic d'un double-clic : le premier attend encore. L'écraser sans
+      // l'annuler laissait partir l'ouverture des articles en plus du repli.
+      if (clickTimer.current) {
+        clearTimeout(clickTimer.current);
+        clickTimer.current = null;
+        return;
+      }
       // Single click → view articles (delayed to distinguish from double-click)
       clickTimer.current = setTimeout(() => {
         clickTimer.current = null;
@@ -1756,11 +1765,15 @@ export function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasPare
         fontSize: 'var(--fs-sidebar-feed)',
       }}
     >
+      {/* Nommé « Replier » + le nom du groupe : un lecteur d'écran lisait N
+          fois « Replier » sans dire lequel. */}
       <button
         type="button"
+        id={chevronId}
         onClick={onToggle}
-        className="flex-shrink-0 flex items-center justify-center min-w-[1.25rem] min-h-[1.75rem] rounded hover-tint-strong transition-colors"
+        className="flex-shrink-0 flex items-center justify-center min-w-[1.75rem] min-h-[1.75rem] rounded hover-tint-strong transition-colors"
         aria-label={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+        aria-labelledby={`${chevronId} ${nameId}`}
         aria-expanded={!isCollapsed}
         title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
       >
@@ -1787,7 +1800,7 @@ export function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasPare
           style={{ color: iconColor, opacity: 0.6 }}
         />
         {/* Name */}
-        <span className="truncate flex-1 text-left font-semibold">{name}</span>
+        <span id={nameId} className="truncate flex-1 text-left font-semibold">{name}</span>
         {count !== undefined && <CategoryBadge count={count} kind="items" />}
       </button>
     </div>

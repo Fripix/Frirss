@@ -84,8 +84,11 @@ describe('Préférences — Échap quand le focus est retombé sur la page', () 
     render(<Preferences />);
     (document.activeElement as HTMLElement | null)?.blur();
     expect(document.activeElement).toBe(document.body);
-    fireEvent.keyDown(document.body, { key: 'Escape' });
+    // Marqué traité : le tiroir mobile, s'il passe après, ne se ferme pas aussi.
+    const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(ev);
     expect(useThemeStore.getState().preferencesOpen).toBe(false);
+    expect(ev.defaultPrevented).toBe(true);
   });
 
   it('laisse Échap à ce qui a le focus ailleurs sur la page', async () => {
