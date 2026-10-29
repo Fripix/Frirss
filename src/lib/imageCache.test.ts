@@ -31,6 +31,28 @@ describe('cacheImages', () => {
     expect(fetchImage.mock.calls.length).toBeLessThanOrEqual(4); // le premier lot, pas les suivants
   });
 
+  // Après le refus, les images DÉJÀ préparées des lots suivants restent
+  // gardées : le retrait final les ôtait (elles manquaient à `kept`).
+  it('après un refus de quota, garde ce qui était déjà préparé, sans rien télécharger', async () => {
+    const cache = fakeCache(['https://a/5.jpg', 'https://a/6.jpg']);
+    cache.put.mockRejectedValue(new DOMException('Quota exceeded', 'QuotaExceededError'));
+    const fetchImage = vi.fn(image());
+    const urls = Array.from({ length: 7 }, (_, i) => `https://a/${i}.jpg`);
+    const res = await cacheImages(urls, { fetchImage, openCache: async () => cache as never });
+    expect(res.full).toBe(true);
+    expect(res.kept).toEqual(expect.arrayContaining(['https://a/5.jpg', 'https://a/6.jpg']));
+    expect(fetchImage.mock.calls.length).toBeLessThanOrEqual(4);
+  });
+
+  it('sans téléchargement (`noFetch`), ne fait que retrouver ce qui est préparé', async () => {
+    const cache = fakeCache(['https://a/1.jpg']);
+    const fetchImage = vi.fn(image());
+    const res = await cacheImages(['https://a/1.jpg', 'https://a/2.jpg'], { fetchImage, openCache: async () => cache as never, noFetch: true });
+    expect(fetchImage).not.toHaveBeenCalled();
+    expect(res.kept).toEqual(['https://a/1.jpg']);
+    expect(res.stored).toBe(0);
+  });
+
   it('ne signale pas « plein » pour une autre erreur d’écriture', async () => {
     const cache = fakeCache();
     cache.put.mockRejectedValue(new TypeError('bad body'));

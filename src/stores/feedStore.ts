@@ -1290,15 +1290,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           }
         }
 
-        if (deviceFull) {
-          // No image is attempted any more, but the later articles' images
-          // already prepared stay wanted: the final sweep, the only one that
-          // frees space (older than 30 days), must not drop them.
-          for (const url of articleImageUrls(a.content, extracted, budget.perArticle)) keptImages.add(url);
-        } else if (!budgetReached) {
+        if (!budgetReached) {
           const urls = articleImageUrls(a.content, extracted, budget.perArticle);
           imagesFound += urls.length;
-          const res = await cacheImages(urls);
+          // Device full: nothing is downloaded any more, but the images already
+          // prepared are still looked up — kept and counted in the budget — or
+          // the final sweep, the only one that frees space, would drop them.
+          const res = await cacheImages(urls, deviceFull ? { noFetch: true } : {});
           imagesStored += res.stored;
           imagesBytes += res.bytes + res.reusedBytes;
           imagesFailed += res.failed;
@@ -1306,7 +1304,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           for (const url of res.kept) keptImages.add(url);
           if (res.error?.startsWith('open:')) interrupted = true;
           // Device full: every later image would fail too, after a wasted
-          // download. The run goes on (see above), images and new extracts off.
+          // download. The run goes on, downloads and new extracts off.
           if (res.full) deviceFull = true;
           // Count the bytes actually held — stored now or kept from an earlier
           // run, or the cache would outgrow the budget over successive runs. The

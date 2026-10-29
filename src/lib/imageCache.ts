@@ -13,6 +13,8 @@ interface CacheImagesDeps {
   openCache: () => Promise<Cache>;
   /** The service worker's display cache, read to adopt older prepared entries. */
   openBrowsingCache: () => Promise<Cache>;
+  /** Download nothing: only find what is already prepared (device full). */
+  noFetch: boolean;
 }
 
 export interface CacheImagesResult {
@@ -217,10 +219,12 @@ export async function cacheImages(
   const note = (stage: string, e: unknown) => { failed++; error ??= `${stage}: ${describe(e)}`; };
   // Device full: every later image would fail too, after a wasted download —
   // and a full device is what makes the browser wipe the site's whole storage.
+  // After it, the rest is only looked up — the images already prepared stay
+  // in `kept`, or the final sweep would remove them.
   let full = false;
+  const lookupOnly = () => full || deps.noFetch === true;
 
   for (let i = 0; i < urls.length; i += BATCH) {
-    if (full) { failed += urls.length - i; break; }
     await Promise.all(
       urls.slice(i, i + BATCH).map(async (url) => {
         let img: FetchedImage;
@@ -231,6 +235,7 @@ export async function cacheImages(
             kept.push(url);
             return;
           }
+          if (lookupOnly()) { if (full) failed++; return; }
           const older = await browsing?.match(url);
           if (older && isLegacyPrepared(url, older, origin)) {
             // Measured on a copy first: `put` consumes the body.

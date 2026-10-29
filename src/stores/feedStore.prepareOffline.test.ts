@@ -118,14 +118,17 @@ describe('prepareOffline — images préparées', () => {
     expect(pruneImages).not.toHaveBeenCalled();
   });
 
-  // Appareil plein : plus aucune image n'est tentée, mais la préparation va
-  // au bout. Le retrait final est le seul qui libère de la place (articles de
-  // plus de 30 jours) ; il ne doit pas ôter les images des articles suivants,
-  // encore voulues — leurs adresses sont relevées sans rien télécharger.
-  it('appareil plein : arrête les images, garde celles des articles suivants, libère le reste', async () => {
-    vi.mocked(cacheImages).mockImplementation(async (urls) => ({ ...result([], 0), failed: urls.length, full: true }));
+  // Appareil plein : plus rien n'est téléchargé, mais la préparation va au
+  // bout. Le retrait final est le seul qui libère de la place (articles de
+  // plus de 30 jours) : les images déjà préparées des articles suivants y
+  // échappent, relevées sans téléchargement (`noFetch`) et comptées dans le
+  // budget comme les autres.
+  it('appareil plein : plus de téléchargement, les images préparées suivantes restent, le retrait tourne', async () => {
+    vi.mocked(cacheImages).mockImplementation(async (urls, deps) => (deps?.noFetch
+      ? { ...result(urls, 0, 10), stored: 0 }
+      : { ...result([], 0), failed: urls.length, full: true }));
     await useFeedStore.getState().prepareOffline();
-    expect(cacheImages).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(cacheImages).mock.calls.map((c) => !!c[1]?.noFetch)).toEqual([false, true, true]);
     const prep = useFeedStore.getState().offlinePrep;
     expect(prep?.deviceFull).toBe(true);
     expect(prep?.running).toBe(false);
@@ -133,6 +136,18 @@ describe('prepareOffline — images préparées', () => {
     expect(pruneImages).toHaveBeenCalledTimes(1);
     expect([...vi.mocked(pruneImages).mock.calls[0][0]].sort())
       .toEqual(['https://img.example/2.jpg', 'https://img.example/3.jpg']);
+  });
+
+  it('appareil plein : le relevé respecte le budget', async () => {
+    vi.mocked(imageBudget).mockReturnValue({ bytes: 5, perArticle: 1 });
+    vi.mocked(cacheImages).mockImplementation(async (urls, deps) => (deps?.noFetch
+      ? { ...result(urls, 0, 10), stored: 0 }
+      : { ...result([], 0), failed: urls.length, full: true }));
+    await useFeedStore.getState().prepareOffline();
+    // Les 10 octets du 2e article dépassent le budget (5) : le 3e n'est plus
+    // relevé, et son image part au retrait comme au-delà de tout budget.
+    expect(vi.mocked(cacheImages)).toHaveBeenCalledTimes(2);
+    expect([...vi.mocked(pruneImages).mock.calls[0][0]]).toEqual(['https://img.example/2.jpg']);
   });
 
   it('demande un stockage protégé quand l’utilisateur lance la préparation', async () => {

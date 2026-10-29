@@ -4802,10 +4802,13 @@ images consultés restent lisibles sans réseau.
   accordé il vaut aussi pour les préparations automatiques. Un stockage
   protégé n'est pas effacé par le navigateur quand l'appareil manque de
   place. La première écriture refusée pour `QuotaExceededError` (`full`)
-  arrête les images ET les nouvelles extractions (rien ne s'enregistrerait),
-  mais la préparation va au bout : elle relève les images des articles
-  suivants sans les télécharger, pour que le retrait final — le seul qui
-  libère de la place, articles de plus de 30 jours — ne les ôte pas
+  arrête les téléchargements d'images ET les nouvelles extractions (rien ne
+  s'enregistrerait), mais la préparation va au bout : `cacheImages` (y compris
+  pour la suite de l'article qui a heurté le quota) puis les articles suivants
+  (`noFetch`) retrouvent sans rien télécharger les images déjà préparées,
+  gardées et comptées dans le budget comme d'habitude — sans quoi le retrait
+  final, le seul qui libère de la place (articles de plus de 30 jours, ou
+  au-delà du budget), les ôterait
   (`offlinePrep.deviceFull`, affiché « arrêté : plus de place sur
   l'appareil », `offline.imagesDeviceFull`). ⚠️ Un premier essai arrêtait toute
   la préparation : sans retrait final, l'appareil restait plein, et la
@@ -5817,7 +5820,8 @@ qu'elle rend (voir *Extraction du contenu complet*).
   `text/html` (sinon 415, avant toute lecture — un PDF ou une vidéo n'a pas
   d'article). Une réponse **sans en-tête `Content-Type`** est lue comme une
   page si elle en a l'air (`looksLikeMarkup` : un `<` en tête, aucun octet nul
-  dans le premier Ko), sinon 415 — 1.8.0 : jusque-là tout refus sans type
+  dans le premier Ko), sinon 415 — limite assumée : une vraie page sans type
+  qui commence par du texte (un avertissement PHP) est refusée — 1.8.0 : jusque-là tout refus sans type
   envoyait le client à son repli, qui ne se replie plus sur un 415 ; et lue
   sans contrôle, un binaire donnait un « article » de bruit mis en cache pour
   l'instance. Au plus 2 Mo (sinon **413**, sur lequel le client ne se replie
