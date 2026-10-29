@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { extractKey, cacheKey } from '../cache.js';
+import { extractKey, cacheKey, userCachePattern } from '../cache.js';
 
 describe('extractKey', () => {
   it('donne la même clé pour la même URL', () => {
@@ -28,5 +28,22 @@ describe('extractKey', () => {
     const body = src.slice(src.indexOf('export function extractKey'));
     const fn = body.slice(0, body.indexOf('\n}'));
     expect(fn).not.toMatch(/user/i);
+  });
+});
+
+// Supprimer un compte laissait ses listes d'articles en cache jusqu'à
+// `CACHE_TTL` (24 h par défaut) : une donnée personnelle qui survivait à la
+// suppression demandée. La purge vise ses clés, et elles seules.
+describe('userCachePattern', () => {
+  const matches = (pattern: string, key: string) =>
+    new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`).test(key);
+
+  it('couvre toutes les clés du compte', () => {
+    expect(matches(userCachePattern(7), cacheKey(7, 'https://rss.example.com/a'))).toBe(true);
+  });
+  it('ne touche ni un autre compte ni le cache partagé des extraits', () => {
+    expect(matches(userCachePattern(7), cacheKey(70, 'https://rss.example.com/a'))).toBe(false);
+    expect(matches(userCachePattern(7), cacheKey(17, 'https://rss.example.com/a'))).toBe(false);
+    expect(matches(userCachePattern(7), extractKey('https://example.com/a'))).toBe(false);
   });
 });

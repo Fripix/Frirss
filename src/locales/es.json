@@ -779,6 +779,8 @@
     "errNotBackup": "Este archivo no es una copia de FriRSS.",
     "errVersion": "Esta copia se creó con una versión más reciente de FriRSS.",
     "errPassphrase": "Frase de contraseña incorrecta, o archivo dañado.",
+    "errNoAdmin": "Esta copia de seguridad no contiene ningún administrador activo: no se puede restaurar.",
+    "errTooLarge": "Esta copia de seguridad supera los 64 MB: no se podría restaurar. Reduce los logotipos y temas guardados y vuelve a intentarlo.",
     "errGeneric": "La operación ha fallado. Inténtelo de nuevo.",
     "errSchema": "La copia contiene un dato que esta versión de FriRSS no sabe clasificar, probablemente porque procede de una versión más reciente. No se ha modificado nada.",
     "errTooMany": "Demasiados intentos. Inténtelo de nuevo más tarde.",

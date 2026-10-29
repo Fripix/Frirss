@@ -64,13 +64,30 @@ export function fail(res: Response, err: unknown) {
   return res.status(500).json({ error: 'Backup operation failed' });
 }
 
+/**
+ * Taille maximale d'une restauration (`server/index.ts` lit ces deux routes
+ * jusque-là, `nginx.conf` aussi). Le lecteur JSON global s'arrête à 5 Mo : une
+ * sauvegarde un peu fournie (quatre préférences de 1 Mo suffisent) s'exportait
+ * mais ne se restaurait plus — on l'apprenait le jour du sinistre.
+ */
+export const MAX_BACKUP_BYTES = 64 * 1024 * 1024;
+
+/** Une sauvegarde que la restauration refuserait est refusée dès l'export. */
+export function checkBackupSize(json: string, max = MAX_BACKUP_BYTES): void {
+  if (Buffer.byteLength(json, 'utf8') > max) {
+    throw new BackupError('too_large', 'Backup too large to be restored');
+  }
+}
+
 function handleBackup(req: Request, res: Response) {
   try {
     const { passphrase } = req.body ?? {};
     if (typeof passphrase !== 'string' || passphrase.length < MIN_PASSPHRASE_LENGTH) {
       return res.status(400).json({ error: 'Passphrase too short', code: 'weak_passphrase' });
     }
-    res.json({ backup: sealBackup(collectBackup(), passphrase, APP_VERSION) });
+    const body = JSON.stringify({ backup: sealBackup(collectBackup(), passphrase, APP_VERSION) });
+    checkBackupSize(body);
+    res.type('application/json').send(body);
   } catch (err) {
     fail(res, err);
   }

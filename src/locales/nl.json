@@ -779,6 +779,8 @@
     "errNotBackup": "Dit bestand is geen FriRSS-back-up.",
     "errVersion": "Deze back-up komt van een nieuwere versie van FriRSS.",
     "errPassphrase": "Verkeerde wachtwoordzin, of beschadigd bestand.",
+    "errNoAdmin": "Deze back-up bevat geen actieve beheerder: hij kan niet worden hersteld.",
+    "errTooLarge": "Deze back-up is groter dan 64 MB: hij zou niet kunnen worden hersteld. Maak opgeslagen logo’s en thema’s kleiner en probeer het opnieuw.",
     "errGeneric": "De bewerking is mislukt. Probeer het opnieuw.",
     "errSchema": "De back-up bevat gegevens die deze versie van FriRSS niet kan verwerken, waarschijnlijk omdat ze van een nieuwere versie komt. Er is niets gewijzigd.",
     "errTooMany": "Te veel pogingen. Probeer het later opnieuw.",

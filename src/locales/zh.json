@@ -779,6 +779,8 @@
     "errNotBackup": "此文件不是 FriRSS 备份。",
     "errVersion": "此备份由更新版本的 FriRSS 生成。",
     "errPassphrase": "口令错误，或文件已损坏。",
+    "errNoAdmin": "此备份中没有任何活跃的管理员：无法恢复。",
+    "errTooLarge": "此备份超过 64 MB：将无法恢复。请精简已保存的徽标和主题后重试。",
     "errGeneric": "操作失败，请重试。",
     "errSchema": "备份包含当前版本 FriRSS 无法存储的数据，可能来自更新版本。未做任何改动。",
     "errTooMany": "尝试次数过多，请稍后再试。",

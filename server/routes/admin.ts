@@ -4,6 +4,7 @@ import db, { getSetting, setSetting } from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { clearDiscoveryCache, getRedirectUri } from '../oidc.js';
 import { isValidEmail } from '../validate.js';
+import { cachePurgeUser } from '../cache.js';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -197,6 +198,7 @@ router.delete('/users/:id', (req, res) => {
 
   // CASCADE will remove sessions, servers, preferences
   db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  void cachePurgeUser(id); // ses listes en cache partent avec lui
 
   res.json({ ok: true });
 });

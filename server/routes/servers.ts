@@ -4,7 +4,7 @@ import { encrypt, decrypt } from '../crypto.js';
 import { buildActualizeRequest, refreshMaxFeeds } from '../actualizeRequest.js';
 import { startJob, getJob, isRefreshKind, REFRESH_TIMEOUT_MS } from '../refreshJobs.js';
 import { requireAuth } from '../middleware/auth.js';
-import { fetchUpstream } from './proxy.js';
+import { fetchUpstream, proxyRateLimiter } from './proxy.js';
 import { stripTrailingSlashes } from '../validate.js';
 
 const router = Router();
@@ -16,6 +16,25 @@ const router = Router();
 const MAX_TEST_TOKEN_LENGTH = 1024;
 
 const MAX_URL_LENGTH = 2048;
+
+/** Bornes d'un serveur enregistré. Sans elles, cinq serveurs nommés de 4 Mo
+ *  passaient : la base remplie par un seul compte. */
+const MAX_NAME_LENGTH = 200;
+const MAX_SERVERS_PER_USER = 50;
+
+/** Le premier champ hors bornes (chaîne, longueur), ou `null`. */
+function serverFieldError(body: Record<string, unknown>): string | null {
+  const limits: Array<[string, number]> = [
+    ['name', MAX_NAME_LENGTH], ['freshrssUser', MAX_NAME_LENGTH],
+    ['freshrssToken', MAX_TEST_TOKEN_LENGTH], ['refreshToken', MAX_TEST_TOKEN_LENGTH],
+  ];
+  for (const [field, max] of limits) {
+    const v = body[field];
+    if (v === undefined || v === null) continue;
+    if (typeof v !== 'string' || v.length > max) return `Invalid ${field}`;
+  }
+  return null;
+}
 
 /**
  * Adresse de serveur fournie par le client : http(s), bornée, barres finales
@@ -67,11 +86,13 @@ router.get('/', (req, res) => {
 // ── POST /api/servers ───────────────────────────────────────────────
 router.post('/', (req, res) => {
   try {
-    const { name, url, freshrssUser, freshrssToken } = req.body;
+    const { name, url, freshrssUser, freshrssToken } = req.body ?? {};
 
     if (!url || !freshrssUser) {
       return res.status(400).json({ error: 'URL and FreshRSS username required' });
     }
+    const invalid = serverFieldError(req.body);
+    if (invalid) return res.status(400).json({ error: invalid });
 
     const normalizedUrl = normalizeServerUrl(url);
     if (!normalizedUrl) return res.status(400).json({ error: 'Invalid server URL' });
@@ -86,6 +107,7 @@ router.post('/', (req, res) => {
 
     // First server for this user = default
     const count = (db.prepare('SELECT COUNT(*) as c FROM servers WHERE user_id = ?').get(req.user.id) as { c: number }).c;
+    if (count >= MAX_SERVERS_PER_USER) return res.status(400).json({ error: 'Too many servers' });
     const isDefault = count === 0 ? 1 : 0;
 
     const result = db.prepare(`
@@ -107,7 +129,9 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { name, url, freshrssUser, freshrssToken, refreshToken } = req.body;
+    const { name, url, freshrssUser, freshrssToken, refreshToken } = req.body ?? {};
+    const invalid = serverFieldError(req.body ?? {});
+    if (invalid) return res.status(400).json({ error: invalid });
 
     // Check ownership
     const server = db.prepare('SELECT * FROM servers WHERE id = ? AND user_id = ?').get(id, req.user.id) as ServerRow | undefined;
@@ -199,7 +223,9 @@ router.put('/:id/default', (req, res) => {
 // request is fired but not awaited: refreshing hundreds of feeds takes
 // minutes, and any proxy in between would time out the client long before
 // FreshRSS is done — while FreshRSS keeps working regardless.
-router.post('/:id/actualize', (req, res) => {
+// Dans le seau par minute du proxy et de l'extraction : chaque relève est une
+// requête sortante, et elle y échappait (20 relèves sous un plafond de 5).
+router.post('/:id/actualize', ...(proxyRateLimiter ? [proxyRateLimiter] : []), (req, res) => {
   const { id } = req.params;
   const server = db.prepare('SELECT * FROM servers WHERE id = ? AND user_id = ?')
     .get(id, req.user.id) as ServerRow | undefined;
@@ -257,6 +283,9 @@ router.post('/:id/actualize', (req, res) => {
       signal,
       timeoutMs: REFRESH_TIMEOUT_MS,
       followRedirects: false,
+      // Le jeton maître est DANS l'URL : jamais de repli vers l'adresse
+      // publique, dont le reverse proxy l'aurait écrit dans son journal.
+      publicFallback: false,
     });
     // 504 : la passerelle a cessé d'attendre. Souvent le serveur web de
     // FreshRSS qui lâche PHP au bout d'une minute (image LinuxServer), PHP

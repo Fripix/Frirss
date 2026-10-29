@@ -94,7 +94,7 @@ function isImageLikeType(ctype: string | null): boolean {
  * saut de `fetchUpstream` est levé aux en-têtes, un corps retenu attendait
  * donc indéfiniment.
  */
-async function readBodyText(resp: Response, signal: AbortSignal, maxBytes = MAX_CACHED_BODY_BYTES): Promise<string> {
+export async function readBodyText(resp: Response, signal: AbortSignal, maxBytes = MAX_CACHED_BODY_BYTES): Promise<string> {
   if (!resp.body) return '';
   const reader = resp.body.getReader();
   // Annuler le lecteur règle la lecture en attente (`done`) et ferme la
@@ -164,7 +164,11 @@ export function proxyRateLimit(env: NodeJS.ProcessEnv = process.env): number {
 // `express.raw` mettait jusqu'à 5 Mo en mémoire avant que qui que ce soit ait
 // prouvé son identité — un inconnu pouvait donc faire allouer 5 Mo par
 // requête pour finir sur un 401. L'identité se lit dans les en-têtes, elle n'a
-// jamais eu besoin du corps.
+// jamais eu besoin du corps. ⚠️ Cela ne vaut que pour les corps NON JSON : le
+// lecteur JSON global (`server/index.ts`) lit et analyse un corps JSON avant
+// toute route, donc avant l'authentification (un JSON malformé sans jeton
+// répond 400, pas 401) — et un POST JSON relayé ici arrive vide à la cible ;
+// greader n'envoie que des formulaires.
 router.use(requireAuth);
 
 // Ensuite seulement la cadence : la clé est l'identifiant de l'utilisateur, pas
@@ -177,8 +181,10 @@ router.use(requireAuth);
 // identifiant d'utilisateur — donc le double du plafond annoncé pour un compte,
 // et la protection contournable en changeant d'URL. Une seule instance
 // partagée = un seul magasin, donc un seul seau : `FRIRSS_PROXY_RATE_LIMIT`
-// borne bien ce qu'un compte peut faire émettre au backend, toutes routes
-// sortantes confondues.
+// borne ce qu'un compte peut faire émettre au backend par `/api/proxy`,
+// `/api/extract`, `/api/ai` et la relève (`POST /api/servers/:id/actualize`,
+// qui y échappait jusqu'en 1.8.0 ; le test du jeton maître passe par elle).
+// Le SSO a sa propre limite.
 const PROXY_RATE_LIMIT = proxyRateLimit();
 export const proxyRateLimiter = PROXY_RATE_LIMIT > 0
   ? rateLimit({
@@ -584,6 +590,13 @@ export interface FetchUpstreamOpts {
    * below), silently dropping those credentials from the retried request.
    */
   followRedirects?: boolean;
+  /**
+   * When false, an unreachable internal target (`PROXY_REWRITES`) is NOT
+   * retried at its public URL. For calls that carry a secret IN the URL (the
+   * refresh's master token): the rewrite exists to keep it off the public
+   * reverse proxy, whose access log the fallback would have filled.
+   */
+  publicFallback?: boolean;
 }
 
 /**
@@ -595,7 +608,7 @@ const MAX_REDIRECTS = 5;
 
 export async function fetchUpstream(
   rawTarget: string,
-  { method = 'GET', headers = {}, body, signal, timeoutMs, followRedirects = true, trustedHosts = [] }: FetchUpstreamOpts = {}
+  { method = 'GET', headers = {}, body, signal, timeoutMs, followRedirects = true, trustedHosts = [], publicFallback = true }: FetchUpstreamOpts = {}
 ): Promise<Response> {
   const target = rewriteTarget(rawTarget);
 
@@ -663,7 +676,7 @@ export async function fetchUpstream(
   } catch (err) {
     if (err instanceof BlockedTargetError) throw err;     // never fall back a blocked target
     const e = err as { name?: string; cause?: { code?: string }; message?: string };
-    if (target !== rawTarget && e.name !== 'AbortError') {
+    if (target !== rawTarget && e.name !== 'AbortError' && publicFallback) {
       console.warn('Proxy rewrite unreachable (%s), falling back to public:', e.cause?.code || e.message, redactUrl(target));
       return await attempt(rawTarget);
     }

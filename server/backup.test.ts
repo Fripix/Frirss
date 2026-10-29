@@ -164,6 +164,24 @@ describe('applyBackup', () => {
     expect(db.prepare('SELECT COUNT(*) c FROM ai_providers').get()).toMatchObject({ c: 0 });
   });
 
+  // Sur une instance neuve, `/api/setup/restore` ne demande aucun compte. Une
+  // sauvegarde SANS administrateur s'appliquait et laissait l'instance
+  // « vierge » : le propriétaire s'inscrivait ensuite comme admin d'une
+  // instance réglée par un inconnu (secret JWT, clé de chiffrement, SSO).
+  it('refuse une sauvegarde sans administrateur actif', () => {
+    const sansAdmin = collectBackup();
+    sansAdmin.users = [];
+    expect(() => applyBackup(sansAdmin)).toThrow(/administrator/);
+    const adminInactif = collectBackup();
+    adminInactif.users = adminInactif.users.map((u) => ({ ...u, active: 0 }));
+    expect(() => applyBackup(adminInactif)).toThrow(/administrator/);
+    const simplesComptes = collectBackup();
+    simplesComptes.users = simplesComptes.users.map((u) => ({ ...u, role: 'user' }));
+    expect(() => applyBackup(simplesComptes)).toThrow(/administrator/);
+    // Rien n'a été touché.
+    expect(db.prepare('SELECT username FROM users').all()).toEqual([{ username: 'alice' }]);
+  });
+
   it('refuse une table IA présente mais mal formée', () => {
     const backup = collectBackup() as unknown as Record<string, unknown>;
     backup.ai_providers = 'pas un tableau';

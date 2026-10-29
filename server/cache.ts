@@ -76,6 +76,30 @@ export async function cachePurgeAll(): Promise<void> {
   }
 }
 
+/** Motif SCAN des clés de listes d'un compte (`cacheKey`), et d'elles seules. */
+export function userCachePattern(userId: number | string): string {
+  return `${KEY_PREFIX}${userId}:*`;
+}
+
+/**
+ * Efface le cache d'un compte supprimé : ses listes d'articles restaient
+ * sinon jusqu'à `CACHE_TTL` (24 h par défaut), une donnée personnelle qui
+ * survivait à la suppression. Le cache partagé des extraits n'est pas touché.
+ */
+export async function cachePurgeUser(userId: number | string): Promise<void> {
+  if (!client) return;
+  try {
+    let cursor = '0';
+    do {
+      const [next, keys]: [string, string[]] = await client.scan(cursor, 'MATCH', userCachePattern(userId), 'COUNT', 500);
+      cursor = next;
+      if (keys.length > 0) await client.unlink(...keys);
+    } while (cursor !== '0');
+  } catch {
+    /* degrade silently, comme le reste du module */
+  }
+}
+
 export async function cacheGet(key: string): Promise<string | null> {
   if (!client) return null;
   try { return await client.get(key); } catch { return null; }

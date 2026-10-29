@@ -14,7 +14,9 @@ export type BackupErrorCode =
   | 'unsupported_version'
   | 'bad_passphrase'
   | 'weak_passphrase'
-  | 'schema_mismatch';
+  | 'schema_mismatch'
+  | 'no_admin'
+  | 'too_large';
 
 export class BackupError extends Error {
   constructor(public code: BackupErrorCode, message: string) {

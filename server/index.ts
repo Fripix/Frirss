@@ -13,7 +13,7 @@ import proxyRoutes from './routes/proxy.js';
 import extractRoutes from './routes/extract.js';
 import aiRoutes from './routes/ai.js';
 import adminAiRoutes from './routes/adminAi.js';
-import { adminBackupRouter, setupBackupRouter } from './routes/backup.js';
+import { adminBackupRouter, setupBackupRouter, MAX_BACKUP_BYTES } from './routes/backup.js';
 import { migrateEncryptTokens } from './crypto.js';
 import { accessLog } from './accessLog.js';
 import { startBackgroundSync } from './worker.js';
@@ -50,6 +50,11 @@ if (process.env.CORS_ORIGIN) {
   app.use(cors({ origin: process.env.CORS_ORIGIN.split(','), credentials: true }));
 }
 
+// Les deux routes de restauration lisent une sauvegarde entière : leur propre
+// lecteur, plus large, passe AVANT le global (qui saute un corps déjà lu).
+// Sans lui, une sauvegarde de plus de 5 Mo s'exportait mais ne se restaurait
+// plus. `nginx.conf` porte la même limite pour ces chemins.
+app.use(['/api/admin/restore', '/api/setup/restore'], express.json({ limit: MAX_BACKUP_BYTES }));
 app.use(express.json({ limit: '5mb' })); // allow logo uploads
 
 // ── Request logging ──────────────────────────────────────────────────

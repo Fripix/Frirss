@@ -124,6 +124,11 @@ Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la pla
 (mode « SSO uniquement »), auquel cas le formulaire local est masqué.
 
 - **Où** : `server/oidc.ts`, `server/routes/auth.ts` (`/oidc/*`), `src/lib/shouldHideLocalLogin.ts`
+- **Le fournisseur décide de qui entre** : une première connexion SSO crée un
+  compte pour toute identité qu'il laisse passer, **quel que soit le réglage
+  des inscriptions** (qui ne gouverne que le formulaire local). Écrit dans
+  `SECURITY.md` en 1.8.0 : restreindre l'application FriRSS dans le
+  fournisseur (Authentik : groupe ou politique).
 - **Rattacher un compte existant : depuis le compte seulement** (1.8.0,
   décision du propriétaire). Préférences › Général › Compte, « Lier à
   {fournisseur} » (comptes locaux, SSO actif, pas encore liés) :
@@ -258,6 +263,11 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   `src/components/Preferences/servers/` (gestion complète),
   `src/components/ServerSwitcher/` (sélecteur), `src/lib/serverList.ts`
   (logique partagée).
+- **Champs bornés** (1.8.0, `serverFieldError`, `serverBounds.test.ts`) : nom et
+  identifiant FreshRSS de 200 caractères au plus, jetons de 1 024, chaînes
+  seulement, 50 serveurs par compte (400 sinon) — cinq serveurs nommés de 4 Mo
+  passaient. **La relève compte dans le seau par minute** du proxy
+  (`FRIRSS_PROXY_RATE_LIMIT`) : elle y échappait, test du jeton maître compris.
 - **Changer l'adresse ou le compte d'un serveur exige un nouveau jeton**
   (1.8.0) : `PUT /api/servers/:id` refuse (400) une autre ORIGINE (schéma,
   hôte, port) ou un autre `freshrssUser` sans `freshrssToken` dans la même
@@ -5579,6 +5589,10 @@ répondu (voir *Extraction du contenu complet*).
   réseau : troc refusé, exception écrite plutôt que tue.
 - **Réécritures** : `PROXY_REWRITES` remplace l'URL publique par une adresse
   interne — gros gain de latence quand FriRSS et FreshRSS partagent un réseau.
+  Une cible interne injoignable est retentée à l'URL publique, **sauf pour la
+  relève** (`publicFallback: false`, 1.8.0, `proxyRewriteFallback.test.ts`) :
+  son URL porte le jeton maître, que le repli écrivait dans le journal du
+  reverse proxy public — ce que la réécriture existait pour éviter.
 - **Lecture mise en cache bornée** (1.8.0) : avec `REDIS_URL`, une lecture
   greader est lue en entier avant d'être renvoyée et mise en cache. Elle
   s'arrête à `MAX_CACHED_BODY_BYTES` (32 Mo, 502 au-delà, rien en cache), et
@@ -6044,6 +6058,12 @@ Pré-remplit les flux des utilisateurs actifs même navigateur fermé.
 
 - **Où** : `server/worker.ts`
 - **Réglages** : `CACHE_SYNC_INTERVAL`, `CACHE_SYNC_ACTIVE_DAYS`, `CACHE_SYNC_PARALLEL_USERS`
+- **Chaque flux a une échéance et un plafond** (1.8.0, `syncUser`,
+  `workerBounds.test.ts`) : l'échéance totale du proxy (`PROXY_TOTAL_TIMEOUT_MS`)
+  et son plafond de lecture mise en cache (`readBodyText`, 32 Mio) ; le corps
+  d'une réponse en erreur est libéré. Le corps se lisait par `resp.text()`,
+  sans l'un ni l'autre : un serveur qui ne finissait jamais sa réponse
+  bloquait la synchronisation de tous les comptes jusqu'au redémarrage.
 
 ### Base de données
 SQLite en WAL. Migrations **additives** uniquement (`PRAGMA table_info` +
@@ -6182,6 +6202,18 @@ client OIDC, toutes les préférences et tous les réglages d'instance, les
 **fournisseurs IA et les clés personnelles** (`ai_providers`, `ai_user_keys`,
 chiffrées telles qu'en base : la clé d'instance part avec elles). Restaurée,
 l'instance est celle qu'on avait.
+
+- **Une restauration lit jusqu'à 64 Mio** (`MAX_BACKUP_BYTES`, son propre lecteur
+  JSON avant le global de 5 Mo dans `server/index.ts`, et un bloc `location` de
+  `nginx.conf`), **et l'export refuse ce qu'elle refuserait** (`checkBackupSize`,
+  code `too_large`, `backup.errTooLarge`) : une sauvegarde de plus de 5 Mo
+  s'exportait mais ne se restaurait plus — on l'apprenait le jour du sinistre.
+  `restoreBodyLimit.test.ts`.
+- **Une sauvegarde sans administrateur actif est refusée** (`no_admin`,
+  `backup.errNoAdmin`, 1.8.0) : sur une instance neuve, `/api/setup/restore`
+  ne demande aucun compte, et une telle sauvegarde laissait l'instance
+  « vierge » mais réglée par l'inconnu qui l'avait envoyée (secret JWT, clé de
+  chiffrement, SSO) — le propriétaire s'y inscrivait ensuite comme admin.
 
 Ne s'y trouvent pas : le **contenu FreshRSS** — articles, flux, états de lecture
 — qui vit dans FreshRSS ; `sessions`, faite de jetons porteurs qui expirent ;

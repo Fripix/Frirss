@@ -121,6 +121,23 @@ la release publiée.
   garde son port (nginx transmettait l'hôte sans lui).
 - **Proxy : le jeton FreshRSS ne suit plus une redirection de `https` vers
   `http`**, même sur le même hôte : il aurait voyagé en clair.
+- **Une instance neuve ne se laisse plus préparer par un inconnu.** Avant la
+  création du premier compte, n'importe qui pouvait y restaurer une
+  sauvegarde sans administrateur : l'instance restait « vierge », mais réglée
+  par lui (secret de session, SSO pointé vers son fournisseur). Une
+  sauvegarde sans administrateur actif est désormais refusée.
+- **La synchronisation en arrière-plan (`CACHE_SYNC_INTERVAL`) ne se bloque
+  plus** sur un serveur qui ne termine jamais sa réponse (elle s'arrêtait
+  pour tous les comptes jusqu'au redémarrage), et ne lit plus une réponse
+  sans fin.
+- **Serveurs FreshRSS : nom, identifiant et jetons ont une taille maximale**,
+  50 serveurs au plus par compte, et la relève compte dans la limite de
+  requêtes par minute.
+- **Avec `PROXY_REWRITES`, la relève ne se rabat plus sur l'adresse publique**
+  quand l'adresse interne est injoignable : son URL porte le jeton maître, qui
+  aurait fini dans le journal du reverse proxy public.
+- **Supprimer un compte efface aussi ses listes en cache** (`REDIS_URL`), au
+  lieu de les laisser jusqu'à 24 h.
 - **Garde anti-SSRF** : toutes les adresses IPv6 lien-local (`fe80::/10`) sont
   refusées, et non plus seulement `fe80::` et `fe9…` à `feb…`.
 
@@ -509,6 +526,10 @@ la release publiée.
   de serveur pendant qu'il tourne.
 - **Les articles retirés des favoris ou de « À lire plus tard » libèrent leur
   texte gardé hors ligne**, au lieu de le garder pour toujours.
+- **Les grosses sauvegardes se restaurent.** Au-delà de 5 Mo, une sauvegarde
+  s'exportait mais était refusée à la restauration ; la limite est désormais
+  de 64 Mo, et une sauvegarde plus grosse est refusée dès l'export, avec un
+  message qui le dit.
 - **La mémoire ne grossit plus au fil de la lecture.** Chaque article
   affiché, extrait ou traduit qui contenait une vidéo ou une image adaptée à
   la taille de l'écran laissait une copie de sa page en mémoire, que le
@@ -633,6 +654,12 @@ la release publiée.
   passer toutes les connexions par une seule adresse, qui partagerait alors un
   compteur) ; un proxy à adresse publique n'est pas cru, et ses clients
   partagent eux aussi un seul compteur. Voir SECURITY.md.
+- **SSO : c'est le fournisseur qui décide de qui obtient un compte.** Une
+  première connexion SSO crée un compte, inscriptions ouvertes ou non (le
+  réglage ne gouverne que le formulaire local). Si ce n'est pas voulu,
+  restreindre l'application FriRSS chez le fournisseur (Authentik : groupe ou
+  politique). Rien n'a changé ici en 1.8.0 : c'est désormais écrit dans
+  SECURITY.md.
 - **SSO derrière un reverse proxy** : l'adresse de retour du SSO ne lit plus
   l'en-tête `X-Forwarded-Host` (un client pouvait la dicter), seulement
   `Host`. Un reverse proxy qui remplace `Host` par un nom interne fausserait

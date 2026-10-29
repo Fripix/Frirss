@@ -1,7 +1,7 @@
 import db from './db.js';
 import { decrypt } from './crypto.js';
 import { cacheEnabled, cacheKey, cacheSet, trimStreamJson } from './cache.js';
-import { fetchUpstream } from './routes/proxy.js';
+import { fetchUpstream, readBodyText, PROXY_TOTAL_TIMEOUT_MS } from './routes/proxy.js';
 import { stripTrailingSlashes } from './validate.js';
 
 // Optional background sync (Model B): periodically pre-fetch each active user's
@@ -43,18 +43,30 @@ interface SyncRow {
 
 let running = false;
 
-async function syncUser(row: SyncRow): Promise<void> {
+/**
+ * Pré-remplit le cache d'un compte. Chaque flux a une échéance totale et un
+ * plafond de corps (ceux des lectures mises en cache du proxy) : le corps était
+ * lu par `resp.text()` sans l'un ni l'autre — le délai de `fetchUpstream`
+ * s'arrête aux en-têtes. Un serveur qui ne finissait jamais sa réponse bloquait
+ * la synchronisation de TOUS les comptes jusqu'au redémarrage, et une réponse
+ * sans fin remplissait la mémoire du processus. Exporté pour les tests.
+ */
+export async function syncUser(row: SyncRow, deadlineMs = PROXY_TOTAL_TIMEOUT_MS): Promise<void> {
   const token = decrypt(row.freshrss_token);
   if (!token) return;
   const serverUrl = stripTrailingSlashes(row.url);
   const headers = { Authorization: `GoogleLogin auth=${token}`, Accept: 'application/json' };
   for (const target of streamTargets(serverUrl)) {
+    const deadline = new AbortController();
+    const timer = setTimeout(() => deadline.abort(), deadlineMs);
     try {
-      const resp = await fetchUpstream(target, { headers });
-      if (!resp.ok) continue;
-      const text = await resp.text();
+      const resp = await fetchUpstream(target, { headers, signal: deadline.signal });
+      if (!resp.ok) { resp.body?.cancel().catch(() => {}); continue; }
+      const text = await readBodyText(resp, deadline.signal);
       await cacheSet(cacheKey(row.user_id, target), trimStreamJson(text));
-    } catch { /* skip this stream, keep going */ }
+    } catch { /* skip this stream, keep going */ } finally {
+      clearTimeout(timer);
+    }
   }
 }
 

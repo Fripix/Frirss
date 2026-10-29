@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import db from '../db.js';
-import { requireEmptyInstance, backupErrorStatus, fail } from './backup.js';
+import { requireEmptyInstance, backupErrorStatus, fail, checkBackupSize } from './backup.js';
 import { BackupError, type BackupErrorCode } from '../backupCrypto.js';
 
 function fakeRes() {
@@ -84,3 +84,22 @@ describe('fail', () => {
     }
   });
 });
+
+// Une sauvegarde qu'on ne pourrait pas restaurer (au-delà de la limite de la
+// route de restauration) se refuse à l'export : on l'apprenait le jour du
+// sinistre, par un 413.
+describe('checkBackupSize', () => {
+  it('laisse passer ce que la restauration accepte', () => {
+    expect(() => checkBackupSize('x'.repeat(100), 100)).not.toThrow();
+  });
+  it('refuse au-delà, avec un code que le client nomme', () => {
+    try {
+      checkBackupSize('x'.repeat(101), 100);
+      throw new Error('aurait dû refuser');
+    } catch (err) {
+      expect(err).toBeInstanceOf(BackupError);
+      expect((err as BackupError).code).toBe('too_large');
+    }
+  });
+});
+

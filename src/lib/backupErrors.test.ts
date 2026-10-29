@@ -44,6 +44,14 @@ describe('backupErrorKey', () => {
     expect(backupErrorKey(withCode('rate_limited'))).toBe('backup.errTooMany');
   });
 
+  // 1.8.0 : une sauvegarde sans administrateur actif, ou trop grosse pour
+  // être restaurée (un 413 de nginx compris), se nomme au lieu de « réessayez ».
+  it('nomme la sauvegarde sans administrateur et la sauvegarde trop grosse', () => {
+    expect(backupErrorKey(withCode('no_admin'))).toBe('backup.errNoAdmin');
+    expect(backupErrorKey(withCode('too_large'))).toBe('backup.errTooLarge');
+    expect(backupErrorKey({ response: { status: 413 } })).toBe('backup.errTooLarge');
+  });
+
   it('retombe sur le générique pour weak_passphrase (erreur de saisie, pas de fichier)', () => {
     expect(backupErrorKey(withCode('weak_passphrase'))).toBe('backup.errGeneric');
   });

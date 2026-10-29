@@ -123,6 +123,14 @@ function assertPayload(payload: unknown): asserts payload is BackupPayload {
   for (const key of REQUIRED_SETTINGS) {
     if (!settingsKeys.has(key)) throw new Error(`Malformed backup payload: missing setting ${key}`);
   }
+  // Au moins un administrateur actif. Sur une instance neuve, la restauration
+  // ne demande aucun compte : une sauvegarde sans administrateur s'appliquait
+  // et laissait l'instance « vierge », réglée par l'inconnu qui l'avait
+  // envoyée (secret JWT, clé de chiffrement, SSO) — le propriétaire s'y
+  // inscrivait ensuite comme admin. Par l'administration, elle aurait fermé
+  // l'instance à tout le monde.
+  const admin = (p.users as Row[]).some((u) => u.role === 'admin' && (u.active == null || Number(u.active) === 1));
+  if (!admin) throw new BackupError('no_admin', 'Backup holds no active administrator');
 }
 
 /** Colonnes réellement présentes dans `table`, selon le schéma courant. */

@@ -7,8 +7,13 @@
  * l'enveloppe — d'où un test dédié.
  */
 export function backupErrorKey(err: unknown): string {
-  const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+  const response = (err as { response?: { status?: number; data?: { code?: string } } })?.response;
+  const code = response?.data?.code;
+  // Un 413 sans code vient de nginx ou du lecteur JSON : la même panne.
+  if (!code && response?.status === 413) return 'backup.errTooLarge';
   switch (code) {
+    case 'no_admin': return 'backup.errNoAdmin';
+    case 'too_large': return 'backup.errTooLarge';
     case 'not_a_backup': return 'backup.errNotBackup';
     case 'unsupported_version': return 'backup.errVersion';
     case 'bad_passphrase': return 'backup.errPassphrase';

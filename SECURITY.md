@@ -42,6 +42,11 @@ basics that matter:
   only the very first account can be created without an admin opening it — so
   the safe posture is the one you already have. An account is what unlocks the
   outgoing proxy; see the DNS-rebinding note below before opening sign-ups.
+- **With SSO on, the identity provider decides who gets an account.** A first
+  SSO login creates an account for any identity the provider lets through,
+  whatever the registration setting (which only governs the local sign-up
+  form). Restrict the FriRSS application in the provider itself — in
+  Authentik, bind it to the group or policy of the people you mean to admit.
 
 ## Design decisions
 
@@ -94,8 +99,8 @@ discovery document: the guard covered one hop out of three.
 What the exemption costs: an attacker who already holds an **admin** account can
 point the issuer at an internal host and learn whether a JSON document is served
 at its well-known path — a blind probe, and a trivial one next to what an admin
-account already grants (that same attacker can replace the issuer with their own
-provider and sign in as anyone through the e-mail link-up). If you would rather
+account already grants (that same attacker already manages every account, and
+can point the issuer at a provider of their own). If you would rather
 keep the issuer under the rule, nothing is lost: `PROXY_INTERNAL_HOSTS` still
 works and the exemption adds no host you did not configure yourself.
 

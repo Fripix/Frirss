@@ -779,6 +779,8 @@
     "errNotBackup": "Diese Datei ist keine FriRSS-Sicherung.",
     "errVersion": "Diese Sicherung stammt aus einer neueren FriRSS-Version.",
     "errPassphrase": "Falsche Passphrase oder beschädigte Datei.",
+    "errNoAdmin": "Diese Sicherung enthält keinen aktiven Administrator: Sie kann nicht wiederhergestellt werden.",
+    "errTooLarge": "Diese Sicherung ist größer als 64 MB: Sie ließe sich nicht wiederherstellen. Verkleinern Sie gespeicherte Logos und Themes und versuchen Sie es erneut.",
     "errGeneric": "Der Vorgang ist fehlgeschlagen. Bitte erneut versuchen.",
     "errSchema": "Die Sicherung enthält Daten, die diese FriRSS-Version nicht einordnen kann – vermutlich stammt sie von einer neueren Version. Es wurde nichts geändert.",
     "errTooMany": "Zu viele Versuche. Bitte später erneut versuchen.",
