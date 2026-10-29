@@ -320,6 +320,7 @@
       "chooseColor": "Choose color",
       "removeColor": "Remove color",
       "customColor": "Custom color",
+      "hexColor": "Color code (hexadecimal)",
       "confirmDelete": "Delete “{{name}}”?",
       "cancel": "Cancel",
       "resetColors": "Reset tag colors",
@@ -738,7 +739,11 @@
     "failed": "The refresh failed",
     "incomplete": "Refresh unfinished",
     "enable": "Enable feed refreshing",
-    "continuing": "FreshRSS didn’t answer in time: the refresh may still be running on its side"
+    "continuing": "FreshRSS didn’t answer in time: the refresh may still be running on its side",
+    "inProgressWithNew_one": "Refreshing feeds… {{count}} new article",
+    "inProgressWithNew_other": "Refreshing feeds… {{count}} new articles",
+    "continuingWithNew_one": "{{count}} new article · FreshRSS didn’t answer in time: the refresh may still be running on its side",
+    "continuingWithNew_other": "{{count}} new articles · FreshRSS didn’t answer in time: the refresh may still be running on its side"
   },
   "saved": {
     "fileInto": "File into",

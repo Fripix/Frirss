@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useReturnFocus } from '../hooks/useReturnFocus';
 
 interface BottomSheetProps {
   open: boolean;
@@ -66,6 +67,7 @@ if (typeof document !== 'undefined') {
  */
 export default function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
   const armed = useRef(false);
+  useReturnFocus(open);
 
   useEffect(() => {
     armed.current = false;

@@ -45,9 +45,10 @@ export default function RefreshBanner() {
 
   let label = '';
   if (!refreshResult) { /* rien à dire */ }
-  else if (running) label = hasNew ? `${t('refresh.inProgress')} ${count}` : t('refresh.inProgress');
+  // Phrases entières, pas assemblées : l'ordre et la ponctuation sont à la langue.
+  else if (running) label = hasNew ? t('refresh.inProgressWithNew', { count: refreshResult.totalNew }) : t('refresh.inProgress');
   else if (refreshPhase === 'failed') label = t('refresh.failed');
-  else if (refreshPhase === 'continuing') label = hasNew ? `${count} · ${t('refresh.continuing')}` : t('refresh.continuing');
+  else if (refreshPhase === 'continuing') label = hasNew ? t('refresh.continuingWithNew', { count: refreshResult.totalNew }) : t('refresh.continuing');
   else if (refreshPhase === 'timeout') label = hasNew ? count : t('refresh.incomplete');
   else label = hasNew ? count : t('refresh.upToDate');
 

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, shortcutGroups, AI_SHORTCUTS } from '../stores/uiStore';
+import { useReturnFocus } from '../hooks/useReturnFocus';
 import { useThemeStore } from '../stores/themeStore';
 import { useAiStore, aiUsable } from '../stores/aiStore';
 import { keyLabel } from '../lib/keyLabel';
@@ -22,6 +23,7 @@ export default function ShortcutHelp() {
   const { t } = useTranslation();
   const open = useUiStore((s) => s.shortcutHelpOpen);
   const setOpen = useUiStore((s) => s.setShortcutHelpOpen);
+  useReturnFocus(open);
   const shortcuts = useUiStore((s) => s.shortcuts);
   const aiAvailable = useAiStore(aiUsable);
   const openPreferences = useThemeStore((s) => s.openPreferences);

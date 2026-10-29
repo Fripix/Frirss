@@ -5011,6 +5011,45 @@ signée par un jeton obtenu sur `/reader/api/0/token` et gardé en mémoire.
 Travail transversal, sans écran dédié — il vit dans `src/styles/index.css` et
 dans quelques composants partagés.
 
+- **Passe accessibilité et tactile de la relecture 1.8.0** (chacune testée) :
+  - **balayage interrompu** (`touchcancel`, quand iOS reprend le contact) :
+    la ligne (`SwipeableArticleRow`), le tiroir (`MobileDrawer`) et l'article
+    (`springBack` du volet) reviennent en place. La ligne restait décalée et la
+    tape suivante exécutait le balayage ; le tiroir se refermait à la tape
+    suivante ;
+  - **état des bascules** : `aria-pressed` sur favori et à lire plus tard du
+    volet (`ActionBtn` en `highlight`, `BarBtn` en `toggle`, avec article
+    complet et traduction), les rangées de la feuille « Options d'affichage »
+    (`SheetRow`) et la liste des étiquettes du volet. Pas sur lu / non lu, dont
+    le libellé dit déjà l'état ;
+  - **groupe d'étiquettes à parent** : le chevron est un vrai bouton
+    (`aria-expanded`, 28 px de haut), à côté du bouton qui ouvre les articles
+    (`LabelGroupHeader`) — un `<span onClick>`, introuvable au clavier ;
+  - **bandeau à action** (`Toaster`) : il attend tant que la souris le survole
+    ou que le focus y est (« Annuler » se perdait au clavier, WCAG 2.2.1) ;
+  - **focus rendu** à la fermeture des Préférences, de la palette, de l'aide
+    et de la feuille du bas (`useReturnFocus`), au tour suivant et seulement
+    s'il est retombé sur `<body>` (une commande de la palette peut ouvrir les
+    Préférences, qui prennent le focus). ⚠️ **Pas de piège de focus** dans ces
+    boîtes : Tab peut en sortir vers la page derrière — reste connu ;
+  - **Échap** : le tiroir mobile ignore une touche déjà traitée ou une boîte
+    modale ouverte au-dessus (les Préférences s'y ouvrent sans le fermer, et
+    une pression fermait les deux) ;
+  - **noms et unités** : le sélecteur de couleur d'étiquette nomme ses deux
+    champs (`labels.customColor`, `labels.hexColor`) — ⚠️ ses pastilles restent
+    à 20 px au doigt, reste connu ; l'infobulle d'« Original » donne la touche
+    réellement assignée ; le fantôme du balayage écrit l'unité de la langue ;
+    le bandeau de relève dit des phrases entières (`inProgressWithNew`,
+    `continuingWithNew`) ;
+  - **régions de statut montées en permanence** (enregistrement d'un
+    fournisseur IA, liste des modèles, clé personnelle, test du jeton maître) ;
+    la restauration réussie est une `alert`, puisqu'elle remplace le formulaire ;
+  - **libellé du balayage lisible sur sa couleur** : `--on-readlater` (calculée
+    comme `--on-accent`), accent pour « lu », bleu `#2563eb` (5,2:1) pour « non
+    lu » — blanc sur `#10b981` faisait 2,5:1 ;
+  - **menu « Gérer » du sélecteur de serveurs** recalé dans la fenêtre et
+    rendu par portail ; **écran de connexion** sur `--app-height` (il débordait
+    de 56 px sur Android en app installée).
 - **Focus clavier** : un anneau `:focus-visible` global (`index.css`). Chaque
   sélecteur est écrit en toutes lettres plutôt que dans un `:where()`, pour
   valoir 0-1-1 et l'emporter sur l'utilitaire `.outline-none` (0-1-0) quel que

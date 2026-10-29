@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type Ref, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { effectiveAutoExtract } from '../../lib/effectiveAutoExtract';
 import { useTranslation } from 'react-i18next';
+import { keyLabel } from '../../lib/keyLabel';
 import { createPortal, flushSync } from 'react-dom';
 import { useFeedStore, READ_LATER_LABEL } from '../../stores/feedStore';
 import { useThemeStore } from '../../stores/themeStore';
@@ -146,6 +147,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const getLabelColor = useThemeStore((s) => s.getLabelColor);
   const setFontSize = useThemeStore((s) => s.setFontSize);
   const feedSettings = useUiStore((s) => s.feedSettings);
+  // L'infobulle d'« Original » donne la touche réelle : « (O) » en dur restait
+  // faux une fois le raccourci réassigné.
+  const openOriginalKey = useUiStore((s) => s.shortcuts.openOriginal);
   const autoExtractDefault = useUiStore((s) => s.autoExtractDefault);
   const readingFocus = useUiStore((s) => s.readingFocus);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
@@ -582,7 +586,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                   (adjKind === 'skeleton' ? '' :
                     '<span class="flex items-center gap-1 px-2.5 rounded-lg text-[11px] font-medium flex-shrink-0" style="color:var(--accent);background:var(--accent-glow)">' +
                       '<svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
-                      rt + '&nbsp;min' +
+                      // Le texte du rendu, unité comprise (« 3 Min. », « 3 分钟 ») :
+                      // « min » en dur changeait au moment où l'article arrivait.
+                      esc(i18n.t('readingPane.readingTime', { count: rt })) +
                     '</span>') +
                 '</div>' +
                 // ── Title — same classes as React render ──
@@ -760,36 +766,52 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         }, 320);
 
       } else {
-        // Spring back
-        const dur = 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)';
-        realEl.style.transition = dur;
-        realEl.style.transform = 'translateX(0)';
-
-        if (t.preview) {
-          t.preview.style.transition = dur;
-          t.preview.style.transform = 'translateX(' + ((t.previewSide ?? 0) * w) + 'px)';
-        }
-
-        swipeXRef.current = 0;
-        setTimeout(() => {
-          realEl.style.transition = '';
-          realEl.style.transform = '';
-          cleanupPreview(t);
-        }, 300);
+        springBack(t, realEl, w);
       }
+    }
+
+    function springBack(t: SwipeTouch, realEl: HTMLElement, w: number) {
+      const dur = 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)';
+      realEl.style.transition = dur;
+      realEl.style.transform = 'translateX(0)';
+
+      if (t.preview) {
+        t.preview.style.transition = dur;
+        t.preview.style.transform = 'translateX(' + ((t.previewSide ?? 0) * w) + 'px)';
+      }
+
+      swipeXRef.current = 0;
+      setTimeout(() => {
+        realEl.style.transition = '';
+        realEl.style.transform = '';
+        cleanupPreview(t);
+      }, 300);
+    }
+
+    // Le système reprend le contact (iOS : bandeau d'appel, centre de
+    // notifications) : rien n'est décidé, l'article revient en place. Sans
+    // cela il restait décalé, fantôme visible, jusqu'au balayage suivant.
+    function onTouchCancel() {
+      const t = swipeTouchRef.current;
+      swipeTouchRef.current = {};
+      const realEl = scrollContainerRef.current;
+      if (!t.active || !realEl) return;
+      springBack(t, realEl, contentWrapperRef.current?.clientWidth || window.innerWidth);
     }
 
     el.addEventListener('touchstart', onTouchStart, { passive: true });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
     el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchCancel, { passive: true });
     return () => {
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchmove', onTouchMove);
       el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchCancel);
       const t = swipeTouchRef.current;
       cleanupPreview(t);
     };
-  }, [isMobileOrTablet, selectNextArticle, selectPrevArticle]);
+  }, [isMobileOrTablet, selectNextArticle, selectPrevArticle, i18n]);
 
   const handleExtract = useCallback(async () => {
     if (!selectedArticle?.url || extractingId.current === selectedArticle.id) return;
@@ -1605,7 +1627,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               color: 'var(--reading-meta)',
               border: '1.5px solid transparent',
             }}
-            title={t('readingPane.openOriginal') + ' (O)'}
+            title={t('readingPane.openOriginal') + (openOriginalKey ? ` (${keyLabel(openOriginalKey, t)})` : '')}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
@@ -2029,14 +2051,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
           <LabelMenu article={article} variant="bar" />
 
-          <BarBtn active={article.starred} activeColor="var(--star-color)" label={t('readingPane.star')}
+          <BarBtn toggle active={article.starred} activeColor="var(--star-color)" label={t('readingPane.star')}
             onClick={() => toggleStar(article)}>
             <svg className="w-5 h-5" fill={article.starred ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
             </svg>
           </BarBtn>
 
-          <BarBtn active={article.labels?.includes(READ_LATER_LABEL)} activeColor="var(--readlater-color)" label={t('readingPane.readLater')}
+          <BarBtn toggle active={article.labels?.includes(READ_LATER_LABEL)} activeColor="var(--readlater-color)" label={t('readingPane.readLater')}
             onClick={() => toggleReadLater(article)}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -2044,7 +2066,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </BarBtn>
 
           {article.url && (
-            <BarBtn active={!!extractedContent} activeColor="var(--accent)" label={t('readingPane.fullContent')}
+            <BarBtn toggle active={!!extractedContent} activeColor="var(--accent)" label={t('readingPane.fullContent')}
               onClick={extractedContent ? () => { setExtractedContent(null); lastExtractedId.current = null; } : handleExtract}>
               {extracting ? (
                 <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
@@ -2061,7 +2083,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           {/* Traduire l'article : un appui = l'action, un appui long = le menu
               (aussi dans la feuille « … »). */}
           {aiUsable && (
-            <BarBtn buttonRef={translateBarBtn} active={showTranslatedBody} activeColor="var(--accent)" label={translateLabel} title={translateTitle}
+            <BarBtn toggle buttonRef={translateBarBtn} active={showTranslatedBody} activeColor="var(--accent)" label={translateLabel} title={translateTitle}
               disabled={translateDisabled} onClick={translateAction} press={translatePress}>
               {trLoading ? <SpinIcon className="w-5 h-5" /> : <TranslateIcon className="w-5 h-5" strokeWidth={1.6} />}
             </BarBtn>
@@ -2209,6 +2231,9 @@ interface BarBtnProps {
   /** Infobulle, quand elle dit autre chose que le libellé (une aide). */
   title?: string;
   active?: boolean;
+  /** Une bascule (favori, à lire plus tard…) : `active` est son état, annoncé
+   *  par `aria-pressed` — la couleur seule ne disait rien à un lecteur d'écran. */
+  toggle?: boolean;
   activeColor: string;
   disabled?: boolean;
   onClick: () => void;
@@ -2218,7 +2243,7 @@ interface BarBtnProps {
   buttonRef?: Ref<HTMLButtonElement>;
 }
 
-function BarBtn({ children, label, title, active, activeColor, disabled, onClick, press, buttonRef }: BarBtnProps) {
+function BarBtn({ children, label, title, active, toggle, activeColor, disabled, onClick, press, buttonRef }: BarBtnProps) {
   const pressProps = press
     ? {
         onTouchStart: press.onTouchStart, onTouchMove: press.onTouchMove, onTouchEnd: press.onTouchEnd,
@@ -2237,6 +2262,7 @@ function BarBtn({ children, label, title, active, activeColor, disabled, onClick
       disabled={disabled}
       title={title ?? label}
       aria-label={label}
+      aria-pressed={toggle ? !!active : undefined}
       className="flex-1 flex items-center justify-center py-2 transition-colors active-tint disabled:opacity-40"
       style={{ color: active ? activeColor : 'var(--reading-meta)' }}
     >
@@ -2337,6 +2363,8 @@ export function ActionBtn({ icon, label, active, activeColor, highlight, onClick
          button nameless there. `label` — not the title — so the accessible
          name still matches the visible text where the span is shown. */
       aria-label={label}
+      // Favori / à lire plus tard : un libellé fixe, l'état n'était que couleur.
+      aria-pressed={highlight ? !!active : undefined}
     >
       {icon}
       <span className="toolbar-label">{label}</span>
@@ -2470,6 +2498,7 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
             return (
               <button
                 key={tag.id}
+                aria-pressed={isActive}
                 onClick={() => toggleArticleLabel(article, tag.id)}
                 className={`w-full flex items-center gap-2 ${labelSize} transition-colors hover-tint`}
                 style={{ color: 'var(--list-title)' }}

@@ -248,3 +248,22 @@ describe('a list row on a phone: long press and swipe exclude each other', () =>
     expect(pickers()).toHaveLength(1);
   });
 });
+
+// iOS émet `touchcancel` quand le système reprend le contact (bandeau d'appel,
+// centre de notifications, indicateur d'accueil). Sans l'écouter, la ligne
+// restait décalée, et la tape simple suivante exécutait l'action du balayage.
+describe('SwipeableArticleRow — balayage interrompu', () => {
+  const at = (x: number, y = 100) => ({ touches: [{ clientX: x, clientY: y }] });
+  it('remet la ligne en place et n’exécute rien à la tape suivante', () => {
+    const left = vi.fn();
+    const c = render(<SwipeableArticleRow onSwipeLeft={left}><div data-testid="c">row</div></SwipeableArticleRow>);
+    const el = c.getByTestId('c');
+    fireEvent.touchStart(el, at(200));
+    for (let i = 1; i <= 10; i++) fireEvent.touchMove(el, at(200 - 15 * i));
+    fireEvent.touchCancel(el, { touches: [] });
+    expect((el.parentElement as HTMLElement).style.transform).toMatch(/translateX\(0(px)?\)|^$/);
+    fireEvent.touchStart(el, at(150));
+    fireEvent.touchEnd(el, { touches: [] });
+    expect(left).not.toHaveBeenCalled();
+  });
+});

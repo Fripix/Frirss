@@ -1544,11 +1544,13 @@ describe('AiTab — « Mes clés »', () => {
   });
   it('saves a typed key, empties the field and reloads the config', async () => {
     vi.mocked(setAiUserKey).mockResolvedValue({ ok: true, hasUserKey: true });
-    const { getAllByLabelText, getAllByRole, findByRole, queryByDisplayValue } = renderTab();
+    const { getAllByLabelText, getAllByRole, queryByDisplayValue } = renderTab();
     fireEvent.change(getAllByLabelText('ai.keys.field')[0], { target: { value: 'sk-mine' } });
     fireEvent.click(getAllByRole('button', { name: 'ai.keys.save' })[0]);
     await waitFor(() => expect(setAiUserKey).toHaveBeenCalledWith(1, 'sk-mine'));
-    expect(((await findByRole('status')).textContent)).toBe('ai.keys.saved');
+    // Une région de statut par fournisseur, montée en permanence : celle de
+    // la ligne enregistrée dit « Enregistrée ».
+    await waitFor(() => expect(getAllByRole('status').some((s) => s.textContent === 'ai.keys.saved')).toBe(true));
     expect((getAllByLabelText('ai.keys.field')[0] as HTMLInputElement).value).toBe('');
     expect(getAiConfig).toHaveBeenCalled();
     // La clé tapée n'est répétée nulle part.

@@ -1192,9 +1192,12 @@ export default function ArticleList() {
                         onSwipeLeft={() => toggleRead(article)}
                         onSwipeRight={() => toggleReadLater(article)}
                         swipeLeftLabel={article.read ? t('swipe.unread') : t('swipe.read')}
-                        swipeLeftColor={article.read ? '#3b82f6' : '#10b981'}
+                        // Libellé lisible sur sa couleur : blanc sur #10b981 faisait ~2,5:1.
+                        swipeLeftColor={article.read ? '#2563eb' : 'var(--accent)'}
+                        swipeLeftInk={article.read ? '#ffffff' : 'var(--on-accent)'}
                         swipeRightLabel={isReadLater ? t('swipe.removeReadLater') : t('swipe.readLater')}
                         swipeRightColor="var(--readlater-color)"
+                        swipeRightInk="var(--on-readlater)"
                       >
                         {row}
                       </MobileArticleRow>
@@ -1407,6 +1410,7 @@ function SheetRow({ icon, label, active, onClick }: SheetRowProps) {
   return (
     <button
       onClick={onClick}
+      aria-pressed={!!active}
       className="sheet-row w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover-tint"
       style={{ color: active ? 'var(--accent)' : 'var(--list-title)' }}
     >

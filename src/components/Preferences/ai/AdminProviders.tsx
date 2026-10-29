@@ -427,7 +427,9 @@ export default function AdminProviders({ active }: { active: boolean }) {
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <button type="button" onClick={saveProvider} disabled={saving} className="prefs-tap-btn disabled:opacity-60 disabled:cursor-default px-4 py-1.5 min-h-[32px] text-xs font-semibold rounded-md cursor-pointer" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>{t('ai.admin.save')}</button>
               <button type="button" onClick={() => { editSeq.current++; dropModels(); setEditing(null); }} className={`${quietBtn} min-h-[32px] hover-tint`} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
-              {saved && <span role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t('ai.admin.saved')}</span>}
+              {/* Région montée en permanence, vide au repos : née avec son
+                  texte, elle n'était souvent pas annoncée (liveRegions.test). */}
+              <span role="status" className={saved ? 'text-xs' : 'sr-only'} style={{ color: 'var(--accent)' }}>{saved ? t('ai.admin.saved') : ''}</span>
             </div>
           </div>
         ) : (
@@ -588,9 +590,13 @@ function ModelList({ id, state, current, filter, onFilter, onPick, onClose }: {
   return (
     <div id={id} className="mt-2 rounded-md" style={{ border: '1px solid var(--panel-border)' }}>
       <div className="flex items-center justify-between gap-2 pl-3 pr-1.5 py-1" style={state.state === 'ok' && all.length ? { borderBottom: '1px solid var(--panel-border)' } : undefined}>
-        {state.state === 'busy' && <span role="status" className="text-xs" style={muted}>{t('ai.admin.models.loading')}</span>}
+        {/* Une seule région de statut, montée en permanence (liveRegions.test). */}
+        <span role="status" className={state.state === 'busy' || state.state === 'ok' ? 'text-xs' : 'sr-only'} style={muted}>
+          {state.state === 'busy' ? t('ai.admin.models.loading')
+            : state.state === 'ok' ? (all.length ? t('ai.admin.models.count', { count: all.length }) : t('ai.admin.models.empty'))
+            : ''}
+        </span>
         {state.state === 'fail' && <span role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{t(state.auth ? 'ai.admin.models.authFailed' : 'ai.admin.models.failed')}</span>}
-        {state.state === 'ok' && <span role="status" className="text-xs" style={muted}>{all.length ? t('ai.admin.models.count', { count: all.length }) : t('ai.admin.models.empty')}</span>}
         {state.state !== 'busy' && (
           <button type="button" onClick={onClose} className={quietBtn} style={{ color: 'var(--list-title)' }}>{t('ai.admin.models.close')}</button>
         )}

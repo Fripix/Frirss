@@ -328,6 +328,7 @@
       "chooseColor": "Вибрати колір",
       "removeColor": "Видалити колір",
       "customColor": "Власний колір",
+      "hexColor": "Код кольору (шістнадцятковий)",
       "confirmDelete": "Видалити «{{name}}»?",
       "cancel": "Скасувати",
       "resetColors": "Скинути кольори міток",
@@ -761,7 +762,15 @@
     "failed": "Не вдалося оновити",
     "incomplete": "Оновлення незавершене",
     "enable": "Увімкнути оновлення стрічок",
-    "continuing": "FreshRSS не відповів вчасно: оновлення може тривати на його боці"
+    "continuing": "FreshRSS не відповів вчасно: оновлення може тривати на його боці",
+    "inProgressWithNew_one": "Оновлення стрічок… {{count}} нова стаття",
+    "inProgressWithNew_other": "Оновлення стрічок… {{count}} нових статей",
+    "inProgressWithNew_few": "Оновлення стрічок… {{count}} нові статті",
+    "inProgressWithNew_many": "Оновлення стрічок… {{count}} нових статей",
+    "continuingWithNew_one": "{{count}} нова стаття · FreshRSS не відповів вчасно: оновлення може тривати на його боці",
+    "continuingWithNew_other": "{{count}} нових статей · FreshRSS не відповів вчасно: оновлення може тривати на його боці",
+    "continuingWithNew_few": "{{count}} нові статті · FreshRSS не відповів вчасно: оновлення може тривати на його боці",
+    "continuingWithNew_many": "{{count}} нових статей · FreshRSS не відповів вчасно: оновлення може тривати на його боці"
   },
   "update": {
     "updating": "Оновлення…"

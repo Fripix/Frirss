@@ -320,6 +320,7 @@
       "chooseColor": "Choisir la couleur",
       "removeColor": "Supprimer la couleur",
       "customColor": "Couleur personnalisée",
+      "hexColor": "Code de la couleur (hexadécimal)",
       "confirmDelete": "Supprimer « {{name}} » ?",
       "cancel": "Annuler",
       "resetColors": "Réinitialiser les couleurs des étiquettes",
@@ -738,7 +739,11 @@
     "failed": "La relève a échoué",
     "incomplete": "Relève inachevée",
     "enable": "Activer la relève des flux",
-    "continuing": "FreshRSS n’a pas répondu à temps : la relève peut continuer de son côté"
+    "continuing": "FreshRSS n’a pas répondu à temps : la relève peut continuer de son côté",
+    "inProgressWithNew_one": "Relève en cours… {{count}} nouvel article",
+    "inProgressWithNew_other": "Relève en cours… {{count}} nouveaux articles",
+    "continuingWithNew_one": "{{count}} nouvel article · FreshRSS n’a pas répondu à temps : la relève peut continuer de son côté",
+    "continuingWithNew_other": "{{count}} nouveaux articles · FreshRSS n’a pas répondu à temps : la relève peut continuer de son côté"
   },
   "saved": {
     "fileInto": "Ranger dans",

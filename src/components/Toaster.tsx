@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, type Toast } from '../stores/uiStore';
 
@@ -39,22 +39,36 @@ function ToastRow({ toast }: { toast: Toast }) {
   // s'efface pas tout seul, sans quoi l'annulation d'un « tout marquer comme
   // lu » disparaîtrait de l'écran en pleine besogne.
   const working = !!toast.progress;
+  // Visé (survol ou focus dedans) : il attend. Il partait au bout de 6,5 s
+  // même sous le focus — l'« Annuler » d'un « Tout lu » se perdait au clavier
+  // et au lecteur d'écran (WCAG 2.2.1). Relâché, il repart pour sa durée.
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const held = hovered || focused;
 
   useEffect(() => {
-    if (working) return;
+    if (working || held) return;
     const timer = setTimeout(
       () => dismissToast(toast.id),
       toast.action ? WITH_ACTION_MS : PLAIN_MS
     );
     return () => clearTimeout(timer);
-  }, [toast.id, toast.action, working, dismissToast]);
+  }, [toast.id, toast.action, working, held, dismissToast]);
 
   const part = toast.progress && toast.progress.total > 0
     ? Math.min(100, Math.round((toast.progress.done / toast.progress.total) * 100))
     : 0;
 
   return (
-    <div className="toast" data-tone={toast.tone} data-working={working ? '' : undefined}>
+    <div
+      className="toast"
+      data-tone={toast.tone}
+      data-working={working ? '' : undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false); }}
+    >
       <span className="toast__message">{toast.message}</span>
       {toast.action && (
         <button

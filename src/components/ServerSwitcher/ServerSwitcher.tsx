@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { clampToViewport } from '../../lib/clampToViewport';
 import { useMenuKeys } from '../../hooks/useMenuKeys';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
@@ -120,14 +122,26 @@ function ManageMenu({ x, y, onClose, onManage }: { x: number; y: number; onClose
     };
   }, [onClose]);
 
+  // Recalé dans la fenêtre, comme les menus de flux et d'article : ouvert
+  // par un appui long sur une pastille à droite, il dépassait du bord droit
+  // sur un téléphone de 360 px. `useLayoutEffect` corrige avant la peinture.
+  const [pos, setPos] = useState({ left: x, top: y });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setPos(clampToViewport({ x, y, w: r.width, h: r.height, vw: window.innerWidth, vh: window.innerHeight }));
+  }, [x, y]);
+
   const style: CSSProperties = {
-    position: 'fixed', left: x, top: y, zIndex: 300,
+    position: 'fixed', left: pos.left, top: pos.top, zIndex: 300,
     background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
     borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
     minWidth: '200px', overflow: 'hidden',
   };
 
-  return (
+  // Par portail sous <body>, comme toute surface flottante (CLAUDE.md).
+  return createPortal(
     <div ref={ref} style={style} className="py-1" data-floating-surface>
       <button
         onClick={onManage}
@@ -136,6 +150,7 @@ function ManageMenu({ x, y, onClose, onManage }: { x: number; y: number; onClose
       >
         {t('servers.manage')}
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }

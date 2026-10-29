@@ -1715,7 +1715,7 @@ interface LabelGroupHeaderProps {
   labelColor: string | null;
 }
 
-function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasParentTag, onToggle, onViewArticles, labelColor }: LabelGroupHeaderProps) {
+export function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasParentTag, onToggle, onViewArticles, labelColor }: LabelGroupHeaderProps) {
   const { t } = useTranslation();
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1744,10 +1744,11 @@ function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasParentTag, 
   const iconColor = labelColor || 'var(--accent)';
 
   return (
-    <button
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
-      className={`w-full flex items-center gap-1 px-4 py-1.5 transition-colors sidebar-feed-item ${
+    // Deux boutons voisins, pas imbriqués : le chevron est le seul moyen de
+    // replier quand le clic ouvre les articles (étiquette parente). C'était un
+    // <span onClick> sans rôle ni tabulation, de 16 px — rien au clavier.
+    <div
+      className={`w-full flex items-center gap-1 px-4 transition-colors sidebar-feed-item ${
         isSelected ? 'sidebar-feed-active' : ''
       }`}
       style={{
@@ -1755,13 +1756,12 @@ function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasParentTag, 
         fontSize: 'var(--fs-sidebar-feed)',
       }}
     >
-      {/* Chevron — clickable independently to toggle collapse */}
-      <span
-        className="flex-shrink-0 p-0.5 rounded hover-tint-strong transition-colors cursor-pointer"
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex-shrink-0 flex items-center justify-center min-w-[1.25rem] min-h-[1.75rem] rounded hover-tint-strong transition-colors"
+        aria-label={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+        aria-expanded={!isCollapsed}
         title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
       >
         <svg
@@ -1769,19 +1769,28 @@ function LabelGroupHeader({ name, count, isCollapsed, isSelected, hasParentTag, 
           fill="currentColor"
           viewBox="0 0 20 20"
           style={{ opacity: 0.4 }}
+          aria-hidden="true"
         >
           <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
         </svg>
-      </span>
-      {/* Tag icon — uses label color */}
-      <LabelTagIcon
-        className="w-3.5 h-3.5"
-        style={{ color: iconColor, opacity: 0.6 }}
-      />
-      {/* Name */}
-      <span className="truncate flex-1 text-left font-semibold">{name}</span>
-      {count !== undefined && <CategoryBadge count={count} kind="items" />}
-    </button>
+      </button>
+      <button
+        type="button"
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
+        aria-expanded={hasParentTag ? undefined : !isCollapsed}
+        className="flex-1 min-w-0 flex items-center gap-1 py-1.5"
+      >
+        {/* Tag icon — uses label color */}
+        <LabelTagIcon
+          className="w-3.5 h-3.5"
+          style={{ color: iconColor, opacity: 0.6 }}
+        />
+        {/* Name */}
+        <span className="truncate flex-1 text-left font-semibold">{name}</span>
+        {count !== undefined && <CategoryBadge count={count} kind="items" />}
+      </button>
+    </div>
   );
 }
 

@@ -26,8 +26,10 @@ import type { AuthStatus } from '../../types';
 function LoginShell({ children }: { children: ReactNode }) {
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden"
-      style={{ background: 'var(--sidebar-bg)' }}
+      className="relative flex items-center justify-center px-4 overflow-hidden"
+      // Pas `100vh` : Chrome Android, en app installée, le fige à la hauteur de
+      // la feuille et la page débordait de 56 px (`useAndroidViewportHeight`).
+      style={{ background: 'var(--sidebar-bg)', minHeight: 'var(--app-height, 100dvh)' }}
     >
       <MatrixRain />
       {/* Vignette keeps the form readable above the animation */}

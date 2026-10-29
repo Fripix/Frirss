@@ -320,6 +320,7 @@
       "chooseColor": "Farbe wählen",
       "removeColor": "Farbe entfernen",
       "customColor": "Benutzerdefinierte Farbe",
+      "hexColor": "Farbcode (hexadezimal)",
       "confirmDelete": "„{{name}}“ löschen?",
       "cancel": "Abbrechen",
       "resetColors": "Label-Farben zurücksetzen",
@@ -735,7 +736,11 @@
     "failed": "Abruf fehlgeschlagen",
     "incomplete": "Abruf unvollständig",
     "enable": "Feed-Abruf aktivieren",
-    "continuing": "FreshRSS hat nicht rechtzeitig geantwortet: Der Abruf läuft dort eventuell weiter"
+    "continuing": "FreshRSS hat nicht rechtzeitig geantwortet: Der Abruf läuft dort eventuell weiter",
+    "inProgressWithNew_one": "Feeds werden abgerufen… {{count}} neuer Artikel",
+    "inProgressWithNew_other": "Feeds werden abgerufen… {{count}} neue Artikel",
+    "continuingWithNew_one": "{{count}} neuer Artikel · FreshRSS hat nicht rechtzeitig geantwortet: Der Abruf läuft dort eventuell weiter",
+    "continuingWithNew_other": "{{count}} neue Artikel · FreshRSS hat nicht rechtzeitig geantwortet: Der Abruf läuft dort eventuell weiter"
   },
   "update": {
     "updating": "Aktualisierung…"

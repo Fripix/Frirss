@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../stores/uiStore';
+import { useReturnFocus } from '../hooks/useReturnFocus';
 import { useThemeStore } from '../stores/themeStore';
 import { useFeedStore, READ_LATER_LABEL } from '../stores/feedStore';
 import { useAiStore, aiUsable } from '../stores/aiStore';
@@ -23,6 +24,7 @@ export default function CommandPalette() {
   const { t } = useTranslation();
   const open = useUiStore((s) => s.commandPaletteOpen);
   const setOpen = useUiStore((s) => s.setCommandPaletteOpen);
+  useReturnFocus(open);
   const setPanelLayout = useUiStore((s) => s.setPanelLayout);
   const openPreferences = useThemeStore((s) => s.openPreferences);
 

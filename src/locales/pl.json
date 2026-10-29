@@ -328,6 +328,7 @@
       "chooseColor": "Wybierz kolor",
       "removeColor": "Usuń kolor",
       "customColor": "Kolor niestandardowy",
+      "hexColor": "Kod koloru (szesnastkowy)",
       "confirmDelete": "Usunąć „{{name}}”?",
       "cancel": "Anuluj",
       "resetColors": "Zresetuj kolory etykiet",
@@ -761,7 +762,15 @@
     "failed": "Odświeżanie nie powiodło się",
     "incomplete": "Odświeżanie niedokończone",
     "enable": "Włącz odświeżanie kanałów",
-    "continuing": "FreshRSS nie odpowiedział na czas: odświeżanie może trwać dalej po jego stronie"
+    "continuing": "FreshRSS nie odpowiedział na czas: odświeżanie może trwać dalej po jego stronie",
+    "inProgressWithNew_one": "Odświeżanie kanałów… {{count}} nowy artykuł",
+    "inProgressWithNew_other": "Odświeżanie kanałów… {{count}} nowych artykułów",
+    "inProgressWithNew_few": "Odświeżanie kanałów… {{count}} nowe artykuły",
+    "inProgressWithNew_many": "Odświeżanie kanałów… {{count}} nowych artykułów",
+    "continuingWithNew_one": "{{count}} nowy artykuł · FreshRSS nie odpowiedział na czas: odświeżanie może trwać dalej po jego stronie",
+    "continuingWithNew_other": "{{count}} nowych artykułów · FreshRSS nie odpowiedział na czas: odświeżanie może trwać dalej po jego stronie",
+    "continuingWithNew_few": "{{count}} nowe artykuły · FreshRSS nie odpowiedział na czas: odświeżanie może trwać dalej po jego stronie",
+    "continuingWithNew_many": "{{count}} nowych artykułów · FreshRSS nie odpowiedział na czas: odświeżanie może trwać dalej po jego stronie"
   },
   "update": {
     "updating": "Aktualizacja…"

@@ -690,7 +690,7 @@ function LabelRow({
             renommer une étiquette n'a pas d'autre point d'entrée. */}
         <button
           onClick={() => setMode('move')}
-          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover-tint"
+          className="prefs-row-action prefs-tap-btn p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 hover-tint"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.moveTooltip')}
           aria-label={t('app.labelValue', { label: t('preferences.labels.moveTooltip'), value: name })}
@@ -701,7 +701,7 @@ function LabelRow({
         </button>
         <button
           onClick={() => { setRenameValue(name); setMode('rename'); }}
-          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover-tint"
+          className="prefs-row-action prefs-tap-btn p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 hover-tint"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.rename')}
           aria-label={t('app.labelValue', { label: t('preferences.labels.rename'), value: name })}
@@ -712,7 +712,7 @@ function LabelRow({
         </button>
         <button
           onClick={() => setMode('confirmDelete')}
-          className="prefs-row-action p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 hover-danger-tint"
+          className="prefs-row-action prefs-tap-btn p-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 hover-danger-tint"
           style={{ color: 'var(--danger, #ef4444)' }}
           title={t('preferences.labels.delete')}
           aria-label={t('app.labelValue', { label: t('preferences.labels.delete'), value: name })}
@@ -905,6 +905,7 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
                 type="color"
                 value={(color || effectiveColor || '#4cd4a1').startsWith('#') ? (color || effectiveColor || '#4cd4a1') : '#4cd4a1'}
                 onChange={(e) => { onChangeColor(e.target.value); setHex(e.target.value); }}
+                aria-label={t('preferences.labels.customColor')}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
               />
             </div>
@@ -925,6 +926,7 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
                 className="flex-1 text-[11px] font-mono px-1 py-1.5 bg-transparent outline-none"
                 style={{ color: 'var(--list-title)' }}
                 maxLength={6}
+                aria-label={t('preferences.labels.hexColor')}
                 placeholder="4cd4a1"
               />
             </div>

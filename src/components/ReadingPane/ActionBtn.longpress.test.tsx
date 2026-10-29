@@ -123,3 +123,20 @@ describe('reading pane Favourite / Read later — long press files the article',
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
+
+// Favori et à lire plus tard ont un libellé fixe : l'état n'était que la
+// couleur, VoiceOver annonçait « Favori, bouton » dans les deux cas.
+describe('ActionBtn — état d’une bascule', () => {
+  it('annonce l’état d’une bascule (favori, à lire plus tard)', () => {
+    const on = render(<ActionBtn icon={null} label="Favori" activeColor="x" highlight active onClick={() => {}} />);
+    expect(on.getByRole('button', { name: 'Favori' }).getAttribute('aria-pressed')).toBe('true');
+    on.unmount();
+    const off = render(<ActionBtn icon={null} label="Favori" activeColor="x" highlight onClick={() => {}} />);
+    expect(off.getByRole('button', { name: 'Favori' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('n’en fait pas une bascule quand le libellé dit déjà l’état (lu / non lu)', () => {
+    const c = render(<ActionBtn icon={null} label="Marquer non lu" activeColor="x" active onClick={() => {}} />);
+    expect(c.getByRole('button').hasAttribute('aria-pressed')).toBe(false);
+  });
+});

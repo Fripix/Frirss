@@ -14,10 +14,13 @@ import AiTab from './AiTab';
 import { useAiStore, aiEnabled } from '../../stores/aiStore';
 import { COLOR_HIGHLIGHT_MAP } from './colorHighlight';
 import ConfirmDialog from '../ConfirmDialog';
+import { useReturnFocus } from '../../hooks/useReturnFocus';
 
 interface HighlightRect { top: number; left: number; width: number; height: number }
 
 export default function Preferences() {
+  // Montées seulement ouvertes : le focus revient au bouton qui les a ouvertes.
+  useReturnFocus(true);
   const {
     theme,
     savedThemes,
@@ -127,7 +130,8 @@ export default function Preferences() {
       onKeyDown={(e) => {
         // Escape closes the dialog. Shortcut-capture stops propagation, so it
         // won't reach here while a shortcut is being recorded.
-        if (e.key === 'Escape') closePreferences();
+        // Marqué traité : le tiroir mobile, ouvert derrière, se fermait aussi.
+        if (e.key === 'Escape') { e.preventDefault(); closePreferences(); }
       }}
     >
       {/* Dim overlay — a spotlight: darkens everything except the panel

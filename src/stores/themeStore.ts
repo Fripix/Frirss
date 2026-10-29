@@ -624,6 +624,8 @@ function applyThemeToDOM(theme: Theme): void {
   // theme key — there is nothing here for the user to decide.
   root.style.setProperty('--on-accent', readableTextOn(theme.colors['accent']));
   root.style.setProperty('--on-danger', readableTextOn(theme.colors['danger']));
+  // Le libellé révélé par le balayage « À lire plus tard », écrit dessus.
+  root.style.setProperty('--on-readlater', readableTextOn(theme.colors['readlater-color']));
 
   // Apply font sizes as CSS custom properties
   Object.entries(theme.fontSizes).forEach(([key, value]) => {

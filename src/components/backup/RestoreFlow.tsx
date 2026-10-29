@@ -84,7 +84,10 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
 
   if (phase === 'done') {
     return (
-      <p className="text-xs" role="status" style={{ color: 'var(--accent)' }}>
+      // `alert` : ce message REMPLACE le formulaire, une région de statut
+      // montée à l'avance n'a pas sa place ; né avec son texte, un `status`
+      // n'était souvent pas annoncé. Un résultat ponctuel et important.
+      <p className="text-xs" role="alert" style={{ color: 'var(--accent)' }}>
         {t('backup.restored')}
       </p>
     );

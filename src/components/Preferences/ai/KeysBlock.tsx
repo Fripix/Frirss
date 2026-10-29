@@ -74,9 +74,11 @@ function KeyRow({ provider }: { provider: AiProviderView }) {
             {t('ai.keys.clear')}
           </button>
         )}
-        {outcome === 'error'
-          ? <span role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{t('ai.keys.error')}</span>
-          : outcome && <span role="status" className="text-xs" style={{ color: 'var(--accent)' }}>{t(outcome === 'saved' ? 'ai.keys.saved' : 'ai.keys.cleared')}</span>}
+        {outcome === 'error' && <span role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{t('ai.keys.error')}</span>}
+        {/* Région montée en permanence, vide au repos (liveRegions.test). */}
+        <span role="status" className={outcome && outcome !== 'error' ? 'text-xs' : 'sr-only'} style={{ color: 'var(--accent)' }}>
+          {outcome === 'saved' ? t('ai.keys.saved') : outcome === 'cleared' ? t('ai.keys.cleared') : ''}
+        </span>
       </div>
       <ConfirmDialog
         open={confirmClear}

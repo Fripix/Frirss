@@ -530,6 +530,23 @@ la release publiée.
   s'exportait mais était refusée à la restauration ; la limite est désormais
   de 64 Mo, et une sauvegarde plus grosse est refusée dès l'export, avec un
   message qui le dit.
+- **Téléphone : un balayage interrompu par le système ne déclenche plus rien
+  à la tape suivante.** Quand iOS reprenait le contact (appel, centre de
+  notifications), la ligne, le tiroir ou l'article restaient décalés, et la
+  tape suivante marquait l'article lu ou refermait le tiroir.
+- **Accessibilité, suite.** Les boutons favori et à lire plus tard du volet de
+  lecture disent leur état aux lecteurs d'écran, comme les options
+  d'affichage et la liste des étiquettes ; un groupe d'étiquettes se replie au
+  clavier ; le bandeau « Annuler » attend tant qu'on le vise ; les
+  Préférences, la palette, l'aide et la feuille du bas rendent le focus en se
+  fermant ; une seule pression d'Échap ne ferme plus à la fois les
+  Préférences et le tiroir ; plusieurs messages « Enregistré » sont annoncés
+  de façon fiable.
+- **Petites finitions.** Le libellé révélé par le balayage d'un article est
+  lisible sur sa couleur ; l'infobulle d'« Original » donne la touche
+  réellement choisie ; l'aperçu du balayage et le bandeau de relève parlent la
+  langue de l'interface ; le menu « Gérer » des serveurs ne déborde plus de
+  l'écran ; l'écran de connexion ne défile plus sur Android en app installée.
 - **La mémoire ne grossit plus au fil de la lecture.** Chaque article
   affiché, extrait ou traduit qui contenait une vidéo ou une image adaptée à
   la taille de l'écran laissait une copie de sa page en mémoire, que le

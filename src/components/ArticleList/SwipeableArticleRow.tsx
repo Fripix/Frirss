@@ -22,6 +22,9 @@ interface SwipeableArticleRowProps {
   swipeRightLabel?: string;
   swipeLeftColor?: string;
   swipeRightColor?: string;
+  /** Encre du libellé révélé, lisible sur sa couleur (blanc par défaut). */
+  swipeLeftInk?: string;
+  swipeRightInk?: string;
   /** Appelé une fois, dès que la direction du geste est décidée (horizontale
    *  ou verticale) : l'appelant y annule l'appui long en cours. */
   onSwipeDecided?: () => void;
@@ -47,8 +50,10 @@ export default function SwipeableArticleRow({
   onSwipeRight,
   swipeLeftLabel = 'Lu',
   swipeRightLabel = 'Plus tard',
-  swipeLeftColor = '#10b981',
+  swipeLeftColor = 'var(--accent)',
   swipeRightColor = 'var(--accent)',
+  swipeLeftInk = 'var(--on-accent)',
+  swipeRightInk = 'var(--on-accent)',
   onSwipeDecided,
   swipeBlocked,
 }: SwipeableArticleRowProps) {
@@ -131,6 +136,15 @@ export default function SwipeableArticleRow({
     touchRef.current = {};
   }, [dragging, dragX, onSwipeLeft, onSwipeRight, swipeBlocked]);
 
+  // Le système reprend le contact (iOS : bandeau d'appel, centre de
+  // notifications, indicateur d'accueil) : rien n'est décidé, la ligne revient.
+  // Sans cela, elle restait décalée et la tape suivante exécutait le balayage.
+  const handleTouchCancel = useCallback(() => {
+    setDragX(0);
+    setDragging(false);
+    touchRef.current = {};
+  }, []);
+
   const isLeft = dragX < 0;  // Swiping left — reveals right-side action
   const isRight = dragX > 0; // Swiping right — reveals left-side action
   const progress = Math.min(1, Math.abs(dragX) / THRESHOLD);
@@ -141,6 +155,7 @@ export default function SwipeableArticleRow({
       className="relative overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
     >
       {/* Action revealed when swiping RIGHT (read later) */}
       {isRight && (
@@ -149,8 +164,8 @@ export default function SwipeableArticleRow({
           style={{ background: swipeRightColor }}
         >
           <div
-            className="flex items-center gap-2 text-white"
-            style={{ opacity: progress, transform: `scale(${0.8 + progress * 0.2})` }}
+            className="flex items-center gap-2"
+            style={{ color: swipeRightInk, opacity: progress, transform: `scale(${0.8 + progress * 0.2})` }}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -167,8 +182,8 @@ export default function SwipeableArticleRow({
           style={{ background: swipeLeftColor }}
         >
           <div
-            className="flex items-center gap-2 text-white"
-            style={{ opacity: progress, transform: `scale(${0.8 + progress * 0.2})` }}
+            className="flex items-center gap-2"
+            style={{ color: swipeLeftInk, opacity: progress, transform: `scale(${0.8 + progress * 0.2})` }}
           >
             <span className="text-xs font-semibold">{swipeLeftLabel}</span>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -169,16 +169,14 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
           )}
           {t('preferences.refresh.test')}
         </button>
-        {test === 'ok' && (
-          <span className="text-[11px]" role="status" style={{ color: 'var(--accent)' }}>
-            {t('preferences.refresh.testOk')}
-          </span>
-        )}
-        {test === 'fail' && (
-          <span className="text-[11px]" role="status" style={{ color: 'var(--danger)' }}>
-            {t('preferences.refresh.testFail')}
-          </span>
-        )}
+        {/* Une région montée en permanence, vide au repos (liveRegions.test). */}
+        <span
+          className={test === 'ok' || test === 'fail' ? 'text-[11px]' : 'sr-only'}
+          role="status"
+          style={{ color: test === 'fail' ? 'var(--danger)' : 'var(--accent)' }}
+        >
+          {test === 'ok' ? t('preferences.refresh.testOk') : test === 'fail' ? t('preferences.refresh.testFail') : ''}
+        </span>
       </div>
     </div>
   );

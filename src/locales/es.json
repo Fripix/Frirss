@@ -320,6 +320,7 @@
       "chooseColor": "Elegir el color",
       "removeColor": "Quitar el color",
       "customColor": "Color personalizado",
+      "hexColor": "Código del color (hexadecimal)",
       "confirmDelete": "¿Eliminar «{{name}}»?",
       "cancel": "Cancelar",
       "resetColors": "Restablecer los colores de las etiquetas",
@@ -735,7 +736,11 @@
     "failed": "La actualización falló",
     "incomplete": "Actualización incompleta",
     "enable": "Activar la actualización de fuentes",
-    "continuing": "FreshRSS no respondió a tiempo: la actualización puede seguir de su lado"
+    "continuing": "FreshRSS no respondió a tiempo: la actualización puede seguir de su lado",
+    "inProgressWithNew_one": "Actualizando fuentes… {{count}} artículo nuevo",
+    "inProgressWithNew_other": "Actualizando fuentes… {{count}} artículos nuevos",
+    "continuingWithNew_one": "{{count}} artículo nuevo · FreshRSS no respondió a tiempo: la actualización puede seguir de su lado",
+    "continuingWithNew_other": "{{count}} artículos nuevos · FreshRSS no respondió a tiempo: la actualización puede seguir de su lado"
   },
   "update": {
     "updating": "Actualizando…"

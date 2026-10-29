@@ -43,7 +43,15 @@ export default function MobileDrawer({ open, onClose, children, width = 280 }: M
   // Escape key
   useEffect(() => {
     if (!open) return;
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
+    // Pas un Échap déjà traité : les Préférences s'ouvrent par-dessus le
+    // tiroir sans le fermer, et une seule pression fermait les deux.
+    // Ni une boîte modale ouverte au-dessus (son propre Échap la ferme, et son
+    // écouteur peut passer après celui-ci).
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      onClose();
+    }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
@@ -99,6 +107,15 @@ export default function MobileDrawer({ open, onClose, children, width = 280 }: M
     touchRef.current = {};
   }, [dragging, dragX, width, onClose]);
 
+  // iOS reprend le contact (`touchcancel`) : rien n'est décidé, le tiroir
+  // revient. Sans cela il restait à moitié tiré, et la tape suivante dedans le
+  // refermait.
+  const handleTouchCancel = useCallback(() => {
+    setDragX(0);
+    setDragging(false);
+    touchRef.current = {};
+  }, []);
+
   // ── Computed styles ──────────────────────────────────────────────
   const progress = open ? Math.max(0, 1 + dragX / width) : 0; // 1 = fully open
 
@@ -136,6 +153,7 @@ export default function MobileDrawer({ open, onClose, children, width = 280 }: M
         }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
         inert={!open}
       >
         {children}

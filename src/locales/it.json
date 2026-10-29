@@ -320,6 +320,7 @@
       "chooseColor": "Scegli il colore",
       "removeColor": "Rimuovi il colore",
       "customColor": "Colore personalizzato",
+      "hexColor": "Codice del colore (esadecimale)",
       "confirmDelete": "Eliminare «{{name}}»?",
       "cancel": "Annulla",
       "resetColors": "Reimposta i colori delle etichette",
@@ -735,7 +736,11 @@
     "failed": "Aggiornamento non riuscito",
     "incomplete": "Aggiornamento incompleto",
     "enable": "Attiva l'aggiornamento dei feed",
-    "continuing": "FreshRSS non ha risposto in tempo: l’aggiornamento potrebbe proseguire dal suo lato"
+    "continuing": "FreshRSS non ha risposto in tempo: l’aggiornamento potrebbe proseguire dal suo lato",
+    "inProgressWithNew_one": "Aggiornamento dei feed… {{count}} nuovo articolo",
+    "inProgressWithNew_other": "Aggiornamento dei feed… {{count}} nuovi articoli",
+    "continuingWithNew_one": "{{count}} nuovo articolo · FreshRSS non ha risposto in tempo: l’aggiornamento potrebbe proseguire dal suo lato",
+    "continuingWithNew_other": "{{count}} nuovi articoli · FreshRSS non ha risposto in tempo: l’aggiornamento potrebbe proseguire dal suo lato"
   },
   "update": {
     "updating": "Aggiornamento…"

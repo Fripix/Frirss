@@ -253,6 +253,20 @@ describe('ReadingPane — Résumé IA', () => {
         window.innerWidth = width;
       }
     });
+    // La barre du bas sur téléphone : favori et à lire plus tard disent leur
+    // état, plus seulement par la couleur.
+    it('on a phone, the star and read-later toggles announce their state', () => {
+      const width = window.innerWidth;
+      window.innerWidth = 375;
+      try {
+        useFeedStore.setState({ selectedArticle: { ...article('a1'), starred: true } });
+        const { getByRole } = render(<ReadingPane />);
+        expect(getByRole('button', { name: 'readingPane.star' }).getAttribute('aria-pressed')).toBe('true');
+        expect(getByRole('button', { name: 'readingPane.readLater' }).getAttribute('aria-pressed')).toBe('false');
+      } finally {
+        window.innerWidth = width;
+      }
+    });
     it('on a phone, the sheet row is disabled offline', () => {
       const width = window.innerWidth;
       window.innerWidth = 375;

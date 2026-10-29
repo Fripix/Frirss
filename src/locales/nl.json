@@ -320,6 +320,7 @@
       "chooseColor": "Kleur kiezen",
       "removeColor": "Kleur verwijderen",
       "customColor": "Aangepaste kleur",
+      "hexColor": "Kleurcode (hexadecimaal)",
       "confirmDelete": "‘{{name}}’ verwijderen?",
       "cancel": "Annuleren",
       "resetColors": "Labelkleuren herstellen",
@@ -735,7 +736,11 @@
     "failed": "Het ophalen is mislukt",
     "incomplete": "Ophalen onvoltooid",
     "enable": "Feeds ophalen inschakelen",
-    "continuing": "FreshRSS antwoordde niet op tijd: het ophalen loopt daar mogelijk nog door"
+    "continuing": "FreshRSS antwoordde niet op tijd: het ophalen loopt daar mogelijk nog door",
+    "inProgressWithNew_one": "Feeds worden opgehaald… {{count}} nieuw artikel",
+    "inProgressWithNew_other": "Feeds worden opgehaald… {{count}} nieuwe artikelen",
+    "continuingWithNew_one": "{{count}} nieuw artikel · FreshRSS antwoordde niet op tijd: het ophalen loopt daar mogelijk nog door",
+    "continuingWithNew_other": "{{count}} nieuwe artikelen · FreshRSS antwoordde niet op tijd: het ophalen loopt daar mogelijk nog door"
   },
   "update": {
     "updating": "Bijwerken…"
