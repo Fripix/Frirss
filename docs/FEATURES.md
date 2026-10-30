@@ -73,8 +73,11 @@ qu'un autre onglet avait ouvert depuis.
   inscriptions ouvertes, une seule adresse créait autant de comptes qu'elle
   voulait. Les refus (nom pris, champ invalide) ne comptent pas. Placé AVANT
   `authLimiter` : ses 429 entameraient sinon la limite de connexion de
-  l'adresse. Derrière un proxy dont les clients partagent une adresse (voir
-  *Atteindre FriRSS par le reverse proxy*), ils partagent aussi ce plafond.
+  l'adresse. Son 429 porte `code: 'too_many_accounts'`, affiché
+  `login.errorTooManyAccounts` (« réessayez dans une heure ») : « quelques
+  minutes » faisait réessayer pour le même refus. Derrière un proxy dont les
+  clients partagent une adresse (voir *Atteindre FriRSS par le reverse proxy*),
+  ils partagent aussi ce plafond.
 - **Longueurs d'un compte** (1.8.0, `accountFieldError`, `server/validate.ts`) :
   nom ≤ 64 caractères, nom affiché ≤ 128, mot de passe ≤ 1 024, et des chaînes
   (`['a','b','c']` passait le contrôle de longueur minimale). Inscription,
@@ -159,7 +162,10 @@ le dit aussi).
   rappel sans `verifier` ne coûte rien au fournisseur et ne l'use pas. Au-delà
   de la limite : redirection vers `#oidc_error=too_many`, pas un 429 (le
   navigateur aurait affiché du JSON) ; le client le dit `login.errorTooMany`
-  (`oidcErrorKey`, et dans le message de liaison depuis le compte). Un `state` émis avant la mise à jour n'a
+  (`oidcErrorKey`, et dans le message de liaison depuis le compte). ⚠️ Limite
+  connue : le seau compte tout, même un appel vide. À adresse partagée, un
+  anonyme peut donc l'épuiser et bloquer les vrais retours, comme pour la
+  limite de connexion par adresse ; sans repli en mode SSO seul, hors `?local=1`. Un `state` émis avant la mise à jour n'a
   pas de `jti` et répond `invalid_state`.
 - **Rattacher un compte existant : depuis le compte seulement** (1.8.0,
   décision du propriétaire). Préférences › Général › Compte, « Lier à
@@ -6052,6 +6058,10 @@ répondu (voir *Extraction du contenu complet*).
   reverse proxy public — ce que la réécriture existait pour éviter. L'échec
   sans repli laisse une ligne de journal (URL caviardée) : sans elle,
   l'opérateur ne voyait qu'un « fetch failed ».
+  **La règle s'arrête à une frontière** (`rewriteTarget` : fin, `/`, `?`, `#`) :
+  par simple préfixe, `https://rss…:8443/x` devenait `http://freshrss:80:8443/x`,
+  une URL invalide. Sans frontière elle n'est pas réécrite et part vers le
+  public ; `:443` est la même origine que la règle et se réécrit pareil.
   **La confiance porte sur l'origine exacte de chaque côté** (schéma, hôte,
   port, 1.8.0, `server/test/proxyRewriteOrigin.test.ts`). Par le nom seul, et
   sans résolution, le nom public ouvrait en split-DNS tous les ports du reverse
@@ -6073,17 +6083,21 @@ répondu (voir *Extraction du contenu complet*).
   quel hôte qui servait `/reader/api/0/` écrivait jusqu'à 32 Mo par URL dans le
   Redis partagé (122 Ko servis en gzip en faisaient écrire 120 Mo). **Cela ne
   suffit pas** : le compte enregistre l'hôte qu'il veut comme « serveur », sans
-  jeton ni vérification. D'où `cacheableEntry` (`server/cache.ts`) : seul du
-  JSON qui s'analyse est écrit, jamais plus de `MAX_CACHED_ENTRY_BYTES` (8 Mio,
-  jugés après la coupe à `CACHE_ARTICLES_PER_FEED`). Mesuré le 2026-10-30 sur 15
+  jeton ni vérification. D'où `cacheableEntry` (`server/cache.ts`) : la taille
+  se juge AVANT l'analyse (`MAX_CACHED_ENTRY_BYTES`, 8 Mio ; 31 Mio de petits
+  objets relus dix fois par seconde bloquaient la boucle d'événements 5 s
+  d'affilée), puis seul du JSON qui s'analyse est écrit, coupé à
+  `CACHE_ARTICLES_PER_FEED`, BOM retiré. Une page devenue non gardable retire
+  l'ancienne entrée (`cacheDel`), qui restait peinte jusqu'au TTL. Mesuré le 2026-10-30 sur 15
   flux publics à contenu intégral, enveloppe greader comprise : 0,1 à 1,7 Mio la
   page de 50 articles, 4,5 Mio pour le pire (des essais longs). Au-delà, la
   page est servie entière au client et simplement pas gardée.
   **Limite connue** : 8 Mio par URL, à 600 requêtes par minute, restent une
   écriture de plusieurs Gio par minute pour un compte qui le cherche, sur 24 h
   de TTL. Le plafond retire le pire cas d'une entrée, pas le volume cumulé.
-  Le worker (Modèle B) garde son plafond de lecture et écrit sans ce filtre :
-  il n'écrit que cinq clés fixes par compte, réécrites à chaque cycle.
+  Le worker (Modèle B) garde son plafond de lecture, et passe par le même
+  filtre : un proxy d'authentification répond 200 en HTML, et ce corps écrit
+  devenait une liste vide à la peinture depuis le cache.
 - **Échéance totale** (1.8.0) : `PROXY_TOTAL_TIMEOUT_MS` = **60 s** par requête
   `/api/proxy`, en-têtes **et** corps, tous les sauts de redirection et le
   repli vers l'URL publique compris. Avant, seul `TIMEOUT_MS` (30 s) bornait un
@@ -6139,7 +6153,7 @@ répondu (voir *Extraction du contenu complet*).
 - **Redaction** : `redactUrl()` ne garde d'une URL que son origine et son chemin
   (1.8.0). La requête entière disparaît, quel que soit le nom du paramètre : une
   liste de paramètres secrets (`token`) en oubliait toujours un. Une URL
-  illisible est coupée à son premier `?` ou `#`.
+  illisible est coupée à son premier `?` ou `#`, et perd ses identifiants.
 - **Aucun en-tête d'identification fourni par le client n'est honoré.** Le jeton
   greader est injecté côté serveur, et seulement là. Un repli `X-Freshrss-Auth`
   a existé « pour l'installation, avant qu'une ligne serveur existe » — mais
@@ -6603,9 +6617,11 @@ les clés modifiées sur l'appareil.
   `400 { error, code, key }`. Un refus du lot entier (`too_many_keys`,
   `too_many_preferences`, `bad_payload`) n'a pas de `key`.
   Le total dépassé répond **413** `preferences_too_large`, sans `key` : rien
-  dans le lot n'est écrit. Côté client (`prefsSync`), ce refus n'est pas
-  retenté, et se dit une fois (`preferences.tooLarge`) ; les clés restent
-  sales, le prochain changement réessaie.
+  dans le lot n'est écrit. Côté client (`prefsSync`, `refusedBatch`), le
+  lot refusé n'est pas renvoyé tant qu'il n'a pas changé (`refreshPrefs`, qui
+  relance l'envoi chaque minute, le renvoyait) ; le refus se dit une fois par
+  lot (`preferences.tooLarge`). Les clés restent sales : un autre changement
+  réessaie.
 - **Côté client — clés modifiées seulement** (1.8.0). `prefsSync` garde la
   dernière valeur connue du serveur pour chaque clé (posée à la lecture et
   après chaque envoi réussi) et la liste des clés modifiées sur l'appareil et

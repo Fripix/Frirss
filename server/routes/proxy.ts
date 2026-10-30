@@ -7,7 +7,7 @@ import dns from 'dns';
 import db from '../db.js';
 import { decrypt } from '../crypto.js';
 import { requireAuth } from '../middleware/auth.js';
-import { cacheEnabled, cacheGet, cacheSet, cacheKey, cacheableEntry } from '../cache.js';
+import { cacheEnabled, cacheGet, cacheSet, cacheDel, cacheKey, cacheableEntry } from '../cache.js';
 import { stripTrailingSlashes } from '../validate.js';
 
 const router = Router();
@@ -237,13 +237,33 @@ export function redactUrl(url: string): string {
     const u = new URL(url);
     return u.pathname === '/' ? u.origin : `${u.origin}${u.pathname}`;
   } catch {
-    return url.split(/[?#]/, 1)[0];
+    // Illisible : le navigateur n'a pas pu la découper, ce code non plus.
+    return url.split(/[?#]/, 1)[0].replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/]*@/i, '$1');
   }
 }
 
-function rewriteTarget(url: string): string {
+/** Une règle sans port, écrite aussi avec le port par défaut de son schéma. */
+function withDefaultPort(from: string): string | null {
+  const m = from.match(/^(https?):\/\/([^/:?#]+)(.*)$/i);
+  if (!m) return null;
+  return `${m[1]}://${m[2]}:${m[1].toLowerCase() === 'https' ? 443 : 80}${m[3]}`;
+}
+
+/**
+ * Réécrit une URL sur la règle dont elle relève. La règle s'arrête à une
+ * frontière (fin, `/`, `?`, `#`) : par simple préfixe, `https://rss…:8443/x`
+ * devenait `http://freshrss:80:8443/x`, une URL invalide, et une cible refusée
+ * ne se replie jamais : 403 sur toute lecture d'un serveur enregistré avec un
+ * port. Sans frontière elle n'est pas réécrite et part vers le public. `:443`
+ * est la même origine que la règle : il se réécrit pareil.
+ */
+export function rewriteTarget(url: string): string {
   for (const [from, to] of REWRITES) {
-    if (url.startsWith(from)) return to + url.slice(from.length);
+    for (const prefix of [from, withDefaultPort(from)]) {
+      if (!prefix || !url.startsWith(prefix)) continue;
+      const rest = url.slice(prefix.length);
+      if (rest === '' || prefix.endsWith('/') || /^[/?#]/.test(rest)) return to + rest;
+    }
   }
   return url;
 }
@@ -878,8 +898,13 @@ router.all('/', async (req, res) => {
       return finishError(res, err, rawTarget);
     }
     res.status(upstream.status).send(text);
-    const entry = key ? cacheableEntry(text) : null;
-    if (key && entry !== null) cacheSet(key, entry); // fire-and-forget
+    if (key) {
+      // Une page devenue non gardable retire l'ancienne : elle restait servie
+      // jusqu'au TTL, peinte à chaque ouverture avant la revalidation.
+      const entry = cacheableEntry(text);
+      if (entry !== null) cacheSet(key, entry); // fire-and-forget
+      else cacheDel(key);
+    }
     return;
   }
 

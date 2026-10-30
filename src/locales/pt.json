@@ -593,6 +593,7 @@
     "errorServerCredentials": "O FreshRSS recusou estas credenciais. A palavra-passe de API define-se à parte da palavra-passe da conta, em FreshRSS › Configuração › Perfil.",
     "restorePrompt": "Está a repor a partir de uma cópia?",
     "errorTooMany": "Demasiadas tentativas. Aguarde alguns minutos antes de tentar de novo.",
+    "errorTooManyAccounts": "Foram criadas demasiadas contas a partir deste endereço. Tente novamente dentro de uma hora.",
     "errorUnavailable": "O servidor não respondeu. Isto não diz nada sobre as suas credenciais.",
     "tagline": "Um leitor moderno para o seu servidor FreshRSS.",
     "showPassword": "Mostrar a palavra-passe",

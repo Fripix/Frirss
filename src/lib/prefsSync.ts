@@ -175,8 +175,12 @@ function dropRefused(key: string): void {
   }
 }
 
-/** Le refus de taille n'a été dit qu'une fois, jusqu'au prochain envoi réussi. */
-let tooLargeSaid = false;
+/**
+ * Le dernier lot refusé pour sa taille. `refreshPrefs` relance l'envoi à chaque
+ * relecture (60 s, focus) : le même lot repartait chaque minute. Il ne repart
+ * que s'il a changé, et le refus ne se redit que pour un autre lot.
+ */
+let refusedBatch: string | null = null;
 
 async function doPush(): Promise<void> {
   const gen = generation;
@@ -187,9 +191,12 @@ async function doPush(): Promise<void> {
   persistDirty();
   if (!keys.length) {
     pushRetryDelay = 0;
+    refusedBatch = null;
     return;
   }
   const batch = pickKeys(local, keys);
+  const signature = JSON.stringify(batch);
+  if (signature === refusedBatch) return;
   try {
     await savePreferences(batch);
   } catch (err) {
@@ -201,13 +208,11 @@ async function doPush(): Promise<void> {
     // bouclait sans fin et sans rien dire. Les clés restent sales : le
     // prochain changement réessaie, le compte a pu maigrir entre-temps.
     if (res?.status === 413 && res.data?.code === 'preferences_too_large') {
-      if (!tooLargeSaid) {
-        tooLargeSaid = true;
-        useUiStore.getState().pushToast(
-          i18next.isInitialized ? i18next.t('preferences.tooLarge') : 'preferences.tooLarge',
-          { tone: 'error' },
-        );
-      }
+      refusedBatch = signature;
+      useUiStore.getState().pushToast(
+        i18next.isInitialized ? i18next.t('preferences.tooLarge') : 'preferences.tooLarge',
+        { tone: 'error' },
+      );
       return;
     }
     const refusedKey = res?.status === 400 ? res.data?.key : undefined;
@@ -222,7 +227,7 @@ async function doPush(): Promise<void> {
   }
   if (gen !== generation) return;
   pushRetryDelay = 0;
-  tooLargeSaid = false;
+  refusedBatch = null;
   const now = collectPrefs();
   for (const k of keys) {
     known[k] = batch[k];
@@ -457,6 +462,7 @@ export async function refreshPrefs(): Promise<void> {
 
 // Tear down the write-through subscriptions (on logout).
 export function stopSync(): void {
+  refusedBatch = null;
   if (unsubUi) unsubUi();
   if (unsubTheme) unsubTheme();
   unsubUi = null;

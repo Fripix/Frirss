@@ -16,7 +16,7 @@ vi.mock('../routes/proxy.js', async () => {
 const cacheSet = vi.fn(async () => {});
 vi.mock('../cache.js', () => ({
   cacheEnabled: true, cacheSet: (...a: unknown[]) => cacheSet(...(a as [])), cacheKey: (u: unknown, t: string) => `k:${String(u)}:${t}`,
-  trimStreamJson: (s: string) => s, cacheGet: vi.fn(async () => null),
+  trimStreamJson: (s: string) => s, cacheableEntry: (s: string) => (s.startsWith('<') ? null : s), cacheGet: vi.fn(async () => null),
 }));
 
 const { syncUser } = await import('../worker.js');
@@ -43,6 +43,14 @@ describe('syncUser — corps bornés', () => {
     expect(cacheSet).not.toHaveBeenCalled();
     expect(pulled).toBeLessThan(5 * 40 * 1024 * 1024);
   }, 60_000);
+
+  // Un proxy d'authentification répond 200 en HTML : écrit, il devenait une
+  // liste vide à la peinture depuis le cache.
+  it('n’écrit pas un corps qui n’est pas du JSON', async () => {
+    fetchUpstream.mockImplementation(async () => new Response('<html>Sign in</html>', { status: 200 }));
+    await syncUser(row(), 1000);
+    expect(cacheSet).not.toHaveBeenCalled();
+  });
 
   it('libère le corps d’une réponse en erreur', async () => {
     let cancelled = 0;

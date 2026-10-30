@@ -593,6 +593,7 @@
     "errorServerCredentials": "FreshRSS refused these credentials. The API password is set separately from your account password, in FreshRSS › Settings › Profile.",
     "restorePrompt": "Rebuilding from a backup?",
     "errorTooMany": "Too many attempts. Wait a few minutes before trying again.",
+    "errorTooManyAccounts": "Too many accounts created from this address. Try again in an hour.",
     "errorUnavailable": "The server did not answer. This says nothing about your credentials.",
     "tagline": "A modern reader for your FreshRSS server.",
     "showPassword": "Show password",

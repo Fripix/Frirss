@@ -37,7 +37,7 @@ const adminPort = (admin.address() as AddressInfo).port;
 process.env.PROXY_REWRITES = `https://rss.localhost=http://127.0.0.1:${freshrssPort}`;
 process.env.PROXY_INTERNAL_HOSTS = 'interne.localhost';
 
-const { default: proxyRouter, assertTargetSafe, targetAllowedLiteral, BlockedTargetError } = await import('../routes/proxy.js');
+const { default: proxyRouter, assertTargetSafe, targetAllowedLiteral, BlockedTargetError, rewriteTarget } = await import('../routes/proxy.js');
 
 const app = express();
 app.use('/api/proxy', proxyRouter);
@@ -50,6 +50,22 @@ afterAll(async () => {
   await new Promise<void>((r) => admin.close(() => r()));
 });
 beforeEach(() => { hits.length = 0; });
+
+describe('PROXY_REWRITES — frontière de la règle', () => {
+  // `startsWith` réécrivait `https://rss.localhost:8443/…` en `http://…:port:8443/…`,
+  // une URL invalide, et une cible refusée ne se replie jamais : 403 sur toute
+  // lecture d'un serveur enregistré avec un port.
+  it('ne réécrit pas une URL dont l’hôte seulement commence comme la règle', () => {
+    expect(rewriteTarget('https://rss.localhost:8443/api')).toBe('https://rss.localhost:8443/api');
+    expect(rewriteTarget('https://rss.localhost.example.com/api')).toBe('https://rss.localhost.example.com/api');
+  });
+
+  it('réécrit l’origine de la règle, port par défaut écrit ou non', () => {
+    expect(rewriteTarget('https://rss.localhost/api?x=1')).toBe(`http://127.0.0.1:${freshrssPort}/api?x=1`);
+    expect(rewriteTarget('https://rss.localhost:443/api')).toBe(`http://127.0.0.1:${freshrssPort}/api`);
+    expect(rewriteTarget('https://rss.localhost')).toBe(`http://127.0.0.1:${freshrssPort}`);
+  });
+});
 
 describe('PROXY_REWRITES — confiance par origine', () => {
   it('garde le chemin voulu : le nom public de la règle est réécrit vers l’interne', async () => {

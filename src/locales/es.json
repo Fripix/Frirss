@@ -593,6 +593,7 @@
     "errorServerCredentials": "FreshRSS ha rechazado estas credenciales. La contraseña de API se define aparte de la contraseña de la cuenta, en FreshRSS › Configuración › Perfil.",
     "restorePrompt": "¿Restaura una copia de seguridad?",
     "errorTooMany": "Demasiados intentos. Espere unos minutos antes de volver a probar.",
+    "errorTooManyAccounts": "Se han creado demasiadas cuentas desde esta dirección. Inténtelo de nuevo dentro de una hora.",
     "errorUnavailable": "El servidor no ha respondido. Esto no dice nada sobre sus credenciales.",
     "tagline": "Un lector moderno para su servidor FreshRSS.",
     "showPassword": "Mostrar la contraseña",

@@ -109,6 +109,11 @@ export async function cacheGet(key: string): Promise<string | null> {
   try { return await client.get(key); } catch { return null; }
 }
 
+export async function cacheDel(key: string): Promise<void> {
+  if (!client) return;
+  try { await client.del(key); } catch { /* le cache n'est qu'une aide */ }
+}
+
 export async function cacheSet(key: string, value: string, ttl = TTL_SECONDS): Promise<void> {
   if (!client) return;
   try { await client.set(key, value, 'EX', ttl); } catch { /* degrade silently */ }
@@ -146,18 +151,21 @@ export const MAX_CACHED_ENTRY_BYTES = 8 * 1024 * 1024;
  * Ce qu'une lecture proxifiée a le droit de déposer dans Redis, ou `null`.
  *
  * Le corps vient d'un hôte que le compte a choisi : n'importe qui peut
- * enregistrer le sien comme « serveur ». Seul du JSON qui s'analyse passe (la
- * lecture depuis le cache le rend en `application/json`), coupé à `max`
- * articles, et jugé APRÈS la coupe : une longue réponse ramenée à 50 articles
- * reste légitime. Le plafond est en octets, ceux que Redis stocke.
+ * enregistrer le sien comme « serveur ». La taille se juge AVANT l'analyse :
+ * 31 Mio de petits objets, relus dix fois par seconde, bloquaient la boucle
+ * d'événements 5 s d'affilée pour une entrée qui n'était pas gardée. Puis seul
+ * du JSON qui s'analyse passe (la lecture depuis le cache le rend en
+ * `application/json`), coupé à `max` articles. Un BOM en tête, que `JSON.parse`
+ * refuse, est retiré.
  */
 export function cacheableEntry(body: string, max = MAX_PER_FEED, maxBytes = MAX_CACHED_ENTRY_BYTES): string | null {
+  if (Buffer.byteLength(body) > maxBytes) return null;
+  const text = body.charCodeAt(0) === 0xfeff ? body.slice(1) : body;
   let parsed: unknown;
-  try { parsed = JSON.parse(body); } catch { return null; }
+  try { parsed = JSON.parse(text); } catch { return null; }
   if (parsed === null || typeof parsed !== 'object') return null;
   const { items } = parsed as { items?: unknown };
-  const entry = Array.isArray(items) && items.length > max
+  return Array.isArray(items) && items.length > max
     ? JSON.stringify({ ...parsed, items: items.slice(0, max) })
-    : body;
-  return Buffer.byteLength(entry) > maxBytes ? null : entry;
+    : text;
 }

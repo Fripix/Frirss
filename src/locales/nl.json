@@ -593,6 +593,7 @@
     "errorServerCredentials": "FreshRSS heeft deze gegevens geweigerd. Het API-wachtwoord stelt u apart in van uw accountwachtwoord, via FreshRSS › Configuratie › Profiel.",
     "restorePrompt": "Terugzetten vanaf een back-up?",
     "errorTooMany": "Te veel pogingen. Wacht enkele minuten voordat u het opnieuw probeert.",
+    "errorTooManyAccounts": "Te veel accounts aangemaakt vanaf dit adres. Probeer het over een uur opnieuw.",
     "errorUnavailable": "De server heeft niet geantwoord. Dat zegt niets over uw gegevens.",
     "tagline": "Een moderne lezer voor uw FreshRSS-server.",
     "showPassword": "Wachtwoord tonen",

@@ -42,7 +42,7 @@ const registerLimiter = rateLimit({
   legacyHeaders: false,
   skipFailedRequests: true,
   keyGenerator: (req) => rateLimitIpKey(req.ip),
-  message: { error: 'Too many accounts created, please try again later' },
+  message: { error: 'Too many accounts created, please try again later', code: 'too_many_accounts' },
 });
 
 // Retour du fournisseur SSO, anonyme, par adresse et sur 15 minutes. Toutes les

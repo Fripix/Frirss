@@ -22,11 +22,13 @@ vi.mock('../middleware/auth.js', () => ({
   requireAdmin: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 const cacheSet = vi.fn(async () => {});
+const cacheDel = vi.fn(async () => {});
 vi.mock('../cache.js', async () => ({
   ...await vi.importActual<typeof import('../cache.js')>('../cache.js'),
   cacheEnabled: true,
   cacheGet: vi.fn(async () => null),
   cacheSet: (...a: unknown[]) => cacheSet(...(a as [])),
+  cacheDel: (...a: unknown[]) => cacheDel(...(a as [])),
   cacheKey: (u: unknown, t: string) => `k:${String(u)}:${t}`,
 }));
 
@@ -159,6 +161,13 @@ describe('/api/proxy — lectures mises en cache', () => {
     expect(res.status).toBe(200);
     expect(res.bytes).toBe('pas du JSON'.length);
     expect(cacheSet).not.toHaveBeenCalled();
+  });
+
+  // L'ancienne version restait servie jusqu'au TTL, peinte à chaque ouverture.
+  it('retire l’entrée d’une page devenue non gardable', async () => {
+    cacheDel.mockClear();
+    await call('/reader/api/0/stream/contents/text');
+    expect(cacheDel).toHaveBeenCalledTimes(1);
   });
 
   it('ne prend pas pour une lecture greader une URL qui ne la porte que dans sa requête', async () => {

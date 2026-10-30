@@ -1,6 +1,6 @@
 import db from './db.js';
 import { decrypt } from './crypto.js';
-import { cacheEnabled, cacheKey, cacheSet, trimStreamJson } from './cache.js';
+import { cacheEnabled, cacheKey, cacheSet, cacheableEntry } from './cache.js';
 import { fetchUpstream, readBodyText, PROXY_TOTAL_TIMEOUT_MS } from './routes/proxy.js';
 import { stripTrailingSlashes } from './validate.js';
 
@@ -63,7 +63,10 @@ export async function syncUser(row: SyncRow, deadlineMs = PROXY_TOTAL_TIMEOUT_MS
       const resp = await fetchUpstream(target, { headers, signal: deadline.signal });
       if (!resp.ok) { resp.body?.cancel().catch(() => {}); continue; }
       const text = await readBodyText(resp, deadline.signal);
-      await cacheSet(cacheKey(row.user_id, target), trimStreamJson(text));
+      // Du JSON seulement : un proxy d'authentification répond 200 en HTML, et
+      // la peinture depuis le cache en faisait une liste vide.
+      const entry = cacheableEntry(text);
+      if (entry !== null) await cacheSet(cacheKey(row.user_id, target), entry);
     } catch { /* skip this stream, keep going */ } finally {
       clearTimeout(timer);
     }

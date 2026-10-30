@@ -592,6 +592,7 @@
     "errorServerCredentials": "FreshRSS 拒绝了这些登录凭据。API 密码与账户密码是分开设置的，在 FreshRSS › 设置 › 账户（或个人资料）中配置。",
     "restorePrompt": "要从备份恢复吗？",
     "errorTooMany": "尝试次数过多，请几分钟后再试。",
+    "errorTooManyAccounts": "此地址创建的账户过多。请一小时后重试。",
     "errorUnavailable": "服务器无响应。这与你的登录凭据无关。",
     "tagline": "为你的 FreshRSS 服务器打造的现代阅读器。",
     "showPassword": "显示密码",

@@ -16,7 +16,7 @@ vi.mock('../routes/proxy.js', async () => {
 const cacheSet = vi.fn(async () => {});
 vi.mock('../cache.js', () => ({
   cacheEnabled: true, cacheSet: (...a: unknown[]) => cacheSet(...(a as [])), cacheKey: (u: unknown, t: string) => `k:${String(u)}:${t}`,
-  trimStreamJson: (s: string) => s, cacheGet: vi.fn(async () => null),
+  trimStreamJson: (s: string) => s, cacheableEntry: (s: string) => (s.startsWith('<') ? null : s), cacheGet: vi.fn(async () => null),
 }));
 
 const { runCycle } = await import('../worker.js');

@@ -806,6 +806,12 @@ describe('servers actualize', () => {
       expect(url).not.toContain('one-shot-secret');
       expect(url).toBe('https://rss.example.com/i/');
     });
+
+    it('retire aussi les identifiants d’une URL illisible', () => {
+      const url = redactUrl('https://user:secret@host.invalid:99999/chemin?x=1');
+      expect(url).not.toContain('secret');
+      expect(url).toBe('https://host.invalid:99999/chemin');
+    });
   });
 });
 

@@ -23,6 +23,7 @@ vi.mock('../middleware/auth.js', () => ({
   requireAdmin: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 vi.mock('../cache.js', () => ({
+  cacheDel: vi.fn(async () => {}),
   cacheEnabled: false,
   cacheGet: vi.fn(async () => null),
   cacheSet: vi.fn(async () => {}),

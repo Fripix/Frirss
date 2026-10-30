@@ -31,6 +31,7 @@ vi.mock('../middleware/auth.js', () => ({
 // Cache « activé » : la branche bufferisée (lectures greader) lit tout le corps
 // AVANT d'envoyer les en-têtes, elle seule peut donc encore répondre 504.
 vi.mock('../cache.js', () => ({
+  cacheDel: vi.fn(async () => {}),
   cacheEnabled: true,
   cacheGet: vi.fn(async () => null),
   cacheSet: vi.fn(async () => {}),

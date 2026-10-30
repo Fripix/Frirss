@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { extractKey, cacheKey, userCachePattern, cacheableEntry, MAX_CACHED_ENTRY_BYTES } from '../cache.js';
@@ -74,10 +74,25 @@ describe('cacheableEntry', () => {
     expect(cacheableEntry(JSON.stringify({ c: 'x'.repeat(MAX_CACHED_ENTRY_BYTES) }))).toBeNull();
   });
 
-  it('juge la taille APRÈS la coupe : une longue réponse réduite à 50 articles reste cachable', () => {
+  it('coupe à `max` articles ce qui tient sous le plafond', () => {
     const body = JSON.stringify({ items: Array.from({ length: 200 }, () => 'x'.repeat(1000)) });
-    const out = cacheableEntry(body, 50, 100_000);
-    expect(out).not.toBeNull();
+    const out = cacheableEntry(body, 50, 300_000);
     expect((JSON.parse(out as string) as { items: unknown[] }).items).toHaveLength(50);
+  });
+
+  // Le corps vient d'un hôte choisi par le compte : analyser 31 Mio de petits
+  // objets à chaque lecture bloquait la boucle d'événements 5 s d'affilée, pour
+  // rien puisque ce n'était pas gardé. La taille se juge AVANT l'analyse.
+  it('n’analyse pas un corps au-delà du plafond', () => {
+    const parse = vi.spyOn(JSON, 'parse');
+    try {
+      expect(cacheableEntry(JSON.stringify({ c: 'x'.repeat(2000) }), 50, 1000)).toBeNull();
+      expect(parse).not.toHaveBeenCalled();
+    } finally { parse.mockRestore(); }
+  });
+
+  // Un FreshRSS dont une extension PHP préfixe un BOM perdait son cache.
+  it('accepte un corps préfixé d’un BOM, et le retire', () => {
+    expect(cacheableEntry('\uFEFF{"items":[]}')).toBe('{"items":[]}');
   });
 });

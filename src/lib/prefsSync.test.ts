@@ -120,6 +120,39 @@ describe('hydratePrefs — lecture en échec', () => {
     save.mockResolvedValue(undefined as never);
   });
 
+  // `refreshPrefs` relance l'envoi à chaque relecture (60 s, focus) : le même
+  // lot refusé repartait chaque minute.
+  it('ne renvoie pas un lot déjà refusé à la relecture suivante', async () => {
+    get.mockResolvedValue({ showFavicons: true });
+    await hydratePrefs();
+    await vi.advanceTimersByTimeAsync(1000);
+    save.mockClear();
+    save.mockRejectedValue(Object.assign(new Error('413'), { response: { status: 413, data: { code: 'preferences_too_large' } } }));
+    useUiStore.setState({ showFavicons: false });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(save).toHaveBeenCalledTimes(1);
+    await refreshPrefs();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  // Dit une fois, jusqu'au prochain envoi réussi : annuler le changement, puis
+  // le refaire, ne disait plus rien.
+  it('redit le refus après une annulation', async () => {
+    get.mockResolvedValue({ showFavicons: true });
+    await hydratePrefs();
+    await vi.advanceTimersByTimeAsync(1000);
+    save.mockRejectedValue(Object.assign(new Error('413'), { response: { status: 413, data: { code: 'preferences_too_large' } } }));
+    useUiStore.setState({ toasts: [], showFavicons: false });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(useUiStore.getState().toasts).toHaveLength(1);
+    useUiStore.setState({ showFavicons: true });
+    await vi.advanceTimersByTimeAsync(1000);
+    useUiStore.setState({ showFavicons: false });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(useUiStore.getState().toasts).toHaveLength(2);
+  });
+
   it('réessaie plus tard, et la lecture réussie décide', async () => {
     get.mockRejectedValueOnce(http(502)).mockResolvedValue({ showFavicons: false });
     await hydratePrefs();

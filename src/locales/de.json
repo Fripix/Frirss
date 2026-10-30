@@ -593,6 +593,7 @@
     "errorServerCredentials": "FreshRSS hat diese Zugangsdaten abgelehnt. Das API-Passwort wird getrennt vom Kontopasswort festgelegt, unter FreshRSS › Einstellungen › Profil.",
     "restorePrompt": "Aus einer Sicherung wiederherstellen?",
     "errorTooMany": "Zu viele Versuche. Warten Sie einige Minuten.",
+    "errorTooManyAccounts": "Zu viele Konten von dieser Adresse erstellt. Versuchen Sie es in einer Stunde erneut.",
     "errorUnavailable": "Der Server hat nicht geantwortet. Das sagt nichts über Ihre Zugangsdaten aus.",
     "tagline": "Ein moderner Reader für Ihren FreshRSS-Server.",
     "showPassword": "Passwort anzeigen",

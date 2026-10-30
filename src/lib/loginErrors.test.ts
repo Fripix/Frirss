@@ -227,3 +227,10 @@ describe('registerErrorKey', () => {
     expect(registerErrorKey(http(400, 'Username and password required'))).toBe('login.errorRegister');
   });
 });
+
+describe('registerErrorKey — plafond des inscriptions', () => {
+  it('distingue le plafond d’une heure de la limite d’essais', () => {
+    expect(registerErrorKey({ response: { status: 429, data: { code: 'too_many_accounts' } } })).toBe('login.errorTooManyAccounts');
+    expect(registerErrorKey({ response: { status: 429 } })).toBe('login.errorTooMany');
+  });
+});

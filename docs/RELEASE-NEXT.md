@@ -755,8 +755,8 @@ la release publiée.
 
 - **`PROXY_REWRITES`** : seule l'origine exacte de chaque règle est désormais de
   confiance. Un serveur enregistré sur un autre schéma ou un autre port que la
-  règle, et résolu vers une adresse privée, répond 403 : corriger son URL, ou
-  ajouter une règle pour cette origine. `PROXY_INTERNAL_HOSTS` ne change pas :
+  règle n'est plus réécrit ; s'il se résout vers une adresse privée, il répond
+  403 : corriger son URL, ou ajouter une règle pour cette origine. `PROXY_INTERNAL_HOSTS` ne change pas :
   il porte sur l'hôte, tous ports confondus.
 - **SSO** : un compte local qui n'a encore jamais été ouvert par le SSO ne
   s'y rattache plus tout seul. Son propriétaire se connecte avec son mot de

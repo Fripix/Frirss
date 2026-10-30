@@ -28,12 +28,14 @@ export const REGISTER_ERROR_MESSAGES = {
 
 /** Clé i18n de l'échec d'une inscription. */
 export function registerErrorKey(err: unknown): string {
-  const res = (err as { response?: { status?: number; data?: { error?: unknown } } })?.response;
+  const res = (err as { response?: { status?: number; data?: { error?: unknown; code?: unknown } } })?.response;
   const status = res?.status;
   if (!status) return 'login.errorUnavailable';
   if (status === 409) return 'login.errorUsernameTaken';
   if (status === 403) return 'login.errorRegistrationClosed';
-  if (status === 429) return 'login.errorTooMany';
+  // Plafond des inscriptions réussies, sur une heure : « quelques minutes »
+  // faisait réessayer pour le même refus.
+  if (status === 429) return res?.data?.code === 'too_many_accounts' ? 'login.errorTooManyAccounts' : 'login.errorTooMany';
   const msg = res?.data?.error;
   if (msg === REGISTER_ERROR_MESSAGES.usernameShort) return 'login.errorUsernameShort';
   if (msg === REGISTER_ERROR_MESSAGES.passwordShort) return 'login.errorPasswordShort';
