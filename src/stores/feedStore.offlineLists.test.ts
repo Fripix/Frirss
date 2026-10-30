@@ -13,8 +13,8 @@ const idb = vi.hoisted(() => ({
 
 vi.mock('../lib/offlineStore', () => ({
   listGet: vi.fn(async (k: string) => idb.lists.get(k)),
-  listPut: vi.fn(async (k: string, articles: never[], continuation: string | null) => {
-    idb.lists.set(k, { articles, continuation, cachedAt: ++idb.clock });
+  listPut: vi.fn(async (k: string, articles: never[], continuation: string | null, cachedAt?: number) => {
+    idb.lists.set(k, { articles, continuation, cachedAt: cachedAt ?? ++idb.clock });
   }),
   listEvictOlderThan: vi.fn(async () => {}),
   listsWithoutSource: vi.fn(async () => {}),
@@ -201,6 +201,25 @@ describe('une liste exacte périmée ne masque plus la préparation', () => {
     env.useFeedStore.getState().selectView(feed1, 'unread');
     await settled();
     expect(rows(env)).toHaveLength(120);
+  });
+
+  // Une vue construite ne s'écrit pas : le geste n'avait que la file, et une
+  // fois rejouée il ne restait rien. La liste préparée le disait encore non lu,
+  // et l'article revenait sous Non lus au trajet suivant.
+  it('un geste mis en file se reporte sur la liste préparée, sans la redater', async () => {
+    const env = await load();
+    streamOf(env.api, 3);
+    await prepare(env);
+    const before = idb.lists.get(PREPARED)!;
+    const row = (before.articles as unknown as { id: string; read: boolean }[])[1];
+    vi.mocked(env.api.markAsRead).mockRejectedValue(netErr());
+    setOnline(false);
+    await env.useFeedStore.getState().toggleRead({ ...row, read: false, sourceId: 'feed/1' } as never);
+    await settled();
+    const after = idb.lists.get(PREPARED)!;
+    expect((after.articles as unknown as { id: string; read: boolean }[]).find((a) => a.id === row.id)?.read).toBe(true);
+    expect(after.cachedAt).toBe(before.cachedAt);
+    setOnline(true);
   });
 
   it('une liste vidée APRÈS la préparation reste vide', async () => {

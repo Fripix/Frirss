@@ -977,8 +977,9 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     position de défilement ne se restaure que dans une liste de la même hauteur.
   - **L'article ouvert est toujours monté**, même atteint au clavier au-delà de la
     tranche, et les lignes montées pour lui le restent à sa fermeture.
-  - **Une tranche qui ne remplit pas la fenêtre** (grille sur grand écran) monte la
-    suite sans attendre un `scroll`. Pas de hauteur, pas de décision : sur mobile,
+  - **Une tranche qui ne remplit pas la fenêtre** (grille sur grand écran, ou
+    fenêtre agrandie après coup : la hauteur est une dépendance de l'effet de
+    remplissage) monte la suite sans attendre un `scroll`. Pas de hauteur, pas de décision : sur mobile,
     la liste reste montée derrière le volet.
   - **Une bande de date compte toutes ses lignes**, montées ou non, et le pied
     « Tout lu » attend que tout soit monté.
@@ -5093,14 +5094,21 @@ images consultés restent lisibles sans réseau.
     préparation suivante ne l'atteignait plus. Elle reste en mémoire, pour se
     rouvrir sans attente, marquée pour n'y être jamais lue comme une vraie liste,
     et la première vraie réponse la rend à sa clé. Les gestes faits dessus
-    passent par la file, rejouée à chaque service.
+    passent par la file, rejouée à chaque service, **et se reportent sur la
+    liste préparée** (`patchPrepared`, à la mise en file, sans la redater :
+    `listPut(…, cachedAt)`, sa date dit quand elle a été lue). Une fois la file
+    rejouée, il ne restait sinon aucune trace du geste : les articles lus
+    pendant un trajet revenaient sous Non lus au trajet suivant.
   - **Les listes rangées par l'ancienne version** (clé `:all` préparée, `:oldest`
     servie à l'envers) restent lisibles comme listes exactes, cèdent le pas à
     une préparation plus récente, et partent par éviction (30 jours).
   - **Rien à l'écran ne dit qu'une liste est construite** : le bandeau hors ligne
     couvre déjà la situation.
-  - **Limites** : une préparation plus récente que la base ne reprend pas les
-    lignes de plus de 30 jours que la base avait vues. Une ligne ✓ en toute fin
+  - **Limites** : le cache mémoire est redaté par un geste, pas seulement par
+    une lecture : une ligne lue ailleurs peut faire passer une liste mémoire
+    plus ancienne devant la préparation, jusqu'à la relance de l'app. Une
+    préparation plus récente que la base ne reprend pas les lignes de plus de
+    30 jours que la base avait vues. Une ligne ✓ en toute fin
     de liste exacte, juste avant sa coupure, peut revenir de la préparation. Une
     ligne confirmée en ligne après la préparation est inconnue d'elle : sur une
     vue dont elle est la base, seul le registre (5 minutes) la couvre.

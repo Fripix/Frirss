@@ -64,11 +64,16 @@ export async function listGet(key: string): Promise<ListRecord | undefined> {
   }
 }
 
-export async function listPut(key: string, articles: Article[], continuation: string | null): Promise<void> {
+/**
+ * Range une liste. `cachedAt` : à passer pour un report d'état sur une liste
+ * qu'on n'a pas relue. Sa date dit quand elle a été LUE (`offlineViewList` la
+ * compare à celle des autres listes), pas quand un geste l'a touchée.
+ */
+export async function listPut(key: string, articles: Article[], continuation: string | null, cachedAt = Date.now()): Promise<void> {
   try {
     const db = await openDB();
     await new Promise<void>((resolve) => {
-      const r = tx(db, LISTS, 'readwrite').put({ key, articles, continuation, cachedAt: Date.now() });
+      const r = tx(db, LISTS, 'readwrite').put({ key, articles, continuation, cachedAt });
       r.onsuccess = () => resolve();
       r.onerror = () => resolve();
     });

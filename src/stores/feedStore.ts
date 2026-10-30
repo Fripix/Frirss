@@ -438,7 +438,9 @@ function markStreamReadInViews(marked: string, sourceIds: ReadonlySet<string>, s
     const stored = await listGet(key);
     if (!stored || offlineScope() !== scope) return;
     const articles = markStreamRead(stored.articles, { whole: true, sourceIds, drop: false });
-    if (articles !== stored.articles) await listPut(key, articles, null);
+    // Sa date reste celle de sa lecture : un « Tout lu » ne la fait pas passer
+    // devant une liste visitée après elle.
+    if (articles !== stored.articles) await listPut(key, articles, null, stored.cachedAt);
   })().catch(() => {});
 }
 /** Les flux qu'un « Tout lu » couvre, vu de la vue marquée. */
@@ -1104,10 +1106,31 @@ async function settleAction(
  * Remember an action that failed for lack of network, so it can be replayed.
  * Business refusals never come here — see isNetworkFailure.
  */
+/** Les reports sur une liste préparée s'enchaînent : chacun la relit et la réécrit. */
+let preparedPatches: Promise<void> = Promise.resolve();
+
+/**
+ * Un geste mis en file se reporte sur la liste préparée du flux. Une vue
+ * construite hors ligne ne s'écrit pas (`rebuiltViews`) : le geste n'avait que
+ * la file, et une fois rejouée il ne restait rien. La liste préparée disait
+ * encore non lu, et l'article revenait sous Non lus au trajet suivant. Sa date
+ * ne bouge pas : rien n'a été relu.
+ */
+function patchPrepared(scope: string, sourceId: string | undefined, articleId: string, field: WriteField, value: boolean): void {
+  if (!sourceId) return;
+  const key = preparedListKey(scope, sourceId);
+  preparedPatches = preparedPatches.then(async () => {
+    const stored = await listGet(key);
+    if (!stored?.articles.some((a) => a.id === articleId)) return;
+    const articles = stored.articles.map((a) => (a.id === articleId ? applyField(a, field, value) : a));
+    await listPut(key, articles, stored.continuation, stored.cachedAt);
+  }).catch(() => {});
+}
+
 async function enqueueAction(
   set: (partial: Partial<FeedState>) => void,
   g: Gesture,
-  articleId: string,
+  article: Pick<Article, 'id' | 'sourceId'>,
   type: QueuedActionType,
   value: boolean,
   labelId?: string,
@@ -1128,11 +1151,13 @@ async function enqueueAction(
   // aurait sinon masqué la pastille pour toute une session).
   skipNextArrivals = true;
   const { scope } = g;
+  const articleId = article.id;
   const key = `${scope}|${actionKey(articleId, type, labelId)}`;
   const field = writeFieldOf(type, labelId);
   // Un geste plus récent sur le même article a déjà été confirmé : celui-ci,
   // resté en vol jusqu'au délai d'attente, est dépassé.
   if ((settledGestures.get(key) ?? 0) > g.seq) { localWrites.touch(scope, articleId, field); return; }
+  patchPrepared(scope, article.sourceId, articleId, field, value);
   await loadQueue();
   actionQueue = mergeAction(actionQueue, {
     key, articleId, type, value, labelId, at: Date.now(), attempts: 0, scope, seq: g.seq,
@@ -1325,7 +1350,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     markAsRead(article.id).then(() => { settleAction(set, g, article.id, 'read').catch(() => {}); }).catch((err) => {
       // No network: keep it read and replay later. Only a refusal is reverted.
       if (isNetworkFailure(err)) {
-        enqueueAction(set, g, article.id, 'read', true);
+        enqueueAction(set, g, article, 'read', true);
         return;
       }
       localWrites.rollback(g.scope, article.id, 'read', false);
@@ -2006,7 +2031,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // de temps. C'est le symptôme exact de l'issue #10, par le seul chemin
         // qui ne purgeait pas.
         if (leaving) memRemoveFromViews(article.id, 'unread');
-        await enqueueAction(set, g, article.id, 'read', newRead);
+        await enqueueAction(set, g, article, 'read', newRead);
         // La ligne reste partie alors que RIEN n'a été écrit. Hors ligne, le
         // bandeau global suffit ; en ligne — un 5xx de FreshRSS, une requête
         // restée sans réponse — plus rien ne le signalait.
@@ -2102,7 +2127,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // No network: keep the optimistic state and replay it later. Only a
       // server refusal is rolled back.
       if (isNetworkFailure(err)) {
-        await enqueueAction(set, g, article.id, 'star', newStarred);
+        await enqueueAction(set, g, article, 'star', newStarred);
         return;
       }
       // Rollback on failure — un simple `.map()` suffit désormais : plus rien
@@ -2750,7 +2775,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // No network: keep the optimistic state and replay it later. Only a
       // server refusal is rolled back.
       if (isNetworkFailure(err)) {
-        await enqueueAction(set, g, article.id, 'readLater', !hasLabel);
+        await enqueueAction(set, g, article, 'readLater', !hasLabel);
         return;
       }
       // Rollback on failure
@@ -2806,7 +2831,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // No network: keep the optimistic state and replay it later. Only a
       // server refusal is rolled back.
       if (isNetworkFailure(err)) {
-        await enqueueAction(set, g, article.id, 'label', !hasLabel, labelId);
+        await enqueueAction(set, g, article, 'label', !hasLabel, labelId);
         return;
       }
       console.error('[FriRSS] toggleArticleLabel failed:', err);

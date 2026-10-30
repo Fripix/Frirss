@@ -350,6 +350,7 @@ export default function ArticleList() {
   // monté se limite. La limite ne redescend pas tant qu'on reste dans la vue.
   const [rowWindow, setRowWindow] = useState({ key: scrollKey, limit: listLimitMem.get(scrollKey) ?? ROW_SLICE });
   const rowLimit = rowWindow.key === scrollKey ? rowWindow.limit : listLimitMem.get(scrollKey) ?? ROW_SLICE;
+  const [listHeight, setListHeight] = useState(0);
   const raiseRowLimit = useCallback((limit: number) => {
     listLimitMem.set(scrollKeyRef.current, limit);
     setRowWindow({ key: scrollKeyRef.current, limit });
@@ -427,16 +428,20 @@ export default function ArticleList() {
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
+    // La hauteur nourrit aussi le remplissage de la tranche : une fenêtre
+    // agrandie retire la barre de défilement, donc tout `scroll`. La mesure ne
+    // décide toujours rien : c'est l'effet de remplissage qui décide.
+    const onResize = () => { measureOverflow(); setListHeight(el.clientHeight); };
     let ro: ResizeObserver | undefined;
     if (typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(measureOverflow);
+      ro = new ResizeObserver(onResize);
       ro.observe(el);
     } else {
-      window.addEventListener('resize', measureOverflow);
+      window.addEventListener('resize', onResize);
     }
     return () => {
       ro?.disconnect();
-      window.removeEventListener('resize', measureOverflow);
+      window.removeEventListener('resize', onResize);
       // Plus aucune liste à l'écran (onglet mobile, volet de lecture plein
       // écran) : la dernière mesure serait figée et un ✓ depuis le volet de
       // lecture demanderait une page par geste, sans que personne ne la voie.
@@ -483,7 +488,7 @@ export default function ArticleList() {
       scrollHeight: el.scrollHeight,
       clientHeight: el.clientHeight,
     })) raiseRowLimit(nextRowLimit(mounted));
-  }, [hiddenRows, mounted, loading, raiseRowLimit]);
+  }, [hiddenRows, mounted, loading, listHeight, raiseRowLimit]);
 
   // Restore the saved scroll position once, after the list has content
   // (covers remounts; on mobile the list stays mounted so position persists).

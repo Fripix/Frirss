@@ -118,6 +118,19 @@ describe('la tranche locale', () => {
   });
 
   // Sur mobile, la liste reste montée derrière le volet : sa hauteur vaut 0.
+  // Plus de barre de défilement, donc plus de `scroll`, et l'effet de
+  // remplissage ne repartait pas : la liste restait à 50 lignes.
+  it('une fenêtre agrandie monte la suite', async () => {
+    metrics.rowHeight = 40;
+    metrics.clientHeight = 1000;
+    show(rows(120));
+    const { container } = render(<ArticleList />);
+    expect(mounted(container)).toBe(50);
+    metrics.clientHeight = 2100;
+    await act(async () => { window.dispatchEvent(new Event('resize')); });
+    expect(mounted(container)).toBeGreaterThan(50);
+  });
+
   it('une liste cachée ne monte rien de plus', () => {
     show(rows(120));
     const { container } = render(<ArticleList />);
