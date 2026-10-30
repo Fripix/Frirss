@@ -157,7 +157,7 @@ export default function ServerRow({
             </form>
           ) : (
             <div className="flex items-center gap-2 flex-wrap">
-              <RowAction buttonRef={renameButtonRef} label={t('servers.rename')} onClick={() => { setRenameValue(server.name || ''); setRenaming(true); }} disabled={busy} />
+              <RowAction buttonRef={renameButtonRef} label={t('servers.rename')} onClick={() => { setRenameValue(server.name || ''); setEditingCredentials(false); setRenaming(true); }} disabled={busy} />
               {!isDefault && (
                 <RowAction label={t('servers.setDefault')} onClick={() => run(onSetDefault)} disabled={busy} />
               )}
@@ -165,7 +165,9 @@ export default function ServerRow({
                 <RowAction
                   buttonRef={credentialsButtonRef}
                   label={t('servers.changeCredentials')}
-                  onClick={() => setEditingCredentials(true)}
+                  // L'un ou l'autre : le renommage remplace la rangée de
+                  // boutons, et le focus n'aurait plus où revenir.
+                  onClick={() => { setRenaming(false); setEditingCredentials(true); }}
                   disabled={busy}
                 />
               )}

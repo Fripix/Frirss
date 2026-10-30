@@ -21,8 +21,7 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-async function submit(user: string | null, password: string) {
-  if (user !== null) fireEvent.change(screen.getByLabelText('login.freshrssUser'), { target: { value: user } });
+async function submit(password: string) {
   fireEvent.change(screen.getByLabelText('login.freshrssPassword'), { target: { value: password } });
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'servers.credentialsSave' })); });
 }
@@ -38,9 +37,9 @@ describe('ServerCredentialsForm', () => {
     const onSaved = vi.fn();
     render(<ServerCredentialsForm server={server} isActive={false} onSaved={onSaved} onClose={() => {}} />);
     expect((screen.getByLabelText('login.freshrssUser') as HTMLInputElement).value).toBe('alice');
-    await submit(null, 'secret');
+    await submit('secret');
     expect(login).toHaveBeenCalledWith('https://rss.example.com', 'alice', 'secret');
-    expect(updateServer).toHaveBeenCalledWith(4, { freshrssUser: 'alice', freshrssToken: 'tok-new' });
+    expect(updateServer).toHaveBeenCalledWith(4, { freshrssToken: 'tok-new' });
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('status').textContent).toBe('servers.credentialsSaved');
   });
@@ -49,18 +48,41 @@ describe('ServerCredentialsForm', () => {
     const replayQueue = vi.fn(async () => {});
     useFeedStore.setState({ replayRefusedByServer: true, replayQueue } as never);
     render(<ServerCredentialsForm server={server} isActive onSaved={() => {}} onClose={() => {}} />);
-    await submit(null, 'secret');
+    await submit('secret');
     expect(clearWriteToken).toHaveBeenCalled();
     expect(useFeedStore.getState().replayRefusedByServer).toBe(false);
-    expect(replayQueue).toHaveBeenCalledTimes(1);
+    expect(replayQueue).toHaveBeenCalled();
   });
 
   it('un refus de FreshRSS est dit, et rien n’est enregistré', async () => {
     vi.mocked(login).mockRejectedValue(Object.assign(new Error('401'), { response: { status: 401, data: 'Unauthorized!' } }));
     render(<ServerCredentialsForm server={server} isActive={false} onSaved={() => {}} onClose={() => {}} />);
-    await submit('bob', 'faux');
+    await submit('faux');
     expect(updateServer).not.toHaveBeenCalled();
     expect(screen.getByRole('alert').textContent).toBe('login.errorServerCredentials');
+  });
+
+  // Un autre utilisateur sur le même serveur garderait la même portée hors
+  // ligne : la file, les listes et le cache d'alice seraient servis à bob.
+  // Un autre utilisateur, c'est un autre serveur à ajouter.
+  it('ne laisse pas changer d’utilisateur FreshRSS', () => {
+    render(<ServerCredentialsForm server={server} isActive={false} onSaved={() => {}} onClose={() => {}} />);
+    expect((screen.getByLabelText('login.freshrssUser') as HTMLInputElement).readOnly).toBe(true);
+  });
+
+  // Un rejeu encore en vol sous l'ancien jeton reposait le bandeau de refus
+  // après l'enregistrement : il est attendu, puis la file repart.
+  it('attend le rejeu en vol avant de lever le refus et de relancer', async () => {
+    let finishOld: () => void = () => {};
+    const replayQueue = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>((r) => { finishOld = () => { useFeedStore.setState({ replayRefusedByServer: true } as never); r(); }; }))
+      .mockImplementation(async () => {});
+    useFeedStore.setState({ replayRefusedByServer: true, replayQueue } as never);
+    render(<ServerCredentialsForm server={server} isActive onSaved={() => {}} onClose={() => {}} />);
+    await submit('secret');
+    await act(async () => { finishOld(); await Promise.resolve(); await Promise.resolve(); });
+    expect(useFeedStore.getState().replayRefusedByServer).toBe(false);
+    expect(replayQueue).toHaveBeenCalledTimes(2);
   });
 
   it('Échap ferme le formulaire', () => {

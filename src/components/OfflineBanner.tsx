@@ -18,9 +18,9 @@ export default function OfflineBanner() {
   const failed = useFeedStore((s) => s.failedActions);
   // FreshRSS (pas FriRSS) a refusé le rejeu : la file attend, entière. Sans
   // ce mot, rien ne disait pourquoi elle ne partait pas. La phrase dit ce qui
-  // se passe et ce qu'il advient des actions, sans deviner la cause ni
-  // renvoyer à un écran : aucun ne permet de changer le mot de passe d'API
-  // d'un serveur existant.
+  // se passe, ce qu'il advient des actions, et où ressaisir le mot de passe
+  // API (« Changer le mot de passe API », dans la ligne du serveur), sans
+  // affirmer que c'est la cause.
   const refused = useFeedStore((s) => s.replayRefusedByServer);
   const wasOffline = useRef(!online);
 

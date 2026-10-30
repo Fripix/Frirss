@@ -66,4 +66,31 @@ describe('useFocusTrap', () => {
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
     expect(document.activeElement).toBe(c.getByText('a-2'));
   });
+
+  // Les Préférences gardent montées les sections visitées, cachées par
+  // `hidden` sur leur ENVELOPPE : leurs boutons comptaient comme « dernier »,
+  // et Tab sortait de la boîte depuis le dernier contrôle visible.
+  it('ignore les éléments d’une partie cachée', () => {
+    const c = render(
+      <Box label="a">
+        <div hidden><button>caché</button></div>
+      </Box>,
+    );
+    act(() => { c.getByText('a-2').focus(); });
+    tab();
+    expect(document.activeElement).toBe(c.getByText('a-1'));
+  });
+
+  // L'exemption des menus en portail visait les menus HORS de la boîte : la
+  // liste de la palette, elle, est dedans, et Tab quittait la palette.
+  it('retient aussi la tabulation dans une liste qui fait partie de la boîte', () => {
+    const c = render(
+      <Box label="a">
+        <ul role="listbox"><li><button>option</button></li></ul>
+      </Box>,
+    );
+    act(() => { c.getByText('option').focus(); });
+    tab();
+    expect(document.activeElement).toBe(c.getByText('a-1'));
+  });
 });

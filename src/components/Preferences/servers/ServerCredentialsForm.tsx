@@ -15,21 +15,25 @@ interface ServerCredentialsFormProps {
 }
 
 /**
- * Ressaisir l'utilisateur et le mot de passe d'API d'un serveur existant.
+ * Ressaisir le mot de passe d'API d'un serveur existant.
  *
  * Un mot de passe d'API changé côté FreshRSS ne se corrigeait qu'en supprimant
  * le serveur puis en le rajoutant : nouvel identifiant, donc nouvelle portée
  * hors ligne, et les actions en attente ne repartaient plus. Ici le serveur
  * garde son identifiant : FreshRSS éprouve d'abord les identifiants
- * (ClientLogin), puis le jeton obtenu remplace l'ancien (`PUT`, qui exige ce
- * jeton quand l'utilisateur change).
+ * (ClientLogin), puis le jeton obtenu remplace l'ancien.
+ *
+ * L'utilisateur ne change pas : un autre utilisateur sur le même serveur
+ * garderait la même portée hors ligne, et la file, les listes et le cache du
+ * premier seraient servis au second. Un autre utilisateur, c'est un autre
+ * serveur à ajouter.
  */
 export default function ServerCredentialsForm({ server, isActive, onSaved, onClose }: ServerCredentialsFormProps) {
   const { t } = useTranslation();
   const userId = useId();
   const passwordId = useId();
   const hintId = useId();
-  const [user, setUser] = useState(server.freshrss_user || '');
+  const user = server.freshrss_user || '';
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -37,22 +41,27 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const freshrssUser = user.trim();
-    if (!freshrssUser || !password) return;
+    if (!user || !password) return;
     setBusy(true);
     setError('');
     setSaved(false);
     try {
-      const freshrssToken = await freshrssLogin(server.url, freshrssUser, password);
-      await updateServer(Number(server.id), { freshrssUser, freshrssToken });
+      const freshrssToken = await freshrssLogin(server.url, user, password);
+      await updateServer(Number(server.id), { freshrssToken });
       setPassword('');
       setSaved(true);
       if (isActive) {
         // Le jeton d'écriture venait de l'ancienne session FreshRSS ; et les
-        // actions gardées après un refus repartent sans attendre un rechargement.
+        // actions gardées après un refus repartent sans attendre un
+        // rechargement. Un rejeu encore en vol sous l'ancien jeton reposerait
+        // le refus : il est attendu d'abord (`replayQueue` rend celui en vol).
         clearWriteToken();
-        useFeedStore.setState({ replayRefusedByServer: false });
-        void useFeedStore.getState().replayQueue();
+        const { replayQueue } = useFeedStore.getState();
+        void (async () => {
+          await replayQueue().catch(() => {});
+          useFeedStore.setState({ replayRefusedByServer: false });
+          await useFeedStore.getState().replayQueue().catch(() => {});
+        })();
       }
       onSaved();
     } catch (err) {
@@ -78,10 +87,9 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
           id={userId}
           type="text"
           value={user}
-          onChange={(e) => setUser(e.target.value)}
+          readOnly
           autoComplete="username"
-          required
-          className="w-full text-sm px-2.5 py-1.5 rounded-lg outline-none focus:ring-2"
+          className="w-full text-sm px-2.5 py-1.5 rounded-lg outline-none opacity-70"
           style={inputStyle}
         />
       </div>

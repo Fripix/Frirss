@@ -262,15 +262,19 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
 
 - **Changer le mot de passe API d'un serveur existant** (1.8.0,
   `ServerCredentialsForm`, `servers.changeCredentials`) : dans la ligne dépliée
-  du serveur, à côté de Renommer. Utilisateur prérempli, mot de passe API,
-  l'aide habituelle ; FreshRSS éprouve d'abord les identifiants (ClientLogin,
-  erreurs de `serverConnectErrorKey`), puis `PUT /api/servers/:id` reçoit
-  `freshrssUser` + `freshrssToken` (le jeton exigé quand l'utilisateur change ;
-  un utilisateur changé oublie le jeton maître, règle du serveur). Le serveur
+  du serveur, à côté de Renommer (l'un ou l'autre ouvert, pour que le focus
+  ait toujours son bouton où revenir). Utilisateur affiché **en lecture
+  seule**, mot de passe API, l'aide habituelle ; FreshRSS éprouve d'abord les
+  identifiants (ClientLogin, erreurs de `serverConnectErrorKey`), puis
+  `PUT /api/servers/:id` reçoit le seul `freshrssToken`. ⚠️ L'utilisateur ne
+  change pas : un autre utilisateur sur le même serveur garderait la même
+  portée, et la file, les listes, le cache Redis du premier seraient servis au
+  second — un autre utilisateur est un autre serveur à ajouter. Le serveur
   **garde son identifiant**, donc sa portée hors ligne : jusque-là, le seul
   moyen était de le supprimer puis de le rajouter, et les actions en attente
-  ne repartaient plus. Serveur actif : le jeton d'écriture est oublié,
-  `replayRefusedByServer` tombe et la file repart aussitôt. Région de statut
+  ne repartaient plus. Serveur actif : le jeton d'écriture est oublié, un
+  rejeu encore en vol sous l'ancien jeton est attendu (il reposerait le
+  refus), puis `replayRefusedByServer` tombe et la file repart. Région de statut
   montée en permanence ; Échap ferme ; le focus revient au bouton. Le bandeau
   de refus (`connection.refusedByServer`) y renvoie avec les vrais libellés
   de chaque langue (`OfflineBanner.test.tsx` le vérifie).
@@ -5284,8 +5288,12 @@ dans quelques composants partagés.
     d'ajout (flux, serveur) : Tab et Maj+Tab bouclent dans la boîte, un focus
     resté dehors y revient. Seule la dernière boîte ouverte retient la touche
     (une confirmation par-dessus les Préférences garde la main) ; un menu
-    ouvert par portail depuis la boîte (`role="menu"` ou `listbox`) garde son
-    propre clavier. `aria-modal` seul ne retenait rien : Tab sortait vers la
+    ouvert par portail depuis la boîte, donc HORS d'elle (`role="menu"` ou
+    `listbox`), garde son propre clavier — pas la liste de la palette, qui en
+    fait partie. Ne comptent que les éléments atteignables : sous un ancêtre
+    `[hidden]`, `[inert]` ou `aria-hidden` (les sections visitées des
+    Préférences restent montées, cachées par leur enveloppe), ou invisibles
+    selon `checkVisibility()`, ils ne sont pas le « dernier ». `aria-modal` seul ne retenait rien : Tab sortait vers la
     page derrière ;
   - **Échap** : le tiroir mobile ignore une touche déjà traitée ou une boîte
     modale ouverte au-dessus (les Préférences s'y ouvrent sans le fermer, et

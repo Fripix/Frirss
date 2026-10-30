@@ -9,9 +9,17 @@ const FOCUSABLE = [
   '[contenteditable="true"]',
 ].join(',');
 
+/**
+ * Ce que Tab peut réellement atteindre. Un ANCÊTRE caché compte : les
+ * Préférences gardent montées les sections visitées, `hidden` sur leur
+ * enveloppe, et leurs boutons passaient pour le dernier élément. Le CSS
+ * (`display: none` d'une classe) se lit par `checkVisibility()` là où le
+ * navigateur la connaît.
+ */
 function focusables(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-    (el) => !el.closest('[inert]') && !el.hasAttribute('hidden') && el.getAttribute('aria-hidden') !== 'true',
+    (el) => !el.closest('[inert], [hidden], [aria-hidden="true"]')
+      && (typeof el.checkVisibility !== 'function' || el.checkVisibility()),
   );
 }
 
@@ -40,10 +48,11 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
       const first = items[0];
       const last = items[items.length - 1];
       const current = document.activeElement as HTMLElement | null;
-      // Un menu ouvert par portail depuis la boîte (un ⋯ des Préférences) vit
-      // sous <body>, hors d'elle : il garde son propre clavier.
-      if (current?.closest('[role="menu"], [role="listbox"]')) return;
       const inside = !!current && root.contains(current);
+      // Un menu ouvert par portail depuis la boîte (un ⋯ des Préférences) vit
+      // sous <body>, hors d'elle : il garde son propre clavier. Pas une liste
+      // qui fait partie de la boîte (celle de la palette).
+      if (!inside && current?.closest('[role="menu"], [role="listbox"]')) return;
       if (!inside) {
         e.preventDefault();
         (e.shiftKey ? last : first).focus();
