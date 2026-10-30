@@ -148,3 +148,32 @@ describe('matchesTerms', () => {
     expect(matchesTerms(articleHaystack(article()), [])).toBe(false);
   });
 });
+
+/*
+ * Le titre est du TEXTE : `normalizeArticle` y rend les `＜ ＞` de FreshRSS en
+ * ASCII (`fromFreshrssTitle`). Passé dans `stripHtml`, « Vec<String> » perdait
+ * « String », pris pour une balise — la recherche sur un titre technique
+ * (génériques, comparaisons) ne trouvait plus l'article.
+ */
+describe('articleHaystack — titre', () => {
+  it('garde les mots placés entre < et > d’un titre', () => {
+    const hay = articleHaystack(article({ title: 'Vec<String> en Rust' }));
+    expect(matchesTerms(hay, parseQuery('string'))).toBe(true);
+    expect(matchesTerms(hay, parseQuery('rust vec string'))).toBe(true);
+  });
+
+  it('garde le texte d’une comparaison', () => {
+    const hay = articleHaystack(article({ title: 'Pourquoi a < b et c > d' }));
+    expect(hay).toContain(' et c ');
+  });
+
+  it('décode toujours les entités du titre', () => {
+    const hay = articleHaystack(article({ title: 'l&rsquo;&eacute;t&eacute; &amp; co' }));
+    expect(matchesTerms(hay, parseQuery('été &'))).toBe(true);
+  });
+
+  it('un titre vide n’indexe aucun libellé', () => {
+    const hay = articleHaystack(article({ title: '', content: '<p>corps</p>' }));
+    expect(hay).toBe(' corps');
+  });
+});

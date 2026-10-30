@@ -32,6 +32,7 @@ import SearchBar from './SearchBar';
 import ConfirmDialog from '../ConfirmDialog';
 import Highlighted from './Highlighted';
 import { resultSummary } from '../../lib/searchHighlight';
+import { articleTitle } from '../../lib/articleTitle';
 import { parseQuery } from '../../lib/searchMatch';
 import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 import { RowPressContext, createRowPressRegistry } from '../../hooks/rowPress';
@@ -1675,7 +1676,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
 
     // Custom lightweight drag image
     const ghost = document.createElement('div');
-    ghost.textContent = article.title;
+    ghost.textContent = articleTitle(article, t);
     Object.assign(ghost.style, {
       position: 'fixed', left: '-9999px', top: '0',
       maxWidth: '220px', padding: '6px 12px',
@@ -1729,7 +1730,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
         >
           <TitleLink url={article.url} onOpenedInBackground={onOpenedInBackground}>
-            <Highlighted text={article.title} terms={searchTerms} />
+            <Highlighted text={articleTitle(article, t)} terms={searchTerms} />
           </TitleLink>
         </span>
         <span className="text-[10px] flex-shrink-0" data-theme="list-time" style={{ color: 'var(--list-time)' }}>
@@ -1813,7 +1814,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
           style={{ color: article.read ? 'var(--list-title-read)' : 'var(--list-title)', fontSize: 'var(--fs-list-title)' }}
         >
           <TitleLink url={article.url} onOpenedInBackground={onOpenedInBackground}>
-            <Highlighted text={article.title} terms={searchTerms} />
+            <Highlighted text={articleTitle(article, t)} terms={searchTerms} />
           </TitleLink>
         </h3>
 

@@ -60,8 +60,12 @@ import { writeFailureNotice } from '../lib/writeFailureNotice';
 import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPagination';
 import { createWarmRunner } from '../lib/warmSchedule';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
-import i18next from 'i18next';
 import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
+import { createLocalWrites, type WriteField } from '../lib/localWrites';
+import {
+  viewListKey, parseViewKey, fallbackSources, deriveFromSource, mergePreparedList, markStreamRead,
+  type ViewAddress, type ViewList,
+} from '../lib/viewLists';
 import type {
   Article,
   Subscription,
@@ -270,8 +274,9 @@ function viewOrder(feed: Subscription | null): ArticleOrder {
 // and the server (`offlineScope`): `feed/12` names another feed elsewhere,
 // and a response from the server just left must not land in this one's view,
 // memory cache or offline store (relecture 1.8.0).
-const viewKey = (feed: Subscription | null, filter: Filter) =>
-  `${offlineScope()}|${feed?.id || ''}:${filter}${viewOrder(feed) === 'oldest' ? ':oldest' : ''}`;
+const viewAddress = (feed: Subscription | null, filter: Filter): ViewAddress =>
+  ({ scope: offlineScope(), feedId: feed?.id || '', filter, order: viewOrder(feed) });
+const viewKey = (feed: Subscription | null, filter: Filter) => viewListKey(viewAddress(feed, filter));
 
 /**
  * Compte et serveur actifs. Tout ce qui est gardé pour le hors ligne (listes,
@@ -362,19 +367,91 @@ function memMarkRead(articleId: string, read: boolean): void {
 // donné. Sans cela, un retrait ne dure que le temps de la vue : `loadArticles`
 // repeint depuis ce cache et pose `loading: !cached`, donc y revenir
 // réaffichait la ligne retirée, sans spinner et sans limite de temps hors
-// ligne. Le filtre est lu dans la clé (`<feedId>:<filter>`).
+// ligne. Le filtre est lu dans la clé, ordre inverse compris (`parseViewKey`) :
+// un simple suffixe `:unread` manquait les vues en « plus anciens d'abord ».
 //
 // Générique parce que DEUX écrivains retirent une ligne : le ✓ sous « Non
 // lus » (`toggleRead`) et le retrait de l'étiquette depuis « À lire plus
 // tard » (`toggleReadLater`). Le second avait été oublié — même défaut, même
 // symptôme.
 function memRemoveFromViews(articleId: string, filter: Filter): void {
-  const suffix = `:${filter}`;
   for (const [key, view] of memCache) {
-    if (!key.endsWith(suffix)) continue;
+    if (parseViewKey(key)?.filter !== filter) continue;
     const articles = view.articles.filter((a) => a.id !== articleId);
     if (articles.length !== view.articles.length) memCache.set(key, { ...view, articles });
   }
+}
+// Ce qu'un « Tout lu » réussi change aux AUTRES vues du même flux, et à l'accueil.
+// FreshRSS a tout marqué dans le flux : pas besoin de la liste des identifiants,
+// le flux des articles suffit, et le relevé peut d'ailleurs avoir échoué.
+//
+// `marked` est le flux marqué (vide pour l'accueil), `sourceIds` les flux qu'il
+// couvre. `whole` ne vaut que pour « Tous » et « Non lus » : Favoris et À lire
+// plus tard traversent les flux, et leurs lignes d'un flux gardé hors de
+// l'accueil n'ont pas été marquées.
+//
+// En mémoire, toutes les vues de la portée. Hors ligne, celles du flux marqué et
+// de l'accueil : lire une liste de préparation par flux pour un « Tout lu » de
+// l'accueil chargerait des centaines de listes, pour un état qu'une relecture en
+// ligne remet d'aplomb.
+function markStreamReadInViews(marked: string, sourceIds: ReadonlySet<string>, skipKey: string | null): void {
+  const scope = offlineScope();
+  const patch = (v: ViewAddress) => ({
+    whole: v.feedId === marked && (v.filter === 'all' || v.filter === 'unread'),
+    sourceIds,
+    drop: v.filter === 'unread',
+  });
+  for (const [key, view] of memCache) {
+    const v = parseViewKey(key);
+    if (!v || v.scope !== scope) continue;
+    const articles = markStreamRead(view.articles, patch(v));
+    if (articles !== view.articles) memCache.set(key, { ...view, articles });
+  }
+  void (async () => {
+    for (const feedId of new Set([marked, ''])) {
+      for (const filter of ['all', 'unread', 'starred', 'readlater'] as const) {
+        for (const order of ['newest', 'oldest'] as const) {
+          const v: ViewAddress = { scope, feedId, filter, order };
+          const key = viewListKey(v);
+          if (key === skipKey) continue;
+          const stored = await listGet(key);
+          // Rien sous une portée quittée : ses vues viennent peut-être d'être effacées.
+          if (offlineScope() !== scope) return;
+          if (!stored) continue;
+          const articles = markStreamRead(stored.articles, patch(v));
+          if (articles !== stored.articles) await listPut(key, articles, stored.continuation);
+        }
+      }
+    }
+  })().catch(() => {});
+}
+/** Les flux qu'un « Tout lu » couvre, vu de la vue marquée. */
+function markedSources(feed: Subscription | null, subscriptions: readonly Subscription[]): Set<string> {
+  if (!feed) return new Set(mainStreamFeedIds(subscriptions));
+  if (!isCategoryStreamId(feed.id)) return new Set([feed.id]);
+  return new Set(subscriptions.filter((s) => s.categories?.some((c) => c.id === feed.id)).map((s) => s.id));
+}
+/**
+ * La liste à servir hors ligne quand celle de la vue manque (`fallbackSources`).
+ * La plus fournie : une liste de préparation vaut mieux que la page lue un jour
+ * dans l'autre ordre, et inversement pour un flux visité mais jamais préparé.
+ * Chaque source est lue en mémoire et sur disque : la mémoire est le seul
+ * recours quand le stockage est bloqué (navigation privée, quota).
+ *
+ * Une liste dont toutes les lignes sont filtrées reste une réponse : « Non lus »
+ * affiche alors « tout est lu », et non un échec de chargement.
+ */
+async function offlineFallback(view: ViewAddress): Promise<ViewList | null> {
+  let best: ViewList | null = null;
+  for (const source of fallbackSources(view)) {
+    const key = viewListKey(source);
+    for (const list of [memGet(key), await listGet(key).catch(() => undefined)]) {
+      if (!list) continue;
+      const derived = deriveFromSource(list, source, view);
+      if (!best || derived.articles.length > best.articles.length) best = derived;
+    }
+  }
+  return best;
 }
 // Re-persist the current view's list to the offline store after ANY optimistic
 // change, so an offline return to it reflects the latest state. Longtemps
@@ -397,6 +474,29 @@ function persistCurrentView(get: () => FeedState): void {
   // jamais eu de recherche.
   if (s.searchQuery) return;
   listPut(viewKey(s.selectedFeed, s.filter), s.articles, s.continuation).catch(() => {});
+}
+
+// Les écritures locales récentes : une réponse partie avant l'une d'elles est
+// recalée à son arrivée (`src/lib/localWrites.ts`). Le rang de départ se prend
+// AVANT l'appel réseau, comme `beginCountsReading` pour les compteurs.
+const localWrites = createLocalWrites();
+const noteWrite = (id: string, field: WriteField, value: boolean) =>
+  localWrites.record(offlineScope(), id, field, value);
+const labelField = (labelId: string): WriteField => `label:${labelId}`;
+/**
+ * Les lignes d'une réponse, recalées. Une ligne qu'un geste a sortie de la vue
+ * (✓ sous Non lus, retrait d'« À lire plus tard ») n'y revient pas ; celle qui y
+ * est encore y reste, comme l'article ouvert sous Non lus, qui ne disparaît pas
+ * sous les yeux de qui le lit.
+ */
+function reconcile(articles: Article[], filter: Filter, since: number): Article[] {
+  return localWrites.overlay(offlineScope(), articles, since, (row) => {
+    const left = (filter === 'unread' && row.read)
+      || (filter === 'readlater' && !row.labels?.includes(READ_LATER_LABEL));
+    if (!left) return true;
+    const s = useFeedStore.getState();
+    return s.selectedArticle?.id === row.id || s.articles.some((a) => a.id === row.id);
+  });
 }
 
 // Feeds we just confirmed as fully read (0 unread), kept for a short grace
@@ -877,6 +977,12 @@ const gesture = (): Gesture => ({ scope: offlineScope(), seq: ++gestureSeq });
 /** Clé d'action → numéro du dernier geste confirmé en direct par le serveur. */
 const settledGestures = new Map<string, number>();
 
+function writeFieldOf(type: QueuedActionType, labelId?: string): WriteField {
+  if (type === 'read') return 'read';
+  if (type === 'star') return 'starred';
+  return labelField(type === 'readLater' ? READ_LATER_LABEL : labelId ?? '');
+}
+
 /**
  * Le serveur vient de confirmer un geste en direct : toute action en attente
  * sur le même article et le même attribut est périmée. Laissée en file, elle
@@ -892,6 +998,9 @@ async function settleAction(
 ): Promise<void> {
   const key = `${g.scope}|${actionKey(articleId, type, labelId)}`;
   if ((settledGestures.get(key) ?? 0) < g.seq) settledGestures.set(key, g.seq);
+  // Une lecture partie pendant le vol de ce geste a pu passer au serveur avant
+  // lui : elle compte comme partie avant.
+  localWrites.touch(g.scope, articleId, writeFieldOf(type, labelId));
   await loadQueue();
   // Seulement une action PLUS ANCIENNE que ce geste : le geste suivant, mis
   // en file pendant que celui-ci traînait (un 502 rapide), est la dernière
@@ -1101,6 +1210,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       return;
     }
     // Optimistic update — mark read instantly in the UI, sync in the background.
+    noteWrite(article.id, 'read', true);
     set((state) => ({
       selectedArticle: { ...article, read: true },
       articles: state.articles.map((a) =>
@@ -1125,6 +1235,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         enqueueAction(set, g, article.id, 'read', true);
         return;
       }
+      noteWrite(article.id, 'read', false);
       set((state) => ({
         articles: state.articles.map((a) =>
           a.id === article.id ? { ...a, read: false } : a
@@ -1295,10 +1406,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (memGet(key) || prefetchInFlight.has(key)) return;
     prefetchInFlight.add(key);
     const serverId = useAuthStore.getState().activeServerId;
+    const since = localWrites.mark();
     try {
       const result = await fetchArticleStream(filter, feed, PAGE_SIZE, null);
       if (result && useAuthStore.getState().activeServerId === serverId && !memGet(key)) {
-        memSet(key, { articles: result.items.map(normalizeArticle), continuation: result.continuation });
+        memSet(key, { articles: reconcile(result.items.map(normalizeArticle), filter, since), continuation: result.continuation });
       }
     } catch { /* best-effort */ } finally {
       prefetchInFlight.delete(key);
@@ -1337,6 +1449,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const starredKey = viewKey(null, 'starred');
     const readLaterKey = viewKey(null, 'readlater');
     const sameScope = () => offlineScope() === scope;
+    const since = localWrites.mark();
     try {
       const [starred, readLater] = await Promise.all([
         getStarredItems(100).catch(() => null),
@@ -1345,12 +1458,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!sameScope()) return;
       const pinned: Article[] = [];
       if (starred?.items?.length) {
-        const arts = starred.items.map(normalizeArticle);
+        const arts = reconcile(starred.items.map(normalizeArticle), 'starred', since);
         await listPut(starredKey, arts, starred.continuation);
         pinned.push(...arts);
       }
       if (readLater?.items?.length) {
-        const arts = readLater.items.map(normalizeArticle);
+        const arts = reconcile(readLater.items.map(normalizeArticle), 'readlater', since);
         await listPut(readLaterKey, arts, readLater.continuation);
         pinned.push(...arts);
       }
@@ -1417,6 +1530,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           let cont: string | null = null;
           let pages = 0;
           const feedArts: Article[] = [];
+          const since = localWrites.mark();
           do {
             const res = await getStreamContents(feed.id, PAGE_SIZE, cont, null, {});
             if (!res) { interrupted = true; break; }
@@ -1428,9 +1542,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           } while (cont && pages < 8);
           // Pas de liste rangée sous une autre portée que celle qui l'a lue.
           if (scopeLeft()) { interrupted = true; break; }
-          const recent = feedArts.filter((a) => a.published >= cutoff);
+          const recent = localWrites.overlay(scope, feedArts, since).filter((a) => a.published >= cutoff);
           if (recent.length) {
-            await listPut(viewKey(feed, 'all'), recent.slice(0, PAGE_SIZE), null);
+            // Toute la liste collectée, sinon le reste, extrait et téléchargé,
+            // est injoignable hors ligne. Sous l'ordre par défaut, seul lu ici
+            // (`getStreamContents` sans `order`) : la vue en ordre inverse s'en
+            // sert retournée (`offlineFallback`). La taille ne demande pas de
+            // borne de plus : les 8 pages la limitent à 400 articles, dont les
+            // extraits, plus lourds, sont gardés de toute façon.
+            const key = viewListKey({ scope, feedId: feed.id, filter: 'all', order: 'newest' });
+            const stored = await listGet(key).catch(() => undefined);
+            if (scopeLeft()) { interrupted = true; break; }
+            const list = mergePreparedList(recent, stored);
+            await listPut(key, list.articles, list.continuation);
             collected.push(...recent);
           }
         } catch { interrupted = true; /* skip this feed */ }
@@ -1543,6 +1667,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     bumpCountsEpoch(); // une vue qui repart de zéro n'est pas une arrivée
     const { selectedFeed, filter } = get();
     const key = viewKey(selectedFeed, filter);
+    const since = localWrites.mark();
     // `viewKey` ne voit que le flux et le filtre : une recherche démarrée
     // pendant l'aller-retour ci-dessous (ex. le bouton « chercher dans tous
     // les flux » de l'état vide, qui enchaîne `selectView` puis `search`
@@ -1565,7 +1690,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null, true)
         .then((c) => {
           if (!c || !sameView() || !get().loading) return;
-          const articles = c.items.map(normalizeArticle);
+          const articles = reconcile(c.items.map(normalizeArticle), filter, since);
           memSet(key, { articles, continuation: c.continuation });
           set({ articles, continuation: c.continuation, loading: false });
         })
@@ -1584,7 +1709,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return;
       }
       if (!result) { set({ loading: false, revalidating: false }); return; }
-      const articles = result.items.map(normalizeArticle);
+      const articles = reconcile(result.items.map(normalizeArticle), filter, since);
       memSet(key, { articles, continuation: result.continuation });
       listPut(key, articles, result.continuation).catch(() => {}); // persist for offline
       warmExtracts(articles, viewIdentity(get())); // background: extract the whole page for offline
@@ -1609,11 +1734,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       });
     } catch (err) {
       if (!sameView()) return;
-      // Offline fallback: serve the persisted list so reading still works.
-      const persisted = await listGet(key);
-      if (persisted && sameView()) {
-        memSet(key, { articles: persisted.articles, continuation: persisted.continuation });
-        set({ articles: persisted.articles, continuation: persisted.continuation, loading: false, revalidating: false });
+      // Offline fallback: serve the persisted list so reading still works. Sa
+      // propre liste d'abord, puis celle que la vue peut déduire d'une autre :
+      // la préparation ne range que « Tous » dans l'ordre par défaut.
+      const served = await listGet(key).catch(() => undefined)
+        ?? memGet(key)
+        ?? await offlineFallback(viewAddress(selectedFeed, filter));
+      if (!sameView()) return;
+      if (served) {
+        memSet(key, { articles: served.articles, continuation: served.continuation });
+        set({ articles: served.articles, continuation: served.continuation, loading: false, revalidating: false });
         return;
       }
       console.error('[FriRSS] loadArticles error:', err);
@@ -1646,6 +1776,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // survivait au rechargement. `viewIdentity` couvre le flux, le filtre et
     // la recherche — les trois choses qui changent la liste à l'écran.
     const view = viewIdentity(get());
+    const since = localWrites.mark();
     set({ loadingMore: true });
 
     try {
@@ -1656,8 +1787,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (viewIdentity(get()) !== view) { set({ loadingMore: false }); return; }
       if (!result) { set({ loadingMore: false }); return; }
 
+      const page = reconcile(result.items.map(normalizeArticle), filter, since);
       set((state) => {
-        const articles = [...state.articles, ...result.items.map(normalizeArticle)];
+        const articles = [...state.articles, ...page];
         const key = viewKey(selectedFeed, filter);
         memSet(key, { articles, continuation: result.continuation });
         listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
@@ -1715,6 +1847,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const removedPreviousId = removedIndex > 0 ? get().articles[removedIndex - 1].id : null;
     const removedView = viewIdentity(get());
     // Optimistic update — instant UI feedback
+    noteWrite(article.id, 'read', newRead);
     set((state) => {
       const updated = state.articles.map((a) =>
         a.id === article.id ? { ...a, read: newRead } : a
@@ -1805,6 +1938,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             previousId: removedPreviousId,
           })
         : null;
+      noteWrite(article.id, 'read', !newRead);
       set((state) => {
         const articles = plan?.insert
           ? [...state.articles.slice(0, plan.index), removedRow!, ...state.articles.slice(plan.index)]
@@ -1854,6 +1988,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // l'écran alors qu'il restait en favori côté FreshRSS — avec un compteur
     // correctement restauré annonçant « 1 favori » au-dessus d'une liste vide.
     // Optimistic update — instant UI feedback
+    noteWrite(article.id, 'starred', newStarred);
     set((state) => ({
       articles: state.articles.map((a) =>
         a.id === article.id ? { ...a, starred: newStarred } : a
@@ -1884,6 +2019,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       }
       // Rollback on failure — un simple `.map()` suffit désormais : plus rien
       // n'est retiré de la liste, il n'y a donc jamais de ligne à réinsérer.
+      noteWrite(article.id, 'starred', !newStarred);
       set((state) => ({
         articles: state.articles.map((a) =>
           a.id === article.id ? { ...a, starred: !newStarred } : a
@@ -2096,6 +2232,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // la relira du serveur plutôt que de repeindre des lignes non lues.
         memCache.delete(viewKey(selectedFeed, filter));
       }
+      // Les autres vues du flux, et celles de l'accueil : sans cela, basculer
+      // de Non lus à Tous repeignait les lignes non lues jusqu'à la réponse.
+      markStreamReadInViews(selectedFeed?.id ?? '', markedSources(selectedFeed, subscriptions), emptied ? viewKey(selectedFeed, filter) : null);
+      // Une lecture encore en vol rapporte ces lignes comme non lues.
+      if (vueActive) for (const a of get().articles) noteWrite(a.id, 'read', true);
       // Update local state
       set((state) => {
         const newCounts = { ...state.unreadCounts };
@@ -2285,6 +2426,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       );
 
       if (touchedIds.size) {
+        for (const id of touchedIds) noteWrite(id, 'read', true);
         set((s) => ({ articles: s.articles.map((a) => (touchedIds.has(a.id) ? { ...a, read: true } : a)) }));
         bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
       }
@@ -2326,6 +2468,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // réseau — ressortirait des articles lus que FreshRSS a en non-lus.
         // La garde de vue (I1, ci-dessus), elle, ne s'applique qu'aux LIGNES :
         // l'écran n'appartient plus à cette action si la vue a changé.
+        for (const id of unconfirmed) noteWrite(id, 'read', false);
         if (unconfirmed.size && viewIdentity(get()) === vueALancement) {
           set((s) => ({
             articles: s.articles.map((a) => (unconfirmed.has(a.id) && a.read ? { ...a, read: false } : a)),
@@ -2467,6 +2610,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // l'étiquette toujours en place côté FreshRSS. C'est le défaut corrigé sur
     // `toggleStar` en 1.4.4, réglé ici de la même façon que sur `toggleRead`.
     // Optimistic update — instant UI feedback
+    noteWrite(article.id, labelField(READ_LATER_LABEL), !removing);
     set((state) => {
       const update = (a: Article): Article => {
         if (a.id !== article.id) return a;
@@ -2511,6 +2655,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return;
       }
       // Rollback on failure
+      noteWrite(article.id, labelField(READ_LATER_LABEL), !!removing);
       set((state) => {
         const update = (a: Article): Article => {
           if (a.id !== article.id) return a;
@@ -2542,6 +2687,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         : [...(a.labels || []), labelId];
       return { ...a, labels };
     };
+    noteWrite(article.id, labelField(labelId), !hasLabel);
     set((state) => ({
       articles: state.articles.map(updateLabels),
       selectedArticle: state.selectedArticle
@@ -2573,6 +2719,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           : (a.labels || []).filter((l) => l !== labelId);
         return { ...a, labels };
       };
+      noteWrite(article.id, labelField(labelId), !!hasLabel);
       set((state) => ({
         articles: state.articles.map(rollbackLabels),
         selectedArticle: state.selectedArticle
@@ -2865,11 +3012,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // arrive après un changement de vue écrirait `articles` et remettrait
     // `newInView` à zéro pour une vue qui n'est plus à l'écran.
     const key = viewKey(selectedFeed, filter);
+    const since = localWrites.mark();
     try {
       const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
       if (!result) return;
       if (viewKey(get().selectedFeed, get().filter) !== key || get().searchQuery) return;
-      const newArticles = result.items.map(normalizeArticle);
+      const newArticles = reconcile(result.items.map(normalizeArticle), filter, since);
       // Merge: keep selectedArticle in sync if it still exists
       set((state) => {
         const selectedId = state.selectedArticle?.id;
@@ -3573,14 +3721,15 @@ useAuthStore.subscribe((state, prev) => {
 
 /**
  * Un article greader vers l'article de l'app. Titres et nom du flux : rendus
- * en ASCII (`fromFreshrssTitle`). Le libellé d'un article sans titre vient de
- * l'instance i18next que `src/i18n.ts` initialise ; « Sans titre » en dur était
- * servi aux dix langues. Repli français tant qu'elle n'est pas prête (tests).
+ * en ASCII (`fromFreshrssTitle`). Un article sans titre garde `title: ''` : le
+ * libellé traduit se pose au rendu (`src/lib/articleTitle.ts`). Calculé ici, il
+ * restait figé dans le cache mémoire et la liste hors ligne après un changement
+ * de langue, et la recherche l'indexait.
  */
 export function normalizeArticle(item: GReaderItem): Article {
   return {
     id: item.id,
-    title: fromFreshrssTitle(item.title) || (i18next.isInitialized ? i18next.t('articleList.untitled') : 'Sans titre'),
+    title: fromFreshrssTitle(item.title),
     summary:
       item.summary?.content?.replace(/<[^<>]*>/g, '').slice(0, 200) || '',
     content: item.content?.content || item.summary?.content || '',

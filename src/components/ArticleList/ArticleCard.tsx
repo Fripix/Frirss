@@ -2,6 +2,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Article } from '../../types';
+import { articleTitle } from '../../lib/articleTitle';
 import { READ_LATER_LABEL } from '../../stores/feedStore';
 import { extractImageFromContent, sourceInitial } from '../../lib/articleThumbnail';
 import { timeAgo } from '../../lib/timeAgo';
@@ -49,7 +50,7 @@ export default function ArticleCard({
     <div
       role="button"
       tabIndex={0}
-      aria-label={article.title}
+      aria-label={articleTitle(article, t)}
       data-article-id={article.id}
       {...gestures}
       onClick={onSelect}
@@ -84,7 +85,7 @@ export default function ArticleCard({
         </div>
         <h3 className="article-card__title article-title" dir="auto">
           <TitleLink url={article.url} onOpenedInBackground={onOpenedInBackground}>
-            <Highlighted text={article.title} terms={searchTerms} />
+            <Highlighted text={articleTitle(article, t)} terms={searchTerms} />
           </TitleLink>
         </h3>
         <p className="article-card__summary" dir="auto">

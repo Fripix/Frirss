@@ -4,7 +4,7 @@ import { normalizeArticle } from './feedStore';
 
 /*
  * Les titres d'articles arrivent de FreshRSS avec `& < >` en pleine chasse ;
- * et un article sans titre recevait « Sans titre » en dur, dans les dix langues.
+ * un article sans titre garde un titre vide (libellé posé au rendu).
  */
 describe('normalizeArticle', () => {
   it('rend & aux titres et aux noms de flux', () => {
@@ -13,14 +13,11 @@ describe('normalizeArticle', () => {
     expect(a.source).toBe('r/selfhosted');
   });
 
-  it('un article sans titre reçoit le libellé traduit', () => {
-    const a = normalizeArticle({ id: 'x', title: '' } as never);
-    expect(a.title).not.toBe('');
-    expect(a.title).toBe(untitled());
+  // Le libellé « Sans titre » se pose au rendu (`articleTitle`), pas ici :
+  // calculé à la normalisation, il restait figé dans le cache mémoire et la
+  // liste hors ligne après un changement de langue, et la recherche l'indexait.
+  it('un article sans titre garde un titre vide', () => {
+    expect(normalizeArticle({ id: 'x', title: '' } as never).title).toBe('');
+    expect(normalizeArticle({ id: 'x' } as never).title).toBe('');
   });
 });
-
-import i18next from 'i18next';
-function untitled(): string {
-  return i18next.isInitialized ? i18next.t('articleList.untitled') : 'Sans titre';
-}

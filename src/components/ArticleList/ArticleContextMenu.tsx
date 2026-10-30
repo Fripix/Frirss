@@ -2,6 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSPropert
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Article } from '../../types';
+import { articleTitle } from '../../lib/articleTitle';
 import BottomSheet from '../BottomSheet';
 import { articleMenuItems, type ArticleMenuItem, type ArticleMenuKind } from '../../lib/articleMenu';
 import { clampToViewport } from '../../lib/clampToViewport';
@@ -190,7 +191,7 @@ export default function ArticleContextMenu({
 
   if (sheet) {
     return (
-      <BottomSheet open onClose={onClose} title={article.title}>
+      <BottomSheet open onClose={onClose} title={articleTitle(article, t)}>
         {items.map((item, index) => (
           <Fragment key={item.kind}>
             {needsDividerBefore(item, index) && divider}

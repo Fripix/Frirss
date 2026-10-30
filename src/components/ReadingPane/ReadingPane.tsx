@@ -12,6 +12,7 @@ import { readingBodyKind, showsSkeleton, showsReadingTime } from '../../lib/read
 import { sanitizeArticleBody } from '../../utils/sanitizeHtml';
 import { readProgressPercent } from '../../lib/readProgress';
 import type { Article } from '../../types';
+import { articleTitle } from '../../lib/articleTitle';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
@@ -173,7 +174,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     if (!article.url) return;
     try {
       if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-        await navigator.share({ title: article.title, url: article.url });
+        await navigator.share({ title: articleTitle(article, t), url: article.url });
         return;
       }
       await navigator.clipboard.writeText(article.url);
@@ -593,7 +594,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 '</div>' +
                 // ── Title — same classes as React render ──
                 '<h1 class="font-bold leading-tight mb-4" style="color:var(--reading-title);font-size:var(--fs-reading-title)">' +
-                  esc(adj.title) +
+                  esc(articleTitle(adj, (k) => i18n.t(k))) +
                 '</h1>' +
                 // ── Tags ──
                 tagsHtml +
@@ -1297,7 +1298,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const tr = articleTranslation;
   // Une demande qui attend l'extrait s'affiche comme partie : « Traduction… ».
   const trLoading = tr.state === 'loading' || translateQueued;
-  const shownTitle = showTranslatedBody && tr.title ? tr.title : article.title;
+  const shownTitle = showTranslatedBody && tr.title ? tr.title : articleTitle(article, t);
   // Pendant une demande, même par-dessus une traduction affichée (« Traduire
   // en → allemand » sur du français), le bouton dit « Traduction… » et attend :
   // basculer sur la source le temps que les lots arrivent ne voulait rien dire.

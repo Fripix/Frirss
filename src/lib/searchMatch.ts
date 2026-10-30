@@ -100,10 +100,16 @@ export function parseQuery(query: string): string[] {
 /**
  * Le texte cherchable d'un article, calculé UNE SEULE FOIS au balayage — jamais
  * à chaque frappe : refiltrer 10 000 articles doit rester instantané.
+ *
+ * Le titre est du texte, pas du HTML : `normalizeArticle` y rend déjà les
+ * `＜ ＞` de FreshRSS en ASCII. Passé dans `stripHtml`, « Vec<String> »
+ * perdait « String », pris pour une balise. Il ne reçoit donc que le décodage
+ * des entités. Un article sans titre garde un titre vide : le libellé
+ * « Sans titre » se pose au rendu, il n'est pas cherchable.
  */
 export function articleHaystack(article: Article): string {
   const body = article.content || article.summary || '';
-  return normalizeForSearch(`${stripHtml(article.title)} ${stripHtml(body)}`);
+  return normalizeForSearch(`${decodeEntities(article.title)} ${stripHtml(body)}`);
 }
 
 /** Tous les mots présents. Sans terme, rien ne correspond. */
