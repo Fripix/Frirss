@@ -474,7 +474,10 @@ describe('servers actualize', () => {
   // redirige, et « Tester » ne pouvait plus jamais dire « refusé ».
   it.each([
     ['error', '/i/?c=error&code=403&rid=abc', 'FreshRSS answered 403'],
+    // Jusqu'à FreshRSS 1.30.1, le code d'erreur reste en session, hors de l'URL.
+    ['old-error', '/i/?c=error&rid=abc', 'FreshRSS answered 403'],
     ['auth', '/i/?c=auth&a=login', 'FreshRSS answered 403'],
+    ['not-found', '/i/?c=error&code=404&rid=abc', 'FreshRSS answered 302'],
     ['index', '/i/?c=index&a=index', 'FreshRSS answered 302'],
   ])('reads a redirect to the %s page by where it leads', async (page, location, error) => {
     const add = await request(app).post('/api/servers')

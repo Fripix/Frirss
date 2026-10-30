@@ -19,6 +19,17 @@ describe('actionKey', () => {
 });
 
 describe('mergeAction', () => {
+  // Lu puis non lu hors ligne : une seule action « non lu », et l'état d'avant
+  // le premier geste n'est plus son contraire.
+  it('garde l’état d’avant le premier geste', () => {
+    let q = mergeAction([], act({ value: true, at: 1 }));
+    expect(q[0].before).toBeUndefined();
+    q = mergeAction(q, act({ value: false, at: 2 }));
+    expect(q[0].before).toBe(false);
+    q = mergeAction(q, act({ value: true, at: 3 }));
+    expect(q[0].before).toBe(false);
+  });
+
   it('adds an action to an empty queue', () => {
     expect(mergeAction([], act()).length).toBe(1);
   });

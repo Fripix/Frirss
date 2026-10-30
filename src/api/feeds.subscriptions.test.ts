@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('./client', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 
 import client from './client';
-import { getSubscriptionList, getStreamContents } from './feeds';
+import { getSubscriptionList, getStreamContents, getStreamItemCount, getUnreadItemIds, itemIdsNewerThanEntry } from './feeds';
 
 const get = vi.mocked(client.get);
 
@@ -40,6 +40,15 @@ describe('getSubscriptionList — formes pleine chasse de FreshRSS', () => {
 // Un proxy d'authentification répond 200 en HTML : `data.items || []` en faisait
 // une liste vide, sans erreur, qui écrasait la copie hors ligne.
 describe('getStreamContents — réponse qui n’est pas du JSON', () => {
+  // Lue comme `[]`, la page faisait d'un « marquer au-dessus » un geste muet :
+  // les lignes lues à l'écran, rien d'envoyé, rien de dit.
+  it('les listes d’identifiants rejettent aussi', async () => {
+    get.mockResolvedValue({ data: '<html>login</html>' } as never);
+    await expect(getStreamItemCount('feed/1')).rejects.toThrow();
+    await expect(getUnreadItemIds('feed/1')).rejects.toThrow();
+    await expect(itemIdsNewerThanEntry('feed/1', 'tag:google.com,2005:reader/item/0000000000000001')).rejects.toThrow();
+  });
+
   it('rejette, pour que le repli hors ligne joue', async () => {
     get.mockResolvedValue({ status: 200, data: '<html>Sign in</html>' } as never);
     await expect(getStreamContents('feed/1')).rejects.toThrow();

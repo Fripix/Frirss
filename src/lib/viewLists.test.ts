@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  viewListKey, parseViewKey, preparedListKey, fallbackSources, offlineViewList, markStreamRead,
+  viewListKey, parseViewKey, preparedListKey, fallbackSources, offlineViewList, markStreamRead, READ_LATER_LABEL,
   type ViewAddress, type StoredView,
 } from './viewLists';
 import type { Article } from '../types';
@@ -179,6 +179,28 @@ describe('offlineViewList', () => {
       const other = view({ filter: 'all', order: 'oldest' });
       const v = offlineViewList(view(), { fallback: { list: stored(20, [line(1)], '50'), source: other }, prepared });
       expect(shown(v)).toEqual([5, 4, 3, 2, 1].map(id));
+    });
+  });
+
+  describe('ce qui n’appartient plus à la vue', () => {
+    const list = (...rows: Article[]): StoredView => ({ articles: rows, continuation: null, at: 1 });
+
+    it('Favoris : une ligne qui n’est plus favorite sort', () => {
+      const v = view({ feedId: '', filter: 'starred' });
+      const got = offlineViewList(v, { own: list(row('a', { starred: true }), row('b')) });
+      expect(got?.articles.map((a) => a.id)).toEqual(['a']);
+    });
+
+    it('À lire plus tard : une ligne sans l’étiquette sort', () => {
+      const v = view({ feedId: '', filter: 'readlater' });
+      const got = offlineViewList(v, { own: list(row('a', { labels: [READ_LATER_LABEL] }), row('b')) });
+      expect(got?.articles.map((a) => a.id)).toEqual(['a']);
+    });
+
+    it('l’article ouvert reste, comme sous Non lus', () => {
+      const v = view({ feedId: '', filter: 'starred' });
+      const got = offlineViewList(v, { own: list(row('b')) }, { stays: () => true });
+      expect(got?.articles.map((a) => a.id)).toEqual(['b']);
     });
   });
 

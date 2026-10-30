@@ -63,7 +63,7 @@ import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/ba
 import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
 import { createLocalWrites, applyField, type WriteField } from '../lib/localWrites';
 import {
-  viewListKey, viewListKeys, parseViewKey, preparedListKey, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
+  viewListKey, viewListKeys, parseViewKey, preparedListKey, READ_LATER_LABEL, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
   type ViewAddress, type ViewList, type StoredView, type OfflineView, type OfflineSources,
 } from '../lib/viewLists';
 import type {
@@ -76,7 +76,7 @@ import type {
   GReaderStream,
 } from '../types';
 
-export const READ_LATER_LABEL = 'user/-/label/À lire plus tard';
+export { READ_LATER_LABEL };
 
 // Default page size for article streams.
 // Smaller pages load far faster (FreshRSS returns full content per item);
@@ -1116,11 +1116,12 @@ async function settleAction(
  * préparée disait encore non lu, et l'article revenait sous Non lus au trajet
  * suivant. Leur date ne bouge pas : rien n'a été relu. Les listes de catégorie
  * n'en sont pas : trouver celles d'un flux demanderait de les parcourir toutes.
+ * Les vues en mémoire suivent : `offlineList` les lit avant le disque, et
+ * `memMarkRead` ne couvre que la lecture.
  */
 function reportOnLists(scope: string, sourceId: string | undefined, articleId: string, field: WriteField, value: boolean): void {
   if (!sourceId) return;
-  const keys = [preparedListKey(scope, sourceId), ...viewListKeys(scope, sourceId), ...viewListKeys(scope, '')];
-  void listsPatch(keys, (rows) => {
+  const change = (rows: Article[]) => {
     const i = rows.findIndex((a) => a.id === articleId);
     if (i < 0) return rows;
     const row = applyField(rows[i], field, value);
@@ -1128,7 +1129,34 @@ function reportOnLists(scope: string, sourceId: string | undefined, articleId: s
     const next = [...rows];
     next[i] = row;
     return next;
-  });
+  };
+  for (const [key, view] of memCache) {
+    if (!key.startsWith(`${scope}|`)) continue;
+    const articles = change(view.articles);
+    if (articles !== view.articles) memPatch(key, view, articles);
+  }
+  void listsPatch(feedListKeys(scope, [sourceId]), change);
+}
+
+/** Les listes gardées de ces flux et de l'accueil : ce qu'un geste atteint. */
+function feedListKeys(scope: string, sourceIds: Iterable<string>): string[] {
+  const keys = viewListKeys(scope, '');
+  for (const id of sourceIds) keys.push(preparedListKey(scope, id), ...viewListKeys(scope, id));
+  return keys;
+}
+
+/** Comme `reportOnLists`, pour une plage lue : mêmes listes, un seul passage. */
+function reportRangeRead(scope: string, sourceIds: ReadonlySet<string>, inRange: (a: Article) => boolean): void {
+  const change = (rows: Article[]) => {
+    if (!rows.some((a) => !a.read && sourceIds.has(a.sourceId) && inRange(a))) return rows;
+    return rows.map((a) => (!a.read && sourceIds.has(a.sourceId) && inRange(a) ? { ...a, read: true } : a));
+  };
+  for (const [key, view] of memCache) {
+    if (!key.startsWith(`${scope}|`)) continue;
+    const articles = change(view.articles);
+    if (articles !== view.articles) memPatch(key, view, articles);
+  }
+  void listsPatch(feedListKeys(scope, sourceIds), change);
 }
 
 /**
@@ -2515,9 +2543,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // local ne peut anticiper. Seules les lignes ENCORE NON LUES entrent dans
       // la plage touchée (C2) : une ligne déjà lue avant l'action n'a rien à y
       // faire, sans quoi le rollback pourrait la repasser non lue à tort.
-      const touchedIds = new Set(
-        memeVue ? articles.filter((a) => touche(a) && !a.read).map((a) => a.id) : [],
-      );
+      const touchedRows = memeVue ? articles.filter((a) => touche(a) && !a.read) : [];
+      const touchedIds = new Set(touchedRows.map((a) => a.id));
+      const touchedSources = new Set(touchedRows.map((a) => a.sourceId));
 
       // Le rollback compare des identifiants confirmés par le serveur à
       // `touchedIds` : ces deux ensembles doivent vivre dans le MÊME espace
@@ -2651,6 +2679,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // Le vol est terminé : comme `settleAction` pour une ligne seule, une
         // lecture partie pendant lui a pu passer au serveur avant les lots.
         for (const id of touchedIds) localWrites.touch(offlineScope(), id, 'read');
+        if (memeContexte() && touchedIds.size) {
+          reportRangeRead(offlineScope(), touchedSources, touche);
+          persistCurrentView(get);
+        }
         // Combien d'articles le serveur a-t-il touché au-delà de ce qui est
         // chargé ? Nous n'en savons rien, et nous ne le devinons pas : le
         // relevé suivant rapporte le vrai compte. Une baisse n'est pas une
@@ -3404,7 +3436,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           // Le geste était sur les listes gardées, et le serveur ne l'aura pas.
           // Pas s'il a été remplacé entre-temps : les listes portent le suivant.
           if (actionQueue.find((a) => a.key === action.key)?.at === action.at) {
-            reportOnLists(scope, action.sourceId, action.articleId, writeFieldOf(action.type, action.labelId), !action.value);
+            reportOnLists(scope, action.sourceId, action.articleId, writeFieldOf(action.type, action.labelId), action.before ?? !action.value);
           }
         }
       }

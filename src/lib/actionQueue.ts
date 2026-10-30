@@ -21,6 +21,9 @@ export interface QueuedAction {
   /** The article's feed, to find its kept lists if the action is dropped.
    *  Absent on actions queued before 1.8.0. */
   sourceId?: string;
+  /** State before the first gesture, once a second one merged onto it: `value`
+   *  alone no longer says what to go back to. Absent = `!value`. */
+  before?: boolean;
   /** Order of the gesture within this session (`feedStore`), in memory
    *  only: dropped when the queue is read back from storage, where every
    *  action is older than any gesture of the new session. */
@@ -47,7 +50,7 @@ export function mergeAction(queue: QueuedAction[], action: QueuedAction): Queued
   if ((queue[i].seq ?? 0) > (action.seq ?? 0)) return queue;
   const next = [...queue];
   // Superseded: the previous attempts counted against a state we no longer want.
-  next[i] = { ...action, attempts: 0 };
+  next[i] = { ...action, attempts: 0, before: queue[i].before ?? !queue[i].value };
   return next;
 }
 

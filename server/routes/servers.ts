@@ -306,9 +306,15 @@ router.post('/:id/actualize', ...(proxyRateLimiter ? [proxyRateLimiter] : []), (
   res.status(202).json({ job });
 });
 
-/** Une redirection vers la page d'erreur 403 de FreshRSS, ou vers sa connexion. */
+/**
+ * Une redirection vers la connexion de FreshRSS, ou vers sa page d'erreur : le
+ * code n'y figure que depuis la 1.30.2, avant il reste dans la session.
+ */
 function isRefusalRedirect(r: Response): boolean {
-  return r.status >= 300 && r.status < 400 && /[?&](code=403|c=auth)\b/.test(r.headers.get('location') ?? '');
+  if (r.status < 300 || r.status >= 400) return false;
+  const location = r.headers.get('location') ?? '';
+  return /[?&]c=auth\b/.test(location)
+    || (/[?&]c=error\b/.test(location) && !/[?&]code=(?!403\b)/.test(location));
 }
 
 // ── GET /api/servers/:id/actualize ──────────────────────────────────

@@ -8,6 +8,9 @@ import type { Article, Filter } from '../types';
  * de masse y change.
  */
 
+/** L'étiquette de « À lire plus tard », un nom français que FreshRSS garde tel quel. */
+export const READ_LATER_LABEL = 'user/-/label/À lire plus tard';
+
 /** Une liste rangée : le compte et le serveur, le flux, le filtre et l'ordre. */
 export interface ViewAddress {
   scope: string;
@@ -151,7 +154,8 @@ interface OfflineOptions {
  * flux calme, sans rien dans les 30 jours, n'efface pas ce qu'on a lu de lui.
  *
  * Le recalage passe avant le filtre : une ligne rendue non lue en file entre sous
- * Non lus, une ligne lue en file en sort.
+ * Non lus, une ligne lue en file en sort. Favoris et À lire plus tard ne font
+ * qu'en perdre : aucune liste ne dit ce qui y est entré.
  */
 export function offlineViewList(
   view: ViewAddress,
@@ -177,7 +181,11 @@ export function offlineViewList(
     continuation = rebuilt ? null : base!.continuation;
   }
   const settled = overlay(rows);
-  const articles = view.filter === 'unread' ? settled.filter((a) => !a.read || stays(a)) : settled;
+  const belongs = (a: Article) => (view.filter === 'unread' ? !a.read
+    : view.filter === 'starred' ? a.starred
+    : view.filter === 'readlater' ? a.labels.includes(READ_LATER_LABEL)
+    : true);
+  const articles = settled.filter((a) => belongs(a) || stays(a));
   return { articles, continuation, rebuilt };
 }
 

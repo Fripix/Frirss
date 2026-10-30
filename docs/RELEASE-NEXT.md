@@ -588,12 +588,15 @@ la release publiée.
 - **Une page de connexion ou de maintenance ne vide plus la liste.** Quand un
   proxy devant FreshRSS répondait par une page HTML, la liste devenait vide sans
   erreur, et la copie gardée hors ligne était écrasée. C'est désormais une panne
-  comme une autre : la liste gardée reste affichée.
+  comme une autre : la liste gardée reste affichée, et « Marquer au-dessus » ne
+  marque plus à l'écran ce que le serveur n'a pas reçu.
 - **Ce que vous lisez reste lu hors ligne.** Un article lu ou mis en favori
   depuis l'accueil, une catégorie ou un autre flux ne touchait pas les listes
   gardées de son flux : il revenait non lu au trajet suivant. Le geste se
   reporte désormais sur la liste préparée du flux, ses autres listes et celles
-  de l'accueil, et s'en retire si le serveur le refuse au final.
+  de l'accueil, et s'en retire si le serveur le refuse au final. « Marquer
+  au-dessus / en dessous » aussi, et hors ligne, Favoris et À lire plus tard
+  ne montrent plus un article qui en a été retiré.
 - **Les flux préparés s'ouvrent hors ligne, quel que soit le filtre.** Après
   « Préparer le hors-ligne », un flux ouvert sous le filtre Non lus ou en ordre
   « plus anciens d'abord » échouait à se charger, ou s'affichait à l'envers.

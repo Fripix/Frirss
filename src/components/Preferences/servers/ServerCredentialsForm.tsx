@@ -39,6 +39,7 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -75,6 +76,7 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
       onSaved();
     } catch (err) {
       setError(t(stage === 'login' ? serverConnectErrorKey(err) : 'servers.errorGeneric'));
+      if (document.activeElement === formRef.current) passwordRef.current?.focus();
     } finally {
       setBusy(false);
     }
@@ -111,6 +113,7 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
           {t('login.freshrssPassword')}
         </label>
         <input
+          ref={passwordRef}
           id={passwordId}
           type="password"
           value={password}

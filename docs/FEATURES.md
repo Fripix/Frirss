@@ -309,7 +309,7 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   « échec de connexion à FreshRSS », qui vient d'accepter. Échap ne ferme rien
   pendant l'envoi : envoyé par le bouton, qui se désactive, le focus passe au
   formulaire, sinon il tombait sur `<body>` et l'Échap des Préférences fermait
-  tout. ⚠️ L'utilisateur ne
+  tout ; après un refus il revient au mot de passe. ⚠️ L'utilisateur ne
   change pas : un autre utilisateur sur le même serveur garderait la même
   portée, et la file, les listes, le cache Redis du premier seraient servis au
   second — un autre utilisateur est un autre serveur à ajouter. Le serveur
@@ -334,11 +334,13 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   (`FRIRSS_PROXY_RATE_LIMIT`) : elle y échappait, test du jeton maître compris.
   Le test du jeton maître (`RefreshTokenField`) ne dit « refusé »
   (`testFail`) que sur un 401, un 403, ou sa forme réelle : un mauvais jeton ne
-  reçoit pas un 403 de FreshRSS mais un **302** vers `?c=error&code=403`
-  (`Minz_Error::error`), ou vers `?c=auth`, que `isRefusalRedirect`
-  (`server/routes/servers.ts`) relit comme un 403. ⚠️ Mesuré sur un vrai
-  FreshRSS : les tests moquaient un `answered 403` qui n'arrive jamais, et
-  « Tester » ne disait plus « refusé » à personne. Un 429 affiche
+  reçoit pas un 403 de FreshRSS mais un **302** (`Minz_Error::error`) vers
+  `?c=error&code=403` depuis la 1.30.2, vers `?c=error` sans code avant (il reste
+  en session), ou vers `?c=auth`. `isRefusalRedirect`
+  (`server/routes/servers.ts`) relit ces formes comme un 403, et laisse un autre
+  code ou une autre page en 302 non concluant. ⚠️ Mesuré sur un vrai FreshRSS :
+  les tests moquaient un `answered 403` qui n'arrive jamais, et « Tester » ne
+  disait plus « refusé » à personne. Un 429 affiche
   `preferences.refresh.testRateLimited`, une absence de tâche, de réponse ou
   une autre erreur `testInconclusive`, un enregistrement raté
   `servers.errorGeneric` : tous disaient « Le jeton a été refusé » d'un jeton
@@ -1002,8 +1004,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   `src/api/feeds.ts`) : un proxy d'authentification ou une page de maintenance
   répond 200 en HTML, et `data.items || []` en faisait une liste vide, sans
   erreur, qui écrasait la copie hors ligne et posait le plancher de non-lus à
-  0. Articles, abonnements, étiquettes, compteurs : la lecture rejette, et le
-  repli hors ligne joue.
+  0. Articles, abonnements, étiquettes, compteurs, listes d'identifiants : la
+  lecture rejette, et le repli hors ligne joue. Lue comme `[]`, la même page
+  faisait de « Marquer au-dessus » un geste muet : les lignes lues à l'écran,
+  rien d'envoyé, rien de dit.
 - **Titres en ASCII** (1.8.0, `src/lib/freshrssText.ts`) : FreshRSS rend
   `& < >` des titres d'articles en pleine chasse (`＆ ＜ ＞`,
   `escapeToUnicodeAlternative`), et `/` aussi dans les noms de flux
@@ -5120,7 +5124,12 @@ images consultés restent lisibles sans réseau.
     de l'accueil. À la mise en file (avec la valeur que la file a gardée, pas
     celle d'un ancien geste qui échoue tard) et à la confirmation en direct
     (sauf si un geste plus récent a déjà pris la main) ; retiré si le rejeu
-    abandonne l'action (`sourceId`, gardé dans l'action). Une seule transaction
+    abandonne l'action (`sourceId`, gardé dans l'action, et `before`, l'état
+    d'avant le premier geste : après « lu » puis « non lu » fusionnés, le contraire
+    de la valeur serait « lu », que personne n'a voulu). Les vues en mémoire
+    suivent, `offlineList` les lisant avant le disque. « Marquer au-dessus / en
+    dessous » fait de même une fois confirmé (`reportRangeRead`), par plage sur
+    les flux touchés, lignes préparées non chargées comprises. Une seule transaction
     IndexedDB, lecture comprise : une liste fraîche rangée entre une lecture et
     une écriture séparées serait écrasée par la vieille. **Sans la redater** :
     la date dit quand la liste a été lue. Sans ce report, un geste ne vivait que
@@ -5129,6 +5138,9 @@ images consultés restent lisibles sans réseau.
     **Limite assumée** : les listes de catégorie ne le reçoivent pas (les
     trouver depuis un flux demanderait de les parcourir toutes) ; elles suivent
     à leur prochaine lecture, et « Tout lu » garde son traitement à part.
+  - **Favoris et À lire plus tard perdent aussi leurs lignes** (`offlineViewList`) :
+    une ligne qui n'est plus favorite ou n'a plus l'étiquette sort de la vue,
+    comme une ligne lue de Non lus, sauf l'article ouvert.
   - **Les listes rangées par l'ancienne version** (clé `:all` préparée, `:oldest`
     servie à l'envers) restent lisibles comme listes exactes, cèdent le pas à
     une préparation plus récente, et partent par éviction (30 jours).
@@ -6300,7 +6312,7 @@ répondu (voir *Extraction du contenu complet*).
   liste de paramètres secrets (`token`) en oubliait toujours un. Une URL
   illisible est coupée à son premier `?` ou `#` ; si elle porte un `@`, seul son
   schéma sort (rien ne dit où s'arrête un mot de passe). Les journaux
-  n'écrivent jamais `e.message` : `fetch` y recopie l'URL entière.
+  du proxy n'écrivent jamais `e.message` : `fetch` y recopie l'URL entière.
 - **Aucun en-tête d'identification fourni par le client n'est honoré.** Le jeton
   greader est injecté côté serveur, et seulement là. Un repli `X-Freshrss-Auth`
   a existé « pour l'installation, avant qu'une ligne serveur existe » — mais

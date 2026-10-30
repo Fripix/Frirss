@@ -130,6 +130,7 @@ export async function getStreamItemCount(streamId: string, cap = 1000): Promise<
     `${BASE}/stream/items/ids`,
     { params: { output: 'json', s: streamId, n: cap } }
   );
+  expectJson(data);
   return data.itemRefs?.length ?? 0;
 }
 
@@ -166,6 +167,7 @@ export async function getUnreadItemIds(
       `${BASE}/stream/items/ids`,
       { params },
     );
+    expectJson(data);
     for (const ref of data.itemRefs || []) ids.push(ref.id);
     continuation = data.continuation || null;
     if (!continuation) return { ids, complete: true };
@@ -325,6 +327,7 @@ export async function itemIdsNewerThanEntry(streamId: string, stopAtArticleId: s
       `${BASE}/stream/items/ids`,
       { params },
     );
+    expectJson(data);
     for (const ref of data.itemRefs || []) {
       if (!isOlderEntry(stop, ref.id)) return ids; // atteint l'article cliqué, ou plus ancien
       ids.push(ref.id);

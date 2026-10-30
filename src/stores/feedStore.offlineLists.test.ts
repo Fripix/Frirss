@@ -317,6 +317,76 @@ describe('une liste exacte périmée ne masque plus la préparation', () => {
       expect(read(PREPARED, a.id)).toBe(false);
     });
 
+    it('lu puis non lu abandonnés : la liste reste non lue', async () => {
+      const env = await prepared();
+      goOffline(env);
+      vi.mocked(env.api.markAsUnread).mockRejectedValue(netErr());
+      env.useFeedStore.getState().selectView(feed1, 'all');
+      await settled();
+      const a = env.useFeedStore.getState().articles[0];
+      await env.useFeedStore.getState().toggleRead(a);
+      await env.useFeedStore.getState().toggleRead(env.useFeedStore.getState().articles[0]);
+      await settled();
+      setOnline(true);
+      vi.mocked(env.api.markAsUnread).mockRejectedValue(Object.assign(new Error('refused'), { response: { status: 400 } }));
+      await env.useFeedStore.getState().replayQueue();
+      await settled();
+      expect(read(PREPARED, a.id)).toBe(false);
+    });
+
+    it('« Marquer au-dessus » atteint les listes de ses flux et la vue mémoire', async () => {
+      const env = await prepared();
+      const row = await onHome(env);
+      const below = env.useFeedStore.getState().articles[2];
+      vi.mocked(env.api.itemIdsNewerThanEntry).mockResolvedValue([row.id] as never);
+      await env.useFeedStore.getState().markReadRelative(below, 'above');
+      await settled();
+      expect(read(PREPARED, row.id)).toBe(true);
+      expect(read(PREPARED, below.id)).toBe(false);
+      expect(read('7@1|:all', row.id)).toBe(true);
+    });
+
+    it('« Marquer en dessous » atteint aussi les lignes préparées non chargées', async () => {
+      const env = await load();
+      streamOf(env.api, 120);
+      await prepare(env);
+      const rowsPage = streamOf(env.api, 120);
+      env.useFeedStore.getState().selectView(feed1, 'all');
+      await settled();
+      const top = env.useFeedStore.getState().articles[0];
+      await env.useFeedStore.getState().markReadRelative(top, 'below');
+      await settled();
+      const stored = idb.lists.get(PREPARED)!.articles as unknown as { id: string; read: boolean }[];
+      expect(stored).toHaveLength(rowsPage.length);
+      expect(stored[0].read).toBe(false);
+      expect(stored.slice(1).every((a) => a.read)).toBe(true);
+    });
+
+    it('un refus de la plage ne touche pas aux listes', async () => {
+      const env = await prepared();
+      const row = await onHome(env);
+      const below = env.useFeedStore.getState().articles[2];
+      vi.mocked(env.api.itemIdsNewerThanEntry).mockResolvedValue([row.id] as never);
+      vi.mocked(env.api.markAsRead).mockRejectedValue(Object.assign(new Error('refused'), { response: { status: 400 } }));
+      await env.useFeedStore.getState().markReadRelative(below, 'above');
+      await settled();
+      expect(read(PREPARED, row.id)).toBe(false);
+    });
+
+    it('un favori atteint aussi les vues en mémoire de la portée', async () => {
+      const env = await prepared();
+      const a = await onHome(env);
+      env.useFeedStore.getState().selectView(feed1, 'all');
+      await settled();
+      await env.useFeedStore.getState().toggleStar(a);
+      await settled();
+      setOnline(false);
+      vi.mocked(env.api.getStreamContents).mockRejectedValue(netErr());
+      env.useFeedStore.getState().selectView(null, 'all');
+      await settled();
+      expect(env.useFeedStore.getState().articles.find((x) => x.id === a.id)?.starred).toBe(true);
+    });
+
     it('un ancien geste confirmé tard ne couvre pas le plus récent', async () => {
       const env = await prepared();
       const a = await onHome(env);

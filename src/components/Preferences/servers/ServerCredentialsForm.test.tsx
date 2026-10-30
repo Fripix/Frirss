@@ -122,6 +122,16 @@ describe('ServerCredentialsForm', () => {
     await act(async () => { finish('tok'); });
   });
 
+  it('après un refus, le focus revient au mot de passe', async () => {
+    vi.mocked(login).mockRejectedValue(new Error('refused'));
+    render(<ServerCredentialsForm server={server} isActive={false} onSaved={() => {}} onClose={() => {}} />);
+    fireEvent.change(screen.getByLabelText('login.freshrssPassword'), { target: { value: 'secret' } });
+    const save = screen.getByRole('button', { name: 'servers.credentialsSave' });
+    save.focus();
+    await act(async () => { fireEvent.click(save); });
+    expect(document.activeElement).toBe(screen.getByLabelText('login.freshrssPassword'));
+  });
+
   it('par Entrée dans le champ, le focus ne bouge pas', async () => {
     let finish!: (v: string) => void;
     vi.mocked(login).mockReturnValue(new Promise((r) => { finish = r; }));

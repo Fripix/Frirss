@@ -1543,9 +1543,9 @@ summary:focus-visible,
    l'aperçu de thème et les barres de progression. Tout le mouvement du
    quotidien passait au travers.
 
-   Volontairement PAS de règle attrape-tout `* { animation: none }` : le
-   bandeau de relève se ferme par une animation (`refresh-banner-out`), et la
-   couper le laisserait affiché indéfiniment. Les rotations de chargement
+   Volontairement PAS de règle attrape-tout `* { animation: none }` :
+   l'effacement du bandeau de relève (`refresh-banner-out`) est une animation,
+   qu'il ne faut pas couper net. Les rotations de chargement
    (`animate-spin`) sont gardées aussi — c'est le seul signe qu'un travail est
    en cours, et le retirer coûterait plus que le mouvement n'en gêne. */
 @media (prefers-reduced-motion: reduce) {
