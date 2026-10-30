@@ -767,7 +767,9 @@ export interface FeedState {
   failedActions: number;
   /** FreshRSS answered the replay with its own 401 (not FriRSS's): the queue
    *  is kept whole and waits; the banner says so. Cleared by the next replay
-   *  that gets an action through, or by a change of scope. */
+   *  that gets an action through, by a change of scope, or as soon as the
+   *  active scope has nothing pending (`pendingPatch`). Set only if the
+   *  replay's session is still the active one. */
   replayRefusedByServer: boolean;
   replayQueue: () => Promise<void>;
 }
@@ -795,8 +797,13 @@ let scopeGeneration = 0;
  * Les actions d'avant 1.8.0, sans portée, prennent `scope`. Une action de la
  * portée sur le même article est forcément plus récente (faite après la mise
  * à jour) : l'ancienne lui cède la place.
+ *
+ * Jamais sous une portée sans compte ou sans serveur (`@`, `@1`, `7@`) :
+ * aucune session réelle n'y revient, et une action adoptée là n'était plus
+ * ni rejouée, ni comptée, ni retirée par `dropUnscopedActions`.
  */
 async function adoptUnscopedActions(scope: string): Promise<void> {
+  if (scope.startsWith('@') || scope.endsWith('@')) return;
   if (!actionQueue.some((a) => !a.scope)) return;
   const own = new Set(actionQueue.filter((a) => a.scope === scope).map((a) => a.key));
   actionQueue = actionQueue.flatMap((a) => {
@@ -807,17 +814,39 @@ async function adoptUnscopedActions(scope: string): Promise<void> {
     return [{ ...a, key, scope }];
   });
   await queuePut(actionQueue);
-  useFeedStore.setState({ pendingActions: pendingHere() });
+  useFeedStore.setState(pendingPatch());
 }
 
+/**
+ * La lecture de la file, une seule par session. La PROMESSE est gardée, pas
+ * un booléen posé après l'attente : deux premiers appels concurrents (un
+ * geste qui échoue, le rejeu de l'événement `online`) lisaient chacun la file,
+ * et le plus lent remplaçait en mémoire ce que l'autre venait d'y mettre —
+ * puis la prochaine écriture l'effaçait du stockage.
+ */
+let queueLoading: Promise<void> | null = null;
 async function loadQueue(): Promise<QueuedAction[]> {
-  if (!queueLoaded) {
-    // Le numéro d'ordre d'un geste ne vaut que dans sa session : relue, une
-    // action est plus ancienne que tout geste à venir (voir `Gesture`).
-    actionQueue = (await queueGet()).map(({ seq: _seq, ...a }) => a);
-    queueLoaded = true;
-  }
+  queueLoading ??= queueGet().then(
+    (stored) => {
+      // Le numéro d'ordre d'un geste ne vaut que dans sa session : relue, une
+      // action est plus ancienne que tout geste à venir (voir `Gesture`).
+      actionQueue = stored.map(({ seq: _seq, ...a }) => a);
+      queueLoaded = true;
+    },
+    () => { queueLoading = null; }, // illisible : le prochain appel réessaie
+  );
+  await queueLoading;
   return actionQueue;
+}
+
+/**
+ * Le compteur du bandeau, et l'avertissement « FreshRSS refuse » qui tombe
+ * dès que la portée active n'a plus rien en attente : sans actions, la
+ * phrase « les actions en attente » ne décrit plus rien.
+ */
+function pendingPatch(scope: string = offlineScope()): Partial<FeedState> {
+  const n = pendingHere(scope);
+  return n === 0 ? { pendingActions: 0, replayRefusedByServer: false } : { pendingActions: n };
 }
 
 /** Ce que le compteur du bandeau annonce : les actions qui partiront ICI.
@@ -870,7 +899,7 @@ async function settleAction(
   if (!actionQueue.some(stale)) return;
   actionQueue = actionQueue.filter((a) => !stale(a));
   await queuePut(actionQueue);
-  set({ pendingActions: pendingHere() });
+  set(pendingPatch());
 }
 
 /**
@@ -910,7 +939,7 @@ async function enqueueAction(
     key, articleId, type, value, labelId, at: Date.now(), attempts: 0, scope, seq: g.seq,
   });
   await queuePut(actionQueue);
-  set({ pendingActions: pendingHere() });
+  set(pendingPatch());
 }
 
 const IDLE_SCAN: SearchScan = { running: false, scanned: 0, done: false, stopped: false, error: null };
@@ -2983,25 +3012,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // 401 jetait toute la file, sans qu'aucune action ait été tentée.
     const auth = useAuthStore.getState();
     if (!auth.backendToken || !auth.activeServerId) return;
-    // Relevés AVANT toute attente, comme la génération : le contrôle compare
-    // l'état d'entrée, pas celui d'après le chargement de la file.
+    // Relevés AVANT toute attente, portée comprise : le contrôle compare
+    // l'état d'entrée, pas celui d'après le chargement de la file. Relevée
+    // après, la portée d'une session fermée pendant ce chargement valait
+    // « @ », et les actions d'avant 1.8.0 y étaient adoptées pour toujours.
     const jeton = auth.backendToken;
     const serveur = String(auth.activeServerId);
     const generation = scopeGeneration;
-    await loadQueue();
-    if (!actionQueue.length) return;
-
-    // Seules les actions du compte et du serveur actifs partent ; les autres
-    // attendent le leur. Une ancienne action, sans portée (avant 1.8.0),
-    // adopte la portée active, comme avant 1.8.0 : le cas courant est un seul
-    // compte, et les numéros d'article FreshRSS sont horodatés à la
-    // microseconde — une collision d'un serveur à l'autre est très
-    // improbable, alors que ne plus la rejouer la perdait sans un mot.
     const scope = offlineScope();
-    await adoptUnscopedActions(scope);
-    const mine = actionQueue.filter((a) => a.scope === scope);
-    if (!mine.length) return;
-
+    await loadQueue();
     // Revérifié avant CHAQUE action, comme `restoreUnread` : le rejeu peut
     // porter des dizaines d'écritures, et un changement de serveur en route
     // envoyait les suivantes au nouveau (le client lit le serveur actif au
@@ -3016,6 +3035,20 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       return now.backendToken === jeton && String(now.activeServerId ?? '') === serveur
         && offlineScope() === scope && scopeGeneration === generation;
     };
+    // Plus la session d'entrée : le rejeu de la portée suivante s'en charge.
+    if (!memeContexte()) return;
+
+    // Seules les actions du compte et du serveur actifs partent ; les autres
+    // attendent le leur. Une ancienne action, sans portée (avant 1.8.0),
+    // adopte la portée active, comme avant 1.8.0 : le cas courant est un seul
+    // compte, et les numéros d'article FreshRSS sont horodatés à la
+    // microseconde — une collision d'un serveur à l'autre est très
+    // improbable, alors que ne plus la rejouer la perdait sans un mot.
+    await adoptUnscopedActions(scope);
+    const mine = actionQueue.filter((a) => a.scope === scope);
+    // Rien en attente ici : un avertissement « FreshRSS refuse » ne décrit
+    // plus rien (`pendingPatch`).
+    if (!mine.length) { if (memeContexte()) set(pendingPatch(scope)); return; }
 
     const remaining: QueuedAction[] = [];
     let failed = 0;
@@ -3044,7 +3077,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // La bascule a eu lieu PENDANT l'envoi : rien ne dit quel serveur
         // l'a reçue. Gardée — renvoyer le même état est sans danger.
         if (!memeContexte()) { stopped = true; remaining.push(action); }
-        else delivered = true;
+        else {
+          delivered = true;
+          // Le rejeu règle lui aussi les gestes plus anciens encore en vol :
+          // sans cela, un « lu » resté bloqué tombait en délai dépassé après
+          // l'envoi du « non lu » suivant, entrait en file, et le rejeu
+          // d'après écrasait la dernière intention.
+          if (action.seq && (settledGestures.get(action.key) ?? 0) < action.seq) {
+            settledGestures.set(action.key, action.seq);
+          }
+        }
       } catch (err) {
         // Le contexte a changé pendant l'envoi (déconnexion, autre serveur),
         // ou notre propre session est refusée : ni l'un ni l'autre n'est la
@@ -3092,11 +3134,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     });
     await queuePut(actionQueue);
     set({
-      pendingActions: pendingHere(),
+      ...pendingPatch(),
       failedActions: failed,
       // Refusé : l'avertissement reste jusqu'à un rejeu qui fait passer une
-      // action (identifiants corrigés, puis rechargement).
-      ...(refused ? { replayRefusedByServer: true } : delivered ? { replayRefusedByServer: false } : {}),
+      // action, ou jusqu'à ce que la portée n'ait plus rien en attente. Posé
+      // seulement si la session d'entrée est encore là : après une bascule
+      // pendant l'écriture ci-dessus, le refus du serveur quitté s'affichait
+      // sur le suivant, dont le rejeu n'avait rien à dire.
+      ...(refused
+        ? (memeContexte() ? { replayRefusedByServer: true } : {})
+        : delivered ? { replayRefusedByServer: false } : {}),
     });
     })();
     replayInFlight = run;
@@ -3496,7 +3543,7 @@ async function dropUnscopedActions(): Promise<void> {
   if (!actionQueue.some((a) => !a.scope)) return;
   actionQueue = actionQueue.filter((a) => a.scope);
   await queuePut(actionQueue);
-  useFeedStore.setState({ pendingActions: pendingHere() });
+  useFeedStore.setState(pendingPatch());
 }
 
 /**
@@ -3514,7 +3561,7 @@ useAuthStore.subscribe((state, prev) => {
   // Le refus de FreshRSS appartenait à l'autre portée : le rejeu de celle-ci
   // le reposera s'il a lieu ici aussi.
   useFeedStore.setState({ replayRefusedByServer: false });
-  if (queueLoaded) useFeedStore.setState({ pendingActions: pendingHere(scope) });
+  if (queueLoaded) useFeedStore.setState(pendingPatch(scope));
   if (!state.backendToken || !state.activeServerId) return;
   void (replayInFlight ?? Promise.resolve())
     .catch(() => {})

@@ -425,3 +425,124 @@ describe('se désabonner (B10)', () => {
     expect(store.listsWithoutSource).toHaveBeenCalledWith('7@1|', 'feed/12');
   });
 });
+
+// Troisième relecture (rev-off3) : les bords du rejeu.
+describe('rejeu : bords (rev-off3)', () => {
+  const login = (s: { setState: (p: object) => void }) =>
+    s.setState({ backendToken: 'jwt', backendUser: { id: 7 }, activeServerId: '1', serverUrl: 'https://a.example', isAuthenticated: true });
+  const err401 = () => Object.assign(new Error('401'), { response: { status: 401, data: 'Unauthorized!' } });
+  const err503 = () => Object.assign(new Error('503'), { response: { status: 503 } });
+  const quiet = async () => { await flush(); await flush(); await flush(); };
+
+  // R1 : la portée était relevée APRÈS le chargement de la file, et l'adoption
+  // passait avant tout contrôle. Une déconnexion pendant ce chargement faisait
+  // adopter les actions d'avant 1.8.0 sous « @ » : jamais rejouées, jamais
+  // comptées, jamais retirées.
+  it('une déconnexion pendant le premier chargement : pas d’adoption sous « @ » (R1)', async () => {
+    const { api, store, useFeedStore, useAuthStore } = await load();
+    idb.queue = [act('old', undefined)];
+    const firstRead = deferred<Record<string, unknown>[]>();
+    vi.mocked(store.queueGet).mockImplementationOnce(() => firstRead.promise as never);
+    login(useAuthStore); // lance le rejeu, bloqué sur la lecture
+    await flush();
+    const snapshot = [...idb.queue];
+    useAuthStore.getState().logoutBackend();
+    await quiet();
+    firstRead.resolve(snapshot);
+    await quiet();
+    expect(idb.queue.filter((a) => a.scope === '@'), 'adoptée sous une portée fantôme').toEqual([]);
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined as never);
+    login(useAuthStore);
+    await quiet();
+    await useFeedStore.getState().replayQueue();
+    expect(idb.queue.filter((a) => a.articleId === 'old')).toEqual([]);
+  });
+
+  // R2 : l'abonnement remettait l'avertissement à faux à la bascule, puis la
+  // fin du rejeu de l'ancien serveur le reposait — affiché sur le nouveau.
+  it('bascule pendant l’écriture finale : le refus du serveur 1 ne s’affiche pas sur le 2 (R2)', async () => {
+    const { api, store, useFeedStore, useAuthStore } = await load();
+    idb.queue = [act('a', '7@1')];
+    vi.mocked(api.markAsRead).mockRejectedValue(err401());
+    const finalPut = deferred();
+    vi.mocked(store.queuePut).mockImplementationOnce(async (q) => { await finalPut.promise; idb.queue = [...q] as never; });
+    login(useAuthStore);
+    await quiet();
+    expect(api.markAsRead).toHaveBeenCalledTimes(1);
+    useAuthStore.getState().setFreshrssAuth('2', 'https://b.example');
+    await flush();
+    finalPut.resolve();
+    await quiet();
+    expect(useFeedStore.getState().replayRefusedByServer).toBe(false);
+  });
+
+  // R3 : plus rien en attente, et le bandeau répétait « FreshRSS refuse les
+  // actions en attente » jusqu'au rechargement.
+  it('le refus tombe quand un geste direct règle la dernière action de la portée (R3)', async () => {
+    const { api, useFeedStore, useAuthStore } = await load();
+    idb.queue = [act('a', '7@1')];
+    vi.mocked(api.markAsRead).mockRejectedValueOnce(err401());
+    login(useAuthStore);
+    await quiet();
+    expect(useFeedStore.getState().replayRefusedByServer).toBe(true);
+    useFeedStore.setState({ articles: [article('a')], selectedFeed: null, filter: 'all', searchQuery: '' });
+    vi.mocked(api.markAsRead).mockResolvedValue(undefined as never);
+    await useFeedStore.getState().toggleRead(article('a'));
+    expect(idb.queue.length).toBe(0);
+    expect(useFeedStore.getState().replayRefusedByServer).toBe(false);
+  });
+
+  it('le refus tombe quand un rejeu trouve la file vide (R3)', async () => {
+    const { useFeedStore, useAuthStore } = await load();
+    login(useAuthStore);
+    await quiet();
+    useFeedStore.setState({ replayRefusedByServer: true });
+    await useFeedStore.getState().replayQueue();
+    expect(useFeedStore.getState().replayRefusedByServer).toBe(false);
+  });
+
+  // R4 : le rejeu est un quatrième sens. Un envoi réussi n'inscrivait rien
+  // dans `settledGestures` : un geste plus ancien encore en vol entrait en
+  // file après lui, et le rejeu suivant écrasait la dernière intention.
+  it('un envoi réussi du rejeu règle les gestes plus anciens encore en vol (R4)', async () => {
+    const { api, useFeedStore, useAuthStore } = await load();
+    login(useAuthStore);
+    await quiet();
+    useFeedStore.setState({ articles: [article('a')], selectedFeed: null, filter: 'all', searchQuery: '' });
+    let fail!: () => void;
+    vi.mocked(api.markAsRead).mockImplementationOnce(() => new Promise((_, rej) => { fail = () => rej(netErr()); }));
+    const p1 = useFeedStore.getState().toggleRead(article('a')); // geste 1 : lu, en vol
+    await flush();
+    vi.mocked(api.markAsUnread).mockRejectedValueOnce(netErr());
+    await useFeedStore.getState().toggleRead(article('a', true)); // geste 2 : non lu → file
+    expect(idb.queue.map((x) => x.value)).toEqual([false]);
+    vi.mocked(api.markAsUnread).mockResolvedValue(undefined as never);
+    await useFeedStore.getState().replayQueue(); // retour du réseau
+    expect(idb.queue.length).toBe(0);
+    fail(); // geste 1 : délai dépassé
+    await p1;
+    expect(idb.queue.map((x) => x.value), 'le geste dépassé n’entre pas en file').toEqual([]);
+  });
+
+  // R6 : `queueLoaded` ne passait à vrai qu'après l'attente ; deux premiers
+  // chargements lisaient chacun la file, et le plus lent écrasait en mémoire
+  // ce que l'autre venait de mettre en file.
+  it('deux premiers chargements concurrents partagent une seule lecture (R6)', async () => {
+    const { api, store, useFeedStore, useAuthStore } = await load();
+    login(useAuthStore); // le rejeu de connexion lance la 1re lecture…
+    const slowRead = deferred<Record<string, unknown>[]>();
+    vi.mocked(store.queueGet).mockImplementationOnce(() => slowRead.promise as never);
+    useFeedStore.setState({ articles: [article('a'), article('b')], selectedFeed: null, filter: 'all', searchQuery: '' });
+    // FreshRSS en difficulté : tout envoi échoue (le rejeu garde « a » pour
+    // un nouvel essai, il ne l'envoie pas).
+    vi.mocked(api.markAsRead).mockRejectedValue(err503());
+    const g = useFeedStore.getState().toggleRead(article('a')); // …et l'échec, une 2e
+    await quiet();
+    slowRead.resolve([]);
+    await g;
+    await quiet();
+    await useFeedStore.getState().toggleRead(article('b'));
+    expect(store.queueGet).toHaveBeenCalledTimes(1);
+    expect(idb.queue.map((x) => x.articleId).sort(), 'a perdue').toEqual(['a', 'b']);
+  });
+});

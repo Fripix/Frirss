@@ -727,7 +727,7 @@
     "pending_other": "{{count}} actions en attente",
     "syncFailed_one": "1 action n’a pas pu être synchronisée",
     "syncFailed_other": "{{count}} actions n’ont pas pu être synchronisées",
-    "refusedByServer": "FreshRSS refuse les actions en attente. Vérifiez l’utilisateur et le mot de passe d’API de ce serveur dans Préférences › Flux : elles repartiront au prochain chargement."
+    "refusedByServer": "FreshRSS refuse l’authentification pour les actions en attente. Elles restent en attente et repartiront dès que FreshRSS les acceptera."
   },
   "update": {
     "updating": "Mise à jour…"
