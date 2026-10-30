@@ -1015,7 +1015,15 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   `normalizeArticle`, `fromFreshrssName` pour le nom du flux de l'article et
   les abonnements (`getSubscriptionList`). Ils se voyaient, partaient tels
   quels dans un titre copié ou partagé, et une recherche sur « & » ne les
-  trouvait pas. ⚠️ Pas `？` ni `；` pleine chasse, que FreshRSS produit aussi
+  trouvait pas. **Entités d'un titre échappé deux fois** (#28) : FreshRSS retire
+  une couche et remplace le `&` restant, et `＆#127916;` s'affichait au lieu de
+  🎬. Décimales, hexadécimales et nommées se décodent (`decodeEntities`) en un
+  seul passage, donc une couche, seulement entières et marquées par `＆`, et
+  avec un `；` final dans les noms, où FreshRSS remplace aussi `;`. Le résultat
+  reste du texte. ⚠️ Le décodeur du navigateur prend aussi `&copy` sans
+  point-virgule : appliqué au titre entier, il ferait de « R&D&copy » un « R&D© ».
+  **Limite** : un titre qui parle vraiment de `&nbsp;` ne se distingue pas d'un
+  double échappement. ⚠️ Pas `？` ni `；` pleine chasse, que FreshRSS produit aussi
   dans les noms : ce sont des signes ordinaires du chinois et du japonais.
   Et jamais sur un nom d'étiquette ou de catégorie, qui sert d'identifiant à
   l'API. Un article sans titre garde `title: ''` dans le store : le libellé

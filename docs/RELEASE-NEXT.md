@@ -655,7 +655,9 @@ la release publiée.
 - **Les titres affichent « & », « < » et « > » normalement, et les noms de
   flux aussi « / ».** FreshRSS les remplaçait par des caractères pleine
   chasse (« Tom ＆ Jerry », « r／selfhosted »), qui se voyaient, partaient tels quels dans un titre
-  copié ou partagé, et échappaient à la recherche. Un article sans titre
+  copié ou partagé, et échappaient à la recherche. Les titres de flux qui
+  échappent leur texte deux fois affichent aussi leurs emojis et leurs accents :
+  🎬 au lieu de « ＆#127916; » (#28). Un article sans titre
   affiche « Sans titre » dans la langue de l'interface, et non plus en
   français pour tous.
 - **Bandeau de relève lisible sur téléphone.** Il passe à la ligne au lieu de
