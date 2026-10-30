@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { extractKey, cacheKey, userCachePattern } from '../cache.js';
+import { extractKey, cacheKey, userCachePattern, cacheableEntry, MAX_CACHED_ENTRY_BYTES } from '../cache.js';
 
 describe('extractKey', () => {
   it('donne la même clé pour la même URL', () => {
@@ -45,5 +45,39 @@ describe('userCachePattern', () => {
     expect(matches(userCachePattern(7), cacheKey(70, 'https://rss.example.com/a'))).toBe(false);
     expect(matches(userCachePattern(7), cacheKey(17, 'https://rss.example.com/a'))).toBe(false);
     expect(matches(userCachePattern(7), extractKey('https://example.com/a'))).toBe(false);
+  });
+});
+
+describe('cacheableEntry', () => {
+  it('rend tel quel un JSON ordinaire', () => {
+    expect(cacheableEntry('{"items":[{"id":1}]}')).toBe('{"items":[{"id":1}]}');
+    expect(cacheableEntry('[1,2]')).toBe('[1,2]');
+  });
+
+  it('garde les articles les plus récents', () => {
+    const out = cacheableEntry(JSON.stringify({ items: [1, 2, 3], continuation: 'c' }), 2);
+    expect(JSON.parse(out as string)).toEqual({ items: [1, 2], continuation: 'c' });
+  });
+
+  it('refuse ce qui ne s’analyse pas, ou n’est pas un objet', () => {
+    expect(cacheableEntry('pas du JSON')).toBeNull();
+    expect(cacheableEntry('')).toBeNull();
+    expect(cacheableEntry('null')).toBeNull();
+    expect(cacheableEntry('"une chaîne"')).toBeNull();
+    expect(cacheableEntry('42')).toBeNull();
+  });
+
+  it('refuse ce qui dépasse le plafond, en octets et pas en caractères', () => {
+    const fits = (n: number) => cacheableEntry(JSON.stringify({ c: 'é'.repeat(n) }), 50, 1000);
+    expect(fits(400)).not.toBeNull();
+    expect(fits(600)).toBeNull();
+    expect(cacheableEntry(JSON.stringify({ c: 'x'.repeat(MAX_CACHED_ENTRY_BYTES) }))).toBeNull();
+  });
+
+  it('juge la taille APRÈS la coupe : une longue réponse réduite à 50 articles reste cachable', () => {
+    const body = JSON.stringify({ items: Array.from({ length: 200 }, () => 'x'.repeat(1000)) });
+    const out = cacheableEntry(body, 50, 100_000);
+    expect(out).not.toBeNull();
+    expect((JSON.parse(out as string) as { items: unknown[] }).items).toHaveLength(50);
   });
 });

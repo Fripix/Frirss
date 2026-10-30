@@ -804,7 +804,7 @@ describe('servers actualize', () => {
     it('redacts a supplied test token from a logged URL just like the stored one', () => {
       const url = redactUrl('https://rss.example.com/i/?c=feed&a=actualize&user=alice&token=one-shot-secret&maxFeeds=1&ajax=1');
       expect(url).not.toContain('one-shot-secret');
-      expect(url).toContain('token=REDACTED');
+      expect(url).toBe('https://rss.example.com/i/');
     });
   });
 });

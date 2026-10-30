@@ -131,3 +131,33 @@ export function trimStreamJson(jsonString: string, max = MAX_PER_FEED): string {
   }
 }
 
+
+/**
+ * Plafond d'une entrée de lecture écrite dans Redis par `/api/proxy`.
+ *
+ * Mesuré le 2026-10-30 sur 15 flux publics à contenu intégral, enveloppe
+ * greader comprise : de 0,1 à 1,7 Mio la page de 50 articles, et 4,5 Mio pour le
+ * pire vu (des essais longs, ~90 Kio l'article). 8 Mio laisse le double du pire
+ * cas. Au-delà, la page reste servie : elle n'est simplement pas gardée.
+ */
+export const MAX_CACHED_ENTRY_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Ce qu'une lecture proxifiée a le droit de déposer dans Redis, ou `null`.
+ *
+ * Le corps vient d'un hôte que le compte a choisi : n'importe qui peut
+ * enregistrer le sien comme « serveur ». Seul du JSON qui s'analyse passe (la
+ * lecture depuis le cache le rend en `application/json`), coupé à `max`
+ * articles, et jugé APRÈS la coupe : une longue réponse ramenée à 50 articles
+ * reste légitime. Le plafond est en octets, ceux que Redis stocke.
+ */
+export function cacheableEntry(body: string, max = MAX_PER_FEED, maxBytes = MAX_CACHED_ENTRY_BYTES): string | null {
+  let parsed: unknown;
+  try { parsed = JSON.parse(body); } catch { return null; }
+  if (parsed === null || typeof parsed !== 'object') return null;
+  const { items } = parsed as { items?: unknown };
+  const entry = Array.isArray(items) && items.length > max
+    ? JSON.stringify({ ...parsed, items: items.slice(0, max) })
+    : body;
+  return Buffer.byteLength(entry) > maxBytes ? null : entry;
+}

@@ -22,18 +22,24 @@ vi.mock('../middleware/auth.js', () => ({
   requireAdmin: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 const cacheSet = vi.fn(async () => {});
-vi.mock('../cache.js', () => ({
+vi.mock('../cache.js', async () => ({
+  ...await vi.importActual<typeof import('../cache.js')>('../cache.js'),
   cacheEnabled: true,
   cacheGet: vi.fn(async () => null),
   cacheSet: (...a: unknown[]) => cacheSet(...(a as [])),
   cacheKey: (u: unknown, t: string) => `k:${String(u)}:${t}`,
-  trimStreamJson: (s: string) => s,
 }));
 
 const { default: proxyRouter, MAX_CACHED_BODY_BYTES } = await import('../routes/proxy.js');
+const { MAX_CACHED_ENTRY_BYTES } = await import('../cache.js');
 const { default: db } = await import('../db.js');
 
 const CHUNK = Buffer.alloc(1024 * 1024, 0x61);
+// Du JSON valide, juste au-dessus du plafond d'une entrée.
+const LARGE_JSON = JSON.stringify({ items: [{ content: 'x'.repeat(MAX_CACHED_ENTRY_BYTES) }] });
+// Le pire vu sur des flux réels à contenu intégral (essais longs) : ~90 Kio par
+// article, soit environ 4,5 Mio la page de 50.
+const HEAVY_PAGE = JSON.stringify({ items: Array.from({ length: 50 }, (_, i) => ({ id: i, content: 'x'.repeat(90 * 1024) })) });
 const upstream = http.createServer((req, res) => {
   const path = req.url ?? '';
   if (path.startsWith('/reader/api/0/stream/contents/huge')) {
@@ -47,6 +53,21 @@ const upstream = http.createServer((req, res) => {
       res.end();
     };
     pump();
+    return;
+  }
+  if (path.startsWith('/reader/api/0/stream/contents/large')) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(LARGE_JSON);
+    return;
+  }
+  if (path.startsWith('/reader/api/0/stream/contents/page')) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(HEAVY_PAGE);
+    return;
+  }
+  if (path.startsWith('/reader/api/0/stream/contents/text')) {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('pas du JSON');
     return;
   }
   res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -115,6 +136,28 @@ describe('/api/proxy — lectures mises en cache', () => {
   it("ne met pas en cache la lecture d'un hôte qui n'est pas un serveur du compte", async () => {
     expect((await call('/reader/api/0/subscription/list?output=json', null)).status).toBe(200);
     expect((await call('/reader/api/0/subscription/list?output=json', otherServer)).status).toBe(200);
+    expect(cacheSet).not.toHaveBeenCalled();
+  });
+
+  // Le serveur « du compte » n'est pas une preuve de confiance : le compte le
+  // choisit. Enregistrer son propre hôte suffisait à écrire 32 Mio par URL.
+  it('rend au client une lecture trop grosse pour le cache, sans l’y écrire', async () => {
+    const res = await call('/reader/api/0/stream/contents/large');
+    expect(res.status).toBe(200);
+    expect(res.bytes).toBe(Buffer.byteLength(LARGE_JSON));
+    expect(cacheSet).not.toHaveBeenCalled();
+  });
+
+  it('met en cache la page la plus lourde vue sur de vrais flux', async () => {
+    const res = await call('/reader/api/0/stream/contents/page');
+    expect(res.status).toBe(200);
+    expect(cacheSet).toHaveBeenCalledTimes(1);
+  });
+
+  it('ne met en cache que du JSON', async () => {
+    const res = await call('/reader/api/0/stream/contents/text');
+    expect(res.status).toBe(200);
+    expect(res.bytes).toBe('pas du JSON'.length);
     expect(cacheSet).not.toHaveBeenCalled();
   });
 

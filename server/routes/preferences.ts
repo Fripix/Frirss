@@ -1,12 +1,27 @@
 import { Router } from 'express';
 import type { Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import db from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
+// Plafond de requêtes, par compte et par minute. Le client pousse après un
+// délai et relit au retour au premier plan : même à quelques appareils, il
+// reste loin de deux requêtes par seconde. Sans plafond, un compte qui bouclait
+// sur `GET` gardait la boucle d'événements de toute l'instance occupée.
+export const PREFERENCES_RATE_LIMIT = 120;
+
 // All routes require authentication
 router.use(requireAuth);
+router.use(rateLimit({
+  windowMs: 60_000,
+  max: PREFERENCES_RATE_LIMIT,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => String(req.user.id),
+  message: { error: 'Too many preference requests, please slow down', code: 'too_many_requests' },
+}));
 
 // ── Bornes d'écriture ────────────────────────────────────────────────
 // Rien ne bornait ces écritures : ni la longueur des clés, ni la taille des
@@ -25,6 +40,13 @@ export const MAX_KEY_LENGTH = 128;
 export const MAX_VALUE_BYTES = 1024 * 1024;
 export const MAX_KEYS_PER_REQUEST = 200;
 export const MAX_KEYS_PER_USER = 500;
+// Le volume TOTAL d'un compte. Sans lui, 1 Mio × 500 clés faisait 500 Mio : 70
+// valeurs suffisaient à faire refuser l'export de sauvegarde de TOUTE l'instance
+// (64 Mio, `server/routes/backup.ts`), et chaque `GET` gelait la boucle
+// d'événements plusieurs secondes. Un logo au pire cas (256×256 sans perte, en
+// base64) pèse ~350 Kio, le reste des clés synchronisées quelques dizaines de
+// Kio : 4 Mio laisse dix fois la marge.
+export const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
 
 // `key` nomme la clé fautive quand le refus lui est propre : le client, qui
 // n'envoie que les clés modifiées (src/lib/prefsSync.ts), la retire du lot et
@@ -67,6 +89,17 @@ function existingKeys(userId: number, keys: string[]): Set<string> {
     `SELECT key FROM preferences WHERE user_id = ? AND key IN (${keys.map(() => '?').join(', ')})`
   ).all(userId, ...keys) as { key: string }[];
   return new Set(rows.map((r) => r.key));
+}
+
+/** Octets stockés pour ce compte, et pour celles de ses clés qu'un lot remplace. */
+function storedBytes(userId: number, keys: string[]): { total: number; replaced: number } {
+  const size = 'COALESCE(SUM(LENGTH(CAST(value AS BLOB))), 0)';
+  const total = (db.prepare(`SELECT ${size} AS n FROM preferences WHERE user_id = ?`).get(userId) as { n: number }).n;
+  if (!keys.length) return { total, replaced: 0 };
+  const replaced = (db.prepare(
+    `SELECT ${size} AS n FROM preferences WHERE user_id = ? AND key IN (${keys.map(() => '?').join(', ')})`
+  ).get(userId, ...keys) as { n: number }).n;
+  return { total, replaced };
 }
 
 // `key: undefined` disparaît à la sérialisation JSON : un refus du lot n'en porte pas.
@@ -116,6 +149,15 @@ router.put('/', (req, res) => {
   const added = validated.filter(([k]) => !known.has(k)).length;
   if (storedKeyCount(req.user.id) + added > MAX_KEYS_PER_USER) {
     return reject(res, { code: 'too_many_preferences', error: `At most ${MAX_KEYS_PER_USER} stored preferences per user` });
+  }
+
+  // Compté après remplacement, et seulement s'il grossit : un compte déjà
+  // au-dessus du plafond (d'avant lui) doit pouvoir maigrir.
+  const { total, replaced } = storedBytes(req.user.id, validated.map(([k]) => k));
+  const incoming = validated.reduce((sum, [, v]) => sum + Buffer.byteLength(v, 'utf8'), 0);
+  const after = total - replaced + incoming;
+  if (after > MAX_TOTAL_BYTES && after > total) {
+    return res.status(413).json({ error: `Stored preferences exceed ${MAX_TOTAL_BYTES} bytes`, code: 'preferences_too_large' });
   }
 
   const upsert = db.prepare(`

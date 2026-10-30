@@ -7,7 +7,7 @@ import dns from 'dns';
 import db from '../db.js';
 import { decrypt } from '../crypto.js';
 import { requireAuth } from '../middleware/auth.js';
-import { cacheEnabled, cacheGet, cacheSet, cacheKey, trimStreamJson } from '../cache.js';
+import { cacheEnabled, cacheGet, cacheSet, cacheKey, cacheableEntry } from '../cache.js';
 import { stripTrailingSlashes } from '../validate.js';
 
 const router = Router();
@@ -65,6 +65,9 @@ function deadlineError(): Error {
  * avant d'être renvoyée : sans borne, un amont rapide remplissait la mémoire de
  * l'unique processus pendant les 60 s de l'échéance. Une page de flux greader
  * pèse quelques Mo au plus.
+ *
+ * C'est la borne de la LECTURE : ce qui entre dans Redis a la sienne, bien plus
+ * basse (`MAX_CACHED_ENTRY_BYTES`, `server/cache.ts`).
  */
 export const MAX_CACHED_BODY_BYTES = 32 * 1024 * 1024;
 
@@ -184,7 +187,8 @@ router.use(requireAuth);
 // borne ce qu'un compte peut faire émettre au backend par `/api/proxy`,
 // `/api/extract`, `/api/ai` et la relève (`POST /api/servers/:id/actualize`,
 // qui y échappait jusqu'en 1.8.0 ; le test du jeton maître passe par elle).
-// Le SSO a sa propre limite.
+// Les appels sortants du SSO n'y sont pas : le retour du fournisseur est
+// anonyme et a sa propre limite, par adresse (`/api/auth/oidc/callback`).
 const PROXY_RATE_LIMIT = proxyRateLimit();
 export const proxyRateLimiter = PROXY_RATE_LIMIT > 0
   ? rateLimit({
@@ -217,25 +221,24 @@ const REWRITES: [string, string][] = (process.env.PROXY_REWRITES || '')
   })
   .filter((p): p is [string, string] => p !== null);
 
-// Strip credential-bearing query parameters before a URL reaches a log.
-// The FreshRSS feed-refresh call (see ../actualizeRequest.ts) must be a GET
-// carrying the master token in its query string — FreshRSS rejects every other
-// form — so any log line printing a target URL would otherwise write that
-// secret to disk. The rest of the URL is kept: a redacted log is still useful,
-// a silenced one is not.
-const SECRET_PARAMS = new Set(['token']);
-
+/**
+ * Ce qu'un journal a le droit de retenir d'une URL : son origine et son chemin.
+ *
+ * La requête ne sort JAMAIS, quel que soit le nom du paramètre. Une liste de
+ * paramètres secrets (`token`, le jeton maître de la relève, voir
+ * `../actualizeRequest.ts`) en oubliait toujours un : `sig=`,
+ * `X-Amz-Signature=` des images préchargées, `q=` d'une recherche personnelle.
+ * Le chemin reste : un journal réduit est utile, un journal muet ne l'est pas.
+ * `URL.origin` retire au passage un identifiant écrit devant l'hôte. Une URL
+ * illisible (elle peut passer le filtre `^https?://`) est coupée à la main.
+ */
 export function redactUrl(url: string): string {
-  let u: URL;
-  try { u = new URL(url); } catch { return url; }   // not a URL → nothing to parse
-  let touched = false;
-  for (const key of [...u.searchParams.keys()]) {
-    if (SECRET_PARAMS.has(key.toLowerCase())) {
-      u.searchParams.set(key, 'REDACTED');
-      touched = true;
-    }
+  try {
+    const u = new URL(url);
+    return u.pathname === '/' ? u.origin : `${u.origin}${u.pathname}`;
+  } catch {
+    return url.split(/[?#]/, 1)[0];
   }
-  return touched ? u.toString() : url;
 }
 
 function rewriteTarget(url: string): string {
@@ -252,18 +255,29 @@ function rewriteTarget(url: string): string {
 // metadata, other containers). So: public hosts are allowed; private/internal
 // hosts are blocked UNLESS explicitly trusted.
 //
-// Trusted internal hosts = PROXY_REWRITES endpoints (both sides) +
-// PROXY_INTERNAL_HOSTS (comma-separated), so FreshRSS can be reached locally
-// (e.g. http://freshrss:80) on purpose.
-const ALLOWED_INTERNAL = new Set<string>();
+// Deux niveaux de confiance, volontairement différents :
+//  - `PROXY_REWRITES` : l'ORIGINE exacte de chaque côté (schéma, hôte, port).
+//    Le nom public n'a besoin d'être de confiance que pour le repli vers l'URL
+//    publique, qui vise exactement cette origine. Par son nom seul, en
+//    split-DNS, il ouvrait tous les ports du reverse proxy (et un côté interne
+//    écrit en IP littérale tous les ports de cette IP) à tout compte.
+//  - `PROXY_INTERNAL_HOSTS` : l'hôte, tous ports confondus. C'est le contrat de
+//    cette variable, que l'opérateur remplit à la main.
+const REWRITE_ORIGINS = new Set<string>();
 for (const [from, to] of REWRITES) {
   for (const u of [from, to]) {
-    try { ALLOWED_INTERNAL.add(new URL(u).hostname.toLowerCase()); } catch { /* ignore */ }
+    try { REWRITE_ORIGINS.add(new URL(u).origin); } catch { /* ignore */ }
   }
 }
+const ALLOWED_INTERNAL = new Set<string>();
 (process.env.PROXY_INTERNAL_HOSTS || '')
   .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
   .forEach((h) => ALLOWED_INTERNAL.add(h));
+
+/** La cible est-elle de confiance d'office ? `host` : `URL.hostname`, en minuscules et sans crochets. */
+function explicitlyTrusted(target: URL, host: string): boolean {
+  return ALLOWED_INTERNAL.has(host) || REWRITE_ORIGINS.has(target.origin);
+}
 
 // True if an IP *literal* is loopback / private / link-local / ULA — i.e. must
 // not be reachable from a user-supplied target. Covers IPv4, IPv6 and
@@ -310,10 +324,11 @@ export function isInternalHostLiteral(host: string): boolean {
 // targets → immediate 403). The authoritative resolve-based check runs in
 // fetchUpstream, on every request AND every redirect hop.
 export function targetAllowedLiteral(rawTarget: string): boolean {
-  let host: string;
-  try { host = new URL(rawTarget).hostname; } catch { return false; }
+  let target: URL;
+  try { target = new URL(rawTarget); } catch { return false; }
+  const host = target.hostname;
   const h = host.toLowerCase().replace(/^\[|\]$/g, '');
-  if (ALLOWED_INTERNAL.has(h)) return true;               // explicitly trusted
+  if (explicitlyTrusted(target, h)) return true;
   return !isInternalHostLiteral(host);
 }
 
@@ -512,7 +527,7 @@ const TRANSIENT_LOOKUP_CODES = new Set(['EAI_AGAIN', 'EAI_FAIL', 'ETIMEDOUT']);
  * ⚠️ **Et dans l'autre sens, la fenêtre n'est pas close** : sur la branche
  * transitoire, le repli sert le cache d'extraction — global à l'instance — y
  * compris pour un hôte interne AUTREFOIS autorisé, la seule classe d'entrées
- * qui puisse porter du contenu interne (`ALLOWED_INTERNAL` court-circuite la
+ * qui puisse porter du contenu interne (`explicitlyTrusted` court-circuite la
  * résolution au moment de l'écriture). Le tri par liste positive a ramené cette
  * fenêtre de « toujours » à « tant que le résolveur bafouille » ; il ne la
  * referme pas. Limite connue et acceptée.
@@ -524,8 +539,8 @@ function lookupFailure(host: string, err: unknown): BlockedTargetError {
     : new BlockedTargetError(host);
 }
 
-// Throws BlockedTargetError if `rawUrl` must not be fetched. Trusted internal
-// hosts (PROXY_REWRITES / PROXY_INTERNAL_HOSTS) pass. Otherwise the host is
+// Throws BlockedTargetError if `rawUrl` must not be fetched. Trusted targets
+// (origins of PROXY_REWRITES, hosts of PROXY_INTERNAL_HOSTS) pass. Otherwise the host is
 // rejected if it is an internal literal, OR if it RESOLVES to a private IP —
 // which defeats `10.x.x.x.nip.io` and DNS records aimed at the internal
 // network (a string-only check missed those).
@@ -543,10 +558,11 @@ function lookupFailure(host: string, err: unknown): BlockedTargetError {
 // depuis le conteneur. La confiance porte sur l'hôte nommé, pas sur la
 // requête : un saut de redirection vers un autre hôte privé reste refusé.
 export async function assertTargetSafe(rawUrl: string, trustedHosts: readonly string[] = []): Promise<void> {
-  let host: string;
-  try { host = new URL(rawUrl).hostname; } catch { throw new BlockedTargetError('bad-url'); }
+  let target: URL;
+  try { target = new URL(rawUrl); } catch { throw new BlockedTargetError('bad-url'); }
+  const host = target.hostname;
   const h = host.toLowerCase().replace(/^\[|\]$/g, '');
-  if (ALLOWED_INTERNAL.has(h)) return;                    // explicitly trusted
+  if (explicitlyTrusted(target, h)) return;
   if (trustedHosts.some((t) => t.toLowerCase() === h)) return;
   if (isInternalHostLiteral(host)) throw new BlockedTargetError(host);
   let addrs: dns.LookupAddress[];
@@ -748,7 +764,9 @@ router.all('/', async (req, res) => {
 
   // Seule la lecture d'un serveur du compte : le chemin seul décidait, et
   // n'importe quel hôte qui servait `/reader/api/0/` écrivait jusqu'à
-  // `MAX_CACHED_BODY_BYTES` par URL dans le Redis — partagé avec l'hôte.
+  // `MAX_CACHED_BODY_BYTES` par URL dans le Redis — partagé avec l'hôte. Ce
+  // n'est pas une preuve de confiance (un compte enregistre l'hôte qu'il veut) :
+  // ce qui entre vraiment dans Redis passe aussi par `cacheableEntry`.
   const cacheable = cacheEnabled && ownServerTarget && isCacheableRead(req.method, rawTarget);
   const key = cacheable ? cacheKey(req.user.id, rawTarget) : null;
 
@@ -860,7 +878,8 @@ router.all('/', async (req, res) => {
       return finishError(res, err, rawTarget);
     }
     res.status(upstream.status).send(text);
-    if (key) cacheSet(key, trimStreamJson(text)); // fire-and-forget
+    const entry = key ? cacheableEntry(text) : null;
+    if (key && entry !== null) cacheSet(key, entry); // fire-and-forget
     return;
   }
 
@@ -894,12 +913,13 @@ router.all('/', async (req, res) => {
  * Le corps ne dit jamais quelle cible a été refusée ni pourquoi : ce serait
  * offrir un scanner de réseau interne à qui essaie des URL.
  *
- * `target` n'existe QUE pour la ligne de journal, et c'est à l'appelant de le
- * réduire à ce que le journal a le droit de retenir. `/api/proxy` passe l'URL
- * entière — le chemin greader qui a échoué est ce qu'on relit en exploitation.
- * `/api/extract` ne passe que l'ORIGINE : son chemin est l'URL d'un article,
- * donc un historique de lecture, et la route la plus fréquente à échouer (un
- * domaine d'article mort) en aurait déposé un plein journal.
+ * `target` n'existe QUE pour la ligne de journal. `redactUrl` en retire
+ * toujours la requête ; à l'appelant d'en retirer davantage si son chemin en dit
+ * trop. `/api/proxy` passe l'URL entière : le chemin greader qui a échoué est
+ * ce qu'on relit en exploitation. `/api/extract` ne passe que l'ORIGINE : son
+ * chemin est l'URL d'un article, donc un historique de lecture, et la route la
+ * plus fréquente à échouer (un domaine d'article mort) en aurait déposé un plein
+ * journal.
  */
 export function finishError(res: ExpressResponse, err: unknown, target: string, label = 'Proxy error:') {
   // Avant le refus : une panne de résolveur n'est pas une cible refusée, et le
@@ -909,9 +929,7 @@ export function finishError(res: ExpressResponse, err: unknown, target: string, 
     // `redactUrl` comme les deux autres branches, et pas par symétrie
     // décorative : `/api/proxy` passe ici l'URL fournie par le client, et le
     // préchargement d'images hors ligne (`x-proxy-image`) y fait passer des
-    // URL de CDN tierces, dont beaucoup sont signées par un `?token=…`. Un
-    // hoquet de résolveur pendant un balayage écrivait donc en clair ce que
-    // `SECRET_PARAMS` existe pour retirer.
+    // URL de CDN tierces, dont beaucoup sont signées par leur requête.
     console.warn(label, 'unresolved target →', redactUrl(target));
     return res.status(503).json({ error: 'Target host unresolved' });
   }

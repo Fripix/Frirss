@@ -63,3 +63,28 @@ export function rateLimitIpKey(ip: string | undefined): string {
   // /56 = trois groupes entiers et l'octet haut du quatrième.
   return `${g.slice(0, 3).map((x) => x.toString(16)).join(':')}:${(g[3] & 0xff00).toString(16)}::/56`;
 }
+
+/*
+ * Bornes d'un compte. Le corps admis va jusqu'à 5 Mo, et `GET /api/admin/users`
+ * renvoie ces champs à l'admin. Le mot de passe a la sienne parce que bcrypt
+ * n'en lit de toute façon que les 72 premiers octets : au-delà, ce n'est plus
+ * un mot de passe.
+ */
+export const MAX_USERNAME_LENGTH = 64;
+export const MAX_DISPLAY_NAME_LENGTH = 128;
+export const MAX_PASSWORD_LENGTH = 1024;
+
+/** Le refus d'un champ de compte (`null` s'il convient). Le minimum reste à l'appelant. */
+export function accountFieldError(field: { username?: unknown; displayName?: unknown; password?: unknown }): string | null {
+  const { username, displayName, password } = field;
+  if (username !== undefined && (typeof username !== 'string' || username.length > MAX_USERNAME_LENGTH)) {
+    return `Username must be at most ${MAX_USERNAME_LENGTH} characters`;
+  }
+  if (displayName !== undefined && displayName !== null && (typeof displayName !== 'string' || displayName.length > MAX_DISPLAY_NAME_LENGTH)) {
+    return `Display name must be at most ${MAX_DISPLAY_NAME_LENGTH} characters`;
+  }
+  if (password !== undefined && (typeof password !== 'string' || password.length > MAX_PASSWORD_LENGTH)) {
+    return `Password must be at most ${MAX_PASSWORD_LENGTH} characters`;
+  }
+  return null;
+}

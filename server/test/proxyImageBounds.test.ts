@@ -28,6 +28,7 @@ vi.mock('../cache.js', () => ({
   cacheSet: vi.fn(async () => {}),
   cacheKey: (u: unknown, t: string) => `k:${String(u)}:${t}`,
   trimStreamJson: (s: string) => s,
+  cacheableEntry: (s: string) => s,
 }));
 
 const { default: proxyRouter, MAX_PROXIED_IMAGE_BYTES } = await import('../routes/proxy.js');

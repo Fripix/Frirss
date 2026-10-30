@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import db, { getSetting, setSetting } from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { clearDiscoveryCache, getRedirectUri } from '../oidc.js';
-import { isValidEmail } from '../validate.js';
+import { accountFieldError, isValidEmail } from '../validate.js';
 import { cachePurgeUser } from '../cache.js';
 
 const router = Router();
@@ -17,6 +17,10 @@ router.use(requireAuth, requireAdmin);
 router.post('/users', async (req, res) => {
   const { username, password, email, displayName, role } = req.body;
 
+  const fieldError = accountFieldError({ username, password, displayName });
+  if (fieldError) {
+    return res.status(400).json({ error: fieldError });
+  }
   if (!username || username.length < 3) {
     return res.status(400).json({ error: 'Username must be at least 3 characters' });
   }
@@ -72,6 +76,11 @@ router.put('/users/:id', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
+  }
+
+  const fieldError = accountFieldError({ displayName });
+  if (fieldError) {
+    return res.status(400).json({ error: fieldError });
   }
 
   // Types stricts : la garde ci-dessous teste `active === false`, alors que
@@ -140,6 +149,10 @@ router.put('/users/:id/password', async (req, res) => {
   const { id } = req.params;
   const { password } = req.body;
 
+  const fieldError = accountFieldError({ password });
+  if (fieldError) {
+    return res.status(400).json({ error: fieldError });
+  }
   if (!password || password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }

@@ -8,7 +8,7 @@ import db, { getSetting, getJwtSecret, userCount } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getOidcConfig, getDiscovery, getRedirectUri, isOidcEnabled, oidcFetch } from '../oidc.js';
 import { parseCookieHeader } from '../cookies.js';
-import { isValidEmail, rateLimitIpKey } from '../validate.js';
+import { accountFieldError, isValidEmail, rateLimitIpKey } from '../validate.js';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -27,6 +27,40 @@ const authLimiter = rateLimit({
   // Une IPv6 par /56 : sinon chaque adresse de sa /64 donnait un seau neuf.
   keyGenerator: (req) => rateLimitIpKey(req.ip),
   message: { error: 'Too many attempts, please try again later' },
+});
+
+// Inscriptions RÉUSSIES par adresse et par heure. `authLimiter` ne compte que
+// les échecs : une fois les inscriptions ouvertes, une seule adresse créait
+// autant de comptes qu'elle voulait, chacun avec son stockage, ses serveurs et
+// son accès au proxy sortant. Quelques comptes laissent passer une famille
+// derrière le même NAT, un jour d'ouverture.
+const REGISTER_RATE_LIMIT = 5;
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: REGISTER_RATE_LIMIT,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipFailedRequests: true,
+  keyGenerator: (req) => rateLimitIpKey(req.ip),
+  message: { error: 'Too many accounts created, please try again later' },
+});
+
+// Retour du fournisseur SSO, anonyme, par adresse et sur 15 minutes. Toutes les
+// issues de cette route sont des redirections : `authLimiter`, qui ne compte que
+// les échecs HTTP, n'y verrait jamais rien. Sans limite, FriRSS servait de relais
+// vers le point de jeton du fournisseur, `client_secret` compris : une protection
+// qui bannit l'émetteur des échecs coupait alors le SSO de toute l'instance.
+// Une connexion SSO fait un seul retour : 30 couvrent un foyer ou un bureau
+// derrière la même adresse. Le navigateur suit une redirection : un 429 lui
+// aurait affiché du JSON brut.
+export const OIDC_CALLBACK_RATE_LIMIT = 30;
+const oidcCallbackLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: OIDC_CALLBACK_RATE_LIMIT,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => rateLimitIpKey(req.ip),
+  handler: (_req, res) => res.redirect('/#oidc_error=too_many'),
 });
 
 // Changer son mot de passe : un mot de passe actuel se devine depuis une
@@ -72,12 +106,16 @@ interface LocalUserRow {
 }
 
 // ── POST /api/auth/register ─────────────────────────────────────────
-router.post('/register', authLimiter, async (req, res) => {
+router.post('/register', registerLimiter, authLimiter, async (req, res) => {
   try {
     const { username, password, displayName, email } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password required' });
+    }
+    const fieldError = accountFieldError({ username, password, displayName });
+    if (fieldError) {
+      return res.status(400).json({ error: fieldError });
     }
     if (username.length < 3) {
       return res.status(400).json({ error: 'Username must be at least 3 characters' });
@@ -214,6 +252,10 @@ router.post('/change-password', requireAuth, passwordLimiter, async (req, res) =
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Both passwords required' });
     }
+    const fieldError = accountFieldError({ password: newPassword });
+    if (fieldError) {
+      return res.status(400).json({ error: fieldError });
+    }
     if (newPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
@@ -289,8 +331,9 @@ async function authorizationUrl(req: Request, res: Response, link?: number): Pro
     res.cookie('oidc_verifier', codeVerifier, opts);
     res.cookie('oidc_nonce', nonce, opts);
 
-    // Signed state (5 min) ties the callback to this request + carries the redirect URI
-    const state = jwt.sign({ t: 'oidc_state', redirectUri, ...(link ? { link } : {}) }, getJwtSecret(), {
+    // Signed state (5 min) ties the callback to this request + carries the redirect URI.
+    // `jti` : un retour ne le sert qu'une fois (`usedStates`).
+    const state = jwt.sign({ t: 'oidc_state', redirectUri, jti: randomBytes(16).toString('hex'), ...(link ? { link } : {}) }, getJwtSecret(), {
       expiresIn: '5m',
     });
 
@@ -366,6 +409,11 @@ router.post('/oidc/link', requireAuth, passwordLimiter, async (req, res) => {
 // redémarrage n'oublie que des tickets déjà proches de l'expiration.
 const usedLinkTickets = new Map<string, number>();
 
+// `state` déjà servis, comme les tickets : un `state` valait 5 minutes et autant
+// de retours qu'on voulait, chacun coûtant un échange de code au fournisseur.
+// Retirés à leur expiration. Le limiteur borne ce qu'on peut y faire entrer.
+const usedStates = new Map<string, number>();
+
 router.post('/oidc/link/complete', requireAuth, (req, res) => {
   const ticket = req.body?.ticket;
   let decoded: { t?: string; uid?: number; sub?: string; jti?: string; exp?: number };
@@ -414,7 +462,7 @@ router.delete('/oidc/link', requireAuth, (req, res) => {
 
 // ── GET /api/auth/oidc/callback ─────────────────────────────────────
 // Provider redirects here with ?code=...&state=...
-router.get('/oidc/callback', async (req, res) => {
+router.get('/oidc/callback', oidcCallbackLimiter, async (req, res) => {
   try {
     if (!isOidcEnabled()) {
       return res.redirect('/#oidc_error=disabled');
@@ -430,13 +478,15 @@ router.get('/oidc/callback', async (req, res) => {
     }
 
     // Verify state
-    let decoded: { t?: string; redirectUri?: string; link?: number };
+    let decoded: { t?: string; redirectUri?: string; link?: number; jti?: string; exp?: number };
     try {
-      decoded = jwt.verify(state, getJwtSecret(), { algorithms: ['HS256'] }) as { t?: string; redirectUri?: string; link?: number };
+      decoded = jwt.verify(state, getJwtSecret(), { algorithms: ['HS256'] }) as typeof decoded;
     } catch {
       return res.redirect('/#oidc_error=invalid_state');
     }
-    if (decoded.t !== 'oidc_state') {
+    const now = Date.now();
+    for (const [id, until] of usedStates) if (until < now) usedStates.delete(id);
+    if (decoded.t !== 'oidc_state' || typeof decoded.jti !== 'string' || usedStates.has(decoded.jti)) {
       return res.redirect('/#oidc_error=invalid_state');
     }
 
@@ -450,6 +500,10 @@ router.get('/oidc/callback', async (req, res) => {
     if (!codeVerifier) {
       return res.redirect('/#oidc_error=missing_verifier');
     }
+
+    // Consommé ICI, avant tout `await` : deux retours simultanés ne passent pas
+    // tous les deux, et ce qui précède ne coûte rien au fournisseur.
+    usedStates.set(decoded.jti, (decoded.exp ?? now / 1000 + 300) * 1000);
 
     const cfg = getOidcConfig();
     const disco = await getDiscovery();

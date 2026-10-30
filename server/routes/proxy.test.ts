@@ -145,26 +145,34 @@ describe('fetchUpstream', () => {
 // query string (FreshRSS rejects the POST form — see actualizeRequest.ts), so
 // any log statement that prints a URL is now a credential-leak vector.
 describe('redactUrl', () => {
-  it('replaces the value of a token query parameter', () => {
-    const out = redactUrl('https://example.com/i/?c=feed&a=actualize&user=alice&token=s3cr3t-token');
-    expect(out).not.toContain('s3cr3t-token');
-    expect(out).toContain('token=REDACTED');
-    // Everything else stays readable — the log must still be useful.
-    expect(out).toContain('c=feed');
-    expect(out).toContain('a=actualize');
+  it('ne garde que l’origine et le chemin', () => {
+    expect(redactUrl('https://example.com/i/?c=feed&a=actualize&user=alice&token=s3cr3t-token'))
+      .toBe('https://example.com/i/');
+    expect(redactUrl('https://example.com/reader/api/0/stream/contents/feed/12?q=recherche%20personnelle#x'))
+      .toBe('https://example.com/reader/api/0/stream/contents/feed/12');
   });
 
-  it('redacts regardless of parameter case or position', () => {
+  // `?sig=`, `?X-Amz-Signature=`, `?q=` : une liste de paramètres secrets en
+  // oublierait toujours un. C'est la requête entière qui ne sort pas.
+  it('retire tout paramètre, quel que soit son nom', () => {
     for (const u of ['https://example.com/i/?token=s3cr3t',
                      'https://example.com/i/?TOKEN=s3cr3t&a=x',
-                     'https://example.com/i/?a=x&Token=s3cr3t&b=y']) {
+                     'https://cdn.example.com/a.jpg?w=800&sig=s3cr3t',
+                     'https://cdn.example.com/a.jpg?X-Amz-Signature=s3cr3t',
+                     'https://example.com/x?q=s3cr3t']) {
       expect(redactUrl(u), u).not.toContain('s3cr3t');
+      expect(redactUrl(u), u).not.toContain('?');
     }
   });
 
-  it('leaves URLs without a token untouched, and never throws on junk', () => {
-    expect(redactUrl('https://example.com/x?a=1')).toBe('https://example.com/x?a=1');
+  it('retire aussi un identifiant dans l’URL', () => {
+    expect(redactUrl('https://alice:s3cr3t@example.com/x')).toBe('https://example.com/x');
+  });
+
+  it('coupe aussi une URL illisible à sa requête, sans jamais lever', () => {
     expect(redactUrl('not a url at all')).toBe('not a url at all');
+    expect(redactUrl('https://bad host/x?token=s3cr3t#y')).toBe('https://bad host/x');
+    expect(redactUrl('https://bad host/x#s3cr3t')).toBe('https://bad host/x');
   });
 });
 
@@ -196,7 +204,8 @@ describe('fetchUpstream logging', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     const logged = warn.mock.calls[0].join(' ');
     expect(logged).not.toContain('s3cr3t-token');
-    expect(logged).toContain('token=REDACTED');
+    expect(logged).not.toContain('?');
+    expect(logged).toContain('http://freshrss/i/');
   });
 });
 
@@ -293,10 +302,10 @@ describe('finishError — la cible journalisée est toujours réduite', () => {
       // vérifiant rien du tout.
       expect(logged).toContain('cdn.example.com');
       expect(logged).not.toContain('s3cr3t-cdn');
-      expect(logged).toContain('token=REDACTED');
-      // Le reste de l'URL survit : un journal réduit reste utile, un journal
-      // muet ne l'est pas.
-      expect(logged).toContain('w=1200');
+      // Le chemin survit : un journal réduit reste utile, un journal muet ne
+      // l'est pas. La requête, elle, ne sort jamais.
+      expect(logged).toContain('/img/hero.jpg');
+      expect(logged).not.toContain('w=1200');
       // Et le corps ne nomme toujours pas la cible.
       expect(JSON.stringify(seen.body)).not.toContain('cdn.example.com');
       warn.mockRestore();

@@ -47,6 +47,7 @@ describe('fetchUpstream — repli vers l’URL publique', () => {
       expect(warn).toHaveBeenCalledTimes(1);
       expect(JSON.stringify(warn.mock.calls[0])).toContain('no public fallback');
       expect(JSON.stringify(warn.mock.calls[0])).not.toContain('secret');
+      expect(JSON.stringify(warn.mock.calls[0])).not.toContain('?');
     } finally { warn.mockRestore(); }
   });
 });

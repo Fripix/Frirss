@@ -70,7 +70,8 @@ export async function syncUser(row: SyncRow, deadlineMs = PROXY_TOTAL_TIMEOUT_MS
   }
 }
 
-async function runCycle(): Promise<void> {
+/** Un cycle complet. Exporté pour les tests, qui ne passaient que par `syncUser`. */
+export async function runCycle(): Promise<void> {
   if (running) return; // no overlap
   running = true;
   try {
@@ -86,7 +87,9 @@ async function runCycle(): Promise<void> {
     `).all(`-${ACTIVE_DAYS} days`) as SyncRow[];
 
     for (let i = 0; i < users.length; i += PARALLEL_USERS) {
-      await Promise.all(users.slice(i, i + PARALLEL_USERS).map(syncUser));
+      // Appel explicite : `.map(syncUser)` passait l'index comme échéance
+      // (0, 1, 2 ms), et plus rien n'entrait dans le cache.
+      await Promise.all(users.slice(i, i + PARALLEL_USERS).map((row) => syncUser(row)));
     }
     if (users.length) console.log(`[sync] pre-cached ${users.length} active user(s)`);
   } catch (e) {
