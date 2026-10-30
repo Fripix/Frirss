@@ -82,6 +82,35 @@ export async function listPut(key: string, articles: Article[], continuation: st
   }
 }
 
+/**
+ * Applique `change` aux listes présentes, sans les redater (voir `listPut`).
+ * Une seule transaction, lecture comprise : une liste fraîche rangée entre une
+ * lecture et une écriture séparées serait écrasée par sa vieille version. Rendre
+ * le tableau reçu n'écrit rien.
+ */
+export async function listsPatch(keys: readonly string[], change: (articles: Article[]) => Article[]): Promise<void> {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve) => {
+      const store = tx(db, LISTS, 'readwrite');
+      store.transaction.oncomplete = () => resolve();
+      store.transaction.onabort = () => resolve();
+      store.transaction.onerror = () => resolve();
+      for (const key of keys) {
+        const r = store.get(key);
+        r.onsuccess = () => {
+          const record = r.result as ListRecord | undefined;
+          if (!record) return;
+          const articles = change(record.articles);
+          if (articles !== record.articles) store.put({ ...record, articles });
+        };
+      }
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function listEvictOlderThan(ts: number): Promise<void> {
   try {
     const db = await openDB();

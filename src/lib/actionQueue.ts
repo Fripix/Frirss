@@ -18,6 +18,9 @@ export interface QueuedAction {
    *  is the common case, and FreshRSS article ids are microsecond stamps);
    *  those no scope adopted yet go at the next logout. */
   scope?: string;
+  /** The article's feed, to find its kept lists if the action is dropped.
+   *  Absent on actions queued before 1.8.0. */
+  sourceId?: string;
   /** Order of the gesture within this session (`feedStore`), in memory
    *  only: dropped when the queue is read back from storage, where every
    *  action is older than any gesture of the new session. */

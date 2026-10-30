@@ -470,6 +470,29 @@ describe('servers actualize', () => {
     expect(status.body.job.continuing).toBeUndefined();
   });
 
+  // FreshRSS ne répond pas 403 à un jeton refusé : `Minz_Error::error(403)`
+  // redirige, et « Tester » ne pouvait plus jamais dire « refusé ».
+  it.each([
+    ['error', '/i/?c=error&code=403&rid=abc', 'FreshRSS answered 403'],
+    ['auth', '/i/?c=auth&a=login', 'FreshRSS answered 403'],
+    ['index', '/i/?c=index&a=index', 'FreshRSS answered 302'],
+  ])('reads a redirect to the %s page by where it leads', async (page, location, error) => {
+    const add = await request(app).post('/api/servers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'RedirectedRefresh', url: `https://rss-redirected-${page}.example.com`, freshrssUser: 'admin', freshrssToken: 'tok-123' });
+    const id = add.body.server.id;
+    await request(app).put(`/api/servers/${id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ refreshToken: 'master-tok-789' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 302, body: null, headers: new Headers({ location }) }));
+
+    await request(app).post(`/api/servers/${id}/actualize`).set('Authorization', `Bearer ${adminToken}`);
+    await tick();
+    const status = await request(app).get(`/api/servers/${id}/actualize`).set('Authorization', `Bearer ${adminToken}`);
+    expect(status.body.job.status).toBe('failed');
+    expect(status.body.job.error).toBe(error);
+  });
+
   it('forwards an AbortSignal to the outgoing request', async () => {
     const add = await request(app).post('/api/servers')
       .set('Authorization', `Bearer ${adminToken}`)

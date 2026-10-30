@@ -307,7 +307,9 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   `PUT /api/servers/:id` reçoit le seul `freshrssToken`. Deux étapes, deux
   messages : un échec de cet enregistrement dit `servers.errorGeneric`, pas
   « échec de connexion à FreshRSS », qui vient d'accepter. Échap ne ferme rien
-  pendant l'envoi. ⚠️ L'utilisateur ne
+  pendant l'envoi : envoyé par le bouton, qui se désactive, le focus passe au
+  formulaire, sinon il tombait sur `<body>` et l'Échap des Préférences fermait
+  tout. ⚠️ L'utilisateur ne
   change pas : un autre utilisateur sur le même serveur garderait la même
   portée, et la file, les listes, le cache Redis du premier seraient servis au
   second — un autre utilisateur est un autre serveur à ajouter. Le serveur
@@ -331,7 +333,12 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   passaient. **La relève compte dans le seau par minute** du proxy
   (`FRIRSS_PROXY_RATE_LIMIT`) : elle y échappait, test du jeton maître compris.
   Le test du jeton maître (`RefreshTokenField`) ne dit « refusé »
-  (`testFail`) que si FreshRSS a répondu 401 ou 403. Un 429 affiche
+  (`testFail`) que sur un 401, un 403, ou sa forme réelle : un mauvais jeton ne
+  reçoit pas un 403 de FreshRSS mais un **302** vers `?c=error&code=403`
+  (`Minz_Error::error`), ou vers `?c=auth`, que `isRefusalRedirect`
+  (`server/routes/servers.ts`) relit comme un 403. ⚠️ Mesuré sur un vrai
+  FreshRSS : les tests moquaient un `answered 403` qui n'arrive jamais, et
+  « Tester » ne disait plus « refusé » à personne. Un 429 affiche
   `preferences.refresh.testRateLimited`, une absence de tâche, de réponse ou
   une autre erreur `testInconclusive`, un enregistrement raté
   `servers.errorGeneric` : tous disaient « Le jeton a été refusé » d'un jeton
@@ -4977,11 +4984,18 @@ Délai réel entre la publication et le bandeau : la période du cron FreshRSS
     tout état non en cours, « La relève a échoué » compris. Allonger le délai côté FreshRSS (`fastcgi_read_timeout` de son
     nginx) supprime le 504. Le bandeau passe à la ligne et se borne à
     `100vw - 32px` (`refreshBannerLayout.test.ts`) : en `nowrap`, cette phrase
-    mesurait jusqu'à 800 px et sortait des deux côtés à 320 px. Il écrit en
-    `--on-accent` (le blanc en dur faisait 1,9:1), reste tant que le focus est
-    dans ses boutons, et sa croix se nomme `refresh.hintDismiss` (« Ne plus
-    proposer ») : elle oublie l'invitation pour toujours, « Fermer » le
-    cachait ;
+    mesurait jusqu'à 800 px et sortait des deux côtés à 320 px. Avec
+    l'invitation (`--hint`), les deux boutons passent à la ligne ensemble, à
+    droite : le lien gardait sa largeur et poussait la croix hors de l'écran
+    dans six langues. Il écrit en `--on-accent` (le blanc en dur faisait 1,9:1),
+    reste tant que le focus est dans ses boutons, et sa croix se nomme
+    `refresh.hintDismiss` (« Ne plus proposer ») : elle oublie l'invitation
+    pour toujours, « Fermer » le cachait. **Un seul chronomètre** : la classe
+    `--leaving` est posée par l'effet à 4,55 s, et retirée dès qu'un résultat,
+    une relève ou le focus relance tout. Le délai CSS d'autrefois ne repartait
+    pas avec un nouveau résultat, qui restait invisible, boutons cliquables, et
+    il fallait le neutraliser classe par classe (`--held` oublié sous mouvement
+    réduit) ;
   - le jeton maître donne aussi accès en **lecture** à tous les articles et à la
     liste d'abonnements. L'interface le dit avant la saisie ;
   - **`startJob` lance son travail SANS l'attendre** — voulu en production,
@@ -5052,8 +5066,8 @@ images consultés restent lisibles sans réseau.
   `src/lib/viewLists.ts`, tests `feedStore.offlineLists.test.ts`,
   `feedStore.viewLists.test.ts`).
   - **La préparation range sous sa propre clé** (`<portée>|<flux>:prepared`,
-    `preparedListKey`), qu'aucune visite ni aucun geste n'écrit, et qu'elle
-    remplace entièrement à chaque passage : les articles des 30 derniers jours,
+    `preparedListKey`), qu'aucune visite ne réécrit, où un geste ne change qu'un
+    champ, et qu'elle remplace entièrement à chaque passage : les articles des 30 derniers jours,
     au plus 400 (`PREPARED_MAX`, ses 8 pages), sans page suivante. Une ligne
     purgée par le serveur en sort, et la liste ne peut pas croître. ⚠️ Sous la
     clé de la vue (première version), trois défauts : une liste exacte périmée
@@ -5100,11 +5114,21 @@ images consultés restent lisibles sans réseau.
     préparation suivante ne l'atteignait plus. Elle reste en mémoire, pour se
     rouvrir sans attente, marquée pour n'y être jamais lue comme une vraie liste,
     et la première vraie réponse la rend à sa clé. Les gestes faits dessus
-    passent par la file, rejouée à chaque service, **et se reportent sur la
-    liste préparée** (`patchPrepared`, à la mise en file, sans la redater :
-    `listPut(…, cachedAt)`, sa date dit quand elle a été lue). Une fois la file
-    rejouée, il ne restait sinon aucune trace du geste : les articles lus
-    pendant un trajet revenaient sous Non lus au trajet suivant.
+    passent par la file, rejouée à chaque service.
+  - **Un geste se reporte sur les listes gardées** (`reportOnLists`,
+    `listsPatch`) : la préparée de son flux, ses huit listes exactes, les huit
+    de l'accueil. À la mise en file (avec la valeur que la file a gardée, pas
+    celle d'un ancien geste qui échoue tard) et à la confirmation en direct
+    (sauf si un geste plus récent a déjà pris la main) ; retiré si le rejeu
+    abandonne l'action (`sourceId`, gardé dans l'action). Une seule transaction
+    IndexedDB, lecture comprise : une liste fraîche rangée entre une lecture et
+    une écriture séparées serait écrasée par la vieille. **Sans la redater** :
+    la date dit quand la liste a été lue. Sans ce report, un geste ne vivait que
+    dans la vue où il était fait : les articles lus pendant un trajet, ou en
+    ligne depuis l'accueil, revenaient sous Non lus au trajet suivant.
+    **Limite assumée** : les listes de catégorie ne le reçoivent pas (les
+    trouver depuis un flux demanderait de les parcourir toutes) ; elles suivent
+    à leur prochaine lecture, et « Tout lu » garde son traitement à part.
   - **Les listes rangées par l'ancienne version** (clé `:all` préparée, `:oldest`
     servie à l'envers) restent lisibles comme listes exactes, cèdent le pas à
     une préparation plus récente, et partent par éviction (30 jours).
@@ -5603,8 +5627,8 @@ dans quelques composants partagés.
   cases à cocher, boutons radio, sélecteurs de couleur et curseurs, qui ont leur
   propre dimensionnement.
 - **Mouvement réduit** : `prefers-reduced-motion` couvre le reste des animations.
-  **Pas** de règle attrape-tout `* { animation: none }` : le bandeau de relève se
-  ferme *par* une animation et resterait affiché indéfiniment. Les rotations de
+  **Pas** de règle attrape-tout `* { animation: none }` : l'effacement du bandeau
+  de relève est une animation, qu'il ne faut pas couper net. Les rotations de
   chargement sont gardées aussi. Les deux transitions mobiles
   (`MobileStack`, `MobileDrawer`) posent leurs durées en style en ligne, hors
   d'atteinte du CSS : elles lisent `prefersReducedMotion()`

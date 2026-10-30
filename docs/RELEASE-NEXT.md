@@ -148,9 +148,10 @@ la release publiée.
   sans fin.
 - **Serveurs FreshRSS : nom, identifiant et jetons ont une taille maximale**,
   50 serveurs au plus par compte, et la relève compte dans la limite de
-  requêtes par minute. « Tester » n'annonce plus le jeton refusé que si
-  FreshRSS l'a refusé : limite de requêtes atteinte, test sans réponse ou
-  enregistrement raté se disent comme tels.
+  requêtes par minute. « Tester » n'annonce le jeton refusé que si FreshRSS l'a
+  refusé, et le reconnaît sous sa vraie forme, une redirection vers sa page
+  d'erreur : limite de requêtes atteinte, test sans réponse ou enregistrement
+  raté se disent comme tels.
 - **Avec `PROXY_REWRITES`, la relève ne se rabat plus sur l'adresse publique**
   quand l'adresse interne est injoignable : son URL porte le jeton maître, qui
   aurait fini dans le journal du reverse proxy public.
@@ -588,6 +589,11 @@ la release publiée.
   proxy devant FreshRSS répondait par une page HTML, la liste devenait vide sans
   erreur, et la copie gardée hors ligne était écrasée. C'est désormais une panne
   comme une autre : la liste gardée reste affichée.
+- **Ce que vous lisez reste lu hors ligne.** Un article lu ou mis en favori
+  depuis l'accueil, une catégorie ou un autre flux ne touchait pas les listes
+  gardées de son flux : il revenait non lu au trajet suivant. Le geste se
+  reporte désormais sur la liste préparée du flux, ses autres listes et celles
+  de l'accueil, et s'en retire si le serveur le refuse au final.
 - **Les flux préparés s'ouvrent hors ligne, quel que soit le filtre.** Après
   « Préparer le hors-ligne », un flux ouvert sous le filtre Non lus ou en ordre
   « plus anciens d'abord » échouait à se charger, ou s'affichait à l'envers.

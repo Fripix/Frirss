@@ -108,6 +108,32 @@ describe('ServerCredentialsForm', () => {
     await act(async () => { resolve('tok'); });
   });
 
+  // Le bouton se désactive sous le focus, qui tombait sur <body> : l'Échap du
+  // formulaire ne le voyait plus, et les Préférences se fermaient sur l'envoi.
+  it('le focus reste dans le formulaire quand on envoie par le bouton', async () => {
+    let finish!: (v: string) => void;
+    vi.mocked(login).mockReturnValue(new Promise((r) => { finish = r; }));
+    const { container } = render(<ServerCredentialsForm server={server} isActive={false} onSaved={() => {}} onClose={() => {}} />);
+    fireEvent.change(screen.getByLabelText('login.freshrssPassword'), { target: { value: 'secret' } });
+    const save = screen.getByRole('button', { name: 'servers.credentialsSave' });
+    save.focus();
+    await act(async () => { fireEvent.click(save); });
+    expect(document.activeElement).toBe(container.querySelector('form'));
+    await act(async () => { finish('tok'); });
+  });
+
+  it('par Entrée dans le champ, le focus ne bouge pas', async () => {
+    let finish!: (v: string) => void;
+    vi.mocked(login).mockReturnValue(new Promise((r) => { finish = r; }));
+    const { container } = render(<ServerCredentialsForm server={server} isActive={false} onSaved={() => {}} onClose={() => {}} />);
+    const field = screen.getByLabelText('login.freshrssPassword');
+    fireEvent.change(field, { target: { value: 'secret' } });
+    field.focus();
+    await act(async () => { fireEvent.submit(container.querySelector('form')!); });
+    expect(document.activeElement).toBe(field);
+    await act(async () => { finish('tok'); });
+  });
+
   it('Échap ferme le formulaire', () => {
     const onClose = vi.fn();
     render(<ServerCredentialsForm server={server} isActive={false} onSaved={() => {}} onClose={onClose} />);

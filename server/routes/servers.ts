@@ -277,7 +277,8 @@ router.post('/:id/actualize', ...(proxyRateLimiter ? [proxyRateLimiter] : []), (
     // — as every other FreshRSS call this app makes, plus PROXY_REWRITES
     // (which also keeps the URL, token included, off any public reverse proxy).
     // followRedirects stays off: FreshRSS answers a rejected call with a 302 to
-    // its login page, and chasing that would turn a failure into a fake 200.
+    // its login or error page, and chasing that would turn a failure into a
+    // fake 200.
     const r = await fetchUpstream(url, {
       method,
       signal,
@@ -296,11 +297,19 @@ router.post('/:id/actualize', ...(proxyRateLimiter ? [proxyRateLimiter] : []), (
       r.body?.cancel().catch(() => {});
       return 'continuing';
     }
+    // `Minz_Error::error(403)` redirige : un jeton refusé répond 302, jamais 403.
+    // Le client ne dit « refusé » que sur un 401 ou un 403.
+    if (isRefusalRedirect(r)) throw new Error('FreshRSS answered 403');
     if (!r.ok) throw new Error(`FreshRSS answered ${r.status}`);
   }, [token], kind);
 
   res.status(202).json({ job });
 });
+
+/** Une redirection vers la page d'erreur 403 de FreshRSS, ou vers sa connexion. */
+function isRefusalRedirect(r: Response): boolean {
+  return r.status >= 300 && r.status < 400 && /[?&](code=403|c=auth)\b/.test(r.headers.get('location') ?? '');
+}
 
 // ── GET /api/servers/:id/actualize ──────────────────────────────────
 router.get('/:id/actualize', (req, res) => {

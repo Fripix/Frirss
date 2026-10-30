@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../lib/offlineStore', () => ({
+  listsPatch: vi.fn(async () => {}),
   listGet: vi.fn(async () => undefined), listPut: vi.fn(async () => {}), listEvictOlderThan: vi.fn(async () => {}),
   subsGet: vi.fn(async () => undefined), subsPut: vi.fn(async () => {}),
   queueGet: vi.fn(async () => []), queuePut: vi.fn(async () => {}), clearOfflineViews: vi.fn(async () => {}),

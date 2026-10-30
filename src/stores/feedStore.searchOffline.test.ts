@@ -6,6 +6,7 @@ vi.mock('../api/feeds', async () => {
   return { ...actual, fetchStreamPage: vi.fn() };
 });
 vi.mock('../lib/offlineStore', () => ({
+  listsPatch: vi.fn(async () => {}),
   listGet: vi.fn(),
   listPut: vi.fn(),
   subsGet: vi.fn(),

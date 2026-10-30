@@ -5,6 +5,7 @@ import { useThemeStore } from '../stores/themeStore';
 import { useUiStore } from '../stores/uiStore';
 
 const SHOW_MS = 5000;
+const FADE_MS = 450;
 
 const ICONS = {
   running: <path d="M21 12a9 9 0 1 1-6.2-8.6" />,
@@ -37,11 +38,19 @@ export default function RefreshBanner() {
   // Tenu tant que le focus est dans ses boutons : au clavier, l'invitation
   // partait au bout de 5 s sous le focus, qui retombait sur <body>.
   const [focused, setFocused] = useState(false);
+  // L'effacement part du même chronomètre que la disparition : son délai en CSS
+  // ne repartait pas avec un nouveau résultat, qui restait invisible.
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     if (!refreshResult || running || focused) return;   // don't dismiss a refresh in progress
+    const fade = setTimeout(() => setLeaving(true), SHOW_MS - FADE_MS);
     const id = setTimeout(clearRefreshResult, SHOW_MS);
-    return () => clearTimeout(id);
+    return () => {
+      clearTimeout(fade);
+      clearTimeout(id);
+      setLeaving(false);
+    };
   }, [refreshResult, running, focused, clearRefreshResult]);
 
   const hasNew = (refreshResult?.totalNew ?? 0) > 0;
@@ -73,26 +82,28 @@ export default function RefreshBanner() {
     <>
       {region}
       <div
-        className={`refresh-banner${running ? ' refresh-banner--running' : ''}${focused ? ' refresh-banner--held' : ''}`}
+        className={`refresh-banner${leaving ? ' refresh-banner--leaving' : ''}${showHint ? ' refresh-banner--hint' : ''}`}
         onFocus={() => setFocused(true)}
         onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false); }}
       >
-        <svg
-          className={`refresh-banner__icon${running ? ' refresh-banner__icon--spin' : ''}`}
-          data-icon={icon}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          {ICONS[icon]}
-        </svg>
-        <span aria-hidden="true">{label}</span>
+        <span className="refresh-banner__message">
+          <svg
+            className={`refresh-banner__icon${running ? ' refresh-banner__icon--spin' : ''}`}
+            data-icon={icon}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {ICONS[icon]}
+          </svg>
+          <span aria-hidden="true">{label}</span>
+        </span>
         {showHint && (
-          <>
+          <span className="refresh-banner__actions">
             <button
               type="button"
               className="refresh-banner__action"
@@ -111,7 +122,7 @@ export default function RefreshBanner() {
             >
               ×
             </button>
-          </>
+          </span>
         )}
       </div>
     </>

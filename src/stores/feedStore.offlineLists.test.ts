@@ -16,6 +16,12 @@ vi.mock('../lib/offlineStore', () => ({
   listPut: vi.fn(async (k: string, articles: never[], continuation: string | null, cachedAt?: number) => {
     idb.lists.set(k, { articles, continuation, cachedAt: cachedAt ?? ++idb.clock });
   }),
+  listsPatch: vi.fn(async (keys: string[], change: (rows: never[]) => never[]) => {
+    for (const k of keys) {
+      const stored = idb.lists.get(k);
+      if (stored) idb.lists.set(k, { ...stored, articles: change(stored.articles) });
+    }
+  }),
   listEvictOlderThan: vi.fn(async () => {}),
   listsWithoutSource: vi.fn(async () => {}),
   subsGet: vi.fn(async () => undefined),
@@ -129,14 +135,12 @@ describe('la préparation a sa propre clé', () => {
     expect(idb.lists.has('7@1|feed/1:all')).toBe(false);
   });
 
-  it('une visite en ligne n’y touche pas', async () => {
+  it('une visite en ligne ne la réécrit pas', async () => {
     const env = await load();
     streamOf(env.api, 120);
     await prepare(env);
     const before = idb.lists.get(PREPARED);
     env.useFeedStore.getState().selectView(feed1, 'all');
-    await settled();
-    env.useFeedStore.getState().selectArticle(rows(env)[0]);
     await settled();
     expect(idb.lists.get(PREPARED)).toBe(before);
   });
@@ -220,6 +224,114 @@ describe('une liste exacte périmée ne masque plus la préparation', () => {
     expect((after.articles as unknown as { id: string; read: boolean }[]).find((a) => a.id === row.id)?.read).toBe(true);
     expect(after.cachedAt).toBe(before.cachedAt);
     setOnline(true);
+  });
+
+  // Le geste ne vivait que dans la liste de la vue où il était fait : lu en ligne
+  // depuis l'accueil, l'article revenait sous Non lus dans le train.
+  describe('un geste atteint les listes gardées de son flux', () => {
+    const read = (key: string, id: string) =>
+      (idb.lists.get(key)?.articles as unknown as { id: string; read: boolean }[] | undefined)?.find((a) => a.id === id)?.read;
+    const offlineUnread = async () => {
+      const env = await reopenOffline();
+      env.useFeedStore.getState().selectView(feed1, 'unread');
+      await settled();
+      return rows(env).map((a) => a.id);
+    };
+    /** Préparé, en ligne : les écritures d'un test hors ligne survivent à `load`. */
+    const prepared = async () => {
+      const env = await load();
+      vi.mocked(env.api.markAsRead).mockReset().mockResolvedValue(undefined as never);
+      vi.mocked(env.api.markAsUnread).mockReset().mockResolvedValue(undefined as never);
+      streamOf(env.api, 3);
+      await prepare(env);
+      return env;
+    };
+    const onHome = async (env: Env) => {
+      env.useFeedStore.getState().selectView(null, 'all');
+      await settled();
+      return env.useFeedStore.getState().articles[0];
+    };
+
+    it('confirmé en ligne depuis l’accueil', async () => {
+      const env = await prepared();
+      const a = await onHome(env);
+      const before = idb.lists.get(PREPARED)!.cachedAt;
+      await env.useFeedStore.getState().toggleRead(a);
+      await settled();
+      expect(read(PREPARED, a.id)).toBe(true);
+      expect(idb.lists.get(PREPARED)!.cachedAt).toBe(before);
+      expect(await offlineUnread()).not.toContain(a.id);
+    });
+
+    it('la liste exacte du flux, plus récente que la préparée, suit aussi', async () => {
+      const env = await prepared();
+      env.useFeedStore.getState().selectView(feed1, 'unread');
+      await settled();
+      const a = await onHome(env);
+      await env.useFeedStore.getState().toggleRead(a);
+      await settled();
+      expect(read('7@1|feed/1:unread', a.id)).toBe(true);
+      expect(await offlineUnread()).not.toContain(a.id);
+    });
+
+    it('la liste de l’accueil suit un geste fait dans le flux', async () => {
+      const env = await prepared();
+      const a = await onHome(env);
+      env.useFeedStore.getState().selectView(feed1, 'all');
+      await settled();
+      await env.useFeedStore.getState().toggleRead(a);
+      await settled();
+      expect(read('7@1|:all', a.id)).toBe(true);
+    });
+
+    it('un geste abandonné au rejeu est retiré', async () => {
+      const env = await prepared();
+      goOffline(env);
+      env.useFeedStore.getState().selectView(feed1, 'unread');
+      await settled();
+      const a = env.useFeedStore.getState().articles[0];
+      env.useFeedStore.getState().selectArticle(a);
+      await settled();
+      expect(read(PREPARED, a.id)).toBe(true);
+      setOnline(true);
+      vi.mocked(env.api.markAsRead).mockRejectedValue(Object.assign(new Error('refused'), { response: { status: 400 } }));
+      await env.useFeedStore.getState().replayQueue();
+      await settled();
+      expect(read(PREPARED, a.id)).toBe(false);
+    });
+
+    it('un geste ancien qui échoue tard ne couvre pas le plus récent', async () => {
+      const env = await prepared();
+      const a = await onHome(env);
+      const slow = deferred<void>();
+      vi.mocked(env.api.markAsRead).mockReturnValueOnce(slow.promise as never);
+      vi.mocked(env.api.markAsUnread).mockRejectedValueOnce(netErr());
+      const first = env.useFeedStore.getState().toggleRead(a);
+      await settled();
+      const now = env.useFeedStore.getState().articles.find((x) => x.id === a.id)!;
+      await env.useFeedStore.getState().toggleRead(now);
+      slow.reject(netErr());
+      await first;
+      await settled();
+      expect((idb.queue[0] as { value: boolean }).value).toBe(false);
+      expect(read(PREPARED, a.id)).toBe(false);
+    });
+
+    it('un ancien geste confirmé tard ne couvre pas le plus récent', async () => {
+      const env = await prepared();
+      const a = await onHome(env);
+      const slow = deferred<void>();
+      vi.mocked(env.api.markAsRead).mockReturnValueOnce(slow.promise as never);
+      const first = env.useFeedStore.getState().toggleRead(a);
+      await settled();
+      const now = env.useFeedStore.getState().articles.find((x) => x.id === a.id)!;
+      await env.useFeedStore.getState().toggleRead(now);
+      await settled();
+      slow.resolve();
+      await first;
+      await settled();
+      expect(read(PREPARED, a.id)).toBe(false);
+    });
   });
 
   it('une liste vidée APRÈS la préparation reste vide', async () => {

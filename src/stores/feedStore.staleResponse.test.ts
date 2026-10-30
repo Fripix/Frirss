@@ -10,6 +10,7 @@ const idb = vi.hoisted(() => ({
 }));
 
 vi.mock('../lib/offlineStore', () => ({
+  listsPatch: vi.fn(async () => {}),
   listGet: vi.fn(async (k: string) => idb.lists.get(k)),
   listPut: vi.fn(async (k: string, articles: never[], continuation: string | null) => { idb.lists.set(k, { articles, continuation }); }),
   listEvictOlderThan: vi.fn(async () => {}),

@@ -58,3 +58,50 @@ describe('bandeau de relève — invitation au clavier', () => {
     } finally { vi.useRealTimers(); }
   });
 });
+
+/*
+ * Deux chronomètres, le délai CSS de l'effacement et le `setTimeout`, dont un
+ * seul repartait à chaque résultat : une deuxième relève à +3 s laissait le
+ * texte invisible, boutons cliquables, de +5,5 s à +8 s.
+ */
+describe('bandeau de relève — un seul chronomètre', () => {
+  const banner = (c: HTMLElement) => c.querySelector('.refresh-banner');
+
+  it('un nouveau résultat repousse l’effacement', () => {
+    vi.useFakeTimers();
+    try {
+      useFeedStore.setState({ refreshResult: null, refreshPhase: 'idle', hasRefreshToken: true } as never);
+      const { container } = render(<RefreshBanner />);
+      act(() => { useFeedStore.setState({ refreshResult: { totalNew: 0 }, refreshPhase: 'done' } as never); });
+      act(() => { vi.advanceTimersByTime(3000); });
+      act(() => { useFeedStore.setState({ refreshResult: { totalNew: 4 } } as never); });
+      act(() => { vi.advanceTimersByTime(2500); });
+      expect(banner(container)?.className).not.toContain('refresh-banner--leaving');
+      act(() => { vi.advanceTimersByTime(2100); });
+      expect(banner(container)?.className).toContain('refresh-banner--leaving');
+      act(() => { vi.advanceTimersByTime(400); });
+      expect(useFeedStore.getState().refreshResult).toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('le focus arrivé pendant l’effacement l’annule', () => {
+    vi.useFakeTimers();
+    try {
+      useUiStore.setState({ refreshHintDismissed: false } as never);
+      useFeedStore.setState({ refreshResult: null, refreshPhase: 'idle', hasRefreshToken: false } as never);
+      const c = render(<RefreshBanner />);
+      act(() => { useFeedStore.setState({ refreshResult: { totalNew: 0 }, refreshPhase: 'done' } as never); });
+      act(() => { vi.advanceTimersByTime(4700); });
+      expect(banner(c.container)?.className).toContain('refresh-banner--leaving');
+      act(() => { c.getByRole('button', { name: 'refresh.enable' }).focus(); });
+      expect(banner(c.container)?.className).not.toContain('refresh-banner--leaving');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('l’invitation se signale : sa rangée peut passer à la ligne', () => {
+    useUiStore.setState({ refreshHintDismissed: false } as never);
+    useFeedStore.setState({ refreshResult: { totalNew: 0 }, refreshPhase: 'done', hasRefreshToken: false } as never);
+    const { container } = render(<RefreshBanner />);
+    expect(banner(container)?.className).toContain('refresh-banner--hint');
+  });
+});

@@ -29,10 +29,16 @@ export interface StoredView extends ViewList {
 
 const OLDEST = ':oldest';
 const FILTERS: readonly string[] = ['all', 'unread', 'starred', 'readlater'] satisfies Filter[];
+const ORDERS: readonly ArticleOrder[] = ['newest', 'oldest'];
 
 /** `<portée>|<flux>:<filtre>`, plus `:oldest` pour l'ordre inverse. */
 export function viewListKey({ scope, feedId, filter, order }: ViewAddress): string {
   return `${scope}|${feedId}:${filter}${order === 'oldest' ? OLDEST : ''}`;
+}
+
+/** Les huit listes d'un flux, ou de l'accueil (`feedId` vide) : quatre filtres, deux ordres. */
+export function viewListKeys(scope: string, feedId: string): string[] {
+  return FILTERS.flatMap((filter) => ORDERS.map((order) => viewListKey({ scope, feedId, filter: filter as Filter, order })));
 }
 
 /**
@@ -55,9 +61,10 @@ export function parseViewKey(key: string): ViewAddress | null {
 
 /**
  * Ce que la préparation hors ligne a rangé pour un flux. Sa clé à elle : aucune
- * visite ni aucun geste ne l'écrit, et `parseViewKey` ne la prend pas pour une
- * vue. Sous la clé de la vue, une visite en ligne la ramenait à 50 lignes, et une
- * liste exacte périmée, un `[]` de la semaine passée, passait devant elle.
+ * visite ne l'écrit, un geste n'y change qu'un champ, et `parseViewKey` ne la
+ * prend pas pour une vue. Sous la clé de la vue, une visite en ligne la ramenait
+ * à 50 lignes, et une liste exacte périmée, un `[]` de la semaine passée, passait
+ * devant elle.
  */
 export function preparedListKey(scope: string, feedId: string): string {
   return `${scope}|${feedId}:prepared`;

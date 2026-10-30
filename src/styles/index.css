@@ -972,18 +972,35 @@ html {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32),
               0 0 0 4px color-mix(in srgb, var(--accent, #4cd4a1) 22%, transparent);
   pointer-events: none;
+  animation: refresh-banner-in 0.42s cubic-bezier(0.18, 1.25, 0.4, 1);
+}
+/* Posée par `RefreshBanner`, seul chronomètre du bandeau. Le nom de l'entrée
+   reste dans la liste : retiré, elle se rejouerait au retrait de la classe. */
+.refresh-banner--leaving {
   animation: refresh-banner-in 0.42s cubic-bezier(0.18, 1.25, 0.4, 1),
-             refresh-banner-out 0.45s ease 4.55s forwards;
+             refresh-banner-out 0.45s ease forwards;
+}
+/* Avec ses boutons : à 320 px, la phrase prend sa ligne et ils passent dessous
+   ensemble, à droite. Sur une seule ligne, la marge ne trouve aucune place libre. */
+.refresh-banner--hint {
+  flex-wrap: wrap;
+}
+.refresh-banner__actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: auto;
+}
+.refresh-banner__message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 .refresh-banner__icon {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-}
-/* A real refresh runs for minutes; the default rule fades the banner out at
-   4.55s, which would hide it mid-refresh. Keep it up until the job resolves. */
-.refresh-banner--running {
-  animation: refresh-banner-in 0.42s cubic-bezier(0.18, 1.25, 0.4, 1);
 }
 .refresh-banner__icon--spin {
   animation: spin 1s linear infinite;
@@ -992,7 +1009,6 @@ html {
    the action link is the one part that has to stay clickable. */
 .refresh-banner__action {
   pointer-events: auto;
-  flex-shrink: 0;
   margin-left: 8px;
   color: var(--on-accent, #1c1c1a);
   text-decoration: underline;
@@ -1017,10 +1033,6 @@ html {
   margin-left: 2px;
   font-size: 1.1em;
   text-decoration: none;
-}
-/* Tenu sous le focus : l'effacement prévu par l'animation n'a pas lieu. */
-.refresh-banner--held {
-  animation: refresh-banner-in 0.42s cubic-bezier(0.18, 1.25, 0.4, 1);
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 /* one-shot ring that flares out from the banner on entrance to catch the eye */
@@ -1053,13 +1065,10 @@ html {
   50%      { box-shadow: inset 3px 0 0 var(--accent, #4cd4a1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .refresh-banner { animation: refresh-banner-in 0.25s ease, refresh-banner-out 0.45s ease 4.55s forwards; }
+  .refresh-banner { animation: refresh-banner-in 0.25s ease; }
+  .refresh-banner--leaving { animation: refresh-banner-in 0.25s ease, refresh-banner-out 0.45s ease forwards; }
   .refresh-banner::after { animation: none; display: none; }
   .feed-new-pulse { animation: none; box-shadow: inset 3px 0 0 var(--accent, #4cd4a1); }
-  /* The rule above still applies to a running banner (equal specificity, same
-     element) and would fade it out at 4.55s regardless of motion preference.
-     Cancel that here — a refresh in flight must stay up under reduced motion too. */
-  .refresh-banner--running { animation: none; }
   .refresh-banner__icon--spin { animation: none; }
 }
 

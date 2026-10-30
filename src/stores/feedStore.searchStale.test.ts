@@ -19,6 +19,7 @@ vi.mock('../api/feeds', async () => {
   };
 });
 vi.mock('../lib/offlineStore', () => ({
+  listsPatch: vi.fn(async () => {}),
   listGet: vi.fn(() => Promise.resolve(undefined)),
   listPut: vi.fn(() => Promise.resolve()),
   listEvictOlderThan: vi.fn(() => Promise.resolve()),

@@ -11,6 +11,7 @@ const idb = vi.hoisted(() => ({
 }));
 
 vi.mock('../lib/offlineStore', () => ({
+  listsPatch: vi.fn(async () => {}),
   listGet: vi.fn(async (k: string) => (idb.blocked ? undefined : idb.lists.get(k))),
   listPut: vi.fn(async (k: string, articles: unknown[], continuation: string | null) => {
     if (!idb.blocked) idb.lists.set(k, { articles, continuation });

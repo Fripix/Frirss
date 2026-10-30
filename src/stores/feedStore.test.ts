@@ -28,6 +28,7 @@ vi.mock('../api/feeds', () => ({
 // Mock the offline (IndexedDB) layer — unavailable in jsdom anyway. Defaults
 // mirror its graceful-degrade behaviour (reads → undefined, writes → no-op).
 vi.mock('../lib/offlineStore', () => ({
+  listsPatch: vi.fn(async () => {}),
   listGet: vi.fn(() => Promise.resolve(undefined)),
   listPut: vi.fn(() => Promise.resolve()),
   listEvictOlderThan: vi.fn(() => Promise.resolve()),

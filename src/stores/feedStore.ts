@@ -40,7 +40,7 @@ import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
 import { homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract, unpinExtractsExcept } from '../lib/extractCache';
-import { listGet, listPut, listEvictOlderThan, listsWithoutSource, subsGet, subsPut, queueGet, queuePut, clearOfflineViews } from '../lib/offlineStore';
+import { listGet, listPut, listsPatch, listEvictOlderThan, listsWithoutSource, subsGet, subsPut, queueGet, queuePut, clearOfflineViews } from '../lib/offlineStore';
 import { computeRefreshDelta } from '../lib/refreshDelta';
 import { countNewInView, viewFeedIds } from '../lib/newArticles';
 import { isValidCategoryName } from '../lib/feedCategories';
@@ -63,7 +63,7 @@ import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/ba
 import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
 import { createLocalWrites, applyField, type WriteField } from '../lib/localWrites';
 import {
-  viewListKey, parseViewKey, preparedListKey, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
+  viewListKey, viewListKeys, parseViewKey, preparedListKey, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
   type ViewAddress, type ViewList, type StoredView, type OfflineView, type OfflineSources,
 } from '../lib/viewLists';
 import type {
@@ -1081,16 +1081,23 @@ function writeFieldOf(type: QueuedActionType, labelId?: string): WriteField {
 async function settleAction(
   set: (partial: Partial<FeedState>) => void,
   g: Gesture,
-  articleId: string,
+  article: Pick<Article, 'id' | 'sourceId'>,
   type: QueuedActionType,
+  value: boolean,
   labelId?: string,
 ): Promise<void> {
+  const articleId = article.id;
   const key = `${g.scope}|${actionKey(articleId, type, labelId)}`;
-  if ((settledGestures.get(key) ?? 0) < g.seq) settledGestures.set(key, g.seq);
+  const outrun = (settledGestures.get(key) ?? 0) > g.seq;
+  if (!outrun) settledGestures.set(key, g.seq);
   // Le vol est terminé, et une lecture partie pendant lui a pu passer au serveur
   // avant ce geste : elle compte comme partie avant.
-  localWrites.touch(g.scope, articleId, writeFieldOf(type, labelId));
+  const field = writeFieldOf(type, labelId);
+  localWrites.touch(g.scope, articleId, field);
   await loadQueue();
+  if (!outrun && !actionQueue.some((a) => a.key === key && (a.seq ?? 0) > g.seq)) {
+    reportOnLists(g.scope, article.sourceId, articleId, field, value);
+  }
   // Seulement une action PLUS ANCIENNE que ce geste : le geste suivant, mis
   // en file pendant que celui-ci traînait (un 502 rapide), est la dernière
   // intention — le retirer laissait le serveur sur « lu » et l'écran sur
@@ -1103,30 +1110,31 @@ async function settleAction(
 }
 
 /**
+ * Un geste se reporte sur les listes gardées de son flux, préparée comprise, et
+ * sur celles de l'accueil. Une vue construite hors ligne ne s'écrit pas
+ * (`rebuiltViews`) et un geste fait ailleurs n'écrivait que sa vue : la liste
+ * préparée disait encore non lu, et l'article revenait sous Non lus au trajet
+ * suivant. Leur date ne bouge pas : rien n'a été relu. Les listes de catégorie
+ * n'en sont pas : trouver celles d'un flux demanderait de les parcourir toutes.
+ */
+function reportOnLists(scope: string, sourceId: string | undefined, articleId: string, field: WriteField, value: boolean): void {
+  if (!sourceId) return;
+  const keys = [preparedListKey(scope, sourceId), ...viewListKeys(scope, sourceId), ...viewListKeys(scope, '')];
+  void listsPatch(keys, (rows) => {
+    const i = rows.findIndex((a) => a.id === articleId);
+    if (i < 0) return rows;
+    const row = applyField(rows[i], field, value);
+    if (row === rows[i]) return rows;
+    const next = [...rows];
+    next[i] = row;
+    return next;
+  });
+}
+
+/**
  * Remember an action that failed for lack of network, so it can be replayed.
  * Business refusals never come here — see isNetworkFailure.
  */
-/** Les reports sur une liste préparée s'enchaînent : chacun la relit et la réécrit. */
-let preparedPatches: Promise<void> = Promise.resolve();
-
-/**
- * Un geste mis en file se reporte sur la liste préparée du flux. Une vue
- * construite hors ligne ne s'écrit pas (`rebuiltViews`) : le geste n'avait que
- * la file, et une fois rejouée il ne restait rien. La liste préparée disait
- * encore non lu, et l'article revenait sous Non lus au trajet suivant. Sa date
- * ne bouge pas : rien n'a été relu.
- */
-function patchPrepared(scope: string, sourceId: string | undefined, articleId: string, field: WriteField, value: boolean): void {
-  if (!sourceId) return;
-  const key = preparedListKey(scope, sourceId);
-  preparedPatches = preparedPatches.then(async () => {
-    const stored = await listGet(key);
-    if (!stored?.articles.some((a) => a.id === articleId)) return;
-    const articles = stored.articles.map((a) => (a.id === articleId ? applyField(a, field, value) : a));
-    await listPut(key, articles, stored.continuation, stored.cachedAt);
-  }).catch(() => {});
-}
-
 async function enqueueAction(
   set: (partial: Partial<FeedState>) => void,
   g: Gesture,
@@ -1157,11 +1165,14 @@ async function enqueueAction(
   // Un geste plus récent sur le même article a déjà été confirmé : celui-ci,
   // resté en vol jusqu'au délai d'attente, est dépassé.
   if ((settledGestures.get(key) ?? 0) > g.seq) { localWrites.touch(scope, articleId, field); return; }
-  patchPrepared(scope, article.sourceId, articleId, field, value);
   await loadQueue();
   actionQueue = mergeAction(actionQueue, {
-    key, articleId, type, value, labelId, at: Date.now(), attempts: 0, scope, seq: g.seq,
+    key, articleId, type, value, labelId, at: Date.now(), attempts: 0, scope, seq: g.seq, sourceId: article.sourceId,
   });
+  // La valeur que la file a gardée : un ancien geste qui échoue tard n'y écrase
+  // pas un plus récent, et il ne doit pas l'écraser sur les listes non plus.
+  const kept = actionQueue.find((a) => a.key === key);
+  if (kept) reportOnLists(scope, article.sourceId, articleId, field, kept.value);
   // La file prend le relais du registre : c'est elle qui porte désormais la valeur
   // sur les listes servies (`applyQueued`), sans limite de temps.
   localWrites.touch(scope, articleId, field);
@@ -1347,7 +1358,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     readWritesInFlight++; // Important 1 — voir la garde en tête de fichier
     const g = gesture();
     // Le règlement de la file ne doit jamais passer pour un échec de l'écriture.
-    markAsRead(article.id).then(() => { settleAction(set, g, article.id, 'read').catch(() => {}); }).catch((err) => {
+    markAsRead(article.id).then(() => { settleAction(set, g, article, 'read', true).catch(() => {}); }).catch((err) => {
       // No network: keep it read and replay later. Only a refusal is reverted.
       if (isNetworkFailure(err)) {
         enqueueAction(set, g, article, 'read', true);
@@ -1997,7 +2008,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         readWritesInFlight--;
         bumpCountsEpoch(); // règlement (succès ou échec)
       }
-      await settleAction(set, g, article.id, 'read').catch(() => {});
+      await settleAction(set, g, article, 'read', newRead).catch(() => {});
       // La purge du cache MÉMOIRE des autres vues attend la confirmation : un
       // refus n'y a alors rien à défaire, la ligne y étant toujours. (La vue
       // affichée, mémoire et disque, est déjà réécrite d'avance par le
@@ -2122,7 +2133,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       } else {
         await removeStarred(article.id);
       }
-      await settleAction(set, g, article.id, 'star').catch(() => {});
+      await settleAction(set, g, article, 'star', newStarred).catch(() => {});
     } catch (err) {
       // No network: keep the optimistic state and replay it later. Only a
       // server refusal is rolled back.
@@ -2756,7 +2767,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const g = gesture();
     try {
       await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
-      await settleAction(set, g, article.id, 'readLater').catch(() => {});
+      await settleAction(set, g, article, 'readLater', !hasLabel).catch(() => {});
       // Le retrait vient APRÈS la confirmation, jamais avant : le rollback
       // ci-dessous ne fait qu'un `.map()` et ne saurait pas remettre une ligne
       // déjà sortie de la liste.
@@ -2824,7 +2835,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const g = gesture();
     try {
       await setArticleLabel(article.id, labelId, !hasLabel);
-      await settleAction(set, g, article.id, 'label', labelId).catch(() => {});
+      await settleAction(set, g, article, 'label', !hasLabel, labelId).catch(() => {});
       // Refresh labels list in case a new label was created
       get().loadLabels();
     } catch (err) {
@@ -3388,7 +3399,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         const attempts = action.attempts + 1;
         // A refusal will never succeed; only keep what is worth retrying.
         if (isNetworkFailure(err) && shouldRetry(attempts)) remaining.push({ ...action, attempts });
-        else failed++;
+        else {
+          failed++;
+          // Le geste était sur les listes gardées, et le serveur ne l'aura pas.
+          // Pas s'il a été remplacé entre-temps : les listes portent le suivant.
+          if (actionQueue.find((a) => a.key === action.key)?.at === action.at) {
+            reportOnLists(scope, action.sourceId, action.articleId, writeFieldOf(action.type, action.labelId), !action.value);
+          }
+        }
       }
     }
 

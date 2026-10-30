@@ -18,6 +18,21 @@ describe('bandeau de relève — tient dans l’écran et se lit', () => {
     expect(r).toMatch(/max-width:\s*calc\(100vw - 32px\)/);
   });
 
+  // À 320 px, « Activer » gardait sa largeur et poussait la croix hors de l'écran
+  // dans six langues : ni la phrase ni les boutons ne pouvaient céder.
+  it('avec ses boutons, la rangée passe à la ligne et rien n’y est rigide', () => {
+    expect(rule('.refresh-banner--hint')).toMatch(/flex-wrap:\s*wrap/);
+    expect(rule('.refresh-banner__action')).not.toMatch(/flex-shrink:\s*0/);
+  });
+
+  // Un délai CSS ne repart pas quand le résultat change, et il ne se retient
+  // qu'en le neutralisant classe par classe (`--held` oublié sous mouvement réduit).
+  it('l’effacement ne dépend que de sa classe, mouvement réduit compris', () => {
+    expect(css).not.toMatch(/refresh-banner-out[^;}]*\d\.\d+s\s+forwards/);
+    expect(rule('.refresh-banner--leaving')).toMatch(/refresh-banner-out/);
+    expect(css).not.toMatch(/refresh-banner--(running|held)/);
+  });
+
   it('écrit avec l’encre calculée pour l’accent, pas du blanc', () => {
     expect(rule('.refresh-banner')).toMatch(/color:\s*var\(--on-accent/);
     expect(rule('.refresh-banner__action')).toMatch(/color:\s*var\(--on-accent/);

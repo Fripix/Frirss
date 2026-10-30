@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { login as freshrssLogin } from '../../../api/auth';
 import { updateServer } from '../../../api/backend';
@@ -38,10 +38,14 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!user || !password) return;
+    // Le bouton va se désactiver : le focus tomberait sur <body>, hors de portée
+    // de l'Échap retenu ci-dessous, et les Préférences se fermeraient sur l'envoi.
+    if (!(document.activeElement instanceof HTMLInputElement)) formRef.current?.focus();
     setBusy(true);
     setError('');
     setSaved(false);
@@ -80,11 +84,13 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
 
   return (
     <form
+      ref={formRef}
+      tabIndex={-1}
       onSubmit={handleSubmit}
       // Pendant l'envoi, Annuler est désactivé : Échap aussi. Fermé, le
       // formulaire laissait la requête aboutir sans rien afficher.
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); if (!busy) onClose(); } }}
-      className="space-y-2"
+      className="space-y-2 outline-none"
     >
       <div>
         <label htmlFor={userId} className="block text-xs font-medium mb-1" style={{ color: 'var(--list-summary)' }}>

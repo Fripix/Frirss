@@ -24,6 +24,7 @@ vi.mock('../api/feeds', () => ({
   clearWriteToken: vi.fn(),
 }));
 vi.mock('../lib/offlineStore', () => ({
+  listsPatch: vi.fn(async () => {}),
   listGet: vi.fn(() => Promise.resolve(undefined)),
   listPut: vi.fn(() => Promise.resolve()),
   listEvictOlderThan: vi.fn(() => Promise.resolve()),
