@@ -121,7 +121,8 @@
     "endOfList": "Fin de la liste",
     "endOfListMarkRead": "Tout marquer comme lu",
     "clearSearch": "Effacer la recherche",
-    "searchHeading": "Recherche"
+    "searchHeading": "Recherche",
+    "untitled": "Sans titre"
   },
   "articleRow": {
     "markRead": "Marquer lu",
@@ -685,6 +686,9 @@
     "label": "Serveurs",
     "addTitle": "Ajouter un serveur",
     "rename": "Renommer",
+    "changeCredentials": "Changer le mot de passe API",
+    "credentialsSave": "Enregistrer",
+    "credentialsSaved": "FreshRSS a accepté ces identifiants : ils sont enregistrés.",
     "setDefault": "Définir par défaut",
     "delete": "Supprimer",
     "confirmDelete": "Supprimer le serveur « {{name}} » ?",
@@ -727,7 +731,7 @@
     "pending_other": "{{count}} actions en attente",
     "syncFailed_one": "1 action n’a pas pu être synchronisée",
     "syncFailed_other": "{{count}} actions n’ont pas pu être synchronisées",
-    "refusedByServer": "FreshRSS refuse l’authentification pour les actions en attente. Elles restent en attente et seront renvoyées à la prochaine ouverture de l’app ou au retour du réseau."
+    "refusedByServer": "FreshRSS refuse l’authentification pour les actions en attente, qui restent gardées et seront renvoyées à la prochaine ouverture de l’app. Si le mot de passe API de ce serveur a changé, saisissez-le dans Préférences › Flux › « Changer le mot de passe API »."
   },
   "update": {
     "updating": "Mise à jour…"

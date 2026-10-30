@@ -121,7 +121,8 @@
     "endOfList": "Ende der Liste",
     "endOfListMarkRead": "Alle als gelesen markieren",
     "clearSearch": "Suche löschen",
-    "searchHeading": "Suche"
+    "searchHeading": "Suche",
+    "untitled": "Ohne Titel"
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",
@@ -685,6 +686,9 @@
     "label": "Server",
     "addTitle": "Server hinzufügen",
     "rename": "Umbenennen",
+    "changeCredentials": "API-Passwort ändern",
+    "credentialsSave": "Speichern",
+    "credentialsSaved": "FreshRSS hat diese Zugangsdaten angenommen; sie sind gespeichert.",
     "setDefault": "Als Standard festlegen",
     "delete": "Löschen",
     "confirmDelete": "Server „{{name}}“ löschen?",
@@ -727,7 +731,7 @@
     "pending_other": "{{count}} Aktionen ausstehend",
     "syncFailed_one": "1 Aktion konnte nicht synchronisiert werden",
     "syncFailed_other": "{{count}} Aktionen konnten nicht synchronisiert werden",
-    "refusedByServer": "FreshRSS lehnt die Authentifizierung für die ausstehenden Aktionen ab. Sie bleiben in der Warteschlange und werden beim nächsten Öffnen der App oder bei Rückkehr des Netzwerks erneut gesendet."
+    "refusedByServer": "FreshRSS lehnt die Authentifizierung für die ausstehenden Aktionen ab; sie bleiben erhalten und werden beim nächsten Öffnen der App erneut gesendet. Wenn sich das API-Passwort dieses Servers geändert hat, geben Sie es unter Einstellungen › Feeds › „API-Passwort ändern“ ein."
   },
   "refresh": {
     "newArticles_one": "{{count}} neuer Artikel",

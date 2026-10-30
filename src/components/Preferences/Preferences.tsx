@@ -16,6 +16,7 @@ import { useAiStore, aiEnabled } from '../../stores/aiStore';
 import { COLOR_HIGHLIGHT_MAP } from './colorHighlight';
 import ConfirmDialog from '../ConfirmDialog';
 import { useReturnFocus } from '../../hooks/useReturnFocus';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface HighlightRect { top: number; left: number; width: number; height: number }
 
@@ -44,6 +45,7 @@ export default function Preferences() {
   const [visited, setVisited] = useState<Set<string>>(() => new Set([preferencesTab || 'general']));
   const [highlightRects, setHighlightRects] = useState<HighlightRect[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, true);
   // Unique per mount so two Preferences instances (shouldn't normally
   // happen, but tests/HMR can) never share — and shadow each other's —
   // <mask id>.

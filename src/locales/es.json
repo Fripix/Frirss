@@ -121,7 +121,8 @@
     "endOfList": "Fin de la lista",
     "endOfListMarkRead": "Marcar todo como leído",
     "clearSearch": "Borrar búsqueda",
-    "searchHeading": "Búsqueda"
+    "searchHeading": "Búsqueda",
+    "untitled": "Sin título"
   },
   "articleRow": {
     "markRead": "Marcar como leído",
@@ -685,6 +686,9 @@
     "label": "Servidores",
     "addTitle": "Añadir un servidor",
     "rename": "Renombrar",
+    "changeCredentials": "Cambiar la contraseña de la API",
+    "credentialsSave": "Guardar",
+    "credentialsSaved": "FreshRSS ha aceptado estas credenciales; se han guardado.",
     "setDefault": "Establecer como predeterminado",
     "delete": "Eliminar",
     "confirmDelete": "¿Eliminar el servidor «{{name}}»?",
@@ -727,7 +731,7 @@
     "pending_other": "{{count}} acciones pendientes",
     "syncFailed_one": "No se pudo sincronizar 1 acción",
     "syncFailed_other": "No se pudieron sincronizar {{count}} acciones",
-    "refusedByServer": "FreshRSS rechaza la autenticación de las acciones pendientes. Siguen pendientes y se volverán a enviar la próxima vez que se abra la aplicación o cuando vuelva la red."
+    "refusedByServer": "FreshRSS rechaza la autenticación de las acciones pendientes, que se conservan y se volverán a enviar la próxima vez que se abra la aplicación. Si la contraseña de la API de este servidor ha cambiado, introdúzcala en Preferencias › Fuentes › «Cambiar la contraseña de la API»."
   },
   "refresh": {
     "newArticles_one": "{{count}} artículo nuevo",

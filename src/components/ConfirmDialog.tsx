@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -47,6 +48,7 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, warn
   const titleId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(rootRef, open);
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
   // Lue par l'écouteur d'Échap, qui n'est posé qu'à l'ouverture.

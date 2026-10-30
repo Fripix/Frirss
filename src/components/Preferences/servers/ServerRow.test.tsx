@@ -172,3 +172,16 @@ describe('ServerRow — supprimer passe par la boîte de confirmation', () => {
     expect(props.onDelete).toHaveBeenCalledTimes(1);
   });
 });
+
+// Le mot de passe d'API changé ne se corrigeait qu'en supprimant le serveur.
+describe('ServerRow — identifiants FreshRSS', () => {
+  it('ouvre le formulaire des identifiants et rend le focus au bouton en le fermant', async () => {
+    const { getByRole, queryByLabelText, getByLabelText } = render(<ServerRow {...baseProps()} onRename={vi.fn()} />);
+    const open = getByRole('button', { name: 'servers.changeCredentials' });
+    fireEvent.click(open);
+    expect(getByLabelText('login.freshrssPassword')).toBeTruthy();
+    fireEvent.click(getByRole('button', { name: 'sidebar.cancel' }));
+    expect(queryByLabelText('login.freshrssPassword')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(getByRole('button', { name: 'servers.changeCredentials' })));
+  });
+});

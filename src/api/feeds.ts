@@ -5,6 +5,7 @@ import { isStaleWriteTokenFailure } from '../lib/writeTokenRetry';
 import { entryIdUsec, isOlderEntry } from '../lib/entryId';
 import type { Subscription, Tag, UnreadCount, GReaderItem, GReaderStream } from '../types';
 import { UNDO_PAGE, UNDO_PAGES } from '../lib/markAllRead';
+import { fromFreshrssName } from '../lib/freshrssText';
 
 const BASE = '/api/greader.php/reader/api/0';
 
@@ -17,9 +18,12 @@ export async function getSubscriptionList(): Promise<Subscription[]> {
   });
   // FreshRSS 1.28+ names each feed's visibility (`frss:priority`); an older
   // server leaves the field out, and so do we — see `src/lib/mainStream.ts`.
-  return (data.subscriptions || []).map(({ 'frss:priority': raw, ...sub }) =>
-    typeof raw === 'string' && FEED_PRIORITIES.has(raw) ? { ...sub, priority: raw as FeedPriority } : sub,
-  );
+  // Le nom du flux s'affiche en ASCII (« r／selfhosted », `freshrssText.ts`) ;
+  // il ne sert pas d'identifiant, contrairement aux étiquettes et catégories.
+  return (data.subscriptions || []).map(({ 'frss:priority': raw, ...rest }) => {
+    const sub = { ...rest, title: fromFreshrssName(rest.title) };
+    return typeof raw === 'string' && FEED_PRIORITIES.has(raw) ? { ...sub, priority: raw as FeedPriority } : sub;
+  });
 }
 
 export async function getTagList(): Promise<Tag[]> {

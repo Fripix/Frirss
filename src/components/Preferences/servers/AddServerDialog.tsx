@@ -1,4 +1,5 @@
-import { useState, useId, useEffect, type FormEvent, type ReactEventHandler } from 'react';
+import { useState, useId, useEffect, useRef, type FormEvent, type ReactEventHandler } from 'react';
+import { useFocusTrap } from '../../../hooks/useFocusTrap';
 import { useTranslation } from 'react-i18next';
 import { addServer as apiAddServer, updateServer } from '../../../api/backend';
 import { login as freshrssLogin } from '../../../api/auth';
@@ -24,6 +25,8 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
 
   // Échap ferme cette boîte, et elle seule — quel que soit le focus. Ouverte
   // depuis les Préférences, le focus reste sur le bouton qui l'a ouverte, hors
@@ -91,6 +94,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
       {/* Pas de fermeture au clic sur le fond : elle perdait l'adresse,
           l'identifiant et le mot de passe saisis. Annuler ou Échap ferment. */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

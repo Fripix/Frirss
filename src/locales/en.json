@@ -121,7 +121,8 @@
     "endOfList": "End of the list",
     "endOfListMarkRead": "Mark all as read",
     "clearSearch": "Clear search",
-    "searchHeading": "Search"
+    "searchHeading": "Search",
+    "untitled": "Untitled"
   },
   "articleRow": {
     "markRead": "Mark as read",
@@ -685,6 +686,9 @@
     "label": "Servers",
     "addTitle": "Add a server",
     "rename": "Rename",
+    "changeCredentials": "Change API password",
+    "credentialsSave": "Save",
+    "credentialsSaved": "FreshRSS accepted these credentials; they are saved.",
     "setDefault": "Set as default",
     "delete": "Delete",
     "confirmDelete": "Delete server “{{name}}”?",
@@ -727,7 +731,7 @@
     "pending_other": "{{count}} actions pending",
     "syncFailed_one": "1 action could not be synced",
     "syncFailed_other": "{{count}} actions could not be synced",
-    "refusedByServer": "FreshRSS is refusing authentication for the pending actions. They stay pending and will be sent again the next time the app opens or the network comes back."
+    "refusedByServer": "FreshRSS is refusing authentication for the pending actions, which are kept and will be sent again the next time the app opens. If this server’s API password has changed, enter it in Preferences › Feeds › “Change API password”."
   },
   "update": {
     "updating": "Updating…"

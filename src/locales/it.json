@@ -121,7 +121,8 @@
     "endOfList": "Fine dell'elenco",
     "endOfListMarkRead": "Segna tutto come letto",
     "clearSearch": "Cancella ricerca",
-    "searchHeading": "Ricerca"
+    "searchHeading": "Ricerca",
+    "untitled": "Senza titolo"
   },
   "articleRow": {
     "markRead": "Segna come letto",
@@ -685,6 +686,9 @@
     "label": "Server",
     "addTitle": "Aggiungi un server",
     "rename": "Rinomina",
+    "changeCredentials": "Cambia password API",
+    "credentialsSave": "Salva",
+    "credentialsSaved": "FreshRSS ha accettato queste credenziali; sono state salvate.",
     "setDefault": "Imposta come predefinito",
     "delete": "Elimina",
     "confirmDelete": "Eliminare il server «{{name}}»?",
@@ -727,7 +731,7 @@
     "pending_other": "{{count}} azioni in attesa",
     "syncFailed_one": "1 azione non è stata sincronizzata",
     "syncFailed_other": "{{count}} azioni non sono state sincronizzate",
-    "refusedByServer": "FreshRSS rifiuta l’autenticazione per le azioni in attesa. Restano in attesa e verranno rinviate alla prossima apertura dell’app o al ritorno della rete."
+    "refusedByServer": "FreshRSS rifiuta l’autenticazione per le azioni in attesa, che restano conservate e verranno rinviate alla prossima apertura dell’app. Se la password API di questo server è cambiata, inseriscila in Preferenze › Feed › «Cambia password API»."
   },
   "refresh": {
     "newArticles_one": "{{count}} nuovo articolo",

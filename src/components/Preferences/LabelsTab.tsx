@@ -7,6 +7,7 @@ import ToggleSwitch from '../ToggleSwitch';
 import type { Tag } from '../../types';
 import { TabResetButton } from './TabResetButton';
 import ConfirmDialog from '../ConfirmDialog';
+import { swatchPopoverWidth, isCoarsePointer } from '../../lib/swatchPopover';
 
 // Label grouping item (Preferences labels tab)
 interface PrefLabelChild { tag: Tag; leafName: string; fullName: string }
@@ -771,6 +772,7 @@ interface LabelColorPickerProps {
 function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor }: LabelColorPickerProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const popWidth = swatchPopoverWidth(isCoarsePointer());
   const [hex, setHex] = useState(color || effectiveColor || '#4cd4a1');
   const [openUp, setOpenUp] = useState(false);
   const popRef = useRef<HTMLDivElement>(null);
@@ -847,18 +849,19 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
         </button>
       )}
 
-      {/* Popover */}
+      {/* Popover — plus large au doigt, où les pastilles passent à 28 px. */}
       {open && (
         <div
           ref={popRef}
-          className="fixed z-50 rounded-lg shadow-xl border p-3 w-[220px]"
+          className="fixed z-50 rounded-lg shadow-xl border p-3"
           style={{
+            width: popWidth,
             background: 'var(--panel-bg)',
             borderColor: 'var(--panel-border)',
             ...(btnRef.current ? (() => {
               const r = btnRef.current.getBoundingClientRect();
               return {
-                left: Math.max(8, r.right - 220),
+                left: Math.max(8, r.right - popWidth),
                 ...(openUp
                   ? { bottom: window.innerHeight - r.top + 4 }
                   : { top: r.bottom + 4 }),

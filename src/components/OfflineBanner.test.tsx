@@ -75,19 +75,18 @@ describe('OfflineBanner', () => {
     expect(container.querySelector('.offline-banner')).toBeNull();
   });
 
-  // R7 : la phrase renvoyait à Préférences › Flux, où aucun champ ne change le
-  // mot de passe d'API d'un serveur existant — et supprimer puis rajouter le
-  // serveur change sa portée, ce qui rend la file orpheline. Elle ne renvoie
-  // plus à aucun écran.
-  it('la phrase du refus ne renvoie à aucun écran des préférences, dans aucune langue', () => {
+  // La phrase renvoyait d'abord à Préférences › Flux, où rien ne changeait le
+  // mot de passe d'API d'un serveur existant. Ce champ existe désormais
+  // (« Changer le mot de passe API ») : la phrase y renvoie, avec les vrais
+  // libellés de chaque langue — un libellé renommé un jour la rendrait fausse.
+  it('la phrase du refus renvoie à la vraie commande, dans chaque langue', () => {
     const dir = path.join(process.cwd(), 'src/locales');
     for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
       const loc = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
       const text: string = loc.connection.refusedByServer;
-      expect(text, file).toBeTruthy();
-      expect(text, file).not.toContain('›');
-      expect(text, file).not.toContain(loc.preferences.title);
-      expect(text, file).not.toContain(loc.preferences.sections.feeds);
+      expect(text, file).toContain(loc.preferences.title);
+      expect(text, file).toContain(loc.preferences.sections.feeds);
+      expect(text, file).toContain(loc.servers.changeCredentials);
     }
   });
 });

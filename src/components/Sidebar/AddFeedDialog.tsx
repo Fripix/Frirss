@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useId, type FormEvent } from 'react';
+import { useState, useMemo, useEffect, useId, useRef, type FormEvent } from 'react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../../stores/feedStore';
@@ -17,6 +18,8 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
   const fieldId = useId();
 
   // Échap ferme. La boîte est `role="dialog"` : `useKeyboardNav` se tait tant
@@ -77,6 +80,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

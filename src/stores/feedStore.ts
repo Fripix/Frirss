@@ -60,6 +60,8 @@ import { writeFailureNotice } from '../lib/writeFailureNotice';
 import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPagination';
 import { createWarmRunner } from '../lib/warmSchedule';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
+import i18next from 'i18next';
+import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
 import type {
   Article,
   Subscription,
@@ -3569,16 +3571,22 @@ useAuthStore.subscribe((state, prev) => {
     .catch(() => {});
 });
 
-function normalizeArticle(item: GReaderItem): Article {
+/**
+ * Un article greader vers l'article de l'app. Titres et nom du flux : rendus
+ * en ASCII (`fromFreshrssTitle`). Le libellé d'un article sans titre vient de
+ * l'instance i18next que `src/i18n.ts` initialise ; « Sans titre » en dur était
+ * servi aux dix langues. Repli français tant qu'elle n'est pas prête (tests).
+ */
+export function normalizeArticle(item: GReaderItem): Article {
   return {
     id: item.id,
-    title: item.title || 'Sans titre',
+    title: fromFreshrssTitle(item.title) || (i18next.isInitialized ? i18next.t('articleList.untitled') : 'Sans titre'),
     summary:
       item.summary?.content?.replace(/<[^<>]*>/g, '').slice(0, 200) || '',
     content: item.content?.content || item.summary?.content || '',
     author: item.author || '',
     url: item.canonical?.[0]?.href || item.alternate?.[0]?.href || '',
-    source: item.origin?.title || '',
+    source: fromFreshrssName(item.origin?.title),
     sourceId: item.origin?.streamId || '',
     published: item.published ? item.published * 1000 : Date.now(),
     read: item.categories?.some((c) =>

@@ -129,7 +129,8 @@
     "endOfList": "Koniec listy",
     "endOfListMarkRead": "Oznacz wszystko jako przeczytane",
     "clearSearch": "Wyczyść wyszukiwanie",
-    "searchHeading": "Wyszukiwanie"
+    "searchHeading": "Wyszukiwanie",
+    "untitled": "Bez tytułu"
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",
@@ -705,6 +706,9 @@
     "label": "Serwery",
     "addTitle": "Dodaj serwer",
     "rename": "Zmień nazwę",
+    "changeCredentials": "Zmień hasło API",
+    "credentialsSave": "Zapisz",
+    "credentialsSaved": "FreshRSS zaakceptował te dane logowania; zostały zapisane.",
     "setDefault": "Ustaw jako domyślny",
     "delete": "Usuń",
     "confirmDelete": "Usunąć serwer „{{name}}”?",
@@ -751,7 +755,7 @@
     "pending_many": "{{count}} akcji oczekuje",
     "syncFailed_few": "Nie udało się zsynchronizować {{count}} akcji",
     "syncFailed_many": "Nie udało się zsynchronizować {{count}} akcji",
-    "refusedByServer": "FreshRSS odrzuca uwierzytelnianie oczekujących działań. Pozostają w kolejce i zostaną wysłane ponownie przy następnym otwarciu aplikacji lub po powrocie sieci."
+    "refusedByServer": "FreshRSS odrzuca uwierzytelnianie oczekujących działań, które pozostają zachowane i zostaną wysłane ponownie przy następnym otwarciu aplikacji. Jeśli hasło API tego serwera się zmieniło, wpisz je w Preferencje › Kanały › „Zmień hasło API”."
   },
   "refresh": {
     "newArticles_one": "{{count}} nowy artykuł",

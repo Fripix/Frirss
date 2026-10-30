@@ -880,6 +880,12 @@ html {
   .toggle-switch {
     min-height: 0;
   }
+  /* 20 px au doigt, c'était viser à l'aveugle. 28 px, sans plus : la fenêtre
+     s'élargit d'autant (`swatchPopoverWidth`) et tient à 320 px. */
+  .label-swatch-grid button {
+    width: 28px;
+    height: 28px;
+  }
   .toggle-switch {
     width: 44px;
     height: 24px;

@@ -260,6 +260,20 @@ basculement rapide. Le jeton greader est **chiffré en base** (AES-256-GCM) et
 injecté côté serveur par le proxy ; une fois le serveur ajouté, il ne revient
 plus jamais au navigateur (seule sa présence est exposée, `has_token`).
 
+- **Changer le mot de passe API d'un serveur existant** (1.8.0,
+  `ServerCredentialsForm`, `servers.changeCredentials`) : dans la ligne dépliée
+  du serveur, à côté de Renommer. Utilisateur prérempli, mot de passe API,
+  l'aide habituelle ; FreshRSS éprouve d'abord les identifiants (ClientLogin,
+  erreurs de `serverConnectErrorKey`), puis `PUT /api/servers/:id` reçoit
+  `freshrssUser` + `freshrssToken` (le jeton exigé quand l'utilisateur change ;
+  un utilisateur changé oublie le jeton maître, règle du serveur). Le serveur
+  **garde son identifiant**, donc sa portée hors ligne : jusque-là, le seul
+  moyen était de le supprimer puis de le rajouter, et les actions en attente
+  ne repartaient plus. Serveur actif : le jeton d'écriture est oublié,
+  `replayRefusedByServer` tombe et la file repart aussitôt. Région de statut
+  montée en permanence ; Échap ferme ; le focus revient au bouton. Le bandeau
+  de refus (`connection.refusedByServer`) y renvoie avec les vrais libellés
+  de chaque langue (`OfflineBanner.test.tsx` le vérifie).
 - **Où** : `server/routes/servers.ts`, `server/crypto.ts`,
   `src/components/Preferences/servers/` (gestion complète),
   `src/components/ServerSwitcher/` (sélecteur), `src/lib/serverList.ts`
@@ -890,6 +904,19 @@ lignes, barre verticale pour les non-lus. Scroll infini paginé. En-têtes de
 groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grille.
 
 - **Où** : `src/components/ArticleList/`
+- **Titres en ASCII** (1.8.0, `src/lib/freshrssText.ts`) : FreshRSS rend
+  `& < >` des titres d'articles en pleine chasse (`＆ ＜ ＞`,
+  `escapeToUnicodeAlternative`), et `/` aussi dans les noms de flux
+  (« r／selfhosted »). Rendus en ASCII à la lecture : `fromFreshrssTitle` dans
+  `normalizeArticle`, `fromFreshrssName` pour le nom du flux de l'article et
+  les abonnements (`getSubscriptionList`). Ils se voyaient, partaient tels
+  quels dans un titre copié ou partagé, et une recherche sur « & » ne les
+  trouvait pas. ⚠️ Pas `？` ni `；` pleine chasse, que FreshRSS produit aussi
+  dans les noms : ce sont des signes ordinaires du chinois et du japonais.
+  Et jamais sur un nom d'étiquette ou de catégorie, qui sert d'identifiant à
+  l'API. Un article sans titre reçoit `articleList.untitled`, par l'instance
+  i18next de `src/i18n.ts` (« Sans titre » était écrit en dur, servi aux dix
+  langues).
 - **Titre de l'en-tête en infobulle** (1.8.0) : avec le volet de lecture ouvert à
   1280 px, la barre d'outils écrase le titre (`truncate`) jusqu'à « To… », voire
   à rien. Les trois variantes de l'en-tête portent `title={heading}`, le titre
@@ -4824,31 +4851,28 @@ images consultés restent lisibles sans réseau.
 - **Le bandeau dit quand FreshRSS refuse la file** (`OfflineBanner`,
   `connection.refusedByServer`, état `replayRefusedByServer` du
   `feedStore`) : « FreshRSS refuse l'authentification pour les actions en
-  attente. Elles restent en attente et seront renvoyées à la prochaine
-  ouverture de l'app ou au retour du réseau. » — les moments exacts du rejeu
-  (montage, `online`, changement de portée : pas d'essai périodique). La
-  phrase passe avant « n actions n'ont pas pu être synchronisées ».
-  - Elle ne renvoie à aucun écran et n'affirme aucune cause : le même 401
-    vient d'un mot de passe d'API changé comme d'un jeton périmé côté FriRSS.
-    ⚠️ Sa première version renvoyait à Préférences › Flux, où rien ne se
-    corrige ; `OfflineBanner.test.tsx` vérifie dans les 10 locales qu'elle ne
-    cite ni le titre des préférences, ni la section Flux, ni « › ».
+  attente, qui restent gardées et seront renvoyées à la prochaine ouverture de
+  l'app. Si le mot de passe API de ce serveur a changé, saisissez-le dans
+  Préférences › Flux › « Changer le mot de passe API ». » La phrase passe
+  avant « n actions n'ont pas pu être synchronisées ».
+  - Elle n'affirme aucune cause (« si ») : le même 401 vient d'un mot de
+    passe d'API changé comme d'un jeton périmé côté FriRSS — ressaisir les
+    identifiants répare les deux. Elle cite les libellés réels de chaque
+    langue (titre des Préférences, section Flux, `servers.changeCredentials`),
+    ce que `OfflineBanner.test.tsx` vérifie dans les 10 locales. ⚠️ Une
+    première version renvoyait à Préférences › Flux quand aucun champ n'y
+    changeait le mot de passe : il existe depuis (voir « Serveurs »).
+  - **Moments du rejeu** : montage, `online`, changement de portée, et
+    l'enregistrement de nouveaux identifiants sur le serveur actif ; pas
+    d'essai périodique.
   - **Elle tombe** dès qu'un rejeu fait passer une action, au changement de
-    portée (le refus appartenait à l'autre serveur), et dès que la portée
-    active n'a plus rien en attente (`pendingPatch` : geste direct qui règle
-    la dernière action, rejeu qui trouve la file vide) — elle restait
-    jusqu'au rechargement.
+    portée (le refus appartenait à l'autre serveur), dès que la portée active
+    n'a plus rien en attente (`pendingPatch` : geste direct qui règle la
+    dernière action, rejeu qui trouve la file vide), et à l'enregistrement de
+    nouveaux identifiants — elle restait jusqu'au rechargement.
   - **Elle n'est posée** que si la session du rejeu est encore active à ce
     moment : une bascule pendant l'écriture finale de la file affichait le
     refus du serveur quitté sur le suivant.
-  - ⚠️ **Limite connue (décision produit ouverte)** : aucun écran ne permet de
-    changer le mot de passe d'API d'un serveur existant (`ServerRow` : nom,
-    serveur par défaut, suppression, jeton maître ; la route `PUT` accepte
-    pourtant `freshrssToken`), et ajouter le même serveur une seconde fois
-    est refusé (409). Le supprimer puis le rajouter lui donne un nouvel
-    identifiant, donc une nouvelle portée : les actions gardées sous
-    l'ancienne ne repartent plus, ne sont pas comptées, et rien ne les
-    retire. Ne PAS conseiller cette manœuvre dans les notes.
 - **Onglet Hors ligne** (1.8.0, `OfflineTab.test.tsx`) : sans réseau, le bouton
   « Préparer » est inactif et le dit (`offline.needsNetwork`) —
   `prepareOffline` ne fait rien hors ligne, le clic tombait dans le vide ;
@@ -5176,7 +5200,10 @@ mises en file et rejouées au retour.
     lu », le marquage par plage et le retour en arrière de « Tout lu »
     (`restoreUnread`) ne sont pas des gestes d'article ; une action « non
     lu » en attente sur un article concerné le rendra non lu au rejeu ;
-  - **multi-onglet** : deux onglets ont chacun leur copie mémoire de la file,
+  - **multi-onglet** — hypothèse de conception : FriRSS s'utilise dans **un
+    seul onglet** (décision du propriétaire, 2026-10-30 ; rien ne sera fait
+    pour plusieurs onglets ouverts en même temps). Ce qui arrive sinon : deux
+    onglets ont chacun leur copie mémoire de la file,
     et la dernière écriture (`queuePut`, qui remplace tout) gagne.
     `settleAction` ne voit que la copie de son onglet : un geste direct
     réussi dans B ne retire pas l'action mise en file dans A, dont le rejeu
@@ -5252,8 +5279,14 @@ dans quelques composants partagés.
     retour au bouton d'origine) — jamais sur celui d'une surface encore
     ouverte, ce qui mettrait le focus derrière elle (une feuille des
     Préférences renvoyait au bouton engrenage).
-    ⚠️ **Pas de piège de focus** dans ces
-    boîtes : Tab peut en sortir vers la page derrière — reste connu ;
+    **Piège de focus** (`useFocusTrap`, 1.8.0) dans les Préférences, la
+    palette, l'aide, la feuille du bas, les confirmations et les deux boîtes
+    d'ajout (flux, serveur) : Tab et Maj+Tab bouclent dans la boîte, un focus
+    resté dehors y revient. Seule la dernière boîte ouverte retient la touche
+    (une confirmation par-dessus les Préférences garde la main) ; un menu
+    ouvert par portail depuis la boîte (`role="menu"` ou `listbox`) garde son
+    propre clavier. `aria-modal` seul ne retenait rien : Tab sortait vers la
+    page derrière ;
   - **Échap** : le tiroir mobile ignore une touche déjà traitée ou une boîte
     modale ouverte au-dessus (les Préférences s'y ouvrent sans le fermer, et
     une pression fermait les deux) — mais pas un `aria-modal` du corps d'un
@@ -5263,8 +5296,10 @@ dans quelques composants partagés.
     touche à la palette ouverte par-dessus (⌘K), leur écouteur passant le
     premier ;
   - **noms et unités** : le sélecteur de couleur d'étiquette nomme ses deux
-    champs (`labels.customColor`, `labels.hexColor`) — ⚠️ ses pastilles restent
-    à 20 px au doigt, reste connu ; l'infobulle d'« Original » donne la touche
+    champs (`labels.customColor`, `labels.hexColor`) ; ses pastilles passent
+    de 20 à 28 px au doigt (`pointer: coarse`, `index.css`), et la fenêtre
+    s'élargit d'autant (`swatchPopoverWidth`, 276 px : elle tient à 320 px) ;
+    l'infobulle d'« Original » donne la touche
     réellement assignée ; le fantôme du balayage écrit l'unité de la langue ;
     le bandeau de relève dit des phrases entières (`inProgressWithNew`,
     `continuingWithNew`) ;

@@ -121,7 +121,8 @@
     "endOfList": "Einde van de lijst",
     "endOfListMarkRead": "Alles als gelezen markeren",
     "clearSearch": "Zoekopdracht wissen",
-    "searchHeading": "Zoekopdracht"
+    "searchHeading": "Zoekopdracht",
+    "untitled": "Zonder titel"
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",
@@ -685,6 +686,9 @@
     "label": "Servers",
     "addTitle": "Een server toevoegen",
     "rename": "Hernoemen",
+    "changeCredentials": "API-wachtwoord wijzigen",
+    "credentialsSave": "Opslaan",
+    "credentialsSaved": "FreshRSS heeft deze inloggegevens geaccepteerd; ze zijn opgeslagen.",
     "setDefault": "Als standaard instellen",
     "delete": "Verwijderen",
     "confirmDelete": "Server ‘{{name}}’ verwijderen?",
@@ -727,7 +731,7 @@
     "pending_other": "{{count}} acties in wachtrij",
     "syncFailed_one": "1 actie kon niet worden gesynchroniseerd",
     "syncFailed_other": "{{count}} acties konden niet worden gesynchroniseerd",
-    "refusedByServer": "FreshRSS weigert de authenticatie voor de wachtende acties. Ze blijven wachten en worden opnieuw verzonden wanneer de app weer wordt geopend of het netwerk terugkomt."
+    "refusedByServer": "FreshRSS weigert de authenticatie voor de wachtende acties; ze blijven bewaard en worden opnieuw verzonden wanneer de app weer wordt geopend. Is het API-wachtwoord van deze server gewijzigd, voer het dan in via Voorkeuren › Feeds › ‘API-wachtwoord wijzigen’."
   },
   "refresh": {
     "newArticles_one": "{{count}} nieuw artikel",

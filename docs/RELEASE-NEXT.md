@@ -18,6 +18,12 @@ la release publiée.
 
 ## Fonctionnalités
 
+- **Le mot de passe API d'un serveur se change sur place.** Préférences ›
+  Flux, dans la ligne du serveur : « Changer le mot de passe API ». FreshRSS
+  vérifie les nouveaux identifiants avant qu'ils soient enregistrés. Il
+  fallait jusqu'ici supprimer le serveur puis le rajouter, et les actions
+  faites hors ligne en attente pour lui ne repartaient plus ; elles repartent
+  désormais dès l'enregistrement.
 - **Grille : la taille des cartes et le format de leur image se règlent**
   (issue #26). Préférences › Apparence › Tailles, section « Grille » : un
   curseur « Largeur des cartes » (160 à 480 px, au pixel, 240 par défaut), un
@@ -539,8 +545,8 @@ la release publiée.
 - **Quand FreshRSS refuse les actions en attente, elles ne sont plus
   perdues.** Après un changement du mot de passe d'API FreshRSS, par exemple,
   elles attendaient sans que rien ne dise pourquoi. Elles restent toutes en
-  attente, le bandeau dit que FreshRSS refuse l'authentification, et elles
-  sont renvoyées à la prochaine ouverture de l'app ou au retour du réseau.
+  attente, et le bandeau dit que FreshRSS refuse l'authentification et où
+  ressaisir le mot de passe API ; elles repartent dès qu'il est enregistré.
 - **L'écran « Mise à jour… » ne reste plus affiché.** Recharger la page au
   moment précis où une nouvelle version s'installait pouvait laisser l'écran
   de mise à jour indéfiniment, jusqu'à un nouveau rechargement manuel. La page
@@ -583,8 +589,17 @@ la release publiée.
   fermant, y compris au bouton d'origine quand l'une a ouvert l'autre ; une
   seule pression d'Échap ne ferme plus à la fois les Préférences et le
   tiroir, et Échap ferme la palette même après un clic dans sa liste ;
-  plusieurs messages « Enregistré » sont annoncés de façon fiable.
-- **Petites finitions.** Le libellé révélé par le balayage d'un article est
+  plusieurs messages « Enregistré » sont annoncés de façon fiable. La touche
+  Tab ne sort plus des Préférences, de la palette, de l'aide, des feuilles et
+  des boîtes de confirmation vers la page restée derrière.
+- **Les titres affichent « & » et « / » normalement.** FreshRSS les
+  remplaçait par des caractères pleine chasse (« Tom ＆ Jerry »,
+  « r／selfhosted »), qui se voyaient, partaient tels quels dans un titre
+  copié ou partagé, et échappaient à la recherche. Un article sans titre
+  affiche « Sans titre » dans la langue de l'interface, et non plus en
+  français pour tous.
+- **Petites finitions.** Les pastilles du choix de couleur d'une étiquette
+  sont plus grandes au doigt. Le libellé révélé par le balayage d'un article est
   plus lisible sur sa couleur ; l'infobulle d'« Original » donne la touche
   réellement choisie ; l'aperçu du balayage et le bandeau de relève parlent la
   langue de l'interface ; le menu « Gérer » des serveurs ne déborde plus de

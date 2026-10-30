@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ConfirmDialog from '../../ConfirmDialog';
 import { hostnameOf, type DisplayServer } from '../../../lib/serverList';
 import RefreshTokenField from './RefreshTokenField';
+import ServerCredentialsForm from './ServerCredentialsForm';
 
 interface ServerRowProps {
   server: DisplayServer;
@@ -36,6 +37,16 @@ export default function ServerRow({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const renameButtonRef = useRef<HTMLButtonElement>(null);
   const wasRenaming = useRef(false);
+  const [editingCredentials, setEditingCredentials] = useState(false);
+  const credentialsButtonRef = useRef<HTMLButtonElement>(null);
+  const wasEditingCredentials = useRef(false);
+
+  // Même motif que le renommage : le formulaire démonté, le focus retombait
+  // sur <body>.
+  useEffect(() => {
+    if (wasEditingCredentials.current && !editingCredentials) credentialsButtonRef.current?.focus();
+    wasEditingCredentials.current = editingCredentials;
+  }, [editingCredentials]);
 
   // Le formulaire de renommage se démonte quand `renaming` repasse à faux
   // (Échap ou Annuler) : le navigateur renvoie alors le focus sur
@@ -150,7 +161,24 @@ export default function ServerRow({
               {!isDefault && (
                 <RowAction label={t('servers.setDefault')} onClick={() => run(onSetDefault)} disabled={busy} />
               )}
+              {!editingCredentials && (
+                <RowAction
+                  buttonRef={credentialsButtonRef}
+                  label={t('servers.changeCredentials')}
+                  onClick={() => setEditingCredentials(true)}
+                  disabled={busy}
+                />
+              )}
             </div>
+          )}
+
+          {editingCredentials && (
+            <ServerCredentialsForm
+              server={server}
+              isActive={isActive}
+              onSaved={onSaved}
+              onClose={() => setEditingCredentials(false)}
+            />
           )}
 
           <RefreshTokenField

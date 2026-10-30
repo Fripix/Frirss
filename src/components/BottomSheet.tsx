@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useReturnFocus } from '../hooks/useReturnFocus';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface BottomSheetProps {
   open: boolean;
@@ -68,6 +69,8 @@ if (typeof document !== 'undefined') {
 export default function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
   const armed = useRef(false);
   useReturnFocus(open);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(sheetRef, open);
 
   useEffect(() => {
     armed.current = false;
@@ -120,6 +123,7 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
     <div className="bottom-sheet-root" onClick={onBackdropClick} role="presentation">
       <div className="bottom-sheet__backdrop" />
       <div
+        ref={sheetRef}
         className="bottom-sheet"
         role="dialog"
         aria-modal="true"

@@ -27,3 +27,12 @@ describe('getSubscriptionList — visibilité FreshRSS', () => {
     expect(subs[0].priority).toBeUndefined();
   });
 });
+
+// FreshRSS écrit « r／selfhosted » : le nom du flux s'affiche en ASCII.
+describe('getSubscriptionList — formes pleine chasse de FreshRSS', () => {
+  it('rend / et & aux noms de flux', async () => {
+    get.mockResolvedValue({ data: { subscriptions: [{ id: 'feed/1', title: 'r／selfhosted ＆ co' }] } } as never);
+    const subs = await getSubscriptionList();
+    expect(subs[0].title).toBe('r/selfhosted & co');
+  });
+});

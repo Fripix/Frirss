@@ -121,7 +121,8 @@
     "endOfList": "列表末尾",
     "endOfListMarkRead": "全部标为已读",
     "clearSearch": "清除搜索",
-    "searchHeading": "搜索"
+    "searchHeading": "搜索",
+    "untitled": "无标题"
   },
   "articleRow": {
     "markRead": "标为已读",
@@ -685,6 +686,9 @@
     "label": "服务器",
     "addTitle": "添加服务器",
     "rename": "重命名",
+    "changeCredentials": "更改 API 密码",
+    "credentialsSave": "保存",
+    "credentialsSaved": "FreshRSS 已接受这些凭据，已保存。",
     "setDefault": "设为默认",
     "delete": "删除",
     "confirmDelete": "删除服务器“{{name}}”？",
@@ -727,7 +731,7 @@
     "pending_other": "{{count}} 个操作待处理",
     "syncFailed_one": "1 个操作未能同步",
     "syncFailed_other": "{{count}} 个操作未能同步",
-    "refusedByServer": "FreshRSS 拒绝了待处理操作的身份验证。这些操作仍在等待中，将在下次打开应用或网络恢复时重新发送。"
+    "refusedByServer": "FreshRSS 拒绝了待处理操作的身份验证，这些操作会保留，并在下次打开应用时重新发送。如果此服务器的 API 密码已更改，请在 偏好设置 › 订阅源 › “更改 API 密码” 中输入。"
   },
   "update": {
     "updating": "更新中…"
