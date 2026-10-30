@@ -679,11 +679,12 @@ par un lecteur qui lit dans l'ordre de parution.
 - **Non suivis par l'ordre, à dessein** : la recherche (`searchCorpus`, date
   décroissante), la préparation hors-ligne et le worker de cache (Modèle B),
   qui ne connaissent que l'ordre par défaut — un lecteur en ordre inverse ne
-  profite pas du cache chaud du worker. La préparation range donc toujours
-  sous la clé de l'ordre par défaut, jamais sous `:oldest` : elle y rangeait
-  une liste du plus récent au plus ancien, servie telle quelle à une vue qui
-  demandait l'inverse. Hors ligne, la vue en ordre inverse se sert de cette
-  liste, retournée (`offlineFallback`, voir « Hors-ligne et PWA »).
+  profite pas du cache chaud du worker. La préparation lit donc toujours
+  l'ordre par défaut et range sous sa propre clé (`<flux>:prepared`), jamais
+  sous `:oldest` : elle y rangeait une liste du plus récent au plus ancien,
+  servie telle quelle à une vue qui demandait l'inverse. Hors ligne, la vue en
+  ordre inverse se sert de cette liste, retournée (`offlineViewList`, voir
+  « Hors-ligne et PWA »).
 
 ### Visibilité par flux (réglage FreshRSS)
 FreshRSS règle, par flux, où il apparaît : *flux principal*, *sa catégorie
@@ -962,6 +963,33 @@ lignes, barre verticale pour les non-lus. Scroll infini paginé. En-têtes de
 groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grille.
 
 - **Où** : `src/components/ArticleList/`
+- **Une longue liste se monte par tranches** (1.8.0, `src/lib/listWindow.ts`,
+  `ArticleList.window.test.tsx`). 50 lignes (`ROW_SLICE`), puis 50 de plus à
+  l'approche du bas. Le store garde toute la liste : « article suivant », « Tout
+  lu » et la recherche hors ligne travaillent dessus, seul le DOM est tranché.
+  Depuis que la préparation sert jusqu'à 400 lignes, elles partaient entières à
+  l'ouverture du flux (10 000 nœuds en vue Aperçu), et chaque ouverture d'article
+  les re-rendait toutes.
+  - **Ce qui est en mémoire passe avant le réseau** : tant qu'il reste des lignes
+    à monter, le défilement n'appelle pas `loadMore`. Une fois tout monté, il
+    l'appelle comme avant, et la page reçue s'affiche d'un coup.
+  - **La limite est gardée par vue** (`listLimitMem`, comme `listScrollMem`) : une
+    position de défilement ne se restaure que dans une liste de la même hauteur.
+  - **L'article ouvert est toujours monté**, même atteint au clavier au-delà de la
+    tranche, et les lignes montées pour lui le restent à sa fermeture.
+  - **Une tranche qui ne remplit pas la fenêtre** (grille sur grand écran) monte la
+    suite sans attendre un `scroll`. Pas de hauteur, pas de décision : sur mobile,
+    la liste reste montée derrière le volet.
+  - **Une bande de date compte toutes ses lignes**, montées ou non, et le pied
+    « Tout lu » attend que tout soit monté.
+  - **La recherche n'est pas tranchée** : elle pagine déjà `articles` elle-même
+    (`searchVisible`).
+  - **Pas de `content-visibility: auto`** : sa taille estimée fausse le
+    `scrollTop` restauré au retour d'un article (la taille mémorisée par
+    `contain-intrinsic-size: auto` ne survit pas à un remontage), et sa
+    confinement de peinture rogne les anneaux de focus des lignes.
+  - **Reste** : les lignes montées ne sont pas mémoïsées, un re-rendu les
+    parcourt toutes.
 - **Titres en ASCII** (1.8.0, `src/lib/freshrssText.ts`) : FreshRSS rend
   `& < >` des titres d'articles en pleine chasse (`＆ ＜ ＞`,
   `escapeToUnicodeAlternative`), et `/` aussi dans les noms de flux
@@ -1106,7 +1134,11 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     annonçant « 1 favori » au-dessus d'une liste vide. Aligné en 1.4.4.
 - **Cache hors-ligne** : les cinq sites appellent `persistCurrentView()`, à
   l'aller **et** au rollback. Seuls les deux chemins de lecture le faisaient :
-  mettre un favori puis recharger hors ligne le montrait non favori.
+  mettre un favori puis recharger hors ligne le montrait non favori. Elle met à
+  jour la vue affichée en mémoire et sur disque : le cache mémoire passe avant
+  le disque hors ligne, et seul l'état `read` le suivait. **Elle n'écrit jamais
+  une vue construite hors ligne** (`rebuiltViews`, voir « Ce que la préparation
+  range »).
 - **Cache mémoire des vues** : les DEUX écritures qui retirent une ligne
   appellent `memRemoveFromViews(articleId, filter)`, qui la retire du cache
   mémoire de **toutes** les vues portant ce filtre (la clé vaut
@@ -1216,21 +1248,32 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     jusqu'au relevé suivant). Toute écriture locale (lu, favori, à lire plus
     tard, étiquette, plage, lignes affichées d'un « Tout lu ») s'enregistre dans
     un registre par portée, article et champ. Une lecture note son rang à son
-    départ (`localWrites.mark()`) et, à l'arrivée, réapplique ce qui est plus
-    récent, champ par champ : `loadArticles` (cache serveur et réponse),
-    `silentRefresh`, `loadMore`, `prefetchView`, `warmOfflineCache`,
-    `prepareOffline`.
+    départ (`localWrites.mark()`) et, à l'arrivée, réapplique ce qui est en vol
+    et ce qui est plus récent qu'elle, champ par champ : `loadArticles` (cache
+    serveur et réponse), `silentRefresh`, `loadMore`, `prefetchView`,
+    `warmOfflineCache`, `prepareOffline`.
+    - **Une écriture reste en vol de `record` à sa confirmation ou à son
+      rollback**, et s'applique alors quel que soit le départ de la lecture :
+      une lecture partie APRÈS le geste peut passer au serveur avant lui et
+      répondre avant sa confirmation (FreshRSS lent sur `edit-tag`, cache Redis
+      rapide). Un compteur, pas un drapeau : deux gestes se croisent sur une
+      ligne. ⚠️ La première version ne comparait que les numéros : la ligne
+      restait non lue, et la rouvrir décomptait une seconde fois.
     - **Un geste compte aussi à sa confirmation** (`touch`, dans
-      `settleAction`) : une lecture partie pendant le vol de l'écriture peut
-      passer au serveur avant elle. La valeur reste celle du dernier geste.
-    - **Un rollback est une écriture** : c'est lui la dernière valeur.
+      `settleAction`, le marquage de plage pour ses lignes confirmées, et
+      `enqueueAction`, où la file prend le relais) : une lecture partie pendant
+      le vol peut passer au serveur avant l'écriture et répondre après. La
+      valeur reste celle du dernier geste.
+    - **Un rollback** (`localWrites.rollback`, avec la portée du geste) termine
+      le vol : sa valeur est la dernière, pour les seules réponses déjà parties.
     - **Une ligne sortie de la vue n'y revient pas** (✓ sous Non lus, retrait
       d'« À lire plus tard ») ; celle qui y est encore y reste, comme l'article
       ouvert sous Non lus.
     - **Le compteur n'a pas de garde à lui** : il suffit que la ligne soit juste,
       `selectArticle` ne décompte que les lignes non lues.
     - **Ne couvre pas** : les pages du balayage de recherche (le corpus a ses
-      propres relais) et une action en file d'attente hors ligne, inchangée.
+      propres relais). Une action en file passe par `applyQueued` (voir « File
+      d'actions hors-ligne »).
     - **Durée de vie** : 5 minutes (`LOCAL_WRITE_TTL_MS`), au-delà du délai
       d'attente de 75 s. Une réponse partie APRÈS un geste a le dernier mot : un
       autre appareil a pu le défaire.
@@ -2184,12 +2227,20 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   entièrement lue, les autres par `sourceId` (`markedSources` : le flux, les
   flux de la catégorie, ou ceux du flux principal pour l'accueil). Sous Non
   lus, les lignes sortent de la liste. Favoris et À lire plus tard ne sont
-  jamais traités en bloc. Hors ligne, seulement les huit listes du flux marqué
-  et les huit de l'accueil (quatre filtres, deux ordres). **Limites
-  assumées** : après un « Tout lu » de l'accueil, la liste hors ligne de chaque
-  flux garde ses lignes non lues jusqu'à sa prochaine relecture ; le retour en
-  arrière ne recharge que la vue affichée, les autres restent lues jusqu'à
-  leur relecture.
+  jamais traités en bloc. Hors ligne, seulement les huit listes du flux marqué,
+  sa liste préparée, et les huit de l'accueil (quatre filtres, deux ordres).
+  **Une page suivante en vol est périmée** (`listGeneration`, comme
+  `viewIdentity` pour un changement de vue) : ses lignes, jamais affichées,
+  sont inconnues du registre, et sous Non lus elles s'ajoutaient à la liste
+  vidée, puis s'y rangeaient.
+  **Le retour en arrière vide le cache mémoire de la portée**, sauf la vue
+  affichée, qui se relit aussitôt et garde sa peinture : les vues sœurs se
+  relisent au lieu de repeindre des lignes lues. **Limites assumées** : après
+  un « Tout lu » de l'accueil, les listes hors ligne de chaque flux, préparée
+  comprise, gardent leurs lignes non lues jusqu'à leur prochaine relecture (en
+  mémoire, elles suivent) ; le retour en arrière ne touche pas au disque : hors
+  ligne, les listes sœurs et la liste préparée restent lues jusqu'à leur
+  prochaine relecture ou préparation.
 - **Les marquages de plage passent par la même boîte** (« au-dessus /
   en dessous », `dialog.markAboveTitle`), avec le **même délai de grâce** : le
   double-clic les traversait aussi. Leur ancien « Confirmer ? » posé dans le
@@ -2447,12 +2498,14 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   spinner bloqués à vrai. Le même relevé vaut pour un chargement de vue en vol
   qu'une recherche vient doubler.
 - **Hors ligne** : aucun balayage. On filtre ce qu'on détient — la liste en
-  mémoire et la liste rangée pour cette vue (`listGet`) —, les doublons entre
-  les deux sources sont écartés, et la barre d'état dit ce qui a réellement été
-  fouillé. Prétendre avoir tout vu serait pire que ne rien chercher.
+  mémoire et ce que la vue sert hors ligne (`offlineList`, la même source que
+  `loadArticles`) —, les doublons entre les deux sources sont écartés, et la
+  barre d'état dit ce qui a réellement été fouillé. Prétendre avoir tout vu
+  serait pire que ne rien chercher. ⚠️ La seule clé exacte ne suffisait pas :
+  sans elle, la seconde recherche ne fouillait que les résultats de la première.
   ⚠️ **Piège** : « lus compris » (ci-dessus) ne vaut qu'**en ligne**. Hors
-  ligne, la liste en mémoire et `listGet` portent tous deux la vue affichée
-  telle quelle — depuis « Non lus », seuls les non-lus sont fouillés. **Réessayer**
+  ligne, les deux sources portent la vue affichée telle quelle — depuis « Non
+  lus », seuls les non-lus sont fouillés. **Réessayer**
   emprunte le même chemin hors ligne (`retrySearch`, via `scanOffline`) : il
   ne relance jamais le réseau, et ne réécrit pas une coupure en panne
   « réseau » alors que la vraie cause est l'absence de connexion.
@@ -4987,32 +5040,70 @@ images consultés restent lisibles sans réseau.
   - **Elle n'est posée** que si la session du rejeu est encore active à ce
     moment : une bascule pendant l'écriture finale de la file affichait le
     refus du serveur quitté sur le suivant.
-- **Ce que la préparation range, et ce qu'une vue sert quand la sienne manque**
-  (`prepareOffline`, `offlineFallback`, `src/lib/viewLists.ts`, tests
+- **Ce que la préparation range, et ce qu'une vue sert hors ligne**
+  (`prepareOffline`, `offlineList`, `offlineViewList` dans
+  `src/lib/viewLists.ts`, tests `feedStore.offlineLists.test.ts`,
   `feedStore.viewLists.test.ts`).
-  - **La préparation range tout ce qu'elle a collecté pour un flux** : les
-    articles des 30 derniers jours, dans la limite de ses 8 pages (400
-    articles), sous la liste « Tous » dans l'ordre par défaut, sans page
-    suivante. Elle n'en gardait que 50 : le reste, extrait et téléchargé,
-    était introuvable hors ligne, recherche comprise. Pas d'autre borne : les
-    extraits des mêmes articles, plus lourds, sont gardés de toute façon.
-  - **Elle n'écrase pas une liste rangée plus longue** (`mergePreparedList`) :
-    le haut vient d'elle, la fin et la page suivante de la liste rangée.
-  - **Le repli** : hors ligne, si la liste exacte de la vue manque, la vue se
-    sert d'une autre liste du même flux et de la même portée
-    (`fallbackSources`) : pour Non lus, la liste « Tous » filtrée sur `!read` ;
-    pour tout filtre, sa propre liste en ordre inverse. La source est lue en
-    mémoire et sur disque, et la plus fournie sert. Une liste déduite ne promet
-    jamais de page suivante, et se retourne plutôt que de se trier : `published`
-    n'est pas l'ordre d'insertion de FreshRSS. Une liste entièrement filtrée
-    reste une réponse : « tout est lu », pas un échec. Favoris et À lire plus
-    tard ne se déduisent pas de « Tous ».
-  - **Rien à l'écran ne dit qu'une liste est déduite** : le bandeau hors ligne
+  - **La préparation range sous sa propre clé** (`<portée>|<flux>:prepared`,
+    `preparedListKey`), qu'aucune visite ni aucun geste n'écrit, et qu'elle
+    remplace entièrement à chaque passage : les articles des 30 derniers jours,
+    au plus 400 (`PREPARED_MAX`, ses 8 pages), sans page suivante. Une ligne
+    purgée par le serveur en sort, et la liste ne peut pas croître. ⚠️ Sous la
+    clé de la vue (première version), trois défauts : une liste exacte périmée
+    passait devant elle, un `[]` de la semaine passée annonçant « tout est lu »
+    avec un badge à 20 ; une visite en ligne la ramenait à 50 lignes ; et la
+    fusion avec la liste rangée (`mergePreparedList`, retirée) la faisait
+    croître sans borne, 1 399 lignes en un an sur un flux de 120.
+    `parseViewKey` ne la lit pas : ce n'est pas une vue. Le retrait d'un flux et
+    la déconnexion l'emportent comme les autres (`withoutSource`,
+    `ownedByAccount`, par préfixe). Un passage sans article écrit une liste
+    vide, qui ne compte pas à la lecture : un flux calme n'efface pas ce qu'on a
+    lu de lui.
+  - **Ce qu'une vue sert, une seule fonction pure** (`offlineViewList`), dans le
+    chemin d'échec de `loadArticles` et la recherche hors ligne :
+    - **Base** : la liste exacte de la vue ; sans elle, la première de
+      `fallbackSources` qui existe (Non lus : « Tous » dans les deux ordres, puis
+      son ordre inverse ; les autres filtres : leur ordre inverse). Favoris et À
+      lire plus tard ne se déduisent pas de « Tous ».
+    - **Si la préparation est plus récente que la base** (`cachedAt`, ou la date
+      du cache mémoire), c'est elle la base. Une liste venue de l'autre ordre
+      lui cède le pas quelle que soit sa date : elle ne montre pas le même
+      morceau du flux.
+    - **Sinon la base reste, et la préparation la prolonge**, seulement si elle a
+      une page suivante, et seulement par les lignes qui viennent APRÈS sa
+      dernière (`rowsPast`, par identifiant d'entrée). Une base sans page
+      suivante dit qu'il n'y a plus rien, à une date postérieure à la
+      préparation : une liste vidée après elle reste vide, et une liste Non lus
+      complète ne récupère pas des lignes lues depuis. Une ligne absente AU
+      MILIEU de la base a été vue, puis perdue (un ✓ sous Non lus, une purge) :
+      la rendre ressusciterait un article lu.
+    - **Filtre `!read` sous Non lus**, sur la liste recalée (file et registre,
+      voir plus bas), l'article ouvert excepté. Ordre de la vue : une liste
+      venue de l'autre ordre se retourne plutôt que de se trier, `published`
+      n'est pas l'ordre d'insertion de FreshRSS.
+    - Une liste entièrement filtrée reste une réponse : « tout est lu », pas un
+      échec. Une liste construite ne promet jamais de page suivante.
+  - **Pour une même source, la mémoire d'abord**, le disque seulement si elle
+    manque : un « Tout lu » de l'accueil patche la première et pas les listes
+    des flux sur le second. ⚠️ « La plus fournie » allait à contre-sens : sous
+    Non lus, la liste la plus à jour est la plus courte. Dix articles lus
+    s'affichaient non lus avec un badge à 0.
+  - **Une vue construite ne se range jamais sous sa clé exacte** (`rebuiltViews`,
+    `persistCurrentView`) : elle s'y figeait, tronquée, au premier geste, et la
+    préparation suivante ne l'atteignait plus. Elle reste en mémoire, pour se
+    rouvrir sans attente, marquée pour n'y être jamais lue comme une vraie liste,
+    et la première vraie réponse la rend à sa clé. Les gestes faits dessus
+    passent par la file, rejouée à chaque service.
+  - **Les listes rangées par l'ancienne version** (clé `:all` préparée, `:oldest`
+    servie à l'envers) restent lisibles comme listes exactes, cèdent le pas à
+    une préparation plus récente, et partent par éviction (30 jours).
+  - **Rien à l'écran ne dit qu'une liste est construite** : le bandeau hors ligne
     couvre déjà la situation.
-  - **Limite** : une visite en ligne réécrit la liste rangée avec sa page de 50
-    articles (`loadArticles`, `persistCurrentView`), comme elle le fait pour une
-    liste allongée par `loadMore`. Les flux ouverts depuis la préparation
-    reviennent donc à 50 lignes hors ligne, jusqu'à la préparation suivante.
+  - **Limites** : une préparation plus récente que la base ne reprend pas les
+    lignes de plus de 30 jours que la base avait vues. Une ligne ✓ en toute fin
+    de liste exacte, juste avant sa coupure, peut revenir de la préparation. Une
+    ligne confirmée en ligne après la préparation est inconnue d'elle : sur une
+    vue dont elle est la base, seul le registre (5 minutes) la couvre.
 - **Onglet Hors ligne** (1.8.0, `OfflineTab.test.tsx`) : sans réseau, le bouton
   « Préparer » est inactif et le dit (`offline.needsNetwork`) —
   `prepareOffline` ne fait rien hors ligne, le clic tombait dans le vide ;
@@ -5242,6 +5333,17 @@ mises en file et rejouées au retour.
   `online`. Sans garde, deux passes se chevauchaient, envoyaient chaque action
   deux fois, et la plus lente réécrivait la file de la plus rapide. Les appels
   concurrents attendent maintenant la même exécution (`replayInFlight`).
+- **La file rejoint toute liste servie, en un seul point** (`applyQueued`, dans
+  `reconcile` pour les réponses du serveur, dans `offlineList` pour le disque et
+  le repli, dans `prepareOffline`). Une action en attente n'est pas encore sur le
+  serveur, et personne ne la portait sur une liste : basculer de Non lus à Tous
+  hors ligne repeignait la ligne, le badge tombait une seconde fois en la
+  rouvrant, et en ligne après un 502 (le rejeu ne part qu'au montage et sur
+  `online`) toute relecture la remettait non lue pour la session. Le double
+  décompte tombe avec. Relancée hors ligne, l'app lit sa file avant de servir
+  (`ensureQueue`). La file prend le relais du registre à la mise en file ; à
+  l'envoi, le rejeu rend la main au registre (`noteConfirmed`) pour une lecture
+  partie avant lui.
 - **Rangée par compte et par serveur** (1.8.0, `feedStore.scope.test.ts`,
   `feedStore.replayScope.test.ts`) : chaque action porte sa portée (`scope`,
   `user@serveur`, aussi dans sa clé) et n'est rejouée que sous elle — le même

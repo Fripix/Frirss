@@ -588,21 +588,33 @@ la release publiée.
   « Préparer le hors-ligne », un flux ouvert sous le filtre Non lus ou en ordre
   « plus anciens d'abord » échouait à se charger, ou s'affichait à l'envers.
   L'app se sert maintenant de la liste préparée, filtrée et retournée.
-- **La préparation rend tous les articles joignables.** Elle gardait 50
-  articles par flux dans la liste, alors qu'elle téléchargeait le contenu de
-  tous : le reste était introuvable hors ligne, recherche comprise. La liste
-  garde désormais tout ce qui a été préparé, sans raccourcir une liste déjà
-  plus longue.
+- **La préparation rend tous les articles joignables, et le reste.** Elle
+  gardait 50 articles par flux dans la liste, alors qu'elle téléchargeait le
+  contenu de tous : le reste était introuvable hors ligne, recherche comprise.
+  Elle garde désormais tout ce qui a été préparé, sous sa propre liste : une
+  visite du flux ne la ramène plus à 50 articles, et une ancienne liste Non lus,
+  vidée la semaine passée, ne cache plus les articles préparés depuis.
 - **Une lecture ne se défait plus toute seule.** Un article ouvert pendant un
   rafraîchissement pouvait repasser en gras, s'afficher non lu dans le volet,
   et être décompté deux fois en le rouvrant. Même chose pour un favori,
-  « à lire plus tard » ou une étiquette posés au mauvais moment. Une réponse
-  partie avant un geste ne l'écrase plus.
+  « à lire plus tard » ou une étiquette posés au mauvais moment, et pour un
+  marquage « au-dessus » ou « en dessous », tant que FreshRSS n'a pas répondu.
+- **Une action en attente tient sur toutes les listes.** Un article lu hors
+  ligne, ou pendant une panne de FreshRSS, repassait non lu en changeant de
+  filtre ou au rafraîchissement suivant, et le rouvrir le décomptait une seconde
+  fois. La recherche hors ligne voit aussi ces actions, et fouille toute la liste
+  préparée à chaque recherche.
 - **« Tout lu » vaut pour toutes les vues du flux.** Passer de Non lus à Tous
   après un « Tout lu » repeignait un instant les lignes non lues, et la liste
-  hors ligne les gardait. Même chose pour l'accueil. Un article coché sous Non
+  hors ligne les gardait. Même chose pour l'accueil. Une page en cours de
+  chargement ne ramène plus d'articles non lus sous la liste vidée, et annuler
+  le « Tout lu » ne laisse plus les autres vues lues. Un article coché sous Non
   lus en ordre « plus anciens d'abord » ne revient plus non plus au retour sur
   le flux.
+- **Les longues listes s'ouvrent vite.** Les 400 articles d'un flux préparé se
+  montaient d'un bloc, puis se redessinaient à chaque article ouvert : la liste
+  affiche maintenant 50 lignes, puis la suite au défilement. Le clavier, « Tout
+  lu » et le retour à sa place depuis un article n'y voient aucune différence.
 - **Les grosses sauvegardes se restaurent.** Au-delà de 5 Mo, une sauvegarde
   s'exportait mais était refusée à la restauration ; la limite est désormais
   de 64 Mo, et une sauvegarde plus grosse est refusée dès l'export, avec un
@@ -700,6 +712,8 @@ la release publiée.
 
 ## Sous le capot
 
+- La préparation hors ligne a sa propre clé par flux. Les listes rangées par
+  les versions précédentes restent lisibles et partent d'elles-mêmes en 30 jours.
 - **Ménage (relecture 1.8.0)** : 332 lignes de CSS dupliquées à l'identique
   depuis un artefact de fusion d'août (la feuille construite contient les
   mêmes règles), la palette Tailwind personnalisée qui ne produisait aucune
