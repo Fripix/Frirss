@@ -545,7 +545,8 @@
       "ssoUnlink": "Unlink",
       "ssoUnlinked": "Account unlinked from {{provider}}.",
       "ssoUnlinkFailed": "The account could not be unlinked."
-    }
+    },
+    "tooLarge": "Your settings exceed the size the server allows: recent changes stay on this device. A lighter logo or fewer themes frees up space."
   },
   "login": {
     "welcome": "Welcome to FriRSS",

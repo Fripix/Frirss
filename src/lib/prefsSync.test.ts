@@ -96,6 +96,30 @@ describe('hydratePrefs — lecture en échec', () => {
     expect(useUiStore.getState().showFavicons).toBe(true);
   });
 
+  // Le serveur plafonne les préférences d'un compte : ce refus ne passera pas
+  // tout seul. `armPushRetry` retentait sans fin, sans rien dire.
+  it('un total dépassé n’est pas retenté, et se dit une seule fois', async () => {
+    get.mockResolvedValue({ showFavicons: true });
+    await hydratePrefs();
+    await vi.advanceTimersByTimeAsync(1000);
+    save.mockClear();
+    save.mockRejectedValue(Object.assign(new Error('413'), { response: { status: 413, data: { code: 'preferences_too_large' } } }));
+    useUiStore.setState({ toasts: [] });
+    useUiStore.setState({ showFavicons: false });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(save).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(useUiStore.getState().toasts).toHaveLength(1);
+    // Un autre réglage réessaie (le compte a pu maigrir), sans redire la même chose.
+    useUiStore.setState({ showFavicons: true });
+    useUiStore.setState({ showDateSeparators: true } as never);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(useUiStore.getState().toasts.length).toBeLessThanOrEqual(1);
+    save.mockReset();
+    save.mockResolvedValue(undefined as never);
+  });
+
   it('réessaie plus tard, et la lecture réussie décide', async () => {
     get.mockRejectedValueOnce(http(502)).mockResolvedValue({ showFavicons: false });
     await hydratePrefs();

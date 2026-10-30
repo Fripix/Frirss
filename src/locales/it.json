@@ -545,7 +545,8 @@
       "ssoUnlink": "Scollega",
       "ssoUnlinked": "Account scollegato da {{provider}}.",
       "ssoUnlinkFailed": "Impossibile scollegare l’account."
-    }
+    },
+    "tooLarge": "Le tue impostazioni superano la dimensione consentita dal server: le ultime modifiche restano su questo dispositivo. Un logo più leggero o meno temi liberano spazio."
   },
   "login": {
     "welcome": "Benvenuto su FriRSS",

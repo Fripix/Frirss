@@ -545,7 +545,8 @@
       "ssoUnlink": "Desvincular",
       "ssoUnlinked": "Cuenta desvinculada de {{provider}}.",
       "ssoUnlinkFailed": "No se pudo desvincular la cuenta."
-    }
+    },
+    "tooLarge": "Sus ajustes superan el tamaño que permite el servidor: los últimos cambios se quedan en este dispositivo. Un logotipo más ligero o menos temas liberan espacio."
   },
   "login": {
     "welcome": "Bienvenido a FriRSS",

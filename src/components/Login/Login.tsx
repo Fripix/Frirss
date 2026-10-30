@@ -19,6 +19,7 @@ import MatrixRain from './MatrixRain';
 import RestoreFlow from '../backup/RestoreFlow';
 import { shouldHideLocalLogin, isLocalFallbackUrl } from '../../lib/shouldHideLocalLogin';
 import type { AuthStatus } from '../../types';
+import { oidcErrorKey } from '../../lib/oidcFragment';
 
 // ═════════════════════════════════════════════════════════════════════
 // Shared shell — Matrix rain background + legibility vignette
@@ -92,9 +93,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
   // serveur (voir `completeOidcReturn`), pas parce que le SSO a refusé.
   // `link_required` : un compte local porte cette adresse ; le rattachement
   // d'office par e-mail est retiré (1.8.0), il se fait depuis le compte.
-  const oidcMessage = oidcError
-    ? t(oidcError === 'unavailable' ? 'login.errorUnavailable' : oidcError === 'link_required' ? 'login.errorSsoLinkRequired' : 'login.errorSso')
-    : '';
+  const oidcMessage = oidcError ? t(oidcErrorKey(oidcError)) : '';
   const [error, setError] = useState(oidcMessage);
   // L'erreur peut arriver après le montage (réessais du retour SSO) : la suivre.
   useEffect(() => {
@@ -322,6 +321,9 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
             placeholder="admin"
             required
             autoFocus
+            // Seulement à l'inscription : les bornes du serveur (`accountFieldError`)
+            // ne s'appliquent pas à un compte existant qui se connecte.
+            maxLength={isRegister ? 64 : undefined}
           />
 
           {isRegister && (
@@ -330,6 +332,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
               label={t('login.displayName')}
               value={displayName}
               onChange={setDisplayName}
+              maxLength={128}
             />
           )}
 
@@ -352,6 +355,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
             value={password}
             onChange={setPassword}
             required
+            maxLength={isRegister ? 1024 : undefined}
           />
 
           {isRegister && (
@@ -685,12 +689,13 @@ interface InputFieldProps {
   placeholder?: string;
   required?: boolean;
   autoFocus?: boolean;
+  maxLength?: number;
 }
 
 // ═════════════════════════════════════════════════════════════════════
 // Shared input field component
 // ═════════════════════════════════════════════════════════════════════
-function InputField({ id, label, type = 'text', value, onChange, placeholder, required, autoFocus }: InputFieldProps) {
+function InputField({ id, label, type = 'text', value, onChange, placeholder, required, autoFocus, maxLength }: InputFieldProps) {
   const { t } = useTranslation();
   // Voir le mot de passe qu'on tape. Posé ici plutôt qu'à chaque appel : les
   // quatre champs de mot de passe de cet écran passent tous par ce composant.
@@ -707,6 +712,7 @@ function InputField({ id, label, type = 'text', value, onChange, placeholder, re
         <input
           id={id}
           type={inputType}
+          maxLength={maxLength}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}

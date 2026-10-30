@@ -545,7 +545,8 @@
       "ssoUnlink": "Verknüpfung lösen",
       "ssoUnlinked": "Verknüpfung mit {{provider}} gelöst.",
       "ssoUnlinkFailed": "Die Verknüpfung konnte nicht gelöst werden."
-    }
+    },
+    "tooLarge": "Ihre Einstellungen überschreiten die vom Server erlaubte Größe: Die letzten Änderungen bleiben auf diesem Gerät. Ein kleineres Logo oder weniger Themes schaffen Platz."
   },
   "login": {
     "welcome": "Willkommen bei FriRSS",

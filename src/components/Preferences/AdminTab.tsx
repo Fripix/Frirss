@@ -31,15 +31,17 @@ interface AdminInputProps {
   value: string;
   onChange: (value: string) => void;
   autoComplete?: string;
+  maxLength?: number;
 }
 // L'exemple tient lieu de libellé visible dans ce formulaire serré : il est
 // aussi le nom du champ (sans quoi seul le placeholder le nommait, mal
 // annoncé). `autoComplete` : le compte qu'on CRÉE n'est pas celui de l'admin —
 // sans « new-password », le navigateur y proposait ses propres identifiants.
-function AdminInput({ type = 'text', placeholder, value, onChange, autoComplete }: AdminInputProps) {
+function AdminInput({ type = 'text', placeholder, value, onChange, autoComplete, maxLength }: AdminInputProps) {
   return (
     <input
       type={type}
+      maxLength={maxLength}
       placeholder={placeholder}
       aria-label={placeholder}
       autoComplete={autoComplete}
@@ -545,11 +547,13 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
             <AdminInput
               autoComplete="off"
               placeholder={t('admin.fieldUsername')}
+              maxLength={64}
               value={newUser.username}
               onChange={(v) => setNewUser((u) => ({ ...u, username: v }))}
             />
             <AdminInput
               placeholder={t('admin.fieldDisplayName')}
+              maxLength={128}
               value={newUser.displayName}
               onChange={(v) => setNewUser((u) => ({ ...u, displayName: v }))}
             />
@@ -563,6 +567,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
               type="password"
               autoComplete="new-password"
               placeholder={t('admin.fieldPassword')}
+              maxLength={1024}
               value={newUser.password}
               onChange={(v) => setNewUser((u) => ({ ...u, password: v }))}
             />

@@ -67,6 +67,20 @@ qu'un autre onglet avait ouvert depuis.
   transmet l'adresse réelle, un client IPv6 changeait d'adresse dans sa /64 à
   chaque essai et recevait un seau neuf : force brute illimitée, et un bcrypt
   par essai sur le thread principal (`server/test/rateLimitIpv6.test.ts`).
+- **Inscriptions réussies bornées** (1.8.0, `registerLimiter`,
+  `server/test/registerLimits.test.ts`) : 5 comptes par heure et par adresse
+  (/56 en IPv6). `authLimiter` ne compte que les échecs : une fois les
+  inscriptions ouvertes, une seule adresse créait autant de comptes qu'elle
+  voulait. Les refus (nom pris, champ invalide) ne comptent pas. Placé AVANT
+  `authLimiter` : ses 429 entameraient sinon la limite de connexion de
+  l'adresse. Derrière un proxy dont les clients partagent une adresse (voir
+  *Atteindre FriRSS par le reverse proxy*), ils partagent aussi ce plafond.
+- **Longueurs d'un compte** (1.8.0, `accountFieldError`, `server/validate.ts`) :
+  nom ≤ 64 caractères, nom affiché ≤ 128, mot de passe ≤ 1 024, et des chaînes
+  (`['a','b','c']` passait le contrôle de longueur minimale). Inscription,
+  création et modification par l'admin, changement et réinitialisation du mot
+  de passe, 400 sinon. L'adresse l'était déjà (254, `isValidEmail`). Les noms
+  provisionnés par le SSO ne passent pas par là : ils viennent du fournisseur.
 - **Rôle d'un compte** : `admin` ou `user`, chaîne vide comprise — `""`
   passait les gardes `role && …` et `COALESCE` l'écrivait, ce qui laissait
   une instance sans administrateur.
@@ -132,6 +146,21 @@ le dit aussi).
   des inscriptions** (qui ne gouverne que le formulaire local). Écrit dans
   `SECURITY.md` en 1.8.0 : restreindre l'application FriRSS dans le
   fournisseur (Authentik : groupe ou politique).
+- **Retour du fournisseur borné** (1.8.0, `server/test/oidcCallback.test.ts`) :
+  `GET /api/auth/oidc/callback` est anonyme. Sans borne, un seul `state` et un
+  cookie fourni par l'appelant faisaient envoyer autant de `POST /token` qu'on
+  voulait, `client_secret` compris : FriRSS relayait vers le fournisseur depuis
+  sa propre adresse, et une protection qui bannit l'émetteur des échecs coupait
+  le SSO de toute l'instance. Deux bornes : 30 retours par adresse (/56 en
+  IPv6) et par 15 minutes (`oidcCallbackLimiter`, qui compte TOUT : ses issues
+  sont des redirections, `authLimiter` n'y verrait rien), et un `state` à usage
+  unique (son `jti`, gardé en mémoire jusqu'à son expiration, comme les tickets
+  de liaison). Le `state` est consommé juste avant l'échange du code : un
+  rappel sans `verifier` ne coûte rien au fournisseur et ne l'use pas. Au-delà
+  de la limite : redirection vers `#oidc_error=too_many`, pas un 429 (le
+  navigateur aurait affiché du JSON) ; le client le dit `login.errorTooMany`
+  (`oidcErrorKey`, et dans le message de liaison depuis le compte). Un `state` émis avant la mise à jour n'a
+  pas de `jti` et répond `invalid_state`.
 - **Rattacher un compte existant : depuis le compte seulement** (1.8.0,
   décision du propriétaire). Préférences › Général › Compte, « Lier à
   {fournisseur} » (comptes locaux, SSO actif, pas encore liés) :
@@ -5929,8 +5958,12 @@ sous `NODE_ENV=test`.
   le chemin. Le journal d'accès ne suffisait pas : l'échec d'amont, lui, écrivait
   la cible entière, et le refus le plus fréquent de cette route est un domaine
   d'article mort (`ENOTFOUND`) — un balayage hors ligne en déposait des dizaines.
-  `/api/proxy` garde son chemin complet : là, c'est le point de terminaison
-  greader qui a échoué, et c'est ce qu'on relit en exploitation.
+  `/api/proxy` garde son origine et son chemin : c'est le point de terminaison
+  greader qui a échoué, et c'est ce qu'on relit en exploitation. Sa **requête
+  n'est jamais écrite** (`redactUrl`, 1.8.0) : elle portait le `q=` des
+  recherches et les paramètres signés des images préchargées (`sig=`,
+  `X-Amz-Signature=`). Le chemin d'une image reste, lui, écrit : il peut
+  contenir le titre de l'article.
 
 ### Proxy
 Point de passage unique vers FreshRSS. Il sert aussi l'extraction d'articles,
@@ -5945,8 +5978,8 @@ répondu (voir *Extraction du contenu complet*).
   ainsi que tout `fe80::/10` (`fe81::` à `fe8f::` passaient).
   `new URL()` normalise `[::ffff:127.0.0.1]` en `[::ffff:7f00:1]` : la cible
   n'était refusée que par accident (le DNS recevait l'hôte avec crochets).
-  Limite connue, non corrigée : la liste blanche interne (`PROXY_REWRITES`,
-  `PROXY_INTERNAL_HOSTS`) porte sur l'hôte, pas sur le port.
+  Limite connue : `PROXY_INTERNAL_HOSTS` porte sur l'hôte, pas sur le port
+  (`PROXY_REWRITES`, lui, porte sur l'origine, voir *Réécritures*).
 - **Protection SSRF** : cibles internes bloquées par défaut, en littéral **et**
   après résolution DNS (ce qui défait `10.x.x.x.nip.io`), à chaque saut de
   redirection. `PROXY_INTERNAL_HOSTS` autorise explicitement des hôtes internes,
@@ -6019,17 +6052,38 @@ répondu (voir *Extraction du contenu complet*).
   reverse proxy public — ce que la réécriture existait pour éviter. L'échec
   sans repli laisse une ligne de journal (URL caviardée) : sans elle,
   l'opérateur ne voyait qu'un « fetch failed ».
+  **La confiance porte sur l'origine exacte de chaque côté** (schéma, hôte,
+  port, 1.8.0, `server/test/proxyRewriteOrigin.test.ts`). Par le nom seul, et
+  sans résolution, le nom public ouvrait en split-DNS tous les ports du reverse
+  proxy à tout compte : `http://rss…:81/` n'était pas réécrit (le schéma
+  diffère) mais il était autorisé, méthode et corps relayés, jusqu'à son
+  interface d'administration. Un côté interne écrit en IP littérale ouvrait de
+  même tous les ports de cette IP. **Effet à connaître** : un serveur enregistré
+  sur un autre schéma que la règle (`http://` pour une règle en `https://`) et
+  résolu en privé est désormais refusé (403) ; ajouter une règle pour ce schéma,
+  ou corriger l'URL du serveur.
 - **Lecture mise en cache bornée** (1.8.0) : avec `REDIS_URL`, une lecture
   greader est lue en entier avant d'être renvoyée et mise en cache. Elle
   s'arrête à `MAX_CACHED_BODY_BYTES` (32 Mo, 502 au-delà, rien en cache), et
   « lecture greader » se juge sur le **chemin** de la cible : la chaîne brute
   laissait passer toute URL publique portant `/reader/api/0/` dans sa requête,
   et un amont rapide remplissait la mémoire du processus
-  (`server/test/proxyCacheBounds.test.ts`). **Seule la lecture d'un serveur du
-  compte est mise en cache** (`X-Server-Id` du compte et
-  `targetBelongsToServer`) : le chemin seul décidait, et n'importe quel hôte
-  qui servait `/reader/api/0/` écrivait jusqu'à 32 Mo par URL dans le Redis
-  partagé (122 Ko servis en gzip en faisaient écrire 120 Mo).
+  (`server/test/proxyCacheBounds.test.ts`). **Seule la lecture d'un serveur du compte est mise en cache** (`X-Server-Id`
+  du compte et `targetBelongsToServer`) : le chemin seul décidait, et n'importe
+  quel hôte qui servait `/reader/api/0/` écrivait jusqu'à 32 Mo par URL dans le
+  Redis partagé (122 Ko servis en gzip en faisaient écrire 120 Mo). **Cela ne
+  suffit pas** : le compte enregistre l'hôte qu'il veut comme « serveur », sans
+  jeton ni vérification. D'où `cacheableEntry` (`server/cache.ts`) : seul du
+  JSON qui s'analyse est écrit, jamais plus de `MAX_CACHED_ENTRY_BYTES` (8 Mio,
+  jugés après la coupe à `CACHE_ARTICLES_PER_FEED`). Mesuré le 2026-10-30 sur 15
+  flux publics à contenu intégral, enveloppe greader comprise : 0,1 à 1,7 Mio la
+  page de 50 articles, 4,5 Mio pour le pire (des essais longs). Au-delà, la
+  page est servie entière au client et simplement pas gardée.
+  **Limite connue** : 8 Mio par URL, à 600 requêtes par minute, restent une
+  écriture de plusieurs Gio par minute pour un compte qui le cherche, sur 24 h
+  de TTL. Le plafond retire le pire cas d'une entrée, pas le volume cumulé.
+  Le worker (Modèle B) garde son plafond de lecture et écrit sans ce filtre :
+  il n'écrit que cinq clés fixes par compte, réécrites à chaque cycle.
 - **Échéance totale** (1.8.0) : `PROXY_TOTAL_TIMEOUT_MS` = **60 s** par requête
   `/api/proxy`, en-têtes **et** corps, tous les sauts de redirection et le
   repli vers l'URL publique compris. Avant, seul `TIMEOUT_MS` (30 s) bornait un
@@ -6082,8 +6136,10 @@ répondu (voir *Extraction du contenu complet*).
   aucune déconnexion (`client.test.ts`, `backend.test.ts`).
 - **Règle** : tout nouvel appel sortant passe par `fetchUpstream()`, jamais par
   `fetch()` directement, sous peine de contourner le garde SSRF.
-- **Redaction** : `redactUrl()` retire la valeur d'un paramètre `token` avant
-  toute écriture dans un journal.
+- **Redaction** : `redactUrl()` ne garde d'une URL que son origine et son chemin
+  (1.8.0). La requête entière disparaît, quel que soit le nom du paramètre : une
+  liste de paramètres secrets (`token`) en oubliait toujours un. Une URL
+  illisible est coupée à son premier `?` ou `#`.
 - **Aucun en-tête d'identification fourni par le client n'est honoré.** Le jeton
   greader est injecté côté serveur, et seulement là. Un repli `X-Freshrss-Auth`
   a existé « pour l'installation, avant qu'une ligne serveur existe » — mais
@@ -6347,7 +6403,7 @@ qu'elle rend (voir *Extraction du contenu complet*).
   replie dans les deux cas. Le corps ne nomme jamais la cible, et la ligne de
   journal passe par `redactUrl` dans **toutes** les branches — la branche 503
   écrivait la cible en clair jusqu'au 2026-09-04, alors que le préchargement
-  d'images y fait passer des URL de CDN signées par un `?token=…`.
+  d'images y fait passer des URL de CDN signées par leur requête.
   La route appelle la garde complète
   (`assertTargetSafe`, exportée par le proxy, **avant la lecture du cache**)
   mais ne recopie ni le corps du 403 ni sa ligne de journal : elle laisse
@@ -6526,11 +6582,19 @@ les clés modifiées sur l'appareil.
   réessais (`owner` n'est fixé qu'au succès : chaque réessai les aurait vidées).
 - **Où** : `server/routes/preferences.ts`
 - **Bornes** : clé ≤ 128 caractères, valeur ≤ 1 Mio, 200 clés par requête,
-  500 clés stockées par utilisateur. Calibrées très au-dessus du client réel —
-  quelques clés par envoi, toutes les synchronisées (`UI_SYNC_KEYS` +
-  `THEME_SYNC_KEYS`) d'un coup seulement pour amorcer un compte neuf ; la plus grosse est `appLogo`, un PNG en data URL
-  redimensionné à 256×256 côté client. Sans elles, un compte authentifié
-  remplissait le volume SQLite 5 Mo à la fois.
+  500 clés et **4 Mio au total par compte** (`MAX_TOTAL_BYTES`, 1.8.0, somme des
+  octets des valeurs). Calibrées très au-dessus du client réel — quelques clés
+  par envoi, toutes les synchronisées (`UI_SYNC_KEYS` + `THEME_SYNC_KEYS`) d'un
+  coup seulement pour amorcer un compte neuf ; la plus grosse est `appLogo`, un
+  PNG en data URL redimensionné à 256×256 côté client, ~350 Kio au pire. Sans
+  elles, un compte authentifié remplissait le volume SQLite 5 Mo à la fois.
+  Sans le total, 1 Mio × 500 clés faisait 500 Mio : 70 valeurs faisaient refuser
+  l'export de sauvegarde de TOUTE l'instance (plafond 64 Mio, qui reste partagé :
+  16 comptes pleins l'atteignent encore), et chaque `GET` gelait la boucle
+  d'événements ~3 s. Le total se compte après remplacement, et ne refuse que ce
+  qui grossit : un compte déjà au-dessus peut maigrir.
+- **Cadence** (1.8.0) : 120 requêtes par minute et par compte sur toutes les
+  routes de préférences (429, `code: 'too_many_requests'`).
 - **Piège** : tout le lot est validé **avant** la moindre écriture. Valider au
   fil de l'insertion laisserait derrière soi les clés qui précédaient la
   fautive, sur une requête pourtant refusée.
@@ -6538,6 +6602,10 @@ les clés modifiées sur l'appareil.
   `unserializable_value` et `value_too_large` répondent
   `400 { error, code, key }`. Un refus du lot entier (`too_many_keys`,
   `too_many_preferences`, `bad_payload`) n'a pas de `key`.
+  Le total dépassé répond **413** `preferences_too_large`, sans `key` : rien
+  dans le lot n'est écrit. Côté client (`prefsSync`), ce refus n'est pas
+  retenté, et se dit une fois (`preferences.tooLarge`) ; les clés restent
+  sales, le prochain changement réessaie.
 - **Côté client — clés modifiées seulement** (1.8.0). `prefsSync` garde la
   dernière valeur connue du serveur pour chaque clé (posée à la lecture et
   après chaque envoi réussi) et la liste des clés modifiées sur l'appareil et

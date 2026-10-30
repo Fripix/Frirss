@@ -37,7 +37,9 @@ basics that matter:
 - Back up the `/app/data` volume — it holds the database, the JWT secret and the
   token-encryption key (all generated on first launch).
 - The backend proxy blocks internal/private targets by default (anti-SSRF); only
-  widen `PROXY_INTERNAL_HOSTS` to hosts you trust.
+  widen `PROXY_INTERNAL_HOSTS` to hosts you trust. It trusts a whole host, every
+  port included, whereas each side of `PROXY_REWRITES` is trusted for its exact
+  origin only (scheme, host and port).
 - Give accounts only to people you trust. Registration is closed by default —
   only the very first account can be created without an admin opening it — so
   the safe posture is the one you already have. An account is what unlocks the

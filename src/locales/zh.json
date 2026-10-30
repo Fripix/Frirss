@@ -545,7 +545,8 @@
       "ssoUnlink": "解除关联",
       "ssoUnlinked": "账户已解除与 {{provider}} 的关联。",
       "ssoUnlinkFailed": "无法解除账户关联。"
-    }
+    },
+    "tooLarge": "您的设置超出了服务器允许的大小：最近的更改仅保留在此设备上。使用更小的徽标或减少主题可释放空间。"
   },
   "login": {
     "welcome": "欢迎使用 FriRSS",

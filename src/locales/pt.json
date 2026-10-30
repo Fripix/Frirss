@@ -545,7 +545,8 @@
       "ssoUnlink": "Desassociar",
       "ssoUnlinked": "Conta desassociada de {{provider}}.",
       "ssoUnlinkFailed": "Não foi possível desassociar a conta."
-    }
+    },
+    "tooLarge": "As suas definições excedem o tamanho permitido pelo servidor: as últimas alterações ficam neste dispositivo. Um logótipo mais leve ou menos temas libertam espaço."
   },
   "login": {
     "welcome": "Bem-vindo ao FriRSS",

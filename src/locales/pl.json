@@ -563,7 +563,8 @@
       "ssoUnlink": "Odłącz",
       "ssoUnlinked": "Konto odłączone od {{provider}}.",
       "ssoUnlinkFailed": "Nie udało się odłączyć konta."
-    }
+    },
+    "tooLarge": "Twoje ustawienia przekraczają rozmiar dozwolony przez serwer: ostatnie zmiany pozostają na tym urządzeniu. Lżejsze logo lub mniej motywów zwolni miejsce."
   },
   "login": {
     "welcome": "Witamy w FriRSS",

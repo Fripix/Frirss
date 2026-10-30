@@ -39,6 +39,7 @@
 // retried with backoff; the first successful one decides.
 // ═══════════════════════════════════════════════════════════════════════
 import { getPreferences, savePreferences } from '../api/backend';
+import i18next from 'i18next';
 import { useUiStore, UI_SYNC_KEYS } from '../stores/uiStore';
 import { useThemeStore, THEME_SYNC_KEYS } from '../stores/themeStore';
 import { useAiStore } from '../stores/aiStore';
@@ -174,6 +175,9 @@ function dropRefused(key: string): void {
   }
 }
 
+/** Le refus de taille n'a été dit qu'une fois, jusqu'au prochain envoi réussi. */
+let tooLargeSaid = false;
+
 async function doPush(): Promise<void> {
   const gen = generation;
   const local = collectPrefs();
@@ -190,9 +194,22 @@ async function doPush(): Promise<void> {
     await savePreferences(batch);
   } catch (err) {
     if (gen !== generation) return;
-    const res = (err as { response?: { status?: number; data?: { key?: unknown } } })?.response;
+    const res = (err as { response?: { status?: number; data?: { key?: unknown; code?: unknown } } })?.response;
     // A 401 has already logged the user out (backend interceptor): no retry.
     if (res?.status === 401) return;
+    // Total du compte dépassé : ce refus ne passera pas seul, le retenter
+    // bouclait sans fin et sans rien dire. Les clés restent sales : le
+    // prochain changement réessaie, le compte a pu maigrir entre-temps.
+    if (res?.status === 413 && res.data?.code === 'preferences_too_large') {
+      if (!tooLargeSaid) {
+        tooLargeSaid = true;
+        useUiStore.getState().pushToast(
+          i18next.isInitialized ? i18next.t('preferences.tooLarge') : 'preferences.tooLarge',
+          { tone: 'error' },
+        );
+      }
+      return;
+    }
     const refusedKey = res?.status === 400 ? res.data?.key : undefined;
     if (typeof refusedKey === 'string' && keys.includes(refusedKey)) {
       // Le serveur valide tout avant d'écrire : rien n'est passé, les autres
@@ -205,6 +222,7 @@ async function doPush(): Promise<void> {
   }
   if (gen !== generation) return;
   pushRetryDelay = 0;
+  tooLargeSaid = false;
   const now = collectPrefs();
   for (const k of keys) {
     known[k] = batch[k];

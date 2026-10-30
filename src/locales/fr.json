@@ -545,7 +545,8 @@
       "ssoUnlink": "Délier",
       "ssoUnlinked": "Compte délié de {{provider}}.",
       "ssoUnlinkFailed": "Le compte n’a pas pu être délié."
-    }
+    },
+    "tooLarge": "Vos réglages dépassent la taille permise par le serveur : les derniers changements restent sur cet appareil. Un logo plus léger ou moins de thèmes libèrent de la place."
   },
   "login": {
     "welcome": "Bienvenue sur FriRSS",

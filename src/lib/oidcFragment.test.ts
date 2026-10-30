@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readOidcFragment, oidcErrorTarget } from './oidcFragment';
+import { readOidcFragment, oidcErrorTarget, oidcErrorKey } from './oidcFragment';
 
 // Ce que le serveur rend dans le fragment au retour du fournisseur SSO.
 describe('readOidcFragment', () => {
@@ -28,5 +28,16 @@ describe('oidcErrorTarget', () => {
 
   it('sans session : un échec de connexion, sur l’écran de connexion', () => {
     expect(oidcErrorTarget(false)).toBe('loginScreen');
+  });
+});
+
+describe('oidcErrorKey', () => {
+  // Le retour SSO est limité : « trop de tentatives » n'est pas un refus du
+  // fournisseur, et le message générique envoyait chercher ailleurs.
+  it('nomme chaque refus du retour SSO', () => {
+    expect(oidcErrorKey('too_many')).toBe('login.errorTooMany');
+    expect(oidcErrorKey('unavailable')).toBe('login.errorUnavailable');
+    expect(oidcErrorKey('link_required')).toBe('login.errorSsoLinkRequired');
+    expect(oidcErrorKey('state_mismatch')).toBe('login.errorSso');
   });
 });

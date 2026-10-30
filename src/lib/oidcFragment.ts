@@ -41,3 +41,11 @@ export function readOidcFragment(hash: string): OidcFragment | null {
 export function oidcErrorTarget(signedIn: boolean): 'linkToast' | 'loginScreen' {
   return signedIn ? 'linkToast' : 'loginScreen';
 }
+
+/** Clé i18n d'une `oidc_error` à l'écran de connexion. */
+export function oidcErrorKey(error: string): string {
+  if (error === 'unavailable') return 'login.errorUnavailable';
+  if (error === 'link_required') return 'login.errorSsoLinkRequired';
+  if (error === 'too_many') return 'login.errorTooMany';
+  return 'login.errorSso';
+}

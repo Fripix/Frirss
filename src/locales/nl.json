@@ -545,7 +545,8 @@
       "ssoUnlink": "Ontkoppelen",
       "ssoUnlinked": "Account ontkoppeld van {{provider}}.",
       "ssoUnlinkFailed": "Het account kon niet worden ontkoppeld."
-    }
+    },
+    "tooLarge": "Uw instellingen overschrijden de grootte die de server toestaat: de laatste wijzigingen blijven op dit apparaat. Een lichter logo of minder thema's maakt ruimte vrij."
   },
   "login": {
     "welcome": "Welkom bij FriRSS",

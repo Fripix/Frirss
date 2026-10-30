@@ -119,11 +119,12 @@ la release publiée.
 - **La limite de tentatives de connexion ne se contourne plus en IPv6** : les
   adresses d'un même bloc /56 partagent leur compteur (connexion, inscription,
   sauvegardes).
-- **Cache des lectures (`REDIS_URL`) : ne garde plus que les lectures des
-  serveurs FreshRSS du compte, bornées.** N'importe quelle adresse dont le
-  chemin ressemblait à l'API de FreshRSS y était écrite, jusqu'à 32 Mo par
-  adresse, et une réponse démesurée remplissait la mémoire : un compte
-  pouvait remplir le Redis, partagé avec le reste de l'hôte.
+- **Le cache des lectures (`REDIS_URL`) ne garde plus que du JSON, au plus
+  8 Mo par entrée, et seulement pour les serveurs FreshRSS du compte.**
+  N'importe quelle adresse dont le chemin ressemblait à l'API de FreshRSS y
+  était écrite, jusqu'à 32 Mo par adresse, et une réponse démesurée remplissait
+  la mémoire : un compte pouvait remplir le Redis, partagé avec le reste de
+  l'hôte. Une page plus grosse reste servie, elle n'est simplement pas gardée.
 - **L'extraction d'un article a une échéance totale** : 45 s pour les
   en-têtes, redirections comprises. Six redirections lentes la tenaient près
   de quatre minutes.
@@ -155,6 +156,25 @@ la release publiée.
   aurait fini dans le journal du reverse proxy public.
 - **Supprimer un compte efface aussi ses listes en cache** (`REDIS_URL`), au
   lieu de les laisser jusqu'à 24 h.
+- **`PROXY_REWRITES` : la confiance porte sur l'origine exacte de la règle**
+  (schéma, hôte et port), plus sur le nom. Avec un split-DNS, tout compte
+  pouvait viser n'importe quel port du reverse proxy derrière le nom public,
+  son interface d'administration comprise.
+- **Préférences : 4 Mo au total par compte, et une limite de requêtes.** Un
+  compte sans droit d'admin pouvait stocker 500 Mo : l'export de sauvegarde de
+  toute l'instance échouait alors, et chaque lecture gelait le serveur
+  plusieurs secondes.
+- **Inscriptions ouvertes : 5 comptes par heure et par adresse.** Seuls les
+  échecs comptaient : une adresse créait autant de comptes qu'elle voulait. Le
+  nom d'utilisateur, le nom affiché et le mot de passe ont aussi une taille
+  maximale (64, 128 et 1 024 caractères).
+- **Le retour SSO a sa limite, et son `state` ne sert qu'une fois.** Sans
+  compte, on pouvait faire envoyer au fournisseur un nombre illimité d'échanges
+  de code depuis l'adresse de FriRSS, au risque de faire bannir l'instance par
+  une protection placée devant lui.
+- **Le journal du proxy n'écrit plus jamais la requête d'une URL.** Il écrivait
+  les recherches (`q=`) et les paramètres signés des images préchargées ;
+  seuls l'origine et le chemin restent.
 - **Garde anti-SSRF** : toutes les adresses IPv6 lien-local (`fe80::/10`) sont
   refusées, et non plus seulement `fe80::` et `fe9…` à `feb…`.
 
@@ -733,6 +753,11 @@ la release publiée.
 
 ## Actions requises à la mise à jour
 
+- **`PROXY_REWRITES`** : seule l'origine exacte de chaque règle est désormais de
+  confiance. Un serveur enregistré sur un autre schéma ou un autre port que la
+  règle, et résolu vers une adresse privée, répond 403 : corriger son URL, ou
+  ajouter une règle pour cette origine. `PROXY_INTERNAL_HOSTS` ne change pas :
+  il porte sur l'hôte, tous ports confondus.
 - **SSO** : un compte local qui n'a encore jamais été ouvert par le SSO ne
   s'y rattache plus tout seul. Son propriétaire se connecte avec son mot de
   passe, puis clique « Lier à … » dans Préférences › Général › Compte. Les
