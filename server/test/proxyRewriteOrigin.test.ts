@@ -34,7 +34,12 @@ await new Promise<void>((r) => admin.listen(0, '127.0.0.1', r));
 const freshrssPort = (freshrss.address() as AddressInfo).port;
 const adminPort = (admin.address() as AddressInfo).port;
 
-process.env.PROXY_REWRITES = `https://rss.localhost=http://127.0.0.1:${freshrssPort}`;
+process.env.PROXY_REWRITES = [
+  `https://rss.localhost=http://127.0.0.1:${freshrssPort}`,
+  `https://barre.localhost/=http://127.0.0.1:${freshrssPort}/`,
+  `https://MAJ.localhost:443=http://127.0.0.1:${freshrssPort}`,
+  `https://chemin.localhost/freshrss=http://127.0.0.1:${freshrssPort}/p`,
+].join(',');
 process.env.PROXY_INTERNAL_HOSTS = 'interne.localhost';
 
 const { default: proxyRouter, assertTargetSafe, targetAllowedLiteral, BlockedTargetError, rewriteTarget } = await import('../routes/proxy.js');
@@ -63,7 +68,20 @@ describe('PROXY_REWRITES — frontière de la règle', () => {
   it('réécrit l’origine de la règle, port par défaut écrit ou non', () => {
     expect(rewriteTarget('https://rss.localhost/api?x=1')).toBe(`http://127.0.0.1:${freshrssPort}/api?x=1`);
     expect(rewriteTarget('https://rss.localhost:443/api')).toBe(`http://127.0.0.1:${freshrssPort}/api`);
-    expect(rewriteTarget('https://rss.localhost')).toBe(`http://127.0.0.1:${freshrssPort}`);
+  });
+
+  // Règles lues brutes : une barre finale donnait `http://…:80x`, une URL
+  // invalide, donc 403 sur toute lecture ; `:443` ou une majuscule faisaient
+  // tout passer par l'URL publique, jeton maître de la relève compris.
+  it('normalise la règle : barre finale, port par défaut, casse', () => {
+    expect(rewriteTarget('https://barre.localhost/x?y=1')).toBe(`http://127.0.0.1:${freshrssPort}/x?y=1`);
+    expect(rewriteTarget('https://maj.localhost/x')).toBe(`http://127.0.0.1:${freshrssPort}/x`);
+    expect(rewriteTarget('https://Rss.Localhost/x')).toBe(`http://127.0.0.1:${freshrssPort}/x`);
+  });
+
+  it('une règle à chemin s’arrête à une frontière de chemin', () => {
+    expect(rewriteTarget('https://chemin.localhost/freshrss/api')).toBe(`http://127.0.0.1:${freshrssPort}/p/api`);
+    expect(rewriteTarget('https://chemin.localhost/freshrss-autre/api')).toBe('https://chemin.localhost/freshrss-autre/api');
   });
 });
 

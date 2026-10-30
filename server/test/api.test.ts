@@ -810,7 +810,15 @@ describe('servers actualize', () => {
     it('retire aussi les identifiants d’une URL illisible', () => {
       const url = redactUrl('https://user:secret@host.invalid:99999/chemin?x=1');
       expect(url).not.toContain('secret');
-      expect(url).toBe('https://host.invalid:99999/chemin');
+      expect(url).toBe('https://<illisible>');
+    });
+
+    it('ne laisse rien d’un mot de passe contenant / ? ou #, dans une URL illisible', () => {
+      for (const raw of ['https://user:p/ss@host:99999/x', 'https://user:p?ss@host:99999/x', 'https://user:p#ss@host:99999/x']) {
+        const url = redactUrl(raw);
+        expect(url, raw).not.toContain('ss@');
+        expect(url, raw).not.toContain('p/ss');
+      }
     });
   });
 });

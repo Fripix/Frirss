@@ -991,6 +991,12 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     confinement de peinture rogne les anneaux de focus des lignes.
   - **Reste** : les lignes montées ne sont pas mémoïsées, un re-rendu les
     parcourt toutes.
+- **Une réponse qui n'est pas du JSON est une panne** (1.8.0, `expectJson`,
+  `src/api/feeds.ts`) : un proxy d'authentification ou une page de maintenance
+  répond 200 en HTML, et `data.items || []` en faisait une liste vide, sans
+  erreur, qui écrasait la copie hors ligne et posait le plancher de non-lus à
+  0. Articles, abonnements, étiquettes, compteurs : la lecture rejette, et le
+  repli hors ligne joue.
 - **Titres en ASCII** (1.8.0, `src/lib/freshrssText.ts`) : FreshRSS rend
   `& < >` des titres d'articles en pleine chasse (`＆ ＜ ＞`,
   `escapeToUnicodeAlternative`), et `/` aussi dans les noms de flux
@@ -6168,10 +6174,13 @@ répondu (voir *Extraction du contenu complet*).
   reverse proxy public — ce que la réécriture existait pour éviter. L'échec
   sans repli laisse une ligne de journal (URL caviardée) : sans elle,
   l'opérateur ne voyait qu'un « fetch failed ».
-  **La règle s'arrête à une frontière** (`rewriteTarget` : fin, `/`, `?`, `#`) :
-  par simple préfixe, `https://rss…:8443/x` devenait `http://freshrss:80:8443/x`,
-  une URL invalide. Sans frontière elle n'est pas réécrite et part vers le
-  public ; `:443` est la même origine que la règle et se réécrit pareil.
+  **Règle et URL se comparent une fois analysées** (`REWRITE_RULES`,
+  `rewriteTarget`) : même origine, puis préfixe de chemin à une frontière. Par
+  préfixe de chaîne, `https://rss…:8443/x` devenait `http://freshrss:80:8443/x`,
+  une URL invalide ; une règle à barre finale faisait `http://freshrss:80x` ;
+  une majuscule ou `:443` faisaient tout passer par l'URL publique, jeton
+  maître de la relève compris. Hors règle, l'URL part telle quelle vers le
+  public.
   **La confiance porte sur l'origine exacte de chaque côté** (schéma, hôte,
   port, 1.8.0, `server/test/proxyRewriteOrigin.test.ts`). Par le nom seul, et
   sans résolution, le nom public ouvrait en split-DNS tous les ports du reverse
@@ -6197,8 +6206,10 @@ répondu (voir *Extraction du contenu complet*).
   se juge AVANT l'analyse (`MAX_CACHED_ENTRY_BYTES`, 8 Mio ; 31 Mio de petits
   objets relus dix fois par seconde bloquaient la boucle d'événements 5 s
   d'affilée), puis seul du JSON qui s'analyse est écrit, coupé à
-  `CACHE_ARTICLES_PER_FEED`, BOM retiré. Une page devenue non gardable retire
-  l'ancienne entrée (`cacheDel`), qui restait peinte jusqu'au TTL. Mesuré le 2026-10-30 sur 15
+  `CACHE_ARTICLES_PER_FEED`, BOM retiré. Une page devenue trop grosse retire
+  l'ancienne entrée (`cacheDel`), qui restait peinte jusqu'au TTL ; pas un corps
+  illisible, le temps d'un incident (page de maintenance en 200), qui ne coûte
+  pas la bonne entrée. Mesuré le 2026-10-30 sur 15
   flux publics à contenu intégral, enveloppe greader comprise : 0,1 à 1,7 Mio la
   page de 50 articles, 4,5 Mio pour le pire (des essais longs). Au-delà, la
   page est servie entière au client et simplement pas gardée.
@@ -6263,7 +6274,9 @@ répondu (voir *Extraction du contenu complet*).
 - **Redaction** : `redactUrl()` ne garde d'une URL que son origine et son chemin
   (1.8.0). La requête entière disparaît, quel que soit le nom du paramètre : une
   liste de paramètres secrets (`token`) en oubliait toujours un. Une URL
-  illisible est coupée à son premier `?` ou `#`, et perd ses identifiants.
+  illisible est coupée à son premier `?` ou `#` ; si elle porte un `@`, seul son
+  schéma sort (rien ne dit où s'arrête un mot de passe). Les journaux
+  n'écrivent jamais `e.message` : `fetch` y recopie l'URL entière.
 - **Aucun en-tête d'identification fourni par le client n'est honoré.** Le jeton
   greader est injecté côté serveur, et seulement là. Un repli `X-Freshrss-Auth`
   a existé « pour l'installation, avant qu'une ligne serveur existe » — mais

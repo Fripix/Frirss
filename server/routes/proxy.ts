@@ -7,7 +7,7 @@ import dns from 'dns';
 import db from '../db.js';
 import { decrypt } from '../crypto.js';
 import { requireAuth } from '../middleware/auth.js';
-import { cacheEnabled, cacheGet, cacheSet, cacheDel, cacheKey, cacheableEntry } from '../cache.js';
+import { cacheEnabled, cacheGet, cacheSet, cacheDel, cacheKey, cacheableEntry, MAX_CACHED_ENTRY_BYTES } from '../cache.js';
 import { stripTrailingSlashes } from '../validate.js';
 
 const router = Router();
@@ -237,33 +237,37 @@ export function redactUrl(url: string): string {
     const u = new URL(url);
     return u.pathname === '/' ? u.origin : `${u.origin}${u.pathname}`;
   } catch {
-    // Illisible : le navigateur n'a pas pu la découper, ce code non plus.
-    return url.split(/[?#]/, 1)[0].replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/]*@/i, '$1');
+    // Illisible : rien ne dit où s'arrête un mot de passe qui contient `/`,
+    // `?` ou `#`. Avec un `@`, seul le schéma sort.
+    if (url.includes('@')) return `${url.match(/^[a-z][a-z0-9+.-]*:/i)?.[0] ?? ''}//<illisible>`;
+    return url.split(/[?#]/, 1)[0];
   }
 }
 
-/** Une règle sans port, écrite aussi avec le port par défaut de son schéma. */
-function withDefaultPort(from: string): string | null {
-  const m = from.match(/^(https?):\/\/([^/:?#]+)(.*)$/i);
-  if (!m) return null;
-  return `${m[1]}://${m[2]}:${m[1].toLowerCase() === 'https' ? 443 : 80}${m[3]}`;
-}
+/** Une règle lue : origine et préfixe de chemin normalisés (`new URL`). */
+const REWRITE_RULES = REWRITES.flatMap(([from, to]) => {
+  try {
+    const u = new URL(from);
+    return [{ origin: u.origin, path: u.pathname.replace(/\/+$/, ''), to: to.replace(/\/+$/, '') }];
+  } catch { return []; }
+});
 
 /**
- * Réécrit une URL sur la règle dont elle relève. La règle s'arrête à une
- * frontière (fin, `/`, `?`, `#`) : par simple préfixe, `https://rss…:8443/x`
- * devenait `http://freshrss:80:8443/x`, une URL invalide, et une cible refusée
- * ne se replie jamais : 403 sur toute lecture d'un serveur enregistré avec un
- * port. Sans frontière elle n'est pas réécrite et part vers le public. `:443`
- * est la même origine que la règle : il se réécrit pareil.
+ * Réécrit une URL sur la règle dont elle relève, comparées une fois analysées.
+ * Par préfixe de chaîne, trois pannes : `https://rss…:8443/x` devenait
+ * `http://freshrss:80:8443/x`, une URL invalide, et une cible refusée ne se
+ * replie jamais (403 sur toute lecture) ; une règle à barre finale faisait
+ * `http://freshrss:80x` ; une majuscule ou `:443` passaient par l'URL publique,
+ * jeton maître de la relève compris. Le chemin s'arrête à une frontière : la
+ * règle `/freshrss` ne couvre pas `/freshrss-autre`.
  */
 export function rewriteTarget(url: string): string {
-  for (const [from, to] of REWRITES) {
-    for (const prefix of [from, withDefaultPort(from)]) {
-      if (!prefix || !url.startsWith(prefix)) continue;
-      const rest = url.slice(prefix.length);
-      if (rest === '' || prefix.endsWith('/') || /^[/?#]/.test(rest)) return to + rest;
-    }
+  let u: URL;
+  try { u = new URL(url); } catch { return url; }
+  for (const { origin, path, to } of REWRITE_RULES) {
+    if (u.origin !== origin) continue;
+    if (u.pathname !== path && !u.pathname.startsWith(`${path}/`)) continue;
+    return to + u.pathname.slice(path.length) + u.search + u.hash;
   }
   return url;
 }
@@ -715,14 +719,14 @@ export async function fetchUpstream(
     if (err instanceof BlockedTargetError) throw err;     // never fall back a blocked target
     const e = err as { name?: string; cause?: { code?: string }; message?: string };
     if (target !== rawTarget && e.name !== 'AbortError' && publicFallback) {
-      console.warn('Proxy rewrite unreachable (%s), falling back to public:', e.cause?.code || e.message, redactUrl(target));
+      console.warn('Proxy rewrite unreachable (%s), falling back to public:', e.cause?.code || e.name, redactUrl(target));
       return await attempt(rawTarget);
     }
     // Repli interdit (le jeton est dans l'URL de la relève) : sans cette ligne,
     // l'opérateur ne voyait qu'un « fetch failed », sans savoir que l'adresse
     // interne de `PROXY_REWRITES` en était la cause.
     if (target !== rawTarget && e.name !== 'AbortError') {
-      console.warn('Proxy rewrite unreachable (%s), no public fallback for this request:', e.cause?.code || e.message, redactUrl(target));
+      console.warn('Proxy rewrite unreachable (%s), no public fallback for this request:', e.cause?.code || e.name, redactUrl(target));
     }
     throw err;
   }
@@ -899,11 +903,13 @@ router.all('/', async (req, res) => {
     }
     res.status(upstream.status).send(text);
     if (key) {
-      // Une page devenue non gardable retire l'ancienne : elle restait servie
-      // jusqu'au TTL, peinte à chaque ouverture avant la revalidation.
+      // Une page devenue trop grosse retire l'ancienne : elle restait servie
+      // jusqu'au TTL, peinte à chaque ouverture avant la revalidation. Pas un
+      // corps illisible : une page de maintenance en 200, le temps d'un
+      // incident, ne coûte pas la bonne entrée (une panne en 502 non plus).
       const entry = cacheableEntry(text);
       if (entry !== null) cacheSet(key, entry); // fire-and-forget
-      else cacheDel(key);
+      else if (Buffer.byteLength(text) > MAX_CACHED_ENTRY_BYTES) cacheDel(key);
     }
     return;
   }
@@ -968,7 +974,9 @@ export function finishError(res: ExpressResponse, err: unknown, target: string, 
   if (e.name === 'AbortError') {
     return res.status(504).json({ error: 'Upstream timeout' });
   }
-  console.error(label, e.cause?.code || e.message, '→', redactUrl(target));
+  // Jamais `e.message` : `fetch` y recopie l'URL entière, mot de passe et
+  // requête compris, juste avant le `redactUrl` de la même ligne.
+  console.error(label, e.cause?.code || e.name || 'error', '→', redactUrl(target));
   res.status(502).json({ error: 'Upstream request failed' });
 }
 

@@ -164,10 +164,18 @@ describe('/api/proxy — lectures mises en cache', () => {
   });
 
   // L'ancienne version restait servie jusqu'au TTL, peinte à chaque ouverture.
-  it('retire l’entrée d’une page devenue non gardable', async () => {
+  it('retire l’entrée d’une page devenue trop grosse', async () => {
+    cacheDel.mockClear();
+    await call('/reader/api/0/stream/contents/large');
+    expect(cacheDel).toHaveBeenCalledTimes(1);
+  });
+
+  // Une page de maintenance en 200, le temps d'un incident : la bonne entrée
+  // doit survivre, comme sur une panne en 502.
+  it('garde l’entrée sur un corps illisible passager', async () => {
     cacheDel.mockClear();
     await call('/reader/api/0/stream/contents/text');
-    expect(cacheDel).toHaveBeenCalledTimes(1);
+    expect(cacheDel).not.toHaveBeenCalled();
   });
 
   it('ne prend pas pour une lecture greader une URL qui ne la porte que dans sa requête', async () => {

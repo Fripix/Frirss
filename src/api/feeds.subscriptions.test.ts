@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('./client', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 
 import client from './client';
-import { getSubscriptionList } from './feeds';
+import { getSubscriptionList, getStreamContents } from './feeds';
 
 const get = vi.mocked(client.get);
 
@@ -34,5 +34,19 @@ describe('getSubscriptionList — formes pleine chasse de FreshRSS', () => {
     get.mockResolvedValue({ data: { subscriptions: [{ id: 'feed/1', title: 'r／selfhosted ＆ co' }] } } as never);
     const subs = await getSubscriptionList();
     expect(subs[0].title).toBe('r/selfhosted & co');
+  });
+});
+
+// Un proxy d'authentification répond 200 en HTML : `data.items || []` en faisait
+// une liste vide, sans erreur, qui écrasait la copie hors ligne.
+describe('getStreamContents — réponse qui n’est pas du JSON', () => {
+  it('rejette, pour que le repli hors ligne joue', async () => {
+    get.mockResolvedValue({ status: 200, data: '<html>Sign in</html>' } as never);
+    await expect(getStreamContents('feed/1')).rejects.toThrow();
+  });
+
+  it('accepte une liste vide légitime', async () => {
+    get.mockResolvedValue({ status: 200, data: { items: [] } } as never);
+    await expect(getStreamContents('feed/1')).resolves.toEqual({ items: [], continuation: null });
   });
 });

@@ -11,6 +11,16 @@ const BASE = '/api/greader.php/reader/api/0';
 
 const FEED_PRIORITIES: ReadonlySet<string> = new Set(['important', 'main', 'category', 'feed']);
 
+/**
+ * Un proxy d'authentification ou une page de maintenance répond 200 en HTML :
+ * `data.items || []` en faisait une liste vide, sans erreur, qui écrasait la
+ * copie hors ligne et posait le plancher de non-lus à 0. Une réponse qui n'est
+ * pas du JSON est une panne : le repli hors ligne et l'erreur de liste jouent.
+ */
+function expectJson(data: unknown): void {
+  if (data === null || typeof data !== 'object') throw new Error('FreshRSS did not answer in JSON');
+}
+
 export async function getSubscriptionList(): Promise<Subscription[]> {
   type RawSubscription = Subscription & { 'frss:priority'?: unknown };
   const { data } = await client.get<{ subscriptions?: RawSubscription[] }>(`${BASE}/subscription/list`, {
@@ -20,6 +30,7 @@ export async function getSubscriptionList(): Promise<Subscription[]> {
   // server leaves the field out, and so do we — see `src/lib/mainStream.ts`.
   // Le nom du flux s'affiche en ASCII (« r／selfhosted », `freshrssText.ts`) ;
   // il ne sert pas d'identifiant, contrairement aux étiquettes et catégories.
+  expectJson(data);
   return (data.subscriptions || []).map(({ 'frss:priority': raw, ...rest }) => {
     const sub = { ...rest, title: fromFreshrssName(rest.title) };
     return typeof raw === 'string' && FEED_PRIORITIES.has(raw) ? { ...sub, priority: raw as FeedPriority } : sub;
@@ -30,6 +41,7 @@ export async function getTagList(): Promise<Tag[]> {
   const { data } = await client.get<{ tags?: Tag[] }>(`${BASE}/tag/list`, {
     params: { output: 'json' },
   });
+  expectJson(data);
   return data.tags || [];
 }
 
@@ -37,6 +49,7 @@ export async function getUnreadCounts(): Promise<UnreadCount[]> {
   const { data } = await client.get<{ unreadcounts?: UnreadCount[] }>(`${BASE}/unread-count`, {
     params: { output: 'json' },
   });
+  expectJson(data);
   return data.unreadcounts || [];
 }
 
@@ -60,6 +73,7 @@ export async function getStreamContents(
   if (cacheOnly) config.headers = { 'X-Cache-Only': '1' };
   const { status, data } = await client.get<{ items?: GReaderItem[]; continuation?: string | null }>(url, config);
   if (cacheOnly && (status === 204 || !data)) return null; // cache miss
+  expectJson(data);
   return {
     items: data.items || [],
     continuation: data.continuation || null,
@@ -284,6 +298,7 @@ export async function fetchStreamPage(
     `${BASE}/stream/contents/${buildStreamPath(streamId)}`,
     { params },
   );
+  expectJson(data);
   return { items: data.items || [], continuation: data.continuation || null };
 }
 

@@ -584,6 +584,10 @@ la release publiée.
 - **Les articles retirés des favoris ou de « À lire plus tard » libèrent leur
   texte gardé hors ligne**, au lieu de le garder pour toujours — sans toucher
   aux favoris des autres comptes ou serveurs du même appareil.
+- **Une page de connexion ou de maintenance ne vide plus la liste.** Quand un
+  proxy devant FreshRSS répondait par une page HTML, la liste devenait vide sans
+  erreur, et la copie gardée hors ligne était écrasée. C'est désormais une panne
+  comme une autre : la liste gardée reste affichée.
 - **Les flux préparés s'ouvrent hors ligne, quel que soit le filtre.** Après
   « Préparer le hors-ligne », un flux ouvert sous le filtre Non lus ou en ordre
   « plus anciens d'abord » échouait à se charger, ou s'affichait à l'envers.
@@ -767,8 +771,9 @@ la release publiée.
 
 ## Actions requises à la mise à jour
 
-- **`PROXY_REWRITES`** : seule l'origine exacte de chaque règle est désormais de
-  confiance. Un serveur enregistré sur un autre schéma ou un autre port que la
+- **`PROXY_REWRITES`** : les règles sont maintenant comparées à l'URL une fois
+  analysées (barre finale, majuscules et `:443` ne comptent plus), et seule
+  l'origine exacte de chaque règle est de confiance. Un serveur enregistré sur un autre schéma ou un autre port que la
   règle n'est plus réécrit ; s'il se résout vers une adresse privée, il répond
   403 : corriger son URL, ou ajouter une règle pour cette origine. `PROXY_INTERNAL_HOSTS` ne change pas :
   il porte sur l'hôte, tous ports confondus.
