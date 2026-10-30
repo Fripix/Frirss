@@ -12,6 +12,7 @@ import { effectiveOrder, entryDirection } from '../../lib/effectiveOrder';
 import { viewUnreadCount } from '../../lib/mainStream';
 import { shouldLoadMore, listBodyState, canLoadMore, searchAwareHasContinuation } from '../../lib/listPagination';
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
+import { ROW_SLICE, mountedRows, nextRowLimit } from '../../lib/listWindow';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { openArticleAtSource } from '../../lib/openArticleAtSource';
 import { markReadOnBackgroundOpen } from '../../lib/titleLink';
@@ -50,6 +51,9 @@ import { gridCardStyle, gridClassName } from '../../lib/gridCards';
 // Per-view scroll position, kept across remounts (e.g. returning from an
 // article in 2-panel desktop, or any re-mount of the list).
 const listScrollMem = new Map<string, number>();
+// Lignes montées par vue, pour la même raison : une position de défilement ne se
+// restaure que dans une liste qui a la même hauteur.
+const listLimitMem = new Map<string, number>();
 
 interface PullState {
   startY?: number;
@@ -341,6 +345,31 @@ export default function ArticleList() {
     searchResultsCount: searchResults.length,
   });
 
+  // ── Tranche locale ───────────────────────────────────────────────
+  // `src/lib/listWindow.ts`. Le store garde toute la liste ; seul ce qui est
+  // monté se limite. La limite ne redescend pas tant qu'on reste dans la vue.
+  const [rowWindow, setRowWindow] = useState({ key: scrollKey, limit: listLimitMem.get(scrollKey) ?? ROW_SLICE });
+  const rowLimit = rowWindow.key === scrollKey ? rowWindow.limit : listLimitMem.get(scrollKey) ?? ROW_SLICE;
+  const raiseRowLimit = useCallback((limit: number) => {
+    listLimitMem.set(scrollKeyRef.current, limit);
+    setRowWindow({ key: scrollKeyRef.current, limit });
+  }, []);
+  const selectedIndex = useMemo(
+    () => (selectedArticle ? articles.findIndex((a) => a.id === selectedArticle.id) : -1),
+    [articles, selectedArticle],
+  );
+  const mounted = mountedRows({ limit: rowLimit, total: articles.length, selectedIndex, searching: !!searchQuery });
+  const hiddenRows = articles.length - mounted;
+  const shownArticles = useMemo(
+    () => (mounted === articles.length ? articles : articles.slice(0, mounted)),
+    [articles, mounted],
+  );
+  // L'article ouvert au clavier a monté les lignes jusqu'à lui : elles restent
+  // quand il se referme, sinon la liste rétrécirait sous le lecteur.
+  useLayoutEffect(() => {
+    if (!searchQuery && mounted > rowLimit) raiseRowLimit(mounted);
+  }, [mounted, rowLimit, searchQuery, raiseRowLimit]);
+
   // ── Apparition échelonnée ────────────────────────────────────────
   // Le décalage d'entrée se décidait sur la seule position : la ligne
   // remontée d'un cran par un retrait franchissait le seuil et rejouait
@@ -352,7 +381,7 @@ export default function ArticleList() {
   // vues dès la première peinture, et plus rien ne s'animerait. La clé de vue
   // le remet à zéro — entrer dans un flux ou changer de filtre anime bien ses
   // lignes, y compris celles déjà croisées ailleurs.
-  const articleIds = useMemo(() => articles.map((a) => a.id), [articles]);
+  const articleIds = useMemo(() => shownArticles.map((a) => a.id), [shownArticles]);
   const seenRowsRef = useRef<{ key: string; memo: Map<string, number | null> }>({
     key: scrollKey,
     memo: new Map(),
@@ -425,19 +454,36 @@ export default function ArticleList() {
     publishListCanScroll(
       listOverflows({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })
     );
-    if (
-      shouldLoadMore({
-        hasContinuation,
-        loading,
-        loadingMore,
-        scrollTop: el.scrollTop,
-        scrollHeight: el.scrollHeight,
-        clientHeight: el.clientHeight,
-      })
-    ) {
+    const metrics = { scrollTop: el.scrollTop, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight };
+    // Ce qui est déjà en mémoire passe avant le réseau.
+    if (hiddenRows > 0) {
+      if (shouldLoadMore({ hasContinuation: true, loading, loadingMore: false, ...metrics })) raiseRowLimit(nextRowLimit(mounted));
+      return;
+    }
+    if (shouldLoadMore({ hasContinuation, loading, loadingMore, ...metrics })) {
+      // La page demandée par le défilement s'affiche à son arrivée : la tranche la
+      // devance, sinon le lecteur, déjà en bas, n'émettrait plus aucun `scroll`.
+      if (!searchQuery) raiseRowLimit(nextRowLimit(articles.length));
       loadMore();
     }
-  }, [hasContinuation, loading, loadingMore, loadMore]);
+  }, [hasContinuation, loading, loadingMore, loadMore, hiddenRows, mounted, articles.length, searchQuery, raiseRowLimit]);
+
+  // Une tranche qui ne remplit pas la fenêtre (grille sur un grand écran) n'émet
+  // aucun `scroll`. Pas de hauteur, pas de décision : sur mobile, la liste reste
+  // montée derrière le volet, et tout y serait monté pour rien. S'arrête seul :
+  // la limite ne fait que monter.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || !hiddenRows || !el.clientHeight) return;
+    if (shouldLoadMore({
+      hasContinuation: true,
+      loading,
+      loadingMore: false,
+      scrollTop: el.scrollTop,
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    })) raiseRowLimit(nextRowLimit(mounted));
+  }, [hiddenRows, mounted, loading, raiseRowLimit]);
 
   // Restore the saved scroll position once, after the list has content
   // (covers remounts; on mobile the list stays mounted so position persists).
@@ -587,7 +633,7 @@ export default function ArticleList() {
       timers.forEach(clearTimeout);
       timers.clear();
     };
-  }, [markReadOnScroll, searchQuery, articles.length]);
+  }, [markReadOnScroll, searchQuery, articles.length, mounted]);
 
   // Changer de vue repart d'une page blanche : les lignes de la vue
   // précédente ne doivent pas compter comme « déjà vues ».
@@ -689,7 +735,12 @@ export default function ArticleList() {
   // de « 471 résultats », son 4 973 ne parlait pas de ce qu'on voit.
   const heading = searchQuery ? t('app.labelValue', { label: t('articleList.searchHeading'), value: searchQuery }) : title;
 
-  const groups = groupByDate(articles);
+  const groups = groupByDate(shownArticles);
+  // Une bande dit combien d'articles porte sa date, pas combien sont montés.
+  const groupTotals = useMemo(
+    () => new Map(groupByDate(articles).map((g) => [g.key, g.articles.length])),
+    [articles],
+  );
 
   // Une liste vide ne veut dire « il n'y a plus rien » que si le flux est
   // épuisé. Vidée alors que `continuation` promet une page suivante, elle
@@ -714,7 +765,7 @@ export default function ArticleList() {
   // `loadArticles` et jetterait le travail du clic).
   const loadMoreBusy = !canLoadMore({ hasContinuation, loadingMore, revalidating });
   const endOfListMarkAll = showEndOfListMarkAll({
-    hasContinuation,
+    hasContinuation: hasContinuation || hiddenRows > 0,
     loading,
     loadingMore,
     searchQuery,
@@ -1131,7 +1182,7 @@ export default function ArticleList() {
         ) : gridLayout && !gridDateSeparators ? (
           /* Grid, default: one continuous gallery, no date bands. */
           <div className={gridClassName(gridCardFill)} style={gridStyle}>
-            {articles.map(renderCard)}
+            {shownArticles.map(renderCard)}
           </div>
         ) : (
           /* La clé vient du groupe, jamais de sa position : `${label}-${index}`
@@ -1141,7 +1192,7 @@ export default function ArticleList() {
           groups.map((group) => (
             <div key={group.key}>
               {dateSepActive && (
-                <DateSeparator label={group.label} count={group.articles.length} />
+                <DateSeparator label={group.label} count={groupTotals.get(group.key) ?? group.articles.length} />
               )}
               {gridLayout ? (
                 <div className={gridClassName(gridCardFill)} style={gridStyle}>

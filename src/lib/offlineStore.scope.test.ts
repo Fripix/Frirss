@@ -11,6 +11,7 @@ describe('ownedByAccount', () => {
   it('reconnaît les vues du compte, tous serveurs confondus', () => {
     expect(ownedByAccount('7@1|feed/1:all', '7@')).toBe(true);
     expect(ownedByAccount('7@2|subscriptions', '7@')).toBe(true);
+    expect(ownedByAccount('7@1|feed/1:prepared', '7@')).toBe(true);
   });
   it('laisse celles des autres comptes, y compris un identifiant qui finit pareil', () => {
     expect(ownedByAccount('9@1|feed/1:all', '7@')).toBe(false);
@@ -29,6 +30,7 @@ describe('withoutSource', () => {
   it('supprime les listes du flux retiré', () => {
     expect(withoutSource(list('7@1|feed/12:all'), '7@1|', 'feed/12')).toBe('delete');
     expect(withoutSource(list('7@1|feed/12:unread:oldest'), '7@1|', 'feed/12')).toBe('delete');
+    expect(withoutSource(list('7@1|feed/12:prepared'), '7@1|', 'feed/12')).toBe('delete');
   });
   it('retire ses articles des autres listes de la portée', () => {
     expect(withoutSource(list('7@1|:all', a('x', 'feed/12'), a('y', 'feed/3')), '7@1|', 'feed/12')).toEqual([a('y', 'feed/3')]);
@@ -36,6 +38,7 @@ describe('withoutSource', () => {
   it('ne touche ni une liste sans ses articles, ni un flux au nom voisin, ni une autre portée', () => {
     expect(withoutSource(list('7@1|:all', a('y', 'feed/3')), '7@1|', 'feed/12')).toBeNull();
     expect(withoutSource(list('7@1|feed/123:all', a('z', 'feed/123')), '7@1|', 'feed/12')).toBeNull();
+    expect(withoutSource(list('7@1|feed/123:prepared', a('z', 'feed/123')), '7@1|', 'feed/12')).toBeNull();
     expect(withoutSource(list('7@2|feed/12:all', a('x', 'feed/12')), '7@1|', 'feed/12')).toBeNull();
   });
 });

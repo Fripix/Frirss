@@ -320,7 +320,7 @@ describe('les autres écrivains de cache', () => {
     await settled();
     live.resolve(page(item(1)));
     await p;
-    expect(idb.lists.get('7@1|feed/1:all')?.articles[0].read).toBe(true);
+    expect(idb.lists.get('7@1|feed/1:prepared')?.articles[0].read).toBe(true);
   });
 
   it('les favoris rangés hors ligne gardent le geste fait pendant leur lecture', async () => {

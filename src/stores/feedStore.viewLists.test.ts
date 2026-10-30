@@ -154,7 +154,9 @@ describe('hors ligne, quand la liste exacte d’une vue manque', () => {
     expect(useFeedStore.getState().continuation).toBe('c');
   });
 
-  it('entre deux listes possibles, la plus fournie sert', async () => {
+  // La longueur ne dit rien : sous Non lus, la liste la plus à jour est la plus
+  // courte.
+  it('entre deux listes possibles, la première de `fallbackSources` sert, pas la plus fournie', async () => {
     const env = await load();
     const { useFeedStore } = env;
     idb.lists.set('7@1|feed/1:all', { articles: [{ id: 'a', read: false }], continuation: null });
@@ -162,7 +164,7 @@ describe('hors ligne, quand la liste exacte d’une vue manque', () => {
     goOffline(env);
     useFeedStore.getState().selectView(feed1, 'unread');
     await settled();
-    expect(ids(useFeedStore.getState().articles)).toEqual(['d', 'c']);
+    expect(ids(useFeedStore.getState().articles)).toEqual(['a']);
   });
 
   it('jamais la liste d’un autre serveur', async () => {
@@ -220,22 +222,16 @@ describe('ce que la préparation hors ligne range', () => {
     const env = await load();
     streamOf(env.api, 500);
     await prepare(env);
-    expect(idb.lists.get('7@1|feed/1:all')?.articles).toHaveLength(400);
+    expect(idb.lists.get('7@1|feed/1:prepared')?.articles).toHaveLength(400);
   });
 
-  it('n’écrase pas une liste rangée plus longue : elle en garde la fin et la page suivante', async () => {
+  it('ne touche pas à la liste rangée de la vue', async () => {
     const env = await load();
-    const all = streamOf(env.api, 120);
-    const older = Array.from({ length: 80 }, (_, i) => ({ id: `ancien-${i}`, read: true }));
-    idb.lists.set('7@1|feed/1:all', {
-      articles: [...all.slice(0, 120).map((a) => ({ id: a.id, read: true })), ...older], continuation: 'suite',
-    });
+    const rangee = { articles: [{ id: 'a', read: true }], continuation: 'suite' };
+    idb.lists.set('7@1|feed/1:all', rangee);
+    streamOf(env.api, 120);
     await prepare(env);
-    const stored = idb.lists.get('7@1|feed/1:all')!;
-    expect(stored.articles).toHaveLength(200);
-    expect(stored.continuation).toBe('suite');
-    // Le haut vient de la préparation, plus récente.
-    expect((stored.articles[0] as { read: boolean }).read).toBe(false);
+    expect(idb.lists.get('7@1|feed/1:all')).toBe(rangee);
   });
 
   it('range sous l’ordre par défaut, jamais sous la clé de l’ordre inverse', async () => {
@@ -243,7 +239,7 @@ describe('ce que la préparation hors ligne range', () => {
     env.useUiStore.getState().setArticleOrder('oldest');
     streamOf(env.api, 3);
     await prepare(env);
-    expect([...idb.lists.keys()]).toEqual(['7@1|feed/1:all']);
+    expect([...idb.lists.keys()]).toEqual(['7@1|feed/1:prepared']);
   });
 
   it('en ordre inverse, la vue se sert de cette liste, retournée', async () => {

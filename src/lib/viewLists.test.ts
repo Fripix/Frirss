@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  viewListKey, parseViewKey, fallbackSources, deriveFromSource, mergePreparedList, markStreamRead,
-  type ViewAddress,
+  viewListKey, parseViewKey, preparedListKey, fallbackSources, offlineViewList, markStreamRead,
+  type ViewAddress, type StoredView,
 } from './viewLists';
 import type { Article } from '../types';
 
@@ -32,6 +32,13 @@ describe('viewListKey / parseViewKey', () => {
     expect(parseViewKey('7@1|subscriptions')).toBeNull();
     expect(parseViewKey('sans-portee')).toBeNull();
   });
+
+  // Elle n'est pas une vue : aucune boucle sur les clés de vues ne doit la prendre
+  // pour une liste qu'une visite ou un geste peut réécrire.
+  it('la clé préparée n’est pas une clé de vue', () => {
+    expect(preparedListKey('7@1', 'feed/1')).toBe('7@1|feed/1:prepared');
+    expect(parseViewKey(preparedListKey('7@1', 'feed/1'))).toBeNull();
+  });
 });
 
 describe('fallbackSources', () => {
@@ -51,50 +58,147 @@ describe('fallbackSources', () => {
   });
 });
 
-describe('deriveFromSource', () => {
-  const list = { articles: [row('3'), row('2', { read: true }), row('1')], continuation: 'c' };
+describe('offlineViewList', () => {
+  // Plus grand = plus récent, comme les identifiants d'entrée de FreshRSS.
+  const id = (n: number) => `tag:google.com,2005:reader/item/${n.toString(16).padStart(16, '0')}`;
+  const line = (n: number, over: Partial<Article> = {}) => row(id(n), over);
+  const stored = (at: number, rows: Article[], continuation: string | null = null): StoredView => ({ articles: rows, continuation, at });
+  const shown = (v: { articles: Article[] } | null) => v?.articles.map((a) => a.id);
+  const all = view({ filter: 'all' });
+  const prepared = stored(10, [line(5), line(4), line(3), line(2), line(1)]);
 
-  it('Non lus depuis « Tous » : sans les lignes lues', () => {
-    const d = deriveFromSource(list, view({ filter: 'all' }), view());
-    expect(d.articles.map((a) => a.id)).toEqual(['3', '1']);
+  it('rien à servir : null', () => {
+    expect(offlineViewList(view(), {})).toBeNull();
   });
 
-  it('ordre inverse : la liste retournée, sans la modifier', () => {
-    const d = deriveFromSource(list, view({ filter: 'all' }), view({ filter: 'all', order: 'oldest' }));
-    expect(d.articles.map((a) => a.id)).toEqual(['1', '2', '3']);
-    expect(list.articles.map((a) => a.id)).toEqual(['3', '2', '1']);
+  it('la liste exacte seule garde sa page suivante, et n’est pas construite', () => {
+    const v = offlineViewList(all, { own: stored(1, [line(2)], 'c') });
+    expect(v).toEqual({ articles: [line(2)], continuation: 'c', rebuilt: false });
   });
 
-  it('les deux à la fois', () => {
-    const d = deriveFromSource(list, view({ filter: 'all' }), view({ order: 'oldest' }));
-    expect(d.articles.map((a) => a.id)).toEqual(['1', '3']);
+  it('une préparation plus récente que la liste exacte est la base', () => {
+    const v = offlineViewList(view(), { own: stored(5, [line(9)]), prepared });
+    expect(shown(v)).toEqual([5, 4, 3, 2, 1].map(id));
+    expect(v?.continuation).toBeNull();
+    expect(v?.rebuilt).toBe(true);
   });
 
-  // La continuation appartient à la liste source : elle ne dit rien de la
-  // suite d'une liste filtrée ou lue depuis l'autre bout.
-  it('ne promet jamais de page suivante', () => {
-    expect(deriveFromSource(list, view({ filter: 'all' }), view()).continuation).toBeNull();
-  });
-});
-
-describe('mergePreparedList', () => {
-  const prepared = [row('5'), row('4'), row('3')];
-
-  it('sans liste rangée : la liste préparée, sans page suivante', () => {
-    expect(mergePreparedList(prepared, undefined)).toEqual({ articles: prepared, continuation: null });
+  it('une liste exacte plus récente reste la base, et la préparation donne la fin', () => {
+    const v = offlineViewList(view(), { own: stored(20, [line(5, { starred: true }), line(4)], '50'), prepared });
+    expect(shown(v)).toEqual([5, 4, 3, 2, 1].map(id));
+    expect(v?.articles[0].starred).toBe(true);
+    expect(v?.continuation).toBeNull();
+    expect(v?.rebuilt).toBe(true);
   });
 
-  it('remplace une liste rangée plus courte', () => {
-    const stored = { articles: [row('4'), row('3')], continuation: 'c' };
-    expect(mergePreparedList(prepared, stored)).toEqual({ articles: prepared, continuation: null });
+  it('à date égale, la liste exacte l’emporte', () => {
+    expect(shown(offlineViewList(view(), { own: stored(10, [line(5)]), prepared }))).toEqual([id(5)]);
   });
 
-  it('garde la fin d’une liste rangée plus longue, et sa page suivante', () => {
-    const stored = { articles: [row('4', { read: true }), row('3'), row('2'), row('1')], continuation: 'c' };
-    const merged = mergePreparedList(prepared, stored);
-    expect(merged.articles.map((a) => a.id)).toEqual(['5', '4', '3', '2', '1']);
-    expect(merged.articles[1].read).toBe(false); // le haut vient de la préparation
-    expect(merged.continuation).toBe('c');
+  it('une liste vidée après la préparation reste vide', () => {
+    const v = offlineViewList(view(), { own: stored(20, []), prepared });
+    expect(v).toEqual({ articles: [], continuation: null, rebuilt: false });
+  });
+
+  // Sa fin n'est pas une coupure : elle dit qu'il n'y a plus rien, à une date
+  // postérieure à la préparation. Ce que celle-ci croyait non lu au-delà a été lu.
+  it('une liste exacte complète ne reçoit aucune fin', () => {
+    expect(shown(offlineViewList(view(), { own: stored(20, [line(5), line(4)]), prepared }))).toEqual([id(5), id(4)]);
+  });
+
+  // Elle les a vues, puis perdues : un ✓ sous Non lus, une purge.
+  it('une ligne absente AU MILIEU de la liste exacte n’y revient pas', () => {
+    const v = offlineViewList(view(), { own: stored(20, [line(5), line(3)], '50'), prepared });
+    expect(shown(v)).toEqual([5, 3, 2, 1].map(id));
+  });
+
+  it('une liste exacte à page suivante, sans aucune ligne après elle : rien de construit', () => {
+    const v = offlineViewList(view(), { own: stored(20, [line(5), line(1)], '50'), prepared });
+    expect(v).toEqual({ articles: [line(5), line(1)], continuation: '50', rebuilt: false });
+  });
+
+  it('Non lus filtre aussi la fin rapportée', () => {
+    const p = stored(10, [line(3), line(2, { read: true }), line(1)]);
+    expect(shown(offlineViewList(view(), { own: stored(20, [line(3)], '50'), prepared: p }))).toEqual([id(3), id(1)]);
+  });
+
+  it('Tous garde les lignes lues', () => {
+    const p = stored(10, [line(3), line(2, { read: true })]);
+    expect(shown(offlineViewList(all, { prepared: p }))).toEqual([id(3), id(2)]);
+  });
+
+  it('ordre inverse : la préparation retournée, sans la modifier', () => {
+    const v = offlineViewList(view({ filter: 'all', order: 'oldest' }), { prepared });
+    expect(shown(v)).toEqual([1, 2, 3, 4, 5].map(id));
+    expect(shown(prepared)).toEqual([5, 4, 3, 2, 1].map(id));
+  });
+
+  it('ordre inverse : la fin d’une liste exacte, ce sont les lignes plus récentes', () => {
+    const v = offlineViewList(view({ filter: 'all', order: 'oldest' }), { own: stored(20, [line(1), line(2)], 'c'), prepared });
+    expect(shown(v)).toEqual([1, 2, 3, 4, 5].map(id));
+  });
+
+  it('Favoris et À lire plus tard ne se servent pas de la préparation', () => {
+    expect(offlineViewList(view({ filter: 'starred' }), { prepared })).toBeNull();
+    expect(offlineViewList(view({ filter: 'readlater' }), { prepared })).toBeNull();
+  });
+
+  // Un flux calme : rien dans les 30 jours. Elle ne dit pas que le flux est vide.
+  it('une préparation vide ne compte pas', () => {
+    const v = offlineViewList(all, { own: stored(1, [line(1)]), prepared: stored(10, []) });
+    expect(shown(v)).toEqual([id(1)]);
+  });
+
+  describe('sans liste exacte', () => {
+    const source = view({ filter: 'all' });
+
+    it('une liste sœur : filtrée, sans page suivante', () => {
+      const v = offlineViewList(view(), { fallback: { list: stored(1, [line(2), line(1, { read: true })], 'c'), source } });
+      expect(shown(v)).toEqual([id(2)]);
+      expect(v?.continuation).toBeNull();
+      expect(v?.rebuilt).toBe(true);
+    });
+
+    it('elle se retourne quand elle vient de l’autre ordre', () => {
+      const v = offlineViewList(view({ order: 'oldest' }), { fallback: { list: stored(1, [line(2), line(1)]), source } });
+      expect(shown(v)).toEqual([id(1), id(2)]);
+    });
+
+    it('plus récente que la préparation, elle reste la base et la préparation donne la fin', () => {
+      const v = offlineViewList(view(), { fallback: { list: stored(20, [line(5), line(4)], '50'), source }, prepared });
+      expect(shown(v)).toEqual([5, 4, 3, 2, 1].map(id));
+    });
+
+    it('plus ancienne, elle s’efface', () => {
+      const v = offlineViewList(view(), { fallback: { list: stored(1, [line(9)], '50'), source }, prepared });
+      expect(shown(v)).toEqual([5, 4, 3, 2, 1].map(id));
+    });
+
+    // Lue depuis l'autre bout, elle ne montre pas le même morceau du flux.
+    it('venue de l’autre ordre, elle ne passe pas devant la préparation', () => {
+      const other = view({ filter: 'all', order: 'oldest' });
+      const v = offlineViewList(view(), { fallback: { list: stored(20, [line(1)], '50'), source: other }, prepared });
+      expect(shown(v)).toEqual([5, 4, 3, 2, 1].map(id));
+    });
+  });
+
+  describe('le recalage', () => {
+    const lu = (rows: Article[]) => rows.map((a) => (a.id === id(5) ? { ...a, read: true } : a));
+
+    it('passe AVANT le filtre : une ligne lue en file sort de Non lus', () => {
+      expect(shown(offlineViewList(view(), { prepared }, { overlay: lu }))).toEqual([4, 3, 2, 1].map(id));
+    });
+
+    it('une ligne rendue non lue en file y entre', () => {
+      const p = stored(10, [line(2, { read: true })]);
+      const nonLu = (rows: Article[]) => rows.map((a) => ({ ...a, read: false }));
+      expect(shown(offlineViewList(view(), { prepared: p }, { overlay: nonLu }))).toEqual([id(2)]);
+    });
+
+    it('l’article ouvert reste, même lu', () => {
+      const v = offlineViewList(view(), { prepared }, { overlay: lu, stays: (a) => a.id === id(5) });
+      expect(shown(v)).toEqual([5, 4, 3, 2, 1].map(id));
+    });
   });
 });
 

@@ -61,10 +61,10 @@ import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPaginatio
 import { createWarmRunner } from '../lib/warmSchedule';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
-import { createLocalWrites, type WriteField } from '../lib/localWrites';
+import { createLocalWrites, applyField, type WriteField } from '../lib/localWrites';
 import {
-  viewListKey, parseViewKey, fallbackSources, deriveFromSource, mergePreparedList, markStreamRead,
-  type ViewAddress, type ViewList,
+  viewListKey, parseViewKey, preparedListKey, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
+  type ViewAddress, type ViewList, type StoredView, type OfflineView, type OfflineSources,
 } from '../lib/viewLists';
 import type {
   Article,
@@ -258,12 +258,16 @@ async function fetchArticleStream(
 // Keeps recently-opened views in memory so switching back is instant (0 ms,
 // no round-trip, no empty flash). Revalidated live on every load. Bounded
 // (LRU-ish) and cleared on server switch / logout.
-interface CachedView {
-  articles: Article[];
-  continuation: string | null;
-}
 const MEM_CACHE_MAX = 60; // room for prefetched feed views alongside active ones
-const memCache = new Map<string, CachedView>();
+const memCache = new Map<string, StoredView>();
+/**
+ * Les vues dont la liste affichée a été construite hors ligne
+ * (`offlineViewList`, `rebuilt`). Elle n'a rien d'une lecture du serveur : rangée
+ * sous la clé de la vue par un geste, elle s'y figeait, tronquée, sans page
+ * suivante, et la préparation suivante ne l'atteignait plus. Rendues à leur clé
+ * par la première vraie réponse.
+ */
+const rebuiltViews = new Set<string>();
 /** Order in effect for a view — the only reader of the global + per-feed settings. */
 function viewOrder(feed: Subscription | null): ArticleOrder {
   const ui = useUiStore.getState();
@@ -327,12 +331,13 @@ export function resolveSearchStreamId(
   // mark and "mark all" never reach a feed the home view does not show.
   return subscriptions.length ? homeStreamId(subscriptions) : READING_LIST_STREAM;
 }
-function memGet(key: string): CachedView | undefined {
+function memGet(key: string): StoredView | undefined {
   return memCache.get(key);
 }
-function memSet(key: string, data: CachedView): void {
+function memSet(key: string, data: ViewList): void {
+  rebuiltViews.delete(key);
   memCache.delete(key);
-  memCache.set(key, data);
+  memCache.set(key, { ...data, at: Date.now() });
   if (memCache.size > MEM_CACHE_MAX) {
     const oldest = memCache.keys().next().value;
     if (oldest !== undefined) memCache.delete(oldest);
@@ -350,6 +355,11 @@ export function getSampleArticleUrl(feedId: string): string | undefined {
   }
   return undefined;
 }
+// Une liste gardée vient de changer sous un geste : elle est à jour de ce geste,
+// ce que dit sa date, face à une préparation plus ancienne (`offlineViewList`).
+function memPatch(key: string, view: StoredView, articles: Article[]): void {
+  memCache.set(key, { ...view, articles, at: Date.now() });
+}
 // Reflect a read/unread change in EVERY cached view, so coming back to any of
 // them (from the memory cache) shows the current state instead of the stale
 // list captured at load time.
@@ -360,7 +370,7 @@ function memMarkRead(articleId: string, read: boolean): void {
       if (a.id === articleId && a.read !== read) { changed = true; return { ...a, read }; }
       return a;
     });
-    if (changed) memCache.set(key, { ...view, articles });
+    if (changed) memPatch(key, view, articles);
   }
 }
 // Retirer une ligne du cache mémoire de TOUTES les vues portant un filtre
@@ -378,7 +388,7 @@ function memRemoveFromViews(articleId: string, filter: Filter): void {
   for (const [key, view] of memCache) {
     if (parseViewKey(key)?.filter !== filter) continue;
     const articles = view.articles.filter((a) => a.id !== articleId);
-    if (articles.length !== view.articles.length) memCache.set(key, { ...view, articles });
+    if (articles.length !== view.articles.length) memPatch(key, view, articles);
   }
 }
 // Ce qu'un « Tout lu » réussi change aux AUTRES vues du même flux, et à l'accueil.
@@ -390,10 +400,10 @@ function memRemoveFromViews(articleId: string, filter: Filter): void {
 // plus tard traversent les flux, et leurs lignes d'un flux gardé hors de
 // l'accueil n'ont pas été marquées.
 //
-// En mémoire, toutes les vues de la portée. Hors ligne, celles du flux marqué et
-// de l'accueil : lire une liste de préparation par flux pour un « Tout lu » de
-// l'accueil chargerait des centaines de listes, pour un état qu'une relecture en
-// ligne remet d'aplomb.
+// En mémoire, toutes les vues de la portée. Hors ligne, celles du flux marqué, sa
+// liste préparée comprise, et de l'accueil : lire une liste de préparation par
+// flux pour un « Tout lu » de l'accueil chargerait des centaines de listes, pour
+// un état qu'une relecture en ligne remet d'aplomb.
 function markStreamReadInViews(marked: string, sourceIds: ReadonlySet<string>, skipKey: string | null): void {
   const scope = offlineScope();
   const patch = (v: ViewAddress) => ({
@@ -405,7 +415,7 @@ function markStreamReadInViews(marked: string, sourceIds: ReadonlySet<string>, s
     const v = parseViewKey(key);
     if (!v || v.scope !== scope) continue;
     const articles = markStreamRead(view.articles, patch(v));
-    if (articles !== view.articles) memCache.set(key, { ...view, articles });
+    if (articles !== view.articles) memPatch(key, view, articles);
   }
   void (async () => {
     for (const feedId of new Set([marked, ''])) {
@@ -423,6 +433,12 @@ function markStreamReadInViews(marked: string, sourceIds: ReadonlySet<string>, s
         }
       }
     }
+    if (!marked) return;
+    const key = preparedListKey(scope, marked);
+    const stored = await listGet(key);
+    if (!stored || offlineScope() !== scope) return;
+    const articles = markStreamRead(stored.articles, { whole: true, sourceIds, drop: false });
+    if (articles !== stored.articles) await listPut(key, articles, null);
   })().catch(() => {});
 }
 /** Les flux qu'un « Tout lu » couvre, vu de la vue marquée. */
@@ -432,27 +448,45 @@ function markedSources(feed: Subscription | null, subscriptions: readonly Subscr
   return new Set(subscriptions.filter((s) => s.categories?.some((c) => c.id === feed.id)).map((s) => s.id));
 }
 /**
- * La liste à servir hors ligne quand celle de la vue manque (`fallbackSources`).
- * La plus fournie : une liste de préparation vaut mieux que la page lue un jour
- * dans l'autre ordre, et inversement pour un flux visité mais jamais préparé.
- * Chaque source est lue en mémoire et sur disque : la mémoire est le seul
- * recours quand le stockage est bloqué (navigation privée, quota).
+ * Ce qu'une vue sert hors ligne : la liste de `offlineViewList`, dans laquelle
+ * `loadArticles` et la recherche lisent la même chose. Pour une même source, la
+ * mémoire d'abord et le disque seulement si elle manque : un « Tout lu » de
+ * l'accueil patche la première et pas les listes des flux sur le second. Comparer
+ * leurs longueurs allait à contre-sens : sous Non lus, la liste la plus à jour
+ * est la plus courte. La mémoire est aussi le seul recours quand le stockage est
+ * bloqué (navigation privée, quota).
+ *
+ * Tout ce que le registre connaît s'applique (`since` à 0) : une liste rangée
+ * n'est pas une réponse partie après un geste, elle n'a pas le dernier mot.
  *
  * Une liste dont toutes les lignes sont filtrées reste une réponse : « Non lus »
  * affiche alors « tout est lu », et non un échec de chargement.
  */
-async function offlineFallback(view: ViewAddress): Promise<ViewList | null> {
-  let best: ViewList | null = null;
-  for (const source of fallbackSources(view)) {
-    const key = viewListKey(source);
-    for (const list of [memGet(key), await listGet(key).catch(() => undefined)]) {
-      if (!list) continue;
-      const derived = deriveFromSource(list, source, view);
-      if (!best || derived.articles.length > best.articles.length) best = derived;
+async function offlineList(view: ViewAddress): Promise<OfflineView | null> {
+  await ensureQueue();
+  const read = async (address: ViewAddress): Promise<StoredView | undefined> => {
+    const key = viewListKey(address);
+    const cached = rebuiltViews.has(key) ? undefined : memGet(key);
+    return cached ?? asStored(await listGet(key).catch(() => undefined));
+  };
+  const sources: OfflineSources = { own: await read(view) };
+  if (!sources.own) {
+    for (const source of fallbackSources(view)) {
+      const list = await read(source);
+      if (list) { sources.fallback = { list, source }; break; }
     }
   }
-  return best;
+  if (view.feedId && (view.filter === 'all' || view.filter === 'unread')) {
+    sources.prepared = asStored(await listGet(preparedListKey(view.scope, view.feedId)).catch(() => undefined));
+  }
+  return offlineViewList(view, sources, {
+    overlay: (rows) => localWrites.overlay(view.scope, applyQueued(rows, view.scope), 0),
+    stays: (row) => useFeedStore.getState().selectedArticle?.id === row.id,
+  });
 }
+const asStored = (record: Awaited<ReturnType<typeof listGet>>): StoredView | undefined =>
+  record && { articles: record.articles, continuation: record.continuation, at: record.cachedAt ?? 0 };
+
 // Re-persist the current view's list to the offline store after ANY optimistic
 // change, so an offline return to it reflects the latest state. Longtemps
 // appelé par les seuls chemins de lecture : le favori et « à lire plus tard »
@@ -473,8 +507,19 @@ function persistCurrentView(get: () => FeedState): void {
   // prochain retour hors ligne sur ce flux resservirait comme s'il n'y avait
   // jamais eu de recherche.
   if (s.searchQuery) return;
-  listPut(viewKey(s.selectedFeed, s.filter), s.articles, s.continuation).catch(() => {});
+  const key = viewKey(s.selectedFeed, s.filter);
+  // La mémoire aussi : elle passe avant le disque hors ligne (`offlineList`), et
+  // seul l'état `read` la suivait. Un favori posé y était perdu.
+  const cached = memGet(key);
+  if (cached) memPatch(key, cached, s.articles);
+  if (rebuiltViews.has(key)) return;
+  listPut(key, s.articles, s.continuation).catch(() => {});
 }
+
+// Incrémentée par un « Tout lu » : la page suivante en vol est celle d'une liste
+// qui n'existe plus. Ni le flux ni le filtre n'ont changé, `viewIdentity` ne le
+// voit pas.
+let listGeneration = 0;
 
 // Les écritures locales récentes : une réponse partie avant l'une d'elles est
 // recalée à son arrivée (`src/lib/localWrites.ts`). Le rang de départ se prend
@@ -482,6 +527,11 @@ function persistCurrentView(get: () => FeedState): void {
 const localWrites = createLocalWrites();
 const noteWrite = (id: string, field: WriteField, value: boolean) =>
   localWrites.record(offlineScope(), id, field, value);
+/** Une écriture déjà confirmée : elle ne passe pas par le vol. */
+function noteConfirmed(scope: string, id: string, field: WriteField, value: boolean): void {
+  localWrites.record(scope, id, field, value);
+  localWrites.touch(scope, id, field);
+}
 const labelField = (labelId: string): WriteField => `label:${labelId}`;
 /**
  * Les lignes d'une réponse, recalées. Une ligne qu'un geste a sortie de la vue
@@ -490,13 +540,46 @@ const labelField = (labelId: string): WriteField => `label:${labelId}`;
  * sous les yeux de qui le lit.
  */
 function reconcile(articles: Article[], filter: Filter, since: number): Article[] {
-  return localWrites.overlay(offlineScope(), articles, since, (row) => {
+  const scope = offlineScope();
+  const keep = (row: Article) => {
     const left = (filter === 'unread' && row.read)
       || (filter === 'readlater' && !row.labels?.includes(READ_LATER_LABEL));
     if (!left) return true;
     const s = useFeedStore.getState();
     return s.selectedArticle?.id === row.id || s.articles.some((a) => a.id === row.id);
-  });
+  };
+  return localWrites.overlay(scope, applyQueued(articles, scope, keep), since, keep);
+}
+
+/**
+ * Le seul point où la file rejoint une liste : toute liste servie, réponse du
+ * serveur, disque ou repli, y passe. Une action en attente n'est pas encore sur
+ * le serveur, et personne d'autre ne l'y porte sur une liste : la ligne repassait
+ * en gras à la relecture suivante, pour toute la session après un 502 (le rejeu
+ * ne part qu'au montage et sur `online`), et rouvrir la ligne la décomptait une
+ * seconde fois. Une action sans portée (d'avant 1.8.0) partira avec celle-ci.
+ */
+function applyQueued(rows: Article[], scope: string, keep?: (row: Article) => boolean): Article[] {
+  const pending = new Map<string, QueuedAction[]>();
+  for (const action of actionQueue) {
+    if (action.scope && action.scope !== scope) continue;
+    const same = pending.get(action.articleId);
+    if (same) same.push(action);
+    else pending.set(action.articleId, [action]);
+  }
+  if (!pending.size) return rows;
+  let changed = false;
+  const out: Article[] = [];
+  for (const row of rows) {
+    let next = row;
+    for (const action of pending.get(row.id) ?? []) {
+      next = applyField(next, writeFieldOf(action.type, action.labelId), action.value);
+    }
+    if (next === row) { out.push(row); continue; }
+    changed = true;
+    if (!keep || keep(next)) out.push(next);
+  }
+  return changed ? out : rows;
 }
 
 // Feeds we just confirmed as fully read (0 unread), kept for a short grace
@@ -927,6 +1010,10 @@ async function adoptUnscopedActions(scope: string): Promise<void> {
  * puis la prochaine écriture l'effaçait du stockage.
  */
 let queueLoading: Promise<void> | null = null;
+/** Avant de servir une liste : relancée hors ligne, l'app n'a pas encore lu sa file. */
+async function ensureQueue(): Promise<void> {
+  if (!queueLoaded) await loadQueue().catch(() => {});
+}
 async function loadQueue(): Promise<QueuedAction[]> {
   queueLoading ??= queueGet().then(
     (stored) => {
@@ -998,8 +1085,8 @@ async function settleAction(
 ): Promise<void> {
   const key = `${g.scope}|${actionKey(articleId, type, labelId)}`;
   if ((settledGestures.get(key) ?? 0) < g.seq) settledGestures.set(key, g.seq);
-  // Une lecture partie pendant le vol de ce geste a pu passer au serveur avant
-  // lui : elle compte comme partie avant.
+  // Le vol est terminé, et une lecture partie pendant lui a pu passer au serveur
+  // avant ce geste : elle compte comme partie avant.
   localWrites.touch(g.scope, articleId, writeFieldOf(type, labelId));
   await loadQueue();
   // Seulement une action PLUS ANCIENNE que ce geste : le geste suivant, mis
@@ -1042,13 +1129,17 @@ async function enqueueAction(
   skipNextArrivals = true;
   const { scope } = g;
   const key = `${scope}|${actionKey(articleId, type, labelId)}`;
+  const field = writeFieldOf(type, labelId);
   // Un geste plus récent sur le même article a déjà été confirmé : celui-ci,
   // resté en vol jusqu'au délai d'attente, est dépassé.
-  if ((settledGestures.get(key) ?? 0) > g.seq) return;
+  if ((settledGestures.get(key) ?? 0) > g.seq) { localWrites.touch(scope, articleId, field); return; }
   await loadQueue();
   actionQueue = mergeAction(actionQueue, {
     key, articleId, type, value, labelId, at: Date.now(), attempts: 0, scope, seq: g.seq,
   });
+  // La file prend le relais du registre : c'est elle qui porte désormais la valeur
+  // sur les listes servies (`applyQueued`), sans limite de temps.
+  localWrites.touch(scope, articleId, field);
   await queuePut(actionQueue);
   set(pendingPatch());
 }
@@ -1084,9 +1175,11 @@ function closeSearch(set: (partial: Partial<FeedState>) => void): void {
 
 /**
  * Hors ligne : aucun balayage possible. Filtre ce qui est disponible
- * localement — la liste en mémoire et la liste rangée pour cette vue
- * (`listGet`), doublons entre les deux écartés — et le dit dans la barre
- * d'état plutôt que de prétendre avoir tout vu.
+ * localement — la liste en mémoire et ce que la vue sert hors ligne
+ * (`offlineList`), doublons entre les deux écartés — et le dit dans la barre
+ * d'état plutôt que de prétendre avoir tout vu. La même source que la vue, pas
+ * la seule clé exacte : sans liste exacte, le corpus se réduisait aux résultats
+ * de la recherche précédente.
  *
  * Partagée entre `search()` et `retrySearch()` (I3, revue finale) :
  * `retrySearch` empruntait jusque-là le seul chemin réseau même hors ligne,
@@ -1101,8 +1194,8 @@ async function scanOffline(
   selectedFeed: Subscription | null,
   filter: Filter,
 ): Promise<void> {
-  const record = await listGet(viewKey(selectedFeed, filter)).catch(() => undefined);
-  const pool = [...get().articles, ...(record?.articles ?? [])];
+  const served = await offlineList(viewAddress(selectedFeed, filter));
+  const pool = [...get().articles, ...(served?.articles ?? [])];
   // `scanned` compte les articles DISTINCTS effectivement examinés — voir la
   // même remarque dans l'ancien emplacement de ce code, `search()`.
   const seen = new Set<string>();
@@ -1235,7 +1328,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         enqueueAction(set, g, article.id, 'read', true);
         return;
       }
-      noteWrite(article.id, 'read', false);
+      localWrites.rollback(g.scope, article.id, 'read', false);
       set((state) => ({
         articles: state.articles.map((a) =>
           a.id === article.id ? { ...a, read: false } : a
@@ -1542,21 +1635,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           } while (cont && pages < 8);
           // Pas de liste rangée sous une autre portée que celle qui l'a lue.
           if (scopeLeft()) { interrupted = true; break; }
-          const recent = localWrites.overlay(scope, feedArts, since).filter((a) => a.published >= cutoff);
-          if (recent.length) {
-            // Toute la liste collectée, sinon le reste, extrait et téléchargé,
-            // est injoignable hors ligne. Sous l'ordre par défaut, seul lu ici
-            // (`getStreamContents` sans `order`) : la vue en ordre inverse s'en
-            // sert retournée (`offlineFallback`). La taille ne demande pas de
-            // borne de plus : les 8 pages la limitent à 400 articles, dont les
-            // extraits, plus lourds, sont gardés de toute façon.
-            const key = viewListKey({ scope, feedId: feed.id, filter: 'all', order: 'newest' });
-            const stored = await listGet(key).catch(() => undefined);
-            if (scopeLeft()) { interrupted = true; break; }
-            const list = mergePreparedList(recent, stored);
-            await listPut(key, list.articles, list.continuation);
-            collected.push(...recent);
-          }
+          const recent = localWrites.overlay(scope, applyQueued(feedArts, scope), since)
+            .filter((a) => a.published >= cutoff)
+            .slice(0, PREPARED_MAX);
+          // Toute la liste collectée, sinon le reste, extrait et téléchargé, est
+          // injoignable hors ligne. Sous sa propre clé, qu'elle remplace entière :
+          // une visite ne l'y atteint pas, et ce que le serveur a purgé en sort.
+          // Vide aussi, pour la même raison : une vide ne compte pas à la lecture
+          // (`offlineViewList`). L'ordre est celui par défaut, seul lu ici
+          // (`getStreamContents` sans `order`) : la vue inverse s'en sert retournée.
+          await listPut(preparedListKey(scope, feed.id), recent, null);
+          collected.push(...recent);
         } catch { interrupted = true; /* skip this feed */ }
       }
       // Phase 2 — extract, cache, and prefetch images.
@@ -1700,6 +1789,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // 2. Live request — authoritative; updates the view + memory cache.
     try {
       const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
+      await ensureQueue();
       if (!sameView()) {
         // Une recherche a pris la vue pendant le vol (même flux, même
         // filtre) : personne d'autre ne relèvera les drapeaux posés plus
@@ -1734,15 +1824,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       });
     } catch (err) {
       if (!sameView()) return;
-      // Offline fallback: serve the persisted list so reading still works. Sa
-      // propre liste d'abord, puis celle que la vue peut déduire d'une autre :
-      // la préparation ne range que « Tous » dans l'ordre par défaut.
-      const served = await listGet(key).catch(() => undefined)
-        ?? memGet(key)
-        ?? await offlineFallback(viewAddress(selectedFeed, filter));
+      // Offline fallback: serve the persisted list so reading still works.
+      const served = await offlineList(viewAddress(selectedFeed, filter));
       if (!sameView()) return;
       if (served) {
         memSet(key, { articles: served.articles, continuation: served.continuation });
+        if (served.rebuilt) rebuiltViews.add(key);
         set({ articles: served.articles, continuation: served.continuation, loading: false, revalidating: false });
         return;
       }
@@ -1776,6 +1863,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // survivait au rechargement. `viewIdentity` couvre le flux, le filtre et
     // la recherche — les trois choses qui changent la liste à l'écran.
     const view = viewIdentity(get());
+    const generation = listGeneration;
     const since = localWrites.mark();
     set({ loadingMore: true });
 
@@ -1784,7 +1872,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // La vue a changé pendant l'aller-retour : cette page n'appartient plus
       // à rien de ce qui est affiché. On la jette entièrement — pas d'ajout,
       // pas d'écriture de cache, pas de `continuation` — et on rend la main.
-      if (viewIdentity(get()) !== view) { set({ loadingMore: false }); return; }
+      if (viewIdentity(get()) !== view || generation !== listGeneration) { set({ loadingMore: false }); return; }
       if (!result) { set({ loadingMore: false }); return; }
 
       const page = reconcile(result.items.map(normalizeArticle), filter, since);
@@ -1885,10 +1973,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         bumpCountsEpoch(); // règlement (succès ou échec)
       }
       await settleAction(set, g, article.id, 'read').catch(() => {});
-      // La purge du cache MÉMOIRE des vues attend la confirmation : c'est le
-      // seul cache qu'un refus n'a alors rien à défaire, la ligne réinsérée y
-      // étant toujours. (Le cache durable, lui, est déjà réécrit d'avance par
-      // le `persistCurrentView` ci-dessus.) Le chemin HORS LIGNE, qui garde la
+      // La purge du cache MÉMOIRE des autres vues attend la confirmation : un
+      // refus n'y a alors rien à défaire, la ligne y étant toujours. (La vue
+      // affichée, mémoire et disque, est déjà réécrite d'avance par le
+      // `persistCurrentView` ci-dessus.) Le chemin HORS LIGNE, qui garde la
       // ligne retirée, doit donc purger de son côté — voir le `catch`.
       if (leaving) {
         memRemoveFromViews(article.id, 'unread');
@@ -1938,7 +2026,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             previousId: removedPreviousId,
           })
         : null;
-      noteWrite(article.id, 'read', !newRead);
+      localWrites.rollback(g.scope, article.id, 'read', !newRead);
       set((state) => {
         const articles = plan?.insert
           ? [...state.articles.slice(0, plan.index), removedRow!, ...state.articles.slice(plan.index)]
@@ -2019,7 +2107,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       }
       // Rollback on failure — un simple `.map()` suffit désormais : plus rien
       // n'est retiré de la liste, il n'y a donc jamais de ligne à réinsérer.
-      noteWrite(article.id, 'starred', !newStarred);
+      localWrites.rollback(g.scope, article.id, 'starred', !newStarred);
       set((state) => ({
         articles: state.articles.map((a) =>
           a.id === article.id ? { ...a, starred: !newStarred } : a
@@ -2223,9 +2311,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const searching = !!rechercheDemandee;
       const emptied = filter === 'unread';
       const vueActive = memeVue();
+      // Une page en vol partait du même flux, sans ce marquage : ses lignes, jamais
+      // affichées, sont inconnues du registre, et sous Non lus la liste vidée les
+      // aurait reçues, puis rangées.
+      if (vueActive) listGeneration++;
       if (emptied) {
         const key = viewKey(selectedFeed, filter);
         memCache.delete(key);
+        rebuiltViews.delete(key);
         listPut(key, [], null).catch(() => {});
       } else if (!vueActive) {
         // La liste lue de cette vue n'est plus à l'écran : un retour sur elle
@@ -2236,7 +2329,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // de Non lus à Tous repeignait les lignes non lues jusqu'à la réponse.
       markStreamReadInViews(selectedFeed?.id ?? '', markedSources(selectedFeed, subscriptions), emptied ? viewKey(selectedFeed, filter) : null);
       // Une lecture encore en vol rapporte ces lignes comme non lues.
-      if (vueActive) for (const a of get().articles) noteWrite(a.id, 'read', true);
+      if (vueActive) for (const a of get().articles) noteConfirmed(offlineScope(), a.id, 'read', true);
       // Update local state
       set((state) => {
         const newCounts = { ...state.unreadCounts };
@@ -2468,7 +2561,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // réseau — ressortirait des articles lus que FreshRSS a en non-lus.
         // La garde de vue (I1, ci-dessus), elle, ne s'applique qu'aux LIGNES :
         // l'écran n'appartient plus à cette action si la vue a changé.
-        for (const id of unconfirmed) noteWrite(id, 'read', false);
+        for (const id of unconfirmed) localWrites.rollback(offlineScope(), id, 'read', false);
+        for (const id of touchedIds) {
+          if (!unconfirmed.has(id)) localWrites.touch(offlineScope(), id, 'read');
+        }
         if (unconfirmed.size && viewIdentity(get()) === vueALancement) {
           set((s) => ({
             articles: s.articles.map((a) => (unconfirmed.has(a.id) && a.read ? { ...a, read: false } : a)),
@@ -2516,6 +2612,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           readWritesInFlight--;
           bumpCountsEpoch(); // règlement (succès ou échec) — voir la garde en tête de fichier
         }
+        // Le vol est terminé : comme `settleAction` pour une ligne seule, une
+        // lecture partie pendant lui a pu passer au serveur avant les lots.
+        for (const id of touchedIds) localWrites.touch(offlineScope(), id, 'read');
         // Combien d'articles le serveur a-t-il touché au-delà de ce qui est
         // chargé ? Nous n'en savons rien, et nous ne le devinons pas : le
         // relevé suivant rapporte le vrai compte. Une baisse n'est pas une
@@ -2655,7 +2754,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return;
       }
       // Rollback on failure
-      noteWrite(article.id, labelField(READ_LATER_LABEL), !!removing);
+      localWrites.rollback(g.scope, article.id, labelField(READ_LATER_LABEL), !!removing);
       set((state) => {
         const update = (a: Article): Article => {
           if (a.id !== article.id) return a;
@@ -2719,7 +2818,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           : (a.labels || []).filter((l) => l !== labelId);
         return { ...a, labels };
       };
-      noteWrite(article.id, labelField(labelId), !!hasLabel);
+      localWrites.rollback(g.scope, article.id, labelField(labelId), !!hasLabel);
       set((state) => ({
         articles: state.articles.map(rollbackLabels),
         selectedArticle: state.selectedArticle
@@ -3018,6 +3117,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       if (!result) return;
       if (viewKey(get().selectedFeed, get().filter) !== key || get().searchQuery) return;
       const newArticles = reconcile(result.items.map(normalizeArticle), filter, since);
+      rebuiltViews.delete(key); // une vraie réponse : la liste affichée n'est plus construite
       // Merge: keep selectedArticle in sync if it still exists
       set((state) => {
         const selectedId = state.selectedArticle?.id;
@@ -3229,6 +3329,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         if (!memeContexte()) { stopped = true; remaining.push(action); }
         else {
           delivered = true;
+          // La file se videra en fin de rejeu, et une lecture partie avant cet envoi
+          // n'en saura rien : le registre prend le relais d'`applyQueued`.
+          noteConfirmed(scope, action.articleId, writeFieldOf(action.type, action.labelId), action.value);
           // Le rejeu règle lui aussi les gestes plus anciens encore en vol :
           // sans cela, un « lu » resté bloqué tombait en délai dépassé après
           // l'envoi du « non lu » suivant, entrait en file, et le rejeu
@@ -3439,6 +3542,7 @@ async function snapshotUnread(streamId: string): Promise<string[] | null> {
  */
 async function restoreUnread(ids: readonly string[], toastId: number): Promise<void> {
   const total = ids.length;
+  const scope = offlineScope();
   let rendus = 0;
   // Vérifié avant CHAQUE lot, pas seulement au clic : un changement de
   // serveur (ou une déconnexion) en route enverrait les lots suivants au
@@ -3495,6 +3599,15 @@ async function restoreUnread(ids: readonly string[], toastId: number): Promise<v
   }
 
   bumpCountsEpoch();
+  // Les vues sœurs ont suivi le « Tout lu » (`markStreamReadInViews`) et ne savent
+  // rien de ce retour : elles se relisent plutôt que de repeindre des lignes lues.
+  // Le disque reste comme il est, faute de savoir quoi rendre sans relire chaque
+  // liste. La vue affichée garde sa peinture : elle est relue juste en dessous, et
+  // sans elle la liste passait au squelette.
+  const shownKey = viewKey(useFeedStore.getState().selectedFeed, useFeedStore.getState().filter);
+  for (const key of [...memCache.keys()]) {
+    if (key !== shownKey && parseViewKey(key)?.scope === scope) memCache.delete(key);
+  }
   // La vue est relue DANS TOUS LES CAS, même partielle : l'ancien code
   // renonçait dès le premier échec, et l'écran restait sur un état que le
   // serveur n'avait plus.

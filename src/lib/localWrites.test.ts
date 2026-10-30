@@ -17,12 +17,44 @@ describe('createLocalWrites', () => {
     expect(w.overlay(S, [row()], since)[0].read).toBe(true);
   });
 
-  it('ne touche pas une réponse partie APRÈS l’écriture', () => {
+  it('ne touche pas une réponse partie APRÈS une écriture réglée', () => {
     const w = createLocalWrites();
     w.record(S, 'a1', 'read', true);
+    w.touch(S, 'a1', 'read');
     const since = w.mark();
     const rows = [row()];
     expect(w.overlay(S, rows, since)).toBe(rows);
+  });
+
+  it('une écriture en vol s’applique quel que soit le départ de la réponse', () => {
+    const w = createLocalWrites();
+    w.record(S, 'a1', 'read', true);
+    const since = w.mark(); // partie après le geste, répondue avant sa confirmation
+    expect(w.overlay(S, [row()], since)[0].read).toBe(true);
+  });
+
+  it('deux gestes en vol : la confirmation du premier laisse le second en vol', () => {
+    const w = createLocalWrites();
+    w.record(S, 'a1', 'read', true);
+    w.record(S, 'a1', 'read', false);
+    w.touch(S, 'a1', 'read');
+    const since = w.mark();
+    expect(w.overlay(S, [row({ read: true })], since)[0].read).toBe(false);
+    w.touch(S, 'a1', 'read');
+    const after = w.mark();
+    const rows = [row({ read: true })];
+    expect(w.overlay(S, rows, after)).toBe(rows);
+  });
+
+  it('un rollback termine le vol, et sa valeur ne vaut que pour les réponses déjà parties', () => {
+    const w = createLocalWrites();
+    const before = w.mark();
+    w.record(S, 'a1', 'read', true);
+    w.rollback(S, 'a1', 'read', false);
+    expect(w.overlay(S, [row({ read: true })], before)[0].read).toBe(false);
+    const after = w.mark();
+    const rows = [row({ read: true })];
+    expect(w.overlay(S, rows, after)).toBe(rows);
   });
 
   it('une écriture confirmée compte à sa confirmation : la réponse partie pendant le vol est recalée', () => {

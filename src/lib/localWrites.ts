@@ -11,14 +11,20 @@ import type { Article } from '../types';
  * secondes.
  *
  * Chaque lecture note `mark()` à son départ. Une écriture reçoit un numéro à
- * son enregistrement (`record`), puis un nouveau à sa confirmation (`touch`) :
- * une lecture partie pendant le vol de l'écriture peut passer au serveur avant
- * elle, et rapporter l'ancien état tout autant. `overlay` réapplique sur la
- * réponse ce qui est plus récent que son départ, champ par champ : un favori
+ * son enregistrement (`record`), et reste EN VOL jusqu'à sa confirmation (`touch`)
+ * ou son rollback (`rollback`). `overlay` réapplique sur la réponse, champ par
+ * champ, ce qui est en vol et ce qui est plus récent que son départ : un favori
  * posé pendant le vol n'emporte pas le `read` du serveur.
  *
- * Un rollback s'enregistre comme une écriture : c'est lui la dernière valeur,
- * et elle redit ce que le serveur a gardé.
+ * En vol, parce qu'une lecture partie APRÈS le geste peut quand même passer au
+ * serveur avant lui, et répondre avant sa confirmation (FreshRSS lent à écrire,
+ * cache Redis rapide à lire). Un numéro ne suffit pas à le voir : lecture et
+ * geste sont dans le bon ordre, c'est le serveur qui n'a pas encore reçu l'écriture.
+ * La confirmation avance aussi le numéro, pour la lecture partie pendant le vol
+ * qui répond après elle.
+ *
+ * Un rollback compte comme une écriture : c'est lui la dernière valeur, et elle
+ * redit ce que le serveur a gardé.
  */
 
 /**
@@ -32,12 +38,13 @@ const PRUNE_EVERY_MS = 60 * 1000;
 /** `read`, `starred` ou `label:<id>`. */
 export type WriteField = 'read' | 'starred' | `label:${string}`;
 
-interface Written { seq: number; value: boolean }
+/** `inFlight` compte les gestes pas encore réglés : ils se croisent sur une ligne. */
+interface Written { seq: number; value: boolean; inFlight: number }
 interface Entry { at: number; fields: Map<WriteField, Written> }
 
 const LABEL_PREFIX = 'label:';
 
-function applyField(row: Article, field: WriteField, value: boolean): Article {
+export function applyField(row: Article, field: WriteField, value: boolean): Article {
   if (field === 'read') return row.read === value ? row : { ...row, read: value };
   if (field === 'starred') return row.starred === value ? row : { ...row, starred: value };
   const labelId = field.slice(LABEL_PREFIX.length);
@@ -71,14 +78,15 @@ export function createLocalWrites(now: () => number = Date.now) {
       const key = keyOf(scope, articleId);
       const entry = entries.get(key) ?? { at: now(), fields: new Map<WriteField, Written>() };
       entry.at = now();
-      entry.fields.set(field, { seq: ++seq, value });
+      entry.fields.set(field, { seq: ++seq, value, inFlight: (entry.fields.get(field)?.inFlight ?? 0) + 1 });
       entries.set(key, entry);
     },
 
     /**
-     * Le serveur vient de confirmer : la valeur ne change pas, seul son numéro
-     * avance. Sans effet si l'entrée a expiré. La valeur gardée est celle du
-     * dernier geste : la confirmation d'un geste plus ancien ne la rétablit pas.
+     * Le geste est réglé, par le serveur ou par la file d'attente qui le prend
+     * en charge : la valeur ne change pas, son numéro avance. Sans effet si
+     * l'entrée a expiré. La valeur gardée est celle du dernier geste : la
+     * confirmation d'un geste plus ancien ne la rétablit pas.
      */
     touch(scope: string, articleId: string, field: WriteField): void {
       const entry = entries.get(keyOf(scope, articleId));
@@ -86,11 +94,23 @@ export function createLocalWrites(now: () => number = Date.now) {
       if (!entry || !written) return;
       entry.at = now();
       written.seq = ++seq;
+      written.inFlight = Math.max(0, written.inFlight - 1);
+    },
+
+    /** Le serveur a refusé : `value` est ce qu'il a gardé, et le geste est réglé. */
+    rollback(scope: string, articleId: string, field: WriteField, value: boolean): void {
+      const entry = entries.get(keyOf(scope, articleId));
+      const written = entry?.fields.get(field);
+      if (!entry || !written) return;
+      entry.at = now();
+      written.seq = ++seq;
+      written.value = value;
+      written.inFlight = Math.max(0, written.inFlight - 1);
     },
 
     /**
-     * Les lignes d'une réponse, recalées sur les écritures plus récentes que
-     * `since`. Rend le MÊME tableau quand rien ne change. `keep` n'est appelé que
+     * Les lignes d'une réponse, recalées sur les écritures en vol et sur celles
+     * plus récentes que `since`. Rend le MÊME tableau quand rien ne change. `keep` n'est appelé que
      * sur les lignes recalées, et les écarte s'il répond faux : une ligne que le
      * geste a sortie de la vue n'a pas à y revenir.
      */
@@ -103,7 +123,7 @@ export function createLocalWrites(now: () => number = Date.now) {
         const entry = entries.get(keyOf(scope, row.id));
         if (entry) {
           for (const [field, written] of entry.fields) {
-            if (written.seq > since) next = applyField(next, field, written.value);
+            if (written.inFlight > 0 || written.seq > since) next = applyField(next, field, written.value);
           }
         }
         if (next === row) { out.push(row); continue; }
