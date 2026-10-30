@@ -751,7 +751,7 @@
     "pending_many": "{{count}} akcji oczekuje",
     "syncFailed_few": "Nie udało się zsynchronizować {{count}} akcji",
     "syncFailed_many": "Nie udało się zsynchronizować {{count}} akcji",
-    "refusedByServer": "FreshRSS odrzuca uwierzytelnienie oczekujących akcji. Pozostają w kolejce i zostaną wysłane, gdy tylko FreshRSS je przyjmie."
+    "refusedByServer": "FreshRSS odrzuca uwierzytelnianie oczekujących działań. Pozostają w kolejce i zostaną wysłane ponownie przy następnym otwarciu aplikacji lub po powrocie sieci."
   },
   "refresh": {
     "newArticles_one": "{{count}} nowy artykuł",

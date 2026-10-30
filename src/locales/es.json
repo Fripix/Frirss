@@ -727,7 +727,7 @@
     "pending_other": "{{count}} acciones pendientes",
     "syncFailed_one": "No se pudo sincronizar 1 acción",
     "syncFailed_other": "No se pudieron sincronizar {{count}} acciones",
-    "refusedByServer": "FreshRSS rechaza la autenticación de las acciones pendientes. Siguen pendientes y se enviarán en cuanto FreshRSS las acepte."
+    "refusedByServer": "FreshRSS rechaza la autenticación de las acciones pendientes. Siguen pendientes y se volverán a enviar la próxima vez que se abra la aplicación o cuando vuelva la red."
   },
   "refresh": {
     "newArticles_one": "{{count}} artículo nuevo",

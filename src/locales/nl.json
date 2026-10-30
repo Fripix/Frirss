@@ -727,7 +727,7 @@
     "pending_other": "{{count}} acties in wachtrij",
     "syncFailed_one": "1 actie kon niet worden gesynchroniseerd",
     "syncFailed_other": "{{count}} acties konden niet worden gesynchroniseerd",
-    "refusedByServer": "FreshRSS weigert de authenticatie voor de acties in de wachtrij. Ze blijven in de wachtrij en worden verzonden zodra FreshRSS ze accepteert."
+    "refusedByServer": "FreshRSS weigert de authenticatie voor de wachtende acties. Ze blijven wachten en worden opnieuw verzonden wanneer de app weer wordt geopend of het netwerk terugkomt."
   },
   "refresh": {
     "newArticles_one": "{{count}} nieuw artikel",

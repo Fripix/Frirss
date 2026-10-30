@@ -4823,14 +4823,32 @@ images consultés restent lisibles sans réseau.
   (alias de `vitest.config.js`).
 - **Le bandeau dit quand FreshRSS refuse la file** (`OfflineBanner`,
   `connection.refusedByServer`, état `replayRefusedByServer` du
-  `feedStore`) : « FreshRSS refuse les actions en attente. Vérifiez
-  l'utilisateur et le mot de passe d'API de ce serveur dans Préférences ›
-  Flux : elles repartiront au prochain chargement. » La phrase passe avant
-  « n actions n'ont pas pu être synchronisées » et reste jusqu'à un rejeu qui
-  fait passer une action, ou jusqu'à un changement de portée (le refus était
-  celui de l'autre serveur). Elle dit où regarder sans affirmer de cause : le
-  même 401 vient d'un mot de passe d'API changé comme d'un jeton périmé côté
-  FriRSS.
+  `feedStore`) : « FreshRSS refuse l'authentification pour les actions en
+  attente. Elles restent en attente et seront renvoyées à la prochaine
+  ouverture de l'app ou au retour du réseau. » — les moments exacts du rejeu
+  (montage, `online`, changement de portée : pas d'essai périodique). La
+  phrase passe avant « n actions n'ont pas pu être synchronisées ».
+  - Elle ne renvoie à aucun écran et n'affirme aucune cause : le même 401
+    vient d'un mot de passe d'API changé comme d'un jeton périmé côté FriRSS.
+    ⚠️ Sa première version renvoyait à Préférences › Flux, où rien ne se
+    corrige ; `OfflineBanner.test.tsx` vérifie dans les 10 locales qu'elle ne
+    cite ni le titre des préférences, ni la section Flux, ni « › ».
+  - **Elle tombe** dès qu'un rejeu fait passer une action, au changement de
+    portée (le refus appartenait à l'autre serveur), et dès que la portée
+    active n'a plus rien en attente (`pendingPatch` : geste direct qui règle
+    la dernière action, rejeu qui trouve la file vide) — elle restait
+    jusqu'au rechargement.
+  - **Elle n'est posée** que si la session du rejeu est encore active à ce
+    moment : une bascule pendant l'écriture finale de la file affichait le
+    refus du serveur quitté sur le suivant.
+  - ⚠️ **Limite connue (décision produit ouverte)** : aucun écran ne permet de
+    changer le mot de passe d'API d'un serveur existant (`ServerRow` : nom,
+    serveur par défaut, suppression, jeton maître ; la route `PUT` accepte
+    pourtant `freshrssToken`), et ajouter le même serveur une seconde fois
+    est refusé (409). Le supprimer puis le rajouter lui donne un nouvel
+    identifiant, donc une nouvelle portée : les actions gardées sous
+    l'ancienne ne repartent plus, ne sont pas comptées, et rien ne les
+    retire. Ne PAS conseiller cette manœuvre dans les notes.
 - **Onglet Hors ligne** (1.8.0, `OfflineTab.test.tsx`) : sans réseau, le bouton
   « Préparer » est inactif et le dit (`offline.needsNetwork`) —
   `prepareOffline` ne fait rien hors ligne, le clic tombait dans le vide ;
@@ -4868,8 +4886,12 @@ images consultés restent lisibles sans réseau.
   coûte une réécriture de l'entrée entière, corps compris : elle n'est pas
   tentée sur un appareil déclaré plein (même règle que l'adoption), et un
   refus de quota pendant la réécriture déclare l'appareil plein (`full`),
-  comme toute autre écriture ; dans les deux cas l'image reste telle quelle,
-  lisible et gardée. ⚠️ **Une fois après la mise à jour** : seules les images
+  comme toute autre écriture. Dans les deux cas l'image reste telle quelle et
+  lisible, mais **la marque de la portée qui prépare n'est pas posée** : elle
+  la compte dans son budget et son propre balayage n'y touche pas, mais le
+  balayage de l'autre portée peut l'effacer dès que celle-ci n'en veut plus —
+  contrepartie voulue de « rien ne s'écrit sur un appareil plein ».
+  ⚠️ **Une fois après la mise à jour** : seules les images
   qu'une portée **reprend** reçoivent une étiquette. Si le serveur 2 prépare
   le premier, son balayage efface les images préparées en 1.7 pour le
   serveur 1, encore sans étiquette, qu'il n'a pas reprises ; le serveur 1 les
@@ -5080,6 +5102,12 @@ mises en file et rejouées au retour.
   (le client lit le serveur actif à chaque requête), qui l'acceptait sans
   effet — sortie de la file, perdue pour le premier ; une déconnexion en plein
   rejeu faisait partir la suite brute, hors du proxy, 404, et tout était jeté.
+  Les quatre valeurs sont relevées **avant** le chargement de la file ; le
+  rejeu s'arrête si elles ont changé pendant, et l'adoption des actions sans
+  portée n'a lieu qu'après ce contrôle. ⚠️ Relevée après, la portée valait
+  `@` quand une déconnexion tombait pendant la première lecture (un 401 de
+  `getMe` au démarrage) : les actions d'avant 1.8.0 y étaient adoptées, puis
+  ni rejouées, ni comptées, ni retirées.
 - **Un 401 arrête toujours le rejeu, et rien n'est jeté.** Le nôtre
   (`isBackendAuthFailure`) déconnecte ; l'action et les suivantes restent pour
   la session suivante. Un 401 relayé de FreshRSS (mot de passe d'API changé,
@@ -5110,7 +5138,12 @@ mises en file et rejouées au retour.
     file (`settledGestures`) ;
   - **un geste ancien qui échoue tard** n'écrase pas en file un geste plus
     récent qui avait échoué avant lui (`mergeAction` compare les numéros,
-    `actionQueue.test.ts`) — défaut antérieur au lot.
+    `actionQueue.test.ts`) — défaut antérieur au lot ;
+  - **un envoi réussi du rejeu** inscrit le numéro de l'action dans
+    `settledGestures`, comme un geste direct réussi : un geste plus ancien
+    encore en vol qui échoue après lui n'entre pas en file (un « lu » bloqué
+    tombait en délai dépassé après l'envoi du « non lu » suivant, entrait en
+    file, et le rejeu d'après écrasait la dernière intention).
 
   Le rejeu saute enfin une action remplacée ou réglée depuis son départ (`at`
   comparé à la file courante).
@@ -5121,9 +5154,17 @@ mises en file et rejouées au retour.
   collision d'un serveur à l'autre est très improbable, alors que ne plus les
   rejouer les perdait sans un mot (décision du 2026-10-30, qui revient sur
   celle de la première relecture). Une action de la portée sur le même
-  article est forcément plus récente : l'ancienne lui cède la place. Celles
-  qu'aucune portée n'a encore adoptées partent à la déconnexion
-  (`dropUnscopedActions`).
+  article est forcément plus récente : l'ancienne lui cède la place. Jamais
+  adoptées par une portée sans compte ou sans serveur (`@`, `@1`, `7@`), où
+  aucune session ne revient. Celles qu'aucune portée n'a encore adoptées
+  partent à la déconnexion (`dropUnscopedActions`).
+- **Une seule lecture de la file par session** (`loadQueue` garde la
+  **promesse** de chargement, `queueLoading`) : deux premiers appels
+  concurrents (un geste qui échoue, le rejeu de l'événement `online`)
+  partagent une lecture. Chacun lisait la file, et le plus lent remplaçait en
+  mémoire ce que l'autre venait d'y ajouter, que la prochaine écriture
+  effaçait du stockage. Une lecture en échec n'est pas gardée : l'appel
+  suivant réessaie.
 - **Le bandeau ne compte que les actions de la portée active**
   (`pendingHere()`), recalculé au changement de portée. Il comptait celles des
   autres comptes, qui ne partiront pas sous celui-ci.

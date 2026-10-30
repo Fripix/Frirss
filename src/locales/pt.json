@@ -727,7 +727,7 @@
     "pending_other": "{{count}} ações pendentes",
     "syncFailed_one": "Não foi possível sincronizar 1 ação",
     "syncFailed_other": "Não foi possível sincronizar {{count}} ações",
-    "refusedByServer": "O FreshRSS está a recusar a autenticação das ações pendentes. Continuam pendentes e serão enviadas assim que o FreshRSS as aceitar."
+    "refusedByServer": "O FreshRSS recusa a autenticação das ações pendentes. Continuam pendentes e serão reenviadas na próxima abertura da aplicação ou quando a rede voltar."
   },
   "refresh": {
     "newArticles_one": "{{count}} novo artigo",

@@ -727,7 +727,7 @@
     "pending_other": "{{count}} 个操作待处理",
     "syncFailed_one": "1 个操作未能同步",
     "syncFailed_other": "{{count}} 个操作未能同步",
-    "refusedByServer": "FreshRSS 拒绝了待处理操作的身份验证。这些操作会继续保留，一旦 FreshRSS 接受便会重新发送。"
+    "refusedByServer": "FreshRSS 拒绝了待处理操作的身份验证。这些操作仍在等待中，将在下次打开应用或网络恢复时重新发送。"
   },
   "update": {
     "updating": "更新中…"

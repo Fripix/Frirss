@@ -727,7 +727,7 @@
     "pending_other": "{{count}} Aktionen ausstehend",
     "syncFailed_one": "1 Aktion konnte nicht synchronisiert werden",
     "syncFailed_other": "{{count}} Aktionen konnten nicht synchronisiert werden",
-    "refusedByServer": "FreshRSS lehnt die Authentifizierung für die ausstehenden Aktionen ab. Sie bleiben in der Warteschlange und werden gesendet, sobald FreshRSS sie annimmt."
+    "refusedByServer": "FreshRSS lehnt die Authentifizierung für die ausstehenden Aktionen ab. Sie bleiben in der Warteschlange und werden beim nächsten Öffnen der App oder bei Rückkehr des Netzwerks erneut gesendet."
   },
   "refresh": {
     "newArticles_one": "{{count}} neuer Artikel",

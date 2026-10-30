@@ -538,10 +538,9 @@ la release publiée.
   comme les autres.
 - **Quand FreshRSS refuse les actions en attente, elles ne sont plus
   perdues.** Après un changement du mot de passe d'API FreshRSS, par exemple,
-  elles attendaient sans que rien ne dise pourquoi. Elles restent en attente,
-  toutes, et le bandeau dit quoi vérifier : l'utilisateur et le mot de passe
-  d'API du serveur, dans Préférences › Flux. Elles repartent au chargement
-  suivant.
+  elles attendaient sans que rien ne dise pourquoi. Elles restent toutes en
+  attente, le bandeau dit que FreshRSS refuse l'authentification, et elles
+  sont renvoyées à la prochaine ouverture de l'app ou au retour du réseau.
 - **L'écran « Mise à jour… » ne reste plus affiché.** Recharger la page au
   moment précis où une nouvelle version s'installait pouvait laisser l'écran
   de mise à jour indéfiniment, jusqu'à un nouveau rechargement manuel. La page

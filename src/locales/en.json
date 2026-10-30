@@ -727,7 +727,7 @@
     "pending_other": "{{count}} actions pending",
     "syncFailed_one": "1 action could not be synced",
     "syncFailed_other": "{{count}} actions could not be synced",
-    "refusedByServer": "FreshRSS is refusing authentication for the pending actions. They stay pending and will be sent as soon as FreshRSS accepts them."
+    "refusedByServer": "FreshRSS is refusing authentication for the pending actions. They stay pending and will be sent again the next time the app opens or the network comes back."
   },
   "update": {
     "updating": "Updating…"
