@@ -622,7 +622,8 @@ par un lecteur qui lit dans l'ordre de parution.
   envoie `r=o` (`src/api/feeds.ts`), que l'API greader de FreshRSS traduit en
   `ASC`, continuation comprise. Rien n'est écrit chez FreshRSS.
 - **L'ordre fait partie de la vue** : `viewKey` du `feedStore` le porte
-  (`feed:filter:oldest`), donc cache mémoire, liste hors-ligne et cache
+  (`feed:filter:oldest`, écrite et relue dans `src/lib/viewLists.ts` :
+  `viewListKey`, `parseViewKey`), donc cache mémoire, liste hors-ligne et cache
   serveur (clé = URL complète) ne mélangent jamais les deux sens. L'ordre par
   défaut garde l'ancienne clé : les listes hors-ligne existantes restent
   lisibles.
@@ -643,7 +644,11 @@ par un lecteur qui lit dans l'ordre de parution.
 - **Non suivis par l'ordre, à dessein** : la recherche (`searchCorpus`, date
   décroissante), la préparation hors-ligne et le worker de cache (Modèle B),
   qui ne connaissent que l'ordre par défaut — un lecteur en ordre inverse ne
-  profite pas du cache chaud du worker.
+  profite pas du cache chaud du worker. La préparation range donc toujours
+  sous la clé de l'ordre par défaut, jamais sous `:oldest` : elle y rangeait
+  une liste du plus récent au plus ancien, servie telle quelle à une vue qui
+  demandait l'inverse. Hors ligne, la vue en ordre inverse se sert de cette
+  liste, retournée (`offlineFallback`, voir « Hors-ligne et PWA »).
 
 ### Visibilité par flux (réglage FreshRSS)
 FreshRSS règle, par flux, où il apparaît : *flux principal*, *sa catégorie
@@ -932,9 +937,15 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   trouvait pas. ⚠️ Pas `？` ni `；` pleine chasse, que FreshRSS produit aussi
   dans les noms : ce sont des signes ordinaires du chinois et du japonais.
   Et jamais sur un nom d'étiquette ou de catégorie, qui sert d'identifiant à
-  l'API. Un article sans titre reçoit `articleList.untitled`, par l'instance
-  i18next de `src/i18n.ts` (« Sans titre » était écrit en dur, servi aux dix
-  langues).
+  l'API. Un article sans titre garde `title: ''` dans le store : le libellé
+  `articleList.untitled` se pose **au rendu**, par `articleTitle()`
+  (`src/lib/articleTitle.ts`) — ligne, carte, feuille du menu d'article, volet,
+  partage, aperçu du balayage, image de glissement. « Sans titre » était écrit
+  en dur, servi aux dix langues ; calculé à la normalisation, il serait resté
+  figé dans les caches après un changement de langue, et la recherche
+  l'indexait. Tout nouvel affichage d'un titre d'article passe par ce helper.
+  Le résumé et la traduction reçoivent le titre vide. ⚠️ Une liste rangée
+  avant cette version garde son « Sans titre » jusqu'à sa prochaine réécriture.
 - **Titre de l'en-tête en infobulle** (1.8.0) : avec le volet de lecture ouvert à
   1280 px, la barre d'outils écrase le titre (`truncate`) jusqu'à « To… », voire
   à rien. Les trois variantes de l'en-tête portent `title={heading}`, le titre
@@ -1155,11 +1166,39 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     l'invariant que `silentRefresh` entretient déjà en RÉINSÉRANT l'article en
     cours de lecture.
   - **Le retrait vaut aussi pour le cache mémoire** (`memRemoveFromViews`
-    dans `feedStore.ts`, toutes les vues dont la clé finit par `:unread`).
+    dans `feedStore.ts`, toutes les vues au filtre `unread`, lu par
+    `parseViewKey` : un test de suffixe manquait les clés `:unread:oldest`).
     Il ne touchait que `articles` et le cache hors-ligne : quitter le flux et y
     revenir repeignait depuis le cache mémoire — et comme `loadArticles` pose
     `loading: !cached`, la ligne lue réapparaissait dans « Non lus » sans même
     un spinner, indéfiniment hors ligne. C'est le symptôme exact de l'issue #10.
+  - **Une réponse partie avant un geste ne l'écrase pas** (1.8.0,
+    `src/lib/localWrites.ts`, `reconcile` dans `feedStore.ts`, tests
+    `feedStore.staleResponse.test.ts`). Une lecture en vol rapporte l'état
+    d'avant le geste : la ligne de l'article ouvert repassait en gras, le volet
+    l'indiquait non lu, cet état partait dans le cache mémoire et la liste hors
+    ligne, et rouvrir la ligne décomptait une seconde fois (le badge tombait à 0
+    jusqu'au relevé suivant). Toute écriture locale (lu, favori, à lire plus
+    tard, étiquette, plage, lignes affichées d'un « Tout lu ») s'enregistre dans
+    un registre par portée, article et champ. Une lecture note son rang à son
+    départ (`localWrites.mark()`) et, à l'arrivée, réapplique ce qui est plus
+    récent, champ par champ : `loadArticles` (cache serveur et réponse),
+    `silentRefresh`, `loadMore`, `prefetchView`, `warmOfflineCache`,
+    `prepareOffline`.
+    - **Un geste compte aussi à sa confirmation** (`touch`, dans
+      `settleAction`) : une lecture partie pendant le vol de l'écriture peut
+      passer au serveur avant elle. La valeur reste celle du dernier geste.
+    - **Un rollback est une écriture** : c'est lui la dernière valeur.
+    - **Une ligne sortie de la vue n'y revient pas** (✓ sous Non lus, retrait
+      d'« À lire plus tard ») ; celle qui y est encore y reste, comme l'article
+      ouvert sous Non lus.
+    - **Le compteur n'a pas de garde à lui** : il suffit que la ligne soit juste,
+      `selectArticle` ne décompte que les lignes non lues.
+    - **Ne couvre pas** : les pages du balayage de recherche (le corpus a ses
+      propres relais) et une action en file d'attente hors ligne, inchangée.
+    - **Durée de vie** : 5 minutes (`LOCAL_WRITE_TTL_MS`), au-delà du délai
+      d'attente de 75 s. Une réponse partie APRÈS un geste a le dernier mot : un
+      autre appareil a pu le défaire.
   - **La pagination doit continuer** (`shouldTopUpAfterRemoval`,
     `src/lib/listTopUp.ts`). Le scroll infini ne partait que d'un événement
     `scroll` : en dépilant par le haut, `scrollTop` reste à 0 et aucun
@@ -2103,6 +2142,19 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   lignes lues ; `continuation` passe à `null`, sans quoi l'état vide dirait
   « d'autres pages ». Sous « Tous », les lignes restent, passées lues. Le
   retour en arrière recharge la liste (`restoreUnread` → `loadArticles`).
+
+  **Les autres vues suivent** (`markStreamReadInViews`, `markStreamRead` dans
+  `src/lib/viewLists.ts`). Dans le cache mémoire de la portée, toutes les vues :
+  une vue qui EST le flux marqué (« Tous », « Non lus », accueil compris) passe
+  entièrement lue, les autres par `sourceId` (`markedSources` : le flux, les
+  flux de la catégorie, ou ceux du flux principal pour l'accueil). Sous Non
+  lus, les lignes sortent de la liste. Favoris et À lire plus tard ne sont
+  jamais traités en bloc. Hors ligne, seulement les huit listes du flux marqué
+  et les huit de l'accueil (quatre filtres, deux ordres). **Limites
+  assumées** : après un « Tout lu » de l'accueil, la liste hors ligne de chaque
+  flux garde ses lignes non lues jusqu'à sa prochaine relecture ; le retour en
+  arrière ne recharge que la vue affichée, les autres restent lues jusqu'à
+  leur relecture.
 - **Les marquages de plage passent par la même boîte** (« au-dessus /
   en dessous », `dialog.markAboveTitle`), avec le **même délai de grâce** : le
   double-clic les traversait aussi. Leur ancien « Confirmer ? » posé dans le
@@ -2183,6 +2235,11 @@ dialogue**, et **retour en arrière** une fois l'action faite.
 Recherche **côté client**, respectant le **périmètre** de la vue courante :
 chercher depuis un flux cherche dans ce flux, depuis une catégorie dans cette
 catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
+
+- **Le titre est du texte, pas du HTML** : `articleHaystack` ne lui applique que
+  `decodeEntities`. Passé dans `stripHtml`, « Vec<String> » perdait « String »,
+  pris pour une balise, depuis que `normalizeArticle` rend les `＜ ＞` de
+  FreshRSS en ASCII. Un article sans titre n'indexe aucun libellé.
 
 > ⚠️ **L'API greader de FreshRSS n'a PAS de paramètre de recherche.** Dans
 > `p/api/greader.php`, `streamContentsFilters` ne lit que `xt`, `it`, `n`, `r`,
@@ -4895,6 +4952,32 @@ images consultés restent lisibles sans réseau.
   - **Elle n'est posée** que si la session du rejeu est encore active à ce
     moment : une bascule pendant l'écriture finale de la file affichait le
     refus du serveur quitté sur le suivant.
+- **Ce que la préparation range, et ce qu'une vue sert quand la sienne manque**
+  (`prepareOffline`, `offlineFallback`, `src/lib/viewLists.ts`, tests
+  `feedStore.viewLists.test.ts`).
+  - **La préparation range tout ce qu'elle a collecté pour un flux** : les
+    articles des 30 derniers jours, dans la limite de ses 8 pages (400
+    articles), sous la liste « Tous » dans l'ordre par défaut, sans page
+    suivante. Elle n'en gardait que 50 : le reste, extrait et téléchargé,
+    était introuvable hors ligne, recherche comprise. Pas d'autre borne : les
+    extraits des mêmes articles, plus lourds, sont gardés de toute façon.
+  - **Elle n'écrase pas une liste rangée plus longue** (`mergePreparedList`) :
+    le haut vient d'elle, la fin et la page suivante de la liste rangée.
+  - **Le repli** : hors ligne, si la liste exacte de la vue manque, la vue se
+    sert d'une autre liste du même flux et de la même portée
+    (`fallbackSources`) : pour Non lus, la liste « Tous » filtrée sur `!read` ;
+    pour tout filtre, sa propre liste en ordre inverse. La source est lue en
+    mémoire et sur disque, et la plus fournie sert. Une liste déduite ne promet
+    jamais de page suivante, et se retourne plutôt que de se trier : `published`
+    n'est pas l'ordre d'insertion de FreshRSS. Une liste entièrement filtrée
+    reste une réponse : « tout est lu », pas un échec. Favoris et À lire plus
+    tard ne se déduisent pas de « Tous ».
+  - **Rien à l'écran ne dit qu'une liste est déduite** : le bandeau hors ligne
+    couvre déjà la situation.
+  - **Limite** : une visite en ligne réécrit la liste rangée avec sa page de 50
+    articles (`loadArticles`, `persistCurrentView`), comme elle le fait pour une
+    liste allongée par `loadMore`. Les flux ouverts depuis la préparation
+    reviennent donc à 50 lignes hors ligne, jusqu'à la préparation suivante.
 - **Onglet Hors ligne** (1.8.0, `OfflineTab.test.tsx`) : sans réseau, le bouton
   « Préparer » est inactif et le dit (`offline.needsNetwork`) —
   `prepareOffline` ne fait rien hors ligne, le clic tombait dans le vide ;

@@ -564,6 +564,25 @@ la release publiée.
 - **Les articles retirés des favoris ou de « À lire plus tard » libèrent leur
   texte gardé hors ligne**, au lieu de le garder pour toujours — sans toucher
   aux favoris des autres comptes ou serveurs du même appareil.
+- **Les flux préparés s'ouvrent hors ligne, quel que soit le filtre.** Après
+  « Préparer le hors-ligne », un flux ouvert sous le filtre Non lus ou en ordre
+  « plus anciens d'abord » échouait à se charger, ou s'affichait à l'envers.
+  L'app se sert maintenant de la liste préparée, filtrée et retournée.
+- **La préparation rend tous les articles joignables.** Elle gardait 50
+  articles par flux dans la liste, alors qu'elle téléchargeait le contenu de
+  tous : le reste était introuvable hors ligne, recherche comprise. La liste
+  garde désormais tout ce qui a été préparé, sans raccourcir une liste déjà
+  plus longue.
+- **Une lecture ne se défait plus toute seule.** Un article ouvert pendant un
+  rafraîchissement pouvait repasser en gras, s'afficher non lu dans le volet,
+  et être décompté deux fois en le rouvrant. Même chose pour un favori,
+  « à lire plus tard » ou une étiquette posés au mauvais moment. Une réponse
+  partie avant un geste ne l'écrase plus.
+- **« Tout lu » vaut pour toutes les vues du flux.** Passer de Non lus à Tous
+  après un « Tout lu » repeignait un instant les lignes non lues, et la liste
+  hors ligne les gardait. Même chose pour l'accueil. Un article coché sous Non
+  lus en ordre « plus anciens d'abord » ne revient plus non plus au retour sur
+  le flux.
 - **Les grosses sauvegardes se restaurent.** Au-delà de 5 Mo, une sauvegarde
   s'exportait mais était refusée à la restauration ; la limite est désormais
   de 64 Mo, et une sauvegarde plus grosse est refusée dès l'export, avec un
