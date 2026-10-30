@@ -10,7 +10,7 @@ vi.mock('../../../api/backend', () => ({
 }));
 
 import RefreshTokenField from './RefreshTokenField';
-import { startActualize } from '../../../api/backend';
+import { startActualize, updateServer } from '../../../api/backend';
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
@@ -28,5 +28,26 @@ describe('RefreshTokenField — Tester', () => {
     const status = screen.getAllByRole('status').map((s) => s.textContent).join(' ');
     expect(status).toContain('preferences.refresh.testRateLimited');
     expect(status).not.toContain('preferences.refresh.testFail');
+  });
+
+  // « Le jeton a été refusé » se disait aussi d'un enregistrement raté et
+  // d'un test resté sans réponse : FreshRSS n'avait rien refusé, et
+  // l'utilisateur allait régénérer un jeton qui était bon.
+  it('un enregistrement raté ne déclare pas le jeton refusé', async () => {
+    vi.mocked(updateServer).mockRejectedValue(new Error('Network Error'));
+    render(<RefreshTokenField serverId={1} isActive configured onSaved={() => {}} />);
+    fireEvent.change(screen.getByLabelText('preferences.refresh.tokenLabel'), { target: { value: 'tok' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'preferences.refresh.save' })); });
+    const status = screen.getAllByRole('status').map((s) => s.textContent).join(' ');
+    expect(status).toContain('servers.errorGeneric');
+    expect(status).not.toContain('preferences.refresh.testFail');
+  });
+
+  it('un test sans réponse dit que le jeton n’a pas été éprouvé', async () => {
+    vi.mocked(startActualize).mockResolvedValue(null as never);
+    render(<RefreshTokenField serverId={1} isActive configured onSaved={() => {}} />);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'preferences.refresh.test' })); });
+    const status = screen.getAllByRole('status').map((s) => s.textContent).join(' ');
+    expect(status).toContain('preferences.refresh.testInconclusive');
   });
 });

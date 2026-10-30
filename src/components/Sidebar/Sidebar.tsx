@@ -923,6 +923,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
           <input
             autoFocus
             type="text"
+            aria-label={t('sidebar.renameFeed')}
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             className="w-full text-sm px-2.5 py-1.5 rounded-lg border outline-none mb-2"

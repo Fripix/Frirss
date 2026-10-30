@@ -449,6 +449,7 @@
       "testOk": "Das Token funktioniert.",
       "testFail": "Das Token wurde abgelehnt.",
       "testRateLimited": "Gerade zu viele Anfragen: Das Token konnte nicht geprüft werden. Versuchen Sie es in einer Minute erneut.",
+      "testInconclusive": "Der Test wurde nicht abgeschlossen: Das Token konnte nicht geprüft werden. Versuchen Sie es erneut.",
       "save": "Speichern"
     },
     "sections": {
@@ -601,6 +602,7 @@
   "admin": {
     "users": "Benutzer",
     "admin": "Admin",
+    "role": "Rolle",
     "user": "Benutzer",
     "active": "Aktiv",
     "inactive": "Inaktiv",
@@ -742,6 +744,7 @@
     "failed": "Abruf fehlgeschlagen",
     "incomplete": "Abruf unvollständig",
     "enable": "Feed-Abruf aktivieren",
+    "hintDismiss": "Nicht mehr vorschlagen",
     "continuing": "FreshRSS hat nicht rechtzeitig geantwortet: Der Abruf läuft dort eventuell weiter",
     "inProgressWithNew_one": "Feeds werden abgerufen… {{count}} neuer Artikel",
     "inProgressWithNew_other": "Feeds werden abgerufen… {{count}} neue Artikel",

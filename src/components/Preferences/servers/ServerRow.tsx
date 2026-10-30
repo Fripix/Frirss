@@ -139,6 +139,7 @@ export default function ServerRow({
               <input
                 autoFocus
                 type="text"
+                aria-label={t('servers.rename')}
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setRenaming(false); } }}

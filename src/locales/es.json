@@ -449,6 +449,7 @@
       "testOk": "El token funciona.",
       "testFail": "El token fue rechazado.",
       "testRateLimited": "Demasiadas solicitudes en este momento: no se pudo probar el token. Inténtelo de nuevo dentro de un minuto.",
+      "testInconclusive": "La prueba no se completó: no se pudo comprobar el token. Inténtelo de nuevo.",
       "save": "Guardar"
     },
     "sections": {
@@ -601,6 +602,7 @@
   "admin": {
     "users": "Usuarios",
     "admin": "Admin",
+    "role": "Rol",
     "user": "Usuario",
     "active": "Activo",
     "inactive": "Inactivo",
@@ -742,6 +744,7 @@
     "failed": "La actualización falló",
     "incomplete": "Actualización incompleta",
     "enable": "Activar la actualización de fuentes",
+    "hintDismiss": "No volver a proponer",
     "continuing": "FreshRSS no respondió a tiempo: la actualización puede seguir de su lado",
     "inProgressWithNew_one": "Actualizando fuentes… {{count}} artículo nuevo",
     "inProgressWithNew_other": "Actualizando fuentes… {{count}} artículos nuevos",

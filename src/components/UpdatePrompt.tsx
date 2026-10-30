@@ -40,12 +40,18 @@ export default function UpdatePrompt() {
     return () => { clearTimeout(id); if (fallback) clearTimeout(fallback); };
   }, [needRefresh, updateServiceWorker]);
 
-  if (!needRefresh) return null;
+  // La région annoncée reste montée, vide au repos : montée avec son texte,
+  // elle n'était souvent pas lue (liveRegions.test).
+  const region = <div className="sr-only" role="status" aria-live="polite">{needRefresh ? t('update.updating') : ''}</div>;
+  if (!needRefresh) return region;
 
   return (
-    <div className="update-overlay" role="status" aria-live="polite">
-      <span className="update-overlay-label">{t('update.updating')}</span>
-      <span className="update-overlay-bar" />
-    </div>
+    <>
+      {region}
+      <div className="update-overlay" aria-hidden="true">
+        <span className="update-overlay-label">{t('update.updating')}</span>
+        <span className="update-overlay-bar" />
+      </div>
+    </>
   );
 }

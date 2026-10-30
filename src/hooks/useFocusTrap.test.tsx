@@ -93,4 +93,18 @@ describe('useFocusTrap', () => {
     tab();
     expect(document.activeElement).toBe(c.getByText('a-1'));
   });
+
+  // Les Préférences et l'aide se donnent le focus à l'ouverture (le
+  // conteneur, `tabIndex={-1}`) : Maj+Tab depuis lui sortait de la boîte.
+  it('Maj+Tab depuis le conteneur lui-même va au dernier élément', () => {
+    function Panel() {
+      const ref = useRef<HTMLDivElement>(null);
+      useFocusTrap(ref, true);
+      return <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true"><button>p-1</button><button>p-2</button></div>;
+    }
+    const c = render(<><button>avant</button><Panel /></>);
+    act(() => { (c.getByRole('dialog') as HTMLElement).focus(); });
+    tab(true);
+    expect(document.activeElement).toBe(c.getByText('p-2'));
+  });
 });

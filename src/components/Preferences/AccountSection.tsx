@@ -171,7 +171,7 @@ export default function AccountSection() {
         {error && <p role="alert" className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>}
         {/* Région montée en permanence, vide au repos : insérée avec son texte,
             elle n'était souvent pas annoncée (liveRegions.test). */}
-        <p role="status" className={done ? 'text-xs' : 'sr-only'} style={{ color: 'var(--accent)' }}>{done ? t('preferences.account.done') : ''}</p>
+        <p role="status" className={done ? 'text-xs success-note' : 'sr-only'}>{done ? t('preferences.account.done') : ''}</p>
         <button
           type="submit"
           disabled={busy}

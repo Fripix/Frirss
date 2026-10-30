@@ -449,6 +449,7 @@
       "testOk": "Il token funziona.",
       "testFail": "Il token è stato rifiutato.",
       "testRateLimited": "Troppe richieste in questo momento: non è stato possibile verificare il token. Riprova tra un minuto.",
+      "testInconclusive": "Il test non è andato a buon fine: non è stato possibile verificare il token. Riprova.",
       "save": "Salva"
     },
     "sections": {
@@ -601,6 +602,7 @@
   "admin": {
     "users": "Utenti",
     "admin": "Admin",
+    "role": "Ruolo",
     "user": "Utente",
     "active": "Attivo",
     "inactive": "Inattivo",
@@ -742,6 +744,7 @@
     "failed": "Aggiornamento non riuscito",
     "incomplete": "Aggiornamento incompleto",
     "enable": "Attiva l'aggiornamento dei feed",
+    "hintDismiss": "Non proporre più",
     "continuing": "FreshRSS non ha risposto in tempo: l’aggiornamento potrebbe proseguire dal suo lato",
     "inProgressWithNew_one": "Aggiornamento dei feed… {{count}} nuovo articolo",
     "inProgressWithNew_other": "Aggiornamento dei feed… {{count}} nuovi articoli",

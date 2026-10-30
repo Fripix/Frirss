@@ -449,6 +449,7 @@
       "testOk": "Le jeton fonctionne.",
       "testFail": "Le jeton a été refusé.",
       "testRateLimited": "Trop de requêtes en ce moment : le jeton n’a pas pu être éprouvé. Réessayez dans une minute.",
+      "testInconclusive": "Le test n’a pas abouti : le jeton n’a pas pu être éprouvé. Réessayez.",
       "save": "Enregistrer"
     },
     "sections": {
@@ -601,6 +602,7 @@
   "admin": {
     "users": "Utilisateurs",
     "admin": "Admin",
+    "role": "Rôle",
     "user": "Utilisateur",
     "active": "Actif",
     "inactive": "Inactif",
@@ -745,6 +747,7 @@
     "failed": "La relève a échoué",
     "incomplete": "Relève inachevée",
     "enable": "Activer la relève des flux",
+    "hintDismiss": "Ne plus proposer",
     "continuing": "FreshRSS n’a pas répondu à temps : la relève peut continuer de son côté",
     "inProgressWithNew_one": "Relève en cours… {{count}} nouvel article",
     "inProgressWithNew_other": "Relève en cours… {{count}} nouveaux articles",

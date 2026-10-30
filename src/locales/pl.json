@@ -465,6 +465,7 @@
       "testOk": "Token działa.",
       "testFail": "Token został odrzucony.",
       "testRateLimited": "Zbyt wiele żądań w tej chwili: nie udało się sprawdzić tokenu. Spróbuj ponownie za minutę.",
+      "testInconclusive": "Test nie został ukończony: nie udało się sprawdzić tokenu. Spróbuj ponownie.",
       "save": "Zapisz"
     },
     "sections": {
@@ -619,6 +620,7 @@
   "admin": {
     "users": "Użytkownicy",
     "admin": "Admin",
+    "role": "Rola",
     "user": "Użytkownik",
     "active": "Aktywny",
     "inactive": "Nieaktywny",
@@ -768,6 +770,7 @@
     "failed": "Odświeżanie nie powiodło się",
     "incomplete": "Odświeżanie niedokończone",
     "enable": "Włącz odświeżanie kanałów",
+    "hintDismiss": "Nie proponuj więcej",
     "continuing": "FreshRSS nie odpowiedział na czas: odświeżanie może trwać dalej po jego stronie",
     "inProgressWithNew_one": "Odświeżanie kanałów… {{count}} nowy artykuł",
     "inProgressWithNew_other": "Odświeżanie kanałów… {{count}} nowych artykułów",

@@ -85,6 +85,29 @@ describe('ServerCredentialsForm', () => {
     expect(replayQueue).toHaveBeenCalledTimes(2);
   });
 
+  // FreshRSS a accepté ; c'est l'enregistrement chez FriRSS qui a échoué. Le
+  // message de connexion (« Échec de la connexion au serveur FreshRSS »)
+  // envoyait chercher la panne au mauvais endroit.
+  it('un échec d’enregistrement n’est pas attribué à FreshRSS', async () => {
+    vi.mocked(updateServer).mockRejectedValue(Object.assign(new Error('500'), { response: { status: 500 } }));
+    render(<ServerCredentialsForm server={server} isActive={false} onSaved={() => {}} onClose={() => {}} />);
+    await submit('secret');
+    expect(screen.getByRole('alert').textContent).toBe('servers.errorGeneric');
+  });
+
+  // Pendant l'envoi, Annuler est désactivé : Échap fermait pourtant le
+  // formulaire, et la requête aboutissait sans rien afficher.
+  it('Échap ne ferme pas le formulaire pendant l’envoi', async () => {
+    let resolve: (v: string) => void = () => {};
+    vi.mocked(login).mockReturnValue(new Promise<string>((r) => { resolve = r; }));
+    const onClose = vi.fn();
+    render(<ServerCredentialsForm server={server} isActive={false} onSaved={() => {}} onClose={onClose} />);
+    await submit('secret');
+    fireEvent.keyDown(screen.getByLabelText('login.freshrssPassword'), { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => { resolve('tok'); });
+  });
+
   it('Échap ferme le formulaire', () => {
     const onClose = vi.fn();
     render(<ServerCredentialsForm server={server} isActive={false} onSaved={() => {}} onClose={onClose} />);

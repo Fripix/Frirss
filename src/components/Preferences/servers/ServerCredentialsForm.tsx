@@ -45,8 +45,13 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
     setBusy(true);
     setError('');
     setSaved(false);
+    // Deux étapes, deux messages : FreshRSS peut refuser les identifiants, ou
+    // les accepter et FriRSS échouer à les enregistrer. Le message de
+    // connexion pour le second envoyait chercher la panne chez FreshRSS.
+    let stage: 'login' | 'save' = 'login';
     try {
       const freshrssToken = await freshrssLogin(server.url, user, password);
+      stage = 'save';
       await updateServer(Number(server.id), { freshrssToken });
       setPassword('');
       setSaved(true);
@@ -65,7 +70,7 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
       }
       onSaved();
     } catch (err) {
-      setError(t(serverConnectErrorKey(err)));
+      setError(t(stage === 'login' ? serverConnectErrorKey(err) : 'servers.errorGeneric'));
     } finally {
       setBusy(false);
     }
@@ -76,7 +81,9 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
   return (
     <form
       onSubmit={handleSubmit}
-      onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }}
+      // Pendant l'envoi, Annuler est désactivé : Échap aussi. Fermé, le
+      // formulaire laissait la requête aboutir sans rien afficher.
+      onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); if (!busy) onClose(); } }}
       className="space-y-2"
     >
       <div>
@@ -134,7 +141,7 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
         </button>
       </div>
       {/* Montée en permanence, vide au repos (liveRegions.test). */}
-      <p role="status" className={saved ? 'text-[11px]' : 'sr-only'} style={{ color: 'var(--accent)' }}>
+      <p role="status" className={saved ? 'text-[11px] success-note' : 'sr-only'}>
         {saved ? t('servers.credentialsSaved') : ''}
       </p>
       {error && (

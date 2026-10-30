@@ -19,13 +19,13 @@ mentionnée ici.
 
 ## Architecture en bref
 
-Frontend React 18 + Vite, servi par nginx. Backend Express + SQLite
+Frontend React 19 + Vite 6, servi par nginx. Backend Express + SQLite
 (`better-sqlite3`), compilé par `tsc` vers `server-dist/`. Une seule image
 Docker embarque les deux. Tous les appels à FreshRSS passent par le proxy
 backend `/api/proxy` — même origine, donc pas de CORS. Le jeton greader est
-obtenu une fois, à l'ajout du serveur (`ClientLogin` depuis le navigateur,
-`src/api/auth.ts`) ; une fois enregistré, il ne revient plus jamais au
-navigateur.
+obtenu à l'ajout du serveur et à chaque changement de son mot de passe API
+(`ClientLogin` depuis le navigateur, `src/api/auth.ts`) ; une fois
+enregistré, il ne revient plus jamais du serveur au navigateur.
 
 FriRSS ne stocke aucun article : la source de vérité reste FreshRSS, interrogée
 via son **API Google Reader**. La base SQLite ne contient que des comptes, des
@@ -120,8 +120,11 @@ qu'un autre onglet avait ouvert depuis.
   compte, elle n'entame pas celle de la connexion).
 
 ### SSO / OIDC
-Connexion par fournisseur OIDC en complément des comptes locaux, ou **à la place**
-(mode « SSO uniquement »), auquel cas le formulaire local est masqué.
+Connexion par fournisseur OIDC en complément des comptes locaux, ou mise en
+avant seule (mode « SSO uniquement ») : le formulaire local est alors
+**masqué, pas refusé** — la connexion par mot de passe reste possible côté
+serveur, volontairement, comme filet si le fournisseur tombe (`SECURITY.md`
+le dit aussi).
 
 - **Où** : `server/oidc.ts`, `server/routes/auth.ts` (`/oidc/*`), `src/lib/shouldHideLocalLogin.ts`
 - **Le fournisseur décide de qui entre** : une première connexion SSO crée un
@@ -266,7 +269,10 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   ait toujours son bouton où revenir). Utilisateur affiché **en lecture
   seule**, mot de passe API, l'aide habituelle ; FreshRSS éprouve d'abord les
   identifiants (ClientLogin, erreurs de `serverConnectErrorKey`), puis
-  `PUT /api/servers/:id` reçoit le seul `freshrssToken`. ⚠️ L'utilisateur ne
+  `PUT /api/servers/:id` reçoit le seul `freshrssToken`. Deux étapes, deux
+  messages : un échec de cet enregistrement dit `servers.errorGeneric`, pas
+  « échec de connexion à FreshRSS », qui vient d'accepter. Échap ne ferme rien
+  pendant l'envoi. ⚠️ L'utilisateur ne
   change pas : un autre utilisateur sur le même serveur garderait la même
   portée, et la file, les listes, le cache Redis du premier seraient servis au
   second — un autre utilisateur est un autre serveur à ajouter. Le serveur
@@ -277,7 +283,9 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   refus), puis `replayRefusedByServer` tombe et la file repart. Région de statut
   montée en permanence ; Échap ferme ; le focus revient au bouton. Le bandeau
   de refus (`connection.refusedByServer`) y renvoie avec les vrais libellés
-  de chaque langue (`OfflineBanner.test.tsx` le vérifie).
+  de chaque langue (`OfflineBanner.test.tsx` le vérifie). ⚠️ Limite : une
+  connexion héritée (`synthetic`, sans enregistrement en base) ne se déplie
+  pas et n'a donc pas ce bouton.
 - **Où** : `server/routes/servers.ts`, `server/crypto.ts`,
   `src/components/Preferences/servers/` (gestion complète),
   `src/components/ServerSwitcher/` (sélecteur), `src/lib/serverList.ts`
@@ -287,9 +295,12 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   seulement, 50 serveurs par compte (400 sinon) — cinq serveurs nommés de 4 Mo
   passaient. **La relève compte dans le seau par minute** du proxy
   (`FRIRSS_PROXY_RATE_LIMIT`) : elle y échappait, test du jeton maître compris.
-  Un 429 au test (`RefreshTokenField`) affiche
-  `preferences.refresh.testRateLimited` (« le jeton n'a pas pu être éprouvé ») :
-  il disait « Le jeton a été refusé » d'un bon jeton.
+  Le test du jeton maître (`RefreshTokenField`) ne dit « refusé »
+  (`testFail`) que si FreshRSS a répondu 401 ou 403. Un 429 affiche
+  `preferences.refresh.testRateLimited`, une absence de tâche, de réponse ou
+  une autre erreur `testInconclusive`, un enregistrement raté
+  `servers.errorGeneric` : tous disaient « Le jeton a été refusé » d'un jeton
+  peut-être bon.
 - **Changer l'adresse ou le compte d'un serveur exige un nouveau jeton**
   (1.8.0) : `PUT /api/servers/:id` refuse (400) une autre ORIGINE (schéma,
   hôte, port) ou un autre `freshrssUser` sans `freshrssToken` dans la même
@@ -300,7 +311,8 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   chemin sur la même origine garde les jetons — **limite connue, assumée**
   (2026-10-29) : le jeton peut alors suivre un autre chemin du même hôte, qui
   le recevait déjà. Le client n'envoie jamais d'URL par cette route
-  (renommage et jeton maître seulement).
+  (renommage, jeton maître, et jeton greader neuf par « Changer le mot de
+  passe API », sans changer d'utilisateur).
 - **Portée du jeton — piège** : le proxy n'attache le jeton greader qu'aux
   cibles dont l'**origine analysée** vaut celle du serveur, le chemin étant
   comparé avec une frontière explicite (`targetBelongsToServer`,
@@ -538,7 +550,9 @@ défaut 16:9). Les défauts reproduisent exactement la grille d'avant.
   minimum, les cartes s'élargissent pour remplir la ligne (`auto-fill` +
   `minmax`). ⚠️ Le curseur n'agit alors que **par paliers** : entre deux
   nombres de colonnes, il ne change rien à l'écran (dans une grille de
-  1 011 px intérieurs, hors des 14 px de marge de chaque côté, 4 cartes de 242 px de 160 à 240, puis 3 de 327 à 250). C'est ce
+  1 011 px intérieurs, hors des 14 px de marge de chaque côté, écart de
+  14 px : 5 colonnes jusqu'à 191 px, 4 cartes de 242 px de 192 à 242, 3 de
+  327 px de 243 à 327). C'est ce
   qu'a relevé le propriétaire au premier essai, et la raison de l'interrupteur.
 - **Remplir la ligne, désactivé** (`.article-grid--fixed`) : chaque carte
   mesure exactement la largeur choisie, la fenêtre ne décide que du nombre de
@@ -1669,9 +1683,7 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
   requêtes — une partie des articles a bien été marquée, réessayez dans une
   minute »), tout autre échec garde `toast.markRangeFailed`. Les lots déjà
   acceptés restent lus dans les deux cas — seuls ceux non confirmés reviennent
-  (voir plus haut). Aucun indicateur de progression pendant l'opération :
-  rien ne dit qu'elle est en cours ni où elle en est avant qu'elle échoue ou
-  se termine.
+  (voir plus haut).
 - **Piège — le clic droit des boutons Favori et À lire plus tard est
   prioritaire** : leur rangement par catégorie (`useCategoryPicker`) appelle
   `preventDefault()`, et le menu sort sur `defaultPrevented`. Un appui long ou
@@ -4811,7 +4823,13 @@ Délai réel entre la publication et le bandeau : la période du cron FreshRSS
     `RefreshBanner.test.tsx`) : ✓ à jour, + nouveaux articles, × échec,
     horloge inachevée ou sans réponse à temps — la coche valait jusque-là pour
     tout état non en cours, « La relève a échoué » compris. Allonger le délai côté FreshRSS (`fastcgi_read_timeout` de son
-    nginx) supprime le 504 ;
+    nginx) supprime le 504. Le bandeau passe à la ligne et se borne à
+    `100vw - 32px` (`refreshBannerLayout.test.ts`) : en `nowrap`, cette phrase
+    mesurait jusqu'à 800 px et sortait des deux côtés à 320 px. Il écrit en
+    `--on-accent` (le blanc en dur faisait 1,9:1), reste tant que le focus est
+    dans ses boutons, et sa croix se nomme `refresh.hintDismiss` (« Ne plus
+    proposer ») : elle oublie l'invitation pour toujours, « Fermer » le
+    cachait ;
   - le jeton maître donne aussi accès en **lecture** à tous les articles et à la
     liste d'abonnements. L'interface le dit avant la saisie ;
   - **`startJob` lance son travail SANS l'attendre** — voulu en production,
@@ -5311,8 +5329,15 @@ dans quelques composants partagés.
     réellement assignée ; le fantôme du balayage écrit l'unité de la langue ;
     le bandeau de relève dit des phrases entières (`inProgressWithNew`,
     `continuingWithNew`) ;
+  - **réussites lisibles** : `.success-note` (`index.css`) mêle l'accent au
+    texte du thème, 4,5:1 sur les panneaux des six thèmes livrés
+    (`successNoteContrast.test.ts`) — l'accent pur faisait 1,8:1 sur panneau
+    clair ;
+  - **champs nommés** : renommer un serveur, une étiquette, un flux, « Déplacer
+    vers », rôle d'un nouveau compte (`admin.role`) ;
   - **régions de statut montées en permanence** (enregistrement d'un
-    fournisseur IA, liste des modèles, clé personnelle, test du jeton maître) ;
+    fournisseur IA, liste des modèles, clé personnelle, test du jeton maître,
+    rideau « Mise à jour… ») ;
     la restauration réussie est une `alert`, puisqu'elle remplace le formulaire ;
   - **libellé du balayage sur sa couleur** : `--on-readlater` (calculée
     comme `--on-accent`), accent pour « lu », bleu `#2563eb` (5,2:1) pour « non
@@ -5406,7 +5431,7 @@ dans quelques composants partagés.
 ## Apparence et thèmes
 
 **38 couleurs** en 6 groupes, **7 tailles** de police en 3 groupes (plus la
-taille des cartes de la grille, voir « Dispositions »), nom et logo
+taille des cartes de la grille, voir « Taille des cartes de la grille »), nom et logo
 de l'application, thèmes enregistrables, exportables en CSS, importables et
 partageables par lien. **Six thèmes sont livrés** et le thème peut suivre le
 réglage clair/sombre du système.
@@ -5656,7 +5681,8 @@ n'est donc plus rendu : les thèmes restent tous dans la section Apparence.
 Tablette et desktop le gardent. Test : `Preferences.header.test.tsx`.
 
 
-Panneau à navigation verticale : **Général** (langue, lecture, raccourcis),
+Panneau à navigation verticale : **Général** (langue, lecture, raccourcis,
+compte : mot de passe et liaison SSO),
 **Apparence** (thème, couleurs, tailles, identité), **Mise en page** (icônes
 d'action de la ligne d'article), **Étiquettes**, **Flux** (gestion des
 serveurs FreshRSS et jeton maître de chacun), **Hors-ligne**, **IA**
@@ -5737,7 +5763,8 @@ pour les administrateurs.
 
 ## Administration
 
-Gestion des comptes (création, édition, rôle, mot de passe, suppression), mode
+Gestion des comptes (création, édition, rôle, mot de passe, suppression ;
+comptes liés au SSO marqués « Local + SSO », déliables par 🔗), mode
 d'authentification, configuration OIDC, URL break-glass, ouverture des
 inscriptions, animation de connexion.
 
@@ -6316,7 +6343,8 @@ divergentes).
   remonter les en-têtes au bloc `server` ne suffirait pas, un bloc qui déclare
   un `add_header` n'hérite plus d'aucun. Garder les deux listes en phase.
 - **Taille des corps** : `client_max_body_size 5m`, aligné sur `express.json`
-  et `express.raw`. Le défaut nginx (1 Mo) rendait le conteneur plus strict que
+  et `express.raw` — sauf `/api/(admin|setup)/restore(/preview)` : 64m (voir
+  « Sauvegarde et restauration »). Le défaut nginx (1 Mo) rendait le conteneur plus strict que
   le backend qu'il sert. Vérifié par le job `docker` de `ci.yml`, qui exige
   qu'un corps de 2 Mo atteigne Express. **Aucun corps compressé n'est lu**
   (1.8.0, `inflate: false` sur `express.json` et `express.raw`) : un
@@ -6573,9 +6601,11 @@ et le jetable de l'IA, `ai_usage` (compteur du jour) et `ai_cache`.
     fichier → aperçu → remplacement), **partagé** entre les deux points d'accès
     ci-dessous ; `src/components/Preferences/admin/BackupBlock.tsx` héberge le
     bloc dans Administration ; `src/lib/backupErrors.ts` traduit le `code`
-    renvoyé par le serveur en clé i18n (`backup.errNotBackup`,
+    renvoyé par le serveur en clé i18n (dont `backup.errNotBackup`,
     `backup.errVersion`, `backup.errPassphrase`, `backup.errSchema`,
-    `backup.errTooMany`, `backup.errGeneric`)
+    `backup.errTooMany`, `backup.errNoAdmin`, `backup.errTooLarge`,
+    `backup.errBodyRefused`, `backup.errBusy`, `backup.errConfigured`,
+    `backup.errGeneric`)
   - Traductions : famille `backup`
 - **Spec** : `docs/superpowers/specs/2026-08-26-backup-restore-design.md`
 - **Chiffrement** : `scrypt` puis AES-256-GCM (`node:crypto`, aucune dépendance
@@ -6775,7 +6805,7 @@ n'existe pas.
 ## Internationalisation
 
 **10 locales** : `fr` (repli), `en`, `de`, `es`, `it`, `nl`, `pl`, `pt`, `uk`,
-`zh`. 929 clés (en français, 2026-10-29). i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
+`zh`. i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
 `pl` et `uk`.
 
 **La page d'erreur de l'application est traduite** (`src/components/ErrorBoundary.tsx`,
@@ -6813,7 +6843,7 @@ qu'un terme n'est pas déjà pris avant de le réutiliser.
 - **Règle** : toute chaîne visible va dans **les dix** fichiers. Vérifier la
   parité avec la commande du `CLAUDE.md` avant de livrer.
 - **`zh` n'a que `other` en CLDR**, mais `i18nCoverage.test.ts` exige la paire
-  `_one`/`_other` pour toute locale hors `pl`/`uk` : les vingt et un `_one` chinois
+  `_one`/`_other` pour toute locale hors `pl`/`uk` : tous les `_one` chinois
   sont du poids mort **assumé**, pas un oubli à corriger.
 - **`<html lang>` suit la langue** : posé par `src/i18n.ts` à l'initialisation
   puis à chaque `languageChanged`. `index.html` fige `lang="fr"` — fichier

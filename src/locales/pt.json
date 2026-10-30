@@ -449,6 +449,7 @@
       "testOk": "O token funciona.",
       "testFail": "O token foi recusado.",
       "testRateLimited": "Demasiados pedidos neste momento: não foi possível testar o token. Tente novamente dentro de um minuto.",
+      "testInconclusive": "O teste não foi concluído: não foi possível verificar o token. Tente novamente.",
       "save": "Guardar"
     },
     "sections": {
@@ -601,6 +602,7 @@
   "admin": {
     "users": "Utilizadores",
     "admin": "Admin",
+    "role": "Função",
     "user": "Utilizador",
     "active": "Ativo",
     "inactive": "Inativo",
@@ -742,6 +744,7 @@
     "failed": "A atualização falhou",
     "incomplete": "Atualização incompleta",
     "enable": "Ativar a atualização dos feeds",
+    "hintDismiss": "Não voltar a sugerir",
     "continuing": "O FreshRSS não respondeu a tempo: a atualização pode continuar do lado dele",
     "inProgressWithNew_one": "A atualizar os feeds… {{count}} novo artigo",
     "inProgressWithNew_other": "A atualizar os feeds… {{count}} novos artigos",

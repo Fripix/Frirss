@@ -87,7 +87,7 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
       // `alert` : ce message REMPLACE le formulaire, une région de statut
       // montée à l'avance n'a pas sa place ; né avec son texte, un `status`
       // n'était souvent pas annoncé. Un résultat ponctuel et important.
-      <p className="text-xs" role="alert" style={{ color: 'var(--accent)' }}>
+      <p className="text-xs success-note" role="alert">
         {t('backup.restored')}
       </p>
     );
@@ -198,7 +198,7 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
             background: 'var(--panel-header-bg)',
           }}
         >
-          <p className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>{t('backup.previewTitle')}</p>
+          <p className="text-xs font-semibold success-note">{t('backup.previewTitle')}</p>
           <dl className="text-[11px] space-y-1" style={{ color: 'var(--list-summary)' }}>
             <div><dt className="inline">{t('app.labelColon', { label: t('backup.createdAt') })} </dt><dd className="inline">{summary.createdAt ?? '—'}</dd></div>
             <div><dt className="inline">{t('app.labelColon', { label: t('backup.producedBy') })} </dt><dd className="inline">{summary.appVersion ?? '—'}</dd></div>

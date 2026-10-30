@@ -429,7 +429,7 @@ export default function AdminProviders({ active }: { active: boolean }) {
               <button type="button" onClick={() => { editSeq.current++; dropModels(); setEditing(null); }} className={`${quietBtn} min-h-[32px] hover-tint`} style={{ color: 'var(--list-title)' }}>{t('ai.admin.close')}</button>
               {/* Région montée en permanence, vide au repos : née avec son
                   texte, elle n'était souvent pas annoncée (liveRegions.test). */}
-              <span role="status" className={saved ? 'text-xs' : 'sr-only'} style={{ color: 'var(--accent)' }}>{saved ? t('ai.admin.saved') : ''}</span>
+              <span role="status" className={saved ? 'text-xs success-note' : 'sr-only'}>{saved ? t('ai.admin.saved') : ''}</span>
             </div>
           </div>
         ) : (
@@ -543,7 +543,7 @@ function ProviderRow({ provider: p, first, isDefault, test: res, menuOpen, touch
           {p.hasAdminKey && (
             <span className="flex-shrink-0 whitespace-nowrap">
               <span aria-hidden="true">· </span>
-              <span style={{ color: 'var(--accent)' }}>{t('ai.admin.keySet')}</span>
+              <span className="success-note">{t('ai.admin.keySet')}</span>
             </span>
           )}
         </div>

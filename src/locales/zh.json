@@ -449,6 +449,7 @@
       "testOk": "令牌可用。",
       "testFail": "令牌被拒绝。",
       "testRateLimited": "当前请求过多：无法测试该令牌。请一分钟后重试。",
+      "testInconclusive": "测试未完成：无法验证该令牌。请重试。",
       "save": "保存"
     },
     "sections": {
@@ -601,6 +602,7 @@
   "admin": {
     "users": "用户",
     "admin": "管理员",
+    "role": "角色",
     "user": "用户",
     "active": "启用",
     "inactive": "停用",
@@ -745,6 +747,7 @@
     "failed": "刷新失败",
     "incomplete": "刷新未完成",
     "enable": "启用订阅源刷新",
+    "hintDismiss": "不再提示",
     "continuing": "FreshRSS 未及时响应：刷新可能仍在其一侧继续",
     "inProgressWithNew_one": "正在刷新订阅源… {{count}} 篇新文章",
     "inProgressWithNew_other": "正在刷新订阅源… {{count}} 篇新文章",

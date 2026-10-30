@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import RefreshBanner from './RefreshBanner';
 import { useFeedStore } from '../stores/feedStore';
+import { useUiStore } from '../stores/uiStore';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
@@ -31,4 +32,29 @@ describe('bandeau de relève — une icône par état', () => {
       expect(container.querySelector('.refresh-banner__icon')?.getAttribute('data-icon')).toBe(icon);
     });
   }
+});
+
+/*
+ * L'invitation « Activer la relève des flux » partait au bout de 5 s, même
+ * sous le focus clavier, qui retombait sur <body>. Et la croix, annoncée
+ * « Fermer », oubliait en fait l'invitation pour toujours.
+ */
+describe('bandeau de relève — invitation au clavier', () => {
+  it('attend tant que le focus est dedans, et dit ce que fait la croix', () => {
+    vi.useFakeTimers();
+    try {
+      useUiStore.setState({ refreshHintDismissed: false } as never);
+      useFeedStore.setState({ refreshResult: null, refreshPhase: 'idle', hasRefreshToken: false } as never);
+      const c = render(<RefreshBanner />);
+      act(() => { useFeedStore.setState({ refreshResult: { totalNew: 0 }, refreshPhase: 'done' } as never); });
+      const enable = c.getByRole('button', { name: 'refresh.enable' });
+      act(() => { enable.focus(); });
+      act(() => { vi.advanceTimersByTime(20_000); });
+      expect(useFeedStore.getState().refreshResult).not.toBeNull();
+      expect(c.getByRole('button', { name: 'refresh.hintDismiss' })).toBeTruthy();
+      act(() => { enable.blur(); });
+      act(() => { vi.advanceTimersByTime(20_000); });
+      expect(useFeedStore.getState().refreshResult).toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
 });

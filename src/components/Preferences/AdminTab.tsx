@@ -569,6 +569,7 @@ export default function AdminTab({ active = true }: { active?: boolean }) {
           </div>
           <div className="flex items-center gap-2">
             <select
+              aria-label={t('admin.role')}
               value={newUser.role}
               onChange={(e) => setNewUser((u) => ({ ...u, role: e.target.value }))}
               className="px-2 py-1.5 text-sm rounded-md"

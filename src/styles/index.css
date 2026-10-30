@@ -956,16 +956,22 @@ html {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  border-radius: 999px;
+  /* Passe à la ligne et se borne à l'écran : en `nowrap`, la phrase du 504
+     mesurait jusqu'à 800 px et sortait des deux côtés à 320 px. */
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  border-radius: 22px;
   font-size: 14px;
   font-weight: 700;
+  line-height: 1.3;
   letter-spacing: 0.01em;
   background: linear-gradient(135deg, var(--accent, #4cd4a1) 0%, var(--accent-dark, #38b888) 100%);
-  color: #fff;
+  /* L'encre calculée pour l'accent : du blanc en dur y faisait 1,9:1. */
+  color: var(--on-accent, #1c1c1a);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32),
               0 0 0 4px color-mix(in srgb, var(--accent, #4cd4a1) 22%, transparent);
   pointer-events: none;
-  white-space: nowrap;
   animation: refresh-banner-in 0.42s cubic-bezier(0.18, 1.25, 0.4, 1),
              refresh-banner-out 0.45s ease 4.55s forwards;
 }
@@ -986,8 +992,9 @@ html {
    the action link is the one part that has to stay clickable. */
 .refresh-banner__action {
   pointer-events: auto;
+  flex-shrink: 0;
   margin-left: 8px;
-  color: #fff;
+  color: var(--on-accent, #1c1c1a);
   text-decoration: underline;
   text-underline-offset: 2px;
   font-size: 0.85em;
@@ -995,6 +1002,25 @@ html {
   background: none;
   border: 0;
   cursor: pointer;
+}
+/* Messages de réussite et textes d'information « en accent » : l'accent pur
+   sur un panneau clair faisait 1,8:1 (#4cd4a1 sur #fafafa). Mêlé au texte du
+   thème, il reste reconnaissable et passe 4,5:1 partout (successNoteContrast). */
+.success-note {
+  color: color-mix(in srgb, var(--accent) 45%, var(--list-title));
+}
+/* La croix : une cible au doigt, pas un caractère de 7 px. */
+.refresh-banner__dismiss {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  margin-left: 2px;
+  font-size: 1.1em;
+  text-decoration: none;
+}
+/* Tenu sous le focus : l'effacement prévu par l'animation n'a pas lieu. */
+.refresh-banner--held {
+  animation: refresh-banner-in 0.42s cubic-bezier(0.18, 1.25, 0.4, 1);
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 /* one-shot ring that flares out from the banner on entrance to catch the eye */

@@ -449,6 +449,7 @@
       "testOk": "The token works.",
       "testFail": "The token was rejected.",
       "testRateLimited": "Too many requests right now: the token could not be tested. Try again in a minute.",
+      "testInconclusive": "The test did not complete: the token could not be checked. Try again.",
       "save": "Save"
     },
     "sections": {
@@ -601,6 +602,7 @@
   "admin": {
     "users": "Users",
     "admin": "Admin",
+    "role": "Role",
     "user": "User",
     "active": "Active",
     "inactive": "Inactive",
@@ -745,6 +747,7 @@
     "failed": "The refresh failed",
     "incomplete": "Refresh unfinished",
     "enable": "Enable feed refreshing",
+    "hintDismiss": "Don’t suggest again",
     "continuing": "FreshRSS didn’t answer in time: the refresh may still be running on its side",
     "inProgressWithNew_one": "Refreshing feeds… {{count}} new article",
     "inProgressWithNew_other": "Refreshing feeds… {{count}} new articles",

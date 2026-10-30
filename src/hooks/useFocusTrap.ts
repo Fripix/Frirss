@@ -53,7 +53,9 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
       // sous <body>, hors d'elle : il garde son propre clavier. Pas une liste
       // qui fait partie de la boîte (celle de la palette).
       if (!inside && current?.closest('[role="menu"], [role="listbox"]')) return;
-      if (!inside) {
+      // Dehors, ou sur le conteneur lui-même (les Préférences et l'aide s'y
+      // posent à l'ouverture) : Maj+Tab depuis lui sortait de la boîte.
+      if (!inside || current === root) {
         e.preventDefault();
         (e.shiftKey ? last : first).focus();
       } else if (e.shiftKey && current === first) {

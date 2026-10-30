@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore } from '../stores/feedStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -34,11 +34,15 @@ export default function RefreshBanner() {
   // Offered once: no token, nothing in flight, and not already waved away.
   const showHint = !hasRefreshToken && !running && !refreshHintDismissed;
 
+  // Tenu tant que le focus est dans ses boutons : au clavier, l'invitation
+  // partait au bout de 5 s sous le focus, qui retombait sur <body>.
+  const [focused, setFocused] = useState(false);
+
   useEffect(() => {
-    if (!refreshResult || running) return;   // don't dismiss a refresh in progress
+    if (!refreshResult || running || focused) return;   // don't dismiss a refresh in progress
     const id = setTimeout(clearRefreshResult, SHOW_MS);
     return () => clearTimeout(id);
-  }, [refreshResult, running, clearRefreshResult]);
+  }, [refreshResult, running, focused, clearRefreshResult]);
 
   const hasNew = (refreshResult?.totalNew ?? 0) > 0;
   const count = t('refresh.newArticles', { count: refreshResult?.totalNew ?? 0 });
@@ -68,7 +72,11 @@ export default function RefreshBanner() {
   return (
     <>
       {region}
-      <div className={`refresh-banner${running ? ' refresh-banner--running' : ''}`}>
+      <div
+        className={`refresh-banner${running ? ' refresh-banner--running' : ''}${focused ? ' refresh-banner--held' : ''}`}
+        onFocus={() => setFocused(true)}
+        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false); }}
+      >
         <svg
           className={`refresh-banner__icon${running ? ' refresh-banner__icon--spin' : ''}`}
           data-icon={icon}
@@ -92,11 +100,14 @@ export default function RefreshBanner() {
             >
               {t('refresh.enable')}
             </button>
+            {/* Elle n'efface pas le bandeau : elle oublie l'invitation pour
+                toujours. « Fermer » le cachait. */}
             <button
               type="button"
-              className="refresh-banner__action"
-              aria-label={t('app.close')}
-              onClick={dismissRefreshHint}
+              className="refresh-banner__action refresh-banner__dismiss"
+              aria-label={t('refresh.hintDismiss')}
+              title={t('refresh.hintDismiss')}
+              onClick={() => { setFocused(false); dismissRefreshHint(); }}
             >
               ×
             </button>

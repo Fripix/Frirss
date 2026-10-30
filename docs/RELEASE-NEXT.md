@@ -23,7 +23,8 @@ la release publiée.
   vérifie les nouveaux identifiants avant qu'ils soient enregistrés. Il
   fallait jusqu'ici supprimer le serveur puis le rajouter, et les actions
   faites hors ligne en attente pour lui ne repartaient plus ; elles repartent
-  désormais dès l'enregistrement.
+  désormais dès l'enregistrement si c'est le serveur actif, sinon dès qu'on
+  bascule dessus.
 - **Grille : la taille des cartes et le format de leur image se règlent**
   (issue #26). Préférences › Apparence › Tailles, section « Grille » : un
   curseur « Largeur des cartes » (160 à 480 px, au pixel, 240 par défaut), un
@@ -42,7 +43,7 @@ la release publiée.
   actuel est dit sans déconnecter ; les gestionnaires de mots de passe savent
   à quel compte rattacher le nouveau. La route existait sans écran et sans
   limite : elle est désormais limitée à 10 échecs par quart d'heure, compte
-  par compte (voir Sécurité).
+  par compte.
 
 ## Sécurité
 
@@ -66,7 +67,8 @@ la release publiée.
   deux jetons, que FriRSS
   envoyait ensuite au nouvel hôte : une session FriRSS suffisait à les faire
   sortir. Il faut désormais fournir un nouveau jeton, et le jeton maître est
-  oublié. L'interface n'utilisait pas ce chemin.
+  oublié. Changer l'adresse ou le compte d'un serveur ne se fait pas depuis
+  l'interface.
 - **Derrière un reverse proxy, la limite de connexion vise enfin chaque
   client.** Toutes les requêtes semblaient venir du proxy : dix mauvais mots de
   passe envoyés par un inconnu bloquaient la connexion de tous les
@@ -117,10 +119,11 @@ la release publiée.
 - **La limite de tentatives de connexion ne se contourne plus en IPv6** : les
   adresses d'un même bloc /56 partagent leur compteur (connexion, inscription,
   sauvegardes).
-- **Cache des lectures (`REDIS_URL`) : une réponse démesurée ne remplit plus
-  la mémoire.** Une lecture mise en cache s'arrête à 32 Mo, et seule une
-  adresse dont le chemin est celui de l'API de FreshRSS est traitée comme
-  telle (une URL quelconque qui le portait dans sa requête l'était aussi).
+- **Cache des lectures (`REDIS_URL`) : ne garde plus que les lectures des
+  serveurs FreshRSS du compte, bornées.** N'importe quelle adresse dont le
+  chemin ressemblait à l'API de FreshRSS y était écrite, jusqu'à 32 Mo par
+  adresse, et une réponse démesurée remplissait la mémoire : un compte
+  pouvait remplir le Redis, partagé avec le reste de l'hôte.
 - **L'extraction d'un article a une échéance totale** : 45 s pour les
   en-têtes, redirections comprises. Six redirections lentes la tenaient près
   de quatre minutes.
@@ -138,19 +141,15 @@ la release publiée.
 - **Le serveur refuse les corps de requête compressés.** Avant toute
   authentification, une trentaine d'octets en brotli devenaient 5 Mo à lire
   et à analyser ; aucun client de FriRSS n'en envoie.
-- **Le cache des lectures (`REDIS_URL`) ne garde plus que celles des serveurs
-  FreshRSS du compte.** N'importe quelle adresse dont le chemin ressemblait à
-  l'API de FreshRSS y était écrite, jusqu'à 32 Mo par adresse : un compte
-  pouvait remplir le Redis, partagé avec le reste de l'hôte.
 - **La synchronisation en arrière-plan (`CACHE_SYNC_INTERVAL`) ne se bloque
   plus** sur un serveur qui ne termine jamais sa réponse (elle s'arrêtait
   pour tous les comptes jusqu'au redémarrage), et ne lit plus une réponse
   sans fin.
 - **Serveurs FreshRSS : nom, identifiant et jetons ont une taille maximale**,
   50 serveurs au plus par compte, et la relève compte dans la limite de
-  requêtes par minute. Quand cette limite est atteinte (une préparation hors
-  ligne peut l'atteindre), « Tester » le dit au lieu d'annoncer le jeton
-  refusé.
+  requêtes par minute. « Tester » n'annonce plus le jeton refusé que si
+  FreshRSS l'a refusé : limite de requêtes atteinte, test sans réponse ou
+  enregistrement raté se disent comme tels.
 - **Avec `PROXY_REWRITES`, la relève ne se rabat plus sur l'adresse publique**
   quand l'adresse interne est injoignable : son URL porte le jeton maître, qui
   aurait fini dans le journal du reverse proxy public.
@@ -492,12 +491,8 @@ la release publiée.
   sans en connaître la taille : 6 000 pouvaient représenter plus de 40 Go
   comptés. Les articles lus récemment restent illustrés hors ligne ; pour les
   plus anciens, c'est la préparation qui garde les images.
-- **Hors ligne : une préparation ne retire plus d'images à tort.** Un flux
-  dont la liste n'a pas pu être lue (FreshRSS en panne, limite de requêtes)
-  voyait ses images préparées retirées en fin de préparation — toutes, si
-  FreshRSS était injoignable. Une image dont l'adresse contient un accent,
-  une espace ou des majuscules était retirée à chaque fois. Et une erreur
-  imprévue ne laisse plus « Préparer » en cours jusqu'au rechargement.
+- **Hors ligne : une erreur imprévue ne laisse plus « Préparer » en cours**
+  jusqu'au rechargement.
 - **Hors ligne : un article qui est une vidéo ne fait plus planter la
   préparation.** Quand l'adresse d'un article menait à une vidéo, le serveur
   refusait bien de l'extraire, mais le navigateur réessayait seul et
@@ -575,7 +570,8 @@ la release publiée.
   message qui le dit. Quand un proxy inverse placé devant FriRSS refuse
   l'envoi (1 Mo par défaut avec nginx), le message le dit aussi, au lieu de
   conseiller d'alléger la sauvegarde. L'aperçu d'une sauvegarde sans
-  administrateur actif la refuse déjà.
+  administrateur actif la refuse déjà. Une seule restauration est lue à la
+  fois : une seconde, lancée en même temps, reçoit un message qui le dit.
 - **Téléphone : un balayage interrompu par le système ne déclenche plus rien
   à la tape suivante.** Quand iOS reprenait le contact (appel, centre de
   notifications), la ligne, le tiroir ou l'article restaient décalés, et la
@@ -592,14 +588,18 @@ la release publiée.
   plusieurs messages « Enregistré » sont annoncés de façon fiable. La touche
   Tab ne sort plus des Préférences, de la palette, de l'aide, des feuilles et
   des boîtes de confirmation vers la page restée derrière.
-- **Les titres affichent « & » et « / » normalement.** FreshRSS les
-  remplaçait par des caractères pleine chasse (« Tom ＆ Jerry »,
-  « r／selfhosted »), qui se voyaient, partaient tels quels dans un titre
+- **Les titres affichent « & », « < » et « > » normalement, et les noms de
+  flux aussi « / ».** FreshRSS les remplaçait par des caractères pleine
+  chasse (« Tom ＆ Jerry », « r／selfhosted »), qui se voyaient, partaient tels quels dans un titre
   copié ou partagé, et échappaient à la recherche. Un article sans titre
   affiche « Sans titre » dans la langue de l'interface, et non plus en
   français pour tous.
+- **Bandeau de relève lisible sur téléphone.** Il passe à la ligne au lieu de
+  sortir des deux côtés de l'écran, se lit sur sa couleur, attend tant qu'on
+  vise ses boutons, et sa croix dit qu'elle ne proposera plus la relève.
 - **Petites finitions.** Les pastilles du choix de couleur d'une étiquette
-  sont plus grandes au doigt. Le libellé révélé par le balayage d'un article est
+  sont plus grandes au doigt. Les messages de réussite (« Enregistré »…) sont
+  lisibles sur les thèmes clairs. Le libellé révélé par le balayage d'un article est
   plus lisible sur sa couleur ; l'infobulle d'« Original » donne la touche
   réellement choisie ; l'aperçu du balayage et le bandeau de relève parlent la
   langue de l'interface ; le menu « Gérer » des serveurs ne déborde plus de
@@ -750,5 +750,6 @@ la release publiée.
   accessibilité, titre devenu lien (le clic molette n'ouvre plus la source au
   premier plan), nouvelles garanties de sécurité ; libellés alignés sur
   l'interface (*Summarize with…*, *Source text*, *View at startup*, Tags). Et
-  une nuance : les jetons FreshRSS transitent une fois par le navigateur, à
-  l'ajout d'un serveur — le README disait « jamais ».
+  une nuance : les jetons FreshRSS transitent par le navigateur à l'ajout
+  d'un serveur et à chaque changement de son mot de passe API — le README
+  disait « jamais ».

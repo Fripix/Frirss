@@ -501,6 +501,7 @@ function LabelRow({
           <input
             autoFocus
             type="text"
+            aria-label={t('preferences.labels.rename')}
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             className="flex-1 text-xs px-2 py-1 rounded border outline-none"
@@ -553,6 +554,7 @@ function LabelRow({
         <span className="text-xs" style={{ color: 'var(--list-summary)' }}>{t('preferences.labels.moveTo')}</span>
         <select
           autoFocus
+          aria-label={t('preferences.labels.moveTo')}
           className="flex-1 text-xs px-2 py-1 rounded border outline-none"
           style={{
             borderColor: 'var(--accent)',

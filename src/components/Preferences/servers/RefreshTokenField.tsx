@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { updateServer, startActualize, getActualizeStatus } from '../../../api/backend';
 import { useFeedStore } from '../../../stores/feedStore';
 
-type TestState = 'idle' | 'testing' | 'ok' | 'fail' | 'limited';
+type TestState = 'idle' | 'testing' | 'ok' | 'fail' | 'limited' | 'inconclusive' | 'saveFailed';
 
 interface RefreshTokenFieldProps {
   serverId: number;
@@ -48,9 +48,9 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
       onSaved();
     } catch {
       // Save a échoué : laisser le jeton tapé en place pour que le bouton ne
-      // mente pas sur ce qui a été enregistré, et réutiliser la formulation
-      // d'échec du test plutôt que d'ajouter une clé.
-      setTest('fail');
+      // mente pas sur ce qui a été enregistré. Pas « Le jeton a été refusé » :
+      // FreshRSS n'a rien vu, c'est l'enregistrement qui a échoué.
+      setTest('saveFailed');
     } finally {
       setSaving(false);
     }
@@ -69,8 +69,11 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
       // complète. kind 'test' : son propre créneau, pour qu'une passe déjà en
       // vol ne soit pas rendue ici et n'expire pas en « jeton refusé ».
       const job = await startActualize(serverId, 'test', 1, testToken);
+      // Un seul cas dit « refusé » : FreshRSS a répondu 401 ou 403. Sans tâche,
+      // sans réponse, ou sur une autre erreur, le jeton n'a pas été éprouvé —
+      // le dire refusé faisait régénérer un jeton qui était bon.
       if (!job) {
-        setTest('fail');
+        setTest('inconclusive');
         return;
       }
       // Le POST confirme seulement qu'un jeton est stocké ; l'appel réel à
@@ -86,18 +89,18 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
           return;
         }
         if (status?.status === 'failed') {
-          setTest('fail');
+          setTest(/answered 40[13]\b/.test(status.error ?? '') ? 'fail' : 'inconclusive');
           return;
         }
       }
-      setTest('fail');
+      setTest('inconclusive');
     } catch (err) {
       if (unmounted.current) return;
       // Un 429 vient du seau de cadence partagé avec le proxy (une préparation
       // hors ligne peut le vider) : le jeton n'a pas été éprouvé, il n'est pas
       // « refusé ».
       const status = (err as { response?: { status?: number } })?.response?.status;
-      setTest(status === 429 ? 'limited' : 'fail');
+      setTest(status === 429 ? 'limited' : 'inconclusive');
     }
   }
 
@@ -176,13 +179,15 @@ export default function RefreshTokenField({ serverId, isActive, configured, onSa
         </button>
         {/* Une région montée en permanence, vide au repos (liveRegions.test). */}
         <span
-          className={test === 'ok' || test === 'fail' || test === 'limited' ? 'text-[11px]' : 'sr-only'}
+          className={test === 'idle' || test === 'testing' ? 'sr-only' : `text-[11px]${test === 'ok' ? ' success-note' : ''}`}
           role="status"
-          style={{ color: test === 'fail' ? 'var(--danger)' : test === 'limited' ? 'var(--list-summary)' : 'var(--accent)' }}
+          style={test === 'ok' ? undefined : { color: test === 'fail' || test === 'saveFailed' ? 'var(--danger)' : 'var(--list-summary)' }}
         >
           {test === 'ok' ? t('preferences.refresh.testOk')
             : test === 'fail' ? t('preferences.refresh.testFail')
-            : test === 'limited' ? t('preferences.refresh.testRateLimited') : ''}
+            : test === 'limited' ? t('preferences.refresh.testRateLimited')
+            : test === 'inconclusive' ? t('preferences.refresh.testInconclusive')
+            : test === 'saveFailed' ? t('servers.errorGeneric') : ''}
         </span>
       </div>
     </div>

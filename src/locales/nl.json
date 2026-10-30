@@ -449,6 +449,7 @@
       "testOk": "Het token werkt.",
       "testFail": "Het token is geweigerd.",
       "testRateLimited": "Op dit moment te veel verzoeken: het token kon niet worden getest. Probeer het over een minuut opnieuw.",
+      "testInconclusive": "De test is niet voltooid: het token kon niet worden gecontroleerd. Probeer het opnieuw.",
       "save": "Opslaan"
     },
     "sections": {
@@ -601,6 +602,7 @@
   "admin": {
     "users": "Gebruikers",
     "admin": "Admin",
+    "role": "Rol",
     "user": "Gebruiker",
     "active": "Actief",
     "inactive": "Inactief",
@@ -742,6 +744,7 @@
     "failed": "Het ophalen is mislukt",
     "incomplete": "Ophalen onvoltooid",
     "enable": "Feeds ophalen inschakelen",
+    "hintDismiss": "Niet meer voorstellen",
     "continuing": "FreshRSS antwoordde niet op tijd: het ophalen loopt daar mogelijk nog door",
     "inProgressWithNew_one": "Feeds worden opgehaald… {{count}} nieuw artikel",
     "inProgressWithNew_other": "Feeds worden opgehaald… {{count}} nieuwe artikelen",

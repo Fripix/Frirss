@@ -185,3 +185,12 @@ describe('ServerRow — identifiants FreshRSS', () => {
     await waitFor(() => expect(document.activeElement).toBe(getByRole('button', { name: 'servers.changeCredentials' })));
   });
 });
+
+// Un lecteur d'écran annonçait « champ de saisie » sans dire lequel.
+describe('ServerRow — champ de renommage nommé', () => {
+  it('le champ porte un nom', () => {
+    const { getByRole } = render(<ServerRow {...baseProps()} onRename={vi.fn()} />);
+    fireEvent.click(getByRole('button', { name: 'servers.rename' }));
+    expect(getByRole('textbox', { name: 'servers.rename' })).toBeTruthy();
+  });
+});
