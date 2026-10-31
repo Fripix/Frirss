@@ -1947,7 +1947,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   syncRandomView: (before) => {
     const { selectedFeed, subscriptions, searchQuery } = get();
-    // Avant les abonnements ou sans session, l'ouverture de la vue lira le réglage.
+    // Sans abonnements, la vue n'est peut-être pas encore restaurée : pas de tirage pour
+    // rien, le choix s'applique à sa prochaine ouverture.
     if (!useAuthStore.getState().isAuthenticated || !subscriptions.length || searchQuery) return;
     const key = randomViewKey(useAuthStore.getState().activeServerId, selectedFeed?.id ?? '');
     // Seul un choix changé compte : le repli d'un serveur muet ne se rejoue pas ici.

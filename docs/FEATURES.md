@@ -767,7 +767,8 @@ trouvait pas.
   de serveur applique aussitôt le choix de l'accueil du nouveau serveur. Un tirage de
   l'accueil sans abonnements les lit lui-même : ils désignent le flux, et sans eux le
   tirage lirait les flux masqués (`drawRandomList`). `syncRandomView` le recale au
-  démarrage si les préférences changent le choix de la vue déjà ouverte. Un réglage reçu d'un autre appareil en cours
+  démarrage si les préférences changent le choix de la vue déjà ouverte, abonnements
+  chargés ; sinon le choix s'applique à sa prochaine ouverture. Un réglage reçu d'un autre appareil en cours
   de session attend la prochaine visite : la liste ne change pas sans geste. Absent
   sous Favoris et À lire plus tard : les favoris d'un flux sont filtrés côté client.
   Hors ligne, le bouton ne s'active pas, mais reste cliquable pour en sortir.

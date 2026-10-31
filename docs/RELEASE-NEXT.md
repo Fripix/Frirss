@@ -668,8 +668,8 @@ la release publiée.
   français pour tous.
 - **L'ordre et la disposition d'un flux restent sur leur serveur.** FreshRSS numérote
   les flux par serveur : régler un flux sur l'un changeait celui qui portait le même
-  numéro sur l'autre. Les réglages existants sont conservés, et rattachés au serveur
-  actif.
+  numéro sur l'autre. Les réglages existants restent en place : ils passent sur le
+  serveur où on les modifie, flux par flux.
 - **« Tout lu » reste accessible en 3 colonnes.** À la largeur par défaut de la
   colonne, le bouton sortait de la barre en allemand, espagnol, néerlandais,
   polonais, portugais et ukrainien. La barre passe à la ligne quand la place
