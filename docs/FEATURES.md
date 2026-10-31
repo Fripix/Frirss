@@ -716,9 +716,11 @@ trouvait pas.
   ou l'accueil. La vue se rouvre en tirage à chaque visite et après un rechargement ;
   l'éteindre retire le réglage. « Ordre de ce flux », dans le menu du flux (clic
   droit), propose aussi Aléatoire. Une vue est en tirage si son réglage le dit, si le
-  filtre le permet et s'il y a du réseau (`opensRandom`), par quelque chemin qu'on y
-  arrive : hors ligne ou serveur muet, elle s'ouvre normalement avec sa liste gardée,
-  et le réglage attend. **Le choix suit** une étiquette ou une catégorie renommée
+  filtre le permet et s'il y a du réseau (`opensRandom`), à chaque ouverture : hors
+  ligne ou serveur muet (pas de réponse, 502, 503, 504), elle s'ouvre normalement avec
+  sa liste gardée, et le réglage attend. Une autre réponse (500, refus) se dit, avec
+  « Réessayer ». ⚠️ Un réglage allumé ne suffit pas à déclarer un tirage : la liste
+  affichée peut être normale, et seul un tirage réel pose `randomView`. **Le choix suit** une étiquette ou une catégorie renommée
   (`moveFeedRandom`). **Limite assumée** : `feedSettings` n'est pas rangé par serveur,
   comme `order` et `layout` : à plusieurs serveurs, le choix vaut pour le même numéro
   de flux et pour l'accueil de chacun. ⚠️ Un bouton valable pour la seule visite ne répondait pas à la
@@ -745,8 +747,8 @@ trouvait pas.
 - **L'état affiché** (`randomView`) suit la vue et son réglage : il survit à Tous ↔
   Non lus, où il refait un tirage, s'interrompt à Favoris, À lire plus tard et le
   temps d'une recherche, et revient ensuite. Le changement de compte ou de serveur
-  l'éteint jusqu'à la prochaine ouverture de vue, et `syncRandomView` le recale quand
-  les préférences arrivent après la vue. Un réglage reçu d'un autre appareil en cours
+  l'éteint jusqu'à la prochaine ouverture de vue, et `syncRandomView` le recale au
+  démarrage si les préférences changent le choix de la vue déjà ouverte. Un réglage reçu d'un autre appareil en cours
   de session attend la prochaine visite : la liste ne change pas sans geste. Absent
   sous Favoris et À lire plus tard : les favoris d'un flux sont filtrés côté client.
   Hors ligne, le bouton ne s'active pas, mais reste cliquable pour en sortir.

@@ -34,6 +34,7 @@ import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
 import { jwtUserId } from '../lib/jwtUserId';
 import { isBackendAuthFailure } from '../lib/loginErrors';
+import type { FeedSetting } from './uiStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
 import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
@@ -512,6 +513,9 @@ function persistCurrentView(get: () => FeedState): void {
   if (s.searchQuery) return;
   // Pareil pour un tirage : mélangé, il fausserait la lecture normale de la vue.
   if (s.randomView) return;
+  // Une liste pas encore chargée n'est pas une liste vide : un geste sur l'article
+  // ouvert, en sortant d'un tirage, écrasait la copie gardée par un `[]`.
+  if (s.loading && !s.articles.length) return;
   const key = viewKey(s.selectedFeed, s.filter);
   // La mémoire aussi : elle passe avant le disque hors ligne (`offlineList`), et
   // seul l'état `read` la suivait. Un favori posé y était perdu.
@@ -899,7 +903,7 @@ export interface FeedState {
   randomDraw: number;
   setRandomView: (on: boolean) => void;
   /** Recale la vue sur son réglage quand les préférences arrivent après elle. */
-  syncRandomView: () => void;
+  syncRandomView: (before: Record<string, FeedSetting>) => void;
   toggleRead: (article: Article, opts?: { implicit?: boolean }) => Promise<void>;
   toggleStar: (article: Article) => Promise<void>;
   search: (query: string) => Promise<void>;
@@ -1244,7 +1248,11 @@ const IDLE_SCAN: SearchScan = { running: false, scanned: 0, done: false, stopped
  */
 function closeSearch(set: (partial: Partial<FeedState>) => void): void {
   scanToken++;
-  set({ randomView: viewOpensRandom(useFeedStore.getState()), searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
+  // Seulement si une recherche l'avait interrompu : ce chemin sert aussi hors
+  // recherche, sur une liste normale que rien ne doit déclarer tirage.
+  const state = useFeedStore.getState();
+  if (state.searchQuery) set({ randomView: viewOpensRandom(state) });
+  set({ searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
 }
 
 /**
@@ -1938,8 +1946,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     showRandomView(on);
   },
 
-  syncRandomView: () => {
-    if (get().searchQuery) return;
+  syncRandomView: (before) => {
+    const { selectedFeed, subscriptions, searchQuery } = get();
+    // Avant les abonnements ou sans session, l'ouverture de la vue lira le réglage.
+    if (!useAuthStore.getState().isAuthenticated || !subscriptions.length || searchQuery) return;
+    const key = selectedFeed?.id ?? '';
+    const now = useUiStore.getState().feedSettings;
+    // Seul un choix changé compte : le repli d'un serveur muet ne se rejoue pas ici.
+    if (!before[key]?.random === !now[key]?.random) return;
     const want = viewOpensRandom(get());
     if (want !== get().randomView) showRandomView(want);
   },
@@ -2329,8 +2343,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // Referme la recherche comme le ferait une requête blanche : périme un
     // balayage en vol et vide les résultats, sinon une page qui arrive après
     // coup continuerait d'écrire dans `articles`.
-    // Un tirage ne se relit pas pour une boîte de recherche fermée sans avoir cherché.
-    if (get().randomView && !get().searchQuery) return;
+    // Fermer une boîte vide ne recharge ni un tirage, ni une liste normale dont le
+    // réglage est allumé : celle-ci deviendrait un tirage sans geste.
+    if (!get().searchQuery && (get().randomView || viewOpensRandom(get()))) return;
     scanToken++;
     set({ randomView: viewOpensRandom(get()), searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
     get().loadArticles();
@@ -3097,7 +3112,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return {
           subscriptions: state.subscriptions.filter((s) => s.id !== feedId),
           selectedFeed: wasOpen ? null : state.selectedFeed,
-          randomView: wasOpen ? canRandomView(state.filter) && opensRandom(null) : state.randomView,
+          randomView: wasOpen ? !state.searchQuery && canRandomView(state.filter) && opensRandom(null) : state.randomView,
           selectedArticle: state.selectedArticle?.sourceId === feedId ? null : state.selectedArticle,
           articles: state.articles.filter((a) => a.sourceId !== feedId),
           unreadCounts,
@@ -3875,14 +3890,15 @@ async function drawRandomList(): Promise<void> {
     }));
   } catch (err) {
     if (stale()) return;
+    console.error('[FriRSS] drawRandomList error:', err);
     // Sans réponse du serveur, `navigator.onLine` peut rester vrai (NAS arrêté, VPN
     // coupé) : la vue normale prend le relais, avec sa liste gardée. Le réglage reste.
-    if (isNetworkFailure(err)) {
-      useFeedStore.setState({ randomView: false });
-      await useFeedStore.getState().loadArticles();
+    // Un 500 ou un refus est une réponse : il se dit, avec « Réessayer ».
+    const status = (err as { response?: { status?: number } } | null)?.response?.status;
+    if (status === undefined || [502, 503, 504].includes(status)) {
+      showRandomView(false);
       return;
     }
-    console.error('[FriRSS] drawRandomList error:', err);
     useFeedStore.setState({ loading: false, revalidating: false, listFailed: true });
   }
 }
