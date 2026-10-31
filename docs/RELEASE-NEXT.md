@@ -758,6 +758,8 @@ la release publiée.
   accessibles du bouton de réinitialisation des raccourcis et de la
   capture d'une touche). Le lint signale désormais aussi les constantes en
   majuscules inutilisées.
+- **Dépendance : follow-redirects 1.16.2** (embarquée par axios) : la 1.16.1 pouvait
+  transmettre des identifiants personnalisés lors d'une redirection. `npm audit` à zéro.
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,
   donc présents dans l'image : avis DoS GHSA-27r3-jxmh-p828 et
   GHSA-6pq8-jhm2-2vcw), avec leurs dépendances content-type 2.1.0 et
