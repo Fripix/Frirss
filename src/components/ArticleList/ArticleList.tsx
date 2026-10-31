@@ -1010,7 +1010,11 @@ export default function ArticleList() {
               </div>
             </div>
 
-            <div className="px-2 py-1 flex items-center gap-0.5" style={{ borderTop: '1px solid var(--panel-border)' }}>
+            {/* À la ligne si la place manque : à 340 px, largeur par défaut de la
+                colonne, « Tout lu » sortait de la barre dans six langues, et rien
+                ne le remplace. La marge de droite réduite garde une seule ligne aux
+                langues qui tiennent, le français à quelques pixels près. */}
+            <div className="pl-2 pr-0.5 py-1 flex flex-wrap items-center gap-0.5" style={{ borderTop: '1px solid var(--panel-border)' }}>
               <ToolbarBtn icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
               <ToolbarSep />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}

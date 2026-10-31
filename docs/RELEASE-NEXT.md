@@ -664,6 +664,10 @@ la release publiée.
   🎬 au lieu de « ＆#127916; » (#28). Un article sans titre
   affiche « Sans titre » dans la langue de l'interface, et non plus en
   français pour tous.
+- **« Tout lu » reste accessible en 3 colonnes.** À la largeur par défaut de la
+  colonne, le bouton sortait de la barre en allemand, espagnol, néerlandais,
+  polonais, portugais et ukrainien. La barre passe à la ligne quand la place
+  manque.
 - **Bandeau de relève lisible sur téléphone.** Il passe à la ligne au lieu de
   sortir des deux côtés de l'écran, se lit sur sa couleur, attend tant qu'on
   vise ses boutons, et sa croix dit qu'elle ne proposera plus la relève.
