@@ -106,22 +106,20 @@ describe('la place du bouton', () => {
     expect(neighbours(show()).label).toBe('articleList.random');
   });
 
-  // Une icône seule à côté de boutons nommés ne se justifie que si la place manque,
-  // et c'est la largeur de la colonne qui le dit : elle se redimensionne.
-  it('en 3 colonnes, ses mots ne cèdent qu’à la largeur de la colonne', () => {
+  it('en 3 colonnes, Rechercher cède son mot le premier, Aléatoire ensuite', () => {
     useUiStore.setState({ panelLayout: '3' } as never);
     const c = show();
     const button = random(c);
     expect(button.parentElement!.className).toContain('list-actions');
-    expect(button.querySelector('span')!.className).toContain('list-actions__label');
+    expect(button.querySelector('span')!.getAttribute('data-cede')).toBe('2');
     const search = c.getAllByRole('button', { name: 'articleList.search' }).find((b) => b.parentElement === button.parentElement)!;
-    expect(search.querySelector('span')!.className).toContain('list-actions__label');
+    expect(search.querySelector('span')!.getAttribute('data-cede')).toBe('1');
   });
 
-  it('la feuille cache ces mots seulement sous la largeur voulue', () => {
+  it('la feuille retire les mots dans cet ordre', () => {
     const css = readFileSync(resolve(__dirname, '../../styles/index.css'), 'utf8');
-    expect(css).toMatch(/\.list-actions\s*\{[^}]*container-type:\s*inline-size/);
-    expect(css).toMatch(/@container\s*\(max-width:\s*\d+px\)\s*\{\s*\.list-actions__label\s*\{\s*display:\s*none/);
+    expect(css).toMatch(/\.list-actions\[data-fold='1'\] \[data-cede='1'\],\s*\.list-actions\[data-fold='2'\] \[data-cede\]\s*\{\s*display:\s*none/);
+    expect(css).toMatch(/\.list-actions\[data-fold='2'\]\s*\{\s*flex-wrap:\s*wrap/);
   });
 });
 

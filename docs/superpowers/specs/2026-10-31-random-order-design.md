@@ -43,8 +43,8 @@ mode à part sans lien avec FreshRSS, les dossiers intelligents.
 
 - Présent dans les trois barres de `ArticleList.tsx`, avec l'état actif habituel de
   `ToolbarBtn`. Libellé `articleList.random`. Toujours après « Non lus » : en icône
-  sur téléphone, en toutes lettres ailleurs. En 3 colonnes, « Rechercher » et lui
-  perdent leur mot seulement quand la colonne manque de place.
+  sur téléphone, en toutes lettres ailleurs. En 3 colonnes, si la ligne déborde,
+  « Rechercher » cède son mot le premier, puis lui.
 - Visible sous les filtres Tous et Non lus, sur l'accueil, une catégorie, un
   flux ou une étiquette. Absent sous Favoris et À lire plus tard : les favoris
   d'un flux sont filtrés côté client, leurs identifiants ne s'obtiennent pas.

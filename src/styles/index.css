@@ -1072,19 +1072,21 @@ html {
   .refresh-banner__icon--spin { animation: none; }
 }
 
-/* La ligne d'actions en 3 colonnes : la colonne se redimensionne, c'est elle qui dit
-   si les mots tiennent, pas l'écran. */
-.list-actions {
-  container-type: inline-size;
+/* La ligne d'actions en 3 colonnes : `useToolbarFold` y écrit combien de mots
+   cèdent pour qu'elle tienne, Rechercher d'abord, Aléatoire ensuite. Le rembourrage
+   est celui d'une icône seule, sinon le bouton garde celui de son mot. En dernier
+   recours elle passe à la ligne, car « Tout lu » n'a pas d'autre accès. Pas avant :
+   une ligne qui passe à la ligne ne déborde plus, et la mesure ne verrait rien. */
+.list-actions[data-fold='1'] [data-cede='1'],
+.list-actions[data-fold='2'] [data-cede] {
+  display: none;
 }
-@container (max-width: 430px) {
-  .list-actions__label {
-    display: none;
-  }
-  /* Le rembourrage d'une icône seule, sinon le bouton garde celui de son mot. */
-  .list-actions button:has(> .list-actions__label) {
-    padding-inline: 0.375rem;
-  }
+.list-actions[data-fold='1'] button:has(> [data-cede='1']),
+.list-actions[data-fold='2'] button:has(> [data-cede]) {
+  padding-inline: 0.375rem;
+}
+.list-actions[data-fold='2'] {
+  flex-wrap: wrap;
 }
 
 /* ── Thin top progress bar (indeterminate) — shown while the app revalidates

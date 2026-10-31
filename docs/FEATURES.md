@@ -700,13 +700,13 @@ par un lecteur qui lit dans l'ordre de parution.
 Un bouton de la barre de liste (issue #27) tire au hasard des articles de la vue
 affichée, comme l'ordre aléatoire de FreshRSS : un tirage et pas une suite stable.
 Un nouveau tirage peut ramener un article. Le bouton suit toujours « Non lus »,
-en icône sur téléphone et en toutes lettres ailleurs. En 3 colonnes, « Rechercher »
-et lui perdent leur mot quand la colonne fait moins de 430 px de contenu
-(`.list-actions`, requête `@container` : la colonne se redimensionne, sa largeur
-décide, pas celle de l'écran), pour que « Tout lu » tienne sur la ligne à 340 px,
-largeur par défaut. ⚠️ Placé sur la ligne du titre, sans texte, il ne se trouvait
-pas ; et une icône seule à côté de boutons nommés ne se justifie que si la place
-manque.
+en icône sur téléphone et en toutes lettres ailleurs. En 3 colonnes, si la ligne
+déborde, « Rechercher » cède son mot le premier, puis lui, et seulement alors
+(`useToolbarFold`, le même que la barre du lecteur, `.list-actions`, `data-cede`) ;
+en dernier recours, elle passe à la ligne. ⚠️ Mesuré et pas un seuil : la longueur
+des mots change avec la langue, et une requête `@container` à 430 px retirait
+« Random » qui tenait. Placé sur la ligne du titre, sans texte, le bouton ne se
+trouvait pas.
 
 - **Où** : `src/lib/randomDraw.ts`, `drawRandomList` et `setRandomView` dans
   `src/stores/feedStore.ts`, `getStreamIdsSince` et `getItemsByIds` dans

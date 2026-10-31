@@ -222,16 +222,19 @@ describe('la tranche locale', () => {
   });
 });
 
-// « Tout lu » n'a pas d'autre accès sur un gros flux : la ligne d'actions passe à
-// la ligne plutôt que de le laisser sortir de la colonne, à 340 px par défaut.
+// « Tout lu » n'a pas d'autre accès sur un gros flux : la ligne d'actions se replie
+// (`useToolbarFold`, `.list-actions`) plutôt que de le laisser sortir de la colonne.
 describe('la ligne d’actions', () => {
-  it('passe à la ligne plutôt que de couper « Tout lu »', () => {
+  it('se replie plutôt que de couper « Tout lu »', () => {
     useFeedStore.setState({ articles: rows(1), loading: false, revalidating: false, filter: 'all' } as never);
     const c = render(<ArticleList />);
     const rowsWithMarkAll = c.getAllByRole('button', { name: 'articleList.markAllRead' })
       .map((b) => b.parentElement!)
       .filter((p) => (p.getAttribute('style') ?? '').includes('border-top'));
     expect(rowsWithMarkAll.length).toBeGreaterThan(0);
-    for (const row of rowsWithMarkAll) expect(row.className).toContain('flex-wrap');
+    for (const row of rowsWithMarkAll) {
+      expect(row.className).toContain('list-actions');
+      expect(row.dataset.fold).toBeDefined();
+    }
   });
 });

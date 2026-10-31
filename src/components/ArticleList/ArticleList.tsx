@@ -9,6 +9,7 @@ import { markAllReadAction, canMarkAllRead, UNDO_CAP } from '../../lib/markAllRe
 import { showEndOfListMarkAll } from '../../lib/endOfList';
 import { canRandomView } from '../../lib/randomDraw';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import { useToolbarFold } from '../../hooks/useToolbarFold';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { effectiveOrder, entryDirection } from '../../lib/effectiveOrder';
 import { viewUnreadCount } from '../../lib/mainStream';
@@ -762,6 +763,8 @@ export default function ArticleList() {
   // sinon « Aujourd'hui » et « Hier » alterneraient à chaque ligne.
   const groups = randomView ? [{ key: 'random', label: '', articles: shownArticles }] : groupByDate(shownArticles);
   const canMarkAll = canMarkAllRead(filter) && !randomView;
+  const actionRowRef = useRef<HTMLDivElement>(null);
+  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), canMarkAll, canRandomView(filter), is2Panel]);
   const randomButton = canRandomView(filter) && !searchQuery ? {
     icon: <ShuffleIcon />,
     label: t(online || randomView ? 'articleList.random' : 'articleList.randomOffline'),
@@ -1010,15 +1013,15 @@ export default function ArticleList() {
             {/* À la ligne si la place manque : à 340 px, largeur par défaut de la
                 colonne, « Tout lu » sortait de la barre dans six langues, et rien
                 ne le remplace. */}
-            <div className="list-actions pl-2 pr-0.5 py-1 flex flex-wrap items-center gap-0.5" style={{ borderTop: '1px solid var(--panel-border)' }}>
-              {/* Rechercher et Aléatoire perdent leur mot quand la colonne n'a plus
-                  la place de l'afficher, et seulement alors (`.list-actions`) : à
-                  340 px, largeur par défaut, ils poussaient « Tout lu » à la ligne. */}
-              <ToolbarBtn compact icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
+            <div ref={actionRowRef} className="list-actions pl-2 pr-0.5 py-1 flex items-center gap-0.5" style={{ borderTop: '1px solid var(--panel-border)' }}>
+              {/* Rechercher cède son mot d'abord, Aléatoire ensuite, et seulement si
+                  la ligne déborde (`useToolbarFold`) : à 340 px, largeur par défaut,
+                  ils en faisaient sortir « Tout lu ». */}
+              <ToolbarBtn cede={1} icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
               <ToolbarSep />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
-              {randomButton && <ToolbarBtn compact {...randomButton} />}
+              {randomButton && <ToolbarBtn cede={2} {...randomButton} />}
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               {canMarkAll && (
@@ -1395,12 +1398,12 @@ interface ToolbarBtnProps {
   pressed?: boolean;
   disabled?: boolean;
   iconOnly?: boolean;
-  /** Son mot cède quand `.list-actions` manque de place. */
-  compact?: boolean;
+  /** Son rang pour céder son mot quand `.list-actions` manque de place. */
+  cede?: 1 | 2;
   flex1?: boolean;
 }
 
-function ToolbarBtn({ icon, label, shortcut, onClick, active, pressed, disabled, iconOnly, compact, flex1 }: ToolbarBtnProps) {
+function ToolbarBtn({ icon, label, shortcut, onClick, active, pressed, disabled, iconOnly, cede, flex1 }: ToolbarBtnProps) {
   return (
     <button
       onClick={onClick}
@@ -1421,7 +1424,7 @@ function ToolbarBtn({ icon, label, shortcut, onClick, active, pressed, disabled,
       aria-label={label}
     >
       {icon}
-      {!iconOnly && <span className={compact ? 'list-actions__label' : undefined}>{label}</span>}
+      {!iconOnly && <span data-cede={cede}>{label}</span>}
     </button>
   );
 }
