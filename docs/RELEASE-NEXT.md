@@ -135,7 +135,7 @@ la release publiée.
   de plus de 8 Mo reste servie sans être gardée ; au-delà de 32 Mo, la lecture
   est refusée. Chaque compte a aussi sa part de ces lectures (4 à la fois, 64 Mo
   par minute) : un seul compte pouvait geler l'instance ou saturer sa mémoire.
-  Au-delà, la page est servie normalement, sans copie en cache. Un Redis figé
+  Au-delà, la page est relayée telle quelle, sans copie en cache. Un Redis figé
   ne bloque plus les lectures ni le worker.
 - **L'extraction d'un article a une échéance totale** : 45 s pour les
   en-têtes, redirections comprises. Six redirections lentes la tenaient près

@@ -74,8 +74,9 @@ export async function cachePurgeAll(): Promise<void> {
       cursor = next;
       if (keys.length > 0) await client.unlink(...keys);
     } while (cursor !== '0');
-  } catch {
-    /* degrade silently, comme le reste du module */
+  } catch (e) {
+    // Des listes de l'ancien compte restent jusqu'au TTL : cela doit se lire au journal.
+    console.error('[cache] purge failed:', (e as Error).message);
   }
 }
 
@@ -102,8 +103,8 @@ export async function cachePurgeUser(userId: number): Promise<void> {
       cursor = next;
       if (keys.length > 0) await client.unlink(...keys);
     } while (cursor !== '0');
-  } catch {
-    /* degrade silently, comme le reste du module */
+  } catch (e) {
+    console.error('[cache] purge failed:', (e as Error).message);
   }
 }
 

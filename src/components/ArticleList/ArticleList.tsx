@@ -778,7 +778,7 @@ export default function ArticleList() {
   // Tout ce qui change le contenu de la ligne : elle se mesure sur ce qu'elle porte,
   // et sans ceci, un bouton revenu après une recherche la ferait déborder.
   const actionRowRef = useRef<HTMLDivElement>(null);
-  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), !!randomButton, canMarkAll, is2Panel]);
+  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), !!randomButton, canMarkAll, is2Panel, layout]);
   // Une bande dit combien d'articles porte sa date, pas combien sont montés.
   const groupTotals = useMemo(
     () => new Map(groupByDate(articles).map((g) => [g.key, g.articles.length])),
@@ -930,10 +930,12 @@ export default function ArticleList() {
             )}
 
             {/* 6rem : le titre ne se réduit pas à rien avant que la ligne déborde. */}
-            <h2 className="text-[16px] font-bold truncate min-w-[6rem]" title={heading} style={{ color: 'var(--list-title)' }}>
-              {heading}
-            </h2>
-            {!searchQuery && <HeaderUnread count={headerUnread} />}
+            <div className="min-w-[6rem] flex items-center gap-2">
+              <h2 className="text-[16px] font-bold truncate min-w-0" title={heading} style={{ color: 'var(--list-title)' }}>
+                {heading}
+              </h2>
+              {!searchQuery && <HeaderUnread count={headerUnread} />}
+            </div>
 
             <div className="w-px h-4 mx-1 flex-shrink-0" style={{ background: 'var(--panel-border)' }} />
 
