@@ -83,15 +83,13 @@ describe('réglages de l’affichage aléatoire', () => {
 
   // React compare à `node.value`, déjà vide pour « e » : il n'écrivait rien, et le
   // texte restait affiché alors que le tirage prend tous les articles.
+  // Et React n'émet pas `onChange` ici : la valeur était vide, elle le reste.
   it('une saisie illisible s’efface quand rien n’est retenu', () => {
     Object.defineProperty(age(), 'validity', { configurable: true, value: { badInput: true } });
     const write = vi.spyOn(age(), 'value', 'set');
-    fireEvent.change(age(), { target: { value: '1' } });
-    write.mockClear();
-    fireEvent.change(age(), { target: { value: '' } });
-    write.mockClear();
     fireEvent.blur(age());
-    expect(write).toHaveBeenCalledWith('');
+    expect(write.mock.calls).toEqual([['0'], ['']]);
+    expect(useUiStore.getState().randomWindowAmount).toBe(0);
   });
 
   // `type="number"` rend une valeur vide pour « e » ou « - » : ni une ancienneté,

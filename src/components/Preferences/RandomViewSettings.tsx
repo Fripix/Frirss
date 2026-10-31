@@ -32,10 +32,11 @@ function useDraft(commit: (value: string) => void) {
       setDraft(el.value);
     },
     onBlur: (el: HTMLInputElement) => {
-      // React compare à `node.value`, déjà vide pour une saisie illisible : sans
-      // valeur retenue à écrire, « e » resterait affiché. Et Chrome ignore `''` sur
-      // un champ qui vaut déjà `''` : il faut passer par une vraie valeur.
-      if (pending.current?.bad) {
+      // Lu ici : depuis un champ vide, « e » n'émet aucun `onChange`, la valeur
+      // restant vide. React compare à `node.value` et n'écrirait rien, et Chrome
+      // ignore `''` sur un champ qui vaut déjà `''` : passer par une vraie valeur.
+      if (el.validity.badInput) {
+        pending.current = null;
         el.value = '0';
         el.value = '';
       }
