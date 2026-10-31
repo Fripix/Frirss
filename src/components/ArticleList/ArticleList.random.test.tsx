@@ -85,6 +85,12 @@ describe('le bouton Aléatoire', () => {
   });
 });
 
+describe('l’état du bouton', () => {
+  it.each([[false, 'false'], [true, 'true']])('se lit sans la couleur (%s)', (randomView, pressed) => {
+    expect(random(show({ randomView })).getAttribute('aria-pressed')).toBe(pressed);
+  });
+});
+
 describe('la position dans la liste', () => {
   const list = (c: ReturnType<typeof render>) => c.container.querySelector('[data-article-scroll]') as HTMLElement;
 
@@ -100,6 +106,18 @@ describe('la position dans la liste', () => {
     list(c).scrollTop = 900;
     act(() => { useFeedStore.setState({ randomView: true } as never); });
     expect(list(c).scrollTop).toBe(0);
+  });
+
+  // La mémoire de position n'est relue qu'au montage : la liste normale restait au
+  // décalage du tirage, ni en haut, ni là où on l'avait quittée.
+  it('quitter le mode rend la position de la liste normale', () => {
+    const c = show();
+    list(c).scrollTop = 1000;
+    fireEvent.scroll(list(c));
+    act(() => { useFeedStore.setState({ randomView: true } as never); });
+    list(c).scrollTop = 300;
+    act(() => { useFeedStore.setState({ randomView: false } as never); });
+    expect(list(c).scrollTop).toBe(1000);
   });
 
   it('hors du mode, la position reste', () => {

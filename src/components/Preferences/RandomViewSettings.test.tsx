@@ -81,6 +81,19 @@ describe('réglages de l’affichage aléatoire', () => {
     expect(age().value).toBe('24');
   });
 
+  // React compare à `node.value`, déjà vide pour « e » : il n'écrivait rien, et le
+  // texte restait affiché alors que le tirage prend tous les articles.
+  it('une saisie illisible s’efface quand rien n’est retenu', () => {
+    Object.defineProperty(age(), 'validity', { configurable: true, value: { badInput: true } });
+    const write = vi.spyOn(age(), 'value', 'set');
+    fireEvent.change(age(), { target: { value: '1' } });
+    write.mockClear();
+    fireEvent.change(age(), { target: { value: '' } });
+    write.mockClear();
+    fireEvent.blur(age());
+    expect(write).toHaveBeenCalledWith('');
+  });
+
   // `type="number"` rend une valeur vide pour « e » ou « - » : ni une ancienneté,
   // ni un champ vidé, et elle élargissait le tirage à tous les articles sans le dire.
   it('une saisie illisible ne repasse pas à tous les articles', () => {

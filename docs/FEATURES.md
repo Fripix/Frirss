@@ -744,7 +744,8 @@ colonne, il faisait sortir « Tout lu » de la ligne d'actions, sans recours.
 - **Un tirage repart du haut** : un effet remet `scrollTop` à 0 à chaque
   `randomDraw`, en mode aléatoire seulement. ⚠️ `scrollKey` n'y suffit pas : il
   ne remonte rien, et l'ancrage de défilement de Chromium ramenait au bas de la
-  liste, le tirage s'affichant par sa fin dès que le squelette débordait.
+  liste, le tirage s'affichant par sa fin dès que le squelette débordait. En
+  sortant du mode, la liste normale retrouve sa position (`listScrollMem`).
 - **Tirage vide** : ni « Tout est lu » ni l'allure d'une réussite, il peut rester
   des milliers d'articles (cinq lignes lues sous Non lus vident un tirage de cinq).
   L'écran propose « Nouveau tirage ».

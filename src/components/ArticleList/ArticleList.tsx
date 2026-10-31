@@ -337,9 +337,14 @@ export default function ArticleList() {
   const scrollKeyRef = useRef(scrollKey);
   scrollKeyRef.current = scrollKey;
   // `scrollKey` ne remonte rien : le navigateur gardait la position, et le tirage
-  // s'affichait par sa fin. Lecture normale exclue, elle a sa propre mémoire.
+  // s'affichait par sa fin. En sortant, la position de la liste normale revient :
+  // sa mémoire n'est relue qu'au montage.
+  const wasRandomRef = useRef(randomView);
   useLayoutEffect(() => {
-    if (randomView && listRef.current) listRef.current.scrollTop = 0;
+    const el = listRef.current;
+    if (el && randomView) el.scrollTop = 0;
+    else if (el && wasRandomRef.current) el.scrollTop = listScrollMem.get(scrollKeyRef.current) ?? 0;
+    wasRandomRef.current = randomView;
   }, [randomView, randomDraw]);
   const didRestoreRef = useRef(false);
 
@@ -761,6 +766,7 @@ export default function ArticleList() {
     icon: <ShuffleIcon />,
     label: t(online || randomView ? 'articleList.random' : 'articleList.randomOffline'),
     active: randomView,
+    pressed: randomView,
     disabled: !online && !randomView,
     onClick: () => useFeedStore.getState().setRandomView(!randomView),
   } : null;
@@ -1381,15 +1387,18 @@ interface ToolbarBtnProps {
   shortcut?: string;
   onClick?: () => void;
   active?: boolean;
+  /** Une bascule : en icône seule, son état ne passerait que par la couleur. */
+  pressed?: boolean;
   disabled?: boolean;
   iconOnly?: boolean;
   flex1?: boolean;
 }
 
-function ToolbarBtn({ icon, label, shortcut, onClick, active, disabled, iconOnly, flex1 }: ToolbarBtnProps) {
+function ToolbarBtn({ icon, label, shortcut, onClick, active, pressed, disabled, iconOnly, flex1 }: ToolbarBtnProps) {
   return (
     <button
       onClick={onClick}
+      aria-pressed={pressed}
       disabled={disabled}
       className={`flex items-center justify-center gap-1 ${flex1 ? 'flex-1 py-2 [&_svg]:w-[19px] [&_svg]:h-[19px]' : iconOnly ? 'p-1.5' : 'px-2 py-1'} rounded-md text-[11px] transition-colors whitespace-nowrap disabled:opacity-40 ${
         active

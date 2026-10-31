@@ -31,7 +31,14 @@ function useDraft(commit: (value: string) => void) {
       pending.current = { value: el.value, bad: el.validity.badInput };
       setDraft(el.value);
     },
-    onBlur: () => {
+    onBlur: (el: HTMLInputElement) => {
+      // React compare à `node.value`, déjà vide pour une saisie illisible : sans
+      // valeur retenue à écrire, « e » resterait affiché. Et Chrome ignore `''` sur
+      // un champ qui vaut déjà `''` : il faut passer par une vraie valeur.
+      if (pending.current?.bad) {
+        el.value = '0';
+        el.value = '';
+      }
       flush();
       setDraft(null);
     },
@@ -80,7 +87,7 @@ export default function RandomViewSettings() {
           max={500}
           value={count.draft ?? String(randomCount)}
           onChange={(e) => count.onChange(e.target)}
-          onBlur={count.onBlur}
+          onBlur={(e) => count.onBlur(e.target)}
           className={INPUT_CLASS}
           style={INPUT_STYLE}
         />
@@ -98,7 +105,7 @@ export default function RandomViewSettings() {
             placeholder={t('preferences.general.randomWindowAll')}
             value={age.draft ?? (amount ? String(amount) : '')}
             onChange={(e) => age.onChange(e.target)}
-            onBlur={age.onBlur}
+            onBlur={(e) => age.onBlur(e.target)}
             className={INPUT_CLASS}
             style={INPUT_STYLE}
           />
