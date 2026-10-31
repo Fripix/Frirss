@@ -48,7 +48,6 @@ export default function App() {
   const backendToken = useAuthStore((s) => s.backendToken);
   const setBackendAuth = useAuthStore((s) => s.setBackendAuth);
   const activeServerId = useAuthStore((s) => s.activeServerId);
-  const loadArticles = useFeedStore((s) => s.loadArticles);
   const loadSubscriptions = useFeedStore((s) => s.loadSubscriptions);
   const resetAndReload = useFeedStore((s) => s.resetAndReload);
   const selectedArticle = useFeedStore((s) => s.selectedArticle);
@@ -277,7 +276,7 @@ export default function App() {
       } else if (action.kind === 'home-unread') {
         fs.selectView(null, 'unread');
       } else {
-        loadArticles();
+        fs.openHome();
       }
     });
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -303,7 +302,7 @@ export default function App() {
       cancelled = true;
       timers.forEach(clearTimeout);
     };
-  }, [isAuthenticated, loadSubscriptions, loadArticles]);
+  }, [isAuthenticated, loadSubscriptions]);
 
   // ── Hydrate logical preferences from the backend (per-user sync) ──
   // Runs as soon as we have a backend session; tears down on logout.

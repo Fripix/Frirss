@@ -17,6 +17,9 @@ if (cacheEnabled) {
     // queueing/hanging requests.
     maxRetriesPerRequest: 2,
     enableOfflineQueue: false,
+    // Une connexion ouverte qui ne répond plus (Redis en pause, réseau coupé sans
+    // fermeture) : rien d'autre ne la borne, et le worker resterait arrêté dessus.
+    commandTimeout: 5000,
     retryStrategy: (times: number) => Math.min(times * 500, 5000),
   });
   let loggedError = false;
@@ -165,7 +168,38 @@ export function cacheableEntry(body: string, max = MAX_PER_FEED, maxBytes = MAX_
   try { parsed = JSON.parse(text); } catch { return null; }
   if (parsed === null || typeof parsed !== 'object') return null;
   const { items } = parsed as { items?: unknown };
-  return Array.isArray(items) && items.length > max
-    ? JSON.stringify({ ...parsed, items: items.slice(0, max) })
-    : text;
+  if (!Array.isArray(items) || items.length <= max) return text;
+  // Après `res.send` côté proxy : une imbrication extrême ne doit rien lever ici.
+  try { return JSON.stringify({ ...parsed, items: items.slice(0, max) }); } catch { return null; }
+}
+
+/** Lectures gardées en mémoire en même temps par un compte : 4 × 32 Mio au pire. */
+export const MAX_CACHE_READS_AT_ONCE = 4;
+/** Octets lus pour le cache par compte et par minute : 64 Mio, ~7 s d'analyse au pire. */
+export const MAX_CACHE_READ_BYTES_PER_MINUTE = 64 * 1024 * 1024;
+const CACHE_READ_WINDOW_MS = 60_000;
+
+const cacheReads = new Map<number | string, { reading: number; spent: number; since: number }>();
+
+/**
+ * La part d'un compte dans les lectures destinées au cache. Il enregistre l'hôte qu'il
+ * veut comme serveur, donc il choisit le corps reçu : le plafond d'une réponse ne borne
+ * ni leur somme en mémoire, ni le temps d'analyse, qui bloque le serveur pour tous.
+ * `null` = part épuisée : la réponse est relayée en flux, simplement sans copie.
+ */
+export function claimCacheRead(userId: number | string, now = Date.now()): { done: (bytes: number) => void } | null {
+  const part = cacheReads.get(userId) ?? { reading: 0, spent: 0, since: now };
+  cacheReads.set(userId, part);
+  if (now - part.since >= CACHE_READ_WINDOW_MS) {
+    part.spent = 0;
+    part.since = now;
+  }
+  if (part.reading >= MAX_CACHE_READS_AT_ONCE || part.spent >= MAX_CACHE_READ_BYTES_PER_MINUTE) return null;
+  part.reading++;
+  return {
+    done: (bytes) => {
+      part.reading--;
+      part.spent += bytes;
+    },
+  };
 }

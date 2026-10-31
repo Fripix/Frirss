@@ -71,6 +71,7 @@ A note in the interest of honesty: this is a personal project and I'm not a deve
 - **Three panes on desktop**, and an installable **PWA** on mobile with swipe navigation, swipe actions and pull-to-refresh.
 - **Full-text extraction** (Readability) when a feed only ships a summary — cached, so re-reads are instant. A global default (*Preferences → General → Full article by default*, off out of the box) opens every article in full; each feed can follow it, or say yes or no on its own, from its menu. On a feed that extracts, the next articles are warmed ahead of you, images included, so swiping lands on a page that is already whole.
 - **Oldest first, if you prefer** — a global order in *Preferences → General*, overridable per feed from its menu. FreshRSS serves the pages in that order, so it holds across infinite scroll, and *mark everything above / below* follows the order on screen.
+- **A random selection, when you want to rediscover** — the *Random* button in the list toolbar draws articles at random from the view you are in, like FreshRSS's random order, with a *New draw* at the end of the list. How many articles and how old they can be are yours to set in *Preferences → General*. The choice stays, view by view, and can also be made from a feed's menu.
 - **FreshRSS's per-feed visibility is honoured** — a feed set to *show in its category only* (or in its own view only) stays out of *All feeds* and *Unread*, out of their counts, and out of *Mark all as read* from there, while it still shows in its category. The setting lives in FreshRSS; it needs FreshRSS 1.28 or later, and older servers behave as before.
 - **Offline reading.** Articles stay readable without a connection, images included. Favorites and read-later are kept automatically; a one-tap *Prepare offline* sweep covers the last 30 days across every feed.
 - **Favorites, read-later, read/unread**, with all / unread / favorites filters. The unread-only choice is remembered per feed — or, if you prefer, one choice applies to every feed (*Preferences → General → Unread filter*).
@@ -120,7 +121,7 @@ Almost everything is yours to tweak:
 ### Accounts, SSO & multi-server
 - **Multi-user** with admin/user roles — each person keeps their own feeds and settings, and a local account changes its own password in *Preferences → General → Account* (other sessions are signed out).
 - **Single sign-on** via OIDC (tested with [Authentik](https://goauthentik.io)); an existing account links itself to SSO from *Preferences → General → Account* while signed in, confirming its current password (never automatically by email address), and unlinks the same way; admins see which accounts are linked and can unlink them. Passkeys work through your provider.
-- **Multi-server** — connect several FreshRSS instances and switch between them, from the top bar or the command palette.
+- **Multi-server** — connect several FreshRSS instances and switch between them, from the top bar or the command palette. A feed's order, its layout and the random choice belong to their server.
 
 ### Self-hosting
 - **Redis, strongly recommended** — optional, but it is what makes FriRSS fast and shared: article lists served instantly then refreshed (stale-while-revalidate), a background pre-fetch worker, extracted articles and AI results cached once for the whole instance and every device. Without it, everything still works, but nothing is warmed ahead and the AI cache lives in SQLite, capped at 10 000 entries. Point `REDIS_URL` at any Redis.
@@ -196,7 +197,7 @@ The first launch generates the JWT secret and the token-encryption key and store
 | `CACHE_SYNC_ACTIVE_DAYS` | Only pre-fetch for users seen in the last N days | `7` |
 | `CACHE_SYNC_PARALLEL_USERS` | Users pre-fetched in parallel | `3` |
 | `FRIRSS_REFRESH_MAX_FEEDS` | Number of feeds to refresh per button press (non-integer or < 1 → default) | `1000` |
-| `FRIRSS_PROXY_RATE_LIMIT` | Proxied **and** article-extraction requests allowed per user per minute — one shared budget (`0` disables; non-integer or negative → default) | `600` |
+| `FRIRSS_PROXY_RATE_LIMIT` | Proxied, article-extraction and AI requests allowed per user per minute — one shared budget (`0` disables; non-integer or negative → default) | `600` |
 | `CORS_ORIGIN` | Allowed CORS origin(s) — only for split front/back deployments | — |
 
 > Since 1.4.10 the **server** extracts article text: the browser asks

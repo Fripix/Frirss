@@ -45,11 +45,13 @@ la release publiée.
   limite : elle est désormais limitée à 10 échecs par quart d'heure, compte
   par compte.
 - **Affichage aléatoire** (#27). Un bouton dans la barre de la liste tire des
-  articles au hasard dans la vue affichée, comme l'ordre aléatoire de FreshRSS, avec
-  un nouveau tirage en fin de liste. Le nombre d'articles et leur ancienneté
-  maximale, en heures ou en jours, se règlent dans Préférences › Général. Le choix
-  reste, vue par vue, et se fait aussi au clic droit sur un flux, dans « Ordre de ce
-  flux ».
+  articles au hasard dans la vue affichée, sous Tous ou Non lus, comme l'ordre
+  aléatoire de FreshRSS, avec un nouveau tirage en fin de liste. Le nombre d'articles
+  et leur ancienneté maximale, en heures ou en jours, se règlent dans Préférences ›
+  Général. Le choix reste, vue par vue et serveur par serveur, et se fait aussi depuis
+  le menu d'un flux (clic droit ou appui long), dans « Ordre de ce flux ». Hors ligne,
+  ou quand le serveur ne répond pas, la vue s'ouvre normalement avec sa liste gardée.
+  « Tout lu » et le marquage au-dessus / en dessous sont masqués pendant un tirage.
 
 ## Sécurité
 
@@ -128,16 +130,21 @@ la release publiée.
 - **Le cache des lectures (`REDIS_URL`) ne garde plus que du JSON, au plus
   8 Mo par entrée, et seulement pour les serveurs FreshRSS du compte.**
   N'importe quelle adresse dont le chemin ressemblait à l'API de FreshRSS y
-  était écrite, jusqu'à 32 Mo par adresse, et une réponse démesurée remplissait
-  la mémoire : un compte pouvait remplir le Redis, partagé avec le reste de
-  l'hôte. Une page plus grosse reste servie, elle n'est simplement pas gardée.
+  était écrite, sans plafond, et une réponse démesurée remplissait la mémoire :
+  un compte pouvait remplir le Redis, partagé avec le reste de l'hôte. Une page
+  de plus de 8 Mo reste servie sans être gardée ; au-delà de 32 Mo, la lecture
+  est refusée. Chaque compte a aussi sa part de ces lectures (4 à la fois, 64 Mo
+  par minute) : un seul compte pouvait geler l'instance ou saturer sa mémoire.
+  Au-delà, la page est servie normalement, sans copie en cache. Un Redis figé
+  ne bloque plus les lectures ni le worker.
 - **L'extraction d'un article a une échéance totale** : 45 s pour les
   en-têtes, redirections comprises. Six redirections lentes la tenaient près
   de quatre minutes.
 - **SSO derrière un proxy sur un port non standard** : l'adresse de retour
   garde son port (nginx transmettait l'hôte sans lui).
-- **Proxy : le jeton FreshRSS ne suit plus une redirection de `https` vers
-  `http`**, même sur le même hôte : il aurait voyagé en clair.
+- **Proxy : le jeton FreshRSS ne suit une redirection que sur la même origine**, ou
+  de `http` vers `https` sur le même hôte aux ports standards. Vers `http`, il aurait
+  voyagé en clair, même sur le même hôte.
 - **Une instance neuve ne se laisse plus préparer par un inconnu.** Avant la
   création du premier compte, n'importe qui pouvait y restaurer une
   sauvegarde sans administrateur : l'instance restait « vierge », mais réglée
@@ -170,7 +177,9 @@ la release publiée.
 - **Préférences : 4 Mo au total par compte, et une limite de requêtes.** Un
   compte sans droit d'admin pouvait stocker 500 Mo : l'export de sauvegarde de
   toute l'instance échouait alors, et chaque lecture gelait le serveur
-  plusieurs secondes.
+  plusieurs secondes. Au-delà, un message le dit une fois : les derniers
+  changements restent sur l'appareil et repartent au prochain changement.
+  Alléger le logo ou retirer des thèmes libère de la place.
 - **Inscriptions ouvertes : 5 comptes par heure et par adresse.** Seuls les
   échecs comptaient : une adresse créait autant de comptes qu'elle voulait. Le
   nom d'utilisateur, le nom affiché et le mot de passe ont aussi une taille
@@ -178,7 +187,8 @@ la release publiée.
 - **Le retour SSO a sa limite, et son `state` ne sert qu'une fois.** Sans
   compte, on pouvait faire envoyer au fournisseur un nombre illimité d'échanges
   de code depuis l'adresse de FriRSS, au risque de faire bannir l'instance par
-  une protection placée devant lui.
+  une protection placée devant lui. Au-delà de 30 retours par quart d'heure et
+  par adresse, l'écran de connexion le dit.
 - **Le journal du proxy n'écrit plus jamais la requête d'une URL.** Il écrivait
   les recherches (`q=`) et les paramètres signés des images préchargées ;
   seuls l'origine et le chemin restent.
@@ -668,12 +678,17 @@ la release publiée.
   français pour tous.
 - **L'ordre et la disposition d'un flux restent sur leur serveur.** FreshRSS numérote
   les flux par serveur : régler un flux sur l'un changeait celui qui portait le même
-  numéro sur l'autre. Les réglages existants restent en place : ils passent sur le
-  serveur où on les modifie, flux par flux.
-- **« Tout lu » reste accessible en 3 colonnes.** À la largeur par défaut de la
+  numéro sur l'autre. Un réglage fait avant la 1.8.0 reste lu sur tous les serveurs
+  tant qu'on n'y touche pas ; le modifier le range sur le serveur actif, réglage par
+  réglage, et l'autre serveur le perd pour ce flux. Un serveur supprimé puis rajouté
+  reçoit un nouveau numéro : son ordre, sa disposition et ses choix d'aléatoire ne
+  reviennent pas. « Changer le mot de passe API » évite ce détour. L'article complet
+  et les choix d'IA par flux restent communs aux serveurs.
+- **« Tout lu » reste accessible en 3 colonnes, et sur tablette article ouvert.** À la largeur par défaut de la
   colonne, le bouton sortait de la barre en allemand, espagnol, néerlandais,
-  polonais, portugais et ukrainien. La barre passe à la ligne quand la place
-  manque.
+  polonais, portugais et ukrainien. Quand la place manque, « Rechercher » puis
+  « Aléatoire » gardent leur icône seule, et la barre ne passe à la ligne qu'en
+  dernier recours.
 - **Bandeau de relève lisible sur téléphone.** Il passe à la ligne au lieu de
   sortir des deux côtés de l'écran, se lit sur sa couleur, attend tant qu'on
   vise ses boutons, et sa croix dit qu'elle ne proposera plus la relève.
@@ -742,7 +757,8 @@ la release publiée.
 ## Sous le capot
 
 - La préparation hors ligne a sa propre clé par flux. Les listes rangées par
-  les versions précédentes restent lisibles et partent d'elles-mêmes en 30 jours.
+  les versions précédentes ne sont plus lues (voir « Actions requises ») et
+  partent d'elles-mêmes en 30 jours.
 - **Ménage (relecture 1.8.0)** : 332 lignes de CSS dupliquées à l'identique
   depuis un artefact de fusion d'août (la feuille construite contient les
   mêmes règles), la palette Tailwind personnalisée qui ne produisait aucune
@@ -759,12 +775,13 @@ la release publiée.
   capture d'une touche). Le lint signale désormais aussi les constantes en
   majuscules inutilisées.
 - **Dépendance : follow-redirects 1.16.2** (embarquée par axios) : la 1.16.1 pouvait
-  transmettre des identifiants personnalisés lors d'une redirection. `npm audit` à zéro.
+  transmettre des identifiants personnalisés lors d'une redirection. `npm audit --omit=dev` à zéro : rien dans l'image.
+  L'outillage de build garde 20 avis modérés ou faibles.
 - **Dépendances : body-parser 2.4.0 et qs 6.16.1** (embarqués par Express,
   donc présents dans l'image : avis DoS GHSA-27r3-jxmh-p828 et
   GHSA-6pq8-jhm2-2vcw), avec leurs dépendances content-type 2.1.0 et
   iconv-lite 0.7.3 ; serialize-javascript 7.1.4 (outillage de build
-  seulement). `npm audit` à zéro. Le DoS de body-parser touchait bien le
+  seulement). Le DoS de body-parser touchait bien le
   `express.json` global ; qs n'est pas atteint (Express 5 lit les requêtes
   avec son parseur `simple`, aucun `urlencoded`).
 - **qs épinglé en 6.16.1 par `overrides`** : la 6.17.0 (publiée le jour même
@@ -784,7 +801,12 @@ la release publiée.
   - un refus 400 de `PUT /api/preferences` nomme la clé refusée (`key`) ;
   - nouveaux refus 400 : une URL de serveur qui n'est pas en http(s) ou dépasse
     2 048 caractères (`Invalid server URL`), une adresse e-mail de plus de
-    254 caractères.
+    254 caractères, `PUT /api/servers/:id` qui change l'origine ou le compte sans
+    nouveau jeton, des champs de serveur ou de compte trop longs, plus de
+    50 serveurs ;
+  - `PUT /api/preferences` au-delà de 4 Mo (413, `preferences_too_large`) ou de
+    120 requêtes par minute (429), plus de 5 inscriptions par heure (429,
+    `too_many_accounts`).
 - **API, retrait** : trois routes de préférences que le client n'appelait
   plus répondent désormais 404 — `PUT /api/preferences/:key`,
   `DELETE /api/preferences/:key` et `DELETE /api/preferences`. Un script qui
@@ -803,40 +825,55 @@ la release publiée.
   l'origine exacte de chaque règle est de confiance. Un serveur enregistré sur un autre schéma ou un autre port que la
   règle n'est plus réécrit ; s'il se résout vers une adresse privée, il répond
   403 : corriger son URL, ou ajouter une règle pour cette origine. `PROXY_INTERNAL_HOSTS` ne change pas :
-  il porte sur l'hôte, tous ports confondus.
+  il porte sur l'hôte, tous ports confondus. La relève ne se rabat plus non plus sur
+  l'adresse publique si l'adresse interne est injoignable (`Proxy rewrite unreachable …,
+  no public fallback` dans le journal) : une règle cassée, invisible jusqu'ici, la fait
+  échouer. La corriger.
+- **Hors ligne : relancer « Préparer le hors-ligne » après la mise à jour.** Ce qui est
+  gardé hors ligne est désormais rangé par compte et par serveur, et les listes gardées
+  par la version précédente ne sont plus lues. Ouvrir l'app une fois en ligne, puis
+  préparer de nouveau avant de partir sans réseau (la préparation automatique le fait
+  seule). Les images et les articles déjà gardés sont repris sans être retéléchargés.
 - **SSO** : un compte local qui n'a encore jamais été ouvert par le SSO ne
   s'y rattache plus tout seul. Son propriétaire se connecte avec son mot de
   passe, puis clique « Lier à … » dans Préférences › Général › Compte. Les
-  comptes déjà rattachés ne sont pas concernés.
+  comptes déjà rattachés ne sont pas concernés. En mode « SSO uniquement », le
+  formulaire local apparaît après ce refus (ou par `?local=1`).
 - **Vérifier les comptes liés** : l'onglet Administration marque désormais
   « Local + SSO » les comptes locaux qui s'ouvrent aussi par le SSO. Ceux qui
   l'ont été par l'ancien rattachement automatique par adresse e-mail le sont
   restés : si l'un ne devrait pas l'être, 🔗 le délie.
 - **Atteindre FriRSS par le reverse proxy, jamais en direct** : la limite de
   connexion compte par adresse client, et l'image ne croit l'adresse transmise
-  que d'un proxy du réseau privé. Ne pas publier le port du conteneur en
-  direct (Docker Desktop, Docker sans root et certains montages IPv6 font
-  passer toutes les connexions par une seule adresse, qui partagerait alors un
-  compteur) ; un proxy à adresse publique n'est pas cru, et ses clients
-  partagent eux aussi un seul compteur. Voir SECURITY.md.
+  que d'un proxy du réseau privé. Ne pas publier le port du conteneur en direct :
+  avec Docker Desktop, Docker sans root et certains montages IPv6, les visiteurs
+  arrivent par une adresse privée, et peuvent alors annoncer n'importe quelle
+  adresse et passer la limite de connexion. Un proxy à adresse publique n'est pas
+  cru : ses clients partagent un seul compteur. Voir SECURITY.md.
 - **SSO : c'est le fournisseur qui décide de qui obtient un compte.** Une
   première connexion SSO crée un compte, inscriptions ouvertes ou non (le
   réglage ne gouverne que le formulaire local). Si ce n'est pas voulu,
   restreindre l'application FriRSS chez le fournisseur (Authentik : groupe ou
   politique). Rien n'a changé ici en 1.8.0 : c'est désormais écrit dans
   SECURITY.md.
-- **SSO derrière un reverse proxy** : l'adresse de retour du SSO ne lit plus
-  l'en-tête `X-Forwarded-Host` (un client pouvait la dicter), seulement
-  `Host`. Un reverse proxy qui remplace `Host` par un nom interne fausserait
-  donc cette adresse : définir `FRIRSS_BASE_URL` (l'URL publique de FriRSS)
-  la fixe dans tous les cas.
+- **SSO derrière un reverse proxy : vérifier l'adresse de retour enregistrée chez le
+  fournisseur.** Sans `FRIRSS_BASE_URL`, FriRSS annonçait `http://…` derrière un proxy
+  TLS, et le port tombait sur un port non standard. Il annonce désormais le schéma du
+  proxy (`https://…`) et garde le port. Une adresse enregistrée en `http://` est alors
+  refusée par le fournisseur : la corriger. Elle ne lit plus non plus l'en-tête
+  `X-Forwarded-Host` (un client pouvait la dicter), seulement `Host` : un reverse proxy
+  qui remplace `Host` par un nom interne la fausserait. Définir `FRIRSS_BASE_URL`
+  (l'URL publique de FriRSS) la fixe dans tous les cas.
+- **Restaurer une sauvegarde de plus de 1 Mo derrière nginx** : augmenter
+  `client_max_body_size` sur le reverse proxy (jusqu'à 64 Mo). L'image de FriRSS est
+  déjà réglée, c'est le proxy placé devant qui refuse.
 
 ## Documentation
 
 - **README : FriRSS n'embarque aucune IA**, il se branche sur le modèle de
   votre choix (déjà visible sur `main`), et il compte 38 couleurs (pas 36).
-- **README à jour pour la 1.8.0** (sur `dev`, visible à la release) : vue
-  grille réglable, changement de mot de passe, confirmations généralisées,
+- **README à jour pour la 1.8.0** (sur `dev`, visible à la release) : affichage
+  aléatoire, vue grille réglable, changement de mot de passe, confirmations généralisées,
   accessibilité, titre devenu lien (le clic molette n'ouvre plus la source au
   premier plan), nouvelles garanties de sécurité ; libellés alignés sur
   l'interface (*Summarize with…*, *Source text*, *View at startup*, Tags). Et

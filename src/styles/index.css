@@ -1072,7 +1072,7 @@ html {
   .refresh-banner__icon--spin { animation: none; }
 }
 
-/* La ligne d'actions en 3 colonnes : `useToolbarFold` y écrit combien de mots
+/* La ligne d'actions de la liste : `useToolbarFold` y écrit combien de mots
    cèdent pour qu'elle tienne, Rechercher d'abord, Aléatoire ensuite. Le rembourrage
    est celui d'une icône seule, sinon le bouton garde celui de son mot. En dernier
    recours elle passe à la ligne, car « Tout lu » n'a pas d'autre accès. Pas avant :
@@ -1087,6 +1087,11 @@ html {
 }
 .list-actions[data-fold='2'] {
   flex-wrap: wrap;
+}
+/* En 2 colonnes, les boutons sont groupés : le groupe doit tenir dans la ligne. */
+.list-actions[data-fold='2'] > div {
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 /* ── Thin top progress bar (indeterminate) — shown while the app revalidates

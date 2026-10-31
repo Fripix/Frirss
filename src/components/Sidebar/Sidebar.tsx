@@ -1074,7 +1074,9 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
             if (fs.selectedFeed?.id === feed.id) {
               const random = v === 'random';
               if (random !== fs.randomView) fs.setRandomView(random);
-              else if (!random) void fs.loadArticles();
+              // L'ordre a changé. Hors ligne, sous Favoris ou en recherche, le tirage
+              // n'a pas lieu : la liste doit suivre quand même.
+              if (!fs.randomView && !useFeedStore.getState().randomView) void fs.loadArticles();
             }
             onClose();
           }}

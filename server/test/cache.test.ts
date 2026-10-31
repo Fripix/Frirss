@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { extractKey, cacheKey, userCachePattern, cacheableEntry, MAX_CACHED_ENTRY_BYTES } from '../cache.js';
+import { extractKey, cacheKey, userCachePattern, cacheableEntry, claimCacheRead, MAX_CACHED_ENTRY_BYTES, MAX_CACHE_READS_AT_ONCE, MAX_CACHE_READ_BYTES_PER_MINUTE } from '../cache.js';
 
 describe('extractKey', () => {
   it('donne la même clé pour la même URL', () => {
@@ -94,5 +94,38 @@ describe('cacheableEntry', () => {
   // Un FreshRSS dont une extension PHP préfixe un BOM perdait son cache.
   it('accepte un corps préfixé d’un BOM, et le retire', () => {
     expect(cacheableEntry('\uFEFF{"items":[]}')).toBe('{"items":[]}');
+  });
+});
+
+// Un compte choisit le corps reçu : il enregistre l'hôte qu'il veut comme serveur.
+// Lire pour le cache garde tout en mémoire, l'analyser bloque le serveur pour tous.
+describe('claimCacheRead', () => {
+  const claims = (user: number, n: number, now = 0) => Array.from({ length: n }, () => claimCacheRead(user, now));
+
+  it('borne les lectures simultanées d’un compte, sans toucher aux autres', () => {
+    const held = claims(101, MAX_CACHE_READS_AT_ONCE);
+    expect(held.every(Boolean)).toBe(true);
+    expect(claimCacheRead(101, 0)).toBeNull();
+    expect(claimCacheRead(102, 0)).not.toBeNull();
+  });
+
+  it('une lecture finie rend sa place', () => {
+    const held = claims(103, MAX_CACHE_READS_AT_ONCE);
+    held[0]!.done(0);
+    expect(claimCacheRead(103, 0)).not.toBeNull();
+  });
+
+  it('borne les octets par minute, puis repart', () => {
+    claimCacheRead(104, 0)!.done(MAX_CACHE_READ_BYTES_PER_MINUTE);
+    expect(claimCacheRead(104, 59_999)).toBeNull();
+    expect(claimCacheRead(104, 60_000)).not.toBeNull();
+  });
+});
+
+describe('cacheableEntry, imbrication extrême', () => {
+  it('rend null au lieu de lever : la réponse est déjà partie', () => {
+    const deep = `${'['.repeat(4_000_000)}${']'.repeat(4_000_000)}`;
+    const body = `{"items":[${Array(60).fill('1').join(',')}],"x":${deep}}`;
+    expect(cacheableEntry(body)).toBeNull();
   });
 });

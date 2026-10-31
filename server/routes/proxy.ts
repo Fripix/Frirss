@@ -7,7 +7,7 @@ import dns from 'dns';
 import db from '../db.js';
 import { decrypt } from '../crypto.js';
 import { requireAuth } from '../middleware/auth.js';
-import { cacheEnabled, cacheGet, cacheSet, cacheDel, cacheKey, cacheableEntry, MAX_CACHED_ENTRY_BYTES } from '../cache.js';
+import { cacheEnabled, cacheGet, cacheSet, cacheDel, cacheKey, cacheableEntry, claimCacheRead, MAX_CACHED_ENTRY_BYTES } from '../cache.js';
 import { stripTrailingSlashes } from '../validate.js';
 
 const router = Router();
@@ -893,14 +893,17 @@ router.all('/', async (req, res) => {
   }
   if (ctype) res.set('Content-Type', ctype);
 
-  if (cacheable && upstream.ok) {
+  const claim = cacheable && upstream.ok ? claimCacheRead(req.user.id) : null;
+  if (claim) {
     // Buffer so we can store a trimmed copy; send the full response untouched.
     let text: string;
     try {
       text = await readBodyText(upstream, deadline.signal);
     } catch (err) {
+      claim.done(0);
       return finishError(res, err, rawTarget);
     }
+    claim.done(Buffer.byteLength(text));
     res.status(upstream.status).send(text);
     if (key) {
       // Une page devenue trop grosse retire l'ancienne : elle restait servie

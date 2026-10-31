@@ -686,8 +686,7 @@ par un lecteur qui lit dans l'ordre de parution.
   (`feed:filter:oldest`, écrite et relue dans `src/lib/viewLists.ts` :
   `viewListKey`, `parseViewKey`), donc cache mémoire, liste hors-ligne et cache
   serveur (clé = URL complète) ne mélangent jamais les deux sens. L'ordre par
-  défaut garde l'ancienne clé : les listes hors-ligne existantes restent
-  lisibles.
+  défaut garde l'ancienne forme de clé.
 - **Changer l'ordre recharge la vue** — c'est l'appelant qui le fait
   (`loadArticles()` depuis l'onglet Général et depuis le menu du flux quand ce
   flux est affiché), pas le store : `uiStore` ne peut pas importer `feedStore`.
@@ -717,10 +716,11 @@ par un lecteur qui lit dans l'ordre de parution.
 Un bouton de la barre de liste (issue #27) tire au hasard des articles de la vue
 affichée, comme l'ordre aléatoire de FreshRSS : un tirage et pas une suite stable.
 Un nouveau tirage peut ramener un article. Le bouton suit toujours « Non lus »,
-en icône sur téléphone et en toutes lettres ailleurs. En 3 colonnes, si la ligne
-déborde, « Rechercher » cède son mot le premier, puis lui, et seulement alors
-(`useToolbarFold`, le même que la barre du lecteur, `.list-actions`, `data-cede`) ;
-en dernier recours, elle passe à la ligne. ⚠️ Mesuré et pas un seuil : la longueur
+en icône sur téléphone et en toutes lettres ailleurs. En 3 colonnes comme en 2
+colonnes (tablette, article ouvert), si la ligne déborde, « Rechercher » cède son
+mot le premier, puis lui, et seulement alors (`useToolbarFold`, le même que la barre
+du lecteur, `.list-actions`, `data-cede`) ; en dernier recours, elle passe à la
+ligne, boutons compris. ⚠️ Mesuré et pas un seuil : la longueur
 des mots change avec la langue, et une requête `@container` à 430 px retirait
 « Random » qui tenait. Placé sur la ligne du titre, sans texte, le bouton ne se
 trouvait pas.
@@ -766,7 +766,7 @@ trouvait pas.
   temps d'une recherche, et revient ensuite. La déconnexion l'éteint. Le changement
   de serveur applique aussitôt le choix de l'accueil du nouveau serveur. Un tirage de
   l'accueil sans abonnements les lit lui-même : ils désignent le flux, et sans eux le
-  tirage lirait les flux masqués (`drawRandomList`). `syncRandomView` le recale au
+  tirage lirait les flux masqués (`drawRandomList`). `openHome` lit le choix quand aucune vue n'est mémorisée, et `syncRandomView` le recale au
   démarrage si les préférences changent le choix de la vue déjà ouverte, abonnements
   chargés ; sinon le choix s'applique à sa prochaine ouverture. Un réglage reçu d'un autre appareil en cours
   de session attend la prochaine visite : la liste ne change pas sans geste. Absent
@@ -6361,9 +6361,16 @@ répondu (voir *Extraction du contenu complet*).
   flux publics à contenu intégral, enveloppe greader comprise : 0,1 à 1,7 Mio la
   page de 50 articles, 4,5 Mio pour le pire (des essais longs). Au-delà, la
   page est servie entière au client et simplement pas gardée.
-  **Limite connue** : 8 Mio par URL, à 600 requêtes par minute, restent une
-  écriture de plusieurs Gio par minute pour un compte qui le cherche, sur 24 h
-  de TTL. Le plafond retire le pire cas d'une entrée, pas le volume cumulé.
+  Ces lectures sont gardées en mémoire puis analysées, ce qui bloque le serveur pour
+  tous : **`claimCacheRead`** donne à chaque compte 4 lectures simultanées et 64 Mio par
+  minute. Sans lui, 60 lectures en vol tenaient 1,9 Gio pour 31 Kio de gzip chacune, et
+  des pages de 8 Mio faisaient passer `/api/health` de 2 ms à 1,1 s à 56 requêtes par
+  minute. Part épuisée : la réponse est relayée en flux, sans copie en cache, donc sans
+  conséquence pour le client (la préparation hors ligne peut l'atteindre, elle perd
+  seulement la copie). Le client Redis a un `commandTimeout` de 5 s : un Redis figé
+  bloquait sans borne `X-Cache-Only`, et le worker jusqu'à la coupure du socket.
+  **Limite connue** : le volume écrit reste celui de cette part, sur 24 h de TTL, et
+  plusieurs comptes s'additionnent.
   Le worker (Modèle B) garde son plafond de lecture, et passe par le même
   filtre : un proxy d'authentification répond 200 en HTML, et ce corps écrit
   devenait une liste vide à la peinture depuis le cache.

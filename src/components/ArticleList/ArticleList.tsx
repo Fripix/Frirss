@@ -914,7 +914,7 @@ export default function ArticleList() {
           </div>
         ) : is2Panel ? (
           /* ── 2-panel: single unified toolbar ── */
-          <div className="px-3 py-2 flex items-center gap-2 min-h-[48px]">
+          <div ref={actionRowRef} className="list-actions px-3 py-2 flex items-center gap-2 min-h-[48px]">
             {!sidebarVisible && (
               <button
                 onClick={toggleSidebar}
@@ -929,7 +929,8 @@ export default function ArticleList() {
               </button>
             )}
 
-            <h2 className="text-[16px] font-bold truncate min-w-0" title={heading} style={{ color: 'var(--list-title)' }}>
+            {/* 6rem : le titre ne se réduit pas à rien avant que la ligne déborde. */}
+            <h2 className="text-[16px] font-bold truncate min-w-[6rem]" title={heading} style={{ color: 'var(--list-title)' }}>
               {heading}
             </h2>
             {!searchQuery && <HeaderUnread count={headerUnread} />}
@@ -938,10 +939,10 @@ export default function ArticleList() {
 
             {/* Inline toolbar actions */}
             <div className="flex items-center gap-0.5 flex-shrink-0">
-              <ToolbarBtn icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
+              <ToolbarBtn cede={1} icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
-              {randomButton && <ToolbarBtn {...randomButton} />}
+              {randomButton && <ToolbarBtn cede={2} {...randomButton} />}
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               {canMarkAll && (

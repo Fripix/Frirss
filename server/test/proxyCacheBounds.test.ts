@@ -23,12 +23,14 @@ vi.mock('../middleware/auth.js', () => ({
 }));
 const cacheSet = vi.fn(async () => {});
 const cacheDel = vi.fn(async () => {});
+const claimCacheRead = vi.fn((): { done: (bytes: number) => void } | null => ({ done: () => {} }));
 vi.mock('../cache.js', async () => ({
   ...await vi.importActual<typeof import('../cache.js')>('../cache.js'),
   cacheEnabled: true,
   cacheGet: vi.fn(async () => null),
   cacheSet: (...a: unknown[]) => cacheSet(...(a as [])),
   cacheDel: (...a: unknown[]) => cacheDel(...(a as [])),
+  claimCacheRead: () => claimCacheRead(),
   cacheKey: (u: unknown, t: string) => `k:${String(u)}:${t}`,
 }));
 
@@ -184,3 +186,29 @@ describe('/api/proxy — lectures mises en cache', () => {
     expect(cacheSet).not.toHaveBeenCalled();
   });
 });
+
+// Un compte qui dépasse sa part continue de lire : seule la copie en cache saute.
+describe('part de lecture du compte', () => {
+  it('épuisée, la page est relayée entière et n’est ni gardée, ni analysée', async () => {
+    claimCacheRead.mockReturnValueOnce(null);
+    const res = await call('/reader/api/0/stream/contents/page');
+    expect(res.status).toBe(200);
+    expect(res.bytes).toBe(Buffer.byteLength(HEAVY_PAGE));
+    expect(cacheSet).not.toHaveBeenCalled();
+  });
+
+  it('rendue avec les octets lus', async () => {
+    const done = vi.fn();
+    claimCacheRead.mockReturnValueOnce({ done });
+    await call('/reader/api/0/stream/contents/page');
+    expect(done).toHaveBeenCalledExactlyOnceWith(Buffer.byteLength(HEAVY_PAGE));
+  });
+
+  it('rendue aussi quand la lecture échoue', async () => {
+    const done = vi.fn();
+    claimCacheRead.mockReturnValueOnce({ done });
+    await call('/reader/api/0/stream/contents/huge');
+    expect(done).toHaveBeenCalledExactlyOnceWith(0);
+  });
+});
+

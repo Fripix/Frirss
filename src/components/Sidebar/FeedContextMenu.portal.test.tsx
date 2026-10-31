@@ -11,10 +11,13 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (k: string) => k }),
   initReactI18next: { type: '3rdParty', init: () => {} },
 }));
+const shown = vi.hoisted(() => ({
+  selectedFeed: null as unknown, randomView: false, loadArticles: (() => {}) as () => void, setRandomView: (() => {}) as (on: boolean) => void,
+}));
 vi.mock('../../stores/feedStore', () => ({
   useFeedStore: Object.assign(
     (sel: (s: unknown) => unknown) => sel({ feedErrors: {}, refreshResult: null, selectedFeed: null }),
-    { getState: () => ({ selectedFeed: null, loadArticles: () => {} }) },
+    { getState: () => shown },
   ),
   READ_LATER_LABEL: 'user/-/label/Read later',
   getSampleArticleUrl: () => undefined,
@@ -129,3 +132,28 @@ describe('FeedContextMenu — ordre de ce flux', () => {
     expect(screen.getByRole('button', { name: 'articleList.random' }).getAttribute('aria-pressed')).toBe('true');
   });
 });
+
+// Le choix efface l'ordre du flux : la liste doit suivre, sinon elle reste à l'envers
+// sous la vue devenue « plus récents d'abord », et se range sous sa clé.
+describe('FeedContextMenu — Aléatoire sur le flux ouvert', () => {
+  const pick = () => {
+    render(<FeedContextMenu feed={feed} x={10} y={10} onRename={yes} onDelete={yes} onClose={() => {}} />);
+    fireEvent.click(document.body.querySelector('button[title="articleList.random"]')!);
+  };
+  afterEach(() => { Object.assign(shown, { selectedFeed: null, randomView: false }); });
+
+  it('recharge la liste quand le tirage ne peut pas se faire (hors ligne, Favoris, recherche)', () => {
+    const loadArticles = vi.fn();
+    Object.assign(shown, { selectedFeed: feed, loadArticles, setRandomView: () => {} });
+    pick();
+    expect(loadArticles).toHaveBeenCalledOnce();
+  });
+
+  it('ne recharge pas par-dessus un tirage', () => {
+    const loadArticles = vi.fn();
+    Object.assign(shown, { selectedFeed: feed, loadArticles, setRandomView: (on: boolean) => { shown.randomView = on; } });
+    pick();
+    expect(loadArticles).not.toHaveBeenCalled();
+  });
+});
+

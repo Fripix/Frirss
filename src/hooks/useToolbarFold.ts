@@ -2,7 +2,7 @@ import { useLayoutEffect, type RefObject } from 'react';
 
 /**
  * Replie les libellés d'une barre d'action EN MESURANT : celle du volet de lecture,
- * et la ligne d'actions de la liste en 3 colonnes.
+ * et la ligne d'actions de la liste.
  *
  * Écrit `data-fold` sur l'élément, impérativement : `"0"` (tout tient), `"1"`
  * (libellés secondaires masqués : Étiquettes, Partager, Original), `"2"` (tous

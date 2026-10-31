@@ -709,6 +709,27 @@ describe('le réglage de la vue fait foi', () => {
 
 // `feed/12` ne désigne pas le même flux d'un serveur à l'autre, et l'accueil de l'un
 // n'est pas celui de l'autre : le choix appartient à son serveur.
+describe('ouverture sans vue mémorisée', () => {
+  it('l’accueil rouvre son tirage', async () => {
+    const env = await load();
+    env.useUiStore.getState().setViewRandom('1', '', true);
+    vi.mocked(env.api.getStreamIdsSince).mockClear();
+    state(env).openHome();
+    await settled();
+    expect(state(env).randomView).toBe(true);
+    expect(env.api.getStreamIdsSince).toHaveBeenCalledOnce();
+  });
+
+  it('sans choix, la lecture normale', async () => {
+    const env = await load();
+    vi.mocked(env.api.getStreamIdsSince).mockClear();
+    state(env).openHome();
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    expect(env.api.getStreamIdsSince).not.toHaveBeenCalled();
+  });
+});
+
 describe('le choix appartient à son serveur', () => {
   const onServer = async (env: Env, id: string) => {
     env.useAuthStore.setState({ activeServerId: id } as never);

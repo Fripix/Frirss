@@ -886,6 +886,8 @@ export interface FeedState {
    *  `syncCounts`. `countArrivals: false` : ne rien ajouter à `newInView`
    *  (le rafraîchissement manuel, qui a son propre bandeau). */
   loadSubscriptions: (opts?: { countArrivals?: boolean }) => Promise<void>;
+  /** Ouvre l'accueil au démarrage, sans vue mémorisée : avec son choix d'aléatoire. */
+  openHome: () => void;
   /**
    * Instant paint from the offline snapshot of the subscriptions (structure
    * only; counts arrive with the live load). Resolves once applied, so the
@@ -1943,6 +1945,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     useUiStore.getState().setViewRandom(useAuthStore.getState().activeServerId, get().selectedFeed?.id ?? '', on);
     if (on && !opensRandom(get().selectedFeed)) return;
     showRandomView(on);
+  },
+
+  openHome: () => {
+    set({ randomView: viewOpensRandom(get()) });
+    void get().loadArticles();
   },
 
   syncRandomView: (before) => {
