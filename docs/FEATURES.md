@@ -699,9 +699,11 @@ par un lecteur qui lit dans l'ordre de parution.
 ### Affichage aléatoire
 Un bouton de la barre de liste (issue #27) tire au hasard des articles de la vue
 affichée, comme l'ordre aléatoire de FreshRSS : un tirage et pas une suite stable.
-Un nouveau tirage peut ramener un article. Le bouton suit « Non lus », sauf en
-3 colonnes où il vit sur la ligne du titre : à 340 px, largeur par défaut de la
-colonne, il faisait sortir « Tout lu » de la ligne d'actions, sans recours.
+Un nouveau tirage peut ramener un article. Le bouton suit toujours « Non lus » :
+en toutes lettres en Liste et en Grille, en icône sur téléphone et en 3 colonnes,
+où « Rechercher » passe aussi en icône pour que « Tout lu » tienne sur la ligne à
+340 px, largeur par défaut de la colonne. ⚠️ Placé sur la ligne du titre, sans
+texte, il ne se trouvait pas.
 
 - **Où** : `src/lib/randomDraw.ts`, `drawRandomList` et `setRandomView` dans
   `src/stores/feedStore.ts`, `getStreamIdsSince` et `getItemsByIds` dans

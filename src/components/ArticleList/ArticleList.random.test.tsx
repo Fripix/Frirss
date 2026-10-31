@@ -85,6 +85,26 @@ describe('le bouton Aléatoire', () => {
   });
 });
 
+// Une icône sans texte, sur la ligne du titre en 3 colonnes, ne se trouvait pas.
+describe('la place du bouton', () => {
+  const neighbours = (c: ReturnType<typeof render>) => {
+    const button = random(c);
+    const row = [...button.parentElement!.children].map((e) => e.getAttribute('aria-label'));
+    return { row, label: button.textContent };
+  };
+
+  it.each(['2', '3', 'grid'])('suit « Non lus » dans la disposition %s', (panelLayout) => {
+    useUiStore.setState({ panelLayout } as never);
+    const { row } = neighbours(show());
+    expect(row.indexOf('articleList.random')).toBe(row.indexOf('articleList.unread') + 1);
+  });
+
+  it.each(['2', 'grid'])('porte son nom en toutes lettres dans la disposition %s', (panelLayout) => {
+    useUiStore.setState({ panelLayout } as never);
+    expect(neighbours(show()).label).toBe('articleList.random');
+  });
+});
+
 describe('l’état du bouton', () => {
   it.each([[false, 'false'], [true, 'true']])('se lit sans la couleur (%s)', (randomView, pressed) => {
     expect(random(show({ randomView })).getAttribute('aria-pressed')).toBe(pressed);
