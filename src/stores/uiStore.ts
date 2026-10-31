@@ -1078,7 +1078,8 @@ export const useUiStore = create<UiState>()((set, get) => ({
       const scoped = serverViewKey(serverId, feedId);
       for (const field of ['order', 'layout'] as const) {
         if (!entry[field]) continue;
-        if (!next[scoped]?.[field]) next = withFeedOverride(next, scoped, field, entry[field]);
+        // Toute écriture retire l'entrée sans serveur : si elle est là, c'est la plus récente.
+        next = withFeedOverride(next, scoped, field, entry[field]);
         next = withFeedOverride(next, feedId, field, '');
       }
     }

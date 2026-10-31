@@ -19,7 +19,8 @@ export function isServerKey(key: string): boolean {
 
 /**
  * L'ordre et la disposition d'un flux sur ce serveur. Une entrée sans serveur vient de
- * la version publiée : elle reste lue jusqu'à son adoption (`adoptFeedOverrides`).
+ * la version publiée et passe devant : une écriture la retire, donc si elle est là,
+ * elle est la plus récente. `adoptFeedOverrides` la rattache à la lecture des préférences.
  * Passer par `effectiveOrder` et `effectiveLayout` pour décider d'une vue.
  */
 export function feedOverride(
@@ -29,5 +30,5 @@ export function feedOverride(
 ): { order?: ArticleOrder; layout?: string } {
   const own = serverId === null || serverId === undefined ? undefined : settings[serverViewKey(serverId, feedId)];
   const published = settings[feedId];
-  return { order: own?.order || published?.order, layout: own?.layout || published?.layout };
+  return { order: published?.order || own?.order, layout: published?.layout || own?.layout };
 }

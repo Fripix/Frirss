@@ -311,9 +311,6 @@ export default function App() {
     if (backendToken) {
       const choicesBefore = useUiStore.getState().randomViews;
       hydratePrefs().then(() => {
-        // Les préférences arrivent du serveur avec les réglages de la version publiée.
-        const server = useAuthStore.getState().activeServerId;
-        if (server !== null && server !== undefined) useUiStore.getState().adoptFeedOverrides(server);
         // La vue s'ouvre avant les préférences : son choix d'aléatoire peut changer.
         useFeedStore.getState().syncRandomView(choicesBefore);
         // Once per-user prefs land, honour "unread only" on the initial view —

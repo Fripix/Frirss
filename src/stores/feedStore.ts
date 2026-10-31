@@ -3592,10 +3592,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       refreshPhase: 'idle',
       refreshResult: null,
     });
-    get().loadSubscriptions();
+    const subscriptions = get().loadSubscriptions();
     // Le nouveau serveur a ses propres choix.
     set({ randomView: viewOpensRandom(get()) });
-    get().loadArticles();
+    if (!get().randomView) {
+      get().loadArticles();
+      return;
+    }
+    // Un tirage de l'accueil lit le flux que les abonnements désignent.
+    const view = viewIdentity(get());
+    const draw = () => {
+      if (viewIdentity(get()) === view && get().randomView) get().loadArticles();
+    };
+    void subscriptions.then(draw, draw);
   },
 }));
 

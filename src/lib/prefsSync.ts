@@ -137,12 +137,18 @@ function collectPrefs(): PrefsSnapshot {
 }
 
 // Appliquer aux deux stores sans que leurs abonnements marquent quoi que ce
-// soit comme modifié ici.
+// soit comme modifié ici. Tout ce qui arrive du serveur passe par ici : c'est
+// aussi là que les réglages d'avant le rangement par serveur sont rattachés.
+// Jamais marqué : `feedSettings` part en bloc, et ce rattachement, qui n'est pas
+// un geste, écraserait ce que les autres appareils ont réglé. Le serveur garde
+// l'ancienne forme jusqu'au prochain vrai réglage.
 function applyQuietly(prefs: PrefsSnapshot, opts?: { onlyPresent?: boolean }): void {
   hydrating = true;
   try {
     useUiStore.getState().applyServerPrefs(prefs, opts);
     useThemeStore.getState().applyServerPrefs(prefs, opts);
+    const server = useAuthStore.getState().activeServerId;
+    if (server !== null && server !== undefined) useUiStore.getState().adoptFeedOverrides(server);
   } finally {
     hydrating = false;
   }

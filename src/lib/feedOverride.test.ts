@@ -34,9 +34,11 @@ describe('réglages d’un flux, par serveur', () => {
     expect(feedOverride(settings, 1, 'feed/12').order).toBe('oldest');
   });
 
-  it('le réglage du serveur passe devant l’ancien', () => {
+  // Une écriture retire l'entrée sans serveur : si elle est là, un appareil encore en
+  // version publiée vient de l'écrire.
+  it('l’entrée sans serveur, écrite après, passe devant', () => {
     const settings = { 'feed/12': { layout: '2' }, '1|feed/12': { layout: 'grid' } } as never;
-    expect(effectiveLayout('3', settings, 'feed/12', 1)).toBe('grid');
+    expect(effectiveLayout('3', settings, 'feed/12', 1)).toBe('2');
   });
 
   it('sans serveur, l’ancienne lecture reste', () => {

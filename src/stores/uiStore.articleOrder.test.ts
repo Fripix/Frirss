@@ -90,10 +90,12 @@ describe('uiStore — ordre et disposition par serveur', () => {
       expect(JSON.parse(localStorage.getItem('frirss_feedSettings')!)).toEqual({ '1|feed/2': { layout: '2' } });
     });
 
-    it('ne remplace pas un choix déjà fait sur ce serveur', () => {
+    // Une écriture retire l'entrée sans serveur : si elle est là, un appareil encore
+    // en version publiée vient de l'écrire.
+    it('prend la valeur sans serveur, écrite après celle du serveur', () => {
       useUiStore.setState({ feedSettings: { 'feed/1': { order: 'oldest' }, '1|feed/1': { order: 'newest' } } });
       adopt();
-      expect(useUiStore.getState().feedSettings).toEqual({ '1|feed/1': { order: 'newest' } });
+      expect(useUiStore.getState().feedSettings).toEqual({ '1|feed/1': { order: 'oldest' } });
     });
 
     it('rejouée, elle ne change rien et n’écrit pas', () => {
