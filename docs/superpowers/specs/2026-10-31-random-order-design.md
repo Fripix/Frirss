@@ -42,9 +42,9 @@ mode à part sans lien avec FreshRSS, les dossiers intelligents.
 ### Le bouton
 
 - Présent dans les trois barres de `ArticleList.tsx`, avec l'état actif habituel de
-  `ToolbarBtn`. Libellé `articleList.random`. Toujours après « Non lus » : en toutes
-  lettres en Liste et en Grille, en icône sur téléphone et en 3 colonnes, où
-  « Rechercher » passe aussi en icône pour la largeur de 340 px.
+  `ToolbarBtn`. Libellé `articleList.random`. Toujours après « Non lus » : en icône
+  sur téléphone, en toutes lettres ailleurs. En 3 colonnes, « Rechercher » et lui
+  perdent leur mot seulement quand la colonne manque de place.
 - Visible sous les filtres Tous et Non lus, sur l'accueil, une catégorie, un
   flux ou une étiquette. Absent sous Favoris et À lire plus tard : les favoris
   d'un flux sont filtrés côté client, leurs identifiants ne s'obtiennent pas.

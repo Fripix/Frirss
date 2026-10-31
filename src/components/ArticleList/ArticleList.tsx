@@ -1010,14 +1010,15 @@ export default function ArticleList() {
             {/* À la ligne si la place manque : à 340 px, largeur par défaut de la
                 colonne, « Tout lu » sortait de la barre dans six langues, et rien
                 ne le remplace. */}
-            <div className="pl-2 pr-0.5 py-1 flex flex-wrap items-center gap-0.5" style={{ borderTop: '1px solid var(--panel-border)' }}>
-              {/* La loupe en icône seule : elle se reconnaît, et ses 66 px gardent
-                  Aléatoire à côté de « Non lus » et « Tout lu » sur la ligne à 340 px. */}
-              <ToolbarBtn iconOnly icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
+            <div className="list-actions pl-2 pr-0.5 py-1 flex flex-wrap items-center gap-0.5" style={{ borderTop: '1px solid var(--panel-border)' }}>
+              {/* Rechercher et Aléatoire perdent leur mot quand la colonne n'a plus
+                  la place de l'afficher, et seulement alors (`.list-actions`) : à
+                  340 px, largeur par défaut, ils poussaient « Tout lu » à la ligne. */}
+              <ToolbarBtn compact icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
               <ToolbarSep />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
-              {randomButton && <ToolbarBtn iconOnly {...randomButton} />}
+              {randomButton && <ToolbarBtn compact {...randomButton} />}
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               {canMarkAll && (
@@ -1394,10 +1395,12 @@ interface ToolbarBtnProps {
   pressed?: boolean;
   disabled?: boolean;
   iconOnly?: boolean;
+  /** Son mot cède quand `.list-actions` manque de place. */
+  compact?: boolean;
   flex1?: boolean;
 }
 
-function ToolbarBtn({ icon, label, shortcut, onClick, active, pressed, disabled, iconOnly, flex1 }: ToolbarBtnProps) {
+function ToolbarBtn({ icon, label, shortcut, onClick, active, pressed, disabled, iconOnly, compact, flex1 }: ToolbarBtnProps) {
   return (
     <button
       onClick={onClick}
@@ -1418,7 +1421,7 @@ function ToolbarBtn({ icon, label, shortcut, onClick, active, pressed, disabled,
       aria-label={label}
     >
       {icon}
-      {!iconOnly && <span>{label}</span>}
+      {!iconOnly && <span className={compact ? 'list-actions__label' : undefined}>{label}</span>}
     </button>
   );
 }

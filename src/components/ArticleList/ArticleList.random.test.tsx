@@ -2,6 +2,8 @@
 //
 // Le bouton Aléatoire et ce que la liste change dans ce mode.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import type { Article } from '../../types';
 
@@ -99,9 +101,27 @@ describe('la place du bouton', () => {
     expect(row.indexOf('articleList.random')).toBe(row.indexOf('articleList.unread') + 1);
   });
 
-  it.each(['2', 'grid'])('porte son nom en toutes lettres dans la disposition %s', (panelLayout) => {
+  it.each(['2', 'grid', '3'])('porte son nom en toutes lettres dans la disposition %s', (panelLayout) => {
     useUiStore.setState({ panelLayout } as never);
     expect(neighbours(show()).label).toBe('articleList.random');
+  });
+
+  // Une icône seule à côté de boutons nommés ne se justifie que si la place manque,
+  // et c'est la largeur de la colonne qui le dit : elle se redimensionne.
+  it('en 3 colonnes, ses mots ne cèdent qu’à la largeur de la colonne', () => {
+    useUiStore.setState({ panelLayout: '3' } as never);
+    const c = show();
+    const button = random(c);
+    expect(button.parentElement!.className).toContain('list-actions');
+    expect(button.querySelector('span')!.className).toContain('list-actions__label');
+    const search = c.getAllByRole('button', { name: 'articleList.search' }).find((b) => b.parentElement === button.parentElement)!;
+    expect(search.querySelector('span')!.className).toContain('list-actions__label');
+  });
+
+  it('la feuille cache ces mots seulement sous la largeur voulue', () => {
+    const css = readFileSync(resolve(__dirname, '../../styles/index.css'), 'utf8');
+    expect(css).toMatch(/\.list-actions\s*\{[^}]*container-type:\s*inline-size/);
+    expect(css).toMatch(/@container\s*\(max-width:\s*\d+px\)\s*\{\s*\.list-actions__label\s*\{\s*display:\s*none/);
   });
 });
 
