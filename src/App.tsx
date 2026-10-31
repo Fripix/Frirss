@@ -311,6 +311,9 @@ export default function App() {
     if (backendToken) {
       const choicesBefore = useUiStore.getState().randomViews;
       hydratePrefs().then(() => {
+        // Les préférences arrivent du serveur avec les réglages de la version publiée.
+        const server = useAuthStore.getState().activeServerId;
+        if (server !== null && server !== undefined) useUiStore.getState().adoptFeedOverrides(server);
         // La vue s'ouvre avant les préférences : son choix d'aléatoire peut changer.
         useFeedStore.getState().syncRandomView(choicesBefore);
         // Once per-user prefs land, honour "unread only" on the initial view —
@@ -542,7 +545,7 @@ export default function App() {
   // DESKTOP — 3-column (or 2-column) classic layout, unchanged
   // ═══════════════════════════════════════════════════════════════════
   // A feed can override the global layout (set from its sidebar context menu).
-  const layout = effectiveLayout(panelLayout, feedSettings, selectedFeedId);
+  const layout = effectiveLayout(panelLayout, feedSettings, selectedFeedId, activeServerId);
   const gridMode = layout === 'grid';
   // Grid layout uses the 2-panel path: the card grid spans full width, and the
   // reading pane replaces it on selection (the card opens a full-screen reader

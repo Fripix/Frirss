@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { normalizeArticleOrder, type ArticleOrder } from '../lib/effectiveOrder';
+import { isServerKey, serverViewKey } from '../lib/feedOverride';
+import { useAuthStore } from './authStore';
 import {
   normalizeRandomAmount, normalizeRandomCount, normalizeRandomUnit, normalizeRandomViews, randomViewKey,
   RANDOM_DEFAULT_COUNT, type RandomWindowUnit,
@@ -429,6 +431,8 @@ export interface UiState {
   setArticleOrder: (order: ArticleOrder) => void;
   /** Set (or clear, with '') this feed's article order override. */
   setFeedArticleOrder: (feedId: string, order: ArticleOrder | '') => void;
+  /** Rattache au serveur l'ordre et la disposition rangés sans serveur par la version publiée. */
+  adoptFeedOverrides: (serverId: string | number) => void;
   /**
    * Les vues (flux, catégorie, étiquette, ou `''` pour l'accueil) qui s'ouvrent en
    * tirage, par serveur (`randomViewKey`). Synced. Pas dans `feedSettings` : `feed/12`
@@ -476,6 +480,22 @@ export interface UiState {
  * disappears once it carries no setting at all, so a feed back on every
  * global default leaves no trace in the synced table.
  */
+/**
+ * L'ordre et la disposition appartiennent au serveur actif (`serverViewKey`). L'entrée
+ * sans serveur de la version publiée perd ce réglage, sinon elle ressortirait sous un
+ * « Défaut ». Sans serveur (démarrage, tests du magasin seul), rien ne change.
+ */
+function withServerOverride<K extends 'layout' | 'order'>(
+  settings: Record<string, FeedSetting>,
+  feedId: string,
+  key: K,
+  value: FeedSetting[K] | '',
+): Record<string, FeedSetting> {
+  const serverId = useAuthStore.getState().activeServerId;
+  if (serverId === null || serverId === undefined) return withFeedOverride(settings, feedId, key, value);
+  return withFeedOverride(withFeedOverride(settings, serverViewKey(serverId, feedId), key, value), feedId, key, '');
+}
+
 function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProvider' | 'aiAutoTranslate' | 'aiAutoSummary' | 'aiPanel' | 'aiAutoSummaryTranslate'>(
   settings: Record<string, FeedSetting>,
   feedId: string,
@@ -1025,7 +1045,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ autoExtractDefault: on });
   },
   setFeedLayout: (feedId, layout) => {
-    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'layout', layout) }));
+    set((state) => ({ feedSettings: withServerOverride(state.feedSettings, feedId, 'layout', layout) }));
   },
   articleOrder: normalizeArticleOrder(loadJson('frirss_articleOrder', 'newest')),
   setArticleOrder: (order) => {
@@ -1048,7 +1068,21 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ randomWindowAmount, randomWindowUnit });
   },
   setFeedArticleOrder: (feedId, order) => {
-    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'order', order) }));
+    set((state) => ({ feedSettings: withServerOverride(state.feedSettings, feedId, 'order', order) }));
+  },
+  adoptFeedOverrides: (serverId) => {
+    const settings = get().feedSettings;
+    let next = settings;
+    for (const [feedId, entry] of Object.entries(settings)) {
+      if (isServerKey(feedId)) continue;
+      const scoped = serverViewKey(serverId, feedId);
+      for (const field of ['order', 'layout'] as const) {
+        if (!entry[field]) continue;
+        if (!next[scoped]?.[field]) next = withFeedOverride(next, scoped, field, entry[field]);
+        next = withFeedOverride(next, feedId, field, '');
+      }
+    }
+    if (next !== settings) set({ feedSettings: next });
   },
   randomViews: normalizeRandomViews(loadJson('frirss_randomViews', {})),
   setViewRandom: (serverId, viewId, on) => {

@@ -655,6 +655,14 @@ Préférences → Général (synchronisé), surchargeable **par flux** depuis le
 contextuel du flux, sous le sélecteur de disposition. Demandé dans l'issue #20
 par un lecteur qui lit dans l'ordre de parution.
 
+- **Par serveur** (1.8.0) : l'ordre et la disposition d'un flux se rangent sous
+  `<serveur>|<flux>` dans `feedSettings` (`serverViewKey`, `src/lib/feedOverride.ts`) :
+  FreshRSS numérote les flux par serveur, et `feed/12` n'est pas le même flux d'un
+  serveur à l'autre. Les réglages de la version publiée, sans serveur, restent lus, et
+  `adoptFeedOverrides` les rattache au serveur actif au chargement des préférences :
+  rien ne se perd, mais à plusieurs serveurs ils vont tous au premier actif. Toute
+  écriture retire l'entrée sans serveur, sinon elle ressortirait sous un « Défaut ».
+  ⚠️ L'article complet et les choix d'IA par flux restent, eux, communs aux serveurs.
 - **Où** : `src/lib/effectiveOrder.ts` — toujours résoudre par
   `effectiveOrder()` (surcharge du flux ?? global), jamais en lisant
   `articleOrder` ou `FeedSetting.order` directement ; `uiStore.articleOrder`,
@@ -715,8 +723,7 @@ trouvait pas.
   (`randomViews`, synchronisé, clé `<serveur>|<vue>` par `randomViewKey`, vue vide pour
   l'accueil), pour un flux, une catégorie, une étiquette ou l'accueil. ⚠️ Pas dans
   `feedSettings` : `feed/12` ne désigne pas le même flux d'un serveur à l'autre, et
-  l'accueil de l'un n'est pas celui de l'autre (`order` et `layout` gardent ce défaut,
-  antérieur). Changer de serveur applique les choix de celui-ci. La vue se rouvre en tirage à chaque visite et après un rechargement ;
+  l'accueil de l'un n'est pas celui de l'autre. Changer de serveur applique les choix de celui-ci. La vue se rouvre en tirage à chaque visite et après un rechargement ;
   l'éteindre retire le réglage. « Ordre de ce flux », dans le menu du flux (clic
   droit), propose aussi Aléatoire. Une vue est en tirage si son réglage le dit, si le
   filtre le permet et s'il y a du réseau (`opensRandom`), à chaque ouverture : hors

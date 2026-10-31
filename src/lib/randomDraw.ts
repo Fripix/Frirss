@@ -1,4 +1,5 @@
 import { entryIdUsec } from './entryId';
+import { serverViewKey } from './feedOverride';
 import type { Filter } from '../types';
 
 /**
@@ -44,13 +45,8 @@ export function normalizeRandomUnit(v: unknown): RandomWindowUnit {
   return v === 'days' ? 'days' : 'hours';
 }
 
-/**
- * La clé d'un choix : serveur et vue (`''` pour l'accueil). `feed/12` ne désigne pas
- * le même flux d'un serveur à l'autre, et un serveur appartient à un seul compte.
- */
-export function randomViewKey(serverId: string | number | null | undefined, viewId: string): string {
-  return `${serverId ?? ''}|${viewId}`;
-}
+/** La clé d'un choix. Un serveur appartient à un seul compte. */
+export const randomViewKey = serverViewKey;
 
 /** Les choix lisibles d'une valeur qui vient aussi d'un autre appareil. */
 export function normalizeRandomViews(v: unknown): Record<string, true> {

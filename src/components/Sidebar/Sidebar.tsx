@@ -10,6 +10,7 @@ import { openExternal } from '../../lib/openExternal';
 import { clampToViewport, MENU_MARGIN } from '../../lib/clampToViewport';
 import { useAuthStore } from '../../stores/authStore';
 import { randomViewKey } from '../../lib/randomDraw';
+import { feedOverride } from '../../lib/feedOverride';
 import { useUiStore } from '../../stores/uiStore';
 import type { ArticleOrder } from '../../lib/effectiveOrder';
 import { homeUnreadTotal } from '../../lib/mainStream';
@@ -853,9 +854,11 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
   const setFeedArticleOrder = useUiStore((s) => s.setFeedArticleOrder);
   const setViewRandom = useUiStore((s) => s.setViewRandom);
   const feedAutoExtract = feedSettings[feed.id]?.autoExtract; // true | false | undefined (= suit le défaut)
-  const feedLayout = feedSettings[feed.id]?.layout || '';
-  const isRandom = useUiStore((s) => !!s.randomViews[randomViewKey(useAuthStore.getState().activeServerId, feed.id)]);
-  const feedOrder = isRandom ? 'random' : feedSettings[feed.id]?.order || '';
+  const activeServerId = useAuthStore((s) => s.activeServerId);
+  const overrides = feedOverride(feedSettings, activeServerId, feed.id);
+  const feedLayout = overrides.layout || '';
+  const isRandom = useUiStore((s) => !!s.randomViews[randomViewKey(activeServerId, feed.id)]);
+  const feedOrder = isRandom ? 'random' : overrides.order || '';
 
   // Fermeture au clic en dehors. `pointerdown` et non `mousedown` : au doigt,
   // iOS n'émet pas de `mousedown` avant le `click`, si bien qu'une tape à côté
@@ -1066,7 +1069,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
             // Le menu choisit l'un ou l'autre : le bouton de la liste, lui, laisse l'ordre
             // du flux en place pour le jour où on l'éteint.
             setFeedArticleOrder(feed.id, v === 'random' ? '' : v);
-            setViewRandom(useAuthStore.getState().activeServerId, feed.id, v === 'random');
+            setViewRandom(activeServerId, feed.id, v === 'random');
             const fs = useFeedStore.getState();
             if (fs.selectedFeed?.id === feed.id) {
               const random = v === 'random';

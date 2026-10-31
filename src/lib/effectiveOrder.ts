@@ -1,4 +1,5 @@
 import type { FeedSetting } from '../stores/uiStore';
+import { feedOverride } from './feedOverride';
 
 /** Order in which a view lists its articles. FreshRSS serves `newest` unless asked otherwise. */
 export type ArticleOrder = 'newest' | 'oldest';
@@ -20,9 +21,10 @@ export function effectiveOrder(
   globalOrder: ArticleOrder,
   feedSettings: Record<string, FeedSetting>,
   feedId: string | undefined,
+  serverId?: string | number | null,
 ): ArticleOrder {
   if (!feedId) return globalOrder;
-  return feedSettings[feedId]?.order || globalOrder;
+  return feedOverride(feedSettings, serverId, feedId).order || globalOrder;
 }
 
 /**

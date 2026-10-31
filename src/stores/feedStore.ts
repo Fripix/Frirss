@@ -272,7 +272,7 @@ const rebuiltViews = new Set<string>();
 /** Order in effect for a view — the only reader of the global + per-feed settings. */
 function viewOrder(feed: Subscription | null): ArticleOrder {
   const ui = useUiStore.getState();
-  return effectiveOrder(ui.articleOrder, ui.feedSettings, feed?.id);
+  return effectiveOrder(ui.articleOrder, ui.feedSettings, feed?.id, useAuthStore.getState().activeServerId);
 }
 // The order is part of the view: the same feed read from the other end is
 // another list, in memory and in the offline store alike. So are the account

@@ -666,6 +666,10 @@ la release publiée.
   🎬 au lieu de « ＆#127916; » (#28). Un article sans titre
   affiche « Sans titre » dans la langue de l'interface, et non plus en
   français pour tous.
+- **L'ordre et la disposition d'un flux restent sur leur serveur.** FreshRSS numérote
+  les flux par serveur : régler un flux sur l'un changeait celui qui portait le même
+  numéro sur l'autre. Les réglages existants sont conservés, et rattachés au serveur
+  actif.
 - **« Tout lu » reste accessible en 3 colonnes.** À la largeur par défaut de la
   colonne, le bouton sortait de la barre en allemand, espagnol, néerlandais,
   polonais, portugais et ukrainien. La barre passe à la ligne quand la place

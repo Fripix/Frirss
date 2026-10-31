@@ -10,6 +10,7 @@ import { showEndOfListMarkAll } from '../../lib/endOfList';
 import { canRandomView } from '../../lib/randomDraw';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useToolbarFold } from '../../hooks/useToolbarFold';
+import { feedOverride } from '../../lib/feedOverride';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { effectiveOrder, entryDirection } from '../../lib/effectiveOrder';
 import { viewUnreadCount } from '../../lib/mainStream';
@@ -172,12 +173,13 @@ export default function ArticleList() {
   const isDesktop = breakpoint === 'desktop';
   const isMobile = breakpoint === 'mobile';
   // A feed can override the global layout (set from its sidebar context menu).
-  const layout = effectiveLayout(panelLayout, feedSettings, selectedFeed?.id);
+  const activeServerId = useAuthStore((s) => s.activeServerId);
+  const layout = effectiveLayout(panelLayout, feedSettings, selectedFeed?.id, activeServerId);
   // « Au-dessus / en dessous » sont des positions ; le marquage de plage
   // raisonne en entrées plus récentes / plus anciennes. L'ordre de la vue
   // fait la traduction — sans elle, la liste inversée marquerait l'autre moitié.
-  const order = effectiveOrder(articleOrder, feedSettings, selectedFeed?.id);
-  const feedLayoutOverride = !!(selectedFeed && feedSettings[selectedFeed.id]?.layout);
+  const order = effectiveOrder(articleOrder, feedSettings, selectedFeed?.id, activeServerId);
+  const feedLayoutOverride = !!(selectedFeed && feedOverride(feedSettings, activeServerId, selectedFeed.id).layout);
   // Grid is a full-width layout: like 2-panel, the list body spans the whole
   // width and the reading pane replaces it on selection.
   const gridLayout = layout === 'grid';
@@ -291,7 +293,6 @@ export default function ArticleList() {
   const [searchValue, setSearchValue] = useState('');
   // Recherches récentes du serveur actif. Rechargées à chaque ouverture du
   // champ plutôt que gardées en état : elles changent à la soumission.
-  const activeServerId = useAuthStore((s) => s.activeServerId);
   const [history, setHistory] = useState<string[]>([]);
   // La question posée, s'il y en a une : le vidage complet de la vue, ou un
   // marquage de plage venu du menu d'article. Les deux passent par la MÊME

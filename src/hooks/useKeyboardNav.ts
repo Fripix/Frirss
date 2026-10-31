@@ -3,6 +3,7 @@ import { useFeedStore } from '../stores/feedStore';
 import { useAiStore, aiUsable } from '../stores/aiStore';
 import { useUiStore } from '../stores/uiStore';
 import { effectiveLayout } from '../lib/effectiveLayout';
+import { useAuthStore } from '../stores/authStore';
 import { openExternal } from '../lib/openExternal';
 
 // Actions qui ne sont pas idempotentes : les rejouer défait ou multiplie.
@@ -66,7 +67,7 @@ export function useKeyboardNav(): void {
 
       // In grid layout, Escape closes the reader overlay and returns to the grid.
       const ui = useUiStore.getState();
-      const layout = effectiveLayout(ui.panelLayout, ui.feedSettings, useFeedStore.getState().selectedFeed?.id);
+      const layout = effectiveLayout(ui.panelLayout, ui.feedSettings, useFeedStore.getState().selectedFeed?.id, useAuthStore.getState().activeServerId);
       if (e.key === 'Escape'
           && layout === 'grid'
           && useFeedStore.getState().selectedArticle) {

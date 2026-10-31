@@ -151,7 +151,7 @@ function applyQuietly(prefs: PrefsSnapshot, opts?: { onlyPresent?: boolean }): v
 /** Ordre de la liste affichée : le global, ou celui du flux ouvert. */
 function shownOrder(): string {
   const ui = useUiStore.getState();
-  return effectiveOrder(ui.articleOrder, ui.feedSettings, useFeedStore.getState().selectedFeed?.id);
+  return effectiveOrder(ui.articleOrder, ui.feedSettings, useFeedStore.getState().selectedFeed?.id, useAuthStore.getState().activeServerId);
 }
 
 // ── Envoi ───────────────────────────────────────────────────────────

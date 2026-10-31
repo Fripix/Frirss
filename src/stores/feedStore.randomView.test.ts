@@ -492,7 +492,7 @@ describe('aléatoire par défaut sur un flux', () => {
     await settled();
     state(env).setRandomView(false);
     await settled();
-    expect(env.useUiStore.getState().feedSettings['feed/1']).toEqual({ order: 'oldest' });
+    expect(env.useUiStore.getState().feedSettings['1|feed/1']).toEqual({ order: 'oldest' });
   });
 
   it('l’accueil retient aussi son choix', async () => {
