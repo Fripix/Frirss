@@ -647,9 +647,9 @@ describe('prefsSync — clés modifiées seulement', () => {
 });
 
 /**
- * Ordre et disposition d'un flux sont rangés par serveur en 1.8.0. Ce rattachement
- * n'est pas un geste : envoyé, le bloc local remplacerait tout `feedSettings` et
- * effacerait ce que les autres appareils ont réglé entre-temps.
+ * Ordre et disposition d'un flux sont rangés par serveur depuis 1.8.0. Les anciens
+ * réglages ne bougent jamais d'office : `feedSettings` part en bloc, et un déplacement
+ * envoyé effacerait ce que les autres appareils ont réglé entre-temps.
  */
 describe('réglages par flux d’avant le rangement par serveur', () => {
   const later = { 'feed/2': { autoExtract: true }, 'feed/3': { aiAutoSummary: true } };
@@ -668,60 +668,22 @@ describe('réglages par flux d’avant le rangement par serveur', () => {
     vi.useRealTimers();
   });
 
-  it('ouvert sans réseau, rien n’est rattaché ni envoyé au retour', async () => {
+  it('ouvert sans réseau, rien ne bouge ni ne part au retour', async () => {
     const server = fakeServer({ viewMode: 'normal', feedSettings: { 'feed/1': { order: 'oldest' }, ...later } });
     const read = get.getMockImplementation()!;
     get.mockRejectedValueOnce(new Error('Network Error'));
     await hydratePrefs();
-    expect(useUiStore.getState().feedSettings).toEqual({ 'feed/1': { order: 'oldest' } });
-
     get.mockImplementation(read);
     await vi.advanceTimersByTimeAsync(10_000);
     expect(save).not.toHaveBeenCalled();
-    expect(Object.keys(server.feedSettings as object)).toEqual(['feed/1', 'feed/2', 'feed/3']);
-    expect(useUiStore.getState().feedSettings).toEqual({ '1|feed/1': { order: 'oldest' }, ...later });
+    expect(useUiStore.getState().feedSettings).toEqual(server.feedSettings);
   });
 
-  it('rattaché à la lecture, sans envoi ni clé en attente', async () => {
+  it('un réglage ne déplace que son flux', async () => {
     const server = fakeServer({ viewMode: 'normal', feedSettings: { 'feed/1': { order: 'oldest' }, ...later } });
-    await hydratePrefs();
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(useUiStore.getState().feedSettings).toEqual({ '1|feed/1': { order: 'oldest' }, ...later });
-    expect(save).not.toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem('frirss_prefsDirty') ?? '[]')).not.toContain('feedSettings');
-    expect(server.feedSettings).toEqual({ 'feed/1': { order: 'oldest' }, ...later });
-  });
-
-  it('une lecture dépassée par un autre compte ne rattache rien', async () => {
-    const pending: Array<(v: unknown) => void> = [];
-    get.mockReset().mockImplementation(() => new Promise((r) => pending.push(r as (v: unknown) => void)) as never);
-    const first = hydratePrefs();
-    signIn(2);
-    const second = hydratePrefs();
-    pending[0]({ viewMode: 'normal', feedSettings: { 'feed/1': { order: 'oldest' } } });
-    await first;
-    pending[1]({ viewMode: 'normal', feedSettings: { 'feed/7': { layout: 'grid' } } });
-    await second;
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(save).not.toHaveBeenCalled();
-    expect(useUiStore.getState().feedSettings).toEqual({ '1|feed/7': { layout: 'grid' } });
-  });
-
-  it('le bloc reçu d’un autre appareil au retour au premier plan est rattaché aussi', async () => {
-    const server = fakeServer({ viewMode: 'normal', feedSettings: {} });
-    await hydratePrefs();
-    server.feedSettings = { 'feed/9': { order: 'oldest' } };
-    await refreshPrefs();
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(useUiStore.getState().feedSettings).toEqual({ '1|feed/9': { order: 'oldest' } });
-    expect(save).not.toHaveBeenCalled();
-  });
-
-  it('un vrai réglage emporte ensuite le rattachement sur le serveur', async () => {
-    const server = fakeServer({ viewMode: 'normal', feedSettings: { 'feed/1': { order: 'oldest' } } });
     await hydratePrefs();
     useUiStore.getState().setFeedLayout('feed/4', 'grid');
     await vi.advanceTimersByTimeAsync(1000);
-    expect(server.feedSettings).toEqual({ '1|feed/1': { order: 'oldest' }, '1|feed/4': { layout: 'grid' } });
+    expect(server.feedSettings).toEqual({ 'feed/1': { order: 'oldest' }, ...later, '1|feed/4': { layout: 'grid' } });
   });
 });

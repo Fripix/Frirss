@@ -658,18 +658,19 @@ par un lecteur qui lit dans l'ordre de parution.
 - **Par serveur** (1.8.0) : l'ordre et la disposition d'un flux se rangent sous
   `<serveur>|<flux>` dans `feedSettings` (`serverViewKey`, `src/lib/feedOverride.ts`) :
   FreshRSS numérote les flux par serveur, et `feed/12` n'est pas le même flux d'un
-  serveur à l'autre. Les réglages de la version publiée, sans serveur, restent lus, et
-  `adoptFeedOverrides` les rattache au serveur actif chaque fois que des préférences
-  arrivent du serveur (`applyQuietly`). ⚠️ Ce rattachement n'est jamais marqué comme
-  modifié ni envoyé : `feedSettings` part en bloc, et le bloc d'un appareil périmé
-  effacerait ce que les autres ont réglé. Le serveur garde donc l'ancienne forme
-  jusqu'au prochain vrai réglage, et à plusieurs serveurs c'est le premier à écrire
-  qui emporte les anciens réglages. Toute écriture retire l'entrée sans serveur, sinon
-  elle ressortirait sous un « Défaut » : une entrée sans serveur à côté d'une entrée
-  rangée vient donc d'un appareil encore en 1.7, et passe devant. Un serveur supprimé
-  puis rajouté reçoit un nouveau numéro : son ordre, sa disposition et ses choix
-  d'aléatoire ne reviennent pas (`PUT /servers/:id` modifie un serveur sans ce défaut),
-  et les anciennes clés restent dans `feedSettings` et `randomViews`.
+  serveur à l'autre. Les réglages de la version publiée, sans serveur, restent lus sur
+  tous les serveurs, comme avant, tant qu'on n'y touche pas : à un seul serveur, rien ne
+  change. Toute écriture retire, pour ce flux et ce champ, l'entrée sans serveur, sinon
+  elle ressortirait sous un « Défaut » ; l'autre serveur perd donc ce flux-là. L'entrée
+  rangée passe devant : une valeur posée ensuite depuis un appareil encore en 1.7 ne se
+  voit pas en 1.8 sur ce flux. Un serveur supprimé puis rajouté reçoit un nouveau numéro :
+  son ordre, sa disposition et ses choix d'aléatoire ne reviennent pas (`PUT /servers/:id`
+  modifie un serveur sans ce défaut), et les anciennes clés restent dans `feedSettings`
+  et `randomViews`.
+  ⚠️ Ne pas déplacer les anciens réglages d'office. Un rattachement au serveur actif a
+  été écrit puis retiré avant la 1.8.0 : `feedSettings` part en bloc, donc l'envoyer
+  effaçait les réglages des autres appareils, et ne pas l'envoyer gravait les réglages
+  d'un serveur sous le numéro d'un autre au premier geste.
   ⚠️ L'article complet et les choix d'IA par flux restent, eux, communs aux serveurs.
 - **Où** : `src/lib/effectiveOrder.ts` — toujours résoudre par
   `effectiveOrder()` (surcharge du flux ?? global), jamais en lisant
@@ -763,8 +764,9 @@ trouvait pas.
 - **L'état affiché** (`randomView`) suit la vue et son réglage : il survit à Tous ↔
   Non lus, où il refait un tirage, s'interrompt à Favoris, À lire plus tard et le
   temps d'une recherche, et revient ensuite. La déconnexion l'éteint. Le changement
-  de serveur applique aussitôt le choix de l'accueil du nouveau serveur, et son tirage
-  attend les abonnements, qui désignent le flux à lire. `syncRandomView` le recale au
+  de serveur applique aussitôt le choix de l'accueil du nouveau serveur. Un tirage de
+  l'accueil sans abonnements les lit lui-même : ils désignent le flux, et sans eux le
+  tirage lirait les flux masqués (`drawRandomList`). `syncRandomView` le recale au
   démarrage si les préférences changent le choix de la vue déjà ouverte. Un réglage reçu d'un autre appareil en cours
   de session attend la prochaine visite : la liste ne change pas sans geste. Absent
   sous Favoris et À lire plus tard : les favoris d'un flux sont filtrés côté client.

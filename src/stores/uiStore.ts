@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { normalizeArticleOrder, type ArticleOrder } from '../lib/effectiveOrder';
-import { isServerKey, serverViewKey } from '../lib/feedOverride';
+import { serverViewKey } from '../lib/feedOverride';
 import { useAuthStore } from './authStore';
 import {
   normalizeRandomAmount, normalizeRandomCount, normalizeRandomUnit, normalizeRandomViews, randomViewKey,
@@ -431,8 +431,6 @@ export interface UiState {
   setArticleOrder: (order: ArticleOrder) => void;
   /** Set (or clear, with '') this feed's article order override. */
   setFeedArticleOrder: (feedId: string, order: ArticleOrder | '') => void;
-  /** Rattache au serveur l'ordre et la disposition rangés sans serveur par la version publiée. */
-  adoptFeedOverrides: (serverId: string | number) => void;
   /**
    * Les vues (flux, catégorie, étiquette, ou `''` pour l'accueil) qui s'ouvrent en
    * tirage, par serveur (`randomViewKey`). Synced. Pas dans `feedSettings` : `feed/12`
@@ -1069,21 +1067,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
   },
   setFeedArticleOrder: (feedId, order) => {
     set((state) => ({ feedSettings: withServerOverride(state.feedSettings, feedId, 'order', order) }));
-  },
-  adoptFeedOverrides: (serverId) => {
-    const settings = get().feedSettings;
-    let next = settings;
-    for (const [feedId, entry] of Object.entries(settings)) {
-      if (isServerKey(feedId)) continue;
-      const scoped = serverViewKey(serverId, feedId);
-      for (const field of ['order', 'layout'] as const) {
-        if (!entry[field]) continue;
-        // Toute écriture retire l'entrée sans serveur : si elle est là, c'est la plus récente.
-        next = withFeedOverride(next, scoped, field, entry[field]);
-        next = withFeedOverride(next, feedId, field, '');
-      }
-    }
-    if (next !== settings) set({ feedSettings: next });
   },
   randomViews: normalizeRandomViews(loadJson('frirss_randomViews', {})),
   setViewRandom: (serverId, viewId, on) => {

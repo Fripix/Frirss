@@ -718,32 +718,47 @@ describe('le choix appartient à son serveur', () => {
 
   // `resetAndReload` vide les abonnements : l'accueil lirait `reading-list`, avec les
   // flux qu'il masque.
-  it('le tirage de l’accueil attend les abonnements du nouveau serveur', async () => {
-    const env = await load();
-    vi.mocked(env.api.getSubscriptionList).mockResolvedValue([
+  describe('le tirage de l’accueil sans abonnements', () => {
+    const subs = [
       { id: 'feed/1', title: 'F', categories: [], priority: 'main' },
       { id: 'feed/2', title: 'H', categories: [], priority: 'category' },
-    ] as never);
-    env.useUiStore.getState().setViewRandom('2', '', true);
-    vi.mocked(env.api.getStreamIdsSince).mockClear();
-    await onServer(env, '2');
-    expect(state(env).randomView).toBe(true);
-    expect(vi.mocked(env.api.getStreamIdsSince).mock.calls.map((c) => c[0])).toEqual([MAIN_STREAM]);
-  });
+    ];
+    const streams = (env: Env) => vi.mocked(env.api.getStreamIdsSince).mock.calls.map((c) => c[0]);
 
-  it('une vue ouverte pendant cette attente garde sa liste', async () => {
-    const env = await load();
-    const subs = deferred();
-    vi.mocked(env.api.getSubscriptionList).mockReturnValue(subs.promise as never);
-    env.useUiStore.getState().setViewRandom('2', '', true);
-    vi.mocked(env.api.getStreamIdsSince).mockClear();
-    env.useAuthStore.setState({ activeServerId: '2' } as never);
-    state(env).resetAndReload();
-    state(env).selectView(feed1);
-    subs.resolve([]);
-    await settled();
-    expect(env.api.getStreamIdsSince).not.toHaveBeenCalled();
-    expect(state(env).randomView).toBe(false);
+    it('les lit lui-même', async () => {
+      const env = await load();
+      vi.mocked(env.api.getSubscriptionList).mockResolvedValue(subs as never);
+      env.useUiStore.getState().setViewRandom('2', '', true);
+      vi.mocked(env.api.getStreamIdsSince).mockClear();
+      await onServer(env, '2');
+      expect(state(env).randomView).toBe(true);
+      expect(streams(env)).toEqual([MAIN_STREAM]);
+    });
+
+    it('n’attend pas les compteurs, et ne dépend pas d’eux', async () => {
+      const env = await load();
+      vi.mocked(env.api.getSubscriptionList).mockResolvedValue(subs as never);
+      vi.mocked(env.api.getUnreadCounts).mockRejectedValue(new Error('Network Error'));
+      env.useUiStore.getState().setViewRandom('2', '', true);
+      vi.mocked(env.api.getStreamIdsSince).mockClear();
+      await onServer(env, '2');
+      expect(streams(env)).toEqual([MAIN_STREAM]);
+    });
+
+    it('une vue ouverte pendant cette lecture ne reçoit pas de tirage', async () => {
+      const env = await load();
+      const reply = deferred();
+      vi.mocked(env.api.getSubscriptionList).mockReturnValue(reply.promise as never);
+      env.useUiStore.getState().setViewRandom('2', '', true);
+      vi.mocked(env.api.getStreamIdsSince).mockClear();
+      env.useAuthStore.setState({ activeServerId: '2' } as never);
+      state(env).resetAndReload();
+      state(env).selectView(feed1);
+      reply.resolve(subs);
+      await settled();
+      expect(streams(env)).toEqual([]);
+      expect(state(env).randomView).toBe(false);
+    });
   });
 
   it('un flux choisi sur un serveur reste normal sur un autre', async () => {

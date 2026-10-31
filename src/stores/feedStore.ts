@@ -3592,19 +3592,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       refreshPhase: 'idle',
       refreshResult: null,
     });
-    const subscriptions = get().loadSubscriptions();
+    get().loadSubscriptions();
     // Le nouveau serveur a ses propres choix.
     set({ randomView: viewOpensRandom(get()) });
-    if (!get().randomView) {
-      get().loadArticles();
-      return;
-    }
-    // Un tirage de l'accueil lit le flux que les abonnements désignent.
-    const view = viewIdentity(get());
-    const draw = () => {
-      if (viewIdentity(get()) === view && get().randomView) get().loadArticles();
-    };
-    void subscriptions.then(draw, draw);
+    get().loadArticles();
   },
 }));
 
@@ -3885,7 +3876,11 @@ async function drawRandomList(): Promise<void> {
   useFeedStore.setState({ articles: [], continuation: null, loading: true, revalidating: true, newInView: 0, listFailed: false });
   const { randomCount, randomWindowAmount, randomWindowUnit } = useUiStore.getState();
   try {
-    const ids = await getStreamIdsSince(resolveSearchStreamId(selectedFeed, filter, subscriptions), {
+    // Les abonnements désignent le flux de l'accueil. Au démarrage et après un changement
+    // de serveur, ils ne sont pas encore là : sans eux, le tirage lirait les flux masqués.
+    const feeds = selectedFeed || subscriptions.length ? subscriptions : await getSubscriptionList();
+    if (stale()) return;
+    const ids = await getStreamIdsSince(resolveSearchStreamId(selectedFeed, filter, feeds), {
       excludeRead: filter === 'unread',
       cutoffUsec: randomCutoffUsec(randomWindowAmount, randomWindowUnit, Date.now()),
       max: RANDOM_MAX_IDS,
