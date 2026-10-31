@@ -24,9 +24,9 @@ avec FreshRSS, les dossiers intelligents.
 ## Hors sujet
 
 - Aucun ordre enregistré au sens d'`ArticleOrder` : ni global, ni par catégorie.
-  Le bouton retient son choix par vue (`FeedSetting.random`, ajouté après la conception
-  à la demande du propriétaire), mais `effectiveOrder` et les clés de vue ne changent
-  pas.
+  Le bouton retient son choix par vue et par serveur (`randomViews`, ajouté après la
+  conception à la demande du propriétaire), mais `effectiveOrder` et les clés de vue ne
+  changent pas.
 - Pas de suite stable : chaque tirage est indépendant, un article peut revenir.
 - Pas de mode hors ligne.
 - Pas de règles par mots, sources multiples ou dossiers.
@@ -58,7 +58,7 @@ avec FreshRSS, les dossiers intelligents.
 
 ### Le mode
 
-- `randomView` du `feedStore` suit le réglage `FeedSetting.random` de la vue : choisi
+- `randomView` du `feedStore` suit le choix de la vue (`randomViews`) : choisi
   par le bouton, il reste choisi, jusqu'à ce qu'on l'éteigne.
 - Il suit la vue : il survit au passage Tous ↔ Non lus, s'interrompt à Favoris, À lire
   plus tard et le temps d'une recherche, et revient ensuite. Un autre flux, une autre

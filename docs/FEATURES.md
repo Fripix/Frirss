@@ -711,9 +711,12 @@ trouvait pas.
 - **Où** : `src/lib/randomDraw.ts`, `drawRandomList` et `setRandomView` dans
   `src/stores/feedStore.ts`, `getStreamIdsSince` et `getItemsByIds` dans
   `src/api/feeds.ts`, `ArticleList.tsx`, `RandomViewSettings.tsx`.
-- **Le choix reste, vue par vue** : le bouton est le réglage (`FeedSetting.random`,
-  synchronisé, clé `''` pour l'accueil), pour un flux, une catégorie, une étiquette
-  ou l'accueil. La vue se rouvre en tirage à chaque visite et après un rechargement ;
+- **Le choix reste, vue par vue et serveur par serveur** : le bouton est le réglage
+  (`randomViews`, synchronisé, clé `<serveur>|<vue>` par `randomViewKey`, vue vide pour
+  l'accueil), pour un flux, une catégorie, une étiquette ou l'accueil. ⚠️ Pas dans
+  `feedSettings` : `feed/12` ne désigne pas le même flux d'un serveur à l'autre, et
+  l'accueil de l'un n'est pas celui de l'autre (`order` et `layout` gardent ce défaut,
+  antérieur). Changer de serveur applique les choix de celui-ci. La vue se rouvre en tirage à chaque visite et après un rechargement ;
   l'éteindre retire le réglage. « Ordre de ce flux », dans le menu du flux (clic
   droit), propose aussi Aléatoire. Une vue est en tirage si son réglage le dit, si le
   filtre le permet et s'il y a du réseau (`opensRandom`), à chaque ouverture : hors
@@ -721,9 +724,7 @@ trouvait pas.
   sa liste gardée, et le réglage attend. Une autre réponse (500, refus) se dit, avec
   « Réessayer ». ⚠️ Un réglage allumé ne suffit pas à déclarer un tirage : la liste
   affichée peut être normale, et seul un tirage réel pose `randomView`. **Le choix suit** une étiquette ou une catégorie renommée
-  (`moveFeedRandom`). **Limite assumée** : `feedSettings` n'est pas rangé par serveur,
-  comme `order` et `layout` : à plusieurs serveurs, le choix vaut pour le même numéro
-  de flux et pour l'accueil de chacun. ⚠️ Un bouton valable pour la seule visite ne répondait pas à la
+  (`moveViewRandom`). ⚠️ Un bouton valable pour la seule visite ne répondait pas à la
   demande : le choix doit rester fixe. ⚠️ Pas un ordre : `effectiveOrder` n'en sait
   rien, pour que clés de vue et listes gardées ne bougent pas. Le menu choisit l'un
   ou l'autre ; le bouton laisse `order` en place pour le jour où on l'éteint.

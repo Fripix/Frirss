@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   drawIds, inDrawOrder, normalizeRandomAmount, normalizeRandomCount, normalizeRandomUnit,
-  randomCutoffUsec, RANDOM_DEFAULT_COUNT, RANDOM_MAX_COUNT,
+  normalizeRandomViews, randomCutoffUsec, randomViewKey, RANDOM_DEFAULT_COUNT, RANDOM_MAX_COUNT,
 } from './randomDraw';
 
 describe('paramètres du tirage', () => {
@@ -27,6 +27,19 @@ describe('paramètres du tirage', () => {
   it('une unité inconnue revient aux heures', () => {
     expect(normalizeRandomUnit('days')).toBe('days');
     expect(normalizeRandomUnit('weeks')).toBe('hours');
+  });
+});
+
+describe('choix par vue', () => {
+  it('la clé porte le serveur et la vue, accueil compris', () => {
+    expect(randomViewKey(1, 'feed/12')).toBe('1|feed/12');
+    expect(randomViewKey('1', '')).toBe('1|');
+  });
+
+  it('ne garde que les choix lisibles', () => {
+    expect(normalizeRandomViews({ '1|a': true, '1|b': 1, '1|c': false })).toEqual({ '1|a': true });
+    expect(normalizeRandomViews(null)).toEqual({});
+    expect(normalizeRandomViews(['x'])).toEqual({});
   });
 });
 

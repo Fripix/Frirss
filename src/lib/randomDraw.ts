@@ -45,6 +45,20 @@ export function normalizeRandomUnit(v: unknown): RandomWindowUnit {
 }
 
 /**
+ * La clé d'un choix : serveur et vue (`''` pour l'accueil). `feed/12` ne désigne pas
+ * le même flux d'un serveur à l'autre, et un serveur appartient à un seul compte.
+ */
+export function randomViewKey(serverId: string | number | null | undefined, viewId: string): string {
+  return `${serverId ?? ''}|${viewId}`;
+}
+
+/** Les choix lisibles d'une valeur qui vient aussi d'un autre appareil. */
+export function normalizeRandomViews(v: unknown): Record<string, true> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  return Object.fromEntries(Object.keys(v).filter((k) => (v as Record<string, unknown>)[k] === true).map((k) => [k, true as const]));
+}
+
+/**
  * Le seuil à comparer aux identifiants d'entrée, qui portent l'instant d'arrivée
  * dans FreshRSS, en microsecondes. Pas `ot` : FreshRSS le lit comme « publié après
  * OU modifié après », et un vieux billet corrigé s'y glisserait.

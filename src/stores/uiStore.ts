@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { normalizeArticleOrder, type ArticleOrder } from '../lib/effectiveOrder';
 import {
-  normalizeRandomAmount, normalizeRandomCount, normalizeRandomUnit, RANDOM_DEFAULT_COUNT, type RandomWindowUnit,
+  normalizeRandomAmount, normalizeRandomCount, normalizeRandomUnit, normalizeRandomViews, randomViewKey,
+  RANDOM_DEFAULT_COUNT, type RandomWindowUnit,
 } from '../lib/randomDraw';
 import { normalizeStartupView, type StartupView } from '../lib/startupView';
 import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
@@ -136,14 +137,6 @@ export interface FeedSetting {
    * property of the feed. Resolve through `effectiveOrder()` only.
    */
   order?: ArticleOrder;
-  /**
-   * Ouverte, cette vue (flux, catégorie, étiquette, ou `''` pour l'accueil) affiche un
-   * tirage au hasard (`randomView`). Pas un ordre : un tirage ne se pagine ni ne se
-   * range, et `effectiveOrder` n'a pas à le connaître. Le menu du flux choisit l'un
-   * ou l'autre ; le bouton de la liste, lui, laisse `order` en place pour le jour où
-   * on l'éteint.
-   */
-  random?: boolean;
   /**
    * Per-feed AI provider override (id of a provider). Absent means the feed
    * follows its category, then the preferred provider. Synced, like `layout`:
@@ -434,12 +427,18 @@ export interface UiState {
   // effectiveOrder(), which lets a feed override it.
   articleOrder: ArticleOrder;
   setArticleOrder: (order: ArticleOrder) => void;
-  /** Set (or clear, with '') this feed's article order override, or its random view. */
-  setFeedArticleOrder: (feedId: string, order: ArticleOrder | 'random' | '') => void;
-  /** Retient le choix du bouton Aléatoire pour cette vue. */
-  setFeedRandom: (feedId: string, on: boolean) => void;
+  /** Set (or clear, with '') this feed's article order override. */
+  setFeedArticleOrder: (feedId: string, order: ArticleOrder | '') => void;
+  /**
+   * Les vues (flux, catégorie, étiquette, ou `''` pour l'accueil) qui s'ouvrent en
+   * tirage, par serveur (`randomViewKey`). Synced. Pas dans `feedSettings` : `feed/12`
+   * ne désigne pas le même flux d'un serveur à l'autre. Pas un ordre non plus : un
+   * tirage ne se pagine ni ne se range, et `effectiveOrder` n'a pas à le connaître.
+   */
+  randomViews: Record<string, true>;
+  setViewRandom: (serverId: string | number | null | undefined, viewId: string, on: boolean) => void;
   /** Le choix suit une étiquette ou une catégorie renommée. */
-  moveFeedRandom: (oldId: string, newId: string) => void;
+  moveViewRandom: (serverId: string | number | null | undefined, oldId: string, newId: string) => void;
   /** Affichage aléatoire : articles par tirage. Synced. */
   randomCount: number;
   setRandomCount: (count: number) => void;
@@ -477,7 +476,7 @@ export interface UiState {
  * disappears once it carries no setting at all, so a feed back on every
  * global default leaves no trace in the synced table.
  */
-function withFeedOverride<K extends 'layout' | 'order' | 'random' | 'autoExtract' | 'aiProvider' | 'aiAutoTranslate' | 'aiAutoSummary' | 'aiPanel' | 'aiAutoSummaryTranslate'>(
+function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProvider' | 'aiAutoTranslate' | 'aiAutoSummary' | 'aiPanel' | 'aiAutoSummaryTranslate'>(
   settings: Record<string, FeedSetting>,
   feedId: string,
   key: K,
@@ -1049,21 +1048,20 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ randomWindowAmount, randomWindowUnit });
   },
   setFeedArticleOrder: (feedId, order) => {
-    set((state) => {
-      const random = order === 'random';
-      const cleared = withFeedOverride(state.feedSettings, feedId, 'order', random ? '' : order);
-      return { feedSettings: withFeedOverride(cleared, feedId, 'random', random ? true : '') };
-    });
+    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'order', order) }));
   },
-  setFeedRandom: (feedId, on) => {
-    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'random', on ? true : '') }));
+  randomViews: normalizeRandomViews(loadJson('frirss_randomViews', {})),
+  setViewRandom: (serverId, viewId, on) => {
+    const key = randomViewKey(serverId, viewId);
+    const { [key]: _dropped, ...others } = get().randomViews;
+    const randomViews: Record<string, true> = on ? { ...others, [key]: true } : others;
+    localStorage.setItem('frirss_randomViews', JSON.stringify(randomViews));
+    set({ randomViews });
   },
-  moveFeedRandom: (oldId, newId) => {
-    set((state) => {
-      if (!state.feedSettings[oldId]?.random) return state;
-      const cleared = withFeedOverride(state.feedSettings, oldId, 'random', '');
-      return { feedSettings: withFeedOverride(cleared, newId, 'random', true) };
-    });
+  moveViewRandom: (serverId, oldId, newId) => {
+    if (!get().randomViews[randomViewKey(serverId, oldId)]) return;
+    get().setViewRandom(serverId, oldId, false);
+    get().setViewRandom(serverId, newId, true);
   },
 
   // App branding — custom title & logo
@@ -1263,7 +1261,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
       'gridCardWidth', 'gridImageRatio', 'gridCardFill',
-      'randomCount', 'randomWindowAmount', 'randomWindowUnit',
+      'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
       'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
       'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
       'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',
@@ -1282,6 +1280,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'randomCount' ? normalizeRandomCount(prefs[k])
           : k === 'randomWindowAmount' ? normalizeRandomAmount(prefs[k])
           : k === 'randomWindowUnit' ? normalizeRandomUnit(prefs[k])
+          : k === 'randomViews' ? normalizeRandomViews(prefs[k])
           : k === 'startupView' ? normalizeStartupView(prefs[k])
           // A non-boolean (older or foreign client) leaves the current value alone.
           : k === 'autoExtractDefault' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().autoExtractDefault)
@@ -1337,7 +1336,7 @@ export const UI_SYNC_KEYS = [
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
   'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio', 'gridCardFill',
-  'randomCount', 'randomWindowAmount', 'randomWindowUnit',
+  'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
   'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
   'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',

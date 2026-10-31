@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, act, within } from '@testing-library/react';
 import { CONFIRM_GRACE_MS } from '../ConfirmDialog';
 import { useUiStore } from '../../stores/uiStore';
+import { useAuthStore } from '../../stores/authStore';
 import { FeedContextMenu } from './Sidebar';
 import type { Subscription } from '../../types';
 
@@ -116,11 +117,12 @@ describe('FeedContextMenu — Échap pendant le désabonnement', () => {
 
 describe('FeedContextMenu — ordre de ce flux', () => {
   it('propose Aléatoire, le retient et le montre choisi', () => {
-    useUiStore.setState({ feedSettings: {} });
+    useUiStore.setState({ feedSettings: {}, randomViews: {} });
+    useAuthStore.setState({ activeServerId: '1' } as never);
     const onClose = vi.fn();
     render(<FeedContextMenu feed={feed} x={0} y={0} onRename={yes} onDelete={yes} onClose={onClose} />);
     fireEvent.click(screen.getByRole('button', { name: 'articleList.random' }));
-    expect(useUiStore.getState().feedSettings['feed/1']).toEqual({ random: true });
+    expect(useUiStore.getState().randomViews).toEqual({ '1|feed/1': true });
     expect(onClose).toHaveBeenCalled();
     cleanup();
     render(<FeedContextMenu feed={feed} x={0} y={0} onRename={yes} onDelete={yes} onClose={() => {}} />);

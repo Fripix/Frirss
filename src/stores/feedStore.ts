@@ -34,7 +34,6 @@ import { canMarkAllRead } from '../lib/markAllRead';
 import { useAuthStore } from './authStore';
 import { jwtUserId } from '../lib/jwtUserId';
 import { isBackendAuthFailure } from '../lib/loginErrors';
-import type { FeedSetting } from './uiStore';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
 import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
@@ -62,7 +61,7 @@ import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPaginatio
 import { createWarmRunner } from '../lib/warmSchedule';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
-import { canRandomView, drawIds, inDrawOrder, randomCutoffUsec, RANDOM_MAX_IDS } from '../lib/randomDraw';
+import { canRandomView, drawIds, inDrawOrder, randomCutoffUsec, randomViewKey, RANDOM_MAX_IDS } from '../lib/randomDraw';
 import { createLocalWrites, applyField, type WriteField } from '../lib/localWrites';
 import {
   viewListKey, viewListKeys, parseViewKey, preparedListKey, READ_LATER_LABEL, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
@@ -903,7 +902,7 @@ export interface FeedState {
   randomDraw: number;
   setRandomView: (on: boolean) => void;
   /** Recale la vue sur son réglage quand les préférences arrivent après elle. */
-  syncRandomView: (before: Record<string, FeedSetting>) => void;
+  syncRandomView: (before: Record<string, true>) => void;
   toggleRead: (article: Article, opts?: { implicit?: boolean }) => Promise<void>;
   toggleStar: (article: Article) => Promise<void>;
   search: (query: string) => Promise<void>;
@@ -1941,7 +1940,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (on && (!canRandomView(get().filter) || get().searchQuery)) return;
     // Le bouton est le réglage : choisi, il reste choisi pour cette vue. Sans réseau,
     // le choix est retenu et la liste ne bouge pas : il servira à la prochaine visite.
-    useUiStore.getState().setFeedRandom(get().selectedFeed?.id ?? '', on);
+    useUiStore.getState().setViewRandom(useAuthStore.getState().activeServerId, get().selectedFeed?.id ?? '', on);
     if (on && !opensRandom(get().selectedFeed)) return;
     showRandomView(on);
   },
@@ -1950,10 +1949,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const { selectedFeed, subscriptions, searchQuery } = get();
     // Avant les abonnements ou sans session, l'ouverture de la vue lira le réglage.
     if (!useAuthStore.getState().isAuthenticated || !subscriptions.length || searchQuery) return;
-    const key = selectedFeed?.id ?? '';
-    const now = useUiStore.getState().feedSettings;
+    const key = randomViewKey(useAuthStore.getState().activeServerId, selectedFeed?.id ?? '');
     // Seul un choix changé compte : le repli d'un serveur muet ne se rejoue pas ici.
-    if (!before[key]?.random === !now[key]?.random) return;
+    if (!before[key] === !useUiStore.getState().randomViews[key]) return;
     const want = viewOpensRandom(get());
     if (want !== get().randomView) showRandomView(want);
   },
@@ -2962,7 +2960,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const newLabelId = `user/-/label/${newName}`;
     try {
       await renameTag(oldLabelId, newLabelId);
-      useUiStore.getState().moveFeedRandom(oldLabelId, newLabelId);
+      useUiStore.getState().moveViewRandom(useAuthStore.getState().activeServerId, oldLabelId, newLabelId);
       // Update all articles that had the old label
       set((state) => {
         const updateLabels = (a: Article): Article => {
@@ -3020,7 +3018,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (!isValidCategoryName(name)) return false;
     try {
       await renameTag(categoryId, `user/-/label/${name}`);
-      useUiStore.getState().moveFeedRandom(categoryId, `user/-/label/${name}`);
+      useUiStore.getState().moveViewRandom(useAuthStore.getState().activeServerId, categoryId, `user/-/label/${name}`);
       await get().loadSubscriptions();
       return true;
     } catch {
@@ -3102,7 +3100,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return true;
       }
       const wasOpen = get().selectedFeed?.id === feedId;
-      useUiStore.getState().setFeedRandom(feedId, false);
+      useUiStore.getState().setViewRandom(useAuthStore.getState().activeServerId, feedId, false);
       // Le flux part de partout, pas seulement de la barre latérale : ses
       // articles restaient affichés sous « Tous les flux », avec son compteur,
       // dans le cache mémoire et dans l'instantané gardé pour le hors ligne.
@@ -3595,6 +3593,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       refreshResult: null,
     });
     get().loadSubscriptions();
+    // Le nouveau serveur a ses propres choix.
+    set({ randomView: viewOpensRandom(get()) });
     get().loadArticles();
   },
 }));
@@ -3844,7 +3844,8 @@ const TOP_UP_MAX_PAGES = 20;
 /** Cette vue s'ouvre en aléatoire. Hors ligne, elle s'ouvre normalement : un tirage demande le réseau. */
 function opensRandom(feed: Subscription | null): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
-  return useUiStore.getState().feedSettings[feed?.id ?? '']?.random === true;
+  const key = randomViewKey(useAuthStore.getState().activeServerId, feed?.id ?? '');
+  return useUiStore.getState().randomViews[key] === true;
 }
 
 const viewOpensRandom = (s: Pick<FeedState, 'filter' | 'selectedFeed'>) =>

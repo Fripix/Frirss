@@ -32,31 +32,41 @@ describe('uiStore — affichage aléatoire', () => {
     expect(useUiStore.getState()).toMatchObject({ randomCount: 100, randomWindowAmount: 6, randomWindowUnit: 'days' });
   });
 
-  describe('par flux', () => {
-    beforeEach(() => { useUiStore.setState({ feedSettings: {} }); });
-    const setting = () => useUiStore.getState().feedSettings['feed/1'];
+  describe('par vue et par serveur', () => {
+    beforeEach(() => { useUiStore.setState({ randomViews: {}, feedSettings: {} }); });
 
-    it('aléatoire n’est pas un ordre : il remplace celui du flux sans le contrefaire', () => {
+    it('retient le choix sous son serveur, et le synchronise', () => {
+      useUiStore.getState().setViewRandom('1', 'feed/1', true);
+      expect(useUiStore.getState().randomViews).toEqual({ '1|feed/1': true });
+      expect(JSON.parse(localStorage.getItem('frirss_randomViews')!)).toEqual({ '1|feed/1': true });
+      expect(UI_SYNC_KEYS).toContain('randomViews');
+    });
+
+    it('le même numéro de flux sur un autre serveur est un autre choix', () => {
+      useUiStore.getState().setViewRandom('1', 'feed/1', true);
+      useUiStore.getState().setViewRandom('2', 'feed/1', true);
+      useUiStore.getState().setViewRandom('1', 'feed/1', false);
+      expect(useUiStore.getState().randomViews).toEqual({ '2|feed/1': true });
+    });
+
+    it('suit un renommage, sous le même serveur seulement', () => {
+      useUiStore.getState().setViewRandom('1', 'user/-/label/Old', true);
+      useUiStore.getState().setViewRandom('2', 'user/-/label/Old', true);
+      useUiStore.getState().moveViewRandom('1', 'user/-/label/Old', 'user/-/label/New');
+      expect(useUiStore.getState().randomViews).toEqual({ '1|user/-/label/New': true, '2|user/-/label/Old': true });
+    });
+
+    it('ne laisse pas passer une valeur illisible venue d’un autre appareil', () => {
+      useUiStore.getState().applyServerPrefs({ randomViews: { '1|feed/1': true, '1|feed/2': 'oui' } } as never);
+      expect(useUiStore.getState().randomViews).toEqual({ '1|feed/1': true });
+      useUiStore.getState().applyServerPrefs({ randomViews: 'x' } as never);
+      expect(useUiStore.getState().randomViews).toEqual({});
+    });
+
+    it('l’ordre d’un flux n’en dépend plus', () => {
+      useUiStore.getState().setViewRandom('1', 'feed/1', true);
       useUiStore.getState().setFeedArticleOrder('feed/1', 'oldest');
-      useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
-      expect(setting()).toEqual({ random: true });
-    });
-
-    it('un ordre le retire', () => {
-      useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
-      useUiStore.getState().setFeedArticleOrder('feed/1', 'newest');
-      expect(setting()).toEqual({ order: 'newest' });
-    });
-
-    it('revenir au défaut efface tout', () => {
-      useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
-      useUiStore.getState().setFeedArticleOrder('feed/1', '');
-      expect(setting()).toBeUndefined();
-    });
-
-    it('survit au rechargement', () => {
-      useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
-      expect(JSON.parse(localStorage.getItem('frirss_feedSettings')!)['feed/1']).toEqual({ random: true });
+      expect(useUiStore.getState().feedSettings['feed/1']).toEqual({ order: 'oldest' });
     });
   });
 });

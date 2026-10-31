@@ -309,10 +309,10 @@ export default function App() {
   // Runs as soon as we have a backend session; tears down on logout.
   useEffect(() => {
     if (backendToken) {
-      const settingsBefore = useUiStore.getState().feedSettings;
+      const choicesBefore = useUiStore.getState().randomViews;
       hydratePrefs().then(() => {
         // La vue s'ouvre avant les préférences : son choix d'aléatoire peut changer.
-        useFeedStore.getState().syncRandomView(settingsBefore);
+        useFeedStore.getState().syncRandomView(choicesBefore);
         // Once per-user prefs land, honour "unread only" on the initial view —
         // but only while still on the untouched landing view (don't override a
         // feed/favorites/read-later the user already opened during the fetch).
