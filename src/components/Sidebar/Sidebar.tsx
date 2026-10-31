@@ -806,7 +806,7 @@ function FeedAutoExtractPicker({ value, onChange, label }: { value: boolean | un
 }
 
 /**
- * Per-feed order picker: default / newest first / oldest first. The glyphs
+ * Per-feed order picker: default / newest first / oldest first / random. The glyphs
  * are the two sort marks, told apart by the ARROW: down for newest first
  * (descending), up for oldest first (ascending). The bars alone did not do
  * it — at 14 px, which of two bars is the longer one is invisible, and the

@@ -898,6 +898,8 @@ export interface FeedState {
   /** Numéro du tirage affiché : un nouveau tirage remonte la liste. */
   randomDraw: number;
   setRandomView: (on: boolean) => void;
+  /** Recale la vue sur son réglage quand les préférences arrivent après elle. */
+  syncRandomView: () => void;
   toggleRead: (article: Article, opts?: { implicit?: boolean }) => Promise<void>;
   toggleStar: (article: Article) => Promise<void>;
   search: (query: string) => Promise<void>;
@@ -1242,7 +1244,7 @@ const IDLE_SCAN: SearchScan = { running: false, scanned: 0, done: false, stopped
  */
 function closeSearch(set: (partial: Partial<FeedState>) => void): void {
   scanToken++;
-  set({ searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
+  set({ randomView: viewOpensRandom(useFeedStore.getState()), searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
 }
 
 /**
@@ -1326,8 +1328,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   setFilter: (filter) => {
     closeSearch(set);
-    // Une vue en aléatoire y revient en sortant de Favoris.
-    const randomView = canRandomView(filter) && (get().randomView || opensRandom(get().selectedFeed));
+    const randomView = canRandomView(filter) && opensRandom(get().selectedFeed);
     const c = randomView ? undefined : memGet(viewKey(get().selectedFeed, filter));
     set({ filter, randomView, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
@@ -1349,9 +1350,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   selectView: (feed, filter) => {
     closeSearch(set);
     const f = filter ?? (isUnreadOnly(feed?.id ?? '') ? 'unread' : 'all');
-    // Le tirage appartient à la vue : il ne suit pas vers un autre flux.
-    const sameView = (feed?.id ?? '') === (get().selectedFeed?.id ?? '');
-    const randomView = canRandomView(f) && ((sameView && get().randomView) || opensRandom(feed ?? null));
+    const randomView = canRandomView(f) && opensRandom(feed ?? null);
     const c = randomView ? undefined : memGet(viewKey(feed ?? null, f));
     // Entrée d'accueil surlignée (`homeEntryActive`) : « Non lus » seulement
     // quand la vue non lus est DEMANDÉE ; toute autre vue d'accueil relève de
@@ -1932,15 +1931,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   setRandomView: (on) => {
     if (on === get().randomView) return;
     if (on && (!canRandomView(get().filter) || get().searchQuery)) return;
-    // Le bouton est le réglage : choisi, il reste choisi pour cette vue.
+    // Le bouton est le réglage : choisi, il reste choisi pour cette vue. Sans réseau,
+    // le choix est retenu et la liste ne bouge pas : il servira à la prochaine visite.
     useUiStore.getState().setFeedRandom(get().selectedFeed?.id ?? '', on);
-    // Une page en vol appartient à la liste qui s'en va : ajoutée, elle rangerait
-    // le tirage sous la clé de la vue, `loadMore` étant seul à écrire sans
-    // `persistCurrentView`.
-    listGeneration++;
-    const c = on ? undefined : memGet(viewKey(get().selectedFeed, get().filter));
-    set({ randomView: on, articles: c?.articles || [], continuation: c?.continuation || null, loading: !c });
-    void get().loadArticles();
+    if (on && !opensRandom(get().selectedFeed)) return;
+    showRandomView(on);
+  },
+
+  syncRandomView: () => {
+    if (get().searchQuery) return;
+    const want = viewOpensRandom(get());
+    if (want !== get().randomView) showRandomView(want);
   },
 
   loadMore: async () => {
@@ -1970,7 +1971,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // La vue a changé pendant l'aller-retour : cette page n'appartient plus
       // à rien de ce qui est affiché. On la jette entièrement — pas d'ajout,
       // pas d'écriture de cache, pas de `continuation` — et on rend la main.
-      if (viewIdentity(get()) !== view || generation !== listGeneration) { set({ loadingMore: false }); return; }
+      // Ni sur un tirage, qu'on y soit entré par le bouton, une visite ou la fin
+      // d'une recherche : ajoutée, la page rangerait le mélange sous la clé de la vue.
+      if (viewIdentity(get()) !== view || generation !== listGeneration || get().randomView) { set({ loadingMore: false }); return; }
       if (!result) { set({ loadingMore: false }); return; }
 
       const page = reconcile(result.items.map(normalizeArticle), filter, since);
@@ -2326,6 +2329,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // Referme la recherche comme le ferait une requête blanche : périme un
     // balayage en vol et vide les résultats, sinon une page qui arrive après
     // coup continuerait d'écrire dans `articles`.
+    // Un tirage ne se relit pas pour une boîte de recherche fermée sans avoir cherché.
+    if (get().randomView && !get().searchQuery) return;
     scanToken++;
     set({ randomView: viewOpensRandom(get()), searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
     get().loadArticles();
@@ -2942,6 +2947,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const newLabelId = `user/-/label/${newName}`;
     try {
       await renameTag(oldLabelId, newLabelId);
+      useUiStore.getState().moveFeedRandom(oldLabelId, newLabelId);
       // Update all articles that had the old label
       set((state) => {
         const updateLabels = (a: Article): Article => {
@@ -2999,6 +3005,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     if (!isValidCategoryName(name)) return false;
     try {
       await renameTag(categoryId, `user/-/label/${name}`);
+      useUiStore.getState().moveFeedRandom(categoryId, `user/-/label/${name}`);
       await get().loadSubscriptions();
       return true;
     } catch {
@@ -3080,6 +3087,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return true;
       }
       const wasOpen = get().selectedFeed?.id === feedId;
+      useUiStore.getState().setFeedRandom(feedId, false);
       // Le flux part de partout, pas seulement de la barre latérale : ses
       // articles restaient affichés sous « Tous les flux », avec son compteur,
       // dans le cache mémoire et dans l'instantané gardé pour le hors ligne.
@@ -3089,7 +3097,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return {
           subscriptions: state.subscriptions.filter((s) => s.id !== feedId),
           selectedFeed: wasOpen ? null : state.selectedFeed,
-          randomView: state.randomView && !wasOpen,
+          randomView: wasOpen ? canRandomView(state.filter) && opensRandom(null) : state.randomView,
           selectedArticle: state.selectedArticle?.sourceId === feedId ? null : state.selectedArticle,
           articles: state.articles.filter((a) => a.sourceId !== feedId),
           unreadCounts,
@@ -3818,22 +3826,6 @@ async function runScan(token: number, streamId: string, view: string): Promise<v
  */
 const TOP_UP_MAX_PAGES = 20;
 
-/**
- * Rafraîchir pendant une recherche : la compléter par le haut.
- *
- * Seules les entrées plus récentes que la plus récente du corpus sont lues
- * (`newerEntries`) — des pages de `PAGE_SIZE` depuis le haut du flux jusqu'au
- * premier article connu, en pratique une seule requête —, jamais un
- * rebalayage complet (~10 s sur un gros flux). Celles qui correspondent
- * entrent en tête des résultats et de la liste, et la tranche visible
- * s'élargit d'autant : rien de ce qui était affiché ne disparaît.
- *
- * Ne fait rien sans corpus du périmètre courant, pendant un balayage (il lit
- * déjà le flux), hors ligne ou après une recherche faite hors ligne, ou sur
- * un corpus vide et incomplet (le balayage a échoué d'emblée : il n'y a rien
- * à compléter, « Réessayer » s'en charge).
- * Une erreur réseau est muette : la recherche reste ce qu'elle était.
- */
 /** Cette vue s'ouvre en aléatoire. Hors ligne, elle s'ouvre normalement : un tirage demande le réseau. */
 function opensRandom(feed: Subscription | null): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
@@ -3883,11 +3875,46 @@ async function drawRandomList(): Promise<void> {
     }));
   } catch (err) {
     if (stale()) return;
+    // Sans réponse du serveur, `navigator.onLine` peut rester vrai (NAS arrêté, VPN
+    // coupé) : la vue normale prend le relais, avec sa liste gardée. Le réglage reste.
+    if (isNetworkFailure(err)) {
+      useFeedStore.setState({ randomView: false });
+      await useFeedStore.getState().loadArticles();
+      return;
+    }
     console.error('[FriRSS] drawRandomList error:', err);
     useFeedStore.setState({ loading: false, revalidating: false, listFailed: true });
   }
 }
 
+/**
+ * Entre dans un tirage ou en sort, liste comprise. Une page en vol appartient à la
+ * liste qui s'en va : `loadMore` la jette sur `listGeneration`.
+ */
+function showRandomView(on: boolean): void {
+  const { selectedFeed, filter, loadArticles } = useFeedStore.getState();
+  listGeneration++;
+  const c = on ? undefined : memGet(viewKey(selectedFeed, filter));
+  useFeedStore.setState({ randomView: on, articles: c?.articles || [], continuation: c?.continuation || null, loading: !c });
+  void loadArticles();
+}
+
+/**
+ * Rafraîchir pendant une recherche : la compléter par le haut.
+ *
+ * Seules les entrées plus récentes que la plus récente du corpus sont lues
+ * (`newerEntries`) — des pages de `PAGE_SIZE` depuis le haut du flux jusqu'au
+ * premier article connu, en pratique une seule requête —, jamais un
+ * rebalayage complet (~10 s sur un gros flux). Celles qui correspondent
+ * entrent en tête des résultats et de la liste, et la tranche visible
+ * s'élargit d'autant : rien de ce qui était affiché ne disparaît.
+ *
+ * Ne fait rien sans corpus du périmètre courant, pendant un balayage (il lit
+ * déjà le flux), hors ligne ou après une recherche faite hors ligne, ou sur
+ * un corpus vide et incomplet (le balayage a échoué d'emblée : il n'y a rien
+ * à compléter, « Réessayer » s'en charge).
+ * Une erreur réseau est muette : la recherche reste ce qu'elle était.
+ */
 async function topUpSearch(): Promise<void> {
   const s = useFeedStore.getState();
   if (!s.searchQuery || s.searchScan.running || !searchCorpus) return;

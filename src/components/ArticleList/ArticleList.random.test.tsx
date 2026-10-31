@@ -77,6 +77,15 @@ describe('le bouton Aléatoire', () => {
     expect(b.disabled).toBe(true);
   });
 
+  // La phrase hors ligne, en toutes lettres, passait de 81 à 208 px et sortait les
+  // boutons voisins de la barre : le texte visible ne change pas.
+  it('hors ligne, le mot affiché reste le même', () => {
+    useUiStore.setState({ panelLayout: '2' } as never);
+    online(false);
+    const b = show().getAllByRole('button', { name: 'articleList.randomOffline' })[0];
+    expect(b.textContent).toBe('articleList.random');
+  });
+
   // Actif hors ligne, il doit rester le moyen d'en sortir.
   it('reste utilisable hors ligne pour quitter le mode', () => {
     online(false);

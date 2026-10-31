@@ -715,8 +715,13 @@ trouvait pas.
   synchronisé, clé `''` pour l'accueil), pour un flux, une catégorie, une étiquette
   ou l'accueil. La vue se rouvre en tirage à chaque visite et après un rechargement ;
   l'éteindre retire le réglage. « Ordre de ce flux », dans le menu du flux (clic
-  droit), propose aussi Aléatoire. Hors ligne, la vue s'ouvre normalement
-  (`opensRandom`). ⚠️ Un bouton valable pour la seule visite ne répondait pas à la
+  droit), propose aussi Aléatoire. Une vue est en tirage si son réglage le dit, si le
+  filtre le permet et s'il y a du réseau (`opensRandom`), par quelque chemin qu'on y
+  arrive : hors ligne ou serveur muet, elle s'ouvre normalement avec sa liste gardée,
+  et le réglage attend. **Le choix suit** une étiquette ou une catégorie renommée
+  (`moveFeedRandom`). **Limite assumée** : `feedSettings` n'est pas rangé par serveur,
+  comme `order` et `layout` : à plusieurs serveurs, le choix vaut pour le même numéro
+  de flux et pour l'accueil de chacun. ⚠️ Un bouton valable pour la seule visite ne répondait pas à la
   demande : le choix doit rester fixe. ⚠️ Pas un ordre : `effectiveOrder` n'en sait
   rien, pour que clés de vue et listes gardées ne bougent pas. Le menu choisit l'un
   ou l'autre ; le bouton laisse `order` en place pour le jour où on l'éteint.
@@ -740,14 +745,16 @@ trouvait pas.
 - **L'état affiché** (`randomView`) suit la vue et son réglage : il survit à Tous ↔
   Non lus, où il refait un tirage, s'interrompt à Favoris, À lire plus tard et le
   temps d'une recherche, et revient ensuite. Le changement de compte ou de serveur
-  l'éteint. Absent sous Favoris et À lire plus tard : les favoris d'un flux sont
-  filtrés côté client. Hors ligne, il ne s'active pas, mais reste cliquable pour en
-  sortir.
+  l'éteint jusqu'à la prochaine ouverture de vue, et `syncRandomView` le recale quand
+  les préférences arrivent après la vue. Un réglage reçu d'un autre appareil en cours
+  de session attend la prochaine visite : la liste ne change pas sans geste. Absent
+  sous Favoris et À lire plus tard : les favoris d'un flux sont filtrés côté client.
+  Hors ligne, le bouton ne s'active pas, mais reste cliquable pour en sortir.
 - ⚠️ **Un tirage ne se range jamais.** `persistCurrentView` s'abstient dans ce mode,
   et `drawRandomList` n'appelle ni `memSet` ni `listPut` : un tirage sous la clé de
-  la vue fausserait sa lecture normale, en ligne comme hors ligne. Entrer dans le
-  mode ou en sortir avance `listGeneration` : une page de `loadMore` en vol s'y
-  ajoutait et rangeait le mélange. Une réponse normale en vol est jetée aussi
+  la vue fausserait sa lecture normale, en ligne comme hors ligne. `loadMore` jette
+  sa page dès qu'un tirage est affiché, par quelque chemin qu'on y soit entré : elle
+  s'y ajoutait et rangeait le mélange. Une réponse normale en vol est jetée aussi
   (`sameView`, `silentRefresh`), et ne relâche pas l'attente du tirage. Lu, favoris
   et file hors ligne suivent leur chemin habituel, `reportOnLists` compris.
 - **La liste ne change que sur un geste** : bouton « Nouveau tirage » en fin de

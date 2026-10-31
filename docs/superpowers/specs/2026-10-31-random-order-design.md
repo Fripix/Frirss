@@ -7,9 +7,9 @@ denses et les publications par lots cachent le reste. Le demandeur cite
 FreshRSS, où l'ordre aléatoire est une façon de plus de trier une liste. FriRSS
 reprend ce fonctionnement : un tirage, pas une suite stable.
 
-Le propriétaire a retenu un bouton de liste et des paramètres communs. Il a
-écarté : un réglage global d'ordre, les défauts par flux et par catégorie, un
-mode à part sans lien avec FreshRSS, les dossiers intelligents.
+Le propriétaire a retenu un bouton de liste, dont le choix reste vue par vue, et des
+paramètres communs. Il a écarté : un réglage global d'ordre, un mode à part sans lien
+avec FreshRSS, les dossiers intelligents.
 
 ## Objectifs
 
@@ -50,7 +50,7 @@ mode à part sans lien avec FreshRSS, les dossiers intelligents.
 - Visible sous les filtres Tous et Non lus, sur l'accueil, une catégorie, un
   flux ou une étiquette. Absent sous Favoris et À lire plus tard : les favoris
   d'un flux sont filtrés côté client, leurs identifiants ne s'obtiennent pas.
-- Absent pendant une recherche ; lancer une recherche quitte le mode.
+- Absent pendant une recherche, qui interrompt le tirage jusqu'à sa fermeture.
 - Désactivé hors ligne (`navigator.onLine === false`), avec un libellé qui dit
   pourquoi.
 - Tient à 320 px, où la barre compte déjà cinq boutons `flex1`, et à 340 px en
@@ -110,7 +110,8 @@ dans FreshRSS.
   répéteraient à chaque ligne (« Aujourd'hui », « Hier », « Aujourd'hui »…) avec
   des totaux faux. La date reste sur chaque article.
 - Liste vide : un message dédié (`articleList.randomEmpty`) plutôt que « Tout est lu ».
-- Échec du tirage : l'état d'échec habituel avec « Réessayer », mode conservé.
+- Sans réponse du serveur : la vue normale prend le relais, avec sa liste gardée, et
+  le réglage reste. Refus du serveur : l'état d'échec habituel avec « Réessayer ».
 - Tirage vide, ou vidé par des lignes lues : ni l'allure d'une réussite, ni
   « Tout est lu », et un bouton « Nouveau tirage ».
 

@@ -1,7 +1,8 @@
 import { useLayoutEffect, type RefObject } from 'react';
 
 /**
- * Replie les libellés de la barre d'action du volet de lecture EN MESURANT.
+ * Replie les libellés d'une barre d'action EN MESURANT : celle du volet de lecture,
+ * et la ligne d'actions de la liste en 3 colonnes.
  *
  * Écrit `data-fold` sur l'élément, impérativement : `"0"` (tout tient), `"1"`
  * (libellés secondaires masqués : Étiquettes, Partager, Original), `"2"` (tous
@@ -11,8 +12,10 @@ import { useLayoutEffect, type RefObject } from 'react';
  *
  * Jamais d'attribut posé par le JSX ni d'état : React n'écraserait pas la
  * valeur, et aucun rendu n'est déclenché — donc aucune boucle. La largeur de la
- * barre ne dépend pas de son contenu (pleine largeur, `overflow-x: auto`), la
- * mesure est stable. `deps` : tout ce qui change un libellé.
+ * barre ne dépend pas de son contenu, la mesure est stable. Sa hauteur peut en
+ * dépendre (`.list-actions` passe à la ligne au dernier niveau), et une mesure part
+ * alors sur le contenu du moment. `deps` : tout ce qui change le contenu de la barre,
+ * un libellé comme un bouton qui apparaît ou disparaît.
  */
 export function useToolbarFold(ref: RefObject<HTMLElement | null>, deps: unknown[]): void {
   useLayoutEffect(() => {

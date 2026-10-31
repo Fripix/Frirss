@@ -438,6 +438,8 @@ export interface UiState {
   setFeedArticleOrder: (feedId: string, order: ArticleOrder | 'random' | '') => void;
   /** Retient le choix du bouton Aléatoire pour cette vue. */
   setFeedRandom: (feedId: string, on: boolean) => void;
+  /** Le choix suit une étiquette ou une catégorie renommée. */
+  moveFeedRandom: (oldId: string, newId: string) => void;
   /** Affichage aléatoire : articles par tirage. Synced. */
   randomCount: number;
   setRandomCount: (count: number) => void;
@@ -1055,6 +1057,13 @@ export const useUiStore = create<UiState>()((set, get) => ({
   },
   setFeedRandom: (feedId, on) => {
     set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'random', on ? true : '') }));
+  },
+  moveFeedRandom: (oldId, newId) => {
+    set((state) => {
+      if (!state.feedSettings[oldId]?.random) return state;
+      const cleared = withFeedOverride(state.feedSettings, oldId, 'random', '');
+      return { feedSettings: withFeedOverride(cleared, newId, 'random', true) };
+    });
   },
 
   // App branding — custom title & logo

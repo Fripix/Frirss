@@ -150,12 +150,27 @@ describe('le tirage', () => {
     expect(env.api.getItemsByIds).toHaveBeenCalledTimes(1);
   });
 
-  it('un échec se dit, et le mode reste', async () => {
+  it('un refus se dit, et le mode reste', async () => {
     const env = await opened();
-    vi.mocked(env.api.getStreamIdsSince).mockRejectedValue(new Error('Network Error'));
+    vi.mocked(env.api.getStreamIdsSince).mockRejectedValue(Object.assign(new Error('refused'), { response: { status: 400 } }));
     state(env).setRandomView(true);
     await settled();
     expect(state(env)).toMatchObject({ randomView: true, listFailed: true, loading: false, revalidating: false });
+  });
+
+  // `navigator.onLine` ne dit que « une interface est active » : NAS arrêté, VPN
+  // coupé, réseau faible. Le choix retirait alors à la vue toute sa lecture gardée.
+  it('sans réponse du serveur, la vue normale prend le relais et le réglage reste', async () => {
+    const env = await opened();
+    vi.mocked(env.api.getStreamIdsSince).mockRejectedValue(new Error('Network Error'));
+    vi.mocked(env.api.getStreamContents).mockRejectedValue(new Error('Network Error'));
+    idb.lists.set('7@1|feed/1:all', { articles: NORMAL.map((i) => ({ ...i, id: i.id })) as never[], continuation: null, cachedAt: 1 });
+    state(env).setRandomView(true);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    expect(env.useUiStore.getState().feedSettings['feed/1']?.random).toBe(true);
+    expect(state(env).articles.length).toBeGreaterThan(0);
+    expect(state(env).listFailed).toBe(false);
   });
 
   it('recharger fait un nouveau tirage', async () => {
@@ -543,7 +558,148 @@ describe('aléatoire par défaut sur un flux', () => {
   });
 });
 
+describe('hors ligne', () => {
+  const offline = () => Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+
+  it('une vue en tirage s’ouvre normalement, et son réglage reste', async () => {
+    const env = await drawn();
+    offline();
+    vi.mocked(env.api.getStreamIdsSince).mockClear();
+    state(env).selectView(feed1);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    expect(env.api.getStreamIdsSince).not.toHaveBeenCalled();
+    expect(env.useUiStore.getState().feedSettings['feed/1']?.random).toBe(true);
+  });
+
+  it('Tous ↔ Non lus aussi', async () => {
+    const env = await drawn();
+    offline();
+    vi.mocked(env.api.getStreamIdsSince).mockClear();
+    state(env).setFilter('unread');
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    expect(env.api.getStreamIdsSince).not.toHaveBeenCalled();
+  });
+
+  it('choisir Aléatoire retient le choix sans lancer de tirage', async () => {
+    const env = await opened();
+    offline();
+    state(env).setRandomView(true);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    expect(env.useUiStore.getState().feedSettings['feed/1']?.random).toBe(true);
+    expect(env.api.getStreamIdsSince).not.toHaveBeenCalled();
+    expect(state(env).articles.length).toBe(NORMAL.length);
+  });
+});
+
+describe('une vue qui entre dans le mode sans le bouton', () => {
+  it('une page en vol ne s’y ajoute pas et ne range pas le tirage', async () => {
+    const env = await opened();
+    env.useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
+    const slow = deferred<unknown>();
+    vi.mocked(env.api.getStreamContents).mockReturnValueOnce(slow.promise as never);
+    useLoaded(env);
+    void state(env).loadMore();
+    await settled();
+    state(env).selectView(feed1);
+    await settled();
+    const shown = ids(env);
+    slow.resolve({ items: [item(100), item(99)], continuation: 'page3' });
+    await settled();
+    expect(ids(env)).toEqual(shown);
+    expect(idb.writes).toEqual([]);
+    expect(state(env).loadingMore).toBe(false);
+  });
+});
+
+describe('le réglage de la vue fait foi', () => {
+  it('éteint depuis un autre appareil, rouvrir le flux rend la liste normale', async () => {
+    const env = await drawn();
+    env.useUiStore.setState({ feedSettings: {} });
+    state(env).selectView(feed1);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+  });
+
+  it('syncRandomView recale la vue quand les préférences arrivent après elle', async () => {
+    const env = await drawn();
+    env.useUiStore.setState({ feedSettings: {} });
+    state(env).syncRandomView();
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    expect(ids(env)).toEqual(NORMAL.map((i) => i.id));
+  });
+
+  it('syncRandomView ne fait rien si la vue est déjà juste', async () => {
+    const env = await drawn();
+    vi.mocked(env.api.getStreamIdsSince).mockClear();
+    state(env).syncRandomView();
+    await settled();
+    expect(env.api.getStreamIdsSince).not.toHaveBeenCalled();
+  });
+
+  it('se désabonner du flux ouvert rend à l’accueil son propre choix, et efface celui du flux', async () => {
+    const env = await load();
+    state(env).selectView(null);
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    state(env).selectView(feed1);
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    vi.mocked(env.api.unsubscribeFeed).mockResolvedValue(undefined as never);
+    await state(env).removeFeed('feed/1');
+    await settled();
+    expect(state(env)).toMatchObject({ selectedFeed: null, randomView: true });
+    expect(env.useUiStore.getState().feedSettings['feed/1']).toBeUndefined();
+  });
+
+  it('renommer une catégorie garde son choix', async () => {
+    const env = await load();
+    const cat = { id: 'user/-/label/Old', title: 'Old' } as never;
+    env.useUiStore.getState().setFeedRandom('user/-/label/Old', true);
+    env.useFeedStore.setState({ subscriptions: [{ id: 'feed/1', title: 'F', categories: [{ id: 'user/-/label/Old', label: 'Old' }] }] as never });
+    expect(cat).toBeTruthy();
+    vi.mocked(env.api.renameTag).mockResolvedValue(undefined as never);
+    await state(env).renameCategory('user/-/label/Old', 'New');
+    const settings = env.useUiStore.getState().feedSettings;
+    expect(settings['user/-/label/New']?.random).toBe(true);
+    expect(settings['user/-/label/Old']).toBeUndefined();
+  });
+
+  it('renommer une étiquette aussi', async () => {
+    const env = await load();
+    env.useUiStore.getState().setFeedRandom('user/-/label/Old', true);
+    vi.mocked(env.api.renameTag).mockResolvedValue(undefined as never);
+    await state(env).renameLabel('user/-/label/Old', 'New');
+    expect(env.useUiStore.getState().feedSettings['user/-/label/New']?.random).toBe(true);
+  });
+});
+
 describe('fermer une recherche', () => {
+  it('fermer la boîte sans avoir cherché ne refait pas de tirage', async () => {
+    const env = await drawn();
+    const before = ids(env);
+    vi.mocked(env.api.getStreamIdsSince).mockClear();
+    state(env).clearSearch();
+    await settled();
+    expect(env.api.getStreamIdsSince).not.toHaveBeenCalled();
+    expect(ids(env)).toEqual(before);
+  });
+
+  it('« Tout lu » pendant une recherche rend la vue à son tirage', async () => {
+    const env = await drawn();
+    await state(env).search('mot');
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    await state(env).markAllAsRead();
+    await settled();
+    expect(state(env)).toMatchObject({ searchQuery: '', randomView: true });
+  });
+
   it('rend sa vue à l’aléatoire choisi', async () => {
     const env = await drawn();
     await state(env).search('mot');

@@ -763,16 +763,21 @@ export default function ArticleList() {
   // sinon « Aujourd'hui » et « Hier » alterneraient à chaque ligne.
   const groups = randomView ? [{ key: 'random', label: '', articles: shownArticles }] : groupByDate(shownArticles);
   const canMarkAll = canMarkAllRead(filter) && !randomView;
-  const actionRowRef = useRef<HTMLDivElement>(null);
-  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), canMarkAll, canRandomView(filter), is2Panel]);
   const randomButton = canRandomView(filter) && !searchQuery ? {
     icon: <ShuffleIcon />,
     label: t(online || randomView ? 'articleList.random' : 'articleList.randomOffline'),
+    // La phrase hors ligne n'a sa place que dans l'infobulle : affichée, elle
+    // sortait les boutons voisins de la barre.
+    text: t('articleList.random'),
     active: randomView,
     pressed: randomView,
     disabled: !online && !randomView,
     onClick: () => useFeedStore.getState().setRandomView(!randomView),
   } : null;
+  // Tout ce qui change le contenu de la ligne : elle se mesure sur ce qu'elle porte,
+  // et sans ceci, un bouton revenu après une recherche la ferait déborder.
+  const actionRowRef = useRef<HTMLDivElement>(null);
+  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), !!randomButton, canMarkAll, is2Panel]);
   // Une bande dit combien d'articles porte sa date, pas combien sont montés.
   const groupTotals = useMemo(
     () => new Map(groupByDate(articles).map((g) => [g.key, g.articles.length])),
@@ -1391,6 +1396,8 @@ function ToolbarSep() {
 interface ToolbarBtnProps {
   icon: ReactNode;
   label: string;
+  /** Le mot affiché, s'il diffère du nom complet. */
+  text?: string;
   shortcut?: string;
   onClick?: () => void;
   active?: boolean;
@@ -1403,7 +1410,7 @@ interface ToolbarBtnProps {
   flex1?: boolean;
 }
 
-function ToolbarBtn({ icon, label, shortcut, onClick, active, pressed, disabled, iconOnly, cede, flex1 }: ToolbarBtnProps) {
+function ToolbarBtn({ icon, label, text, shortcut, onClick, active, pressed, disabled, iconOnly, cede, flex1 }: ToolbarBtnProps) {
   return (
     <button
       onClick={onClick}
@@ -1424,7 +1431,7 @@ function ToolbarBtn({ icon, label, shortcut, onClick, active, pressed, disabled,
       aria-label={label}
     >
       {icon}
-      {!iconOnly && <span data-cede={cede}>{label}</span>}
+      {!iconOnly && <span data-cede={cede}>{text ?? label}</span>}
     </button>
   );
 }
