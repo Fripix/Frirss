@@ -332,10 +332,15 @@ export default function ArticleList() {
   const PULL_TRIGGER = 56;
 
   // Scroll memory — key the saved position by the current view
-  // Un tirage est une autre liste : il repart du haut, et sa position ne vaut pour aucune autre.
+  // Un tirage est une autre liste : sa position ne vaut pour aucune autre.
   const scrollKey = `${selectedFeed?.id || ''}:${filter}:${searchQuery || ''}${randomView ? `:random${randomDraw}` : ''}`;
   const scrollKeyRef = useRef(scrollKey);
   scrollKeyRef.current = scrollKey;
+  // `scrollKey` ne remonte rien : le navigateur gardait la position, et le tirage
+  // s'affichait par sa fin. Lecture normale exclue, elle a sa propre mémoire.
+  useLayoutEffect(() => {
+    if (randomView && listRef.current) listRef.current.scrollTop = 0;
+  }, [randomView, randomDraw]);
   const didRestoreRef = useRef(false);
 
   // `search()` remet `continuation` (celle du flux nu) à `null` et rien ne la
@@ -545,8 +550,8 @@ export default function ArticleList() {
         setRefreshing(true);
         setPull(PULL_TRIGGER);
         // Tirer est un geste : un tirage se refait, là où `silentRefresh` le laisse.
-        const { randomView: drawing, loadArticles: redraw } = useFeedStore.getState();
-        Promise.resolve(drawing ? redraw() : silentRefresh()).finally(() => {
+        const { randomView: drawing, syncCounts, loadArticles: redraw } = useFeedStore.getState();
+        Promise.resolve(drawing ? syncCounts().then(redraw) : silentRefresh()).finally(() => {
           refreshingRef.current = false;
           setRefreshing(false);
           setPull(0);
@@ -921,7 +926,7 @@ export default function ArticleList() {
               <ToolbarBtn icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
-              {randomButton && <ToolbarBtn {...randomButton} />}
+              {randomButton && <ToolbarBtn iconOnly {...randomButton} />}
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               {canMarkAll && (
@@ -981,6 +986,9 @@ export default function ArticleList() {
               </div>
 
               <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+                {/* Pas sur la ligne d'actions : à 340 px, largeur par défaut de la
+                    colonne, il en faisait sortir « Tout lu », que rien ne remplace. */}
+                {randomButton && <ToolbarBtn iconOnly {...randomButton} />}
                 <div className="option-track">
                   <SourceToggle
                     active={showSource}
@@ -1001,7 +1009,6 @@ export default function ArticleList() {
               <ToolbarSep />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
-              {randomButton && <ToolbarBtn {...randomButton} />}
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               {canMarkAll && (
@@ -1141,6 +1148,7 @@ export default function ArticleList() {
       {/* List */}
       <div
         ref={listRef}
+        data-article-scroll
         tabIndex={-1}
         className="flex-1 overflow-y-auto overflow-x-hidden nice-scroll relative outline-none"
         // Les séparateurs de date descendent sous le bandeau tant qu'il
@@ -1588,7 +1596,8 @@ function EmptyState({ filter, searchQuery, failed, onRetry, awaitingPage, loadMo
     title = t('emptyState.noResults');
     subtitle = t('emptyState.noResultsHint');
   } else if (random) {
-    // « Tout est lu » serait faux : l'ancienneté réglée peut seule avoir vidé le tirage.
+    // « Tout est lu » serait faux : le tirage vient de se vider, ou l'ancienneté
+    // réglée n'a rien ramené. Il peut rester des milliers d'articles.
     icon = <ShuffleIcon />;
     title = t('articleList.randomEmpty');
     subtitle = t('articleList.randomEmptyHint');
@@ -1626,7 +1635,7 @@ function EmptyState({ filter, searchQuery, failed, onRetry, awaitingPage, loadMo
     subtitle = t('emptyState.noArticlesHint');
   }
 
-  const isSuccess = filter === 'unread' && !searchQuery && !awaitingPage && !failed;
+  const isSuccess = filter === 'unread' && !searchQuery && !awaitingPage && !failed && !random;
 
   // Six états vides partagent un gabarit alors qu'ils ne disent pas la même
   // chose. « Tout est lu » est une réussite — le moment où l'application a fini
@@ -1651,6 +1660,8 @@ function EmptyState({ filter, searchQuery, failed, onRetry, awaitingPage, loadMo
         store.search(searchQuery);
       },
     };
+  } else if (random) {
+    action = { label: t('articleList.randomAgain'), run: onRetry };
   } else if (isSuccess) {
     action = {
       label: t('emptyState.allReadAction'),

@@ -126,8 +126,8 @@
     "random": "Aleatorio",
     "randomOffline": "Aleatorio: no disponible sin conexión",
     "randomAgain": "Nueva selección",
-    "randomEmpty": "No hay artículos para elegir en esta vista.",
-    "randomEmptyHint": "Cambia la antigüedad máxima en Preferencias › General o sal de Aleatorio."
+    "randomEmpty": "No hay artículos en esta selección.",
+    "randomEmptyHint": "Haz una nueva selección o cambia la antigüedad máxima en Preferencias › General."
   },
   "articleRow": {
     "markRead": "Marcar como leído",

@@ -41,17 +41,18 @@ mode à part sans lien avec FreshRSS, les dossiers intelligents.
 
 ### Le bouton
 
-- Présent dans les trois barres de `ArticleList.tsx`, après « Non lus », avec
-  l'état actif habituel de `ToolbarBtn`. Libellé `articleList.random`.
+- Présent dans les trois barres de `ArticleList.tsx`, avec l'état actif habituel de
+  `ToolbarBtn`. Libellé `articleList.random`. Après « Non lus » sur téléphone et en
+  2 colonnes, en icône seule ; sur la ligne du titre en 3 colonnes, où la ligne
+  d'actions n'a pas la place à 340 px, largeur par défaut de la colonne.
 - Visible sous les filtres Tous et Non lus, sur l'accueil, une catégorie, un
   flux ou une étiquette. Absent sous Favoris et À lire plus tard : les favoris
   d'un flux sont filtrés côté client, leurs identifiants ne s'obtiennent pas.
 - Absent pendant une recherche ; lancer une recherche quitte le mode.
 - Désactivé hors ligne (`navigator.onLine === false`), avec un libellé qui dit
   pourquoi.
-- Doit tenir à 320 px, où la barre compte déjà cinq boutons `flex1`. À mesurer
-  sur l'émulateur avant de le figer. S'il ne tient pas, il passe dans la feuille
-  « Options de la vue », et cette décision revient au propriétaire.
+- Tient à 320 px, où la barre compte déjà cinq boutons `flex1`, et à 340 px en
+  3 colonnes : mesuré dans Chrome sur la feuille construite.
 
 ### Le mode
 
@@ -106,14 +107,17 @@ dans FreshRSS.
 - Pas de séparateurs de date, en liste comme en grille : dans un tirage, ils se
   répéteraient à chaque ligne (« Aujourd'hui », « Hier », « Aujourd'hui »…) avec
   des totaux faux. La date reste sur chaque article.
-- Liste vide : un message dédié (`articleList.randomEmpty`), qui nomme la portée
-  plutôt que « Tout est lu ».
+- Liste vide : un message dédié (`articleList.randomEmpty`) plutôt que « Tout est lu ».
 - Échec du tirage : l'état d'échec habituel avec « Réessayer », mode conservé.
+- Tirage vide, ou vidé par des lignes lues : ni l'allure d'une réussite, ni
+  « Tout est lu », et un bouton « Nouveau tirage ».
 
 ## Paramètres
 
 Dans **Préférences › Général**, juste sous « Ordre des articles » : c'est là que
 vivent déjà les choix sur ce que montre la liste.
+
+Une saisie s'enregistre en sortant du champ ou en fermant le panneau.
 
 - **Nombre d'articles** : champ numérique libre, **20** par défaut, de 1 à 500.
 - **Ancienneté** : champ numérique libre et choix heures ou jours. Vide veut dire
@@ -137,7 +141,7 @@ la valeur sert au prochain tirage.
 - Une réponse d'un tirage périmé est jetée : la garde couvre la vue, la portée
   (`offlineScope`) et un numéro de tirage.
 - Le relevé compte dans le plafond du proxy (`FRIRSS_PROXY_RATE_LIMIT`) : 10 appels
-  au plus pour les identifiants, et 1 à 2 pour les contenus.
+  au plus pour les identifiants, et 1 à 5 pour les contenus.
 
 ## À vérifier en premier
 

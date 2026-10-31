@@ -126,8 +126,8 @@
     "random": "Casuale",
     "randomOffline": "Casuale: non disponibile offline",
     "randomAgain": "Nuova estrazione",
-    "randomEmpty": "Nessun articolo da estrarre in questa vista.",
-    "randomEmptyHint": "Modifica l’età massima in Preferenze › Generale o esci da Casuale."
+    "randomEmpty": "Nessun articolo in questa estrazione.",
+    "randomEmptyHint": "Fai una nuova estrazione o modifica l’età massima in Preferenze › Generale."
   },
   "articleRow": {
     "markRead": "Segna come letto",

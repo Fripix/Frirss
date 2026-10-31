@@ -88,6 +88,8 @@ async function load() {
 }
 type Env = Awaited<ReturnType<typeof load>>;
 const state = (env: Env) => env.useFeedStore.getState();
+/** La vue ouverte, prête à recevoir sa page suivante. */
+const useLoaded = (env: Env) => { env.useFeedStore.setState({ loadingMore: false, revalidating: false } as never); };
 const ids = (env: Env) => state(env).articles.map((a) => a.id);
 async function opened(filter: 'all' | 'unread' = 'all') {
   const env = await load();
@@ -305,6 +307,127 @@ describe('la liste ne change pas sans geste', () => {
     await state(env).syncCounts();
     await state(env).syncCounts();
     expect(state(env).newInView).toBe(0);
+  });
+});
+
+describe('une réponse normale en vol', () => {
+  const page2 = { items: [item(100), item(99)], continuation: 'page3' };
+
+  it('une page en vol ne se mêle pas au tirage et ne se range pas, réponse après le tirage', async () => {
+    const env = await opened();
+    const slow = deferred<typeof page2>();
+    vi.mocked(env.api.getStreamContents).mockReturnValueOnce(slow.promise as never);
+    useLoaded(env);
+    void state(env).loadMore();
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    const shown = ids(env);
+    slow.resolve(page2);
+    await settled();
+    expect(ids(env)).toEqual(shown);
+    expect(state(env)).toMatchObject({ continuation: null, loadingMore: false });
+    expect(idb.writes).toEqual([]);
+  });
+
+  it('une page en vol ne réduit pas la vue, réponse avant le tirage', async () => {
+    const env = await opened();
+    const slow = deferred<typeof page2>();
+    const ids0 = deferred<string[]>();
+    vi.mocked(env.api.getStreamContents).mockReturnValueOnce(slow.promise as never);
+    vi.mocked(env.api.getStreamIdsSince).mockReturnValueOnce(ids0.promise as never);
+    useLoaded(env);
+    void state(env).loadMore();
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    slow.resolve(page2);
+    await settled();
+    expect(idb.writes).toEqual([]);
+    ids0.resolve([dec(1)]);
+    await settled();
+    expect(ids(env)).toEqual([tag(1)]);
+  });
+
+  it('un chargement normal en vol n’écrase pas le tirage', async () => {
+    const env = await load();
+    const slow = deferred<unknown>();
+    vi.mocked(env.api.getStreamContents).mockReturnValue(slow.promise as never);
+    state(env).selectView(feed1, 'all');
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    const shown = ids(env);
+    slow.resolve({ items: NORMAL, continuation: 'page2' });
+    await settled();
+    expect(ids(env)).toEqual(shown);
+    expect(state(env)).toMatchObject({ continuation: null, loading: false, revalidating: false });
+    expect(idb.writes).toEqual([]);
+  });
+
+  it('un chargement normal terminé après le début d’un tirage ne relâche pas son attente', async () => {
+    const env = await load();
+    const slow = deferred<unknown>();
+    const draw = deferred<string[]>();
+    vi.mocked(env.api.getStreamContents).mockReturnValue(slow.promise as never);
+    vi.mocked(env.api.getStreamIdsSince).mockReturnValueOnce(draw.promise as never);
+    state(env).selectView(feed1, 'all');
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    slow.resolve({ items: NORMAL, continuation: 'page2' });
+    await settled();
+    expect(state(env)).toMatchObject({ loading: true, revalidating: true });
+    draw.resolve([dec(1)]);
+    await settled();
+    expect(state(env)).toMatchObject({ loading: false, revalidating: false });
+  });
+
+  it('une relecture silencieuse en vol n’écrase pas le tirage', async () => {
+    const env = await opened();
+    const slow = deferred<unknown>();
+    vi.mocked(env.api.getStreamContents).mockReturnValueOnce(slow.promise as never);
+    const relecture = state(env).silentRefresh();
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    const shown = ids(env);
+    slow.resolve({ items: NORMAL, continuation: 'page2' });
+    await relecture;
+    await settled();
+    expect(ids(env)).toEqual(shown);
+    expect(state(env).continuation).toBeNull();
+  });
+});
+
+describe('les autres sorties', () => {
+  it('se désabonner du flux ouvert quitte le mode', async () => {
+    const env = await drawn();
+    vi.mocked(env.api.unsubscribeFeed).mockResolvedValue(undefined as never);
+    await state(env).removeFeed('feed/1');
+    await settled();
+    expect(state(env).randomView).toBe(false);
+  });
+
+  it('se désabonner d’un autre flux le laisse', async () => {
+    const env = await drawn();
+    vi.mocked(env.api.unsubscribeFeed).mockResolvedValue(undefined as never);
+    await state(env).removeFeed('feed/2');
+    await settled();
+    expect(state(env).randomView).toBe(true);
+  });
+
+  it('une recherche ouverte pendant un tirage ne laisse aucun chargement', async () => {
+    const env = await opened();
+    const slow = deferred<string[]>();
+    vi.mocked(env.api.getStreamIdsSince).mockReturnValueOnce(slow.promise as never);
+    state(env).setRandomView(true);
+    await settled();
+    void state(env).search('mot');
+    await settled();
+    slow.resolve([dec(1)]);
+    await settled();
+    expect(state(env)).toMatchObject({ randomView: false, revalidating: false });
   });
 });
 

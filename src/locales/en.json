@@ -126,8 +126,8 @@
     "random": "Random",
     "randomOffline": "Random: unavailable offline",
     "randomAgain": "New draw",
-    "randomEmpty": "No articles to draw from in this view.",
-    "randomEmptyHint": "Change the maximum age in Preferences › General, or leave Random."
+    "randomEmpty": "No articles in this draw.",
+    "randomEmptyHint": "Make a new draw, or change the maximum age in Preferences › General."
   },
   "articleRow": {
     "markRead": "Mark as read",

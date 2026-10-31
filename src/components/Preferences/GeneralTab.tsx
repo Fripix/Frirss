@@ -225,7 +225,8 @@ export default function GeneralTab() {
                   onClick={() => {
                     if (selected) return;
                     setArticleOrder(opt.order);
-                    void useFeedStore.getState().loadArticles();
+                    // Un tirage ne dépend pas de l'ordre.
+                    if (!useFeedStore.getState().randomView) void useFeedStore.getState().loadArticles();
                   }}
                   className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
                   style={{

@@ -2,7 +2,7 @@
 //
 // Le bouton Aléatoire et ce que la liste change dans ce mode.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import type { Article } from '../../types';
 
 vi.mock('react-i18next', () => ({
@@ -85,6 +85,31 @@ describe('le bouton Aléatoire', () => {
   });
 });
 
+describe('la position dans la liste', () => {
+  const list = (c: ReturnType<typeof render>) => c.container.querySelector('[data-article-scroll]') as HTMLElement;
+
+  it('un nouveau tirage repart du haut, même sans changement de taille', () => {
+    const c = show({ randomView: true, randomDraw: 1 });
+    list(c).scrollTop = 900;
+    act(() => { useFeedStore.setState({ randomDraw: 2 } as never); });
+    expect(list(c).scrollTop).toBe(0);
+  });
+
+  it('entrer dans le mode repart du haut', () => {
+    const c = show();
+    list(c).scrollTop = 900;
+    act(() => { useFeedStore.setState({ randomView: true } as never); });
+    expect(list(c).scrollTop).toBe(0);
+  });
+
+  it('hors du mode, la position reste', () => {
+    const c = show();
+    list(c).scrollTop = 900;
+    act(() => { useFeedStore.setState({ articles: rows(4) } as never); });
+    expect(list(c).scrollTop).toBe(900);
+  });
+});
+
 describe('la liste en mode aléatoire', () => {
   it('ne propose ni « Tout lu », ni son pied de liste', () => {
     const c = show({ randomView: true });
@@ -114,9 +139,17 @@ describe('la liste en mode aléatoire', () => {
     expect(show().queryByRole('button', { name: 'articleList.randomAgain' })).toBeNull();
   });
 
-  it('une vue vide le dit, sans annoncer « tout est lu »', () => {
+  it('une vue vide le dit, sans se présenter comme une réussite, et propose un nouveau tirage', () => {
     const c = show({ randomView: true, articles: [], filter: 'unread' });
     expect(c.queryByText('articleList.randomEmpty')).not.toBeNull();
     expect(c.queryByText('emptyState.allRead')).toBeNull();
+    expect(c.queryByText('emptyState.allReadAction')).toBeNull();
+    fireEvent.click(c.getByRole('button', { name: 'articleList.randomAgain' }));
+    expect(loadArticles).toHaveBeenCalledTimes(1);
+  });
+
+  it('sous Tous aussi, la vue vide a sa sortie', () => {
+    const c = show({ randomView: true, articles: [], filter: 'all' });
+    expect(c.queryByRole('button', { name: 'articleList.randomAgain' })).not.toBeNull();
   });
 });

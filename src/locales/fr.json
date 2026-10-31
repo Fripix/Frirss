@@ -126,8 +126,8 @@
     "random": "Aléatoire",
     "randomOffline": "Aléatoire : indisponible hors ligne",
     "randomAgain": "Nouveau tirage",
-    "randomEmpty": "Aucun article à tirer dans cette vue.",
-    "randomEmptyHint": "Modifiez l’ancienneté maximale dans Préférences › Général, ou quittez Aléatoire."
+    "randomEmpty": "Aucun article dans ce tirage.",
+    "randomEmptyHint": "Faites un nouveau tirage, ou modifiez l’ancienneté maximale dans Préférences › Général."
   },
   "articleRow": {
     "markRead": "Marquer lu",

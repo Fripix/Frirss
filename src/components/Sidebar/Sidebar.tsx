@@ -1057,7 +1057,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
           onChange={(v) => {
             setFeedArticleOrder(feed.id, v);
             const fs = useFeedStore.getState();
-            if (fs.selectedFeed?.id === feed.id) void fs.loadArticles();
+            if (fs.selectedFeed?.id === feed.id && !fs.randomView) void fs.loadArticles();
             onClose();
           }}
         />

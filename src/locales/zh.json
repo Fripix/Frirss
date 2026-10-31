@@ -126,8 +126,8 @@
     "random": "随机",
     "randomOffline": "随机：离线时不可用",
     "randomAgain": "重新抽取",
-    "randomEmpty": "此视图中没有可抽取的文章。",
-    "randomEmptyHint": "请在“偏好设置 › 通用”中调整最长时间范围，或退出随机。"
+    "randomEmpty": "此次抽取没有文章。",
+    "randomEmptyHint": "请重新抽取，或在“偏好设置 › 通用”中调整最长时间范围。"
   },
   "articleRow": {
     "markRead": "标为已读",

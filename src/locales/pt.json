@@ -126,8 +126,8 @@
     "random": "Aleatório",
     "randomOffline": "Aleatório: indisponível offline",
     "randomAgain": "Nova seleção",
-    "randomEmpty": "Sem artigos para escolher nesta vista.",
-    "randomEmptyHint": "Altere a idade máxima em Preferências › Geral ou saia de Aleatório."
+    "randomEmpty": "Sem artigos nesta seleção.",
+    "randomEmptyHint": "Faça uma nova seleção ou altere a idade máxima em Preferências › Geral."
   },
   "articleRow": {
     "markRead": "Marcar como lido",

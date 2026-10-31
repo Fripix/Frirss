@@ -134,8 +134,8 @@
     "random": "Losowo",
     "randomOffline": "Losowo: niedostępne offline",
     "randomAgain": "Nowe losowanie",
-    "randomEmpty": "Brak artykułów do wylosowania w tym widoku.",
-    "randomEmptyHint": "Zmień maksymalny wiek w Preferencje › Ogólne lub wyjdź z trybu Losowo."
+    "randomEmpty": "Brak artykułów w tym losowaniu.",
+    "randomEmptyHint": "Wykonaj nowe losowanie lub zmień maksymalny wiek w Preferencje › Ogólne."
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",

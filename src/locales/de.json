@@ -126,8 +126,8 @@
     "random": "Zufällig",
     "randomOffline": "Zufällig: offline nicht verfügbar",
     "randomAgain": "Neue Auswahl",
-    "randomEmpty": "Keine Artikel für eine Auswahl in dieser Ansicht.",
-    "randomEmptyHint": "Ändern Sie das maximale Alter unter Einstellungen › Allgemein oder verlassen Sie Zufällig."
+    "randomEmpty": "Keine Artikel in dieser Auswahl.",
+    "randomEmptyHint": "Starten Sie eine neue Auswahl oder ändern Sie das maximale Alter unter Einstellungen › Allgemein."
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
 import { normalizeRandomCount, type RandomWindowUnit } from '../../lib/randomDraw';
@@ -7,10 +7,38 @@ const INPUT_CLASS = 'w-20 px-2 py-1 rounded-md text-xs text-right';
 const INPUT_STYLE = { border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)', color: 'var(--list-title)' };
 
 /**
- * Les paramètres du bouton Aléatoire de la liste, communs à toutes les vues. Un
- * champ garde sa saisie en cours (`draft`) : vidé pour retaper un nombre, il
- * n'est pas regarni sous les doigts, et reprend la valeur retenue en sortant.
+ * Une saisie gardée jusqu'à la sortie du champ. À chaque frappe, « 501 » laissait
+ * 50 en route, et un champ vidé pour retaper un nombre était regarni sous les
+ * doigts. `bad` : `type="number"` rend une valeur vide pour « e » ou « - », qu'il
+ * ne faut pas prendre pour un champ vidé. Fermer le panneau ne perd pas la saisie.
  */
+function useDraft(commit: (value: string) => void) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const pending = useRef<{ value: string; bad: boolean } | null>(null);
+  const latestCommit = useRef(commit);
+  useEffect(() => { latestCommit.current = commit; });
+
+  const flush = () => {
+    const entry = pending.current;
+    pending.current = null;
+    if (entry && !entry.bad) latestCommit.current(entry.value);
+  };
+  useEffect(() => flush, []);
+
+  return {
+    draft,
+    onChange: (el: HTMLInputElement) => {
+      pending.current = { value: el.value, bad: el.validity.badInput };
+      setDraft(el.value);
+    },
+    onBlur: () => {
+      flush();
+      setDraft(null);
+    },
+  };
+}
+
+/** Les paramètres du bouton Aléatoire de la liste, communs à toutes les vues. */
 export default function RandomViewSettings() {
   const { t } = useTranslation();
   const randomCount = useUiStore((s) => s.randomCount);
@@ -18,21 +46,16 @@ export default function RandomViewSettings() {
   const amount = useUiStore((s) => s.randomWindowAmount);
   const unit = useUiStore((s) => s.randomWindowUnit);
   const setRandomWindow = useUiStore((s) => s.setRandomWindow);
-  const [countDraft, setCountDraft] = useState<string | null>(null);
-  const [amountDraft, setAmountDraft] = useState<string | null>(null);
   const countId = useId();
   const amountId = useId();
 
-  const changeCount = (value: string) => {
-    setCountDraft(value);
+  const count = useDraft((value) => {
     if (value !== '' && normalizeRandomCount(value) === Number(value)) setRandomCount(Number(value));
-  };
-
-  const changeAmount = (value: string) => {
-    setAmountDraft(value);
-    if (value === '') setRandomWindow(0, unit);
-    else if (Number.isSafeInteger(Number(value)) && Number(value) > 0) setRandomWindow(Number(value), unit);
-  };
+  });
+  const age = useDraft((value) => {
+    const n = Number(value);
+    if (Number.isSafeInteger(n) && n >= 0) setRandomWindow(n, useUiStore.getState().randomWindowUnit);
+  });
 
   const units: { id: RandomWindowUnit; label: string }[] = [
     { id: 'hours', label: t('preferences.general.randomHours') },
@@ -55,9 +78,9 @@ export default function RandomViewSettings() {
           inputMode="numeric"
           min={1}
           max={500}
-          value={countDraft ?? String(randomCount)}
-          onChange={(e) => changeCount(e.target.value)}
-          onBlur={() => setCountDraft(null)}
+          value={count.draft ?? String(randomCount)}
+          onChange={(e) => count.onChange(e.target)}
+          onBlur={count.onBlur}
           className={INPUT_CLASS}
           style={INPUT_STYLE}
         />
@@ -71,11 +94,11 @@ export default function RandomViewSettings() {
             id={amountId}
             type="number"
             inputMode="numeric"
-            min={1}
+            min={0}
             placeholder={t('preferences.general.randomWindowAll')}
-            value={amountDraft ?? (amount ? String(amount) : '')}
-            onChange={(e) => changeAmount(e.target.value)}
-            onBlur={() => setAmountDraft(null)}
+            value={age.draft ?? (amount ? String(amount) : '')}
+            onChange={(e) => age.onChange(e.target)}
+            onBlur={age.onBlur}
             className={INPUT_CLASS}
             style={INPUT_STYLE}
           />
@@ -93,7 +116,7 @@ export default function RandomViewSettings() {
                   type="button"
                   role="radio"
                   aria-checked={selected}
-                  onClick={() => setRandomWindow(amount, opt.id)}
+                  onClick={() => setRandomWindow(useUiStore.getState().randomWindowAmount, opt.id)}
                   className="px-2.5 py-1 text-xs font-medium rounded-md transition-colors"
                   style={{
                     background: selected ? 'var(--accent)' : 'transparent',

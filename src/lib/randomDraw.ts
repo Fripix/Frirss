@@ -25,15 +25,18 @@ export function canRandomView(filter: Filter): boolean {
   return filter === 'all' || filter === 'unread';
 }
 
+/** Seuls un nombre et son écriture en sont un : `Number(true)` vaut 1, `Number([5])` vaut 5. */
+const asNumber = (v: unknown) => (typeof v === 'number' || (typeof v === 'string' && v !== '') ? Number(v) : NaN);
+
 /** Un nombre d'articles lisible, sinon le défaut : la valeur vient aussi d'un autre appareil. */
 export function normalizeRandomCount(v: unknown): number {
-  const n = v === null ? NaN : Number(v);
+  const n = asNumber(v);
   return Number.isInteger(n) && n >= 1 && n <= RANDOM_MAX_COUNT ? n : RANDOM_DEFAULT_COUNT;
 }
 
 /** Une ancienneté entière et positive ; 0 veut dire tous les articles. */
 export function normalizeRandomAmount(v: unknown): number {
-  const n = v === null ? NaN : Number(v);
+  const n = asNumber(v);
   return Number.isSafeInteger(n) && n >= 0 ? n : 0;
 }
 

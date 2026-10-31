@@ -5,7 +5,7 @@ import {
 } from './randomDraw';
 
 describe('paramètres du tirage', () => {
-  it.each([undefined, null, 'x', 0, -3, 1.5, 501, NaN, Infinity])('nombre illisible %s → défaut', (v) => {
+  it.each([undefined, null, 'x', 0, -3, 1.5, 501, NaN, Infinity, true, [5], ''])('nombre illisible %s → défaut', (v) => {
     expect(normalizeRandomCount(v)).toBe(RANDOM_DEFAULT_COUNT);
   });
 
@@ -15,7 +15,7 @@ describe('paramètres du tirage', () => {
     expect(normalizeRandomCount('35')).toBe(35);
   });
 
-  it.each([undefined, 'x', -1, 2.5, NaN, Infinity])('ancienneté illisible %s → tous', (v) => {
+  it.each([undefined, 'x', -1, 2.5, NaN, Infinity, true, [5]])('ancienneté illisible %s → tous', (v) => {
     expect(normalizeRandomAmount(v)).toBe(0);
   });
 

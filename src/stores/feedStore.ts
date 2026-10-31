@@ -1846,7 +1846,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // finale). `runScan`/`loadMore` se gardent déjà sur `viewIdentity`
     // (flux + filtre + requête) ; ce chemin-ci renonce plus simplement dès
     // qu'une recherche est en cours, avant sa propre écriture.
-    const sameView = () => viewKey(get().selectedFeed, get().filter) === key && !get().searchQuery;
+    const sameView = () => viewKey(get().selectedFeed, get().filter) === key && !get().searchQuery && !get().randomView;
     const cached = memGet(key);
     // Memory cache already painted (set by the select action) → no spinner.
     // `revalidating` covers the gap this leaves: the request below (2.) stays
@@ -1876,7 +1876,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // filtre) : personne d'autre ne relèvera les drapeaux posés plus
         // haut. Un vrai changement de vue, lui, a son propre chargement qui
         // les possède désormais.
-        if (viewKey(get().selectedFeed, get().filter) === key) set({ loading: false, revalidating: false });
+        // Un tirage, lui aussi, possède ses drapeaux.
+        if (viewKey(get().selectedFeed, get().filter) === key && !get().randomView) set({ loading: false, revalidating: false });
         return;
       }
       if (!result) { set({ loading: false, revalidating: false }); return; }
@@ -1929,6 +1930,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   setRandomView: (on) => {
     if (on === get().randomView) return;
     if (on && (!canRandomView(get().filter) || get().searchQuery)) return;
+    // Une page en vol appartient à la liste qui s'en va : ajoutée, elle rangerait
+    // le tirage sous la clé de la vue, `loadMore` étant seul à écrire sans
+    // `persistCurrentView`.
+    listGeneration++;
     const c = on ? undefined : memGet(viewKey(get().selectedFeed, get().filter));
     set({ randomView: on, articles: c?.articles || [], continuation: c?.continuation || null, loading: !c });
     void get().loadArticles();
@@ -3080,6 +3085,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         return {
           subscriptions: state.subscriptions.filter((s) => s.id !== feedId),
           selectedFeed: wasOpen ? null : state.selectedFeed,
+          randomView: state.randomView && !wasOpen,
           selectedArticle: state.selectedArticle?.sourceId === feedId ? null : state.selectedArticle,
           articles: state.articles.filter((a) => a.sourceId !== feedId),
           unreadCounts,
@@ -3213,7 +3219,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     try {
       const result = await fetchArticleStream(filter, selectedFeed, PAGE_SIZE, null);
       if (!result) return;
-      if (viewKey(get().selectedFeed, get().filter) !== key || get().searchQuery) return;
+      if (viewKey(get().selectedFeed, get().filter) !== key || get().searchQuery || get().randomView) return;
       const newArticles = reconcile(result.items.map(normalizeArticle), filter, since);
       rebuiltViews.delete(key); // une vraie réponse : la liste affichée n'est plus construite
       // Merge: keep selectedArticle in sync if it still exists
@@ -3840,7 +3846,11 @@ async function drawRandomList(): Promise<void> {
   const since = localWrites.mark();
   const stale = () => {
     const now = useFeedStore.getState();
-    return token !== randomDrawToken || !now.randomView || viewIdentity(now) !== view;
+    const gone = token !== randomDrawToken || !now.randomView || viewIdentity(now) !== view;
+    // Une recherche a pris la main : personne d'autre ne relèvera ce drapeau,
+    // comme dans `loadArticles`.
+    if (gone && token === randomDrawToken && now.searchQuery) useFeedStore.setState({ revalidating: false });
+    return gone;
   };
   useFeedStore.setState({ articles: [], continuation: null, loading: true, revalidating: true, newInView: 0, listFailed: false });
   const { randomCount, randomWindowAmount, randomWindowUnit } = useUiStore.getState();
