@@ -47,8 +47,9 @@ la release publiée.
 - **Affichage aléatoire** (#27). Un bouton dans la barre de la liste tire des
   articles au hasard dans la vue affichée, comme l'ordre aléatoire de FreshRSS, avec
   un nouveau tirage en fin de liste. Le nombre d'articles et leur ancienneté
-  maximale, en heures ou en jours, se règlent dans Préférences › Général. Un flux
-  peut s'ouvrir directement en aléatoire : clic droit, « Ordre de ce flux ».
+  maximale, en heures ou en jours, se règlent dans Préférences › Général. Le choix
+  reste, vue par vue, et se fait aussi au clic droit sur un flux, dans « Ordre de ce
+  flux ».
 
 ## Sécurité
 

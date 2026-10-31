@@ -711,13 +711,15 @@ trouvait pas.
 - **Où** : `src/lib/randomDraw.ts`, `drawRandomList` et `setRandomView` dans
   `src/stores/feedStore.ts`, `getStreamIdsSince` et `getItemsByIds` dans
   `src/api/feeds.ts`, `ArticleList.tsx`, `RandomViewSettings.tsx`.
-- **Par flux** : « Ordre de ce flux », dans le menu du flux (clic droit), propose
-  Aléatoire (`FeedSetting.random`, synchronisé). Le flux s'ouvre alors en tirage à
-  chaque visite, le bouton le quitte pour la visite sans toucher au réglage. Hors
-  ligne, il s'ouvre normalement (`opensRandom`). ⚠️ Pas un ordre : `order` et
-  `random` s'excluent, `setFeedArticleOrder` retire l'un en posant l'autre, et
-  `effectiveOrder` n'en sait rien, pour que clés de vue et listes gardées ne bougent
-  pas. Pas de réglage global, ni par catégorie.
+- **Le choix reste, vue par vue** : le bouton est le réglage (`FeedSetting.random`,
+  synchronisé, clé `''` pour l'accueil), pour un flux, une catégorie, une étiquette
+  ou l'accueil. La vue se rouvre en tirage à chaque visite et après un rechargement ;
+  l'éteindre retire le réglage. « Ordre de ce flux », dans le menu du flux (clic
+  droit), propose aussi Aléatoire. Hors ligne, la vue s'ouvre normalement
+  (`opensRandom`). ⚠️ Un bouton valable pour la seule visite ne répondait pas à la
+  demande : le choix doit rester fixe. ⚠️ Pas un ordre : `effectiveOrder` n'en sait
+  rien, pour que clés de vue et listes gardées ne bougent pas. Le menu choisit l'un
+  ou l'autre ; le bouton laisse `order` en place pour le jour où on l'éteint.
 - **Réglages** : Préférences → Général, sous l'ordre des articles, synchronisés :
   `randomCount` (champ libre, 1 à 500, 20 par défaut) ; ancienneté maximale,
   `randomWindowAmount` (champ libre, vide ou 0 = tous) et `randomWindowUnit`
@@ -735,12 +737,12 @@ trouvait pas.
 - **L'ancienneté se lit dans l'identifiant d'entrée**, l'heure d'arrivée dans
   FreshRSS (`randomCutoffUsec`). ⚠️ Pas `ot` : FreshRSS le lit comme « publié après
   OU modifié après », et un vieux billet corrigé s'y glisserait.
-- **Le mode est transitoire** (`randomView`) : ni enregistré, ni synchronisé. Il
-  survit à Tous ↔ Non lus, où il refait un tirage, et prend fin au changement de
-  flux, au désabonnement du flux ouvert, à Favoris, À lire plus tard, à une
-  recherche, au changement de compte ou de serveur, au rechargement de la page. Absent sous Favoris et À lire plus tard :
-  les favoris d'un flux sont filtrés côté client. Hors ligne, il ne s'active pas,
-  mais reste cliquable pour en sortir.
+- **L'état affiché** (`randomView`) suit la vue et son réglage : il survit à Tous ↔
+  Non lus, où il refait un tirage, s'interrompt à Favoris, À lire plus tard et le
+  temps d'une recherche, et revient ensuite. Le changement de compte ou de serveur
+  l'éteint. Absent sous Favoris et À lire plus tard : les favoris d'un flux sont
+  filtrés côté client. Hors ligne, il ne s'active pas, mais reste cliquable pour en
+  sortir.
 - ⚠️ **Un tirage ne se range jamais.** `persistCurrentView` s'abstient dans ce mode,
   et `drawRandomList` n'appelle ni `memSet` ni `listPut` : un tirage sous la clé de
   la vue fausserait sa lecture normale, en ligne comme hors ligne. Entrer dans le

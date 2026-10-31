@@ -438,15 +438,82 @@ describe('aléatoire par défaut sur un flux', () => {
     expect(state(env).randomView).toBe(true);
   });
 
-  it('le bouton le quitte pour la visite, sans changer le réglage', async () => {
+  it('le bouton est le réglage : éteint, il le retire et le flux reste normal', async () => {
     const env = await load();
     byDefault(env);
     state(env).selectView(feed1);
     await settled();
     state(env).setRandomView(false);
     await settled();
+    expect(env.useUiStore.getState().feedSettings['feed/1']?.random).toBeUndefined();
+    state(env).selectView(feed2);
+    await settled();
+    state(env).selectView(feed1);
+    await settled();
     expect(state(env).randomView).toBe(false);
-    state(env).setFilter('unread');
+  });
+
+  // « Si l'option est choisie, elle reste fixe » : le bouton ne valait que la visite.
+  it('le bouton reste choisi après être parti du flux', async () => {
+    const env = await opened();
+    state(env).setRandomView(true);
+    await settled();
+    expect(env.useUiStore.getState().feedSettings['feed/1']?.random).toBe(true);
+    state(env).selectView(feed2);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    state(env).selectView(feed1);
+    await settled();
+    expect(state(env).randomView).toBe(true);
+  });
+
+  it('il garde l’ordre propre du flux pour le jour où on l’éteint', async () => {
+    const env = await load();
+    env.useUiStore.getState().setFeedArticleOrder('feed/1', 'oldest');
+    state(env).selectView(feed1);
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    state(env).setRandomView(false);
+    await settled();
+    expect(env.useUiStore.getState().feedSettings['feed/1']).toEqual({ order: 'oldest' });
+  });
+
+  it('l’accueil retient aussi son choix', async () => {
+    const env = await load();
+    state(env).selectView(null);
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    state(env).selectView(feed1);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    state(env).selectView(null);
+    await settled();
+    expect(state(env).randomView).toBe(true);
+  });
+
+  it('une catégorie aussi', async () => {
+    const env = await load();
+    const cat = { id: 'user/-/label/Tech', title: 'Tech' } as never;
+    state(env).selectView(cat);
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    state(env).selectView(feed1);
+    await settled();
+    state(env).selectView(cat);
+    await settled();
+    expect(state(env).randomView).toBe(true);
+  });
+
+  it('une recherche ne retire pas le choix', async () => {
+    const env = await load();
+    state(env).selectView(feed1);
+    await settled();
+    state(env).setRandomView(true);
+    await settled();
+    void state(env).search('mot');
     await settled();
     expect(state(env).randomView).toBe(false);
     expect(env.useUiStore.getState().feedSettings['feed/1']?.random).toBe(true);
@@ -473,6 +540,27 @@ describe('aléatoire par défaut sur un flux', () => {
     await settled();
     expect(state(env).randomView).toBe(false);
     expect(env.api.getStreamIdsSince).not.toHaveBeenCalled();
+  });
+});
+
+describe('fermer une recherche', () => {
+  it('rend sa vue à l’aléatoire choisi', async () => {
+    const env = await drawn();
+    await state(env).search('mot');
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    state(env).clearSearch();
+    await settled();
+    expect(state(env).randomView).toBe(true);
+  });
+
+  it('une requête vidée aussi', async () => {
+    const env = await drawn();
+    await state(env).search('mot');
+    await settled();
+    await state(env).search('');
+    await settled();
+    expect(state(env).randomView).toBe(true);
   });
 });
 

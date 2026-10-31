@@ -24,7 +24,7 @@ mode à part sans lien avec FreshRSS, les dossiers intelligents.
 ## Hors sujet
 
 - Aucun ordre enregistré au sens d'`ArticleOrder` : ni global, ni par catégorie.
-  Un flux peut s'ouvrir en aléatoire (`FeedSetting.random`, ajouté après la conception
+  Le bouton retient son choix par vue (`FeedSetting.random`, ajouté après la conception
   à la demande du propriétaire), mais `effectiveOrder` et les clés de vue ne changent
   pas.
 - Pas de suite stable : chaque tirage est indépendant, un article peut revenir.
@@ -58,11 +58,11 @@ mode à part sans lien avec FreshRSS, les dossiers intelligents.
 
 ### Le mode
 
-- État transitoire `randomView` du `feedStore`, jamais persisté ni synchronisé.
-- Il suit la vue : il survit au passage Tous ↔ Non lus, et prend fin au changement
-  de flux, de catégorie ou d'étiquette, au passage à Favoris ou À lire plus tard,
-  au lancement d'une recherche, au changement de compte ou de serveur, au
-  rechargement de la page.
+- `randomView` du `feedStore` suit le réglage `FeedSetting.random` de la vue : choisi
+  par le bouton, il reste choisi, jusqu'à ce qu'on l'éteigne.
+- Il suit la vue : il survit au passage Tous ↔ Non lus, s'interrompt à Favoris, À lire
+  plus tard et le temps d'une recherche, et revient ensuite. Un autre flux, une autre
+  catégorie ou l'accueil suivent leur propre choix.
 - Le quitter relance `loadArticles()` normalement.
 
 ### Le tirage

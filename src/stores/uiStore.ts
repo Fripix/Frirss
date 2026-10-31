@@ -137,9 +137,11 @@ export interface FeedSetting {
    */
   order?: ArticleOrder;
   /**
-   * Ouvert, ce flux affiche un tirage au hasard (`randomView`). Pas un ordre : un
-   * tirage ne se pagine ni ne se range, et `effectiveOrder` n'a pas à le connaître.
-   * Exclusif de `order`, `setFeedArticleOrder` retire l'un en posant l'autre.
+   * Ouverte, cette vue (flux, catégorie, étiquette, ou `''` pour l'accueil) affiche un
+   * tirage au hasard (`randomView`). Pas un ordre : un tirage ne se pagine ni ne se
+   * range, et `effectiveOrder` n'a pas à le connaître. Le menu du flux choisit l'un
+   * ou l'autre ; le bouton de la liste, lui, laisse `order` en place pour le jour où
+   * on l'éteint.
    */
   random?: boolean;
   /**
@@ -434,6 +436,8 @@ export interface UiState {
   setArticleOrder: (order: ArticleOrder) => void;
   /** Set (or clear, with '') this feed's article order override, or its random view. */
   setFeedArticleOrder: (feedId: string, order: ArticleOrder | 'random' | '') => void;
+  /** Retient le choix du bouton Aléatoire pour cette vue. */
+  setFeedRandom: (feedId: string, on: boolean) => void;
   /** Affichage aléatoire : articles par tirage. Synced. */
   randomCount: number;
   setRandomCount: (count: number) => void;
@@ -1048,6 +1052,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
       const cleared = withFeedOverride(state.feedSettings, feedId, 'order', random ? '' : order);
       return { feedSettings: withFeedOverride(cleared, feedId, 'random', random ? true : '') };
     });
+  },
+  setFeedRandom: (feedId, on) => {
+    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'random', on ? true : '') }));
   },
 
   // App branding — custom title & logo

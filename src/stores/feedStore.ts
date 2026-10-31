@@ -1326,10 +1326,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   setFilter: (filter) => {
     closeSearch(set);
-    // Le flux qui s'ouvre en aléatoire y revient en sortant de Favoris. Un bouton
-    // désactivé pour la visite, lui, reste désactivé entre Tous et Non lus.
-    const back = !canRandomView(get().filter) && opensRandom(get().selectedFeed);
-    const randomView = canRandomView(filter) && (get().randomView || back);
+    // Une vue en aléatoire y revient en sortant de Favoris.
+    const randomView = canRandomView(filter) && (get().randomView || opensRandom(get().selectedFeed));
     const c = randomView ? undefined : memGet(viewKey(get().selectedFeed, filter));
     set({ filter, randomView, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
@@ -1934,6 +1932,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   setRandomView: (on) => {
     if (on === get().randomView) return;
     if (on && (!canRandomView(get().filter) || get().searchQuery)) return;
+    // Le bouton est le réglage : choisi, il reste choisi pour cette vue.
+    useUiStore.getState().setFeedRandom(get().selectedFeed?.id ?? '', on);
     // Une page en vol appartient à la liste qui s'en va : ajoutée, elle rangerait
     // le tirage sous la clé de la vue, `loadMore` étant seul à écrire sans
     // `persistCurrentView`.
@@ -2229,7 +2229,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     const trimmed = query.trim();
     if (!trimmed) {
       scanToken++; // périme un balayage en vol
-      set({ searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
+      set({ randomView: viewOpensRandom(get()), searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
       return get().loadArticles();
     }
     const { selectedFeed, filter } = get();
@@ -2327,7 +2327,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // balayage en vol et vide les résultats, sinon une page qui arrive après
     // coup continuerait d'écrire dans `articles`.
     scanToken++;
-    set({ searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
+    set({ randomView: viewOpensRandom(get()), searchQuery: '', searchResults: [], searchVisible: PAGE_SIZE, searchScan: { ...IDLE_SCAN } });
     get().loadArticles();
   },
 
@@ -3834,11 +3834,14 @@ const TOP_UP_MAX_PAGES = 20;
  * à compléter, « Réessayer » s'en charge).
  * Une erreur réseau est muette : la recherche reste ce qu'elle était.
  */
-/** Ce flux s'ouvre en aléatoire. Hors ligne, il s'ouvre normalement : un tirage demande le réseau. */
+/** Cette vue s'ouvre en aléatoire. Hors ligne, elle s'ouvre normalement : un tirage demande le réseau. */
 function opensRandom(feed: Subscription | null): boolean {
-  if (!feed || (typeof navigator !== 'undefined' && navigator.onLine === false)) return false;
-  return useUiStore.getState().feedSettings[feed.id]?.random === true;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+  return useUiStore.getState().feedSettings[feed?.id ?? '']?.random === true;
 }
+
+const viewOpensRandom = (s: Pick<FeedState, 'filter' | 'selectedFeed'>) =>
+  canRandomView(s.filter) && opensRandom(s.selectedFeed);
 
 /** Le dernier tirage lancé : lui seul a le droit d'écrire la liste. */
 let randomDrawToken = 0;
