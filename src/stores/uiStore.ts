@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { normalizeArticleOrder, type ArticleOrder } from '../lib/effectiveOrder';
+import {
+  normalizeRandomAmount, normalizeRandomCount, normalizeRandomUnit, RANDOM_DEFAULT_COUNT, type RandomWindowUnit,
+} from '../lib/randomDraw';
 import { normalizeStartupView, type StartupView } from '../lib/startupView';
 import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
@@ -425,6 +428,13 @@ export interface UiState {
   setArticleOrder: (order: ArticleOrder) => void;
   /** Set (or clear, with '') this feed's article order override. */
   setFeedArticleOrder: (feedId: string, order: ArticleOrder | '') => void;
+  /** Affichage aléatoire : articles par tirage. Synced. */
+  randomCount: number;
+  setRandomCount: (count: number) => void;
+  /** Ancienneté maximale d'un tirage, 0 = tous les articles. Synced. */
+  randomWindowAmount: number;
+  randomWindowUnit: RandomWindowUnit;
+  setRandomWindow: (amount: number, unit: RandomWindowUnit) => void;
   appTitle: string;
   appLogo: string | null;
   logoMode: 'small' | 'large';
@@ -1011,6 +1021,21 @@ export const useUiStore = create<UiState>()((set, get) => ({
     localStorage.setItem('frirss_articleOrder', JSON.stringify(order));
     set({ articleOrder: order });
   },
+  randomCount: normalizeRandomCount(loadJson('frirss_randomCount', RANDOM_DEFAULT_COUNT)),
+  setRandomCount: (count) => {
+    const randomCount = normalizeRandomCount(count);
+    localStorage.setItem('frirss_randomCount', JSON.stringify(randomCount));
+    set({ randomCount });
+  },
+  randomWindowAmount: normalizeRandomAmount(loadJson('frirss_randomWindowAmount', 0)),
+  randomWindowUnit: normalizeRandomUnit(loadJson('frirss_randomWindowUnit', 'hours')),
+  setRandomWindow: (amount, unit) => {
+    const randomWindowAmount = normalizeRandomAmount(amount);
+    const randomWindowUnit = normalizeRandomUnit(unit);
+    localStorage.setItem('frirss_randomWindowAmount', JSON.stringify(randomWindowAmount));
+    localStorage.setItem('frirss_randomWindowUnit', JSON.stringify(randomWindowUnit));
+    set({ randomWindowAmount, randomWindowUnit });
+  },
   setFeedArticleOrder: (feedId, order) => {
     set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'order', order) }));
   },
@@ -1212,6 +1237,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
       'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
       'gridCardWidth', 'gridImageRatio', 'gridCardFill',
+      'randomCount', 'randomWindowAmount', 'randomWindowUnit',
       'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
       'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
       'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',
@@ -1227,6 +1253,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'rowActions' ? normalizeRowActions(prefs[k])
           : k === 'unreadOnlyScope' ? normalizeUnreadScope(prefs[k])
           : k === 'articleOrder' ? normalizeArticleOrder(prefs[k])
+          : k === 'randomCount' ? normalizeRandomCount(prefs[k])
+          : k === 'randomWindowAmount' ? normalizeRandomAmount(prefs[k])
+          : k === 'randomWindowUnit' ? normalizeRandomUnit(prefs[k])
           : k === 'startupView' ? normalizeStartupView(prefs[k])
           // A non-boolean (older or foreign client) leaves the current value alone.
           : k === 'autoExtractDefault' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().autoExtractDefault)
@@ -1282,6 +1311,7 @@ export const UI_SYNC_KEYS = [
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
   'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
   'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio', 'gridCardFill',
+  'randomCount', 'randomWindowAmount', 'randomWindowUnit',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
   'aiTranslationLanguage', 'aiTranslationProvider', 'aiCategoryAutoTranslate', 'aiCategoryAutoSummary',
   'aiAutoTranslateConfirmed', 'aiAutoSummaryConfirmed', 'aiPanelAlways', 'aiCategoryPanel',

@@ -1,0 +1,122 @@
+// @vitest-environment jsdom
+//
+// Le bouton Aléatoire et ce que la liste change dans ce mode.
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { render, cleanup, fireEvent } from '@testing-library/react';
+import type { Article } from '../../types';
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (k: string) => k }),
+  initReactI18next: { type: '3rdParty', init: () => {} },
+}));
+vi.mock('../../i18n', () => ({ default: { t: (k: string) => k } }));
+vi.mock('../../lib/offlineStore', () => ({
+  listsPatch: vi.fn(async () => {}),
+  listGet: vi.fn(async () => undefined), listPut: vi.fn(async () => {}), listEvictOlderThan: vi.fn(async () => {}),
+  listsWithoutSource: vi.fn(async () => {}), subsGet: vi.fn(async () => undefined), subsPut: vi.fn(async () => {}),
+  clearOfflineViews: vi.fn(async () => {}), queueGet: vi.fn(async () => []), queuePut: vi.fn(async () => {}),
+}));
+vi.mock('../../api/feeds', () => ({
+  getSubscriptionList: vi.fn(), getUnreadCounts: vi.fn(async () => []),
+  getStreamContents: vi.fn(async () => ({ items: [], continuation: null })),
+  getStarredItems: vi.fn(async () => ({ items: [], continuation: null })),
+  markAsRead: vi.fn(async () => {}), markAsUnread: vi.fn(async () => {}), markAsStarred: vi.fn(async () => {}), removeStarred: vi.fn(async () => {}),
+  markAllAsRead: vi.fn(async () => {}), getUnreadItemIds: vi.fn(async () => ({ ids: [], complete: true })),
+  fetchStreamPage: vi.fn(), subscribeFeed: vi.fn(), editFeed: vi.fn(), unsubscribeFeed: vi.fn(),
+  getTagList: vi.fn(async () => []), getStreamItemCount: vi.fn(), setArticleLabel: vi.fn(async () => {}),
+  renameTag: vi.fn(), deleteTag: vi.fn(), clearWriteToken: vi.fn(), itemIdsNewerThanEntry: vi.fn(async () => []),
+}));
+vi.mock('../../api/backend', () => ({ startActualize: vi.fn(), getActualizeStatus: vi.fn() }));
+
+import ArticleList from './ArticleList';
+import { useFeedStore } from '../../stores/feedStore';
+import { useUiStore } from '../../stores/uiStore';
+
+const rows = (n: number): Article[] => Array.from({ length: n }, (_, i) => ({
+  id: `a${i}`, title: `Article ${i}`, summary: 'S', source: 'Src', sourceId: 'feed/1', content: '', author: '',
+  url: `https://example.com/${i}`, published: 1_700_000_000_000 - i * 1000, read: false, starred: false, labels: [], tags: [],
+}));
+
+const setRandomView = vi.fn();
+const loadArticles = vi.fn(async () => {});
+const online = (on: boolean) => Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => on });
+
+function show(state: Record<string, unknown> = {}) {
+  useFeedStore.setState({
+    articles: rows(3), filter: 'all', selectedFeed: null, searchQuery: '', randomView: false, randomDraw: 0,
+    loading: false, revalidating: false, continuation: null, listFailed: false, setRandomView, loadArticles,
+    ...state,
+  } as never);
+  return render(<ArticleList />);
+}
+const random = (c: ReturnType<typeof render>) => c.queryAllByRole('button', { name: 'articleList.random' })[0];
+
+beforeEach(() => { vi.clearAllMocks(); online(true); useUiStore.setState({ showDateSeparators: true, gridDateSeparators: true } as never); });
+afterEach(cleanup);
+
+describe('le bouton Aléatoire', () => {
+  it.each(['all', 'unread'])('présent sous %s, et bascule le mode', (filter) => {
+    const c = show({ filter });
+    fireEvent.click(random(c));
+    expect(setRandomView).toHaveBeenCalledWith(true);
+  });
+
+  it.each(['starred', 'readlater'])('absent sous %s', (filter) => {
+    expect(random(show({ filter }))).toBeUndefined();
+  });
+
+  it('absent pendant une recherche', () => {
+    expect(random(show({ searchQuery: 'mot' }))).toBeUndefined();
+  });
+
+  it('désactivé hors ligne, et dit pourquoi', () => {
+    online(false);
+    const b = show().getAllByRole('button', { name: 'articleList.randomOffline' })[0] as HTMLButtonElement;
+    expect(b.disabled).toBe(true);
+  });
+
+  // Actif hors ligne, il doit rester le moyen d'en sortir.
+  it('reste utilisable hors ligne pour quitter le mode', () => {
+    online(false);
+    const b = random(show({ randomView: true })) as HTMLButtonElement;
+    expect(b.disabled).toBe(false);
+    fireEvent.click(b);
+    expect(setRandomView).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('la liste en mode aléatoire', () => {
+  it('ne propose ni « Tout lu », ni son pied de liste', () => {
+    const c = show({ randomView: true });
+    expect(c.queryByRole('button', { name: 'articleList.markAllRead' })).toBeNull();
+    expect(c.queryByText('articleList.endOfListMarkRead')).toBeNull();
+  });
+
+  it('propose « Tout lu » hors du mode', () => {
+    expect(show().queryAllByRole('button', { name: 'articleList.markAllRead' }).length).toBeGreaterThan(0);
+  });
+
+  it('n’affiche pas de séparateurs de date', () => {
+    const c = show({ randomView: true, articles: [rows(2)[0], { ...rows(2)[1], published: 1_500_000_000_000 }] });
+    expect(c.container.querySelectorAll('.date-separator').length).toBe(0);
+    cleanup();
+    const n = show({ articles: [rows(2)[0], { ...rows(2)[1], published: 1_500_000_000_000 }] });
+    expect(n.container.querySelectorAll('.date-separator').length).toBe(2);
+  });
+
+  it('« Nouveau tirage » relance la vue, en fin de liste', () => {
+    const c = show({ randomView: true });
+    fireEvent.click(c.getByRole('button', { name: 'articleList.randomAgain' }));
+    expect(loadArticles).toHaveBeenCalledTimes(1);
+  });
+
+  it('pas de « Nouveau tirage » hors du mode', () => {
+    expect(show().queryByRole('button', { name: 'articleList.randomAgain' })).toBeNull();
+  });
+
+  it('une vue vide le dit, sans annoncer « tout est lu »', () => {
+    const c = show({ randomView: true, articles: [], filter: 'unread' });
+    expect(c.queryByText('articleList.randomEmpty')).not.toBeNull();
+    expect(c.queryByText('emptyState.allRead')).toBeNull();
+  });
+});

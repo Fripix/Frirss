@@ -20,7 +20,7 @@ import {
   renameTag,
   deleteTag,
   clearWriteToken,
-  itemIdsNewerThanEntry,
+  itemIdsNewerThanEntry, getStreamIdsSince, getItemsByIds,
 } from '../api/feeds';
 import { entryIdUsec, exclusiveOlderThanEntryId, isOlderEntry } from '../lib/entryId';
 import { articleHaystack, parseQuery, matchesTerms } from '../lib/searchMatch';
@@ -61,6 +61,7 @@ import { canLoadMore, shouldReportInvisibleProgress } from '../lib/listPaginatio
 import { createWarmRunner } from '../lib/warmSchedule';
 import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/backend';
 import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
+import { canRandomView, drawIds, inDrawOrder, randomCutoffUsec, RANDOM_MAX_IDS } from '../lib/randomDraw';
 import { createLocalWrites, applyField, type WriteField } from '../lib/localWrites';
 import {
   viewListKey, viewListKeys, parseViewKey, preparedListKey, READ_LATER_LABEL, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
@@ -509,6 +510,8 @@ function persistCurrentView(get: () => FeedState): void {
   // prochain retour hors ligne sur ce flux resservirait comme s'il n'y avait
   // jamais eu de recherche.
   if (s.searchQuery) return;
+  // Pareil pour un tirage : mélangé, il fausserait la lecture normale de la vue.
+  if (s.randomView) return;
   const key = viewKey(s.selectedFeed, s.filter);
   // La mémoire aussi : elle passe avant le disque hors ligne (`offlineList`), et
   // seul l'état `read` la suivait. Un favori posé y était perdu.
@@ -890,6 +893,11 @@ export interface FeedState {
   loadSpecialCounts: () => Promise<void>;
   loadArticles: () => Promise<void>;
   loadMore: () => Promise<void>;
+  /** Un tirage au hasard dans la vue affichée. Jamais enregistré ni rangé. */
+  randomView: boolean;
+  /** Numéro du tirage affiché : un nouveau tirage remonte la liste. */
+  randomDraw: number;
+  setRandomView: (on: boolean) => void;
   toggleRead: (article: Article, opts?: { implicit?: boolean }) => Promise<void>;
   toggleStar: (article: Article) => Promise<void>;
   search: (query: string) => Promise<void>;
@@ -1293,6 +1301,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   loading: false,
   loadingMore: false,
   revalidating: false,
+  randomView: false,
+  randomDraw: 0,
   refreshResult: null,
   newInView: 0,
   refreshPhase: 'idle',
@@ -1316,8 +1326,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   setFilter: (filter) => {
     closeSearch(set);
-    const c = memGet(viewKey(get().selectedFeed, filter));
-    set({ filter, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
+    const randomView = get().randomView && canRandomView(filter);
+    const c = randomView ? undefined : memGet(viewKey(get().selectedFeed, filter));
+    set({ filter, randomView, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
   },
 
@@ -1337,12 +1348,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   selectView: (feed, filter) => {
     closeSearch(set);
     const f = filter ?? (isUnreadOnly(feed?.id ?? '') ? 'unread' : 'all');
-    const c = memGet(viewKey(feed ?? null, f));
+    // Le tirage appartient à la vue : il ne suit pas vers un autre flux.
+    const randomView = get().randomView && (feed?.id ?? '') === (get().selectedFeed?.id ?? '') && canRandomView(f);
+    const c = randomView ? undefined : memGet(viewKey(feed ?? null, f));
     // Entrée d'accueil surlignée (`homeEntryActive`) : « Non lus » seulement
     // quand la vue non lus est DEMANDÉE ; toute autre vue d'accueil relève de
     // « Tous les flux ». Ouvrir un flux ne la change pas.
     const homeEntry: HomeEntry = feed ? get().homeEntry : filter === 'unread' ? 'unread' : 'all';
-    set({ selectedFeed: feed ?? null, filter: f, homeEntry, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
+    set({ selectedFeed: feed ?? null, filter: f, homeEntry, randomView, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
   },
 
@@ -1506,7 +1519,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         subscriptions: normalizedSubs,
         unreadCounts: next,
         categoryIds: catIds,
-        newInView: st.newInView + arrived,
+        newInView: st.randomView ? 0 : st.newInView + arrived,
       }));
       subsPut(storedKey('subscriptions'), normalizedSubs).catch(() => {}); // persist for offline
       // Auto-load user labels now that we know categories
@@ -1818,6 +1831,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       return;
     }
     bumpCountsEpoch(); // une vue qui repart de zéro n'est pas une arrivée
+    if (get().randomView) {
+      await drawRandomList();
+      return;
+    }
     const { selectedFeed, filter } = get();
     const key = viewKey(selectedFeed, filter);
     const since = localWrites.mark();
@@ -1907,6 +1924,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           : state.feedErrors,
       }));
     }
+  },
+
+  setRandomView: (on) => {
+    if (on === get().randomView) return;
+    if (on && (!canRandomView(get().filter) || get().searchQuery)) return;
+    const c = on ? undefined : memGet(viewKey(get().selectedFeed, get().filter));
+    set({ randomView: on, articles: c?.articles || [], continuation: c?.continuation || null, loading: !c });
+    void get().loadArticles();
   },
 
   loadMore: async () => {
@@ -2210,7 +2235,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // pagination locale des résultats à celle, périmée, du flux brut.
     // `listFailed: false` : l'échec de la vue nue ne dit rien de la recherche,
     // et son « Réessayer » ne recharge pas la vue pendant qu'une recherche est ouverte.
-    set({ searchQuery: trimmed, newInView: 0, searchVisible: PAGE_SIZE, loading: false, continuation: null, listFailed: false });
+    set({ randomView: false, searchQuery: trimmed, newInView: 0, searchVisible: PAGE_SIZE, loading: false, continuation: null, listFailed: false });
 
     // Hors ligne : aucun balayage possible. On filtre ce qu'on détient — la
     // liste en mémoire et la liste rangée pour cette vue — et la barre d'état
@@ -2318,6 +2343,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   // Mark all as read
   markAllAsRead: async () => {
+    // L'écran montre un tirage, l'écriture viderait la vue entière.
+    if (get().randomView) return;
     const { selectedFeed, subscriptions } = get();
     // Home: the main stream, which FreshRSS bounds by feed visibility too —
     // a feed kept in its category is not marked read from "All feeds".
@@ -2492,8 +2519,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
    *   règle (I3) via `corpusModifie`.
    */
   markReadRelative: (article: Article, direction: 'above' | 'below') => {
-    const { selectedFeed, filter } = get();
-    if (!canMarkAllRead(filter)) return Promise.resolve();
+    const { selectedFeed, filter, randomView } = get();
+    // Dans un tirage, « au-dessus » et « en dessous » ne veulent plus rien dire.
+    if (!canMarkAllRead(filter) || randomView) return Promise.resolve();
     const streamId = resolveSearchStreamId(selectedFeed, filter, get().subscriptions);
     const bound = { direction, articleId: article.id };
     const touche = (a: Article) => (direction === 'below'
@@ -3148,7 +3176,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // qui suit la mise en file doit l'ignorer ; `skipNextArrivals` (posé
       // par `enqueueAction`) le fait déjà et se consomme en un seul coup.
       const arrived = arrivalsInView(reading, unreadCounts, next, feedIds, refreshPhase);
-      set((s) => ({ unreadCounts: next, newInView: s.newInView + arrived }));
+      set((s) => ({ unreadCounts: next, newInView: s.randomView ? 0 : s.newInView + arrived }));
       // Also refresh starred & read-later counts
       get().loadSpecialCounts();
     } catch { /* ignore */ }
@@ -3172,6 +3200,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       await topUpSearch();
       return;
     }
+    // Un tirage ne se relit pas : la liste changerait sous les yeux, sans geste.
+    if (get().randomView) return;
     // Silently reload current article list (no loading spinner)
     const { selectedFeed, filter } = get();
     // La vue affichée au moment de la requête — comme `loadArticles` avec
@@ -3491,6 +3521,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     clearWriteToken();
     warmListsToken++; // cancel any in-flight prefetch sweep for the old server
     memClear(); // memory cache is per-server (feed ids/global keys differ)
+    set({ randomView: false });
     // Pastille « nouveaux articles » : les deux drapeaux module-level de
     // `syncCounts` décrivent un état (plancher zéro expiré, écriture/file en
     // cours) qui appartenait au serveur qu'on quitte. `syncCounts` les vide
@@ -3793,6 +3824,47 @@ const TOP_UP_MAX_PAGES = 20;
  * à compléter, « Réessayer » s'en charge).
  * Une erreur réseau est muette : la recherche reste ce qu'elle était.
  */
+/** Le dernier tirage lancé : lui seul a le droit d'écrire la liste. */
+let randomDrawToken = 0;
+
+/**
+ * Un nouveau tirage dans la vue affichée, à la place de la liste. Rien ne le range :
+ * ni `memSet`, ni `listPut`, et `persistCurrentView` s'abstient dans ce mode. Pas de
+ * `warmExtracts` non plus, le tirage suivant rendrait ce travail inutile.
+ */
+async function drawRandomList(): Promise<void> {
+  const before = useFeedStore.getState();
+  const { selectedFeed, filter, subscriptions } = before;
+  const token = ++randomDrawToken;
+  const view = viewIdentity(before);
+  const since = localWrites.mark();
+  const stale = () => {
+    const now = useFeedStore.getState();
+    return token !== randomDrawToken || !now.randomView || viewIdentity(now) !== view;
+  };
+  useFeedStore.setState({ articles: [], continuation: null, loading: true, revalidating: true, newInView: 0, listFailed: false });
+  const { randomCount, randomWindowAmount, randomWindowUnit } = useUiStore.getState();
+  try {
+    const ids = await getStreamIdsSince(resolveSearchStreamId(selectedFeed, filter, subscriptions), {
+      excludeRead: filter === 'unread',
+      cutoffUsec: randomCutoffUsec(randomWindowAmount, randomWindowUnit, Date.now()),
+      max: RANDOM_MAX_IDS,
+    });
+    const drawn = drawIds(ids, randomCount);
+    const items = await getItemsByIds(drawn);
+    await ensureQueue();
+    if (stale()) return;
+    const articles = reconcile(inDrawOrder(items, drawn).map(normalizeArticle), filter, since);
+    useFeedStore.setState((s) => ({
+      articles, continuation: null, loading: false, revalidating: false, randomDraw: s.randomDraw + 1,
+    }));
+  } catch (err) {
+    if (stale()) return;
+    console.error('[FriRSS] drawRandomList error:', err);
+    useFeedStore.setState({ loading: false, revalidating: false, listFailed: true });
+  }
+}
+
 async function topUpSearch(): Promise<void> {
   const s = useFeedStore.getState();
   if (!s.searchQuery || s.searchScan.running || !searchCorpus) return;
@@ -3898,7 +3970,7 @@ useAuthStore.subscribe((state, prev) => {
   scopeGeneration++;
   // Le refus de FreshRSS appartenait à l'autre portée : le rejeu de celle-ci
   // le reposera s'il a lieu ici aussi.
-  useFeedStore.setState({ replayRefusedByServer: false });
+  useFeedStore.setState({ replayRefusedByServer: false, randomView: false });
   if (queueLoaded) useFeedStore.setState(pendingPatch(scope));
   if (!state.backendToken || !state.activeServerId) return;
   void (replayInFlight ?? Promise.resolve())

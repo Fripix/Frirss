@@ -122,7 +122,12 @@
     "endOfListMarkRead": "Marcar todo como leído",
     "clearSearch": "Borrar búsqueda",
     "searchHeading": "Búsqueda",
-    "untitled": "Sin título"
+    "untitled": "Sin título",
+    "random": "Aleatorio",
+    "randomOffline": "Aleatorio: no disponible sin conexión",
+    "randomAgain": "Nueva selección",
+    "randomEmpty": "No hay artículos para elegir en esta vista.",
+    "randomEmptyHint": "Cambia la antigüedad máxima en Preferencias › General o sal de Aleatorio."
   },
   "articleRow": {
     "markRead": "Marcar como leído",
@@ -213,7 +218,15 @@
       "articleOrderOldest": "Más antiguos",
       "articleOrderHint": "Más antiguos primero conviene a quien lee en orden de publicación. Cada fuente puede conservar su propio orden desde su menú.",
       "newArticlesPill": "Avisar de artículos nuevos",
-      "newArticlesPillHint": "Un banner en la parte superior de la lista cuenta los artículos llegados desde que se cargó y los muestra con un clic. La lista nunca cambia por sí sola."
+      "newArticlesPillHint": "Un banner en la parte superior de la lista cuenta los artículos llegados desde que se cargó y los muestra con un clic. La lista nunca cambia por sí sola.",
+      "randomView": "Vista aleatoria",
+      "randomViewHint": "El botón Aleatorio de la lista elige artículos al azar de la vista actual. Estos ajustes valen para todas las vistas.",
+      "randomCount": "Artículos por selección",
+      "randomWindow": "Antigüedad máxima",
+      "randomWindowAll": "Todos",
+      "randomWindowUnit": "Unidad de antigüedad",
+      "randomHours": "horas",
+      "randomDays": "días"
     },
     "branding": {
       "language": "Idioma",

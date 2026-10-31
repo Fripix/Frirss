@@ -122,7 +122,12 @@
     "endOfListMarkRead": "Alle als gelesen markieren",
     "clearSearch": "Suche löschen",
     "searchHeading": "Suche",
-    "untitled": "Ohne Titel"
+    "untitled": "Ohne Titel",
+    "random": "Zufällig",
+    "randomOffline": "Zufällig: offline nicht verfügbar",
+    "randomAgain": "Neue Auswahl",
+    "randomEmpty": "Keine Artikel für eine Auswahl in dieser Ansicht.",
+    "randomEmptyHint": "Ändern Sie das maximale Alter unter Einstellungen › Allgemein oder verlassen Sie Zufällig."
   },
   "articleRow": {
     "markRead": "Als gelesen markieren",
@@ -213,7 +218,15 @@
       "articleOrderOldest": "Älteste zuerst",
       "articleOrderHint": "Älteste zuerst eignet sich zum Lesen in Erscheinungsreihenfolge. Jeder Feed kann über sein Menü eine eigene Reihenfolge behalten.",
       "newArticlesPill": "Neue Artikel anzeigen",
-      "newArticlesPillHint": "Ein Banner oben in der Liste zählt die seit dem Laden eingetroffenen Artikel und zeigt sie mit einem Klick an. Die Liste ändert sich nie von selbst."
+      "newArticlesPillHint": "Ein Banner oben in der Liste zählt die seit dem Laden eingetroffenen Artikel und zeigt sie mit einem Klick an. Die Liste ändert sich nie von selbst.",
+      "randomView": "Zufallsansicht",
+      "randomViewHint": "Die Schaltfläche Zufällig in der Liste wählt zufällig Artikel aus der aktuellen Ansicht. Diese Einstellungen gelten für alle Ansichten.",
+      "randomCount": "Artikel pro Auswahl",
+      "randomWindow": "Maximales Alter",
+      "randomWindowAll": "Alle",
+      "randomWindowUnit": "Einheit des Alters",
+      "randomHours": "Stunden",
+      "randomDays": "Tage"
     },
     "branding": {
       "language": "Sprache",

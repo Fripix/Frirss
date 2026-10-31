@@ -122,7 +122,12 @@
     "endOfListMarkRead": "Marcar tudo como lido",
     "clearSearch": "Limpar pesquisa",
     "searchHeading": "Pesquisa",
-    "untitled": "Sem título"
+    "untitled": "Sem título",
+    "random": "Aleatório",
+    "randomOffline": "Aleatório: indisponível offline",
+    "randomAgain": "Nova seleção",
+    "randomEmpty": "Sem artigos para escolher nesta vista.",
+    "randomEmptyHint": "Altere a idade máxima em Preferências › Geral ou saia de Aleatório."
   },
   "articleRow": {
     "markRead": "Marcar como lido",
@@ -213,7 +218,15 @@
       "articleOrderOldest": "Mais antigos",
       "articleOrderHint": "Mais antigos primeiro convém a quem lê por ordem de publicação. Cada feed pode manter a sua própria ordem a partir do seu menu.",
       "newArticlesPill": "Assinalar novos artigos",
-      "newArticlesPillHint": "Uma faixa no topo da lista conta os artigos que chegaram desde que foi carregada e mostra-os com um clique. A lista nunca muda sozinha."
+      "newArticlesPillHint": "Uma faixa no topo da lista conta os artigos que chegaram desde que foi carregada e mostra-os com um clique. A lista nunca muda sozinha.",
+      "randomView": "Vista aleatória",
+      "randomViewHint": "O botão Aleatório da lista escolhe artigos ao acaso da vista atual. Estas definições valem para todas as vistas.",
+      "randomCount": "Artigos por seleção",
+      "randomWindow": "Idade máxima",
+      "randomWindowAll": "Todos",
+      "randomWindowUnit": "Unidade de idade",
+      "randomHours": "horas",
+      "randomDays": "dias"
     },
     "branding": {
       "language": "Idioma",

@@ -8,6 +8,8 @@ import { UNDO_PAGE, UNDO_PAGES } from '../lib/markAllRead';
 import { fromFreshrssName } from '../lib/freshrssText';
 
 const BASE = '/api/greader.php/reader/api/0';
+/** `i=` par requête de contenus : assez court pour toute limite de corps. */
+const CONTENTS_BATCH = 100;
 
 const FEED_PRIORITIES: ReadonlySet<string> = new Set(['important', 'main', 'category', 'feed']);
 
@@ -302,6 +304,53 @@ export async function fetchStreamPage(
   );
   expectJson(data);
   return { items: data.items || [], continuation: data.continuation || null };
+}
+
+/**
+ * Les identifiants d'un flux pour l'affichage aléatoire, du plus récent au plus
+ * ancien, jusqu'au seuil (`randomCutoffUsec`) ou au plafond. Pas de `ot`, pour la
+ * même raison qu'`itemIdsNewerThanEntry` ci-dessous.
+ */
+export async function getStreamIdsSince(
+  streamId: string,
+  { excludeRead, cutoffUsec, max }: { excludeRead: boolean; cutoffUsec: bigint | null; max: number },
+): Promise<string[]> {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  let continuation: string | null = null;
+  do {
+    const params: Record<string, string | number> = { output: 'json', n: 1000, s: streamId };
+    if (excludeRead) params.xt = 'user/-/state/com.google/read';
+    if (continuation) params.c = continuation;
+    const { data }: { data: { itemRefs?: { id: string }[]; continuation?: string | null } } = await client.get(
+      `${BASE}/stream/items/ids`,
+      { params },
+    );
+    expectJson(data);
+    for (const { id } of data.itemRefs || []) {
+      const usec = cutoffUsec === null ? null : entryIdUsec(id);
+      if (cutoffUsec !== null && usec !== null && BigInt(usec) < cutoffUsec) return ids;
+      ids.push(id);
+      if (ids.length >= max) return ids;
+    }
+    continuation = data.continuation || null;
+    if (continuation && seen.has(continuation)) return ids;
+    if (continuation) seen.add(continuation);
+  } while (continuation);
+  return ids;
+}
+
+/** Des articles par identifiant. Une lecture : FreshRSS n'y demande pas de jeton d'écriture. */
+export async function getItemsByIds(ids: readonly string[]): Promise<GReaderItem[]> {
+  const items: GReaderItem[] = [];
+  for (let i = 0; i < ids.length; i += CONTENTS_BATCH) {
+    const params = new URLSearchParams();
+    ids.slice(i, i + CONTENTS_BATCH).forEach((id) => params.append('i', id));
+    const { data } = await client.post<{ items?: GReaderItem[] }>(`${BASE}/stream/items/contents`, params);
+    expectJson(data);
+    items.push(...(data.items || []));
+  }
+  return items;
 }
 
 /**

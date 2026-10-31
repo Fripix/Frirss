@@ -1,3 +1,4 @@
+import RandomViewSettings from './RandomViewSettings';
 import { useState, useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { keyLabel } from '../../lib/keyLabel';
@@ -238,6 +239,8 @@ export default function GeneralTab() {
             })}
           </div>
         </div>
+
+        <RandomViewSettings />
 
         {/* Signal articles that arrived since the list was loaded (discussion #14) */}
         <div className="flex items-start justify-between gap-4 select-none mt-4">

@@ -122,7 +122,12 @@
     "endOfListMarkRead": "全部标为已读",
     "clearSearch": "清除搜索",
     "searchHeading": "搜索",
-    "untitled": "无标题"
+    "untitled": "无标题",
+    "random": "随机",
+    "randomOffline": "随机：离线时不可用",
+    "randomAgain": "重新抽取",
+    "randomEmpty": "此视图中没有可抽取的文章。",
+    "randomEmptyHint": "请在“偏好设置 › 通用”中调整最长时间范围，或退出随机。"
   },
   "articleRow": {
     "markRead": "标为已读",
@@ -213,7 +218,15 @@
       "articleOrderOldest": "最早在前",
       "articleOrderHint": "最早在前适合按发布顺序阅读。每个订阅源都可以在其菜单中保留自己的排序。",
       "newArticlesPill": "提示新文章",
-      "newArticlesPillHint": "列表顶部的横幅会统计列表加载后新到的文章，点一下即可显示。列表不会自行变化。"
+      "newArticlesPillHint": "列表顶部的横幅会统计列表加载后新到的文章，点一下即可显示。列表不会自行变化。",
+      "randomView": "随机显示",
+      "randomViewHint": "列表上的“随机”按钮会从当前视图中随机抽取文章。这些设置适用于所有视图。",
+      "randomCount": "每次抽取的文章数",
+      "randomWindow": "最长时间范围",
+      "randomWindowAll": "全部",
+      "randomWindowUnit": "时间单位",
+      "randomHours": "小时",
+      "randomDays": "天"
     },
     "branding": {
       "language": "语言",

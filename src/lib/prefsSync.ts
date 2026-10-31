@@ -456,7 +456,8 @@ export async function refreshPrefs(): Promise<void> {
 
   // Changer l'ordre ne recharge que là où l'interface le fait (Préférences,
   // menu du flux) : un ordre arrivé d'ailleurs doit recharger la liste aussi.
-  if (shownOrder() !== orderBefore) void useFeedStore.getState().loadArticles();
+  // Sauf sur un tirage : il ne dépend pas de l'ordre, et changerait sous les yeux.
+  if (shownOrder() !== orderBefore && !useFeedStore.getState().randomView) void useFeedStore.getState().loadArticles();
   if (Object.keys(changes).some((k) => k.startsWith('ai'))) void useAiStore.getState().load();
 }
 

@@ -45,6 +45,11 @@ la release publiée.
   limite : elle est désormais limitée à 10 échecs par quart d'heure, compte
   par compte.
 
+- **Affichage aléatoire** (#27). Un bouton dans la barre de la liste tire des
+  articles au hasard dans la vue affichée, comme l'ordre aléatoire de FreshRSS, avec
+  un nouveau tirage en fin de liste. Le nombre d'articles et leur ancienneté
+  maximale, en heures ou en jours, se règlent dans Préférences › Général.
+
 ## Sécurité
 
 - **SSO : un compte existant ne se rattache plus tout seul par son adresse

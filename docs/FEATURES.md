@@ -695,6 +695,47 @@ par un lecteur qui lit dans l'ordre de parution.
   ordre inverse se sert de cette liste, retournée (`offlineViewList`, voir
   « Hors-ligne et PWA »).
 
+
+### Affichage aléatoire
+Un bouton de la barre de liste (issue #27), après « Non lus », tire au hasard des
+articles de la vue affichée, comme l'ordre aléatoire de FreshRSS : un tirage et
+pas une suite stable. Un nouveau tirage peut ramener un article.
+
+- **Où** : `src/lib/randomDraw.ts`, `drawRandomList` et `setRandomView` dans
+  `src/stores/feedStore.ts`, `getStreamIdsSince` et `getItemsByIds` dans
+  `src/api/feeds.ts`, `ArticleList.tsx`, `RandomViewSettings.tsx`.
+- **Réglages** : Préférences → Général, sous l'ordre des articles, synchronisés :
+  `randomCount` (champ libre, 1 à 500, 20 par défaut) ; ancienneté maximale,
+  `randomWindowAmount` (champ libre, vide ou 0 = tous) et `randomWindowUnit`
+  (heures ou jours). Une valeur illisible revient au défaut.
+- **Comment** : l'API greader ne sait pas ce tri (`r` n'a que deux sens). Le tirage
+  relève les identifiants de la vue (`stream/items/ids`), au plus
+  `RANDOM_MAX_IDS` = 10 000, en tire `randomCount`, charge ces articles
+  (`POST stream/items/contents`, par 100) et refait l'ordre du tirage, FreshRSS les
+  rendant triés par identifiant.
+- **L'ancienneté se lit dans l'identifiant d'entrée**, l'heure d'arrivée dans
+  FreshRSS (`randomCutoffUsec`). ⚠️ Pas `ot` : FreshRSS le lit comme « publié après
+  OU modifié après », et un vieux billet corrigé s'y glisserait.
+- **Le mode est transitoire** (`randomView`) : ni enregistré, ni synchronisé. Il
+  survit à Tous ↔ Non lus, où il refait un tirage, et prend fin au changement de
+  flux, à Favoris, À lire plus tard, à une recherche, au changement de compte ou de
+  serveur, au rechargement de la page. Absent sous Favoris et À lire plus tard :
+  les favoris d'un flux sont filtrés côté client. Hors ligne, il ne s'active pas,
+  mais reste cliquable pour en sortir.
+- ⚠️ **Un tirage ne se range jamais.** `persistCurrentView` s'abstient dans ce mode,
+  et `drawRandomList` n'appelle ni `memSet` ni `listPut` : un tirage sous la clé de
+  la vue fausserait sa lecture normale, en ligne comme hors ligne. Lu, favoris et
+  file hors ligne suivent leur chemin habituel, `reportOnLists` compris.
+- **La liste ne change que sur un geste** : bouton « Nouveau tirage » en fin de
+  liste, Rafraîchir (une fois, à la fin de la relève), tirer-pour-rafraîchir.
+  `silentRefresh` et une préférence d'ordre reçue d'un autre appareil s'abstiennent,
+  et le bandeau des nouveaux articles se tait (`newInView` reste à 0). Le numéro de
+  tirage (`randomDraw`) entre dans `scrollKey`, d'où la remontée en haut.
+- **Masqués dans ce mode** : « Tout lu » et son pied de liste, gardés aussi dans le
+  store car l'écriture viderait toute la vue ; « Marquer au-dessus / en dessous » ;
+  les séparateurs de date, qui alterneraient à chaque ligne.
+- **Limite** : au-delà de 10 000 identifiants, « tous » veut dire les plus récents.
+- **320 px** : six boutons de 30 px sur la barre, mesuré sans débordement.
 ### Visibilité par flux (réglage FreshRSS)
 FreshRSS règle, par flux, où il apparaît : *flux principal*, *sa catégorie
 seulement*, *sa propre vue seulement*, ou *caché*. FriRSS honore ce réglage

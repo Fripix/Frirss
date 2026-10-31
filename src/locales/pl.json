@@ -130,7 +130,12 @@
     "endOfListMarkRead": "Oznacz wszystko jako przeczytane",
     "clearSearch": "Wyczyść wyszukiwanie",
     "searchHeading": "Wyszukiwanie",
-    "untitled": "Bez tytułu"
+    "untitled": "Bez tytułu",
+    "random": "Losowo",
+    "randomOffline": "Losowo: niedostępne offline",
+    "randomAgain": "Nowe losowanie",
+    "randomEmpty": "Brak artykułów do wylosowania w tym widoku.",
+    "randomEmptyHint": "Zmień maksymalny wiek w Preferencje › Ogólne lub wyjdź z trybu Losowo."
   },
   "articleRow": {
     "markRead": "Oznacz jako przeczytane",
@@ -221,7 +226,15 @@
       "articleOrderOldest": "Od najstarszych",
       "articleOrderHint": "Najstarsze najpierw sprawdza się przy czytaniu w kolejności publikacji. Każdy kanał może zachować własną kolejność w swoim menu.",
       "newArticlesPill": "Informuj o nowych artykułach",
-      "newArticlesPillHint": "Baner u góry listy liczy artykuły, które przyszły od jej wczytania, i pokazuje je jednym kliknięciem. Lista nigdy nie zmienia się sama."
+      "newArticlesPillHint": "Baner u góry listy liczy artykuły, które przyszły od jej wczytania, i pokazuje je jednym kliknięciem. Lista nigdy nie zmienia się sama.",
+      "randomView": "Widok losowy",
+      "randomViewHint": "Przycisk Losowo na liście wybiera losowe artykuły z bieżącego widoku. Te ustawienia dotyczą wszystkich widoków.",
+      "randomCount": "Artykułów w losowaniu",
+      "randomWindow": "Maksymalny wiek",
+      "randomWindowAll": "Wszystkie",
+      "randomWindowUnit": "Jednostka wieku",
+      "randomHours": "godziny",
+      "randomDays": "dni"
     },
     "branding": {
       "language": "Język",

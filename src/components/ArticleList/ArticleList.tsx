@@ -7,6 +7,8 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { groupByDate } from '../../utils/dates';
 import { markAllReadAction, canMarkAllRead, UNDO_CAP } from '../../lib/markAllRead';
 import { showEndOfListMarkAll } from '../../lib/endOfList';
+import { canRandomView } from '../../lib/randomDraw';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { effectiveOrder, entryDirection } from '../../lib/effectiveOrder';
 import { viewUnreadCount } from '../../lib/mainStream';
@@ -94,6 +96,7 @@ export function DateSeparator({ label, count }: { label: string | null; count: n
 
 export default function ArticleList() {
   const { t } = useTranslation();
+  const online = useOnlineStatus();
   const {
     articles,
     loading,
@@ -101,6 +104,8 @@ export default function ArticleList() {
     revalidating,
     selectedArticle,
     selectedFeed,
+    randomView,
+    randomDraw,
     filter,
     searchQuery,
     searchResults,
@@ -327,7 +332,8 @@ export default function ArticleList() {
   const PULL_TRIGGER = 56;
 
   // Scroll memory — key the saved position by the current view
-  const scrollKey = `${selectedFeed?.id || ''}:${filter}:${searchQuery || ''}`;
+  // Un tirage est une autre liste : il repart du haut, et sa position ne vaut pour aucune autre.
+  const scrollKey = `${selectedFeed?.id || ''}:${filter}:${searchQuery || ''}${randomView ? `:random${randomDraw}` : ''}`;
   const scrollKeyRef = useRef(scrollKey);
   scrollKeyRef.current = scrollKey;
   const didRestoreRef = useRef(false);
@@ -538,7 +544,9 @@ export default function ArticleList() {
         refreshingRef.current = true;
         setRefreshing(true);
         setPull(PULL_TRIGGER);
-        Promise.resolve(silentRefresh()).finally(() => {
+        // Tirer est un geste : un tirage se refait, là où `silentRefresh` le laisse.
+        const { randomView: drawing, loadArticles: redraw } = useFeedStore.getState();
+        Promise.resolve(drawing ? redraw() : silentRefresh()).finally(() => {
           refreshingRef.current = false;
           setRefreshing(false);
           setPull(0);
@@ -740,7 +748,17 @@ export default function ArticleList() {
   // de « 471 résultats », son 4 973 ne parlait pas de ce qu'on voit.
   const heading = searchQuery ? t('app.labelValue', { label: t('articleList.searchHeading'), value: searchQuery }) : title;
 
-  const groups = groupByDate(shownArticles);
+  // Dans un tirage, les dates se suivent au hasard : une seule suite, sans bande,
+  // sinon « Aujourd'hui » et « Hier » alterneraient à chaque ligne.
+  const groups = randomView ? [{ key: 'random', label: '', articles: shownArticles }] : groupByDate(shownArticles);
+  const canMarkAll = canMarkAllRead(filter) && !randomView;
+  const randomButton = canRandomView(filter) && !searchQuery ? {
+    icon: <ShuffleIcon />,
+    label: t(online || randomView ? 'articleList.random' : 'articleList.randomOffline'),
+    active: randomView,
+    disabled: !online && !randomView,
+    onClick: () => useFeedStore.getState().setRandomView(!randomView),
+  } : null;
   // Une bande dit combien d'articles porte sa date, pas combien sont montés.
   const groupTotals = useMemo(
     () => new Map(groupByDate(articles).map((g) => [g.key, g.articles.length])),
@@ -784,7 +802,7 @@ export default function ArticleList() {
         <ArticleContextMenu
           article={menuArticle}
           isReadLater={!!menuArticle.labels?.includes(READ_LATER_LABEL)}
-          canMarkRange={canMarkAllRead(filter)}
+          canMarkRange={canMarkAll}
           x={articleMenu.x}
           y={articleMenu.y}
           sheet={isMobile}
@@ -837,9 +855,10 @@ export default function ArticleList() {
               <ToolbarBtn flex1 iconOnly icon={<SearchIcon />} label={t('articleList.search')} onClick={() => setSearchOpen(true)} />
               <ToolbarBtn flex1 iconOnly icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
+              {randomButton && <ToolbarBtn flex1 iconOnly {...randomButton} />}
               <ToolbarBtn flex1 iconOnly icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
-              {canMarkAllRead(filter) && (
+              {canMarkAll && (
                 <ToolbarBtn flex1 iconOnly icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
               )}
               <ToolbarBtn flex1 iconOnly icon={<OptionsIcon />} label={t('articleList.viewOptions')} active={optionsOpen}
@@ -902,9 +921,10 @@ export default function ArticleList() {
               <ToolbarBtn icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
+              {randomButton && <ToolbarBtn {...randomButton} />}
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
-              {canMarkAllRead(filter) && (
+              {canMarkAll && (
                 <>
                   <ToolbarSep />
                   <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
@@ -981,9 +1001,10 @@ export default function ArticleList() {
               <ToolbarSep />
               <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
+              {randomButton && <ToolbarBtn {...randomButton} />}
               <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
-              {canMarkAllRead(filter) && (
+              {canMarkAll && (
                 <>
                   <ToolbarSep />
                   <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
@@ -1183,6 +1204,7 @@ export default function ArticleList() {
             awaitingPage={bodyState === 'empty-more'}
             loadMoreBusy={loadMoreBusy}
             onLoadMore={loadMore}
+            random={randomView}
           />
         ) : gridLayout && !gridDateSeparators ? (
           /* Grid, default: one continuous gallery, no date bands. */
@@ -1196,7 +1218,7 @@ export default function ArticleList() {
              remontées rejouant leur animation d'entrée (voir `DateGroup.key`). */
           groups.map((group) => (
             <div key={group.key}>
-              {dateSepActive && (
+              {dateSepActive && !randomView && (
                 <DateSeparator label={group.label} count={groupTotals.get(group.key) ?? group.articles.length} />
               )}
               {gridLayout ? (
@@ -1272,7 +1294,25 @@ export default function ArticleList() {
             {t('articleList.loading')}
           </div>
         )}
-        {bodyState === 'rows' && endOfListMarkAll && (
+        {bodyState === 'rows' && randomView && (
+          <div
+            className="px-6 py-8 text-center"
+            style={{ borderTop: '1px solid var(--panel-border)' }}
+          >
+            <button
+              onClick={() => { void useFeedStore.getState().loadArticles(); }}
+              className="px-3.5 py-2 rounded-full text-xs font-semibold transition-colors"
+              style={{
+                color: 'var(--accent)',
+                background: 'var(--accent-glow)',
+                border: '1.5px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+              }}
+            >
+              {t('articleList.randomAgain')}
+            </button>
+          </div>
+        )}
+        {bodyState === 'rows' && endOfListMarkAll && !randomView && (
           /* « Marquer lu au défilement » ne marque qu'à la sortie par le haut :
              les derniers articles ne sortent jamais. Ce pied leur donne une
              issue, la même action que la barre d'outils (boîte de confirmation
@@ -1333,15 +1373,17 @@ interface ToolbarBtnProps {
   shortcut?: string;
   onClick?: () => void;
   active?: boolean;
+  disabled?: boolean;
   iconOnly?: boolean;
   flex1?: boolean;
 }
 
-function ToolbarBtn({ icon, label, shortcut, onClick, active, iconOnly, flex1 }: ToolbarBtnProps) {
+function ToolbarBtn({ icon, label, shortcut, onClick, active, disabled, iconOnly, flex1 }: ToolbarBtnProps) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center justify-center gap-1 ${flex1 ? 'flex-1 py-2 [&_svg]:w-[19px] [&_svg]:h-[19px]' : iconOnly ? 'p-1.5' : 'px-2 py-1'} rounded-md text-[11px] transition-colors whitespace-nowrap ${
+      disabled={disabled}
+      className={`flex items-center justify-center gap-1 ${flex1 ? 'flex-1 py-2 [&_svg]:w-[19px] [&_svg]:h-[19px]' : iconOnly ? 'p-1.5' : 'px-2 py-1'} rounded-md text-[11px] transition-colors whitespace-nowrap disabled:opacity-40 ${
         active
           ? ''
           : 'hover-tint'
@@ -1365,6 +1407,14 @@ function SearchIcon() {
   return (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+    </svg>
+  );
+}
+
+function ShuffleIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h3.5c1.6 0 3 .8 3.9 2.1l3.2 5.8c.9 1.3 2.3 2.1 3.9 2.1H21M3 17h3.5c1.3 0 2.5-.6 3.4-1.5M13.1 8.5c.9-.9 2.1-1.5 3.4-1.5H21M18 4l3 3-3 3M18 14l3 3-3 3" />
     </svg>
   );
 }
@@ -1490,6 +1540,8 @@ interface EmptyStateProps {
   /** Liste vide parce que le chargement a échoué — voir `listBodyState`. */
   failed: boolean;
   onRetry: () => void;
+  /** Tirage vide : voir `drawRandomList`. */
+  random?: boolean;
   /** Liste vide alors qu'une page reste promise — voir `listBodyState`. */
   awaitingPage: boolean;
   /** Le bouton « charger la suite » doit-il s'afficher occupé/inactif ?
@@ -1499,7 +1551,7 @@ interface EmptyStateProps {
   onLoadMore: () => void;
 }
 
-function EmptyState({ filter, searchQuery, failed, onRetry, awaitingPage, loadMoreBusy, onLoadMore }: EmptyStateProps) {
+function EmptyState({ filter, searchQuery, failed, onRetry, awaitingPage, loadMoreBusy, onLoadMore, random }: EmptyStateProps) {
   const { t } = useTranslation();
   let icon: ReactNode;
   let title: string;
@@ -1535,6 +1587,11 @@ function EmptyState({ filter, searchQuery, failed, onRetry, awaitingPage, loadMo
     );
     title = t('emptyState.noResults');
     subtitle = t('emptyState.noResultsHint');
+  } else if (random) {
+    // « Tout est lu » serait faux : l'ancienneté réglée peut seule avoir vidé le tirage.
+    icon = <ShuffleIcon />;
+    title = t('articleList.randomEmpty');
+    subtitle = t('articleList.randomEmptyHint');
   } else if (filter === 'unread') {
     icon = (
       <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>

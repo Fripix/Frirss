@@ -122,7 +122,12 @@
     "endOfListMarkRead": "Alles als gelezen markeren",
     "clearSearch": "Zoekopdracht wissen",
     "searchHeading": "Zoekopdracht",
-    "untitled": "Zonder titel"
+    "untitled": "Zonder titel",
+    "random": "Willekeurig",
+    "randomOffline": "Willekeurig: offline niet beschikbaar",
+    "randomAgain": "Nieuwe trekking",
+    "randomEmpty": "Geen artikelen om uit te kiezen in deze weergave.",
+    "randomEmptyHint": "Wijzig de maximale leeftijd in Voorkeuren › Algemeen, of verlaat Willekeurig."
   },
   "articleRow": {
     "markRead": "Als gelezen markeren",
@@ -213,7 +218,15 @@
       "articleOrderOldest": "Oudste eerst",
       "articleOrderHint": "Oudste eerst past bij lezen in volgorde van verschijnen. Elke feed kan via zijn menu een eigen volgorde houden.",
       "newArticlesPill": "Nieuwe artikelen melden",
-      "newArticlesPillHint": "Een banner boven aan de lijst telt de artikelen die sinds het laden zijn binnengekomen en toont ze met één klik. De lijst verandert nooit vanzelf."
+      "newArticlesPillHint": "Een banner boven aan de lijst telt de artikelen die sinds het laden zijn binnengekomen en toont ze met één klik. De lijst verandert nooit vanzelf.",
+      "randomView": "Willekeurige weergave",
+      "randomViewHint": "De knop Willekeurig in de lijst kiest willekeurig artikelen uit de huidige weergave. Deze instellingen gelden voor alle weergaven.",
+      "randomCount": "Artikelen per trekking",
+      "randomWindow": "Maximale leeftijd",
+      "randomWindowAll": "Alle",
+      "randomWindowUnit": "Eenheid van leeftijd",
+      "randomHours": "uur",
+      "randomDays": "dagen"
     },
     "branding": {
       "language": "Taal",
