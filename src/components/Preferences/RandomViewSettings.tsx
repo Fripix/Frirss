@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../stores/uiStore';
 import { normalizeRandomCount, type RandomWindowUnit } from '../../lib/randomDraw';
 
-const INPUT_CLASS = 'w-20 px-2 py-1 rounded-md text-xs text-right';
+const INPUT_CLASS = 'w-20 flex-shrink-0 px-2 py-1.5 rounded-lg text-sm text-right';
 const INPUT_STYLE = { border: '1px solid var(--panel-border)', background: 'var(--panel-header-bg)', color: 'var(--list-title)' };
 
 /**
@@ -71,21 +71,19 @@ export default function RandomViewSettings() {
   ];
 
   return (
-    <div className="select-none mt-4">
-      <span className="text-xs block" style={{ color: 'var(--list-summary)' }}>
-        {t('preferences.general.randomView')}
-        <span className="block text-[11px] opacity-70 mt-0.5">{t('preferences.general.randomViewHint')}</span>
-      </span>
-      <div className="flex items-center justify-between gap-3 mt-2">
-        <label htmlFor={countId} className="text-xs" style={{ color: 'var(--list-title)' }}>
-          {t('preferences.general.randomCount')}
-        </label>
+    <>
+      <div className="flex items-start justify-between gap-4 select-none mt-4">
+        <span className="text-xs" style={{ color: 'var(--list-summary)' }}>
+          <label htmlFor={countId}>{t('preferences.general.randomCount')}</label>
+          <span id={`${countId}-hint`} className="block text-[11px] opacity-70 mt-0.5">{t('preferences.general.randomCountHint')}</span>
+        </span>
         <input
           id={countId}
           type="number"
           inputMode="numeric"
           min={1}
           max={500}
+          aria-describedby={`${countId}-hint`}
           value={count.draft ?? String(randomCount)}
           onChange={(e) => count.onChange(e.target)}
           onBlur={(e) => count.onBlur(e.target)}
@@ -93,16 +91,18 @@ export default function RandomViewSettings() {
           style={INPUT_STYLE}
         />
       </div>
-      <div className="flex items-center justify-between flex-wrap gap-x-3 gap-y-1.5 mt-2">
-        <label htmlFor={amountId} className="text-xs" style={{ color: 'var(--list-title)' }}>
-          {t('preferences.general.randomWindow')}
-        </label>
-        <div className="flex items-center gap-1.5">
+      <div className="select-none mt-4">
+        <span className="text-xs block" style={{ color: 'var(--list-summary)' }}>
+          <label htmlFor={amountId}>{t('preferences.general.randomWindow')}</label>
+          <span id={`${amountId}-hint`} className="block text-[11px] opacity-70 mt-0.5">{t('preferences.general.randomWindowHint')}</span>
+        </span>
+        <div className="flex items-center gap-2 mt-2">
           <input
             id={amountId}
             type="number"
             inputMode="numeric"
             min={0}
+            aria-describedby={`${amountId}-hint`}
             placeholder={t('preferences.general.randomWindowAll')}
             value={age.draft ?? (amount ? String(amount) : '')}
             onChange={(e) => age.onChange(e.target)}
@@ -111,7 +111,7 @@ export default function RandomViewSettings() {
             style={INPUT_STYLE}
           />
           <div
-            className="flex gap-1 p-0.5 rounded-lg"
+            className="flex-1 flex gap-1 p-0.5 rounded-lg"
             role="radiogroup"
             aria-label={t('preferences.general.randomWindowUnit')}
             style={{ background: 'var(--panel-header-bg)', border: '1px solid var(--panel-border)' }}
@@ -125,7 +125,7 @@ export default function RandomViewSettings() {
                   role="radio"
                   aria-checked={selected}
                   onClick={() => setRandomWindow(useUiStore.getState().randomWindowAmount, opt.id)}
-                  className="px-2.5 py-1 text-xs font-medium rounded-md transition-colors"
+                  className="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
                   style={{
                     background: selected ? 'var(--accent)' : 'transparent',
                     color: selected ? 'var(--on-accent)' : 'var(--list-title)',
@@ -138,6 +138,6 @@ export default function RandomViewSettings() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

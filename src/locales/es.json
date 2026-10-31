@@ -219,14 +219,14 @@
       "articleOrderHint": "Más antiguos primero conviene a quien lee en orden de publicación. Cada fuente puede conservar su propio orden desde su menú.",
       "newArticlesPill": "Avisar de artículos nuevos",
       "newArticlesPillHint": "Un banner en la parte superior de la lista cuenta los artículos llegados desde que se cargó y los muestra con un clic. La lista nunca cambia por sí sola.",
-      "randomView": "Vista aleatoria",
-      "randomViewHint": "El botón Aleatorio de la lista elige artículos al azar de la vista actual. Estos ajustes valen para todas las vistas.",
-      "randomCount": "Artículos por selección",
-      "randomWindow": "Antigüedad máxima",
+      "randomCount": "Artículos en aleatorio",
+      "randomWindow": "Antigüedad en aleatorio",
       "randomWindowAll": "Todos",
       "randomWindowUnit": "Unidad de antigüedad",
       "randomHours": "horas",
-      "randomDays": "días"
+      "randomDays": "días",
+      "randomCountHint": "Número de artículos que muestra el botón Aleatorio de la lista, de 1 a 500.",
+      "randomWindowHint": "Limita el botón Aleatorio a los artículos llegados recientemente. Vacío: todos los artículos."
     },
     "branding": {
       "language": "Idioma",

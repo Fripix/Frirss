@@ -1326,7 +1326,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   setFilter: (filter) => {
     closeSearch(set);
-    const randomView = get().randomView && canRandomView(filter);
+    // Le flux qui s'ouvre en aléatoire y revient en sortant de Favoris. Un bouton
+    // désactivé pour la visite, lui, reste désactivé entre Tous et Non lus.
+    const back = !canRandomView(get().filter) && opensRandom(get().selectedFeed);
+    const randomView = canRandomView(filter) && (get().randomView || back);
     const c = randomView ? undefined : memGet(viewKey(get().selectedFeed, filter));
     set({ filter, randomView, articles: c?.articles || [], continuation: c?.continuation || null, selectedArticle: null });
     get().loadArticles();
@@ -1349,7 +1352,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     closeSearch(set);
     const f = filter ?? (isUnreadOnly(feed?.id ?? '') ? 'unread' : 'all');
     // Le tirage appartient à la vue : il ne suit pas vers un autre flux.
-    const randomView = get().randomView && (feed?.id ?? '') === (get().selectedFeed?.id ?? '') && canRandomView(f);
+    const sameView = (feed?.id ?? '') === (get().selectedFeed?.id ?? '');
+    const randomView = canRandomView(f) && ((sameView && get().randomView) || opensRandom(feed ?? null));
     const c = randomView ? undefined : memGet(viewKey(feed ?? null, f));
     // Entrée d'accueil surlignée (`homeEntryActive`) : « Non lus » seulement
     // quand la vue non lus est DEMANDÉE ; toute autre vue d'accueil relève de
@@ -3830,6 +3834,12 @@ const TOP_UP_MAX_PAGES = 20;
  * à compléter, « Réessayer » s'en charge).
  * Une erreur réseau est muette : la recherche reste ce qu'elle était.
  */
+/** Ce flux s'ouvre en aléatoire. Hors ligne, il s'ouvre normalement : un tirage demande le réseau. */
+function opensRandom(feed: Subscription | null): boolean {
+  if (!feed || (typeof navigator !== 'undefined' && navigator.onLine === false)) return false;
+  return useUiStore.getState().feedSettings[feed.id]?.random === true;
+}
+
 /** Le dernier tirage lancé : lui seul a le droit d'écrire la liste. */
 let randomDrawToken = 0;
 

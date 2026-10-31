@@ -219,14 +219,14 @@
       "articleOrderHint": "最早在前适合按发布顺序阅读。每个订阅源都可以在其菜单中保留自己的排序。",
       "newArticlesPill": "提示新文章",
       "newArticlesPillHint": "列表顶部的横幅会统计列表加载后新到的文章，点一下即可显示。列表不会自行变化。",
-      "randomView": "随机显示",
-      "randomViewHint": "列表上的“随机”按钮会从当前视图中随机抽取文章。这些设置适用于所有视图。",
-      "randomCount": "每次抽取的文章数",
-      "randomWindow": "最长时间范围",
+      "randomCount": "随机文章数",
+      "randomWindow": "随机时间范围",
       "randomWindowAll": "全部",
       "randomWindowUnit": "时间单位",
       "randomHours": "小时",
-      "randomDays": "天"
+      "randomDays": "天",
+      "randomCountHint": "列表上“随机”按钮显示的文章数量，1 到 500。",
+      "randomWindowHint": "将“随机”按钮限制为最近收到的文章。留空：全部文章。"
     },
     "branding": {
       "language": "语言",

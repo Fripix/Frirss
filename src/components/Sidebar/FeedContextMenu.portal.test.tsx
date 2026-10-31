@@ -113,3 +113,17 @@ describe('FeedContextMenu — Échap pendant le désabonnement', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 });
+
+describe('FeedContextMenu — ordre de ce flux', () => {
+  it('propose Aléatoire, le retient et le montre choisi', () => {
+    useUiStore.setState({ feedSettings: {} });
+    const onClose = vi.fn();
+    render(<FeedContextMenu feed={feed} x={0} y={0} onRename={yes} onDelete={yes} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('button', { name: 'articleList.random' }));
+    expect(useUiStore.getState().feedSettings['feed/1']).toEqual({ random: true });
+    expect(onClose).toHaveBeenCalled();
+    cleanup();
+    render(<FeedContextMenu feed={feed} x={0} y={0} onRename={yes} onDelete={yes} onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'articleList.random' }).getAttribute('aria-pressed')).toBe('true');
+  });
+});

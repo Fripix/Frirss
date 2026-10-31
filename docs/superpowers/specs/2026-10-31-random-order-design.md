@@ -23,8 +23,10 @@ mode à part sans lien avec FreshRSS, les dossiers intelligents.
 
 ## Hors sujet
 
-- Aucun ordre enregistré : ni global, ni par flux, ni par catégorie.
-  `ArticleOrder`, `effectiveOrder` et les clés de vue ne changent pas.
+- Aucun ordre enregistré au sens d'`ArticleOrder` : ni global, ni par catégorie.
+  Un flux peut s'ouvrir en aléatoire (`FeedSetting.random`, ajouté après la conception
+  à la demande du propriétaire), mais `effectiveOrder` et les clés de vue ne changent
+  pas.
 - Pas de suite stable : chaque tirage est indépendant, un article peut revenir.
 - Pas de mode hors ligne.
 - Pas de règles par mots, sources multiples ou dossiers.

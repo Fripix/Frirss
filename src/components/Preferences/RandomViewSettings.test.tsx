@@ -23,6 +23,15 @@ const type = (el: HTMLInputElement, value: string) => {
 };
 
 describe('réglages de l’affichage aléatoire', () => {
+  // Un bloc à part, avec son titre et ses tailles, se lisait mal parmi ses voisins.
+  it('se présentent comme les réglages voisins : un intitulé et son aide', () => {
+    const title = screen.getByText('preferences.general.randomCount');
+    expect(title.closest('label, span')).not.toBeNull();
+    expect(screen.queryByText('preferences.general.randomView')).toBeNull();
+    expect(screen.getByText('preferences.general.randomCountHint')).toBeTruthy();
+    expect(screen.getByText('preferences.general.randomWindowHint')).toBeTruthy();
+  });
+
   it('montre 20 articles et tous les articles par défaut', () => {
     expect(count().value).toBe('20');
     expect(age().value).toBe('');

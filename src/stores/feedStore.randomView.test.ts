@@ -400,6 +400,82 @@ describe('une réponse normale en vol', () => {
   });
 });
 
+describe('aléatoire par défaut sur un flux', () => {
+  const byDefault = (env: Env) => env.useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
+
+  it('ouvrir le flux lance un tirage, sans rien ranger', async () => {
+    const env = await load();
+    byDefault(env);
+    state(env).selectView(feed1);
+    await settled();
+    expect(state(env).randomView).toBe(true);
+    expect(env.api.getStreamIdsSince).toHaveBeenCalledTimes(1);
+    expect(env.api.getStreamContents).not.toHaveBeenCalled();
+    expect(idb.writes).toEqual([]);
+  });
+
+  it('les autres flux et l’accueil gardent leur ordre', async () => {
+    const env = await load();
+    byDefault(env);
+    state(env).selectView(feed2);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    state(env).selectView(null);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+  });
+
+  it('quitter le flux y met fin, y revenir le relance', async () => {
+    const env = await load();
+    byDefault(env);
+    state(env).selectView(feed1);
+    await settled();
+    state(env).selectView(feed2);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    state(env).selectView(feed1);
+    await settled();
+    expect(state(env).randomView).toBe(true);
+  });
+
+  it('le bouton le quitte pour la visite, sans changer le réglage', async () => {
+    const env = await load();
+    byDefault(env);
+    state(env).selectView(feed1);
+    await settled();
+    state(env).setRandomView(false);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    state(env).setFilter('unread');
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    expect(env.useUiStore.getState().feedSettings['feed/1']?.random).toBe(true);
+  });
+
+  it('revient après Favoris', async () => {
+    const env = await load();
+    byDefault(env);
+    state(env).selectView(feed1);
+    await settled();
+    state(env).setFilter('starred');
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    state(env).setFilter('all');
+    await settled();
+    expect(state(env).randomView).toBe(true);
+  });
+
+  it('hors ligne, le flux s’ouvre normalement', async () => {
+    const env = await load();
+    byDefault(env);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+    state(env).selectView(feed1);
+    await settled();
+    expect(state(env).randomView).toBe(false);
+    expect(env.api.getStreamIdsSince).not.toHaveBeenCalled();
+  });
+});
+
 describe('les autres sorties', () => {
   it('se désabonner du flux ouvert quitte le mode', async () => {
     const env = await drawn();

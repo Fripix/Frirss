@@ -219,14 +219,14 @@
       "articleOrderHint": "Älteste zuerst eignet sich zum Lesen in Erscheinungsreihenfolge. Jeder Feed kann über sein Menü eine eigene Reihenfolge behalten.",
       "newArticlesPill": "Neue Artikel anzeigen",
       "newArticlesPillHint": "Ein Banner oben in der Liste zählt die seit dem Laden eingetroffenen Artikel und zeigt sie mit einem Klick an. Die Liste ändert sich nie von selbst.",
-      "randomView": "Zufallsansicht",
-      "randomViewHint": "Die Schaltfläche Zufällig in der Liste wählt zufällig Artikel aus der aktuellen Ansicht. Diese Einstellungen gelten für alle Ansichten.",
-      "randomCount": "Artikel pro Auswahl",
-      "randomWindow": "Maximales Alter",
+      "randomCount": "Artikel im Zufallsmodus",
+      "randomWindow": "Alter im Zufallsmodus",
       "randomWindowAll": "Alle",
       "randomWindowUnit": "Einheit des Alters",
       "randomHours": "Stunden",
-      "randomDays": "Tage"
+      "randomDays": "Tage",
+      "randomCountHint": "Anzahl der Artikel, die die Schaltfläche Zufällig in der Liste zeigt, von 1 bis 500.",
+      "randomWindowHint": "Beschränkt die Schaltfläche Zufällig auf kürzlich eingetroffene Artikel. Leer: alle Artikel."
     },
     "branding": {
       "language": "Sprache",

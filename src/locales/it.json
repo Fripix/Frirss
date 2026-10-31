@@ -219,14 +219,14 @@
       "articleOrderHint": "Prima i più vecchi è adatto a chi legge in ordine di pubblicazione. Ogni feed può mantenere il proprio ordine dal suo menu.",
       "newArticlesPill": "Segnala nuovi articoli",
       "newArticlesPillHint": "Un banner in cima alla lista conta gli articoli arrivati da quando è stata caricata e li mostra con un clic. La lista non cambia mai da sola.",
-      "randomView": "Vista casuale",
-      "randomViewHint": "Il pulsante Casuale dell’elenco sceglie articoli a caso dalla vista corrente. Queste impostazioni valgono per tutte le viste.",
-      "randomCount": "Articoli per estrazione",
-      "randomWindow": "Età massima",
+      "randomCount": "Articoli in modalità casuale",
+      "randomWindow": "Età in modalità casuale",
       "randomWindowAll": "Tutti",
       "randomWindowUnit": "Unità dell’età",
       "randomHours": "ore",
-      "randomDays": "giorni"
+      "randomDays": "giorni",
+      "randomCountHint": "Numero di articoli mostrati dal pulsante Casuale dell’elenco, da 1 a 500.",
+      "randomWindowHint": "Limita il pulsante Casuale agli articoli arrivati di recente. Vuoto: tutti gli articoli."
     },
     "branding": {
       "language": "Lingua",

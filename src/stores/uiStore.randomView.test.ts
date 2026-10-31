@@ -31,4 +31,32 @@ describe('uiStore — affichage aléatoire', () => {
     useUiStore.getState().applyServerPrefs({ randomCount: 100, randomWindowAmount: 6, randomWindowUnit: 'days' } as never);
     expect(useUiStore.getState()).toMatchObject({ randomCount: 100, randomWindowAmount: 6, randomWindowUnit: 'days' });
   });
+
+  describe('par flux', () => {
+    beforeEach(() => { useUiStore.setState({ feedSettings: {} }); });
+    const setting = () => useUiStore.getState().feedSettings['feed/1'];
+
+    it('aléatoire n’est pas un ordre : il remplace celui du flux sans le contrefaire', () => {
+      useUiStore.getState().setFeedArticleOrder('feed/1', 'oldest');
+      useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
+      expect(setting()).toEqual({ random: true });
+    });
+
+    it('un ordre le retire', () => {
+      useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
+      useUiStore.getState().setFeedArticleOrder('feed/1', 'newest');
+      expect(setting()).toEqual({ order: 'newest' });
+    });
+
+    it('revenir au défaut efface tout', () => {
+      useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
+      useUiStore.getState().setFeedArticleOrder('feed/1', '');
+      expect(setting()).toBeUndefined();
+    });
+
+    it('survit au rechargement', () => {
+      useUiStore.getState().setFeedArticleOrder('feed/1', 'random');
+      expect(JSON.parse(localStorage.getItem('frirss_feedSettings')!)['feed/1']).toEqual({ random: true });
+    });
+  });
 });

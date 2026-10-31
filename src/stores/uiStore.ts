@@ -137,6 +137,12 @@ export interface FeedSetting {
    */
   order?: ArticleOrder;
   /**
+   * Ouvert, ce flux affiche un tirage au hasard (`randomView`). Pas un ordre : un
+   * tirage ne se pagine ni ne se range, et `effectiveOrder` n'a pas à le connaître.
+   * Exclusif de `order`, `setFeedArticleOrder` retire l'un en posant l'autre.
+   */
+  random?: boolean;
+  /**
    * Per-feed AI provider override (id of a provider). Absent means the feed
    * follows its category, then the preferred provider. Synced, like `layout`:
    * "this feed is summarised by the local model" is a property of the feed.
@@ -426,8 +432,8 @@ export interface UiState {
   // effectiveOrder(), which lets a feed override it.
   articleOrder: ArticleOrder;
   setArticleOrder: (order: ArticleOrder) => void;
-  /** Set (or clear, with '') this feed's article order override. */
-  setFeedArticleOrder: (feedId: string, order: ArticleOrder | '') => void;
+  /** Set (or clear, with '') this feed's article order override, or its random view. */
+  setFeedArticleOrder: (feedId: string, order: ArticleOrder | 'random' | '') => void;
   /** Affichage aléatoire : articles par tirage. Synced. */
   randomCount: number;
   setRandomCount: (count: number) => void;
@@ -465,7 +471,7 @@ export interface UiState {
  * disappears once it carries no setting at all, so a feed back on every
  * global default leaves no trace in the synced table.
  */
-function withFeedOverride<K extends 'layout' | 'order' | 'autoExtract' | 'aiProvider' | 'aiAutoTranslate' | 'aiAutoSummary' | 'aiPanel' | 'aiAutoSummaryTranslate'>(
+function withFeedOverride<K extends 'layout' | 'order' | 'random' | 'autoExtract' | 'aiProvider' | 'aiAutoTranslate' | 'aiAutoSummary' | 'aiPanel' | 'aiAutoSummaryTranslate'>(
   settings: Record<string, FeedSetting>,
   feedId: string,
   key: K,
@@ -1037,7 +1043,11 @@ export const useUiStore = create<UiState>()((set, get) => ({
     set({ randomWindowAmount, randomWindowUnit });
   },
   setFeedArticleOrder: (feedId, order) => {
-    set((state) => ({ feedSettings: withFeedOverride(state.feedSettings, feedId, 'order', order) }));
+    set((state) => {
+      const random = order === 'random';
+      const cleared = withFeedOverride(state.feedSettings, feedId, 'order', random ? '' : order);
+      return { feedSettings: withFeedOverride(cleared, feedId, 'random', random ? true : '') };
+    });
   },
 
   // App branding — custom title & logo

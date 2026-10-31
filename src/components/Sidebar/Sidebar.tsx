@@ -812,7 +812,7 @@ function FeedAutoExtractPicker({ value, onChange, label }: { value: boolean | un
  * it — at 14 px, which of two bars is the longer one is invisible, and the
  * pair read as the same icon.
  */
-function FeedOrderPicker({ value, onChange, label }: { value: ArticleOrder | ''; onChange: (v: ArticleOrder | '') => void; label: string }) {
+function FeedOrderPicker({ value, onChange, label }: { value: ArticleOrder | 'random' | ''; onChange: (v: ArticleOrder | 'random' | '') => void; label: string }) {
   const { t } = useTranslation();
   const options = [
     { id: '', title: t('sidebar.feedLayoutDefault'), icon: RESET_ICON },
@@ -826,8 +826,13 @@ function FeedOrderPicker({ value, onChange, label }: { value: ArticleOrder | '';
       title: t('preferences.general.articleOrderOldest'),
       icon: <path strokeLinecap="round" strokeLinejoin="round" d="m3 9 4-4 4 4M7 5v14M12 11h5M12 17h9" />,
     },
+    {
+      id: 'random',
+      title: t('articleList.random'),
+      icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h3.5c1.6 0 3 .8 3.9 2.1l3.2 5.8c.9 1.3 2.3 2.1 3.9 2.1H21M3 17h3.5c1.3 0 2.5-.6 3.4-1.5M13.1 8.5c.9-.9 2.1-1.5 3.4-1.5H21M18 4l3 3-3 3M18 14l3 3-3 3" />,
+    },
   ];
-  return <OverridePicker value={value} onChange={(v) => onChange(v as ArticleOrder | '')} options={options} label={label} />;
+  return <OverridePicker value={value} onChange={(v) => onChange(v as ArticleOrder | 'random' | '')} options={options} label={label} />;
 }
 
 export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: FeedContextMenuProps) {
@@ -847,7 +852,7 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
   const setFeedArticleOrder = useUiStore((s) => s.setFeedArticleOrder);
   const feedAutoExtract = feedSettings[feed.id]?.autoExtract; // true | false | undefined (= suit le défaut)
   const feedLayout = feedSettings[feed.id]?.layout || '';
-  const feedOrder = feedSettings[feed.id]?.order || '';
+  const feedOrder = feedSettings[feed.id]?.random ? 'random' : feedSettings[feed.id]?.order || '';
 
   // Fermeture au clic en dehors. `pointerdown` et non `mousedown` : au doigt,
   // iOS n'émet pas de `mousedown` avant le `click`, si bien qu'une tape à côté
@@ -1057,7 +1062,11 @@ export function FeedContextMenu({ feed, x, y, onRename, onDelete, onClose }: Fee
           onChange={(v) => {
             setFeedArticleOrder(feed.id, v);
             const fs = useFeedStore.getState();
-            if (fs.selectedFeed?.id === feed.id && !fs.randomView) void fs.loadArticles();
+            if (fs.selectedFeed?.id === feed.id) {
+              const random = v === 'random';
+              if (random !== fs.randomView) fs.setRandomView(random);
+              else if (!random) void fs.loadArticles();
+            }
             onClose();
           }}
         />

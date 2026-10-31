@@ -711,6 +711,13 @@ trouvait pas.
 - **Où** : `src/lib/randomDraw.ts`, `drawRandomList` et `setRandomView` dans
   `src/stores/feedStore.ts`, `getStreamIdsSince` et `getItemsByIds` dans
   `src/api/feeds.ts`, `ArticleList.tsx`, `RandomViewSettings.tsx`.
+- **Par flux** : « Ordre de ce flux », dans le menu du flux (clic droit), propose
+  Aléatoire (`FeedSetting.random`, synchronisé). Le flux s'ouvre alors en tirage à
+  chaque visite, le bouton le quitte pour la visite sans toucher au réglage. Hors
+  ligne, il s'ouvre normalement (`opensRandom`). ⚠️ Pas un ordre : `order` et
+  `random` s'excluent, `setFeedArticleOrder` retire l'un en posant l'autre, et
+  `effectiveOrder` n'en sait rien, pour que clés de vue et listes gardées ne bougent
+  pas. Pas de réglage global, ni par catégorie.
 - **Réglages** : Préférences → Général, sous l'ordre des articles, synchronisés :
   `randomCount` (champ libre, 1 à 500, 20 par défaut) ; ancienneté maximale,
   `randomWindowAmount` (champ libre, vide ou 0 = tous) et `randomWindowUnit`

@@ -219,14 +219,14 @@
       "articleOrderHint": "Plus anciens d’abord convient à qui lit dans l’ordre de parution. Chaque flux peut garder son propre ordre depuis son menu.",
       "newArticlesPill": "Signaler les nouveaux articles",
       "newArticlesPillHint": "Un bandeau en haut de la liste compte les articles arrivés depuis son chargement et les affiche d’un clic. La liste ne change jamais d’elle-même.",
-      "randomView": "Affichage aléatoire",
-      "randomViewHint": "Le bouton Aléatoire de la liste tire des articles au hasard dans la vue affichée. Ces réglages valent pour toutes les vues.",
-      "randomCount": "Articles par tirage",
-      "randomWindow": "Ancienneté maximale",
+      "randomCount": "Articles en aléatoire",
+      "randomWindow": "Ancienneté en aléatoire",
       "randomWindowAll": "Tous",
       "randomWindowUnit": "Unité de l’ancienneté",
       "randomHours": "heures",
-      "randomDays": "jours"
+      "randomDays": "jours",
+      "randomCountHint": "Nombre d’articles affichés par le bouton Aléatoire de la liste, de 1 à 500.",
+      "randomWindowHint": "Limite le bouton Aléatoire aux articles arrivés récemment. Vide : tous les articles."
     },
     "branding": {
       "language": "Langue",

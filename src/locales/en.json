@@ -219,14 +219,14 @@
       "articleOrderHint": "Oldest first suits reading in publication order. Each feed can keep its own order from its menu.",
       "newArticlesPill": "Show new articles",
       "newArticlesPillHint": "A banner at the top of the list counts the articles that arrived since it loaded, and shows them in one click. The list never changes on its own.",
-      "randomView": "Random view",
-      "randomViewHint": "The Random button on the list picks articles at random from the current view. These settings apply to every view.",
-      "randomCount": "Articles per draw",
-      "randomWindow": "Maximum age",
+      "randomCount": "Random articles",
+      "randomWindow": "Random age limit",
       "randomWindowAll": "All",
       "randomWindowUnit": "Age unit",
       "randomHours": "hours",
-      "randomDays": "days"
+      "randomDays": "days",
+      "randomCountHint": "How many articles the Random button on the list shows, from 1 to 500.",
+      "randomWindowHint": "Limits the Random button to recently arrived articles. Empty: all articles."
     },
     "branding": {
       "language": "Language",
