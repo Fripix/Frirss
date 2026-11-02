@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { useEffect, useRef, useState } from 'react';
 import { render, cleanup, act } from '@testing-library/react';
 import { useReturnFocus } from './useReturnFocus';
@@ -62,6 +62,23 @@ describe('useReturnFocus', () => {
     c.getByText('fermer').focus(); // une autre surface a pris le focus
     await tick();
     expect(document.activeElement).toBe(c.getByText('fermer'));
+  });
+
+  // Le dernier `cleanup` d'un fichier démonte sans tour suivant : le minuteur
+  // pouvait partir après la destruction de jsdom, et Vitest sortait en échec
+  // avec tous ses tests verts (`document is not defined`).
+  it('ne lève rien si le document a disparu quand vient le tour suivant', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const doc = Object.getOwnPropertyDescriptor(globalThis, 'document')!;
+    try {
+      const s = render(<Surface open />);
+      s.unmount();
+      delete (globalThis as { document?: Document }).document;
+      expect(() => vi.runOnlyPendingTimers()).not.toThrow();
+    } finally {
+      Object.defineProperty(globalThis, 'document', doc);
+      vi.useRealTimers();
+    }
   });
 
   // ⌘K → « Préférences » : la palette se ferme et les Préférences s'ouvrent

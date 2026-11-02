@@ -71,6 +71,8 @@ function restore(entry: { current: OpenSurface | null }): void {
   entry.current = null;
   if (!e) return;
   setTimeout(() => {
+    // Démontée en tout dernier, une surface survit à son document de test.
+    if (typeof document === 'undefined') return;
     if (openSurfaces.some((s) => s.seq > e.seq)) return;
     const active = document.activeElement;
     if (active && active !== document.body) return;

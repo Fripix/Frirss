@@ -1190,6 +1190,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     [articleTranslation.html, inlineVideos, videoPlayLabel, videoOpenLabel],
   );
   const showTranslatedBody = articleTranslation.showing === 'translation' && translatedBody !== null;
+  const translationShown = useRef(false);
+  translationShown.current = showTranslatedBody;
 
   // Raccourci `t` et palette : mêmes gardes que le bouton « Traduire
   // l'article » (IA utilisable, en ligne, du texte à traduire, rien en cours).
@@ -1203,11 +1205,14 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     if (!articleCanTranslate || articleTranslationState === 'loading') return;
     const onTranslateEvent = () => translateWhenReady();
     window.addEventListener('frirss:ai-translate', onTranslateEvent);
-    // La palette ne propose l'entrée que si quelqu'un répond ici : mêmes gardes.
-    window.addEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
+    // La palette ne propose l'entrée que si quelqu'un répond ici : mêmes
+    // gardes, et pas de traduction déjà là — l'écouteur n'est retiré qu'au
+    // passage des effets, juste APRÈS son affichage.
+    const onProbe = (e: Event) => { if (!translationShown.current) answerTranslateProbe(e); };
+    window.addEventListener(AI_TRANSLATE_PROBE, onProbe);
     return () => {
       window.removeEventListener('frirss:ai-translate', onTranslateEvent);
-      window.removeEventListener(AI_TRANSLATE_PROBE, answerTranslateProbe);
+      window.removeEventListener(AI_TRANSLATE_PROBE, onProbe);
     };
   }, [aiUsable, online, selectedArticle, showTranslatedBody, translateQueued, articleCanTranslate, articleTranslationState, translateWhenReady]);
   const shownBodyHtml = showTranslatedBody ? translatedBody.html : body.html;

@@ -22,8 +22,13 @@ _(rien pour l'instant)_
 
 ## Corrections et améliorations
 
-_(rien pour l'instant)_
+- **La palette ne propose plus « Traduire » sur une traduction qui vient de
+  s'afficher.** Pendant un court instant, avant le retrait de son écouteur, le
+  volet répondait encore « oui ». C'était aussi un rouge possible en CI, de même
+  forme que celui de « Résumer » corrigé en 1.8.0.
 
 ## Sous le capot
 
-_(rien pour l'instant)_
+- **Plus de sortie en échec avec tous les tests verts.** `useReturnFocus` pouvait
+  réveiller son minuteur après la destruction de jsdom (`document is not
+  defined`).

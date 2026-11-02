@@ -40,7 +40,7 @@ import { putExtract } from '../../lib/extractCache';
 import { __resetPendingSummariesForTests } from './aiPending';
 import { languageName } from '../../lib/aiLanguages';
 import { LONG_PRESS_MS } from '../../hooks/useLongPress';
-import { translateWouldAct, summarizeWouldAct, AI_SUMMARIZE_PROBE } from '../../lib/aiTranslateProbe';
+import { translateWouldAct, summarizeWouldAct, AI_SUMMARIZE_PROBE, AI_TRANSLATE_PROBE } from '../../lib/aiTranslateProbe';
 
 const article = (id: string) => ({
   id, title: 'Titre ' + id, summary: 's', source: 'Src', sourceId: 'feed/1',
@@ -1476,6 +1476,23 @@ describe('ReadingPane — traduction de l\'article', () => {
       expect(translateWouldAct()).toBe(false);
       unmount();
       expect(translateWouldAct()).toBe(false);
+    });
+    it('a probe listener not yet removed when the translation shows does not offer « Traduire »', async () => {
+      // Même fenêtre que la sonde de « Résumer » : le `findByRole` du test
+      // ci-dessus peut reprendre la main avant le retrait de l'écouteur.
+      const probes: EventListener[] = [];
+      const add = window.addEventListener.bind(window);
+      vi.spyOn(window, 'addEventListener').mockImplementation(((type: string, l: EventListener, o?: unknown) => {
+        if (type === AI_TRANSLATE_PROBE) probes.push(l);
+        return add(type, l, o as never);
+      }) as never);
+      vi.mocked(requestAiTranslation).mockResolvedValue(translated(['Title a1', 'word word']));
+      const { findByRole } = render(<ReadingPane />);
+      fire();
+      await findByRole('button', { name: 'ai.showSource' });
+      const detail = { ready: false };
+      probes[0](new CustomEvent(AI_TRANSLATE_PROBE, { detail }));
+      expect(detail.ready).toBe(false);
     });
     it('does not answer the probe when there is nothing to translate', () => {
       const a = { ...article('t7'), content: '<img src="https://example.com/a.png" alt="">' } as Article;
