@@ -29,6 +29,8 @@ _(rien pour l'instant)_
 
 ## Sous le capot
 
+- **Un registre des régressions.** `docs/REGRESSIONS.md` recense les bugs passés, ce
+  qui les protège, et la checklist manuelle d'avant release.
 - **Plus de sortie en échec avec tous les tests verts.** `useReturnFocus` pouvait
   réveiller son minuteur après la destruction de jsdom (`document is not
   defined`).
