@@ -10,6 +10,9 @@ import { showEndOfListMarkAll } from '../../lib/endOfList';
 import { canRandomView } from '../../lib/randomDraw';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useToolbarFold } from '../../hooks/useToolbarFold';
+import { useToolbarShown } from '../../hooks/useToolbarShown';
+import { separatorsBefore } from '../../lib/toolbarItems';
+import { useToolbarCommands, type ToolbarOffer } from '../../lib/toolbarCommands';
 import { feedOverride } from '../../lib/feedOverride';
 import { effectiveLayout } from '../../lib/effectiveLayout';
 import { effectiveOrder, entryDirection } from '../../lib/effectiveOrder';
@@ -778,7 +781,67 @@ export default function ArticleList() {
   // Tout ce qui change le contenu de la ligne : elle se mesure sur ce qu'elle porte,
   // et sans ceci, un bouton revenu après une recherche la ferait déborder.
   const actionRowRef = useRef<HTMLDivElement>(null);
-  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), !!randomButton, canMarkAll, is2Panel, layout]);
+
+  // Barre personnalisable (Préférences → Mise en page), desktop seulement :
+  // `shown` rend toujours vrai ailleurs. Masquer RETIRE ; les séparateurs
+  // suivent les groupes réellement affichés (`separatorsBefore`).
+  const shown = useToolbarShown();
+  const listBarShown = shown('listBar');
+  const showSearchBtn = shown('search');
+  const showUnreadBtn = shown('unreadFilter');
+  const showRandomBtn = !!randomButton && shown('random');
+  const showStarredBtn = shown('starredFilter');
+  const showMarkAllBtn = canMarkAll && shown('markAllRead');
+  const optShown = {
+    source: shown('optSource'), favicons: shown('optFavicons'),
+    dateSep: shown('optDateSeparators'), serverBar: shown('optServerBar'),
+  };
+  const anyOption = optShown.source || optShown.favicons || optShown.dateSep || optShown.serverBar;
+  const showDensity = shown('density');
+  const showLayout = shown('layout');
+  const anyFilter = showUnreadBtn || showRandomBtn || showStarredBtn;
+  const anyAction = showSearchBtn || anyFilter || showMarkAllBtn;
+  const [, sep3Filters, sep3MarkAll] = separatorsBefore([showSearchBtn, anyFilter, showMarkAllBtn]);
+  const [, sep2MarkAll] = separatorsBefore([showSearchBtn || anyFilter, showMarkAllBtn]);
+
+  const toggleUnreadFilter = () => useFeedStore.getState().setUnreadFilter(filter !== 'unread');
+  const toggleStarredFilter = () => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred');
+  const toggleSource = isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll;
+
+  // Chaque bouton de la barre, masqué ou non, a sa commande dans la palette
+  // (`toolbarCommands.ts`) : mêmes conditions que le bouton, même gestionnaire.
+  const optionLabel = (key: string) => t('app.labelValue', { label: t('articleList.viewOptions'), value: t(key) });
+  const densityModes: Array<[string, string]> = [['preview', 'viewMode.preview'], ['simple', 'viewMode.standard'], ['compact', 'viewMode.compact']];
+  useToolbarCommands(() => {
+    const offers: ToolbarOffer[] = [
+      { command: 'unreadFilter', item: 'unreadFilter', label: t('articleList.unread') },
+      { command: 'starredFilter', item: 'starredFilter', label: t('articleList.starred') },
+      { command: 'optSource', item: 'optSource', label: optionLabel('articleList.feedSource') },
+      { command: 'optFavicons', item: 'optFavicons', label: optionLabel('articleList.listFavicons') },
+      { command: 'optDateSeparators', item: 'optDateSeparators', label: optionLabel('articleList.dateSeparators') },
+      { command: 'optServerBar', item: 'optServerBar', label: optionLabel('articleList.serverBar') },
+    ];
+    if (randomButton && !randomButton.disabled) offers.push({ command: 'random', item: 'random', label: t('articleList.random') });
+    if (canMarkAll) offers.push({ command: 'markAllRead', item: 'markAllRead', label: t('articleList.markAllRead') });
+    if (!gridLayout) {
+      for (const [mode, key] of densityModes) {
+        offers.push({ command: `density:${mode}`, item: 'density', label: t('app.labelValue', { label: t('articleList.displayMode'), value: t(key) }) });
+      }
+    }
+    return offers;
+  }, (command) => {
+    if (command === 'unreadFilter') toggleUnreadFilter();
+    else if (command === 'starredFilter') toggleStarredFilter();
+    else if (command === 'random') randomButton?.onClick();
+    else if (command === 'markAllRead') handleMarkAllRead();
+    else if (command === 'optSource') toggleSource();
+    else if (command === 'optFavicons') toggleShowListFavicons();
+    else if (command === 'optDateSeparators') toggleDateSep();
+    else if (command === 'optServerBar') toggleTopbar();
+    else if (command.startsWith('density:')) useUiStore.getState().setViewMode(command.slice('density:'.length));
+  });
+
+  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), !!randomButton, canMarkAll, is2Panel, layout, shown]);
   // Une bande dit combien d'articles porte sa date, pas combien sont montés.
   const groupTotals = useMemo(
     () => new Map(groupByDate(articles).map((g) => [g.key, g.articles.length])),
@@ -843,7 +906,9 @@ export default function ArticleList() {
           onCopyLink={() => { void copyArticleLink(menuArticle.url); }}
         />
       )}
-      {/* Header */}
+      {/* Header — barre entière masquée (desktop), il ne reste que la zone de
+          recherche, et seulement quand une recherche est ouverte ou active. */}
+      {(listBarShown || searchOpen || !!searchQuery) && (
       <div
         className="article-list-header flex-shrink-0"
         style={{
@@ -912,7 +977,7 @@ export default function ArticleList() {
               )}
             </BottomSheet>
           </div>
-        ) : is2Panel ? (
+        ) : !listBarShown ? null : is2Panel ? (
           /* ── 2-panel: single unified toolbar ── */
           <div ref={actionRowRef} className="list-actions px-3 py-2 flex items-center gap-2 min-h-[48px]">
             {!sidebarVisible && (
@@ -937,41 +1002,46 @@ export default function ArticleList() {
               {!searchQuery && <HeaderUnread count={headerUnread} />}
             </div>
 
-            <div className="w-px h-4 mx-1 flex-shrink-0" style={{ background: 'var(--panel-border)' }} />
+            {anyAction && (
+              <>
+                <div className="w-px h-4 mx-1 flex-shrink-0" style={{ background: 'var(--panel-border)' }} />
 
-            {/* Inline toolbar actions */}
-            <div className="flex items-center gap-0.5 flex-shrink-0">
-              <ToolbarBtn cede={1} icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
-              <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
-                onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
-              {randomButton && <ToolbarBtn cede={2} {...randomButton} />}
-              <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
-                onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
-              {canMarkAll && (
-                <>
-                  <ToolbarSep />
-                  <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
-                </>
-              )}
-            </div>
+                {/* Inline toolbar actions */}
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  {showSearchBtn && <ToolbarBtn cede={1} icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />}
+                  {showUnreadBtn && <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
+                    onClick={toggleUnreadFilter} />}
+                  {showRandomBtn && randomButton && <ToolbarBtn cede={2} {...randomButton} />}
+                  {showStarredBtn && <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
+                    onClick={toggleStarredFilter} />}
+                  {sep2MarkAll && <ToolbarSep />}
+                  {showMarkAllBtn && <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />}
+                </div>
+              </>
+            )}
 
             <div className="flex-1" />
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* Les quatre bascules d'affichage forment un groupe, comme la
-                  densité et la disposition en ont déjà un. */}
-              <div className="option-track">
-                <SourceToggle
-                  active={showSource}
-                  onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll}
-                  tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
-                />
-                <FaviconToggle />
-                <DateSepToggle active={dateSepActive} onClick={toggleDateSep} />
-                <TopbarToggle />
-              </div>
-              {!gridLayout && <ViewModeSwitcher />}
-              {isDesktop && <LayoutToggle overridden={feedLayoutOverride} />}
+                  densité et la disposition en ont déjà un. Vide, la piste
+                  n'est pas rendue : son fond resterait seul à l'écran. */}
+              {anyOption && (
+                <div className="option-track">
+                  {optShown.source && (
+                    <SourceToggle
+                      active={showSource}
+                      onClick={toggleSource}
+                      tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
+                    />
+                  )}
+                  {optShown.favicons && <FaviconToggle />}
+                  {optShown.dateSep && <DateSepToggle active={dateSepActive} onClick={toggleDateSep} />}
+                  {optShown.serverBar && <TopbarToggle />}
+                </div>
+              )}
+              {!gridLayout && showDensity && <ViewModeSwitcher />}
+              {isDesktop && showLayout && <LayoutToggle overridden={feedLayoutOverride} />}
             </div>
           </div>
         ) : (
@@ -1003,43 +1073,49 @@ export default function ArticleList() {
                 {!searchQuery && <HeaderUnread count={headerUnread} />}
               </div>
 
-              <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
-                <div className="option-track">
-                  <SourceToggle
-                    active={showSource}
-                    onClick={isInFeed ? toggleShowSourceInFeed : toggleShowSourceInAll}
-                    tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
-                  />
-                  <FaviconToggle />
-                  <DateSepToggle active={showDateSeparators} onClick={toggleDateSeparators} />
-                  <TopbarToggle />
+              {(anyOption || showDensity || showLayout) && (
+                <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+                  {anyOption && (
+                    <div className="option-track">
+                      {optShown.source && (
+                        <SourceToggle
+                          active={showSource}
+                          onClick={toggleSource}
+                          tooltip={isInFeed ? t('articleList.sourceToggleFeed') : t('articleList.sourceToggleAll')}
+                        />
+                      )}
+                      {optShown.favicons && <FaviconToggle />}
+                      {optShown.dateSep && <DateSepToggle active={showDateSeparators} onClick={toggleDateSeparators} />}
+                      {optShown.serverBar && <TopbarToggle />}
+                    </div>
+                  )}
+                  {showDensity && <ViewModeSwitcher />}
+                  {showLayout && <LayoutToggle overridden={feedLayoutOverride} />}
                 </div>
-                <ViewModeSwitcher />
-                <LayoutToggle overridden={feedLayoutOverride} />
-              </div>
+              )}
             </div>
 
             {/* À la ligne si la place manque : à 340 px, largeur par défaut de la
                 colonne, « Tout lu » sortait de la barre dans six langues, et rien
                 ne le remplace. */}
+            {/* Sans aucun bouton, la rangée n'est pas rendue : son filet du
+                haut resterait seul, une bande vide sous le titre. */}
+            {anyAction && (
             <div ref={actionRowRef} className="list-actions pl-2 pr-0.5 py-1 flex items-center gap-0.5" style={{ borderTop: '1px solid var(--panel-border)' }}>
               {/* Rechercher cède son mot d'abord, Aléatoire ensuite, et seulement si
                   la ligne déborde (`useToolbarFold`) : à 340 px, largeur par défaut,
                   ils en faisaient sortir « Tout lu ». */}
-              <ToolbarBtn cede={1} icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />
-              <ToolbarSep />
-              <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
-                onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
-              {randomButton && <ToolbarBtn cede={2} {...randomButton} />}
-              <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
-                onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
-              {canMarkAll && (
-                <>
-                  <ToolbarSep />
-                  <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
-                </>
-              )}
+              {showSearchBtn && <ToolbarBtn cede={1} icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />}
+              {sep3Filters && <ToolbarSep />}
+              {showUnreadBtn && <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
+                onClick={toggleUnreadFilter} />}
+              {showRandomBtn && randomButton && <ToolbarBtn cede={2} {...randomButton} />}
+              {showStarredBtn && <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
+                onClick={toggleStarredFilter} />}
+              {sep3MarkAll && <ToolbarSep />}
+              {showMarkAllBtn && <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />}
             </div>
+            )}
           </>
         )}
 
@@ -1124,6 +1200,7 @@ export default function ArticleList() {
           </div>
         )}
       </div>
+      )}
 
       {/* La question, quand le réglage la demande. Le titre porte le COMPTE et
           le périmètre : c'est ce qui distingue une action d'un filtre au
