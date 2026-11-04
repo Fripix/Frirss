@@ -3,6 +3,7 @@
 Ce fichier répond à une question simple : **ce bug peut-il revenir sans que personne ne le voie ?**
 Il recense les vrais bugs corrigés, ce qui les protège aujourd'hui, et ce qui reste à contrôler à la main avant une release.
 Il ne remplace ni `CHANGELOG.md`, qui dit ce qui a changé, ni `docs/FEATURES.md`, qui décrit ce que FriRSS sait faire.
+La méthode de test, elle, est décrite dans `docs/TESTING.md`.
 
 Le registre n'est pas exhaustif : il retient les bugs qui ont touché l'utilisateur, ou qui auraient pu perdre des données ou ouvrir une faille.
 
@@ -158,4 +159,4 @@ Du plus récent au plus ancien.
 | REG-004 | 1.3.2 | Le proxy pouvait atteindre le réseau interne par un nom résolu en adresse privée ou par une redirection, et le jeton suivait les redirections vers un autre hôte. | La garde anti-SSRF ne vérifiait ni l'adresse résolue ni chaque saut de redirection. | `proxy.test.ts` › assertTargetSafe — trustedHosts blocks a host that resolves to a private address<br>`proxy.test.ts` › assertTargetSafe — trustedHosts a trusted host redirecting into the private network is still blocked at the hop | Couvert |
 | REG-003 | 1.3.1 | Un endpoint nginx sans authentification servait de proxy ouvert, capable de joindre des hôtes internes. | `/cors-proxy` subsistait dans la configuration sans garde anti-SSRF. | Aucune | Non couvert |
 | REG-002 | 1.3.0 | Première configuration forcément en français. | Langue initiale fixée à fr au lieu de suivre celle du navigateur. | `i18n.test.ts` › resolveInitialLanguage matches the browser language on its primary subtag | Couvert |
-| REG-001 | 1.2.0 | Conteneur annoncé en échec de santé alors que l’application tourne, sans rien dans les logs. | Le HEALTHCHECK visait localhost, résolu en ::1 dans le conteneur, où nginx n’écoute pas. | Aucune sur le symptôme. Partiel : CI : Smoke-test /api/health | Non couvert |
+| REG-001 | 1.2.0 | Conteneur annoncé en échec de santé alors que l’application tourne, sans rien dans les logs. | Le HEALTHCHECK visait localhost, résolu en ::1 dans le conteneur, où nginx n’écoute pas. | N1 : HEALTHCHECK du Dockerfile : healthy<br>**Réintroduit et détecté par le banc** | Couvert |

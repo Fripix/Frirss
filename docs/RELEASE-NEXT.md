@@ -29,6 +29,8 @@ _(rien pour l'instant)_
 
 ## Sous le capot
 
+- **Une méthode de test écrite.** `docs/TESTING.md` décrit le déroulé d'une campagne avant
+  release, la gravité qui bloque une release et la carte des zones à couvrir.
 - **Un registre des régressions.** `docs/REGRESSIONS.md` recense les bugs passés, ce
   qui les protège, et la checklist manuelle d'avant release.
 - **Plus de sortie en échec avec tous les tests verts.** `useReturnFocus` pouvait
