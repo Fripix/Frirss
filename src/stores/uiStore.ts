@@ -9,6 +9,10 @@ import {
 import { normalizeStartupView, type StartupView } from '../lib/startupView';
 import type { OfflineImagePreset, OfflineImageSized, OfflineImageSizes } from '../lib/offlineImages';
 import { normalizeRowActions, type RowActionKind, type RowActionSettings } from '../lib/rowActions';
+import {
+  normalizeToolbarVisibility, resetToolbarZone as resetZone,
+  type ToolbarToggleId, type ToolbarVisibility, type ToolbarZone,
+} from '../lib/toolbarItems';
 import { isAiLanguage, type AiLanguage } from '../lib/aiLanguages';
 import { normalizeUnreadScope, switchUnreadScope, unreadOnlyFor, type UnreadScope } from '../lib/unreadScope';
 import { clampReadingBody, MOBILE_READING_DEFAULT } from '../lib/readingFontSize';
@@ -221,6 +225,11 @@ export interface UiState {
   /** Quelles icônes d'action apparaissent sur une ligne d'article. */
   rowActions: RowActionSettings;
   setRowAction: (kind: RowActionKind, visible: boolean) => void;
+  /** Boutons et barres affichés sur desktop (Préférences → Mise en page). Voir `src/lib/toolbarItems.ts`. */
+  toolbarVisibility: ToolbarVisibility;
+  setToolbarVisible: (id: ToolbarToggleId, visible: boolean) => void;
+  /** « Tout réafficher » d'une zone. */
+  resetToolbarZone: (zone: ToolbarZone | 'shortcuts') => void;
   sidebarVisible: boolean;
   /** Vrai sur le bureau : la barre latérale y est une préférence. Ailleurs, `sidebarVisible` pilote le tiroir et rien n'est enregistré. Posé par `useDrawerOffDesktop`. */
   sidebarIsPreference: boolean;
@@ -571,6 +580,23 @@ export const useUiStore = create<UiState>()((set, get) => ({
       const next = { ...state.rowActions, [kind]: visible };
       localStorage.setItem('frirss_rowActions', JSON.stringify(next));
       return { rowActions: next };
+    });
+  },
+
+  // Barres personnalisables sur desktop — un seul objet, comme rowActions.
+  toolbarVisibility: normalizeToolbarVisibility(loadJson('frirss_toolbarVisibility', null)),
+  setToolbarVisible: (id, visible) => {
+    set((state) => {
+      const next = { ...state.toolbarVisibility, [id]: visible };
+      localStorage.setItem('frirss_toolbarVisibility', JSON.stringify(next));
+      return { toolbarVisibility: next };
+    });
+  },
+  resetToolbarZone: (zone) => {
+    set((state) => {
+      const next = resetZone(state.toolbarVisibility, zone);
+      localStorage.setItem('frirss_toolbarVisibility', JSON.stringify(next));
+      return { toolbarVisibility: next };
     });
   },
 
@@ -1293,7 +1319,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
-      'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
+      'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView', 'aiPanelCollapsed', 'aiSummaryRatio',
       'gridCardWidth', 'gridImageRatio', 'gridCardFill',
       'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
       'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',
@@ -1309,6 +1335,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
         // preset we dropped — normalise it here too, not just on load.
         const value = k === 'offlineImagePreset' ? normalizeImagePreset(prefs[k])
           : k === 'rowActions' ? normalizeRowActions(prefs[k])
+          : k === 'toolbarVisibility' ? normalizeToolbarVisibility(prefs[k])
           : k === 'unreadOnlyScope' ? normalizeUnreadScope(prefs[k])
           : k === 'articleOrder' ? normalizeArticleOrder(prefs[k])
           : k === 'randomCount' ? normalizeRandomCount(prefs[k])
@@ -1370,7 +1397,7 @@ export const UI_SYNC_KEYS = [
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
   'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons',
-  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'articleOrder', 'autoExtractDefault', 'startupView',
+  'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed', 'rowActions', 'toolbarVisibility', 'articleOrder', 'autoExtractDefault', 'startupView',
   'aiPanelCollapsed', 'aiSummaryRatio', 'gridCardWidth', 'gridImageRatio', 'gridCardFill',
   'randomCount', 'randomWindowAmount', 'randomWindowUnit', 'randomViews',
   'aiPreferredProvider', 'aiFallback', 'aiAutoSummary', 'aiCategoryProviders',

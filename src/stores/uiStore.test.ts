@@ -200,6 +200,32 @@ describe('uiStore', () => {
     expect(JSON.parse(localStorage.getItem('frirss_rowActions')!)).toEqual(s.rowActions);
   });
 
+  // Barres personnalisables sur desktop : un seul objet, synchronisé, complété.
+  it('setToolbarVisible masque un seul élément et l’enregistre', () => {
+    useUiStore.getState().resetToolbarZone('list');
+    useUiStore.getState().setToolbarVisible('random', false);
+    const v = useUiStore.getState().toolbarVisibility;
+    expect(v.random).toBe(false);
+    expect(v.search).toBe(true);
+    expect(JSON.parse(localStorage.getItem('frirss_toolbarVisibility')!).random).toBe(false);
+    useUiStore.getState().resetToolbarZone('list');
+    expect(useUiStore.getState().toolbarVisibility.random).toBe(true);
+  });
+
+  it('toolbarVisibility est synchronisé (UI_SYNC_KEYS)', () => {
+    expect(UI_SYNC_KEYS).toContain('toolbarVisibility');
+  });
+
+  it('applyServerPrefs complète un toolbarVisibility d’une version antérieure', () => {
+    useUiStore.getState().applyServerPrefs({ toolbarVisibility: { star: false } });
+    const v = useUiStore.getState().toolbarVisibility;
+    expect(v.star).toBe(false);
+    expect(v.share).toBe(true);
+    expect(v.listBar).toBe(true);
+    useUiStore.getState().applyServerPrefs({ toolbarVisibility: 'garbage' });
+    expect(useUiStore.getState().toolbarVisibility.star).toBe(true);
+  });
+
   it('rowActions is synced across devices (present in UI_SYNC_KEYS)', () => {
     expect(UI_SYNC_KEYS).toContain('rowActions');
   });
