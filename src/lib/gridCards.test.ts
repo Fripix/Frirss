@@ -32,8 +32,8 @@ describe('normalizeGridCardWidth', () => {
 });
 
 describe('normalizeGridImageRatio', () => {
-  it('accepte les trois formats proposés, 16:9 en tête', () => {
-    expect(GRID_IMAGE_RATIOS).toEqual(['16:9', '4:3', '1:1']);
+  it('accepte les quatre formats proposés, 16:9 en tête, 3:4 en portrait', () => {
+    expect(GRID_IMAGE_RATIOS).toEqual(['16:9', '4:3', '1:1', '3:4']);
     for (const r of GRID_IMAGE_RATIOS) expect(normalizeGridImageRatio(r)).toBe(r);
   });
 
@@ -56,6 +56,10 @@ describe('gridCardStyle', () => {
   it('réduit la largeur d’un tiers sur téléphone, arrondie au pixel', () => {
     expect(gridCardStyle(480, '1:1')['--grid-card-min-mobile']).toBe('320px');
     expect(gridCardStyle(260, '4:3')['--grid-card-min-mobile']).toBe('173px');
+  });
+
+  it('pose le format portrait tel quel (issue #26)', () => {
+    expect(gridCardStyle(240, '3:4')['--grid-card-ratio']).toBe('3 / 4');
   });
 
   it('écrit le format en syntaxe CSS', () => {

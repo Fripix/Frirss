@@ -36,7 +36,7 @@ describe('Préférences › Apparence › Tailles — section Grille (#26)', () 
     expect(getByText('240px')).toBeTruthy();
     const group = getByRole('radiogroup');
     const radios = group.querySelectorAll('[role="radio"]');
-    expect([...radios].map((r) => r.textContent)).toEqual(['16:9', '4:3', '1:1']);
+    expect([...radios].map((r) => r.textContent)).toEqual(['16:9', '4:3', '1:1', '3:4']);
     expect(radios[0].getAttribute('aria-checked')).toBe('true');
   });
 

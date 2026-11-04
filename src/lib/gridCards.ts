@@ -15,8 +15,9 @@ export const GRID_CARD_WIDTH_STEP = 1;
 export const GRID_CARD_WIDTH_DEFAULT = 240;
 
 // Pas de format « original » : des images de hauteurs différentes casseraient
-// l'alignement des rangées — ce serait une autre vue, pas un réglage.
-export const GRID_IMAGE_RATIOS = ['16:9', '4:3', '1:1'] as const;
+// l'alignement des rangées — ce serait une autre vue, pas un réglage. Le 3:4
+// (portrait) a été demandé après coup dans la même issue.
+export const GRID_IMAGE_RATIOS = ['16:9', '4:3', '1:1', '3:4'] as const;
 export type GridImageRatio = (typeof GRID_IMAGE_RATIOS)[number];
 
 /** Un entier entre les bornes ; toute autre valeur rend le défaut. */

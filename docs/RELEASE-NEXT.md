@@ -18,7 +18,8 @@ la release publiée.
 
 ## Fonctionnalités
 
-_(rien pour l'instant)_
+- **Un format d'image portrait pour la grille.** Préférences → Apparence →
+  Tailles propose maintenant 3:4 à côté de 16:9, 4:3 et 1:1 (issue #26).
 
 ## Corrections et améliorations
 

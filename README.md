@@ -109,7 +109,7 @@ Almost everything is yours to tweak:
 - **Themes are yours to make** — full control over all 38 colors and 7 font sizes; **create, save, export, import and share** your own.
 - **Element colors** — recolor the sidebar, accents, panels, links, article text and more, individually.
 - **Font sizes** — independent sizes for article titles, summaries, source names and the reading body.
-- **A grid view sized your way** — card width to the pixel (160–480 px), cards that fill the row or keep exactly that width, and a 16:9, 4:3 or 1:1 image ratio, in *Preferences → Appearance → Sizes*. On a phone the grid always fills the screen.
+- **A grid view sized your way** — card width to the pixel (160–480 px), cards that fill the row or keep exactly that width, and a 16:9, 4:3, 1:1 or portrait 3:4 image ratio, in *Preferences → Appearance → Sizes*. On a phone the grid always fills the screen.
 - **Layout** — resizable columns, density and spacing, date separators, feed icons, toggles for the source label and top bar, and a desktop/mobile switch on tablets.
 - **Row action icons** — show or hide each of the four icons on an article row (favorite, read later, open at source, mark read), one by one, from the *Layout* section.
 - **A sidebar that remembers** — collapsed sections stay collapsed, and feeds with nothing unread can be hidden to declutter long lists.
