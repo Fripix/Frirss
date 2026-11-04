@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import CommandPalette from './CommandPalette';
 import { useUiStore } from '../stores/uiStore';
 import { useFeedStore } from '../stores/feedStore';
 import { useAiStore } from '../stores/aiStore';
 import { AI_TRANSLATE_PROBE, AI_SUMMARIZE_PROBE, answerTranslateProbe } from '../lib/aiTranslateProbe';
+import { useToolbarCommands } from '../lib/toolbarCommands';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
@@ -131,5 +132,30 @@ describe('CommandPalette — Échap', () => {
     document.body.dispatchEvent(ev);
     expect(useUiStore.getState().commandPaletteOpen).toBe(false);
     expect(ev.defaultPrevented).toBe(true);
+  });
+});
+
+describe('CommandPalette — commandes offertes par les barres', () => {
+  function Bar({ run }: { run: (c: string) => void }) {
+    useToolbarCommands(() => [{ command: 'demo', item: 'random', label: 'Demo' }], run);
+    return null;
+  }
+
+  it('liste l’offre sous Actions ; la choisir ferme la palette puis l’exécute', () => {
+    const run = vi.fn(() => { expect(useUiStore.getState().commandPaletteOpen).toBe(false); });
+    // Les barres sont montées bien avant qu'on ouvre la palette.
+    useUiStore.setState({ commandPaletteOpen: false });
+    const { getByText } = render(<><Bar run={run} /><CommandPalette /></>);
+    act(() => { useUiStore.setState({ commandPaletteOpen: true }); });
+    expect(getByText('Demo').closest('button')?.id).toBe('palette-toolbar:demo');
+    fireEvent.click(getByText('Demo'));
+    expect(run).toHaveBeenCalledWith('demo');
+  });
+
+  it('propose d’afficher ou masquer la barre latérale (le ☰ peut être masqué avec la barre de la liste)', () => {
+    useUiStore.setState({ sidebarVisible: false });
+    const { getByText } = render(<CommandPalette />);
+    fireEvent.click(getByText('preferences.shortcuts.toggleSidebar'));
+    expect(useUiStore.getState().sidebarVisible).toBe(true);
   });
 });

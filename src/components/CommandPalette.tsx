@@ -12,6 +12,7 @@ import { displayServers, hostnameOf } from '../lib/serverList';
 import { switchToServer } from '../lib/switchServer';
 import { rankCommands, type Command } from '../lib/commandPalette';
 import { translateWouldAct, summarizeWouldAct } from '../lib/aiTranslateProbe';
+import { probeToolbarCommands, runToolbarCommand } from '../lib/toolbarCommands';
 
 /**
  * Entrée unique : aller à un flux, une étiquette, une vue, ou lancer une
@@ -120,6 +121,8 @@ export default function CommandPalette() {
     const actions: Array<[string, string, () => void]> = [
       ['search', t('articleList.search'), () => window.dispatchEvent(new CustomEvent('frirss:open-search'))],
       ['shortcuts', t('preferences.shortcuts.helpTitle'), () => useUiStore.getState().setShortcutHelpOpen(true)],
+      // Le ☰ vit dans la barre de la liste, masquable : la palette garde la sortie.
+      ['toggleSidebar', t('preferences.shortcuts.toggleSidebar'), () => useUiStore.getState().toggleSidebar()],
       ['layout2', t('articleList.listOnly'), () => setPanelLayout('2')],
       ['layout3', t('articleList.listAndReading'), () => setPanelLayout('3')],
       ['layoutGrid', t('articleList.gridLayout'), () => setPanelLayout('grid')],
@@ -142,6 +145,18 @@ export default function CommandPalette() {
     }
     for (const [id, label, run] of actions) {
       out.push({ id: `action:${id}`, label, group: 'actions', run: () => { close(); run(); } });
+    }
+
+    // Ce que les barres de la liste et du volet offrent (`toolbarCommands.ts`) :
+    // un bouton masqué dans Préférences → Mise en page reste atteignable ici.
+    // Fermer d'abord : « Tout lu » peut ouvrir sa boîte de confirmation.
+    for (const offer of probeToolbarCommands()) {
+      out.push({
+        id: `toolbar:${offer.command}`,
+        label: offer.label,
+        group: 'actions',
+        run: () => { close(); runToolbarCommand(offer.command); },
+      });
     }
 
     return out;

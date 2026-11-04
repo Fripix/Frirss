@@ -7222,6 +7222,21 @@ l'article (IA) »).
   (1.8.1).
   Tests : `CommandPalette.test.tsx`, `ReadingPane.ai.test.tsx` (« answers
   the palette probe », « a probe listener not yet removed »).
+- **Commandes offertes par les barres** (`src/lib/toolbarCommands.ts`,
+  1.9.0) : la barre de la liste et celle du volet de lecture proposent leurs
+  actions à la palette, pour que tout bouton masquable (voir « Barres
+  personnalisables sur desktop ») y reste atteignable. Même principe que la
+  sonde de l'IA, généralisé : à l'ouverture, la palette diffuse la sonde
+  synchrone `frirss:toolbar-probe` ; chaque barre montée y ajoute ses offres
+  `{ command, item, label }` (libellé déjà traduit, celui du bouton) ; choisir
+  une entrée (`toolbar:<command>`) ferme la palette **puis** diffuse
+  `frirss:toolbar-command`, que la barre exécute avec le gestionnaire de son
+  bouton — la confirmation de « Tout lu » comprise. Les offres ne dépendent
+  **pas** de la visibilité du bouton. ⚠️ `useToolbarCommands` n'exécute
+  qu'une commande que la barre offre **au moment de l'événement** : une
+  palette ouverte sur un état périmé ne déclenche rien. Commande statique ajoutée :
+  `action:toggleSidebar` (le ☰ vit dans la barre de la liste, masquable).
+  Tests : `toolbarCommands.test.tsx`, `CommandPalette.test.tsx`.
 - **Rien de nouveau n'est stocké** : la palette assemble ce que les stores
   contiennent déjà. Son état d'ouverture n'est ni persisté ni synchronisé.
 - **Accents repliés** : « securite » atteint « Sécurité ». Sans cela, la moitié
