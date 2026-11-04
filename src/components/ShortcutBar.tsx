@@ -15,9 +15,11 @@ export default function ShortcutBar() {
   const selectedArticle = useFeedStore((s) => s.selectedArticle);
   const aiAvailable = useAiStore(aiUsable);
   const breakpoint = useBreakpoint();
+  const barShown = useUiStore((s) => s.toolbarVisibility.shortcutBar);
 
-  // No keyboard shortcuts bar on touch devices
-  if (breakpoint !== 'desktop') return null;
+  // No keyboard shortcuts bar on touch devices. Sur desktop, masquable depuis
+  // Préférences → Mise en page : le volet et la liste récupèrent sa hauteur.
+  if (breakpoint !== 'desktop' || !barShown) return null;
 
   const context = selectedArticle ? 'reading' : 'list';
   // Un raccourci pour une fonction éteinte n'est que du bruit.

@@ -129,3 +129,15 @@ describe('ShortcutBar — priorité dans la zone rognée', () => {
     expect(context.firstElementChild?.textContent).toContain('preferences.shortcuts.escExitFocus');
   });
 });
+
+describe('ShortcutBar — masquable depuis Préférences → Mise en page', () => {
+  it('masquée, elle ne rend rien ; affichée, elle est là', async () => {
+    const { DEFAULT_TOOLBAR_VISIBILITY } = await import('../lib/toolbarItems');
+    useUiStore.setState({ toolbarVisibility: { ...DEFAULT_TOOLBAR_VISIBILITY, shortcutBar: false } });
+    const hidden = render(<ShortcutBar />);
+    expect(hidden.container.firstChild).toBeNull();
+    hidden.unmount();
+    useUiStore.setState({ toolbarVisibility: { ...DEFAULT_TOOLBAR_VISIBILITY } });
+    expect(render(<ShortcutBar />).container.firstChild).not.toBeNull();
+  });
+});
