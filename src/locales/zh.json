@@ -850,7 +850,9 @@
       "labels": "标签",
       "actions": "操作",
       "servers": "服务器"
-    }
+    },
+    "labelAdd": "添加标签 {{name}}",
+    "labelRemove": "移除标签 {{name}}"
   },
   "dialog": {
     "cancel": "取消",

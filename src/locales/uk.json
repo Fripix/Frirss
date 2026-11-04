@@ -886,7 +886,9 @@
       "labels": "Мітки",
       "actions": "Дії",
       "servers": "Сервери"
-    }
+    },
+    "labelAdd": "Додати мітку {{name}}",
+    "labelRemove": "Прибрати мітку {{name}}"
   },
   "dialog": {
     "cancel": "Скасувати",

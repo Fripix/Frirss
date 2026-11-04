@@ -7234,7 +7234,10 @@ l'article (IA) »).
   bouton — la confirmation de « Tout lu » comprise. Les offres ne dépendent
   **pas** de la visibilité du bouton. ⚠️ `useToolbarCommands` n'exécute
   qu'une commande que la barre offre **au moment de l'événement** : une
-  palette ouverte sur un état périmé ne déclenche rien. Commande statique ajoutée :
+  palette ouverte sur un état périmé ne déclenche rien. Les étiquettes de
+  l'article ouvert s'y posent ou s'y retirent une par une
+  (`palette.labelAdd` / `palette.labelRemove`, même liste que `LabelMenu`).
+  Commande statique ajoutée :
   `action:toggleSidebar` (le ☰ vit dans la barre de la liste, masquable).
   Tests : `toolbarCommands.test.tsx`, `CommandPalette.test.tsx`.
 - **Rien de nouveau n'est stocké** : la palette assemble ce que les stores

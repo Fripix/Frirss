@@ -850,7 +850,9 @@
       "labels": "Etichette",
       "actions": "Azioni",
       "servers": "Server"
-    }
+    },
+    "labelAdd": "Aggiungi l’etichetta {{name}}",
+    "labelRemove": "Rimuovi l’etichetta {{name}}"
   },
   "dialog": {
     "cancel": "Annulla",

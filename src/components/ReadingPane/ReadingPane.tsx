@@ -43,6 +43,9 @@ import { AI_TRANSLATE_PROBE, AI_SUMMARIZE_PROBE, answerTranslateProbe } from '..
 import TranslateMenu from './TranslateMenu';
 import { useLongPress } from '../../hooks/useLongPress';
 import { useToolbarFold } from '../../hooks/useToolbarFold';
+import { useToolbarShown } from '../../hooks/useToolbarShown';
+import { separatorsBefore } from '../../lib/toolbarItems';
+import { useToolbarCommands, type ToolbarOffer } from '../../lib/toolbarCommands';
 import axios from 'axios';
 import { safeHref } from '../../lib/safeHref';
 import { useMenuKeys } from '../../hooks/useMenuKeys';
@@ -1266,11 +1269,87 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // le commentaire de `.toolbar-label` dans index.css). `deps` : tout ce qui
   // change un libellé ou fait apparaître la barre. Avant le retour anticipé
   // ci-dessous (règle des hooks) : d'où `selectedArticle?.` et non `article.`.
+  // Font control targets the mobile-specific size on touch, the (synced)
+  // theme value on desktop — so adjusting on a phone never resizes desktop.
+  const fontVal = isMobileOrTablet ? mobileReadingFontSize : bodySize;
+  const { min: fontMin, max: fontMax } = isMobileOrTablet ? READING_BODY_BOUNDS.touch : READING_BODY_BOUNDS.desktop;
+  const decFont = () => (isMobileOrTablet ? setMobileReadingFontSize(mobileReadingFontSize - 1) : decreaseFont());
+  const incFont = () => (isMobileOrTablet ? setMobileReadingFontSize(mobileReadingFontSize + 1) : increaseFont());
+
+  // Barre personnalisable (Préférences → Mise en page), desktop seulement.
+  // Masquer RETIRE ; les séparateurs suivent les groupes affichés.
+  const shown = useToolbarShown();
+  const { labels: allLabels, toggleArticleLabel } = useFeedStore();
+  const showBackBtn = !!showBack && shown('back');
+  const showReadBtn = shown('read');
+  const showStarBtn = shown('star');
+  const showReadLaterBtn = shown('readLater');
+  const showLabelsBtn = shown('labels');
+  const showFullBtn = !!selectedArticle?.url && shown('fullContent');
+  const showSummarizeBtn = showSummarizeBarBtn && shown('summarize');
+  const showTranslateBtn = aiUsable && shown('translate');
+  const showOriginalBtn = !!safeHref(selectedArticle?.url) && shown('original');
+  const showShareBtn = !!selectedArticle?.url && shown('share');
+  const showFocusBtn = shown('focus');
+  const showFontBtn = shown('fontSize');
+  const markGroup = showReadBtn || showStarBtn || showReadLaterBtn;
+  const toolGroup = showFullBtn || showSummarizeBtn || showTranslateBtn || showOriginalBtn || showShareBtn;
+  const [, sepLabels, sepTools] = separatorsBefore([markGroup, showLabelsBtn, toolGroup]);
+  const readingBarEmpty = !showBackBtn && !markGroup && !showLabelsBtn && !toolGroup && !showFocusBtn && !showFontBtn;
+
+  // Chaque bouton de la barre, masqué ou non, a sa commande dans la palette
+  // (`toolbarCommands.ts`) : mêmes conditions que le bouton, même gestionnaire.
+  // Résumer et Traduire gardent `action:aiSummarize` / `action:aiTranslate`.
+  useToolbarCommands(() => {
+    const a = selectedArticle;
+    if (!a) return [];
+    const offers: ToolbarOffer[] = [
+      { command: 'read', item: 'read', label: t(a.read ? 'preferences.shortcuts.markUnread' : 'preferences.shortcuts.markRead') },
+      { command: 'star', item: 'star', label: t('preferences.shortcuts.toggleStar') },
+      { command: 'readLater', item: 'readLater', label: t('preferences.shortcuts.readLater') },
+      { command: 'focus', item: 'focus', label: t(readingFocus ? 'readingPane.focusExit' : 'readingPane.focusEnter') },
+    ];
+    if (showBack) offers.push({ command: 'back', item: 'back', label: t('readingPane.back') });
+    // Même liste que `LabelMenu` : ni les catégories, ni « À lire plus tard ».
+    for (const label of allLabels) {
+      if (label.id === READ_LATER_LABEL || categoryIds.includes(label.id)) continue;
+      const name = label.id.split('/label/').pop() ?? label.id;
+      const has = !!a.labels?.includes(label.id);
+      offers.push({ command: `label:${label.id}`, item: 'labels', label: t(has ? 'palette.labelRemove' : 'palette.labelAdd', { name }) });
+    }
+    if (a.url && !extracting) {
+      offers.push({ command: 'fullContent', item: 'fullContent', label: extractedContent ? t('readingPane.showRss') : t('readingPane.fullContent') });
+    }
+    if (showTranslatedBody) offers.push({ command: 'showSource', item: 'translate', label: t('ai.showSource') });
+    if (safeHref(a.url)) offers.push({ command: 'original', item: 'original', label: t('preferences.shortcuts.openOriginal') });
+    if (a.url) offers.push({ command: 'share', item: 'share', label: canNativeShare ? t('readingPane.share') : t('readingPane.copyLink') });
+    if (fontVal > fontMin) offers.push({ command: 'fontDown', item: 'fontSize', label: t('sidebar.reduceText') });
+    if (fontVal < fontMax) offers.push({ command: 'fontUp', item: 'fontSize', label: t('sidebar.enlargeText') });
+    return offers;
+  }, (command) => {
+    const a = selectedArticle;
+    if (!a) return;
+    if (command === 'read') void toggleRead(a);
+    else if (command === 'star') void toggleStar(a);
+    else if (command === 'readLater') void toggleReadLater(a);
+    else if (command === 'focus') toggleReadingFocus();
+    else if (command === 'back') selectArticle(null);
+    else if (command.startsWith('label:')) void toggleArticleLabel(a, command.slice('label:'.length));
+    else if (command === 'fullContent') {
+      if (extractedContent) { setExtractedContent(null); lastExtractedId.current = null; } else void handleExtract();
+    }
+    else if (command === 'showSource') tr.showSource();
+    else if (command === 'original') { const href = safeHref(a.url); if (href) window.open(href, '_blank', 'noopener,noreferrer'); }
+    else if (command === 'share') void shareArticle(a);
+    else if (command === 'fontDown') decFont();
+    else if (command === 'fontUp') incFont();
+  });
+
   const toolbarRef = useRef<HTMLDivElement>(null);
   useToolbarFold(toolbarRef, [
     !!selectedArticle, isMobileOrTablet, aiUsable, showSummarizeBarBtn,
     articleTranslationState, showTranslatedBody, extracting, extractedContent,
-    selectedArticle?.read, selectedArticle?.starred, i18n.language,
+    selectedArticle?.read, selectedArticle?.starred, i18n.language, shown,
   ]);
 
   if (!selectedArticle) {
@@ -1363,12 +1442,6 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     setFontSize('reading-body', String(clampReadingBody(bodySize + 1, false)));
   }
 
-  // Font control targets the mobile-specific size on touch, the (synced)
-  // theme value on desktop — so adjusting on a phone never resizes desktop.
-  const fontVal = isMobileOrTablet ? mobileReadingFontSize : bodySize;
-  const { min: fontMin, max: fontMax } = isMobileOrTablet ? READING_BODY_BOUNDS.touch : READING_BODY_BOUNDS.desktop;
-  const decFont = () => (isMobileOrTablet ? setMobileReadingFontSize(mobileReadingFontSize - 1) : decreaseFont());
-  const incFont = () => (isMobileOrTablet ? setMobileReadingFontSize(mobileReadingFontSize + 1) : increaseFont());
 
   // Ce que le volet montre : l'extraction si elle est là, sinon le contenu du
   // flux — qui est DÉJÀ en mémoire, arrivé avec la liste. Le squelette ne
@@ -1436,7 +1509,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     >
       {/* Mobile: no top toolbar — actions live in the bottom bar. Just a thin
           progress line at the very top. */}
-      {isMobileOrTablet && readProgress > 0 && (
+      {/* Aussi sur desktop quand tous les boutons du volet sont masqués :
+          la barre n'est plus rendue, la progression reste. */}
+      {(isMobileOrTablet || readingBarEmpty) && readProgress > 0 && (
         <div
           className="reading-progress absolute top-0 left-0 z-10"
           style={{ width: `${readProgress}%` }}
@@ -1444,7 +1519,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       )}
 
       {/* Sticky toolbar (desktop) */}
-      {!isMobileOrTablet && (
+      {!isMobileOrTablet && !readingBarEmpty && (
       <div
         ref={toolbarRef}
         className="reading-toolbar flex-shrink-0 px-2 md:px-4 py-1.5 flex items-center gap-1 relative overflow-x-auto min-h-[45px]"
@@ -1454,7 +1529,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         }}
       >
         {/* Back (2-panel mode) */}
-        {showBack && (
+        {showBackBtn && (
           <button
             onClick={() => selectArticle(null)}
             className="toolbar-icon-btn p-1.5 rounded-lg transition-colors hover-tint mr-1"
@@ -1473,7 +1548,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         {!isMobileOrTablet && (
           <>
         {/* Mark read / unread */}
-        <ActionBtn
+        {showReadBtn && <ActionBtn
           icon={article.read ? (
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
@@ -1487,10 +1562,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           active={!article.read}
           activeColor="var(--accent)"
           onClick={() => toggleRead(article)}
-        />
+        />}
 
-        {/* Star */}
-        <ActionBtn
+        {/* Star — l'appui long (classer) disparaît avec le bouton. */}
+        {showStarBtn && <ActionBtn
           icon={
             <svg
               className="w-4 h-4"
@@ -1508,10 +1583,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           highlight
           onClick={() => toggleStar(article)}
           onFile={(a) => setFiling({ prefix: STARRED_PREFIX, ...a })}
-        />
+        />}
 
         {/* Read Later */}
-        <ActionBtn
+        {showReadLaterBtn && <ActionBtn
           icon={
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1523,17 +1598,17 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           highlight
           onClick={() => toggleReadLater(article)}
           onFile={(a) => setFiling({ prefix: READ_LATER_PREFIX, ...a })}
-        />
+        />}
 
-        <ToolbarSeparator />
+        {sepLabels && <ToolbarSeparator />}
 
         {/* Labels */}
-        <LabelMenu article={article} />
+        {showLabelsBtn && <LabelMenu article={article} />}
 
-        <ToolbarSeparator />
+        {sepTools && <ToolbarSeparator />}
 
         {/* Extract full content */}
-        {article.url && (
+        {showFullBtn && (
           <button
             onClick={extractedContent ? () => { setExtractedContent(null); lastExtractedId.current = null; } : handleExtract}
             disabled={extracting}
@@ -1558,7 +1633,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </button>
         )}
 
-        {showSummarizeBarBtn && (
+        {showSummarizeBtn && (
           <button
             type="button"
             onClick={summarizeFromBar}
@@ -1575,7 +1650,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
         {/* Traduire l'article — bouton scindé : l'action, et un chevron qui
             ouvre « Traduire en… » / « Traduire avec… ». */}
-        {aiUsable && (
+        {showTranslateBtn && (
           <div className="action-split inline-flex items-center flex-shrink-0">
             <button
               type="button"
@@ -1623,7 +1698,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         )}
 
         {/* Open original — seulement une URL http(s) (`safeHref`) */}
-        {safeHref(article.url) && (
+        {showOriginalBtn && (
           <a
             href={safeHref(article.url)}
             target="_blank"
@@ -1643,7 +1718,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         )}
 
         {/* Partager / copier le lien */}
-        {article.url && (
+        {showShareBtn && (
           <button
             onClick={() => shareArticle(article)}
             className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
@@ -1662,7 +1737,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         <div className="toolbar-spacer flex-1 min-w-0" />
 
         {/* Reading Focus toggle (hide sidebar + list) */}
-        <button
+        {showFocusBtn && <button
           onClick={toggleReadingFocus}
           className="toolbar-icon-btn p-1.5 rounded-lg transition-colors hover-tint flex-shrink-0"
           style={{ color: readingFocus ? 'var(--accent)' : 'var(--list-summary)' }}
@@ -1677,10 +1752,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0L15 15M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15" />
             )}
           </svg>
-        </button>
+        </button>}
 
         {/* Font size — inline A-/A+ (desktop only) */}
-        <div className="flex items-center gap-0.5 flex-shrink-0">
+        {showFontBtn && <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             onClick={decFont}
             className="toolbar-icon-btn p-1 rounded transition-colors hover-tint"
@@ -1711,7 +1786,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </button>
-        </div>
+        </div>}
           </>
         )}
 

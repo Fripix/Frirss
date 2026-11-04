@@ -850,7 +850,9 @@
       "labels": "Labels",
       "actions": "Aktionen",
       "servers": "Server"
-    }
+    },
+    "labelAdd": "Label {{name}} hinzufügen",
+    "labelRemove": "Label {{name}} entfernen"
   },
   "dialog": {
     "cancel": "Abbrechen",
