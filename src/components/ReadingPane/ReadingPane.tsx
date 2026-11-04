@@ -1305,8 +1305,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     if (!a) return [];
     const offers: ToolbarOffer[] = [
       { command: 'read', item: 'read', label: t(a.read ? 'preferences.shortcuts.markUnread' : 'preferences.shortcuts.markRead') },
-      { command: 'star', item: 'star', label: t('preferences.shortcuts.toggleStar') },
-      { command: 'readLater', item: 'readLater', label: t('preferences.shortcuts.readLater') },
+      { command: 'star', item: 'star', label: t(a.starred ? 'articleRow.removeStar' : 'articleRow.addStar') },
+      { command: 'readLater', item: 'readLater', label: t(a.labels?.includes(READ_LATER_LABEL) ? 'articleRow.removeReadLater' : 'palette.readLaterAdd') },
+      // Créer une étiquette : la palette ne la propose qu'avec un nom saisi
+      // (`palette.labelCreate`). Sans elle, masquer « Étiquettes » rendait
+      // impossible toute étiquette nouvelle — greader n'en crée qu'en posant.
+      { command: 'newLabel', item: 'labels', label: t('palette.labelCreate', { name: '' }) },
       { command: 'focus', item: 'focus', label: t(readingFocus ? 'readingPane.focusExit' : 'readingPane.focusEnter') },
     ];
     if (showBack) offers.push({ command: 'back', item: 'back', label: t('readingPane.back') });
@@ -1326,7 +1330,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     if (fontVal > fontMin) offers.push({ command: 'fontDown', item: 'fontSize', label: t('sidebar.reduceText') });
     if (fontVal < fontMax) offers.push({ command: 'fontUp', item: 'fontSize', label: t('sidebar.enlargeText') });
     return offers;
-  }, (command) => {
+  }, (command, arg) => {
     const a = selectedArticle;
     if (!a) return;
     if (command === 'read') void toggleRead(a);
@@ -1335,6 +1339,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     else if (command === 'focus') toggleReadingFocus();
     else if (command === 'back') selectArticle(null);
     else if (command.startsWith('label:')) void toggleArticleLabel(a, command.slice('label:'.length));
+    else if (command === 'newLabel' && arg?.trim()) void toggleArticleLabel(a, `user/-/label/${arg.trim()}`);
     else if (command === 'fullContent') {
       if (extractedContent) { setExtractedContent(null); lastExtractedId.current = null; } else void handleExtract();
     }
@@ -1350,6 +1355,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     !!selectedArticle, isMobileOrTablet, aiUsable, showSummarizeBarBtn,
     articleTranslationState, showTranslatedBody, extracting, extractedContent,
     selectedArticle?.read, selectedArticle?.starred, i18n.language, shown,
+    // La barre se démonte et se remonte quand elle se vide ou se remplit
+    // (Retour seul visible et passage en 2 colonnes, article sans URL…) :
+    // sans ceci, la nouvelle barre ne recevait jamais son repli.
+    readingBarEmpty, showBack,
   ]);
 
   if (!selectedArticle) {

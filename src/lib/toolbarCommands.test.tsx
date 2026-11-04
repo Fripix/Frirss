@@ -24,7 +24,7 @@ describe('bus de commandes des barres', () => {
     const runB = vi.fn();
     render(<><Bar offers={[a]} run={runA} /><Bar offers={[b]} run={runB} /></>);
     runToolbarCommand('b');
-    expect(runB).toHaveBeenCalledWith('b');
+    expect(runB).toHaveBeenCalledWith('b', undefined);
     expect(runA).not.toHaveBeenCalled();
   });
 
@@ -40,5 +40,12 @@ describe('bus de commandes des barres', () => {
     const { unmount } = render(<Bar offers={[a]} run={vi.fn()} />);
     unmount();
     expect(probeToolbarCommands()).toEqual([]);
+  });
+
+  it('transmet un argument à la commande (nom d’une nouvelle étiquette)', () => {
+    const run = vi.fn();
+    render(<Bar offers={[a]} run={run} />);
+    runToolbarCommand('a', 'Neuve');
+    expect(run).toHaveBeenCalledWith('a', 'Neuve');
   });
 });

@@ -32,9 +32,12 @@ export function probeToolbarCommands(): ToolbarOffer[] {
   return detail.offers;
 }
 
-/** Côté palette : exécuter une commande offerte. */
-export function runToolbarCommand(command: string): void {
-  window.dispatchEvent(new CustomEvent(COMMAND, { detail: { command } }));
+/**
+ * Côté palette : exécuter une commande offerte. `arg` porte ce que la palette
+ * a saisi pour elle (le nom d'une nouvelle étiquette).
+ */
+export function runToolbarCommand(command: string, arg?: string): void {
+  window.dispatchEvent(new CustomEvent(COMMAND, { detail: { command, arg } }));
 }
 
 /**
@@ -44,7 +47,7 @@ export function runToolbarCommand(command: string): void {
  * l'événement : une palette ouverte sur un état périmé (article changé,
  * « Tout lu » devenu impossible) ne déclenche rien.
  */
-export function useToolbarCommands(getOffers: () => ToolbarOffer[], run: (command: string) => void): void {
+export function useToolbarCommands(getOffers: () => ToolbarOffer[], run: (command: string, arg?: string) => void): void {
   const offersRef = useRef(getOffers);
   const runRef = useRef(run);
   useEffect(() => {
@@ -56,8 +59,8 @@ export function useToolbarCommands(getOffers: () => ToolbarOffer[], run: (comman
       (e as CustomEvent<{ offers: ToolbarOffer[] }>).detail.offers.push(...offersRef.current());
     };
     const onCommand = (e: Event) => {
-      const { command } = (e as CustomEvent<{ command: string }>).detail;
-      if (offersRef.current().some((o) => o.command === command)) runRef.current(command);
+      const { command, arg } = (e as CustomEvent<{ command: string; arg?: string }>).detail;
+      if (offersRef.current().some((o) => o.command === command)) runRef.current(command, arg);
     };
     window.addEventListener(PROBE, onProbe);
     window.addEventListener(COMMAND, onCommand);

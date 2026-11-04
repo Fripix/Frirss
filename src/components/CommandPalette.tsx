@@ -151,6 +151,8 @@ export default function CommandPalette() {
     // un bouton masqué dans Préférences → Mise en page reste atteignable ici.
     // Fermer d'abord : « Tout lu » peut ouvrir sa boîte de confirmation.
     for (const offer of probeToolbarCommands()) {
+      // « Créer l'étiquette » dépend de la saisie : ajoutée plus bas.
+      if (offer.command === 'newLabel') continue;
       out.push({
         id: `toolbar:${offer.command}`,
         label: offer.label,
@@ -162,7 +164,25 @@ export default function CommandPalette() {
     return out;
   }, [open, subscriptions, labels, unreadCounts, servers, activeServerId, serverUrl, hasOpenArticle, aiAvailable, t, setOpen, setPanelLayout, openPreferences]);
 
-  const results = useMemo(() => rankCommands(commands, query), [commands, query]);
+  // Le volet de lecture accepte-t-il une étiquette nouvelle ? (sonde à l'ouverture)
+  const canCreateLabel = useMemo(
+    () => open && hasOpenArticle && probeToolbarCommands().some((o) => o.command === 'newLabel'),
+    [open, hasOpenArticle],
+  );
+  const results = useMemo(() => {
+    const ranked = rankCommands(commands, query);
+    const name = query.trim();
+    // Un nom tapé qui n'est pas déjà une étiquette : le créer sur l'article
+    // ouvert. Le seul chemin quand le bouton « Étiquettes » est masqué.
+    const exists = labels.some((l) => (l.id.split('/label/').pop() ?? '').toLowerCase() === name.toLowerCase());
+    if (!canCreateLabel || !name || exists) return ranked;
+    return [...ranked, {
+      id: 'toolbar:newLabel',
+      label: t('palette.labelCreate', { name }),
+      group: 'actions',
+      run: () => { setOpen(false); runToolbarCommand('newLabel', name); },
+    }];
+  }, [commands, query, canCreateLabel, labels, t, setOpen]);
 
   // Repartir du haut à chaque frappe : le curseur d'une liste précédente n'a
   // aucun sens sur la suivante.

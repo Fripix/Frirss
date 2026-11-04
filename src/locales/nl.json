@@ -890,7 +890,13 @@
       "servers": "Servers"
     },
     "labelAdd": "Label {{name}} toevoegen",
-    "labelRemove": "Label {{name}} verwijderen"
+    "labelRemove": "Label {{name}} verwijderen",
+    "readLaterAdd": "Toevoegen aan Later lezen",
+    "filterUnreadOn": "Alleen ongelezen tonen",
+    "filterUnreadOff": "Ook gelezen artikelen tonen",
+    "filterStarredOn": "Alleen favorieten tonen",
+    "filterStarredOff": "Alle artikelen tonen",
+    "labelCreate": "Label {{name}} aanmaken"
   },
   "dialog": {
     "cancel": "Annuleren",

@@ -158,4 +158,34 @@ describe('barre du volet — commandes offertes à la palette', () => {
     act(() => { runToolbarCommand('focus'); });
     expect(useUiStore.getState().readingFocus).toBe(true);
   });
+
+  it('Favori et À lire plus tard disent ce qu’ils vont faire', async () => {
+    const label = (cmd: string) => probeToolbarCommands().find((o) => o.command === cmd)?.label;
+    await show();
+    expect(label('star')).toBe('articleRow.addStar');
+    expect(label('readLater')).toBe('palette.readLaterAdd');
+    cleanup();
+    await show({ art: article({ starred: true, labels: ['user/-/state/com.google/read-later', 'user/-/label/À lire plus tard'] }) });
+    expect(label('star')).toBe('articleRow.removeStar');
+  });
+
+  it('une étiquette qui n’existe pas encore se crée depuis la palette', async () => {
+    const spy = vi.fn(async () => {});
+    useFeedStore.setState({ toggleArticleLabel: spy } as never);
+    await show({ hidden: ['labels'] });
+    expect(commands()).toContain('newLabel');
+    act(() => { runToolbarCommand('newLabel', '  Neuve '); });
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1' }), 'user/-/label/Neuve');
+  });
+});
+
+describe('barre du volet — repli des libellés après un remontage', () => {
+  it('la barre qui réapparaît (Retour seul visible, passage en 2 colonnes) reçoit son repli', async () => {
+    const hidden = READING.filter((id) => id !== 'back');
+    const c = await show({ hidden });
+    expect(toolbar()).toBeNull();
+    c.rerender(<ReadingPane showBack />);
+    await act(async () => { await Promise.resolve(); });
+    expect((toolbar() as HTMLElement).dataset.fold).toBe('0');
+  });
 });

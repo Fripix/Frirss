@@ -194,4 +194,17 @@ describe('les commandes offertes à la palette', () => {
     act(() => { runToolbarCommand('starredFilter'); });
     expect(useFeedStore.getState().filter).toBe('starred');
   });
+
+  it('les filtres disent ce qu’ils vont faire, selon leur état (et ne se confondent pas avec les vues)', () => {
+    const label = (cmd: string) => probeToolbarCommands().find((o) => o.command === cmd)?.label;
+    show();
+    expect(label('unreadFilter')).toBe('palette.filterUnreadOn');
+    expect(label('starredFilter')).toBe('palette.filterStarredOn');
+    cleanup();
+    show({ state: { filter: 'unread' } });
+    expect(label('unreadFilter')).toBe('palette.filterUnreadOff');
+    cleanup();
+    show({ state: { filter: 'starred' } });
+    expect(label('starredFilter')).toBe('palette.filterStarredOff');
+  });
 });

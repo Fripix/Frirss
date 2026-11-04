@@ -7311,7 +7311,16 @@ l'article (IA) »).
   qu'une commande que la barre offre **au moment de l'événement** : une
   palette ouverte sur un état périmé ne déclenche rien. Les étiquettes de
   l'article ouvert s'y posent ou s'y retirent une par une
-  (`palette.labelAdd` / `palette.labelRemove`, même liste que `LabelMenu`).
+  (`palette.labelAdd` / `palette.labelRemove`, même liste que `LabelMenu`) ;
+  un nom tapé qui n'est pas déjà une étiquette propose « Créer l'étiquette … »
+  (`palette.labelCreate`, offre `newLabel`, le nom passe en argument de
+  `runToolbarCommand`) — sans lui, masquer « Étiquettes » rendait toute
+  étiquette nouvelle impossible, greader n'en créant qu'en la posant. Les
+  libellés disent l'effet selon l'état : « Afficher seulement les non-lus » /
+  « Afficher aussi les articles lus » (`palette.filter*`), « Ajouter aux
+  favoris » / « Retirer des favoris », « Ajouter à À lire plus tard » — et
+  non « Non lus » ou « Favoris », noms des vues, qu'un filtre masqué ne
+  montrerait nulle part ailleurs.
   Commande statique ajoutée :
   `action:toggleSidebar` (le ☰ vit dans la barre de la liste, masquable).
   Tests : `toolbarCommands.test.tsx`, `CommandPalette.test.tsx`.

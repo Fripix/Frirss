@@ -890,7 +890,13 @@
       "servers": "Server"
     },
     "labelAdd": "Label {{name}} hinzufügen",
-    "labelRemove": "Label {{name}} entfernen"
+    "labelRemove": "Label {{name}} entfernen",
+    "readLaterAdd": "Zu „Später lesen“ hinzufügen",
+    "filterUnreadOn": "Nur ungelesene anzeigen",
+    "filterUnreadOff": "Auch gelesene Artikel anzeigen",
+    "filterStarredOn": "Nur Favoriten anzeigen",
+    "filterStarredOff": "Alle Artikel anzeigen",
+    "labelCreate": "Label {{name}} erstellen"
   },
   "dialog": {
     "cancel": "Abbrechen",

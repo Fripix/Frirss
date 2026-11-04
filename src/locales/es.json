@@ -890,7 +890,13 @@
       "servers": "Servidores"
     },
     "labelAdd": "Añadir la etiqueta {{name}}",
-    "labelRemove": "Quitar la etiqueta {{name}}"
+    "labelRemove": "Quitar la etiqueta {{name}}",
+    "readLaterAdd": "Añadir a Leer más tarde",
+    "filterUnreadOn": "Mostrar solo los no leídos",
+    "filterUnreadOff": "Mostrar también los leídos",
+    "filterStarredOn": "Mostrar solo los favoritos",
+    "filterStarredOff": "Mostrar todos los artículos",
+    "labelCreate": "Crear la etiqueta {{name}}"
   },
   "dialog": {
     "cancel": "Cancelar",

@@ -890,7 +890,13 @@
       "servers": "Servers"
     },
     "labelAdd": "Add tag {{name}}",
-    "labelRemove": "Remove tag {{name}}"
+    "labelRemove": "Remove tag {{name}}",
+    "readLaterAdd": "Add to Read later",
+    "filterUnreadOn": "Show unread only",
+    "filterUnreadOff": "Also show read articles",
+    "filterStarredOn": "Show favorites only",
+    "filterStarredOff": "Show all articles",
+    "labelCreate": "Create tag {{name}}"
   },
   "dialog": {
     "cancel": "Cancel",

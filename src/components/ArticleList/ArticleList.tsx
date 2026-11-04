@@ -814,8 +814,10 @@ export default function ArticleList() {
   const densityModes: Array<[string, string]> = [['preview', 'viewMode.preview'], ['simple', 'viewMode.standard'], ['compact', 'viewMode.compact']];
   useToolbarCommands(() => {
     const offers: ToolbarOffer[] = [
-      { command: 'unreadFilter', item: 'unreadFilter', label: t('articleList.unread') },
-      { command: 'starredFilter', item: 'starredFilter', label: t('articleList.starred') },
+      // Pas « Non lus » / « Favoris » : ce sont aussi les noms des vues, et un
+      // filtre masqué ne montre son état nulle part ailleurs.
+      { command: 'unreadFilter', item: 'unreadFilter', label: t(filter === 'unread' ? 'palette.filterUnreadOff' : 'palette.filterUnreadOn') },
+      { command: 'starredFilter', item: 'starredFilter', label: t(filter === 'starred' ? 'palette.filterStarredOff' : 'palette.filterStarredOn') },
       { command: 'optSource', item: 'optSource', label: optionLabel('articleList.feedSource') },
       { command: 'optFavicons', item: 'optFavicons', label: optionLabel('articleList.listFavicons') },
       { command: 'optDateSeparators', item: 'optDateSeparators', label: optionLabel('articleList.dateSeparators') },

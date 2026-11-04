@@ -926,7 +926,13 @@
       "servers": "Сервери"
     },
     "labelAdd": "Додати мітку {{name}}",
-    "labelRemove": "Прибрати мітку {{name}}"
+    "labelRemove": "Прибрати мітку {{name}}",
+    "readLaterAdd": "Додати до «Прочитати пізніше»",
+    "filterUnreadOn": "Показувати лише непрочитані",
+    "filterUnreadOff": "Показувати й прочитані",
+    "filterStarredOn": "Показувати лише обране",
+    "filterStarredOff": "Показувати всі статті",
+    "labelCreate": "Створити мітку {{name}}"
   },
   "dialog": {
     "cancel": "Скасувати",

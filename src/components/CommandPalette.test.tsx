@@ -149,7 +149,7 @@ describe('CommandPalette — commandes offertes par les barres', () => {
     act(() => { useUiStore.setState({ commandPaletteOpen: true }); });
     expect(getByText('Demo').closest('button')?.id).toBe('palette-toolbar:demo');
     fireEvent.click(getByText('Demo'));
-    expect(run).toHaveBeenCalledWith('demo');
+    expect(run).toHaveBeenCalledWith('demo', undefined);
   });
 
   it('propose d’afficher ou masquer la barre latérale (le ☰ peut être masqué avec la barre de la liste)', () => {
@@ -157,5 +157,35 @@ describe('CommandPalette — commandes offertes par les barres', () => {
     const { getByText } = render(<CommandPalette />);
     fireEvent.click(getByText('preferences.shortcuts.toggleSidebar'));
     expect(useUiStore.getState().sidebarVisible).toBe(true);
+  });
+});
+
+describe('CommandPalette — créer une étiquette depuis la saisie', () => {
+  function Pane({ run }: { run: (c: string, arg?: string) => void }) {
+    useToolbarCommands(() => [{ command: 'newLabel', item: 'labels', label: 'palette.labelCreate' }], run);
+    return null;
+  }
+  const open = (run: (c: string, arg?: string) => void) => {
+    useUiStore.setState({ commandPaletteOpen: false });
+    useFeedStore.setState({ labels: [{ id: 'user/-/label/Tech' }] } as never);
+    const c = render(<><Pane run={run} /><CommandPalette /></>);
+    act(() => { useUiStore.setState({ commandPaletteOpen: true }); });
+    return c;
+  };
+  const input = (c: ReturnType<typeof render>) => c.getByRole('combobox');
+
+  it('propose « Créer l’étiquette » pour un nom tapé, et le transmet', () => {
+    const run = vi.fn();
+    const c = open(run);
+    fireEvent.change(input(c), { target: { value: 'Neuve' } });
+    fireEvent.click(c.getByText('palette.labelCreate'));
+    expect(run).toHaveBeenCalledWith('newLabel', 'Neuve');
+  });
+
+  it('rien sans saisie, rien pour une étiquette qui existe déjà', () => {
+    const c = open(vi.fn());
+    expect(c.queryByText('palette.labelCreate')).toBeNull();
+    fireEvent.change(input(c), { target: { value: 'tech' } });
+    expect(c.queryByText('palette.labelCreate')).toBeNull();
   });
 });

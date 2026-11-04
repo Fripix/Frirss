@@ -890,7 +890,13 @@
       "servers": "Server"
     },
     "labelAdd": "Aggiungi l’etichetta {{name}}",
-    "labelRemove": "Rimuovi l’etichetta {{name}}"
+    "labelRemove": "Rimuovi l’etichetta {{name}}",
+    "readLaterAdd": "Aggiungi a Leggi più tardi",
+    "filterUnreadOn": "Mostra solo i non letti",
+    "filterUnreadOff": "Mostra anche gli articoli letti",
+    "filterStarredOn": "Mostra solo i preferiti",
+    "filterStarredOff": "Mostra tutti gli articoli",
+    "labelCreate": "Crea l’etichetta {{name}}"
   },
   "dialog": {
     "cancel": "Annulla",
