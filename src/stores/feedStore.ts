@@ -31,6 +31,7 @@ import {
   type Corpus, type CorpusEntry, type ArticlePatch,
 } from '../lib/searchCorpus';
 import { canMarkAllRead } from '../lib/markAllRead';
+import { afterReadChange, afterMembershipChange, type SpecialUnread } from '../lib/specialUnread';
 import { useAuthStore } from './authStore';
 import { jwtUserId } from '../lib/jwtUserId';
 import { isBackendAuthFailure } from '../lib/loginErrors';
@@ -665,6 +666,35 @@ let skipNextArrivals = false;
 // `unreadCounts` qu'APRÈS la confirmation du serveur, jamais avant.
 let readWritesInFlight = 0;
 
+// Même garde, pour les non-lus des Favoris et d'« À lire plus tard »
+// (`loadSpecialCounts`). Le relevé est écarté si un geste les a changés
+// pendant son vol (`specialEpoch`, posé à l'écriture optimiste ET à son
+// règlement), ou si une écriture était déjà en vol à son départ : le serveur
+// répondrait alors avec l'état d'avant le geste. Les ✓ passent par
+// `readWritesInFlight` / `countsEpoch` ci-dessus ; étoile et « plus tard »,
+// qui ne touchent pas `unreadCounts`, ont leur propre paire pour ne pas
+// priver la pastille « nouveaux articles » d'un relevé.
+let specialEpoch = 0;
+let specialWritesInFlight = 0;
+
+/** Le relevé des non-lus des deux listes, gardé comme décrit ci-dessus. */
+async function loadSpecialUnread(set: (p: { specialUnread: SpecialUnread }) => void): Promise<void> {
+  if (!useUiStore.getState().showSpecialUnread) return;
+  const scope = offlineScope();
+  const reading = beginCountsReading();
+  const special = { epoch: specialEpoch, inFlight: specialWritesInFlight > 0 };
+  try {
+    const [starred, readLater] = await Promise.all([
+      getStreamItemCount('user/-/state/com.google/starred', 1000, { excludeRead: true }),
+      getStreamItemCount(READ_LATER_LABEL, 1000, { excludeRead: true }),
+    ]);
+    if (offlineScope() !== scope) return;
+    if (reading.epoch !== countsEpoch || reading.writeWasInFlight) return;
+    if (special.epoch !== specialEpoch || special.inFlight) return;
+    set({ specialUnread: { starred, readLater } });
+  } catch { /* garde la dernière valeur */ }
+}
+
 /**
  * Remet à l'état neutre l'état module-level de la garde anti-fausse-arrivée
  * de la pastille « nouveaux articles ». N'existe QUE pour l'isolation des
@@ -843,6 +873,8 @@ export interface FeedState {
   categoryIds: string[];
   starredCount: number;
   readLaterCount: number;
+  /** Non-lus des deux listes (réglage `showSpecialUnread`) — voir `src/lib/specialUnread.ts`. */
+  specialUnread: SpecialUnread;
   feedErrors: Record<string, number>;
   // Le dernier chargement de la vue a échoué sans liste de secours : la liste
   // vide n'est pas un « tout est lu », elle le dit (`listBodyState`).
@@ -1330,6 +1362,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   categoryIds: [],
   starredCount: 0,
   readLaterCount: 0,
+  specialUnread: { starred: 0, readLater: 0 },
   offlinePrep: null,
   syncing: false,
   feedErrors: {}, // { [feedId]: timestamp } — tracks feeds that errored on load
@@ -1397,6 +1430,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         a.id === article.id ? { ...a, read: true } : a
       ),
       unreadCounts: updateCount(state.unreadCounts, article, -1),
+      specialUnread: afterReadChange(state.specialUnread, article, -1),
     }));
     bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
     memMarkRead(article.id, true);
@@ -1425,6 +1459,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             ? { ...state.selectedArticle, read: false }
             : state.selectedArticle,
         unreadCounts: updateCount(state.unreadCounts, article, 1),
+        specialUnread: afterReadChange(state.specialUnread, article, 1),
       }));
       bumpCountsEpoch(); // écriture locale (rollback) — voir la garde en tête de fichier
       memMarkRead(article.id, false);
@@ -1561,6 +1596,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   loadSpecialCounts: async () => {
     const scope = offlineScope(); // la réponse d'un serveur quitté n'a rien à dire ici
+    // Indépendant du total ci-dessous : son échec garde la dernière valeur
+    // connue (hors ligne, un « 0 » mentirait), et rien n'est demandé tant que
+    // le réglage est éteint.
+    const unreadTask = loadSpecialUnread(set);
     try {
       const empty: GReaderStream = { items: [], continuation: null };
       const [starred, readLater] = await Promise.all([
@@ -1573,6 +1612,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         readLaterCount: readLater?.items.length ?? 0,
       });
     } catch { /* ignore */ }
+    await unreadTask;
   },
 
   // Warm one feed's default view (first page) into the memory cache, so opening
@@ -2068,6 +2108,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             ? { ...state.selectedArticle, read: newRead }
             : state.selectedArticle,
         unreadCounts: updateCount(state.unreadCounts, article, newRead ? -1 : 1),
+        specialUnread: afterReadChange(state.specialUnread, article, newRead ? -1 : 1),
       };
     });
     bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
@@ -2159,6 +2200,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
               ? { ...state.selectedArticle, read: !newRead }
               : state.selectedArticle,
           unreadCounts: updateCount(state.unreadCounts, article, newRead ? 1 : -1),
+          specialUnread: afterReadChange(state.specialUnread, article, newRead ? 1 : -1),
         };
       });
       bumpCountsEpoch(); // écriture locale (rollback) — voir la garde en tête de fichier
@@ -2207,16 +2249,24 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           ? { ...state.selectedArticle, starred: newStarred }
           : state.selectedArticle,
       starredCount: Math.max(0, state.starredCount + (newStarred ? 1 : -1)),
+      specialUnread: afterMembershipChange(state.specialUnread, article, 'starred', newStarred),
     }));
+    specialEpoch++; // écriture locale — voir la garde de `loadSpecialCounts`
     persistCurrentView(get);
     // Le corpus gardé suit l'optimisme, comme sur `toggleRead`.
     patchSearchCorpus(article.id, { starred: newStarred });
     const g = gesture();
     try {
-      if (newStarred) {
-        await markAsStarred(article.id);
-      } else {
-        await removeStarred(article.id);
+      specialWritesInFlight++;
+      try {
+        if (newStarred) {
+          await markAsStarred(article.id);
+        } else {
+          await removeStarred(article.id);
+        }
+      } finally {
+        specialWritesInFlight--;
+        specialEpoch++; // règlement (succès ou échec)
       }
       await settleAction(set, g, article, 'star', newStarred).catch(() => {});
     } catch (err) {
@@ -2238,6 +2288,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             ? { ...state.selectedArticle, starred: !newStarred }
             : state.selectedArticle,
         starredCount: Math.max(0, state.starredCount + (newStarred ? -1 : 1)),
+        specialUnread: afterMembershipChange(state.specialUnread, article, 'starred', !newStarred),
       }));
       persistCurrentView(get);
       // Rollback : le corpus revient avec la ligne.
@@ -2480,6 +2531,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         };
       });
       bumpCountsEpoch(); // écriture locale — voir la garde en tête de fichier
+      // Les favoris touchés sont inconnus d'ici : le relevé, parti APRÈS
+      // l'accord du serveur et l'epoch posé, lit l'état juste.
+      void loadSpecialUnread(set);
       // Un « tout lu » touche trop d'articles pour être répercuté un par un ; le
       // corpus gardé deviendrait faux en bloc. Hors de la vue demandée, le
       // corpus et la recherche sont ceux de la nouvelle vue : on n'y touche pas
@@ -2853,15 +2907,23 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         articles: state.articles.map(update),
         selectedArticle: state.selectedArticle ? update(state.selectedArticle) : null,
         readLaterCount: Math.max(0, state.readLaterCount + (removing ? -1 : 1)),
+        specialUnread: afterMembershipChange(state.specialUnread, article, 'readLater', !removing),
       };
     });
+    specialEpoch++; // écriture locale — voir la garde de `loadSpecialCounts`
     persistCurrentView(get);
     // Le corpus gardé suit l'optimisme, comme sur `toggleRead` — calculé sur
     // l'entrée courante, comme le rollback ci-dessous.
     patchSearchCorpus(article.id, (a) => ({ labels: withLabel(a.labels, READ_LATER_LABEL, !removing) }));
     const g = gesture();
     try {
-      await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
+      specialWritesInFlight++;
+      try {
+        await setArticleLabel(article.id, READ_LATER_LABEL, !hasLabel);
+      } finally {
+        specialWritesInFlight--;
+        specialEpoch++; // règlement (succès ou échec)
+      }
       await settleAction(set, g, article, 'readLater', !hasLabel).catch(() => {});
       // Le retrait vient APRÈS la confirmation, jamais avant : le rollback
       // ci-dessous ne fait qu'un `.map()` et ne saurait pas remettre une ligne
@@ -2898,6 +2960,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           articles: state.articles.map(update),
           selectedArticle: state.selectedArticle ? update(state.selectedArticle) : null,
           readLaterCount: Math.max(0, state.readLaterCount + (removing ? 1 : -1)),
+          specialUnread: afterMembershipChange(state.specialUnread, article, 'readLater', !!removing),
         };
       });
       persistCurrentView(get);
@@ -3591,6 +3654,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       categoryIds: [],
       starredCount: 0,
       readLaterCount: 0,
+      specialUnread: { starred: 0, readLater: 0 },
       feedErrors: {},
       listFailed: false,
       // A refresh in flight belongs to the server we are leaving; its loop

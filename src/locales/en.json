@@ -353,7 +353,9 @@
       "resetColorsMessage": "Every tag loses its custom color.",
       "confirmDeleteMessage": "Articles that carry it aren’t deleted: they just lose this tag.",
       "deleteFailed": "Couldn’t delete the tag.",
-      "renameFailed": "Couldn’t rename the tag."
+      "renameFailed": "Couldn’t rename the tag.",
+      "showSpecialTotals": "Show the total for Favorites and Read later",
+      "showSpecialUnread": "Show unread for Favorites and Read later"
     },
     "themes": {
       "presets": "Presets",

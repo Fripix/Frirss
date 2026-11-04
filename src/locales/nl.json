@@ -353,7 +353,9 @@
       "resetColorsMessage": "Alle labels verliezen hun eigen kleur.",
       "confirmDeleteMessage": "Artikelen met dit label worden niet verwijderd: ze verliezen alleen dit label.",
       "deleteFailed": "Het label kon niet worden verwijderd.",
-      "renameFailed": "Het label kon niet worden hernoemd."
+      "renameFailed": "Het label kon niet worden hernoemd.",
+      "showSpecialTotals": "Totaal tonen voor Favorieten en Later lezen",
+      "showSpecialUnread": "Ongelezen tonen voor Favorieten en Later lezen"
     },
     "themes": {
       "presets": "Voorinstellingen",

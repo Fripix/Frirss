@@ -353,7 +353,9 @@
       "resetColorsMessage": "Tutte le etichette perdono il loro colore personalizzato.",
       "confirmDeleteMessage": "Gli articoli che la portano non vengono eliminati: perdono solo questa etichetta.",
       "deleteFailed": "Impossibile eliminare l’etichetta.",
-      "renameFailed": "Impossibile rinominare l’etichetta."
+      "renameFailed": "Impossibile rinominare l’etichetta.",
+      "showSpecialTotals": "Mostra il totale di Preferiti e Leggi più tardi",
+      "showSpecialUnread": "Mostra i non letti di Preferiti e Leggi più tardi"
     },
     "themes": {
       "presets": "Preimpostazioni",

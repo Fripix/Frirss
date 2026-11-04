@@ -353,7 +353,9 @@
       "resetColorsMessage": "Alle Labels verlieren ihre eigene Farbe.",
       "confirmDeleteMessage": "Artikel mit diesem Label werden nicht gelöscht, sie verlieren nur das Label.",
       "deleteFailed": "Das Label konnte nicht gelöscht werden.",
-      "renameFailed": "Das Label konnte nicht umbenannt werden."
+      "renameFailed": "Das Label konnte nicht umbenannt werden.",
+      "showSpecialTotals": "Gesamtzahl für Favoriten und Später lesen anzeigen",
+      "showSpecialUnread": "Ungelesene für Favoriten und Später lesen anzeigen"
     },
     "themes": {
       "presets": "Voreinstellungen",

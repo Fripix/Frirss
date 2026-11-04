@@ -203,11 +203,16 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
   const dragProps = { dragId, setDragId, dropTarget, setDropTarget, onDrop: handleDrop, onDragCleanup: cleanup };
 
   if (labels.length === 0) {
+    // Favoris et À lire plus tard existent sans aucune étiquette : leurs
+    // réglages restent atteignables.
     return (
-      <div className="text-center py-8">
-        <p className="text-sm" style={{ color: 'var(--list-summary)' }}>
-          {t('preferences.labels.noLabels')}. {t('preferences.labels.noLabelsHint')}
-        </p>
+      <div className="space-y-3">
+        <SpecialCountsToggles />
+        <div className="text-center py-8">
+          <p className="text-sm" style={{ color: 'var(--list-summary)' }}>
+            {t('preferences.labels.noLabels')}. {t('preferences.labels.noLabelsHint')}
+          </p>
+        </div>
       </div>
     );
   }
@@ -244,6 +249,8 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
           ariaLabel={t('preferences.labels.showCounts')}
         />
       </div>
+
+      <SpecialCountsToggles />
 
       {/* Standalone labels — always rendered to prevent layout shift during drag */}
       <div>
@@ -939,5 +946,33 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Favoris et À lire plus tard : total et non-lus, deux réglages indépendants
+ * (le relevé des non-lus part de la sidebar, qui écoute le réglage). À 320 px
+ * le libellé passe à la ligne, l'interrupteur garde sa taille.
+ */
+function SpecialCountsToggles() {
+  const { t } = useTranslation();
+  const { showSpecialTotals, setShowSpecialTotals, showSpecialUnread, setShowSpecialUnread } = useUiStore();
+  const rows = [
+    ['showSpecialTotals', showSpecialTotals, setShowSpecialTotals],
+    ['showSpecialUnread', showSpecialUnread, setShowSpecialUnread],
+  ] as const;
+  return (
+    <>
+      {rows.map(([key, checked, setChecked]) => (
+        <div key={key} className="flex items-center justify-between gap-3 select-none">
+          <span className="text-[11px] min-w-0" style={{ color: 'var(--list-summary)' }}>
+            {t(`preferences.labels.${key}`)}
+          </span>
+          <span className="shrink-0">
+            <ToggleSwitch checked={checked} onChange={setChecked} ariaLabel={t(`preferences.labels.${key}`)} />
+          </span>
+        </div>
+      ))}
+    </>
   );
 }

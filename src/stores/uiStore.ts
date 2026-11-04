@@ -245,6 +245,12 @@ export interface UiState {
   setLabelSortAlpha: (v: boolean) => void;
   showLabelCounts: boolean;
   setShowLabelCounts: (v: boolean) => void;
+  /** Total des Favoris et d'« À lire plus tard » dans la sidebar (le chiffre historique). */
+  showSpecialTotals: boolean;
+  setShowSpecialTotals: (v: boolean) => void;
+  /** Non-lus des Favoris et d'« À lire plus tard », indépendant du total. */
+  showSpecialUnread: boolean;
+  setShowSpecialUnread: (v: boolean) => void;
   // Hide feeds (and now-empty categories) that have no unread articles.
   hideReadFeeds: boolean;
   toggleHideReadFeeds: () => void;
@@ -641,6 +647,16 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setShowLabelCounts: (v) => {
     localStorage.setItem('frirss_showLabelCounts', JSON.stringify(v));
     set({ showLabelCounts: v });
+  },
+  showSpecialTotals: loadJson('frirss_showSpecialTotals', true),
+  setShowSpecialTotals: (v) => {
+    localStorage.setItem('frirss_showSpecialTotals', JSON.stringify(v));
+    set({ showSpecialTotals: v });
+  },
+  showSpecialUnread: loadJson('frirss_showSpecialUnread', false),
+  setShowSpecialUnread: (v) => {
+    localStorage.setItem('frirss_showSpecialUnread', JSON.stringify(v));
+    set({ showSpecialUnread: v });
   },
 
   // Show only feeds with unread articles (declutters large feed lists).
@@ -1273,7 +1289,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
     // JSON keys — state field name matches the localStorage suffix
     const jsonKeys = [
       'showFavicons', 'topbarVisible', 'categoryOrder', 'feedOrder',
-      'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showDateSeparators', 'gridDateSeparators',
+      'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showSpecialTotals', 'showSpecialUnread', 'showDateSeparators', 'gridDateSeparators',
       'showSourceInFeed', 'showSourceInAll', 'feedSettings', 'shortcuts',
       'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',
       'confirmMarkAllRead', 'markReadOnScroll', 'showNewArticlesPill', 'showListFavicons', 'offlineImagePreset', 'inlineVideos', 'refreshHintDismissed',
@@ -1316,6 +1332,8 @@ export const useUiStore = create<UiState>()((set, get) => ({
           : k === 'aiCategoryAutoTranslate' || k === 'aiCategoryAutoSummary' || k === 'aiCategoryPanel' || k === 'aiCategoryAutoSummaryTranslate'
             ? normalizeAiCategoryBooleans(prefs[k])
           : k === 'aiPanelAlways' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiPanelAlways)
+          : k === 'showSpecialTotals' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().showSpecialTotals)
+          : k === 'showSpecialUnread' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().showSpecialUnread)
           // Like autoExtractDefault: a non-boolean leaves the current value alone.
           : k === 'shortcuts' ? withDefaultShortcuts(prefs[k])
           : k === 'aiFallback' ? (typeof prefs[k] === 'boolean' ? prefs[k] : get().aiFallback)
@@ -1347,7 +1365,7 @@ export function isUnreadOnly(key: string): boolean {
 // 2/3-column layout and sidebar visibility stay local to each device).
 export const UI_SYNC_KEYS = [
   'viewMode', 'showFavicons', 'topbarVisible',
-  'categoryOrder', 'feedOrder', 'labelOrder', 'labelSortAlpha', 'showLabelCounts',
+  'categoryOrder', 'feedOrder', 'labelOrder', 'labelSortAlpha', 'showLabelCounts', 'showSpecialTotals', 'showSpecialUnread',
   'showDateSeparators', 'gridDateSeparators', 'showSourceInFeed', 'showSourceInAll',
   'feedSettings', 'appTitle', 'appLogo', 'logoMode', 'shortcuts',
   'labelsCollapsed', 'savedCollapsed', 'savedCategoryNames', 'collapsedLabelGroups', 'collapsedCategories', 'unreadOnlyByFeed', 'unreadOnlyScope', 'unreadOnlyAll', 'hideReadFeeds',

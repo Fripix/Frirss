@@ -20,6 +20,12 @@ la release publiée.
 
 - **Un format d'image portrait pour la grille.** Préférences → Apparence →
   Tailles propose maintenant 3:4 à côté de 16:9, 4:3 et 1:1 (issue #26).
+- **Les non-lus des Favoris et d'À lire plus tard.** Préférences → Étiquettes
+  propose deux réglages indépendants : le total d'aujourd'hui (activé par
+  défaut, pastille inchangée) et le nombre de non-lus, avec la pastille des
+  flux (désactivé par défaut). Les deux peuvent s'afficher ensemble. En réponse
+  à l'issue #29, qui le demandait pour les étiquettes : celles-ci gardent leur
+  total, qu'on peut toujours masquer.
 
 ## Corrections et améliorations
 

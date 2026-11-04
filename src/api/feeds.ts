@@ -126,11 +126,18 @@ export async function getStarredItems(
 /**
  * Count items in a stream cheaply via the IDs-only endpoint (no article
  * content fetched). Returns the number of IDs returned, capped at `cap`.
+ * `excludeRead` ne compte que les non-lus (`xt`, comme `getUnreadItemIds`).
  */
-export async function getStreamItemCount(streamId: string, cap = 1000): Promise<number> {
+export async function getStreamItemCount(
+  streamId: string,
+  cap = 1000,
+  opts: { excludeRead?: boolean } = {},
+): Promise<number> {
+  const params: Record<string, string | number> = { output: 'json', s: streamId, n: cap };
+  if (opts.excludeRead) params.xt = 'user/-/state/com.google/read';
   const { data } = await client.get<{ itemRefs?: { id: string }[] }>(
     `${BASE}/stream/items/ids`,
-    { params: { output: 'json', s: streamId, n: cap } }
+    { params }
   );
   expectJson(data);
   return data.itemRefs?.length ?? 0;

@@ -353,7 +353,9 @@
       "resetColorsMessage": "Todas las etiquetas pierden su color personalizado.",
       "confirmDeleteMessage": "Los artículos que la llevan no se eliminan: solo pierden esta etiqueta.",
       "deleteFailed": "No se pudo eliminar la etiqueta.",
-      "renameFailed": "No se pudo renombrar la etiqueta."
+      "renameFailed": "No se pudo renombrar la etiqueta.",
+      "showSpecialTotals": "Mostrar el total de Favoritos y Leer más tarde",
+      "showSpecialUnread": "Mostrar los no leídos de Favoritos y Leer más tarde"
     },
     "themes": {
       "presets": "Preajustes",

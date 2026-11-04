@@ -353,7 +353,9 @@
       "resetColorsMessage": "Toutes les étiquettes perdent leur couleur personnalisée.",
       "confirmDeleteMessage": "Les articles qui la portent ne sont pas supprimés : ils perdent seulement cette étiquette.",
       "deleteFailed": "La suppression de l’étiquette a échoué.",
-      "renameFailed": "Le renommage de l’étiquette a échoué."
+      "renameFailed": "Le renommage de l’étiquette a échoué.",
+      "showSpecialTotals": "Afficher le total des Favoris et d’À lire plus tard",
+      "showSpecialUnread": "Afficher les non-lus des Favoris et d’À lire plus tard"
     },
     "themes": {
       "presets": "Préréglages",

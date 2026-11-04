@@ -361,7 +361,9 @@
       "resetColorsMessage": "Wszystkie etykiety tracą swój własny kolor.",
       "confirmDeleteMessage": "Artykuły z tą etykietą nie zostaną usunięte, stracą tylko tę etykietę.",
       "deleteFailed": "Nie udało się usunąć etykiety.",
-      "renameFailed": "Nie udało się zmienić nazwy etykiety."
+      "renameFailed": "Nie udało się zmienić nazwy etykiety.",
+      "showSpecialTotals": "Pokaż łączną liczbę w Ulubionych i Do przeczytania później",
+      "showSpecialUnread": "Pokaż nieprzeczytane w Ulubionych i Do przeczytania później"
     },
     "themes": {
       "presets": "Gotowe motywy",

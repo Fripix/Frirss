@@ -781,3 +781,18 @@ describe('uiStore — cartes de la grille (#26)', () => {
     expect(useUiStore.getState().gridImageRatio).toBe('16:9');
   });
 });
+
+describe('compteurs de Favoris et d’À lire plus tard (issue #29)', () => {
+  it('persistent, se synchronisent, et un non-booléen ne change rien', () => {
+    useUiStore.setState({ showSpecialTotals: true, showSpecialUnread: false });
+    useUiStore.getState().setShowSpecialUnread(true);
+    useUiStore.getState().setShowSpecialTotals(false);
+    expect(localStorage.getItem('frirss_showSpecialUnread')).toBe('true');
+    expect(localStorage.getItem('frirss_showSpecialTotals')).toBe('false');
+    expect(UI_SYNC_KEYS).toEqual(expect.arrayContaining(['showSpecialTotals', 'showSpecialUnread']));
+    useUiStore.getState().applyServerPrefs({ showSpecialTotals: true, showSpecialUnread: false });
+    expect(useUiStore.getState()).toMatchObject({ showSpecialTotals: true, showSpecialUnread: false });
+    useUiStore.getState().applyServerPrefs({ showSpecialTotals: 'oui', showSpecialUnread: 1 });
+    expect(useUiStore.getState()).toMatchObject({ showSpecialTotals: true, showSpecialUnread: false });
+  });
+});

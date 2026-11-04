@@ -353,7 +353,9 @@
       "resetColorsMessage": "所有标签都会失去自定义颜色。",
       "confirmDeleteMessage": "带有此标签的文章不会被删除，只是失去这个标签。",
       "deleteFailed": "无法删除标签。",
-      "renameFailed": "无法重命名标签。"
+      "renameFailed": "无法重命名标签。",
+      "showSpecialTotals": "显示收藏和稍后阅读的总数",
+      "showSpecialUnread": "显示收藏和稍后阅读的未读数"
     },
     "themes": {
       "presets": "预设",

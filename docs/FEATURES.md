@@ -5036,6 +5036,47 @@ noms créés par l'utilisateur vivent dans les préférences synchronisées
   quelle que soit la langue de l'interface, par cohérence avec l'identifiant déjà
   en dur pour cette étiquette.
 
+### Compteurs de Favoris et d'À lire plus tard
+Deux réglages **indépendants** dans **Préférences › Étiquettes**, sous
+« Afficher le nombre d'articles » (celui des étiquettes, inchangé) et visibles
+même sans aucune étiquette (1.8.1, en réponse à l'issue #29) :
+
+- **« Afficher le total des Favoris et d'À lire plus tard »** (activé par
+  défaut) : le chiffre historique, dans sa pastille colorée d'origine
+  (`SpecialBadge`, `--sidebar-star` / `--sidebar-readlater`). Calcul inchangé :
+  `loadSpecialCounts` compte les articles d'un `stream/contents` à `n=200`,
+  donc **plafonné à 200**, et le remet à 0 si la requête échoue.
+- **« Afficher les non-lus des Favoris et d'À lire plus tard »** (désactivé par
+  défaut) : le nombre d'articles non lus de chaque liste, avec la **pastille des
+  flux** (`UnreadBadge` : forme, couleurs, animation, « N non lus » pour un
+  lecteur d'écran). Relevé par identifiants seulement
+  (`getStreamItemCount(…, { excludeRead: true })`, `xt=…/read`, plafond 1000),
+  et **seulement quand le réglage est allumé** ; allumer le réglage (ici ou sur
+  un autre appareil) relance le relevé depuis la sidebar.
+- **Les deux ensemble** : les non-lus d'abord, puis le total, rapprochés
+  (`gap-1.5`) pour se lire comme une paire.
+
+- **Où** : `src/lib/specialUnread.ts` (calculs purs, testés),
+  `feedStore.specialUnread` / `loadSpecialUnread`, `uiStore.showSpecialTotals` /
+  `showSpecialUnread` (synchronisés, sauvegardés), `SpecialCountsToggles` dans
+  `LabelsTab.tsx`, `FilterItem` de `Sidebar.tsx`
+- **Tenue entre deux relevés** : chaque geste sur UN article ajuste le chiffre
+  tout de suite et l'annulation sur refus le rend — ✓ et ouverture d'un article
+  (`afterReadChange`), étoile et « plus tard » (`afterMembershipChange` : seul un
+  non-lu compte). Les **marquages en masse** ne savent pas quels favoris ils ont
+  touchés : « tout lu » relance le relevé après l'accord du serveur, les plages
+  et l'annulation de « tout lu » passent par `syncCounts`, qui le relance.
+- ⚠️ **Un relevé est écarté** s'il a pu lire l'état d'avant un geste : écriture
+  locale pendant son vol, ou écriture déjà en vol à son départ (`countsEpoch` /
+  `readWritesInFlight` pour les ✓, `specialEpoch` / `specialWritesInFlight`
+  pour l'étoile et « plus tard », séparés pour ne pas priver la pastille
+  « nouveaux articles » d'un relevé). Un échec réseau **garde la dernière
+  valeur** : hors ligne, un 0 mentirait.
+- **Tests** : `src/lib/specialUnread.test.ts`,
+  `src/stores/feedStore.specialUnread.test.ts`,
+  `src/components/Sidebar/FilterItem.badges.test.tsx`,
+  `src/components/Preferences/LabelsTab.specialCounts.test.tsx`, `uiStore.test.ts`.
+
 ---
 
 ## Relève des flux

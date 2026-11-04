@@ -15,6 +15,7 @@ import { useUiStore } from '../../stores/uiStore';
 import type { ArticleOrder } from '../../lib/effectiveOrder';
 import { homeUnreadTotal } from '../../lib/mainStream';
 import { homeEntryActive } from '../../lib/unreadScope';
+import { specialRowCounts } from '../../lib/specialUnread';
 import { useThemeStore } from '../../stores/themeStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useLongPress } from '../../hooks/useLongPress';
@@ -58,12 +59,24 @@ export default function Sidebar() {
     toggleArticleLabel,
     starredCount,
     readLaterCount,
+    specialUnread,
+    loadSpecialCounts,
     renameFeed,
     removeFeed,
   } = useFeedStore();
   const serverUrl = useAuthStore((s) => s.serverUrl);
   const logout = useAuthStore((s) => s.logout);
   const unreadOnlyScope = useUiStore((s) => s.unreadOnlyScope);
+  const showSpecialTotals = useUiStore((s) => s.showSpecialTotals);
+  const showSpecialUnread = useUiStore((s) => s.showSpecialUnread);
+  const specialPrefs = { showTotals: showSpecialTotals, showUnread: showSpecialUnread };
+  const starredRow = specialRowCounts(starredCount, specialUnread.starred, specialPrefs);
+  const readLaterRow = specialRowCounts(readLaterCount, specialUnread.readLater, specialPrefs);
+  // Réglage allumé ici ou arrivé d'un autre appareil : le relevé part tout de
+  // suite plutôt qu'au prochain passage de `syncCounts`.
+  useEffect(() => {
+    if (showSpecialUnread) void loadSpecialCounts();
+  }, [showSpecialUnread, loadSpecialCounts]);
   const {
     showFavicons,
     toggleFavicons,
@@ -471,7 +484,8 @@ export default function Sidebar() {
           }
           label={t('sidebar.starred')}
           active={filter === 'starred' && !selectedFeed}
-          badge={starredCount}
+          count={starredRow.count}
+          badge={starredRow.badge}
           badgeColor="var(--sidebar-star)"
           onClick={() => selectView(null, 'starred')}
           onArticleDrop={(article) => {
@@ -491,7 +505,8 @@ export default function Sidebar() {
           }
           label={t('sidebar.readLater')}
           active={filter === 'readlater' && !selectedFeed}
-          badge={readLaterCount}
+          count={readLaterRow.count}
+          badge={readLaterRow.badge}
           badgeColor="var(--sidebar-readlater)"
           onClick={() => selectView(null, 'readlater')}
           onArticleDrop={(article) => {
@@ -1400,7 +1415,7 @@ interface FilterItemProps {
   hasChildren?: boolean;
 }
 
-function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, onArticleDrop, onContextMenu, onToggleCollapse, collapsed, hasChildren }: FilterItemProps) {
+export function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, onArticleDrop, onContextMenu, onToggleCollapse, collapsed, hasChildren }: FilterItemProps) {
   const { t } = useTranslation();
   const [dragOver, setDragOver] = useState(false);
 
@@ -1459,8 +1474,15 @@ function FilterItem({ icon, label, active, count, badge, badgeColor, onClick, on
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
         )}
-        {!dragOver && (count ?? 0) > 0 && <UnreadBadge count={count ?? 0} />}
-        {!dragOver && !count && (badge ?? 0) > 0 && <SpecialBadge count={badge ?? 0} color={badgeColor} />}
+        {/* Favoris et À lire plus tard peuvent porter les deux : les non-lus
+            (pastille des flux) puis le total (pastille colorée d'origine),
+            rapprochés pour se lire comme une paire. */}
+        {!dragOver && ((count ?? 0) > 0 || (badge ?? 0) > 0) && (
+          <span className="flex-shrink-0 flex items-center gap-1.5">
+            {(count ?? 0) > 0 && <UnreadBadge count={count ?? 0} />}
+            {(badge ?? 0) > 0 && <SpecialBadge count={badge ?? 0} color={badgeColor} />}
+          </span>
+        )}
       </button>
       {/* Chevron sits in the left padding, absolutely positioned: putting it in
           the flow (either side) would shift the icon or the unread count. */}
