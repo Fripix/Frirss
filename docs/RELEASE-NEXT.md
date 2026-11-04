@@ -26,6 +26,14 @@ la release publiée.
   flux (désactivé par défaut). Les deux peuvent s'afficher ensemble. En réponse
   à l'issue #29, qui le demandait pour les étiquettes : celles-ci gardent leur
   total, qu'on peut toujours masquer.
+- **Des barres d'outils à son goût, sur ordinateur.** Préférences → Mise en
+  page → Sur ordinateur permet de masquer chaque bouton de la barre de la liste
+  et de celle du volet de lecture, la barre de la liste entière et la barre des
+  raccourcis. Rien ne se perd : chaque bouton masqué reste dans la palette de
+  commandes (Ctrl/⌘ K), qui gagne au passage les filtres, « Tout lu », les
+  options d'affichage, la densité, les actions de l'article (étiquettes
+  comprises) et l'affichage de la barre latérale. Tablette et téléphone ne
+  changent pas.
 
 ## Corrections et améliorations
 

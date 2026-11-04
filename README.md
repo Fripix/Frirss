@@ -112,6 +112,7 @@ Almost everything is yours to tweak:
 - **A grid view sized your way** — card width to the pixel (160–480 px), cards that fill the row or keep exactly that width, and a 16:9, 4:3, 1:1 or portrait 3:4 image ratio, in *Preferences → Appearance → Sizes*. On a phone the grid always fills the screen.
 - **Layout** — resizable columns, density and spacing, date separators, feed icons, toggles for the source label and top bar, and a desktop/mobile switch on tablets.
 - **Row action icons** — show or hide each of the four icons on an article row (favorite, read later, open at source, mark read), one by one, from the *Layout* section.
+- **Toolbars your way, on computers** — hide any button of the list toolbar or the reading pane toolbar, the whole list toolbar, or the shortcut bar, from *Preferences → Layout*. Every hidden button stays one keystroke away in the command palette (Ctrl/⌘ K).
 - **A sidebar that remembers** — collapsed sections stay collapsed, and feeds with nothing unread can be hidden to declutter long lists.
 - **Categories & feeds** — rename or delete a category and move feeds between categories, right from the preferences.
 - **Tags & sub-tags** — a nestable tagging system: create, rename, color, drag to organize, group under parents, with an article count on each tag.

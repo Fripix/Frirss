@@ -561,7 +561,45 @@
       "ssoUnlinked": "Account ontkoppeld van {{provider}}.",
       "ssoUnlinkFailed": "Het account kon niet worden ontkoppeld."
     },
-    "tooLarge": "Uw instellingen overschrijden de grootte die de server toestaat: de laatste wijzigingen blijven op dit apparaat. Een lichter logo of minder thema's maakt ruimte vrij."
+    "tooLarge": "Uw instellingen overschrijden de grootte die de server toestaat: de laatste wijzigingen blijven op dit apparaat. Een lichter logo of minder thema's maakt ruimte vrij.",
+    "toolbars": {
+      "desktopTitle": "Op de computer",
+      "desktopHint": "Kies welke knoppen en balken worden getoond. Een verborgen knop blijft beschikbaar in het opdrachtenpalet ({{key}}). Favoriet of Later lezen verbergen in het leesvenster schakelt ook hun lang indrukken uit.",
+      "desktopOnly": "Deze instellingen gelden alleen voor de computerweergave.",
+      "listBar": "Lijstbalk",
+      "listBarWhole": "Lijstbalk tonen",
+      "readingBar": "Leesvenster",
+      "shortcutBar": "Sneltoetsbalk",
+      "shortcutBarWhole": "Sneltoetsbalk tonen",
+      "showAll": "Alles weer tonen",
+      "everywhereTitle": "Op elk scherm",
+      "serverBar": "Serverbalk",
+      "items": {
+        "search": "Zoeken",
+        "unreadFilter": "Ongelezen",
+        "random": "Willekeurig",
+        "starredFilter": "Favorieten",
+        "markAllRead": "Alles gelezen",
+        "optSource": "Feednaam",
+        "optFavicons": "Feedpictogrammen",
+        "optDateSeparators": "Datumscheidingen",
+        "optServerBar": "Knop van de serverbalk",
+        "density": "Dichtheid (Voorbeeld / Standaard / Compact)",
+        "layout": "Indeling (Lijst / Naast elkaar / Raster)",
+        "back": "Terug",
+        "read": "Gelezen / Ongelezen",
+        "star": "Favoriet",
+        "readLater": "Later lezen",
+        "labels": "Labels",
+        "fullContent": "Volledig artikel",
+        "summarize": "Samenvatten",
+        "translate": "Vertalen",
+        "original": "Origineel",
+        "share": "Delen",
+        "focus": "Focusmodus (volledige breedte)",
+        "fontSize": "Tekstgrootte (A− / A+)"
+      }
+    }
   },
   "login": {
     "welcome": "Welkom bij FriRSS",

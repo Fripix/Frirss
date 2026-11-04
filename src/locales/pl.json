@@ -579,7 +579,45 @@
       "ssoUnlinked": "Konto odłączone od {{provider}}.",
       "ssoUnlinkFailed": "Nie udało się odłączyć konta."
     },
-    "tooLarge": "Twoje ustawienia przekraczają rozmiar dozwolony przez serwer: ostatnie zmiany pozostają na tym urządzeniu. Lżejsze logo lub mniej motywów zwolni miejsce."
+    "tooLarge": "Twoje ustawienia przekraczają rozmiar dozwolony przez serwer: ostatnie zmiany pozostają na tym urządzeniu. Lżejsze logo lub mniej motywów zwolni miejsce.",
+    "toolbars": {
+      "desktopTitle": "Na komputerze",
+      "desktopHint": "Wybierz, które przyciski i paski są widoczne. Ukryty przycisk pozostaje dostępny w palecie poleceń ({{key}}). Ukrycie Ulubionych lub Przeczytaj później w panelu czytania usuwa też ich długie naciśnięcie.",
+      "desktopOnly": "Te ustawienia dotyczą tylko widoku komputerowego.",
+      "listBar": "Pasek listy",
+      "listBarWhole": "Pokaż pasek listy",
+      "readingBar": "Panel czytania",
+      "shortcutBar": "Pasek skrótów",
+      "shortcutBarWhole": "Pokaż pasek skrótów",
+      "showAll": "Pokaż wszystko ponownie",
+      "everywhereTitle": "Na każdym ekranie",
+      "serverBar": "Pasek serwerów",
+      "items": {
+        "search": "Szukaj",
+        "unreadFilter": "Nieprzeczytane",
+        "random": "Losowo",
+        "starredFilter": "Ulubione",
+        "markAllRead": "Oznacz wszystkie",
+        "optSource": "Nazwa kanału",
+        "optFavicons": "Ikony kanałów",
+        "optDateSeparators": "Separatory dat",
+        "optServerBar": "Przycisk paska serwerów",
+        "density": "Gęstość (Podgląd / Standardowy / Kompaktowy)",
+        "layout": "Rozmieszczenie (Lista / Obok siebie / Siatka)",
+        "back": "Wstecz",
+        "read": "Przeczytane / Nieprzeczytane",
+        "star": "Ulubione",
+        "readLater": "Do przeczytania później",
+        "labels": "Etykiety",
+        "fullContent": "Pełny artykuł",
+        "summarize": "Podsumuj",
+        "translate": "Przetłumacz",
+        "original": "Oryginał",
+        "share": "Udostępnij",
+        "focus": "Tryb skupienia (pełna szerokość)",
+        "fontSize": "Rozmiar tekstu (A− / A+)"
+      }
+    }
   },
   "login": {
     "welcome": "Witamy w FriRSS",

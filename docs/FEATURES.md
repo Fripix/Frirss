@@ -942,6 +942,8 @@ non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
   français dans toutes les langues, l'aide-mémoire « Esc » quand les
   Préférences disaient « Échap » ; et l'infobulle « Masquer la barre
   latérale » écrivait « (B) » en dur, faux après une réassignation.
+- **Masquable** (1.9.0) depuis Préférences → Mise en page → Sur ordinateur,
+  d'un seul interrupteur (voir « Barres personnalisables sur desktop »).
 - **Barre du bas** : les deux entrées globales — palette (⌘K / Ctrl+K) et
   aide-mémoire (`?`) — sont poussées à droite derrière un séparateur et leur
   touche est en accent. Elles ne sont ni réassignables ni contextuelles,
@@ -1185,6 +1187,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   image qui ne charge pas prend le **même repli lettre** qu'une carte sans
   image (il laissait une case vide), retenu par URL dans `ArticleCard` ; dans
   la liste, la vignette en échec disparaît et le texte prend la place.
+- **En-tête personnalisable sur desktop** (1.9.0) : chaque bouton, et la
+  barre entière, se masquent depuis Préférences → Mise en page ; voir
+  « Barres personnalisables sur desktop » (règles des séparateurs et de la
+  zone de recherche).
 - **En-tête** : titre à 15-16 px (il était à 14 px, noyé au milieu de huit
   icônes de même poids) et compte de non-lus de la vue à côté. Le compte n'est
   affiché que pour un flux et pour « tous les flux » : favoris, à lire plus
@@ -2870,6 +2876,10 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   `<svg>`**, silencieusement. Une icône SVG dans le HTML d'un article ressort
   vide — dessiner ces icônes en CSS. Ne **pas** élargir le profil : le HTML des
   articles vient de sources non fiables.
+- **Barre d'action (desktop) personnalisable** (1.9.0) : chacun des douze
+  boutons se masque depuis Préférences → Mise en page ; sans aucun bouton,
+  la barre disparaît et la progression passe en liseré en haut. Voir
+  « Barres personnalisables sur desktop ».
 - **Barre d'action (desktop) — libellés insécables, repli en icônes mesuré**
   : les libellés des boutons (Non lu, Favori, Plus tard, Étiquettes, Article
   complet, Original, Partager, Résumer, Traduire) ne se coupent jamais
@@ -6150,7 +6160,13 @@ pour les administrateurs.
 - **Synchronisation** : les préférences logiques sont synchronisées par le serveur
   (`UI_SYNC_KEYS`) ; les préférences géométriques — largeurs de panneaux,
   visibilité de la barre latérale — restent locales à chaque appareil.
-- **Mise en page** (`src/components/Preferences/LayoutTab.tsx`) : quatre
+- **Mise en page** (`src/components/Preferences/LayoutTab.tsx`) : deux
+  groupes. **« Sur ordinateur »** règle les barres du format desktop (voir
+  « Barres personnalisables sur desktop » ci-dessous). **« Sur tous les
+  écrans »** porte la barre des serveurs (`topbarVisible`, la même bascule que
+  dans la piste d'options) et les icônes d'une ligne, qui valent pour tous les
+  formats et le restent : les ranger sous « Sur ordinateur » laisserait croire
+  le contraire. Les icônes d'une ligne : quatre
   interrupteurs, un par icône de la barre d'actions d'une ligne d'article
   (favori, à lire plus tard, ouvrir à la source, ✓) — toutes actives par
   défaut. Un seul objet en stockage (`useUiStore(s => s.rowActions)`,
@@ -6160,11 +6176,11 @@ pour les administrateurs.
   Décocher une icône **retire** son emplacement (les autres se resserrent) ;
   c'est différent de l'absence par article (ex. « ouvrir à la source » sans
   URL source), qui **réserve** l'emplacement au lieu de le retirer — voir
-  `rowActionSlots()` plus haut. Cette section ne règle QUE les outils
-  affichés sur la ligne : ni les boutons du volet de lecture (qui gardent les
-  leurs, indépendamment), ni la piste d'options en tête de liste (source,
-  favicons, séparateurs de dates, barre — qui règle le CONTENU montré par la
-  ligne, pas les OUTILS qu'elle propose).
+  `rowActionSlots()` plus haut. Ces quatre interrupteurs ne règlent QUE les
+  outils affichés sur la ligne : ni les boutons du volet de lecture (réglés à
+  part, sur desktop seulement), ni l'état des options de la piste en tête de
+  liste (source, favicons, séparateurs de dates, barre — qui règlent le
+  CONTENU montré par la ligne, pas les OUTILS qu'elle propose).
   - **Piège — deux des quatre interrupteurs emportent un geste avec eux.**
     Masquer « Favori » ou « À lire plus tard » retire aussi l'appui long (et le
     clic droit) qui classe un article dans une catégorie depuis la liste : le
@@ -6182,6 +6198,65 @@ pour les administrateurs.
     la restauration synchronisée (`applyServerPrefs`) — exactement le même
     piège, et le même remède, que `normalizeImagePreset` pour
     `offlineImagePreset`.
+
+- **Barres personnalisables sur desktop** (1.9.0, *Préférences → Mise en
+  page → Sur ordinateur*) : chaque bouton de la barre de la liste (11 :
+  Rechercher, Non lus, Aléatoire, Favoris, Tout lu, les quatre bascules de la
+  piste d'options, la densité, la disposition), la barre de la liste
+  **entière**, chaque bouton du volet de lecture (12 : Retour, Lu/Non lu,
+  Favori, À lire plus tard, Étiquettes, Article complet, Résumer, Traduire,
+  Original, Partager, Mode Focus, A−/A+) et la barre des raccourcis se
+  masquent. Tout est visible par défaut. Spec :
+  `docs/superpowers/specs/2026-11-04-desktop-toolbar-visibility-design.md`.
+  - **Où** : registre pur `src/lib/toolbarItems.ts` (`TOOLBAR_ITEMS`, un
+    élément = une ligne ; `normalizeToolbarVisibility`, `resetToolbarZone`,
+    `separatorsBefore`) ; `useToolbarShown()` (`src/hooks/`) ; un seul objet
+    `toolbarVisibility` (`frirss_toolbarVisibility`, `setToolbarVisible`,
+    `resetToolbarZone`), dans `UI_SYNC_KEYS` et les clés JSON restaurées ;
+    libellés `preferences.toolbars` (`items.<id>` pour chaque élément, repris
+    des libellés des boutons dans chaque langue).
+  - **Desktop seulement** : `useToolbarShown` rend toujours vrai hors du
+    format `desktop` de `useBreakpoint` (format forcé compris), parce que la
+    palette n'y existe pas. ⚠️ La branche « 2 colonnes » d'`ArticleList` sert
+    AUSSI la tablette (`is2Panel` vaut vrai hors desktop) : c'est
+    `useToolbarShown`, pas la branche, qui protège la tablette. Les
+    Préférences restent réglables depuis un téléphone, avec la mention
+    `desktopOnly`.
+  - **Règle de sûreté** : un élément n'est masquable que s'il a sa commande
+    dans la palette — les barres l'offrent par `src/lib/toolbarCommands.ts`
+    (voir *Palette de commandes*), Rechercher, la disposition, Résumer et
+    Traduire ont leurs commandes statiques. Garde-fou :
+    `src/lib/toolbarCoverage.test.tsx`.
+  - **Masquer retire, rien ne bouge** : les séparateurs suivent les groupes
+    réellement affichés (`separatorsBefore` : jamais en tête, en queue ni
+    doublés) ; la piste d'options vide, la rangée d'actions vide (3 colonnes)
+    et le trait vertical après le titre (2 colonnes) ne sont pas rendus ;
+    `useToolbarFold` reçoit la visibilité dans ses dépendances, pour ne pas
+    garder replié un libellé qui a désormais la place.
+  - **Barre de la liste masquée** : la liste commence tout en haut, sans titre
+    ni compteur ; `.article-list-header` ne revient que pour la **zone de
+    recherche**, tant qu'une recherche est ouverte (`f`, palette) ou active
+    (bandeau et sa croix) — sinon on ne verrait ni ce qu'on tape ni comment
+    effacer. Le ☰ (rouvrir la barre latérale) part avec elle : `b` et la
+    commande `action:toggleSidebar` restent.
+  - **Volet sans aucun bouton visible** : `.reading-toolbar` n'est pas rendue
+    et la progression passe en liseré en haut du volet, comme sur mobile.
+    Masquer Favori ou À lire plus tard retire aussi leur appui long (classer),
+    comme pour les icônes des lignes ; le texte d'aide le dit.
+  - **Barre des raccourcis** : un seul interrupteur (ses éléments viennent des
+    raccourcis réassignables, hors registre). Masquée, elle emporte la mention
+    « ⌘K Palette » : l'aide de la section rappelle la touche, et `?` reste.
+  - **« Tout réafficher »** par zone, actif seulement si quelque chose y est
+    masqué ; non destructif, donc sans confirmation. Barre de la liste
+    éteinte, ses onze interrupteurs restent visibles mais grisés.
+  - **Piège** : comme `rowActions`, un appareil resté sur une version
+    antérieure synchronise un objet sans les éléments récents — une clé absente
+    ou non booléenne vaut **visible** (`normalizeToolbarVisibility`, au
+    chargement ET à `applyServerPrefs`).
+  - Tests : `toolbarItems.test.ts`, `useToolbarShown.test.tsx`,
+    `ArticleList.toolbar.test.tsx`, `ReadingPane.toolbar.test.tsx`,
+    `ShortcutBar.test.tsx`, `LayoutTab.toolbars.test.tsx`,
+    `toolbarCoverage.test.tsx`, `uiStore.test.ts`.
 
 ---
 

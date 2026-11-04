@@ -561,7 +561,45 @@
       "ssoUnlinked": "Compte délié de {{provider}}.",
       "ssoUnlinkFailed": "Le compte n’a pas pu être délié."
     },
-    "tooLarge": "Vos réglages dépassent la taille permise par le serveur : les derniers changements restent sur cet appareil. Un logo plus léger ou moins de thèmes libèrent de la place."
+    "tooLarge": "Vos réglages dépassent la taille permise par le serveur : les derniers changements restent sur cet appareil. Un logo plus léger ou moins de thèmes libèrent de la place.",
+    "toolbars": {
+      "desktopTitle": "Sur ordinateur",
+      "desktopHint": "Choisissez les boutons et les barres affichés. Un bouton masqué reste disponible dans la palette de commandes ({{key}}). Masquer Favori ou À lire plus tard dans le volet retire aussi leur appui long.",
+      "desktopOnly": "Ces réglages ne s’appliquent qu’à l’affichage ordinateur.",
+      "listBar": "Barre de la liste",
+      "listBarWhole": "Afficher la barre de la liste",
+      "readingBar": "Volet de lecture",
+      "shortcutBar": "Barre des raccourcis",
+      "shortcutBarWhole": "Afficher la barre des raccourcis",
+      "showAll": "Tout réafficher",
+      "everywhereTitle": "Sur tous les écrans",
+      "serverBar": "Barre des serveurs",
+      "items": {
+        "search": "Rechercher",
+        "unreadFilter": "Non lus",
+        "random": "Aléatoire",
+        "starredFilter": "Favoris",
+        "markAllRead": "Tout lu",
+        "optSource": "Nom du flux",
+        "optFavicons": "Icônes des flux",
+        "optDateSeparators": "Séparateurs de date",
+        "optServerBar": "Bouton de la barre des serveurs",
+        "density": "Densité (Aperçu / Standard / Compact)",
+        "layout": "Disposition (Liste / Côte à côte / Grille)",
+        "back": "Retour",
+        "read": "Lu / Non lu",
+        "star": "Favori",
+        "readLater": "À lire plus tard",
+        "labels": "Étiquettes",
+        "fullContent": "Article complet",
+        "summarize": "Résumer",
+        "translate": "Traduire",
+        "original": "Original",
+        "share": "Partager",
+        "focus": "Mode Focus (pleine largeur)",
+        "fontSize": "Taille du texte (A− / A+)"
+      }
+    }
   },
   "login": {
     "welcome": "Bienvenue sur FriRSS",

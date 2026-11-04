@@ -561,7 +561,45 @@
       "ssoUnlinked": "账户已解除与 {{provider}} 的关联。",
       "ssoUnlinkFailed": "无法解除账户关联。"
     },
-    "tooLarge": "您的设置超出了服务器允许的大小：最近的更改仅保留在此设备上。使用更小的徽标或减少主题可释放空间。"
+    "tooLarge": "您的设置超出了服务器允许的大小：最近的更改仅保留在此设备上。使用更小的徽标或减少主题可释放空间。",
+    "toolbars": {
+      "desktopTitle": "在电脑上",
+      "desktopHint": "选择显示哪些按钮和栏。隐藏的按钮仍可在命令面板（{{key}}）中使用。在阅读窗格中隐藏“收藏”或“稍后阅读”也会去掉它们的长按操作。",
+      "desktopOnly": "这些设置仅适用于电脑布局。",
+      "listBar": "列表栏",
+      "listBarWhole": "显示列表栏",
+      "readingBar": "阅读窗格",
+      "shortcutBar": "快捷键栏",
+      "shortcutBarWhole": "显示快捷键栏",
+      "showAll": "全部重新显示",
+      "everywhereTitle": "在所有屏幕上",
+      "serverBar": "服务器栏",
+      "items": {
+        "search": "搜索",
+        "unreadFilter": "未读",
+        "random": "随机",
+        "starredFilter": "收藏",
+        "markAllRead": "全部标为已读",
+        "optSource": "订阅源名称",
+        "optFavicons": "订阅源图标",
+        "optDateSeparators": "日期分隔",
+        "optServerBar": "服务器栏按钮",
+        "density": "显示密度 (预览 / 标准 / 紧凑)",
+        "layout": "布局 (列表 / 并排 / 网格)",
+        "back": "返回",
+        "read": "已读 / 未读",
+        "star": "收藏",
+        "readLater": "稍后阅读",
+        "labels": "标签",
+        "fullContent": "全文",
+        "summarize": "生成摘要",
+        "translate": "翻译",
+        "original": "原文",
+        "share": "分享",
+        "focus": "专注模式（全宽）",
+        "fontSize": "文字大小（A− / A+）"
+      }
+    }
   },
   "login": {
     "welcome": "欢迎使用 FriRSS",

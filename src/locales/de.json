@@ -561,7 +561,45 @@
       "ssoUnlinked": "Verknüpfung mit {{provider}} gelöst.",
       "ssoUnlinkFailed": "Die Verknüpfung konnte nicht gelöst werden."
     },
-    "tooLarge": "Ihre Einstellungen überschreiten die vom Server erlaubte Größe: Die letzten Änderungen bleiben auf diesem Gerät. Ein kleineres Logo oder weniger Themes schaffen Platz."
+    "tooLarge": "Ihre Einstellungen überschreiten die vom Server erlaubte Größe: Die letzten Änderungen bleiben auf diesem Gerät. Ein kleineres Logo oder weniger Themes schaffen Platz.",
+    "toolbars": {
+      "desktopTitle": "Am Computer",
+      "desktopHint": "Wähle, welche Schaltflächen und Leisten angezeigt werden. Eine ausgeblendete Schaltfläche bleibt in der Befehlspalette ({{key}}) verfügbar. Werden Favorit oder Später lesen in der Leseansicht ausgeblendet, entfällt auch ihr langes Drücken.",
+      "desktopOnly": "Diese Einstellungen gelten nur für die Computer-Darstellung.",
+      "listBar": "Listenleiste",
+      "listBarWhole": "Listenleiste anzeigen",
+      "readingBar": "Leseansicht",
+      "shortcutBar": "Tastenkürzel-Leiste",
+      "shortcutBarWhole": "Tastenkürzel-Leiste anzeigen",
+      "showAll": "Alles wieder anzeigen",
+      "everywhereTitle": "Auf allen Bildschirmen",
+      "serverBar": "Serverleiste",
+      "items": {
+        "search": "Suchen",
+        "unreadFilter": "Ungelesen",
+        "random": "Zufällig",
+        "starredFilter": "Favoriten",
+        "markAllRead": "Alle gelesen",
+        "optSource": "Feed-Name",
+        "optFavicons": "Feed-Symbole",
+        "optDateSeparators": "Datumstrenner",
+        "optServerBar": "Schaltfläche der Serverleiste",
+        "density": "Darstellung (Vorschau / Standard / Kompakt)",
+        "layout": "Anordnung (Liste / Nebeneinander / Raster)",
+        "back": "Zurück",
+        "read": "Gelesen / Ungelesen",
+        "star": "Favorit",
+        "readLater": "Später lesen",
+        "labels": "Labels",
+        "fullContent": "Volltext",
+        "summarize": "Zusammenfassen",
+        "translate": "Übersetzen",
+        "original": "Original",
+        "share": "Teilen",
+        "focus": "Fokusmodus (volle Breite)",
+        "fontSize": "Textgröße (A− / A+)"
+      }
+    }
   },
   "login": {
     "welcome": "Willkommen bei FriRSS",

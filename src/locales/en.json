@@ -561,7 +561,45 @@
       "ssoUnlinked": "Account unlinked from {{provider}}.",
       "ssoUnlinkFailed": "The account could not be unlinked."
     },
-    "tooLarge": "Your settings exceed the size the server allows: recent changes stay on this device. A lighter logo or fewer themes frees up space."
+    "tooLarge": "Your settings exceed the size the server allows: recent changes stay on this device. A lighter logo or fewer themes frees up space.",
+    "toolbars": {
+      "desktopTitle": "On computers",
+      "desktopHint": "Choose which buttons and bars are shown. A hidden button stays available in the command palette ({{key}}). Hiding Favorite or Read later in the reading pane also removes their long press.",
+      "desktopOnly": "These settings only apply to the computer layout.",
+      "listBar": "List bar",
+      "listBarWhole": "Show the list bar",
+      "readingBar": "Reading pane",
+      "shortcutBar": "Shortcut bar",
+      "shortcutBarWhole": "Show the shortcut bar",
+      "showAll": "Show all again",
+      "everywhereTitle": "On every screen",
+      "serverBar": "Server bar",
+      "items": {
+        "search": "Search",
+        "unreadFilter": "Unread",
+        "random": "Random",
+        "starredFilter": "Favorites",
+        "markAllRead": "All read",
+        "optSource": "Feed name",
+        "optFavicons": "Feed icons",
+        "optDateSeparators": "Date separators",
+        "optServerBar": "Server bar button",
+        "density": "Density (Preview / Standard / Compact)",
+        "layout": "Layout (List / Side by side / Grid)",
+        "back": "Back",
+        "read": "Read / Unread",
+        "star": "Favorite",
+        "readLater": "Read later",
+        "labels": "Tags",
+        "fullContent": "Full article",
+        "summarize": "Summarize",
+        "translate": "Translate",
+        "original": "Original",
+        "share": "Share",
+        "focus": "Focus mode (full width)",
+        "fontSize": "Text size (A− / A+)"
+      }
+    }
   },
   "login": {
     "welcome": "Welcome to FriRSS",

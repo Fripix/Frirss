@@ -561,7 +561,45 @@
       "ssoUnlinked": "Account scollegato da {{provider}}.",
       "ssoUnlinkFailed": "Impossibile scollegare l’account."
     },
-    "tooLarge": "Le tue impostazioni superano la dimensione consentita dal server: le ultime modifiche restano su questo dispositivo. Un logo più leggero o meno temi liberano spazio."
+    "tooLarge": "Le tue impostazioni superano la dimensione consentita dal server: le ultime modifiche restano su questo dispositivo. Un logo più leggero o meno temi liberano spazio.",
+    "toolbars": {
+      "desktopTitle": "Sul computer",
+      "desktopHint": "Scegli quali pulsanti e barre mostrare. Un pulsante nascosto resta disponibile nella palette dei comandi ({{key}}). Nascondere Preferito o Leggi più tardi nel pannello di lettura toglie anche la loro pressione prolungata.",
+      "desktopOnly": "Queste impostazioni valgono solo per la visualizzazione da computer.",
+      "listBar": "Barra dell’elenco",
+      "listBarWhole": "Mostra la barra dell’elenco",
+      "readingBar": "Pannello di lettura",
+      "shortcutBar": "Barra delle scorciatoie",
+      "shortcutBarWhole": "Mostra la barra delle scorciatoie",
+      "showAll": "Mostra di nuovo tutto",
+      "everywhereTitle": "Su tutti gli schermi",
+      "serverBar": "Barra dei server",
+      "items": {
+        "search": "Cerca",
+        "unreadFilter": "Non letti",
+        "random": "Casuale",
+        "starredFilter": "Preferiti",
+        "markAllRead": "Tutto letto",
+        "optSource": "Nome del feed",
+        "optFavicons": "Icone dei feed",
+        "optDateSeparators": "Separatori di data",
+        "optServerBar": "Pulsante della barra dei server",
+        "density": "Densità (Anteprima / Standard / Compatto)",
+        "layout": "Disposizione (Elenco / Affiancati / Griglia)",
+        "back": "Indietro",
+        "read": "Letto / Non letto",
+        "star": "Preferito",
+        "readLater": "Leggi più tardi",
+        "labels": "Etichette",
+        "fullContent": "Articolo completo",
+        "summarize": "Riassumi",
+        "translate": "Traduci",
+        "original": "Originale",
+        "share": "Condividi",
+        "focus": "Modalità Focus (larghezza piena)",
+        "fontSize": "Dimensione del testo (A− / A+)"
+      }
+    }
   },
   "login": {
     "welcome": "Benvenuto su FriRSS",
