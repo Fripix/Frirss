@@ -6122,6 +6122,14 @@ dans quelques composants partagés.
   dernier article affiché (`focusKey`, cherché par `data-article-id` dans la
   vue de base) — seulement s'il était dans l'article ou déjà perdu ; avant,
   il retombait sur `<body>`.
+- **Contrastes du thème par défaut et de Night : choix assumé** (décision du
+  propriétaire, 2026-11-05). La campagne 1.9.0 a mesuré des textes sous le
+  seuil AA de 4,5:1 : nom du flux en accent sur blanc (1,87:1), dates
+  (2,11:1), libellés des Préférences (3,29:1), version de la barre latérale
+  (1,66:1) ; dans Night, dates (3,42:1) et catégories (3,45:1). Les couleurs
+  restent telles quelles : c'est l'identité visuelle. Le préréglage
+  « High Contrast » est la réponse pour qui en a besoin. Ne pas les « corriger »
+  au passage d'un autre travail sans nouvelle décision.
 - **Régions annoncées montées en permanence** (1.8.0) : toasts, bandeau hors
   ligne, bandeau de relève. Une région `aria-live` montée en même temps que
   son texte n'est souvent pas annoncée ; elles restent montées, vides au
