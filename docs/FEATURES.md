@@ -5920,7 +5920,11 @@ dans quelques composants partagés.
   « Ajouter / Retirer des favoris », qui reste dans `title` : nom changeant
   plus état disaient l'état deux fois, en sens contraires (étoile, à lire plus
   tard, dispositions, barre des serveurs, séparateurs de date, mode Focus,
-  afficher le mot de passe, pastilles de couleur des étiquettes) ; le même
+  afficher le mot de passe, pastilles de couleur des étiquettes, et depuis
+  1.9.0 les filtres **Non lus** et **Favoris** de la barre de la liste, dans
+  ses trois formes, mobile, 2 colonnes et tablette, 3 colonnes ; oubliés
+  par la passe 1.8.0, ils ne disaient leur état que par le fond accentué :
+  `ToolbarBtn` reçoit désormais `pressed` en plus d'`active`) ; le même
   fichier refuse un `aria-label` à ternaire sur un bouton `aria-pressed`. Les
   boutons qui déplient un éditeur portent `aria-expanded`, le serveur actif
   `aria-current`, l'article ouvert aussi (`aria-current="true"` sur sa ligne

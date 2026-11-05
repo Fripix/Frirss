@@ -1026,10 +1026,10 @@ export default function ArticleList() {
             {!searchQuery && <HeaderUnread count={headerUnread} />}
             <div className="flex-1 flex items-center">
               <ToolbarBtn flex1 iconOnly icon={<SearchIcon />} label={t('articleList.search')} onClick={() => setSearchOpen(true)} />
-              <ToolbarBtn flex1 iconOnly icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
+              <ToolbarBtn flex1 iconOnly icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'} pressed={filter === 'unread'}
                 onClick={() => useFeedStore.getState().setUnreadFilter(filter !== 'unread')} />
               {randomButton && <ToolbarBtn flex1 iconOnly {...randomButton} />}
-              <ToolbarBtn flex1 iconOnly icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
+              <ToolbarBtn flex1 iconOnly icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'} pressed={filter === 'starred'}
                 onClick={() => useFeedStore.getState().setFilter(filter === 'starred' ? 'all' : 'starred')} />
               {canMarkAll && (
                 <ToolbarBtn flex1 iconOnly icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />
@@ -1097,10 +1097,10 @@ export default function ArticleList() {
                 {/* Inline toolbar actions */}
                 <div className="flex items-center gap-0.5 flex-shrink-0">
                   {showSearchBtn && <ToolbarBtn cede={1} icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />}
-                  {showUnreadBtn && <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
+                  {showUnreadBtn && <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'} pressed={filter === 'unread'}
                     onClick={toggleUnreadFilter} />}
                   {showRandomBtn && randomButton && <ToolbarBtn cede={2} {...randomButton} />}
-                  {showStarredBtn && <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
+                  {showStarredBtn && <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'} pressed={filter === 'starred'}
                     onClick={toggleStarredFilter} />}
                   {sep2MarkAll && <ToolbarSep />}
                   {showMarkAllBtn && <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />}
@@ -1195,10 +1195,10 @@ export default function ArticleList() {
                   ils en faisaient sortir « Tout lu ». */}
               {showSearchBtn && <ToolbarBtn cede={1} icon={<SearchIcon />} label={t('articleList.search')} shortcut="F" onClick={() => setSearchOpen(true)} />}
               {sep3Filters && <ToolbarSep />}
-              {showUnreadBtn && <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'}
+              {showUnreadBtn && <ToolbarBtn icon={<MarkUnreadIcon />} label={t('articleList.unread')} active={filter === 'unread'} pressed={filter === 'unread'}
                 onClick={toggleUnreadFilter} />}
               {showRandomBtn && randomButton && <ToolbarBtn cede={2} {...randomButton} />}
-              {showStarredBtn && <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'}
+              {showStarredBtn && <ToolbarBtn icon={<StarIcon filled={filter === 'starred'} />} label={t('articleList.starred')} active={filter === 'starred'} pressed={filter === 'starred'}
                 onClick={toggleStarredFilter} />}
               {sep3MarkAll && <ToolbarSep />}
               {showMarkAllBtn && <ToolbarBtn icon={<MarkAllReadIcon />} label={t('articleList.markAllRead')} onClick={handleMarkAllRead} />}

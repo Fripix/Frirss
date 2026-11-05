@@ -240,3 +240,31 @@ describe('les commandes offertes à la palette', () => {
     expect(label('starredFilter')).toBe('palette.filterStarredOff');
   });
 });
+
+// L-27 : les filtres Non lus et Favoris sont des bascules. En icône seule
+// (tablette, mobile), leur état ne passait que par la couleur du fond.
+describe('les filtres Non lus et Favoris annoncent leur état (L-27)', () => {
+  const where = [
+    ['desktop, 3 colonnes', 'desktop', '3'],
+    ['desktop, 2 colonnes', 'desktop', '2'],
+    ['desktop, grille', 'desktop', 'grid'],
+    ['tablette', 'tablet', '3'],
+    ['mobile', 'mobile', '3'],
+  ] as const;
+
+  it.each(where)('%s : aria-pressed suit le filtre, nom fixe', (_name, breakpoint, layout) => {
+    bp.value = breakpoint;
+    const pressed = (c: ReturnType<typeof render>, name: string) => btn(c, name)?.getAttribute('aria-pressed');
+    let c = show({ layout });
+    expect(pressed(c, 'articleList.unread')).toBe('false');
+    expect(pressed(c, 'articleList.starred')).toBe('false');
+    cleanup();
+    c = show({ layout, state: { filter: 'unread' } });
+    expect(pressed(c, 'articleList.unread')).toBe('true');
+    expect(pressed(c, 'articleList.starred')).toBe('false');
+    cleanup();
+    c = show({ layout, state: { filter: 'starred' } });
+    expect(pressed(c, 'articleList.unread')).toBe('false');
+    expect(pressed(c, 'articleList.starred')).toBe('true');
+  });
+});
