@@ -1084,7 +1084,9 @@ non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
     idempotentes (favori, à lire plus tard, panneau latéral, ouvrir
     l'original, `?`) ; les flèches, elles, continuent de défiler ;
   - *dans l'éditeur* (`handleKeyCapture`, liste dans `src/lib/shortcutKeys.ts`) :
-    refus, avec un message sous la ligne, de F1–F12, Tab, Espace, Entrée, des
+    refus, avec un message sous la ligne, de F1–F12, Tab, Espace, Entrée,
+    Début, Fin, PgPréc et PgSuiv (défilement de la page, refusées depuis
+    1.9.0 — l'éditeur les acceptait et les affichait « HOME »), des
     modificateurs pressés seuls, de `/` et `'` (recherche rapide de Firefox),
     de `?` (aide-mémoire), de toute combinaison avec ⌘, Ctrl ou Alt (laissée
     au navigateur) et d'une touche déjà attribuée à une autre action. La
@@ -1092,8 +1094,11 @@ non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
   - **Les flèches restent permises et restent les défauts** (↑ ↓ →), bien
     qu'elles servent aussi au défilement : décision du propriétaire, « elles
     sont pratiques ». Ne pas les remettre en cause.
-  - Un raccourci réservé déjà enregistré avant 1.7.0 n'est pas migré : il
-    continue de fonctionner tel quel jusqu'à sa prochaine modification.
+  - Un raccourci réservé déjà enregistré avant son refus n'est pas migré : il
+    continue de fonctionner tel quel jusqu'à sa prochaine modification. Début,
+    Fin, PgPréc et PgSuiv ont donc un nom traduit dans `keyLabel.ts`
+    (`preferences.shortcuts.keyHome` / `keyEnd` / `keyPageUp` /
+    `keyPageDown`), comme Échap ou Suppr.
 
 ---
 

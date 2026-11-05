@@ -20,6 +20,12 @@ const NAMED: Record<string, string> = {
   Escape: 'preferences.shortcuts.keyEscape',
   Enter: 'preferences.shortcuts.keyEnter',
   Delete: 'preferences.shortcuts.keyDelete',
+  // Refusées par l'éditeur, mais un raccourci enregistré avant le refus les
+  // porte encore : « HOME » n'était le nom de la touche dans aucune langue.
+  Home: 'preferences.shortcuts.keyHome',
+  End: 'preferences.shortcuts.keyEnd',
+  PageUp: 'preferences.shortcuts.keyPageUp',
+  PageDown: 'preferences.shortcuts.keyPageDown',
 };
 
 export function keyLabel(key: string, t: (k: string) => string): string {

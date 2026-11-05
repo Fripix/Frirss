@@ -14,6 +14,15 @@ describe('shortcutRefusal', () => {
     },
   );
 
+  // Début, Fin, PgPréc, PgSuiv font défiler la page : seules les flèches sont
+  // exemptées de la règle (campagne 1.9.0, L-21).
+  it.each(['Home', 'End', 'PageUp', 'PageDown'])(
+    'refuses %j: the browser scrolls the page with it',
+    (key) => {
+      expect(shortcutRefusal(key, 'markRead', shortcuts)).toEqual({ reason: 'reserved' });
+    },
+  );
+
   it('refuses a key another action already has, and names that action', () => {
     expect(shortcutRefusal('d', 'markRead', shortcuts)).toEqual({ reason: 'taken', action: 'toggleStar' });
   });

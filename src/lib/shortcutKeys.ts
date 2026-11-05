@@ -3,9 +3,12 @@
  * système utilise déjà (règle du propriétaire, 2026-10-20). Les flèches restent
  * permises — elles sont aussi des touches de défilement, mais ce choix est
  * tranché : elles sont les raccourcis par défaut et « elles sont pratiques ».
+ * Les autres touches de défilement, non : l'éditeur acceptait Début, Fin,
+ * PgPréc et PgSuiv (campagne 1.9.0).
  */
 const RESERVED_KEYS = new Set([
   'Tab', ' ', 'Enter',
+  'Home', 'End', 'PageUp', 'PageDown',
   // Modificateurs pressés seuls : ils n'existent que pour être combinés.
   'Shift', 'Control', 'Alt', 'AltGraph', 'Meta', 'OS', 'Fn', 'CapsLock',
   // Recherche rapide de Firefox (texte, puis liens seulement).

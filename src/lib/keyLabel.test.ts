@@ -18,6 +18,14 @@ describe('keyLabel', () => {
     expect(keyLabel('Enter', t)).toBe('t:preferences.shortcuts.keyEnter');
   });
 
+  // Un raccourci enregistré avant leur refus s'affichait « HOME », « PAGEUP ».
+  it('nomme dans la langue de l’interface Début, Fin, PgPréc et PgSuiv', () => {
+    expect(['Home', 'End', 'PageUp', 'PageDown'].map((k) => keyLabel(k, t))).toEqual([
+      't:preferences.shortcuts.keyHome', 't:preferences.shortcuts.keyEnd',
+      't:preferences.shortcuts.keyPageUp', 't:preferences.shortcuts.keyPageDown',
+    ]);
+  });
+
   it('met une lettre en capitale', () => {
     expect(keyLabel('b', t)).toBe('B');
   });
