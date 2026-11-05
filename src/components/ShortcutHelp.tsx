@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, shortcutGroups, AI_SHORTCUTS } from '../stores/uiStore';
@@ -30,6 +30,7 @@ export default function ShortcutHelp() {
   const openPreferences = useThemeStore((s) => s.openPreferences);
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef, open);
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -88,7 +89,7 @@ export default function ShortcutHelp() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shortcut-help__head">
-          <h2>{t('preferences.shortcuts.helpTitle')}</h2>
+          <h2 id={titleId}>{t('preferences.shortcuts.helpTitle')}</h2>
           <button
             type="button"
             onClick={() => setOpen(false)}
@@ -102,7 +103,11 @@ export default function ShortcutHelp() {
           </button>
         </div>
 
-        <div className="shortcut-help__body">
+        {/* La liste défile. Chromium rend une telle zone focalisable de
+            lui-même, pas Safari : sans `tabIndex`, la fin de la liste y
+            restait inatteignable au clavier (les flèches font défiler la zone
+            qui a le focus). */}
+        <div className="shortcut-help__body" tabIndex={0} role="region" aria-labelledby={titleId}>
           <ul className="shortcut-help__list">
             {actions.map((action) => (
               <li key={action}>

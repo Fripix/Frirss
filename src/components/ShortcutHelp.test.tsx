@@ -77,3 +77,16 @@ describe('ShortcutHelp — an action without a key', () => {
     useUiStore.setState({ shortcuts: before });
   });
 });
+
+// Safari ne rend pas focalisable une zone qui défile : sans tabindex, la fin
+// de la liste restait inatteignable au clavier (campagne 1.9.0, L-34).
+describe('ShortcutHelp — défilement au clavier', () => {
+  it('la liste défilante est atteignable par Tab et porte un nom', () => {
+    render(<ShortcutHelp />);
+    const body = document.querySelector('.shortcut-help__body') as HTMLElement;
+    expect(body.tabIndex).toBe(0);
+    expect(body.getAttribute('role')).toBe('region');
+    const labelledBy = body.getAttribute('aria-labelledby');
+    expect(labelledBy && document.getElementById(labelledBy)?.textContent).toBe('preferences.shortcuts.helpTitle');
+  });
+});

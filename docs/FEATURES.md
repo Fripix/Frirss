@@ -1006,6 +1006,10 @@ non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
   Échap y est capté en phase de capture, pour passer avant le gestionnaire
   global qui s'en sert pour quitter le mode Focus. `?` la referme aussi, par
   son propre gestionnaire : le global se tait tant qu'une boîte est ouverte.
+  La liste qui défile (`.shortcut-help__body`) porte `tabIndex={0}` et un nom
+  (`role="region"`, titre de la fenêtre) depuis 1.9.0 : Chromium rend une zone
+  défilante focalisable de lui-même, **pas Safari**, où la fin de la liste
+  restait inatteignable au clavier.
 - **Ce qui fait taire les raccourcis** : un champ de saisie (`input`,
   `textarea`, contenu éditable), un `<select>` qui a le focus (sa recherche
   lettre par lettre tapait `s` dans « Fournisseur préféré » et lançait un
