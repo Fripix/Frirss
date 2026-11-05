@@ -355,7 +355,9 @@
       "deleteFailed": "La suppression de l’étiquette a échoué.",
       "renameFailed": "Le renommage de l’étiquette a échoué.",
       "showSpecialTotals": "Afficher le total des Favoris et d’À lire plus tard",
-      "showSpecialUnread": "Afficher les non-lus des Favoris et d’À lire plus tard"
+      "showSpecialUnread": "Afficher les non-lus des Favoris et d’À lire plus tard",
+      "nameIsCategory": "« {{name}} » est déjà une catégorie.",
+      "nameIsLabel": "« {{name}} » est déjà une étiquette."
     },
     "themes": {
       "presets": "Préréglages",
@@ -514,7 +516,8 @@
       "deleted": "Catégorie supprimée",
       "moved": "Flux déplacé",
       "failed": "L’opération a échoué",
-      "deleteTitle": "Supprimer la catégorie « {{name}} » ?"
+      "deleteTitle": "Supprimer la catégorie « {{name}} » ?",
+      "noSlash": "Un nom de catégorie ne peut pas contenir « / »."
     },
     "layout": {
       "title": "Icônes d’action des articles",

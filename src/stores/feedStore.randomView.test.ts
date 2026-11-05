@@ -702,6 +702,8 @@ describe('le réglage de la vue fait foi', () => {
     const env = await load();
     env.useUiStore.getState().setViewRandom('1', 'user/-/label/Old', true);
     vi.mocked(env.api.renameTag).mockResolvedValue(undefined as never);
+    // Le renommage est vérifié sur la liste relue : le faux serveur l'a fait.
+    vi.mocked(env.api.getTagList).mockResolvedValue([{ id: 'user/-/label/New', type: 'tag' }] as never);
     await state(env).renameLabel('user/-/label/Old', 'New');
     expect(chosen(env, 'user/-/label/New')).toBe(true);
   });

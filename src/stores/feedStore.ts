@@ -45,6 +45,7 @@ import { listGet, listPut, listsPatch, listEvictOlderThan, listsWithoutSource, s
 import { computeRefreshDelta } from '../lib/refreshDelta';
 import { countNewInView, viewFeedIds } from '../lib/newArticles';
 import { isValidCategoryName } from '../lib/feedCategories';
+import { nameOwners, takenBy, userLabels } from '../lib/labelNames';
 import {
   actionKey, mergeAction, isNetworkFailure, shouldRetry,
   type QueuedAction, type QueuedActionType,
@@ -872,6 +873,8 @@ export interface FeedState {
   labels: Tag[];
   labelCounts: Record<string, number>;
   categoryIds: string[];
+  /** Catégories annoncées par `tag/list` (type `folder`), vides comprises — voir `src/lib/labelNames.ts`. */
+  folderIds: string[];
   starredCount: number;
   readLaterCount: number;
   /** Non-lus des deux listes (réglage `showSpecialUnread`) — voir `src/lib/specialUnread.ts`. */
@@ -1290,6 +1293,25 @@ function closeSearch(set: (partial: Partial<FeedState>) => void): void {
 }
 
 /**
+ * L'étiquette ou la catégorie affichée vient d'être renommée : la vue passe
+ * sous son nouveau nom et se recharge, filtre et article ouvert gardés. Elle
+ * restait sur l'ancien identifiant, qui ne désigne plus rien : une liste vide
+ * (L-16).
+ */
+function followRenamedView(set: (partial: Partial<FeedState>) => void, get: () => FeedState, oldId: string, newId: string, title: string): void {
+  const shown = get().selectedFeed;
+  if (shown?.id !== oldId) return;
+  set({ selectedFeed: { ...shown, id: newId, title } });
+  void get().loadArticles();
+}
+
+/** Supprimée alors qu'affichée : retour à l'accueil, au même filtre (L-16). */
+function leaveDeletedView(get: () => FeedState, id: string): void {
+  if (get().selectedFeed?.id !== id) return;
+  get().selectView(null, get().filter);
+}
+
+/**
  * Hors ligne : aucun balayage possible. Filtre ce qui est disponible
  * localement — la liste en mémoire et ce que la vue sert hors ligne
  * (`offlineList`), doublons entre les deux écartés — et le dit dans la barre
@@ -1361,6 +1383,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   labels: [],
   labelCounts: {},
   categoryIds: [],
+  folderIds: [],
   starredCount: 0,
   readLaterCount: 0,
   specialUnread: { starred: 0, readLater: 0 },
@@ -2856,11 +2879,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       subscriptions.forEach((sub) => {
         sub.categories?.forEach((c) => categoryIds.add(c.id));
       });
-      // User labels = /label/ tags that are NOT subscription categories and NOT Read Later
-      const labels = tags.filter(
-        (t) => t.id && t.id.includes('/label/') && !t.id.includes('/state/') && !categoryIds.has(t.id) && t.id !== READ_LATER_LABEL
-      );
-      set({ labels });
+      // User labels = /label/ tags that are NOT categories and NOT Read Later.
+      // Une catégorie VIDE n'est portée par aucun flux : seul son type
+      // `folder` la trahit. Elle passait pour une étiquette, qu'on cochait
+      // sans que FreshRSS n'enregistre rien (L-13).
+      const labels = userLabels(tags, [...categoryIds], READ_LATER_LABEL);
+      const folderIds = tags.filter((t) => t.type === 'folder' && t.id).map((t) => t.id);
+      set({ labels, folderIds });
       // Article counts per label (background, only if the user shows them).
       if (useUiStore.getState().showLabelCounts) get().loadLabelCounts();
     } catch { /* ignore */ }
@@ -3031,9 +3056,22 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   // Label management (rename / delete)
   renameLabel: async (oldLabelId, newName) => {
-    const newLabelId = `user/-/label/${newName}`;
+    const name = newName.trim();
+    const newLabelId = `user/-/label/${name}`;
+    if (newLabelId === oldLabelId) return true;
+    // Un nom déjà pris ne part pas : FreshRSS répond « OK » sans renommer —
+    // ou renomme la CATÉGORIE homonyme, qu'il cherche en premier (L-14).
+    if (!name || takenBy(name, nameOwners(get()), oldLabelId)) return false;
     try {
       await renameTag(oldLabelId, newLabelId);
+      // Le « OK » ne prouve rien : la liste relue dit si le nom a changé.
+      // Une relecture impossible (liste inchangée) laisse foi à la réponse.
+      const before = get().labels;
+      await get().loadLabels();
+      const after = get().labels;
+      if (after !== before && (!after.some((l) => l.id === newLabelId) || after.some((l) => l.id === oldLabelId))) {
+        return false;
+      }
       useUiStore.getState().moveViewRandom(useAuthStore.getState().activeServerId, oldLabelId, newLabelId);
       // Update all articles that had the old label
       set((state) => {
@@ -3051,7 +3089,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             : null,
         };
       });
-      await get().loadLabels();
+      followRenamedView(set, get, oldLabelId, newLabelId, name);
       return true;
     } catch {
       return false;
@@ -3075,6 +3113,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           labels: state.labels.filter((l) => l.id !== labelId),
         };
       });
+      leaveDeletedView(get, labelId);
       return true;
     } catch {
       return false;
@@ -3090,10 +3129,22 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   renameCategory: async (categoryId, newName) => {
     const name = newName.trim();
     if (!isValidCategoryName(name)) return false;
+    const newId = `user/-/label/${name}`;
+    if (newId === categoryId) return true;
+    // Nom pris par une autre catégorie (même vide) ou par une étiquette :
+    // FreshRSS répondait « OK », et l'écran annonçait « Catégorie renommée »
+    // sans que rien ne change (L-14).
+    if (takenBy(name, nameOwners(get()), categoryId)) return false;
     try {
-      await renameTag(categoryId, `user/-/label/${name}`);
-      useUiStore.getState().moveViewRandom(useAuthStore.getState().activeServerId, categoryId, `user/-/label/${name}`);
+      await renameTag(categoryId, newId);
+      const before = get().subscriptions;
       await get().loadSubscriptions();
+      const subs = get().subscriptions;
+      const carried = (id: string) => subs.some((s) => s.categories?.some((c) => c.id === id));
+      // Même contrôle que pour une étiquette : seule la liste relue fait foi.
+      if (subs !== before && (!carried(newId) || carried(categoryId))) return false;
+      useUiStore.getState().moveViewRandom(useAuthStore.getState().activeServerId, categoryId, newId);
+      followRenamedView(set, get, categoryId, newId, name);
       return true;
     } catch {
       return false;
@@ -3105,6 +3156,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       await deleteTag(categoryId);
       // Les flux ne sont PAS supprimés : ils se retrouvent sans catégorie.
       await get().loadSubscriptions();
+      leaveDeletedView(get, categoryId);
       return true;
     } catch {
       return false;
@@ -3114,6 +3166,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   moveFeedToCategory: async (feedId, categoryName) => {
     const name = categoryName.trim();
     if (!isValidCategoryName(name)) return false;
+    // Au nom d'une étiquette : FreshRSS créerait une catégorie homonyme, et
+    // l'étiquette, devenue indiscernable pour l'API, quitterait la liste (L-14).
+    if (takenBy(name, nameOwners(get())) === 'label') return false;
     try {
       // `editFeed` envoie `a=` (ajouter à la catégorie). FreshRSS n'accorde
       // qu'une catégorie par flux, donc cela vaut déplacement — mais on
@@ -3658,6 +3713,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       labels: [],
       labelCounts: {},
       categoryIds: [],
+      folderIds: [],
       starredCount: 0,
       readLaterCount: 0,
       specialUnread: { starred: 0, readLater: 0 },

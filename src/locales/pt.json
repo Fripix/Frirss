@@ -355,7 +355,9 @@
       "deleteFailed": "Não foi possível eliminar a etiqueta.",
       "renameFailed": "Não foi possível mudar o nome da etiqueta.",
       "showSpecialTotals": "Mostrar o total de Favoritos e Ler mais tarde",
-      "showSpecialUnread": "Mostrar os não lidos de Favoritos e Ler mais tarde"
+      "showSpecialUnread": "Mostrar os não lidos de Favoritos e Ler mais tarde",
+      "nameIsCategory": "«{{name}}» já é uma categoria.",
+      "nameIsLabel": "«{{name}}» já é uma etiqueta."
     },
     "themes": {
       "presets": "Predefinições",
@@ -514,7 +516,8 @@
       "deleted": "Categoria eliminada",
       "moved": "Feed movido",
       "failed": "A operação falhou",
-      "deleteTitle": "Eliminar a categoria «{{name}}»?"
+      "deleteTitle": "Eliminar a categoria «{{name}}»?",
+      "noSlash": "Um nome de categoria não pode conter «/»."
     },
     "layout": {
       "title": "Ícones de ação dos artigos",

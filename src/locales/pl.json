@@ -363,7 +363,9 @@
       "deleteFailed": "Nie udało się usunąć etykiety.",
       "renameFailed": "Nie udało się zmienić nazwy etykiety.",
       "showSpecialTotals": "Pokaż łączną liczbę w Ulubionych i Do przeczytania później",
-      "showSpecialUnread": "Pokaż nieprzeczytane w Ulubionych i Do przeczytania później"
+      "showSpecialUnread": "Pokaż nieprzeczytane w Ulubionych i Do przeczytania później",
+      "nameIsCategory": "„{{name}}” to już kategoria.",
+      "nameIsLabel": "„{{name}}” to już etykieta."
     },
     "themes": {
       "presets": "Gotowe motywy",
@@ -532,7 +534,8 @@
       "deleted": "Usunięto kategorię",
       "moved": "Przeniesiono kanał",
       "failed": "Operacja się nie powiodła",
-      "deleteTitle": "Usunąć kategorię „{{name}}”?"
+      "deleteTitle": "Usunąć kategorię „{{name}}”?",
+      "noSlash": "Nazwa kategorii nie może zawierać „/”."
     },
     "layout": {
       "title": "Ikony akcji artykułu",

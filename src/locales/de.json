@@ -355,7 +355,9 @@
       "deleteFailed": "Das Label konnte nicht gelöscht werden.",
       "renameFailed": "Das Label konnte nicht umbenannt werden.",
       "showSpecialTotals": "Gesamtzahl für Favoriten und Später lesen anzeigen",
-      "showSpecialUnread": "Ungelesene für Favoriten und Später lesen anzeigen"
+      "showSpecialUnread": "Ungelesene für Favoriten und Später lesen anzeigen",
+      "nameIsCategory": "„{{name}}“ ist bereits eine Kategorie.",
+      "nameIsLabel": "„{{name}}“ ist bereits ein Label."
     },
     "themes": {
       "presets": "Voreinstellungen",
@@ -514,7 +516,8 @@
       "deleted": "Kategorie gelöscht",
       "moved": "Feed verschoben",
       "failed": "Das hat nicht geklappt",
-      "deleteTitle": "Kategorie „{{name}}“ löschen?"
+      "deleteTitle": "Kategorie „{{name}}“ löschen?",
+      "noSlash": "Ein Kategoriename darf kein „/“ enthalten."
     },
     "layout": {
       "title": "Aktionssymbole für Artikel",

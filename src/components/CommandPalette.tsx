@@ -13,6 +13,7 @@ import { switchToServer } from '../lib/switchServer';
 import { rankCommands, type Command } from '../lib/commandPalette';
 import { translateWouldAct, summarizeWouldAct } from '../lib/aiTranslateProbe';
 import { probeToolbarCommands, runToolbarCommand } from '../lib/toolbarCommands';
+import { nameOwners, takenBy } from '../lib/labelNames';
 
 /**
  * Entrée unique : aller à un flux, une étiquette, une vue, ou lancer une
@@ -173,8 +174,9 @@ export default function CommandPalette() {
     const ranked = rankCommands(commands, query);
     const name = query.trim();
     // Un nom tapé qui n'est pas déjà une étiquette : le créer sur l'article
-    // ouvert. Le seul chemin quand le bouton « Étiquettes » est masqué.
-    const exists = labels.some((l) => (l.id.split('/label/').pop() ?? '').toLowerCase() === name.toLowerCase());
+    // ouvert. Le seul chemin quand le bouton « Étiquettes » est masqué. Pas
+    // au nom d'une catégorie, même vide : FreshRSS l'ignorerait en silence.
+    const exists = takenBy(name, nameOwners({ ...useFeedStore.getState(), labels })) !== null;
     if (!canCreateLabel || !name || exists) return ranked;
     return [...ranked, {
       id: 'toolbar:newLabel',

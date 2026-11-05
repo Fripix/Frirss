@@ -355,7 +355,9 @@
       "deleteFailed": "Couldn’t delete the tag.",
       "renameFailed": "Couldn’t rename the tag.",
       "showSpecialTotals": "Show the total for Favorites and Read later",
-      "showSpecialUnread": "Show unread for Favorites and Read later"
+      "showSpecialUnread": "Show unread for Favorites and Read later",
+      "nameIsCategory": "“{{name}}” is already a category.",
+      "nameIsLabel": "“{{name}}” is already a tag."
     },
     "themes": {
       "presets": "Presets",
@@ -514,7 +516,8 @@
       "deleted": "Category deleted",
       "moved": "Feed moved",
       "failed": "That did not work",
-      "deleteTitle": "Delete the “{{name}}” category?"
+      "deleteTitle": "Delete the “{{name}}” category?",
+      "noSlash": "A category name can’t contain “/”."
     },
     "layout": {
       "title": "Article action icons",

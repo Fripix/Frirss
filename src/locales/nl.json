@@ -355,7 +355,9 @@
       "deleteFailed": "Het label kon niet worden verwijderd.",
       "renameFailed": "Het label kon niet worden hernoemd.",
       "showSpecialTotals": "Totaal tonen voor Favorieten en Later lezen",
-      "showSpecialUnread": "Ongelezen tonen voor Favorieten en Later lezen"
+      "showSpecialUnread": "Ongelezen tonen voor Favorieten en Later lezen",
+      "nameIsCategory": "‘{{name}}’ is al een categorie.",
+      "nameIsLabel": "‘{{name}}’ is al een label."
     },
     "themes": {
       "presets": "Voorinstellingen",
@@ -514,7 +516,8 @@
       "deleted": "Categorie verwijderd",
       "moved": "Feed verplaatst",
       "failed": "Dat is niet gelukt",
-      "deleteTitle": "Categorie ‘{{name}}’ verwijderen?"
+      "deleteTitle": "Categorie ‘{{name}}’ verwijderen?",
+      "noSlash": "Een categorienaam mag geen ‘/’ bevatten."
     },
     "layout": {
       "title": "Actiepictogrammen voor artikelen",

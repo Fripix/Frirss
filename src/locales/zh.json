@@ -355,7 +355,9 @@
       "deleteFailed": "无法删除标签。",
       "renameFailed": "无法重命名标签。",
       "showSpecialTotals": "显示收藏和稍后阅读的总数",
-      "showSpecialUnread": "显示收藏和稍后阅读的未读数"
+      "showSpecialUnread": "显示收藏和稍后阅读的未读数",
+      "nameIsCategory": "“{{name}}”已经是一个分类。",
+      "nameIsLabel": "“{{name}}”已经是一个标签。"
     },
     "themes": {
       "presets": "预设",
@@ -514,7 +516,8 @@
       "deleted": "分类已删除",
       "moved": "订阅源已移动",
       "failed": "操作失败",
-      "deleteTitle": "删除分类“{{name}}”？"
+      "deleteTitle": "删除分类“{{name}}”？",
+      "noSlash": "分类名称不能包含“/”。"
     },
     "layout": {
       "title": "文章操作图标",

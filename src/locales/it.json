@@ -355,7 +355,9 @@
       "deleteFailed": "Impossibile eliminare l’etichetta.",
       "renameFailed": "Impossibile rinominare l’etichetta.",
       "showSpecialTotals": "Mostra il totale di Preferiti e Leggi più tardi",
-      "showSpecialUnread": "Mostra i non letti di Preferiti e Leggi più tardi"
+      "showSpecialUnread": "Mostra i non letti di Preferiti e Leggi più tardi",
+      "nameIsCategory": "«{{name}}» è già una categoria.",
+      "nameIsLabel": "«{{name}}» è già un’etichetta."
     },
     "themes": {
       "presets": "Preimpostazioni",
@@ -514,7 +516,8 @@
       "deleted": "Categoria eliminata",
       "moved": "Feed spostato",
       "failed": "Operazione non riuscita",
-      "deleteTitle": "Eliminare la categoria «{{name}}»?"
+      "deleteTitle": "Eliminare la categoria «{{name}}»?",
+      "noSlash": "Il nome di una categoria non può contenere «/»."
     },
     "layout": {
       "title": "Icone di azione degli articoli",

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, type CSSProperties } from 'react';
+import { useState, useRef, useEffect, useMemo, useId, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -8,6 +8,8 @@ import type { Tag } from '../../types';
 import { TabResetButton } from './TabResetButton';
 import ConfirmDialog from '../ConfirmDialog';
 import { swatchPopoverWidth, isCoarsePointer } from '../../lib/swatchPopover';
+import { nameOwners, takenBy, type NameOwners } from '../../lib/labelNames';
+import NameRefusal from '../NameRefusal';
 
 // Label grouping item (Preferences labels tab)
 interface PrefLabelChild { tag: Tag; leafName: string; fullName: string }
@@ -87,6 +89,12 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
   const renameLabel = useFeedStore((s) => s.renameLabel);
   const deleteLabel = useFeedStore((s) => s.deleteLabel);
   const loadLabelCounts = useFeedStore((s) => s.loadLabelCounts);
+  const categoryIds = useFeedStore((s) => s.categoryIds);
+  const folderIds = useFeedStore((s) => s.folderIds);
+  const pushToast = useUiStore((s) => s.pushToast);
+  // Étiquettes et catégories partagent un seul espace de noms (voir
+  // `labelNames.ts`) : un nom pris est refusé avant l'envoi, avec son motif.
+  const owners = useMemo(() => nameOwners({ labels, categoryIds, folderIds }), [labels, categoryIds, folderIds]);
   const { labelColors, setLabelColor, toggleLabelInherit, removeLabelColor, getLabelColor, renameLabelColor } = useThemeStore();
   const { labelOrder, setLabelOrder, labelSortAlpha, setLabelSortAlpha, showLabelCounts, setShowLabelCounts } = useUiStore();
   const [dragId, setDragId] = useState<string | null>(null);
@@ -129,9 +137,17 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
     if (!newParentName && newParentName !== '') return;
     const newName = newParentName === '' ? leafName : `${newParentName}/${leafName}`;
     const newLabelId = `user/-/label/${newName}`;
-    await renameLabel(labelId, newName);
-    // Migrate label color entry to new ID
-    renameLabelColor(labelId, newLabelId);
+    // Sortir « Tech/Tuto » de son groupe quand « Tuto » existe : refusé, et
+    // dit. Avant, rien ne bougeait, mais la couleur partait vers un nom vide.
+    const clash = takenBy(newName, owners, labelId);
+    if (clash) {
+      pushToast(t(clash === 'category' ? 'preferences.labels.nameIsCategory' : 'preferences.labels.nameIsLabel', { name: newName }), { tone: 'error' });
+      return;
+    }
+    const ok = await renameLabel(labelId, newName);
+    // Migrate label color entry to new ID — seulement si le nom a vraiment changé.
+    if (ok) renameLabelColor(labelId, newLabelId);
+    else pushToast(t('preferences.labels.renameFailed'), { tone: 'error' });
   }
 
   // Rename label + migrate color entry
@@ -276,6 +292,7 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
                 onChangeColor={(c) => setLabelColor(tag.id, c)}
                 onRemoveColor={() => removeLabelColor(tag.id)}
                 onRename={renameLabelWithColor}
+                owners={owners}
                 onDelete={deleteLabelWithColor}
                 groupNames={groupNames}
                 currentParent={null}
@@ -319,6 +336,7 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
                   onChangeColor={(c) => setLabelColor(parentId, c)}
                   onRemoveColor={() => removeLabelColor(parentId)}
                   onRename={renameLabelWithColor}
+                  owners={owners}
                   onDelete={deleteLabelWithColor}
                   groupNames={groupNames}
                   currentParent={null}
@@ -358,6 +376,7 @@ export default function LabelsTab({ resetLabelColors }: { resetLabelColors: () =
                     onChangeColor={(c) => setLabelColor(tag.id, c)}
                     onRemoveColor={() => removeLabelColor(tag.id)}
                     onRename={renameLabelWithColor}
+                    owners={owners}
                     onDelete={deleteLabelWithColor}
                     groupNames={groupNames}
                     currentParent={item.name}
@@ -463,6 +482,8 @@ interface LabelRowProps {
   onChangeColor: (color: string) => void;
   onRemoveColor: () => void;
   onRename: (oldLabelId: string, newName: string) => Promise<boolean>;
+  /** Noms déjà pris, pour refuser un renommage avant l'envoi. */
+  owners: NameOwners;
   onDelete: (labelId: string) => Promise<boolean>;
   groupNames: string[];
   currentParent: string | null;
@@ -477,7 +498,7 @@ interface LabelRowProps {
 }
 function LabelRow({
   labelId, name, color, effectiveColor, isParent, inherited,
-  onChangeColor, onRemoveColor, onRename, onDelete,
+  onChangeColor, onRemoveColor, onRename, owners, onDelete,
   groupNames, currentParent, onMoveToParent,
   draggable, dragId, setDragId, dropTarget, setDropTarget, onDrop, onDragCleanup,
 }: LabelRowProps) {
@@ -487,17 +508,23 @@ function LabelRow({
   // Un échec se dit : sans message, la ligne revenait à l'ancien nom (ou
   // gardait l'étiquette) comme si de rien n'était.
   const pushToast = useUiStore((s) => s.pushToast);
+  const refusalId = useId();
   const displayColor = color || effectiveColor || 'var(--accent)';
   const isDragging = dragId === labelId;
   const isDropTarget = dropTarget?.id === labelId;
 
+  // Le nom envoyé est celui du champ, tel quel : c'est lui qui doit être libre.
+  const renameClash = renameValue.trim() !== name ? takenBy(renameValue, owners, labelId) : null;
+
   if (mode === 'rename') {
     return (
-      <div className="flex items-center gap-2 py-1 px-2 rounded-md" style={{ background: 'var(--panel-header-bg)' }}>
+      <div className="py-1 px-2 rounded-md" style={{ background: 'var(--panel-header-bg)' }}>
         <form
-          className="flex-1 flex items-center gap-2"
+          className="flex items-center gap-2"
           onSubmit={async (e) => {
             e.preventDefault();
+            // Nom pris : le champ reste ouvert, son motif dessous (L-14).
+            if (renameClash) return;
             if (renameValue.trim() && renameValue.trim() !== name) {
               const ok = await onRename(labelId, renameValue.trim());
               if (!ok) pushToast(t('preferences.labels.renameFailed'), { tone: 'error' });
@@ -509,9 +536,11 @@ function LabelRow({
             autoFocus
             type="text"
             aria-label={t('preferences.labels.rename')}
+            aria-invalid={!!renameClash || undefined}
+            aria-describedby={refusalId}
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
-            className="flex-1 text-xs px-2 py-1 rounded border outline-none"
+            className="flex-1 min-w-0 text-xs px-2 py-1 rounded border outline-none"
             style={{
               borderColor: 'var(--accent)',
               color: 'var(--list-title)',
@@ -543,6 +572,7 @@ function LabelRow({
             </svg>
           </button>
         </form>
+        <NameRefusal id={refusalId} issue={renameClash} name={renameValue} />
       </div>
     );
   }

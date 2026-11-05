@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ConfirmDialog from '../ConfirmDialog';
 import { useFeedStore } from '../../stores/feedStore';
 import { groupFeedsByCategory, isValidCategoryName, type CategoryGroup } from '../../lib/feedCategories';
 import { useUiStore } from '../../stores/uiStore';
 import type { Subscription } from '../../types';
+import { categoryNameIssue, nameOf, nameOwners, type NameOwners } from '../../lib/labelNames';
+import NameRefusal from '../NameRefusal';
 
 /**
  * Gestion des catégories de flux.
@@ -23,6 +25,13 @@ export default function CategoryList() {
   const { t } = useTranslation();
   const subscriptions = useFeedStore((s) => s.subscriptions);
   const pushToast = useUiStore((s) => s.pushToast);
+  const labels = useFeedStore((s) => s.labels);
+  const categoryIds = useFeedStore((s) => s.categoryIds);
+  const folderIds = useFeedStore((s) => s.folderIds);
+  // Un seul espace de noms pour étiquettes et catégories : FreshRSS répondait
+  // « OK » à un renommage vers un nom pris, et l'écran annonçait « Catégorie
+  // renommée » sans que rien ne change (L-14).
+  const owners = useMemo(() => nameOwners({ labels, categoryIds, folderIds }), [labels, categoryIds, folderIds]);
 
   const { categories, uncategorised } = useMemo(
     () => groupFeedsByCategory(subscriptions),
@@ -70,6 +79,7 @@ export default function CategoryList() {
               group={group}
               first={index === 0}
               names={allNames}
+              owners={owners}
               busy={busy}
               expanded={expanded === group.id}
               renaming={renaming === group.id}
@@ -110,6 +120,7 @@ export default function CategoryList() {
               group={{ id: '__none__', label: t('preferences.categories.none'), feeds: uncategorised }}
               first={categories.length === 0}
               names={allNames}
+              owners={owners}
               busy={busy}
               readOnly
               expanded={expanded === '__none__'}
@@ -134,6 +145,7 @@ interface CategoryRowProps {
   group: CategoryGroup;
   first: boolean;
   names: string[];
+  owners: NameOwners;
   busy: boolean;
   /** La pseudo-catégorie « sans catégorie » : ni renommable ni supprimable. */
   readOnly?: boolean;
@@ -151,11 +163,14 @@ interface CategoryRowProps {
 }
 
 function CategoryRow({
-  group, first, names, busy, readOnly, expanded, renaming, confirming,
+  group, first, names, owners, busy, readOnly, expanded, renaming, confirming,
   onToggle, onStartRename, onCancelRename, onRename, onAskDelete, onCancelDelete, onDelete, onMove,
 }: CategoryRowProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(group.label);
+  const refusalId = useId();
+  // Le nom inchangé n'a pas de motif : le bouton est seulement grisé.
+  const issue = draft.trim() !== group.label ? categoryNameIssue(draft, owners, group.id) : null;
 
   return (
     <div style={{ borderTop: first ? undefined : '1px solid var(--panel-border)' }}>
@@ -214,13 +229,16 @@ function CategoryRow({
       </div>
 
       {renaming && (
-        <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'var(--panel-bg)' }}>
+        <div className="px-3 py-2" style={{ background: 'var(--panel-bg)' }}>
+          <div className="flex items-center gap-2">
           <input
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            aria-invalid={!!issue || undefined}
+            aria-describedby={refusalId}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && isValidCategoryName(draft)) onRename?.(draft);
+              if (e.key === 'Enter' && isValidCategoryName(draft) && !issue) onRename?.(draft);
               if (e.key === 'Escape') { e.stopPropagation(); onCancelRename?.(); }
             }}
             aria-label={t('preferences.categories.rename')}
@@ -229,7 +247,7 @@ function CategoryRow({
           />
           <button
             onClick={() => onRename?.(draft)}
-            disabled={busy || !isValidCategoryName(draft) || draft.trim() === group.label}
+            disabled={busy || !isValidCategoryName(draft) || !!issue || draft.trim() === group.label}
             className="prefs-tap-btn px-2.5 py-1.5 text-xs font-medium rounded-md disabled:opacity-40"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
@@ -242,6 +260,8 @@ function CategoryRow({
           >
             {t('preferences.categories.cancel')}
           </button>
+          </div>
+          <NameRefusal id={refusalId} issue={issue} name={draft} />
         </div>
       )}
 
@@ -266,6 +286,7 @@ function CategoryRow({
               feed={feed}
               current={readOnly ? '' : group.label}
               names={names}
+              owners={owners}
               busy={busy}
               onMove={onMove}
             />
@@ -279,14 +300,24 @@ function CategoryRow({
 const NEW_CATEGORY = '__new__';
 
 function FeedRow({
-  feed, current, names, busy, onMove,
-}: { feed: Subscription; current: string; names: string[]; busy: boolean; onMove: (id: string, name: string) => void }) {
+  feed, current, names, owners, busy, onMove,
+}: { feed: Subscription; current: string; names: string[]; owners: NameOwners; busy: boolean; onMove: (id: string, name: string) => void }) {
   const { t } = useTranslation();
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState('');
+  const refusalId = useId();
+  // Une « nouvelle » catégorie au nom d'une catégorie existante (même vide,
+  // même autrement capitalisée) n'est pas un refus : le flux y va, sous son
+  // nom exact. Au nom d'une étiquette, ou avec « / », refus et motif.
+  const found = categoryNameIssue(draft, owners);
+  const issue = found === 'category' ? null : found;
+  const wanted = draft.trim().toLowerCase();
+  const target = owners.categories.map(nameOf).find((n) => n.toLowerCase() === wanted) ?? draft.trim();
+  const canMove = isValidCategoryName(draft) && !issue;
 
   return (
-    <div className="prefs-tap-row flex items-center gap-2 px-3 py-1.5 pl-8" style={{ borderTop: '1px solid var(--panel-border)' }}>
+    <div style={{ borderTop: '1px solid var(--panel-border)' }}>
+    <div className="prefs-tap-row flex items-center gap-2 px-3 py-1.5 pl-8">
       <span className="flex-1 min-w-0 text-[13px] truncate" style={{ color: 'var(--list-title)' }}>
         {feed.title}
       </span>
@@ -297,8 +328,10 @@ function FeedRow({
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            aria-invalid={!!issue || undefined}
+            aria-describedby={refusalId}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && isValidCategoryName(draft)) { onMove(feed.id, draft); setCreating(false); }
+              if (e.key === 'Enter' && canMove) { onMove(feed.id, target); setCreating(false); }
               if (e.key === 'Escape') { e.stopPropagation(); setCreating(false); }
             }}
             placeholder={t('preferences.categories.newName')}
@@ -307,8 +340,8 @@ function FeedRow({
             style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)', background: 'var(--panel-header-bg)' }}
           />
           <button
-            onClick={() => { if (isValidCategoryName(draft)) { onMove(feed.id, draft); setCreating(false); } }}
-            disabled={busy || !isValidCategoryName(draft)}
+            onClick={() => { if (canMove) { onMove(feed.id, target); setCreating(false); } }}
+            disabled={busy || !canMove}
             className="prefs-tap-btn px-2 py-1 text-xs font-medium rounded-md disabled:opacity-40"
             style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
           >
@@ -337,6 +370,8 @@ function FeedRow({
           <option value={NEW_CATEGORY}>{t('preferences.categories.newCategory')}</option>
         </select>
       )}
+    </div>
+      {creating && <NameRefusal id={refusalId} issue={issue} name={draft} spacing="-mt-0.5 pb-1.5 pl-8 pr-3" />}
     </div>
   );
 }

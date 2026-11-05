@@ -5016,12 +5016,37 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
 - **Où** : `src/lib/feedCategories.ts` (regroupement et validation, testés),
   `src/components/Preferences/CategoryList.tsx`, `feedStore`
   (`renameCategory`, `deleteCategory`, `moveFeedToCategory`)
-- **Une catégorie n'est pas un objet stocké** : FreshRSS ne l'expose que
-  **portée par ses flux** (`subscription.categories`). Il n'y a donc pas de
-  liste à charger, seulement une liste à déduire — et **une catégorie vide
-  n'existe pas**. En créer une se fait en y déplaçant son premier flux, ce que
-  le sélecteur propose sous « nouvelle catégorie ». Même limite du modèle
-  Google Reader que pour les catégories d'articles sauvegardés.
+- **Une catégorie n'est pas un objet stocké** : la liste des abonnements ne
+  l'expose que **portée par ses flux** (`subscription.categories`). La liste
+  de gestion est donc déduite des flux, et **une catégorie vide n'y figure
+  pas**. En créer une se fait en y déplaçant son premier flux, ce que le
+  sélecteur propose sous « nouvelle catégorie ». Même limite du modèle Google
+  Reader que pour les catégories d'articles sauvegardés. FreshRSS garde
+  pourtant des catégories vides (sa catégorie par défaut, souvent « Sans
+  catégorie ») : `tag/list` les annonce avec le type `folder`, et
+  `loadLabels` les retient dans `folderIds` — elles ne sont jamais proposées
+  comme étiquettes, et leur nom reste pris (1.9.0).
+- **Un seul espace de noms pour étiquettes et catégories** (1.9.0,
+  `src/lib/labelNames.ts`) : pour l'API, les deux s'écrivent
+  `user/-/label/<nom>`, et FreshRSS répond « OK » sans rien faire quand le nom
+  est pris (`rename-tag` cherche même une **catégorie** de ce nom en premier :
+  renommer une étiquette homonyme renommait la catégorie). Renommer une
+  catégorie vers le nom d'une autre catégorie (vide comprise) ou d'une
+  étiquette est donc refusé **avant l'envoi**, motif sous le champ
+  (`NameRefusal`, `preferences.labels.nameIsCategory` / `nameIsLabel`),
+  bouton grisé et Entrée sans effet ; « Catégorie renommée » s'affichait sans
+  que rien ne change. Une « nouvelle catégorie » au nom d'une catégorie
+  existante, autrement capitalisée ou vide, n'est pas un refus : le flux y va,
+  sous son nom exact ; au nom d'une étiquette, elle est refusée (le store la
+  refuse aussi, `moveFeedToCategory`). La comparaison ignore la casse et les
+  espaces autour.
+- **Le résultat est vérifié** : après `rename-tag`, les abonnements relus
+  doivent porter le nouveau nom et plus l'ancien, sinon c'est un échec. Une
+  relecture impossible (liste inchangée) laisse foi à la réponse.
+- **La vue affichée suit** (1.9.0) : renommer la catégorie ouverte fait passer
+  la vue sous son nouveau nom et la recharge (filtre et article ouvert
+  gardés) ; la supprimer ramène à l'accueil, au même filtre. La vue restait
+  sur l'ancien identifiant : une liste vide. Même règle pour les étiquettes.
 - **Supprimer une catégorie ne supprime aucun flux** : ils se retrouvent sans
   catégorie. La confirmation le dit **avant**, avec le nombre de flux
   concernés — c'est la question que pose toute suppression de catégorie, et y
@@ -5036,7 +5061,8 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   « Sans catégorie », qui n'est ni renommable ni supprimable.
 - **La barre oblique est refusée** dans un nom : l'identifiant est
   `user/-/label/<nom>`, et une barre à l'intérieur se lirait comme une
-  imbrication.
+  imbrication. Le refus est dit sous le champ (`categories.noSlash`, 1.9.0) :
+  le bouton se grisait sans explication.
 - **Piège** : les actions de ligne (renommer / supprimer) sont révélées au
   survol par `group-hover`. **La classe `group` doit être sur la ligne**, sans
   quoi elles n'ont aucun parent à survoler et restent invisibles pour toujours.
@@ -5092,7 +5118,33 @@ Les **catégories d'articles sauvegardés** sont des étiquettes préfixées
 noms créés par l'utilisateur vivent dans les préférences synchronisées
 (`savedCategoryNames`) et deviennent une vraie étiquette au premier article rangé.
 
-- **Où** : `src/lib/savedCategories.ts`, `src/utils/labels.ts`, `src/components/Preferences/LabelsTab.tsx`
+- **Où** : `src/lib/savedCategories.ts`, `src/utils/labels.ts`, `src/components/Preferences/LabelsTab.tsx`,
+  `src/lib/labelNames.ts` (noms pris)
+- **Un nom pris est refusé, et dit** (1.9.0) : étiquettes et catégories
+  partagent un espace de noms (voir « Catégories » ci-dessus). Renommer une
+  étiquette vers le nom d'une autre ou d'une catégorie (vide comprise) est
+  refusé avant l'envoi, motif sous le champ, champ laissé ouvert ; la sortir
+  de son groupe (« Déplacer », glisser) vers un nom pris l'est aussi, par un
+  message — la couleur partait jusque-là vers un nom que rien ne portait. Dans
+  le menu Étiquettes du volet, un nom de catégorie est refusé de même, et le
+  nom d'une étiquette existante, quelle que soit sa casse, pose celle-ci
+  (sans jamais la retirer). La palette ne propose pas de « créer » une
+  étiquette au nom d'une catégorie. Après `rename-tag`, la liste relue doit
+  porter le nouveau nom et plus l'ancien : FreshRSS dit « OK » même quand il
+  n'a rien renommé. Les articles ne changent d'étiquette qu'après cette
+  vérification.
+- **Une catégorie vide n'est jamais une étiquette** (1.9.0) : `tag/list`
+  la donne en `folder` ; elle apparaissait (« Sans catégorie » en double), se
+  cochait, et rien n'était enregistré. `userLabels` écarte tout `folder`, et
+  par prudence tout nom porté par un flux (serveur sans type).
+- **La vue affichée suit** (1.9.0) : renommer l'étiquette ouverte fait passer
+  la vue sous son nouveau nom et la recharge ; la supprimer (Préférences ou
+  croix de la barre latérale) ramène à l'accueil, au même filtre. La liste
+  restait sur l'ancienne, qui paraissait vide.
+- **Piège connu, non corrigé** : renommer une étiquette **enfant** depuis les
+  Préférences envoie le seul nom de la feuille (le champ montre `Tuto` pour
+  `Tech/Tuto`) : elle sort de son groupe. Le contrôle des noms porte sur ce
+  qui part réellement.
 - **Dans la barre latérale** (`SavedCategoryList`, `FilterItem` de
   `Sidebar.tsx`) : la croix qui supprime une catégorie est révélée au survol
   et **n'existe pas au toucher** (`[@media(hover:none)]:hidden`, 1.8.0) :
@@ -7445,7 +7497,8 @@ l'article (IA) »).
   palette ouverte sur un état périmé ne déclenche rien. Les étiquettes de
   l'article ouvert s'y posent ou s'y retirent une par une
   (`palette.labelAdd` / `palette.labelRemove`, même liste que `LabelMenu`) ;
-  un nom tapé qui n'est pas déjà une étiquette propose « Créer l'étiquette … »
+  un nom tapé qui n'est ni une étiquette ni une catégorie, même vide
+  (`labelNames.ts`), propose « Créer l'étiquette … »
   (`palette.labelCreate`, offre `newLabel`, le nom passe en argument de
   `runToolbarCommand`) — sans lui, masquer « Étiquettes » rendait toute
   étiquette nouvelle impossible, greader n'en créant qu'en la posant. Les

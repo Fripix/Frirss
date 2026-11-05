@@ -18,6 +18,8 @@ import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../li
 import { isFocusToggleTarget } from '../../lib/readingFocus';
 import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
+import { nameOf, nameOwners, takenBy } from '../../lib/labelNames';
+import NameRefusal from '../NameRefusal';
 import { readableTextOn } from '../../lib/readableText';
 import { planHeroWarm, runHeroWarm } from '../../lib/heroWarm';
 import { rememberImageSize } from '../../lib/imageAspect';
@@ -2478,7 +2480,7 @@ interface LabelMenuProps {
 
 export function LabelMenu({ article, variant }: LabelMenuProps) {
   const { t } = useTranslation();
-  const { labels, loadLabels, toggleArticleLabel, categoryIds } = useFeedStore();
+  const { labels, loadLabels, toggleArticleLabel, categoryIds, folderIds } = useFeedStore();
   const [open, setOpen] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
@@ -2526,11 +2528,19 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
     (l) => !categoryIds.includes(l) && l !== READ_LATER_LABEL
   );
 
+  // Un nom de catégorie (même vide) est refusé, et dit : FreshRSS ignorait
+  // l'étiquette, la case se cochait sans rien enregistrer (L-14). Le nom
+  // d'une étiquette existante, quelle que soit sa casse, pose celle-ci.
+  const newName = newLabel.trim();
+  const clash = takenBy(newName, nameOwners({ labels, categoryIds, folderIds }));
+  const refusalId = `label-refusal-${article.id}`;
+
   async function handleAddNew(e: FormEvent) {
     e.preventDefault();
-    if (!newLabel.trim()) return;
-    const labelId = `user/-/label/${newLabel.trim()}`;
-    await toggleArticleLabel(article, labelId);
+    if (!newName || clash === 'category') return;
+    const existing = labels.find((l) => nameOf(l.id).toLowerCase() === newName.toLowerCase());
+    const labelId = existing?.id ?? `user/-/label/${newName}`;
+    if (!articleLabels.includes(labelId)) await toggleArticleLabel(article, labelId);
     setNewLabel('');
   }
 
@@ -2615,13 +2625,16 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
 
         <form
           onSubmit={handleAddNew}
-          className={`${isMobile ? 'px-4 py-3' : 'px-3 py-2'} flex gap-1.5`}
+          className={isMobile ? 'px-4 py-3' : 'px-3 py-2'}
           style={{ borderTop: '1px solid var(--panel-border)' }}
         >
+          <div className="flex gap-1.5">
           <input
             type="text"
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
+            aria-invalid={clash === 'category' || undefined}
+            aria-describedby={refusalId}
             placeholder={t('readingPane.newLabel')}
             className={`flex-1 ${isMobile ? 'text-sm px-3 py-2' : 'text-xs px-2 py-1'} rounded border outline-none`}
             style={{
@@ -2634,7 +2647,7 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
           />
           <button
             type="submit"
-            disabled={!newLabel.trim()}
+            disabled={!newName || clash === 'category'}
             aria-label={t('app.create')}
             className={`${isMobile ? 'p-2' : 'p-1'} rounded transition-colors disabled:opacity-30`}
             style={{ color: 'var(--accent)' }}
@@ -2643,6 +2656,9 @@ export function LabelMenu({ article, variant }: LabelMenuProps) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </button>
+          </div>
+          <NameRefusal id={refusalId} issue={clash === 'category' ? 'category' : null} name={newName}
+            className={isMobile ? 'text-xs' : ''} />
         </form>
       </>
     );
