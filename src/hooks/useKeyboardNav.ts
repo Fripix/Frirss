@@ -57,6 +57,14 @@ export function useKeyboardNav(): void {
       // porter l'attribut (le sanitizer le retire, cette garde ne s'y fie pas).
       if (Array.from(document.querySelectorAll('[data-floating-surface]')).some((el) => !el.closest('.article-content'))) return;
 
+      // Un Échap déjà traité appartient à la surface qui l'a traité. Les
+      // Préférences se ferment dans leur gestionnaire React ; dans un vrai
+      // navigateur, la file des microtâches se vide entre deux écouteurs, React
+      // rend aussitôt, et la boîte a déjà quitté le DOM quand la touche atteint
+      // `window` : la garde ci-dessus ne la voit plus, et le même Échap
+      // refermait aussi l'article ouvert en grille (ou quittait le mode Focus).
+      if (e.key === 'Escape' && e.defaultPrevented) return;
+
       // Escape leaves Reading Focus mode (only when active — otherwise let other
       // handlers, e.g. search / preferences, deal with Escape).
       if (e.key === 'Escape' && useUiStore.getState().readingFocus) {

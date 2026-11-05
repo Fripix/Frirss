@@ -1048,6 +1048,17 @@ non réassignables : Échap, double-clic (mode Focus), clic prolongé (ranger).
   l'article qu'elles recouvrent. ⌘K est traité avant ces gardes, par convention. Un simple bouton
   qui a le focus **ne** fait **pas** taire les raccourcis : après un clic dans
   la barre d'outils le focus y reste (Chrome), et `j`/`k` doivent suivre.
+- **Un Échap déjà traité n'agit pas deux fois** (1.9.0) : la garde des
+  boîtes ne suffit pas pour Échap. Les Préférences se
+  ferment dans leur propre écouteur ; dans un vrai navigateur, la file des
+  microtâches se vide entre deux écouteurs, React rend aussitôt, et la boîte
+  a déjà quitté le DOM quand la touche atteint `window`. Le même Échap
+  refermait alors aussi l'article ouvert en grille, ou quittait le mode
+  Focus. `useKeyboardNav` ignore donc un Échap `defaultPrevented` : toute
+  surface qui traite Échap sans `stopPropagation` doit l'appeler. ⚠️ Un
+  `dispatchEvent` de test ne vide la file qu'à la fin de l'envoi : la boîte
+  y est encore là, et un test qui rend les vraies Préférences passe avec
+  le bug (`useKeyboardNav.escape.test.tsx` simule l'état réel).
 - **Aucun raccourci ne reprend une touche du navigateur ou du système**
   (règle du propriétaire, 1.7.0). Deux gardes :
   - *à l'usage* (`useKeyboardNav.ts`) : une touche tenue avec ⌘, Ctrl ou Alt

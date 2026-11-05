@@ -41,6 +41,9 @@ la release publiée.
   s'afficher.** Pendant un court instant, avant le retrait de son écouteur, le
   volet répondait encore « oui ». C'était aussi un rouge possible en CI, de même
   forme que celui de « Résumer » corrigé en 1.8.0.
+- **Échap dans les Préférences ne referme plus aussi l'article.** En grille,
+  avec un article ouvert, une seule pression fermait les Préférences et
+  ramenait à la grille ; en mode Focus, elle le quittait aussi.
 
 ## Sous le capot
 
