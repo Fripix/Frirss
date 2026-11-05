@@ -64,6 +64,7 @@ import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/ba
 import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
 import { canRandomView, drawIds, inDrawOrder, randomCutoffUsec, randomViewKey, RANDOM_MAX_IDS } from '../lib/randomDraw';
 import { createLocalWrites, applyField, type WriteField } from '../lib/localWrites';
+import { mergeRefreshedPage } from '../lib/refreshMerge';
 import {
   viewListKey, viewListKeys, parseViewKey, preparedListKey, READ_LATER_LABEL, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
   type ViewAddress, type ViewList, type StoredView, type OfflineView, type OfflineSources,
@@ -3329,17 +3330,20 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // in unread-only mode a background refresh drops it (it's now read), so
         // re-insert it at its previous spot. It falls away on the next refresh
         // once you've moved to another article.
-        let articles = newArticles;
-        if (updatedSelected && !newArticles.some((a) => a.id === updatedSelected.id)) {
+        // Les pages chargées au défilement restent (#30) : seule la première
+        // est relue, la queue est recousue dessous (`mergeRefreshedPage`).
+        const merged = mergeRefreshedPage(state.articles, state.continuation, newArticles, result.continuation);
+        let articles = merged.articles;
+        if (updatedSelected && !articles.some((a) => a.id === updatedSelected.id)) {
           const prevIdx = state.articles.findIndex((a) => a.id === updatedSelected.id);
-          const insertAt = prevIdx >= 0 ? Math.min(prevIdx, newArticles.length) : 0;
-          articles = [...newArticles];
+          const insertAt = prevIdx >= 0 ? Math.min(prevIdx, articles.length) : 0;
+          articles = [...articles];
           articles.splice(insertAt, 0, { ...updatedSelected, read: true });
         }
 
         return {
           articles,
-          continuation: result.continuation,
+          continuation: merged.continuation,
           selectedArticle: updatedSelected,
           // La liste vient d'être rechargée : plus rien de nouveau à signaler.
           newInView: 0,

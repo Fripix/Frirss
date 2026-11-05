@@ -294,6 +294,68 @@ describe('feedStore.silentRefresh — keep the article being read (unread filter
   });
 });
 
+// Issue #30 : faire défiler un long flux charge des pages ; au retour sur
+// l'onglet, la relecture discrète remplaçait TOUTE la liste par la seule
+// première page. Descendu à la carte 240, on retombait près du haut.
+describe('feedStore.silentRefresh — garde les pages déjà chargées (#30)', () => {
+  const feed = { id: 'feed/1', title: 'F' } as unknown as Subscription;
+  const art = (i: number) => ({ id: `i${i}`, read: false, sourceId: 'feed/1', title: `T${i}`, published: 10_000 - i } as Article);
+  const item = (i: number) => ({ id: `i${i}`, categories: [], origin: { streamId: 'feed/1' }, published: 10_000 - i });
+  const range = (from: number, to: number) => Array.from({ length: to - from }, (_, k) => from + k);
+
+  beforeEach(() => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([]);
+    vi.mocked(api.getStarredItems).mockResolvedValue({ items: [], continuation: null } as never);
+  });
+
+  it('trois pages chargées : la relecture met à jour le haut et garde le reste', async () => {
+    useFeedStore.setState({ selectedFeed: feed, filter: 'all', articles: range(0, 150).map(art), continuation: 'after-150', selectedArticle: null });
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: range(0, 50).map(item), continuation: 'after-50' } as never);
+    await useFeedStore.getState().silentRefresh();
+    const s = useFeedStore.getState();
+    expect(s.articles).toHaveLength(150);
+    expect(s.articles.map((a) => a.id)).toEqual(range(0, 150).map((i) => `i${i}`));
+    // La suite reprend après la dernière page chargée, pas après la première.
+    expect(s.continuation).toBe('after-150');
+  });
+
+  it('des arrivées en tête s’ajoutent, la queue chargée reste', async () => {
+    useFeedStore.setState({ selectedFeed: feed, filter: 'all', articles: range(0, 150).map(art), continuation: 'after-150', selectedArticle: null });
+    // Trois nouveaux articles (-3..-1) poussent i47..i49 hors de la première page.
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: range(-3, 47).map(item), continuation: 'after-46' } as never);
+    await useFeedStore.getState().silentRefresh();
+    const ids = useFeedStore.getState().articles.map((a) => a.id);
+    expect(ids).toEqual(range(-3, 150).map((i) => `i${i}`));
+    expect(useFeedStore.getState().continuation).toBe('after-150');
+  });
+
+  it('un article lu ailleurs dans la première page part (vue non-lus), la queue reste', async () => {
+    useFeedStore.setState({ selectedFeed: feed, filter: 'unread', articles: range(0, 100).map(art), continuation: 'after-100', selectedArticle: null });
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: range(0, 51).filter((i) => i !== 10).map(item), continuation: 'after-50' } as never);
+    await useFeedStore.getState().silentRefresh();
+    const ids = useFeedStore.getState().articles.map((a) => a.id);
+    expect(ids).not.toContain('i10');
+    expect(ids).toHaveLength(99);
+    expect(ids.at(-1)).toBe('i99');
+  });
+
+  it('aucun recouvrement entre la page reçue et la liste : la page remplace tout', async () => {
+    useFeedStore.setState({ selectedFeed: feed, filter: 'all', articles: range(0, 100).map(art), continuation: 'after-100', selectedArticle: null });
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: range(200, 250).map(item), continuation: 'after-250' } as never);
+    await useFeedStore.getState().silentRefresh();
+    expect(useFeedStore.getState().articles.map((a) => a.id)).toEqual(range(200, 250).map((i) => `i${i}`));
+    expect(useFeedStore.getState().continuation).toBe('after-250');
+  });
+
+  it('le flux tient dans la page reçue : elle fait foi, sans suite', async () => {
+    useFeedStore.setState({ selectedFeed: feed, filter: 'unread', articles: range(0, 80).map(art), continuation: 'after-80', selectedArticle: null });
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: range(0, 30).map(item), continuation: null } as never);
+    await useFeedStore.getState().silentRefresh();
+    expect(useFeedStore.getState().articles).toHaveLength(30);
+    expect(useFeedStore.getState().continuation).toBeNull();
+  });
+});
+
 describe('feedStore — pastille « nouveaux articles »', () => {
   const feedA = { id: 'feed/A', title: 'A', categories: [{ id: 'user/-/label/Tech' }] } as unknown as Subscription;
   const feedB = { id: 'feed/B', title: 'B' } as unknown as Subscription;

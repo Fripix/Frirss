@@ -5121,6 +5121,18 @@ lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
    hausses des flux de la vue affichée alimentent le bandeau « nouveaux
    articles ». Un retour sur l'onglet ajoute un `silentRefresh()` complet. La
    liste ne se recharge jamais d'elle-même.
+   **La relecture garde les pages déjà chargées** (1.9.0, issue #30,
+   `src/lib/refreshMerge.ts`) : le serveur ne renvoie que la première page,
+   qui remplace le haut de la liste ; la queue chargée au défilement est
+   recousue dessous, au dernier article que la page contient encore, avec sa
+   propre suite de pagination. Avant, la liste retombait à 50 articles :
+   descendu à la carte 240, on se retrouvait près du haut. Ce qui précède la
+   couture et manque à la page part (lu ailleurs, en non-lus) ; la queue, elle,
+   n'est pas relue — un article lu ailleurs y reste jusqu'au prochain
+   rechargement. Sans article commun, ou si le flux tient dans la page, la page
+   remplace tout. ⚠️ Oya ne simule pas le passage en arrière-plan d'un onglet
+   (`visibilitychange` ne part pas) : ce chemin se vérifie par
+   `feedStore.test.ts` ou sur un vrai navigateur.
 3. **Le cache n'y change rien.** Il est *write-through* et n'est servi que sur
    demande explicite du client (en-tête `X-Cache-Only`, peinture instantanée au
    démarrage) ; toute autre lecture part en direct vers FreshRSS.

@@ -44,6 +44,10 @@ la release publiée.
 - **Échap dans les Préférences ne referme plus aussi l'article.** En grille,
   avec un article ouvert, une seule pression fermait les Préférences et
   ramenait à la grille.
+- **Retour sur l'onglet sans perdre sa place** (#30). Après avoir fait
+  défiler un long flux, revenir sur FriRSS relisait la liste en ne gardant
+  que sa première page : la position retombait près du haut. Seul le haut
+  est désormais relu, les articles déjà chargés restent.
 
 ## Sous le capot
 
