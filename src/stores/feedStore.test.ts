@@ -356,6 +356,83 @@ describe('feedStore.silentRefresh — garde les pages déjà chargées (#30)', (
   });
 });
 
+describe('feedStore.silentRefresh — le bas de la liste a quitté la vue (L-01)', () => {
+  const feed = { id: 'feed/1', title: 'F' } as unknown as Subscription;
+  const range = (from: number, to: number) => Array.from({ length: to - from }, (_, k) => from + k);
+  const art = (i: number) => ({ id: `i${i}`, read: false, sourceId: 'feed/1', title: `T${i}`, published: 10_000 - i } as Article);
+  const item = (i: number) => ({ id: `i${i}`, categories: [], origin: { streamId: 'feed/1' }, published: 10_000 - i });
+  const ids = () => useFeedStore.getState().articles.map((a) => a.id);
+
+  beforeEach(() => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([]);
+    vi.mocked(api.getStarredItems).mockResolvedValue({ items: [], continuation: null } as never);
+  });
+  afterEach(() => useUiStore.setState({ articleOrder: 'newest' }));
+
+  it('non-lus, rangs 30 à 100 lus ailleurs : la liste reste dans l’ordre, puis la suite arrive sans doublon', async () => {
+    // Deux pages chargées (i0…i99) ; i29…i99 lus sur un autre appareil.
+    useFeedStore.setState({ selectedFeed: feed, filter: 'unread', articles: range(0, 100).map(art), continuation: 'after-100', selectedArticle: null });
+    // La première page du serveur s'étend désormais au-delà de i99.
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [...range(0, 29), ...range(100, 121)].map(item), continuation: 'after-120' } as never);
+    await useFeedStore.getState().silentRefresh();
+    expect(ids()).toEqual([...range(0, 29), ...range(100, 121)].map((i) => `i${i}`));
+
+    // Défiler jusqu'au bout : la page suivante dépend de la suite retenue.
+    vi.mocked(api.getStreamContents).mockImplementation(async (_s, _n, c) => (
+      c === 'after-100'
+        ? { items: range(100, 150).map(item), continuation: 'after-150' }
+        : { items: range(121, 171).map(item), continuation: 'after-170' }
+    ) as never);
+    await useFeedStore.getState().loadMore();
+    expect(new Set(ids()).size).toBe(ids().length);
+    expect(ids().slice(48, 52)).toEqual(['i119', 'i120', 'i121', 'i122']);
+  });
+
+  it('favoris, plus anciens d’abord : un favori revenu en bout de page garde la queue qui le suit', async () => {
+    useUiStore.setState({ articleOrder: 'oldest' });
+    const gid = (n: number) => `tag:google.com,2005:reader/item/${n.toString(16).padStart(16, '0')}`;
+    const g = (n: number) => ({ ...art(n), id: gid(n) });
+    const gItem = (n: number) => ({ ...item(n), id: gid(n) });
+    const even = (from: number, to: number) => range(from, to + 1).filter((n) => n % 2 === 0);
+    // Favoris 2, 4 … 200 chargés ; 100 retiré ailleurs, 101 ajouté ailleurs.
+    useFeedStore.setState({ selectedFeed: null, filter: 'starred', articles: even(2, 200).map(g), continuation: 'after-200', selectedArticle: null });
+    vi.mocked(api.getStarredItems).mockResolvedValue({ items: [...even(2, 98), 101].map(gItem), continuation: 'after-101' } as never);
+    await useFeedStore.getState().silentRefresh();
+    expect(ids()).toEqual([...even(2, 98), 101, ...even(102, 200)].map(gid));
+    expect(useFeedStore.getState().continuation).toBe('after-200');
+  });
+
+  it('loadMore n’ajoute pas un article déjà dans la liste', async () => {
+    useFeedStore.setState({ selectedFeed: feed, filter: 'all', articles: range(0, 50).map(art), continuation: 'c', selectedArticle: null, loadingMore: false });
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: range(40, 90).map(item), continuation: 'd' } as never);
+    await useFeedStore.getState().loadMore();
+    expect(ids()).toEqual(range(0, 90).map((i) => `i${i}`));
+  });
+});
+
+describe('feedStore.silentRefresh — l’article ouvert garde sa place (L-02)', () => {
+  const feed = { id: 'feed/1', title: 'F' } as unknown as Subscription;
+  const range = (from: number, to: number) => Array.from({ length: to - from }, (_, k) => from + k);
+  const art = (i: number, read = false) => ({ id: `v${i}`, read, sourceId: 'feed/1', title: `T${i}`, published: 10_000 - i } as Article);
+  const item = (i: number) => ({ id: `v${i}`, categories: [], origin: { streamId: 'feed/1' }, published: 10_000 - i });
+
+  beforeEach(() => {
+    vi.mocked(api.getUnreadCounts).mockResolvedValue([]);
+    vi.mocked(api.getStarredItems).mockResolvedValue({ items: [], continuation: null } as never);
+  });
+
+  it('V001→V040 lus ici à la flèche, retour sur l’onglet : ↓ ouvre V041', async () => {
+    const articles = [...range(1, 41).map((i) => art(i, true)), ...range(41, 101).map((i) => art(i))];
+    useFeedStore.setState({ selectedFeed: feed, filter: 'unread', articles, continuation: 'after-100', selectedArticle: articles[39] });
+    // Les lus ont quitté la vue côté serveur.
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: range(41, 91).map(item), continuation: 'after-90' } as never);
+    await useFeedStore.getState().silentRefresh();
+    expect(useFeedStore.getState().articles.slice(0, 2).map((a) => a.id)).toEqual(['v40', 'v41']);
+    useFeedStore.getState().selectNextArticle();
+    expect(useFeedStore.getState().selectedArticle?.id).toBe('v41');
+  });
+});
+
 describe('feedStore — pastille « nouveaux articles »', () => {
   const feedA = { id: 'feed/A', title: 'A', categories: [{ id: 'user/-/label/Tech' }] } as unknown as Subscription;
   const feedB = { id: 'feed/B', title: 'B' } as unknown as Subscription;

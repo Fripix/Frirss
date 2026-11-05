@@ -64,7 +64,7 @@ import { startActualize, getActualizeStatus, type ActualizeJob } from '../api/ba
 import { fromFreshrssTitle, fromFreshrssName } from '../lib/freshrssText';
 import { canRandomView, drawIds, inDrawOrder, randomCutoffUsec, randomViewKey, RANDOM_MAX_IDS } from '../lib/randomDraw';
 import { createLocalWrites, applyField, type WriteField } from '../lib/localWrites';
-import { mergeRefreshedPage } from '../lib/refreshMerge';
+import { mergeRefreshedPage, appendPage, keepOpenRow } from '../lib/refreshMerge';
 import {
   viewListKey, viewListKeys, parseViewKey, preparedListKey, READ_LATER_LABEL, fallbackSources, offlineViewList, markStreamRead, PREPARED_MAX,
   type ViewAddress, type ViewList, type StoredView, type OfflineView, type OfflineSources,
@@ -2039,7 +2039,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
       const page = reconcile(result.items.map(normalizeArticle), filter, since);
       set((state) => {
-        const articles = [...state.articles, ...page];
+        // Sans doublon : la relecture a pu rendre en tête des articles que
+        // cette page apporte aussi (L-01).
+        const articles = appendPage(state.articles, page);
         const key = viewKey(selectedFeed, filter);
         memSet(key, { articles, continuation: result.continuation });
         listPut(key, articles, result.continuation).catch(() => {}); // persist extended list
@@ -3328,17 +3330,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
         // Don't let the article you're currently reading vanish from under you:
         // in unread-only mode a background refresh drops it (it's now read), so
-        // re-insert it at its previous spot. It falls away on the next refresh
-        // once you've moved to another article.
+        // re-insert it. It falls away on the next refresh once you've moved to
+        // another article. Sa place vient de ses voisins, pas de son ancien
+        // rang : les lignes lues au-dessus de lui partent avec la relecture, et
+        // l'ancien index le posait si bas que ↓ sautait les non-lus qui le
+        // suivaient (L-02, `keepOpenRow`).
         // Les pages chargées au défilement restent (#30) : seule la première
         // est relue, la queue est recousue dessous (`mergeRefreshedPage`).
-        const merged = mergeRefreshedPage(state.articles, state.continuation, newArticles, result.continuation);
+        const merged = mergeRefreshedPage(state.articles, state.continuation, newArticles, result.continuation, viewOrder(selectedFeed));
         let articles = merged.articles;
         if (updatedSelected && !articles.some((a) => a.id === updatedSelected.id)) {
-          const prevIdx = state.articles.findIndex((a) => a.id === updatedSelected.id);
-          const insertAt = prevIdx >= 0 ? Math.min(prevIdx, articles.length) : 0;
-          articles = [...articles];
-          articles.splice(insertAt, 0, { ...updatedSelected, read: true });
+          articles = keepOpenRow(state.articles, articles, { ...updatedSelected, read: true });
         }
 
         return {

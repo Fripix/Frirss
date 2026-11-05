@@ -5130,7 +5130,21 @@ lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
    couture et manque à la page part (lu ailleurs, en non-lus) ; la queue, elle,
    n'est pas relue — un article lu ailleurs y reste jusqu'au prochain
    rechargement. Sans article commun, ou si le flux tient dans la page, la page
-   remplace tout. ⚠️ Ni Oya ni Chromium sans tête ne font passer un onglet
+   remplace tout. ⚠️ **Quand le bas de la liste a quitté la vue** (non-lus lus
+   ailleurs jusqu'en bas, favoris retirés), la page s'étend AU-DELÀ du dernier
+   article chargé : la recoudre avec la queue périmée et l'ancienne suite
+   donnait `001…029, 101…121, 030…`, puis la page suivante rajoutait 101 et
+   suivants en double et ↓ tournait en rond (L-01, 1.9.0). Le dernier article
+   de la page borne donc la queue, dans l'ordre de FreshRSS (l'id d'entrée,
+   `entryIdUsec`, dans le sens de la vue) : seul ce qui le suit reste, et
+   s'il ne reste rien la page remplace tout avec sa propre suite. Sans id
+   lisible, la page remplace tout. `loadMore` n'ajoute jamais un article déjà
+   présent (`appendPage`). **L'article ouvert**, sorti de la page parce que
+   lu, est remis **avant le premier article qui le suivait** et qui est
+   encore là (à défaut après celui qui le précédait, à défaut en tête,
+   `keepOpenRow`) : son ancien rang le posait sous les non-lus qui le
+   suivaient quand les lignes lues au-dessus partaient, et ↓ les sautait
+   (L-02, ancien depuis 1.2.0). ⚠️ Ni Oya ni Chromium sans tête ne font passer un onglet
    en arrière-plan (`visibilitychange` ne part pas) : le parcours N3 du banc
    joue l'événement lui-même. Il mesure le PIRE moment, pas l'état final : le
    banc répond si vite qu'une liste coupée à 50 recharge ses pages avant toute
