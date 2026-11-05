@@ -6118,8 +6118,10 @@ dans quelques composants partagés.
   article ouvert, la liste qu'il recouvre (restée montée pour garder sa
   position) est `inert` ; l'article l'est aussi dès qu'il repart, pendant ses
   400 ms d'animation de sortie. Avant, Tab parcourait les lignes cachées
-  derrière l'article. Le focus n'est pas rendu à la ligne à la fermeture :
-  il retombe sur `<body>`, comme avant.
+  derrière l'article. À la fermeture, le focus revient sur la ligne du
+  dernier article affiché (`focusKey`, cherché par `data-article-id` dans la
+  vue de base) — seulement s'il était dans l'article ou déjà perdu ; avant,
+  il retombait sur `<body>`.
 - **Régions annoncées montées en permanence** (1.8.0) : toasts, bandeau hors
   ligne, bandeau de relève. Une région `aria-live` montée en même temps que
   son texte n'est souvent pas annoncée ; elles restent montées, vides au

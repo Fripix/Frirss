@@ -3,6 +3,12 @@ import { prefersReducedMotion } from '../lib/reducedMotion';
 
 interface MobileStackProps {
   showOverlay: boolean;
+  /**
+   * L'article affiché : à la fermeture, le focus revient sur sa ligne
+   * (`[data-article-id]`) dans la vue de base. Sans lui, le bouton Retour
+   * partait sous le focus et la tabulation repartait du haut de la page.
+   */
+  focusKey?: string | null;
   base: ReactNode;
   overlay: ReactNode;
 }
@@ -15,13 +21,37 @@ interface MobileStackProps {
  * - Back navigation via toolbar button inside the overlay (ReadingPane);
  *   no swipe-back — swipe gestures drive next/prev article instead.
  */
-export default function MobileStack({ showOverlay, base, overlay }: MobileStackProps) {
+export default function MobileStack({ showOverlay, focusKey, base, overlay }: MobileStackProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
   // Cache overlay content during exit animation
   const cachedOverlay = useRef<ReactNode>(null);
   if (overlay) cachedOverlay.current = overlay;
+
+  const baseRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const lastKey = useRef<string | null>(null);
+  if (focusKey) lastKey.current = focusKey;
+  const wasShown = useRef(showOverlay);
+
+  // ── Retour du focus ──────────────────────────────────────────────
+  // Seulement si le focus était dans l'article (ou déjà perdu) : un focus
+  // posé ailleurs entre-temps n'est pas à nous.
+  useEffect(() => {
+    const closing = wasShown.current && !showOverlay;
+    wasShown.current = showOverlay;
+    if (!closing) return;
+    const active = document.activeElement;
+    const inOverlay = !!active && !!overlayRef.current?.contains(active);
+    if (!inOverlay && active && active !== document.body) return;
+    const key = lastKey.current;
+    const row = key
+      ? Array.from(baseRef.current?.querySelectorAll<HTMLElement>('[data-article-id]') ?? [])
+        .find((el) => el.getAttribute('data-article-id') === key)
+      : undefined;
+    row?.focus({ preventScroll: true });
+  }, [showOverlay]);
 
   // ── Mount / animate ──────────────────────────────────────────────
   useEffect(() => {
@@ -56,6 +86,7 @@ export default function MobileStack({ showOverlay, base, overlay }: MobileStackP
           Inerte sous l'article : elle reste montée (position de défilement),
           mais ni la tabulation ni un lecteur d'écran ne doivent l'atteindre. */}
       <div
+        ref={baseRef}
         className="absolute inset-0"
         style={{ transform: `translateX(${listX}px)`, transition }}
         inert={showOverlay}
@@ -79,6 +110,7 @@ export default function MobileStack({ showOverlay, base, overlay }: MobileStackP
           son animation de sortie. */}
       {mounted && (
         <div
+          ref={overlayRef}
           className="absolute inset-0 z-20"
           style={{
             transform: `translateX(${overlayX}px)`,

@@ -37,3 +37,33 @@ describe('MobileStack — une seule vue atteignable', () => {
     expect(container('Ligne de la liste').hasAttribute('inert')).toBe(false);
   });
 });
+
+// Refermer l'article (bouton Retour) démonte son contenu sous le focus : il
+// retombait sur <body>, et la tabulation repartait du haut de la page.
+describe('MobileStack — retour du focus', () => {
+  const base = (
+    <div>
+      <div data-article-id="a1" tabIndex={0}>Ligne 1</div>
+      <div data-article-id="a2" tabIndex={0}>Ligne 2</div>
+    </div>
+  );
+  const overlay = <button>Retour</button>;
+
+  it('article refermé : le focus revient sur la ligne du dernier article lu', () => {
+    const { rerender } = render(<MobileStack showOverlay focusKey="a2" base={base} overlay={overlay} />);
+    screen.getByText('Retour').focus();
+    rerender(<MobileStack showOverlay={false} focusKey={null} base={base} overlay={null} />);
+    expect(document.activeElement).toBe(screen.getByText('Ligne 2'));
+  });
+
+  it('le focus était ailleurs que dans l’article : il n’est pas déplacé', () => {
+    const { rerender } = render(
+      <><input aria-label="ailleurs" /><MobileStack showOverlay focusKey="a2" base={base} overlay={overlay} /></>,
+    );
+    const elsewhere = screen.getByLabelText('ailleurs');
+    elsewhere.focus();
+    rerender(<><input aria-label="ailleurs" /><MobileStack showOverlay={false} focusKey={null} base={base} overlay={null} /></>);
+    expect(document.activeElement).toBe(elsewhere);
+  });
+});
+

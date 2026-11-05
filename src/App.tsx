@@ -459,6 +459,7 @@ export default function App() {
           <AppMain className="flex-1 min-h-0">
             <MobileStack
               showOverlay={!!selectedArticle}
+              focusKey={selectedArticle?.id ?? null}
               base={<ArticleList />}
               overlay={<ReadingPane showBack />}
             />
