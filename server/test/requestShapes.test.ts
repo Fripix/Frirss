@@ -100,3 +100,16 @@ describe('POST /api/servers — doublon par origine normalisée', () => {
     expect(res.status).toBe(409);
   });
 });
+
+describe('GET /api/preferences — une clé __proto__', () => {
+  it('est rendue comme une clé ordinaire, sans devenir le prototype de la réponse', async () => {
+    const put = await request(app).put('/api/preferences').set(auth())
+      .set('Content-Type', 'application/json')
+      .send('{"__proto__":{"pollue":true},"ordinaire":1}');
+    expect(put.status).toBe(200);
+    const res = await request(app).get('/api/preferences').set(auth());
+    const own = JSON.parse(res.text).preferences as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(own, '__proto__')).toBe(true);
+    expect(own.ordinaire).toBe(1);
+  });
+});

@@ -110,7 +110,11 @@ const reject = (res: Response, r: Rejection) => res.status(400).json({ error: r.
 router.get('/', (req, res) => {
   const rows = db.prepare('SELECT key, value FROM preferences WHERE user_id = ?').all(req.user.id) as { key: string; value: string }[];
 
-  const prefs: Record<string, unknown> = {};
+  // Sans prototype : une clé `__proto__` enregistrée (le PUT l'accepte comme
+  // n'importe quel nom) devenait le prototype de la réponse au lieu d'une
+  // propriété, et disparaissait du JSON. Le client ne lit que ses clés
+  // connues (`pickKeys`, `src/lib/prefsSync.ts`) : la renvoyer est sans effet.
+  const prefs: Record<string, unknown> = Object.create(null);
   for (const row of rows) {
     try {
       prefs[row.key] = JSON.parse(row.value);

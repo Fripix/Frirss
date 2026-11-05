@@ -7355,6 +7355,12 @@ les clés modifiées sur l'appareil.
   16 comptes pleins l'atteignent encore), et chaque `GET` gelait la boucle
   d'événements ~3 s. Le total se compte après remplacement, et ne refuse que ce
   qui grossit : un compte déjà au-dessus peut maigrir.
+- **Clé `__proto__`** (1.9.0, `server/test/requestShapes.test.ts`) : le `GET`
+  construit sa réponse sans prototype (`Object.create(null)`). Une clé
+  `__proto__` enregistrée devenait le prototype de l'objet au lieu d'une
+  propriété, et disparaissait de la réponse ; elle sort maintenant comme une
+  clé ordinaire, que le client ignore (`pickKeys` ne lit que les clés
+  synchronisées).
 - **Cadence** (1.8.0) : 120 requêtes par minute et par compte sur toutes les
   routes de préférences (429, `code: 'too_many_requests'`).
 - **Piège** : tout le lot est validé **avant** la moindre écriture. Valider au
