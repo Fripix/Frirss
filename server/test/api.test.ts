@@ -1305,8 +1305,21 @@ describe('extract', () => {
     }));
     const res = await get('https://news.example.com/500');
     expect(res.status).toBe(502);
-    expect(res.body).toEqual({ error: 'Upstream request failed' });
+    expect(res.body).toEqual({ error: 'Upstream request failed', upstreamStatus: 500 });
     expect(cancelled).toBe(true);
+  });
+
+  // Le site a répondu, et refusé : le client ne se replie pas sur
+  // `/api/proxy`, qui irait se faire refuser par le même site (campagne
+  // 1.9.0). Le statut de l'amont le lui dit ; un 502 sans lui (amont
+  // injoignable) garde le repli.
+  it('tells the client the site itself refused the page', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 403, headers: new Headers({ 'content-type': 'text/html' }), body: null,
+    }));
+    const res = await get('https://news.example.com/403');
+    expect(res.status).toBe(502);
+    expect(res.body.upstreamStatus).toBe(403);
   });
 
   // Une réponse SANS `Content-Type` est lue comme une page, dans le même

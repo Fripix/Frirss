@@ -200,7 +200,8 @@
     "videoOpen": "Otwórz w YouTube",
     "videoOffline": "Wideo niedostępne offline",
     "share": "Udostępnij",
-    "copyLink": "Kopiuj link"
+    "copyLink": "Kopiuj link",
+    "extractUnavailable": "Pełny artykuł niedostępny: wyświetlana jest treść kanału."
   },
   "preferences": {
     "title": "Preferencje",

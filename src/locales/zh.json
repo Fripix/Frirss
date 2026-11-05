@@ -192,7 +192,8 @@
     "videoOpen": "在 YouTube 中打开",
     "videoOffline": "离线时视频不可用",
     "share": "分享",
-    "copyLink": "复制链接"
+    "copyLink": "复制链接",
+    "extractUnavailable": "无法获取全文：显示订阅源中的内容。"
   },
   "preferences": {
     "title": "偏好设置",

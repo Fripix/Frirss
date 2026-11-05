@@ -80,4 +80,83 @@ describe('ReadingPane — article de flux YouTube', () => {
     expect(thumbs).toHaveLength(1);
     expect(container.querySelector(`${BODY_SELECTOR}`)?.textContent).toContain('description');
   });
+
+  // L-03 : une vidéo n'a pas d'article à extraire. Avec « Article complet »
+  // par défaut, chaque ouverture partait à l'extraction, échouait, et posait
+  // un bandeau rouge sur la vidéo.
+  it('n’extrait pas une vidéo, même avec « Article complet » par défaut', async () => {
+    useUiStore.setState({ autoExtractDefault: true } as never);
+    const article = {
+      ...base, id: 'yt2', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', content: '',
+    } as unknown as Article;
+    const { container } = await open(article);
+    await act(async () => { await new Promise((r) => setTimeout(r, 150)); });
+    expect(extractMock.fn).not.toHaveBeenCalled();
+    expect(container.querySelector('.reading-skeleton')).toBeNull();
+    expect(container.textContent).not.toContain('readingPane.extractError');
+    expect(container.textContent).not.toContain('readingPane.extractUnavailable');
+  });
+});
+
+/** Le texte de l'avis « Article complet » (et non du bouton du même nom). */
+const notice = (c: HTMLElement) => [...c.querySelectorAll('div')]
+  .some((d) => [...d.childNodes].some((n) => n.nodeType === 3 && n.textContent === 'readingPane.fullContent'));
+
+describe('ReadingPane — échec d’une extraction', () => {
+  const article = (id: string) => ({
+    ...base, id, url: `https://example.com/${id}`, content: '<p>contenu du flux</p>',
+  } as unknown as Article);
+
+  // Idée T2-2 : l'extraction AUTOMATIQUE qui échoue ne pose plus de bandeau
+  // rouge sur l'article — une ligne discrète, avec de quoi réessayer.
+  it('automatique : une ligne discrète, pas de bandeau d’erreur, et « Réessayer » insiste', async () => {
+    useUiStore.setState({ autoExtractDefault: true } as never);
+    extractMock.fn.mockRejectedValue(new Error('NO_CONTENT'));
+    const { container, getByRole } = await open(article('f1'));
+    await act(async () => { await new Promise((r) => setTimeout(r, 150)); });
+    expect(extractMock.fn).toHaveBeenCalledWith('https://example.com/f1', { retry: false });
+    expect(container.textContent).not.toContain('readingPane.extractError');
+    expect(container.textContent).toContain('readingPane.extractUnavailable');
+    expect(container.querySelector(BODY_SELECTOR)?.textContent).toContain('contenu du flux');
+
+    extractMock.fn.mockClear();
+    await act(async () => { getByRole('button', { name: 'readingPane.retry' }).click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(extractMock.fn).toHaveBeenCalledWith('https://example.com/f1', { retry: true });
+    // Demandé par le lecteur, l'échec se dit en clair.
+    expect(container.textContent).toContain('readingPane.extractError');
+  });
+
+  it('demandée par le lecteur : le bandeau d’erreur, comme avant', async () => {
+    extractMock.fn.mockRejectedValue(new Error('NO_CONTENT'));
+    const { container } = await open(article('f2'));
+    const btn = container.querySelector('[title="readingPane.fullContent"]') as HTMLElement;
+    await act(async () => { btn.click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(extractMock.fn).toHaveBeenCalledWith('https://example.com/f2', { retry: true });
+    expect(container.textContent).toContain('readingPane.extractError');
+    expect(container.textContent).not.toContain('readingPane.extractUnavailable');
+  });
+});
+
+describe('ReadingPane — avis « Article complet » (L-06)', () => {
+  const full = { title: '', content: `<p>${'texte complet '.repeat(20)}</p>`, excerpt: '', byline: '', siteName: '', length: 280 };
+
+  it('ne s’affiche pas après une extraction automatique due au réglage global', async () => {
+    useUiStore.setState({ autoExtractDefault: true } as never);
+    extractMock.fn.mockResolvedValue(full);
+    const a = { ...base, id: 'n1', url: 'https://example.com/n1', content: '<p>flux</p>' } as unknown as Article;
+    const { container } = await open(a);
+    await act(async () => { await new Promise((r) => setTimeout(r, 150)); });
+    expect(container.querySelector(BODY_SELECTOR)?.textContent).toContain('texte complet');
+    expect(notice(container)).toBe(false);
+  });
+
+  it('s’affiche toujours après une extraction demandée par le lecteur', async () => {
+    extractMock.fn.mockResolvedValue(full);
+    const a = { ...base, id: 'n2', url: 'https://example.com/n2', content: '<p>flux</p>' } as unknown as Article;
+    const { container } = await open(a);
+    const btn = container.querySelector('[title="readingPane.fullContent"]') as HTMLElement;
+    await act(async () => { btn.click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(container.querySelector(BODY_SELECTOR)?.textContent).toContain('texte complet');
+    expect(notice(container)).toBe(true);
+  });
 });

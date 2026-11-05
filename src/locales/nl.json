@@ -192,7 +192,8 @@
     "videoOpen": "Openen op YouTube",
     "videoOffline": "Video offline niet beschikbaar",
     "share": "Delen",
-    "copyLink": "Link kopiëren"
+    "copyLink": "Link kopiëren",
+    "extractUnavailable": "Volledig artikel niet beschikbaar: dit is de inhoud van de feed."
   },
   "preferences": {
     "title": "Voorkeuren",

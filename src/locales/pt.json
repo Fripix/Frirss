@@ -192,7 +192,8 @@
     "videoOpen": "Abrir no YouTube",
     "videoOffline": "Vídeo indisponível offline",
     "share": "Partilhar",
-    "copyLink": "Copiar ligação"
+    "copyLink": "Copiar ligação",
+    "extractUnavailable": "Artigo completo indisponível: a mostrar o conteúdo do feed."
   },
   "preferences": {
     "title": "Preferências",

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode, type Ref, type CSSProperties, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { effectiveAutoExtract } from '../../lib/effectiveAutoExtract';
+import { isExtractableUrl, worthAutoExtracting } from '../../lib/extractFailures';
 import { useTranslation } from 'react-i18next';
 import { keyLabel } from '../../lib/keyLabel';
 import { createPortal, flushSync } from 'react-dom';
@@ -196,6 +197,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const [extractedContent, setExtractedContent] = useState<ExtractedContent | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
+  // L'erreur vient-elle de l'extraction AUTOMATIQUE ? Elle se dit alors en une
+  // ligne discrète sous l'article, pas en bandeau rouge (idée T2-2).
+  const [extractErrorAuto, setExtractErrorAuto] = useState(false);
   const lastExtractedId = useRef<string | null>(null);
   // Article dont une extraction réseau est EN COURS. La garde de
   // `handleExtract` le lit, pas l'état `extracting` : au rendu qui suit un
@@ -352,10 +356,12 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   useEffect(() => {
     if (!selectedArticle?.url || !selectedArticle?.sourceId) return;
     if (lastExtractedId.current === selectedArticle.id) return;
-    const autoExtract = effectiveAutoExtract(autoExtractDefault, feedSettings, selectedArticle.sourceId);
+    // Jamais une vidéo YouTube : elle n'a pas d'article à extraire (L-03).
+    const autoExtract = effectiveAutoExtract(autoExtractDefault, feedSettings, selectedArticle.sourceId)
+      && isExtractableUrl(selectedArticle.url);
     if (autoExtract) {
       const timer = setTimeout(() => {
-        handleExtract();
+        void handleExtract({ auto: true });
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -416,7 +422,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
       const upcoming = articles
         .slice(idx + 1, idx + 11) // N+1 … N+10, comme les images
-        .filter((a) => a.url && effectiveAutoExtract(ui.autoExtractDefault, fs, a.sourceId) && !peekExtract(a.id));
+        // Ni vidéo, ni page déjà en échec cette session (L-03).
+        .filter((a) => worthAutoExtracting(a.url) && effectiveAutoExtract(ui.autoExtractDefault, fs, a.sourceId) && !peekExtract(a.id));
       if (upcoming.length === 0) return;
       const { extractFullContent } = await import('../../utils/extractContent');
       for (const a of upcoming) {
@@ -561,7 +568,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             // automatique donnait ici un squelette : on balayait d'un article
             // gris à l'autre alors que le texte était disponible.
             const uiNow = useUiStore.getState();
-            const adjAuto = effectiveAutoExtract(uiNow.autoExtractDefault, uiNow.feedSettings, adj.sourceId);
+            const adjAuto = effectiveAutoExtract(uiNow.autoExtractDefault, uiNow.feedSettings, adj.sourceId) && worthAutoExtracting(adj.url);
             const adjExtract = peekExtract(adj.id)?.content ?? null;
             const adjKind = readingBodyKind({ rssHtml: adj.content, extractedHtml: adjExtract, autoExtract: adjAuto });
             const adjHtml = adjKind === 'skeleton' ? '' : displayedHtml(adj.content, adjExtract);
@@ -754,7 +761,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               // directly instead of flashing the RSS body then reflowing.
               const newArt = useFeedStore.getState().selectedArticle;
               const uiNow = useUiStore.getState();
-              const needsExtract = newArt && effectiveAutoExtract(uiNow.autoExtractDefault, uiNow.feedSettings, newArt.sourceId)
+              const needsExtract = newArt && effectiveAutoExtract(uiNow.autoExtractDefault, uiNow.feedSettings, newArt.sourceId) && worthAutoExtracting(newArt.url)
                 && lastExtractedId.current !== newArt.id;
               if (needsExtract) {
                 const t0 = Date.now();
@@ -820,8 +827,13 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     };
   }, [isMobileOrTablet, selectNextArticle, selectPrevArticle, i18n]);
 
-  const handleExtract = useCallback(async () => {
+  // `auto` : l'extraction automatique de l'ouverture. Elle ne redemande pas
+  // une page dont l'extraction a échoué pendant la session, et son échec se
+  // dit discrètement ; demandée par le lecteur (bouton, palette, « Réessayer »),
+  // elle insiste (`retry`) et l'échec se dit en clair (L-03, idée T2-2).
+  const handleExtract = useCallback(async (opts: { auto?: boolean } = {}) => {
     if (!selectedArticle?.url || extractingId.current === selectedArticle.id) return;
+    const auto = !!opts.auto;
     const id = selectedArticle.id;
     const stillCurrent = () => useFeedStore.getState().selectedArticle?.id === id;
     // 1) Memory hit → instant (e.g. swiping back, prefetched).
@@ -853,14 +865,18 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     try {
       // Dynamic import keeps Readability + DOMPurify out of the main bundle.
       const { extractFullContent } = await import('../../utils/extractContent');
-      const result = await extractFullContent(selectedArticle.url);
+      const result = await extractFullContent(selectedArticle.url, { retry: !auto });
       await putExtract(id, result);
       if (!stillCurrent()) return;
       lastExtractedId.current = id;
       setExtractedContent(result);
       setExtractFor(id);
     } catch {
-      if (stillCurrent()) { setExtractFor(id); setExtractError(t('readingPane.extractError')); }
+      if (stillCurrent()) {
+        setExtractFor(id);
+        setExtractErrorAuto(auto);
+        setExtractError(t('readingPane.extractError'));
+      }
     } finally {
       // Seule l'extraction en cours d'affichage éteint l'indicateur : celle
       // d'un article quitté ne coupe pas celle du suivant.
@@ -1051,8 +1067,13 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // reste visible un rendu). Avant son départ, rien n'est « terminé » : rien
   // d'automatique ne peut donc partir devant l'extraction — la traduction, liée
   // au corps, porterait sinon sur l'aperçu du flux.
-  const autoExtractApplies = !!selectedArticle?.url && !!selectedArticle.sourceId
+  // Le RÉGLAGE (global ou du flux), seul : c'est lui qui dit si un extrait
+  // affiché a été demandé ou non (avis « Article complet », L-06).
+  const autoExtractSetting = !!selectedArticle?.sourceId
     && effectiveAutoExtract(autoExtractDefault, feedSettings, selectedArticle.sourceId);
+  // …et ce qui part vraiment : jamais pour une vidéo YouTube (L-03), qui
+  // sinon attendait une extraction qui ne viendra pas.
+  const autoExtractApplies = autoExtractSetting && isExtractableUrl(selectedArticle?.url);
   const autoSettled = !autoExtractApplies
     || (!extracting && extractFor === selectedArticle?.id && (!!extractedContent || !!extractError));
   // L'article complet arrive : extraction en cours (automatique ou « Article
@@ -1465,11 +1486,17 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // automatique affichait le squelette même quand du texte était disponible :
   // c'est ce qui donnait à l'application son air de charger sans arrêt.
   // La règle vit dans `src/lib/readingBody.ts`, testée à part.
-  const feedAutoExtract = !!feedSettings[article?.sourceId]?.autoExtract;
+  //
+  // L-06 : la porte (`effectiveAutoExtract`), plus le drapeau du flux relu
+  // directement — oubli de la migration 1.6.0. Avec le seul réglage global,
+  // l'avis « Article complet » suivait chaque extraction automatique, et un
+  // flux sans contenu n'avait pas de squelette. Le squelette ne tient que tant
+  // qu'une extraction peut encore arriver : pas après son échec.
+  const autoFailedHere = !!extractError && extractFor === article?.id;
   const bodyState = {
     rssHtml: article?.content,
     extractedHtml: extractedContent?.content ?? null,
-    autoExtract: feedAutoExtract,
+    autoExtract: autoExtractApplies && !autoFailedHere,
   };
   const showSkeleton = showsSkeleton(bodyState);
 
@@ -1625,7 +1652,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         {/* Extract full content */}
         {showFullBtn && (
           <button
-            onClick={extractedContent ? () => { setExtractedContent(null); lastExtractedId.current = null; } : handleExtract}
+            onClick={extractedContent ? () => { setExtractedContent(null); lastExtractedId.current = null; } : () => { void handleExtract(); }}
             disabled={extracting}
             className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
             style={{
@@ -2000,8 +2027,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
             />
           )}
 
-          {/* Extraction error */}
-          {extractError && (
+          {/* Extraction error — demandée par le lecteur. L'échec d'une
+              extraction AUTOMATIQUE se dit sous l'article, discrètement. */}
+          {extractError && !extractErrorAuto && (
             <div
               className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center gap-2"
               style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
@@ -2015,8 +2043,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
           {/* Extraction notice — only for a MANUAL extraction on desktop. With
               auto-extract it pops in after the article (jarring), and on mobile
-              it shifts the layout mid-swipe — so it's suppressed in both cases. */}
-          {extractedContent && !feedAutoExtract && !isMobileOrTablet && (
+              it shifts the layout mid-swipe — so it's suppressed in both cases.
+              Le réglage passe par la porte (`autoExtractSetting`, L-06), et
+              l'avis se tait quand l'extrait n'est pas montré (L-04). */}
+          {extractedContent && !autoExtractSetting && !isMobileOrTablet && readingBodyKind(bodyState) === 'extract' && (
             <div
               className="mb-4 px-4 py-2.5 rounded-lg text-xs flex items-center gap-2"
               style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}
@@ -2113,6 +2143,23 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
               dangerouslySetInnerHTML={bodyProp}
             />
           )}
+
+          {/* L'extraction AUTOMATIQUE a échoué (idée T2-2) : une ligne sous
+              l'article, à la couleur des métadonnées — rien ne saute en tête
+              pendant la lecture, sur aucun format —, et de quoi insister. */}
+          {extractError && extractErrorAuto && extractFor === article.id && (
+            <p className="mt-8 text-xs flex flex-wrap items-baseline gap-x-2" style={{ color: 'var(--reading-meta)' }}>
+              <span>{t('readingPane.extractUnavailable')}</span>
+              <button
+                type="button"
+                onClick={() => { void handleExtract(); }}
+                className="underline underline-offset-2 py-2 -my-2"
+                style={{ color: 'var(--accent)' }}
+              >
+                {t('readingPane.retry')}
+              </button>
+            </p>
+          )}
         </article>
         </div>
       </div>
@@ -2163,7 +2210,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
           {article.url && (
             <BarBtn toggle active={!!extractedContent} activeColor="var(--accent)" label={t('readingPane.fullContent')}
-              onClick={extractedContent ? () => { setExtractedContent(null); lastExtractedId.current = null; } : handleExtract}>
+              onClick={extractedContent ? () => { setExtractedContent(null); lastExtractedId.current = null; } : () => { void handleExtract(); }}>
               {extracting ? (
                 <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />

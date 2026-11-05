@@ -4,6 +4,9 @@ import {
   extractFullContent,
   retryAfterMs,
   RateLimitedError,
+  NotExtractableError,
+  UpstreamRefusedError,
+  forgetExtractFailures,
   FALLBACK_EXTRACT_TIMEOUT_MS,
   FALLBACK_MAX_HTML_BYTES,
   RATE_LIMIT_MAX_WAIT_MS,
@@ -23,7 +26,9 @@ const pageHtml = `<!doctype html><html><body><article>
 /** Ce que le proxy relaie d'une vraie page : son type d'origine compris. */
 const htmlPage = (body: string) => new Response(body, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 
-beforeEach(() => { vi.restoreAllMocks(); });
+// La mémoire des échecs (L-03) vit le temps de la session : chaque test part
+// d'une session neuve, sinon un échec d'un test priverait le suivant de réseau.
+beforeEach(() => { vi.restoreAllMocks(); forgetExtractFailures(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('extractFullContent', () => {
@@ -482,5 +487,100 @@ describe('extractFullContent — le repli vide son document', () => {
     expect(out.content).toContain('paragraphe');
     expect(seen.length).toBeGreaterThan(0);
     expect(seen.every((d) => d.documentElement === null)).toBe(true);
+  });
+});
+
+// ── L-03 : une extraction impossible n'est pas redemandée sans fin ───────
+// Micode (YouTube) : 27 `/api/extract` en 422 en 25 s pour 16 URL, chacun
+// suivi d'un repli `/api/proxy` (~385 Ko) — 10 Mo pour une ouverture. Aucune
+// mémoire des échecs, une URL YouTube envoyée à l'extraction, et un repli
+// tenté même quand le site avait déjà refusé la page au serveur.
+describe('extractFullContent — mémoire des échecs (L-03)', () => {
+  it('n’envoie jamais une URL YouTube à l’extraction', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(extractFullContent('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).rejects.toBeInstanceOf(NotExtractableError);
+    await expect(extractFullContent('https://youtu.be/dQw4w9WgXcQ', { retry: true })).rejects.toBeInstanceOf(NotExtractableError);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('ne redemande pas, pendant la session, une page dont l’extraction a échoué', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 422 });
+      return htmlPage('<html><body></body></html>');
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(extractFullContent('https://example.com/vide')).rejects.toThrow();
+    const calls = fetchSpy.mock.calls.length;
+    await expect(extractFullContent('https://example.com/vide')).rejects.toBeInstanceOf(NotExtractableError);
+    expect(fetchSpy.mock.calls.length).toBe(calls);
+  });
+
+  it('la demande du lecteur (retry) réessaie quand même, et un succès efface l’échec', async () => {
+    let fail = true;
+    const fetchSpy = vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) {
+        return fail ? new Response('', { status: 415 }) : new Response(JSON.stringify(serverAnswer), { status: 200 });
+      }
+      throw new Error('pas de repli attendu');
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(extractFullContent('https://example.com/revient')).rejects.toThrow();
+    fail = false;
+    const out = await extractFullContent('https://example.com/revient', { retry: true });
+    expect(out.content).toContain('corps serveur');
+    // Et l'automatique y a de nouveau droit.
+    await expect(extractFullContent('https://example.com/revient')).resolves.toBeTruthy();
+  });
+
+  it('ne retient pas une cadence dépassée : elle n’est pas un défaut de la page', async () => {
+    const fetchSpy = vi.fn(async () => new Response('', { status: 429 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(extractFullContent('https://example.com/cadence')).rejects.toBeInstanceOf(RateLimitedError);
+    const calls = fetchSpy.mock.calls.length;
+    await expect(extractFullContent('https://example.com/cadence')).rejects.toBeInstanceOf(RateLimitedError);
+    expect(fetchSpy.mock.calls.length).toBeGreaterThan(calls);
+  });
+
+  it('ne retient pas une panne réseau', async () => {
+    const fetchSpy = vi.fn(async () => { throw new TypeError('Failed to fetch'); });
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(extractFullContent('https://example.com/reseau')).rejects.toThrow();
+    const calls = fetchSpy.mock.calls.length;
+    await expect(extractFullContent('https://example.com/reseau')).rejects.toThrow(TypeError);
+    expect(fetchSpy.mock.calls.length).toBeGreaterThan(calls);
+  });
+
+  it('deux demandes simultanées de la même page partagent une requête', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify(serverAnswer), { status: 200 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const [a, b] = await Promise.all([
+      extractFullContent('https://example.com/partage'),
+      extractFullContent('https://example.com/partage'),
+    ]);
+    expect(a.content).toBe(b.content);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('ne se replie pas sur /api/proxy quand le site a refusé la page au serveur', async () => {
+    const proxy = vi.fn();
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) {
+        return new Response(JSON.stringify({ error: 'Upstream request failed', upstreamStatus: 403 }), { status: 502 });
+      }
+      proxy();
+      return htmlPage(pageHtml);
+    }));
+    await expect(extractFullContent('https://example.com/refus')).rejects.toBeInstanceOf(UpstreamRefusedError);
+    expect(proxy).not.toHaveBeenCalled();
+  });
+
+  it('se replie toujours sur un 502 sans statut d’amont (site injoignable)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response(JSON.stringify({ error: 'Upstream request failed' }), { status: 502 });
+      return htmlPage(pageHtml);
+    }));
+    const out = await extractFullContent('https://example.com/injoignable');
+    expect(out.content).toContain('paragraphe');
   });
 });

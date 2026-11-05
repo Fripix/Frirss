@@ -3,6 +3,9 @@ import { useAuthStore } from '../stores/authStore';
 import { dropNonVideoIframes } from '../lib/youtube';
 import { absolutizeUrls } from './absolutizeUrls';
 import { purifyToString, releaseDocument } from '../lib/parsedDocument';
+import {
+  extractFailedBefore, forgetExtractFailure, isExtractableUrl, rememberExtractFailure,
+} from '../lib/extractFailures';
 
 export interface ExtractedContent {
   title: string;
@@ -158,6 +161,53 @@ export class NotAPageError extends Error {
 }
 
 /**
+ * Rien n'est demandé au réseau : une vidéo YouTube (aucun article à
+ * extraire), ou une page dont l'extraction a déjà échoué pendant la session
+ * — voir `src/lib/extractFailures.ts` (L-03).
+ */
+export class NotExtractableError extends Error {
+  constructor() { super('NOT_EXTRACTABLE'); this.name = 'NotExtractableError'; }
+}
+
+/**
+ * Le SITE a refusé la page au serveur (502 portant `upstreamStatus`) : pas de
+ * repli, `/api/proxy` irait se faire refuser par le même site, depuis la même
+ * adresse — une requête perdue et un jeton du seau de cadence.
+ */
+export class UpstreamRefusedError extends Error {
+  constructor(readonly status: number) { super(`UPSTREAM_${status}`); this.name = 'UpstreamRefusedError'; }
+}
+
+/** Le repli a reçu une réponse en erreur de `/api/proxy`. */
+class FallbackHttpError extends Error {
+  constructor(readonly status: number) { super(`HTTP ${status}`); this.name = 'FallbackHttpError'; }
+}
+
+/** Readability n'a rien trouvé de lisible, ni au serveur ni ici. */
+class NoContentError extends Error {
+  constructor() { super('NO_CONTENT'); this.name = 'NoContentError'; }
+}
+
+/** La page dépasse le plafond du repli. */
+class PageTooLargeError extends Error {
+  constructor() { super('Page too large'); this.name = 'PageTooLargeError'; }
+}
+
+/**
+ * L'échec tient-il à la PAGE ? Seul celui-là est retenu pour la session : une
+ * cadence dépassée (429), un délai, une panne réseau, un 5xx du proxy ne
+ * disent rien d'elle, et le passage suivant peut réussir.
+ */
+function isPageFailure(err: unknown): boolean {
+  if (err instanceof NotAPageError || err instanceof UpstreamRefusedError
+    || err instanceof NoContentError || err instanceof PageTooLargeError) return true;
+  if (err instanceof FallbackHttpError) return err.status >= 400 && err.status < 500 && err.status !== 408 && err.status !== 429;
+  return false;
+}
+
+export { forgetExtractFailures } from '../lib/extractFailures';
+
+/**
  * Lit au plus `maxBytes` du corps d'une page. Un type annoncé qui n'est pas du
  * HTML est refusé sans lire un octet ; un type absent est lu, borné.
  */
@@ -178,7 +228,7 @@ async function readPageText(response: Response, maxBytes: number): Promise<strin
     seen += value.byteLength;
     if (seen > maxBytes) {
       await reader.cancel().catch(() => {});
-      throw new Error('Page too large');
+      throw new PageTooLargeError();
     }
     text += decoder.decode(value, { stream: true });
   }
@@ -214,13 +264,43 @@ export function retryAfterMs(headers: Headers, now = Date.now()): number | null 
   return Math.max(0, ms);
 }
 
+/** Extractions en cours, par URL : une page demandée par deux files à la fois
+ *  (réchauffage de la vue, préchargement, ouverture) ne part qu'une fois. */
+const inFlight = new Map<string, Promise<ExtractedContent>>();
+
 /**
  * Fetch the full article content from its original URL,
  * parse it with Mozilla Readability, and sanitize with DOMPurify.
  *
  * Returns { title, content, excerpt, byline, siteName, length } or throws.
+ *
+ * L-03 : une vidéo YouTube n'est jamais envoyée (`NotExtractableError`, sans
+ * réseau) ; une page dont l'extraction a échoué POUR ELLE-MÊME n'est pas
+ * redemandée de la session, sauf `retry` — la demande explicite du lecteur ;
+ * deux demandes simultanées de la même page partagent la même requête.
  */
-export async function extractFullContent(url: string): Promise<ExtractedContent> {
+export function extractFullContent(url: string, opts: { retry?: boolean } = {}): Promise<ExtractedContent> {
+  if (!isExtractableUrl(url)) return Promise.reject(new NotExtractableError());
+  if (!opts.retry && extractFailedBefore(url)) return Promise.reject(new NotExtractableError());
+  const shared = inFlight.get(url);
+  if (shared) return shared;
+  const run = (async () => {
+    try {
+      const result = await extractOnce(url);
+      forgetExtractFailure(url);
+      return result;
+    } catch (err) {
+      if (isPageFailure(err)) rememberExtractFailure(url);
+      throw err;
+    } finally {
+      inFlight.delete(url);
+    }
+  })();
+  inFlight.set(url, run);
+  return run;
+}
+
+async function extractOnce(url: string): Promise<ExtractedContent> {
   const { backendToken } = useAuthStore.getState();
 
   // Le serveur fait autorité quand il répond : il extrait une fois pour toute
@@ -255,6 +335,14 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
     // dépasse 2 Mo, le plafond du repli aussi. Le repli relirait la même
     // réponse pour échouer — en entier, avant la 1.8.0.
     if (served.status === 415 || served.status === 413) throw new NotAPageError();
+    // 502 portant `upstreamStatus` : le serveur a joint le site, qui a
+    // refusé la page. Le repli irait se faire refuser de même. Un 502 sans
+    // lui (site injoignable depuis le serveur) garde le repli.
+    if (served.status === 502) {
+      const body = (await served.json().catch(() => null)) as { upstreamStatus?: unknown } | null;
+      if (typeof body?.upstreamStatus === 'number') throw new UpstreamRefusedError(body.upstreamStatus);
+      return null;
+    }
     if (!served.ok) return null;
     const data = (await served.json()) as Partial<ExtractedContent>;
     // Champ par champ, exactement comme le chemin local plus bas. Un
@@ -299,7 +387,7 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
     }
     if (served && !('limited' in served)) return served;
   } catch (err) {
-    if (err instanceof NotAPageError) throw err;
+    if (err instanceof NotAPageError || err instanceof UpstreamRefusedError) throw err;
     /* repli */
   }
 
@@ -322,7 +410,7 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
       },
       signal,
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) throw new FallbackHttpError(response.status);
     // Le corps est lu SOUS le signal : sans cela le minuteur retomberait à
     // l'arrivée des en-têtes, et une page distillée octet par octet tiendrait
     // encore la file.
@@ -353,7 +441,7 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   }
 
   if (!result || !result.content) {
-    throw new Error('NO_CONTENT');
+    throw new NoContentError();
   }
 
   const cleanContent = sanitizeExtracted(result.content);

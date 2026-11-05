@@ -192,7 +192,8 @@
     "videoOpen": "Open on YouTube",
     "videoOffline": "Video unavailable offline",
     "share": "Share",
-    "copyLink": "Copy link"
+    "copyLink": "Copy link",
+    "extractUnavailable": "Full article unavailable: showing the feed content."
   },
   "preferences": {
     "title": "Preferences",

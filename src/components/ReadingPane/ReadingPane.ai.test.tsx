@@ -691,7 +691,8 @@ describe('ReadingPane — Résumé IA', () => {
       act(() => { useFeedStore.setState({ selectedArticle: b }); });
       await act(async () => { finishA(extracted('<p>' + 'premier '.repeat(80) + '</p>')); });
       await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
-      await waitFor(() => expect(extractFullContent).toHaveBeenCalledWith('https://example.com/s2'));
+      // `retry: false` : l'extraction automatique de l'ouverture (L-03).
+      await waitFor(() => expect(extractFullContent).toHaveBeenCalledWith('https://example.com/s2', { retry: false }));
       await passDelay();
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
       const sent = vi.mocked(requestAiSummary).mock.calls[0][0];

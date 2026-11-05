@@ -37,6 +37,7 @@ import { isBackendAuthFailure } from '../lib/loginErrors';
 import { useUiStore, isUnreadOnly } from './uiStore';
 import { effectiveOrder, type ArticleOrder } from '../lib/effectiveOrder';
 import { effectiveAutoExtract } from '../lib/effectiveAutoExtract';
+import { worthAutoExtracting } from '../lib/extractFailures';
 import { homeStreamId, mainStreamFeedIds, READING_LIST_STREAM } from '../lib/mainStream';
 import type { HomeEntry } from '../lib/unreadScope';
 import { peekExtract, getExtract, putExtract, pinExtract, unpinExtractsExcept } from '../lib/extractCache';
@@ -801,7 +802,8 @@ const warmRunner = createWarmRunner<Article>({
 });
 function warmExtracts(articles: Article[], view: string): void {
   const ui = useUiStore.getState();
-  void warmRunner.schedule(view, articles.filter((a) => a.url && effectiveAutoExtract(ui.autoExtractDefault, ui.feedSettings, a.sourceId)));
+  // Ni vidéo YouTube, ni page déjà en échec cette session (L-03).
+  void warmRunner.schedule(view, articles.filter((a) => worthAutoExtracting(a.url) && effectiveAutoExtract(ui.autoExtractDefault, ui.feedSettings, a.sourceId)));
 }
 
 // ── First-page prefetch ─────────────────────────────────────────────

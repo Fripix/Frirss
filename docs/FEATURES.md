@@ -4889,7 +4889,10 @@ serveur de développement en 1.4.4.)*
   l'extraction locale décrite ci-dessous — **sauf un 429**, qui est une question
   de cadence et non de capacité : voir plus bas, **et sauf un 415 ou un 413**
   (la cible n'est pas une page, ou dépasse 2 Mo, le plafond du repli aussi :
-  `NotAPageError`, pas de repli) — page récupérée par `/api/proxy` (**JWT requis**,
+  `NotAPageError`, pas de repli), **et sauf un 502 qui porte `upstreamStatus`**
+  (1.9.0 : le site a répondu, et refusé la page au serveur ; le repli irait se
+  faire refuser par le même site — `UpstreamRefusedError`, pas de repli ; un
+  502 sans ce champ, site injoignable, se replie toujours) — page récupérée par `/api/proxy` (**JWT requis**,
   même garde anti-SSRF) puis Readability dans le navigateur. Ce repli n'est pas
   du code hérité : c'est ce qui tient quand le serveur n'a pas la route, ne sait
   pas lire la page, ou ne répond pas.
@@ -4997,7 +5000,45 @@ serveur de développement en 1.4.4.)*
   écartait le corps et gardait « Solutions » : 135 caractères au lieu de
   2 800. Doublé par la garde du volet (« Ce que le volet montre » : un extrait
   qui n'a pas la moitié du texte du flux n'est pas montré).
-- **Ce que coûte un repli** : sur 422, 502 ou 503 `Extractor busy`, le site
+- **Une extraction impossible n'est pas redemandée sans fin** (1.9.0, L-03,
+  `src/lib/extractFailures.ts`, `extractContent.test.ts` › « mémoire des
+  échecs ») : sur une chaîne YouTube, une ouverture coûtait 27 `/api/extract`
+  en 422 en 25 s, chacun suivi d'un repli `/api/proxy` — ~10 Mo. Trois
+  mesures, toutes dans `extractFullContent`, donc valables pour les six
+  consommateurs :
+  - **une URL YouTube n'est jamais envoyée** (`isExtractableUrl`, sur
+    `extractYouTubeId`) : `NotExtractableError` sans réseau, même demandée par
+    le lecteur. Le volet ne lance pas d'extraction automatique sur une vidéo,
+    ne l'attend pas (pas de squelette) et n'affiche aucun échec ;
+  - **un échec qui tient à la PAGE est retenu pour la session** (pas une page,
+    trop grosse, refusée par le site, rien de lisible, 4xx du repli hors 408 et
+    429) : les extractions automatiques et les files de fond ne la redemandent
+    plus (`worthAutoExtracting`). Une cadence dépassée, un délai, une panne
+    réseau ou un 5xx du proxy ne sont PAS retenus : ils ne disent rien de la
+    page. Mémoire en mémoire seulement, bornée à 500 pages
+    (`EXTRACT_FAILURES_MAX`) ; un rechargement redonne sa chance à tout ;
+  - **la demande du lecteur insiste** (`{ retry: true }` : bouton « Article
+    complet », palette, « Réessayer ») et un succès efface l'échec retenu ;
+  - **deux demandes simultanées de la même page partagent une requête**
+    (réchauffage de la vue, préchargement, ouverture partaient chacun la leur).
+- **L'échec d'une extraction AUTOMATIQUE se dit discrètement** (1.9.0, idée
+  T2-2, `ReadingPane.extract.test.tsx`) : plus de bandeau rouge en tête de
+  l'article, mais une ligne sous l'article, à la couleur des métadonnées —
+  « Article complet indisponible : voici le contenu du flux. » — suivie de
+  « Réessayer » (`readingPane.extractUnavailable`, `readingPane.retry`). Sous
+  l'article et pas au-dessus : rien ne saute pendant la lecture, sur aucun
+  format. Une extraction demandée par le lecteur garde le bandeau rouge
+  (`readingPane.extractError`) : il l'a demandée, l'échec doit se voir.
+- **L'avis « Article complet »** (bandeau accent au-dessus du corps, desktop
+  seulement) ne suit qu'une extraction **demandée** : il se tait quand le
+  réglage effectif (`effectiveAutoExtract`, global compris) extrait de
+  lui-même, et quand l'extrait n'est pas montré (moins de la moitié du flux).
+  ⚠️ Jusqu'en 1.8.0, le volet relisait le drapeau du flux directement — un
+  oubli de la migration 1.6.0 : avec le seul réglage global, l'avis suivait
+  chaque extraction automatique, et un flux sans contenu n'avait pas de
+  squelette en attendant l'extrait (L-06, `ReadingPane.extract.test.tsx`). Le
+  squelette, lui, tombe dès que l'extraction automatique a échoué.
+- **Ce que coûte un repli** : sur 422, 502 sans `upstreamStatus` ou 503 `Extractor busy`, le site
   d'origine est récupéré **deux fois** — une fois par le serveur, une fois par
   le navigateur — et deux jetons quittent le seau de cadence partagé. (Sur
   l'autre 503, `Target host unresolved`, le serveur n'a joint personne : le
@@ -7241,6 +7282,12 @@ qu'elle rend (voir *Extraction du contenu complet*).
   journal passe par `redactUrl` dans **toutes** les branches — la branche 503
   écrivait la cible en clair jusqu'au 2026-09-04, alors que le préchargement
   d'images y fait passer des URL de CDN signées par leur requête.
+  **Le 502 d'un site qui a répondu en erreur porte son statut**
+  (`{ error: 'Upstream request failed', upstreamStatus: 403 }`, 1.9.0) : le
+  client ne se replie pas — `/api/proxy` irait se faire refuser par le même
+  site, depuis la même adresse. Le 502 d'un amont injoignable (`finishError`)
+  n'en porte pas, et garde le repli. Le statut d'un site public ne dit rien du
+  réseau interne : une cible interne est refusée avant (garde anti-SSRF).
   La route appelle la garde complète
   (`assertTargetSafe`, exportée par le proxy, **avant la lecture du cache**)
   mais ne recopie ni le corps du 403 ni sa ligne de journal : elle laisse

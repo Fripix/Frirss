@@ -192,7 +192,8 @@
     "videoOpen": "Auf YouTube öffnen",
     "videoOffline": "Video offline nicht verfügbar",
     "share": "Teilen",
-    "copyLink": "Link kopieren"
+    "copyLink": "Link kopieren",
+    "extractUnavailable": "Vollständiger Artikel nicht verfügbar: Hier ist der Feed-Inhalt."
   },
   "preferences": {
     "title": "Einstellungen",

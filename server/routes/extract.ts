@@ -177,7 +177,13 @@ async function produce(url: string, key: string | null): Promise<Outcome> {
       // retenue jusqu'au ramassage tant que le flux n'est ni lu ni annulé —
       // un amont qui répond 500 en boucle accumulerait les connexions.
       upstream.body?.cancel().catch(() => {});
-      return json(502, { error: 'Upstream request failed' });
+      // Le statut du SITE, pour que le client ne se replie pas : `/api/proxy`
+      // irait se faire refuser par le même site, depuis la même adresse —
+      // une requête perdue de plus, et un jeton du seau (campagne 1.9.0).
+      // Seul ce 502-ci le porte ; celui de `finishError` (amont injoignable)
+      // garde le repli. Le statut d'un site public ne révèle rien : une cible
+      // interne n'arrive jamais jusqu'ici (garde anti-SSRF).
+      return json(502, { error: 'Upstream request failed', upstreamStatus: upstream.status });
     }
     // Le type est vérifié AVANT de lire quoi que ce soit : une vidéo ou un PDF
     // n'a pas d'article à extraire, et n'a donc aucune raison d'être avalé.
