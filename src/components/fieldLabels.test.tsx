@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }), initReactI18next: { type: '3rdParty', init: () => {} } }));
 vi.mock('../api/backend', () => ({ addServer: vi.fn(), updateServer: vi.fn(), createBackup: vi.fn(), previewRestore: vi.fn(), applyRestore: vi.fn() }));
 vi.mock('../api/auth', () => ({ login: vi.fn() }));
 
