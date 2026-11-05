@@ -51,8 +51,11 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
       const inside = !!current && root.contains(current);
       // Un menu ouvert par portail depuis la boîte (un ⋯ des Préférences) vit
       // sous <body>, hors d'elle : il garde son propre clavier. Pas une liste
-      // qui fait partie de la boîte (celle de la palette).
-      if (!inside && current?.closest('[role="menu"], [role="listbox"]')) return;
+      // qui fait partie de la boîte (celle de la palette). De même pour un
+      // petit dialogue non modal ouvert par portail (le sélecteur de couleur
+      // d'une étiquette) : une boîte modale par-dessus a son propre piège, qui
+      // passe avant celui-ci.
+      if (!inside && current?.closest('[role="menu"], [role="listbox"], [role="dialog"]')) return;
       // Dehors, ou sur le conteneur lui-même (les Préférences et l'aide s'y
       // posent à l'ouverture) : Maj+Tab depuis lui sortait de la boîte.
       if (!inside || current === root) {

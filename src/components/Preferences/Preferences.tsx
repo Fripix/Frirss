@@ -139,7 +139,10 @@ export default function Preferences() {
         // Escape closes the dialog. Shortcut-capture stops propagation, so it
         // won't reach here while a shortcut is being recorded.
         // Marqué traité : le tiroir mobile, ouvert derrière, se fermait aussi.
-        if (e.key === 'Escape') { e.preventDefault(); closePreferences(); }
+        // Une touche DÉJÀ traitée appartient à ce qui l'a traitée : le
+        // sélecteur de couleur d'une étiquette la prenait, puis les
+        // Préférences se fermaient aussi (L-19).
+        if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); closePreferences(); }
       }}
     >
       {/* Dim overlay — a spotlight: darkens everything except the panel

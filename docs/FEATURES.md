@@ -5141,6 +5141,12 @@ noms créés par l'utilisateur vivent dans les préférences synchronisées
   la vue sous son nouveau nom et la recharge ; la supprimer (Préférences ou
   croix de la barre latérale) ramène à l'accueil, au même filtre. La liste
   restait sur l'ancienne, qui paraissait vide.
+- **Sélecteur de couleur** (`LabelColorPicker`, `LabelsTab.tsx`) : rendu par
+  portail sous `<body>` depuis la 1.9.0 (`role="dialog"` nommé « Choisir la
+  couleur : <étiquette> ») ; à l'ouverture le focus entre sur la nuance
+  choisie, sinon la première, et Tab boucle dans le sélecteur ; Échap le
+  ferme seul et rend le focus à son bouton (voir « Accessibilité »).
+  Test : `labelColorPicker.test.tsx`.
 - **Piège connu, non corrigé** : renommer une étiquette **enfant** depuis les
   Préférences envoie le seul nom de la feuille (le champ montre `Tuto` pour
   `Tech/Tuto`) : elle sort de son groupe. Le contrôle des noms porte sur ce
@@ -5881,9 +5887,10 @@ dans quelques composants partagés.
     d'ajout (flux, serveur) : Tab et Maj+Tab bouclent dans la boîte, un focus
     resté dehors y revient. Seule la dernière boîte ouverte retient la touche
     (une confirmation par-dessus les Préférences garde la main) ; un menu
-    ouvert par portail depuis la boîte, donc HORS d'elle (`role="menu"` ou
-    `listbox`), garde son propre clavier — pas la liste de la palette, qui en
-    fait partie. Ne comptent que les éléments atteignables : sous un ancêtre
+    ouvert par portail depuis la boîte, donc HORS d'elle (`role="menu"`,
+    `listbox`, ou un petit `dialog` non modal comme le sélecteur de couleur
+    d'étiquette, 1.9.0), garde son propre clavier — pas la liste de la
+    palette, qui en fait partie. Ne comptent que les éléments atteignables : sous un ancêtre
     `[hidden]`, `[inert]` ou `aria-hidden` (les sections visitées des
     Préférences restent montées, cachées par leur enveloppe), ou invisibles
     selon `checkVisibility()`, ils ne sont pas le « dernier ». `aria-modal` seul ne retenait rien : Tab sortait vers la
@@ -5895,9 +5902,18 @@ dans quelques composants partagés.
     et la palette ferment aussi sur Échap quand le focus est retombé sur
     `<body>`, et marquent la touche traitée ; les Préférences laissent la
     touche à la palette ouverte par-dessus (⌘K), leur écouteur passant le
-    premier ;
+    premier, et leur panneau ignore une touche **déjà traitée** (1.9.0) : le
+    sélecteur de couleur d'une étiquette n'écoutait pas Échap, et une
+    pression fermait toutes les Préférences. Il la prend désormais pour lui,
+    en capture sur le document (focus retombé sur `<body>` compris, Safari ne
+    focalisant pas un bouton cliqué) : il se ferme, rend le focus à son bouton
+    et marque la touche traitée ;
   - **noms et unités** : le sélecteur de couleur d'étiquette nomme ses deux
-    champs (`labels.customColor`, `labels.hexColor`) ; ses pastilles passent
+    champs (`labels.customColor`, `labels.hexColor`), ses 24 nuances par un
+    nom de couleur (`preferences.labelSwatches.*`, 1.9.0 : elles s'annonçaient
+    par leur code hexadécimal), et ses boutons « Choisir la couleur » et
+    « Supprimer la couleur » par l'étiquette qu'ils servent
+    (`app.labelValue`) : toutes les lignes portaient le même nom ; ses pastilles passent
     de 20 à 28 px au doigt (`pointer: coarse`, `index.css`), et la fenêtre
     s'élargit d'autant (`swatchPopoverWidth`, 276 px : elle tient à 320 px) ;
     l'infobulle d'« Original » donne la touche

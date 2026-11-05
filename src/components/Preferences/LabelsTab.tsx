@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo, useId, type CSSProperties } from 'react';
+import { useState, useRef, useEffect, useMemo, useId, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -764,6 +765,7 @@ function LabelRow({
 
         {/* Color picker */}
         <LabelColorPicker
+          labelName={name}
           color={color}
           effectiveColor={effectiveColor}
           onChangeColor={onChangeColor}
@@ -790,25 +792,29 @@ function LabelRow({
 }
 
 /* ── Label Color Picker — swatches + hex input ─────────────────────── */
+// Chaque nuance porte un nom (`preferences.labelSwatches.*`) : un lecteur
+// d'écran annonçait « dièse e f 4 4 4 4 » pour chacune des 24.
 const LABEL_SWATCHES = [
   // Row 1 — reds / pinks
-  '#ef4444', '#f97316', '#f59e0b', '#eab308',
-  '#84cc16', '#22c55e', '#10b981', '#14b8a6',
+  ['#ef4444', 'red'], ['#f97316', 'orange'], ['#f59e0b', 'amber'], ['#eab308', 'yellow'],
+  ['#84cc16', 'lime'], ['#22c55e', 'green'], ['#10b981', 'emerald'], ['#14b8a6', 'teal'],
   // Row 2 — blues / purples
-  '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
-  '#8b5cf6', '#a855f7', '#d946ef', '#ec4899',
+  ['#06b6d4', 'cyan'], ['#0ea5e9', 'sky'], ['#3b82f6', 'blue'], ['#6366f1', 'indigo'],
+  ['#8b5cf6', 'violet'], ['#a855f7', 'purple'], ['#d946ef', 'fuchsia'], ['#ec4899', 'pink'],
   // Row 3 — neutrals / earth
-  '#78716c', '#737373', '#71717a', '#6b7280',
-  '#92400e', '#991b1b', '#1e3a5f', '#064e3b',
-];
+  ['#78716c', 'taupe'], ['#737373', 'midGray'], ['#71717a', 'zinc'], ['#6b7280', 'blueGray'],
+  ['#92400e', 'brown'], ['#991b1b', 'maroon'], ['#1e3a5f', 'navy'], ['#064e3b', 'forest'],
+] as const;
 
 interface LabelColorPickerProps {
+  /** Le nom de l'étiquette : il distingue les boutons d'une ligne à l'autre. */
+  labelName: string;
   color: string;
   effectiveColor: string | null;
   onChangeColor: (color: string) => void;
   onRemoveColor: () => void;
 }
-function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor }: LabelColorPickerProps) {
+function LabelColorPicker({ labelName, color, effectiveColor, onChangeColor, onRemoveColor }: LabelColorPickerProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const popWidth = swatchPopoverWidth(isCoarsePointer());
@@ -844,9 +850,43 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
         setOpen(false);
       }
     }
+    // Échap appartient au sélecteur (L-19) : il se ferme, rend le focus à son
+    // bouton et marque la touche traitée. En capture sur le document, pour
+    // passer avant les Préférences — y compris quand Safari a laissé le focus
+    // sur <body> après le clic — qui ignorent une touche déjà traitée.
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      e.preventDefault();
+      setOpen(false);
+      btnRef.current?.focus();
+    }
     document.addEventListener('pointerdown', handler);
-    return () => document.removeEventListener('pointerdown', handler);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', handler);
+      document.removeEventListener('keydown', onKey, true);
+    };
   }, [open]);
+
+  // À l'ouverture, le focus entre : la nuance choisie, sinon la première.
+  // Rendu sous <body>, le sélecteur serait sinon hors d'atteinte au clavier.
+  useEffect(() => {
+    if (!open) return;
+    const pop = popRef.current;
+    (pop?.querySelector<HTMLElement>('button[aria-pressed="true"]') ?? pop?.querySelector<HTMLElement>('button'))?.focus();
+  }, [open]);
+
+  // Tab boucle dans le sélecteur : sous <body>, la touche suivante sortait
+  // vers la page derrière les Préférences.
+  function cycleTab(e: ReactKeyboardEvent) {
+    if (e.key !== 'Tab' || !popRef.current) return;
+    const items = [...popRef.current.querySelectorAll<HTMLElement>('button, input')];
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  }
 
   function applyHex(v: string) {
     const clean = v.startsWith('#') ? v : `#${v}`;
@@ -869,7 +909,7 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
           opacity: color ? 1 : 0.5,
         }}
         title={t('preferences.labels.chooseColor')}
-        aria-label={t('preferences.labels.chooseColor')}
+        aria-label={t('app.labelValue', { label: t('preferences.labels.chooseColor'), value: labelName })}
         aria-expanded={open}
       />
 
@@ -880,7 +920,7 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
           className="p-0.5 rounded transition-colors hover-tint-strong"
           style={{ color: 'var(--list-summary)' }}
           title={t('preferences.labels.removeColor')}
-          aria-label={t('preferences.labels.removeColor')}
+          aria-label={t('app.labelValue', { label: t('preferences.labels.removeColor'), value: labelName })}
         >
           <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -888,10 +928,15 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
         </button>
       )}
 
-      {/* Popover — plus large au doigt, où les pastilles passent à 28 px. */}
-      {open && (
+      {/* Popover — plus large au doigt, où les pastilles passent à 28 px.
+          Par portail sous <body> (règle des surfaces flottantes) : `fixed`
+          dans le panneau, il s'ancrait au premier ancêtre transformé. */}
+      {open && createPortal(
         <div
           ref={popRef}
+          role="dialog"
+          aria-label={t('app.labelValue', { label: t('preferences.labels.chooseColor'), value: labelName })}
+          onKeyDown={cycleTab}
           className="fixed z-50 rounded-lg shadow-xl border p-3"
           style={{
             width: popWidth,
@@ -910,7 +955,7 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
         >
           {/* Swatches grid */}
           <div className="label-swatch-grid grid grid-cols-8 gap-1 mb-3">
-            {LABEL_SWATCHES.map((sw) => (
+            {LABEL_SWATCHES.map(([sw, swatchName]) => (
               <button
                 key={sw}
                 onClick={() => { onChangeColor(sw); setHex(sw); }}
@@ -924,8 +969,8 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
                     ? '0 0 0 2px var(--panel-bg), 0 0 0 3px var(--list-title)'
                     : 'none',
                 }}
-                title={sw}
-                aria-label={sw}
+                title={t(`preferences.labelSwatches.${swatchName}`)}
+                aria-label={t(`preferences.labelSwatches.${swatchName}`)}
                 aria-pressed={(color || effectiveColor || '') === sw}
               />
             ))}
@@ -973,7 +1018,8 @@ function LabelColorPicker({ color, effectiveColor, onChangeColor, onRemoveColor 
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
