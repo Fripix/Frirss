@@ -44,6 +44,7 @@ describe('backend — l’intercepteur de réponse ne déconnecte que sur NOTRE 
       logoutBackend.mockClear();
       await reject(failure(401, { error: marker }));
       expect(logoutBackend, marker).toHaveBeenCalledTimes(1);
+      expect(logoutBackend, marker).toHaveBeenCalledWith('session_ended');
     }
   });
 

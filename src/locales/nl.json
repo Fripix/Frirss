@@ -685,7 +685,8 @@
     "showPassword": "Wachtwoord tonen",
     "hidePassword": "Wachtwoord verbergen",
     "emailPlaceholder": "naam@example.com",
-    "errorSsoLinkRequired": "Een FriRSS-account gebruikt dit e-mailadres al. Log in met het wachtwoord ervan en koppel het daarna aan SSO via Voorkeuren › Algemeen › Account."
+    "errorSsoLinkRequired": "Een FriRSS-account gebruikt dit e-mailadres al. Log in met het wachtwoord ervan en koppel het daarna aan SSO via Voorkeuren › Algemeen › Account.",
+    "sessionEnded": "Je sessie is door de server beëindigd. Log opnieuw in om verder te gaan."
   },
   "admin": {
     "users": "Gebruikers",

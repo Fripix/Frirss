@@ -685,7 +685,8 @@
     "showPassword": "Afficher le mot de passe",
     "hidePassword": "Masquer le mot de passe",
     "emailPlaceholder": "nom@example.com",
-    "errorSsoLinkRequired": "Un compte FriRSS utilise déjà cette adresse e-mail. Connectez-vous avec son mot de passe, puis liez-le au SSO dans Préférences › Général › Compte."
+    "errorSsoLinkRequired": "Un compte FriRSS utilise déjà cette adresse e-mail. Connectez-vous avec son mot de passe, puis liez-le au SSO dans Préférences › Général › Compte.",
+    "sessionEnded": "Votre session a été fermée par le serveur. Reconnectez-vous pour continuer."
   },
   "admin": {
     "users": "Utilisateurs",

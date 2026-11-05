@@ -19,7 +19,16 @@ export interface AuthState {
   backendToken: string | null;
   backendUser: User | null;
   setBackendAuth: (token: string, user: User | null) => void;
-  logoutBackend: () => void;
+  /**
+   * `'session_ended'` : le serveur a refusé la session (401 de notre
+   * middleware, voir `endsCurrentSession`). L'écran de connexion le dit
+   * (`sessionEnded`) ; une déconnexion voulue ne dit rien. Typé `unknown`
+   * parce que des boutons le passent tel quel à `onClick`, qui y met
+   * l'événement : seule la chaîne exacte compte.
+   */
+  logoutBackend: (reason?: unknown) => void;
+  /** Vrai après une session fermée par le serveur, jusqu'à la connexion suivante. */
+  sessionEnded: boolean;
   isAdmin: () => boolean;
   serverUrl: string;
   activeServerId: string | number | null;
@@ -28,7 +37,7 @@ export interface AuthState {
   switchServer: (server: { id?: string | number; url: string } | null | undefined) => boolean;
   isAuthenticated: boolean;
   setFreshrssAuth: (serverId: string | number, serverUrl: string) => void;
-  logout: () => void;
+  logout: (reason?: unknown) => void;
 }
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
@@ -39,10 +48,12 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   setBackendAuth: (token, user) => {
     localStorage.setItem('frirss_backendToken', token);
     localStorage.setItem('frirss_backendUser', JSON.stringify(user));
-    set({ backendToken: token, backendUser: user });
+    set({ backendToken: token, backendUser: user, sessionEnded: false });
   },
 
-  logoutBackend: () => {
+  sessionEnded: false,
+
+  logoutBackend: (reason) => {
     // Invalidate the session server-side first: clearing localStorage alone
     // left the JWT valid until expiry, so a captured token kept working after
     // a logout. Called directly (the API module imports this store) with the
@@ -70,6 +81,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       serverUrl: '',
       isAuthenticated: false,
       activeServerId: null,
+      // Comparé, pas pris tel quel : `onClick={logout}` passerait l'événement.
+      sessionEnded: reason === 'session_ended',
     });
   },
 
@@ -102,8 +115,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({ serverUrl, activeServerId: serverId, isAuthenticated: true });
   },
 
-  logout: () => {
+  logout: (reason) => {
     // Full logout (both layers)
-    get().logoutBackend();
+    get().logoutBackend(reason === 'session_ended' ? reason : undefined);
   },
 }));

@@ -685,7 +685,8 @@
     "showPassword": "Passwort anzeigen",
     "hidePassword": "Passwort verbergen",
     "emailPlaceholder": "name@example.com",
-    "errorSsoLinkRequired": "Ein FriRSS-Konto verwendet diese E-Mail-Adresse bereits. Melden Sie sich mit seinem Passwort an und verknüpfen Sie es dann unter Einstellungen › Allgemein › Konto mit SSO."
+    "errorSsoLinkRequired": "Ein FriRSS-Konto verwendet diese E-Mail-Adresse bereits. Melden Sie sich mit seinem Passwort an und verknüpfen Sie es dann unter Einstellungen › Allgemein › Konto mit SSO.",
+    "sessionEnded": "Ihre Sitzung wurde vom Server beendet. Melden Sie sich erneut an, um fortzufahren."
   },
   "admin": {
     "users": "Benutzer",

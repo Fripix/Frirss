@@ -55,7 +55,7 @@ client.interceptors.response.use(
   (error) => {
     const auth = useAuthStore.getState();
     if (endsCurrentSession(error, auth.backendToken)) {
-      auth.logout();
+      auth.logout('session_ended');
     }
     return Promise.reject(error);
   }

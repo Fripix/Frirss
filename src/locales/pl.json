@@ -703,7 +703,8 @@
     "showPassword": "Pokaż hasło",
     "hidePassword": "Ukryj hasło",
     "emailPlaceholder": "nazwa@example.com",
-    "errorSsoLinkRequired": "Konto FriRSS już używa tego adresu e-mail. Zaloguj się jego hasłem, a następnie połącz je z SSO w Preferencje › Ogólne › Konto."
+    "errorSsoLinkRequired": "Konto FriRSS już używa tego adresu e-mail. Zaloguj się jego hasłem, a następnie połącz je z SSO w Preferencje › Ogólne › Konto.",
+    "sessionEnded": "Serwer zakończył Twoją sesję. Zaloguj się ponownie, aby kontynuować."
   },
   "admin": {
     "users": "Użytkownicy",

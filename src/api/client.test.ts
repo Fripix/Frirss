@@ -53,6 +53,8 @@ describe('client — l’intercepteur de réponse et les deux couches d’authen
       logout.mockClear();
       await reject(proxyError(401, { error: marker }));
       expect(logout, marker).toHaveBeenCalledTimes(1);
+      // L'écran de connexion doit pouvoir dire pourquoi il revient.
+      expect(logout, marker).toHaveBeenCalledWith('session_ended');
     }
   });
 

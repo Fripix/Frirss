@@ -34,3 +34,20 @@ describe('déconnexion d’un onglet resté sur un ancien compte', () => {
     expect(localStorage.getItem('frirss_activeServerId')).toBeNull();
   });
 });
+
+describe('session fermée par le serveur', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}')));
+  });
+
+  it('le dit à l’écran de connexion, et seulement dans ce cas', () => {
+    useAuthStore.setState({ backendToken: 'jwtA', backendUser: { id: 1 } as never });
+    useAuthStore.getState().logoutBackend('session_ended');
+    expect(useAuthStore.getState().sessionEnded).toBe(true);
+    useAuthStore.getState().setBackendAuth('jwtB', { id: 1 } as never);
+    expect(useAuthStore.getState().sessionEnded).toBe(false);
+    useAuthStore.getState().logout();
+    expect(useAuthStore.getState().sessionEnded).toBe(false);
+  });
+});

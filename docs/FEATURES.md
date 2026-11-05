@@ -45,6 +45,15 @@ administrateur. **Une déconnexion n'efface que la session de son onglet**
 qu'un autre onglet avait ouvert depuis.
 
 - **Où** : `server/routes/auth.ts`, `src/components/Login/Login.tsx`, `src/stores/authStore.ts`
+- **Session fermée par le serveur : l'écran le dit** (1.9.0,
+  `Login.sessionEnded.test.tsx`) : quand un 401 de notre middleware ferme la
+  session (`endsCurrentSession`, intercepteurs de `src/api/client.ts` et
+  `src/api/backend.ts`), la déconnexion porte la raison `'session_ended'`,
+  le store lève `sessionEnded`, et l'écran de connexion affiche
+  `login.sessionEnded` (« Votre session a été fermée par le serveur ») dans
+  la zone d'erreur. Sans deviner la cause (expirée, révoquée, mot de passe
+  changé ailleurs). Une déconnexion voulue ne dit rien ; la connexion
+  suivante efface le drapeau. Avant, on revenait à l'écran sans un mot.
 - **Connexion sans fuite de noms** (1.8.0) : un nom inconnu coûte le même
   bcrypt qu'un nom connu (`DUMMY_HASH`), et « Account disabled » (403) n'est
   répondu qu'après le BON mot de passe. Avant, la réponse et son délai (~250 ms

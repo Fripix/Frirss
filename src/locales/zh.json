@@ -685,7 +685,8 @@
     "hidePassword": "隐藏密码",
     "errorServerUnresolved": "FriRSS 无法解析该服务器的地址：DNS 解析器没有响应。请检查主机名后重试。",
     "emailPlaceholder": "name@example.com",
-    "errorSsoLinkRequired": "已有 FriRSS 账户使用此电子邮件地址。请用其密码登录，然后在 偏好设置 › 通用 › 账户 中将其关联到 SSO。"
+    "errorSsoLinkRequired": "已有 FriRSS 账户使用此电子邮件地址。请用其密码登录，然后在 偏好设置 › 通用 › 账户 中将其关联到 SSO。",
+    "sessionEnded": "服务器已结束您的会话。请重新登录以继续。"
   },
   "admin": {
     "users": "用户",

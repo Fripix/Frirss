@@ -78,6 +78,9 @@ interface AuthStepProps {
 function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
   const { t } = useTranslation();
   const setBackendAuth = useAuthStore((s) => s.setBackendAuth);
+  // Ramené ici par le serveur (session révoquée, expirée, mot de passe changé
+  // ailleurs) : le dire, sans deviner laquelle de ces causes.
+  const sessionEnded = useAuthStore((s) => s.sessionEnded);
 
   // 'restore' n'est proposé qu'à la toute première ouverture, quand aucun
   // compte n'existe : c'est le seul moment où il n'y a rien à écraser.
@@ -94,7 +97,7 @@ function AuthStep({ onSuccess, oidcError }: AuthStepProps) {
   // `link_required` : un compte local porte cette adresse ; le rattachement
   // d'office par e-mail est retiré (1.8.0), il se fait depuis le compte.
   const oidcMessage = oidcError ? t(oidcErrorKey(oidcError)) : '';
-  const [error, setError] = useState(oidcMessage);
+  const [error, setError] = useState(oidcMessage || (sessionEnded ? t('login.sessionEnded') : ''));
   // L'erreur peut arriver après le montage (réessais du retour SSO) : la suivre.
   useEffect(() => {
     if (oidcMessage) setError(oidcMessage);
