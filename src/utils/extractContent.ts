@@ -4,7 +4,7 @@ import { dropNonVideoIframes } from '../lib/youtube';
 import { absolutizeUrls } from './absolutizeUrls';
 import { purifyToString, releaseDocument } from '../lib/parsedDocument';
 import {
-  extractFailedBefore, forgetExtractFailure, isExtractableUrl, rememberExtractFailure,
+  extractFailedBefore, forgetExtractFailure, isExtractableUrl, isPageRefusal, rememberExtractFailure,
 } from '../lib/extractFailures';
 
 export interface ExtractedContent {
@@ -195,13 +195,17 @@ class PageTooLargeError extends Error {
 
 /**
  * L'échec tient-il à la PAGE ? Seul celui-là est retenu pour la session : une
- * cadence dépassée (429), un délai, une panne réseau, un 5xx du proxy ne
- * disent rien d'elle, et le passage suivant peut réussir.
+ * cadence dépassée (429), un délai, une panne réseau, un 5xx du site ou du
+ * proxy ne disent rien d'elle, et le passage suivant peut réussir. Un refus
+ * du site n'est retenu que s'il est propre à la page (`isPageRefusal`) : un
+ * 503 passager excluait sinon la page de l'automatique jusqu'au
+ * rechargement. Un 401/403 de `/api/proxy` peut être celui de FriRSS (session
+ * expirée) : jamais retenu.
  */
 function isPageFailure(err: unknown): boolean {
-  if (err instanceof NotAPageError || err instanceof UpstreamRefusedError
-    || err instanceof NoContentError || err instanceof PageTooLargeError) return true;
-  if (err instanceof FallbackHttpError) return err.status >= 400 && err.status < 500 && err.status !== 408 && err.status !== 429;
+  if (err instanceof NotAPageError || err instanceof NoContentError || err instanceof PageTooLargeError) return true;
+  if (err instanceof UpstreamRefusedError) return isPageRefusal(err.status, 'site');
+  if (err instanceof FallbackHttpError) return isPageRefusal(err.status, 'proxy');
   return false;
 }
 

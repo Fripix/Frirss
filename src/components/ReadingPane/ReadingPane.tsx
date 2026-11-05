@@ -9,7 +9,7 @@ import { useThemeStore } from '../../stores/themeStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { buildArticleBody, displayedHtml, readingMinutes } from '../../lib/articleBody';
-import { readingBodyKind, showsSkeleton, showsReadingTime } from '../../lib/readingBody';
+import { extractShown, readingBodyKind, showsSkeleton, showsReadingTime } from '../../lib/readingBody';
 import { sanitizeArticleBody } from '../../utils/sanitizeHtml';
 import { readProgressPercent } from '../../lib/readProgress';
 import type { Article } from '../../types';
@@ -219,6 +219,17 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // `extracting` ne l'est qu'après la lecture du cache local, et un résumé
   // automatique pouvait partir sur l'aperçu dans l'intervalle.
   const [extractAskedFor, setExtractAskedFor] = useState<string | null>(null);
+  // L'article dont le lecteur a demandé lui-même l'article complet (bouton,
+  // palette, « Réessayer ») : sa demande passe outre la garde L-04, qui
+  // n'écarte un extrait trop court que de l'extraction automatique. Sans elle,
+  // « Article complet » ne changeait rien à l'écran et le bouton passait
+  // pourtant à « Contenu RSS » (relecture 1.9.0).
+  const [extractForcedFor, setExtractForcedFor] = useState<string | null>(null);
+  const extractForced = !!selectedArticle && extractForcedFor === selectedArticle.id;
+  // L'extrait est-il ce que le volet montre ? Le bouton et la palette disent
+  // ce qui est réellement affiché, pas seulement qu'un extrait existe.
+  const showingExtract = !!extractedContent
+    && extractShown(selectedArticle?.content, extractedContent.content, extractForced);
 
   // Résumé IA — un état par article affiché ; remis à zéro quand il change.
   const aiOn = useAiStore(aiEnabled);
@@ -318,6 +329,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     }
     setExtractError(null);
     setExtracting(false);
+    setExtractForcedFor(null);
     // Une demande d'extrait ne vaut que tant que son extraction tourne : ratée
     // ou évincée du cache pendant qu'on lisait ailleurs, elle faisait attendre
     // pour toujours toute demande au retour (`waitingForBody`).
@@ -836,6 +848,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     const auto = !!opts.auto;
     const id = selectedArticle.id;
     const stillCurrent = () => useFeedStore.getState().selectedArticle?.id === id;
+    if (!auto) setExtractForcedFor(id);
     // 1) Memory hit → instant (e.g. swiping back, prefetched).
     const inMem = peekExtract(id);
     if (inMem) {
@@ -902,11 +915,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     const id = selectedArticle.id;
     // L'extrait n'est celui de cet article que si l'extraction lui appartient.
     const fullText = extractFor === id ? extractedContent?.content : undefined;
+    // Et il n'est résumé que s'il est ce que le volet MONTRE (`displayedHtml`) :
+    // un extrait écarté par la garde L-04 laissait résumer un morceau de page
+    // sous un corps qui affichait le flux.
+    const shownText = displayedHtml(selectedArticle.content, fullText ?? null, { forced: extractForced });
     aiInFlight.current = id;
     setAiStatus('loading'); setAiError(null); setAiErrorProvider(undefined);
     try {
       const regenerate = opts?.regenerate === true;
-      const html = fitSummaryPayload(stripMediaForSummary(fullText ?? selectedArticle.content ?? ''));
+      const html = fitSummaryPayload(stripMediaForSummary(shownText));
       const key = summaryRequestKey({ user: useAuthStore.getState().backendUser?.id, articleId: id, providerId, html, ratio: aiRatio, regenerate });
       const r = await sharedSummaryRequest(key, () => requestAiSummary({
         articleId: id, title: selectedArticle.title,
@@ -940,7 +957,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     } finally {
       if (aiInFlight.current === id) aiInFlight.current = null;
     }
-  }, [selectedArticle, extractedContent, extractFor, t, i18n, isAdmin, aiRatio]);
+  }, [selectedArticle, extractedContent, extractFor, extractForced, t, i18n, isAdmin, aiRatio]);
 
   // Traduire le résumé affiché. « Traduire » vise la langue cible ; « Traduire
   // en… » une autre langue ; « Traduire avec… » force un fournisseur pour la
@@ -1131,8 +1148,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       inlineVideos,
       videoLabels: { play: videoPlayLabel, open: videoOpenLabel },
       videoUrl: selectedArticle?.url,
+      extractForced,
     }),
-    [selectedArticle?.content, extractedContent?.content, inlineVideos, videoPlayLabel, videoOpenLabel, selectedArticle?.url],
+    [selectedArticle?.content, extractedContent?.content, inlineVideos, videoPlayLabel, videoOpenLabel, selectedArticle?.url, extractForced],
   );
 
   // Traduction de l'article (spec §17.1, §17.3). Elle porte sur le corps
@@ -1141,8 +1159,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // vidéo, sanitiseur, images différées et direction par bloc, comme
   // l'original. Le corps traduit garde l'identité stable de `bodyProp`.
   const sourceHtml = useMemo(
-    () => displayedHtml(selectedArticle?.content, extractedContent?.content ?? null),
-    [selectedArticle?.content, extractedContent?.content],
+    () => displayedHtml(selectedArticle?.content, extractedContent?.content ?? null, { forced: extractForced }),
+    [selectedArticle?.content, extractedContent?.content, extractForced],
   );
   const translationSourceId = selectedArticle?.sourceId;
   const articleRouting = useCallback(
@@ -1348,7 +1366,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       offers.push({ command: `label:${label.id}`, item: 'labels', label: t(has ? 'palette.labelRemove' : 'palette.labelAdd', { name }) });
     }
     if (a.url && !extracting) {
-      offers.push({ command: 'fullContent', item: 'fullContent', label: extractedContent ? t('readingPane.showRss') : t('readingPane.fullContent') });
+      offers.push({ command: 'fullContent', item: 'fullContent', label: showingExtract ? t('readingPane.showRss') : t('readingPane.fullContent') });
     }
     if (showTranslatedBody) offers.push({ command: 'showSource', item: 'translate', label: t('ai.showSource') });
     if (safeHref(a.url)) offers.push({ command: 'original', item: 'original', label: t('preferences.shortcuts.openOriginal') });
@@ -1367,7 +1385,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     else if (command.startsWith('label:')) void toggleArticleLabel(a, command.slice('label:'.length));
     else if (command === 'newLabel' && arg?.trim()) void toggleArticleLabel(a, `user/-/label/${arg.trim()}`);
     else if (command === 'fullContent') {
-      if (extractedContent) { setExtractedContent(null); lastExtractedId.current = null; } else void handleExtract();
+      if (showingExtract) { setExtractedContent(null); lastExtractedId.current = null; } else void handleExtract();
     }
     else if (command === 'showSource') tr.showSource();
     // La même ouverture que la touche O (`openExternal`, REG-027), pas une copie.
@@ -1380,7 +1398,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   useToolbarFold(toolbarRef, [
     !!selectedArticle, isMobileOrTablet, aiUsable, showSummarizeBarBtn,
-    articleTranslationState, showTranslatedBody, extracting, extractedContent,
+    articleTranslationState, showTranslatedBody, extracting, showingExtract,
     selectedArticle?.read, selectedArticle?.starred, i18n.language, shown,
     // La barre se démonte et se remonte quand elle se vide ou se remplit
     // (Retour seul visible et passage en 2 colonnes, article sans URL…) :
@@ -1497,6 +1515,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     rssHtml: article?.content,
     extractedHtml: extractedContent?.content ?? null,
     autoExtract: autoExtractApplies && !autoFailedHere,
+    forced: extractForced,
   };
   const showSkeleton = showsSkeleton(bodyState);
 
@@ -1652,15 +1671,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         {/* Extract full content */}
         {showFullBtn && (
           <button
-            onClick={extractedContent ? () => { setExtractedContent(null); lastExtractedId.current = null; } : () => { void handleExtract(); }}
+            onClick={showingExtract ? () => { setExtractedContent(null); lastExtractedId.current = null; } : () => { void handleExtract(); }}
             disabled={extracting}
             className="action-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-200"
             style={{
-              color: extractedContent ? 'var(--accent)' : 'var(--reading-meta)',
-              background: extractedContent ? 'var(--accent-glow)' : 'transparent',
-              border: extractedContent ? '1.5px solid color-mix(in srgb, var(--accent) 30%, transparent)' : '1.5px solid transparent',
+              color: showingExtract ? 'var(--accent)' : 'var(--reading-meta)',
+              background: showingExtract ? 'var(--accent-glow)' : 'transparent',
+              border: showingExtract ? '1.5px solid color-mix(in srgb, var(--accent) 30%, transparent)' : '1.5px solid transparent',
             }}
-            title={extractedContent ? t('readingPane.showRss') : t('readingPane.fullContent')}
+            title={showingExtract ? t('readingPane.showRss') : t('readingPane.fullContent')}
           >
             {extracting ? (
               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -1671,7 +1690,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
             )}
-            <span className="toolbar-label">{extracting ? t('readingPane.extracting') : extractedContent ? t('readingPane.showRss') : t('readingPane.fullContent')}</span>
+            <span className="toolbar-label">{extracting ? t('readingPane.extracting') : showingExtract ? t('readingPane.showRss') : t('readingPane.fullContent')}</span>
           </button>
         )}
 
@@ -2209,8 +2228,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           </BarBtn>
 
           {article.url && (
-            <BarBtn toggle active={!!extractedContent} activeColor="var(--accent)" label={t('readingPane.fullContent')}
-              onClick={extractedContent ? () => { setExtractedContent(null); lastExtractedId.current = null; } : () => { void handleExtract(); }}>
+            <BarBtn toggle active={showingExtract} activeColor="var(--accent)" label={t('readingPane.fullContent')}
+              onClick={showingExtract ? () => { setExtractedContent(null); lastExtractedId.current = null; } : () => { void handleExtract(); }}>
               {extracting ? (
                 <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />

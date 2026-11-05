@@ -6,8 +6,9 @@
 // suivi d'un repli `/api/proxy`, soit ~10 Mo pour une seule ouverture.
 //
 // Seuls les échecs qui tiennent à la PAGE y entrent (pas une page, trop
-// grosse, refusée par le site, rien de lisible) : une cadence dépassée, un
-// délai ou une panne réseau ne disent rien d'elle, et le prochain passage peut
+// grosse, refusée par le site d'un 4xx, rien de lisible) : une cadence
+// dépassée, un délai, un 5xx ou une panne réseau ne disent rien d'elle, ni un
+// refus de FriRSS lui-même (`isPageRefusal`), et le prochain passage peut
 // réussir. En mémoire seulement : un rechargement redonne sa chance à tout, et
 // le bouton « Article complet » réessaie toujours (`retry`).
 
@@ -40,6 +41,22 @@ export function forgetExtractFailure(url: string): void {
 /** Toute la mémoire — pour les tests, et rien d'autre. */
 export function forgetExtractFailures(): void {
   failed.clear();
+}
+
+/**
+ * Un refus HTTP tient-il à la PAGE, au point de ne plus la redemander de la
+ * session ? Seuls les 4xx, hors délai (408) et cadence (429) : un 5xx, une
+ * surcharge ou une coupure du site sont passagers, et le prochain passage
+ * peut réussir. `from` dit qui a répondu : `site` pour le statut que le
+ * serveur a reçu du site (`upstreamStatus`), `proxy` pour la réponse de
+ * `/api/proxy`, où un 401 ou un 403 peut être celui de FriRSS lui-même
+ * (session expirée, cible refusée par la garde) — jamais retenu, puisque ce
+ * n'est pas la page qui est en cause.
+ */
+export function isPageRefusal(status: number, from: 'site' | 'proxy'): boolean {
+  if (status < 400 || status >= 500 || status === 408 || status === 429) return false;
+  if (from === 'proxy' && (status === 401 || status === 403)) return false;
+  return true;
 }
 
 /**

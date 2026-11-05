@@ -2876,7 +2876,18 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   section « Solutions » quand le flux portait l'avis entier, et rien ne le
   signalait. Le flux reste affiché. Comptés : le texte visible, balises
   retirées. La moitié tolère l'extrait légitimement plus court (le flux répète
-  souvent titre et chapeau).
+  souvent titre et chapeau). **La garde ne vaut que pour l'extraction
+  automatique** (relecture 1.9.0, `extractShown`, `forced`) : quand le
+  lecteur demande lui-même l'article complet (bouton, palette, « Réessayer »,
+  `extractForcedFor` dans le volet), l'extrait s'affiche même court — avant,
+  rien ne changeait à l'écran et le bouton passait pourtant à « Contenu RSS ».
+  **Le bouton, sa version mobile et la palette suivent ce qui est réellement
+  montré** (`showingExtract`) : un extrait automatique écarté laisse
+  « Article complet », qui le montre. La demande s'oublie en changeant
+  d'article. **Le résumé IA porte sur le même texte** que le corps
+  (`displayedHtml` avec `forced`) : il résumait l'extrait écarté sous un corps
+  qui affichait le flux (`ReadingPane.extract.test.tsx`,
+  `ReadingPane.ai.test.tsx`).
 - **Pourquoi ce changement** : jusqu'ici, un flux à extraction automatique
   affichait le squelette gris tant que le texte complet n'était pas revenu,
   *alors que le contenu du flux était disponible*. L'application montrait un
@@ -4637,8 +4648,9 @@ traduction automatiques par flux ou catégorie et le raccourci `t` (plan 3).
   échoué** pour CET article — l'état `extractFor`, posé dans le même lot que
   `extractedContent` / `extractError`, dit à qui ils appartiennent, car au rendu
   qui suit un changement d'article ils sont encore ceux du précédent (calcul
-  `autoSettled`, partagé avec la traduction automatique). Échec d'extraction : le
-  texte du flux est résumé. **Une demande du lecteur attend aussi l'extrait**
+  `autoSettled`, partagé avec la traduction automatique). Échec d'extraction, ou
+  extrait trop court pour être montré (garde de `extractWorthShowing`) : le
+  texte du flux est résumé — toujours le texte affiché, `displayedHtml`. **Une demande du lecteur attend aussi l'extrait**
   (2026-10-23) : « Résumer » (bouton, touche, palette, « Résumer avec X ») et
   « Traduire » (bouton, touche `t`, palette, « Traduire en… / avec… ») faits
   pendant l'extraction (`waitingForBody` = extraction en cours, ou demandée —
@@ -5018,11 +5030,15 @@ serveur de développement en 1.4.4.)*
     le lecteur. Le volet ne lance pas d'extraction automatique sur une vidéo,
     ne l'attend pas (pas de squelette) et n'affiche aucun échec ;
   - **un échec qui tient à la PAGE est retenu pour la session** (pas une page,
-    trop grosse, refusée par le site, rien de lisible, 4xx du repli hors 408 et
-    429) : les extractions automatiques et les files de fond ne la redemandent
-    plus (`worthAutoExtracting`). Une cadence dépassée, un délai, une panne
-    réseau ou un 5xx du proxy ne sont PAS retenus : ils ne disent rien de la
-    page. Mémoire en mémoire seulement, bornée à 500 pages
+    trop grosse, rien de lisible, refus **4xx** du site ou du repli hors 408
+    et 429 — `isPageRefusal`) : les extractions automatiques et les files de
+    fond ne la redemandent plus (`worthAutoExtracting`). Une cadence dépassée,
+    un délai, une panne réseau ou un **5xx**, du site comme du proxy, ne sont
+    PAS retenus : ils ne disent rien de la page (un 503 passager excluait
+    sinon la page de l'automatique jusqu'au rechargement — relecture 1.9.0).
+    Ni un **401/403 de `/api/proxy`** : il peut venir de FriRSS lui-même
+    (session expirée, cible refusée par la garde), pas de la page ; un refus
+    du site arrive, lui, par le 502 de `/api/extract` qui porte son statut. Mémoire en mémoire seulement, bornée à 500 pages
     (`EXTRACT_FAILURES_MAX`) ; un rechargement redonne sa chance à tout ;
   - **la demande du lecteur insiste** (`{ retry: true }` : bouton « Article
     complet », palette, « Réessayer ») et un succès efface l'échec retenu ;
@@ -7320,7 +7336,9 @@ qu'elle rend (voir *Extraction du contenu complet*).
   **Le 502 d'un site qui a répondu en erreur porte son statut**
   (`{ error: 'Upstream request failed', upstreamStatus: 403 }`, 1.9.0) : le
   client ne se replie pas — `/api/proxy` irait se faire refuser par le même
-  site, depuis la même adresse. Le 502 d'un amont injoignable (`finishError`)
+  site, depuis la même adresse. Le client ne retient pour la session que les
+  4xx de ce statut, hors 408 et 429 (voir « Une extraction impossible n'est
+  pas redemandée sans fin »). Le 502 d'un amont injoignable (`finishError`)
   n'en porte pas, et garde le repli. Le statut d'un site public ne dit rien du
   réseau interne : une cible interne est refusée avant (garde anti-SSRF).
   La route appelle la garde complète

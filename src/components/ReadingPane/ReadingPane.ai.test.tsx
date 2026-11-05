@@ -534,6 +534,22 @@ describe('ReadingPane — Résumé IA', () => {
       await waitFor(() => expect(requestAiSummary).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining('complet') })));
       expect(requestAiSummary).toHaveBeenCalledTimes(1);
     });
+    // Relecture 1.9.0 : le résumé porte sur le texte montré. Un extrait écarté
+    // par la garde L-04 (moins de la moitié du flux) ne doit pas être résumé
+    // à la place du flux affiché.
+    it('summarises the feed text when the auto-extraction is too short to be shown', async () => {
+      withAutoExtract('x9');
+      const a = { ...article('x9'), content: '<p>' + 'flux '.repeat(200) + '</p>' } as Article;
+      useFeedStore.setState({ selectedArticle: a, articles: [a] });
+      await putExtract('x9', extracted('<p>' + 'morceau '.repeat(5) + '</p>'));
+      vi.mocked(requestAiSummary).mockResolvedValue(RESULT);
+      render(<ReadingPane />);
+      await passDelay();
+      await waitFor(() => expect(requestAiSummary).toHaveBeenCalledTimes(1));
+      const html = vi.mocked(requestAiSummary).mock.calls[0][0].html;
+      expect(html).toContain('flux');
+      expect(html).not.toContain('morceau');
+    });
     it('summarises the extraction already in the cache, without fetching', async () => {
       withAutoExtract('x2');
       await putExtract('x2', extracted('<p>' + 'complet '.repeat(80) + '</p>'));

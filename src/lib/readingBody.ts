@@ -23,6 +23,11 @@ export interface ReadingBodyInput {
   extractedHtml?: string | null;
   /** Le flux est-il réglé sur extraction automatique ? */
   autoExtract: boolean;
+  /**
+   * Le lecteur a-t-il demandé lui-même l'article complet (bouton, palette,
+   * « Réessayer ») ? Sa demande passe outre la garde de `extractWorthShowing`.
+   */
+  forced?: boolean;
 }
 
 export type ReadingBodyKind =
@@ -78,6 +83,17 @@ export function extractWorthShowing(rssHtml?: string | null, extractedHtml?: str
 }
 
 /**
+ * L'extrait est-il ce que le volet montre ? La garde de `extractWorthShowing`
+ * (L-04) ne vaut que pour l'extraction automatique : une demande explicite du
+ * lecteur montre l'extrait, même court, pourvu qu'il porte quelque chose.
+ * Sans cela, « Article complet » ne changeait rien à l'écran et le bouton
+ * passait pourtant à « Contenu RSS » (relecture 1.9.0).
+ */
+export function extractShown(rssHtml?: string | null, extractedHtml?: string | null, forced = false): boolean {
+  return forced ? hasRenderableContent(extractedHtml) : extractWorthShowing(rssHtml, extractedHtml);
+}
+
+/**
  * Ce que le volet doit rendre.
  *
  * Dans cet ordre : l'extraction si elle a abouti, sinon le flux s'il porte
@@ -86,7 +102,7 @@ export function extractWorthShowing(rssHtml?: string | null, extractedHtml?: str
  * un squelette que rien ne viendra remplacer serait un mensonge permanent.
  */
 export function readingBodyKind(input: ReadingBodyInput): ReadingBodyKind {
-  if (extractWorthShowing(input.rssHtml, input.extractedHtml)) return 'extract';
+  if (extractShown(input.rssHtml, input.extractedHtml, input.forced)) return 'extract';
   if (hasRenderableContent(input.rssHtml)) return 'rss';
   return input.autoExtract ? 'skeleton' : 'rss';
 }

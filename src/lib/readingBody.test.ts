@@ -56,6 +56,18 @@ describe('readingBodyKind', () => {
     expect(readingBodyKind({ rssHtml: longRss, extractedHtml: '<h2>Solutions</h2><p>Voir l’éditeur.</p>', autoExtract: true })).toBe('rss');
   });
 
+  // Relecture 1.9.0 : la garde ne vaut que pour l'extraction automatique. Une
+  // demande explicite du lecteur (« Article complet ») montre l'extrait, même
+  // court : sinon rien ne changeait à l'écran et le bouton passait à « Contenu RSS ».
+  it('montre l’extrait court quand le lecteur l’a demandé', () => {
+    const longRss = `<p>${'Le flux livre ici tout le texte de l’avis. '.repeat(20)}</p>`;
+    expect(readingBodyKind({ rssHtml: longRss, extractedHtml: '<h2>Solutions</h2><p>Voir l’éditeur.</p>', autoExtract: false, forced: true })).toBe('extract');
+  });
+
+  it('même demandé, un extrait vide ne remplace pas le flux', () => {
+    expect(readingBodyKind({ rssHtml: RSS, extractedHtml: '  ', autoExtract: false, forced: true })).toBe('rss');
+  });
+
   it('prend l’extrait dès qu’il pèse au moins la moitié du flux', () => {
     expect(readingBodyKind({ rssHtml: RSS, extractedHtml: FULL, autoExtract: true })).toBe('extract');
   });

@@ -160,3 +160,40 @@ describe('ReadingPane — avis « Article complet » (L-06)', () => {
     expect(notice(container)).toBe(true);
   });
 });
+
+// Relecture 1.9.0 : un extrait trop court (L-04) n'est écarté que de
+// l'extraction automatique. Demandé par le lecteur, il s'affiche, et le
+// bouton suit ce qui est réellement montré.
+describe('ReadingPane — « Article complet » demandé, extrait court', () => {
+  const longRss = `<p>${'Le flux livre ici tout le texte de l’avis. '.repeat(20)}</p>`;
+  const short = { title: '', content: '<h2>Solutions</h2><p>Voir l’éditeur.</p>', excerpt: '', byline: '', siteName: '', length: 30 };
+  const fullBtn = (c: HTMLElement) => c.querySelector('button[title="readingPane.fullContent"], button[title="readingPane.showRss"]') as HTMLElement;
+
+  it('demandé par le lecteur : l’extrait court s’affiche, le bouton propose « Contenu RSS »', async () => {
+    extractMock.fn.mockResolvedValue(short);
+    const a = { ...base, id: 's1', url: 'https://example.com/s1', content: longRss } as unknown as Article;
+    const { container } = await open(a);
+    await act(async () => { fullBtn(container).click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(container.querySelector(BODY_SELECTOR)?.textContent).toContain('Voir l’éditeur.');
+    expect(container.querySelector(BODY_SELECTOR)?.textContent).not.toContain('Le flux livre');
+    expect(fullBtn(container).getAttribute('title')).toBe('readingPane.showRss');
+    // « Contenu RSS » ramène le flux.
+    await act(async () => { fullBtn(container).click(); });
+    expect(container.querySelector(BODY_SELECTOR)?.textContent).toContain('Le flux livre');
+    expect(fullBtn(container).getAttribute('title')).toBe('readingPane.fullContent');
+  });
+
+  it('extraction automatique : le flux reste, et le bouton dit « Article complet », qui montre l’extrait', async () => {
+    useUiStore.setState({ autoExtractDefault: true } as never);
+    extractMock.fn.mockResolvedValue(short);
+    const a = { ...base, id: 's2', url: 'https://example.com/s2', content: longRss } as unknown as Article;
+    const { container } = await open(a);
+    await act(async () => { await new Promise((r) => setTimeout(r, 150)); });
+    expect(extractMock.fn).toHaveBeenCalledTimes(1);
+    expect(container.querySelector(BODY_SELECTOR)?.textContent).toContain('Le flux livre');
+    expect(fullBtn(container).getAttribute('title')).toBe('readingPane.fullContent');
+    await act(async () => { fullBtn(container).click(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(container.querySelector(BODY_SELECTOR)?.textContent).toContain('Voir l’éditeur.');
+    expect(fullBtn(container).getAttribute('title')).toBe('readingPane.showRss');
+  });
+});

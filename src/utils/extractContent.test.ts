@@ -542,6 +542,34 @@ describe('extractFullContent — mémoire des échecs (L-03)', () => {
     expect(fetchSpy.mock.calls.length).toBeGreaterThan(calls);
   });
 
+  it('ne retient pas un refus passager du site (503, 429, 408)', async () => {
+    for (const upstreamStatus of [503, 429, 408]) {
+      const url = `https://example.com/passager-${upstreamStatus}`;
+      const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: 'Upstream request failed', upstreamStatus }), { status: 502 }));
+      vi.stubGlobal('fetch', fetchSpy);
+      await expect(extractFullContent(url)).rejects.toBeInstanceOf(UpstreamRefusedError);
+      const calls = fetchSpy.mock.calls.length;
+      await expect(extractFullContent(url)).rejects.toBeInstanceOf(UpstreamRefusedError);
+      expect(fetchSpy.mock.calls.length).toBeGreaterThan(calls);
+    }
+  });
+
+  it('retient un refus propre à la page (404 du site)', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: 'Upstream request failed', upstreamStatus: 404 }), { status: 502 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(extractFullContent('https://example.com/disparue')).rejects.toBeInstanceOf(UpstreamRefusedError);
+    await expect(extractFullContent('https://example.com/disparue')).rejects.toBeInstanceOf(NotExtractableError);
+  });
+
+  it('ne retient pas la session FriRSS expirée (401 de /api/extract puis de /api/proxy)', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: 'Session expired' }), { status: 401 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(extractFullContent('https://example.com/session')).rejects.toThrow();
+    const calls = fetchSpy.mock.calls.length;
+    await expect(extractFullContent('https://example.com/session')).rejects.toThrow();
+    expect(fetchSpy.mock.calls.length).toBeGreaterThan(calls);
+  });
+
   it('ne retient pas une panne réseau', async () => {
     const fetchSpy = vi.fn(async () => { throw new TypeError('Failed to fetch'); });
     vi.stubGlobal('fetch', fetchSpy);

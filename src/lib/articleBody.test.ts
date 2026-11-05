@@ -44,6 +44,12 @@ describe('displayedHtml', () => {
     expect(displayedHtml(longRss, '<h2>Solutions</h2><p>Voir l’éditeur.</p>')).toBe(longRss);
   });
 
+  it('montre l’extrait court quand le lecteur l’a demandé (forced)', () => {
+    const longRss = `<p>${'Le flux livre ici tout le texte de l’avis. '.repeat(20)}</p>`;
+    expect(displayedHtml(longRss, '<h2>Solutions</h2><p>Voir l’éditeur.</p>', { forced: true })).toBe('<h2>Solutions</h2><p>Voir l’éditeur.</p>');
+    expect(buildArticleBody({ rssHtml: longRss, extractedHtml: '<p>Voir l’éditeur.</p>', extractForced: true, inlineVideos: false, videoLabels: labels }).html).toContain('Voir l’éditeur.');
+  });
+
   it('tolère un article sans contenu du tout', () => {
     expect(displayedHtml(null, null)).toBe('');
   });

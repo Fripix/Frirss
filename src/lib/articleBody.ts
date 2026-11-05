@@ -18,7 +18,7 @@
 
 import { sanitizeArticleBody } from '../utils/sanitizeHtml';
 import { dropVideoThumbnails, extractYouTubeId, injectVideoFacades, type FacadeLabels } from './youtube';
-import { extractWorthShowing, hasRenderableContent } from './readingBody';
+import { extractShown, hasRenderableContent } from './readingBody';
 
 /** Combien d'images du début échappent au chargement différé. Les premières
  *  doivent être là *avant* la transition de balayage, pas après. */
@@ -41,6 +41,8 @@ export interface ArticleBodyInput {
    * que FreshRSS met dans le contenu, est alors retirée du corps (L-08).
    */
   videoUrl?: string | null;
+  /** Le lecteur a demandé l'article complet : la garde L-04 ne s'applique pas. */
+  extractForced?: boolean;
 }
 
 export interface ArticleBody {
@@ -58,11 +60,16 @@ export interface ArticleBody {
  * — Readability écarte souvent l'illustration principale, et l'article
  * arrivait alors amputé de sa seule image.
  */
-export function displayedHtml(rssHtml?: string | null, extractedHtml?: string | null): string {
+export function displayedHtml(
+  rssHtml?: string | null,
+  extractedHtml?: string | null,
+  opts: { forced?: boolean } = {},
+): string {
   if (!extractedHtml) return rssHtml || '';
   // Un extrait qui n'a pas la moitié du texte du flux est un morceau de la
-  // page, pas l'article complet (L-04) : même règle que `readingBodyKind`.
-  if (hasRenderableContent(extractedHtml) && !extractWorthShowing(rssHtml, extractedHtml)) return rssHtml || '';
+  // page, pas l'article complet (L-04) : même règle que `readingBodyKind`,
+  // `extractShown`. Sauf si le lecteur l'a demandé (`forced`).
+  if (hasRenderableContent(extractedHtml) && !extractShown(rssHtml, extractedHtml, opts.forced)) return rssHtml || '';
   const imgMatch = rssHtml?.match(/<img[^>]+src=["']([^"']+)["']/i);
   if (imgMatch && !extractedHtml.includes(imgMatch[1])) {
     return `<img src="${imgMatch[1].replace(/"/g, '&quot;')}" alt="" />` + extractedHtml;
@@ -90,7 +97,7 @@ export function readingMinutes(words: number): number {
  *     (`reserveImgAspect`, `imageAspect.ts`) et retirer les paragraphes vides.
  */
 export function buildArticleBody(input: ArticleBodyInput): ArticleBody {
-  const displayed = displayedHtml(input.rssHtml, input.extractedHtml);
+  const displayed = displayedHtml(input.rssHtml, input.extractedHtml, { forced: input.extractForced });
   const words = displayed.replace(/<[^<>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
 
   const headVideo = input.inlineVideos ? extractYouTubeId(input.videoUrl || '') : null;
