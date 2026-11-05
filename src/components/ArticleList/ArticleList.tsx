@@ -1443,7 +1443,12 @@ export default function ArticleList() {
             filter={filter}
             searchQuery={searchQuery}
             failed={bodyState === 'failed'}
-            onRetry={() => { void useFeedStore.getState().loadArticles(); }}
+            onRetry={() => {
+              // « Nouveau tirage » et « Réessayer » disparaissent sous le
+              // squelette : le focus passe à la liste, comme au pied du tirage.
+              listRef.current?.focus({ preventScroll: true });
+              void useFeedStore.getState().loadArticles();
+            }}
             awaitingPage={bodyState === 'empty-more'}
             loadMoreBusy={loadMoreBusy}
             onLoadMore={loadMore}

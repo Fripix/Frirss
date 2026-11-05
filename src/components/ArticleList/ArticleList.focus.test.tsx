@@ -72,6 +72,15 @@ describe('le focus ne retombe pas sur la page', () => {
     expect(document.activeElement).toBe(c.container.querySelector('[data-article-scroll]'));
   });
 
+  it('« Nouveau tirage » de l’écran vide : le focus passe à la liste aussi', () => {
+    const c = show({ randomView: true, articles: [] });
+    const button = c.getByRole('button', { name: 'articleList.randomAgain' });
+    button.focus();
+    act(() => { fireEvent.click(button); });
+    expect(loadArticles).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(c.container.querySelector('[data-article-scroll]'));
+  });
+
   describe('« Oublier cette recherche »', () => {
     const open = () => {
       localStorage.setItem('frirss_searchHistory_none', JSON.stringify(['un', 'deux', 'trois']));

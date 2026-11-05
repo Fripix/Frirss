@@ -792,8 +792,8 @@ trouvait pas.
   et file hors ligne suivent leur chemin habituel, `reportOnLists` compris.
 - **La liste ne change que sur un geste** : bouton « Nouveau tirage » en fin de
   liste (le squelette l'emporte : il donne d'abord le focus à la liste, sinon
-  le clavier retombait sur `<body>` — 1.9.0 ; pas encore celui de l'écran
-  vide), Rafraîchir (une fois, à la fin de la relève), tirer-pour-rafraîchir, après
+  le clavier retombait sur `<body>` — 1.9.0 ; de même pour « Nouveau tirage »
+  et « Réessayer » de l'écran vide), Rafraîchir (une fois, à la fin de la relève), tirer-pour-rafraîchir, après
   ses compteurs. `silentRefresh` et un changement d'ordre, ici ou reçu d'un autre
   appareil, s'abstiennent : un tirage ne dépend pas de l'ordre. Le bandeau des
   nouveaux articles se tait (`newInView` reste à 0).
