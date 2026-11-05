@@ -5,6 +5,7 @@ import {
   loadSearchHistory,
   rememberSearch,
   forgetSearch,
+  focusAfterForget,
   MAX_SEARCH_HISTORY,
 } from './searchHistory';
 
@@ -82,5 +83,23 @@ describe('stored history', () => {
     rememberSearch(null, 'a');
     expect(loadSearchHistory(null)).toEqual(['a']);
     expect(loadSearchHistory('7')).toEqual([]);
+  });
+});
+
+// « Oublier cette recherche » retire le bouton qui avait le focus : il
+// retombait sur <body>. Il passe à la puce suivante, ou à la précédente si
+// c'était la dernière, ou au champ quand il n'en reste aucune.
+describe('focusAfterForget', () => {
+  it('la puce qui prend la place de celle retirée', () => {
+    expect(focusAfterForget(1, 3)).toBe(1);
+    expect(focusAfterForget(0, 1)).toBe(0);
+  });
+
+  it('la précédente quand la dernière est retirée', () => {
+    expect(focusAfterForget(2, 2)).toBe(1);
+  });
+
+  it('le champ quand il n’en reste aucune', () => {
+    expect(focusAfterForget(0, 0)).toBe('input');
   });
 });

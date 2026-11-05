@@ -47,7 +47,7 @@ import { useArticleMenuGestures } from '../../hooks/useArticleMenuGestures';
 import { RowPressContext, createRowPressRegistry } from '../../hooks/rowPress';
 import { copyLink } from '../../lib/copyLink';
 import { useAuthStore } from '../../stores/authStore';
-import { loadSearchHistory, rememberSearch, forgetSearch } from '../../lib/searchHistory';
+import { loadSearchHistory, rememberSearch, forgetSearch, focusAfterForget } from '../../lib/searchHistory';
 import { scrolledPastTop, shouldMark, MARK_READ_DELAY_MS } from '../../lib/markReadOnScroll';
 import { canMorph, withMorph } from '../../lib/viewTransition';
 import { noFocusOnPointer } from '../../lib/pointerFocus';
@@ -762,6 +762,18 @@ export default function ArticleList() {
     if (searchOpen) setHistory(loadSearchHistory(activeServerId));
   }, [searchOpen, activeServerId]);
 
+  // « Oublier cette recherche » démonte le bouton qui avait le focus : une
+  // fois la liste des puces rendue, le focus va où `focusAfterForget` le dit.
+  const recentSearchesRef = useRef<HTMLDivElement>(null);
+  const forgetFocus = useRef<number | 'input' | null>(null);
+  useEffect(() => {
+    const target = forgetFocus.current;
+    if (target === null) return;
+    forgetFocus.current = null;
+    if (target === 'input') searchInputRef.current?.focus();
+    else recentSearchesRef.current?.querySelectorAll<HTMLElement>('[data-forget-search]')[target]?.focus();
+  }, [history]);
+
   // Le store referme la recherche dès que la vue change (`closeSearch`) : la
   // boîte doit suivre, sinon elle reste remplie au-dessus d'une liste qui
   // n'est plus filtrée — vu sur l'instance de dev, la requête « debian »
@@ -1225,6 +1237,7 @@ export default function ArticleList() {
             recouvriraient ce que l'utilisateur est en train de taper. */}
         {searchOpen && !searchValue.trim() && history.length > 0 && (
           <div
+            ref={recentSearchesRef}
             className="px-3 pb-2 pt-2 flex flex-wrap items-center gap-1.5"
             style={{ borderTop: '1px solid var(--panel-border)' }}
           >
@@ -1249,7 +1262,14 @@ export default function ArticleList() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { forgetSearch(activeServerId, q); setHistory(loadSearchHistory(activeServerId)); }}
+                  data-forget-search
+                  onClick={() => {
+                    const index = history.indexOf(q);
+                    forgetSearch(activeServerId, q);
+                    const remaining = loadSearchHistory(activeServerId);
+                    forgetFocus.current = focusAfterForget(index, remaining.length);
+                    setHistory(remaining);
+                  }}
                   className="pr-2 pl-0.5 py-1 rounded-r-full opacity-50 hover:opacity-100 transition-opacity"
                   aria-label={t('app.labelValue', { label: t('articleList.forgetSearch'), value: q })}
                   title={t('articleList.forgetSearch')}
@@ -1518,7 +1538,13 @@ export default function ArticleList() {
             style={{ borderTop: '1px solid var(--panel-border)' }}
           >
             <button
-              onClick={() => { void useFeedStore.getState().loadArticles(); }}
+              onClick={() => {
+                // Le squelette remplace la liste et ce bouton avec elle : sans
+                // ce focus, le clavier retombe sur `<body>`. Le tirage repart
+                // du haut de lui-même (`randomDraw`).
+                listRef.current?.focus({ preventScroll: true });
+                void useFeedStore.getState().loadArticles();
+              }}
               className="px-3.5 py-2 rounded-full text-xs font-semibold transition-colors"
               style={{
                 color: 'var(--accent)',

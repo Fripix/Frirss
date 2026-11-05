@@ -791,7 +791,9 @@ trouvait pas.
   (`sameView`, `silentRefresh`), et ne relâche pas l'attente du tirage. Lu, favoris
   et file hors ligne suivent leur chemin habituel, `reportOnLists` compris.
 - **La liste ne change que sur un geste** : bouton « Nouveau tirage » en fin de
-  liste, Rafraîchir (une fois, à la fin de la relève), tirer-pour-rafraîchir, après
+  liste (le squelette l'emporte : il donne d'abord le focus à la liste, sinon
+  le clavier retombait sur `<body>` — 1.9.0 ; pas encore celui de l'écran
+  vide), Rafraîchir (une fois, à la fin de la relève), tirer-pour-rafraîchir, après
   ses compteurs. `silentRefresh` et un changement d'ordre, ici ou reçu d'un autre
   appareil, s'abstiennent : un tirage ne dépend pas de l'ordre. Le bandeau des
   nouveaux articles se tait (`newInView` reste à 0).
@@ -2739,6 +2741,10 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   sinon elles recouvriraient ce qu'on est en train de taper. **Locales à
   l'appareil, jamais synchronisées** : c'est la sorte de trace qu'on ne
   s'attend pas à voir apparaître sur un autre écran.
+  « Oublier cette recherche » emporte son bouton avec la puce : le focus
+  passe à la puce qui prend sa place, à la précédente si c'était la
+  dernière, au champ s'il n'en reste aucune (`focusAfterForget`, 1.9.0 —
+  avant, il retombait sur `<body>`).
 - **Piège** : une page de résultats n'est écrite dans **aucun cache**, ni
   mémoire ni hors ligne. `viewKey` ne connaît que le flux et le filtre : y
   ranger des résultats les ferait repeindre à l'ouverture de la vue nue, hors

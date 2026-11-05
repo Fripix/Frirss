@@ -68,6 +68,17 @@ export function rememberSearch(serverId: ServerId, query: string): void {
   save(serverId, addToHistory(loadSearchHistory(serverId), query));
 }
 
+/**
+ * Où va le focus après « Oublier cette recherche », dont le bouton disparaît
+ * avec sa puce : la puce qui prend sa place, la précédente si c'était la
+ * dernière, le champ de recherche s'il n'en reste aucune. Sans cela il
+ * retombait sur `<body>`.
+ */
+export function focusAfterForget(removedIndex: number, remaining: number): number | 'input' {
+  if (remaining <= 0) return 'input';
+  return Math.min(removedIndex, remaining - 1);
+}
+
 export function forgetSearch(serverId: ServerId, query: string): void {
   const key = normalize(query);
   save(serverId, loadSearchHistory(serverId).filter((q) => normalize(q) !== key));
