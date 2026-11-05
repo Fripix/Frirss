@@ -7745,7 +7745,10 @@ n'existe pas.
 
 **10 locales** : `fr` (repli), `en`, `de`, `es`, `it`, `nl`, `pl`, `pt`, `uk`,
 `zh`. i18next v26 : pluriels `_one`/`_other`, plus `_few`/`_many` pour
-`pl` et `uk`.
+`pl` et `uk`. ⚠️ En ukrainien, `_one` couvre aussi 21, 31, 41… (CLDR) : une
+chaîne `_one` porte `{{count}}`, jamais « 1 » en dur ; et `_few` (2-4, 22-24…)
+prend le nominatif pluriel dans les deux langues (« 2 дії », « 4 akcje »),
+pas le génitif pluriel de `_many` (`src/i18nPlurals.test.ts`, 1.9.0).
 
 **La page d'erreur de l'application est traduite** (`src/components/ErrorBoundary.tsx`,
 1.8.0, `ErrorBoundary.test.tsx`) : texte lu par l'instance i18next (`say`),
