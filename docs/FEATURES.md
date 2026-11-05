@@ -1862,8 +1862,10 @@ FriRSS (voir « Le titre est un vrai lien » plus bas).
   « Original », le titre-lien et l'entrée de la feuille du bas
   (`ReadingPane.tsx`) ; et `openExternal()`, qui renvoie `false` sans rien
   ouvrir — par où passent l'icône, le clic molette de la ligne
-  (`openArticleAtSource()`), la touche `o` (`useKeyboardNav.ts`) et « ouvrir
-  le site » d'un flux (`Sidebar.tsx`, `feedSiteUrl`). Le refus est
+  (`openArticleAtSource()`), la touche `o` (`useKeyboardNav.ts`), « Ouvrir
+  l'original » de la palette (commande `original` du volet, 1.9.0 — elle avait
+  sa propre copie `safeHref` + `window.open`, sûre mais hors des tests de
+  REG-027) et « ouvrir le site » d'un flux (`Sidebar.tsx`, `feedSiteUrl`). Le refus est
   silencieux, comme une URL vide. Restent volontairement bruts
   `navigator.share` et le presse-papiers (« Copier le lien », « Partager ») :
   ils n'exécutent rien. Le corps de l'article a sa propre garde (DOMPurify,

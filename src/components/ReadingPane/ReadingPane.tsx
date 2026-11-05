@@ -50,6 +50,7 @@ import { separatorsBefore } from '../../lib/toolbarItems';
 import { useToolbarCommands, type ToolbarOffer } from '../../lib/toolbarCommands';
 import axios from 'axios';
 import { safeHref } from '../../lib/safeHref';
+import { openExternal } from '../../lib/openExternal';
 import { useMenuKeys } from '../../hooks/useMenuKeys';
 import { clampReadingBody, READING_BODY_BOUNDS } from '../../lib/readingFontSize';
 // extractFullContent is loaded on demand (code-split) — see handleExtract.
@@ -1346,7 +1347,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       if (extractedContent) { setExtractedContent(null); lastExtractedId.current = null; } else void handleExtract();
     }
     else if (command === 'showSource') tr.showSource();
-    else if (command === 'original') { const href = safeHref(a.url); if (href) window.open(href, '_blank', 'noopener,noreferrer'); }
+    // La même ouverture que la touche O (`openExternal`, REG-027), pas une copie.
+    else if (command === 'original') openExternal(a.url);
     else if (command === 'share') void shareArticle(a);
     else if (command === 'fontDown') decFont();
     else if (command === 'fontUp') incFont();

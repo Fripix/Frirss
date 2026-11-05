@@ -30,6 +30,11 @@ vi.mock('../../lib/extractStore', () => ({
   dbSetPinned: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('../../i18n', () => ({ default: { t: (k: string) => k } }));
+// Espion qui laisse passer : la vraie ouverture (et sa garde) reste exercée.
+vi.mock('../../lib/openExternal', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../lib/openExternal')>();
+  return { openExternal: vi.fn(real.openExternal) };
+});
 
 let breakpoint: 'desktop' | 'tablet' | 'mobile' = 'desktop';
 vi.mock('../../hooks/useBreakpoint', () => ({ useBreakpoint: () => breakpoint, useRawBreakpoint: () => breakpoint }));
@@ -39,6 +44,7 @@ import { useFeedStore } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
 import { DEFAULT_TOOLBAR_VISIBILITY, TOOLBAR_ITEMS, type ToolbarVisibility } from '../../lib/toolbarItems';
 import { probeToolbarCommands, runToolbarCommand } from '../../lib/toolbarCommands';
+import { openExternal } from '../../lib/openExternal';
 
 const LABEL = 'user/-/label/Tech';
 const article = (over: Partial<Article> = {}) => ({
@@ -167,6 +173,17 @@ describe('barre du volet — commandes offertes à la palette', () => {
     cleanup();
     await show({ art: article({ starred: true, labels: ['user/-/state/com.google/read-later', 'user/-/label/À lire plus tard'] }) });
     expect(label('star')).toBe('articleRow.removeStar');
+  });
+
+  // L'ouverture gardée par REG-027 (noopener, URL http(s) seulement) est
+  // `openExternal` : « Ouvrir l'original » de la palette avait sa propre copie.
+  it('Ouvrir l’original passe par openExternal, comme la touche O', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    await show({ hidden: ['original'] });
+    act(() => { runToolbarCommand('original'); });
+    expect(openExternal).toHaveBeenCalledWith('https://example.com/1');
+    expect(open).toHaveBeenCalledTimes(1);
+    open.mockRestore();
   });
 
   it('une étiquette qui n’existe pas encore se crée depuis la palette', async () => {
