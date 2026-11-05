@@ -169,10 +169,15 @@ export function readBackup(envelope: unknown, passphrase: string): OpenedBackup 
     throw new BackupError('not_a_backup', 'Malformed backup envelope');
   }
   assertKdfParamsInBounds(e.kdf);
+  // GCM ne vérifie que le préfixe d'une étiquette tronquée : 4 octets
+  // ouvraient le fichier. L'étiquette fait 16 octets, ou ce n'est pas une
+  // sauvegarde (`authTagLength` le fait aussi respecter à Node).
+  const tag = Buffer.from(e.tag, 'base64');
+  if (tag.length !== 16) throw new BackupError('not_a_backup', 'Malformed backup envelope');
   try {
     const key = deriveKey(passphrase, Buffer.from(e.kdf.salt, 'base64'), e.kdf);
-    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(e.iv, 'base64'));
-    decipher.setAuthTag(Buffer.from(e.tag, 'base64'));
+    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(e.iv, 'base64'), { authTagLength: 16 });
+    decipher.setAuthTag(tag);
     if (authenticated) {
       decipher.setAAD(headerAad({ format: BACKUP_FORMAT, version: e.version, createdAt: e.createdAt as string, appVersion: e.appVersion as string }));
     }

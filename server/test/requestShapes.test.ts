@@ -15,7 +15,7 @@ vi.mock('dns', () => {
 });
 
 const { default: app } = await import('../index.js');
-const { getSetting } = await import('../db.js');
+const { getSetting, default: db } = await import('../db.js');
 
 let token = '';
 beforeAll(async () => {
@@ -91,6 +91,18 @@ describe('POST /api/servers — doublon par origine normalisée', () => {
     const other = await request(app).post('/api/servers').set(auth())
       .send({ url: 'https://rss.example.com/freshrss', freshrssUser: 'toi', freshrssToken: 'tok' });
     expect(other.status).toBe(201);
+  });
+
+  // Des jumeaux existent déjà (ajoutés avant 1.9.0, quand la comparaison se
+  // faisait sur la chaîne) : modifier l'un sans changer d'identité ne doit pas
+  // être refusé — sinon on ne peut plus lui donner de nouveaux identifiants.
+  it('un serveur qui a déjà un jumeau reste modifiable tant qu’il ne change pas d’identité', async () => {
+    const first = (await add('https://rss4.example.com')).body.server.id;
+    const { lastInsertRowid } = db.prepare('INSERT INTO servers (user_id, name, url, freshrss_user, freshrss_token) SELECT user_id, name, ?, freshrss_user, freshrss_token FROM servers WHERE id = ?')
+      .run('https://RSS4.example.com:443', first);
+    const twin = Number(lastInsertRowid);
+    expect((await request(app).put(`/api/servers/${twin}`).set(auth()).send({ name: 'Jumeau' })).status).toBe(200);
+    expect((await request(app).put(`/api/servers/${twin}`).set(auth()).send({ freshrssToken: 'neuf' })).status).toBe(200);
   });
 
   it('une modification ne peut pas rejoindre un serveur existant', async () => {

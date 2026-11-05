@@ -776,9 +776,14 @@ router.all('/', async (req, res) => {
   let ownServerTarget = false;
   // Empreinte de ce qui produit le jeton d'écriture (voir `../writeToken.ts`).
   let tokenStamp = '';
+  // Clé de la mémoire des jetons : l'id LU EN BASE, pas l'en-tête. SQLite
+  // fait correspondre « 01 », « 1.0 », « 1e0 » au serveur 1 ; chaque variante
+  // aurait créé une entrée et évincé les jetons des autres comptes.
+  let writeTokenKey = '';
   if (serverId) {
-    const srv = db.prepare('SELECT url, freshrss_token FROM servers WHERE id = ? AND user_id = ?')
-      .get(serverId, req.user.id) as { url: string; freshrss_token: string | null } | undefined;
+    const srv = db.prepare('SELECT id, url, freshrss_token FROM servers WHERE id = ? AND user_id = ?')
+      .get(serverId, req.user.id) as { id: number; url: string; freshrss_token: string | null } | undefined;
+    if (srv) writeTokenKey = `${req.user.id}:${srv.id}`;
     ownServerTarget = !!srv && targetBelongsToServer(srv.url, rawTarget);
     if (srv && srv.freshrss_token && ownServerTarget) {
       const tok = decrypt(srv.freshrss_token);
@@ -892,7 +897,7 @@ router.all('/', async (req, res) => {
   let upstream: Response;
   try {
     upstream = tokenUrl
-      ? await signedWrite(rawTarget, tokenUrl, `${req.user.id}:${serverId}`, tokenStamp)
+      ? await signedWrite(rawTarget, tokenUrl, writeTokenKey, tokenStamp)
       : await fetchUpstream(rawTarget, {
         method: req.method,
         headers,

@@ -174,7 +174,12 @@ router.put('/:id', (req, res) => {
     if (moved && freshrssToken === undefined) {
       return res.status(400).json({ error: 'Changing the server address or user requires new credentials' });
     }
-    if (duplicateServer(req.user.id, normalizedUrl, freshrssUser ?? server.freshrss_user, server.id)) {
+    // Seulement si l'identité change : des jumeaux ajoutés avant 1.9.0 (quand
+    // la comparaison portait sur la chaîne) doivent rester modifiables, sans
+    // quoi on ne pouvait plus leur donner de nouveaux identifiants.
+    const nextUser = freshrssUser ?? server.freshrss_user;
+    const sameIdentity = serverIdentity(normalizedUrl) === serverIdentity(server.url) && nextUser === server.freshrss_user;
+    if (!sameIdentity && duplicateServer(req.user.id, normalizedUrl, nextUser, server.id)) {
       return res.status(409).json({ error: 'Server already exists' });
     }
     const nextRefresh = refreshToken !== undefined

@@ -177,6 +177,21 @@ describe('/api/proxy — le jeton d’écriture ne sort pas du serveur', () => {
     expect(tokenHits.length).toBeLessThanOrEqual(1);
   });
 
+  // SQLite fait correspondre « 01 », « 1.0 », « 1e0 » au serveur 1 : la clé
+  // de la mémoire doit être l'id lu en base, sinon chaque variante crée une
+  // entrée (et une demande /token) qui évince les jetons des autres comptes.
+  it('une variante de l’identifiant du serveur réutilise le même jeton', async () => {
+    await write(`${API}/edit-tag`, 'i=1');
+    tokenHits.length = 0;
+    for (const variant of [`0${serverId}`, `${serverId}.0`, `${serverId}e0`]) {
+      await request(app).post('/api/proxy')
+        .set('X-Proxy-Target', `${upBase}${API}/edit-tag`)
+        .set('Content-Type', 'application/x-www-form-urlencoded;charset=utf-8')
+        .set('X-Server-Id', variant).send('i=3');
+    }
+    expect(tokenHits).toHaveLength(0);
+  });
+
   it('jeton périmé : en redemande un et rejoue l’écriture une fois', async () => {
     await write(`${API}/edit-tag`, 'i=1'); // jeton en mémoire
     tokenHits.length = 0;

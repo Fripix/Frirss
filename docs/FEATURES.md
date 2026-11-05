@@ -317,7 +317,10 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   sans barre finale, pour le même utilisateur FreshRSS ; à l'ajout comme à la
   modification d'adresse. La chaîne brute laissait passer `:443`, `:80` ou
   une majuscule : deux portées hors ligne et deux files pour un seul
-  FreshRSS. L'adresse enregistrée reste celle qui a été saisie.
+  FreshRSS. L'adresse enregistrée reste celle qui a été saisie. Une
+  modification qui garde l'identité (nom, nouveaux identifiants) n'est pas
+  contrôlée : des jumeaux ajoutés avant 1.9.0 restent modifiables, sinon on
+  ne pouvait plus leur donner un nouveau mot de passe d'API.
 
 - **Changer le mot de passe API d'un serveur existant** (1.8.0,
   `ServerCredentialsForm`, `servers.changeCredentials`) : dans la ligne dépliée
@@ -6032,7 +6035,10 @@ l'obtient et signe** : le navigateur ne le demande ni ne l'envoie plus.
   seulement (jamais dans Redis : `/token` n'est pas une lecture mise en cache),
   marqué de l'empreinte qui l'a produit — jeton FreshRSS chiffré et URL du
   serveur. Changer d'identifiants ou d'adresse le rend caduc sans autre geste.
-  Des écritures simultanées ne font qu'une demande.
+  Des écritures simultanées ne font qu'une demande. La clé est l'id du
+  serveur **lu en base**, pas l'en-tête `X-Server-Id` : SQLite fait
+  correspondre « 01 », « 1.0 », « 1e0 » au serveur 1, et chaque variante
+  aurait créé une entrée qui évince les jetons des autres comptes.
 - **Le piège qu'il a coûté** (jusqu'en 1.4.7, côté client) : le jeton n'était
   vidé qu'à la connexion et au changement de serveur. Une fois périmé,
   **toutes** les écritures échouaient jusqu'au rechargement de la page.
@@ -7687,7 +7693,9 @@ et le jetable de l'IA, `ai_usage` (compteur du jour) et `ai_cache`.
   récent »), ce qui est vrai : restaurer sur une version plus ancienne
   demande de repasser d'abord en 1.9.0. L'aperçu écrit la date en toutes
   lettres, dans la langue de l'interface (`src/lib/backupDate.ts`), et non
-  plus la chaîne ISO brute.
+  plus la chaîne ISO brute. L'étiquette GCM doit faire 16 octets
+  (`authTagLength`) : tronquée, Node n'en vérifiait que le préfixe, et
+  4 octets ouvraient le fichier.
 - **Deux points d'accès, une seule implémentation** (`RestoreFlow.tsx`,
   prop `setup`) :
   - **Administration**, sur une instance déjà en marche : bloc

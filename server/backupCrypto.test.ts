@@ -80,6 +80,17 @@ describe('openBackup', () => {
     expect(codeThrownBy(() => openBackup(tampered, PASS))).toBe('bad_passphrase');
   });
 
+  // GCM vérifie seulement le préfixe d'une étiquette tronquée : 4 octets
+  // suffisaient à ouvrir le fichier, et l'authentification de l'en-tête v2
+  // ne valait plus que 32 bits.
+  it('refuse une étiquette d\'authentification tronquée', () => {
+    const env = sealBackup(payload, PASS, '1.4.3');
+    for (const n of [4, 12]) {
+      const short = { ...env, tag: Buffer.from(env.tag, 'base64').subarray(0, n).toString('base64') };
+      expect(codeThrownBy(() => openBackup(short, PASS))).toBe('not_a_backup');
+    }
+  });
+
   it('distingue un fichier qui n\'est pas une sauvegarde FriRSS', () => {
     expect(codeThrownBy(() => openBackup({ hello: 'world' }, PASS))).toBe('not_a_backup');
   });
