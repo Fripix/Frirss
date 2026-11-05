@@ -4849,6 +4849,18 @@ serveur de développement en 1.4.4.)*
   `FeedSetting.autoExtract` existaient (ouverture, voisin précalculé,
   réchauffage en fond, préparation hors-ligne…) : un global aurait été
   invisible à chacune. Ne jamais relire le drapeau directement.
+  ⚠️ **La préparation hors ligne ne passait pas par la porte avant la 1.9.0** :
+  elle ne lisait aucun réglage et extrayait tous les articles de ses trente
+  jours, flux « Non » compris — un tel article s'ouvrait ensuite en article
+  complet, depuis le cache. Elle n'extrait plus que là où l'article s'ouvrirait
+  en article complet (`feedStore.prepareOffline.extract.test.ts`) ; un extrait
+  déjà gardé reste lu pour ses images. Un global éteint et aucun flux sur
+  « Oui » : la préparation ne fait plus aucune extraction, seulement les listes
+  et les images du contenu du flux.
+  **Exception assumée, inchangée** : le réchauffage des Favoris et d'À lire
+  plus tard (`warmOfflineCache`, au démarrage) extrait et épingle ces articles
+  quel que soit le réglage — les rendre lisibles hors ligne en entier est sa
+  raison d'être.
 - **Trois états par flux** : `true` / `false` / absent. `false` est un choix
   (un flux qui refuse le défaut global), pas un effacement — seul `''` retire
   la surcharge (`setFeedAutoExtract`). Les anciens flux cochés gardent leur

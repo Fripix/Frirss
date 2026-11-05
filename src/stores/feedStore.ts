@@ -1840,7 +1840,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           extracted = stored?.content ?? null;
           // Device full: a new extract could not be kept — read what is
           // already stored, fetch nothing.
-          if (!extracted && !deviceFull) {
+          // Et seulement là où l'article s'ouvrirait en article complet : un
+          // flux réglé « Non » (ou au défaut, global éteint) n'est pas extrait
+          // (L-05). La préparation ne lisait jamais le réglage, et un tel
+          // article s'ouvrait ensuite en article complet, depuis le cache.
+          if (!extracted && !deviceFull && effectiveAutoExtract(ui.autoExtractDefault, ui.feedSettings, a.sourceId)) {
             try {
               const content = await extractFullContent(a.url);
               await putExtract(a.id, content);
