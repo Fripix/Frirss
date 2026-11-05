@@ -81,7 +81,7 @@ export default function ArticleCard({
 
       <div className="article-card__body">
         <div className="article-card__meta">
-          {showSource && <span className="article-card__source">{article.source}</span>}
+          {showSource && <span className="article-card__source" title={article.source}>{article.source}</span>}
           <span className="article-card__time">{timeAgo(article.published, t)}</span>
         </div>
         <h3 className="article-card__title article-title" dir="auto">

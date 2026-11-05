@@ -1235,6 +1235,12 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
   image qui ne charge pas prend le **même repli lettre** qu'une carte sans
   image (il laissait une case vide), retenu par URL dans `ArticleCard` ; dans
   la liste, la vignette en échec disparaît et le texte prend la place.
+- **Nom du flux d'une carte sur une ligne** (1.9.0) : `.article-card__source`
+  ne passe plus à la ligne et se coupe par une ellipse (`min-width: 0`, sans
+  quoi l'élément flexible ne rétrécit pas sous son texte) ; l'heure garde sa
+  place à droite (`flex-shrink: 0`), et le nom entier reste en infobulle
+  (`title`). Un nom long prenait jusqu'à quatre lignes en tête de carte et
+  repoussait titre et résumé. Test : `articleCardSource.test.ts`.
 - **En-tête personnalisable sur desktop** (1.9.0) : chaque bouton, et la
   barre entière, se masquent depuis Préférences → Mise en page ; voir
   « Barres personnalisables sur desktop » (règles des séparateurs et de la
