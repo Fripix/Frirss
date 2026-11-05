@@ -570,7 +570,7 @@ export default function Sidebar() {
                 {/* Chevron: dedicated collapse/expand toggle. */}
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleCategory(cat.id); }}
-                  className="flex-shrink-0 -my-1 py-1 hover:opacity-70 transition-opacity"
+                  className="category-chevron flex-shrink-0 hover:opacity-70 transition-opacity"
                   aria-label={collapsedCategories[cat.id] ? t('sidebar.expandCategory') : t('sidebar.collapseCategory')}
                   aria-expanded={!collapsedCategories[cat.id]}
                 >

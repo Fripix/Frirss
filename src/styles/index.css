@@ -192,6 +192,24 @@ html {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
+/* Chevron qui replie une catégorie : l'icône fait 12 px, la cible faisait
+   pareil (WCAG 2.5.8 demande 24 px). La zone sensible grandit, la mise en
+   page non : chaque marge négative rend ce que la taille ajoute, l'encombrement
+   reste 12 × 12 (`categoryChevron.test.ts`). À la souris, 6 px de chaque côté
+   tombent dans le retrait de la ligne et l'écart avant le nom. */
+.category-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-top: -6px;
+  margin-bottom: -6px;
+  margin-left: -6px;
+  margin-right: -6px;
+}
+/* Au doigt : voir le bloc `@media (pointer: coarse)` des cibles tactiles. */
+
 .sidebar-scroll::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.16);
   border: 3.5px solid transparent;
@@ -865,6 +883,19 @@ html {
      de la cible de 44 pt. */
   .context-menu-item {
     min-height: 44px;
+  }
+  /* Chevron de catégorie (`.category-chevron`) : 44 pt, encombrement inchangé.
+     À droite, la zone déborde de 8 px sur le début du nom : elle passe
+     au-dessus, sinon le nom (peint après) la rognait à 36 px. */
+  .category-chevron {
+    position: relative;
+    z-index: 1;
+    width: 44px;
+    height: 44px;
+    margin-top: -16px;
+    margin-bottom: -16px;
+    margin-left: -16px;
+    margin-right: -16px;
   }
   /* Text fields were left out of this rule and stayed at 34-42px, below the
      44pt target. Same exclusions as the font-size rule above: a checkbox,

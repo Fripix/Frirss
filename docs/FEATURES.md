@@ -6054,6 +6054,13 @@ dans quelques composants partagés.
   texte — le rôle `alert` est annoncé à l'insertion, à la différence d'une
   région `aria-live` ordinaire (`src/components/dialogErrors.test.tsx`).
   Avant, un simple `<p>` : rien n'était dit au lecteur d'écran.
+- **Chevron de catégorie de la barre latérale** (1.9.0, `.category-chevron`,
+  `index.css`) : l'icône reste à 12 px, la cible passe à 24 × 24 à la souris
+  (WCAG 2.5.8) et 44 × 44 au doigt ; des marges négatives gardent
+  l'encombrement à 12 × 12, rien ne bouge dans la ligne. Au doigt, la zone
+  déborde de 8 px sur le début du nom et passe au-dessus (`z-index`) : une
+  tape sur ces 8 px replie la catégorie au lieu de l'ouvrir. Avant, 12 px de
+  large (`categoryChevron.test.ts`).
 - **Tiroir mobile fermé inerte** (1.8.0) : `inert` tant qu'il est fermé. Il
   n'était que poussé hors de l'écran : la tabulation entrait dedans.
 - **Pile du téléphone : une seule vue atteignable** (1.9.0, `MobileStack`) :
