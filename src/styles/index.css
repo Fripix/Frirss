@@ -2182,6 +2182,9 @@ summary:focus-visible,
   font-size: 12px;
   color: var(--list-summary);
 }
+/* « Aucun résultat » au-dessus de « Créer l'étiquette … » : la phrase et la
+   proposition se lisent ensemble, sans le grand blanc d'un écran vide. */
+.palette__empty:has(+ .palette__results) { padding-bottom: 2px; }
 .palette__foot {
   flex-shrink: 0;
   padding: 9px 18px;

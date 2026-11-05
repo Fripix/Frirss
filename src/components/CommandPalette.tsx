@@ -44,8 +44,11 @@ export default function CommandPalette() {
 
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
+  // L'utilisateur a-t-il choisi une ligne (flèche, souris) depuis sa dernière
+  // frappe ? Voir `noMatch`.
+  const [chosen, setChosen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const commands = useMemo<Command[]>(() => {
     if (!open) return [];
@@ -186,9 +189,15 @@ export default function CommandPalette() {
     }];
   }, [commands, query, canCreateLabel, labels, t, setOpen]);
 
+  // Rien ne correspond, seule « Créer l'étiquette … » reste : elle n'est pas
+  // sous le curseur tant qu'on ne l'a pas choisie (↓, ↑, souris). Une faute de
+  // frappe + Entrée posait sinon une étiquette sur l'article ouvert.
+  const noMatch = results.length > 0 && results.every((c) => c.id === 'toolbar:newLabel');
+  const active = noMatch && !chosen ? -1 : cursor;
+
   // Repartir du haut à chaque frappe : le curseur d'une liste précédente n'a
   // aucun sens sur la suivante.
-  useEffect(() => { setCursor(0); }, [query]);
+  useEffect(() => { setCursor(0); setChosen(false); }, [query]);
 
   useEffect(() => {
     if (open) {
@@ -221,16 +230,21 @@ export default function CommandPalette() {
 
   if (!open) return null;
 
+  // Écouté sur toute la boîte, pas sur le seul champ : une option qui a pris
+  // le focus (un clic, un lecteur d'écran) laissait Échap et les flèches sans
+  // effet.
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setCursor((c) => Math.min(c + 1, results.length - 1));
+      setChosen(true);
+      setCursor(active < 0 ? 0 : Math.min(active + 1, results.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setCursor((c) => Math.max(c - 1, 0));
+      setChosen(true);
+      setCursor(Math.max(active - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      results[cursor]?.run();
+      results[active]?.run();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -238,7 +252,15 @@ export default function CommandPalette() {
     }
   }
 
-  let lastGroup: string | null = null;
+  // Une suite de lignes par famille : la liste ne contient que des groupes
+  // nommés, les groupes que des options (structure listbox/option valide ; un
+  // <li> s'intercalait entre la liste et ses options).
+  const sections: Array<{ group: string; rows: Array<{ command: Command; index: number }> }> = [];
+  results.forEach((command, index) => {
+    const last = sections.at(-1);
+    if (last && last.group === command.group) last.rows.push({ command, index });
+    else sections.push({ group: command.group, rows: [{ command, index }] });
+  });
 
   return createPortal(
     <div className="palette-backdrop" onClick={() => setOpen(false)} role="presentation">
@@ -249,52 +271,56 @@ export default function CommandPalette() {
         aria-modal="true"
         aria-label={t('palette.title')}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={onKeyDown}
       >
         <input
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={onKeyDown}
           className="palette__input"
           placeholder={t('palette.placeholder')}
           aria-label={t('palette.placeholder')}
           role="combobox"
           aria-expanded="true"
           aria-controls="palette-results"
-          aria-activedescendant={results[cursor] ? `palette-${results[cursor].id}` : undefined}
+          aria-activedescendant={results[active] ? `palette-${results[active].id}` : undefined}
         />
 
-        {results.length === 0 ? (
-          <p className="palette__empty">{t('palette.empty')}</p>
-        ) : (
-          <ul className="palette__results" id="palette-results" role="listbox" ref={listRef}>
-            {results.map((command, index) => {
-              const groupChanged = command.group !== lastGroup;
-              lastGroup = command.group;
-              return (
-                <li key={command.id}>
-                  {groupChanged && (
-                    <div className="palette__group" aria-hidden="true">
-                      {t(`palette.group.${command.group}`)}
-                    </div>
-                  )}
+        {/* Au-dessus de « Créer l'étiquette … » quand rien d'autre ne
+            correspond : la proposition n'est pas un résultat. */}
+        {(results.length === 0 || noMatch) && <p className="palette__empty">{t('palette.empty')}</p>}
+        {results.length > 0 && (
+          <div className="palette__results" id="palette-results" role="listbox" aria-label={t('palette.title')} ref={listRef}>
+            {sections.map(({ group, rows }) => (
+              <div key={group + rows[0].index} role="group" aria-label={t(`palette.group.${group}`)}>
+                <div className="palette__group" aria-hidden="true">
+                  {t(`palette.group.${group}`)}
+                </div>
+                {rows.map(({ command, index }) => (
                   <button
+                    key={command.id}
                     type="button"
+                    // Hors de la tabulation : le focus reste dans le champ, le
+                    // curseur passe par `aria-activedescendant` (combobox).
+                    tabIndex={-1}
                     id={`palette-${command.id}`}
                     role="option"
-                    aria-selected={index === cursor}
-                    data-active={index === cursor}
+                    aria-selected={index === active}
+                    data-active={index === active}
                     className="palette__item"
-                    onMouseEnter={() => setCursor(index)}
+                    // `mousemove`, pas `mouseenter` : une liste qui se
+                    // redessine sous un pointeur immobile ne doit pas déplacer
+                    // le curseur — ni armer « Créer l'étiquette … ».
+                    onMouseMove={() => { if (index !== active) { setChosen(true); setCursor(index); } }}
                     onClick={() => command.run()}
                   >
                     <span className="palette__label">{command.label}</span>
                     {command.hint && <span className="palette__hint">{command.hint}</span>}
                   </button>
-                </li>
-              );
-            })}
-          </ul>
+                ))}
+              </div>
+            ))}
+          </div>
         )}
 
         <p className="palette__foot">{t('palette.navHint')}</p>

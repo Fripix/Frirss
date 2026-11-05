@@ -7603,7 +7603,12 @@ l'article (IA) »).
   (`labelNames.ts`), propose « Créer l'étiquette … »
   (`palette.labelCreate`, offre `newLabel`, le nom passe en argument de
   `runToolbarCommand`) — sans lui, masquer « Étiquettes » rendait toute
-  étiquette nouvelle impossible, greader n'en créant qu'en la posant. Les
+  étiquette nouvelle impossible, greader n'en créant qu'en la posant.
+  ⚠️ **Seule entrée, elle n'est pas sous le curseur** (1.9.0, `noMatch`) :
+  « Aucun résultat » s'affiche au-dessus d'elle, Entrée ne fait rien tant
+  qu'on ne l'a pas choisie (↓, ↑ ou la souris) — une faute de frappe +
+  Entrée posait sinon une étiquette sur l'article ouvert. Avec d'autres
+  résultats, elle vient en dernier et le premier résultat reste choisi. Les
   libellés disent l'effet selon l'état : « Afficher seulement les non-lus » /
   « Afficher aussi les articles lus » (`palette.filter*`), « Afficher un
   tirage aléatoire » / « Quitter le tirage aléatoire » (`palette.random*`,
@@ -7616,6 +7621,16 @@ l'article (IA) »).
   `action:toggleSidebar` (le ☰ vit dans la barre de la liste, masquable ; la
   barre masquée et la barre latérale fermée, un ☰ de secours le remplace).
   Tests : `toolbarCommands.test.tsx`, `CommandPalette.test.tsx`.
+- **Clavier et structure** (1.9.0) : combobox à `aria-activedescendant`, le
+  focus reste dans le champ ; les options sont hors de la tabulation
+  (`tabIndex={-1}`) et les touches (↑ ↓ Entrée Échap) sont écoutées sur toute
+  la boîte, pas sur le seul champ — une option atteinte par Tab ou par un
+  clic les rendait inertes. La liste (`role="listbox"`, nommée) ne contient que
+  des groupes nommés (`role="group"`, `palette.group.*`), les groupes que leurs
+  options, l'intitulé visible du groupe étant `aria-hidden` : un `<li>`
+  s'intercalait entre la liste et ses options (axe, critique). Le curseur suit
+  la souris au `mousemove`, pas au `mouseenter` : une liste redessinée sous un
+  pointeur immobile ne le déplace pas.
 - **Rien de nouveau n'est stocké** : la palette assemble ce que les stores
   contiennent déjà. Son état d'ouverture n'est ni persisté ni synchronisé.
 - **Accents repliés** : « securite » atteint « Sécurité ». Sans cela, la moitié
