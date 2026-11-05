@@ -62,6 +62,10 @@ qu'un autre onglet avait ouvert depuis.
   proxifiée. L'URL d'un serveur doit en outre être en http(s) et tenir en
   2 048 caractères (`normalizeServerUrl`, 400 sinon). **Ne pas réintroduire
   de quantificateur suivi d'une ancre de fin sur une valeur venue du client.**
+- **Types vérifiés avant usage** (1.9.0, `server/test/requestShapes.test.ts`) :
+  connexion et changement de mot de passe exigent des chaînes. Un objet ou un
+  tableau levait dans SQLite ou bcrypt : un 500 et une ligne « Internal server
+  error » au journal pour une faute du client ; c'est un 400.
 - **Limites « par adresse » regroupées par /56 en IPv6** (1.8.0,
   `rateLimitIpKey`) : connexion, inscription et sauvegardes. Depuis que nginx
   transmet l'adresse réelle, un client IPv6 changeait d'adresse dans sa /64 à
@@ -297,6 +301,14 @@ Plusieurs connexions FreshRSS par utilisateur, avec un serveur par défaut et un
 basculement rapide. Le jeton greader est **chiffré en base** (AES-256-GCM) et
 injecté côté serveur par le proxy ; une fois le serveur ajouté, il ne revient
 plus jamais au navigateur (seule sa présence est exposée, `has_token`).
+
+- **Un serveur n'est enregistré qu'une fois** (1.9.0, `serverIdentity`,
+  `server/routes/servers.ts`) : le doublon (409) se juge sur l'origine
+  analysée — schéma, hôte en minuscules, port par défaut omis — et le chemin
+  sans barre finale, pour le même utilisateur FreshRSS ; à l'ajout comme à la
+  modification d'adresse. La chaîne brute laissait passer `:443`, `:80` ou
+  une majuscule : deux portées hors ligne et deux files pour un seul
+  FreshRSS. L'adresse enregistrée reste celle qui a été saisie.
 
 - **Changer le mot de passe API d'un serveur existant** (1.8.0,
   `ServerCredentialsForm`, `servers.changeCredentials`) : dans la ligne dépliée
@@ -6596,6 +6608,13 @@ d'authentification, configuration OIDC, URL break-glass, ouverture des
 inscriptions, animation de connexion.
 
 - **Où** : `server/routes/admin.ts`, `src/components/Preferences/AdminTab.tsx`
+- **`PUT /api/admin/settings` tout ou rien** (1.9.0,
+  `server/test/requestShapes.test.ts`) : chaque champ est vérifié avant la
+  première écriture — booléens pour `registrationEnabled`, `ssoOnly`,
+  `oidcEnabled`, chaînes pour les champs OIDC, animation dans sa liste —,
+  puis tout est écrit dans une seule transaction. Avant, un refus laissait
+  écrits les réglages qui le précédaient (l'inscription ouverte, puis 400 sur
+  l'animation), et un `oidcIssuer` objet donnait un 500.
 - **Types stricts sur `PUT /api/admin/users/:id`** (1.8.0) : `active` doit être
   un booléen et `role` une chaîne. La garde « ne pas se désactiver soi-même »
   testait `active === false` quand l'écriture désactivait pour toute valeur

@@ -50,6 +50,29 @@ function normalizeServerUrl(v: unknown): string | null {
   return stripTrailingSlashes(v);
 }
 
+/**
+ * Ce qui fait l'identité d'un serveur : origine analysée (schéma, hôte en
+ * minuscules, port par défaut omis) et chemin sans barre finale. Comparer les
+ * chaînes laissait enregistrer deux fois le même serveur sous `:443` ou en
+ * majuscules — deux portées hors ligne, deux files, pour un seul FreshRSS.
+ */
+export function serverIdentity(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${stripTrailingSlashes(u.pathname)}`;
+  } catch {
+    return url;
+  }
+}
+
+/** Un autre serveur du compte, même identité et même utilisateur FreshRSS ? */
+function duplicateServer(userId: number, url: string, freshrssUser: string, exceptId?: number): boolean {
+  const rows = db.prepare('SELECT id, url FROM servers WHERE user_id = ? AND freshrss_user = ?')
+    .all(userId, freshrssUser) as Array<{ id: number; url: string }>;
+  const key = serverIdentity(url);
+  return rows.some((r) => r.id !== exceptId && serverIdentity(r.url) === key);
+}
+
 interface ServerRow {
   id: number;
   user_id: number;
@@ -97,11 +120,7 @@ router.post('/', (req, res) => {
     const normalizedUrl = normalizeServerUrl(url);
     if (!normalizedUrl) return res.status(400).json({ error: 'Invalid server URL' });
 
-    // Check duplicate
-    const existing = db.prepare(
-      'SELECT id FROM servers WHERE user_id = ? AND url = ? AND freshrss_user = ?'
-    ).get(req.user.id, normalizedUrl, freshrssUser);
-    if (existing) {
+    if (duplicateServer(req.user.id, normalizedUrl, freshrssUser)) {
       return res.status(409).json({ error: 'Server already exists' });
     }
 
@@ -154,6 +173,9 @@ router.put('/:id', (req, res) => {
       || (freshrssUser !== undefined && freshrssUser !== server.freshrss_user);
     if (moved && freshrssToken === undefined) {
       return res.status(400).json({ error: 'Changing the server address or user requires new credentials' });
+    }
+    if (duplicateServer(req.user.id, normalizedUrl, freshrssUser ?? server.freshrss_user, server.id)) {
+      return res.status(409).json({ error: 'Server already exists' });
     }
     const nextRefresh = refreshToken !== undefined
       ? encrypt(refreshToken)

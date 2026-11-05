@@ -184,9 +184,11 @@ router.post('/register', registerLimiter, authLimiter, async (req, res) => {
 // ── POST /api/auth/login ────────────────────────────────────────────
 router.post('/login', authLimiter, async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password } = req.body ?? {};
 
-    if (!username || !password) {
+    // Un objet ou un tableau levait dans la base ou dans bcrypt : 500 pour une
+    // faute du client.
+    if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
@@ -247,9 +249,9 @@ router.get('/me', requireAuth, (req, res) => {
 // ── POST /api/auth/change-password ──────────────────────────────────
 router.post('/change-password', requireAuth, passwordLimiter, async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword } = req.body ?? {};
 
-    if (!currentPassword || !newPassword) {
+    if (!currentPassword || !newPassword || typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
       return res.status(400).json({ error: 'Both passwords required' });
     }
     const fieldError = accountFieldError({ password: newPassword });

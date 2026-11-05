@@ -238,36 +238,50 @@ router.get('/settings', (req, res) => {
 // ── PUT /api/admin/settings ─────────────────────────────────────────
 const LOGIN_ANIMATIONS = ['none', 'portal', 'scanline'];
 
-router.put('/settings', (req, res) => {
-  const { registrationEnabled, oidcEnabled, ssoOnly, oidcIssuer, oidcClientId, oidcClientSecret, oidcButtonLabel, loginAnimation } = req.body;
+/**
+ * Champs de `PUT /api/admin/settings` : nom reçu → clé en base, et leur type.
+ * Tout est VÉRIFIÉ avant la première écriture, puis écrit dans une seule
+ * transaction : un refus ne laisse plus derrière lui les réglages qui le
+ * précédaient (l'inscription ouverte puis un 400 sur l'animation), et un type
+ * inattendu (`oidcIssuer` objet) est un 400, plus un 500 levé par la base.
+ */
+const BOOLEAN_SETTINGS: Array<[string, string]> = [
+  ['registrationEnabled', 'registration_enabled'],
+  ['ssoOnly', 'oidc_sso_only'],
+  ['oidcEnabled', 'oidc_enabled'],
+];
+const STRING_SETTINGS: Array<[string, string]> = [
+  ['oidcIssuer', 'oidc_issuer'],
+  ['oidcClientId', 'oidc_client_id'],
+  ['oidcClientSecret', 'oidc_client_secret'],
+  ['oidcButtonLabel', 'oidc_button_label'],
+];
 
-  if (registrationEnabled !== undefined) {
-    setSetting('registration_enabled', registrationEnabled ? 'true' : 'false');
+router.put('/settings', (req, res) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const writes: Array<[string, string]> = [];
+
+  for (const [field, key] of BOOLEAN_SETTINGS) {
+    const v = body[field];
+    if (v === undefined) continue;
+    if (typeof v !== 'boolean') return res.status(400).json({ error: `Invalid ${field}` });
+    writes.push([key, v ? 'true' : 'false']);
   }
-  if (ssoOnly !== undefined) {
-    setSetting('oidc_sso_only', ssoOnly ? 'true' : 'false');
-  }
+  const loginAnimation = body.loginAnimation;
   if (loginAnimation !== undefined) {
-    if (!LOGIN_ANIMATIONS.includes(loginAnimation)) {
+    if (typeof loginAnimation !== 'string' || !LOGIN_ANIMATIONS.includes(loginAnimation)) {
       return res.status(400).json({ error: 'Invalid login animation' });
     }
-    setSetting('login_animation', loginAnimation);
+    writes.push(['login_animation', loginAnimation]);
   }
-  if (oidcEnabled !== undefined) {
-    setSetting('oidc_enabled', oidcEnabled ? 'true' : 'false');
+  for (const [field, key] of STRING_SETTINGS) {
+    const v = body[field];
+    if (v === undefined) continue;
+    if (typeof v !== 'string') return res.status(400).json({ error: `Invalid ${field}` });
+    writes.push([key, v]);
   }
-  if (oidcIssuer !== undefined) {
-    setSetting('oidc_issuer', oidcIssuer);
-  }
-  if (oidcClientId !== undefined) {
-    setSetting('oidc_client_id', oidcClientId);
-  }
-  if (oidcClientSecret !== undefined) {
-    setSetting('oidc_client_secret', oidcClientSecret);
-  }
-  if (oidcButtonLabel !== undefined) {
-    setSetting('oidc_button_label', oidcButtonLabel);
-  }
+
+  db.transaction(() => { for (const [key, value] of writes) setSetting(key, value); })();
 
   // Issuer may have changed → invalidate cached discovery document
   clearDiscoveryCache();
