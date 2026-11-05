@@ -6041,9 +6041,21 @@ dans quelques composants partagés.
 - **Libellés reliés à leur champ** (1.8.0) : « Ajouter un flux », « Ajouter un
   serveur » et la sauvegarde chiffrée posaient le libellé à côté du champ
   sans `htmlFor` : un lecteur d'écran annonçait « champ de saisie » sans
-  dire lequel (`src/components/fieldLabels.test.tsx`).
+  dire lequel (`src/components/fieldLabels.test.tsx`). La phrase de passe de
+  la restauration (Préférences et premier démarrage) a suivi en 1.9.0.
+- **Erreurs des boîtes d'ajout annoncées** (1.9.0) : l'échec d'« Ajouter un
+  flux » et d'« Ajouter un serveur » est un `role="alert"`, monté avec son
+  texte — le rôle `alert` est annoncé à l'insertion, à la différence d'une
+  région `aria-live` ordinaire (`src/components/dialogErrors.test.tsx`).
+  Avant, un simple `<p>` : rien n'était dit au lecteur d'écran.
 - **Tiroir mobile fermé inerte** (1.8.0) : `inert` tant qu'il est fermé. Il
   n'était que poussé hors de l'écran : la tabulation entrait dedans.
+- **Pile du téléphone : une seule vue atteignable** (1.9.0, `MobileStack`) :
+  article ouvert, la liste qu'il recouvre (restée montée pour garder sa
+  position) est `inert` ; l'article l'est aussi dès qu'il repart, pendant ses
+  400 ms d'animation de sortie. Avant, Tab parcourait les lignes cachées
+  derrière l'article. Le focus n'est pas rendu à la ligne à la fermeture :
+  il retombe sur `<body>`, comme avant.
 - **Régions annoncées montées en permanence** (1.8.0) : toasts, bandeau hors
   ligne, bandeau de relève. Une région `aria-live` montée en même temps que
   son texte n'est souvent pas annoncée ; elles restent montées, vides au

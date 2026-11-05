@@ -185,7 +185,7 @@ export default function AddFeedDialog({ onClose }: AddFeedDialogProps) {
           )}
 
           {error && (
-            <p className="text-xs text-danger">{error}</p>
+            <p role="alert" className="text-xs text-danger">{error}</p>
           )}
 
           {/* Actions */}

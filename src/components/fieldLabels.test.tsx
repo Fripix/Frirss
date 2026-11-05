@@ -3,12 +3,13 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-vi.mock('../api/backend', () => ({ addServer: vi.fn(), updateServer: vi.fn(), createBackup: vi.fn() }));
+vi.mock('../api/backend', () => ({ addServer: vi.fn(), updateServer: vi.fn(), createBackup: vi.fn(), previewRestore: vi.fn(), applyRestore: vi.fn() }));
 vi.mock('../api/auth', () => ({ login: vi.fn() }));
 
 import AddFeedDialog from './Sidebar/AddFeedDialog';
 import AddServerDialog from './Preferences/servers/AddServerDialog';
 import BackupExport from './backup/BackupExport';
+import RestoreFlow from './backup/RestoreFlow';
 
 afterEach(cleanup);
 
@@ -30,6 +31,16 @@ describe('libellés reliés à leur champ', () => {
     render(<AddServerDialog onClose={() => {}} onAdded={() => {}} />);
     for (const k of ['login.serverUrl', 'login.freshrssUser', 'login.freshrssPassword', 'login.serverName', 'preferences.refresh.tokenLabel']) {
       expect(screen.getByLabelText(k).tagName, k).toBe('INPUT');
+    }
+  });
+
+  // Le libellé « Passphrase » de la restauration (Préférences et premier
+  // démarrage) était seul à rester détaché de son champ.
+  it('Restauration d’une sauvegarde', () => {
+    for (const setup of [false, true]) {
+      render(<RestoreFlow setup={setup} onRestored={() => {}} />);
+      expect(screen.getByLabelText('backup.passphrase').tagName).toBe('INPUT');
+      cleanup();
     }
   });
 

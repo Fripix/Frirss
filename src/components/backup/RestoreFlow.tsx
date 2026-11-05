@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { previewRestore, applyRestore } from '../../api/backend';
 import { backupErrorKey } from '../../lib/backupErrors';
@@ -19,6 +19,7 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
   const [fileName, setFileName] = useState('');
   const [envelope, setEnvelope] = useState<unknown>(null);
   const [passphrase, setPassphrase] = useState('');
+  const passphraseId = useId();
   const [summary, setSummary] = useState<RestoreSummary | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState('');
@@ -142,10 +143,11 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
       </button>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
+        <label htmlFor={passphraseId} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--list-summary)' }}>
           {t('backup.passphrase')}
         </label>
         <input
+          id={passphraseId}
           type="password"
           autoComplete="off"
           value={passphrase}

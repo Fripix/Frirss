@@ -186,7 +186,7 @@ export default function AddServerDialog({ onClose, onAdded }: AddServerDialogPro
           </details>
 
           {error && (
-            <p className="danger-note text-xs text-center rounded-lg py-2 px-3">{error}</p>
+            <p role="alert" className="danger-note text-xs text-center rounded-lg py-2 px-3">{error}</p>
           )}
 
           <div className="flex gap-2 justify-end pt-1">

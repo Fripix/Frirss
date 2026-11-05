@@ -52,10 +52,13 @@ export default function MobileStack({ showOverlay, base, overlay }: MobileStackP
 
   return (
     <div className="h-full relative overflow-hidden">
-      {/* ── Base view (article list) ── */}
+      {/* ── Base view (article list) ──
+          Inerte sous l'article : elle reste montée (position de défilement),
+          mais ni la tabulation ni un lecteur d'écran ne doivent l'atteindre. */}
       <div
         className="absolute inset-0"
         style={{ transform: `translateX(${listX}px)`, transition }}
+        inert={showOverlay}
       >
         {base}
       </div>
@@ -72,7 +75,8 @@ export default function MobileStack({ showOverlay, base, overlay }: MobileStackP
         />
       )}
 
-      {/* ── Overlay view (reading pane) ── */}
+      {/* ── Overlay view (reading pane) ── inerte dès qu'il repart, pendant
+          son animation de sortie. */}
       {mounted && (
         <div
           className="absolute inset-0 z-20"
@@ -82,6 +86,7 @@ export default function MobileStack({ showOverlay, base, overlay }: MobileStackP
             boxShadow: '-2px 0 20px rgba(0,0,0,0.1)',
             background: 'var(--panel-bg)',
           }}
+          inert={!showOverlay}
         >
           {cachedOverlay.current}
         </div>
