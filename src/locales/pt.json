@@ -908,7 +908,9 @@
     "undoDone_other": "{{count}} artigos de volta a não lidos",
     "undoPartial_one": "{{count}} de {{total}} artigos de volta a não lidos",
     "undoPartial_other": "{{count}} de {{total}} artigos de volta a não lidos",
-    "undoing": "A desfazer… {{done}}/{{total}}"
+    "undoing": "A desfazer… {{done}}/{{total}}",
+    "markAllOffline": "Offline: nada foi marcado como lido. Tente novamente quando estiver ligado.",
+    "markAllFailed": "«Tudo lido» não foi concluído. Tente novamente."
   },
   "palette": {
     "title": "Paleta de comandos",

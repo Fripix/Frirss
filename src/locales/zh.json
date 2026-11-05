@@ -908,7 +908,9 @@
     "undoDone_other": "{{count}} 篇文章已恢复为未读",
     "undoPartial_one": "{{total}} 篇中 {{count}} 篇已恢复为未读",
     "undoPartial_other": "{{total}} 篇中 {{count}} 篇已恢复为未读",
-    "undoing": "正在撤销… {{done}}/{{total}}"
+    "undoing": "正在撤销… {{done}}/{{total}}",
+    "markAllOffline": "离线：没有任何文章被标为已读。联网后请重试。",
+    "markAllFailed": "“全部标为已读”未成功，请重试。"
   },
   "palette": {
     "title": "命令面板",

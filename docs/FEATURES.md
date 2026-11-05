@@ -2411,6 +2411,17 @@ dialogue**, et **retour en arrière** une fois l'action faite.
   avant un retour en arrière. Basculer de serveur pendant le relevé envoyait
   `mark-all-as-read feed/12` au serveur devenu actif, où les identifiants se
   recouvrent (`feedStore.markAllServer.test.ts`).
+- **Un « Tout lu » qui ne peut pas aboutir le dit** (1.9.0,
+  `feedStore.offlineNotices.test.ts`, `ArticleList.markAllOffline.test.tsx`).
+  Hors ligne, le clic ne pose pas la question (`handleMarkAllRead`) : le store
+  refuse avant tout relevé et l'annonce (`toast.markAllOffline`, « rien n'a
+  été marqué ») — « Tout lu » n'entre pas dans la file d'actions. Un échec du
+  marquage lui-même en ligne (502, réseau coupé en route) donne
+  `toast.markAllFailed`, ou la phrase hors ligne si le réseau est tombé entre
+  deux ; le compteur et la liste restent tels quels. Une erreur APRÈS
+  l'accord du serveur reste muette : le marquage a eu lieu. ⚠️ Jusqu'en
+  1.8.0, tout échec était avalé (`catch { /* ignore */ }`) : la boîte
+  s'ouvrait, se validait, et rien ne se passait, sans un mot.
 - **Où** : `src/lib/markAllRead.ts`, `src/components/ConfirmDialog.tsx`
 - **La même boîte pour toute action qui défait ou supprime** (1.8.0,
   décision du propriétaire) : réinitialiser le thème, les couleurs, les
@@ -5880,6 +5891,13 @@ mises en file et rejouées au retour.
   mémoire ce que l'autre venait d'y ajouter, que la prochaine écriture
   effaçait du stockage. Une lecture en échec n'est pas gardée : l'appel
   suivant réessaie.
+- **La lecture de la file pose le compteur du bandeau** (1.9.0, `pendingPatch`
+  dans `loadQueue`, `feedStore.offlineNotices.test.ts`), et le rejeu lancé
+  HORS LIGNE lit la file avant de rendre la main (rien ne part). ⚠️ Jusqu'en
+  1.8.0, `replayQueue` sortait sur `navigator.onLine === false` avant la
+  lecture, et la lecture ne touchait pas `pendingActions` : une app relancée
+  sans réseau (PWA iOS rouverte en avion) n'annonçait plus ses actions en
+  attente, alors que la file, intacte, repartait au retour du réseau.
 - **Le bandeau ne compte que les actions de la portée active**
   (`pendingHere()`), recalculé au changement de portée. Il comptait celles des
   autres comptes, qui ne partiront pas sous celui-ci.

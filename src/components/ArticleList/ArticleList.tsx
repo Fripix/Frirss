@@ -824,6 +824,13 @@ export default function ArticleList() {
    * non-lus avant d'appeler) et s'offre par un bandeau.
    */
   function handleMarkAllRead() {
+    // Hors ligne, pas de question pour une action qui ne peut pas avoir lieu :
+    // le store refuse et le dit (L-23 — la boîte s'ouvrait, et sa validation
+    // ne faisait rien, sans un mot).
+    if (!online) {
+      void markAllAsRead();
+      return;
+    }
     if (markAllReadAction(confirmMarkAllRead, false) === 'ask') {
       // Le relevé des non-lus part MAINTENANT, pendant que la question est
       // lue : il coûte une requête par millier d'articles, et ce temps ne doit

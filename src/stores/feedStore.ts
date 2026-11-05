@@ -1073,6 +1073,10 @@ async function loadQueue(): Promise<QueuedAction[]> {
       // action est plus ancienne que tout geste à venir (voir `Gesture`).
       actionQueue = stored.map(({ seq: _seq, ...a }) => a);
       queueLoaded = true;
+      // Le bandeau annonce ce que la file relue contient : relancée hors
+      // ligne, l'app ne disait plus qu'il restait des actions en attente
+      // (L-22) — rien d'autre ne pose le compteur avant le premier geste.
+      useFeedStore.setState(pendingPatch());
     },
     () => { queueLoading = null; }, // illisible : le prochain appel réessaie
   );
@@ -2463,6 +2467,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   markAllAsRead: async () => {
     // L'écran montre un tirage, l'écriture viderait la vue entière.
     if (get().randomView) return;
+    // Hors ligne, « Tout lu » ne passe pas par la file (documenté) : il le
+    // dit, au lieu de ne rien faire en silence (L-23).
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      await pushI18nToast('toast.markAllOffline', { tone: 'error' });
+      return;
+    }
     const { selectedFeed, subscriptions } = get();
     // Home: the main stream, which FreshRSS bounds by feed visibility too —
     // a feed kept in its category is not marked read from "All feeds".
@@ -2505,7 +2515,21 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     try {
       const avant = await (prepare?.streamId === streamId ? prepare.ids : snapshotUnread(streamId));
       if (!memeContexte()) return;
-      await markAllAsRead(streamId);
+      try {
+        await markAllAsRead(streamId);
+      } catch (err) {
+        // Échec du marquage lui-même (502, réseau coupé en route) : jusqu'ici
+        // avalé sans un mot, et le bouton semblait ne rien faire (L-23). La
+        // phrase ne devine pas la cause ; hors ligne, elle le dit.
+        if (memeContexte()) {
+          const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+          await pushI18nToast(offline ? 'toast.markAllOffline' : 'toast.markAllFailed', { tone: 'error' });
+        }
+        // Le reste de la fonction suppose l'accord du serveur : on sort.
+        // Une erreur APRÈS l'accord reste muette — le marquage a eu lieu, un
+        // message d'échec mentirait.
+        throw err;
+      }
       if (!memeContexte()) return;
       // Sous le filtre Non lus, la vue se vide : le ✓ retire déjà sa ligne
       // sous ce filtre (issue #10), et des lignes lues qui restent à l'écran
@@ -3524,7 +3548,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   replayQueue: async () => {
     if (replayInFlight) return replayInFlight;
     const run = (async () => {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    // Hors ligne, rien ne part, mais la file est LUE : c'est ce qui fait
+    // annoncer ses actions en attente à une app relancée sans réseau (L-22).
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      await loadQueue().catch(() => {});
+      return;
+    }
     // Sans session (écran de connexion, session expirée), rien ne part : un
     // 401 jetait toute la file, sans qu'aucune action ait été tentée.
     const auth = useAuthStore.getState();

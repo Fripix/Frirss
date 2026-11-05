@@ -908,7 +908,9 @@
     "undoDone_other": "{{count}} Artikel wieder ungelesen",
     "undoPartial_one": "{{count}} von {{total}} Artikeln wieder ungelesen",
     "undoPartial_other": "{{count}} von {{total}} Artikeln wieder ungelesen",
-    "undoing": "Wird rückgängig gemacht… {{done}}/{{total}}"
+    "undoing": "Wird rückgängig gemacht… {{done}}/{{total}}",
+    "markAllOffline": "Offline: Nichts wurde als gelesen markiert. Versuchen Sie es mit Verbindung erneut.",
+    "markAllFailed": "„Alle gelesen“ ist nicht durchgegangen. Bitte erneut versuchen."
   },
   "palette": {
     "title": "Befehlspalette",

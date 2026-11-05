@@ -908,7 +908,9 @@
     "undoDone_other": "{{count}} artikelen weer ongelezen",
     "undoPartial_one": "{{count}} van {{total}} artikelen weer ongelezen",
     "undoPartial_other": "{{count}} van {{total}} artikelen weer ongelezen",
-    "undoing": "Ongedaan maken… {{done}}/{{total}}"
+    "undoing": "Ongedaan maken… {{done}}/{{total}}",
+    "markAllOffline": "Offline: er is niets als gelezen gemarkeerd. Probeer het opnieuw zodra je verbonden bent.",
+    "markAllFailed": "‘Alles gelezen’ is niet gelukt. Probeer het opnieuw."
   },
   "palette": {
     "title": "Opdrachtenpalet",

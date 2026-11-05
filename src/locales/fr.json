@@ -908,7 +908,9 @@
     "undoDone_other": "{{count}} articles remis en non lus",
     "undoPartial_one": "{{count}} article remis en non lu sur {{total}}",
     "undoPartial_other": "{{count}} articles remis en non lus sur {{total}}",
-    "undoing": "Annulation… {{done}}/{{total}}"
+    "undoing": "Annulation… {{done}}/{{total}}",
+    "markAllOffline": "Hors ligne : rien n’a été marqué comme lu. Réessayez une fois connecté.",
+    "markAllFailed": "« Tout lu » n’a pas abouti. Réessayez."
   },
   "palette": {
     "title": "Palette de commandes",

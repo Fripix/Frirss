@@ -908,7 +908,9 @@
     "undoDone_other": "{{count}} articoli di nuovo da leggere",
     "undoPartial_one": "{{count}} di {{total}} articoli di nuovo da leggere",
     "undoPartial_other": "{{count}} di {{total}} articoli di nuovo da leggere",
-    "undoing": "Annullamento… {{done}}/{{total}}"
+    "undoing": "Annullamento… {{done}}/{{total}}",
+    "markAllOffline": "Offline: niente è stato segnato come letto. Riprova quando sei connesso.",
+    "markAllFailed": "«Tutto letto» non è andato a buon fine. Riprova."
   },
   "palette": {
     "title": "Palette dei comandi",

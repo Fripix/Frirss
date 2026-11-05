@@ -944,7 +944,9 @@
     "undoPartial_few": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
     "undoPartial_many": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
     "undoPartial_other": "{{count}} z {{total}} artykułów ponownie nieprzeczytanych",
-    "undoing": "Cofanie… {{done}}/{{total}}"
+    "undoing": "Cofanie… {{done}}/{{total}}",
+    "markAllOffline": "Brak połączenia: nic nie zostało oznaczone jako przeczytane. Spróbuj ponownie po połączeniu.",
+    "markAllFailed": "„Oznacz wszystkie” nie powiodło się. Spróbuj ponownie."
   },
   "palette": {
     "title": "Paleta poleceń",

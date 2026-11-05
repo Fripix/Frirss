@@ -908,7 +908,9 @@
     "undoDone_other": "{{count}} articles back to unread",
     "undoPartial_one": "{{count}} of {{total}} articles back to unread",
     "undoPartial_other": "{{count}} of {{total}} articles back to unread",
-    "undoing": "Undoing… {{done}}/{{total}}"
+    "undoing": "Undoing… {{done}}/{{total}}",
+    "markAllOffline": "Offline: nothing was marked as read. Try again once connected.",
+    "markAllFailed": "“All read” did not go through. Try again."
   },
   "palette": {
     "title": "Command palette",
