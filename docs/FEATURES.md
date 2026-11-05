@@ -605,7 +605,7 @@ Trois réglages dans **Préférences › Apparence › Tailles**, section « Gri
 sous les tailles de texte (demandés dans l'issue #26) : **Largeur des cartes**
 (curseur de 160 à 480 px, au pixel près, défaut 240), **Remplir la ligne**
 (interrupteur, activé par défaut) et **Format d'image** (16:9, 4:3, 1:1 ou
-3:4 en portrait, défaut 16:9 ; le 3:4 a suivi en 1.8.1, demandé dans la même
+3:4 en portrait, défaut 16:9 ; le 3:4 a suivi en 1.9.0, demandé dans la même
 issue). Les défauts reproduisent exactement la grille d'avant.
 
 - **Où** : `src/lib/gridCards.ts` (bornes, normaliseurs, `gridCardStyle()`,
@@ -5327,7 +5327,7 @@ noms créés par l'utilisateur vivent dans les préférences synchronisées
 ### Compteurs de Favoris et d'À lire plus tard
 Deux réglages **indépendants** dans **Préférences › Étiquettes**, sous
 « Afficher le nombre d'articles » (celui des étiquettes, inchangé) et visibles
-même sans aucune étiquette (1.8.1, en réponse à l'issue #29) :
+même sans aucune étiquette (1.9.0, en réponse à l'issue #29) :
 
 - **« Afficher le total des Favoris et d'À lire plus tard »** (activé par
   défaut) : le chiffre historique, dans sa pastille colorée d'origine
@@ -7808,7 +7808,7 @@ l'article (IA) »).
   la sonde répondait encore « oui » : elle vérifie `aiResultFor` comme
   l'écouteur de `frirss:ai-summarize` (échec intermittent en CI, 1.8.0). La
   sonde de « Traduire » avait la même fenêtre : elle relit `translationShown`
-  (1.8.1).
+  (1.9.0).
   Tests : `CommandPalette.test.tsx`, `ReadingPane.ai.test.tsx` (« answers
   the palette probe », « a probe listener not yet removed »).
 - **Commandes offertes par les barres** (`src/lib/toolbarCommands.ts`,

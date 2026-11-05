@@ -1,2 +1,2 @@
 /** Version applicative, partagée par la route de santé et les sauvegardes. */
-export const APP_VERSION = '1.8.1';
+export const APP_VERSION = '1.9.0';

@@ -1,4 +1,4 @@
-# 1.8.1 — en préparation
+# 1.9.0 — en préparation
 
 Journal des changements du cycle en cours, tenu au fil de l'eau. Il alimente les
 notes de la release GitHub et les corrections du README, puis se vide une fois
@@ -34,6 +34,14 @@ la release publiée.
   options d'affichage, la densité, les actions de l'article (étiquettes
   comprises) et l'affichage de la barre latérale. Tablette et téléphone ne
   changent pas.
+- **Annuler la préparation hors ligne, et savoir combien de temps il reste.**
+  L'onglet Hors ligne propose « Annuler » pendant la préparation et affiche
+  une estimation de la durée restante, d'après le rythme observé.
+- **Un ☰ de secours** quand la barre latérale et la barre de la liste sont
+  toutes deux masquées sur ordinateur : sans clavier (écran tactile), plus
+  rien ne permettait de rouvrir la barre latérale.
+- **Un repère « Aléatoire »** à côté du titre quand un tirage est en cours et
+  que son bouton est masqué ; le toucher fait sortir du tirage.
 
 ## Corrections et améliorations
 
@@ -47,9 +55,75 @@ la release publiée.
 - **Retour sur l'onglet sans perdre sa place** (#30). Après avoir fait
   défiler un long flux, revenir sur FriRSS relisait la liste en ne gardant
   que sa première page : la position retombait près du haut. Seul le haut
-  est désormais relu, les articles déjà chargés restent.
+  est désormais relu, les articles déjà chargés restent, sans doublon ni
+  désordre quand le bas de la liste a été lu ailleurs.
+- **↓ ne saute plus les non-lus après un retour sur l'onglet.** L'article
+  ouvert reprend sa place parmi ses voisins (défaut présent depuis 1.2.0).
+- **La liste suit le clavier et garde sa position par vue.** ↓/↑ font défiler
+  la liste jusqu'à la ligne choisie ; chaque flux s'ouvre à sa propre
+  position (en haut s'il n'a jamais été vu) ; une liste revenue au bas d'une
+  page charge la suite ; passer de la liste à la grille garde l'article du
+  haut.
+- **Article complet : moins de requêtes, de meilleurs extraits.** Une page
+  qui ne s'extrait pas n'est plus redemandée à chaque ouverture, une vidéo
+  YouTube n'est jamais envoyée à l'extraction, et un site qui refuse n'est
+  plus sollicité une deuxième fois. Les avis du CERT-FR ne se réduisent plus
+  à leur section « Solutions » ; un extrait bien plus court que le contenu du
+  flux n'est pas montré. Un échec d'extraction automatique s'annonce
+  discrètement sous l'article, avec « Réessayer », au lieu d'un bandeau rouge.
+- **La préparation hors ligne respecte le réglage « Article complet »** :
+  un flux réglé sur « Non » n'est plus extrait.
+- **Vidéos YouTube affichées une seule fois** (iframe dans l'article, ou
+  vignette du flux sous la façade).
+- **Hors ligne, rien de silencieux.** Relancée sans réseau, l'app annonce
+  toujours ses actions en attente ; « Tout lu » hors ligne ou en échec le dit.
+- **Étiquettes et catégories : les noms déjà pris sont refusés avec une
+  explication** (étiquette au nom d'une catégorie, renommage vers un nom
+  existant), au lieu d'échouer en silence ou d'annoncer un faux succès ; une
+  catégorie vide de FreshRSS n'est plus proposée comme étiquette ; renommer
+  ou supprimer l'étiquette ou la catégorie affichée met la vue à jour ;
+  renommer une étiquette enfant la garde dans son groupe.
+- **Palette** : une faute de frappe suivie d'Entrée ne crée plus d'étiquette ;
+  Échap et les flèches marchent quel que soit le focus ; la commande
+  Aléatoire dit si elle entre dans le tirage ou en sort.
+- **Raccourcis** : Début, Fin, Page préc. et Page suiv. sont refusés (touches
+  du navigateur) et nommés dans chaque langue.
+- **Recherche** : les guillemets ne font plus échouer une recherche ; le champ
+  suit l'écriture de droite à gauche.
+- **Échap dans le sélecteur de couleur d'une étiquette** ne ferme plus toutes
+  les Préférences.
+- **Tablette** : plus de séparateur orphelin en bout de ligne dans l'en-tête de
+  la liste. **Grille** : un nom de flux long tient sur une ligne.
+- **Accessibilité** : zoom à deux doigts autorisé ; lignes et cartes
+  d'articles qui ne sont plus des boutons contenant des boutons ; filtres Non
+  lus et Favoris qui annoncent leur état ; article ouvert signalé ; liste
+  cachée derrière l'article inatteignable au téléphone, et focus rendu à sa
+  ligne à la fermeture ; erreurs des boîtes d'ajout annoncées ; champs et
+  pastilles de couleur nommés ; palette à la structure valide ; aide-mémoire
+  défilable au clavier sous Safari ; chevron de catégorie plus large au
+  doigt ; repères `main` et titres de page.
+- **Langues** : en anglais (et en espagnol, néerlandais, polonais, chinois),
+  la densité ne s'appelle plus comme la disposition ; pluriels ukrainiens et
+  polonais corrigés.
+- **Connexion** : l'écran de connexion dit quand le serveur a fermé la
+  session.
 
 ## Sous le capot
+
+- **Le jeton d'écriture de FreshRSS ne quitte plus le serveur.** Le proxy signe
+  lui-même les écritures ; le navigateur ne pouvait plus en tirer, avec sa
+  session FriRSS, un accès à FreshRSS qui survivait à la déconnexion.
+- **Sauvegardes** : la date et la version sont authentifiées (format v2) ;
+  les anciennes sauvegardes s'ouvrent toujours, l'aperçu écrit la date en
+  toutes lettres. ⚠️ Une sauvegarde 1.9.0 ne se restaure pas sur une version
+  antérieure.
+- **API plus stricte** : réglages d'administration écrits tout ou rien, corps
+  mal formés refusés en 400 (et non 500), doublon de serveur détecté par son
+  origine normalisée, clé `__proto__` des préférences rendue telle quelle,
+  manifeste servi en `application/manifest+json`.
+- **Compteurs Favoris / À lire plus tard** : relevés seulement quand le
+  réglage change, plus à chaque réaffichage de la barre latérale ; totaux et
+  non-lus comptés de la même façon.
 
 - **Une méthode de test écrite.** `docs/TESTING.md` décrit le déroulé d'une campagne avant
   release, la gravité qui bloque une release et la carte des zones à couvrir.
