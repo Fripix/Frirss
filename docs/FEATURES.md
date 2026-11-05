@@ -789,7 +789,9 @@ trouvait pas.
   `randomDraw`, en mode aléatoire seulement. ⚠️ `scrollKey` n'y suffit pas : il
   ne remonte rien, et l'ancrage de défilement de Chromium ramenait au bas de la
   liste, le tirage s'affichant par sa fin dès que le squelette débordait. En
-  sortant du mode, la liste normale retrouve sa position (`listScrollMem`).
+  sortant du mode, la liste normale retrouve sa position (`listScrollMem`) ;
+  depuis 1.9.0, la restauration par vue (voir « Liste d'articles ») remet
+  aussi chaque tirage en haut, une fois son contenu arrivé.
 - **Tirage vide** : ni « Tout est lu » ni l'allure d'une réussite, il peut rester
   des milliers d'articles (cinq lignes lues sous Non lus vident un tirage de cinq).
   L'écran propose « Nouveau tirage ».
@@ -1102,6 +1104,41 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     l'appelle comme avant, et la page reçue s'affiche d'un coup.
   - **La limite est gardée par vue** (`listLimitMem`, comme `listScrollMem`) : une
     position de défilement ne se restaure que dans une liste de la même hauteur.
+  - **La position appartient à la vue** (1.9.0, L-09, `ArticleList.scroll.test.tsx`).
+    Le conteneur survit au changement de vue : restaurée une seule fois par
+    montage, la position du flux précédent restait, et un flux s'ouvrait au
+    milieu d'un autre, ou bloqué en bas de sa première page. Elle se restaure
+    désormais **à chaque vue** (flux, filtre, recherche, tirage), dès qu'elle a
+    du contenu ; une vue jamais visitée s'ouvre en haut. Tant que la vue
+    affichée n'est pas restaurée, le défilement n'écrit rien dans
+    `listScrollMem` (la position héritée se serait rangée sous la nouvelle).
+    ⚠️ Revenir sur un flux retrouve sa position, mais `loadArticles` ramène sa
+    liste à la première page : une position profonde retombe au bas de cette
+    page, qui charge alors la suite (point suivant). La relecture de #30 ne
+    s'applique qu'au retour sur l'onglet.
+  - **La relecture d'une vue finie en bas de la liste charge la suite**
+    (L-09). Seul un `scroll` en décidait, et `loadMore` le refuse en silence
+    pendant `revalidating` : rien ne relançait une liste ramenée en bas pendant
+    la relecture. Au passage de `revalidating` à faux, la liste rejoue une fois
+    la décision du défilement (`handleScroll`). Une fois par relecture, jamais
+    sur `loadingMore` ni sur une page reçue (les emballements de
+    `useAutoLoadMore`, plus bas, ne peuvent pas revenir), et pas sur une vue
+    sans ligne affichée, qui garde son bouton « Charger la suite ».
+  - **↓/↑ font défiler la liste jusqu'à la ligne choisie** (1.9.0, L-15,
+    `src/lib/listScroll.ts`). Toute sélection, en fait (palette, balayage,
+    volet) : la ligne vient au bord le plus proche, au plus juste, sous une
+    bande de date qui colle en haut. Le défilement est posé sur la liste seule,
+    jamais par `scrollIntoView`, qui ferait défiler aussi la pile mobile ou la
+    page. L'article ouvert étant toujours monté, cela vaut au-delà de la
+    tranche.
+  - **Changer de disposition garde l'article du haut** (1.9.0) : liste ↔
+    grille, 2 ↔ 3 colonnes. Le décalage en pixels restait, et l'article 47
+    devenait le 80. L'article du haut est relevé dans un abonnement au store
+    (appelé dans `set`, le DOM est encore l'ancien), puis remis au même
+    décalage une fois la nouvelle disposition montée (`listAnchor`,
+    `anchoredScrollTop`). Ne vaut que si la liste reste montée : ouvrir la
+    grille avec un article ouvert en 3 colonnes la démonte, et son retour
+    restaure le décalage en pixels mémorisé.
   - **L'article ouvert est toujours monté**, même atteint au clavier au-delà de la
     tranche, et les lignes montées pour lui le restent à sa fermeture.
   - **Une tranche qui ne remplit pas la fenêtre** (grille sur grand écran, ou
@@ -5867,7 +5904,9 @@ dans quelques composants partagés.
   afficher le mot de passe, pastilles de couleur des étiquettes) ; le même
   fichier refuse un `aria-label` à ternaire sur un bouton `aria-pressed`. Les
   boutons qui déplient un éditeur portent `aria-expanded`, le serveur actif
-  `aria-current`, les groupes d'options du menu d'un flux un `role="group"`
+  `aria-current`, l'article ouvert aussi (`aria-current="true"` sur sa ligne
+  ou sa carte, 1.9.0 : la surbrillance seule ne disait rien à un lecteur
+  d'écran), les groupes d'options du menu d'un flux un `role="group"`
   nommé par leur réglage (les trois commencent par « Par défaut »), et les
   boutons d'une étiquette (déplacer, renommer, supprimer) son nom. Champs
   nommés (1.8.0) : couleurs du thème (`aria-label`, pas de `<label htmlFor>`

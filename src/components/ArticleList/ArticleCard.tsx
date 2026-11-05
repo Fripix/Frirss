@@ -52,6 +52,7 @@ export default function ArticleCard({
       tabIndex={0}
       aria-label={articleTitle(article, t)}
       data-article-id={article.id}
+      aria-current={active ? 'true' : undefined}
       {...gestures}
       onClick={onSelect}
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}

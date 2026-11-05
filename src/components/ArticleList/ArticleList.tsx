@@ -20,6 +20,7 @@ import { viewUnreadCount } from '../../lib/mainStream';
 import { shouldLoadMore, listBodyState, canLoadMore, searchAwareHasContinuation } from '../../lib/listPagination';
 import { listOverflows, publishListCanScroll, resetListCanScroll } from '../../lib/listOverflow';
 import { ROW_SLICE, mountedRows, nextRowLimit } from '../../lib/listWindow';
+import { revealScrollTop, listAnchor, anchoredScrollTop, type ListAnchor } from '../../lib/listScroll';
 import { extractImageFromContent } from '../../lib/articleThumbnail';
 import { openArticleAtSource } from '../../lib/openArticleAtSource';
 import { markReadOnBackgroundOpen } from '../../lib/titleLink';
@@ -61,6 +62,9 @@ const listScrollMem = new Map<string, number>();
 // Lignes montées par vue, pour la même raison : une position de défilement ne se
 // restaure que dans une liste qui a la même hauteur.
 const listLimitMem = new Map<string, number>();
+/** Sélecteur d'une ligne (ou carte) de la liste par l'id de son article. */
+const rowSelector = (id: string) =>
+  `[data-article-id="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id}"]`;
 
 interface PullState {
   startY?: number;
@@ -351,7 +355,10 @@ export default function ArticleList() {
     else if (el && wasRandomRef.current) el.scrollTop = listScrollMem.get(scrollKeyRef.current) ?? 0;
     wasRandomRef.current = randomView;
   }, [randomView, randomDraw]);
-  const didRestoreRef = useRef(false);
+  // La vue dont la position a été restaurée. Tant qu'elle n'est pas la vue
+  // affichée, le défilement n'écrit rien dans `listScrollMem` : la position
+  // héritée de la vue précédente se serait rangée sous la nouvelle.
+  const restoredKeyRef = useRef<string | null>(null);
 
   // `search()` remet `continuation` (celle du flux nu) à `null` et rien ne la
   // fait jamais redevenir non nulle pendant qu'on cherche : la lire brute
@@ -473,7 +480,7 @@ export default function ArticleList() {
   const handleScroll = useCallback(() => {
     const el = listRef.current;
     if (!el) return;
-    listScrollMem.set(scrollKeyRef.current, el.scrollTop);
+    if (restoredKeyRef.current === scrollKeyRef.current) listScrollMem.set(scrollKeyRef.current, el.scrollTop);
     // Les images qui finissent de charger changent `scrollHeight` sans aucun
     // rendu React : le défilement est la meilleure occasion de se remettre à
     // jour, et les hauteurs sont déjà lues juste en dessous.
@@ -511,16 +518,94 @@ export default function ArticleList() {
     })) raiseRowLimit(nextRowLimit(mounted));
   }, [hiddenRows, mounted, loading, listHeight, raiseRowLimit]);
 
-  // Restore the saved scroll position once, after the list has content
-  // (covers remounts; on mobile the list stays mounted so position persists).
+  // Restore the saved scroll position once PER VIEW, after the list has
+  // content (covers remounts; on mobile the list stays mounted). Le conteneur
+  // survit au changement de vue : restaurée une seule fois par montage, la
+  // position du flux précédent restait, et un flux s'ouvrait à la carte 240
+  // d'un autre, ou en bas de sa première page (L-09, 1.9.0). Une vue jamais
+  // vue s'ouvre en haut.
   useLayoutEffect(() => {
-    if (didRestoreRef.current) return;
+    if (restoredKeyRef.current === scrollKey) return;
     const el = listRef.current;
     if (!el || loading || articles.length === 0) return;
-    const saved = listScrollMem.get(scrollKey);
-    if (saved) el.scrollTop = saved;
-    didRestoreRef.current = true;
+    el.scrollTop = listScrollMem.get(scrollKey) ?? 0;
+    restoredKeyRef.current = scrollKey;
   }, [loading, articles.length, scrollKey]);
+
+  // La relecture d'une vue vient de finir : si la liste est en bas, la suite se
+  // charge. Seul un `scroll` le décidait, et `loadMore` le refuse en silence
+  // pendant `revalidating` : une position restaurée ou ramenée en bas pendant la
+  // relecture laissait la liste bloquée sur sa première page (L-09). Une fois
+  // par relecture, sur le passage de `revalidating` à faux, et jamais sur
+  // `loadingMore` ni sur une page reçue : ni un échec ni une page sans ligne ne
+  // la relancent (voir `src/lib/listTopUp.ts` pour les emballements d'un effet
+  // qui observe la liste). Une vue sans contenu affiché garde son bouton.
+  const wasRevalidatingRef = useRef(revalidating);
+  useEffect(() => {
+    const settled = wasRevalidatingRef.current && !revalidating;
+    wasRevalidatingRef.current = revalidating;
+    if (settled && !loading && restoredKeyRef.current === scrollKeyRef.current) handleScroll();
+  }, [revalidating, loading, handleScroll]);
+
+  // ↓/↑ (et toute sélection venue d'ailleurs : palette, balayage, volet) font
+  // défiler la liste jusqu'à la ligne choisie, au plus juste. L'article ouvert
+  // est toujours monté (`mountedRows`), donc trouvé ici même au-delà de la
+  // tranche. Le défilement est posé sur la liste seule : `scrollIntoView`
+  // ferait défiler aussi la pile mobile ou la page (L-15).
+  const selectedId = selectedArticle?.id ?? null;
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el || !selectedId) return;
+    const row = el.querySelector<HTMLElement>(rowSelector(selectedId));
+    if (!row) return;
+    const view = el.getBoundingClientRect();
+    const box = row.getBoundingClientRect();
+    const next = revealScrollTop({
+      scrollTop: el.scrollTop,
+      viewTop: view.top,
+      viewBottom: view.top + el.clientHeight,
+      rowTop: box.top,
+      rowBottom: box.bottom,
+      // Une bande de date colle en haut et recouvrirait la ligne.
+      topInset: el.querySelector<HTMLElement>('.date-separator')?.offsetHeight ?? 0,
+    });
+    if (next !== null) el.scrollTop = next;
+  }, [selectedId]);
+
+  // Changer de disposition (liste ↔ grille, 2 ↔ 3 colonnes) change toutes les
+  // hauteurs : garder le décalage en pixels faisait passer de l'article 47 au
+  // 80. L'article du haut est relevé AVANT le rendu de la nouvelle disposition
+  // (l'abonnement au store est appelé dans `set`, le DOM est encore l'ancien),
+  // puis remis au même décalage une fois la nouvelle disposition montée.
+  const anchorRef = useRef<ListAnchor | null>(null);
+  useEffect(() => useUiStore.subscribe((now, before) => {
+    const feedId = useFeedStore.getState().selectedFeed?.id;
+    const serverId = useAuthStore.getState().activeServerId;
+    const layoutOf = (u: typeof now) => effectiveLayout(u.panelLayout, u.feedSettings, feedId, serverId);
+    if (layoutOf(now) === layoutOf(before)) return;
+    const el = listRef.current;
+    if (!el) return;
+    const rowEls = el.querySelectorAll<HTMLElement>('[data-article-id]');
+    const boxes = Array.from(rowEls, (row) => {
+      const b = row.getBoundingClientRect();
+      return { id: row.dataset.articleId ?? '', top: b.top, bottom: b.bottom };
+    });
+    anchorRef.current = listAnchor(boxes, el.getBoundingClientRect().top);
+  }), []);
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    anchorRef.current = null;
+    const el = listRef.current;
+    if (!anchor || !el) return;
+    const row = el.querySelector<HTMLElement>(rowSelector(anchor.id));
+    if (!row) return;
+    el.scrollTop = anchoredScrollTop({
+      scrollTop: el.scrollTop,
+      viewTop: el.getBoundingClientRect().top,
+      rowTop: row.getBoundingClientRect().top,
+      offset: anchor.offset,
+    });
+  }, [layout]);
 
   // Pull-to-refresh — custom gesture (mobile/tablet). Native touchmove with
   // passive:false so we can preventDefault while pulling at the top.
@@ -1938,6 +2023,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
         }`}
         {...(stagger ? { 'data-stagger': '' } : {})}
         data-article-id={article.id}
+        aria-current={active ? 'true' : undefined}
         style={{ borderBottom: '1px solid var(--panel-border)', ...(stagger?.style ?? {}) }}
       >
         {/* Always reserve space for the unread dot to avoid alignment shift */}
@@ -2009,6 +2095,7 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
       }`}
       {...(stagger ? { 'data-stagger': '' } : {})}
       data-article-id={article.id}
+      aria-current={active ? 'true' : undefined}
       style={{ borderBottom: '1px solid var(--panel-border)', ...(stagger?.style ?? {}) }}
     >
       {thumbnail && viewMode === 'preview' && (
