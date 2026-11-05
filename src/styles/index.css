@@ -1173,6 +1173,39 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .list-sidebar-reveal { transition: none; }
 }
+/* Le rail du ☰ de secours dans la liste (A-3, 1.9.0). Posé sur la première
+   ligne, le bouton en recouvrait la pastille « non lu » (grille), le point
+   (liste compacte), la vignette (aperçu) — et ce coin-là ne se dégage pas en
+   défilant. Le corps de la liste lui cède une bande à gauche, dans la couleur
+   de la barre latérale : c'est elle, repliée. De la largeur, jamais de la
+   hauteur — la liste commence toujours tout en haut. Le fond ne défile pas
+   (`background-attachment` par défaut), le contenu si. 6 px d'air de chaque
+   côté du bouton : `listSidebarRail.test.ts` vérifie l'arithmétique. */
+.list-body--rail {
+  --list-rail: 42px;
+  padding-left: var(--list-rail);
+  background: linear-gradient(to right,
+    var(--sidebar-bg) calc(var(--list-rail) - 1px),
+    var(--panel-border) calc(var(--list-rail) - 1px) var(--list-rail),
+    transparent var(--list-rail));
+}
+@media (pointer: coarse) {
+  .list-body--rail { --list-rail: 56px; }
+}
+/* Dans le rail, le ☰ n'a plus rien à recouvrir : pas de pastille, l'encre de
+   la barre latérale, comme ses propres boutons. Celui du volet de lecture,
+   qui flotte sur l'article, garde la sienne. */
+.list-sidebar-reveal--rail {
+  background: transparent;
+  border-color: transparent;
+  color: var(--sidebar-text);
+  opacity: 1;
+}
+.list-sidebar-reveal--rail:hover,
+.list-sidebar-reveal--rail:focus-visible {
+  color: var(--sidebar-text-active);
+  background: color-mix(in srgb, var(--sidebar-text-active) 12%, transparent);
+}
 
 /* ── Thin top progress bar (indeterminate) — shown while the app revalidates
    the subscriptions/counts, e.g. on a cold start right after an update. ── */

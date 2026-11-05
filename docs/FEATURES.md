@@ -6817,12 +6817,25 @@ pour les administrateurs.
     clavier ; barre de la liste ET barre latérale masquées, rien ne rouvrait
     la barre latérale (ni `b`, ni la palette, au doigt). Dans ce seul cas —
     format desktop, `listBar` masquée, `sidebarVisible` faux —, un petit ☰
-    flotte en haut à gauche du corps de la liste (`.list-sidebar-reveal`,
-    `index.css`) : une ancre de hauteur nulle, donc la liste ne bouge pas et
-    commence toujours tout en haut ; sous la zone de recherche quand elle
-    est ouverte. Pastille sur `--panel-bg` translucide bordée de
-    `--panel-border`, atténuée au repos (elle recouvre un coin de la première
-    ligne), pleine au survol et au focus ; 30 px à la souris, 44 px au doigt.
+    se pose en haut d'un **rail** que le corps de la liste réserve à gauche
+    (`.list-body--rail`, `index.css`) : une bande de 42 px (56 px au doigt)
+    dans la couleur de la barre latérale, bordée d'un trait `--panel-border`
+    — la barre latérale, repliée. Le bouton (`.list-sidebar-reveal--rail`)
+    n'a pas de pastille, il prend l'encre de la barre latérale
+    (`--sidebar-text`, `--sidebar-text-active` teinté au survol et au focus) ;
+    30 px à la souris, 44 px au doigt, 6 px d'air de chaque côté. Son ancre
+    est de hauteur nulle et le rail ne prend que de la largeur : la liste
+    commence toujours tout en haut ; sous la zone de recherche quand elle est
+    ouverte. ⚠️ **Jamais par-dessus la liste** (A-3, relecture 1.9.0) : la
+    première version flottait sur la première ligne et en recouvrait la
+    pastille « non lu » (grille), le point (liste compacte), la vignette
+    (aperçu) ou la source (standard) — un coin que le défilement ne dégage
+    pas. Mesuré dans Chrome contre la feuille construite, dans les quatre
+    modes : aucun recouvrement, première ligne à la même hauteur.
+    Protections : `ArticleList.toolbar.test.tsx` (le rail suit le ☰, en 2 et
+    3 colonnes et en grille) et `listSidebarRail.test.ts` (l'arithmétique
+    bouton/rail à la souris et au doigt, aucun décalage vertical) — jsdom ne
+    met rien en page.
     Même nom que le ☰ de la barre (`sidebar.showSidebar`), aucune chaîne de
     plus. Le masquage, lui, reste appliqué sur un écran large tactile. Barre
     de la liste visible, ou barre latérale ouverte : rien ne change. Le ☰
@@ -6837,7 +6850,8 @@ pour les administrateurs.
     barre latérale de toute façon et se quitte d'un double-clic), un ☰ ouvre
     la barre latérale, avec le même nom et le même focus : en tête de la
     barre du volet quand elle est rendue, sinon flottant en haut à gauche de
-    l'article, avec la classe du ☰ de la liste.
+    l'article, avec la pastille de `.list-sidebar-reveal` (sans le rail : le
+    volet n'en a pas).
   - **Volet sans aucun bouton visible** : `.reading-toolbar` n'est pas rendue
     et la progression passe en liseré en haut du volet, comme sur mobile.
     Masquer Favori ou À lire plus tard retire aussi leur appui long (classer),

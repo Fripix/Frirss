@@ -899,6 +899,8 @@ export default function ArticleList() {
   // suivent les groupes réellement affichés (`separatorsBefore`).
   const shown = useToolbarShown();
   const listBarShown = shown('listBar');
+  // ☰ de secours (L-10) : voir son rendu, au-dessus du corps de la liste.
+  const sidebarRescue = isDesktop && !listBarShown && !sidebarVisible;
   const showSearchBtn = shown('search');
   const showUnreadBtn = shown('unreadFilter');
   const showRandomBtn = !!randomButton && shown('random');
@@ -1379,17 +1381,19 @@ export default function ArticleList() {
       {/* ☰ de secours (L-10, 1.9.0). Sur desktop, masquer la barre de la liste
           emporte son ☰ ; si la barre latérale est fermée elle aussi, plus rien
           ne la rouvre sans clavier (`b`, palette) — un iPad en paysage est un
-          desktop. Seulement dans ce cas. Ancre de hauteur nulle : la liste ne
-          bouge pas, le bouton flotte au-dessus de sa première ligne, sous la
-          zone de recherche si elle est ouverte. */}
-      {isDesktop && !listBarShown && !sidebarVisible && (
+          desktop. Seulement dans ce cas. Ancre de hauteur nulle : la liste
+          commence toujours tout en haut, le bouton se pose dans le rail que
+          le corps de la liste lui réserve à gauche (`.list-body--rail`, A-3 :
+          posé sur la première ligne, il en recouvrait la pastille « non lu »),
+          sous la zone de recherche si elle est ouverte. */}
+      {sidebarRescue && (
         <div className="list-sidebar-reveal-anchor">
           <button
             type="button"
             // Le bouton disparaît avec le clic : le focus passe dans la barre
             // latérale qu'il ouvre, sinon il retombe sur `<body>`.
             onClick={() => { flushSync(toggleSidebar); focusSidebar(); }}
-            className="list-sidebar-reveal"
+            className="list-sidebar-reveal list-sidebar-reveal--rail"
             title={t('sidebar.showSidebar')}
             aria-label={t('sidebar.showSidebar')}
           >
@@ -1405,7 +1409,7 @@ export default function ArticleList() {
         ref={listRef}
         data-article-scroll
         tabIndex={-1}
-        className="flex-1 overflow-y-auto overflow-x-hidden nice-scroll relative outline-none"
+        className={`flex-1 overflow-y-auto overflow-x-hidden nice-scroll relative outline-none${sidebarRescue ? ' list-body--rail' : ''}`}
         // Les séparateurs de date descendent sous le bandeau tant qu'il
         // s'affiche, au lieu d'être recouverts (`newArticlesOffsetStyle`).
         style={newArticlesOffsetStyle(newArticlesBannerShown)}

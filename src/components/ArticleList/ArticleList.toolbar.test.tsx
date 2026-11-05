@@ -379,6 +379,23 @@ describe('☰ de secours, barre latérale et barre de la liste masquées (L-10)'
     expect(menus(c)[0].closest('.article-list-header')).toBeNull();
   });
 
+  // A-3 (campagne 1.9.0) : flottant au-dessus de la première ligne, le ☰
+  // recouvrait sa pastille « non lu » (grille), son point (liste compacte), sa
+  // vignette (aperçu). Il vit désormais dans un rail réservé à gauche du corps
+  // de la liste : rien n'est dessous, et la liste commence toujours en haut.
+  // La géométrie est vérifiée sur la feuille de style (`listSidebarRail.test.ts`).
+  it.each(['3', '2', 'grid'] as const)('disposition %s : le corps de la liste laisse au ☰ un rail à gauche', (layout) => {
+    const c = show({ layout, hidden: ['listBar'], sidebar: false });
+    expect(c.container.querySelector('[data-article-scroll]')!.classList.contains('list-body--rail')).toBe(true);
+  });
+
+  it('sans ☰ de secours, pas de rail : la liste garde toute sa largeur', () => {
+    const scroller = (c: ReturnType<typeof render>) => c.container.querySelector('[data-article-scroll]')!;
+    expect(scroller(show({ hidden: ['listBar'], sidebar: true })).classList.contains('list-body--rail')).toBe(false);
+    cleanup();
+    expect(scroller(show({ sidebar: false })).classList.contains('list-body--rail')).toBe(false);
+  });
+
   it('tablette : le réglage est ignoré, le ☰ reste celui de la barre', () => {
     bp.value = 'tablet';
     const c = show({ hidden: ['listBar'], sidebar: false });
