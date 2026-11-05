@@ -51,7 +51,7 @@ describe('ArticleCard', () => {
       <ArticleCard article={base} showSource rowActions={DEFAULT_ROW_ACTIONS} active={false}
         onSelect={onSelect} onToggleStar={noop} onToggleRead={noop} onToggleReadLater={noop} onOpenSource={noop} />
     );
-    fireEvent.click(getByRole('button', { name: /Hello World/i }));
+    fireEvent.click(getByRole('article', { name: /Hello World/i }));
     expect(onSelect).toHaveBeenCalledOnce();
   });
 

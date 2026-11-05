@@ -48,7 +48,7 @@ export default function ArticleCard({
 
   return (
     <div
-      role="button"
+      role="article"
       tabIndex={0}
       aria-label={articleTitle(article, t)}
       data-article-id={article.id}

@@ -5861,6 +5861,25 @@ dans quelques composants partagés.
     `.screen-min-height`, la même paire de règles que la coque : `--app-height`
     sur Android (ils débordaient de 56 px en app installée), `100vh` en PWA
     iOS (où `dvh` laisse une bande claire en bas).
+- **Lignes et cartes d'articles : un `article`, pas un `button`** (1.9.0) :
+  les lignes compacte, normale et aperçu (`ArticleRow`) et la carte de la
+  grille (`ArticleCard`) étaient des `role="button"` qui contenaient l'étoile,
+  « à lire plus tard », le ✓ et deux liens (« ouvrir à la source », le
+  titre). Un bouton a des enfants présentationnels : un lecteur d'écran
+  n'annonce pas ce qu'il contient, et axe classe l'imbrication critique
+  (`nested-interactive`, le lien du titre en `tabIndex={-1}` compris). Le
+  conteneur porte désormais `role="article"` — le rôle des éléments d'un fil
+  d'articles dans les pratiques ARIA, qui admet des contrôles —, nommé par
+  le titre (`aria-label`). **Rien d'autre ne bouge** : même élément, mêmes
+  classes et même anneau de focus (`[tabindex]:focus-visible` vaut
+  `[role='button']:focus-visible`), toujours un arrêt de tabulation ;
+  clic, Entrée (seule : Espace n'a jamais sélectionné), clic droit et touche
+  Menu, appui long, balayage, glisser vers la barre latérale, clic molette et
+  ⌘/Ctrl-clic du titre passent par les mêmes gestionnaires, sur le même
+  nœud. Ce qui change : l'annonce (« article, *titre* » au lieu d'un bouton
+  nommé par tout son texte, libellés des boutons compris). Garde-fou :
+  `src/lib/nestedInteractive.ts` (la règle d'axe, sans axe), appliqué aux
+  quatre formes par `ArticleRow.nested.test.tsx`.
 - **Focus clavier** : un anneau `:focus-visible` global (`index.css`). Chaque
   sélecteur est écrit en toutes lettres plutôt que dans un `:where()`, pour
   valoir 0-1-1 et l'emporter sur l'utilitaire `.outline-none` (0-1-0) quel que

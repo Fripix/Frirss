@@ -2012,7 +2012,8 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
   if (viewMode === 'compact') {
     return provide(
       <div
-        role="button"
+        role="article"
+        aria-label={articleTitle(article, t)}
         tabIndex={0}
         draggable
         {...gestures}
@@ -2078,7 +2079,8 @@ export function ArticleRow({ article, viewMode, showSource, rowActions, favicon,
 
   return provide(
     <div
-      role="button"
+      role="article"
+      aria-label={articleTitle(article, t)}
       tabIndex={0}
       draggable
       {...gestures}
