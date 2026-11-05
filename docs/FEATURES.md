@@ -1195,6 +1195,15 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     sur `loadingMore` ni sur une page reçue (les emballements de
     `useAutoLoadMore`, plus bas, ne peuvent pas revenir), et pas sur une vue
     sans ligne affichée, qui garde son bouton « Charger la suite ».
+    ⚠️ **Une relecture qui finit pendant qu'une page suivante est en vol**
+    (retour sur l'onglet au milieu d'un chargement, N-1, relecture 1.9.0) :
+    la décision attend que `loadingMore` retombe. Sinon `handleScroll` la
+    refusait, puis `loadMore` jetait sa page (la relecture avait remplacé la
+    suite, REG-120) sans rien relancer — liste bloquée en bas de sa première
+    page. La marque de cette décision en attente est consommée avant l'appel :
+    toujours une seule par relecture, et la page qu'elle demande ne la réarme
+    pas (`ArticleList.scroll.test.tsx` › « …pendant le chargement de la
+    suite… »).
   - **↓/↑ font défiler la liste jusqu'à la ligne choisie** (1.9.0, L-15,
     `src/lib/listScroll.ts`). Toute sélection, en fait (palette, balayage,
     volet) : la ligne vient au bord le plus proche, au plus juste, sous une

@@ -548,12 +548,24 @@ export default function ArticleList() {
   // `loadingMore` ni sur une page reçue : ni un échec ni une page sans ligne ne
   // la relancent (voir `src/lib/listTopUp.ts` pour les emballements d'un effet
   // qui observe la liste). Une vue sans contenu affiché garde son bouton.
+  //
+  // Une relecture qui finit pendant qu'une page suivante est en vol (retour
+  // sur l'onglet au milieu d'un chargement) : la vérification attend que
+  // `loadingMore` retombe. Sinon `handleScroll` la refusait, puis `loadMore`
+  // jetait sa page — la relecture avait remplacé la suite — sans rien
+  // relancer : liste bloquée en bas de sa première page (N-1). Toujours une
+  // seule vérification par relecture : la marque est consommée avant l'appel,
+  // donc la page que celui-ci demande ne la réarme pas.
   const wasRevalidatingRef = useRef(revalidating);
+  const settleCheckRef = useRef(false);
   useEffect(() => {
     const settled = wasRevalidatingRef.current && !revalidating;
     wasRevalidatingRef.current = revalidating;
-    if (settled && !loading && restoredKeyRef.current === scrollKeyRef.current) handleScroll();
-  }, [revalidating, loading, handleScroll]);
+    if (settled) settleCheckRef.current = true;
+    if (!settleCheckRef.current || loadingMore) return;
+    settleCheckRef.current = false;
+    if (!revalidating && !loading && restoredKeyRef.current === scrollKeyRef.current) handleScroll();
+  }, [revalidating, loading, loadingMore, handleScroll]);
 
   // ↓/↑ (et toute sélection venue d'ailleurs : palette, balayage, volet) font
   // défiler la liste jusqu'à la ligne choisie, au plus juste. L'article ouvert

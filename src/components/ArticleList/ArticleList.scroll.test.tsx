@@ -190,6 +190,36 @@ describe('la position de défilement appartient à la vue (L-09)', () => {
     expect(loadMore).toHaveBeenCalledTimes(1);
   });
 
+  // N-1 (campagne 1.9.0) : retour sur l'onglet pendant que la suite charge.
+  // La relecture finit avec `loadMore` en vol : la vérification est refusée
+  // (`loadingMore`). Puis `loadMore` jette sa page — la relecture a remplacé
+  // la suite (REG-120) — et repose `loadingMore: false` sans rien relancer :
+  // la liste restait bloquée en bas de sa première page.
+  it('la relecture finie pendant le chargement de la suite vérifie le bas quand il se termine, une seule fois', () => {
+    const loadMore = vi.fn();
+    useFeedStore.setState({ articles: rows(50), continuation: 'c', revalidating: true, loadingMore: true, loadMore } as never);
+    render(<ArticleList />);
+    scroller().scrollTop = contentHeight() - metrics.clientHeight;
+    act(() => useFeedStore.setState({ revalidating: false, continuation: 'c2' }));
+    expect(loadMore).not.toHaveBeenCalled();
+    // La page en vol est jetée : plus rien n'est en cours.
+    act(() => useFeedStore.setState({ loadingMore: false }));
+    expect(loadMore).toHaveBeenCalledTimes(1);
+    // Pas d'emballement : un nouveau tour de `loadingMore` ne relance rien.
+    act(() => useFeedStore.setState({ loadingMore: true }));
+    act(() => useFeedStore.setState({ loadingMore: false }));
+    expect(loadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('…et ne charge rien si la liste n’est plus en bas', () => {
+    const loadMore = vi.fn();
+    useFeedStore.setState({ articles: rows(50), continuation: 'c', revalidating: true, loadingMore: true, loadMore } as never);
+    render(<ArticleList />);
+    act(() => useFeedStore.setState({ revalidating: false, continuation: 'c2' }));
+    act(() => useFeedStore.setState({ loadingMore: false }));
+    expect(loadMore).not.toHaveBeenCalled();
+  });
+
   it('la relecture finie loin du bas ne charge rien', () => {
     const loadMore = vi.fn();
     useFeedStore.setState({ articles: rows(50), continuation: 'c', revalidating: true, loadMore } as never);
