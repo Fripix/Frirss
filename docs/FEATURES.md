@@ -7289,9 +7289,15 @@ divergentes).
   `index.html` après un déploiement, pointant vers des fichiers disparus.
   Revalidation à chaque chargement ; les ressources hachées restent
   `public, immutable` un an. Non vérifié par le job `docker` de `ci.yml`.
+- **Le manifeste a son type** (1.9.0) : `location = /manifest.webmanifest`
+  le sert en `application/manifest+json` (`types { }` puis `default_type`,
+  les `mime.types` de nginx n'ayant pas d'entrée `webmanifest`), en
+  `no-cache` et avec `nosniff`, sans CSP. Il partait en
+  `application/octet-stream`. `server/test/nginxManifest.test.ts` relit le
+  bloc ; le job `docker` de `ci.yml` vérifie l'en-tête réel.
 - **Garde-fou** : le job `docker` de `ci.yml` vérifie que `/sw.js` sort **sans**
-  CSP et **sans** `immutable`, et que le document comme les fichiers statiques
-  portent bien une CSP.
+  CSP et **sans** `immutable`, que le document comme les fichiers statiques
+  portent bien une CSP, et que le manifeste sort en `application/manifest+json`.
 
 ### Cache Redis (facultatif)
 Mise en cache write-through des lectures greader, avec revalidation. Vide =

@@ -137,6 +137,17 @@ jobs:
           fi
           echo "sw without CSP nor immutable, document and assets with CSP"
 
+      # `mime.types` n'a pas d'entrée `webmanifest` : sans la location exacte de
+      # nginx.conf, le manifeste partait en application/octet-stream.
+      - name: Assert the web app manifest has its media type
+        run: |
+          ctype=$(curl -fsSI http://localhost:8080/manifest.webmanifest | grep -i '^content-type' | tr -d '\r')
+          echo "$ctype"
+          if ! echo "$ctype" | grep -qi 'application/manifest+json'; then
+            echo "::error::manifest.webmanifest is not served as application/manifest+json"
+            exit 1
+          fi
+
       # Le repli SPA ne vaut que pour les routes de l'application (sans
       # extension). Un fichier absent doit répondre 404, pas l'application en
       # 200 : `/.env` et `/.git/HEAD` « existaient » pour tout scanner.
