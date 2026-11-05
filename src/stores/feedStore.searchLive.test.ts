@@ -13,6 +13,7 @@ vi.mock('../api/feeds', async () => {
     fetchStreamPage: vi.fn(),
     getStreamContents: vi.fn(),
     getStarredItems: vi.fn().mockResolvedValue({ items: [], continuation: null }),
+    getStreamItemCount: vi.fn(async () => 0),
     getUnreadCounts: vi.fn().mockResolvedValue([]),
     getUnreadItemIds: vi.fn().mockResolvedValue({ ids: [], complete: true }),
     getTagList: vi.fn().mockResolvedValue([]),

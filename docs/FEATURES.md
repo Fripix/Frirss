@@ -5234,16 +5234,25 @@ même sans aucune étiquette (1.8.1, en réponse à l'issue #29) :
 
 - **« Afficher le total des Favoris et d'À lire plus tard »** (activé par
   défaut) : le chiffre historique, dans sa pastille colorée d'origine
-  (`SpecialBadge`, `--sidebar-star` / `--sidebar-readlater`). Calcul inchangé :
-  `loadSpecialCounts` compte les articles d'un `stream/contents` à `n=200`,
-  donc **plafonné à 200**, et le remet à 0 si la requête échoue.
+  (`SpecialBadge`, `--sidebar-star` / `--sidebar-readlater`). Relevé par
+  identifiants (`getStreamItemCount`, plafond **1000**, le même que les
+  non-lus) ; un échec **garde la dernière valeur**. ⚠️ Jusqu'en 1.8 : une page
+  `stream/contents` à `n=200`, donc plafonnée à 200 et remise à 0 sur échec —
+  au-delà de 200 favoris, la paire se lisait « 300 non lus · 200 », et chaque
+  relevé téléchargeait 400 articles complets pour n'en garder que le nombre
+  (R-6, 1.9.0, `feedStore.specialUnread.test.ts`).
 - **« Afficher les non-lus des Favoris et d'À lire plus tard »** (désactivé par
   défaut) : le nombre d'articles non lus de chaque liste, avec la **pastille des
   flux** (`UnreadBadge` : forme, couleurs, animation, « N non lus » pour un
   lecteur d'écran). Relevé par identifiants seulement
   (`getStreamItemCount(…, { excludeRead: true })`, `xt=…/read`, plafond 1000),
   et **seulement quand le réglage est allumé** ; allumer le réglage (ici ou sur
-  un autre appareil) relance le relevé depuis la sidebar.
+  un autre appareil) relance le relevé depuis la sidebar — à l'allumage
+  seulement, pas à chaque montage de la barre (`b`, sortie du mode Focus la
+  remontent : quatre requêtes chaque fois jusqu'en 1.8). La dernière valeur
+  vue vit hors du composant (`createTurnOnDetector`,
+  `src/lib/turnOnDetector.ts`, R-5, 1.9.0) ; le démarrage est servi par
+  `loadSubscriptions`, et `syncCounts` relève chaque minute.
 - **Les deux ensemble** : les non-lus d'abord, puis le total, rapprochés
   (`gap-1.5`) pour se lire comme une paire.
 
@@ -5263,7 +5272,7 @@ même sans aucune étiquette (1.8.1, en réponse à l'issue #29) :
   pour l'étoile et « plus tard », séparés pour ne pas priver la pastille
   « nouveaux articles » d'un relevé). Un échec réseau **garde la dernière
   valeur** : hors ligne, un 0 mentirait.
-- **Tests** : `src/lib/specialUnread.test.ts`,
+- **Tests** : `src/lib/specialUnread.test.ts`, `src/lib/turnOnDetector.test.ts`,
   `src/stores/feedStore.specialUnread.test.ts`,
   `src/components/Sidebar/FilterItem.badges.test.tsx`,
   `src/components/Preferences/LabelsTab.specialCounts.test.tsx`, `uiStore.test.ts`.

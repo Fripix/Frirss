@@ -16,6 +16,7 @@ vi.mock('../api/feeds', async () => {
     getStreamContents: vi.fn(),
     getUnreadCounts: vi.fn().mockResolvedValue([]),
     getStarredItems: vi.fn().mockResolvedValue({ items: [], continuation: null }),
+    getStreamItemCount: vi.fn(async () => 0),
   };
 });
 vi.mock('../lib/offlineStore', () => ({

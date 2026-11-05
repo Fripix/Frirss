@@ -13,7 +13,7 @@ vi.mock('../lib/extractCache', () => ({
 }));
 vi.mock('../api/feeds', async () => {
   const actual = await vi.importActual<typeof import('../api/feeds')>('../api/feeds');
-  return { ...actual, getStarredItems: vi.fn(), getStreamContents: vi.fn() };
+  return { ...actual, getStarredItems: vi.fn(), getStreamContents: vi.fn(), getStreamItemCount: vi.fn(async () => 0) };
 });
 vi.mock('../i18n', () => ({ default: { t: (k: string) => k } }));
 

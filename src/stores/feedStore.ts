@@ -1623,18 +1623,25 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // connue (hors ligne, un « 0 » mentirait), et rien n'est demandé tant que
     // le réglage est éteint.
     const unreadTask = loadSpecialUnread(set);
-    try {
-      const empty: GReaderStream = { items: [], continuation: null };
-      const [starred, readLater] = await Promise.all([
-        getStarredItems(200).catch(() => empty),
-        getStreamContents(READ_LATER_LABEL, 200, null).catch(() => empty),
-      ]);
-      if (offlineScope() !== scope) return;
-      set({
-        starredCount: starred?.items.length ?? 0,
-        readLaterCount: readLater?.items.length ?? 0,
-      });
-    } catch { /* ignore */ }
+    // Le total, par identifiants et au même plafond (1000) que les non-lus :
+    // il comptait une page de 200 articles COMPLETS, donc au-delà de 200
+    // favoris la paire se lisait « 300 non lus · 200 » (R-6), et chaque
+    // relevé téléchargeait deux pages entières pour n'en garder que la
+    // longueur. Un échec garde la dernière valeur, comme les non-lus : un 0
+    // posé à côté d'eux hors ligne contredirait la pastille voisine.
+    const total = async (stream: string): Promise<number | null> => {
+      try { return await getStreamItemCount(stream, 1000); } catch { return null; }
+    };
+    const [starred, readLater] = await Promise.all([
+      total('user/-/state/com.google/starred'),
+      total(READ_LATER_LABEL),
+    ]);
+    if (offlineScope() === scope) {
+      set((st) => ({
+        starredCount: typeof starred === 'number' ? starred : st.starredCount,
+        readLaterCount: typeof readLater === 'number' ? readLater : st.readLaterCount,
+      }));
+    }
     await unreadTask;
   },
 

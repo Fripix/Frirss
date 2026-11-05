@@ -16,6 +16,7 @@ import type { ArticleOrder } from '../../lib/effectiveOrder';
 import { homeUnreadTotal } from '../../lib/mainStream';
 import { homeEntryActive } from '../../lib/unreadScope';
 import { specialRowCounts } from '../../lib/specialUnread';
+import { createTurnOnDetector } from '../../lib/turnOnDetector';
 import { useThemeStore } from '../../stores/themeStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useLongPress } from '../../hooks/useLongPress';
@@ -40,6 +41,10 @@ interface Category {
 type DragItem =
   | { type: 'category'; id: string }
   | { type: 'feed'; id: string; catId: string };
+
+// Réglage « non-lus des Favoris et d'À lire plus tard » : sa dernière valeur
+// vue, retenue hors du composant (voir `createTurnOnDetector`, R-5).
+const specialUnreadTurnedOn = createTurnOnDetector(useUiStore.getState().showSpecialUnread);
 
 export default function Sidebar() {
   const { t } = useTranslation();
@@ -73,9 +78,10 @@ export default function Sidebar() {
   const starredRow = specialRowCounts(starredCount, specialUnread.starred, specialPrefs);
   const readLaterRow = specialRowCounts(readLaterCount, specialUnread.readLater, specialPrefs);
   // Réglage allumé ici ou arrivé d'un autre appareil : le relevé part tout de
-  // suite plutôt qu'au prochain passage de `syncCounts`.
+  // suite plutôt qu'au prochain passage de `syncCounts`. Pas à chaque montage :
+  // `b` et la sortie du mode Focus remontent la barre (R-5).
   useEffect(() => {
-    if (showSpecialUnread) void loadSpecialCounts();
+    if (specialUnreadTurnedOn(showSpecialUnread)) void loadSpecialCounts();
   }, [showSpecialUnread, loadSpecialCounts]);
   const {
     showFavicons,
