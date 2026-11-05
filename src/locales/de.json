@@ -486,7 +486,14 @@
       "imagesGb": "GB",
       "imagesPrepared_one": "davon {{count}} für offline vorbereitet: ~{{size}}",
       "imagesPrepared_other": "davon {{count}} für offline vorbereitet: ~{{size}}",
-      "imagesUsageNote": "Diese Zahl ist weit höher als der tatsächlich belegte Speicher: Der Browser kennt die Größe der beim Lesen gespeicherten Bilder nicht und rechnet für jedes mehrere MB."
+      "imagesUsageNote": "Diese Zahl ist weit höher als der tatsächlich belegte Speicher: Der Browser kennt die Größe der beim Lesen gespeicherten Bilder nicht und rechnet für jedes mehrere MB.",
+      "cancel": "Abbrechen",
+      "cancelling": "Wird gestoppt…",
+      "cancelledReport": "Vorbereitung bei {{done}} von {{total}} Artikeln abgebrochen.",
+      "etaSoon": "Weniger als eine Minute verbleibend",
+      "etaMinutes_one": "Noch etwa {{count}} Min.",
+      "etaMinutes_other": "Noch etwa {{count}} Min.",
+      "etaHours": "Noch etwa {{hours}} Std. {{minutes}} Min."
     },
     "refresh": {
       "title": "Abruf",

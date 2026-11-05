@@ -93,5 +93,42 @@ describe('Préférences › Hors ligne', () => {
     expect(screen.getByText(/imagesDeviceFull/)).toBeTruthy();
     expect(screen.queryByText(/imagesBudgetStopped/)).toBeNull();
   });
+
+  // Idées de la campagne 1.9.0 : une préparation de 6 000 articles dure ~40 min,
+  // sans moyen de l'arrêter ni de savoir combien de temps il reste.
+  describe('préparation en cours : Annuler et durée restante', () => {
+    it('propose « Annuler », qui arrête la préparation', async () => {
+      const cancelOfflinePrep = vi.fn();
+      useFeedStore.setState({ cancelOfflinePrep, offlinePrep: { running: true, phase: 'articles', done: 20, total: 6000, startedAt: Date.now() } } as never);
+      await act(async () => { render(<OfflineTab />); });
+      fireEvent.click(screen.getByRole('button', { name: 'preferences.offline.cancel' }));
+      expect(cancelOfflinePrep).toHaveBeenCalledTimes(1);
+    });
+
+    it('n’offre pas « Annuler » quand rien ne tourne', async () => {
+      await act(async () => { render(<OfflineTab />); });
+      expect(screen.queryByRole('button', { name: 'preferences.offline.cancel' })).toBeNull();
+    });
+
+    it('dit combien de temps il reste, au rythme observé', async () => {
+      // 100 articles en 40 s : 5 900 restants à 0,4 s → 39 min 20 s, dits 40.
+      useFeedStore.setState({ cancelOfflinePrep: vi.fn(), offlinePrep: { running: true, phase: 'articles', done: 100, total: 6000, startedAt: Date.now() - 40_000 } } as never);
+      await act(async () => { render(<OfflineTab />); });
+      expect(screen.getByText('preferences.offline.etaMinutes{"count":40}')).toBeTruthy();
+    });
+
+    it('se tait tant que la mesure est trop jeune', async () => {
+      useFeedStore.setState({ cancelOfflinePrep: vi.fn(), offlinePrep: { running: true, phase: 'articles', done: 2, total: 6000, startedAt: Date.now() - 1_000 } } as never);
+      await act(async () => { render(<OfflineTab />); });
+      expect(screen.queryByText(/preferences\.offline\.eta/)).toBeNull();
+    });
+
+    it('une préparation annulée le dit, et ne se dit pas « prête »', async () => {
+      useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 120, total: 6068, cancelled: true } } as never);
+      await act(async () => { render(<OfflineTab />); });
+      expect(screen.getByText('preferences.offline.cancelledReport{"done":120,"total":6068}')).toBeTruthy();
+      expect(screen.queryByText(/preferences\.offline\.done/)).toBeNull();
+    });
+  });
 });
 

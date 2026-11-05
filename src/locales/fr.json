@@ -486,7 +486,14 @@
       "imagesGb": "Go",
       "imagesPrepared_one": "dont {{count}} préparée pour le hors ligne : ~{{size}}",
       "imagesPrepared_other": "dont {{count}} préparées pour le hors ligne : ~{{size}}",
-      "imagesUsageNote": "Ce chiffre est bien plus grand que l’espace réellement occupé : le navigateur ne connaît pas la taille des images gardées pendant la lecture, et compte plusieurs Mo pour chacune."
+      "imagesUsageNote": "Ce chiffre est bien plus grand que l’espace réellement occupé : le navigateur ne connaît pas la taille des images gardées pendant la lecture, et compte plusieurs Mo pour chacune.",
+      "cancel": "Annuler",
+      "cancelling": "Arrêt…",
+      "cancelledReport": "Préparation arrêtée à {{done}} articles sur {{total}}.",
+      "etaSoon": "Moins d’une minute restante",
+      "etaMinutes_one": "Environ {{count}} min restante",
+      "etaMinutes_other": "Environ {{count}} min restantes",
+      "etaHours": "Environ {{hours}} h {{minutes}} min restantes"
     },
     "refresh": {
       "title": "Relève",

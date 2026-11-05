@@ -486,7 +486,14 @@
       "imagesGb": "GB",
       "imagesPrepared_one": "{{count}} of them prepared for offline: ~{{size}}",
       "imagesPrepared_other": "{{count}} of them prepared for offline: ~{{size}}",
-      "imagesUsageNote": "This figure is far larger than the space actually used: the browser cannot read the size of images kept while reading, and counts several MB for each."
+      "imagesUsageNote": "This figure is far larger than the space actually used: the browser cannot read the size of images kept while reading, and counts several MB for each.",
+      "cancel": "Cancel",
+      "cancelling": "Stopping…",
+      "cancelledReport": "Preparation stopped at {{done}} of {{total}} articles.",
+      "etaSoon": "Less than a minute left",
+      "etaMinutes_one": "About {{count}} min left",
+      "etaMinutes_other": "About {{count}} min left",
+      "etaHours": "About {{hours}} h {{minutes}} min left"
     },
     "refresh": {
       "title": "Refresh",

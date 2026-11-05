@@ -11,6 +11,7 @@ import { getStorageEstimate, formatBytes, clearImageCache } from '../../lib/stor
 import { cachedImageStats, type CachedImageStats } from '../../lib/imageCache';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import ConfirmDialog from '../ConfirmDialog';
+import { prepRemainingMs, etaParts } from '../../lib/offlinePrepEta';
 
 export default function OfflineTab({ active = true }: { active?: boolean }) {
   const { t, i18n } = useTranslation();
@@ -21,6 +22,24 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
   );
   const offlinePrep = useFeedStore((s) => s.offlinePrep);
   const prepareOffline = useFeedStore((s) => s.prepareOffline);
+  const cancelOfflinePrep = useFeedStore((s) => s.cancelOfflinePrep);
+  // « Arrêt… » le temps que l'article en cours aille au bout ; une nouvelle
+  // préparation repart avec « Annuler ».
+  const [cancelling, setCancelling] = useState(false);
+  const running = !!offlinePrep?.running;
+  useEffect(() => { if (!running) setCancelling(false); }, [running]);
+  // Durée restante, au rythme observé : recalculée à chaque avancement
+  // publié (tous les cinq articles), muette tant que la mesure est jeune.
+  const remaining = running && offlinePrep?.phase === 'articles'
+    ? prepRemainingMs({ startedAt: offlinePrep.startedAt, now: Date.now(), done: offlinePrep.done, total: offlinePrep.total })
+    : null;
+  const etaFor = (ms: number): string => {
+    const p = etaParts(ms);
+    if (p.kind === 'soon') return t('preferences.offline.etaSoon');
+    if (p.kind === 'minutes') return t('preferences.offline.etaMinutes', { count: p.minutes });
+    return t('preferences.offline.etaHours', { hours: p.hours, minutes: p.minutes });
+  };
+  const eta = remaining === null || cancelling ? null : etaFor(remaining);
   const autoOffline = useUiStore((s) => s.autoOffline);
   const setAutoOffline = useUiStore((s) => s.setAutoOffline);
   const offlineImagePreset = useUiStore((s) => s.offlineImagePreset);
@@ -71,16 +90,35 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
         <p className="text-xs mb-3" style={{ color: 'var(--list-summary)' }}>
           {t('preferences.offline.hint')}
         </p>
-        <button
-          onClick={() => prepareOffline({ userInitiated: true })}
-          disabled={offlinePrep?.running || !online}
-          className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-          style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
-        >
-          {offlinePrep?.running
-            ? `${t('preferences.offline.preparing')} ${offlinePrep.done}/${offlinePrep.total || '…'}`
-            : t('preferences.offline.button')}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => prepareOffline({ userInitiated: true })}
+            disabled={offlinePrep?.running || !online}
+            className="px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+          >
+            {offlinePrep?.running
+              ? `${t('preferences.offline.preparing')} ${offlinePrep.done}/${offlinePrep.total || '…'}`
+              : t('preferences.offline.button')}
+          </button>
+          {/* Une préparation complète dure des dizaines de minutes : on peut
+              l'arrêter. L'article en cours va au bout, d'où « Arrêt… ». */}
+          {offlinePrep?.running && (
+            <button
+              onClick={() => { setCancelling(true); cancelOfflinePrep(); }}
+              disabled={cancelling}
+              className="px-4 py-2 text-xs rounded-lg transition-colors disabled:opacity-50"
+              style={{ border: '1px solid var(--panel-border)', color: 'var(--list-title)' }}
+            >
+              {cancelling ? t('preferences.offline.cancelling') : t('preferences.offline.cancel')}
+            </button>
+          )}
+        </div>
+        {eta && (
+          <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
+            {eta}
+          </p>
+        )}
         {!online && (
           <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
             {t('preferences.offline.needsNetwork')}
@@ -88,7 +126,9 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
         )}
         {offlinePrep && !offlinePrep.running && offlinePrep.phase === 'done' && (
           <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
-            {t('preferences.offline.done')} ({offlinePrep.total})
+            {offlinePrep.cancelled
+              ? t('preferences.offline.cancelledReport', { done: offlinePrep.done, total: offlinePrep.total })
+              : `${t('preferences.offline.done')} (${offlinePrep.total})`}
             {offlinePrep.imagesFound !== undefined && (
               <span className="block">
                 {t('preferences.offline.imagesReport', {

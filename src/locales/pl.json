@@ -502,7 +502,16 @@
       "imagesPrepared_few": "w tym {{count}} przygotowane do trybu offline: ~{{size}}",
       "imagesPrepared_many": "w tym {{count}} przygotowanych do trybu offline: ~{{size}}",
       "imagesPrepared_other": "w tym {{count}} przygotowanego do trybu offline: ~{{size}}",
-      "imagesUsageNote": "Ta liczba jest znacznie większa niż faktycznie zajęte miejsce: przeglądarka nie zna rozmiaru obrazów zachowanych podczas czytania i liczy kilka MB na każdy."
+      "imagesUsageNote": "Ta liczba jest znacznie większa niż faktycznie zajęte miejsce: przeglądarka nie zna rozmiaru obrazów zachowanych podczas czytania i liczy kilka MB na każdy.",
+      "cancel": "Anuluj",
+      "cancelling": "Zatrzymywanie…",
+      "cancelledReport": "Przygotowanie zatrzymane: {{done}} z {{total}} artykułów.",
+      "etaSoon": "Zostało mniej niż minutę",
+      "etaMinutes_one": "Została około {{count}} min",
+      "etaMinutes_other": "Zostało około {{count}} min",
+      "etaHours": "Zostało około {{hours}} godz. {{minutes}} min",
+      "etaMinutes_few": "Zostały około {{count}} min",
+      "etaMinutes_many": "Zostało około {{count}} min"
     },
     "refresh": {
       "title": "Odświeżanie",

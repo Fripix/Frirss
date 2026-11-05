@@ -800,6 +800,9 @@ const warmRunner = createWarmRunner<Article>({
   },
   settle: () => new Promise((r) => setTimeout(r, 2000)), // let the view settle first
 });
+/** « Annuler » a été demandé pour la préparation hors ligne en cours. */
+let prepCancelRequested = false;
+
 function warmExtracts(articles: Article[], view: string): void {
   const ui = useUiStore.getState();
   // Ni vidéo YouTube, ni page déjà en échec cette session (L-03).
@@ -905,7 +908,13 @@ export interface FeedState {
     imagesFailed?: number;
     /** First error met while caching images — a silent 0 is undiagnosable. */
     imagesError?: string;
+    /** Début de la phase des articles (ms) : base de l'estimation de durée. */
+    startedAt?: number;
+    /** Arrêtée par « Annuler » (`cancelOfflinePrep`). */
+    cancelled?: boolean;
   } | null;
+  /** Arrête la préparation en cours après l'article en cours. Sans effet sinon. */
+  cancelOfflinePrep: () => void;
   setFilter: (filter: Filter) => void;
   setUnreadFilter: (on: boolean) => void;
   loadLabelCounts: () => Promise<void>;
@@ -1770,6 +1779,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     // (ou une déconnexion) interrompt la préparation, comme une coupure.
     const scope = offlineScope();
     const scopeLeft = () => offlineScope() !== scope;
+    // « Annuler » (idée 1.9.0) : relevé entre deux flux, puis entre deux
+    // articles — l'article en cours va au bout. Une annulation interrompt
+    // comme une coupure (`interrupted`) : pas de retrait final des images.
+    prepCancelRequested = false;
     set({ offlinePrep: { running: true, phase: 'lists', done: 0, total: 0 } });
     try {
       const subs = get().subscriptions;
@@ -1781,7 +1794,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       let interrupted = subs.length === 0;
       // Phase 1 — gather recent articles per feed + persist their lists.
       for (const feed of subs) {
-        if (scopeLeft()) { interrupted = true; break; }
+        if (scopeLeft() || prepCancelRequested) { interrupted = true; break; }
         try {
           let cont: string | null = null;
           let pages = 0;
@@ -1829,12 +1842,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // does not list is swept at the end.
       const keptImages = new Set<string>();
 
-      set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length } });
+      // Le rythme se mesure sur cette phase-ci, celle qui coûte : l'estimation
+      // de durée de l'onglet Hors ligne extrapole depuis `startedAt`.
+      const startedAt = Date.now();
+      set({ offlinePrep: { running: true, phase: 'articles', done: 0, total: ordered.length, startedAt } });
       const { extractFullContent } = await import('../utils/extractContent');
       let done = 0;
       for (const a of ordered) {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) { interrupted = true; break; }
-        if (scopeLeft()) { interrupted = true; break; }
+        if (scopeLeft() || prepCancelRequested) { interrupted = true; break; }
 
         let extracted: string | null = peekExtract(a.id)?.content ?? null;
         if (a.url && !extracted) {
@@ -1887,7 +1903,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
         done++;
         if (done % 5 === 0 || done === ordered.length) {
-          set({ offlinePrep: { running: true, phase: 'articles', done, total: ordered.length, imagesFound, imagesStored } });
+          set({ offlinePrep: { running: true, phase: 'articles', done, total: ordered.length, imagesFound, imagesStored, startedAt } });
         }
       }
       // Nothing else evicts prepared images. Only a run that saw the whole list
@@ -1900,6 +1916,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           running: false, phase: 'done', done, total: ordered.length,
           imagesFound, imagesStored, imagesFailed,
           budgetStopped: budgetReached && budget.bytes > 0, deviceFull, imagesError,
+          ...(prepCancelRequested ? { cancelled: true } : {}),
         },
       });
     } finally {
@@ -1907,7 +1924,12 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // IndexedDB) laissait « Préparer » en cours jusqu'au rechargement.
       const prep = get().offlinePrep;
       if (prep?.running) set({ offlinePrep: { ...prep, running: false, phase: 'done' } });
+      prepCancelRequested = false;
     }
+  },
+
+  cancelOfflinePrep: () => {
+    if (get().offlinePrep?.running) prepCancelRequested = true;
   },
 
   loadArticles: async () => {

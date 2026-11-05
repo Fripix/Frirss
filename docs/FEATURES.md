@@ -5640,6 +5640,20 @@ images consultés restent lisibles sans réseau.
   « Vider les images » se confirme (`ConfirmDialog`) ; « Images supprimées »
   ne vaut que pour le vidage qu'on vient de faire et s'efface au retour sur la
   section (il restait affiché pour toujours).
+  **Annuler et durée restante** (1.9.0, idées de la campagne : ~40 min pour
+  6 000 articles, sans sortie ni repère). Pendant une préparation, manuelle ou
+  automatique, « Annuler » (`cancelOfflinePrep`) l'arrête entre deux flux ou
+  entre deux articles — l'article en cours va au bout, d'où « Arrêt… ». Une
+  annulation compte comme une interruption : listes déjà rangées gardées,
+  **aucun retrait final** d'images ; le rapport dit « Préparation arrêtée à
+  N articles sur M » (`offline.cancelledReport`), jamais « Hors ligne prêt ».
+  La durée restante (`src/lib/offlinePrepEta.ts`) extrapole le rythme
+  OBSERVÉ de la phase des articles (`offlinePrep.startedAt`) sur ce qui reste,
+  arrondie à la minute supérieure, en heures au-delà d'une heure ; elle se tait
+  avant 10 articles et 5 s de mesure, et pendant la lecture des listes
+  (`OfflineTab.test.tsx`, `feedStore.prepareOffline.extract.test.ts`). Elle
+  suit le rythme du moment : les articles déjà extraits passent vite, donc
+  l'estimation peut s'allonger en route.
 - **Ce qui est gardé pour le hors ligne est rangé par compte et par serveur**
   (1.8.0, `offlineScope` dans `feedStore.ts`, `feedStore.scope.test.ts`) :
   `viewKey` et `viewIdentity` commencent par `user@serveur`, donc le cache

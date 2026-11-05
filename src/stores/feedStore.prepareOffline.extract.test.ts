@@ -83,3 +83,55 @@ describe('L-05 — la préparation hors ligne respecte « Article complet »', (
     expect(urls.some((u) => u.includes('/feed/1/'))).toBe(false);
   });
 });
+
+describe('Annuler une préparation (idée 1.9.0)', () => {
+  beforeEach(() => {
+    useUiStore.setState({ autoExtractDefault: true, feedSettings: {} } as never);
+  });
+
+  it('s’arrête après l’article en cours, sans balayage final, et le dit', async () => {
+    extract.fn.mockImplementation(async (url: string) => {
+      useFeedStore.getState().cancelOfflinePrep();
+      return extracted(url);
+    });
+    await useFeedStore.getState().prepareOffline();
+    expect(extract.fn).toHaveBeenCalledTimes(1);
+    const prep = useFeedStore.getState().offlinePrep!;
+    expect(prep.running).toBe(false);
+    expect(prep.cancelled).toBe(true);
+    expect(prep.done).toBe(1);
+    expect(prep.total).toBe(6);
+    const { pruneImages } = await import('../lib/imageCache');
+    expect(pruneImages).not.toHaveBeenCalled();
+  });
+
+  it('s’arrête aussi pendant la lecture des listes', async () => {
+    vi.mocked(getStreamContents).mockImplementation(async (feed: string) => {
+      useFeedStore.getState().cancelOfflinePrep();
+      return { items: [item(feed)], continuation: null } as never;
+    });
+    await useFeedStore.getState().prepareOffline();
+    expect(getStreamContents).toHaveBeenCalledTimes(1);
+    expect(extract.fn).not.toHaveBeenCalled();
+    expect(useFeedStore.getState().offlinePrep?.cancelled).toBe(true);
+  });
+
+  it('une annulation ne survit pas à la préparation suivante', async () => {
+    useFeedStore.getState().cancelOfflinePrep(); // rien ne tourne : sans effet
+    await useFeedStore.getState().prepareOffline();
+    expect(extract.fn).toHaveBeenCalledTimes(6);
+    expect(useFeedStore.getState().offlinePrep?.cancelled).toBeFalsy();
+  });
+
+  it('date le début de la phase des articles, pour l’estimation', async () => {
+    const seen: (number | undefined)[] = [];
+    extract.fn.mockImplementation(async (url: string) => {
+      seen.push(useFeedStore.getState().offlinePrep?.startedAt);
+      return extracted(url);
+    });
+    const before = Date.now();
+    await useFeedStore.getState().prepareOffline();
+    expect(seen[0]).toBeGreaterThanOrEqual(before);
+    expect(new Set(seen).size).toBe(1);
+  });
+});

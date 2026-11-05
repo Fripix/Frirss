@@ -486,7 +486,14 @@
       "imagesGb": "GB",
       "imagesPrepared_one": "das quais {{count}} preparada para offline: ~{{size}}",
       "imagesPrepared_other": "das quais {{count}} preparadas para offline: ~{{size}}",
-      "imagesUsageNote": "Este valor é muito superior ao espaço realmente ocupado: o navegador não conhece o tamanho das imagens guardadas durante a leitura e conta vários MB por cada uma."
+      "imagesUsageNote": "Este valor é muito superior ao espaço realmente ocupado: o navegador não conhece o tamanho das imagens guardadas durante a leitura e conta vários MB por cada uma.",
+      "cancel": "Cancelar",
+      "cancelling": "A parar…",
+      "cancelledReport": "Preparação parada em {{done}} de {{total}} artigos.",
+      "etaSoon": "Falta menos de um minuto",
+      "etaMinutes_one": "Falta cerca de {{count}} min",
+      "etaMinutes_other": "Faltam cerca de {{count}} min",
+      "etaHours": "Faltam cerca de {{hours}} h {{minutes}} min"
     },
     "refresh": {
       "title": "Atualização",

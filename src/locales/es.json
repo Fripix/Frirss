@@ -486,7 +486,14 @@
       "imagesGb": "GB",
       "imagesPrepared_one": "de ellas, {{count}} preparada para leer sin conexión: ~{{size}}",
       "imagesPrepared_other": "de ellas, {{count}} preparadas para leer sin conexión: ~{{size}}",
-      "imagesUsageNote": "Esta cifra es mucho mayor que el espacio realmente ocupado: el navegador no conoce el tamaño de las imágenes guardadas durante la lectura y cuenta varios MB por cada una."
+      "imagesUsageNote": "Esta cifra es mucho mayor que el espacio realmente ocupado: el navegador no conoce el tamaño de las imágenes guardadas durante la lectura y cuenta varios MB por cada una.",
+      "cancel": "Cancelar",
+      "cancelling": "Deteniendo…",
+      "cancelledReport": "Preparación detenida en {{done}} de {{total}} artículos.",
+      "etaSoon": "Queda menos de un minuto",
+      "etaMinutes_one": "Queda aproximadamente {{count}} min",
+      "etaMinutes_other": "Quedan aproximadamente {{count}} min",
+      "etaHours": "Quedan aproximadamente {{hours}} h {{minutes}} min"
     },
     "refresh": {
       "title": "Actualización",

@@ -486,7 +486,14 @@
       "imagesGb": "GB",
       "imagesPrepared_one": "其中 {{count}} 张已为离线阅读准备：约 {{size}}",
       "imagesPrepared_other": "其中 {{count}} 张已为离线阅读准备：约 {{size}}",
-      "imagesUsageNote": "这个数字远大于实际占用的空间：浏览器无法得知阅读时保存的图片大小，每张都按数 MB 计算。"
+      "imagesUsageNote": "这个数字远大于实际占用的空间：浏览器无法得知阅读时保存的图片大小，每张都按数 MB 计算。",
+      "cancel": "取消",
+      "cancelling": "正在停止…",
+      "cancelledReport": "准备已停止：已完成 {{done}} / {{total}} 篇文章。",
+      "etaSoon": "剩余不到一分钟",
+      "etaMinutes_one": "大约还剩 {{count}} 分钟",
+      "etaMinutes_other": "大约还剩 {{count}} 分钟",
+      "etaHours": "大约还剩 {{hours}} 小时 {{minutes}} 分钟"
     },
     "refresh": {
       "title": "刷新",
