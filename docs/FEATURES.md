@@ -6401,6 +6401,18 @@ dans quelques composants partagés.
   dernier article affiché (`focusKey`, cherché par `data-article-id` dans la
   vue de base) — seulement s'il était dans l'article ou déjà perdu ; avant,
   il retombait sur `<body>`.
+- **Fermer l'article rend le focus à sa carte, sur ordinateur et tablette
+  aussi** (1.9.0, A-4, `src/hooks/useArticleFocusReturn.ts`, appelé par
+  `App.tsx` hors téléphone ; `useArticleFocusReturn.test.tsx`). En grille ou à
+  deux panneaux, le volet remplace la liste ; sur tablette il est démonté à
+  la fermeture. Échap (grille), le bouton Retour ou la commande « Retour »
+  démontaient le volet sous le focus, qui retombait sur `<body>` — déjà en
+  1.8.0. La carte ou la ligne de l'article fermé (`data-article-id`) reprend
+  le focus, sans défilement (`preventScroll` : la liste restaure sa propre
+  position) ; seulement si le focus est perdu (`<body>` ou un élément sorti
+  de la page), et en attendant au plus dix images que la liste remontée rende
+  la carte — absente (filtrée entre-temps), on renonce. Le téléphone garde
+  sa propre règle (`MobileStack`, ci-dessus), d'où le hook désactivé là.
 - **Contrastes du thème par défaut et de Night : choix assumé** (décision du
   propriétaire, 2026-11-05). La campagne 1.9.0 a mesuré des textes sous le
   seuil AA de 4,5:1 : nom du flux en accent sur blanc (1,87:1), dates

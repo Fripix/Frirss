@@ -33,6 +33,7 @@ import { effectiveLayout } from './lib/effectiveLayout';
 import { statusBarColor } from './lib/statusBarColor';
 import MobileDrawer from './components/MobileDrawer';
 import MobileStack from './components/MobileStack';
+import { useArticleFocusReturn } from './hooks/useArticleFocusReturn';
 import AppMain from './components/AppMain';
 
 // Preferences is a heavy, rarely-opened panel → load it on demand
@@ -65,6 +66,10 @@ export default function App() {
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint === 'mobile';
   const isTablet = breakpoint === 'tablet';
+
+  // Fermer l'article rend le focus à sa carte — desktop et tablette, où le
+  // volet est démonté sous le focus (A-4). Le téléphone : `MobileStack`.
+  useArticleFocusReturn(selectedArticle?.id ?? null, !isMobile);
 
   // Android status bar (installed app): the colour of whatever sits right
   // under it — see src/lib/statusBarColor.ts. Read from the theme store, so a
