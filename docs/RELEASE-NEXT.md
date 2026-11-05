@@ -43,7 +43,7 @@ la release publiée.
   forme que celui de « Résumer » corrigé en 1.8.0.
 - **Échap dans les Préférences ne referme plus aussi l'article.** En grille,
   avec un article ouvert, une seule pression fermait les Préférences et
-  ramenait à la grille ; en mode Focus, elle le quittait aussi.
+  ramenait à la grille.
 
 ## Sous le capot
 
