@@ -12,6 +12,7 @@ import {
   RATE_LIMIT_MAX_WAIT_MS,
   SERVER_EXTRACT_TIMEOUT_MS,
 } from './extractContent';
+import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../test/advisoryPageFixture';
 
 const serverAnswer = {
   title: 'Titre serveur', content: '<p>corps serveur</p>',
@@ -184,6 +185,22 @@ describe('extractFullContent — repli local : seuil de Readability', () => {
     }));
     const out = await extractFullContent('https://example.com/avis-seuil');
     expect(out.content).toContain('Paragraphe 11 du bulletin');
+  });
+});
+
+// A-1 : la même règle que la route serveur (`server/extract.ts`). Readability
+// gardait la première section d'un `<article>` unique et écartait le corps.
+describe('extractFullContent — repli local : conteneur principal', () => {
+  it('ne garde pas un fragment quand le conteneur principal de la page est bien plus long', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 422 });
+      return htmlPage(advisoryPageHtml());
+    }));
+    const out = await extractFullContent('https://example.com/avis-conteneur');
+    expect(out.content).toContain(ADVISORY_BODY_MARKER);
+    expect(out.content).toContain('EX-2026-1008');
+    expect(out.content).not.toContain('mentions légales');
+    expect(out.title).toBe('Avis d’exemple');
   });
 });
 

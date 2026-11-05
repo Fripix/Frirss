@@ -14,6 +14,9 @@ export interface ExtractRecord extends ExtractedContent {
    *  server unpinned every other one's favorites. Absent on a record pinned
    *  before 1.8.0 — never unpinned, adopted by the next scope to pin it. */
   pinScopes?: string[];
+  /** `EXTRACT_VERSION` of the extraction that produced it. Absent on a
+   *  record kept before 1.9.0 (version 1). See `extractCache.ts`. */
+  extractVersion?: number;
 }
 
 /** `rec` pinned for `scope` too, or `null` when it already is. */

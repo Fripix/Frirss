@@ -123,23 +123,115 @@ export const READABILITY_CHAR_THRESHOLD = 500;
  * laisser la main au navigateur plutôt que de renvoyer un corps vide.
  */
 export function extractArticle(url: string, html: string): ExtractedArticle | null {
-  const { document } = parseHTML(html);
+  const load = () => {
+    const { document } = parseHTML(html);
+    // Une URL relative dans la page ne veut rien dire pour le navigateur, qui
+    // reçoit le HTML sans savoir d'où il vient. `<base>` les résout ici.
+    const base = document.createElement('base');
+    base.setAttribute('href', url);
+    document.head?.prepend(base);
+    return document;
+  };
 
-  // Une URL relative dans la page ne veut rien dire pour le navigateur, qui
-  // reçoit le HTML sans savoir d'où il vient. `<base>` les résout ici.
-  const base = document.createElement('base');
-  base.setAttribute('href', url);
-  document.head?.prepend(base);
-
+  const document = load();
+  // Mesuré AVANT Readability, qui modifie le document qu'il lit.
+  const mainLength = mainContainerTextLength(document);
   const parsed = new Readability(document as never, { charThreshold: READABILITY_CHAR_THRESHOLD }).parse();
   if (!parsed?.content) return null;
 
+  let content = parsed.content;
+  let length = parsed.length || 0;
+  if (mainLength != null && keptTooLittle(parsed.textContent || '', mainLength)) {
+    const retry = load();
+    if (keepOnlyMainContainer(retry)) {
+      const again = new Readability(retry as never, MAIN_CONTAINER_OPTIONS).parse();
+      if (again?.content && normalizedLength(again.textContent || '') > normalizedLength(parsed.textContent || '')) {
+        content = again.content;
+        length = again.length || 0;
+      }
+    }
+  }
+
   return {
     title: parsed.title || '',
-    content: parsed.content,
+    content,
     excerpt: parsed.excerpt || '',
     byline: parsed.byline || '',
     siteName: parsed.siteName || '',
-    length: parsed.length || 0,
+    length,
   };
+}
+
+// ── Conteneur principal explicite (A-1) ──────────────────────────────
+// Readability choisit UN candidat, puis lui adjoint ses frères assez bien
+// notés. Sur un avis du CERT-FR, l'`<article>` est fait de trois `<section>` :
+// la première (un tableau de métadonnées) gagne, la deuxième (le corps, en
+// listes courtes suivies d'une longue liste de références en liens) est
+// écartée pour sa densité de liens. Le fragment dépasse 500 caractères, donc le
+// seuil (L-04) ne le rattrape pas : 545 caractères rendus sur 2 454.
+//
+// Règle générale, pas propre au CERT-FR : quand la page désigne elle-même son
+// contenu — un `<article>` unique, sinon un `[role=main]` ou un `<main>`
+// unique — et que Readability en garde moins de la moitié du texte, une seconde
+// passe est faite sur CE conteneur seul, en tolérant davantage de liens. Elle
+// ne peut rien ramasser hors du conteneur (navigation, pied), et n'est retenue
+// que si elle rend plus de texte. Le titre, l'auteur et le chapeau restent
+// ceux de la passe normale, qui voit toute la page.
+//
+// Même règle dans le repli du navigateur (`src/utils/extractContent.ts`) ;
+// toute modification de l'une va avec l'autre, et avec `EXTRACT_VERSION`.
+
+/** Sous cette part du texte du conteneur, le résultat est jugé fragmentaire. */
+export const MAIN_CONTAINER_MIN_SHARE = 0.5;
+
+/**
+ * Tolérance de liens de la seconde passe. Readability écarte un bloc dont la
+ * densité de liens dépasse 0,2 (0,5 s'il est bien noté) ; le modificateur
+ * s'y ajoute. 0,2 suffisait sur les trois avis relevés, 0,5 laisse de la marge
+ * pour une liste de références — tolérable parce que la passe est confinée au
+ * conteneur que la page désigne.
+ */
+export const MAIN_CONTAINER_LINK_DENSITY_MODIFIER = 0.5;
+
+// `linkDensityModifier` existe dans Readability 0.6.0 (constructeur) mais pas
+// dans ses déclarations de types : un objet non littéral échappe au contrôle
+// des propriétés en trop.
+const MAIN_CONTAINER_OPTIONS = {
+  charThreshold: READABILITY_CHAR_THRESHOLD,
+  linkDensityModifier: MAIN_CONTAINER_LINK_DENSITY_MODIFIER,
+};
+
+const normalizedLength = (text: string) => text.replace(/\s+/g, ' ').trim().length;
+
+type ParsedDocument = ReturnType<typeof parseHTML>['document'];
+
+function findMainContainer(doc: ParsedDocument): Element | null {
+  for (const selector of ['article', '[role="main"]', 'main']) {
+    const found = doc.querySelectorAll(selector);
+    if (found.length === 1) return found[0] as Element;
+    // Plusieurs `<article>` : une page de liste, pas un article. On ne
+    // descend pas aux sélecteurs suivants pour autant — un `<main>` qui
+    // contient dix articles n'en désigne aucun.
+    if (found.length > 1 && selector === 'article') return null;
+  }
+  return null;
+}
+
+function mainContainerTextLength(doc: ParsedDocument): number | null {
+  const container = findMainContainer(doc);
+  if (!container) return null;
+  const length = normalizedLength(container.textContent || '');
+  return length >= READABILITY_CHAR_THRESHOLD ? length : null;
+}
+
+function keptTooLittle(kept: string, mainLength: number): boolean {
+  return normalizedLength(kept) < mainLength * MAIN_CONTAINER_MIN_SHARE;
+}
+
+/** Vide `<body>` de tout sauf le conteneur principal. `false` s'il n'y en a pas. */
+function keepOnlyMainContainer(doc: ParsedDocument): boolean {
+  const container = findMainContainer(doc);
+  if (!container || !doc.body) return false;
+  doc.body.replaceChildren(container);
+  return true;
 }

@@ -3,6 +3,7 @@
 //   - backed by IndexedDB (persistent across reloads, survives offline).
 // Read order: memory → IndexedDB → (caller falls back to a live fetch).
 import type { ExtractedContent } from '../utils/extractContent';
+import { EXTRACT_VERSION } from './extractVersion';
 import { dbGet, dbPut, dbRecent, dbEvictOlderThan, dbPinFor, dbUnpinExcept, pinnedFor, type ExtractRecord } from './extractStore';
 
 const MEM_MAX = 80;
@@ -30,22 +31,40 @@ function toContent(rec: { title: string; content: string; excerpt: string; bylin
   };
 }
 
+/**
+ * Produced by the current extraction (`EXTRACT_VERSION`)? A record from an
+ * earlier one may be a truncated article that a later algorithm gets right
+ * (the CERT-FR advisories before L-04/A-1) — A-2.
+ */
+function isCurrent(rec: ExtractRecord): boolean {
+  return (rec.extractVersion ?? 1) === EXTRACT_VERSION;
+}
+
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
 /** Synchronous peek — memory only. Used on the instant render/swipe path. */
 export function peekExtract(id: string): ExtractedContent | undefined {
   return mem.get(id);
 }
 
-/** Memory → IndexedDB. Promotes an IndexedDB hit into memory. */
+/**
+ * Memory → IndexedDB. Promotes an IndexedDB hit into memory.
+ *
+ * A record from an earlier extraction is not served online: the caller
+ * extracts again, and `putExtract` replaces it keeping its pin. It is NOT
+ * deleted meanwhile — offline, it is still served (an older extract beats no
+ * article), but never promoted into memory, whence it would be served again
+ * once back online.
+ */
 export async function getExtract(id: string): Promise<ExtractedContent | undefined> {
   const inMem = mem.get(id);
   if (inMem) return inMem;
   const rec = await dbGet(id);
-  if (rec) {
-    const content = toContent(rec);
-    memSet(id, content);
-    return content;
-  }
-  return undefined;
+  if (!rec) return undefined;
+  if (!isCurrent(rec)) return isOffline() ? toContent(rec) : undefined;
+  const content = toContent(rec);
+  memSet(id, content);
+  return content;
 }
 
 /** Write-through: memory + IndexedDB. Preserves an existing pin and the
@@ -58,7 +77,7 @@ export async function putExtract(
   memSet(id, content);
   const existing = await dbGet(id);
   const base: ExtractRecord = {
-    ...content, id, cachedAt: Date.now(),
+    ...content, id, cachedAt: Date.now(), extractVersion: EXTRACT_VERSION,
     pinned: existing?.pinned ?? false,
     ...(existing?.pinScopes ? { pinScopes: existing.pinScopes } : {}),
   };
@@ -74,7 +93,7 @@ export async function hydrateExtractCache(): Promise<void> {
   await dbEvictOlderThan(Date.now() - RETENTION_MS);
   const recent = await dbRecent(MEM_MAX);
   for (const rec of recent) {
-    if (!mem.has(rec.id)) mem.set(rec.id, toContent(rec));
+    if (!mem.has(rec.id) && isCurrent(rec)) mem.set(rec.id, toContent(rec));
   }
 }
 
@@ -101,7 +120,8 @@ const REVALIDATE_AFTER_MS = 12 * 60 * 60 * 1000; // 12h
 export async function revalidateIfStale(id: string, url: string): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   const rec = await dbGet(id);
-  if (rec && Date.now() - rec.cachedAt < REVALIDATE_AFTER_MS) return; // fresh enough
+  // Fresh enough — unless an earlier extraction produced it (A-2).
+  if (rec && isCurrent(rec) && Date.now() - rec.cachedAt < REVALIDATE_AFTER_MS) return;
   try {
     const { extractFullContent } = await import('../utils/extractContent');
     const fresh = await extractFullContent(url);
@@ -109,7 +129,8 @@ export async function revalidateIfStale(id: string, url: string): Promise<void> 
       memSet(id, fresh);
       await putExtract(id, fresh); // preserves the pinned flag
     } else {
-      await dbPut({ ...rec, cachedAt: Date.now() }); // unchanged → just bump freshness
+      // Unchanged → just bump freshness, and the stamp: it was just re-extracted.
+      await dbPut({ ...rec, cachedAt: Date.now(), extractVersion: EXTRACT_VERSION });
     }
   } catch {
     /* ignore */

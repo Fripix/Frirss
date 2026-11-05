@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { extractArticle, EXTRACT_MAX_PENDING, ExtractorBusyError, extractPending, withExtractSlot } from '../extract.js';
+import { advisoryPageHtml, ADVISORY_BODY_MARKER } from '../../src/test/advisoryPageFixture.js';
 
 const page = `<!doctype html><html><head><title>Titre de la page</title></head>
 <body><article><h1>Un vrai titre</h1>
@@ -62,6 +63,29 @@ describe('extractArticle', () => {
     </body></html>`;
     const out = extractArticle('https://example.com/avis', html);
     expect(out!.content).toContain('Paragraphe 11 du bulletin');
+  });
+
+  // A-1 (campagne 1.9.0) : même mise en page CERT-FR, autre échec. Readability
+  // retient la première `<section>` de l'`<article>` (le tableau de
+  // métadonnées) et écarte la deuxième, qui porte le corps, à cause de sa
+  // longue liste de références en liens. Le fragment dépasse 500 caractères :
+  // le seuil (L-04) ne le rattrape pas. Structure reproduite, texte inventé.
+  it('ne garde pas un fragment quand le conteneur principal de la page est bien plus long', () => {
+    const out = extractArticle('https://example.com/avis', advisoryPageHtml());
+    expect(out!.content).toContain(ADVISORY_BODY_MARKER);
+    expect(out!.content).toContain('Gestion du document');
+    expect(out!.content).toContain('EX-2026-1008');
+    // Le conteneur, pas la page : ni la navigation ni le pied.
+    expect(out!.content).not.toContain('mentions légales');
+    expect(out!.content).not.toContain('Accueil');
+    // Les métadonnées de la passe normale sont gardées.
+    expect(out!.title).toBe('Avis d’exemple');
+  });
+
+  it('laisse intact un article que Readability a déjà bien extrait', () => {
+    // Le conteneur unique contient le corps ; rien à reprendre.
+    const out = extractArticle('https://example.com/a', page);
+    expect(out!.content).toContain('second paragraphe');
   });
 
   it('rend null quand la page n’a pas d’article lisible', () => {

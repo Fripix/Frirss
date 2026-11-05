@@ -304,6 +304,44 @@ export function extractFullContent(url: string, opts: { retry?: boolean } = {}):
   return run;
 }
 
+// ── Conteneur principal explicite (A-1) ──────────────────────────────
+// Copie de la règle de `server/extract.ts` (le serveur et le navigateur ne
+// partagent pas de code) : constantes et sélecteurs identiques, le pourquoi
+// est écrit là-bas. Toute modification de l'une va avec l'autre, et avec
+// `EXTRACT_VERSION`.
+const MAIN_CONTAINER_MIN_SHARE = 0.5;
+// `linkDensityModifier` existe dans Readability 0.6.0 mais pas dans ses types.
+const MAIN_CONTAINER_OPTIONS = { charThreshold: 500, linkDensityModifier: 0.5 };
+
+const normalizedLength = (text: string) => text.replace(/\s+/g, ' ').trim().length;
+
+function findMainContainer(doc: Document): Element | null {
+  for (const selector of ['article', '[role="main"]', 'main']) {
+    const found = doc.querySelectorAll(selector);
+    if (found.length === 1) return found[0];
+    if (found.length > 1 && selector === 'article') return null;
+  }
+  return null;
+}
+
+function mainContainerTextLength(doc: Document): number | null {
+  const container = findMainContainer(doc);
+  if (!container) return null;
+  const length = normalizedLength(container.textContent || '');
+  return length >= 500 ? length : null;
+}
+
+function keptTooLittle(kept: string, mainLength: number): boolean {
+  return normalizedLength(kept) < mainLength * MAIN_CONTAINER_MIN_SHARE;
+}
+
+function keepOnlyMainContainer(doc: Document): boolean {
+  const container = findMainContainer(doc);
+  if (!container || !doc.body) return false;
+  doc.body.replaceChildren(container);
+  return true;
+}
+
 async function extractOnce(url: string): Promise<ExtractedContent> {
   const { backendToken } = useAuthStore.getState();
 
@@ -421,20 +459,25 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     return await readPageText(response, FALLBACK_MAX_HTML_BYTES);
   });
 
-  // Parse into a DOM document that Readability can work with
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  // Parse into a DOM document that Readability can work with. Rendre les URLs
+  // absolues AVANT Readability, qui résout sinon contre `doc.baseURI` —
+  // l'origine de FriRSS pour un document de `DOMParser`. Un `<base>` injecté
+  // ici ne sert à rien : la CSP (`base-uri 'self'`) le refuse, et l'échec
+  // n'apparaît que dans la console. Voir `absolutizeUrls`.
+  const load = () => {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    absolutizeUrls(parsed, url);
+    return parsed;
+  };
 
-  // Rendre les URLs absolues AVANT Readability, qui résout sinon contre
-  // `doc.baseURI` — l'origine de FriRSS pour un document de `DOMParser`. Un
-  // `<base>` injecté ici ne sert à rien : la CSP (`base-uri 'self'`) le refuse,
-  // et l'échec n'apparaît que dans la console. Voir `absolutizeUrls`.
-  absolutizeUrls(doc, url);
-
-  // Extract readable content. Le document est vidé ensuite : Chrome le
+  // Extract readable content. Chaque document est vidé ensuite : Chrome le
   // garderait sinon en mémoire s'il porte une vidéo (`parsedDocument.ts`).
   let result: ReturnType<Readability['parse']>;
+  const doc = load();
+  let mainLength: number | null = null;
   try {
+    // Mesuré AVANT Readability, qui modifie le document qu'il lit.
+    mainLength = mainContainerTextLength(doc);
     // 500, la valeur par défaut de Readability et celle de la route serveur
     // (`READABILITY_CHAR_THRESHOLD`, `server/extract.ts`, qui dit pourquoi) :
     // à 50, une courte section restée après la première passe passait pour
@@ -442,6 +485,24 @@ async function extractOnce(url: string): Promise<ExtractedContent> {
     result = new Readability(doc, { charThreshold: 500 }).parse();
   } finally {
     releaseDocument(doc);
+  }
+
+  // A-1 : même seconde passe que la route serveur (`server/extract.ts`, qui
+  // dit pourquoi) quand Readability n'a gardé qu'un fragment du conteneur que
+  // la page désigne elle-même. Seul le corps est repris ; titre, auteur et
+  // chapeau restent ceux de la passe normale.
+  if (result?.content && mainLength != null && keptTooLittle(result.textContent || '', mainLength)) {
+    const retry = load();
+    try {
+      if (keepOnlyMainContainer(retry)) {
+        const again = new Readability(retry, MAIN_CONTAINER_OPTIONS).parse();
+        if (again?.content && normalizedLength(again.textContent || '') > normalizedLength(result.textContent || '')) {
+          result = { ...result, content: again.content, length: again.length };
+        }
+      }
+    } finally {
+      releaseDocument(retry);
+    }
   }
 
   if (!result || !result.content) {

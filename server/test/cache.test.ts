@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { extractKey, cacheKey, userCachePattern, cacheableEntry, claimCacheRead, MAX_CACHED_ENTRY_BYTES, MAX_CACHE_READS_AT_ONCE, MAX_CACHE_READ_BYTES_PER_MINUTE } from '../cache.js';
+import { EXTRACT_VERSION } from '../extractVersion.js';
+import { EXTRACT_VERSION as CLIENT_EXTRACT_VERSION } from '../../src/lib/extractVersion.js';
 
 describe('extractKey', () => {
   it('donne la même clé pour la même URL', () => {
@@ -17,6 +19,21 @@ describe('extractKey', () => {
     // purger l'un sans l'autre et rend les clés lisibles en exploitation.
     expect(extractKey('https://example.com/a').startsWith('frirss:x:')).toBe(true);
     expect(cacheKey(1, 'https://example.com/a').startsWith('frirss:x:')).toBe(false);
+  });
+
+  // A-2 (campagne 1.9.0) : un extrait gardé avant un changement de
+  // l'algorithme (l'avis tronqué d'avant L-04/A-1) restait servi jusqu'à
+  // `CACHE_TTL`, et le client le recopiait dans son propre cache.
+  it('ne relit pas un extrait écrit par une version antérieure de l’extraction', () => {
+    expect(extractKey('https://example.com/a')).toBe(extractKey('https://example.com/a', EXTRACT_VERSION));
+    expect(extractKey('https://example.com/a')).not.toBe(extractKey('https://example.com/a', EXTRACT_VERSION - 1));
+  });
+
+  it('porte la même version d’extraction que le cache du navigateur', () => {
+    // Le navigateur garde ce que le serveur lui a rendu : monter l'une sans
+    // l'autre laisserait l'ancien extrait vivre d'un côté.
+    expect(EXTRACT_VERSION).toBe(CLIENT_EXTRACT_VERSION);
+    expect(EXTRACT_VERSION).toBeGreaterThan(1);
   });
 
   it("ne fait entrer AUCUN identifiant d'utilisateur dans la clé", () => {

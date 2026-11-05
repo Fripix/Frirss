@@ -5025,6 +5025,51 @@ serveur de développement en 1.4.4.)*
   écartait le corps et gardait « Solutions » : 135 caractères au lieu de
   2 800. Doublé par la garde du volet (« Ce que le volet montre » : un extrait
   qui n'a pas la moitié du texte du flux n'est pas montré).
+- **Seconde passe sur le conteneur principal de la page** (1.9.0, A-1,
+  `server/extract.ts`, copiée dans le repli de `extractContent.ts` ; tests :
+  `server/test/extract.test.ts` et `extractContent.test.ts` › « conteneur
+  principal », sur une page synthétique `src/test/advisoryPageFixture.ts`).
+  Le seuil ne suffisait pas : sur un avis du CERT-FR, Readability retient la
+  première `<section>` de l'`<article>` (un tableau de métadonnées) et écarte
+  la deuxième, qui porte le corps, pour la densité de liens de sa liste de
+  références — un fragment de ~500 caractères, au-dessus du seuil. Règle
+  générale : quand la page désigne elle-même son contenu (un `<article>`
+  unique, sinon un `[role=main]` ou un `<main>` unique ; plusieurs `<article>`
+  = une page de liste, aucune seconde passe) et que Readability en garde
+  **moins de la moitié du texte** (`MAIN_CONTAINER_MIN_SHARE`), une seconde
+  passe est faite sur **ce conteneur seul**, avec une tolérance de liens
+  relevée (`linkDensityModifier` 0,5 — option de Readability 0.6.0 absente de
+  ses types). Retenue seulement si elle rend plus de texte ; seul le corps est
+  repris, le titre, l'auteur et le chapeau restent ceux de la passe normale.
+  Elle ne peut rien ramasser hors du conteneur (navigation, pied de page).
+  Relevé sur trois avis réels : AVI-1449 545 → 2 460 caractères, AVI-1354
+  503 → 1 885, AVI-1448 déjà complet (1 520) et inchangé.
+  ⚠️ **Coût** : la page est analysée deux fois quand la seconde passe se
+  déclenche — deux fois le temps synchrone décrit sous *Backend › Extraction
+  d'articles*, dans le même tour de file.
+  ⚠️ **Changer l'une ou l'autre passe, c'est monter `EXTRACT_VERSION`** (voir
+  ci-dessous), sinon les extraits déjà gardés restent servis.
+- **Version de l'extraction** (1.9.0, A-2 — `server/extractVersion.ts` et
+  `src/lib/extractVersion.ts`, même valeur vérifiée par
+  `server/test/cache.test.ts`). À monter à chaque changement du résultat de
+  l'extraction pour une même page. Les extraits gardés avant le seuil à 500 et
+  la seconde passe (l'avis tronqué) restaient servis : 24 h par Redis, 30 jours
+  dans le navigateur, **sans limite** pour un article épinglé.
+  - **Serveur** : la version entre dans la clé Redis (`extractKey`), une
+    ancienne entrée n'est plus relue et expire avec `CACHE_TTL`.
+  - **Navigateur** : chaque extrait IndexedDB porte `extractVersion` (absent
+    = 1, tout ce qui précède la 1.9.0). Un extrait d'une version antérieure
+    **n'est plus servi en ligne** (`getExtract` rend `undefined`, la mémoire
+    n'en est pas réchauffée, `revalidateIfStale` le réextrait même récent) :
+    l'appelant réextrait, et `putExtract` le remplace **en gardant son
+    épinglage**. Il n'est pas supprimé entre-temps : **hors ligne il reste
+    servi** — un ancien extrait vaut mieux qu'aucun article — mais n'est
+    jamais promu en mémoire, d'où il serait resservi une fois en ligne
+    (`src/lib/extractCache.test.ts`). Pas de purge : elle aurait vidé d'un
+    coup la lecture hors ligne des Favoris et d'À lire plus tard.
+  - Conséquence assumée : à la première ouverture après une montée de
+    version, chaque article déjà extrait est réextrait (le réchauffage des
+    épinglés au démarrage le fait aussi), sous la cadence partagée.
 - **Une extraction impossible n'est pas redemandée sans fin** (1.9.0, L-03,
   `src/lib/extractFailures.ts`, `extractContent.test.ts` › « mémoire des
   échecs ») : sur une chaîne YouTube, une ouverture coûtait 27 `/api/extract`
@@ -7156,11 +7201,14 @@ route **avant** d'extraire elle-même, et applique `sanitizeExtracted()` à ce
 qu'elle rend (voir *Extraction du contenu complet*).
 
 - **Où** : `server/routes/extract.ts`, `server/extract.ts`
-- **Cache** : Redis, clé `frirss:x:<sha1(url)>` — **sans identifiant
-  d'utilisateur**, contrairement au cache de listes. Le texte extrait d'une
-  page est le même pour tous : c'est ce qui fait qu'un appareil profite du
-  travail d'un autre, et qu'à dix comptes la page n'est extraite qu'une fois.
-  TTL commun (`CACHE_TTL`, 24 h).
+- **Cache** : Redis, clé `frirss:x:v<EXTRACT_VERSION>:<sha1(url)>` — **sans
+  identifiant d'utilisateur**, contrairement au cache de listes. Le texte
+  extrait d'une page est le même pour tous : c'est ce qui fait qu'un appareil
+  profite du travail d'un autre, et qu'à dix comptes la page n'est extraite
+  qu'une fois. TTL commun (`CACHE_TTL`, 24 h). La version de l'extraction
+  (1.9.0, A-2 ; voir *Extraction du contenu complet*) fait qu'un changement
+  d'algorithme n'est pas masqué par les entrées déjà gardées ; les clés de la
+  1.8.x, sans version, expirent seules.
 - **Fraîcheur : aucune détection de modification de la source, et aucun moyen
   de forcer une ré-extraction.** La doc a prétendu jusqu'au 2026-09-04 que « le
   bouton *Article complet* relance à la demande » : c'est faux deux fois.
@@ -7173,7 +7221,9 @@ qu'elle rend (voir *Extraction du contenu complet*).
   modifié ressort avec **jusqu'à ~24 h** de retard, pas 12, et une revalidation
   qui tombe sur le cache serveur ne fait que repousser `cachedAt`. Décrit tel
   quel plutôt que corrigé : ajouter un contournement rouvrirait à chaque client
-  le droit de faire ré-extraire une page à volonté.
+  le droit de faire ré-extraire une page à volonté. Seule exception : une
+  montée d'`EXTRACT_VERSION` (1.9.0) fait réextraire tout ce qui avait été
+  gardé par l'algorithme précédent, des deux côtés.
 - **Jeu de caractères : la page est décodée selon sa déclaration, jamais en
   UTF-8 d'office** (`server/charset.ts`, appelé en fin de `readBoundedText`).
   Ordre des navigateurs : BOM UTF-8, puis `charset=` de l'en-tête

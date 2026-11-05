@@ -1,5 +1,6 @@
 import { Redis } from 'ioredis';
 import { createHash } from 'crypto';
+import { EXTRACT_VERSION } from './extractVersion.js';
 
 // Optional Redis cache for FreshRSS read responses. Enabled only when
 // REDIS_URL is set — otherwise every function is a no-op and the app behaves
@@ -47,9 +48,13 @@ export function cacheKey(userId: number | string, target: string): string {
  * qu'à dix comptes lisant les mêmes flux la page n'est extraite qu'une fois.
  * Y ajouter `userId` multiplierait le volume par le nombre de comptes et
  * annulerait le partage — sans rien casser de visible.
+ *
+ * Elle porte en revanche la VERSION de l'extraction (`EXTRACT_VERSION`) : un
+ * extrait gardé par un algorithme antérieur n'est plus relu et expire avec
+ * `CACHE_TTL` (A-2). Les clés de la 1.8.x n'en portaient pas.
  */
-export function extractKey(url: string): string {
-  return `frirss:x:${createHash('sha1').update(url).digest('hex').slice(0, 24)}`;
+export function extractKey(url: string, version: number = EXTRACT_VERSION): string {
+  return `frirss:x:v${version}:${createHash('sha1').update(url).digest('hex').slice(0, 24)}`;
 }
 
 /**
