@@ -38,8 +38,9 @@ la release publiée.
   L'onglet Hors ligne propose « Annuler » pendant la préparation et affiche
   une estimation de la durée restante, d'après le rythme observé.
 - **Un ☰ de secours** quand la barre latérale et la barre de la liste sont
-  toutes deux masquées sur ordinateur : sans clavier (écran tactile), plus
-  rien ne permettait de rouvrir la barre latérale.
+  toutes deux masquées sur ordinateur (et dans le volet de lecture quand
+  « Retour » est masqué) : sans clavier (écran tactile), plus rien ne
+  permettait de rouvrir la barre latérale ni de quitter l'article.
 - **Un repère « Aléatoire »** à côté du titre quand un tirage est en cours et
   que son bouton est masqué ; le toucher fait sortir du tirage.
 
@@ -56,7 +57,8 @@ la release publiée.
   défiler un long flux, revenir sur FriRSS relisait la liste en ne gardant
   que sa première page : la position retombait près du haut. Seul le haut
   est désormais relu, les articles déjà chargés restent, sans doublon ni
-  désordre quand le bas de la liste a été lu ailleurs.
+  désordre quand le bas de la liste a été lu ailleurs ; une page en route
+  pendant une relecture complète ne crée plus de trou dans la liste.
 - **↓ ne saute plus les non-lus après un retour sur l'onglet.** L'article
   ouvert reprend sa place parmi ses voisins (défaut présent depuis 1.2.0).
 - **La liste suit le clavier et garde sa position par vue.** ↓/↑ font défiler
@@ -69,8 +71,11 @@ la release publiée.
   YouTube n'est jamais envoyée à l'extraction, et un site qui refuse n'est
   plus sollicité une deuxième fois. Les avis du CERT-FR ne se réduisent plus
   à leur section « Solutions » ; un extrait bien plus court que le contenu du
-  flux n'est pas montré. Un échec d'extraction automatique s'annonce
-  discrètement sous l'article, avec « Réessayer », au lieu d'un bandeau rouge.
+  flux n'est pas montré automatiquement (« Article complet » demandé à la
+  main le montre quand même, et le résumé IA porte sur le texte affiché). Un
+  échec d'extraction automatique s'annonce discrètement sous l'article, avec
+  « Réessayer », au lieu d'un bandeau rouge ; un refus passager du site n'est
+  pas retenu.
 - **La préparation hors ligne respecte le réglage « Article complet »** :
   un flux réglé sur « Non » n'est plus extrait.
 - **Vidéos YouTube affichées une seule fois** (iframe dans l'article, ou
