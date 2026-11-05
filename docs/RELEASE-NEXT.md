@@ -40,7 +40,8 @@ la release publiée.
 - **Un ☰ de secours** quand la barre latérale et la barre de la liste sont
   toutes deux masquées sur ordinateur (et dans le volet de lecture quand
   « Retour » est masqué) : sans clavier (écran tactile), plus rien ne
-  permettait de rouvrir la barre latérale ni de quitter l'article.
+  permettait de rouvrir la barre latérale ni de quitter l'article. Dans la
+  liste, il vit dans un rail étroit à gauche, qui ne recouvre aucune ligne.
 - **Un repère « Aléatoire »** à côté du titre quand un tirage est en cours et
   que son bouton est masqué ; le toucher fait sortir du tirage.
 
@@ -70,7 +71,10 @@ la release publiée.
   qui ne s'extrait pas n'est plus redemandée à chaque ouverture, une vidéo
   YouTube n'est jamais envoyée à l'extraction, et un site qui refuse n'est
   plus sollicité une deuxième fois. Les avis du CERT-FR ne se réduisent plus
-  à leur section « Solutions » ; un extrait bien plus court que le contenu du
+  à un fragment (« Solutions » ou l'en-tête du document) : quand la page
+  désigne son contenu principal et que l'extraction n'en garde qu'une petite
+  part, une seconde passe le reprend ; les extraits mis en cache avant la
+  mise à jour sont refaits une fois ; un extrait bien plus court que le contenu du
   flux n'est pas montré automatiquement (« Article complet » demandé à la
   main le montre quand même, et le résumé IA porte sur le texte affiché). Un
   échec d'extraction automatique s'annonce discrètement sous l'article, avec
@@ -102,8 +106,8 @@ la release publiée.
 - **Accessibilité** : zoom à deux doigts autorisé ; lignes et cartes
   d'articles qui ne sont plus des boutons contenant des boutons ; filtres Non
   lus et Favoris qui annoncent leur état ; article ouvert signalé ; liste
-  cachée derrière l'article inatteignable au téléphone, et focus rendu à sa
-  ligne à la fermeture ; erreurs des boîtes d'ajout annoncées ; champs et
+  cachée derrière l'article inatteignable au téléphone, et focus rendu à la
+  ligne ou à la carte de l'article à sa fermeture, sur tous les formats ; erreurs des boîtes d'ajout annoncées ; champs et
   pastilles de couleur nommés ; palette à la structure valide ; aide-mémoire
   défilable au clavier sous Safari ; chevron de catégorie plus large au
   doigt ; repères `main` et titres de page.
