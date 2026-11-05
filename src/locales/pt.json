@@ -489,11 +489,14 @@
       "imagesUsageNote": "Este valor é muito superior ao espaço realmente ocupado: o navegador não conhece o tamanho das imagens guardadas durante a leitura e conta vários MB por cada uma.",
       "cancel": "Cancelar",
       "cancelling": "A parar…",
-      "cancelledReport": "Preparação parada em {{done}} de {{total}} artigos.",
+      "cancelledReport_one": "Preparação parada em {{done}} de {{total}} artigo.",
+      "cancelledReport_other": "Preparação parada em {{done}} de {{total}} artigos.",
       "etaSoon": "Falta menos de um minuto",
       "etaMinutes_one": "Falta cerca de {{count}} min",
       "etaMinutes_other": "Faltam cerca de {{count}} min",
-      "etaHours": "Faltam cerca de {{hours}} h {{minutes}} min"
+      "etaHours": "Faltam cerca de {{hours}} h {{minutes}} min",
+      "etaWholeHours_one": "Falta cerca de {{count}} h",
+      "etaWholeHours_other": "Faltam cerca de {{count}} h"
     },
     "refresh": {
       "title": "Atualização",

@@ -489,11 +489,14 @@
       "imagesUsageNote": "Ce chiffre est bien plus grand que l’espace réellement occupé : le navigateur ne connaît pas la taille des images gardées pendant la lecture, et compte plusieurs Mo pour chacune.",
       "cancel": "Annuler",
       "cancelling": "Arrêt…",
-      "cancelledReport": "Préparation arrêtée à {{done}} articles sur {{total}}.",
+      "cancelledReport_one": "Préparation arrêtée : {{done}} sur {{total}} article.",
+      "cancelledReport_other": "Préparation arrêtée : {{done}} sur {{total}} articles.",
       "etaSoon": "Moins d’une minute restante",
       "etaMinutes_one": "Environ {{count}} min restante",
       "etaMinutes_other": "Environ {{count}} min restantes",
-      "etaHours": "Environ {{hours}} h {{minutes}} min restantes"
+      "etaHours": "Environ {{hours}} h {{minutes}} min restantes",
+      "etaWholeHours_one": "Environ {{count}} h restante",
+      "etaWholeHours_other": "Environ {{count}} h restantes"
     },
     "refresh": {
       "title": "Relève",

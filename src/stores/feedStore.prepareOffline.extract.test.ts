@@ -116,6 +116,18 @@ describe('Annuler une préparation (idée 1.9.0)', () => {
     expect(useFeedStore.getState().offlinePrep?.cancelled).toBe(true);
   });
 
+  it('« Annuler » pendant le dernier article : la préparation est allée au bout, pas annulée', async () => {
+    let calls = 0;
+    extract.fn.mockImplementation(async (url: string) => {
+      if (++calls === 6) useFeedStore.getState().cancelOfflinePrep();
+      return extracted(url);
+    });
+    await useFeedStore.getState().prepareOffline();
+    const prep = useFeedStore.getState().offlinePrep!;
+    expect(prep.done).toBe(6);
+    expect(prep.cancelled).toBeFalsy();
+  });
+
   it('une annulation ne survit pas à la préparation suivante', async () => {
     useFeedStore.getState().cancelOfflinePrep(); // rien ne tourne : sans effet
     await useFeedStore.getState().prepareOffline();

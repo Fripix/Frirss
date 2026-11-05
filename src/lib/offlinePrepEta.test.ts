@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { prepRemainingMs, etaParts } from './offlinePrepEta';
+import { prepRemainingMs, etaParts, etaMessage } from './offlinePrepEta';
 
 // Idée de la campagne 1.9.0 : une préparation de 6 000 articles dure ~40 min,
 // et rien ne le disait.
@@ -33,5 +33,17 @@ describe('etaParts', () => {
   it('en heures et minutes au-delà d’une heure', () => {
     expect(etaParts(2 * 3_600_000 + 9 * 60_000 + 1)).toEqual({ kind: 'hours', hours: 2, minutes: 10 });
     expect(etaParts(3_600_000)).toEqual({ kind: 'minutes', minutes: 60 });
+  });
+});
+
+describe('etaMessage — la clé de traduction et ses valeurs', () => {
+  it('une heure ronde se dit « 2 h », pas « 2 h 0 min »', () => {
+    expect(etaMessage(2 * 3_600_000)).toEqual({ key: 'preferences.offline.etaWholeHours', options: { count: 2 } });
+  });
+
+  it('les autres formes', () => {
+    expect(etaMessage(30_000)).toEqual({ key: 'preferences.offline.etaSoon', options: {} });
+    expect(etaMessage(39 * 60_000 + 1)).toEqual({ key: 'preferences.offline.etaMinutes', options: { count: 40 } });
+    expect(etaMessage(2 * 3_600_000 + 9 * 60_000 + 1)).toEqual({ key: 'preferences.offline.etaHours', options: { hours: 2, minutes: 10 } });
   });
 });

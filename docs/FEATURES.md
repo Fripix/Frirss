@@ -1173,6 +1173,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
     du contenu ; une vue jamais visitée s'ouvre en haut. Tant que la vue
     affichée n'est pas restaurée, le défilement n'écrit rien dans
     `listScrollMem` (la position héritée se serait rangée sous la nouvelle).
+    Une vue sans rien à restaurer (vide, en chargement, en échec, recherche
+    sans résultat) **oublie la vue précédente** : gardée comme « restaurée »,
+    elle faisait sauter la restauration au retour sur elle, et le défilement
+    suivant y écrivait 0 (relecture 1.9.0).
     ⚠️ Revenir sur un flux retrouve sa position, mais `loadArticles` ramène sa
     liste à la première page : une position profonde retombe au bas de cette
     page, qui charge alors la suite (point suivant). La relecture de #30 ne
@@ -5418,7 +5422,12 @@ lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
    `entryIdUsec`, dans le sens de la vue) : seul ce qui le suit reste, et
    s'il ne reste rien la page remplace tout avec sa propre suite. Sans id
    lisible, la page remplace tout. `loadMore` n'ajoute jamais un article déjà
-   présent (`appendPage`). **L'article ouvert**, sorti de la page parce que
+   présent (`appendPage`). **Une page suivante en vol pendant une relecture
+   qui remplace tout est jetée** : `loadMore` compare la suite d'avant sa
+   requête à celle de l'arrivée. Elle prolongeait l'ancienne liste ; ajoutée
+   sous la nouvelle première page, elle laissait un trou (des non-lus
+   inatteignables), écrit au cache. Une queue recousue garde sa suite, donc
+   la page reste (`feedStore.staleResponse.test.ts`). **L'article ouvert**, sorti de la page parce que
    lu, est remis **avant le premier article qui le suivait** et qui est
    encore là (à défaut après celui qui le précédait, à défaut en tête,
    `keepOpenRow`) : son ancien rang le posait sous les non-lus qui le
@@ -5649,10 +5658,16 @@ images consultés restent lisibles sans réseau.
   entre deux articles — l'article en cours va au bout, d'où « Arrêt… ». Une
   annulation compte comme une interruption : listes déjà rangées gardées,
   **aucun retrait final** d'images ; le rapport dit « Préparation arrêtée à
-  N articles sur M » (`offline.cancelledReport`), jamais « Hors ligne prêt ».
+  N sur M articles » (`offline.cancelledReport`, au pluriel de M), jamais
+  « Hors ligne prêt ». « Annulée » ne se dit que d'une boucle **arrêtée sur
+  la demande** (`stoppedOnCancel`) : « Annuler » touché pendant le dernier
+  article laisse la préparation aller au bout, et elle se dit finie, retrait
+  final compris.
   La durée restante (`src/lib/offlinePrepEta.ts`) extrapole le rythme
   OBSERVÉ de la phase des articles (`offlinePrep.startedAt`) sur ce qui reste,
-  arrondie à la minute supérieure, en heures au-delà d'une heure ; elle se tait
+  arrondie à la minute supérieure, en heures au-delà d'une heure (« 2 h » pour
+  une heure ronde, `offline.etaWholeHours`, jamais « 2 h 0 min » ; la phrase
+  se choisit dans `etaMessage`) ; elle se tait
   avant 10 articles et 5 s de mesure, et pendant la lecture des listes
   (`OfflineTab.test.tsx`, `feedStore.prepareOffline.extract.test.ts`). Elle
   suit le rythme du moment : les articles déjà extraits passent vite, donc

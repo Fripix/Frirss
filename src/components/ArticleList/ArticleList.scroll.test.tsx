@@ -153,6 +153,28 @@ describe('la position de défilement appartient à la vue (L-09)', () => {
     expect(scroller().scrollTop).toBe(3000);
   });
 
+  it('une vue vide entre-temps ne fait pas perdre la position du flux', () => {
+    // Flux sans non-lus, chargement en échec, recherche sans résultat : la
+    // restauration n'a rien à faire, mais le retour sur A doit la refaire.
+    const feedA = useFeedStore.getState().selectedFeed;
+    useFeedStore.setState({ articles: rows(100) });
+    render(<ArticleList />);
+    scroller().scrollTop = 3000;
+    fireEvent.scroll(scroller());
+    act(() => useFeedStore.setState({ selectedFeed: { id: `feed/s${++view}`, title: 'Vide' } as never, articles: [] }));
+    // Le navigateur ramène une liste vide en haut.
+    scroller().scrollTop = 0;
+    fireEvent.scroll(scroller());
+    act(() => useFeedStore.setState({ selectedFeed: feedA, articles: rows(100) }));
+    expect(scroller().scrollTop).toBe(3000);
+    // Et le défilement suivant écrit bien la position de A.
+    scroller().scrollTop = 3100;
+    fireEvent.scroll(scroller());
+    act(() => useFeedStore.setState({ selectedFeed: { id: `feed/s${++view}`, title: 'G' } as never, articles: rows(100, 'b') }));
+    act(() => useFeedStore.setState({ selectedFeed: feedA, articles: rows(100) }));
+    expect(scroller().scrollTop).toBe(3100);
+  });
+
   it('la relecture finie en bas de la liste charge la suite, une seule fois', () => {
     const loadMore = vi.fn();
     useFeedStore.setState({ articles: rows(50), continuation: 'c', revalidating: true, loadMore } as never);

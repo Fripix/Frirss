@@ -126,7 +126,7 @@ describe('Préférences › Hors ligne', () => {
     it('une préparation annulée le dit, et ne se dit pas « prête »', async () => {
       useFeedStore.setState({ offlinePrep: { running: false, phase: 'done', done: 120, total: 6068, cancelled: true } } as never);
       await act(async () => { render(<OfflineTab />); });
-      expect(screen.getByText('preferences.offline.cancelledReport{"done":120,"total":6068}')).toBeTruthy();
+      expect(screen.getByText('preferences.offline.cancelledReport{"done":120,"total":6068,"count":6068}')).toBeTruthy();
       expect(screen.queryByText(/preferences\.offline\.done/)).toBeNull();
     });
   });

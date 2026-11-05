@@ -1792,9 +1792,14 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // d'abonnements du tout, et ses images passaient pour « sorties des 30
       // jours » — FreshRSS en panne vidait ainsi tout le cache des préparées.
       let interrupted = subs.length === 0;
+      // « Annulée » se dit seulement d'une boucle qui s'est arrêtée SUR la
+      // demande : « Annuler » touché pendant le dernier article laissait la
+      // préparation aller au bout, puis l'annonçait annulée.
+      let stoppedOnCancel = false;
       // Phase 1 — gather recent articles per feed + persist their lists.
       for (const feed of subs) {
-        if (scopeLeft() || prepCancelRequested) { interrupted = true; break; }
+        if (scopeLeft()) { interrupted = true; break; }
+        if (prepCancelRequested) { interrupted = true; stoppedOnCancel = true; break; }
         try {
           let cont: string | null = null;
           let pages = 0;
@@ -1850,7 +1855,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       let done = 0;
       for (const a of ordered) {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) { interrupted = true; break; }
-        if (scopeLeft() || prepCancelRequested) { interrupted = true; break; }
+        if (scopeLeft()) { interrupted = true; break; }
+        if (prepCancelRequested) { interrupted = true; stoppedOnCancel = true; break; }
 
         let extracted: string | null = peekExtract(a.id)?.content ?? null;
         if (a.url && !extracted) {
@@ -1916,7 +1922,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           running: false, phase: 'done', done, total: ordered.length,
           imagesFound, imagesStored, imagesFailed,
           budgetStopped: budgetReached && budget.bytes > 0, deviceFull, imagesError,
-          ...(prepCancelRequested ? { cancelled: true } : {}),
+          ...(stoppedOnCancel ? { cancelled: true } : {}),
         },
       });
     } finally {
@@ -2095,7 +2101,13 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       // pas d'écriture de cache, pas de `continuation` — et on rend la main.
       // Ni sur un tirage, qu'on y soit entré par le bouton, une visite ou la fin
       // d'une recherche : ajoutée, la page rangerait le mélange sous la clé de la vue.
-      if (viewIdentity(get()) !== view || generation !== listGeneration || get().randomView) { set({ loadingMore: false }); return; }
+      // Ni quand la suite a changé pendant le vol : une relecture (retour
+      // d'onglet) a remplacé toute la liste par une nouvelle première page avec
+      // sa propre suite. Cette page-ci prolongeait l'ancienne : ajoutée sous la
+      // nouvelle, elle laissait un trou où des non-lus devenaient inatteignables,
+      // et ce trou partait au cache. Une queue recousue garde sa suite : la
+      // page reste valable.
+      if (viewIdentity(get()) !== view || generation !== listGeneration || get().randomView || get().continuation !== continuation) { set({ loadingMore: false }); return; }
       if (!result) { set({ loadingMore: false }); return; }
 
       const page = reconcile(result.items.map(normalizeArticle), filter, since);

@@ -489,11 +489,14 @@
       "imagesUsageNote": "This figure is far larger than the space actually used: the browser cannot read the size of images kept while reading, and counts several MB for each.",
       "cancel": "Cancel",
       "cancelling": "Stopping…",
-      "cancelledReport": "Preparation stopped at {{done}} of {{total}} articles.",
+      "cancelledReport_one": "Preparation stopped at {{done}} of {{total}} article.",
+      "cancelledReport_other": "Preparation stopped at {{done}} of {{total}} articles.",
       "etaSoon": "Less than a minute left",
       "etaMinutes_one": "About {{count}} min left",
       "etaMinutes_other": "About {{count}} min left",
-      "etaHours": "About {{hours}} h {{minutes}} min left"
+      "etaHours": "About {{hours}} h {{minutes}} min left",
+      "etaWholeHours_one": "About {{count}} h left",
+      "etaWholeHours_other": "About {{count}} h left"
     },
     "refresh": {
       "title": "Refresh",

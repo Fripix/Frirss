@@ -37,3 +37,16 @@ export function etaParts(ms: number): EtaParts {
   if (minutes <= 60) return { kind: 'minutes', minutes };
   return { kind: 'hours', hours: Math.floor(minutes / 60), minutes: minutes % 60 };
 }
+
+/**
+ * La phrase à afficher : la clé de traduction et ses valeurs. Une heure ronde
+ * se dit « 2 h », pas « 2 h 0 min » (seules les heures rondes au-delà de 60
+ * minutes y arrivent : 60 minutes pile restent « 60 min »).
+ */
+export function etaMessage(ms: number): { key: string; options: Record<string, number> } {
+  const p = etaParts(ms);
+  if (p.kind === 'soon') return { key: 'preferences.offline.etaSoon', options: {} };
+  if (p.kind === 'minutes') return { key: 'preferences.offline.etaMinutes', options: { count: p.minutes } };
+  if (p.minutes === 0) return { key: 'preferences.offline.etaWholeHours', options: { count: p.hours } };
+  return { key: 'preferences.offline.etaHours', options: { hours: p.hours, minutes: p.minutes } };
+}

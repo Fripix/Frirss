@@ -11,7 +11,7 @@ import { getStorageEstimate, formatBytes, clearImageCache } from '../../lib/stor
 import { cachedImageStats, type CachedImageStats } from '../../lib/imageCache';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import ConfirmDialog from '../ConfirmDialog';
-import { prepRemainingMs, etaParts } from '../../lib/offlinePrepEta';
+import { prepRemainingMs, etaMessage } from '../../lib/offlinePrepEta';
 
 export default function OfflineTab({ active = true }: { active?: boolean }) {
   const { t, i18n } = useTranslation();
@@ -34,10 +34,8 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
     ? prepRemainingMs({ startedAt: offlinePrep.startedAt, now: Date.now(), done: offlinePrep.done, total: offlinePrep.total })
     : null;
   const etaFor = (ms: number): string => {
-    const p = etaParts(ms);
-    if (p.kind === 'soon') return t('preferences.offline.etaSoon');
-    if (p.kind === 'minutes') return t('preferences.offline.etaMinutes', { count: p.minutes });
-    return t('preferences.offline.etaHours', { hours: p.hours, minutes: p.minutes });
+    const { key, options } = etaMessage(ms);
+    return t(key, options);
   };
   const eta = remaining === null || cancelling ? null : etaFor(remaining);
   const autoOffline = useUiStore((s) => s.autoOffline);
@@ -127,7 +125,7 @@ export default function OfflineTab({ active = true }: { active?: boolean }) {
         {offlinePrep && !offlinePrep.running && offlinePrep.phase === 'done' && (
           <p className="text-[11px] mt-2" style={{ color: 'var(--list-summary)' }}>
             {offlinePrep.cancelled
-              ? t('preferences.offline.cancelledReport', { done: offlinePrep.done, total: offlinePrep.total })
+              ? t('preferences.offline.cancelledReport', { done: offlinePrep.done, total: offlinePrep.total, count: offlinePrep.total })
               : `${t('preferences.offline.done')} (${offlinePrep.total})`}
             {offlinePrep.imagesFound !== undefined && (
               <span className="block">

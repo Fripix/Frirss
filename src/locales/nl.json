@@ -489,11 +489,14 @@
       "imagesUsageNote": "Dit getal is veel hoger dan de werkelijk gebruikte ruimte: de browser kent de grootte van tijdens het lezen bewaarde afbeeldingen niet en rekent voor elke afbeelding meerdere MB.",
       "cancel": "Annuleren",
       "cancelling": "Stoppen…",
-      "cancelledReport": "Voorbereiding gestopt bij {{done}} van {{total}} artikelen.",
+      "cancelledReport_one": "Voorbereiding gestopt bij {{done}} van {{total}} artikel.",
+      "cancelledReport_other": "Voorbereiding gestopt bij {{done}} van {{total}} artikelen.",
       "etaSoon": "Nog minder dan een minuut",
       "etaMinutes_one": "Nog ongeveer {{count}} min",
       "etaMinutes_other": "Nog ongeveer {{count}} min",
-      "etaHours": "Nog ongeveer {{hours}} u {{minutes}} min"
+      "etaHours": "Nog ongeveer {{hours}} u {{minutes}} min",
+      "etaWholeHours_one": "Nog ongeveer {{count}} u",
+      "etaWholeHours_other": "Nog ongeveer {{count}} u"
     },
     "refresh": {
       "title": "Ophalen",

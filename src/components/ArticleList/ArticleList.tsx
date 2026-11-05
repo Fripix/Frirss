@@ -523,11 +523,16 @@ export default function ArticleList() {
   // survit au changement de vue : restaurée une seule fois par montage, la
   // position du flux précédent restait, et un flux s'ouvrait à la carte 240
   // d'un autre, ou en bas de sa première page (L-09, 1.9.0). Une vue jamais
-  // vue s'ouvre en haut.
+  // vue s'ouvre en haut. Une vue sans rien à restaurer (vide, en chargement,
+  // en échec) oublie aussitôt la précédente : gardée, elle faisait sauter la
+  // restauration au retour sur elle, et le défilement suivant y écrivait 0.
   useLayoutEffect(() => {
     if (restoredKeyRef.current === scrollKey) return;
     const el = listRef.current;
-    if (!el || loading || articles.length === 0) return;
+    if (!el || loading || articles.length === 0) {
+      restoredKeyRef.current = null;
+      return;
+    }
     el.scrollTop = listScrollMem.get(scrollKey) ?? 0;
     restoredKeyRef.current = scrollKey;
   }, [loading, articles.length, scrollKey]);

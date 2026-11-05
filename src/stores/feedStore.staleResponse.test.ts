@@ -360,3 +360,29 @@ describe('loadMore en vol pendant un geste', () => {
     expect(idb.lists.get('7@1|feed/1:all')?.articles.find((x) => x.id === hex(2))?.read).toBe(true);
   });
 });
+
+describe('loadMore en vol pendant une relecture qui remplace tout', () => {
+  it('la page de l’ancienne suite est jetée : pas de trou sous la nouvelle première page', async () => {
+    const env = await load();
+    const { api, useFeedStore } = env;
+    vi.mocked(api.getStreamContents).mockResolvedValue({ items: [item(10), item(9)], continuation: 'c-old' } as never);
+    useFeedStore.getState().selectView(feed1, 'all');
+    await settled();
+    const live = deferred();
+    vi.mocked(api.getStreamContents).mockImplementationOnce(() => live.promise as never);
+    const p = useFeedStore.getState().loadMore();
+    // Retour d'onglet : la première page relue n'a rien en commun avec la
+    // liste affichée, elle remplace tout avec sa propre suite.
+    vi.mocked(api.getStreamContents).mockResolvedValueOnce({ items: [item(30), item(29)], continuation: 'c-new' } as never);
+    await useFeedStore.getState().silentRefresh();
+    expect(useFeedStore.getState().continuation).toBe('c-new');
+    // La page de l'ancienne suite arrive après coup.
+    live.resolve({ items: [item(8), item(7)], continuation: 'c-older' });
+    await p; await settled();
+    const s = useFeedStore.getState();
+    expect(s.articles.map((a) => a.id)).toEqual([hex(30), hex(29)]);
+    expect(s.continuation).toBe('c-new');
+    expect(s.loadingMore).toBe(false);
+    expect(idb.lists.get('7@1|feed/1:all')?.articles.some((a) => a.id === hex(8))).toBe(false);
+  });
+});
