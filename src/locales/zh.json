@@ -88,7 +88,7 @@
     "feedSource": "订阅源名称",
     "dateSeparators": "日期分隔",
     "serverBar": "服务器栏",
-    "displayMode": "布局",
+    "displayMode": "显示密度",
     "sourceToggleFeed": "订阅源名称（按订阅源）",
     "sourceToggleAll": "订阅源名称（全部订阅源）",
     "showDateSep": "显示日期分隔",

@@ -7679,7 +7679,12 @@ les suit :
 - espagnol, italien, portugais, ukrainien : **un seul mot pour « flux »** ;
 - chemins d'écran avec **`›`** (« FreshRSS › Settings › Profile ») ;
 - ne pas confondre **affichage** (densité, vue) et **disposition** (colonnes,
-  grille) ;
+  grille) ; en anglais, espagnol, néerlandais, polonais et chinois, la densité
+  (`articleList.displayMode`, palette et feuille d'options du téléphone)
+  portait le nom de la disposition ou de la section « Mise en page » — « Layout »
+  à côté de « Layout » — jusqu'en 1.9.0. Elle reprend désormais le mot de
+  `preferences.toolbars.items.density`, et `src/lib/densityName.test.ts`
+  refuse la collision dans les dix langues ;
 - **typographie française** (2d9338d) : apostrophe `’`, espace fine insécable
   (U+202F) avant `? ! ;`, insécable (U+00A0) avant `:` et dans « », « hors
   ligne » sans trait d'union. Une règle typographique ne s'applique qu'au
@@ -7689,9 +7694,11 @@ les suit :
 Le chinois simplifié est arrivé par contribution externe (PR #12, zhhbinn,
 2026-09-07). Sa terminologie suit l'interface chinoise de FreshRSS.
 ⚠️ **Piège de vocabulaire relevé à cette occasion** : la section de réglages des
-icônes de ligne s'appelle 操作图标 et **non** 布局 — ce dernier nomme déjà cinq
+icônes de ligne s'appelle 操作图标 et **non** 布局 — ce dernier nomme déjà quatre
 réglages de disposition (`sidebar.layoutDesktop`, `layoutMobile`,
-`feedLayoutThisFeed`, `articleList.displayMode`, `layoutOverridden`). Vérifier
+`feedLayoutThisFeed`, `layoutOverridden`). La densité
+(`articleList.displayMode`) le portait aussi, à tort : elle s'appelle 显示密度
+depuis 1.9.0. Vérifier
 qu'un terme n'est pas déjà pris avant de le réutiliser.
 
 - **Où** : `src/locales/*.json`, `src/i18n.ts`
