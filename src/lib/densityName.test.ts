@@ -6,7 +6,8 @@ const LOCALES = ['fr', 'en', 'de', 'es', 'it', 'nl', 'pl', 'pt', 'uk', 'zh'];
 
 type Strings = {
   articleList: { displayMode: string };
-  preferences: { sections: { layout: string }; toolbars: { items: { layout: string } } };
+  sidebar: { feedLayoutThisFeed: string };
+  preferences: { sections: { layout: string }; toolbars: { items: { layout: string; density: string } } };
 };
 
 const load = (locale: string): Strings =>
@@ -27,5 +28,20 @@ describe('nom de la densité', () => {
     const layoutItem = s.preferences.toolbars.items.layout.split(' (')[0].trim().toLowerCase();
     expect(density).not.toBe(layoutItem);
     expect(density).not.toBe(s.preferences.sections.layout.trim().toLowerCase());
+  });
+
+  // Relecture 1.9.0 : l'ukrainien appelait encore la densité « Макет », le mot
+  // de « Макет цієї стрічки » (la disposition propre à un flux).
+  it.each(LOCALES)('%s : ne reprend pas le mot de la disposition par flux', (locale) => {
+    const s = load(locale);
+    const density = s.articleList.displayMode.trim().toLowerCase();
+    expect(s.sidebar.feedLayoutThisFeed.toLowerCase()).not.toContain(density);
+  });
+
+  // Et la palette dit le mot des Préférences (« Densité (Aperçu / Standard /
+  // Compact) ») : en français, italien et portugais, elle disait « Affichage ».
+  it.each(LOCALES)('%s : le même mot que dans les Préférences', (locale) => {
+    const s = load(locale);
+    expect(s.articleList.displayMode.trim()).toBe(s.preferences.toolbars.items.density.split(' (')[0].trim());
   });
 });

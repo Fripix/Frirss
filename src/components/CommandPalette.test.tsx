@@ -248,6 +248,30 @@ describe('CommandPalette — clavier hors du champ', () => {
     expect(options().length).toBeGreaterThan(0);
     expect(options().every((o) => o.tabIndex === -1)).toBe(true);
   });
+
+  // Relecture 1.9.0 : le piège de focus comptait les options (hors
+  // tabulation) — Tab sortait de la boîte depuis le champ, Maj+Tab posait le
+  // focus sur une option qu'Entrée n'exécutait pas.
+  it('Tab et Maj+Tab laissent le focus dans le champ', () => {
+    const c = render(<><button>dehors</button><CommandPalette /></>);
+    const field = c.getByRole('combobox');
+    act(() => { field.focus(); });
+    fireEvent.keyDown(field, { key: 'Tab' });
+    expect(document.activeElement).toBe(field);
+    fireEvent.keyDown(field, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(field);
+  });
+
+  it('aria-activedescendant désigne une option qui existe, même pour un id avec blancs et barres', () => {
+    useFeedStore.setState({ labels: [{ id: 'user/-/label/Mon étiquette' }] } as never);
+    const c = render(<CommandPalette />);
+    const field = c.getByRole('combobox');
+    fireEvent.change(field, { target: { value: 'Mon étiquette' } });
+    const target = field.getAttribute('aria-activedescendant');
+    expect(target).toBeTruthy();
+    expect(target).not.toMatch(/\s|\//);
+    expect(document.getElementById(target!)?.getAttribute('role')).toBe('option');
+  });
 });
 
 // axe : un <li> s'intercalait entre la liste et ses options, structure

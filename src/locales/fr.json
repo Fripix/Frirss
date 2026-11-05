@@ -88,7 +88,7 @@
     "feedSource": "Nom du flux",
     "dateSeparators": "Séparateurs de date",
     "serverBar": "Barre des serveurs",
-    "displayMode": "Affichage",
+    "displayMode": "Densité",
     "sourceToggleFeed": "Nom du flux (par flux)",
     "sourceToggleAll": "Nom du flux (tous les flux)",
     "showDateSep": "Afficher les séparateurs de date",

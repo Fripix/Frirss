@@ -206,3 +206,57 @@ describe('barre du volet — repli des libellés après un remontage', () => {
     expect((toolbar() as HTMLElement).dataset.fold).toBe('0');
   });
 });
+
+// L-10, relecture 1.9.0 : en 2 colonnes ou en grille, l'article ouvert cache
+// la liste. « Retour » masqué et barre latérale fermée, plus aucune sortie sans
+// clavier. Le volet porte alors le même ☰ de secours que la liste.
+describe('☰ de secours dans le volet (L-10)', () => {
+  const menus = (c: ReturnType<typeof render>) => c.queryAllByRole('button', { name: 'sidebar.showSidebar' });
+  const setSidebar = (open: boolean) => useUiStore.setState({ sidebarVisible: open } as never);
+
+  it('Retour masqué, liste cachée, barre latérale fermée : un ☰ qui la rouvre et y met le focus', async () => {
+    setSidebar(false);
+    function SidebarStub() {
+      const open = useUiStore((s) => s.sidebarVisible);
+      return open ? <div className="sidebar"><nav><button>tous</button></nav></div> : null;
+    }
+    const a = article();
+    useUiStore.setState({ toolbarVisibility: visibility(['back']), readingFocus: false } as never);
+    useFeedStore.setState({ selectedArticle: a, articles: [a], labels: [], categoryIds: [] } as never);
+    const c = render(<><SidebarStub /><ReadingPane showBack /></>);
+    await act(async () => { await Promise.resolve(); });
+    expect(menus(c)).toHaveLength(1);
+    act(() => { fireEvent.click(menus(c)[0]); });
+    expect(useUiStore.getState().sidebarVisible).toBe(true);
+    expect(menus(c)).toHaveLength(0);
+    expect(document.activeElement).toBe(c.getByText('tous'));
+  });
+
+  it('barre du volet entièrement masquée : le ☰ flotte quand même', async () => {
+    setSidebar(false);
+    const c = await show({ hidden: READING, showBack: true });
+    expect(toolbar()).toBeNull();
+    expect(menus(c)).toHaveLength(1);
+  });
+
+  it('pas de ☰ quand Retour est là, en 3 colonnes (liste visible), barre latérale ouverte, ou en focus lecture', async () => {
+    setSidebar(false);
+    expect(menus(await show({ showBack: true }))).toHaveLength(0);
+    cleanup();
+    expect(menus(await show({ hidden: ['back'], showBack: false }))).toHaveLength(0);
+    cleanup();
+    setSidebar(true);
+    expect(menus(await show({ hidden: ['back'], showBack: true }))).toHaveLength(0);
+    cleanup();
+    setSidebar(false);
+    const c = await show({ hidden: ['back'], showBack: true });
+    act(() => { useUiStore.setState({ readingFocus: true } as never); });
+    expect(menus(c)).toHaveLength(0);
+  });
+
+  it('tablette et téléphone : jamais (Retour y est toujours)', async () => {
+    setSidebar(false);
+    breakpoint = 'tablet';
+    expect(menus(await show({ hidden: ['back'], showBack: true }))).toHaveLength(0);
+  });
+});

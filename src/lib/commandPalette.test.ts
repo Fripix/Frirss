@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeForSearch, matchScore, rankCommands, type Command } from './commandPalette';
+import { normalizeForSearch, matchScore, rankCommands, paletteOptionId, type Command } from './commandPalette';
 
 const cmd = (id: string, label: string, group = 'feeds'): Command =>
   ({ id, label, group, run: () => {} });
@@ -71,5 +71,25 @@ describe('rankCommands', () => {
 
   it('finds an accented label from an unaccented query', () => {
     expect(rankCommands(list, 'securite').map((c) => c.id)).toEqual(['c']);
+  });
+});
+
+// Un id HTML ne contient aucun blanc : une étiquette « Mon étiquette » ou un
+// flux `feed/12` donnaient des ids que `aria-activedescendant` et un sélecteur
+// CSS ne savent pas viser proprement (relecture 1.9.0).
+describe('paletteOptionId', () => {
+  it('garde tels quels les ids simples', () => {
+    expect(paletteOptionId('view:unread')).toBe('palette-view:unread');
+    expect(paletteOptionId('toolbar:newLabel')).toBe('palette-toolbar:newLabel');
+  });
+
+  it('ne laisse passer ni blanc, ni barre oblique, ni caractère hors ASCII', () => {
+    const id = paletteOptionId('label:user/-/label/Mon étiquette');
+    expect(id).toMatch(/^[A-Za-z0-9:_.-]+$/);
+  });
+
+  it('reste injectif : deux commandes distinctes ne partagent jamais un id', () => {
+    const ids = ['label:a b', 'label:a_b', 'label:a/b', 'label:a_20_b', 'feed:feed/1', 'feed:feed_1'].map(paletteOptionId);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

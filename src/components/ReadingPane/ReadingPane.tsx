@@ -17,6 +17,7 @@ import { articleTitle } from '../../lib/articleTitle';
 import type { ExtractedContent } from '../../utils/extractContent';
 import { peekExtract, getExtract, putExtract, revalidateIfStale } from '../../lib/extractCache';
 import { isFocusToggleTarget } from '../../lib/readingFocus';
+import { focusSidebar } from '../../lib/focusSidebar';
 import { extractYouTubeId, facadeMarkup, youtubeThumbnail } from '../../lib/youtube';
 import { READ_LATER_PREFIX, STARRED_PREFIX } from '../../lib/savedCategories';
 import { nameOf, nameOwners, takenBy } from '../../lib/labelNames';
@@ -160,6 +161,8 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const openOriginalKey = useUiStore((s) => s.shortcuts.openOriginal);
   const autoExtractDefault = useUiStore((s) => s.autoExtractDefault);
   const readingFocus = useUiStore((s) => s.readingFocus);
+  const sidebarVisible = useUiStore((s) => s.sidebarVisible);
+  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const inlineVideos = useUiStore((s) => s.inlineVideos);
   // Which saved-category picker is open (null = none).
   const [filing, setFiling] = useState<{ prefix: string; x: number; y: number } | null>(null);
@@ -200,6 +203,10 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // L'erreur vient-elle de l'extraction AUTOMATIQUE ? Elle se dit alors en une
   // ligne discrète sous l'article, pas en bandeau rouge (idée T2-2).
   const [extractErrorAuto, setExtractErrorAuto] = useState(false);
+  // L'article dont « Réessayer » de cette ligne discrète a relancé
+  // l'extraction : l'échec de la nouvelle tentative se dit à la même place
+  // (`role="alert"`), pas en bandeau tout en haut, loin du clic.
+  const [inlineRetryFor, setInlineRetryFor] = useState<string | null>(null);
   const lastExtractedId = useRef<string | null>(null);
   // Article dont une extraction réseau est EN COURS. La garde de
   // `handleExtract` le lit, pas l'état `extracting` : au rendu qui suit un
@@ -330,6 +337,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     setExtractError(null);
     setExtracting(false);
     setExtractForcedFor(null);
+    setInlineRetryFor(null);
     // Une demande d'extrait ne vaut que tant que son extraction tourne : ratée
     // ou évincée du cache pendant qu'on lisait ailleurs, elle faisait attendre
     // pour toujours toute demande au retour (`waitingForBody`).
@@ -843,12 +851,15 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   // une page dont l'extraction a échoué pendant la session, et son échec se
   // dit discrètement ; demandée par le lecteur (bouton, palette, « Réessayer »),
   // elle insiste (`retry`) et l'échec se dit en clair (L-03, idée T2-2).
-  const handleExtract = useCallback(async (opts: { auto?: boolean } = {}) => {
+  const handleExtract = useCallback(async (opts: { auto?: boolean; inline?: boolean } = {}) => {
     if (!selectedArticle?.url || extractingId.current === selectedArticle.id) return;
     const auto = !!opts.auto;
     const id = selectedArticle.id;
     const stillCurrent = () => useFeedStore.getState().selectedArticle?.id === id;
-    if (!auto) setExtractForcedFor(id);
+    if (!auto) {
+      setExtractForcedFor(id);
+      setInlineRetryFor(opts.inline ? id : null);
+    }
     // 1) Memory hit → instant (e.g. swiping back, prefetched).
     const inMem = peekExtract(id);
     if (inMem) {
@@ -1340,6 +1351,18 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
   const toolGroup = showFullBtn || showSummarizeBtn || showTranslateBtn || showOriginalBtn || showShareBtn;
   const [, sepLabels, sepTools] = separatorsBefore([markGroup, showLabelsBtn, toolGroup]);
   const readingBarEmpty = !showBackBtn && !markGroup && !showLabelsBtn && !toolGroup && !showFocusBtn && !showFontBtn;
+  // ☰ de secours (L-10, relecture 1.9.0). En 2 colonnes et en grille,
+  // l'article ouvert cache la liste (`showBack`) : « Retour » masqué et barre
+  // latérale fermée, plus rien ne permettait d'en sortir sans clavier. Desktop
+  // seulement (Retour est toujours là ailleurs), pas en focus lecture, qui
+  // cache la barre latérale de toute façon et se quitte d'un double-clic.
+  const showSidebarRescue = !isMobileOrTablet && !!showBack && !showBackBtn && !sidebarVisible && !readingFocus;
+  const openSidebarFromPane = () => { flushSync(toggleSidebar); focusSidebar(); };
+  const sidebarRescueIcon = (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+    </svg>
+  );
 
   // Chaque bouton de la barre, masqué ou non, a sa commande dans la palette
   // (`toolbarCommands.ts`) : mêmes conditions que le bouton, même gestionnaire.
@@ -1403,7 +1426,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
     // La barre se démonte et se remonte quand elle se vide ou se remplit
     // (Retour seul visible et passage en 2 colonnes, article sans URL…) :
     // sans ceci, la nouvelle barre ne recevait jamais son repli.
-    readingBarEmpty, showBack,
+    readingBarEmpty, showBack, showSidebarRescue,
   ]);
 
   if (!selectedArticle) {
@@ -1589,6 +1612,20 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           borderBottom: '1px solid var(--panel-border)',
         }}
       >
+        {/* ☰ de secours, dans la barre quand elle est là. */}
+        {showSidebarRescue && (
+          <button
+            type="button"
+            onClick={openSidebarFromPane}
+            className="toolbar-icon-btn p-1.5 rounded-lg transition-colors hover-tint mr-1"
+            style={{ color: 'var(--list-summary)' }}
+            title={t('sidebar.showSidebar')}
+            aria-label={t('sidebar.showSidebar')}
+          >
+            {sidebarRescueIcon}
+          </button>
+        )}
+
         {/* Back (2-panel mode) */}
         {showBackBtn && (
           <button
@@ -1869,9 +1906,27 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
         className="flex-1 relative overflow-hidden min-h-0"
         style={isMobileOrTablet ? ({ '--fs-reading-body': mobileReadingFontSize + 'px' } as CSSProperties) : undefined}
       >
+        {/* ☰ de secours sans barre du volet : il flotte en haut à gauche de
+            l'article, comme celui de la liste (`.list-sidebar-reveal`). */}
+        {showSidebarRescue && readingBarEmpty && (
+          <div className="list-sidebar-reveal-anchor">
+            <button
+              type="button"
+              onClick={openSidebarFromPane}
+              className="list-sidebar-reveal"
+              title={t('sidebar.showSidebar')}
+              aria-label={t('sidebar.showSidebar')}
+            >
+              {sidebarRescueIcon}
+            </button>
+          </div>
+        )}
         <div
           ref={scrollContainerRef}
-          className="absolute inset-0 overflow-y-auto nice-scroll"
+          // Focalisable par script seulement : un bouton qui disparaît avec son
+          // clic (« Réessayer ») y laisse le focus plutôt que sur `<body>`.
+          tabIndex={-1}
+          className="absolute inset-0 overflow-y-auto nice-scroll outline-none"
           style={isMobileOrTablet ? { touchAction: 'pan-y', overscrollBehaviorX: 'none', paddingBottom: '52px' } : undefined}
         >
           <article
@@ -2048,7 +2103,7 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
 
           {/* Extraction error — demandée par le lecteur. L'échec d'une
               extraction AUTOMATIQUE se dit sous l'article, discrètement. */}
-          {extractError && !extractErrorAuto && (
+          {extractError && !extractErrorAuto && inlineRetryFor !== article.id && (
             <div
               className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center gap-2"
               style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid var(--danger)' }}
@@ -2166,12 +2221,22 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
           {/* L'extraction AUTOMATIQUE a échoué (idée T2-2) : une ligne sous
               l'article, à la couleur des métadonnées — rien ne saute en tête
               pendant la lecture, sur aucun format —, et de quoi insister. */}
-          {extractError && extractErrorAuto && extractFor === article.id && (
-            <p className="mt-8 text-xs flex flex-wrap items-baseline gap-x-2" style={{ color: 'var(--reading-meta)' }}>
-              <span>{t('readingPane.extractUnavailable')}</span>
+          {/* « Réessayer » disparaît avec son clic : le focus passe au volet
+              (`scrollContainerRef`), et l'échec de la nouvelle tentative revient
+              ICI, annoncé (`role="alert"`), avec de quoi insister encore. */}
+          {extractError && (extractErrorAuto || inlineRetryFor === article.id) && extractFor === article.id && (
+            <p
+              className="mt-8 text-xs flex flex-wrap items-baseline gap-x-2"
+              style={{ color: 'var(--reading-meta)' }}
+              role={extractErrorAuto ? undefined : 'alert'}
+            >
+              <span>{extractErrorAuto ? t('readingPane.extractUnavailable') : extractError}</span>
               <button
                 type="button"
-                onClick={() => { void handleExtract(); }}
+                onClick={() => {
+                  scrollContainerRef.current?.focus({ preventScroll: true });
+                  void handleExtract({ inline: true });
+                }}
                 className="underline underline-offset-2 py-2 -my-2"
                 style={{ color: 'var(--accent)' }}
               >

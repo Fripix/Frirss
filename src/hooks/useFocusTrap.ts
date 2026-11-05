@@ -9,8 +9,18 @@ const FOCUSABLE = [
   '[contenteditable="true"]',
 ].join(',');
 
+/** Un `tabindex` négatif sort l'élément de la tabulation (options d'une combobox). */
+function outOfTabOrder(el: HTMLElement): boolean {
+  const raw = el.getAttribute('tabindex');
+  return raw !== null && Number(raw) < 0;
+}
+
 /**
- * Ce que Tab peut réellement atteindre. Un ANCÊTRE caché compte : les
+ * Ce que Tab peut réellement atteindre. Un `tabindex` négatif n'en fait pas
+ * partie : les options de la palette (`tabIndex={-1}`, le focus reste dans le
+ * champ) comptaient pour « dernier », Tab sortait de la boîte depuis le champ,
+ * et Maj+Tab posait le focus sur une option qu'Entrée n'exécutait pas
+ * (relecture 1.9.0). Un ANCÊTRE caché compte : les
  * Préférences gardent montées les sections visitées, `hidden` sur leur
  * enveloppe, et leurs boutons passaient pour le dernier élément. Le CSS
  * (`display: none` d'une classe) se lit par `checkVisibility()` là où le
@@ -18,7 +28,8 @@ const FOCUSABLE = [
  */
 function focusables(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-    (el) => !el.closest('[inert], [hidden], [aria-hidden="true"]')
+    (el) => !outOfTabOrder(el)
+      && !el.closest('[inert], [hidden], [aria-hidden="true"]')
       && (typeof el.checkVisibility !== 'function' || el.checkVisibility()),
   );
 }
@@ -52,10 +63,11 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
       // Un menu ouvert par portail depuis la boîte (un ⋯ des Préférences) vit
       // sous <body>, hors d'elle : il garde son propre clavier. Pas une liste
       // qui fait partie de la boîte (celle de la palette). De même pour un
-      // petit dialogue non modal ouvert par portail (le sélecteur de couleur
-      // d'une étiquette) : une boîte modale par-dessus a son propre piège, qui
-      // passe avant celui-ci.
-      if (!inside && current?.closest('[role="menu"], [role="listbox"], [role="dialog"]')) return;
+      // petit dialogue NON MODAL ouvert par portail (le sélecteur de couleur
+      // d'une étiquette). Pas une boîte modale : celle restée dessous (focus
+      // encore sur le bouton qui a ouvert celle-ci) laissait sinon Tab filer
+      // hors de la boîte du dessus (relecture 1.9.0).
+      if (!inside && current?.closest('[role="menu"], [role="listbox"], [role="dialog"]:not([aria-modal="true"])')) return;
       // Dehors, ou sur le conteneur lui-même (les Préférences et l'aide s'y
       // posent à l'ouverture) : Maj+Tab depuis lui sortait de la boîte.
       if (!inside || current === root) {

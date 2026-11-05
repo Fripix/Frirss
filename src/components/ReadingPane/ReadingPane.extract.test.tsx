@@ -126,6 +126,32 @@ describe('ReadingPane — échec d’une extraction', () => {
     expect(container.textContent).toContain('readingPane.extractError');
   });
 
+  // Relecture 1.9.0 : « Réessayer » disparaissait au clic (focus sur <body>),
+  // et l'échec de la nouvelle tentative partait en bandeau tout en haut,
+  // loin de l'endroit où l'on avait cliqué.
+  it('« Réessayer » garde le focus dans le volet, et un nouvel échec se dit au même endroit', async () => {
+    useUiStore.setState({ autoExtractDefault: true } as never);
+    extractMock.fn.mockRejectedValue(new Error('NO_CONTENT'));
+    const { container, getByRole } = await open(article('f3'));
+    await act(async () => { await new Promise((r) => setTimeout(r, 150)); });
+    const retry = getByRole('button', { name: 'readingPane.retry' });
+    act(() => { retry.focus(); });
+    let finish!: (e: Error) => void;
+    extractMock.fn.mockImplementation(() => new Promise((_, reject) => { finish = reject; }));
+    await act(async () => { retry.click(); await Promise.resolve(); });
+    // Pendant la tentative : le focus est resté dans le volet.
+    expect(document.activeElement).not.toBe(document.body);
+    expect(container.contains(document.activeElement)).toBe(true);
+    await act(async () => { finish(new Error('NO_CONTENT')); await new Promise((r) => setTimeout(r, 0)); });
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('readingPane.extractError');
+    // Sous l'article, avec de quoi réessayer encore — pas en bandeau en tête.
+    expect(alert?.closest('article')).not.toBeNull();
+    expect(alert?.querySelector('button')?.textContent).toBe('readingPane.retry');
+    expect(container.querySelectorAll('[style*="danger-light"]')).toHaveLength(0);
+    expect(container.contains(document.activeElement)).toBe(true);
+  });
+
   it('demandée par le lecteur : le bandeau d’erreur, comme avant', async () => {
     extractMock.fn.mockRejectedValue(new Error('NO_CONTENT'));
     const { container } = await open(article('f2'));

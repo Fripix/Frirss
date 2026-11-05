@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode, type MouseEvent as ReactMouseEvent, type DragEvent as ReactDragEvent } from 'react';
 import { flushSync } from 'react-dom';
+import { focusSidebar } from '../../lib/focusSidebar';
 import { useTranslation } from 'react-i18next';
 import { useFeedStore, READ_LATER_LABEL, isCategoryStreamId } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -359,6 +360,8 @@ export default function ArticleList() {
   // affichée, le défilement n'écrit rien dans `listScrollMem` : la position
   // héritée de la vue précédente se serait rangée sous la nouvelle.
   const restoredKeyRef = useRef<string | null>(null);
+  // Un bouton qui disparaît avec son clic laisserait le focus sur `<body>`.
+  const focusList = useCallback(() => listRef.current?.focus({ preventScroll: true }), []);
 
   // `search()` remet `continuation` (celle du flux nu) à `null` et rien ne la
   // fait jamais redevenir non nulle pendant qu'on cherche : la lire brute
@@ -956,7 +959,10 @@ export default function ArticleList() {
   });
 
   // `randomView` : en 2 colonnes, la pastille du tirage (`RandomChip`) partage la ligne.
-  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), !!randomButton, canMarkAll, is2Panel, layout, shown, randomView]);
+  // Le titre et le compte de non-lus aussi : un autre titre déplace le passage
+  // à la ligne sans changer la taille de la barre, et les traits orphelins
+  // restaient marqués selon l'ancien (relecture 1.9.0).
+  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), !!randomButton, canMarkAll, is2Panel, layout, shown, randomView, heading, headerUnread, !!searchQuery]);
   // Une bande dit combien d'articles porte sa date, pas combien sont montés.
   const groupTotals = useMemo(
     () => new Map(groupByDate(articles).map((g) => [g.key, g.articles.length])),
@@ -1115,7 +1121,7 @@ export default function ArticleList() {
                 {heading}
               </h2>
               {!searchQuery && <HeaderUnread count={headerUnread} />}
-              {randomView && !showRandomBtn && <RandomChip />}
+              {randomView && !showRandomBtn && <RandomChip onExit={focusList} />}
             </div>
 
             {anyAction && (
@@ -1187,7 +1193,7 @@ export default function ArticleList() {
                   {heading}
                 </h2>
                 {!searchQuery && <HeaderUnread count={headerUnread} />}
-                {randomView && !showRandomBtn && <RandomChip />}
+                {randomView && !showRandomBtn && <RandomChip onExit={focusList} />}
               </div>
 
               {(anyOption || showDensity || showLayout) && (
@@ -1380,7 +1386,9 @@ export default function ArticleList() {
         <div className="list-sidebar-reveal-anchor">
           <button
             type="button"
-            onClick={toggleSidebar}
+            // Le bouton disparaît avec le clic : le focus passe dans la barre
+            // latérale qu'il ouvre, sinon il retombe sur `<body>`.
+            onClick={() => { flushSync(toggleSidebar); focusSidebar(); }}
             className="list-sidebar-reveal"
             title={t('sidebar.showSidebar')}
             aria-label={t('sidebar.showSidebar')}
@@ -1637,7 +1645,7 @@ function HeaderUnread({ count }: { count: number | null }) {
  * bouton enfoncé le dit déjà. Le téléphone et la tablette montrent toujours
  * le bouton.
  */
-function RandomChip() {
+function RandomChip({ onExit }: { onExit: () => void }) {
   const { t } = useTranslation();
   // Le nom accessible commence par le mot affiché (WCAG 2.5.3) : un
   // `aria-label` « Quitter le tirage » l'aurait remplacé, et « Zufällig »
@@ -1646,7 +1654,9 @@ function RandomChip() {
     <button
       type="button"
       className="random-chip"
-      onClick={() => useFeedStore.getState().setRandomView(false)}
+      // La pastille disparaît avec le clic : le focus passe à la liste, comme
+      // au pied du tirage, sinon il retombe sur `<body>`.
+      onClick={() => { useFeedStore.getState().setRandomView(false); onExit(); }}
       title={t('palette.randomOff')}
     >
       <ShuffleIcon />

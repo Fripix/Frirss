@@ -54,3 +54,15 @@ export function rankCommands(commands: Command[], query: string, limit = 40): Co
     .slice(0, limit)
     .map((entry) => entry.command);
 }
+
+/**
+ * L'id HTML d'une option, cible de `aria-activedescendant`. Les ids de
+ * commandes portent des blancs et des barres (`label:user/-/label/Mon
+ * étiquette`, `feed:feed/12`) : un id HTML n'admet aucun blanc, et un tel id
+ * ne se vise pas proprement par un sélecteur. Chaque caractère hors
+ * `[A-Za-z0-9:.-]` devient `_<code hexadécimal>_` — le `_` compris, ce qui
+ * garde la correspondance injective : deux commandes n'ont jamais le même id.
+ */
+export function paletteOptionId(commandId: string): string {
+  return `palette-${commandId.replace(/[^A-Za-z0-9:.-]/gu, (ch) => `_${ch.codePointAt(0)!.toString(16)}_`)}`;
+}

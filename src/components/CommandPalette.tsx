@@ -10,7 +10,7 @@ import { useAiStore, aiUsable } from '../stores/aiStore';
 import { useAuthStore } from '../stores/authStore';
 import { displayServers, hostnameOf } from '../lib/serverList';
 import { switchToServer } from '../lib/switchServer';
-import { rankCommands, type Command } from '../lib/commandPalette';
+import { paletteOptionId, rankCommands, type Command } from '../lib/commandPalette';
 import { translateWouldAct, summarizeWouldAct } from '../lib/aiTranslateProbe';
 import { probeToolbarCommands, runToolbarCommand } from '../lib/toolbarCommands';
 import { nameOwners, takenBy } from '../lib/labelNames';
@@ -283,7 +283,7 @@ export default function CommandPalette() {
           role="combobox"
           aria-expanded="true"
           aria-controls="palette-results"
-          aria-activedescendant={results[active] ? `palette-${results[active].id}` : undefined}
+          aria-activedescendant={results[active] ? paletteOptionId(results[active].id) : undefined}
         />
 
         {/* Au-dessus de « Créer l'étiquette … » quand rien d'autre ne
@@ -303,7 +303,7 @@ export default function CommandPalette() {
                     // Hors de la tabulation : le focus reste dans le champ, le
                     // curseur passe par `aria-activedescendant` (combobox).
                     tabIndex={-1}
-                    id={`palette-${command.id}`}
+                    id={paletteOptionId(command.id)}
                     role="option"
                     aria-selected={index === active}
                     data-active={index === active}

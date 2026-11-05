@@ -107,4 +107,48 @@ describe('useFocusTrap', () => {
     tab(true);
     expect(document.activeElement).toBe(c.getByText('p-2'));
   });
+  // Relecture 1.9.0 : l'exception des petits dialogues en portail (sélecteur
+  // de couleur) couvrait toute boîte `role="dialog"`, y compris une boîte
+  // MODALE restée dessous : une confirmation ouverte depuis les Préférences,
+  // focus encore sur le bouton qui l'a ouverte, laissait Tab filer.
+  it('une boîte modale ouverte par-dessus une autre retient Tab même si le focus est resté dessous', () => {
+    function H() {
+      const [top, setTop] = useState(false);
+      return (
+        <>
+          <Box label="prefs"><button onClick={() => setTop(true)}>ouvrir</button></Box>
+          <Box label="confirm" open={top} />
+        </>
+      );
+    }
+    const c = render(<H />);
+    const opener = c.getByText('ouvrir');
+    act(() => { opener.focus(); opener.click(); });
+    expect(document.activeElement).toBe(opener);
+    tab();
+    expect(document.activeElement).toBe(c.getByText('confirm-1'));
+  });
+
+  // Relecture 1.9.0 : les options de la palette sont hors tabulation
+  // (`tabIndex={-1}`, combobox) mais comptaient pour le piège : Tab sortait
+  // de la boîte depuis le champ, et Maj+Tab posait le focus sur une option.
+  it('ignore ce qui est hors tabulation (tabindex="-1")', () => {
+    function Combo() {
+      const ref = useRef<HTMLDivElement>(null);
+      useFocusTrap(ref, true);
+      return (
+        <div ref={ref} role="dialog" aria-modal="true">
+          <input aria-label="champ" />
+          <div role="listbox"><button tabIndex={-1} role="option" aria-selected={false}>o-1</button><button tabIndex={-1} role="option" aria-selected={false}>o-2</button></div>
+        </div>
+      );
+    }
+    const c = render(<><button>dehors</button><Combo /></>);
+    const input = c.getByLabelText('champ');
+    act(() => { input.focus(); });
+    tab();
+    expect(document.activeElement).toBe(input);
+    tab(true);
+    expect(document.activeElement).toBe(input);
+  });
 });

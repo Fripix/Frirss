@@ -756,7 +756,11 @@ dessous) ou en tête de la suivante est marqué `data-orphan` par la même
 mesure (`src/lib/orphanSeparators.ts`, traits repérés par
 `data-toolbar-sep`) et rendu invisible — `visibility: hidden`, pas
 `display: none`, pour ne pas changer le passage à la ligne qu'on vient de
-mesurer (1.9.0). ⚠️ Mesuré et pas un seuil : la longueur
+mesurer (1.9.0). En 2 colonnes, le titre et le compte de non-lus vivent dans
+la barre : la mesure se refait aussi quand ils changent (dépendances de
+`useToolbarFold`), un autre titre déplaçant le passage à la ligne sans
+changer la taille de la barre — les traits restaient marqués selon l'ancien
+(relecture 1.9.0, `ArticleList.toolbar.test.tsx`). ⚠️ Mesuré et pas un seuil : la longueur
 des mots change avec la langue, et une requête `@container` à 430 px retirait
 « Random » qui tenait. Placé sur la ligne du titre, sans texte, le bouton ne se
 trouvait pas.
@@ -841,7 +845,9 @@ trouvait pas.
   non-lus, à côté de lui) dit « Aléatoire » à côté du titre, en 2 comme en
   3 colonnes ; la toucher quitte le tirage (croix, infobulle
   `palette.randomOff`, 24 px de haut au moins pour le doigt sur iPad
-  paysage). Son nom accessible commence par le mot affiché, suivi de
+  paysage). Elle disparaît avec son clic : **le focus passe à la liste**,
+  comme au pied du tirage, au lieu de retomber sur `<body>` (relecture
+  1.9.0). Son nom accessible commence par le mot affiché, suivi de
   « Quitter le tirage aléatoire » en texte masqué : un `aria-label` l'aurait
   remplacé (WCAG 2.5.3). Absente hors tirage et quand le bouton est visible
   (il est enfoncé) ; téléphone et tablette montrent toujours le bouton. Barre
@@ -5048,7 +5054,13 @@ serveur de développement en 1.4.4.)*
   T2-2, `ReadingPane.extract.test.tsx`) : plus de bandeau rouge en tête de
   l'article, mais une ligne sous l'article, à la couleur des métadonnées —
   « Article complet indisponible : voici le contenu du flux. » — suivie de
-  « Réessayer » (`readingPane.extractUnavailable`, `readingPane.retry`). Sous
+  « Réessayer » (`readingPane.extractUnavailable`, `readingPane.retry`).
+  « Réessayer » disparaît avec son clic : **le focus passe au volet** (le
+  conteneur défilant, `tabIndex={-1}`, plus `<body>`), et **l'échec de la
+  nouvelle tentative revient à la même place** (`inlineRetryFor`), annoncé
+  (`role="alert"`, texte `readingPane.extractError`) et toujours suivi de
+  « Réessayer » — il partait en bandeau rouge tout en haut, loin du clic
+  (relecture 1.9.0). Sous
   l'article et pas au-dessus : rien ne saute pendant la lecture, sur aucun
   format. Une extraction demandée par le lecteur garde le bandeau rouge
   (`readingPane.extractError`) : il l'a demandée, l'échec doit se voir.
@@ -6147,10 +6159,17 @@ dans quelques composants partagés.
     ouvert par portail depuis la boîte, donc HORS d'elle (`role="menu"`,
     `listbox`, ou un petit `dialog` non modal comme le sélecteur de couleur
     d'étiquette, 1.9.0), garde son propre clavier — pas la liste de la
-    palette, qui en fait partie. Ne comptent que les éléments atteignables : sous un ancêtre
-    `[hidden]`, `[inert]` ou `aria-hidden` (les sections visitées des
-    Préférences restent montées, cachées par leur enveloppe), ou invisibles
-    selon `checkVisibility()`, ils ne sont pas le « dernier ». `aria-modal` seul ne retenait rien : Tab sortait vers la
+    palette, qui en fait partie. **Une boîte MODALE restée dessous n'en
+    bénéficie pas** (`[role="dialog"]:not([aria-modal="true"])`) : focus
+    encore sur le bouton des Préférences qui a ouvert une confirmation, Tab
+    filait hors de la confirmation (relecture 1.9.0). Ne comptent que les
+    éléments atteignables : **pas un `tabindex` négatif** (les options de la
+    palette : Tab sortait de la boîte depuis le champ, Maj+Tab posait le focus
+    sur une option qu'Entrée n'exécutait pas, relecture 1.9.0), ni ce qui est
+    sous un ancêtre `[hidden]`, `[inert]` ou `aria-hidden` (les sections
+    visitées des Préférences restent montées, cachées par leur enveloppe), ni
+    ce qui est invisible selon `checkVisibility()` : rien de cela n'est le
+    « dernier ». `aria-modal` seul ne retenait rien : Tab sortait vers la
     page derrière ;
   - **Échap** : le tiroir mobile ignore une touche déjà traitée ou une boîte
     modale ouverte au-dessus (les Préférences s'y ouvrent sans le fermer, et
@@ -6749,7 +6768,19 @@ pour les administrateurs.
     ligne), pleine au survol et au focus ; 30 px à la souris, 44 px au doigt.
     Même nom que le ☰ de la barre (`sidebar.showSidebar`), aucune chaîne de
     plus. Le masquage, lui, reste appliqué sur un écran large tactile. Barre
-    de la liste visible, ou barre latérale ouverte : rien ne change.
+    de la liste visible, ou barre latérale ouverte : rien ne change. Le ☰
+    disparaît avec son clic : **le focus passe dans la barre latérale
+    ouverte**, sur sa première entrée de navigation (`src/lib/focusSidebar.ts`,
+    après un rendu forcé par `flushSync`) — il retombait sur `<body>`.
+    **Le volet de lecture a le sien** (relecture 1.9.0,
+    `ReadingPane.toolbar.test.tsx`) : en 2 colonnes et en grille, l'article
+    ouvert cache la liste ; « Retour » masqué et barre latérale fermée, plus
+    rien n'en sortait sans clavier. Dans ce seul cas (desktop, `showBack`,
+    `back` masqué, `sidebarVisible` faux, hors focus lecture — qui cache la
+    barre latérale de toute façon et se quitte d'un double-clic), un ☰ ouvre
+    la barre latérale, avec le même nom et le même focus : en tête de la
+    barre du volet quand elle est rendue, sinon flottant en haut à gauche de
+    l'article, avec la classe du ☰ de la liste.
   - **Volet sans aucun bouton visible** : `.reading-toolbar` n'est pas rendue
     et la progression passe en liseré en haut du volet, comme sur mobile.
     Masquer Favori ou À lire plus tard retire aussi leur appui long (classer),
@@ -7893,7 +7924,13 @@ l'article (IA) »).
   focus reste dans le champ ; les options sont hors de la tabulation
   (`tabIndex={-1}`) et les touches (↑ ↓ Entrée Échap) sont écoutées sur toute
   la boîte, pas sur le seul champ — une option atteinte par Tab ou par un
-  clic les rendait inertes. La liste (`role="listbox"`, nommée) ne contient que
+  clic les rendait inertes. Le piège de focus ignore ces options : Tab et
+  Maj+Tab laissent le focus dans le champ. **Les ids des options sont
+  assainis** (`paletteOptionId`, `src/lib/commandPalette.ts`) : un id de
+  commande porte blancs et barres (`label:user/-/label/Mon étiquette`) ;
+  chaque caractère hors `[A-Za-z0-9:.-]` devient `_<hex>_`, `_` compris, ce qui
+  garde deux commandes distinctes sur deux ids distincts.
+  La liste (`role="listbox"`, nommée) ne contient que
   des groupes nommés (`role="group"`, `palette.group.*`), les groupes que leurs
   options, l'intitulé visible du groupe étant `aria-hidden` : un `<li>`
   s'intercalait entre la liste et ses options (axe, critique). Le curseur suit
@@ -7996,9 +8033,13 @@ les suit :
   grille) ; en anglais, espagnol, néerlandais, polonais et chinois, la densité
   (`articleList.displayMode`, palette et feuille d'options du téléphone)
   portait le nom de la disposition ou de la section « Mise en page » — « Layout »
-  à côté de « Layout » — jusqu'en 1.9.0. Elle reprend désormais le mot de
-  `preferences.toolbars.items.density`, et `src/lib/densityName.test.ts`
-  refuse la collision dans les dix langues ;
+  à côté de « Layout » — jusqu'en 1.9.0, et l'ukrainien l'appelait encore
+  « Макет », le mot de « Макет цієї стрічки » (`feedLayoutThisFeed`). Elle
+  porte désormais **exactement** le mot de `preferences.toolbars.items.density`
+  dans les dix langues (« Densité », « Densità », « Densidade », « Щільність » :
+  le français, l'italien et le portugais disaient encore « Affichage » dans la
+  palette), et `src/lib/densityName.test.ts` refuse la collision avec la
+  disposition, la section « Mise en page » et la disposition par flux ;
 - **typographie française** (2d9338d) : apostrophe `’`, espace fine insécable
   (U+202F) avant `? ! ;`, insécable (U+00A0) avant `:` et dans « », « hors
   ligne » sans trait d'union. Une règle typographique ne s'applique qu'au

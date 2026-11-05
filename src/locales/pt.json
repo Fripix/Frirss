@@ -88,7 +88,7 @@
     "feedSource": "Nome do feed",
     "dateSeparators": "Separadores de data",
     "serverBar": "Barra de servidores",
-    "displayMode": "Modo de visualização",
+    "displayMode": "Densidade",
     "sourceToggleFeed": "Nome do feed (por feed)",
     "sourceToggleAll": "Nome do feed (todos os feeds)",
     "showDateSep": "Mostrar separadores de data",

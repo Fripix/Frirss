@@ -29,11 +29,16 @@ vi.mock('../../api/feeds', () => ({
 vi.mock('../../api/backend', () => ({ startActualize: vi.fn(), getActualizeStatus: vi.fn() }));
 const bp = vi.hoisted(() => ({ value: 'desktop' as 'desktop' | 'tablet' | 'mobile' }));
 vi.mock('../../hooks/useBreakpoint', () => ({ useBreakpoint: () => bp.value }));
+vi.mock('../../lib/orphanSeparators', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../lib/orphanSeparators')>();
+  return { ...real, markOrphanSeparators: vi.fn(real.markOrphanSeparators) };
+});
 
 import * as api from '../../api/feeds';
 import ArticleList from './ArticleList';
 import { useFeedStore } from '../../stores/feedStore';
 import { useUiStore } from '../../stores/uiStore';
+import { markOrphanSeparators } from '../../lib/orphanSeparators';
 import { DEFAULT_TOOLBAR_VISIBILITY, TOOLBAR_ITEMS, type ToolbarVisibility } from '../../lib/toolbarItems';
 import { probeToolbarCommands, runToolbarCommand } from '../../lib/toolbarCommands';
 
@@ -278,6 +283,18 @@ describe('tirage aléatoire, bouton masqué', () => {
     expect(setRandomView).toHaveBeenCalledWith(false);
   });
 
+  // Relecture 1.9.0 : la pastille disparaît au clic, le focus tombait sur
+  // <body>. Il passe à la liste, comme « Nouveau tirage ».
+  it('sortir du tirage par la pastille met le focus sur la liste', () => {
+    const setRandomView = (on: boolean) => useFeedStore.setState({ randomView: on } as never);
+    const c = show({ hidden: ['random'], state: { randomView: true, setRandomView } });
+    const el = chip(c)!;
+    act(() => { el.focus(); });
+    act(() => { fireEvent.click(el); });
+    expect(chip(c)).toBeNull();
+    expect(document.activeElement).toBe(c.container.querySelector('[data-article-scroll]'));
+  });
+
   it('aucun repère hors tirage, ni quand le bouton est là pour le dire', () => {
     expect(chip(show({ hidden: ['random'] }))).toBeNull();
     cleanup();
@@ -329,6 +346,23 @@ describe('☰ de secours, barre latérale et barre de la liste masquées (L-10)'
     expect(useUiStore.getState().sidebarVisible).toBe(true);
   });
 
+  // Relecture 1.9.0 : le ☰ disparaît au clic, le focus tombait sur <body>. Il
+  // passe dans la barre latérale ouverte.
+  it('le ☰ de secours met le focus dans la barre latérale qu’il ouvre', () => {
+    function SidebarStub() {
+      const open = useUiStore((s) => s.sidebarVisible);
+      return open ? <div className="sidebar"><button>header</button><nav><button>tous</button></nav></div> : null;
+    }
+    show({ hidden: ['listBar'], sidebar: false });
+    cleanup();
+    const c = render(<><SidebarStub /><ArticleList /></>);
+    const menu = menus(c)[0];
+    act(() => { menu.focus(); });
+    act(() => { fireEvent.click(menu); });
+    expect(menus(c)).toHaveLength(0);
+    expect(document.activeElement).toBe(c.getByText('tous'));
+  });
+
   it('barre latérale visible : pas de ☰', () => {
     expect(menus(show({ hidden: ['listBar'], sidebar: true }))).toHaveLength(0);
   });
@@ -350,5 +384,21 @@ describe('☰ de secours, barre latérale et barre de la liste masquées (L-10)'
     const c = show({ hidden: ['listBar'], sidebar: false });
     expect(menus(c)).toHaveLength(1);
     expect(menus(c)[0].closest('.article-list-header')).not.toBeNull();
+  });
+});
+
+// Relecture 1.9.0 : en 2 colonnes, le titre et le compte de non-lus vivent
+// dans la barre repliée. Un autre titre (ou un compte qui grandit) déplace
+// le passage à la ligne sans changer la taille de la barre : les traits
+// orphelins restaient marqués selon l'ancien titre.
+describe('traits orphelins remesurés quand le titre change', () => {
+  it('2 colonnes : un autre titre, un autre compte de non-lus → nouvelle mesure', () => {
+    show({ layout: '2' });
+    vi.mocked(markOrphanSeparators).mockClear();
+    act(() => { useFeedStore.setState({ selectedFeed: { ...FEED, title: 'Un titre bien plus long que le précédent' } } as never); });
+    expect(markOrphanSeparators).toHaveBeenCalled();
+    vi.mocked(markOrphanSeparators).mockClear();
+    act(() => { useFeedStore.setState({ unreadCounts: { 'feed/1': 1234 } } as never); });
+    expect(markOrphanSeparators).toHaveBeenCalled();
   });
 });
