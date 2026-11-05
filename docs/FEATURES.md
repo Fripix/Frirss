@@ -5130,9 +5130,12 @@ lui-même.** La chaîne tient en trois temps, et le cache n'en fait pas partie.
    couture et manque à la page part (lu ailleurs, en non-lus) ; la queue, elle,
    n'est pas relue — un article lu ailleurs y reste jusqu'au prochain
    rechargement. Sans article commun, ou si le flux tient dans la page, la page
-   remplace tout. ⚠️ Oya ne simule pas le passage en arrière-plan d'un onglet
-   (`visibilitychange` ne part pas) : ce chemin se vérifie par
-   `feedStore.test.ts` ou sur un vrai navigateur.
+   remplace tout. ⚠️ Ni Oya ni Chromium sans tête ne font passer un onglet
+   en arrière-plan (`visibilitychange` ne part pas) : le parcours N3 du banc
+   joue l'événement lui-même. Il mesure le PIRE moment, pas l'état final : le
+   banc répond si vite qu'une liste coupée à 50 recharge ses pages avant toute
+   mesure (sans le correctif : 50 cartes, position de 7156 à 2677 px, deux
+   pages redemandées).
 3. **Le cache n'y change rien.** Il est *write-through* et n'est servi que sur
    demande explicite du client (en-tête `X-Cache-Only`, peinture instantanée au
    démarrage) ; toute autre lecture part en direct vers FreshRSS.
