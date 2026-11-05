@@ -2,6 +2,8 @@ import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { previewRestore, applyRestore } from '../../api/backend';
 import { backupErrorKey } from '../../lib/backupErrors';
+import { formatBackupDate } from '../../lib/backupDate';
+import { dateLocale } from '../../utils/dates';
 import type { RestoreSummary } from '../../types';
 
 interface RestoreFlowProps {
@@ -202,7 +204,7 @@ export default function RestoreFlow({ setup, onRestored }: RestoreFlowProps) {
         >
           <p className="text-xs font-semibold success-note">{t('backup.previewTitle')}</p>
           <dl className="text-[11px] space-y-1" style={{ color: 'var(--list-summary)' }}>
-            <div><dt className="inline">{t('app.labelColon', { label: t('backup.createdAt') })} </dt><dd className="inline">{summary.createdAt ?? '—'}</dd></div>
+            <div><dt className="inline">{t('app.labelColon', { label: t('backup.createdAt') })} </dt><dd className="inline">{formatBackupDate(summary.createdAt, dateLocale()) ?? '—'}</dd></div>
             <div><dt className="inline">{t('app.labelColon', { label: t('backup.producedBy') })} </dt><dd className="inline">{summary.appVersion ?? '—'}</dd></div>
             <div><dt className="inline">{t('app.labelColon', { label: t('backup.usersCount') })} </dt><dd className="inline">{summary.summary.users}</dd></div>
             <div><dt className="inline">{t('app.labelColon', { label: t('backup.serversCount') })} </dt><dd className="inline">{summary.summary.servers}</dd></div>

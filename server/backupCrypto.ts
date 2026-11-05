@@ -1,7 +1,14 @@
 import { randomBytes, scryptSync, createCipheriv, createDecipheriv } from 'crypto';
 
 export const BACKUP_FORMAT = 'frirss-backup';
-export const BACKUP_VERSION = 1;
+/**
+ * 2 (1.9.0) : la date et la version de FriRSS de l'en-tête sont des données
+ * associées du chiffrement GCM (`headerAad`) — les modifier fait échouer
+ * l'ouverture. 1 : en-tête hors de l'authentification, toujours lisible.
+ * Une instance plus ancienne refuse une version 2 en le disant
+ * (`unsupported_version`) au lieu d'accuser la phrase de passe.
+ */
+export const BACKUP_VERSION = 2;
 export const MIN_PASSPHRASE_LENGTH = 12;
 
 // N=32768, r=8 demande 128 × N × r = 32 Mio tout rond, soit exactement la
@@ -73,6 +80,23 @@ function assertKdfParamsInBounds(kdf: { N: unknown; r: unknown; p: unknown }): v
   }
 }
 
+/**
+ * Données associées d'une enveloppe de version ≥ 2 : l'en-tête que l'aperçu
+ * affiche. Sérialisation fixe (ordre des clés écrit ici), pour que le scellé
+ * et l'ouverture calculent les mêmes octets.
+ */
+function headerAad(h: { format: string; version: number; createdAt: string; appVersion: string }): Buffer {
+  return Buffer.from(JSON.stringify([h.format, h.version, h.createdAt, h.appVersion]), 'utf8');
+}
+
+/** En-tête d'une version 1, non authentifié : affiché seulement s'il a sa forme. */
+function plausibleCreatedAt(v: unknown): string | null {
+  return typeof v === 'string' && v.length <= 40 && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(v) && !Number.isNaN(Date.parse(v)) ? v : null;
+}
+function plausibleAppVersion(v: unknown): string | null {
+  return typeof v === 'string' && /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:[a-z0-9.+-]{0,20})$/i.test(v) ? v : null;
+}
+
 function deriveKey(passphrase: string, salt: Buffer, kdf: { N: number; r: number; p: number }): Buffer {
   return scryptSync(passphrase, salt, SCRYPT.keylen, {
     N: kdf.N,
@@ -97,16 +121,15 @@ export function sealBackup(payload: unknown, passphrase: string, appVersion: str
   const salt = randomBytes(16);
   const iv = randomBytes(12);
   const key = deriveKey(passphrase, salt, SCRYPT);
+  const header = { format: BACKUP_FORMAT, version: BACKUP_VERSION, createdAt: new Date().toISOString(), appVersion };
   const cipher = createCipheriv('aes-256-gcm', key, iv);
+  cipher.setAAD(headerAad(header));
   const ct = Buffer.concat([
     cipher.update(JSON.stringify(payload), 'utf8'),
     cipher.final(),
   ]);
   return {
-    format: BACKUP_FORMAT,
-    version: BACKUP_VERSION,
-    createdAt: new Date().toISOString(),
-    appVersion,
+    ...header,
     kdf: { algo: 'scrypt', N: SCRYPT.N, r: SCRYPT.r, p: SCRYPT.p, salt: salt.toString('base64') },
     cipher: 'aes-256-gcm',
     iv: iv.toString('base64'),
@@ -117,6 +140,18 @@ export function sealBackup(payload: unknown, passphrase: string, appVersion: str
 
 /** Ouvre une enveloppe produite par sealBackup(). Leve un BackupError type. */
 export function openBackup(envelope: unknown, passphrase: string): unknown {
+  return readBackup(envelope, passphrase).payload;
+}
+
+/** Ce qu'une enveloppe ouverte livre : la charge, et l'en-tête que l'aperçu affiche. */
+export interface OpenedBackup {
+  payload: unknown;
+  /** Authentifiés en version ≥ 2 ; en version 1, `null` s'ils n'ont pas leur forme. */
+  createdAt: string | null;
+  appVersion: string | null;
+}
+
+export function readBackup(envelope: unknown, passphrase: string): OpenedBackup {
   const e = envelope as Partial<BackupEnvelope> | null;
   if (!e || typeof e !== 'object' || e.format !== BACKUP_FORMAT) {
     throw new BackupError('not_a_backup', 'Not a FriRSS backup file');
@@ -129,16 +164,26 @@ export function openBackup(envelope: unknown, passphrase: string): unknown {
       || typeof e.iv !== 'string' || typeof e.tag !== 'string' || typeof e.payload !== 'string') {
     throw new BackupError('not_a_backup', 'Malformed backup envelope');
   }
+  const authenticated = e.version >= 2;
+  if (authenticated && (typeof e.createdAt !== 'string' || typeof e.appVersion !== 'string')) {
+    throw new BackupError('not_a_backup', 'Malformed backup envelope');
+  }
   assertKdfParamsInBounds(e.kdf);
   try {
     const key = deriveKey(passphrase, Buffer.from(e.kdf.salt, 'base64'), e.kdf);
     const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(e.iv, 'base64'));
     decipher.setAuthTag(Buffer.from(e.tag, 'base64'));
+    if (authenticated) {
+      decipher.setAAD(headerAad({ format: BACKUP_FORMAT, version: e.version, createdAt: e.createdAt as string, appVersion: e.appVersion as string }));
+    }
     const plain = Buffer.concat([
       decipher.update(Buffer.from(e.payload, 'base64')),
       decipher.final(),
     ]).toString('utf8');
-    return JSON.parse(plain);
+    const payload: unknown = JSON.parse(plain);
+    return authenticated
+      ? { payload, createdAt: e.createdAt as string, appVersion: e.appVersion as string }
+      : { payload, createdAt: plausibleCreatedAt(e.createdAt), appVersion: plausibleAppVersion(e.appVersion) };
   } catch {
     // GCM ne distingue pas « mauvaise clé » de « octets modifiés » : dans les
     // deux cas le contenu n'est pas digne de confiance, et le dire autrement

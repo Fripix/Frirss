@@ -7521,6 +7521,19 @@ et le jetable de l'IA, `ai_usage` (compteur du jour) et `ai_cache`.
   ajoutée). **Phrase de passe obligatoire, 12 caractères minimum** : le fichier
   contient tout, un chiffrement facultatif serait un piège. Perdue, elle rend la
   sauvegarde définitivement inutilisable.
+- **En-tête authentifié** (enveloppe version 2, 1.9.0, `readBackup`,
+  `server/backupCrypto.test.ts`) : la date de création et la version de
+  FriRSS, en clair dans l'en-tête, sont des données associées du chiffrement
+  GCM — modifiées, l'ouverture échoue (`bad_passphrase`, comme un octet
+  touché). L'aperçu les lit dans `readBackup`, plus dans le corps de la
+  requête. **Une sauvegarde de version 1 reste lisible** : son en-tête n'est
+  pas authentifié, et n'est affiché que s'il a la forme d'une date ISO et
+  d'un numéro de version (« — » sinon). Une instance d'avant 1.9.0 refuse une
+  version 2 par `unsupported_version` (« produite par un FriRSS plus
+  récent »), ce qui est vrai : restaurer sur une version plus ancienne
+  demande de repasser d'abord en 1.9.0. L'aperçu écrit la date en toutes
+  lettres, dans la langue de l'interface (`src/lib/backupDate.ts`), et non
+  plus la chaîne ISO brute.
 - **Deux points d'accès, une seule implémentation** (`RestoreFlow.tsx`,
   prop `setup`) :
   - **Administration**, sur une instance déjà en marche : bloc

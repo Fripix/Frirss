@@ -4,7 +4,7 @@ import { userCount } from '../db.js';
 import { APP_VERSION } from '../version.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { collectBackup, applyBackup, summarizeBackup } from '../backup.js';
-import { sealBackup, openBackup, BackupError, MIN_PASSPHRASE_LENGTH, type BackupErrorCode } from '../backupCrypto.js';
+import { sealBackup, openBackup, readBackup, BackupError, MIN_PASSPHRASE_LENGTH, type BackupErrorCode } from '../backupCrypto.js';
 import { rateLimitIpKey } from '../validate.js';
 
 // Le déchiffrement d'une enveloppe est un oracle : sans limite de cadence,
@@ -104,13 +104,11 @@ function handleBackup(req: Request, res: Response) {
 function handlePreview(req: Request, res: Response) {
   try {
     const { backup, passphrase } = req.body ?? {};
-    const payload = openBackup(backup, String(passphrase ?? ''));
+    // Date et version lues par `readBackup` : authentifiées depuis la version 2
+    // de l'enveloppe, plus recopiées telles quelles de l'en-tête en clair.
+    const { payload, createdAt, appVersion } = readBackup(backup, String(passphrase ?? ''));
     const summary = summarizeBackup(payload);
-    res.json({
-      summary,
-      createdAt: (backup as { createdAt?: string })?.createdAt ?? null,
-      appVersion: (backup as { appVersion?: string })?.appVersion ?? null,
-    });
+    res.json({ summary, createdAt, appVersion });
   } catch (err) {
     fail(res, err);
   }

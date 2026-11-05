@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import { randomBytes, scryptSync, createCipheriv } from 'crypto';
 import {
   sealBackup,
   openBackup,
+  readBackup,
   BackupError,
   BACKUP_FORMAT,
   BACKUP_VERSION,
@@ -149,5 +151,56 @@ describe('openBackup', () => {
       const env = sealBackup(payload, PASS, '1.4.3');
       expect(openBackup(env, PASS)).toEqual(payload);
     });
+  });
+});
+
+/**
+ * Une enveloppe de version 1, telle que FriRSS l'écrivait jusqu'en 1.8 :
+ * en-tête hors du chiffrement authentifié. Paramètres scrypt au minimum admis,
+ * pour que le test reste rapide.
+ */
+function legacyEnvelope(body: unknown, createdAt: string, appVersion: string) {
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
+  const kdf = { N: 4096, r: 8, p: 1 };
+  const key = scryptSync(PASS, salt, 32, { ...kdf, maxmem: 64 * 1024 * 1024 });
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const ct = Buffer.concat([cipher.update(JSON.stringify(body), 'utf8'), cipher.final()]);
+  return {
+    format: BACKUP_FORMAT, version: 1, createdAt, appVersion,
+    kdf: { algo: 'scrypt', ...kdf, salt: salt.toString('base64') },
+    cipher: 'aes-256-gcm', iv: iv.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64'), payload: ct.toString('base64'),
+  };
+}
+
+describe('en-tête authentifié (date, version de FriRSS)', () => {
+  it('une date ou une version modifiée fait échouer l’ouverture', () => {
+    const env = sealBackup(payload, PASS, '1.9.0');
+    expect(codeThrownBy(() => openBackup({ ...env, appVersion: '9.9.9' }, PASS))).toBe('bad_passphrase');
+    expect(codeThrownBy(() => openBackup({ ...env, createdAt: '2001-01-01T00:00:00.000Z' }, PASS))).toBe('bad_passphrase');
+  });
+
+  it('rend la date et la version lues avec la charge', () => {
+    const env = sealBackup(payload, PASS, '1.9.0');
+    const read = readBackup(env, PASS);
+    expect(read.payload).toEqual(payload);
+    expect(read.appVersion).toBe('1.9.0');
+    expect(read.createdAt).toBe(env.createdAt);
+  });
+
+  it('une sauvegarde de version 1 reste lisible', () => {
+    const old = legacyEnvelope(payload, '2026-10-01T08:00:00.000Z', '1.8.0');
+    const read = readBackup(old, PASS);
+    expect(read.payload).toEqual(payload);
+    expect(read.appVersion).toBe('1.8.0');
+    expect(read.createdAt).toBe('2026-10-01T08:00:00.000Z');
+  });
+
+  it('version 1 : un en-tête illisible n’est pas affiché tel quel', () => {
+    const old = legacyEnvelope(payload, '<img src=x>', 'n’importe quoi de très long'.repeat(10));
+    const read = readBackup(old, PASS);
+    expect(read.createdAt).toBeNull();
+    expect(read.appVersion).toBeNull();
   });
 });
