@@ -315,9 +315,10 @@ plus jamais au navigateur (seule sa présence est exposée, `has_token`).
   second — un autre utilisateur est un autre serveur à ajouter. Le serveur
   **garde son identifiant**, donc sa portée hors ligne : jusque-là, le seul
   moyen était de le supprimer puis de le rajouter, et les actions en attente
-  ne repartaient plus. Serveur actif : le jeton d'écriture est oublié, un
-  rejeu encore en vol sous l'ancien jeton est attendu (il reposerait le
-  refus), puis `replayRefusedByServer` tombe et la file repart. Région de statut
+  ne repartaient plus. Serveur actif : un rejeu encore en vol sous l'ancien
+  jeton est attendu (il reposerait le refus), puis `replayRefusedByServer`
+  tombe et la file repart ; le jeton d'écriture, tenu par le serveur, suit
+  seul les nouveaux identifiants. Région de statut
   montée en permanence ; Échap ferme ; le focus revient au bouton. Le bandeau
   de refus (`connection.refusedByServer`) y renvoie avec les vrais libellés
   de chaque langue (`OfflineBanner.test.tsx` le vérifie). ⚠️ Limite : une
@@ -1418,11 +1419,10 @@ groupe par date. Trois densités (Aperçu / Standard / Compact) et le mode grill
       ne sert qu'à départager un bloc publié à la même seconde, et il est
       vérifié présent, jamais supposé.
 
-    Ce chemin n'a rien d'exotique : le jeton d'écriture CSRF est mis en cache
-    pour toute la session (`src/api/feeds.ts`). Un jeton périmé envoyait donc
-    chaque ✓ dans le refus, et pour toujours — voir « Jeton d'écriture
-    (CSRF) » plus bas, qui redemande maintenant un jeton et rejoue l'écriture
-    une fois. Sur un échec RÉSEAU, en revanche, la ligne **reste retirée** :
+    Ce chemin n'a rien d'exotique : le jeton d'écriture CSRF était mis en
+    cache pour toute la session. Un jeton périmé envoyait donc chaque ✓ dans
+    le refus, et pour toujours — voir « Jeton d'écriture (CSRF) » plus bas : le
+    serveur redemande maintenant un jeton et rejoue l'écriture une fois. Sur un échec RÉSEAU, en revanche, la ligne **reste retirée** :
     l'état optimiste est celui qu'`enqueueAction` rejouera, le remettre
     contredirait la file.
   - **Un échec ne se déguise plus en réussite.** Le retrait étant optimiste, une
@@ -5762,8 +5762,9 @@ mises en file et rejouées au retour.
   serveur actif, portée et **génération de portée** (`scopeGeneration`,
   incrémentée à chaque changement de portée — elle ferme l'aller-retour
   1 → 2 → 1 pendant un envoi : les deux bouts voient le serveur 1, mais
-  `editTag` construit sa requête après avoir attendu le jeton d'écriture, et
-  l'écriture était partie au 2). Si l'un a changé, il s'arrête, et l'action en cours
+  `editTag` construisait sa requête après avoir attendu le jeton d'écriture
+  — jusqu'en 1.8, avant que le serveur ne signe —, et l'écriture était partie
+  au 2). Si l'un a changé, il s'arrête, et l'action en cours
   et les suivantes restent intactes, tentatives comprises. Une action dont
   l'envoi a vu le contexte changer est gardée même si l'appel a réussi : on ne
   sait pas quel serveur l'a reçue, et renvoyer le même état est sans danger.
@@ -5858,25 +5859,54 @@ mises en file et rejouées au retour.
 ### Jeton d'écriture (CSRF)
 Toute écriture vers FreshRSS — ✓, favori, « à lire plus tard », étiquette,
 « tout marquer comme lu », abonnement, renommage/suppression de libellé — est
-signée par un jeton obtenu sur `/reader/api/0/token` et gardé en mémoire.
+signée par le jeton d'écriture `T`. **Depuis 1.9.0, c'est le serveur qui
+l'obtient et signe** : le navigateur ne le demande ni ne l'envoie plus.
 
-- **Où** : `src/api/feeds.ts` (`ensureToken`, `clearWriteToken`, `postSigned`),
-  classification dans `src/lib/writeTokenRetry.ts`
-- **Le piège qu'il a coûté** : le jeton n'était vidé qu'à la connexion et au
-  changement de serveur. Une fois périmé — session FreshRSS renouvelée, serveur
-  redémarré —, **toutes** les écritures échouaient jusqu'au rechargement de la
-  page. Combiné au retrait optimiste de la ligne, cela donnait des articles qui
+- **Où** : `server/writeToken.ts` (détection, signature, mémoire des jetons,
+  classification du refus) et la route `/api/proxy` (`server/routes/proxy.ts`,
+  `signedWrite`, `requestWriteToken`) ; côté client, `postSigned`
+  (`src/api/feeds.ts`) n'est plus qu'un `POST`.
+- **Pourquoi le serveur** : FreshRSS calcule `T` comme la partie secrète de
+  `Auth=` complétée par des `Z`. Relayé au navigateur, il redonnait le jeton
+  FreshRSS complet, obtenable à tout moment avec un JWT FriRSS et valable
+  après la déconnexion, jusqu'au changement du mot de passe d'API. Le corps de
+  `/reader/api/0/token` ne sort donc plus : pour un serveur du compte, le proxy
+  répond un jeton **factice** (`WRITE_TOKEN_PLACEHOLDER`), sous toute forme du
+  chemin que FreshRSS route (encodée, `token/…`, barres doublées) et pour tout
+  verbe. ⚠️ Limite : le navigateur voit encore `Auth=` une fois, à la
+  connexion ou à l'ajout d'un serveur (`src/api/auth.ts`).
+- **Signature** : une écriture greader (méthode autre que GET/HEAD sous
+  `/reader/api/0/`, corps de formulaire ou vide) vers un serveur du compte
+  perd tout `T` du client et reçoit le vrai. **Compatibilité** : un onglet
+  resté sur l'ancien code pendant une mise à jour lit `/token`, reçoit le
+  factice, l'envoie ; le serveur le remplace, l'écriture passe.
+- **Mémoire** : un jeton par compte et par serveur, en mémoire du processus
+  seulement (jamais dans Redis : `/token` n'est pas une lecture mise en cache),
+  marqué de l'empreinte qui l'a produit — jeton FreshRSS chiffré et URL du
+  serveur. Changer d'identifiants ou d'adresse le rend caduc sans autre geste.
+  Des écritures simultanées ne font qu'une demande.
+- **Le piège qu'il a coûté** (jusqu'en 1.4.7, côté client) : le jeton n'était
+  vidé qu'à la connexion et au changement de serveur. Une fois périmé,
+  **toutes** les écritures échouaient jusqu'au rechargement de la page.
+  Combiné au retrait optimiste de la ligne, cela donnait des articles qui
   disparaissaient de l'écran, un compteur de non-lus immobile, et tout qui
   revenait non lu au rechargement.
-- **Une seule reprise.** `postSigned()` vide le jeton, en redemande un et
-  rejoue l'écriture **une fois**, avec le jeton FRAIS. Un second échec ressort
-  tel quel, sans transformation : rollback et file d'attente conservent
-  exactement les décisions qu'ils prenaient déjà. La reprise unique tient à la
-  forme du code — deux appels écrits en clair, ni boucle ni récursion.
+- **Une seule reprise, au serveur.** Un jeton pris en mémoire et refusé est
+  oublié, redemandé, et l'écriture rejouée **une fois** — seulement si le
+  nouveau jeton diffère (FreshRSS le dérive des identifiants : le même jeton
+  reposerait le même refus et doublerait l'écriture). Si le nouveau jeton ne
+  peut être obtenu, c'est le refus d'origine qui est rendu. Le client ne
+  rejoue plus rien : un échec lui revient tel quel, et rollback et file
+  d'attente gardent leurs décisions.
 - **Ce qui déclenche la reprise** : 401 (réponse canonique de greader,
   `Google-Bad-Token`), 403 et 400 selon la version de FreshRSS et le proxy
-  devant. **Pas** une absence de réponse (c'est le hors-ligne, il doit aller
-  en file sans délai), **pas** un 5xx, **pas** les autres 4xx.
+  devant. **Pas** un 5xx (la file d'attente le rejoue), **pas** les autres 4xx.
+- **`/token` refusé** : son statut est rendu tel quel et l'écriture ne part
+  pas ; une réponse illisible (page HTML en 200) vaut un 502.
+- **Redirection** : une écriture signée ne suit pas une redirection vers une
+  autre origine (`bodyStaysOnOrigin` de `fetchUpstream`) — un 307/308 garde le
+  corps, et donc `T` ; le proxy répond 502. Le passage http → https du même
+  hôte reste suivi.
 
 ---
 

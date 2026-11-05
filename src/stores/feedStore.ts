@@ -19,7 +19,6 @@ import {
   setArticleLabel,
   renameTag,
   deleteTag,
-  clearWriteToken,
   itemIdsNewerThanEntry, getStreamIdsSince, getItemsByIds,
 } from '../api/feeds';
 import { entryIdUsec, exclusiveOlderThanEntryId, isOlderEntry } from '../lib/entryId';
@@ -3679,9 +3678,6 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
 
   // Full reset + reload — used when switching the active FreshRSS server
   resetAndReload: () => {
-    // The CSRF write-token is per-server; drop the cached one so the next
-    // write fetches a fresh token for the newly-active FreshRSS instance.
-    clearWriteToken();
     warmListsToken++; // cancel any in-flight prefetch sweep for the old server
     memClear(); // memory cache is per-server (feed ids/global keys differ)
     set({ randomView: false });

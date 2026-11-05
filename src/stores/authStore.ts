@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { clearWriteToken } from '../api/feeds';
 import type { User, ServerConnection } from '../types';
 
 /**
@@ -56,8 +55,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => { /* offline or already expired — nothing to do */ });
     }
-    // Drop the cached per-server CSRF write-token on logout
-    clearWriteToken();
     // Only this tab's own session: a tab left open on an older account (and
     // logged out by a 401) erased the session another tab had opened since.
     const stored = localStorage.getItem('frirss_backendToken');

@@ -1,7 +1,6 @@
 import client from './client';
 import type { ArticleOrder } from '../lib/effectiveOrder';
 import type { FeedPriority } from '../types';
-import { isStaleWriteTokenFailure } from '../lib/writeTokenRetry';
 import { entryIdUsec, isOlderEntry } from '../lib/entryId';
 import type { Subscription, Tag, UnreadCount, GReaderItem, GReaderStream } from '../types';
 import { UNDO_PAGE, UNDO_PAGES } from '../lib/markAllRead';
@@ -184,60 +183,15 @@ export async function getUnreadItemIds(
   return { ids, complete: false };
 }
 
-// Cache the write token (CSRF)
-let writeToken: string | null = null;
-
-async function ensureToken(): Promise<string | null> {
-  if (!writeToken) {
-    writeToken = await getToken();
-  }
-  return writeToken;
-}
-
-// Force token refresh (called on app init or after auth error)
-export function clearWriteToken(): void {
-  writeToken = null;
-}
-
 /**
- * Envoyer une écriture SIGNÉE par le jeton d'écriture, avec une seule reprise.
- *
- * Le jeton était obtenu une fois puis gardé pour toute la session, et rien ne
- * l'invalidait : dès qu'il périmait, chaque ✓, chaque favori, chaque « à lire
- * plus tard » échouait jusqu'au rechargement de la page. Le retrait optimiste
- * de la ligne déguisait ces échecs en réussites.
- *
- * La reprise est UNIQUE, et elle l'est par construction — `client.post` n'est
- * appelé qu'à deux endroits, jamais dans une boucle ni par récursion. Un
- * second échec ressort tel quel : ce sont les appelants qui savent quoi en
- * faire (rollback pour un refus, file d'attente pour un incident réseau), et
- * une reprise supplémentaire ici leur retirerait cette décision tout en
- * multipliant les écritures en vol.
- *
- * `build` reçoit le jeton en argument plutôt que de le lire au-dessus : la
- * seconde tentative doit repartir du jeton FRAIS, sinon elle rejoue le refus.
+ * Envoyer une écriture greader. Le jeton d'écriture (`T`) n'y figure pas : il
+ * vaut le jeton FreshRSS complet, donc le SERVEUR l'obtient, signe l'écriture
+ * et la rejoue une fois si le jeton qu'il gardait est périmé
+ * (`server/writeToken.ts`). Un échec ressort tel quel : rollback pour un refus,
+ * file d'attente pour un incident réseau, décidés par les appelants.
  */
-async function postSigned(
-  path: string,
-  build: (token: string | null) => URLSearchParams
-): Promise<void> {
-  const token = await ensureToken();
-  try {
-    await client.post(`${BASE}${path}`, build(token));
-  } catch (err) {
-    // Hors ligne, 5xx, 404… : rien qu'un nouveau jeton puisse réparer.
-    if (!isStaleWriteTokenFailure(err)) throw err;
-    let fresh: string | null;
-    try {
-      clearWriteToken();
-      fresh = await ensureToken();
-    } catch {
-      // Impossible d'obtenir un jeton : c'est l'échec d'ORIGINE qui compte,
-      // lui seul décrit ce qui est arrivé à l'écriture.
-      throw err;
-    }
-    await client.post(`${BASE}${path}`, build(fresh));
-  }
+async function postSigned(path: string, build: () => URLSearchParams): Promise<void> {
+  await client.post(`${BASE}${path}`, build());
 }
 
 async function editTag(
@@ -245,9 +199,8 @@ async function editTag(
   addTag: string | null = null,
   removeTag: string | null = null
 ): Promise<void> {
-  return postSigned('/edit-tag', (token) => {
+  return postSigned('/edit-tag', () => {
     const params = new URLSearchParams();
-    if (token) params.append('T', token);
     const ids = Array.isArray(itemIds) ? itemIds : [itemIds];
     ids.forEach((id) => params.append('i', id));
     if (addTag) params.append('a', addTag);
@@ -272,17 +225,10 @@ export function removeStarred(itemIds: string | string[]): Promise<void> {
   return editTag(itemIds, null, 'user/-/state/com.google/starred');
 }
 
-async function getToken(): Promise<string> {
-  const { data } = await client.get<string>(`${BASE}/token`);
-  // Token comes with trailing newline — strip it
-  return typeof data === 'string' ? data.trim() : data;
-}
-
 // Mark all items in a stream as read (up to a timestamp)
 export async function markAllAsRead(streamId: string, timestampUsec: string | number | null = null): Promise<void> {
-  return postSigned('/mark-all-as-read', (token) => {
+  return postSigned('/mark-all-as-read', () => {
     const params = new URLSearchParams();
-    if (token) params.append('T', token);
     params.append('s', streamId);
     if (timestampUsec) {
       params.append('ts', String(timestampUsec));
@@ -403,9 +349,8 @@ export async function subscribeFeed(
   categoryId = '',
   categoryLabel = ''
 ): Promise<void> {
-  return postSigned('/subscription/edit', (token) => {
+  return postSigned('/subscription/edit', () => {
     const params = new URLSearchParams();
-    if (token) params.append('T', token);
     params.append('ac', 'subscribe');
     params.append('s', `feed/${feedUrl}`);
     if (title) params.append('t', title);
@@ -424,9 +369,8 @@ export async function editFeed(
   categoryId?: string,
   categoryLabel?: string
 ): Promise<void> {
-  return postSigned('/subscription/edit', (token) => {
+  return postSigned('/subscription/edit', () => {
     const params = new URLSearchParams();
-    if (token) params.append('T', token);
     params.append('ac', 'edit');
     params.append('s', feedId);
     if (title) params.append('t', title);
@@ -440,9 +384,8 @@ export async function editFeed(
 
 // Unsubscribe from a feed
 export async function unsubscribeFeed(feedId: string): Promise<void> {
-  return postSigned('/subscription/edit', (token) => {
+  return postSigned('/subscription/edit', () => {
     const params = new URLSearchParams();
-    if (token) params.append('T', token);
     params.append('ac', 'unsubscribe');
     params.append('s', feedId);
     return params;
@@ -451,9 +394,8 @@ export async function unsubscribeFeed(feedId: string): Promise<void> {
 
 // Rename a label / tag
 export async function renameTag(oldTag: string, newTag: string): Promise<void> {
-  return postSigned('/rename-tag', (token) => {
+  return postSigned('/rename-tag', () => {
     const params = new URLSearchParams();
-    if (token) params.append('T', token);
     params.append('s', oldTag);
     params.append('dest', newTag);
     return params;
@@ -462,9 +404,8 @@ export async function renameTag(oldTag: string, newTag: string): Promise<void> {
 
 // Delete a label / tag
 export async function deleteTag(tagId: string): Promise<void> {
-  return postSigned('/disable-tag', (token) => {
+  return postSigned('/disable-tag', () => {
     const params = new URLSearchParams();
-    if (token) params.append('T', token);
     params.append('s', tagId);
     return params;
   });

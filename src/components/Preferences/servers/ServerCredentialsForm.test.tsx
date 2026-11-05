@@ -5,12 +5,10 @@ import { render, cleanup, fireEvent, screen, act } from '@testing-library/react'
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 vi.mock('../../../api/auth', () => ({ login: vi.fn() }));
 vi.mock('../../../api/backend', () => ({ updateServer: vi.fn() }));
-vi.mock('../../../api/feeds', () => ({ clearWriteToken: vi.fn() }));
 
 import ServerCredentialsForm from './ServerCredentialsForm';
 import { login } from '../../../api/auth';
 import { updateServer } from '../../../api/backend';
-import { clearWriteToken } from '../../../api/feeds';
 import { useFeedStore } from '../../../stores/feedStore';
 
 const server = { id: 4, name: 'S', url: 'https://rss.example.com', freshrss_user: 'alice' };
@@ -44,12 +42,11 @@ describe('ServerCredentialsForm', () => {
     expect(screen.getByRole('status').textContent).toBe('servers.credentialsSaved');
   });
 
-  it('serveur actif : oublie le jeton d’écriture, lève le refus et relance la file', async () => {
+  it('serveur actif : lève le refus et relance la file', async () => {
     const replayQueue = vi.fn(async () => {});
     useFeedStore.setState({ replayRefusedByServer: true, replayQueue } as never);
     render(<ServerCredentialsForm server={server} isActive onSaved={() => {}} onClose={() => {}} />);
     await submit('secret');
-    expect(clearWriteToken).toHaveBeenCalled();
     expect(useFeedStore.getState().replayRefusedByServer).toBe(false);
     expect(replayQueue).toHaveBeenCalled();
   });

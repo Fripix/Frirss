@@ -9,6 +9,11 @@ import { decrypt } from '../crypto.js';
 import { requireAuth } from '../middleware/auth.js';
 import { cacheEnabled, cacheGet, cacheSet, cacheDel, cacheKey, cacheableEntry, claimCacheRead, MAX_CACHED_ENTRY_BYTES } from '../cache.js';
 import { stripTrailingSlashes } from '../validate.js';
+import {
+  WRITE_TOKEN_PLACEHOLDER, MAX_WRITE_TOKEN_BYTES, WriteTokenRefusedError,
+  isWriteTokenPath, isGreaderWrite, isSignableContentType, writeTokenUrl, signFormBody,
+  isStaleWriteTokenStatus, parseWriteToken, cachedWriteToken, forgetWriteToken, fetchWriteTokenOnce,
+} from '../writeToken.js';
 
 const router = Router();
 
@@ -633,6 +638,14 @@ export interface FetchUpstreamOpts {
    */
   followRedirects?: boolean;
   /**
+   * When true, a redirect that leaves the starting origin (other than the
+   * http → https upgrade of the same host) is returned as-is instead of being
+   * chased. For a body that carries a secret — a greader write signed with the
+   * write token: a 307/308 keeps the body, and dropping `Authorization` does
+   * not drop it.
+   */
+  bodyStaysOnOrigin?: boolean;
+  /**
    * When false, an unreachable internal target (`PROXY_REWRITES`) is NOT
    * retried at its public URL. For calls that carry a secret IN the URL (the
    * refresh's master token): the rewrite exists to keep it off the public
@@ -650,7 +663,7 @@ const MAX_REDIRECTS = 5;
 
 export async function fetchUpstream(
   rawTarget: string,
-  { method = 'GET', headers = {}, body, signal, timeoutMs, followRedirects = true, trustedHosts = [], publicFallback = true }: FetchUpstreamOpts = {}
+  { method = 'GET', headers = {}, body, signal, timeoutMs, followRedirects = true, trustedHosts = [], publicFallback = true, bodyStaysOnOrigin = false }: FetchUpstreamOpts = {}
 ): Promise<Response> {
   const target = rewriteTarget(rawTarget);
 
@@ -690,9 +703,6 @@ export async function fetchUpstream(
       const loc = resp.status >= 300 && resp.status < 400 ? resp.headers.get('location') : null;
       if (!loc || hop >= MAX_REDIRECTS || !followRedirects) return resp;
 
-      // The redirect's own body is never read: cancel it, or undici holds the
-      // socket until garbage collection (see `routes/extract.ts`).
-      resp.body?.cancel().catch(() => {});
       const next = new URL(loc, url);
       // Don't leak the FreshRSS token on redirect. It follows the same origin,
       // and the upgrade http → https on the same host and default ports (a
@@ -702,6 +712,11 @@ export async function fetchUpstream(
       const prev = new URL(startOrigin);
       const upgrade = prev.protocol === 'http:' && next.protocol === 'https:'
         && prev.hostname === next.hostname && prev.port === '' && next.port === '';
+      // Le corps signé ne suit pas : la redirection est rendue telle quelle.
+      if (next.origin !== startOrigin && !upgrade && bodyStaysOnOrigin && curBody !== undefined) return resp;
+      // The redirect's own body is never read: cancel it, or undici holds the
+      // socket until garbage collection (see `routes/extract.ts`).
+      resp.body?.cancel().catch(() => {});
       if (next.origin !== startOrigin && !upgrade) delete curHeaders.Authorization;
       startOrigin = next.origin;
       // Per fetch semantics: 303 (and 301/302 on a non-GET) → GET without body.
@@ -759,6 +774,8 @@ router.all('/', async (req, res) => {
   const serverId = req.header('x-server-id');
   // La cible est-elle un serveur du compte ? Décide aussi de la mise en cache.
   let ownServerTarget = false;
+  // Empreinte de ce qui produit le jeton d'écriture (voir `../writeToken.ts`).
+  let tokenStamp = '';
   if (serverId) {
     const srv = db.prepare('SELECT url, freshrss_token FROM servers WHERE id = ? AND user_id = ?')
       .get(serverId, req.user.id) as { url: string; freshrss_token: string | null } | undefined;
@@ -766,7 +783,20 @@ router.all('/', async (req, res) => {
     if (srv && srv.freshrss_token && ownServerTarget) {
       const tok = decrypt(srv.freshrss_token);
       if (tok) headers.Authorization = `GoogleLogin auth=${tok}`;
+      tokenStamp = `${srv.freshrss_token}\n${srv.url}`;
     }
+  }
+
+  // ── Jeton d'écriture : son corps ne sort jamais du serveur ──
+  // FreshRSS le calcule comme la partie secrète de `Auth=` : le relayer
+  // redonnait le jeton FreshRSS complet au navigateur (L-38). Un client resté
+  // sur l'ancien code le lit encore : il reçoit un jeton factice, que la
+  // signature ci-dessous remplace. Tout verbe, toute forme du chemin
+  // (`isWriteTokenPath`) : FreshRSS ne regarde ni l'un ni l'autre.
+  if (headers.Authorization && isWriteTokenPath(rawTarget)) {
+    res.set('Cache-Control', 'no-store');
+    res.type('text/plain');
+    return res.status(200).send(`${WRITE_TOKEN_PLACEHOLDER}\n`);
   }
   const accept = req.header('x-proxy-accept');
   if (accept) headers.Accept = accept;
@@ -785,6 +815,11 @@ router.all('/', async (req, res) => {
   const ct = req.header('content-type');
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD' && req.body && req.body.length;
   if (hasBody && ct) headers['Content-Type'] = ct;
+  // Écriture greader vers un serveur du compte : le serveur la signe (voir
+  // plus bas). L'URL de `/token` voisine, ou `null` si l'écriture ne se signe pas.
+  const tokenUrl = headers.Authorization && isGreaderWrite(req.method, rawTarget) && isSignableContentType(ct)
+    ? writeTokenUrl(rawTarget)
+    : null;
 
   // Seule la lecture d'un serveur du compte : le chemin seul décidait, et
   // n'importe quel hôte qui servait `/reader/api/0/` écrivait jusqu'à
@@ -856,14 +891,59 @@ router.all('/', async (req, res) => {
 
   let upstream: Response;
   try {
-    upstream = await fetchUpstream(rawTarget, {
-      method: req.method,
-      headers,
-      body: hasBody ? req.body : undefined,
-      signal: deadline.signal,
-    });
+    upstream = tokenUrl
+      ? await signedWrite(rawTarget, tokenUrl, `${req.user.id}:${serverId}`, tokenStamp)
+      : await fetchUpstream(rawTarget, {
+        method: req.method,
+        headers,
+        body: hasBody ? req.body : undefined,
+        signal: deadline.signal,
+      });
   } catch (err) {
+    if (err instanceof WriteTokenRefusedError) {
+      return res.status(err.status).json({ error: 'FreshRSS refused the write token request' });
+    }
     return finishError(res, err, rawTarget);
+  }
+  if (tokenUrl && upstream.status >= 300 && upstream.status < 400) {
+    // Redirection vers une autre origine : le corps signé ne l'a pas suivie
+    // (`bodyStaysOnOrigin`). Relayée, le navigateur la suivrait lui-même.
+    upstream.body?.cancel().catch(() => {});
+    console.warn('Proxy: signed write redirected off its origin →', redactUrl(rawTarget));
+    return res.status(502).json({ error: 'Upstream request failed' });
+  }
+
+  /**
+   * Écriture signée par le serveur, avec une seule reprise. Le `T` du client
+   * (factice ou absent) est remplacé. Un jeton pris en MÉMOIRE et refusé est
+   * redemandé, et l'écriture rejouée une fois — seulement s'il a changé :
+   * FreshRSS le dérive des identifiants, le même jeton reposerait le même
+   * refus et doublerait l'écriture. Si le nouveau ne peut pas être obtenu,
+   * c'est le refus d'ORIGINE qui est rendu : lui seul décrit l'écriture.
+   */
+  async function signedWrite(target: string, url: string, key: string, stamp: string): Promise<Response> {
+    const obtain = () => fetchWriteTokenOnce(key, stamp, () => requestWriteToken(url, headers.Authorization ?? '', deadline.signal));
+    const send = (token: string) => fetchUpstream(target, {
+      method: req.method,
+      headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+      body: signFormBody(hasBody ? req.body : undefined, token),
+      signal: deadline.signal,
+      bodyStaysOnOrigin: true,
+    });
+    const remembered = cachedWriteToken(key, stamp);
+    const first = await send(remembered ?? await obtain());
+    if (remembered === null || !isStaleWriteTokenStatus(first.status)) return first;
+    forgetWriteToken(key);
+    let fresh: string;
+    try {
+      fresh = await obtain();
+    } catch (err) {
+      if (deadline.signal.aborted) { first.body?.cancel().catch(() => {}); throw err; }
+      return first;
+    }
+    if (fresh === remembered) return first;
+    first.body?.cancel().catch(() => {});
+    return send(fresh);
   }
   if (deadline.signal.aborted) {
     // En-têtes arrivés à l'instant même de l'échéance : le corps n'est pas lié
@@ -934,6 +1014,22 @@ router.all('/', async (req, res) => {
   }
   stream.pipe(res);
 });
+
+/**
+ * Demande le jeton d'écriture à FreshRSS, côté serveur. Un refus garde son
+ * statut (rendu tel quel, comme quand le navigateur le demandait) ; une
+ * réponse illisible — page de maintenance en 200 — vaut une panne amont.
+ */
+async function requestWriteToken(url: string, authorization: string, signal: AbortSignal): Promise<string> {
+  const resp = await fetchUpstream(url, { headers: { Authorization: authorization }, signal });
+  if (!resp.ok) {
+    resp.body?.cancel().catch(() => {});
+    throw new WriteTokenRefusedError(resp.status >= 400 ? resp.status : 502);
+  }
+  const token = parseWriteToken(await readBodyText(resp, signal, MAX_WRITE_TOKEN_BYTES));
+  if (!token) throw new WriteTokenRefusedError(502);
+  return token;
+}
 
 /**
  * Traduit l'échec d'un appel sortant en réponse HTTP, de façon identique pour

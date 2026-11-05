@@ -2,7 +2,6 @@ import { useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { login as freshrssLogin } from '../../../api/auth';
 import { updateServer } from '../../../api/backend';
-import { clearWriteToken } from '../../../api/feeds';
 import { serverConnectErrorKey } from '../../../lib/loginErrors';
 import { useFeedStore } from '../../../stores/feedStore';
 import type { DisplayServer } from '../../../lib/serverList';
@@ -61,11 +60,11 @@ export default function ServerCredentialsForm({ server, isActive, onSaved, onClo
       setPassword('');
       setSaved(true);
       if (isActive) {
-        // Le jeton d'écriture venait de l'ancienne session FreshRSS ; et les
-        // actions gardées après un refus repartent sans attendre un
-        // rechargement. Un rejeu encore en vol sous l'ancien jeton reposerait
-        // le refus : il est attendu d'abord (`replayQueue` rend celui en vol).
-        clearWriteToken();
+        // Les actions gardées après un refus repartent sans attendre un
+        // rechargement. Le jeton d'écriture suit seul les nouveaux
+        // identifiants (le serveur le tient, `server/writeToken.ts`). Un
+        // rejeu encore en vol sous l'ancien jeton reposerait le refus : il est
+        // attendu d'abord (`replayQueue` rend celui en vol).
         const { replayQueue } = useFeedStore.getState();
         void (async () => {
           await replayQueue().catch(() => {});
