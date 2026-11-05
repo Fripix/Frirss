@@ -5048,6 +5048,21 @@ Vignette cliquable (façade) au lieu d'un `<iframe>` chargé d'emblée.
 - **Piège** : la façade doit être posée **avant** l'assainissement — après, il n'y
   a plus d'iframe à remplacer. `src/lib/youtubeFacade.sanitize.test.ts` épingle
   cet invariant.
+- **Une seule passe, dans l'ordre du document** (`injectVideoFacades`, 1.9.0) :
+  iframes et liens sont reconnus par la même expression. Jusqu'en 1.8.0, une
+  passe sur les iframes précédait une passe sur les liens, et la seconde
+  retraitait le lien « Ouvrir sur YouTube » que la première venait de poser
+  dans sa façade : une vidéo intégrée en iframe s'affichait en **deux lecteurs
+  imbriqués**.
+- **Article d'un flux YouTube : une seule vignette** (`dropVideoThumbnails`,
+  appelé par `buildArticleBody` avec l'adresse de l'article, 1.9.0). FreshRSS
+  met la vignette de la vidéo dans le contenu (`img.enclosure-thumbnail`,
+  `i*.ytimg.com/vi/<id>/…`) et le volet pose en tête la façade de la même
+  vidéo : l'image apparaissait deux fois. Quand les façades sont actives, les
+  vignettes de CETTE vidéo sont retirées du corps avant l'injection des
+  façades (dont la propre vignette porte la même URL) ; celles d'une autre
+  vidéo restent, et rien n'est retiré façades éteintes — la vignette est alors
+  la seule trace de la vidéo.
 - **Piège — spécificité CSS** : la vignette vit dans `.article-content`, et
   `.article-content img` pèse 0,1,1 (une classe + un type) contre 0,1,0 pour
   une classe seule. Elle héritait donc de `width:auto; height:auto;

@@ -83,6 +83,7 @@ export function facadeMarkup(ref: YouTubeRef, thumbnail: string, labels: FacadeL
 
 const IFRAME_RE = /<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/iframe>|<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*\/?>/gi;
 const LINK_RE = /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>.*?<\/a>/gi;
+const VIDEO_RE = new RegExp(`${IFRAME_RE.source}|${LINK_RE.source}`, 'gi');
 
 // Tout <iframe>, avec ou sans `src`, fermé ou auto-fermant. Contrairement aux
 // deux regexes ci-dessus, celle-ci ne s'applique qu'à la SORTIE de DOMPurify —
@@ -111,6 +112,22 @@ export function dropNonVideoIframes(html: string): string {
   });
 }
 
+const THUMB_IMG_RE = /<img\b[^>]*\bsrc=["']https?:\/\/(?:i\d?\.ytimg\.com|img\.youtube\.com)\/vi(?:_webp)?\/([A-Za-z0-9_-]{11})\/[^"']*["'][^>]*>/gi;
+
+/**
+ * Retire du HTML les vignettes de la vidéo `id` (`i.ytimg.com/vi/<id>/…`).
+ *
+ * Un article de flux YouTube porte dans son contenu FreshRSS la vignette de
+ * sa vidéo (`img.enclosure-thumbnail`) ; le volet pose en tête la façade de
+ * cette même vidéo, qui a sa propre vignette : l'image apparaissait deux fois
+ * (L-08). À appeler AVANT `injectVideoFacades`, dont la façade porte la même
+ * URL et doit rester.
+ */
+export function dropVideoThumbnails(html: string, id: string): string {
+  if (!html || !id) return html || '';
+  return html.replace(THUMB_IMG_RE, (whole, found: string) => (found === id ? '' : whole));
+}
+
 /**
  * Turn YouTube iframes and links in article HTML into facades, in place.
  * Must run BEFORE sanitizeHtml — afterwards the iframes no longer exist.
@@ -127,7 +144,10 @@ export function injectVideoFacades(html: string, labels: FacadeLabels): { html: 
     return facadeMarkup(ref, youtubeThumbnail(ref.id), labels);
   };
 
-  let out = html.replace(IFRAME_RE, (whole, a, b) => toFacade(whole, a || b || ''));
-  out = out.replace(LINK_RE, (whole, href) => toFacade(whole, href || ''));
+  // UNE passe, dans l'ordre du document. Deux passes successives (iframes,
+  // puis liens) faisaient retraiter par la seconde le lien « Ouvrir sur
+  // YouTube » que la première venait de poser dans sa façade : deux lecteurs
+  // imbriqués pour une seule vidéo (L-07).
+  const out = html.replace(VIDEO_RE, (whole, a, b, href) => toFacade(whole, a || b || href || ''));
   return { html: out, ids };
 }

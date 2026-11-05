@@ -276,3 +276,30 @@ describe('vignette de façade vidéo', () => {
     expect(out.html).toContain('aspect-ratio:1200/800');
   });
 });
+
+// L-08 : un article de flux YouTube porte, dans son contenu FreshRSS, la
+// vignette de la vidéo (`img.enclosure-thumbnail`) ; le volet pose en tête la
+// façade de la même vidéo, qui a sa propre vignette. L'image s'affichait deux
+// fois, l'une sous l'autre.
+describe('article de flux YouTube : vignette du flux', () => {
+  const ID = 'dQw4w9WgXcQ';
+  const rss = `<div class="enclosure"><p class="enclosure-content"><img class="enclosure-thumbnail" src="https://i3.ytimg.com/vi/${ID}/hqdefault.jpg" alt=""></p></div><p>description</p>`;
+  const videoUrl = `https://www.youtube.com/watch?v=${ID}`;
+
+  it('retire la vignette de la vidéo que la façade d’en-tête montre déjà', () => {
+    const out = buildArticleBody({ rssHtml: rss, extractedHtml: null, inlineVideos: true, videoLabels: labels, videoUrl });
+    expect(out.html).not.toContain('ytimg.com');
+    expect(out.html).toContain('description');
+  });
+
+  it('la garde quand les façades sont éteintes : rien d’autre ne montre la vidéo', () => {
+    const out = buildArticleBody({ rssHtml: rss, extractedHtml: null, inlineVideos: false, videoLabels: labels, videoUrl });
+    expect(out.html).toContain(`ytimg.com/vi/${ID}/`);
+  });
+
+  it('garde la vignette d’une AUTRE vidéo', () => {
+    const other = rss.replace(`/vi/${ID}/`, '/vi/abcdefghijk/');
+    const out = buildArticleBody({ rssHtml: other, extractedHtml: null, inlineVideos: true, videoLabels: labels, videoUrl });
+    expect(out.html).toContain('ytimg.com/vi/abcdefghijk/');
+  });
+});

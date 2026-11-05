@@ -17,7 +17,7 @@
 // mémoïse. Rien ici ne connaît React.
 
 import { sanitizeArticleBody } from '../utils/sanitizeHtml';
-import { injectVideoFacades, type FacadeLabels } from './youtube';
+import { dropVideoThumbnails, extractYouTubeId, injectVideoFacades, type FacadeLabels } from './youtube';
 
 /** Combien d'images du début échappent au chargement différé. Les premières
  *  doivent être là *avant* la transition de balayage, pas après. */
@@ -34,6 +34,12 @@ export interface ArticleBodyInput {
   /** Réglage « vidéos en ligne » : injecte les façades YouTube. */
   inlineVideos: boolean;
   videoLabels: FacadeLabels;
+  /**
+   * Adresse de l'article. Quand c'est une vidéo YouTube et que les façades
+   * sont actives, le volet en pose une en tête : la vignette de cette vidéo,
+   * que FreshRSS met dans le contenu, est alors retirée du corps (L-08).
+   */
+  videoUrl?: string | null;
 }
 
 export interface ArticleBody {
@@ -83,8 +89,10 @@ export function buildArticleBody(input: ArticleBodyInput): ArticleBody {
   const displayed = displayedHtml(input.rssHtml, input.extractedHtml);
   const words = displayed.replace(/<[^<>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
 
+  const headVideo = input.inlineVideos ? extractYouTubeId(input.videoUrl || '') : null;
+  const shown = headVideo ? dropVideoThumbnails(displayed, headVideo.id) : displayed;
   const withVideos = input.inlineVideos
-    ? injectVideoFacades(displayed, input.videoLabels)
+    ? injectVideoFacades(shown, input.videoLabels)
     : { html: displayed, ids: [] as string[] };
 
   // Images différées, `dir="auto"`, format réservé et paragraphes vides : tout

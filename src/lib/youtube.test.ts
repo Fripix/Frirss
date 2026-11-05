@@ -103,6 +103,23 @@ describe('injectVideoFacades', () => {
     expect(html).toContain('Ouvrir sur YouTube');
   });
 
+  // L-07 : la passe des liens retraitait le lien « Ouvrir sur YouTube » de la
+  // façade tout juste posée par la passe des iframes — deux lecteurs imbriqués.
+  it('turns one iframe into exactly one facade, its own link left alone', () => {
+    const { html } = injectVideoFacades('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>', L);
+    expect(html.match(/class="yt-facade"/g)).toHaveLength(1);
+    expect(html.match(/class="yt-facade__link"/g)).toHaveLength(1);
+  });
+
+  it('still turns a link next to an iframe facade into its own facade', () => {
+    const { html, ids } = injectVideoFacades(
+      '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe><p><a href="https://youtu.be/abcdefghijk">x</a></p>',
+      L,
+    );
+    expect(ids).toEqual(['dQw4w9WgXcQ', 'abcdefghijk']);
+    expect(html.match(/class="yt-facade"/g)).toHaveLength(2);
+  });
+
   it('uses the labels it is given, never a hard-coded language', () => {
     const { html } = injectVideoFacades('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>', L);
     expect(html).toContain('aria-label="Lire"');

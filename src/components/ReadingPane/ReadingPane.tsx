@@ -1109,8 +1109,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       extractedHtml: extractedContent?.content ?? null,
       inlineVideos,
       videoLabels: { play: videoPlayLabel, open: videoOpenLabel },
+      videoUrl: selectedArticle?.url,
     }),
-    [selectedArticle?.content, extractedContent?.content, inlineVideos, videoPlayLabel, videoOpenLabel],
+    [selectedArticle?.content, extractedContent?.content, inlineVideos, videoPlayLabel, videoOpenLabel, selectedArticle?.url],
   );
 
   // Traduction de l'article (spec §17.1, §17.3). Elle porte sur le corps
@@ -1192,8 +1193,9 @@ export default function ReadingPane({ showBack }: ReadingPaneProps) {
       extractedHtml: null,
       inlineVideos,
       videoLabels: { play: videoPlayLabel, open: videoOpenLabel },
+      videoUrl: selectedArticle?.url,
     })),
-    [articleTranslation.html, inlineVideos, videoPlayLabel, videoOpenLabel],
+    [articleTranslation.html, inlineVideos, videoPlayLabel, videoOpenLabel, selectedArticle?.url],
   );
   const showTranslatedBody = articleTranslation.showing === 'translation' && translatedBody !== null;
   const translationShown = useRef(false);
