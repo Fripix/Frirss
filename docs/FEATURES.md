@@ -5978,6 +5978,11 @@ dans quelques composants partagés.
   `!important` — c'est la seule façon de battre un utilitaire sans le dupliquer
   sur vingt appels. Le champ de recherche de la liste garde son style en ligne,
   qui était le contournement ponctuel du même problème.
+  C'est **la seule** parade au zoom à la saisie : la balise viewport
+  d'`index.html` ne porte plus `maximum-scale=1.0` (1.9.0), qui interdisait
+  le zoom à deux doigts sur Chrome Android (WCAG 1.4.4) — iOS l'ignorait
+  déjà au pincer. Ne pas la remettre, ni `user-scalable=no`
+  (`src/lib/viewportZoom.test.ts`).
 - **Cibles tactiles** : le bloc `@media (pointer: coarse)` couvre maintenant les
   champs en plus des boutons (44 px). Exclusions communes aux deux règles :
   cases à cocher, boutons radio, sélecteurs de couleur et curseurs, qui ont leur
