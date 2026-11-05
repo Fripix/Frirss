@@ -514,8 +514,11 @@ function LabelRow({
   const isDragging = dragId === labelId;
   const isDropTarget = dropTarget?.id === labelId;
 
-  // Le nom envoyé est celui du champ, tel quel : c'est lui qui doit être libre.
-  const renameClash = renameValue.trim() !== name ? takenBy(renameValue, owners, labelId) : null;
+  // Le champ d'une étiquette enfant montre sa feuille (« Tuto » pour
+  // « Tech/Tuto ») : le nom envoyé, et contrôlé, garde son parent. Renvoyer la
+  // feuille seule sortait l'étiquette de son groupe.
+  const fullName = (value: string) => (currentParent ? `${currentParent}/${value.trim()}` : value.trim());
+  const renameClash = renameValue.trim() !== name ? takenBy(fullName(renameValue), owners, labelId) : null;
 
   if (mode === 'rename') {
     return (
@@ -527,7 +530,7 @@ function LabelRow({
             // Nom pris : le champ reste ouvert, son motif dessous (L-14).
             if (renameClash) return;
             if (renameValue.trim() && renameValue.trim() !== name) {
-              const ok = await onRename(labelId, renameValue.trim());
+              const ok = await onRename(labelId, fullName(renameValue));
               if (!ok) pushToast(t('preferences.labels.renameFailed'), { tone: 'error' });
             }
             setMode(null);

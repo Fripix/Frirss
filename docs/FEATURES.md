@@ -5188,10 +5188,11 @@ noms créés par l'utilisateur vivent dans les préférences synchronisées
   choisie, sinon la première, et Tab boucle dans le sélecteur ; Échap le
   ferme seul et rend le focus à son bouton (voir « Accessibilité »).
   Test : `labelColorPicker.test.tsx`.
-- **Piège connu, non corrigé** : renommer une étiquette **enfant** depuis les
-  Préférences envoie le seul nom de la feuille (le champ montre `Tuto` pour
-  `Tech/Tuto`) : elle sort de son groupe. Le contrôle des noms porte sur ce
-  qui part réellement.
+- **Renommer une étiquette enfant garde son parent** (1.9.0) : le champ montre
+  la feuille (`Tuto` pour `Tech/Tuto`), mais le nom contrôlé et envoyé est
+  `Tech/<saisie>` (`fullName` dans `LabelRow`). Avant, la feuille seule
+  partait et l'étiquette sortait de son groupe. Le contrôle des noms porte sur
+  ce qui part réellement. Test : `LabelsTab.renameChild.test.tsx`.
 - **Dans la barre latérale** (`SavedCategoryList`, `FilterItem` de
   `Sidebar.tsx`) : la croix qui supprime une catégorie est révélée au survol
   et **n'existe pas au toucher** (`[@media(hover:none)]:hidden`, 1.8.0) :
