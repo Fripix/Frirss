@@ -132,7 +132,9 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
       >
         {/* Poignée : purement visuelle, elle dit d'où vient la feuille. */}
         <div className="bottom-sheet__grip" aria-hidden="true" />
-        {title && <h3 className="bottom-sheet__title">{title}</h3>}
+        {/* `h2` comme le titre d'une confirmation : un `h3` sans `h2` au-dessus
+            sautait un niveau (axe). Le style tient à la classe, pas au niveau. */}
+        {title && <h2 className="bottom-sheet__title">{title}</h2>}
         {children}
         {/* Zone de l'indicateur d'accueil. */}
         <div style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} />

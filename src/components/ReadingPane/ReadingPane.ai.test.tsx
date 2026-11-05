@@ -245,7 +245,8 @@ describe('ReadingPane — Résumé IA', () => {
         // Première rangée : avant « Ouvrir l'original ».
         const original = getByRole('link', { name: 'readingPane.openOriginal' });
         expect(row.compareDocumentPosition(original) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(row.previousElementSibling?.tagName).toBe('H3');
+        // Juste après le titre de la feuille (un `h2` depuis la 1.9.0).
+        expect(row.previousElementSibling?.tagName).toBe('H2');
         fireEvent.click(row);
         expect(requestAiSummary).toHaveBeenCalledTimes(1);
         await waitFor(() => expect(queryAllByRole('button', { name: 'ai.summarizeAction' })).toHaveLength(0));

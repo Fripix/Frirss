@@ -6054,6 +6054,25 @@ dans quelques composants partagés.
   texte — le rôle `alert` est annoncé à l'insertion, à la différence d'une
   région `aria-live` ordinaire (`src/components/dialogErrors.test.tsx`).
   Avant, un simple `<p>` : rien n'était dit au lecteur d'écran.
+- **Repères et titres de page** (1.9.0, relevés par axe sur le banc ;
+  `src/components/landmarks.test.tsx`) :
+  - **un seul `main`, sur les trois formats** (`src/components/AppMain.tsx`) :
+    la liste et le volet de lecture, plus la barre des raccourcis sur
+    ordinateur. Avant, `main` n'entourait que le volet : absent en tablette,
+    au téléphone, en 2 colonnes et en grille tant qu'aucun article n'était
+    ouvert ;
+  - **le `h1` de la page est le nom de l'app**, en `sr-only` au début de ce
+    `main`. Le nom visible en tête de la barre latérale n'est plus un titre
+    (un `p` aux mêmes classes, rendu identique) : il ne suffisait pas — inerte
+    dans le tiroir fermé, absent avec un grand logo — et l'aurait doublé. Le
+    titre d'un article ouvert reste un `h1` ;
+  - **titre de la feuille du bas en `h2`**, comme celui d'une confirmation
+    (un `h3` sautait un niveau) ; le style tient à `.bottom-sheet__title` ;
+  - **le tiroir mobile est un `aside`**, comme la barre latérale du bureau, et
+    **la barre des serveurs une `nav`** nommée « Serveurs » (`servers.label`) :
+    leur contenu était hors de tout repère. Le bandeau hors ligne visible est
+    `aria-hidden` (sa région `sr-only` parle pour lui) ; toasts et surfaces
+    flottantes, rendus sous `<body>`, n'ont pas été passés en revue.
 - **Chevron de catégorie de la barre latérale** (1.9.0, `.category-chevron`,
   `index.css`) : l'icône reste à 12 px, la cible passe à 24 × 24 à la souris
   (WCAG 2.5.8) et 44 × 44 au doigt ; des marges négatives gardent

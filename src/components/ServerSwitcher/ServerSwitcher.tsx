@@ -41,8 +41,10 @@ export default function ServerSwitcher() {
 
   const rows = displayServers(servers, activeServerId, serverUrl);
 
+  // Une navigation nommée : sans repère, la barre était hors de toute région.
   return (
-    <div
+    <nav
+      aria-label={t('servers.label')}
       className={`flex justify-center flex-shrink-0 ${isMobile ? 'px-2 py-1' : 'px-3 py-2'}`}
       style={{
         background: 'var(--topbar-bg)',
@@ -93,7 +95,7 @@ export default function ServerSwitcher() {
       {menu && (
         <ManageMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} onManage={() => { setMenu(null); openPreferences('feeds'); }} />
       )}
-    </div>
+    </nav>
   );
 }
 

@@ -23,7 +23,7 @@ interface MobileDrawerProps {
  * - Close via: backdrop tap, swipe left, Escape
  */
 export default function MobileDrawer({ open, onClose, children, width = 280 }: MobileDrawerProps) {
-  const drawerRef = useRef<HTMLDivElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const touchRef = useRef<DrawerTouch>({});
@@ -141,8 +141,9 @@ export default function MobileDrawer({ open, onClose, children, width = 280 }: M
         }}
         onClick={onClose}
       />
-      {/* Drawer */}
-      <div
+      {/* Drawer — un `aside`, comme la barre latérale du bureau : sans repère,
+          son contenu (en-tête, boutons du bas) était hors de toute région. */}
+      <aside
         ref={drawerRef}
         className="fixed top-0 left-0 h-full z-50 shadow-2xl overflow-hidden"
         style={{
@@ -159,7 +160,7 @@ export default function MobileDrawer({ open, onClose, children, width = 280 }: M
         inert={!open}
       >
         {children}
-      </div>
+      </aside>
     </>
   );
 }

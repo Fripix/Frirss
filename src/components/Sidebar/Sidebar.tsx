@@ -273,7 +273,8 @@ export default function Sidebar() {
                 className={`w-9 h-9 rounded-lg flex-shrink-0 object-contain ${appLogo ? '' : 'bg-white p-0.5'}`}
               />
               <div className="min-w-0 flex-1">
-                <h1
+                {/* Plus un titre : le `h1` de la page est porté par `AppMain`. */}
+                <p
                   className="font-extrabold text-[17px] leading-tight truncate tracking-tight"
                   style={{
                     background: 'linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.72) 100%)',
@@ -283,7 +284,7 @@ export default function Sidebar() {
                     color: 'transparent',
                     filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.18))',
                   }}
-                >{appTitle}</h1>
+                >{appTitle}</p>
                 <p className="text-[11px] truncate text-white/70">
                   {serverName}
                 </p>

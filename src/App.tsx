@@ -33,6 +33,7 @@ import { effectiveLayout } from './lib/effectiveLayout';
 import { statusBarColor } from './lib/statusBarColor';
 import MobileDrawer from './components/MobileDrawer';
 import MobileStack from './components/MobileStack';
+import AppMain from './components/AppMain';
 
 // Preferences is a heavy, rarely-opened panel → load it on demand
 const Preferences = lazy(() => import('./components/Preferences/Preferences'));
@@ -455,13 +456,13 @@ export default function App() {
           <div className="safe-area-top" />
           <OfflineBanner />
           {topbarVisible && <ServerSwitcher />}
-          <div className="flex-1 min-h-0">
+          <AppMain className="flex-1 min-h-0">
             <MobileStack
               showOverlay={!!selectedArticle}
               base={<ArticleList />}
               overlay={<ReadingPane showBack />}
             />
-          </div>
+          </AppMain>
           <div className="safe-area-bottom" />
         </div>
 
@@ -496,7 +497,7 @@ export default function App() {
           <div className="safe-area-top" />
           <OfflineBanner />
           {topbarVisible && <ServerSwitcher />}
-          <div className="flex-1 flex overflow-hidden min-h-0">
+          <AppMain className="flex-1 flex overflow-hidden min-h-0">
             {!readingFocus && (
               <section
                 className="flex-shrink-0 overflow-hidden"
@@ -512,11 +513,11 @@ export default function App() {
               </section>
             )}
             {(selectedArticle || readingFocus) && (
-              <main className="flex-1 overflow-hidden" style={{ minWidth: 0 }}>
+              <div className="flex-1 overflow-hidden" style={{ minWidth: 0 }}>
                 <ReadingPane showBack={!readingFocus} />
-              </main>
+              </div>
             )}
-          </div>
+          </AppMain>
           <div className="safe-area-bottom" />
         </div>
 
@@ -571,7 +572,7 @@ export default function App() {
         )}
 
         {/* Right side: content + shortcut bar */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <AppMain className="flex-1 flex flex-col overflow-hidden min-w-0">
           <div className="flex-1 flex overflow-hidden">
             {/* Article List */}
             {showArticleList && (
@@ -592,15 +593,15 @@ export default function App() {
 
             {/* Reading Pane */}
             {showReadingPane && (
-              <main className="flex-1 overflow-hidden" style={{ minWidth: 0 }}>
+              <div className="flex-1 overflow-hidden" style={{ minWidth: 0 }}>
                 <ReadingPane showBack={is2Panel} />
-              </main>
+              </div>
             )}
           </div>
 
           {/* Shortcut bar — only under content, not sidebar */}
           <ShortcutBar />
-        </div>
+        </AppMain>
         </div>
       </div>
 
