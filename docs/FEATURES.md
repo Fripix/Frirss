@@ -627,7 +627,11 @@ issue). Les défauts reproduisent exactement la grille d'avant.
   relient leur `<label>` à l'`input` (`useId`) et annoncent leur valeur avec
   l'unité (`aria-valuetext`, « 240px ») ; le chiffre affiché à côté est
   masqué aux lecteurs d'écran, qui le liraient deux fois. Avant, ils
-  annonçaient « curseur, 240 » sans dire lequel.
+  annonçaient « curseur, 240 » sans dire lequel. Chaque section de tailles de
+  texte (Barre latérale, Liste d'articles, Lecture) est un **groupe nommé par
+  son titre** (`role="group"` + `aria-labelledby`, 1.9.0) : « Titre » et
+  « Nom du flux » existent deux fois, et rien ne les distinguait à l'oreille.
+  Test : `namedGroups.test.tsx`.
 
 ### Vue à l'ouverture
 Ce que FriRSS ouvre au lancement et au rechargement : **Dernière vue**
@@ -6448,7 +6452,9 @@ pour les administrateurs.
     raccourcis réassignables, hors registre). Masquée, elle emporte la mention
     « ⌘K Palette » : l'aide de la section rappelle la touche, et `?` reste.
   - **« Tout réafficher »** par zone, actif seulement si quelque chose y est
-    masqué ; non destructif, donc sans confirmation. Barre de la liste
+    masqué ; non destructif, donc sans confirmation. Son nom accessible dit la
+    zone (« Tout réafficher : Barre de la liste », `app.labelValue`, 1.9.0) :
+    les trois boutons portaient le même. Barre de la liste
     éteinte, ses onze interrupteurs restent visibles mais grisés.
   - **Piège** : comme `rowActions`, un appareil resté sur une version
     antérieure synchronise un objet sans les éléments récents — une clé absente

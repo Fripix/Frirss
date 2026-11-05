@@ -123,6 +123,7 @@ function Zone({ title, resetLabel, canReset, onReset, children }: {
   onReset: () => void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <section className="mt-6">
       <div className="flex items-baseline justify-between gap-3">
@@ -131,6 +132,9 @@ function Zone({ title, resetLabel, canReset, onReset, children }: {
           type="button"
           onClick={onReset}
           disabled={!canReset}
+          // Trois « Tout réafficher » : le nom dit la zone (le texte visible
+          // reste en tête du nom, WCAG 2.5.3).
+          aria-label={t('app.labelValue', { label: resetLabel, value: title })}
           className="text-[11px] rounded px-1 -mx-1 transition-opacity disabled:opacity-40 disabled:cursor-default"
           style={{ color: 'var(--accent)' }}
         >

@@ -693,9 +693,12 @@ function SizesSection() {
       <div style={touch ? ({ '--fs-reading-body': deviceBody + 'px' } as CSSProperties) : undefined}>
         <ThemePreview focusedKey={null} />
       </div>
+      {/* Groupes nommés par leur titre : « Titre » et « Nom du flux » existent
+          deux fois, et un lecteur d'écran ne les distinguait pas. */}
       {FONT_SECTIONS.map((section) => (
-        <div key={section.titleKey}>
+        <div key={section.titleKey} role="group" aria-labelledby={`font-section-${section.titleKey}`}>
           <h3
+            id={`font-section-${section.titleKey}`}
             className="text-[11px] font-bold uppercase tracking-widest mb-2"
             style={{ color: 'var(--list-summary)' }}
           >

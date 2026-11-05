@@ -45,7 +45,7 @@ describe('LayoutTab — barres sur ordinateur', () => {
   it('« Tout réafficher » de la liste remet sa zone et elle seule ; inactif sans rien de masqué', () => {
     useUiStore.setState({ toolbarVisibility: { ...DEFAULT_TOOLBAR_VISIBILITY, listBar: false, random: false, star: false } });
     const c = render(<LayoutTab />);
-    const [listReset, readingReset, shortcutsReset] = c.getAllByRole('button', { name: 'preferences.toolbars.showAll' }) as HTMLButtonElement[];
+    const [listReset, readingReset, shortcutsReset] = c.getAllByText('preferences.toolbars.showAll') as HTMLButtonElement[];
     expect(shortcutsReset.disabled).toBe(true);
     fireEvent.click(listReset);
     const v = useUiStore.getState().toolbarVisibility;
