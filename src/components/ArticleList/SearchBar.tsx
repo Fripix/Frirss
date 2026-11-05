@@ -6,6 +6,9 @@ interface Props {
   /** La vue que la recherche fouille, annoncée dans le champ. */
   scope: string;
   mobile: boolean;
+  /** Trait du haut, qui la sépare de la barre de la liste. Sans barre au-dessus
+   *  (masquée sur desktop), il ne séparerait rien. */
+  topRule?: boolean;
   onChange: (value: string) => void;
   onSubmit: () => void;
   onClose: () => void;
@@ -28,7 +31,7 @@ interface Props {
  * la saisie.
  */
 const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
-  { value, scope, mobile, onChange, onSubmit, onClose }, ref,
+  { value, scope, mobile, topRule = true, onChange, onSubmit, onClose }, ref,
 ) {
   const { t } = useTranslation();
   // Le bouton « Rechercher » qui a ouvert la barre, noté au premier rendu :
@@ -57,7 +60,7 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
       onSubmit={handleSubmit}
       onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
       className="px-3 py-1.5 flex items-center gap-1.5"
-      style={{ borderTop: '1px solid var(--panel-border)' }}
+      style={topRule ? { borderTop: '1px solid var(--panel-border)' } : undefined}
     >
       <div className="flex-1 relative">
         <input

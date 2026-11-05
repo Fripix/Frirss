@@ -64,6 +64,12 @@ const STATIC: Record<string, ToolbarItemId> = {
   'palette-action:aiTranslate': 'translate',
 };
 
+type Layout = '2' | '3' | 'grid';
+const LAYOUTS: Layout[] = ['2', '3', 'grid'];
+/** Retour n'existe qu'en 2 colonnes et en grille, la densité hors grille. */
+const absentIn = (layout: Layout, id: ToolbarItemId) =>
+  (id === 'back' && layout === '3') || (id === 'density' && layout === 'grid');
+
 const FEED = { id: 'feed/1', title: 'Flux' };
 const LABEL = 'user/-/label/Tech';
 const art = (i: number): Article => ({
@@ -72,7 +78,7 @@ const art = (i: number): Article => ({
 }) as unknown as Article;
 const provider = { id: 1, name: 'P', type: 'openai' as const, hasAdminKey: false, shared: false, hasUserKey: false, available: true };
 
-function setup(panelLayout: '2' | '3', visibility: ToolbarVisibility = DEFAULT_TOOLBAR_VISIBILITY) {
+function setup(panelLayout: Layout, visibility: ToolbarVisibility = DEFAULT_TOOLBAR_VISIBILITY) {
   const articles = [art(0), art(1)];
   // Panneau IA pas affiché d'office : c'est alors que le bouton « Résumer » est dans la barre.
   useUiStore.setState({ panelLayout, toolbarVisibility: visibility, sidebarVisible: true, commandPaletteOpen: false, aiPanelAlways: false, aiAutoSummary: false } as never);
@@ -91,9 +97,9 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('garde-fou — chaque élément masquable a sa commande de palette', () => {
-  it.each(['2', '3'] as const)('disposition %s colonnes', async (layout) => {
+  it.each(LAYOUTS)('disposition %s', async (layout) => {
     setup(layout);
-    const c = render(<><ArticleList /><ReadingPane showBack={layout === '2'} /><CommandPalette /></>);
+    const c = render(<><ArticleList /><ReadingPane showBack={layout !== '3'} /><CommandPalette /></>);
     await act(async () => { await Promise.resolve(); });
     act(() => { useUiStore.setState({ commandPaletteOpen: true }); });
 
@@ -101,18 +107,18 @@ describe('garde-fou — chaque élément masquable a sa commande de palette', ()
     for (const [id, item] of Object.entries(STATIC)) {
       if (c.container.ownerDocument.getElementById(id)) covered.add(item);
     }
-    // Retour n'existe qu'en 2 colonnes et en grille : en 3 colonnes il n'a ni
-    // bouton ni commande, et c'est juste.
-    const expected = TOOLBAR_ITEMS.map((i) => i.id).filter((id) => layout === '2' || id !== 'back');
+    // Là où un élément n'existe pas (Retour en 3 colonnes, densité en
+    // grille), il n'a ni bouton ni commande, et c'est juste.
+    const expected = TOOLBAR_ITEMS.map((i) => i.id).filter((id) => !absentIn(layout, id));
     expect([...covered].sort()).toEqual([...expected].sort());
   });
 });
 
 describe('garde-fou — chaque bouton des barres est déclaré dans le registre', () => {
-  it.each(['2', '3'] as const)('tout masqué en %s colonnes : plus aucun bouton dans les barres', async (layout) => {
+  it.each(LAYOUTS)('tout masqué en %s : plus aucun bouton dans les barres', async (layout) => {
     const hidden = Object.fromEntries(Object.keys(DEFAULT_TOOLBAR_VISIBILITY).map((k) => [k, k === 'listBar' || k === 'shortcutBar'])) as unknown as ToolbarVisibility;
     setup(layout, hidden);
-    const c = render(<><ArticleList /><ReadingPane showBack={layout === '2'} /></>);
+    const c = render(<><ArticleList /><ReadingPane showBack={layout !== '3'} /></>);
     await act(async () => { await Promise.resolve(); });
     const header = c.container.querySelector('.article-list-header')!;
     // Restent le titre (non masquable) et le ☰ s'il était là : rien d'autre.
@@ -128,10 +134,10 @@ describe('garde-fou — masquer un élément seul retire bien quelque chose', ()
   const controls = (root: HTMLElement) =>
     root.querySelectorAll('.article-list-header button, .article-list-header a[href], .reading-toolbar button, .reading-toolbar a[href]').length;
 
-  it.each(['2', '3'] as const)('en %s colonnes', async (layout) => {
+  it.each(LAYOUTS)('en %s', async (layout) => {
     const mount = async (v: ToolbarVisibility) => {
       setup(layout, v);
-      const c = render(<><ArticleList /><ReadingPane showBack={layout === '2'} /></>);
+      const c = render(<><ArticleList /><ReadingPane showBack={layout !== '3'} /></>);
       await act(async () => { await Promise.resolve(); });
       const n = controls(c.container);
       cleanup();
@@ -140,7 +146,7 @@ describe('garde-fou — masquer un élément seul retire bien quelque chose', ()
     const all = await mount(DEFAULT_TOOLBAR_VISIBILITY);
     const unchanged: string[] = [];
     for (const { id } of TOOLBAR_ITEMS) {
-      if (id === 'back' && layout === '3') continue; // pas de Retour en 3 colonnes
+      if (absentIn(layout, id)) continue;
       if (await mount({ ...DEFAULT_TOOLBAR_VISIBILITY, [id]: false }) >= all) unchanged.push(id);
     }
     expect(unchanged).toEqual([]);

@@ -6237,7 +6237,8 @@ pour les administrateurs.
     dans la palette — les barres l'offrent par `src/lib/toolbarCommands.ts`
     (voir *Palette de commandes*), Rechercher, la disposition, Résumer et
     Traduire ont leurs commandes statiques. Garde-fou :
-    `src/lib/toolbarCoverage.test.tsx`.
+    `src/lib/toolbarCoverage.test.tsx`, en 2 colonnes, 3 colonnes **et**
+    grille (une dérive propre à la grille ne rougit que là).
   - **Masquer retire, rien ne bouge** : les séparateurs suivent les groupes
     réellement affichés (`separatorsBefore` : jamais en tête, en queue ni
     doublés) ; la piste d'options vide, la rangée d'actions vide (3 colonnes)
@@ -6248,7 +6249,9 @@ pour les administrateurs.
     ni compteur ; `.article-list-header` ne revient que pour la **zone de
     recherche**, tant qu'une recherche est ouverte (`f`, palette) ou active
     (bandeau et sa croix) — sinon on ne verrait ni ce qu'on tape ni comment
-    effacer. Le ☰ (rouvrir la barre latérale) part avec elle : `b` et la
+    effacer. Le champ et le bandeau perdent alors leur trait du haut
+    (`topRule` de `SearchBar`) : il les séparait de la barre, et sans elle
+    soulignait le haut de la colonne. Le ☰ (rouvrir la barre latérale) part avec elle : `b` et la
     commande `action:toggleSidebar` restent.
   - **Volet sans aucun bouton visible** : `.reading-toolbar` n'est pas rendue
     et la progression passe en liseré en haut du volet, comme sur mobile.
@@ -7331,7 +7334,8 @@ l'article (IA) »).
   « Afficher aussi les articles lus » (`palette.filter*`), « Ajouter aux
   favoris » / « Retirer des favoris », « Ajouter à À lire plus tard » — et
   non « Non lus » ou « Favoris », noms des vues, qu'un filtre masqué ne
-  montrerait nulle part ailleurs.
+  montrerait nulle part ailleurs. La densité n'est proposée que pour les deux
+  modes inactifs (choisir l'actif ne ferait rien), et jamais en grille.
   Commande statique ajoutée :
   `action:toggleSidebar` (le ☰ vit dans la barre de la liste, masquable).
   Tests : `toolbarCommands.test.tsx`, `CommandPalette.test.tsx`.

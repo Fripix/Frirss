@@ -826,8 +826,9 @@ export default function ArticleList() {
     if (randomButton && !randomButton.disabled) offers.push({ command: 'random', item: 'random', label: t('articleList.random') });
     if (canMarkAll) offers.push({ command: 'markAllRead', item: 'markAllRead', label: t('articleList.markAllRead') });
     if (!gridLayout) {
+      // Pas la densité déjà active : la proposer ne ferait rien.
       for (const [mode, key] of densityModes) {
-        offers.push({ command: `density:${mode}`, item: 'density', label: t('app.labelValue', { label: t('articleList.displayMode'), value: t(key) }) });
+        if (mode !== viewMode) offers.push({ command: `density:${mode}`, item: 'density', label: t('app.labelValue', { label: t('articleList.displayMode'), value: t(key) }) });
       }
     }
     return offers;
@@ -1128,6 +1129,7 @@ export default function ArticleList() {
             value={searchValue}
             scope={searchScope}
             mobile={isMobile}
+            topRule={listBarShown}
             onChange={setSearchValue}
             onSubmit={() => runSearch(searchValue)}
             onClose={handleClearSearch}
@@ -1180,7 +1182,7 @@ export default function ArticleList() {
         {searchQuery && !searchOpen && (
           <div
             className="px-3 py-1 flex items-center gap-2"
-            style={{ borderTop: '1px solid var(--panel-border)', background: 'var(--accent-glow)' }}
+            style={{ ...(listBarShown ? { borderTop: '1px solid var(--panel-border)' } : {}), background: 'var(--accent-glow)' }}
           >
             <svg className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />

@@ -150,6 +150,30 @@ describe('la barre entière masquée', () => {
     act(() => { window.dispatchEvent(new CustomEvent('frirss:open-search')); });
     expect(c.container.querySelector('.article-list-header input')).toBeTruthy();
   });
+
+  // Le trait du haut sépare la recherche de la barre ; sans barre, il ne
+  // séparait plus rien et soulignait le haut de la colonne.
+  it('le champ de recherche n’a pas de trait au-dessus de lui', () => {
+    const c = show({ hidden: ['listBar'] });
+    act(() => { window.dispatchEvent(new CustomEvent('frirss:open-search')); });
+    const first = c.container.querySelector('.article-list-header')!.firstElementChild as HTMLElement;
+    expect(first.tagName).toBe('FORM');
+    expect(first.style.borderTop).toBe('');
+  });
+
+  it('le rappel d’une recherche active non plus', () => {
+    const c = show({ hidden: ['listBar'], state: { searchQuery: 'rust' } });
+    const first = c.container.querySelector('.article-list-header')!.firstElementChild as HTMLElement;
+    expect(first.textContent).toContain('rust');
+    expect(first.style.borderTop).toBe('');
+  });
+
+  it('barre affichée, le champ garde son trait', () => {
+    const c = show();
+    act(() => { window.dispatchEvent(new CustomEvent('frirss:open-search')); });
+    const form = c.container.querySelector('.article-list-header form') as HTMLElement;
+    expect(form.style.borderTop).not.toBe('');
+  });
 });
 
 describe('hors desktop, les réglages sont ignorés', () => {
@@ -167,12 +191,20 @@ describe('les commandes offertes à la palette', () => {
   const commands = () => probeToolbarCommands().map((o) => o.command);
 
   it('chaque bouton de la barre a sa commande, masqué ou non', () => {
+    useUiStore.setState({ viewMode: 'preview' });
     show({ hidden: [...LIST_ITEMS, 'listBar'] });
     expect(commands()).toEqual(expect.arrayContaining([
       'unreadFilter', 'random', 'starredFilter', 'markAllRead',
       'optSource', 'optFavicons', 'optDateSeparators', 'optServerBar',
-      'density:preview', 'density:simple', 'density:compact',
+      'density:simple', 'density:compact',
     ]));
+  });
+
+  it('la densité déjà active n’est pas proposée', () => {
+    useUiStore.setState({ viewMode: 'compact' });
+    show();
+    const density = commands().filter((c) => c.startsWith('density:'));
+    expect(density).toEqual(['density:preview', 'density:simple']);
   });
 
   it('« Tout lu » passe par la même confirmation que le bouton', () => {
