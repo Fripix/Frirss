@@ -46,6 +46,25 @@ describe('useToolbarFold', () => {
     expect(typeof ResizeObserver).toBe('undefined');
     expect(() => render(<Bar widths={{ '0': 100 }} />)).not.toThrow();
   });
+  // L-11 : replié sur deux lignes, le trait après le titre restait seul au
+  // bout de la première. La mesure qui choisit le repli marque aussi les
+  // traits orphelins ; le CSS les rend invisibles sans changer la mise en page.
+  it('marque le trait resté seul en bout de ligne après le repli (L-11)', () => {
+    const rect = (top: number, h: number) => () => ({ top, bottom: top + h, left: 0, right: 10, width: 10, height: h, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+    function Wrapped() {
+      const ref = useRef<HTMLDivElement>(null);
+      useToolbarFold(ref, []);
+      return (
+        <div ref={ref} data-testid="bar">
+          <div ref={(el) => { if (el) el.getBoundingClientRect = rect(0, 28); }} />
+          <div data-testid="sep" data-toolbar-sep="" ref={(el) => { if (el) el.getBoundingClientRect = rect(6, 16); }} />
+          <div ref={(el) => { if (el) el.getBoundingClientRect = rect(34, 28); }} />
+        </div>
+      );
+    }
+    const { getByTestId } = render(<Wrapped />);
+    expect(getByTestId('sep').hasAttribute('data-orphan')).toBe(true);
+  });
   it('ne plante pas quand la ref est vide', () => {
     function Empty() {
       const ref = useRef<HTMLElement>(null);

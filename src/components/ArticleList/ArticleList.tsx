@@ -1092,7 +1092,7 @@ export default function ArticleList() {
 
             {anyAction && (
               <>
-                <div className="w-px h-4 mx-1 flex-shrink-0" style={{ background: 'var(--panel-border)' }} />
+                <div data-toolbar-sep="" className="w-px h-4 mx-1 flex-shrink-0" style={{ background: 'var(--panel-border)' }} />
 
                 {/* Inline toolbar actions */}
                 <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -1559,8 +1559,9 @@ function HeaderUnread({ count }: { count: number | null }) {
   );
 }
 
+/** `data-toolbar-sep` : repéré par `useToolbarFold`, masqué s'il reste seul au bout d'une ligne repliée. */
 function ToolbarSep() {
-  return <div className="w-px h-4 mx-0.5" style={{ background: 'var(--panel-border)' }} />;
+  return <div data-toolbar-sep="" className="w-px h-4 mx-0.5" style={{ background: 'var(--panel-border)' }} />;
 }
 
 interface ToolbarBtnProps {

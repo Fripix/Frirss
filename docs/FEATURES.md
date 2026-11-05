@@ -721,7 +721,13 @@ en icône sur téléphone et en toutes lettres ailleurs. En 3 colonnes comme en 
 colonnes (tablette, article ouvert), si la ligne déborde, « Rechercher » cède son
 mot le premier, puis lui, et seulement alors (`useToolbarFold`, le même que la barre
 du lecteur, `.list-actions`, `data-cede`) ; en dernier recours, elle passe à la
-ligne, boutons compris. ⚠️ Mesuré et pas un seuil : la longueur
+ligne, boutons compris. Un trait séparateur resté alors seul au bout d'une
+ligne (le trait après le titre en tablette, quand le groupe d'actions passe
+dessous) ou en tête de la suivante est marqué `data-orphan` par la même
+mesure (`src/lib/orphanSeparators.ts`, traits repérés par
+`data-toolbar-sep`) et rendu invisible — `visibility: hidden`, pas
+`display: none`, pour ne pas changer le passage à la ligne qu'on vient de
+mesurer (1.9.0). ⚠️ Mesuré et pas un seuil : la longueur
 des mots change avec la langue, et une requête `@container` à 430 px retirait
 « Random » qui tenait. Placé sur la ligne du titre, sans texte, le bouton ne se
 trouvait pas.
@@ -6338,7 +6344,9 @@ pour les administrateurs.
     grille (une dérive propre à la grille ne rougit que là).
   - **Masquer retire, rien ne bouge** : les séparateurs suivent les groupes
     réellement affichés (`separatorsBefore` : jamais en tête, en queue ni
-    doublés) ; la piste d'options vide, la rangée d'actions vide (3 colonnes)
+    doublés) — et, la barre repliée sur plusieurs lignes, jamais seuls au
+    bout ou en tête d'une ligne (`markOrphanSeparators`, voir *Affichage
+    aléatoire*) ; la piste d'options vide, la rangée d'actions vide (3 colonnes)
     et le trait vertical après le titre (2 colonnes) ne sont pas rendus ;
     `useToolbarFold` reçoit la visibilité dans ses dépendances, pour ne pas
     garder replié un libellé qui a désormais la place.

@@ -1,4 +1,5 @@
 import { useLayoutEffect, type RefObject } from 'react';
+import { markOrphanSeparators } from '../lib/orphanSeparators';
 
 /**
  * Replie les libellés d'une barre d'action EN MESURANT : celle du volet de lecture,
@@ -16,18 +17,29 @@ import { useLayoutEffect, type RefObject } from 'react';
  * dépendre (`.list-actions` passe à la ligne au dernier niveau), et une mesure part
  * alors sur le contenu du moment. `deps` : tout ce qui change le contenu de la barre,
  * un libellé comme un bouton qui apparaît ou disparaît.
+ *
+ * Après le palier, chaque trait `[data-toolbar-sep]` resté seul au bout ou en
+ * tête d'une ligne reçoit `data-orphan` (`markOrphanSeparators`) ; seule la
+ * liste en pose.
  */
 export function useToolbarFold(ref: RefObject<HTMLElement | null>, deps: unknown[]): void {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const overflows = () => el.scrollWidth > el.clientWidth;
-    const measure = () => {
+    const fold = () => {
       el.dataset.fold = '0';
       if (!overflows()) return;
       el.dataset.fold = '1';
       if (!overflows()) return;
       el.dataset.fold = '2';
+    };
+    // Une fois le palier choisi, la barre a peut-être passé à la ligne : un
+    // trait séparateur resté seul en bout de ligne est marqué, puis rendu
+    // invisible par le CSS (`orphanSeparators.ts`).
+    const measure = () => {
+      fold();
+      markOrphanSeparators(el);
     };
     measure();
     window.addEventListener('resize', measure);

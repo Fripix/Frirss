@@ -1093,6 +1093,13 @@ html {
   flex-wrap: wrap;
   max-width: 100%;
 }
+/* Repliée, la ligne peut laisser un trait séparateur seul au bout d'une ligne
+   ou en tête de la suivante (tablette, L-11) : `useToolbarFold` le marque.
+   Invisible, pas retiré : sa largeur reste, et le passage à la ligne mesuré
+   avec elle ne change pas. */
+.list-actions [data-toolbar-sep][data-orphan] {
+  visibility: hidden;
+}
 
 /* ── Thin top progress bar (indeterminate) — shown while the app revalidates
    the subscriptions/counts, e.g. on a cold start right after an update. ── */

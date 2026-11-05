@@ -118,6 +118,18 @@ describe('barre de la liste — 2 colonnes', () => {
     expect(rowShape(actions).at(-1)).toBe('articleList.starred');
   });
 
+  // L-11 : `useToolbarFold` ne retrouve que les traits marqués. Un trait sans
+  // la marque resterait orphelin au bout d'une ligne repliée (tablette).
+  it.each([['2 colonnes', 'desktop', '2'], ['3 colonnes', 'desktop', '3'], ['tablette', 'tablet', '3']] as const)(
+    '%s : chaque trait vertical de la barre d’actions est repérable par le repli (L-11)', (_name, breakpoint, layout) => {
+      bp.value = breakpoint;
+      const bar = show({ layout }).container.querySelector('.list-actions')!;
+      const traits = [...bar.querySelectorAll('.w-px')];
+      expect(traits.length).toBeGreaterThan(0);
+      for (const trait of traits) expect(trait.hasAttribute('data-toolbar-sep')).toBe(true);
+    },
+  );
+
   it('aucun bouton d’action : ni le groupe, ni le trait vertical après le titre', () => {
     const c = show({ layout: '2', hidden: ['search', 'unreadFilter', 'random', 'starredFilter', 'markAllRead'] });
     const bar = c.container.querySelector('.list-actions')!;
