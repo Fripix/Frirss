@@ -1199,7 +1199,8 @@ describe('ReadingPane — traduction de l\'article', () => {
     fireEvent.click(getByRole('button', { name: 'ai.translateArticle' }));
     await findByRole('button', { name: 'ai.showSource' });
     // Le cache mémoire répond sans réseau : « Article complet » l'applique tout de suite.
-    await putExtract('t3', { title: 't', content: '<p>The full article.</p>', excerpt: '', byline: '', siteName: '', length: 20 });
+    // Au moins la moitié du texte du flux, sinon le volet garde le flux (L-04).
+    await putExtract('t3', { title: 't', content: `<p>The full article. ${'text '.repeat(60)}</p>`, excerpt: '', byline: '', siteName: '', length: 320 });
     const extract = container.querySelector('[title="readingPane.fullContent"]') as HTMLElement;
     await act(async () => { fireEvent.click(extract); await Promise.resolve(); });
     expect(bodyText(container)).toContain('The full article.');
@@ -1722,7 +1723,8 @@ describe('ReadingPane — déclencheurs automatiques par flux et catégorie', ()
       await advance(0);
       expect(getByRole('button', { name: 'ai.showSource' })).toBeTruthy();
       expect(articleCalls()).toHaveLength(1);
-      await putExtract('tx3', extracted('<p>The full article, now in the reading pane.</p>'));
+      // Au moins la moitié du texte du flux, sinon le volet garde le flux (L-04).
+      await putExtract('tx3', extracted(`<p>The full article, now in the reading pane. ${'text '.repeat(60)}</p>`));
       const extract = container.querySelector('[title="readingPane.fullContent"]') as HTMLElement;
       await act(async () => { fireEvent.click(extract); await Promise.resolve(); });
       expect(getByRole('button', { name: 'ai.translateArticle' })).toBeTruthy();

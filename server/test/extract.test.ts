@@ -48,6 +48,22 @@ describe('extractArticle', () => {
     expect(out!.content).toContain('https://example.com/img/a.jpg');
   });
 
+  // L-04 (CERT-FR, nouvelle mise en page) : le corps vit dans un bloc que la
+  // première passe de Readability écarte (« candidat improbable »), et il ne
+  // reste qu'une courte section. Au seuil de 50 caractères, ce reste suffisait
+  // et l'« article complet » se réduisait à « Solutions » (135 caractères au
+  // lieu de 2 800). Au seuil par défaut (500), Readability refait une passe
+  // sans écarter, et garde la plus longue.
+  it('ne se contente pas d’une courte section quand le corps est ailleurs', () => {
+    const body = Array.from({ length: 12 }, (_, i) => `<p>Paragraphe ${i} du bulletin, qui décrit la vulnérabilité, les systèmes affectés et le risque encouru, longuement.</p>`).join('');
+    const html = `<!doctype html><html><head><title>Avis</title></head><body>
+      <div class="sidebar-layout">${body}</div>
+      <section><h2>Solutions</h2><p>Se référer au bulletin de sécurité de l’éditeur pour l’obtention des correctifs.</p></section>
+    </body></html>`;
+    const out = extractArticle('https://example.com/avis', html);
+    expect(out!.content).toContain('Paragraphe 11 du bulletin');
+  });
+
   it('rend null quand la page n’a pas d’article lisible', () => {
     const out = extractArticle('https://example.com/a', '<html><body></body></html>');
     expect(out).toBeNull();

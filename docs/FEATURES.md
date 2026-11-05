@@ -2862,6 +2862,14 @@ libellés disaient « plein écran » jusqu'en 1.8.0) au double-clic. Contenu bi
   `<p>&nbsp;</p>` ne compte pas) dont on attend l'extraction. Sans extraction
   automatique, un article vide reste vide : pas de squelette que rien ne
   viendrait remplacer.
+  **Un extrait qui n'a pas la moitié du texte du flux n'est pas montré**
+  (1.9.0, `extractWorthShowing`, appliqué par `readingBodyKind` ET
+  `displayedHtml`, donc corps, fantôme et traduction) : c'est un morceau de la
+  page, pas l'article complet — sur le CERT-FR, l'extraction ne gardait que la
+  section « Solutions » quand le flux portait l'avis entier, et rien ne le
+  signalait. Le flux reste affiché. Comptés : le texte visible, balises
+  retirées. La moitié tolère l'extrait légitimement plus court (le flux répète
+  souvent titre et chapeau).
 - **Pourquoi ce changement** : jusqu'ici, un flux à extraction automatique
   affichait le squelette gris tant que le texte complet n'était pas revenu,
   *alors que le contenu du flux était disponible*. L'application montrait un
@@ -4979,6 +4987,16 @@ serveur de développement en 1.4.4.)*
   `express-rate-limit` émet toujours un `Retry-After` d'au plus 60 s avec une
   fenêtre d'une minute. Rien n'ayant été mis en cache, le passage suivant
   reprend l'article.
+- **Seuil de Readability : 500 caractères, des deux côtés** (1.9.0,
+  `READABILITY_CHAR_THRESHOLD` dans `server/extract.ts`, littéral commenté
+  dans le repli de `extractContent.ts`). C'est la valeur par défaut de
+  Readability ; FriRSS posait 50 depuis le premier commit, sans raison écrite.
+  Le seuil n'est pas un refus : en deçà, Readability refait une passe en
+  écartant moins, puis rend la plus longue. À 50, il se contentait trop tôt —
+  sur la nouvelle mise en page du CERT-FR (AVI-1448), la première passe
+  écartait le corps et gardait « Solutions » : 135 caractères au lieu de
+  2 800. Doublé par la garde du volet (« Ce que le volet montre » : un extrait
+  qui n'a pas la moitié du texte du flux n'est pas montré).
 - **Ce que coûte un repli** : sur 422, 502 ou 503 `Extractor busy`, le site
   d'origine est récupéré **deux fois** — une fois par le serveur, une fois par
   le navigateur — et deux jetons quittent le seau de cadence partagé. (Sur

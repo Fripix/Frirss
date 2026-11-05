@@ -46,12 +46,35 @@ const VISUAL_TAG = /<(?:img|figure|picture|iframe|video|audio|embed|object|svg)\
  */
 export function hasRenderableContent(html?: string | null): boolean {
   if (!html) return false;
-  const text = html
+  if (visibleText(html).length > 0) return true;
+  return VISUAL_TAG.test(html);
+}
+
+/** Le texte lisible d'un HTML : balises retirées, blancs resserrés. */
+function visibleText(html: string): string {
+  return html
     .replace(/<[^<>]*>/g, ' ')
     .replace(/&nbsp;|&#160;|&#xa0;/gi, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
-  if (text.length > 0) return true;
-  return VISUAL_TAG.test(html);
+}
+
+/**
+ * L'extrait mérite-t-il de remplacer le contenu du flux ?
+ *
+ * Oui s'il porte quelque chose, SAUF s'il n'a même pas la moitié du texte du
+ * flux : ce n'est alors pas l'article complet, c'est un morceau de la page.
+ * Sur la nouvelle mise en page du CERT-FR, l'extraction ne gardait que la
+ * section « Solutions » (135 caractères) alors que le flux livrait l'avis
+ * entier — une perte silencieuse, contournée seulement par « Contenu RSS »
+ * (L-04). La moitié laisse passer un extrait légitimement un peu plus court
+ * (le flux répète souvent titre et chapeau) ; l'écart qui trahit un morceau
+ * est d'un ordre de grandeur.
+ */
+export function extractWorthShowing(rssHtml?: string | null, extractedHtml?: string | null): boolean {
+  if (!hasRenderableContent(extractedHtml)) return false;
+  if (!rssHtml) return true;
+  return visibleText(extractedHtml!).length * 2 >= visibleText(rssHtml).length;
 }
 
 /**
@@ -63,7 +86,7 @@ export function hasRenderableContent(html?: string | null): boolean {
  * un squelette que rien ne viendra remplacer serait un mensonge permanent.
  */
 export function readingBodyKind(input: ReadingBodyInput): ReadingBodyKind {
-  if (hasRenderableContent(input.extractedHtml)) return 'extract';
+  if (extractWorthShowing(input.rssHtml, input.extractedHtml)) return 'extract';
   if (hasRenderableContent(input.rssHtml)) return 'rss';
   return input.autoExtract ? 'skeleton' : 'rss';
 }

@@ -163,6 +163,25 @@ describe('extractFullContent — repli local et URLs relatives', () => {
   });
 });
 
+// L-04 : même seuil que la route serveur. À 50 caractères, une courte section
+// restée après la première passe de Readability (la « Solutions » d'un avis du
+// CERT-FR) passait pour l'article entier.
+describe('extractFullContent — repli local : seuil de Readability', () => {
+  it('ne se contente pas d’une courte section quand le corps est ailleurs', async () => {
+    const body = Array.from({ length: 12 }, (_, i) => `<p>Paragraphe ${i} du bulletin, qui décrit la vulnérabilité, les systèmes affectés et le risque encouru, longuement.</p>`).join('');
+    const html = `<!doctype html><html><head><title>Avis</title></head><body>
+      <div class="sidebar-layout">${body}</div>
+      <section><h2>Solutions</h2><p>Se référer au bulletin de sécurité de l’éditeur pour l’obtention des correctifs.</p></section>
+    </body></html>`;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo) => {
+      if (String(input).startsWith('/api/extract')) return new Response('', { status: 422 });
+      return htmlPage(html);
+    }));
+    const out = await extractFullContent('https://example.com/avis-seuil');
+    expect(out.content).toContain('Paragraphe 11 du bulletin');
+  });
+});
+
 // ── La jambe de repli doit être bornée elle aussi ────────────────────
 // Le minuteur de la route serveur visait un backend qui accepte la connexion
 // et ne répond jamais. Or cette panne-là frappe `/api/proxy` exactement de la

@@ -88,6 +88,21 @@ export async function withExtractSlot<T>(run: () => T): Promise<T> {
 }
 
 /**
+ * Seuil de Readability : le nombre de caractères qu'une passe doit trouver
+ * pour être acceptée. En deçà, Readability refait une passe en écartant moins
+ * (candidats « improbables » gardés, poids des classes ignoré…), puis rend la
+ * plus longue. Ce n'est donc jamais un refus : un seuil plus haut ne rend
+ * aucune page « non extractible », il empêche de se contenter trop tôt.
+ *
+ * 500 est la valeur par défaut de Readability. FriRSS posait 50, depuis le
+ * premier commit et sans raison écrite : sur la nouvelle mise en page du
+ * CERT-FR, la première passe écartait le corps et gardait la seule section
+ * « Solutions » — 135 caractères au lieu de 2 800, perte silencieuse (L-04).
+ * Même valeur que le repli du navigateur (`src/utils/extractContent.ts`).
+ */
+export const READABILITY_CHAR_THRESHOLD = 500;
+
+/**
  * Extrait le corps lisible d'une page. **Le HTML rendu est BRUT — il n'est PAS
  * assaini.** `onclick`, `onerror` et le reste survivent tels quels.
  *
@@ -116,7 +131,7 @@ export function extractArticle(url: string, html: string): ExtractedArticle | nu
   base.setAttribute('href', url);
   document.head?.prepend(base);
 
-  const parsed = new Readability(document as never, { charThreshold: 50 }).parse();
+  const parsed = new Readability(document as never, { charThreshold: READABILITY_CHAR_THRESHOLD }).parse();
   if (!parsed?.content) return null;
 
   return {

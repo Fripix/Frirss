@@ -18,6 +18,7 @@
 
 import { sanitizeArticleBody } from '../utils/sanitizeHtml';
 import { dropVideoThumbnails, extractYouTubeId, injectVideoFacades, type FacadeLabels } from './youtube';
+import { extractWorthShowing, hasRenderableContent } from './readingBody';
 
 /** Combien d'images du début échappent au chargement différé. Les premières
  *  doivent être là *avant* la transition de balayage, pas après. */
@@ -59,6 +60,9 @@ export interface ArticleBody {
  */
 export function displayedHtml(rssHtml?: string | null, extractedHtml?: string | null): string {
   if (!extractedHtml) return rssHtml || '';
+  // Un extrait qui n'a pas la moitié du texte du flux est un morceau de la
+  // page, pas l'article complet (L-04) : même règle que `readingBodyKind`.
+  if (hasRenderableContent(extractedHtml) && !extractWorthShowing(rssHtml, extractedHtml)) return rssHtml || '';
   const imgMatch = rssHtml?.match(/<img[^>]+src=["']([^"']+)["']/i);
   if (imgMatch && !extractedHtml.includes(imgMatch[1])) {
     return `<img src="${imgMatch[1].replace(/"/g, '&quot;')}" alt="" />` + extractedHtml;

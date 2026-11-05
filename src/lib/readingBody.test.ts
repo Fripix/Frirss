@@ -1,6 +1,6 @@
 // Ce que le volet de lecture montre à la place de l'article, et quand.
 import { describe, it, expect } from 'vitest';
-import { hasRenderableContent, readingBodyKind, showsSkeleton, showsReadingTime } from './readingBody';
+import { extractWorthShowing, hasRenderableContent, readingBodyKind, showsSkeleton, showsReadingTime } from './readingBody';
 
 const RSS = '<p>Le début de l’article, tel que le flux le livre.</p>';
 const FULL = '<p>Le texte complet, extrait de la page.</p>';
@@ -45,6 +45,32 @@ describe('readingBodyKind', () => {
 
   it('une extraction vide sur un article vide laisse le squelette', () => {
     expect(readingBodyKind({ rssHtml: '', extractedHtml: '', autoExtract: true })).toBe('skeleton');
+  });
+
+  // L-04 : sur un avis du CERT-FR, l'« article complet » ne gardait que la
+  // section « Solutions » quand le flux portait tout le texte — une perte
+  // silencieuse. Un extrait qui n'a même pas la moitié du texte du flux n'est
+  // pas l'article complet : le flux reste.
+  it('garde le flux quand l’extrait a moins de la moitié de son texte', () => {
+    const longRss = `<p>${'Le flux livre ici tout le texte de l’avis. '.repeat(20)}</p>`;
+    expect(readingBodyKind({ rssHtml: longRss, extractedHtml: '<h2>Solutions</h2><p>Voir l’éditeur.</p>', autoExtract: true })).toBe('rss');
+  });
+
+  it('prend l’extrait dès qu’il pèse au moins la moitié du flux', () => {
+    expect(readingBodyKind({ rssHtml: RSS, extractedHtml: FULL, autoExtract: true })).toBe('extract');
+  });
+});
+
+describe('extractWorthShowing', () => {
+  it('compte le texte, pas le balisage', () => {
+    const rss = '<p>un deux trois quatre</p>';
+    const heavy = `<div class="${'x'.repeat(500)}"><p>un</p></div>`;
+    expect(extractWorthShowing(rss, heavy)).toBe(false);
+  });
+
+  it('un extrait sans flux à comparer est toujours bon, s’il n’est pas vide', () => {
+    expect(extractWorthShowing('', FULL)).toBe(true);
+    expect(extractWorthShowing(null, '<p>&nbsp;</p>')).toBe(false);
   });
 });
 

@@ -343,7 +343,11 @@ export async function extractFullContent(url: string): Promise<ExtractedContent>
   // garderait sinon en mémoire s'il porte une vidéo (`parsedDocument.ts`).
   let result: ReturnType<Readability['parse']>;
   try {
-    result = new Readability(doc, { charThreshold: 50 }).parse();
+    // 500, la valeur par défaut de Readability et celle de la route serveur
+    // (`READABILITY_CHAR_THRESHOLD`, `server/extract.ts`, qui dit pourquoi) :
+    // à 50, une courte section restée après la première passe passait pour
+    // l'article entier (L-04).
+    result = new Readability(doc, { charThreshold: 500 }).parse();
   } finally {
     releaseDocument(doc);
   }

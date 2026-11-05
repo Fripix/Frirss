@@ -37,6 +37,13 @@ describe('displayedHtml', () => {
     expect(out).toBe('<img src="https://example.com/a" alt="" /><p>x</p>');
   });
 
+  // L-04 : même règle que `readingBodyKind` — un extrait qui n'a même pas la
+  // moitié du texte du flux n'est pas l'article complet.
+  it('garde le flux quand l’extrait a moins de la moitié de son texte', () => {
+    const longRss = `<p>${'Le flux livre ici tout le texte de l’avis. '.repeat(20)}</p>`;
+    expect(displayedHtml(longRss, '<h2>Solutions</h2><p>Voir l’éditeur.</p>')).toBe(longRss);
+  });
+
   it('tolère un article sans contenu du tout', () => {
     expect(displayedHtml(null, null)).toBe('');
   });
