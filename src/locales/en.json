@@ -929,6 +929,8 @@
     "filterUnreadOff": "Also show read articles",
     "filterStarredOn": "Show favorites only",
     "filterStarredOff": "Show all articles",
+    "randomOn": "Show a random draw",
+    "randomOff": "Leave the random draw",
     "labelCreate": "Create tag {{name}}"
   },
   "dialog": {

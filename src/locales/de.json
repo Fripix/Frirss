@@ -929,6 +929,8 @@
     "filterUnreadOff": "Auch gelesene Artikel anzeigen",
     "filterStarredOn": "Nur Favoriten anzeigen",
     "filterStarredOff": "Alle Artikel anzeigen",
+    "randomOn": "Zufallsauswahl anzeigen",
+    "randomOff": "Zufallsauswahl verlassen",
     "labelCreate": "Label {{name}} erstellen"
   },
   "dialog": {

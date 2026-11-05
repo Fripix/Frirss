@@ -929,6 +929,8 @@
     "filterUnreadOff": "Mostrar también los leídos",
     "filterStarredOn": "Mostrar solo los favoritos",
     "filterStarredOff": "Mostrar todos los artículos",
+    "randomOn": "Mostrar una selección aleatoria",
+    "randomOff": "Salir de la selección aleatoria",
     "labelCreate": "Crear la etiqueta {{name}}"
   },
   "dialog": {

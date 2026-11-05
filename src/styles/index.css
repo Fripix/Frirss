@@ -2195,6 +2195,28 @@ summary:focus-visible,
   .palette, .palette-backdrop { animation: none; }
 }
 
+/* ── Repère du tirage aléatoire (bouton Aléatoire masqué) ─────────── */
+/* La même pastille que le compte de non-lus, à côté de lui : un état de la
+   vue, pas un bouton de plus dans la barre. La croix dit qu'elle en sort.
+   24 px de haut au moins : cible tactile minimale (iPad paysage). */
+.random-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 2px 7px 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--accent);
+  background: var(--badge-bg);
+  transition: background-color 0.15s ease;
+}
+.random-chip:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.random-chip__close { width: 10px; height: 10px; opacity: 0.75; }
+
 /* ── Bascules d'affichage de l'en-tête de liste ───────────────────── */
 /* Elles portaient chacune un fond `--accent-glow` à l'état actif. Sur le
    nouveau fond d'en-tête, plus chaud, ce fond vert ressortait bien plus qu'il

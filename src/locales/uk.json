@@ -965,6 +965,8 @@
     "filterUnreadOff": "Показувати й прочитані",
     "filterStarredOn": "Показувати лише обране",
     "filterStarredOff": "Показувати всі статті",
+    "randomOn": "Показати випадкову вибірку",
+    "randomOff": "Вийти з випадкової вибірки",
     "labelCreate": "Створити мітку {{name}}"
   },
   "dialog": {

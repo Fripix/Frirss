@@ -929,6 +929,8 @@
     "filterUnreadOff": "Ook gelezen artikelen tonen",
     "filterStarredOn": "Alleen favorieten tonen",
     "filterStarredOff": "Alle artikelen tonen",
+    "randomOn": "Willekeurige trekking tonen",
+    "randomOff": "Willekeurige trekking verlaten",
     "labelCreate": "Label {{name}} aanmaken"
   },
   "dialog": {

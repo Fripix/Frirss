@@ -965,6 +965,8 @@
     "filterUnreadOff": "Pokaż też przeczytane",
     "filterStarredOn": "Pokaż tylko ulubione",
     "filterStarredOff": "Pokaż wszystkie artykuły",
+    "randomOn": "Pokaż losowanie",
+    "randomOff": "Zakończ losowanie",
     "labelCreate": "Utwórz etykietę {{name}}"
   },
   "dialog": {

@@ -251,6 +251,38 @@ describe('les commandes offertes à la palette', () => {
     show({ state: { filter: 'starred' } });
     expect(label('starredFilter')).toBe('palette.filterStarredOff');
   });
+
+  // « Aléatoire » au libellé fixe faisait QUITTER le tirage une fois dedans,
+  // bouton masqué, sans que rien ne le dise (campagne 1.9.0, L-18).
+  it('Aléatoire dit s’il entre dans le tirage ou en sort', () => {
+    const label = () => probeToolbarCommands().find((o) => o.command === 'random')?.label;
+    show({ hidden: ['random'] });
+    expect(label()).toBe('palette.randomOn');
+    cleanup();
+    show({ hidden: ['random'], state: { randomView: true } });
+    expect(label()).toBe('palette.randomOff');
+  });
+});
+
+// Aléatoire masqué, un tirage en cours ne se voyait nulle part : la liste
+// paraissait en désordre (campagne 1.9.0, L-18).
+describe('tirage aléatoire, bouton masqué', () => {
+  const chip = (c: ReturnType<typeof render>) => c.queryByRole('button', { name: /^articleList\.random palette\.randomOff$/ });
+
+  it.each(['3', '2'] as const)('%s colonnes : un repère à côté du titre, qui fait sortir du tirage', (layout) => {
+    const setRandomView = vi.fn();
+    const c = show({ layout, hidden: ['random'], state: { randomView: true, setRandomView } });
+    const el = chip(c);
+    expect(el?.textContent).toContain('articleList.random');
+    fireEvent.click(el!);
+    expect(setRandomView).toHaveBeenCalledWith(false);
+  });
+
+  it('aucun repère hors tirage, ni quand le bouton est là pour le dire', () => {
+    expect(chip(show({ hidden: ['random'] }))).toBeNull();
+    cleanup();
+    expect(chip(show({ state: { randomView: true } }))).toBeNull();
+  });
 });
 
 // L-27 : les filtres Non lus et Favoris sont des bascules. En icône seule

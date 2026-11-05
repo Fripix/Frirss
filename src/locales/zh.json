@@ -929,6 +929,8 @@
     "filterUnreadOff": "同时显示已读文章",
     "filterStarredOn": "仅显示收藏",
     "filterStarredOff": "显示所有文章",
+    "randomOn": "显示随机抽取",
+    "randomOff": "退出随机抽取",
     "labelCreate": "创建标签 {{name}}"
   },
   "dialog": {

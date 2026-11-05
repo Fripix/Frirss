@@ -810,6 +810,21 @@ trouvait pas.
 - **Masqués dans ce mode** : « Tout lu » et son pied de liste, gardés aussi dans le
   store car l'écriture viderait toute la vue ; « Marquer au-dessus / en dessous » ;
   les séparateurs de date, qui alterneraient à chaque ligne.
+- **Bouton masqué** (Préférences → Mise en page, desktop) (1.9.0) : rien ne
+  disait qu'un tirage était en cours, la liste paraissait en désordre. Une
+  pastille `RandomChip` (`.random-chip`, mêmes couleurs que le compte de
+  non-lus, à côté de lui) dit « Aléatoire » à côté du titre, en 2 comme en
+  3 colonnes ; la toucher quitte le tirage (croix, infobulle
+  `palette.randomOff`, 24 px de haut au moins pour le doigt sur iPad
+  paysage). Son nom accessible commence par le mot affiché, suivi de
+  « Quitter le tirage aléatoire » en texte masqué : un `aria-label` l'aurait
+  remplacé (WCAG 2.5.3). Absente hors tirage et quand le bouton est visible
+  (il est enfoncé) ; téléphone et tablette montrent toujours le bouton. Barre
+  de la liste entière masquée : pas de titre, donc pas de pastille ; reste la
+  palette. **Dans la palette**, la commande dit son effet comme les filtres :
+  « Afficher un tirage aléatoire » / « Quitter le tirage aléatoire »
+  (`palette.randomOn` / `palette.randomOff`) — « Aléatoire » au libellé fixe
+  faisait sortir du tirage sans le dire.
 - **Limite** : au-delà de 10 000 identifiants, « tous » veut dire les plus récents.
 - **320 px** : six boutons sur la barre, mesuré sans débordement. Leur largeur
   dépend du titre : 40 px avec un titre court, 19 px avec un titre long, comme
@@ -7590,7 +7605,9 @@ l'article (IA) »).
   `runToolbarCommand`) — sans lui, masquer « Étiquettes » rendait toute
   étiquette nouvelle impossible, greader n'en créant qu'en la posant. Les
   libellés disent l'effet selon l'état : « Afficher seulement les non-lus » /
-  « Afficher aussi les articles lus » (`palette.filter*`), « Ajouter aux
+  « Afficher aussi les articles lus » (`palette.filter*`), « Afficher un
+  tirage aléatoire » / « Quitter le tirage aléatoire » (`palette.random*`,
+  1.9.0), « Ajouter aux
   favoris » / « Retirer des favoris », « Ajouter à À lire plus tard » — et
   non « Non lus » ou « Favoris », noms des vues, qu'un filtre masqué ne
   montrerait nulle part ailleurs. La densité n'est proposée que pour les deux

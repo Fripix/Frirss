@@ -920,7 +920,9 @@ export default function ArticleList() {
       { command: 'optDateSeparators', item: 'optDateSeparators', label: optionLabel('articleList.dateSeparators') },
       { command: 'optServerBar', item: 'optServerBar', label: optionLabel('articleList.serverBar') },
     ];
-    if (randomButton && !randomButton.disabled) offers.push({ command: 'random', item: 'random', label: t('articleList.random') });
+    // Comme les filtres : le libellé dit l'effet. « Aléatoire » tout court, une
+    // fois dans le tirage, en faisait sortir sans le dire.
+    if (randomButton && !randomButton.disabled) offers.push({ command: 'random', item: 'random', label: t(randomView ? 'palette.randomOff' : 'palette.randomOn') });
     if (canMarkAll) offers.push({ command: 'markAllRead', item: 'markAllRead', label: t('articleList.markAllRead') });
     if (!gridLayout) {
       // Pas la densité déjà active : la proposer ne ferait rien.
@@ -941,7 +943,8 @@ export default function ArticleList() {
     else if (command.startsWith('density:')) useUiStore.getState().setViewMode(command.slice('density:'.length));
   });
 
-  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), !!randomButton, canMarkAll, is2Panel, layout, shown]);
+  // `randomView` : en 2 colonnes, la pastille du tirage (`RandomChip`) partage la ligne.
+  useToolbarFold(actionRowRef, [t('articleList.search'), t('articleList.random'), !!randomButton, canMarkAll, is2Panel, layout, shown, randomView]);
   // Une bande dit combien d'articles porte sa date, pas combien sont montés.
   const groupTotals = useMemo(
     () => new Map(groupByDate(articles).map((g) => [g.key, g.articles.length])),
@@ -1100,6 +1103,7 @@ export default function ArticleList() {
                 {heading}
               </h2>
               {!searchQuery && <HeaderUnread count={headerUnread} />}
+              {randomView && !showRandomBtn && <RandomChip />}
             </div>
 
             {anyAction && (
@@ -1171,6 +1175,7 @@ export default function ArticleList() {
                   {heading}
                 </h2>
                 {!searchQuery && <HeaderUnread count={headerUnread} />}
+                {randomView && !showRandomBtn && <RandomChip />}
               </div>
 
               {(anyOption || showDensity || showLayout) && (
@@ -1604,6 +1609,36 @@ function HeaderUnread({ count }: { count: number | null }) {
     >
       {count}
     </span>
+  );
+}
+
+/**
+ * Le tirage aléatoire en cours, quand son bouton est masqué (Préférences →
+ * Mise en page) : rien d'autre ne disait pourquoi la liste n'était plus dans
+ * l'ordre. Le toucher fait sortir du tirage — le seul chemin restant hors de
+ * la palette, qui n'existe qu'au clavier. Le bouton visible, il se tait : le
+ * bouton enfoncé le dit déjà. Le téléphone et la tablette montrent toujours
+ * le bouton.
+ */
+function RandomChip() {
+  const { t } = useTranslation();
+  // Le nom accessible commence par le mot affiché (WCAG 2.5.3) : un
+  // `aria-label` « Quitter le tirage » l'aurait remplacé, et « Zufällig »
+  // n'est pas dans « Zufallsauswahl verlassen ».
+  return (
+    <button
+      type="button"
+      className="random-chip"
+      onClick={() => useFeedStore.getState().setRandomView(false)}
+      title={t('palette.randomOff')}
+    >
+      <ShuffleIcon />
+      <span>{t('articleList.random')}</span>
+      <span className="sr-only">{t('palette.randomOff')}</span>
+      <svg className="random-chip__close" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
   );
 }
 
