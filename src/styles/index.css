@@ -1101,6 +1101,48 @@ html {
   visibility: hidden;
 }
 
+/* ☰ de secours (L-10) : barre latérale et barre de la liste masquées sur
+   desktop. Une ancre de hauteur nulle en tête du corps de la liste : rien ne
+   se décale, le bouton flotte au-dessus de la première ligne. Discret au repos
+   (il recouvre un coin de contenu), plein au survol et au focus ; 44 px au
+   doigt, le cas qui l'a fait naître (iPad en paysage, sans clavier). */
+.list-sidebar-reveal-anchor {
+  position: relative;
+  height: 0;
+  flex-shrink: 0;
+  z-index: 15;
+}
+.list-sidebar-reveal {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--list-summary);
+  background: color-mix(in srgb, var(--panel-bg) 88%, transparent);
+  border: 1px solid var(--panel-border);
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+.list-sidebar-reveal:hover,
+.list-sidebar-reveal:focus-visible {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .list-sidebar-reveal {
+    width: 44px;
+    height: 44px;
+    opacity: 0.85;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .list-sidebar-reveal { transition: none; }
+}
+
 /* ── Thin top progress bar (indeterminate) — shown while the app revalidates
    the subscriptions/counts, e.g. on a cold start right after an update. ── */
 .top-progress {

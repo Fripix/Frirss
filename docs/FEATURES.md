@@ -6358,6 +6358,20 @@ pour les administrateurs.
     (`topRule` de `SearchBar`) : il les séparait de la barre, et sans elle
     soulignait le haut de la colonne. Le ☰ (rouvrir la barre latérale) part avec elle : `b` et la
     commande `action:toggleSidebar` restent.
+  - **☰ de secours** (1.9.0, L-10, décision du propriétaire du 2026-11-05) :
+    un iPad en paysage est un desktop (≥ 1024 px) et n'a souvent pas de
+    clavier ; barre de la liste ET barre latérale masquées, rien ne rouvrait
+    la barre latérale (ni `b`, ni la palette, au doigt). Dans ce seul cas —
+    format desktop, `listBar` masquée, `sidebarVisible` faux —, un petit ☰
+    flotte en haut à gauche du corps de la liste (`.list-sidebar-reveal`,
+    `index.css`) : une ancre de hauteur nulle, donc la liste ne bouge pas et
+    commence toujours tout en haut ; sous la zone de recherche quand elle
+    est ouverte. Pastille sur `--panel-bg` translucide bordée de
+    `--panel-border`, atténuée au repos (elle recouvre un coin de la première
+    ligne), pleine au survol et au focus ; 30 px à la souris, 44 px au doigt.
+    Même nom que le ☰ de la barre (`sidebar.showSidebar`), aucune chaîne de
+    plus. Le masquage, lui, reste appliqué sur un écran large tactile. Barre
+    de la liste visible, ou barre latérale ouverte : rien ne change.
   - **Volet sans aucun bouton visible** : `.reading-toolbar` n'est pas rendue
     et la progression passe en liseré en haut du volet, comme sur mobile.
     Masquer Favori ou À lire plus tard retire aussi leur appui long (classer),
@@ -7442,7 +7456,8 @@ l'article (IA) »).
   montrerait nulle part ailleurs. La densité n'est proposée que pour les deux
   modes inactifs (choisir l'actif ne ferait rien), et jamais en grille.
   Commande statique ajoutée :
-  `action:toggleSidebar` (le ☰ vit dans la barre de la liste, masquable).
+  `action:toggleSidebar` (le ☰ vit dans la barre de la liste, masquable ; la
+  barre masquée et la barre latérale fermée, un ☰ de secours le remplace).
   Tests : `toolbarCommands.test.tsx`, `CommandPalette.test.tsx`.
 - **Rien de nouveau n'est stocké** : la palette assemble ce que les stores
   contiennent déjà. Son état d'ouverture n'est ni persisté ni synchronisé.

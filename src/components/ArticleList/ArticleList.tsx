@@ -1333,6 +1333,28 @@ export default function ArticleList() {
         onRetry={retrySearch}
       />
 
+      {/* ☰ de secours (L-10, 1.9.0). Sur desktop, masquer la barre de la liste
+          emporte son ☰ ; si la barre latérale est fermée elle aussi, plus rien
+          ne la rouvre sans clavier (`b`, palette) — un iPad en paysage est un
+          desktop. Seulement dans ce cas. Ancre de hauteur nulle : la liste ne
+          bouge pas, le bouton flotte au-dessus de sa première ligne, sous la
+          zone de recherche si elle est ouverte. */}
+      {isDesktop && !listBarShown && !sidebarVisible && (
+        <div className="list-sidebar-reveal-anchor">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="list-sidebar-reveal"
+            title={t('sidebar.showSidebar')}
+            aria-label={t('sidebar.showSidebar')}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* List */}
       <div
         ref={listRef}

@@ -50,8 +50,8 @@ function visibility(hidden: string[]): ToolbarVisibility {
 }
 const LIST_ITEMS = TOOLBAR_ITEMS.filter((i) => i.zone === 'list').map((i) => i.id);
 
-function show(opts: { hidden?: string[]; layout?: '2' | '3' | 'grid'; state?: Record<string, unknown> } = {}) {
-  useUiStore.setState({ panelLayout: opts.layout ?? '3', toolbarVisibility: visibility(opts.hidden ?? []), sidebarVisible: true } as never);
+function show(opts: { hidden?: string[]; layout?: '2' | '3' | 'grid'; state?: Record<string, unknown>; sidebar?: boolean } = {}) {
+  useUiStore.setState({ panelLayout: opts.layout ?? '3', toolbarVisibility: visibility(opts.hidden ?? []), sidebarVisible: opts.sidebar ?? true } as never);
   useFeedStore.setState({
     articles: rows(3), filter: 'all', selectedFeed: FEED, subscriptions: [FEED], unreadCounts: { 'feed/1': 3 },
     searchQuery: '', randomView: false, randomDraw: 0,
@@ -278,5 +278,45 @@ describe('les filtres Non lus et Favoris annoncent leur état (L-27)', () => {
     c = show({ layout, state: { filter: 'starred' } });
     expect(pressed(c, 'articleList.unread')).toBe('false');
     expect(pressed(c, 'articleList.starred')).toBe('true');
+  });
+});
+
+// L-10 : sur un écran large tactile sans clavier (iPad paysage), la barre
+// latérale ET la barre de la liste masquées ne laissaient plus rien pour
+// rouvrir la barre latérale (le ☰ vit dans la barre de la liste, `b` et la
+// palette demandent un clavier). Décision du 2026-11-05 : un ☰ de secours, dans
+// ce seul cas.
+describe('☰ de secours, barre latérale et barre de la liste masquées (L-10)', () => {
+  const menus = (c: ReturnType<typeof render>) => c.queryAllByRole('button', { name: 'sidebar.showSidebar' });
+
+  it.each(['3', '2', 'grid'] as const)('desktop, disposition %s : un ☰ en haut de la liste rouvre la barre latérale', (layout) => {
+    const c = show({ layout, hidden: ['listBar'], sidebar: false });
+    expect(menus(c)).toHaveLength(1);
+    expect(c.container.querySelector('.article-list-header')).toBeNull();
+    fireEvent.click(menus(c)[0]);
+    expect(useUiStore.getState().sidebarVisible).toBe(true);
+  });
+
+  it('barre latérale visible : pas de ☰', () => {
+    expect(menus(show({ hidden: ['listBar'], sidebar: true }))).toHaveLength(0);
+  });
+
+  it('barre de la liste visible : seul le ☰ de la barre, pas de second', () => {
+    const c = show({ sidebar: false });
+    expect(menus(c)).toHaveLength(1);
+    expect(menus(c)[0].closest('.article-list-header')).not.toBeNull();
+  });
+
+  it('recherche ouverte sans la barre : le ☰ reste, sous la zone de recherche', () => {
+    const c = show({ hidden: ['listBar'], sidebar: false, state: { searchQuery: 'rust' } });
+    expect(menus(c)).toHaveLength(1);
+    expect(menus(c)[0].closest('.article-list-header')).toBeNull();
+  });
+
+  it('tablette : le réglage est ignoré, le ☰ reste celui de la barre', () => {
+    bp.value = 'tablet';
+    const c = show({ hidden: ['listBar'], sidebar: false });
+    expect(menus(c)).toHaveLength(1);
+    expect(menus(c)[0].closest('.article-list-header')).not.toBeNull();
   });
 });
