@@ -67,6 +67,9 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
           ref={ref}
           data-search-input
           type="text"
+          // Du persan, de l'arabe, de l'hébreu s'écrivent de droite à gauche :
+          // le champ suit ce qu'on y tape, la loupe garde sa place à gauche.
+          dir="auto"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={t('articleList.searchIn', { scope })}

@@ -2558,7 +2558,8 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   ramené à gauche par positionnement (`.search-submit`) : dans l'autre ordre, la
   tabulation atteindrait l'envoi avant la saisie. Mesuré à 320 px : 26 × 26 px,
   entièrement dans la gouttière de 32 px que `pl-8` réserve, aucun recouvrement
-  du texte saisi.
+  du texte saisi. Le champ est en `dir="auto"` (1.9.0) : une requête en persan,
+  en arabe ou en hébreu s'écrit de droite à gauche ; la loupe reste à gauche.
 - **Balayage** (`feedStore.runScan`) : le périmètre est lu page par page via
   `fetchStreamPage` (tranches de `SCAN_PAGE` = 1 000, la continuation de chaque
   page ouvrant la suivante), et chaque tranche est filtrée au passage : **seule
@@ -2617,7 +2618,11 @@ catégorie, depuis l'accueil dans tous les flux (`resolveSearchStreamId`).
   pathologique le garde. Le texte
   cherchable de chaque article est calculé **une fois au balayage**, jamais à
   chaque frappe. Pas d'opérateurs, pas de classement par pertinence : l'ordre
-  reste celui du flux, date décroissante.
+  reste celui du flux, date décroissante. **Les guillemets doubles sont
+  retirés de la requête** (`parseQuery`, 1.9.0 ; droits, typographiques,
+  `„ “` et `« »`) : pas de phrase exacte, `"machine learning"` cherche les
+  deux mots. Avant, ils restaient collés aux mots et une recherche entre
+  guillemets ne trouvait rien. L'apostrophe reste, elle appartient au mot.
 - **Le filtre Non lus ne restreint pas la recherche** : on cherche parmi tous
   les articles du périmètre, lus compris — retrouver un article déjà lu est le
   premier usage d'une loupe. Chaque ligne porte son état, donc un article lu ne

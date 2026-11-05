@@ -81,6 +81,13 @@ describe('SearchBar', () => {
     renderBar({ mobile: true });
     expect((screen.getByRole('textbox') as HTMLInputElement).style.fontSize).toBe('16px');
   });
+
+  // Une recherche en persan ou en arabe s'écrivait de gauche à droite : le
+  // champ suit la direction de ce qu'on y tape.
+  it('prend la direction du texte saisi', () => {
+    renderBar();
+    expect(screen.getByRole('textbox').getAttribute('dir')).toBe('auto');
+  });
 });
 
 // Échap n'était écouté que par le champ : après un envoi par la loupe (le

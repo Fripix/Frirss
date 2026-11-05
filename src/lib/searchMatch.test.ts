@@ -114,6 +114,19 @@ describe('parseQuery', () => {
   it('rend un tableau vide pour une requête blanche', () => {
     expect(parseQuery('   ')).toEqual([]);
   });
+
+  // La recherche n'a pas d'opérateurs : des guillemets, réflexe des moteurs
+  // web, restaient collés aux mots et plus rien ne correspondait.
+  it('retire les guillemets droits, typographiques et français', () => {
+    expect(parseQuery('"machine learning"')).toEqual(['machine', 'learning']);
+    expect(parseQuery('“Linux”')).toEqual(['linux']);
+    expect(parseQuery('„Datenschutz“')).toEqual(['datenschutz']);
+    expect(parseQuery('« Sécurité »')).toEqual(['securite']);
+  });
+
+  it('garde l’apostrophe, qui fait partie du mot', () => {
+    expect(parseQuery("l'arbre aujourd’hui")).toEqual(["l'arbre", 'aujourd’hui']);
+  });
 });
 
 describe('matchesTerms', () => {

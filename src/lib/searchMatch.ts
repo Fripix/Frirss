@@ -92,9 +92,17 @@ export function stripHtml(html: string): string {
   return decodeEntities(text).replace(/\s+/g, ' ').trim();
 }
 
-/** Les mots de la requête, normalisés, sans doublon ni vide. */
+/**
+ * Guillemets doubles, droits, typographiques et français. La recherche n'a
+ * pas d'opérateurs (pas de phrase exacte) : collés aux mots, ils empêchaient
+ * toute correspondance — `"linux"` ne trouvait rien. L'apostrophe reste : elle
+ * appartient au mot (« l'arbre »).
+ */
+const QUOTES = /["“”„‟«»]/g;
+
+/** Les mots de la requête, normalisés, sans guillemets, doublon ni vide. */
 export function parseQuery(query: string): string[] {
-  return [...new Set(normalizeForSearch(query).split(/\s+/).filter(Boolean))];
+  return [...new Set(normalizeForSearch(query.replace(QUOTES, ' ')).split(/\s+/).filter(Boolean))];
 }
 
 /**
