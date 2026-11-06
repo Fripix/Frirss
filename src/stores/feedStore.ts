@@ -3455,9 +3455,17 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   renameFeed: async (feedId, newTitle) => {
+    // Relevée AVANT l'appel : après une bascule pendant l'attente, `feed/12`
+    // désigne un autre flux, que la suite renommait sur le serveur suivant.
+    const scope = offlineScope();
     try {
       await editFeed(feedId, newTitle);
       structureChanged(); // une relecture en vol ne l'écrase pas (R2-4)
+      if (offlineScope() !== scope) return true;
+      // Les cartes déjà chargées portent le nom de source de leur lecture :
+      // elles gardaient l'ancien jusqu'au rechargement (troisième round 1.9.0).
+      const rename = (a: Article): Article => (a.sourceId === feedId && a.source !== newTitle ? { ...a, source: newTitle } : a);
+      const renameRows = (rows: Article[]): Article[] => (rows.some((a) => rename(a) !== a) ? rows.map(rename) : rows);
       set((state) => ({
         subscriptions: state.subscriptions.map((s) =>
           s.id === feedId ? { ...s, title: newTitle } : s
@@ -3466,7 +3474,19 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           state.selectedFeed?.id === feedId
             ? { ...state.selectedFeed, title: newTitle }
             : state.selectedFeed,
+        articles: renameRows(state.articles),
+        searchResults: renameRows(state.searchResults),
+        selectedArticle: state.selectedArticle ? rename(state.selectedArticle) : null,
       }));
+      // Les vues en mémoire, que le retour sur une vue peint avant sa
+      // relecture, et les listes gardées hors ligne du flux et de l'accueil
+      // (les mêmes qu'un geste atteint, `feedListKeys`).
+      for (const [key, view] of memCache) {
+        if (!key.startsWith(`${scope}|`)) continue;
+        const articles = renameRows(view.articles);
+        if (articles !== view.articles) memPatch(key, view, articles);
+      }
+      void listsPatch(feedListKeys(scope, [feedId]), renameRows);
       return true;
     } catch {
       return false;

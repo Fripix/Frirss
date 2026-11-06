@@ -5668,6 +5668,18 @@ Renommer, supprimer, et déplacer un flux d'une catégorie à l'autre.
   Écrit une première fois sans elle.
 
 - **Où** : `src/components/Sidebar/AddFeedDialog.tsx`, `feedStore` (`addFeed`, `renameFeed`, `removeFeed`)
+- **Renommer un flux renomme aussi sa source sur les cartes** (troisième
+  round 1.9.0, `feedStore.renameFeed.test.ts`) : la barre latérale et le titre
+  de la vue suivaient, mais les cartes déjà chargées, l'article ouvert et les
+  résultats de recherche affichés gardaient l'ancien nom jusqu'au
+  rechargement. Suivent aussi les vues en mémoire de la portée (le retour sur
+  une vue les peint avant sa relecture) et les listes gardées hors ligne du
+  flux et de l'accueil (`feedListKeys`, les mêmes qu'un geste atteint). Les
+  listes hors ligne de catégorie et le corpus d'une recherche déjà balayée ne
+  suivent pas : la relecture suivante les remet à jour. La portée est relevée
+  **avant** l'appel : réglé après une bascule de serveur, le renommage ne
+  touche rien de l'affichage du nouveau serveur, où `feed/12` désigne un autre
+  flux — il renommait celui-là dans la barre latérale.
 - **Se désabonner retire le flux de partout** (1.8.0, `feedStore.scope.test.ts`) :
   ses articles de la liste affichée, son compteur, le cache mémoire et
   l'instantané de la barre latérale gardé pour le hors ligne ; s'il était
