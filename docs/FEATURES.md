@@ -6436,7 +6436,11 @@ mises en file et rejouées au retour.
   `editTag` construisait sa requête après avoir attendu le jeton d'écriture
   — jusqu'en 1.8, avant que le serveur ne signe —, et l'écriture était partie
   au 2). Si l'un a changé, il s'arrête, et l'action en cours
-  et les suivantes restent intactes, tentatives comprises. Une action dont
+  et les suivantes restent intactes, tentatives comprises. **Le contrôle est
+  refait au moment de l'envoi**, après l'attente de l'action dans la série
+  des écritures (R3-02, troisième round 1.9.0) : une action qui attendait la
+  fin d'un « tout lu » partait vers le serveur suivant si l'on basculait
+  pendant l'attente. Une action dont
   l'envoi a vu le contexte changer est gardée même si l'appel a réussi : on ne
   sait pas quel serveur l'a reçue, et renvoyer le même état est sans danger.
   ⚠️ Avant : une bascule en plein rejeu envoyait la suite au nouveau serveur
@@ -6537,6 +6541,24 @@ mises en file et rejouées au retour.
     part. Un « non lu » encore en vol arrivait sinon après la borne, et
     l'article restait non lu chez FreshRSS, lu à l'écran. Les favoris et
     étiquettes ne sont pas du groupe : une borne ne les attend pas.
+  - **le geste direct revoit sa portée au moment de partir** (R3-01,
+    troisième round 1.9.0, `gestureContextHolds` dans `inOrder`) : ouverture,
+    lu / non lu, favori, « À lire plus tard », étiquettes. Le client envoie au
+    serveur actif AU MOMENT de la requête (`api/client.ts`) : un « non lu »
+    qui attendait la fin d'un « tout lu » partait vers le serveur suivant après
+    une bascule, l'article restait lu sur le premier et le geste était perdu
+    pour lui. La portée du geste (compte et serveur, que la déconnexion vide)
+    n'est plus l'active : l'écriture ne part pas, elle rejette
+    `WriteContextMoved`, sans réponse, donc vue comme une absence de réseau —
+    le geste entre dans la file de SA portée et part au retour de celle-ci
+    (voir *Le retour de la portée relance le rejeu*). Aucun message : il
+    s'afficherait sur l'autre serveur, et rien n'a échoué. Le rejeu fait de
+    même (voir *Le rejeu revérifie portée et session*). Les lots et les
+    bornes, eux, ne partent pas et ne sont pas mis en file : une borne ne
+    nomme aucun article, et un lot porte les numéros sous leur forme décimale,
+    qui ne se fondrait pas avec les actions en file des gestes (forme
+    greader) ; la relecture suivante du premier serveur remet l'écran
+    d'accord avec lui.
 - **Actions sans portée (avant 1.8.0) : elles adoptent la première portée
   active au rejeu** (`adoptUnscopedActions`), et sont comptées dans le
   bandeau dès avant (`pendingHere`). Le cas courant est un seul compte, et

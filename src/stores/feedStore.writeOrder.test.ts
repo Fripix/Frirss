@@ -382,3 +382,100 @@ describe('écritures à borne mises en série (« tout lu », « en dessous »)'
     expect(order).toEqual(['en dessous', 'en dessous ✓', 'non lu']);
   });
 });
+
+// Troisième round 1.9.0 (R3-01, R3-02) : une écriture qui a attendu son tour
+// dans la série revoit son contexte avant de partir. Le client envoie au
+// serveur ACTIF au moment de la requête : après une bascule pendant l'attente,
+// le geste partait vers l'autre serveur, et le premier ne le recevait jamais.
+describe('écriture en attente dans la série : contexte revu avant de partir (R3-01, R3-02)', () => {
+  async function queued() {
+    const store = await import('../lib/offlineStore');
+    const calls = vi.mocked(store.queuePut).mock.calls;
+    return (calls.at(-1)?.[0] ?? []) as { scope?: string; type: string; value: boolean; attempts: number }[];
+  }
+
+  it('un « non lu » qui attendait « tout lu » ne part pas vers le serveur suivant : il est rangé dans la file du premier, et y part à son retour', async () => {
+    const { api, useFeedStore } = await load();
+    const { useAuthStore } = await import('./authStore');
+    const { useUiStore } = await import('./uiStore');
+    const a = useFeedStore.getState().articles[0];
+    const slow = deferred();
+    const seen: string[] = [];
+    vi.mocked(api.markAllAsRead).mockImplementation(async () => { seen.push('tout lu@' + useAuthStore.getState().activeServerId); await slow.promise; });
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { seen.push('non lu@' + useAuthStore.getState().activeServerId); });
+    const p1 = useFeedStore.getState().markAllAsRead();
+    await settled();
+    const p2 = useFeedStore.getState().toggleRead({ ...a, read: true });
+    await settled();
+    useAuthStore.setState({ activeServerId: '2', serverUrl: 'https://b.example' } as never);
+    slow.resolve();
+    await p1.catch(() => {}); await p2; await settled();
+    expect(seen, 'rien ne part vers le serveur 2').toEqual(['tout lu@1']);
+    expect(await queued(), 'le geste attend le serveur 1').toEqual([
+      expect.objectContaining({ scope: '7@1', type: 'read', value: false, attempts: 0 }),
+    ]);
+    expect(useUiStore.getState().toasts, 'aucun message d’échec sur le serveur 2').toEqual([]);
+    useAuthStore.setState({ activeServerId: '1', serverUrl: 'https://a.example' } as never);
+    await settled();
+    expect(seen, 'le geste part au retour du serveur 1').toEqual(['tout lu@1', 'non lu@1']);
+  });
+
+  it('un retrait de favori qui attendait l’ajout ne part pas vers le serveur suivant', async () => {
+    const { api, useFeedStore } = await load();
+    const { useAuthStore } = await import('./authStore');
+    const a = useFeedStore.getState().articles[0];
+    const slow = deferred();
+    vi.mocked(api.markAsStarred).mockImplementation(async () => { await slow.promise; });
+    const p1 = useFeedStore.getState().toggleStar(a);
+    const p2 = useFeedStore.getState().toggleStar({ ...a, starred: true });
+    await settled();
+    useAuthStore.setState({ activeServerId: '2', serverUrl: 'https://b.example' } as never);
+    slow.resolve();
+    await p1; await p2; await settled();
+    expect(api.removeStarred).not.toHaveBeenCalled();
+    expect(await queued()).toEqual([expect.objectContaining({ scope: '7@1', type: 'star', value: false })]);
+  });
+
+  it('l’ouverture qui attendait un « non lu » ne marque pas lu sur le serveur suivant', async () => {
+    const { api, useFeedStore } = await load();
+    const { useAuthStore } = await import('./authStore');
+    const a = useFeedStore.getState().articles[0];
+    const slow = deferred();
+    vi.mocked(api.markAsUnread).mockImplementation(async () => { await slow.promise; });
+    const p1 = useFeedStore.getState().toggleRead({ ...a, read: true });
+    useFeedStore.getState().selectArticle({ ...a, read: false });
+    await settled();
+    useAuthStore.setState({ activeServerId: '2', serverUrl: 'https://b.example' } as never);
+    slow.resolve();
+    await p1; await settled();
+    expect(api.markAsRead).not.toHaveBeenCalled();
+    expect(await queued()).toEqual([expect.objectContaining({ scope: '7@1', type: 'read', value: true })]);
+  });
+
+  it('rejeu qui attendait « tout lu » : l’action ne part pas vers le serveur suivant, elle reste entière pour le premier', async () => {
+    const { api, useFeedStore } = await load();
+    const { useAuthStore } = await import('./authStore');
+    const a = useFeedStore.getState().articles[0];
+    vi.mocked(api.markAsRead).mockRejectedValueOnce(netErr());
+    await useFeedStore.getState().toggleRead(a); // « lu » en file
+    expect(useFeedStore.getState().pendingActions).toBe(1);
+    const slow = deferred();
+    const seen: string[] = [];
+    vi.mocked(api.markAllAsRead).mockImplementation(async () => { seen.push('tout lu@' + useAuthStore.getState().activeServerId); await slow.promise; });
+    vi.mocked(api.markAsRead).mockImplementation(async () => { seen.push('lu rejoué@' + useAuthStore.getState().activeServerId); });
+    const p1 = useFeedStore.getState().markAllAsRead();
+    await settled();
+    const replay = useFeedStore.getState().replayQueue();
+    await settled();
+    useAuthStore.setState({ activeServerId: '2', serverUrl: 'https://b.example' } as never);
+    slow.resolve();
+    await p1.catch(() => {}); await replay; await settled();
+    expect(seen, 'rien ne part vers le serveur 2').toEqual(['tout lu@1']);
+    expect(await queued(), 'l’action reste, sans tentative comptée').toEqual([
+      expect.objectContaining({ scope: '7@1', type: 'read', value: true, attempts: 0 }),
+    ]);
+    useAuthStore.setState({ activeServerId: '1', serverUrl: 'https://a.example' } as never);
+    await settled();
+    expect(seen, 'elle part au retour du serveur 1').toEqual(['tout lu@1', 'lu rejoué@1']);
+  });
+});

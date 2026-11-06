@@ -1171,8 +1171,29 @@ const boundInOrder = <T>(scope: string, write: () => Promise<T>): Promise<T> =>
   writeSerial.barrier(readGroup(scope), write);
 const serialKey = (scope: string, articleId: string, type: QueuedActionType, labelId?: string): string =>
   `${scope}|${actionKey(entryIdUsec(articleId) ?? articleId, type, labelId)}`;
+/**
+ * Le contexte d'un geste a changé pendant son attente dans la série (R3-01,
+ * troisième round 1.9.0) : l'écriture ne part pas. Le client envoie au serveur
+ * ACTIF au moment de la requête (`api/client.ts`) : un « non lu » qui attendait
+ * la fin d'un « tout lu » partait vers le serveur suivant, et le premier ne le
+ * recevait jamais. Sans réponse, l'erreur passe pour une absence de réseau
+ * (`isNetworkFailure`) : le geste entre dans la file de SA portée, et part au
+ * retour de celle-ci, comme une écriture hors ligne.
+ */
+class WriteContextMoved extends Error {
+  constructor() {
+    super('write context moved');
+    this.name = 'WriteContextMoved';
+  }
+}
+/** Portée du geste encore active : son écriture peut partir. La déconnexion
+ *  vide compte et serveur (`authStore.logout`), la portée la voit donc aussi. */
+const gestureContextHolds = (g: Gesture): boolean => offlineScope() === g.scope;
 const inOrder = <T>(g: Gesture, articleId: string, type: QueuedActionType, write: () => Promise<T>, labelId?: string): Promise<T> =>
-  writeSerial(serialKey(g.scope, articleId, type, labelId), write);
+  writeSerial(serialKey(g.scope, articleId, type, labelId), () =>
+    // Revu au moment de partir, pas seulement au geste : l'attente derrière
+    // une écriture en vol ou une borne peut durer.
+    gestureContextHolds(g) ? write() : Promise.reject(new WriteContextMoved()));
 /**
  * Génération de la structure (abonnements, catégories, étiquettes), relecture
  * R2-4 : chaque mutation locale terminée (désabonnement, renommage, suppression,
@@ -2377,8 +2398,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         await enqueueAction(set, g, article, 'read', newRead);
         // La ligne reste partie alors que RIEN n'a été écrit. Hors ligne, le
         // bandeau global suffit ; en ligne — un 5xx de FreshRSS, une requête
-        // restée sans réponse — plus rien ne le signalait.
-        await notifyWriteFailure(err);
+        // restée sans réponse — plus rien ne le signalait. Un geste dont le
+        // serveur a été quitté pendant l'attente (R3-01) n'a pas échoué : il
+        // attend le sien, et le message s'afficherait sur un autre.
+        if (!(err instanceof WriteContextMoved)) await notifyWriteFailure(err);
         return;
       }
       // Rollback sur refus du serveur : tout est rendu, la ligne comprise —
@@ -3856,7 +3879,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         // pas ce que ce geste a confirmé (`settledGestures`, posé dès son
         // règlement) ou remplacé en file.
         let outdated = false;
+        let moved = false;
         await writeSerial(serialKey(scope, action.articleId, action.type, action.labelId), async () => {
+          // Le contexte est revu AVANT l'envoi (R3-02, troisième round) :
+          // l'attente derrière une borne peut couvrir une bascule, et
+          // l'écriture partait alors vers le serveur suivant.
+          if (!memeContexte()) {
+            moved = true;
+            return;
+          }
           const now = actionQueue.find((a) => a.key === action.key);
           if (!now || now.at !== action.at || (settledGestures.get(action.key) ?? 0) > (action.seq ?? 0)) {
             outdated = true;
@@ -3872,6 +3903,9 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             await setArticleLabel(action.articleId, action.labelId, action.value);
           }
         });
+        // Rien n'est parti : l'action et les suivantes restent, intactes,
+        // pour le retour de leur portée.
+        if (moved) { stopped = true; remaining.push(action); continue; }
         if (outdated) continue;
         // La bascule a eu lieu PENDANT l'envoi : rien ne dit quel serveur
         // l'a reçue. Gardée — renvoyer le même état est sans danger.
